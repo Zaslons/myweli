@@ -1,5 +1,7 @@
 import 'package:equatable/equatable.dart';
 
+import '../core/utils/app_clock.dart';
+
 /// The offer ladder (pricing pivot, team access R2a): Pro (5 places) ·
 /// Business (15) · Réseau (multi-salons, 15/salon, tarif personnalisé).
 enum SalonTier { pro, business, reseau }
@@ -55,7 +57,7 @@ class SalonSubscription extends Equatable {
 
   /// Whole days left on the trial, clamped ≥ 0.
   int get trialDaysLeft {
-    final left = trialEndsAt.difference(DateTime.now()).inDays;
+    final left = trialEndsAt.difference(AppClock.now()).inDays;
     return left < 0 ? 0 : left;
   }
 
@@ -75,12 +77,12 @@ class SalonSubscription extends Equatable {
           orElse: () => SalonOfferStatus.expired,
         ),
         trialEndsAt: DateTime.tryParse(json['trialEndsAt'] as String? ?? '') ??
-            DateTime.now(),
+            AppClock.now(),
         paidUntil: json['paidUntil'] == null
             ? null
             : DateTime.tryParse(json['paidUntil'] as String),
         graceEndsAt: DateTime.tryParse(json['graceEndsAt'] as String? ?? '') ??
-            DateTime.now(),
+            AppClock.now(),
         unpublishedForBilling: json['unpublishedForBilling'] as bool? ?? false,
         seats: SalonSeats.fromJson(
           (json['seats'] as Map?)?.cast<String, dynamic>() ?? const {},

@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test';
 
+import { signInPro } from './_auth';
+
 /// B2a — the named z-index scale actually stacks (WEB-SYSTEM §9).
 ///
 /// Why this file exists: B2a remapped every z-index from a bare number to a named
@@ -13,14 +15,6 @@ import { expect, test } from '@playwright/test';
 
 test.use({ viewport: { width: 375, height: 812 } });
 
-async function proLogin(page: import('@playwright/test').Page) {
-  await page.goto('/pro/connexion');
-  await page.locator('input[type=email]').fill('salon@example.com');
-  await page.getByRole('button', { name: 'Continuer avec e-mail' }).click();
-  await page.locator('input[type=text]').fill('123456');
-  await page.getByRole('button', { name: 'Se connecter' }).click();
-  await expect(page).toHaveURL(/\/pro(\/)?$/);
-}
 
 /// Is `locator` (or a descendant) the element actually painted at the centre of
 /// its own box? If anything covers it, this is false however visible it looks.
@@ -50,7 +44,7 @@ test.describe(() => {
   // scrim. A tie at one layer means one of them is at the wrong layer: the panel
   // is not modal (no scrim, doesn't block the page) → `z-dropdown`; the drawer is
   // page chrome over everything → `z-modal`.
-    await proLogin(page);
+    await signInPro(page);
     // Navigate directly: the nav link lives INSIDE the drawer we are about to
     // test, and clicking it would close the drawer on navigation.
     await page.goto('/pro/rendez-vous');

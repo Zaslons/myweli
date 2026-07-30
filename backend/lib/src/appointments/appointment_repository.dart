@@ -33,6 +33,18 @@ abstract interface class AppointmentRepository {
   /// Merge [changes] into the stored appointment; returns the updated record,
   /// or null if it doesn't exist.
   Future<Map<String, dynamic>?> update(String id, Map<String, dynamic> changes);
+  // ---- Privacy (L1 erasure) ------------------------------------------------
+
+  /// Strip the person out of their bookings, and hand back the deposit
+  /// screenshot keys that were cleared so the caller can erase the objects.
+  ///
+  /// The row survives: once the name, phone and notes are gone, a dangling
+  /// opaque `user_id` is a business record, not an identity, and the salon
+  /// needs its booking history to reconcile takings.
+  ///
+  /// **Not expressible through [update]** — `clientName`, `clientPhone` and
+  /// `notes` are not in its `sets` builder, so it cannot clear them.
+  Future<List<String>> anonymizeUser(String userId);
 
   /// Admin analytics: a count of appointments per `status`
   /// (`pending`/`confirmed`/`completed`/`cancelled`/`noShow`).
@@ -165,5 +177,20 @@ class InMemoryAppointmentRepository implements AppointmentRepository {
       }
     }
     return null;
+  }
+
+  @override
+  Future<List<String>> anonymizeUser(String userId) async {
+    final keys = <String>[];
+    for (final a in _all) {
+      if (a['userId'] != userId) continue;
+      final key = a['depositScreenshotUrl'];
+      if (key is String && key.isNotEmpty) keys.add(key);
+      a['clientName'] = null;
+      a['clientPhone'] = null;
+      a['notes'] = null;
+      a['depositScreenshotUrl'] = null;
+    }
+    return keys;
   }
 }

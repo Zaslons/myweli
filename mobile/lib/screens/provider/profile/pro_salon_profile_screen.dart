@@ -328,6 +328,18 @@ class _ProSalonProfileScreenState extends State<ProSalonProfileScreen> {
               ),
               const SizedBox(height: AppTheme.spacingS),
               DropdownButtonFormField<String>(
+                // A11 C8 — see pro_register_screen.dart: without this the
+                // button takes its WIDEST item's intrinsic width and overflows
+                // the field at 200% text.
+                isExpanded: true,
+                // A12: `itemHeight` defaults to `kMinInteractiveDimension`
+                // (48), a FIXED height around text — so at 200% « Salon de
+                // beauté » wraps to two lines, needs 96dp and is clipped to 48
+                // the moment the menu opens. A11 C8 fixed the BUTTON with
+                // `isExpanded`; the items it lists were still frozen one level
+                // down, and nothing could see it until `expectNoVerticalClip`.
+                // `null` lets each item take its intrinsic height (§13.3).
+                itemHeight: null,
                 initialValue: _category,
                 items: [
                   for (final c in salonCategories)

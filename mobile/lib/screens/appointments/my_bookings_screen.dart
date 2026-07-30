@@ -73,6 +73,13 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
         title: const Text('Mes rendez-vous'),
         bottom: TabBar(
           controller: _tabController,
+          // §13.3's width twin — see otp_code_row.dart and
+          // earnings_screen.dart for the full argument. Three tabs fit at
+          // 1× and « Passés » (91.9dp) and « Annulés » (102.0dp) do not fit
+          // their 88.0/93.0dp shares at 200% text, where they fade away in
+          // silence. `center` keeps today's look while they fit.
+          isScrollable: true,
+          tabAlignment: TabAlignment.center,
           tabs: const [
             Tab(text: 'À venir'),
             Tab(text: 'Passés'),
@@ -189,7 +196,10 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
           Expanded(
             child: _summaryMetric(
               '${visits.length}',
-              visits.length == 1 ? 'visite' : 'visites',
+              // A13 — `== 1` printed « 0 visites »; French puts zero in
+              // the singular. The number renders separately here, so this is
+              // the noun-only helper.
+              Formatters.plural(visits.length, 'visite', 'visites'),
             ),
           ),
           const SizedBox(width: AppTheme.spacingM),

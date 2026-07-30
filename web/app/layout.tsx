@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import '../styles/globals.css';
 import { SiteChrome } from '../components/SiteChrome';
+import { SiteFooter } from '../components/SiteFooter';
 import { jsonLdScript, organizationJsonLd } from '../lib/seo/jsonld';
 import { defaultMetadata } from '../lib/seo/metadata';
 
@@ -30,6 +31,10 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         </a>
         <SiteChrome />
         <div id="contenu">{children}</div>
+        {/* §4's fourth landmark, and the product's first. It must sit AFTER the
+            content — `SiteChrome` renders above it — and it is unconditional:
+            see the component for why `/pro` gets one too. */}
+        <SiteFooter />
       </body>
     </html>
   );

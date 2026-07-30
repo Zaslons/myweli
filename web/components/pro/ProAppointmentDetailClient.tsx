@@ -172,9 +172,15 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
       </h1>
 
       <Card as="section" className="mt-m">
-        <div className="flex items-center justify-between gap-m">
+        {/* B11: the fifth and sixth copies of this shape, and the two that
+            matter most — the heading here is a SALON NAME, unbounded user
+            data, sitting beside a status chip with nothing allowed to
+            wrap. The four fixed earlier all hold fixed page titles. The
+            review caught these; the census had listed them under "button
+            clusters" rather than title toolbars. */}
+        <div className="flex flex-wrap items-center justify-between gap-m">
           <p className="flex items-center gap-s font-medium text-textPrimary">
-            {appt.clientName ?? 'Client'}
+            {appt.clientDisplayName ?? appt.clientName ?? 'Client'}
             {noShowBadge(appt.clientNoShowCount) !== 'none' ? (
               <Chip
                 variant={noShowBadge(appt.clientNoShowCount) === 'red' ? 'tinted' : 'neutral'}

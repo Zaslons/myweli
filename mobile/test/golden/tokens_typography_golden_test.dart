@@ -16,7 +16,7 @@ import '../support/golden.dart';
 /// 11px floor — `labelSmall` is the smallest text the product is allowed to use.
 void main() {
   group('goldens', () {
-    setUpAll(loadGoldenFonts);
+    setUpAll(loadRealFonts);
 
     testWidgets('the type scale', (tester) async {
       await pumpGolden(
@@ -123,7 +123,7 @@ class _TiersSheet extends StatelessWidget {
 }
 
 const _meta = TextStyle(
-  fontFamily: kGoldenFont,
+  fontFamily: kRealFont,
   fontSize: 10,
   fontWeight: FontWeight.w500,
   letterSpacing: 0.8,

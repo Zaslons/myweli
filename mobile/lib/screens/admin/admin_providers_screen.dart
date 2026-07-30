@@ -139,8 +139,8 @@ class _AdminProvidersScreenState extends State<AdminProvidersScreen> {
     final featured = r['featured'] == true;
     final suspended = r['status'] == 'suspended';
     return Wrap(
-      spacing: 8,
-      runSpacing: 8,
+      spacing: AppTheme.spacingS,
+      runSpacing: AppTheme.spacingS,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
         IconButton(

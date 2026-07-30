@@ -4,6 +4,7 @@ import 'package:myweli/widgets/common/loading_indicator.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/a11y/reduce_motion.dart';
+import '../../core/constants/booking_horizons.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/motion.dart';
@@ -19,6 +20,8 @@ import '../../providers/provider_provider.dart';
 import '../../widgets/booking/length_variant_selector.dart';
 import '../../widgets/common/app_snack_bar.dart';
 import '../../widgets/common/inline_feedback.dart';
+import '../../widgets/common/label_value_row.dart';
+import '../../widgets/common/myweli_date_picker.dart';
 
 class BookingDraft {
   final String providerId;
@@ -740,12 +743,13 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
                                   _selectedDate.month,
                                   _selectedDate.day,
                                 );
-                                final picked = await showDatePicker(
+                                final picked = await showMyweliDatePicker(
                                   context: context,
                                   initialDate: initial,
                                   firstDate: salonToday(tz: _tz),
-                                  lastDate: salonToday(tz: _tz)
-                                      .add(const Duration(days: 365)),
+                                  lastDate:
+                                      salonToday(tz: _tz).add(kBookingHorizon),
+                                  today: salonToday(tz: _tz),
                                 );
                                 if (!mounted || picked == null) return;
                                 setState(() => _selectedDate = picked);
@@ -774,8 +778,8 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
                               )
                             else
                               Wrap(
-                                spacing: 10,
-                                runSpacing: 10,
+                                spacing: AppTheme.spacingS,
+                                runSpacing: AppTheme.spacingS,
                                 children:
                                     _availableSlotsForSelectedDate.map((slot) {
                                   final selected = _draft.dateTime != null &&
@@ -841,17 +845,13 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
                   ),
                   child: Column(
                     children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text('Total', style: AppTextStyles.titleMedium),
-                          Text(
-                            Formatters.formatCurrency(totalPrice,
-                                currency: p.currency),
-                            style: AppTextStyles.titleLarge
-                                .copyWith(color: AppColors.primary),
-                          ),
-                        ],
+                      LabelValueRow(
+                        label: 'Total',
+                        value: Formatters.formatCurrency(totalPrice,
+                            currency: p.currency),
+                        labelStyle: AppTextStyles.titleMedium,
+                        valueStyle: AppTextStyles.titleLarge
+                            .copyWith(color: AppColors.primary),
                       ),
                       if (totalDuration > 0) ...[
                         const SizedBox(height: AppTheme.spacingXS),

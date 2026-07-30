@@ -32,7 +32,7 @@ export function ProAppointmentRow({
       <div>
         <p className="font-medium text-textPrimary">
           {slotTime(appt.appointmentDate, tz ?? undefined)} ·{' '}
-          {appt.clientName ?? 'Client'}
+          {appt.clientDisplayName ?? appt.clientName ?? 'Client'}
         </p>
         <p className="text-bodyMedium text-textTertiary">
           {(appt.serviceIds ?? [])

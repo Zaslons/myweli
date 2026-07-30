@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
@@ -16,6 +15,7 @@ import '../../../providers/pro_auth_provider.dart';
 import '../../../widgets/common/app_button.dart';
 import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/inline_feedback.dart';
+import '../../../widgets/common/otp_code_row.dart';
 
 class ProOtpVerifyScreen extends StatefulWidget {
   final String phoneNumber;
@@ -77,13 +77,18 @@ class _ProOtpVerifyScreenState extends State<ProOtpVerifyScreen> {
     });
   }
 
-  void _onOtpChanged(int index, String value) {
+  /// The row hands back the whole code after every edit.
+  ///
+  /// A11 C3: focus advance used to be the only thing this did. Autofill, paste
+  /// distribution and backspace now arrive with [OtpCodeRow] — this screen had
+  /// none of the three — and with them the sixth digit can submit on its own,
+  /// the way the consumer screen has always done.
+  void _onCodeChanged(String code) {
     // §14 rule 2 — the review found the fault surviving a full retype and even
     // a « Renvoyer », so the screen kept accusing a code the user had replaced.
     if (_inlineError != null) setState(() => _inlineError = null);
-    if (value.isNotEmpty && index < 5) {
-      _focusNodes[index + 1].requestFocus();
-    }
+
+    if (code.length == 6 && !_isLoading) _handleVerify();
   }
 
   Future<void> _handleVerify() async {
@@ -148,7 +153,12 @@ class _ProOtpVerifyScreenState extends State<ProOtpVerifyScreen> {
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(AppTheme.spacingL),
+          // spacingM, not spacingL, and it is load-bearing rather than
+          // cosmetic: the six flexed boxes are `(W − 2×pad − 40)/6`, so at
+          // spacingL they come out **45.33dp at 360 — under §13.2's 48 floor,
+          // and silently**, because nothing overflows. At spacingM they are
+          // exactly 48.0. The padding is what buys the tap target.
+          padding: const EdgeInsets.all(AppTheme.spacingM),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -175,73 +185,10 @@ class _ProOtpVerifyScreenState extends State<ProOtpVerifyScreen> {
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: AppTheme.spacingXL),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(6, (index) {
-                  return Container(
-                    width: 50,
-                    height: 64,
-                    margin: EdgeInsets.only(
-                      left: index == 0 ? 0 : AppTheme.spacingXS,
-                      right: index == 5 ? 0 : AppTheme.spacingXS,
-                    ),
-                    child: TextField(
-                      controller: _controllers[index],
-                      focusNode: _focusNodes[index],
-                      textAlign: TextAlign.center,
-                      textAlignVertical: TextAlignVertical.center,
-                      keyboardType: TextInputType.number,
-                      maxLength: 1,
-                      obscureText: false,
-                      style: AppTextStyles.headlineMedium.copyWith(
-                        color: AppColors.textPrimary,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 0,
-                        height: 1.2,
-                      ),
-                      inputFormatters: [
-                        FilteringTextInputFormatter.digitsOnly,
-                      ],
-                      decoration: InputDecoration(
-                        counterText: '',
-                        contentPadding: const EdgeInsets.symmetric(
-                            vertical: AppTheme.spacingM),
-                        isDense: false,
-                        border: OutlineInputBorder(
-                          borderRadius:
-                              BorderRadius.circular(AppTheme.radiusLarge),
-                          borderSide: const BorderSide(
-                              color: AppColors.borderStrong, width: 1.5),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius:
-                              BorderRadius.circular(AppTheme.radiusLarge),
-                          borderSide: const BorderSide(
-                              color: AppColors.borderStrong, width: 1.5),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius:
-                              BorderRadius.circular(AppTheme.radiusLarge),
-                          borderSide: const BorderSide(
-                            color: AppColors.primary,
-                            width: 2.5,
-                          ),
-                        ),
-                        filled: true,
-                        fillColor: AppColors.secondary,
-                      ),
-                      onChanged: (value) => _onOtpChanged(index, value),
-                      onTap: () {
-                        if (_controllers[index].text.isEmpty) {
-                          _controllers[index].selection =
-                              const TextSelection.collapsed(
-                            offset: 0,
-                          );
-                        }
-                      },
-                    ),
-                  );
-                }),
+              OtpCodeRow(
+                controllers: _controllers,
+                focusNodes: _focusNodes,
+                onChanged: _onCodeChanged,
               ),
               // §14 rule 1, as close to "under the field" as six boxes allow:
               // the message sits with the thing it is about, and stays until

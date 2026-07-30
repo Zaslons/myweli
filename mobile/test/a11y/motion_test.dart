@@ -10,7 +10,15 @@ import 'package:myweli/screens/stories/story_viewer.dart';
 import 'package:myweli/widgets/common/brand_loader.dart';
 
 import '../support/pump_app.dart';
+import '../support/surface.dart';
 import '_motion.dart';
+
+/// The width this file pins (A12 — §21 row 60).
+///
+/// Named rather than repeated, because two tap coordinates are derived from it
+/// and a bare `360` at a call site is exactly the literal that made the previous
+/// `Offset(700, …)` survive: it looked like a considered number.
+const double _kPinnedWidth = 360;
 
 /// A8 — the app listens when the OS says stop (SYSTEM.md §9, §21 row 20).
 ///
@@ -34,6 +42,7 @@ void main() {
       // The control. Without it the assertion below could pass on a loader that
       // never animated at all — and this is also the reason 18 test files
       // hand-roll `settle()` instead of using `pumpAndSettle`.
+      pinSurface(tester, size: const Size(_kPinnedWidth, 1600));
       await pumpApp(tester, home: const Scaffold(body: BrandLoader()));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 400));
@@ -113,6 +122,7 @@ void main() {
       // turns Reduce Motion on, and comes back. Nothing rebuilds on its own —
       // `_updateData`'s `if (newData != _data)` is false when only
       // `reduceMotion` moved, because `MediaQueryData` does not carry it.
+      pinSurface(tester, size: const Size(_kPinnedWidth, 1600));
       await pumpApp(tester, home: const Scaffold(body: BrandLoader()));
       await tester.pump();
       expect(tester.binding.hasScheduledFrame, isTrue,
@@ -137,6 +147,7 @@ void main() {
       // `removeObserver` means the next flag change calls `setState` on a
       // defunct State — which throws, from inside a platform callback, far from
       // the widget that caused it.
+      pinSurface(tester, size: const Size(_kPinnedWidth, 1600));
       await pumpApp(tester, home: const Scaffold(body: BrandLoader()));
       await tester.pump();
       await tester.pumpWidget(const SizedBox());
@@ -185,6 +196,7 @@ void main() {
     testWidgets('with motion ON, the moving mark still has a label',
         (tester) async {
       final handle = tester.ensureSemantics();
+      pinSurface(tester, size: const Size(_kPinnedWidth, 1600));
       await pumpApp(tester, home: const Scaffold(body: BrandLoader()));
       await tester.pump();
 
@@ -275,11 +287,19 @@ void main() {
       // is that every story reel throws on its first advance for exactly the
       // users the slice was written for.
       await pumpWithReducedMotion(tester, const SizedBox.shrink());
+      pinSurface(tester, size: const Size(_kPinnedWidth, 1600));
       await tester.pumpWidget(wrapApp(home: storyReel()));
       await tester.pump();
 
       // Tap the right 65 % — `_onTapDown`'s advance.
-      await tester.tapAt(const Offset(700, 400));
+      //
+      // **The x is derived, not written (A12).** It was `Offset(700, 400)`,
+      // chosen against `flutter_test`'s 800dp default; on the 360dp surface
+      // this file now pins, x=700 is off-screen and the tap lands on nothing —
+      // the reel does not advance and the assertion below reads 0.0 pages. A
+      // coordinate that only exists on a surface no device has is a fixture
+      // bug, and pinning a phone is what exposed it.
+      await tester.tapAt(Offset(_kPinnedWidth * 0.8, 400));
       await tester.pump();
 
       expect(tester.takeException(), isNull,
@@ -296,10 +316,11 @@ void main() {
       // Without this, the assertion above is satisfied by a reel that jumps
       // for everyone, which is not what §9 asks for and would be a silent
       // product change for every other user.
+      pinSurface(tester, size: const Size(_kPinnedWidth, 1600));
       await tester.pumpWidget(wrapApp(home: storyReel()));
       await tester.pump();
 
-      await tester.tapAt(const Offset(700, 400));
+      await tester.tapAt(Offset(_kPinnedWidth * 0.8, 400));
       await tester.pump();
       await tester.pump(kOneFrame);
 
@@ -334,6 +355,7 @@ void main() {
         ],
       );
       await pumpWithReducedMotion(tester, const SizedBox.shrink());
+      pinSurface(tester, size: const Size(_kPinnedWidth, 1600));
       await tester.pumpWidget(wrapApp(routerConfig: router));
       // The composition is decoded off a real bundle read, and until it lands
       // the widget schedules frames for the LOAD, not for motion — asserting

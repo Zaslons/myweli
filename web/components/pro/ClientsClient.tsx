@@ -117,7 +117,13 @@ export function ClientsClient() {
 
   return (
     <div>
-      <div className="flex items-center justify-between gap-m">
+      {/* B11: a heading beside a French button label, with nothing
+          allowed to wrap. Six sibling toolbars in this product already
+          wrap; these four did not. Latent at 320 with the seeded copy —
+          fixed anyway, because B9 shipped five identical tab strips of
+          which only one was live and the other four were one string
+          away. */}
+      <div className="flex flex-wrap items-center justify-between gap-m">
         <h1 className="text-headlineSmall font-semibold text-textPrimary">Clients</h1>
         <Button onClick={() => setAdding(true)}>+ Ajouter un client</Button>
       </div>
@@ -202,7 +208,11 @@ export function ClientsClient() {
                     <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-pill bg-surface text-labelMedium font-medium text-textPrimary">
                       {c.displayName.slice(0, 1).toUpperCase()}
                     </span>
-                    <span className="truncate font-medium text-textPrimary">
+                    {/* B11: measured « Koffi » cut at 28px of 32 — the avatar,
+                        the gap and the « MyWeli » chip had eaten the column, so
+                        even a five-letter name did not fit. A client's name is
+                        what this row is for; it wraps rather than truncates. */}
+                    <span className="min-w-0 break-words font-medium text-textPrimary">
                       {c.displayName}
                     </span>
                     {c.linked ? (

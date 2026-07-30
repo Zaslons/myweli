@@ -6,6 +6,23 @@ import { SALON_TZ, salonFormatter } from './time';
 
 const fcfa = new Intl.NumberFormat('fr-FR');
 
+/// « 0 visite » · « 1 visite » · « 2 visites » — a count and its noun (A13).
+///
+/// The web twin of `Formatters.count` (mobile `core/utils/formatters.dart`),
+/// and it exists for the same one fact: **French puts 0 in the SINGULAR.**
+/// A13's sweep found mobile had grown four idioms that disagree at exactly that
+/// value; the same slice's review found the web claim "every web site already
+/// uses `> 1`" was false — `JournalPanel` hard-coded « visites »/« absences »
+/// unguarded, so a client with one visit read « 1 visites ».
+///
+/// `Intl.PluralRules('fr')` rather than a ternary, so CLDR owns the rule and
+/// the locale is named rather than inherited.
+const frPlural = new Intl.PluralRules('fr-FR');
+
+export function countFr(n: number, one: string, other: string): string {
+  return `${n} ${frPlural.select(n) === 'one' ? one : other}`;
+}
+
 /// XOF and XAF (the two CFA francs) both read « FCFA » — the colloquial name
 /// across the zone (docs/modules/multi-pays.md §4); any other ISO code
 /// renders as itself. Defaults to XOF (Côte d'Ivoire).

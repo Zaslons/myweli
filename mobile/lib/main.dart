@@ -22,6 +22,7 @@ import 'providers/notification_preferences_provider.dart';
 import 'providers/notifications_provider.dart';
 import 'providers/provider_provider.dart';
 import 'services/push/fcm_message_bridge.dart';
+import 'widgets/common/content_width_cap.dart';
 
 void main() {
   // Run inside a guarded zone so framework errors and uncaught async errors
@@ -121,6 +122,13 @@ class MyweliApp extends StatelessWidget {
           title: 'Myweli',
           debugShowCheckedModeBanner: false,
           theme: AppTheme.lightTheme,
+          // §10's content cap. Above the Router and below ScaffoldMessenger,
+          // so no screen has to know it exists — and below 720 it is the
+          // identity, which is every phone this ships to. See
+          // ContentWidthCap: `main_admin.dart` deliberately does NOT install
+          // it, and a source pin holds that.
+          builder: (context, child) =>
+              ContentWidthCap(child: child ?? const SizedBox.shrink()),
           routerConfig: AppRouter.router,
         ),
       ),

@@ -7,6 +7,7 @@ import '../../core/di/dependency_injection.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
+import '../../core/utils/app_clock.dart';
 import '../../core/utils/calendar_event.dart';
 import '../../core/utils/cancellation_policy.dart';
 import '../../core/utils/formatters.dart';
@@ -109,7 +110,7 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
     final provider = Provider.of<AppointmentProvider>(context, listen: false);
     final outcome = cancellationOutcome(
       appointmentDate: appointment.appointmentDate,
-      now: DateTime.now(),
+      now: AppClock.now(),
       windowHours: appointment.cancellationWindowHours,
       depositAmount: appointment.depositAmount,
     );
@@ -526,7 +527,7 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
                 // Action Buttons
                 if (appointment.status != AppointmentStatus.cancelled &&
                     appointment.status != AppointmentStatus.completed) ...[
-                  if (appointment.appointmentDate.isAfter(DateTime.now())) ...[
+                  if (appointment.appointmentDate.isAfter(AppClock.now())) ...[
                     AppButton(
                       text: 'Reporter',
                       icon: Icons.event_repeat,

@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import '../core/di/dependency_injection.dart';
+import '../core/utils/app_clock.dart';
 import '../core/utils/visit_history.dart' as vh;
 import '../models/appointment.dart';
 import '../services/interfaces/appointment_service_interface.dart';
@@ -20,7 +21,7 @@ class AppointmentProvider extends ChangeNotifier {
   String? get error => _error;
 
   List<Appointment> get upcomingAppointments {
-    final now = DateTime.now();
+    final now = AppClock.now();
     return _appointments
         .where((a) =>
             a.appointmentDate.isAfter(now) &&
@@ -30,7 +31,7 @@ class AppointmentProvider extends ChangeNotifier {
   }
 
   List<Appointment> get pastAppointments {
-    final now = DateTime.now();
+    final now = AppClock.now();
     return _appointments.where((a) => a.appointmentDate.isBefore(now)).toList()
       ..sort((a, b) => b.appointmentDate.compareTo(a.appointmentDate));
   }
@@ -44,7 +45,7 @@ class AppointmentProvider extends ChangeNotifier {
 
   /// Completed past visits (effective status), newest first.
   List<Appointment> get visitHistory =>
-      vh.visitHistory(_appointments, DateTime.now());
+      vh.visitHistory(_appointments, AppClock.now());
 
   bool hasCompletedBookingAt(String providerId, String userId) =>
       latestCompletedAppointmentId(providerId, userId) != null;

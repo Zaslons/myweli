@@ -276,8 +276,8 @@ class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
                     )
                   else
                     Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
+                      spacing: AppTheme.spacingS,
+                      runSpacing: AppTheme.spacingS,
                       children: _availableSlots.map((slot) {
                         final isSelected = _selectedTime != null &&
                             _selectedTime!.hour == slot.hour &&

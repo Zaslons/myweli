@@ -42,8 +42,14 @@ import { uploadGalleryImage } from '../../lib/pro/upload';
 import { focusOnMount } from '../../lib/focusOnMount';
 import { Button } from '../Button';
 import { SkeletonRows } from '../Skeleton';
+import { Tabs } from '../Tabs';
 
 type Tab = 'services' | 'equipe';
+
+const CATALOGUE_TABS: { key: Tab; label: string }[] = [
+  { key: 'services', label: 'Services' },
+  { key: 'equipe', label: 'Employés' },
+];
 // `open` = which form shows: null · 'new' · an item id (edit).
 type Open = null | 'new' | string;
 
@@ -96,34 +102,26 @@ export function CatalogueClient() {
 
   return (
     <div>
-      <div className="flex items-center justify-between gap-m">
+      {/* B11: a heading beside a French button label, with nothing
+          allowed to wrap. Six sibling toolbars in this product already
+          wrap; these four did not. Latent at 320 with the seeded copy —
+          fixed anyway, because B9 shipped five identical tab strips of
+          which only one was live and the other four were one string
+          away. */}
+      <div className="flex flex-wrap items-center justify-between gap-m">
         <h1 className="text-headlineSmall font-semibold text-textPrimary">Catalogue</h1>
         {open !== 'new' ? (
           <Button onClick={() => setOpen('new')}>{addLabel}</Button>
         ) : null}
       </div>
 
-      <div className="mt-l flex gap-s border-b border-divider">
-        {(
-          [
-            { key: 'services', label: 'Services' },
-            { key: 'equipe', label: 'Employés' },
-          ] as { key: Tab; label: string }[]
-        ).map((t) => (
-          <button
-            key={t.key}
-            type="button"
-            onClick={() => switchTab(t.key)}
-            className={`px-m py-s text-bodyMedium ${
-              tab === t.key
-                ? 'border-b-2 border-primary text-textPrimary'
-                : 'text-textTertiary'
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <Tabs
+        label="Catégorie du catalogue"
+        className="mt-l"
+        value={tab}
+        onChange={switchTab}
+        items={CATALOGUE_TABS}
+      />
 
       {open === 'new' ? (
         <div className="mt-m">
@@ -159,7 +157,10 @@ export function CatalogueClient() {
                 { label: 'Actions', flex: 1, align: 'right' },
               ],
               (sv) => [
-                <span key="n" className="min-w-0 truncate font-medium text-textPrimary">
+                // B11: the service name is what the row IS, and the table view
+                // shows it nowhere else — you had to open the inline editor to
+                // read a name the table had cut. It wraps.
+                <span key="n" className="min-w-0 break-words font-medium text-textPrimary">
                   {sv.name}
                 </span>,
                 <span key="d" className="text-textSecondary">

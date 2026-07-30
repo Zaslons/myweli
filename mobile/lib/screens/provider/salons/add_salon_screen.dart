@@ -153,6 +153,17 @@ class _AddSalonScreenState extends State<AddSalonScreen> {
               ),
               const SizedBox(height: AppTheme.spacingM),
               DropdownButtonFormField<BusinessType>(
+                // A11 C8 — see pro_register_screen.dart. Same field, same
+                // items, same overflow.
+                isExpanded: true,
+                // A12: `itemHeight` defaults to `kMinInteractiveDimension`
+                // (48), a FIXED height around text — so at 200% « Salon de
+                // beauté » wraps to two lines, needs 96dp and is clipped to 48
+                // the moment the menu opens. A11 C8 fixed the BUTTON with
+                // `isExpanded`; the items it lists were still frozen one level
+                // down, and nothing could see it until `expectNoVerticalClip`.
+                // `null` lets each item take its intrinsic height (§13.3).
+                itemHeight: null,
                 initialValue: _businessType,
                 decoration: InputDecoration(
                   labelText: 'Type d’entreprise',

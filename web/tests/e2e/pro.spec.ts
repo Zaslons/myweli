@@ -1,13 +1,7 @@
 import { type Page, expect, test } from '@playwright/test';
 
-async function proLogin(page: Page) {
-  await page.goto('/pro/connexion');
-  await page.locator('input[type=email]').fill('salon@example.com');
-  await page.getByRole('button', { name: 'Continuer avec e-mail' }).click();
-  await page.locator('input[type=text]').fill('123456');
-  await page.getByRole('button', { name: 'Se connecter' }).click();
-  await expect(page).toHaveURL(/\/pro(\/)?$/);
-}
+import { signInPro } from './_auth';
+
 
 test('unauthenticated /pro redirects to /pro/connexion', async ({ page }) => {
   await page.goto('/pro');
@@ -521,7 +515,7 @@ test('pro connexion links to registration; consumer connexion says sign-up', asy
 test('« + Nouveau rendez-vous » on /pro/rendez-vous books standalone (web-manual-booking.md)', async ({
   page,
 }) => {
-  await proLogin(page);
+  await signInPro(page);
   await page.goto('/pro/rendez-vous');
   await page.getByRole('button', { name: '+ Nouveau rendez-vous' }).click();
 
@@ -540,7 +534,7 @@ test('« + Nouveau rendez-vous » on /pro/rendez-vous books standalone (web-manu
 test('client card: « Nouveau rendez-vous » opens the dialog pre-picked (C1b deferral closed)', async ({
   page,
 }) => {
-  await proLogin(page);
+  await signInPro(page);
   await page.goto('/pro/clients/sc1');
   await expect(page.getByRole('heading', { name: /Koffi/ })).toBeVisible();
   await page.getByRole('button', { name: 'Nouveau rendez-vous' }).click();
@@ -557,7 +551,7 @@ test('client card: « Nouveau rendez-vous » opens the dialog pre-picked (C1b de
 test('« Avis » shows the summary + review cards (web-pro-reviews.md)', async ({
   page,
 }) => {
-  await proLogin(page);
+  await signInPro(page);
   await page.getByRole('link', { name: 'Avis' }).click();
   await expect(page).toHaveURL(/\/pro\/avis/);
 
@@ -575,7 +569,7 @@ test('« Avis » shows the summary + review cards (web-pro-reviews.md)', async (
 test('« Vérification » : upload des documents KYC → soumission (web-pro-kyc.md)', async ({
   page,
 }) => {
-  await proLogin(page);
+  await signInPro(page);
   await page.route('**/basemaps.cartocdn.com/**', (r) => r.abort());
   await page.goto('/pro/profil');
   await page.getByRole('link', { name: /Vérification/ }).click();
@@ -616,18 +610,27 @@ test('« Vérification » : upload des documents KYC → soumission (web-pro-kyc
 test('go-live: le brouillon complet se met en ligne (pro-salon-lifecycle B2)', async ({
   page,
 }) => {
-  await proLogin(page);
+  await signInPro(page);
 
   // The draft banner + checklist, everything done (complete stub salon).
   await expect(
     page.getByText('Votre salon n’est pas encore en ligne'),
   ).toBeVisible();
-  // Counts are order-proof: parallel tests add services/photos to the
-  // shared stub salon — the gate (≥3) is what matters.
+  // The gate (≥3) is what matters, not the exact count — earlier tests in this
+  // file add and remove services and photos on the shared stub salon, and
+  // pinning a number would make this red for a reason it is not about.
+  //
+  // But it has to assert the gate is **met**: until B10 the pattern was
+  // `\(\d+\/3\)`, and `\d+` matches `0`. That asserted the checklist label
+  // rendered and nothing else — it would have passed on a salon with no
+  // prestations at all, on the very screen whose subject is « everything done ».
+  const met = String.raw`\((?:[3-9]|\d{2,})\/3\)`;
   await expect(
-    page.getByText(/Au moins 3 prestations \(\d+\/3\)/),
+    page.getByText(new RegExp(`Au moins 3 prestations ${met}`)),
   ).toBeVisible();
-  await expect(page.getByText(/Au moins 3 photos \(\d+\/3\)/)).toBeVisible();
+  await expect(
+    page.getByText(new RegExp(`Au moins 3 photos ${met}`)),
+  ).toBeVisible();
 
   // B4: the pre-publish preview — the consumer page, booking disabled.
   await page.getByRole('link', { name: 'Aperçu de ma page' }).click();

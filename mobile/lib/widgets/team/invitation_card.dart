@@ -91,9 +91,22 @@ class InvitationCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: AppTheme.spacingM),
+              // `isFullWidth: false`, and it is load-bearing (A11 C8). A Row
+              // hands a NON-flex child an unbounded width, and this was the one
+              // button in the app sitting in such a slot: « Rejoindre » is
+              // `Expanded`, this one is not. Once AppButton's label became
+              // flexible, a `MainAxisSize.max` row could no longer be laid out
+              // there — `RenderFlex` allows flex children under an unbounded
+              // main axis only for **min + loose**, which is exactly what
+              // `isFullWidth: false` selects.
+              //
+              // It renders identically: with no bound to fill, max and min both
+              // shrink-wrap. Declaring it intrinsic just makes that true on
+              // purpose. Six tests caught this the moment it was wrong.
               AppButton(
                 text: 'Refuser',
                 type: AppButtonType.text,
+                isFullWidth: false,
                 onPressed: busy ? null : onDecline,
               ),
             ],

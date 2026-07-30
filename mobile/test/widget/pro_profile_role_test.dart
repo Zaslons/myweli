@@ -135,6 +135,10 @@ void main() {
     expect(find.text('Avant / Après'), findsOneWidget);
     expect(find.text('Mes données'), findsNothing);
     await scrollDown(tester);
+    // L1: legal is NOT capability-gated — every role, and a signed-out reviewer,
+    // must reach the privacy policy. Placed ABOVE « Déconnexion » so the
+    // existing scroll ladder still reaches it.
+    expect(find.text('À propos'), findsOneWidget);
     expect(find.text('Déconnexion'), findsOneWidget);
   });
 
@@ -155,6 +159,7 @@ void main() {
     expect(find.text('Équipe'), findsNothing);
     expect(find.text('Mon abonnement'), findsNothing);
     await scrollDown(tester);
+    expect(find.text('À propos'), findsOneWidget);
     expect(find.text('Déconnexion'), findsOneWidget);
     expect(find.text('Supprimer mon compte'), findsOneWidget);
   });
@@ -179,5 +184,8 @@ void main() {
     await scrollDown(tester);
     expect(find.text('Mon abonnement'), findsOneWidget);
     expect(find.text('Paramètres d’acompte'), findsOneWidget);
+    await scrollDown(tester);
+    await scrollDown(tester);
+    expect(find.text('À propos'), findsOneWidget);
   });
 }

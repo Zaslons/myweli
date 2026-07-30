@@ -1,4 +1,5 @@
 import '../../models/messaging.dart';
+import 'formatters.dart';
 
 /// Renders the French body for a [template] from its [params]. These mirror the
 /// approved WhatsApp Business templates the backend will register; missing
@@ -34,7 +35,13 @@ String renderTemplate(MessageTemplate template, Map<String, String> params) {
       return 'Remboursement de ${p('amount')} effectué pour votre rendez-vous '
           'chez ${p('provider')}.';
     case MessageTemplate.rebookReminder:
-      return 'Cela fait ${p('weeks')} semaines depuis votre visite chez '
-          '${p('provider')}. Réserver à nouveau ?';
+      // A13. `weeks` arrives as a string from the params map, so the plural
+      // goes through the same CLDR rule as everywhere else once it is parsed —
+      // and an unparseable value falls back to the plural, which is what the
+      // template did before.
+      final weeks = int.tryParse(p('weeks'));
+      return 'Cela fait '
+          '${weeks == null ? '${p('weeks')} semaines' : Formatters.count(weeks, 'semaine', 'semaines')} '
+          'depuis votre visite chez ${p('provider')}. Réserver à nouveau ?';
   }
 }

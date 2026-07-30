@@ -41,6 +41,22 @@ class AppTheme {
   static const double iconL = 32.0; // feature / avatar-scale glyphs
   static const double iconXL = 64.0; // the empty-state illustration glyph
 
+  // ---- Layout (SYSTEM.md §10) ---------------------------------------------
+
+  /// The widest a column of text or a form may be (§10).
+  ///
+  /// *"A 1000px-wide line of French body copy is unreadable, and an
+  /// `ElevatedButton` whose theme says `minimumSize: Size(double.infinity, 48)`
+  /// becomes a 1000px-wide button on a tablet."* §10 has said that since it was
+  /// written, and until A11 C6 it existed **in no code on either surface** —
+  /// prose on mobile, a hard-coded `'720px'` on web with a comment admitting it
+  /// stood in for this line.
+  ///
+  /// It is the one dimension the design system names that is not spacing,
+  /// radius or an icon size, which is why the web token mirror needed a fourth
+  /// family before this constant could exist at all.
+  static const double contentMaxWidth = 720;
+
   /// The height bound a **scroller** must hand a box that mixes constant chrome
   /// with text, when the OS text scale moves (SYSTEM.md §13.3).
   ///
@@ -506,26 +522,26 @@ class AppTheme {
         backgroundColor: AppColors.primary,
         foregroundColor: AppColors.secondary,
       ),
-      // The 11 date/time pickers were the worst purple offenders. Most of it
-      // now derives from the completed ColorScheme; these pin the header/surface
-      // to the flat monochrome brand.
-      datePickerTheme: DatePickerThemeData(
-        backgroundColor: AppColors.secondary,
-        surfaceTintColor: Colors.transparent,
-        headerBackgroundColor: AppColors.primary,
-        headerForegroundColor: AppColors.secondary,
-        elevation: 3,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(radiusLarge),
-        ),
-      ),
-      timePickerTheme: TimePickerThemeData(
-        backgroundColor: AppColors.secondary,
-        elevation: 3,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(radiusLarge),
-        ),
-      ),
+      // **`datePickerTheme` and `timePickerTheme` were here, and both are gone
+      // (A14b).** The comment they carried — *"The 11 date/time pickers were the
+      // worst purple offenders"* — was stale twice over by the end: A14a
+      // converted the 5 date sites and A14b the 6 time sites, so there are now
+      // **zero** Material pickers in `lib/`. No `showDatePicker`,
+      // `DatePickerDialog`, `CalendarDatePicker`, `showDateRangePicker`,
+      // `InputDatePickerFormField` or `showTimePicker` survives.
+      //
+      // `datePickerTheme`'s last consumer was a *test* — `french_test.dart`
+      // pumped a live `showDatePicker` to assert a parse defect the product can
+      // no longer reach. Deleting the theme and leaving that test would have
+      // left the test measuring Flutter; deleting the test and leaving the theme
+      // would have left genuinely unreachable code. They went together.
+      //
+      // If a Material picker is ever wanted again, note what A14b learned about
+      // theming the time one: `hourMinuteSize` and `dialSize` live only on the
+      // private `_TimePickerDefaults` and appear **zero** times in
+      // `time_picker_theme.dart`, and `TextScaler.noScaling` at
+      // `time_picker.dart:387` is a literal. The font is the only lever, and it
+      // does nothing.
     );
   }
 }

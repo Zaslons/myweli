@@ -467,8 +467,11 @@ function salonEntryOf(id, role) {
 
 // --- team access R5a: the salon roster, offer & pending invitations --------
 // The owner row is pinned & inert; the offer defaults to a LIVE trial so the
-// 55 pre-team e2e (publish, abonnement) are untouched. `team-reset` (a
-// test-only DELETE) drops back to the no-offer SETUP state for the picker arc.
+// 55 pre-team e2e (publish, abonnement) are untouched. There is no reset route
+// and none is needed: this whole process is thrown away after every run
+// (`playwright.config.ts` never reuses it). An earlier version of this comment
+// described a `team-reset` DELETE that was never implemented — B10 found it by
+// grep while diagnosing state that leaked between runs.
 let memberSeq = 1;
 function freshTeam() {
   return [

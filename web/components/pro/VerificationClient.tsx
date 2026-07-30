@@ -156,15 +156,31 @@ export function VerificationClient() {
           return (
             <li
               key={type}
-              className="flex items-center justify-between gap-m rounded-xl border border-border bg-secondary p-m"
+              // B11: the action buttons are `shrink-0`, so at 320 they took
+              // their full width and left the label 64px — and « Pièce
+              // d'identité (CNI / passeport) » cannot wrap below its longest
+              // word, which measures 73. The row wraps instead, dropping the
+              // buttons under the label when there is no room beside it.
+              //
+              // Honest note: this surfaced only after the filename below
+              // changed from `truncate` to `break-all`, and I did not establish
+              // which of the two flex resolutions moved. The row could not fit
+              // its own label at 320 either way, so it is fixed at the root
+              // rather than by restoring the truncation that hid it.
+              className="flex flex-wrap items-center justify-between gap-m rounded-xl border border-border bg-secondary p-m"
             >
               <div className="min-w-0">
                 <p className="text-bodyMedium text-textPrimary">
                   {label}
                   {required ? '' : ' (optionnel)'}
                 </p>
+                {/* B11: the uploaded document's filename appears NOWHERE else
+                    in the product — not in the row above, not in the ⋯ menu,
+                    not in an aria-label. Truncating it meant a pro could not
+                    tell which of two similarly-named files they had actually
+                    sent to KYC. `break-all` because filenames have no spaces. */}
                 <p
-                  className={`mt-xs truncate text-bodySmall ${
+                  className={`mt-xs break-all text-bodySmall ${
                     doc ? 'text-success' : 'text-textTertiary'
                   }`}
                 >

@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:myweli/widgets/common/app_snack_bar.dart';
 
 import '../support/pump_app.dart';
+import '../support/surface.dart';
 
 /// A6 — how feedback actually reaches a screen reader (SYSTEM.md §13.4).
 ///
@@ -78,6 +79,7 @@ void main() {
     // (`aria-modal` pruned the toast). A6 converted six such sites to inline
     // in-sheet errors; this gate keeps them converted.
     final handle = tester.ensureSemantics();
+    pinSurface(tester, size: const Size(360, 1600));
     await tester.pumpWidget(wrapApp(
       scaffoldMessengerKey: key,
       home: Builder(

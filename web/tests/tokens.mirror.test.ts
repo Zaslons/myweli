@@ -1,12 +1,23 @@
 import { describe, expect, it } from 'vitest';
 import {
   ICON_KEYS,
+  LAYOUT_KEYS,
   RADIUS_KEYS,
   SPACING_KEYS,
   WEB_ONLY,
   expectedWebTokens,
 } from '../scripts/dart-tokens.mjs';
-import { colors, icon, motion, radius, screens, spacing, type, zIndex } from '../styles/tokens';
+import {
+  colors,
+  icon,
+  layout,
+  motion,
+  radius,
+  screens,
+  spacing,
+  type,
+  zIndex,
+} from '../styles/tokens';
 
 /// B3 — the mirror gate (WEB-SYSTEM §15 row 19).
 ///
@@ -44,6 +55,7 @@ const MOBILE_NAME: Record<string, Record<string, string>> = {
   spacing: reverse(SPACING_KEYS),
   radius: reverse(RADIUS_KEYS),
   icon: reverse(ICON_KEYS),
+  layout: reverse(LAYOUT_KEYS),
 };
 
 function keyDiff(
@@ -127,6 +139,15 @@ describe('the token mirror gate (B3, row 19)', () => {
   it('icon mirrors AppTheme.icon* exactly — bare sizes, no lineHeight', () => {
     expect(keyDiff('icon', expected.icon, icon)).toEqual([]);
     expect(icon).toEqual(expected.icon);
+  });
+
+  // A11 C6. The fourth family, and the first that is not a spacing/radius/icon
+  // scale: SYSTEM.md §10's `contentMaxWidth`. It is what let the constant exist
+  // at all — `unclaimedDoubles` refuses any AppTheme scalar no family claims,
+  // so the mobile half could not land until this one did.
+  it('layout mirrors AppTheme.contentMaxWidth exactly', () => {
+    expect(keyDiff('layout', expected.layout, layout)).toEqual([]);
+    expect(layout).toEqual(expected.layout);
   });
 
   it('type mirrors AppTextStyles exactly — weight stripped, height resolved to px', () => {

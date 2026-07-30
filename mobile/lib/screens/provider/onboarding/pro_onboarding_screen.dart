@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
+import '../../../core/utils/formatters.dart';
 import '../../../core/utils/onboarding.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_onboarding_provider.dart';
@@ -99,7 +100,9 @@ class _ProOnboardingScreenState extends State<ProOnboardingScreen> {
       padding: const EdgeInsets.all(AppTheme.spacingM),
       children: [
         Text(
-          '${progress.done} étapes sur ${progress.total} terminées',
+          '${Formatters.count(progress.done, 'étape', 'étapes')} sur '
+          '${progress.total} '
+          '${Formatters.plural(progress.done, 'terminée', 'terminées')}',
           style:
               AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary),
         ),

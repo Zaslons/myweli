@@ -58,6 +58,10 @@ const Set<String> reservedPublicSlugs = {
   // Web top-level routes + API roots sharing the namespace.
   'recherche', 'connexion', 'mon-compte', 'pro', 'api', 'localities',
   'sitemap', 'robots',
+  // L1 legal documents (web/lib/legal.ts). WITHOUT these a salon can take
+  // `/cgu`, Next's static route wins, and that salon's public page becomes
+  // unreachable — a salon silently delisted by a document.
+  'cgu', 'mentions-legales', 'politique-confidentialite', 'suppression-compte',
   // Seeded city slugs (the nested landing tree /<taxo>/<ville>/<commune>).
   'abidjan',
 };

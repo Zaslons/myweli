@@ -21,7 +21,7 @@ import '../support/golden.dart';
 /// (register row 15) and it is one of the sites that breaks at 200% text scale.
 void main() {
   group('goldens', () {
-    setUpAll(loadGoldenFonts);
+    setUpAll(loadRealFonts);
 
     testWidgets('four states: loading', (tester) async {
       await pumpGolden(tester, _table(isLoading: true), size: _size);

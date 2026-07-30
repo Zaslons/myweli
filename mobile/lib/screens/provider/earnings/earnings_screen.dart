@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:myweli/widgets/common/empty_state.dart';
 import 'package:myweli/widgets/common/loading_indicator.dart';
 import 'package:provider/provider.dart';
 
@@ -26,12 +27,20 @@ class _EarningsScreenState extends State<EarningsScreen>
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final authProvider = Provider.of<ProAuthProvider>(context, listen: false);
-      if (authProvider.isAuthenticated && authProvider.provider != null) {
-        final earningsProvider =
-            Provider.of<ProEarningsProvider>(context, listen: false);
-        earningsProvider.loadEarnings(authProvider.provider!.id);
-      }
+      // **The first load is the SELECTED TAB's load** (§21 row 40, fourth
+      // defect). This used to hand-roll `loadEarnings(activeSalonId)` with no
+      // date bounds at all, while every tab tap passes them — so the screen
+      // opened on « Aujourd'hui » showing *every transaction the salon has ever
+      // taken*, and only started telling the truth once the user touched a tab.
+      // A10's golden photographed exactly that: « dimanche 1 mars 2026 » under
+      // a tab labelled today, with the clock frozen to 11 March.
+      //
+      // Delegating to `_loadEarningsForTab` rather than repeating its body is
+      // the fix and the guard against the next one: there is now one definition
+      // of what each bucket means, and `initState` cannot drift from `onTap`.
+      // (The R6 rule the old body documented — the ACTIVE salon id, never the
+      // account id — lives on at `:87`, where the delegate reads it.)
+      _loadEarningsForTab(_tabController.index);
     });
   }
 
@@ -77,7 +86,7 @@ class _EarningsScreenState extends State<EarningsScreen>
     }
 
     earningsProvider.loadEarnings(
-      authProvider.provider!.id,
+      authProvider.activeSalonId ?? '',
       startDate: startDate,
       endDate: endDate,
     );
@@ -92,6 +101,30 @@ class _EarningsScreenState extends State<EarningsScreen>
         bottom: TabBar(
           controller: _tabController,
           onTap: _loadEarningsForTab,
+          // §13.3's width twin. A non-scrollable `TabBar` wraps every tab in
+          // `Expanded` (tabs.dart:1977), so each gets exactly `W/n` — and a
+          // `Tab`'s label is `softWrap: false, overflow: fade` (tabs.dart:183),
+          // so a label too long for its share is **faded away without throwing**.
+          // No overflow, no exception: A10 photographed this bar with
+          // « Aujourd’hui » cut off and 777 tests had nothing to say.
+          //
+          // `center`, explicitly, and NOT the M3 default: that is
+          // `TabAlignment.startOffset` (tabs.dart:2727), which spends 52dp on an
+          // empty leading gutter — 14% of a 360dp screen — and is not accounted
+          // for in the scroll-centring math (tabs.dart:1669-1683 reads
+          // `widget.padding` only), so the selected tab lands 52dp off-centre.
+          //
+          // `center` is also the ONLY alignment legal in both modes
+          // (tabs.dart:1809-1821), and it degrades correctly: the strip
+          // shrink-wraps and is genuinely centred while the labels fit, and once
+          // they do not the viewport clamps to full width, centring becomes a
+          // no-op and the bar start-anchors and scrolls.
+          //
+          // It must stay HERE and never move to `tabBarTheme`: the assert is
+          // evaluated per-bar against that bar's own `isScrollable`, so a
+          // theme-level value would throw on every non-scrollable bar.
+          isScrollable: true,
+          tabAlignment: TabAlignment.center,
           tabs: const [
             Tab(text: 'Aujourd’hui'),
             Tab(text: 'Semaine'),
@@ -123,9 +156,18 @@ class _EarningsScreenState extends State<EarningsScreen>
 
           return Column(
             children: [
+              // §12/§6 (§21 row 40, second defect): this was a bare
+              // `Container(color: secondary)` — no radius, no elevation, no
+              // margin — so the app's headline number read as an unstyled band
+              // welded to the tab bar. It is a surface; it gets surface tokens.
               Container(
+                margin: const EdgeInsets.all(AppTheme.spacingM),
                 padding: const EdgeInsets.all(AppTheme.spacingL),
-                color: AppColors.secondary,
+                decoration: BoxDecoration(
+                  color: AppColors.secondary,
+                  borderRadius: BorderRadius.circular(AppTheme.radiusXL),
+                  boxShadow: AppTheme.elevation1,
+                ),
                 child: Column(
                   children: [
                     Text(
@@ -148,12 +190,18 @@ class _EarningsScreenState extends State<EarningsScreen>
               ),
               Expanded(
                 child: earnings.transactions.isEmpty
-                    ? Center(
-                        child: Text(
-                          'Aucune transaction',
-                          style: AppTextStyles.bodyLarge
-                              .copyWith(color: AppColors.textSecondary),
-                        ),
+                    // §12 (§21 row 40, third defect): a bare `Center(Text(…))`
+                    // met the four-states contract in name only — no icon, no
+                    // title, no explanation. It matters more now than it did:
+                    // fixing the first-load bug above makes « Aujourd'hui » the
+                    // FIRST thing most salons see, because most salons have no
+                    // takings yet at the moment they open the screen.
+                    ? const EmptyState(
+                        icon: Icons.receipt_long_outlined,
+                        title: 'Aucune transaction',
+                        description:
+                            'Les paiements encaissés sur cette période '
+                            'apparaîtront ici.',
                       )
                     : ListView.builder(
                         padding: const EdgeInsets.all(AppTheme.spacingM),

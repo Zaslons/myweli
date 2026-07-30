@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test';
 
+import { signInPro } from './_auth';
+
 /// B0 — the pro dashboard's mobile nav (WEB-SYSTEM §9). At a phone width the
 /// persistent sidebar becomes an off-canvas drawer opened by a hamburger, so the
 /// content is no longer crushed to ~135px by a 240px rail. Nothing tested mobile
@@ -9,19 +11,11 @@ import { expect, test } from '@playwright/test';
 /// the sidebar stays the persistent column; only this file uses a phone.
 test.use({ viewport: { width: 375, height: 812 } });
 
-async function proLogin(page: import('@playwright/test').Page) {
-  await page.goto('/pro/connexion');
-  await page.locator('input[type=email]').fill('salon@example.com');
-  await page.getByRole('button', { name: 'Continuer avec e-mail' }).click();
-  await page.locator('input[type=text]').fill('123456');
-  await page.getByRole('button', { name: 'Se connecter' }).click();
-  await expect(page).toHaveURL(/\/pro(\/)?$/);
-}
 
 test('at 375px the nav is behind a hamburger, not eating the screen', async ({
   page,
 }) => {
-  await proLogin(page);
+  await signInPro(page);
 
   // The drawer is a closed disclosure: the hamburger shows and reports shut.
   const hamburger = page.getByRole('button', { name: 'Ouvrir le menu' });
@@ -49,7 +43,7 @@ test('at 375px the nav is behind a hamburger, not eating the screen', async ({
 test('the hamburger opens the drawer; a link navigates AND closes it', async ({
   page,
 }) => {
-  await proLogin(page);
+  await signInPro(page);
 
   await page.getByRole('button', { name: 'Ouvrir le menu' }).click();
   const clients = page.getByRole('link', { name: 'Clients' });
@@ -72,7 +66,7 @@ test('the hamburger opens the drawer; a link navigates AND closes it', async ({
 });
 
 test('Escape and the ✕ both close the drawer', async ({ page }) => {
-  await proLogin(page);
+  await signInPro(page);
   const hamburger = page.getByRole('button', { name: 'Ouvrir le menu' });
 
   await hamburger.click();

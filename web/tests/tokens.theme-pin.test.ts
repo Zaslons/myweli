@@ -5,7 +5,7 @@ import resolveConfig from 'tailwindcss/resolveConfig';
 import { describe, expect, it } from 'vitest';
 
 import tailwindConfig from '../tailwind.config';
-import { colors, icon, type } from '../styles/tokens';
+import { colors, icon, layout, type } from '../styles/tokens';
 
 /// The closed-theme firewall (docs/design/WEB-SYSTEM.md §2, §15 rows 6 + 7).
 ///
@@ -203,6 +203,29 @@ describe('the tokens are actually WIRED, not just spelled', () => {
     );
   });
 
+  // A11 C6, and the same claim one family over. `maxWidth` had NO wiring
+  // assertion, so a `layout` export that never reached the config would have
+  // silently deleted the styling on seven `max-w-content` call sites across
+  // seven files — green, because nothing enumerates `maxWidth` and nothing
+  // asserts the class resolves.
+  //
+  // Not `toEqual` on the whole key set: `maxWidth` legitimately also carries
+  // Tailwind's static rem steps and, via the function form, every
+  // `max-w-screen-*` from `breakpoints(theme('screens'))`. The claim is
+  // narrower and exact — every LAYOUT token is present, with its value.
+  it('every layout token survives into the resolved theme', () => {
+    const resolved = resolveConfig(tailwindConfig as never);
+    const maxWidth = resolved.theme!.maxWidth! as Record<string, string>;
+    for (const [key, value] of Object.entries(layout)) {
+      expect(maxWidth[key], `maxWidth.${key} is not wired into the config`).toBe(
+        value,
+      );
+    }
+    // The function form is what emits `max-w-screen-*`; a static object drops
+    // them silently, so pin one as the canary.
+    expect(maxWidth['screen-lg']).toBeDefined();
+  });
+
   // Catches a typo'd token — `text-bodyMedum` — which Tailwind renders as nothing
   // at all. ESLint catches it on a `className=` attribute; it cannot see the four
   // bare `const`/default-param strings, and this can.
@@ -264,13 +287,77 @@ describe('every arbitrary value is DECLARED (WEB-SYSTEM §2)', () => {
         // The reason sits ABOVE the directive, because `-next-line` binds to the
         // line that follows it — a reason on the same line would push the
         // directive away from the class it exempts.
-        const window = lines.slice(Math.max(0, i - 6), i + 1).join('\n');
+        //
+        // **10 lines, widened from 6 by B11**, which hit the old limit twice in
+        // one slice: correcting the switch knob's arithmetic (it was stated in
+        // px against three rem operands) and retiring a duplicated grid rail
+        // both took more than six lines to explain honestly. The rule's purpose
+        // is that an exception carries a REASON; a window that rejects a reason
+        // for being thorough teaches people to write shorter ones, not better
+        // ones. Widening is strictly more permissive, so nothing already
+        // declared can break.
+        const window = lines.slice(Math.max(0, i - 10), i + 1).join('\n');
         if (!/ds-ignore:\s*\S/.test(window)) offenders.push(`${f.rel}:${i + 1}`);
       });
     }
     expect(
       offenders,
-      `an eslint-disable for a tailwindcss rule needs a "// ds-ignore: <why>" line\nabove it (within 6 lines) saying why no token can express this:\n${offenders.join('\n')}`,
+      `an eslint-disable for a tailwindcss rule needs a "// ds-ignore: <why>" line\nabove it (within 10 lines) saying why no token can express this:\n${offenders.join('\n')}`,
+    ).toEqual([]);
+  });
+});
+
+describe('every truncation is DECLARED (WEB-SYSTEM §9 — Text scale & reflow, B11)', () => {
+  // WCAG 1.4.10 asks for content "without loss of information". A `truncate` is
+  // a deliberate loss, and whether it is an ACCEPTABLE one depends entirely on
+  // something no machine can read: is the clipped string the only copy of that
+  // information on the page, or is it repeated in a heading, a link target, or
+  // the record one click away?
+  //
+  // So the judgement is made once, by a human, per site — and written down.
+  // `tests/e2e/type-overflow.spec.ts`'s `truncationLosses` is the other half:
+  // it proves nothing is ACTUALLY being cut at the tested viewports, and this
+  // proves every class that COULD cut was thought about.
+  //
+  // A distinct marker from `ds-ignore`, deliberately: that one means "no token
+  // can express this", this one means "this clipping loses nothing". Conflating
+  // two different claims under one word makes both unreadable.
+  //
+  // Reading the AST's string literals rather than the raw source is what keeps
+  // this off prose — `DataTable.tsx`'s own comment about "the caller's
+  // `truncate`" is documentation of the policy, and a pin that flags the
+  // documentation of a rule punishes the person who explained it.
+  const CLIPPERS = /(?<![\w-])(truncate|text-ellipsis|line-clamp-\d+)(?![\w-])/;
+
+  it('a truncating class carries a "// clip-ok: <why>" reason', () => {
+    const offenders: string[] = [];
+    for (const f of files) {
+      const lines = f.content.split('\n');
+      for (const { text, line } of f.literals) {
+        if (!CLIPPERS.test(text)) continue;
+        // The reason sits ABOVE the class, in the same 10-line window the
+        // `ds-ignore` rule uses, so the two read identically in a diff.
+        //
+        // An earlier version of this comment justified the window by contrasting
+        // it with `ds-ignore`'s 6 — which B11 had already widened to 10 in this
+        // same file, so the contrast was false the moment it was written. The
+        // real reason stands on its own: a `clip-ok` has to say where else the
+        // information appears, which takes more than a sentence and sometimes
+        // cites the file that proves it. Six lines rejected reasons that were
+        // already written and true, and that teaches people to write shorter
+        // reasons rather than better ones.
+        const window = lines.slice(Math.max(0, line - 11), line).join('\n');
+        if (!/clip-ok:\s*\S/.test(window)) {
+          offenders.push(`${f.rel}:${line} — ${text.trim().slice(0, 60)}`);
+        }
+      }
+    }
+    expect(
+      offenders,
+      'a class that truncates text needs a "// clip-ok: <why the clipped text is\n' +
+        'not the only copy of this information>" line above it (within 10 lines).\n' +
+        'If it IS the only copy, that is a 1.4.10 loss — give it room instead:\n' +
+        `${offenders.join('\n')}`,
     ).toEqual([]);
   });
 });

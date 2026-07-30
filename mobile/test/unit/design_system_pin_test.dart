@@ -43,6 +43,17 @@ void main() {
       for (var i = 0; i < lines.length; i++) {
         final line = lines[i];
         if (line.contains('// ds-ignore')) continue;
+        // **A whole-line comment is prose, not code** (A11 C5). This sweep is
+        // line-based, so a docstring quoting the very rule it enforces used to
+        // BE a violation of it — which happened twice in three commits, once in
+        // `otp_code_row.dart` quoting §13.3's example and once in
+        // `reviews_screen.dart` naming the literal it had just deleted. The
+        // effect was a standing incentive not to document the rules.
+        //
+        // Only a line that is ENTIRELY a comment is skipped. An end-of-line
+        // `// …` is left alone on purpose: truncating at the first `//` would
+        // also cut a line containing a URL, and would hide real code beside it.
+        if (line.trimLeft().startsWith('//')) continue;
         if (pattern.hasMatch(line)) {
           hits.add('${file.path}:${i + 1}  ${line.trim()}');
         }
@@ -147,6 +158,61 @@ void main() {
         reason: 'use AppTheme.spacing* (4/8/12/16/24/32/48/64). A raw spacer '
             'number is either off the 8pt grid or a token that already exists. '
             'A genuine fixed dimension declares `// ds-ignore`.',
+      );
+    });
+
+    test('gaps are a token — no raw spacing:/runSpacing: (§5)', () {
+      // A11 C3. The two rules above scan `SizedBox(…)` and `EdgeInsets.*`, and
+      // between them they were called "the complete firewall" — but Flutter 3.27
+      // put `spacing` on `Flex`, and `Wrap` has had `spacing`/`runSpacing` all
+      // along. **A gap written that way was invisible to every pin**, and 21 of
+      // them had accumulated across 11 files by the time A11 went looking.
+      //
+      // Nineteen were already the token's value (8, and one 4) — invisible, not
+      // wrong. The other two are why this is a §5 rule and not tidiness:
+      // `spacing: 10` on the booking hub's slot chips and `spacing: 6` on the
+      // appointment card's service pills. §5's own header says it: "an 8pt grid
+      // with one sanctioned half-step. Nothing else is legal: 10, 14, 18, 20 are
+      // not spacing values."
+      //
+      // `\b` keeps this off `letterSpacing:`/`wordSpacing:` twice over — those
+      // capitalise the S, and there is no word boundary before it either.
+      //
+      // **A13, §21 row 71 — and the same `\b` was the hole.** It cannot fire
+      // inside `crossAxisSpacing`/`mainAxisSpacing` either, so a grid's gaps
+      // were invisible to a sweep §20 called complete. A12 converted the pro
+      // dashboard's two in passing; a proper sweep returns **six**, and four of
+      // them are `10` — not a token at all (the scale is 4/8/12/16/24/32/48/64).
+      //
+      // **The obvious widening is a trap.** `[A-Za-z]*[Ss]pacing:` reds on
+      // **seven `letterSpacing:` lines** inside this very corpus — i.e. it
+      // "closes" the gap by reintroducing the exact bug the `\b` was written
+      // against. So the pattern names the compounds explicitly instead.
+      //
+      // `\s*` rather than a literal space closes a second hole while we are
+      // here: a wrapped argument (`spacing:\n    10`) evaded the old form too.
+      // Measured: zero sites exploit it today, so this is prevention, not a fix.
+      expect(
+        offenders(RegExp(r'(?:\b(?:run)?|(?:cross|main)Axis)[Ss]pacing:\s*\d')),
+        isEmpty,
+        reason: 'use AppTheme.spacing* (4/8/12/16/24/32/48/64) for Wrap and '
+            'Flex gaps too. A gap is spacing whether it is written as a '
+            'SizedBox between children or as the parent’s `spacing:`, or as a '
+            'grid delegate’s crossAxisSpacing/mainAxisSpacing.',
+      );
+    });
+
+    // A13. The §5 spacing sweep above had **no non-empty guard of its own** —
+    // it borrowed the credibility of the `childAspectRatio` and animation pins,
+    // which do have one, from the same `group`. A pin that silently scans an
+    // empty corpus is §21 row 67's failure mode, and the two tests that would
+    // have caught it are not this test.
+    test('the §5 spacing sweep is scanning a real corpus', () {
+      expect(
+        dartFiles.length,
+        greaterThan(100),
+        reason: 'the spacing pin is scanning an empty or truncated file set, '
+            'so its green means nothing',
       );
     });
 
@@ -448,6 +514,180 @@ void main() {
               'green through all of them.');
     });
 
+    test('a grid tile that holds text has no fixed aspect ratio (§13.3, A12)',
+        () {
+      // `childAspectRatio` freezes tile HEIGHT as a multiple of tile WIDTH, and
+      // width does not move with the OS text scale — so the tile is the same
+      // height at 100% and at 200%, forever. §13.3 already says "a box that
+      // contains text may not have a fixed height"; this is the first thing
+      // that enforces it.
+      //
+      // Two sites, both §21 row 68 findings: the pro dashboard's action grid
+      // (1.1 → a tile frozen at 143.6dp, where « Rendez-vous » wraps to two
+      // lines and runs past it while « Disponibilité » cannot break at all and
+      // is clipped) and the provider grid (0.75).
+      //
+      // **A prohibition, not a conditional** — so unlike the `isExpanded` pin
+      // below it needs no non-empty guard on its own hits (after the fixes the
+      // correct count is ZERO), no inferred-generic form to miss
+      // (`childAspectRatio:` is a named argument, spelled identically by
+      // `GridView.count`, `.builder`, `.extent` and every
+      // `SliverGridDelegateWith*`), and no lookahead window that could cover
+      // two sites. The corpus guard above is what keeps it honest.
+      //
+      // A grid of IMAGES may legitimately fix its ratio and declares
+      // `// ds-ignore` on the line, the escape `offenders` already honours. A
+      // grid of text uses `mainAxisExtent`, or a `Wrap`.
+      expect(
+        dartFiles.length,
+        greaterThan(100),
+        reason: 'this pin is scanning an empty or truncated set',
+      );
+      expect(
+        offenders(RegExp(r'childAspectRatio:')),
+        isEmpty,
+        reason:
+            'a tile height derived from its WIDTH cannot grow with the text '
+            'inside it. At 200% the label either overflows the tile or is '
+            'clipped without throwing — and a clip inside a fixed box is the '
+            'one shape neither `takeException` nor the truncation walk can see.',
+      );
+    });
+
+    // ── A14b: nothing in `lib/` opts out of the OS text scale (§13.3).
+    //
+    // Named so the falsifiability case below can point at the same object the
+    // rule uses. A pin proven able to fire by a *copy* of its pattern proves
+    // nothing about the pattern that ships.
+    final noScalingPattern = RegExp(r'TextScaler\.noScaling|withNoTextScaling');
+
+    test('no widget opts out of the OS text scale (§13.3, A14b)', () {
+      // This is the rule Flutter breaks, and the reason A14b exists.
+      // `time_picker.dart:387` passes `textScaler: TextScaler.noScaling` to the
+      // hour and the minute — the dialog's largest text, displayLarge at 57sp —
+      // so the field is the same size at 100% and at 200%, forever. :528 does it
+      // to the separator and :2263 wraps the input mode in
+      // `MediaQuery.withNoTextScaling`.
+      //
+      // That is worse than a clip, and it is worse for a specific reason: a clip
+      // is visible. A control that silently ignores the accessibility setting
+      // looks correct in every screenshot and every golden, at every scale.
+      //
+      // §13.3 says 200% is a first-class input. These two APIs are the only way
+      // to say "not for this widget" — so the app should be unable to grow its
+      // own copy, in a picker or anywhere else. A genuine exception (a fixed-
+      // geometry canvas overlay, say) declares `// ds-ignore` and says why.
+      expect(
+        dartFiles.length,
+        greaterThan(100),
+        reason: 'this pin is scanning an empty or truncated set',
+      );
+      expect(
+        offenders(noScalingPattern),
+        isEmpty,
+        reason: 'this widget renders the same size at 100% and 200% text. The '
+            'user turned the setting on and the app decided not to listen — '
+            'which no golden, no clip gate and no `takeException` can see.',
+      );
+    });
+
+    test('…and that rule is able to fail (§21 row 67)', () {
+      // **Green from birth is row 67's exact trap:** six helpers shipped unable
+      // to fail, and the count above is legitimately zero today, so `isEmpty`
+      // passing proves nothing about the pattern. The corpus guard shows it is
+      // reading files; this shows it would recognise the thing if it were in
+      // one. Both halves are needed.
+      //
+      // And the whole rule was **watched go red end-to-end**, not just proven
+      // here: `textScaler: TextScaler.noScaling` was planted on the day cell at
+      // `myweli_date_picker.dart:521` and the sweep reported
+      //
+      //   Expected: empty
+      //     Actual: ['lib/widgets/common/myweli_date_picker.dart:521  …']
+      //
+      // before it was reverted. A regex proven to match a string in this file is
+      // not the same evidence as the sweep finding it in `lib/`.
+      expect(
+        noScalingPattern.hasMatch(
+            '      child: Text(t, textScaler: TextScaler.noScaling),'),
+        isTrue,
+        reason: 'the pin cannot see the literal it exists to forbid — this is '
+            'the line copied from time_picker.dart:387',
+      );
+      expect(
+        noScalingPattern.hasMatch('      child: MediaQuery.withNoTextScaling('),
+        isTrue,
+        reason: 'the pin sees only one of the two opt-outs',
+      );
+      // And the other side: it must not fire on the CORRECT idiom, or the fix
+      // for a hit would be to stop scaling properly.
+      expect(
+        noScalingPattern.hasMatch(
+            '      final s = MediaQuery.textScalerOf(context).scale(line);'),
+        isFalse,
+        reason: 'the pin flags the right way to read the scale, so obeying it '
+            'would mean removing the scaling this rule exists to protect',
+      );
+    });
+
+    test('every form dropdown sets isExpanded (A11 C8, §13.3)', () {
+      // A `DropdownButtonFormField` sizes its button to the WIDEST item's
+      // intrinsic width unless told otherwise, so the field overflows the
+      // moment the longest label stops fitting. `pro_register_screen.dart`
+      // overflowed by **79px** at 360dp × 200% text on « Institut de
+      // manucure » — measured on a 360dp Android device, then in
+      // `test/a11y/auth_layout_test.dart`.
+      //
+      // Discovered, not listed: three sites were fixed, and the fourth
+      // dropdown to be written is the one this exists for.
+      //
+      // **Four ways the first version of this pin could pass on nothing**, all
+      // closed below and all found by review rather than by it failing:
+      //   1. no guard that it found ANY dropdown;
+      //   2. matching `DropdownButtonFormField<` missed the inferred-generic
+      //      form, `DropdownButtonFormField(` — legal Dart, and silently
+      //      exempt;
+      //   3. the window was not comment-filtered, so a docstring saying
+      //      "`isExpanded: true` is set below" satisfied it;
+      //   4. a 30-line window let ONE `isExpanded` cover two dropdowns in the
+      //      same form.
+      final found = <String>[];
+      final missing = <String>[];
+      for (final file in dartFiles) {
+        final lines = file.readAsLinesSync();
+        for (var i = 0; i < lines.length; i++) {
+          final line = lines[i];
+          if (line.trimLeft().startsWith('//')) continue;
+          if (!line.contains('DropdownButtonFormField')) continue;
+          final site = '${file.path}:${i + 1}';
+          found.add(site);
+
+          // Twelve lines, comment-stripped, and stopping at the NEXT dropdown
+          // so one flag can never cover two.
+          final window = <String>[];
+          for (var k = i + 1; k < lines.length && k <= i + 12; k++) {
+            if (lines[k].contains('DropdownButtonFormField')) break;
+            if (lines[k].trimLeft().startsWith('//')) continue;
+            window.add(lines[k]);
+          }
+          if (!window.join('\n').contains('isExpanded: true')) {
+            missing.add(site);
+          }
+        }
+      }
+
+      expect(found, isNotEmpty,
+          reason: 'no DropdownButtonFormField was found anywhere in lib/, so '
+              'the assertion below is empty-set-true. Either they are all gone '
+              'or this scan is resolving paths from the wrong directory.');
+
+      expect(missing, isEmpty,
+          reason: 'a form dropdown without `isExpanded: true` is as wide as '
+              'its longest option, whatever the screen is. At 200% text that '
+              'is off the edge, and in a release build there is no striped '
+              'banner to say so.');
+    });
+
     test('one ellipsis character — … never ... (§17.1)', () {
       expect(
         stringOffenders((s) => s.contains('...')),
@@ -479,6 +719,37 @@ void main() {
         reason: "use ’ (U+2019), not \\'. Both shipped, sometimes in adjacent "
             'files. It also removes the escape, which is why the strings get '
             'shorter rather than longer.',
+      );
+    });
+
+    // §17.1's third rule (A13, §21 row 41).
+    //
+    // « 1 prestation(s) » is an ENGLISH habit. French writes « 1 prestation »
+    // and « 2 prestations », and the choice is not stylistic — the parenthetical
+    // is simply not a French form.
+    //
+    // **Why this belongs in §17.1 and not in a style guide**, using §17.1's own
+    // test: A9 added the ellipsis and apostrophe rules because *the app
+    // contradicted itself* — the same word spelled two ways in adjacent files —
+    // and explicitly declined to invent conventions (guillemets, the narrow
+    // no-break space) that were merely absent. This is the first kind: the app
+    // renders `(s)` in seven places and a correct plural in seventeen.
+    //
+    // **`invité(e)` is deliberately NOT in scope.** It is gender, not count; it
+    // is a French administrative habit rather than an English one; and it is
+    // asserted verbatim by `pro_login_invitations_test.dart`. A sweep that
+    // quietly changed it would be inventing a convention, which is the thing
+    // §17.1 says to take as its own decision.
+    test(
+        'no parenthetical plural — « 1 prestation » never « 1 prestation(s) » '
+        '(§17.1)', () {
+      expect(
+        stringOffenders((s) => s.contains('(s)')),
+        isEmpty,
+        reason: 'French does not use the English « (s) » form. Use '
+            'Formatters.count(n, singular, plural), which asks CLDR and gets '
+            'n = 0 right — French puts zero in the SINGULAR, which is exactly '
+            'where the app’s four hand-rolled idioms disagreed.',
       );
     });
   });

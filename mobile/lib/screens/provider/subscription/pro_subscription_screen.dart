@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/config/app_config.dart';
 import '../../../core/config/subscription_plans.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
+import '../../../core/utils/external_link.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../models/pro_membership.dart';
 import '../../../models/salon_subscription.dart';
@@ -51,24 +51,12 @@ class _ProSubscriptionScreenState extends State<ProSubscriptionScreen> {
     context.read<ProSubscriptionProvider>().load(providerId);
   }
 
-  Future<void> _contact([String? message]) async {
-    final messenger = ScaffoldMessenger.of(context);
-    final number = AppConfig.supportWhatsApp;
-    if (number.isEmpty) {
-      AppSnackBar.showOn(messenger, 'Contact bientôt disponible.');
-      return;
-    }
-    final text = message ??
-        'Bonjour Myweli, je souhaite activer mon offre pour mon salon.';
-    final uri = Uri.parse(
-      'https://wa.me/$number?text=${Uri.encodeComponent(text)}',
-    );
-    final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
-    if (!ok && mounted) {
-      AppSnackBar.showOn(messenger, 'Impossible d’ouvrir WhatsApp.',
-          kind: SnackKind.error);
-    }
-  }
+  Future<void> _contact([String? message]) => openWhatsApp(
+        context,
+        number: AppConfig.supportWhatsApp,
+        message: message ??
+            'Bonjour Myweli, je souhaite activer mon offre pour mon salon.',
+      );
 
   Future<void> _choose(String providerId, SalonTier tier) async {
     final provider = context.read<ProSubscriptionProvider>();

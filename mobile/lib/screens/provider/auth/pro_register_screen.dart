@@ -13,8 +13,10 @@ import '../../../models/provider_user.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../widgets/common/app_button.dart';
 import '../../../widgets/common/app_text_field.dart';
+import '../../../widgets/common/auth_switch_prompt.dart';
 import '../../../widgets/common/commune_picker_sheet.dart';
 import '../../../widgets/common/google_g_logo.dart';
+import '../../../widgets/common/legal_consent_text.dart';
 import '../../../widgets/common/phone_number_field.dart';
 
 /// Salon registration — business fields + login identity in ONE submit
@@ -223,6 +225,18 @@ class _ProRegisterScreenState extends State<ProRegisterScreen> {
               ),
               const SizedBox(height: AppTheme.spacingM),
               DropdownButtonFormField<BusinessType>(
+                // A11 C8: without this the button sizes to its WIDEST item's
+                // intrinsic width — « Institut de manucure » — and overflows
+                // its field by 79px at 360dp × 200% text.
+                isExpanded: true,
+                // A12: `itemHeight` defaults to `kMinInteractiveDimension`
+                // (48), a FIXED height around text — so at 200% « Salon de
+                // beauté » wraps to two lines, needs 96dp and is clipped to 48
+                // the moment the menu opens. A11 C8 fixed the BUTTON with
+                // `isExpanded`; the items it lists were still frozen one level
+                // down, and nothing could see it until `expectNoVerticalClip`.
+                // `null` lets each item take its intrinsic height (§13.3).
+                itemHeight: null,
                 initialValue: _selectedBusinessType,
                 decoration: InputDecoration(
                   labelText: 'Type d’entreprise',
@@ -346,6 +360,15 @@ class _ProRegisterScreenState extends State<ProRegisterScreen> {
                   onPressed: auth.isLoading ? null : () {},
                 ),
               ],
+              const SizedBox(height: AppTheme.spacingM),
+              // L1 — **this funnel had no consent copy at all**, and it is the
+              // one that precedes a KYC identity upload and a public business
+              // listing. Placed ABOVE the « ou par e-mail » divider so it
+              // governs both paths and is visible before any scroll: the Google
+              // button above creates an account in one tap.
+              const LegalConsentText(
+                lead: 'En créant votre compte professionnel',
+              ),
               const SizedBox(height: AppTheme.spacingL),
               Row(
                 children: [
@@ -435,20 +458,10 @@ class _ProRegisterScreenState extends State<ProRegisterScreen> {
                 ),
               ],
               const SizedBox(height: AppTheme.spacingM),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    'Déjà un compte ? ',
-                    style: AppTextStyles.bodyMedium.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: () => context.pop(),
-                    child: const Text('Se connecter'),
-                  ),
-                ],
+              AuthSwitchPrompt(
+                question: 'Déjà un compte ?',
+                actionLabel: 'Se connecter',
+                onPressed: () => context.pop(),
               ),
             ],
           ),

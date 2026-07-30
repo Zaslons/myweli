@@ -14,7 +14,7 @@ import '../support/golden.dart';
 /// in both states.
 void main() {
   group('goldens', () {
-    setUpAll(loadGoldenFonts);
+    setUpAll(loadRealFonts);
 
     testWidgets('the themed Material components', (tester) async {
       await pumpGolden(

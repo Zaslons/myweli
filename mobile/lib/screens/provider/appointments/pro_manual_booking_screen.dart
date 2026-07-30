@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/constants/booking_horizons.dart';
 import '../../../core/forms/field_errors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
+import '../../../core/utils/app_clock.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/utils/salon_time.dart';
 import '../../../core/utils/validators.dart';
@@ -17,7 +19,10 @@ import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/app_text_field.dart';
 import '../../../widgets/common/empty_state.dart';
 import '../../../widgets/common/inline_feedback.dart';
+import '../../../widgets/common/label_value_row.dart';
 import '../../../widgets/common/loading_indicator.dart';
+import '../../../widgets/common/myweli_date_picker.dart';
+import '../../../widgets/common/myweli_time_picker.dart';
 
 class ProManualBookingScreen extends StatefulWidget {
   const ProManualBookingScreen({
@@ -106,21 +111,66 @@ class _ProManualBookingScreenState extends State<ProManualBookingScreen> {
   });
   final _phoneFocus = FocusNode();
 
+  /// The minute grid the time picker offers, so this screen's own lift lands on
+  /// a value the picker would have shown.
+  static const int _kMinuteStep = 5;
+
+  /// The salon's now, as a wall-clock time, for the past-time floor.
+  TimeOfDay get _floorNow {
+    final now = salonNow(tz: _tz);
+    return TimeOfDay(hour: now.hour, minute: now.minute);
+  }
+
+  bool _isToday(DateTime d) {
+    final today = salonToday(tz: _tz);
+    return d.year == today.year && d.month == today.month && d.day == today.day;
+  }
+
   Future<void> _pickDate() async {
     final today = salonToday(tz: _tz);
-    final picked = await showDatePicker(
+    final picked = await showMyweliDatePicker(
       context: context,
       initialDate: _date ?? today,
       firstDate: today,
-      lastDate: today.add(const Duration(days: 90)),
+      lastDate: today.add(kManualBookingHorizon),
+      today: today,
     );
-    if (picked != null) setState(() => _date = picked);
+    if (picked == null) return;
+    setState(() {
+      _date = picked;
+      // **The floor is a property of the DAY, so changing the day re-applies
+      // it.** These are two independent fields — this is the one site of the six
+      // where date and time are not a chain — so the user can pick tomorrow at
+      // 09:00 and *then* move the date to today, stranding the time in the past.
+      // Lifting it here is what makes the invalid combination unreachable from
+      // either order of filling the form.
+      final t = _time;
+      if (t != null && _isToday(picked)) {
+        final floor = _floorNow;
+        final floorMinutes = floor.hour * 60 + floor.minute;
+        if (t.hour * 60 + t.minute < floorMinutes) {
+          // **Snapped onto the picker's grid, not set to the raw clock.** The
+          // first version assigned `_floorNow` directly, so moving the date to
+          // today at 14:07 put « 14:07 » in the field — a value the 5-minute
+          // picker would never have offered, and one the user never chose. The
+          // picker's own lift snaps; this one has to agree with it.
+          final lifted = snapUpToStep(floorMinutes, _kMinuteStep);
+          _time = TimeOfDay(hour: lifted ~/ 60, minute: lifted % 60);
+        }
+      }
+    });
   }
 
   Future<void> _pickTime() async {
-    final picked = await showTimePicker(
-        context: context,
-        initialTime: _time ?? TimeOfDay.fromDateTime(salonNow(tz: _tz)));
+    final d = _date;
+    final picked = await showMyweliTimePicker(
+      context: context,
+      initialTime: _time ?? _floorNow,
+      // Bounded only when the chosen day is today. With no date chosen yet there
+      // is nothing to bound against, and `_pickDate` covers that order.
+      minuteStep: _kMinuteStep,
+      minTime: d != null && _isToday(d) ? _floorNow : null,
+    );
     if (picked != null) setState(() => _time = picked);
   }
 
@@ -134,10 +184,18 @@ class _ProManualBookingScreenState extends State<ProManualBookingScreen> {
       setState(() => _selectionError = 'Choisissez une date et une heure.');
       return;
     }
-    if (dt.isBefore(DateTime.now())) {
-      // Reachable, unlike the two above were: the time picker has no past-time
-      // constraint, so today + an earlier hour lands here. It was a bar about
-      // the date/time row.
+    if (dt.isBefore(AppClock.now())) {
+      // **A14b demoted this from validation to drift backstop, and did NOT
+      // delete it.** Its old comment said it was reachable *"because the time
+      // picker has no past-time constraint"*, and A14b gave the picker one
+      // (`minTime`), plus a re-lift in `_pickDate` for the other fill order — so
+      // no sequence of taps can now produce a past time.
+      //
+      // But the spec for this slice claimed the error state disappears, and that
+      // was wrong: **the wall clock moves while the form is open.** Pick today at
+      // 14:05 at 14:00, submit at 14:10, and this fires. A guard that is nearly
+      // unreachable is still reachable, and deleting it would have traded a rare
+      // field-level message for a server round-trip.
       setState(
           () => _selectionError = 'Choisissez une date et une heure à venir.');
       return;
@@ -302,21 +360,16 @@ class _ProManualBookingScreenState extends State<ProManualBookingScreen> {
                 maxLines: 2,
               ),
               const SizedBox(height: AppTheme.spacingM),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text('Total',
-                      style: AppTextStyles.bodyMedium
-                          .copyWith(color: AppColors.textSecondary)),
-                  Text(
-                    Formatters.formatCurrency(
-                      total,
-                      currency: context.read<ProAuthProvider>().salonCurrency,
-                    ),
-                    style: AppTextStyles.titleMedium
-                        .copyWith(color: AppColors.primary),
-                  ),
-                ],
+              LabelValueRow(
+                label: 'Total',
+                value: Formatters.formatCurrency(
+                  total,
+                  currency: context.read<ProAuthProvider>().salonCurrency,
+                ),
+                labelStyle: AppTextStyles.bodyMedium
+                    .copyWith(color: AppColors.textSecondary),
+                valueStyle: AppTextStyles.titleMedium
+                    .copyWith(color: AppColors.primary),
               ),
               const SizedBox(height: AppTheme.spacingL),
               InlineFeedback(_selectionError),

@@ -17,7 +17,7 @@ import '../support/golden.dart';
 /// baseline is evidence rather than an illustration.
 void main() {
   group('goldens', () {
-    setUpAll(loadGoldenFonts);
+    setUpAll(loadRealFonts);
 
     /// Opens a dialog from a real route: the scrim, the elevation and
     /// `dialogTheme` are all in frame, and `autofocus` resolves the way it
@@ -68,8 +68,14 @@ void main() {
         (context) => unawaited(showConfirmDialog(
           context,
           title: 'Supprimer mon compte',
-          message: 'Cette action est définitive. Vos rendez-vous, favoris et '
-              'avis seront supprimés. Pensez à exporter vos données avant.',
+          // Verbatim from `profile_screen.dart` — this golden photographs the
+          // REAL account-deletion dialog, so the two move together. L1 changed
+          // it because it was false: appointments and reviews are not deleted,
+          // they survive without you.
+          message: 'Cette action est définitive. Votre profil, vos favoris et '
+              'vos notifications sont supprimés ; vos rendez-vous et vos avis '
+              'restent chez le salon, sans votre nom. Pensez à exporter vos '
+              'données avant.',
           confirmLabel: 'Supprimer définitivement',
           icon: Icons.warning_amber_rounded,
           confirmWord: 'SUPPRIMER',

@@ -171,6 +171,12 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
               </span>
               <div className="min-w-0">
                 <h1 className="flex items-center gap-xs text-titleLarge font-semibold text-textPrimary">
+                  {/* clip-ok: this is the page's own `<h1>`, so the bar is
+                      higher — and it clears it because the record identifies
+                      itself again immediately below, by phone number and visit
+                      history, and the name is the document title. Recorded as
+                      the weakest of the six: if this page ever loses the phone
+                      row, the declaration stops being true. */}
                   <span className="truncate">{card.displayName}</span>
                   {card.linked ? (
                     <Chip dense className="uppercase text-textTertiary">

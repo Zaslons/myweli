@@ -6,6 +6,7 @@ import 'package:myweli/core/theme/colors.dart';
 import 'package:myweli/core/theme/text_styles.dart';
 import 'package:myweli/widgets/common/app_text_field.dart';
 
+import '../support/fonts.dart';
 import '../support/pump_app.dart';
 import '_a11y.dart';
 
@@ -17,6 +18,8 @@ import '_a11y.dart';
 /// `errorMaxLines` defaults to **1**, so the sentence telling the user how to
 /// fix the form was the sentence they could not finish reading.
 void main() {
+  setUpAll(loadRealFonts);
+
   // The real message, from the real validator — not a fixture. It is the
   // longest one the product can produce, which is the case that clips.
   const longest = 'Le numéro doit comporter 10 chiffres (ex : 07 07 12 34 56).';

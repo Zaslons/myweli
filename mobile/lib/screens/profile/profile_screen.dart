@@ -1,17 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/config/app_config.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
+import '../../core/utils/external_link.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/favorites_provider.dart';
 import '../../widgets/common/app_button.dart';
 import '../../widgets/common/app_snack_bar.dart';
 import '../../widgets/common/confirm_dialog.dart';
+import '../../widgets/common/settings_tile.dart';
 import '../../widgets/common/timed_cached_image.dart';
 
 class ProfileScreen extends StatelessWidget {
@@ -68,7 +69,7 @@ class ProfileScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: AppTheme.spacingXL),
                 // Settings List
-                _SettingsItem(
+                SettingsTile(
                   icon: Icons.edit,
                   title: 'Modifier le profil',
                   onTap: () {
@@ -81,7 +82,7 @@ class ProfileScreen extends StatelessWidget {
                   },
                 ),
                 if (user != null)
-                  _SettingsItem(
+                  SettingsTile(
                     icon: Icons.favorite,
                     title: 'Mes favoris',
                     onTap: () {
@@ -89,12 +90,12 @@ class ProfileScreen extends StatelessWidget {
                     },
                   ),
                 if (user != null)
-                  _SettingsItem(
+                  SettingsTile(
                     icon: Icons.notifications,
                     title: 'Notifications',
                     onTap: () => context.push('/profile/notifications'),
                   ),
-                _SettingsItem(
+                SettingsTile(
                   icon: Icons.language,
                   title: 'Langue',
                   trailing: const Text('Français'),
@@ -102,43 +103,33 @@ class ProfileScreen extends StatelessWidget {
                     AppSnackBar.show(context, 'Fonctionnalité à venir');
                   },
                 ),
-                _SettingsItem(
+                SettingsTile(
                   icon: Icons.help_outline,
                   title: 'Aide & Support',
                   // Parity 15.2: manual intake via WhatsApp support.
-                  onTap: () async {
-                    final messenger = ScaffoldMessenger.of(context);
-                    final number = AppConfig.supportWhatsApp;
-                    if (number.isEmpty) {
-                      AppSnackBar.showOn(
-                          messenger, 'Contact bientôt disponible.');
-                      return;
-                    }
-                    final uri = Uri.parse(
-                      'https://wa.me/$number?text=${Uri.encodeComponent('Bonjour MyWeli, j’ai besoin d’aide concernant mon compte.')}',
-                    );
-                    if (!await launchUrl(
-                      uri,
-                      mode: LaunchMode.externalApplication,
-                    )) {
-                      AppSnackBar.showOn(
-                          messenger, 'Impossible d’ouvrir WhatsApp.',
-                          kind: SnackKind.error);
-                    }
-                  },
+                  onTap: () => openWhatsApp(
+                    context,
+                    number: AppConfig.supportWhatsApp,
+                    message: 'Bonjour MyWeli, j’ai besoin d’aide concernant '
+                        'mon compte.',
+                  ),
                 ),
-                const _SettingsItem(
+                SettingsTile(
                   icon: Icons.info_outline,
                   title: 'À propos',
-                  trailing: Text('Version 1.0.0'),
+                  // L1: it rendered a chevron it did not honour since PR-0 —
+                  // `onTap` was simply absent — and printed the version as a
+                  // literal beside `AppConstants.appVersion`. Now it opens the
+                  // legal surface, which is what a store reviewer taps it for.
+                  onTap: () => context.push('/a-propos'),
                 ),
                 if (user != null) ...[
-                  _SettingsItem(
+                  SettingsTile(
                     icon: Icons.download_outlined,
                     title: 'Exporter mes données',
                     onTap: () => context.push('/profile/data'),
                   ),
-                  _SettingsItem(
+                  SettingsTile(
                     icon: Icons.delete_outline,
                     title: 'Supprimer mon compte',
                     danger: true,
@@ -220,42 +211,22 @@ class ProfileScreen extends StatelessWidget {
   Future<bool> _confirmDeletion(BuildContext context) => showConfirmDialog(
         context,
         title: 'Supprimer mon compte',
-        message: 'Cette action est définitive. Vos rendez-vous, favoris et '
-            'avis seront supprimés. Pensez à exporter vos données avant.',
+        // **This copy was false, and stayed false after the cascade landed.**
+        // It promised that appointments and reviews « seront supprimés ». They
+        // are not: the booking survives stripped of your name, phone and notes
+        // (the salon needs it to reconcile takings) and the review survives
+        // without its author (the rating is an aggregate the salon earned).
+        // Saying « supprimés » of either would be describing an erasure the
+        // backend deliberately does not perform.
+        //
+        // One transcription, three surfaces: this dialog, `openapi.yaml`'s
+        // `/me` `delete:` description, and myweli.com/suppression-compte.
+        message: 'Cette action est définitive. Votre profil, vos favoris et '
+            'vos notifications sont supprimés ; vos rendez-vous et vos avis '
+            'restent chez le salon, sans votre nom. Pensez à exporter vos '
+            'données avant.',
         confirmLabel: 'Supprimer définitivement',
         icon: Icons.warning_amber_rounded,
         confirmWord: 'SUPPRIMER',
       );
-}
-
-class _SettingsItem extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final Widget? trailing;
-  final VoidCallback? onTap;
-  final bool danger;
-
-  const _SettingsItem({
-    required this.icon,
-    required this.title,
-    this.trailing,
-    this.onTap,
-    this.danger = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final color = danger ? AppColors.error : AppColors.textPrimary;
-    return ListTile(
-      leading: Icon(icon, color: color),
-      title: Text(title, style: AppTextStyles.bodyLarge.copyWith(color: color)),
-      trailing: trailing ??
-          const Icon(Icons.chevron_right, color: AppColors.textTertiary),
-      onTap: onTap,
-      contentPadding: const EdgeInsets.symmetric(
-        horizontal: AppTheme.spacingM,
-        vertical: AppTheme.spacingS,
-      ),
-    );
-  }
 }

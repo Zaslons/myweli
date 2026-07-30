@@ -4,6 +4,7 @@ import 'package:myweli/widgets/common/brand_refresh.dart';
 import 'package:myweli/widgets/common/loading_indicator.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/constants/booking_horizons.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
@@ -13,6 +14,9 @@ import '../../../models/availability.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_availability_provider.dart';
 import '../../../widgets/common/app_snack_bar.dart';
+import '../../../widgets/common/confirm_dialog.dart';
+import '../../../widgets/common/myweli_date_picker.dart';
+import '../../../widgets/common/myweli_time_picker.dart';
 import '../../../widgets/provider/weekly_hours_editor.dart';
 
 class AvailabilityScreen extends StatefulWidget {
@@ -248,14 +252,38 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
   ) async {
     // A blocked date is the ACTIVE SALON's calendar day (salon_time.dart).
     final tz = context.read<ProAuthProvider>().salonTimezone;
-    final selectedDate = await showDatePicker(
+    final selectedDate = await showMyweliDatePicker(
       context: context,
       initialDate: salonToday(tz: tz),
       firstDate: salonToday(tz: tz),
-      lastDate: salonToday(tz: tz).add(const Duration(days: 365)),
+      lastDate: salonToday(tz: tz).add(kBookingHorizon),
+      today: salonToday(tz: tz),
     );
 
-    if (selectedDate != null && context.mounted) {
+    if (selectedDate == null || !context.mounted) return;
+
+    // **A14a restores a confirmation the picker change had removed.**
+    //
+    // Material's OK was doing two jobs here, and only one of them was about
+    // seeing the selection: it was also the **commit gesture for a server
+    // write**. The house picker pops on the first tap, which is right for the
+    // four flows where the date lands in a form — and wrong for this one, where
+    // it closes the salon for a day immediately, with no confirmation, no
+    // success feedback and no undo (§15: undo stops at the client boundary).
+    //
+    // So the confirmation moves out of the picker and to the mutation, which is
+    // where it belonged.
+    final confirmed = await showConfirmDialog(
+      context,
+      title: 'Bloquer cette date ?',
+      message: 'Le ${Formatters.formatDate(selectedDate)}, votre salon '
+          'n’acceptera aucune réservation.',
+      confirmLabel: 'Bloquer',
+      icon: Icons.block,
+    );
+    if (!confirmed || !context.mounted) return;
+
+    {
       final updatedBlockedDates = List<DateTime>.from(availability.blockedDates)
         ..add(salonDateTime(
             selectedDate.year, selectedDate.month, selectedDate.day,
@@ -340,15 +368,27 @@ class _BufferSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // A12 — §21 row 68's finding #10, and the same mechanism as the pro
+          // dashboard's `_StatCard`: **an icon does not text-scale.** The
+          // theme sets no `applyTextScaling`, so the glyph stays 20dp while
+          // « Temps de battement » goes from ~144 to ~288 in a 296dp card —
+          // ~20dp over at 200%.
+          //
+          // `Flexible` rather than a `Wrap` here: unlike the stat card's
+          // « Aujourd'hui », this title is three words and CAN wrap its way
+          // out, so it takes the space it needs and the icon stays beside it.
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Icon(Icons.hourglass_bottom,
                   size: AppTheme.iconS, color: AppColors.textSecondary),
               const SizedBox(width: AppTheme.spacingS),
-              Text(
-                'Temps de battement',
-                style: AppTextStyles.titleMedium
-                    .copyWith(color: AppColors.textPrimary),
+              Flexible(
+                child: Text(
+                  'Temps de battement',
+                  style: AppTextStyles.titleMedium
+                      .copyWith(color: AppColors.textPrimary),
+                ),
               ),
             ],
           ),
@@ -361,8 +401,8 @@ class _BufferSection extends StatelessWidget {
           ),
           const SizedBox(height: AppTheme.spacingS),
           Wrap(
-            spacing: 8,
-            runSpacing: 8,
+            spacing: AppTheme.spacingS,
+            runSpacing: AppTheme.spacingS,
             children: _presets.map((minutes) {
               return ChoiceChip(
                 label: Text(minutes == 0 ? 'Aucun' : '$minutes min'),
@@ -407,8 +447,8 @@ class _DayScheduleCard extends StatelessWidget {
                     .copyWith(color: AppColors.textSecondary),
               )
             : Wrap(
-                spacing: 8,
-                runSpacing: 4,
+                spacing: AppTheme.spacingS,
+                runSpacing: AppTheme.spacingXS,
                 children: timeSlots.map((slot) {
                   final start = Formatters.formatTime(slot.startTime);
                   final end = Formatters.formatTime(slot.endTime);
@@ -591,46 +631,59 @@ class _DayScheduleEditScreenState extends State<_DayScheduleEditScreen> {
       endTime = TimeOfDay.fromDateTime(slot.endTime);
     }
 
-    final pickedStart = await showTimePicker(
+    // **One screen, not two identical modals** (A14b). This was two
+    // `showTimePicker`s with **no `helpText` on either**, so they were visually
+    // identical with nothing on screen saying which one you were in — and the
+    // second one's seed had to be derived arithmetically
+    // (`pickedStart.hour + 1`) precisely because the two dialogs could not see
+    // each other. The range picker shows both halves at once and drags the end
+    // forward itself.
+    final picked = await showMyweliTimeRangePicker(
       context: context,
-      initialTime: startTime ?? const TimeOfDay(hour: 9, minute: 0),
+      initialStart: startTime ?? const TimeOfDay(hour: 9, minute: 0),
+      initialEnd: endTime ??
+          TimeOfDay(
+              hour: startTime?.hour ?? 10, minute: startTime?.minute ?? 0),
+      helpText: index == null ? 'Nouveau créneau' : 'Modifier le créneau',
     );
 
-    if (pickedStart == null || !mounted) return;
+    if (picked == null || !mounted) return;
+    final pickedStart = picked.start;
+    final pickedEnd = picked.end;
 
-    final pickedEnd = await showTimePicker(
-      context: context,
-      initialTime: endTime ??
-          TimeOfDay(hour: pickedStart.hour + 1, minute: pickedStart.minute),
+    // §18 — a wall-clock the user picked IS salon time, so it becomes a UTC
+    // instant through `salonDateTime`, exactly as the blocked-date picker at
+    // `:261` already did. This built `DateTime(y, m, d, h, m)` — device-local,
+    // the shape §18 forbids outright — and A10's own sweep walked past it,
+    // converting the `now` on the line above and leaving the two constructions
+    // that consume it. The pin cannot see this: there is no clock token here.
+    final tz = context.read<ProAuthProvider>().salonTimezone;
+    final today = salonToday(tz: tz);
+    final startDateTime = salonDateTime(
+      today.year,
+      today.month,
+      today.day,
+      hour: pickedStart.hour,
+      minute: pickedStart.minute,
+      tz: tz,
+    );
+    final endDateTime = salonDateTime(
+      today.year,
+      today.month,
+      today.day,
+      hour: pickedEnd.hour,
+      minute: pickedEnd.minute,
+      tz: tz,
     );
 
-    if (pickedEnd == null || !mounted) return;
-
-    final now = DateTime.now();
-    final startDateTime = DateTime(
-      now.year,
-      now.month,
-      now.day,
-      pickedStart.hour,
-      pickedStart.minute,
-    );
-    final endDateTime = DateTime(
-      now.year,
-      now.month,
-      now.day,
-      pickedEnd.hour,
-      pickedEnd.minute,
-    );
-
-    if (endDateTime.isBefore(startDateTime) ||
-        endDateTime.isAtSameMomentAs(startDateTime)) {
-      if (mounted) {
-        AppSnackBar.show(
-            context, 'L’heure de fin doit être après l’heure de début',
-            kind: SnackKind.error);
-      }
-      return;
-    }
+    // **The « L'heure de fin doit être après l'heure de début » snackbar used to
+    // be here, and A14b deleted it rather than restyling it.** It existed only
+    // because dialog 2 could not be given a lower bound of `pickedStart`, and it
+    // cost the user both answers to say so. `MyweliTimeRangePicker` will not
+    // offer an end at or before the start, so the state this caught is now
+    // unreachable — which is the difference between a validation and a
+    // constraint. `myweli_time_picker_test.dart` asserts the guarantee this
+    // deletion now relies on.
 
     final newSlot = TimeSlot(
       startTime: startDateTime,

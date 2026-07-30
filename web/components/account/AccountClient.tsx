@@ -32,6 +32,7 @@ import { OpenInAppButton } from '../OpenInAppButton';
 import { PhoneField } from '../PhoneField';
 import { ProviderCard } from '../provider/ProviderCard';
 import { AppointmentCard } from './AppointmentCard';
+import { Tabs } from '../Tabs';
 
 const PROVIDER_LABELS: Record<string, string> = {
   google: 'Connecté via Google',
@@ -57,7 +58,7 @@ export function AccountClient() {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleteText, setDeleteText] = useState('');
   const [deleteBusy, setDeleteBusy] = useState(false);
-  const [deleteError, setDeleteError] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [phoneDraft, setPhoneDraft] = useState('');
   const [phoneBusy, setPhoneBusy] = useState(false);
   const [phoneError, setPhoneError] = useState(false);
@@ -135,11 +136,15 @@ export function AccountClient() {
   /// session ends and the CRM identity is anonymized server-side (T48).
   async function onDelete() {
     setDeleteBusy(true);
-    setDeleteError(false);
+    setDeleteError(null);
     const r = await deleteAccount();
     setDeleteBusy(false);
     if (!r.ok) {
-      setDeleteError(true);
+      setDeleteError(
+        r.error === 'future_bookings'
+          ? 'Annulez vos rendez-vous à venir avant de supprimer votre compte.'
+          : 'La suppression a échoué. Réessayez.',
+      );
       return;
     }
     router.replace('/');
@@ -150,7 +155,14 @@ export function AccountClient() {
   return (
     <div>
       <section className="rounded-xl border border-border bg-secondary p-m">
-        <div className="flex items-center justify-between">
+        {/* B11: both identity rows in this section are `justify-between` with a
+            value on the left and « Modifier » on the right, and neither could
+            wrap or had ANY gap — so at 320 the phone row measured 262 of 254
+            and the two items could touch at any width. `gap-s` is also
+            SYSTEM.md §13.2's ≥8px adjacency floor, which a bare
+            `justify-between` never guaranteed. This row is the latent twin: it
+            did not fire, because the seeded name is shorter than the phone. */}
+        <div className="flex flex-wrap items-center justify-between gap-s">
           <div>
             {editingName ? (
               <div className="flex flex-wrap items-center gap-s">
@@ -238,7 +250,7 @@ export function AccountClient() {
               ) : null}
             </div>
           ) : (
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-s">
               <div>
                 <p className="text-bodyMedium text-textPrimary">
                   {me?.phoneNumber ?? 'Aucun numéro de contact'}
@@ -262,22 +274,13 @@ export function AccountClient() {
         </div>
       </section>
 
-      <div className="mt-l flex gap-s border-b border-divider">
-        {TABS.map((t) => (
-          <button
-            key={t.key}
-            type="button"
-            onClick={() => setTab(t.key)}
-            className={`px-m py-s text-bodyMedium ${
-              tab === t.key
-                ? 'border-b-2 border-primary text-textPrimary'
-                : 'text-textTertiary'
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <Tabs
+        label="Filtrer mes rendez-vous"
+        className="mt-l"
+        value={tab}
+        onChange={setTab}
+        items={TABS}
+      />
 
       <div className="mt-m space-y-s">
         {shown.length === 0 ? (
@@ -379,8 +382,10 @@ export function AccountClient() {
           ) : (
             <div className="rounded-lg bg-surface p-m">
               <p className="text-bodyLarge text-textPrimary">
-                Cette action est définitive. Vos rendez-vous, favoris et avis
-                seront supprimés. Pensez à exporter vos données avant.
+                Cette action est définitive. Votre profil, vos favoris et vos
+                notifications sont supprimés ; vos rendez-vous et vos avis
+                restent chez le salon, sans votre nom. Pensez à exporter vos
+                données avant.
               </p>
               <p className="mt-s text-bodySmall text-textTertiary">
                 Tapez SUPPRIMER pour confirmer
@@ -412,7 +417,7 @@ export function AccountClient() {
               </div>
               {deleteError ? (
                 <p role="alert" className="mt-s text-bodyMedium text-error">
-                  La suppression a échoué. Réessayez.
+                  {deleteError}
                 </p>
               ) : null}
             </div>

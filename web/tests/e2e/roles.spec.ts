@@ -120,7 +120,12 @@ test('staff: the slim personal profil (deletion parity, no export)', async ({
   // No salon editor, no export — deletion stays.
   await expect(page.getByLabel('Nom du salon')).toHaveCount(0);
   await expect(page.getByText('Exporter (JSON)')).toHaveCount(0);
-  await expect(page.getByText('Supprimer mon compte')).toBeVisible();
+  // Role-scoped since L1: the site footer now links « Supprimer mon compte »
+  // on every page including /pro, so a bare text match resolves to two. The
+  // danger-zone BUTTON is what this line has always meant.
+  await expect(
+    page.getByRole('button', { name: 'Supprimer mon compte' }),
+  ).toBeVisible();
 });
 
 test('revoked mid-session: probed out to the connexion banner', async ({

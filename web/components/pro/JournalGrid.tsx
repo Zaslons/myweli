@@ -33,6 +33,17 @@ let draggingAppt: ProAppointment | null = null;
 const AXIS_W = 56;
 const COL_MIN_W = 168;
 
+/// The sticky artist header is `h-8` — and `h-8` is **2rem**, not 32px
+/// (`tailwind.config.ts` sources the sizing keys from Tailwind's default scale,
+/// which is rem). Every block in this grid is positioned below that header, and
+/// until B11 the offset was the literal `32`: identical at a 16px root and
+/// wrong at every other one. At Chrome's "Very large" (24px) the header renders
+/// 48px tall and every appointment sat 16px too high, overlapping it.
+///
+/// It is a string, not a number, because the whole point is that it carries a
+/// unit the header also uses.
+const HEADER_OFFSET = '2rem';
+
 /// The journal day grid (module journal J1 — docs/design/journal-j1-grid.md
 /// §3): artist columns, 15-min axis, now-line, drag-reschedule (optimistic,
 /// 409 snap-back), click-panel + quick-create. `providerId` owns the data;
@@ -249,7 +260,7 @@ function JournalColumn({
 
       {/* click-to-create surface + break bands (inert when readOnly) */}
       {readOnly ? (
-        <div className="absolute inset-x-0" style={{ top: 32, height }}>
+        <div className="absolute inset-x-0" style={{ top: HEADER_OFFSET, height }}>
           {breakBands(hours).map((b, i) => (
             <div
               key={i}
@@ -267,7 +278,7 @@ function JournalColumn({
           ref={colRef}
           aria-label={`Créer un rendez-vous — ${artist.name}`}
           className="absolute inset-x-0 cursor-copy"
-          style={{ top: 32, height }}
+          style={{ top: HEADER_OFFSET, height }}
           onClick={(e) => onEmptyClick(minuteAt(e.clientY))}
           onDragOver={(e) => e.preventDefault()}
           onDrop={(e) => {
@@ -300,7 +311,7 @@ function JournalColumn({
       {nowTop !== null ? (
         <div
           className="pointer-events-none absolute inset-x-0 border-t border-error"
-          style={{ top: 32 + nowTop }}
+          style={{ top: `calc(${HEADER_OFFSET} + ${nowTop}px)` }}
         />
       ) : null}
 
@@ -321,7 +332,7 @@ function JournalColumn({
               draggingAppt = null;
             }}
             onClick={() => onSelect(a)}
-            aria-label={`${a.clientName ?? 'Client'}, ${statusLabelFr(
+            aria-label={`${a.clientDisplayName ?? a.clientName ?? 'Client'}, ${statusLabelFr(
               statusKey(a),
             )}`}
             // ds-ignore: py-[2px] is below the 4px grid floor — a 15-min block
@@ -332,13 +343,13 @@ function JournalColumn({
             className={`absolute inset-x-1 overflow-hidden rounded-md border px-xs py-[2px] text-left text-labelSmall leading-tight ${
               STATUS_STYLE[statusKey(a)] ?? STATUS_STYLE.confirmed
             } ${draggable ? 'cursor-grab' : 'cursor-pointer'}`}
-            style={{ top: 32 + box.top, height: box.height }}
+            style={{ top: `calc(${HEADER_OFFSET} + ${box.top}px)`, height: box.height }}
           >
             <span className="block font-medium">
               {salonFormatter({ hour: '2-digit', minute: '2-digit' }, tz).format(
                 new Date(a.appointmentDate),
               )}{' '}
-              {a.clientName ?? 'Client'}
+              {a.clientDisplayName ?? a.clientName ?? 'Client'}
             </span>
             {box.height > 34 ? (
               <span className="block text-textSecondary">

@@ -1,4 +1,5 @@
 import '../../core/constants/app_constants.dart';
+import '../../core/utils/app_clock.dart';
 import '../../core/utils/message_templates.dart';
 import '../../models/api_response.dart';
 import '../../models/messaging.dart';
@@ -51,14 +52,14 @@ class MockMessagingService implements MessagingServiceInterface {
             : preferred;
 
     final message = OutboundMessage(
-      id: 'msg_${DateTime.now().microsecondsSinceEpoch}',
+      id: 'msg_${AppClock.now().microsecondsSinceEpoch}',
       recipientPhone: recipientPhone,
       channel: channel,
       template: template,
       params: params,
       body: renderTemplate(template, params),
       status: DeliveryStatus.delivered,
-      createdAt: DateTime.now(),
+      createdAt: AppClock.now(),
     );
     _outbox.add(message);
     return ApiResponse.success(message, message: 'Message envoyé');

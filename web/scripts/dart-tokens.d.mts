@@ -5,6 +5,7 @@ export declare const SOURCES: Record<string, string>;
 export declare const SPACING_KEYS: Record<string, string>;
 export declare const RADIUS_KEYS: Record<string, string>;
 export declare const ICON_KEYS: Record<string, string>;
+export declare const LAYOUT_KEYS: Record<string, string>;
 export declare const WEB_ONLY: { spacing: string[]; motion: string[]; zIndex: string[] };
 
 export declare function stripDartComments(src: string): string;
@@ -42,6 +43,7 @@ export declare function expectedWebTokens(): {
   spacing: Record<string, string>;
   radius: Record<string, string>;
   icon: Record<string, string>;
+  layout: Record<string, string>;
   type: Record<string, [string, { lineHeight: string; letterSpacing: string }]>;
   motion: Record<string, string>;
   // A8: §9's Dart side. `dartMotion` is keyed like the web export ('base'),

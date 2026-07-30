@@ -35,6 +35,10 @@ abstract interface class NotificationPrefsRepository {
     bool? marketing,
     bool? push,
   });
+  // ---- Privacy (L1 erasure) ------------------------------------------------
+
+  /// Drop the row so a re-registered account starts at defaults.
+  Future<void> deleteForUser(String userId);
 }
 
 class InMemoryNotificationPrefsRepository
@@ -61,4 +65,7 @@ class InMemoryNotificationPrefsRepository
     _byUser[userId] = next;
     return next;
   }
+
+  @override
+  Future<void> deleteForUser(String userId) async => _byUser.remove(userId);
 }

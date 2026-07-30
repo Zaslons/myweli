@@ -13,6 +13,7 @@ import '../../../providers/pro_auth_provider.dart';
 import '../../../widgets/common/app_button.dart';
 import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/empty_state.dart';
+import '../../../widgets/common/label_value_row.dart';
 import '../../../widgets/common/loading_indicator.dart';
 
 /// « Mes données » for salons (audit 11.5 — AUTH-005 for pros): assembles the
@@ -168,16 +169,11 @@ class _CountRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: AppTheme.spacingXS),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: AppTextStyles.bodyMedium),
-          Text(
-            '$count',
-            style: AppTextStyles.bodyMedium
-                .copyWith(color: AppColors.textSecondary),
-          ),
-        ],
+      child: LabelValueRow(
+        label: label,
+        value: '$count',
+        valueStyle:
+            AppTextStyles.bodyMedium.copyWith(color: AppColors.textSecondary),
       ),
     );
   }

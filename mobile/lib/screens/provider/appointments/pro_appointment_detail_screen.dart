@@ -7,6 +7,7 @@ import '../../../core/di/dependency_injection.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
+import '../../../core/utils/app_clock.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/utils/salon_time.dart';
 import '../../../core/utils/status_colors.dart';
@@ -88,10 +89,10 @@ class _ProAppointmentDetailScreenState
               userId: '',
               providerId: '',
               serviceIds: const [],
-              appointmentDate: DateTime.now(),
+              appointmentDate: AppClock.now(),
               status: AppointmentStatus.pending,
               totalPrice: 0,
-              createdAt: DateTime.now(),
+              createdAt: AppClock.now(),
             ),
           );
 
@@ -112,7 +113,9 @@ class _ProAppointmentDetailScreenState
                           children: [
                             Expanded(
                               child: Text(
-                                appointment.clientName ?? 'Client',
+                                appointment.clientDisplayName ??
+                                    appointment.clientName ??
+                                    'Client',
                                 overflow: TextOverflow.ellipsis,
                                 style: AppTextStyles.titleMedium.copyWith(
                                   color: AppColors.textPrimary,
@@ -284,7 +287,7 @@ class _ProAppointmentDetailScreenState
                   if (!ownMode &&
                       appointment.arrivedAt == null &&
                       isSameSalonDay(
-                          appointment.appointmentDate, DateTime.now(),
+                          appointment.appointmentDate, AppClock.now(),
                           tz: authProvider.salonTimezone)) ...[
                     AppButton(
                       text: 'Client arrivé',
@@ -322,7 +325,7 @@ class _ProAppointmentDetailScreenState
                       }
                     },
                   ),
-                  if (!appointment.appointmentDate.isAfter(DateTime.now())) ...[
+                  if (!appointment.appointmentDate.isAfter(AppClock.now())) ...[
                     const SizedBox(height: AppTheme.spacingSM),
                     AppButton(
                       text: 'Marquer comme absent',

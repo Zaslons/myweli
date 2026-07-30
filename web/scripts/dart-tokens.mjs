@@ -211,6 +211,25 @@ export const ICON_KEYS = {
   iconXL: 'iconXL',
 };
 
+/** The fourth family, and the first that is neither spacing, radius nor an icon
+ *  size (A11 C6).
+ *
+ *  `contentMaxWidth` is the one dimension SYSTEM.md §10 names — "text and forms
+ *  never stretch past it" — and until C6 it lived in **no code on either
+ *  surface**: prose on mobile, and a hard-coded `'720px'` in tailwind.config.ts
+ *  whose own comment admitted it stood in for §10.
+ *
+ *  WEB-SYSTEM.md §2 argued against a web sizing scale because it "would be the
+ *  fourth mirror divergence … and the first with no upstream for B3's generator
+ *  to track." That objection is retired by giving it an upstream, not by
+ *  ignoring it: the value now comes from `AppTheme`, like every other token.
+ *
+ *  The web key stays `content` because `max-w-content` already has seven
+ *  consumers across seven files. */
+export const LAYOUT_KEYS = {
+  contentMaxWidth: 'content',
+};
+
 /** Web-side keys with NO mobile source, each with its reason. The gate fails
  *  on any web key that is neither mirrored nor declared here. */
 export const WEB_ONLY = {
@@ -318,6 +337,7 @@ export function expectedWebTokens() {
     spacing: pick(SPACING_KEYS),
     radius: pick(RADIUS_KEYS),
     icon: pick(ICON_KEYS),
+    layout: pick(LAYOUT_KEYS),
     type,
     motion,
     zIndex,
@@ -353,7 +373,11 @@ export function expectedWebTokens() {
     // Scalars the double-parse found that no family claims — the gate asserts
     // this is empty so a NEW AppTheme constant can't fall between families.
     unclaimedDoubles: Object.keys(doubles.parsed).filter(
-      (k) => !(k in SPACING_KEYS) && !(k in RADIUS_KEYS) && !(k in ICON_KEYS),
+      (k) =>
+        !(k in SPACING_KEYS) &&
+        !(k in RADIUS_KEYS) &&
+        !(k in ICON_KEYS) &&
+        !(k in LAYOUT_KEYS),
     ),
   };
 }
