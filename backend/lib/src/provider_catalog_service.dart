@@ -1,5 +1,6 @@
 import 'access/capabilities.dart';
 import 'access/membership_service.dart';
+import 'appointments/booking_window.dart';
 import 'auth/provider_auth_repository.dart';
 import 'localities/localities_repository.dart';
 import 'localities/localities_service.dart';
@@ -275,6 +276,18 @@ class ProviderCatalogService {
       'breaks': body['breaks'] ?? const <String, dynamic>{},
       'blockedDates': body['blockedDates'] ?? const <String>[],
       'bufferMinutes': (body['bufferMinutes'] as num?)?.toInt() ?? 0,
+      // A14d. This literal is an ALLOW-LIST, not a spread: a key that is not
+      // named here is dropped with no error at all — the PUT answers 200 and
+      // the setting is simply gone. Nothing else says no either
+      // (`_validateAvailability` ignores unknown keys, and the OpenAPI schema
+      // has no `additionalProperties: false`), which is why the gate for these
+      // two asserts a re-GET rather than the status code.
+      'bookingHorizonDays':
+          (body['bookingHorizonDays'] as num?)?.toInt() ??
+          kDefaultBookingHorizonDays,
+      'minimumNoticeMinutes':
+          (body['minimumNoticeMinutes'] as num?)?.toInt() ??
+          kDefaultMinimumNoticeMinutes,
     };
     final saved = await _providers.replaceAvailability(
       providerId,
@@ -652,6 +665,36 @@ class ProviderCatalogService {
   String? _validateAvailability(Map<String, dynamic> body) {
     final buffer = body['bufferMinutes'];
     if (buffer != null && (buffer is! num || buffer < 0)) {
+      return 'invalid_input';
+    }
+
+    // A14d — the bookable window. Deliberately STRICTER than `bufferMinutes`
+    // above, which accepts any non-negative `num`: a double silently truncates
+    // (15.7 stores as 15) and there is no ceiling at all. Both ends here are
+    // whole days / whole minutes and both are bounded, because the horizon
+    // drives a client-side year list and an unbounded one is an unbounded
+    // ListView on a low-end Android.
+    final horizon = body['bookingHorizonDays'];
+    if (horizon != null &&
+        (horizon is! int ||
+            horizon < kMinBookingHorizonDays ||
+            horizon > kMaxBookingHorizonDays)) {
+      return 'invalid_input';
+    }
+    final notice = body['minimumNoticeMinutes'];
+    if (notice != null &&
+        (notice is! int ||
+            notice < kMinMinimumNoticeMinutes ||
+            notice > kMaxMinimumNoticeMinutes)) {
+      return 'invalid_input';
+    }
+    // Cross-field: a notice reaching past the horizon means every day is at
+    // once too soon and too far, so the salon is unreachable — silently, with
+    // a perfectly valid document and a 200. Refused rather than shipped.
+    if (!isBookableWindow(
+      bookingHorizonDays: (horizon as int?) ?? kDefaultBookingHorizonDays,
+      minimumNoticeMinutes: (notice as int?) ?? kDefaultMinimumNoticeMinutes,
+    )) {
       return 'invalid_input';
     }
 

@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:postgres/postgres.dart';
 
+import '../appointments/booking_window.dart';
 import '../providers_repository.dart';
 import '../slug.dart' show isReservedSlug;
 import 'migrations.dart' show insertProviderAvailability;
@@ -470,7 +471,8 @@ class PostgresProvidersRepository implements ProvidersRepository {
     final (clause, params) = _inClause(ids);
     final buffers = await _pool.execute(
       Sql.named(
-        'SELECT provider_id, buffer_minutes FROM provider_availability '
+        'SELECT provider_id, buffer_minutes, booking_horizon_days, '
+        'minimum_notice_minutes FROM provider_availability '
         'WHERE provider_id IN $clause',
       ),
       parameters: params,
@@ -486,6 +488,14 @@ class PostgresProvidersRepository implements ProvidersRepository {
       out[pid] = {
         'providerId': pid,
         'bufferMinutes': (m['buffer_minutes'] as num).toInt(),
+        // A14d. Tolerant of a row written before migration 0031 backfilled it
+        // — a NULL column must read as the default, not throw.
+        'bookingHorizonDays':
+            (m['booking_horizon_days'] as num?)?.toInt() ??
+            kDefaultBookingHorizonDays,
+        'minimumNoticeMinutes':
+            (m['minimum_notice_minutes'] as num?)?.toInt() ??
+            kDefaultMinimumNoticeMinutes,
         'weeklySchedule': schedule[pid] ?? const <String, dynamic>{},
         'breaks': breaks[pid] ?? const <String, dynamic>{},
         'blockedDates': blocked[pid] ?? const <String>[],
@@ -554,6 +564,12 @@ class PostgresProvidersRepository implements ProvidersRepository {
   Map<String, dynamic> _emptyAvailability(String id) => {
     'providerId': id,
     'bufferMinutes': 0,
+    // The read above iterates the provider_availability rowset, so a salon
+    // with no row never reaches it and lands here instead. Without these two
+    // the SAME salon would answer with a window or without one depending on
+    // whether it had ever saved availability.
+    'bookingHorizonDays': kDefaultBookingHorizonDays,
+    'minimumNoticeMinutes': kDefaultMinimumNoticeMinutes,
     'weeklySchedule': const <String, dynamic>{},
     'breaks': const <String, dynamic>{},
     'blockedDates': const <String>[],

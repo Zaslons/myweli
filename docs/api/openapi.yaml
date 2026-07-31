@@ -3856,6 +3856,27 @@ components:
         bufferMinutes:
           type: integer
           description: Setup/cleanup gap enforced around each booking.
+        bookingHorizonDays:
+          type: integer
+          minimum: 1
+          maximum: 730
+          default: 365
+          description: >-
+            How far ahead clients may book, in salon calendar days (A14d).
+            Server-enforced for CLIENT paths only — the salon's own manual
+            booking and its own reschedules are exempt, because the salon owns
+            its calendar. Bounded at 730 because an unbounded horizon is an
+            unbounded year list in the client's month navigator.
+        minimumNoticeMinutes:
+          type: integer
+          minimum: 0
+          maximum: 10080
+          default: 60
+          description: >-
+            Minimum notice before a booking starts (A14d). 0 = walk-ins
+            welcome. Same client-only enforcement as bookingHorizonDays. A
+            value greater than bookingHorizonDays x 1440 leaves nothing
+            bookable and is rejected as invalid_input.
 
     DashboardStats:
       type: object

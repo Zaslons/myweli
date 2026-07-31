@@ -638,6 +638,180 @@ void main() {
       expect((await jsonOf(put))['bufferMinutes'], 20);
     });
 
+    // ---- A14d — the bookable window (§21 row 76) --------------------------
+    //
+    // These assert the ROUND TRIP, not the 200, and the distinction is the
+    // whole point. `replaceAvailability` does not spread the body: it rebuilds
+    // a fresh map from a hard-coded allow-list
+    // (provider_catalog_service.dart:272-278), and `_validateAvailability`
+    // never rejects unknown keys, and the OpenAPI schema has no
+    // `additionalProperties: false`. So a field nobody added to that literal is
+    // dropped with NO error — the PUT answers 200 and the setting is simply
+    // gone. A test that stopped at the status code would stay green through
+    // exactly that.
+    test('A14d: the bookable window survives a PUT and a re-GET', () async {
+      final put = await availability.onRequest(
+        ctx(
+          req(
+            'PUT',
+            '/providers/provider1/availability',
+            bearer: token,
+            body: {
+              'weeklySchedule': <String, dynamic>{},
+              'breaks': <String, dynamic>{},
+              'blockedDates': <String>[],
+              'bufferMinutes': 10,
+              'bookingHorizonDays': 30,
+              'minimumNoticeMinutes': 120,
+            },
+          ),
+        ),
+        'provider1',
+      );
+      expect(put.statusCode, HttpStatus.ok);
+      final echoed = await jsonOf(put);
+      expect(echoed['bookingHorizonDays'], 30, reason: 'the PUT must echo it');
+      expect(echoed['minimumNoticeMinutes'], 120);
+
+      // The re-GET is the half the echo cannot prove: the echo is built from
+      // the same in-memory map the write produced, so a field that reached the
+      // response but never reached storage would still pass above.
+      final got = await availability.onRequest(
+        ctx(req('GET', '/providers/provider1/availability', bearer: token)),
+        'provider1',
+      );
+      final read = await jsonOf(got);
+      expect(read['bookingHorizonDays'], 30, reason: 'it must be STORED');
+      expect(read['minimumNoticeMinutes'], 120);
+    });
+
+    test('A14d: a salon that never set a window reads the defaults', () async {
+      // A FRESHLY REGISTERED pro, not provider1, and that is not fussiness.
+      // `InMemoryProvidersRepository([seed]) : _all = seed ?? seedProviders`
+      // defaults to the top-level MUTABLE `seedProviders` list, so `setUp`
+      // building a new repository does not reset anything — every test in this
+      // file writes to one shared document. An earlier draft of this test
+      // asserted on provider1 and read back the `30` the round-trip test above
+      // had just written: green alone, red in file order. Registering a pro
+      // gives this test a salon nothing else touches, and covers
+      // `draftSalonDocument`'s availability seed, which no other test does.
+      final salon = await providers.createSalon(
+        name: 'Fenêtre',
+        category: 'coiffure',
+        phoneNumber: '+2250500000099',
+      );
+      final salonId = salon['id'] as String;
+      final reg = await providerAuth.register(
+        email: 'window@test.pro',
+        authProvider: 'google',
+        googleSub: 'window-sub',
+        phoneNumber: '+2250500000099',
+        businessName: 'Fenêtre',
+        businessType: 'salon',
+        providerId: salonId,
+      );
+      final freshToken = tokens
+          .issueAccessToken(subject: reg.provider!.id, role: 'provider')
+          .token;
+
+      final got = await availability.onRequest(
+        ctx(req('GET', '/providers/$salonId/availability', bearer: freshToken)),
+        salonId,
+      );
+      expect(got.statusCode, HttpStatus.ok);
+      final read = await jsonOf(got);
+      // Chosen so A14d changes no salon's behaviour on the day it ships: 365
+      // is the consumer funnel's existing kBookingHorizon, 60 is the literal
+      // slot_service.dart:101-105 already enforced.
+      expect(read['bookingHorizonDays'], 365);
+      expect(read['minimumNoticeMinutes'], 60);
+    });
+
+    test('A14d: the window is bounded, and rejected out of range', () async {
+      Future<int> put(Map<String, dynamic> extra) async {
+        final r = await availability.onRequest(
+          ctx(
+            req(
+              'PUT',
+              '/providers/provider1/availability',
+              bearer: token,
+              body: {
+                'weeklySchedule': <String, dynamic>{},
+                'blockedDates': <String>[],
+                'bufferMinutes': 0,
+                ...extra,
+              },
+            ),
+          ),
+          'provider1',
+        );
+        return r.statusCode;
+      }
+
+      // An unbounded horizon is an unbounded ListView on the client
+      // (MyweliMonthNavigator builds a year list from firstDate to lastDate),
+      // which is why this needs a ceiling that `bufferMinutes` never had.
+      expect(await put({'bookingHorizonDays': 0}), HttpStatus.badRequest);
+      expect(await put({'bookingHorizonDays': 731}), HttpStatus.badRequest);
+      expect(await put({'bookingHorizonDays': 'trente'}), HttpStatus.badRequest);
+      expect(await put({'bookingHorizonDays': 30.5}), HttpStatus.badRequest);
+      expect(await put({'minimumNoticeMinutes': -1}), HttpStatus.badRequest);
+      expect(await put({'minimumNoticeMinutes': 10081}), HttpStatus.badRequest);
+      expect(await put({'bookingHorizonDays': 730}), HttpStatus.ok);
+      expect(await put({'minimumNoticeMinutes': 0}), HttpStatus.ok);
+
+      // Cross-field: a notice past the horizon leaves NOTHING bookable, ever.
+      // That is a mistake rather than a configuration, so it is refused rather
+      // than silently making a salon unreachable.
+      expect(
+        await put({'bookingHorizonDays': 1, 'minimumNoticeMinutes': 2880}),
+        HttpStatus.badRequest,
+      );
+    });
+
+    // The three branches this route has always had and no test has ever
+    // reached: 401 (:14-16), 403 (:17-19), 405 (:35-36). Verified absent
+    // before they were written — the whole availability suite was two 200s.
+    test('A14d: availability refuses anon, another salon, and a bad verb',
+        () async {
+      final anon = await availability.onRequest(
+        ctx(req('GET', '/providers/provider1/availability')),
+        'provider1',
+      );
+      expect(anon.statusCode, HttpStatus.unauthorized);
+
+      // Cross-tenant. `getAvailability` had a test for this; the WRITE never
+      // did, which is the more dangerous of the two.
+      final other = await availability.onRequest(
+        ctx(req('GET', '/providers/provider2/availability', bearer: token)),
+        'provider2',
+      );
+      expect(other.statusCode, HttpStatus.forbidden);
+
+      final write = await availability.onRequest(
+        ctx(
+          req(
+            'PUT',
+            '/providers/provider2/availability',
+            bearer: token,
+            body: {'bufferMinutes': 5},
+          ),
+        ),
+        'provider2',
+      );
+      expect(
+        write.statusCode,
+        HttpStatus.forbidden,
+        reason: "provider1's token must not write provider2's window",
+      );
+
+      final verb = await availability.onRequest(
+        ctx(req('DELETE', '/providers/provider1/availability', bearer: token)),
+        'provider1',
+      );
+      expect(verb.statusCode, HttpStatus.methodNotAllowed);
+    });
+
     test('gallery: GET → 200; PUT replaces → 200; over-cap → 400; '
         'cross-salon → 403; bad verb → 405', () async {
       final got = await gallery_route.onRequest(

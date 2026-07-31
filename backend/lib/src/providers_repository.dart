@@ -7,6 +7,7 @@
 /// surface (`query` + `byId`), so that swap stays localized.
 library;
 
+import 'appointments/booking_window.dart';
 import 'slug.dart' show isReservedSlug;
 
 /// Read access to providers. In-memory now; a Postgres impl (B3b) satisfies the
@@ -461,6 +462,10 @@ Map<String, dynamic> _availability(String providerId) {
     'weeklySchedule': _defaultWeeklySchedule(),
     'blockedDates': <String>[],
     'bufferMinutes': 10,
+    // A14d. Both seeds must carry the window or the in-memory backend answers
+    // differently from Postgres for the same salon, and only one suite sees it.
+    'bookingHorizonDays': kDefaultBookingHorizonDays,
+    'minimumNoticeMinutes': kDefaultMinimumNoticeMinutes,
   };
 }
 
@@ -719,6 +724,8 @@ Map<String, dynamic> draftSalonDocument({
     'weeklySchedule': <String, dynamic>{},
     'blockedDates': <String>[],
     'bufferMinutes': 0,
+    'bookingHorizonDays': kDefaultBookingHorizonDays,
+    'minimumNoticeMinutes': kDefaultMinimumNoticeMinutes,
   },
   'phoneNumber': phoneNumber,
   'whatsapp': phoneNumber,
