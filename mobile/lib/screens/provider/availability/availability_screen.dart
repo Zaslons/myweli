@@ -89,6 +89,25 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  _BookingWindowSection(
+                    bookingHorizonDays: availability.bookingHorizonDays,
+                    minimumNoticeMinutes: availability.minimumNoticeMinutes,
+                    onHorizonChanged: (days) => _setWindow(
+                      context,
+                      availability,
+                      availabilityProvider,
+                      _resolvedProviderId(context),
+                      horizonDays: days,
+                    ),
+                    onNoticeChanged: (minutes) => _setWindow(
+                      context,
+                      availability,
+                      availabilityProvider,
+                      _resolvedProviderId(context),
+                      noticeMinutes: minutes,
+                    ),
+                  ),
+                  const SizedBox(height: AppTheme.spacingL),
                   _BufferSection(
                     bufferMinutes: availability.bufferMinutes,
                     onChanged: (minutes) => _setBuffer(
@@ -317,6 +336,39 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
     }
   }
 
+  /// One tap saves, exactly like [_setBuffer] beside it — and like it, with no
+  /// success feedback: the chip moving IS the confirmation, and a snackbar for
+  /// every chip tap would be noise. Errors do speak, because a silent failure
+  /// would leave the chip showing a value the server never took.
+  Future<void> _setWindow(
+    BuildContext context,
+    Availability availability,
+    ProAvailabilityProvider provider,
+    String providerId, {
+    int? horizonDays,
+    int? noticeMinutes,
+  }) async {
+    // Exactly one of the two arrives per tap; « nothing changed » means the
+    // supplied one already holds that value. Spelled out rather than folded
+    // into one `||`, which reads as an accident on two optional parameters.
+    final horizonUnchanged =
+        horizonDays == null || horizonDays == availability.bookingHorizonDays;
+    final noticeUnchanged =
+        noticeMinutes == null ||
+        noticeMinutes == availability.minimumNoticeMinutes;
+    if (horizonUnchanged && noticeUnchanged) return;
+    await provider.updateAvailability(
+      providerId,
+      availability.copyWith(
+        bookingHorizonDays: horizonDays,
+        minimumNoticeMinutes: noticeMinutes,
+      ),
+    );
+    if (context.mounted && provider.error != null) {
+      AppSnackBar.show(context, provider.error!, kind: SnackKind.error);
+    }
+  }
+
   Future<void> _setBuffer(
     BuildContext context,
     int minutes,
@@ -369,6 +421,133 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
     if (context.mounted && provider.error != null) {
       AppSnackBar.show(context, provider.error!, kind: SnackKind.error);
     }
+  }
+}
+
+/// The bookable window — how far ahead, and how soon, clients may book (A14d).
+///
+/// Deliberately the same shape as [_BufferSection] below: one card, an icon and
+/// a `Flexible` title, a sentence, and a `Wrap` of `ChoiceChip`s that save on
+/// tap. Two settings live here rather than two cards because they are one
+/// concept — the ends of a single window — and a salon reasons about them
+/// together.
+///
+/// **The presets cannot express an invalid pair.** The server refuses a notice
+/// reaching past the horizon (`isBookableWindow`), and the widest notice here
+/// (24 h) is inside the shortest horizon (1 month) by construction. Pinned by a
+/// test, so editing this list cannot silently offer a combination the API
+/// rejects.
+class _BookingWindowSection extends StatelessWidget {
+  final int bookingHorizonDays;
+  final int minimumNoticeMinutes;
+  final ValueChanged<int> onHorizonChanged;
+  final ValueChanged<int> onNoticeChanged;
+
+  const _BookingWindowSection({
+    required this.bookingHorizonDays,
+    required this.minimumNoticeMinutes,
+    required this.onHorizonChanged,
+    required this.onNoticeChanged,
+  });
+
+  static String horizonLabel(int days) => switch (days) {
+    30 => '1 mois',
+    90 => '3 mois',
+    180 => '6 mois',
+    365 => '1 an',
+    _ => '$days jours',
+  };
+
+  static String noticeLabel(int minutes) => switch (minutes) {
+    0 => 'Aucun',
+    60 => '1 h',
+    720 => '12 h',
+    1440 => '24 h',
+    _ => '$minutes min',
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AppTheme.spacingM),
+      decoration: BoxDecoration(
+        color: AppColors.secondary,
+        borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // `Flexible`, not a fixed row: an icon does not text-scale, so at
+          // 200% the title grows and the glyph does not (§21 row 68).
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(
+                Icons.event_available,
+                size: AppTheme.iconS,
+                color: AppColors.textSecondary,
+              ),
+              const SizedBox(width: AppTheme.spacingS),
+              Flexible(
+                child: Text(
+                  'Fenêtre de réservation',
+                  style: AppTextStyles.titleMedium.copyWith(
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppTheme.spacingXS),
+          Text(
+            'Jusqu’où vos clients peuvent réserver à l’avance, et le délai '
+            'minimum avant un rendez-vous. Vos propres réservations ne sont '
+            'pas concernées.',
+            style: AppTextStyles.bodySmall.copyWith(
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: AppTheme.spacingS),
+          Text(
+            'Réservations jusqu’à',
+            style: AppTextStyles.bodySmall.copyWith(
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: AppTheme.spacingXS),
+          Wrap(
+            spacing: AppTheme.spacingS,
+            runSpacing: AppTheme.spacingS,
+            children: BookingWindowPresets.horizons.map((days) {
+              return ChoiceChip(
+                label: Text(horizonLabel(days)),
+                selected: bookingHorizonDays == days,
+                onSelected: (_) => onHorizonChanged(days),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: AppTheme.spacingS),
+          Text(
+            'Délai minimum',
+            style: AppTextStyles.bodySmall.copyWith(
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: AppTheme.spacingXS),
+          Wrap(
+            spacing: AppTheme.spacingS,
+            runSpacing: AppTheme.spacingS,
+            children: BookingWindowPresets.notices.map((minutes) {
+              return ChoiceChip(
+                label: Text(noticeLabel(minutes)),
+                selected: minimumNoticeMinutes == minutes,
+                onSelected: (_) => onNoticeChanged(minutes),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+    );
   }
 }
 

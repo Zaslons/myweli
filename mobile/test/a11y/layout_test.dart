@@ -11,6 +11,7 @@ import 'package:myweli/providers/locality_provider.dart';
 import 'package:myweli/providers/notifications_provider.dart';
 import 'package:myweli/providers/pro_appointment_provider.dart';
 import 'package:myweli/providers/pro_auth_provider.dart';
+import 'package:myweli/providers/pro_availability_provider.dart';
 import 'package:myweli/providers/pro_dashboard_provider.dart';
 import 'package:myweli/providers/pro_earnings_provider.dart';
 import 'package:myweli/providers/pro_reviews_provider.dart';
@@ -24,6 +25,7 @@ import 'package:myweli/screens/notifications/notifications_screen.dart';
 import 'package:myweli/screens/provider/appointments/appointment_calendar_view.dart';
 import 'package:myweli/screens/provider/appointments/appointment_list_screen.dart';
 import 'package:myweli/screens/provider/auth/pro_otp_verify_screen.dart';
+import 'package:myweli/screens/provider/availability/availability_screen.dart';
 import 'package:myweli/screens/provider/dashboard/dashboard_screen.dart';
 import 'package:myweli/screens/provider/earnings/earnings_screen.dart';
 import 'package:myweli/screens/provider/reviews/reviews_screen.dart';
@@ -280,6 +282,56 @@ void main() {
       // `daysOfWeekHeight: 16.0` around a ~20dp line and sums it into a
       // `SizedBox(height:)` — so « L M M J V S D » is clipped at 1×, today,
       // on a shipped pro screen.
+
+      // ---- the pro availability screen, measured for the FIRST time ------
+      //
+      // A14d adds two preset rows to this screen and A14e rebuilds its
+      // blocked-dates half — and until now it had **no golden and no subject
+      // here**, on either instrument. Row 75's species exactly: a shipped pro
+      // screen nobody had ever measured.
+      //
+      // It is a tall scroll of cards, so the risk is not the page overflowing
+      // but a CARD's own row doing it — an icon that does not text-scale beside
+      // a title that does (row 68), and now two `Wrap`s of chips whose labels
+      // (« 1 mois », « Aucun ») grow while the chip padding does not.
+      testWidgets('the pro AVAILABILITY screen fits $at', (tester) async {
+        final auth = await signInPro(tester);
+        await pumpAtWidth(
+          tester,
+          width: width,
+          scale: scale,
+          providers: [
+            ChangeNotifierProvider<ProAuthProvider>.value(value: auth),
+            ChangeNotifierProvider(create: (_) => ProAvailabilityProvider()),
+          ],
+          home: const AvailabilityScreen(),
+        );
+
+        // C — something POSITIVE, per the calendar subject's own lesson: a
+        // bare absence finder proved useless there. « Fenêtre de réservation »
+        // is A14d's new card and « Temps de battement » the one beside it, so
+        // both drawing means the screen assembled rather than erroring into an
+        // empty scroll.
+        expect(
+          find.text('Fenêtre de réservation'),
+          findsOneWidget,
+          reason: 'C: A14d\'s window card must be on screen at $at',
+        );
+
+        expectNoUndeclaredTruncation(
+          tester,
+          context: 'the pro availability screen at $at',
+        );
+        expectNoLegibilityCrush(
+          tester,
+          context: 'the pro availability screen at $at',
+        );
+        expectNoVerticalClip(
+          tester,
+          context: 'the pro availability screen at $at',
+        );
+        expect(tester.takeException(), isNull, reason: 'A: $at');
+      });
 
       testWidgets('the pro appointment CALENDAR fits $at', (tester) async {
         final auth = await signInPro(tester);

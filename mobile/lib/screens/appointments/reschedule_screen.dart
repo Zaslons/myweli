@@ -177,6 +177,15 @@ class _RescheduleScreenState extends State<RescheduleScreen> {
                           : totalBookingDuration(services, null),
                       tz: _tz,
                       countryCode: widget.salon.countryCode,
+                      // A14d. A consumer reschedule is a CLIENT path, so the
+                      // salon's window binds it — the pro's own reschedule is
+                      // exempt server-side and lives on a different screen.
+                      horizon: Duration(
+                        days: widget.salon.availability.bookingHorizonDays,
+                      ),
+                      minimumNotice: Duration(
+                        minutes: widget.salon.availability.minimumNoticeMinutes,
+                      ),
                       onDateChanged: (d) => setState(() {
                         _date = d;
                         // A slot on the old day cannot survive a day change.

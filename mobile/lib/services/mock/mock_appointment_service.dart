@@ -322,6 +322,30 @@ class MockAppointmentService implements AppointmentServiceInterface {
       return ApiResponse.success([]);
     }
 
+    // A14d — the FAR end of the bookable window. Placed here, after the past
+    // gate and before the blocked-date scan, to mirror
+    // `backend/lib/src/appointments/slot_service.dart`: the cheapest refusal
+    // comes first, and every « no slots » condition returns the SAME shape
+    // (a success with an empty list), never an error.
+    //
+    // The mock had no horizon check at all before A14d, so a day 400 days out
+    // returned a full slot list while the server refused the booking. Every
+    // mobile test runs against this file, so a gate written without this would
+    // have passed while the API said no.
+    final today = salonToday(tz: tz);
+    // Field arithmetic, not `add(Duration(days:))`: the latter adds fixed
+    // 24-hour blocks and lands an hour into the wrong day across a DST
+    // boundary. `salonDateTime` normalises the overflow.
+    final lastBookableDayStartUtc = salonDateTime(
+      today.year,
+      today.month,
+      today.day + provider.availability.bookingHorizonDays,
+      tz: tz,
+    );
+    if (dayStartUtc.isAfter(lastBookableDayStartUtc)) {
+      return ApiResponse.success([]);
+    }
+
     // Respect blocked dates (SALON calendar days) from provider availability.
     final blocked = provider.availability.blockedDates.any((d) {
       final wall = toSalonTime(d, tz: tz);
@@ -355,10 +379,19 @@ class MockAppointmentService implements AppointmentServiceInterface {
 
     if (openingSlots.isEmpty) return ApiResponse.success([]);
 
-    // For today, skip slots in the past (start 1 hour from now).
-    final minStart = dayStartUtc.isAtSameMomentAs(todayStartUtc)
-        ? AppClock.now().toUtc().add(const Duration(hours: 1))
-        : null;
+    // A14d — the NEAR end. This was « for today, only offer starts >= 1h from
+    // now », computed only when the requested day WAS today and left null
+    // otherwise: correct for a one-hour notice and structurally incapable of
+    // expressing a longer one, because a salon requiring 48 hours must exclude
+    // TOMORROW and that branch did not exist. One absolute instant says both,
+    // mirroring the same restructure in `slot_service.dart`.
+    //
+    // At the default 60 this is byte-identical to the old rule: on today it IS
+    // the old rule, and on any later day `now + 60min` precedes every slot, so
+    // nothing is filtered. That equivalence is asserted rather than claimed.
+    final minStart = AppClock.now().toUtc().add(
+      Duration(minutes: provider.availability.minimumNoticeMinutes),
+    );
 
     final duration =
         durationMinutes ??
@@ -375,7 +408,7 @@ class MockAppointmentService implements AppointmentServiceInterface {
     final bufferMinutes = provider.availability.bufferMinutes;
 
     bool candidateOk(DateTime start) {
-      if (minStart != null && start.isBefore(minStart)) return false;
+      if (start.isBefore(minStart)) return false;
       final end = start.add(Duration(minutes: duration));
 
       // Ensure provider opening slots cover the whole duration in 30-min increments.
