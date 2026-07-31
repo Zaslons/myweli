@@ -346,6 +346,36 @@ void main() {
       await expectGolden(tester, 'pro_appointment_list_w360');
     });
 
+    // ---- A14c: the first picture of the pro CALENDAR ---------------------
+    //
+    // **Row 75 said "no golden, no a11y subject", and the reason was one line
+    // long.** Calendrier is `TabController` index 0 — the default — so it is
+    // what renders on first pump, and the subject directly above calls
+    // `openProList(tester)`, whose whole job is to tap away from it. Every
+    // instrument aimed at this screen navigated off it before measuring.
+    //
+    // So this test is the one above **minus** a line, not plus one.
+    //
+    // What the picture is for, beyond existing: the conversion changes two
+    // visible things that no assertion states, both forced by A14a's arithmetic
+    // and §13's rule against meaning carried by colour alone — « today » becomes
+    // a **ring** rather than a 50 %-alpha primary fill, and the day cell becomes
+    // a **rounded rectangle** rather than a circle (a circle needs ~1.1dp more
+    // than a 360dp column has at 2×). Those are decisions to look at, not
+    // numbers to assert.
+
+    testWidgets('the pro calendar at the floor', (tester) async {
+      await _pumpPro(
+        tester,
+        const AppointmentListScreen(),
+        extra: [
+          ChangeNotifierProvider(create: (_) => ProAppointmentProvider()),
+        ],
+        size: const Size(360, 1400),
+      );
+      await expectGolden(tester, 'pro_appointment_calendar_w360');
+    });
+
     testWidgets('the reviews summary at the floor', (tester) async {
       await _pumpPro(
         tester,

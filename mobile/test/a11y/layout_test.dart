@@ -21,6 +21,7 @@ import 'package:myweli/screens/booking/booking_confirmation_screen.dart';
 import 'package:myweli/screens/booking/booking_hub_screen.dart';
 import 'package:myweli/screens/home/home_screen.dart';
 import 'package:myweli/screens/notifications/notifications_screen.dart';
+import 'package:myweli/screens/provider/appointments/appointment_calendar_view.dart';
 import 'package:myweli/screens/provider/appointments/appointment_list_screen.dart';
 import 'package:myweli/screens/provider/auth/pro_otp_verify_screen.dart';
 import 'package:myweli/screens/provider/dashboard/dashboard_screen.dart';
@@ -259,6 +260,80 @@ void main() {
         expectNoVerticalClip(
           tester,
           context: 'the pro appointment list at $at',
+        );
+        expect(tester.takeException(), isNull, reason: 'A: $at');
+      });
+
+      // ---- the pro CALENDAR tab (A14c §18) ------------------------------
+      //
+      // **The screen row 75 says nothing has ever measured, and the reason it
+      // escaped is one line long.** Calendrier is `TabController` index 0 — the
+      // default, what renders on first pump — and both instruments pointed at
+      // this screen call `openProList(tester)` as their second statement, whose
+      // entire job is to tap from Calendrier to Liste. The subject above and
+      // `pro_screens_golden_test.dart:345` each navigate off the calendar
+      // before measuring anything.
+      //
+      // So this subject is the one above **minus** a line, not plus one.
+      //
+      // Row 75's claim under test: `table_calendar` hard-codes
+      // `daysOfWeekHeight: 16.0` around a ~20dp line and sums it into a
+      // `SizedBox(height:)` — so « L M M J V S D » is clipped at 1×, today,
+      // on a shipped pro screen.
+
+      testWidgets('the pro appointment CALENDAR fits $at', (tester) async {
+        final auth = await signInPro(tester);
+        await pumpAtWidth(
+          tester,
+          width: width,
+          scale: scale,
+          providers: [
+            ChangeNotifierProvider<ProAuthProvider>.value(value: auth),
+            ChangeNotifierProvider(create: (_) => ProAppointmentProvider()),
+          ],
+          home: const AppointmentListScreen(),
+        );
+
+        // **C, and the first draft of it was wrong in a way worth keeping.**
+        // It asserted « Aucun rendez-vous » was absent, on the theory that the
+        // `appointments.isEmpty` branch replaces the whole calendar. That
+        // string matched on all six configurations — and the calendar was
+        // rendering perfectly. Two reasons, both of which make a bare text
+        // finder useless here: the same inline empty block is **duplicated**
+        // for the Liste page (`appointment_list_screen.dart:227-246`), whose
+        // « Aujourd'hui » tab is empty by default and which `TabBarView`
+        // builds anyway; and the calendar's own day list uses the **same
+        // words** when the chosen day is free.
+        //
+        // So C asserts something POSITIVE instead: the month drew. « mars 2026 »
+        // is the frozen clock's month, and it is the one string that survives
+        // the A14c conversion unchanged — `table_calendar` formats its header
+        // with `DateFormat.yMMMM` and `MyweliMonthBar` with
+        // `Formatters.formatMonthYear`, and both render « mars 2026 ».
+        expect(
+          find.byType(AppointmentCalendarView),
+          findsOneWidget,
+          reason: 'C: the calendar itself must be on screen at $at',
+        );
+        expect(
+          find.text('mars 2026'),
+          findsWidgets,
+          reason:
+              'C: the month header must have drawn — otherwise this measures '
+              'the chrome around a grid that never rendered, at $at',
+        );
+
+        expectNoUndeclaredTruncation(
+          tester,
+          context: 'the pro appointment calendar at $at',
+        );
+        expectNoLegibilityCrush(
+          tester,
+          context: 'the pro appointment calendar at $at',
+        );
+        expectNoVerticalClip(
+          tester,
+          context: 'the pro appointment calendar at $at',
         );
         expect(tester.takeException(), isNull, reason: 'A: $at');
       });
