@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
   type Availability,
+  HORIZON_PRESETS,
+  NOTICE_PRESETS,
+  horizonLabel,
+  noticeLabel,
   toApi,
   toEditable,
   validateHours,
@@ -19,6 +23,58 @@ const base: Availability = {
   blockedDates: ['2026-07-14'],
   bufferMinutes: 10,
 };
+
+describe('A14d — the bookable window survives a save', () => {
+  it('toApi round-trips the window like every other base field', () => {
+    // `save()` builds the request from `{...base, bufferMinutes, blockedDates}`
+    // and stores the SAME object into `base` afterwards, so a field that does
+    // not ride inside that spread is lost on the next save. `breaks` already
+    // demonstrates the failure mode (see the setBase test below); the window
+    // must not join it.
+    const out = toApi(toEditable(base), {
+      ...base,
+      bookingHorizonDays: 30,
+      minimumNoticeMinutes: 120,
+    });
+    expect(out.bookingHorizonDays).toBe(30);
+    expect(out.minimumNoticeMinutes).toBe(120);
+  });
+
+  it('no preset pair can leave the salon unbookable', () => {
+    // The server refuses a notice reaching past the horizon as invalid_input.
+    for (const days of HORIZON_PRESETS) {
+      for (const minutes of NOTICE_PRESETS) {
+        expect(minutes).toBeLessThanOrEqual(days * 24 * 60);
+      }
+    }
+  });
+
+  it('every preset is inside the contract bounds', () => {
+    for (const d of HORIZON_PRESETS) {
+      expect(d).toBeGreaterThanOrEqual(1);
+      expect(d).toBeLessThanOrEqual(730);
+    }
+    for (const m of NOTICE_PRESETS) {
+      expect(m).toBeGreaterThanOrEqual(0);
+      expect(m).toBeLessThanOrEqual(10080);
+    }
+  });
+
+  it('the labels match mobile word for word', () => {
+    expect(HORIZON_PRESETS.map(horizonLabel)).toEqual([
+      '1 mois',
+      '3 mois',
+      '6 mois',
+      '1 an',
+    ]);
+    expect(NOTICE_PRESETS.map(noticeLabel)).toEqual([
+      'Aucun',
+      '1 h',
+      '12 h',
+      '24 h',
+    ]);
+  });
+});
 
 describe('pro availability helpers', () => {
   it('toEditable maps the first slot per day, Monday-first', () => {

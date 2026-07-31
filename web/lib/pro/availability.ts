@@ -4,12 +4,25 @@
 export type TimeSlot = { startTime: string; endTime: string; isAvailable?: boolean };
 export type WeeklySchedule = Record<string, TimeSlot[]>;
 
+/// ⚠️ **Hand-written, and nothing syncs it with the generated schema.**
+/// `npm run gen:api` regenerates `lib/api/schema.ts` only, and `lib/api/pro.ts`
+/// imports `Availability` from HERE — so the whole pro dashboard is typed
+/// against this shape, and a contract change lands in the generated file
+/// without any gate noticing this one drifted. It already differs:
+/// `TimeSlot.isAvailable` is required upstream and optional here.
+///
+/// Recorded rather than fixed in A14d: pointing the dashboard at the generated
+/// type is a mechanical but wide change, and it is not what this slice is for.
 export type Availability = {
   providerId: string;
   weeklySchedule: WeeklySchedule;
   breaks?: WeeklySchedule;
   blockedDates: string[];
   bufferMinutes: number;
+  /// A14d — the bookable window. Optional here (not on the wire) so a payload
+  /// from a server that predates A14d still types.
+  bookingHorizonDays?: number;
+  minimumNoticeMinutes?: number;
 };
 
 export type DayForm = {
@@ -111,4 +124,26 @@ export function daysToSchedule(
     ];
   }
   return ws;
+}
+
+/// What the pro's « Fenêtre de réservation » card offers — the web mirror of
+/// mobile's `BookingWindowPresets`.
+///
+/// No pair may put the notice past the horizon: the server refuses that as
+/// `invalid_input`, and a salon must never be offered a chip that fails.
+export const HORIZON_PRESETS = [30, 90, 180, 365];
+export const NOTICE_PRESETS = [0, 60, 720, 1440];
+
+export function horizonLabel(days: number): string {
+  if (days === 30) return '1 mois';
+  if (days === 90) return '3 mois';
+  if (days === 180) return '6 mois';
+  if (days === 365) return '1 an';
+  return `${days} jours`;
+}
+
+export function noticeLabel(minutes: number): string {
+  if (minutes === 0) return 'Aucun';
+  if (minutes < 60) return `${minutes} min`;
+  return `${minutes / 60} h`;
 }

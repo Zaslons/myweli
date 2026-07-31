@@ -47,9 +47,16 @@ import {
   formatFcfa,
   priceRange,
 } from '../../lib/format';
+import {
+  DEFAULT_HORIZON_DAYS,
+  DEFAULT_NOTICE_MINUTES,
+  conflictMessage,
+  lastBookableDay,
+} from '../../lib/booking/window';
 import { salonDayKey, salonFormatter } from '../../lib/time';
 import { Button } from '../Button';
 import { SalonTimeHint } from '../SalonTimeHint';
+import { SlotsEmpty } from './SlotsEmpty';
 import { LoginOptions } from '../auth/LoginOptions';
 import { OpenInAppButton } from '../OpenInAppButton';
 import { PhoneField } from '../PhoneField';
@@ -92,6 +99,12 @@ export function BookingFlow({
   // The viewed SALON's market (multi-pays): its clock shapes every day/time
   // rendered here; its currency labels every price.
   const tz = provider.timezone ?? undefined;
+  // A14d — the salon's own bookable window. It rides the provider payload, so
+  // naming an empty day's reason costs no request.
+  const horizonDays =
+    provider.availability?.bookingHorizonDays ?? DEFAULT_HORIZON_DAYS;
+  const noticeMinutes =
+    provider.availability?.minimumNoticeMinutes ?? DEFAULT_NOTICE_MINUTES;
   const currency = provider.currency ?? undefined;
   const [s, setS] = useState<HubState>(() => {
     const clean = sanitizeRebookSelection(
@@ -103,6 +116,9 @@ export function BookingFlow({
   });
   const [slots, setSlots] = useState<string[]>([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
+  // A14d — web's fourth state. `fetchSlots` used to collapse an outage into an
+  // empty array, so « Aucun créneau disponible » covered a dead network too.
+  const [slotsFailed, setSlotsFailed] = useState(false);
   // The app's slotsRequestId pattern — stale slot responses are dropped. This
   // guards a CACHE (`slots`), which is always safe to discard.
   const slotsReq = useRef(0);
@@ -175,7 +191,8 @@ export function BookingFlow({
     setSlotsLoading(true);
     const r = await fetchSlotsFor(state, state.date);
     if (req !== slotsReq.current) return;
-    setSlots(r);
+    setSlots(r.slots);
+    setSlotsFailed(!r.ok);
     setSlotsLoading(false);
   }
 
@@ -184,16 +201,24 @@ export function BookingFlow({
   async function revalidateSlot(state: HubState): Promise<HubState> {
     if (!state.slot) return state;
     const r = await fetchSlotsFor(state, state.slot.slice(0, 10));
-    return r.includes(state.slot) ? state : clearSlot(state);
+    // On a FAILED fetch, keep the user's choice rather than silently
+    // clearing it: we do not know that it became invalid, only that we could
+    // not ask. The server re-validates on submit.
+    if (!r.ok) return state;
+    return r.slots.includes(state.slot) ? state : clearSlot(state);
   }
 
   /// Artist-first rule: auto-pick the earliest slot within 14 days.
   async function findEarliestSlot(state: HubState): Promise<string | null> {
     const start = Date.parse(`${todayYmd(tz)}T00:00:00Z`);
-    for (let i = 0; i <= 14; i++) {
+    // A14d: a SEARCH window, not a policy bound — but clamped to the salon's
+    // horizon, because a 7-day salon otherwise burns eight sequential doomed
+    // round trips past its own end. Clamped, never widened.
+    const scanDays = Math.min(14, horizonDays);
+    for (let i = 0; i <= scanDays; i++) {
       const day = salonDayKey(new Date(start + i * 86_400_000), tz);
       const r = await fetchSlotsFor(state, day);
-      if (r.length > 0) return r[0];
+      if (r.slots.length > 0) return r.slots[0];
     }
     return null;
   }
@@ -325,10 +350,14 @@ export function BookingFlow({
     });
     setBusy(false);
     if (!b.ok) {
+      // A14d: this site already read the CODE — it just did not know the two
+      // window codes existed, so they fell through to « réessayez », inviting
+      // a retry of a date that can never be accepted.
       return setError(
-        b.error === 'slot_unavailable'
-          ? 'Ce créneau vient d’être pris. Choisissez-en un autre.'
-          : 'La réservation a échoué. Réessayez.',
+        conflictMessage(b.error, {
+          taken: 'Ce créneau vient d’être pris. Choisissez-en un autre.',
+          fallback: 'La réservation a échoué. Réessayez.',
+        }),
       );
     }
     setCreated(b.appointment ?? null);
@@ -641,13 +670,39 @@ export function BookingFlow({
             hideLabel
             type="date"
             min={todayYmd(tz)}
+            // A14d — the first `max` on any date input in web/. The server is
+            // the authority and refuses beyond it either way; this stops the
+            // client typing a date it will only be refused for.
+            max={lastBookableDay(horizonDays, tz)}
             value={s.date}
             onChange={(e) => onDate(e.target.value)}
           />
           {slotsLoading ? (
             <Loading label="Chargement des créneaux…" className="mt-m" />
+          ) : slotsFailed ? (
+            // The fourth state. Distinct from « nothing free », and the only
+            // one of the four that offers a retry — because it is the only one
+            // where retrying can change the answer.
+            <div className="mt-m" role="alert">
+              <p className="text-bodyMedium text-error">
+                Impossible de charger les créneaux. Vérifiez votre connexion.
+              </p>
+              <button
+                type="button"
+                onClick={() => void loadSlots(s)}
+                className={chipLinkClasses(false) + ' mt-s'}
+              >
+                Réessayer
+              </button>
+            </div>
           ) : slots.length === 0 ? (
-            <p className="mt-m text-bodyMedium text-textSecondary">Aucun créneau disponible</p>
+            <SlotsEmpty
+              date={s.date}
+              tz={tz}
+              horizonDays={horizonDays}
+              noticeMinutes={noticeMinutes}
+              onGoToDay={(d) => onDate(d)}
+            />
           ) : (
             <div className="mt-m flex flex-wrap gap-s">
               {slots.map((iso) => (

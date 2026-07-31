@@ -10,6 +10,10 @@ import {
   type Availability,
   type DayForm,
   BUFFER_PRESETS,
+  HORIZON_PRESETS,
+  NOTICE_PRESETS,
+  horizonLabel,
+  noticeLabel,
   daysToSchedule,
   scheduleToDays,
   toApi,
@@ -20,6 +24,10 @@ import { formatDateFr } from '../../lib/format';
 import { Button } from '../Button';
 import { SkeletonRows } from '../Skeleton';
 import { ChipButton } from '../Chip';
+import {
+  DEFAULT_HORIZON_DAYS,
+  DEFAULT_NOTICE_MINUTES,
+} from '../../lib/booking/window';
 
 export function DisponibilitesClient() {
   const router = useRouter();
@@ -30,6 +38,9 @@ export function DisponibilitesClient() {
   // hatches the journal grid and blocks slots.
   const [breakDays, setBreakDays] = useState<DayForm[]>([]);
   const [buffer, setBuffer] = useState(0);
+  // A14d — the bookable window, both ends. Defaults mirror the server's.
+  const [horizon, setHorizon] = useState(DEFAULT_HORIZON_DAYS);
+  const [notice, setNotice] = useState(DEFAULT_NOTICE_MINUTES);
   const [blocked, setBlocked] = useState<string[]>([]);
   const [newDate, setNewDate] = useState('');
   const [loading, setLoading] = useState(true);
@@ -65,6 +76,8 @@ export function DisponibilitesClient() {
       setDays(toEditable(a));
       setBreakDays(scheduleToDays(a?.breaks, { start: '12:30', end: '13:30' }));
       setBuffer(a.bufferMinutes ?? 0);
+    setHorizon(a.bookingHorizonDays ?? DEFAULT_HORIZON_DAYS);
+    setNotice(a.minimumNoticeMinutes ?? DEFAULT_NOTICE_MINUTES);
       setBlocked(a.blockedDates ?? []);
       setLoading(false);
     })();
@@ -96,8 +109,17 @@ export function DisponibilitesClient() {
       ...(base as Availability),
       bufferMinutes: buffer,
       blockedDates: blocked,
+      bookingHorizonDays: horizon,
+      minimumNoticeMinutes: notice,
+      // A14d fixes a live staleness bug here. `breaks` used to be merged into
+      // the REQUEST only (`{ ...obj, breaks }`) while `setBase(obj)` below
+      // stored the object without it — so `base.breaks` held the pre-save value
+      // and the next save recomputed from one generation behind. Any field
+      // added that way inherits it; the window rides inside the object instead,
+      // and `breaks` now does too.
+      breaks,
     });
-    const r = await saveAvailability(providerId, { ...obj, breaks });
+    const r = await saveAvailability(providerId, obj);
     setBusy(false);
     if (!r.ok) {
       setError('L’enregistrement a échoué. Réessayez.');
@@ -139,6 +161,48 @@ export function DisponibilitesClient() {
             offLabel="Aucune"
             onPatch={patchBreak}
           />
+        </div>
+      </Card>
+
+      <Card as="section" className="mt-l">
+        <h2 className="text-titleLarge font-semibold text-textPrimary">
+          Fenêtre de réservation
+        </h2>
+        <p className="mt-xs text-bodySmall text-textSecondary">
+          Jusqu’où vos clients peuvent réserver à l’avance, et le délai minimum
+          avant un rendez-vous. Vos propres réservations ne sont pas concernées.
+        </p>
+        <p className="mt-m text-bodySmall text-textPrimary">
+          Réservations jusqu’à
+        </p>
+        <div className="mt-xs flex flex-wrap gap-s">
+          {HORIZON_PRESETS.map((d) => (
+            <ChipButton
+              key={d}
+              selected={horizon === d}
+              onClick={() => {
+                setHorizon(d);
+                setSaved(false);
+              }}
+            >
+              {horizonLabel(d)}
+            </ChipButton>
+          ))}
+        </div>
+        <p className="mt-m text-bodySmall text-textPrimary">Délai minimum</p>
+        <div className="mt-xs flex flex-wrap gap-s">
+          {NOTICE_PRESETS.map((m) => (
+            <ChipButton
+              key={m}
+              selected={notice === m}
+              onClick={() => {
+                setNotice(m);
+                setSaved(false);
+              }}
+            >
+              {noticeLabel(m)}
+            </ChipButton>
+          ))}
         </div>
       </Card>
 

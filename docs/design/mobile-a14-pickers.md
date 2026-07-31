@@ -2,16 +2,16 @@
 
 | | |
 |---|---|
-| **Status** | A14a built · A14b built · A14c built · **A14d in build** · A14e planned |
+| **Status** | A14a built · A14b built · A14c built · **A14d built** · A14e planned |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-07-31 |
 | **PRD ref / phase** | **V1.** No numbered PRD requirement — how far ahead a salon accepts bookings was never specified, which is precisely what §21 row 76 records. A14d answers it as a product decision (§20.2), so the decision itself lives here rather than being cited from elsewhere |
-| **ROADMAP entry** | [ROADMAP.md](../ROADMAP.md) — A14c 🟢 (2026-07-31); the A14d and A14e lines land with their PRs |
+| **ROADMAP entry** | [ROADMAP.md](../ROADMAP.md) — A14c 🟢 · **A14d 🟢** (both 2026-07-31); the A14e line lands with its PR |
 | **Module** | [`journal`](../MODULES.md#1-journal--bookings--journal-) (the pro calendar) · [`online-booking`](../MODULES.md#2-marketplace--online-booking--online-booking-) (the consumer funnel) — the campaign straddles two, which is why the `table_calendar` sites did not fall out of one module's slice |
 | **Register row** | [SYSTEM.md](SYSTEM.md) §21 row 73 (A14a) · row 77 (A14b) · row 75 (A14c) · **row 76 (A14d)** · A14e has none — next free id is **78**, claimed with its PR |
 | **Skills checked** | `myweli-dev-guardrails` · `myweli-web-guardrails` (A14c §17, A14d) · `myweli-backend-guardrails` (A14d) |
 | **Preceded by** | [A12 — the fixed-box sweep](mobile-a12-fixed-boxes.md) · [A13 — copy & breaks](mobile-a13-copy-and-breaks.md) |
-| **Scope** | **A14a** — the date picker (§1–§7) · **A14b** — the time picker family (§8–§14) · **A14c** — retire `table_calendar` (§15–§19) · **A14d** (this PR) — the per-salon **bookable window**, server-enforced (§20–§28) · **A14e** — multi-select blocking |
+| **Scope** | **A14a** — the date picker (§1–§7) · **A14b** — the time picker family (§8–§14) · **A14c** — retire `table_calendar` (§15–§19) · **A14d** — the per-salon **bookable window**, server-enforced (§20–§28) · **A14e** — multi-select blocking |
 
 ---
 

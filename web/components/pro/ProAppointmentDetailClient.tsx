@@ -27,9 +27,15 @@ import { rescheduleAppointment } from '../../lib/api/pro';
 import { hhmm, minutesOfDay } from '../../lib/pro/journal';
 import { combineDateTime } from '../../lib/pro/manual-booking';
 import type { ProAppointment } from '../../lib/pro/today';
-import { isSameSalonDay, salonDayKey, salonFormatter } from '../../lib/time';
+import {
+  isSameSalonDay,
+  salonDayKey,
+  salonFormatter,
+  salonToday,
+} from '../../lib/time';
 import { Button } from '../Button';
 import { Loading } from '../Loading';
+import { conflictMessage } from '../../lib/booking/window';
 
 export function ProAppointmentDetailClient({ id }: { id: string }) {
   const router = useRouter();
@@ -98,10 +104,14 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
     );
     setBusy(false);
     if (!r.ok) {
+      // The salon is exempt from its own window, so these two codes should
+      // never reach a pro path — reading the code anyway costs nothing and
+      // means a future change cannot make this surface lie.
       setReprogError(
-        r.status === 409
-          ? 'Créneau indisponible. Choisissez un autre horaire.'
-          : 'Le report a échoué. Réessayez.',
+        conflictMessage(r.error, {
+          taken: 'Créneau indisponible. Choisissez un autre horaire.',
+          fallback: 'Le report a échoué. Réessayez.',
+        }),
       );
       return;
     }
@@ -340,6 +350,10 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
                   <input
                     type="date"
                     aria-label="Nouvelle date"
+                    // A14d: a `min` this field never had. NO `max` — the salon is
+                    // exempt from its own booking window (it owns its calendar), so
+                    // only the past is out of bounds here.
+                    min={salonToday(new Date(), tz)}
                     value={reprogDate}
                     onChange={(e) => setReprogDate(e.target.value)}
                     className="min-h-12 rounded-lg border border-borderStrong bg-secondary p-m text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"

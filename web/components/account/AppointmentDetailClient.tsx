@@ -20,7 +20,14 @@ import {
   rescheduleAppointment,
 } from '../../lib/api/account';
 import { countryName } from '../../lib/api/localities';
-import { fetchSlots } from '../../lib/booking/client';
+import { fetchBookingWindow, fetchSlots } from '../../lib/booking/client';
+import {
+  DEFAULT_HORIZON_DAYS,
+  DEFAULT_NOTICE_MINUTES,
+  conflictMessage,
+  lastBookableDay,
+} from '../../lib/booking/window';
+import { SlotsEmpty } from '../booking/SlotsEmpty';
 import { formatDateTimeFr, formatFcfa } from '../../lib/format';
 import { salonDayKey, salonFormatter, salonToday } from '../../lib/time';
 import { useLocalities } from '../../lib/use-localities';
@@ -46,6 +53,14 @@ export function AppointmentDetailClient({ id }: { id: string }) {
   const [rescheduling, setRescheduling] = useState(false);
   const [reschedDate, setReschedDate] = useState('');
   const [slots, setSlots] = useState<string[]>([]);
+  // A14d — web's fourth state: « we could not ask » is not « nothing is free ».
+  const [slotsFailed, setSlotsFailed] = useState(false);
+  // A14d — the salon's window, so an empty day can say WHY. Defaults until the
+  // provider lands; the classification degrades, never the screen.
+  const [window_, setWindow] = useState({
+    horizonDays: DEFAULT_HORIZON_DAYS,
+    noticeMinutes: DEFAULT_NOTICE_MINUTES,
+  });
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [pickedSlot, setPickedSlot] = useState<string | null>(null);
   const [reschedError, setReschedError] = useState<string | null>(null);
@@ -81,11 +96,16 @@ export function AppointmentDetailClient({ id }: { id: string }) {
       durationMinutes: a.durationMinutes ?? 30,
       artistId: a.artistId ?? null,
     });
-    setSlots(r);
+    setSlots(r.slots);
+    setSlotsFailed(!r.ok);
     setSlotsLoading(false);
   }
 
   function openReschedule(a: Appointment) {
+    // Fetched when the pane opens rather than on page load: most visits to
+    // this screen never reschedule, and the window is only ever used to
+    // explain an empty slot list.
+    void fetchBookingWindow(a.providerId).then(setWindow);
     setRescheduling(true);
     setReschedError(null);
     setRescheduled(false);
@@ -104,10 +124,13 @@ export function AppointmentDetailClient({ id }: { id: string }) {
     const r = await rescheduleAppointment(appt.id, pickedSlot);
     setBusy(false);
     if (!r.ok) {
+      // A14d: was branching on the STATUS alone and discarding `r.error`, so
+      // a window breach said someone had taken the slot. It had not been taken.
       setReschedError(
-        r.status === 409
-          ? 'Ce créneau vient d’être pris. Choisissez-en un autre.'
-          : 'Le report a échoué. Réessayez.',
+        conflictMessage(r.error, {
+          taken: 'Ce créneau vient d’être pris. Choisissez-en un autre.',
+          fallback: 'Le report a échoué. Réessayez.',
+        }),
       );
       return;
     }
@@ -334,6 +357,7 @@ export function AppointmentDetailClient({ id }: { id: string }) {
                   hideLabel
                   type="date"
                   min={salonToday(new Date(), tz)}
+                  max={lastBookableDay(window_.horizonDays, tz)}
                   value={reschedDate}
                   onChange={(e) => {
                     setReschedDate(e.target.value);
@@ -342,10 +366,31 @@ export function AppointmentDetailClient({ id }: { id: string }) {
                 />
                 {slotsLoading ? (
                   <Loading label="Chargement des créneaux…" className="mt-s" />
+                ) : slotsFailed ? (
+                  <div className="mt-s" role="alert">
+                    <p className="text-bodyMedium text-error">
+                      Impossible de charger les créneaux. Vérifiez votre
+                      connexion.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => void loadSlots(appt, reschedDate)}
+                      className={chipLinkClasses(false) + ' mt-s'}
+                    >
+                      Réessayer
+                    </button>
+                  </div>
                 ) : slots.length === 0 ? (
-                  <p className="mt-s text-bodyMedium text-textSecondary">
-                    Aucun créneau disponible ce jour.
-                  </p>
+                  <SlotsEmpty
+                    date={reschedDate}
+                    tz={tz}
+                    horizonDays={window_.horizonDays}
+                    noticeMinutes={window_.noticeMinutes}
+                    onGoToDay={(d) => {
+                      setReschedDate(d);
+                      loadSlots(appt, d);
+                    }}
+                  />
                 ) : (
                   <div className="mt-s flex flex-wrap gap-s">
                     {slots.map((iso) => (

@@ -17,6 +17,7 @@ import {
 import { salonToday } from '../../lib/time';
 import { Button } from '../Button';
 import { Modal } from '../Modal';
+import { conflictMessage } from '../../lib/booking/window';
 
 const todayYmd = (tz?: string) => salonToday(new Date(), tz);
 
@@ -125,9 +126,10 @@ export function ManualBookingDialog({
     if (r.ok) onCreated();
     else
       setError(
-        r.status === 409
-          ? 'Ce créneau est déjà pris.'
-          : 'Création impossible. Réessayez.',
+        conflictMessage(r.error, {
+          taken: 'Ce créneau est déjà pris.',
+          fallback: 'Création impossible. Réessayez.',
+        }),
       );
   }
 
