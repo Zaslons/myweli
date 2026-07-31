@@ -628,12 +628,16 @@ class _WeekStrip extends StatelessWidget {
               // bodyMedium line is 20 at 1× but 40 at 2×). The pill is a CIRCLE,
               // so it has to stay square: diameter = the scaled line + breathing
               // room, floored at the 32 the design draws at 1× (§13.3).
+              // **This is where the wrong scaling order started.** It wrote
+              // `scale(fontSize × height)`; A14a's day cell copied it and
+              // A14b's time row copied that, so one arithmetic slip reached
+              // three files through three slices whose subject was text scale.
+              // Corrected in A14c §16.1 and moved to `AppTheme.scaledLine`, so
+              // there is no longer a formula here to copy.
               const style = AppTextStyles.bodyMedium;
-              final line = (style.fontSize ?? 14) * (style.height ?? 1.4);
               final d0 = math.max(
                 32.0,
-                MediaQuery.textScalerOf(context).scale(line) +
-                    AppTheme.spacingS,
+                AppTheme.scaledLine(context, style) + AppTheme.spacingS,
               );
               return Container(
                 width: d0,

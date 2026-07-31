@@ -84,6 +84,30 @@ class AppTheme {
     required double text,
   }) => constant + math.max(text, MediaQuery.textScalerOf(context).scale(text));
 
+  /// The height **one line of [style] actually occupies** at the current text
+  /// scale — `scale(fontSize) × height`.
+  ///
+  /// **The order is the whole point, and three call sites had it backwards.**
+  /// `TextScaler.scale` is a *function*, not a factor — which is exactly why it
+  /// replaced the old `textScaleFactor` double — so `scale(a × b)` and
+  /// `scale(a) × b` agree only when the platform's curve happens to be linear.
+  /// Android 14's is not: it compresses large sizes so headlines do not run
+  /// away while body text still grows.
+  ///
+  /// `_WeekStrip`'s pill wrote `scale(fontSize × height)`; A14a's day cell
+  /// copied it and A14b's time row copied that. **Every gate in this repo
+  /// scales with `TextScaler.linear`**, under which the two forms are
+  /// algebraically identical — so the error was invisible three times over,
+  /// across three slices whose entire subject was text scale. A14c §16.1
+  /// measured it (cell 65.6dp against a 72dp line) and this is the one place
+  /// the arithmetic now lives.
+  ///
+  /// The defaults mirror `TextStyle`'s own: 14 is Material's body size and 1.4
+  /// the height our scale settles on when a style omits one.
+  static double scaledLine(BuildContext context, TextStyle style) =>
+      MediaQuery.textScalerOf(context).scale(style.fontSize ?? 14) *
+      (style.height ?? 1.4);
+
   // Elevation/Shadows
   static List<BoxShadow> get elevation1 => [
     BoxShadow(

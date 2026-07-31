@@ -2,13 +2,14 @@
 
 | | |
 |---|---|
-| **Status** | A14a built · **A14b in build** · A14c, A14d planned |
+| **Status** | A14a built · A14b built · **A14c in build** · A14d, A14e planned |
 | **Owner** | Sadreddine Daher |
-| **Last updated** | 2026-07-29 |
+| **Last updated** | 2026-07-30 |
+| **Module** | [`journal`](../MODULES.md#1-journal--bookings--journal-) (the pro calendar) · [`online-booking`](../MODULES.md#2-marketplace--online-booking--online-booking-) (the consumer funnel) — the campaign straddles two, which is why the `table_calendar` sites did not fall out of one module's slice |
 | **Register row** | [SYSTEM.md](SYSTEM.md) §21 row 73 (A14a) · **row 77 (A14b)** · row 75 (A14c) · row 76 (A14d) |
-| **Skills checked** | `myweli-dev-guardrails` |
+| **Skills checked** | `myweli-dev-guardrails` · `myweli-web-guardrails` (A14c §17, A14d) · `myweli-backend-guardrails` (A14d) |
 | **Preceded by** | [A12 — the fixed-box sweep](mobile-a12-fixed-boxes.md) · [A13 — copy & breaks](mobile-a13-copy-and-breaks.md) |
-| **Scope** | **A14a** — the date picker (§1–§7) · **A14b** (this PR) — the time picker family (§8–§14) · **A14c** — retire `table_calendar` · **A14d** — the per-salon booking horizon |
+| **Scope** | **A14a** — the date picker (§1–§7) · **A14b** — the time picker family (§8–§14) · **A14c** (this PR) — retire `table_calendar` (§15–§19) · **A14d** — the per-salon booking horizon · **A14e** — multi-select blocking |
 
 ---
 
@@ -761,3 +762,214 @@ for chain C only, and saying otherwise would overclaim it.
   ~156dp at 360dp. Whether « 15/01/2024 » at 2× wraps or overflows depends on the
   ICU break opportunity at `/`. **Not measured.** The gate in §12 covers it once
   the row is a subject; until then it is an open question, not a claim.
+
+---
+
+# Part C — A14c, retiring `table_calendar`
+
+## 15. Goal & scope
+
+Row 75: **`table_calendar` is text-scale-blind, and one of its rows clips at
+1×.** The package contains zero `MediaQuery`, `textScaler`, `maxLines` or
+`FittedBox` anywhere in its `lib/`; `rowHeight` is a fixed `52.0` and
+`daysOfWeekHeight` a fixed `16.0`, summed into a `SizedBox(height:)` — the
+fixed-box-around-text shape §13.3 forbids. Three call sites, two of them live.
+
+A14c converts all three, deletes two dead screens, rebuilds consumer reschedule,
+and drops the dependency.
+
+### 15.1 What A14b already did, so this section does not re-promise it
+
+The grid extraction A14c was going to need **already shipped in A14b**:
+`myweli_month_grid.dart` exports `MyweliMonthGrid`, `MyweliMonthBar`,
+`MyweliWeekdayHeader`, `MyweliYearList`, `MyweliMonthNavigator` and a public
+`isSameDay`. A14c starts at the conversions.
+
+### 15.2 The importer count is four, not seven
+
+`grep -l table_calendar` returns seven files. Four contain an actual `import`:
+`date_time_selection_screen.dart:7` · `appointment_calendar_view.dart:4` ·
+`booking_journal_screen.dart:2` · `test/unit/french_test.dart:9`.
+
+The other three — `app_locale.dart`, `myweli_month_grid.dart`, `pump_app.dart` —
+name the package **only in comments**, and those comments need rewording rather
+than deletion. `app_locale.dart:7-17` in particular documents *why the locale
+seam exists at all*; deleting it would orphan a live rationale.
+
+## 16. Three defects in our own grid, none of them recorded
+
+Before a single conversion, the widget the conversions depend on has three
+problems. **All three were found by reading A14a's code, not by a gate** — which
+is itself the finding.
+
+### 16.1 `_cellHeight` scales the wrong quantity, and no test here can see it
+
+`myweli_month_grid.dart:428-435`:
+
+```dart
+final line = (style.fontSize ?? 14) * (style.height ?? 1.4);
+return math.max(
+  AppTheme.spacingXXL,
+  MediaQuery.textScalerOf(context).scale(line) + AppTheme.spacingS,
+);
+```
+
+`_dayStyle` is `bodyLarge` — `fontSize: 16`, `height: 24 / 16`. So this computes
+`scale(24)`. **Flutter's line box is `scale(16) × 1.5`**: the scaler applies to
+the font size, and the height multiple applies to the result.
+
+`TextScaler` does **not** promise linearity. Its whole reason for replacing the
+old `textScaleFactor` double is that a platform may scale non-linearly — Android
+14 does exactly that, compressing large sizes so headlines do not run away. Under
+any linear scaler `scale(a × b) == scale(a) × b` and the two expressions are
+algebraically identical, which is why **every test in this repo is blind to it**:
+`layout_test.dart`'s 3 widths × 2 scales, `date_picker_test.dart`, and both
+goldens all use `TextScaler.linear`.
+
+**Measured**, under a scaler that triples up to 16sp and then flattens to 1.2×
+(`myweli_month_grid_test.dart`'s `_NonLinearScaler`):
+
+| | value | how |
+|---|---|---|
+| Flutter's line box for one day number | **72.0** | measured from a bare `Text`, not computed |
+| the cell the grid gave it | **65.6** | measured — `max(48, scale(24) + spacingS)` |
+| the cell it needs | **80.0** | `max(48, 72 + spacingS)` |
+
+So the day number **paints 6.4dp outside its own cell**, over the weeks above
+and below. `Container` does not clip, so this is *overlap*, not truncation —
+there is no overflow banner and no clipped glyph, which is why looking at a
+screenshot would not have found it either. This is row 73's species: real,
+device-only, and unfalsifiable by the instrument pointed at it.
+
+⚠️ **That scaler is a model, not Android's curve.** The claim is not *"Android
+14 produces 65.6"* — it is that the expression assumes a linearity the interface
+does not guarantee. The gate is written against that property rather than
+against a vendor's numbers, and the companion test at linear 2× is kept
+**precisely to show it passes either way**, i.e. that it cannot be the gate.
+
+### 16.1.1 It is three sites, and A14a and A14b both inherited it
+
+The formula did not originate in A14a. `_WeekStrip._dayPill`
+(`pro_journal_screen.dart:632-635`) wrote it first; A14a's day cell copied it
+with the floor raised 32 → 48; A14b's `_rowHeight`
+(`myweli_time_picker.dart:830-835`) copied that. **One arithmetic slip reached
+three files through three consecutive slices whose entire subject was text
+scale**, and no gate in any of them could see it.
+
+Fixed by deleting the formula from all three and putting it in one place —
+`AppTheme.scaledLine(context, style)`, beside `textScaledBound`, which was
+already correct and is worth saying why: it scales a **measured 1× block
+height**, not a `fontSize × height` product, so there is no ordering to get
+wrong. There is no longer a formula at any of the three sites to copy.
+
+### 16.2 Nothing asserts that a selected day is painted selected
+
+`myweli_date_picker_test.dart` has six `testWidgets`: tap→pop, dismiss→null,
+out-of-range inert, clamping, the year jump, and the today announcement. **None
+of them checks that `selectedDay` renders as selected.**
+
+That matters now because §17.1 changes the selection parameter's *type*. A
+migration that produced zero selected days would leave every existing test green.
+The hole gets closed **before** the migration, not after.
+
+### 16.3 `Set<DateTime>` is a trap in this file
+
+`DateTime.==` compares microseconds **and `isUtc`**. `salonToday(tz:)` returns
+`DateTime.utc(y, m, d)` (`salon_time.dart:74`); the grid builds `DateTime(y,m,d)`,
+local. A `Set<DateTime>` seeded from the salon-time seam therefore **contains
+nothing**, silently, and every day renders unselected.
+
+`isSameDay` already solved this for one day by comparing fields. The set and map
+cases need the same answer in a shape a `Set` can use: a `CalendarDay` value type.
+
+## 17. The API changes, and why each is the smallest one
+
+### 17.1 `selectedDay` → `selectedDays`, not both
+
+`MyweliMonthGrid` has **exactly one caller** — the navigator, at `:395`. The
+navigator has two: `myweli_date_picker.dart:137` and
+`myweli_date_time_picker.dart:234`. **Three lines**, so there is no reason to
+carry a second selection parameter alongside the first and an `assert` to keep
+them apart. One concept.
+
+`onDayTap` is unchanged. **The toggle-vs-replace policy lives in the page**,
+which is the seam this file's own header argues for: the picker pops on tap, and
+A14e's multi-picker toggles a set. The grid paints what it is told.
+
+### 17.2 `Map<CalendarDay, String>? markers` — one dot, and the count in speech
+
+The pro calendar needs *"this day has at least one appointment"*. The map's value
+is the French phrase appended to that cell's accessibility label, so *"is it
+marked"* and *"what does it announce"* are one lookup rather than a predicate
+plus a second parameter.
+
+**Null is not the same as empty, and the difference is the cell's height.** Null
+turns the channel off and keeps A14a's geometry byte-for-byte — which is what
+leaves the two picker goldens alone. A non-null map, *even an empty one*,
+reserves the marker row on every cell, so the card does not change height when a
+pro pages from a busy month to a quiet one.
+
+**Never a colour** (§13.6, and the status hues are already spent on the chips
+directly below on that screen). **Never a count in pixels** — and that is not a
+taste judgement, it is a measurement the app already made:
+
+> `pro_journal_screen.dart:656-660` draws the week strip's marker as
+> `width: count == 0 ? 0 : (3 + count.clamp(0, 5)), height: 4,
+> shape: BoxShape.circle`. `BoxShape.circle` paints
+> `drawCircle(center, rect.shortestSide / 2)`. The shortest side is **4 for every
+> count**, so one appointment and five paint an **identical 4dp dot** — the width
+> only widens an invisible box. The count encoding has never rendered.
+
+So the count goes where it costs zero pixels and reads perfectly: « 3 rendez-vous,
+jeudi 19 mars 2026 », through `Formatters.count` (A13 row 41's pin, because
+« rendez-vous » is invariant in the plural and a bare `$n` would not know that).
+A screen-reader user gets strictly more than the eye does.
+
+### 17.3 `shrinkWrap`, because the navigator would throw
+
+`MyweliMonthNavigator` uses `Expanded` at `:376` and `:389`. Both new consumers
+put a calendar inside a `Column`, and **a `Column` hands its non-flex children
+unbounded main-axis constraints** — so the navigator does not merely look wrong
+there, it throws `RenderFlex children have non-zero flex but incoming height
+constraints are unbounded`.
+
+`shrinkWrap` defaults to `false`, so both picker screens are unchanged.
+
+Its one visible cost, accepted and recorded: in shrink-wrap mode the year list
+replaces the grid, and three `ListTile`s are shorter than six week rows, so the
+card **jumps** when the year toggle is pressed. It is one tap and reversible; the
+alternative is arithmetic on a widget that has no business knowing the grid's
+height. **Photographed in a golden so it cannot drift silently.**
+
+### 17.4 No `onMonthChanged` — and that is a finding, not an omission
+
+The reason to want one is *"recompute markers for the visible month"*. With
+§17.2's map that recomputation **does not happen**: markers are keyed by absolute
+day, and `widget.appointments` is already fully in memory
+(`appointment_list_screen.dart:161`). A callback would serve nothing.
+
+Recorded with its trigger: *if `ProAppointmentProvider` ever fetches per month,
+the navigator gains `ValueChanged<DateTime>? onMonthChanged`, fired from `_shift`
+and the year pick. It stays a **notification**, never a two-way binding — the
+refusal to resync `_month` in `didUpdateWidget` (`:343-350`) is the fix for
+`date_time_selection_screen`'s month-yank and must survive.*
+
+A quieter consequence, also recorded: without resync the pro calendar **cannot
+programmatically jump to a month**, so there is no « Aujourd'hui » button. Nobody
+has asked for one.
+
+### 17.1.1 The trap was watched, not just described
+
+The migration went through `Set<DateTime>` **on purpose**, so §16.3 would be a
+measurement rather than an argument. Seeding the grid with
+`DateTime.utc(2026, 3, 15)` — byte-for-byte what `salonToday(tz:)` returns — and
+asking the cell what it announces:
+
+```
+Which: missing flags: isSelected
+```
+
+Then `CalendarDay`, and green. Without that step the type would have been
+justified by reasoning about `DateTime.==` rather than by a failure, and this
+register's whole complaint is that reasoning of that kind has been wrong on
+nearly every slice.

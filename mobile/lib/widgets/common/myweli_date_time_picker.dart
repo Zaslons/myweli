@@ -235,7 +235,7 @@ class _MyweliDateTimePickerScreenState
                   initialMonth: _date,
                   firstDate: widget.firstDate,
                   lastDate: widget.lastDate,
-                  selectedDay: _date,
+                  selectedDays: {CalendarDay.of(_date)},
                   today: widget.today,
                   onDayTap: _pickDay,
                 ),

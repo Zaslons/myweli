@@ -138,7 +138,7 @@ class MyweliDatePickerScreen extends StatelessWidget {
           initialMonth: initial,
           firstDate: firstDate,
           lastDate: lastDate,
-          selectedDay: initial,
+          selectedDays: {CalendarDay.of(initial)},
           today: today,
           onDayTap: (d) => Navigator.of(context).pop(d),
         ),
