@@ -4,6 +4,7 @@ import 'package:postgres/postgres.dart';
 
 import '../appointments/booking_window.dart';
 import '../providers_repository.dart';
+import '../salon_time.dart';
 import '../slug.dart' show isReservedSlug;
 import 'migrations.dart' show insertProviderAvailability;
 
@@ -62,7 +63,9 @@ class PostgresProvidersRepository implements ProvidersRepository {
 
     final ids = [for (final d in docs) d['id'] as String];
     final services = await _servicesByProvider(ids);
-    final availability = await _availabilityByProvider(ids);
+    final availability = await _availabilityByProvider(ids, {
+      for (final d in docs) d['id'] as String: d['timezone'] as String?,
+    });
     for (final d in docs) {
       final id = d['id'] as String;
       d['services'] = services[id] ?? const <Map<String, dynamic>>[];
@@ -80,7 +83,10 @@ class PostgresProvidersRepository implements ProvidersRepository {
     if (result.isEmpty) return null;
     final doc = _withFlags(result.first);
     final services = await _servicesByProvider([id]);
-    final availability = await _availabilityByProvider([id]);
+    final availability = await _availabilityByProvider(
+      [id],
+      {id: doc['timezone'] as String?},
+    );
     doc['services'] = services[id] ?? const <Map<String, dynamic>>[];
     doc['availability'] = availability[id] ?? _emptyAvailability(id);
     return doc;
@@ -98,7 +104,10 @@ class PostgresProvidersRepository implements ProvidersRepository {
     final id = result.first.toColumnMap()['id'] as String;
     final doc = _withFlags(result.first);
     final services = await _servicesByProvider([id]);
-    final availability = await _availabilityByProvider([id]);
+    final availability = await _availabilityByProvider(
+      [id],
+      {id: doc['timezone'] as String?},
+    );
     doc['services'] = services[id] ?? const <Map<String, dynamic>>[];
     doc['availability'] = availability[id] ?? _emptyAvailability(id);
     return doc;
@@ -210,6 +219,9 @@ class PostgresProvidersRepository implements ProvidersRepository {
     String providerId,
     Map<String, dynamic> availability,
   ) async {
+    // The salon's zone decides which calendar day a blocked instant names, on
+    // the way in and on the way out. It rides `data`, not a column.
+    final tzName = (await byId(providerId))?['timezone'] as String?;
     await _pool.runTx((tx) async {
       for (final t in const [
         'provider_working_hours',
@@ -222,9 +234,17 @@ class PostgresProvidersRepository implements ProvidersRepository {
           parameters: {'pid': providerId},
         );
       }
-      await insertProviderAvailability(tx, providerId, availability);
+      await insertProviderAvailability(
+        tx,
+        providerId,
+        availability,
+        tzName: tzName,
+      );
     });
-    return (await _availabilityByProvider([providerId]))[providerId];
+    return (await _availabilityByProvider(
+      [providerId],
+      {providerId: tzName},
+    ))[providerId];
   }
 
   @override
@@ -466,8 +486,9 @@ class PostgresProvidersRepository implements ProvidersRepository {
   };
 
   Future<Map<String, Map<String, dynamic>>> _availabilityByProvider(
-    List<String> ids,
-  ) async {
+    List<String> ids, [
+    Map<String, String?> tzById = const {},
+  ]) async {
     final (clause, params) = _inClause(ids);
     final buffers = await _pool.execute(
       Sql.named(
@@ -479,7 +500,7 @@ class PostgresProvidersRepository implements ProvidersRepository {
     );
     final schedule = await _windows('provider_working_hours', clause, params);
     final breaks = await _windows('provider_breaks', clause, params);
-    final blocked = await _blockedDates(clause, params);
+    final blocked = await _blockedDates(clause, params, tzById);
 
     final out = <String, Map<String, dynamic>>{};
     for (final r in buffers) {
@@ -536,9 +557,17 @@ class PostgresProvidersRepository implements ProvidersRepository {
     return out;
   }
 
+  /// The stored value is a calendar DAY (`blocked_date` is a `date`); the wire
+  /// format is a `date-time`. So it is emitted as **salon midnight** for that
+  /// day, which is what every reader converts back through `salonWallClock`.
+  ///
+  /// Emitting `<day>T00:00:00.000Z` — a UTC midnight — was correct only for a
+  /// UTC+0 salon: at UTC-5 it converts back to 19:00 the PREVIOUS day, so the
+  /// mirror image of the write bug this method's write half fixes.
   Future<Map<String, List<String>>> _blockedDates(
     String clause,
     Map<String, Object?> params,
+    Map<String, String?> tzById,
   ) async {
     final rows = await _pool.execute(
       Sql.named(
@@ -550,7 +579,17 @@ class PostgresProvidersRepository implements ProvidersRepository {
     final out = <String, List<String>>{};
     for (final r in rows) {
       final m = r.toColumnMap();
-      (out[m['provider_id'] as String] ??= []).add('${m['d']}T00:00:00.000Z');
+      final pid = m['provider_id'] as String;
+      final day = DateTime.parse(m['d'] as String);
+      (out[pid] ??= []).add(
+        salonWallClockToUtc(
+          day.year,
+          day.month,
+          day.day,
+          0,
+          tzById[pid],
+        ).toIso8601String(),
+      );
     }
     return out;
   }

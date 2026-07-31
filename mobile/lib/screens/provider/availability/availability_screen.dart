@@ -192,6 +192,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
                     ...availability.blockedDates.map(
                       (date) => _BlockedDateCard(
                         date: date,
+                        tz: context.read<ProAuthProvider>().salonTimezone,
                         onRemove: () => _removeBlockedDate(
                           context,
                           date,
@@ -501,9 +502,14 @@ class _DayScheduleCard extends StatelessWidget {
 
 class _BlockedDateCard extends StatelessWidget {
   final DateTime date;
+  final String? tz;
   final VoidCallback onRemove;
 
-  const _BlockedDateCard({required this.date, required this.onRemove});
+  const _BlockedDateCard({
+    required this.date,
+    required this.tz,
+    required this.onRemove,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -512,7 +518,13 @@ class _BlockedDateCard extends StatelessWidget {
       child: ListTile(
         leading: const Icon(Icons.block, color: AppColors.error),
         title: Text(
-          Formatters.formatDate(date),
+          // The SALON's day, not the raw instant's. A blocked date is stored
+          // as salon midnight in UTC, so on any salon east or west of
+          // Greenwich `formatDate` on the raw value names the wrong day — the
+          // client-side mirror of the `blocked_date` bug fixed in the same PR.
+          // Every other reader already converts: mock_appointment_service and
+          // mock_provider_service both compare through `toSalonTime`.
+          Formatters.formatDate(toSalonTime(date, tz: tz)),
           style: AppTextStyles.bodyMedium.copyWith(
             color: AppColors.textPrimary,
           ),

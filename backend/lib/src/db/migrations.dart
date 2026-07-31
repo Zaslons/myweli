@@ -5,6 +5,7 @@ import 'package:postgres/postgres.dart';
 import '../appointments/booking_window.dart';
 import '../localities/localities_repository.dart';
 import '../providers_repository.dart';
+import '../salon_time.dart';
 
 /// One migration: an id and its ordered statements (each `execute` runs a
 /// single statement in extended mode).
@@ -950,7 +951,12 @@ Future<void> insertProviderCatalogue(
 
   final availability = (doc['availability'] as Map?)?.cast<String, dynamic>();
   if (availability != null) {
-    await insertProviderAvailability(session, providerId, availability);
+    await insertProviderAvailability(
+      session,
+      providerId,
+      availability,
+      tzName: doc['timezone'] as String?,
+    );
   }
 }
 
@@ -961,8 +967,13 @@ Future<void> insertProviderCatalogue(
 Future<void> insertProviderAvailability(
   Session session,
   String providerId,
-  Map<String, dynamic> availability,
-) async {
+  Map<String, dynamic> availability, {
+
+  /// The salon's IANA zone. Required to store a blocked date as the SALON's
+  /// calendar day; null falls back to the platform default, which is only
+  /// correct for a UTC+0 salon.
+  String? tzName,
+}) async {
   await session.execute(
     Sql.named(
       'INSERT INTO provider_availability (provider_id, buffer_minutes, '
@@ -1008,7 +1019,16 @@ Future<void> insertProviderAvailability(
         'INSERT INTO provider_blocked_dates (provider_id, blocked_date) '
         'VALUES (@pid, CAST(@d AS date)) ON CONFLICT DO NOTHING',
       ),
-      parameters: {'pid': providerId, 'd': (d as String).split('T').first},
+      parameters: {
+        'pid': providerId,
+        // The SALON's calendar day, not the UTC one. `blocked_date` is a
+        // `date`, and the client sends salon MIDNIGHT — which for any salon
+        // east of Greenwich belongs to the previous UTC day. Lagos (UTC+1)
+        // blocking the 15th sends 2026-03-14T23:00Z, and `split('T').first`
+        // stored 2026-03-14: the salon closed the wrong day, silently, on
+        // every save. Latent only because every seeded city is UTC+0.
+        'd': salonDayKey(DateTime.parse(d as String), tzName),
+      },
     );
   }
 }
