@@ -6,10 +6,12 @@ import '../../core/constants/booking_horizons.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
+import '../../core/utils/app_clock.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/utils/salon_time.dart';
 import '../../providers/appointment_provider.dart';
 import '../../providers/locality_provider.dart';
+import '../common/empty_state.dart';
 import '../common/loading_indicator.dart';
 import '../common/myweli_date_picker.dart';
 import '../common/salon_time_hint.dart';
@@ -53,6 +55,9 @@ class SlotPicker extends StatefulWidget {
     this.countryCode,
     this.onInteraction,
     this.horizon = kBookingHorizon,
+    this.minimumNotice = const Duration(
+      minutes: kDefaultMinimumNoticeMinutes,
+    ),
     this.refreshSignal,
   });
 
@@ -106,8 +111,21 @@ class SlotPicker extends StatefulWidget {
   /// entered a flow. The hub uses it; reschedule does not.
   final VoidCallback? onInteraction;
 
-  /// How far ahead the day picker reaches. A14d makes this per-salon.
+  /// How far ahead the day picker reaches — the salon's own
+  /// `bookingHorizonDays` since A14d, falling back to [kBookingHorizon].
+  ///
+  /// Two `Duration`s rather than an `Availability`, deliberately: this file
+  /// keeps `models.Provider` out (see the class doc), which is what lets the
+  /// hub and the reschedule screen share it. The caller resolves; this widget
+  /// only bounds and explains.
   final Duration horizon;
+
+  /// How soon before a start a client may still book — the salon's own
+  /// `minimumNoticeMinutes` (A14d).
+  ///
+  /// The widget never enforces it (the server does); it uses it to say WHY a
+  /// day is empty and to offer the first day that is not.
+  final Duration minimumNotice;
 
   /// Bump to force a re-fetch with the same inputs.
   ///
@@ -129,6 +147,9 @@ class SlotPicker extends StatefulWidget {
 /// The duration assumed when the caller has none — a single 30 that was three
 /// separate inline literals before this file existed (the hub twice, and the
 /// screen A14c deletes).
+/// Why a day offered nothing — A14d. See `SlotPicker._emptyReason`.
+enum _EmptyReason { past, beyondHorizon, tooSoon, full }
+
 const int kDefaultSlotDuration = 30;
 
 class _SlotPickerState extends State<SlotPicker> {
@@ -187,6 +208,51 @@ class _SlotPickerState extends State<SlotPicker> {
       _error = res.error;
       _loading = false;
     });
+  }
+
+  // ---- A14d — why is this day empty? ------------------------------------
+  //
+  // Three conditions render as « nothing here », and they are not the same
+  // sentence. Claimed only when CERTAIN: `_full` is the catch-all and absorbs
+  // closed weekdays, blocked dates and genuine capacity, so a day is never
+  // mislabelled a window breach. The reverse — calling a window breach « full »
+  // — is the defect this exists to end.
+
+  /// The last day a client may book, inclusive — matching the server, which
+  /// refuses only days strictly after `today + horizon`.
+  DateTime get _lastBookableDay {
+    final t = salonToday(tz: widget.tz);
+    // Field arithmetic so the day survives a DST boundary; `salonToday`
+    // returns a UTC-flagged salon day, so this is exact.
+    return DateTime(t.year, t.month, t.day + widget.horizon.inDays);
+  }
+
+  /// The first day that can contain a bookable start.
+  DateTime get _firstBookableDay {
+    final earliest = AppClock.now().toUtc().add(widget.minimumNotice);
+    final wall = toSalonTime(earliest, tz: widget.tz);
+    return DateTime(wall.year, wall.month, wall.day);
+  }
+
+  _EmptyReason get _emptyReason {
+    final day = DateTime(
+      widget.selectedDate.year,
+      widget.selectedDate.month,
+      widget.selectedDate.day,
+    );
+    // A day already gone is not « too soon » — that sentence is about a delay
+    // before a start, and it reads as nonsense on a date four months past.
+    // Reachable: `RescheduleScreen` seeds from the appointment's OWN day and
+    // is deliberately not clamped, so a past booking opens here.
+    final today = salonToday(tz: widget.tz);
+    if (day.isBefore(DateTime(today.year, today.month, today.day))) {
+      return _EmptyReason.past;
+    }
+    // Horizon first, mirroring the server's ordering. The both-at-once case is
+    // unreachable: the API refuses a notice past the horizon as invalid_input.
+    if (day.isAfter(_lastBookableDay)) return _EmptyReason.beyondHorizon;
+    if (day.isBefore(_firstBookableDay)) return _EmptyReason.tooSoon;
+    return _EmptyReason.full;
   }
 
   Future<void> _pickDay() async {
@@ -275,12 +341,55 @@ class _SlotPickerState extends State<SlotPicker> {
         else if (_slots.isEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: AppTheme.spacingS),
-            child: Text(
-              'Aucun créneau disponible',
-              style: AppTextStyles.bodySmall.copyWith(
-                color: AppColors.textSecondary,
+            child: switch (_emptyReason) {
+              // §12: an empty state says WHY, and offers the action that fixes
+              // it. None of these carries « Réessayer » — the request
+              // succeeded, and retrying a day outside the window can never
+              // return anything.
+              _EmptyReason.past => EmptyState(
+                icon: Icons.history,
+                title: 'Cette date est passée',
+                description:
+                    'Choisissez une date à venir pour voir les créneaux '
+                    'disponibles.',
+                actionText: 'Choisir une autre date',
+                onAction: _pickDay,
               ),
-            ),
+              _EmptyReason.beyondHorizon => EmptyState(
+                icon: Icons.calendar_month,
+                title: 'Trop loin dans le temps',
+                description:
+                    'Ce salon accepte les réservations jusqu’au '
+                    '${Formatters.formatDate(_lastBookableDay)}.',
+                actionText: 'Aller au dernier jour disponible',
+                onAction: () {
+                  widget.onInteraction?.call();
+                  widget.onDateChanged(_lastBookableDay);
+                },
+              ),
+              _EmptyReason.tooSoon => EmptyState(
+                icon: Icons.schedule,
+                title: 'Réservation trop proche',
+                description:
+                    'Ce salon demande un délai de '
+                    '${Formatters.formatDuration(widget.minimumNotice.inMinutes)} '
+                    'avant chaque rendez-vous.',
+                actionText: 'Aller au premier jour disponible',
+                onAction: () {
+                  widget.onInteraction?.call();
+                  widget.onDateChanged(_firstBookableDay);
+                },
+              ),
+              _EmptyReason.full => EmptyState(
+                icon: Icons.event_busy,
+                title: 'Aucun créneau ce jour-là',
+                description:
+                    'Ce salon n’a plus de disponibilité le '
+                    '${Formatters.formatDate(widget.selectedDate)}.',
+                actionText: 'Choisir une autre date',
+                onAction: _pickDay,
+              ),
+            },
           )
         else
           Wrap(

@@ -7,22 +7,46 @@
 /// widget doing the same job — **90** (deleted in A14c; its 90 died with it). Nothing named any of them and nothing
 /// explained the disagreement.
 ///
-/// **There is no server rule to defer to.** The backend has no bookable-horizon
-/// concept at all; the only `90` in `backend/` is `kProTrialDays`, which is the
-/// subscription trial and unrelated. So these are product decisions, and until
-/// they are taken deliberately they are at least named, in one place, where the
-/// disagreement is visible instead of scattered.
+/// **There WAS no server rule to defer to, and now there is.** This paragraph
+/// used to end « the backend has no bookable-horizon concept at all », and
+/// A14d made that false in the same campaign that wrote it: the bookable window
+/// is now a per-salon setting the server enforces —
+/// `backend/lib/src/appointments/booking_window.dart` is the authority, and the
+/// two defaults below mirror it field for field.
 ///
-/// A14 does **not** reconcile the consumer funnel's 365-vs-90 split — that is a
-/// product question about how far ahead a salon accepts bookings, not a widget
-/// change, and it has its own register row.
+/// So the constants that remain are **fallbacks, not the rule**. A salon's own
+/// window arrives on `Provider.availability` and beats them everywhere a client
+/// books; these values answer only « what if we have no salon in hand yet »
+/// (a picker opened before the provider loads) and « what does a pro flow use »
+/// (the pro is exempt — the salon owns its calendar).
 library;
 
-/// The consumer booking funnel, and every pro flow that schedules forward.
+/// The consumer booking funnel's FALLBACK, and every pro flow that schedules
+/// forward.
 ///
 /// One year. Long enough that no real appointment is refused by the picker, and
-/// short enough that the month navigation stays finite.
+/// short enough that the month navigation stays finite. Since A14d a consumer
+/// surface prefers the salon's own [Availability.bookingHorizonDays] and falls
+/// back here only when no salon is in hand.
 const Duration kBookingHorizon = Duration(days: 365);
+
+/// The far end of the bookable window when a salon has not set one.
+///
+/// Mirrors `kDefaultBookingHorizonDays` in
+/// `backend/lib/src/appointments/booking_window.dart`, which is the authority.
+/// Equal to [kBookingHorizon] by construction and by intent: A14d changed no
+/// salon's reach on the day it shipped, and if these two ever diverge the app
+/// would offer a different year than the server accepts.
+const int kDefaultBookingHorizonDays = 365;
+
+/// The near end: how soon before a start a client may still book.
+///
+/// Mirrors `kDefaultMinimumNoticeMinutes` in the same backend file. Sixty
+/// minutes is not a new product decision — it is the literal the slot engine
+/// already enforced, unnamed and untested, on both the server and the mobile
+/// mock. A14d named it and made it per-salon; this is what a salon that never
+/// touches the setting still gets.
+const int kDefaultMinimumNoticeMinutes = 60;
 
 /// The pro's manual booking form.
 ///
@@ -39,3 +63,18 @@ const Duration kManualBookingHorizon = Duration(days: 90);
 /// no data before 2024 and an invented ceiling. Expressed as a span around the
 /// current day instead, so it cannot expire.
 const Duration kJournalPastHorizon = Duration(days: 365);
+
+/// What the pro's « Fenêtre de réservation » card offers.
+///
+/// Public and here rather than private to the screen so a test can assert the
+/// one property the lists must satisfy together: **no pair may put the notice
+/// past the horizon**, which the server refuses as `invalid_input`
+/// (`isBookableWindow`). A salon must never be offered a chip that fails.
+abstract final class BookingWindowPresets {
+  /// 1 mois · 3 mois · 6 mois · 1 an.
+  static const List<int> horizons = [30, 90, 180, 365];
+
+  /// Aucun · 1 h · 12 h · 24 h. The widest is inside the shortest horizon by
+  /// construction — 1440 minutes against 30 × 1440.
+  static const List<int> notices = [0, 60, 720, 1440];
+}

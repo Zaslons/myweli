@@ -14,6 +14,7 @@ import 'package:myweli/providers/notifications_provider.dart';
 import 'package:myweli/providers/pro_appointment_provider.dart';
 import 'package:myweli/providers/pro_artist_provider.dart';
 import 'package:myweli/providers/pro_auth_provider.dart';
+import 'package:myweli/providers/pro_availability_provider.dart';
 import 'package:myweli/providers/pro_dashboard_provider.dart';
 import 'package:myweli/providers/pro_deposit_settings_provider.dart';
 import 'package:myweli/providers/pro_earnings_provider.dart';
@@ -23,6 +24,7 @@ import 'package:myweli/providers/pro_subscription_provider.dart';
 import 'package:myweli/providers/pro_team_provider.dart';
 import 'package:myweli/screens/provider/appointments/appointment_list_screen.dart';
 import 'package:myweli/screens/provider/auth/pro_login_screen.dart';
+import 'package:myweli/screens/provider/availability/availability_screen.dart';
 import 'package:myweli/screens/provider/dashboard/dashboard_screen.dart';
 import 'package:myweli/screens/provider/earnings/earnings_screen.dart';
 import 'package:myweli/screens/provider/journal/pro_journal_screen.dart';
@@ -374,6 +376,38 @@ void main() {
         size: const Size(360, 1400),
       );
       await expectGolden(tester, 'pro_appointment_calendar_w360');
+    });
+
+    // ---- A14d: the first picture of the pro AVAILABILITY screen ----------
+    //
+    // Like the calendar above, this screen shipped without a picture — and it
+    // is the screen A14d adds two preset rows to and A14e rebuilds the
+    // blocked-dates half of. Photographing it now means the next two slices
+    // change something that has a before.
+    //
+    // What to look at, beyond that it exists: « Fenêtre de réservation » sits
+    // ABOVE « Temps de battement » deliberately — the window is the coarser
+    // decision, and a salon reasons about how far ahead it takes bookings
+    // before it reasons about the gap between two of them. And the two chip
+    // rows carry their own sub-labels (« Réservations jusqu'à », « Délai
+    // minimum »), because two unlabelled `Wrap`s in one card would be a puzzle.
+    testWidgets('the pro availability screen at the floor', (tester) async {
+      await _pumpPro(
+        tester,
+        const AvailabilityScreen(),
+        extra: [
+          ChangeNotifierProvider(create: (_) => ProAvailabilityProvider()),
+        ],
+        size: const Size(360, 1600),
+      );
+      expect(
+        find.text('Fenêtre de réservation'),
+        findsOneWidget,
+        reason:
+            'the golden is worthless if the screen errored into an empty '
+            'scroll — this is the one card A14d adds',
+      );
+      await expectGolden(tester, 'pro_availability_w360');
     });
 
     testWidgets('the reviews summary at the floor', (tester) async {

@@ -332,9 +332,17 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
     final duration = _totalDurationMinutes(p);
     final serviceIds = _draft.serviceIds;
     if (serviceIds.isEmpty) return null;
+    // A14d. This is a SEARCH window, not a policy bound — but with a per-salon
+    // horizon it is wrong in both directions if left at a literal: a 7-day
+    // salon burns eight doomed round trips past its own end, and the requests
+    // are sequential. Clamped, never widened: a long horizon must not turn a
+    // 15-request scan into a 365-request one.
+    final scanDays = daysAhead < p.availability.bookingHorizonDays
+        ? daysAhead
+        : p.availability.bookingHorizonDays;
 
     final startDay = salonToday(tz: _tz);
-    for (var i = 0; i <= daysAhead; i++) {
+    for (var i = 0; i <= scanDays; i++) {
       final d = startDay.add(Duration(days: i));
       final res = await appointmentProvider.getAvailableTimeSlots(
         providerId: widget.providerId,
@@ -766,6 +774,16 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
                                   : null,
                               tz: _tz,
                               countryCode: p.countryCode,
+                              // A14d — the salon's own window, not the app's
+                              // constant. `SlotPicker.horizon` has existed
+                              // since A14c documented « A14d makes this
+                              // per-salon »; this is that.
+                              horizon: Duration(
+                                days: p.availability.bookingHorizonDays,
+                              ),
+                              minimumNotice: Duration(
+                                minutes: p.availability.minimumNoticeMinutes,
+                              ),
                               refreshSignal: _slotsRefresh,
                               onInteraction: () => _setEntryPointIfNeeded(
                                 _HubEntryPoint.dateTime,
