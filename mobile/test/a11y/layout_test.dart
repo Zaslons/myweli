@@ -15,6 +15,7 @@ import 'package:myweli/providers/pro_availability_provider.dart';
 import 'package:myweli/providers/pro_dashboard_provider.dart';
 import 'package:myweli/providers/pro_earnings_provider.dart';
 import 'package:myweli/providers/pro_reviews_provider.dart';
+import 'package:myweli/providers/pro_service_provider.dart';
 import 'package:myweli/providers/provider_provider.dart';
 import 'package:myweli/screens/appointments/my_bookings_screen.dart';
 import 'package:myweli/screens/auth/otp_verify_screen.dart';
@@ -24,6 +25,7 @@ import 'package:myweli/screens/home/home_screen.dart';
 import 'package:myweli/screens/notifications/notifications_screen.dart';
 import 'package:myweli/screens/provider/appointments/appointment_calendar_view.dart';
 import 'package:myweli/screens/provider/appointments/appointment_list_screen.dart';
+import 'package:myweli/screens/provider/appointments/pro_manual_booking_screen.dart';
 import 'package:myweli/screens/provider/auth/pro_otp_verify_screen.dart';
 import 'package:myweli/screens/provider/availability/availability_screen.dart';
 import 'package:myweli/screens/provider/dashboard/dashboard_screen.dart';
@@ -282,6 +284,58 @@ void main() {
       // `daysOfWeekHeight: 16.0` around a ~20dp line and sums it into a
       // `SizedBox(height:)` — so « L M M J V S D » is clipped at 1×, today,
       // on a shipped pro screen.
+
+      // ---- pro manual booking, with a date actually IN the field ---------
+      //
+      // A14b left this as an open question and said so rather than claiming
+      // otherwise: *"Whether « 15/01/2024 » at 2× wraps or overflows depends on
+      // the ICU break opportunity at `/`. **Not measured.**"*
+      //
+      // The subject has to pump a SELECTED date, and that is the whole trick:
+      // the placeholders are « Date » and « Heure », four and five characters,
+      // which fit at any scale and would pass vacuously — the exact failure
+      // mode this campaign has hit four times. `initialDateTime` puts
+      // « 15/01/2026 » in the field instead, ten characters with a padded
+      // day AND month, in an `Expanded` half of a 360dp row beside an icon
+      // that does not scale.
+      testWidgets('the pro manual booking DATE row fits $at', (tester) async {
+        final auth = await signInPro(tester);
+        await pumpAtWidth(
+          tester,
+          width: width,
+          scale: scale,
+          providers: [
+            ChangeNotifierProvider<ProAuthProvider>.value(value: auth),
+            ChangeNotifierProvider(create: (_) => ProServiceProvider()),
+            ChangeNotifierProvider(create: (_) => ProAppointmentProvider()),
+          ],
+          home: ProManualBookingScreen(
+            initialDateTime: DateTime(2026, 1, 15, 14, 30),
+          ),
+        );
+
+        // C — the date must actually be rendered, or this measures two
+        // placeholders and certifies nothing.
+        expect(
+          find.text('15/01/2026'),
+          findsOneWidget,
+          reason: 'C: the selected date must be IN the field at $at',
+        );
+
+        expectNoUndeclaredTruncation(
+          tester,
+          context: 'the pro manual booking date row at $at',
+        );
+        expectNoLegibilityCrush(
+          tester,
+          context: 'the pro manual booking date row at $at',
+        );
+        expectNoVerticalClip(
+          tester,
+          context: 'the pro manual booking date row at $at',
+        );
+        expect(tester.takeException(), isNull, reason: 'A: $at');
+      });
 
       // ---- the pro availability screen, measured for the FIRST time ------
       //

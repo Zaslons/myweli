@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:myweli/widgets/common/myweli_date_picker.dart';
+import 'package:myweli/widgets/common/myweli_month_grid.dart';
 
 import '../support/golden.dart';
 import '../support/surface.dart';
@@ -58,6 +59,35 @@ void main() {
       // column's full width and grows downwards instead of clipping.
       await pumpPicker(tester, scale: 2);
       await expectGolden(tester, 'components_date_picker_w360_x2');
+    });
+
+    // ---- A14e: the multi-select, which is a different control -------------
+    //
+    // Photographed because two things here are decisions rather than
+    // measurements: the summary bar reads the STATE on one line and the CHANGE
+    // on the next (two separable facts, and putting them on one line beside the
+    // button is the §13.3 shape that clips), and already-blocked days are
+    // painted with the SAME fill as just-chosen ones — because on this screen
+    // they are the same fact: this day will be blocked when I save.
+    testWidgets('the multi-date picker with a selection', (tester) async {
+      goldenSurface(tester, size: Size(360, kFloorPhone.height));
+      await tester.pumpWidget(
+        goldenApp(
+          home: MyweliMultiDatePickerScreen(
+            // Not a `const` set: `CalendarDay` overrides `==`, and a constant
+            // set may not hold a type that does.
+            initialSelection: {
+              const CalendarDay(2026, 3, 11),
+              const CalendarDay(2026, 3, 12),
+            },
+            firstDate: DateTime(2026, 3),
+            lastDate: DateTime(2027, 3, 11),
+            today: DateTime(2026, 3),
+          ),
+        ),
+      );
+      await tester.pump();
+      await expectGolden(tester, 'components_multi_date_picker_w360');
     });
   }, skip: kGoldensSkip);
 }

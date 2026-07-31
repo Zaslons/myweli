@@ -8,6 +8,7 @@ import '../../../core/constants/booking_horizons.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
+import '../../../core/utils/blocked_dates.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/utils/salon_time.dart';
 import '../../../models/availability.dart';
@@ -16,6 +17,7 @@ import '../../../providers/pro_availability_provider.dart';
 import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/confirm_dialog.dart';
 import '../../../widgets/common/myweli_date_picker.dart';
+import '../../../widgets/common/myweli_month_grid.dart' show CalendarDay;
 import '../../../widgets/common/myweli_time_picker.dart';
 import '../../../widgets/provider/weekly_hours_editor.dart';
 
@@ -223,14 +225,14 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
                     ),
                   const SizedBox(height: AppTheme.spacingSM),
                   OutlinedButton.icon(
-                    onPressed: () => _showAddBlockedDateDialog(
+                    onPressed: () => _showBlockedDatesPicker(
                       context,
                       availability,
                       availabilityProvider,
                       _resolvedProviderId(context),
                     ),
-                    icon: const Icon(Icons.add),
-                    label: const Text('Bloquer une date'),
+                    icon: const Icon(Icons.edit_calendar),
+                    label: const Text('Gérer les dates bloquées'),
                   ),
                 ],
               ),
@@ -276,7 +278,18 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
     );
   }
 
-  void _showAddBlockedDateDialog(
+  /// A14e — block or unblock several days in one gesture.
+  ///
+  /// **Replaces a one-day-per-write flow.** « Bloquer les fêtes » cost fourteen
+  /// full round trips, each one a DELETE-and-reinsert of the salon's entire
+  /// availability, and « tous les dimanches d'août » cost five — which a date
+  /// RANGE could not express at all. A toggle is the only single mode that
+  /// expresses both real jobs, and the only one that maps onto the model that
+  /// exists: `blockedDates` is a list of days, not a rule.
+  ///
+  /// The picker returns a **delta**, and the reason is a silent data loss — see
+  /// `applyBlockedDaysDelta`.
+  void _showBlockedDatesPicker(
     BuildContext context,
     Availability availability,
     ProAvailabilityProvider provider,
@@ -284,62 +297,168 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
   ) async {
     // A blocked date is the ACTIVE SALON's calendar day (salon_time.dart).
     final tz = context.read<ProAuthProvider>().salonTimezone;
-    final selectedDate = await showMyweliDatePicker(
+    final today = salonToday(tz: tz);
+    final firstDay = CalendarDay.of(today);
+
+    // Seeded ONLY with days inside the picker's own range. A day before
+    // `firstDate` would render selected and inert — `primary` fill under
+    // `textTertiary` ink, with a dead tap — and the picker asserts against it.
+    // The past ones are not lost: they keep their card and its delete button.
+    final seeded = {
+      for (final d in availability.blockedDates)
+        if (!CalendarDay.of(toSalonTime(d, tz: tz)).isBefore(firstDay))
+          CalendarDay.of(toSalonTime(d, tz: tz)),
+    };
+
+    final delta = await showMyweliMultiDatePicker(
       context: context,
-      initialDate: salonToday(tz: tz),
-      firstDate: salonToday(tz: tz),
-      lastDate: salonToday(tz: tz).add(kBookingHorizon),
-      today: salonToday(tz: tz),
+      initialSelection: seeded,
+      firstDate: today,
+      // Deliberately NOT the salon's own `bookingHorizonDays`: blocking is
+      // PLANNING, not booking. A salon may mark Christmas while its window is
+      // 30 days and widen the window later, and the write is harmless either
+      // way. Recorded so a future sweep does not "fix" it into agreement.
+      lastDate: today.add(kBookingHorizon),
+      today: today,
+      helpText: 'Dates à bloquer',
     );
+    if (delta == null || !context.mounted) return;
+    if (delta.added.isEmpty && delta.removed.isEmpty) return;
 
-    if (selectedDate == null || !context.mounted) return;
+    if (!await _confirmBlockedDatesChange(context, delta, tz)) return;
+    if (!context.mounted) return;
 
-    // **A14a restores a confirmation the picker change had removed.**
-    //
-    // Material's OK was doing two jobs here, and only one of them was about
-    // seeing the selection: it was also the **commit gesture for a server
-    // write**. The house picker pops on the first tap, which is right for the
-    // four flows where the date lands in a form — and wrong for this one, where
-    // it closes the salon for a day immediately, with no confirmation, no
-    // success feedback and no undo (§15: undo stops at the client boundary).
-    //
-    // So the confirmation moves out of the picker and to the mutation, which is
-    // where it belonged.
-    final confirmed = await showConfirmDialog(
-      context,
-      title: 'Bloquer cette date ?',
-      message:
-          'Le ${Formatters.formatDate(selectedDate)}, votre salon '
-          'n’acceptera aucune réservation.',
-      confirmLabel: 'Bloquer',
-      icon: Icons.block,
+    await provider.updateAvailability(
+      providerId,
+      availability.copyWith(
+        blockedDates: applyBlockedDaysDelta(
+          current: availability.blockedDates,
+          added: delta.added,
+          removed: delta.removed,
+          tz: tz,
+        ),
+      ),
     );
-    if (!confirmed || !context.mounted) return;
-
-    {
-      final updatedBlockedDates = List<DateTime>.from(availability.blockedDates)
-        ..add(
-          salonDateTime(
-            selectedDate.year,
-            selectedDate.month,
-            selectedDate.day,
-            tz: tz,
-          ),
-        );
-      final updatedAvailability = availability.copyWith(
-        blockedDates: updatedBlockedDates,
-      );
-      await provider.updateAvailability(providerId, updatedAvailability);
-      if (context.mounted && provider.error != null) {
-        AppSnackBar.show(context, provider.error!, kind: SnackKind.error);
-      }
+    if (!context.mounted) return;
+    if (provider.error != null) {
+      AppSnackBar.show(context, provider.error!, kind: SnackKind.error);
+      return;
     }
+    // Feedback is owed when the change is not visible on the surface that
+    // caused it: a chip shows its own new state, a popped modal does not.
+    AppSnackBar.show(context, _changeSummary(delta), kind: SnackKind.success);
   }
 
-  /// One tap saves, exactly like [_setBuffer] beside it — and like it, with no
-  /// success feedback: the chip moving IS the confirmation, and a snackbar for
-  /// every chip tap would be noise. Errors do speak, because a silent failure
-  /// would leave the chip showing a value the server never took.
+  String _changeSummary(DaySelectionDelta delta) {
+    final parts = [
+      if (delta.added.isNotEmpty)
+        Formatters.count(delta.added.length, 'date bloquée', 'dates bloquées'),
+      if (delta.removed.isNotEmpty)
+        Formatters.count(
+          delta.removed.length,
+          'date débloquée',
+          'dates débloquées',
+        ),
+    ];
+    return parts.join(' · ');
+  }
+
+  /// **One rule: every write to `blockedDates` passes exactly one confirm, the
+  /// verb names the direction, and the rung is set by the worst half present.**
+  ///
+  /// A14a's comment on the old dialog justified it by the picker popping on the
+  /// first tap — Material's OK was doing double duty as the commit gesture for
+  /// a server write. The multi-picker has its own explicit, labelled button, so
+  /// that justification is satisfied by the screen. It does not carry, for one
+  /// reason: the gesture can now **unblock**, and unblocking is the direction
+  /// that produces an unwanted booking. Removal had NO confirmation at all —
+  /// the more dangerous half was the unguarded one.
+  Future<bool> _confirmBlockedDatesChange(
+    BuildContext context,
+    DaySelectionDelta delta,
+    String? tz,
+  ) {
+    final adds = delta.added.length;
+    final removes = delta.removed.length;
+
+    if (removes == 0) {
+      // n = 1 names the date; n > 1 gives a count. Enumerating three dates
+      // would be a third place the same information lives, and the grid and
+      // the summary bar are both better at it — but losing the named date in
+      // the commonest case would be a copy regression, so the singular branch
+      // keeps A14a's exact sentence.
+      return showConfirmDialog(
+        context,
+        title: adds == 1 ? 'Bloquer cette date ?' : 'Bloquer ces dates ?',
+        message: adds == 1
+            ? 'Le ${Formatters.formatDate(delta.added.first.toDateTime())}, '
+                  'votre salon n’acceptera aucune réservation.'
+            : 'Votre salon n’acceptera aucune réservation pendant ces '
+                  '${Formatters.count(adds, 'journée', 'journées')}.',
+        confirmLabel: adds == 1
+            ? 'Bloquer'
+            : 'Bloquer ${Formatters.count(adds, 'date', 'dates')}',
+        icon: Icons.block,
+      );
+    }
+
+    if (adds == 0) {
+      return showConfirmDialog(
+        context,
+        title: removes == 1
+            ? 'Débloquer cette date ?'
+            : 'Débloquer ces dates ?',
+        message: removes == 1
+            ? 'Le ${Formatters.formatDate(delta.removed.first.toDateTime())}, '
+                  'votre salon acceptera de nouveau des réservations.'
+            : 'Votre salon acceptera de nouveau des réservations pendant ces '
+                  '${Formatters.count(removes, 'journée', 'journées')}.',
+        confirmLabel: removes == 1
+            ? 'Débloquer'
+            : 'Débloquer ${Formatters.count(removes, 'date', 'dates')}',
+        icon: Icons.event_available,
+        // Opening your calendar is not destructive, and `ConfirmDialog`'s own
+        // docstring warns that red on a non-destructive action dilutes the
+        // signal.
+        isDestructive: false,
+      );
+    }
+
+    // Mixed. No single verb names both directions, so the confirm names the
+    // OUTCOME — which §15 permits, and which « Bloquer » or « Débloquer »
+    // would misname for half the change. Two icon-led lines rather than one
+    // paragraph, so the direction is not carried by a word buried mid-sentence.
+    return showConfirmDialog(
+      context,
+      title: 'Modifier vos dates bloquées ?',
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _DeltaLine(
+            icon: Icons.block,
+            text: Formatters.count(
+              adds,
+              'date sera bloquée',
+              'dates seront bloquées',
+            ),
+          ),
+          const SizedBox(height: AppTheme.spacingXS),
+          _DeltaLine(
+            icon: Icons.event_available,
+            text: Formatters.count(
+              removes,
+              'date sera débloquée',
+              'dates seront débloquées',
+            ),
+          ),
+        ],
+      ),
+      confirmLabel: 'Enregistrer',
+      icon: Icons.edit_calendar,
+    );
+  }
+
   Future<void> _setWindow(
     BuildContext context,
     Availability availability,
@@ -402,6 +521,14 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
     }
   }
 
+  /// The per-card delete — the only way to reach a PAST blocked date, since
+  /// the picker's range starts today.
+  ///
+  /// **It now confirms.** Adding always did and removing never did, which put
+  /// the guard on the safer half: unblocking is the direction that produces an
+  /// unwanted booking. One rule across the screen (see
+  /// `_confirmBlockedDatesChange`), and `isDestructive: false` because opening
+  /// your calendar destroys nothing.
   void _removeBlockedDate(
     BuildContext context,
     DateTime date,
@@ -409,15 +536,35 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
     ProAvailabilityProvider provider,
     String providerId,
   ) async {
-    final updatedBlockedDates = List<DateTime>.from(availability.blockedDates)
-      ..removeWhere(
-        (d) =>
-            d.year == date.year && d.month == date.month && d.day == date.day,
-      );
-    final updatedAvailability = availability.copyWith(
-      blockedDates: updatedBlockedDates,
+    final tz = context.read<ProAuthProvider>().salonTimezone;
+    final day = CalendarDay.of(toSalonTime(date, tz: tz));
+
+    final confirmed = await showConfirmDialog(
+      context,
+      title: 'Débloquer cette date ?',
+      message:
+          'Le ${Formatters.formatDate(toSalonTime(date, tz: tz))}, votre '
+          'salon acceptera de nouveau des réservations.',
+      confirmLabel: 'Débloquer',
+      icon: Icons.event_available,
+      isDestructive: false,
     );
-    await provider.updateAvailability(providerId, updatedAvailability);
+    if (!confirmed || !context.mounted) return;
+
+    await provider.updateAvailability(
+      providerId,
+      availability.copyWith(
+        // The same composer the picker uses, so « remove one » and « remove
+        // three » cannot drift apart — and so this path also matches on the
+        // SALON day rather than the stored instant's raw fields.
+        blockedDates: applyBlockedDaysDelta(
+          current: availability.blockedDates,
+          added: const {},
+          removed: {day},
+          tz: tz,
+        ),
+      ),
+    );
     if (context.mounted && provider.error != null) {
       AppSnackBar.show(context, provider.error!, kind: SnackKind.error);
     }
@@ -1014,6 +1161,37 @@ class _TimeSlotCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// One direction of a mixed blocked-dates change.
+///
+/// An icon per line so the direction is not carried by a single word buried in
+/// a sentence — §13's rule against meaning by one channel alone, applied to
+/// wording rather than colour.
+class _DeltaLine extends StatelessWidget {
+  const _DeltaLine({required this.icon, required this.text});
+
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: AppTheme.iconS, color: AppColors.textSecondary),
+        const SizedBox(width: AppTheme.spacingS),
+        Expanded(
+          child: Text(
+            text,
+            style: AppTextStyles.bodyMedium.copyWith(
+              color: AppColors.textPrimary,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
