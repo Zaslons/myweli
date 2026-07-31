@@ -6,15 +6,22 @@ import 'package:intl/intl.dart';
 ///
 /// **Why this exists at all.** `flutter_localizations` fixes what
 /// `Localizations.of(context)` returns. It does nothing for code that formats
-/// through `intl` directly with no `locale:` — and `table_calendar` is exactly
-/// that (`calendar_header.dart:43` → `DateFormat.yMMMM(locale)` with a null
-/// locale). A locale-less `DateFormat` resolves via
+/// through `intl` directly with no `locale:`. Such a call resolves via
 /// `Intl.getCurrentLocale()`, which is `defaultLocale ??= systemLocale`
-/// (`intl.dart:528`) — and `systemLocale` is the constant `'en_US'`.
+/// (`intl.dart:528`) — and `systemLocale` is the constant `'en_US'`. Worse, the
+/// `??=` means the **first** such call permanently pins the isolate.
 ///
-/// So before A9 the consumer booking calendar rendered « July 2026 » with a
-/// « Mon Tue Wed » weekday row, one widget below a fully French screen. Worse,
-/// the `??=` means the *first* such call permanently pins the isolate.
+/// The example was `table_calendar` (`calendar_header.dart:43` →
+/// `DateFormat.yMMMM(locale)` with a null locale): before A9 the consumer
+/// booking calendar rendered « July 2026 » with a « Mon Tue Wed » weekday row,
+/// one widget below a fully French screen.
+///
+/// **A14c retired that package, and it was this seam's only consumer** — every
+/// `intl` call in `lib/` now passes an explicit locale. The seam is kept
+/// regardless, because *"no caller today"* is not *"no caller"* and the `??=`
+/// makes the first mistake permanent. What changed is its justification: it is
+/// now defended by a **pin** (`french_test.dart`, mechanism 3) that forbids the
+/// locale-less shape outright, rather than by a dependency we no longer have.
 ///
 /// **Why a seam and not a line in `main()`.** A line in `main()` is correct for
 /// the product and invisible to every test, because tests never run `main()`.

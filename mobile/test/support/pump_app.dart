@@ -43,8 +43,10 @@ Widget wrapApp({
 
   // A9: the `intl` half of French, which the delegates below do not cover.
   // The three app roots call this at boot; a shell that skipped it would let a
-  // `table_calendar` render « July 2026 » in a passing test — which is exactly
-  // how it reached production. Idempotent.
+  // locale-less `DateFormat` render « July 2026 » in a passing test — which is
+  // exactly how it reached production, via `table_calendar` (retired in A14c;
+  // the shape is now forbidden by a pin, and this call is the belt to its
+  // braces). Idempotent.
   initAppLocale();
 
   // A9: the three app roots declare these, so the shell that claims to be

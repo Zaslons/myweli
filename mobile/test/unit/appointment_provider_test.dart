@@ -34,6 +34,71 @@ void main() {
     createdAt: DateTime(2024),
   );
 
+  group('getAvailableTimeSlots distinguishes "closed" from "broken"', () {
+    // **The block that renders this had three states, not four.** The provider
+    // swallowed every failure into `return []`, so « Aucun créneau disponible »
+    // was the sentence for a fully-booked Saturday AND for a dead network. On a
+    // screen someone opens to move an appointment, that is the wrong sentence:
+    // it says "the salon has no room" when the truth is "we could not ask".
+    //
+    // The layer below already knows — `ApiResponse` carries `error` and `code`.
+    // Only the provider was throwing it away.
+
+    test('a failure surfaces the error instead of an empty day', () async {
+      when(
+        () => appointments.getAvailableTimeSlots(
+          providerId: any(named: 'providerId'),
+          date: any(named: 'date'),
+          serviceIds: any(named: 'serviceIds'),
+          artistId: any(named: 'artistId'),
+          durationMinutes: any(named: 'durationMinutes'),
+        ),
+      ).thenAnswer(
+        (_) async => ApiResponse<List<DateTime>>.error('Hors ligne'),
+      );
+
+      final res = await AppointmentProvider().getAvailableTimeSlots(
+        providerId: 'p1',
+        date: DateTime(2026, 3, 11),
+      );
+
+      expect(res.slots, isEmpty);
+      expect(
+        res.error,
+        'Hors ligne',
+        reason:
+            'without this the caller cannot tell a closed salon from a failed '
+            'request, and both render the same reassuring lie',
+      );
+    });
+
+    test('a real empty day is empty WITHOUT an error', () async {
+      when(
+        () => appointments.getAvailableTimeSlots(
+          providerId: any(named: 'providerId'),
+          date: any(named: 'date'),
+          serviceIds: any(named: 'serviceIds'),
+          artistId: any(named: 'artistId'),
+          durationMinutes: any(named: 'durationMinutes'),
+        ),
+      ).thenAnswer((_) async => ApiResponse<List<DateTime>>.success(const []));
+
+      final res = await AppointmentProvider().getAvailableTimeSlots(
+        providerId: 'p1',
+        date: DateTime(2026, 3, 11),
+      );
+
+      expect(res.slots, isEmpty);
+      expect(
+        res.error,
+        isNull,
+        reason:
+            'the other direction: a genuinely full day must NOT be reported as '
+            'an error, or the fix trades one wrong sentence for another',
+      );
+    });
+  });
+
   test(
     'bookAppointment stores the returned booking + threads the deposit',
     () async {

@@ -3,10 +3,8 @@ import 'package:go_router/go_router.dart';
 import '../../screens/appointments/appointment_detail_screen.dart';
 import '../../screens/appointments/my_bookings_screen.dart';
 import '../../screens/auth/login_screen.dart';
-import '../../screens/booking/artist_selection_screen.dart';
 import '../../screens/booking/booking_confirmation_screen.dart';
 import '../../screens/booking/booking_hub_screen.dart';
-import '../../screens/booking/date_time_selection_screen.dart';
 import '../../screens/home/home_screen.dart';
 import '../../screens/map/map_screen.dart';
 import '../../screens/notifications/notifications_screen.dart';
@@ -74,62 +72,6 @@ class AppRouter {
             providerId: providerId,
             initialServiceIds: initialServiceIds,
             initialArtistId: state.uri.queryParameters['artistId'],
-          );
-        },
-      ),
-      GoRoute(
-        path: '/booking/artist',
-        name: 'artist-selection',
-        builder: (context, state) {
-          final providerId = state.uri.queryParameters['providerId']!;
-          final serviceParam = state.uri.queryParameters['serviceIds'];
-          final serviceIds = serviceParam == null || serviceParam.isEmpty
-              ? const <String>[]
-              : serviceParam.split(',');
-          final returnToHub = state.uri.queryParameters['returnToHub'] == '1';
-          final artistId = state.uri.queryParameters['artistId'];
-          final dateTimeParam = state.uri.queryParameters['dateTime'];
-          final initialDateTime = dateTimeParam == null
-              ? null
-              : DateTime.tryParse(dateTimeParam);
-          final durationMinutes = int.tryParse(
-            state.uri.queryParameters['durationMinutes'] ?? '',
-          );
-          return ArtistSelectionScreen(
-            providerId: providerId,
-            serviceIds: serviceIds,
-            returnToHub: returnToHub,
-            initialArtistId: artistId,
-            initialDateTime: initialDateTime,
-            durationMinutes: durationMinutes,
-          );
-        },
-      ),
-      GoRoute(
-        path: '/booking/date-time',
-        name: 'date-time-selection',
-        builder: (context, state) {
-          final providerId = state.uri.queryParameters['providerId']!;
-          final serviceParam = state.uri.queryParameters['serviceIds'];
-          final serviceIds = serviceParam == null || serviceParam.isEmpty
-              ? const <String>[]
-              : serviceParam.split(',');
-          final artistId = state.uri.queryParameters['artistId'];
-          final returnToHub = state.uri.queryParameters['returnToHub'] == '1';
-          final dateTimeParam = state.uri.queryParameters['dateTime'];
-          final initialDateTime = dateTimeParam == null
-              ? null
-              : DateTime.tryParse(dateTimeParam);
-          final durationMinutes = int.tryParse(
-            state.uri.queryParameters['durationMinutes'] ?? '',
-          );
-          return DateTimeSelectionScreen(
-            providerId: providerId,
-            serviceIds: serviceIds,
-            artistId: artistId,
-            returnToHub: returnToHub,
-            initialDateTime: initialDateTime,
-            durationMinutes: durationMinutes,
           );
         },
       ),
