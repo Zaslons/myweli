@@ -285,6 +285,32 @@ class SlotService {
   }
 
   /// Open 30-min start minutes-of-day for [weekday].
+  ///
+  /// **Each entry is a RANGE, and reading only its `startTime` was a silent
+  /// booking outage.** This used to `open.add(start)` and discard `endTime`, a
+  /// convention that is only correct when `weeklySchedule` holds one entry per
+  /// 30-minute step — which is what `seedProviders` holds and what **no real
+  /// salon can have**. `draftSalonDocument` gives a fresh registration an
+  /// EMPTY `weeklySchedule`, so every real salon authors its hours in the pro
+  /// app's day editor, which stores one entry per range the owner enters:
+  /// « 09:00 – 18:00 » is one entry, and this method turned nine open hours
+  /// into a single bookable start. Anything longer than [_step] then had
+  /// nowhere to go at all, and the client saw « Aucun créneau ce jour-là » on
+  /// every open day with no error anywhere to say why.
+  ///
+  /// The same file already read the same shape correctly twice — [_windowsFor]
+  /// for breaks and [_mergedWindows] for an artist's own hours both parse
+  /// `endTime`. Only the salon's opening hours did not, which is why nothing
+  /// else in the engine looked wrong. Found on a device by driving
+  /// pro → server → consumer; `slot_service_test.dart` holds the pair that
+  /// measures it.
+  ///
+  /// Enumerating `[start, end)` in [_step]s is strictly a superset and leaves
+  /// the seed's meaning untouched: an entry exactly one step long still
+  /// contributes exactly its own start, so « 09:00 and 14:00 only » stays two
+  /// starts rather than becoming an open day. A range that does not land on the
+  /// grid contributes its floor-aligned steps and stops before `end`, so a
+  /// 09:00–17:45 day cannot offer a start no one can finish.
   Set<int> _openMinutes(Object? weeklySchedule, String weekday) {
     final schedule = (weeklySchedule as Map?)?.cast<String, dynamic>() ?? {};
     final template = (schedule[weekday] as List? ?? const [])
@@ -293,7 +319,19 @@ class SlotService {
     for (final s in template) {
       if (s['isAvailable'] == false) continue;
       final t = DateTime.parse(s['startTime'] as String);
-      open.add(t.hour * 60 + t.minute);
+      final e = DateTime.parse(s['endTime'] as String);
+      final startMin = t.hour * 60 + t.minute;
+      final endMin = e.hour * 60 + e.minute;
+      // A malformed or inverted window contributes its start and nothing more,
+      // which is what the old code did for every window — the floor never gets
+      // worse than it already was.
+      if (endMin <= startMin) {
+        open.add(startMin);
+        continue;
+      }
+      for (var m = startMin; m < endMin; m += _step) {
+        open.add(m);
+      }
     }
     return open;
   }
