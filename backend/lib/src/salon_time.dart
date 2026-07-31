@@ -75,6 +75,21 @@ String salonDayKey(DateTime d, String? tzName) {
   return (startUtc: start.toUtc(), endUtc: end.toUtc());
 }
 
+/// The UTC start of the salon day [days] after the one containing
+/// [anyInstant].
+///
+/// Uses the constructor's own day rollover (`day + days`) rather than
+/// `start.add(Duration(days: days))`, and the difference is not pedantry: the
+/// `Duration` form adds fixed 24-hour blocks, so it drifts by an hour across
+/// any DST transition and lands at 23:00 or 01:00 of the wrong day. Invisible
+/// while every seeded city is `Africa/Abidjan`, but `localities.timezone` is
+/// free per-city text and the multi-country flip is executed. A14d.
+DateTime salonDayStartPlusUtc(DateTime anyInstant, String? tzName, int days) {
+  final location = locationOf(tzName);
+  final l = tz.TZDateTime.from(anyInstant.toUtc(), location);
+  return tz.TZDateTime(location, l.year, l.month, l.day + days).toUtc();
+}
+
 /// The UTC instants of the salon day for a CALENDAR DATE's y/m/d fields —
 /// how a `?date=YYYY-MM-DD` query names a salon day (the fields are read as
 /// salon wall-clock, whatever flag the parsed DateTime carries).

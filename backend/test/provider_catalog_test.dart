@@ -753,7 +753,10 @@ void main() {
       // which is why this needs a ceiling that `bufferMinutes` never had.
       expect(await put({'bookingHorizonDays': 0}), HttpStatus.badRequest);
       expect(await put({'bookingHorizonDays': 731}), HttpStatus.badRequest);
-      expect(await put({'bookingHorizonDays': 'trente'}), HttpStatus.badRequest);
+      expect(
+        await put({'bookingHorizonDays': 'trente'}),
+        HttpStatus.badRequest,
+      );
       expect(await put({'bookingHorizonDays': 30.5}), HttpStatus.badRequest);
       expect(await put({'minimumNoticeMinutes': -1}), HttpStatus.badRequest);
       expect(await put({'minimumNoticeMinutes': 10081}), HttpStatus.badRequest);
@@ -772,45 +775,49 @@ void main() {
     // The three branches this route has always had and no test has ever
     // reached: 401 (:14-16), 403 (:17-19), 405 (:35-36). Verified absent
     // before they were written — the whole availability suite was two 200s.
-    test('A14d: availability refuses anon, another salon, and a bad verb',
-        () async {
-      final anon = await availability.onRequest(
-        ctx(req('GET', '/providers/provider1/availability')),
-        'provider1',
-      );
-      expect(anon.statusCode, HttpStatus.unauthorized);
+    test(
+      'A14d: availability refuses anon, another salon, and a bad verb',
+      () async {
+        final anon = await availability.onRequest(
+          ctx(req('GET', '/providers/provider1/availability')),
+          'provider1',
+        );
+        expect(anon.statusCode, HttpStatus.unauthorized);
 
-      // Cross-tenant. `getAvailability` had a test for this; the WRITE never
-      // did, which is the more dangerous of the two.
-      final other = await availability.onRequest(
-        ctx(req('GET', '/providers/provider2/availability', bearer: token)),
-        'provider2',
-      );
-      expect(other.statusCode, HttpStatus.forbidden);
+        // Cross-tenant. `getAvailability` had a test for this; the WRITE never
+        // did, which is the more dangerous of the two.
+        final other = await availability.onRequest(
+          ctx(req('GET', '/providers/provider2/availability', bearer: token)),
+          'provider2',
+        );
+        expect(other.statusCode, HttpStatus.forbidden);
 
-      final write = await availability.onRequest(
-        ctx(
-          req(
-            'PUT',
-            '/providers/provider2/availability',
-            bearer: token,
-            body: {'bufferMinutes': 5},
+        final write = await availability.onRequest(
+          ctx(
+            req(
+              'PUT',
+              '/providers/provider2/availability',
+              bearer: token,
+              body: {'bufferMinutes': 5},
+            ),
           ),
-        ),
-        'provider2',
-      );
-      expect(
-        write.statusCode,
-        HttpStatus.forbidden,
-        reason: "provider1's token must not write provider2's window",
-      );
+          'provider2',
+        );
+        expect(
+          write.statusCode,
+          HttpStatus.forbidden,
+          reason: "provider1's token must not write provider2's window",
+        );
 
-      final verb = await availability.onRequest(
-        ctx(req('DELETE', '/providers/provider1/availability', bearer: token)),
-        'provider1',
-      );
-      expect(verb.statusCode, HttpStatus.methodNotAllowed);
-    });
+        final verb = await availability.onRequest(
+          ctx(
+            req('DELETE', '/providers/provider1/availability', bearer: token),
+          ),
+          'provider1',
+        );
+        expect(verb.statusCode, HttpStatus.methodNotAllowed);
+      },
+    );
 
     test('gallery: GET → 200; PUT replaces → 200; over-cap → 400; '
         'cross-salon → 403; bad verb → 405', () async {

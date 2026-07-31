@@ -236,6 +236,79 @@ void main() {
       },
     );
 
+    // ---- A14d — the write path says WHY, not just « unavailable » --------
+    //
+    // The slot gate alone yields `slot_unavailable`, which tells the client
+    // « that time isn't free » when the truth is « we don't take bookings that
+    // far out » or « not that soon ». Five sentences in the product render
+    // that code as some version of « someone else just took your slot », and
+    // none of them is true for a window breach — which is why `book` carries
+    // its own explicit checks with distinct codes.
+    test(
+      'A14d: booking beyond the salon horizon says beyond_horizon',
+      () async {
+        // setUp does NOT isolate this: InMemoryProvidersRepository defaults to
+        // the top-level MUTABLE seedProviders list, so a write here leaks into
+        // every test that follows. A draft of this test left provider1 with a
+        // 3-day horizon and reddened eight unrelated bookings downstream.
+        final avail =
+            (await providers.byId('provider1'))!['availability'] as Map;
+        final restore = avail['bookingHorizonDays'];
+        addTearDown(() => avail['bookingHorizonDays'] = restore);
+        avail['bookingHorizonDays'] = 3;
+
+        final r = await booking.book(
+          userId: 'u',
+          providerId: 'provider1',
+          serviceIds: const ['service1'],
+          appointmentDateTime: _slotAt(9), // the file-wide fixture: 7 days out
+        );
+        expect(r.ok, isFalse);
+        expect(
+          r.error,
+          'beyond_horizon',
+          reason:
+              'NOT slot_unavailable — the slot is free, the date is refused',
+        );
+      },
+    );
+
+    test('A14d: booking inside the notice says too_soon', () async {
+      final avail = (await providers.byId('provider1'))!['availability'] as Map;
+      final restore = avail['minimumNoticeMinutes'];
+      addTearDown(() => avail['minimumNoticeMinutes'] = restore);
+      // 8 days of notice pushes past the 7-day fixture.
+      avail['minimumNoticeMinutes'] = 8 * 24 * 60;
+
+      final r = await booking.book(
+        userId: 'u',
+        providerId: 'provider1',
+        serviceIds: const ['service1'],
+        appointmentDateTime: _slotAt(9),
+      );
+      expect(r.ok, isFalse);
+      expect(r.error, 'too_soon');
+    });
+
+    test(
+      'A14d: a salon with the default window still books normally',
+      () async {
+        // The control. Without it both assertions above pass for a salon that
+        // simply cannot be booked at all.
+        final r = await booking.book(
+          userId: 'u',
+          providerId: 'provider1',
+          serviceIds: const ['service1'],
+          appointmentDateTime: _slotAt(9),
+        );
+        expect(
+          r.ok,
+          isTrue,
+          reason: 'the fixture is 7 days out, well inside 365',
+        );
+      },
+    );
+
     test(
       'double-booking is prevented (same slot, second client → conflict)',
       () async {
@@ -397,6 +470,40 @@ void main() {
       expect(body['userId'], 'user_A');
       expect(body['status'], 'pending');
     });
+
+    test(
+      'A14d: the route answers 409, not 400, for both window codes',
+      () async {
+        // The switch in routes/appointments/index.dart falls back to
+        // badRequest, and the 409-for-invalid_state convention it might have
+        // inherited lives in responses.dart, which this route does not use. A
+        // code added without an explicit case ships as a 400 — so the STATUS is
+        // asserted here, not just the service-level error string.
+        final avail =
+            (await providers.byId('provider1'))!['availability'] as Map;
+        final restoreH = avail['bookingHorizonDays'];
+        final restoreN = avail['minimumNoticeMinutes'];
+        addTearDown(() {
+          avail['bookingHorizonDays'] = restoreH;
+          avail['minimumNoticeMinutes'] = restoreN;
+        });
+
+        avail['bookingHorizonDays'] = 3;
+        final far = await list.onRequest(
+          ctx(bookReq(accessA, bookBody(_slotAt(9)))),
+        );
+        expect(far.statusCode, HttpStatus.conflict);
+        expect((await jsonOf(far))['error'], 'beyond_horizon');
+
+        avail['bookingHorizonDays'] = restoreH;
+        avail['minimumNoticeMinutes'] = 8 * 24 * 60;
+        final soon = await list.onRequest(
+          ctx(bookReq(accessA, bookBody(_slotAt(9)))),
+        );
+        expect(soon.statusCode, HttpStatus.conflict);
+        expect((await jsonOf(soon))['error'], 'too_soon');
+      },
+    );
 
     test(
       'POST notifies the SALON team (design §10): the owner gets a feed '
