@@ -15,10 +15,11 @@ import type { SalonClientCard } from '../../lib/pro/clients';
 import { maskPhone, noShowBadge, noShowLabel } from '../../lib/pro/clients';
 import { hhmm, minutesOfDay, statusKey } from '../../lib/pro/journal';
 import { combineDateTime } from '../../lib/pro/manual-booking';
-import { salonDayKey } from '../../lib/time';
+import { salonDayKey, salonToday } from '../../lib/time';
 import { type Membership, hasCap } from '../../lib/pro/team';
 import type { ProAppointment } from '../../lib/pro/today';
 import { Button } from '../Button';
+import { conflictMessage } from '../../lib/booking/window';
 
 /// The journal side panel (module journal J1 §3.4): booking facts + the C2
 /// client mini-card (audited read) + state-aware actions.
@@ -77,7 +78,17 @@ export function JournalPanel({
     const r = await fn();
     setBusy(false);
     if (r.ok) onChanged();
-    else onToast('Action impossible. Réessayez.', 'error');
+    // A14d: this was the only surface with NO conflict branch at all — a taken
+    // slot, a stale status and a server error were one sentence. `proAction`
+    // has always returned the code; nothing read it.
+    else
+      onToast(
+        conflictMessage(r.error, {
+          taken: 'Créneau indisponible.',
+          fallback: 'Action impossible. Réessayez.',
+        }),
+        'error',
+      );
   }
 
   const services = (appt.serviceIds ?? [])
@@ -243,6 +254,10 @@ export function JournalPanel({
                 <input
                   type="date"
                   aria-label="Nouvelle date"
+                  // A14d: a `min` this field never had. NO `max` — the salon is
+                  // exempt from its own booking window (it owns its calendar), so
+                  // only the past is out of bounds here.
+                  min={salonToday(new Date(), tz)}
                   value={reprogDate}
                   onChange={(e) => setReprogDate(e.target.value)}
                   className="min-h-12 rounded-lg border border-borderStrong bg-secondary px-s py-xs text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"

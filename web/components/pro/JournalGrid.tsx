@@ -27,6 +27,7 @@ import type { ProAppointment } from '../../lib/pro/today';
 import { salonFormatter } from '../../lib/time';
 import { JournalPanel } from './JournalPanel';
 import { ManualBookingDialog } from './ManualBookingDialog';
+import { conflictMessage } from '../../lib/booking/window';
 
 let draggingAppt: ProAppointment | null = null;
 
@@ -126,9 +127,10 @@ export function JournalGrid({
       onChanged();
     } else {
       onToast(
-        r.status === 409
-          ? 'Créneau indisponible.'
-          : 'Le déplacement a échoué. Réessayez.',
+        conflictMessage(r.error, {
+          taken: 'Créneau indisponible.',
+          fallback: 'Le déplacement a échoué. Réessayez.',
+        }),
       );
     }
   }
