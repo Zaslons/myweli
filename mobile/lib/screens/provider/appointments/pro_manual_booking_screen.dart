@@ -442,7 +442,14 @@ class _PickerField extends StatelessWidget {
           children: [
             Icon(icon, size: AppTheme.iconS, color: AppColors.textSecondary),
             const SizedBox(width: AppTheme.spacingS),
-            Text(label, style: AppTextStyles.bodyMedium),
+            // A14e closes A14b's open question, which was recorded honestly as
+            // « Not measured — an open question, not a claim ». The `Text` was
+            // UNFLEXED in a `Row` inside an `Expanded` half-width slot, so it
+            // could only overflow, never wrap: an icon that does not text-scale
+            // beside a label that goes from « Date » (4 chars) to « 15/01/2026 »
+            // (10) the moment a date is chosen. `Expanded` lets it take the
+            // room it needs and wrap — §13.3's answer everywhere else.
+            Expanded(child: Text(label, style: AppTextStyles.bodyMedium)),
           ],
         ),
       ),

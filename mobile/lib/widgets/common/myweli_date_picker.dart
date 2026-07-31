@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
+import '../../core/theme/text_styles.dart';
+import '../../core/utils/formatters.dart';
+import 'app_button.dart';
+import 'confirm_dialog.dart';
 import 'myweli_month_grid.dart';
 
 /// The house date picker (A14, SYSTEM.md §21 row 73).
@@ -142,6 +146,272 @@ class MyweliDatePickerScreen extends StatelessWidget {
           today: today,
           onDayTap: (d) => Navigator.of(context).pop(d),
         ),
+      ),
+    );
+  }
+}
+
+/// What a multi-select CHANGED — never what it holds (A14e).
+///
+/// **A delta, not a set, and the reason is a silent data loss.** The
+/// multi-picker's `firstDate` is the salon's today, so `MyweliMonthGrid._enabled`
+/// refuses every earlier day: a past blocked date cannot be selected, and
+/// seeding one would paint it selected and inert. A caller handed a full set
+/// would have to remember to re-merge the days the picker never showed — and
+/// forgetting means deleting them, permanently, with no error and nothing on
+/// screen to notice. A delta cannot express the days it did not show.
+typedef DaySelectionDelta = ({
+  Set<CalendarDay> added,
+  Set<CalendarDay> removed,
+});
+
+/// Pick several days at once, and report only what changed.
+///
+/// Mirrors [showMyweliDatePicker]'s shape — a full-screen route, a close
+/// leading, a `MyweliMonthNavigator` — with the one difference that makes it a
+/// different control: **it cannot pop on tap.** A tap toggles; the commit is an
+/// explicit button, because selecting is not submitting.
+///
+/// Returns null on dismiss. An empty delta is impossible: the button that
+/// produces one is disabled.
+Future<DaySelectionDelta?> showMyweliMultiDatePicker({
+  required BuildContext context,
+  required Set<CalendarDay> initialSelection,
+  required DateTime firstDate,
+  required DateTime lastDate,
+  DateTime? today,
+  String? helpText,
+}) {
+  assert(
+    !lastDate.isBefore(firstDate),
+    'lastDate ($lastDate) is before firstDate ($firstDate) — the picker would '
+    'show a range with no selectable day in it',
+  );
+  return Navigator.of(context).push<DaySelectionDelta>(
+    MaterialPageRoute<DaySelectionDelta>(
+      fullscreenDialog: true,
+      builder: (_) => MyweliMultiDatePickerScreen(
+        initialSelection: initialSelection,
+        firstDate: firstDate,
+        lastDate: lastDate,
+        today: today,
+        helpText: helpText,
+      ),
+    ),
+  );
+}
+
+/// The multi-picker's screen. Public so tests can pump it without a route.
+class MyweliMultiDatePickerScreen extends StatefulWidget {
+  const MyweliMultiDatePickerScreen({
+    super.key,
+    required this.initialSelection,
+    required this.firstDate,
+    required this.lastDate,
+    this.today,
+    this.helpText,
+  });
+
+  /// The days already chosen, **restricted to the picker's own range** by the
+  /// caller. A day outside `[firstDate, lastDate]` would render selected and
+  /// disabled — `primary` fill under `textTertiary` ink, with a dead tap — so
+  /// the invariant is asserted rather than documented.
+  final Set<CalendarDay> initialSelection;
+  final DateTime firstDate;
+  final DateTime lastDate;
+  final DateTime? today;
+  final String? helpText;
+
+  @override
+  State<MyweliMultiDatePickerScreen> createState() =>
+      _MyweliMultiDatePickerScreenState();
+}
+
+class _MyweliMultiDatePickerScreenState
+    extends State<MyweliMultiDatePickerScreen> {
+  late final Set<CalendarDay> _initial;
+  late Set<CalendarDay> _selected;
+
+  @override
+  void initState() {
+    super.initState();
+    _initial = {...widget.initialSelection};
+    _selected = {...widget.initialSelection};
+    assert(
+      _initial.every((d) => !d.isBefore(CalendarDay.of(widget.firstDate))),
+      'a seeded day sits before firstDate, so the grid will paint it selected '
+      'and refuse to toggle it — restrict the seed to the visible range',
+    );
+  }
+
+  /// The whole point of the screen, computed once at pop.
+  DaySelectionDelta get _delta => (
+    added: _selected.difference(_initial),
+    removed: _initial.difference(_selected),
+  );
+
+  bool get _changed => _delta.added.isNotEmpty || _delta.removed.isNotEmpty;
+
+  void _toggle(DateTime day) {
+    // `onDayTap` hands a LOCAL DateTime — `CalendarDay.toDateTime()`'s own
+    // docstring calls that "never what a caller persists". Convert immediately
+    // so no `DateTime` ever enters the selection.
+    final d = CalendarDay.of(day);
+    setState(
+      () => _selected.contains(d) ? _selected.remove(d) : _selected.add(d),
+    );
+  }
+
+  Future<void> _exit() async {
+    if (!_changed) {
+      Navigator.of(context).pop();
+      return;
+    }
+    // The single picker had nothing to lose on dismiss; this one can lose ten
+    // taps. `isDestructive: false` — abandoning an edit is not destroying data.
+    final leave = await showConfirmDialog(
+      context,
+      title: 'Abandonner les modifications ?',
+      message:
+          'Les dates que vous venez de choisir ne seront pas enregistrées.',
+      confirmLabel: 'Abandonner',
+      cancelLabel: 'Continuer',
+      icon: Icons.close,
+      isDestructive: false,
+    );
+    if (leave && mounted) Navigator.of(context).pop();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return PopScope(
+      canPop: !_changed,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _exit();
+      },
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.close, size: AppTheme.iconM),
+            tooltip: 'Fermer',
+            onPressed: _exit,
+          ),
+          title: Text(widget.helpText ?? 'Choisir des dates'),
+          actions: [
+            // Undoes THIS session's taps — never a bulk unblock of stored data.
+            if (_changed)
+              TextButton(
+                onPressed: () => setState(() => _selected = {..._initial}),
+                child: const Text('Réinitialiser'),
+              ),
+          ],
+        ),
+        body: SafeArea(
+          child: Column(
+            children: [
+              Expanded(
+                child: MyweliMonthNavigator(
+                  initialMonth: clampToRange(
+                    widget.today ?? widget.firstDate,
+                    widget.firstDate,
+                    widget.lastDate,
+                  ),
+                  firstDate: widget.firstDate,
+                  lastDate: widget.lastDate,
+                  // NO `markers:` — a non-null map reserves a marker row on
+                  // every cell and changes its height. « Already blocked » and
+                  // « just chosen » are the SAME fact here (this day will be
+                  // blocked when I save), so one paint says both, and a marker
+                  // derived from data being edited would go stale on the first
+                  // tap.
+                  selectedDays: _selected,
+                  today: widget.today,
+                  onDayTap: _toggle,
+                ),
+              ),
+              _SelectionSummaryBar(
+                selected: _selected.length,
+                delta: _delta,
+                // Gated on the DELTA, never on `_selected.isEmpty` — the naive
+                // gate makes « tout débloquer » unreachable, because the pro
+                // deselects their last day and the button dies.
+                onSave: _changed
+                    ? () => Navigator.of(context).pop(_delta)
+                    : null,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// State on one line, the change on the next, the act in a button below.
+///
+/// A `Column`, never a `Row` with the button beside it: `slot_picker.dart`
+/// records the same §13.3 lesson — a sentence plus an action on one line is
+/// the shape that clips at 200%.
+class _SelectionSummaryBar extends StatelessWidget {
+  const _SelectionSummaryBar({
+    required this.selected,
+    required this.delta,
+    required this.onSave,
+  });
+
+  final int selected;
+  final DaySelectionDelta delta;
+  final VoidCallback? onSave;
+
+  @override
+  Widget build(BuildContext context) {
+    final parts = [
+      if (delta.added.isNotEmpty)
+        Formatters.count(delta.added.length, 'ajoutée', 'ajoutées'),
+      if (delta.removed.isNotEmpty)
+        Formatters.count(delta.removed.length, 'retirée', 'retirées'),
+    ];
+    final state = selected == 0 && delta.removed.isNotEmpty
+        ? 'Toutes vos dates bloquées seront retirées.'
+        : selected == 0
+        ? 'Touchez les jours à bloquer.'
+        : Formatters.count(selected, 'date bloquée', 'dates bloquées');
+
+    return Padding(
+      padding: const EdgeInsets.all(AppTheme.spacingM),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // The cell announces itself on tap; the COUNT does not, and the count
+          // is what the button acts on.
+          Semantics(
+            liveRegion: true,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  state,
+                  style: AppTextStyles.bodyMedium.copyWith(
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                if (parts.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: AppTheme.spacingXS),
+                    child: Text(
+                      parts.join(' · '),
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppTheme.spacingS),
+          AppButton(text: 'Enregistrer', onPressed: onSave, isFullWidth: true),
+        ],
       ),
     );
   }

@@ -2,16 +2,16 @@
 
 | | |
 |---|---|
-| **Status** | A14a built · A14b built · A14c built · **A14d built** · A14e planned |
+| **Status** | A14a built · A14b built · A14c built · A14d built · **A14e built — the campaign is closed** |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-07-31 |
 | **PRD ref / phase** | **V1.** No numbered PRD requirement — how far ahead a salon accepts bookings was never specified, which is precisely what §21 row 76 records. A14d answers it as a product decision (§20.2), so the decision itself lives here rather than being cited from elsewhere |
-| **ROADMAP entry** | [ROADMAP.md](../ROADMAP.md) — A14c 🟢 · **A14d 🟢** (both 2026-07-31); the A14e line lands with its PR |
+| **ROADMAP entry** | [ROADMAP.md](../ROADMAP.md) — A14c 🟢 · A14d 🟢 · **A14e 🟢** (all 2026-07-31) |
 | **Module** | [`journal`](../MODULES.md#1-journal--bookings--journal-) (the pro calendar) · [`online-booking`](../MODULES.md#2-marketplace--online-booking--online-booking-) (the consumer funnel) — the campaign straddles two, which is why the `table_calendar` sites did not fall out of one module's slice |
-| **Register row** | [SYSTEM.md](SYSTEM.md) §21 row 73 (A14a) · row 77 (A14b) · row 75 (A14c) · **row 76 (A14d)** · A14e has none — next free id is **78**, claimed with its PR |
+| **Register row** | [SYSTEM.md](SYSTEM.md) §21 row 73 (A14a) · row 77 (A14b) · row 75 (A14c) · **row 76 (A14d)** · **row 78 (A14e)** |
 | **Skills checked** | `myweli-dev-guardrails` · `myweli-web-guardrails` (A14c §17, A14d) · `myweli-backend-guardrails` (A14d) |
 | **Preceded by** | [A12 — the fixed-box sweep](mobile-a12-fixed-boxes.md) · [A13 — copy & breaks](mobile-a13-copy-and-breaks.md) |
-| **Scope** | **A14a** — the date picker (§1–§7) · **A14b** — the time picker family (§8–§14) · **A14c** — retire `table_calendar` (§15–§19) · **A14d** — the per-salon **bookable window**, server-enforced (§20–§28) · **A14e** — multi-select blocking |
+| **Scope** | **A14a** — the date picker (§1–§7) · **A14b** — the time picker family (§8–§14) · **A14c** — retire `table_calendar` (§15–§19) · **A14d** — the per-salon **bookable window**, server-enforced (§20–§28) · **A14e** — multi-select blocking (§29–§34) |
 
 ---
 
@@ -1571,3 +1571,141 @@ against:
   document. The window rides to the client free, which A14d depends on (§24),
   but the absence of an allowlist is its own security question and is not
   A14d's to answer.
+
+---
+
+# Part E — A14e, blocking dates in bulk
+
+## 29. Goal & scope
+
+**Register row 78.** Blocking a week cost a week of round trips: the pro picked
+one day, confirmed, and the app wrote — then repeated. Each write is a `DELETE`
+of the salon's entire availability plus a re-insert of four tables, so
+« bloquer les fêtes » was fourteen of those.
+
+**Toggle, not range, and not a rule.** A range cannot express « tous les
+dimanches d'août » at all, and a recurring rule is a different data model —
+`blockedDates` is a list of days. Toggle is the only single mode that expresses
+both real jobs and the only one that fits what exists. Range mode and recurring
+closures are refused **on the record**; what would reopen them is a
+`blockedRules` field, not a picker change.
+
+## 30. The delta, and the erasure it makes impossible
+
+`showMyweliMultiDatePicker` returns **`({Set<CalendarDay> added, Set<CalendarDay>
+removed})`** — what changed, never what is held.
+
+**The reason is a silent, permanent data loss.** The picker's `firstDate` is the
+salon's today, so `MyweliMonthGrid._enabled` refuses every earlier day: a past
+blocked date cannot be in a selection, and seeding one would paint it selected
+and inert. A page handed a full set would have to *remember* to re-merge the
+days the picker never showed — and forgetting deletes them, on the first save,
+with no error and nothing on screen to notice, because the server replaces the
+whole set.
+
+A delta cannot express the days it did not show. Four consequences follow, and
+they are why this shape was chosen over a set:
+
+1. **Correctness stops depending on the seed.** A future change to `firstDate`
+   cannot reintroduce the bug.
+2. **It matches the gesture.** The pro toggles days; a full set would make a
+   screen that rendered one month assert authority over a year.
+3. **The confirm copy falls out of it** — « 3 ajoutées · 1 retirée » is two
+   lengths. With a set the page must diff in order to *speak*, and if it must
+   diff to speak it may as well diff to write.
+4. **The empty selection stops being ambiguous.** `_selected.isEmpty` means
+   « unblock everything » or « nothing to do » depending on history; the delta
+   distinguishes them, and §31 shows why that matters.
+
+The composition lives in `core/utils/blocked_dates.dart` as a top-level
+function, not a private method, so it has a test subject that is not a widget
+pump — §16 records what the alternative cost. Survivors keep their **original
+stored instant** (a day this write is not changing must not be rewritten into a
+flavour it did not arrive in); only genuinely new days go through
+`salonDateTime`, per §18. Matching is `CalendarDay.of(toSalonTime(...))` and
+never `Set<DateTime>`, whose `==` compares `isUtc` and would silently match
+nothing across the three flavours the list can hold.
+
+**Watched red twice, and mutated twice.** `return fresh` reddens four of six
+unit tests including the erasure one; dropping the `removed` filter reddens a
+*different* test while the erasure one stays green — which is what proves the
+pair is not one assertion wearing two hats. And the property is asserted again
+end-to-end, on what the **service** receives, because it survives `copyWith` →
+`toJson` → the wire or it does not survive at all.
+
+## 31. One confirm, named by direction
+
+**Adding always confirmed and removing never did** — the guard was on the safer
+half. A14a restored the add dialog deliberately, because the single picker pops
+on first tap and the write is immediate and un-undoable; that justification is
+satisfied by a screen with its own labelled commit button. It does not carry,
+for one reason: the gesture can now **unblock**, and unblocking is the direction
+that produces an unwanted booking.
+
+> **Every write to `blockedDates` passes exactly one confirm. The verb names the
+> direction. The rung is set by the worst half present.**
+
+| change | title | confirm | destructive |
+|---|---|---|---|
+| add, n = 1 | « Bloquer cette date ? » | « Bloquer » | yes |
+| add, n > 1 | « Bloquer ces dates ? » | « Bloquer N dates » | yes |
+| remove | « Débloquer cette date ? » / « ces dates ? » | « Débloquer » | **no** |
+| mixed | « Modifier vos dates bloquées ? » | « Enregistrer » | yes |
+
+n = 1 names the date and n > 1 gives a count: enumerating three dates would be a
+third place the same information lives, and the grid and summary bar are both
+better at it — but losing the named date in the commonest case would be a copy
+regression, so the singular branch keeps A14a's exact sentence. Pure removal is
+`isDestructive: false` because opening your calendar destroys nothing, and
+`ConfirmDialog`'s own docstring warns that red on a non-destructive action
+dilutes the signal. Mixed commits with **« Enregistrer »** because no single
+verb names both directions and picking either would misname half the change —
+recorded because it looks like the lazy answer and is not.
+
+## 32. The screen
+
+`Scaffold` + close leading + `SafeArea` + `MyweliMonthNavigator` + a bottom
+summary bar and a full-width `AppButton`. The one structural difference from the
+single picker is the one that matters: **it cannot pop on tap** — selecting is
+not submitting.
+
+**Already-blocked days paint through `selectedDays`, not `markers`.** « Already
+blocked » and « just chosen » are the *same* fact here — this day will be
+blocked when I save — so one paint says both. A marker would also be **stale by
+construction**: tapping an already-blocked day deselects it, and the dot, drawn
+from `availability.blockedDates`, would still assert « blocked » while the
+intent is the opposite.
+
+**The enablement trap.** `onPressed: _selected.isEmpty ? null : …` reads
+sensibly and makes « tout débloquer » unreachable: the pro deselects their last
+blocked day and the button dies with the change unsaved. Gated on the **delta**
+instead — one rule, both cases right — and both halves of the pair are asserted,
+because « always enabled » is a different bug wearing the same green.
+
+**The blocked-date picker keeps its full 365-day range**, deliberately, even
+though A14d may make days past the salon's horizon unbookable. Blocking is
+*planning*: a salon may mark Christmas while its window is 30 days and widen it
+later, and the write is harmless either way. Recorded so a future sweep does not
+"fix" it into agreement.
+
+## 33. A14b's open question, answered by measurement
+
+§14 left `_PickerField`'s row honestly unresolved: *"Whether « 15/01/2024 » at 2×
+wraps or overflows depends on the ICU break opportunity at `/`. **Not
+measured.**"* The spec's line reference had also drifted — the row is `:308-328`
+and the class `:415-451`, not `:243-263`.
+
+**It overflows: 49 pixels, three of six configurations.** Measured by pumping the
+screen with `initialDateTime` set, because the placeholders — « Date » and
+« Heure », four and five characters — fit at any scale and would have passed
+vacuously, which is the exact failure mode this campaign hit four times. The
+`Text` is now `Expanded` and wraps.
+
+## 34. What A14e does not do
+
+- **Range mode and recurring closures** (§29), refused on the record.
+- **Un-blocking a day that already has bookings** does not warn. The precedent
+  is A14d's: nothing in this codebase re-validates a stored appointment against
+  availability, and blocking a day has never cancelled its bookings either.
+  Naming it here so the silence is a decision rather than an oversight.
+- **`docs/modules/online-booking.md`** remains an honest, pre-existing gap.
