@@ -184,8 +184,7 @@ class _RescheduleScreenState extends State<RescheduleScreen> {
                         days: widget.salon.availability.bookingHorizonDays,
                       ),
                       minimumNotice: Duration(
-                        minutes:
-                            widget.salon.availability.minimumNoticeMinutes,
+                        minutes: widget.salon.availability.minimumNoticeMinutes,
                       ),
                       onDateChanged: (d) => setState(() {
                         _date = d;

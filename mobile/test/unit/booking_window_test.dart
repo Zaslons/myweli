@@ -35,9 +35,8 @@ void main() {
 
   /// The seeded salon's zone — every bound below is a SALON day, never the
   /// device's.
-  String? tzOf() => MockData.providers
-      .firstWhere((p) => p.id == providerId)
-      .timezone;
+  String? tzOf() =>
+      MockData.providers.firstWhere((p) => p.id == providerId).timezone;
 
   /// Sets the window through the PRO service, which is the real wire: it
   /// persists into `MockData.providers`, where the consumer slot computation
@@ -222,7 +221,8 @@ void main() {
         expect(
           src.contains('SlotPicker('),
           isTrue,
-          reason: '$path no longer constructs a SlotPicker — if the call site '
+          reason:
+              '$path no longer constructs a SlotPicker — if the call site '
               'moved, move this pin with it rather than deleting it',
         );
         expect(

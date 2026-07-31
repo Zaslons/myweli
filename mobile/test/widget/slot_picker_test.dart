@@ -100,7 +100,10 @@ void main() {
       // is deliberately not clamped. « Réservation trop proche » on a date
       // months past is nonsense — this is why `past` is its own reason.
       answerWith((_) async => ApiResponse<List<DateTime>>.success(const []));
-      await pump(tester, date: DateTime.now().subtract(const Duration(days: 30)));
+      await pump(
+        tester,
+        date: DateTime.now().subtract(const Duration(days: 30)),
+      );
 
       expect(find.text('Cette date est passée'), findsOneWidget);
       expect(find.text('Réservation trop proche'), findsNothing);
@@ -127,11 +130,7 @@ void main() {
       tester,
     ) async {
       answerWith((_) async => ApiResponse<List<DateTime>>.success(const []));
-      await pump(
-        tester,
-        date: farFuture,
-        horizon: const Duration(days: 30),
-      );
+      await pump(tester, date: farFuture, horizon: const Duration(days: 30));
 
       expect(find.text('Trop loin dans le temps'), findsOneWidget);
       expect(

@@ -55,9 +55,7 @@ class SlotPicker extends StatefulWidget {
     this.countryCode,
     this.onInteraction,
     this.horizon = kBookingHorizon,
-    this.minimumNotice = const Duration(
-      minutes: kDefaultMinimumNoticeMinutes,
-    ),
+    this.minimumNotice = const Duration(minutes: kDefaultMinimumNoticeMinutes),
     this.refreshSignal,
   });
 

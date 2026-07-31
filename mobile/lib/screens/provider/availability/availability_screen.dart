@@ -352,8 +352,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
     // supplied one already holds that value. Spelled out rather than folded
     // into one `||`, which reads as an accident on two optional parameters.
     final horizonUnchanged =
-        horizonDays == null ||
-        horizonDays == availability.bookingHorizonDays;
+        horizonDays == null || horizonDays == availability.bookingHorizonDays;
     final noticeUnchanged =
         noticeMinutes == null ||
         noticeMinutes == availability.minimumNoticeMinutes;
@@ -443,7 +442,6 @@ class _BookingWindowSection extends StatelessWidget {
   final int minimumNoticeMinutes;
   final ValueChanged<int> onHorizonChanged;
   final ValueChanged<int> onNoticeChanged;
-
 
   const _BookingWindowSection({
     required this.bookingHorizonDays,

@@ -58,13 +58,14 @@ void main() {
       // A client on the new build against a server that has not migrated —
       // `bufferMinutes` set the tolerant idiom (`as num?` + `??`) and these
       // follow it. A hard cast here would crash the whole pro screen.
-      final json = Availability(
-        providerId: 'p1',
-        weeklySchedule: const {},
-        blockedDates: const [],
-      ).toJson()
-        ..remove('bookingHorizonDays')
-        ..remove('minimumNoticeMinutes');
+      final json =
+          Availability(
+              providerId: 'p1',
+              weeklySchedule: const {},
+              blockedDates: const [],
+            ).toJson()
+            ..remove('bookingHorizonDays')
+            ..remove('minimumNoticeMinutes');
       final back = Availability.fromJson(json);
       expect(back.bookingHorizonDays, kDefaultBookingHorizonDays);
       expect(back.minimumNoticeMinutes, kDefaultMinimumNoticeMinutes);
