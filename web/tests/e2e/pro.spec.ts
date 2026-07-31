@@ -380,10 +380,28 @@ test('journal grid: Journée is the default view; blocks + panel + arrive', asyn
   await expect(page.getByText('Voir la fiche')).toBeVisible();
 
   // pappt1 is pending in the stub → Accepter, then Client arrivé appears.
+  //
+  // Hold the journal refetch open first. `onChanged` closes the panel and
+  // fires `loadJournal()` **without awaiting it**, so the grid keeps serving
+  // the pre-action appointment for the length of that request. This test lost
+  // exactly that race on main (run 30596760578) and timed out on « Client
+  // arrivé »: the panel used to snapshot the appointment on open, so a block
+  // reopened inside the window offered « Accepter » on an already-confirmed
+  // appointment **for as long as it stayed open**, not just until the refetch
+  // landed. Widening the window deliberately makes the repair the thing under
+  // test on every run rather than once in a hundred — verified to fail against
+  // the snapshot it replaced.
+  await page.route('**/api/pro/journal**', async (route) => {
+    await new Promise((r) => setTimeout(r, 1500));
+    await route.continue();
+  });
   await page.getByRole('button', { name: 'Accepter' }).click();
-  // The panel reloads the day; reopen the (now confirmed) block.
+  // Reopen while the day is STILL in flight — this block is the stale one.
   await page.getByRole('button', { name: /Koffi/ }).first().click();
-  await page.getByRole('button', { name: 'Client arrivé' }).click();
+  // The refetch lands under the open panel and repaints it.
+  await page
+    .getByRole('button', { name: 'Client arrivé' })
+    .click({ timeout: 10_000 });
   // No throw = the arrive round-trip succeeded (grid refetched).
   await expect(page.getByText('Awa').first()).toBeVisible();
 });

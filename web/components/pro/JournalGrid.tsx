@@ -74,7 +74,21 @@ export function JournalGrid({
   const height = axisHeight(hours);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  const [selected, setSelected] = useState<ProAppointment | null>(null);
+  // The panel tracks an ID and reads the appointment back out of `day` on
+  // every render — it never holds a copy.
+  //
+  // It used to store the `ProAppointment` itself, and that snapshot could not
+  // be corrected. `onChanged` closes the panel and fires `loadJournal()`
+  // WITHOUT awaiting it, so there is a window where the grid is still serving
+  // the pre-action appointment. Reopening a block inside that window
+  // snapshotted the stale object, and because nothing re-synced it, the panel
+  // offered « Accepter » on an already-confirmed appointment forever — not
+  // until the refetch landed, but for as long as it stayed open. Reading
+  // through means the refetch repaints the open panel instead of being
+  // invisible to it.
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const selected =
+    day.appointments.find((a) => a.id === selectedId) ?? null;
   const [quick, setQuick] = useState<
     { artistId: string; minute: number } | null
   >(null);
@@ -155,7 +169,7 @@ export function JournalGrid({
               hours={hours}
               nowTop={nowTop}
               readOnly={readOnly}
-              onSelect={setSelected}
+              onSelect={(a) => setSelectedId(a.id)}
               onDrop={drop}
               onEmptyClick={(minute) =>
                 setQuick({ artistId: col.id, minute })
@@ -178,9 +192,9 @@ export function JournalGrid({
           serviceName={(id) =>
             profile.provider.services?.find((s) => s.id === id)?.name
           }
-          onClose={() => setSelected(null)}
+          onClose={() => setSelectedId(null)}
           onChanged={() => {
-            setSelected(null);
+            setSelectedId(null);
             onChanged();
           }}
           onToast={onToast}
