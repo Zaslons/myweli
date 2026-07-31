@@ -15,6 +15,7 @@ import 'package:myweli_backend/src/db/postgres_provider_audit_repository.dart';
 import 'package:myweli_backend/src/db/postgres_provider_auth_repository.dart';
 import 'package:myweli_backend/src/db/postgres_providers_repository.dart';
 import 'package:myweli_backend/src/db/postgres_reviews_repository.dart';
+import 'package:myweli_backend/src/salon_time.dart';
 import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 
@@ -34,6 +35,7 @@ void main() {
   const phone = '+2250707010101';
 
   setUpAll(() async {
+    initSalonTime(); // salonWallClock needs the tz database
     pool = createPool(url);
     await runMigrations(pool);
     await seedProvidersIfEmpty(pool);
@@ -580,6 +582,65 @@ void main() {
       expect(avail['bufferMinutes'], 25);
       expect((avail['weeklySchedule'] as Map)['0'], isNotEmpty);
       expect((avail['blockedDates'] as List).length, 1);
+    });
+
+    test('a blocked date is the SALON calendar day, not the UTC one', () async {
+      // `provider_blocked_dates.blocked_date` is a `date` column, and the write
+      // took `(d as String).split('T').first` — the UTC calendar date of what
+      // the client sent. The client sends SALON midnight, so for any salon east
+      // of Greenwich that instant belongs to the PREVIOUS UTC day:
+      //
+      //   Lagos (UTC+1), blocking the 15th
+      //     client sends  2026-03-14T23:00:00.000Z
+      //     split('T')    2026-03-14        ← the pro blocked the 15th
+      //     read back     2026-03-14T00:00Z → salon day 14. Wrong day, closed.
+      //
+      // Latent only because every seeded city is Africa/Abidjan (UTC+0). A14e
+      // writes these in BULK, which is why this is fixed ahead of it.
+      final repo = PostgresProvidersRepository(pool);
+      // `providers.data` is jsonb holding a JSON *string* (the doc is
+      // jsonEncode-d into it), so `jsonb_set` cannot path into it — read,
+      // decode, set, re-encode, exactly as the repository's own writes do.
+      final row = await pool.execute(
+        Sql.named('SELECT data FROM providers WHERE id = @pid'),
+        parameters: {'pid': 'provider3'},
+      );
+      final raw = row.first.toColumnMap()['data'];
+      final doc =
+          (raw is String ? jsonDecode(raw) : jsonDecode(jsonEncode(raw)))
+              as Map<String, dynamic>;
+      doc['timezone'] = 'Africa/Lagos';
+      await pool.execute(
+        Sql.named('UPDATE providers SET data = @data:jsonb WHERE id = @pid'),
+        parameters: {'pid': 'provider3', 'data': jsonEncode(doc)},
+      );
+
+      // Salon midnight, 15 March 2026, in Lagos = 14 March 23:00 UTC.
+      const salonMidnightUtc = '2026-03-14T23:00:00.000Z';
+      await repo.replaceAvailability('provider3', {
+        'providerId': 'provider3',
+        'weeklySchedule': const <String, dynamic>{},
+        'breaks': const <String, dynamic>{},
+        'blockedDates': const [salonMidnightUtc],
+        'bufferMinutes': 0,
+      });
+
+      final avail = (await repo.byId('provider3'))!['availability'] as Map;
+      final stored = (avail['blockedDates'] as List).single as String;
+
+      // What the client will make of it: the same conversion every reader
+      // already does (mock_appointment_service.dart, mock_provider_service.dart
+      // and slot_service.dart all compare through salonWallClock).
+      final asSalonDay = salonWallClock(DateTime.parse(stored), 'Africa/Lagos');
+      expect(
+        asSalonDay.day,
+        15,
+        reason:
+            'the pro blocked 15 March; a UTC-derived date closes 14 March '
+            'instead — one day early, silently, on every salon east of UTC',
+      );
+      expect(asSalonDay.month, 3);
+      expect(asSalonDay.year, 2026);
     });
 
     test('addArtist / updateArtist / deleteArtist persist into data', () async {
