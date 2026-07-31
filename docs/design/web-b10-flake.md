@@ -444,3 +444,75 @@ behaviour this slice calls a product bug is covered only by the e2e that flaked
 on it 3 times in 29 runs — and the corrected two-counter design is, today,
 verified by reading rather than by a test. That is the weakest part of this
 slice and it is stated plainly rather than left to be discovered.
+
+## 9. After the fact — `pro.spec.ts:357`, and the trace that was never collected
+
+**Found:** run `30596760578`, the first CI run on `main` after the A14c stack
+landed. 165 passed, 1 failed — `journal grid: Journée is the default view;
+blocks + panel + arrive`, a 30-second timeout on « Client arrivé ». The same
+content had been **10/10 green** on its own PR minutes earlier.
+
+That shape — one test, once, green on the PR — is what §3 calls the tail, and
+§1's rule applies: **a green built by re-running alone carries no information.**
+It was not re-run.
+
+### 9.1 The cause is a product bug, like §4.1
+
+`JournalPanel`'s actions are chosen by `appt.status`: « Accepter » while
+pending, « Client arrivé » once confirmed. `JournalGrid` held the appointment
+in `useState<ProAppointment | null>` — **a copy taken when the block was
+clicked**. And `onChanged` closes the panel and calls `loadJournal()`
+**without awaiting it**, so between the action and the refetch the grid still
+serves the pre-action appointment.
+
+Reopen a block inside that window and the panel snapshots the stale,
+still-pending object. Nothing re-syncs a copy, so it offers « Accepter » on an
+already-confirmed appointment **for as long as it stays open** — not until the
+refetch lands. That is why CI burned the full 30s instead of passing slowly:
+once the race is lost the state is terminal.
+
+**The fix is to stop holding the copy.** The grid tracks `selectedId` and reads
+the appointment back out of `day.appointments` on every render, so the refetch
+repaints the open panel instead of being invisible to it.
+
+**Proven in both directions before landing**, per §5: with the refetch delayed
+1500ms, the pre-fix panel still showed « Accepter » three seconds after the day
+had reloaded; the same probe against the fix showed « Client arrivé ». The
+committed test then failed 1/1 against the restored snapshot.
+
+### 9.2 The gate belongs in the test that failed, not beside it
+
+The first attempt was a **separate** regression test. It passed alone and failed
+in file order — because `pappt1` is the stub's only pending appointment and the
+test above it accepts *and* arrives it. That is §4.3 and §3.3 exactly: **the
+stub is mutable and shared within a run**, so a new test cannot assume a fixture
+an earlier one consumes.
+
+So the delay went **into** `pro.spec.ts:357` instead. It already performs
+accept → reopen → arrive; holding its refetch open makes the repair the thing
+under test on **every** run rather than once in a hundred, and removes the
+ordering dependence entirely. One test, deterministic, and it is the test that
+actually failed.
+
+### 9.3 The trace B12 turned on was never collected
+
+B12 set `trace: 'retain-on-failure'` so a red run could be explained. The e2e
+job ran `npm run e2e` and **had no upload step**, so the zip was written into
+the runner's `test-results/` and destroyed with the runner. The config half
+shipped; the CI half did not, and the first red run after it had to be diagnosed
+from source.
+
+`ci.yml` now uploads `test-results/` and `playwright-report/` on failure. **A
+diagnostic that does not leave the machine is not a diagnostic** — the same
+lesson as §5's assertions that cannot fail, applied to evidence rather than
+gates.
+
+### 9.4 The sweep
+
+`JournalPanel` is the only surface with this shape. The other candidates are
+page-level state where the object **is** the source of truth (`ClientCardClient`,
+`ProfilClient`, `ProAppointmentDetailClient` — fetched by id, not copied from a
+list), and `EquipeClient`'s dialogs, which `upsert(member)` from the dialog's own
+result and close, so no background refetch runs underneath them. What made the
+journal unique is stated in its own source: it is a **non-modal** dialog, so the
+grid stays interactive and re-openable while the day reloads.

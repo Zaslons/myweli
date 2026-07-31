@@ -276,6 +276,23 @@ jobs:
       - name: Run e2e
         run: npm run e2e
 
+      # B12 turned on `trace: 'retain-on-failure'` so a red run could be
+      # explained — but the trace was written into the runner's test-results/
+      # and died with the runner, so it never actually could be. The first red
+      # run after that (30596760578) had to be diagnosed from source instead.
+      # Collect it: the zip is the difference between reading a failure and
+      # guessing at one.
+      - name: Upload Playwright artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-trace
+          path: |
+            web/test-results/
+            web/playwright-report/
+          retention-days: 7
+          if-no-files-found: ignore
+
   web-lighthouse:
     name: Web — Lighthouse
     runs-on: ubuntu-latest
