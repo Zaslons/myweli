@@ -240,8 +240,13 @@ void main() {
     test('starRating only ever colours a star glyph (§3.5)', () {
       // Gold-as-STATE — a ring, a flag, a bar — must be `gold` (3.04:1), not
       // `starRating` (1.62:1, invisible). Any NEW file here is a regression.
+      //
+      // **A14c removed `artist_selection_screen.dart` from this list, and the
+      // list could not have told us.** The assertion is
+      // `users.difference(allowed)`, so an entry with no corresponding user is
+      // silently ignored — a deleted file leaves dead config that reads like a
+      // live exemption. Removed because it is false, not because CI said so.
       const allowed = {
-        'lib/screens/booking/artist_selection_screen.dart',
         'lib/screens/providers/provider_detail_screen.dart',
         'lib/screens/admin/admin_moderation_screen.dart',
         'lib/screens/provider/reviews/reviews_screen.dart',

@@ -4,7 +4,7 @@
 /// not agree: the consumer booking hub offered **365** days, the pro manual
 /// booking **90**, the journal's day-jump `DateTime.utc(2024)`..`utc(2030)`, and
 /// the consumer's *other* date screen — `date_time_selection_screen`, a second
-/// widget doing the same job — **90**. Nothing named any of them and nothing
+/// widget doing the same job — **90** (deleted in A14c; its 90 died with it). Nothing named any of them and nothing
 /// explained the disagreement.
 ///
 /// **There is no server rule to defer to.** The backend has no bookable-horizon

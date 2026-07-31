@@ -13,6 +13,7 @@ import '../../core/utils/cancellation_policy.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/utils/salon_time.dart';
 import '../../models/appointment.dart';
+import '../../models/provider.dart' as models;
 import '../../providers/appointment_provider.dart';
 import '../../providers/locality_provider.dart';
 import '../../providers/provider_provider.dart';
@@ -24,6 +25,7 @@ import '../../widgets/common/loading_indicator.dart';
 import '../../widgets/common/salon_time_hint.dart';
 import '../../widgets/common/timed_cached_image.dart';
 import '../../widgets/review/submit_review_sheet.dart';
+import 'reschedule_screen.dart';
 
 class AppointmentDetailScreen extends StatefulWidget {
   final String appointmentId;
@@ -54,6 +56,13 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
   String? _providerCountryCode;
   String? _providerLookupFor;
 
+  /// **Retained now, not discarded** (A14c §19.2). This lookup already fetched
+  /// the salon and kept two strings out of it. Reschedule needs the services to
+  /// compute the booking's real duration — `Appointment.durationMinutes` is a
+  /// provider-enriched field and can be null on a consumer payload — so keeping
+  /// the object costs one reference and saves a second round trip.
+  models.Provider? _salon;
+
   void _maybeResolveProviderFacts(Appointment appointment) {
     if (_providerLookupFor == appointment.providerId) return;
     _providerLookupFor = appointment.providerId;
@@ -70,6 +79,7 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
                 .map((a) => a.name)
                 .firstOrNull;
       setState(() {
+        _salon = res.data;
         _providerCountryCode = res.data?.countryCode;
         if (name != null) _artistName = name;
       });
@@ -204,16 +214,34 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
   }
 
   Future<void> _handleReschedule(Appointment appointment) async {
-    final serviceIds = appointment.serviceIds.join(',');
-    final artistParam = appointment.artistId != null
-        ? '&artistId=${appointment.artistId}'
-        : '';
-    final uri =
-        '/booking/date-time?providerId=${appointment.providerId}'
-        '&serviceIds=$serviceIds&returnToHub=1'
-        '&dateTime=${appointment.appointmentDate.toIso8601String()}$artistParam';
+    // **The salon is required, and that is the fix.** The old flow pushed
+    // `/booking/date-time` with no `durationMinutes`, so the target recomputed
+    // it from the CURRENT catalogue and a freshly-defaulted length variant — a
+    // 3-hour braid could be offered 30-minute slots. `_maybeResolveProviderFacts`
+    // already loads the salon on every appointment; it just used to throw it
+    // away.
+    var salon = _salon;
+    if (salon == null) {
+      final res = await serviceLocator.providerService.getProviderById(
+        appointment.providerId,
+      );
+      if (!mounted) return;
+      salon = res.data;
+    }
+    if (salon == null) {
+      AppSnackBar.show(
+        context,
+        'Impossible de charger le salon',
+        kind: SnackKind.error,
+      );
+      return;
+    }
 
-    final newDateTime = await context.push<DateTime>(uri);
+    final newDateTime = await showRescheduleScreen(
+      context: context,
+      appointment: appointment,
+      salon: salon,
+    );
     if (newDateTime == null || !mounted) return;
 
     final provider = Provider.of<AppointmentProvider>(context, listen: false);

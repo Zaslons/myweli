@@ -25,13 +25,20 @@ import '../../core/utils/formatters.dart';
 
 /// Same calendar day, ignoring time.
 ///
-/// **Public because `table_calendar`'s `isSameDay` is about to stop existing**
-/// (A14c). Its consumer today is `myweli_date_time_picker.dart`;
-/// `appointment_calendar_view` still calls **table_calendar's** at `:94` and
-/// `:121`, and A14c is what repoints it. An earlier draft of this comment said
-/// that file "calls it twice" as though it already meant this one — it does
-/// not, and a house calendar that leaves callers importing a retired package
-/// for one predicate has not retired it.
+/// **Public because `table_calendar`'s `isSameDay` had to stop existing.**
+///
+/// A14b made it public in advance, with a note that
+/// `appointment_calendar_view` "still calls table_calendar's at `:94` and
+/// `:121`". **Both numbers were wrong** — the real lines were 93 and 120 — and
+/// A14c has since repointed that file anyway, so the note is doubly historical.
+/// Kept in past tense rather than deleted, because the reasoning still governs:
+/// *a house calendar that leaves callers importing a retired package for one
+/// predicate has not retired it.*
+///
+/// Consumers today: `myweli_date_time_picker.dart` and
+/// `appointment_calendar_view.dart`. Note the signature differs from the
+/// package's deliberately — that one took two **nullable** days, which is why
+/// `_selectedDay` was `DateTime?` on a screen where it is never null.
 bool isSameDay(DateTime a, DateTime b) =>
     a.year == b.year && a.month == b.month && a.day == b.day;
 
@@ -474,7 +481,8 @@ class _MyweliMonthNavigatorState extends State<MyweliMonthNavigator> {
   void didUpdateWidget(MyweliMonthNavigator old) {
     super.didUpdateWidget(old);
     // **Deliberately does NOT resync `_month` from the widget.** That is the
-    // defect `date_time_selection_screen` shipped: `table_calendar` resets its
+    // defect `date_time_selection_screen` shipped (A14c deleted it, and this
+    // refusal is why the shape is not worth repeating): `table_calendar` resets its
     // focused day whenever the parent's differs, so every `setState` on that
     // screen yanked a swiped-to month back. The month the user navigated to is
     // this widget's own state, and a rebuild is not a reason to discard it.

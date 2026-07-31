@@ -488,8 +488,12 @@ void main() {
       tester,
     ) async {
       // `LoadingIndicator` never passes `fast`, so all ~50 of its call sites
-      // take the caption branch — including a 60×60 avatar placeholder
-      // (`artist_selection_screen.dart:375`). 40 mark + 8 gap + 16 line = 64,
+      // take the caption branch — including, when this gate was written, a
+      // 60×60 avatar placeholder on `artist_selection_screen`, **a screen A14c
+      // has since deleted**. The citation is kept in past tense rather than
+      // dropped: it is the observation that made the gate worth building, and a
+      // rule whose origin has been erased is one someone deletes as unexplained.
+      // 40 mark + 8 gap + 16 line = 64,
       // and « Chargement… » is wider than 60 so it wraps to 32: an ~20px
       // RenderFlex overflow while avatars load.
       //
