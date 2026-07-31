@@ -2,14 +2,16 @@
 
 | | |
 |---|---|
-| **Status** | A14a built · A14b built · **A14c built** · A14d, A14e planned |
+| **Status** | A14a built · A14b built · A14c built · **A14d in build** · A14e planned |
 | **Owner** | Sadreddine Daher |
-| **Last updated** | 2026-07-30 |
+| **Last updated** | 2026-07-31 |
+| **PRD ref / phase** | **V1.** No numbered PRD requirement — how far ahead a salon accepts bookings was never specified, which is precisely what §21 row 76 records. A14d answers it as a product decision (§20.2), so the decision itself lives here rather than being cited from elsewhere |
+| **ROADMAP entry** | [ROADMAP.md](../ROADMAP.md) — A14c 🟢 (2026-07-31); the A14d and A14e lines land with their PRs |
 | **Module** | [`journal`](../MODULES.md#1-journal--bookings--journal-) (the pro calendar) · [`online-booking`](../MODULES.md#2-marketplace--online-booking--online-booking-) (the consumer funnel) — the campaign straddles two, which is why the `table_calendar` sites did not fall out of one module's slice |
-| **Register row** | [SYSTEM.md](SYSTEM.md) §21 row 73 (A14a) · **row 77 (A14b)** · row 75 (A14c) · row 76 (A14d) |
+| **Register row** | [SYSTEM.md](SYSTEM.md) §21 row 73 (A14a) · row 77 (A14b) · row 75 (A14c) · **row 76 (A14d)** · A14e has none — next free id is **78**, claimed with its PR |
 | **Skills checked** | `myweli-dev-guardrails` · `myweli-web-guardrails` (A14c §17, A14d) · `myweli-backend-guardrails` (A14d) |
 | **Preceded by** | [A12 — the fixed-box sweep](mobile-a12-fixed-boxes.md) · [A13 — copy & breaks](mobile-a13-copy-and-breaks.md) |
-| **Scope** | **A14a** — the date picker (§1–§7) · **A14b** — the time picker family (§8–§14) · **A14c** (this PR) — retire `table_calendar` (§15–§19) · **A14d** — the per-salon booking horizon · **A14e** — multi-select blocking |
+| **Scope** | **A14a** — the date picker (§1–§7) · **A14b** — the time picker family (§8–§14) · **A14c** — retire `table_calendar` (§15–§19) · **A14d** (this PR) — the per-salon **bookable window**, server-enforced (§20–§28) · **A14e** — multi-select blocking |
 
 ---
 
@@ -1182,3 +1184,390 @@ no rendered day was `> 30`; June's trailing cells are 1–5 **July**, which rend
 as « 1 »…« 5 ». Counting identities — 30 buttons, not 42 — is what made it fail.
 That is the fourth vacuous gate this campaign caught by mutating or re-reading
 its own new test, and the reason the step is not optional.
+
+---
+
+# Part D — A14d, the bookable window
+
+## 20. Goal & scope
+
+**Row 76 asks a product question, and A14d answers it:** *how far ahead does a
+salon accept bookings?* Today the answer is « whatever a developer typed », and
+the register row says so — *"the app offers a year on one screen and three
+months on another because two people picked a literal, not because a salon said
+so."*
+
+### 20.1 Row 76's body is stale; its live half is the whole slice
+
+The row is legitimately still open, but two of its sentences are no longer true
+and must not be quoted forward:
+
+> *"**2 screens**: `booking_hub_screen` uses the house picker over **365 days**;
+> `date_time_selection_screen` uses `table_calendar` over **90**."*
+
+`date_time_selection_screen` **was deleted in A14c**, and
+`booking_horizons.dart:7` already records that *"its 90 died with it."* The
+365-vs-90 consumer split the row describes does not exist any more.
+
+What survives is the sentence that matters, and it is still exactly true:
+
+> *"**there is no server-side bookable-horizon rule at all.**"*
+
+Verified again at the source before writing this: a repo-wide grep of
+`backend/` for `bookingHorizon|horizonDays|maxAdvance|advanceBooking|leadTime`
+returns nothing, and `slot_service.dart` contains no `Duration(days: …)` bound
+of any kind. **Today a client may request slots for any date, in any year, and
+the server will compute them.** The row's body is rewritten in this PR to say
+that, rather than to describe two screens of which one is gone.
+
+### 20.2 The scope decision: one setting with two ends
+
+Scoping this slice surfaced a sibling defect the plan had not seen, and the
+owner's decision was to close both together.
+
+`SlotService` already enforces a **minimum notice** — *"for today, only offer
+starts ≥ 1h from now"* (`slot_service.dart:101-105`) — as a bare `60` with no
+constant, no setting and **no test**. It is duplicated independently in
+`mock_appointment_service.dart:358-361` as `Duration(hours: 1)`, so mobile's
+mock and the API agree only by coincidence.
+
+So A14d ships the **whole bookable window**, not half of it:
+
+| | field | default | bounds |
+|---|---|---|---|
+| **near end** | `minimumNoticeMinutes` | **60** — today's literal, preserved exactly | `0 … 10080` (0 = walk-ins welcome; 7 days) |
+| **far end** | `bookingHorizonDays` | **365** — the consumer funnel's current constant | `1 … 730` |
+
+Both defaults are chosen so that **A14d changes no salon's behaviour on the day
+it ships**. The near end preserves the literal it replaces; the far end
+preserves `kBookingHorizon`. The feature is the *ability* to change them.
+
+**Why 730 and not unbounded.** `MyweliMonthNavigator` builds a year list from
+`firstDate.year` to `lastDate.year`, so an unbounded horizon is an unbounded
+`ListView`. Two years is generous against every competitor we checked (Square
+caps at 365) and finite. `bufferMinutes` — the only numeric precedent — has **no
+upper bound at all** (`999999999` validates and stores today), so a ceiling is a
+new pattern here and needs its own justification rather than a copy.
+
+**Why the two are cross-validated.** If `minimumNoticeMinutes` exceeds
+`bookingHorizonDays × 1440`, *nothing is ever bookable* — the near end sits past
+the far end and every day returns empty. That is not a configuration, it is a
+mistake, and the server rejects it with `invalid_input` rather than silently
+making a salon unbookable.
+
+**Out of scope, named:** un-publishing a salon whose window makes it unbookable.
+`publishGate` inspects profile, location and services and **never reads
+availability**, so a salon with an absurd window stays listed and `active`. That
+is a pre-existing gap A14d does not widen (the cross-validation above is the
+mitigation) and it is not this slice's job.
+
+## 21. What verification corrected before a line was written
+
+Seven read-only agents re-checked every load-bearing claim in the A14d plan
+against `main`. **Fourteen came back not-confirmed.** The three that would have
+produced wrong code:
+
+**① `invalid_state` does not map to 409 on the booking route.** The plan
+proposed `beyond_horizon` as *"409, the status `invalid_state` already maps
+to."* It does not: `routes/appointments/index.dart:165-170` names
+`provider_not_found`, `slot_unavailable` and `provider_suspended`, and
+everything else falls to `_ => HttpStatus.badRequest`. The 409-for-`invalid_state`
+convention is real but lives in `responses.dart:35-36`, `:101` and
+`deposit.dart:59-60` — three files the booking route does not use. A new code
+added without an explicit `case` **ships as a 400**.
+
+**② The availability route test has neither a 403 nor a 405 leg.** The plan said
+it lacked them *"unlike every neighbour"*; the truth is the whole test is two
+legs — a 200 GET and a 200 PUT (`provider_catalog_test.dart:614-639`) — while
+the route itself has 401 (`:14-16`), 403 (`:17-19`) and 405 (`:35-36`) branches,
+**all three unexercised**. There is also no cross-tenant test for
+`replaceAvailability` at all.
+
+**③ Web does not set `min` on every date input — only on 3 of 7.** The plan's
+web half was written as *"add a `max`, `min` is already everywhere."* Four
+inputs set **neither** bound, including both pro reschedule fields
+(`JournalPanel.tsx:243-249`, `ProAppointmentDetailClient.tsx:340-346`) and the
+blocked-date picker (`DisponibilitesClient.tsx:179-185`).
+
+Three plan file paths were also wrong — there is no `backend/lib/src/services/`
+directory (it is `backend/lib/src/`), the Postgres repository is under
+`lib/src/db/`, and **`insertProviderAvailability` is not in the repository file
+at all** — it lives in `migrations.dart:949-959`, which means a new column
+missed there is dropped by the **backfill** as well as the API write.
+
+## 22. The contract, the storage, and the two allow-lists that would eat it
+
+### 22.1 Two silent-drop traps, on opposite sides of the wire
+
+This is the sharpest thing in the slice, and it is why the gate asserts a
+**round trip** rather than a 200.
+
+**Server** — `provider_catalog_service.dart:272-278`. `replaceAvailability` does
+not spread the body; it rebuilds a fresh map from exactly five keys. A field not
+added there is dropped **with no error**: the PUT returns 200 and the setting
+vanishes. `_validateAvailability` never rejects unknown keys either, and the
+OpenAPI schema has no `additionalProperties: false`, so nothing anywhere says
+no.
+
+**Mobile** — `availability.dart:99-107`. `Availability.toJson()` is the same
+shape: a hand-built literal, not a spread. A field added to the model but not to
+`toJson` is erased **by the pro app** the moment anyone opens Disponibilités.
+
+**Web is the asymmetry**: its BFF forwards `JSON.stringify(availability)`
+verbatim (`app/api/pro/disponibilites/route.ts:7-16`), so the round trip already
+works — but `web/lib/api/schema.ts` is **generated** from `openapi.yaml` and CI
+enforces its freshness (`ci.yml:241-244` runs `npm run gen:api` then `git diff
+--exit-code`), so the contract change breaks web CI until it is regenerated in
+the same PR.
+
+### 22.2 Storage is four tables, and the scalar one is the target
+
+`provider_availability` (`migrations.dart:168`) is the only per-provider scalar
+config table — `provider_id` PK plus `buffer_minutes`. Both new fields are
+scalars, so both belong there. **Migration `0031`**, on `0029`'s
+`ALTER TABLE … ADD COLUMN IF NOT EXISTS` precedent (`0030` is last).
+
+Five write/read sites, all of which must learn the fields or the value is lost
+in one backend and not the other:
+
+| site | file |
+|---|---|
+| the allow-list rebuild | `provider_catalog_service.dart:272-278` |
+| the validator | `provider_catalog_service.dart:652-689` |
+| in-memory seed (4 salons) | `providers_repository.dart:459-464` |
+| in-memory seed (fresh pro) | `providers_repository.dart:717-722` |
+| Postgres read | `db/postgres_providers_repository.dart:467-495` |
+| Postgres empty fallback | `db/postgres_providers_repository.dart:554-560` |
+| the INSERT **and the backfill** | `db/migrations.dart:949-959` |
+
+`_emptyAvailability` matters as much as the read: it is what a salon that never
+saved availability returns, so the defaults must be written there too or the
+same salon answers differently depending on whether a row exists.
+
+## 23. The gate
+
+### 23.1 Consumers only — and that costs a parameter
+
+`availableSlots` has **four** callers, verified directly:
+
+| caller | what it is | bound? |
+|---|---|---|
+| `booking_service.dart:84` | the consumer books | **yes** |
+| `routes/availability/index.dart:29` | public browse | **yes** |
+| `routes/providers/index.dart:36` | `?availableToday` search filter | yes (today is never beyond any sane horizon) |
+| `appointment_lifecycle_service.dart:105` | `_moveTo` — shared by **consumer** `reschedule` **and** `rescheduleByProvider` | **split** |
+
+That last row is the finding. The plan claimed *"one edit makes browse, book and
+reschedule correct together"* — true, but it would also bind **the salon moving
+its own booking**, including the journal drag, which contradicts the principle
+that already exempts `bookManual` (*the salon owns its calendar*).
+
+**Owner's decision: consumers only.** So `availableSlots` takes
+`bool enforceBookingWindow = true` — **default true, so it fails closed** — and
+the two pro paths pass `false` explicitly. `bookManual` stays exempt as before,
+by never reaching the slot engine at all.
+
+### 23.2 The return shape, and the 404 trap
+
+A new error code from `availableSlots` would produce **three different HTTP
+statuses for one condition**, because the browse route maps any non-`invalid_artist`
+failure to `HttpStatus.notFound` — a horizon breach would answer **404
+« beyond_horizon »** on browse, something else on book, something else again on
+reschedule.
+
+So the gate follows the shape its three siblings already use — past day
+(`:62-64`), blocked date (`:70-76`), closed weekday (`:79-82`) — and returns
+**`(ok: true, error: null, slots: [])`**. Browse stays 200 with an empty list.
+
+`BookingService.book` then carries its **own** explicit checks, because
+`slot_unavailable` says *"that time isn't free"* when the truth is *"we don't
+take bookings that far out"*. Two new codes, **each with an explicit `case` in
+the route switch** (see §21 ①):
+
+- **`beyond_horizon`** → 409
+- **`too_soon`** → 409
+
+### 23.3 The lead time cannot stay a today-only filter
+
+Today's rule is expressed as *minutes past salon midnight, for today only*:
+
+```dart
+final minStartMinute = dayBounds.startUtc.isAtSameMomentAs(todayBounds.startUtc)
+    ? now.difference(dayBounds.startUtc).inMinutes + 60
+    : -1;
+```
+
+`-1` for every other day. That is correct for a 1-hour notice and **structurally
+incapable** of expressing a longer one: a salon requiring 48 hours must exclude
+*tomorrow* too, and this branch cannot say that.
+
+Making the near end per-salon therefore forces a restructure, and the restructure
+is strictly more correct: compute one absolute instant
+
+```
+earliestStartUtc = now + minimumNoticeMinutes
+```
+
+and compare each slot's absolute UTC start against it, on every day. The
+today-only special case disappears; the 1-hour default behaves exactly as
+before.
+
+### 23.4 Whose « now »
+
+The zone was already settled and the clock never was. Mobile bounds with
+`salonToday(tz:)` — the salon's **zone** applied to the **device's** instant
+(`AppClock.now()`); the server uses `DateTime.now().toUtc()` — the salon's zone
+applied to the **server's** instant. A repo-wide grep for
+`serverTime|clockSkew|skew` returns nothing: there is no reconciliation
+anywhere.
+
+So the horizon is defined as **N salon calendar days from the salon's today as
+the *server* computes it**, and the client bound is a **hint that may be off by
+a day**. Everything downstream is written so that being off by a day degrades
+into the fifth state (§24), never into an assertion or a crash.
+
+Day arithmetic uses the constructor-rollover idiom the existing helpers already
+use (`tz.TZDateTime(location, y, m, d + N)`, `salon_time.dart:74-76`) and **not**
+`startUtc.add(Duration(days: N))`, which drifts an hour across a DST boundary.
+Invisible today — every seeded city is `Africa/Abidjan` — but `localities.timezone`
+is free per-city text and the multi-country flip is executed.
+
+## 24. The fifth state — the horizon must not say « the salon is full »
+
+`SlotPicker` has four states, and A14c added the fourth deliberately because the
+hub *"rendered « Aucun créneau disponible » for a failed request too — telling a
+user the salon was full when the truth was that we never reached it"*
+(`slot_picker.dart:227-231`).
+
+A horizon breach fits **neither** remaining state:
+
+- as **empty**, the copy asserts the salon is full — false;
+- as **error**, it renders a « Réessayer » button that can never succeed —
+  and §12 requires a retry control precisely because errors are retryable.
+
+So it is a **named fifth branch**, on both platforms, with no retry control and
+the salon's own dates in the sentence:
+
+> « Ce salon accepte les réservations jusqu'au **{date}**. »
+> « Ce salon demande un délai de **{durée}** avant chaque rendez-vous. »
+
+**No new response shape is needed to render it.** `GET /providers/{id}` returns
+the whole provider document including `availability`, and
+`models.Provider.availability` is already non-nullable on the consumer payload —
+so the client **already holds the window** and can name the condition locally.
+The server gate is the authority for *writes*; the client copy is the
+explanation. Verified: both `SlotPicker` call sites already have the full
+`models.Provider` in scope, so wiring costs one argument each.
+
+**Five sentences in the product currently lie about this**, and all five say
+some version of *someone else took your slot*:
+
+| surface | today's copy |
+|---|---|
+| web consumer ×2 | « Ce créneau vient d'être pris. Choisissez-en un autre. » |
+| mobile | « Ce créneau n'est plus disponible. Choisissez un autre horaire. » |
+| web pro detail | « Créneau indisponible. Choisissez un autre horaire. » |
+| web journal panel | « Action impossible. Réessayez. » |
+
+None is true for a window breach, and none can be corrected without the distinct
+codes §23.2 adds.
+
+**Web needs its fourth state before it can have a fifth.** `fetchSlots` swallows
+every failure into an empty array (`web/lib/booking/client.ts:69-72`), so web
+renders « Aucun créneau disponible » for an outage — the *exact* bug A14c fixed
+on mobile. A14d cannot claim parity without closing it, so it is in scope.
+
+## 25. Grandfathering — existing bookings are never re-validated
+
+**Owner's decision: grandfather.** A salon that shortens its window does not
+cancel, flag or move the bookings already past it.
+
+This is what the code does today and the precedent is exact: blocking a date
+does **not** touch that day's appointments — `JournalService._hoursFor` returns
+`null` for a blocked day while the day's bookings are still listed unchanged —
+and `replaceAvailability` never reads `appointments` at all.
+
+Three consequences follow, and **two of them are defects A14d must fix**:
+
+1. **The booking stands** — visible, honoured, cancellable. Correct, no work.
+2. **The consumer's reschedule screen strands them.** `RescheduleScreen` seeds
+   its date from the appointment's own salon day; `SlotPicker._pickDay` then
+   opens the picker with `lastDate: today + horizon`, `clampToRange` silently
+   pins the month to `lastDate`, and the first `_load()` renders « Aucun créneau
+   disponible ». The user is told the salon is full when the truth is that their
+   own booking is outside the new window. **The fifth state fixes this**, and the
+   picker opens on the last bookable day rather than on a clamped surprise.
+3. **The pro can still move it**, because `rescheduleByProvider` passes
+   `enforceBookingWindow: false` (§23.1). That falls out of the exemption rather
+   than needing its own mechanism.
+
+## 26. Every surface that shows a bookable range
+
+Fifteen, so that no sweeping assertion is written against a list that was never
+enumerated. **Bound by the window:**
+
+| # | surface | today |
+|---|---|---|
+| 1 | mobile `SlotPicker` day picker | `today + horizon`, default 365; **neither call site passes `horizon:`** |
+| 2 | mobile hub earliest-slot scan | 15 sequential requests, `daysAhead: 14` |
+| 3 | web consumer funnel date input | `min` only |
+| 4 | web consumer reschedule | `min` only |
+| 5 | web `findEarliestSlot` | `for (let i = 0; i <= 14; i++)` |
+
+Both earliest-slot scanners are **search windows, not policy bounds**, and with
+a per-salon window they become wrong in both directions — a 7-day salon burns
+requests past its own horizon; a 60-day salon reports « aucun créneau » when it
+is merely quiet for a fortnight. Both are clamped to `min(14, horizon)`.
+
+**Exempt, and named so a sweep does not fail on them:** the pro's manual booking
+(90 days, `bookManual` never reaches the slot engine), the pro journal
+reschedule picker, the pro blocked-date picker, the pro journal day-jump (bounds
+are relative to the *selected* day, so it walks forward indefinitely — navigation,
+nothing written), the pro calendar month grid (±365), the dead
+`booking_journal_screen`, the web pro journal navigator, and the public browse
+route itself.
+
+**Two web pro surfaces are already the hostile-client shape by design** —
+`JournalPanel` and `ProAppointmentDetailClient` free-type a date and a time and
+POST with **no slot fetch at all**. Nothing bounds them today and nothing bounds
+them after A14d; for those two the server verdict is the only control, which is
+exactly why the authority is server-side.
+
+## 27. Tests
+
+**Watched red first, every one.** The specific traps this slice must prove
+against:
+
+- **the round trip, not the 200.** A PUT carrying the new fields must be
+  readable back with those values. Against today's allow-list this fails while
+  the request succeeds — which is the whole point.
+- **`days: 7` is the repo-wide fixture convention in six places.** Any default
+  horizon below 7 breaks unrelated suites; 365 is safe, and this is recorded so
+  the number is a decision rather than a coincidence.
+- **the empty-list shape**, so browse still answers 200 `slots: []` and not 404.
+- **the two 409s**, each asserted by status *and* code, because the missing
+  `case` would silently make them 400 (§21 ①).
+- **`enforceBookingWindow: false`** on both pro paths — asserted by a pro
+  reschedule succeeding beyond the horizon that refuses a consumer.
+- **the three unexercised route branches** (401/403/405) and the **absent
+  cross-tenant test** for `replaceAvailability`.
+- **the past-day and lead-time siblings have no test at all** — both get one
+  while the third is added beside them.
+- **the mock must mirror the API.** `mock_appointment_service.dart` recomputes
+  the slot engine client-side; every mobile widget and unit test runs against
+  it, so a gate that passes on the mock and fails on the server is worse than no
+  gate. `availability_buffer_test.dart` is the existing seam that drives a pro
+  setting and asserts on consumer slots, and it is the shape to copy.
+- **falsifiability** for each new gate, per row 67.
+
+## 28. Open questions
+
+- **A pro-facing list of bookings now outside the window.** The owner chose
+  grandfathering over flagging; a « ces rendez-vous dépassent votre limite »
+  view is a real pro surface and a slice of its own, not a side effect.
+- **Un-publishing an unbookable salon** (§20.2) — a pre-existing `publishGate`
+  gap, recorded, not widened.
+- **`GET /providers/{id}` has no public-field allowlist** and returns the entire
+  document. The window rides to the client free, which A14d depends on (§24),
+  but the absence of an allowlist is its own security question and is not
+  A14d's to answer.

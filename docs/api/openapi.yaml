@@ -2320,6 +2320,13 @@ paths:
           description: >
             `slot_unavailable` — the requested time isn't a free slot
             (closed/past/break/already-booked/non-aligned).
+            `beyond_horizon` — the date is further ahead than the salon's
+            `bookingHorizonDays` (A14d). `too_soon` — the start is inside the
+            salon's `minimumNoticeMinutes`. The last two are distinct from
+            `slot_unavailable` on purpose: that code makes every client say
+            some version of "someone else just took your slot", which is false
+            for a window breach and leaves the user retrying a time that can
+            never be offered.
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
@@ -2482,6 +2489,11 @@ paths:
         R6: `?salonId=` selects the acting salon among ACTIVE memberships.
         Both re-validate the new slot (→ 409 slot_unavailable for
         past/closed/taken). Deposit + balance carry over unchanged.
+        A14d: the salon's bookable window binds the CLIENT's reschedule but
+        not the salon's own — the same principle that exempts salon-entered
+        bookings from the slot engine, so a salon can always move a booking it
+        already accepted, including one grandfathered past a horizon it has
+        since shortened.
       security: [{ bearerAuth: [] }]
       parameters:
         - { in: path, name: id, required: true, schema: { type: string } }
@@ -3856,6 +3868,27 @@ components:
         bufferMinutes:
           type: integer
           description: Setup/cleanup gap enforced around each booking.
+        bookingHorizonDays:
+          type: integer
+          minimum: 1
+          maximum: 730
+          default: 365
+          description: >-
+            How far ahead clients may book, in salon calendar days (A14d).
+            Server-enforced for CLIENT paths only — the salon's own manual
+            booking and its own reschedules are exempt, because the salon owns
+            its calendar. Bounded at 730 because an unbounded horizon is an
+            unbounded year list in the client's month navigator.
+        minimumNoticeMinutes:
+          type: integer
+          minimum: 0
+          maximum: 10080
+          default: 60
+          description: >-
+            Minimum notice before a booking starts (A14d). 0 = walk-ins
+            welcome. Same client-only enforcement as bookingHorizonDays. A
+            value greater than bookingHorizonDays x 1440 leaves nothing
+            bookable and is rejected as invalid_input.
 
     DashboardStats:
       type: object

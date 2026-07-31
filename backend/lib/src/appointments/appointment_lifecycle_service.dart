@@ -85,7 +85,13 @@ class AppointmentLifecycleService {
         return (ok: false, error: 'invalid_artist', appointment: null);
       }
     }
-    return _moveTo(id, appointment, newDateTime, artistId: artistId);
+    return _moveTo(
+      id,
+      appointment,
+      newDateTime,
+      artistId: artistId,
+      enforceBookingWindow: false,
+    );
   }
 
   /// Shared by both reschedule paths: the new time must be a free slot
@@ -96,6 +102,12 @@ class AppointmentLifecycleService {
     Map<String, dynamic> appointment,
     DateTime newDateTime, {
     String? artistId,
+    // A14d. The bookable window is a CLIENT-facing rule, so the salon moving
+    // its own booking is exempt — the same principle that exempts `bookManual`
+    // from the slot engine entirely. Both consumer and pro reschedule share
+    // this method, which is exactly why the distinction has to be a parameter
+    // rather than a property of the code path.
+    bool enforceBookingWindow = true,
   }) async {
     // Capacity model: validate against the TARGET artist's calendar (the
     // drag's new column when given, else the booking's current artist).
@@ -107,6 +119,7 @@ class AppointmentLifecycleService {
       date: newDateTime,
       serviceIds: (appointment['serviceIds'] as List).cast<String>(),
       artistId: effectiveArtist,
+      enforceBookingWindow: enforceBookingWindow,
     );
     if (!slotResult.ok) {
       return (ok: false, error: slotResult.error, appointment: null);

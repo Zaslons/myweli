@@ -495,4 +495,192 @@ void main() {
       expect(r.error, 'invalid_artist');
     });
   });
+
+  // ---- A14d — the bookable window (§21 row 76) ---------------------------
+  //
+  // Two ends, one setting. Before A14d neither was a rule: the far end existed
+  // only as a client-side literal, and the near end as a bare `60` inside the
+  // slot loop with no constant, no setting and no test. These are the first
+  // assertions either end has ever had — including the pre-existing 1h notice,
+  // which shipped untested and is pinned here beside its replacement.
+  group('A14d — the bookable window', () {
+    /// A salon open 09:00–18:00 every weekday, with the given window.
+    InMemoryProvidersRepository repoWith({
+      int? horizonDays,
+      int? noticeMinutes,
+    }) => InMemoryProvidersRepository([
+      {
+        'id': 'p',
+        'name': 'X',
+        'rating': 4.0,
+        'category': 'salon',
+        'services': const <Map<String, dynamic>>[],
+        'availability': {
+          'providerId': 'p',
+          'weeklySchedule': {
+            for (var wd = 0; wd < 7; wd++)
+              '$wd': [
+                for (var h = 9; h < 18; h++) ...[
+                  {
+                    'startTime': DateTime.utc(2024, 1, 1, h).toIso8601String(),
+                    'endTime': DateTime.utc(
+                      2024,
+                      1,
+                      1,
+                      h,
+                      30,
+                    ).toIso8601String(),
+                    'isAvailable': true,
+                  },
+                ],
+              ],
+          },
+          'blockedDates': const <String>[],
+          'bufferMinutes': 0,
+          if (horizonDays != null) 'bookingHorizonDays': horizonDays,
+          if (noticeMinutes != null) 'minimumNoticeMinutes': noticeMinutes,
+        },
+      },
+    ]);
+
+    DateTime dayAhead(int days) {
+      final now = DateTime.now().toUtc();
+      return DateTime.utc(
+        now.year,
+        now.month,
+        now.day,
+      ).add(Duration(days: days));
+    }
+
+    test('beyond the horizon → no slots, and it is NOT an error', () async {
+      final svc = SlotService(repoWith(horizonDays: 30), appts);
+
+      final inside = await svc.availableSlots(
+        providerId: 'p',
+        date: dayAhead(20),
+        durationMinutes: 30,
+      );
+      expect(
+        inside.slots,
+        isNotEmpty,
+        reason:
+            'the control — without this the assertion below passes for a '
+            'salon that is simply never open',
+      );
+
+      final outside = await svc.availableSlots(
+        providerId: 'p',
+        date: dayAhead(40),
+        durationMinutes: 30,
+      );
+      expect(outside.slots, isEmpty);
+      // The shape matters as much as the emptiness. Its three siblings — past
+      // day, blocked date, closed weekday — all return (ok: true, error: null),
+      // and the PUBLIC browse route maps ANY error to 404
+      // (`routes/availability/index.dart`: anything but invalid_artist becomes
+      // notFound). A new error code here would answer 404 « beyond_horizon » on
+      // browse, something else on book and something else again on reschedule
+      // — one condition, three statuses.
+      expect(outside.ok, isTrue);
+      expect(outside.error, isNull);
+    });
+
+    test('the horizon is per-salon, and defaults to 365 when unset', () async {
+      final svc = SlotService(repoWith(), appts);
+      final far = await svc.availableSlots(
+        providerId: 'p',
+        date: dayAhead(300),
+        durationMinutes: 30,
+      );
+      expect(far.slots, isNotEmpty, reason: 'inside the 365-day default');
+
+      final tooFar = await svc.availableSlots(
+        providerId: 'p',
+        date: dayAhead(400),
+        durationMinutes: 30,
+      );
+      expect(tooFar.slots, isEmpty, reason: 'past it');
+    });
+
+    test('a notice longer than a day reaches into FUTURE days', () async {
+      // This is the assertion the old structure could not express. The rule
+      // was « for today, only offer starts ≥ 1h from now », computed as
+      // minutes past salon midnight and set to -1 on every other day — so a
+      // salon requiring 48h could not exclude tomorrow, because the branch
+      // that would do it did not exist. A14d replaces it with one absolute
+      // instant (now + notice) compared against each slot's absolute start.
+      final svc = SlotService(repoWith(noticeMinutes: 48 * 60), appts);
+
+      final tomorrow = await svc.availableSlots(
+        providerId: 'p',
+        date: dayAhead(1),
+        durationMinutes: 30,
+      );
+      expect(tomorrow.slots, isEmpty, reason: 'inside a 48-hour notice');
+
+      final later = await svc.availableSlots(
+        providerId: 'p',
+        date: dayAhead(4),
+        durationMinutes: 30,
+      );
+      expect(later.slots, isNotEmpty, reason: 'past it');
+    });
+
+    test('the default 1h notice still behaves exactly as it did', () async {
+      // The literal this replaces had no test in its entire life. Pinning it
+      // is how we know the restructure preserved it rather than merely
+      // compiled.
+      final svc = SlotService(repoWith(), appts);
+      final today = await svc.availableSlots(
+        providerId: 'p',
+        date: dayAhead(0),
+        durationMinutes: 30,
+      );
+      final now = DateTime.now().toUtc();
+      for (final s in today.slots!) {
+        expect(
+          s.isAfter(now.add(const Duration(minutes: 59))),
+          isTrue,
+          reason: 'every offered start is at least an hour out: $s',
+        );
+      }
+    });
+
+    test('the salon is exempt — enforceBookingWindow: false', () async {
+      // The window is a CLIENT-facing rule. `bookManual` was already exempt by
+      // never reaching the slot engine; the salon's own reschedule reaches it
+      // through the shared `_moveTo`, so without this flag a salon could not
+      // move a booking past its own horizon — which contradicts the principle
+      // that exempts manual booking in the first place.
+      final svc = SlotService(
+        repoWith(horizonDays: 30, noticeMinutes: 48 * 60),
+        appts,
+      );
+
+      final asClient = await svc.availableSlots(
+        providerId: 'p',
+        date: dayAhead(40),
+        durationMinutes: 30,
+      );
+      expect(asClient.slots, isEmpty);
+
+      final asSalon = await svc.availableSlots(
+        providerId: 'p',
+        date: dayAhead(40),
+        durationMinutes: 30,
+        enforceBookingWindow: false,
+      );
+      expect(asSalon.slots, isNotEmpty, reason: 'the salon owns its calendar');
+
+      // The near end is exempt too, or a salon could not squeeze in a client
+      // who walked through the door.
+      final soon = await svc.availableSlots(
+        providerId: 'p',
+        date: dayAhead(1),
+        durationMinutes: 30,
+        enforceBookingWindow: false,
+      );
+      expect(soon.slots, isNotEmpty);
+    });
+  });
 }

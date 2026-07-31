@@ -166,6 +166,12 @@ Future<Response> _book(RequestContext context, String userId) async {
       'provider_not_found' => HttpStatus.notFound,
       'slot_unavailable' => HttpStatus.conflict,
       'provider_suspended' => HttpStatus.conflict,
+      // A14d. Explicit, because the fallback below is a 400 — the
+      // 409-for-invalid_state convention lives in responses.dart and this
+      // switch does not use it, so a new conflict code added without its own
+      // case silently ships as a bad request.
+      'beyond_horizon' => HttpStatus.conflict,
+      'too_soon' => HttpStatus.conflict,
       _ => HttpStatus.badRequest,
     };
     return jsonError(status, result.error!);

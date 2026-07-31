@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:postgres/postgres.dart';
 
+import '../appointments/booking_window.dart';
 import '../localities/localities_repository.dart';
 import '../providers_repository.dart';
 
@@ -166,8 +167,10 @@ CREATE TABLE IF NOT EXISTS provider_services (
       // One config row per provider (the scalar buffer + an anchor row).
       '''
 CREATE TABLE IF NOT EXISTS provider_availability (
-  provider_id    text PRIMARY KEY REFERENCES providers(id) ON DELETE CASCADE,
-  buffer_minutes int NOT NULL DEFAULT 0
+  provider_id            text PRIMARY KEY REFERENCES providers(id) ON DELETE CASCADE,
+  buffer_minutes         int NOT NULL DEFAULT 0,
+  booking_horizon_days   int NOT NULL DEFAULT 365,
+  minimum_notice_minutes int NOT NULL DEFAULT 60
 )''',
       '''
 CREATE TABLE IF NOT EXISTS provider_working_hours (
@@ -807,6 +810,20 @@ CREATE TABLE IF NOT EXISTS momo_operators (
 )''',
     ],
   ),
+  (
+    id: '0031_booking_window',
+    statements: [
+      // A14d (§21 row 76): the bookable window becomes a per-salon setting.
+      // Both columns are NOT NULL DEFAULT so every existing row is backfilled
+      // with today's behaviour — 365 is the app's kBookingHorizon, 60 is the
+      // literal slot_service.dart already enforced — and no salon's calendar
+      // changes on the day this ships.
+      'ALTER TABLE provider_availability ADD COLUMN IF NOT EXISTS '
+          'booking_horizon_days int NOT NULL DEFAULT 365',
+      'ALTER TABLE provider_availability ADD COLUMN IF NOT EXISTS '
+          'minimum_notice_minutes int NOT NULL DEFAULT 60',
+    ],
+  ),
 ];
 
 /// Applies any not-yet-applied migrations. Idempotent.
@@ -948,13 +965,25 @@ Future<void> insertProviderAvailability(
 ) async {
   await session.execute(
     Sql.named(
-      'INSERT INTO provider_availability (provider_id, buffer_minutes) '
-      'VALUES (@pid, @buffer) ON CONFLICT (provider_id) DO UPDATE SET '
-      'buffer_minutes = EXCLUDED.buffer_minutes',
+      'INSERT INTO provider_availability (provider_id, buffer_minutes, '
+      'booking_horizon_days, minimum_notice_minutes) '
+      'VALUES (@pid, @buffer, @horizon, @notice) '
+      'ON CONFLICT (provider_id) DO UPDATE SET '
+      'buffer_minutes = EXCLUDED.buffer_minutes, '
+      'booking_horizon_days = EXCLUDED.booking_horizon_days, '
+      'minimum_notice_minutes = EXCLUDED.minimum_notice_minutes',
     ),
     parameters: {
       'pid': providerId,
       'buffer': (availability['bufferMinutes'] as num?)?.toInt() ?? 0,
+      // A14d. This function is both the API write and the seed backfill, so a
+      // column missing here is dropped on BOTH paths.
+      'horizon':
+          (availability['bookingHorizonDays'] as num?)?.toInt() ??
+          kDefaultBookingHorizonDays,
+      'notice':
+          (availability['minimumNoticeMinutes'] as num?)?.toInt() ??
+          kDefaultMinimumNoticeMinutes,
     },
   );
 

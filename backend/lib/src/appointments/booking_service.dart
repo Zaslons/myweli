@@ -2,7 +2,9 @@ import 'dart:math';
 
 import '../clients/clients_service.dart';
 import '../providers_repository.dart';
+import '../salon_time.dart';
 import 'appointment_repository.dart';
+import 'booking_window.dart';
 import 'slot_service.dart';
 
 /// Outcome of a booking attempt.
@@ -76,6 +78,44 @@ class BookingService {
       durationMinutes += (service['durationMinutes'] as num?)?.toInt() ?? 0;
     }
     if (durationMinutes <= 0) durationMinutes = 30; // safety floor
+
+    // A14d — the bookable window, said explicitly on the WRITE path.
+    //
+    // The slot gate below already refuses these, but only as
+    // `slot_unavailable`, which every client renders as some version of
+    // « someone else just took your slot » — five such sentences exist across
+    // mobile and web, and not one is true when the date is simply outside what
+    // the salon accepts. So the two conditions get their own codes here, and
+    // the booking route maps BOTH to 409 with an explicit `case`: the switch's
+    // fallback is `HttpStatus.badRequest`, so a new code added without one
+    // would silently ship as a 400.
+    final availability = (provider['availability'] as Map)
+        .cast<String, dynamic>();
+    final tzName = provider['timezone'] as String?;
+    final horizonDays =
+        (availability['bookingHorizonDays'] as num?)?.toInt() ??
+        kDefaultBookingHorizonDays;
+    final noticeMinutes =
+        (availability['minimumNoticeMinutes'] as num?)?.toInt() ??
+        kDefaultMinimumNoticeMinutes;
+    final nowUtc = DateTime.now().toUtc();
+    final lastBookableDayStart = salonDayStartPlusUtc(
+      nowUtc,
+      tzName,
+      horizonDays,
+    );
+    final requestedDayStart = salonCalendarDayBoundsUtc(
+      appointmentDateTime,
+      tzName,
+    ).startUtc;
+    if (requestedDayStart.isAfter(lastBookableDayStart)) {
+      return (ok: false, error: 'beyond_horizon', appointment: null);
+    }
+    if (appointmentDateTime.toUtc().isBefore(
+      nowUtc.add(Duration(minutes: noticeMinutes)),
+    )) {
+      return (ok: false, error: 'too_soon', appointment: null);
+    }
 
     // The server decides availability: the requested time must be a free slot
     // (rejects past/closed/break/already-booked, and non-aligned times).

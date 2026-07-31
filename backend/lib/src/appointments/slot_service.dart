@@ -1,6 +1,7 @@
 import '../providers_repository.dart';
 import '../salon_time.dart';
 import 'appointment_repository.dart';
+import 'booking_window.dart';
 
 typedef SlotResult = ({bool ok, String? error, List<DateTime>? slots});
 
@@ -39,6 +40,7 @@ class SlotService {
     List<String>? serviceIds,
     int? durationMinutes,
     String? artistId,
+    bool enforceBookingWindow = true,
   }) async {
     final provider = await _providers.byId(providerId);
     if (provider == null) {
@@ -65,6 +67,43 @@ class SlotService {
 
     final availability = (provider['availability'] as Map)
         .cast<String, dynamic>();
+
+    // A14d — the bookable window (§21 row 76). Sits immediately after the
+    // availability read and before the blocked-date query, so the cheapest
+    // refusal happens first and the `_busyWindows` DB read below is never paid
+    // for a day nobody may book.
+    //
+    // `enforceBookingWindow` is a CLIENT-facing rule and defaults to true so
+    // it fails closed. The salon's own paths pass false: `bookManual` was
+    // already exempt by never reaching this engine at all, and
+    // `rescheduleByProvider` reaches it through the shared `_moveTo` — so
+    // without the flag a salon could not move a booking past its own horizon,
+    // which contradicts the principle that exempts manual booking.
+    final horizonDays =
+        (availability['bookingHorizonDays'] as num?)?.toInt() ??
+        kDefaultBookingHorizonDays;
+    final noticeMinutes =
+        (availability['minimumNoticeMinutes'] as num?)?.toInt() ??
+        kDefaultMinimumNoticeMinutes;
+
+    if (enforceBookingWindow) {
+      // The last bookable salon day, inclusive: « up to 30 days ahead » means
+      // today + 30 is still bookable.
+      final lastBookableDayStart = salonDayStartPlusUtc(
+        now,
+        tzName,
+        horizonDays,
+      );
+      if (dayBounds.startUtc.isAfter(lastBookableDayStart)) {
+        // The SAME shape as the past-day, blocked-date and closed-weekday
+        // siblings — (ok: true, error: null, empty). Not an error code: the
+        // public browse route maps ANY error but `invalid_artist` to 404, so a
+        // code here would answer 404 on browse, 409 on book and something else
+        // again on reschedule for one condition. `BookingService.book` carries
+        // its own explicit check to say `beyond_horizon` on the write path.
+        return (ok: true, error: null, slots: const <DateTime>[]);
+      }
+    }
 
     // Blocked dates name SALON calendar days.
     final isBlocked = (availability['blockedDates'] as List? ?? const [])
@@ -98,15 +137,18 @@ class SlotService {
       return (ok: true, error: null, slots: const <DateTime>[]);
     }
 
-    // For today, only offer starts ≥ 1h from now (minutes past SALON midnight).
-    final minStartMinute =
-        dayBounds.startUtc.isAtSameMomentAs(todayBounds.startUtc)
-        ? now.difference(dayBounds.startUtc).inMinutes + 60
-        : -1;
+    // The near end of the window. This used to be « for today, only offer
+    // starts ≥ 1h from now », expressed as minutes past salon midnight and set
+    // to -1 on every other day — correct for a one-hour notice and
+    // STRUCTURALLY incapable of expressing a longer one, because a salon
+    // requiring 48 hours must exclude tomorrow and that branch did not exist.
+    // One absolute instant says both.
+    final earliestStartUtc = enforceBookingWindow
+        ? now.add(Duration(minutes: noticeMinutes))
+        : null;
 
     final slots = <DateTime>[];
     for (final startMin in open.toList()..sort()) {
-      if (startMin < minStartMinute) continue;
       final endMin = startMin + duration;
 
       // The whole duration must be covered by consecutive open 30-min slots.
@@ -137,6 +179,12 @@ class SlotService {
         endMin,
         tzName,
       );
+      // The near end, applied to the slot's ABSOLUTE instant rather than to
+      // minutes-past-midnight, which is what lets a notice exceed a day.
+      if (earliestStartUtc != null && start.isBefore(earliestStartUtc)) {
+        continue;
+      }
+
       bool overlaps(({DateTime start, DateTime end, String? artistId}) w) =>
           start.isBefore(w.end) && end.isAfter(w.start);
 

@@ -3987,7 +3987,7 @@ export interface paths {
                 400: components["responses"]["BadRequest"];
                 401: components["responses"]["Unauthorized"];
                 404: components["responses"]["NotFound"];
-                /** @description `slot_unavailable` — the requested time isn't a free slot (closed/past/break/already-booked/non-aligned). */
+                /** @description `slot_unavailable` — the requested time isn't a free slot (closed/past/break/already-booked/non-aligned). `beyond_horizon` — the date is further ahead than the salon's `bookingHorizonDays` (A14d). `too_soon` — the start is inside the salon's `minimumNoticeMinutes`. The last two are distinct from `slot_unavailable` on purpose: that code makes every client say some version of "someone else just took your slot", which is false for a window breach and leaves the user retrying a time that can never be offered. */
                 409: {
                     headers: {
                         [name: string]: unknown;
@@ -4268,7 +4268,7 @@ export interface paths {
         put?: never;
         /**
          * Move an appointment to a new time (B-life; B-pro-resched)
-         * @description Role-aware: a `user` reschedules their own booking; a `provider` reschedules one of its acting salon's bookings (membership-resolved; the service cross-checks the appointment's salon → 403 cross-salon). R6: `?salonId=` selects the acting salon among ACTIVE memberships. Both re-validate the new slot (→ 409 slot_unavailable for past/closed/taken). Deposit + balance carry over unchanged.
+         * @description Role-aware: a `user` reschedules their own booking; a `provider` reschedules one of its acting salon's bookings (membership-resolved; the service cross-checks the appointment's salon → 403 cross-salon). R6: `?salonId=` selects the acting salon among ACTIVE memberships. Both re-validate the new slot (→ 409 slot_unavailable for past/closed/taken). Deposit + balance carry over unchanged. A14d: the salon's bookable window binds the CLIENT's reschedule but not the salon's own — the same principle that exempts salon-entered bookings from the slot engine, so a salon can always move a booking it already accepted, including one grandfathered past a horizon it has since shortened.
          */
         post: {
             parameters: {
@@ -6217,6 +6217,16 @@ export interface components {
             blockedDates: string[];
             /** @description Setup/cleanup gap enforced around each booking. */
             bufferMinutes: number;
+            /**
+             * @description How far ahead clients may book, in salon calendar days (A14d). Server-enforced for CLIENT paths only — the salon's own manual booking and its own reschedules are exempt, because the salon owns its calendar. Bounded at 730 because an unbounded horizon is an unbounded year list in the client's month navigator.
+             * @default 365
+             */
+            bookingHorizonDays: number;
+            /**
+             * @description Minimum notice before a booking starts (A14d). 0 = walk-ins welcome. Same client-only enforcement as bookingHorizonDays. A value greater than bookingHorizonDays x 1440 leaves nothing bookable and is rejected as invalid_input.
+             * @default 60
+             */
+            minimumNoticeMinutes: number;
         };
         DashboardStats: {
             /** @description Non-cancelled bookings today (UTC). */

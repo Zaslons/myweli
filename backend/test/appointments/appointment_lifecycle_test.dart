@@ -57,11 +57,12 @@ void main() {
       .token;
   // Provider tokens: pro1 manages provider1 (owns the seeded bookings); pro2
   // manages provider2 (cross-salon).
+  late InMemoryProvidersRepository providers;
   late String proAccess1;
   late String proAccess2;
 
   setUp(() async {
-    final providers = InMemoryProvidersRepository();
+    providers = InMemoryProvidersRepository();
     appts = InMemoryAppointmentRepository();
     lifecycle = AppointmentLifecycleService(
       appts,
@@ -157,6 +158,46 @@ void main() {
           _slotAt(9).add(const Duration(minutes: 15)),
         );
         expect(res.error, 'slot_unavailable');
+      },
+    );
+
+    test(
+      'A14d: the SALON may move a booking past its own window; the CLIENT may not',
+      () async {
+        // The exemption is asserted at SlotService in slot_service_test, but
+        // that proves only that the flag WORKS — not that this caller passes
+        // it. Without this, `rescheduleByProvider` could silently start
+        // enforcing the window and every existing test would stay green,
+        // because they all move bookings a few days out.
+        final id = await seedFor('user_A');
+        final avail =
+            (await providers.byId('provider1'))!['availability'] as Map;
+        avail['bookingHorizonDays'] = 2;
+        avail['minimumNoticeMinutes'] = 8 * 24 * 60;
+        addTearDown(() {
+          avail['bookingHorizonDays'] = 365;
+          avail['minimumNoticeMinutes'] = 60;
+        });
+
+        // _slotAt is 7 days out: past a 2-day horizon AND inside an 8-day
+        // notice, so both ends refuse it for a client.
+        final asSalon = await lifecycle.rescheduleByProvider(
+          id,
+          'provider1',
+          _slotAt(10),
+        );
+        expect(
+          asSalon.ok,
+          isTrue,
+          reason:
+              'the salon owns its calendar — same principle that exempts '
+              'bookManual from the slot engine entirely',
+        );
+
+        // The consumer path shares `_moveTo` and must still be bound.
+        final asClient = await lifecycle.reschedule(id, 'user_A', _slotAt(11));
+        expect(asClient.ok, isFalse);
+        expect(asClient.error, 'slot_unavailable');
       },
     );
 
