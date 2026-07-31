@@ -6,6 +6,12 @@ import '../core/utils/visit_history.dart' as vh;
 import '../models/appointment.dart';
 import '../services/interfaces/appointment_service_interface.dart';
 
+/// What the funnel says when it could not ASK the salon — as opposed to when
+/// the salon answered « rien de libre ». French, and a sentence rather than an
+/// exception's `toString()` (§14).
+const String kSlotsError =
+    'Impossible de charger les créneaux. Vérifiez votre connexion.';
+
 class AppointmentProvider extends ChangeNotifier {
   final AppointmentServiceInterface _appointmentService =
       serviceLocator.appointmentService;
@@ -253,7 +259,19 @@ class AppointmentProvider extends ChangeNotifier {
     }
   }
 
-  Future<List<DateTime>> getAvailableTimeSlots({
+  /// The salon's free starts on [date], **and why the list is empty when it is**.
+  ///
+  /// **This returned a bare `List<DateTime>` and swallowed every failure into
+  /// `return []`** (A14c §19). So « Aucun créneau disponible » was the sentence
+  /// for a fully-booked Saturday *and* for a dead network — the screen had
+  /// three states where §14 requires four, and the missing one was the only
+  /// one a user can act on.
+  ///
+  /// The layer below always knew: `ApiResponse` carries `error` and `code`.
+  /// Only this method threw it away. A record rather than the raw
+  /// `ApiResponse` because callers want *"here are the slots, here is why there
+  /// are none"* and never the envelope's other fields.
+  Future<({List<DateTime> slots, String? error})> getAvailableTimeSlots({
     required String providerId,
     required DateTime date,
     List<String>? serviceIds,
@@ -269,11 +287,13 @@ class AppointmentProvider extends ChangeNotifier {
         durationMinutes: durationMinutes,
       );
       if (response.success && response.data != null) {
-        return response.data!;
+        return (slots: response.data!, error: null);
       }
-      return [];
+      return (slots: const <DateTime>[], error: response.error ?? kSlotsError);
     } catch (e) {
-      return [];
+      // The message is deliberately NOT `e.toString()`: a socket exception is
+      // not a sentence a client should read, and §14 wants copy, not a stack.
+      return (slots: const <DateTime>[], error: kSlotsError);
     }
   }
 }

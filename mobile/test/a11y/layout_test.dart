@@ -681,6 +681,11 @@ void main() {
           providers: [
             ChangeNotifierProvider(create: (_) => ProviderProvider()),
             ChangeNotifierProvider(create: (_) => AppointmentProvider()),
+            // A14c: the hub renders `SalonTimeHint` now — the one picking
+            // surface that lacked it — so it needs the locality tree for the
+            // country name. A real dependency the screen gained with a real
+            // feature, not a harness convenience.
+            ChangeNotifierProvider(create: (_) => LocalityProvider()),
             ChangeNotifierProvider.value(value: auth),
           ],
           home: const BookingHubScreen(providerId: 'provider2'),

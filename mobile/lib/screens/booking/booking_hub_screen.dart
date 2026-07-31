@@ -4,7 +4,6 @@ import 'package:myweli/widgets/common/loading_indicator.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/a11y/reduce_motion.dart';
-import '../../core/constants/booking_horizons.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/motion.dart';
@@ -18,10 +17,10 @@ import '../../models/service.dart';
 import '../../providers/appointment_provider.dart';
 import '../../providers/provider_provider.dart';
 import '../../widgets/booking/length_variant_selector.dart';
+import '../../widgets/booking/slot_picker.dart';
 import '../../widgets/common/app_snack_bar.dart';
 import '../../widgets/common/inline_feedback.dart';
 import '../../widgets/common/label_value_row.dart';
-import '../../widgets/common/myweli_date_picker.dart';
 
 class BookingDraft {
   final String providerId;
@@ -98,10 +97,18 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
   // Distinguish "not picked yet" vs "picked 'no preference'".
   bool _artistChosen = false;
 
-  DateTime _selectedDate = salonToday();
-  List<DateTime> _availableSlotsForSelectedDate = const [];
-  bool _isLoadingSlots = false;
-  int _slotsRequestId = 0;
+  /// The day whose slots are shown. Still here because the hub sets it from
+  /// outside the picker (choosing a service jumps to the earliest free day).
+  ///
+  /// **`tz: _tz`, which it did not pass before.** Every other bound in this
+  /// screen passed the salon's zone; this one seeded from the Abidjan fallback,
+  /// so a salon in another country opened on the wrong day.
+  late DateTime _selectedDate = salonToday(tz: _tz);
+
+  /// Bumped to make `SlotPicker` re-ask with unchanged inputs — what the old
+  /// unconditional reload on `onHeaderTap` did. Slots go stale while a user
+  /// decides.
+  int _slotsRefresh = 0;
 
   @override
   void initState() {
@@ -144,16 +151,9 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
         _artistChosen = selection.artistId != null;
       });
 
-      if (selection.serviceIds.isNotEmpty) {
-        final appointmentProvider = Provider.of<AppointmentProvider>(
-          context,
-          listen: false,
-        );
-        await _loadSlotsForSelectedDate(
-          appointmentProvider: appointmentProvider,
-          p: p,
-        );
-      }
+      // `SlotPicker` loads itself on mount; the prefill only needs to make
+      // sure it re-asks once the restored services are in.
+      if (selection.serviceIds.isNotEmpty) _reloadSlots();
     });
   }
 
@@ -283,32 +283,10 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
     }
   }
 
-  Future<void> _loadSlotsForSelectedDate({
-    required AppointmentProvider appointmentProvider,
-    required models.Provider p,
-  }) async {
-    final reqId = ++_slotsRequestId;
-    setState(() => _isLoadingSlots = true);
-
-    final duration = _draft.serviceIds.isNotEmpty
-        ? _totalDurationMinutes(p)
-        : 30;
-    final serviceIds = _draft.serviceIds.isNotEmpty ? _draft.serviceIds : null;
-
-    final slots = await appointmentProvider.getAvailableTimeSlots(
-      providerId: widget.providerId,
-      date: _selectedDate,
-      serviceIds: serviceIds,
-      artistId: _draft.artistId,
-      durationMinutes: duration,
-    );
-
-    if (!mounted || reqId != _slotsRequestId) return;
-    setState(() {
-      _availableSlotsForSelectedDate = slots;
-      _isLoadingSlots = false;
-    });
-  }
+  /// Ask `SlotPicker` to re-fetch. **The request race moved with the fetch** —
+  /// the monotonic token that dropped stale answers now lives in the widget,
+  /// which is also where the state it protected went.
+  void _reloadSlots() => setState(() => _slotsRefresh++);
 
   Future<bool> _validateSelectedDateTime({
     required AppointmentProvider appointmentProvider,
@@ -323,7 +301,7 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
         : 30;
     final serviceIds = _draft.serviceIds.isNotEmpty ? _draft.serviceIds : null;
 
-    final slots = await appointmentProvider.getAvailableTimeSlots(
+    final res = await appointmentProvider.getAvailableTimeSlots(
       providerId: widget.providerId,
       date: date,
       serviceIds: serviceIds,
@@ -331,7 +309,12 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
       durationMinutes: duration,
     );
 
-    final ok = slots.any((s) => s.isAtSameMomentAs(dt));
+    // **A failed request must not silently clear the user's chosen time.**
+    // Before A14c this could not be told apart from « the slot went away »,
+    // because the provider returned `[]` for both — so a dropped connection
+    // wiped the selection and the user re-picked for no reason.
+    if (res.error != null) return true;
+    final ok = res.slots.any((s) => s.isAtSameMomentAs(dt));
     if (!mounted) return ok;
     if (!ok) {
       setState(() {
@@ -353,14 +336,17 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
     final startDay = salonToday(tz: _tz);
     for (var i = 0; i <= daysAhead; i++) {
       final d = startDay.add(Duration(days: i));
-      final slots = await appointmentProvider.getAvailableTimeSlots(
+      final res = await appointmentProvider.getAvailableTimeSlots(
         providerId: widget.providerId,
         date: d,
         serviceIds: serviceIds,
         artistId: _draft.artistId,
         durationMinutes: duration,
       );
-      if (slots.isNotEmpty) return slots.first;
+      // Stop scanning on a failure rather than walking `daysAhead` more days
+      // that will each fail the same way — up to 15 doomed round trips.
+      if (res.error != null) return null;
+      if (res.slots.isNotEmpty) return res.slots.first;
     }
     return null;
   }
@@ -578,10 +564,7 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
 
                                   // Refresh slots if time section is next/active.
                                   if (_activeSection == _HubSection.dateTime) {
-                                    await _loadSlotsForSelectedDate(
-                                      appointmentProvider: appointmentProvider,
-                                      p: p,
-                                    );
+                                    _reloadSlots();
                                   }
                                 },
                               );
@@ -621,10 +604,7 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
                                     p: p,
                                   );
                                   if (_activeSection == _HubSection.dateTime) {
-                                    await _loadSlotsForSelectedDate(
-                                      appointmentProvider: appointmentProvider,
-                                      p: p,
-                                    );
+                                    _reloadSlots();
                                   }
                                 },
                               ),
@@ -665,10 +645,7 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
                                 );
                                 await _advance(p);
                                 if (_activeSection == _HubSection.dateTime) {
-                                  await _loadSlotsForSelectedDate(
-                                    appointmentProvider: appointmentProvider,
-                                    p: p,
-                                  );
+                                  _reloadSlots();
                                 }
                               },
                             ),
@@ -735,11 +712,7 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
                                     await _advance(p);
                                     if (_activeSection ==
                                         _HubSection.dateTime) {
-                                      await _loadSlotsForSelectedDate(
-                                        appointmentProvider:
-                                            appointmentProvider,
-                                        p: p,
-                                      );
+                                      _reloadSlots();
                                     }
                                   },
                                 ),
@@ -772,111 +745,43 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
                         onHeaderTap: () async {
                           _activateSection(_HubSection.dateTime);
                           await _scrollTo(_dateTimeKey);
-                          await _loadSlotsForSelectedDate(
-                            appointmentProvider: appointmentProvider,
-                            p: p,
-                          );
+                          _reloadSlots();
                         },
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            _DatePickerRow(
-                              date: _selectedDate,
-                              onTap: () async {
-                                _setEntryPointIfNeeded(_HubEntryPoint.dateTime);
-                                final initial = DateTime(
-                                  _selectedDate.year,
-                                  _selectedDate.month,
-                                  _selectedDate.day,
+                            // **The block moved to `SlotPicker`** (A14c §19),
+                            // with its request race, and gained a fourth state
+                            // the hub never had: a failed lookup now says so
+                            // instead of rendering « Aucun créneau disponible »
+                            // and telling the user the salon is full.
+                            SlotPicker(
+                              providerId: widget.providerId,
+                              selectedDate: _selectedDate,
+                              selectedSlot: _draft.dateTime,
+                              serviceIds: _draft.serviceIds,
+                              artistId: _draft.artistId,
+                              durationMinutes: _draft.serviceIds.isNotEmpty
+                                  ? _totalDurationMinutes(p)
+                                  : null,
+                              tz: _tz,
+                              countryCode: p.countryCode,
+                              refreshSignal: _slotsRefresh,
+                              onInteraction: () => _setEntryPointIfNeeded(
+                                _HubEntryPoint.dateTime,
+                              ),
+                              onDateChanged: (d) =>
+                                  setState(() => _selectedDate = d),
+                              onSlotSelected: (slot) async {
+                                setState(
+                                  () =>
+                                      _draft = _draft.copyWith(dateTime: slot),
                                 );
-                                final picked = await showMyweliDatePicker(
-                                  context: context,
-                                  initialDate: initial,
-                                  firstDate: salonToday(tz: _tz),
-                                  lastDate: salonToday(
-                                    tz: _tz,
-                                  ).add(kBookingHorizon),
-                                  today: salonToday(tz: _tz),
-                                );
-                                if (!mounted || picked == null) return;
-                                setState(() => _selectedDate = picked);
-                                await _loadSlotsForSelectedDate(
-                                  appointmentProvider: appointmentProvider,
-                                  p: p,
-                                );
+                                await _advance(p);
                               },
                             ),
                             const SizedBox(height: AppTheme.spacingS),
-                            if (_isLoadingSlots)
-                              const Padding(
-                                padding: EdgeInsets.symmetric(
-                                  vertical: AppTheme.spacingSM,
-                                ),
-                                child: Center(child: LoadingIndicator()),
-                              )
-                            else if (_availableSlotsForSelectedDate.isEmpty)
-                              Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: AppTheme.spacingS,
-                                ),
-                                child: Text(
-                                  'Aucun créneau disponible',
-                                  style: AppTextStyles.bodySmall.copyWith(
-                                    color: AppColors.textSecondary,
-                                  ),
-                                ),
-                              )
-                            else
-                              Wrap(
-                                spacing: AppTheme.spacingS,
-                                runSpacing: AppTheme.spacingS,
-                                children: _availableSlotsForSelectedDate.map((
-                                  slot,
-                                ) {
-                                  final selected =
-                                      _draft.dateTime != null &&
-                                      _draft.dateTime!.isAtSameMomentAs(slot);
-                                  return ChoiceChip(
-                                    label: Text(
-                                      Formatters.formatTime(
-                                        toSalonTime(slot, tz: _tz),
-                                      ),
-                                    ),
-                                    selected: selected,
-                                    onSelected: (_) async {
-                                      _setEntryPointIfNeeded(
-                                        _HubEntryPoint.dateTime,
-                                      );
-                                      setState(
-                                        () => _draft = _draft.copyWith(
-                                          dateTime: slot,
-                                        ),
-                                      );
-                                      await _advance(p);
-                                    },
-                                    selectedColor: AppColors.primary.withValues(
-                                      alpha: 0.15,
-                                    ),
-                                    labelStyle: AppTextStyles.bodySmall
-                                        .copyWith(
-                                          color: selected
-                                              ? AppColors.primary
-                                              : AppColors.textPrimary,
-                                        ),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(
-                                        AppTheme.radiusPill,
-                                      ),
-                                      side: BorderSide(
-                                        color: selected
-                                            ? AppColors.primary
-                                            : AppColors.borderStrong,
-                                      ),
-                                    ),
-                                    backgroundColor: AppColors.secondary,
-                                  );
-                                }).toList(),
-                              ),
+
                             if (_entryPoint == _HubEntryPoint.artist &&
                                 _artistChosen &&
                                 _draft.serviceIds.isNotEmpty &&
@@ -1165,59 +1070,6 @@ class _SelectableRow extends StatelessWidget {
                 ),
               ),
             ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _DatePickerRow extends StatelessWidget {
-  final DateTime date;
-  final VoidCallback onTap;
-
-  const _DatePickerRow({required this.date, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return ConstrainedBox(
-      constraints: const BoxConstraints(minHeight: 48), // §13.2 touch target
-      child: Semantics(
-        button: true,
-        label: Formatters.formatDate(date),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-          child: Container(
-            alignment: Alignment.center,
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppTheme.spacingSM,
-              vertical: AppTheme.spacingSM,
-            ),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-              border: Border.all(color: AppColors.borderStrong),
-              color: AppColors.secondary,
-            ),
-            child: Row(
-              children: [
-                const Icon(
-                  Icons.event,
-                  color: AppColors.textSecondary,
-                  size: AppTheme.iconS,
-                ),
-                const SizedBox(width: AppTheme.spacingSM),
-                Expanded(
-                  child: Text(
-                    Formatters.formatDate(date),
-                    style: AppTextStyles.bodyMedium,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                const Icon(Icons.chevron_right, color: AppColors.textTertiary),
-              ],
-            ),
           ),
         ),
       ),
