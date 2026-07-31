@@ -56,10 +56,21 @@ export function MonthCalendar({
           <div key={d}>{d}</div>
         ))}
       </div>
-      <div className="mt-xs grid grid-cols-7 gap-xs">
+      <div className="mt-xs grid grid-cols-7 gap-xs" data-testid="month-grid">
         {weeks.flat().map((d) => {
           const k = anchorKey(d);
           const inMonth = d.getUTCMonth() === month;
+          // **Days outside the month are reserved space, not dimmed buttons**
+          // (A14c, WEB-SYSTEM §15 row 34). They used to render `text-textTertiary`
+          // and stay clickable, so tapping one selected a day the header does not
+          // name — a defect rather than a style. Mobile's grid omits them
+          // (`myweli_month_grid.dart`), and web matches mobile here rather than
+          // the other way round; `textTertiary` is also already spent on
+          // *disabled*, so dimmed-but-active and disabled were the same grey.
+          //
+          // Blank, not absent: the cell keeps its place so the grid stays
+          // rectangular and the month does not reflow.
+          if (!inMonth) return <div key={k} aria-hidden="true" />;
           const isSel = k === selected;
           const isToday = k === todayK;
           const hasBooking = booked.has(k);
@@ -71,9 +82,7 @@ export function MonthCalendar({
               className={`min-h-12 flex aspect-square flex-col items-center justify-center rounded-lg text-bodyMedium ${
                 isSel
                   ? 'bg-primary text-secondary'
-                  : inMonth
-                    ? 'text-textPrimary hover:bg-surfaceVariant'
-                    : 'text-textTertiary'
+                  : 'text-textPrimary hover:bg-surfaceVariant'
               } ${isToday && !isSel ? 'ring-1 ring-primary' : ''}`}
             >
               <span>{d.getUTCDate()}</span>

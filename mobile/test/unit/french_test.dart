@@ -6,7 +6,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/intl.dart';
 import 'package:myweli/core/utils/app_locale.dart';
 import 'package:myweli/widgets/common/myweli_date_picker.dart';
-import 'package:table_calendar/table_calendar.dart';
 
 import '../support/pump_app.dart';
 
@@ -47,6 +46,12 @@ import '../support/pump_app.dart';
 /// The selection toolbar is likewise not pumped as a gesture; its labels are
 /// asserted at the localizations layer, which is where the platforms diverge.
 /// No golden covers any of this, and no screen test pumps a picker.
+/// Comments are not code — the same hole A14c found in `salon_time_pin_test`
+/// and that `scripts/dart-tokens.mjs` fixed on the web side.
+String _stripDartComments(String src) => src
+    .replaceAll(RegExp(r'/\*[\s\S]*?\*/'), '')
+    .replaceAll(RegExp('//[^\n]*'), '');
+
 void main() {
   /// Capture the resolved localizations from inside the app shell.
   Future<T> read<T>(
@@ -242,40 +247,93 @@ void main() {
     });
   });
 
-  group('mechanism 3 — the calendar the delegates cannot reach', () {
-    testWidgets('the booking calendar header is French', (tester) async {
-      // `table_calendar` formats with `intl`'s `DateFormat`, passing its own
-      // `locale:` — which no call site provides — so it falls through to
-      // `Intl.defaultLocale`, which is set NOWHERE in this repo. A locale-less
-      // `DateFormat` formats in `en_US` and pins the isolate there on first
-      // call (`intl.dart:528`, `defaultLocale ??= systemLocale`).
-      //
-      // So `flutter_localizations` is irrelevant here: this one needs
-      // `Intl.defaultLocale = 'fr_FR'`. Gated separately for exactly that
-      // reason — a gate that only proved the delegates would have certified a
-      // consumer booking screen still reading "July 2026".
-      await pumpApp(
-        tester,
-        home: Scaffold(
-          body: TableCalendar<void>(
-            firstDay: DateTime(2026),
-            lastDay: DateTime(2026, 12, 31),
-            focusedDay: DateTime(2026, 7, 1),
-          ),
-        ),
-      );
-      await tester.pump();
+  group('mechanism 3 — the seam whose last victim we removed', () {
+    // **A14c retired `table_calendar`, and it was this mechanism's ONLY
+    // consumer in the product.** Every `intl` formatter in `lib/` passes an
+    // explicit locale — `Formatters` hard-codes `'fr_FR'` in all six of its
+    // date methods and in `formatCurrency`'s `NumberFormat` — so after the
+    // package went, nothing left reads `Intl.defaultLocale`.
+    //
+    // **`initAppLocale()` is kept anyway, and the widget half of this group is
+    // replaced rather than deleted.** *"No caller in `lib/` today"* is not
+    // *"no caller"*: a future bare `DateFormat(...)` would silently render
+    // en_US, and `intl`'s `defaultLocale ??= systemLocale` means the FIRST such
+    // call pins the isolate for its lifetime. What changes is the seam's
+    // justification — it stops being *"because `table_calendar` reads it"* and
+    // becomes *"because a rule forbids the shape that would need it"*.
+    //
+    // That rule is the pin below. A seam defended by a gate is worth keeping;
+    // a seam defended by a package we deleted is vestigial.
 
+    test('no locale-less DateFormat/NumberFormat in lib/', () {
+      final offenders = <String>[];
+      for (final f in Directory(
+        'lib',
+      ).listSync(recursive: true).whereType<File>()) {
+        if (!f.path.endsWith('.dart')) continue;
+        final src = _stripDartComments(f.readAsStringSync());
+        for (final m in RegExp(
+          r'(DateFormat|NumberFormat)(\.\w+)?\(',
+        ).allMatches(src)) {
+          // The statement, not the argument list: nested parens make a
+          // balanced-paren match fragile, and every real call ends in `;`
+          // before the next one begins.
+          final end = src.indexOf(';', m.start);
+          final stmt = end == -1
+              ? src.substring(m.start)
+              : src.substring(m.start, end);
+          if (!stmt.contains('locale:') &&
+              !stmt.contains('kAppLocale') &&
+              !stmt.contains("'fr_FR'")) {
+            offenders.add(f.path);
+          }
+        }
+      }
       expect(
-        find.text('juillet 2026'),
-        findsOneWidget,
+        offenders,
+        isEmpty,
         reason:
-            'the consumer booking calendar renders « July 2026 » today, '
-            'directly above a French screen',
+            'a locale-less `intl` formatter resolves through '
+            '`Intl.getCurrentLocale()`, which is `defaultLocale ??= '
+            'systemLocale` — the constant `en_US`. It renders English AND pins '
+            'the isolate on first call. Pass `kAppLocale` explicitly; do not '
+            'rely on `initAppLocale()` having run, which is exactly the '
+            'coupling `table_calendar` demonstrated for two years.',
       );
     });
 
-    test('and the mechanism behind it', () async {
+    test('…and that pin can fail', () {
+      // §21 row 67: six helpers shipped unable to fail. The assertion above is
+      // green from birth — the last offender left with the package — so it
+      // proves nothing until the rule is shown to bite.
+      String? firstOffender(String src) {
+        for (final m in RegExp(
+          r'(DateFormat|NumberFormat)(\.\w+)?\(',
+        ).allMatches(src)) {
+          final end = src.indexOf(';', m.start);
+          final stmt = src.substring(m.start, end == -1 ? src.length : end);
+          if (!stmt.contains('locale:') &&
+              !stmt.contains('kAppLocale') &&
+              !stmt.contains("'fr_FR'")) {
+            return stmt.trim();
+          }
+        }
+        return null;
+      }
+
+      expect(firstOffender('DateFormat.yMMMM().format(d);'), isNotNull);
+      expect(
+        firstOffender("DateFormat('MMMM yyyy', 'fr_FR').format(d);"),
+        isNull,
+      );
+      expect(firstOffender("NumberFormat.currency(locale: 'fr_FR');"), isNull);
+      expect(
+        firstOffender("DateFormat('EEEEE', kAppLocale).format(d);"),
+        isNull,
+      );
+    });
+
+    test('the mechanism itself, which is still real', () async {
       // **Seeded here, not inherited.** As a bare `test` this passed only
       // because an earlier `testWidgets` had loaded the fr symbols and set
       // `Intl.defaultLocale` as a side effect — run alone with
@@ -288,8 +346,10 @@ void main() {
         DateFormat.yMMMM().format(DateTime(2026, 7)),
         'juillet 2026',
         reason:
-            'this is the exact call table_calendar makes '
-            '(calendar_header.dart:43) with a null locale',
+            'the shape the pin above forbids, kept as a live demonstration '
+            'that `initAppLocale()` is what makes it French. It WAS the exact '
+            'call `table_calendar` made (`calendar_header.dart:43`); that '
+            'package is gone, and the property it exposed is not.',
       );
     });
   });

@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | A14a built · A14b built · **A14c in build** · A14d, A14e planned |
+| **Status** | A14a built · A14b built · **A14c built** · A14d, A14e planned |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-07-30 |
 | **Module** | [`journal`](../MODULES.md#1-journal--bookings--journal-) (the pro calendar) · [`online-booking`](../MODULES.md#2-marketplace--online-booking--online-booking-) (the consumer funnel) — the campaign straddles two, which is why the `table_calendar` sites did not fall out of one module's slice |
@@ -1087,3 +1087,98 @@ the same thing.
 scroll clipping; nothing in it exercises the real vertical budget. The calendar
 is the screen where that matters, so `appointment_calendar_view_test.dart` pumps
 `kFloorPhone` (360×780) at 1× and 2× directly.
+
+## 19. The consumer funnel: one slot picker, and two screens deleted
+
+### 19.1 Why the booking hub could not be reused
+
+The obvious answer to "reschedule needs a date and a slot" is *"open the hub
+with everything preselected"*. **The contract forbids it.**
+`POST /appointments/{id}/reschedule` (`openapi.yaml:2494-2503`) accepts
+`newDateTime` and an `artistId` marked **PROVIDER ONLY**, and states *"Deposit +
+balance carry over unchanged"*.
+
+| hub section | on a consumer reschedule |
+|---|---|
+| services | **forbidden** — changing them changes the price, so the deposit, which the endpoint cannot express. That is a cancel-and-rebook. |
+| artist | **forbidden** — `artistId` is provider-only (journal J1's drag-across-columns) |
+| date/time | the only thing that may change |
+| confirm → deposit sheet → `createAppointment` | **actively wrong** — the deposit is already paid |
+
+A "reschedule mode" would suppress two thirds of a 1,226-line screen and replace
+its ending. **The reuse belongs one level down**, at the block both surfaces
+actually share.
+
+### 19.2 `SlotPicker`, and the four things the extraction found
+
+- **There were only three states.** `AppointmentProvider.getAvailableTimeSlots`
+  swallowed every failure into `return []`, so « Aucun créneau disponible » was
+  the sentence for a fully-booked Saturday *and* for a dead network — §14 wants
+  four, and the missing one was the only one a user can act on. The layer below
+  always knew; `ApiResponse` carries `error`. Two more places were silently
+  wrong for the same reason: `_validateSelectedDateTime` **cleared the user's
+  chosen time** on a failed request, and `_findEarliestSlot` walked up to 15
+  more days after the first failure.
+- **`date_time_selection_screen` had no in-flight guard**, so rapid day taps
+  could paint one day's slots under another day's heading. The hub had one; the
+  duplicate did not.
+- **It compared slots by hour and minute**, which matches 14:00 on any day.
+- **The hub rendered no `SalonTimeHint`** — the one picking surface without it.
+
+**Where the country lookup lives is a performance decision.** Three screens
+write `context.watch<LocalityProvider>().countryName(...)` in their own `build`;
+on the hub that redraws 1,226 lines to update one line of grey text. It is a
+`Selector` scoped to the hint now. **`SalonTimeHint` stays pure** — no provider
+dependencies, which is what lets it be pumped in isolation with a
+`deviceOffsetOverride`, and pushing the lookup into it would take that from
+every future test. The same duplication on two other screens is **left alone
+deliberately**: fixing it means touching screens this slice has no business in.
+
+### 19.3 The reschedule route, and the live defect it closes
+
+The old flow pushed `/booking/date-time` **without `durationMinutes`**, so the
+target recomputed the booking's length from the salon's *current* catalogue and
+a freshly-defaulted hair-length variant. **A three-hour braid could be offered
+thirty-minute slots.** The router and the target both accepted the parameter
+already; only the caller never sent it.
+
+The duration now comes from the salon's own services, because
+`Appointment.durationMinutes` is a *provider-enriched* field that can be null on
+a consumer payload — which is also why the salon must be loaded, and
+`_maybeResolveProviderFacts` was already loading it on every appointment and
+**throwing it away**. Retaining it costs one reference and pays for the context
+header the bare picker never had.
+
+**Choosing is not submitting.** The old flow popped the instant a time was
+tapped; the button now states what will happen and is inert until it can.
+
+### 19.4 `Intl.defaultLocale`: the seam outlives its only consumer
+
+Retiring `table_calendar` removed **the only thing in the product that read
+`Intl.defaultLocale`** — every `intl` call in `lib/` passes an explicit locale,
+`Formatters` included.
+
+`initAppLocale()` is **kept**, and the justification changes rather than the
+code: *"no caller today"* is not *"no caller"*, and `defaultLocale ??=
+systemLocale` means the **first** bare `DateFormat` pins the isolate for its
+lifetime. So the seam stops being defended by a dependency we deleted and starts
+being defended by a rule — a pin forbidding locale-less `DateFormat` /
+`NumberFormat` in `lib/`, with a falsifiability case, since the assertion is
+green from birth.
+
+The widget half of the old mechanism-3 gate is replaced by that pin; the bare
+`DateFormat.yMMMM()` assertion **survives verbatim** as a live demonstration
+that the seam is what makes it French.
+
+### 19.5 Web: the obligation recorded in source and in no document
+
+`MonthCalendar.tsx` drew out-of-month days dimmed **and clickable**, so clicking
+one selected a day the header does not name. Recorded only in
+`myweli_month_grid.dart`'s docstring — *"A14c changes web to match this, not the
+other way round"* — and nowhere in `docs/`, which is why it survived.
+
+**The first gate for it was vacuous and green against the defect.** It asserted
+no rendered day was `> 30`; June's trailing cells are 1–5 **July**, which render
+as « 1 »…« 5 ». Counting identities — 30 buttons, not 42 — is what made it fail.
+That is the fourth vacuous gate this campaign caught by mutating or re-reading
+its own new test, and the reason the step is not optional.

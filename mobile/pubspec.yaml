@@ -81,10 +81,6 @@ dependencies:
   # KYC: pick identity documents (images or PDF) for private upload.
   file_picker: ^11.0.2
 
-  # Calendar & Date Picker
-  # (A9 dropped `flutter_datetime_picker_plus` — zero usages in lib/ or test/.
-  #  Date entry is Material's `showDatePicker`; this was never wired up.)
-  table_calendar: ^3.0.9
 
   # Utilities
   uuid: ^4.2.1
