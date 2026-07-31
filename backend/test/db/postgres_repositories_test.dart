@@ -607,9 +607,7 @@ void main() {
       );
       final raw = row.first.toColumnMap()['data'];
       final doc =
-          (raw is String
-                  ? jsonDecode(raw)
-                  : jsonDecode(jsonEncode(raw)))
+          (raw is String ? jsonDecode(raw) : jsonDecode(jsonEncode(raw)))
               as Map<String, dynamic>;
       doc['timezone'] = 'Africa/Lagos';
       await pool.execute(
