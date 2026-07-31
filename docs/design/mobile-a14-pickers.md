@@ -1709,3 +1709,208 @@ vacuously, which is the exact failure mode this campaign hit four times. The
   availability, and blocking a day has never cancelled its bookings either.
   Naming it here so the silence is a decision rather than an oversight.
 - **`docs/modules/online-booking.md`** remains an honest, pre-existing gap.
+
+---
+
+# Part F — the device run (A14)
+
+## 35. What a phone said about A14, and the outage it found
+
+Same instrument as every prior run, and §21 row 63 is why there is one at all:
+*"a golden is a picture of a tree the test built, and a device is the only
+instrument that renders the tree the product builds."*
+
+**Provenance.** The repo's `A11 360dp` simulator — an iPhone 13 mini profile at
+the **360×780pt** floor A11 pinned, not the stock 375×812 — with
+`xcrun simctl ui … content_size accessibility-large`, ≈ **1.95×**. Both apps in
+**debug** (the striped overflow banner is debug-only; row 63), both built with
+`--dart-define=USE_API_BACKEND=true` against `dart_frog dev` on `:8080`. Route,
+as a tap chain: **pro** — e-mail OTP → Tableau de bord → « Disponibilité » →
+« Fenêtre de réservation » → « Gérer les dates bloquées » → back → « Rendez-vous »
+→ « Ma journée » → the **Calendrier** tab → « Nouveau rendez-vous »; **consumer**
+— `/provider/{id}` → « Réserver » → « Date et heure » → the date picker → the
+slot grid → « Confirmer ».
+
+Unlike A14a's and A14b's runs this one was driven **pro → server → consumer on
+one live backend**, because that is the only way a horizon set in one app can be
+read back in the other. The fixture (`device.run@salon.test`, salon
+« Salon Test A14 ») lived in the dev server's memory and **nothing about it is
+committed**.
+
+### 35.1 The outage — an open window is a range, and two engines read it as a minute
+
+The whole reason the campaign's plan insisted on a live round trip.
+
+`SlotService._openMinutes` enumerated each `weeklySchedule` entry's `startTime`
+and **discarded its `endTime`**. That is correct only if the template holds one
+entry per 30-minute step — eighteen of them for a 09:00–18:00 day, which is what
+`seedProviders`' `_defaultWeeklySchedule` builds.
+
+**Who actually writes what.** `draftSalonDocument` gives a fresh registration an
+**empty** `weeklySchedule`, so a salon is closed every day until its owner
+authors hours — in the pro app's day editor, or in the web dashboard's
+« Disponibilités » (`web/lib/pro/availability.ts`'s `toApi`). Both store **one
+entry per range the owner enters**: « 09:00 – 18:00 » is one entry. Nothing
+*forbids* eighteen — the day editor appends without a cap or a merge, and the
+server checks only `start.isBefore(end)` per slot — but nothing authors them
+either, and outside the two fixtures the shape has never existed.
+
+Nor did it take an exotic day. Measured against the engine, same service, same
+day:
+
+| the day's `weeklySchedule` | 30-min service | 60-min service |
+|---|---|---|
+| one entry `09:00 → 18:00` — what both editors write | **1 slot** (09:00) | **0 slots** |
+| two entries `09:00 → 12:00` + `14:00 → 18:00` — a lunch closure | **2 slots** | **0 slots** |
+| eighteen entries `09:00→09:30 … 17:30→18:00` — the fixtures | 18 | 17 · *unchanged by the fix* |
+
+The 30-minute column is the tell: nine open hours offering one start means the
+end was never read, and the split day — the most ordinary schedule a salon has —
+offered two. The consequence is a **silent booking outage**: the first time a
+salon authored its own hours, every service lost almost all of its starts and
+anything longer than one step lost all of them, so the client saw « Aucun
+créneau ce jour-là » on every open day with no error on either side to say why.
+
+**It was in two engines, not one.** `mock_appointment_service.dart` mapped each
+template entry to `s.startTime` and never touched `s.endTime` either — the same
+code, made invisible by the same thing, because `MockData._generateTimeSlots`
+emits one entry per step just as the server seed does. The device run found the
+server half; the **adversarial review of this section** found the app half, which
+would otherwise have left « closed » true of one surface and false of the
+product.
+
+**Fixed on both** ([SYSTEM.md §21](SYSTEM.md#21-the-register) row **83**) by
+enumerating `[start, end)` in steps, which is strictly a superset: an entry
+exactly one step long still contributes exactly its own start, so the fixtures'
+eighteen stay eighteen and « 09:00 and 14:00 only » stays two. Each engine has a
+red-first gate plus a paired guard that was green throughout and is what stops
+the fix degenerating into « every day is open all day » —
+`slot_service_test.dart` (**watched red at `[540]`** against the eighteen it
+expects) and `mock_open_hours_test.dart` (**red at `[540]`**, and at
+`[540, 840]` for the split day against the fourteen it expects).
+
+**What "nothing could see it" actually means**, because the first draft of this
+section overstated it and the review caught that. Backend tests *do* build a
+single multi-hour window — `provider_catalog_test.dart:153`,
+`db/postgres_repositories_test.dart:566`, `salon_lifecycle_test.dart:97` — but
+every one of them asserts **storage**, that the PUT round-trips. Not one asserts
+a **slot count** against that shape, and every test that does assert slot counts
+is seeded from a fixture that holds the eighteen-entry shape. The blindness was
+not « no test used the shape »; it was « no test asked the engine a question the
+shape could answer wrongly », which is the more useful lesson and the harder one
+to notice.
+
+### 35.2 A14's own surfaces, held
+
+| what a prior slice recorded | what the device showed |
+|---|---|
+| row 73: Material's picker rendered « **2 21 2 2 2 2 2** » on this phone | **20 21 22 23 24 25 26** — every day whole, re-photographed where row 73 was found |
+| row 77: Flutter's time picker « refuses to scale » | `MyweliTimePicker`'s two labelled columns, « 17:50 » preview, « Confirmer » pinned — every number whole |
+| row 62's salon header, which A14a's run first saw stacked | **stacked** again on the API backend and a different salon — logo above name, « Salon Test A14 » wrapping to two lines, no mid-token break |
+| A14b's `Expanded(child: Text(label))` on the manual-booking row | « 12/08/2 / 026 » **wraps inside its button** and « Heure » keeps its width — no overflow |
+| row 76: the salon now owns its window | pro set « **1 mois** » → the consumer picker disables **31 août** and greys the « › » chevron; september is unreachable |
+| A14e's delta write | the pro's mixed delta (`−31 juillet, +14 août`) reached the server, and the consumer funnel answered « Aucun créneau ce jour-là — Ce salon n’a plus de disponibilité le **lundi 3 août 2026**. » |
+
+A14e's multi-picker at 1.95× carries its worst case with room: **août 2026 is a
+six-row month**, and the grid, a two-line summary (« 3 dates bloquées » /
+« 1 ajoutée · 1 retirée ») and the full-width « Enregistrer » all fit above the
+safe area with ~13pt to spare. « Enregistrer » is **inert** on an empty delta and
+live the moment anything changes; a re-opened picker paints its seeded days
+selected; and all three confirm dialogs — add, remove, mixed — fit without
+scrolling.
+
+**Also confirmed on the same screens, none of which a computed gate asserts:**
+the weekday row Monday-first as `L M M J V S D`, French month names
+(« juillet 2026 », « août 2026 »), the disabled « ‹ » at the range start and the
+disabled « › » at the horizon, today painted as a **ring** and a chosen day as a
+**fill**, the blocked-date cards in **chronological** order (A14e's sort, which
+nothing photographs), every slot time whole in the grid — which laid out three
+chips per row at this width, though that is a `Wrap` finding its own line breaks
+and not a declared column count — and curly apostrophes throughout (« n’a »,
+« Aujourd’hui »).
+
+### 35.3 What the run found and did not fix
+
+Recorded rather than repaired, because each needs a product decision or a change
+wider than a device run should carry. Rows **79–82** of
+[SYSTEM.md §21](SYSTEM.md#21-the-register) hold them.
+
+- **App-bar titles ellipsize, and at 1.95× the actions crush them.** Three
+  instances in one session: « Dates à bloquer » → « **Dat…** » the moment
+  A14e's « Réinitialiser » action appears, « Tableau de bord » → « **Tableau de
+  b…** », « Nouveau rendez-vous » → « **Nouveau rendez…** ». The last has **no
+  actions at all**, so this is not only a crowding problem and the fix is not
+  only « move the action » — it is §13.3 asking what an `AppBar` title should do
+  when it cannot fit. Row **79**.
+- **`appointment_calendar_view._emptyDay()` hand-rolls an empty state.** No
+  padding and no `textAlign: TextAlign.center`, where the shared `EmptyState`
+  has both. At 1.95× « Aucun rendez-vous » wraps with line two left-aligned
+  under line one, and « pour vendredi 31 juillet 2026 » runs edge to edge with
+  ~3pt of inset. Separately — and **not** something adopting `EmptyState` would
+  fix, because it has no FAB inset either — the branch is a
+  `SliverFillRemaining(hasScrollBody: false)` with no bottom padding, so its
+  last line is the bottom of the scroll extent and cannot be moved clear of the
+  FAB. Row **80**.
+- **The pro journal offers the same action twice and they collide.** The empty
+  state's « + Nouveau rendez-vous » and the extended FAB « + Nouveau » do the
+  same thing, and at 1.95× the FAB's top edge sits ~3pt inside the CTA so the
+  two black surfaces read as one broken control. Dropping one is a product call.
+  Row **81**.
+- **A salon that is not yet `active` fails with « Une erreur est survenue. »** on
+  *both* sides. `provider_suspended` (409) is the code for a never-published
+  draft as well as a banned salon, and neither the consumer funnel nor the pro's
+  own manual-booking screen has a sentence for it — so the very first thing a
+  newly registered salon owner tries ends in a bare generic error, on a dashboard
+  whose go-live card is meanwhile inviting them to « Complétez les étapes pour
+  aller en ligne ». Row **82**.
+
+### 35.4 What this run did not cover
+
+- **Completing a booking, and therefore chain A.** The run's fixture is a salon
+  created through registration, so it is `status: 'draft'` and the server refuses
+  both the consumer write and the pro's manual booking with `provider_suspended`
+  — correctly. Going live is one call, `POST /providers/{id}/publish`, but
+  `SalonProvisioningService.publishGate` holds it behind a checklist of five
+  keys covering seven conditions: `profile` (a description, an address and a
+  resolvable commune), `location` (map coordinates), `services` (**three**
+  active), `photos` (**three**), and `availability` (at least one open day).
+  Satisfying it is salon-onboarding work, not device-run work, so the fixture
+  stayed a draft. **A14b §13.1's reschedule debt is therefore still open**, and
+  it is now open for a *different* reason than the one A14b recorded: not *"the
+  seeded salon had none"* but *"this run's salon cannot have one"*. The weaker
+  artifact standing in its place is unchanged — `reschedule_screen.dart`'s and
+  the pro journal's widget tests, plus the combined picker's own goldens.
+- **Two of A14d's four empty reasons, and the run saw fewer distinct ones than
+  it first appeared to.** `_EmptyReason` has four members
+  (`past`, `beyondHorizon`, `tooSoon`, `full`), and `full` is the documented
+  catch-all: it absorbs closed weekdays, blocked dates and genuine capacity
+  alike. So the blocked 3 août and the outage-emptied 5 août rendered the **same
+  branch** with the same title, and the run exercised **one** of the four, plus
+  `past` only implicitly through disabled cells.
+  - **« Trop loin dans le temps »** (`beyondHorizon`) is **not reachable by
+    navigation**: the date picker's `lastDate` *is* the salon's horizon, so a
+    beyond-horizon day cannot be selected. The branch answers a stale selection
+    or a horizon shortened under a client that already had a later date.
+  - **« Réservation trop proche »** (`tooSoon`) was never reached either — the
+    fixture's notice was the 60-minute default and the run never asked for a
+    slot inside it.
+- **The seeded salons' images.** Every seeded `imageUrls` entry points at
+  `asset:assets/images/barber1.jpg` and friends, and `mobile/assets/images/`
+  ships only `providers/` and `stories/` — so in API mode every discovery card
+  renders Flutter's red « Unable to load asset » box in debug. Noted, not filed:
+  it is dev-fixture data, and a real salon uploads its own images.
+
+### 35.5 What the adversarial review of this section changed
+
+Recorded because the practice is the point: **84 claims from §35 and rows 79–83
+were re-checked against source by verifiers told to refute them.** 48 held, **26
+were over-reads by the verifiers themselves and were rejected on cross-check**,
+and ten survived — of which the load-bearing one was that
+`mock_appointment_service.dart` carried the same defect the server had, so
+« closed » was true of one engine and false of the product. Also corrected here:
+a **table cell that read 17 where the engine returns 18**, an « impossible
+shape » that is merely an unauthored one, a **second writer of that shape on
+web** that the section had not mentioned, a « no test could see it » that was
+false as written, an `AppBar` `maxLines` that Material never sets, an
+`EmptyState` credited with FAB clearance it does not have, and a
+`consumer_reschedule` that is not the name of any file in this repo.

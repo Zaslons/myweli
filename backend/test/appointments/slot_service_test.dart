@@ -683,4 +683,128 @@ void main() {
       expect(soon.slots, isNotEmpty);
     });
   });
+
+  group('the weekly template is a set of RANGES', () {
+    test('ONE open window is a range, not a single bookable minute', () async {
+      // Found on a device, pro → server → consumer, and it is the defect the
+      // A14 device run existed to catch: `_openMinutes` read each template
+      // entry's `startTime` and threw its `endTime` away. That convention only
+      // works if `weeklySchedule` holds one entry per 30-minute step — which is
+      // what `seedProviders` holds and what **no real salon can have**.
+      // `draftSalonDocument` gives a fresh registration an EMPTY
+      // `weeklySchedule`, so every real salon authors its hours in the pro
+      // app's day editor, and « 09:00 – 18:00 » is ONE entry there. Nine open
+      // hours therefore offered one bookable start, and anything longer than
+      // the step had nowhere to go at all: the client saw « Aucun créneau ce
+      // jour-là » on every open day with no error on either side.
+      //
+      // Measured before the fix, same salon / same service / same day: ONE
+      // 09:00–18:00 entry → **0** slots for a 60-minute service and exactly
+      // **1** (09:00) for a 30-minute one; a split day (09:00–12:00 +
+      // 14:00–18:00), the most ordinary schedule there is, → **2** and **0**;
+      // eighteen half-hour entries → **18** and **17**, which the fix leaves
+      // untouched. The 30-minute column is the tell — the end was not read at
+      // all. The same file already read the same shape correctly twice, for
+      // breaks and for an artist's own hours; only the salon's opening hours
+      // did not.
+      final repo = InMemoryProvidersRepository([
+        {
+          'id': 'p',
+          'name': 'X',
+          'rating': 4.0,
+          'category': 'salon',
+          'services': const <Map<String, dynamic>>[],
+          'availability': {
+            'providerId': 'p',
+            'weeklySchedule': {
+              '${date.weekday - 1}': [
+                {
+                  'startTime': DateTime.utc(2024, 1, 1, 9).toIso8601String(),
+                  'endTime': DateTime.utc(2024, 1, 1, 18).toIso8601String(),
+                  'isAvailable': true,
+                },
+              ],
+            },
+            'blockedDates': const <String>[],
+            'bufferMinutes': 0,
+          },
+        },
+      ]);
+      final svc = SlotService(repo, appts);
+
+      final short = await svc.availableSlots(
+        providerId: 'p',
+        date: date,
+        durationMinutes: 30,
+      );
+      expect(
+        short.slots!.map(_minuteOf),
+        [for (var m = 9 * 60; m < 18 * 60; m += 30) m],
+        reason: 'nine open hours are eighteen half-hour starts, not one',
+      );
+
+      final long = await svc.availableSlots(
+        providerId: 'p',
+        date: date,
+        durationMinutes: 60,
+      );
+      expect(
+        long.slots!.map(_minuteOf),
+        [for (var m = 9 * 60; m <= 17 * 60; m += 30) m],
+        reason:
+            'a 60-minute service needs two consecutive open steps, and the '
+            'last one it can start on is 17:00 — not zero of them',
+      );
+    });
+
+    test(
+      'an entry shorter than the step still yields exactly its start',
+      () async {
+        // The other half of the pair, and it is what stops the fix from becoming
+        // « every day is open all day ». The demo seed's eighteen half-hour
+        // entries must keep meaning eighteen starts, and a salon that expresses
+        // « 09:00 and 14:00 only » as two 30-minute entries must still get two.
+        final repo = InMemoryProvidersRepository([
+          {
+            'id': 'p',
+            'name': 'X',
+            'rating': 4.0,
+            'category': 'salon',
+            'services': const <Map<String, dynamic>>[],
+            'availability': {
+              'providerId': 'p',
+              'weeklySchedule': {
+                '${date.weekday - 1}': [
+                  for (final h in [9, 14])
+                    {
+                      'startTime': DateTime.utc(
+                        2024,
+                        1,
+                        1,
+                        h,
+                      ).toIso8601String(),
+                      'endTime': DateTime.utc(
+                        2024,
+                        1,
+                        1,
+                        h,
+                        30,
+                      ).toIso8601String(),
+                      'isAvailable': true,
+                    },
+                ],
+              },
+              'blockedDates': const <String>[],
+              'bufferMinutes': 0,
+            },
+          },
+        ]);
+        final res = await SlotService(
+          repo,
+          appts,
+        ).availableSlots(providerId: 'p', date: date, durationMinutes: 30);
+        expect(res.slots!.map(_minuteOf), [9 * 60, 14 * 60]);
+      },
+    );
+  });
 }

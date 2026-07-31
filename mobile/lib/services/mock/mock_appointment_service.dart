@@ -355,22 +355,53 @@ class MockAppointmentService implements AppointmentServiceInterface {
     });
     if (blocked) return ApiResponse.success([]);
 
-    // Determine base opening slots from weekly schedule (30min slots) —
-    // weekday of the requested calendar date (pure field math).
+    // Determine base opening starts from the weekly schedule — weekday of the
+    // requested calendar date (pure field math).
+    //
+    // **Each entry is a RANGE, and reading only its `startTime` was a booking
+    // outage on both engines.** This used to map one start per entry and
+    // discard `endTime`, which is correct only when the template holds one
+    // entry per 30-minute step — the shape `MockData._generateTimeSlots` emits
+    // and the only shape this engine had ever been asked about. The pro's day
+    // editor writes one `TimeSlot` per range the owner picks, so « 09:00 –
+    // 18:00 » is ONE entry and a split day is two: nine open hours offered one
+    // start, and a lunch-closed day offered two. `slot_service.dart` carries
+    // the identical fix and the identical reasoning; the A14 device run found
+    // it there, and the adversarial review of that write-up found it here.
+    //
+    // Enumerating `[start, end)` in steps is strictly a superset: an entry
+    // exactly one step long still contributes exactly its own start, so the
+    // seeded template's meaning — which most of the mock suite depends on — is
+    // untouched. `mock_open_hours_test.dart` holds the pair.
     final weekdayIndex =
         DateTime.utc(date.year, date.month, date.day).weekday - 1;
     final templateSlots =
         provider.availability.weeklySchedule[weekdayIndex] ?? const [];
+    final openMinutes = <int>{};
+    for (final s in templateSlots) {
+      if (!s.isAvailable) continue;
+      final startMin = s.startTime.hour * 60 + s.startTime.minute;
+      final endMin = s.endTime.hour * 60 + s.endTime.minute;
+      // An inverted or zero-length window contributes its start and nothing
+      // more — which is what EVERY window used to do, so the floor never gets
+      // worse than it already was.
+      if (endMin <= startMin) {
+        openMinutes.add(startMin);
+        continue;
+      }
+      for (var m = startMin; m < endMin; m += 30) {
+        openMinutes.add(m);
+      }
+    }
     final openingSlots =
-        templateSlots
-            .where((s) => s.isAvailable)
+        openMinutes
             .map(
-              (s) => salonDateTime(
+              (m) => salonDateTime(
                 date.year,
                 date.month,
                 date.day,
-                hour: s.startTime.hour,
-                minute: s.startTime.minute,
+                hour: m ~/ 60,
+                minute: m % 60,
                 tz: tz,
               ),
             )
