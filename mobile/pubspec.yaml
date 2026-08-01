@@ -65,7 +65,7 @@ dependencies:
   lottie: ^3.1.2
   # Pull-to-refresh with the brand mark_loader instead of the Material spinner.
   custom_refresh_indicator: ^4.0.1
-  flutter_slidable: ^3.1.1
+  flutter_slidable: ^4.0.3
   # A9 (§9.1 of nothing — §17): the Material/Cupertino defaults, in French.
   # Pins `intl: 0.20.2` and `path: 1.9.1` EXACTLY, which we already resolve to —
   # so our effective intl constraint becomes =0.20.2 until the SDK bumps.
