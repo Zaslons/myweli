@@ -3415,7 +3415,7 @@ export interface paths {
                 401: components["responses"]["Unauthorized"];
                 403: components["responses"]["Forbidden"];
                 404: components["responses"]["NotFound"];
-                /** @description Exact-start slot already booked */
+                /** @description `slot_unavailable` — the exact start is already booked. `provider_suspended` — the salon was stopped. A salon that has merely not published yet is NOT refused here: it owns its own calendar (row 82), which is also why this route never returns `beyond_horizon` or `too_soon` — the salon is exempt from its own booking window (A14d). */
                 409: {
                     headers: {
                         [name: string]: unknown;
@@ -3987,7 +3987,7 @@ export interface paths {
                 400: components["responses"]["BadRequest"];
                 401: components["responses"]["Unauthorized"];
                 404: components["responses"]["NotFound"];
-                /** @description `slot_unavailable` — the requested time isn't a free slot (closed/past/break/already-booked/non-aligned). `beyond_horizon` — the date is further ahead than the salon's `bookingHorizonDays` (A14d). `too_soon` — the start is inside the salon's `minimumNoticeMinutes`. The last two are distinct from `slot_unavailable` on purpose: that code makes every client say some version of "someone else just took your slot", which is false for a window breach and leaves the user retrying a time that can never be offered. */
+                /** @description `slot_unavailable` — the requested time isn't a free slot (closed/past/break/already-booked/non-aligned). `beyond_horizon` — the date is further ahead than the salon's `bookingHorizonDays` (A14d). `too_soon` — the start is inside the salon's `minimumNoticeMinutes`. The last two are distinct from `slot_unavailable` on purpose: that code makes every client say some version of "someone else just took your slot", which is false for a window breach and leaves the user retrying a time that can never be offered. `provider_not_published` — the salon has never gone live, so it is absent from discovery and reachable only by a stale link or a favourite. `provider_suspended` — the salon was stopped. These two are split for the same reason as the pair above, and the split matters more here: a client cannot tell them apart for itself (the mobile `Provider` model has no `status` field), and the never-published case is the state EVERY salon starts in while the suspended one takes a deliberate admin act. */
                 409: {
                     headers: {
                         [name: string]: unknown;
@@ -6455,7 +6455,7 @@ export interface components {
             /** @description URL slug for the public web page (myweli.ci/<slug>). */
             slug?: string;
             /**
-             * @description Server-owned lifecycle (pro-salon-lifecycle): `draft` until the owner publishes; public reads only ever return `active`.
+             * @description Server-owned lifecycle (pro-salon-lifecycle): `draft` until the owner publishes. Discovery (`GET /providers`, landings, the sitemap) returns `active` only, and `GET /providers/by-slug/{slug}` 404s a `draft`. **`GET /providers/{id}` does not filter yet** — it still serves `draft` and `suspended`, and `by-slug` still serves `suspended`. Both are known gaps, deliberately left until the pro app's own reads move off the public route (four mobile pro surfaces, incl. the owner's pre-publish preview, currently depend on it); tracked in docs/design/salon-state-and-refusals.md Decision C.
              * @enum {string}
              */
             status?: "draft" | "active" | "suspended";

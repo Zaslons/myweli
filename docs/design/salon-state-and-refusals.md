@@ -117,15 +117,46 @@ contract's own promise that public reads only ever return `active`
 (`openapi.yaml:4207-4212`), and it is the route by which a favourite reaches a
 banned salon.
 
-**The read closes for both**, bringing the route in line with the contract it
-already violates. Verified safe: the pro reads its own salon through
-`/me/provider` and `PATCH /providers/{id}` (authenticated, ownership-checked),
-**never the public `GET`**; web uses `getProviderBySlug` only; admin has its own
-`/admin/providers/…` routes.
+**⚠️ Deferred to its own slice, and the safety claim above was wrong.** This
+section originally read *"Verified safe: the pro reads its own salon through
+`/me/provider` and `PATCH`, never the public `GET`."* That was checked against
+`api_pro_service.dart` only. The pro app **also** uses the shared
+`serviceLocator.providerService`, and four pro surfaces go through the public
+read:
 
-A bare 404 is wrong for someone who booked there last month, so the **client**
-lands it softly (§6, cell 5). The booking write keeps its own sentence as defence
-in depth for a session that already had the page open.
+| call site | breaks how |
+|---|---|
+| `core/router/pro_router.dart:222` → `/pro/apercu` | **404s the owner's own pre-publish preview**, reached from `pro_onboarding_screen.dart:125` |
+| `providers/pro_salon_profile_provider.dart:25` | a draft owner cannot load their own profile form |
+| `providers/pro_onboarding_provider.dart:85` | breaks **by construction** — the salon is draft precisely while that screen is used |
+| `screens/provider/profile/pro_data_export_screen.dart:58` | RGPD export fails |
+
+Web's pro preview is already correct — `SalonPreviewClient.tsx` uses
+`/me/provider` and its comment says so explicitly. **Mobile is the outlier, and
+that asymmetry is the real defect**: a pro app reading its own salon through an
+unauthenticated public route is wrong whether or not the route is gated.
+
+Web degrades in three more places for a suspended salon, none of them loud:
+`lib/bff.ts:106` (`providerSummary` → every appointment card loses the salon's
+**name**, which has no fallback), `app/api/me/favorites/route.ts:14` (the
+favourite silently vanishes from the list **and** the RGPD export, and
+`FavoriteButton` then renders un-favourited so a click re-adds it), and
+`lib/booking/client.ts:110` (reschedule falls back to a default window — the
+exact failure that file exists to prevent).
+
+**A second leak this spec did not name:** `by-slug` excludes only `draft`
+(`routes/providers/by-slug/[slug].dart:20`), so a **suspended** salon is
+publicly readable by slug today — which is the route the web salon page uses.
+
+So Decision C becomes its own slice, ordered behind: (a) moving the four mobile
+pro reads onto `/me/provider`, and (b) deciding how a consumer's *own*
+appointment or favourite keeps resolving a salon they have a relationship with —
+that is authenticated data about a non-public salon, and dropping it silently is
+not an answer. `Provider.status`'s contract description now states the gap
+instead of claiming the opposite.
+
+When it does land, a bare 404 is still wrong for someone who booked there last
+month, so the **client** lands it softly (§6, cell 5).
 
 ## 6. The copy
 
@@ -180,7 +211,7 @@ records in its own comment that a new conflict code without its own case
 « silently ships as a bad request ».
 
 **⑤ The closed read.** `GET /providers/{id}` → 404 for draft and for suspended;
-still 200 for active. Red today on all three.
+still 200 for active. **Deferred with Decision C** — see §5.
 
 **⑥ The sentences.** One pin per surface reading the rendered French, so a copy
 change cannot land silently.
@@ -190,9 +221,11 @@ change cannot land silently.
 Two PRs, so parity is atomic rather than drifting the way A14d's did (web learnt
 the codes; mobile never did).
 
-1. **Backend + contract.** Decisions A, B, C; gates ①–⑤; the OpenAPI 409 blocks
-   for both booking routes — which also fixes the pro-manual description that is
-   wrong today (§2).
+1. **Backend + contract — shipped.** Decisions A and B; gates ①–④; the OpenAPI
+   409 blocks for both booking routes — which also fixed the pro-manual
+   description that was wrong (§2) — plus the T51 amendment, since that row's
+   mitigation *was* the conflation (« booking refuses them like suspended »).
+   **Decision C and gate ⑤ moved out**, see §5.
 2. **Clients, all four surfaces at once.** The five cells of §6, gate ⑥, and
    `conflictMessage` gains an `audience` discriminator following
    `teamErrorMessage(code, ctx)` (`web/lib/pro/team.ts:36`) rather than a third

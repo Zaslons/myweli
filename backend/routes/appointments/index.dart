@@ -172,6 +172,9 @@ Future<Response> _book(RequestContext context, String userId) async {
       // case silently ships as a bad request.
       'beyond_horizon' => HttpStatus.conflict,
       'too_soon' => HttpStatus.conflict,
+      // Row 82, and the comment above earned itself: this arm was written
+      // second, after the gate caught the new code shipping as a 400.
+      'provider_not_published' => HttpStatus.conflict,
       _ => HttpStatus.badRequest,
     };
     return jsonError(status, result.error!);

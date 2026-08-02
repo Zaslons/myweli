@@ -53,9 +53,26 @@ class BookingService {
     if (provider == null) {
       return (ok: false, error: 'provider_not_found', appointment: null);
     }
-    if (provider['status'] == 'suspended' || provider['status'] == 'draft') {
-      // Draft salons are not live yet (T51) — same refusal as suspended.
+    // **Two states, two codes.** These used to share one, `provider_suspended`,
+    // for `draft` as well — and no client surface had a sentence for it, so all
+    // four fell through to « Une erreur est survenue. » (§21 row 82). The state
+    // the code was named for takes a deliberate admin act; the state it was
+    // silent about is the one EVERY salon starts in. The client cannot
+    // disambiguate for itself either — `mobile/lib/models/provider.dart` has no
+    // `status` field — so the server carries it. Same argument the contract
+    // already makes for `beyond_horizon` against `slot_unavailable`: one code
+    // that makes every client say the wrong thing is worse than two.
+    //
+    // NOT `status != 'active'`: seeded salons carry no `status` key and
+    // Postgres reads a NULL column as active, so that spelling would refuse
+    // every one of them.
+    if (provider['status'] == 'suspended') {
       return (ok: false, error: 'provider_suspended', appointment: null);
+    }
+    if (provider['status'] == 'draft') {
+      // Not published yet (T51) — invisible to discovery, so a consumer only
+      // reaches this through a stale link or a favourite.
+      return (ok: false, error: 'provider_not_published', appointment: null);
     }
 
     final services = (provider['services'] as List)
@@ -201,8 +218,21 @@ class BookingService {
     if (provider == null) {
       return (ok: false, error: 'provider_not_found', appointment: null);
     }
-    if (provider['status'] == 'suspended' || provider['status'] == 'draft') {
-      // Draft salons are not live yet (T51) — same refusal as suspended.
+    // **A draft salon owns its calendar — only `suspended` is refused here.**
+    // This used to refuse `draft` too, which meant the very first thing a new
+    // salon tries — entering the appointments it already has, before going
+    // live — failed with a bare « Une erreur est survenue. » (§21 row 82).
+    // Three things say it should not: A14d's principle that the salon owns its
+    // calendar, which is why this method skips the slot engine entirely; the
+    // fact that a draft salon can already set hours, block dates and add
+    // services, so refusing only appointments is arbitrary; and T54, which
+    // already promises that a billing unpublish (`status → draft`) leaves
+    // « journal/bookings/export » working — a guarantee this line was
+    // contradicting.
+    //
+    // A suspended salon does not get the same latitude: it was stopped
+    // deliberately, and it should not keep operating.
+    if (provider['status'] == 'suspended') {
       return (ok: false, error: 'provider_suspended', appointment: null);
     }
 
