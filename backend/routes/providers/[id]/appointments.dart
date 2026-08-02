@@ -67,6 +67,15 @@ Future<Response> onRequest(RequestContext context, String id) async {
     notes: body['notes'] as String?,
   );
   if (!result.ok) {
+    // **A strict subset of the client route's switch, on purpose.** Three of
+    // its codes are structurally unreachable here, and the next reader should
+    // not "complete" the list: `bookManual` never calls `SlotService`, so
+    // `beyond_horizon` and `too_soon` cannot arise — A14d exempted the salon
+    // from its own booking window deliberately — and `provider_not_published`
+    // cannot either, because row 82 lets a draft salon book its own calendar.
+    // A dead arm reads like a live rule; if any of those three ever becomes
+    // reachable it needs its own case AND its own test, per the warning in
+    // `routes/appointments/index.dart`.
     final status = switch (result.error) {
       'provider_not_found' => HttpStatus.notFound,
       'slot_unavailable' => HttpStatus.conflict,
