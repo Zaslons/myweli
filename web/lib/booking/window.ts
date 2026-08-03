@@ -1,4 +1,4 @@
-import { salonDayKey, salonToday } from '../time';
+import { salonDayKey, salonToday } from "../time";
 
 /// The bookable window on web (A14d) — the mirror of mobile's
 /// `SlotPicker._emptyReason`, kept as a pure function so both consumer surfaces
@@ -10,7 +10,7 @@ import { salonDayKey, salonToday } from '../time';
 /// costs no request and no new response shape. §12 requires an empty state to
 /// say WHY, with an action wherever one can fix it — and « Aucun créneau
 /// disponible » says nothing while implying the salon is full.
-export type EmptyReason = 'past' | 'beyondHorizon' | 'tooSoon' | 'full';
+export type EmptyReason = "past" | "beyondHorizon" | "tooSoon" | "full";
 
 /// Fallbacks when a provider payload predates A14d. They mirror
 /// `backend/lib/src/appointments/booking_window.dart`, which is the authority,
@@ -55,12 +55,12 @@ export function emptyReason(params: {
   const { date, horizonDays, noticeMinutes, tz } = params;
   // A day already gone is not « too soon » — that sentence is about a delay
   // before a start and reads as nonsense on a past date.
-  if (date < salonToday(new Date(), tz)) return 'past';
+  if (date < salonToday(new Date(), tz)) return "past";
   // Horizon first, mirroring the server's ordering. The both-at-once case is
   // unreachable: the API refuses a notice past the horizon as invalid_input.
-  if (date > lastBookableDay(horizonDays, tz)) return 'beyondHorizon';
-  if (date < firstBookableDay(noticeMinutes, tz)) return 'tooSoon';
-  return 'full';
+  if (date > lastBookableDay(horizonDays, tz)) return "beyondHorizon";
+  if (date < firstBookableDay(noticeMinutes, tz)) return "tooSoon";
+  return "full";
 }
 
 /// « 2 h », « 48 h », « 1 h 30 » — the delay, spoken the way the pro set it.
@@ -90,18 +90,67 @@ export function formatNotice(minutes: number): string {
 /// this function collapsed all of them into the consumer wording and an e2e
 /// test that pins the pro's caught it. **This adds two codes; it does not
 /// rewrite the three sentences that were already right.**
+///
+/// **Row 82 added [audience], and it does NOT contradict the paragraph above.**
+/// That argument is about `taken`/`fallback`, which vary by *situation* — what
+/// went wrong differs per surface, so the surface supplies the words. Who is
+/// reading is a different axis: a closed two-value one, the same shape as
+/// `teamErrorMessage(code, ctx)` in `lib/pro/team.ts`. The two provider codes
+/// need it because one wire code has two correct sentences — a client hitting
+/// a stale link is shopping, a salon owner whose salon was stopped is not.
+/// Centralising those IS right, because they must not drift apart.
 export function conflictMessage(
   error: string | undefined,
-  { taken, fallback }: { taken: string; fallback: string },
+  {
+    audience,
+    taken,
+    fallback,
+  }: { audience: "client" | "salon"; taken: string; fallback: string },
 ): string {
   switch (error) {
-    case 'beyond_horizon':
-      return 'Ce salon n’accepte pas encore les réservations à cette date.';
-    case 'too_soon':
-      return 'Ce salon demande plus de délai avant un rendez-vous. Choisissez une date plus tardive.';
-    case 'slot_unavailable':
+    case "beyond_horizon":
+      return "Ce salon n’accepte pas encore les réservations à cette date.";
+    case "too_soon":
+      return "Ce salon demande plus de délai avant un rendez-vous. Choisissez une date plus tardive.";
+    case "slot_unavailable":
       return taken;
+    // Row 82. The tense carries the whole distinction: « pas encore » has
+    // never been live, « ne … plus » was stopped. Neither says « Réessayez » —
+    // retrying fixes neither, and §12's retry control is carved out for
+    // exactly this (A14's doctrine, now stated in SYSTEM.md §12).
+    case "provider_not_published":
+      return audience === "salon"
+        ? // Unreachable from the salon's own manual booking, which row 82's
+          // Decision A now allows for a draft — kept honest rather than
+          // silently falling through to a client sentence if that ever changes.
+          "Votre salon n’est pas encore en ligne."
+        : "Ce salon n’accepte pas encore de réservations en ligne.";
+    case "provider_suspended":
+      return audience === "salon"
+        ? "Votre salon est suspendu. Contactez Myweli pour le réactiver — vos rendez-vous sont intacts."
+        : "Ce salon ne prend plus de rendez-vous sur Myweli.";
     default:
       return fallback;
   }
+}
+
+/// The way out, for the refusals that have one (§12, row 82).
+///
+/// Modelled on `teamErrorCta` (`lib/pro/team.ts`): a second pure function on
+/// the same code, so the sentence and the action cannot drift apart, and the
+/// component stores the CODE rather than the message.
+///
+/// **Only the two provider codes.** A taken slot is fixed by choosing another
+/// time at the same salon — sending that client away would be wrong, and the
+/// null arm is what keeps the CTA from becoming unconditional.
+export function bookingErrorCta(
+  code?: string,
+): { label: string; href: string } | null {
+  if (code === "provider_not_published" || code === "provider_suspended") {
+    // The phrase and the destination both already ship, in `AccountClient`'s
+    // two empty states. Reusing them rather than minting « Découvrir d'autres
+    // salons » — §17 says the product has one way to say a thing.
+    return { label: "Découvrir des salons", href: "/" };
+  }
+  return null;
 }

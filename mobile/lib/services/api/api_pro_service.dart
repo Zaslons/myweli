@@ -790,6 +790,20 @@ class ApiProService implements ProServiceInterface {
         return 'Cette action n’est plus possible.';
       case 'unauthorized':
         return 'Veuillez vous reconnecter.';
+      // Row 82's pro sentence. Deliberately NOT the client's: an owner whose
+      // salon was stopped is not shopping for another one, and the « intacts »
+      // clause is the reassurance `pro_subscription_screen.dart` established.
+      // A draft salon never reaches here — Decision A lets it book its own
+      // calendar.
+      case 'provider_suspended':
+        return 'Votre salon est suspendu. Contactez Myweli pour le réactiver '
+            '— vos rendez-vous sont intacts.';
+      // Not row 82, shipped with it: this is the most likely manual-booking
+      // refusal and it read « Une erreur est survenue. », while
+      // `pro_manual_booking_screen.dart` commented that the refusal « here is a
+      // slot conflict ». The comment was right and the copy was not.
+      case 'slot_unavailable':
+        return 'Ce créneau est déjà pris. Choisissez un autre horaire.';
       default:
         return 'Une erreur est survenue.';
     }

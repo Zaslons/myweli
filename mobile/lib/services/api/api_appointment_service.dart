@@ -334,6 +334,22 @@ class ApiAppointmentService implements AppointmentServiceInterface {
         return 'Veuillez vous reconnecter.';
       case 'invalid_input':
         return 'Informations de réservation invalides.';
+      // Row 82. Two states, two sentences, and the tense carries the whole
+      // distinction: « pas encore » has never been live, « ne … plus » was
+      // stopped. Neither offers a retry — §12 carves the retry control out for
+      // exactly the refusals retrying cannot fix.
+      case 'provider_not_published':
+        return 'Ce salon n’accepte pas encore de réservations en ligne.';
+      case 'provider_suspended':
+        return 'Ce salon ne prend plus de rendez-vous sur Myweli.';
+      // A14d shipped these two on web and never here, so a window breach read
+      // « Une erreur est survenue. » on the phone and named its reason in the
+      // browser. Same wording as `web/lib/booking/window.ts` — one voice.
+      case 'beyond_horizon':
+        return 'Ce salon n’accepte pas encore les réservations à cette date.';
+      case 'too_soon':
+        return 'Ce salon demande plus de délai avant un rendez-vous. '
+            'Choisissez une date plus tardive.';
       default:
         return 'Une erreur est survenue.';
     }

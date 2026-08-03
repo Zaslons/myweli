@@ -10,6 +10,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
 import '../../core/utils/booking_duration.dart';
+import '../../core/utils/booking_error_cta.dart';
 import '../../core/utils/deposit.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/utils/salon_time.dart';
@@ -187,10 +188,22 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
         kind: SnackKind.success,
       );
     } else {
+      // §12: an error state without a way out is a crash with better manners.
+      // For a salon that is not live, the way out is a DIFFERENT salon — and
+      // only for those two codes: a taken slot is fixed by another time here,
+      // so sending that client away would be wrong. `bookingErrorCta`'s null
+      // arm is the same guard on web.
+      final cta = bookingErrorCta(appointmentProvider.errorCode);
       AppSnackBar.show(
         context,
         appointmentProvider.error ?? 'Erreur lors de la réservation',
         kind: SnackKind.error,
+        action: cta == null
+            ? null
+            : SnackAction(
+                label: cta.label,
+                onPressed: () => context.go(cta.href),
+              ),
       );
     }
   }

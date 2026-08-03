@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/appointment.dart';
 import 'package:myweli/models/session.dart';
 import 'package:myweli/models/user.dart';
@@ -312,5 +313,70 @@ void main() {
 
     expect(res.success, isTrue);
     expect(res.data, 'https://signed/x');
+  });
+  group('a salon that is not live says which kind (§21 row 82)', () {
+    // Row 82: the server split `provider_suspended` so a client could be told
+    // which state it is in. Before this, both codes — and the two A14d window
+    // codes — fell through `_messageFor`'s default to « Une erreur est
+    // survenue. », which is the sentence that made the row.
+    Future<ApiResponse<Appointment>> bookWith(String code, int status) async {
+      final service = await _authed(
+        MockClient(
+          (req) async => http.Response(jsonEncode({'error': code}), status),
+        ),
+      );
+      return service.bookAppointment(
+        providerId: 'provider1',
+        serviceIds: ['service1'],
+        appointmentDateTime: DateTime.utc(2026, 6, 25, 9),
+      );
+    }
+
+    test('never published → « pas encore »', () async {
+      final res = await bookWith('provider_not_published', 409);
+      expect(res.code, 'provider_not_published');
+      expect(
+        res.error,
+        'Ce salon n’accepte pas encore de réservations en ligne.',
+      );
+    });
+
+    test('stopped → « ne … plus »', () async {
+      final res = await bookWith('provider_suspended', 409);
+      expect(res.code, 'provider_suspended');
+      expect(res.error, 'Ce salon ne prend plus de rendez-vous sur Myweli.');
+    });
+
+    test('the two states do NOT share a sentence', () async {
+      // The guard: one sentence covering both would satisfy « has a sentence »
+      // while leaving the client exactly as unable to tell them apart.
+      expect(
+        (await bookWith('provider_not_published', 409)).error,
+        isNot((await bookWith('provider_suspended', 409)).error),
+      );
+    });
+
+    test('A14d\'s window codes finally speak here too', () async {
+      // Recorded as A14d's asymmetry: web learnt these two sentences, mobile
+      // never did, so a window breach read « Une erreur est survenue. » on the
+      // phone and named the reason on the web. Same wording as
+      // `web/lib/booking/window.ts`, deliberately — one voice.
+      expect(
+        (await bookWith('beyond_horizon', 409)).error,
+        'Ce salon n’accepte pas encore les réservations à cette date.',
+      );
+      expect(
+        (await bookWith('too_soon', 409)).error,
+        'Ce salon demande plus de délai avant un rendez-vous. Choisissez une date plus tardive.',
+      );
+    });
+
+    test('an unknown code still falls back', () async {
+      // The over-reach guard — the default arm must survive.
+      expect(
+        (await bookWith('something_new', 409)).error,
+        'Une erreur est survenue.',
+      );
+    });
   });
 }
