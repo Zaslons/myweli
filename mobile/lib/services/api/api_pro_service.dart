@@ -14,6 +14,7 @@ import '../../models/pro_membership.dart';
 import '../../models/provider.dart';
 import '../../models/provider_session.dart';
 import '../../models/provider_user.dart';
+import '../../models/review.dart';
 import '../../models/salon_membership_info.dart';
 import '../../models/service.dart';
 import '../interfaces/pro_service_interface.dart';
@@ -169,6 +170,37 @@ class ApiProService implements ProServiceInterface {
     if (res == null) return _networkError();
     if (res.statusCode != 204) return _errorFrom(res);
     return ApiResponse.success(null, message: 'Compte supprimé');
+  }
+
+  @override
+  Future<ApiResponse<List<Review>>> getMyReviews({
+    int page = 1,
+    int pageSize = 50,
+  }) async {
+    if (await _authed.accessToken() == null) {
+      return ApiResponse.error('Non connecté');
+    }
+    // No providerId: the salon comes from the token, honouring the R6
+    // persisted selection on the way — the same shape as `getMyProvider`.
+    final selected = await _selectedSalonId();
+    final res = await _authed.send(
+      (t) => _client.get(
+        _uri('/me/provider/reviews').replace(
+          queryParameters: {
+            'page': '$page',
+            'pageSize': '$pageSize',
+            if (selected != null && selected.isNotEmpty) 'salonId': selected,
+          },
+        ),
+        headers: _bearer(t),
+      ),
+    );
+    if (res == null) return _networkError();
+    if (res.statusCode != 200) return _errorFrom(res);
+    final items = (_decode(res.body)['items'] as List? ?? const [])
+        .map((e) => Review.fromJson(e as Map<String, dynamic>))
+        .toList();
+    return ApiResponse.success(items);
   }
 
   @override

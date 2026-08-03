@@ -110,6 +110,96 @@ never-published and taken-down). No `not_published` exists in the backend today.
 
 ## 5. Decision C — close the public read
 
+**Status: the product question is ANSWERED and built (PR1c). The routes
+themselves close in PR1d.**
+
+### The answer: the relationship lives on the server, so the server hydrates it
+
+This section deferred one question — *how does a consumer's own appointment or
+favourite keep resolving a salon they have a relationship with?* Here it is.
+
+**An anonymous caller gets a 404 that is indistinguishable from « does not
+exist »** (T51's no-oracle rule). **A caller with a relationship keeps the
+salon's facts, and its `status`, through the AUTHENTICATED endpoint that owns
+the relationship.** Concretely:
+
+- `GET /appointments` and `/appointments/{id}` embed the salon's identity,
+  contact, address, deposit coordinates, artist and service names, booking
+  window and **`providerStatus`** (`withProviderFacts`). No status filter: a
+  draft or suspended salon enriches in full.
+- `GET /me/favorites` returns hydrated salons, also unfiltered, each carrying
+  its status — so a favourite whose salon stopped is **marked, not dropped**.
+- The write half does filter: you cannot NEWLY favourite a salon you cannot
+  reach. An existing favourite is a relationship; a new one would be a way to
+  name a hidden salon.
+
+Two consequences worth stating, because they are not obvious:
+
+1. **Cell 5's copy is status-agnostic BY CONSTRUCTION.** The 404 carries no
+   status — deliberately — so the public salon page cannot say *which* kind of
+   not-live a salon is. Only a surface holding the relationship can use the
+   tense-carrying pair. That is a property of the no-oracle rule, not an
+   oversight in the copy.
+2. **The enrichment is a disclosure surface.** It runs on every consumer
+   appointment read, so everything on it reaches anyone holding a booking at
+   that salon. **Only fields that are public while the salon is `active` may
+   ride it** — recorded in T51 before someone adds a fifth field.
+
+### Two alternatives, rejected on the record
+
+- **An authenticated by-id read** (`/providers/{id}` answering differently for a
+  caller with a relationship) — re-opens the door PR1b closed, gives one URL two
+  behaviours, keeps both N+1s, and does not answer the question for a *list*.
+- **Snapshotting the salon's facts at booking time** — a March phone number is
+  worse than none. `currency` is the single deliberate exception (multi-pays §4:
+  a price is what it was, not what it is).
+
+### What PR1c deleted
+
+Web's fan-out (`bff.ts`'s `providerSummary`, one request per distinct salon),
+the favourites fan-out, `fetchBookingWindow` and the `app/api/providers/[id]`
+proxy that existed only to serve it, and **six** provider reads from mobile's
+appointment-detail screen. Three live defects died with them: « Numéro
+indisponible. » blaming a phone number for a salon-state problem, a deposit
+sheet opening with no Mobile Money handle to pay to, and a calendar export
+writing « Rendez-vous — le salon » at zero duration **while reporting success**.
+
+### Verified against a running server, with the door actually shut
+
+2026-08-03, `dart_frog dev`, the realistic arc: register a salon → give it a
+service, a Mobile Money handle and a 45-day / 90-minute booking window → admin
+activates it → **a consumer books and favourites it while it is live** → admin
+**suspends** it. Then PR1d's gate was applied temporarily — `isPublicSalon` on
+`/providers/{id}`, `by-slug` and `/providers/{id}/reviews` — and the server
+restarted. Measured over real HTTP:
+
+| door | result |
+|---|---|
+| `GET /providers/{id}` | **404** |
+| `GET /providers/by-slug/{slug}` | **404** |
+| `GET /providers/{id}/reviews` | **404** |
+| `GET /providers` (discovery) | 200, salon absent |
+
+and, at the same moment, for the people who have a relationship with it:
+
+| surface | result |
+|---|---|
+| the client's `GET /appointments` | `providerName: Salon PR1c` · `providerStatus: suspended` · `providerPhone` · `wave` + `+2250700112233` · `serviceNames: [Tresses]` · `durationMinutes: 180` · window `45` / `90` · `providerTimezone` |
+| the client's `GET /me/favorites` | `providers: [(Salon PR1c, suspended)]` — **present and marked** |
+| the owner's `GET /me/provider/reviews` | **200** |
+| the owner's `GET /me/provider` | **200** |
+
+The enrichment also refused to leak: none of `services`, `artists`,
+`imageUrls`, `reviews` or `availability` appears on the appointment payload —
+the allowlist rule, measured rather than asserted. The gate was reverted;
+`git status` on the three route files is clean.
+
+**One thing this run confirmed on the way past:** Decision A is live. A manual
+booking into a salon that was still `draft` succeeded (`manual_…`), while the
+consumer path refused the same salon.
+
+### The original text, kept because the miss is the lesson
+
 `GET /providers/{id}` currently returns **draft and suspended** salons
 (`routes/providers/[id]/index.dart:27-35`), while `by-slug` excludes draft
 (`by-slug/[slug].dart:19-20`) and discovery excludes both. That contradicts the
@@ -185,11 +275,29 @@ publicly readable by slug today — which is the route the web salon page uses.
 
 So Decision C becomes its own slice, ordered behind: (a) moving the four mobile
 pro reads onto `/me/provider` — **done, PR1b** — and (b) deciding how a
-consumer's *own*
-appointment or favourite keeps resolving a salon they have a relationship with —
-that is authenticated data about a non-public salon, and dropping it silently is
-not an answer. `Provider.status`'s contract description now states the gap
-instead of claiming the opposite.
+consumer's *own* appointment or favourite keeps resolving a salon they have a
+relationship with — **answered and built above, PR1c**.
+
+**A third blocker PR1c found, and it is (a) repeating one file over.** Both pro
+« Avis » surfaces read the salon's own reviews through the PUBLIC
+`GET /providers/{id}/reviews`: mobile through the *consumer* review service,
+which sends no token at all, and web by forwarding whatever `providerId` the
+browser sent. `pro_reads_own_salon_test.dart` was green on both, because every
+token in its forbidden list named the provider *service* and this leak crossed a
+different service. A `draft` salon **can** hold reviews — T53 erasure and T54
+billing unpublish both write `status → draft` over a salon with history — so
+closing that route would have 404'd the « Avis » page of exactly the owner being
+asked to pay. `GET /me/provider/reviews` replaces it, membership-scoped through
+the same primitive as `/me/provider`, and the pin's vocabulary grew.
+
+**Two more public leaks that make the closure incoherent if left open**, both
+for PR1d: `GET /providers/{id}/reviews` (which also has **no provider read at
+all**, so an unknown id returns `200 {items:[]}` — gating only the hidden case
+would make 404 mean « exists but hidden », the exact oracle T51 forbids), and
+`GET /availability?providerId=`, which enumerates a hidden salon's bookable
+slots. `POST /appointments/{id}/reschedule` also never checks salon status; its
+route already defaults to 409, so the shipped codes map correctly once the
+service refuses.
 
 When it does land, a bare 404 is still wrong for someone who booked there last
 month, so the **client** lands it softly (§6, cell 5).
@@ -261,10 +369,37 @@ records in its own comment that a new conflict code without its own case
 « silently ships as a bad request ».
 
 **⑤ The closed read.** `GET /providers/{id}` → 404 for draft and for suspended;
-still 200 for active. **Deferred with Decision C** — see §5.
+still 200 for active. **Deferred to PR1d** — the routes are the last thing to
+move, now that no client depends on them.
 
 **⑥ The sentences.** One pin per surface reading the rendered French, so a copy
-change cannot land silently.
+change cannot land silently. Shipped in PR2 (booking refusals) and PR1c (the
+salon-state sentences: `salon_stopped_message_test.dart` and
+`salon-stopped.test.ts`, which asserts the account copy is byte-identical to
+`conflictMessage`'s so one fact cannot acquire two wordings).
+
+**⑦ The enrichment survives the closure (PR1c).**
+`appointment_enrichment_test.dart`: a **draft** salon's appointment enriches in
+full — name, phone, deposit handle — and `providerStatus` says which state it is
+in. Every other assertion in that file would pass on an implementation that
+filtered hidden salons out of the enrichment, and that implementation would
+reintroduce the silent degradation one layer down.
+
+**⑧ The NULL trap, as a watched mutation rather than a comment (PR1c).**
+`salon_visibility_test.dart` asserts a salon with **no `status` key** is public.
+Re-spelling `isPublicSalon` as `status == 'active'` reddens exactly that
+assertion and the explicit-null one, while the draft/suspended cases stay green
+— the pair proving the two spellings are not the same rule. `booking_service.dart`
+had recorded the same trap in prose for a year.
+
+**⑨ Fail-if-called, twice (PR1c).**
+`appointment_detail_artist_test.dart` used to stub `getProviderById` to FAIL and
+assert the « Spécialiste » row simply vanished — *« facts stay null → OK »*. It
+now pumps against a provider service that fails the test if it is touched at
+all, which no implementation that still fetches can satisfy. Its sibling
+`no-public-provider-read.test.ts` holds the web half, and proves its own matcher
+fires on the exact line deleted from `bff.ts` — a regex pin that cannot
+demonstrate that is green about nothing.
 
 ## 8. Sequencing
 
@@ -292,8 +427,22 @@ Each is real, each is separable, none is row 82:
 - **The mobile go-live card is not gated on status**
   (`dashboard_screen.dart:229`): an **active** and a **suspended** salon are both
   invited to go live, where web already gates on `status === 'draft'`
-  (`AujourdhuiClient.tsx:156`). Fixing it needs `status` on
-  `mobile/lib/models/provider.dart` — the model change this spec otherwise avoids.
+  (`AujourdhuiClient.tsx:156`). **The blocker is gone:** PR1c added `status` to
+  `mobile/lib/models/provider.dart` (the favourites list needed it to mark a
+  stopped salon). That does **not** reopen Decision B — B split the code because
+  a client cannot infer WHY a *write* was refused from a document it fetched
+  earlier; the field answers a different question, about a document it holds.
+- **`salonEntered` is derived two different ways.** Web reads
+  `userId === 'manual'` (`bff.ts`), mobile reads `clientName != null`. One
+  product fact, two client derivations — a candidate for the backend to own.
+- **The review sheet's artist picker was a control that controlled nothing.**
+  It asked « Avec quel professionnel ? » and sent the answer;
+  `ReviewsService.submitForAppointment` derives `artistId`/`artistName` from the
+  APPOINTMENT and discards it. It survived because the mock honoured it and the
+  real backend never did. PR1c replaced it with a read-only line — the fix was
+  forced by deleting the read that fed it, but the defect is independent and
+  worth naming: **a mock that is more permissive than the server hides a lying
+  control.**
 - **The admin console's binary suspend** — « Réactiver » restores straight to
   `active` with **no publish gate** (`admin_provider_service.dart:63`), unlike
   `salon_subscription_service.dart:122-124` which does check.

@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { StatusChip } from '../StatusChip';
 import {
   type Appointment,
+  salonStoppedMessage,
   statusLabelFr,
 } from '../../lib/account/appointments';
 import { formatDateTimeFr, formatFcfa } from '../../lib/format';
@@ -32,6 +33,14 @@ export function AppointmentCard({ appt }: { appt: Appointment }) {
           {appt.salonEntered ? (
             <p className="mt-xs text-bodySmall text-textTertiary">
               Réservé par votre salon
+            </p>
+          ) : null}
+          {/* The salon stopped. The card still links to the booking — the
+              booking is the client's, and cancelling it is exactly what they
+              may need to do. */}
+          {salonStoppedMessage(appt) ? (
+            <p className="mt-xs text-bodySmall text-textSecondary">
+              {salonStoppedMessage(appt)}
             </p>
           ) : null}
         </div>

@@ -22,6 +22,17 @@ class ProviderProvider extends ChangeNotifier {
   bool _isLoading = false;
   bool _isSubmittingReview = false;
   String? _error;
+
+  /// The machine-readable failure code behind [error], mirroring
+  /// `AppointmentProvider._errorCode`.
+  ///
+  /// A screen has to distinguish « this salon is no longer on Myweli » from
+  /// « your connection dropped »: the first has no retry that can succeed
+  /// (SYSTEM.md §12) and its way out is another salon; the second is exactly
+  /// the case where « Réessayer » is the right control. Comparing French
+  /// sentences to tell them apart is how `'Salon introuvable'` became dead
+  /// code that never rendered.
+  String? _errorCode;
   String? _selectedCategory;
   String? _selectedCommune;
   ProviderSort _sort = ProviderSort.relevance;
@@ -35,6 +46,7 @@ class ProviderProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
   bool get isSubmittingReview => _isSubmittingReview;
   String? get error => _error;
+  String? get errorCode => _errorCode;
   String? get selectedCategory => _selectedCategory;
   String? get selectedCommune => _selectedCommune;
   ProviderSort get sort => _sort;
@@ -132,6 +144,7 @@ class ProviderProvider extends ChangeNotifier {
   Future<void> loadProviderById(String id) async {
     _isLoading = true;
     _error = null;
+    _errorCode = null;
     notifyListeners();
 
     try {
@@ -139,12 +152,15 @@ class ProviderProvider extends ChangeNotifier {
       if (response.success && response.data != null) {
         _selectedProvider = response.data;
         _error = null;
+        _errorCode = null;
       } else {
-        _error = response.error ?? 'Provider non trouvé';
+        _error = response.error ?? 'Ce salon n’est plus disponible sur Myweli.';
+        _errorCode = response.code;
         _selectedProvider = null;
       }
     } catch (e) {
       _error = e.toString();
+      _errorCode = 'network';
       _selectedProvider = null;
     } finally {
       _isLoading = false;

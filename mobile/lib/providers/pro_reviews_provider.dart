@@ -3,10 +3,20 @@ import 'package:flutter/foundation.dart';
 import '../core/access/pro_salon_scope.dart';
 import '../core/di/dependency_injection.dart';
 import '../models/review.dart';
-import '../services/interfaces/review_service_interface.dart';
+import '../services/interfaces/pro_service_interface.dart';
 
+/// The salon's own « Avis ».
+///
+/// **It reads by account, not by public id.** This used the CONSUMER review
+/// service — `getProviderReviews`, which sends no token and hits the public
+/// `GET /providers/{id}/reviews` — so the pro app asked the anonymous door for
+/// its own reviews, passing the salon id from the client. PR1b moved four
+/// surfaces off that door and its source pin could not see this one: the leak
+/// crossed a *service* boundary rather than a directory one, and none of the
+/// forbidden tokens appeared here. Decision C closes the public route, and a
+/// draft salon can hold reviews (T53, T54).
 class ProReviewsProvider extends ChangeNotifier implements SalonScoped {
-  final ReviewServiceInterface _reviewService = serviceLocator.reviewService;
+  final ProServiceInterface _proService = serviceLocator.proService;
 
   List<Review> _reviews = [];
   bool _isLoading = false;
@@ -30,7 +40,9 @@ class ProReviewsProvider extends ChangeNotifier implements SalonScoped {
     notifyListeners();
 
     try {
-      final res = await _reviewService.getProviderReviews(providerId);
+      // No providerId argument: `/me/provider/reviews` resolves the acting
+      // salon from the token, honouring the R6 selection on the way.
+      final res = await _proService.getMyReviews();
       if (res.success && res.data != null) {
         _reviews = res.data!;
         _error = null;

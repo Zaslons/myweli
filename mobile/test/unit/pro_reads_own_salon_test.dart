@@ -27,6 +27,13 @@ import 'package:flutter_test/flutter_test.dart';
 /// takes no session **by construction**. It is the public, anonymous surface.
 /// A pro screen reaching for it is reaching past its own credentials.
 ///
+/// **The list grew once already, and that is the point.** PR1c added
+/// `getProviderReviews`: both pro « Avis » surfaces read the salon's own
+/// reviews through the public route, and this pin was green on them because
+/// its vocabulary was drawn from ONE service. A pin is only as wide as the
+/// last defect somebody thought of — so when it goes red on a token you just
+/// added, that is the pin working, not the pin being wrong.
+///
 /// **WHAT THIS PIN CANNOT SEE, and what covers it instead.** The fourth
 /// offender named no forbidden token: `/pro/apercu` constructed
 /// `ProviderDetailScreen(preview: true)`, and the public fetch happened inside
@@ -68,6 +75,16 @@ void main() {
       'serviceLocator.providerService',
       'getProviderById',
       'loadProviderById',
+      // Added by PR1c, and it went red the day it was added — this is the
+      // SAME defect one file over. `getProviderReviews` belongs to the
+      // CONSUMER review service (`api_review_service.dart`, commented
+      // `// public`), which sends no token at all, so the pro « Avis » screen
+      // was asking the anonymous door for its own reviews and passing the
+      // salon id from the client. The original pin could not see it because
+      // the leak crossed a SERVICE boundary rather than a directory one:
+      // every forbidden token named the provider service, and this one names
+      // the review service. Same shape as the preview miss, different axis.
+      'getProviderReviews',
     ];
 
     final files = proFiles();

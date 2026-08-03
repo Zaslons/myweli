@@ -31,12 +31,62 @@ export type Appointment = {
   providerTimezone?: string | null;
   providerCurrency?: string | null;
   providerCountryCode?: string | null;
+  providerAddress?: string | null;
+  /// The salon's lifecycle state, enriched onto the caller's OWN booking
+  /// (`salon-state-and-refusals.md` §5, Decision C).
+  ///
+  /// Absent means live: a salon with no stored status is active, and a
+  /// pre-enrichment payload has no field. `salonIsLive` is the one place that
+  /// decides — spelling it `=== 'active'` at a call site would hide
+  /// « Réserver à nouveau » on every seeded salon.
+  providerStatus?: 'draft' | 'active' | 'suspended' | null;
+  /// The salon's own booking window (A14d), so the reschedule pane asks the
+  /// salon's rule rather than falling back to a year. The server substitutes
+  /// the documented defaults, so a stopped salon cannot silently widen it.
+  providerBookingHorizonDays?: number;
+  providerMinimumNoticeMinutes?: number;
 };
+
+/// Is this booking's salon still taking appointments?
+export function salonIsLive(a: Appointment): boolean {
+  return !a.providerStatus || a.providerStatus === 'active';
+}
+
+/// What to tell a client whose salon has stopped, from a STATUS.
+///
+/// **The tense carries the distinction** (§6): « pas encore » for a salon that
+/// has never published, « ne … plus » for one that has been stopped. These are
+/// the same two sentences `conflictMessage` returns for the booking refusals —
+/// one product fact reached from two directions, so it must be one wording.
+///
+/// Null for a live salon, for an absent status (which means live), and for any
+/// status this build does not know: it fails OPEN, exactly as `isPublicSalon`
+/// does on the server, so a lifecycle state invented later cannot start
+/// telling clients a salon has stopped.
+export function salonStoppedMessageFor(
+  status: string | null | undefined,
+): string | null {
+  if (status === 'draft') {
+    return 'Ce salon n’accepte pas encore de réservations en ligne.';
+  }
+  if (status === 'suspended') {
+    return 'Ce salon ne prend plus de rendez-vous sur Myweli.';
+  }
+  return null;
+}
+
+/// The same answer for a booking, read off its enriched salon status.
+export function salonStoppedMessage(a: Appointment): string | null {
+  return salonStoppedMessageFor(a.providerStatus);
+}
 
 /// The « Réserver à nouveau » link, carrying the rebook prefill (K2). The hub
 /// sanitizes the ids against the live catalogue.
 export function rebookHref(a: Appointment): string | null {
-  if (!a.providerSlug) return null;
+  // A salon that stopped would refuse the booking, and its public page is
+  // about to 404 — a link that always fails is a dead end with a button on it
+  // (§12 as amended by row 82).
+  if (!a.providerSlug || !salonIsLive(a)) return null;
   const qs = new URLSearchParams();
   if (a.serviceIds && a.serviceIds.length > 0) {
     qs.set('services', a.serviceIds.join(','));
@@ -80,11 +130,27 @@ export function filterByTab(items: Appointment[], tab: Tab): Appointment[] {
 
 /// « Reporter » (parity 1.1 — the app's rule): pending/confirmed AND in the
 /// future.
-export function canReschedule(a: Appointment): boolean {
+/// Is this booking still ahead of the client — live, not past, not closed?
+///
+/// **Split out of `canReschedule`, which was answering two questions.** Three
+/// call sites used it: the reschedule control (which really does mean « can
+/// this be moved »), the calendar-export block, and the « prochaines visites »
+/// card — and the last two only ever meant « upcoming ». The distinction did
+/// not matter until a salon could be stopped: a client whose salon shut down
+/// must keep the calendar entry and keep seeing the visit listed, while the
+/// move is refused.
+export function isUpcoming(a: Appointment): boolean {
   return (
     (a.status === 'pending' || a.status === 'confirmed') &&
     Date.parse(a.appointmentDate) > Date.now()
   );
+}
+
+export function canReschedule(a: Appointment): boolean {
+  // The server refuses a move at a stopped salon (`provider_suspended` /
+  // `provider_not_published`); withholding the control is a courtesy OVER that
+  // gate, never instead of it.
+  return isUpcoming(a) && salonIsLive(a);
 }
 
 export function canCancel(a: Appointment): boolean {
