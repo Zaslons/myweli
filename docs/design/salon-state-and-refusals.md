@@ -166,13 +166,27 @@ not published, **« ne … plus »** for one that has been stopped. None says
 SYSTEM.md:567 (*« an error state without a way out is a crash with better
 manners »*).
 
-| # | who | state | sentence | action |
-|---|---|---|---|---|
-| 1 | consumer, booking | `provider_not_published` | « Ce salon n’accepte pas encore de réservations en ligne. » | « Découvrir d’autres salons » |
-| 2 | consumer, booking | `provider_suspended` | « Ce salon ne prend plus de rendez-vous sur Myweli. » | « Découvrir d’autres salons » |
-| 3 | pro, manual booking | `provider_not_published` | *— not reachable. Decision A makes this succeed.* | — |
-| 4 | pro, manual booking | `provider_suspended` | « Votre salon est suspendu. Contactez Myweli pour le réactiver — vos rendez-vous sont intacts. » | — |
-| 5 | consumer, salon page | 404 from the closed read | « Ce salon n’est plus disponible sur Myweli. » | « Découvrir d’autres salons » |
+| # | who | state | sentence | action | |
+|---|---|---|---|---|---|
+| 1 | consumer, booking | `provider_not_published` | « Ce salon n’accepte pas encore de réservations en ligne. » | « Découvrir des salons » | ✅ |
+| 2 | consumer, booking | `provider_suspended` | « Ce salon ne prend plus de rendez-vous sur Myweli. » | « Découvrir des salons » | ✅ |
+| 3 | pro, manual booking | `provider_not_published` | *— not reachable. Decision A makes this succeed.* | — | ✅ |
+| 4 | pro, manual booking | `provider_suspended` | « Votre salon est suspendu. Contactez Myweli pour le réactiver — vos rendez-vous sont intacts. » | — | ✅ |
+| 5 | consumer, salon page | 404 from the closed read | « Ce salon n’est plus disponible sur Myweli. » | « Découvrir des salons » | with C |
+
+**The action is « Découvrir des salons », not « d’autres salons ».** The first
+draft of this table minted a phrase that does not exist; the shipped one is in
+`web/components/account/AccountClient.tsx`'s two empty states, pointing at `/`.
+§17 says the product has one way to say a thing, so both surfaces reuse it —
+`bookingErrorCta` on web and in `mobile/lib/core/utils/booking_error_cta.dart`,
+each pinned against the other's label and destination.
+
+**The action is deliberately absent from every other refusal.** §12 as amended
+by this slice says the way out must *lead somewhere*: for `slot_unavailable` it
+is another time at this salon, and for A14d's two window codes it is the jump
+the slot picker already offers. `bookingErrorCta` returns `null` for all three,
+and that null arm is what stops « offer a way out » collapsing into « put a
+button on every error ».
 
 **Why these words.** Cell 1 deliberately mirrors its A14d sibling « Ce salon
 n’accepte pas encore les réservations à cette date. » (`web/lib/booking/window.ts:98-99`)

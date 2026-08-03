@@ -1,10 +1,10 @@
-'use client';
+"use client";
 
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { statusLabelFr } from '../../lib/account/appointments';
-import type { ProProfile } from '../../lib/api/pro';
-import { rescheduleAppointment } from '../../lib/api/pro';
-import { formatFcfa } from '../../lib/format';
+import { useEffect, useMemo, useRef, useState } from "react";
+import { statusLabelFr } from "../../lib/account/appointments";
+import type { ProProfile } from "../../lib/api/pro";
+import { rescheduleAppointment } from "../../lib/api/pro";
+import { formatFcfa } from "../../lib/format";
 import {
   CLOSED_AXIS,
   type JournalDay,
@@ -22,12 +22,12 @@ import {
   parseHhmm,
   snapToQuarter,
   statusKey,
-} from '../../lib/pro/journal';
-import type { ProAppointment } from '../../lib/pro/today';
-import { salonFormatter } from '../../lib/time';
-import { JournalPanel } from './JournalPanel';
-import { ManualBookingDialog } from './ManualBookingDialog';
-import { conflictMessage } from '../../lib/booking/window';
+} from "../../lib/pro/journal";
+import type { ProAppointment } from "../../lib/pro/today";
+import { salonFormatter } from "../../lib/time";
+import { JournalPanel } from "./JournalPanel";
+import { ManualBookingDialog } from "./ManualBookingDialog";
+import { conflictMessage } from "../../lib/booking/window";
 
 let draggingAppt: ProAppointment | null = null;
 
@@ -43,7 +43,7 @@ const COL_MIN_W = 168;
 ///
 /// It is a string, not a number, because the whole point is that it carries a
 /// unit the header also uses.
-const HEADER_OFFSET = '2rem';
+const HEADER_OFFSET = "2rem";
 
 /// The journal day grid (module journal J1 — docs/design/journal-j1-grid.md
 /// §3): artist columns, 15-min axis, now-line, drag-reschedule (optimistic,
@@ -88,11 +88,11 @@ export function JournalGrid({
   // through means the refetch repaints the open panel instead of being
   // invisible to it.
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const selected =
-    day.appointments.find((a) => a.id === selectedId) ?? null;
-  const [quick, setQuick] = useState<
-    { artistId: string; minute: number } | null
-  >(null);
+  const selected = day.appointments.find((a) => a.id === selectedId) ?? null;
+  const [quick, setQuick] = useState<{
+    artistId: string;
+    minute: number;
+  } | null>(null);
   const [nowTop, setNowTop] = useState<number | null>(null);
 
   // Live « Maintenant » line.
@@ -112,11 +112,11 @@ export function JournalGrid({
   }, [day.date]);
 
   const byColumn = (artistId: string) =>
-    day.appointments.filter((a) => (a.artistId ?? '') === artistId);
+    day.appointments.filter((a) => (a.artistId ?? "") === artistId);
 
   async function drop(appt: ProAppointment, artistId: string, minute: number) {
     const newIso = isoAt(day.date, minute, tz);
-    const columnChanged = (appt.artistId ?? '') !== artistId;
+    const columnChanged = (appt.artistId ?? "") !== artistId;
     if (newIso === appt.appointmentDate && !columnChanged) return;
     const r = await rescheduleAppointment(
       appt.id,
@@ -128,8 +128,9 @@ export function JournalGrid({
     } else {
       onToast(
         conflictMessage(r.error, {
-          taken: 'Créneau indisponible.',
-          fallback: 'Le déplacement a échoué. Réessayez.',
+          audience: "salon",
+          taken: "Créneau indisponible.",
+          fallback: "Le déplacement a échoué. Réessayez.",
         }),
       );
     }
@@ -163,7 +164,7 @@ export function JournalGrid({
           {/* Artist columns */}
           {columns.map((col) => (
             <JournalColumn
-              key={col.id || 'none'}
+              key={col.id || "none"}
               artist={col}
               appts={byColumn(col.id)}
               openMin={openMin}
@@ -173,9 +174,7 @@ export function JournalGrid({
               readOnly={readOnly}
               onSelect={(a) => setSelectedId(a.id)}
               onDrop={drop}
-              onEmptyClick={(minute) =>
-                setQuick({ artistId: col.id, minute })
-              }
+              onEmptyClick={(minute) => setQuick({ artistId: col.id, minute })}
               colMinW={COL_MIN_W}
               tz={tz}
               currency={currency}
@@ -276,7 +275,10 @@ function JournalColumn({
 
       {/* click-to-create surface + break bands (inert when readOnly) */}
       {readOnly ? (
-        <div className="absolute inset-x-0" style={{ top: HEADER_OFFSET, height }}>
+        <div
+          className="absolute inset-x-0"
+          style={{ top: HEADER_OFFSET, height }}
+        >
           {breakBands(hours).map((b, i) => (
             <div
               key={i}
@@ -299,7 +301,7 @@ function JournalColumn({
           onDragOver={(e) => e.preventDefault()}
           onDrop={(e) => {
             e.preventDefault();
-            const id = e.dataTransfer.getData('text/appt');
+            const id = e.dataTransfer.getData("text/appt");
             const appt = appts.find((a) => a.id === id) ?? draggingAppt;
             if (appt) onDrop(appt, artist.id, minuteAt(e.clientY));
           }}
@@ -341,14 +343,14 @@ function JournalColumn({
             type="button"
             draggable={draggable}
             onDragStart={(e) => {
-              e.dataTransfer.setData('text/appt', a.id);
+              e.dataTransfer.setData("text/appt", a.id);
               draggingAppt = a;
             }}
             onDragEnd={() => {
               draggingAppt = null;
             }}
             onClick={() => onSelect(a)}
-            aria-label={`${a.clientDisplayName ?? a.clientName ?? 'Client'}, ${statusLabelFr(
+            aria-label={`${a.clientDisplayName ?? a.clientName ?? "Client"}, ${statusLabelFr(
               statusKey(a),
             )}`}
             // ds-ignore: py-[2px] is below the 4px grid floor — a 15-min block
@@ -358,21 +360,25 @@ function JournalColumn({
             // eslint-disable-next-line tailwindcss/no-arbitrary-value
             className={`absolute inset-x-1 overflow-hidden rounded-md border px-xs py-[2px] text-left text-labelSmall leading-tight ${
               STATUS_STYLE[statusKey(a)] ?? STATUS_STYLE.confirmed
-            } ${draggable ? 'cursor-grab' : 'cursor-pointer'}`}
-            style={{ top: `calc(${HEADER_OFFSET} + ${box.top}px)`, height: box.height }}
+            } ${draggable ? "cursor-grab" : "cursor-pointer"}`}
+            style={{
+              top: `calc(${HEADER_OFFSET} + ${box.top}px)`,
+              height: box.height,
+            }}
           >
             <span className="block font-medium">
-              {salonFormatter({ hour: '2-digit', minute: '2-digit' }, tz).format(
-                new Date(a.appointmentDate),
-              )}{' '}
-              {a.clientDisplayName ?? a.clientName ?? 'Client'}
+              {salonFormatter(
+                { hour: "2-digit", minute: "2-digit" },
+                tz,
+              ).format(new Date(a.appointmentDate))}{" "}
+              {a.clientDisplayName ?? a.clientName ?? "Client"}
             </span>
             {box.height > 34 ? (
               <span className="block text-textSecondary">
-                {typeof a.totalPrice === 'number'
+                {typeof a.totalPrice === "number"
                   ? formatFcfa(a.totalPrice, currency)
-                  : ''}
-                {a.depositAmount && a.depositAmount > 0 ? ' · ₣' : ''}
+                  : ""}
+                {a.depositAmount && a.depositAmount > 0 ? " · ₣" : ""}
               </span>
             ) : null}
           </button>

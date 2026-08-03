@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import Link from 'next/link';
-import { Chip, chipLinkClasses } from '../Chip';
-import { useRouter } from 'next/navigation';
-import { useCallback, useEffect, useState } from 'react';
+import Link from "next/link";
+import { Chip, chipLinkClasses } from "../Chip";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
 import {
   type Appointment,
   canAttachDeposit,
@@ -11,32 +11,32 @@ import {
   canReschedule,
   rebookHref,
   statusLabelFr,
-} from '../../lib/account/appointments';
-import { buildIcs, googleCalendarUrl } from '../../lib/account/calendar';
-import { canRebook, canReview } from '../../lib/account/extras';
+} from "../../lib/account/appointments";
+import { buildIcs, googleCalendarUrl } from "../../lib/account/calendar";
+import { canRebook, canReview } from "../../lib/account/extras";
 import {
   cancelAppointment,
   getAppointment,
   rescheduleAppointment,
-} from '../../lib/api/account';
-import { countryName } from '../../lib/api/localities';
-import { fetchBookingWindow, fetchSlots } from '../../lib/booking/client';
+} from "../../lib/api/account";
+import { countryName } from "../../lib/api/localities";
+import { fetchBookingWindow, fetchSlots } from "../../lib/booking/client";
 import {
   DEFAULT_HORIZON_DAYS,
   DEFAULT_NOTICE_MINUTES,
   conflictMessage,
   lastBookableDay,
-} from '../../lib/booking/window';
-import { SlotsEmpty } from '../booking/SlotsEmpty';
-import { formatDateTimeFr, formatFcfa } from '../../lib/format';
-import { salonDayKey, salonFormatter, salonToday } from '../../lib/time';
-import { useLocalities } from '../../lib/use-localities';
-import { Button } from '../Button';
-import { Loading } from '../Loading';
-import { TextField } from '../TextField';
-import { SalonTimeHint } from '../SalonTimeHint';
-import { DepositProof } from '../booking/DepositProof';
-import { ReviewForm } from './ReviewForm';
+} from "../../lib/booking/window";
+import { SlotsEmpty } from "../booking/SlotsEmpty";
+import { formatDateTimeFr, formatFcfa } from "../../lib/format";
+import { salonDayKey, salonFormatter, salonToday } from "../../lib/time";
+import { useLocalities } from "../../lib/use-localities";
+import { Button } from "../Button";
+import { Loading } from "../Loading";
+import { TextField } from "../TextField";
+import { SalonTimeHint } from "../SalonTimeHint";
+import { DepositProof } from "../booking/DepositProof";
+import { ReviewForm } from "./ReviewForm";
 
 export function AppointmentDetailClient({ id }: { id: string }) {
   const router = useRouter();
@@ -51,7 +51,7 @@ export function AppointmentDetailClient({ id }: { id: string }) {
   const [busy, setBusy] = useState(false);
   // « Reporter » (parity 1.1) — the app's slot-picker flow, inline.
   const [rescheduling, setRescheduling] = useState(false);
-  const [reschedDate, setReschedDate] = useState('');
+  const [reschedDate, setReschedDate] = useState("");
   const [slots, setSlots] = useState<string[]>([]);
   // A14d — web's fourth state: « we could not ask » is not « nothing is free ».
   const [slotsFailed, setSlotsFailed] = useState(false);
@@ -128,8 +128,9 @@ export function AppointmentDetailClient({ id }: { id: string }) {
       // a window breach said someone had taken the slot. It had not been taken.
       setReschedError(
         conflictMessage(r.error, {
-          taken: 'Ce créneau vient d’être pris. Choisissez-en un autre.',
-          fallback: 'Le report a échoué. Réessayez.',
+          audience: "client",
+          taken: "Ce créneau vient d’être pris. Choisissez-en un autre.",
+          fallback: "Le report a échoué. Réessayez.",
         }),
       );
       return;
@@ -192,11 +193,9 @@ export function AppointmentDetailClient({ id }: { id: string }) {
             clusters" rather than title toolbars. */}
         <div className="flex flex-wrap items-center justify-between gap-m">
           <h1 className="text-titleLarge font-semibold text-textPrimary">
-            {appt.providerName ?? 'Salon'}
+            {appt.providerName ?? "Salon"}
           </h1>
-          <Chip>
-            {statusLabelFr(appt.status)}
-          </Chip>
+          <Chip>{statusLabelFr(appt.status)}</Chip>
         </div>
         {appt.providerSlug ? (
           <Link
@@ -222,12 +221,12 @@ export function AppointmentDetailClient({ id }: { id: string }) {
               type="button"
               onClick={() => {
                 const blob = new Blob([buildIcs(appt)], {
-                  type: 'text/calendar',
+                  type: "text/calendar",
                 });
                 const url = URL.createObjectURL(blob);
-                const el = document.createElement('a');
+                const el = document.createElement("a");
                 el.href = url;
-                el.download = 'rendez-vous-myweli.ics';
+                el.download = "rendez-vous-myweli.ics";
                 el.click();
                 URL.revokeObjectURL(url);
               }}
@@ -243,7 +242,7 @@ export function AppointmentDetailClient({ id }: { id: string }) {
           <div className="mt-s flex flex-wrap gap-s">
             {appt.providerPhone ? (
               <a
-                href={`tel:${appt.providerPhone.replace(/\s/g, '')}`}
+                href={`tel:${appt.providerPhone.replace(/\s/g, "")}`}
                 className="inline-flex min-h-12 items-center rounded-lg border border-borderStrong bg-surface px-m text-bodyMedium text-textPrimary hover:bg-surfaceVariant"
               >
                 Appeler
@@ -251,7 +250,7 @@ export function AppointmentDetailClient({ id }: { id: string }) {
             ) : null}
             {appt.providerWhatsapp ? (
               <a
-                href={`https://wa.me/${appt.providerWhatsapp.replace(/[^0-9]/g, '')}`}
+                href={`https://wa.me/${appt.providerWhatsapp.replace(/[^0-9]/g, "")}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex min-h-12 items-center rounded-lg border border-borderStrong bg-surface px-m text-bodyMedium text-textPrimary hover:bg-surfaceVariant"
@@ -268,13 +267,13 @@ export function AppointmentDetailClient({ id }: { id: string }) {
             value={formatDateTimeFr(appt.appointmentDate, tz)}
           />
           {appt.serviceNames && appt.serviceNames.length > 0 ? (
-            <Row label="Prestations" value={appt.serviceNames.join(', ')} />
+            <Row label="Prestations" value={appt.serviceNames.join(", ")} />
           ) : null}
           {appt.artistName ? (
             <Row label="Spécialiste" value={appt.artistName} />
           ) : null}
           {appt.notes ? <Row label="Notes" value={appt.notes} /> : null}
-          {typeof appt.totalPrice === 'number' ? (
+          {typeof appt.totalPrice === "number" ? (
             <Row label="Total" value={formatFcfa(appt.totalPrice, currency)} />
           ) : null}
           {appt.depositAmount ? (
@@ -283,7 +282,7 @@ export function AppointmentDetailClient({ id }: { id: string }) {
               value={formatFcfa(appt.depositAmount, currency)}
             />
           ) : null}
-          {typeof appt.balanceDue === 'number' ? (
+          {typeof appt.balanceDue === "number" ? (
             <Row
               label="Reste à payer"
               value={formatFcfa(appt.balanceDue, currency)}
@@ -314,10 +313,9 @@ export function AppointmentDetailClient({ id }: { id: string }) {
               onAttached={load}
             />
           </div>
-        ) : appt.status === 'pending' && appt.depositScreenshotUrl ? (
+        ) : appt.status === "pending" && appt.depositScreenshotUrl ? (
           <p className="mt-m text-bodyLarge text-textSecondary">
-            Justificatif d’acompte envoyé · en attente de confirmation du
-            salon.{' '}
+            Justificatif d’acompte envoyé · en attente de confirmation du salon.{" "}
             <a
               href={`/api/appointments/${appt.id}/deposit-screenshot?redirect=1`}
               target="_blank"
@@ -375,7 +373,7 @@ export function AppointmentDetailClient({ id }: { id: string }) {
                     <button
                       type="button"
                       onClick={() => void loadSlots(appt, reschedDate)}
-                      className={chipLinkClasses(false) + ' mt-s'}
+                      className={chipLinkClasses(false) + " mt-s"}
                     >
                       Réessayer
                     </button>
@@ -401,7 +399,7 @@ export function AppointmentDetailClient({ id }: { id: string }) {
                         className={chipLinkClasses(pickedSlot === iso)}
                       >
                         {salonFormatter(
-                          { hour: '2-digit', minute: '2-digit' },
+                          { hour: "2-digit", minute: "2-digit" },
                           tz,
                         ).format(new Date(iso))}
                       </button>
@@ -409,7 +407,9 @@ export function AppointmentDetailClient({ id }: { id: string }) {
                   </div>
                 )}
                 {reschedError ? (
-                  <p role="alert" className="mt-s text-bodyMedium text-error">{reschedError}</p>
+                  <p role="alert" className="mt-s text-bodyMedium text-error">
+                    {reschedError}
+                  </p>
                 ) : null}
                 <div className="mt-m flex gap-s">
                   <Button
@@ -441,8 +441,8 @@ export function AppointmentDetailClient({ id }: { id: string }) {
                 <p className="text-bodyLarge text-textSecondary">
                   Confirmer l’annulation&nbsp;?
                   {appt.depositAmount
-                    ? ' L’acompte peut ne pas être remboursé selon la politique du salon.'
-                    : ''}
+                    ? " L’acompte peut ne pas être remboursé selon la politique du salon."
+                    : ""}
                 </p>
                 <div className="mt-s flex gap-s">
                   <Button

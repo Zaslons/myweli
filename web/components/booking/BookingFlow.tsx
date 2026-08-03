@@ -1,18 +1,19 @@
-'use client';
+"use client";
 
-import { useEffect, useRef, useState } from 'react';
-import { chipLinkClasses } from '../Chip';
-import { Loading } from '../Loading';
-import { SkeletonRows } from '../Skeleton';
-import { isPossiblePhoneNumber } from 'react-phone-number-input';
-import { type Me, getMe } from '../../lib/api/account';
-import type { Provider } from '../../lib/api/providers';
-import { updateContactPhone } from '../../lib/auth/client';
+import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
+import { chipLinkClasses } from "../Chip";
+import { Loading } from "../Loading";
+import { SkeletonRows } from "../Skeleton";
+import { isPossiblePhoneNumber } from "react-phone-number-input";
+import { type Me, getMe } from "../../lib/api/account";
+import type { Provider } from "../../lib/api/providers";
+import { updateContactPhone } from "../../lib/auth/client";
 import {
   type CreatedBooking,
   createBooking,
   fetchSlots,
-} from '../../lib/booking/client';
+} from "../../lib/booking/client";
 import {
   type HubState,
   type Section,
@@ -40,31 +41,32 @@ import {
   todayYmd,
   toggleService,
   totalDuration,
-} from '../../lib/booking/state';
+} from "../../lib/booking/state";
 import {
   formatDateFr,
   formatDuration,
   formatFcfa,
   priceRange,
-} from '../../lib/format';
+} from "../../lib/format";
 import {
   DEFAULT_HORIZON_DAYS,
   DEFAULT_NOTICE_MINUTES,
+  bookingErrorCta,
   conflictMessage,
   lastBookableDay,
-} from '../../lib/booking/window';
-import { salonDayKey, salonFormatter } from '../../lib/time';
-import { Button } from '../Button';
-import { SalonTimeHint } from '../SalonTimeHint';
-import { SlotsEmpty } from './SlotsEmpty';
-import { LoginOptions } from '../auth/LoginOptions';
-import { OpenInAppButton } from '../OpenInAppButton';
-import { PhoneField } from '../PhoneField';
-import { TextField } from '../TextField';
-import { DepositProof } from './DepositProof';
+} from "../../lib/booking/window";
+import { salonDayKey, salonFormatter } from "../../lib/time";
+import { Button } from "../Button";
+import { SalonTimeHint } from "../SalonTimeHint";
+import { SlotsEmpty } from "./SlotsEmpty";
+import { LoginOptions } from "../auth/LoginOptions";
+import { OpenInAppButton } from "../OpenInAppButton";
+import { PhoneField } from "../PhoneField";
+import { TextField } from "../TextField";
+import { DepositProof } from "./DepositProof";
 
 const slotTime = (iso: string, tz?: string) =>
-  salonFormatter({ hour: '2-digit', minute: '2-digit' }, tz).format(
+  salonFormatter({ hour: "2-digit", minute: "2-digit" }, tz).format(
     new Date(iso),
   );
 
@@ -148,12 +150,18 @@ export function BookingFlow({
   // Auth overhaul P2: confirming requires a signed-in account + a REQUIRED
   // contact phone. undefined = probing the session; null = signed out.
   const [me, setMe] = useState<Me | null | undefined>(undefined);
-  const [phone, setPhone] = useState('');
+  const [phone, setPhone] = useState("");
   // Parity 2.10 — the app's « Notes (optionnel) » on the confirm step.
-  const [notes, setNotes] = useState('');
+  const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The machine CODE, not just the message — row 82's refusals carry a way out
+  // and the sentence alone cannot say which one. Same shape as
+  // `InviteMemberDialog`, which stores the code for exactly this reason.
+  const [errorCode, setErrorCode] = useState<string | undefined>(undefined);
   const [created, setCreated] = useState<CreatedBooking | null>(null);
+
+  const cta = bookingErrorCta(errorCode);
 
   const services = (provider.services ?? []).filter((x) => x.active !== false);
   const artists = provider.artists ?? [];
@@ -163,13 +171,13 @@ export function BookingFlow({
 
   // Probe the session when the confirm phase opens (re-run after inline login).
   useEffect(() => {
-    if (s.phase !== 'confirm' || me !== undefined) return;
+    if (s.phase !== "confirm" || me !== undefined) return;
     let active = true;
     (async () => {
       const r = await getMe();
       if (!active) return;
       setMe(r.status === 200 ? (r.user ?? null) : null);
-      setPhone(r.user?.phoneNumber ?? '');
+      setPhone(r.user?.phoneNumber ?? "");
     })();
     return () => {
       active = false;
@@ -258,12 +266,12 @@ export function BookingFlow({
     }
     const advanced = advance(next, hasArtists);
     setS(advanced);
-    if (advanced.activeSection === 'time') await loadSlots(advanced);
+    if (advanced.activeSection === "time") await loadSlots(advanced);
   }
 
   // Rebook prefill lands on the time section → load its slots on mount.
   useEffect(() => {
-    if (s.activeSection === 'time') loadSlots(s);
+    if (s.activeSection === "time") loadSlots(s);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -289,7 +297,7 @@ export function BookingFlow({
       return;
     }
     setS(next);
-    if (next.activeSection === 'time') await loadSlots(next);
+    if (next.activeSection === "time") await loadSlots(next);
   }
 
   async function onChooseArtist(id: string | null) {
@@ -308,7 +316,7 @@ export function BookingFlow({
     navReq.current += 1;
     const next = openSection(s, section);
     setS(next);
-    if (section === 'time') await loadSlots(next);
+    if (section === "time") await loadSlots(next);
   }
 
   async function onDate(date: string) {
@@ -334,11 +342,11 @@ export function BookingFlow({
     setBusy(true);
     setError(null);
     // Contact phone is REQUIRED (decision 2026-07-02); persist it when changed.
-    if (phone !== (me?.phoneNumber ?? '')) {
+    if (phone !== (me?.phoneNumber ?? "")) {
       const saved = await updateContactPhone(phone);
       if (!saved.ok) {
         setBusy(false);
-        return setError('Numéro invalide. Vérifiez et réessayez.');
+        return setError("Numéro invalide. Vérifiez et réessayez.");
       }
     }
     const b = await createBooking({
@@ -353,19 +361,21 @@ export function BookingFlow({
       // A14d: this site already read the CODE — it just did not know the two
       // window codes existed, so they fell through to « réessayez », inviting
       // a retry of a date that can never be accepted.
+      setErrorCode(b.error);
       return setError(
         conflictMessage(b.error, {
-          taken: 'Ce créneau vient d’être pris. Choisissez-en un autre.',
-          fallback: 'La réservation a échoué. Réessayez.',
+          audience: "client",
+          taken: "Ce créneau vient d’être pris. Choisissez-en un autre.",
+          fallback: "La réservation a échoué. Réessayez.",
         }),
       );
     }
     setCreated(b.appointment ?? null);
-    setS(goPhase(s, 'done'));
+    setS(goPhase(s, "done"));
   }
 
   // ---- DONE (deposit-aware) --------------------------------------------------
-  if (s.phase === 'done') {
+  if (s.phase === "done") {
     const deposit = created?.depositAmount ?? 0;
     return (
       <section className="rounded-xl border border-border bg-secondary p-l">
@@ -395,25 +405,30 @@ export function BookingFlow({
   }
 
   // ---- CONFIRM ---------------------------------------------------------------
-  if (s.phase === 'confirm') {
+  if (s.phase === "confirm") {
     return (
       <section className="rounded-xl border border-border bg-secondary p-l">
-        <h2 className="text-titleLarge font-semibold text-textPrimary">Confirmation</h2>
+        <h2 className="text-titleLarge font-semibold text-textPrimary">
+          Confirmation
+        </h2>
         <dl className="mt-m space-y-xs text-bodyMedium">
           <Recap label="Salon" value={provider.name} />
           <Recap
             label="Prestations"
-            value={selection.map((x) => x.name).join(', ')}
+            value={selection.map((x) => x.name).join(", ")}
           />
           {s.lengthVariant ? (
-            <Recap label="Longueur" value={lengthVariantLabel(s.lengthVariant)} />
+            <Recap
+              label="Longueur"
+              value={lengthVariantLabel(s.lengthVariant)}
+            />
           ) : null}
           <Recap
             label="Spécialiste"
             value={
               s.artistId
-                ? (artists.find((a) => a.id === s.artistId)?.name ?? '—')
-                : 'Pas de préférence'
+                ? (artists.find((a) => a.id === s.artistId)?.name ?? "—")
+                : "Pas de préférence"
             }
           />
           {s.slot ? (
@@ -482,12 +497,24 @@ export function BookingFlow({
             </Button>
           </div>
         )}
-        {error ? <p role="alert" className="mt-s text-bodyMedium text-error">{error}</p> : null}
-        <div className="mt-l">
-          <Button
-            variant="secondary"
-            onClick={() => setS(goPhase(s, 'hub'))}
+        {error ? (
+          <p role="alert" className="mt-s text-bodyMedium text-error">
+            {error}
+          </p>
+        ) : null}
+        {/* §12 — an error state without a way out is a crash with better
+            manners. `bookingErrorCta` returns null for a taken slot, whose way
+            out is another time at THIS salon, not another salon. */}
+        {cta ? (
+          <Link
+            href={cta.href}
+            className="mt-xs inline-block text-bodyMedium underline"
           >
+            {cta.label}
+          </Link>
+        ) : null}
+        <div className="mt-l">
+          <Button variant="secondary" onClick={() => setS(goPhase(s, "hub"))}>
             Retour
           </Button>
         </div>
@@ -520,13 +547,13 @@ export function BookingFlow({
           title="Prestations"
           value={
             s.serviceIds.length === 0
-              ? 'Choisir'
+              ? "Choisir"
               : s.serviceIds.length === 1
-                ? (selection[0]?.name ?? 'Choisir')
+                ? (selection[0]?.name ?? "Choisir")
                 : `${s.serviceIds.length} prestations`
           }
-          expanded={s.activeSection === 'services'}
-          onHeaderTap={() => onOpenSection('services')}
+          expanded={s.activeSection === "services"}
+          onHeaderTap={() => onOpenSection("services")}
         >
           {services.length === 0 ? (
             <p className="text-bodyMedium text-textSecondary">
@@ -566,7 +593,9 @@ export function BookingFlow({
           )}
           {bookingHasVariants(selection) ? (
             <div className="mt-m">
-              <p className="text-bodyMedium text-textSecondary">Longueur de cheveux :</p>
+              <p className="text-bodyMedium text-textSecondary">
+                Longueur de cheveux :
+              </p>
               <div
                 role="group"
                 aria-label="Longueur de cheveux"
@@ -580,7 +609,7 @@ export function BookingFlow({
                     aria-pressed={s.lengthVariant === k}
                     className={chipLinkClasses(s.lengthVariant === k)}
                   >
-                    {lengthVariantLabel(k)} ·{' '}
+                    {lengthVariantLabel(k)} ·{" "}
                     {formatDuration(totalDuration(provider, s.serviceIds, k))}
                   </button>
                 ))}
@@ -595,11 +624,11 @@ export function BookingFlow({
           value={
             s.artistId
               ? (artists.find((a) => a.id === s.artistId)?.name ??
-                'Pas de préférence')
-              : 'Pas de préférence'
+                "Pas de préférence")
+              : "Pas de préférence"
           }
-          expanded={s.activeSection === 'artist'}
-          onHeaderTap={() => onOpenSection('artist')}
+          expanded={s.activeSection === "artist"}
+          onHeaderTap={() => onOpenSection("artist")}
         >
           {!hasArtists ? (
             <p className="text-bodyMedium text-textSecondary">
@@ -630,7 +659,7 @@ export function BookingFlow({
                   <label
                     key={a.id}
                     className={`flex min-h-12 items-center gap-s ${
-                      canDo ? 'cursor-pointer' : 'cursor-not-allowed opacity-45'
+                      canDo ? "cursor-pointer" : "cursor-not-allowed opacity-45"
                     }`}
                   >
                     <input
@@ -644,7 +673,7 @@ export function BookingFlow({
                     <span>
                       <span className="text-textPrimary">{a.name}</span>
                       <span className="block text-bodyMedium text-textTertiary">
-                        {a.specialization ?? 'Spécialiste'}
+                        {a.specialization ?? "Spécialiste"}
                       </span>
                     </span>
                   </label>
@@ -660,10 +689,10 @@ export function BookingFlow({
           value={
             s.slot
               ? `${formatDateFr(s.slot, tz)} · ${slotTime(s.slot, tz)}`
-              : 'Choisir'
+              : "Choisir"
           }
-          expanded={s.activeSection === 'time'}
-          onHeaderTap={() => onOpenSection('time')}
+          expanded={s.activeSection === "time"}
+          onHeaderTap={() => onOpenSection("time")}
         >
           <TextField
             label="Date"
@@ -690,7 +719,7 @@ export function BookingFlow({
               <button
                 type="button"
                 onClick={() => void loadSlots(s)}
-                className={chipLinkClasses(false) + ' mt-s'}
+                className={chipLinkClasses(false) + " mt-s"}
               >
                 Réessayer
               </button>
@@ -717,12 +746,12 @@ export function BookingFlow({
               ))}
             </div>
           )}
-          {s.entryPoint === 'artist' &&
+          {s.entryPoint === "artist" &&
           s.artistChosen &&
           s.serviceIds.length > 0 &&
           s.slot ? (
             <p className="mt-s text-bodyMedium text-textSecondary">
-              Prochain créneau : {formatDateFr(s.slot, tz)} ·{' '}
+              Prochain créneau : {formatDateFr(s.slot, tz)} ·{" "}
               {slotTime(s.slot, tz)}
             </p>
           ) : null}
@@ -756,7 +785,7 @@ export function BookingFlow({
         <div className="mt-m">
           <Button
             disabled={!canConfirm(s)}
-            onClick={() => setS(goPhase(s, 'confirm'))}
+            onClick={() => setS(goPhase(s, "confirm"))}
           >
             Confirmer
           </Button>
@@ -779,7 +808,7 @@ export function BookingFlow({
           </div>
           <Button
             disabled={!canConfirm(s)}
-            onClick={() => setS(goPhase(s, 'confirm'))}
+            onClick={() => setS(goPhase(s, "confirm"))}
           >
             Confirmer
           </Button>
@@ -805,7 +834,7 @@ function SectionCard({
   return (
     <section
       className={`rounded-xl border bg-secondary p-m ${
-        expanded ? 'border-primary' : 'border-border'
+        expanded ? "border-primary" : "border-border"
       }`}
     >
       <button

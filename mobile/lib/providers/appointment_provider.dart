@@ -21,10 +21,16 @@ class AppointmentProvider extends ChangeNotifier {
   bool _isLoading = false;
   String? _error;
 
+  /// The machine code behind [_error], kept because a sentence alone cannot
+  /// say whether the refusal has a way out (§21 row 82). Same shape as
+  /// `ProTeamProvider._inviteErrorCode`, which the offer CTAs already use.
+  String? _errorCode;
+
   List<Appointment> get appointments => _appointments;
   Appointment? get selectedAppointment => _selectedAppointment;
   bool get isLoading => _isLoading;
   String? get error => _error;
+  String? get errorCode => _errorCode;
 
   List<Appointment> get upcomingAppointments {
     final now = AppClock.now();
@@ -110,6 +116,7 @@ class AppointmentProvider extends ChangeNotifier {
   }) async {
     _isLoading = true;
     _error = null;
+    _errorCode = null;
     notifyListeners();
 
     try {
@@ -125,13 +132,16 @@ class AppointmentProvider extends ChangeNotifier {
       if (response.success && response.data != null) {
         _appointments.add(response.data!);
         _error = null;
+        _errorCode = null;
         return true;
       } else {
         _error = response.error ?? 'Erreur lors de la réservation';
+        _errorCode = response.code;
         return false;
       }
     } catch (e) {
       _error = e.toString();
+      _errorCode = null;
       return false;
     } finally {
       _isLoading = false;

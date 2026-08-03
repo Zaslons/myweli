@@ -560,4 +560,53 @@ void main() {
     expect(res.success, isTrue);
     expect(res.data, 'https://signed/proof');
   });
+  group('what the SALON is told about its own state (§21 row 82)', () {
+    Future<String?> manualBookingError(String code) async {
+      final client = MockClient(
+        (req) async => http.Response(jsonEncode({'error': code}), 409),
+      );
+      final res = await _linked(client).createManualBooking(
+        providerId: 'provider1',
+        serviceIds: const ['service1'],
+        appointmentDateTime: DateTime.utc(2030, 6, 25, 9),
+        clientName: 'Awa',
+      );
+      return res.error;
+    }
+
+    test(
+      'a suspended salon is told so, and that its bookings survived',
+      () async {
+        // Row 82's pro sentence. Not the client's — a salon owner is not
+        // shopping for another salon, and the « intacts » clause is the
+        // reassurance `pro_subscription_screen.dart` proved is needed.
+        expect(
+          await manualBookingError('provider_suspended'),
+          'Votre salon est suspendu. Contactez Myweli pour le réactiver — vos rendez-vous sont intacts.',
+        );
+      },
+    );
+
+    test(
+      'a taken slot finally says so — it read « Une erreur est survenue. »',
+      () async {
+        // Not row 82, and shipped with it deliberately: this is the MOST likely
+        // manual-booking refusal, it lives in the same switch, and
+        // `pro_manual_booking_screen.dart` already comments « The server's
+        // refusal here is a slot conflict » — the comment and the copy
+        // disagreed until now.
+        expect(
+          await manualBookingError('slot_unavailable'),
+          'Ce créneau est déjà pris. Choisissez un autre horaire.',
+        );
+      },
+    );
+
+    test('an unknown code still falls back', () async {
+      expect(
+        await manualBookingError('something_new'),
+        'Une erreur est survenue.',
+      );
+    });
+  });
 }
