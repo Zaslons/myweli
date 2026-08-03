@@ -152,6 +152,27 @@ class ProviderProvider extends ChangeNotifier {
     }
   }
 
+  /// Show a salon the caller ALREADY has, without a network read.
+  ///
+  /// The owner preview (`/pro/apercu`) renders this consumer screen against
+  /// the salon it just fetched from `GET /me/provider` — authenticated, and
+  /// resolved from the token rather than from a public id. Seeding is the
+  /// mobile equivalent of what web does by passing the object down as a prop
+  /// (`SalonPreviewClient` → `ProviderView`): the screen reads a notifier
+  /// rather than a parameter, so the notifier is what gets handed the payload.
+  ///
+  /// This is the ONLY way `_selectedProvider` is set without
+  /// [loadProviderById], and it exists so a pro surface never has to knock on
+  /// the anonymous door for its own salon (T51 — « Pro-own surfaces resolve by
+  /// account »). `salon_preview_test.dart` fails the test if the public
+  /// service is called at all.
+  void showPreloaded(Provider provider) {
+    _selectedProvider = provider;
+    _error = null;
+    _isLoading = false;
+    notifyListeners();
+  }
+
   void clearSelectedProvider() {
     _selectedProvider = null;
     notifyListeners();

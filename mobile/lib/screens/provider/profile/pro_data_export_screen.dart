@@ -55,9 +55,11 @@ class _ProDataExportScreenState extends State<ProDataExportScreen> {
         return;
       }
 
-      final salonRes = await serviceLocator.providerService.getProviderById(
-        providerId,
-      );
+      // By account, not by public id (T51). This is the only one of the five
+      // reads below that HARD-FAILS the export, so a public 404 on a draft
+      // salon aborted the whole RGPD download — the other four soft-fail to
+      // an empty list.
+      final salonRes = await serviceLocator.proService.getMyProvider();
       final services = await serviceLocator.proService.getProviderServices(
         providerId,
       );
@@ -70,7 +72,7 @@ class _ProDataExportScreenState extends State<ProDataExportScreen> {
         providerId,
       );
 
-      final salon = salonRes.data;
+      final salon = salonRes.data?.salon;
       if (!mounted) return;
       if (salon == null) {
         setState(() {
