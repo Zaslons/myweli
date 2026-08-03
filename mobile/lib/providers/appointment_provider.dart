@@ -64,9 +64,13 @@ class AppointmentProvider extends ChangeNotifier {
   bool hasCompletedBookingAt(String providerId, String userId) =>
       latestCompletedAppointmentId(providerId, userId) != null;
 
-  /// The most recent completed appointment id the user had at [providerId] — the
+  /// The most recent completed appointment the user had at [providerId] — the
   /// visit a "leave a review" CTA reviews. Null if there is none.
-  String? latestCompletedAppointmentId(String providerId, String userId) {
+  ///
+  /// Returns the whole booking, not just its id, because the review sheet
+  /// shows WHO served that visit and the answer rides the appointment now
+  /// (Decision C) rather than being looked up in the salon's roster.
+  Appointment? latestCompletedAppointment(String providerId, String userId) {
     final completed =
         _appointments
             .where(
@@ -77,8 +81,11 @@ class AppointmentProvider extends ChangeNotifier {
             )
             .toList()
           ..sort((a, b) => b.appointmentDate.compareTo(a.appointmentDate));
-    return completed.isEmpty ? null : completed.first.id;
+    return completed.isEmpty ? null : completed.first;
   }
+
+  String? latestCompletedAppointmentId(String providerId, String userId) =>
+      latestCompletedAppointment(providerId, userId)?.id;
 
   Future<void> loadAppointments({AppointmentStatus? status}) async {
     _isLoading = true;

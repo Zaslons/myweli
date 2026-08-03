@@ -26,13 +26,42 @@ class BookingErrorCta {
   final String href;
 }
 
+/// The way out, as a value.
+///
+/// Named so that surfaces which are NOT refusals can reuse the phrase without
+/// calling [bookingErrorCta] — whose whole argument is that it answers for two
+/// booking codes and `null` for everything else. Reuse the words, not the
+/// function; §17's « one way to say a thing » is about the words.
+const kDiscoverSalonsCta = BookingErrorCta(
+  label: 'Découvrir des salons',
+  href: '/',
+);
+
 BookingErrorCta? bookingErrorCta(String? code) {
   if (code == 'provider_not_published' || code == 'provider_suspended') {
     // The phrase already ships — web's `AccountClient` uses it in two empty
     // states. §17 says the product has one way to say a thing, so this reuses
     // « Découvrir des salons » rather than minting « Découvrir d'autres
     // salons », which is what the spec first drafted.
-    return const BookingErrorCta(label: 'Découvrir des salons', href: '/');
+    return kDiscoverSalonsCta;
   }
   return null;
 }
+
+/// What a surface tells a client whose salon has stopped, from the salon's
+/// `status` rather than from a refusal code.
+///
+/// **The tense carries the distinction** (`salon-state-and-refusals.md` §6):
+/// « pas encore » for a salon that has never published, « ne … plus » for one
+/// that has been stopped. Both sentences already ship in
+/// `api_appointment_service._messageFor` for the booking refusals — this is
+/// the same product fact reached from the other direction, so it must be the
+/// same words. Null while the salon is live.
+///
+/// `status` is nullable and null means LIVE: seeded salons carry no stored
+/// status and Postgres reads NULL as active.
+String? salonStoppedMessage(String? status) => switch (status) {
+  'draft' => 'Ce salon n’accepte pas encore de réservations en ligne.',
+  'suspended' => 'Ce salon ne prend plus de rendez-vous sur Myweli.',
+  _ => null,
+};

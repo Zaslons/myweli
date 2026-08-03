@@ -240,8 +240,11 @@ export async function listProviderReviews(
   total: number;
   pageSize: number;
 }> {
+  // `providerId` is the R6 SELECTOR, not the authority: upstream resolves the
+  // salon from the token and refuses a selection the caller is not a member of
+  // (T55). It used to be the only thing naming the salon, on a public route.
   const res = await fetch(
-    `/api/pro/reviews?providerId=${encodeURIComponent(providerId)}&page=${page}`,
+    `/api/pro/reviews?salonId=${encodeURIComponent(providerId)}&page=${page}`,
   );
   if (!res.ok) return { status: res.status, items: [], total: 0, pageSize: 0 };
   const body = (await res.json().catch(() => ({}))) as {

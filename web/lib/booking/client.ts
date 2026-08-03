@@ -95,40 +95,4 @@ export async function fetchSlots(params: {
   }
 }
 
-/// The salon's bookable window, for a surface that holds only an appointment
-/// (A14d).
-///
-/// The booking funnel server-renders its provider and needs nothing here; the
-/// account reschedule screen has an `Appointment`, so it knows the salon's id
-/// and not its window — and without the window it can only fall back to the
-/// defaults and tell a client « aucun créneau » for a date the salon simply
-/// does not accept. Mobile solves this the same way: `showRescheduleScreen`
-/// requires a `models.Provider`, and its caller fetches one.
-///
-/// Falls back to the defaults on any failure rather than throwing: an
-/// unreachable provider must degrade the EXPLANATION, never the screen.
-export async function fetchBookingWindow(
-  providerId: string,
-): Promise<{ horizonDays: number; noticeMinutes: number }> {
-  try {
-    const res = await fetch(`/api/providers/${encodeURIComponent(providerId)}`);
-    if (!res.ok) return fallbackWindow();
-    const body = (await res.json().catch(() => ({}))) as {
-      availability?: { bookingHorizonDays?: number; minimumNoticeMinutes?: number };
-    };
-    return {
-      horizonDays: body.availability?.bookingHorizonDays ?? DEFAULT_HORIZON_DAYS,
-      noticeMinutes:
-        body.availability?.minimumNoticeMinutes ?? DEFAULT_NOTICE_MINUTES,
-    };
-  } catch {
-    return fallbackWindow();
-  }
-}
 
-function fallbackWindow() {
-  return {
-    horizonDays: DEFAULT_HORIZON_DAYS,
-    noticeMinutes: DEFAULT_NOTICE_MINUTES,
-  };
-}

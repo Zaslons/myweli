@@ -9,6 +9,9 @@ import {
   canAttachDeposit,
   canCancel,
   canReschedule,
+  isUpcoming,
+  salonIsLive,
+  salonStoppedMessage,
   rebookHref,
   statusLabelFr,
 } from "../../lib/account/appointments";
@@ -20,7 +23,7 @@ import {
   rescheduleAppointment,
 } from "../../lib/api/account";
 import { countryName } from "../../lib/api/localities";
-import { fetchBookingWindow, fetchSlots } from "../../lib/booking/client";
+import { fetchSlots } from "../../lib/booking/client";
 import {
   DEFAULT_HORIZON_DAYS,
   DEFAULT_NOTICE_MINUTES,
@@ -55,12 +58,15 @@ export function AppointmentDetailClient({ id }: { id: string }) {
   const [slots, setSlots] = useState<string[]>([]);
   // A14d — web's fourth state: « we could not ask » is not « nothing is free ».
   const [slotsFailed, setSlotsFailed] = useState(false);
-  // A14d — the salon's window, so an empty day can say WHY. Defaults until the
-  // provider lands; the classification degrades, never the screen.
-  const [window_, setWindow] = useState({
-    horizonDays: DEFAULT_HORIZON_DAYS,
-    noticeMinutes: DEFAULT_NOTICE_MINUTES,
-  });
+  // A14d — the salon's window, so an empty day can say WHY.
+  //
+  // **It rides the appointment now** (Decision C). It used to be fetched from
+  // the public `GET /providers/{id}` when the pane opened, and fell back to
+  // 365 days / 60 minutes on any failure — so a salon that stopped being
+  // publicly readable got a year-wide picker and the client was told « Ce
+  // salon n'a plus de disponibilité à cette date », which was not the reason.
+  // The server stamps the salon's real numbers (and substitutes the defaults
+  // itself when the salon set none), so there is nothing left to fall back to.
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [pickedSlot, setPickedSlot] = useState<string | null>(null);
   const [reschedError, setReschedError] = useState<string | null>(null);
@@ -102,10 +108,6 @@ export function AppointmentDetailClient({ id }: { id: string }) {
   }
 
   function openReschedule(a: Appointment) {
-    // Fetched when the pane opens rather than on page load: most visits to
-    // this screen never reschedule, and the window is only ever used to
-    // explain an empty slot list.
-    void fetchBookingWindow(a.providerId).then(setWindow);
     setRescheduling(true);
     setReschedError(null);
     setRescheduled(false);
@@ -197,7 +199,22 @@ export function AppointmentDetailClient({ id }: { id: string }) {
           </h1>
           <Chip>{statusLabelFr(appt.status)}</Chip>
         </div>
-        {appt.providerSlug ? (
+        {/* The salon stopped taking appointments (§12, §6 cell 6).
+            Stated once, above the controls it explains — a client is not left
+            to infer it from buttons that quietly went missing. */}
+        {salonStoppedMessage(appt) ? (
+          <p
+            role="status"
+            className="rounded-lg bg-surfaceVariant px-m py-s text-bodyMedium text-textPrimary"
+          >
+            {salonStoppedMessage(appt)}{' '}
+            <Link href="/" className="underline">
+              Découvrir des salons
+            </Link>
+          </p>
+        ) : null}
+        {/* Withheld for a stopped salon: after Decision C that page 404s. */}
+        {appt.providerSlug && salonIsLive(appt) ? (
           <Link
             href={`/${appt.providerSlug}`}
             className="text-bodyMedium text-textPrimary underline"
@@ -206,8 +223,10 @@ export function AppointmentDetailClient({ id }: { id: string }) {
           </Link>
         ) : null}
 
-        {/* Parity 1.2 — add the booking to a calendar (upcoming only). */}
-        {canReschedule(appt) ? (
+        {/* Parity 1.2 — add the booking to a calendar (upcoming only).
+            `isUpcoming`, not `canReschedule`: a stopped salon keeps its
+            calendar entry, it just cannot be moved. */}
+        {isUpcoming(appt) ? (
           <div className="mt-s flex flex-wrap gap-s">
             <a
               href={googleCalendarUrl(appt)}
@@ -355,7 +374,10 @@ export function AppointmentDetailClient({ id }: { id: string }) {
                   hideLabel
                   type="date"
                   min={salonToday(new Date(), tz)}
-                  max={lastBookableDay(window_.horizonDays, tz)}
+                  max={lastBookableDay(
+                    appt.providerBookingHorizonDays ?? DEFAULT_HORIZON_DAYS,
+                    tz,
+                  )}
                   value={reschedDate}
                   onChange={(e) => {
                     setReschedDate(e.target.value);
@@ -382,8 +404,13 @@ export function AppointmentDetailClient({ id }: { id: string }) {
                   <SlotsEmpty
                     date={reschedDate}
                     tz={tz}
-                    horizonDays={window_.horizonDays}
-                    noticeMinutes={window_.noticeMinutes}
+                    horizonDays={
+                      appt.providerBookingHorizonDays ?? DEFAULT_HORIZON_DAYS
+                    }
+                    noticeMinutes={
+                      appt.providerMinimumNoticeMinutes ??
+                      DEFAULT_NOTICE_MINUTES
+                    }
                     onGoToDay={(d) => {
                       setReschedDate(d);
                       loadSlots(appt, d);

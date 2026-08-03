@@ -1,14 +1,12 @@
 import 'package:flutter/material.dart';
 
+import '../../core/constants/booking_horizons.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
-import '../../core/utils/booking_duration.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/utils/salon_time.dart';
 import '../../models/appointment.dart';
-import '../../models/provider.dart' as models;
-import '../../models/service.dart';
 import '../../widgets/booking/slot_picker.dart';
 import '../../widgets/common/app_button.dart';
 
@@ -28,36 +26,36 @@ import '../../widgets/common/app_button.dart';
 /// returns a value to exactly one caller and is never deep-linked. Pushed as a
 /// `MaterialPageRoute`, the shape the picker family already uses.
 ///
-/// **The salon is required, not optional**, and that is what fixes the live
-/// defect this screen replaces. `Appointment.durationMinutes` is a
-/// provider-enriched field that can be null on a consumer payload, so the only
-/// correct source for "how long does this booking need" is the salon's own
-/// services. The old flow passed nothing and let the target recompute from a
-/// freshly-defaulted length variant — so rescheduling a 3-hour braid could be
-/// offered 30-minute slots.
+/// **The appointment carries everything, and that is what fixes the live
+/// defect this screen replaces.** The screen used to require the whole salon
+/// object for one reason: `Appointment.durationMinutes` could be null on a
+/// consumer payload, so the only correct source for « how long does this
+/// booking need » was the salon's own catalogue — the old flow passed nothing
+/// and let the target recompute from a freshly-defaulted length variant, so
+/// rescheduling a 3-hour braid could be offered 30-minute slots.
+///
+/// That reason is gone: the server backfills `durationMinutes` from the
+/// catalogue that priced the booking, and stamps the salon's name, timezone,
+/// country and booking window onto the payload (Decision C). Requiring the
+/// salon now would mean fetching it from the public route — the door that
+/// stops opening for a salon which is `draft` or `suspended`.
 Future<DateTime?> showRescheduleScreen({
   required BuildContext context,
   required Appointment appointment,
-  required models.Provider salon,
 }) {
   return Navigator.of(context).push<DateTime>(
     MaterialPageRoute<DateTime>(
       fullscreenDialog: true,
-      builder: (_) => RescheduleScreen(appointment: appointment, salon: salon),
+      builder: (_) => RescheduleScreen(appointment: appointment),
     ),
   );
 }
 
 /// Public so tests can pump it without a navigator — the A14a/A14b idiom.
 class RescheduleScreen extends StatefulWidget {
-  const RescheduleScreen({
-    super.key,
-    required this.appointment,
-    required this.salon,
-  });
+  const RescheduleScreen({super.key, required this.appointment});
 
   final Appointment appointment;
-  final models.Provider salon;
 
   @override
   State<RescheduleScreen> createState() => _RescheduleScreenState();
@@ -67,14 +65,7 @@ class _RescheduleScreenState extends State<RescheduleScreen> {
   late DateTime _date;
   DateTime? _slot;
 
-  String? get _tz =>
-      widget.appointment.providerTimezone ?? widget.salon.timezone;
-
-  /// The services this booking actually contains, resolved against the salon's
-  /// current catalogue. The appointment carries ids and nothing else.
-  List<Service> get _services => widget.salon.services
-      .where((s) => widget.appointment.serviceIds.contains(s.id))
-      .toList();
+  String? get _tz => widget.appointment.providerTimezone;
 
   @override
   void initState() {
@@ -88,7 +79,7 @@ class _RescheduleScreenState extends State<RescheduleScreen> {
   @override
   Widget build(BuildContext context) {
     final wall = toSalonTime(widget.appointment.appointmentDate, tz: _tz);
-    final services = _services;
+    final services = widget.appointment.serviceNames;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -111,8 +102,8 @@ class _RescheduleScreenState extends State<RescheduleScreen> {
                   children: [
                     // **What is being moved.** The screen this replaces showed
                     // none of it — a bare picker with no answer to "which
-                    // booking is this?". The salon load that makes the duration
-                    // correct pays for this at no extra cost.
+                    // booking is this?". The enrichment that makes the duration
+                    // correct carries the name and the services too.
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.all(AppTheme.spacingM),
@@ -125,13 +116,13 @@ class _RescheduleScreenState extends State<RescheduleScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            widget.salon.name,
+                            widget.appointment.providerName ?? 'le salon',
                             style: AppTextStyles.titleMedium,
                           ),
                           if (services.isNotEmpty) ...[
                             const SizedBox(height: AppTheme.spacingXS),
                             Text(
-                              services.map((s) => s.name).join(' · '),
+                              services.join(' · '),
                               style: AppTextStyles.bodySmall.copyWith(
                                 color: AppColors.textSecondary,
                               ),
@@ -170,21 +161,24 @@ class _RescheduleScreenState extends State<RescheduleScreen> {
                       selectedSlot: _slot,
                       serviceIds: widget.appointment.serviceIds,
                       artistId: widget.appointment.artistId,
-                      // The salon's catalogue, never the appointment's
-                      // nullable enriched field. §19.2.
-                      durationMinutes: services.isEmpty
-                          ? widget.appointment.durationMinutes
-                          : totalBookingDuration(services, null),
+                      // Server-backfilled from the catalogue that priced the
+                      // booking, so it is never the freshly-defaulted length
+                      // the old flow recomputed. §19.2.
+                      durationMinutes: widget.appointment.durationMinutes,
                       tz: _tz,
-                      countryCode: widget.salon.countryCode,
+                      countryCode: widget.appointment.providerCountryCode,
                       // A14d. A consumer reschedule is a CLIENT path, so the
                       // salon's window binds it — the pro's own reschedule is
                       // exempt server-side and lives on a different screen.
                       horizon: Duration(
-                        days: widget.salon.availability.bookingHorizonDays,
+                        days:
+                            widget.appointment.providerBookingHorizonDays ??
+                            kDefaultBookingHorizonDays,
                       ),
                       minimumNotice: Duration(
-                        minutes: widget.salon.availability.minimumNoticeMinutes,
+                        minutes:
+                            widget.appointment.providerMinimumNoticeMinutes ??
+                            kDefaultMinimumNoticeMinutes,
                       ),
                       onDateChanged: (d) => setState(() {
                         _date = d;
