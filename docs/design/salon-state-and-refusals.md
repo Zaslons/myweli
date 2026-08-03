@@ -121,15 +121,50 @@ banned salon.
 section originally read *"Verified safe: the pro reads its own salon through
 `/me/provider` and `PATCH`, never the public `GET`."* That was checked against
 `api_pro_service.dart` only. The pro app **also** uses the shared
-`serviceLocator.providerService`, and four pro surfaces go through the public
-read:
+`serviceLocator.providerService`, and four pro surfaces went through the public
+read — **all four are fixed as of PR1b**, and the table is kept because the
+shape of the miss is the lesson:
 
-| call site | breaks how |
-|---|---|
-| `core/router/pro_router.dart:222` → `/pro/apercu` | **404s the owner's own pre-publish preview**, reached from `pro_onboarding_screen.dart:125` |
-| `providers/pro_salon_profile_provider.dart:25` | a draft owner cannot load their own profile form |
-| `providers/pro_onboarding_provider.dart:85` | breaks **by construction** — the salon is draft precisely while that screen is used |
-| `screens/provider/profile/pro_data_export_screen.dart:58` | RGPD export fails |
+| call site | broke how | now |
+|---|---|---|
+| `core/router/pro_router.dart:222` → `/pro/apercu` | **404s the owner's own pre-publish preview**, reached from `pro_onboarding_screen.dart:125` | new `screens/provider/salon_preview_screen.dart` fetches `/me/provider` and seeds the shared screen via `ProviderProvider.showPreloaded` |
+| `providers/pro_salon_profile_provider.dart:25` | a draft owner cannot load their own profile form | `proService.getMyProvider()` |
+| `providers/pro_onboarding_provider.dart:85` | breaks **by construction** — the salon is draft precisely while that screen is used | `proService.getMyProvider()`, inside the existing `providerId != null` guard |
+| `screens/provider/profile/pro_data_export_screen.dart:58` | RGPD export fails | `proService.getMyProvider()` |
+
+Held by `mobile/test/unit/pro_reads_own_salon_test.dart`: **no pro-side file may
+name `serviceLocator.providerService`, `getProviderById` or `loadProviderById`.**
+That pin went red on three of the four and green on the preview — the preview
+named no forbidden token, because its public fetch happened inside the *shared*
+consumer screen. That is exactly the shape of a gate that passes while the worst
+surface stays broken, so the preview is held behaviourally instead
+(`salon_preview_test.dart` pumps it against a provider service that fails the
+test if it is called at all). Recorded because the same blind spot recurs
+whenever a source pin is scoped by directory and the defect lives across the
+boundary.
+
+**Verified against a running server, not only in tests** (2026-08-03,
+`dart_frog dev`, a salon registered through `POST /auth/provider/register` so it
+is genuinely `draft`). Two measurements, because the second is the only one that
+proves anything:
+
+1. **The documents match.** `GET /providers/{id}` and `GET /me/provider` were
+   diffed field-by-field for the same draft salon: **`reviews` is the only key
+   the public route adds, and every shared field is identical** — 31 keys,
+   `status: draft` included. The « same document, so nothing is lost » claim is
+   measured, not assumed.
+2. **The read was then temporarily closed** — a two-line `status != 'active' →
+   404` in `routes/providers/[id]/index.dart`, i.e. exactly what Decision C will
+   do — and the server restarted. `GET /providers/{id}` → **404**, `by-slug` →
+   404, and `GET /me/provider` → **200 with the complete document**. Before this
+   PR that 404 was every one of the four pro surfaces, including the owner's own
+   pre-publish preview; after it, the app never asks that door. The patch was
+   reverted immediately (`git status` on `backend/` clean).
+
+**One accepted delta.** `/me/provider` does not embed the 10-review preview the
+public route adds, so `Provider.fromJson` yields `reviews: []` and « Avis »
+renders empty inside the preview. Web ships the identical limitation (its
+`ProProfile` type has no `reviews` field), so this is parity, not a new loss.
 
 Web's pro preview is already correct — `SalonPreviewClient.tsx` uses
 `/me/provider` and its comment says so explicitly. **Mobile is the outlier, and
@@ -149,7 +184,8 @@ exact failure that file exists to prevent).
 publicly readable by slug today — which is the route the web salon page uses.
 
 So Decision C becomes its own slice, ordered behind: (a) moving the four mobile
-pro reads onto `/me/provider`, and (b) deciding how a consumer's *own*
+pro reads onto `/me/provider` — **done, PR1b** — and (b) deciding how a
+consumer's *own*
 appointment or favourite keeps resolving a salon they have a relationship with —
 that is authenticated data about a non-public salon, and dropping it silently is
 not an answer. `Provider.status`'s contract description now states the gap

@@ -4,7 +4,9 @@ import 'package:go_router/go_router.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/models/api_response.dart';
+import 'package:myweli/models/pro_membership.dart';
 import 'package:myweli/models/provider.dart' as models;
+import 'package:myweli/models/team_member.dart';
 import 'package:myweli/providers/pro_auth_provider.dart';
 import 'package:myweli/providers/pro_salon_profile_provider.dart';
 import 'package:myweli/screens/provider/profile/pro_salon_profile_screen.dart';
@@ -63,9 +65,11 @@ void main() {
     registerFallbackValue(<String, dynamic>{});
     SharedPreferences.setMockInitialValues({});
     serviceLocator.authService = MockAuthService();
-    // The LOAD side stays REAL: the lockout test is only meaningful if the
-    // form is prefilled with the seeded salon exactly as production loads it
-    // (E.164 « +225 07 11 22 33 44 »).
+    // The LOAD side still yields the SEEDED salon: the lockout test is only
+    // meaningful if the form is prefilled exactly as production fills it
+    // (E.164 « +225 07 11 22 33 44 »). What changed is the door — the screen
+    // reads its own salon by account now (`GET /me/provider`), not through the
+    // public `getProviderById`, so the seed arrives through `getMyProvider`.
     serviceLocator.providerService = MockProviderService();
     pro = _MockProService();
     serviceLocator.proService = pro;
@@ -76,6 +80,19 @@ void main() {
     when(
       () => pro.updateSalonProfile(any(), any()),
     ).thenAnswer((_) async => ApiResponse.success(seededSalon()));
+    when(() => pro.getMyProvider()).thenAnswer(
+      (_) async => ApiResponse.success(
+        MyProviderInfo(
+          salon: seededSalon(),
+          membership: ProMembership(
+            role: TeamRole.owner,
+            capabilities: presetCapabilitiesFor(TeamRole.owner),
+            salonId: seededSalon().id,
+            salonName: seededSalon().name,
+          ),
+        ),
+      ),
+    );
   });
 
   Widget app() {

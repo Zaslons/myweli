@@ -2,7 +2,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/models/api_response.dart';
+import 'package:myweli/models/pro_membership.dart';
 import 'package:myweli/models/provider.dart';
+import 'package:myweli/models/team_member.dart';
 import 'package:myweli/providers/pro_salon_profile_provider.dart';
 import 'package:myweli/services/interfaces/pro_service_interface.dart';
 import 'package:myweli/services/interfaces/provider_service_interface.dart';
@@ -16,6 +18,13 @@ class _MockProviderService extends Mock implements ProviderServiceInterface {}
 void main() {
   late _MockProService pro;
   late _MockProviderService providers;
+
+  final membership = ProMembership(
+    role: TeamRole.owner,
+    capabilities: presetCapabilitiesFor(TeamRole.owner),
+    salonId: 'p1',
+    salonName: 'Salon Awa',
+  );
 
   final salon = Provider.fromJson({
     'id': 'p1',
@@ -52,19 +61,37 @@ void main() {
   });
 
   test('load populates the listing; failure surfaces the error', () async {
-    when(
-      () => providers.getProviderById('p1'),
-    ).thenAnswer((_) async => ApiResponse.success(salon));
+    // Reads its own salon BY ACCOUNT — `GET /me/provider`, not the public
+    // `GET /providers/{id}` this used to stub. The write half of the class was
+    // always pro-scoped; only the read went round the back of the session.
+    when(() => pro.getMyProvider()).thenAnswer(
+      (_) async => ApiResponse.success(
+        MyProviderInfo(salon: salon, membership: membership),
+      ),
+    );
     final p = ProSalonProfileProvider();
     await p.load('p1');
     expect(p.provider?.name, 'Salon Awa');
 
     when(
-      () => providers.getProviderById('p1'),
+      () => pro.getMyProvider(),
     ).thenAnswer((_) async => ApiResponse.error('boom'));
     await p.load('p1');
     expect(p.provider, isNull);
     expect(p.error, 'boom');
+  });
+
+  test('load never touches the public provider service', () async {
+    // The behavioural half of `pro_reads_own_salon_test.dart`'s source pin:
+    // the pin proves the token is absent from the source, this proves the
+    // call is absent at runtime.
+    when(() => pro.getMyProvider()).thenAnswer(
+      (_) async => ApiResponse.success(
+        MyProviderInfo(salon: salon, membership: membership),
+      ),
+    );
+    await ProSalonProfileProvider().load('p1');
+    verifyNever(() => providers.getProviderById(any()));
   });
 
   test('save sends the changes and refreshes the listing', () async {

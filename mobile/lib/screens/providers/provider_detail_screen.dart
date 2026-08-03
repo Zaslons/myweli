@@ -54,9 +54,17 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      // **The owner preview does not fetch.** This line used to run before the
+      // early-return below, so `preview` gated the RENDERING and never the
+      // READ — the pro app asked the anonymous public route for the salon it
+      // was already signed into, and would have 404'd its own draft the day
+      // that route closes (T51; salon-state-and-refusals.md Decision C). The
+      // pro-side `SalonPreviewScreen` fetches `GET /me/provider` and seeds the
+      // notifier through `showPreloaded`, mirroring web's
+      // `SalonPreviewClient` → `ProviderView` prop.
+      if (widget.preview) return; // owner preview: seeded, no consumer session
       final provider = Provider.of<ProviderProvider>(context, listen: false);
       provider.loadProviderById(widget.providerId);
-      if (widget.preview) return; // owner preview: no consumer session
 
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       if (authProvider.isAuthenticated && authProvider.user != null) {
