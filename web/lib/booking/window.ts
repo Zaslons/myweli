@@ -129,6 +129,16 @@ export function conflictMessage(
       return audience === "salon"
         ? "Votre salon est suspendu. Contactez Myweli pour le réactiver — vos rendez-vous sont intacts."
         : "Ce salon ne prend plus de rendez-vous sur Myweli.";
+    // Decision C. `/availability` answers this for a salon it will no longer
+    // serve, indistinguishably from an unknown id — the browse route answers to
+    // ANYONE, so naming the state there would be an enumeration oracle (T51).
+    // The client therefore gets the status-agnostic sentence, which is the same
+    // one the 404 landing uses. Before the closure this code only ever meant
+    // « you sent garbage » and fell through to the caller's fallback.
+    case "provider_not_found":
+      return audience === "salon"
+        ? "Ce salon est introuvable."
+        : "Ce salon n’est plus disponible sur Myweli.";
     default:
       return fallback;
   }
@@ -140,13 +150,19 @@ export function conflictMessage(
 /// the same code, so the sentence and the action cannot drift apart, and the
 /// component stores the CODE rather than the message.
 ///
-/// **Only the two provider codes.** A taken slot is fixed by choosing another
+/// **Only the salon-is-gone codes.** A taken slot is fixed by choosing another
 /// time at the same salon — sending that client away would be wrong, and the
 /// null arm is what keeps the CTA from becoming unconditional.
+/// `provider_not_found` joined the two with Decision C: it is what the closed
+/// browse route answers for a salon it will no longer serve.
 export function bookingErrorCta(
   code?: string,
 ): { label: string; href: string } | null {
-  if (code === "provider_not_published" || code === "provider_suspended") {
+  if (
+    code === "provider_not_found" ||
+    code === "provider_not_published" ||
+    code === "provider_suspended"
+  ) {
     // The phrase and the destination both already ship, in `AccountClient`'s
     // two empty states. Reusing them rather than minting « Découvrir d'autres
     // salons » — §17 says the product has one way to say a thing.

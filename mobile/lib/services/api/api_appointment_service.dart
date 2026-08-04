@@ -5,6 +5,7 @@ import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:http/http.dart' as http;
 
 import '../../core/config/app_config.dart';
+import '../../core/utils/booking_error_cta.dart';
 import '../../models/api_response.dart';
 import '../../models/appointment.dart';
 import '../../models/session.dart';
@@ -342,6 +343,12 @@ class ApiAppointmentService implements AppointmentServiceInterface {
         return 'Ce salon n’accepte pas encore de réservations en ligne.';
       case 'provider_suspended':
         return 'Ce salon ne prend plus de rendez-vous sur Myweli.';
+      // Decision C: `/availability` answers this for a salon it will no longer
+      // serve, indistinguishably from an unknown id (T51's no-oracle rule —
+      // the browse route is the one that answers to anyone). It used to fall
+      // to « Une erreur est survenue. ».
+      case 'provider_not_found':
+        return kSalonUnavailableMessage;
       // A14d shipped these two on web and never here, so a window breach read
       // « Une erreur est survenue. » on the phone and named its reason in the
       // browser. Same wording as `web/lib/booking/window.ts` — one voice.

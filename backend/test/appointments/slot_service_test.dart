@@ -12,6 +12,25 @@ import '../../routes/availability/index.dart' as availability;
 
 class _MockRequestContext extends Mock implements RequestContext {}
 
+/// Mon–Sun 09:00–18:00 in 30-minute openings — the seed shape, inline so these
+/// fixtures never borrow the shared mutable `seedProviders`.
+Map<String, dynamic> _openAvailability() {
+  final slots = <Map<String, dynamic>>[];
+  for (var m = 9 * 60; m < 18 * 60; m += 30) {
+    final start = DateTime.utc(2024, 1, 1, m ~/ 60, m % 60);
+    slots.add({
+      'startTime': start.toIso8601String(),
+      'endTime': start.add(const Duration(minutes: 30)).toIso8601String(),
+      'isAvailable': true,
+    });
+  }
+  return {
+    'weeklySchedule': {for (var d = 0; d <= 6; d++) '$d': slots},
+    'blockedDates': <String>[],
+    'bufferMinutes': 0,
+  };
+}
+
 /// A future weekday (Mon–Sat) in UTC, so the default seed schedule is open.
 DateTime _openDate() {
   var d = DateTime.utc(
@@ -200,6 +219,76 @@ void main() {
         (await slots.availableSlots(providerId: 'nope', date: date)).error,
         'provider_not_found',
       );
+    });
+  });
+
+  group('the closed browse (Decision C)', () {
+    // Isolated fixtures, never the shared mutable `seedProviders`.
+    InMemoryProvidersRepository salons() => InMemoryProvidersRepository([
+      {
+        'id': 'live',
+        'name': 'Live',
+        'services': <Map<String, dynamic>>[
+          {'id': 's1', 'name': 'Coupe', 'durationMinutes': 30, 'price': 5000},
+        ],
+        'availability': _openAvailability(),
+      },
+      {
+        'id': 'stopped',
+        'name': 'Stopped',
+        'status': 'suspended',
+        'services': <Map<String, dynamic>>[
+          {'id': 's1', 'name': 'Coupe', 'durationMinutes': 30, 'price': 5000},
+        ],
+        'availability': _openAvailability(),
+      },
+      {
+        'id': 'unpublished',
+        'name': 'Draft',
+        'status': 'draft',
+        'services': <Map<String, dynamic>>[
+          {'id': 's1', 'name': 'Coupe', 'durationMinutes': 30, 'price': 5000},
+        ],
+        'availability': _openAvailability(),
+      },
+    ]);
+
+    test('a hidden salon has no public slots, and says so as UNKNOWN', () async {
+      // `provider_not_found` on purpose, NOT the precise state. This is the
+      // only public door that takes an arbitrary providerId in a query string,
+      // and its body already carries the failure code — so naming the state
+      // would turn a one-valued channel into a three-valued one, which is the
+      // enumeration oracle T51 exists to prevent. A caller who OWNS a booking
+      // gets the precise code instead; they have a relationship, so there is
+      // nothing to protect.
+      final repo = salons();
+      final svc = SlotService(repo, InMemoryAppointmentRepository());
+      for (final id in ['stopped', 'unpublished']) {
+        final r = await svc.availableSlots(providerId: id, date: _openDate());
+        expect(r.ok, isFalse);
+        expect(r.error, 'provider_not_found');
+      }
+      // The pair.
+      final live = await svc.availableSlots(
+        providerId: 'live',
+        date: _openDate(),
+      );
+      expect(live.ok, isTrue);
+      expect(live.slots, isNotEmpty);
+    });
+
+    test('the SALON still sees its own — Decision A', () async {
+      // `rescheduleByProvider` reaches this engine through `_moveTo` and opts
+      // out, because a draft salon owns its calendar. Same principle that
+      // exempts `bookManual` from the engine entirely.
+      final svc = SlotService(salons(), InMemoryAppointmentRepository());
+      final r = await svc.availableSlots(
+        providerId: 'unpublished',
+        date: _openDate(),
+        requireVisibleSalon: false,
+      );
+      expect(r.ok, isTrue);
+      expect(r.slots, isNotEmpty);
     });
   });
 

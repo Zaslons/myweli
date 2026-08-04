@@ -52,3 +52,37 @@ bool isPublicSalon(Map<String, dynamic>? salon) =>
 /// being booked.
 String publicSalonStatus(Map<String, dynamic> salon) =>
     (salon['status'] as String?) ?? 'active';
+
+/// May this client transact with this salon, and if not, what are they told?
+///
+/// **The refusal `book` spelled inline since row 82, extracted now that
+/// `reschedule` needs the identical answer.** Two call sites is where a rule
+/// stops being a guard and becomes a spelling, and the spelling is the thing
+/// that drifts.
+///
+/// **Two states, two codes.** They used to share one, `provider_suspended`, for
+/// `draft` as well — and no client surface had a sentence for it, so all four
+/// fell through to « Une erreur est survenue. » (§21 row 82). The state the code
+/// was named for takes a deliberate admin act; the state it was silent about is
+/// the one EVERY salon starts in. The client cannot disambiguate for itself
+/// either, so the server carries it. Same argument the contract already makes
+/// for `beyond_horizon` against `slot_unavailable`: one code that makes every
+/// client say the wrong thing is worse than two.
+///
+/// **Not `status != 'active'`** — the same NULL trap [isPublicSalon] exists for.
+///
+/// **`bookManual` deliberately does NOT call this.** A salon that has not
+/// published yet owns its calendar and refuses only `suspended` (Decision A).
+/// That asymmetry is the point of row 82, not an oversight, and folding it in
+/// here would silently undo it; `salon_state_refusal_test.dart` holds both
+/// halves.
+///
+/// A missing salon folds to `provider_not_found`, which is what both callers
+/// already returned for one — so the extraction is behaviour-identical at each
+/// site, and a caller asks one question instead of two.
+String? clientBookingRefusal(Map<String, dynamic>? salon) {
+  if (salon == null) return 'provider_not_found';
+  if (salon['status'] == 'suspended') return 'provider_suspended';
+  if (salon['status'] == 'draft') return 'provider_not_published';
+  return null;
+}

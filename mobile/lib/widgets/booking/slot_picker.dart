@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/constants/booking_horizons.dart';
@@ -7,6 +8,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
 import '../../core/utils/app_clock.dart';
+import '../../core/utils/booking_error_cta.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/utils/salon_time.dart';
 import '../../providers/appointment_provider.dart';
@@ -159,6 +161,9 @@ class _SlotPickerState extends State<SlotPicker> {
   /// .getAvailableTimeSlots]; the two rendered the same sentence until A14c.
   String? _error;
 
+  /// Non-null when retrying cannot succeed — the way out goes elsewhere.
+  BookingErrorCta? _errorCta;
+
   int _reqId = 0;
 
   @override
@@ -190,6 +195,7 @@ class _SlotPickerState extends State<SlotPicker> {
     setState(() {
       _loading = true;
       _error = null;
+      _errorCta = null;
     });
 
     final res = await context.read<AppointmentProvider>().getAvailableTimeSlots(
@@ -204,6 +210,7 @@ class _SlotPickerState extends State<SlotPicker> {
     setState(() {
       _slots = res.slots;
       _error = res.error;
+      _errorCta = bookingErrorCta(res.code);
       _loading = false;
     });
   }
@@ -326,12 +333,20 @@ class _SlotPickerState extends State<SlotPicker> {
                     ),
                   ],
                 ),
+                // §12 as amended by row 82: a retry only where retrying can
+                // succeed. A salon the browse route will not serve is not
+                // coming back this session, so its way out is another salon.
                 Align(
                   alignment: Alignment.centerLeft,
-                  child: TextButton(
-                    onPressed: _load,
-                    child: const Text('Réessayer'),
-                  ),
+                  child: _errorCta == null
+                      ? TextButton(
+                          onPressed: _load,
+                          child: const Text('Réessayer'),
+                        )
+                      : TextButton(
+                          onPressed: () => context.go(_errorCta!.href),
+                          child: Text(_errorCta!.label),
+                        ),
                 ),
               ],
             ),

@@ -121,6 +121,9 @@ export function BookingFlow({
   // A14d — web's fourth state. `fetchSlots` used to collapse an outage into an
   // empty array, so « Aucun créneau disponible » covered a dead network too.
   const [slotsFailed, setSlotsFailed] = useState(false);
+  /// Decision C: the salon stopped being served. Separate from `slotsFailed`
+  /// because the two want OPPOSITE controls — retry vs a way out.
+  const [salonGone, setSalonGone] = useState(false);
   // The app's slotsRequestId pattern — stale slot responses are dropped. This
   // guards a CACHE (`slots`), which is always safe to discard.
   const slotsReq = useRef(0);
@@ -201,6 +204,7 @@ export function BookingFlow({
     if (req !== slotsReq.current) return;
     setSlots(r.slots);
     setSlotsFailed(!r.ok);
+    setSalonGone(r.gone === true);
     setSlotsLoading(false);
   }
 
@@ -708,6 +712,23 @@ export function BookingFlow({
           />
           {slotsLoading ? (
             <Loading label="Chargement des créneaux…" className="mt-m" />
+          ) : salonGone ? (
+            // §12 as amended by row 82: a retry only where retrying can
+            // succeed. This salon is not coming back this session, so the way
+            // out is another salon — the same sentence and the same
+            // destination the 404 landing and the booking refusals use.
+            <div className="mt-m" role="alert">
+              <p className="text-bodyMedium text-textPrimary">
+                {conflictMessage("provider_not_found", {
+                  audience: "client",
+                  taken: "",
+                  fallback: "",
+                })}
+              </p>
+              <Link href="/" className="mt-s inline-block underline">
+                Découvrir des salons
+              </Link>
+            </div>
           ) : slotsFailed ? (
             // The fourth state. Distinct from « nothing free », and the only
             // one of the four that offers a retry — because it is the only one
