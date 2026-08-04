@@ -166,6 +166,15 @@ writing « Rendez-vous — le salon » at zero duration **while reporting succes
 
 ### Verified against a running server, with the door actually shut
 
+> **These tables are now EXECUTED, not just typed.** Q1's funnel e2e asserts
+> the same three vocabularies on every PR against a real server on real
+> Postgres — A8 (`not_found` for a draft detail read), A9
+> (`provider_not_found` through `/availability`), A11
+> (`provider_not_published` on a booking), plus A43–A45 for the suspended
+> pair and A46/A47 for Decision A's asymmetry. The prose below stays: it is
+> the reasoning. `backend/tool/smoke/funnel_smoke_test.dart` is the proof.
+
+
 2026-08-03, `dart_frog dev`, the realistic arc: register a salon → give it a
 service, a Mobile Money handle and a 45-day / 90-minute booking window → admin
 activates it → **a consumer books and favourites it while it is live** → admin

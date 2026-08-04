@@ -121,8 +121,12 @@ jobs:
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/myweli_test
 
   backend-boot-smoke:
-    name: Backend — boot smoke
+    name: Backend — boot smoke + funnel e2e
     runs-on: ubuntu-latest
+    # The first job in this file to carry one, and it earns it: this job now
+    # BOOTS a server, so a hang would burn the full runner limit instead of
+    # failing. 12 min is ~3× the measured p95 budget (Q1 spec §7.1).
+    timeout-minutes: 12
     defaults:
       run:
         working-directory: backend
@@ -150,6 +154,20 @@ jobs:
       JWT_SECRET: ci-boot-smoke-secret
       ENV: dev
       PORT: "8080"
+      # **Mirror production's auth config, or CI is green about a door nobody
+      # opens.** `auth_methods.dart:21` makes `phone` a DEFAULT and this job
+      # used to set nothing, so its only auth assertion drove
+      # `/auth/otp/request` — which `render.yaml:58` documents as dormant
+      # ("phone-OTP dormant — SMS too costly") — and never touched the e-mail
+      # door production actually serves. Assertion A4 now pins the SMS door
+      # shut; the funnel signs in by e-mail, like production.
+      AUTH_METHODS: google,apple,email
+      # Fake and non-secret by construction. `dependencies.dart:750-752` seeds a
+      # staff account when these are set and is a no-op when they are not; the
+      # funnel's Phase 7 needs one to suspend a salon and assert row 82's fourth
+      # vocabulary. Never a real credential — gitleaks would fail the run.
+      ADMIN_EMAIL: smoke-admin@myweli.test
+      ADMIN_PASSWORD: smoke-not-a-secret
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -170,10 +188,17 @@ jobs:
       - name: Build production server
         run: dart pub global run dart_frog_cli:dart_frog build
 
+      # AOT, exactly as `backend/Dockerfile:25-27` does it — so the artifact
+      # under test is the artifact that deploys, not a JIT approximation of it.
+      # What this still does NOT cover is the `scratch` IMAGE (Dockerfile:29-32):
+      # a shared object missing there would reach production regardless.
+      - name: Compile the deploy artifact (AOT, as the Dockerfile does)
+        run: cd build && dart pub get && dart compile exe bin/server.dart -o bin/server
+
       - name: Boot server + smoke endpoints (real Postgres migrations)
         run: |
           set -euo pipefail
-          dart build/bin/server.dart >/tmp/server.log 2>&1 &
+          ./build/bin/server >/tmp/server.log 2>&1 &
           SERVER_PID=$!
           cleanup() {
             kill "$SERVER_PID" 2>/dev/null || true
@@ -197,19 +222,35 @@ jobs:
           curl -fsS "http://localhost:${PORT}/localities" | tee /tmp/localities.json; echo
           grep -q '"code":"CI"' /tmp/localities.json
           grep -q '"id":"cocody"' /tmp/localities.json
-          # Auth round-trip: request OTP → devCode → verify → tokens
-          REQ=$(curl -fsS -X POST "http://localhost:${PORT}/auth/otp/request" \
-            -H 'content-type: application/json' \
-            -d '{"phoneNumber":"+2250700000009"}')
-          echo "otp/request: $REQ"
-          CODE=$(printf '%s' "$REQ" | sed -n 's/.*"devCode":"\([0-9]*\)".*/\1/p')
-          test -n "$CODE"
-          VER=$(curl -fsS -X POST "http://localhost:${PORT}/auth/otp/verify" \
-            -H 'content-type: application/json' \
-            -d "{\"phoneNumber\":\"+2250700000009\",\"code\":\"${CODE}\"}")
-          printf '%s' "$VER" | head -c 200; echo
-          printf '%s' "$VER" | grep -q '"accessToken"'
+          # **The phone-OTP round-trip that used to live here is GONE, and its
+          # removal is the point.** It posted to `/auth/otp/request`, which
+          # `AUTH_METHODS=google,apple,email` now answers 404
+          # `auth_method_disabled` — and `curl -fsS` exits 22 on a 404, so the
+          # job died here before the funnel ever ran. That is exactly the
+          # divergence this slice exists to close: the assertion was green only
+          # because CI ran a configuration production does not.
+          #
+          # Auth is now covered properly one step down: A4 pins the SMS door
+          # SHUT, and the funnel signs both a pro and two consumers in over the
+          # e-mail door production actually serves.
           echo 'boot smoke passed ✅'
+
+          # --- The funnel, against the SAME running server ------------------
+          #
+          # In this step, not its own: each `run:` is a separate shell, and the
+          # trap above kills the server when this one ends — a second step would
+          # have to boot and wait for a second server for no signal.
+          #
+          # The curl checks above stay. They are the BOOT proof and they fail
+          # faster and far more legibly than a Dart VM start when the server
+          # never came up at all.
+          #
+          # Fail-closed: the harness throws on an unset SMOKE_BASE_URL rather
+          # than skipping, so this can never pass vacuously. It lives in `tool/`,
+          # not `test/`, so the backend job's bare `dart test` does not collect
+          # it — measured (0 hits for a marker over the full 622-test run), not
+          # assumed.
+          SMOKE_BASE_URL="http://localhost:${PORT}" dart test tool/smoke/funnel_smoke_test.dart
 
   web:
     name: Web — Lint, Typecheck & Build

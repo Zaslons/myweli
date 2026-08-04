@@ -85,7 +85,9 @@ apps); what's left is console work. Specs:
    `\n` escapes). This one **is** a secret — never in the repo.
 5. **Reminder cron** — Render Cron Job, `POST /internal/cron/reminders` with the
    `X-Cron-Secret` header, every ~15 min (Phase C step 5).
-6. **Android smoke test — two real devices** (the first true end-to-end run;
+6. **Android smoke test — two real devices** (the first true end-to-end run
+   **on device** — the backend funnel is proven in CI since Q1, but nothing had
+   run on real hardware against a deployed API;
    there is no Android SDK in CI, so this is where the native build is proven):
    ```sh
    cd mobile
@@ -192,6 +194,17 @@ The admin is a Flutter-Web SPA that calls `api.myweli.com` **directly** (CORS), 
 6. Set `NEXT_PUBLIC_IOS_APP_URL` / `NEXT_PUBLIC_ANDROID_APP_URL` on the web.
 
 ## Phase G — Go-live checklist
+
+> **What CI now proves for free, and what still needs the paid pass (Q1).**
+> The first four links of the chain below — discovery → provider page → booking
+> → pro accepts — are asserted on **every PR** by the funnel e2e, against the
+> AOT binary on real Postgres (`backend/tool/smoke/funnel_smoke_test.dart`). So
+> arriving here, those are regressions rather than unknowns.
+> **Still manual and still paid, every one of them because it needs an account:**
+> real OTP **SMS**, **WhatsApp** confirmation, the **reminder cron**, **R2**
+> photo upload, and **push**. Q1 deliberately touches none of them — no SMS is
+> ever sent, at $0.49/segment.
+
 End-to-end on prod: discovery → provider page → booking + **real OTP SMS** → pro
 accepts → **WhatsApp confirmation** → **reminder cron** → **R2 photo upload** →
 **push**. Plus: Postgres backups, monitoring/logs/uptime alerts (Sentry), DNS/SSL,
