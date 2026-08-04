@@ -340,10 +340,10 @@ defect *in the suite*, and blocks the PR.
 | Delete the `AUTH_METHODS` gate at `routes/auth/otp/request.dart:16-18` | A4 |
 | `dependencies.dart:99` → `_isProd => true` | A5 (no `devCode`) |
 | `provider_auth_repository.dart:363` → `consume: true` | A7 (register can no longer reuse the code) |
-| `salon_visibility.dart:42-43` → the SHOW form `salon['status'] == 'active'` | **A2, A8, A20 together** — the exact mutation `backend/test/salon_visibility_test.dart` exists for; seeded salons (NULL status) vanish *and* the draft door opens |
+| `salon_visibility.dart:42-43` → the SHOW form `salon['status'] == 'active'` | ~~**A2, A8, A20 together**~~ → **nothing, correctly.** ✗ This row was wrong. `providers.status` is `NOT NULL DEFAULT 'active'` (0 of 4 seeded rows null, measured) and `postgres_providers_repository.dart:669` folds `?? 'active'` on top, so against Postgres HIDE and SHOW agree on every value the system can produce. They diverge only on a fourth status nothing can create. The status-less document is the **in-memory** repository's, and `salon_visibility_test.dart` is its only possible guard — no live-server test can reach it (§8) |
 | `slot_service.dart:59` → drop `requireVisibleSalon` | A9 |
 | `booking_service.dart:59` → skip `clientBookingRefusal` | A11 |
-| `salon_provisioning_service.dart:114` → `services < 1` | A12 (set equality breaks) |
+| `salon_provisioning_service.dart:114` → `services < 1` | ~~A12~~ → **nothing — a NO-OP mutation.** ✗ This row was wrong too: A12 runs with *zero* services, so `0 < 1` still adds the key, and A17 runs with three, so `3 < 1` is still false. The mutation cannot change behaviour anywhere in this funnel. `services < 0` would have been the mutation that bites |
 | `salon_provisioning_service.dart:154` → `subs = null` | A12, A17 |
 | `salon_provisioning_service.dart:150` → move `publishGate` after the active early-return | A12/A17 (the gate stops gating) |
 | `booking_service.dart` total → read `body['totalPrice']` | A23 |
@@ -398,9 +398,21 @@ The PR does not go up with this section empty.)*
 ### 4.6 One red run on CI, not just locally
 
 After the local ledger, a single throwaway commit on the branch carries one
-mutation (`salon_visibility.dart` → SHOW form) so the **job itself** is watched
-red in Actions, proving the gate fails in the environment it will guard, with a
-readable message. The run URL is recorded here; the commit is then reverted.
+mutation so the **job itself** is watched red in Actions, proving the gate fails
+in the environment it will guard, with a readable message. The commit is then
+reverted.
+
+**The mutation this section originally named cannot serve.** It said
+`salon_visibility.dart` → SHOW form, on the belief that seeded salons carry a
+NULL status. They do not (§4.1, corrected) — that mutation is a no-op against
+Postgres and the suite stays green, correctly. Using it here would have
+"proved" the gate works by watching it *not* fail.
+
+**Substituted:** `postgres_auth_repository.dart:18` → `maxAttempts = 999`,
+which removes the OTP lockout. It is verified red locally (A34), it is one of
+BACKEND.md §5's six *required* security categories, and it is a defect someone
+could genuinely ship — the honest shape of what this gate is for.
+
 
 ---
 
@@ -535,24 +547,21 @@ developer's second local run does not trip the OTP resend budget.
 
 ### 7.1 Budget
 
-| | Today (measured) | Q1 target | Hard stop |
+**Measured locally against the AOT binary on real Postgres** (the CI numbers
+land here after the first branch run — see the note below):
+
+| | Before Q1 | Measured now | Hard stop |
 |---|---|---|---|
-| `dart compile exe` (new, AOT extra) | — | **≤ 90 s** | — |
-| Boot + assertions step | 6 s | **≤ 40 s** | — |
-| Job total | 53 s | **≤ 4 min p95** | `timeout-minutes: 12` |
+| `dart compile exe` (new) | — | **7.8 s** | — |
+| Server boot | ~7 s (JIT) | **3 s** (AOT — *faster* than JIT) | — |
+| The 47 funnel cases | — | **1.5 s** | — |
+| Job total | 53 s | **≈ 63 s expected** | `timeout-minutes: 12` |
 
-The AOT extra is the dominant new cost and it is bought deliberately: it replaces
-`dart build/bin/server.dart` (JIT) with the two lines
-`backend/Dockerfile:25-27` actually ships, so the binary under test is the binary
-that deploys. Even at 4 min the job stays under half the run's critical path
-(APK size, 8 m 14 s), so it never becomes the thing anyone waits for.
-
-~46 local HTTP round trips against a loopback server cost single-digit seconds;
-the real new cost is `dart test`'s VM start + compile of one file (~5–10 s). The
-job stays roughly an order of magnitude under the run's critical path (APK size,
-8 m 14 s), so it never becomes the thing anyone waits for. **The first branch run
-re-measures all of this and the numbers are written back into this table** — a
-budget nobody measured is a budget nobody keeps.
+So the whole slice costs about **ten seconds**, against a 90 s allowance for the
+compile alone. AOT was expected to be the dominant new cost and is not: it also
+*halves* boot time, which pays part of itself back. The job stays roughly an
+order of magnitude under the run's critical path (APK size, 8 m 14 s), so it
+never becomes the thing anyone waits for.
 
 ### 7.2 Flake control
 
