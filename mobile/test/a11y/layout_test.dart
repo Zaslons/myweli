@@ -176,6 +176,11 @@ void main() {
         );
         expectNoLegibilityCrush(tester, context: 'the consumer OTP at $at');
         expectNoVerticalClip(tester, context: 'the consumer OTP at $at');
+        // **Unpushed, but not ungated.** A root bar draws no leading, so it is
+        // 48dp WIDER than a pushed one — and then spends it on actions. The
+        // device run found « Tableau de b… » here while the corpus run, which
+        // pumps an action-less pushed bar, read it green.
+        expectAppBarTitleWhole(tester, at: 'the consumer OTP at $at');
         expect(tester.takeException(), isNull, reason: 'A: $at');
 
         await _disposeTimers(tester);
@@ -195,6 +200,11 @@ void main() {
         expectNoUndeclaredTruncation(tester, context: 'the pro OTP at $at');
         expectNoLegibilityCrush(tester, context: 'the pro OTP at $at');
         expectNoVerticalClip(tester, context: 'the pro OTP at $at');
+        // **Unpushed, but not ungated.** A root bar draws no leading, so it is
+        // 48dp WIDER than a pushed one — and then spends it on actions. The
+        // device run found « Tableau de b… » here while the corpus run, which
+        // pumps an action-less pushed bar, read it green.
+        expectAppBarTitleWhole(tester, at: 'the pro OTP at $at');
         expect(tester.takeException(), isNull, reason: 'A: $at');
 
         await _disposeTimers(tester);
@@ -972,6 +982,11 @@ void main() {
         expectNoUndeclaredTruncation(tester, context: 'pro dashboard at $at');
         expectNoLegibilityCrush(tester, context: 'pro dashboard at $at');
         expectNoVerticalClip(tester, context: 'pro dashboard at $at');
+        // **Unpushed, but not ungated.** A root bar draws no leading, so it is
+        // 48dp WIDER than a pushed one — and then spends it on actions. The
+        // device run found « Tableau de b… » here while the corpus run, which
+        // pumps an action-less pushed bar, read it green.
+        expectAppBarTitleWhole(tester, at: 'pro dashboard at $at');
         expect(tester.takeException(), isNull, reason: 'A: $at');
       });
 

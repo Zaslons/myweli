@@ -8,7 +8,12 @@ import '_a11y.dart';
 
 /// One app-bar title the scan found in source, and the declaration (if any)
 /// that exempts it from having to fit.
-typedef TitleSite = ({String text, String where, String? reason});
+typedef TitleSite = ({
+  String text,
+  String where,
+  String? reason,
+  bool hasActions,
+});
 
 /// The scan, as a **pure function over lines** so the fixture below can run the
 /// shipping code rather than a copy of its regexes.
@@ -51,6 +56,16 @@ scanAppBarTitles(List<String> lines, {required String name}) {
     // it silently.
     if (lines[i].contains('AppBar(')) {
       final window = lines.sublist(i, (i + 11).clamp(0, lines.length));
+      // **The budget is not one number, and the device proved it twice.** A
+      // pushed action-less bar has 280dp; add a leading AND one icon action and
+      // it is 232. « Dates à bloquer » (226dp by `TextPainter`) and « Tableau de
+      // bord » (231dp) both READ GREEN at 280 and both rendered elided on a
+      // phone at `accessibility-large` — measured rendering runs ~5% wide of a
+      // bare `TextPainter`, which is inside the ±3% this spec already warned
+      // about but not inside a 1dp margin.
+      final hasActions = window.any(
+        (l) => !l.trimLeft().startsWith('//') && l.contains('actions:'),
+      );
       for (final l in window) {
         if (l.trimLeft().startsWith('//')) continue;
         if (!l.contains('title:')) continue;
@@ -66,7 +81,12 @@ scanAppBarTitles(List<String> lines, {required String name}) {
           final t = m.group(1)!;
           if (t.trim().length < 3) continue;
           openers.add(i);
-          sites.add((text: t, where: '$name:${i + 1}', reason: null));
+          sites.add((
+            text: t,
+            where: '$name:${i + 1}',
+            reason: null,
+            hasActions: hasActions,
+          ));
         }
         break;
       }
@@ -81,7 +101,16 @@ scanAppBarTitles(List<String> lines, {required String name}) {
         final t = m.group(1)!;
         if (t.trim().length < 3) continue;
         openers.add(i);
-        sites.add((text: t, where: '$name:${i + 1}', reason: null));
+        // A picker's `helpText:` lands on a bar that always draws a close
+        // leading, and `MyweliMultiDatePicker` adds a reset action the moment
+        // the pro touches a day — which is exactly the state row 79 was opened
+        // on. Treated as action-bearing.
+        sites.add((
+          text: t,
+          where: '$name:${i + 1}',
+          reason: null,
+          hasActions: true,
+        ));
       }
     }
   }
@@ -113,6 +142,7 @@ scanAppBarTitles(List<String> lines, {required String name}) {
           text: s.text,
           where: s.where,
           reason: exempt[int.parse(s.where.split(':').last) - 1],
+          hasActions: s.hasActions,
         ),
     ],
     orphans: orphans,
@@ -328,6 +358,14 @@ appBar: AppBar(title: Text('Conditions générales d’utilisation')),
   });
 
   for (final t in corpus.where((t) => t.reason == null)) {
+    // **Two passes, because there are two budgets.** Every title is measured on
+    // the widest bar it can get (pushed, no actions — 280dp); a title whose own
+    // `AppBar(` declares `actions:` is measured AGAIN beside a real icon action
+    // (232dp), which is the bar the product actually draws for it.
+    //
+    // The second pass under-reports and never over-reports: it renders ONE
+    // action, and a bar with two has 184dp. `DashboardScreen` is the two-action
+    // case and the matrix holds it, rendering its real bell and profile.
     testWidgets('« ${t.text} » (${t.where}) fits a pushed bar at 360 × 2×', (
       tester,
     ) async {
@@ -340,6 +378,36 @@ appBar: AppBar(title: Text('Conditions générales d’utilisation')),
       );
       expectAppBarTitleWhole(tester, at: '${t.where} — 360dp × 2×');
     });
+
+    if (t.hasActions) {
+      testWidgets(
+        '« ${t.text} » (${t.where}) fits BESIDE an action at 360 × 2×',
+        (tester) async {
+          await pumpPushedAtWidth(
+            tester,
+            width: 360,
+            scale: 2,
+            rounds: 0,
+            subject: Scaffold(
+              appBar: AppBar(
+                title: Text(t.text),
+                actions: const [
+                  IconButton(
+                    tooltip: 'action',
+                    icon: Icon(Icons.undo),
+                    onPressed: null,
+                  ),
+                ],
+              ),
+            ),
+          );
+          expectAppBarTitleWhole(
+            tester,
+            at: '${t.where} — 360dp × 2×, one action',
+          );
+        },
+      );
+    }
   }
 
   for (final t in corpus.where((t) => t.reason != null)) {

@@ -297,7 +297,10 @@ class _MyweliMultiDatePickerScreenState
             tooltip: 'Fermer',
             onPressed: _exit,
           ),
-          title: Text(widget.helpText ?? 'Choisir des dates'),
+          // The FALLBACK, so it has to fit the narrowest bar this widget can
+          // draw — close leading + reset action = 232dp. « Choisir des dates »
+          // is 251 and every call site that matters passes its own `helpText`.
+          title: Text(widget.helpText ?? 'Choisir'),
           actions: [
             // Undoes THIS session's taps — never a bulk unblock of stored data.
             //

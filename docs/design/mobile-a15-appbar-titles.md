@@ -154,6 +154,47 @@ two extra titles shortened instead, both to strings with >80dp of headroom.
 The §13.3 move this slice already used twice (« Préférences » on the bar, the
 long phrase on the row that opens it) applies to both.
 
+### 2.3 The device run, and the blind spot only it could find
+
+The A11 360dp simulator at `accessibility-large` (≈1.95×), walking the three
+screens row 79 names plus three more. **Two titles the whole suite read green
+were still elided on the phone**, and both causes were real gaps rather than
+measurement noise:
+
+1. **The matrix gated only the PUSHED subjects.** Correction 3 was right that
+   `DashboardScreen` must not be pushed — and wrong to let that mean ungated. A
+   root bar draws no leading, so it is 48dp *wider* than a pushed one, and then
+   spends it on actions. `expectAppBarTitleWhole` now runs on the three root
+   subjects too.
+2. **A bar with a leading and one icon action has 232dp, not 280,** and nothing
+   measured that. The corpus now runs a **second pass beside a real icon
+   action** for every title whose own `AppBar(` declares `actions:`.
+
+| surface | before | after |
+|---|---|---|
+| pro dashboard — root, 2 icon actions | « Tableau de b… » | **« Accueil »** |
+| multi-date picker mid-edit — leading + action | « Dat… » → « Dates à bloqu… » | **« Jours bloqués »** |
+| pro manual booking — pushed | « Nouveau rendez… » | **« Réservation »** |
+| pro availability — pushed | — | « Disponibilité » |
+| pro journal — pushed, 2 icon actions | — | « Ma journée » |
+| pro login / OTP | — | « Espace Pro » |
+
+`/pro/profile` is reachable from the dashboard bar and **nowhere else**, so on
+that bar the action could not give and the title had to.
+
+**A measured limit, stated rather than hidden.** Rendering runs **~5% wide** of a
+bare `TextPainter`: « Dates à bloquer » computes 226.3dp and paints ≈237. So a
+margin under ~5% is a coincidence, not a pass — which is exactly how
+« Tableau de bord » (231.1 of 232) and « Configurer mon profil » (309.3 of 312)
+both passed a gate and failed a phone. The second pass also renders ONE action;
+two-action bars are held only by the matrix, which draws their real ones.
+
+**Two findings filed, not absorbed** — §21 row 83: five weekday labels break
+mid-word in the availability pause-hours rows (« Mard/i », « Merc/redi »), and
+the picker's discard dialog titles « Abandonne/r les modifi/cations ? ». Both are
+§13.3's mid-word rule, whose helper is applied **by name** — so the helper
+exists and the corpus does not. Different rule, different gate.
+
 ## 3. The rule
 
 Added to **SYSTEM.md §13.3**:

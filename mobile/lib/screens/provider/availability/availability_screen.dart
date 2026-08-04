@@ -320,7 +320,14 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
       // way. Recorded so a future sweep does not "fix" it into agreement.
       lastDate: today.add(kBookingHorizon),
       today: today,
-      helpText: 'Dates à bloquer',
+      // **« Dates à bloquer » is the string §21 row 79 was opened with, and
+      // it took two passes to actually fix.** Making « Réinitialiser » an
+      // icon took it from « Dat… » to « Dates à bloqu… » — better, still cut.
+      // This bar draws a close leading AND that reset action the moment the
+      // pro touches a day, so its budget is 232dp, not the 280 an action-less
+      // bar gets. « Jours bloqués » also stops naming only one direction, on a
+      // screen A14e made deliberately bidirectional.
+      helpText: 'Jours bloqués',
     );
     if (delta == null || !context.mounted) return;
     if (delta.added.isEmpty && delta.removed.isEmpty) return;
@@ -1020,7 +1027,9 @@ class _DayScheduleEditScreenState extends State<_DayScheduleEditScreen> {
             hour: startTime?.hour ?? 10,
             minute: startTime?.minute ?? 0,
           ),
-      helpText: index == null ? 'Nouveau créneau' : 'Modifier le créneau',
+      // 232dp, not 280: this bar has a close leading and a save action. The
+      // noun is what the screen the pro just tapped through already says.
+      helpText: index == null ? 'Nouveau' : 'Modifier',
     );
 
     if (picked == null || !mounted) return;
