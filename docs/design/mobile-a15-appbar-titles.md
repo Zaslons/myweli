@@ -189,7 +189,7 @@ margin under ~5% is a coincidence, not a pass — which is exactly how
 both passed a gate and failed a phone. The second pass also renders ONE action;
 two-action bars are held only by the matrix, which draws their real ones.
 
-**Two findings filed, not absorbed** — §21 row 83: five weekday labels break
+**Two findings filed, not absorbed** — §21 row 86: five weekday labels break
 mid-word in the availability pause-hours rows (« Mard/i », « Merc/redi »), and
 the picker's discard dialog titles « Abandonne/r les modifi/cations ? ». Both are
 §13.3's mid-word rule, whose helper is applied **by name** — so the helper
