@@ -296,19 +296,24 @@ void main() {
     });
 
     test('A2b a SEEDED salon is readable by DETAIL, not just by list', () async {
-      // **Added by the mutation ledger, and its motivating claim is NOT yet
-      // proven.** Flipping `isPublicSalon` to the SHOW form
-      // (`salon['status'] == 'active'`) left the whole suite green. Every other
-      // public read here uses the salon this run creates, which carries an
-      // EXPLICIT 'active' after publishing — whereas `provider1` is seeded with
-      // **no `status` key at all** (verified in Postgres: the column is NULL),
-      // which is the trap `hiddenSalonStatuses` exists for.
+      // **Added by the mutation ledger, which then explained itself.** Flipping
+      // `isPublicSalon` to the SHOW form (`salon['status'] == 'active'`) leaves
+      // this suite green, and that is CORRECT rather than a gap: against
+      // Postgres the two spellings are behaviourally identical.
       //
-      // `routes/providers/[id]/index.dart:34` does call `isPublicSalon`, so on
-      // the face of it this read SHOULD 404 under the SHOW form. It did not,
-      // and **I have not established why** — the mutation may not have reached
-      // the running server in that run. Recorded as an open question rather
-      // than a closed one.
+      // `providers.status` is `NOT NULL DEFAULT 'active'` (measured: 0 of 4
+      // seeded rows null), and `postgres_providers_repository.dart:669` folds
+      // `?? 'active'` on top of that. So a document from this repository always
+      // carries one of `active | draft | suspended`, and HIDE and SHOW agree on
+      // all three. They diverge on exactly one input — a fourth status invented
+      // later, where HIDE fails OPEN and SHOW fails closed — which no code path
+      // can currently produce.
+      //
+      // The NULL trap `hiddenSalonStatuses` is written for is real, but it
+      // lives in the IN-MEMORY repository, whose seeds carry no `status` key at
+      // all. That is the environment `backend/test/salon_visibility_test.dart`
+      // runs in, and it remains the guard. **No end-to-end assertion can cover
+      // it**, and the spec's §8 says so rather than implying otherwise.
       //
       // The assertion earns its place regardless: nothing else in this suite
       // reads a SEEDED salon by detail, only through `/providers`, which

@@ -18,14 +18,28 @@ library;
 
 /// The statuses that hide a salon from every anonymous read.
 ///
-/// **The HIDE form, never `status != 'active'`.** Seeded salons carry no
-/// `status` key at all and Postgres reads a NULL column as active, so the
-/// negative spelling refuses every seeded salon and every in-memory fixture —
-/// `booking_service.dart:65-67` records the same trap for the same reason, and
-/// `query()` already spells it this way in both repository impls
+/// **The HIDE form, never `status != 'active'`.** A salon with no `status` at
+/// all must stay visible, and the negative spelling would refuse every one of
+/// them — `booking_service.dart:65-67` records the same trap for the same
+/// reason, and `query()` already spells it this way in both repository impls
 /// (`providers_repository.dart:152-156`, `postgres_providers_repository.dart:35-37`).
 /// `salon_visibility_test.dart` holds the spelling with an assertion instead of
 /// a third comment.
+///
+/// **Where that trap is real, corrected (Q1).** This paragraph used to say
+/// « Postgres reads a NULL column as active ». It does not, and cannot: the
+/// column is `NOT NULL DEFAULT 'active'` (0 of 4 seeded rows null, measured),
+/// and `postgres_providers_repository.dart:669` folds `?? 'active'` on top of
+/// that. So against Postgres a document always carries one of
+/// `active | draft | suspended`, and the HIDE and SHOW spellings are
+/// **behaviourally identical** — the SHOW form was applied as a mutation and
+/// the 47-case funnel e2e stayed green, correctly.
+///
+/// The status-less document is the **in-memory** repository's, whose fixtures
+/// carry no `status` key. That is the environment `salon_visibility_test.dart`
+/// runs in, and it is the guard. A live-server test cannot cover this, which is
+/// why `backend-q1-funnel-smoke.md` §8 states it as a limit rather than
+/// implying otherwise.
 ///
 /// It fails **open**: a fourth status invented tomorrow would be public. That
 /// is the right default — a new lifecycle state should not silently vanish from
