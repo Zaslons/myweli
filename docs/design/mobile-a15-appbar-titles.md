@@ -70,6 +70,131 @@ instead of the 272 they get on a pushed route. Until subjects are pushed, every
 per-bar number above is a bucket estimate rather than a measurement — and the
 suite is green about a bar it never renders.
 
+### 2.1 Five corrections the build made to this section
+
+Written after the fact, from measurements rather than from arithmetic. §2 above
+is left standing because the corrections only make sense against what it claimed.
+
+1. **This spec's own headline example is outside this spec's own corpus.** §2
+   counts `AppBar(title:)` sites. It misses **four titles that reach a bar
+   through a picker's `helpText:`** — `availability_screen.dart:323`
+   (« Dates à bloquer », *the string the device photographed and the reason row
+   79 exists*), `availability_screen.dart:1017`, `pro_journal_screen.dart:470`,
+   `weekly_hours_editor.dart:101`. The gate reads them out of source, so a claim
+   to cover « the corpus » is now something a run can check.
+
+2. **The count was stale and is now derived.** 63 was right when written and
+   wrong by the time the branch opened (`salon_preview_screen.dart:90` landed in
+   #308). The corpus run scans `lib/` on every invocation: **56 title literals**
+   at the sweep, 57 after the journal's title became a ternary whose two arms are
+   both real titles. Nobody maintains that number again.
+
+3. **`DashboardScreen` is never pushed** — only `context.go('/pro/dashboard')`,
+   three sites. §5②'s « push the subjects » is therefore **per subject, the way
+   the product enters it**: 13 of the matrix's 16 are pushed and now say so with
+   the deciding `context.push` site in a comment; the dashboard and the consumer
+   home are `go`-only shell roots that draw no leading; the two OTP screens are
+   unrouted. Pushing the dashboard would have gated a 216dp bar Material never
+   draws and forced a copy change the product does not need.
+
+4. **§5① settles the action-less bars only, and on the others the title is not
+   the defect.** An action's `TextButton` label is scaled by the **full,
+   unclamped** system scaler — the 1.34 clamp wraps the title alone
+   (`app_bar.dart:1092`) — so « Réinitialiser » costs ~182dp at 2× and leaves
+   « Dates à bloquer » ~98dp of a 280dp bar. §5③'s « titles are shortened as
+   copy » is a good sentence about the wrong half of the population; the fix on
+   that half is `IconButton` + `tooltip:`. `primitives_test.dart` pins it with a
+   four-letter title (« Avis ») starved by a text action.
+
+5. **The gate is a scope, not new machinery.** `expectNoUndeclaredTruncation`
+   already held the predicate in two arms and an `AppBar` title is
+   `softWrap: false`, so the second arm already applied — only the
+   `ellipsisIsFine` early-`continue` kept it silent. Both helpers now call one
+   `_truncationReason`. Two predicates for one question drift, and the drift is
+   invisible because both are green.
+
+**And the outcome differs from the table above, in the direction the table's
+method predicts.** `TextPainter` over a literal is not the same measurement as a
+`RenderParagraph` inside a real `AppBar` — the widget applies `titleTextStyle`
+through the theme, the clamp through `MediaQuery.withClampedTextScaling`, and
+`NavigationToolbar`'s own layout. The table was a bucket estimate and said so;
+the corpus run is the number.
+
+### 2.2 §5① was built, photographed and half of it rejected
+
+`titleSpacing: 0` + `leadingWidth: 48` shipped first, and the regenerated
+baselines killed the spacing half.
+
+**`titleSpacing` is the gap on BOTH sides and it applies whether or not a
+leading exists.** So on a *root* bar — which draws no back button — zeroing it
+puts the title at **x = 0** while the body it heads keeps its 16dp gutter. One
+screen with two gutters, on all 57 bars, and plainly visible the moment
+`pro_deposit_settings.png` was looked at: « Acompte » flush to the bezel above a
+card inset by 16.
+
+**And the 32dp it bought were not comfort.** Measured at the 1.34× clamp:
+
+| title | width |
+|---|---|
+| « Nouveau rendez-vous » | 315.5dp |
+| « Configurer mon profil » | **309.3dp** |
+| « Nouvelle réservation » | 298.4dp |
+| « Salons & Barbiers » | 257.2dp |
+| « Configuration » | 197.2dp |
+| « Réservation » | 172.7dp |
+
+At 312 the widest survivor cleared by **2.7dp** — a font update or a Flutter
+bump erases that. The plan's fallback of `titleSpacing: spacingS` was measured
+too and is strictly worse than either end: 296dp loses the same two titles as
+280 *and* still misaligns every root bar.
+
+**Shipped: `leadingWidth: 48` alone, budget 280dp.** Those 8dp are free —
+`BackButton` occupies exactly 48, so nothing was ever painted in them — and the
+two extra titles shortened instead, both to strings with >80dp of headroom.
+The §13.3 move this slice already used twice (« Préférences » on the bar, the
+long phrase on the row that opens it) applies to both.
+
+### 2.3 The device run, and the blind spot only it could find
+
+The A11 360dp simulator at `accessibility-large` (≈1.95×), walking the three
+screens row 79 names plus three more. **Two titles the whole suite read green
+were still elided on the phone**, and both causes were real gaps rather than
+measurement noise:
+
+1. **The matrix gated only the PUSHED subjects.** Correction 3 was right that
+   `DashboardScreen` must not be pushed — and wrong to let that mean ungated. A
+   root bar draws no leading, so it is 48dp *wider* than a pushed one, and then
+   spends it on actions. `expectAppBarTitleWhole` now runs on the three root
+   subjects too.
+2. **A bar with a leading and one icon action has 232dp, not 280,** and nothing
+   measured that. The corpus now runs a **second pass beside a real icon
+   action** for every title whose own `AppBar(` declares `actions:`.
+
+| surface | before | after |
+|---|---|---|
+| pro dashboard — root, 2 icon actions | « Tableau de b… » | **« Accueil »** |
+| multi-date picker mid-edit — leading + action | « Dat… » → « Dates à bloqu… » | **« Jours bloqués »** |
+| pro manual booking — pushed | « Nouveau rendez… » | **« Réservation »** |
+| pro availability — pushed | — | « Disponibilité » |
+| pro journal — pushed, 2 icon actions | — | « Ma journée » |
+| pro login / OTP | — | « Espace Pro » |
+
+`/pro/profile` is reachable from the dashboard bar and **nowhere else**, so on
+that bar the action could not give and the title had to.
+
+**A measured limit, stated rather than hidden.** Rendering runs **~5% wide** of a
+bare `TextPainter`: « Dates à bloquer » computes 226.3dp and paints ≈237. So a
+margin under ~5% is a coincidence, not a pass — which is exactly how
+« Tableau de bord » (231.1 of 232) and « Configurer mon profil » (309.3 of 312)
+both passed a gate and failed a phone. The second pass also renders ONE action;
+two-action bars are held only by the matrix, which draws their real ones.
+
+**Two findings filed, not absorbed** — §21 row 86: five weekday labels break
+mid-word in the availability pause-hours rows (« Mard/i », « Merc/redi »), and
+the picker's discard dialog titles « Abandonne/r les modifi/cations ? ». Both are
+§13.3's mid-word rule, whose helper is applied **by name** — so the helper
+exists and the corpus does not. Different rule, different gate.
+
 ## 3. The rule
 
 Added to **SYSTEM.md §13.3**:
@@ -171,6 +296,12 @@ the over-budget population 14 → 7 (live 8 → 5). Two lines, one file, no a11y
 — `leadingWidth: 48` is still ≥ §13.2's target floor. There is no argument
 against it and it is not a rule; it is width the product was throwing away.
 
+> **Half of this paragraph is wrong and §2.2 says why.** `leadingWidth: 48`
+> shipped. `titleSpacing: 0` did not: the spacing is *not* width the product was
+> throwing away — it is the gutter that aligns a ROOT bar's title with its body,
+> and Material applies it whether or not a leading exists. Shipped budget is
+> **280dp**, not 312.
+
 **② The harness fix.** Push matrix subjects as routes so the leading is drawn.
 This is what makes every number in §2 a measurement.
 
@@ -199,12 +330,28 @@ than hidden.
 
 ## 6. Tests
 
-- `expectAppBarTitleWhole` + its three falsifiability proofs, in
-  `test/a11y/primitives_test.dart` alongside the existing helper proofs.
-- The matrix, with subjects pushed as routes.
-- A golden for the pro journal's new title + context line (the only rendering
-  change; the rest is strings shortening in place).
-- No golden churn expected from ① beyond position on any baseline showing a bar.
+What shipped, against what this section planned:
+
+- `expectAppBarTitleWhole` + **five** proofs in `test/a11y/primitives_test.dart`,
+  not three. The two extra are the ones the ancestor filter needed: a `Tab` label
+  and a `ButtonStyleButton` label are both `softWrap: false` inside an `AppBar`
+  and would red this helper under the wrong rule, so the filter needs a pair
+  showing it excludes them *and* still catches the title beside them. The fifth
+  is the finding that a **text action starves a four-letter title** — the fixture
+  for the filter proof was initially built with an unrealistically long action,
+  which reddened correctly for the wrong reason; splitting it produced a pinned
+  fact rather than a bad fixture.
+- `test/a11y/a15_harness_test.dart` — four hazard proofs for `pumpPushedAtWidth`,
+  written after **both** documented hazards turned out to be mis-stated (§2.1).
+- The matrix, with **13 of 16** subjects pushed as routes (§2.1 correction 3).
+- `test/a11y/a15_titles_test.dart` — the corpus run, the orphan rule, and the
+  four-case `clip-ok` fixture through `scanAppBarTitles` itself.
+- `pro_journal_own_mode.png` — a new baseline, because the T40 boundary had never
+  been photographed at all; the two existing journal goldens are salon-mode.
+- **Golden churn was larger than « position », and the pictures changed the
+  design** — see §2.2. 26 baselines moved; looking at them is what rejected
+  `titleSpacing: 0`.
+- `pro_journal_own_mode.png` is also the first baseline of own-mode at all.
 
 ## 7. Open questions
 

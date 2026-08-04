@@ -318,7 +318,7 @@ void main() {
         find.text('Préfère Awa. Allergique à l’ammoniaque.'),
         findsOneWidget,
       );
-      // « Nouveau rendez-vous » lives below the fold — the dedicated
+      // « Nouvelle réservation » lives below the fold — the dedicated
       // scroll-and-tap test covers it.
     });
 
@@ -344,18 +344,18 @@ void main() {
       expect(find.text('Client introuvable'), findsOneWidget);
     });
 
-    testWidgets('« Nouveau rendez-vous » opens manual booking prefilled', (
+    testWidgets('« Nouvelle réservation » opens manual booking prefilled', (
       tester,
     ) async {
       await tester.pumpWidget(app(initial: '/pro/clients/sc1'));
       await settle(tester);
 
       await tester.scrollUntilVisible(
-        find.text('Nouveau rendez-vous'),
+        find.text('Nouvelle réservation'),
         200,
         scrollable: find.byType(Scrollable).first,
       );
-      await tester.tap(find.text('Nouveau rendez-vous'));
+      await tester.tap(find.text('Nouvelle réservation'));
       await settle(tester);
 
       expect(find.text('MANUEL'), findsOneWidget);

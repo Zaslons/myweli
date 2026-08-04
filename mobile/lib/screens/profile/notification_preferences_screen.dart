@@ -91,7 +91,7 @@ class _NotificationPreferencesScreenState
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.surface,
-      appBar: AppBar(title: const Text('Préférences de notification')),
+      appBar: AppBar(title: const Text('Préférences')),
       body: Consumer<NotificationPreferencesProvider>(
         builder: (context, provider, _) {
           if (provider.isLoading) return const LoadingIndicator();

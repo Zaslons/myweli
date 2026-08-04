@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:myweli/core/theme/app_theme.dart';
 import 'package:provider/single_child_widget.dart';
 
@@ -212,6 +213,94 @@ Future<void> pumpAtWidth(
     ),
   );
   await settleMocks(tester, rounds: rounds);
+}
+
+/// [pumpAtWidth], but on a **pushed route** — so the bar has its leading.
+///
+/// **The push is the gate, not a detail.** `home:` gives Material no parent
+/// route, so `AppBar` builds no `BackButton` and the title measures ~48dp more
+/// room than the product ever gives it. A15 found the matrix green about a bar
+/// it never rendered: `ProManualBookingScreen` and `DashboardScreen` were
+/// measuring 328dp of title width instead of the 264–312 they actually get.
+///
+/// **It LANDS on the child route; it does not tap into it.** GoRouter builds
+/// the whole matched stack on the first frame and `Navigator` adds initial
+/// routes with `didAdd` — animation already at 1.0 — so there is no transition
+/// to settle. That is what keeps every caller's [rounds] the number of
+/// sequential mock calls its subject chains, and nothing else; paying an extra
+/// round for a route transition would make `settleMocks`' own docstring false.
+///
+/// **The host route is EMPTY, and that is measured rather than tidy.** An
+/// offstage route's children stay in `allRenderObjects` and are **never laid
+/// out**. So the failure mode is not a stale measurement — it is
+/// `!debugNeedsLayout` tripping the moment a sweep reads `p.size`, which throws
+/// an `AssertionError` rather than a `TestFailure` and reads like a broken test
+/// instead of a caught defect. Measured on `a15_harness_test.dart`: a host with
+/// one `Text` makes **`expectNoUndeclaredTruncation` and
+/// `expectNoLegibilityCrush` both crash**; `expectNoVerticalClip` survives only
+/// because its `_isPainted` filter happens to run first.
+///
+/// « No text » is not enough: a bare `IconButton` — with or without a tooltip —
+/// still leaves one unlaid paragraph. `SizedBox.shrink()` leaves zero. The host
+/// is never seen by anyone, so there is nothing to trade away.
+///
+/// **The router throws rather than routing.** With `home:` a stray `context.go`
+/// threw and surfaced through assertion A; with a router in the tree GoRouter's
+/// default `errorBuilder` would render an error page and silently replace the
+/// subject. Two screens do redirect on build (`my_bookings_screen.dart:48`,
+/// `dashboard_screen.dart:49`), so this is not hypothetical.
+Future<void> pumpPushedAtWidth(
+  WidgetTester tester, {
+  required double width,
+  required Widget subject,
+  double scale = 1.0,
+  double height = 1600,
+  List<SingleChildWidget>? providers,
+  int rounds = 3,
+  bool leadingIsCustom = false,
+}) async {
+  final router = GoRouter(
+    initialLocation: '/a15-host/subject',
+    routes: [
+      GoRoute(
+        path: '/a15-host',
+        builder: (_, _) => const Scaffold(body: SizedBox.shrink()),
+        routes: [GoRoute(path: 'subject', builder: (_, _) => subject)],
+      ),
+    ],
+    errorBuilder: (_, state) => throw StateError(
+      'the A15 gate router was navigated to ${state.uri}; it declares two '
+      'routes and the subject redirected out of them — which under `home:` '
+      'would have thrown, and here would silently swap the subject for an '
+      'error page',
+    ),
+  );
+  addTearDown(router.dispose);
+
+  await pumpAtWidth(
+    tester,
+    width: width,
+    scale: scale,
+    height: height,
+    routerConfig: router,
+    providers: providers,
+    rounds: rounds,
+  );
+
+  // Asserted HERE so it cannot be forgotten at a call site: a subject that
+  // somehow landed without its leading is measuring the bar this helper exists
+  // to stop measuring.
+  if (!leadingIsCustom) {
+    expect(
+      find.byType(BackButton),
+      findsOneWidget,
+      reason:
+          'no leading was drawn, so the title measured ~48dp of room the '
+          'product does not give it. `BackButton` and not the « Retour » '
+          'tooltip: the tooltip is a `MaterialLocalizations` string and a '
+          'gate should not depend on the locale',
+    );
+  }
 }
 
 /// Fails if [text] is being broken INSIDE a word (§13.3, A11 C8).
@@ -630,26 +719,9 @@ void expectNoUndeclaredTruncation(
   final cut = <String>[];
 
   for (final p in tester.allRenderObjects.whereType<RenderParagraph>()) {
-    if (ellipsisIsFine && p.overflow == TextOverflow.ellipsis) continue;
-
-    final String why;
-    if (p.didExceedMaxLines) {
-      why = 'exceeded maxLines: ${p.maxLines}';
-    } else if (!p.softWrap &&
-        p.size.width + _kWidthEpsilon <
-            p.getMaxIntrinsicWidth(double.infinity)) {
-      why =
-          'softWrap: false, needs '
-          '${p.getMaxIntrinsicWidth(double.infinity).toStringAsFixed(1)}dp '
-          'in a ${p.size.width.toStringAsFixed(1)}dp box';
-    } else {
-      continue;
-    }
-
-    // The plain text, one line, short enough to read in a failure message.
-    var label = p.text.toPlainText().replaceAll('\n', ' ');
-    if (label.length > 60) label = '${label.substring(0, 57)}…';
-    cut.add('  · « $label » — $why (overflow: ${p.overflow.name})');
+    final why = _truncationReason(p, ellipsisIsFine: ellipsisIsFine);
+    if (why == null) continue;
+    cut.add('  · « ${_label(p)} » — $why (overflow: ${p.overflow.name})');
   }
 
   expect(
@@ -660,6 +732,124 @@ void expectNoUndeclaredTruncation(
         '(SYSTEM.md §13.3 — a label the user cannot finish reading is not a '
         'label):\n${cut.join('\n')}',
   );
+}
+
+/// Why this paragraph is cut, or null if it is whole.
+///
+/// **Extracted in A15 so the app-bar gate is a SCOPE of this rule rather than a
+/// second one.** Two predicates for one question drift, and the drift is
+/// invisible because both are green — §21 row 67's species. The second arm
+/// matters more than it looks: an `AppBar` title is `softWrap: false` (Material
+/// wraps it in a `DefaultTextStyle(softWrap: false, overflow: ellipsis)`), so
+/// the arithmetic arm applies to it even on a day `didExceedMaxLines` changes
+/// its mind about an ellipsized paragraph. One is a Skia behaviour; the other
+/// is subtraction.
+String? _truncationReason(RenderParagraph p, {required bool ellipsisIsFine}) {
+  if (ellipsisIsFine && p.overflow == TextOverflow.ellipsis) return null;
+  if (p.didExceedMaxLines) return 'exceeded maxLines: ${p.maxLines}';
+  if (!p.softWrap &&
+      p.size.width + _kWidthEpsilon < p.getMaxIntrinsicWidth(double.infinity)) {
+    return 'softWrap: false, needs '
+        '${p.getMaxIntrinsicWidth(double.infinity).toStringAsFixed(1)}dp '
+        'in a ${p.size.width.toStringAsFixed(1)}dp box';
+  }
+  return null;
+}
+
+/// The plain text, one line, short enough to read in a failure message.
+String _label(RenderParagraph p) {
+  final text = p.text.toPlainText().replaceAll('\n', ' ');
+  return text.length > 60 ? '${text.substring(0, 57)}…' : text;
+}
+
+/// **An `AppBar` title renders whole, or declares that it does not**
+/// (SYSTEM.md §13.3, A15, §21 row 79).
+///
+/// §13.3 says text reflows rather than truncates. The app-bar title is the one
+/// place in the product that structurally cannot: Material gives it one line,
+/// an ellipsis and a fixed height. So the rule is satisfied by **length** — a
+/// title is a label, not a sentence — and this is the gate that says so.
+///
+/// **It is [expectNoUndeclaredTruncation] with `ellipsisIsFine: false`, scoped
+/// to the bar.** Flipping that flag on the whole sweep is not an option and the
+/// reason is arithmetic: `lib/` declares `TextOverflow.ellipsis` at 47 sites, so
+/// the sweep would redden all 47 at once. Web hit the same wall and had to ship
+/// `clip-ok` *before* it could flip its equivalent switch.
+///
+/// **Three things it must not measure, each found by measuring:**
+///
+/// 1. `find.byType(AppBar)` descends into `actions:` and `bottom:`. Every `Tab`
+///    label is `softWrap: false, overflow: fade` (`tabs.dart:183`) and a faded
+///    tab would red this helper under a rule that is not about it. Paragraphs
+///    under a `ButtonStyleButton` or a `Tab` are dropped.
+/// 2. `find.byType(AppBar)` **matches `SliverAppBar`**, which builds one
+///    internally. `provider_detail_screen.dart:184` sets no `title:`; it is
+///    simply not a caller, and the guard below says so rather than passing.
+/// 3. The vacuity guard is **bars > 0**, not paragraphs > 0. A subject with no
+///    `AppBar` is a caller error — the shape `expectTokensWhole` uses per token.
+void expectAppBarTitleWhole(WidgetTester tester, {required String at}) {
+  expect(
+    find.byType(AppBar),
+    findsWidgets,
+    reason:
+        'no AppBar at $at, so expectAppBarTitleWhole asserted nothing — this '
+        'is a caller error, not a pass (§21 row 70)',
+  );
+
+  final titles = tester
+      .renderObjectList<RenderParagraph>(
+        find.descendant(
+          of: find.byType(AppBar),
+          matching: find.byType(RichText),
+        ),
+      )
+      .where(
+        (p) =>
+            !_hasAncestorOfType<ButtonStyleButton>(p) &&
+            !_hasAncestorOfType<Tab>(p),
+      )
+      .toList();
+
+  expect(
+    titles,
+    isNotEmpty,
+    reason:
+        'the AppBar at $at has actions or tabs but no title paragraph — if '
+        'that is deliberate (a SliverAppBar with a flexibleSpace, say), this '
+        'screen is not a caller',
+  );
+
+  final cut = <String>[];
+  for (final p in titles) {
+    final why = _truncationReason(p, ellipsisIsFine: false);
+    if (why != null) cut.add('  · « ${_label(p)} » — $why');
+  }
+
+  expect(
+    cut,
+    isEmpty,
+    reason:
+        'the app-bar title at $at does not fit its own bar (SYSTEM.md §13.3 — '
+        'a title is a label, and a label the user cannot finish reading is not '
+        'one). Shorten the TITLE, or take width back from the actions; if the '
+        'string carries data the product does not own, declare it with a '
+        '`// clip-ok:` saying where that information appears '
+        'instead:\n${cut.join('\n')}',
+  );
+}
+
+bool _hasAncestorOfType<T extends Widget>(RenderObject o) {
+  final creator = o.debugCreator;
+  if (creator is! DebugCreator) return false;
+  var found = false;
+  creator.element.visitAncestorElements((e) {
+    if (e.widget is T) {
+      found = true;
+      return false;
+    }
+    return true;
+  });
+  return found;
 }
 
 /// **Every named token renders whole** (A14, SYSTEM.md §21 row 73).

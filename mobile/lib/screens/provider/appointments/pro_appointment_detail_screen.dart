@@ -75,7 +75,7 @@ class _ProAppointmentDetailScreenState
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Détails du rendez-vous')),
+      appBar: AppBar(title: const Text('Détails')),
       body: Consumer2<ProAuthProvider, ProAppointmentProvider>(
         builder: (context, authProvider, appointmentProvider, _) {
           // Collaborateur (access R4b §5.3): own bookings only reach this
