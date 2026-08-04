@@ -55,16 +55,13 @@ class _ProviderListScreenState extends State<ProviderListScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('Salons & Barbiers'),
-        actions: [
-          IconButton(
-            tooltip: _isGrid ? 'Afficher en liste' : 'Afficher en grille',
-            icon: Icon(_isGrid ? Icons.view_list : Icons.grid_view),
-            onPressed: () => setState(() => _isGrid = !_isGrid),
-          ),
-        ],
-      ),
+      // **No actions, deliberately** (A15, §21 row 79). « Salons & Barbiers »
+      // is 257dp at the 1.34× clamp and a pushed bar carrying one icon action
+      // leaves 232 — so the title lost, and the title is the half that cannot
+      // give: it is a promise to *two* audiences, and « Salons » drops one of
+      // them. The grid/list toggle moved into the results row instead, which is
+      // where a control over the results belongs anyway.
+      appBar: AppBar(title: const Text('Salons & Barbiers')),
       body: Consumer<ProviderProvider>(
         builder: (context, provider, _) {
           return Column(
@@ -121,27 +118,53 @@ class _ProviderListScreenState extends State<ProviderListScreen> {
             ),
           ),
           const SizedBox(height: AppTheme.spacingS),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: AppTheme.spacingM),
-            child: Row(
-              children: [
-                _filterPill(
-                  icon: Icons.swap_vert,
-                  label: 'Trier',
-                  active: provider.sort != ProviderSort.relevance,
-                  onTap: () => _openSortSheet(provider),
+          // **The view toggle lives here, not on the bar** (A15). It came off
+          // the app bar because « Salons & Barbiers » cannot fit beside an
+          // action at 1.34×, and it landed *beside the filter strip* rather
+          // than in the commune row above because that row is already full: an
+          // `IconButton` there squeezed « Toutes les communes » to 110.8dp and
+          // reddened A12's 8-character floor. Here the strip is what gives, and
+          // it gives by scrolling — which is what it already does.
+          //
+          // Outside the `SingleChildScrollView`, so a control over the results
+          // cannot scroll out of reach.
+          Row(
+            children: [
+              Expanded(
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.only(left: AppTheme.spacingM),
+                  child: Row(
+                    children: [
+                      _filterPill(
+                        icon: Icons.swap_vert,
+                        label: 'Trier',
+                        active: provider.sort != ProviderSort.relevance,
+                        onTap: () => _openSortSheet(provider),
+                      ),
+                      const SizedBox(width: AppTheme.spacingS),
+                      _filterPill(
+                        icon: Icons.event_available,
+                        label: 'Disponible aujourd’hui',
+                        active: provider.availableToday,
+                        onTap: () => provider.setAvailableToday(
+                          !provider.availableToday,
+                        ),
+                      ),
+                      const SizedBox(width: AppTheme.spacingS),
+                    ],
+                  ),
                 ),
-                const SizedBox(width: AppTheme.spacingS),
-                _filterPill(
-                  icon: Icons.event_available,
-                  label: 'Disponible aujourd’hui',
-                  active: provider.availableToday,
-                  onTap: () =>
-                      provider.setAvailableToday(!provider.availableToday),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(right: AppTheme.spacingS),
+                child: IconButton(
+                  tooltip: _isGrid ? 'Afficher en liste' : 'Afficher en grille',
+                  icon: Icon(_isGrid ? Icons.view_list : Icons.grid_view),
+                  onPressed: () => setState(() => _isGrid = !_isGrid),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ],
       ),

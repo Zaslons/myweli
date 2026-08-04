@@ -88,6 +88,10 @@ import '../support/tab_flows.dart';
 /// DI note: this file HAND-ASSIGNS its services and never calls
 /// `setupDependencyInjection()` — the locator's fields are `late final`, so it is
 /// one or the other, and only hand-assignment lets [_FixedRoster] in.
+/// Sonia — `MockData`'s staff member at Salon Excellence
+/// (`mock_data.dart:86`), and the only way into own-mode.
+const kStaffEmail = 'sonia.staff@myweli.test';
+
 void main() {
   group('goldens', () {
     setUpAll(() async {
@@ -279,6 +283,39 @@ void main() {
             'golden is a second copy of the one above',
       );
       await expectGolden(tester, 'pro_journal_day');
+    });
+
+    testWidgets('the journal in OWN mode, which no picture has held', (
+      tester,
+    ) async {
+      // **The T40 boundary had never been photographed.** Both pictures above
+      // are the owner's journal; own-mode is a different screen — no artist
+      // chips, no manual-booking FAB, no Agenda action, and since A15 a bar
+      // that says « Votre planning » over a header line naming the salon.
+      //
+      // That header line is the reason this baseline exists rather than a
+      // widget assertion: `staff_shell_test` can prove the two strings are
+      // present, but only a picture can show that moving the salon name off
+      // the bar left the surface/background seam intact — the whole argument
+      // for putting it INSIDE `_Header`'s Column.
+      await _pumpPro(
+        tester,
+        const ProJournalScreen(),
+        extra: [ChangeNotifierProvider(create: (_) => ProJournalProvider())],
+        size: const Size(390, 1200),
+        rounds: 10,
+        email: kStaffEmail,
+      );
+      expect(
+        find.text('Votre planning'),
+        findsOneWidget,
+        reason:
+            'the staff session never landed — without it this is a third '
+            'copy of the owner journal, and it would pass forever',
+      );
+      expect(find.text('Salon Excellence'), findsOneWidget);
+      expect(find.text('Nouveau'), findsNothing, reason: 'own mode has no FAB');
+      await expectGolden(tester, 'pro_journal_own_mode');
     });
 
     // **Two pictures, and the first one is now honest.** Until A11 C4 this
@@ -566,20 +603,22 @@ Future<void> _pumpPro(
   Size size = kGoldenPhone,
   double scale = 1,
   int rounds = 3,
+  // The account the picture is taken from. Everything above this line is the
+  // OWNER's view; `kStaffEmail` is the other half of the T40 boundary, and the
+  // journal renders a different screen for it (A15 ⑤).
+  String email = 'jean@salon-excellence.test',
 }) async {
   goldenSurface(tester, size: size, scale: scale);
 
-  // Sign the salon owner in for real BEFORE pumping: the provider session is
+  // Sign the pro in for real BEFORE pumping: the provider session is
   // restored through async storage, which the fake clock can't drive — so it
   // happens under runAsync, the way dashboard_role_test does it.
   late final ProAuthProvider auth;
   await tester.runAsync(() async {
     final mockAuth = serviceLocator.authService as MockAuthService;
-    await mockAuth.requestProviderEmailOtp('jean@salon-excellence.test');
-    await mockAuth.verifyProviderEmailOtp(
-      'jean@salon-excellence.test',
-      MockAuthService.demoOtp,
-    );
+    await mockAuth.logoutProvider();
+    await mockAuth.requestProviderEmailOtp(email);
+    await mockAuth.verifyProviderEmailOtp(email, MockAuthService.demoOtp);
     auth = ProAuthProvider();
     for (
       var i = 0;

@@ -215,7 +215,7 @@ void main() {
 
       testWidgets('the pro earnings tabs fit $at', (tester) async {
         final auth = await signInPro(tester);
-        await pumpAtWidth(
+        await pumpPushedAtWidth(
           tester,
           width: width,
           scale: scale,
@@ -223,7 +223,8 @@ void main() {
             ChangeNotifierProvider<ProAuthProvider>.value(value: auth),
             ChangeNotifierProvider(create: (_) => ProEarningsProvider()),
           ],
-          home: const EarningsScreen(),
+          // pushed the way the product enters it — dashboard_screen.dart:346.
+          subject: const EarningsScreen(),
         );
 
         await openEarningsAll(tester);
@@ -231,6 +232,7 @@ void main() {
         expectNoUndeclaredTruncation(tester, context: 'pro earnings at $at');
         expectNoLegibilityCrush(tester, context: 'pro earnings at $at');
         expectNoVerticalClip(tester, context: 'pro earnings at $at');
+        expectAppBarTitleWhole(tester, at: 'pro earnings at $at');
         expect(tester.takeException(), isNull, reason: 'A: $at');
       });
 
@@ -241,7 +243,7 @@ void main() {
 
       testWidgets('the pro appointment tabs fit $at', (tester) async {
         final auth = await signInPro(tester);
-        await pumpAtWidth(
+        await pumpPushedAtWidth(
           tester,
           width: width,
           scale: scale,
@@ -249,7 +251,8 @@ void main() {
             ChangeNotifierProvider<ProAuthProvider>.value(value: auth),
             ChangeNotifierProvider(create: (_) => ProAppointmentProvider()),
           ],
-          home: const AppointmentListScreen(),
+          // pushed the way the product enters it — pro_journal_screen.dart:89.
+          subject: const AppointmentListScreen(),
         );
         await openProList(tester);
 
@@ -265,6 +268,7 @@ void main() {
           tester,
           context: 'the pro appointment list at $at',
         );
+        expectAppBarTitleWhole(tester, at: 'the pro appointment list at $at');
         expect(tester.takeException(), isNull, reason: 'A: $at');
       });
 
@@ -300,7 +304,7 @@ void main() {
       // that does not scale.
       testWidgets('the pro manual booking DATE row fits $at', (tester) async {
         final auth = await signInPro(tester);
-        await pumpAtWidth(
+        await pumpPushedAtWidth(
           tester,
           width: width,
           scale: scale,
@@ -309,7 +313,8 @@ void main() {
             ChangeNotifierProvider(create: (_) => ProServiceProvider()),
             ChangeNotifierProvider(create: (_) => ProAppointmentProvider()),
           ],
-          home: ProManualBookingScreen(
+          // pushed the way the product enters it — pro_journal_screen.dart:107.
+          subject: ProManualBookingScreen(
             initialDateTime: DateTime(2026, 1, 15, 14, 30),
           ),
         );
@@ -334,6 +339,10 @@ void main() {
           tester,
           context: 'the pro manual booking date row at $at',
         );
+        expectAppBarTitleWhole(
+          tester,
+          at: 'the pro manual booking date row at $at',
+        );
         expect(tester.takeException(), isNull, reason: 'A: $at');
       });
 
@@ -350,7 +359,7 @@ void main() {
       // (« 1 mois », « Aucun ») grow while the chip padding does not.
       testWidgets('the pro AVAILABILITY screen fits $at', (tester) async {
         final auth = await signInPro(tester);
-        await pumpAtWidth(
+        await pumpPushedAtWidth(
           tester,
           width: width,
           scale: scale,
@@ -358,7 +367,8 @@ void main() {
             ChangeNotifierProvider<ProAuthProvider>.value(value: auth),
             ChangeNotifierProvider(create: (_) => ProAvailabilityProvider()),
           ],
-          home: const AvailabilityScreen(),
+          // pushed the way the product enters it — dashboard_screen.dart:324.
+          subject: const AvailabilityScreen(),
         );
 
         // C — something POSITIVE, per the calendar subject's own lesson: a
@@ -384,12 +394,16 @@ void main() {
           tester,
           context: 'the pro availability screen at $at',
         );
+        expectAppBarTitleWhole(
+          tester,
+          at: 'the pro availability screen at $at',
+        );
         expect(tester.takeException(), isNull, reason: 'A: $at');
       });
 
       testWidgets('the pro appointment CALENDAR fits $at', (tester) async {
         final auth = await signInPro(tester);
-        await pumpAtWidth(
+        await pumpPushedAtWidth(
           tester,
           width: width,
           scale: scale,
@@ -397,7 +411,8 @@ void main() {
             ChangeNotifierProvider<ProAuthProvider>.value(value: auth),
             ChangeNotifierProvider(create: (_) => ProAppointmentProvider()),
           ],
-          home: const AppointmentListScreen(),
+          // pushed the way the product enters it — pro_journal_screen.dart:89.
+          subject: const AppointmentListScreen(),
         );
 
         // **C, and the first draft of it was wrong in a way worth keeping.**
@@ -441,6 +456,10 @@ void main() {
           tester,
           context: 'the pro appointment calendar at $at',
         );
+        expectAppBarTitleWhole(
+          tester,
+          at: 'the pro appointment calendar at $at',
+        );
         expect(tester.takeException(), isNull, reason: 'A: $at');
       });
 
@@ -453,7 +472,7 @@ void main() {
 
       testWidgets('the consumer bookings fit $at', (tester) async {
         final auth = await signInConsumer(tester);
-        await pumpAtWidth(
+        await pumpPushedAtWidth(
           tester,
           width: width,
           scale: scale,
@@ -462,7 +481,8 @@ void main() {
             ChangeNotifierProvider(create: (_) => AppointmentProvider()),
             ChangeNotifierProvider(create: (_) => ProviderProvider()),
           ],
-          home: const MyBookingsScreen(),
+          // pushed the way the product enters it — home_screen.dart:276.
+          subject: const MyBookingsScreen(),
         );
 
         expect(
@@ -484,6 +504,7 @@ void main() {
         );
         expectNoLegibilityCrush(tester, context: 'consumer bookings at $at');
         expectNoVerticalClip(tester, context: 'consumer bookings at $at');
+        expectAppBarTitleWhole(tester, at: 'consumer bookings at $at');
         expect(tester.takeException(), isNull, reason: 'A: $at');
       });
 
@@ -567,7 +588,7 @@ void main() {
 
       testWidgets('the salon page fits $at', (tester) async {
         final auth = await signInConsumer(tester);
-        await pumpAtWidth(
+        await pumpPushedAtWidth(
           tester,
           width: width,
           scale: scale,
@@ -577,7 +598,8 @@ void main() {
             ChangeNotifierProvider(create: (_) => AppointmentProvider()),
             ChangeNotifierProvider(create: (_) => FavoritesProvider()),
           ],
-          home: const ProviderDetailScreen(providerId: 'provider1'),
+          // pushed the way the product enters it — home_screen.dart:228.
+          subject: const ProviderDetailScreen(providerId: 'provider1'),
           rounds: 5,
         );
 
@@ -606,6 +628,7 @@ void main() {
         expectNoUndeclaredTruncation(tester, context: 'the salon page at $at');
         expectNoLegibilityCrush(tester, context: 'the salon page at $at');
         expectNoVerticalClip(tester, context: 'the salon page at $at');
+        expectAppBarTitleWhole(tester, at: 'the salon page at $at');
         expect(tester.takeException(), isNull, reason: 'A: $at');
       });
 
@@ -618,7 +641,7 @@ void main() {
 
       testWidgets('the pro reviews summary fits $at', (tester) async {
         final auth = await signInPro(tester);
-        await pumpAtWidth(
+        await pumpPushedAtWidth(
           tester,
           width: width,
           scale: scale,
@@ -626,7 +649,8 @@ void main() {
             ChangeNotifierProvider<ProAuthProvider>.value(value: auth),
             ChangeNotifierProvider(create: (_) => ProReviewsProvider()),
           ],
-          home: const ReviewsScreen(),
+          // pushed the way the product enters it — dashboard_screen.dart:352.
+          subject: const ReviewsScreen(),
         );
 
         expect(
@@ -651,6 +675,7 @@ void main() {
         expectNoUndeclaredTruncation(tester, context: 'pro reviews at $at');
         expectNoLegibilityCrush(tester, context: 'pro reviews at $at');
         expectNoVerticalClip(tester, context: 'pro reviews at $at');
+        expectAppBarTitleWhole(tester, at: 'pro reviews at $at');
         expect(tester.takeException(), isNull, reason: 'A: $at');
       });
 
@@ -668,7 +693,7 @@ void main() {
       // the subject.
       testWidgets('the salon list filter row fits $at', (tester) async {
         final auth = await signInConsumer(tester);
-        await pumpAtWidth(
+        await pumpPushedAtWidth(
           tester,
           width: width,
           scale: scale,
@@ -678,7 +703,8 @@ void main() {
             ChangeNotifierProvider(create: (_) => FavoritesProvider()),
             ChangeNotifierProvider.value(value: auth),
           ],
-          home: const ProviderListScreen(),
+          // pushed the way the product enters it — home_screen.dart:113.
+          subject: const ProviderListScreen(),
           rounds: 5,
         );
 
@@ -706,6 +732,7 @@ void main() {
         expectNoUndeclaredTruncation(tester, context: 'salon list at $at');
         expectNoLegibilityCrush(tester, context: 'salon list at $at');
         expectNoVerticalClip(tester, context: 'salon list at $at');
+        expectAppBarTitleWhole(tester, at: 'salon list at $at');
         expect(tester.takeException(), isNull, reason: 'A: $at');
       });
 
@@ -727,7 +754,7 @@ void main() {
       // branch has to move with the text too.
       testWidgets('the salon list grid fits $at', (tester) async {
         final auth = await signInConsumer(tester);
-        await pumpAtWidth(
+        await pumpPushedAtWidth(
           tester,
           width: width,
           scale: scale,
@@ -736,7 +763,8 @@ void main() {
             ChangeNotifierProvider(create: (_) => FavoritesProvider()),
             ChangeNotifierProvider.value(value: auth),
           ],
-          home: const ProviderListScreen(),
+          // pushed the way the product enters it — home_screen.dart:113.
+          subject: const ProviderListScreen(),
           rounds: 5,
         );
 
@@ -758,6 +786,7 @@ void main() {
         expectNoUndeclaredTruncation(tester, context: 'salon grid at $at');
         expectNoLegibilityCrush(tester, context: 'salon grid at $at');
         expectNoVerticalClip(tester, context: 'salon grid at $at');
+        expectAppBarTitleWhole(tester, at: 'salon grid at $at');
         expect(tester.takeException(), isNull, reason: 'A: $at');
       });
 
@@ -780,7 +809,7 @@ void main() {
       // and pass.
       testWidgets('the booking hub fits $at', (tester) async {
         final auth = await signInConsumer(tester);
-        await pumpAtWidth(
+        await pumpPushedAtWidth(
           tester,
           width: width,
           scale: scale,
@@ -794,7 +823,8 @@ void main() {
             ChangeNotifierProvider(create: (_) => LocalityProvider()),
             ChangeNotifierProvider.value(value: auth),
           ],
-          home: const BookingHubScreen(providerId: 'provider2'),
+          // pushed the way the product enters it — provider_detail_screen.dart:1169.
+          subject: const BookingHubScreen(providerId: 'provider2'),
           rounds: 5,
         );
 
@@ -806,12 +836,13 @@ void main() {
         expectNoUndeclaredTruncation(tester, context: 'booking hub at $at');
         expectNoLegibilityCrush(tester, context: 'booking hub at $at');
         expectNoVerticalClip(tester, context: 'booking hub at $at');
+        expectAppBarTitleWhole(tester, at: 'booking hub at $at');
         expect(tester.takeException(), isNull, reason: 'A: $at');
       });
 
       testWidgets('the booking confirmation fits $at', (tester) async {
         final auth = await signInConsumer(tester);
-        await pumpAtWidth(
+        await pumpPushedAtWidth(
           tester,
           width: width,
           scale: scale,
@@ -821,7 +852,8 @@ void main() {
             ChangeNotifierProvider(create: (_) => LocalityProvider()),
             ChangeNotifierProvider.value(value: auth),
           ],
-          home: BookingConfirmationScreen(
+          // pushed the way the product enters it — booking_hub_screen.dart:400.
+          subject: BookingConfirmationScreen(
             providerId: 'provider2',
             serviceIds: const ['service4'],
             appointmentDateTime: kFixedNow.add(const Duration(days: 3)),
@@ -842,6 +874,7 @@ void main() {
         );
         expectNoLegibilityCrush(tester, context: 'booking confirmation at $at');
         expectNoVerticalClip(tester, context: 'booking confirmation at $at');
+        expectAppBarTitleWhole(tester, at: 'booking confirmation at $at');
         expect(tester.takeException(), isNull, reason: 'A: $at');
       });
 
@@ -859,7 +892,7 @@ void main() {
       // crush is a fact about the 240dp row the list actually leaves it.
       testWidgets('the notification centre fits $at', (tester) async {
         final auth = await signInConsumer(tester);
-        await pumpAtWidth(
+        await pumpPushedAtWidth(
           tester,
           width: width,
           scale: scale,
@@ -867,7 +900,8 @@ void main() {
             ChangeNotifierProvider(create: (_) => NotificationsProvider()),
             ChangeNotifierProvider.value(value: auth),
           ],
-          home: const NotificationsScreen(),
+          // pushed the way the product enters it — home_screen.dart:469.
+          subject: const NotificationsScreen(),
           rounds: 5,
         );
 
@@ -882,6 +916,7 @@ void main() {
         expectNoUndeclaredTruncation(tester, context: 'notifications at $at');
         expectNoLegibilityCrush(tester, context: 'notifications at $at');
         expectNoVerticalClip(tester, context: 'notifications at $at');
+        expectAppBarTitleWhole(tester, at: 'notifications at $at');
         expect(tester.takeException(), isNull, reason: 'A: $at');
       });
 

@@ -89,7 +89,7 @@ class _RescheduleScreenState extends State<RescheduleScreen> {
           tooltip: 'Fermer',
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: const Text('Reporter le rendez-vous'),
+        title: const Text('Reporter'),
       ),
       body: SafeArea(
         child: Column(

@@ -5,7 +5,6 @@ import '../../../core/di/dependency_injection.dart';
 import '../../../core/push/system_settings.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
-import '../../../core/theme/text_styles.dart';
 import '../../../providers/notifications_provider.dart';
 import '../../../services/interfaces/push_notification_service_interface.dart';
 import '../../../widgets/notifications/notifications_list.dart';
@@ -79,14 +78,17 @@ class _ProNotificationsScreenState extends State<ProNotificationsScreen>
           Consumer<NotificationsProvider>(
             builder: (context, provider, _) {
               if (provider.unreadCount == 0) return const SizedBox.shrink();
-              return TextButton(
+              // A15 (§21 row 79) — an icon, not a label. An action's text is
+              // scaled by the FULL system scaler while the title is clamped to
+              // 1.34× (`app_bar.dart:1092`), so a `TextButton` here costs
+              // ~137dp at 2× and leaves the title under 176. Measured in
+              // `primitives_test.dart`: with a text action, « Avis » — four
+              // characters — cannot fit. The tooltip is also free to be
+              // CLEARER than the label was, because it has the whole screen.
+              return IconButton(
                 onPressed: provider.markAllRead,
-                child: Text(
-                  'Tout lire',
-                  style: AppTextStyles.bodyMedium.copyWith(
-                    color: AppColors.textPrimary,
-                  ),
-                ),
+                icon: const Icon(Icons.done_all),
+                tooltip: 'Tout marquer comme lu',
               );
             },
           ),

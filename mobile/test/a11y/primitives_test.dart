@@ -413,4 +413,137 @@ void main() {
       );
     });
   });
+
+  group('expectAppBarTitleWhole', () {
+    testWidgets('fails on a title that does not fit its own bar', (
+      tester,
+    ) async {
+      // The real defect, unplanted: « Nouveau rendez-vous » on a pushed bar at
+      // 2×. Material clamps a title to 1.34×, so this is the worst the string
+      // ever gets — and it still needs more than the bar has.
+      await pumpPushedAtWidth(
+        tester,
+        width: 360,
+        scale: 2,
+        rounds: 0,
+        subject: Scaffold(
+          appBar: AppBar(title: const Text('Nouveau rendez-vous')),
+        ),
+      );
+      expect(
+        () => expectAppBarTitleWhole(tester, at: 'the falsifier'),
+        throwsA(isA<TestFailure>()),
+        reason:
+            'if this passes, the gate is measuring nothing and row 79 stays '
+            'open with a green suite on top of it',
+      );
+    });
+
+    testWidgets('ignores a title that FITS — not "any pushed bar"', (
+      tester,
+    ) async {
+      // The pair. Same bar, same scale, a shorter label.
+      await pumpPushedAtWidth(
+        tester,
+        width: 360,
+        scale: 2,
+        rounds: 0,
+        subject: Scaffold(appBar: AppBar(title: const Text('Réserver'))),
+      );
+      expectAppBarTitleWhole(tester, at: 'the control');
+    });
+
+    testWidgets('ignores a faded TAB and an icon ACTION — the bar is not only '
+        'its title', (tester) async {
+      // `find.byType(AppBar)` descends into `actions:` and `bottom:`. Every
+      // `Tab` label is `softWrap: false, overflow: fade` (`tabs.dart:183`), so
+      // without the ancestor filter this bar reds under a rule that is not
+      // about it — the long tab below is deliberately unreadable.
+      await pumpPushedAtWidth(
+        tester,
+        width: 360,
+        scale: 2,
+        rounds: 0,
+        subject: DefaultTabController(
+          length: 2,
+          child: Scaffold(
+            appBar: AppBar(
+              title: const Text('Avis'),
+              actions: [
+                IconButton(
+                  onPressed: () {},
+                  icon: const Icon(Icons.done_all),
+                  tooltip: 'Tout marquer comme lu',
+                ),
+              ],
+              bottom: const TabBar(
+                tabs: [
+                  Tab(text: 'Un intitulé d’onglet vraiment très long'),
+                  Tab(text: 'Deux'),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+      expectAppBarTitleWhole(tester, at: 'the neighbours');
+    });
+
+    testWidgets('a TEXT action can starve even a four-letter title', (
+      tester,
+    ) async {
+      // Measured while writing the test above, and it is A15's sharpest
+      // finding: an action's label is scaled by the FULL system scaler — the
+      // 1.34 clamp wraps the TITLE alone (`app_bar.dart:1092`) — so a
+      // `TextButton` reading « Tout marquer comme lu » leaves « Avis », four
+      // characters, unable to fit. On an action-bearing bar the title is not
+      // the defect, and no amount of shortening it would be.
+      await pumpPushedAtWidth(
+        tester,
+        width: 360,
+        scale: 2,
+        rounds: 0,
+        subject: Scaffold(
+          appBar: AppBar(
+            title: const Text('Avis'),
+            actions: [
+              TextButton(
+                onPressed: () {},
+                child: const Text('Tout marquer comme lu'),
+              ),
+            ],
+          ),
+        ),
+      );
+      expect(
+        () => expectAppBarTitleWhole(tester, at: 'the starved title'),
+        throwsA(isA<TestFailure>()),
+        reason:
+            'if a four-letter title fits beside that action, the width '
+            'arithmetic in §4 is wrong and the three action conversions were '
+            'unnecessary',
+      );
+    });
+
+    testWidgets('fails LOUDLY when the subject has no AppBar at all', (
+      tester,
+    ) async {
+      // The vacuity guard, and it is `bars > 0` rather than `paragraphs > 0`:
+      // a caller that pumped the wrong screen must be an error, not a pass.
+      await pumpPushedAtWidth(
+        tester,
+        width: 360,
+        rounds: 0,
+        subject: const Scaffold(body: SizedBox.shrink()),
+        leadingIsCustom: true,
+      );
+      expect(
+        () => expectAppBarTitleWhole(tester, at: 'the empty screen'),
+        throwsA(isA<TestFailure>()),
+        reason:
+            'asserting about a bar that is not rendered must be an error, '
+            'not a pass',
+      );
+    });
+  });
 }

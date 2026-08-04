@@ -898,7 +898,13 @@ class _DayScheduleEditScreenState extends State<_DayScheduleEditScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: Text('Horaires - ${widget.dayName}'),
+        // The bare day name. « Horaires - {jour} » interpolated a datum into a
+        // bar that has no width to promise it (§13.3 / A15) — and on a bar that
+        // also carries an « Ajouter un créneau » action. It spent five glyphs
+        // and an ASCII hyphen (§17.1 would want « — », which is *wider*, so
+        // that repair alone would have made it worse) saying what the screen
+        // the user just tapped through already said.
+        title: Text(widget.dayName),
         actions: [
           IconButton(
             tooltip: 'Ajouter un créneau',
