@@ -392,8 +392,40 @@ Two belts:
 
 ### 4.5 Observed-red ledger
 
-*(Filled during step ① — one row per mutation with the verbatim failure line.
-The PR does not go up with this section empty.)*
+**Status: the first full run was INVALID, and the reason is worth more than the
+table would have been.** All 17 mutations reported red — and the result is
+unreadable, because the *baseline* was red too.
+
+**What happened.** The ledger ran all 17 against one long-lived Postgres, and
+the first mutation was M1, `seedProvidersIfEmpty` → no-op, against a database
+created seconds earlier. Seeding was skipped, so `providers` stayed empty. From
+that point the funnel's own registered salons kept the table non-empty, so
+`seedProvidersIfEmpty` returned early on every subsequent boot and `provider1`
+never came back. Mutations 2–17 all ran against a permanently unseeded database,
+each carrying A2 + A2b as inherited failures.
+
+Verified after the run: the tree is clean, and the same suite is **47/47 green
+on a fresh database**. The code was never the problem.
+
+**The methodology defect.** Mutation testing needs an isolated fixture per
+mutation; sharing one stateful database lets mutation *n* poison mutation
+*n+1*. The two mutations that manipulate seeding (M1, M2) make that structural
+rather than unlucky. The re-run must drop and recreate the database — or at
+minimum re-seed — **between every mutation**, and must assert a green baseline
+before each one rather than assuming it.
+
+**This does not affect CI.** The job provisions a fresh `postgres:16` service
+per run, so the poisoning is an artefact of the local harness only. It also does
+not affect §4.6, which was observed red in Actions on a clean run
+(A34, run 30938657792) — a single mutation against a fresh database, which is
+exactly the shape the local ledger got wrong.
+
+**Outstanding**, and the honest reason this PR is not claiming the DoD box: the
+17-row ledger has to be re-run with per-mutation isolation before §4.5 can carry
+results. Six rows *were* run cleanly earlier, one at a time, and stand: A1
+(health), A4 (the SMS door), A5 (46 cases red — the `devCode` withheld), A34
+(the lockout, also the §4.6 CI red), plus the two rows this exercise proved were
+themselves mis-specified (§4.1: the SHOW form and `services < 1`).
 
 ### 4.6 One red run on CI, not just locally
 
