@@ -392,40 +392,60 @@ Two belts:
 
 ### 4.5 Observed-red ledger
 
-**Status: the first full run was INVALID, and the reason is worth more than the
-table would have been.** All 17 mutations reported red — and the result is
-unreadable, because the *baseline* was red too.
+**Re-run with a fresh database per mutation. Baseline green before and after,
+17 of 17 dead, no survivors — and every mutation reddened the assertion it was
+predicted to.**
 
-**What happened.** The ledger ran all 17 against one long-lived Postgres, and
-the first mutation was M1, `seedProvidersIfEmpty` → no-op, against a database
-created seconds earlier. Seeding was skipped, so `providers` stayed empty. From
-that point the funnel's own registered salons kept the table non-empty, so
-`seedProvidersIfEmpty` returned early on every subsequent boot and `provider1`
-never came back. Mutations 2–17 all ran against a permanently unseeded database,
-each carrying A2 + A2b as inherited failures.
+| Mutation | Expected | Observed (assertions that went red) |
+|---|---|---|
+| `migrations.dart` `seedProvidersIfEmpty` → no-op | A2 | ✅ A2, A2b |
+| `migrations.dart` `seedLocalitiesIfEmpty` → no-op | A3 | ✅ A3, A5, A7, A7b, A8, A9 |
+| `postgres_provider_auth_repository.dart` login-verify consumes the OTP | A7 | ✅ A5, A7, A7b, A8, A9, A11 |
+| `slot_service.dart` visibility guard dropped | A9 | ✅ A9 |
+| `booking_service.dart` `clientBookingRefusal` skipped | A11 | ✅ A11, A44, A45 |
+| `salon_provisioning_service.dart` offer gate always passes | A17 | ✅ A12, A17 |
+| `salon_provisioning_service.dart` `publishGate` neutered | A12 | ✅ A12 |
+| `routes/appointments/index.dart` client sets `totalPrice` | A23 | ✅ A23, A26, A27, A28, A29, A35 |
+| `slot_service.dart` booked slots not consumed | A24 | ✅ A24, A25, A38 |
+| `booking_service.dart` slot re-check dropped | A25 | ✅ A25, A38 |
+| `pro_appointment_service.dart` `accept` widened to `confirmed` | A28 | ✅ A28 |
+| `appointment_enrichment.dart` returns the raw row | A29 | ✅ A29 |
+| `tokens.dart` `JWT.decode` instead of `JWT.verify` | A32 | ✅ A32 |
+| `postgres_auth_repository.dart` refresh family not revoked | A33 | ✅ A33 |
+| `routes/appointments/[id]/index.dart` ownership check dropped | A35 | ✅ A35 |
+| `membership_service.dart` journal scope always `all` | A36 | ✅ A36 |
+| `appointment_lifecycle_service.dart` `_terminal` emptied | A39 | ✅ A39 |
 
-Verified after the run: the tree is clean, and the same suite is **47/47 green
-on a fresh database**. The code was never the problem.
+Separately verified one at a time, before the re-run: `health.dart` → A1;
+the `AUTH_METHODS` gate deleted → A4; `_isProd → true` (the `devCode` withheld)
+→ 46 cases; `maxAttempts = 999` → A34, which is also §4.6's CI red.
 
-**The methodology defect.** Mutation testing needs an isolated fixture per
-mutation; sharing one stateful database lets mutation *n* poison mutation
-*n+1*. The two mutations that manipulate seeding (M1, M2) make that structural
-rather than unlucky. The re-run must drop and recreate the database — or at
-minimum re-seed — **between every mutation**, and must assert a green baseline
-before each one rather than assuming it.
+**What the blast radii say.** Eight mutations redden exactly one assertion —
+A9, A12, A28, A29, A32, A33, A35, A36, A39 — which is the shape you want: the
+gate localises a defect rather than collapsing. The wide ones are wide for
+readable reasons. Skipping the locality seed (A3) takes Phase 1 with it because
+`registerSalon` posts `areaId: 'cocody'` and the register route validates it
+against that tree. Letting the client set `totalPrice` reddens six because the
+response override breaks the appointment id the later phases carry forward.
+And `JWT.decode` reddens **A32 only** — A31 still passes, correctly, because a
+garbage bearer makes `decode` throw and the existing handler returns 401 anyway.
+That is the mutation isolating *expiry and signature* from *malformedness*,
+which A31 already covers.
 
-**This does not affect CI.** The job provisions a fresh `postgres:16` service
-per run, so the poisoning is an artefact of the local harness only. It also does
-not affect §4.6, which was observed red in Actions on a clean run
-(A34, run 30938657792) — a single mutation against a fresh database, which is
-exactly the shape the local ledger got wrong.
+**Two pairs fell out of the run rather than being designed in**, and both are
+worth keeping: M9 reddens A24 *and* A38 (a live booking stops consuming its slot
+*and* a cancelled one starts holding it), and M5 reddens A11 *and* A44/A45 (the
+draft refusal and the suspended pair are the same guard seen from two sides).
 
-**Outstanding**, and the honest reason this PR is not claiming the DoD box: the
-17-row ledger has to be re-run with per-mutation isolation before §4.5 can carry
-results. Six rows *were* run cleanly earlier, one at a time, and stand: A1
-(health), A4 (the SMS door), A5 (46 cases red — the `devCode` withheld), A34
-(the lockout, also the §4.6 CI red), plus the two rows this exercise proved were
-themselves mis-specified (§4.1: the SHOW form and `services < 1`).
+**Method, after v1 was thrown away.** The database is dropped and recreated
+before every run; the baseline is asserted at the start **and** the end, so a
+bad revert is caught rather than blamed on a mutation; and failures are recorded
+by **assertion name**, never counted — a count cannot distinguish "the mutation
+was seen" from "the fixture broke". v1 did none of this and was invalid: its
+first mutation emptied the seed, and because the funnel's own salons then kept
+the table non-empty, `seedProvidersIfEmpty` returned early forever and every
+later mutation inherited A2 + A2b. The two mutations that touch seeding make
+sharing one database structurally unsafe, not merely unlucky.
 
 ### 4.6 One red run on CI, not just locally
 
@@ -782,7 +802,7 @@ The stale sentences, quoted, with the fix:
 ## 10. Definition of done
 
 - [ ] Spec approved before code (this document).
-- [ ] Mutation ledger §4.5 filled with observed red output; §4.6 records the CI red run.
+- [x] Mutation ledger §4.5 filled with observed red output (17/17 dead, fresh DB per mutation, baseline green before and after); §4.6 records the CI red run (A34, run 30938657792).
 - [ ] `dart format` clean · `dart analyze --fatal-infos --fatal-warnings` = 0 (the harness is analysed like any other source).
 - [ ] Backend suite unchanged and green; the harness is **not** collected by the backend job's `dart test`.
 - [ ] Smoke job green, timed, and the measured numbers written back into §7.1.
