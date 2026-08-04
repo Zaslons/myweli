@@ -15,7 +15,7 @@ class PostgresAuthRepository implements AuthRepository {
     required TokenService tokens,
     required bool isProd,
     Duration otpValidity = const Duration(minutes: 5),
-    int maxAttempts = 999,
+    int maxAttempts = 5,
     int maxResends = 3,
   }) : _tokens = tokens,
        _isProd = isProd,

@@ -409,9 +409,31 @@ Postgres and the suite stays green, correctly. Using it here would have
 "proved" the gate works by watching it *not* fail.
 
 **Substituted:** `postgres_auth_repository.dart:18` → `maxAttempts = 999`,
-which removes the OTP lockout. It is verified red locally (A34), it is one of
-BACKEND.md §5's six *required* security categories, and it is a defect someone
-could genuinely ship — the honest shape of what this gate is for.
+which removes the OTP lockout. It is one of BACKEND.md §5's six *required*
+security categories and a defect someone could genuinely ship.
+
+**Observed red in Actions:**
+<https://github.com/Zaslons/myweli/actions/runs/30938657792> — job
+`Backend — boot smoke + funnel e2e`:
+
+```
+❌ Phase 5 — the refusals (BACKEND.md §5 required list) A34 OTP lockout (failed)
+   no lockout after 6 wrong codes — the OTP is brute-forceable
+   (maxAttempts = 5, postgres_auth_repository.dart:18)
+```
+
+Legible without opening the source, which is the other half of what §4.6 is
+checking. The commit was then reverted.
+
+**And the FIRST attempt at this run went red for the wrong reason, which is the
+best argument for doing it at all.** The job died in the boot step with
+`curl: (22) 404` before the funnel ran: the old smoke ended with a phone-OTP
+round-trip against `/auth/otp/request`, and `AUTH_METHODS=google,apple,email`
+now answers that 404 — `curl -fsS` exits 22 on a 404. The wiring commit had
+claimed the existing curl checks "stay: they are the boot proof". True of
+`/health`, `/providers` and `/localities`; false of that one, which was an
+*auth* proof that passed only because CI ran a configuration production does
+not. Removed in `45ffc25`. A local-only red would never have found it.
 
 
 ---
