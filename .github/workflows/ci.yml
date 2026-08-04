@@ -222,18 +222,17 @@ jobs:
           curl -fsS "http://localhost:${PORT}/localities" | tee /tmp/localities.json; echo
           grep -q '"code":"CI"' /tmp/localities.json
           grep -q '"id":"cocody"' /tmp/localities.json
-          # Auth round-trip: request OTP → devCode → verify → tokens
-          REQ=$(curl -fsS -X POST "http://localhost:${PORT}/auth/otp/request" \
-            -H 'content-type: application/json' \
-            -d '{"phoneNumber":"+2250700000009"}')
-          echo "otp/request: $REQ"
-          CODE=$(printf '%s' "$REQ" | sed -n 's/.*"devCode":"\([0-9]*\)".*/\1/p')
-          test -n "$CODE"
-          VER=$(curl -fsS -X POST "http://localhost:${PORT}/auth/otp/verify" \
-            -H 'content-type: application/json' \
-            -d "{\"phoneNumber\":\"+2250700000009\",\"code\":\"${CODE}\"}")
-          printf '%s' "$VER" | head -c 200; echo
-          printf '%s' "$VER" | grep -q '"accessToken"'
+          # **The phone-OTP round-trip that used to live here is GONE, and its
+          # removal is the point.** It posted to `/auth/otp/request`, which
+          # `AUTH_METHODS=google,apple,email` now answers 404
+          # `auth_method_disabled` — and `curl -fsS` exits 22 on a 404, so the
+          # job died here before the funnel ever ran. That is exactly the
+          # divergence this slice exists to close: the assertion was green only
+          # because CI ran a configuration production does not.
+          #
+          # Auth is now covered properly one step down: A4 pins the SMS door
+          # SHUT, and the funnel signs both a pro and two consumers in over the
+          # e-mail door production actually serves.
           echo 'boot smoke passed ✅'
 
           # --- The funnel, against the SAME running server ------------------
