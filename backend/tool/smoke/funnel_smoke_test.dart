@@ -295,6 +295,31 @@ void main() {
       );
     });
 
+    test('A2b a SEEDED salon is readable by DETAIL, not just by list', () async {
+      // **Added by the mutation ledger, and its motivating claim is NOT yet
+      // proven.** Flipping `isPublicSalon` to the SHOW form
+      // (`salon['status'] == 'active'`) left the whole suite green. Every other
+      // public read here uses the salon this run creates, which carries an
+      // EXPLICIT 'active' after publishing — whereas `provider1` is seeded with
+      // **no `status` key at all** (verified in Postgres: the column is NULL),
+      // which is the trap `hiddenSalonStatuses` exists for.
+      //
+      // `routes/providers/[id]/index.dart:34` does call `isPublicSalon`, so on
+      // the face of it this read SHOULD 404 under the SHOW form. It did not,
+      // and **I have not established why** — the mutation may not have reached
+      // the running server in that run. Recorded as an open question rather
+      // than a closed one.
+      //
+      // The assertion earns its place regardless: nothing else in this suite
+      // reads a SEEDED salon by detail, only through `/providers`, which
+      // filters in the repository (`postgres_providers_repository.dart:35`)
+      // rather than through the predicate.
+      final r = await get('/providers/provider1');
+      expectStatus(r, 200, 'A2b seeded salon detail read');
+      steps++;
+      expect(r.json['id'], 'provider1');
+    });
+
     test('A3 /localities carries the multi-pays tree', () async {
       final r = await get('/localities');
       expectStatus(r, 200, 'A3 /localities');
