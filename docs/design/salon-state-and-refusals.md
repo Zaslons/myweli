@@ -110,8 +110,8 @@ never-published and taken-down). No `not_published` exists in the backend today.
 
 ## 5. Decision C — close the public read
 
-**Status: the product question is ANSWERED and built (PR1c). The routes
-themselves close in PR1d.**
+**Status: SHIPPED. The question was answered and built in PR1c; the doors
+closed in PR1d.**
 
 ### The answer: the relationship lives on the server, so the server hydrates it
 
@@ -290,17 +290,99 @@ closing that route would have 404'd the « Avis » page of exactly the owner bei
 asked to pay. `GET /me/provider/reviews` replaces it, membership-scoped through
 the same primitive as `/me/provider`, and the pin's vocabulary grew.
 
-**Two more public leaks that make the closure incoherent if left open**, both
-for PR1d: `GET /providers/{id}/reviews` (which also has **no provider read at
-all**, so an unknown id returns `200 {items:[]}` — gating only the hidden case
-would make 404 mean « exists but hidden », the exact oracle T51 forbids), and
+**Two more public leaks that make the closure incoherent if left open**:
+`GET /providers/{id}/reviews` (which also has **no provider read at all**, so an
+unknown id returns `200 {items:[]}` — gating only the hidden case would make 404
+mean « exists but hidden », the exact oracle T51 forbids), and
 `GET /availability?providerId=`, which enumerates a hidden salon's bookable
 slots. `POST /appointments/{id}/reschedule` also never checks salon status; its
 route already defaults to 409, so the shipped codes map correctly once the
-service refuses.
+service refuses. **All four closed in PR1d**, plus the reschedule.
+
+### PR1d — the doors, and who is told what
+
+**One rule, asked at four doors.** `isPublicSalon` gates `/providers/{id}`,
+`by-slug` and `/providers/{id}/reviews` in the routes; `/availability` is gated
+**inside `SlotService`**, where the provider is already read — zero extra round
+trips, and no route test needed a new stub, which is the whole reason for that
+placement.
+
+**Who gets the precise state, and who does not.** This is the same
+anonymous-vs-relationship split PR1c drew, applied to refusals:
+
+| caller | answer | why |
+|---|---|---|
+| `/availability`, anonymous | `provider_not_found`, identical to an unknown id | the only public door taking an arbitrary id in a query string; naming the state widens a one-valued channel into three |
+| the consumer reschedule | **409 `provider_suspended` / `provider_not_published`** | the caller owns the booking — there is no oracle left to protect, and both sentences already ship |
+| `/providers/{id}/reviews`, unknown id | **404**, moved from `200 {items:[]}` | otherwise the 404 means « exists but hidden » |
+
+That last row makes a comment true that was false:
+`appointment_detail_screen.dart` already claimed *« the server refuses the move …
+hiding is a courtesy OVER the server gate, never instead of one »*. There was no
+server gate. Now there is.
+
+**Decision A, finally enforced on both salon paths.** Its rule reads *« a salon
+that has not published yet owns its calendar; a salon that has been suspended
+does not »*. `bookManual` obeyed it; `rescheduleByProvider` **never checked at
+all**, so a suspended salon could still move its bookings and the written rule
+was half true. PR1d refuses the suspended case there and keeps the draft one
+working — watched as its own mutation, because the obvious way to close a door
+is to close it on everyone.
+
+**A second primitive, and the pin that keeps the two honest.**
+`clientBookingRefusal` extracts the two-code split `book` had spelled inline
+since row 82, because `reschedule` needs the identical answer — two call sites is
+where a rule stops being a guard and becomes a spelling. It is held against
+`isPublicSalon` by a **biconditional**: for every status,
+`clientBookingRefusal(s) == null` ⟺ `isPublicSalon(s)`. That catches drift in the
+**fail-open** direction too, which is the one nobody thinks to test: a fourth
+status invented later must be public *and* bookable, or the two disagree the day
+it lands.
+
+**What the closure would have broken if it had shipped alone.** The mobile funnel
+rendered « Une erreur est survenue. » beside a « Réessayer » that could never
+succeed — row 82's headline sentence, back, in the funnel — because
+`provider_not_found` fell to `_messageFor`'s default. Web's equivalent blamed the
+connection (« Vérifiez votre connexion »). Both are fixed here rather than
+recorded: a slice does not ship a defect it manufactured.
 
 When it does land, a bare 404 is still wrong for someone who booked there last
 month, so the **client** lands it softly (§6, cell 5).
+
+### Verified against a running server — the REAL gate this time
+
+2026-08-04, `dart_frog dev`, no temporary patch: the arc PR1c rehearsed, replayed
+against the shipped code. Register a salon → service, Mobile Money, availability
+→ admin activates → **a consumer books and favourites it while it is live** →
+admin **suspends** it.
+
+**The four doors:**
+
+| door | | and an UNKNOWN id |
+|---|---|---|
+| `GET /providers/{id}` | **404** `{"error":"not_found"}` | **byte-identical** |
+| `by-slug` | **404** | — |
+| `/providers/{id}/reviews` | **404** `{"error":"not_found"}` | **byte-identical** |
+| `/availability` | **404** `{"error":"provider_not_found"}` | **byte-identical** |
+
+That third row is the one that needed the extra work: the route had no provider
+read at all and answered `200 {items:[]}` for anything.
+
+**The people with a relationship, at the same moment:**
+
+| surface | |
+|---|---|
+| the client's `GET /appointments` | `Salon PR1d` · `suspended` · phone · Mobile Money number · `[Tresses]` · 30 min · window 45 |
+| the client's `GET /me/favorites` | `[(Salon PR1d, suspended)]` — present and marked |
+| the client's reschedule | **409 `provider_suspended`** — the state named, because they own the booking |
+| the SUSPENDED salon's own reschedule | **409 `provider_suspended`** — Decision A's other half, which never checked before |
+| the owner's `GET /me/provider` · `/me/provider/reviews` | **200** |
+
+**And the closure did not over-reach.** A second, still-`draft` salon: its manual
+booking succeeded, its own `rescheduleByProvider` **moved** that booking, and
+`GET /providers/{id}` on it was **404** — a salon that has not published owns its
+calendar while being invisible, which is the whole of Decision A in one
+measurement.
 
 ## 6. The copy
 
@@ -368,9 +450,8 @@ book ».
 records in its own comment that a new conflict code without its own case
 « silently ships as a bad request ».
 
-**⑤ The closed read.** `GET /providers/{id}` → 404 for draft and for suspended;
-still 200 for active. **Deferred to PR1d** — the routes are the last thing to
-move, now that no client depends on them.
+**⑤ The closed read — SHIPPED in PR1d**, and it grew from one door to four.
+See ⑩–⑲.
 
 **⑥ The sentences.** One pin per surface reading the rendered French, so a copy
 change cannot land silently. Shipped in PR2 (booking refusals) and PR1c (the
@@ -400,6 +481,60 @@ all, which no implementation that still fetches can satisfy. Its sibling
 `no-public-provider-read.test.ts` holds the web half, and proves its own matcher
 fires on the exact line deleted from `bff.ts` — a regex pin that cannot
 demonstrate that is green about nothing.
+
+**⑩ The three read doors.** Isolated fixtures, never the shared mutable
+`seedProviders`: `/providers/{id}` → 404 for draft and suspended, **200 for
+active AND for a salon with no `status` key**; `by-slug` → 404 for suspended,
+which is where that state stopped leaking. *Mutation:* restore the hand-rolled
+`== 'draft'` → the suspended assertion reddens alone.
+
+**⑪ Hidden and unknown are one 404 — the oracle argument, executable.**
+`/providers/nope/reviews` → 404 (it returned `200 {items:[]}`), draft → 404,
+`provider1` → 200; and on the detail route the two responses are asserted
+**identical in status AND body**. *Mutation:* gate only the hidden case → the
+unknown assertion reddens while the hidden one stays green.
+
+**⑫ The pro's « Avis » survives.** `me_provider_reviews_test.dart` stays green,
+untouched. If it reddens, the gate went into `ReviewsService.list`, which the
+pro's own read shares — the wrong layer.
+
+**⑬ `/availability`, gated inside the service.** Draft and suspended →
+`provider_not_found`; `requireVisibleSalon: false` → slots. The four existing
+route tests stay green **with no new stub**, which is the whole reason the gate
+is in `SlotService` and not in the route.
+
+**⑭ The consumer is told which state; the salon is not stopped.** Consumer
+reschedule into a draft → `provider_not_published`, into a suspended →
+`provider_suspended`, into a live one → ok. `rescheduleByProvider` into the
+**same draft salon** → ok. *Mutation:* delete `requireVisibleSalon: false` from
+the pro path → the salon assertion reddens while both consumer ones stay green.
+**The pair that proves the closure did not eat Decision A.**
+
+**⑮ Decision A's other half.** `rescheduleByProvider` on a **suspended** salon →
+`provider_suspended` — red before PR1d, because that path never checked at all.
+*Mutation:* remove the check → this reddens while ⑭'s draft case stays green.
+
+**⑯ The 409 arm is load-bearing.** The reschedule route has no case for these
+codes; its **default** is 409, unlike `POST /appointments`, whose default is 400
+with a comment warning that a new conflict code « silently ships as a bad
+request ». Asserted so a future refactor toward that shape goes red.
+
+**⑰ The primitive pair.** `clientBookingRefusal(s) == null` ⟺ `isPublicSalon(s)`
+across every spelling, including the no-key and explicit-null rows and an
+unknown fourth status. *Mutation:* re-spell the new primitive `!= 'active'` →
+three assertions redden, including the biconditional, while `isPublicSalon`'s own
+five stay green.
+
+**⑱ The three landing states.** Each of the salon detail, the booking hub and the
+booking confirmation, pumped against `not_found` → the sentence + « Découvrir des
+salons », **« Réessayer » absent**; against `network` → « Réessayer » present,
+CTA absent; and — no `pumpAndSettle` — **frame one is the loader**, against a
+future that never completes.
+
+**⑲ Rebook parity.** A past visit at a stopped salon offers no « Réserver à
+nouveau » and says why. Web's `rebookHref` had gated this since PR1c; this list
+renders from the client's own appointments, which are deliberately unfiltered,
+so it was the last live route onto a salon that is gone.
 
 ## 8. Sequencing
 
@@ -432,6 +567,17 @@ Each is real, each is separable, none is row 82:
   stopped salon). That does **not** reopen Decision B — B split the code because
   a client cannot infer WHY a *write* was refused from a document it fetched
   earlier; the field answers a different question, about a document it holds.
+- **`getProviderBySlug` collapses 5xx and network into `notFound()`**
+  (`web/lib/api/providers.ts:15-25`), and Next then caches that 404 for the whole
+  revalidate window — so a 30-second backend blip serves a 404 for a **live**
+  salon. PR1d bounds it to 5 minutes by lowering `revalidate`; the real fix is to
+  throw on 5xx so the error boundary serves stale-or-error instead of a cached
+  lie. Its own slice.
+- **`enforceBookingWindow` and `requireVisibleSalon` always travel together.**
+  Both are « this is a CLIENT rule » flags and `rescheduleByProvider` passes false
+  for both. The honest long-term shape is one `SlotAudience.client | salon`;
+  renaming now would churn four files and blur A14d's gate. **Trigger: the day a
+  third caller-kind flag appears.**
 - **`salonEntered` is derived two different ways.** Web reads
   `userId === 'manual'` (`bff.ts`), mobile reads `clientName != null`. One
   product fact, two client derivations — a candidate for the backend to own.

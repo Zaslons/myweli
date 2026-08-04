@@ -3,6 +3,7 @@ import 'dart:math';
 import '../clients/clients_service.dart';
 import '../providers_repository.dart';
 import '../salon_time.dart';
+import '../salon_visibility.dart';
 import 'appointment_repository.dart';
 import 'booking_window.dart';
 import 'slot_service.dart';
@@ -49,31 +50,20 @@ class BookingService {
     if (serviceIds.isEmpty) {
       return (ok: false, error: 'no_services', appointment: null);
     }
-    final provider = await _providers.byId(providerId);
-    if (provider == null) {
-      return (ok: false, error: 'provider_not_found', appointment: null);
+    // One question, asked in one place (`clientBookingRefusal`): missing,
+    // suspended and not-yet-published each have their own code, and the
+    // argument for the split lives with the rule rather than here. The
+    // consumer reschedule asks the identical question, which is why this
+    // stopped being three inline `if`s.
+    final found = await _providers.byId(providerId);
+    final refusal = clientBookingRefusal(found);
+    if (refusal != null) {
+      return (ok: false, error: refusal, appointment: null);
     }
-    // **Two states, two codes.** These used to share one, `provider_suspended`,
-    // for `draft` as well — and no client surface had a sentence for it, so all
-    // four fell through to « Une erreur est survenue. » (§21 row 82). The state
-    // the code was named for takes a deliberate admin act; the state it was
-    // silent about is the one EVERY salon starts in. The client cannot
-    // disambiguate for itself either — `mobile/lib/models/provider.dart` has no
-    // `status` field — so the server carries it. Same argument the contract
-    // already makes for `beyond_horizon` against `slot_unavailable`: one code
-    // that makes every client say the wrong thing is worse than two.
-    //
-    // NOT `status != 'active'`: seeded salons carry no `status` key and
-    // Postgres reads a NULL column as active, so that spelling would refuse
-    // every one of them.
-    if (provider['status'] == 'suspended') {
-      return (ok: false, error: 'provider_suspended', appointment: null);
-    }
-    if (provider['status'] == 'draft') {
-      // Not published yet (T51) — invisible to discovery, so a consumer only
-      // reaches this through a stale link or a favourite.
-      return (ok: false, error: 'provider_not_published', appointment: null);
-    }
+    // Reaching here proves the salon exists — `clientBookingRefusal` answers
+    // non-null for a null salon — but the analyzer cannot see that through the
+    // helper, so the promotion is stated rather than inferred.
+    final provider = found!;
 
     final services = (provider['services'] as List)
         .cast<Map<String, dynamic>>();

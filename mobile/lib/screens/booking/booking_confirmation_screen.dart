@@ -26,6 +26,7 @@ import '../../widgets/common/app_text_field.dart';
 import '../../widgets/common/label_value_row.dart';
 import '../../widgets/common/legal_consent_text.dart';
 import '../../widgets/common/salon_time_hint.dart';
+import '../../widgets/common/salon_unavailable_view.dart';
 import '../../widgets/push/push_permission_sheet.dart';
 
 class BookingConfirmationScreen extends StatefulWidget {
@@ -56,6 +57,10 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
   @override
   void initState() {
     super.initState();
+    // Frame 1 belongs to the loader, not the error state. Hoisted out of the
+    // authenticated branch below: it must run before the first BUILD, and that
+    // branch runs post-frame.
+    context.read<ProviderProvider>().beginProviderLoad();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
@@ -216,8 +221,18 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
       body: Consumer<ProviderProvider>(
         builder: (context, provider, _) {
           final p = provider.selectedProvider;
-          if (p == null) {
+          if (p == null && provider.isLoading) {
             return const Center(child: LoadingIndicator());
+          }
+          if (p == null) {
+            // **There was no error branch here at all.** `p == null` mapped
+            // unconditionally to a spinner, so a failed load span forever — on
+            // the screen immediately before payment, with `provider.error` and
+            // `provider.errorCode` both populated and both ignored.
+            return SalonUnavailableView(
+              errorCode: provider.errorCode,
+              onRetry: () => provider.loadProviderById(widget.providerId),
+            );
           }
 
           final selectedServices = p.services

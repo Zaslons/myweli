@@ -288,7 +288,8 @@ class AppointmentProvider extends ChangeNotifier {
   /// Only this method threw it away. A record rather than the raw
   /// `ApiResponse` because callers want *"here are the slots, here is why there
   /// are none"* and never the envelope's other fields.
-  Future<({List<DateTime> slots, String? error})> getAvailableTimeSlots({
+  Future<({List<DateTime> slots, String? error, String? code})>
+  getAvailableTimeSlots({
     required String providerId,
     required DateTime date,
     List<String>? serviceIds,
@@ -304,13 +305,17 @@ class AppointmentProvider extends ChangeNotifier {
         durationMinutes: durationMinutes,
       );
       if (response.success && response.data != null) {
-        return (slots: response.data!, error: null);
+        return (slots: response.data!, error: null, code: null);
       }
-      return (slots: const <DateTime>[], error: response.error ?? kSlotsError);
+      return (
+        slots: const <DateTime>[],
+        error: response.error ?? kSlotsError,
+        code: response.code,
+      );
     } catch (e) {
       // The message is deliberately NOT `e.toString()`: a socket exception is
       // not a sentence a client should read, and §14 wants copy, not a stack.
-      return (slots: const <DateTime>[], error: kSlotsError);
+      return (slots: const <DateTime>[], error: kSlotsError, code: 'network');
     }
   }
 }

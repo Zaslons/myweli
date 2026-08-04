@@ -141,6 +141,22 @@ class ProviderProvider extends ChangeNotifier {
     }
   }
 
+  /// Frame 1.
+  ///
+  /// The screens whose whole subject is one salon schedule their fetch in a
+  /// post-frame callback — they must, because [loadProviderById] notifies
+  /// before its first await and notifying during build throws — so the FIRST
+  /// build saw `isLoading == false, selectedProvider == null` and rendered the
+  /// ERROR state for one frame. `null` meant both « not asked » and « asked and
+  /// failed »; this is the missing third value.
+  ///
+  /// Called from `initState`, before this screen's first build and before any
+  /// `Consumer` of it has subscribed — so it must **not** notify. It touches
+  /// `_isLoading` and nothing else on purpose: another mounted listener may
+  /// still be rendering `_selectedProvider`, and clearing that here would go
+  /// stale silently.
+  void beginProviderLoad() => _isLoading = true;
+
   Future<void> loadProviderById(String id) async {
     _isLoading = true;
     _error = null;

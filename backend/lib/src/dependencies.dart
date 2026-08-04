@@ -286,7 +286,7 @@ final AppointmentLifecycleService appointmentLifecycleService =
     AppointmentLifecycleService(
       appointmentRepository,
       slotService,
-      providers: providersRepository,
+      providersRepository,
     );
 
 final ProAppointmentService proAppointmentService = ProAppointmentService(

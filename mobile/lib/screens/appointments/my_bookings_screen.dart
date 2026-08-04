@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
+import '../../core/utils/booking_error_cta.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/utils/visit_history.dart';
 import '../../models/appointment.dart';
@@ -17,6 +18,7 @@ import '../../widgets/booking/appointment_card.dart';
 import '../../widgets/common/app_button.dart';
 import '../../widgets/common/app_snack_bar.dart';
 import '../../widgets/common/empty_state.dart';
+import '../../widgets/common/inline_feedback.dart';
 
 class MyBookingsScreen extends StatefulWidget {
   const MyBookingsScreen({super.key});
@@ -247,15 +249,30 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
                   onTap: () => context.push('/appointment/${visit.id}'),
                 ),
                 const SizedBox(height: AppTheme.spacingS),
-                SizedBox(
-                  width: double.infinity,
-                  child: AppButton(
-                    text: 'Réserver à nouveau',
-                    type: AppButtonType.secondary,
-                    icon: Icons.refresh,
-                    onPressed: () => _rebook(visit),
+                // A stopped salon offers no rebook: the server refuses the
+                // booking, and after Decision C its page 404s. Web's
+                // `rebookHref` has gated this since PR1c; this list renders
+                // from the client's OWN appointments, which are deliberately
+                // NOT status-filtered, so it was the one live route left onto
+                // a salon that is no longer on Myweli.
+                if (visit.salonIsLive)
+                  SizedBox(
+                    width: double.infinity,
+                    child: AppButton(
+                      text: 'Réserver à nouveau',
+                      type: AppButtonType.secondary,
+                      icon: Icons.refresh,
+                      onPressed: () => _rebook(visit),
+                    ),
+                  )
+                else
+                  // The block would otherwise lose its only action with no
+                  // explanation. Same widget and same sentences the
+                  // appointment detail already uses.
+                  InlineFeedback(
+                    salonStoppedMessage(visit.providerStatus),
+                    kind: SnackKind.info,
                   ),
-                ),
               ],
             ),
           ),

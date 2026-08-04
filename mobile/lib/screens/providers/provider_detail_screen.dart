@@ -18,10 +18,10 @@ import '../../providers/auth_provider.dart';
 import '../../providers/favorites_provider.dart';
 import '../../providers/provider_provider.dart';
 import '../../widgets/booking/compact_appointment_tile.dart';
-import '../../widgets/common/app_button.dart';
 import '../../widgets/common/app_snack_bar.dart';
 import '../../widgets/common/confirm_dialog.dart';
 import '../../widgets/common/loading_indicator.dart';
+import '../../widgets/common/salon_unavailable_view.dart';
 import '../../widgets/common/section_heading.dart';
 import '../../widgets/common/timed_cached_image.dart';
 import '../../widgets/providers/before_after_section.dart';
@@ -53,6 +53,12 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
   @override
   void initState() {
     super.initState();
+    // Frame 1 belongs to the loader, not the error state — the fetch below is
+    // post-frame, so without this the first build renders « nothing loaded »
+    // as a failure. Not for the preview, which is seeded and never fetches.
+    if (!widget.preview) {
+      context.read<ProviderProvider>().beginProviderLoad();
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       // **The owner preview does not fetch.** This line used to run before the
       // early-return below, so `preview` gated the RENDERING and never the
@@ -162,30 +168,14 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
 
           final p = provider.selectedProvider;
           if (p == null) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(
-                    Icons.error_outline,
-                    size: AppTheme.iconXL,
-                    color: AppColors.error,
-                  ),
-                  const SizedBox(height: AppTheme.spacingM),
-                  Text(
-                    provider.error ?? 'Salon introuvable',
-                    style: AppTextStyles.bodyMedium.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                  const SizedBox(height: AppTheme.spacingL),
-                  AppButton(
-                    text: 'Retour',
-                    onPressed: () => context.pop(),
-                    isFullWidth: false,
-                  ),
-                ],
-              ),
+            // §12, shared with the booking hub and the confirmation screen.
+            // « Retour » used to live here and is gone deliberately: this
+            // branch renders no AppBar, and `context.pop()` on a screen
+            // reached by a deep link or a `context.go` pops to nothing. The
+            // way out now leads somewhere.
+            return SalonUnavailableView(
+              errorCode: provider.errorCode,
+              onRetry: () => provider.loadProviderById(widget.providerId),
             );
           }
 

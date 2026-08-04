@@ -66,7 +66,16 @@ export async function createBooking(payload: {
 /// That is the same defect A14c fixed on mobile, where `SlotPicker`'s comment
 /// still records it: telling a user the salon is full when the truth is that we
 /// never reached it. Web had three states where mobile has four.
-export type SlotsResult = { ok: boolean; slots: string[] };
+export type SlotsResult = {
+  ok: boolean;
+  slots: string[];
+  /// The salon is not there any more (Decision C: `/availability` 404s a salon
+  /// that is `draft` or `suspended`). Distinct from `!ok` because the two need
+  /// OPPOSITE controls: a dropped connection is exactly where « Réessayer »
+  /// belongs, and this is exactly where it cannot succeed. Collapsing them is
+  /// what made the funnel blame the connection for a salon-state problem.
+  gone?: boolean;
+};
 
 export async function fetchSlots(params: {
   providerId: string;
@@ -86,7 +95,7 @@ export async function fetchSlots(params: {
     const res = await fetch(`/api/availability?${qs.toString()}`);
     // The BFF preserves the upstream status, so the information was always
     // here — only this function threw it away.
-    if (!res.ok) return { ok: false, slots: [] };
+    if (!res.ok) return { ok: false, slots: [], gone: res.status === 404 };
     const body = await res.json().catch(() => ({}));
     return { ok: true, slots: (body.slots as string[] | undefined) ?? [] };
   } catch {

@@ -17,6 +17,8 @@
 /// by the mock and the API service so copy cannot drift between backends.
 library;
 
+import 'package:flutter/material.dart';
+
 /// A label and the route it goes to, or `null` when retrying *here* is the
 /// right answer.
 class BookingErrorCta {
@@ -38,7 +40,15 @@ const kDiscoverSalonsCta = BookingErrorCta(
 );
 
 BookingErrorCta? bookingErrorCta(String? code) {
-  if (code == 'provider_not_published' || code == 'provider_suspended') {
+  // `provider_not_found` joined the two booking codes with Decision C. Before
+  // the closure it only ever meant « you sent garbage »; now it is also what a
+  // client legitimately holding a stale link receives from `/availability`, and
+  // the funnel rendered « Une erreur est survenue. » beside a « Réessayer »
+  // that could never succeed — row 82's headline sentence, back, in the funnel
+  // the slice was meant to fix.
+  if (code == 'provider_not_found' ||
+      code == 'provider_not_published' ||
+      code == 'provider_suspended') {
     // The phrase already ships — web's `AccountClient` uses it in two empty
     // states. §17 says the product has one way to say a thing, so this reuses
     // « Découvrir des salons » rather than minting « Découvrir d'autres
@@ -64,4 +74,58 @@ String? salonStoppedMessage(String? status) => switch (status) {
   'draft' => 'Ce salon n’accepte pas encore de réservations en ligne.',
   'suspended' => 'Ce salon ne prend plus de rendez-vous sur Myweli.',
   _ => null,
+};
+
+/// §6 cell 5 — what a client is told when a salon page will not load because
+/// the salon is gone.
+///
+/// **Status-agnostic BY CONSTRUCTION.** The 404 carries no status — hidden and
+/// nonexistent are indistinguishable on purpose (T51's no-oracle rule) — so
+/// this is the one sentence that cannot use the tense-carrying pair
+/// [salonStoppedMessage] offers a surface that already holds the salon.
+///
+/// It lived in two files before PR1d (`api_provider_service.dart` and
+/// `provider_provider.dart`) — §21 row 84's pattern at count two, caught before
+/// it reached three.
+const kSalonUnavailableMessage = 'Ce salon n’est plus disponible sur Myweli.';
+
+/// The RETRYABLE sibling. Shaped after `kSlotsError` deliberately (§17, one
+/// voice): « Impossible de charger X. Vérifiez votre connexion. »
+const kSalonLoadError =
+    'Impossible de charger ce salon. Vérifiez votre '
+    'connexion.';
+
+/// The §12 error state for a screen whose whole subject is one salon.
+///
+/// **The distinction §12 actually cares about.** `not_found` has no retry that
+/// can succeed — the salon is not coming back this session — and its way out is
+/// another salon. `network` and `server_error` are exactly the case where
+/// « Réessayer » is the right control. Telling them apart by comparing French
+/// sentences is how `'Salon introuvable'` became dead code that never rendered;
+/// the code has been on the wire since PR1c and nothing read it.
+///
+/// The default arm RETRIES on purpose: an unrecognised failure is not proof
+/// that retrying is futile, and §12's rule is « a retry only when retrying can
+/// succeed », not « a retry only when we are certain ».
+class SalonLoadFailure {
+  const SalonLoadFailure({required this.message, required this.icon, this.cta});
+
+  final String message;
+  final IconData icon;
+
+  /// Non-null means there is somewhere else to go, and therefore no retry.
+  final BookingErrorCta? cta;
+
+  bool get canRetry => cta == null;
+}
+
+SalonLoadFailure salonLoadFailure(String? errorCode) => switch (errorCode) {
+  'not_found' => const SalonLoadFailure(
+    message: kSalonUnavailableMessage,
+    // Not `error_outline`: nothing broke. A salon left, which is a state, not
+    // a fault — §12's four states, not an exception.
+    icon: Icons.storefront_outlined,
+    cta: kDiscoverSalonsCta,
+  ),
+  _ => const SalonLoadFailure(message: kSalonLoadError, icon: Icons.wifi_off),
 };

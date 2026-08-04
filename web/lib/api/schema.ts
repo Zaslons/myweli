@@ -3063,7 +3063,11 @@ export interface paths {
         };
         /**
          * A salon's reviews, newest first (B-reviews, public)
-         * @description Public, paginated. `pageSize` is clamped (default 20, max 50). The provider's `GET /providers/{id}` also embeds the latest 10.
+         * @description Public, paginated. `pageSize` is clamped (default 20, max 50). The provider's `GET /providers/{id}` also embeds the latest 10 — both are `active`-only (Decision C).
+         *
+         *     **Behaviour change (PR1d):** an UNKNOWN id now 404s as well. It used to return `200 {items: [], total: 0}`, and closing only the hidden case would have made 404 mean « exists but hidden » — exactly the enumeration oracle T51 forbids, on a route that takes the salon id in its path.
+         *
+         *     The salon's OWN « Avis » is `GET /me/provider/reviews`, which is membership-scoped and deliberately unfiltered: a `draft` salon can hold reviews (T53 erasure, T54 billing unpublish).
          */
         get: {
             parameters: {
@@ -3093,6 +3097,7 @@ export interface paths {
                         };
                     };
                 };
+                404: components["responses"]["NotFound"];
             };
         };
         put?: never;
@@ -4366,7 +4371,7 @@ export interface paths {
                 401: components["responses"]["Unauthorized"];
                 403: components["responses"]["Forbidden"];
                 404: components["responses"]["NotFound"];
-                /** @description Not in a reschedulable state, or the new slot is taken */
+                /** @description Not in a reschedulable state, the new slot is taken, or the salon is no longer taking bookings (`provider_not_published` / `provider_suspended` — Decision C; the caller owns the booking, so the state is named rather than flattened). **Decision-A parity:** the SALON's own reschedule is exempt from the visibility gate as it is from the booking window — a draft salon owns its calendar — but a SUSPENDED one is refused, matching `bookManual`. */
                 409: {
                     headers: {
                         [name: string]: unknown;
@@ -4564,6 +4569,8 @@ export interface paths {
         /**
          * Bookable start times for a provider on a date (B-slot)
          * @description Server-authoritative availability. Public (clients browse before signing in). Times are UTC (Côte d'Ivoire is UTC+0). Honours the provider's weekly schedule, blocked dates, breaks, a setup/cleanup buffer, the requested duration, and existing bookings.
+         *
+         *     **Decision C:** a salon that is `draft` or `suspended` has no public slots and answers `404 provider_not_found` — the SAME code as an unknown id, on purpose. This is the only public door that takes an arbitrary `providerId` in a query string and already returns the failure code in its body, so naming the state here would widen a one-valued channel into a three-valued one (T51's no-oracle rule). A caller who OWNS a booking is told precisely which state it is, on `POST /appointments/{id}/reschedule`. The SALON's own paths are exempt: `rescheduleByProvider` opts out, and `bookManual` never reaches this engine — a draft salon owns its calendar (Decision A).
          */
         get: {
             parameters: {
@@ -6544,7 +6551,7 @@ export interface components {
             /** @description URL slug for the public web page (myweli.ci/<slug>). */
             slug?: string;
             /**
-             * @description Server-owned lifecycle (pro-salon-lifecycle): `draft` until the owner publishes. Discovery (`GET /providers`, landings, the sitemap) returns `active` only, and `GET /providers/by-slug/{slug}` 404s a `draft`. **`GET /providers/{id}` does not filter yet** — it still serves `draft` and `suspended`, and `by-slug` still serves `suspended`. Both are known gaps, deliberately left until the pro app's own reads move off the public route (four mobile pro surfaces, incl. the owner's pre-publish preview, currently depend on it); tracked in docs/design/salon-state-and-refusals.md Decision C.
+             * @description Server-owned lifecycle (pro-salon-lifecycle): `draft` until the owner publishes. **Every public read serves `active` only** — `GET /providers`, `GET /providers/{id}`, `by-slug`, `/providers/{id}/reviews`, `/availability`, the landings and the sitemap — so on a public payload this field is always `active`. A hidden salon and an unknown one produce **the same 404 with the same body, deliberately**: a draft must be indistinguishable from a salon that does not exist, or the 404 becomes an enumeration oracle (T51). `draft` and `suspended` are observable only on AUTHENTICATED reads, where the caller has a relationship: `GET /me/provider`, `SalonMembership.salonStatus`, and `Appointment.providerStatus`. docs/design/salon-state-and-refusals.md Decision C.
              * @enum {string}
              */
             status?: "draft" | "active" | "suspended";

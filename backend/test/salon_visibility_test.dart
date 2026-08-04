@@ -59,6 +59,66 @@ void main() {
     });
   });
 
+  group('the refusal a CLIENT is told, and its pairing with visibility', () {
+    test('the two hidden states get their own codes', () {
+      // Row 82's split, now said once instead of inline in `book`. `draft` and
+      // `suspended` are two states and two sentences; one code for both is
+      // what made all four surfaces fall through to « Une erreur est
+      // survenue. ».
+      expect(
+        clientBookingRefusal({'status': 'draft'}),
+        'provider_not_published',
+      );
+      expect(
+        clientBookingRefusal({'status': 'suspended'}),
+        'provider_suspended',
+      );
+    });
+
+    test('a live salon refuses nothing — including the seeded shape', () {
+      expect(clientBookingRefusal({'status': 'active'}), isNull);
+      // The same NULL trap `isPublicSalon` exists for. `status != 'active'`
+      // here would refuse every seeded salon in the country.
+      expect(clientBookingRefusal({'id': 'p1'}), isNull);
+      expect(clientBookingRefusal({'status': null}), isNull);
+    });
+
+    test('a salon that does not exist folds to the code both callers used', () {
+      // `book` and `_moveTo` each returned `provider_not_found` for a vanished
+      // salon before the extraction; folding the null keeps them identical and
+      // lets a caller ask ONE question instead of two.
+      expect(clientBookingRefusal(null), 'provider_not_found');
+    });
+
+    test('THE PAIRING: refusing and hiding are the same set', () {
+      // Two functions now encode one rule, and this is the only thing standing
+      // between them and a slow drift. It catches the FAIL-OPEN direction too,
+      // which is the one nobody thinks to test: a fourth status invented later
+      // must be public AND bookable, or the two disagree the day it lands.
+      for (final salon in [
+        <String, dynamic>{},
+        <String, dynamic>{'status': null},
+        <String, dynamic>{'status': 'active'},
+        <String, dynamic>{'status': 'draft'},
+        <String, dynamic>{'status': 'suspended'},
+        <String, dynamic>{'status': 'archived'},
+      ]) {
+        expect(
+          clientBookingRefusal(salon) == null,
+          isPublicSalon(salon),
+          reason:
+              'clientBookingRefusal and isPublicSalon disagree about '
+              '${salon['status'] ?? '(no status key)'} — one rule, two '
+              'spellings, and they have drifted',
+        );
+      }
+      // The null row is the one place they legitimately differ in SHAPE (a
+      // code vs a bool) while agreeing in meaning: not public, not bookable.
+      expect(clientBookingRefusal(null), isNotNull);
+      expect(isPublicSalon(null), isFalse);
+    });
+  });
+
   test('the contract still has exactly the three statuses this rule knows', () {
     // The hide form fails OPEN: a fourth status invented tomorrow would be
     // public by default. That is the right default — a new state should not

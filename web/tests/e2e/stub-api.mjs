@@ -646,6 +646,14 @@ createServer(async (req, res) => {
   }
   // --- booking funnel (M5) ---
   if (url.pathname === '/availability') {
+    // Decision C: a salon the browse route no longer serves has no public
+    // slots, and answers `provider_not_found` — the SAME code as an unknown
+    // id, because this is the one public door that takes an arbitrary
+    // providerId in a query string (T51's no-oracle rule).
+    const availFor = url.searchParams.get('providerId');
+    if (availFor && !['p1', 'p2'].includes(availFor)) {
+      return json(res, 404, { error: 'provider_not_found' });
+    }
     const date =
       url.searchParams.get('date') || new Date().toISOString().slice(0, 10);
     const artistId = url.searchParams.get('artistId');
@@ -1414,10 +1422,13 @@ createServer(async (req, res) => {
   // consumer salon page reads; `/me/provider/reviews` is the pro's own read,
   // resolved by account (Decision C) — the pro surface used to take the first
   // one, sending the salon id from the browser to a route that checks nothing.
-  if (
-    url.pathname === '/me/provider/reviews' ||
-    url.pathname.match(/^\/providers\/[^/]+\/reviews$/)
-  ) {
+  // The PUBLIC list closes with Decision C — hidden AND unknown, because a 404
+  // that only covered the hidden case would mean « exists but hidden ».
+  const pubReviews = url.pathname.match(/^\/providers\/([^/]+)\/reviews$/);
+  if (pubReviews && !['p1', 'p2'].includes(pubReviews[1])) {
+    return json(res, 404, { error: 'not_found' });
+  }
+  if (url.pathname === '/me/provider/reviews' || pubReviews) {
     return json(res, 200, {
       items: [
         {

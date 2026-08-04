@@ -134,3 +134,43 @@ describe('the way out', () => {
     expect(bookingErrorCta('slot_unavailable')).toBeNull();
   });
 });
+
+describe('the closed browse route, and the retry that cannot succeed', () => {
+  it('the salon-is-gone code gets the way out, not a retry', () => {
+    // Decision C makes `provider_not_found` reachable by a client holding a
+    // stale link: `/availability` answers it for a salon it will no longer
+    // serve, indistinguishably from an unknown id (the browse route answers to
+    // ANYONE, so naming the state there would be an enumeration oracle).
+    //
+    // Before this, the funnel rendered « Impossible de charger les créneaux.
+    // Vérifiez votre connexion. » beside a « Réessayer » that could never
+    // succeed — blaming the connection for a salon-state problem, on the exact
+    // surface row 82 is about.
+    expect(bookingErrorCta('provider_not_found')).toEqual({
+      label: 'Découvrir des salons',
+      href: '/',
+    });
+  });
+
+  it('and the sentence is the status-agnostic one', () => {
+    // NOT the tense-carrying pair: the 404 carries no status, by construction.
+    // This is the same sentence the mobile landing screens use, and it must
+    // stay identical to `kSalonUnavailableMessage` in
+    // `mobile/lib/core/utils/booking_error_cta.dart`.
+    expect(
+      conflictMessage('provider_not_found', {
+        audience: 'client' as const,
+        taken: 'X',
+        fallback: 'Y',
+      }),
+    ).toBe('Ce salon n’est plus disponible sur Myweli.');
+  });
+
+  it('a dropped connection is still a retry — the pair', () => {
+    // Without this, folding `provider_not_found` in could have made the CTA
+    // unconditional, and the one failure where « Réessayer » is RIGHT would
+    // have lost it.
+    expect(bookingErrorCta('slot_unavailable')).toBeNull();
+    expect(bookingErrorCta(undefined)).toBeNull();
+  });
+});
