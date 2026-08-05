@@ -26,6 +26,7 @@ import 'auth/auth_repository.dart';
 import 'auth/id_token_verifier.dart';
 import 'auth/provider_auth_repository.dart';
 import 'auth/tokens.dart';
+import 'boot_config.dart';
 import 'clients/clients_repository.dart';
 import 'clients/clients_service.dart';
 import 'clients/provider_audit_log.dart';
@@ -98,20 +99,16 @@ import 'upload_signing_service.dart';
 
 bool get _isProd => (Platform.environment['ENV'] ?? 'dev') == 'prod';
 
-String _resolveSecret() {
-  final secret = Platform.environment['JWT_SECRET'];
-  if (secret != null && secret.isNotEmpty) return secret;
-  if (_isProd) {
-    throw StateError('JWT_SECRET must be set in production');
-  }
-  // Dev-only fallback so local runs work without setup; never used in prod.
-  return 'dev-insecure-secret-change-me';
-}
+String _resolveSecret() =>
+    resolveJwtSecret(Platform.environment['JWT_SECRET'], isProd: _isProd);
 
-final String? _databaseUrl = () {
-  final url = Platform.environment['DATABASE_URL'];
-  return (url == null || url.isEmpty) ? null : url;
-}();
+/// G1: **throws in production when unset**, where before it returned null and
+/// every repository quietly became its `InMemory` variant — a green API that
+/// loses every booking on restart. See `boot_config.dart`.
+final String? _databaseUrl = resolveDatabaseUrl(
+  Platform.environment['DATABASE_URL'],
+  isProd: _isProd,
+);
 
 final Pool<void>? _pool = _databaseUrl == null
     ? null
@@ -733,18 +730,32 @@ final String? cronSecret = _envOrNull('CRON_SECRET');
 /// migrations and seeds providers when a database is configured. No-op for
 /// in-memory mode.
 Future<void> initializeDatabase() async {
+  // Fail before the port is bound, not on the first request (G1). `main.dart`
+  // awaits this ahead of `serve()`, so a misconfigured revision dies during
+  // startup rather than going green and then failing every call.
+  assertProductionBootConfig(
+    databaseUrl: Platform.environment['DATABASE_URL'],
+    jwtSecret: Platform.environment['JWT_SECRET'],
+    isProd: _isProd,
+  );
+
   final pool = _pool;
   if (pool != null) {
-    await runMigrations(pool);
-    await seedProvidersIfEmpty(pool);
-    // Move services/availability out of the provider JSONB into the normalized
-    // catalogue tables (single source of truth). See migration 0005.
-    await backfillCatalogueIfNeeded(pool);
-    // Multi-pays MP1: seed the locality reference tree, then stamp the salon
-    // market fields onto pre-MP1 provider documents
-    // (docs/design/multi-pays-end-version.md §2).
-    await seedLocalitiesIfEmpty(pool);
-    await backfillSalonMarketIfNeeded(pool);
+    // Serialised across processes (G1) — see `withSchemaLock`. Every call below
+    // is a migration or a check-then-act seed, and Cloud Run boots cold
+    // instances in parallel where Render never did.
+    await withSchemaLock(pool, () async {
+      await runMigrations(pool);
+      await seedProvidersIfEmpty(pool);
+      // Move services/availability out of the provider JSONB into the
+      // normalized catalogue tables (single source of truth). Migration 0005.
+      await backfillCatalogueIfNeeded(pool);
+      // Multi-pays MP1: seed the locality reference tree, then stamp the salon
+      // market fields onto pre-MP1 provider documents
+      // (docs/design/multi-pays-end-version.md §2).
+      await seedLocalitiesIfEmpty(pool);
+      await backfillSalonMarketIfNeeded(pool);
+    });
   }
   // Seed the super-admin from env (idempotent), after migrations so the table
   // exists. Runs in both modes; no-op when ADMIN_EMAIL/ADMIN_PASSWORD are unset.
