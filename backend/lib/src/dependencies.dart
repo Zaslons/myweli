@@ -595,6 +595,11 @@ final MessagingProvider messagingProvider = () {
     'termii' => buildTermii(),
     'twilio' => buildTwilio(),
     'log' => LogMessagingProvider(),
+    // The supported way to run production with no SMS channel at all (G1).
+    // Explicit by design: it is never auto-detected, so "nothing configured"
+    // still hits the fail-fast below. Unlike `log`, it reports ok: false, so
+    // the outbox records the truth rather than a phantom `sent`.
+    'disabled' => DisabledMessagingProvider(),
     // Unset → auto-detect: prefer Termii (CI cost), then Twilio.
     _ => buildTermii() ?? buildTwilio(),
   };

@@ -48,7 +48,8 @@ ARTCI (OQ-7) and any future payment partner will actually accept.
   Run would be a downgrade.
 - Firebase/FCM is unchanged (it was already Google).
 - SMS/WhatsApp remain deferred until company registration — no Twilio or Meta
-  work here.
+  work here. The deferral is now **expressible in config** rather than an
+  unbootable gap: see §3.3.
 
 ## 2. What Render actually provided, and its GCP equivalent
 
@@ -116,6 +117,47 @@ single application of each migration.
 This is the single largest correctness risk in the move, and it is invisible
 until it corrupts something.
 
+### 3.3 Production must be able to run with messaging deliberately off
+
+Found while writing the secret checklist (§7): **the backend could not have
+booted on Cloud Run at all.** `dependencies.dart:604` refuses to start in
+production unless Termii or Twilio credentials are present, and `:585` refuses
+`MESSAGING_PROVIDER=log` outright — correctly, because the log provider answers
+`ok: true` and the outbox would record a phantom `sent` for every message nobody
+received.
+
+Both guards are right. Together they assume something that is no longer true:
+that production always has an SMS channel. The owner's decision defers SMS and
+WhatsApp until **company registration, which happens after launch** — Termii's
+branded sender needs ARTCI and a WhatsApp business number needs Meta
+verification. So at launch there is no channel to configure, and the only ways
+to deploy were to **lie** (`log`) or to **buy** credentials we do not want.
+
+Fix: `MESSAGING_PROVIDER=disabled`, a fourth selector value that production
+accepts. It is deliberately *not* a weakening of either guard:
+
+- **Explicit only.** It is never auto-detected, so "nothing configured" still
+  hits the `:604` fail-fast. The accidental case stays fatal; only the typed,
+  deliberate one passes.
+- **Honest.** It reports `ok: false`, so `messaging_service.dart:61` writes
+  `DeliveryStatus.failed` to the outbox — a queryable record of what was never
+  delivered, which is what we will want the day the channel is switched on and
+  someone asks what was missed. This is the entire difference from `log`, and it
+  is why `log` stays refused.
+
+**What runs on push and email alone.** `AUTH_METHODS=google,apple,email` already
+excludes phone, so sign-in is unaffected — the OTP path is unreachable, not
+broken. Booking confirmations and reminders lose their SMS leg and keep push +
+email. The reminder cron (§5) still runs and still writes outbox rows; they will
+read `failed` for the SMS channel, which is accurate.
+
+Gate: `backend/test/disabled_messaging_provider_test.dart` — four tests, pinning
+`ok: false`, the `messaging_disabled` reason code, every channel off (the
+WhatsApp→SMS retry at `messaging_service.dart:46` means a half-off provider
+would silently deliver half the traffic), and the it-must-differ-from-`log`
+property, stated as a test because the two are one keyword apart in the selector
+and aliasing them would be an easy invisible "simplification".
+
 ## 4. Architecture decisions
 
 ### 4.1 Cloud SQL via the Auth Proxy sidecar — chosen for zero code change
@@ -180,7 +222,7 @@ reminder cron was never running.
 
 ## 6. Cutover
 
-1. Ship §3.1 and §3.2, green, on `main`.
+1. Ship §3.1, §3.2 and §3.3, green, on `main`. (§3.3 is a hard blocker: without it the service cannot boot in production at all.)
 2. Provision GCP (§7), seed, and run the **Q1 funnel smoke against the Cloud Run
    URL** — 47 assertions over real HTTP are exactly the acceptance test for
    "this environment works", and they already exist.
@@ -196,13 +238,14 @@ simpler and safer than a migration dance.
 |---|---|
 | `gcloud auth login`, create project, **link billing** | **owner** — needs a browser and a card |
 | Enable APIs, Artifact Registry, Cloud SQL, Cloud Run, Secret Manager, Scheduler, WIF | **mine**, once authenticated |
-| Supply the 26 `sync: false` values (Google/Apple client IDs, Resend key, R2 credentials, FCM) | **owner** — I never see or store them; they go straight into Secret Manager |
+| Supply **11** of the 26 `sync: false` values — auth (Google/Apple client IDs, Resend key, `EMAIL_FROM`), R2 (5), FCM (3) | **owner** — I never see or store them; they go straight into Secret Manager |
+| The other 15: 3 minted by me into Secret Manager (§2), 8 Twilio/Termii + `MESSAGING_PROVIDER` **not supplied at all** (§3.3 — messaging off), the rest plain Cloud Run config | — |
 | Deploy pipeline, service config, scripts, docs | **mine** |
 | DNS for `api.myweli.com` | **owner** |
 
 ## 8. Verification
 
-- §3.1 and §3.2 each watched red before green.
+- §3.1, §3.2 and §3.3 each watched red before green.
 - `dart analyze --fatal-infos --fatal-warnings` = 0; backend suite green.
 - **The Q1 funnel smoke run against the deployed Cloud Run service**, not just
   CI's local Postgres. This is the real acceptance gate.
