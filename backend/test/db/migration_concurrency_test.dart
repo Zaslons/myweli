@@ -37,16 +37,35 @@ void main() {
   }
 
   late Pool<void> pool;
+  late String ownDbName;
+  late String ownUrl;
 
+  // **Its OWN database, not the shared one.** This suite needs a pristine
+  // schema, and `dart test` runs files CONCURRENTLY — an earlier version did
+  // `DROP SCHEMA public CASCADE` on the shared CI database and yanked the
+  // schema out from under `postgres_repositories_test.dart` mid-migration
+  // (`relation "outbound_messages" already exists`). That is the very race
+  // this file exists to test, reproduced in the test harness.
+  //
+  // Note the shape difference: the sibling suite migrates an existing database
+  // and never drops anything, which is why it is a good citizen and this one
+  // has to be quarantined instead.
   setUp(() async {
-    pool = createPool(url);
-    // A pristine schema per test: the race only exists on a database that has
-    // not been seeded yet, which is exactly a fresh Cloud Run environment.
-    await pool.execute('DROP SCHEMA public CASCADE');
-    await pool.execute('CREATE SCHEMA public');
+    final admin = createPool(url);
+    ownDbName = 'myweli_conc_${DateTime.now().microsecondsSinceEpoch}';
+    await admin.execute('CREATE DATABASE $ownDbName');
+    await admin.close();
+    ownUrl = _withDatabase(url, ownDbName);
+    pool = createPool(ownUrl);
   });
 
-  tearDown(() async => pool.close());
+  tearDown(() async {
+    await pool.close();
+    final admin = createPool(url);
+    // FORCE: the pool's sessions may not have fully drained yet.
+    await admin.execute('DROP DATABASE IF EXISTS $ownDbName WITH (FORCE)');
+    await admin.close();
+  });
 
   test('concurrency does not change the outcome', () async {
     // The honest invariant: run the boot sequence ONCE on a pristine schema
@@ -60,7 +79,13 @@ void main() {
     await _setup(pool);
     final expected = await _snapshot(pool);
 
-    await _freshSchema(pool);
+    await pool.close();
+    final admin = createPool(url);
+    await admin.execute('DROP DATABASE IF EXISTS $ownDbName WITH (FORCE)');
+    await admin.execute('CREATE DATABASE $ownDbName');
+    await admin.close();
+    pool = createPool(ownUrl);
+
     await Future.wait([_setup(pool), _setup(pool)]);
     final actual = await _snapshot(pool);
 
@@ -108,9 +133,10 @@ Future<void> _setup(Pool<void> pool) => withSchemaLock(pool, () async {
   await backfillSalonMarketIfNeeded(pool);
 });
 
-Future<void> _freshSchema(Pool<void> pool) async {
-  await pool.execute('DROP SCHEMA public CASCADE');
-  await pool.execute('CREATE SCHEMA public');
+/// Swap the database name in a Postgres URL, keeping host/credentials/query.
+String _withDatabase(String url, String db) {
+  final u = Uri.parse(url);
+  return u.replace(path: '/$db').toString();
 }
 
 /// Every table the locked block writes to. Comparing the whole map rather than
