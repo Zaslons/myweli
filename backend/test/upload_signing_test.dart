@@ -19,62 +19,45 @@ void main() {
   group('StorageService', () {
     test('FakeStorageService returns deterministic fake URLs', () {
       const s = FakeStorageService();
-      final post = s.presignPost(
+      final up = s.presignPut(
         key: 'gallery/p1/abc.jpg',
         contentType: 'image/jpeg',
-        maxBytes: 100,
       );
-      expect(post.url, startsWith('https://fake-storage.local'));
-      expect(post.fields['key'], 'gallery/p1/abc.jpg');
+      expect(up.url, startsWith('https://fake-storage.local'));
+      // The OBJECT path, like R2 — a fake that accepted a shape real storage
+      // rejects is how the presigned-POST defect survived every test we had.
+      expect(up.url, contains('/gallery/p1/abc.jpg'));
+      expect(up.headers['content-type'], 'image/jpeg');
       expect(
         s.publicUrl('gallery/p1/abc.jpg'),
         'https://fake-storage.local/gallery/p1/abc.jpg',
       );
     });
 
-    test('R2StorageService signs a presigned POST policy', () {
-      final r2 = R2StorageService(
-        endpoint: 'https://acc.r2.cloudflarestorage.com',
-        bucket: 'uploads',
-        accessKeyId: 'AKID',
-        secretAccessKey: 'SECRET',
-        publicBaseUrl: 'https://cdn.myweli.com/',
-        clock: () => DateTime.utc(2026, 6, 26, 10),
-      );
-      final post = r2.presignPost(
+    test('R2StorageService signs a presigned PUT URL', () {
+      final r2 = _r2();
+      final up = r2.presignPut(
         key: 'gallery/p1/abc.jpg',
         contentType: 'image/webp',
-        maxBytes: 5242880,
       );
+      final u = Uri.parse(up.url);
 
-      expect(post.url, 'https://acc.r2.cloudflarestorage.com/uploads');
-      expect(post.fields['key'], 'gallery/p1/abc.jpg');
-      expect(post.fields['Content-Type'], 'image/webp');
-      expect(post.fields['X-Amz-Algorithm'], 'AWS4-HMAC-SHA256');
+      expect(u.host, 'acc.r2.cloudflarestorage.com');
+      expect(u.path, '/uploads/gallery/p1/abc.jpg');
+      expect(u.queryParameters['X-Amz-Algorithm'], 'AWS4-HMAC-SHA256');
       expect(
-        post.fields['X-Amz-Credential'],
+        u.queryParameters['X-Amz-Credential'],
         'AKID/20260626/auto/s3/aws4_request',
       );
-      expect(post.fields['X-Amz-Date'], '20260626T100000Z');
-      // Signature is a 64-char hex HMAC.
-      expect(post.fields['X-Amz-Signature'], matches(r'^[0-9a-f]{64}$'));
-      // The base64 policy pins key + content-type + the size range.
-      final policy =
-          jsonDecode(utf8.decode(base64.decode(post.fields['Policy']!)))
-              as Map<String, dynamic>;
-      final conditions = policy['conditions'] as List;
-      expect(
-        conditions,
-        contains(equals(['content-length-range', 0, 5242880])),
-      );
-      expect(conditions, contains(equals({'key': 'gallery/p1/abc.jpg'})));
-      // Public URL trims the trailing slash on the base.
+      expect(u.queryParameters['X-Amz-Date'], '20260626T100000Z');
+      expect(u.queryParameters['X-Amz-Signature'], matches(r'^[0-9a-f]{64}$'));
+      expect(u.queryParameters['X-Amz-SignedHeaders'], 'content-type;host');
+      expect(up.headers, {'content-type': 'image/webp'});
       expect(
         r2.publicUrl('gallery/p1/abc.jpg'),
         'https://cdn.myweli.com/gallery/p1/abc.jpg',
       );
     });
-
     test(
       'R2StorageService.presignGet signs a GET on the chosen private bucket',
       () async {
@@ -191,9 +174,9 @@ void main() {
       );
       expect(r.ok, isTrue);
       final data = r.data!;
-      expect(data['method'], 'POST');
+      expect(data['method'], 'PUT');
       expect(data['maxBytes'], isA<int>());
-      expect((data['fields'] as Map)['key'], startsWith('gallery/provider1/'));
+      expect(data['key'], startsWith('gallery/provider1/'));
       expect(data['publicUrl'], contains('gallery/provider1/'));
     });
 
@@ -205,7 +188,7 @@ void main() {
       );
       expect(r.ok, isTrue);
       final data = r.data!;
-      expect((data['fields'] as Map)['key'], startsWith('review/u42/'));
+      expect(data['key'], startsWith('review/u42/'));
       // Public bucket: tiles render the photos.
       expect(data['publicUrl'], contains('review/u42/'));
     });
@@ -225,10 +208,7 @@ void main() {
         salonId: 'provider2',
       );
       expect(r.ok, isTrue);
-      expect(
-        (r.data!['fields'] as Map)['key'],
-        startsWith('gallery/provider2/'),
-      );
+      expect(r.data!['key'], startsWith('gallery/provider2/'));
 
       final forged = await service.sign(
         accountId,
@@ -268,10 +248,7 @@ void main() {
           purpose: 'kyc',
         );
         expect(r.ok, isTrue);
-        expect(
-          (r.data!['fields'] as Map)['key'],
-          startsWith('kyc/$accountId/'),
-        );
+        expect(r.data!['key'], startsWith('kyc/$accountId/'));
         expect(r.data!['key'], startsWith('kyc/$accountId/'));
         expect(r.data!.containsKey('publicUrl'), isFalse); // never public
         // PDF is rejected for gallery.
@@ -296,10 +273,7 @@ void main() {
           purpose: 'deposit',
         );
         expect(r.ok, isTrue);
-        expect(
-          (r.data!['fields'] as Map)['key'],
-          startsWith('deposit/user_consumer/'),
-        );
+        expect(r.data!['key'], startsWith('deposit/user_consumer/'));
         expect(r.data!['key'], startsWith('deposit/user_consumer/'));
         expect(r.data!.containsKey('publicUrl'), isFalse); // never public
         // PDF is not allowed for a deposit screenshot (images only).
@@ -414,7 +388,7 @@ void main() {
         ),
       );
       expect(ok.statusCode, HttpStatus.ok);
-      expect((await ok.json() as Map)['method'], 'POST');
+      expect((await ok.json() as Map)['method'], 'PUT');
 
       final bad = await sign_route.onRequest(
         ctx(
@@ -520,4 +494,67 @@ void main() {
       expect(provider.statusCode, HttpStatus.forbidden);
     });
   });
+
+  group('presignPut — the R2 fix', () {
+    // R2 answers a presigned POST with 501 NotImplemented. Measured against the
+    // live bucket; docs/design/backend-r2-presigned-put.md §2.
+    test('targets the OBJECT path, not the bucket root', () {
+      // The literal defect. presignPost returned "{endpoint}/{bucket}" —
+      // correct for POST, where the key rides in the form — and a PUT there
+      // would write an object literally named after the bucket, or 400.
+      final r = _r2().presignPut(
+        key: 'deposit/u1/abc.jpg',
+        contentType: 'image/jpeg',
+        bucket: StorageBucket.deposit,
+      );
+      expect(r.url, contains('/myweli-deposit/deposit/u1/abc.jpg?'));
+      expect(
+        r.url,
+        isNot(matches(RegExp(r'/myweli-deposit\?'))),
+        reason: 'the bucket root is the POST target and is wrong for PUT',
+      );
+    });
+
+    test('pins content-type, and returns exactly the headers it signed', () {
+      // Probe 4 against real R2: sending a content-type other than the signed
+      // one is 403 SignatureDoesNotMatch. So the returned headers map is not
+      // advisory — the client must send precisely these.
+      final r = _r2().presignPut(
+        key: 'k.jpg',
+        contentType: 'image/jpeg',
+        bucket: StorageBucket.deposit,
+      );
+      expect(r.headers['content-type'], 'image/jpeg');
+      final signed = Uri.parse(r.url).queryParameters['X-Amz-SignedHeaders'];
+      expect(signed, 'content-type;host', reason: 'sorted, and host included');
+    });
+
+    test('does NOT sign content-length — R2 ignores it', () {
+      // Measured: a body 500 bytes larger than a signed content-length was
+      // accepted with 200. Signing it would read as enforcement in review and
+      // enforce nothing, so the size cap moves to the service (§3).
+      final r = _r2().presignPut(
+        key: 'k.jpg',
+        contentType: 'image/jpeg',
+        bucket: StorageBucket.deposit,
+      );
+      expect(
+        Uri.parse(r.url).queryParameters['X-Amz-SignedHeaders'],
+        isNot(contains('content-length')),
+      );
+    });
+  });
 }
+
+/// The R2 signer under test. Deposit bucket named explicitly because the PUT
+/// tests assert the object path, which embeds it.
+R2StorageService _r2() => R2StorageService(
+  endpoint: 'https://acc.r2.cloudflarestorage.com',
+  bucket: 'uploads',
+  accessKeyId: 'AKID',
+  secretAccessKey: 'SECRET',
+  publicBaseUrl: 'https://cdn.myweli.com/',
+  kycBucket: 'myweli-kyc',
+  depositBucket: 'myweli-deposit',
+  clock: () => DateTime.utc(2026, 6, 26, 10),
+);

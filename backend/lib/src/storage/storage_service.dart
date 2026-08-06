@@ -2,14 +2,24 @@ import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
 
-/// A signed, single-use **multipart POST** upload (S3 POST Object). The client
-/// POSTs `fields` + the file (last) to [url]; the signed policy pins the key,
-/// content-type, and a size range, so storage rejects anything else.
-class PresignedPost {
-  const PresignedPost({required this.url, required this.fields});
+/// A signed, single-use **PUT**. The client PUTs the raw bytes to [url] with
+/// exactly [headers] and nothing else.
+///
+/// **Not a bare URL, because the headers are load-bearing.** The signature
+/// covers them, so sending a different `content-type` than the one signed is
+/// `403 SignatureDoesNotMatch` — measured against real R2. The caller has to be
+/// told what to send.
+///
+/// This replaced a presigned **POST** (S3 POST Object), which Cloudflare R2
+/// answers with `501 NotImplemented` — every upload in the product was broken.
+/// docs/design/backend-r2-presigned-put.md.
+class PresignedUpload {
+  const PresignedUpload({required this.url, required this.headers});
 
   final String url;
-  final Map<String, String> fields;
+
+  /// Exactly the headers the signature pins. Lowercase names, as signed.
+  final Map<String, String> headers;
 }
 
 /// Which bucket an object lives in. Each is physically separate so they can have
@@ -22,12 +32,18 @@ enum StorageBucket { public, kyc, deposit }
 /// without a live bucket (Fake) and swappable across S3-compatible providers
 /// (R2 today). Design: docs/design/pro-image-upload-pipeline.md.
 abstract interface class StorageService {
-  /// Build a presigned POST that allows uploading exactly [key] with
-  /// [contentType] and at most [maxBytes] bytes, valid for [ttl], into [bucket].
-  PresignedPost presignPost({
+  /// Build a presigned PUT that allows uploading exactly [key] with
+  /// [contentType], valid for [ttl], into [bucket].
+  ///
+  /// **There is no size parameter, and that is deliberate.** The old POST
+  /// policy carried a `content-length-range`; R2 ignores a signed
+  /// `content-length` on a PUT — measured: a body 500 bytes larger than the
+  /// signed value was accepted with 200. Signing it would look like enforcement
+  /// and enforce nothing, so the cap lives in `UploadSigningService` instead
+  /// (advisory) and, ultimately, in claim-time verification.
+  PresignedUpload presignPut({
     required String key,
     required String contentType,
-    required int maxBytes,
     Duration ttl,
     StorageBucket bucket,
   });
@@ -62,21 +78,17 @@ class FakeStorageService implements StorageService {
   static const origin = 'https://fake-storage.local';
 
   @override
-  PresignedPost presignPost({
+  PresignedUpload presignPut({
     required String key,
     required String contentType,
-    required int maxBytes,
     Duration ttl = const Duration(minutes: 5),
     StorageBucket bucket = StorageBucket.public,
   }) {
-    return PresignedPost(
-      url: '$origin/${bucket.name}-bucket',
-      fields: {
-        'key': key,
-        'Content-Type': contentType,
-        'x-amz-signature': 'fake',
-        'x-amz-meta-max-bytes': '$maxBytes',
-      },
+    // Mirrors presignGet/presignDelete: the OBJECT path, so the fake exercises
+    // the same client code path as R2 rather than a shape only it accepts.
+    return PresignedUpload(
+      url: '$origin/${bucket.name}/$key?sig=fake-put',
+      headers: {'content-type': contentType},
     );
   }
 
@@ -98,8 +110,8 @@ class FakeStorageService implements StorageService {
   String publicUrl(String key) => '$origin/$key';
 }
 
-/// S3-compatible **presigned POST** signer (Cloudflare R2; also AWS S3 /
-/// Supabase / MinIO). Implements AWS SigV4 POST-policy signing in-house with
+/// S3-compatible **presigned URL** signer (Cloudflare R2; also AWS S3 /
+/// Supabase / MinIO). Implements AWS SigV4 query-string signing in-house with
 /// `crypto` (HMAC-SHA256) — no heavy AWS SDK. Credentials come from env; this
 /// class only signs, it never touches the network.
 class R2StorageService implements StorageService {
@@ -145,47 +157,26 @@ class R2StorageService implements StorageService {
   final DateTime Function() _clock;
 
   @override
-  PresignedPost presignPost({
+  PresignedUpload presignPut({
     required String key,
     required String contentType,
-    required int maxBytes,
     Duration ttl = const Duration(minutes: 5),
     StorageBucket bucket = StorageBucket.public,
   }) {
-    final targetBucket = _bucketFor(bucket);
-    final now = _clock().toUtc();
-    final amzDate = _amzDate(now);
-    final dateStamp = amzDate.substring(0, 8);
-    final credential = '$_accessKeyId/$dateStamp/$region/s3/aws4_request';
-    final expiration = _iso8601(now.add(ttl));
-
-    final policy = {
-      'expiration': expiration,
-      'conditions': [
-        {'bucket': targetBucket},
-        {'key': key},
-        {'Content-Type': contentType},
-        ['content-length-range', 0, maxBytes],
-        {'x-amz-algorithm': 'AWS4-HMAC-SHA256'},
-        {'x-amz-credential': credential},
-        {'x-amz-date': amzDate},
-      ],
-    };
-    final policyB64 = base64.encode(utf8.encode(jsonEncode(policy)));
-    final signature = _sign(dateStamp, policyB64);
-
-    return PresignedPost(
-      url: '${_trim(endpoint)}/$targetBucket',
-      fields: {
-        'key': key,
-        'Content-Type': contentType,
-        'bucket': targetBucket,
-        'X-Amz-Algorithm': 'AWS4-HMAC-SHA256',
-        'X-Amz-Credential': credential,
-        'X-Amz-Date': amzDate,
-        'Policy': policyB64,
-        'X-Amz-Signature': signature,
-      },
+    // Reuses the SAME signer that has served GET and DELETE in production
+    // since the KYC work, rather than growing a second signing path. The
+    // target is the OBJECT path — the old POST signed the bucket ROOT, which
+    // is right for POST (the key rides in the form) and wrong for PUT.
+    final headers = {'content-type': contentType};
+    return PresignedUpload(
+      url: _presignUrl(
+        method: 'PUT',
+        key: key,
+        bucket: bucket,
+        ttl: ttl,
+        signedHeaders: headers,
+      ),
+      headers: headers,
     );
   }
 
@@ -207,11 +198,18 @@ class R2StorageService implements StorageService {
   }) => _presignUrl(method: 'DELETE', key: key, bucket: bucket, ttl: ttl);
 
   /// SigV4 query-signed URL for [method] on a private object.
+  /// SigV4 query-string signing for GET / PUT / DELETE.
+  ///
+  /// [signedHeaders] are lowercase names covered by the signature, in addition
+  /// to the always-present `host`. GET and DELETE pass none and produce
+  /// byte-identical URLs to before this parameter existed — which is what their
+  /// untouched tests prove.
   String _presignUrl({
     required String method,
     required String key,
     required StorageBucket bucket,
     required Duration ttl,
+    Map<String, String> signedHeaders = const {},
   }) {
     final now = _clock().toUtc();
     final amzDate = _amzDate(now);
@@ -222,12 +220,24 @@ class R2StorageService implements StorageService {
     final canonicalUri =
         '/${[_bucketFor(bucket), ...key.split('/')].map(_uriEncode).join('/')}';
 
+    // One sorted map drives all three places SigV4 needs the header set:
+    // the canonical headers block, the signed-headers list in the canonical
+    // request, and the X-Amz-SignedHeaders query parameter. They were three
+    // hardcoded 'host' literals; a mismatch between any two is a 403 that only
+    // appears at upload time.
+    final allHeaders = <String, String>{'host': host, ...signedHeaders};
+    final headerNames = allHeaders.keys.toList()..sort();
+    final canonicalHeaders = headerNames
+        .map<String>((n) => '$n:${allHeaders[n]}\n')
+        .join();
+    final signedHeaderList = headerNames.join(';');
+
     final query = <String, String>{
       'X-Amz-Algorithm': 'AWS4-HMAC-SHA256',
       'X-Amz-Credential': credential,
       'X-Amz-Date': amzDate,
       'X-Amz-Expires': '${ttl.inSeconds}',
-      'X-Amz-SignedHeaders': 'host',
+      'X-Amz-SignedHeaders': signedHeaderList,
     };
     final canonicalQuery = (query.keys.toList()..sort())
         .map((k) => '${_uriEncode(k)}=${_uriEncode(query[k]!)}')
@@ -237,8 +247,8 @@ class R2StorageService implements StorageService {
       method,
       canonicalUri,
       canonicalQuery,
-      'host:$host\n',
-      'host',
+      canonicalHeaders,
+      signedHeaderList,
       'UNSIGNED-PAYLOAD',
     ].join('\n');
     final stringToSign = [
@@ -253,24 +263,8 @@ class R2StorageService implements StorageService {
         '&X-Amz-Signature=$signature';
   }
 
-  /// SigV4 key-derivation chain → the signing key for [dateStamp].
-  List<int> _signingKey(String dateStamp) {
-    List<int> hmac(List<int> key, String data) =>
-        Hmac(sha256, key).convert(utf8.encode(data)).bytes;
-    final kDate = hmac(utf8.encode('AWS4$_secretAccessKey'), dateStamp);
-    final kRegion = hmac(kDate, region);
-    final kService = hmac(kRegion, 's3');
-    return hmac(kService, 'aws4_request');
-  }
-
-  String _hmacHex(List<int> key, String data) =>
-      Hmac(sha256, key).convert(utf8.encode(data)).toString();
-
-  /// HMAC the base64 policy with the signing key → hex signature (POST).
-  String _sign(String dateStamp, String policyB64) =>
-      _hmacHex(_signingKey(dateStamp), policyB64);
-
-  /// AWS SigV4 percent-encoding: unreserved chars pass; everything else %XX.
+  /// Percent-encode per RFC 3986 (SigV4 canonicalisation) — Dart's
+  /// Uri.encodeComponent leaves some reserved characters alone.
   static String _uriEncode(String s) {
     const unreserved =
         'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_.~';
@@ -286,6 +280,19 @@ class R2StorageService implements StorageService {
     return out.toString();
   }
 
+  /// SigV4 key-derivation chain → the signing key for [dateStamp].
+  List<int> _signingKey(String dateStamp) {
+    List<int> hmac(List<int> key, String data) =>
+        Hmac(sha256, key).convert(utf8.encode(data)).bytes;
+    final kDate = hmac(utf8.encode('AWS4$_secretAccessKey'), dateStamp);
+    final kRegion = hmac(kDate, region);
+    final kService = hmac(kRegion, 's3');
+    return hmac(kService, 'aws4_request');
+  }
+
+  String _hmacHex(List<int> key, String data) =>
+      Hmac(sha256, key).convert(utf8.encode(data)).toString();
+
   static String _trim(String url) =>
       url.endsWith('/') ? url.substring(0, url.length - 1) : url;
 
@@ -295,9 +302,4 @@ class R2StorageService implements StorageService {
   static String _amzDate(DateTime t) =>
       '${t.year}${_two(t.month)}${_two(t.day)}T'
       '${_two(t.hour)}${_two(t.minute)}${_two(t.second)}Z';
-
-  /// `yyyy-MM-ddTHH:mm:ss.000Z` (policy expiration).
-  static String _iso8601(DateTime t) =>
-      '${t.year}-${_two(t.month)}-${_two(t.day)}T'
-      '${_two(t.hour)}:${_two(t.minute)}:${_two(t.second)}.000Z';
 }
