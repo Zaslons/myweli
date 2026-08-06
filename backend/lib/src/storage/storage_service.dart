@@ -285,15 +285,58 @@ class R2StorageService implements StorageService {
       Uri.parse(
         _presignUrl(method: 'HEAD', key: key, bucket: bucket, ttl: _ioTtl),
       ),
+      // `identity` because Cloudflare COMPRESSES compressible content types and
+      // then omits content-length entirely. Measured: a 51-byte text/plain
+      // object came back `200, content-encoding: gzip` with NO content-length,
+      // while an image/jpeg of the same size was fine — which is exactly why
+      // the live test, which uploads a JPEG, never saw this.
+      headers: const {'accept-encoding': 'identity'},
     );
-    if (res.statusCode == 404) return null;
+    if (res.statusCode == 404) {
+      // MEASURED: R2 can answer 404 for an object written moments earlier.
+      // Left unhandled that is a production bug, not a test flake — a client
+      // that claims straight after uploading gets upload_not_found and its
+      // legitimate claim is refused.
+      //
+      // Bounded retry: ~2s total. 900ms was NOT enough — measured, the window
+      // exceeded it repeatedly. A claim in the wild also crosses a client round
+      // trip, so this budget is a worst case rather than the norm; two seconds
+      // of latency on a claim beats rejecting a valid one.
+      for (var i = 0; i < 4; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 500));
+        final again = await _client.head(
+          Uri.parse(
+            _presignUrl(method: 'HEAD', key: key, bucket: bucket, ttl: _ioTtl),
+          ),
+          headers: const {'accept-encoding': 'identity'},
+        );
+        if (again.statusCode == 404) continue;
+        if (again.statusCode >= 400) {
+          throw StateError('objectSize failed: HTTP ${again.statusCode}');
+        }
+        final n = int.tryParse(again.headers['content-length'] ?? '');
+        if (n != null) return n;
+      }
+      return null;
+    }
     if (res.statusCode >= 400) {
       // Deliberately an exception, not a null: "absent" and "could not tell"
       // must not collapse into the same value, because they demand different
       // answers (reject the claim vs. 502 and retry).
       throw StateError('objectSize failed: HTTP ${res.statusCode}');
     }
-    return int.tryParse(res.headers['content-length'] ?? '');
+    final size = int.tryParse(res.headers['content-length'] ?? '');
+    if (size == null) {
+      // A 200 with no usable length is "could not tell", NOT "absent".
+      // Returning null here is what made the gzip case silent: it read as
+      // upload_not_found and refused a claim for an object that was really
+      // there. Throwing makes it fail closed AND loud.
+      throw StateError(
+        'objectSize: HTTP 200 but no usable content-length '
+        '(content-encoding: ${res.headers['content-encoding'] ?? 'none'})',
+      );
+    }
+    return size;
   }
 
   @override

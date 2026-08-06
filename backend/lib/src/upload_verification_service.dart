@@ -80,6 +80,11 @@ class UploadVerificationService {
       }
     }
 
+    // verify() HEADs every object, which also PROVES each source is visible to
+    // storage before the copy below. That ordering is load-bearing, not
+    // incidental: R2's CopyObject intermittently 404s on a source written
+    // milliseconds earlier, measured while building the live test. Reversing
+    // these two steps would make fast claims fail with storage_unavailable.
     final v = await verify(keys, bucket: bucket);
     if (!v.ok) return (ok: false, error: v.error, keys: <String>[]);
 
