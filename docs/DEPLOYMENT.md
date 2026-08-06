@@ -73,6 +73,12 @@ apps); what's left is console work. Specs:
 1. **Create the Firebase project.**
 2. **Register TWO Android apps** — one per flavor, matching the applicationIds:
    `com.myweli.app` (consumer) and `com.myweli.pro` (pro).
+   **And TWO iOS apps** on the same identifiers, now that iOS has the matching
+   flavor split ([mobile-ios-flavours.md](design/mobile-ios-flavours.md)) —
+   download each `GoogleService-Info.plist`. Note **nothing Firebase
+   client-side exists yet on any platform**: `mobile/` contains no
+   `google-services.json` and no `GoogleService-Info.plist`, so push is unwired
+   on the client regardless of the FCM server credentials.
 3. **Download the two `google-services.json`** and drop each in its flavor's
    source set — create the dir if missing:
    - `mobile/android/app/src/consumer/google-services.json`
@@ -81,8 +87,11 @@ apps); what's left is console work. Specs:
    `.gitleaks.toml` already allowlists these paths. The Gradle plugin applies
    itself as soon as a file is present; without them the repo still builds.
 4. **Service account** (Project settings → Service accounts → Generate key) →
-   Render env: `FCM_PROJECT_ID`, `FCM_CLIENT_EMAIL`, `FCM_PRIVATE_KEY` (keep the
-   `\n` escapes). This one **is** a secret — never in the repo.
+   **Secret Manager** (the backend moved to Cloud Run — G1). Only
+   `FCM_PRIVATE_KEY` is a secret, and it keeps its `\n` escapes
+   (`dependencies.dart:650` converts them); `FCM_PROJECT_ID` and
+   `FCM_CLIENT_EMAIL` are not secret and live as plain config in
+   `infra/gcp/service.yaml`. Never in the repo.
 5. **Reminder cron** — Render Cron Job, `POST /internal/cron/reminders` with the
    `X-Cron-Secret` header, every ~15 min (Phase C step 5).
 6. **Android smoke test — two real devices** (the first true end-to-end run
