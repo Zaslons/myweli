@@ -119,8 +119,20 @@ until it corrupts something.
 
 ### 3.3 Production must be able to run with messaging deliberately off
 
-Found while writing the secret checklist (§7): **the backend could not have
-booted on Cloud Run at all.** `dependencies.dart:604` refuses to start in
+> **Correction (measured on the deployed service).** This section originally
+> claimed the backend "could not have booted on Cloud Run at all". **That was
+> wrong.** `assertProductionBootConfig` (`boot_config.dart:75-82`) checks only
+> `DATABASE_URL` and `JWT_SECRET`; `messagingProvider` is a lazy top-level
+> `final` (`dependencies.dart:536`) that `initializeDatabase()` never touches.
+> The old code would have **booted, gone green, passed the health check and
+> taken traffic** — then 500'd on the first booking transition or reminder tick.
+> That is *worse* than a boot failure, not better: the failure moves from deploy
+> time to user time. The fix below is right; only the severity was misstated.
+>
+> This is now proven rather than argued — see §3.4.
+
+Found while writing the secret checklist (§7): production refuses to start
+without SMS credentials. `dependencies.dart:604` refuses to start in
 production unless Termii or Twilio credentials are present, and `:585` refuses
 `MESSAGING_PROVIDER=log` outright — correctly, because the log provider answers
 `ok: true` and the outbox would record a phantom `sent` for every message nobody
@@ -157,6 +169,42 @@ WhatsApp→SMS retry at `messaging_service.dart:46` means a half-off provider
 would silently deliver half the traffic), and the it-must-differ-from-`log`
 property, stated as a test because the two are one keyword apart in the selector
 and aliasing them would be an easy invisible "simplification".
+
+### 3.4 The lazy-guard class — measured in production, still open
+
+The first Cloud Run revision was deployed deliberately with **only** the four
+secrets we mint (`DATABASE_URL`, `JWT_SECRET`, `CRON_SECRET`,
+`MESSAGING_WEBHOOK_SECRET`) and none of the owner-supplied values. Result:
+
+- `/health` → **200**, `/providers` → **200 with real seeded rows** from Cloud
+  SQL through the sidecar. Migrations ran. The revision was marked ready and
+  took 100% of traffic.
+- `POST /internal/cron/reminders` with the correct secret → **500**:
+  `Bad state: Push must be configured in production: set FCM_PROJECT_ID,
+  FCM_CLIENT_EMAIL and FCM_PRIVATE_KEY (service account).`
+
+So a production deployment missing R2, FCM, Google, Apple and Resend entirely
+**looks completely healthy** to Cloud Run and to any uptime check pointed at
+`/health`. Every one of those guards is a lazy `final` injected through
+`routes/_middleware.dart`, and it first runs on the request that touches it.
+
+`DATABASE_URL` and `JWT_SECRET` were closed by §3.1. The rest of the class was
+not. Two consequences worth acting on separately from the cutover:
+
+1. **`R2_PUBLIC_BASE_URL` has a second reader that bypasses its own fail-fast.**
+   `_galleryAllowedOrigins` (`dependencies.dart:346-349`) reads it directly, so
+   when it is unset the gallery / before-after / review-photo origin allowlist
+   is simply **off** — and those routes return **200** while `/uploads/sign`
+   is 500ing. Silent, and it is a security control.
+2. **The reminder cron is loud but wrongly ordered.** In
+   `routes/appointments/index.dart:165` the appointment is committed *before*
+   the push notifier is read, and `unawaited(context.read<…>())` evaluates the
+   read synchronously — so an unconfigured FCM returns **500 for a booking that
+   actually succeeded**. Same shape in `cancel.dart:20-26`.
+
+Recommended follow-up (not this PR): extend `assertProductionBootConfig` to
+force every prod-required dependency at boot, so the whole class fails at deploy
+time instead of at user time.
 
 ## 4. Architecture decisions
 
@@ -222,7 +270,7 @@ reminder cron was never running.
 
 ## 6. Cutover
 
-1. Ship §3.1, §3.2 and §3.3, green, on `main`. (§3.3 is a hard blocker: without it the service cannot boot in production at all.)
+1. Ship §3.1, §3.2 and §3.3, green, on `main`. (§3.3 is not a boot blocker — see the correction in that section — but without it every booking transition and reminder 500s.)
 2. Provision GCP (§7), seed, and run the **Q1 funnel smoke against the Cloud Run
    URL** — 47 assertions over real HTTP are exactly the acceptance test for
    "this environment works", and they already exist.
@@ -238,17 +286,72 @@ simpler and safer than a migration dance.
 |---|---|
 | `gcloud auth login`, create project, **link billing** | **owner** — needs a browser and a card |
 | Enable APIs, Artifact Registry, Cloud SQL, Cloud Run, Secret Manager, Scheduler, WIF | **mine**, once authenticated |
-| Supply **11** of the 26 `sync: false` values — auth (Google/Apple client IDs, Resend key, `EMAIL_FROM`), R2 (5), FCM (3) | **owner** — I never see or store them; they go straight into Secret Manager |
-| The other 15: 3 minted by me into Secret Manager (§2), 8 Twilio/Termii + `MESSAGING_PROVIDER` **not supplied at all** (§3.3 — messaging off), the rest plain Cloud Run config | — |
+| Supply **15** owner-only values — auth 3 (`GOOGLE_CLIENT_IDS`, `APPLE_CLIENT_IDS`, `RESEND_API_KEY`), R2 **7**, FCM 3 (of which only `FCM_PRIVATE_KEY` is truly secret), admin 2 (`ADMIN_EMAIL`, `ADMIN_PASSWORD`) | **owner** — I never see or store them; they go straight into Secret Manager |
+| The rest: 4 minted by me (§2), 8 Twilio/Termii **not supplied at all** (§3.3), `MESSAGING_PROVIDER=disabled` + `ENV`/`TZ`/`AUTH_METHODS`/`WEB_ORIGINS` as plain Cloud Run config | — |
+
+**Corrections to an earlier version of this table**, all verified against the code:
+
+- **R2 is seven values, not five.** `dependencies.dart:308-321` requires
+  `R2_ACCOUNT_ID` (or `R2_ENDPOINT`), `R2_BUCKET`, `R2_ACCESS_KEY_ID`,
+  `R2_SECRET_ACCESS_KEY`, `R2_PUBLIC_BASE_URL`, `R2_KYC_BUCKET` **and**
+  `R2_DEPOSIT_BUCKET` simultaneously — all seven or it throws.
+- **`ADMIN_EMAIL` / `ADMIN_PASSWORD` were filed as plain config.** They are not:
+  `ADMIN_PASSWORD` seeds the super-admin (`dependencies.dart:767-774`) and only
+  the owner can choose it. Without them `/admin/auth/login` has no account.
+- **`EMAIL_FROM` is optional**, not required — it falls back to
+  `'MyWeli <no-reply@myweli.com>'` (`dependencies.dart:198`), the sender the
+  design already specifies.
+- **`MESSAGING_PROVIDER` must be SET to `disabled`**, not omitted. An earlier
+  version of this table put it in the "not supplied" bucket, contradicting §3.3.
+  Unset falls through to auto-detect → null → the prod fail-fast.
+- **`PUBLIC_BASE_URL` is dead under this config** — its only reader is
+  `buildTwilio()` (`dependencies.dart:557`), unreachable while messaging is off.
 | Deploy pipeline, service config, scripts, docs | **mine** |
 | DNS for `api.myweli.com` | **owner** |
+
+## 7.1 Cutover findings from the real provisioning run
+
+Recorded because each cost a failed deploy or would have:
+
+1. **The proxy sidecar cannot be probed on its database port.** The Cloud SQL
+   Auth Proxy binds `127.0.0.1:5432`, and a Cloud Run TCP startup probe cannot
+   reach a loopback listener — measured: the proxy logged *"ready for new
+   connections"* while the probe failed 24× and the instance was discarded. Use
+   the proxy's own health-check server (`--health-check --http-address=0.0.0.0
+   --http-port=9090`, probe `GET /startup`). The database port stays on
+   loopback.
+2. **`run.googleapis.com/container-dependencies` is required, not optional.**
+   `main.dart:12` awaits `initializeDatabase()`, which opens a real connection
+   at `migrations.dart:885` to take the advisory lock. No retry, no backoff, and
+   the image is `FROM scratch` so not even a shell `wait-for-it` is possible.
+3. **`timeoutSeconds` must be strictly less than `periodSeconds`** on every
+   probe. Cloud Run rejects the service otherwise.
+4. **Mint the Cloud SQL password from an alphanumeric charset.** `createPool`
+   splits `uri.userInfo` on `:` and passes both halves through verbatim
+   (`db/database.dart:10,15-20`) — Dart does not percent-decode `userInfo`. A
+   password containing `@` or `/` throws at parse; a raw `:` is silently
+   truncated. Note `openssl rand -base64` emits `/` about half the time. (Ours
+   was verified alphanumeric.)
+5. **Build for `linux/amd64` explicitly.** Cloud Run is amd64-only and a local
+   Apple-Silicon `docker build` defaults to arm64.
+6. **`FROM scratch` does ship CA certificates** — the Dart runtime layer carries
+   301 of them at `/runtime/etc/ssl/certs/`, so outbound TLS to Resend, R2 and
+   FCM works. This was checked because it looked like a bug; it is not one.
+7. **The service is deployed private.** It requires an IAM identity token today.
+   Making it public (`allUsers` → `roles/run.invoker`) is a deliberate step at
+   DNS cutover, not something to leave on while the API is half-configured.
 
 ## 8. Verification
 
 - §3.1, §3.2 and §3.3 each watched red before green.
 - `dart analyze --fatal-infos --fatal-warnings` = 0; backend suite green.
 - **The Q1 funnel smoke run against the deployed Cloud Run service**, not just
-  CI's local Postgres. This is the real acceptance gate.
+  CI's local Postgres. This is the real acceptance gate — **but it cannot run
+  against `ENV=prod` as written.** The harness authenticates by reading
+  `devCode` off the OTP response (`tool/smoke/funnel_smoke_test.dart:172,201`),
+  and production deliberately suppresses it (`auth_repository.dart:224`), so it
+  null-casts on the first sign-in. It needs a real mailbox loop or a deliberate
+  test seam; decide before relying on it. **Open, and it blocks §6 step 2.**
 - `/health` **and** a DB-backed route (`/providers`) both 200 — `/health` alone
   proved nothing during the Render outage, which is the lesson.
 
