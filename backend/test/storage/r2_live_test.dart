@@ -57,14 +57,22 @@ void main() {
   final client = HttpClient();
 
   tearDownAll(() async {
-    // Best-effort: a failed assertion must not leave the object behind, and a
+    // EVERY key this file can create, not just the happy-path one. The first
+    // version deleted only `key`, so when the objectSize test failed its
+    // `$key.size` object survived — two of them were still sitting in the
+    // bucket afterwards. A test that leaves orphans while orphans are the
+    // problem under discussion is not a good test.
+    //
+    // Best-effort throughout: a failed assertion must not leave residue, and a
     // failed cleanup must not mask the assertion that actually failed.
-    try {
-      final req = await client.deleteUrl(
-        Uri.parse(r2.presignDelete(key: key, bucket: StorageBucket.public)),
-      );
-      await (await req.close()).drain<void>();
-    } catch (_) {}
+    for (final k in [key, '$key.size', '$key.control']) {
+      try {
+        final req = await client.deleteUrl(
+          Uri.parse(r2.presignDelete(key: k, bucket: StorageBucket.public)),
+        );
+        await (await req.close()).drain<void>();
+      } catch (_) {}
+    }
     client.close();
   });
 
