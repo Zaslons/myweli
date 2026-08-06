@@ -247,10 +247,17 @@ class R2StorageService implements StorageService {
     required String key,
     required StorageBucket bucket,
   }) async {
-    // HEAD against our own signed URL — no new auth path, and it reuses the
-    // signer already proven for GET, PUT and DELETE.
+    // Signed for HEAD, because SigV4 covers the HTTP METHOD: a URL signed for
+    // GET and sent as HEAD is a signature mismatch, and R2 answers 403.
+    //
+    // It shipped that way — presignGet(...) here — and the live R2 test caught
+    // it. The failure mode was not a missing size check but a TOTAL upload
+    // outage: objectSize threw, verify() failed closed, and every claim
+    // (deposit, KYC, review, gallery) was refused with storage_unavailable.
     final res = await _client.head(
-      Uri.parse(presignGet(key: key, bucket: bucket, ttl: _ioTtl)),
+      Uri.parse(
+        _presignUrl(method: 'HEAD', key: key, bucket: bucket, ttl: _ioTtl),
+      ),
     );
     if (res.statusCode == 404) return null;
     if (res.statusCode >= 400) {
