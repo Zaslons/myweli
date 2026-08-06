@@ -102,8 +102,23 @@ class ReviewsService {
           )
           .whereType<String>()
           .toList();
-      final v = await _verifier.verify(keys, bucket: StorageBucket.public);
-      if (!v.ok) return (ok: false, error: v.error, review: null);
+      // Only URLs that passed the origin allowlist reach here, so a derived
+      // key is one of ours. Promotion moves each object out of `pending/`,
+      // and the STORED url is rebuilt from the promoted key — keeping the
+      // pending url would point at an object due to be expired.
+      if (keys.length == photos.length) {
+        final v = await _verifier.verifyAndPromote(
+          keys,
+          bucket: StorageBucket.public,
+        );
+        if (!v.ok) return (ok: false, error: v.error, review: null);
+        final base = _publicBaseUrl.endsWith('/')
+            ? _publicBaseUrl
+            : '$_publicBaseUrl/';
+        photos
+          ..clear()
+          ..addAll(v.keys.map((k) => '$base$k'));
+      }
     }
 
     // The appointment is the authority on who/what/which-salon.

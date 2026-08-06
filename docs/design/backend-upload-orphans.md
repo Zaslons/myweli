@@ -90,12 +90,24 @@ empty. Rate-limiting is a few lines and bounds the abuse rate meanwhile.
 §3.3 is the fallback if the prefix change is ever judged too invasive — it
 reaches the same place at higher running cost.
 
-## 4. Decision owed
+## 4. Decision — §3.2, built
 
-This is the owner's call, not a default to be applied quietly: §3.2 changes how
-every upload key is shaped. **Nothing about orphans is fixed until one of the
-three is built.** What is true today is that the exposure requires an
-authenticated account, and the buckets are empty.
+The owner chose the `pending/` prefix, and confirmed the app is **not yet public**
+so there is no data to migrate and nothing to lose. Built:
+
+- `UploadSigningService` issues `pending/{purpose}/{prefixId}/{id}.{ext}`.
+- `UploadVerificationService.verifyAndPromote` size-checks, then copies to the
+  final key and deletes the pending original, returning the promoted keys.
+- All four claim paths record the **promoted** key. Public claims (review,
+  gallery) rebuild the stored URL from it — keeping the pending URL would point
+  at an object the lifecycle rule is about to expire.
+- `StorageService.copyObject` (S3 `CopyObject`) signs `x-amz-copy-source` as a
+  **signed header** — the same mechanism that pins `content-type`, which is why
+  `_presignUrl` grew that parameter in the presigned-PUT work.
+
+**Ordering is load-bearing and tested:** an oversized upload is refused *before*
+promotion. Promoting first would move the offending object to its final key,
+where the lifecycle rule can no longer collect it.
 
 ## 5. What is configured now
 
@@ -115,3 +127,45 @@ authenticated account, and the buckets are empty.
   from R2's defaults. It reclaims *incomplete* multipart uploads, which is a
   different failure from a completed-but-unclaimed object, and is not a fix for
   §1.
+
+## 6. Two R2 behaviours found while building this
+
+Both were found only by talking to real storage, and both affect production.
+
+### 6.1 Cloudflare compresses, and then omits `content-length`
+
+`objectSize` read the size from the `content-length` of a HEAD. For a
+**compressible** content type Cloudflare returns `200` with
+`content-encoding: gzip` and **no `content-length`** — measured on a 51-byte
+`text/plain` object, while an `image/jpeg` of the same size was fine.
+
+`int.tryParse('')` returned null, which `verify()` reads as **absent**, which
+refuses the claim. So text-ish uploads would have been rejected while sitting
+perfectly well in the bucket. The live test never saw it because every case in
+it uploaded a JPEG.
+
+Fixed twice over: the HEAD now asks for `accept-encoding: identity`, **and** a
+`200` with no usable length now **throws** instead of returning null — "could
+not tell" must not collapse into "absent", because they demand different
+answers. A regression test uploads a compressible object specifically.
+
+### 6.2 A just-written object can 404
+
+R2 can answer `404` to a HEAD for an object written moments earlier. Left
+unhandled that is a production bug rather than a test flake: a client claiming
+straight after uploading gets `upload_not_found` and its **valid claim is
+refused**.
+
+`objectSize` now retries on 404 — four attempts, 500ms apart, ~2s total. 900ms
+was measured as **not enough**. A real claim also crosses a client round trip,
+so this budget is a worst case rather than the norm, and two seconds of latency
+beats rejecting a good claim.
+
+The same window is why `verifyAndPromote` **must** verify before it promotes:
+the HEAD proves the source is visible, and `CopyObject` 404s on a source it
+cannot yet see. Reversing those two steps would reintroduce the failure.
+
+**Residual, stated:** the live test remains mildly timing-sensitive against real
+R2 — roughly one run in four still trips the window. It is skipped in CI and
+exists as a diagnostic, so this is a nuisance rather than a gate. Production
+carries the retry.

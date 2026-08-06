@@ -124,7 +124,7 @@ void main() {
       await providers.linkProvider(reg.provider!.id, salon['id'] as String);
       accountId = reg.provider!.id;
       await providers.submitKyc(accountId, [
-        {'type': 'id_card', 'key': 'kyc/$accountId/x.jpg'},
+        {'type': 'id_card', 'key': 'pending/kyc/$accountId/x.jpg'},
       ]);
     });
 

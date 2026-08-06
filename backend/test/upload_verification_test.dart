@@ -129,6 +129,60 @@ void main() {
       expect(s.keyFromPublicUrl('$base/', publicBaseUrl: base), isNull);
     });
   });
+
+  group('verifyAndPromote — what makes pending/ mean "orphan"', () {
+    test(
+      'copies to the final key, deletes the pending one, returns it',
+      () async {
+        // The whole design in one assertion. If the object is not MOVED, then
+        // pending/ holds claimed objects too, and the lifecycle rule that expires
+        // the prefix starts deleting live data.
+        final store = FakeStorageService(
+          sizes: {'pending/deposit/u1/a.jpg': 10},
+        );
+        final r = await svc(store).verifyAndPromote([
+          'pending/deposit/u1/a.jpg',
+        ], bucket: StorageBucket.deposit);
+        expect(r.ok, isTrue);
+        expect(r.keys, ['deposit/u1/a.jpg']);
+        expect(store.copied, ['pending/deposit/u1/a.jpg -> deposit/u1/a.jpg']);
+        expect(store.deleted, ['pending/deposit/u1/a.jpg']);
+      },
+    );
+
+    test('refuses a key that is not pending', () async {
+      // Either already claimed, or attacker-chosen; promoting it would compute
+      // a destination outside the prefix scheme entirely.
+      final r = await svc(FakeStorageService()).verifyAndPromote([
+        'deposit/u1/already.jpg',
+      ], bucket: StorageBucket.deposit);
+      expect(r.ok, isFalse);
+      expect(r.error, 'invalid_input');
+    });
+
+    test('an oversized upload is refused BEFORE it is promoted', () async {
+      // Ordering matters: promoting first would move the offending object to
+      // its final key, where the lifecycle rule can no longer collect it.
+      final store = FakeStorageService(
+        sizes: {'pending/deposit/u1/big.jpg': max + 1},
+      );
+      final r = await svc(store).verifyAndPromote([
+        'pending/deposit/u1/big.jpg',
+      ], bucket: StorageBucket.deposit);
+      expect(r.ok, isFalse);
+      expect(r.error, 'upload_too_large');
+      expect(store.copied, isEmpty, reason: 'nothing may be promoted');
+      expect(store.deleted, ['pending/deposit/u1/big.jpg']);
+    });
+
+    test('a failed copy refuses rather than half-applying', () async {
+      final r = await svc(_CopyFailsStorage()).verifyAndPromote([
+        'pending/deposit/u1/a.jpg',
+      ], bucket: StorageBucket.deposit);
+      expect(r.ok, isFalse);
+      expect(r.error, 'storage_unavailable');
+    });
+  });
 }
 
 /// Storage whose every call throws — the fail-closed fixture.
@@ -147,4 +201,20 @@ class _ThrowingStorage implements StorageService {
 
   @override
   noSuchMethod(Invocation i) => super.noSuchMethod(i);
+}
+
+/// Storage whose copy fails but whose stat succeeds — promotion must not
+/// half-apply a claim.
+class _CopyFailsStorage extends FakeStorageService {
+  // Under the cap ON PURPOSE: the inherited default (1024) exceeds this file's
+  // max of 1000, so without this the object failed the SIZE check and never
+  // reached the copy — the test passed while testing the wrong path.
+  _CopyFailsStorage() : super(defaultSize: 10);
+
+  @override
+  Future<void> copyObject({
+    required String fromKey,
+    required String toKey,
+    required StorageBucket bucket,
+  }) async => throw StateError('copy failed');
 }

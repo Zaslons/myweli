@@ -361,8 +361,23 @@ class ProviderCatalogService {
           )
           .whereType<String>()
           .toList();
-      final v = await _verifier.verify(keys, bucket: StorageBucket.public);
-      if (!v.ok) return (ok: false, error: v.error, data: null);
+      // Only URLs that passed the origin allowlist reach here, so a derived
+      // key is one of ours. Promotion moves each object out of `pending/`,
+      // and the STORED url is rebuilt from the promoted key — keeping the
+      // pending url would point at an object due to be expired.
+      if (keys.length == urls.length) {
+        final v = await _verifier.verifyAndPromote(
+          keys,
+          bucket: StorageBucket.public,
+        );
+        if (!v.ok) return (ok: false, error: v.error, data: null);
+        final base = _publicBaseUrl.endsWith('/')
+            ? _publicBaseUrl
+            : '$_publicBaseUrl/';
+        urls
+          ..clear()
+          ..addAll(v.keys.map((k) => '$base$k'));
+      }
     }
 
     final saved = await _providers.updateGallery(providerId, urls);

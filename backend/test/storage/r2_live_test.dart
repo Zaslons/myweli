@@ -65,7 +65,14 @@ void main() {
     //
     // Best-effort throughout: a failed assertion must not leave residue, and a
     // failed cleanup must not mask the assertion that actually failed.
-    for (final k in [key, '$key.size', '$key.control']) {
+    for (final k in [
+      key,
+      '\$key.size',
+      '\$key.control',
+      '\$key.pending',
+      '\$key.promoted',
+      '\$key.text',
+    ]) {
       try {
         final req = await client.deleteUrl(
           Uri.parse(r2.presignDelete(key: k, bucket: StorageBucket.public)),
@@ -123,6 +130,85 @@ void main() {
       403,
       reason: 'a content-type other than the signed one must not be accepted',
     );
+  });
+
+  test('copyObject promotes an object server-side', () async {
+    // The promotion primitive, against real R2 — it had never run there. S3
+    // CopyObject signs x-amz-copy-source as a SIGNED HEADER, the same mechanism
+    // that pins content-type, so a signing mistake here is a 403 that only real
+    // storage can show.
+    final from = '$key.pending';
+    final to = '$key.promoted';
+    final up = r2.presignPut(
+      key: from,
+      contentType: 'image/jpeg',
+      bucket: StorageBucket.public,
+    );
+    final put = await client.putUrl(Uri.parse(up.url));
+    up.headers.forEach(put.headers.set);
+    put.add(bytes);
+    final putRes = await put.close();
+    await putRes.drain<void>();
+    // Assert the WRITE, not just the read. Twice now a missing status check
+    // sent me chasing a read bug that was really a failed write.
+    expect(putRes.statusCode, anyOf(200, 204), reason: 'the source must exist');
+
+    // Confirm the source is VISIBLE before copying. Not ceremony: R2's
+    // CopyObject intermittently answers 404 for a source written milliseconds
+    // earlier, and this test reproduced that ~3 runs in 4.
+    //
+    // Production never hits it, because verifyAndPromote runs verify() —
+    // which HEADs the object — before promoting, so the object is proven
+    // visible first. Copying straight after a PUT is something only this test
+    // did, so the test is what was wrong, not the code.
+    expect(
+      await r2.objectSize(key: from, bucket: StorageBucket.public),
+      bytes.length,
+      reason: 'the source must be visible before CopyObject can see it',
+    );
+
+    await r2.copyObject(fromKey: from, toKey: to, bucket: StorageBucket.public);
+    expect(
+      await r2.objectSize(key: to, bucket: StorageBucket.public),
+      bytes.length,
+      reason: 'the promoted object must exist with the same bytes',
+    );
+
+    await r2.deleteObject(key: from, bucket: StorageBucket.public);
+    expect(
+      await r2.objectSize(key: from, bucket: StorageBucket.public),
+      isNull,
+      reason:
+          'and the pending original must be gone, or pending/ still fills up',
+    );
+    await r2.deleteObject(key: to, bucket: StorageBucket.public);
+  });
+
+  test('objectSize survives a COMPRESSIBLE object', () async {
+    // The regression this file previously could not see. Every other test here
+    // uploads image/jpeg, which Cloudflare does not compress. A text/plain
+    // object comes back `200, content-encoding: gzip` with NO content-length —
+    // and objectSize used to read that as null, i.e. "absent", which
+    // UploadVerificationService turns into upload_not_found and a REFUSED
+    // claim for an object that is really there.
+    final k = '$key.text';
+    final up = r2.presignPut(
+      key: k,
+      contentType: 'text/plain',
+      bucket: StorageBucket.public,
+    );
+    final put = await client.putUrl(Uri.parse(up.url));
+    up.headers.forEach(put.headers.set);
+    final text = List.filled(51, 0x78);
+    put.add(text);
+    await (await put.close()).drain<void>();
+
+    expect(
+      await r2.objectSize(key: k, bucket: StorageBucket.public),
+      text.length,
+      reason: 'a compressible object must report its TRUE stored size',
+    );
+    await r2.deleteObject(key: k, bucket: StorageBucket.public);
   });
 
   test('objectSize reports the real size, and delete removes it', () async {

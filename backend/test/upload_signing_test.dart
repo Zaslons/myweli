@@ -176,7 +176,7 @@ void main() {
       final data = r.data!;
       expect(data['method'], 'PUT');
       expect(data['maxBytes'], isA<int>());
-      expect(data['key'], startsWith('gallery/provider1/'));
+      expect(data['key'], startsWith('pending/gallery/provider1/'));
       expect(data['publicUrl'], contains('gallery/provider1/'));
     });
 
@@ -188,7 +188,7 @@ void main() {
       );
       expect(r.ok, isTrue);
       final data = r.data!;
-      expect(data['key'], startsWith('review/u42/'));
+      expect(data['key'], startsWith('pending/review/u42/'));
       // Public bucket: tiles render the photos.
       expect(data['publicUrl'], contains('review/u42/'));
     });
@@ -208,7 +208,7 @@ void main() {
         salonId: 'provider2',
       );
       expect(r.ok, isTrue);
-      expect(r.data!['key'], startsWith('gallery/provider2/'));
+      expect(r.data!['key'], startsWith('pending/gallery/provider2/'));
 
       final forged = await service.sign(
         accountId,
@@ -248,8 +248,8 @@ void main() {
           purpose: 'kyc',
         );
         expect(r.ok, isTrue);
-        expect(r.data!['key'], startsWith('kyc/$accountId/'));
-        expect(r.data!['key'], startsWith('kyc/$accountId/'));
+        expect(r.data!['key'], startsWith('pending/kyc/$accountId/'));
+        expect(r.data!['key'], startsWith('pending/kyc/$accountId/'));
         expect(r.data!.containsKey('publicUrl'), isFalse); // never public
         // PDF is rejected for gallery.
         expect(
@@ -273,8 +273,8 @@ void main() {
           purpose: 'deposit',
         );
         expect(r.ok, isTrue);
-        expect(r.data!['key'], startsWith('deposit/user_consumer/'));
-        expect(r.data!['key'], startsWith('deposit/user_consumer/'));
+        expect(r.data!['key'], startsWith('pending/deposit/user_consumer/'));
+        expect(r.data!['key'], startsWith('pending/deposit/user_consumer/'));
         expect(r.data!.containsKey('publicUrl'), isFalse); // never public
         // PDF is not allowed for a deposit screenshot (images only).
         expect(
@@ -479,7 +479,7 @@ void main() {
       );
       expect(ok.statusCode, HttpStatus.ok);
       final body = jsonDecode(await ok.body()) as Map<String, dynamic>;
-      expect(body['key'], startsWith('review/u1/'));
+      expect(body['key'], startsWith('pending/review/u1/'));
       expect(body['publicUrl'], isNotNull);
 
       final provider = await sign_route.onRequest(

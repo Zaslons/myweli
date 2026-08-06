@@ -90,6 +90,18 @@ abstract interface class StorageService {
     required String key,
     required StorageBucket bucket,
   });
+
+  /// Server-side copy within [bucket]. The bytes never travel through us.
+  ///
+  /// Exists for **promotion**: uploads land under `pending/` and move to their
+  /// final key only when claimed, so anything still under `pending/` is by
+  /// construction an orphan and can be expired by a lifecycle rule that cannot
+  /// be wrong. docs/design/backend-upload-orphans.md.
+  Future<void> copyObject({
+    required String fromKey,
+    required String toKey,
+    required StorageBucket bucket,
+  });
 }
 
 /// No-network stand-in for dev/CI/tests (selected when R2 isn't configured).
@@ -117,6 +129,9 @@ class FakeStorageService implements StorageService {
   /// Keys passed to [deleteObject] — asserted on, so "the offending object was
   /// deleted" is proven rather than assumed.
   final List<String> deleted = [];
+
+  /// `from -> to` pairs passed to [copyObject], so promotion is provable.
+  final List<String> copied = [];
 
   @override
   PresignedUpload presignPut({
@@ -161,6 +176,18 @@ class FakeStorageService implements StorageService {
     required String key,
     required StorageBucket bucket,
   }) async => deleted.add(key);
+
+  @override
+  Future<void> copyObject({
+    required String fromKey,
+    required String toKey,
+    required StorageBucket bucket,
+  }) async {
+    copied.add('$fromKey -> $toKey');
+    // Carry the size across so a promoted object still stats correctly.
+    final n = sizes[fromKey];
+    if (n != null) sizes[toKey] = n;
+  }
 }
 
 /// S3-compatible **presigned URL** signer (Cloudflare R2; also AWS S3 /
@@ -258,15 +285,58 @@ class R2StorageService implements StorageService {
       Uri.parse(
         _presignUrl(method: 'HEAD', key: key, bucket: bucket, ttl: _ioTtl),
       ),
+      // `identity` because Cloudflare COMPRESSES compressible content types and
+      // then omits content-length entirely. Measured: a 51-byte text/plain
+      // object came back `200, content-encoding: gzip` with NO content-length,
+      // while an image/jpeg of the same size was fine — which is exactly why
+      // the live test, which uploads a JPEG, never saw this.
+      headers: const {'accept-encoding': 'identity'},
     );
-    if (res.statusCode == 404) return null;
+    if (res.statusCode == 404) {
+      // MEASURED: R2 can answer 404 for an object written moments earlier.
+      // Left unhandled that is a production bug, not a test flake — a client
+      // that claims straight after uploading gets upload_not_found and its
+      // legitimate claim is refused.
+      //
+      // Bounded retry: ~2s total. 900ms was NOT enough — measured, the window
+      // exceeded it repeatedly. A claim in the wild also crosses a client round
+      // trip, so this budget is a worst case rather than the norm; two seconds
+      // of latency on a claim beats rejecting a valid one.
+      for (var i = 0; i < 4; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 500));
+        final again = await _client.head(
+          Uri.parse(
+            _presignUrl(method: 'HEAD', key: key, bucket: bucket, ttl: _ioTtl),
+          ),
+          headers: const {'accept-encoding': 'identity'},
+        );
+        if (again.statusCode == 404) continue;
+        if (again.statusCode >= 400) {
+          throw StateError('objectSize failed: HTTP ${again.statusCode}');
+        }
+        final n = int.tryParse(again.headers['content-length'] ?? '');
+        if (n != null) return n;
+      }
+      return null;
+    }
     if (res.statusCode >= 400) {
       // Deliberately an exception, not a null: "absent" and "could not tell"
       // must not collapse into the same value, because they demand different
       // answers (reject the claim vs. 502 and retry).
       throw StateError('objectSize failed: HTTP ${res.statusCode}');
     }
-    return int.tryParse(res.headers['content-length'] ?? '');
+    final size = int.tryParse(res.headers['content-length'] ?? '');
+    if (size == null) {
+      // A 200 with no usable length is "could not tell", NOT "absent".
+      // Returning null here is what made the gzip case silent: it read as
+      // upload_not_found and refused a claim for an object that was really
+      // there. Throwing makes it fail closed AND loud.
+      throw StateError(
+        'objectSize: HTTP 200 but no usable content-length '
+        '(content-encoding: ${res.headers['content-encoding'] ?? 'none'})',
+      );
+    }
+    return size;
   }
 
   @override
@@ -281,6 +351,36 @@ class R2StorageService implements StorageService {
     // state, so neither is an error.
     if (res.statusCode >= 400 && res.statusCode != 404) {
       throw StateError('deleteObject failed: HTTP ${res.statusCode}');
+    }
+  }
+
+  @override
+  Future<void> copyObject({
+    required String fromKey,
+    required String toKey,
+    required StorageBucket bucket,
+  }) async {
+    // S3 CopyObject: PUT the DESTINATION carrying x-amz-copy-source. The header
+    // is part of the signature, so it goes through signedHeaders — the same
+    // mechanism that pins content-type on an upload, and the reason
+    // _presignUrl grew that parameter.
+    final source =
+        '/${[_bucketFor(bucket), ...fromKey.split('/')].map(_uriEncode).join('/')}';
+    final headers = {'x-amz-copy-source': source};
+    final res = await _client.put(
+      Uri.parse(
+        _presignUrl(
+          method: 'PUT',
+          key: toKey,
+          bucket: bucket,
+          ttl: _ioTtl,
+          signedHeaders: headers,
+        ),
+      ),
+      headers: headers,
+    );
+    if (res.statusCode >= 400) {
+      throw StateError('copyObject failed: HTTP ${res.statusCode}');
     }
   }
 

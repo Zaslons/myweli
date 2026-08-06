@@ -42,7 +42,7 @@ class KycService {
       return (ok: false, error: 'invalid_input', data: null);
     }
 
-    final prefix = 'kyc/$accountId/';
+    final prefix = '${kPendingPrefix}kyc/$accountId/';
     final docs = <Map<String, dynamic>>[];
     for (final d in documents) {
       if (d is! Map) return (ok: false, error: 'invalid_input', data: null);
@@ -67,12 +67,19 @@ class KycService {
     // Every key is proven to belong to this account above; none is proven to
     // be a sane size. KYC lands in a RETAINED bucket, so an oversized document
     // is paid for far longer than a deposit screenshot.
-    final v = await _verifier?.verify(
+    final v = await _verifier?.verifyAndPromote(
       docs.map((d) => d['key'] as String).toList(),
       bucket: StorageBucket.kyc,
     );
     if (v != null && !v.ok) {
       return (ok: false, error: v.error, data: null);
+    }
+    // Record the PROMOTED keys — a pending key would be expired by the
+    // lifecycle rule while the document is still the account's KYC evidence.
+    if (v != null) {
+      for (var i = 0; i < docs.length; i++) {
+        docs[i]['key'] = v.keys[i];
+      }
     }
 
     final updated = await _providerAuth.submitKyc(accountId, docs);
