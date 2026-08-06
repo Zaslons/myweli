@@ -260,7 +260,10 @@ jobs:
           # never run in. Everything above runs ENV=dev, so this behaviour has
           # no coverage anywhere else.
           ENV: prod
-          DATABASE_URL: postgres://postgres:postgres@localhost:5432/myweli_test
+          # DATABASE_URL is inherited from the job (myweli_smoke). Restating it
+          # here is what failed the first run — it named myweli_test, which the
+          # Postgres service container never creates, so the server died at boot
+          # with 3D000 and every curl hit a closed port.
           JWT_SECRET: ci-prod-mode-secret
           AUTH_METHODS: google,apple,email
           # The OTP route reads EmailProvider, which fail-fasts in prod. A dummy
