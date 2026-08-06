@@ -102,7 +102,7 @@ void main() {
       members = InMemoryMembershipRepository();
       svc = AdminKycService(
         providers,
-        const FakeStorageService(),
+        FakeStorageService(),
         audit,
         listings,
         members,

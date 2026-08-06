@@ -341,6 +341,66 @@ Recorded because each cost a failed deploy or would have:
    Making it public (`allUsers` → `roles/run.invoker`) is a deliberate step at
    DNS cutover, not something to leave on while the API is half-configured.
 
+## 7.2 `api.myweli.com` needs a load balancer, not a domain mapping
+
+Cloud Run's own custom-domain feature is the obvious answer and **is not
+available in `europe-west9`**:
+
+```
+$ gcloud beta run domain-mappings create --domain=api.myweli.com --region=europe-west9
+501 UNIMPLEMENTED: Creating domain mappings is not allowed in europe-west9.
+```
+
+That is the price of §4.2's region choice, and it was not foreseen there.
+
+**Two dead ends worth recording**, because each looks like it should work:
+
+1. `gcloud beta run domain-mappings list --region=europe-west9` **succeeds** and
+   returns an empty list. That reads as "supported, none configured" and is not
+   — only `create` reveals the truth. An empty list is not evidence of support.
+2. A Cloudflare CNAME proxied to the `*.run.app` URL fails: **Cloud Run answers
+   404 to any Host header it does not recognise** (verified, with a nonsense
+   Host as control), and Cloudflare forwards the original Host by default.
+
+So: a **global external Application Load Balancer** with a serverless NEG —
+`infra/gcp/70-load-balancer.sh`, idempotent. Static anycast IP, Google-managed
+certificate, HTTP→HTTPS redirect. The serverless NEG is the only regional object;
+everything above it is global, which is what lets a Paris-only service sit behind
+an anycast address.
+
+**Cost: ~$18–25/month** for the two forwarding rules, against a project otherwise
+running ~$10–12/month. Approved by the owner before creation. The alternative —
+a Cloudflare Worker rewriting the Host — is free but means operating a proxy to
+save $18/month.
+
+**The certificate stays `PROVISIONING` until DNS resolves to the LB**, and in
+Cloudflare the record must be **DNS-only**: a proxied record terminates TLS at
+Cloudflare, so Google's validation never arrives.
+
+**Done.** Cloud Run accepted public traffic on its `run.app` URL, a second front
+door bypassing the LB. Closed with ingress `internal-and-cloud-load-balancing`,
+set in `service.yaml` rather than by CLI so the deployed service cannot drift
+from the file.
+
+**The ordering was the whole risk.** Cloud Scheduler called the `run.app` URL
+directly, so locking ingress first would have stopped the reminder cron
+*silently* — the exact failure §5 exists to describe. Sequence actually
+followed, each step verified before the next:
+
+1. both jobs repointed at `api.myweli.com` (uri **and** OIDC audience);
+2. both fired manually → **200**, proving the new target works;
+3. only then the ingress annotation applied;
+4. re-verified after: `run.app/health` → **404**, `api.myweli.com/health` and
+   `/providers` → **200**, the public site still renders salons, and both cron
+   jobs → **200** again.
+
+One trap worth recording: `gcloud run services describe` reports the image of
+the *latest* revision template, which after a failed deploy is the **failed**
+one. Deploying "the current image" from that value re-deploys a tag that was
+never pushed. Read the digest from the revision actually serving traffic
+(`status.traffic[0].revisionName`) instead — that also makes the change
+surgical, altering ingress and nothing else.
+
 ## 8. Verification
 
 - §3.1, §3.2 and §3.3 each watched red before green.

@@ -18,7 +18,7 @@ class _MockRequestContext extends Mock implements RequestContext {}
 void main() {
   group('StorageService', () {
     test('FakeStorageService returns deterministic fake URLs', () {
-      const s = FakeStorageService();
+      final s = FakeStorageService();
       final up = s.presignPut(
         key: 'gallery/p1/abc.jpg',
         contentType: 'image/jpeg',
@@ -127,7 +127,7 @@ void main() {
 
     test('FakeStorageService.presignGet returns a usable private URL', () {
       expect(
-        const FakeStorageService().presignGet(
+        FakeStorageService().presignGet(
           key: 'deposit/u1/x.jpg',
           bucket: StorageBucket.deposit,
         ),
@@ -152,7 +152,7 @@ void main() {
       service = UploadSigningService(
         providerAuth,
         MembershipService(memberships, providerAuth),
-        const FakeStorageService(),
+        FakeStorageService(),
       );
       final reg = await providerAuth.register(
         email: 'reg12@test.pro',
@@ -346,7 +346,7 @@ void main() {
       service = UploadSigningService(
         providerAuth,
         MembershipService(InMemoryMembershipRepository(), providerAuth),
-        const FakeStorageService(),
+        FakeStorageService(),
       );
       final reg = await providerAuth.register(
         email: 'reg15@test.pro',

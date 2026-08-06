@@ -342,7 +342,7 @@ final StorageService storageService = () {
       'private buckets).',
     );
   }
-  return const FakeStorageService();
+  return FakeStorageService();
 }();
 
 /// When public delivery is configured, the gallery accepts only URLs from our
