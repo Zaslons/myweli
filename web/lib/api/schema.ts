@@ -341,7 +341,7 @@ export interface paths {
         put?: never;
         /**
          * Request a one-time code by email (auth overhaul)
-         * @description Sends a 6-digit code to the address (Resend). The response is identical whether or not the address maps to an account (no enumeration). Dev builds also return the code inline (`devCode`); production never does.
+         * @description Sends a 6-digit code to the address (Resend). The response is identical whether or not the address maps to an account (no enumeration). Dev builds also return the code inline (`devCode`); production never does, except behind the Q1b smoke seam (`X-Smoke-Secret` + a `.test` identity — docs/design/backend-q1b-smoke-seam.md, threat model T60).
          */
         post: {
             parameters: {
@@ -1924,7 +1924,7 @@ export interface paths {
         put?: never;
         /**
          * Request a salon email OTP (login AND registration use it)
-         * @description No enumeration — identical 202 whether or not the address maps to a salon. Dev builds echo `devCode`.
+         * @description No enumeration — identical 202 whether or not the address maps to a salon. Dev builds echo `devCode`; production does not, except behind the Q1b smoke seam (`X-Smoke-Secret` + a `.test` identity — docs/design/backend-q1b-smoke-seam.md, threat model T60).
          */
         post: {
             parameters: {
