@@ -84,27 +84,66 @@ spec:
             - name: MESSAGING_WEBHOOK_SECRET
               valueFrom:
                 secretKeyRef: { name: MESSAGING_WEBHOOK_SECRET, key: latest }
-            # -- OWNER-SUPPLIED, still pending. ------------------------------
-            # Uncomment each block as its secret gains a real version. None of
-            # these blocks boot — every one is a lazy `final` that first fires
-            # on the request that touches it — but each is a live 500 until set.
-            # See docs/design/infra-gcp-migration.md §7.
-            #
-            # - name: GOOGLE_CLIENT_IDS        # 500 on every Google sign-in
-            # - name: APPLE_CLIENT_IDS         # 500 on every Apple sign-in
-            # - name: RESEND_API_KEY           # 500 on email OTP request
-            # - name: R2_ACCOUNT_ID            # all SEVEN R2 values or none
-            # - name: R2_BUCKET
-            # - name: R2_ACCESS_KEY_ID
-            # - name: R2_SECRET_ACCESS_KEY
-            # - name: R2_PUBLIC_BASE_URL       # ALSO the gallery-origin allowlist
-            # - name: R2_KYC_BUCKET
-            # - name: R2_DEPOSIT_BUCKET
-            # - name: FCM_PROJECT_ID           # 500 on POST /appointments
-            # - name: FCM_CLIENT_EMAIL
-            # - name: FCM_PRIVATE_KEY
-            # - name: ADMIN_EMAIL              # no super-admin without these
-            # - name: ADMIN_PASSWORD
+            # -- OWNER-SUPPLIED ----------------------------------------------
+            # Every one of these is a LAZY guard: absent, the service still
+            # boots green and 500s on the first request that touches it
+            # (measured — see infra-gcp-migration.md §3.4). Present, the
+            # feature works. Shapes were validated before wiring: R2 keys
+            # 32/64 chars, buckets are names not URLs, the FCM key keeps its
+            # literal \n escapes (dependencies.dart:650 converts them).
+            - name: GOOGLE_CLIENT_IDS
+              valueFrom:
+                secretKeyRef: { name: GOOGLE_CLIENT_IDS, key: latest }
+            - name: APPLE_CLIENT_IDS
+              valueFrom:
+                secretKeyRef: { name: APPLE_CLIENT_IDS, key: latest }
+            - name: RESEND_API_KEY
+              valueFrom:
+                secretKeyRef: { name: RESEND_API_KEY, key: latest }
+            # R2 — all seven together or storageService throws (dependencies.dart:308).
+            # R2_ENDPOINT is deliberately NOT set: it is derived from the
+            # account id (:141-146), and supplying both invites drift.
+            - name: R2_ACCOUNT_ID
+              valueFrom:
+                secretKeyRef: { name: R2_ACCOUNT_ID, key: latest }
+            - name: R2_BUCKET
+              valueFrom:
+                secretKeyRef: { name: R2_BUCKET, key: latest }
+            - name: R2_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef: { name: R2_ACCESS_KEY_ID, key: latest }
+            - name: R2_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef: { name: R2_SECRET_ACCESS_KEY, key: latest }
+            # Also feeds the gallery origin allowlist through a SECOND reader
+            # (:346-349) that bypasses the fail-fast — unset, the anti-hotlink
+            # check is simply off while those routes still return 200.
+            - name: R2_PUBLIC_BASE_URL
+              valueFrom:
+                secretKeyRef: { name: R2_PUBLIC_BASE_URL, key: latest }
+            - name: R2_KYC_BUCKET
+              valueFrom:
+                secretKeyRef: { name: R2_KYC_BUCKET, key: latest }
+            - name: R2_DEPOSIT_BUCKET
+              valueFrom:
+                secretKeyRef: { name: R2_DEPOSIT_BUCKET, key: latest }
+            # FCM — only the private key is secret. The other two are public
+            # identifiers read from the project, so they are plain config
+            # rather than three Secret Manager round-trips.
+            - name: FCM_PROJECT_ID
+              value: myweli
+            - name: FCM_CLIENT_EMAIL
+              value: firebase-adminsdk-fbsvc@myweli.iam.gserviceaccount.com
+            - name: FCM_PRIVATE_KEY
+              valueFrom:
+                secretKeyRef: { name: FCM_PRIVATE_KEY, key: latest }
+            # Seeds the super-admin at boot (dependencies.dart:767-774).
+            - name: ADMIN_EMAIL
+              valueFrom:
+                secretKeyRef: { name: ADMIN_EMAIL, key: latest }
+            - name: ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef: { name: ADMIN_PASSWORD, key: latest }
           startupProbe:
             tcpSocket:
               port: 8080
