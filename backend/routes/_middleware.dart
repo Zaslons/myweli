@@ -20,6 +20,7 @@ import 'package:myweli_backend/src/auth/auth_methods.dart';
 import 'package:myweli_backend/src/auth/auth_repository.dart';
 import 'package:myweli_backend/src/auth/id_token_verifier.dart';
 import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
+import 'package:myweli_backend/src/auth/smoke_seam.dart';
 import 'package:myweli_backend/src/auth/tokens.dart';
 import 'package:myweli_backend/src/clients/clients_service.dart';
 import 'package:myweli_backend/src/cors.dart';
@@ -56,6 +57,7 @@ Handler middleware(Handler handler) {
   return handler
       .use(provider<AuthRepository>((_) => authRepository))
       .use(provider<AuthMethods>((_) => authMethods))
+      .use(provider<SmokeSeam>((_) => smokeSeam))
       .use(provider<GoogleIdTokenVerifier>((_) => googleIdTokenVerifier))
       .use(provider<AppleIdTokenVerifier>((_) => appleIdTokenVerifier))
       .use(provider<EmailProvider>((_) => emailProvider))

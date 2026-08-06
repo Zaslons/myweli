@@ -46,7 +46,7 @@ paths:
       summary: Request a one-time code for a phone number (B2 — dormant at launch)
       description: >
         Dispatches the code over SMS (Twilio) — best-effort. Dev builds also
-        return it inline (`devCode`); production never does. Dormant at launch:
+        return it inline (`devCode`); production never does, except behind the Q1b smoke seam (`X-Smoke-Secret` + a `.test` identity — docs/design/backend-q1b-smoke-seam.md, threat model T60). Dormant at launch:
         404 `auth_method_disabled` unless `AUTH_METHODS` includes `phone`
         (design: docs/design/auth-social-email.md).
       requestBody:
@@ -201,7 +201,7 @@ paths:
       description: >
         Sends a 6-digit code to the address (Resend). The response is identical
         whether or not the address maps to an account (no enumeration). Dev
-        builds also return the code inline (`devCode`); production never does.
+        builds also return the code inline (`devCode`); production never does, except behind the Q1b smoke seam (`X-Smoke-Secret` + a `.test` identity — docs/design/backend-q1b-smoke-seam.md, threat model T60).
       requestBody:
         required: true
         content:
