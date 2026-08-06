@@ -25,6 +25,7 @@ import 'auth/auth_methods.dart';
 import 'auth/auth_repository.dart';
 import 'auth/id_token_verifier.dart';
 import 'auth/provider_auth_repository.dart';
+import 'auth/smoke_seam.dart';
 import 'auth/tokens.dart';
 import 'boot_config.dart';
 import 'clients/clients_repository.dart';
@@ -150,6 +151,10 @@ final TokenService tokenService = TokenService(secret: _resolveSecret());
 /// Launch config: `google,apple,email` — the SMS path stays dormant until
 /// cheap CI SMS unlocks. Design: docs/design/auth-social-email.md §14.
 final AuthMethods authMethods = AuthMethods.parse(_envOrNull('AUTH_METHODS'));
+
+/// The production OTP-disclosure seam (Q1b) — absent unless `SMOKE_OTP_SECRET`
+/// is set. See `auth/smoke_seam.dart` and docs/design/backend-q1b-smoke-seam.md.
+final SmokeSeam smokeSeam = SmokeSeam(_envOrNull('SMOKE_OTP_SECRET'));
 
 List<String> _csvEnv(String key) =>
     _envOrNull(
@@ -738,6 +743,17 @@ Future<void> initializeDatabase() async {
   // Fail before the port is bound, not on the first request (G1). `main.dart`
   // awaits this ahead of `serve()`, so a misconfigured revision dies during
   // startup rather than going green and then failing every call.
+  // A disclosure path left switched on by accident is the failure mode this
+  // seam is most likely to produce, and the deploy log is where an operator
+  // would notice it. Announced at boot rather than on first use.
+  if (_isProd && smokeSeam.isActive) {
+    // ignore: avoid_print — boot diagnostics go to the container log.
+    print(
+      'WARNING: SMOKE_OTP_SECRET is set — the OTP disclosure seam is ACTIVE in '
+      'production for *.test identities. Unset it once the cutover gate has '
+      'run (docs/design/backend-q1b-smoke-seam.md).',
+    );
+  }
   assertProductionBootConfig(
     databaseUrl: Platform.environment['DATABASE_URL'],
     jwtSecret: Platform.environment['JWT_SECRET'],

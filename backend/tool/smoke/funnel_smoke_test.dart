@@ -49,6 +49,16 @@ final String baseUrl = () {
 /// proves.
 final String jwtSecret = Platform.environment['JWT_SECRET'] ?? '';
 
+/// `SMOKE_OTP_SECRET` — required only when the target runs `ENV=prod`, which
+/// suppresses `devCode` (`auth_repository.dart:224`). Against a dev/CI server
+/// this stays empty and nothing changes.
+///
+/// The identities below all end in `@smoke.test`, and that is now **enforced**
+/// server-side: the RFC 2606 reserved TLD is the constraint that stops this
+/// secret from being an account-takeover primitive for real addresses.
+/// See docs/design/backend-q1b-smoke-seam.md.
+final String smokeSecret = Platform.environment['SMOKE_OTP_SECRET'] ?? '';
+
 /// Admin credentials, seeded by `dependencies.dart:750-752` when set. Phase 7
 /// needs them; they are fake and non-secret by construction.
 final String adminEmail = Platform.environment['ADMIN_EMAIL'] ?? '';
@@ -107,6 +117,11 @@ Future<Res> _send(
     req.body = jsonEncode(body);
   }
   if (token != null) req.headers['authorization'] = 'Bearer $token';
+  // Q1b — lets the harness authenticate against ENV=prod, where `devCode` is
+  // suppressed. Sent on every request rather than only the OTP ones: the server
+  // ignores it everywhere else, and a per-call opt-in would be one more thing
+  // to forget. Unset off-prod, where `devCode` is echoed anyway.
+  if (smokeSecret.isNotEmpty) req.headers['x-smoke-secret'] = smokeSecret;
   final streamed = await _client.send(req);
   final res = await http.Response.fromStream(streamed);
   Map<String, dynamic> parsed;
@@ -157,6 +172,25 @@ void expectError(Res r, int status, String code, String what) {
   expect(r.json['error'], code, reason: '$what — body was ${r.raw}');
 }
 
+/// Pull `devCode` off an OTP response, or fail with the reason rather than a
+/// null-cast.
+///
+/// This harness spent its whole life pointed at dev servers, where `devCode` is
+/// always present, so `as String` was safe. Against `ENV=prod` it is not: the
+/// field is absent unless the Q1b seam is configured on BOTH sides, and a bare
+/// null-cast reported that as `type 'Null' is not a subtype of type 'String'`
+/// — which says nothing about the actual cause.
+String _requireDevCode(Res res, String who) {
+  final code = res.json['devCode'];
+  if (code is String) return code;
+  throw StateError(
+    'No devCode in the OTP response for $who. Against ENV=prod this means the '
+    'smoke seam is not active: set SMOKE_OTP_SECRET (>=32 chars) on BOTH the '
+    'server and this harness, and use an identity ending in `.test`. '
+    'See docs/design/backend-q1b-smoke-seam.md.',
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Identities
 // ---------------------------------------------------------------------------
@@ -169,7 +203,7 @@ Future<({String access, String refresh, String userId})> signInConsumer(
 ) async {
   final req = await post('/auth/email/otp/request', body: {'email': email});
   expectStatus(req, 202, 'consumer OTP request ($email)');
-  final code = req.json['devCode'] as String;
+  final code = _requireDevCode(req, 'consumer $email');
   final ver = await post(
     '/auth/email/otp/verify',
     body: {'email': email, 'code': code},
@@ -199,7 +233,7 @@ Future<({String salonId, String accountId, String access})> registerSalon(
     body: {'email': email},
   );
   expectStatus(req, 202, 'pro OTP request ($label)');
-  final code = req.json['devCode'] as String;
+  final code = _requireDevCode(req, 'pro $email');
 
   // A6 — verify BEFORE any salon exists must refuse, and must not consume the
   // code: T35 (login never auto-creates a salon) and the

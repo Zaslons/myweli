@@ -201,7 +201,7 @@ paths:
       description: >
         Sends a 6-digit code to the address (Resend). The response is identical
         whether or not the address maps to an account (no enumeration). Dev
-        builds also return the code inline (`devCode`); production never does.
+        builds also return the code inline (`devCode`); production never does, except behind the Q1b smoke seam (`X-Smoke-Secret` + a `.test` identity — docs/design/backend-q1b-smoke-seam.md, threat model T60).
       requestBody:
         required: true
         content:
@@ -1157,7 +1157,9 @@ paths:
       summary: Request a salon email OTP (login AND registration use it)
       description: >
         No enumeration — identical 202 whether or not the address maps to a
-        salon. Dev builds echo `devCode`.
+        salon. Dev builds echo `devCode`; production does not, except behind the
+        Q1b smoke seam (`X-Smoke-Secret` + a `.test` identity —
+        docs/design/backend-q1b-smoke-seam.md, threat model T60).
       requestBody:
         required: true
         content:

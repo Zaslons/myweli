@@ -252,6 +252,75 @@ jobs:
           # assumed.
           SMOKE_BASE_URL="http://localhost:${PORT}" dart test tool/smoke/funnel_smoke_test.dart
 
+      - name: Q1b — the smoke seam, against a real ENV=prod server
+        working-directory: backend/build
+        env:
+          # The whole point: ENV=prod is the configuration in which devCode is
+          # suppressed, and it is the one configuration the funnel gate could
+          # never run in. Everything above runs ENV=dev, so this behaviour has
+          # no coverage anywhere else.
+          ENV: prod
+          # DATABASE_URL is inherited from the job (myweli_smoke). Restating it
+          # here is what failed the first run — it named myweli_test, which the
+          # Postgres service container never creates, so the server died at boot
+          # with 3D000 and every curl hit a closed port.
+          JWT_SECRET: ci-prod-mode-secret
+          AUTH_METHODS: google,apple,email
+          # The OTP route reads EmailProvider, which fail-fasts in prod. A dummy
+          # satisfies the guard; the send then fails and is ignored (delivery is
+          # best-effort and the route never inspects the result).
+          RESEND_API_KEY: not-a-resend-key-delivery-is-ignored-here
+        run: |
+          set -euo pipefail
+          PORT=8788
+          # Composed here rather than written as a literal in `env:`. A 32+ char
+          # value assigned to a `*_SECRET` key is precisely the shape gitleaks'
+          # generic-api-key rule matches, and a placeholder that trips the
+          # credential scanner would train us to wave the scanner through.
+          export SMOKE_OTP_SECRET="ci-placeholder-$(printf 'x%.0s' $(seq 1 24))"
+          PORT=$PORT ./bin/server & SRV=$!
+          trap 'kill $SRV 2>/dev/null || true' EXIT
+          for i in $(seq 1 60); do
+            curl -fsS "http://localhost:${PORT}/health" >/dev/null 2>&1 && break
+            sleep 1
+          done
+          curl -fsS "http://localhost:${PORT}/health" >/dev/null
+
+          req() {
+            curl -sS -X POST "http://localhost:${PORT}/auth/email/otp/request" \
+              -H 'content-type: application/json' \
+              ${2:+-H "X-Smoke-Secret: $2"} \
+              -d "{\"email\":\"$1\"}"
+          }
+          has_code() { echo "$1" | grep -q '"devCode"'; }
+
+          # 1. The account-takeover case. A correct secret must NOT disclose for
+          #    a real address — this is the assertion the whole design exists to
+          #    make true, so it runs first.
+          R=$(req 'owner@gmail.com' "$SMOKE_OTP_SECRET")
+          if has_code "$R"; then echo "::error::PROD DISCLOSED AN OTP FOR A REAL ADDRESS"; exit 1; fi
+          echo "  ok  real address + correct secret → no devCode"
+
+          # 2. A valid identity with no header must stay suppressed.
+          R=$(req 'x@smoke.test')
+          if has_code "$R"; then echo "::error::prod disclosed without the header"; exit 1; fi
+          echo "  ok  .test identity, no header → no devCode"
+
+          # 3. A wrong secret must not unlock it.
+          # SAME LENGTH, last byte differs: a longer/shorter value would be
+          # rejected by the length check without ever reaching the byte compare,
+          # which is the part actually worth testing.
+          R=$(req 'x@smoke.test' "${SMOKE_OTP_SECRET%?}y")
+          if has_code "$R"; then echo "::error::prod disclosed on a wrong secret"; exit 1; fi
+          echo "  ok  .test identity, wrong secret → no devCode"
+
+          # 4. Both conditions → the code comes back. Without this the cutover
+          #    gate cannot authenticate at all, so a seam that only ever refuses
+          #    would be just as broken as one that always discloses.
+          R=$(req 'client@smoke.test' "$SMOKE_OTP_SECRET")
+          if ! has_code "$R"; then echo "::error::the seam did not disclose for a valid smoke identity: $R"; exit 1; fi
+          echo "  ok  .test identity + correct secret → devCode present"
+
   web:
     name: Web — Lint, Typecheck & Build
     runs-on: ubuntu-latest
