@@ -65,7 +65,13 @@ void main() {
     //
     // Best-effort throughout: a failed assertion must not leave residue, and a
     // failed cleanup must not mask the assertion that actually failed.
-    for (final k in [key, '$key.size', '$key.control']) {
+    for (final k in [
+      key,
+      '\$key.size',
+      '\$key.control',
+      '\$key.pending',
+      '\$key.promoted',
+    ]) {
       try {
         final req = await client.deleteUrl(
           Uri.parse(r2.presignDelete(key: k, bucket: StorageBucket.public)),
@@ -123,6 +129,40 @@ void main() {
       403,
       reason: 'a content-type other than the signed one must not be accepted',
     );
+  });
+
+  test('copyObject promotes an object server-side', () async {
+    // The promotion primitive, against real R2 — it had never run there. S3
+    // CopyObject signs x-amz-copy-source as a SIGNED HEADER, the same mechanism
+    // that pins content-type, so a signing mistake here is a 403 that only real
+    // storage can show.
+    final from = '$key.pending';
+    final to = '$key.promoted';
+    final up = r2.presignPut(
+      key: from,
+      contentType: 'image/jpeg',
+      bucket: StorageBucket.public,
+    );
+    final put = await client.putUrl(Uri.parse(up.url));
+    up.headers.forEach(put.headers.set);
+    put.add(bytes);
+    await (await put.close()).drain<void>();
+
+    await r2.copyObject(fromKey: from, toKey: to, bucket: StorageBucket.public);
+    expect(
+      await r2.objectSize(key: to, bucket: StorageBucket.public),
+      bytes.length,
+      reason: 'the promoted object must exist with the same bytes',
+    );
+
+    await r2.deleteObject(key: from, bucket: StorageBucket.public);
+    expect(
+      await r2.objectSize(key: from, bucket: StorageBucket.public),
+      isNull,
+      reason:
+          'and the pending original must be gone, or pending/ still fills up',
+    );
+    await r2.deleteObject(key: to, bucket: StorageBucket.public);
   });
 
   test('objectSize reports the real size, and delete removes it', () async {

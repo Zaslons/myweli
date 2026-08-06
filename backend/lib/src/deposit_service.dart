@@ -48,17 +48,25 @@ class DepositService {
     if (appt['status'] != 'pending') {
       return (ok: false, error: 'invalid_state', data: null);
     }
-    if (key is! String || !key.startsWith('deposit/$userId/')) {
+    // The key the signer issued is a PENDING one; ownership is checked against
+    // the path it will take after promotion.
+    if (key is! String ||
+        !key.startsWith('${kPendingPrefix}deposit/$userId/')) {
       return (ok: false, error: 'invalid_input', data: null);
     }
-    // Ownership is proven above; size is not. An oversized object is deleted
-    // and the claim refused — accepting it would attach a screenshot we pay to
-    // store indefinitely, on the consumer-reachable payment path.
-    final v = await _verifier.verify([key], bucket: StorageBucket.deposit);
+    // Ownership is proven above; size is not. Oversized is deleted and refused
+    // — accepting it would attach a screenshot we pay to store indefinitely,
+    // on the consumer-reachable payment path. Promotion moves it out of
+    // `pending/` so what remains there is only ever an orphan.
+    final v = await _verifier.verifyAndPromote([
+      key,
+    ], bucket: StorageBucket.deposit);
     if (!v.ok) return (ok: false, error: v.error, data: null);
 
     final updated = await _appointments.update(appointmentId, {
-      'depositScreenshotUrl': key,
+      // The PROMOTED key — recording the pending one would leave the object
+      // under a prefix a lifecycle rule is about to expire.
+      'depositScreenshotUrl': v.keys.single,
     });
     return (ok: true, error: null, data: updated);
   }

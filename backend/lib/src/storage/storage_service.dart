@@ -90,6 +90,18 @@ abstract interface class StorageService {
     required String key,
     required StorageBucket bucket,
   });
+
+  /// Server-side copy within [bucket]. The bytes never travel through us.
+  ///
+  /// Exists for **promotion**: uploads land under `pending/` and move to their
+  /// final key only when claimed, so anything still under `pending/` is by
+  /// construction an orphan and can be expired by a lifecycle rule that cannot
+  /// be wrong. docs/design/backend-upload-orphans.md.
+  Future<void> copyObject({
+    required String fromKey,
+    required String toKey,
+    required StorageBucket bucket,
+  });
 }
 
 /// No-network stand-in for dev/CI/tests (selected when R2 isn't configured).
@@ -117,6 +129,9 @@ class FakeStorageService implements StorageService {
   /// Keys passed to [deleteObject] — asserted on, so "the offending object was
   /// deleted" is proven rather than assumed.
   final List<String> deleted = [];
+
+  /// `from -> to` pairs passed to [copyObject], so promotion is provable.
+  final List<String> copied = [];
 
   @override
   PresignedUpload presignPut({
@@ -161,6 +176,18 @@ class FakeStorageService implements StorageService {
     required String key,
     required StorageBucket bucket,
   }) async => deleted.add(key);
+
+  @override
+  Future<void> copyObject({
+    required String fromKey,
+    required String toKey,
+    required StorageBucket bucket,
+  }) async {
+    copied.add('$fromKey -> $toKey');
+    // Carry the size across so a promoted object still stats correctly.
+    final n = sizes[fromKey];
+    if (n != null) sizes[toKey] = n;
+  }
 }
 
 /// S3-compatible **presigned URL** signer (Cloudflare R2; also AWS S3 /
@@ -281,6 +308,36 @@ class R2StorageService implements StorageService {
     // state, so neither is an error.
     if (res.statusCode >= 400 && res.statusCode != 404) {
       throw StateError('deleteObject failed: HTTP ${res.statusCode}');
+    }
+  }
+
+  @override
+  Future<void> copyObject({
+    required String fromKey,
+    required String toKey,
+    required StorageBucket bucket,
+  }) async {
+    // S3 CopyObject: PUT the DESTINATION carrying x-amz-copy-source. The header
+    // is part of the signature, so it goes through signedHeaders — the same
+    // mechanism that pins content-type on an upload, and the reason
+    // _presignUrl grew that parameter.
+    final source =
+        '/${[_bucketFor(bucket), ...fromKey.split('/')].map(_uriEncode).join('/')}';
+    final headers = {'x-amz-copy-source': source};
+    final res = await _client.put(
+      Uri.parse(
+        _presignUrl(
+          method: 'PUT',
+          key: toKey,
+          bucket: bucket,
+          ttl: _ioTtl,
+          signedHeaders: headers,
+        ),
+      ),
+      headers: headers,
+    );
+    if (res.statusCode >= 400) {
+      throw StateError('copyObject failed: HTTP ${res.statusCode}');
     }
   }
 

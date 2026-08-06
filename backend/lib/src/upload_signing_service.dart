@@ -5,6 +5,7 @@ import 'access/capabilities.dart';
 import 'access/membership_service.dart';
 import 'auth/provider_auth_repository.dart';
 import 'storage/storage_service.dart';
+import 'upload_verification_service.dart';
 
 /// Outcome of a sign request; [data] is the response body on success.
 typedef SignResult = ({bool ok, String? error, Map<String, dynamic>? data});
@@ -95,7 +96,13 @@ class UploadSigningService {
       bucket = StorageBucket.public;
     }
 
-    final key = '$purpose/$prefixId/${_objectId()}.$ext';
+    // Uploads land under `pending/` and are PROMOTED to the final key only when
+    // claimed. Anything still under this prefix is by construction an orphan —
+    // which is what makes a lifecycle rule on it impossible to get wrong.
+    // Claim-time size verification cannot see an unclaimed object, so without
+    // this the cap simply does not apply to them.
+    // docs/design/backend-upload-orphans.md.
+    final key = '$kPendingPrefix$purpose/$prefixId/${_objectId()}.$ext';
     final upload = _storage.presignPut(
       key: key,
       contentType: contentType,

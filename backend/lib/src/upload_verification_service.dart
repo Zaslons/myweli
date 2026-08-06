@@ -58,6 +58,47 @@ class UploadVerificationService {
     return (ok: true, error: null);
   }
 
+  /// [verify], then **promote** each key out of `pending/` to its final path.
+  ///
+  /// Returns the promoted keys in the same order, or an error. A claim records
+  /// the promoted key, never the pending one — that is what leaves `pending/`
+  /// containing only orphans.
+  ///
+  /// Promotion is copy-then-delete because S3/R2 has no rename. The delete is
+  /// **best-effort**: if the copy succeeded the claim is valid, and failing it
+  /// over a leftover pending object would reject a booking to save a few
+  /// kilobytes the lifecycle rule collects anyway.
+  Future<({bool ok, String? error, List<String> keys})> verifyAndPromote(
+    List<String> keys, {
+    required StorageBucket bucket,
+  }) async {
+    for (final k in keys) {
+      if (promotedKey(k) == null) {
+        // Not a pending key: either already claimed or attacker-chosen. Either
+        // way the caller must not act on it.
+        return (ok: false, error: 'invalid_input', keys: <String>[]);
+      }
+    }
+
+    final v = await verify(keys, bucket: bucket);
+    if (!v.ok) return (ok: false, error: v.error, keys: <String>[]);
+
+    final promoted = <String>[];
+    for (final k in keys) {
+      final to = promotedKey(k)!;
+      try {
+        await _storage.copyObject(fromKey: k, toKey: to, bucket: bucket);
+      } catch (_) {
+        return (ok: false, error: 'storage_unavailable', keys: <String>[]);
+      }
+      try {
+        await _storage.deleteObject(key: k, bucket: bucket);
+      } catch (_) {}
+      promoted.add(to);
+    }
+    return (ok: true, error: null, keys: promoted);
+  }
+
   /// The object key behind a public delivery URL, or null if it is not one of
   /// ours.
   ///
@@ -74,3 +115,20 @@ class UploadVerificationService {
     return key.isEmpty ? null : key;
   }
 }
+
+/// Every signed upload key starts here until it is claimed.
+///
+/// The whole point: an object under this prefix has never been claimed, so a
+/// lifecycle rule that expires the prefix cannot delete anything a user still
+/// needs. Deleting by age *without* it would hit live galleries, retained KYC
+/// evidence, and payment proof for open disputes —
+/// docs/design/backend-upload-orphans.md §2.
+const String kPendingPrefix = 'pending/';
+
+/// The key an upload takes once claimed: the same path minus [kPendingPrefix].
+///
+/// Returns null when [key] is not a pending key, which the claim paths treat as
+/// invalid input rather than silently accepting an arbitrary path.
+String? promotedKey(String key) => key.startsWith(kPendingPrefix)
+    ? key.substring(kPendingPrefix.length)
+    : null;

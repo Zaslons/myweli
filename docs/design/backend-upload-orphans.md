@@ -90,12 +90,24 @@ empty. Rate-limiting is a few lines and bounds the abuse rate meanwhile.
 §3.3 is the fallback if the prefix change is ever judged too invasive — it
 reaches the same place at higher running cost.
 
-## 4. Decision owed
+## 4. Decision — §3.2, built
 
-This is the owner's call, not a default to be applied quietly: §3.2 changes how
-every upload key is shaped. **Nothing about orphans is fixed until one of the
-three is built.** What is true today is that the exposure requires an
-authenticated account, and the buckets are empty.
+The owner chose the `pending/` prefix, and confirmed the app is **not yet public**
+so there is no data to migrate and nothing to lose. Built:
+
+- `UploadSigningService` issues `pending/{purpose}/{prefixId}/{id}.{ext}`.
+- `UploadVerificationService.verifyAndPromote` size-checks, then copies to the
+  final key and deletes the pending original, returning the promoted keys.
+- All four claim paths record the **promoted** key. Public claims (review,
+  gallery) rebuild the stored URL from it — keeping the pending URL would point
+  at an object the lifecycle rule is about to expire.
+- `StorageService.copyObject` (S3 `CopyObject`) signs `x-amz-copy-source` as a
+  **signed header** — the same mechanism that pins `content-type`, which is why
+  `_presignUrl` grew that parameter in the presigned-PUT work.
+
+**Ordering is load-bearing and tested:** an oversized upload is refused *before*
+promotion. Promoting first would move the offending object to its final key,
+where the lifecycle rule can no longer collect it.
 
 ## 5. What is configured now
 
