@@ -10,9 +10,12 @@ import 'package:test/test.dart';
 ///
 /// Design: docs/design/backend-q1b-smoke-seam.md.
 void main() {
-  // 32+ chars, so the length floor is never what makes a test pass or fail
-  // except in the test that is specifically about the length floor.
-  const secret = 'a-thirty-two-character-secret-x01';
+  // Composed rather than written as a literal: a 32-char string in a variable
+  // named `secret` is the exact shape gitleaks' generic-api-key rule matches,
+  // and a test fixture that trips the credential scanner is worse than none —
+  // it trains us to wave the scanner through, and the next finding is real.
+  // Derived from the real floor so it self-adjusts if that changes.
+  final secret = 'not-a-real-secret-'.padRight(kMinSmokeSecretLength + 4, 'x');
 
   group('the seam is ABSENT unless deliberately configured', () {
     test('unset, empty or whitespace secret → absent', () {
@@ -105,7 +108,7 @@ void main() {
         null,
         '',
         'wrong',
-        'a-thirty-two-character-secret-x02',
+        '${secret.substring(0, secret.length - 1)}y', // same length, wrong
       ]) {
         expect(
           smokeDisclosureAllowed(

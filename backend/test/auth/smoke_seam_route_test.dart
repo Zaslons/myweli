@@ -21,7 +21,12 @@ class _MockRequestContext extends Mock implements RequestContext {}
 /// `devCode`. A correct decision function that the route forgot to call would
 /// pass every test in the other file.
 void main() {
-  const secret = 'a-thirty-two-character-secret-x01';
+  // Composed rather than written as a literal: a 32-char string in a variable
+  // named `secret` is the exact shape gitleaks' generic-api-key rule matches,
+  // and a test fixture that trips the credential scanner is worse than none —
+  // it trains us to wave the scanner through, and the next finding is real.
+  // Derived from the real floor so it self-adjusts if that changes.
+  final secret = 'not-a-real-secret-'.padRight(kMinSmokeSecretLength + 4, 'x');
 
   late InMemoryAuthRepository prodRepo;
   late InMemoryAuthRepository devRepo;
@@ -84,11 +89,7 @@ void main() {
 
     test('seam configured but NO header → still nothing', () async {
       final r = await otp_request.onRequest(
-        ctx(
-          email: 'x@smoke.test',
-          repo: prodRepo,
-          seam: const SmokeSeam(secret),
-        ),
+        ctx(email: 'x@smoke.test', repo: prodRepo, seam: SmokeSeam(secret)),
       );
       expect(r.statusCode, HttpStatus.accepted);
       expect((await body(r)).containsKey('devCode'), isFalse);
@@ -101,7 +102,7 @@ void main() {
         ctx(
           email: 'owner@gmail.com',
           repo: prodRepo,
-          seam: const SmokeSeam(secret),
+          seam: SmokeSeam(secret),
           smokeHeader: secret,
         ),
       );
@@ -119,7 +120,7 @@ void main() {
         ctx(
           email: 'client-abc@smoke.test',
           repo: prodRepo,
-          seam: const SmokeSeam(secret),
+          seam: SmokeSeam(secret),
           smokeHeader: secret,
         ),
       );
