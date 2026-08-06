@@ -1379,41 +1379,54 @@ createServer(async (req, res) => {
     const b = await readBody(req);
     if (b.purpose === 'deposit') {
       return json(res, 200, {
-        method: 'POST',
+        method: 'PUT',
         uploadUrl: `http://127.0.0.1:${port}/r2-upload`,
-        fields: {},
+        headers: { 'content-type': 'image/jpeg' },
         key: `deposit/u1/${imgSeq++}.jpg`,
       });
     }
     if (b.purpose === 'review') {
       const n = imgSeq++;
       return json(res, 200, {
-        method: 'POST',
+        method: 'PUT',
         uploadUrl: `http://127.0.0.1:${port}/r2-upload`,
-        fields: {},
+        headers: { 'content-type': 'image/jpeg' },
         key: `review/u1/${n}.jpg`,
         publicUrl: `https://cdn.stub/review/u1/${n}.jpg`,
       });
     }
     if (b.purpose === 'kyc') {
       return json(res, 200, {
-        method: 'POST',
+        method: 'PUT',
         uploadUrl: `http://127.0.0.1:${port}/r2-upload`,
-        fields: {},
+        headers: { 'content-type': 'image/jpeg' },
         key: `kyc/acc1/${imgSeq++}.jpg`,
       });
     }
     return json(res, 200, {
-      method: 'POST',
+      method: 'PUT',
       uploadUrl: `http://127.0.0.1:${port}/r2-upload`,
-      fields: {},
+      headers: { 'content-type': 'image/jpeg' },
       key: `gallery/p1/${imgSeq}.jpg`,
       publicUrl: `https://cdn.stub/gallery/p1/${imgSeq++}.jpg`,
     });
   }
   if (url.pathname === '/r2-upload') {
-    // The browser POSTs bytes here directly (cross-origin) — accept + CORS-allow.
-    res.writeHead(204, { 'access-control-allow-origin': '*' });
+    // The browser PUTs bytes here directly, cross-origin. `content-type:
+    // image/jpeg` is NOT a CORS-safelisted value, so the browser sends a
+    // PREFLIGHT first — answering only the PUT would let this stub pass while
+    // real storage fails, which is exactly the class of gap that let the
+    // presigned-POST defect ship.
+    if (req.method === 'OPTIONS') {
+      res.writeHead(204, {
+        'access-control-allow-origin': '*',
+        'access-control-allow-methods': 'PUT, POST, OPTIONS',
+        'access-control-allow-headers': 'content-type',
+        'access-control-max-age': '3600',
+      });
+      return res.end();
+    }
+    res.writeHead(200, { 'access-control-allow-origin': '*' });
     return res.end();
   }
   // « Avis » (web-pro-reviews.md).

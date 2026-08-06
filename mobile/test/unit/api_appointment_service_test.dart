@@ -247,7 +247,7 @@ void main() {
           return http.Response(
             jsonEncode({
               'uploadUrl': 'http://storage/deposit-bkt',
-              'fields': {'key': 'deposit/u1/x.jpg'},
+              'headers': {'content-type': 'image/jpeg'},
               'key': 'deposit/u1/x.jpg',
             }),
             200,
@@ -256,7 +256,7 @@ void main() {
         // The presigned multipart upload straight to storage.
         uploaded = true;
         expect(req.url.toString(), 'http://storage/deposit-bkt');
-        return http.Response('', 204);
+        return http.Response('', 200);
       });
       final service = await _authed(
         client,
