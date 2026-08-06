@@ -2,6 +2,7 @@ import 'access/capabilities.dart';
 import 'access/membership_service.dart';
 import 'appointments/appointment_repository.dart';
 import 'storage/storage_service.dart';
+import 'upload_verification_service.dart';
 
 /// Outcome of a deposit operation; [data] is the response body on success.
 typedef DepositResult = ({bool ok, String? error, Object? data});
@@ -12,11 +13,21 @@ typedef DepositResult = ({bool ok, String? error, Object? data});
 /// booking. This service records the screenshot key on the booking and issues
 /// short-lived signed view URLs to the two authorized parties.
 class DepositService {
-  DepositService(this._appointments, this._members, this._storage);
+  DepositService(
+    this._appointments,
+    this._members,
+    this._storage, {
+    UploadVerificationService? verifier,
+  }) : _verifier = verifier ?? UploadVerificationService(storage: _storage);
 
   final AppointmentRepository _appointments;
   final MembershipService _members;
   final StorageService _storage;
+
+  /// Claim-time size check. R2 ignores a signed `content-length`, so the cap
+  /// declared at signing time is advisory and this is where it actually holds.
+  /// docs/design/backend-upload-size-verification.md.
+  final UploadVerificationService _verifier;
 
   static const _viewTtl = Duration(minutes: 5);
 
@@ -40,6 +51,12 @@ class DepositService {
     if (key is! String || !key.startsWith('deposit/$userId/')) {
       return (ok: false, error: 'invalid_input', data: null);
     }
+    // Ownership is proven above; size is not. An oversized object is deleted
+    // and the claim refused — accepting it would attach a screenshot we pay to
+    // store indefinitely, on the consumer-reachable payment path.
+    final v = await _verifier.verify([key], bucket: StorageBucket.deposit);
+    if (!v.ok) return (ok: false, error: v.error, data: null);
+
     final updated = await _appointments.update(appointmentId, {
       'depositScreenshotUrl': key,
     });
