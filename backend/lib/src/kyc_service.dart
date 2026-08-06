@@ -1,4 +1,6 @@
 import 'auth/provider_auth_repository.dart';
+import 'storage/storage_service.dart';
+import 'upload_verification_service.dart';
 
 /// Outcome of a KYC operation; [data] is the `KycStatus` body on success.
 typedef KycResult = ({bool ok, String? error, Map<String, dynamic>? data});
@@ -10,9 +12,15 @@ typedef KycResult = ({bool ok, String? error, Map<String, dynamic>? data});
 /// to `pending`. The server is the authority on `verificationStatus` /
 /// `rejectionReason` (only the future admin flips them).
 class KycService {
-  KycService(this._providerAuth);
+  KycService(this._providerAuth, {UploadVerificationService? verifier})
+    : _verifier = verifier;
 
   final ProviderAuthRepository _providerAuth;
+
+  /// Claim-time size check (T61). Optional so existing construction sites keep
+  /// working; when absent no size check runs, which is why the composition root
+  /// always supplies it in production.
+  final UploadVerificationService? _verifier;
 
   static const _docTypes = {
     'idCard',
@@ -54,6 +62,17 @@ class KycService {
         'key': key,
         'submittedAt': DateTime.now().toUtc().toIso8601String(),
       });
+    }
+
+    // Every key is proven to belong to this account above; none is proven to
+    // be a sane size. KYC lands in a RETAINED bucket, so an oversized document
+    // is paid for far longer than a deposit screenshot.
+    final v = await _verifier?.verify(
+      docs.map((d) => d['key'] as String).toList(),
+      bucket: StorageBucket.kyc,
+    );
+    if (v != null && !v.ok) {
+      return (ok: false, error: v.error, data: null);
     }
 
     final updated = await _providerAuth.submitKyc(accountId, docs);

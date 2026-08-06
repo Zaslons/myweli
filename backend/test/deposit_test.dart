@@ -254,4 +254,48 @@ void main() {
       },
     );
   });
+
+  group('claim-time size verification (T61)', () {
+    // R2 accepts a body larger than the signed content-length — measured
+    // against the live bucket — so ownership passing is NOT enough. This is
+    // the only layer that bounds what a consumer can put in the deposit
+    // bucket at our expense.
+    test('an oversized screenshot is refused AND deleted', () async {
+      final store = FakeStorageService(
+        sizes: {'deposit/user1/huge.jpg': 50 * 1024 * 1024},
+      );
+      final svc = DepositService(
+        appts,
+        MembershipService(InMemoryMembershipRepository(), providerAuth),
+        store,
+      );
+      await seed('a-big', userId: 'user1');
+      final r = await svc.submit('user1', 'a-big', 'deposit/user1/huge.jpg');
+
+      expect(r.ok, isFalse);
+      expect(r.error, 'upload_too_large');
+      expect(
+        store.deleted,
+        ['deposit/user1/huge.jpg'],
+        reason: 'refusing the claim must not leave the bytes we pay for',
+      );
+      // And the booking must be untouched — a rejected claim is not a
+      // half-applied one.
+      final after = await appts.byId('a-big');
+      expect(after!['depositScreenshotUrl'], isNot('deposit/user1/huge.jpg'));
+    });
+
+    test('a claimed key with no object behind it is refused', () async {
+      final store = FakeStorageService(missing: {'deposit/user1/ghost.jpg'});
+      final svc = DepositService(
+        appts,
+        MembershipService(InMemoryMembershipRepository(), providerAuth),
+        store,
+      );
+      await seed('a-ghost', userId: 'user1');
+      final r = await svc.submit('user1', 'a-ghost', 'deposit/user1/ghost.jpg');
+      expect(r.ok, isFalse);
+      expect(r.error, 'upload_not_found');
+    });
+  });
 }

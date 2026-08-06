@@ -4172,6 +4172,8 @@ export interface paths {
         /**
          * Attach a deposit-payment screenshot (B-deposit)
          * @description Consumer-only, and only the caller's **own** booking while it is still `pending` (pay-later: book now, pay the salon directly via Mobile Money, attach proof afterward — booking can also include the key inline). The `screenshotKey` must be one the caller just uploaded via `POST /uploads/sign?purpose=deposit` (validated under the caller's own `deposit/{userId}/` prefix). Myweli holds no funds; the salon confirms receipt by **accepting** the booking. The screenshot is private — view it via `GET /appointments/{id}/deposit-screenshot`.
+         *
+         *     The object is **size-verified at claim time** — R2 does not enforce the size signed at upload time, so this is where the cap holds (threat model T61). Errors: `upload_too_large` (400, and the object is deleted), `upload_not_found` (400, no object behind the key), `storage_unavailable` (502, the check could not run — retry; the claim is deliberately refused rather than accepted).
          */
         post: {
             parameters: {

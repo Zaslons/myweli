@@ -5,6 +5,8 @@ import 'auth/provider_auth_repository.dart';
 import 'localities/localities_repository.dart';
 import 'localities/localities_service.dart';
 import 'providers_repository.dart';
+import 'storage/storage_service.dart';
+import 'upload_verification_service.dart';
 import 'validators.dart';
 
 /// Outcome of a catalogue operation. [data] is the affected resource (a service,
@@ -24,8 +26,12 @@ class ProviderCatalogService {
     this._members, {
     List<String> allowedImageOrigins = const [],
     LocalitiesService? localities,
+    UploadVerificationService? verifier,
+    String? publicBaseUrl,
   }) : _allowedImageOrigins = allowedImageOrigins,
-       _localities = localities;
+       _localities = localities,
+       _verifier = verifier,
+       _publicBaseUrl = publicBaseUrl;
 
   final ProvidersRepository _providers;
   final ProviderAuthRepository _providerAuth;
@@ -39,6 +45,12 @@ class ProviderCatalogService {
   /// Gallery URL origins accepted on write. Empty → accept any (dev). When set
   /// (prod), each gallery URL must start with one of these (anti-SSRF/hotlink).
   final List<String> _allowedImageOrigins;
+
+  /// Claim-time size check (T61). Gallery images arrive as URLs, so the key is
+  /// derived from [_publicBaseUrl] — only ever on a URL that passed the
+  /// allowlist above.
+  final UploadVerificationService? _verifier;
+  final String? _publicBaseUrl;
 
   Future<CatalogResult> listServices(
     String accountId,
@@ -339,6 +351,20 @@ class ProviderCatalogService {
       }
       urls.add(url);
     }
+
+    // Size, after origin — same ordering rule as review photos: a key must
+    // never be derived from a URL that has not passed the allowlist.
+    if (urls.isNotEmpty && _verifier != null && _publicBaseUrl != null) {
+      final keys = urls
+          .map(
+            (u) => _verifier.keyFromPublicUrl(u, publicBaseUrl: _publicBaseUrl),
+          )
+          .whereType<String>()
+          .toList();
+      final v = await _verifier.verify(keys, bucket: StorageBucket.public);
+      if (!v.ok) return (ok: false, error: v.error, data: null);
+    }
+
     final saved = await _providers.updateGallery(providerId, urls);
     if (saved == null) return _notFound;
     return (ok: true, error: null, data: {'imageUrls': saved});

@@ -91,6 +91,7 @@ import 'subscription/salon_subscription_repository.dart';
 import 'subscription/salon_subscription_service.dart';
 import 'subscription/subscription_scheduler.dart';
 import 'upload_signing_service.dart';
+import 'upload_verification_service.dart';
 
 /// Composition root: process-wide singletons built from env
 /// (docs/BACKEND.md §3.5), provided into request context by
@@ -353,12 +354,24 @@ final List<String> _galleryAllowedOrigins = () {
   return base == null ? const <String>[] : <String>[base, 'asset:'];
 }();
 
+/// The authoritative upload size cap (T61) — R2 ignores a signed
+/// `content-length`, so the limit declared at signing time is advisory and this
+/// is where it holds. docs/design/backend-upload-size-verification.md.
+final UploadVerificationService uploadVerificationService =
+    UploadVerificationService(storage: storageService);
+
+/// Base for deriving an object key from a public delivery URL. Null in dev/Fake,
+/// which is why every claim path treats a null verifier/base as "skip".
+final String? _r2PublicBase = _envOrNull('R2_PUBLIC_BASE_URL');
+
 final ProviderCatalogService providerCatalogService = ProviderCatalogService(
   providersRepository,
   providerAuthRepository,
   membershipService,
   allowedImageOrigins: _galleryAllowedOrigins,
   localities: localitiesService,
+  verifier: uploadVerificationService,
+  publicBaseUrl: _r2PublicBase,
 );
 
 final UploadSigningService uploadSigningService = UploadSigningService(
@@ -367,7 +380,10 @@ final UploadSigningService uploadSigningService = UploadSigningService(
   storageService,
 );
 
-final KycService kycService = KycService(providerAuthRepository);
+final KycService kycService = KycService(
+  providerAuthRepository,
+  verifier: uploadVerificationService,
+);
 
 /// Salon lifecycle (docs/design/pro-salon-lifecycle.md): draft creation at
 /// registration + the /me/provider self-heal + the publish gate.
@@ -529,6 +545,8 @@ final ReviewsService reviewsService = ReviewsService(
   providersRepository,
   authRepository,
   allowedImageOrigins: _galleryAllowedOrigins,
+  verifier: uploadVerificationService,
+  publicBaseUrl: _r2PublicBase,
 );
 
 /// Outbound messaging (SMS, + WhatsApp later). The provider is chosen by
