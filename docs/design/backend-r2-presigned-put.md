@@ -146,9 +146,20 @@ cannot detect that the counterparty refuses the request.
 - **New**: the signed-headers list is sorted and matches the returned `headers`
   map, since a mismatch is a 403 at upload time.
 - **New**: `contentLength` over `maxBytes`, `<= 0`, or missing → `invalid_input`.
-- **New, `@Tags(['r2'])`, self-gating on credentials**: sign a PUT and actually
-  upload to R2. Skipped without credentials, so CI is unaffected — but it exists,
-  and running it is what turns "we think this works" into "we watched it work".
+- **New, `@Tags(['r2'])`, self-gating on credentials** (`test/storage/r2_live_test.dart`):
+  sign a PUT and actually upload to R2. Skipped without credentials, so CI is
+  unaffected — but it exists, and running it is what turns "we think this works"
+  into "we watched it work".
+
+  **It earned its place on the first run.** `objectSize` did an HTTP `HEAD`
+  against a URL signed for `GET`; SigV4 covers the HTTP method, so the signature
+  could never match and R2 answered 403 — in code already merged and deployed.
+  The consequence was not a missing size check but a **total upload outage**:
+  `objectSize` threw, `verify()` failed closed as designed, and every claim —
+  deposit, KYC, review, gallery — would have been refused with
+  `storage_unavailable`. The fail-closed posture turned a broken check into a
+  visible outage rather than a silent hole, which is the behaviour we wanted,
+  but nothing except this test would have found it before a user did.
 
 ## 7. Rollout
 
