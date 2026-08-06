@@ -210,7 +210,7 @@ void main() {
           reviews,
           appointments,
           clientsService(),
-          const FakeStorageService(),
+          FakeStorageService(),
           client:
               client ??
               MockClient((req) async {
@@ -606,7 +606,7 @@ void main() {
           reviews,
           appointments,
           clientsService(),
-          const FakeStorageService(),
+          FakeStorageService(),
         ),
       );
 

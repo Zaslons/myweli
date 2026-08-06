@@ -377,11 +377,29 @@ save $18/month.
 Cloudflare the record must be **DNS-only**: a proxied record terminates TLS at
 Cloudflare, so Google's validation never arrives.
 
-**Follow-up, not yet done.** Cloud Run still accepts public traffic on its
-`run.app` URL, so there are two front doors. Ingress
-`internal-and-cloud-load-balancing` closes the second — but Cloud Scheduler calls
-the `run.app` URL directly, so both jobs must be repointed at `api.myweli.com` in
-the same change or the reminder cron silently stops.
+**Done.** Cloud Run accepted public traffic on its `run.app` URL, a second front
+door bypassing the LB. Closed with ingress `internal-and-cloud-load-balancing`,
+set in `service.yaml` rather than by CLI so the deployed service cannot drift
+from the file.
+
+**The ordering was the whole risk.** Cloud Scheduler called the `run.app` URL
+directly, so locking ingress first would have stopped the reminder cron
+*silently* — the exact failure §5 exists to describe. Sequence actually
+followed, each step verified before the next:
+
+1. both jobs repointed at `api.myweli.com` (uri **and** OIDC audience);
+2. both fired manually → **200**, proving the new target works;
+3. only then the ingress annotation applied;
+4. re-verified after: `run.app/health` → **404**, `api.myweli.com/health` and
+   `/providers` → **200**, the public site still renders salons, and both cron
+   jobs → **200** again.
+
+One trap worth recording: `gcloud run services describe` reports the image of
+the *latest* revision template, which after a failed deploy is the **failed**
+one. Deploying "the current image" from that value re-deploys a tag that was
+never pushed. Read the digest from the revision actually serving traffic
+(`status.traffic[0].revisionName`) instead — that also makes the change
+surgical, altering ingress and nothing else.
 
 ## 8. Verification
 

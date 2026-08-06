@@ -72,7 +72,7 @@ void main() {
     service = DepositService(
       appts,
       MembershipService(InMemoryMembershipRepository(), providerAuth),
-      const FakeStorageService(),
+      FakeStorageService(),
     );
     final p1 = await providerAuth.register(
       email: 'reg8@test.pro',

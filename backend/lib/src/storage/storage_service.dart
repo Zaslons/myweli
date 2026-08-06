@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
+import 'package:http/http.dart' as http;
 
 /// A signed, single-use **PUT**. The client PUTs the raw bytes to [url] with
 /// exactly [headers] and nothing else.
@@ -61,11 +62,33 @@ abstract interface class StorageService {
 
   /// Short-lived signed **DELETE** URL for a private object — the erasure
   /// half of the lifecycle (T53: KYC docs go with the account). The caller
-  /// executes the HTTP DELETE; this class only signs.
+  /// executes the HTTP DELETE; signing only.
   String presignDelete({
     required String key,
     required StorageBucket bucket,
     Duration ttl,
+  });
+
+  /// Size of [key] in bytes, or **null when the object does not exist** —
+  /// distinguishable from a zero-byte object, and treated as a rejection.
+  ///
+  /// **This method performs network I/O**, unlike everything above it. That is
+  /// a deliberate change to this interface's character: R2 does not enforce a
+  /// signed `content-length`, so the size cap can only be checked by asking
+  /// storage what actually landed. A storage abstraction that cannot stat an
+  /// object is not one. docs/design/backend-upload-size-verification.md.
+  ///
+  /// Throws on transport failure — callers must fail CLOSED rather than treat
+  /// an error as "fine", or the control is removable by anyone who can make one
+  /// request fail.
+  Future<int?> objectSize({required String key, required StorageBucket bucket});
+
+  /// Delete [key]. Used to remove an object rejected at claim time — refusing
+  /// the claim while leaving the bytes in the bucket would decline the booking
+  /// and still pay for the storage, which is the outcome being prevented.
+  Future<void> deleteObject({
+    required String key,
+    required StorageBucket bucket,
   });
 }
 
@@ -73,9 +96,27 @@ abstract interface class StorageService {
 /// Deterministic and obviously-fake so it can never be mistaken for real
 /// storage, while still exercising the full endpoint + app code paths.
 class FakeStorageService implements StorageService {
-  const FakeStorageService();
+  FakeStorageService({
+    this.defaultSize = 1024,
+    Map<String, int>? sizes,
+    Set<String>? missing,
+  }) : sizes = sizes ?? {},
+       missing = missing ?? {};
 
   static const origin = 'https://fake-storage.local';
+
+  /// Size reported for any key not in [sizes] or [missing].
+  final int defaultSize;
+
+  /// Per-key sizes, so a test can make one object oversized.
+  final Map<String, int> sizes;
+
+  /// Keys reported as absent (objectSize → null).
+  final Set<String> missing;
+
+  /// Keys passed to [deleteObject] — asserted on, so "the offending object was
+  /// deleted" is proven rather than assumed.
+  final List<String> deleted = [];
 
   @override
   PresignedUpload presignPut({
@@ -108,6 +149,18 @@ class FakeStorageService implements StorageService {
 
   @override
   String publicUrl(String key) => '$origin/$key';
+
+  @override
+  Future<int?> objectSize({
+    required String key,
+    required StorageBucket bucket,
+  }) async => sizes[key] ?? (missing.contains(key) ? null : defaultSize);
+
+  @override
+  Future<void> deleteObject({
+    required String key,
+    required StorageBucket bucket,
+  }) async => deleted.add(key);
 }
 
 /// S3-compatible **presigned URL** signer (Cloudflare R2; also AWS S3 /
@@ -125,8 +178,10 @@ class R2StorageService implements StorageService {
     String? depositBucket,
     this.region = 'auto',
     DateTime Function()? clock,
+    http.Client? client,
   }) : _accessKeyId = accessKeyId,
        _secretAccessKey = secretAccessKey,
+       _client = client ?? http.Client(),
        _kycBucket = kycBucket ?? bucket,
        _depositBucket = depositBucket ?? bucket,
        _clock = clock ?? DateTime.now;
@@ -156,6 +211,10 @@ class R2StorageService implements StorageService {
   final String _secretAccessKey;
   final DateTime Function() _clock;
 
+  /// Injected so claim-time verification is testable without a bucket, the
+  /// same shape `ResendEmailProvider` uses.
+  final http.Client _client;
+
   @override
   PresignedUpload presignPut({
     required String key,
@@ -182,6 +241,43 @@ class R2StorageService implements StorageService {
 
   @override
   String publicUrl(String key) => '${_trim(publicBaseUrl)}/$key';
+
+  @override
+  Future<int?> objectSize({
+    required String key,
+    required StorageBucket bucket,
+  }) async {
+    // HEAD against our own signed URL — no new auth path, and it reuses the
+    // signer already proven for GET, PUT and DELETE.
+    final res = await _client.head(
+      Uri.parse(presignGet(key: key, bucket: bucket, ttl: _ioTtl)),
+    );
+    if (res.statusCode == 404) return null;
+    if (res.statusCode >= 400) {
+      // Deliberately an exception, not a null: "absent" and "could not tell"
+      // must not collapse into the same value, because they demand different
+      // answers (reject the claim vs. 502 and retry).
+      throw StateError('objectSize failed: HTTP ${res.statusCode}');
+    }
+    return int.tryParse(res.headers['content-length'] ?? '');
+  }
+
+  @override
+  Future<void> deleteObject({
+    required String key,
+    required StorageBucket bucket,
+  }) async {
+    final res = await _client.delete(
+      Uri.parse(presignDelete(key: key, bucket: bucket, ttl: _ioTtl)),
+    );
+    // 204 on success, 404 if it was already gone — both are the desired end
+    // state, so neither is an error.
+    if (res.statusCode >= 400 && res.statusCode != 404) {
+      throw StateError('deleteObject failed: HTTP ${res.statusCode}');
+    }
+  }
+
+  static const _ioTtl = Duration(minutes: 1);
 
   @override
   String presignGet({

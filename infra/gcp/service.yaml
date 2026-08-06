@@ -14,6 +14,17 @@ metadata:
   name: myweli-api
   labels:
     cloud.googleapis.com/location: europe-west9
+  annotations:
+    # Only the global load balancer may reach this service. Without it the
+    # *.run.app URL is a SECOND public front door, bypassing the LB (and any
+    # Cloud Armor policy attached to it later).
+    #
+    # ORDERING: Cloud Scheduler called the run.app URL directly until this
+    # landed. Both jobs were repointed at api.myweli.com and PROVEN to still
+    # return 200 BEFORE this annotation was applied — reversing that order
+    # stops the reminder cron silently, which is the exact failure this
+    # migration already fixed once (infra-gcp-migration.md §5).
+    run.googleapis.com/ingress: internal-and-cloud-load-balancing
 spec:
   template:
     metadata:
