@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Module** | toolchain (cross-cutting: `mobile/`, CI, the golden baseline) |
-| **Status** | in progress — 2026-08-07 |
+| **Status** | **Shipped** — 2026-08-07 ([#332](https://github.com/Zaslons/myweli/pull/332)) |
 | **Trigger** | dependabot #300 and #302 are unmergeable, and `pubspec.lock` drifted |
 | **Related** | [SYSTEM.md §20.1](SYSTEM.md) (goldens), [#331](https://github.com/Zaslons/myweli/pull/331) (the lockfile fix this supersedes) |
 
@@ -34,7 +34,7 @@ arrives in **3.41.0**. Measured, not inferred:
 
 | Flutter | Dart | `meta` |
 |---|---|---|
-| 3.38.6 (current) | 3.10.7 | 1.17.0 |
+| 3.38.6 (was) | 3.10.7 | 1.17.0 |
 | 3.41.9 | 3.11.5 | 1.17.0 |
 | 3.44.0 | 3.12.0 | **1.18.0** |
 | 3.44.9 (stable) | 3.12.2 | **1.18.0** |
@@ -107,15 +107,21 @@ between minors.
 |---|---|---|
 | Removed/renamed APIs | `flutter analyze` = 0 | none — it is a compile error |
 | Behaviour change under test | `flutter test` at **+1288 ~46** | tests only cover what they cover |
-| **Rendering drift** | the 17 goldens, regenerated and **looked at** | this is the real work of the PR |
+| **Rendering drift** | the 46 goldens, regenerated and **looked at** | this is the real work of the PR |
 | Deprecation warnings | `analyze` (0 issues, not 0 errors) | none |
 | Android/iOS build | `Mobile — APK size` job; iOS unverified as always | iOS is not built in CI |
 | Dependency re-resolution | `pub get` + full suite | a transitive bump could change behaviour silently |
 
 **The goldens are not a formality here.** A version bump that moves text metrics
-will change most of the 17 PNGs, and a diff that large is where a real
-regression hides. Each changed image gets looked at, and anything that is not
-attributable to rasterization gets investigated rather than accepted.
+will change most of the PNGs, and a diff that large is where a real regression
+hides. Each changed image gets looked at, and anything not attributable to
+rasterization gets investigated rather than accepted.
+
+**Outcome: all 46 changed, and all 46 were rasterization.** Quantified instead
+of eyeballed — 12 pixel-identical, worst single image 0.12%, and across the
+whole set only **37 pixels** past Δ100 with **8** shifting colour. No image
+changed size, so nothing reflowed. The prediction above was right about the
+count and wrong about the danger.
 
 **§21 rows 23/24 remain true** — the dashboard and journal goldens still read
 the machine clock; unchanged by this work.
