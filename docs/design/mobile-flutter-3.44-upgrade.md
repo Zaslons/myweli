@@ -132,11 +132,24 @@ the machine clock; unchanged by this work.
 7. Full CI green, including `Mobile — APK size`.
 8. Docs + ROADMAP; close #300/#302 as superseded.
 
-## 7. Open questions
+## 7. The two open questions, answered
 
-- **Does the APK grow?** The `Mobile — APK size` job reports a number against a
-  30 MB budget (ROADMAP §6). A framework bump can move it. If it grows
-  materially, that is a finding to record, not to wave through.
-- **Do the 3.41 → 3.44 Material defaults move our theme?** `app_theme.dart`
-  overrides heavily, so most defaults are unreachable — but the goldens are the
-  authority, not this prediction.
+- **Does the APK grow? Yes, by 0.53 MB.** Measured on the same job, same
+  flavour, one PR apart: **22.68 MB → 23.21 MB** (+2.3%), against the 30 MB
+  budget (ROADMAP §6). Recorded rather than waved through, because it is the
+  kind of number that only ever moves one way: six framework minors cost half a
+  megabyte, and the budget has **6.8 MB** of headroom left. Nothing to act on
+  now; worth knowing before the next three upgrades.
+- **Do the 3.41 → 3.44 Material defaults move our theme? No.** The goldens
+  answer it, not a prediction: across all 46, **37 pixels** differ by more than
+  Δ100 and **8** shift colour, with 12 images pixel-identical and no image
+  changing size. `app_theme.dart` overrides heavily enough that the defaults
+  that moved are unreachable from our surfaces.
+
+## 8. What this did NOT verify
+
+- **iOS is not built in CI** and was not built here. The upgrade is unproven on
+  that platform, exactly as every prior change has been.
+- **Rendering on a device.** The goldens prove the framework draws the same
+  bytes on Linux; they say nothing about an actual phone.
+- **The 73 → 67 still-outdated packages.** Deliberately out of scope (§4).
