@@ -523,7 +523,9 @@ final List<Map<String, dynamic>> seedProviders = [
     'currency': 'XOF',
     'latitude': 5.3599,
     'longitude': -3.9871,
-    'imageUrls': <String>['asset:assets/images/providers/beaute_divine_photo.png'],
+    'imageUrls': <String>[
+      'asset:assets/images/providers/beaute_divine_photo.png',
+    ],
     'logoUrl': null,
     'rating': 4.8,
     'reviewCount': 127,
@@ -574,7 +576,9 @@ final List<Map<String, dynamic>> seedProviders = [
     'currency': 'XOF',
     'latitude': 5.3712,
     'longitude': -3.9923,
-    'imageUrls': <String>['asset:assets/images/providers/salon_excellence_photo.png'],
+    'imageUrls': <String>[
+      'asset:assets/images/providers/salon_excellence_photo.png',
+    ],
     'logoUrl': null,
     'rating': 4.6,
     'reviewCount': 89,
@@ -617,7 +621,9 @@ final List<Map<String, dynamic>> seedProviders = [
     'currency': 'XOF',
     'latitude': 5.3456,
     'longitude': -4.0712,
-    'imageUrls': <String>['asset:assets/images/providers/barber_shop_pro_photo.png'],
+    'imageUrls': <String>[
+      'asset:assets/images/providers/barber_shop_pro_photo.png',
+    ],
     'logoUrl': null,
     'rating': 4.9,
     'reviewCount': 203,
