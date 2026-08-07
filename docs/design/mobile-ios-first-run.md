@@ -70,7 +70,7 @@ hence writing it down here.
 
 Stated up front so no result is over-claimed:
 
-- **APNs.** The simulator has no push token. Anything about #328 needs hardware.
+- **APNs.** ~~The simulator has no push token.~~ **This was wrong** — see §5b. On Apple silicon with macOS 13+ the simulator registers with APNs for real and is issued a token, which is how #328 was finally checked. What a simulator still cannot answer is the **production** APNs environment: a debug build is signed `development` and gets a SANDBOX token, so a production FCM send to it is dropped.
 - **Sign in with Apple** works in the simulator only against a signed-in Apple
   account, and the credential it returns is not the production path.
 - **Release signing / the archive.** A debug simulator build proves nothing
@@ -87,6 +87,49 @@ Both flavours built for the simulator and were driven by hand.
 | Pro Apple **registration** exists | « S'inscrire avec Apple » renders on the register screen — the control that was `onPressed: () {}` |
 | `GoogleService-Info.plist` reaches the bundle | Present in both builds — and **each flavour got its own**: `com.myweli.app` for consumer, `com.myweli.pro` for pro, matching each app's own bundle id. The failure this rules out is shipping one Firebase project to both apps |
 | The flavour split is real at runtime | `com.myweli.app`/`MyWeli` vs `com.myweli.pro`/`MyWeli Pro` |
+
+## 5b. APNs — measured, and the section above was wrong about it
+
+§4 said the simulator has no push token, and §7 called APNs "the single largest
+remaining gap". Both were inherited from older tooling. On **Apple silicon with
+macOS 13+**, the simulator registers with APNs for real.
+
+Driven by `mobile/tool/apns_probe.dart` — the app itself only asks for
+permission after a login, so reaching the token through the UI needs live
+credentials it does not have. The probe drives the **same** adapter
+(`FcmPushNotificationService`, real Firebase, nothing mocked). On an iPhone 13
+mini simulator, iOS 26.5:
+
+| Step | Result |
+|---|---|
+| `Firebase.initializeApp()` | `true` — the per-flavour `GoogleService-Info.plist` is read from the bundle |
+| Permission prompt | rendered, titled « **MyWeli** » |
+| After granting | `granted` |
+| **`getAPNSToken()`** | **a real 160-character token** — #328's `aps-environment` entitlement works |
+| **FCM token** | **issued** — Firebase accepted the APNs token and minted its own |
+
+That is the entitlement chain proven end to end on the client: entitlement →
+APNs registration → token → Firebase → FCM token. It had never been observed.
+
+**Delivery and handling**, with a payload mirroring `booking_notifier`'s
+`data{route, providerId}` exactly as FCM would deliver it
+(`xcrun simctl push`, app backgrounded):
+
+| Claim | Evidence |
+|---|---|
+| The notification renders | Banner with the brand icon, « Rendez-vous confirmé » / « Barber King a confirmé votre rendez-vous. » |
+| A tap launches the app | It did, from the home screen |
+| The tap **routes** to the deep link | **NOT observed, and not claimed.** The app landed on Accueil. That is what the design specifies for an unauthenticated tap — `push_message_handler.dart:72-75` buffers the payload and replays it after auth, so the splash/login redirect cannot eat it — but with no session there is no way to tell a correct buffer from a silent drop from the outside. The buffering logic is unit-tested; the integration is not. |
+
+**Still unproven, precisely:**
+
+- The **server → APNs leg**. `simctl push` injects locally; it does not exercise
+  FCM's own delivery. Closing that needs the service-account credentials, which
+  live in Secret Manager and not on a developer machine.
+- **Production APNs.** A debug build is signed `development` and holds a sandbox
+  token. The Release/production split `setup_flavours.rb` writes is still
+  untested.
+- **Routing on a real tap with a session**, per the table above.
 
 ## 6. Three things the upgrade changed under iOS
 
@@ -137,8 +180,11 @@ Worth knowing before anyone "re-fixes" a deployment target that was never broken
   UIScene moved registration out of `didFinishLaunchingWithOptions`.
   `firebase_messaging` swizzles the app delegate, and a push that cold-launches
   the app is the case where timing could matter. Needs a device.
-- **APNs remains entirely unverified.** The simulator issues no push token, so
-  #328's entitlements are still unproven — the single largest remaining gap.
+- ~~**APNs remains entirely unverified.**~~ **Closed on the client — see §5b.**
+  The simulator DOES issue a push token on Apple silicon, and #328's
+  entitlements are proven: real APNs token, real FCM token. What remains is
+  narrower and stated there — the server→APNs leg, the production environment,
+  and routing on an authenticated tap.
 - Does the RunnerTests xcconfig gap matter? `pod install` warns on all six
   configurations that it could not set the base configuration for
   **RunnerTests**, because `setup_flavours.rb` points that target at
