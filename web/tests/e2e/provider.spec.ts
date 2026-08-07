@@ -102,4 +102,25 @@ test('unknown slug → 404', async ({ page }) => {
   const res = await page.goto('/no-such-salon');
   expect(res?.status()).toBe(404);
   await expect(page.getByText('Page introuvable')).toBeVisible();
+  // §17 — one label. It read « Retour à l'accueil » while mobile and both
+  // booking refusals said « Découvrir des salons », same destination.
+  await expect(
+    page.getByRole('link', { name: 'Découvrir des salons' }),
+  ).toHaveAttribute('href', '/');
+});
+
+test('a salon that stopped is gone from the public web (Decision C)', async ({
+  page,
+}) => {
+  // `salon-arrete` is the suspended fixture. Before PR1d `by-slug` excluded
+  // `draft` only, so an admin-suspended salon stayed publicly readable by slug
+  // — the route this page uses.
+  const res = await page.goto('/salon-arrete');
+  expect(res?.status()).toBe(404);
+  await expect(page.getByText('Page introuvable')).toBeVisible();
+  // The body already carries the salon case in the right tense, and it has to
+  // stay identity-agnostic: this boundary also answers an unknown city.
+  await expect(
+    page.getByText('Ce salon ou cette page n’existe pas (ou plus).'),
+  ).toBeVisible();
 });

@@ -75,6 +75,35 @@ class PostgresProvidersRepository implements ProvidersRepository {
   }
 
   @override
+  Future<List<Map<String, dynamic>>> byIds(List<String> ids) async {
+    if (ids.isEmpty) return const [];
+    // `= ANY` rather than a loop of [byId]: the hydration this serves resolves
+    // a handful of salons at once, and looping would move the N+1 the clients
+    // are shedding into the backend. No status filter — same as [byId]; the
+    // callers that serve an anonymous caller ask `isPublicSalon`.
+    final rows = await _pool.execute(
+      Sql.named(
+        'SELECT data, featured, status FROM providers WHERE id = ANY(@ids)',
+      ),
+      parameters: {'ids': ids.toSet().toList()},
+    );
+    final docs = rows.map(_withFlags).toList();
+    if (docs.isEmpty) return docs;
+
+    final found = [for (final d in docs) d['id'] as String];
+    final services = await _servicesByProvider(found);
+    final availability = await _availabilityByProvider(found, {
+      for (final d in docs) d['id'] as String: d['timezone'] as String?,
+    });
+    for (final d in docs) {
+      final id = d['id'] as String;
+      d['services'] = services[id] ?? const <Map<String, dynamic>>[];
+      d['availability'] = availability[id] ?? _emptyAvailability(id);
+    }
+    return docs;
+  }
+
+  @override
   Future<Map<String, dynamic>?> byId(String id) async {
     final result = await _pool.execute(
       Sql.named('SELECT data, featured, status FROM providers WHERE id = @id'),

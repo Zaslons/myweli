@@ -56,22 +56,37 @@ void main() {
     salon = MockData.providers.first;
   });
 
-  Appointment bookingOf(
-    models.Provider p, {
-    required List<String> serviceIds,
-  }) => Appointment(
-    id: 'a1',
-    userId: 'u1',
-    providerId: p.id,
-    serviceIds: serviceIds,
-    appointmentDate: kFixedNow.add(const Duration(days: 2, hours: 4)),
-    status: AppointmentStatus.confirmed,
-    totalPrice: 20000,
-    depositAmount: 6000,
-    balanceDue: 14000,
-    createdAt: kFixedNow,
-    providerTimezone: p.timezone,
-  );
+  /// The booking as the SERVER hands it over — enriched.
+  ///
+  /// The screen used to be given the whole salon object because
+  /// `durationMinutes` could be null on a consumer payload. The server
+  /// backfills it from the catalogue that priced the booking now (Decision C),
+  /// so this helper does what `withProviderFacts` does: resolve the ids
+  /// against the same fixture and stamp the result.
+  Appointment bookingOf(models.Provider p, {required List<String> serviceIds}) {
+    final chosen = p.services.where((s) => serviceIds.contains(s.id)).toList();
+    return Appointment(
+      id: 'a1',
+      userId: 'u1',
+      providerId: p.id,
+      serviceIds: serviceIds,
+      appointmentDate: kFixedNow.add(const Duration(days: 2, hours: 4)),
+      status: AppointmentStatus.confirmed,
+      totalPrice: 20000,
+      depositAmount: 6000,
+      balanceDue: 14000,
+      createdAt: kFixedNow,
+      providerTimezone: p.timezone,
+      providerName: p.name,
+      providerCountryCode: p.countryCode,
+      serviceNames: [for (final s in chosen) s.name],
+      durationMinutes: chosen.isEmpty
+          ? null
+          : totalBookingDuration(chosen, null),
+      providerBookingHorizonDays: p.availability.bookingHorizonDays,
+      providerMinimumNoticeMinutes: p.availability.minimumNoticeMinutes,
+    );
+  }
 
   Future<void> pump(WidgetTester tester, Appointment a) async {
     await tester.pumpWidget(
@@ -80,7 +95,7 @@ void main() {
           ChangeNotifierProvider(create: (_) => AppointmentProvider()),
           ChangeNotifierProvider(create: (_) => LocalityProvider()),
         ],
-        home: RescheduleScreen(appointment: a, salon: salon),
+        home: RescheduleScreen(appointment: a),
       ),
     );
     await settleMocks(tester, rounds: 3);

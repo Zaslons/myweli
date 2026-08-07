@@ -220,12 +220,68 @@ void main() {
     });
   });
 
+  group('the public reviews route closes, and closes symmetrically', () {
+    late InMemoryProvidersRepository salons;
+    late ReviewsService svc;
+
+    setUp(() {
+      salons = InMemoryProvidersRepository([
+        {'id': 'live', 'name': 'Live', 'services': <Map<String, dynamic>>[]},
+        {
+          'id': 'stopped',
+          'name': 'Stopped',
+          'status': 'suspended',
+          'services': <Map<String, dynamic>>[],
+        },
+      ]);
+      svc = ReviewsService(
+        InMemoryReviewsRepository(),
+        InMemoryAppointmentRepository(),
+        salons,
+        InMemoryAuthRepository(tokens: tokens, isProd: false),
+      );
+    });
+
+    Future<Response> get(String id) {
+      final c = _MockRequestContext();
+      when(() => c.request).thenReturn(
+        Request.get(Uri.parse('http://localhost/providers/$id/reviews')),
+      );
+      when(() => c.read<TokenService>()).thenReturn(tokens);
+      when(() => c.read<ReviewsService>()).thenReturn(svc);
+      when(() => c.read<ProvidersRepository>()).thenReturn(salons);
+      return list_route.onRequest(c, id);
+    }
+
+    test('a hidden salon 404s', () async {
+      expect((await get('stopped')).statusCode, HttpStatus.notFound);
+      // The pair.
+      expect((await get('live')).statusCode, HttpStatus.ok);
+    });
+
+    test('AND SO DOES AN UNKNOWN ID — or the 404 is the oracle', () async {
+      // THE assertion of this gate. The route had no provider read at all, so
+      // an unknown id returned `200 {items: []}`. Closing only the hidden case
+      // would make 404 mean « exists but hidden » — precisely the enumeration
+      // oracle T51 forbids, reachable by anyone, on a route that takes the
+      // salon id in the path.
+      final unknown = await get('no-such-salon');
+      final hidden = await get('stopped');
+      expect(unknown.statusCode, HttpStatus.notFound);
+      expect(unknown.statusCode, hidden.statusCode);
+      expect(await unknown.json(), await hidden.json());
+    });
+  });
+
   group('routes', () {
     RequestContext ctx(Request request) {
       final context = _MockRequestContext();
       when(() => context.request).thenReturn(request);
       when(() => context.read<TokenService>()).thenReturn(tokens);
       when(() => context.read<ReviewsService>()).thenReturn(service);
+      // New in PR1d: the public reviews route reads the salon so it can 404 a
+      // hidden one. `providers` is the same repo the service already holds.
+      when(() => context.read<ProvidersRepository>()).thenReturn(providers);
       return context;
     }
 

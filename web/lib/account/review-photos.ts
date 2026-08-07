@@ -20,7 +20,7 @@ export function removePhoto(urls: string[], index: number): string[] {
 type SignResponse = {
   method?: string;
   uploadUrl?: string;
-  fields?: Record<string, string>;
+  headers?: Record<string, string>;
   publicUrl?: string;
 };
 
@@ -36,12 +36,13 @@ export async function uploadReviewPhoto(file: File): Promise<string | null> {
   const sign = (await signRes.json().catch(() => ({}))) as SignResponse;
   if (!sign.uploadUrl || !sign.publicUrl) return null;
 
-  const form = new FormData();
-  for (const [k, v] of Object.entries(sign.fields ?? {})) form.append(k, v);
-  form.append('file', file);
+  // Raw PUT, not a multipart POST: R2 does not implement presigned POST (501
+  // NotImplemented). The signature covers these headers — send exactly them.
+  // docs/design/backend-r2-presigned-put.md
   const up = await fetch(sign.uploadUrl, {
-    method: sign.method ?? 'POST',
-    body: form,
+    method: sign.method ?? 'PUT',
+    headers: sign.headers ?? {},
+    body: file,
   });
   return up.ok ? sign.publicUrl : null;
 }

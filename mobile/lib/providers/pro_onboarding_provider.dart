@@ -82,13 +82,17 @@ class ProOnboardingProvider extends ChangeNotifier implements SalonScoped {
         final deposit = await pro.getDepositPolicy(providerId);
         depositConfigured = deposit.success && deposit.data != null;
 
-        final listing = await serviceLocator.providerService.getProviderById(
-          providerId,
-        );
-        photoCount = listing.data?.imageUrls.length ?? 0;
+        // By account, not by public id — and note this stays INSIDE the
+        // `providerId != null` guard: a brand-new pro with no salon must not
+        // issue the call at all. The checklist exists precisely while the
+        // salon is a draft, which is the state the public read is about to
+        // stop serving, and a failed read here is NOT a throw — it would have
+        // rendered a plausible all-todo checklist with no error at all.
+        final listing = await pro.getMyProvider();
+        photoCount = listing.data?.salon.imageUrls.length ?? 0;
         // Mirror the server's publish gate (pro-salon-lifecycle):
         // profile = description + address + commune; location = the map pin.
-        final l = listing.data;
+        final l = listing.data?.salon;
         profileComplete =
             l != null &&
             l.description.trim().isNotEmpty &&

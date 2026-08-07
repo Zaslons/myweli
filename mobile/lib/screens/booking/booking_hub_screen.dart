@@ -21,6 +21,7 @@ import '../../widgets/booking/slot_picker.dart';
 import '../../widgets/common/app_snack_bar.dart';
 import '../../widgets/common/inline_feedback.dart';
 import '../../widgets/common/label_value_row.dart';
+import '../../widgets/common/salon_unavailable_view.dart';
 
 class BookingDraft {
   final String providerId;
@@ -124,6 +125,8 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
       // Rebook: land directly on the date/time picker.
       _activeSection = _HubSection.dateTime;
     }
+    // Frame 1 belongs to the loader, not the error state.
+    context.read<ProviderProvider>().beginProviderLoad();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final providerProvider = Provider.of<ProviderProvider>(
         context,
@@ -421,13 +424,12 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
 
           final p = providerProvider.selectedProvider;
           if (p == null) {
-            return Center(
-              child: Text(
-                providerProvider.error ?? 'Salon introuvable',
-                style: AppTextStyles.bodyMedium.copyWith(
-                  color: AppColors.textSecondary,
-                ),
-              ),
+            // Was a bare centred grey sentence: no icon, no way out, under an
+            // AppBar still titled « Réserver ».
+            return SalonUnavailableView(
+              errorCode: providerProvider.errorCode,
+              onRetry: () =>
+                  providerProvider.loadProviderById(widget.providerId),
             );
           }
 

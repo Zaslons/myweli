@@ -151,3 +151,31 @@ PII** — the name/phone stay in the app behind auth (threat T58).
 `/me/notifications` and `/me/notification-preferences` are already
 role-agnostic (a provider account reads its own feed with its provider
 session). `openapi.yaml` is untouched by this PR.
+
+
+## Auth failures are loud (added after a months-long silent outage)
+
+`FCM_PRIVATE_KEY` held a key for a **retired** Firebase project, so OAuth failed
+on every send and push had never worked — not on Render either. The provider
+returned `(sent: 0, invalidTokens: [])`, which is **byte-identical to "there was
+nobody to send to"**. No log, no signal, nothing to notice.
+
+`PushSendResult` now carries `error`:
+
+| Code | When |
+|---|---|
+| `push_auth_failed` | the service account could not obtain an access token — nothing was sent |
+| `push_send_failed` | FCM returned a status that is neither delivery nor a dead token (500, quota, malformed payload) |
+| `null` | delivered, **or** genuinely nothing to send |
+
+That last row is deliberate: reporting an error on every empty fan-out would
+make the signal noise and it would be ignored again.
+
+Both codes also print to the container log — `push_auth_failed` names the two
+env vars and says they must belong to the **same** service account, because
+that is precisely how it broke: the client email came from the new project and
+the private key from the old one, and each was individually well-formed.
+
+Verified against the real service account: correct credentials + a bad token →
+`error: null, invalidTokens: 1`; **mismatched** credentials → `error:
+push_auth_failed` plus the log line.

@@ -1,4 +1,5 @@
 import '../providers_repository.dart';
+import '../salon_visibility.dart';
 import 'appointment_repository.dart';
 import 'slot_service.dart';
 
@@ -17,18 +18,22 @@ typedef LifecycleResult = ({
 /// Pro-side transitions (accept/complete/no-show) are a separate slice — they
 /// need the provider-account ↔ Provider link + provider authz.
 class AppointmentLifecycleService {
-  AppointmentLifecycleService(
-    this._appointments,
-    this._slots, {
-    ProvidersRepository? providers,
-  }) : _providers = providers;
+  AppointmentLifecycleService(this._appointments, this._slots, this._providers);
 
   final AppointmentRepository _appointments;
   final SlotService _slots;
 
-  /// Needed only for the pro drag-across-columns artist validation (journal
-  /// J1); null keeps older constructions (and consumer paths) unchanged.
-  final ProvidersRepository? _providers;
+  /// **Positional and required as of PR1d**, where it used to be an optional
+  /// named argument documented as *« null keeps older constructions (and
+  /// consumer paths) unchanged »*. That is now backwards: the CONSUMER path is
+  /// exactly the one that needs it, to refuse a reschedule at a salon that has
+  /// stopped taking bookings (Decision C).
+  ///
+  /// Positional, so an omission is a parameter-count error that no `?.` and no
+  /// default can absorb. Nullable, it would have made the new gate silently
+  /// unreachable in the one test file that covers reschedule — a gate that
+  /// cannot fail (§21 row 70), which is PR1b's own miss in miniature.
+  final ProvidersRepository _providers;
 
   static const _terminal = {'cancelled', 'completed', 'noShow'};
 
@@ -50,6 +55,22 @@ class AppointmentLifecycleService {
     }
     if (_terminal.contains(appointment['status'])) {
       return (ok: false, error: 'invalid_state', appointment: null);
+    }
+    // Decision C. The ownership check above ran FIRST on purpose: this caller
+    // owns the booking, so telling them which state their salon is in leaks
+    // nothing they do not already know — unlike `/availability`, which answers
+    // to anyone and therefore flattens both states into `provider_not_found`.
+    //
+    // Both codes already render (`api_appointment_service._messageFor`,
+    // web's `conflictMessage`), and the mobile detail screen already CLAIMS
+    // this behaviour in a comment: « the server refuses the move … hiding is a
+    // courtesy OVER the server gate, never instead of one. » This is the gate
+    // that sentence was describing.
+    final refusal = clientBookingRefusal(
+      await _providers.byId(appointment['providerId'] as String),
+    );
+    if (refusal != null) {
+      return (ok: false, error: refusal, appointment: null);
     }
     return _moveTo(id, appointment, newDateTime);
   }
@@ -74,11 +95,19 @@ class AppointmentLifecycleService {
     if (_terminal.contains(appointment['status'])) {
       return (ok: false, error: 'invalid_state', appointment: null);
     }
+    // Decision A, the OTHER half. Its rule reads « a salon that has not
+    // published yet owns its calendar; a salon that has been SUSPENDED does
+    // not », and `bookManual` has always obeyed it — this path never checked at
+    // all, so the written rule was half true. A draft salon keeps moving its
+    // own bookings; a suspended one does not.
+    final salon = await _providers.byId(managedProviderId);
+    if (salon?['status'] == 'suspended') {
+      return (ok: false, error: 'provider_suspended', appointment: null);
+    }
     // Drag across columns (journal J1): the target artist must belong to
     // THIS salon — the grid is never trusted (threat T42).
     if (artistId != null && artistId.isNotEmpty) {
-      final provider = await _providers?.byId(managedProviderId);
-      final owns = ((provider?['artists'] as List?) ?? const [])
+      final owns = ((salon?['artists'] as List?) ?? const [])
           .cast<Map<String, dynamic>>()
           .any((a) => a['id'] == artistId);
       if (!owns) {
@@ -91,6 +120,7 @@ class AppointmentLifecycleService {
       newDateTime,
       artistId: artistId,
       enforceBookingWindow: false,
+      requireVisibleSalon: false,
     );
   }
 
@@ -108,6 +138,11 @@ class AppointmentLifecycleService {
     // this method, which is exactly why the distinction has to be a parameter
     // rather than a property of the code path.
     bool enforceBookingWindow = true,
+    // Decision C's sibling of the flag above, and it moves with it: the salon
+    // moving its own booking is exempt from BOTH client-facing rules. They
+    // always travel together, which is the trigger for folding them into one
+    // audience enum the day a third caller-kind appears (§9).
+    bool requireVisibleSalon = true,
   }) async {
     // Capacity model: validate against the TARGET artist's calendar (the
     // drag's new column when given, else the booking's current artist).
@@ -120,6 +155,7 @@ class AppointmentLifecycleService {
       serviceIds: (appointment['serviceIds'] as List).cast<String>(),
       artistId: effectiveArtist,
       enforceBookingWindow: enforceBookingWindow,
+      requireVisibleSalon: requireVisibleSalon,
     );
     if (!slotResult.ok) {
       return (ok: false, error: slotResult.error, appointment: null);

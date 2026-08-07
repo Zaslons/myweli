@@ -236,13 +236,53 @@ const EARN_TX = [
   },
 ];
 
+// A salon that STOPPED taking appointments (Decision C).
+//
+// Immutable and separate from `proProvider`, which the `PATCH /providers/{id}`
+// handler mutates — the stub is shared across parallel specs (B10), so a
+// fixture that could be written to would make one spec's assertions depend on
+// another spec's order.
+const stoppedSalon = Object.freeze({
+  ...JSON.parse(JSON.stringify(provider)),
+  id: 'p4',
+  slug: 'salon-arrete',
+  name: 'Salon Arrêté',
+  status: 'suspended',
+});
+
+// The salon facts the SERVER now stamps on a consumer read
+// (`withProviderFacts`). The stub carries them because the client no longer
+// fetches them — an un-enriched fixture would silently blank every account
+// assertion and read as the client being broken.
+const salonFactsFor = (pid, artistId) => {
+  const p = pid === 'p3' ? secondSalon : pid === 'p4' ? stoppedSalon : provider;
+  return {
+    artistName:
+      (p.artists ?? []).find((x) => x.id === artistId)?.name ?? null,
+    providerName: p.name,
+    providerSlug: p.slug,
+    providerStatus: p.status ?? 'active',
+    providerPhone: p.phoneNumber ?? null,
+    providerWhatsapp: p.whatsapp ?? null,
+    providerAddress: p.address ?? null,
+    providerCountryCode: p.countryCode ?? null,
+    providerTimezone: p.timezone ?? null,
+    providerCurrency: p.currency ?? null,
+    depositMobileMoneyOperator: p.depositMobileMoneyOperator ?? null,
+    depositMobileMoneyNumber: p.depositMobileMoneyNumber ?? null,
+    serviceNames: (p.services ?? []).map((x) => x.name),
+    providerBookingHorizonDays: p.availability?.bookingHorizonDays ?? 365,
+    providerMinimumNoticeMinutes: p.availability?.minimumNoticeMinutes ?? 60,
+  };
+};
+
 const consumerAppt = (id) => ({
   id,
   userId: 'u1',
   // Multi-pays MP3: appt4 is the GABON booking (p3 — Libreville/XAF) with
   // the backend-stamped currency + provider market carriers; the account
   // surfaces must render its wall-clock at UTC+1 and « FCFA » from XAF.
-  providerId: id === 'appt4' ? 'p3' : 'p1',
+  providerId: id === 'appt4' ? 'p3' : id === 'appt5' ? 'p4' : 'p1',
   ...(id === 'appt4'
     ? {
         currency: 'XAF',
@@ -272,6 +312,10 @@ const consumerAppt = (id) => ({
     id === 'appt3' ? 'https://cdn.stub/deposit/u1/proof.jpg' : null,
   balanceDue: id === 'appt3' ? 10000 : 15000,
   cancellationWindowHours: 24,
+  ...salonFactsFor(
+    id === 'appt4' ? 'p3' : id === 'appt5' ? 'p4' : 'p1',
+    id === 'appt4' ? null : 'a1',
+  ),
 });
 
 // Pro side (M7) — pappt1, mutable status via the lifecycle endpoints. Kept
@@ -602,6 +646,14 @@ createServer(async (req, res) => {
   }
   // --- booking funnel (M5) ---
   if (url.pathname === '/availability') {
+    // Decision C: a salon the browse route no longer serves has no public
+    // slots, and answers `provider_not_found` — the SAME code as an unknown
+    // id, because this is the one public door that takes an arbitrary
+    // providerId in a query string (T51's no-oracle rule).
+    const availFor = url.searchParams.get('providerId');
+    if (availFor && !['p1', 'p2'].includes(availFor)) {
+      return json(res, 404, { error: 'provider_not_found' });
+    }
     const date =
       url.searchParams.get('date') || new Date().toISOString().slice(0, 10);
     const artistId = url.searchParams.get('artistId');
@@ -705,7 +757,13 @@ createServer(async (req, res) => {
     return json(res, 200, notifPrefs);
   }
   if (url.pathname === '/me/favorites') {
-    return json(res, 200, { providerIds: ['p1'] });
+    // Hydrated server-side and NOT filtered on status: a favourite is a
+    // relationship the caller already has (Decision C). `p4` stopped after it
+    // was favourited, and it must still come back — marked, not missing.
+    return json(res, 200, {
+      providerIds: ['p1', 'p4'],
+      providers: [provider, stoppedSalon],
+    });
   }
   if (url.pathname.match(/^\/me\/favorites\/[^/]+$/)) {
     res.writeHead(204);
@@ -1321,45 +1379,69 @@ createServer(async (req, res) => {
     const b = await readBody(req);
     if (b.purpose === 'deposit') {
       return json(res, 200, {
-        method: 'POST',
+        method: 'PUT',
         uploadUrl: `http://127.0.0.1:${port}/r2-upload`,
-        fields: {},
+        headers: { 'content-type': 'image/jpeg' },
         key: `deposit/u1/${imgSeq++}.jpg`,
       });
     }
     if (b.purpose === 'review') {
       const n = imgSeq++;
       return json(res, 200, {
-        method: 'POST',
+        method: 'PUT',
         uploadUrl: `http://127.0.0.1:${port}/r2-upload`,
-        fields: {},
+        headers: { 'content-type': 'image/jpeg' },
         key: `review/u1/${n}.jpg`,
         publicUrl: `https://cdn.stub/review/u1/${n}.jpg`,
       });
     }
     if (b.purpose === 'kyc') {
       return json(res, 200, {
-        method: 'POST',
+        method: 'PUT',
         uploadUrl: `http://127.0.0.1:${port}/r2-upload`,
-        fields: {},
+        headers: { 'content-type': 'image/jpeg' },
         key: `kyc/acc1/${imgSeq++}.jpg`,
       });
     }
     return json(res, 200, {
-      method: 'POST',
+      method: 'PUT',
       uploadUrl: `http://127.0.0.1:${port}/r2-upload`,
-      fields: {},
+      headers: { 'content-type': 'image/jpeg' },
       key: `gallery/p1/${imgSeq}.jpg`,
       publicUrl: `https://cdn.stub/gallery/p1/${imgSeq++}.jpg`,
     });
   }
   if (url.pathname === '/r2-upload') {
-    // The browser POSTs bytes here directly (cross-origin) — accept + CORS-allow.
-    res.writeHead(204, { 'access-control-allow-origin': '*' });
+    // The browser PUTs bytes here directly, cross-origin. `content-type:
+    // image/jpeg` is NOT a CORS-safelisted value, so the browser sends a
+    // PREFLIGHT first — answering only the PUT would let this stub pass while
+    // real storage fails, which is exactly the class of gap that let the
+    // presigned-POST defect ship.
+    if (req.method === 'OPTIONS') {
+      res.writeHead(204, {
+        'access-control-allow-origin': '*',
+        'access-control-allow-methods': 'PUT, POST, OPTIONS',
+        'access-control-allow-headers': 'content-type',
+        'access-control-max-age': '3600',
+      });
+      return res.end();
+    }
+    res.writeHead(200, { 'access-control-allow-origin': '*' });
     return res.end();
   }
-  // « Avis » (web-pro-reviews.md) — the salon's paginated public reviews.
-  if (url.pathname.match(/^\/providers\/[^/]+\/reviews$/)) {
+  // « Avis » (web-pro-reviews.md).
+  //
+  // Two paths, on purpose. `/providers/{id}/reviews` is the PUBLIC list a
+  // consumer salon page reads; `/me/provider/reviews` is the pro's own read,
+  // resolved by account (Decision C) — the pro surface used to take the first
+  // one, sending the salon id from the browser to a route that checks nothing.
+  // The PUBLIC list closes with Decision C — hidden AND unknown, because a 404
+  // that only covered the hidden case would mean « exists but hidden ».
+  const pubReviews = url.pathname.match(/^\/providers\/([^/]+)\/reviews$/);
+  if (pubReviews && !['p1', 'p2'].includes(pubReviews[1])) {
+    return json(res, 404, { error: 'not_found' });
+  }
+  if (url.pathname === '/me/provider/reviews' || pubReviews) {
     return json(res, 200, {
       items: [
         {
@@ -1483,6 +1565,9 @@ createServer(async (req, res) => {
             consumerAppt('appt2'),
             consumerAppt('appt3'),
             consumerAppt('appt4'),
+            // The booking at a salon that stopped — the case the whole slice
+            // exists for.
+            consumerAppt('appt5'),
           ];
       return json(res, 200, {
         items,
@@ -1553,8 +1638,11 @@ createServer(async (req, res) => {
     }
     if (provMatch[1] === 'p1') return json(res, 200, provider);
     if (provMatch[1] === 'p2') return json(res, 200, depositProvider);
-    // Multi-pays MP3: appt4's enrichment reads the Gabon salon.
-    if (provMatch[1] === 'p3') return json(res, 200, secondSalon);
+    // `p3` (draft) and `p4` (suspended) fall through to the 404 below: the
+    // stub models the CLOSED backend of Decision C, one PR before it lands.
+    // That is what makes this suite the proof that the closure is survivable —
+    // every account assertion below runs against a server that already refuses
+    // to serve those salons publicly.
     return json(res, 404, { error: 'not_found' });
   }
   return json(res, 404, { error: 'not_found' });

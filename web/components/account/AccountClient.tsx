@@ -11,6 +11,7 @@ import {
   type Tab,
   TABS,
   filterByTab,
+  salonStoppedMessageFor,
 } from '../../lib/account/appointments';
 import {
   type Me,
@@ -315,18 +316,32 @@ export function AccountClient() {
           />
         ) : (
           <div className="mt-m grid grid-cols-1 gap-m sm:grid-cols-2 lg:grid-cols-3">
-            {favorites.map((f) => (
-              <div key={f.id}>
-                <ProviderCard provider={f} />
-                <button
-                  type="button"
-                  onClick={() => removeFav(f.id)}
-                  className="mt-xs text-bodyMedium text-textTertiary underline"
-                >
-                  Retirer des favoris
-                </button>
-              </div>
-            ))}
+            {favorites.map((f) => {
+              // A salon that stopped is MARKED, not dropped. This list used to
+              // be hydrated by fetching each favorite from the PUBLIC route
+              // and filtering the failures away, so a stopped salon silently
+              // left the list — and if it was the only one, the page said
+              // « Aucun favori » to someone who had one. « Retirer des
+              // favoris » stays: it is the one action that still helps.
+              const stopped = salonStoppedMessageFor(f.status);
+              return (
+                <div key={f.id}>
+                  <ProviderCard provider={f} />
+                  {stopped ? (
+                    <p className="mt-xs text-bodySmall text-textSecondary">
+                      {stopped}
+                    </p>
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={() => removeFav(f.id)}
+                    className="mt-xs text-bodyMedium text-textTertiary underline"
+                  >
+                    Retirer des favoris
+                  </button>
+                </div>
+              );
+            })}
           </div>
         )}
       </section>

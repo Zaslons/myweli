@@ -1,6 +1,13 @@
 include: package:lints/recommended.yaml
 
 analyzer:
+  exclude:
+    # `dart_frog build` generates this and COPIES `lib/` into it, so every file
+    # is analysed twice and the generated entrypoint trips 374 lints that no
+    # one can fix. It is gitignored, so CI never saw it — but Q1 makes
+    # `dart_frog build` a routine local step (backend/README.md), and a bare
+    # `dart analyze` after one used to look catastrophic for no reason.
+    - build/**
   language:
     strict-casts: true
     strict-inference: true

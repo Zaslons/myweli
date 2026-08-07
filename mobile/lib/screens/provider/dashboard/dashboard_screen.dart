@@ -89,7 +89,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Tableau de bord'),
+        // **« Tableau de bord » is 231.1dp and this bar's budget is 232.**
+        // It cleared by 0.9dp, so the corpus run and the matrix both read it
+        // green — and the device at `accessibility-large` still rendered
+        // « Tableau de b… », which is the string §21 row 79 was opened with.
+        // A margin under a device pixel is not a pass.
+        //
+        // Neither action can give: the bell and the profile are both already
+        // icons, and `/pro/profile` is reachable from **nowhere else** in the
+        // app, so removing it would strand the screen. So the title gives, to
+        // the word the house already uses for a landing screen (§17.1 — the
+        // consumer bottom nav says « Accueil » in five places).
+        title: const Text('Accueil'),
         actions: [
           Consumer<NotificationsProvider>(
             builder: (context, notifications, _) {

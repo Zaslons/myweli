@@ -36,13 +36,29 @@ class FcmV1PushProvider implements PushProvider {
     required String body,
     Map<String, String> data = const {},
   }) async {
-    if (tokens.isEmpty) return (sent: 0, invalidTokens: const <String>[]);
+    // Nothing to do is NOT an error — reporting one here would make the signal
+    // noise and it would be ignored again.
+    if (tokens.isEmpty) {
+      return (sent: 0, invalidTokens: const <String>[], error: null);
+    }
     final accessToken = await _tokenSource.token();
     if (accessToken == null) {
-      return (sent: 0, invalidTokens: const <String>[]);
+      // ignore: avoid_print — this must reach the container log. A silent
+      // return here is exactly how push stayed broken for months.
+      print(
+        'ERROR: push_auth_failed — the FCM service account could not obtain an '
+        'access token. Check FCM_CLIENT_EMAIL and FCM_PRIVATE_KEY belong to the '
+        'SAME service account in project $projectId. Nothing was sent.',
+      );
+      return (
+        sent: 0,
+        invalidTokens: const <String>[],
+        error: 'push_auth_failed',
+      );
     }
 
     var sent = 0;
+    var failed = 0;
     final invalid = <String>[];
     for (final token in tokens) {
       final payload = jsonEncode({
@@ -76,12 +92,22 @@ class FcmV1PushProvider implements PushProvider {
           sent++;
         } else if (_isInvalidToken(res)) {
           invalid.add(token);
+        } else {
+          // Neither delivered nor a dead token — a 500, a quota rejection, a
+          // malformed payload. This used to vanish entirely.
+          failed++;
+          // ignore: avoid_print
+          print('WARNING: push_send_failed — FCM returned ${res.statusCode}');
         }
       } catch (_) {
-        // transient — leave the token, don't prune.
+        failed++; // transient — leave the token, don't prune.
       }
     }
-    return (sent: sent, invalidTokens: invalid);
+    return (
+      sent: sent,
+      invalidTokens: invalid,
+      error: failed > 0 ? 'push_send_failed' : null,
+    );
   }
 
   /// FCM marks a stale token with 404 (UNREGISTERED) or 400 (invalid argument).

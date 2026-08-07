@@ -21,10 +21,16 @@ class AppointmentProvider extends ChangeNotifier {
   bool _isLoading = false;
   String? _error;
 
+  /// The machine code behind [_error], kept because a sentence alone cannot
+  /// say whether the refusal has a way out (§21 row 82). Same shape as
+  /// `ProTeamProvider._inviteErrorCode`, which the offer CTAs already use.
+  String? _errorCode;
+
   List<Appointment> get appointments => _appointments;
   Appointment? get selectedAppointment => _selectedAppointment;
   bool get isLoading => _isLoading;
   String? get error => _error;
+  String? get errorCode => _errorCode;
 
   List<Appointment> get upcomingAppointments {
     final now = AppClock.now();
@@ -58,9 +64,13 @@ class AppointmentProvider extends ChangeNotifier {
   bool hasCompletedBookingAt(String providerId, String userId) =>
       latestCompletedAppointmentId(providerId, userId) != null;
 
-  /// The most recent completed appointment id the user had at [providerId] — the
+  /// The most recent completed appointment the user had at [providerId] — the
   /// visit a "leave a review" CTA reviews. Null if there is none.
-  String? latestCompletedAppointmentId(String providerId, String userId) {
+  ///
+  /// Returns the whole booking, not just its id, because the review sheet
+  /// shows WHO served that visit and the answer rides the appointment now
+  /// (Decision C) rather than being looked up in the salon's roster.
+  Appointment? latestCompletedAppointment(String providerId, String userId) {
     final completed =
         _appointments
             .where(
@@ -71,8 +81,11 @@ class AppointmentProvider extends ChangeNotifier {
             )
             .toList()
           ..sort((a, b) => b.appointmentDate.compareTo(a.appointmentDate));
-    return completed.isEmpty ? null : completed.first.id;
+    return completed.isEmpty ? null : completed.first;
   }
+
+  String? latestCompletedAppointmentId(String providerId, String userId) =>
+      latestCompletedAppointment(providerId, userId)?.id;
 
   Future<void> loadAppointments({AppointmentStatus? status}) async {
     _isLoading = true;
@@ -110,6 +123,7 @@ class AppointmentProvider extends ChangeNotifier {
   }) async {
     _isLoading = true;
     _error = null;
+    _errorCode = null;
     notifyListeners();
 
     try {
@@ -125,13 +139,16 @@ class AppointmentProvider extends ChangeNotifier {
       if (response.success && response.data != null) {
         _appointments.add(response.data!);
         _error = null;
+        _errorCode = null;
         return true;
       } else {
         _error = response.error ?? 'Erreur lors de la réservation';
+        _errorCode = response.code;
         return false;
       }
     } catch (e) {
       _error = e.toString();
+      _errorCode = null;
       return false;
     } finally {
       _isLoading = false;
@@ -271,7 +288,8 @@ class AppointmentProvider extends ChangeNotifier {
   /// Only this method threw it away. A record rather than the raw
   /// `ApiResponse` because callers want *"here are the slots, here is why there
   /// are none"* and never the envelope's other fields.
-  Future<({List<DateTime> slots, String? error})> getAvailableTimeSlots({
+  Future<({List<DateTime> slots, String? error, String? code})>
+  getAvailableTimeSlots({
     required String providerId,
     required DateTime date,
     List<String>? serviceIds,
@@ -287,13 +305,17 @@ class AppointmentProvider extends ChangeNotifier {
         durationMinutes: durationMinutes,
       );
       if (response.success && response.data != null) {
-        return (slots: response.data!, error: null);
+        return (slots: response.data!, error: null, code: null);
       }
-      return (slots: const <DateTime>[], error: response.error ?? kSlotsError);
+      return (
+        slots: const <DateTime>[],
+        error: response.error ?? kSlotsError,
+        code: response.code,
+      );
     } catch (e) {
       // The message is deliberately NOT `e.toString()`: a socket exception is
       // not a sentence a client should read, and §14 wants copy, not a stack.
-      return (slots: const <DateTime>[], error: kSlotsError);
+      return (slots: const <DateTime>[], error: kSlotsError, code: 'network');
     }
   }
 }

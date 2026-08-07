@@ -248,7 +248,10 @@ class _ProManualBookingScreenState extends State<ProManualBookingScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Nouveau rendez-vous')),
+      // « Nouvelle » lives on the three controls that open this screen — the
+      // journal FAB, its empty state, and the client sheet — so the bar names
+      // the object rather than repeating the act (A15, §13.3).
+      appBar: AppBar(title: const Text('Réservation')),
       body: Consumer2<ProAuthProvider, ProServiceProvider>(
         builder: (context, auth, serviceProvider, _) {
           final providerId = auth.activeSalonId;

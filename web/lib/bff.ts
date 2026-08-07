@@ -76,92 +76,41 @@ export function respond(result: ApiResult): NextResponse {
   return res;
 }
 
-// --- appointment enrichment (provider name/slug + service names) -------------
+// --- appointment enrichment ---------------------------------------------------
+//
+// **The fetching is gone, and that is the change.** This block used to call
+// the PUBLIC `GET /providers/{id}` once per distinct salon just to print a
+// name, and returned `{}` when that failed — so a client looking at their own
+// booking silently lost the salon's name, the « Voir le salon » link, the
+// contact buttons, the service list and the Mobile Money handle they owed a
+// deposit to. Decision C closes that route for a salon that is `draft` or
+// `suspended`, which would have made the silent version the normal one.
+//
+// The server enriches now (`withProviderFacts`): `/appointments` is
+// authenticated and scoped to the caller, so it is the endpoint that owns the
+// relationship and the only one that may serve a hidden salon's facts without
+// giving an anonymous caller an enumeration oracle. What is left here is the
+// one fact the server does not send.
 
-type RawAppt = Record<string, unknown> & {
-  providerId?: string;
-  serviceIds?: string[];
-  artistId?: string | null;
-  userId?: string;
-  providerTimezone?: string | null;
-  providerCurrency?: string | null;
-  providerCountryCode?: string | null;
-};
+type RawAppt = Record<string, unknown> & { userId?: string };
 
-type ProviderSummary = {
-  name?: string;
-  slug?: string;
-  services?: { id: string; name: string }[];
-  artists?: { id: string; name: string }[];
-  phoneNumber?: string | null;
-  whatsapp?: string | null;
-  depositMobileMoneyOperator?: string | null;
-  depositMobileMoneyNumber?: string | null;
-  /// Multi-pays MP1 market fields (public) — the consumer carriers.
-  timezone?: string | null;
-  currency?: string | null;
-  countryCode?: string | null;
-};
-
-async function providerSummary(id: string): Promise<ProviderSummary> {
-  const r = await fetch(`${apiBase}/providers/${id}`);
-  if (!r.ok) return {};
-  return (await r.json().catch(() => ({}))) as ProviderSummary;
+/// `salonEntered` — was this booking typed by the SALON rather than made by
+/// the client? The backend marks it with a sentinel `userId`.
+///
+/// Mobile derives the same fact from `clientName != null`. One product fact,
+/// two client derivations: a candidate for the backend to own, recorded in
+/// `salon-state-and-refusals.md` §9 rather than fixed here.
+function withSalonEntered(a: RawAppt) {
+  return { ...a, salonEntered: a.userId === 'manual' };
 }
 
-function enrichOneWith(a: RawAppt, p: ProviderSummary) {
-  const byId = new Map((p.services ?? []).map((s) => [s.id, s.name]));
-  return {
-    ...a,
-    providerName: p.name,
-    providerSlug: p.slug,
-    // Parity 1.6: contact actions on the consumer detail (public fields).
-    providerPhone: p.phoneNumber ?? null,
-    providerWhatsapp: p.whatsapp ?? null,
-    // Parity 1.8: show the chosen spécialiste on the consumer detail.
-    artistName: a.artistId
-      ? ((p.artists ?? []).find((x) => x.id === a.artistId)?.name ?? null)
-      : null,
-    serviceNames: (a.serviceIds ?? [])
-      .map((id) => byId.get(id))
-      .filter((n): n is string => Boolean(n)),
-    // K2: the detail's deposit-attach block shows the salon's Mobile Money
-    // coordinates (public policy fields, not PII).
-    depositMobileMoneyOperator: p.depositMobileMoneyOperator ?? null,
-    depositMobileMoneyNumber: p.depositMobileMoneyNumber ?? null,
-    // Multi-pays carriers: the backend stamps these on enriched payloads
-    // (MP1); the provider summary backfills pre-MP1 rows.
-    providerTimezone: a.providerTimezone ?? p.timezone ?? null,
-    providerCurrency: a.providerCurrency ?? p.currency ?? null,
-    providerCountryCode: a.providerCountryCode ?? p.countryCode ?? null,
-    salonEntered: a.userId === 'manual',
-  };
-}
-
-/// Enrich a list response (`{ items: [...] }`), fetching each distinct provider
-/// once (server-side, internal — small N per user).
+/// Enrich a list response (`{ items: [...] }`).
 export async function enrichAppointments(body: unknown): Promise<unknown> {
   const b = body as { items?: RawAppt[] };
-  const items = b.items ?? [];
-  const ids = [...new Set(items.map((a) => a.providerId).filter(Boolean))];
-  const summaries = new Map<string, ProviderSummary>(
-    await Promise.all(
-      ids.map(
-        async (id) => [id!, await providerSummary(id!)] as const,
-      ),
-    ),
-  );
-  return {
-    ...b,
-    items: items.map((a) =>
-      enrichOneWith(a, summaries.get(a.providerId ?? '') ?? {}),
-    ),
-  };
+  return { ...b, items: (b.items ?? []).map(withSalonEntered) };
 }
 
 /// Enrich a single appointment (detail).
 export async function enrichAppointment(body: unknown): Promise<unknown> {
-  const a = body as RawAppt;
-  if (!a.providerId) return a;
-  return enrichOneWith(a, await providerSummary(a.providerId));
+  return withSalonEntered(body as RawAppt);
 }

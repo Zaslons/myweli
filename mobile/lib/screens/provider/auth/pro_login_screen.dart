@@ -17,6 +17,7 @@ import '../../../providers/pro_auth_provider.dart';
 import '../../../widgets/common/app_button.dart';
 import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/app_text_field.dart';
+import '../../../widgets/common/apple_logo.dart';
 import '../../../widgets/common/auth_switch_prompt.dart';
 import '../../../widgets/common/google_g_logo.dart';
 import '../../../widgets/common/inline_feedback.dart';
@@ -274,6 +275,7 @@ class _ProLoginScreenState extends State<ProLoginScreen> {
                   const SizedBox(height: AppTheme.spacingSM),
                   AppButton(
                     text: 'Continuer avec Apple',
+                    leading: const AppleLogo(),
                     onPressed: auth.isLoading ? null : _handleApple,
                   ),
                 ],

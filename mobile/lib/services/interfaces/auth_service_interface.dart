@@ -70,6 +70,19 @@ abstract class AuthServiceInterface {
     String? address,
     String? areaId,
   });
+
+  /// The Apple twin of [registerProviderWithGoogle]. The backend has accepted
+  /// this since the auth overhaul — `routes/auth/provider/register.dart:87-112`
+  /// verifies the identity token and stores `authProvider: 'apple'` + the
+  /// `appleSub` — but no client ever called it, so the register screen's Apple
+  /// button was a no-op stub.
+  Future<ApiResponse<ProviderUser>> registerProviderWithApple({
+    required String phoneNumber,
+    required String businessName,
+    required BusinessType businessType,
+    String? address,
+    String? areaId,
+  });
   Future<ApiResponse<ProviderUser>> registerProviderWithEmail({
     required String email,
     required String code,

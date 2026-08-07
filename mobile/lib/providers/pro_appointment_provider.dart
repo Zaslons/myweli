@@ -13,9 +13,15 @@ class ProAppointmentProvider extends ChangeNotifier implements SalonScoped {
   bool _isLoading = false;
   String? _error;
 
+  /// The machine code behind [_error] — row 82. `ProTeamProvider` does the
+  /// same for the offer gates; without it a screen can render the sentence but
+  /// not the action that goes with it.
+  String? _errorCode;
+
   List<Appointment> get appointments => _appointments;
   bool get isLoading => _isLoading;
   String? get error => _error;
+  String? get errorCode => _errorCode;
 
   Future<void> loadAppointments(
     String providerId, {
@@ -242,9 +248,11 @@ class ProAppointmentProvider extends ChangeNotifier implements SalonScoped {
         _appointments = [..._appointments, response.data!]
           ..sort((a, b) => a.appointmentDate.compareTo(b.appointmentDate));
         _error = null;
+        _errorCode = null;
         return true;
       }
       _error = response.error ?? 'Erreur lors de la création';
+      _errorCode = response.code;
       return false;
     } catch (e) {
       _error = e.toString();

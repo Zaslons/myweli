@@ -67,7 +67,11 @@ class _ProOnboardingScreenState extends State<ProOnboardingScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Configurer mon profil')),
+      // The BAR names the screen; the two rows that open it keep the verb
+      // phrase — a `SettingsTile` has the width to say « Configurer mon
+      // profil » and a 280dp bar does not (A15, §13.3). Same move as
+      // « Préférences » / « Préférences de notification ».
+      appBar: AppBar(title: const Text('Configuration')),
       body: Consumer2<ProAuthProvider, ProOnboardingProvider>(
         builder: (context, auth, onboarding, _) {
           final pro = auth.provider;

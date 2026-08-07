@@ -1,25 +1,25 @@
-'use client';
+"use client";
 
-import Link from 'next/link';
-import { Chip } from '../Chip';
-import { useEffect, useState } from 'react';
-import { statusLabelFr } from '../../lib/account/appointments';
+import Link from "next/link";
+import { Chip } from "../Chip";
+import { useEffect, useState } from "react";
+import { statusLabelFr } from "../../lib/account/appointments";
 import {
   arriveAppointment,
   getClientCard,
   proAction,
   rescheduleAppointment,
-} from '../../lib/api/pro';
-import { countFr, formatDateTimeFr, formatFcfa } from '../../lib/format';
-import type { SalonClientCard } from '../../lib/pro/clients';
-import { maskPhone, noShowBadge, noShowLabel } from '../../lib/pro/clients';
-import { hhmm, minutesOfDay, statusKey } from '../../lib/pro/journal';
-import { combineDateTime } from '../../lib/pro/manual-booking';
-import { salonDayKey, salonToday } from '../../lib/time';
-import { type Membership, hasCap } from '../../lib/pro/team';
-import type { ProAppointment } from '../../lib/pro/today';
-import { Button } from '../Button';
-import { conflictMessage } from '../../lib/booking/window';
+} from "../../lib/api/pro";
+import { countFr, formatDateTimeFr, formatFcfa } from "../../lib/format";
+import type { SalonClientCard } from "../../lib/pro/clients";
+import { maskPhone, noShowBadge, noShowLabel } from "../../lib/pro/clients";
+import { hhmm, minutesOfDay, statusKey } from "../../lib/pro/journal";
+import { combineDateTime } from "../../lib/pro/manual-booking";
+import { salonDayKey, salonToday } from "../../lib/time";
+import { type Membership, hasCap } from "../../lib/pro/team";
+import type { ProAppointment } from "../../lib/pro/today";
+import { Button } from "../Button";
+import { conflictMessage } from "../../lib/booking/window";
 
 /// The journal side panel (module journal J1 §3.4): booking facts + the C2
 /// client mini-card (audited read) + state-aware actions.
@@ -43,7 +43,7 @@ export function JournalPanel({
   serviceName: (id: string) => string | undefined;
   onClose: () => void;
   onChanged: () => void;
-  onToast: (msg: string, kind?: 'success' | 'info' | 'error') => void;
+  onToast: (msg: string, kind?: "success" | "info" | "error") => void;
   /// The active salon's timezone/currency (multi-pays MP3) — wall-clocks and
   /// money render in the SALON's market, never the viewer's.
   tz?: string;
@@ -53,11 +53,11 @@ export function JournalPanel({
   const [busy, setBusy] = useState(false);
   // « Reprogrammer » (parity 1.9) — cross-day from the panel too.
   const [reprog, setReprog] = useState(false);
-  const [reprogDate, setReprogDate] = useState('');
-  const [reprogTime, setReprogTime] = useState('');
+  const [reprogDate, setReprogDate] = useState("");
+  const [reprogTime, setReprogTime] = useState("");
   const key = statusKey(appt);
-  const canManageAll = hasCap(membership, 'journal.manage.all');
-  const canViewClients = hasCap(membership, 'clients.view');
+  const canManageAll = hasCap(membership, "journal.manage.all");
+  const canViewClients = hasCap(membership, "clients.view");
 
   // C2: the client mini-card (this GET is audited server-side, by design).
   // Skipped without clients.view — the fetch would be a guaranteed 403.
@@ -84,16 +84,17 @@ export function JournalPanel({
     else
       onToast(
         conflictMessage(r.error, {
-          taken: 'Créneau indisponible.',
-          fallback: 'Action impossible. Réessayez.',
+          audience: "salon",
+          taken: "Créneau indisponible.",
+          fallback: "Action impossible. Réessayez.",
         }),
-        'error',
+        "error",
       );
   }
 
   const services = (appt.serviceIds ?? [])
     .map((id) => serviceName(id) ?? id)
-    .join(', ');
+    .join(", ");
 
   return (
     <div
@@ -128,10 +129,14 @@ export function JournalPanel({
         {/* Client */}
         <div>
           <p className="flex items-center gap-s font-medium text-textPrimary">
-            {appt.clientDisplayName ?? appt.clientName ?? 'Client'}
-            {noShowBadge(appt.clientNoShowCount) !== 'none' ? (
+            {appt.clientDisplayName ?? appt.clientName ?? "Client"}
+            {noShowBadge(appt.clientNoShowCount) !== "none" ? (
               <Chip
-                variant={noShowBadge(appt.clientNoShowCount) === 'red' ? 'tinted' : 'neutral'}
+                variant={
+                  noShowBadge(appt.clientNoShowCount) === "red"
+                    ? "tinted"
+                    : "neutral"
+                }
                 tint="error"
               >
                 {noShowLabel(appt.clientNoShowCount ?? 0)}
@@ -147,9 +152,11 @@ export function JournalPanel({
           {card ? (
             <div className="mt-s rounded-lg bg-surface p-s text-bodySmall text-textSecondary">
               <div className="flex justify-between">
-                <span>{countFr(card.stats.visits, 'visite', 'visites')}</span>
+                <span>{countFr(card.stats.visits, "visite", "visites")}</span>
                 <span>{formatFcfa(card.stats.spentFcfa, currency)}</span>
-                <span>{countFr(card.stats.noShows, 'absence', 'absences')}</span>
+                <span>
+                  {countFr(card.stats.noShows, "absence", "absences")}
+                </span>
               </div>
               {/* clip-ok: a PREVIEW of the note, in guillemets, with « Voir la
                   fiche » rendered immediately below it, linking to the client
@@ -178,7 +185,7 @@ export function JournalPanel({
             value={formatDateTimeFr(appt.appointmentDate, tz)}
           />
           <Row label="Prestations" value={services} />
-          {typeof appt.totalPrice === 'number' ? (
+          {typeof appt.totalPrice === "number" ? (
             <Row label="Total" value={formatFcfa(appt.totalPrice, currency)} />
           ) : null}
         </dl>
@@ -186,26 +193,26 @@ export function JournalPanel({
 
       {/* Actions by state */}
       <div className="space-y-s border-t border-border p-m">
-        {appt.status === 'pending' && canManageAll ? (
+        {appt.status === "pending" && canManageAll ? (
           <div className="flex gap-s">
             <Button
-              onClick={() => act(() => proAction(appt.id, 'accept'))}
+              onClick={() => act(() => proAction(appt.id, "accept"))}
               disabled={busy}
             >
               Accepter
             </Button>
             <Button
               variant="secondary"
-              onClick={() => act(() => proAction(appt.id, 'reject'))}
+              onClick={() => act(() => proAction(appt.id, "reject"))}
               disabled={busy}
             >
               Refuser
             </Button>
           </div>
         ) : null}
-        {appt.status === 'confirmed' ? (
+        {appt.status === "confirmed" ? (
           <div className="flex flex-wrap gap-s">
-            {key !== 'arrived' && canManageAll ? (
+            {key !== "arrived" && canManageAll ? (
               <Button
                 onClick={() => act(() => arriveAppointment(appt.id))}
                 disabled={busy}
@@ -215,14 +222,14 @@ export function JournalPanel({
             ) : null}
             <Button
               variant="secondary"
-              onClick={() => act(() => proAction(appt.id, 'complete'))}
+              onClick={() => act(() => proAction(appt.id, "complete"))}
               disabled={busy}
             >
               Terminé
             </Button>
             <Button
               variant="secondary"
-              onClick={() => act(() => proAction(appt.id, 'no-show'))}
+              onClick={() => act(() => proAction(appt.id, "no-show"))}
               disabled={busy}
             >
               Non présenté
@@ -230,7 +237,7 @@ export function JournalPanel({
           </div>
         ) : null}
 
-        {(appt.status === 'pending' || appt.status === 'confirmed') &&
+        {(appt.status === "pending" || appt.status === "confirmed") &&
         canManageAll ? (
           !reprog ? (
             <Button
@@ -241,9 +248,7 @@ export function JournalPanel({
                 // Prefill with the SALON wall-clock (multi-pays MP3 — the old
                 // ISO-prefix reads were the UTC clock face).
                 setReprogDate(salonDayKey(new Date(appt.appointmentDate), tz));
-                setReprogTime(
-                  hhmm(minutesOfDay(appt.appointmentDate, tz)),
-                );
+                setReprogTime(hhmm(minutesOfDay(appt.appointmentDate, tz)));
               }}
             >
               Reprogrammer
@@ -283,7 +288,7 @@ export function JournalPanel({
                         appt.id,
                         // The picked wall-clock IS salon time — offset-aware
                         // build through the seam (multi-pays MP3).
-                        combineDateTime(reprogDate, reprogTime, tz) ?? '',
+                        combineDateTime(reprogDate, reprogTime, tz) ?? "",
                       ),
                     )
                   }
