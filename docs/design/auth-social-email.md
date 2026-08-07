@@ -243,7 +243,10 @@ Salons are low-volume, so SMS cost is negligible for them; but unify for consist
 
 ## 12. Design / UX (DESIGN-STANDARDS + WEB-DESIGN-STANDARDS)
 
-- **Button order & styling:** Google (primary, brand-compliant) → Apple (iOS, HIG-compliant black/white) → e-mail (tertiary/text). Reuse `AppButton`/web `Button`; **tokens only**, no literals.
+- **Button order & styling:** Google → Apple → e-mail (tertiary/text). Reuse `AppButton`/web `Button`; **tokens only**, no literals.
+  **The two social buttons are ONE control in two fills** — same height, width, radius, type ramp and icon gap; Google **white** (`AppButtonType.secondary`), Apple **black** (`primary`), each carrying its own brand mark. They drifted into three different appearances across three screens precisely because nothing ever rendered them next to each other; the `components_buttons` golden now does, enabled **and disabled**.
+  Each mark is the vendor’s own vector, not a redrawing: Google’s « G » via `GoogleGLogo`, Apple’s via `AppleLogoPainter`, which `sign_in_with_apple` exports. Both are **decorative** (`ExcludeSemantics`) — the label already names the provider, and labelling the mark makes a screen reader say it twice.
+  On **web** the direction reverses: Google’s button is rendered by Google’s own script and cannot be restyled, so **its preset is chosen first and Apple is built to match it** — `gisOptions()` in `web/components/auth/socialButton.ts` is the single settled object all three `renderButton` call sites pass.
 - **Copy (FR):** *« Continuer avec Google »*, *« Continuer avec Apple »*, *« Continuer avec e-mail »*; email screen *« Entrez votre e-mail »* / *« Entrez le code reçu par e-mail »*; errors *« Connexion annulée »*, *« E-mail invalide »*, *« Code incorrect ou expiré »*, *« Compte suspendu »*.
 - **Phone-as-contact** prompt copy (booking/profile) as in §9.
 - **Web** keeps desktop-creative latitude (memory `web-design-latitude`); mobile app mirrors the app flow.

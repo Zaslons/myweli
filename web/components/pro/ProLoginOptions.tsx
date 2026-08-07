@@ -14,6 +14,7 @@ import { teamErrorMessage, type TeamInvitation } from '../../lib/pro/team';
 import { useFieldErrors } from '../../lib/forms/useFieldErrors';
 import { Button } from '../Button';
 import { TextField } from '../TextField';
+import { gisOptions } from '../auth/socialButton';
 
 /// The identity proof retained IN MEMORY across the 202 invitation bridge
 /// (team access R5a): the Google credential or the still-unconsumed
@@ -98,12 +99,7 @@ export function ProLoginOptions({ onSuccess }: { onSuccess: () => void }) {
             onSuccess();
           },
         });
-        window.google.accounts.id.renderButton(googleDiv.current, {
-          theme: 'outline',
-          size: 'large',
-          width: 320,
-          locale: 'fr',
-        });
+        window.google.accounts.id.renderButton(googleDiv.current, gisOptions('continue_with'));
       })
       .catch(() => setError('Connexion Google indisponible.'));
     return () => {
