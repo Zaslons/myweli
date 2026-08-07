@@ -137,6 +137,37 @@ FLAVOURS.each_key do |flavour|
   end
 end
 
+# --- deployment target -------------------------------------------------------
+# The Podfile has said `platform :ios, '15.0'` all along while every one of the
+# project's NINE build configurations said **13.0**. CocoaPods hid the split: it
+# applies the Podfile platform to the POD targets and leaves the app target
+# alone, so the mismatch never had to be resolved and the app built anyway.
+#
+# Flutter 3.44 adds Swift Package Manager integration, and SPM checks the APP
+# target directly:
+#
+#   The package product 'firebase-core' requires minimum platform version 15.0
+#   for the iOS platform, but this target supports 13.0
+#
+# So the Podfile was aspirational and the project was the truth. Set it here,
+# where the rest of the project's configuration is already owned, so it applies
+# to the flavour configurations too — those are CLONES of the base ones, and a
+# value fixed only by hand in Xcode would be silently re-inherited on the next
+# clone.
+#
+# 15.0 rather than a rounder number because it is what firebase-core and
+# firebase-messaging actually demand, and it is what the Podfile already claimed.
+DEPLOYMENT_TARGET = '15.0'
+
+[runner, tests].compact.each do |target|
+  target.build_configurations.each do |cfg|
+    cfg.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = DEPLOYMENT_TARGET
+  end
+end
+project.build_configurations.each do |cfg|
+  cfg.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = DEPLOYMENT_TARGET
+end
+
 # --- APNs entitlements per configuration -------------------------------------
 # Runner.entitlements existed for months with ZERO CODE_SIGN_ENTITLEMENTS
 # references, so the built app carried no `aps-environment` and iOS never issued
