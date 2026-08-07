@@ -338,3 +338,40 @@ Deltas from the plan (all in the spirit of "match the existing pattern"):
 - Tests: **+31** (verifier w/ real RSA keys + mocked JWKS incl. rotation; link rules incl. the T33 negative; email-OTP budgets/lockout/expiry; route handlers + AUTH_METHODS gate) → **285 backend tests**.
 
 **Fix (2026-07-02):** the resend-budget check (`requestOtp`/`requestEmailOtp`) counted an **expired, never-verified** code against the budget — nothing auto-clears an abandoned code, so a user who requested 3 codes, never entered one, and came back later got wrongly `otp_resend_limit`'d. Both `_requestOtpIn` (in-memory + Postgres) now treat an existing row as "absent" once `expires_at` has passed (Postgres: `WHERE expires_at > now()`), giving a fresh budget. Resend protection is unaffected (an *active* code still budgets normally) — no threat-model delta. +2 tests → **290 backend tests**.
+
+## Apple Services ID — the Return URL that actually works
+
+Recorded because the wrong one cost a debugging round trip. Apple's Services ID
+**Return URL must equal what the browser sends**, which is
+`LoginOptions.tsx`'s `${window.location.origin}/connexion`:
+
+```
+https://myweli.com/connexion
+```
+
+**Not** `https://myweli.com/api/auth/apple/callback`. That path is the BFF
+endpoint the browser POSTs the identity token *to* after Apple returns it — it
+is never Apple's redirect target. Registering it yields:
+
+> `invalid_request — Invalid web redirect url.`
+
+Two things that make this harder than it looks:
+
+- **The Configure sheet's `Done` does not save.** The change is only committed by
+  the **`Save`** button on the Services ID page underneath. Clicking Done and
+  leaving looks successful and changes nothing.
+- **Apple's authorize endpoint cannot be used to check this.** Probing it gates
+  on the *domain* only: a wrong path and the right path both return the sign-in
+  page, and even a nonexistent `client_id` does. Only a real sign-in attempt
+  distinguishes them.
+
+`www.myweli.com` redirects to the apex, so the browser origin is always
+`myweli.com` and one Return URL suffices.
+
+**`NEXT_PUBLIC_APPLE_CLIENT_ID` is the Services ID** (`com.myweli.signin`), not a
+bundle id. The button renders only when it is set, so an unset value hides it
+silently instead of failing loudly.
+
+**Guideline 4.8 status:** both apps already offer Apple alongside Google
+(`login_screen.dart:232`, `pro_login_screen.dart:276`), so the App Store
+requirement is met on iOS. Web was the only surface missing it.
