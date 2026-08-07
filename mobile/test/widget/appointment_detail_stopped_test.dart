@@ -80,7 +80,7 @@ void main() {
     ) async {
       await pump(tester, appt(providerStatus: 'suspended'));
       expect(
-        find.text('Ce salon ne prend plus de rendez-vous sur Myweli.'),
+        find.text('Ce salon ne prend plus de rendez-vous sur MyWeli.'),
         findsOneWidget,
       );
       await tester.pump(const Duration(seconds: 5));
@@ -122,7 +122,7 @@ void main() {
       await pump(tester, appt(providerStatus: 'active'));
       expect(find.text('Reporter'), findsOneWidget);
       expect(
-        find.text('Ce salon ne prend plus de rendez-vous sur Myweli.'),
+        find.text('Ce salon ne prend plus de rendez-vous sur MyWeli.'),
         findsNothing,
       );
       expect(

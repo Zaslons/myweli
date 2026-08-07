@@ -297,7 +297,7 @@ class _DepositPaymentSheetState extends State<_DepositPaymentSheet> {
               ),
               const SizedBox(height: AppTheme.spacingXS),
               Text(
-                'Versé directement au salon. Myweli ne prélève rien.',
+                'Versé directement au salon. MyWeli ne prélève rien.',
                 style: AppTextStyles.bodySmall.copyWith(
                   color: AppColors.textTertiary,
                 ),

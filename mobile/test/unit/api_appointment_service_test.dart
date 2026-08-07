@@ -344,7 +344,7 @@ void main() {
     test('stopped → « ne … plus »', () async {
       final res = await bookWith('provider_suspended', 409);
       expect(res.code, 'provider_suspended');
-      expect(res.error, 'Ce salon ne prend plus de rendez-vous sur Myweli.');
+      expect(res.error, 'Ce salon ne prend plus de rendez-vous sur MyWeli.');
     });
 
     test('the two states do NOT share a sentence', () async {

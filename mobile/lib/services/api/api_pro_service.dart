@@ -828,7 +828,7 @@ class ApiProService implements ProServiceInterface {
       // A draft salon never reaches here — Decision A lets it book its own
       // calendar.
       case 'provider_suspended':
-        return 'Votre salon est suspendu. Contactez Myweli pour le réactiver '
+        return 'Votre salon est suspendu. Contactez MyWeli pour le réactiver '
             '— vos rendez-vous sont intacts.';
       // Not row 82, shipped with it: this is the most likely manual-booking
       // refusal and it read « Une erreur est survenue. », while

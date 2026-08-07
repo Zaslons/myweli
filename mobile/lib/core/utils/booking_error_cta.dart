@@ -72,7 +72,7 @@ BookingErrorCta? bookingErrorCta(String? code) {
 /// status and Postgres reads NULL as active.
 String? salonStoppedMessage(String? status) => switch (status) {
   'draft' => 'Ce salon n’accepte pas encore de réservations en ligne.',
-  'suspended' => 'Ce salon ne prend plus de rendez-vous sur Myweli.',
+  'suspended' => 'Ce salon ne prend plus de rendez-vous sur MyWeli.',
   _ => null,
 };
 
@@ -87,7 +87,7 @@ String? salonStoppedMessage(String? status) => switch (status) {
 /// It lived in two files before PR1d (`api_provider_service.dart` and
 /// `provider_provider.dart`) — §21 row 84's pattern at count two, caught before
 /// it reached three.
-const kSalonUnavailableMessage = 'Ce salon n’est plus disponible sur Myweli.';
+const kSalonUnavailableMessage = 'Ce salon n’est plus disponible sur MyWeli.';
 
 /// The RETRYABLE sibling. Shaped after `kSlotsError` deliberately (§17, one
 /// voice): « Impossible de charger X. Vérifiez votre connexion. »

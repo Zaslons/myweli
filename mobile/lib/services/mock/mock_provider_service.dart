@@ -103,7 +103,7 @@ class MockProviderService implements ProviderServiceInterface {
       return ApiResponse.success(provider.copyWith(reviews: providerReviews));
     } catch (e) {
       return ApiResponse.error(
-        'Ce salon n’est plus disponible sur Myweli.',
+        'Ce salon n’est plus disponible sur MyWeli.',
         code: 'not_found',
       );
     }

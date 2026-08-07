@@ -17,7 +17,7 @@ import 'package:flutter/foundation.dart';
 /// channel (no name, no importance, invisible in the app's settings).
 /// Pinned by a test.
 const String kPushChannelId = 'myweli_default';
-const String kPushChannelName = 'Notifications Myweli';
+const String kPushChannelName = 'Notifications MyWeli';
 const String kPushChannelDescription =
     'Réservations, rappels et mises à jour de vos rendez-vous.';
 

@@ -23,7 +23,7 @@ void main() {
     test('a suspended salon was stopped — « ne … plus »', () {
       expect(
         salonStoppedMessage('suspended'),
-        'Ce salon ne prend plus de rendez-vous sur Myweli.',
+        'Ce salon ne prend plus de rendez-vous sur MyWeli.',
       );
     });
 

@@ -582,7 +582,7 @@ void main() {
         // reassurance `pro_subscription_screen.dart` proved is needed.
         expect(
           await manualBookingError('provider_suspended'),
-          'Votre salon est suspendu. Contactez Myweli pour le réactiver — vos rendez-vous sont intacts.',
+          'Votre salon est suspendu. Contactez MyWeli pour le réactiver — vos rendez-vous sont intacts.',
         );
       },
     );

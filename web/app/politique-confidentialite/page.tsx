@@ -20,7 +20,7 @@ export default function Page() {
   return (
     <LegalPage slug="/politique-confidentialite">
       <Lead>
-        Myweli met en relation des clients et des salons de beauté en Côte
+        MyWeli met en relation des clients et des salons de beauté en Côte
         d’Ivoire. Nous collectons le minimum nécessaire pour prendre et tenir un
         rendez-vous — et nous ne faisons ni publicité, ni profilage, ni analyse
         comportementale.
@@ -43,7 +43,7 @@ export default function Page() {
           adresse IP, ni votre navigateur, ni le détail de vos requêtes&nbsp;;
         </Li>
         <Li>
-          aucune donnée bancaire&nbsp;: Myweli ne détient jamais vos fonds.
+          aucune donnée bancaire&nbsp;: MyWeli ne détient jamais vos fonds.
           L’acompte se paie directement au salon par Mobile Money.
         </Li>
       </Ul>
@@ -93,7 +93,7 @@ export default function Page() {
         <strong>Si vous êtes professionnel</strong>, vous nous transmettez en
         outre des pièces d’identité et d’immatriculation. Elles sont stockées dans
         un espace privé et séparé, ne sont jamais publiées, et ne sont
-        consultables que par un administrateur Myweli au moyen d’un lien signé
+        consultables que par un administrateur MyWeli au moyen d’un lien signé
         valable cinq minutes. Chaque consultation est journalisée.
       </P>
 

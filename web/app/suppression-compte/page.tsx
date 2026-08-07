@@ -28,7 +28,7 @@ export const metadata = legalMetadata('/suppression-compte');
 /// a survivor of WEB-SYSTEM §15 row 7h, filed rather than inherited.
 const FAQ = [
   {
-    question: 'Comment supprimer mon compte Myweli ?',
+    question: 'Comment supprimer mon compte MyWeli ?',
     answer:
       'Annulez d’abord vos rendez-vous à venir, puis : dans l’application, ' +
       'Profil → Supprimer mon compte et saisissez SUPPRIMER pour confirmer ; ' +
@@ -68,7 +68,7 @@ export default function Page() {
   return (
     <LegalPage slug="/suppression-compte" extraJsonLd={faqJsonLd(FAQ)}>
       <Lead>
-        Vous pouvez supprimer votre compte Myweli vous-même, à tout moment, sans
+        Vous pouvez supprimer votre compte MyWeli vous-même, à tout moment, sans
         nous écrire. Voici comment — et exactement ce que cela efface.
       </Lead>
 

@@ -127,7 +127,7 @@ void main() {
         await tester.pump();
 
         expect(
-          find.text('Ce salon n’est plus disponible sur Myweli.'),
+          find.text('Ce salon n’est plus disponible sur MyWeli.'),
           findsOneWidget,
         );
         // The way out leads somewhere. « Réessayer » would not: the salon is
@@ -156,7 +156,7 @@ void main() {
         expect(find.text('Réessayer'), findsOneWidget);
         expect(find.text('Découvrir des salons'), findsNothing);
         expect(
-          find.text('Ce salon n’est plus disponible sur Myweli.'),
+          find.text('Ce salon n’est plus disponible sur MyWeli.'),
           findsNothing,
         );
         await tester.pump(const Duration(seconds: 5));

@@ -38,7 +38,7 @@ describe('the tense carries the distinction', () => {
 
   it('a suspended salon was stopped — « ne … plus »', () => {
     expect(salonStoppedMessageFor('suspended')).toBe(
-      'Ce salon ne prend plus de rendez-vous sur Myweli.',
+      'Ce salon ne prend plus de rendez-vous sur MyWeli.',
     );
   });
 
@@ -163,7 +163,7 @@ describe('the closed browse route, and the retry that cannot succeed', () => {
         taken: 'X',
         fallback: 'Y',
       }),
-    ).toBe('Ce salon n’est plus disponible sur Myweli.');
+    ).toBe('Ce salon n’est plus disponible sur MyWeli.');
   });
 
   it('a dropped connection is still a retry — the pair', () => {

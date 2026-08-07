@@ -155,7 +155,7 @@ class _Sidebar extends StatelessWidget {
                   color: AppColors.primary,
                 ),
                 const SizedBox(width: AppTheme.spacingS),
-                Text('Myweli · Admin', style: AppTextStyles.titleMedium),
+                Text('MyWeli · Admin', style: AppTextStyles.titleMedium),
               ],
             ),
           ),

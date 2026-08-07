@@ -170,7 +170,7 @@ class ProviderProvider extends ChangeNotifier {
         _error = null;
         _errorCode = null;
       } else {
-        _error = response.error ?? 'Ce salon n’est plus disponible sur Myweli.';
+        _error = response.error ?? 'Ce salon n’est plus disponible sur MyWeli.';
         _errorCode = response.code;
         _selectedProvider = null;
       }

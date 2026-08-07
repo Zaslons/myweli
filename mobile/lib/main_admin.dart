@@ -92,7 +92,7 @@ class MyweliAdminApp extends StatelessWidget {
                 // otherwise resolve to a country-less `Locale('fr')`.
                 localizationsDelegates: GlobalMaterialLocalizations.delegates,
                 supportedLocales: const [Locale('fr', 'FR')],
-                title: 'Myweli Admin',
+                title: 'MyWeli Admin',
                 debugShowCheckedModeBanner: false,
                 theme: AppTheme.lightTheme,
                 routerConfig: createAdminRouter(auth),

@@ -14,7 +14,7 @@ export const metadata = legalMetadata('/cgu');
 /// The document three app screens have referenced since they shipped, in dead
 /// unlinked text, while it did not exist (docs/design/legal-l1.md §1).
 ///
-/// The single most load-bearing sentence here is the first one: **Myweli is an
+/// The single most load-bearing sentence here is the first one: **MyWeli is an
 /// intermediary.** The salon provides the service and sets its own deposit and
 /// cancellation policy; we never hold funds. Everything else follows from that,
 /// and it is also what makes the deposit model defensible — see
@@ -23,7 +23,7 @@ export default function Page() {
   return (
     <LegalPage slug="/cgu">
       <Lead>
-        Myweli est un service de mise en relation. Nous vous aidons à trouver un
+        MyWeli est un service de mise en relation. Nous vous aidons à trouver un
         salon et à réserver&nbsp;; la prestation, elle, est fournie par le salon,
         qui en est seul responsable.
       </Lead>
@@ -31,14 +31,14 @@ export default function Page() {
       <H2>1. Objet</H2>
       <P>
         Les présentes conditions régissent l’utilisation de l’application et du
-        site Myweli, qui mettent en relation des clients et des professionnels de
+        site MyWeli, qui mettent en relation des clients et des professionnels de
         la beauté et du bien-être en Côte d’Ivoire. En créant un compte ou en
         confirmant une réservation, vous les acceptez.
       </P>
 
       <H2>2. Notre rôle, et ses limites</H2>
       <P>
-        Myweli fournit l’outil de découverte et de réservation. Nous ne sommes ni
+        MyWeli fournit l’outil de découverte et de réservation. Nous ne sommes ni
         le prestataire, ni l’employeur du salon, ni partie au contrat conclu entre
         vous et lui. Le salon fixe ses prestations, ses prix, ses horaires, sa
         politique d’acompte et sa politique d’annulation, et répond de la qualité
@@ -58,7 +58,7 @@ export default function Page() {
         Une réservation vous engage envers le salon. Lorsque le salon demande un
         acompte, <strong>vous le payez directement au salon</strong> par Mobile
         Money et transmettez la capture d’écran comme preuve&nbsp;:{' '}
-        <strong>Myweli n’encaisse, ne détient et ne rembourse aucun fonds</strong>,
+        <strong>MyWeli n’encaisse, ne détient et ne rembourse aucun fonds</strong>,
         et n’est pas partie au paiement.
       </P>
       <P>
@@ -103,7 +103,7 @@ export default function Page() {
           disponibilités et politiques affichées&nbsp;;
         </Li>
         <Li>
-          les données de vos clients accessibles via Myweli ne peuvent servir
+          les données de vos clients accessibles via MyWeli ne peuvent servir
           qu’à la relation avec eux, et jamais être cédées.
         </Li>
       </Ul>
@@ -125,7 +125,7 @@ export default function Page() {
 
       <H2>10. Résiliation</H2>
       <P>
-        Vous pouvez cesser d’utiliser Myweli et supprimer votre compte à tout
+        Vous pouvez cesser d’utiliser MyWeli et supprimer votre compte à tout
         moment. Nous pouvons suspendre ou fermer un compte en cas de manquement
         aux présentes conditions ou d’usage frauduleux.
       </P>

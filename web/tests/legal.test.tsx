@@ -76,7 +76,7 @@ describe('lib/legal.ts is the single source of truth', () => {
     // The entity is not registered yet (owner decision), so the page says so
     // rather than inventing an RCCM. When registration lands this object is the
     // ONE edit — which is only true if the page reads it from here.
-    expect(COMPANY.tradingName).toBe('Myweli');
+    expect(COMPANY.tradingName).toBe('MyWeli');
     expect(COMPANY.registration).toMatch(/en cours d’immatriculation/i);
     expect(COMPANY.hosts.length).toBeGreaterThan(0);
   });

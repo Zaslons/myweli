@@ -79,7 +79,7 @@ test('M8.3: rebook + review on a completed booking; favoris on /mon-compte', asy
   // « Aucun favori » to someone who had two.
   await expect(page.getByText('Salon Arrêté').first()).toBeVisible();
   await expect(
-    page.getByText('Ce salon ne prend plus de rendez-vous sur Myweli.').first(),
+    page.getByText('Ce salon ne prend plus de rendez-vous sur MyWeli.').first(),
   ).toBeVisible();
   // …and its « Retirer des favoris » stays: the one action that still helps.
   await expect(
@@ -259,7 +259,7 @@ test('a booking at a salon that stopped keeps working, and says why', async ({
     page.getByRole('heading', { name: 'Salon Arrêté' }),
   ).toBeVisible();
   await expect(
-    page.getByText('Ce salon ne prend plus de rendez-vous sur Myweli.'),
+    page.getByText('Ce salon ne prend plus de rendez-vous sur MyWeli.'),
   ).toBeVisible();
 
   // Withheld: the move the server would refuse, and the link that would 404.
