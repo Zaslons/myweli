@@ -18,10 +18,10 @@ import 'mock_data.dart';
 /// stand-in for the session's account email.
 class MockProTeamService implements ProTeamServiceInterface {
   MockProTeamService({
-    SubscriptionServiceInterface? subscriptions,
+    this._subscriptions,
     this.invitationEmail = 'invitee@myweli.test',
     this.maxInvitesPerDay = 20,
-  }) : _subscriptions = subscriptions;
+  });
 
   /// When provided, invite gates on the mock offer state (offer_required /
   /// seat_limit) exactly like the backend; absent → gates pass.

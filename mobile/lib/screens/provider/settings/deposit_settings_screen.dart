@@ -174,14 +174,23 @@ class _DepositSettingsScreenState extends State<DepositSettingsScreen> {
             borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
             border: Border.all(color: AppColors.border),
           ),
-          child: SwitchListTile(
-            value: provider.depositRequired,
-            onChanged: verified ? provider.setDepositRequired : null,
-            title: const Text('Exiger un acompte'),
-            subtitle: Text(
-              'Limite les rendez-vous manqués',
-              style: AppTextStyles.bodySmall.copyWith(
-                color: AppColors.textTertiary,
+          // Flutter 3.44 asserts on this (`list_tile.dart`,
+          // `_findIntermediateWidget`): the tile paints its ink on the nearest
+          // `Material` ANCESTOR, and the walk up stops at the first coloured box —
+          // this one. The switch row's ripple painted BEHIND its own card. The
+          // assertion is new; the defect is not. `transparency` paints nothing, so
+          // the bordered card and its golden are unchanged.
+          child: Material(
+            type: MaterialType.transparency,
+            child: SwitchListTile(
+              value: provider.depositRequired,
+              onChanged: verified ? provider.setDepositRequired : null,
+              title: const Text('Exiger un acompte'),
+              subtitle: Text(
+                'Limite les rendez-vous manqués',
+                style: AppTextStyles.bodySmall.copyWith(
+                  color: AppColors.textTertiary,
+                ),
               ),
             ),
           ),

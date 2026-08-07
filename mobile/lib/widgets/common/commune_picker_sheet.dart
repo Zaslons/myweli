@@ -123,6 +123,18 @@ class _CommunePickerSheetState extends State<_CommunePickerSheet> {
   Widget build(BuildContext context) {
     final maxHeight = MediaQuery.of(context).size.height * 0.75;
     final locality = context.watch<LocalityProvider>();
+    // The `Material` is not decoration — it is what makes the tap visible.
+    //
+    // Flutter 3.44 asserts on this shape (`list_tile.dart`,
+    // `_findIntermediateWidget`): a `ListTile` paints its ink on the nearest
+    // `Material` ANCESTOR, and the walk up from the tile stops at the first
+    // coloured box it meets. This sheet's own background was that box, so every
+    // ripple painted BEHIND it. The rows have given no touch feedback for as
+    // long as the sheet has existed — the assertion is new, the defect is not.
+    //
+    // `MaterialType.transparency` paints nothing, so the surface above is
+    // untouched and no golden moves; it exists only to give the ink somewhere
+    // to land, above the background instead of behind it.
     return Container(
       constraints: BoxConstraints(maxHeight: maxHeight),
       decoration: const BoxDecoration(
@@ -131,66 +143,69 @@ class _CommunePickerSheetState extends State<_CommunePickerSheet> {
           top: Radius.circular(AppTheme.radiusXXL),
         ),
       ),
-      child: SafeArea(
-        top: false,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: AppTheme.spacingS),
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppTheme.spacingM,
+      child: Material(
+        type: MaterialType.transparency,
+        child: SafeArea(
+          top: false,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: AppTheme.spacingS),
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppTheme.spacingM,
+                ),
+                child: InlineFeedback(_error),
               ),
-              child: InlineFeedback(_error),
-            ),
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: AppColors.divider,
-                  borderRadius: BorderRadius.circular(AppTheme.radiusPill),
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppColors.divider,
+                    borderRadius: BorderRadius.circular(AppTheme.radiusPill),
+                  ),
                 ),
               ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppTheme.spacingM,
-                AppTheme.spacingM,
-                AppTheme.spacingS,
-                AppTheme.spacingS,
-              ),
-              child: Row(
-                children: [
-                  const Expanded(
-                    child: Text(
-                      'Choisir une commune',
-                      style: AppTextStyles.titleMedium,
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppTheme.spacingM,
+                  AppTheme.spacingM,
+                  AppTheme.spacingS,
+                  AppTheme.spacingS,
+                ),
+                child: Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        'Choisir une commune',
+                        style: AppTextStyles.titleMedium,
+                      ),
                     ),
-                  ),
-                  IconButton(
-                    tooltip: 'Fermer',
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.of(context).pop(),
-                  ),
-                ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppTheme.spacingM,
-              ),
-              child: TextField(
-                onChanged: (value) => setState(() => _query = value),
-                decoration: const InputDecoration(
-                  prefixIcon: Icon(Icons.search),
-                  hintText: 'Rechercher une commune',
+                    IconButton(
+                      tooltip: 'Fermer',
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
+                  ],
                 ),
               ),
-            ),
-            const SizedBox(height: AppTheme.spacingS),
-            Flexible(child: _list(locality)),
-          ],
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppTheme.spacingM,
+                ),
+                child: TextField(
+                  onChanged: (value) => setState(() => _query = value),
+                  decoration: const InputDecoration(
+                    prefixIcon: Icon(Icons.search),
+                    hintText: 'Rechercher une commune',
+                  ),
+                ),
+              ),
+              const SizedBox(height: AppTheme.spacingS),
+              Flexible(child: _list(locality)),
+            ],
+          ),
         ),
       ),
     );

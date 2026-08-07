@@ -50,7 +50,7 @@ void main() {
     // merges the message into itself.
     expect(
       tester.getSemantics(find.text('Rendez-vous accepté')),
-      containsSemantics(isLiveRegion: true, label: 'Rendez-vous accepté'),
+      isSemantics(isLiveRegion: true, label: 'Rendez-vous accepté'),
       reason:
           'the live region is the mechanism TalkBack and VoiceOver both '
           'support — and the ONLY one on Android. If this goes red, the app '

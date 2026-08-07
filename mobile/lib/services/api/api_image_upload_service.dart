@@ -28,12 +28,11 @@ class ApiImageUploadService implements ImageUploadServiceInterface {
     ImageCompressor? compressor,
     // P2b (audit 2.13): consumer review photos reuse this pipeline with a
     // consumer session + `purpose=review`; the defaults keep the pro gallery.
-    String purpose = 'gallery',
+    this._purpose = 'gallery',
     String refreshPath = '/auth/provider/refresh',
   }) : _client = client ?? http.Client(),
        _baseUrl = baseUrl ?? AppConfig.apiBaseUrl,
        _compress = compressor ?? _defaultCompress,
-       _purpose = purpose,
        _sessionStore = providerSessionStore ?? InMemorySessionStore() {
     _authed = RefreshingHttpClient(
       client: _client,

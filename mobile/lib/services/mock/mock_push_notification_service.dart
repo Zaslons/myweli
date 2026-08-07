@@ -9,9 +9,8 @@ import '../interfaces/push_notification_service_interface.dart';
 class MockPushNotificationService implements PushNotificationServiceInterface {
   MockPushNotificationService({
     PushPermissionStatus initial = PushPermissionStatus.notDetermined,
-    String token = 'mock-fcm-token',
-  }) : _status = initial,
-       _token = token;
+    this._token = 'mock-fcm-token',
+  }) : _status = initial;
 
   PushPermissionStatus _status;
   final String _token;

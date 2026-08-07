@@ -140,29 +140,40 @@ class _NotificationPreferencesScreenState
                   borderRadius: BorderRadius.circular(AppTheme.radiusXL),
                   boxShadow: AppTheme.elevation1,
                 ),
-                child: Column(
-                  children: [
-                    _PrefSwitch(
-                      title: 'Rappels de rendez-vous',
-                      subtitle: 'Rappels 24 h et 2 h avant vos rendez-vous.',
-                      value: prefs.reminders,
-                      onChanged: (v) => _toggle(() => provider.setReminders(v)),
-                    ),
-                    const Divider(height: 1),
-                    _PrefSwitch(
-                      title: 'Offres & promotions',
-                      subtitle: 'Offres, nouveautés et relances.',
-                      value: prefs.marketing,
-                      onChanged: (v) => _toggle(() => provider.setMarketing(v)),
-                    ),
-                    const Divider(height: 1),
-                    _PrefSwitch(
-                      title: 'Notifications push',
-                      subtitle: 'Notifications sur cet appareil.',
-                      value: prefs.push,
-                      onChanged: (v) => _toggle(() => provider.setPush(v)),
-                    ),
-                  ],
+                // Flutter 3.44 asserts on this (`list_tile.dart`, `_findIntermediateWidget`):
+                // a `ListTile` paints its ink on the nearest `Material` ANCESTOR, and the
+                // walk up stops at the first coloured box. This card was that box, so the
+                // ripple painted BEHIND it — no touch feedback, for as long as the card has
+                // existed. The assertion is new; the defect is not. `transparency` paints
+                // nothing, so no golden moves.
+                child: Material(
+                  type: MaterialType.transparency,
+                  child: Column(
+                    children: [
+                      _PrefSwitch(
+                        title: 'Rappels de rendez-vous',
+                        subtitle: 'Rappels 24 h et 2 h avant vos rendez-vous.',
+                        value: prefs.reminders,
+                        onChanged: (v) =>
+                            _toggle(() => provider.setReminders(v)),
+                      ),
+                      const Divider(height: 1),
+                      _PrefSwitch(
+                        title: 'Offres & promotions',
+                        subtitle: 'Offres, nouveautés et relances.',
+                        value: prefs.marketing,
+                        onChanged: (v) =>
+                            _toggle(() => provider.setMarketing(v)),
+                      ),
+                      const Divider(height: 1),
+                      _PrefSwitch(
+                        title: 'Notifications push',
+                        subtitle: 'Notifications sur cet appareil.',
+                        value: prefs.push,
+                        onChanged: (v) => _toggle(() => provider.setPush(v)),
+                      ),
+                    ],
+                  ),
                 ),
               ),
               const SizedBox(height: AppTheme.spacingM),

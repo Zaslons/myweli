@@ -15,16 +15,28 @@ version: 1.0.0+1
 # files, and `ci.yml:44` runs `--set-exit-if-changed`, so that reformat is
 # mandatory rather than optional — see .git-blame-ignore-revs.
 #
-# Nothing could honour 3.0.0 anyway: CI pins **Flutter 3.38.6**
-# (.github/workflows/ci.yml:36, :344), which ships **Dart 3.10.7**, and
-# backend/pubspec.yaml has said `^3.10.0` all along — mobile was the outlier.
+# Nothing could honour 3.0.0 anyway: CI pins **Flutter 3.44.9**
+# (.github/workflows/ci.yml:36, :471), which ships **Dart 3.12.2**.
 #
 # The `flutter` floor is the CI pin itself rather than a rounder number, because
-# 3.38.6 is the only Flutter this tree has been built or tested on and there is
+# 3.44.9 is the only Flutter this tree has been built or tested on and there is
 # no evidence for any claim below it. Do not lower either bound.
+#
+# **Why the floor moved off 3.38.6** (docs/design/mobile-flutter-3.44-upgrade.md):
+# the SDK is what pins `meta`, and `meta 1.18.0` first ships in Flutter 3.44.0.
+# Below it, `flutter_native_splash` >=2.4.8 cannot resolve AT ALL — version
+# solving fails before anything compiles — and `sign_in_with_apple` >=8.1.0
+# needs Dart ^3.11.0. Both sat unmergeable for that reason alone. The same gap
+# also let a dependabot lockfile (built with a current Flutter) ask for
+# `meta 1.18.0` that this SDK could not honour: `pub get` re-resolved it
+# silently, so CI was green against a lockfile that was not the one in git.
+#
+# backend/pubspec.yaml stays at `^3.10.0` deliberately — it is a pure-Dart
+# package whose CI pins Dart through `dart-lang/setup-dart`, independent of
+# Flutter, and moving it is a separate decision.
 environment:
-  sdk: ^3.10.0
-  flutter: '>=3.38.6'
+  sdk: ^3.12.0
+  flutter: '>=3.44.9'
 
 dependencies:
   flutter:
@@ -55,7 +67,7 @@ dependencies:
   # Auth overhaul: native Google Sign-In (+ Apple seam, flag-gated) and the
   # SHA-256 for Apple's nonce. Design: docs/design/app-auth-social.md.
   google_sign_in: ^6.2.1
-  sign_in_with_apple: ^6.1.1
+  sign_in_with_apple: ^8.1.0
   crypto: ^3.0.3
 
   # UI Components
@@ -112,7 +124,7 @@ dev_dependencies:
   flutter_lints: ^6.0.0
   mocktail: ^1.0.4
   # Generates the native launch screen (app-open) from a logo + brand color.
-  flutter_native_splash: ^2.4.1
+  flutter_native_splash: ^2.4.8
 
 flutter:
   uses-material-design: true
