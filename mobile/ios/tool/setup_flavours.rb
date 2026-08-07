@@ -137,6 +137,29 @@ FLAVOURS.each_key do |flavour|
   end
 end
 
+# --- APNs entitlements per configuration -------------------------------------
+# Runner.entitlements existed for months with ZERO CODE_SIGN_ENTITLEMENTS
+# references, so the built app carried no `aps-environment` and iOS never issued
+# an APNs token. Every bit of Apple/Firebase setup would have looked correct and
+# push would still have been dead.
+#
+# Debug/Profile -> development (sandbox APNs), Release -> production. That split
+# is not cosmetic: a build signed `development` gets a SANDBOX token, and a
+# production FCM send to it is silently dropped.
+ENTITLEMENTS = {
+  'Debug'   => 'Runner/Runner.entitlements',
+  'Profile' => 'Runner/Runner.entitlements',
+  'Release' => 'Runner/RunnerRelease.entitlements',
+}.freeze
+
+runner.build_configurations.each do |cfg|
+  base = cfg.name.split('-').first
+  path = ENTITLEMENTS[base]
+  next if path.nil?
+
+  cfg.build_settings['CODE_SIGN_ENTITLEMENTS'] = path
+end
+
 # --- Firebase config per flavour ---------------------------------------------
 # `Firebase.initializeApp()` takes no options on iOS (firebase_bootstrap.dart:31),
 # so it reads GoogleService-Info.plist FROM THE APP BUNDLE. Nothing puts it
