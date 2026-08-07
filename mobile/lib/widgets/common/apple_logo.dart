@@ -28,6 +28,10 @@ class AppleLogo extends StatelessWidget {
     // box STRETCHES the mark. The plugin's own button draws it at 25:31
     // (`sign_in_with_apple_button.dart:120-121`); match that or the apple is
     // visibly fat next to Google's pixel-perfect « G ».
+    //
+    // Checked against 8.1.0 (dependabot #300, held back only by its Flutter
+    // >=3.41.0 floor): both the export and this ratio are unchanged there, so
+    // the upgrade does not move this file.
     final width = size * 25 / 31;
 
     // Resolved from the button rather than hardcoded white. `AppButton`'s
