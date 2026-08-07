@@ -96,6 +96,19 @@ class _TimedCachedImageState extends State<TimedCachedImage> {
     super.dispose();
   }
 
+  /// The one "this image is not there" surface, shared by BOTH branches.
+  ///
+  /// It existed only on the network side; the asset side fell through to
+  /// Flutter's `ErrorWidget`. Same widget, same failure, two different
+  /// renderings — so it lives here once instead.
+  Widget _unavailable() => Container(
+    width: widget.width,
+    height: widget.height,
+    color: AppColors.surface,
+    alignment: Alignment.center,
+    child: const Icon(Icons.image_not_supported),
+  );
+
   @override
   Widget build(BuildContext context) {
     if (widget.imageUrl.startsWith('asset:')) {
@@ -117,6 +130,18 @@ class _TimedCachedImageState extends State<TimedCachedImage> {
               fit: widget.fit,
               semanticLabel: widget.semanticLabel,
               excludeFromSemantics: decorative,
+              errorBuilder: (context, error, stack) => _unavailable(),
+              // A missing asset threw, and Flutter's ErrorWidget rendered in its
+              // place — a red box in debug, grey in release, on the card itself.
+              // The network branch below has always degraded to a placeholder;
+              // this branch never did, so the two halves of the same widget
+              // failed differently.
+              //
+              // Not hypothetical: the backend's seeded salons carry
+              // `asset:assets/images/barber1.jpg` and three siblings that have
+              // NEVER existed in this repo, so the live home screen rendered
+              // four error boxes. The seed is fixed too, but a placeholder is
+              // what stops the next such mismatch being user-visible.
             );
 
       if (widget.borderRadius != null) {
@@ -160,13 +185,7 @@ class _TimedCachedImageState extends State<TimedCachedImage> {
       ),
       errorWidget: (context, url, error) {
         _cancelTimeoutOverlayIfNeeded();
-        return Container(
-          width: widget.width,
-          height: widget.height,
-          color: AppColors.surface,
-          alignment: Alignment.center,
-          child: const Icon(Icons.image_not_supported),
-        );
+        return _unavailable();
       },
     );
 

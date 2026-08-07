@@ -113,6 +113,24 @@ whether that affects `firebase_messaging`'s AppDelegate swizzling for a
 notification that *launches* the app is **not answerable on a simulator** and
 is carried into §7.
 
+## 6b. A stale generated file will tell you the deployment target regressed
+
+It did not. After #333 raised the target to 15.0, a later build still failed
+with *"the package product 'firebase-core' requires minimum platform version
+15.0 … but this target supports 13.0"* while all **27** entries in
+`project.pbxproj` read 15.0.
+
+The 13.0 lives in `ios/Flutter/ephemeral/Packages/FlutterGeneratedPluginSwiftPackage/Package.swift`,
+which Flutter **generates** — and does not regenerate when the target moves. It
+was written during an earlier build, back when the project really did say 13.0.
+The directory is gitignored, so this is a stale local artifact and never a repo
+defect, which is precisely what makes the error message misleading: the project
+is right and the build still fails.
+
+    rm -rf mobile/ios/Flutter/ephemeral    # or `flutter clean`
+
+Worth knowing before anyone "re-fixes" a deployment target that was never broken.
+
 ## 7. Open questions
 
 - **Does the later plugin registration affect a launch-from-notification?**
