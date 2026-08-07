@@ -98,7 +98,7 @@ void main() {
           InMemoryAppointmentRepository(),
           InMemoryProviderAuditLogRepository(),
         ),
-        const FakeStorageService(),
+        FakeStorageService(),
       );
     }());
     return context;

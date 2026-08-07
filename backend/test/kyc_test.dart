@@ -37,8 +37,16 @@ void main() {
   });
 
   List<Map<String, dynamic>> docs() => [
-    {'type': 'idCard', 'fileName': 'id.jpg', 'key': 'kyc/$accountId/a.jpg'},
-    {'type': 'selfie', 'fileName': 's.jpg', 'key': 'kyc/$accountId/b.jpg'},
+    {
+      'type': 'idCard',
+      'fileName': 'id.jpg',
+      'key': 'pending/kyc/$accountId/a.jpg',
+    },
+    {
+      'type': 'selfie',
+      'fileName': 's.jpg',
+      'key': 'pending/kyc/$accountId/b.jpg',
+    },
   ];
 
   group('KycService', () {
@@ -67,14 +75,14 @@ void main() {
     test('rejects bad type / foreign key / empty', () async {
       expect(
         (await service.submit(accountId, [
-          {'type': 'passport', 'key': 'kyc/$accountId/a.jpg'},
+          {'type': 'passport', 'key': 'pending/kyc/$accountId/a.jpg'},
         ])).error,
         'invalid_input',
       );
       // A key under another account's prefix is rejected.
       expect(
         (await service.submit(accountId, [
-          {'type': 'idCard', 'key': 'kyc/someone_else/a.jpg'},
+          {'type': 'idCard', 'key': 'pending/kyc/someone_else/a.jpg'},
         ])).error,
         'invalid_input',
       );

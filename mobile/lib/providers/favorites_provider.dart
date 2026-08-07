@@ -10,11 +10,16 @@ class FavoritesProvider extends ChangeNotifier {
       serviceLocator.favoritesService;
 
   List<String> _favoriteProviderIds = [];
+  List<Provider> _favoriteProviders = [];
   bool _isLoading = false;
   String? _error;
   String? _currentUserId;
 
   List<String> get favoriteProviderIds => _favoriteProviderIds;
+
+  /// The favourite salons as the SERVER hydrated them — including any that
+  /// stopped taking appointments, which the discovery list excludes.
+  List<Provider> get favoriteProviders => _favoriteProviders;
   bool get isLoading => _isLoading;
   String? get error => _error;
 
@@ -31,17 +36,20 @@ class FavoritesProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final response = await _favoritesService.getFavoriteProviderIds(userId);
+      final response = await _favoritesService.getFavoriteProviders(userId);
       if (response.success && response.data != null) {
-        _favoriteProviderIds = response.data!;
+        _favoriteProviders = response.data!;
+        _favoriteProviderIds = [for (final p in response.data!) p.id];
         _error = null;
       } else {
         _error = response.error ?? 'Erreur lors du chargement des favoris';
         _favoriteProviderIds = [];
+        _favoriteProviders = [];
       }
     } catch (e) {
       _error = e.toString();
       _favoriteProviderIds = [];
+      _favoriteProviders = [];
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -106,8 +114,16 @@ class FavoritesProvider extends ChangeNotifier {
     return _favoriteProviderIds.contains(providerId);
   }
 
-  /// Get full provider objects from list of all providers
+  /// The favourite salons.
+  ///
+  /// **[allProviders] is a fallback, not the source.** This used to intersect
+  /// the ids with the discovery list, which excludes salons that are `draft`
+  /// or `suspended` — so a favourite whose salon stopped simply disappeared,
+  /// and the screen said « Aucun favori » to someone who had one. The server
+  /// hydrates the list now (Decision C); the intersection remains only for a
+  /// caller that loaded ids without documents.
   List<Provider> getFavoriteProviders(List<Provider> allProviders) {
+    if (_favoriteProviders.isNotEmpty) return _favoriteProviders;
     return allProviders
         .where((provider) => _favoriteProviderIds.contains(provider.id))
         .toList();
@@ -116,6 +132,7 @@ class FavoritesProvider extends ChangeNotifier {
   /// Clear favorites (e.g., on logout)
   void clearFavorites() {
     _favoriteProviderIds = [];
+    _favoriteProviders = [];
     _currentUserId = null;
     _error = null;
     notifyListeners();

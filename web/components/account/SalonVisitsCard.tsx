@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import {
   type Appointment,
-  canReschedule,
+  isUpcoming,
   statusLabelFr,
 } from '../../lib/account/appointments';
 import { canReview } from '../../lib/account/extras';
@@ -32,7 +32,7 @@ export function SalonVisitsCard({ providerId }: { providerId: string }) {
   if (!items || items.length === 0) return null;
 
   const upcoming = items
-    .filter(canReschedule)
+    .filter(isUpcoming)
     .sort((a, b) => a.appointmentDate.localeCompare(b.appointmentDate));
   // The latest reviewable completed visit → its detail hosts the ReviewForm.
   const reviewable = items

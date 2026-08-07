@@ -20,6 +20,20 @@ abstract interface class ProvidersRepository {
   });
   Future<Map<String, dynamic>?> byId(String id);
 
+  /// [byId] for a set, in ONE round trip — the shape a hydration needs.
+  ///
+  /// Exists because `/me/favorites` and the consumer appointment enrichment
+  /// both resolve a handful of salons at once, and looping [byId] would move
+  /// the N+1 the clients are shedding straight into the backend instead of
+  /// removing it (BACKEND.md §4). Missing ids are simply absent from the
+  /// result — the caller decides what a vanished salon means, because it
+  /// differs: an appointment keeps rendering, a favourite does not.
+  ///
+  /// Like [byId], this does **not** filter on status. Callers that serve an
+  /// anonymous caller ask [isPublicSalon]; callers that serve a relationship
+  /// deliberately do not.
+  Future<List<Map<String, dynamic>>> byIds(List<String> ids);
+
   /// Public read by URL slug (`myweli.ci/<slug>`), same shape as [byId] or null.
   Future<Map<String, dynamic>?> bySlug(String slug);
 
@@ -188,6 +202,15 @@ class InMemoryProvidersRepository implements ProvidersRepository {
       if (p['id'] == id) return p;
     }
     return null;
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> byIds(List<String> ids) async {
+    final wanted = ids.toSet();
+    return [
+      for (final p in _all)
+        if (wanted.contains(p['id'])) p,
+    ];
   }
 
   @override

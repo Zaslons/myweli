@@ -14,6 +14,8 @@ import { useFieldErrors } from '../../lib/forms/useFieldErrors';
 import { Button } from '../Button';
 import { PhoneField } from '../PhoneField';
 import { TextField } from '../TextField';
+import { gisOptions } from './socialButton';
+import { AppleSignInButton } from './AppleSignInButton';
 
 /// Consumer sign-in — Google + Apple + email OTP (auth overhaul P2, replaces
 /// phone-OTP). Google/Apple render only when their public client IDs are
@@ -148,12 +150,7 @@ export function LoginOptions({ onSuccess }: { onSuccess: () => void }) {
             afterLogin(r.user);
           },
         });
-        window.google.accounts.id.renderButton(googleDiv.current, {
-          theme: 'outline',
-          size: 'large',
-          width: 320,
-          locale: 'fr',
-        });
+        window.google.accounts.id.renderButton(googleDiv.current, gisOptions('continue_with'));
       })
       .catch(() => setError('Connexion Google indisponible.'));
     return () => {
@@ -319,9 +316,7 @@ export function LoginOptions({ onSuccess }: { onSuccess: () => void }) {
         <div ref={googleDiv} className="flex justify-center" />
       ) : null}
       {appleClientId ? (
-        <Button onClick={signInWithApple} disabled={busy}>
-          Continuer avec Apple
-        </Button>
+        <AppleSignInButton onClick={signInWithApple} disabled={busy} />
       ) : null}
       {googleClientId || appleClientId ? (
         <div className="flex items-center gap-s text-bodySmall text-textTertiary">

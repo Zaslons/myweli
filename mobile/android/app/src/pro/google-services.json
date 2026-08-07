@@ -1,0 +1,82 @@
+{
+  "project_info": {
+    "project_number": "731308991240",
+    "project_id": "myweli",
+    "storage_bucket": "myweli.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:731308991240:android:9f712a49f661265201c2bd",
+        "android_client_info": {
+          "package_name": "com.myweli.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "731308991240-dairlha8r67p4l5d52m44qnt82qdp5js.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA9Xzgf2VqYChKCXYjnMxyv-mrUgzEjeY0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "731308991240-dairlha8r67p4l5d52m44qnt82qdp5js.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "731308991240-ah75c2bvv4ojfipa7crlj38n7rdg60fv.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.myweli.app"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:731308991240:android:45f989a34eb9f7b301c2bd",
+        "android_client_info": {
+          "package_name": "com.myweli.pro"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "731308991240-dairlha8r67p4l5d52m44qnt82qdp5js.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA9Xzgf2VqYChKCXYjnMxyv-mrUgzEjeY0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "731308991240-dairlha8r67p4l5d52m44qnt82qdp5js.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "731308991240-ah75c2bvv4ojfipa7crlj38n7rdg60fv.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.myweli.app"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

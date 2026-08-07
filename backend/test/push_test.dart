@@ -35,7 +35,11 @@ class _FakeProvider implements PushProvider {
     Map<String, String> data = const {},
   }) async {
     seen.addAll(tokens);
-    return (sent: tokens.length - invalid.length, invalidTokens: invalid);
+    return (
+      sent: tokens.length - invalid.length,
+      invalidTokens: invalid,
+      error: null,
+    );
   }
 }
 
@@ -228,4 +232,75 @@ void main() {
       expect(res.statusCode, HttpStatus.badRequest);
     });
   });
+  group('an auth failure must be LOUD (it was silent for months)', () {
+    // FCM_PRIVATE_KEY was a key for a RETIRED Firebase project, so OAuth failed
+    // on every send and push had never worked. The provider returned
+    // (sent: 0, invalidTokens: []) — byte-identical to "there was nobody to
+    // send to". No log, no signal, nothing to notice.
+    test('no access token → a distinguishable error, not silence', () async {
+      final p = FcmV1PushProvider(
+        projectId: 'proj',
+        tokenSource: _NoTokenSource(),
+        client: MockClient((_) async => http.Response('{}', 200)),
+      );
+      final r = await p.send(tokens: ['t1'], title: 'x', body: 'y');
+
+      expect(r.sent, 0);
+      expect(
+        r.error,
+        'push_auth_failed',
+        reason:
+            'this is the whole point — it must not be indistinguishable '
+            'from having no recipients',
+      );
+    });
+
+    test('nothing to send is NOT an error', () async {
+      // The other half: if every empty fan-out reported an error, the signal
+      // would be noise and get ignored again.
+      final p = FcmV1PushProvider(
+        projectId: 'proj',
+        tokenSource: _NoTokenSource(),
+        client: MockClient((_) async => http.Response('{}', 200)),
+      );
+      final r = await p.send(tokens: const [], title: 'x', body: 'y');
+      expect(r.sent, 0);
+      expect(r.error, isNull);
+    });
+
+    test('an unexpected non-2xx is reported, not swallowed', () async {
+      // A 500 from FCM is neither "sent" nor "invalid token", and used to
+      // vanish entirely.
+      final p = FcmV1PushProvider(
+        projectId: 'proj',
+        tokenSource: _FixedTokenSource(),
+        client: MockClient((_) async => http.Response('boom', 500)),
+      );
+      final r = await p.send(tokens: ['t1'], title: 'x', body: 'y');
+      expect(r.sent, 0);
+      expect(r.invalidTokens, isEmpty);
+      expect(r.error, 'push_send_failed');
+    });
+
+    test('a successful send reports no error', () async {
+      final p = FcmV1PushProvider(
+        projectId: 'proj',
+        tokenSource: _FixedTokenSource(),
+        client: MockClient((_) async => http.Response('{"name":"ok"}', 200)),
+      );
+      final r = await p.send(tokens: ['t1'], title: 'x', body: 'y');
+      expect(r.sent, 1);
+      expect(r.error, isNull);
+    });
+  });
+}
+
+class _NoTokenSource implements AccessTokenSource {
+  @override
+  Future<String?> token() async => null;
+}
+
+class _FixedTokenSource implements AccessTokenSource {
+  @override
+  Future<String?> token() async => 'access-token';
 }

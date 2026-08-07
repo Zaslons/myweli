@@ -58,21 +58,41 @@ class ApiProviderService implements ProviderServiceInterface {
     }
   }
 
+  /// The public salon read.
+  ///
+  /// **It sets `code:` now, like every other service does**
+  /// (`api_appointment_service._errorFrom`, `api_review_service`,
+  /// `api_favorites_service`). It was the only one that did not, so a screen
+  /// could tell a 404 from a dead network only by comparing French strings —
+  /// and the string it compared against, « Provider non trouvé », was English
+  /// jargon rendered on a consumer screen. The route is about to stop serving
+  /// salons that are `draft` or `suspended` (Decision C), which makes the
+  /// difference between « this salon is gone » and « your connection dropped »
+  /// something the UI has to say out loud.
   @override
   Future<ApiResponse<Provider>> getProviderById(String id) async {
     try {
       final res = await _client.get(Uri.parse('$_baseUrl/providers/$id'));
       if (res.statusCode == 404) {
-        return ApiResponse.error('Provider non trouvé');
+        return ApiResponse.error(
+          'Ce salon n’est plus disponible sur Myweli.',
+          code: 'not_found',
+        );
       }
       if (res.statusCode != 200) {
-        return ApiResponse.error('Erreur serveur (${res.statusCode})');
+        return ApiResponse.error(
+          'Erreur serveur (${res.statusCode})',
+          code: 'server_error',
+        );
       }
       return ApiResponse.success(
         Provider.fromJson(jsonDecode(res.body) as Map<String, dynamic>),
       );
     } catch (_) {
-      return ApiResponse.error('Connexion au serveur impossible');
+      return ApiResponse.error(
+        'Connexion au serveur impossible',
+        code: 'network',
+      );
     }
   }
 

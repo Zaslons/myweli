@@ -7,6 +7,7 @@ import '../../models/payment.dart';
 import '../../models/pro_membership.dart';
 import '../../models/provider.dart';
 import '../../models/provider_user.dart';
+import '../../models/review.dart';
 import '../../models/salon_membership_info.dart';
 import '../../models/service.dart';
 
@@ -108,6 +109,18 @@ abstract class ProServiceInterface {
   /// ACTIVE memberships — an invalid selection surfaces `forbidden` (a
   /// per-salon denial, NEVER the sign-out signal).
   Future<ApiResponse<MyProviderInfo>> getMyProvider({String? salonId});
+
+  /// The salon's OWN « Avis », resolved by account (`GET /me/provider/reviews`).
+  ///
+  /// **Not `reviewService.getProviderReviews`**, which is the CONSUMER service
+  /// and sends no token at all — the pro app was reading its own reviews
+  /// through the anonymous public route, taking the salon id from the client.
+  /// That is PR1b's defect one file over, and it survived PR1b's source pin
+  /// because it crossed a *service* boundary rather than a directory one. The
+  /// public route stops serving a salon that is `draft` or `suspended`
+  /// (Decision C), and a draft salon can hold reviews — T53 erasure and T54
+  /// billing unpublish both write `status → draft` over a salon with history.
+  Future<ApiResponse<List<Review>>> getMyReviews({int page, int pageSize});
 
   /// « Mes salons » (module `access` R6 — GET /me/salons): every salon the
   /// account belongs to (owned first) + the server-computed add gate.

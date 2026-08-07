@@ -175,6 +175,51 @@ class MockAppointmentService implements AppointmentServiceInterface {
     return null;
   }
 
+  /// The mock's copy of the backend's `withProviderFacts`
+  /// (`salon-state-and-refusals.md` §5, Decision C).
+  ///
+  /// The consumer surfaces read the salon's name, contact, deposit handle and
+  /// booking window OFF the appointment now, so a mock that returns bare rows
+  /// would show the app degrading in exactly the way the real backend never
+  /// will — the opposite of what a mock is for (ROADMAP §2.1: mocks simulate
+  /// the real response, including its enrichment).
+  Appointment _withProviderFacts(Appointment a) {
+    final salon = MockData.providers
+        .where((p) => p.id == a.providerId)
+        .firstOrNull;
+    if (salon == null) return a;
+    final services = {for (final s in salon.services) s.id: s};
+    return a.copyWith(
+      providerName: salon.name,
+      providerStatus: 'active',
+      providerPhone: salon.phoneNumber,
+      providerWhatsapp: salon.whatsapp,
+      providerAddress: salon.address,
+      providerCountryCode: salon.countryCode,
+      providerTimezone: salon.timezone,
+      providerCurrency: salon.currency,
+      depositMobileMoneyOperator: salon.depositMobileMoneyOperator,
+      depositMobileMoneyNumber: salon.depositMobileMoneyNumber,
+      artistName: a.artistId == null
+          ? null
+          : salon.artists.where((x) => x.id == a.artistId).firstOrNull?.name,
+      serviceNames: [
+        for (final id in a.serviceIds)
+          if (services[id] case final s?) s.name,
+      ],
+      providerBookingHorizonDays: salon.availability.bookingHorizonDays,
+      providerMinimumNoticeMinutes: salon.availability.minimumNoticeMinutes,
+      durationMinutes:
+          a.durationMinutes ??
+          (a.serviceIds.any(services.containsKey)
+              ? a.serviceIds.fold<int>(
+                  0,
+                  (t, id) => t + (services[id]?.durationMinutes ?? 0),
+                )
+              : null),
+    );
+  }
+
   @override
   Future<ApiResponse<List<Appointment>>> getUserAppointments({
     AppointmentStatus? status,
@@ -191,7 +236,7 @@ class MockAppointmentService implements AppointmentServiceInterface {
     // Sort by date (upcoming first)
     appointments.sort((a, b) => a.appointmentDate.compareTo(b.appointmentDate));
 
-    return ApiResponse.success(appointments);
+    return ApiResponse.success(appointments.map(_withProviderFacts).toList());
   }
 
   @override
@@ -200,7 +245,7 @@ class MockAppointmentService implements AppointmentServiceInterface {
 
     try {
       final appointment = _appointments.firstWhere((a) => a.id == id);
-      return ApiResponse.success(appointment);
+      return ApiResponse.success(_withProviderFacts(appointment));
     } catch (e) {
       return ApiResponse.error('Rendez-vous non trouvé');
     }

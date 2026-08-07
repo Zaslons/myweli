@@ -39,6 +39,25 @@ DateTime _slotAt(int hour) {
   return DateTime.utc(d.year, d.month, d.day, hour);
 }
 
+/// Mon–Sun 09:00–18:00 in 30-minute openings — inline so these fixtures never
+/// borrow the shared mutable `seedProviders`.
+Map<String, dynamic> _openAvailability() {
+  final slots = <Map<String, dynamic>>[];
+  for (var m = 9 * 60; m < 18 * 60; m += 30) {
+    final start = DateTime.utc(2024, 1, 1, m ~/ 60, m % 60);
+    slots.add({
+      'startTime': start.toIso8601String(),
+      'endTime': start.add(const Duration(minutes: 30)).toIso8601String(),
+      'isAvailable': true,
+    });
+  }
+  return {
+    'weeklySchedule': {for (var d = 0; d <= 6; d++) '$d': slots},
+    'blockedDates': <String>[],
+    'bufferMinutes': 0,
+  };
+}
+
 void main() {
   setUpAll(() {
     registerFallbackValue(MessageTemplate.bookingConfirmed);
@@ -67,6 +86,7 @@ void main() {
     lifecycle = AppointmentLifecycleService(
       appts,
       SlotService(providers, appts),
+      providers,
     );
     providerAuth = InMemoryProviderAuthRepository(
       tokens: tokens,
@@ -114,6 +134,109 @@ void main() {
     });
     return created!['id'] as String;
   }
+
+  group('the closure, and the calendar a salon still owns (Decision A/C)', () {
+    // Isolated salons — never the shared mutable `seedProviders`.
+    late InMemoryProvidersRepository salons;
+    late InMemoryAppointmentRepository store;
+    late AppointmentLifecycleService svc;
+    late DateTime target;
+
+    Map<String, dynamic> salon(String id, String? status) => {
+      'id': id,
+      'name': id,
+      if (status != null) 'status': status,
+      'services': <Map<String, dynamic>>[
+        {'id': 's1', 'name': 'Coupe', 'durationMinutes': 30, 'price': 5000},
+      ],
+      'availability': _openAvailability(),
+    };
+
+    setUp(() async {
+      salons = InMemoryProvidersRepository([
+        salon('live', 'active'),
+        salon('unpublished', 'draft'),
+        salon('stopped', 'suspended'),
+      ]);
+      store = InMemoryAppointmentRepository();
+      svc = AppointmentLifecycleService(
+        store,
+        SlotService(salons, store),
+        salons,
+      );
+      var d = DateTime.now().toUtc().add(const Duration(days: 7));
+      d = DateTime.utc(d.year, d.month, d.day, 10);
+      target = d;
+    });
+
+    Future<String> booking(String providerId) async {
+      final a = await store.create({
+        'id': 'a_$providerId',
+        'userId': 'u1',
+        'providerId': providerId,
+        'serviceIds': <String>['s1'],
+        'appointmentDate': target
+            .subtract(const Duration(days: 1))
+            .toIso8601String(),
+        'status': 'confirmed',
+        'totalPrice': 5000,
+        'createdAt': DateTime.now().toUtc().toIso8601String(),
+      });
+      return a!['id'] as String;
+    }
+
+    test('the CLIENT is refused, and told WHICH state', () async {
+      // The precise codes, not `provider_not_found`: the caller owns this
+      // booking, so naming the state leaks nothing they do not already know.
+      // Both sentences already ship (`_messageFor`, `conflictMessage`), and
+      // `appointment_detail_screen.dart` already CLAIMS this behaviour in a
+      // comment — PR1d is what makes the claim true.
+      expect(
+        (await svc.reschedule(
+          await booking('unpublished'),
+          'u1',
+          target,
+        )).error,
+        'provider_not_published',
+      );
+      expect(
+        (await svc.reschedule(await booking('stopped'), 'u1', target)).error,
+        'provider_suspended',
+      );
+      // The pair.
+      expect(
+        (await svc.reschedule(await booking('live'), 'u1', target)).ok,
+        isTrue,
+      );
+    });
+
+    test('the SALON may still move a booking in its DRAFT calendar', () async {
+      // Decision A, and the assertion that dies if the closure over-reaches.
+      // Direct sibling of the A14d window pair above.
+      final r = await svc.rescheduleByProvider(
+        await booking('unpublished'),
+        'unpublished',
+        target,
+      );
+      expect(r.ok, isTrue, reason: r.error);
+    });
+
+    test(
+      'but a SUSPENDED salon does not — Decision A, the other half',
+      () async {
+        // « A salon that has not published yet owns its calendar. A salon that
+        // has been suspended does not. » `bookManual` has always obeyed that
+        // sentence; this path never checked at all, so the rule was half true.
+        final r = await svc.rescheduleByProvider(
+          await booking('stopped'),
+          'stopped',
+          target,
+        );
+        expect(r.ok, isFalse);
+        expect(r.error, 'provider_suspended');
+      },
+    );
+  });
 
   group('AppointmentLifecycleService', () {
     test(
@@ -278,6 +401,31 @@ void main() {
       headers: {'Authorization': 'Bearer $token'},
       body: jsonEncode(body ?? const {}),
     );
+
+    test('a stopped salon refuses the move as a 409, not a 400', () async {
+      // The route's switch has no case for these codes — its DEFAULT is 409,
+      // and that default is load-bearing. `routes/appointments/index.dart:157`
+      // defaults to 400 instead, with a comment warning that a new conflict
+      // code added without its own case « silently ships as a bad request ».
+      // This asserts which of the two shapes this route has.
+      await providers.setStatus('provider1', 'suspended');
+      addTearDown(() => providers.setStatus('provider1', 'active'));
+      final id = await seedFor('user_A');
+
+      final res = await reschedule_route.onRequest(
+        ctx(
+          post('/appointments/$id/reschedule', accessA, {
+            'newDateTime': DateTime.now()
+                .toUtc()
+                .add(const Duration(days: 8))
+                .toIso8601String(),
+          }),
+        ),
+        id,
+      );
+      expect(res.statusCode, HttpStatus.conflict);
+      expect((await res.json() as Map)['error'], 'provider_suspended');
+    });
 
     test(
       'cancel: 401 without token; 403 for another user; 200 for owner',

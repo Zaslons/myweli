@@ -6,6 +6,7 @@ import 'package:myweli_backend/src/provider_catalog_service.dart';
 import 'package:myweli_backend/src/providers_repository.dart';
 import 'package:myweli_backend/src/responses.dart';
 import 'package:myweli_backend/src/reviews_repository.dart';
+import 'package:myweli_backend/src/salon_visibility.dart';
 
 /// `GET /providers/{id}` — full provider detail (public; reviews preview
 /// embedded). `PATCH /providers/{id}` — the owner updates the salon's editable
@@ -25,13 +26,20 @@ Future<Response> onRequest(RequestContext context, String id) async {
 
 Future<Response> _get(RequestContext context, String id) async {
   final provider = await context.read<ProvidersRepository>().byId(id);
-  if (provider == null) return jsonError(HttpStatus.notFound, 'not_found');
+  // Decision C. `isPublicSalon` folds the null, so hidden and nonexistent leave
+  // through the same door with the same body — deliberately (T51: a draft must
+  // be indistinguishable from a salon that does not exist, or this 404 is an
+  // enumeration oracle). A caller who has a RELATIONSHIP with the salon still
+  // gets its facts, from the authenticated endpoint that owns the relationship.
+  if (!isPublicSalon(provider)) {
+    return jsonError(HttpStatus.notFound, 'not_found');
+  }
 
   final reviews = await context.read<ReviewsRepository>().recentForProvider(
     id,
     10,
   );
-  return Response.json(body: {...provider, 'reviews': reviews});
+  return Response.json(body: {...provider!, 'reviews': reviews});
 }
 
 Future<Response> _patch(RequestContext context, String id) async {

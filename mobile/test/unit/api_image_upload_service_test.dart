@@ -40,12 +40,9 @@ void main() {
         expect((jsonDecode(req.body) as Map)['contentType'], 'image/jpeg');
         return http.Response(
           jsonEncode({
-            'method': 'POST',
+            'method': 'PUT',
             'uploadUrl': 'http://storage.local/bucket',
-            'fields': {
-              'key': 'gallery/p1/abc.jpg',
-              'Content-Type': 'image/jpeg',
-            },
+            'headers': {'content-type': 'image/jpeg'},
             'publicUrl': 'https://cdn/gallery/p1/abc.jpg',
             'maxBytes': 5242880,
             'expiresInSeconds': 300,
@@ -53,10 +50,13 @@ void main() {
           200,
         );
       }
-      // The storage upload: multipart POST, no bearer (the presign is the auth).
-      expect(req.headers['content-type'], contains('multipart/form-data'));
-      expect(req.body, contains('gallery/p1/abc.jpg'));
-      return http.Response('', 204);
+      // The storage upload: a raw PUT, no bearer (the presign is the auth).
+      // R2 answers a multipart POST with 501, so the body must be the bytes
+      // themselves and the content-type exactly the one that was signed.
+      expect(req.method, 'PUT');
+      expect(req.headers['content-type'], 'image/jpeg');
+      expect(req.headers.containsKey('authorization'), isFalse);
+      return http.Response('', 200);
     });
 
     final progress = <double>[];
@@ -128,9 +128,9 @@ void main() {
         }
         return http.Response(
           jsonEncode({
-            'method': 'POST',
+            'method': 'PUT',
             'uploadUrl': 'http://storage.local/bucket',
-            'fields': {'key': 'gallery/p1/abc.jpg'},
+            'headers': {'content-type': 'image/jpeg'},
             'publicUrl': 'https://cdn/gallery/p1/abc.jpg',
             'maxBytes': 1,
             'expiresInSeconds': 300,
@@ -138,7 +138,7 @@ void main() {
           200,
         );
       }
-      return http.Response('', 204);
+      return http.Response('', 200);
     });
 
     final res = await _service(client).uploadImage(source: '/tmp/x.jpg');

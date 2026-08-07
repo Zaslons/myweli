@@ -8,7 +8,6 @@ import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
 import '../../core/utils/app_clock.dart';
-import '../../models/artist.dart';
 import '../../models/review.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/provider_provider.dart';
@@ -27,12 +26,25 @@ class SubmitReviewSheet extends StatefulWidget {
 
   /// The completed appointment being reviewed (one review per visit).
   final String appointmentId;
+
+  /// Who served that visit, read off the appointment.
+  ///
+  /// **This replaced a picker that controlled nothing.** The sheet used to ask
+  /// « Avec quel professionnel ? » and send the answer;
+  /// `ReviewsService.submitForAppointment` derives `artistId`/`artistName`
+  /// from the APPOINTMENT and discards what the client sends. The control
+  /// survived because the mock honoured it and the real backend never did — a
+  /// choice the user made that had no effect on the review they published.
+  /// The server is the authority (BACKEND.md §3), so the client stops asking
+  /// and states the fact instead. Null when the booking had no artist.
+  final String? artistName;
   final VoidCallback? onSubmitted;
 
   const SubmitReviewSheet({
     super.key,
     required this.providerId,
     required this.appointmentId,
+    this.artistName,
     this.onSubmitted,
   });
 
@@ -42,7 +54,6 @@ class SubmitReviewSheet extends StatefulWidget {
 
 class _SubmitReviewSheetState extends State<SubmitReviewSheet> {
   int _selectedRating = 0;
-  String? _selectedArtistId;
   final _textController = TextEditingController();
   final List<String> _photoUrls = [];
   bool _uploadingPhoto = false;
@@ -103,17 +114,6 @@ class _SubmitReviewSheetState extends State<SubmitReviewSheet> {
       context,
       listen: false,
     );
-    final artists =
-        providerProvider.selectedProvider?.artists ?? const <Artist>[];
-    String? artistName;
-    if (_selectedArtistId != null) {
-      for (final a in artists) {
-        if (a.id == _selectedArtistId) {
-          artistName = a.name;
-          break;
-        }
-      }
-    }
 
     final review = Review(
       id: const Uuid().v4(),
@@ -125,8 +125,11 @@ class _SubmitReviewSheetState extends State<SubmitReviewSheet> {
       text: _textController.text.trim(),
       // Submission is gated on a completed booking, so it's a verified review.
       verified: true,
-      artistId: _selectedArtistId,
-      artistName: artistName,
+      // The server resolves both from the appointment and ignores whatever
+      // arrives here; sending the display name keeps the mock and the API
+      // agreeing on what the sheet shows.
+      artistId: null,
+      artistName: widget.artistName,
       photoUrls: List<String>.from(_photoUrls),
       createdAt: AppClock.now(),
     );
@@ -159,9 +162,6 @@ class _SubmitReviewSheetState extends State<SubmitReviewSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final artists =
-        context.watch<ProviderProvider>().selectedProvider?.artists ??
-        const <Artist>[];
     // §14 rule 5: NOT gated on the rating. `_uploadingPhoto` and `_submitting`
     // are work in progress, which is the rule's one allowed reason to disable.
     final canSubmit = !_submitting && !_uploadingPhoto;
@@ -203,34 +203,16 @@ class _SubmitReviewSheetState extends State<SubmitReviewSheet> {
               );
             }),
           ),
-          if (artists.isNotEmpty) ...[
+          if (widget.artistName case final artist?) ...[
             const SizedBox(height: AppTheme.spacingM),
             Align(
               alignment: Alignment.centerLeft,
               child: Text(
-                'Avec quel professionnel ?',
+                'Avec $artist',
                 style: AppTextStyles.bodyMedium.copyWith(
                   color: AppColors.textSecondary,
                 ),
               ),
-            ),
-            const SizedBox(height: AppTheme.spacingS),
-            Wrap(
-              spacing: AppTheme.spacingS,
-              runSpacing: AppTheme.spacingS,
-              children: [
-                for (final a in artists)
-                  ChoiceChip(
-                    label: Text(a.name),
-                    selected: _selectedArtistId == a.id,
-                    onSelected: (_) => setState(() => _selectedArtistId = a.id),
-                  ),
-                ChoiceChip(
-                  label: const Text('Sans préférence'),
-                  selected: _selectedArtistId == null,
-                  onSelected: (_) => setState(() => _selectedArtistId = null),
-                ),
-              ],
             ),
           ],
           const SizedBox(height: AppTheme.spacingM),

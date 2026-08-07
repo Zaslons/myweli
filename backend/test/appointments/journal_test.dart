@@ -110,7 +110,7 @@ void main() {
     lifecycle = AppointmentLifecycleService(
       appts,
       SlotService(providers, appts),
-      providers: providers,
+      providers,
     );
 
     final reg1 = await providerAuth.register(

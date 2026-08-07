@@ -564,6 +564,59 @@ class ApiAuthService implements AuthServiceInterface {
   }
 
   @override
+  Future<ApiResponse<ProviderUser>> registerProviderWithApple({
+    required String phoneNumber,
+    required String businessName,
+    required BusinessType businessType,
+    String? address,
+    String? areaId,
+  }) async {
+    try {
+      // Same nonce discipline as signInProviderWithApple: the RAW nonce goes to
+      // our backend, its SHA-256 to Apple, and the verifier compares them.
+      final rawNonce = _randomNonce();
+      final credential = await SignInWithApple.getAppleIDCredential(
+        scopes: [
+          AppleIDAuthorizationScopes.email,
+          AppleIDAuthorizationScopes.fullName,
+        ],
+        nonce: sha256.convert(utf8.encode(rawNonce)).toString(),
+      );
+      final identityToken = credential.identityToken;
+      if (identityToken == null) {
+        return ApiResponse.error(
+          'Inscription Apple impossible.',
+          code: 'no_id_token',
+        );
+      }
+      final res = await _post('/auth/provider/register', {
+        'identityToken': identityToken,
+        'nonce': rawNonce,
+        'phoneNumber': phoneNumber,
+        'businessName': businessName,
+        'businessType': businessType.name,
+        if (address != null && address.isNotEmpty) 'address': address,
+        if (areaId != null && areaId.isNotEmpty) 'areaId': areaId,
+      });
+      return _providerLoginFrom(res, expected: 201);
+    } on SignInWithAppleAuthorizationException catch (e) {
+      // A cancel is silent — the user closed the sheet, that is not an error.
+      if (e.code == AuthorizationErrorCode.canceled) {
+        return ApiResponse.error('', code: 'cancelled');
+      }
+      return ApiResponse.error(
+        'Inscription Apple impossible.',
+        code: 'apple_failed',
+      );
+    } catch (_) {
+      return ApiResponse.error(
+        'Inscription Apple impossible.',
+        code: 'apple_failed',
+      );
+    }
+  }
+
+  @override
   Future<ApiResponse<ProviderUser>> registerProviderWithEmail({
     required String email,
     required String code,

@@ -85,6 +85,17 @@ web/
   Long-lived web sessions. Logout (`/api/auth/logout`) clears the cookies. CSRF:
   `SameSite=Lax` + same-origin. Account reads/writes are **self-scoped** server-side
   (the principal), never a client-supplied id.
+- **The BFF does NOT enrich (PR1c).** `lib/bff.ts` used to fetch the public
+  `GET /providers/{id}` once per distinct salon to put a name on a booking
+  card, and `/api/me/favorites` fetched one per favorite. Both dropped what
+  failed, silently. The **API** enriches now: a consumer appointment carries
+  the salon's identity, contact, deposit coordinates, booking window and
+  `providerStatus`, and `/me/favorites` returns hydrated salons — because those
+  endpoints are authenticated and own the relationship, and the public read is
+  closing to salons that are `draft` or `suspended`
+  (docs/design/salon-state-and-refusals.md Decision C). **Rule: a BFF route
+  shapes and forwards; it does not go and get data the API should have sent.**
+  Held by `tests/no-public-provider-read.test.ts`.
 - **Pro session (M7.0):** the provider dashboard uses a **separate** cookie pair
   (`myweli_pro_at`/`_rt`) + its own pro BFF (`app/api/pro/*`, `callApiPro` in
   `lib/bff-pro.ts`) refreshing via `/auth/provider/refresh` — consumer and provider

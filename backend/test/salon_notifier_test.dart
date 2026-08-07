@@ -32,7 +32,7 @@ class _RecordingPushProvider implements PushProvider {
     Map<String, String> data = const {},
   }) async {
     sends.add((tokens: tokens, title: title, body: body, data: data));
-    return (sent: tokens.length, invalidTokens: const <String>[]);
+    return (sent: tokens.length, invalidTokens: const <String>[], error: null);
   }
 }
 

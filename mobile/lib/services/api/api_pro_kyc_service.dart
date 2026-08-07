@@ -78,22 +78,26 @@ class ApiProKycService implements ProKycServiceInterface {
     final ticket = _decode(signRes.body);
     final key = ticket['key'] as String;
 
-    // 2. Upload the bytes straight to private storage (presign is the auth).
-    final req = http.MultipartRequest(
-      'POST',
-      Uri.parse(ticket['uploadUrl'] as String),
-    );
-    (ticket['fields'] as Map).forEach((k, v) {
-      req.fields[k as String] = v as String;
-    });
-    req.files.add(http.MultipartFile.fromBytes('file', bytes, filename: 'doc'));
+    // 2. PUT the bytes straight to storage (the presign is the auth — no
+    //    bearer here). Cloudflare R2 does not implement presigned POST and
+    //    answers one with 501 NotImplemented, so this is a PUT of the raw
+    //    body. The signature covers `headers` — sending a different
+    //    content-type than the one signed is a 403 from storage, so send
+    //    exactly these and nothing else.
+    //    docs/design/backend-r2-presigned-put.md.
+    final http.Response uploaded;
     try {
-      final uploaded = await _client.send(req);
-      await uploaded.stream.drain<void>();
-      if (uploaded.statusCode < 200 || uploaded.statusCode >= 300) {
-        return ApiResponse.error('Échec de l’envoi du document');
-      }
+      uploaded = await _client.put(
+        Uri.parse(ticket['uploadUrl'] as String),
+        headers: (ticket['headers'] as Map).map(
+          (k, v) => MapEntry(k as String, v as String),
+        ),
+        body: bytes,
+      );
     } catch (_) {
+      return ApiResponse.error('Échec de l’envoi du document');
+    }
+    if (uploaded.statusCode < 200 || uploaded.statusCode >= 300) {
       return ApiResponse.error('Échec de l’envoi du document');
     }
     return ApiResponse.success(key);

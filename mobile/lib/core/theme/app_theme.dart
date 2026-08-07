@@ -243,6 +243,29 @@ class AppTheme {
         backgroundColor: AppColors.background,
         foregroundColor: AppColors.textPrimary,
         elevation: 0,
+        // A15 (§21 row 79) — width the bar was spending before the first
+        // glyph. Material's defaults are a 56dp leading box
+        // (`app_bar.dart:43`) and 16dp of `titleSpacing`
+        // (`navigation_toolbar.dart:39`); this takes the leading to 48 and
+        // leaves the spacing alone, so a pushed bar's residual title width
+        // goes 272 → 280dp.
+        //
+        // `leadingWidth: 48` is exactly §13.2's floor and not a millimetre
+        // more: `BackButton` is an `_ActionButton`, which lays out at 48 wide
+        // under `MaterialTapTargetSize.padded`. Those 8dp are free — nothing
+        // was ever painted in them.
+        //
+        // **`titleSpacing: 0` was tried, and the pictures rejected it.** It
+        // buys 32dp more (312dp) and every title in `lib/` fits, but
+        // `titleSpacing` is the gap on BOTH sides and applies whether or not a
+        // leading exists — so on a root bar, which draws no back button, the
+        // title lands at **x = 0** while the body it heads keeps its 16dp
+        // gutter. That is one screen with two gutters, on all 57 bars. And the
+        // 32dp were not comfort: at 312 the widest surviving title
+        // (« Configurer mon profil ») cleared by **2.7dp**, which a font
+        // update or a Flutter bump erases. Two titles shortened instead —
+        // « Configuration » at 197dp and « Réservation » at 173dp against 280.
+        leadingWidth: 48,
         systemOverlayStyle: SystemUiOverlayStyle.dark,
         titleTextStyle: f(
           AppTextStyles.headlineSmall.copyWith(color: AppColors.textPrimary),

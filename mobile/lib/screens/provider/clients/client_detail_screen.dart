@@ -97,7 +97,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
         _VisitsSection(visits: clients.visits),
         const SizedBox(height: AppTheme.spacingL),
         AppButton(
-          text: 'Nouveau rendez-vous',
+          text: 'Nouvelle réservation',
           onPressed: () => context.push(
             '/pro/appointment/new',
             extra: {

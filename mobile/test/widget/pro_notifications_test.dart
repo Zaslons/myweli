@@ -155,10 +155,14 @@ void main() {
       find.textContaining('réservations, annulations et acomptes'),
       findsOneWidget,
     );
-    expect(find.text('Tout lire'), findsNothing); // nothing unread
+    // A15: the action is an icon now — « Tout lire » was a TEXT action, and a
+    // text action is scaled by the FULL system scaler (the 1.34 clamp wraps the
+    // title alone), so at 2× it took 182dp of a 280dp bar. The finder moves to
+    // the tooltip, which is the label a screen reader reads.
+    expect(find.byTooltip('Tout marquer comme lu'), findsNothing);
   });
 
-  testWidgets('« Tout lire » appears only when something is unread, and '
+  testWidgets('the mark-all action appears only when something is unread, and '
       'clears the badge', (tester) async {
     when(
       () => service.getNotifications(),
@@ -178,12 +182,12 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Tout lire'), findsOneWidget);
-    await tester.tap(find.text('Tout lire'));
+    expect(find.byTooltip('Tout marquer comme lu'), findsOneWidget);
+    await tester.tap(find.byTooltip('Tout marquer comme lu'));
     await tester.pumpAndSettle();
 
     verify(() => service.markAllRead()).called(1);
     expect(provider.unreadCount, 0);
-    expect(find.text('Tout lire'), findsNothing);
+    expect(find.byTooltip('Tout marquer comme lu'), findsNothing);
   });
 }

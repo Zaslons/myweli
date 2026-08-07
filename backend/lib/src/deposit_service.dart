@@ -2,6 +2,7 @@ import 'access/capabilities.dart';
 import 'access/membership_service.dart';
 import 'appointments/appointment_repository.dart';
 import 'storage/storage_service.dart';
+import 'upload_verification_service.dart';
 
 /// Outcome of a deposit operation; [data] is the response body on success.
 typedef DepositResult = ({bool ok, String? error, Object? data});
@@ -12,11 +13,21 @@ typedef DepositResult = ({bool ok, String? error, Object? data});
 /// booking. This service records the screenshot key on the booking and issues
 /// short-lived signed view URLs to the two authorized parties.
 class DepositService {
-  DepositService(this._appointments, this._members, this._storage);
+  DepositService(
+    this._appointments,
+    this._members,
+    this._storage, {
+    UploadVerificationService? verifier,
+  }) : _verifier = verifier ?? UploadVerificationService(storage: _storage);
 
   final AppointmentRepository _appointments;
   final MembershipService _members;
   final StorageService _storage;
+
+  /// Claim-time size check. R2 ignores a signed `content-length`, so the cap
+  /// declared at signing time is advisory and this is where it actually holds.
+  /// docs/design/backend-upload-size-verification.md.
+  final UploadVerificationService _verifier;
 
   static const _viewTtl = Duration(minutes: 5);
 
@@ -37,11 +48,25 @@ class DepositService {
     if (appt['status'] != 'pending') {
       return (ok: false, error: 'invalid_state', data: null);
     }
-    if (key is! String || !key.startsWith('deposit/$userId/')) {
+    // The key the signer issued is a PENDING one; ownership is checked against
+    // the path it will take after promotion.
+    if (key is! String ||
+        !key.startsWith('${kPendingPrefix}deposit/$userId/')) {
       return (ok: false, error: 'invalid_input', data: null);
     }
+    // Ownership is proven above; size is not. Oversized is deleted and refused
+    // — accepting it would attach a screenshot we pay to store indefinitely,
+    // on the consumer-reachable payment path. Promotion moves it out of
+    // `pending/` so what remains there is only ever an orphan.
+    final v = await _verifier.verifyAndPromote([
+      key,
+    ], bucket: StorageBucket.deposit);
+    if (!v.ok) return (ok: false, error: v.error, data: null);
+
     final updated = await _appointments.update(appointmentId, {
-      'depositScreenshotUrl': key,
+      // The PROMOTED key — recording the pending one would leave the object
+      // under a prefix a lifecycle rule is about to expire.
+      'depositScreenshotUrl': v.keys.single,
     });
     return (ok: true, error: null, data: updated);
   }

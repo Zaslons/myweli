@@ -410,6 +410,11 @@ class MockAuthService implements AuthServiceInterface {
   /// Mock salon Google identity — LOGIN-ONLY (no auto-create).
   static const String mockProGoogleEmail = 'mock.google@salon.test';
 
+  /// Mock salon Apple identity — the twin of [mockProGoogleEmail]. It was an
+  /// inline literal in `signInProviderWithApple` until registration needed the
+  /// same value in two places.
+  static const String mockProAppleEmail = 'mock.apple@salon.test';
+
   final Map<String, String> _providerEmailOtpStore = {}; // email -> otp
 
   ProviderUser? _providerByEmail(String email) {
@@ -465,7 +470,7 @@ class MockAuthService implements AuthServiceInterface {
   Future<ProviderLoginResult> signInProviderWithApple() async {
     await Future.delayed(AppConstants.mockDelay);
     // No 202 bridge on the Apple route (contract) — never `.invited`.
-    return _providerLogin('mock.apple@salon.test', null);
+    return _providerLogin(mockProAppleEmail, null);
   }
 
   @override
@@ -634,6 +639,33 @@ class MockAuthService implements AuthServiceInterface {
     return ApiResponse.success(
       _createProvider(
         email: mockProGoogleEmail,
+        phoneNumber: phoneNumber,
+        businessName: businessName,
+        businessType: businessType,
+        address: address,
+      ),
+      message: 'Inscription réussie',
+    );
+  }
+
+  @override
+  Future<ApiResponse<ProviderUser>> registerProviderWithApple({
+    required String phoneNumber,
+    required String businessName,
+    required BusinessType businessType,
+    String? address,
+    String? areaId, // accepted for parity; the mock draft has no doc to stamp
+  }) async {
+    await Future.delayed(AppConstants.mockDelay);
+    if (_providerByEmail(mockProAppleEmail) != null) {
+      return ApiResponse.error(
+        'Un compte existe déjà pour cette identité.',
+        code: 'provider_exists',
+      );
+    }
+    return ApiResponse.success(
+      _createProvider(
+        email: mockProAppleEmail,
         phoneNumber: phoneNumber,
         businessName: businessName,
         businessType: businessType,

@@ -25,7 +25,9 @@ import 'auth/auth_methods.dart';
 import 'auth/auth_repository.dart';
 import 'auth/id_token_verifier.dart';
 import 'auth/provider_auth_repository.dart';
+import 'auth/smoke_seam.dart';
 import 'auth/tokens.dart';
+import 'boot_config.dart';
 import 'clients/clients_repository.dart';
 import 'clients/clients_service.dart';
 import 'clients/provider_audit_log.dart';
@@ -89,6 +91,7 @@ import 'subscription/salon_subscription_repository.dart';
 import 'subscription/salon_subscription_service.dart';
 import 'subscription/subscription_scheduler.dart';
 import 'upload_signing_service.dart';
+import 'upload_verification_service.dart';
 
 /// Composition root: process-wide singletons built from env
 /// (docs/BACKEND.md §3.5), provided into request context by
@@ -98,20 +101,16 @@ import 'upload_signing_service.dart';
 
 bool get _isProd => (Platform.environment['ENV'] ?? 'dev') == 'prod';
 
-String _resolveSecret() {
-  final secret = Platform.environment['JWT_SECRET'];
-  if (secret != null && secret.isNotEmpty) return secret;
-  if (_isProd) {
-    throw StateError('JWT_SECRET must be set in production');
-  }
-  // Dev-only fallback so local runs work without setup; never used in prod.
-  return 'dev-insecure-secret-change-me';
-}
+String _resolveSecret() =>
+    resolveJwtSecret(Platform.environment['JWT_SECRET'], isProd: _isProd);
 
-final String? _databaseUrl = () {
-  final url = Platform.environment['DATABASE_URL'];
-  return (url == null || url.isEmpty) ? null : url;
-}();
+/// G1: **throws in production when unset**, where before it returned null and
+/// every repository quietly became its `InMemory` variant — a green API that
+/// loses every booking on restart. See `boot_config.dart`.
+final String? _databaseUrl = resolveDatabaseUrl(
+  Platform.environment['DATABASE_URL'],
+  isProd: _isProd,
+);
 
 final Pool<void>? _pool = _databaseUrl == null
     ? null
@@ -153,6 +152,10 @@ final TokenService tokenService = TokenService(secret: _resolveSecret());
 /// Launch config: `google,apple,email` — the SMS path stays dormant until
 /// cheap CI SMS unlocks. Design: docs/design/auth-social-email.md §14.
 final AuthMethods authMethods = AuthMethods.parse(_envOrNull('AUTH_METHODS'));
+
+/// The production OTP-disclosure seam (Q1b) — absent unless `SMOKE_OTP_SECRET`
+/// is set. See `auth/smoke_seam.dart` and docs/design/backend-q1b-smoke-seam.md.
+final SmokeSeam smokeSeam = SmokeSeam(_envOrNull('SMOKE_OTP_SECRET'));
 
 List<String> _csvEnv(String key) =>
     _envOrNull(
@@ -286,7 +289,7 @@ final AppointmentLifecycleService appointmentLifecycleService =
     AppointmentLifecycleService(
       appointmentRepository,
       slotService,
-      providers: providersRepository,
+      providersRepository,
     );
 
 final ProAppointmentService proAppointmentService = ProAppointmentService(
@@ -340,7 +343,7 @@ final StorageService storageService = () {
       'private buckets).',
     );
   }
-  return const FakeStorageService();
+  return FakeStorageService();
 }();
 
 /// When public delivery is configured, the gallery accepts only URLs from our
@@ -351,12 +354,24 @@ final List<String> _galleryAllowedOrigins = () {
   return base == null ? const <String>[] : <String>[base, 'asset:'];
 }();
 
+/// The authoritative upload size cap (T61) — R2 ignores a signed
+/// `content-length`, so the limit declared at signing time is advisory and this
+/// is where it holds. docs/design/backend-upload-size-verification.md.
+final UploadVerificationService uploadVerificationService =
+    UploadVerificationService(storage: storageService);
+
+/// Base for deriving an object key from a public delivery URL. Null in dev/Fake,
+/// which is why every claim path treats a null verifier/base as "skip".
+final String? _r2PublicBase = _envOrNull('R2_PUBLIC_BASE_URL');
+
 final ProviderCatalogService providerCatalogService = ProviderCatalogService(
   providersRepository,
   providerAuthRepository,
   membershipService,
   allowedImageOrigins: _galleryAllowedOrigins,
   localities: localitiesService,
+  verifier: uploadVerificationService,
+  publicBaseUrl: _r2PublicBase,
 );
 
 final UploadSigningService uploadSigningService = UploadSigningService(
@@ -365,7 +380,10 @@ final UploadSigningService uploadSigningService = UploadSigningService(
   storageService,
 );
 
-final KycService kycService = KycService(providerAuthRepository);
+final KycService kycService = KycService(
+  providerAuthRepository,
+  verifier: uploadVerificationService,
+);
 
 /// Salon lifecycle (docs/design/pro-salon-lifecycle.md): draft creation at
 /// registration + the /me/provider self-heal + the publish gate.
@@ -527,6 +545,8 @@ final ReviewsService reviewsService = ReviewsService(
   providersRepository,
   authRepository,
   allowedImageOrigins: _galleryAllowedOrigins,
+  verifier: uploadVerificationService,
+  publicBaseUrl: _r2PublicBase,
 );
 
 /// Outbound messaging (SMS, + WhatsApp later). The provider is chosen by
@@ -598,6 +618,11 @@ final MessagingProvider messagingProvider = () {
     'termii' => buildTermii(),
     'twilio' => buildTwilio(),
     'log' => LogMessagingProvider(),
+    // The supported way to run production with no SMS channel at all (G1).
+    // Explicit by design: it is never auto-detected, so "nothing configured"
+    // still hits the fail-fast below. Unlike `log`, it reports ok: false, so
+    // the outbox records the truth rather than a phantom `sent`.
+    'disabled' => DisabledMessagingProvider(),
     // Unset → auto-detect: prefer Termii (CI cost), then Twilio.
     _ => buildTermii() ?? buildTwilio(),
   };
@@ -733,18 +758,43 @@ final String? cronSecret = _envOrNull('CRON_SECRET');
 /// migrations and seeds providers when a database is configured. No-op for
 /// in-memory mode.
 Future<void> initializeDatabase() async {
+  // Fail before the port is bound, not on the first request (G1). `main.dart`
+  // awaits this ahead of `serve()`, so a misconfigured revision dies during
+  // startup rather than going green and then failing every call.
+  // A disclosure path left switched on by accident is the failure mode this
+  // seam is most likely to produce, and the deploy log is where an operator
+  // would notice it. Announced at boot rather than on first use.
+  if (_isProd && smokeSeam.isActive) {
+    // ignore: avoid_print — boot diagnostics go to the container log.
+    print(
+      'WARNING: SMOKE_OTP_SECRET is set — the OTP disclosure seam is ACTIVE in '
+      'production for *.test identities. Unset it once the cutover gate has '
+      'run (docs/design/backend-q1b-smoke-seam.md).',
+    );
+  }
+  assertProductionBootConfig(
+    databaseUrl: Platform.environment['DATABASE_URL'],
+    jwtSecret: Platform.environment['JWT_SECRET'],
+    isProd: _isProd,
+  );
+
   final pool = _pool;
   if (pool != null) {
-    await runMigrations(pool);
-    await seedProvidersIfEmpty(pool);
-    // Move services/availability out of the provider JSONB into the normalized
-    // catalogue tables (single source of truth). See migration 0005.
-    await backfillCatalogueIfNeeded(pool);
-    // Multi-pays MP1: seed the locality reference tree, then stamp the salon
-    // market fields onto pre-MP1 provider documents
-    // (docs/design/multi-pays-end-version.md §2).
-    await seedLocalitiesIfEmpty(pool);
-    await backfillSalonMarketIfNeeded(pool);
+    // Serialised across processes (G1) — see `withSchemaLock`. Every call below
+    // is a migration or a check-then-act seed, and Cloud Run boots cold
+    // instances in parallel where Render never did.
+    await withSchemaLock(pool, () async {
+      await runMigrations(pool);
+      await seedProvidersIfEmpty(pool);
+      // Move services/availability out of the provider JSONB into the
+      // normalized catalogue tables (single source of truth). Migration 0005.
+      await backfillCatalogueIfNeeded(pool);
+      // Multi-pays MP1: seed the locality reference tree, then stamp the salon
+      // market fields onto pre-MP1 provider documents
+      // (docs/design/multi-pays-end-version.md §2).
+      await seedLocalitiesIfEmpty(pool);
+      await backfillSalonMarketIfNeeded(pool);
+    });
   }
   // Seed the super-admin from env (idempotent), after migrations so the table
   // exists. Runs in both modes; no-op when ADMIN_EMAIL/ADMIN_PASSWORD are unset.

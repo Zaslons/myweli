@@ -1,5 +1,6 @@
 import '../providers_repository.dart';
 import '../salon_time.dart';
+import '../salon_visibility.dart';
 import 'appointment_repository.dart';
 import 'booking_window.dart';
 
@@ -41,9 +42,21 @@ class SlotService {
     int? durationMinutes,
     String? artistId,
     bool enforceBookingWindow = true,
+    // T51 / Decision C. A CLIENT may not browse a hidden salon's calendar, and
+    // like `enforceBookingWindow` this defaults to true so it fails closed.
+    // `rescheduleByProvider` passes false: a draft salon owns its calendar,
+    // the same principle that exempts `bookManual` from this engine entirely.
+    bool requireVisibleSalon = true,
   }) async {
     final provider = await _providers.byId(providerId);
-    if (provider == null) {
+    // The SAME code as a missing salon, deliberately. `/availability` is the
+    // only public door that takes an arbitrary providerId in a query string
+    // and already returns the failure code in its body — naming the state here
+    // would turn a one-valued channel into a three-valued one, which is the
+    // enumeration oracle T51 exists to prevent. A caller who OWNS a booking is
+    // told precisely which state it is (`AppointmentLifecycleService.reschedule`):
+    // they have a relationship, so there is nothing left to protect.
+    if (provider == null || (requireVisibleSalon && !isPublicSalon(provider))) {
       return (ok: false, error: 'provider_not_found', slots: null);
     }
 
