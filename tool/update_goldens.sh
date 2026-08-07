@@ -21,7 +21,7 @@ set -euo pipefail
 
 # Must match .github/workflows/ci.yml (subosito/flutter-action `flutter-version`).
 # If CI moves, move this in the same PR or the baseline silently rots.
-FLUTTER_VERSION="3.38.6"
+FLUTTER_VERSION="3.44.9"
 IMAGE="ghcr.io/cirruslabs/flutter:${FLUTTER_VERSION}"
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -35,6 +35,33 @@ if ! docker info >/dev/null 2>&1; then
   run the "Goldens — regenerate" workflow from the GitHub Actions tab,
   download the `goldens` artifact, and unzip it over
   mobile/test/golden/goldens/.
+EOF
+  exit 1
+fi
+
+# cirruslabs publishes on its own schedule and LAGS behind Flutter stable — at
+# the time of the 3.44.9 move the 3.44 series stopped at `.0` while 3.41 already
+# went to `.9`. They lag, they do not skip, so this becomes available again on
+# its own.
+#
+# Until it does, REFUSE rather than substitute. Falling back to a near-miss tag
+# would regenerate the baseline against a different Flutter than CI compares
+# with — the precise failure the FLUTTER_VERSION comment above exists to
+# prevent, and it would look like success. A missing image costs one workflow
+# run; a baseline written by the wrong renderer costs a day of chasing pixels.
+if ! docker manifest inspect "${IMAGE}" >/dev/null 2>&1; then
+  cat >&2 <<EOF
+✗ No image published for Flutter ${FLUTTER_VERSION}: ${IMAGE}
+
+  cirruslabs lags Flutter stable by a few releases. This script will start
+  working again when they publish it — nothing here needs changing.
+
+  Meanwhile, use the authoritative path (it is what CI itself runs):
+    gh workflow run goldens.yml --ref \$(git rev-parse --abbrev-ref HEAD)
+  then download the \`goldens\` artifact and unzip it over
+  mobile/test/golden/goldens/.
+
+  Do NOT point IMAGE at a nearby version. The bytes would not be CI's.
 EOF
   exit 1
 fi

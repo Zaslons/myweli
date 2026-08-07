@@ -11,11 +11,7 @@ import '../../services/interfaces/push_notification_service_interface.dart';
 /// refresh, and unregister-on-logout. All work is **best-effort** — it never
 /// throws into the booking/auth flows. Design: docs/design/push-notifications-app.md.
 class PushRegistration {
-  PushRegistration({
-    required PushNotificationServiceInterface push,
-    required DeviceRegistrationServiceInterface devices,
-  }) : _push = push,
-       _devices = devices {
+  PushRegistration({required this._push, required this._devices}) {
     _listenForRefresh();
   }
 

@@ -22,13 +22,11 @@ import '../interfaces/session_store.dart';
 /// consumer [Session] and the provider session.
 class RefreshingHttpClient {
   RefreshingHttpClient({
-    required http.Client client,
-    required String baseUrl,
-    required SessionStore store,
+    required this._client,
+    required this._baseUrl,
+    required this._store,
     this.refreshPath = '/auth/refresh',
-  }) : _client = client,
-       _baseUrl = baseUrl,
-       _store = store;
+  });
 
   final http.Client _client;
   final String _baseUrl;

@@ -43,7 +43,7 @@ jobs:
           # Must match ci.yml + tool/update_goldens.sh. The SDK also SHIPS the
           # fonts the goldens load (Roboto + MaterialIcons), so the version pin
           # is what keeps the typeface identical between here and the gate.
-          flutter-version: 3.38.6
+          flutter-version: 3.44.9
           channel: stable
           cache: true
 

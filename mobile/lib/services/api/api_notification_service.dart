@@ -25,11 +25,10 @@ class ApiNotificationService implements NotificationServiceInterface {
     http.Client? client,
     String? baseUrl,
     SessionStore? sessionStore,
-    String refreshPath = '/auth/refresh',
+    this._refreshPath = '/auth/refresh',
   }) : _client = client ?? http.Client(),
        _baseUrl = baseUrl ?? AppConfig.apiBaseUrl,
-       _sessionStore = sessionStore ?? InMemorySessionStore(),
-       _refreshPath = refreshPath;
+       _sessionStore = sessionStore ?? InMemorySessionStore();
 
   final http.Client _client;
   final String _baseUrl;

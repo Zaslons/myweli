@@ -49,6 +49,15 @@ class _SalonPickerSheetState extends State<_SalonPickerSheet> {
     final salons = auth.salons;
     final activeId = auth.activeSalonId;
 
+    // Flutter 3.44 asserts on this (list_tile.dart `_findIntermediateWidget`): a
+    // ListTile paints its ink on the nearest Material ANCESTOR, so a coloured box
+    // between the two hides the ripple. The tap feedback on these rows has been
+    // invisible for as long as the surface has existed — the assertion is new, the
+    // defect is not.
+    //
+    // `MaterialType.transparency` paints nothing, so the surface above is untouched
+    // and the goldens do not move; it exists only to give the ink somewhere to
+    // land, above the background instead of behind it.
     return Container(
       decoration: const BoxDecoration(
         color: AppColors.secondary,
@@ -56,85 +65,91 @@ class _SalonPickerSheetState extends State<_SalonPickerSheet> {
           top: Radius.circular(AppTheme.radiusXXL),
         ),
       ),
-      child: SafeArea(
-        top: false,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: AppTheme.spacingS),
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: AppColors.divider,
-                  borderRadius: BorderRadius.circular(AppTheme.radiusPill),
+      child: Material(
+        type: MaterialType.transparency,
+        child: SafeArea(
+          top: false,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: AppTheme.spacingS),
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppColors.divider,
+                    borderRadius: BorderRadius.circular(AppTheme.radiusPill),
+                  ),
                 ),
               ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppTheme.spacingM,
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppTheme.spacingM,
+                ),
+                child: InlineFeedback(_error),
               ),
-              child: InlineFeedback(_error),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppTheme.spacingM,
-                AppTheme.spacingM,
-                AppTheme.spacingS,
-                AppTheme.spacingS,
-              ),
-              child: Row(
-                children: [
-                  const Expanded(
-                    child: Text('Mes salons', style: AppTextStyles.titleMedium),
-                  ),
-                  IconButton(
-                    tooltip: 'Fermer',
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.of(context).pop(),
-                  ),
-                ],
-              ),
-            ),
-            if (auth.isLoading && salons.isEmpty)
-              const Padding(
-                padding: EdgeInsets.all(AppTheme.spacingL),
-                child: BrandLoader(size: AppTheme.iconL, fast: true),
-              )
-            else
-              Flexible(
-                child: ListView(
-                  shrinkWrap: true,
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppTheme.spacingM,
+                  AppTheme.spacingM,
+                  AppTheme.spacingS,
+                  AppTheme.spacingS,
+                ),
+                child: Row(
                   children: [
-                    ...salons.map(
-                      (s) => _SalonTile(
-                        salon: s,
-                        isActive: s.salonId == activeId,
-                        onFailed: (msg) => setState(() => _error = msg),
+                    const Expanded(
+                      child: Text(
+                        'Mes salons',
+                        style: AppTextStyles.titleMedium,
                       ),
                     ),
-                    if (auth.canAddSalon) ...[
-                      const Divider(height: 1),
-                      ListTile(
-                        leading: const Icon(
-                          Icons.add_business_outlined,
-                          color: AppColors.textPrimary,
-                        ),
-                        title: const Text('Ajouter un salon'),
-                        subtitle: const Text(
-                          'Offre Réseau — un salon de plus dans votre compte',
-                          style: AppTextStyles.bodySmall,
-                        ),
-                        onTap: () => Navigator.of(context).pop('add'),
-                      ),
-                    ],
+                    IconButton(
+                      tooltip: 'Fermer',
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
                   ],
                 ),
               ),
-            const SizedBox(height: AppTheme.spacingS),
-          ],
+              if (auth.isLoading && salons.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.all(AppTheme.spacingL),
+                  child: BrandLoader(size: AppTheme.iconL, fast: true),
+                )
+              else
+                Flexible(
+                  child: ListView(
+                    shrinkWrap: true,
+                    children: [
+                      ...salons.map(
+                        (s) => _SalonTile(
+                          salon: s,
+                          isActive: s.salonId == activeId,
+                          onFailed: (msg) => setState(() => _error = msg),
+                        ),
+                      ),
+                      if (auth.canAddSalon) ...[
+                        const Divider(height: 1),
+                        ListTile(
+                          leading: const Icon(
+                            Icons.add_business_outlined,
+                            color: AppColors.textPrimary,
+                          ),
+                          title: const Text('Ajouter un salon'),
+                          subtitle: const Text(
+                            'Offre Réseau — un salon de plus dans votre compte',
+                            style: AppTextStyles.bodySmall,
+                          ),
+                          onTap: () => Navigator.of(context).pop('add'),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              const SizedBox(height: AppTheme.spacingS),
+            ],
+          ),
         ),
       ),
     );
