@@ -76,11 +76,13 @@ class _ProJournalScreenState extends State<ProJournalScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        // Own-mode grounds the boundary: « {Salon} — votre planning ».
-        title: Text(
-          ownMode ? '${auth.salonName} — votre planning' : 'Ma journée',
-          overflow: TextOverflow.ellipsis,
-        ),
+        // The boundary is still grounded in own-mode — the salon name just
+        // says it one line lower, inside `_Header` (§13.3 / A15). A bar title
+        // interpolating real data has no width budget to promise: « Salon
+        // Excellence » fits and « Institut de Beauté Cocody Riviera » does not,
+        // and the bar answers the difference with an ellipsis nobody sees. The
+        // `overflow: ellipsis` that used to sit here was that answer.
+        title: Text(ownMode ? 'Votre planning' : 'Ma journée'),
         actions: [
           if (!ownMode)
             IconButton(
@@ -110,7 +112,14 @@ class _ProJournalScreenState extends State<ProJournalScreen> {
             ),
       body: Column(
         children: [
-          _Header(journal: journal, onPick: _pickDate),
+          _Header(
+            journal: journal,
+            onPick: _pickDate,
+            // Null in salon mode, and null is what renders nothing — a
+            // `bool ownMode` would still have to decide what an empty name
+            // draws, and the honest answer is « no line at all ».
+            salonName: ownMode ? auth.salonName : null,
+          ),
           Expanded(child: _body(journal)),
         ],
       ),
@@ -160,7 +169,7 @@ class _ProJournalScreenState extends State<ProJournalScreen> {
                 EmptyState(
                   icon: Icons.event_available,
                   title: 'Aucun rendez-vous ce jour',
-                  actionText: _ownMode ? null : '+ Nouveau rendez-vous',
+                  actionText: _ownMode ? null : '+ Nouvelle réservation',
                   onAction: _ownMode
                       ? null
                       : () => context.push('/pro/appointment/new'),
@@ -467,7 +476,7 @@ class _ProJournalScreenState extends State<ProJournalScreen> {
       lastDate: salonToday(tz: tz).add(kBookingHorizon),
       today: salonToday(tz: tz),
       minTimeOnToday: TimeOfDay(hour: now.hour, minute: now.minute),
-      helpText: 'Reprogrammer',
+      helpText: 'Reporter',
     );
     if (picked == null || !mounted) return;
     // The control returns the PARTS, not a `DateTime`, so this recombination
@@ -508,10 +517,17 @@ class _ProJournalScreenState extends State<ProJournalScreen> {
 // ---- Header (date row + week strip + artist chips) -------------------------
 
 class _Header extends StatelessWidget {
-  const _Header({required this.journal, required this.onPick});
+  const _Header({required this.journal, required this.onPick, this.salonName});
 
   final ProJournalProvider journal;
   final Future<void> Function() onPick;
+
+  /// The salon whose planning this is — own-mode only, null otherwise.
+  ///
+  /// It lives **inside** this Column rather than as a sibling above it because
+  /// `_Header` paints `AppColors.surface`: a sibling would put a stripe of
+  /// `background` between the bar and the header block.
+  final String? salonName;
 
   @override
   Widget build(BuildContext context) {
@@ -522,6 +538,25 @@ class _Header extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: AppTheme.spacingS),
       child: Column(
         children: [
+          if (salonName != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppTheme.spacingM,
+                AppTheme.spacingS,
+                AppTheme.spacingM,
+                0,
+              ),
+              child: Text(
+                // The bare name, no maxLines and no overflow — taking the
+                // wrapping is the entire reason it moved off the bar. It is a
+                // proper noun, so A13's `expectNoMidWordBreak` governs it.
+                salonName!,
+                textAlign: TextAlign.center,
+                style: AppTextStyles.bodyMedium.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ),
           Row(
             children: [
               IconButton(

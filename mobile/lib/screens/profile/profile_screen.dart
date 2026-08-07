@@ -91,7 +91,7 @@ class ProfileScreen extends StatelessWidget {
                 if (user != null)
                   SettingsTile(
                     icon: Icons.notifications,
-                    title: 'Notifications',
+                    title: 'Préférences de notification',
                     onTap: () => context.push('/profile/notifications'),
                   ),
                 SettingsTile(

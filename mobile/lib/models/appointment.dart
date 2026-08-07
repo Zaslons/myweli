@@ -61,6 +61,49 @@ class Appointment extends Equatable {
   final String? providerTimezone;
   final String? providerCurrency;
 
+  /// The SALON's own facts, enriched onto consumer reads
+  /// (`salon-state-and-refusals.md` §5, Decision C).
+  ///
+  /// **Why they are here and not fetched.** Rendering a booking used to mean a
+  /// second call to the public `GET /providers/{id}` — this screen alone made
+  /// six — and that route stops serving a salon that is `draft` or
+  /// `suspended`. A client's own booking is authenticated data about a salon
+  /// they have a relationship with, so the endpoint that owns the
+  /// relationship serves the facts instead. Nothing here is fetched twice, and
+  /// nothing here disappears when the salon leaves the public listing.
+  ///
+  /// [providerStatus] is the one that changes behaviour rather than text: it
+  /// is why « Réserver à nouveau » and « Reporter » can be withheld for a
+  /// salon that would refuse them, instead of offering a button that fails.
+  final String? providerName;
+  final String? providerSlug;
+  final String? providerStatus;
+  final String? providerPhone;
+  final String? providerWhatsapp;
+  final String? providerAddress;
+  final String? providerCountryCode;
+  final String? artistName;
+  final List<String> serviceNames;
+  final String? depositMobileMoneyOperator;
+  final String? depositMobileMoneyNumber;
+
+  /// The salon's booking window (A14d), so the reschedule picker asks the
+  /// salon's own rule instead of falling back to a year. The server
+  /// substitutes the documented defaults, so these are never null on a
+  /// consumer read.
+  final int? providerBookingHorizonDays;
+  final int? providerMinimumNoticeMinutes;
+
+  /// Is the salon still taking appointments?
+  ///
+  /// **The NULL trap, said once.** A salon with no stored status is live —
+  /// seeded salons carry no `status` and Postgres reads NULL as active — and
+  /// a pre-enrichment payload has no field at all. Spelling this
+  /// `providerStatus == 'active'` at a call site would hide « Réserver à
+  /// nouveau » on every one of them. There is exactly one place to get it
+  /// wrong, and it is here.
+  bool get salonIsLive => providerStatus == null || providerStatus == 'active';
+
   const Appointment({
     required this.id,
     required this.userId,
@@ -86,6 +129,19 @@ class Appointment extends Equatable {
     this.currency,
     this.providerTimezone,
     this.providerCurrency,
+    this.providerName,
+    this.providerSlug,
+    this.providerStatus,
+    this.providerPhone,
+    this.providerWhatsapp,
+    this.providerAddress,
+    this.providerCountryCode,
+    this.artistName,
+    this.serviceNames = const [],
+    this.depositMobileMoneyOperator,
+    this.depositMobileMoneyNumber,
+    this.providerBookingHorizonDays,
+    this.providerMinimumNoticeMinutes,
   });
 
   @override
@@ -114,6 +170,19 @@ class Appointment extends Equatable {
     currency,
     providerTimezone,
     providerCurrency,
+    providerName,
+    providerSlug,
+    providerStatus,
+    providerPhone,
+    providerWhatsapp,
+    providerAddress,
+    providerCountryCode,
+    artistName,
+    serviceNames,
+    depositMobileMoneyOperator,
+    depositMobileMoneyNumber,
+    providerBookingHorizonDays,
+    providerMinimumNoticeMinutes,
   ];
 
   Appointment copyWith({
@@ -141,6 +210,19 @@ class Appointment extends Equatable {
     String? currency,
     String? providerTimezone,
     String? providerCurrency,
+    String? providerName,
+    String? providerSlug,
+    String? providerStatus,
+    String? providerPhone,
+    String? providerWhatsapp,
+    String? providerAddress,
+    String? providerCountryCode,
+    String? artistName,
+    List<String>? serviceNames,
+    String? depositMobileMoneyOperator,
+    String? depositMobileMoneyNumber,
+    int? providerBookingHorizonDays,
+    int? providerMinimumNoticeMinutes,
   }) {
     return Appointment(
       id: id ?? this.id,
@@ -168,6 +250,23 @@ class Appointment extends Equatable {
       currency: currency ?? this.currency,
       providerTimezone: providerTimezone ?? this.providerTimezone,
       providerCurrency: providerCurrency ?? this.providerCurrency,
+      providerName: providerName ?? this.providerName,
+      providerSlug: providerSlug ?? this.providerSlug,
+      providerStatus: providerStatus ?? this.providerStatus,
+      providerPhone: providerPhone ?? this.providerPhone,
+      providerWhatsapp: providerWhatsapp ?? this.providerWhatsapp,
+      providerAddress: providerAddress ?? this.providerAddress,
+      providerCountryCode: providerCountryCode ?? this.providerCountryCode,
+      artistName: artistName ?? this.artistName,
+      serviceNames: serviceNames ?? this.serviceNames,
+      depositMobileMoneyOperator:
+          depositMobileMoneyOperator ?? this.depositMobileMoneyOperator,
+      depositMobileMoneyNumber:
+          depositMobileMoneyNumber ?? this.depositMobileMoneyNumber,
+      providerBookingHorizonDays:
+          providerBookingHorizonDays ?? this.providerBookingHorizonDays,
+      providerMinimumNoticeMinutes:
+          providerMinimumNoticeMinutes ?? this.providerMinimumNoticeMinutes,
     );
   }
 
@@ -197,6 +296,24 @@ class Appointment extends Equatable {
       if (currency != null) 'currency': currency,
       if (providerTimezone != null) 'providerTimezone': providerTimezone,
       if (providerCurrency != null) 'providerCurrency': providerCurrency,
+      if (providerName != null) 'providerName': providerName,
+      if (providerSlug != null) 'providerSlug': providerSlug,
+      if (providerStatus != null) 'providerStatus': providerStatus,
+      if (providerPhone != null) 'providerPhone': providerPhone,
+      if (providerWhatsapp != null) 'providerWhatsapp': providerWhatsapp,
+      if (providerAddress != null) 'providerAddress': providerAddress,
+      if (providerCountryCode != null)
+        'providerCountryCode': providerCountryCode,
+      if (artistName != null) 'artistName': artistName,
+      if (serviceNames.isNotEmpty) 'serviceNames': serviceNames,
+      if (depositMobileMoneyOperator != null)
+        'depositMobileMoneyOperator': depositMobileMoneyOperator,
+      if (depositMobileMoneyNumber != null)
+        'depositMobileMoneyNumber': depositMobileMoneyNumber,
+      if (providerBookingHorizonDays != null)
+        'providerBookingHorizonDays': providerBookingHorizonDays,
+      if (providerMinimumNoticeMinutes != null)
+        'providerMinimumNoticeMinutes': providerMinimumNoticeMinutes,
     };
   }
 
@@ -231,6 +348,23 @@ class Appointment extends Equatable {
       currency: json['currency'] as String?,
       providerTimezone: json['providerTimezone'] as String?,
       providerCurrency: json['providerCurrency'] as String?,
+      providerName: json['providerName'] as String?,
+      providerSlug: json['providerSlug'] as String?,
+      providerStatus: json['providerStatus'] as String?,
+      providerPhone: json['providerPhone'] as String?,
+      providerWhatsapp: json['providerWhatsapp'] as String?,
+      providerAddress: json['providerAddress'] as String?,
+      providerCountryCode: json['providerCountryCode'] as String?,
+      artistName: json['artistName'] as String?,
+      serviceNames: List<String>.from(
+        (json['serviceNames'] as List?) ?? const [],
+      ),
+      depositMobileMoneyOperator: json['depositMobileMoneyOperator'] as String?,
+      depositMobileMoneyNumber: json['depositMobileMoneyNumber'] as String?,
+      providerBookingHorizonDays: (json['providerBookingHorizonDays'] as num?)
+          ?.toInt(),
+      providerMinimumNoticeMinutes:
+          (json['providerMinimumNoticeMinutes'] as num?)?.toInt(),
     );
   }
 }

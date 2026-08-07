@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:dart_frog/dart_frog.dart';
 import 'package:myweli_backend/src/auth/auth_methods.dart';
 import 'package:myweli_backend/src/auth/auth_repository.dart';
+import 'package:myweli_backend/src/auth/smoke_seam.dart';
 import 'package:myweli_backend/src/email/email_provider.dart';
 import 'package:myweli_backend/src/responses.dart';
 import 'package:myweli_backend/src/validators.dart';
@@ -45,11 +46,24 @@ Future<Response> onRequest(RequestContext context) async {
     );
   }
 
+  // Off-prod `devCode` is unchanged. In production it is null, and the ONLY
+  // way to get the code back is the Q1b seam: a constant-time secret match AND
+  // an identity in the RFC 2606 `.test` TLD, which no configuration can widen
+  // to a real address. docs/design/backend-q1b-smoke-seam.md.
+  final disclosed =
+      result.devCode ??
+      (context.read<SmokeSeam>().allows(
+            providedSecret: context.request.headers['x-smoke-secret'],
+            identifier: email,
+          )
+          ? result.code
+          : null);
+
   return Response.json(
     statusCode: HttpStatus.accepted,
     body: {
       'expiresInSeconds': result.expiresInSeconds,
-      if (result.devCode != null) 'devCode': result.devCode,
+      if (disclosed != null) 'devCode': disclosed,
     },
   );
 }

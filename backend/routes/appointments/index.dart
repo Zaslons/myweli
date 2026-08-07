@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:dart_frog/dart_frog.dart';
 import 'package:myweli_backend/src/access/membership_service.dart';
+import 'package:myweli_backend/src/appointments/appointment_enrichment.dart';
 import 'package:myweli_backend/src/appointments/appointment_repository.dart';
 import 'package:myweli_backend/src/appointments/booking_service.dart';
 import 'package:myweli_backend/src/auth/auth_repository.dart';
@@ -95,12 +96,12 @@ Future<Response> _list(RequestContext context, Principal principal) async {
           ? account?.phoneNumber
           : null,
     );
-    // Multi-pays MP1: stamp each booking with its salon's market facts so
-    // consumer surfaces render the SALON's clock + currency.
-    items = await withProviderMarket(
-      context.read<ProvidersRepository>(),
-      items,
-    );
+    // The salon's facts ride the payload — identity, contact, deposit
+    // coordinates, booking window and `providerStatus`. This route owns the
+    // relationship (it is scoped to the caller's own bookings), so it is the
+    // one place that may serve them for a salon the public read hides
+    // (`salon-state-and-refusals.md` §5, Decision C).
+    items = await withProviderFacts(context.read<ProvidersRepository>(), items);
   }
 
   return Response.json(
@@ -111,28 +112,6 @@ Future<Response> _list(RequestContext context, Principal principal) async {
       'total': items.length,
     },
   );
-}
-
-/// Adds `providerTimezone` + `providerCurrency` to consumer appointment
-/// payloads (multi-pays MP1) — one provider lookup per distinct salon.
-Future<List<Map<String, dynamic>>> withProviderMarket(
-  ProvidersRepository providers,
-  List<Map<String, dynamic>> items,
-) async {
-  final cache = <String, Map<String, dynamic>?>{};
-  final out = <Map<String, dynamic>>[];
-  for (final a in items) {
-    final pid = a['providerId'] as String? ?? '';
-    final p = cache.containsKey(pid)
-        ? cache[pid]
-        : (cache[pid] = await providers.byId(pid));
-    out.add({
-      ...a,
-      'providerTimezone': p?['timezone'],
-      'providerCurrency': p?['currency'],
-    });
-  }
-  return out;
 }
 
 Future<Response> _book(RequestContext context, String userId) async {
@@ -172,6 +151,9 @@ Future<Response> _book(RequestContext context, String userId) async {
       // case silently ships as a bad request.
       'beyond_horizon' => HttpStatus.conflict,
       'too_soon' => HttpStatus.conflict,
+      // Row 82, and the comment above earned itself: this arm was written
+      // second, after the gate caught the new code shipping as a 400.
+      'provider_not_published' => HttpStatus.conflict,
       _ => HttpStatus.badRequest,
     };
     return jsonError(status, result.error!);

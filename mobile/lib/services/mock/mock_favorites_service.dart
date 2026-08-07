@@ -4,12 +4,30 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/constants/app_constants.dart';
 import '../../models/api_response.dart';
+import '../../models/provider.dart';
 import '../interfaces/favorites_service_interface.dart';
+import 'mock_data.dart';
 
 class MockFavoritesService implements FavoritesServiceInterface {
   static const String _favoritesKeyPrefix = 'favorites_';
 
   String _getKey(String userId) => '$_favoritesKeyPrefix$userId';
+
+  @override
+  Future<ApiResponse<List<Provider>>> getFavoriteProviders(
+    String userId,
+  ) async {
+    final ids = await getFavoriteProviderIds(userId);
+    if (!ids.success || ids.data == null) {
+      return ApiResponse.error(ids.error ?? 'Erreur', code: ids.code);
+    }
+    // Mirrors the server: the FULL catalogue, not the discovery list, so a
+    // salon that stopped is still returned — carrying its status.
+    return ApiResponse.success([
+      for (final id in ids.data!)
+        ?MockData.providers.where((p) => p.id == id).firstOrNull,
+    ]);
+  }
 
   @override
   Future<ApiResponse<List<String>>> getFavoriteProviderIds(

@@ -57,6 +57,47 @@ void main() {
       return c;
     }
 
+    test('a SUSPENDED salon 404s by slug too, not just a draft', () async {
+      // The hand-rolled guard this replaces excluded `draft` only, so the one
+      // state an admin deliberately puts a salon into stayed publicly readable
+      // by slug — the route the web salon page uses. `isPublicSalon` is the
+      // same rule the other three doors now ask.
+      final isolated = InMemoryProvidersRepository([
+        {
+          'id': 's1',
+          'slug': 'salon-arrete',
+          'name': 'Arrêté',
+          'status': 'suspended',
+        },
+        {
+          'id': 's2',
+          'slug': 'salon-brouillon',
+          'name': 'Brouillon',
+          'status': 'draft',
+        },
+        {
+          'id': 's3',
+          'slug': 'salon-vivant',
+          'name': 'Vivant',
+          'status': 'active',
+        },
+      ]);
+      Future<Response> bySlug(String slug) {
+        final c = _MockRequestContext();
+        when(() => c.request).thenReturn(
+          Request.get(Uri.parse('http://localhost/providers/by-slug/$slug')),
+        );
+        when(() => c.read<ProvidersRepository>()).thenReturn(isolated);
+        when(() => c.read<ReviewsRepository>()).thenReturn(reviews);
+        return by_slug.onRequest(c, slug);
+      }
+
+      expect((await bySlug('salon-arrete')).statusCode, HttpStatus.notFound);
+      expect((await bySlug('salon-brouillon')).statusCode, HttpStatus.notFound);
+      // The pair.
+      expect((await bySlug('salon-vivant')).statusCode, HttpStatus.ok);
+    });
+
     test('known slug → 200 with the provider', () async {
       final res = await by_slug.onRequest(ctx('GET'), 'beaute-divine');
       expect(res.statusCode, HttpStatus.ok);

@@ -14,6 +14,7 @@ import '../../models/pro_membership.dart';
 import '../../models/provider.dart';
 import '../../models/provider_session.dart';
 import '../../models/provider_user.dart';
+import '../../models/review.dart';
 import '../../models/salon_membership_info.dart';
 import '../../models/service.dart';
 import '../interfaces/pro_service_interface.dart';
@@ -169,6 +170,37 @@ class ApiProService implements ProServiceInterface {
     if (res == null) return _networkError();
     if (res.statusCode != 204) return _errorFrom(res);
     return ApiResponse.success(null, message: 'Compte supprimé');
+  }
+
+  @override
+  Future<ApiResponse<List<Review>>> getMyReviews({
+    int page = 1,
+    int pageSize = 50,
+  }) async {
+    if (await _authed.accessToken() == null) {
+      return ApiResponse.error('Non connecté');
+    }
+    // No providerId: the salon comes from the token, honouring the R6
+    // persisted selection on the way — the same shape as `getMyProvider`.
+    final selected = await _selectedSalonId();
+    final res = await _authed.send(
+      (t) => _client.get(
+        _uri('/me/provider/reviews').replace(
+          queryParameters: {
+            'page': '$page',
+            'pageSize': '$pageSize',
+            if (selected != null && selected.isNotEmpty) 'salonId': selected,
+          },
+        ),
+        headers: _bearer(t),
+      ),
+    );
+    if (res == null) return _networkError();
+    if (res.statusCode != 200) return _errorFrom(res);
+    final items = (_decode(res.body)['items'] as List? ?? const [])
+        .map((e) => Review.fromJson(e as Map<String, dynamic>))
+        .toList();
+    return ApiResponse.success(items);
   }
 
   @override
@@ -790,6 +822,20 @@ class ApiProService implements ProServiceInterface {
         return 'Cette action n’est plus possible.';
       case 'unauthorized':
         return 'Veuillez vous reconnecter.';
+      // Row 82's pro sentence. Deliberately NOT the client's: an owner whose
+      // salon was stopped is not shopping for another one, and the « intacts »
+      // clause is the reassurance `pro_subscription_screen.dart` established.
+      // A draft salon never reaches here — Decision A lets it book its own
+      // calendar.
+      case 'provider_suspended':
+        return 'Votre salon est suspendu. Contactez Myweli pour le réactiver '
+            '— vos rendez-vous sont intacts.';
+      // Not row 82, shipped with it: this is the most likely manual-booking
+      // refusal and it read « Une erreur est survenue. », while
+      // `pro_manual_booking_screen.dart` commented that the refusal « here is a
+      // slot conflict ». The comment was right and the copy was not.
+      case 'slot_unavailable':
+        return 'Ce créneau est déjà pris. Choisissez un autre horaire.';
       default:
         return 'Une erreur est survenue.';
     }

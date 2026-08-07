@@ -1,12 +1,11 @@
 import 'dart:io';
 
 import 'package:dart_frog/dart_frog.dart';
+import 'package:myweli_backend/src/appointments/appointment_enrichment.dart';
 import 'package:myweli_backend/src/appointments/appointment_repository.dart';
 import 'package:myweli_backend/src/auth/principal.dart';
 import 'package:myweli_backend/src/providers_repository.dart';
 import 'package:myweli_backend/src/responses.dart';
-
-import '../index.dart' show withProviderMarket;
 
 /// `GET /appointments/{id}` — the caller's own appointment. Ownership enforced:
 /// another user's appointment is 403, not 404-leaked (docs/BACKEND.md §3.3).
@@ -24,10 +23,12 @@ Future<Response> onRequest(RequestContext context, String id) async {
   if (appointment['userId'] != principal.userId) {
     return jsonError(HttpStatus.forbidden, 'forbidden');
   }
-  // Multi-pays MP1: the salon's market facts ride the payload.
-  final enriched = await withProviderMarket(
+  // The salon's facts ride the payload: this route owns the relationship, so
+  // it is the one that may serve them for a salon the public read hides
+  // (Decision C).
+  final enriched = await withProviderFactsOne(
     context.read<ProvidersRepository>(),
-    [appointment],
+    appointment,
   );
-  return Response.json(body: enriched.single);
+  return Response.json(body: enriched);
 }

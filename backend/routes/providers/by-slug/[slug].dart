@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:dart_frog/dart_frog.dart';
 import 'package:myweli_backend/src/providers_repository.dart';
 import 'package:myweli_backend/src/reviews_repository.dart';
+import 'package:myweli_backend/src/salon_visibility.dart';
 
 /// `GET /providers/by-slug/{slug}` — public provider page read for the web
 /// (`myweli.ci/<slug>`). Mirrors `GET /providers/{id}` but resolves by URL slug;
@@ -16,8 +17,10 @@ Future<Response> onRequest(RequestContext context, String slug) async {
   }
 
   final provider = await context.read<ProvidersRepository>().bySlug(slug);
-  // Drafts are unpublished — never public, not even by direct slug (T51).
-  if (provider == null || provider['status'] == 'draft') {
+  // Decision C. This was the third spelling of one rule, and the one that got
+  // it wrong: it excluded `draft` only, so a SUSPENDED salon stayed publicly
+  // readable by slug — the route the web salon page uses.
+  if (!isPublicSalon(provider)) {
     return Response.json(
       statusCode: HttpStatus.notFound,
       body: {'error': 'not_found'},
@@ -25,7 +28,7 @@ Future<Response> onRequest(RequestContext context, String slug) async {
   }
 
   final reviews = await context.read<ReviewsRepository>().recentForProvider(
-    provider['id'] as String,
+    provider!['id'] as String,
     10,
   );
   return Response.json(body: {...provider, 'reviews': reviews});

@@ -67,11 +67,24 @@ test('M8.3: rebook + review on a completed booking; favoris on /mon-compte', asy
   await page.getByRole('button', { name: 'Se connecter' }).click();
   await expect(page).toHaveURL(/\/mon-compte/);
 
-  // Favoris section (seeded providerIds: ['p1']).
+  // Favoris section (seeded: p1 live, p4 suspended).
   await expect(page.getByRole('heading', { name: 'Favoris' })).toBeVisible();
   await expect(
-    page.getByRole('button', { name: 'Retirer des favoris' }),
+    page.getByRole('button', { name: 'Retirer des favoris' }).first(),
   ).toBeVisible();
+
+  // Decision C: a favourite whose salon STOPPED is marked, not dropped. The
+  // stub 404s `p4` on the public route — hydrating client-side would have made
+  // this row vanish, and with one favourite left the page would have said
+  // « Aucun favori » to someone who had two.
+  await expect(page.getByText('Salon Arrêté').first()).toBeVisible();
+  await expect(
+    page.getByText('Ce salon ne prend plus de rendez-vous sur Myweli.').first(),
+  ).toBeVisible();
+  // …and its « Retirer des favoris » stays: the one action that still helps.
+  await expect(
+    page.getByRole('button', { name: 'Retirer des favoris' }),
+  ).toHaveCount(2);
 
   // Completed booking (appt2): rebook + review.
   await page.goto('/mon-compte/appt2');
@@ -222,5 +235,47 @@ test('P3 extras: proof view, salon visits card, search hearts, support', async (
   await expect(heart).toHaveAttribute(
     'aria-pressed',
     before === 'true' ? 'false' : 'true',
+  );
+});
+
+test('a booking at a salon that stopped keeps working, and says why', async ({
+  page,
+}) => {
+  // The case the whole slice exists for. `p4` is suspended and the stub 404s
+  // it on the PUBLIC route — exactly what Decision C will do — so everything
+  // asserted here is served by the authenticated read that owns the
+  // relationship.
+  await page.goto('/connexion');
+  await page.locator('input[type=email]').fill('awa@example.com');
+  await page.getByRole('button', { name: 'Continuer avec e-mail' }).click();
+  await page.locator('input[type=text]').fill('123456');
+  await page.getByRole('button', { name: 'Se connecter' }).click();
+  await expect(page).toHaveURL(/\/mon-compte/);
+
+  await page.goto('/mon-compte/appt5');
+
+  // The salon's identity survives the public route closing.
+  await expect(
+    page.getByRole('heading', { name: 'Salon Arrêté' }),
+  ).toBeVisible();
+  await expect(
+    page.getByText('Ce salon ne prend plus de rendez-vous sur Myweli.'),
+  ).toBeVisible();
+
+  // Withheld: the move the server would refuse, and the link that would 404.
+  await expect(page.getByRole('button', { name: 'Reporter' })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'Voir le salon' })).toHaveCount(
+    0,
+  );
+
+  // Kept: cancelling (never trap a client in a booking) and the contact
+  // details (this is when they need the salon most). Both used to VANISH here,
+  // with the app blaming the phone number for a salon-state problem.
+  await expect(
+    page.getByRole('button', { name: 'Annuler le rendez-vous' }),
+  ).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Appeler' })).toHaveAttribute(
+    'href',
+    'tel:+2250700000000',
   );
 });

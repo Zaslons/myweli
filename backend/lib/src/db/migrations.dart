@@ -853,6 +853,52 @@ Future<void> runMigrations(Pool<void> pool) async {
 
 /// Seeds the `providers` table from [seedProviders] when it is empty, so the
 /// read slice has data (mirrors the in-memory seed).
+/// Cluster-wide key for the schema-setup critical section — `MYWELI` in hex.
+///
+/// Any int64 works so long as **every process agrees on it**: `pg_advisory_lock`
+/// namespaces nothing, so a changed value silently disables the mutual
+/// exclusion rather than failing. Hence a named constant, never a literal at
+/// the call site.
+const int kSchemaSetupLockKey = 0x4D5957454C49;
+
+/// Run [body] while holding the schema-setup advisory lock, so exactly one
+/// process migrates and seeds at a time (G1).
+///
+/// **Why this is needed now and was not before.** Render ran a single
+/// always-on instance, so `initializeDatabase()` was a sequence with no
+/// competitor. Cloud Run starts cold instances in parallel, and every step it
+/// guards is either a migration or a **check-then-act** seed
+/// (`SELECT count(*)` → `if > 0 return` → `INSERT`). Two instances both read
+/// zero and both insert. They then fail *differently*:
+///
+///   · [seedProvidersIfEmpty] inserts FIXED ids, so the loser hits a
+///     primary-key conflict and crash-loops on boot — an outage, but loud;
+///   · [backfillCatalogueIfNeeded] generates FRESH ids, so nothing collides and
+///     it silently **doubles every salon's service list** — the kind of defect
+///     nobody reports as a bug, they just stop trusting the app.
+///
+/// The lock is held on a dedicated session for the whole block. Sibling pool
+/// connections are separate sessions that never request this key, so there is
+/// no self-deadlock. If the process dies the session dies with it and Postgres
+/// releases the lock, so a crash cannot wedge every future boot — which is why
+/// this is an advisory lock and not a row in a table.
+Future<void> withSchemaLock(Pool<void> pool, Future<void> Function() body) {
+  return pool.withConnection((lockHolder) async {
+    await lockHolder.execute(
+      Sql.named('SELECT pg_advisory_lock(@k)'),
+      parameters: {'k': kSchemaSetupLockKey},
+    );
+    try {
+      await body();
+    } finally {
+      await lockHolder.execute(
+        Sql.named('SELECT pg_advisory_unlock(@k)'),
+        parameters: {'k': kSchemaSetupLockKey},
+      );
+    }
+  });
+}
+
 Future<void> seedProvidersIfEmpty(Pool<void> pool) async {
   final count = await pool.execute('SELECT count(*) AS n FROM providers');
   if ((count.first.toColumnMap()['n'] as int) > 0) return;

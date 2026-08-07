@@ -1,14 +1,14 @@
-'use client';
+"use client";
 
-import Link from 'next/link';
-import { Card } from '../Card';
-import { ErrorState } from '../ErrorState';
-import { Chip } from '../Chip';
-import { StatusChip } from '../StatusChip';
-import { useRouter } from 'next/navigation';
-import { useCallback, useEffect, useState } from 'react';
-import { statusLabelFr } from '../../lib/account/appointments';
-import { noShowBadge, noShowLabel } from '../../lib/pro/clients';
+import Link from "next/link";
+import { Card } from "../Card";
+import { ErrorState } from "../ErrorState";
+import { Chip } from "../Chip";
+import { StatusChip } from "../StatusChip";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
+import { statusLabelFr } from "../../lib/account/appointments";
+import { noShowBadge, noShowLabel } from "../../lib/pro/clients";
 import {
   type ProProfile,
   getMyProvider,
@@ -16,26 +16,26 @@ import {
   getProAppointment,
   proAction,
   proDepositScreenshotUrl,
-} from '../../lib/api/pro';
-import { formatDateTimeFr, formatFcfa } from '../../lib/format';
+} from "../../lib/api/pro";
+import { formatDateTimeFr, formatFcfa } from "../../lib/format";
 import {
   type LifecycleAction,
   actionsForMembership,
-} from '../../lib/pro/lifecycle';
-import { hasCap } from '../../lib/pro/team';
-import { rescheduleAppointment } from '../../lib/api/pro';
-import { hhmm, minutesOfDay } from '../../lib/pro/journal';
-import { combineDateTime } from '../../lib/pro/manual-booking';
-import type { ProAppointment } from '../../lib/pro/today';
+} from "../../lib/pro/lifecycle";
+import { hasCap } from "../../lib/pro/team";
+import { rescheduleAppointment } from "../../lib/api/pro";
+import { hhmm, minutesOfDay } from "../../lib/pro/journal";
+import { combineDateTime } from "../../lib/pro/manual-booking";
+import type { ProAppointment } from "../../lib/pro/today";
 import {
   isSameSalonDay,
   salonDayKey,
   salonFormatter,
   salonToday,
-} from '../../lib/time';
-import { Button } from '../Button';
-import { Loading } from '../Loading';
-import { conflictMessage } from '../../lib/booking/window';
+} from "../../lib/time";
+import { Button } from "../Button";
+import { Loading } from "../Loading";
+import { conflictMessage } from "../../lib/booking/window";
 
 export function ProAppointmentDetailClient({ id }: { id: string }) {
   const router = useRouter();
@@ -55,12 +55,12 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
     setLoading(true);
     const me = await getMyProvider();
     if (me.status === 401) {
-      router.replace('/pro/connexion');
+      router.replace("/pro/connexion");
       return;
     }
     const r = await getProAppointment(id);
     if (r.status === 401) {
-      router.replace('/pro/connexion');
+      router.replace("/pro/connexion");
       return;
     }
     setProfile(me.profile ?? null);
@@ -84,8 +84,8 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
   // « Reprogrammer » (parity 1.9) — cross-day, the app's date+time flow;
   // the server re-validates (409 → créneau indisponible).
   const [reprog, setReprog] = useState(false);
-  const [reprogDate, setReprogDate] = useState('');
-  const [reprogTime, setReprogTime] = useState('');
+  const [reprogDate, setReprogDate] = useState("");
+  const [reprogTime, setReprogTime] = useState("");
   const [reprogError, setReprogError] = useState<string | null>(null);
 
   async function reschedule() {
@@ -100,7 +100,7 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
         reprogDate,
         reprogTime,
         profile?.provider.timezone ?? undefined,
-      ) ?? '',
+      ) ?? "",
     );
     setBusy(false);
     if (!r.ok) {
@@ -109,8 +109,9 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
       // means a future change cannot make this surface lie.
       setReprogError(
         conflictMessage(r.error, {
-          taken: 'Créneau indisponible. Choisissez un autre horaire.',
-          fallback: 'Le report a échoué. Réessayez.',
+          audience: "salon",
+          taken: "Créneau indisponible. Choisissez un autre horaire.",
+          fallback: "Le report a échoué. Réessayez.",
         }),
       );
       return;
@@ -128,8 +129,8 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
     if (!r.ok) {
       setError(
         r.status === 409
-          ? 'Action impossible — le statut a déjà changé.'
-          : 'L’action a échoué. Réessayez.',
+          ? "Action impossible — le statut a déjà changé."
+          : "L’action a échoué. Réessayez.",
       );
       return;
     }
@@ -164,17 +165,20 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
   const serviceName = (sid: string) =>
     profile?.provider.services?.find((s) => s.id === sid)?.name;
   const services =
-    (appt.serviceIds ?? []).map(serviceName).filter(Boolean).join(', ') || '—';
+    (appt.serviceIds ?? []).map(serviceName).filter(Boolean).join(", ") || "—";
   // Team access R5b: the role-shaped action set (staff = Terminé/Absent on
   // their own confirmed bookings; the server enforces T40 regardless).
   const membership = profile?.membership;
   const actions = actionsForMembership(appt.status, membership);
-  const canManageAll = hasCap(membership, 'journal.manage.all');
-  const canViewClients = hasCap(membership, 'clients.view');
+  const canManageAll = hasCap(membership, "journal.manage.all");
+  const canViewClients = hasCap(membership, "clients.view");
 
   return (
     <div>
-      <Link href="/pro/rendez-vous" className="text-bodyMedium text-textTertiary">
+      <Link
+        href="/pro/rendez-vous"
+        className="text-bodyMedium text-textTertiary"
+      >
         ← Rendez-vous
       </Link>
       <h1 className="mt-m text-headlineSmall font-semibold text-textPrimary">
@@ -190,10 +194,14 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
             clusters" rather than title toolbars. */}
         <div className="flex flex-wrap items-center justify-between gap-m">
           <p className="flex items-center gap-s font-medium text-textPrimary">
-            {appt.clientDisplayName ?? appt.clientName ?? 'Client'}
-            {noShowBadge(appt.clientNoShowCount) !== 'none' ? (
+            {appt.clientDisplayName ?? appt.clientName ?? "Client"}
+            {noShowBadge(appt.clientNoShowCount) !== "none" ? (
               <Chip
-                variant={noShowBadge(appt.clientNoShowCount) === 'red' ? 'tinted' : 'neutral'}
+                variant={
+                  noShowBadge(appt.clientNoShowCount) === "red"
+                    ? "tinted"
+                    : "neutral"
+                }
                 tint="error"
               >
                 {noShowLabel(appt.clientNoShowCount ?? 0)}
@@ -220,7 +228,7 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
             <Row label="Téléphone" value={appt.clientPhone} />
           ) : null}
           <Row label="Prestations" value={services} />
-          {typeof appt.totalPrice === 'number' ? (
+          {typeof appt.totalPrice === "number" ? (
             <Row label="Total" value={formatFcfa(appt.totalPrice, currency)} />
           ) : null}
           {appt.depositAmount ? (
@@ -243,7 +251,9 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
             ) : (
               <Button
                 variant="secondary"
-                onClick={async () => setProofUrl(await proDepositScreenshotUrl(id))}
+                onClick={async () =>
+                  setProofUrl(await proDepositScreenshotUrl(id))
+                }
               >
                 Voir le justificatif
               </Button>
@@ -255,7 +265,11 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
           </p>
         ) : null}
 
-        {error ? <p role="alert" className="mt-s text-bodyMedium text-error">{error}</p> : null}
+        {error ? (
+          <p role="alert" className="mt-s text-bodyMedium text-error">
+            {error}
+          </p>
+        ) : null}
 
         {actions.length > 0 ? (
           <div className="mt-l flex flex-wrap gap-s">
@@ -265,9 +279,14 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
                   key={a.action}
                   className="w-full rounded-lg bg-surface p-m"
                 >
-                  <p className="text-bodyMedium text-textSecondary">{a.confirm}</p>
+                  <p className="text-bodyMedium text-textSecondary">
+                    {a.confirm}
+                  </p>
                   <div className="mt-s flex gap-s">
-                    <Button variant="secondary" onClick={() => setConfirm(null)}>
+                    <Button
+                      variant="secondary"
+                      onClick={() => setConfirm(null)}
+                    >
                       Annuler
                     </Button>
                     <Button disabled={busy} onClick={() => run(a.action)}>
@@ -294,12 +313,12 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
         {/* Parity 1.10 (J1b §4.2 debt): arrival from the detail page too. */}
         {appt.arrivedAt ? (
           <p className="mt-m text-bodyMedium text-textSecondary">
-            Arrivé à{' '}
-            {salonFormatter({ hour: '2-digit', minute: '2-digit' }, tz).format(
+            Arrivé à{" "}
+            {salonFormatter({ hour: "2-digit", minute: "2-digit" }, tz).format(
               new Date(appt.arrivedAt),
             )}
           </p>
-        ) : appt.status === 'confirmed' &&
+        ) : appt.status === "confirmed" &&
           canManageAll &&
           isSameSalonDay(new Date(appt.appointmentDate), new Date(), tz) ? (
           <div className="mt-m">
@@ -311,7 +330,7 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
                 const r = await arriveAppointment(id);
                 setBusy(false);
                 if (!r.ok) {
-                  setError('Impossible d’enregistrer l’arrivée.');
+                  setError("Impossible d’enregistrer l’arrivée.");
                   return;
                 }
                 await load();
@@ -322,7 +341,7 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
           </div>
         ) : null}
 
-        {(appt.status === 'pending' || appt.status === 'confirmed') &&
+        {(appt.status === "pending" || appt.status === "confirmed") &&
         canManageAll ? (
           <div className="mt-m border-t border-divider pt-m">
             {!reprog ? (
@@ -368,7 +387,9 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
                   />
                 </div>
                 {reprogError ? (
-                  <p role="alert" className="mt-s text-bodyMedium text-error">{reprogError}</p>
+                  <p role="alert" className="mt-s text-bodyMedium text-error">
+                    {reprogError}
+                  </p>
                 ) : null}
                 <div className="mt-m flex gap-s">
                   <Button variant="secondary" onClick={() => setReprog(false)}>

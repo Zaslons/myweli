@@ -8,19 +8,19 @@ import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
 import '../../core/utils/app_clock.dart';
+import '../../core/utils/booking_error_cta.dart';
 import '../../core/utils/calendar_event.dart';
 import '../../core/utils/cancellation_policy.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/utils/salon_time.dart';
 import '../../models/appointment.dart';
-import '../../models/provider.dart' as models;
 import '../../providers/appointment_provider.dart';
 import '../../providers/locality_provider.dart';
-import '../../providers/provider_provider.dart';
 import '../../widgets/booking/deposit_payment_sheet.dart';
 import '../../widgets/common/app_button.dart';
 import '../../widgets/common/app_snack_bar.dart';
 import '../../widgets/common/confirm_dialog.dart';
+import '../../widgets/common/inline_feedback.dart';
 import '../../widgets/common/loading_indicator.dart';
 import '../../widgets/common/salon_time_hint.dart';
 import '../../widgets/common/timed_cached_image.dart';
@@ -52,53 +52,23 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
   // ONE lazy provider fetch per appointment: the chosen spécialiste
   // (parity 1.8 — the payload carries only artistId) AND the salon's
   // country for the hint label (multi-pays MP2).
-  String? _artistName;
-  String? _providerCountryCode;
-  String? _providerLookupFor;
-
-  /// **Retained now, not discarded** (A14c §19.2). This lookup already fetched
-  /// the salon and kept two strings out of it. Reschedule needs the services to
-  /// compute the booking's real duration — `Appointment.durationMinutes` is a
-  /// provider-enriched field and can be null on a consumer payload — so keeping
-  /// the object costs one reference and saves a second round trip.
-  models.Provider? _salon;
-
-  void _maybeResolveProviderFacts(Appointment appointment) {
-    if (_providerLookupFor == appointment.providerId) return;
-    _providerLookupFor = appointment.providerId;
-    final artistId = appointment.artistId;
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      final res = await serviceLocator.providerService.getProviderById(
-        appointment.providerId,
-      );
-      if (!mounted) return;
-      final name = (artistId == null || artistId.isEmpty)
-          ? null
-          : res.data?.artists
-                .where((a) => a.id == artistId)
-                .map((a) => a.name)
-                .firstOrNull;
-      setState(() {
-        _salon = res.data;
-        _providerCountryCode = res.data?.countryCode;
-        if (name != null) _artistName = name;
-      });
-    });
-  }
-
-  /// « Appeler »/« WhatsApp » (parity 1.6): resolve the salon's public
-  /// coordinates, then launch the dialer / wa.me (provider-detail idiom).
+  /// « Appeler »/« WhatsApp » (parity 1.6): launch the dialer / wa.me from the
+  /// coordinates the booking already carries.
+  ///
+  /// These are kept for a salon that has STOPPED taking appointments, on
+  /// purpose — that is when a client with a booking needs to reach it most.
+  /// They used to be fetched from the public route, which meant a stopped
+  /// salon answered « Numéro indisponible. » — a sentence blaming the phone
+  /// number for something that was never about the number.
   Future<void> _contactSalon(
     Appointment appointment, {
     required bool whatsapp,
   }) async {
     final messenger = ScaffoldMessenger.of(context);
-    final res = await serviceLocator.providerService.getProviderById(
-      appointment.providerId,
-    );
-    final p = res.data;
-    final raw = whatsapp ? p?.whatsapp : p?.phoneNumber;
-    if (!res.success || p == null || raw == null || raw.isEmpty) {
+    final raw = whatsapp
+        ? appointment.providerWhatsapp
+        : appointment.providerPhone;
+    if (raw == null || raw.isEmpty) {
       AppSnackBar.showOn(
         messenger,
         whatsapp ? 'WhatsApp indisponible.' : 'Numéro indisponible.',
@@ -214,33 +184,16 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
   }
 
   Future<void> _handleReschedule(Appointment appointment) async {
-    // **The salon is required, and that is the fix.** The old flow pushed
-    // `/booking/date-time` with no `durationMinutes`, so the target recomputed
-    // it from the CURRENT catalogue and a freshly-defaulted length variant — a
-    // 3-hour braid could be offered 30-minute slots. `_maybeResolveProviderFacts`
-    // already loads the salon on every appointment; it just used to throw it
-    // away.
-    var salon = _salon;
-    if (salon == null) {
-      final res = await serviceLocator.providerService.getProviderById(
-        appointment.providerId,
-      );
-      if (!mounted) return;
-      salon = res.data;
-    }
-    if (salon == null) {
-      AppSnackBar.show(
-        context,
-        'Impossible de charger le salon',
-        kind: SnackKind.error,
-      );
-      return;
-    }
-
+    // **No salon fetch.** The reschedule screen needed the whole salon object
+    // for the booking's real duration and window — `durationMinutes` could be
+    // null on a consumer payload, so a 3-hour braid was offered 30-minute
+    // slots. The server backfills the duration from the catalogue that priced
+    // the booking and stamps the window on the payload, so the facts arrive
+    // with the appointment and « Impossible de charger le salon » — a message
+    // about a fetch that no longer happens — goes with them.
     final newDateTime = await showRescheduleScreen(
       context: context,
       appointment: appointment,
-      salon: salon,
     );
     if (newDateTime == null || !mounted) return;
 
@@ -260,26 +213,24 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
     );
   }
 
-  /// Pay-later: open the deposit sheet in submit mode (the booking exists). The
-  /// salon's Mobile Money handle comes from the provider's deposit policy.
+  /// Pay-later: open the deposit sheet in submit mode (the booking exists).
+  ///
+  /// The Mobile Money handle rides the appointment. It used to be fetched from
+  /// the public route, which made this the worst of the six: a client who owed
+  /// a deposit at a salon that had stopped being listed opened the sheet with
+  /// **nowhere to send the money**, on the one screen whose entire job is
+  /// collecting it.
   Future<void> _handleSendDeposit(Appointment appointment) async {
-    final providerProvider = Provider.of<ProviderProvider>(
-      context,
-      listen: false,
-    );
-    await providerProvider.loadProviderById(appointment.providerId);
-    if (!mounted) return;
-    final p = providerProvider.selectedProvider;
     final sent = await showDepositSubmitSheet(
       context,
       appointmentId: appointment.id,
       depositAmount: appointment.depositAmount,
       balanceDue: appointment.balanceDue,
-      providerName: p?.name ?? 'le salon',
-      depositOperator: p?.depositMobileMoneyOperator,
-      depositCountryCode: p?.countryCode,
-      depositNumber: p?.depositMobileMoneyNumber,
-      currency: appointment.currency ?? p?.currency,
+      providerName: appointment.providerName ?? 'le salon',
+      depositOperator: appointment.depositMobileMoneyOperator,
+      depositCountryCode: appointment.providerCountryCode,
+      depositNumber: appointment.depositMobileMoneyNumber,
+      currency: appointment.currency ?? appointment.providerCurrency,
     );
     if (sent != true || !mounted) return;
     AppSnackBar.show(
@@ -386,38 +337,23 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
     );
   }
 
-  /// Add this upcoming appointment to the phone's native calendar. Loads the
-  /// provider (reusing the cached fetch) for the title/location/services, then
-  /// opens the OS "new event" sheet — the user saves it in their own calendar
-  /// app (Myweli never writes the entry). Design: docs/design/appointment-calendar.md.
+  /// Add this upcoming appointment to the phone's native calendar, then open
+  /// the OS "new event" sheet — the user saves it in their own calendar app
+  /// (Myweli never writes the entry). Design: docs/design/appointment-calendar.md.
+  ///
+  /// Everything comes off the appointment. When the salon fetch failed this
+  /// wrote « Rendez-vous — le salon » with **zero duration** and then reported
+  /// success — the most dishonest of the six degradations, because the user
+  /// was told it worked.
   Future<void> _addToCalendar(Appointment appointment) async {
     final messenger = ScaffoldMessenger.of(context);
-    final providerProvider = Provider.of<ProviderProvider>(
-      context,
-      listen: false,
-    );
-    await providerProvider.loadProviderById(appointment.providerId);
-    if (!mounted) return;
-    final p = providerProvider.selectedProvider;
-
-    final serviceNames = <String>[];
-    var totalDuration = 0;
-    if (p != null) {
-      for (final s in p.services) {
-        if (appointment.serviceIds.contains(s.id)) {
-          serviceNames.add(s.name);
-          totalDuration += s.durationMinutes;
-        }
-      }
-    }
-
     final ok = await addAppointmentToCalendar(
       buildAppointmentCalendarEvent(
-        providerName: p?.name ?? 'le salon',
-        providerAddress: p?.address,
-        serviceNames: serviceNames,
+        providerName: appointment.providerName ?? 'le salon',
+        providerAddress: appointment.providerAddress,
+        serviceNames: appointment.serviceNames,
         start: appointment.appointmentDate,
-        totalDurationMinutes: totalDuration,
+        totalDurationMinutes: appointment.durationMinutes ?? 0,
         depositAmount: appointment.depositAmount,
         balanceDue: appointment.balanceDue,
         currency: appointment.currency ?? appointment.providerCurrency,
@@ -432,13 +368,15 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
     );
   }
 
+  /// « Donner mon avis » — kept for a stopped salon: the visit happened, and
+  /// the write is authenticated and appointment-scoped.
+  ///
+  /// No salon load. The sheet used one only to fill an artist picker whose
+  /// value the server discards — `ReviewsService.submitForAppointment` derives
+  /// `artistId`/`artistName` from the APPOINTMENT — so the picker was a
+  /// control that controlled nothing. It now shows who actually served the
+  /// booking, read off the payload.
   Future<void> _leaveReview(Appointment appointment) async {
-    final providerProvider = Provider.of<ProviderProvider>(
-      context,
-      listen: false,
-    );
-    await providerProvider.loadProviderById(appointment.providerId);
-    if (!mounted) return;
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -447,6 +385,7 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
         child: SubmitReviewSheet(
           providerId: appointment.providerId,
           appointmentId: appointment.id,
+          artistName: appointment.artistName,
         ),
       ),
     );
@@ -464,7 +403,6 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
           }
 
           final appointment = provider.selectedAppointment;
-          if (appointment != null) _maybeResolveProviderFacts(appointment);
           if (appointment == null) {
             return Center(
               child: Column(
@@ -533,15 +471,15 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
                         tz: appointment.providerTimezone,
                         countryLabel: context
                             .watch<LocalityProvider>()
-                            .countryName(_providerCountryCode),
+                            .countryName(appointment.providerCountryCode),
                         padding: const EdgeInsets.only(top: AppTheme.spacingXS),
                       ),
-                      if (_artistName != null) ...[
+                      if (appointment.artistName case final artist?) ...[
                         const SizedBox(height: AppTheme.spacingM),
                         _InfoRow(
                           icon: Icons.person_outline,
                           label: 'Spécialiste',
-                          value: _artistName!,
+                          value: artist,
                         ),
                       ],
                       const SizedBox(height: AppTheme.spacingM),
@@ -585,17 +523,37 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
                   ),
                 ),
                 const SizedBox(height: AppTheme.spacingL),
+                // The salon stopped taking appointments (§12, §6 cell 6).
+                //
+                // Stated once, above the actions it explains — the client is
+                // not left to infer it from a button that has quietly gone
+                // missing. What stays is deliberate: « Annuler » (a stopped
+                // salon must not trap anyone in a booking), « Appeler » /
+                // « WhatsApp » (this is when they need the salon MOST), the
+                // deposit block, and the calendar export.
+                if (salonStoppedMessage(appointment.providerStatus)
+                    case final stopped?) ...[
+                  InlineFeedback(stopped, kind: SnackKind.info),
+                  const SizedBox(height: AppTheme.spacingM),
+                ],
                 // Action Buttons
                 if (appointment.status != AppointmentStatus.cancelled &&
                     appointment.status != AppointmentStatus.completed) ...[
                   if (appointment.appointmentDate.isAfter(AppClock.now())) ...[
-                    AppButton(
-                      text: 'Reporter',
-                      icon: Icons.event_repeat,
-                      isLoading: provider.isLoading,
-                      onPressed: () => _handleReschedule(appointment),
-                    ),
-                    const SizedBox(height: AppTheme.spacingS),
+                    // « Reporter » is withheld for a salon that is not live:
+                    // the server refuses the move (`provider_suspended` /
+                    // `provider_not_published`), so offering it would be a
+                    // dead end with a button on it. Hiding is a courtesy OVER
+                    // the server gate, never instead of one.
+                    if (appointment.salonIsLive) ...[
+                      AppButton(
+                        text: 'Reporter',
+                        icon: Icons.event_repeat,
+                        isLoading: provider.isLoading,
+                        onPressed: () => _handleReschedule(appointment),
+                      ),
+                      const SizedBox(height: AppTheme.spacingS),
+                    ],
                     AppButton(
                       text: 'Ajouter au calendrier',
                       type: AppButtonType.secondary,

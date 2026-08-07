@@ -114,6 +114,86 @@ void main() {
       when(() => context.read<SlotService>()).thenReturn(slots);
     });
 
+    test('the closed read: hidden salons 404, live ones do not', () async {
+      // Decision C. `GET /providers/{id}` served EVERY salon, including the
+      // ones discovery has always hidden — so a stale link or a favourite
+      // reached a salon that is not on Myweli any more.
+      //
+      // Isolated fixtures, never the shared mutable `seedProviders`:
+      // `admin_provider_test.dart:53` suspends `provider1` and never restores
+      // it (`salon_state_refusal_test.dart:57-66` records why in full).
+      final isolated = InMemoryProvidersRepository([
+        {
+          'id': 'live',
+          'name': 'Live',
+          'status': 'active',
+          'services': <Map<String, dynamic>>[],
+        },
+        {
+          'id': 'seeded',
+          'name': 'Seeded',
+          'services': <Map<String, dynamic>>[],
+        },
+        {
+          'id': 'stopped',
+          'name': 'Stopped',
+          'status': 'suspended',
+          'services': <Map<String, dynamic>>[],
+        },
+        {
+          'id': 'unpublished',
+          'name': 'Draft',
+          'status': 'draft',
+          'services': <Map<String, dynamic>>[],
+        },
+      ]);
+      final c = _MockRequestContext();
+      when(() => c.read<ProvidersRepository>()).thenReturn(isolated);
+      when(() => c.read<ReviewsRepository>()).thenReturn(reviews);
+      Future<Response> get(String id) {
+        when(
+          () => c.request,
+        ).thenReturn(Request.get(Uri.parse('http://localhost/providers/$id')));
+        return detail.onRequest(c, id);
+      }
+
+      expect((await get('stopped')).statusCode, HttpStatus.notFound);
+      expect((await get('unpublished')).statusCode, HttpStatus.notFound);
+      // The pair, and the trap: a salon with NO `status` key is live — seeded
+      // salons carry none and Postgres reads NULL as active, so a gate spelled
+      // `status != 'active'` would 404 every salon in the country.
+      expect((await get('live')).statusCode, HttpStatus.ok);
+      expect((await get('seeded')).statusCode, HttpStatus.ok);
+    });
+
+    test('hidden and unknown are indistinguishable', () async {
+      // T51's no-oracle rule, as an assertion rather than a comment: the two
+      // answers must be byte-identical, or a 404 starts meaning « exists but
+      // hidden » and the route becomes an enumeration primitive.
+      final isolated = InMemoryProvidersRepository([
+        {
+          'id': 'stopped',
+          'name': 'Stopped',
+          'status': 'suspended',
+          'services': <Map<String, dynamic>>[],
+        },
+      ]);
+      final c = _MockRequestContext();
+      when(() => c.read<ProvidersRepository>()).thenReturn(isolated);
+      when(() => c.read<ReviewsRepository>()).thenReturn(reviews);
+      Future<Response> get(String id) {
+        when(
+          () => c.request,
+        ).thenReturn(Request.get(Uri.parse('http://localhost/providers/$id')));
+        return detail.onRequest(c, id);
+      }
+
+      final hidden = await get('stopped');
+      final unknown = await get('no-such-salon');
+      expect(hidden.statusCode, unknown.statusCode);
+      expect(await hidden.json(), await unknown.json());
+    });
+
     test('GET /providers returns a page with items + total', () async {
       when(() => context.request).thenReturn(
         Request.get(Uri.parse('http://localhost/providers?pageSize=2')),

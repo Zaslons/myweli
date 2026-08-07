@@ -72,7 +72,7 @@ void main() {
     service = DepositService(
       appts,
       MembershipService(InMemoryMembershipRepository(), providerAuth),
-      const FakeStorageService(),
+      FakeStorageService(),
     );
     final p1 = await providerAuth.register(
       email: 'reg8@test.pro',
@@ -104,7 +104,11 @@ void main() {
   group('DepositService.submit', () {
     test('owner attaches a screenshot key under their own prefix', () async {
       await seed('a1');
-      final r = await service.submit('user_A', 'a1', 'deposit/user_A/x.jpg');
+      final r = await service.submit(
+        'user_A',
+        'a1',
+        'pending/deposit/user_A/x.jpg',
+      );
       expect(r.ok, isTrue);
       expect((r.data! as Map)['depositScreenshotUrl'], 'deposit/user_A/x.jpg');
     });
@@ -112,20 +116,36 @@ void main() {
     test('rejects foreign key / non-owner / non-pending / unknown', () async {
       await seed('a1');
       expect(
-        (await service.submit('user_A', 'a1', 'deposit/user_B/x.jpg')).error,
+        (await service.submit(
+          'user_A',
+          'a1',
+          'pending/deposit/user_B/x.jpg',
+        )).error,
         'invalid_input', // not under the caller's prefix
       );
       expect(
-        (await service.submit('user_B', 'a1', 'deposit/user_B/x.jpg')).error,
+        (await service.submit(
+          'user_B',
+          'a1',
+          'pending/deposit/user_B/x.jpg',
+        )).error,
         'forbidden', // not the owner
       );
       await seed('done', status: 'completed');
       expect(
-        (await service.submit('user_A', 'done', 'deposit/user_A/x.jpg')).error,
+        (await service.submit(
+          'user_A',
+          'done',
+          'pending/deposit/user_A/x.jpg',
+        )).error,
         'invalid_state',
       );
       expect(
-        (await service.submit('user_A', 'nope', 'deposit/user_A/x.jpg')).error,
+        (await service.submit(
+          'user_A',
+          'nope',
+          'pending/deposit/user_A/x.jpg',
+        )).error,
         'not_found',
       );
     });
@@ -183,7 +203,9 @@ void main() {
       method,
       Uri.parse('http://localhost/appointments/a1/deposit'),
       headers: {if (bearer != null) 'Authorization': 'Bearer $bearer'},
-      body: body == null ? null : '{"screenshotKey":"deposit/user_A/x.jpg"}',
+      body: body == null
+          ? null
+          : '{"screenshotKey":"pending/deposit/user_A/x.jpg"}',
     );
 
     test(
@@ -253,5 +275,62 @@ void main() {
         );
       },
     );
+  });
+
+  group('claim-time size verification (T61)', () {
+    // R2 accepts a body larger than the signed content-length — measured
+    // against the live bucket — so ownership passing is NOT enough. This is
+    // the only layer that bounds what a consumer can put in the deposit
+    // bucket at our expense.
+    test('an oversized screenshot is refused AND deleted', () async {
+      final store = FakeStorageService(
+        sizes: {'pending/deposit/user1/huge.jpg': 50 * 1024 * 1024},
+      );
+      final svc = DepositService(
+        appts,
+        MembershipService(InMemoryMembershipRepository(), providerAuth),
+        store,
+      );
+      await seed('a-big', userId: 'user1');
+      final r = await svc.submit(
+        'user1',
+        'a-big',
+        'pending/deposit/user1/huge.jpg',
+      );
+
+      expect(r.ok, isFalse);
+      expect(r.error, 'upload_too_large');
+      expect(
+        store.deleted,
+        ['pending/deposit/user1/huge.jpg'],
+        reason: 'refusing the claim must not leave the bytes we pay for',
+      );
+      // And the booking must be untouched — a rejected claim is not a
+      // half-applied one.
+      final after = await appts.byId('a-big');
+      expect(
+        after!['depositScreenshotUrl'],
+        isNot('pending/deposit/user1/huge.jpg'),
+      );
+    });
+
+    test('a claimed key with no object behind it is refused', () async {
+      final store = FakeStorageService(
+        missing: {'pending/deposit/user1/ghost.jpg'},
+      );
+      final svc = DepositService(
+        appts,
+        MembershipService(InMemoryMembershipRepository(), providerAuth),
+        store,
+      );
+      await seed('a-ghost', userId: 'user1');
+      final r = await svc.submit(
+        'user1',
+        'a-ghost',
+        'pending/deposit/user1/ghost.jpg',
+      );
+      expect(r.ok, isFalse);
+      expect(r.error, 'upload_not_found');
+    });
   });
 }

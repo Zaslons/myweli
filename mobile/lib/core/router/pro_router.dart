@@ -26,6 +26,7 @@ import '../../screens/provider/profile/pro_data_export_screen.dart';
 import '../../screens/provider/profile/pro_profile_screen.dart';
 import '../../screens/provider/profile/pro_salon_profile_screen.dart';
 import '../../screens/provider/reviews/reviews_screen.dart';
+import '../../screens/provider/salon_preview_screen.dart';
 import '../../screens/provider/salons/add_salon_screen.dart';
 import '../../screens/provider/services/service_form_screen.dart';
 import '../../screens/provider/services/service_list_screen.dart';
@@ -34,7 +35,6 @@ import '../../screens/provider/staff/staff_home_screen.dart';
 import '../../screens/provider/subscription/pro_subscription_screen.dart';
 import '../../screens/provider/team/pro_invitations_screen.dart';
 import '../../screens/provider/team/team_screen.dart';
-import '../../screens/providers/provider_detail_screen.dart';
 
 class ProRouter {
   static final GoRouter router = GoRouter(
@@ -221,12 +221,12 @@ class ProRouter {
       GoRoute(
         path: '/pro/apercu',
         name: 'pro-apercu',
-        builder: (context, state) {
-          // Owner preview of the public listing (pro-salon-lifecycle B5).
-          final providerId =
-              context.read<ProAuthProvider>().activeSalonId ?? '';
-          return ProviderDetailScreen(providerId: providerId, preview: true);
-        },
+        // Owner preview of the public listing (pro-salon-lifecycle B5).
+        // `SalonPreviewScreen` resolves the salon from the TOKEN — it used to
+        // read `activeSalonId` and hand it to the public route, which also
+        // meant `?? ''` quietly requested `/providers/` (the list endpoint)
+        // whenever no salon was active.
+        builder: (context, state) => const SalonPreviewScreen(),
       ),
       GoRoute(
         path: '/pro/onboarding',

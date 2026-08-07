@@ -5,6 +5,7 @@ import 'access/capabilities.dart';
 import 'access/membership_service.dart';
 import 'auth/provider_auth_repository.dart';
 import 'storage/storage_service.dart';
+import 'upload_verification_service.dart';
 
 /// Outcome of a sign request; [data] is the response body on success.
 typedef SignResult = ({bool ok, String? error, Map<String, dynamic>? data});
@@ -12,7 +13,7 @@ typedef SignResult = ({bool ok, String? error, Map<String, dynamic>? data});
 /// Issues a presigned upload for an authenticated salon. The object **key is
 /// built server-side from the token**, so a salon can only write under its own
 /// prefix — the client never chooses the path. Content-type is allowlisted and
-/// the size cap is signed into the policy; bytes never pass through the API.
+/// the size cap is advisory until claim-time verification lands; bytes never pass through the API.
 /// Two purposes (designs: pro-image-upload-pipeline.md, pro-kyc.md):
 /// - `gallery` → **public** bucket, prefix `gallery/{providerId}` (needs a
 ///   linked salon), returns a `publicUrl`.
@@ -95,11 +96,16 @@ class UploadSigningService {
       bucket = StorageBucket.public;
     }
 
-    final key = '$purpose/$prefixId/${_objectId()}.$ext';
-    final post = _storage.presignPost(
+    // Uploads land under `pending/` and are PROMOTED to the final key only when
+    // claimed. Anything still under this prefix is by construction an orphan —
+    // which is what makes a lifecycle rule on it impossible to get wrong.
+    // Claim-time size verification cannot see an unclaimed object, so without
+    // this the cap simply does not apply to them.
+    // docs/design/backend-upload-orphans.md.
+    final key = '$kPendingPrefix$purpose/$prefixId/${_objectId()}.$ext';
+    final upload = _storage.presignPut(
       key: key,
       contentType: contentType,
-      maxBytes: _maxBytes,
       ttl: _ttl,
       bucket: bucket,
     );
@@ -108,13 +114,19 @@ class UploadSigningService {
       ok: true,
       error: null,
       data: {
-        'method': 'POST',
-        'uploadUrl': post.url,
-        'fields': post.fields,
+        'method': 'PUT',
+        'uploadUrl': upload.url,
+        // Exactly the headers the signature pins — sending anything else is a
+        // 403 from storage, so this is a requirement, not a hint.
+        'headers': upload.headers,
         'key': key,
         // Private objects (kyc/deposit) are never publicly served.
         if (bucket == StorageBucket.public)
           'publicUrl': _storage.publicUrl(key),
+        // ADVISORY. The old POST policy pinned a content-length-range that
+        // storage enforced; R2 ignores a signed content-length on a PUT
+        // (measured). Real enforcement has to happen when the object is
+        // claimed — docs/design/backend-r2-presigned-put.md §3.
         'maxBytes': _maxBytes,
         'expiresInSeconds': _ttl.inSeconds,
       },

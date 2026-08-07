@@ -68,7 +68,14 @@ void main() {
     expect(res.data!.id, 'p1');
   });
 
-  test('getProviderById surfaces a 404 as an error', () async {
+  test('getProviderById surfaces a 404 as an error, WITH a code', () async {
+    // The code is the point. This service was the only one that never set
+    // `code:`, so a screen could tell « this salon is gone » from « your
+    // connection dropped » only by comparing French sentences — and the
+    // sentence it compared against was « Provider non trouvé », English
+    // jargon on a consumer screen. Those two failures need opposite
+    // treatments under §12: the first has no retry that can succeed, the
+    // second is exactly where « Réessayer » belongs.
     final client = MockClient(
       (req) async => http.Response(jsonEncode({'error': 'not_found'}), 404),
     );
@@ -77,7 +84,21 @@ void main() {
     final res = await service.getProviderById('nope');
 
     expect(res.success, isFalse);
-    expect(res.error, isNotNull);
+    expect(res.code, 'not_found');
+    expect(res.error, isNot(contains('Provider')));
+  });
+
+  test('a transport failure carries a DIFFERENT code', () async {
+    // The pair. Without it, a service that stamped `code: 'not_found'` on
+    // every failure would pass the test above and collapse the distinction it
+    // exists to create.
+    final client = MockClient((req) async => throw Exception('down'));
+    final service = ApiProviderService(client: client, baseUrl: 'http://x');
+
+    final res = await service.getProviderById('p1');
+
+    expect(res.success, isFalse);
+    expect(res.code, 'network');
   });
 
   test('a transport failure becomes a friendly error', () async {

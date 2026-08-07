@@ -592,6 +592,22 @@ class ProAuthProvider extends ChangeNotifier {
     ),
   );
 
+  Future<bool> registerWithApple({
+    required String phoneNumber,
+    required String businessName,
+    required BusinessType businessType,
+    String? address,
+    String? areaId,
+  }) => _login(
+    () => _authService.registerProviderWithApple(
+      phoneNumber: phoneNumber,
+      businessName: businessName,
+      businessType: businessType,
+      address: address,
+      areaId: areaId,
+    ),
+  );
+
   Future<bool> registerWithEmail({
     required String email,
     required String code,
