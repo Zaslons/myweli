@@ -125,6 +125,32 @@ and that fact is recorded here rather than left implicit:
    client-side regardless of the FCM server secrets).
 3. Two App Store Connect records.
 
+## 5.1 APNs entitlements (added with the push work)
+
+`Runner.entitlements` declared `aps-environment` and had **zero**
+`CODE_SIGN_ENTITLEMENTS` references — for months. The built app therefore
+carried no push entitlement, iOS issued no APNs token, and every bit of
+Apple/Firebase configuration would have looked correct while push stayed dead.
+
+Now wired per configuration by the same script:
+
+| Configurations | File | `aps-environment` |
+|---|---|---|
+| `Debug*`, `Profile*` | `Runner/Runner.entitlements` | `development` |
+| `Release*` | `Runner/RunnerRelease.entitlements` | `production` |
+
+The split is not cosmetic. A build signed `development` receives a **sandbox**
+APNs token, and a production FCM send to it is silently dropped — the same class
+of silent failure as the auth bug it sits next to.
+
+Verified through `xcodebuild -showBuildSettings`, not just the project file:
+`Debug-consumer` → development, `Release-pro` → production.
+
+**Still owner-side:** the App IDs in the Apple portal need the **Push
+Notifications** capability enabled. The earlier registration only ticked Sign in
+with Apple, so a provisioning profile will not carry APNs until that is added
+for `com.myweli.app` and `com.myweli.pro`.
+
 ## 6. Open
 
 - **Signing** is untouched — no team, no provisioning profiles. Deliberate:

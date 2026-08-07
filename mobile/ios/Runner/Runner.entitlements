@@ -2,10 +2,11 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<!-- APNs (push). `development` here; a release build uses `production`.
-	     Wiring this file into the target (CODE_SIGN_ENTITLEMENTS) + adding the
-	     Push Notifications capability is an Xcode step — see
-	     docs/DEPLOYMENT.md §B4 (it needs the Apple developer account). -->
+	<!-- APNs for DEBUG and PROFILE builds (sandbox APNs).
+	     RunnerRelease.entitlements carries `production` for release builds.
+	     Both are wired per-configuration by tool/setup_flavours.rb — this file
+	     existed for months with ZERO CODE_SIGN_ENTITLEMENTS references, so the
+	     built app carried no push entitlement and iOS issued no APNs token. -->
 	<key>aps-environment</key>
 	<string>development</string>
 </dict>
