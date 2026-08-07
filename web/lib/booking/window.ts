@@ -127,8 +127,8 @@ export function conflictMessage(
         : "Ce salon n’accepte pas encore de réservations en ligne.";
     case "provider_suspended":
       return audience === "salon"
-        ? "Votre salon est suspendu. Contactez Myweli pour le réactiver — vos rendez-vous sont intacts."
-        : "Ce salon ne prend plus de rendez-vous sur Myweli.";
+        ? "Votre salon est suspendu. Contactez MyWeli pour le réactiver — vos rendez-vous sont intacts."
+        : "Ce salon ne prend plus de rendez-vous sur MyWeli.";
     // Decision C. `/availability` answers this for a salon it will no longer
     // serve, indistinguishably from an unknown id — the browse route answers to
     // ANYONE, so naming the state there would be an enumeration oracle (T51).
@@ -138,7 +138,7 @@ export function conflictMessage(
     case "provider_not_found":
       return audience === "salon"
         ? "Ce salon est introuvable."
-        : "Ce salon n’est plus disponible sur Myweli.";
+        : "Ce salon n’est plus disponible sur MyWeli.";
     default:
       return fallback;
   }

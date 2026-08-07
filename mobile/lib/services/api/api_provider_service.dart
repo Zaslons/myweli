@@ -75,7 +75,7 @@ class ApiProviderService implements ProviderServiceInterface {
       final res = await _client.get(Uri.parse('$_baseUrl/providers/$id'));
       if (res.statusCode == 404) {
         return ApiResponse.error(
-          'Ce salon n’est plus disponible sur Myweli.',
+          'Ce salon n’est plus disponible sur MyWeli.',
           code: 'not_found',
         );
       }

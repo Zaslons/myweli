@@ -80,7 +80,7 @@ export function SalonPreviewClient() {
         <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-s">
           <span>
             {provider.status === 'suspended'
-              ? 'Votre salon est suspendu. Contactez Myweli pour le réactiver — vos rendez-vous sont intacts.'
+              ? 'Votre salon est suspendu. Contactez MyWeli pour le réactiver — vos rendez-vous sont intacts.'
               : live
                 ? 'Votre salon est en ligne — ceci est votre page publique.'
                 : 'Aperçu — votre salon n’est pas encore en ligne. Voici ce que verront vos clients.'}

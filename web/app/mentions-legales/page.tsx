@@ -15,7 +15,7 @@ export const metadata = legalMetadata('/mentions-legales');
 
 /// **This page is deliberately incomplete, and says so.**
 ///
-/// Myweli is not registered yet (owner decision, docs/design/legal-l1.md §12),
+/// MyWeli is not registered yet (owner decision, docs/design/legal-l1.md §12),
 /// so the RCCM, the siège social, the capital and the legal representative do not
 /// exist to publish. The choice was between leaving blanks — which read as an
 /// oversight — and stating the situation. It states it, and `COMPANY` in
@@ -24,7 +24,7 @@ export default function Page() {
   return (
     <LegalPage slug="/mentions-legales">
       <Lead>
-        Informations sur l’éditeur du service Myweli, sur son hébergement, et sur
+        Informations sur l’éditeur du service MyWeli, sur son hébergement, et sur
         la propriété des contenus qui y sont publiés.
       </Lead>
 
@@ -73,7 +73,7 @@ export default function Page() {
 
       <H2>Propriété intellectuelle</H2>
       <P>
-        La marque Myweli, son logo, l’interface et les contenus éditoriaux du
+        La marque MyWeli, son logo, l’interface et les contenus éditoriaux du
         service sont protégés. Les contenus publiés par un salon — textes,
         photographies, prestations — restent la propriété de ce salon, qui nous
         autorise à les afficher dans le cadre du service.

@@ -5,7 +5,7 @@
 /// time one was amended — and a privacy policy dated later than the practice it
 /// describes is worse than an undated one.
 ///
-/// **`COMPANY` is where the RCCM lands as one edit.** Myweli is not registered
+/// **`COMPANY` is where the RCCM lands as one edit.** MyWeli is not registered
 /// yet (owner decision, docs/design/legal-l1.md §12), so `registration` says so
 /// plainly rather than leaving a blank that reads as an oversight.
 ///
@@ -40,7 +40,7 @@ export const LEGAL_ROUTES: readonly LegalRoute[] = [
     h1: 'Politique de confidentialité',
     title: 'Politique de confidentialité',
     description:
-      'Quelles données Myweli traite, pourquoi, avec qui elles sont partagées, ' +
+      'Quelles données MyWeli traite, pourquoi, avec qui elles sont partagées, ' +
       'et comment les consulter, les exporter ou les supprimer.',
     footerLabel: 'Politique de confidentialité',
   },
@@ -49,7 +49,7 @@ export const LEGAL_ROUTES: readonly LegalRoute[] = [
     h1: 'Conditions générales d’utilisation',
     title: 'Conditions générales d’utilisation',
     description:
-      'Les règles d’utilisation de Myweli : le rôle d’intermédiaire, les ' +
+      'Les règles d’utilisation de MyWeli : le rôle d’intermédiaire, les ' +
       'acomptes, les annulations, les avis et les responsabilités de chacun.',
     footerLabel: 'Conditions d’utilisation',
   },
@@ -59,7 +59,7 @@ export const LEGAL_ROUTES: readonly LegalRoute[] = [
     title: 'Mentions légales',
     description:
       'Éditeur, directeur de la publication, hébergeurs et propriété ' +
-      'intellectuelle du service Myweli.',
+      'intellectuelle du service MyWeli.',
     footerLabel: 'Mentions légales',
   },
   {
@@ -67,7 +67,7 @@ export const LEGAL_ROUTES: readonly LegalRoute[] = [
     h1: 'Supprimer votre compte',
     title: 'Supprimer votre compte',
     description:
-      'Comment supprimer votre compte Myweli, et exactement ce qui est ' +
+      'Comment supprimer votre compte MyWeli, et exactement ce qui est ' +
       'supprimé, anonymisé ou conservé.',
     footerLabel: 'Supprimer mon compte',
   },
@@ -91,7 +91,7 @@ export const LEGAL_UPDATED_AT = {
 } as const;
 
 export const COMPANY = {
-  tradingName: 'Myweli',
+  tradingName: 'MyWeli',
   /// No RCCM yet — the honest statement, not a blank.
   registration:
     'société en cours d’immatriculation au Registre du Commerce et du Crédit ' +

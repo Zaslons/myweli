@@ -34,7 +34,7 @@ describe("a salon that is not live says which kind of not-live it is", () => {
 
   it("stopped → « ne … plus », to a client", () => {
     expect(conflictMessage("provider_suspended", client)).toBe(
-      "Ce salon ne prend plus de rendez-vous sur Myweli.",
+      "Ce salon ne prend plus de rendez-vous sur MyWeli.",
     );
   });
 
@@ -43,7 +43,7 @@ describe("a salon that is not live says which kind of not-live it is", () => {
     // shopping for another one — they need to know their bookings survived and
     // who to talk to.
     expect(conflictMessage("provider_suspended", salon)).toBe(
-      "Votre salon est suspendu. Contactez Myweli pour le réactiver — vos rendez-vous sont intacts.",
+      "Votre salon est suspendu. Contactez MyWeli pour le réactiver — vos rendez-vous sont intacts.",
     );
   });
 

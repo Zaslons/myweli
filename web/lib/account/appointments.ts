@@ -70,7 +70,7 @@ export function salonStoppedMessageFor(
     return 'Ce salon n’accepte pas encore de réservations en ligne.';
   }
   if (status === 'suspended') {
-    return 'Ce salon ne prend plus de rendez-vous sur Myweli.';
+    return 'Ce salon ne prend plus de rendez-vous sur MyWeli.';
   }
   return null;
 }

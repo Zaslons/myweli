@@ -343,7 +343,7 @@ class ApiAppointmentService implements AppointmentServiceInterface {
       case 'provider_not_published':
         return 'Ce salon n’accepte pas encore de réservations en ligne.';
       case 'provider_suspended':
-        return 'Ce salon ne prend plus de rendez-vous sur Myweli.';
+        return 'Ce salon ne prend plus de rendez-vous sur MyWeli.';
       // Decision C: `/availability` answers this for a salon it will no longer
       // serve, indistinguishably from an unknown id (T51's no-oracle rule —
       // the browse route is the one that answers to anyone). It used to fall

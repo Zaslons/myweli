@@ -28,7 +28,7 @@ class PayrollCalculationScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Myweli Pro calcule les salaires selon vos règles. Le calcul prendra environ 10 minutes au lieu de plusieurs heures.',
+              'MyWeli Pro calcule les salaires selon vos règles. Le calcul prendra environ 10 minutes au lieu de plusieurs heures.',
               style: AppTextStyles.bodyMedium.copyWith(
                 color: AppColors.textSecondary,
               ),

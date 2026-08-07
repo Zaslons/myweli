@@ -282,7 +282,7 @@ class _DepositSettingsScreenState extends State<DepositSettingsScreen> {
                 const SizedBox(height: AppTheme.spacingXS),
                 Text(
                   'Le client envoie l’acompte directement sur ce compte '
-                  'Mobile Money. Myweli ne le traite pas.',
+                  'Mobile Money. MyWeli ne le traite pas.',
                   style: AppTextStyles.bodySmall.copyWith(
                     color: AppColors.textTertiary,
                   ),

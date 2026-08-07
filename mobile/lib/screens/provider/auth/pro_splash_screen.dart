@@ -104,7 +104,7 @@ class _ProSplashScreenState extends State<ProSplashScreen>
                 ),
                 const SizedBox(height: AppTheme.spacingL),
                 Text(
-                  'Myweli Pro',
+                  'MyWeli Pro',
                   style: AppTextStyles.displaySmall.copyWith(
                     color: AppColors.primary,
                   ),

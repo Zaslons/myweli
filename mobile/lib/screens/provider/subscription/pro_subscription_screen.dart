@@ -56,7 +56,7 @@ class _ProSubscriptionScreenState extends State<ProSubscriptionScreen> {
     number: AppConfig.supportWhatsApp,
     message:
         message ??
-        'Bonjour Myweli, je souhaite activer mon offre pour mon salon.',
+        'Bonjour MyWeli, je souhaite activer mon offre pour mon salon.',
   );
 
   Future<void> _choose(String providerId, SalonTier tier) async {
@@ -324,7 +324,7 @@ class _StatusBanner extends StatelessWidget {
             AppButton(
               text: 'Nous contacter',
               onPressed: () => onContact(
-                'Bonjour Myweli, je souhaite régler mon offre pour '
+                'Bonjour MyWeli, je souhaite régler mon offre pour '
                 'réactiver mon salon.',
               ),
             ),
@@ -418,7 +418,7 @@ class _TrialUsedNotice extends StatelessWidget {
             text: 'Nous contacter',
             type: AppButtonType.secondary,
             onPressed: () => onContact(
-              'Bonjour Myweli, mon essai est terminé — je souhaite activer '
+              'Bonjour MyWeli, mon essai est terminé — je souhaite activer '
               'mon offre.',
             ),
           ),

@@ -1,6 +1,6 @@
 class AppConstants {
   // App Info
-  static const String appName = 'Myweli';
+  static const String appName = 'MyWeli';
   static const String appVersion = '1.0.0';
 
   // Country Code (Côte d'Ivoire)

@@ -187,7 +187,7 @@ class MyweliProApp extends StatelessWidget {
           // otherwise resolve to a country-less `Locale('fr')`.
           localizationsDelegates: GlobalMaterialLocalizations.delegates,
           supportedLocales: const [Locale('fr', 'FR')],
-          title: 'Myweli Pro',
+          title: 'MyWeli Pro',
           debugShowCheckedModeBanner: false,
           theme: AppTheme.lightTheme,
           // §10's content cap. Above the Router and below ScaffoldMessenger,

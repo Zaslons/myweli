@@ -72,7 +72,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text('Myweli — Admin', style: AppTextStyles.headlineMedium),
+                Text('MyWeli — Admin', style: AppTextStyles.headlineMedium),
                 const SizedBox(height: AppTheme.spacingXS),
                 Text(
                   'Console interne. Accès réservé à l’équipe.',

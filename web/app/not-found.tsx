@@ -3,7 +3,7 @@
 /// combo, the booking funnel.
 ///
 /// **The body stays the hedge it already was.** Decision C's §6 cell 5 wanted
-/// « Ce salon n'est plus disponible sur Myweli. », and that sentence cannot go
+/// « Ce salon n'est plus disponible sur MyWeli. », and that sentence cannot go
 /// here: this page is **identity-agnostic** as well as status-agnostic — it
 /// cannot know it was asked for a salon rather than for `/coiffure-nowhere`.
 /// « Ce salon ou cette page n'existe pas (ou plus) » already carries the salon

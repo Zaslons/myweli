@@ -55,7 +55,7 @@ class PushBlockedBanner extends StatelessWidget {
           ),
           const SizedBox(height: AppTheme.spacingXS),
           Text(
-            'Autorisez Myweli dans les réglages de votre téléphone pour '
+            'Autorisez MyWeli dans les réglages de votre téléphone pour '
             'recevoir vos rappels et confirmations.',
             style: AppTextStyles.bodySmall.copyWith(
               color: AppColors.textSecondary,
