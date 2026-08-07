@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
+import '../../core/theme/app_theme.dart';
+
 /// The official multicolor Google « G » — Google's sign-in branding
 /// guidelines expect it on every « Continuer avec Google » button.
 class GoogleGLogo extends StatelessWidget {
-  const GoogleGLogo({super.key, this.size = 20});
+  const GoogleGLogo({super.key, this.size = AppTheme.iconS});
 
   final double size;
 

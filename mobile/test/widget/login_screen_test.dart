@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -5,6 +6,8 @@ import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/providers/auth_provider.dart';
 import 'package:myweli/screens/auth/login_screen.dart';
 import 'package:myweli/services/mock/mock_auth_service.dart';
+import 'package:myweli/widgets/common/app_button.dart';
+import 'package:myweli/widgets/common/apple_logo.dart';
 import 'package:myweli/widgets/common/google_g_logo.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -46,7 +49,7 @@ void main() {
     await tester.pump();
   }
 
-  testWidgets('options step: Google + email visible, Apple hidden (flag off)', (
+  testWidgets('options step: Google + email visible, Apple hidden (Android)', (
     tester,
   ) async {
     await tester.pumpWidget(app());
@@ -56,7 +59,50 @@ void main() {
     // Google's branding guidelines: the official « G » sits on the button.
     expect(find.byType(GoogleGLogo), findsOneWidget);
     expect(find.text('Continuer avec e-mail'), findsOneWidget);
+    // Hidden because `_showApple` also requires iOS, and `flutter test`
+    // reports android. NOT because the flag is off — it now defaults to true.
     expect(find.text('Continuer avec Apple'), findsNothing);
+  });
+
+  testWidgets('options step on iOS: Apple appears, as one family with Google', (
+    tester,
+  ) async {
+    // Without this override the Apple button is unreachable from any test:
+    // `flutter test` hard-wires `defaultTargetPlatform` to android, so
+    // `_showApple` was false in every run and NOTHING has ever rendered it —
+    // including the goldens. The rule-4.8 button shipped unseen.
+    //
+    // Reset in a `finally`, not `addTearDown`: the framework verifies the
+    // foundation debug vars at the END OF THE BODY, before tearDowns run, and
+    // fails the test for leaving one set.
+    debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+    try {
+      await tester.pumpWidget(app());
+      await settle(tester);
+
+      expect(find.text('Continuer avec Apple'), findsOneWidget);
+      // The mark that was missing entirely until now.
+      expect(find.byType(AppleLogo), findsOneWidget);
+
+      // The point of the slice: both buttons are the same control, differing
+      // only in fill. Same height, same width, same shape — so a difference in
+      // padding or type can never quietly return.
+      final google = tester.getRect(
+        find.ancestor(
+          of: find.text('Continuer avec Google'),
+          matching: find.byType(AppButton),
+        ),
+      );
+      final apple = tester.getRect(
+        find.ancestor(
+          of: find.text('Continuer avec Apple'),
+          matching: find.byType(AppButton),
+        ),
+      );
+      expect(apple.size, google.size);
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
   });
 
   testWidgets('email login: code step → verify → MANDATORY phone step → home', (

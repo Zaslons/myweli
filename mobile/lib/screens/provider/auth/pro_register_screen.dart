@@ -13,6 +13,7 @@ import '../../../models/provider_user.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../widgets/common/app_button.dart';
 import '../../../widgets/common/app_text_field.dart';
+import '../../../widgets/common/apple_logo.dart';
 import '../../../widgets/common/auth_switch_prompt.dart';
 import '../../../widgets/common/commune_picker_sheet.dart';
 import '../../../widgets/common/google_g_logo.dart';
@@ -145,6 +146,23 @@ class _ProRegisterScreenState extends State<ProRegisterScreen> {
     if (!_validateBusinessFields()) return;
     final auth = context.read<ProAuthProvider>();
     final ok = await auth.registerWithGoogle(
+      phoneNumber: _phoneNumber,
+      businessName: _businessNameController.text.trim(),
+      businessType: _selectedBusinessType!,
+      address: _addressController.text.trim(),
+      areaId: _areaId,
+    );
+    if (ok && mounted) _finish();
+  }
+
+  /// The Apple twin of [_handleGoogle]. This button was `onPressed: () {}` —
+  /// visible behind the Apple flag and silently doing nothing — even though the
+  /// backend has accepted an Apple identity on `/auth/provider/register` since
+  /// the auth overhaul.
+  Future<void> _handleApple() async {
+    if (!_validateBusinessFields()) return;
+    final auth = context.read<ProAuthProvider>();
+    final ok = await auth.registerWithApple(
       phoneNumber: _phoneNumber,
       businessName: _businessNameController.text.trim(),
       businessType: _selectedBusinessType!,
@@ -354,8 +372,8 @@ class _ProRegisterScreenState extends State<ProRegisterScreen> {
                 const SizedBox(height: AppTheme.spacingSM),
                 AppButton(
                   text: 'S’inscrire avec Apple',
-                  type: AppButtonType.secondary,
-                  onPressed: auth.isLoading ? null : () {},
+                  leading: const AppleLogo(),
+                  onPressed: auth.isLoading ? null : _handleApple,
                 ),
               ],
               const SizedBox(height: AppTheme.spacingM),

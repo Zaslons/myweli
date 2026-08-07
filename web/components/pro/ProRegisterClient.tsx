@@ -10,6 +10,7 @@ import { Button } from '../Button';
 import { PhoneField } from '../PhoneField';
 import { TextField } from '../TextField';
 import { LocalityPicker } from './LocalityPicker';
+import { gisOptions } from '../auth/socialButton';
 
 const BUSINESS_TYPES = [
   { value: 'salon', label: 'Salon de beauté' },
@@ -125,12 +126,7 @@ export function ProRegisterClient() {
             await submit({ idToken: credential });
           },
         });
-        window.google.accounts.id.renderButton(googleDiv.current, {
-          theme: 'outline',
-          size: 'large',
-          text: 'signup_with',
-          width: 320,
-        });
+        window.google.accounts.id.renderButton(googleDiv.current, gisOptions('signup_with'));
       })
       .catch(() => {/* the email path stays available */});
     return () => {
