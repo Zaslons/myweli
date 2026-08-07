@@ -66,7 +66,16 @@ export async function createBooking(payload: {
 /// That is the same defect A14c fixed on mobile, where `SlotPicker`'s comment
 /// still records it: telling a user the salon is full when the truth is that we
 /// never reached it. Web had three states where mobile has four.
-export type SlotsResult = { ok: boolean; slots: string[] };
+export type SlotsResult = {
+  ok: boolean;
+  slots: string[];
+  /// The salon is not there any more (Decision C: `/availability` 404s a salon
+  /// that is `draft` or `suspended`). Distinct from `!ok` because the two need
+  /// OPPOSITE controls: a dropped connection is exactly where « Réessayer »
+  /// belongs, and this is exactly where it cannot succeed. Collapsing them is
+  /// what made the funnel blame the connection for a salon-state problem.
+  gone?: boolean;
+};
 
 export async function fetchSlots(params: {
   providerId: string;
@@ -86,7 +95,7 @@ export async function fetchSlots(params: {
     const res = await fetch(`/api/availability?${qs.toString()}`);
     // The BFF preserves the upstream status, so the information was always
     // here — only this function threw it away.
-    if (!res.ok) return { ok: false, slots: [] };
+    if (!res.ok) return { ok: false, slots: [], gone: res.status === 404 };
     const body = await res.json().catch(() => ({}));
     return { ok: true, slots: (body.slots as string[] | undefined) ?? [] };
   } catch {
@@ -95,40 +104,4 @@ export async function fetchSlots(params: {
   }
 }
 
-/// The salon's bookable window, for a surface that holds only an appointment
-/// (A14d).
-///
-/// The booking funnel server-renders its provider and needs nothing here; the
-/// account reschedule screen has an `Appointment`, so it knows the salon's id
-/// and not its window — and without the window it can only fall back to the
-/// defaults and tell a client « aucun créneau » for a date the salon simply
-/// does not accept. Mobile solves this the same way: `showRescheduleScreen`
-/// requires a `models.Provider`, and its caller fetches one.
-///
-/// Falls back to the defaults on any failure rather than throwing: an
-/// unreachable provider must degrade the EXPLANATION, never the screen.
-export async function fetchBookingWindow(
-  providerId: string,
-): Promise<{ horizonDays: number; noticeMinutes: number }> {
-  try {
-    const res = await fetch(`/api/providers/${encodeURIComponent(providerId)}`);
-    if (!res.ok) return fallbackWindow();
-    const body = (await res.json().catch(() => ({}))) as {
-      availability?: { bookingHorizonDays?: number; minimumNoticeMinutes?: number };
-    };
-    return {
-      horizonDays: body.availability?.bookingHorizonDays ?? DEFAULT_HORIZON_DAYS,
-      noticeMinutes:
-        body.availability?.minimumNoticeMinutes ?? DEFAULT_NOTICE_MINUTES,
-    };
-  } catch {
-    return fallbackWindow();
-  }
-}
 
-function fallbackWindow() {
-  return {
-    horizonDays: DEFAULT_HORIZON_DAYS,
-    noticeMinutes: DEFAULT_NOTICE_MINUTES,
-  };
-}

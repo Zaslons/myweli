@@ -22,12 +22,18 @@ class ProSalonProfileProvider extends ChangeNotifier implements SalonScoped {
     _isLoading = true;
     _error = null;
     notifyListeners();
-    final res = await serviceLocator.providerService.getProviderById(
-      providerId,
-    );
+    // **By account, not by public id.** This used to call
+    // `providerService.getProviderById` — the unauthenticated public read —
+    // for the salon the caller is already signed into. `GET /me/provider`
+    // returns the identical document resolved from the token, so there was
+    // nothing to gain by asking anonymously and a draft salon to lose the day
+    // the public route closes (T51; salon-state-and-refusals.md Decision C).
+    // The write half of this class was always right: `save()` below goes
+    // through `proService`.
+    final res = await serviceLocator.proService.getMyProvider();
     _isLoading = false;
     if (res.success && res.data != null) {
-      _provider = res.data;
+      _provider = res.data!.salon;
     } else {
       _provider = null;
       _error = res.error ?? 'Chargement impossible';

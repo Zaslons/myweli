@@ -3,6 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:myweli/core/theme/app_theme.dart';
 import 'package:myweli/core/theme/colors.dart';
 import 'package:myweli/widgets/common/app_button.dart';
+import 'package:myweli/widgets/common/apple_logo.dart';
+import 'package:myweli/widgets/common/google_g_logo.dart';
 
 import '../support/golden.dart';
 
@@ -62,12 +64,47 @@ class _ButtonSheet extends StatelessWidget {
                   onPressed: _noop,
                   type: AppButtonType.text,
                 ),
-                const SizedBox(height: AppTheme.spacingS),
+              ],
+            ),
+          ),
+          // The two social buttons, side by side — the ONLY place they are seen
+          // together. They live on three screens (consumer login, pro login,
+          // pro register) and drifted into three different appearances there,
+          // because nothing ever rendered them next to each other.
+          //
+          // The previous specimen here was `icon: Icons.g_mobiledata` — a
+          // Material glyph no screen has ever used — so this golden depicted a
+          // button that did not exist while the real one went unwatched.
+          GoldenSection(
+            title: 'Social sign-in — one family, two fills',
+            child: Column(
+              children: [
                 const AppButton(
                   text: 'Continuer avec Google',
                   onPressed: _noop,
                   type: AppButtonType.secondary,
-                  icon: Icons.g_mobiledata,
+                  leading: GoogleGLogo(),
+                ),
+                const SizedBox(height: AppTheme.spacingS),
+                const AppButton(
+                  text: 'Continuer avec Apple',
+                  onPressed: _noop,
+                  leading: AppleLogo(),
+                ),
+                const SizedBox(height: AppTheme.spacingS),
+                // Disabled, because `leading:` is NOT tinted the way `icon:`
+                // is: a hardcoded-white mark would be invisible against the
+                // grey disabled fill, and only a rendered pixel shows it.
+                // Both marks must still read here.
+                const AppButton(
+                  text: 'Continuer avec Google',
+                  type: AppButtonType.secondary,
+                  leading: GoogleGLogo(),
+                ),
+                const SizedBox(height: AppTheme.spacingS),
+                const AppButton(
+                  text: 'Continuer avec Apple',
+                  leading: AppleLogo(),
                 ),
               ],
             ),

@@ -71,7 +71,7 @@ void main() {
             jsonEncode({
               'method': 'POST',
               'uploadUrl': 'http://storage.local/kyc-bucket',
-              'fields': {'key': 'kyc/acc1/x.jpg'},
+              'headers': {'content-type': 'image/jpeg'},
               'key': 'kyc/acc1/x.jpg',
               'maxBytes': 5242880,
               'expiresInSeconds': 300,
@@ -79,7 +79,7 @@ void main() {
             200,
           );
         }
-        return http.Response('', 204); // the storage upload
+        return http.Response('', 200); // the storage upload
       });
 
       final res = await _service(

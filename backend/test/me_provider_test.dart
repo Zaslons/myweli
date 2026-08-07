@@ -60,7 +60,7 @@ void main() {
           auth,
           providers,
           appointments,
-          const FakeStorageService(),
+          FakeStorageService(),
           memberships,
           client: MockClient((req) async => http.Response('', 204)),
         ),

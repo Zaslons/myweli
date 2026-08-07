@@ -25,12 +25,14 @@ Twilio SMS to Côte d'Ivoire is **$0.4925/segment** vs **$0.008** US (~62×) —
 - **WhatsApp:** returns `whatsapp_not_configured` so the service falls back to SMS (parity with the Twilio adapter).
 
 ### Selection (`dependencies.dart`)
-`MESSAGING_PROVIDER` ∈ `termii | twilio | log`; **unset → auto-detect**, preferring Termii when its creds are present, else Twilio. Switching is a one-env-var flip with **no code change**, and the other provider's config can stay for **instant rollback**. Production still **fails fast** if no provider is configured.
+`MESSAGING_PROVIDER` ∈ `termii | twilio | log | disabled`; **unset → auto-detect**, preferring Termii when its creds are present, else Twilio. Switching is a one-env-var flip with **no code change**, and the other provider's config can stay for **instant rollback**. Production still **fails fast** if no provider is configured.
+
+**`disabled` — messaging deliberately off (added by G1).** The launch posture: MyWeli ships before company registration, and both channels need a registered entity, so there is no SMS to configure. Production accepts this value and **only** this value as an alternative to real credentials. It is never auto-detected, so "nothing configured" still fails fast; the opt-out has to be typed. It differs from `log` in the one way that matters — it reports `ok: false`, so `messaging_service.dart:61` writes `failed` to the outbox and leaves an honest, queryable record of what was never sent. `log` claims success, which is why production refuses it.
 
 ## 3. Config (all via env; secrets `sync:false`, never in git)
 | Key | Required | Notes |
 |---|---|---|
-| `MESSAGING_PROVIDER` | no | `termii`/`twilio`/`log`; unset → auto-detect |
+| `MESSAGING_PROVIDER` | no | `termii`/`twilio`/`log`/`disabled`; unset → auto-detect. `disabled` = deliberately off, the only prod-legal non-provider |
 | `TERMII_API_KEY` | for Termii | secret |
 | `TERMII_SENDER_ID` | for Termii | generic now; branded needs ARTCI registration |
 | `TERMII_BASE_URL` | no | default `https://api.ng.termii.com` |

@@ -8,7 +8,7 @@
 type SignResponse = {
   method?: string;
   uploadUrl?: string;
-  fields?: Record<string, string>;
+  headers?: Record<string, string>;
   key?: string;
 };
 
@@ -22,15 +22,17 @@ export async function uploadDepositProof(file: File): Promise<string | null> {
   const sign = (await signRes.json().catch(() => ({}))) as SignResponse;
   if (!sign.uploadUrl || !sign.key) return null;
 
-  const form = new FormData();
-  for (const [k, v] of Object.entries(sign.fields ?? {})) form.append(k, v);
-  form.append('file', file);
-
+  // Raw PUT, not a multipart POST: Cloudflare R2 does not implement presigned
+  // POST and answers one with 501 NotImplemented. The signature covers these
+  // headers, so send exactly them — a different content-type than the one
+  // signed is a 403 from storage.
+  // docs/design/backend-r2-presigned-put.md
   const up = await fetch(sign.uploadUrl, {
-    method: sign.method ?? 'POST',
-    body: form,
+    method: sign.method ?? 'PUT',
+    headers: sign.headers ?? {},
+    body: file,
   });
-  if (!up.ok) return null; // storage POST returns 2xx (e.g. 204)
+  if (!up.ok) return null; // storage returns 200 on a successful PUT
   return sign.key;
 }
 

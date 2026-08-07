@@ -1,0 +1,208 @@
+# Cloud Run service — the MyWeli backend (G1).
+#
+# Declarative on purpose: the whole service (sidecar, secrets, probes, scaling)
+# is reviewable in a PR, which is the one property that made `render.yaml` good
+# and that the Render *dashboard* cron jobs lacked — they were invisible to
+# review, which is how the reminder cron came to be off without anyone noticing.
+#
+# Deployed by .github/workflows/deploy-backend.yml, which substitutes __IMAGE__.
+# Never `gcloud run deploy --set-env-vars` by hand: that creates a revision that
+# silently diverges from this file.
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: myweli-api
+  labels:
+    cloud.googleapis.com/location: europe-west9
+  annotations:
+    # Only the global load balancer may reach this service. Without it the
+    # *.run.app URL is a SECOND public front door, bypassing the LB (and any
+    # Cloud Armor policy attached to it later).
+    #
+    # ORDERING: Cloud Scheduler called the run.app URL directly until this
+    # landed. Both jobs were repointed at api.myweli.com and PROVEN to still
+    # return 200 BEFORE this annotation was applied — reversing that order
+    # stops the reminder cron silently, which is the exact failure this
+    # migration already fixed once (infra-gcp-migration.md §5).
+    run.googleapis.com/ingress: internal-and-cloud-load-balancing
+spec:
+  template:
+    metadata:
+      annotations:
+        # The Cloud SQL instance the proxy sidecar may reach.
+        run.googleapis.com/cloudsql-instances: myweli:europe-west9:myweli-db
+
+        # THE ORDERING FIX. main.dart:12 awaits initializeDatabase(), which
+        # opens a real connection at migrations.dart:885 to take the advisory
+        # lock. There is no retry and no backoff, the image is FROM scratch so
+        # not even a shell `wait-for-it` is possible, and postgres 3.5.12's
+        # connectTimeout is a deadline rather than a grace period — a refused
+        # TCP connect fails instantly. Without this annotation the app can
+        # reach migrations before the proxy is listening and the revision dies.
+        run.googleapis.com/container-dependencies: '{"app":["cloudsql-proxy"]}'
+
+        # min-instances 1: every cold start serializes behind the schema
+        # advisory lock before the port is bound, so user traffic must never be
+        # the thing that triggers a cold start.
+        autoscaling.knative.dev/minScale: '1'
+        autoscaling.knative.dev/maxScale: '4'
+        run.googleapis.com/startup-cpu-boost: 'true'
+    spec:
+      serviceAccountName: myweli-run@myweli.iam.gserviceaccount.com
+      # Generous, and set explicitly rather than inherited: migrations + five
+      # seed/backfill steps run before the port opens.
+      timeoutSeconds: 300
+      containers:
+        # ---- the API ------------------------------------------------------
+        - name: app
+          image: __IMAGE__
+          ports:
+            - name: http1
+              containerPort: 8080
+          resources:
+            limits:
+              cpu: '1'
+              memory: 512Mi
+          env:
+            - name: ENV
+              value: prod
+            - name: TZ
+              value: UTC
+            # Phone OTP stays off: SMS is deferred until company registration.
+            # Load-bearing — if this is unset, `explicit` is false, ALL four
+            # methods turn on including phone, and the Google/Apple/Resend
+            # fail-fasts stop firing (auth_methods.dart:9-21).
+            - name: AUTH_METHODS
+              value: google,apple,email
+            # Messaging deliberately off. Must be explicit: unset falls through
+            # to auto-detect → null → the prod fail-fast (dependencies.dart:608).
+            - name: MESSAGING_PROVIDER
+              value: disabled
+            # CORS. Prod default is EMPTY (dependencies.dart:127), and an empty
+            # allowlist fails *silently server-side* — clean 200s in the logs
+            # while every browser read from the site is blocked.
+            - name: WEB_ORIGINS
+              value: https://myweli.com,https://www.myweli.com,https://admin.myweli.com
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef: { name: DATABASE_URL, key: latest }
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef: { name: JWT_SECRET, key: latest }
+            - name: CRON_SECRET
+              valueFrom:
+                secretKeyRef: { name: CRON_SECRET, key: latest }
+            - name: MESSAGING_WEBHOOK_SECRET
+              valueFrom:
+                secretKeyRef: { name: MESSAGING_WEBHOOK_SECRET, key: latest }
+            # -- OWNER-SUPPLIED ----------------------------------------------
+            # Every one of these is a LAZY guard: absent, the service still
+            # boots green and 500s on the first request that touches it
+            # (measured — see infra-gcp-migration.md §3.4). Present, the
+            # feature works. Shapes were validated before wiring: R2 keys
+            # 32/64 chars, buckets are names not URLs, the FCM key keeps its
+            # literal \n escapes (dependencies.dart:650 converts them).
+            - name: GOOGLE_CLIENT_IDS
+              valueFrom:
+                secretKeyRef: { name: GOOGLE_CLIENT_IDS, key: latest }
+            - name: APPLE_CLIENT_IDS
+              valueFrom:
+                secretKeyRef: { name: APPLE_CLIENT_IDS, key: latest }
+            - name: RESEND_API_KEY
+              valueFrom:
+                secretKeyRef: { name: RESEND_API_KEY, key: latest }
+            # R2 — all seven together or storageService throws (dependencies.dart:308).
+            # R2_ENDPOINT is deliberately NOT set: it is derived from the
+            # account id (:141-146), and supplying both invites drift.
+            - name: R2_ACCOUNT_ID
+              valueFrom:
+                secretKeyRef: { name: R2_ACCOUNT_ID, key: latest }
+            - name: R2_BUCKET
+              valueFrom:
+                secretKeyRef: { name: R2_BUCKET, key: latest }
+            - name: R2_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef: { name: R2_ACCESS_KEY_ID, key: latest }
+            - name: R2_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef: { name: R2_SECRET_ACCESS_KEY, key: latest }
+            # Also feeds the gallery origin allowlist through a SECOND reader
+            # (:346-349) that bypasses the fail-fast — unset, the anti-hotlink
+            # check is simply off while those routes still return 200.
+            - name: R2_PUBLIC_BASE_URL
+              valueFrom:
+                secretKeyRef: { name: R2_PUBLIC_BASE_URL, key: latest }
+            - name: R2_KYC_BUCKET
+              valueFrom:
+                secretKeyRef: { name: R2_KYC_BUCKET, key: latest }
+            - name: R2_DEPOSIT_BUCKET
+              valueFrom:
+                secretKeyRef: { name: R2_DEPOSIT_BUCKET, key: latest }
+            # FCM — only the private key is secret. The other two are public
+            # identifiers read from the project, so they are plain config
+            # rather than three Secret Manager round-trips.
+            - name: FCM_PROJECT_ID
+              value: myweli
+            - name: FCM_CLIENT_EMAIL
+              value: firebase-adminsdk-fbsvc@myweli.iam.gserviceaccount.com
+            - name: FCM_PRIVATE_KEY
+              valueFrom:
+                secretKeyRef: { name: FCM_PRIVATE_KEY, key: latest }
+            # Seeds the super-admin at boot (dependencies.dart:767-774).
+            - name: ADMIN_EMAIL
+              valueFrom:
+                secretKeyRef: { name: ADMIN_EMAIL, key: latest }
+            - name: ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef: { name: ADMIN_PASSWORD, key: latest }
+          startupProbe:
+            tcpSocket:
+              port: 8080
+            # 60 × 5s = 300s. Migrations, five seeds/backfills, and a possible
+            # wait on another instance's advisory lock all happen before the
+            # port opens.
+            periodSeconds: 10
+            failureThreshold: 30
+            timeoutSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+
+        # ---- Cloud SQL Auth Proxy sidecar ---------------------------------
+        # Chosen over the unix-socket mount because createPool builds from a
+        # host:port URL; over private IP because that needs a VPC on day one.
+        # DATABASE_URL points at 127.0.0.1:5432, which database.dart:22 maps to
+        # SslMode.disable — the proxy encrypts the hop. Zero application change.
+        - name: cloudsql-proxy
+          image: gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.14.1
+          args:
+            - --structured-logs
+            - --port=5432
+            # The proxy binds 127.0.0.1 for the DB port, which a Cloud Run TCP
+            # startup probe CANNOT reach — measured: the proxy logged "ready for
+            # new connections" while the probe failed 24× and the instance was
+            # discarded. Its own health-check server is the supported seam, and
+            # it must bind 0.0.0.0 to be probeable. Only /startup and /liveness
+            # are served there; the database port stays on loopback.
+            - --health-check
+            - --http-address=0.0.0.0
+            - --http-port=9090
+            - myweli:europe-west9:myweli-db
+          resources:
+            limits:
+              cpu: '1'
+              memory: 256Mi
+          startupProbe:
+            httpGet:
+              path: /startup
+              port: 9090
+            # timeoutSeconds must be < periodSeconds (Cloud Run validation).
+            periodSeconds: 5
+            failureThreshold: 24
+            timeoutSeconds: 4
+  traffic:
+    - percent: 100
+      latestRevision: true

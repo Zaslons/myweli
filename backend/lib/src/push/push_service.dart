@@ -45,6 +45,16 @@ class PushService {
       for (final dead in res.invalidTokens) {
         await _tokens.remove(dead);
       }
+      if (res.error != null) {
+        // The caller only gets a count, and 0 is indistinguishable from "no
+        // devices". This is the line that turns a silent outage into something
+        // greppable in the container log.
+        // ignore: avoid_print
+        print(
+          'WARNING: push to user failed (${res.error}) — '
+          '${tokens.length} token(s), 0 delivered',
+        );
+      }
       return res.sent;
     } catch (_) {
       return 0; // best-effort

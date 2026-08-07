@@ -38,8 +38,8 @@ Future<ApiResponse<User>> updateUser({String? name, String? email, String? avata
 [vertical lockup SVG — existing brand asset]
 Bienvenue
 Connectez-vous pour réserver en quelques secondes.
-[ Continuer avec Google ]        ← outlined AppButton style (flag: shown when configured)
-[ Continuer avec Apple ]         ← black, HIDDEN until FeatureFlags.appleSignIn
+[ Continuer avec Google ]        ← outlined AppButton + the official « G » (flag: shown when configured)
+[ Continuer avec Apple ]         ← black + the Apple mark; iOS only (FeatureFlags.appleSignIn, now default TRUE)
 ────────── ou ──────────
 [ Votre e-mail            ]
 [ Continuer avec e-mail   ]      ← primary
@@ -53,7 +53,9 @@ CGU line (existing copy)
 ## 5. Platform config (no secrets — all public identifiers)
 - **Android:** nothing in-repo — Google matches `com.myweli.app` + the registered SHA‑1 (debug SHA‑1 added 2026-07-02; release SHA‑1 at store time). `serverClientId` passed in code via `AppConfig` (`--dart-define=GOOGLE_SERVER_CLIENT_ID=…`, default = the real web ID — it's public).
 - **iOS:** `Info.plist` gains `GIDClientID` (the iOS client ID) + the **reversed client ID** URL scheme (`com.googleusercontent.apps.731308991240-ah75c2…`).
-- **Apple:** `sign_in_with_apple` package + `FeatureFlags.appleSignIn = bool.fromEnvironment('APPLE_SIGN_IN')` (default **false**). The iOS *capability/entitlement* is added at the store phase with the Developer account (store rule 4.8 makes Apple mandatory on iOS once Google ships there — tracked for that phase).
+- **Apple:** `sign_in_with_apple` package + `FeatureFlags.appleSignIn = bool.fromEnvironment('APPLE_SIGN_IN', defaultValue: true)`.
+  It defaulted to **false** and `APPLE_SIGN_IN` was passed **nowhere** — not in CI, not in `DEPLOYMENT.md`, not in any build script — so no build has ever shown the button. Store rule **4.8** makes Sign in with Apple mandatory on iOS once another third-party provider ships there, so that state was a rejection waiting to happen. **A rule-4.8 requirement must not depend on remembering a build flag**, hence the default flip; the flag stays only as a kill switch.
+  Visibility is `FeatureFlags.appleSignIn && defaultTargetPlatform == TargetPlatform.iOS` — and note `flutter test` reports **android**, which is why every widget test and golden was blind to this button until `login_screen_test.dart` began overriding the platform.
 
 ## 6. Security
 - Tokens only ever in `flutter_secure_storage` (existing path). The Google ID token transits once to the backend — never stored, never logged.

@@ -64,6 +64,78 @@ void main() {
     );
   });
 
+  group('a favourite survives the salon going dark (Decision C)', () {
+    // The relationship lives on the server, so the server hydrates it. Web
+    // fanned out one `GET /providers/{id}` per favourite and dropped any that
+    // 404'd — so closing the public read would have made a favourite of a
+    // stopped salon SILENTLY VANISH from the list and from the RGPD export,
+    // on a page whose own copy promises « profil, rendez-vous et favoris ».
+    late InMemoryProvidersRepository salons;
+    late InMemoryFavoritesRepository stored;
+    late FavoritesService svc;
+
+    setUp(() {
+      // Isolated fixtures, never the shared mutable `seedProviders`:
+      // `admin_provider_test.dart:53` suspends `provider1` without restoring.
+      salons = InMemoryProvidersRepository([
+        {'id': 'live', 'name': 'Salon Live', 'status': 'active'},
+        {'id': 'stopped', 'name': 'Salon Arrêté', 'status': 'suspended'},
+        {'id': 'unpublished', 'name': 'Salon Brouillon', 'status': 'draft'},
+      ]);
+      stored = InMemoryFavoritesRepository();
+      svc = FavoritesService(stored, salons);
+    });
+
+    test('a suspended salon is returned, carrying its status', () async {
+      await svc.add('user_A', 'live');
+      final r = await svc.list('user_A');
+      // Favouriting a stopped salon is impossible now (below), so seed it the
+      // way reality does — the salon stops AFTER it was favourited — by
+      // writing to the STORAGE directly. The guard lives on the service.
+      await stored.add('user_A', 'stopped');
+
+      final after = await svc.list('user_A');
+      expect(after.providerIds, containsAll(['live', 'stopped']));
+      final byId = {for (final p in after.providers!) p['id'] as String: p};
+      expect(byId.keys, containsAll(['live', 'stopped']));
+      expect(byId['stopped']!['status'], 'suspended');
+      expect(byId['stopped']!['name'], 'Salon Arrêté');
+      // The pair: a live salon must not be marked stopped, or « always
+      // suspended » would pass everything above.
+      expect(byId['live']!['status'], 'active');
+      expect(r.providerIds, ['live']);
+    });
+
+    test('providerIds still ships — a released app build reads it', () async {
+      // Additive, not replacing: `api_favorites_service.dart` is on real
+      // devices in the field and parses `providerIds`.
+      await svc.add('user_A', 'live');
+      expect((await svc.list('user_A')).providerIds, ['live']);
+    });
+
+    test('you cannot NEWLY favourite a salon you cannot reach', () async {
+      // The other half of the rule. The existing favourite is a relationship;
+      // a new one would be a way to name a salon the public read hides.
+      expect((await svc.add('user_A', 'stopped')).error, 'not_found');
+      expect((await svc.add('user_A', 'unpublished')).error, 'not_found');
+      // The pair.
+      expect((await svc.add('user_A', 'live')).ok, isTrue);
+    });
+
+    test('a salon that no longer exists at all just drops out', () async {
+      await stored.add('user_A', 'vanished');
+      final r = await svc.list('user_A');
+      expect(r.providerIds, contains('vanished'));
+      expect(
+        r.providers!.map((p) => p['id']),
+        isNot(contains('vanished')),
+        reason:
+            'a deleted salon has no document to hydrate — unlike a hidden '
+            'one, which does',
+      );
+    });
+  });
+
   group('routes', () {
     RequestContext ctx(Request request) {
       final context = _MockRequestContext();

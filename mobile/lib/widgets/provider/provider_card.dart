@@ -14,7 +14,14 @@ import '../common/timed_cached_image.dart';
 class ProviderCard extends StatelessWidget {
   final models.Provider provider;
   final bool isGrid;
-  final VoidCallback onTap;
+
+  /// Null makes the card non-interactive.
+  ///
+  /// A favourite whose salon stopped taking appointments stays in the list —
+  /// vanishing is the bug (Decision C) — but its destination is a page that
+  /// 404s, so the row states the fact instead of linking to it. §12: a way out
+  /// that cannot succeed is not a way out.
+  final VoidCallback? onTap;
 
   const ProviderCard({
     super.key,

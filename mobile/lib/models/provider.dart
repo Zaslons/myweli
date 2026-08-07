@@ -36,8 +36,27 @@ class Provider extends Equatable {
   final String? whatsapp;
   final String category; // 'salon', 'barber', 'spa', etc.
 
+  /// Server-owned lifecycle: `draft` · `active` · `suspended`
+  /// (`pro-salon-lifecycle.md`; T51).
+  ///
+  /// **Null means live, not unknown.** Seeded salons carry no stored status
+  /// and Postgres reads a NULL column as active, so the trap is spelling a
+  /// check `status == 'active'` — [isLive] is the one place that decides.
+  ///
+  /// **This does not reopen Decision B.** Row 82 split the refusal code
+  /// server-side *because* a client cannot infer WHY a booking was refused
+  /// from a document it fetched earlier — the salon may have stopped between
+  /// the read and the write, and the answer must come from the write. This
+  /// field is for the opposite question: whether a salon the caller already
+  /// holds (a favourite) is still taking appointments, which is a fact about
+  /// a document, not about a refusal.
+  final String? status;
+
   /// Server-owned « Vérifié » badge (KYC approved — T52).
   final bool verified;
+
+  /// Is the salon still taking appointments? See [status] for the NULL trap.
+  bool get isLive => status == null || status == 'active';
   final bool depositRequired;
   final double depositPercentage;
 
@@ -79,6 +98,7 @@ class Provider extends Equatable {
     required this.phoneNumber,
     this.whatsapp,
     required this.category,
+    this.status,
     this.verified = false,
     this.depositRequired = false,
     this.depositPercentage = 0.30,
@@ -114,6 +134,7 @@ class Provider extends Equatable {
     phoneNumber,
     whatsapp,
     category,
+    status,
     verified,
     depositRequired,
     depositPercentage,
@@ -148,6 +169,7 @@ class Provider extends Equatable {
     String? phoneNumber,
     String? whatsapp,
     String? category,
+    String? status,
     bool? verified,
     bool? depositRequired,
     double? depositPercentage,
@@ -181,6 +203,7 @@ class Provider extends Equatable {
       phoneNumber: phoneNumber ?? this.phoneNumber,
       whatsapp: whatsapp ?? this.whatsapp,
       category: category ?? this.category,
+      status: status ?? this.status,
       verified: verified ?? this.verified,
       depositRequired: depositRequired ?? this.depositRequired,
       depositPercentage: depositPercentage ?? this.depositPercentage,
@@ -220,6 +243,7 @@ class Provider extends Equatable {
       'phoneNumber': phoneNumber,
       'whatsapp': whatsapp,
       'category': category,
+      if (status != null) 'status': status,
       'verified': verified,
       'depositRequired': depositRequired,
       'depositPercentage': depositPercentage,
@@ -266,6 +290,7 @@ class Provider extends Equatable {
       phoneNumber: json['phoneNumber'] as String,
       whatsapp: json['whatsapp'] as String?,
       category: json['category'] as String,
+      status: json['status'] as String?,
       verified: json['verified'] as bool? ?? false,
       depositRequired: json['depositRequired'] as bool? ?? false,
       depositPercentage:

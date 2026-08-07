@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- APNs for RELEASE builds. `production` is not cosmetic: a build signed
+	     with `development` gets a SANDBOX APNs token, and a production FCM send
+	     to it is silently dropped. TestFlight and the App Store both need this.
+	     Wired per-configuration by tool/setup_flavours.rb. -->
+	<key>aps-environment</key>
+	<string>production</string>
+</dict>
+</plist>

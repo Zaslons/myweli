@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 
 import '../../core/config/app_config.dart';
 import '../../models/api_response.dart';
+import '../../models/provider.dart';
 import '../interfaces/favorites_service_interface.dart';
 import '../interfaces/session_store.dart';
 import 'refreshing_http_client.dart';
@@ -52,6 +53,25 @@ class ApiFavoritesService implements FavoritesServiceInterface {
         .map((e) => e as String)
         .toList();
     return ApiResponse.success(ids);
+  }
+
+  @override
+  Future<ApiResponse<List<Provider>>> getFavoriteProviders(
+    String userId,
+  ) async {
+    if (await _authed.accessToken() == null) {
+      return ApiResponse.error('Non connecté');
+    }
+    final res = await _authed.send(
+      (t) => _client.get(_uri('/me/favorites'), headers: _bearer(t)),
+    );
+    if (res == null) return _networkError();
+    if (res.statusCode != 200) return _errorFrom(res);
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    final items = ((body['providers'] as List?) ?? const [])
+        .map((e) => Provider.fromJson(e as Map<String, dynamic>))
+        .toList();
+    return ApiResponse.success(items);
   }
 
   @override

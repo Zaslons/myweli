@@ -297,13 +297,23 @@ class _MyweliMultiDatePickerScreenState
             tooltip: 'Fermer',
             onPressed: _exit,
           ),
-          title: Text(widget.helpText ?? 'Choisir des dates'),
+          // The FALLBACK, so it has to fit the narrowest bar this widget can
+          // draw — close leading + reset action = 232dp. « Choisir des dates »
+          // is 251 and every call site that matters passes its own `helpText`.
+          title: Text(widget.helpText ?? 'Choisir'),
           actions: [
             // Undoes THIS session's taps — never a bulk unblock of stored data.
+            //
+            // A15: an icon, not a label. « Réinitialiser » as a `TextButton`
+            // costs ~182dp at 2× — an action is NOT covered by the title's
+            // 1.34× clamp — and left « Dates à bloquer » with ~130dp, which is
+            // exactly the « Dat… » the A14 device run photographed. Shortening
+            // the title would not have fixed it; the action was the defect.
             if (_changed)
-              TextButton(
+              IconButton(
                 onPressed: () => setState(() => _selected = {..._initial}),
-                child: const Text('Réinitialiser'),
+                icon: const Icon(Icons.undo, size: AppTheme.iconM),
+                tooltip: 'Réinitialiser',
               ),
           ],
         ),

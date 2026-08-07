@@ -341,7 +341,7 @@ export interface paths {
         put?: never;
         /**
          * Request a one-time code by email (auth overhaul)
-         * @description Sends a 6-digit code to the address (Resend). The response is identical whether or not the address maps to an account (no enumeration). Dev builds also return the code inline (`devCode`); production never does.
+         * @description Sends a 6-digit code to the address (Resend). The response is identical whether or not the address maps to an account (no enumeration). Dev builds also return the code inline (`devCode`); production never does, except behind the Q1b smoke seam (`X-Smoke-Secret` + a `.test` identity — docs/design/backend-q1b-smoke-seam.md, threat model T60).
          */
         post: {
             parameters: {
@@ -682,6 +682,59 @@ export interface paths {
                 };
             };
         };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/provider/reviews": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The salon's own reviews, resolved BY ACCOUNT (access R4a)
+         * @description The pro « Avis » read. Provider-only, membership-gated: the salon comes from the token (R6 `?salonId=` selects among the caller's ACTIVE memberships, invalid → uniform 403 per T55), never from a client-sent id.
+         *
+         *     It exists because both pro « Avis » surfaces read the PUBLIC `GET /providers/{id}/reviews` — mobile through the consumer review service with no token at all, web by forwarding whatever `providerId` the browser sent. Decision C closes that route, and a `draft` salon can hold reviews (T53 erasure and T54 billing unpublish both write `status → draft` over a salon with history), so the owner being asked to pay would otherwise lose the page showing what their clients said. Deliberately unfiltered on salon status: this is the salon's own data.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description R6 multi-salons: select the acting salon among the caller's ACTIVE memberships. Absent → the caller's default salon (legacy behavior). Any invalid selection (never-member, revoked-there, unknown id) is a uniform 403 `forbidden` — no membership-existence oracle (threat T55) — and never auto-provisions. */
+                    salonId?: components["parameters"]["SalonSelector"];
+                    page?: number;
+                    pageSize?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description A page of the salon's reviews, newest first */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            items: components["schemas"]["Review"][];
+                            page: number;
+                            pageSize: number;
+                            total: number;
+                        };
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["Forbidden"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -1533,8 +1586,10 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * The signed-in consumer's saved provider ids (B-favorites)
+         * The signed-in consumer's saved salons (B-favorites)
          * @description Consumer-only; scoped to the token's `sub` (no user id is accepted, so a caller only ever sees their own favorites).
+         *
+         *     `providers` is **not** filtered on salon status: a favorite is a relationship the caller already has, and this route is authenticated, so it is the one place a hidden salon's document may be served without giving an anonymous caller an enumeration oracle (docs/design/salon-state-and-refusals.md Decision C). Each entry carries its `status`, so the list can MARK a stopped salon instead of losing the row — the silent drop that hydrating client-side caused. A salon that no longer exists is simply absent.
          */
         get: {
             parameters: {
@@ -1545,14 +1600,16 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                /** @description The user's favorite provider ids */
+                /** @description The user's favorite salons, ids and documents */
                 200: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
                         "application/json": {
+                            /** @description Retained for app builds already in the field; same order as `providers`, but includes ids whose salon is gone. */
                             providerIds: string[];
+                            providers: components["schemas"]["Provider"][];
                         };
                     };
                 };
@@ -1579,7 +1636,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Save a provider as a favorite (idempotent) */
+        /**
+         * Save a provider as a favorite (idempotent)
+         * @description 404 covers a salon that is `draft` or `suspended` as well as one that does not exist — indistinguishably, per T51. An EXISTING favorite of a salon that later stopped keeps resolving (see the GET above); a NEW one would be a way to name a salon the public read hides.
+         */
         post: {
             parameters: {
                 query?: never;
@@ -1864,7 +1924,7 @@ export interface paths {
         put?: never;
         /**
          * Request a salon email OTP (login AND registration use it)
-         * @description No enumeration — identical 202 whether or not the address maps to a salon. Dev builds echo `devCode`.
+         * @description No enumeration — identical 202 whether or not the address maps to a salon. Dev builds echo `devCode`; production does not, except behind the Q1b smoke seam (`X-Smoke-Secret` + a `.test` identity — docs/design/backend-q1b-smoke-seam.md, threat model T60).
          */
         post: {
             parameters: {
@@ -3003,7 +3063,11 @@ export interface paths {
         };
         /**
          * A salon's reviews, newest first (B-reviews, public)
-         * @description Public, paginated. `pageSize` is clamped (default 20, max 50). The provider's `GET /providers/{id}` also embeds the latest 10.
+         * @description Public, paginated. `pageSize` is clamped (default 20, max 50). The provider's `GET /providers/{id}` also embeds the latest 10 — both are `active`-only (Decision C).
+         *
+         *     **Behaviour change (PR1d):** an UNKNOWN id now 404s as well. It used to return `200 {items: [], total: 0}`, and closing only the hidden case would have made 404 mean « exists but hidden » — exactly the enumeration oracle T51 forbids, on a route that takes the salon id in its path.
+         *
+         *     The salon's OWN « Avis » is `GET /me/provider/reviews`, which is membership-scoped and deliberately unfiltered: a `draft` salon can hold reviews (T53 erasure, T54 billing unpublish).
          */
         get: {
             parameters: {
@@ -3033,6 +3097,7 @@ export interface paths {
                         };
                     };
                 };
+                404: components["responses"]["NotFound"];
             };
         };
         put?: never;
@@ -3415,7 +3480,7 @@ export interface paths {
                 401: components["responses"]["Unauthorized"];
                 403: components["responses"]["Forbidden"];
                 404: components["responses"]["NotFound"];
-                /** @description Exact-start slot already booked */
+                /** @description `slot_unavailable` — the exact start is already booked. `provider_suspended` — the salon was stopped. A salon that has merely not published yet is NOT refused here: it owns its own calendar (row 82), which is also why this route never returns `beyond_horizon` or `too_soon` — the salon is exempt from its own booking window (A14d). */
                 409: {
                     headers: {
                         [name: string]: unknown;
@@ -3987,7 +4052,7 @@ export interface paths {
                 400: components["responses"]["BadRequest"];
                 401: components["responses"]["Unauthorized"];
                 404: components["responses"]["NotFound"];
-                /** @description `slot_unavailable` — the requested time isn't a free slot (closed/past/break/already-booked/non-aligned). `beyond_horizon` — the date is further ahead than the salon's `bookingHorizonDays` (A14d). `too_soon` — the start is inside the salon's `minimumNoticeMinutes`. The last two are distinct from `slot_unavailable` on purpose: that code makes every client say some version of "someone else just took your slot", which is false for a window breach and leaves the user retrying a time that can never be offered. */
+                /** @description `slot_unavailable` — the requested time isn't a free slot (closed/past/break/already-booked/non-aligned). `beyond_horizon` — the date is further ahead than the salon's `bookingHorizonDays` (A14d). `too_soon` — the start is inside the salon's `minimumNoticeMinutes`. The last two are distinct from `slot_unavailable` on purpose: that code makes every client say some version of "someone else just took your slot", which is false for a window breach and leaves the user retrying a time that can never be offered. `provider_not_published` — the salon has never gone live, so it is absent from discovery and reachable only by a stale link or a favourite. `provider_suspended` — the salon was stopped. These two are split for the same reason as the pair above, and the split matters more here: a client cannot tell them apart for itself (the mobile `Provider` model has no `status` field), and the never-published case is the state EVERY salon starts in while the suspended one takes a deliberate admin act. */
                 409: {
                     headers: {
                         [name: string]: unknown;
@@ -4107,6 +4172,8 @@ export interface paths {
         /**
          * Attach a deposit-payment screenshot (B-deposit)
          * @description Consumer-only, and only the caller's **own** booking while it is still `pending` (pay-later: book now, pay the salon directly via Mobile Money, attach proof afterward — booking can also include the key inline). The `screenshotKey` must be one the caller just uploaded via `POST /uploads/sign?purpose=deposit` (validated under the caller's own `deposit/{userId}/` prefix). Myweli holds no funds; the salon confirms receipt by **accepting** the booking. The screenshot is private — view it via `GET /appointments/{id}/deposit-screenshot`.
+         *
+         *     The object is **size-verified at claim time** — R2 does not enforce the size signed at upload time, so this is where the cap holds (threat model T61). Errors: `upload_too_large` (400, and the object is deleted), `upload_not_found` (400, no object behind the key), `storage_unavailable` (502, the check could not run — retry; the claim is deliberately refused rather than accepted).
          */
         post: {
             parameters: {
@@ -4306,7 +4373,7 @@ export interface paths {
                 401: components["responses"]["Unauthorized"];
                 403: components["responses"]["Forbidden"];
                 404: components["responses"]["NotFound"];
-                /** @description Not in a reschedulable state, or the new slot is taken */
+                /** @description Not in a reschedulable state, the new slot is taken, or the salon is no longer taking bookings (`provider_not_published` / `provider_suspended` — Decision C; the caller owns the booking, so the state is named rather than flattened). **Decision-A parity:** the SALON's own reschedule is exempt from the visibility gate as it is from the booking window — a draft salon owns its calendar — but a SUSPENDED one is refused, matching `bookManual`. */
                 409: {
                     headers: {
                         [name: string]: unknown;
@@ -4504,6 +4571,8 @@ export interface paths {
         /**
          * Bookable start times for a provider on a date (B-slot)
          * @description Server-authoritative availability. Public (clients browse before signing in). Times are UTC (Côte d'Ivoire is UTC+0). Honours the provider's weekly schedule, blocked dates, breaks, a setup/cleanup buffer, the requested duration, and existing bookings.
+         *
+         *     **Decision C:** a salon that is `draft` or `suspended` has no public slots and answers `404 provider_not_found` — the SAME code as an unknown id, on purpose. This is the only public door that takes an arbitrary `providerId` in a query string and already returns the failure code in its body, so naming the state here would widen a one-valued channel into a three-valued one (T51's no-oracle rule). A caller who OWNS a booking is told precisely which state it is, on `POST /appointments/{id}/reschedule`. The SALON's own paths are exempt: `rescheduleByProvider` opts out, and `bookManual` never reaches this engine — a draft salon owns its calendar (Decision A).
          */
         get: {
             parameters: {
@@ -6035,11 +6104,40 @@ export interface components {
             appointmentDate: string;
             /** @description Stamped from the salon at creation (multi-pays §4 — immutable); absent on pre-MP1 rows (read as the salon's). */
             currency?: string | null;
+            /** @description Consumer-read enrichment. **The naming rule for this whole block:** a `provider*`-prefixed key is a LIVE salon fact, re-read on every request and never stored on the booking; an unprefixed key is stamped at write time and immutable (`currency` is the deliberate one — multi-pays §4). These exist so a client's own booking keeps resolving its salon after `GET /providers/{id}` stops serving it (Decision C) — the relationship is authenticated here, so this is the one place the facts may be served for a hidden salon. **Only fields that are public while the salon is `active` may be added here** (T51): everything on it is disclosed to anyone holding a booking at that salon. */
+            providerName?: string | null;
+            /** @description Consumer-read enrichment — the salon's public web slug. */
+            providerSlug?: string | null;
+            /**
+             * @description Consumer-read enrichment — the salon's lifecycle status, so a surface can say WHICH kind of not-live it is instead of degrading silently. Normalised server-side: a salon with no stored status reads as `active`. Null only when the salon no longer exists.
+             * @enum {string|null}
+             */
+            providerStatus?: "draft" | "active" | "suspended" | null;
+            /** @description Consumer-read enrichment (E.164). Kept for a stopped salon on purpose — that is when a client needs to reach it most. */
+            providerPhone?: string | null;
+            /** @description Consumer-read enrichment (E.164). */
+            providerWhatsapp?: string | null;
+            /** @description Consumer-read enrichment — for the calendar export. */
+            providerAddress?: string | null;
+            /** @description Consumer-read enrichment — ISO-3166-1 alpha-2 (multi-pays). */
+            providerCountryCode?: string | null;
             /** @description Consumer-read enrichment (multi-pays MP1) — the salon's IANA timezone, for salon-time rendering. */
             providerTimezone?: string | null;
             /** @description Consumer-read enrichment — the salon's ISO-4217 currency. */
             providerCurrency?: string | null;
-            /** @description Server-computed total service duration; backs the booking overlap-exclusion constraint. Read-only. */
+            /** @description Consumer-read enrichment — where a pay-later client sends the deposit. Public policy fields, not PII. */
+            depositMobileMoneyOperator?: string | null;
+            /** @description Consumer-read enrichment — see above. */
+            depositMobileMoneyNumber?: string | null;
+            /** @description Consumer-read enrichment — `artistId` resolved against the salon's roster. Null when no artist was chosen or the artist has left. */
+            artistName?: string | null;
+            /** @description Consumer-read enrichment — `serviceIds` resolved against the catalogue, in order. A service deleted since is omitted rather than leaving a hole. The roster and the catalogue themselves are never shipped whole (the allowlist rule above). */
+            serviceNames?: string[];
+            /** @description Consumer-read enrichment — how far ahead this salon accepts bookings (A14d), so the reschedule picker asks the salon's own rule instead of falling back to a year. The documented default is substituted server-side when the salon set none. */
+            providerBookingHorizonDays?: number;
+            /** @description Consumer-read enrichment — see above. */
+            providerMinimumNoticeMinutes?: number;
+            /** @description Server-computed total service duration; backs the booking overlap-exclusion constraint. Read-only. **Backfilled** on consumer reads from the catalogue when the stored value is null — a stored value always wins, so a service edited since never retroactively moves an existing appointment. */
             durationMinutes?: number;
             /** @enum {string} */
             status: "pending" | "confirmed" | "cancelled" | "completed" | "noShow";
@@ -6455,7 +6553,7 @@ export interface components {
             /** @description URL slug for the public web page (myweli.ci/<slug>). */
             slug?: string;
             /**
-             * @description Server-owned lifecycle (pro-salon-lifecycle): `draft` until the owner publishes; public reads only ever return `active`.
+             * @description Server-owned lifecycle (pro-salon-lifecycle): `draft` until the owner publishes. **Every public read serves `active` only** — `GET /providers`, `GET /providers/{id}`, `by-slug`, `/providers/{id}/reviews`, `/availability`, the landings and the sitemap — so on a public payload this field is always `active`. A hidden salon and an unknown one produce **the same 404 with the same body, deliberately**: a draft must be indistinguishable from a salon that does not exist, or the 404 becomes an enumeration oracle (T51). `draft` and `suspended` are observable only on AUTHENTICATED reads, where the caller has a relationship: `GET /me/provider`, `SalonMembership.salonStatus`, and `Appointment.providerStatus`. docs/design/salon-state-and-refusals.md Decision C.
              * @enum {string}
              */
             status?: "draft" | "active" | "suspended";

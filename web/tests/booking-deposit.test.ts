@@ -53,26 +53,37 @@ describe('uploadDepositProof + attachDepositProof', () => {
 
   const file = new File(['x'], 'preuve.jpg', { type: 'image/jpeg' });
 
-  it('signs → POSTs bytes to storage → returns the private key', async () => {
+  it('signs → PUTs raw bytes to storage → returns the private key', async () => {
+    // R2 answers a presigned POST with 501 NotImplemented, so the upload is a
+    // raw PUT carrying exactly the signed headers. This test asserted the old
+    // multipart contract and failed on the migration — which is the gate
+    // working: it is the only web-side check that the wire shape is right.
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(
         new Response(
           JSON.stringify({
-            method: 'POST',
+            method: 'PUT',
             uploadUrl: 'https://r2/upload',
-            fields: { k: 'v' },
+            headers: { 'content-type': 'image/jpeg' },
             key: 'deposit/u1/1.jpg',
           }),
         ),
       )
-      .mockResolvedValueOnce(new Response(null, { status: 204 }));
+      .mockResolvedValueOnce(new Response(null, { status: 200 }));
     vi.stubGlobal('fetch', fetchMock);
 
     expect(await uploadDepositProof(file)).toBe('deposit/u1/1.jpg');
     expect(fetchMock.mock.calls[0][0]).toBe('/api/uploads/sign');
     expect(fetchMock.mock.calls[1][0]).toBe('https://r2/upload');
-    expect(fetchMock.mock.calls[1][1]?.body).toBeInstanceOf(FormData);
+
+    const init = fetchMock.mock.calls[1][1];
+    expect(init?.method).toBe('PUT');
+    // The raw File, NOT a FormData — a multipart body is what R2 refuses.
+    expect(init?.body).not.toBeInstanceOf(FormData);
+    expect(init?.body).toBe(file);
+    // The signature covers these; sending anything else is a 403 from storage.
+    expect(init?.headers).toEqual({ 'content-type': 'image/jpeg' });
   });
 
   it('failed presign or storage POST → null (no attach attempted)', async () => {

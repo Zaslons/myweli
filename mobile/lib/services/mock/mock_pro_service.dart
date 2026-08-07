@@ -12,6 +12,7 @@ import '../../models/payment.dart';
 import '../../models/pro_membership.dart';
 import '../../models/provider.dart';
 import '../../models/provider_user.dart';
+import '../../models/review.dart';
 import '../../models/salon_membership_info.dart';
 import '../../models/service.dart';
 import '../../models/team_member.dart';
@@ -65,6 +66,24 @@ class MockProService implements ProServiceInterface {
     } catch (_) {
       return null;
     }
+  }
+
+  @override
+  Future<ApiResponse<List<Review>>> getMyReviews({
+    int page = 1,
+    int pageSize = 50,
+  }) async {
+    // Resolve through `getMyProvider` rather than repeating the R6 selection
+    // rules — one place decides which salon the caller is acting in, here as
+    // on the server.
+    final me = await getMyProvider();
+    final salon = me.data?.salon;
+    if (salon == null) {
+      return ApiResponse.error(me.error ?? 'Non connecté', code: me.code);
+    }
+    return ApiResponse.success(
+      MockData.reviews.where((r) => r.providerId == salon.id).toList(),
+    );
   }
 
   @override

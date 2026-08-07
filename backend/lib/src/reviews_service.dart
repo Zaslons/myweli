@@ -5,6 +5,8 @@ import 'auth/auth_repository.dart';
 import 'privacy/anonymized_identity.dart';
 import 'providers_repository.dart';
 import 'reviews_repository.dart';
+import 'storage/storage_service.dart';
+import 'upload_verification_service.dart';
 
 /// Outcome of a review write; [review] is the stored DTO on success.
 typedef ReviewResult = ({bool ok, String? error, Map<String, dynamic>? review});
@@ -29,12 +31,22 @@ class ReviewsService {
     this._providers,
     this._auth, {
     List<String> allowedImageOrigins = const [],
-  }) : _allowedImageOrigins = allowedImageOrigins;
+    UploadVerificationService? verifier,
+    String? publicBaseUrl,
+  }) : _allowedImageOrigins = allowedImageOrigins,
+       _verifier = verifier,
+       _publicBaseUrl = publicBaseUrl;
 
   final ReviewsRepository _reviews;
   final AppointmentRepository _appointments;
   final ProvidersRepository _providers;
   final AuthRepository _auth;
+
+  /// Claim-time size check (T61). Review photos carry URLs, not keys, so the
+  /// key is derived from [_publicBaseUrl] — legal ONLY because the origin
+  /// allowlist above has already rejected anything not under it.
+  final UploadVerificationService? _verifier;
+  final String? _publicBaseUrl;
   final List<String> _allowedImageOrigins;
 
   static const _maxText = 1000;
@@ -78,6 +90,34 @@ class ReviewsService {
           return (ok: false, error: 'invalid_input', review: null);
         }
         photos.add(url);
+      }
+    }
+
+    // Size, after origin. Ordering matters: deriving a key from a URL we have
+    // not yet vetted would hand an attacker-chosen path straight to storage.
+    if (photos.isNotEmpty && _verifier != null && _publicBaseUrl != null) {
+      final keys = photos
+          .map(
+            (u) => _verifier.keyFromPublicUrl(u, publicBaseUrl: _publicBaseUrl),
+          )
+          .whereType<String>()
+          .toList();
+      // Only URLs that passed the origin allowlist reach here, so a derived
+      // key is one of ours. Promotion moves each object out of `pending/`,
+      // and the STORED url is rebuilt from the promoted key — keeping the
+      // pending url would point at an object due to be expired.
+      if (keys.length == photos.length) {
+        final v = await _verifier.verifyAndPromote(
+          keys,
+          bucket: StorageBucket.public,
+        );
+        if (!v.ok) return (ok: false, error: v.error, review: null);
+        final base = _publicBaseUrl.endsWith('/')
+            ? _publicBaseUrl
+            : '$_publicBaseUrl/';
+        photos
+          ..clear()
+          ..addAll(v.keys.map((k) => '$base$k'));
       }
     }
 

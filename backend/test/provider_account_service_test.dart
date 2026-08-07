@@ -60,7 +60,7 @@ void main() {
       auth,
       providers,
       appointments,
-      const FakeStorageService(),
+      FakeStorageService(),
       memberships,
       client: MockClient((req) async {
         expect(req.method, 'DELETE');
@@ -110,7 +110,7 @@ void main() {
       auth,
       providers,
       appointments,
-      const FakeStorageService(),
+      FakeStorageService(),
       InMemoryMembershipRepository(),
       devices: devices,
       notifications: notifications,
@@ -160,7 +160,7 @@ void main() {
       auth,
       providers,
       appointments,
-      const FakeStorageService(),
+      FakeStorageService(),
       InMemoryMembershipRepository(),
       client: MockClient((req) async => throw Exception('storage down')),
     );
@@ -179,7 +179,7 @@ void main() {
       auth,
       providers,
       appointments,
-      const FakeStorageService(),
+      FakeStorageService(),
       InMemoryMembershipRepository(),
       client: MockClient((req) async => fail('no storage call expected')),
     );
@@ -211,7 +211,7 @@ void main() {
         auth,
         providers,
         appointments,
-        const FakeStorageService(),
+        FakeStorageService(),
         memberships,
         client: MockClient((req) async => http.Response('', 204)),
       );

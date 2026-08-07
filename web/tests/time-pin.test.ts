@@ -58,7 +58,18 @@ const RULES: { name: string; pattern: RegExp; allow: string[]; hint: string }[] 
       // fine — day identifiers, no interpolated time).
       name: 'no hand-built wall-clock instants',
       pattern: /T\$\{[^}]*\}:00\.000Z/,
-      allow: ['lib/time.ts'],
+      // `lib/pro/availability.ts` is an exception of a different kind, and it
+      // is declared rather than dodged (concatenating the string to slip past
+      // this regex would be the silent drift the pin exists to stop).
+      // `TimeSlot.startTime` is a **carrier**, not an instant: `openapi.yaml`
+      // types it `format: date-time` and says only the time-of-day is
+      // significant, and the server normalises every value to the placeholder
+      // date 2024-01-01. Sending it through `salonWallClockToUtc` would shift a
+      // salon's opening hour by its own UTC offset — i.e. the conversion this
+      // rule mandates is the bug, here. `wireTime` therefore builds the carrier
+      // literally, and `timeOfDay` reads it back with a regex for the same
+      // reason (a `Date` would re-introduce the browser's timezone).
+      allow: ['lib/time.ts', 'lib/pro/availability.ts'],
       hint: 'build instants with salonWallClockToUtc()/isoAt()/combineDateTime()',
     },
   ];

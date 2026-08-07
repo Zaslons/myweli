@@ -21,7 +21,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../support/pump_app.dart';
 
 /// Team access R4b §5.3 — the Collaborateur 3-tab shell: Journée (locked
-/// own journal, « {Salon} — votre planning », no chips/FAB, reduced sheet)
+/// own journal, « Votre planning » over the salon name, no chips/FAB, reduced
+/// sheet)
 /// · Calendrier · Profil.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -121,8 +122,16 @@ void main() {
     expect(find.text('Calendrier'), findsOneWidget);
     expect(find.text('Profil'), findsOneWidget);
 
-    // The boundary header (own-mode).
-    expect(find.text('Salon Excellence — votre planning'), findsOneWidget);
+    // The boundary header (own-mode) — TWO assertions, deliberately.
+    //
+    // A15 split this sentence in half: the bar says which planning, the header
+    // says whose. Rewriting the old single `find.text('Salon Excellence —
+    // votre planning')` to `find.text('Votre planning')` would have looked like
+    // a copy edit while quietly deleting the T40 claim this test exists for —
+    // that a staff member sees THEIR journal AT a named salon. The salon name
+    // is the half that carries the boundary, so it gets its own line here.
+    expect(find.text('Votre planning'), findsOneWidget);
+    expect(find.text('Salon Excellence'), findsOneWidget);
     // No artist chips (« Tous »), no manual-booking FAB, no Agenda action.
     expect(find.text('Tous'), findsNothing);
     expect(find.text('Nouveau'), findsNothing);

@@ -1,0 +1,105 @@
+# Deploy the backend to Cloud Run (G1).
+#
+# Authentication is **Workload Identity Federation** — GitHub's OIDC token is
+# exchanged for a short-lived GCP credential. There is no service-account JSON
+# key in this repo or in GitHub secrets, so a leaked repo leaks no credential.
+# The trust is pinned on the GCP side to `assertion.repository == Zaslons/myweli`
+# (see infra/gcp/40-iam-wif.sh); without that condition any repository on GitHub
+# could mint a token for this pool.
+#
+# **Manual trigger only, deliberately.** Push-to-deploy is the goal, but not
+# before the service has served real traffic once and `api.myweli.com` has been
+# cut over. Flip `push:` on below when that is done — the comment is the whole
+# change.
+name: Deploy — backend (Cloud Run)
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "deploy" to confirm'
+        required: true
+        default: ''
+  # push:
+  #   branches: [main]
+  #   paths: ['backend/**', 'infra/gcp/service.yaml', '.github/workflows/deploy-backend.yml']
+
+env:
+  PROJECT_ID: myweli
+  REGION: europe-west9
+  SERVICE: myweli-api
+  REGISTRY: europe-west9-docker.pkg.dev
+
+# Never let two deploys race to replace the same service.
+concurrency:
+  group: deploy-backend
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Build, push, deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write # required for the OIDC token — nothing else needs write
+
+    steps:
+      - name: Guard — the dispatch must be confirmed
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.confirm != 'deploy'
+        run: |
+          echo "::error::Type 'deploy' in the confirm input to run this."
+          exit 1
+
+      - uses: actions/checkout@v4
+
+      - id: auth
+        name: Authenticate to Google Cloud (WIF, no key)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: projects/731308991240/locations/global/workloadIdentityPools/github/providers/myweli-repo
+          service_account: myweli-deployer@myweli.iam.gserviceaccount.com
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.REGISTRY }} -q
+
+      - name: Build and push
+        id: build
+        run: |
+          set -euo pipefail
+          IMAGE="${REGISTRY}/${PROJECT_ID}/myweli/api"
+          SHA="${GITHUB_SHA::7}"
+          # Cloud Run is linux/amd64 only. The runner is already amd64, so this
+          # is free here — it is the local Apple-Silicon build that needs the
+          # explicit --platform. Stated so nobody "simplifies" it away.
+          docker build --platform linux/amd64 \
+            -t "${IMAGE}:${SHA}" -t "${IMAGE}:latest" backend/
+          docker push "${IMAGE}:${SHA}"
+          docker push "${IMAGE}:latest"
+          echo "image=${IMAGE}:${SHA}" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy the service
+        run: |
+          set -euo pipefail
+          # Declarative: the whole service (sidecar, secrets, probes, scaling)
+          # lives in infra/gcp/service.yaml and is reviewable in a PR. Only the
+          # image tag is substituted, so a deploy cannot quietly drift from it.
+          sed "s|__IMAGE__|${{ steps.build.outputs.image }}|g" \
+            infra/gcp/service.yaml > /tmp/service.yaml
+          gcloud run services replace /tmp/service.yaml --region "${REGION}" -q
+
+      - name: Verify the revision actually serves
+        run: |
+          set -euo pipefail
+          URL=$(gcloud run services describe "${SERVICE}" --region "${REGION}" \
+                  --format='value(status.url)')
+          echo "Service URL: ${URL}"
+          # /health alone proves nothing — it never touches the database, and it
+          # reported ok throughout the Render outage. A DB-backed route is the
+          # real check, so both are asserted.
+          curl -fsS --retry 5 --retry-delay 5 --retry-all-errors "${URL}/health" >/dev/null
+          echo "  ✓ /health"
+          curl -fsS --retry 3 --retry-delay 5 --retry-all-errors "${URL}/providers" >/dev/null
+          echo "  ✓ /providers (database reachable)"

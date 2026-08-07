@@ -22,6 +22,17 @@ class ProviderProvider extends ChangeNotifier {
   bool _isLoading = false;
   bool _isSubmittingReview = false;
   String? _error;
+
+  /// The machine-readable failure code behind [error], mirroring
+  /// `AppointmentProvider._errorCode`.
+  ///
+  /// A screen has to distinguish « this salon is no longer on Myweli » from
+  /// « your connection dropped »: the first has no retry that can succeed
+  /// (SYSTEM.md §12) and its way out is another salon; the second is exactly
+  /// the case where « Réessayer » is the right control. Comparing French
+  /// sentences to tell them apart is how `'Salon introuvable'` became dead
+  /// code that never rendered.
+  String? _errorCode;
   String? _selectedCategory;
   String? _selectedCommune;
   ProviderSort _sort = ProviderSort.relevance;
@@ -35,6 +46,7 @@ class ProviderProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
   bool get isSubmittingReview => _isSubmittingReview;
   String? get error => _error;
+  String? get errorCode => _errorCode;
   String? get selectedCategory => _selectedCategory;
   String? get selectedCommune => _selectedCommune;
   ProviderSort get sort => _sort;
@@ -129,9 +141,26 @@ class ProviderProvider extends ChangeNotifier {
     }
   }
 
+  /// Frame 1.
+  ///
+  /// The screens whose whole subject is one salon schedule their fetch in a
+  /// post-frame callback — they must, because [loadProviderById] notifies
+  /// before its first await and notifying during build throws — so the FIRST
+  /// build saw `isLoading == false, selectedProvider == null` and rendered the
+  /// ERROR state for one frame. `null` meant both « not asked » and « asked and
+  /// failed »; this is the missing third value.
+  ///
+  /// Called from `initState`, before this screen's first build and before any
+  /// `Consumer` of it has subscribed — so it must **not** notify. It touches
+  /// `_isLoading` and nothing else on purpose: another mounted listener may
+  /// still be rendering `_selectedProvider`, and clearing that here would go
+  /// stale silently.
+  void beginProviderLoad() => _isLoading = true;
+
   Future<void> loadProviderById(String id) async {
     _isLoading = true;
     _error = null;
+    _errorCode = null;
     notifyListeners();
 
     try {
@@ -139,17 +168,41 @@ class ProviderProvider extends ChangeNotifier {
       if (response.success && response.data != null) {
         _selectedProvider = response.data;
         _error = null;
+        _errorCode = null;
       } else {
-        _error = response.error ?? 'Provider non trouvé';
+        _error = response.error ?? 'Ce salon n’est plus disponible sur Myweli.';
+        _errorCode = response.code;
         _selectedProvider = null;
       }
     } catch (e) {
       _error = e.toString();
+      _errorCode = 'network';
       _selectedProvider = null;
     } finally {
       _isLoading = false;
       notifyListeners();
     }
+  }
+
+  /// Show a salon the caller ALREADY has, without a network read.
+  ///
+  /// The owner preview (`/pro/apercu`) renders this consumer screen against
+  /// the salon it just fetched from `GET /me/provider` — authenticated, and
+  /// resolved from the token rather than from a public id. Seeding is the
+  /// mobile equivalent of what web does by passing the object down as a prop
+  /// (`SalonPreviewClient` → `ProviderView`): the screen reads a notifier
+  /// rather than a parameter, so the notifier is what gets handed the payload.
+  ///
+  /// This is the ONLY way `_selectedProvider` is set without
+  /// [loadProviderById], and it exists so a pro surface never has to knock on
+  /// the anonymous door for its own salon (T51 — « Pro-own surfaces resolve by
+  /// account »). `salon_preview_test.dart` fails the test if the public
+  /// service is called at all.
+  void showPreloaded(Provider provider) {
+    _selectedProvider = provider;
+    _error = null;
+    _isLoading = false;
+    notifyListeners();
   }
 
   void clearSelectedProvider() {

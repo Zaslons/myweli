@@ -3,6 +3,7 @@ import 'dart:math';
 import '../clients/clients_service.dart';
 import '../providers_repository.dart';
 import '../salon_time.dart';
+import '../salon_visibility.dart';
 import 'appointment_repository.dart';
 import 'booking_window.dart';
 import 'slot_service.dart';
@@ -49,14 +50,20 @@ class BookingService {
     if (serviceIds.isEmpty) {
       return (ok: false, error: 'no_services', appointment: null);
     }
-    final provider = await _providers.byId(providerId);
-    if (provider == null) {
-      return (ok: false, error: 'provider_not_found', appointment: null);
+    // One question, asked in one place (`clientBookingRefusal`): missing,
+    // suspended and not-yet-published each have their own code, and the
+    // argument for the split lives with the rule rather than here. The
+    // consumer reschedule asks the identical question, which is why this
+    // stopped being three inline `if`s.
+    final found = await _providers.byId(providerId);
+    final refusal = clientBookingRefusal(found);
+    if (refusal != null) {
+      return (ok: false, error: refusal, appointment: null);
     }
-    if (provider['status'] == 'suspended' || provider['status'] == 'draft') {
-      // Draft salons are not live yet (T51) — same refusal as suspended.
-      return (ok: false, error: 'provider_suspended', appointment: null);
-    }
+    // Reaching here proves the salon exists — `clientBookingRefusal` answers
+    // non-null for a null salon — but the analyzer cannot see that through the
+    // helper, so the promotion is stated rather than inferred.
+    final provider = found!;
 
     final services = (provider['services'] as List)
         .cast<Map<String, dynamic>>();
@@ -201,8 +208,21 @@ class BookingService {
     if (provider == null) {
       return (ok: false, error: 'provider_not_found', appointment: null);
     }
-    if (provider['status'] == 'suspended' || provider['status'] == 'draft') {
-      // Draft salons are not live yet (T51) — same refusal as suspended.
+    // **A draft salon owns its calendar — only `suspended` is refused here.**
+    // This used to refuse `draft` too, which meant the very first thing a new
+    // salon tries — entering the appointments it already has, before going
+    // live — failed with a bare « Une erreur est survenue. » (§21 row 82).
+    // Three things say it should not: A14d's principle that the salon owns its
+    // calendar, which is why this method skips the slot engine entirely; the
+    // fact that a draft salon can already set hours, block dates and add
+    // services, so refusing only appointments is arbitrary; and T54, which
+    // already promises that a billing unpublish (`status → draft`) leaves
+    // « journal/bookings/export » working — a guarantee this line was
+    // contradicting.
+    //
+    // A suspended salon does not get the same latitude: it was stopped
+    // deliberately, and it should not keep operating.
+    if (provider['status'] == 'suspended') {
       return (ok: false, error: 'provider_suspended', appointment: null);
     }
 

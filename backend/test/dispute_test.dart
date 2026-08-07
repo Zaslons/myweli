@@ -42,7 +42,7 @@ void main() {
     final deposit = DepositService(
       appts,
       MembershipService(InMemoryMembershipRepository(), providerAuth),
-      const FakeStorageService(),
+      FakeStorageService(),
     );
     svc = DisputeService(disputes, appts, deposit, audit);
   });

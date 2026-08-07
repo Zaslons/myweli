@@ -103,8 +103,17 @@ describe('pro availability helpers', () => {
     expect(out.bufferMinutes).toBe(15);
     expect(out.breaks).toEqual(base.breaks);
     expect(out.blockedDates).toEqual(['2026-07-14']);
-    // edited first slot + preserved 2nd slot
-    expect(out.weeklySchedule['0'][0]).toMatchObject({ startTime: '08:30', endTime: '12:00' });
+    // Edited first slot, now in the WIRE format (Q1): the edit comes from an
+    // `<input type="time">` as '08:30' and leaves as a date-time, because that
+    // is what `openapi.yaml:4033` types and what the server accepts. This
+    // assertion used to read `startTime: '08:30'` — it encoded the defect.
+    expect(out.weeklySchedule['0'][0]).toMatchObject({
+      startTime: '2024-01-01T08:30:00.000Z',
+      endTime: '2024-01-01T12:00:00.000Z',
+    });
+    // The preserved 2nd slot is passed through from `base` untouched, so it
+    // keeps whatever shape it arrived in — the round-trip does not rewrite
+    // slots the pro did not edit.
     expect(out.weeklySchedule['0'][1]).toMatchObject({ startTime: '14:00' });
     // closed day → empty
     expect(out.weeklySchedule['5']).toEqual([]);
@@ -136,5 +145,70 @@ describe('scheduleToDays / daysToSchedule', () => {
     const days = scheduleToDays(undefined, { start: '12:30', end: '13:30' });
     expect(days.every((d) => !d.open)).toBe(true);
     expect(days[0].start).toBe('12:30');
+  });
+});
+
+/// **The wire format is a date-time, and this suite used to assert the wrong
+/// one.** `openapi.yaml:4033-4036` types `TimeSlot.startTime` as
+/// `format: date-time` — "Only the time-of-day is significant (placeholder
+/// date)" — and the server normalises to `2024-01-01T09:00:00.000Z`. The mobile
+/// app complies (`availability.dart:21`, `toIso8601String()`); the backend
+/// validates with `DateTime.tryParse` and answers 400 `invalid_input` to
+/// anything else (`provider_catalog_service.dart:713`).
+///
+/// The web sent `'09:00'` and read the server's ISO straight into an
+/// `<input type="time">`, so BOTH directions were broken — and every fixture
+/// above uses `'09:00'`, which is why 555 green tests said nothing. Found by
+/// building the Q1 funnel smoke against a real server, not by a unit test.
+describe('the wire format is a date-time, both directions (Q1)', () => {
+  const wire: Availability = {
+    providerId: 'p1',
+    weeklySchedule: {
+      '0': [
+        {
+          startTime: '2024-01-01T09:00:00.000Z',
+          endTime: '2024-01-01T18:00:00.000Z',
+          isAvailable: true,
+        },
+      ],
+    },
+    blockedDates: [],
+    bufferMinutes: 0,
+  };
+
+  it('READ: a server date-time becomes HH:mm for the time input', () => {
+    // `<input type="time">` accepts only HH:mm (`DayHoursEditor.tsx:52`), so an
+    // ISO string renders the field blank and the pro sees no hours at all.
+    const d = toEditable(wire)[0];
+    expect(d.start).toBe('09:00');
+    expect(d.end).toBe('18:00');
+  });
+
+  it('WRITE: HH:mm becomes a date-time the server accepts', () => {
+    const days = toEditable(wire);
+    const slot = toApi(days, wire).weeklySchedule['0'][0];
+    // Parseable as a date-time — the exact predicate the server applies.
+    expect(Number.isNaN(Date.parse(slot.startTime))).toBe(false);
+    expect(Number.isNaN(Date.parse(slot.endTime))).toBe(false);
+  });
+
+  it('and the round-trip is byte-identical to what the server sent', () => {
+    // The pair that makes the two above non-degenerate: a converter that
+    // mangles the value could satisfy both and still lose the salon's hours.
+    const days = toEditable(wire);
+    expect(toApi(days, wire).weeklySchedule['0'][0].startTime).toBe(
+      '2024-01-01T09:00:00.000Z',
+    );
+  });
+
+  it('a fresh salon with no hours still sends a date-time, not the raw default', () => {
+    // The onboarding case, and the one that actually broke: with no stored
+    // slots `toEditable` falls back to '09:00', which used to go on the wire
+    // verbatim and earn a 400 — so a web-onboarded salon could never satisfy
+    // the `availability` publish-gate key, and could never go live.
+    const empty: Availability = { ...wire, weeklySchedule: {} };
+    const days = toEditable(empty).map((d) => ({ ...d, open: true }));
+    const slot = toApi(days, empty).weeklySchedule['0'][0];
+    expect(Number.isNaN(Date.parse(slot.startTime))).toBe(false);
   });
 });

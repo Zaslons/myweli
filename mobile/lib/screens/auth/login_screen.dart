@@ -16,6 +16,7 @@ import '../../core/utils/validators.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/common/app_button.dart';
 import '../../widgets/common/app_text_field.dart';
+import '../../widgets/common/apple_logo.dart';
 import '../../widgets/common/google_g_logo.dart';
 import '../../widgets/common/inline_feedback.dart';
 import '../../widgets/common/legal_consent_text.dart';
@@ -230,6 +231,7 @@ class _LoginScreenState extends State<LoginScreen> {
       const SizedBox(height: AppTheme.spacingSM),
       AppButton(
         text: 'Continuer avec Apple',
+        leading: const AppleLogo(),
         onPressed: auth.isLoading ? null : _handleApple,
       ),
     ],

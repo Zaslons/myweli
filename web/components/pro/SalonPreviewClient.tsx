@@ -5,6 +5,7 @@ import { ErrorState } from '../ErrorState';
 import { Loading } from '../Loading';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
+import { salonStoppedMessageFor } from '../../lib/account/appointments';
 import type { Provider } from '../../lib/api/providers';
 import { getMyProvider } from '../../lib/api/pro';
 import { ProviderView } from '../provider/ProviderView';
@@ -61,7 +62,12 @@ export function SalonPreviewClient() {
     );
   }
 
-  const draft = provider.status === 'draft';
+  // **`=== 'draft'` was the wrong question.** A SUSPENDED salon answered
+  // `false` here, so its owner's preview rendered the consumer heart and a
+  // « Voir la page publique » link — to a page that 404s once Decision C
+  // lands. What the banner is really asking is « is this page live? ».
+  const live = !provider.status || provider.status === 'active';
+  const stopped = salonStoppedMessageFor(provider.status);
 
   return (
     <div>
@@ -73,12 +79,14 @@ export function SalonPreviewClient() {
       >
         <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-s">
           <span>
-            {draft
-              ? 'Aperçu — votre salon n’est pas encore en ligne. Voici ce que verront vos clients.'
-              : 'Votre salon est en ligne — ceci est votre page publique.'}
+            {provider.status === 'suspended'
+              ? 'Votre salon est suspendu. Contactez Myweli pour le réactiver — vos rendez-vous sont intacts.'
+              : live
+                ? 'Votre salon est en ligne — ceci est votre page publique.'
+                : 'Aperçu — votre salon n’est pas encore en ligne. Voici ce que verront vos clients.'}
           </span>
           <span className="flex gap-m">
-            {!draft && provider.slug ? (
+            {live && provider.slug ? (
               <Link href={`/${provider.slug}`} className="underline">
                 Voir la page publique
               </Link>
@@ -92,7 +100,7 @@ export function SalonPreviewClient() {
       <ProviderView
         provider={provider}
         slug={provider.slug ?? ''}
-        preview={draft}
+        preview={!live}
       />
     </div>
   );

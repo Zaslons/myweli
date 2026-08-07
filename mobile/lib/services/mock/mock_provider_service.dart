@@ -102,7 +102,10 @@ class MockProviderService implements ProviderServiceInterface {
             ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
       return ApiResponse.success(provider.copyWith(reviews: providerReviews));
     } catch (e) {
-      return ApiResponse.error('Provider non trouvé');
+      return ApiResponse.error(
+        'Ce salon n’est plus disponible sur Myweli.',
+        code: 'not_found',
+      );
     }
   }
 
