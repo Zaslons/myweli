@@ -66,7 +66,7 @@ dependencies:
 
   # Auth overhaul: native Google Sign-In (+ Apple seam, flag-gated) and the
   # SHA-256 for Apple's nonce. Design: docs/design/app-auth-social.md.
-  google_sign_in: ^6.2.1
+  google_sign_in: ^7.2.0
   sign_in_with_apple: ^8.1.0
   crypto: ^3.0.3
 
