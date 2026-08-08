@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  The app's own privacy manifest. Third-party SDKs ship their own; this file
+  covers the Runner binary, which INCLUDES all compiled Dart — a distinction
+  that decides what belongs here.
+
+  NSPrivacyAccessedAPITypes is deliberately EMPTY, and that was measured rather
+  than copied. The four categories most Flutter apps declare are covered by
+  someone else or not reached at all:
+
+    · UserDefaults  — reached only through shared_preferences, and
+                      `shared_preferences_foundation` ships its OWN manifest.
+    · Disk space    — nothing in our Dart or in flutter_cache_manager queries it.
+    · File timestamp— flutter_cache_manager is pure Dart, so it WOULD be ours to
+                      declare; it decides freshness from its own sqflite
+                      metadata (`validTill`), not from File.lastModified().
+    · sqlite        — sqflite_darwin ships its own manifest.
+
+  Over-declaring is not free: Apple asks for the APIs actually called, and a
+  declaration nobody can point at a caller for is a claim we cannot defend on
+  review. If a future dependency reaches one of these from Dart, add it here
+  WITH the caller named.
+
+  NSPrivacyCollectedDataTypes is intentionally absent — see
+  docs/design/mobile-store-submission.md §4. The authoritative declaration of
+  what MyWeli collects is the App Store Connect privacy questionnaire, and it
+  must be answered by the owner; a second copy here that drifts from it is worse
+  than none.
+-->
+<plist version="1.0">
+<dict>
+	<!-- No tracking, and no data linked to third-party advertising. MyWeli has
+	     no ad SDK, no analytics SDK and no attribution SDK. -->
+	<key>NSPrivacyTracking</key>
+	<false/>
+	<key>NSPrivacyTrackingDomains</key>
+	<array/>
+	<key>NSPrivacyAccessedAPITypes</key>
+	<array/>
+</dict>
+</plist>

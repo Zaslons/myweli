@@ -106,5 +106,12 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<false/>
+	<!-- Export compliance. MyWeli uses only HTTPS/TLS provided by the OS and
+	     Apple's own crypto for the Sign in with Apple nonce — no proprietary or
+	     non-standard encryption. Declaring it here means every upload stops
+	     asking, and the answer stops depending on who is doing the upload.
+	     If a future release ships its own crypto, this must be revisited. -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 </dict>
 </plist>

@@ -194,6 +194,24 @@ project.build_configurations.each do |cfg|
   cfg.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = DEPLOYMENT_TARGET
 end
 
+# --- privacy manifest --------------------------------------------------------
+# `PrivacyInfo.xcprivacy` only counts if it is COPIED INTO THE BUNDLE. A file
+# sitting in Runner/ that no target compiles is invisible to App Store review,
+# and the failure mode is a rejection email rather than a build error — so it is
+# wired here, next to the entitlements, instead of by hand in Xcode.
+privacy_path = 'Runner/PrivacyInfo.xcprivacy'
+privacy_ref = runner_group = project.main_group.find_subpath('Runner', true)
+privacy_ref = runner_group.files.find { |f| f.path == 'PrivacyInfo.xcprivacy' } ||
+              runner_group.new_file(privacy_path)
+# `new_file` on a group WITH a path stores it group-relative; normalise either way.
+privacy_ref.path = 'PrivacyInfo.xcprivacy'
+privacy_ref.source_tree = '<group>'
+
+resources = runner.resources_build_phase
+unless resources.files_references.include?(privacy_ref)
+  resources.add_file_reference(privacy_ref)
+end
+
 # --- APNs entitlements per configuration -------------------------------------
 # Runner.entitlements existed for months with ZERO CODE_SIGN_ENTITLEMENTS
 # references, so the built app carried no `aps-environment` and iOS never issued

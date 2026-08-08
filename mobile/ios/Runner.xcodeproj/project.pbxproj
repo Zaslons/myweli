@@ -10,6 +10,7 @@
 		1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */ = {isa = PBXBuildFile; fileRef = 1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */; };
 		331C808B294A63AB00263BE5 /* RunnerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 331C807B294A618700263BE5 /* RunnerTests.swift */; };
 		3B3967161E833CAA004F5970 /* AppFrameworkInfo.plist in Resources */ = {isa = PBXBuildFile; fileRef = 3B3967151E833CAA004F5970 /* AppFrameworkInfo.plist */; };
+		3F2BA1FACE435BDF3AC86A10 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = C0C13DF1B27696F5862E24A1 /* PrivacyInfo.xcprivacy */; };
 		4FDD5D75293CC5B6225A554C /* Pods_RunnerTests.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4772A068AFA22DCEBA6C1E63 /* Pods_RunnerTests.framework */; };
 		74858FAF1ED2DC5600515810 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74858FAE1ED2DC5600515810 /* AppDelegate.swift */; };
 		78A318202AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage in Frameworks */ = {isa = PBXBuildFile; productRef = 78A3181F2AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage */; };
@@ -49,6 +50,7 @@
 		1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GeneratedPluginRegistrant.m; sourceTree = "<group>"; };
 		1578DFA1A980D2669C2C8865 /* Pods-Runner.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.release.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.release.xcconfig"; sourceTree = "<group>"; };
 		169B5A234C2F0AC9D2EBF3D5 /* Profile-pro.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Profile-pro.xcconfig"; path = "Flutter/Profile-pro.xcconfig"; sourceTree = "<group>"; };
+		27B6F5EE3DE3B721EDA8AAE6 /* Release-pro-tests.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Release-pro-tests.xcconfig"; path = "Flutter/Release-pro-tests.xcconfig"; sourceTree = "<group>"; };
 		2CE683A3049E675A7917DF63 /* Pods-RunnerTests.debug-pro.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-RunnerTests.debug-pro.xcconfig"; path = "Target Support Files/Pods-RunnerTests/Pods-RunnerTests.debug-pro.xcconfig"; sourceTree = "<group>"; };
 		331C807B294A618700263BE5 /* RunnerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunnerTests.swift; sourceTree = "<group>"; };
 		331C8081294A63A400263BE5 /* RunnerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RunnerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -60,6 +62,7 @@
 		42D4712F3B69590F4F805CD5 /* Pods-RunnerTests.release-pro.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-RunnerTests.release-pro.xcconfig"; path = "Target Support Files/Pods-RunnerTests/Pods-RunnerTests.release-pro.xcconfig"; sourceTree = "<group>"; };
 		4772A068AFA22DCEBA6C1E63 /* Pods_RunnerTests.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_RunnerTests.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		4B0631D78DF6C462491B49DE /* Debug-consumer.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Debug-consumer.xcconfig"; path = "Flutter/Debug-consumer.xcconfig"; sourceTree = "<group>"; };
+		4BDB1E601C54E6186613CC48 /* Debug-pro-tests.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Debug-pro-tests.xcconfig"; path = "Flutter/Debug-pro-tests.xcconfig"; sourceTree = "<group>"; };
 		4F084302E7E853551B679AA5 /* Pods_Runner.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_Runner.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		504A1A95D6C5BB7303C2AA59 /* Release-pro.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Release-pro.xcconfig"; path = "Flutter/Release-pro.xcconfig"; sourceTree = "<group>"; };
 		56C8338CE7490A94F2A80248 /* Release-consumer.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Release-consumer.xcconfig"; path = "Flutter/Release-consumer.xcconfig"; sourceTree = "<group>"; };
@@ -73,6 +76,7 @@
 		74858FAE1ED2DC5600515810 /* AppDelegate.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		78E0A7A72DC9AD7400C4905E /* FlutterGeneratedPluginSwiftPackage */ = {isa = PBXFileReference; lastKnownFileType = wrapper; name = FlutterGeneratedPluginSwiftPackage; path = Flutter/ephemeral/Packages/FlutterGeneratedPluginSwiftPackage; sourceTree = "<group>"; };
 		7AFA3C8E1D35360C0083082E /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = Release.xcconfig; path = Flutter/Release.xcconfig; sourceTree = "<group>"; };
+		8B5826CA753F53FE6B1E68DB /* Release-consumer-tests.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Release-consumer-tests.xcconfig"; path = "Flutter/Release-consumer-tests.xcconfig"; sourceTree = "<group>"; };
 		905982939049F0837D096291 /* Pods-RunnerTests.release-consumer.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-RunnerTests.release-consumer.xcconfig"; path = "Target Support Files/Pods-RunnerTests/Pods-RunnerTests.release-consumer.xcconfig"; sourceTree = "<group>"; };
 		9740EEB21CF90195004384FC /* Debug.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; name = Debug.xcconfig; path = Flutter/Debug.xcconfig; sourceTree = "<group>"; };
 		9740EEB31CF90195004384FC /* Generated.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; name = Generated.xcconfig; path = Flutter/Generated.xcconfig; sourceTree = "<group>"; };
@@ -83,7 +87,11 @@
 		97C147021CF9000F007C117D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A09AD900AC6ED61B884BFC7A /* Pods-Runner.debug-pro.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.debug-pro.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.debug-pro.xcconfig"; sourceTree = "<group>"; };
 		AF552CEB94F13BCF7407FC74 /* Pods-Runner.profile-pro.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.profile-pro.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.profile-pro.xcconfig"; sourceTree = "<group>"; };
+		B2E0E436912A1603D79F3D9D /* Profile-consumer-tests.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Profile-consumer-tests.xcconfig"; path = "Flutter/Profile-consumer-tests.xcconfig"; sourceTree = "<group>"; };
 		C07BA1EE875D18ABC3CAF5C1 /* Pods-RunnerTests.debug-consumer.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-RunnerTests.debug-consumer.xcconfig"; path = "Target Support Files/Pods-RunnerTests/Pods-RunnerTests.debug-consumer.xcconfig"; sourceTree = "<group>"; };
+		C0C13DF1B27696F5862E24A1 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; name = PrivacyInfo.xcprivacy; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		D3A6DA8D8710E50AF24621E4 /* Debug-consumer-tests.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Debug-consumer-tests.xcconfig"; path = "Flutter/Debug-consumer-tests.xcconfig"; sourceTree = "<group>"; };
+		F6DFF283D764F22A7D779E37 /* Profile-pro-tests.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Profile-pro-tests.xcconfig"; path = "Flutter/Profile-pro-tests.xcconfig"; sourceTree = "<group>"; };
 		FAF6F7D8D9761AA61889A37B /* Pods-RunnerTests.profile.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-RunnerTests.profile.xcconfig"; path = "Target Support Files/Pods-RunnerTests/Pods-RunnerTests.profile.xcconfig"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -164,6 +172,12 @@
 				603347A38205B2BFF5B4D60C /* Debug-pro.xcconfig */,
 				169B5A234C2F0AC9D2EBF3D5 /* Profile-pro.xcconfig */,
 				504A1A95D6C5BB7303C2AA59 /* Release-pro.xcconfig */,
+				D3A6DA8D8710E50AF24621E4 /* Debug-consumer-tests.xcconfig */,
+				B2E0E436912A1603D79F3D9D /* Profile-consumer-tests.xcconfig */,
+				8B5826CA753F53FE6B1E68DB /* Release-consumer-tests.xcconfig */,
+				4BDB1E601C54E6186613CC48 /* Debug-pro-tests.xcconfig */,
+				F6DFF283D764F22A7D779E37 /* Profile-pro-tests.xcconfig */,
+				27B6F5EE3DE3B721EDA8AAE6 /* Release-pro-tests.xcconfig */,
 			);
 			name = Flutter;
 			sourceTree = "<group>";
@@ -200,6 +214,7 @@
 				1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */,
 				74858FAE1ED2DC5600515810 /* AppDelegate.swift */,
 				74858FAD1ED2DC5600515810 /* Runner-Bridging-Header.h */,
+				C0C13DF1B27696F5862E24A1 /* PrivacyInfo.xcprivacy */,
 			);
 			path = Runner;
 			sourceTree = "<group>";
@@ -238,7 +253,7 @@
 				9705A1C41CF9048500538489 /* Embed Frameworks */,
 				3B06AD1E1E4923F5004D2608 /* Thin Binary */,
 				95950B56BB4FE3EEF36D4299 /* [CP] Embed Pods Frameworks */,
-				13F1AC06DB717B037C60BA5B /* Copy Firebase config (per flavour) */,
+				B38442B0FA089EEE38E7A72E /* Copy Firebase config (per flavour) */,
 			);
 			buildRules = (
 			);
@@ -310,6 +325,7 @@
 				3B3967161E833CAA004F5970 /* AppFrameworkInfo.plist in Resources */,
 				97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */,
 				97C146FC1CF9000F007C117D /* Main.storyboard in Resources */,
+				3F2BA1FACE435BDF3AC86A10 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -317,24 +333,6 @@
 
 /* Begin PBXShellScriptBuildPhase section */
 		13F1AC06DB717B037C60BA5B /* Copy Firebase config (per flavour) */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-			);
-			name = "Copy Firebase config (per flavour)";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "# Generated by tool/setup_flavours.rb — docs/design/mobile-ios-flavours.md\nFLAVOUR=\"${CONFIGURATION##*-}\"\nSRC=\"${SRCROOT}/config/${FLAVOUR}/GoogleService-Info.plist\"\nif [ -f \"$SRC\" ]; then\n  cp \"$SRC\" \"${BUILT_PRODUCTS_DIR}/${PRODUCT_NAME}.app/GoogleService-Info.plist\"\n  echo \"note: Firebase config for flavour '${FLAVOUR}'\"\nelse\n  echo \"note: no Firebase config for '${FLAVOUR}' — skipping (push will be inert)\"\nfi\n";
-		};
-		2A95A6C270E91B72D0684DF6 /* Copy Firebase config (per flavour) */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -399,6 +397,24 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "/bin/sh \"$FLUTTER_ROOT/packages/flutter_tools/bin/xcode_backend.sh\" build";
+		};
+		B38442B0FA089EEE38E7A72E /* Copy Firebase config (per flavour) */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Copy Firebase config (per flavour)";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# Generated by tool/setup_flavours.rb — docs/design/mobile-ios-flavours.md\nFLAVOUR=\"${CONFIGURATION##*-}\"\nSRC=\"${SRCROOT}/config/${FLAVOUR}/GoogleService-Info.plist\"\nif [ -f \"$SRC\" ]; then\n  cp \"$SRC\" \"${BUILT_PRODUCTS_DIR}/${PRODUCT_NAME}.app/GoogleService-Info.plist\"\n  echo \"note: Firebase config for flavour '${FLAVOUR}'\"\nelse\n  echo \"note: no Firebase config for '${FLAVOUR}' — skipping (push will be inert)\"\nfi\n";
 		};
 		C509E6E67234D0EBDB8A0445 /* [CP] Check Pods Manifest.lock */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -626,7 +642,7 @@
 		};
 		2EA08BE1388C30947139462C /* Profile-consumer */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 3F8506199AF45A811778FBA0 /* Profile-consumer.xcconfig */;
+			baseConfigurationReference = B2E0E436912A1603D79F3D9D /* Profile-consumer-tests.xcconfig */;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
@@ -779,7 +795,7 @@
 		};
 		7347D07B3FE9E0FC9BFFFF56 /* Debug-pro */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 603347A38205B2BFF5B4D60C /* Debug-pro.xcconfig */;
+			baseConfigurationReference = 4BDB1E601C54E6186613CC48 /* Debug-pro-tests.xcconfig */;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
@@ -1071,7 +1087,7 @@
 		};
 		A1FEA9E6F5FBDEE94617B7E9 /* Profile-pro */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 169B5A234C2F0AC9D2EBF3D5 /* Profile-pro.xcconfig */;
+			baseConfigurationReference = F6DFF283D764F22A7D779E37 /* Profile-pro-tests.xcconfig */;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
@@ -1174,7 +1190,7 @@
 		};
 		B91E4E56A18B4C27A95D3E9A /* Debug-consumer */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 4B0631D78DF6C462491B49DE /* Debug-consumer.xcconfig */;
+			baseConfigurationReference = D3A6DA8D8710E50AF24621E4 /* Debug-consumer-tests.xcconfig */;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
@@ -1194,7 +1210,7 @@
 		};
 		C37E22659B009AB0B7046A08 /* Release-consumer */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 56C8338CE7490A94F2A80248 /* Release-consumer.xcconfig */;
+			baseConfigurationReference = 8B5826CA753F53FE6B1E68DB /* Release-consumer-tests.xcconfig */;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
@@ -1320,7 +1336,7 @@
 		};
 		EDCECFAF6FD1DA3D3C8FC15C /* Release-pro */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 504A1A95D6C5BB7303C2AA59 /* Release-pro.xcconfig */;
+			baseConfigurationReference = 27B6F5EE3DE3B721EDA8AAE6 /* Release-pro-tests.xcconfig */;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
