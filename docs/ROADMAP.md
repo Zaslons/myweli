@@ -12,6 +12,8 @@
 
 ---
 
+> **Avant tout lancement, lire [LAUNCH.md](LAUNCH.md).** Il répond à la question que cette feuille de route ne pose pas : *comment développer une fois que le produit est public ?* Trois manques y sont nommés et chiffrés — **aucun environnement de préproduction** (un seul Cloud Run, une seule base), **aucun rapport de plantage** nulle part dans la pile, et la **production sert aujourd'hui des salons de démonstration** issus de `seedProviders`. L'ordre de lancement retenu y est aussi justifié : **web d'abord, iOS ensuite, Android en dernier**.
+
 ## Part 1 — Current state (ground truth)
 
 Established by reading the code and running `flutter analyze` on 2026-06-20.
