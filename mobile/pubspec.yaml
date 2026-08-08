@@ -96,7 +96,7 @@ dependencies:
 
   # Utilities
   uuid: ^4.6.0
-  equatable: ^2.0.5
+  equatable: ^2.1.0
 
   # Icons
   cupertino_icons: ^1.0.6
