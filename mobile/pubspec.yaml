@@ -107,7 +107,7 @@ dependencies:
   # Push notifications (FR-NOTIF-001 — docs/design/push-notifications-app.md).
   # The real FCM adapter behind the push seam; Firebase is initialized ONLY in
   # backend mode (demo runs and `flutter test` never touch it).
-  firebase_core: ^4.1.1
+  firebase_core: ^4.13.0
   firebase_messaging: ^16.0.2
   # Android foreground display: FCM does not draw `notification` payloads while
   # the app is foregrounded, so we render them ourselves in the `myweli_default`
