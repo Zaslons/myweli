@@ -4,7 +4,8 @@
 |---|---|
 | **Module** | infrastructure (`infra/gcp/`, `backend/`, `.github/workflows/`) |
 | **Status** | Design. **Blocked on §1** — three code changes must land before any resource is created. |
-| **Cost** | **$13–17/month** recommended; $3–5 floor; +$18.25 for a load-balanced hostname |
+| **Decisions** | Staging URL = `*.run.app` (§4.1) · separate bundle ids, deferred to phase 8 (§4) |
+| **Cost** | **$13–17/month** — the $18.25 hostname is declined (§4.1) |
 | **Related** | [LAUNCH.md](../LAUNCH.md) · [infra-gcp-migration.md](infra-gcp-migration.md) · [DEPLOYMENT.md](../DEPLOYMENT.md) |
 
 Grounded in the live project: `myweli` (731308991240), `europe-west9` (Paris),
@@ -86,7 +87,7 @@ resource by resource, with the reason each way.
 | `MESSAGING_PROVIDER` | **`disabled`, and it stays that way** | §3.3 |
 | Artifact Registry | **shared** — same `:${SHA}` image | Deploy the identical immutable digest to staging, then promote **that same digest** to prod. A separately built prod image is a different artifact and defeats the rehearsal |
 | Firebase / FCM | **see §4 — this is the open decision** | |
-| Ingress | **`all`** on staging (`*.run.app`), **not** prod's `internal-and-cloud-load-balancing` | Copying prod's value verbatim makes staging unreachable by its own cron, and Cloud Run domain mappings are unimplemented in europe-west9. Costs $18.25 to do properly; §3.4 |
+| Ingress | **`all`** on staging, using the **`*.run.app` URL** — *not* prod's `internal-and-cloud-load-balancing` | Copying prod's value verbatim makes staging unreachable by its own cron, and Cloud Run domain mappings are unimplemented in europe-west9. The $18.25 hostname is **declined** — see §4.1 |
 
 ---
 
@@ -157,24 +158,61 @@ construction.
 
 ---
 
-## 4. The open decision — staging's app identity
+## 4. Staging's app identity — separate bundle ids, sequenced with iOS
 
-Genuinely forked, because it collides with the signing work just merged (#337).
+**Long-term answer: separate bundle ids** (`com.myweli.app.staging`). This is
+what mobile teams converge on, and the reasons are not aesthetic:
 
-**(a) Same bundle ids**, staging selected purely by `--dart-define=API_BASE_URL`.
-Keeps the Google/Apple OAuth clients, the Firebase config files and the
-provisioning profiles exactly as they are. But staging and prod **cannot be
-installed side by side**, and a staging Firebase project becomes impossible —
-so staging push either shares prod's project or does not exist.
+- **Side-by-side install.** The decisive one. Testing staging must not mean
+  uninstalling production — losing the session, the data, and any ability to
+  compare the two.
+- **Push isolation.** A staging push physically cannot reach a customer.
+- **A separate crash-free rate.** Staging crashes must not pollute the metric
+  that gates production's staged rollout (LAUNCH.md §1.4).
+- **Visual distinction** — a badged icon and a different display name, so a
+  staging screenshot is never mistaken for a production bug.
 
-**(b) Separate bundle ids** (`com.myweli.app.staging`). Own Firebase project,
-own OAuth clients, side-by-side installs, real push isolation. Costs a second
-set of provisioning profiles, a second Apple app record, and new Google OAuth
-clients — Google keys Android clients on (package, SHA-1) and will not register
-the pair twice.
+Both platforms provide the mechanism deliberately: Android `applicationIdSuffix`,
+iOS per-configuration bundle ids — the same flavour machinery `setup_flavours.rb`
+already drives for consumer/pro.
 
-`APPLE_CLIENT_IDS` **is** the bundle id (`com.myweli.app`), so this is not a
-config toggle either way.
+**Sequencing: not now — with the iOS launch (phase 8).** Three reasons.
+
+1. Web launches first (LAUNCH.md §3), and web staging needs none of this.
+2. We already carry two bundle ids (consumer + pro). Adding staging makes
+   **four** — four Firebase apps, four provisioning profiles, four App Store
+   Connect records, since TestFlight requires a record per bundle id.
+3. That work batches naturally with the certificate and profile work iOS launch
+   requires anyway. Doing it now means opening the same consoles twice.
+
+The cost of deferring is real and bounded: until phase 8, **app builds point at
+production**, so the app is the one surface without a rehearsal. Accepted
+knowingly, because it is exactly the surface that launches last.
+
+`APPLE_CLIENT_IDS` **is** the bundle id (`com.myweli.app`), so phase 8 is a
+backend config change too, not only a mobile one.
+
+### 4.1 Staging URL — the `*.run.app` URL, not a hostname
+
+The usual argument for `api-staging.myweli.com` is cookie and CORS fidelity: a
+`*.run.app` URL sits on a different registrable domain, so `SameSite` behaviour
+diverges from production.
+
+**That argument does not apply here.** The web surface is a BFF — session
+cookies are set on the **Next origin** (`lib/session.ts:3`) and the API is called
+**server-to-server**. Nothing under `app/`, `components/` or `lib/` imports the
+browser API client; `NEXT_PUBLIC_API_BASE_URL` survives only as a server-side
+fallback in `server-api.ts`. The browser never sees the API's domain, so the
+API's domain cannot affect cookie behaviour. The mobile app talks to the API
+directly but authenticates with bearer tokens, not cookies.
+
+What the hostname would still buy is rehearsing prod's ingress chain — ALB →
+serverless NEG → backend service → url-map → managed cert. That path is
+provisioned once by a committed script (`infra/gcp/70-load-balancer.sh`) and
+changes rarely, so **$18.25/month is not worth it today**. Revisit if the
+ingress path itself becomes something we modify, or if a browser-direct API call
+is ever introduced — that second condition is what would make this decision
+wrong, so it belongs in review.
 
 ---
 
@@ -189,7 +227,7 @@ config toggle either way.
 | Secret Manager, ~17 versions | $1.02 — the 6-version free tier is already consumed by prod's 19 |
 | R2, Scheduler, Artifact Registry, logging, egress | ~$0 |
 | **Recommended total** | **$13–17** |
-| *optional* load-balanced `api-staging.myweli.com` | +$18.25 |
+| ~~load-balanced `api-staging.myweli.com`~~ | **declined** — §4.1 |
 
 **Do not** stop the instance between rehearsals: it saves $0.44/month, because
 suspending the instance charge immediately starts the IPv4 reservation charge.
@@ -217,7 +255,7 @@ Each phase is a PR. Nothing in phase 2+ starts until §1 is merged.
    against **staging first**, which is also the first time that workflow ever
    executes.
 7. **Vercel Preview → staging** (LAUNCH.md §5.4).
-8. **Mobile**, once §4 is decided.
+8. **Mobile** — separate bundle ids (§4), batched with the iOS launch work.
 
 ---
 
