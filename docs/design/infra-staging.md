@@ -86,7 +86,7 @@ resource by resource, with the reason each way.
 | `CRON_SECRET` | **separate** | Plus a prod fix: both Scheduler jobs currently carry it as a literal `X-Cron-Secret` header (§7) |
 | `MESSAGING_PROVIDER` | **`disabled`, and it stays that way** | §3.3 |
 | Artifact Registry | **shared** — same `:${SHA}` image | Deploy the identical immutable digest to staging, then promote **that same digest** to prod. A separately built prod image is a different artifact and defeats the rehearsal |
-| Firebase / FCM | **see §4 — this is the open decision** | |
+| Firebase / FCM | **separate project**, from phase 8 | Enabled by §4's separate bundle ids. Until phase 8 the app is not part of staging at all, so there is nothing for a staging Firebase project to serve — and sharing prod's would put staging pushes on real phones |
 | Ingress | **`all`** on staging, using the **`*.run.app` URL** — *not* prod's `internal-and-cloud-load-balancing` | Copying prod's value verbatim makes staging unreachable by its own cron, and Cloud Run domain mappings are unimplemented in europe-west9. The $18.25 hostname is **declined** — see §4.1 |
 
 ---
