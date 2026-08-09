@@ -1,9 +1,27 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
+
+// Release signing. `android/key.properties` is gitignored and holds the upload
+// keystore's coordinates; CI and a fresh clone do not have it.
+//
+// **The rule this encodes: never silently fall back to the debug key.** The
+// Flutter template ships `signingConfig = signingConfigs.getByName("debug")`
+// with a TODO, and that is why this app could not be uploaded — Play rejects a
+// debug-signed bundle, and nothing about the build says so. Absent the
+// properties file the release build is left UNSIGNED, which fails loudly at the
+// point of signing rather than producing an artifact that looks shippable and
+// is not.
+val keystoreProperties = Properties().apply {
+    val f = rootProject.file("key.properties")
+    if (f.exists()) f.inputStream().use { load(it) }
+}
+val hasUploadKey = keystoreProperties.getProperty("storeFile") != null
 
 // Firebase (push — docs/design/push-notifications-app.md). The google-services
 // plugin HARD-FAILS when a flavor's google-services.json is missing, so we
@@ -60,11 +78,33 @@ android {
         }
     }
 
+    signingConfigs {
+        if (hasUploadKey) {
+            create("upload") {
+                storeFile = rootProject.file(keystoreProperties.getProperty("storeFile"))
+                storePassword = keystoreProperties.getProperty("storePassword")
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            // Signed with the upload key when key.properties is present, and
+            // otherwise left UNSIGNED on purpose — see the note at the top of
+            // this file. `flutter run --release` on a dev machine without the
+            // keystore will refuse to install, which is the correct answer: the
+            // alternative was an artifact indistinguishable from a shippable
+            // one that the Play Console rejects.
+            signingConfig = if (hasUploadKey) signingConfigs.getByName("upload") else null
+            // R8 (`isMinifyEnabled`) is deliberately NOT enabled here. It is the
+            // right thing for a Play release, but its failure mode is runtime —
+            // R8 strips a class reached only reflectively and push, or a plugin,
+            // silently stops working in RELEASE builds only. No gate in this
+            // repo can see that, and it is not something to switch on in a
+            // signing change. Its own slice, with a device run.
+            // docs/design/mobile-store-submission.md §6.
         }
     }
 }
