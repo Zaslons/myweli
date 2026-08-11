@@ -82,8 +82,31 @@ Security is gated from the first endpoint, not deferred. Reference: OWASP ASVS.
 - **Server-side rate-limit + lockout**, mirroring the app: a wrong-attempt
   budget per code and a resend budget per phone (429 + `otp_*` codes when
   exceeded). The client UI hints are convenience; the server is the authority.
-- **Dev codes** are returned inline (`devCode`) **only when `ENV != prod`**.
-  Production sends via the SMS/WhatsApp provider (deferred) and returns nothing.
+- **Dev codes** are returned inline (`devCode`) **only when `ENV != prod`** — so
+  in dev *and staging*, which is deliberate: staging runs with
+  `MESSAGING_PROVIDER=disabled`, and without the inline code nobody could sign
+  in to it at all. Production sends via the SMS/WhatsApp provider and returns
+  nothing.
+
+### 3.2.1 `ENV` is a three-value enum, and it answers two questions
+`Env.parse` (`boot_config.dart`) yields `dev | staging | prod`; an unrecognised
+value **throws at boot** rather than degrading to `dev`, which is what the old
+`(ENV ?? 'dev') == 'prod'` expression did with every typo.
+
+| Getter | True for | Governs |
+|---|---|---|
+| `guardsOn` | **staging + prod** | every "must be set" fail-fast: `DATABASE_URL`, `JWT_SECRET`, R2, messaging, push, the OAuth client-id checks, and CORS deny-by-default |
+| `isProd` | **prod only** | the `devCode` echo above, and the smoke-seam disclosure warning |
+
+**Do not collapse these back into one flag.** They diverge in *opposite*
+directions on staging — it needs production's guards *and* dev's dev-codes — so
+a single boolean makes `ENV=staging` an environment that is neither. Design:
+[design/infra-staging.md](design/infra-staging.md) §1.1.
+
+**Demo salons are `dev` only.** `seedProvidersIfEmpty` is gated on `ENV == dev`
+at the call site *and* refuses internally. It previously asked only whether the
+`providers` table was empty, so purging the fictional listings from production
+and redeploying re-created them.
 
 ### 3.3 AuthZ
 - **Deny by default.** Protected routes require a valid access token; middleware

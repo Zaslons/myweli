@@ -12,6 +12,64 @@
 /// and not one was a test file. The guards were real and entirely unproven.
 library;
 
+/// Which deployment this process is.
+///
+/// **Three values, because two cannot express staging.** `ENV` used to be read
+/// as `(ENV ?? 'dev') == 'prod'` — one boolean answering two different
+/// questions: *is this the real thing?* and *should the production guards be
+/// on?* For `dev` and `prod` those answers coincide, so the conflation was
+/// invisible. Staging is where they diverge, and it diverges in **both**
+/// directions:
+///
+///   · it needs production's fail-fast on missing configuration ([guardsOn]),
+///     because an environment whose guards are off is not rehearsing anything;
+///   · it needs dev's OTP dev-code echo (`!`[isProd]), because staging runs
+///     with no SMS channel and there would otherwise be no way to sign in.
+///
+/// A single flag cannot supply both, which is why `ENV=staging` against the old
+/// expression produced an environment that was neither. Design:
+/// docs/design/infra-staging.md §1.1.
+enum Env {
+  dev,
+  staging,
+  prod;
+
+  /// Parses `ENV`. Unset, empty or whitespace → [dev].
+  ///
+  /// **An unrecognised value throws rather than falling back.** The old
+  /// expression treated every typo as dev, so `ENV=production`, `ENV=Prod` or a
+  /// stray character on the production service would silently disable every
+  /// guard in this file — the exact failure the guards exist to prevent,
+  /// reached by spelling. Failing at boot is loud, immediate and fixable;
+  /// `main.dart` awaits this path before `serve()`, so the port never binds.
+  static Env parse(String? raw) {
+    final v = raw?.trim().toLowerCase();
+    if (v == null || v.isEmpty) return Env.dev;
+    return switch (v) {
+      'dev' || 'development' || 'local' => Env.dev,
+      'staging' || 'stage' => Env.staging,
+      'prod' || 'production' => Env.prod,
+      _ => throw StateError(
+        'ENV="$raw" is not a known environment — use dev, staging or prod. '
+        'An unrecognised value was previously treated as dev, which silently '
+        'disabled every production guard.',
+      ),
+    };
+  }
+
+  /// Run the production guards: fail fast on missing configuration.
+  ///
+  /// True for **staging and prod**.
+  bool get guardsOn => this != Env.dev;
+
+  /// This is the real thing — real users, real data, real money.
+  ///
+  /// True for **prod only**. Reserved for what must differ even from a
+  /// production-shaped staging: echoing OTP dev-codes in API responses, and the
+  /// smoke-seam disclosure warning.
+  bool get isProd => this == Env.prod;
+}
+
 /// The Postgres URL, or null when the app should run on in-memory repositories.
 ///
 /// **Throws in production when unset — and that guard is the whole point.**
@@ -30,13 +88,13 @@ library;
 /// Trimmed, so a platform that injects an unset reference as `"  "` is treated
 /// as unset rather than handed to `createPool` as whitespace. Every other env
 /// read in `dependencies.dart` already trims (`_envOrNull`); this one did not.
-String? resolveDatabaseUrl(String? raw, {required bool isProd}) {
+String? resolveDatabaseUrl(String? raw, {required bool guardsOn}) {
   final url = raw?.trim();
   if (url != null && url.isNotEmpty) return url;
-  if (isProd) {
+  if (guardsOn) {
     throw StateError(
-      'DATABASE_URL must be set in production — refusing to start on '
-      'in-memory repositories, which would serve a healthy-looking API and '
+      'DATABASE_URL must be set in staging and production — refusing to start '
+      'on in-memory repositories, which would serve a healthy-looking API and '
       'lose every booking on the next restart.',
     );
   }
@@ -48,11 +106,11 @@ String? resolveDatabaseUrl(String? raw, {required bool isProd}) {
 /// The guard itself is unchanged from `dependencies.dart`; it moved here so it
 /// can be tested, and so [assertProductionBootConfig] can force it to fire at
 /// **boot** rather than on the first request (see that function).
-String resolveJwtSecret(String? raw, {required bool isProd}) {
+String resolveJwtSecret(String? raw, {required bool guardsOn}) {
   final secret = raw?.trim();
   if (secret != null && secret.isNotEmpty) return secret;
-  if (isProd) {
-    throw StateError('JWT_SECRET must be set in production');
+  if (guardsOn) {
+    throw StateError('JWT_SECRET must be set in staging and production');
   }
   // Dev-only fallback so local runs work without setup; never used in prod.
   return 'dev-insecure-secret-change-me';
@@ -75,8 +133,8 @@ String resolveJwtSecret(String? raw, {required bool isProd}) {
 void assertProductionBootConfig({
   required String? databaseUrl,
   required String? jwtSecret,
-  required bool isProd,
+  required bool guardsOn,
 }) {
-  resolveDatabaseUrl(databaseUrl, isProd: isProd);
-  resolveJwtSecret(jwtSecret, isProd: isProd);
+  resolveDatabaseUrl(databaseUrl, guardsOn: guardsOn);
+  resolveJwtSecret(jwtSecret, guardsOn: guardsOn);
 }

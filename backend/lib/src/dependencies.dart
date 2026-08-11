@@ -99,17 +99,31 @@ import 'upload_verification_service.dart';
 /// Postgres-backed; otherwise they are in-memory — so local/dev/CI without a
 /// database (and the app's tests) are unchanged.
 
-bool get _isProd => (Platform.environment['ENV'] ?? 'dev') == 'prod';
+/// Which deployment this is (`ENV`), parsed once. An unrecognised value throws
+/// here rather than silently meaning `dev` — see [Env.parse].
+final Env _env = Env.parse(Platform.environment['ENV']);
+
+/// **Fail fast on missing configuration.** True for staging AND prod: staging
+/// exists to rehearse production, and an environment whose guards are off
+/// rehearses nothing. Every `must be set in production` throw below hangs off
+/// this.
+bool get _guardsOn => _env.guardsOn;
+
+/// **This is the real thing.** True for prod ONLY — reserved for the two places
+/// staging must behave like dev rather than like production: echoing the OTP
+/// dev-code in API responses (staging has no SMS channel, so without it nobody
+/// can sign in), and the smoke-seam disclosure warning.
+bool get _isProd => _env.isProd;
 
 String _resolveSecret() =>
-    resolveJwtSecret(Platform.environment['JWT_SECRET'], isProd: _isProd);
+    resolveJwtSecret(Platform.environment['JWT_SECRET'], guardsOn: _guardsOn);
 
 /// G1: **throws in production when unset**, where before it returned null and
 /// every repository quietly became its `InMemory` variant — a green API that
 /// loses every booking on restart. See `boot_config.dart`.
 final String? _databaseUrl = resolveDatabaseUrl(
   Platform.environment['DATABASE_URL'],
-  isProd: _isProd,
+  guardsOn: _guardsOn,
 );
 
 final Pool<void>? _pool = _databaseUrl == null
@@ -134,7 +148,7 @@ final List<String> webOrigins = () {
         .where((s) => s.isNotEmpty)
         .toList();
   }
-  return _isProd ? const <String>[] : const ['http://localhost:3000'];
+  return _guardsOn ? const <String>[] : const ['http://localhost:3000'];
 }();
 
 /// R2 API endpoint: explicit `R2_ENDPOINT` wins, else derived from
@@ -168,12 +182,13 @@ List<String> _csvEnv(String key) =>
 /// token (fail closed); prod fails fast when the method is enabled.
 final GoogleIdTokenVerifier googleIdTokenVerifier = () {
   final ids = _csvEnv('GOOGLE_CLIENT_IDS');
-  if (_isProd &&
+  if (_guardsOn &&
       authMethods.explicit &&
       authMethods.contains('google') &&
       ids.isEmpty) {
     throw StateError(
-      'GOOGLE_CLIENT_IDS must be set in production while the "google" auth '
+      'GOOGLE_CLIENT_IDS must be set in staging and production while the '
+      '"google" auth '
       'method is enabled (AUTH_METHODS).',
     );
   }
@@ -184,12 +199,13 @@ final GoogleIdTokenVerifier googleIdTokenVerifier = () {
 /// Service ID. Same fail-closed/fail-fast posture as Google.
 final AppleIdTokenVerifier appleIdTokenVerifier = () {
   final ids = _csvEnv('APPLE_CLIENT_IDS');
-  if (_isProd &&
+  if (_guardsOn &&
       authMethods.explicit &&
       authMethods.contains('apple') &&
       ids.isEmpty) {
     throw StateError(
-      'APPLE_CLIENT_IDS must be set in production while the "apple" auth '
+      'APPLE_CLIENT_IDS must be set in staging and production while the '
+      '"apple" auth '
       'method is enabled (AUTH_METHODS).',
     );
   }
@@ -203,9 +219,10 @@ final EmailProvider emailProvider = () {
   final apiKey = _envOrNull('RESEND_API_KEY');
   final from = _envOrNull('EMAIL_FROM') ?? 'MyWeli <no-reply@myweli.com>';
   if (apiKey != null) return ResendEmailProvider(apiKey: apiKey, from: from);
-  if (_isProd && authMethods.explicit && authMethods.contains('email')) {
+  if (_guardsOn && authMethods.explicit && authMethods.contains('email')) {
     throw StateError(
-      'RESEND_API_KEY must be set in production while the "email" auth '
+      'RESEND_API_KEY must be set in staging and production while the '
+      '"email" auth '
       'method is enabled (AUTH_METHODS).',
     );
   }
@@ -335,9 +352,10 @@ final StorageService storageService = () {
       depositBucket: depositBucket,
     );
   }
-  if (_isProd) {
+  if (_guardsOn) {
     throw StateError(
-      'Object storage must be configured in production: set R2_ENDPOINT (or '
+      'Object storage must be configured in staging and production: set '
+      'R2_ENDPOINT (or '
       'R2_ACCOUNT_ID), R2_BUCKET, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, '
       'R2_PUBLIC_BASE_URL, R2_KYC_BUCKET and R2_DEPOSIT_BUCKET (two separate '
       'private buckets).',
@@ -605,10 +623,11 @@ final MessagingProvider messagingProvider = () {
   //
   // The fail-fast below was written for "nothing configured". This is the other
   // way to have nothing configured, and it looks deliberate, which is worse.
-  if (_isProd && selector == 'log') {
+  if (_guardsOn && selector == 'log') {
     throw StateError(
       'MESSAGING_PROVIDER=log is a no-op provider and must never run in '
-      'production — every message would be dropped while the outbox recorded '
+      'staging or production — every message would be dropped while the outbox '
+      'recorded '
       'it as sent. Set MESSAGING_PROVIDER to termii or twilio, with the '
       'matching credentials.',
     );
@@ -628,9 +647,10 @@ final MessagingProvider messagingProvider = () {
   };
   if (chosen != null) return chosen;
 
-  if (_isProd) {
+  if (_guardsOn) {
     throw StateError(
-      'Messaging (SMS) must be configured in production: set MESSAGING_PROVIDER '
+      'Messaging (SMS) must be configured in staging and production: set '
+      'MESSAGING_PROVIDER '
       'and the matching credentials — Termii (TERMII_API_KEY + TERMII_SENDER_ID) '
       'or Twilio (TWILIO_ACCOUNT_SID + TWILIO_AUTH_TOKEN + TWILIO_SMS_FROM).',
     );
@@ -662,6 +682,15 @@ final String? messagingWebhookSecret = _envOrNull('MESSAGING_WEBHOOK_SECRET');
 /// dev/CI. Production must configure it (fail-fast). Design:
 /// docs/design/push-notifications-fcm.md.
 final PushProvider pushProvider = () {
+  // `disabled` is the supported way to run a guarded environment with no push
+  // channel — staging, whose Firebase project does not exist until the app gets
+  // its own bundle ids (docs/design/infra-staging.md §4). Checked ABOVE the FCM
+  // build for the same reason `MESSAGING_PROVIDER=log` is checked above its
+  // switch: it must be a deliberate choice, never a fall-through, so that
+  // "nothing configured" still reaches the fail-fast below.
+  if (_envOrNull('PUSH_PROVIDER')?.toLowerCase() == 'disabled') {
+    return DisabledPushProvider();
+  }
   final projectId = _envOrNull('FCM_PROJECT_ID');
   final clientEmail = _envOrNull('FCM_CLIENT_EMAIL');
   // Render-style env often escapes newlines in the PEM — unescape them.
@@ -675,10 +704,11 @@ final PushProvider pushProvider = () {
       ),
     );
   }
-  if (_isProd) {
+  if (_guardsOn) {
     throw StateError(
-      'Push must be configured in production: set FCM_PROJECT_ID, '
-      'FCM_CLIENT_EMAIL and FCM_PRIVATE_KEY (service account).',
+      'Push must be configured in staging and production: set FCM_PROJECT_ID, '
+      'FCM_CLIENT_EMAIL and FCM_PRIVATE_KEY (service account) — or set '
+      'PUSH_PROVIDER=disabled to run deliberately without a push channel.',
     );
   }
   return LogPushProvider();
@@ -775,7 +805,7 @@ Future<void> initializeDatabase() async {
   assertProductionBootConfig(
     databaseUrl: Platform.environment['DATABASE_URL'],
     jwtSecret: Platform.environment['JWT_SECRET'],
-    isProd: _isProd,
+    guardsOn: _guardsOn,
   );
 
   final pool = _pool;
@@ -785,7 +815,18 @@ Future<void> initializeDatabase() async {
     // instances in parallel where Render never did.
     await withSchemaLock(pool, () async {
       await runMigrations(pool);
-      await seedProvidersIfEmpty(pool);
+      // **Demo salons are dev-only, and the gate is `ENV`, not emptiness.**
+      // `seedProvidersIfEmpty` asks one question — is the `providers` table
+      // empty? — so purging the fictional salons from production and deploying
+      // simply re-created them, as would any cold start once `minScale`
+      // recycled an instance. That made docs/LAUNCH.md §5.1 impossible to
+      // satisfy rather than merely unfinished.
+      //
+      // Staging is excluded too: it gets deliberately seeded data with
+      // namespaced ids (docs/design/infra-staging.md §2.1), because these rows
+      // carry FIXED ids and identical primary keys across environments make
+      // every later log line ambiguous about where it came from.
+      if (_env == Env.dev) await seedProvidersIfEmpty(pool, env: _env);
       // Move services/availability out of the provider JSONB into the
       // normalized catalogue tables (single source of truth). Migration 0005.
       await backfillCatalogueIfNeeded(pool);

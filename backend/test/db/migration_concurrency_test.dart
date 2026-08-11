@@ -3,6 +3,7 @@ library;
 
 import 'dart:io';
 
+import 'package:myweli_backend/src/boot_config.dart';
 import 'package:myweli_backend/src/db/database.dart';
 import 'package:myweli_backend/src/db/migrations.dart';
 import 'package:postgres/postgres.dart';
@@ -127,7 +128,7 @@ void main() {
 /// root. Mirrors `initializeDatabase()`'s locked block.
 Future<void> _setup(Pool<void> pool) => withSchemaLock(pool, () async {
   await runMigrations(pool);
-  await seedProvidersIfEmpty(pool);
+  await seedProvidersIfEmpty(pool, env: Env.dev);
   await backfillCatalogueIfNeeded(pool);
   await seedLocalitiesIfEmpty(pool);
   await backfillSalonMarketIfNeeded(pool);

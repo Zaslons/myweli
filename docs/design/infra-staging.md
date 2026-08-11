@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Module** | infrastructure (`infra/gcp/`, `backend/`, `.github/workflows/`) |
-| **Status** | Design. **Blocked on §1** — three code changes must land before any resource is created. |
+| **Status** | Phase 1 in progress — §1.1 and §1.2 **done** (backend); §1.3 and the local environment next. |
 | **Decisions** | Staging URL = `*.run.app` (§4.1) · separate bundle ids, deferred to phase 8 (§4) |
 | **Cost** | **$13–17/month** — the $18.25 hostname is declined (§4.1) |
 | **Related** | [LAUNCH.md](../LAUNCH.md) · [infra-gcp-migration.md](infra-gcp-migration.md) · [DEPLOYMENT.md](../DEPLOYMENT.md) |
@@ -20,7 +20,7 @@ europe-west9, not list-price guesses.
 Creating the staging resources before these is worse than having no staging: it
 produces an environment that is confidently wrong.
 
-### 1.1 `ENV` is binary, and neither value is safe for staging
+### 1.1 `ENV` is binary, and neither value is safe for staging — **DONE**
 
 `dependencies.dart:102` — `bool get _isProd => (Platform.environment['ENV'] ?? 'dev') == 'prod'`.
 
@@ -40,7 +40,15 @@ deploy would pass.
 questions — `guardsOn = env != dev`, `isProd = env == prod`. Staging then runs
 production's guards while remaining identifiable.
 
-### 1.2 Seeding has no environment check, so purging production does not stick
+**Landed.** `Env` lives in `boot_config.dart`; an unrecognised value now throws
+at boot rather than degrading to `dev`. Of the eighteen `_isProd` call sites,
+**thirteen became `guardsOn`** (every fail-fast, plus CORS deny-by-default) and
+**five stayed `isProd`** — the four auth-repository `devCode` echoes and the
+smoke-seam warning. One gap the split exposed: with `guardsOn` on, staging would
+have refused to boot without FCM, so `PUSH_PROVIDER=disabled` was added,
+mirroring `MESSAGING_PROVIDER=disabled`.
+
+### 1.2 Seeding has no environment check, so purging production does not stick — **DONE**
 
 `seedProvidersIfEmpty` (`dependencies.dart:788`) is gated on **one** condition:
 the `providers` table being empty. Not on `ENV`.
@@ -53,6 +61,11 @@ cannot be ticked without this change.
 **Change:** `if (env == Env.dev) await seedProvidersIfEmpty(pool);`, and make
 `seedProvidersIfEmpty` itself throw when called with prod-shaped config so the
 guard survives a refactor.
+
+**Landed**, both halves. `seedLocalitiesIfEmpty` is deliberately *not* gated —
+the Ivorian geography tree is genuine reference data, not demo content. The
+refusal is proven to fire **before any query**, so it is safe against a
+production pool.
 
 ### 1.3 The API base has silent fallbacks on every build path
 
