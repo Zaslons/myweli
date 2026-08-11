@@ -52,6 +52,16 @@ web/
 - **All API access via the generated typed client** (`lib/api/`, generated from
   [docs/api/openapi.yaml](api/openapi.yaml)) — regenerated in CI; **no drift**, no
   hand-written DTO shapes.
+- **The API base URL is resolved in exactly one place** — `lib/api-base.ts` —
+  and it **refuses to resolve in production** when neither `API_BASE_URL` nor
+  `NEXT_PUBLIC_API_BASE_URL` is set. The localhost fallback it replaced looked
+  harmless (a wrong URL fails loudly with connection errors) and was not: the
+  build-time fetches below use an **empty-result fallback**, and the ISR pages
+  call them during `next build`. A production deploy missing the variable
+  therefore published **a marketplace with no salons in it and no error
+  anywhere**. Set it per Vercel environment — Production → production API,
+  Preview → staging ([LAUNCH.md](LAUNCH.md) §5.4). Design:
+  [design/infra-staging.md](design/infra-staging.md) §1.3.
 - Reads for public pages run server-side (RSC/route handlers); writes
   (booking/auth) call the existing hardened API endpoints — reuse their
   validation/authz/notifications; never reimplement business logic on web.

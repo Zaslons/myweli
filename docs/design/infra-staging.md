@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Module** | infrastructure (`infra/gcp/`, `backend/`, `.github/workflows/`) |
-| **Status** | Phase 1 in progress — §1.1 and §1.2 **done** (backend); §1.3 and the local environment next. |
+| **Status** | Phase 1 in progress — §1.1, §1.2, §1.3 **done**; the local environment (§2.2) is the last piece. |
 | **Decisions** | Staging URL = `*.run.app` (§4.1) · separate bundle ids, deferred to phase 8 (§4) |
 | **Cost** | **$13–17/month** — the $18.25 hostname is declined (§4.1) |
 | **Related** | [LAUNCH.md](../LAUNCH.md) · [infra-gcp-migration.md](infra-gcp-migration.md) · [DEPLOYMENT.md](../DEPLOYMENT.md) |
@@ -67,7 +67,7 @@ the Ivorian geography tree is genuine reference data, not demo content. The
 refusal is proven to fire **before any query**, so it is safe against a
 production pool.
 
-### 1.3 The API base has silent fallbacks on every build path
+### 1.3 The API base has silent fallbacks on every build path — **DONE**
 
 - `app_config.dart:15-23` — `USE_API_BACKEND` defaults **false**, `API_BASE_URL`
   defaults to `http://localhost:8080`
@@ -80,6 +80,19 @@ nothing. This is the failure mode most likely to waste a week.
 
 **Change:** make it fail closed — a release build asserts `useApiBackend` is
 true and `apiBaseUrl` is non-default; the web BFF throws instead of defaulting.
+
+**Landed, and the web half turned out to be the worse of the two.** The mobile
+failure is silent *success*; the web fallback looked like a loud failure
+(connection errors) and is not — `lib/api/localities.ts` and
+`lib/api/providers.ts` degrade to **empty results**, and the ISR pages call them
+during `next build`. A production deploy missing the variable therefore
+published a marketplace with **no salons in it and no error anywhere**.
+
+Both now refuse: the app shows a blocking `BUILD MISCONFIGURED` screen in
+release (verified by building a real release web bundle with and without the
+defines), and `web/lib/api-base.ts` throws in production. CI's two web builds
+now state their API base explicitly — they had been building against the
+localhost fallback all along.
 
 ---
 
