@@ -5,6 +5,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 
 import 'core/a11y/reduce_motion.dart';
+import 'core/config/build_config_guard.dart';
 import 'core/di/dependency_injection.dart';
 import 'core/push/firebase_bootstrap.dart';
 import 'core/push/push_message_handler.dart';
@@ -30,6 +31,14 @@ void main() {
   runZonedGuarded(
     () async {
       WidgetsFlutterBinding.ensureInitialized();
+      // Refuse a release build compiled without the backend defines, BEFORE any
+      // startup work — it would otherwise run on mocks and look healthy
+      // (docs/design/infra-staging.md §1.3).
+      final misconfigured = misconfiguredBuildScreen();
+      if (misconfigured != null) {
+        runApp(misconfigured);
+        return;
+      }
       FlutterError.onError = (details) {
         FlutterError.presentError(details);
         AppLogger.error(

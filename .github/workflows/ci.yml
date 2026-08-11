@@ -358,6 +358,14 @@ jobs:
 
       - name: Build
         run: npm run build
+        # Explicit, not inherited from a default. `lib/api-base.ts` refuses to
+        # resolve a production build without this, because the build-time
+        # fetches degrade to EMPTY results rather than failing — so a missing
+        # value publishes a site with no salons and no error anywhere. CI has no
+        # backend, so it states localhost deliberately; the guard is about the
+        # value being chosen, not about which value it is.
+        env:
+          NEXT_PUBLIC_API_BASE_URL: http://localhost:8080
 
   web-e2e:
     name: Web — e2e (Playwright)
@@ -427,6 +435,14 @@ jobs:
 
       - name: Build
         run: npm run build
+        # Explicit, not inherited from a default. `lib/api-base.ts` refuses to
+        # resolve a production build without this, because the build-time
+        # fetches degrade to EMPTY results rather than failing — so a missing
+        # value publishes a site with no salons and no error anywhere. CI has no
+        # backend, so it states localhost deliberately; the guard is about the
+        # value being chosen, not about which value it is.
+        env:
+          NEXT_PUBLIC_API_BASE_URL: http://localhost:8080
 
       - name: Lighthouse budgets (home + connexion)
         run: npm run lhci
