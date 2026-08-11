@@ -79,7 +79,7 @@ resource by resource, with the reason each way.
 |---|---|---|
 | Cloud Run service | **separate** `myweli-api-staging`, minScale **0**, maxScale 2 | Saves $18/mo vs matching prod's minScale 1, and *improves* the rehearsal: every staging request then exercises the cold start that runs migrations behind `pg_advisory_lock` before the port binds |
 | Cloud SQL | **separate instance** `myweli-db-staging` | Not for tidiness — the arithmetic is already red. `maxConnectionCount: 8` (`database.dart:24`) × maxScale 4 = **32 potential connections** against a db-f1-micro whose default `max_connections` is **25**. Prod stays under only because it rarely scales past 1. Sharing adds a second consumer to a pool that is already over-subscribed on paper |
-| Database data | **restored from a prod PITR backup** | §3.2 — an empty staging DB certifies every migration as instant |
+| Database data | **synthetic by default; a scrubbed prod copy for rehearsals** | §2.1. An empty staging DB certifies every migration as instant (§3.2), but an un-scrubbed prod copy puts real phone numbers behind a reminder cron (§3.3) |
 | Secret Manager | **separate versions**, all 17 | `JWT_SECRET` especially: a shared value lets a staging-issued token authenticate against **production**, and staging is where we deliberately mint admin tokens |
 | R2 | **3 separate buckets + a bucket-scoped token** | Bucket *names* cannot collide (unique per account). The risk is the **credential**: an account-scoped token reads and writes every bucket regardless of what `R2_BUCKET` says. A staging run of the user-erasure path would delete production objects |
 | `WEB_ORIGINS` | **separate**, staging origins only | Copying prod's value means staging accepts browser calls from `https://myweli.com`. When a preview gets CORS-blocked, the fix is a staging origin — **never** widening prod's list |
@@ -88,6 +88,70 @@ resource by resource, with the reason each way.
 | Artifact Registry | **shared** — same `:${SHA}` image | Deploy the identical immutable digest to staging, then promote **that same digest** to prod. A separately built prod image is a different artifact and defeats the rehearsal |
 | Firebase / FCM | **separate project**, from phase 8 | Enabled by §4's separate bundle ids. Until phase 8 the app is not part of staging at all, so there is nothing for a staging Firebase project to serve — and sharing prod's would put staging pushes on real phones |
 | Ingress | **`all`** on staging, using the **`*.run.app` URL** — *not* prod's `internal-and-cloud-load-balancing` | Copying prod's value verbatim makes staging unreachable by its own cron, and Cloud Run domain mappings are unimplemented in europe-west9. The $18.25 hostname is **declined** — see §4.1 |
+
+### 2.1 No shared database — and what data staging actually holds
+
+**Staging and production never share a database.** Not the same instance, not
+the same instance with two databases on it. The connection arithmetic above is
+the local reason; the general one is that a shared database makes staging a
+production client, which is the exact thing it exists not to be.
+
+But "separate database" leaves a second question, and §3.2 and LAUNCH.md §1.1
+pull in opposite directions on it. Resolving it explicitly:
+
+| | Data | When |
+|---|---|---|
+| **Default state** | **synthetic**, seeded by a committed script, ids namespaced `stg_` | always — this is what staging looks like day to day |
+| **Migration rehearsal** | a **prod-volume copy, anonymised on the way in** | deliberately, before a release carrying a schema change |
+
+LAUNCH.md's rule — *never the same data* — stands. The rehearsal copy is not
+shared data; it is a **derived, scrubbed snapshot**, and the scrub is not
+optional:
+
+- `appointments.client_phone`, client names and emails **replaced**, not
+  obscured. Staging's reminder cron reads those columns, and
+  `MESSAGING_PROVIDER=disabled` is a setting one person can change (§3.3).
+- Anything that could identify a real salon or client. Copying real personal
+  data into a lower-trust environment is a data-protection question in Côte
+  d'Ivoire as much as a technical one, and it is easier to never hold it than to
+  justify holding it.
+- The scrub belongs **in the restore script**, so an un-scrubbed restore is not
+  a thing anyone can do by forgetting a step.
+
+Namespacing matters more than it sounds: `seedProviders` uses fixed ids today,
+so a staging and a production database contain the **same primary keys**. A log
+line or a screenshot showing `provider3` is then ambiguous about which
+environment produced it — for the entire life of the project.
+
+### 2.2 The four environments, and which one you actually work in
+
+| | Where | Data | What it answers |
+|---|---|---|---|
+| **local** | your Mac | throwaway Postgres, or in-app mocks | "does my change work at all?" — the loop you live in |
+| **preview** | Vercel, per PR | staging's | "does this branch's web work?" — automatic, already exists |
+| **staging** | GCP | synthetic; scrubbed prod copy for rehearsals | "does it work for someone who is not me, against a real backend?" |
+| **production** | GCP | real | the product |
+
+**Local is where you will spend almost all your time**, and it is the one this
+project has never written down. There is no `docker-compose.yml` and no
+documented way to run the backend locally; CI stands up `postgres:16` with
+`postgres://postgres:postgres@localhost:5432/myweli_test` (`ci.yml:85-121`) and
+that definition exists **only inside the workflow file**.
+
+So phase 1 gains a piece: a committed `docker-compose.yml` at the repo root
+giving you Postgres 16 on one command, matching CI's image exactly, plus a
+`SETUP.md` section for `dart_frog dev`. Two reasons it belongs here rather than
+in "nice to have":
+
+1. Without it, "test it locally first" has no definition, so the honest path of
+   least resistance is testing against staging — which turns staging into
+   everyone's local environment and makes it unavailable for its actual job.
+2. It is the cheapest environment by a wide margin. Every bug caught locally is
+   one that never occupies staging, a deploy, or your attention.
+
+**Rule of thumb once all four exist:** local for the loop, preview for the web
+branch, staging for the rehearsal before a release, production for nothing but
+serving users.
 
 ---
 
@@ -243,13 +307,18 @@ Each phase is a PR. Nothing in phase 2+ starts until §1 is merged.
 
 1. **Code guards** (§1) — the `ENV` enum, the seeding gate, fail-closed API base.
    No infrastructure. This is also what makes LAUNCH.md §5.1 tickable.
+   **Plus the local environment (§2.2)** — a committed `docker-compose.yml` and
+   a documented `dart_frog dev`. It ships first because without it there is no
+   defined alternative to testing against staging.
 2. **Prod fixes** (§7) — they are prod bugs, and staging is where we would
    otherwise discover them by accident.
 3. **`infra/gcp/service-staging.yaml`** + the provisioning script, committed.
    Building staging by hand produces a second undocumented environment and
    doubles the drift surface — the thing that made this design necessary.
 4. **Resources** — Cloud SQL instance, secrets, R2 buckets, the service.
-5. **PITR restore into staging** (§3.2) — closes LAUNCH.md §5.5.
+5. **PITR restore into staging** (§3.2) — with the anonymisation step built
+   into the restore script from the first run (§2.1), never added afterwards.
+   Closes LAUNCH.md §5.5.
 6. **Pipeline** — parameterise `deploy-backend.yml` with an `environment` input;
    `push: main` → staging; prod stays `workflow_dispatch` + confirm. Run it
    against **staging first**, which is also the first time that workflow ever
