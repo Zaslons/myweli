@@ -111,9 +111,23 @@ clean slate.
 
 ### 2. Run the API
 
+Once, if you have never run the backend on this machine:
+
 ```bash
-cd backend && cp .env.example .env && dart_frog dev
+dart pub global activate dart_frog_cli
 ```
+
+Then:
+
+```bash
+cd backend && cp .env.example .env && dart pub global run dart_frog_cli:dart_frog dev
+```
+
+The long invocation is deliberate: `dart pub global activate` installs the
+`dart_frog` binary into `~/.pub-cache/bin`, which is **not on `PATH` by
+default**, so the short `dart_frog dev` fails with *command not found* even
+though the CLI is installed. Add `export PATH="$PATH:$HOME/.pub-cache/bin"` to
+your `~/.zshrc` if you prefer the short form.
 
 Then edit `.env` — the one line that matters locally is:
 
@@ -131,6 +145,17 @@ The API comes up on `http://localhost:8080`. Check it with:
 
 ```bash
 curl -s localhost:8080/health
+```
+
+First boot runs every migration and, because `ENV=dev`, seeds the demo salons —
+so `curl -s "localhost:8080/providers?pageSize=3"` should come back with four
+providers. A `StdinException: Error setting terminal echo mode` in the log is
+harmless: `dart_frog dev` wants a TTY for its interactive helpers and the server
+serves regardless. In a non-interactive shell, run the generated entrypoint
+directly instead:
+
+```bash
+dart pub global run dart_frog_cli:dart_frog build && dart build/bin/server.dart
 ```
 
 ### 3. Point a client at it
