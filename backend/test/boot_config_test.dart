@@ -20,7 +20,7 @@ void main() {
       // and serves a green API that loses every booking on restart, with
       // `/health` reporting ok throughout because it never touches the DB.
       expect(
-        () => resolveDatabaseUrl(null, isProd: true),
+        () => resolveDatabaseUrl(null, guardsOn: true),
         throwsA(isA<StateError>()),
       );
     });
@@ -30,7 +30,7 @@ void main() {
       // which the old code passed straight to createPool as a real value.
       for (final raw in ['', '   ', '\t\n']) {
         expect(
-          () => resolveDatabaseUrl(raw, isProd: true),
+          () => resolveDatabaseUrl(raw, guardsOn: true),
           throwsA(isA<StateError>()),
           reason: 'a blank URL is unset, not a connection string: "$raw"',
         );
@@ -39,7 +39,7 @@ void main() {
 
     test('production WITH a URL starts, and the value is trimmed', () {
       expect(
-        resolveDatabaseUrl('  postgres://u:p@h:5432/db  ', isProd: true),
+        resolveDatabaseUrl('  postgres://u:p@h:5432/db  ', guardsOn: true),
         'postgres://u:p@h:5432/db',
       );
     });
@@ -47,21 +47,21 @@ void main() {
     test('DEV with no URL still runs in-memory — the pair', () {
       // Without this, "always throw" would satisfy every assertion above and
       // break every local run and the whole unit suite, which has no database.
-      expect(resolveDatabaseUrl(null, isProd: false), isNull);
-      expect(resolveDatabaseUrl('', isProd: false), isNull);
+      expect(resolveDatabaseUrl(null, guardsOn: false), isNull);
+      expect(resolveDatabaseUrl('', guardsOn: false), isNull);
     });
   });
 
   group('JWT_SECRET', () {
     test('production with no secret refuses to start', () {
       expect(
-        () => resolveJwtSecret(null, isProd: true),
+        () => resolveJwtSecret(null, guardsOn: true),
         throwsA(isA<StateError>()),
       );
     });
 
     test('dev falls back, and the fallback is never a real secret', () {
-      final s = resolveJwtSecret(null, isProd: false);
+      final s = resolveJwtSecret(null, guardsOn: false);
       expect(s, isNotEmpty);
       expect(
         s,
@@ -71,8 +71,8 @@ void main() {
     });
 
     test('a supplied secret wins in both modes', () {
-      expect(resolveJwtSecret(' k ', isProd: true), 'k');
-      expect(resolveJwtSecret(' k ', isProd: false), 'k');
+      expect(resolveJwtSecret(' k ', guardsOn: true), 'k');
+      expect(resolveJwtSecret(' k ', guardsOn: false), 'k');
     });
   });
 
@@ -82,7 +82,7 @@ void main() {
         () => assertProductionBootConfig(
           databaseUrl: null,
           jwtSecret: 'k',
-          isProd: true,
+          guardsOn: true,
         ),
         throwsA(isA<StateError>()),
       );
@@ -98,7 +98,7 @@ void main() {
         () => assertProductionBootConfig(
           databaseUrl: 'postgres://u:p@h:5432/db',
           jwtSecret: null,
-          isProd: true,
+          guardsOn: true,
         ),
         throwsA(isA<StateError>()),
       );
@@ -109,7 +109,7 @@ void main() {
         () => assertProductionBootConfig(
           databaseUrl: 'postgres://u:p@h:5432/db',
           jwtSecret: 'k',
-          isProd: true,
+          guardsOn: true,
         ),
         returnsNormally,
       );
@@ -117,10 +117,97 @@ void main() {
         () => assertProductionBootConfig(
           databaseUrl: null,
           jwtSecret: null,
-          isProd: false,
+          guardsOn: false,
         ),
         returnsNormally,
         reason: 'every local run and the entire unit suite depends on this',
+      );
+    });
+  });
+
+  /// `ENV` as a three-value enum (docs/design/infra-staging.md §1.1).
+  ///
+  /// The old read was `(ENV ?? 'dev') == 'prod'` — one boolean answering two
+  /// questions. These tests pin the split, and the typo case that the old
+  /// expression silently swallowed.
+  group('Env.parse', () {
+    test('unset, empty and whitespace mean dev', () {
+      for (final raw in [null, '', '   ', '\t\n']) {
+        expect(Env.parse(raw), Env.dev, reason: 'raw: ${raw?.trim()}');
+      }
+    });
+
+    test('each environment parses, case- and whitespace-insensitively', () {
+      expect(Env.parse('dev'), Env.dev);
+      expect(Env.parse('development'), Env.dev);
+      expect(Env.parse('local'), Env.dev);
+      expect(Env.parse('staging'), Env.staging);
+      expect(Env.parse('stage'), Env.staging);
+      expect(Env.parse('  STAGING  '), Env.staging);
+      expect(Env.parse('prod'), Env.prod);
+      expect(Env.parse('production'), Env.prod);
+      expect(Env.parse('  Prod '), Env.prod);
+    });
+
+    test('an unrecognised value THROWS rather than meaning dev', () {
+      // The failure this exists to prevent: under the old expression, `ENV=prd`
+      // on the production service silently disabled every guard in
+      // dependencies.dart — fail-fast on DATABASE_URL and JWT_SECRET, the R2 /
+      // messaging / push / OAuth config checks, and CORS deny-by-default. A
+      // typo, and production quietly becomes dev.
+      for (final raw in ['prd', 'produciton', 'PRODUCTION_', 'test', 'qa']) {
+        expect(
+          () => Env.parse(raw),
+          throwsA(isA<StateError>()),
+          reason: 'unknown ENV must not degrade to dev: "$raw"',
+        );
+      }
+    });
+  });
+
+  group('guardsOn vs isProd — the split that makes staging possible', () {
+    test('guards run in staging AND prod, never in dev', () {
+      expect(Env.dev.guardsOn, isFalse);
+      expect(Env.staging.guardsOn, isTrue);
+      expect(Env.prod.guardsOn, isTrue);
+    });
+
+    test('isProd is prod ALONE — staging must not be the real thing', () {
+      expect(Env.dev.isProd, isFalse);
+      expect(Env.staging.isProd, isFalse);
+      expect(Env.prod.isProd, isTrue);
+    });
+
+    test('staging fails fast on missing config exactly as production does', () {
+      // This is the property that makes staging a rehearsal rather than a
+      // second dev environment. `ENV=staging` against the old boolean turned
+      // every one of these guards OFF.
+      expect(
+        () => resolveDatabaseUrl(null, guardsOn: Env.staging.guardsOn),
+        throwsA(isA<StateError>()),
+      );
+      expect(
+        () => resolveJwtSecret(null, guardsOn: Env.staging.guardsOn),
+        throwsA(isA<StateError>()),
+      );
+      expect(
+        () => assertProductionBootConfig(
+          databaseUrl: null,
+          jwtSecret: null,
+          guardsOn: Env.staging.guardsOn,
+        ),
+        throwsA(isA<StateError>()),
+      );
+    });
+
+    test('dev still boots with nothing configured', () {
+      // The local loop must stay zero-setup — that is the whole reason the
+      // guards are conditional rather than unconditional.
+      expect(resolveDatabaseUrl(null, guardsOn: Env.dev.guardsOn), isNull);
+      expect(
+        resolveJwtSecret(null, guardsOn: Env.dev.guardsOn),
+        isNotEmpty,
+        reason: 'dev falls back to the insecure placeholder',
       );
     });
   });

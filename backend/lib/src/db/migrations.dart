@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:postgres/postgres.dart';
 
 import '../appointments/booking_window.dart';
+import '../boot_config.dart';
 import '../localities/localities_repository.dart';
 import '../providers_repository.dart';
 import '../salon_time.dart';
@@ -899,7 +900,26 @@ Future<void> withSchemaLock(Pool<void> pool, Future<void> Function() body) {
   });
 }
 
-Future<void> seedProvidersIfEmpty(Pool<void> pool) async {
+/// Inserts the fictional demo salons when `providers` is empty.
+///
+/// **Dev only, and it enforces that itself.** The caller in `dependencies.dart`
+/// already gates on `ENV == dev`; this second check exists because the first one
+/// is a single line in a composition root that a refactor can drop without any
+/// test noticing — and the consequence of dropping it is fabricated salons, with
+/// invented ratings and review counts, in a live marketplace.
+///
+/// [env] is passed rather than read from `Platform.environment` so this stays
+/// testable in-process, matching `boot_config.dart`'s reason for existing.
+Future<void> seedProvidersIfEmpty(Pool<void> pool, {required Env env}) async {
+  if (env != Env.dev) {
+    throw StateError(
+      'seedProvidersIfEmpty is dev-only and was called with ENV=${env.name}. '
+      'These rows are fictional salons with invented ratings — seeding them '
+      'outside dev puts fabricated listings in front of real users. Staging '
+      'seeds deliberately, with namespaced ids '
+      '(docs/design/infra-staging.md §2.1).',
+    );
+  }
   final count = await pool.execute('SELECT count(*) AS n FROM providers');
   if ((count.first.toColumnMap()['n'] as int) > 0) return;
   for (final p in seedProviders) {

@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:myweli_backend/src/auth/tokens.dart';
+import 'package:myweli_backend/src/boot_config.dart';
 import 'package:myweli_backend/src/db/database.dart';
 import 'package:myweli_backend/src/db/migrations.dart';
 import 'package:myweli_backend/src/db/postgres_appointment_repository.dart';
@@ -38,7 +39,7 @@ void main() {
     initSalonTime(); // salonWallClock needs the tz database
     pool = createPool(url);
     await runMigrations(pool);
-    await seedProvidersIfEmpty(pool);
+    await seedProvidersIfEmpty(pool, env: Env.dev);
     await backfillCatalogueIfNeeded(
       pool,
     ); // match production: catalogue → tables
