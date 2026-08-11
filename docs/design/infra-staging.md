@@ -153,6 +153,82 @@ in "nice to have":
 branch, staging for the rehearsal before a release, production for nothing but
 serving users.
 
+### 2.3 How each client surface reaches staging
+
+There are **three** client surfaces, not two. The admin console is easy to miss:
+it is a Flutter **Web** app built from `mobile/lib/main_admin.dart` and deployed
+to Cloudflare Pages, so it lives in the mobile tree but behaves like a website.
+
+| Surface | Built from | Hosted | Talks to the API |
+|---|---|---|---|
+| Public + consumer + pro web | `web/` | Vercel | **server-to-server** (BFF) |
+| Admin console | `mobile/lib/main_admin.dart` | Cloudflare Pages | **from the browser**, cross-origin |
+| Consumer + pro apps | `mobile/` | App Store / Play | direct, bearer tokens |
+
+#### Web (`web/`) — free, and it already half-works
+
+Vercel has three environment scopes. Set the API base per scope, once:
+
+| Scope | `API_BASE_URL` / `NEXT_PUBLIC_API_BASE_URL` |
+|---|---|
+| Production (`myweli.com`) | `https://api.myweli.com` |
+| **Preview** (every PR) | **the staging `*.run.app` URL** |
+| Development (local) | `http://localhost:8080` |
+
+That is the whole change. **Every PR then gets a complete web environment
+running against staging, automatically**, with no per-PR work — Vercel already
+builds them (all ten checks on this repo include one). It closes LAUNCH.md §5.4,
+and it is the single highest-value hour in this whole plan.
+
+No CORS work is needed: the browser only ever talks to the Next origin (§4.1).
+
+Worth adding once staging exists: pin a **`staging.myweli.com`** alias to the
+`main`-branch deployment, so there is one durable URL to hand someone rather than
+a fresh per-deployment URL each time.
+
+#### Admin console — a separate Pages project
+
+Today `deploy-admin.yml` fires on **every push touching `mobile/**`** and ships
+to production with `API_BASE_URL=https://api.myweli.com` **hardcoded**
+(§3.4). So a mobile-only change deploys the admin console to production.
+
+For staging, create a second Cloudflare Pages project **`myweli-admin-staging`**
+rather than a branch deployment of the production project. Two reasons:
+
+- The origin is then **stable and predictable** —
+  `myweli-admin-staging.pages.dev` — which staging's `WEB_ORIGINS` can allowlist
+  exactly. This surface *is* a browser-direct caller, so CORS genuinely applies
+  to it, unlike `web/`.
+- Production's Pages project is never touched by a staging deploy, which is the
+  failure §3.4 describes.
+
+The workflow becomes environment-parameterised the same way `deploy-backend.yml`
+does in phase 6: `main` → staging project, production behind the same manual
+confirm as the backend.
+
+#### Mobile apps — dart-defines, then tracks
+
+The build already carries the switch:
+
+```
+flutter build ipa --flavor consumer --release \
+  --dart-define=USE_API_BACKEND=true \
+  --dart-define=API_BASE_URL=https://myweli-api-staging-….a.run.app
+```
+
+§1.3 is what makes this trustworthy — until the fallbacks are removed, a build
+missing either define silently runs on mocks and looks healthy.
+
+Distribution is the second axis (LAUNCH.md §1.2): a staging-pointed build goes to
+**TestFlight internal** or the **Play internal track**, both of which reach a
+tester in minutes without review. The release candidate is the *same* pipeline
+pointed at production.
+
+**Until phase 8, this surface does not participate.** Without separate bundle
+ids a staging build cannot sit beside the production app on your phone, so
+installing one replaces the other. That is the accepted, bounded cost recorded
+in §4 — and it is tolerable only because mobile launches last.
+
 ---
 
 ## 3. The four failure modes worth designing against
@@ -270,13 +346,23 @@ fallback in `server-api.ts`. The browser never sees the API's domain, so the
 API's domain cannot affect cookie behaviour. The mobile app talks to the API
 directly but authenticates with bearer tokens, not cookies.
 
+One browser-direct caller **does** exist — the admin console (§2.3) calls the
+API cross-origin from Flutter Web. It does not change the conclusion, because
+the Flutter client authenticates with **bearer tokens and sets no cookies**
+(`api_constants.dart:20`, and nothing in `mobile/lib` touches `Cookie` or
+`withCredentials`). Cross-origin without cookies needs CORS, which a `*.run.app`
+origin serves exactly as well as a custom domain — it just has to be in staging's
+`WEB_ORIGINS`.
+
 What the hostname would still buy is rehearsing prod's ingress chain — ALB →
 serverless NEG → backend service → url-map → managed cert. That path is
 provisioned once by a committed script (`infra/gcp/70-load-balancer.sh`) and
-changes rarely, so **$18.25/month is not worth it today**. Revisit if the
-ingress path itself becomes something we modify, or if a browser-direct API call
-is ever introduced — that second condition is what would make this decision
-wrong, so it belongs in review.
+changes rarely, so **$18.25/month is not worth it today**.
+
+**The condition that would reverse this** is narrower than "a browser-direct
+call": it is a browser-direct call that relies on **cookies**, since only then
+does the API's registrable domain start to matter. Introducing one is the change
+that should send someone back to this section.
 
 ---
 
@@ -323,8 +409,12 @@ Each phase is a PR. Nothing in phase 2+ starts until §1 is merged.
    `push: main` → staging; prod stays `workflow_dispatch` + confirm. Run it
    against **staging first**, which is also the first time that workflow ever
    executes.
-7. **Vercel Preview → staging** (LAUNCH.md §5.4).
-8. **Mobile** — separate bundle ids (§4), batched with the iOS launch work.
+7. **Vercel Preview → staging** (LAUNCH.md §5.4) — one env-var change per scope,
+   after which every PR gets a full web environment on staging automatically.
+   The highest value-per-minute step in the plan; do it the day staging exists.
+8. **Admin console** — a second Cloudflare Pages project `myweli-admin-staging`,
+   and `deploy-admin.yml` parameterised the same way (§2.3).
+9. **Mobile** — separate bundle ids (§4), batched with the iOS launch work.
 
 ---
 
