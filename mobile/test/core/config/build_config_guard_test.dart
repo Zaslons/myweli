@@ -25,12 +25,15 @@ void main() {
       expect(misconfiguredBuildScreen(), isNull);
     });
 
-    test('the default build is a mock build, and that stays legal in debug', () {
-      // Restates the contract the defaults encode: no defines → mocks. The
-      // guard exists to make that illegal in RELEASE only, never here.
-      expect(AppConfig.useApiBackend, isFalse);
-      expect(AppConfig.apiBaseUrl, AppConfig.localhostApiBaseUrl);
-    });
+    test(
+      'the default build is a mock build, and that stays legal in debug',
+      () {
+        // Restates the contract the defaults encode: no defines → mocks. The
+        // guard exists to make that illegal in RELEASE only, never here.
+        expect(AppConfig.useApiBackend, isFalse);
+        expect(AppConfig.apiBaseUrl, AppConfig.localhostApiBaseUrl);
+      },
+    );
   });
 
   group('the guard compares against the real default', () {
