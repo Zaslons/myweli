@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Module** | infrastructure (`infra/gcp/`, `backend/`, `.github/workflows/`) |
-| **Status** | Phase 1 in progress — §1.1, §1.2, §1.3 **done**; the local environment (§2.2) is the last piece. |
+| **Status** | **Phase 1 complete** — §1.1, §1.2, §1.3 and the local environment (§2.2). Phase 2 (the production bugs in §7) is next; no cloud resource exists yet. |
 | **Decisions** | Staging URL = `*.run.app` (§4.1) · separate bundle ids, deferred to phase 8 (§4) |
 | **Cost** | **$13–17/month** — the $18.25 hostname is declined (§4.1) |
 | **Related** | [LAUNCH.md](../LAUNCH.md) · [infra-gcp-migration.md](infra-gcp-migration.md) · [DEPLOYMENT.md](../DEPLOYMENT.md) |
@@ -166,7 +166,9 @@ that definition exists **only inside the workflow file**.
 
 So phase 1 gains a piece: a committed `docker-compose.yml` at the repo root
 giving you Postgres 16 on one command, matching CI's image exactly, plus a
-`SETUP.md` section for `dart_frog dev`. Two reasons it belongs here rather than
+`SETUP.md` section for `dart_frog dev`. **Landed** — `docker compose up -d`,
+then `dart_frog dev`, with the Android-emulator host alias written down because
+`localhost` there is the emulator itself. Two reasons it belongs here rather than
 in "nice to have":
 
 1. Without it, "test it locally first" has no definition, so the honest path of

@@ -1,0 +1,50 @@
+# The local development database.
+#
+# **Why this file exists.** Until now the only committed definition of a Myweli
+# database was inside `.github/workflows/ci.yml` — a `services.postgres` block
+# CI could use and a developer could not. So "test it locally first" had no
+# definition, and the path of least resistance was to test against a deployed
+# environment instead. Once staging exists that is actively harmful: it turns
+# the rehearsal environment into everyone's scratchpad and makes it unavailable
+# for the job it was built for (docs/design/infra-staging.md §2.2).
+#
+# It is also the cheapest environment by a wide margin. Every bug caught here is
+# one that never occupies staging, a deploy, or your attention.
+#
+#   docker compose up -d      # start it
+#   docker compose down       # stop it, keeping the data
+#   docker compose down -v    # stop it and DROP the data (a clean slate)
+#
+# Postgres 16 — pinned to the same major as CI (`postgres:16`) and as Cloud SQL
+# (`POSTGRES_16`). A local Postgres 17 would happily accept migrations that
+# production then rejects, which is exactly the class of surprise a local
+# environment exists to prevent.
+
+services:
+  db:
+    image: postgres:16
+    container_name: myweli-db-local
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      # `myweli`, matching the database name in Cloud SQL rather than CI's
+      # `myweli_test` — same shape as production. The host is what makes it
+      # unmistakably local, and no local credential is a secret.
+      POSTGRES_DB: myweli
+    ports:
+      - '5432:5432'
+    volumes:
+      - myweli-pgdata:/var/lib/postgresql/data
+    # The backend opens a real connection during boot (`initializeDatabase`)
+    # with no retry, and dies if it cannot. Without a healthcheck, `up -d`
+    # followed immediately by `dart_frog dev` loses that race on a cold start.
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d myweli']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+volumes:
+  myweli-pgdata:
