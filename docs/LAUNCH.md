@@ -50,6 +50,8 @@ Concretely for us that means a second Cloud Run service, a second database, a
 second set of R2 buckets and a second Firebase project. It is not free, and it
 is the single highest-value thing to build before launch.
 
+**Designed in detail in [design/infra-staging.md](design/infra-staging.md)** — **$13–17/month**, and *blocked on three code changes*. The one that matters most here: `seedProvidersIfEmpty` is gated only on the `providers` table being empty, not on `ENV`, so **§5.1's box below cannot be ticked as written** — purging the demo salons and deploying re-creates them.
+
 ### 1.2 Pre-release distribution — *which build, in whose hands*
 
 This is the part that surprises people coming from web: an app in the store
