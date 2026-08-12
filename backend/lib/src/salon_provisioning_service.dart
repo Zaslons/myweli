@@ -25,6 +25,23 @@ class SalonProvisioningService {
   /// Nullable only for legacy unit tests; production wiring always passes it.
   final SalonSubscriptionService? _subscriptions;
 
+  /// Upper bound on a salon's display name — the same two call sites as
+  /// [businessTypes], and for the same reason: one source of truth.
+  ///
+  /// **It had none, and that was reachable from the outside.** `businessName`
+  /// is interpolated into every booking push sent to that salon's clients
+  /// (`BookingNotifier` → `renderTemplate` → `PushService`), and FCM rejects a
+  /// `messages:send` payload over ~4096 bytes. A salon owner could therefore
+  /// make every push to their clients fail — which, before the provider learned
+  /// to tell a payload rejection from a dead device, deleted those clients'
+  /// push tokens.
+  ///
+  /// 120 is generous for a real business name and far below anything that could
+  /// pressure a notification payload. The provider caps independently
+  /// (`FcmV1PushProvider.maxBodyChars`); this is the boundary check, that is the
+  /// belt.
+  static const int maxBusinessNameChars = 120;
+
   /// The registration/add-salon business-type enum — ONE source of truth
   /// (register.dart + SalonDirectoryService.addSalon validate against it).
   static const Set<String> businessTypes = {

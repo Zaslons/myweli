@@ -38,7 +38,15 @@ POST/DELETE /me/devices → PushService.register/      → DeviceTokenRepository
 ```
 - **`PushService`**: `register/unregister`; `sendToUser(userId, title, body,
   data)` → loads the user's tokens, calls the provider, and **prunes invalid
-  tokens** the provider reports (FCM `UNREGISTERED`). Best-effort.
+  tokens** the provider reports (FCM `UNREGISTERED`). Best-effort. The prune runs
+  **after** the error report and logs how many rows it removes — a deletion of
+  user data should be at least as loud as a failed send.
+
+  > **This document was right and the code was not** (phase 2, T62). `UNREGISTERED`
+  > is what is specified here and what the provider now requires; the shipped
+  > implementation additionally substring-matched `INVALID_ARGUMENT`, which FCM
+  > returns in `error.status` for *every* 400 — so it pruned on any payload
+  > rejection, across the whole fan-out at once.
 - **`PushProvider`**: `send({tokens, title, body, data}) → ({sent, invalidTokens})`.
   - `LogPushProvider` (dev/CI): no network, reports all sent.
   - `FcmV1PushProvider`: one `messages:send` per token (v1 is single-recipient);
@@ -84,6 +92,12 @@ CREATE INDEX device_tokens_user_idx ON device_tokens(user_id);
   tokens**; no tokens → no-op.
 - `FcmV1PushProvider` (mocked http + fake `AccessTokenSource`): builds the right
   `messages:send` URL/`Bearer`/body; parses success; maps `UNREGISTERED` → invalid.
+  **Against realistic `google.rpc.Status` envelopes, not `{}`** — the original
+  404 test asserted on an empty body, so the detector's body inspection was never
+  exercised and a prune-on-any-400 rule survived three PRs. The suite now covers
+  a token-level 400, a payload-level 400 (must prune nothing), a 403
+  `SENDER_ID_MISMATCH`, a non-JSON body, and a 404 lacking the `UNREGISTERED`
+  detail.
 - `/me/devices` routes: register (200, self-scoped) · unregister · 401 anon.
 - `BookingNotifier` also pushes to the consumer's devices on a transition.
 

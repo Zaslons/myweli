@@ -121,7 +121,13 @@ void main() {
             seen.add(req);
             final body = jsonDecode(req.body) as Map<String, dynamic>;
             final token = (body['message'] as Map)['token'];
-            return http.Response('{}', token == 'dead' ? 404 : 200);
+            // A REAL 404 envelope, not `{}`. The old assertion passed on an
+            // empty body because the code short-circuited on the status alone;
+            // pruning now requires the UNREGISTERED detail, so the test has to
+            // send what FCM actually sends.
+            return token == 'dead'
+                ? http.Response(_unregistered, 404)
+                : http.Response('{}', 200);
           }),
         );
 
@@ -184,6 +190,147 @@ void main() {
         expect((message!['data'] as Map)['route'], '/appointment/a1');
       },
     );
+  });
+
+  /// Which FCM failures mean "this device is gone" and which mean "we sent
+  /// something wrong" (docs/design/infra-staging.md §7, finding 4).
+  ///
+  /// **None of this was covered.** No test in this file had ever sent a 400, and
+  /// the 404 test asserted against a body of `{}` — so the detector's body
+  /// inspection was never exercised at all, and a rule that pruned on *every*
+  /// 400 survived three PRs.
+  group('FcmV1PushProvider — a 400 is not a dead token', () {
+    FcmV1PushProvider providerReturning(String body, int status) =>
+        FcmV1PushProvider(
+          projectId: 'proj',
+          tokenSource: _FakeTokenSource('tok'),
+          client: MockClient((_) async => http.Response(body, status)),
+        );
+
+    test('a field violation naming message.token → pruned', () async {
+      final res = await providerReturning(
+        _badToken,
+        400,
+      ).send(tokens: ['garbage'], title: 'T', body: 'B');
+      expect(res.invalidTokens, ['garbage']);
+    });
+
+    test(
+      'REGRESSION: a payload-level 400 prunes NOTHING — the tokens are fine',
+      () async {
+        // The bug, exactly. `send` posts an identical payload for every token,
+        // so an oversized body 400s on all of them; the old detector saw
+        // "INVALID_ARGUMENT" in each response and reported every token dead.
+        // `PushService` then DELETEs them. One salon with a long enough name
+        // wiped the push tokens of every client who booked there.
+        final res = await providerReturning(
+          _payloadTooBig,
+          400,
+        ).send(tokens: ['alice', 'bob', 'carol'], title: 'T', body: 'B' * 5000);
+        expect(
+          res.invalidTokens,
+          isEmpty,
+          reason: 'the payload was rejected, not the devices',
+        );
+        expect(res.error, 'push_send_failed');
+        expect(res.sent, 0);
+      },
+    );
+
+    test('403 SENDER_ID_MISMATCH → not pruned', () async {
+      // A service account from the wrong project. A configuration error, and
+      // pruning here would turn a fixable mistake into lost user data.
+      final res = await providerReturning(
+        _senderMismatch,
+        403,
+      ).send(tokens: ['alice'], title: 'T', body: 'B');
+      expect(res.invalidTokens, isEmpty);
+      expect(res.error, 'push_send_failed');
+    });
+
+    test(
+      'a non-JSON body (proxy/LB error page) → not pruned, no throw',
+      () async {
+        final res = await providerReturning(
+          '<html>502 Bad Gateway</html>',
+          400,
+        ).send(tokens: ['alice'], title: 'T', body: 'B');
+        expect(res.invalidTokens, isEmpty);
+        expect(res.error, 'push_send_failed');
+      },
+    );
+
+    test('a 404 without the UNREGISTERED detail → not pruned', () async {
+      // A 404 can also come from a wrong URL or an edge proxy. Only FCM's own
+      // UNREGISTERED is a statement about the device. Not pruning a genuinely
+      // dead token costs one wasted request; pruning a live one destroys data.
+      final res = await providerReturning(
+        '{}',
+        404,
+      ).send(tokens: ['alice'], title: 'T', body: 'B');
+      expect(res.invalidTokens, isEmpty);
+    });
+
+    test(
+      'the visible strings are capped before a send can be oversized',
+      () async {
+        // Defence in depth: the detector above is the fix, but the input that
+        // exploited it should not reach FCM either.
+        Map<String, dynamic>? notification;
+        var payloadBytes = 0;
+        final p = FcmV1PushProvider(
+          projectId: 'proj',
+          tokenSource: _FakeTokenSource('tok'),
+          client: MockClient((req) async {
+            payloadBytes = req.bodyBytes.length;
+            notification =
+                ((jsonDecode(req.body) as Map<String, dynamic>)['message']
+                        as Map<String, dynamic>)['notification']
+                    as Map<String, dynamic>;
+            return http.Response('{}', 200);
+          }),
+        );
+
+        await p.send(tokens: ['a'], title: 'T' * 500, body: 'B' * 5000);
+
+        expect(
+          (notification!['title'] as String).runes.length,
+          FcmV1PushProvider.maxTitleChars,
+        );
+        expect(
+          (notification!['body'] as String).runes.length,
+          FcmV1PushProvider.maxBodyChars,
+        );
+        expect(
+          payloadBytes,
+          lessThan(4096),
+          reason: 'the whole messages:send payload must stay under FCM’s limit',
+        );
+      },
+    );
+
+    test('a short message is passed through untouched', () async {
+      // The cap must not be visible in normal operation.
+      Map<String, dynamic>? notification;
+      final p = FcmV1PushProvider(
+        projectId: 'proj',
+        tokenSource: _FakeTokenSource('tok'),
+        client: MockClient((req) async {
+          notification =
+              ((jsonDecode(req.body) as Map<String, dynamic>)['message']
+                      as Map<String, dynamic>)['notification']
+                  as Map<String, dynamic>;
+          return http.Response('{}', 200);
+        }),
+      );
+      await p.send(
+        tokens: ['a'],
+        title: 'Réservation confirmée',
+        body: 'Beauté Divine — demain à 14:00',
+      );
+      expect(notification!['title'], 'Réservation confirmée');
+      expect(notification!['body'], 'Beauté Divine — demain à 14:00');
+    });
   });
 
   group('routes /me/devices', () {
@@ -304,3 +451,49 @@ class _FixedTokenSource implements AccessTokenSource {
   @override
   Future<String?> token() async => 'access-token';
 }
+
+/// Real FCM HTTP v1 error envelopes.
+///
+/// Every one of these is a `google.rpc.Status`, and **every 400 carries
+/// `"status": "INVALID_ARGUMENT"`** — that is the canonical gRPC code name for
+/// the HTTP status, not a statement about the token. The old detector
+/// substring-matched exactly that string, which is why it pruned on any 400.
+/// `UNREGISTERED` appears only in `details[].errorCode`, under a 404 whose
+/// `status` is `NOT_FOUND`.
+
+/// 404 — the one unambiguous dead-token signal.
+const _unregistered = '''
+{"error":{"code":404,"message":"Requested entity was not found.",
+"status":"NOT_FOUND","details":[
+{"@type":"type.googleapis.com/google.firebase.fcm.v1.FcmError",
+"errorCode":"UNREGISTERED"}]}}
+''';
+
+/// 400 — the token itself is malformed. The field violation names it.
+const _badToken = '''
+{"error":{"code":400,"message":"The registration token is not valid.",
+"status":"INVALID_ARGUMENT","details":[
+{"@type":"type.googleapis.com/google.rpc.BadRequest","fieldViolations":[
+{"field":"message.token","description":"Invalid registration token"}]},
+{"@type":"type.googleapis.com/google.firebase.fcm.v1.FcmError",
+"errorCode":"INVALID_ARGUMENT"}]}}
+''';
+
+/// 400 — OUR payload is wrong; the tokens are fine. Indistinguishable from
+/// [_badToken] to a `contains()`, and this is the one that used to wipe tables.
+const _payloadTooBig = '''
+{"error":{"code":400,"message":"Request contains an invalid argument.",
+"status":"INVALID_ARGUMENT","details":[
+{"@type":"type.googleapis.com/google.rpc.BadRequest","fieldViolations":[
+{"field":"message.notification.body","description":"Payload exceeds 4096 bytes"}]},
+{"@type":"type.googleapis.com/google.firebase.fcm.v1.FcmError",
+"errorCode":"INVALID_ARGUMENT"}]}}
+''';
+
+/// 403 — the service account belongs to another project. Config error, not a
+/// dead device.
+const _senderMismatch = '''
+{"error":{"code":403,"message":"SenderId mismatch","status":"PERMISSION_DENIED",
+"details":[{"@type":"type.googleapis.com/google.firebase.fcm.v1.FcmError",
+"errorCode":"SENDER_ID_MISMATCH"}]}}
+''';
