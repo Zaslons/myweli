@@ -36,6 +36,7 @@ import 'package:myweli_backend/src/messaging/reminder_scheduler.dart';
 import 'package:myweli_backend/src/messaging/salon_notifier.dart';
 import 'package:myweli_backend/src/notifications/notification_prefs_repository.dart';
 import 'package:myweli_backend/src/notifications/notifications_repository.dart';
+import 'package:myweli_backend/src/observability/request_middleware.dart';
 import 'package:myweli_backend/src/privacy/user_erasure_service.dart';
 import 'package:myweli_backend/src/provider_account_service.dart';
 import 'package:myweli_backend/src/provider_catalog_service.dart';
@@ -112,6 +113,13 @@ Handler middleware(Handler handler) {
       .use(provider<TokenService>((_) => tokenService))
       .use(provider<ProvidersRepository>((_) => providersRepository))
       .use(provider<LocalitiesService>((_) => localitiesService))
-      // Outermost: browser CORS for the Next.js web app(s).
-      .use(corsMiddleware(webOrigins));
+      // Browser CORS for the Next.js web app(s).
+      .use(corsMiddleware(webOrigins))
+      // **Outermost** (the LAST `.use` wraps everything above it): request id,
+      // error→envelope, structured log, report.
+      //
+      // Outside CORS on purpose — a 500 that lacks the CORS headers reaches the
+      // browser as an opaque network failure, which is how a server error gets
+      // misdiagnosed as a client one.
+      .use(observabilityMiddleware(() => errorReporter));
 }

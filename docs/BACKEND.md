@@ -48,7 +48,12 @@ Rules:
   403 authenticated-but-forbidden; 404 missing; 409 conflict; 422 semantic;
   429 rate-limited; 5xx only for genuine server faults.
 - **Never leak internals** — no stack traces, SQL, or framework errors in a
-  response body. Catch at the edge, log with a request-id, return a generic 500.
+  response body. `observabilityMiddleware` (`lib/src/observability/`) is that
+  edge: it catches anything a handler throws, returns `{"error":"internal_error"}`,
+  logs it structurally with the request id, and reports it. It sits **outermost**
+  in `routes/_middleware.dart`, outside CORS — a 500 without CORS headers reaches
+  the browser as an opaque network failure, which is how a server error gets
+  misdiagnosed as a client one.
 - **Method gating** — handlers reject unsupported verbs with 405.
 - **Pagination** — list endpoints return `{ items, page, pageSize, total }`;
   `pageSize` is clamped server-side (default 20, max 50).
@@ -131,8 +136,19 @@ and redeploying re-created them.
 
 ### 3.6 Transport & logging
 - **TLS** in every non-local environment.
-- **Structured logs** with a request-id; **never log** OTPs, tokens, refresh
-  hashes, `Authorization` headers, or PII. Redact by default.
+- **Structured logs** with a request-id — taken from the caller's
+  `X-Request-Id` when present (the load balancer sets one; minting a second
+  makes one request look like two across the two logs), else generated. Echoed
+  on every response, success and failure.
+- **Never log** OTPs, tokens, refresh hashes, `Authorization` headers, or PII.
+  Redact by default. The unhandled-error log deliberately records the error's
+  *type* and not its `toString()`: a thrown Postgres exception can carry row
+  values.
+- **Error reporting** goes through the `ErrorReporter` interface, with a no-op
+  when `SENTRY_DSN` is unset. Everything sent is scrubbed first — request body,
+  headers, cookies, query string, user and breadcrumbs — by an allowlist, so it
+  stays correct as the SDK adds fields. Design:
+  [design/observability-error-reporting.md](design/observability-error-reporting.md).
 - Security headers on responses where applicable; CORS locked to known origins
   (the web app) in prod.
 
