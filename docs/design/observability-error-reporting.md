@@ -212,16 +212,64 @@ failure as the deploy workflow's verify step that could never have passed.
 
 Each PR ships with its error deliberately triggered and the result recorded.
 
-## 8. Alerting — named, not deferred silently
+## 8. Alerting
 
-Reporting without alerting is a dashboard nobody opens. Sentry alert rules are
-part of PR 3, once all three surfaces report:
+Reporting without alerting is a dashboard nobody opens. But an alert nobody can
+act on is worse, so the rules are staged against what the signal is actually
+worth at each point.
 
-- a **new** issue in production → notify
-- an issue's rate spiking → notify
-- **crash-free rate below threshold** → the gate §1.4's staged rollout depends on
+### 8.1 Now — one rule per project, and an environment filter
 
-The delivery channel is an open question (§9).
+**Rule:** *a new issue is created* → notify.
+
+Sentry creates something close to this by default when a project is made, so
+check before adding a second one; two rules firing on the same condition is how
+alerting starts being ignored.
+
+**Every rule filters `environment` = `prod`.** Without it:
+- the `local-verification` event from `tool/verify_sentry.dart` would have paged
+  someone,
+- and **staging will page constantly** the moment it exists — it is the
+  environment where things are *supposed* to break, which is the fastest way to
+  train yourself to dismiss the notification that matters.
+
+At today's volume — pre-launch, no users — *new issue* is high signal: any error
+is notable, and there are few enough that reading all of them is realistic.
+
+### 8.2 Not yet — rate and spike thresholds
+
+Meaningless without a baseline. "More than N errors in M minutes" needs a normal
+N, and normal is currently zero.
+
+Revisit once there is real traffic. The concrete case for them already exists:
+the null-byte 500 (BACKEND.md §3.4) would have fired one alert **per scanned
+request** before it was fixed. That is the shape of alert fatigue — not a flood
+of different problems, one problem arriving repeatedly.
+
+### 8.3 When mobile ships — the crash-free-rate alert
+
+This is the one that matters most, because **[LAUNCH.md](../LAUNCH.md) §1.4's
+staged rollout is watched on it**. Without this alert, "halt the rollout if the
+crash rate spikes" is a manual habit rather than a mechanism.
+
+- **Metric alert** on `myweli-app`, on the **crash-free sessions rate**
+- **Threshold:** below **99%** over a 1-hour window during a rollout
+- Cannot be created yet: it needs sessions, and sessions need a real build
+  carrying `--dart-define=SENTRY_DSN` (see
+  [mobile-store-submission.md](mobile-store-submission.md) §5)
+
+The backend and web projects will never populate crash-free *sessions* — a
+server has no sessions, and the web SDK is configured for errors only. Their
+"Start Setup" prompts for that metric should be left alone rather than clicked.
+
+### 8.4 Where alerts go
+
+Email, plus **the Sentry mobile app**, which sends push notifications.
+
+Chosen because it reaches a phone without building anything: MyWeli's team works
+in WhatsApp, and Sentry has no native WhatsApp integration — bridging it means a
+webhook and something to host, which is a service to maintain in order to be told
+that a service is broken. Revisit if email proves ignorable in practice.
 
 ## 9. What is NOT wired yet — the account-side step
 
