@@ -21,10 +21,31 @@ class AppLogger {
 
   static void warning(String message) => _log(LogLevel.warning, message);
 
+  /// Where errors go beyond the console — set once at startup by
+  /// `core/observability/error_reporting.dart`, null everywhere else.
+  ///
+  /// **A hook rather than an import, so this file still knows nothing about
+  /// Sentry.** That was the promise in the class doc above ("a crash reporter
+  /// can be plugged in later without touching call sites") and it is worth
+  /// keeping: `AppLogger` is imported by roughly every layer, and a reporter
+  /// dependency here would put a network SDK in the import graph of every unit
+  /// test.
+  ///
+  /// Null in tests, so the suite neither reports nor needs a DSN.
+  static void Function(String message, {Object? error, StackTrace? stackTrace})?
+  onError;
+
   static void error(String message, {Object? error, StackTrace? stackTrace}) {
     _log(LogLevel.error, message, error: error, stackTrace: stackTrace);
-    // TODO(observability): forward errors to Sentry/Crashlytics once a DSN /
-    // Firebase project is configured. Keep this the single integration point.
+    // The single integration point, as the class doc promised. `main.dart`
+    // already funnels `FlutterError.onError` and every uncaught async error
+    // through `runZonedGuarded` into here, so wiring this one call site covers
+    // the framework, the zone, and every explicit `AppLogger.error` in the app.
+    //
+    // Failures are swallowed: reporting must never become the crash.
+    try {
+      onError?.call(message, error: error, stackTrace: stackTrace);
+    } catch (_) {}
   }
 
   static void _log(

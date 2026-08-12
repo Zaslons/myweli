@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Module** | cross-cutting (`backend/`, `web/`, `mobile/`) |
-| **Status** | Backend **done** (#359) · web **done** · mobile next. All inert until a DSN exists — §9. |
+| **Status** | **All three surfaces done** (#359, #360, mobile). Every one is inert until a DSN exists — §9, which is now the only remaining step. |
 | **Closes** | [LAUNCH.md](../LAUNCH.md) §5.2 — *"we would not know if it broke"* |
 | **Related** | [BACKEND.md](../BACKEND.md) §2, §3.6 · [WEB.md](../WEB.md) · [infra-staging.md](infra-staging.md) §1.1 |
 
@@ -167,17 +167,41 @@ Scrubbing is `lib/sentry-scrub.ts`, cookies above all — the session is httpOnl
 precisely so JavaScript cannot read it, and forwarding it to an error tracker
 would hand over the credential that design protects.
 
-## 6. PR 3 — mobile
+## 6. PR 3 — mobile — **done**
 
-The smallest change, because the seam was built for it: `AppLogger.error`
-becomes the single integration point, and `main.dart`'s existing
-`runZonedGuarded` + `FlutterError.onError` already route everything through it.
+The smallest change, because the seam was built for it. `logger.dart` carried a
+literal `TODO(observability)` saying to forward errors "once a DSN is
+configured" and to "keep this the single integration point" — so that is exactly
+what happened.
 
-- `release` = the app version + build number, so crash-free rate maps to a
-  TestFlight/Play build
-- `environment` from the same dart-define that picks the API base
-- Breadcrumbs must not carry PII — the booking flow handles phone numbers and
-  names throughout
+`AppLogger` gains a **hook, not an import**, so the file still knows nothing
+about Sentry. That matters beyond tidiness: `AppLogger` is imported by roughly
+every layer, and a reporter dependency there would put a network SDK in the
+import graph of every unit test. The hook is null in tests, so the suite neither
+reports nor needs a DSN.
+
+Wiring one call site covers everything, because `main.dart` already funnels
+`FlutterError.onError` and every uncaught async error through `runZonedGuarded`
+into `AppLogger.error`.
+
+- **`release` is deliberately not set.** SentryFlutter reads it from the platform
+  package info and produces `package@version+build` — the shape wanted, and the
+  number §1.4's staged rollout is watched on. Setting it by hand would mean a
+  `package_info_plus` dependency to reproduce what the SDK already does.
+- **Screenshots and view hierarchy are explicitly off.** A screenshot of a
+  booking form is a picture of someone's name and phone number, and a default
+  can change.
+- **Breadcrumbs are dropped entirely.** The booking flow's navigation and taps
+  carry salon names, client names and phone numbers, and no filter over
+  free-form strings stays safe as screens are added.
+- **`sentry_flutter` was pinned to 9.x** to match the backend's major version.
+  8.x resolved first and makes `SentryEvent`'s fields final, which leaves no way
+  to null them in `beforeSend` — the scrubbing would have had to be rebuilt
+  around `copyWith`, which cannot set a field to null anyway.
+
+Size: the release APK is **22.7 MB** against the 30 MB budget, so the native
+SDKs cost little — measured rather than assumed, since that gate is the one this
+change was most likely to break.
 
 ## 7. Proving it
 
