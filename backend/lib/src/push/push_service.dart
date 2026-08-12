@@ -42,9 +42,6 @@ class PushService {
         body: body,
         data: data,
       );
-      for (final dead in res.invalidTokens) {
-        await _tokens.remove(dead);
-      }
       if (res.error != null) {
         // The caller only gets a count, and 0 is indistinguishable from "no
         // devices". This is the line that turns a silent outage into something
@@ -54,6 +51,21 @@ class PushService {
           'WARNING: push to user failed (${res.error}) — '
           '${tokens.length} token(s), 0 delivered',
         );
+      }
+      // **Pruning happens after the error report, and says so.** It deletes
+      // rows, and it used to do that first and in silence — so when a
+      // misclassified payload rejection emptied the table, the only trace was a
+      // count that looked like "this user has no devices". A deletion of user
+      // data should be at least as loud as a failed send.
+      if (res.invalidTokens.isNotEmpty) {
+        // ignore: avoid_print
+        print(
+          'INFO: push_tokens_pruned — removing ${res.invalidTokens.length} of '
+          '${tokens.length} token(s) FCM reported as unregistered',
+        );
+        for (final dead in res.invalidTokens) {
+          await _tokens.remove(dead);
+        }
       }
       return res.sent;
     } catch (_) {

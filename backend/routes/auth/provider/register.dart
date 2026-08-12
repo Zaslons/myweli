@@ -33,6 +33,8 @@ Future<Response> onRequest(RequestContext context) async {
   final rawAddress = (body['address'] as String?)?.trim();
   if (!isValidE164(phone) ||
       businessName.isEmpty ||
+      businessName.runes.length >
+          SalonProvisioningService.maxBusinessNameChars ||
       !SalonProvisioningService.businessTypes.contains(businessType)) {
     return jsonError(HttpStatus.badRequest, 'invalid_input');
   }

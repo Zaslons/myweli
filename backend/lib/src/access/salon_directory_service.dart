@@ -104,6 +104,7 @@ class SalonDirectoryService {
     final name = businessName is String ? businessName.trim() : '';
     final type = businessType is String ? businessType : '';
     if (name.isEmpty ||
+        name.runes.length > SalonProvisioningService.maxBusinessNameChars ||
         !SalonProvisioningService.businessTypes.contains(type)) {
       return (ok: false, error: 'invalid_input', data: null);
     }

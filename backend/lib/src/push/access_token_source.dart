@@ -50,7 +50,22 @@ class ServiceAccountTokenSource implements AccessTokenSource {
           'assertion': assertion,
         },
       );
-      if (res.statusCode != 200) return null;
+      if (res.statusCode != 200) {
+        // **Say why.** This used to discard the body, so `push_auth_failed`
+        // could report that the mint failed and never which of the four usual
+        // causes it was — a wrong key, clock skew, a revoked service account,
+        // or the API not enabled. Google answers with
+        // `{"error":"...","error_description":"..."}`, which is short, free of
+        // secrets, and the first thing anyone debugging this needs.
+        //
+        // The assertion itself is never logged: it is a signed bearer credential.
+        // ignore: avoid_print — boot/auth diagnostics go to the container log.
+        print(
+          'ERROR: push_token_mint_failed — Google returned ${res.statusCode}: '
+          '${_describeOauthError(res.body)}',
+        );
+        return null;
+      }
       final json = jsonDecode(res.body) as Map<String, dynamic>;
       final token = json['access_token'] as String?;
       final expiresIn = (json['expires_in'] as num?)?.toInt() ?? 3600;
@@ -61,5 +76,26 @@ class ServiceAccountTokenSource implements AccessTokenSource {
     } catch (_) {
       return null;
     }
+  }
+
+  /// Google's OAuth error, or a bounded slice of whatever arrived instead.
+  ///
+  /// Never returns the raw body unbounded — a proxy can answer with an HTML
+  /// page, and an unbounded print into the container log is its own problem.
+  static String _describeOauthError(String body) {
+    try {
+      final json = jsonDecode(body);
+      if (json is Map) {
+        final err = json['error'];
+        final desc = json['error_description'];
+        if (err is String) {
+          return desc is String ? '$err — $desc' : err;
+        }
+      }
+    } catch (_) {
+      // not JSON — fall through
+    }
+    final flat = body.replaceAll(RegExp(r'\s+'), ' ').trim();
+    return flat.length > 200 ? '${flat.substring(0, 200)}…' : flat;
   }
 }

@@ -261,20 +261,31 @@ in §4 — and it is tolerable only because mobile launches last.
 
 ## 3. The four failure modes worth designing against
 
-### 3.1 One plain env var can permanently delete every production push token
+### 3.1 One plain env var is a hazard — but not the one first written here
 
 `FCM_PROJECT_ID` is a **plain value** — one of only seven, surrounded by
 seventeen `secretKeyRef`s. It is precisely the field a human edits to make
-`service-staging.yaml`, and precisely the field a copy-paste reverses.
+`service-staging.yaml`, and precisely the field a copy-paste reverses. Pointing
+production at the staging Firebase project silently stops every push, so a CI
+assertion pinning it per service file is still worth having.
 
-Point prod at the staging Firebase project and every send fails —
-and `fcm_v1_push_provider.dart:114-119` treats a body-wide
-`contains('INVALID_ARGUMENT')` as a dead token, so it **prunes them**. Not a
-degraded push service: an empty token table, unrecoverable without every user
-reopening the app.
-
-**Guards:** a CI assertion pinning `FCM_PROJECT_ID` per service file, and narrow
-the invalid-token rule to parse the FCM error and prune only on `UNREGISTERED`.
+> **Correction (phase 2).** This section originally claimed that misdirection
+> would then **delete every push token**. It would not: a wrong project answers
+> **403** `PERMISSION_DENIED` / `SENDER_ID_MISMATCH`, which the provider already
+> counted as a failed send. That path was never the bug.
+>
+> The real defect was worse and had nothing to do with staging.
+> `_isInvalidToken` substring-matched `INVALID_ARGUMENT`, and FCM v1's envelope
+> carries that string in `error.status` for **every** 400 — so it was
+> functionally `if (statusCode == 400) return true`. Since `send` posts an
+> identical payload per token, any payload-level 400 pruned **all** of them. And
+> it was reachable by an ordinary salon owner: `businessName` had no length
+> bound and is interpolated into every booking push, so a long enough name
+> oversized the payload and deleted that salon's clients' tokens.
+>
+> Fixed in phase 2 PR A — the envelope is parsed, pruning requires 404 +
+> `UNREGISTERED` or a `message.token` field violation, and the name and payload
+> are both bounded. Recorded as **T62** in BACKEND.md §7.
 
 ### 3.2 An empty staging database certifies every migration as instant
 

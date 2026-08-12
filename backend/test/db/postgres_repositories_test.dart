@@ -11,6 +11,7 @@ import 'package:myweli_backend/src/db/migrations.dart';
 import 'package:myweli_backend/src/db/postgres_appointment_repository.dart';
 import 'package:myweli_backend/src/db/postgres_auth_repository.dart';
 import 'package:myweli_backend/src/db/postgres_clients_repository.dart';
+import 'package:myweli_backend/src/db/postgres_device_token_repository.dart';
 import 'package:myweli_backend/src/db/postgres_favorites_repository.dart';
 import 'package:myweli_backend/src/db/postgres_provider_audit_repository.dart';
 import 'package:myweli_backend/src/db/postgres_provider_auth_repository.dart';
@@ -1026,5 +1027,60 @@ void main() {
         expect(await r.recentForProvider('provider1', 1), hasLength(1));
       },
     );
+  });
+
+  /// The statement that actually deletes production rows.
+  ///
+  /// `PostgresDeviceTokenRepository` had **no** coverage here at all, which is
+  /// how an unscoped `DELETE` driven by a misclassified FCM error went
+  /// unnoticed. `remove` is deliberately not user-scoped — the provider reports
+  /// a dead token, not a user — so the test pins that, and pins that the
+  /// user-scoped variant refuses to cross accounts.
+  group('PostgresDeviceTokenRepository (module push)', () {
+    test(
+      'remove deletes exactly one token; removeForUser is owner-scoped',
+      () async {
+        final r = PostgresDeviceTokenRepository(pool);
+        await r.upsert(
+          token: 'tok-a',
+          userId: 'dtu1',
+          role: 'user',
+          platform: 'android',
+        );
+        await r.upsert(
+          token: 'tok-b',
+          userId: 'dtu1',
+          role: 'user',
+          platform: 'ios',
+        );
+        await r.upsert(
+          token: 'tok-c',
+          userId: 'dtu2',
+          role: 'user',
+          platform: 'android',
+        );
+
+        // Unscoped: takes the one token and nothing adjacent.
+        await r.remove('tok-a');
+        expect(await r.tokensForUser('dtu1'), ['tok-b']);
+        expect(await r.tokensForUser('dtu2'), ['tok-c']);
+
+        // Scoped: dtu1 must not be able to remove dtu2's token.
+        await r.removeForUser('dtu1', 'tok-c');
+        expect(await r.tokensForUser('dtu2'), [
+          'tok-c',
+        ], reason: 'removeForUser is owner-scoped');
+
+        await r.removeForUser('dtu2', 'tok-c');
+        expect(await r.tokensForUser('dtu2'), isEmpty);
+      },
+    );
+
+    test('removing a token that is already gone is a no-op', () async {
+      // The prune loop can race two fan-outs to the same user.
+      final r = PostgresDeviceTokenRepository(pool);
+      await r.remove('never-existed');
+      expect(await r.tokensForUser('dtu1'), isNot(contains('never-existed')));
+    });
   });
 }
