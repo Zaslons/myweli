@@ -16,6 +16,7 @@
     "gen:tokens": "node scripts/gen-tokens.mjs"
   },
   "dependencies": {
+    "@sentry/nextjs": "^10.70.0",
     "@vis.gl/react-maplibre": "^8.1.1",
     "maplibre-gl": "^5.24.0",
     "next": "^14.2.5",

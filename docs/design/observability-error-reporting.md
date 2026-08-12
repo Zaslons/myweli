@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Module** | cross-cutting (`backend/`, `web/`, `mobile/`) |
-| **Status** | Design. Three PRs, in launch order: backend → web → mobile. |
+| **Status** | Backend **done** (#359) · web **done** · mobile next. All inert until a DSN exists — §9. |
 | **Closes** | [LAUNCH.md](../LAUNCH.md) §5.2 — *"we would not know if it broke"* |
 | **Related** | [BACKEND.md](../BACKEND.md) §2, §3.6 · [WEB.md](../WEB.md) · [infra-staging.md](infra-staging.md) §1.1 |
 
@@ -137,18 +137,35 @@ worse than both.
 - `tracesSampleRate` = 0 initially. Performance monitoring is a separate
   decision with its own cost; this slice is errors only.
 
-## 5. PR 2 — web
+## 5. PR 2 — web — **done**
 
-- `app/error.tsx` and `app/global-error.tsx` — neither exists, so a render error
-  today shows Next.js's default page and reports nothing
-- `@sentry/nextjs` for client, server and edge runtimes
-- The BFF route handlers report with the request context, which is where a
-  failing API call actually surfaces
-- **Cookies scrubbed** — the session is httpOnly precisely so it never leaves the
-  server
+`app/error.tsx` (route segments) and `app/global-error.tsx` (the root layout
+itself, which `error.tsx` cannot catch — it renders *inside* it). Neither
+existed: a thrown error showed Next's default page, English, no way out, nothing
+reported.
 
-Copy must be French and follow the design system's four-states contract; an
-error boundary is a user-facing surface, not a developer one.
+`error.tsx` **reuses `ErrorState`** rather than restating the shape — §12/B6 had
+already settled that an error state is "a human French message + a RETRY
+control", and Next's `reset` *is* that retry, so the two contracts meet exactly.
+`global-error.tsx` cannot reuse it: replacing the root layout means rendering its
+own `<html>`/`<body>`, and the thing that failed is the thing `ErrorState`'s
+surroundings come from.
+
+**The wiring was the hard part, and the first version of it was dead.** Adding
+the SDK and three `sentry.*.config.ts` files produced a green build in which
+`Sentry.init` never ran — the config files are inert without `withSentryConfig`,
+and Next 14 does not load `instrumentation.ts` without
+`experimental.instrumentationHook`. Caught by grepping the built output for
+`sentry` and finding nothing; the fixed build shows `instrumentation.js`
+server-side and Sentry in the client chunks.
+
+That is the same failure as the backend's captured reporter and the deploy
+workflow's unreachable verify URL: **a check that cannot work, in a system that
+looks fine.**
+
+Scrubbing is `lib/sentry-scrub.ts`, cookies above all — the session is httpOnly
+precisely so JavaScript cannot read it, and forwarding it to an error tracker
+would hand over the credential that design protects.
 
 ## 6. PR 3 — mobile
 
