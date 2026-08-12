@@ -31,6 +31,7 @@ import 'boot_config.dart';
 import 'clients/clients_repository.dart';
 import 'clients/clients_service.dart';
 import 'clients/provider_audit_log.dart';
+import 'cron_auth.dart';
 import 'db/database.dart';
 import 'db/migrations.dart';
 import 'db/postgres_admin_auth_repository.dart';
@@ -783,6 +784,26 @@ final ReminderScheduler reminderScheduler = ReminderScheduler(
 /// set; unset → the route is unavailable). Design:
 /// docs/design/messaging-notifications.md §PR-B.
 final String? cronSecret = _envOrNull('CRON_SECRET');
+
+/// Authenticates `/internal/cron/*` — the Google-signed OIDC token Cloud
+/// Scheduler already sends, with `CRON_SECRET` as the transitional fallback.
+/// See `cron_auth.dart` for why both exist at once.
+///
+/// `CRON_OIDC_AUDIENCE` must equal the `audience` on the Scheduler job
+/// (`https://api.myweli.com`), and `CRON_SERVICE_ACCOUNT` the job's
+/// `serviceAccountEmail` — without the second, the audience is just a public
+/// string any Google account can mint a token for.
+final CronAuth cronAuth = () {
+  final audience = _envOrNull('CRON_OIDC_AUDIENCE');
+  final serviceAccount = _envOrNull('CRON_SERVICE_ACCOUNT');
+  return CronAuth(
+    oidcVerifier: (audience == null || serviceAccount == null)
+        ? null
+        : GoogleIdTokenVerifier(clientIds: [audience]),
+    schedulerServiceAccount: serviceAccount,
+    sharedSecret: cronSecret,
+  );
+}();
 
 /// Server-startup hook (called from the custom entrypoint `main.dart`): applies
 /// migrations and seeds providers when a database is configured. No-op for
