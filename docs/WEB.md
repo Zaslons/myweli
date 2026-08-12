@@ -111,6 +111,26 @@ web/
   `lib/bff-pro.ts`) refreshing via `/auth/provider/refresh` — consumer and provider
   sessions never collide. `/pro/*` is `noindex`; consumer chrome is hidden there.
 
+## 4.1 Error boundaries & reporting
+
+- **`app/error.tsx`** catches any unhandled render or data error in a route
+  segment; **`app/global-error.tsx`** catches a failure in the root layout
+  itself, which `error.tsx` cannot — it renders *inside* that layout. Neither
+  existed before: a thrown error showed Next's default page, in English, with no
+  way out and nothing reported.
+- `error.tsx` **reuses `ErrorState`** rather than restating the shape. §12/B6
+  already settled that an error state is "a human French message + a RETRY
+  control", and Next's `reset` *is* that retry. It passes `title`, because §4
+  requires one h1 per page in **every** state.
+- **The raw exception is never rendered.** It goes to Sentry and the server log;
+  the user sees our sentence.
+- **Reporting is inert without a DSN** (`NEXT_PUBLIC_SENTRY_DSN`), and
+  `withSentryConfig` + `instrumentation.ts` are what make it live at all — the
+  SDK config files alone are dead weight, and a build stays green while nothing
+  is reported. Everything sent is scrubbed by `lib/sentry-scrub.ts`, **cookies
+  above all**: the session is httpOnly precisely so JavaScript cannot read it.
+  Design: [design/observability-error-reporting.md](design/observability-error-reporting.md).
+
 ## 5. Security (first-order)
 - **CORS** on the API locked to the known web origin(s); credentials mode for the
   cookie. **No secrets in the bundle** (only `NEXT_PUBLIC_*` is public; everything
