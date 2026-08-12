@@ -105,9 +105,23 @@ nothing here should be handed credentials.
    has to allow it or the signed build fails).
 4. **App Store Connect** — create both app records; the bundle ids must match
    `com.myweli.app` / `com.myweli.pro` exactly.
-5. **Archive and upload** — `flutter build ipa --flavor consumer --release`
-   (without `--no-codesign`) once signing exists, then Xcode Organizer or
-   `xcrun altool`.
+5. **Archive and upload** — once signing exists, and **with the observability
+   defines**, or the build reports nothing:
+
+   ```sh
+   flutter build ipa --flavor consumer --release \
+     --dart-define=USE_API_BACKEND=true \
+     --dart-define=API_BASE_URL=https://api.myweli.com \
+     --dart-define=SENTRY_DSN=<the myweli-app DSN> \
+     --dart-define=SENTRY_ENV=production
+   ```
+
+   Then Xcode Organizer or `xcrun altool`. The first two defines are not
+   optional — a release build without them refuses to start
+   (`build_config_guard.dart`). `SENTRY_DSN` is optional in the sense that the
+   build runs without it; it just runs blind, which for a **staged rollout is
+   the same as not being able to do one** (LAUNCH.md §1.4 is watched on the
+   crash-free rate).
 6. **The privacy questionnaire** — §4's table.
 7. **Sign in with Apple** — already working (2026-08-07). Rule **4.8** requires
    it wherever another third-party provider ships, which is why

@@ -95,6 +95,16 @@ spec:
             - name: MESSAGING_WEBHOOK_SECRET
               valueFrom:
                 secretKeyRef: { name: MESSAGING_WEBHOOK_SECRET, key: latest }
+            # Error reporting. In Secret Manager rather than as a plain value
+            # BECAUSE THIS REPOSITORY IS PUBLIC — a DSN here would be published
+            # on GitHub. It only authorises *writing* events, so the exposure is
+            # junk data rather than data loss, but there is no reason to hand it
+            # out. Absent → the backend runs with NoopErrorReporter and boots
+            # normally; it is deliberately not a fail-fast.
+            # Design: docs/design/observability-error-reporting.md §4.3.
+            - name: SENTRY_DSN
+              valueFrom:
+                secretKeyRef: { name: SENTRY_DSN, key: latest }
             # -- OWNER-SUPPLIED ----------------------------------------------
             # Every one of these is a LAZY guard: absent, the service still
             # boots green and 500s on the first request that touches it
@@ -141,6 +151,13 @@ spec:
             # FCM — only the private key is secret. The other two are public
             # identifiers read from the project, so they are plain config
             # rather than three Secret Manager round-trips.
+            # The exact artifact this revision runs, which is what makes
+            # Sentry's release health mean anything — errors group by the build
+            # that produced them rather than by "the backend". Substituted by
+            # deploy-backend.yml alongside the container image, so the two can
+            # never disagree.
+            - name: RELEASE
+              value: __IMAGE__
             - name: FCM_PROJECT_ID
               value: myweli
             - name: FCM_CLIENT_EMAIL

@@ -4,6 +4,15 @@ import { withSentryConfig } from '@sentry/nextjs';
 const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  env: {
+    // Vercel sets VERCEL_GIT_COMMIT_SHA on every build; exposing it as
+    // NEXT_PUBLIC_RELEASE is what makes Sentry's release health work without
+    // anyone having to set a variable per deploy — which nobody would do
+    // reliably, so "release" would end up undefined and every error would group
+    // under "no release". Empty string locally, which the SDK treats as unset.
+    NEXT_PUBLIC_RELEASE:
+      process.env.NEXT_PUBLIC_RELEASE ?? process.env.VERCEL_GIT_COMMIT_SHA ?? '',
+  },
   experimental: {
     // Required on Next 14 for `instrumentation.ts` to run at all (stable in 15).
     // Without it the Sentry server/edge init is a file nobody imports.
