@@ -10,21 +10,47 @@ name: Deploy admin console
 #   CLOUDFLARE_API_TOKEN  — a token with the "Cloudflare Pages: Edit" permission
 #   CLOUDFLARE_ACCOUNT_ID — your Cloudflare account ID
 #
-# Runs on mobile changes to main + manual dispatch. (Switch to workflow_dispatch
-# only if you want to save CI minutes once the repo is private.)
+# **Manual trigger only, deliberately** — matching deploy-backend.yml, so that
+# "deploys to production" has one shape in this repo.
+#
+# It used to fire on every push to main touching `mobile/**`, and had done so 89
+# times, every one a production deploy. That was tolerable while the console was
+# the only thing built from `mobile/`, and stops being tolerable the moment
+# staging exists: `API_BASE_URL` below is hardcoded to production, so merging a
+# staging-targeted mobile change would still ship a console wired to the real
+# API. The deploy is not the risk — the console is internal and behind
+# Cloudflare Access — the *silence* is.
+#
+# Removing the trigger removed the only thing that compiled `main_admin.dart`,
+# so `ci.yml` now builds it on every PR (without deploying). Does-it-compile and
+# ship-it are separate questions, and only the second needs a human.
+#
+# Pointing this at a staging Pages project is phase 8 of
+# docs/design/infra-staging.md, when `myweli-admin-staging` exists.
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'mobile/**'
-      - '.github/workflows/deploy-admin.yml'
   workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "deploy" to confirm'
+        required: true
+        default: ''
+
+# Never let two deploys race to publish the same project.
+concurrency:
+  group: deploy-admin
+  cancel-in-progress: false
 
 jobs:
   deploy-admin:
     runs-on: ubuntu-latest
     steps:
+      - name: Guard — the dispatch must be confirmed
+        if: github.event.inputs.confirm != 'deploy'
+        run: |
+          echo "::error::Type 'deploy' in the confirm input to run this."
+          exit 1
+
       - uses: actions/checkout@v7
 
       - uses: subosito/flutter-action@v2
