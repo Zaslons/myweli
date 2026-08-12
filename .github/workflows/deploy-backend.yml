@@ -29,6 +29,12 @@ env:
   REGION: europe-west9
   SERVICE: myweli-api
   REGISTRY: europe-west9-docker.pkg.dev
+  # The load balancer in front of the service — the ONLY public entrance, since
+  # `service.yaml` sets `ingress: internal-and-cloud-load-balancing`. Declared
+  # here rather than derived, because the hostname belongs to the LB
+  # (`infra/gcp/70-load-balancer.sh`) and is not discoverable from the Cloud Run
+  # service.
+  PUBLIC_URL: https://api.myweli.com
 
 # Never let two deploys race to replace the same service.
 concurrency:
@@ -93,13 +99,41 @@ jobs:
       - name: Verify the revision actually serves
         run: |
           set -euo pipefail
-          URL=$(gcloud run services describe "${SERVICE}" --region "${REGION}" \
-                  --format='value(status.url)')
-          echo "Service URL: ${URL}"
+
+          # **Assert the image we just built is the one serving.** `replace`
+          # exiting 0 means the API accepted the manifest, not that traffic
+          # moved — and every check below would pass just as happily against
+          # the OLD revision.
+          SERVING=$(gcloud run services describe "${SERVICE}" --region "${REGION}" \
+                      --format='value(spec.template.spec.containers[0].image)')
+          if [ "${SERVING}" != "${{ steps.build.outputs.image }}" ]; then
+            echo "::error::the serving image is ${SERVING}, not ${{ steps.build.outputs.image }}"
+            exit 1
+          fi
+          echo "  ✓ serving ${SERVING}"
+
+          # **Through the public hostname, NOT `status.url`.**
+          #
+          # This step used to curl the service's own *.run.app address, and that
+          # could never have worked: `service.yaml` sets
+          # `ingress: internal-and-cloud-load-balancing`, so the run.app URL
+          # 404s by design and the only public entrance is the load balancer.
+          # The check went unnoticed because this workflow had never run — its
+          # first execution, on 2026-08-12, failed here while the deploy itself
+          # was fine (docs/design/infra-prod-hardening.md §6).
+          #
+          # Curling the real hostname is also the better test: it exercises the
+          # chain a user's request actually takes — ALB → serverless NEG →
+          # backend service → url-map → this revision.
+          echo "Public URL: ${PUBLIC_URL}"
+          curl -fsS --retry 5 --retry-delay 5 --retry-all-errors "${PUBLIC_URL}/health" >/dev/null
+          echo "  ✓ /health"
           # /health alone proves nothing — it never touches the database, and it
           # reported ok throughout the Render outage. A DB-backed route is the
           # real check, so both are asserted.
-          curl -fsS --retry 5 --retry-delay 5 --retry-all-errors "${URL}/health" >/dev/null
-          echo "  ✓ /health"
-          curl -fsS --retry 3 --retry-delay 5 --retry-all-errors "${URL}/providers" >/dev/null
+          #
+          # This asserts REACHABILITY, not content: since the demo salons were
+          # purged, a healthy production returns `{"items":[],"total":0}` with a
+          # 200. An empty list here is correct, not a failure.
+          curl -fsS --retry 3 --retry-delay 5 --retry-all-errors "${PUBLIC_URL}/providers" >/dev/null
           echo "  ✓ /providers (database reachable)"
