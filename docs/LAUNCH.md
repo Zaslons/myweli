@@ -12,8 +12,10 @@ We have been shipping quickly and well, but every gate we have answers the same
 question: *does the code do what the code says?* Launch introduces three
 questions none of our gates can answer:
 
-1. **Is the data real?** Production is currently serving **seeded demo salons**
-   (§5.1). Nothing fails; the app looks fine; the marketplace is fictional.
+1. ~~**Is the data real?**~~ **Closed 2026-08-12.** Production served four
+   fictional salons with invented ratings; they are deleted, and the deletion
+   held through a cold boot. The marketplace is now empty rather than fake —
+   which is the correct state before the first real salon.
 2. **Can we work without breaking the people using it?** Today there is exactly
    **one** backend (`myweli-api`) and **one** database (`myweli-db`). Testing a
    change means testing it on the thing customers use. That is fine while
@@ -132,7 +134,7 @@ absent:
 | **Crash / error reporting** | ❌ **nothing** |
 | **Uptime alerting** | ❌ nothing |
 | **Forced upgrade** | ❌ nothing |
-| **Production data hygiene** | ⚠️ the seed is now **`dev`-only in code**, so a purge finally sticks — but the fictional salons are **still live** and the purge has not been run |
+| **Production data hygiene** | ✅ **purged 2026-08-12** — `provider1`–`provider4` deleted, and the purge **survived a forced cold boot** (revision 00014), which is the proof the gate holds. Production now serves zero salons |
 | **Backup / restore rehearsal** | ⚠️ PITR is on; a restore has never been performed |
 
 ---

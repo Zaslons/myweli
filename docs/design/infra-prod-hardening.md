@@ -159,9 +159,67 @@ are none here, since the only client is the proxy.
 2. **The default compute service account holds `roles/editor`**, which is what
    makes the header readable by anything running as it. Worth narrowing
    independently of the cron work.
-3. **Deploy.** None of phase 2's backend fixes are in production yet —
-   `deploy-backend.yml` has still never run. That first execution deserves to be
-   its own deliberate act.
-4. **Rehearse a restore.** LAUNCH.md §5.5 remains open: PITR is on and has never
+3. ~~**Deploy.**~~ **Done 2026-08-12** — the first execution of
+   `deploy-backend.yml` ever. Revision `myweli-api-00013-kmf` from `api:8bdfb9b`
+   shipped all four backend fixes. **The run reported failure**: its
+   post-deploy check curls the service's `*.run.app` URL, which 404s by design
+   because ingress is `internal-and-cloud-load-balancing`. The deploy itself
+   completed and served correctly through `api.myweli.com`. A workflow bug that
+   only a first run could find — §6.
+4. **Fix the deploy workflow's verify step** (§6) — it points at a URL that
+   cannot work.
+5. **Rehearse a restore.** LAUNCH.md §5.5 remains open: PITR is on and has never
    been exercised. Deletion protection reduces the chance of needing it; it does
    not make an unrehearsed backup a backup.
+
+
+---
+
+## 6. The first deploy, and the bug it found
+
+`deploy-backend.yml` ran for the first time on 2026-08-12, shipping revision
+`myweli-api-00013-kmf` (`api:8bdfb9b`) with the seed gate, the FCM fix, the cron
+auth and the pool change. It served correctly.
+
+**The workflow reported failure anyway.** Its final step is:
+
+```
+curl -fsS --retry 5 "${URL}/health"
+curl -fsS --retry 3 "${URL}/providers"
+```
+
+where `URL` is the Cloud Run service's own `*.run.app` address — which **404s by
+design**, because ingress is `internal-and-cloud-load-balancing` and the only
+public entrance is the load balancer at `api.myweli.com`. The check could never
+have passed. It sat unnoticed because the workflow had never run.
+
+Worth fixing, and worth noting *how* it failed: the verification was wrong in the
+safe direction. It reported a problem where there was none, rather than passing a
+broken deploy. A check that curls the wrong host and reports success would have
+been far worse.
+
+## 7. The purge
+
+With the gate live, the demo salons were deleted — the step LAUNCH.md §5.1 had
+required since it was written, and which was impossible until phase 2.
+
+Inspected first, because two tables reference `providers` **without** cascade
+(`provider_members`, `provider_subscriptions`) and `appointments.provider_id`
+has **no foreign key at all**, so a naive delete could either fail or silently
+orphan bookings. All three were empty.
+
+```
+DELETE 4  →  providers 0
+             provider_services      5 → 0
+             provider_working_hours 432 → 0
+             provider_availability  4 → 0
+```
+
+Then the assertion that matters: a **forced cold boot** (revision
+`myweli-api-00014-xg7`) — the exact event that used to re-create them.
+Production still serves **zero** salons. The gate holds.
+
+Access was through the Cloud SQL Auth Proxy rather than an IP allowlist, so the
+instance's `authorizedNetworks` stayed empty — the same reasoning that made
+`ENCRYPTED_ONLY` worth setting in §3.2. The retrieved credential was removed from
+disk afterwards and never printed.
