@@ -166,8 +166,7 @@ are none here, since the only client is the proxy.
    because ingress is `internal-and-cloud-load-balancing`. The deploy itself
    completed and served correctly through `api.myweli.com`. A workflow bug that
    only a first run could find — §6.
-4. **Fix the deploy workflow's verify step** (§6) — it points at a URL that
-   cannot work.
+4. ~~**Fix the deploy workflow's verify step**~~ — **done**, see §6.
 5. **Rehearse a restore.** LAUNCH.md §5.5 remains open: PITR is on and has never
    been exercised. Deletion protection reduces the chance of needing it; it does
    not make an unrehearsed backup a backup.
@@ -193,10 +192,28 @@ design**, because ingress is `internal-and-cloud-load-balancing` and the only
 public entrance is the load balancer at `api.myweli.com`. The check could never
 have passed. It sat unnoticed because the workflow had never run.
 
-Worth fixing, and worth noting *how* it failed: the verification was wrong in the
-safe direction. It reported a problem where there was none, rather than passing a
-broken deploy. A check that curls the wrong host and reports success would have
-been far worse.
+Worth noting *how* it failed: the verification was wrong in the safe direction.
+It reported a problem where there was none, rather than passing a broken deploy.
+A check that curls the wrong host and reports success would have been far worse.
+
+**Fixed.** It now curls `PUBLIC_URL` (`https://api.myweli.com`), declared beside
+the other constants because the hostname belongs to the load balancer
+(`70-load-balancer.sh`) and is not discoverable from the Cloud Run service. That
+is also the better test: it exercises the chain a real request takes — ALB →
+serverless NEG → backend service → url-map → the revision.
+
+And it gained the check the original could not make: **the serving image must
+equal the image just built.** `gcloud run services replace` exiting 0 means the
+API accepted the manifest, not that traffic moved — every curl below it would
+have passed just as happily against the *old* revision. Both branches were
+exercised against live production before merging: the match path passes, and a
+deliberately wrong expected tag fails the step.
+
+One consequence worth writing down: `/providers` now returns
+`{"items":[],"total":0}` on a healthy production, because §7 purged the demo
+salons. The check asserts **reachability, not content** — an empty list there is
+correct, and the comment says so, so nobody "fixes" it later by asserting a
+non-empty marketplace.
 
 ## 7. The purge
 
