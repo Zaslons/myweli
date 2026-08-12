@@ -85,6 +85,13 @@ jobs:
           docker push "${IMAGE}:${SHA}"
           docker push "${IMAGE}:latest"
           echo "image=${IMAGE}:${SHA}" >> "$GITHUB_OUTPUT"
+          # Exposed separately because a Sentry release identifier CANNOT be the
+          # image reference: release names may not contain `/`, and Sentry
+          # silently discards an invalid one — leaving every error grouped under
+          # "no release", which is release health not working while looking
+          # configured. The short SHA is also the image tag, so a release in
+          # Sentry maps to a deployed artifact by inspection.
+          echo "sha=${SHA}" >> "$GITHUB_OUTPUT"
 
       - name: Deploy the service
         run: |
@@ -92,7 +99,8 @@ jobs:
           # Declarative: the whole service (sidecar, secrets, probes, scaling)
           # lives in infra/gcp/service.yaml and is reviewable in a PR. Only the
           # image tag is substituted, so a deploy cannot quietly drift from it.
-          sed "s|__IMAGE__|${{ steps.build.outputs.image }}|g" \
+          sed -e "s|__IMAGE__|${{ steps.build.outputs.image }}|g" \
+              -e "s|__RELEASE__|${{ steps.build.outputs.sha }}|g" \
             infra/gcp/service.yaml > /tmp/service.yaml
           gcloud run services replace /tmp/service.yaml --region "${REGION}" -q
 

@@ -124,6 +124,16 @@ and redeploying re-created them.
 - Validate/parse **every** input at the boundary: phone (E.164, +225 default),
   OTP format, body schema, enum membership, numeric ranges. Reject with 400 +
   code. Unknown fields ignored, not trusted.
+- **Control characters in the query string are rejected by
+  `querySanityMiddleware`** (400 `invalid_input`), before any handler sees them.
+  Found in production: `?commune=%00` returned **500**, because a NUL byte
+  cannot exist in Postgres `text`, so the driver threw while encoding a
+  *parameterised* query — not injection, an unhandled fault reachable by anyone.
+  A middleware rather than per-route checks, because the hole belongs to every
+  route that passes a query string to Postgres, including the next one written.
+  **Known narrower gap:** request *bodies* are not covered — JSON may legally
+  encode `\u0000`, and reaching it means consuming and re-providing the body,
+  which dart_frog does not make safe. Recorded rather than implied.
 - **The server is the authority** on prices, totals, ids, status, and
   permissions. The client proposes; the server computes and verifies. (E.g.,
   deposit amount is derived server-side from the service price × policy, not

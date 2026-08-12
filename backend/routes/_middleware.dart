@@ -44,6 +44,7 @@ import 'package:myweli_backend/src/provider_dashboard_service.dart';
 import 'package:myweli_backend/src/provider_earnings_service.dart';
 import 'package:myweli_backend/src/providers_repository.dart';
 import 'package:myweli_backend/src/push/push_service.dart';
+import 'package:myweli_backend/src/query_sanity.dart';
 import 'package:myweli_backend/src/reviews_repository.dart';
 import 'package:myweli_backend/src/reviews_service.dart';
 import 'package:myweli_backend/src/salon_provisioning_service.dart';
@@ -115,6 +116,10 @@ Handler middleware(Handler handler) {
       .use(provider<LocalitiesService>((_) => localitiesService))
       // Browser CORS for the Next.js web app(s).
       .use(corsMiddleware(webOrigins))
+      // Boundary input check, INSIDE observability so a rejection still gets a
+      // request id, and outside everything else so no handler ever sees a
+      // control character (lib/src/query_sanity.dart).
+      .use(querySanityMiddleware())
       // **Outermost** (the LAST `.use` wraps everything above it): request id,
       // error→envelope, structured log, report.
       //
