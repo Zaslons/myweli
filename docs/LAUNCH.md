@@ -235,15 +235,35 @@ never *retire* one.
 - [ ] Chosen deliberately: this is the only lever that works on a phone we
       cannot reach.
 
-### 5.4 Web previews may write to production
+### 5.4 Web previews DO write to production — confirmed 2026-08-12
 
-Vercel builds a preview per PR. `NEXT_PUBLIC_API_BASE_URL` appears to be set
-per-project, which would mean **every preview deployment reads and writes the
-production database**. Harmless now; at launch it means a PR can create bookings
-against real salons.
+Not "may". `NEXT_PUBLIC_API_BASE_URL` is a **single Vercel entry scoped to
+Production *and* Preview**, so one value serves both — and since production
+works, that value is the production API.
 
-- [ ] Verify which environments the variable is set for in Vercel.
-- [ ] Point Preview at **staging**; leave Production pointing at production.
+**Every PR preview therefore reads and writes the production database.** A
+preview deployment can create real accounts and real bookings against real
+salons, and nothing distinguishes them from genuine ones afterwards.
+
+It is harmless *today* and only today: the marketplace is empty (§5.1) and there
+are no users. It stops being harmless the moment a real salon signs up.
+
+**The sequencing that follows, which is the real point:** the fix is to point
+Preview at staging, and **staging does not exist yet** (phase 3 of
+[design/infra-staging.md](design/infra-staging.md)). There is no good interim
+patch either — pointing Preview at nothing breaks the build, and pointing it at
+localhost publishes a preview with no salons and no error, which is the failure
+§1.3 was built to prevent.
+
+So this is not a task that can be scheduled freely. **Staging must exist before
+the first real salon is onboarded**, or previews have to be switched off until
+it does. That is a launch-order constraint, not a backlog item.
+
+- [ ] Split `NEXT_PUBLIC_API_BASE_URL` into two Vercel entries — Production →
+      `https://api.myweli.com`, Preview → the staging service — on the day
+      staging exists.
+- [ ] Until then, treat every preview deployment as writing to production, and
+      do not exercise booking or registration flows on one.
 
 ### 5.5 Backups are unrehearsed
 
