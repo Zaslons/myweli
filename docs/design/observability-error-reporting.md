@@ -271,6 +271,72 @@ in WhatsApp, and Sentry has no native WhatsApp integration — bridging it means
 webhook and something to host, which is a service to maintain in order to be told
 that a service is broken. Revisit if email proves ignorable in practice.
 
+## 8.5 Uptime monitoring — live, and separate from error alerting
+
+**Error alerting and uptime alerting answer different questions, and only one of
+them was ever going to catch the worst case.** Sentry tells you the service
+threw. It cannot tell you the service is *gone* — a crashed, unreachable or
+unrouted API generates no errors at all, so the dashboard stays clean while
+nothing works. That silence is the failure.
+
+Two Google Cloud Monitoring uptime checks, probing `api.myweli.com` every
+**5 minutes** from multiple regions:
+
+| Check | Path | Catches |
+|---|---|---|
+| `api-health` | `/health` | the process is down or unreachable |
+| `api-providers-database` | `/providers` | the **database** is unreachable |
+
+**Two, deliberately.** `/health` never touches the database — it reported `ok`
+throughout the Render outage, which is precisely why a single check on it would
+be one more thing that looks like monitoring and is not. The pair also
+*diagnoses*: `/health` quiet while `/providers` fires means the process is up and
+Postgres is gone; both firing means the service itself is down.
+
+This mirrors the deploy workflow's verify step, and for the same reason.
+
+### Alert policies
+
+Both notify the owner email channel when **2 or more regions fail for 5+
+minutes**. The two-region threshold exists so a single flaky probe location does
+not page anyone at 3am; the duration exists so a momentary blip does not either.
+
+Each policy carries `documentation` explaining what its firing means, so the
+notification is actionable rather than merely alarming.
+
+**A notification channel had to be created first** — the project had none, so any
+alert policy would have been a policy that notifies nobody. Worth stating because
+it is the same failure shape as everything else in this document: configured,
+green, and silent.
+
+### Verified, not assumed
+
+Confirmed by querying the Monitoring API for actual results rather than by the
+`create` commands exiting 0:
+
+```
+api-health--JDCry3em2M:              passed=104  failed=0
+api-providers-database-kxq3vEwoNZ4:  passed=102  failed=0
+```
+
+Free at this volume — 2 checks × 5-minute period × a handful of regions is far
+under Cloud Monitoring's 1M free executions per month.
+
+The configuration lives in **`infra/gcp/80-uptime-checks.sh`**, following the
+same idiom as the load balancer script. Not because it will be re-run often, but
+because otherwise the only record of what is watching production would be inside
+production — and a deleted check leaves no trace of what it used to assert.
+
+### Not covered
+
+- **Web and the app.** Vercel has its own availability, and an app cannot be
+  probed. Uptime here means the API.
+- **Certificate expiry.** The managed cert renews automatically, but nothing
+  watches that it did.
+- **Latency.** These checks answer "does it answer", not "does it answer in
+  time". A budget for that belongs with performance monitoring, which is
+  deliberately off (§9.3).
+
 ## 9. What is NOT wired yet — the account-side step
 
 **There is no Sentry account, project or DSN.** All three surfaces are complete
