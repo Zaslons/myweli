@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Module** | infrastructure (`infra/gcp/`, `backend/`, `.github/workflows/`) |
-| **Status** | **Phase 1 complete** — §1.1, §1.2, §1.3 and the local environment (§2.2). Phase 2 (the production bugs in §7) is next; no cloud resource exists yet. |
+| **Status** | **Phases 1 and 2 complete.** §1's three code changes and the local environment (§2.2) are done; §7's six production bugs are fixed ([infra-prod-hardening.md](infra-prod-hardening.md)). **No staging resource exists yet** — that is phase 3. |
 | **Decisions** | Staging URL = `*.run.app` (§4.1) · separate bundle ids, deferred to phase 8 (§4) |
 | **Cost** | **$13–17/month** — the $18.25 hostname is declined (§4.1) |
 | **Related** | [LAUNCH.md](../LAUNCH.md) · [infra-gcp-migration.md](infra-gcp-migration.md) · [DEPLOYMENT.md](../DEPLOYMENT.md) |
@@ -462,14 +462,20 @@ Each phase is a PR. Nothing in phase 2+ starts until §1 is merged.
 Not staging work. Separate slices, and §6 phase 2 because staging would
 otherwise expose them.
 
+**All six are closed** — four in code/CI, two applied to the live project. Three
+were misdiagnosed here and are corrected below; two of the fixes originally
+proposed would have caused an outage. What actually happened, with before/after
+for each cloud change, is in
+**[infra-prod-hardening.md](infra-prod-hardening.md)**.
+
 | Finding | Evidence |
 |---|---|
-| **`deletionProtectionEnabled: false`** on the production database | `gcloud sql instances describe myweli-db` |
-| `CRON_SECRET` stored as a **literal plaintext header** on both Scheduler jobs, readable by anyone with Scheduler view access | `gcloud scheduler jobs describe` |
-| Cloud SQL has a **public IP** with `sslMode: ALLOW_UNENCRYPTED_AND_ENCRYPTED` | same |
-| FCM `_isInvalidToken` matches body-wide `INVALID_ARGUMENT` → can prune every token (§3.1) | `fcm_v1_push_provider.dart:114-119` |
+| ~~`deletionProtectionEnabled: false`~~ — **FIXED**, applied to the live instance | [infra-prod-hardening.md](infra-prod-hardening.md) §3.1 |
+| `CRON_SECRET` a **literal plaintext header** on both Scheduler jobs — **understated**: it was also accepted as `?secret=`, the OIDC token was present but unenforced, and the default compute SA can read it via `roles/editor`. **FIXED in code** (PR #352); the header itself is retired once a real run is seen on the token | §5 of the hardening doc |
+| ~~Cloud SQL has a **public IP**~~ — **half wrong: the IP is load-bearing**, the proxy has no `--private-ip` and Cloud Run has no VPC egress, so removing it would take production down. The SSL half was real and is **FIXED** (`ENCRYPTED_ONLY`) | [infra-prod-hardening.md](infra-prod-hardening.md) §2.2, §3.2 |
+| FCM `_isInvalidToken` matched body-wide `INVALID_ARGUMENT` → pruned on **any** 400. **A security bug**, remotely reachable via an unbounded `businessName`. **FIXED** (PR #351), recorded as **T62** | §3.1, corrected |
 | ~~`max_connections` 25 vs a possible 32~~ — **FIXED (PR D)** by lowering the pool to 4, *not* by patching the flag: that `requiresRestart` on a ZONAL instance whose app has no connection retry, and 100 backends would not fit in 0.6 GB | `database.dart` × service.yaml maxScale; pinned in `test/db/pool_sizing_test.dart` |
-| `deploy-admin.yml` auto-deploys to prod on every `mobile/**` push (§3.4) | `.github/workflows/deploy-admin.yml` |
+| ~~`deploy-admin.yml` auto-deploys to prod on every `mobile/**` push~~ — **89 production deploys**. **FIXED** (PR #354): `workflow_dispatch` + confirm, with the admin build moved into CI | §3.4 |
 
 ---
 

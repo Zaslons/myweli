@@ -50,7 +50,7 @@ Concretely for us that means a second Cloud Run service, a second database, a
 second set of R2 buckets and a second Firebase project. It is not free, and it
 is the single highest-value thing to build before launch.
 
-**Designed in detail in [design/infra-staging.md](design/infra-staging.md)** — **$13–17/month**, and *blocked on three code changes*. The one that matters most here: `seedProvidersIfEmpty` is gated only on the `providers` table being empty, not on `ENV`, so **§5.1's box below cannot be ticked as written** — purging the demo salons and deploying re-creates them.
+**Designed in detail in [design/infra-staging.md](design/infra-staging.md)** — **$13–17/month**. It was blocked on three code changes, all now landed (phase 1), plus six production bugs found while auditing the project ([design/infra-prod-hardening.md](design/infra-prod-hardening.md), phase 2). Among them the one that made §5.1 below *untickable*: `seedProvidersIfEmpty` was gated only on the `providers` table being empty, not on `ENV`, so purging the demo salons and deploying re-created them. **Fixed — the purge will now stick.** No staging resource exists yet.
 
 ### 1.2 Pre-release distribution — *which build, in whose hands*
 
@@ -123,7 +123,7 @@ absent:
 | Capability | State |
 |---|---|
 | Per-PR web previews | ✅ Vercel builds every PR — **but see §5.4**, they very likely talk to the production API |
-| Backend `ENV` seam | ✅ `dependencies.dart` reads `ENV`; `dev` vs `prod` already gates OTP dev-codes |
+| Backend `ENV` seam | ✅ a three-value enum (`dev`/`staging`/`prod`) splitting `guardsOn` from `isProd`; an unknown value throws at boot |
 | App environment switch | ✅ `API_BASE_URL` + `USE_API_BACKEND` dart-defines |
 | Flavours (consumer/pro, both platforms) | ✅ |
 | CI: analyze, unit, widget, golden, e2e, APK size, secret scan, funnel smoke | ✅ strong |
@@ -132,7 +132,7 @@ absent:
 | **Crash / error reporting** | ❌ **nothing** |
 | **Uptime alerting** | ❌ nothing |
 | **Forced upgrade** | ❌ nothing |
-| **Production data hygiene** | ❌ seeded demo salons are live |
+| **Production data hygiene** | ⚠️ the seed is now **`dev`-only in code**, so a purge finally sticks — but the fictional salons are **still live** and the purge has not been run |
 | **Backup / restore rehearsal** | ⚠️ PITR is on; a restore has never been performed |
 
 ---
