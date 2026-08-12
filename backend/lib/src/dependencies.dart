@@ -73,6 +73,7 @@ import 'messaging/termii_messaging_provider.dart';
 import 'messaging/twilio_messaging_provider.dart';
 import 'notifications/notification_prefs_repository.dart';
 import 'notifications/notifications_repository.dart';
+import 'observability/error_reporter.dart';
 import 'privacy/user_erasure_service.dart';
 import 'provider_account_service.dart';
 import 'provider_catalog_service.dart';
@@ -783,6 +784,25 @@ final ReminderScheduler reminderScheduler = ReminderScheduler(
 /// Shared secret guarding the internal reminder-cron route (deny-by-default when
 /// set; unset → the route is unavailable). Design:
 /// docs/design/messaging-notifications.md §PR-B.
+/// Where unhandled errors go (docs/design/observability-error-reporting.md).
+///
+/// Mutable and defaulted to the no-op, because the middleware chain is built
+/// BEFORE this is configured — dart_frog's generated `server.dart` calls
+/// `buildRootHandler()` and only then `entrypoint.run()`, which is where
+/// `initializeDatabase()` runs. `errorMiddleware` therefore takes a callback and
+/// reads this per error; capturing it would freeze the no-op and silently
+/// report nothing.
+ErrorReporter errorReporter = const NoopErrorReporter();
+
+/// `SENTRY_DSN` unset → reporting stays a no-op. Deliberately NOT part of the
+/// `guardsOn` fail-fast set: an unreportable error is bad, but a backend that
+/// refuses to boot because its telemetry is unconfigured is worse than both.
+final String? _sentryDsn = _envOrNull('SENTRY_DSN');
+
+/// The deployed image tag, which is what makes Sentry's release health mean
+/// anything — errors group by the exact artifact that produced them.
+final String? _release = _envOrNull('RELEASE');
+
 final String? cronSecret = _envOrNull('CRON_SECRET');
 
 /// Authenticates `/internal/cron/*` — the Google-signed OIDC token Cloud
@@ -809,6 +829,13 @@ final CronAuth cronAuth = () {
 /// migrations and seeds providers when a database is configured. No-op for
 /// in-memory mode.
 Future<void> initializeDatabase() async {
+  // Before anything that can fail, so a failure during boot is itself reported.
+  errorReporter = await initErrorReporter(
+    dsn: _sentryDsn,
+    environment: _env,
+    release: _release,
+  );
+
   // Fail before the port is bound, not on the first request (G1). `main.dart`
   // awaits this ahead of `serve()`, so a misconfigured revision dies during
   // startup rather than going green and then failing every call.
