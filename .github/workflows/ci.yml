@@ -462,6 +462,43 @@ jobs:
   # command, not a broken build.
   #
   # Separate job so it never slows the analyze/test feedback loop.
+  admin-console-build:
+    name: Mobile — admin console builds
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    # Does-it-compile only. Shipping the console is deploy-admin.yml, which is
+    # manual and confirm-gated.
+    #
+    # This job exists because removing that workflow's push trigger removed the
+    # ONLY thing that ever compiled `lib/main_admin.dart` — it is a Flutter Web
+    # target that no other job touches, so a mobile refactor could have broken
+    # it and nothing would have said so until someone deployed.
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.44.9
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      # The same defines deploy-admin.yml uses, so this compiles the artifact
+      # that would actually ship. They are also REQUIRED now: a release build
+      # without them refuses to start (build_config_guard.dart).
+      - name: Build the admin web bundle
+        run: |
+          flutter build web --release \
+            --target lib/main_admin.dart \
+            --dart-define=USE_API_BACKEND=true \
+            --dart-define=API_BASE_URL=https://api.myweli.com
+
   apk-size:
     name: Mobile — APK size
     runs-on: ubuntu-latest
