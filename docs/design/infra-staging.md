@@ -104,7 +104,7 @@ resource by resource, with the reason each way.
 | Resource | Decision | Why |
 |---|---|---|
 | Cloud Run service | **separate** `myweli-api-staging`, minScale **0**, maxScale 2 | Saves $18/mo vs matching prod's minScale 1, and *improves* the rehearsal: every staging request then exercises the cold start that runs migrations behind `pg_advisory_lock` before the port binds |
-| Cloud SQL | **separate instance** `myweli-db-staging` | Not for tidiness — the arithmetic is already red. `maxConnectionCount: 8` (`database.dart:24`) × maxScale 4 = **32 potential connections** against a db-f1-micro whose default `max_connections` is **25**. Prod stays under only because it rarely scales past 1. Sharing adds a second consumer to a pool that is already over-subscribed on paper |
+| Cloud SQL | **separate instance** `myweli-db-staging` | Not for tidiness — the arithmetic was already red: `maxConnectionCount: 8` × maxScale 4 = **32** against a db-f1-micro whose default `max_connections` is **25**. Lowered to **4** in phase 2 PR D (4 × 4 = 16 inside the ~22 actually usable), so the ceiling is no longer breached — but sharing the instance would still add a second consumer to a budget with no room for one |
 | Database data | **synthetic by default; a scrubbed prod copy for rehearsals** | §2.1. An empty staging DB certifies every migration as instant (§3.2), but an un-scrubbed prod copy puts real phone numbers behind a reminder cron (§3.3) |
 | Secret Manager | **separate versions**, all 17 | `JWT_SECRET` especially: a shared value lets a staging-issued token authenticate against **production**, and staging is where we deliberately mint admin tokens |
 | R2 | **3 separate buckets + a bucket-scoped token** | Bucket *names* cannot collide (unique per account). The risk is the **credential**: an account-scoped token reads and writes every bucket regardless of what `R2_BUCKET` says. A staging run of the user-erasure path would delete production objects |
@@ -468,7 +468,7 @@ otherwise expose them.
 | `CRON_SECRET` stored as a **literal plaintext header** on both Scheduler jobs, readable by anyone with Scheduler view access | `gcloud scheduler jobs describe` |
 | Cloud SQL has a **public IP** with `sslMode: ALLOW_UNENCRYPTED_AND_ENCRYPTED` | same |
 | FCM `_isInvalidToken` matches body-wide `INVALID_ARGUMENT` → can prune every token (§3.1) | `fcm_v1_push_provider.dart:114-119` |
-| `max_connections` 25 vs a possible 32 (§2) | `database.dart:24` × service.yaml maxScale |
+| ~~`max_connections` 25 vs a possible 32~~ — **FIXED (PR D)** by lowering the pool to 4, *not* by patching the flag: that `requiresRestart` on a ZONAL instance whose app has no connection retry, and 100 backends would not fit in 0.6 GB | `database.dart` × service.yaml maxScale; pinned in `test/db/pool_sizing_test.dart` |
 | `deploy-admin.yml` auto-deploys to prod on every `mobile/**` push (§3.4) | `.github/workflows/deploy-admin.yml` |
 
 ---
