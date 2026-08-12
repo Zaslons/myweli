@@ -281,7 +281,34 @@ from project settings.
 Leave performance monitoring alone — every surface ships `tracesSampleRate: 0`,
 and it is the main cost driver.
 
-### 9.5 Then, to switch it on
+### 9.5 Linking the GitHub repository — yes, with one caveat
+
+Worth doing, and cheap here: **the repo is public**, so the usual objection —
+granting a third party read access to private source — does not apply.
+
+It buys **suspect commits** ("this error appeared in `ac36bab`, by this author")
+and stack-frame → GitHub line links.
+
+**But it only works where the release identifier maps to a commit**, which is not
+uniform across the three:
+
+| Surface | Release | Suspect commits |
+|---|---|---|
+| `myweli-backend` | the git SHA (`RELEASE=__IMAGE__`, which ends in it) | works |
+| `myweli-web` | the git SHA | works |
+| `myweli-app` | `package@version+build` | **does not** — that is a version, not a commit |
+
+Mobile's release is deliberately the version + build, because that is what maps a
+crash-free rate to a specific TestFlight or Play build — the number §1.4's staged
+rollout is watched on. It is the right identifier; it simply is not a commit, so
+suspect commits there needs a release-to-commit association wired separately
+(`sentry-cli releases set-commits`, in a release workflow). Not worth doing until
+mobile is actually distributed.
+
+**Do not block on any of this.** Errors flow without the integration; it is an
+enhancement, and a fiddly one can wait until events are arriving.
+
+### 9.6 Then, to switch it on
 
 1. **Backend** — put the DSN in Secret Manager, add `SENTRY_DSN` (via
    `secretKeyRef`) and `RELEASE` (`__IMAGE__`, substituted by the deploy) to
