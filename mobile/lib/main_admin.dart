@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 
 import 'core/a11y/reduce_motion.dart';
 import 'core/config/build_config_guard.dart';
+import 'core/observability/error_reporting.dart';
 import 'core/router/admin_router.dart';
 import 'core/theme/app_theme.dart';
 import 'core/utils/app_locale.dart';
@@ -37,6 +38,11 @@ void main() {
         runApp(misconfigured);
         return;
       }
+
+      // Error reporting BEFORE anything that can fail, so a failure during
+      // startup is itself reported. Inert without --dart-define=SENTRY_DSN, and
+      // it never throws (core/observability/error_reporting.dart).
+      await initErrorReporting();
       FlutterError.onError = (details) {
         FlutterError.presentError(details);
         AppLogger.error(

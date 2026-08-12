@@ -131,7 +131,7 @@ absent:
 | CI: analyze, unit, widget, golden, e2e, APK size, secret scan, funnel smoke | ✅ strong |
 | Release signing + store prep | ✅ repo side (#337); accounts pending |
 | **Staging environment** | ❌ **nothing** |
-| **Crash / error reporting** | ❌ **nothing** |
+| **Crash / error reporting** | ⚠️ **code done on all three surfaces** (#359, #360, mobile) and **inert** — there is no Sentry account yet, so nothing reports and §5.2's "watch it arrive" is unproven. One account-side step away |
 | **Uptime alerting** | ❌ nothing |
 | **Forced upgrade** | ❌ nothing |
 | **Production data hygiene** | ✅ **purged 2026-08-12** — `provider1`–`provider4` deleted, and the purge **survived a forced cold boot** (revision 00014), which is the proof the gate holds. Production now serves zero salons |
@@ -168,7 +168,11 @@ These block everything. None is surface-specific.
 - [ ] **Production contains no seeded/demo data** (§5.1).
 - [ ] **Crash reporting and error tracking** are live on backend, web and app,
       and have been *proven* by deliberately triggering an error and seeing it
-      arrive.
+      arrive. **The code is done on all three surfaces and is inert**: create the
+      Sentry org and three projects, set the DSNs, then prove it. Until that
+      happens this box is not merely unticked — it is untestable, and a
+      dashboard that has never received an event is indistinguishable from one
+      that is not wired up.
 - [ ] **Uptime alerting** on `api.myweli.com/health` reaching a human.
 - [x] **A database restore has actually been performed.** Done 2026-08-12 by
       cloning to a point six minutes before the demo-salon purge: the clone came
