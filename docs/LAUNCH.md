@@ -132,7 +132,7 @@ absent:
 | Release signing + store prep | ✅ repo side (#337); accounts pending |
 | **Staging environment** | ❌ **nothing** |
 | **Crash / error reporting** | ⚠️ **code done on all three surfaces** (#359, #360, mobile) and **inert** — there is no Sentry account yet, so nothing reports and §5.2's "watch it arrive" is unproven. One account-side step away |
-| **Uptime alerting** | ❌ nothing. Error alerting is configured (new issue → notify, filtered to `environment:prod`); **uptime** is separate and still absent — nothing watches whether `api.myweli.com` answers at all |
+| **Uptime alerting** | ✅ **live 2026-08-12** — two Cloud Monitoring checks on `api.myweli.com` (`/health` for the process, `/providers` for the database, because `/health` reported ok right through the Render outage), alerting to email when 2+ regions fail for 5+ minutes. Verified against real probe results, not just created ([design/observability-error-reporting.md](design/observability-error-reporting.md) §8.5) |
 | **Forced upgrade** | ❌ nothing |
 | **Production data hygiene** | ✅ **purged 2026-08-12** — `provider1`–`provider4` deleted, and the purge **survived a forced cold boot** (revision 00014), which is the proof the gate holds. Production now serves zero salons |
 | **Backup / restore rehearsal** | ✅ **rehearsed 2026-08-12** — a PITR clone to six minutes before the demo-salon purge came back with all four salons, i.e. data that no longer exists in production. Takes **~23 minutes** ([design/infra-prod-hardening.md](design/infra-prod-hardening.md) §8) |
@@ -173,7 +173,10 @@ These block everything. None is surface-specific.
       happens this box is not merely unticked — it is untestable, and a
       dashboard that has never received an event is indistinguishable from one
       that is not wired up.
-- [ ] **Uptime alerting** on `api.myweli.com/health` reaching a human.
+- [x] **Uptime alerting** on `api.myweli.com` reaching a human. Done
+      2026-08-12 — and on **two** paths, not one: `/health` never touches the
+      database, so a check on it alone would miss the outage where the service
+      is up and useless.
 - [x] **A database restore has actually been performed.** Done 2026-08-12 by
       cloning to a point six minutes before the demo-salon purge: the clone came
       back holding all four salons — data production no longer has. **~23
