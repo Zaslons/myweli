@@ -240,3 +240,73 @@ Access was through the Cloud SQL Auth Proxy rather than an IP allowlist, so the
 instance's `authorizedNetworks` stayed empty — the same reasoning that made
 `ENCRYPTED_ONLY` worth setting in §3.2. The retrieved credential was removed from
 disk afterwards and never printed.
+
+
+---
+
+## 8. The restore rehearsal
+
+LAUNCH.md §5.5 had required this since it was written: *PITR that has never been
+exercised is a hope, not a backup.*
+
+### The test chosen, and why
+
+Restoring to an arbitrary point would only prove that *a database appeared*. So
+the target was **16:30 UTC on 2026-08-12 — six minutes before §7's purge.** If
+point-in-time recovery genuinely works, the clone must contain the four demo
+salons that **no longer exist in production**. That is self-evidently correct
+rather than a judgement call.
+
+```bash
+gcloud sql instances clone myweli-db myweli-restore-rehearsal \
+  --point-in-time=2026-08-12T16:30:00.000Z
+```
+
+A clone, not a restore-in-place: Cloud SQL can restore a backup **over** an
+existing instance, and doing that to `myweli-db` would have been the rehearsal
+destroying the thing it was rehearsing for.
+
+### Result — it works
+
+| | clone @ 16:30 | production now |
+|---|---|---|
+| providers | **4** (Beauté Divine, Élégance Coiffure, Barber King, Nails & Co) | 0 |
+| provider_services | 5 | 0 |
+| provider_working_hours | 432 | 0 |
+| provider_availability | 4 | 0 |
+| users | 4 | 4 |
+| schema_migrations | 31 | 31 |
+| tables in `public` | 39 | 39 |
+
+The schema came back identical and the data came back exactly as deleted.
+
+### The number to plan around: ~23 minutes
+
+The clone took **23 minutes** (17:05 → 17:28 UTC) for a db-f1-micro holding a
+near-empty database. That is the floor, not the estimate: it will grow with the
+data. Worth knowing *before* an incident, because "we have backups" implies
+minutes and the honest answer is closer to half an hour — during which the
+service is either down or serving stale data.
+
+`gcloud sql instances clone` also **times out client-side** long before the
+operation finishes, reporting an error while the clone continues server-side.
+Under pressure that reads as failure. Wait on the operation instead:
+
+```bash
+gcloud beta sql operations wait --project myweli <OPERATION_ID> --timeout=900
+```
+
+### Two things learned in passing
+
+- **Deletion protection propagates to clones.** The clone inherited
+  `deletionProtectionEnabled: True` from §3.1, so deleting it required
+  `--no-deletion-protection` first. Good — but it means a cleanup script that
+  does not expect it will fail.
+- **Access went through the Cloud SQL Auth Proxy**, so no `authorizedNetworks`
+  entry was added to either instance.
+
+### Cleanup
+
+The clone was deleted; `gcloud sql instances list` shows only `myweli-db`.
+Production was untouched throughout — `/health` verified before, during and
+after. Cost of the exercise: roughly half an hour of a db-f1-micro, under a cent.

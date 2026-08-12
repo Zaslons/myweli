@@ -135,7 +135,7 @@ absent:
 | **Uptime alerting** | ❌ nothing |
 | **Forced upgrade** | ❌ nothing |
 | **Production data hygiene** | ✅ **purged 2026-08-12** — `provider1`–`provider4` deleted, and the purge **survived a forced cold boot** (revision 00014), which is the proof the gate holds. Production now serves zero salons |
-| **Backup / restore rehearsal** | ⚠️ PITR is on; a restore has never been performed |
+| **Backup / restore rehearsal** | ✅ **rehearsed 2026-08-12** — a PITR clone to six minutes before the demo-salon purge came back with all four salons, i.e. data that no longer exists in production. Takes **~23 minutes** ([design/infra-prod-hardening.md](design/infra-prod-hardening.md) §8) |
 
 ---
 
@@ -170,8 +170,11 @@ These block everything. None is surface-specific.
       and have been *proven* by deliberately triggering an error and seeing it
       arrive.
 - [ ] **Uptime alerting** on `api.myweli.com/health` reaching a human.
-- [ ] **A database restore has actually been performed** on staging from a real
-      backup. PITR that has never been exercised is a hope, not a backup.
+- [x] **A database restore has actually been performed.** Done 2026-08-12 by
+      cloning to a point six minutes before the demo-salon purge: the clone came
+      back holding all four salons — data production no longer has. **~23
+      minutes** end to end, which is the number to plan an incident around
+      (§8 of the hardening doc).
 - [ ] **Secrets rotated** away from any value that has been in a terminal, a
       log, or a chat during development.
 - [ ] **Legal pages live and accurate** — CGU, privacy policy, mentions légales
