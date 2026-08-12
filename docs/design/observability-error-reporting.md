@@ -225,22 +225,65 @@ The delivery channel is an open question (§9).
 
 ## 9. What is NOT wired yet — the account-side step
 
-**There is no Sentry account, project or DSN.** The code is complete and inert:
-`SENTRY_DSN` unset → `NoopErrorReporter`, which is why dev and CI need no setup
-and why merging this changes nothing in production.
+**There is no Sentry account, project or DSN.** All three surfaces are complete
+and inert: no DSN → the no-op path, which is why dev, CI and every test need no
+setup and why the three merges changed nothing at runtime.
 
-To switch it on, in this order:
+### 9.1 The three projects, and which SDK each is
 
-1. Create the Sentry organisation and a project per surface
-   (`myweli-backend`, `myweli-web`, `myweli-app`).
-2. Put the backend DSN in Secret Manager and add `SENTRY_DSN` (via
-   `secretKeyRef`) and `RELEASE` (`__IMAGE__`, substituted by the deploy
-   workflow) to `infra/gcp/service.yaml`.
-3. Deploy, then §7 — trigger a real error and watch it arrive.
+One project per surface — **not** one shared project. Separate projects give each
+surface its own issue stream, its own alert rules and its own release health,
+which is the whole point of being able to ask "did 1.0.3 make things worse" per
+surface.
 
-Deliberately **not** added to `service.yaml` in this PR: it would reference a
-Secret Manager entry that does not exist, and the next deploy would fail on
-telemetry config — the precise failure mode §4.3 exists to avoid.
+| Project | Platform to pick in Sentry | Why that one | What we already import |
+|---|---|---|---|
+| `myweli-backend` | **Dart** | A pure Dart server, not a Flutter app. Picking Flutter here would give instructions for a widget tree that does not exist. | `package:sentry` (9.x) |
+| `myweli-web` | **Next.js** (under JavaScript/Browser) | Not "React" and not "Node.js": the Next.js SDK covers client, server and edge runtimes in one, which is what `sentry.{client,server,edge}.config.ts` are. | `@sentry/nextjs` (10.x) |
+| `myweli-app` | **Flutter** | Covers Dart errors *and* native iOS/Android crashes. A "Dart" project here would miss the native half, which is most of what a crash-free rate measures. | `sentry_flutter` (9.x) |
+
+### 9.2 Skip every install step the wizard shows
+
+The setup wizard will offer to install packages, write config files and add a
+build plugin. **All of that already exists**, and following it would duplicate or
+overwrite working configuration.
+
+The **only** thing needed from each project is its **DSN** —
+`https://<key>@<org>.ingest.sentry.io/<project-id>`. It is safe to hold in
+config: a DSN authorises *writing* events, nothing else. Sentry also shows it
+later under *Settings → Projects → <project> → Client Keys (DSN)*.
+
+### 9.3 Two settings that matter, in the web project especially
+
+- **Session Replay: OFF.** Recent Next.js wizards enable it by default. It
+  records the user's session — which on MyWeli means a booking form being filled
+  with a name and a phone number. Our config never adds the replay integration;
+  the risk is accepting a wizard default that does.
+- **Data scrubbing: ON** (*Settings → Security & Privacy*), including scrubbing
+  IP addresses. Redundant with `beforeSend` on all three surfaces, and worth
+  having: the scrubbers run server-side, so they still apply to anything a future
+  code path forgets to strip.
+
+Leave performance monitoring alone — every surface ships `tracesSampleRate: 0`,
+and it is the main cost driver.
+
+### 9.4 Then, to switch it on
+
+1. **Backend** — put the DSN in Secret Manager, add `SENTRY_DSN` (via
+   `secretKeyRef`) and `RELEASE` (`__IMAGE__`, substituted by the deploy) to
+   `infra/gcp/service.yaml`, then run `deploy-backend.yml`.
+2. **Web** — set `NEXT_PUBLIC_SENTRY_DSN` and `NEXT_PUBLIC_SENTRY_ENV` **per
+   Vercel environment** (Production → `production`, Preview → `preview`), so
+   preview noise never pollutes production's release health. `SENTRY_AUTH_TOKEN`
+   is optional and server-side only; without it the build still succeeds and
+   stack traces stay minified.
+3. **Mobile** — add `--dart-define=SENTRY_DSN=…` and `--dart-define=SENTRY_ENV=…`
+   to the release build commands in
+   [mobile-store-submission.md](mobile-store-submission.md).
+4. **Then §7** — trigger one real error per surface and watch it arrive. Until
+   that happens the boxes are not merely unticked, they are **untestable**: a
+   dashboard that has never received an event is indistinguishable from one that
+   is not wired up.
 
 ## 10. Open questions
 
