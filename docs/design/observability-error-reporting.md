@@ -253,7 +253,21 @@ The **only** thing needed from each project is its **DSN** —
 config: a DSN authorises *writing* events, nothing else. Sentry also shows it
 later under *Settings → Projects → <project> → Client Keys (DSN)*.
 
-### 9.3 Two settings that matter, in the web project especially
+### 9.3 Products: **Error Monitoring only**
+
+The creation flow asks which products to enable. Pick error monitoring and
+nothing else — and none of it is permanent, so the rest can be turned on later
+from project settings.
+
+| Product | Now | Why |
+|---|---|---|
+| **Error Monitoring** | **yes** | The whole point of the slice. |
+| Tracing / Performance | no | Every surface ships `tracesSampleRate: 0`, so the tab would receive **nothing** — a dashboard indistinguishable from a broken one, which is the failure shape this project has already hit three times. It is also the main cost driver: billed by span volume, orders of magnitude above error volume. Genuinely useful *later*, once there is traffic worth sampling and a rate worth choosing. |
+| Logs | no | The backend already logs structurally to **Cloud Logging** (50 GiB/month free), which is where the container output lives. Sending them to Sentry too means paying to duplicate and creating a second place to look for the same thing. **The bridge already exists**: every unhandled error logs `request_id=…` and Sentry carries that value as a tag, so you read the error in Sentry and grep Cloud Logging for the id. |
+| Session Replay | **no** — see §9.4 | It records the session, which here means a booking form being filled with a name and a phone number. |
+| Profiling | no | Depends on tracing. |
+
+### 9.4 Two settings that matter, in the web project especially
 
 - **Session Replay: OFF.** Recent Next.js wizards enable it by default. It
   records the user's session — which on MyWeli means a booking form being filled
@@ -267,7 +281,7 @@ later under *Settings → Projects → <project> → Client Keys (DSN)*.
 Leave performance monitoring alone — every surface ships `tracesSampleRate: 0`,
 and it is the main cost driver.
 
-### 9.4 Then, to switch it on
+### 9.5 Then, to switch it on
 
 1. **Backend** — put the DSN in Secret Manager, add `SENTRY_DSN` (via
    `secretKeyRef`) and `RELEASE` (`__IMAGE__`, substituted by the deploy) to
