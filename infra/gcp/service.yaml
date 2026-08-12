@@ -151,13 +151,17 @@ spec:
             # FCM — only the private key is secret. The other two are public
             # identifiers read from the project, so they are plain config
             # rather than three Secret Manager round-trips.
-            # The exact artifact this revision runs, which is what makes
-            # Sentry's release health mean anything — errors group by the build
-            # that produced them rather than by "the backend". Substituted by
-            # deploy-backend.yml alongside the container image, so the two can
-            # never disagree.
+            # The short commit SHA — which is ALSO the image tag, so a release
+            # in Sentry maps to a deployed artifact by inspection.
+            #
+            # **Not the image reference.** That was the first attempt, and Sentry
+            # rejected it: release identifiers may not contain `/`, and an
+            # invalid one is DISCARDED rather than refused, so every error
+            # grouped under "no release" while the configuration looked correct.
+            # Found in the event's "Event Processing Errors" panel, not by
+            # anything failing.
             - name: RELEASE
-              value: __IMAGE__
+              value: __RELEASE__
             - name: FCM_PROJECT_ID
               value: myweli
             - name: FCM_CLIENT_EMAIL
