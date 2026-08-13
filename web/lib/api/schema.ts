@@ -5958,6 +5958,11 @@ export interface components {
             status: string;
             /** @example myweli-api */
             service: string;
+            /**
+             * @description Which deployment answered. Reported so a caller can ask the target what it is rather than infer it from the hostname it typed — the deploy workflow asserts it matches the environment it deployed, and the funnel smoke harness (which writes) refuses to run against a target that self-reports `prod`.
+             * @enum {string}
+             */
+            env: "dev" | "staging" | "prod";
             /** Format: date-time */
             time: string;
         };

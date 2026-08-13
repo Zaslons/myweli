@@ -16,13 +16,19 @@ questions none of our gates can answer:
    fictional salons with invented ratings; they are deleted, and the deletion
    held through a cold boot. The marketplace is now empty rather than fake —
    which is the correct state before the first real salon.
-2. **Can we work without breaking the people using it?** Today there is exactly
+2. **Can we work without breaking the people using it?** ~~Today there is exactly
    **one** backend (`myweli-api`) and **one** database (`myweli-db`). Testing a
-   change means testing it on the thing customers use. That is fine while
-   nobody uses it and untenable the day after launch.
-3. **Would we know if it broke?** There is **no crash reporting, no error
-   tracking and no alerting** anywhere in the stack (§5.2). A public service we
-   cannot observe is a service we are not really running.
+   change means testing it on the thing customers use.~~ **In progress.** The
+   second environment is being built: `service-staging.yaml` and a deploy
+   workflow that can address either environment are committed, and the resources
+   themselves are build-order step 4 of
+   [design/infra-staging.md](design/infra-staging.md). Not closed until a Vercel
+   preview is shown reading staging rather than production — which is the
+   specific reason this had to happen before the first real salon, not after.
+3. ~~**Would we know if it broke?**~~ **Closed 2026-08-12.** Sentry on all three
+   surfaces, proven with a real production error, plus uptime checks on
+   `/health` and a database-backed route, verified against real probe data
+   (§5.2, [design/observability-error-reporting.md](design/observability-error-reporting.md)).
 
 This document is the answer to those three, plus the per-surface checklists.
 
