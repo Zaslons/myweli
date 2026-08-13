@@ -30,21 +30,40 @@ Future<Response> onRequest(RequestContext context) async {
 
   // **The body is parsed before the caller is authenticated, and it has to be**
   // — Twilio's signature covers the POST parameters, so there is no way to check
-  // it without them. That is a deliberate ordering, not an oversight: the body
-  // is form-encoded and bounded, nothing is persisted before the check below,
-  // and a parse failure is answered without ever consulting the outbox.
+  // it without them. That inverts the usual order, so the two things it exposes
+  // are bounded explicitly rather than assumed.
+  //
+  // First, size. An unauthenticated caller now decides how much work the parse
+  // does: buffer, split, decode, sort and HMAC. Twilio's status callbacks are
+  // under a kilobyte, so anything above this cap is not one.
+  if (MessagingWebhookAuth.exceedsBodyCap(
+    context.request.headers[HttpHeaders.contentLengthHeader],
+  )) {
+    return jsonError(HttpStatus.requestEntityTooLarge, 'payload_too_large');
+  }
+
+  // Second, failure mode. `formData()` throws `StateError` on a non-form
+  // content type — an **`Error`, not an `Exception`** — so `on Exception` here
+  // caught nothing and a `POST` with `content-type: application/json` from
+  // anyone on the internet became a 500 and a reported error event. Catching
+  // the supertype is right precisely because this runs before authentication:
+  // the caller is unknown, so no throw from parsing their input is a fault of
+  // ours to report.
   final Map<String, String> fields;
   try {
     final form = await context.request.formData();
     fields = form.fields;
-  } on Exception {
+  } catch (_) {
     return jsonError(HttpStatus.badRequest, 'invalid_body');
   }
 
+  final uri = context.request.uri;
   final auth = messagingWebhookAuth.authenticate(
     twilioSignature: context.request.headers['x-twilio-signature'],
     headerSecret: context.request.headers['x-messaging-secret'],
-    requestPath: context.request.uri.path,
+    // Path AND query: Twilio signs the URL as configured, so a callback
+    // registered with any query parameter must still verify.
+    requestPathAndQuery: uri.hasQuery ? '${uri.path}?${uri.query}' : uri.path,
     formFields: fields,
   );
   if (!auth.ok) return jsonError(HttpStatus.forbidden, 'forbidden');

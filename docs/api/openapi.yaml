@@ -105,6 +105,14 @@ paths:
         '400': { $ref: '#/components/responses/BadRequest' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '413':
+          description: >
+            Body over 64 KiB. The signature covers the POST parameters, so the
+            body is parsed before the caller is authenticated; this bounds what
+            an unauthenticated caller can make the process do.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
 
   /internal/cron/reminders:
     post:

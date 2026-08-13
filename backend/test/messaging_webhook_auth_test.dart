@@ -109,7 +109,7 @@ void main() {
       final r = auth().authenticate(
         twilioSignature: signFor('https://api.myweli.com', 'auth-token'),
         headerSecret: null,
-        requestPath: path,
+        requestPathAndQuery: path,
         formFields: fields,
       );
       expect(r.ok, isTrue);
@@ -120,7 +120,7 @@ void main() {
       final r = auth().authenticate(
         twilioSignature: 'AAAAAAAAAAAAAAAAAAAAAAAAAAA=',
         headerSecret: null,
-        requestPath: path,
+        requestPathAndQuery: path,
         formFields: fields,
       );
       expect(r.ok, isFalse);
@@ -133,7 +133,7 @@ void main() {
       final r = auth().authenticate(
         twilioSignature: signFor('https://api.myweli.com', 'auth-token'),
         headerSecret: null,
-        requestPath: path,
+        requestPathAndQuery: path,
         formFields: const {
           'MessageSid': 'SM123',
           'MessageStatus': 'undelivered',
@@ -149,7 +149,7 @@ void main() {
       final r = auth().authenticate(
         twilioSignature: signFor('https://attacker.example', 'auth-token'),
         headerSecret: null,
-        requestPath: path,
+        requestPathAndQuery: path,
         formFields: fields,
       );
       expect(r.ok, isFalse);
@@ -159,7 +159,7 @@ void main() {
       final r = auth(base: 'https://api.myweli.com/').authenticate(
         twilioSignature: signFor('https://api.myweli.com', 'auth-token'),
         headerSecret: null,
-        requestPath: path,
+        requestPathAndQuery: path,
         formFields: fields,
       );
       expect(r.ok, isTrue);
@@ -178,7 +178,7 @@ void main() {
             ).authenticate(
               twilioSignature: null,
               headerSecret: 's3cret',
-              requestPath: '/webhooks/messaging/status',
+              requestPathAndQuery: '/webhooks/messaging/status',
               formFields: const {},
             );
         expect(r.ok, isTrue);
@@ -202,7 +202,7 @@ void main() {
               .authenticate(
                 twilioSignature: null,
                 headerSecret: supplied,
-                requestPath: '/webhooks/messaging/status',
+                requestPathAndQuery: '/webhooks/messaging/status',
                 formFields: const {},
               )
               .ok,
@@ -223,7 +223,7 @@ void main() {
           ).authenticate(
             twilioSignature: 'AAAA=',
             headerSecret: 's3cret',
-            requestPath: '/webhooks/messaging/status',
+            requestPathAndQuery: '/webhooks/messaging/status',
             formFields: const {},
           );
       expect(r.ok, isTrue);
@@ -288,6 +288,40 @@ void main() {
     });
   });
 
+  group('exceedsBodyCap — the pre-auth parse is bounded', () {
+    // Verifying a Twilio signature needs the POST parameters, so the body is
+    // parsed BEFORE the caller is authenticated. That inverts the usual order,
+    // and this is the bound on what an unauthenticated caller can make the
+    // process do.
+    test('a Twilio-sized body passes', () {
+      for (final len in ['0', '512', '1024', '65536']) {
+        expect(MessagingWebhookAuth.exceedsBodyCap(len), isFalse, reason: len);
+      }
+    });
+
+    test('a body over the cap is refused', () {
+      expect(MessagingWebhookAuth.exceedsBodyCap('65537'), isTrue);
+      expect(MessagingWebhookAuth.exceedsBodyCap('33554432'), isTrue);
+    });
+
+    test(
+      'absent or junk Content-Length does NOT refuse — and that is the gap',
+      () {
+        // A chunked request declares no length. Refusing those would break a
+        // legitimate sender to close a hole Cloud Run already bounds at 32 MiB.
+        // Asserted so the residual risk is visible in the suite rather than only
+        // in a comment.
+        for (final raw in [null, '', '  ', 'abc', '-1']) {
+          expect(
+            MessagingWebhookAuth.exceedsBodyCap(raw),
+            isFalse,
+            reason: '\$raw',
+          );
+        }
+      },
+    );
+  });
+
   group('constantTimeEquals', () {
     test('equal strings match; unequal ones do not, at any length', () {
       expect(MessagingWebhookAuth.constantTimeEquals('abc', 'abc'), isTrue);
@@ -295,6 +329,24 @@ void main() {
       expect(MessagingWebhookAuth.constantTimeEquals('abc', 'ab'), isFalse);
       expect(MessagingWebhookAuth.constantTimeEquals('abc', 'abcd'), isFalse);
       expect(MessagingWebhookAuth.constantTimeEquals('', ''), isTrue);
+    });
+
+    test('a NON-LATIN-1 secret is not silently truncated to one byte', () {
+      // The bug this replaced: `Uint8List.fromList(s.codeUnits)` truncates every
+      // UTF-16 code unit to 8 bits, so `'Ł'` (U+0141) compared EQUAL to `'A'`
+      // (0x41) — measured. Any secret with a non-Latin-1 character was weaker
+      // than it looked, one position at a time. `CronAuth` carried the same
+      // routine and the same defect.
+      expect(MessagingWebhookAuth.constantTimeEquals('Ł', 'A'), isFalse);
+      expect(
+        MessagingWebhookAuth.constantTimeEquals('secret-Ł', 'secret-A'),
+        isFalse,
+      );
+      // And the same string still matches itself once encoded as UTF-8.
+      expect(
+        MessagingWebhookAuth.constantTimeEquals('sécrét-Ł', 'sécrét-Ł'),
+        isTrue,
+      );
     });
 
     test('a shared prefix does not shortcut', () {

@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
 
@@ -79,19 +78,27 @@ class MessagingWebhookAuth {
       (_twilioAuthToken != null && _publicBaseUrl != null) ||
       _sharedSecret != null;
 
-  /// [requestPath] is the path only (e.g. `/webhooks/messaging/status`);
+  /// [requestPathAndQuery] is the path **and any query string**, e.g.
+  /// `/webhooks/messaging/status` or `/webhooks/messaging/status?v=2`;
   /// [formFields] are the POST parameters as received.
+  ///
+  /// The query is included because **Twilio signs the URL as configured**. A
+  /// callback registered with any query parameter — a Messaging-Service-level
+  /// callback with a tracking param, a cache-buster — would otherwise fail
+  /// verification forever with nothing to point at. Including it is not a
+  /// weakness: a caller who appends a parameter has only changed the string its
+  /// own signature is checked against.
   ({bool ok, MessagingWebhookMethod? method}) authenticate({
     required String? twilioSignature,
     required String? headerSecret,
-    required String requestPath,
+    required String requestPathAndQuery,
     required Map<String, String> formFields,
   }) {
     final token = _twilioAuthToken;
     final base = _publicBaseUrl;
     if (twilioSignature != null && token != null && base != null) {
       final expected = computeTwilioSignature(
-        url: '$base$requestPath',
+        url: '$base$requestPathAndQuery',
         params: formFields,
         authToken: token,
       );
@@ -144,19 +151,46 @@ class MessagingWebhookAuth {
 
   /// Compares in time proportional to the inputs, not to how far they match.
   ///
-  /// Lifted deliberately from `CronAuth`'s private copy rather than reinvented:
-  /// the lengths are folded into the difference instead of returning early,
+  /// The lengths are folded into the difference instead of returning early,
   /// because an early return leaks the secret's length — the one thing a timing
   /// attacker gets for free otherwise.
+  ///
+  /// **`utf8.encode`, not `codeUnits`.** `Uint8List.fromList` truncates each
+  /// UTF-16 code unit to 8 bits, so every character above U+00FF collapses onto
+  /// its low byte and distinct strings compare EQUAL — measured: `'Ł'` (U+0141)
+  /// matched `'A'` (0x41). A shared secret containing any non-Latin-1 character
+  /// was therefore weaker than it looked, one byte at a time. `CronAuth` carried
+  /// the same defect, lifted from the same routine, and is fixed with it.
   static bool constantTimeEquals(String a, String b) {
-    final ab = Uint8List.fromList(a.codeUnits);
-    final bb = Uint8List.fromList(b.codeUnits);
+    final ab = utf8.encode(a);
+    final bb = utf8.encode(b);
     var diff = ab.length ^ bb.length;
     final n = ab.length < bb.length ? ab.length : bb.length;
     for (var i = 0; i < n; i++) {
       diff |= ab[i] ^ bb[i];
     }
     return diff == 0;
+  }
+
+  /// The largest body this route will parse **before** the caller is
+  /// authenticated, in bytes.
+  ///
+  /// Twilio's status callbacks are under a kilobyte. The cap exists because
+  /// verifying a signature requires the parameters, which inverts the usual
+  /// order and lets an unauthenticated caller choose how much buffering,
+  /// splitting, sorting and hashing the process does.
+  static const maxBodyBytes = 64 * 1024;
+
+  /// True when a declared `Content-Length` is over [maxBodyBytes].
+  ///
+  /// **An absent or unparseable header returns false**, deliberately: a chunked
+  /// request has no declared length, and refusing every one of those would
+  /// break a legitimate sender to close a hole the platform already bounds
+  /// (Cloud Run caps a request at 32 MiB). Stated so the residual is visible
+  /// rather than assumed away.
+  static bool exceedsBodyCap(String? contentLengthHeader) {
+    final n = int.tryParse(contentLengthHeader?.trim() ?? '');
+    return n != null && n > maxBodyBytes;
   }
 
   static String? _blankToNull(String? v) {

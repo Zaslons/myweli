@@ -165,7 +165,13 @@ apps); what's left is console work. Specs:
 3. Verify `GET <render-url>/health`, then map the custom domain `api.myweli.com`
    (Render → Settings → Custom Domains → add the CNAME at Cloudflare).
 4. **Twilio webhook:** status callback →
-   `https://api.myweli.com/webhooks/messaging/status?secret=<MESSAGING_WEBHOOK_SECRET>`.
+   `https://api.myweli.com/webhooks/messaging/status` — **no query string.**
+   Twilio authenticates its own callbacks with `X-Twilio-Signature`, verified
+   against `TWILIO_AUTH_TOKEN`, so there is no secret to append. Appending one
+   would also *break* verification: Twilio signs the URL as configured, query
+   string included, so a callback registered with `?secret=…` would fail every
+   signature check. Turning Twilio on therefore needs **`PUBLIC_BASE_URL` set as
+   well** — without it there is no URL to reconstruct and the webhook 404s.
 5. **Reminder cron:** a **Render Cron Job** (or any scheduler) that
    `POST`s `/internal/cron/reminders` with `X-Cron-Secret: <CRON_SECRET>` every
    ~15 min (24h/2h reminders).

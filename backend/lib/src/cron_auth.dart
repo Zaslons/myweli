@@ -1,4 +1,4 @@
-import 'dart:typed_data';
+import 'dart:convert';
 
 import 'auth/id_token_verifier.dart';
 
@@ -107,9 +107,14 @@ class CronAuth {
   /// The lengths are compared first and the result folded in, rather than
   /// returned early — an early return leaks the secret's length, which is the
   /// one thing a timing attacker gets for free otherwise.
+  ///
+  /// **`utf8.encode`, not `codeUnits`.** `Uint8List.fromList` truncates each
+  /// UTF-16 code unit to 8 bits, so characters above U+00FF collapse onto their
+  /// low byte and distinct secrets compare EQUAL — `'Ł'` (U+0141) matched `'A'`.
+  /// Found while porting this routine to the messaging webhook.
   static bool _constantTimeEquals(String a, String b) {
-    final ab = Uint8List.fromList(a.codeUnits);
-    final bb = Uint8List.fromList(b.codeUnits);
+    final ab = utf8.encode(a);
+    final bb = utf8.encode(b);
     var diff = ab.length ^ bb.length;
     final n = ab.length < bb.length ? ab.length : bb.length;
     for (var i = 0; i < n; i++) {
