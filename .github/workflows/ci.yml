@@ -270,6 +270,26 @@ jobs:
           # satisfies the guard; the send then fails and is ignored (delivery is
           # best-effort and the route never inspects the result).
           RESEND_API_KEY: not-a-resend-key-delivery-is-ignored-here
+          # ---------------------------------------------------------------
+          # Everything below became REQUIRED when the `guardsOn` fail-fasts
+          # started firing at boot rather than on first use (BACKEND.md §3.2.2).
+          #
+          # That this step ever booted was the bug, not the fix: it claimed to
+          # rehearse `ENV=prod` while missing eight variables production cannot
+          # run without, because each guard was a lazy `final` that no request in
+          # this step happened to touch. It was rehearsing a configuration
+          # production could never have had.
+          #
+          # Real values where the guard is about *identity* (origins, client-id
+          # allowlists), and the explicit `disabled` opt-out where the guard is
+          # about a *channel* CI has no business reaching. Never blank: an unset
+          # value is what the guards exist to catch.
+          WEB_ORIGINS: http://localhost:8788
+          GOOGLE_CLIENT_IDS: ci-not-a-real-client-id.apps.googleusercontent.com
+          APPLE_CLIENT_IDS: com.myweli.app.ci
+          MESSAGING_PROVIDER: disabled
+          PUSH_PROVIDER: disabled
+          STORAGE_PROVIDER: disabled
         run: |
           set -euo pipefail
           PORT=8788

@@ -114,8 +114,10 @@ Handler middleware(Handler handler) {
       .use(provider<TokenService>((_) => tokenService))
       .use(provider<ProvidersRepository>((_) => providersRepository))
       .use(provider<LocalitiesService>((_) => localitiesService))
-      // Browser CORS for the Next.js web app(s).
-      .use(corsMiddleware(webOrigins))
+      // Browser CORS for the Next.js web app(s). A callback, not the list: this
+      // chain is built before the custom entrypoint runs, so passing the value
+      // resolves `webOrigins` here and pre-empts the aggregated boot check.
+      .use(corsMiddleware(() => webOrigins))
       // Boundary input check, INSIDE observability so a rejection still gets a
       // request id, and outside everything else so no handler ever sees a
       // control character (lib/src/query_sanity.dart).
