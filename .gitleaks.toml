@@ -18,7 +18,7 @@ paths = [
   # trips gitleaks' gcp-api-key rule, which is the false positive here.
   #
   # The FCM *server* credential (FCM_PRIVATE_KEY) is a real secret and lives
-  # ONLY in Render's env — never in this repo. Same posture as
+  # ONLY in GCP Secret Manager — never in this repo. Same posture as
   # AppConfig.googleServerClientId.
   '''mobile/android/app/src/(consumer|pro)/google-services\.json''',
   '''mobile/ios/.*GoogleService-Info.*\.plist''',

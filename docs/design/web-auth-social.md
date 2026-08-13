@@ -83,7 +83,7 @@ After a **successful sign-in where the account has no phone** (`me.phoneNumber =
 
 ## 7. Rollout / config
 - Ships dark: with no `NEXT_PUBLIC_*` IDs set, the web shows **email-only** login (fully functional — Resend on the backend, devCode off-prod). Google/Apple appear the moment their IDs land in Vercel env.
-- Ops (user, guided later): Google Cloud project → **web OAuth client ID** (+ the same value into the backend `GOOGLE_CLIENT_IDS`); Apple **Service ID** + domain verification (+ backend `APPLE_CLIENT_IDS`); **Resend** key + domain (backend). Then Render: `AUTH_METHODS=google,apple,email`.
+- Ops (user, guided later): Google Cloud project → **web OAuth client ID** (+ the same value into the backend `GOOGLE_CLIENT_IDS`); Apple **Service ID** + domain verification (+ backend `APPLE_CLIENT_IDS`); **Resend** key + domain (backend). Then the backend: `AUTH_METHODS=google,apple,email` — already set in `infra/gcp/service.yaml`.
 - Old consumer OTP BFF routes (`/api/auth/request-otp`, `/api/auth/verify`) deleted in Phase 3 when the app stops using phone login (they 404 server-side once `AUTH_METHODS` drops `phone`).
 
 ## 8. Decisions (locked 2026-07-02)

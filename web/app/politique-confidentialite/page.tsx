@@ -120,8 +120,8 @@ export default function Page() {
 
       <H2>Où vos données sont hébergées</H2>
       <P>
-        Nos serveurs applicatifs et notre base de données sont hébergés par Render
-        à <strong>Francfort, en Allemagne</strong>&nbsp;; le site web par
+        Nos serveurs applicatifs et notre base de données sont hébergés par
+        Google Cloud à <strong>Paris, en France</strong>&nbsp;; le site web par
         Vercel&nbsp;; les fichiers — photos, captures d’écran, pièces
         justificatives — par Cloudflare R2, dont les serveurs sont répartis
         mondialement. <strong>Vos données sortent donc de Côte d’Ivoire</strong>

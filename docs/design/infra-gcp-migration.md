@@ -64,7 +64,7 @@ platform):
 | `fromDatabase: connectionString` | `DATABASE_URL` built by us | the one value that cannot be copied — it is Render-shaped |
 | `generateValue: true` ×3 | Secret Manager secrets we mint | `JWT_SECRET`, `MESSAGING_WEBHOOK_SECRET`, `CRON_SECRET` |
 | `sync: false` ×26 | Secret Manager / env | values live in the owner's head or the Render dashboard |
-| dashboard cron jobs (**invisible to the repo**) | Cloud Scheduler, declared in `infra/gcp/` | see §5 |
+| dashboard cron jobs (**invisible to the repo**) | Cloud Scheduler | see §5 — and note the honesty gap recorded there: the jobs exist in the project but are still not declared in this repo |
 | auto-deploy from GitHub | GitHub Actions + WIF | explicit, reviewable, no platform magic |
 
 **The three generated secrets can be re-minted rather than copied.** There are
@@ -216,7 +216,7 @@ Three options were considered:
 |---|---|
 | Cloud Run's built-in Cloud SQL mount (unix socket `/cloudsql/…`) | **Rejected** — the Dart `postgres` pool is built from a `host:port` URL; a unix socket does not fit `createPool(DATABASE_URL)` without a code change |
 | Private IP + Direct VPC egress | Viable, lowest latency, but needs a VPC, a subnet and private services access — more moving parts to get wrong on day one |
-| **Auth Proxy sidecar** | **Chosen.** `DATABASE_URL` becomes `postgres://user:pass@127.0.0.1:5432/myweli`, the proxy encrypts the hop, and `createPool` already treats a local host as "no SSL needed" (`render.yaml:11` records that behaviour). **Zero application change.** |
+| **Auth Proxy sidecar** | **Chosen.** `DATABASE_URL` becomes `postgres://user:pass@127.0.0.1:5432/myweli`, the proxy encrypts the hop, and `createPool` already treats a local host as "no SSL needed" (`backend/lib/src/db/database.dart` is where that behaviour lives). **Zero application change.** |
 
 Revisit private IP later if the proxy's per-instance overhead shows up in
 latency; it is an infrastructure change with no code impact.
@@ -256,7 +256,15 @@ leaks no credential.
 to be off without anyone noticing. Nothing in the repo ever scheduled them; they
 were Render dashboard jobs, invisible to review.
 
-Two Cloud Scheduler jobs, declared in `infra/gcp/`:
+Two Cloud Scheduler jobs:
+
+> **They are not yet declared in this repo.** `infra/gcp/` holds only
+> `70-load-balancer.sh`, `80-uptime-checks.sh` and the service manifests, so the
+> jobs below were created by hand and exist only in the project. That is a
+> weaker version of the exact failure this section is about — Render's cron
+> jobs were invisible to review, and these are merely *less* invisible. Committing
+> them is owed.
+
 
 | Job | Schedule | Target |
 |---|---|---|
@@ -275,10 +283,33 @@ reminder cron was never running.
    URL** — 47 assertions over real HTTP are exactly the acceptance test for
    "this environment works", and they already exist.
 3. Point `api.myweli.com` at Cloud Run.
-4. Watch, then delete the Render services and remove `render.yaml`.
+4. Watch, then delete the Render services and remove `render.yaml`. — **DONE
+   2026-08-13.** §9 Q4 chose "keep the services a week as a rollback"; the week
+   ran from the 2026-08-06 cutover and elapsed without a rollback being needed,
+   so the file is deleted and the Render account holds nothing.
 
 No traffic-splitting or dual-run: there are no users yet, so a clean cutover is
 simpler and safer than a migration dance.
+
+### 6.1 What decommissioning actually looked like
+
+Recorded because the *evidence* is the useful part, not the outcome. From
+outside the Render dashboard, three signals agreed that the service was gone:
+
+- GitHub still carries two deployment environments Render created,
+  `main - myweli-api` and `main - myweli-db`. The last deployment to the first
+  is **2026-08-06T18:49:51Z**, ending `failure` → `inactive`. Nothing has
+  deployed since, across every merge to `main` in the week that followed — so
+  `autoDeploy: true` had already stopped meaning anything.
+- `https://myweli-api.onrender.com/health` answers **404 in 0.8s** — Render's
+  edge refusing an unknown service, not an app 404 and not a cold start.
+- `api.myweli.com` resolves to the Google load-balancer address, and `/health`
+  returns 200 from Cloud Run.
+
+**Those two GitHub environments are the last Render residue in this repo.** They
+are harmless but misleading: an environment list showing `main - myweli-api`
+reads like a live deployment target. Deleting them is a repo-settings action
+(Settings → Environments), owner-only.
 
 ## 7. Who does what
 
@@ -417,13 +448,18 @@ surgical, altering ingress and nothing else.
 
 ## 9. Open questions
 
-1. Is the Render database recoverable, and is any beta data worth exporting? If
-   yes, §6 gains a `pg_dump` step. Assumed no until the dashboard says otherwise.
+1. ~~Is the Render database recoverable, and is any beta data worth exporting?~~
+   **Closed — no.** The assumption held: nothing was exported, the cutover ran
+   without a `pg_dump` step, and the Render database has since been deleted with
+   no loss. There were no real users, which is the whole reason a clean cutover
+   was affordable.
 2. Cloud SQL tier: smallest shared-core to start (the beta is 15–25 salons), or
    go straight to a small dedicated instance? Recommend shared-core; it is a
    one-command resize with a brief restart.
 3. Should `CRON_SECRET` unset become a prod fail-fast in this PR or a follow-up?
    Recommend follow-up, to keep the cutover PR about the move.
-4. Delete the Render services immediately after cutover, or keep them a week as
-   a rollback? Recommend keeping the (now paid) database off but the blueprint
-   in git history for one week.
+4. ~~Delete the Render services immediately after cutover, or keep them a week as
+   a rollback?~~ **Closed — kept a week, then deleted.** The week ran
+   2026-08-06 → 2026-08-13 and the rollback was never wanted. `render.yaml` is
+   removed (§6 step 4, §6.1); git history remains the archive, which is what the
+   recommendation meant by "in git history".

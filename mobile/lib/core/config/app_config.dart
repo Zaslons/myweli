@@ -83,8 +83,9 @@ class AppConfig {
   /// **rejected store submission**, so here the production URL is the default
   /// and the env var is the *staging* override.
   ///
-  /// `myweli.com`, not `.ci`: `render.yaml` and `docs/DEPLOYMENT.md` both use
-  /// `.com`, and `PRD.md:506`'s `.ci` is stale. Switching later is one define.
+  /// `myweli.com`, not `.ci`: `infra/gcp/service.yaml` (the CORS allowlist) and
+  /// `docs/DEPLOYMENT.md` both use `.com`, and `PRD.md:506`'s `.ci` is stale.
+  /// Switching later is one define.
   static const String siteBaseUrl = String.fromEnvironment(
     'SITE_BASE_URL',
     defaultValue: 'https://myweli.com',

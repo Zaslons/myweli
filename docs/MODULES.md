@@ -50,8 +50,8 @@ identity & auth (Google/Apple/email OTP, JWT + rotating refresh), the design
 system ([design/SYSTEM.md](design/SYSTEM.md) +
 [design/WEB-SYSTEM.md](design/WEB-SYSTEM.md), MyWeli brand),
 the security model ([BACKEND.md](BACKEND.md) §3 + STRIDE §7), the API contract
-([api/openapi.yaml](api/openapi.yaml)), and infra (Render · Vercel · R2 ·
-Cloudflare · Resend · FCM).
+([api/openapi.yaml](api/openapi.yaml)), and infra (Google Cloud — Cloud Run +
+Cloud SQL · Vercel · R2 · Cloudflare · Resend · FCM).
 
 **Not replicated (deliberately):** fiscal cash registers (Российские ККМ — a
 Russian legal requirement, not a feature; revisit only if DGI/FNE e-invoicing
