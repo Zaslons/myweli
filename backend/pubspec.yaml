@@ -23,3 +23,8 @@ dev_dependencies:
   lints: ^4.0.0
   mocktail: ^1.0.4
   test: ^1.25.0
+  # Tests only. `test/infra/service_files_test.dart` parses the Cloud Run
+  # service files so the invariants that span them — one database per
+  # environment, no shared secret, the pool fitting the instance — are asserted
+  # rather than described in a comment. Already present transitively.
+  yaml: ^3.1.3

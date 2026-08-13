@@ -107,7 +107,7 @@ export const COMPANY = {
   country: 'Côte d’Ivoire',
   /// Mentions légales name the host; ours are three, in two jurisdictions.
   hosts: [
-    'Render Inc. — serveurs applicatifs et base de données, Francfort (Allemagne)',
+    'Google Cloud — serveurs applicatifs et base de données, Paris (France)',
     'Vercel Inc. — site web, États-Unis',
     'Cloudflare Inc. — stockage des fichiers (R2)',
   ],

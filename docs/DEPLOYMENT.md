@@ -8,32 +8,40 @@ truth for backend keys: [`backend/.env.example`](../backend/.env.example); for w
 ## 0. What runs where
 | Component | Tech | Host | Domain |
 |---|---|---|---|
-| Backend API | dart_frog (Docker) | **Render** (Frankfurt, EU) — `render.yaml` Blueprint | `api.myweli.com` |
-| Database | PostgreSQL | **Render Postgres** (same region) | internal |
+| Backend API | dart_frog (Docker) | **Cloud Run** (`europe-west9`, Paris) — `infra/gcp/service.yaml` | `api.myweli.com` (via a global HTTPS load balancer) |
+| Database | PostgreSQL 16 | **Cloud SQL** `myweli-db` (same region), reached through the Auth Proxy sidecar | internal |
 | Web | Next.js | **Vercel** | `myweli.com` + `www` |
 | Admin console | Flutter Web | static host (Vercel/CF Pages) | `admin.myweli.com` |
 | Mobile | Flutter (consumer + pro) | App Store + Google Play | — |
 | Object storage | Cloudflare R2 (3 buckets) | Cloudflare | `cdn.myweli.com` (public bucket) |
-| Messaging | Twilio (WhatsApp + SMS) | Twilio | webhook → `api.myweli.com` |
+| Messaging | **off** — `MESSAGING_PROVIDER=disabled` | (Termii is the intended launch provider; Twilio is test-only at $0.49/segment to CI) | webhook → `api.myweli.com` |
 | Push | Firebase Cloud Messaging | Firebase | — |
 | DNS/CDN | Cloudflare | Cloudflare | `myweli.com` zone |
-| Errors | Sentry (optional) | Sentry | — |
+| Errors | Sentry — **live on all three surfaces**, plus Cloud Monitoring uptime checks | Sentry / GCP | — |
 
-**Stack — built to scale without re-platforming.** Render (backend + Postgres,
-Frankfurt) · Vercel (web) · Cloudflare R2 (images) · Twilio (WhatsApp/SMS) ·
-Firebase FCM (push) · Sentry. What protects you from a forced migration is
-**standard interfaces** — Docker, the Postgres wire protocol, the S3 API, Next.js
-— not the vendor; each piece is individually swappable.
+**Stack — built to scale without re-platforming.** Google Cloud (Cloud Run +
+Cloud SQL, Paris) · Vercel (web) · Cloudflare R2 (images) + Pages (admin) ·
+Twilio (WhatsApp/SMS) · Firebase FCM (push) · Sentry. What protects you from a
+forced migration is **standard interfaces** — Docker, the Postgres wire protocol,
+the S3 API, Next.js — not the vendor; each piece is individually swappable.
 
-> **Why Render, not Cloud Run.** Cloud Run + Cloud SQL is the higher-ceiling
-> choice and stays the upgrade target, but **GCP billing rejects prepaid/virtual
-> cards** (common in CI). Render is **Stripe-billed** (accepts the same cards
-> Twilio does), **deploys from GitHub in the console** (auto-deploy on push), has
-> **built-in managed Postgres**, and runs the **same `backend/Dockerfile`** — so
-> moving to Cloud Run later (if a GCP-friendly card appears) is config, not a
-> rewrite. Alternatives via the same interfaces: Railway / DigitalOcean (PayPal!)
-> / Fly.io (backend), Neon / Supabase (DB), Cloudflare Pages (web), Africa's
-> Talking (cheaper CI SMS). Region: **EU (Frankfurt)** — good latency to West Africa.
+> **This ran on Render first, and the move is worth remembering.** The original
+> choice was Render, for one reason: **GCP billing rejected the prepaid/virtual
+> cards common in Côte d'Ivoire**, while Render is Stripe-billed. That constraint
+> lifted, and the migration was then forced by a different one — the free Render
+> Postgres *appeared* to have expired (every database-backed route answered 500;
+> the symptom was observed, the cause inferred), so the database had to be
+> re-provisioned regardless. Moving both at once cost nothing extra, because the whole point of
+> the interfaces above is that the **same `backend/Dockerfile`** runs in either
+> place. Design:
+> [design/infra-gcp-migration.md](design/infra-gcp-migration.md).
+>
+> Cutover was **2026-08-06**, Render was deleted a week later, and `render.yaml`
+> is gone from the repo — git history is its archive. Alternatives via the same
+> interfaces, if a third move is ever wanted: Railway / DigitalOcean / Fly.io
+> (backend), Neon / Supabase (DB), Cloudflare Pages (web), Africa's Talking or
+> Termii (cheaper CI SMS). Region: **`europe-west9` (Paris)** — marginally closer
+> to Abidjan than Frankfurt, same latency class.
 
 No payment gateway: deposits are **no-custody** (salons use their own Wave/MoMo);
 Myweli never holds funds.
@@ -41,15 +49,36 @@ Myweli never holds funds.
 ---
 
 ## Phase A — Accounts to open
-Domain ✅ (`myweli.com`). Then: **Render** (backend + Postgres) · Vercel ·
-Cloudflare (R2+DNS) · Twilio ✅ · Firebase · Apple Developer ($99/yr) · Google Play
-($25 once) · Sentry (free) · a Myweli business WhatsApp number.
+Domain ✅ (`myweli.com`). Then: **Google Cloud** ✅ (project `myweli` — backend +
+Postgres) · Vercel ✅ · Cloudflare ✅ (R2 + DNS + Pages) · Twilio ✅ · Firebase ✅ ·
+Sentry ✅ · Apple Developer ($99/yr) ✅ · Google Play ($25 once) · a Myweli business
+WhatsApp number.
+
+**Twilio is opened but is not the launch provider, and its tick used to hide that.**
+A $26.60 / 54-segment test bill suspended the account — SMS to Côte d'Ivoire is
+~62× the US price. **Termii** is the intended channel at ~21× less, gated on
+company registration for a branded sender id, and until then production runs
+`MESSAGING_PROVIDER=disabled` by decision rather than by omission. See
+[design/messaging-termii.md](design/messaging-termii.md).
 
 ## Phase B — Provision services
-**B1. Postgres (Render):** provisioned by the `render.yaml` Blueprint alongside the
-web service (Frankfurt). `DATABASE_URL` is injected automatically (`fromDatabase`);
-the backend connects over SSL (`SslMode.require`). The Blueprint starts on the free
-DB tier — **upgrade to a paid plan (backups + no 90-day expiry) before launch.**
+**B1. Postgres (Cloud SQL) ✅ — `myweli-db`, provisioned.** PostgreSQL 16,
+`db-f1-micro`, `europe-west9-b`, 10 GiB auto-resizing SSD. Daily backups with 7
+retained and point-in-time recovery on a 7-day transaction-log window;
+**deletion protection on** and `sslMode: ENCRYPTED_ONLY`.
+
+The backend does **not** hold a public connection string. `DATABASE_URL` points
+at `127.0.0.1:5432` and a **Cloud SQL Auth Proxy sidecar** in the same Cloud Run
+instance encrypts the hop — chosen over a unix socket because `createPool` builds
+from a `host:port` URL, and over private IP because that needs a VPC on day one.
+`database.dart` already treats a local host as "no SSL needed", so this was zero
+application change. The proxy must be listening before the app runs migrations,
+which is what the `container-dependencies` annotation in `infra/gcp/service.yaml`
+guarantees — without it the app can reach migrations first and the revision dies.
+
+A **restore has been rehearsed**, not merely configured: 23 minutes wall-clock
+from backup to a queryable instance. See
+[design/infra-prod-hardening.md](design/infra-prod-hardening.md).
 
 **B2. Cloudflare R2** (specs: pro-image-upload-pipeline / pro-kyc / consumer-deposit):
 - Buckets: `myweli-uploads` (public), `myweli-kyc-private`, `myweli-deposits-private`.
@@ -113,8 +142,8 @@ apps); what's left is console work. Specs:
    (`dependencies.dart:650` converts them); `FCM_PROJECT_ID` and
    `FCM_CLIENT_EMAIL` are not secret and live as plain config in
    `infra/gcp/service.yaml`. Never in the repo.
-5. **Reminder cron** — Render Cron Job, `POST /internal/cron/reminders` with the
-   `X-Cron-Secret` header, every ~15 min (Phase C step 5).
+5. **Reminder cron** — Cloud Scheduler job `myweli-reminders`, `POST
+   /internal/cron/reminders` every 15 min, OIDC-authenticated (Phase C step 6).
 6. **Android smoke test — two real devices** (the first true end-to-end run
    **on device** — the backend funnel is proven in CI since Q1, but nothing had
    run on real hardware against a deployed API;
@@ -153,28 +182,61 @@ apps); what's left is console work. Specs:
    upload the **APNs key** to Firebase. Then re-run the smoke test on an iPhone
    (a simulator never receives push).
 
-## Phase C — Deploy the backend (Render, from `render.yaml`)
-1. **Render Dashboard → New → Blueprint** → connect the GitHub repo → it reads
-   `render.yaml` and provisions **myweli-db** (Postgres) + **myweli-api** (web,
-   builds `backend/Dockerfile`, context `backend/`). `autoDeploy` redeploys on push.
-2. **Secrets** (web service → Environment tab; `sync: false` keys, never in git):
-   `ADMIN_EMAIL` + `ADMIN_PASSWORD` (seeds the first admin) · all `TWILIO_*`
-   (`TWILIO_SMS_FROM=Myweli`) · all `R2_*` · all `FCM_*`. `DATABASE_URL`,
-   `JWT_SECRET`, `MESSAGING_WEBHOOK_SECRET`, `CRON_SECRET`, `ENV`, `WEB_ORIGINS`
-   are set by the Blueprint (generated/wired). Migrations run on boot.
-3. Verify `GET <render-url>/health`, then map the custom domain `api.myweli.com`
-   (Render → Settings → Custom Domains → add the CNAME at Cloudflare).
-4. **Twilio webhook:** status callback →
+## Phase C — Deploy the backend (Cloud Run) ✅ — provisioned, and this is how it works
+
+**There is no dashboard step here, and that is the design.** The whole service —
+sidecar, secrets, probes, scaling, ingress — is declared in
+`infra/gcp/service.yaml` and applied with `gcloud run services replace`. Never
+`gcloud run deploy --set-env-vars` by hand: that creates a revision which
+silently diverges from the file, and the reason this is stated so firmly is that
+the *previous* platform's cron jobs lived in a dashboard, invisible to review,
+which is how the reminder cron came to be switched off without anyone noticing.
+
+1. **Deploy** — run `.github/workflows/deploy-backend.yml` from the Actions tab
+   (`workflow_dispatch`, type `deploy` to confirm). It authenticates by
+   **Workload Identity Federation**, so there is no service-account key in this
+   repo or in GitHub secrets: a leaked repo leaks no credential. It builds
+   `backend/Dockerfile` for `linux/amd64`, pushes to Artifact Registry, and
+   substitutes only the image and the release into the service file.
+2. **Secrets** live in **Secret Manager**, mounted by `secretKeyRef` — 18 of
+   them, listed in `infra/gcp/service.yaml`. Set a value with
+   `gcloud secrets versions add <NAME> --data-file=-`. `FCM_PROJECT_ID` and
+   `FCM_CLIENT_EMAIL` are public identifiers and stay plain config; only
+   `FCM_PRIVATE_KEY` is a secret. Migrations run at boot, serialised across
+   instances behind a Postgres advisory lock, **before the port binds**.
+3. **A misconfigured revision never serves.** Every `guardsOn` fail-fast fires
+   during startup rather than on first use, so a deploy missing a secret fails
+   loudly instead of going green and 500-ing per feature later
+   ([BACKEND.md §3.2.2](BACKEND.md)). The workflow's verify step then asserts the
+   serving image is the one just built, that `/health` and a database-backed
+   route answer, and that the service **reports the environment it was asked to
+   deploy**.
+4. **`api.myweli.com` is a global HTTPS load balancer, not a domain mapping** —
+   Cloud Run domain mappings are unimplemented in `europe-west9`. The service
+   sets `ingress: internal-and-cloud-load-balancing`, so the `*.run.app` URL 404s
+   by design and the load balancer is the only front door. Built by
+   `infra/gcp/70-load-balancer.sh`.
+5. **Twilio webhook — not applicable yet**, listed so it is not forgotten when
+   messaging turns on. Production runs `MESSAGING_PROVIDER=disabled` and mounts
+   no Twilio credentials, so nothing calls this route today. When a provider is
+   configured, the status callback is
    `https://api.myweli.com/webhooks/messaging/status` — **no query string.**
    Twilio authenticates its own callbacks with `X-Twilio-Signature`, verified
    against `TWILIO_AUTH_TOKEN`, so there is no secret to append. Appending one
    would also *break* verification: Twilio signs the URL as configured, query
    string included, so a callback registered with `?secret=…` would fail every
    signature check. Turning Twilio on therefore needs **`PUBLIC_BASE_URL` set as
-   well** — without it there is no URL to reconstruct and the webhook 404s.
-5. **Reminder cron:** a **Render Cron Job** (or any scheduler) that
-   `POST`s `/internal/cron/reminders` with `X-Cron-Secret: <CRON_SECRET>` every
-   ~15 min (24h/2h reminders).
+   well** — without it there is no URL to reconstruct and the webhook 404s
+   (BACKEND.md §7 T19).
+6. **Crons are Cloud Scheduler jobs**, not dashboard entries: `myweli-reminders`
+   every 15 min and `myweli-subscriptions` daily at 03:00 UTC, both authenticated
+   with a Google-signed OIDC token (`myweli-scheduler@`). A transitional
+   `X-Cron-Secret` header is still accepted and is to be retired once real runs
+   are seen on the OIDC path.
+7. **Monitoring** is committed too — `infra/gcp/80-uptime-checks.sh` creates
+   uptime checks on `/health` *and* on a database-backed route, because `/health`
+   never touches Postgres and reported `ok` throughout an outage. Alerts require
+   two failing locations sustained for five minutes.
 
 ## Phase D — Deploy the web (Vercel)
 Project root = `web/`. Env: `API_BASE_URL=https://api.myweli.com` (server-side BFF)
@@ -187,7 +249,9 @@ designed OG art can replace the generated ones later).
 
 ## Phase E — Deploy the admin (Cloudflare Pages, via GitHub Actions)
 The admin is a Flutter-Web SPA that calls `api.myweli.com` **directly** (CORS), so
-`WEB_ORIGINS` must include `https://admin.myweli.com` (done in `render.yaml`).
+`WEB_ORIGINS` must include `https://admin.myweli.com` (set in
+`infra/gcp/service.yaml`; it is a boot fail-fast, so a deploy that drops it never
+serves rather than failing silently in the browser).
 - **Build + deploy:** `.github/workflows/deploy-admin.yml` builds
   `lib/main_admin.dart` (`--dart-define=API_BASE_URL=https://api.myweli.com`) and
   deploys to the **Cloudflare Pages** project `myweli-admin`. Repo secrets:
@@ -262,7 +326,10 @@ again** with a small Actions spending limit (or accept the monthly quota).
 - ✅ Web `next/image` + CDN allowlist (`cdn.myweli.com`) + OG image
   (`app/opengraph-image.tsx`) + favicon + `logo.svg` (#4). Real raster `logo.png`
   / designed OG art = optional later polish.
-- ✅ Render Blueprint (`render.yaml`) — backend web service + Postgres, from GitHub.
+- ✅ Infrastructure-as-code for the backend — originally the Render Blueprint
+  (`render.yaml`), now `infra/gcp/service.yaml` + `deploy-backend.yml`. The
+  Blueprint did its job and is deleted; what carried over is the property that
+  made it worth having — **the infrastructure is in the repo and reviewable.**
 
 **→ The no-account deployment-readiness track (#1–#4 + #2b) is complete.**
 Everything remaining is the accounts phase (provision services + supply keys).

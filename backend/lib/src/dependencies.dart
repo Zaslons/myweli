@@ -106,6 +106,11 @@ import 'upload_verification_service.dart';
 /// here rather than silently meaning `dev` — see [Env.parse].
 final Env _env = Env.parse(Platform.environment['ENV']);
 
+/// Which deployment this is, for anything that needs to *state* it rather than
+/// branch on it — `/health` reports it so a caller can ask the target what it is
+/// instead of inferring it from the hostname it typed.
+Env get env => _env;
+
 /// **Fail fast on missing configuration.** True for staging AND prod: staging
 /// exists to rehearse production, and an environment whose guards are off
 /// rehearses nothing. Every `must be set in production` throw below hangs off

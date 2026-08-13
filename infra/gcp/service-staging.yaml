@@ -1,0 +1,324 @@
+# Cloud Run service — the MyWeli backend, STAGING.
+#
+# A real committed file rather than a templated copy of service.yaml. Templating
+# `metadata.name` would mean the service's identity is invented at deploy time by
+# a shell substitution, which reopens exactly the drift the declarative file
+# exists to close — and it is the service NAME that decides whether a deploy
+# lands on staging or on production.
+#
+# **Read this side by side with service.yaml.** Everything not called out below
+# is deliberately identical, because a staging environment that differs where it
+# did not have to is rehearsing something else. In particular the probes, the
+# 300s timeout, the container-dependencies ordering fix and both resource limits
+# are copied verbatim: the cold-start path they protect is the one staging
+# exercises MOST, since minScale is 0 here.
+#
+# Deployed by .github/workflows/deploy-backend.yml with `environment: staging`.
+# Design: docs/design/infra-staging.md.
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: myweli-api-staging
+  labels:
+    cloud.googleapis.com/location: europe-west9
+  annotations:
+    # **`all`, unlike production — and not an oversight.** Production is
+    # `internal-and-cloud-load-balancing` because a global load balancer is the
+    # only front door and the *.run.app URL must not be a second one. Staging has
+    # no load balancer (the $18.25/mo hostname is declined — infra-staging.md
+    # §4.1), so its run.app URL is the ONLY door. Copying production's value here
+    # would make staging unreachable by its own cron and by every Vercel preview,
+    # which is the entire reason it exists.
+    #
+    # The consequence, stated rather than implied: staging is a publicly
+    # reachable service that echoes OTP dev-codes (ENV=staging is `guardsOn` but
+    # not `isProd`), so **anyone who finds this URL can sign in as any identity
+    # in this database.** That is deliberate — it is how a tester signs in with
+    # no SMS channel — and it is fine for the synthetic data staging holds day
+    # to day (infra-staging.md §2.1).
+    #
+    # It is NOT fine for the other row of that table. §2.1 also allows a
+    # prod-volume copy, anonymised on the way in, for rehearsing a migration —
+    # and the scrub replaces phones, names and emails, not the appointments,
+    # deposits and KYC references around them. Put that behind this ingress and
+    # an unauthenticated caller signs in as any client in the derived copy.
+    # **Unresolved, and it must be resolved before build-order step 5 runs that
+    # restore** — see infra-staging.md §2.1.
+    run.googleapis.com/ingress: all
+spec:
+  template:
+    metadata:
+      annotations:
+        # Its OWN instance, not a second database on production's. The arithmetic
+        # is the reason: myweli-db carries no `databaseFlags` at all, so it runs
+        # on the db-f1-micro default of 25 connections, and production already
+        # budgets 4 × maxScale 4 = 16 of them.
+        #
+        # This connection name appears TWICE — here and in the proxy's argv
+        # below. Both must change together; changing one points the annotation
+        # and the proxy at different instances.
+        run.googleapis.com/cloudsql-instances: myweli:europe-west9:myweli-db-staging
+
+        # Identical to production, and load-bearing for the same reason: the app
+        # opens a real connection during migrations with no retry and no backoff,
+        # and the image is FROM scratch so no shell wrapper can wait for the
+        # proxy. See service.yaml for the measurement.
+        run.googleapis.com/container-dependencies: '{"app":["cloudsql-proxy"]}'
+
+        # **minScale 0, unlike production's 1.** Two reasons, and the second is
+        # the better one:
+        #   · cost — the Cloud SQL instance already cannot scale to zero and is
+        #     54-68% of staging's bill; the compute should not join it;
+        #   · fidelity — every staging request then exercises the cold start that
+        #     runs migrations behind `pg_advisory_lock` before the port binds.
+        #     Production hides that path behind minScale 1. Staging is where it
+        #     should be hit constantly, so a migration that is slow enough to
+        #     time out fails here rather than during a production deploy.
+        autoscaling.knative.dev/minScale: '0'
+        # 2 × 4 connections = 8, inside myweli-db-staging's own budget of 25.
+        autoscaling.knative.dev/maxScale: '2'
+        run.googleapis.com/startup-cpu-boost: 'true'
+    spec:
+      # **A separate runtime identity, not production's `myweli-run@`.** Reusing
+      # it would be cheaper — it already holds project-level
+      # `roles/cloudsql.client` — and it would make the secret split below purely
+      # cosmetic: `myweli-run@` has `secretAccessor` on every PRODUCTION secret
+      # version, so a manifest naming `DATABASE_URL` instead of
+      # `STAGING_DATABASE_URL` would simply work. The isolation would then rest
+      # on nobody mistyping a YAML key, in a file that is about to be deployed by
+      # a push trigger.
+      #
+      # This account is granted access to the thirteen `STAGING_*` secrets and
+      # the four shared ones, and to nothing else. A staging revision that
+      # reaches for a production secret fails at revision creation.
+      serviceAccountName: myweli-run-staging@myweli.iam.gserviceaccount.com
+      timeoutSeconds: 300
+      containers:
+        # ---- the API ------------------------------------------------------
+        - name: app
+          image: __IMAGE__
+          ports:
+            - name: http1
+              containerPort: 8080
+          resources:
+            limits:
+              cpu: '1'
+              memory: 512Mi
+          env:
+            # The one value that makes this environment what it is. `guardsOn` is
+            # ON (every fail-fast below is boot-fatal, exactly as in production)
+            # while `isProd` is OFF (OTP dev-codes are echoed, so a tester can
+            # sign in with no SMS channel). See boot_config.dart.
+            - name: ENV
+              value: staging
+            - name: TZ
+              value: UTC
+            # **Identical to production, and it must be.** Unset would make
+            # `explicit` false, turning ALL four methods on — including phone,
+            # which cannot deliver here — and simultaneously silencing the
+            # Google/Apple/Resend fail-fasts. Staging would then rehearse an auth
+            # surface production does not have.
+            - name: AUTH_METHODS
+              value: google,apple,email
+            - name: MESSAGING_PROVIDER
+              value: disabled
+            # Not present in service.yaml, because production HAS a Firebase
+            # project. Staging does not until it gets its own bundle ids
+            # (infra-staging.md §4), and pointing it at production's would put
+            # staging pushes on real phones. This is the explicit off switch, so
+            # "no push here" stays distinguishable from "someone forgot FCM".
+            #
+            # The three FCM_* variables are therefore absent from this file
+            # entirely — including the private key, which is a credential and has
+            # no business being mounted into a second environment.
+            - name: PUSH_PROVIDER
+              value: disabled
+            # **Staging origins only — never production's.** Copying prod's value
+            # makes staging accept browser calls from https://myweli.com, and the
+            # fix for a CORS-blocked preview is always to add a staging origin,
+            # never to widen production's list.
+            #
+            # Only localhost is listed today because it is the only staging
+            # origin that exists. The Vercel preview origins and the
+            # myweli-admin-staging Pages origin are added when those are pointed
+            # at staging (infra-staging.md build order, step 5) — Vercel mints a
+            # distinct hostname per deployment, so that step has to settle how an
+            # exact-match allowlist covers them before this value is final.
+            - name: WEB_ORIGINS
+              value: http://localhost:3000
+            # -- SECRETS ------------------------------------------------------
+            # `STAGING_*` twins, one per production secret, EXCEPT the four
+            # marked SHARED below. Every one of these is boot-fatal
+            # (BACKEND.md §3.2.2): a missing value means the revision never
+            # serves, which is what makes a staging deploy a real check.
+            #
+            # A `secretKeyRef` naming a secret that does not exist at all fails
+            # even earlier — at revision creation, with no application log.
+            #
+            # **None of these exist yet.** Creating the thirteen `STAGING_*`
+            # secrets, the staging Cloud SQL instance and the
+            # `myweli-run-staging@` bindings is build-order step 4, in an
+            # `infra/gcp/90-staging.sh` that is NOT YET WRITTEN. Until it runs, a
+            # staging deploy fails at revision creation — loudly, and in the
+            # safe direction.
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef: { name: STAGING_DATABASE_URL, key: latest }
+            # **The single most important thing on this page not to share.** One
+            # value across both environments means a token minted here — and
+            # staging is where we deliberately mint admin tokens — authenticates
+            # against production.
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef: { name: STAGING_JWT_SECRET, key: latest }
+            - name: CRON_SECRET
+              valueFrom:
+                secretKeyRef: { name: STAGING_CRON_SECRET, key: latest }
+            # **`CRON_OIDC_AUDIENCE` / `CRON_SERVICE_ACCOUNT` are deliberately
+            # absent here, and this is the one place staging is behind
+            # production.** The audience must equal the Scheduler job's, which
+            # for staging is its own `*.run.app` URL — a value that does not
+            # exist until the service is first created. Setting production's
+            # here would be worse than leaving it out: the audience would then
+            # name a host this service is not, and `authenticate()` would fall
+            # through to the shared secret while looking configured.
+            #
+            # Filled in by `90-staging.sh` (not yet written — build-order step 4)
+            # in the same run that creates the Scheduler jobs, which are created
+            # PAUSED, so nothing calls these routes in the interim.
+            # Messaging is disabled here, so nothing will ever call the delivery
+            # webhook — but unset means the webhook is OPEN (deny-by-default is
+            # off when there is no secret to compare), and this service is
+            # publicly reachable. Set, therefore, precisely because it is unused.
+            - name: MESSAGING_WEBHOOK_SECRET
+              valueFrom:
+                secretKeyRef: { name: STAGING_MESSAGING_WEBHOOK_SECRET, key: latest }
+            # SHARED — the same secret, not a twin. `error_reporter.dart` already
+            # tags every event with `environment: staging` from the same `Env`
+            # the guards use, so both environments belong in one Sentry project:
+            # splitting them would split release health for one codebase. A DSN
+            # only authorises WRITING events, so there is no access to separate.
+            - name: SENTRY_DSN
+              valueFrom:
+                secretKeyRef: { name: SENTRY_DSN, key: latest }
+            # SHARED — public OAuth client identifiers, not credentials. They
+            # ship inside the app binary and the web bundle. They are an
+            # *audience allowlist* for Google-signed ID tokens, so different
+            # values would mean staging accepts tokens production rejects, which
+            # is the opposite of a rehearsal. Unlike JWT_SECRET this grants no
+            # crossover: an ID token replayed at production only authenticates
+            # the same Google account its owner could sign in with anyway.
+            - name: GOOGLE_CLIENT_IDS
+              valueFrom:
+                secretKeyRef: { name: GOOGLE_CLIENT_IDS, key: latest }
+            - name: APPLE_CLIENT_IDS
+              valueFrom:
+                secretKeyRef: { name: APPLE_CLIENT_IDS, key: latest }
+            # A staging-only Resend key that CANNOT deliver. Email is a live
+            # channel reaching real inboxes, and §3.3's rule is that staging
+            # never has one. Sign-in still works: `isProd` is false, so the OTP
+            # is echoed in the response and nothing needs to arrive.
+            - name: RESEND_API_KEY
+              valueFrom:
+                secretKeyRef: { name: STAGING_RESEND_API_KEY, key: latest }
+            # Set in NEITHER file until now, so both fell back to the same
+            # default — meaning anything staging did manage to send would arrive
+            # indistinguishable from production mail. Belt and braces with the
+            # dead key above: if a real key is ever pasted here by mistake, the
+            # message at least announces where it came from.
+            - name: EMAIL_FROM
+              value: MyWeli STAGING <no-reply@myweli.com>
+            # R2 — the whole set together or `storageService` throws. Real
+            # staging buckets rather than STORAGE_PROVIDER=disabled: uploads are
+            # the riskiest surface here (presigned PUTs, private KYC and deposit
+            # buckets) and an unrehearsable upload path is a poor economy.
+            #
+            # The credential is what matters, not the bucket names: an
+            # account-scoped token reads and writes every bucket regardless of
+            # what R2_BUCKET says, so STAGING_R2_ACCESS_KEY_ID must be scoped to
+            # the three staging buckets — otherwise a staging run of the
+            # user-erasure path deletes production objects.
+            #
+            # If the Cloudflare buckets are not ready, the supported stopgap is
+            # `STORAGE_PROVIDER: disabled` INSTEAD of these seven — never a
+            # partial set, and never production's values.
+            #
+            # SHARED: R2_ACCOUNT_ID is the Cloudflare account id, so a staging
+            # twin would be byte-identical and two copies of one value is drift
+            # waiting to happen.
+            - name: R2_ACCOUNT_ID
+              valueFrom:
+                secretKeyRef: { name: R2_ACCOUNT_ID, key: latest }
+            - name: R2_BUCKET
+              valueFrom:
+                secretKeyRef: { name: STAGING_R2_BUCKET, key: latest }
+            - name: R2_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef: { name: STAGING_R2_ACCESS_KEY_ID, key: latest }
+            - name: R2_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef: { name: STAGING_R2_SECRET_ACCESS_KEY, key: latest }
+            # Also the gallery's origin allowlist, derived from the storage
+            # service in use (`galleryOriginsFor`). Pointing this at production's
+            # CDN would have staging trust production URLs and reject its own.
+            - name: R2_PUBLIC_BASE_URL
+              valueFrom:
+                secretKeyRef: { name: STAGING_R2_PUBLIC_BASE_URL, key: latest }
+            - name: R2_KYC_BUCKET
+              valueFrom:
+                secretKeyRef: { name: STAGING_R2_KYC_BUCKET, key: latest }
+            - name: R2_DEPOSIT_BUCKET
+              valueFrom:
+                secretKeyRef: { name: STAGING_R2_DEPOSIT_BUCKET, key: latest }
+            # The short commit SHA, substituted by the deploy workflow. Sentry
+            # then groups staging and production errors from the same build under
+            # one release, which is what makes "it worked in staging" checkable.
+            - name: RELEASE
+              value: __RELEASE__
+            # Separate credentials, because this is the account that can suspend
+            # salons and read KYC — and staging is where we hand it out.
+            - name: ADMIN_EMAIL
+              valueFrom:
+                secretKeyRef: { name: STAGING_ADMIN_EMAIL, key: latest }
+            - name: ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef: { name: STAGING_ADMIN_PASSWORD, key: latest }
+          startupProbe:
+            tcpSocket:
+              port: 8080
+            periodSeconds: 10
+            failureThreshold: 30
+            timeoutSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+
+        # ---- Cloud SQL Auth Proxy sidecar ---------------------------------
+        - name: cloudsql-proxy
+          image: gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.14.1
+          args:
+            - --structured-logs
+            - --port=5432
+            - --health-check
+            - --http-address=0.0.0.0
+            - --http-port=9090
+            # The second of the two places the instance is named. See the
+            # cloudsql-instances annotation above.
+            - myweli:europe-west9:myweli-db-staging
+          resources:
+            limits:
+              cpu: '1'
+              memory: 256Mi
+          startupProbe:
+            httpGet:
+              path: /startup
+              port: 9090
+            periodSeconds: 5
+            failureThreshold: 24
+            timeoutSeconds: 4
+  traffic:
+    - percent: 100
+      latestRevision: true
