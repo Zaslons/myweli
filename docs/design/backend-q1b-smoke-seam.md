@@ -146,7 +146,7 @@ still never logged.
 Plus handler tests on both OTP routes: prod + seam → `devCode` present; prod
 without the header → absent; non-prod → unchanged.
 
-## 7. Open — production data pollution
+## 7. ~~Open~~ **Resolved — option 3.** Production data pollution
 
 **Raised here because the migration spec did not consider it.** The funnel
 creates a salon, services, staff and bookings. Run against production, that data
@@ -165,5 +165,22 @@ are open rather than blocked:
    `.test` identity and its cascade.
 3. Move the recurring gate to a staging database once one exists.
 
-**Decision owed before the gate becomes recurring.** For the cutover run itself,
-option 1 stands and needs nothing built.
+**Decided: option 3.** Staging now exists (docs/design/infra-staging.md), so the
+recurring gate runs against it and the question the cutover deferred is closed.
+
+The decision is enforced in code rather than recorded as an intention.
+`backend/tool/smoke/smoke_target.dart` refuses any target that is not a loopback
+host or the staging Cloud Run service — **deny by default**, so a production
+address is refused by not being on the list rather than by appearing on a
+denylist that could go stale. A second layer asks the target what it is:
+`GET /health` now reports `env`, and the harness aborts when a permitted-looking
+URL turns out to be pointed at a `prod` deployment, which is the case no
+hostname rule can see.
+
+**Running the gate against production again is possible and deliberate.** It
+takes an edit to that file, reviewed — the same shape as mounting
+`SMOKE_OTP_SECRET` into `service.yaml`, which it also still requires (that secret
+is not mounted today, so the seam is currently absent from production). There is
+deliberately **no environment variable that unlocks it**: an override is the
+bypass with extra steps, and the accident this guards against is precisely
+someone running the documented command with a copied URL.

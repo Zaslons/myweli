@@ -1,44 +1,74 @@
-# Deploy the backend to Cloud Run (G1).
+# Deploy the backend to Cloud Run — staging or production (G1).
 #
 # Authentication is **Workload Identity Federation** — GitHub's OIDC token is
 # exchanged for a short-lived GCP credential. There is no service-account JSON
 # key in this repo or in GitHub secrets, so a leaked repo leaks no credential.
-# The trust is pinned on the GCP side to `assertion.repository == Zaslons/myweli`
-# (see infra/gcp/40-iam-wif.sh); without that condition any repository on GitHub
-# could mint a token for this pool.
+# The trust is pinned on the GCP side to `assertion.repository == Zaslons/myweli`;
+# without that condition any repository on GitHub could mint a token for this
+# pool.
 #
-# **Manual trigger only, deliberately.** Push-to-deploy is the goal, but not
-# before the service has served real traffic once and `api.myweli.com` has been
-# cut over. Flip `push:` on below when that is done — the comment is the whole
-# change.
+# **The deployer's `roles/run.admin` is PROJECT-WIDE**, so a token minted for a
+# staging deploy can replace the production service just as easily. Nothing in
+# this file can change that — but two things here make it hard to do by accident:
+# the `metadata.name` in each service file is a literal (never templated), and
+# the deploy step refuses to run when that name disagrees with the environment
+# being deployed.
+#
+# **Narrowing the credential itself has NOT been done.** The provider is still
+# pinned on `attribute.repository` alone, so the `environment:` declared below
+# narrows nothing yet — it only makes the narrowing possible, by putting an
+# `environment` claim in the OIDC token for a condition to match. Adding that
+# condition is build-order step 4, and it must land before the `push:` trigger
+# below is uncommented. (The WIF setup itself lives only in the GCP project:
+# `infra/gcp/40-iam-wif.sh`, cited by this file's previous header, was never
+# committed — so step 4 owes that script too.)
+#
+# **Manual trigger only, deliberately.** Push-to-deploy for staging is the goal
+# and the commented `push:` block below is most of it, but it must not be enabled
+# before that WIF condition exists: today any workflow on any branch can mint a
+# token holding project-wide `run.admin`.
 name: Deploy — backend (Cloud Run)
 
 on:
   workflow_dispatch:
     inputs:
-      confirm:
-        description: 'Type "deploy" to confirm'
+      environment:
+        description: 'Which environment to deploy'
+        type: choice
+        options: [staging, production]
+        default: staging
         required: true
+      confirm:
+        description: 'PRODUCTION ONLY — type "deploy" to confirm'
+        required: false
+        default: ''
+      image_tag:
+        description: 'Optional: an existing image tag (short SHA) to deploy instead of building. This is how a production deploy ships the exact artifact staging rehearsed — the tag is resolved to a digest either way.'
+        required: false
         default: ''
   # push:
   #   branches: [main]
-  #   paths: ['backend/**', 'infra/gcp/service.yaml', '.github/workflows/deploy-backend.yml']
+  #   paths:
+  #     - 'backend/**'
+  #     - 'infra/gcp/service.yaml'
+  #     - 'infra/gcp/service-staging.yaml'
+  #     - '.github/workflows/deploy-backend.yml'
+  #
+  # BEFORE ENABLING THIS, read the confirm guard below. A push event carries no
+  # `inputs`, so `inputs.environment` is empty and `inputs.confirm` is empty —
+  # which is why every expression in this file that reads them supplies an
+  # explicit default rather than relying on the value being there.
 
 env:
   PROJECT_ID: myweli
   REGION: europe-west9
-  SERVICE: myweli-api
   REGISTRY: europe-west9-docker.pkg.dev
-  # The load balancer in front of the service — the ONLY public entrance, since
-  # `service.yaml` sets `ingress: internal-and-cloud-load-balancing`. Declared
-  # here rather than derived, because the hostname belongs to the LB
-  # (`infra/gcp/70-load-balancer.sh`) and is not discoverable from the Cloud Run
-  # service.
-  PUBLIC_URL: https://api.myweli.com
 
-# Never let two deploys race to replace the same service.
+# Per environment, not one queue for both: a shared group would park a
+# production hotfix behind an in-flight staging deploy, and once staging deploys
+# are the frequent ones that is a wait measured in builds.
 concurrency:
-  group: deploy-backend
+  group: deploy-backend-${{ github.event.inputs.environment || 'staging' }}
   cancel-in-progress: false
 
 jobs:
@@ -46,18 +76,87 @@ jobs:
     name: Build, push, deploy
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    # **Not `Production`/`Preview`** — those two already exist, created by the
+    # Vercel integration, and reusing them would mix backend deploys into
+    # Vercel's deployment activity log. These names are ours.
+    #
+    # An environment that does not exist yet is auto-created on first use with no
+    # protection rules, so this cannot break a deploy; adding required reviewers
+    # to `backend-production` is an owner action in repo settings, and it is what
+    # turns "typed the word deploy" into a real approval. It also makes GitHub
+    # put an `environment` claim in the OIDC token, which is what the WIF
+    # condition will pin.
+    environment: backend-${{ github.event.inputs.environment || 'staging' }}
     permissions:
       contents: read
       id-token: write # required for the OIDC token — nothing else needs write
 
     steps:
-      - name: Guard — the dispatch must be confirmed
-        if: github.event_name == 'workflow_dispatch' && github.event.inputs.confirm != 'deploy'
+      - name: Guard — a PRODUCTION dispatch must be confirmed
+        # Scoped to production. The old form was `github.event_name ==
+        # 'workflow_dispatch' && inputs.confirm != 'deploy'`, which would have
+        # gone silently inert on the push trigger above — the one path that
+        # deploys without a human in the loop.
+        if: (github.event.inputs.environment || 'staging') == 'production' && github.event.inputs.confirm != 'deploy'
         run: |
-          echo "::error::Type 'deploy' in the confirm input to run this."
+          echo "::error::Type 'deploy' in the confirm input to deploy production."
           exit 1
 
       - uses: actions/checkout@v4
+
+      - name: Resolve this environment's target
+        run: |
+          set -euo pipefail
+          # Committed here rather than in GitHub Environment *variables* on
+          # purpose. This repo's stance is that deploy configuration is
+          # reviewable in a PR — the same reason `service.yaml` is declarative
+          # and the reason the Render dashboard's invisible cron jobs were a
+          # problem. A value only visible in a settings page is the shape of
+          # config that drifts unnoticed.
+          case "${ENVIRONMENT}" in
+            staging)
+              echo "SERVICE=myweli-api-staging" >> "$GITHUB_ENV"
+              echo "SERVICE_YAML=infra/gcp/service-staging.yaml" >> "$GITHUB_ENV"
+              # Staging has no load balancer, so its own *.run.app address is the
+              # only door — and it is READ BACK from the service below, never
+              # constructed, because Cloud Run publishes two run.app hostnames
+              # for one service and only `status.url` is the right one.
+              echo "URL_SOURCE=status-url" >> "$GITHUB_ENV"
+              ;;
+            production)
+              echo "SERVICE=myweli-api" >> "$GITHUB_ENV"
+              echo "SERVICE_YAML=infra/gcp/service.yaml" >> "$GITHUB_ENV"
+              # The opposite: `ingress: internal-and-cloud-load-balancing` makes
+              # production's run.app URL 404 BY DESIGN, so `status.url` is the
+              # wrong answer here. The hostname belongs to the load balancer
+              # (infra/gcp/70-load-balancer.sh) and is not discoverable from the
+              # Cloud Run service, which is why it is a literal.
+              echo "URL_SOURCE=load-balancer" >> "$GITHUB_ENV"
+              echo "PUBLIC_URL=https://api.myweli.com" >> "$GITHUB_ENV"
+              ;;
+            *)
+              echo "::error::unknown environment '${ENVIRONMENT}'"
+              exit 1
+              ;;
+          esac
+        env:
+          ENVIRONMENT: ${{ github.event.inputs.environment || 'staging' }}
+
+      - name: Guard — the service file must match the environment
+        run: |
+          set -euo pipefail
+          # The check that makes "deployed staging onto production" impossible
+          # rather than merely unlikely. `metadata.name` is a LITERAL in both
+          # service files — never a `__SERVICE_NAME__` substitution — precisely
+          # so that it can be asserted against here. The deployer holds
+          # project-wide run.admin, so this is the last line before a `replace`
+          # that would land on the wrong service.
+          NAME=$(awk '/^metadata:/{m=1;next} m&&/^  name:/{print $2;exit}' "${SERVICE_YAML}")
+          if [ "${NAME}" != "${SERVICE}" ]; then
+            echo "::error::${SERVICE_YAML} declares service '${NAME}', but this run targets '${SERVICE}'"
+            exit 1
+          fi
+          echo "  ✓ ${SERVICE_YAML} → ${NAME}"
 
       - id: auth
         name: Authenticate to Google Cloud (WIF, no key)
@@ -71,20 +170,54 @@ jobs:
       - name: Configure Docker for Artifact Registry
         run: gcloud auth configure-docker ${{ env.REGISTRY }} -q
 
-      - name: Build and push
+      - name: Build and push, or reuse an existing image
         id: build
         run: |
           set -euo pipefail
           IMAGE="${REGISTRY}/${PROJECT_ID}/myweli/api"
-          SHA="${GITHUB_SHA::7}"
-          # Cloud Run is linux/amd64 only. The runner is already amd64, so this
-          # is free here — it is the local Apple-Silicon build that needs the
-          # explicit --platform. Stated so nobody "simplifies" it away.
-          docker build --platform linux/amd64 \
-            -t "${IMAGE}:${SHA}" -t "${IMAGE}:latest" backend/
-          docker push "${IMAGE}:${SHA}"
-          docker push "${IMAGE}:latest"
-          echo "image=${IMAGE}:${SHA}" >> "$GITHUB_OUTPUT"
+          if [ -n "${IMAGE_TAG}" ]; then
+            # **Promotion.** Building again for production would produce a
+            # DIFFERENT artifact from the one staging rehearsed, which defeats
+            # the reason staging and production share one Artifact Registry
+            # (infra-staging.md §2). Assert the tag exists rather than
+            # discovering it at `replace` time.
+            SHA="${IMAGE_TAG}"
+            gcloud artifacts docker images describe "${IMAGE}:${SHA}" >/dev/null
+            echo "  ✓ promoting existing ${IMAGE}:${SHA}"
+          else
+            SHA="${GITHUB_SHA::7}"
+            # Cloud Run is linux/amd64 only. The runner is already amd64, so this
+            # is free here — it is the local Apple-Silicon build that needs the
+            # explicit --platform. Stated so nobody "simplifies" it away.
+            docker build --platform linux/amd64 -t "${IMAGE}:${SHA}" backend/
+            docker push "${IMAGE}:${SHA}"
+            # `:latest` is cosmetic — nothing deploys from it — but a staging
+            # deploy moving a tag that reads like production is a small lie, and
+            # staging deploys are about to become the frequent ones.
+            if [ "${ENVIRONMENT}" = "production" ]; then
+              docker tag "${IMAGE}:${SHA}" "${IMAGE}:latest"
+              docker push "${IMAGE}:latest"
+            fi
+          fi
+          # **Deploy the DIGEST, not the tag.** Artifact Registry tags are
+          # mutable and `backend/Dockerfile` builds `FROM dart:stable`, so
+          # `:${SHA}` at 09:00 and `:${SHA}` at 17:00 can be different bytes for
+          # the same commit. A production deploy that rebuilds rather than
+          # promotes would then ship an artifact staging never ran, while every
+          # log line agrees on the tag — and the verify step's image comparison
+          # below would confirm the wrong thing, since it compares the string we
+          # put in the manifest to the string the manifest now has.
+          #
+          # Resolving to `@sha256:…` makes the manifest name exactly one build,
+          # which is what "promote the digest staging rehearsed" has to mean.
+          DIGEST=$(gcloud artifacts docker images describe "${IMAGE}:${SHA}" \
+                     --format='value(image_summary.digest)')
+          if [ -z "${DIGEST}" ]; then
+            echo "::error::could not resolve a digest for ${IMAGE}:${SHA}"
+            exit 1
+          fi
+          echo "  ✓ ${IMAGE}:${SHA} → ${DIGEST}"
+          echo "image=${IMAGE}@${DIGEST}" >> "$GITHUB_OUTPUT"
           # Exposed separately because a Sentry release identifier CANNOT be the
           # image reference: release names may not contain `/`, and Sentry
           # silently discards an invalid one — leaving every error grouped under
@@ -92,23 +225,27 @@ jobs:
           # configured. The short SHA is also the image tag, so a release in
           # Sentry maps to a deployed artifact by inspection.
           echo "sha=${SHA}" >> "$GITHUB_OUTPUT"
+        env:
+          ENVIRONMENT: ${{ github.event.inputs.environment || 'staging' }}
+          IMAGE_TAG: ${{ github.event.inputs.image_tag }}
 
       - name: Deploy the service
         run: |
           set -euo pipefail
           # Declarative: the whole service (sidecar, secrets, probes, scaling)
-          # lives in infra/gcp/service.yaml and is reviewable in a PR. Only the
-          # image tag is substituted, so a deploy cannot quietly drift from it.
+          # lives in the service file and is reviewable in a PR. Only the image
+          # tag and the release are substituted, so a deploy cannot quietly drift
+          # from it — and `metadata.name` is deliberately NOT among them.
           sed -e "s|__IMAGE__|${{ steps.build.outputs.image }}|g" \
               -e "s|__RELEASE__|${{ steps.build.outputs.sha }}|g" \
-            infra/gcp/service.yaml > /tmp/service.yaml
+            "${SERVICE_YAML}" > /tmp/service.yaml
           gcloud run services replace /tmp/service.yaml --region "${REGION}" -q
 
       - name: Verify the revision actually serves
         run: |
           set -euo pipefail
 
-          # **Assert the image we just built is the one serving.** `replace`
+          # **Assert the image we just deployed is the one serving.** `replace`
           # exiting 0 means the API accepted the manifest, not that traffic
           # moved — and every check below would pass just as happily against
           # the OLD revision.
@@ -120,28 +257,60 @@ jobs:
           fi
           echo "  ✓ serving ${SERVING}"
 
-          # **Through the public hostname, NOT `status.url`.**
-          #
-          # This step used to curl the service's own *.run.app address, and that
-          # could never have worked: `service.yaml` sets
+          if [ "${URL_SOURCE}" = "status-url" ]; then
+            # Read back, never constructed — Cloud Run publishes two run.app
+            # hostnames for one service and `gcloud run services list` prints
+            # the one that is NOT `status.url`.
+            PUBLIC_URL=$(gcloud run services describe "${SERVICE}" --region "${REGION}" \
+                          --format='value(status.url)')
+            if [ -z "${PUBLIC_URL}" ]; then
+              echo "::error::status.url is empty — the revision is not serving"
+              exit 1
+            fi
+          fi
+
+          # This step used to curl the service's own *.run.app address for
+          # PRODUCTION, and that could never have worked: `service.yaml` sets
           # `ingress: internal-and-cloud-load-balancing`, so the run.app URL
           # 404s by design and the only public entrance is the load balancer.
-          # The check went unnoticed because this workflow had never run — its
-          # first execution, on 2026-08-12, failed here while the deploy itself
-          # was fine (docs/design/infra-prod-hardening.md §6).
-          #
-          # Curling the real hostname is also the better test: it exercises the
-          # chain a user's request actually takes — ALB → serverless NEG →
-          # backend service → url-map → this revision.
+          # The check went unnoticed until this workflow's first execution, on
+          # 2026-08-12, which failed here while the deploy itself was fine
+          # (docs/design/infra-prod-hardening.md §6). Staging is the mirror
+          # image: `ingress: all` and no load balancer, so run.app is the ONLY
+          # door and a hardcoded hostname would be the wrong answer there.
           echo "Public URL: ${PUBLIC_URL}"
-          curl -fsS --retry 5 --retry-delay 5 --retry-all-errors "${PUBLIC_URL}/health" >/dev/null
+          HEALTH=$(curl -fsS --retry 5 --retry-delay 5 --retry-all-errors "${PUBLIC_URL}/health")
           echo "  ✓ /health"
+
+          # **Ask the service what it is.** Everything above this line reasons
+          # about the deployment from strings we chose — the file path, the
+          # service name, the hostname. `/health` reports the `ENV` the running
+          # process actually booted with, which is the one answer that comes
+          # from the artifact rather than from the intent. It catches the case
+          # no name check can: the right service, serving the wrong config.
+          EXPECTED=prod
+          [ "${ENVIRONMENT}" = "staging" ] && EXPECTED=staging
+          REPORTED=$(printf '%s' "${HEALTH}" | sed -n 's/.*"env"[[:space:]]*:[[:space:]]*"\([a-z]*\)".*/\1/p')
+          if [ "${REPORTED}" != "${EXPECTED}" ]; then
+            echo "::error::${PUBLIC_URL} reports env='${REPORTED}', expected '${EXPECTED}'. Response: ${HEALTH}"
+            exit 1
+          fi
+          echo "  ✓ it reports ENV=${REPORTED}"
           # /health alone proves nothing — it never touches the database, and it
           # reported ok throughout the Render outage. A DB-backed route is the
           # real check, so both are asserted.
+          #
+          # Neither proves the service is CONFIGURED: /health reads no config and
+          # /providers reads only the repository and the slot service, so both
+          # would pass on a revision missing every secret. That hole is closed in
+          # the application instead — every guarded fail-fast now fires at boot,
+          # so a misconfigured revision never becomes ready and `replace` above
+          # fails first (docs/BACKEND.md §3.2.2).
           #
           # This asserts REACHABILITY, not content: since the demo salons were
           # purged, a healthy production returns `{"items":[],"total":0}` with a
           # 200. An empty list here is correct, not a failure.
           curl -fsS --retry 3 --retry-delay 5 --retry-all-errors "${PUBLIC_URL}/providers" >/dev/null
           echo "  ✓ /providers (database reachable)"
+        env:
+          ENVIRONMENT: ${{ github.event.inputs.environment || 'staging' }}

@@ -169,6 +169,27 @@ optional:
 - The scrub belongs **in the restore script**, so an un-scrubbed restore is not
   a thing anyone can do by forgetting a step.
 
+> **OPEN — the rehearsal copy and the public ingress are in tension.** Surfaced
+> while writing `service-staging.yaml`, which needs a truthful comment about what
+> the open ingress exposes. Staging is `ingress: all` with no load balancer (its
+> `*.run.app` URL is the only door, §4.1) *and* it echoes the OTP dev-code,
+> because `ENV=staging` is `guardsOn` but not `isProd` — so **anyone who finds
+> the URL can sign in as any identity in whatever database is attached.**
+>
+> For the synthetic default state that is the design working as intended. For
+> the rehearsal row it is not: the scrub replaces phones, names and emails, and
+> leaves the appointments, deposits and KYC references around them intact and
+> real-shaped. A prod-volume copy behind that ingress is readable by an
+> unauthenticated caller who guesses the hostname.
+>
+> Three candidate resolutions, none chosen yet: restore into a **temporary
+> instance not attached to the public service** (cleanest, but then the
+> rehearsal is not timing the real service's boot, which is the point of §3.2);
+> **close the ingress for the duration** of a rehearsal; or **suppress the
+> dev-code echo when the database is a derived copy**, which needs a marker the
+> app can read. **Decide before build-order step 5**, which is where the restore
+> first happens.
+
 Namespacing matters more than it sounds: `seedProviders` uses fixed ids today,
 so a staging and a production database contain the **same primary keys**. A log
 line or a screenshot showing `provider3` is then ambiguous about which

@@ -29,19 +29,14 @@ import 'package:dart_jsonwebtoken/dart_jsonwebtoken.dart';
 import 'package:http/http.dart' as http;
 import 'package:test/test.dart';
 
-/// Fail-closed. An unset base URL must stop the run, never quietly pass:
-/// a smoke that skips itself is worse than no smoke, because the job stays
-/// green and nobody looks again.
-final String baseUrl = () {
-  final v = Platform.environment['SMOKE_BASE_URL'];
-  if (v == null || v.isEmpty) {
-    throw StateError(
-      'SMOKE_BASE_URL is unset. This harness asserts against a running server; '
-      'refusing to pass vacuously.',
-    );
-  }
-  return v.endsWith('/') ? v.substring(0, v.length - 1) : v;
-}();
+import 'smoke_target.dart';
+
+/// Fail-closed and **deny-by-default about which server it may write to** —
+/// see `smoke_target.dart` for why that check lives there and not in the
+/// workflow that calls this.
+final String baseUrl = resolveSmokeBaseUrl(
+  Platform.environment['SMOKE_BASE_URL'],
+);
 
 /// The JWT secret the server was booted with — needed to MINT the expired-token
 /// case (A32), i.e. a token valid in every way except time. Without it that
@@ -298,15 +293,55 @@ void main() {
   late String slot0;
   late String appointmentId;
 
+  // **Ask the target what it is, before writing anything to it.**
+  //
+  // `resolveSmokeBaseUrl` already refuses production by URL, but that is a check
+  // on the *spelling* of the target — it cannot see an IP literal, a CNAME, a
+  // tunnel, or a staging-looking hostname pointed at the production service. So
+  // the second layer asks the server, which answers with the `ENV` it actually
+  // booted with. Two layers because the consequence is writing real rows to the
+  // real marketplace, and neither layer alone covers the other's blind spot.
+  setUpAll(() async {
+    final r = await get('/health');
+    if (r.status != 200) {
+      throw StateError(
+        'Refusing to start: $baseUrl/health returned ${r.status}. This harness '
+        'writes, and will not do so against a server it cannot identify.',
+      );
+    }
+    final reported = r.json['env'];
+    if (reported == null) {
+      throw StateError(
+        'Refusing to run: $baseUrl/health does not report `env`. Either it is '
+        'not this API, or it predates the field this check depends on — and a '
+        'check that silently degrades to "no check" is the thing this harness '
+        'exists to avoid.',
+      );
+    }
+    if (!permittedEnvs.contains(reported)) {
+      throw StateError(
+        'Refusing to run: $baseUrl SELF-REPORTS ENV=$reported. The URL passed '
+        'the target check, so this is a permitted-looking address pointed at a '
+        'forbidden deployment — exactly the case a hostname rule cannot see. '
+        'See smoke_target.dart for why production is a deliberate edit rather '
+        'than a flag.',
+      );
+    }
+  });
+
   tearDownAll(() => _client.close());
 
   // -------------------------------------------------------------------------
   group('Phase 0 — the platform answers', () {
-    test('A1 /health is ok', () async {
+    test('A1 /health is ok, and says which deployment answered', () async {
       final r = await get('/health');
       expectStatus(r, 200, 'A1 /health');
       steps++;
       expect(r.json['status'], 'ok');
+      // The field `setUpAll` above gates on. Asserted here too so that removing
+      // it from the route breaks a visible test rather than silently turning
+      // the identity check into a no-op.
+      expect(r.json['env'], isIn(const ['dev', 'staging']));
     });
 
     test('A2 /providers returns the seeded catalogue', () async {

@@ -8,6 +8,16 @@
 # Deployed by .github/workflows/deploy-backend.yml, which substitutes __IMAGE__.
 # Never `gcloud run deploy --set-env-vars` by hand: that creates a revision that
 # silently diverges from this file.
+#
+# **This file has a twin: `service-staging.yaml`.** Most of it is deliberately
+# identical there — the probes, `timeoutSeconds`, the container-dependencies
+# ordering fix, `startup-cpu-boost`, both containers' resource limits and the
+# pinned proxy image — because a staging environment that differs where it did
+# not have to is rehearsing something else. Tuning any of those here without
+# tuning them there is the whole failure mode, so
+# `backend/test/infra/service_files_test.dart` asserts the shared subset matches
+# and that the per-environment fields (service name, database, secrets, ingress,
+# scaling) do not.
 apiVersion: serving.knative.dev/v1
 kind: Service
 metadata:
@@ -75,12 +85,14 @@ spec:
             - name: AUTH_METHODS
               value: google,apple,email
             # Messaging deliberately off. Must be explicit: unset falls through
-            # to auto-detect → null → the prod fail-fast (dependencies.dart:608).
+            # to auto-detect → null → the `guardsOn` fail-fast, which now fires
+            # at boot in staging and production alike (BACKEND.md §3.2.2).
             - name: MESSAGING_PROVIDER
               value: disabled
-            # CORS. Prod default is EMPTY (dependencies.dart:127), and an empty
-            # allowlist fails *silently server-side* — clean 200s in the logs
-            # while every browser read from the site is blocked.
+            # CORS. An empty allowlist used to fail *silently server-side* —
+            # clean 200s in the logs while every browser read from the site was
+            # blocked. It is now a boot fail-fast, so a deploy that drops this
+            # variable never serves traffic (BACKEND.md §3.2.2).
             - name: WEB_ORIGINS
               value: https://myweli.com,https://www.myweli.com,https://admin.myweli.com
             - name: DATABASE_URL
@@ -92,6 +104,25 @@ spec:
             - name: CRON_SECRET
               valueFrom:
                 secretKeyRef: { name: CRON_SECRET, key: latest }
+            # **The OIDC half of cron auth, which was never mounted.** `CronAuth`
+            # verifies the Google-signed token Cloud Scheduler already sends —
+            # but only when BOTH of these are set, and neither was, so the
+            # better mechanism has been inert since it shipped and every cron
+            # run has authenticated on the `X-Cron-Secret` header alone. The
+            # header is the transitional fallback, and it cannot be retired
+            # until the path replacing it is demonstrably carrying traffic.
+            #
+            # Purely additive: `authenticate()` falls through to the secret when
+            # the token is absent or the audience is wrong, deliberately, so a
+            # misconfiguration here cannot take the crons down.
+            #
+            # `CRON_SERVICE_ACCOUNT` is what makes the audience mean anything —
+            # any Google account can mint a token for a public string, so
+            # without pinning the caller's identity the audience is not a check.
+            - name: CRON_OIDC_AUDIENCE
+              value: https://api.myweli.com
+            - name: CRON_SERVICE_ACCOUNT
+              value: myweli-scheduler@myweli.iam.gserviceaccount.com
             - name: MESSAGING_WEBHOOK_SECRET
               valueFrom:
                 secretKeyRef: { name: MESSAGING_WEBHOOK_SECRET, key: latest }
@@ -106,12 +137,15 @@ spec:
               valueFrom:
                 secretKeyRef: { name: SENTRY_DSN, key: latest }
             # -- OWNER-SUPPLIED ----------------------------------------------
-            # Every one of these is a LAZY guard: absent, the service still
-            # boots green and 500s on the first request that touches it
-            # (measured — see infra-gcp-migration.md §3.4). Present, the
-            # feature works. Shapes were validated before wiring: R2 keys
-            # 32/64 chars, buckets are names not URLs, the FCM key keeps its
-            # literal \n escapes (dependencies.dart:650 converts them).
+            # Every one of these WAS a lazy guard: absent, the service still
+            # booted green and 500d on the first request that touched it
+            # (measured — see infra-gcp-migration.md §3.4), which meant a
+            # revision missing all of them passed the deploy verify step below
+            # and was promoted to serve traffic. They are now forced at boot
+            # (BACKEND.md §3.2.2), so absent means the revision never serves.
+            # Shapes were validated before wiring: R2 keys 32/64 chars, buckets
+            # are names not URLs, the FCM key keeps its literal \n escapes
+            # (dependencies.dart converts them).
             - name: GOOGLE_CLIENT_IDS
               valueFrom:
                 secretKeyRef: { name: GOOGLE_CLIENT_IDS, key: latest }
@@ -136,9 +170,11 @@ spec:
             - name: R2_SECRET_ACCESS_KEY
               valueFrom:
                 secretKeyRef: { name: R2_SECRET_ACCESS_KEY, key: latest }
-            # Also feeds the gallery origin allowlist through a SECOND reader
-            # (:346-349) that bypasses the fail-fast — unset, the anti-hotlink
-            # check is simply off while those routes still return 200.
+            # Also the gallery's origin allowlist (anti-hotlink). This used to be
+            # a SECOND, independent read that bypassed the fail-fast above, so a
+            # wrong or absent value left the check off while those routes still
+            # returned 200. The allowlist is now derived from the storage service
+            # actually in use (`galleryOriginsFor`), so the two cannot disagree.
             - name: R2_PUBLIC_BASE_URL
               valueFrom:
                 secretKeyRef: { name: R2_PUBLIC_BASE_URL, key: latest }
@@ -179,9 +215,10 @@ spec:
           startupProbe:
             tcpSocket:
               port: 8080
-            # 60 × 5s = 300s. Migrations, five seeds/backfills, and a possible
+            # 30 × 10s = 300s. Migrations, five seeds/backfills, and a possible
             # wait on another instance's advisory lock all happen before the
-            # port opens.
+            # port opens. (The total was right; the factors below were not what
+            # this line used to claim.)
             periodSeconds: 10
             failureThreshold: 30
             timeoutSeconds: 5
