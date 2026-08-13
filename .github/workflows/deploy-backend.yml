@@ -105,7 +105,7 @@ jobs:
           echo "::error::Type 'deploy' in the confirm input to deploy production."
           exit 1
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Resolve this environment's target
         run: |
