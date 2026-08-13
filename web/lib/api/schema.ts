@@ -100,14 +100,17 @@ export interface paths {
         put?: never;
         /**
          * BSP delivery-status callback (Twilio) — advances the outbox row
-         * @description Form-encoded `MessageSid` + `MessageStatus` from the BSP. Guarded by a shared `?secret=` when `MESSAGING_WEBHOOK_SECRET` is set (deny-by-default). Always 200 for known/unknown ids (idempotent).
+         * @description Form-encoded `MessageSid` + `MessageStatus` from the BSP. Authenticated by the `X-Twilio-Signature` header — HMAC-SHA1 over the callback URL plus the sorted POST parameters, keyed by the Twilio auth token — with `X-Messaging-Secret` (`MESSAGING_WEBHOOK_SECRET`) as a transitional fallback for a provider whose signature scheme is not implemented. **404 when neither is configured**, so the surface is not merely unguarded-but-present. Always 200 for known/unknown ids (idempotent). The secret previously travelled as `?secret=`; a credential in a URL is recorded by every log that records a URL.
          */
         post: {
             parameters: {
-                query?: {
-                    secret?: string;
+                query?: never;
+                header?: {
+                    /** @description Twilio's request signature. Sent by Twilio on every webhook. */
+                    "X-Twilio-Signature"?: string;
+                    /** @description Transitional shared secret, for a non-Twilio provider. */
+                    "X-Messaging-Secret"?: string;
                 };
-                header?: never;
                 path?: never;
                 cookie?: never;
             };
@@ -129,6 +132,7 @@ export interface paths {
                 };
                 400: components["responses"]["BadRequest"];
                 403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
             };
         };
         delete?: never;

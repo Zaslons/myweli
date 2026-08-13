@@ -96,18 +96,47 @@ The outbox never stores the OTP (OTP goes via `sendOtp`, not `sendTemplate`).
   carried in-memory from `requestOtp` to `sendOtp` via a new internal `code` field
   (not echoed to clients in prod; `devCode` stays dev-only).
 - **Webhook spoofing** — the status webhook verifies the Twilio signature
-  (`X-Twilio-Signature`, HMAC over the URL+params with the auth token) when
-  configured; deny-by-default otherwise. No PII echoed.
+  (`X-Twilio-Signature`, HMAC-SHA1 over the URL + sorted POST params, keyed by
+  the auth token) when configured; deny-by-default otherwise (404, not 403 — the
+  surface is not merely unguarded-but-present). No PII echoed.
+
+  > **This bullet was written when the slice shipped and was not true until
+  > 2026-08-13.** The implementation guarded the route with a shared `?secret=`
+  > instead, and the bullet below described *that* — so this section specified
+  > one mechanism and documented another, two bullets apart, for the whole life
+  > of the feature. The signature is now implemented
+  > (`lib/src/messaging/webhook_auth.dart`), pinned in tests against Twilio's own
+  > published vector, and the query-string secret is gone.
+  >
+  > **A header could not have replaced it.** Twilio's `StatusCallback` is a URL
+  > Twilio POSTs to, and Twilio's webhook documentation is explicit that custom
+  > request headers cannot be configured — so the obvious fix, mirroring
+  > `X-Cron-Secret`, would have been a mechanism the only real caller cannot use.
+  > `X-Messaging-Secret` exists as a **transitional fallback** for a BSP whose
+  > scheme is not implemented here (Termii's delivery reports are deferred —
+  > [messaging-termii.md](messaging-termii.md) §8) and for driving the route by
+  > hand; it is compared in constant time and logged as
+  > `messaging_webhook_legacy` so there is evidence for when it can be removed.
+  >
+  > The signed URL is rebuilt from `PUBLIC_BASE_URL`, **never from the request's
+  > `Host` header**: behind a load balancer the host the app sees need not be the
+  > one Twilio called, and a caller who can choose part of the string its own
+  > signature is checked against has defeated the check.
 - **Opt-in (promotional)** — `rebookReminder` is gated on `messaging_opt_out`.
 - **Secrets** — `TWILIO_ACCOUNT_SID/AUTH_TOKEN/SMS_FROM/WHATSAPP_FROM` via env
   only (`.env.example` documents them; gitleaks stays green). **SMS is mandatory
   in prod; `WHATSAPP_FROM` is optional** — without it, WhatsApp sends return
   `whatsapp_not_configured` and the service falls back to SMS (SMS-first launch).
 - **Delivery status** — each Twilio send attaches a per-message `StatusCallback`
-  = `PUBLIC_BASE_URL/webhooks/messaging/status?secret=MESSAGING_WEBHOOK_SECRET`
-  (only when both env vars are set; else omitted). Twilio then POSTs status →
-  the secret-guarded webhook → outbox `updateStatus`. OTP sends aren't in the
-  outbox, so their callbacks no-op.
+  = `PUBLIC_BASE_URL/webhooks/messaging/status`, attached whenever
+  `PUBLIC_BASE_URL` is set. Twilio then POSTs status → the signature-verified
+  webhook → outbox `updateStatus`. OTP sends aren't in the outbox, so their
+  callbacks no-op.
+
+  Two things changed here on 2026-08-13. The `?secret=` is gone (above). And the
+  callback no longer requires `MESSAGING_WEBHOOK_SECRET` to be set at all — a
+  coupling that made delivery tracking silently unavailable unless an unrelated
+  shared secret happened to be configured.
 - **Logging** — structured, redacted: never the body, code, or `Authorization`.
 - New STRIDE rows (BACKEND.md §7): **T18** OTP-over-SMS delivery,
   **T19** messaging webhook spoofing, **T20** promotional opt-in enforcement.

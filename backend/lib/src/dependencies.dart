@@ -71,6 +71,7 @@ import 'messaging/reminder_scheduler.dart';
 import 'messaging/salon_notifier.dart';
 import 'messaging/termii_messaging_provider.dart';
 import 'messaging/twilio_messaging_provider.dart';
+import 'messaging/webhook_auth.dart';
 import 'notifications/notification_prefs_repository.dart';
 import 'notifications/notifications_repository.dart';
 import 'observability/error_reporter.dart';
@@ -623,17 +624,26 @@ final MessagingProvider messagingProvider = () {
 
   TwilioMessagingProvider? buildTwilio() {
     final sid = _envOrNull('TWILIO_ACCOUNT_SID');
-    final token = _envOrNull('TWILIO_AUTH_TOKEN');
+    final token = _twilioAuthToken;
     final smsFrom = _envOrNull('TWILIO_SMS_FROM');
     if (sid == null || token == null || smsFrom == null) return null;
-    // Per-message delivery-status callback → the (secret-guarded) status webhook,
-    // which advances the outbox. Only attached when both the public base URL and
-    // the webhook secret are set; otherwise omitted (no tracking).
+    // Per-message delivery-status callback → the status webhook, which advances
+    // the outbox. Attached whenever the public base URL is known.
+    //
+    // **No `?secret=`.** It used to carry `MESSAGING_WEBHOOK_SECRET` in the query
+    // string, which put a credential into Cloud Run request logs, load-balancer
+    // logs and anything else that records a URL — the exact weakness BACKEND.md
+    // T21 records as removed from the cron routes. Twilio authenticates itself
+    // with `X-Twilio-Signature`, so there was never anything for the secret to
+    // add here; see `messaging/webhook_auth.dart`.
+    //
+    // Dropping it also removes a coupling that made no sense: delivery tracking
+    // was previously off unless a shared secret happened to be configured.
     final publicBase = _envOrNull('PUBLIC_BASE_URL');
-    final statusCallback =
-        (publicBase != null && messagingWebhookSecret != null)
-        ? '$publicBase/webhooks/messaging/status?secret=$messagingWebhookSecret'
-        : null;
+    final statusCallback = publicBase == null
+        ? null
+        : '${publicBase.endsWith('/') ? publicBase.substring(0, publicBase.length - 1) : publicBase}'
+              '/webhooks/messaging/status';
     return TwilioMessagingProvider(
       accountSid: sid,
       authToken: token,
@@ -706,11 +716,25 @@ final MessagingService messagingService = MessagingService(
   messagingPrefsRepository,
 );
 
-/// Shared secret guarding the delivery-status webhook (the BSP appends it as a
-/// `?secret=` query param). When set, mismatches are rejected (deny-by-default);
-/// unset (dev) → the webhook is open. Real Twilio signature validation is a
-/// follow-up. Design: docs/design/messaging-notifications.md §5.
+/// Transitional shared secret for the delivery-status webhook, sent as the
+/// **`X-Messaging-Secret` header** — never in the URL, which is what it used to
+/// be. See `messaging/webhook_auth.dart` for why Twilio cannot use it and what
+/// authenticates Twilio instead.
 final String? messagingWebhookSecret = _envOrNull('MESSAGING_WEBHOOK_SECRET');
+
+/// The Twilio auth token, hoisted to the top level because it is now read by two
+/// things: the provider that sends messages, and the webhook auth that verifies
+/// Twilio's signature on the way back.
+final String? _twilioAuthToken = _envOrNull('TWILIO_AUTH_TOKEN');
+
+/// Authenticates `POST /webhooks/messaging/status` — the Twilio request
+/// signature first, the shared-secret header as the transitional fallback,
+/// 404 when neither is configured. See `messaging/webhook_auth.dart`.
+final MessagingWebhookAuth messagingWebhookAuth = MessagingWebhookAuth(
+  twilioAuthToken: _twilioAuthToken,
+  sharedSecret: messagingWebhookSecret,
+  publicBaseUrl: _envOrNull('PUBLIC_BASE_URL'),
+);
 
 /// Push (FCM). Configured → FCM HTTP v1; else a no-network log provider for
 /// dev/CI. Production must configure it (fail-fast). Design:
