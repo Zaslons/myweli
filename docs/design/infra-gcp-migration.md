@@ -216,7 +216,7 @@ Three options were considered:
 |---|---|
 | Cloud Run's built-in Cloud SQL mount (unix socket `/cloudsql/…`) | **Rejected** — the Dart `postgres` pool is built from a `host:port` URL; a unix socket does not fit `createPool(DATABASE_URL)` without a code change |
 | Private IP + Direct VPC egress | Viable, lowest latency, but needs a VPC, a subnet and private services access — more moving parts to get wrong on day one |
-| **Auth Proxy sidecar** | **Chosen.** `DATABASE_URL` becomes `postgres://user:pass@127.0.0.1:5432/myweli`, the proxy encrypts the hop, and `createPool` already treats a local host as "no SSL needed" (`render.yaml:11` records that behaviour). **Zero application change.** |
+| **Auth Proxy sidecar** | **Chosen.** `DATABASE_URL` becomes `postgres://user:pass@127.0.0.1:5432/myweli`, the proxy encrypts the hop, and `createPool` already treats a local host as "no SSL needed" (`backend/lib/src/db/database.dart` is where that behaviour lives). **Zero application change.** |
 
 Revisit private IP later if the proxy's per-instance overhead shows up in
 latency; it is an infrastructure change with no code impact.

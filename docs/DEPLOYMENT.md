@@ -28,9 +28,10 @@ the S3 API, Next.js — not the vendor; each piece is individually swappable.
 > **This ran on Render first, and the move is worth remembering.** The original
 > choice was Render, for one reason: **GCP billing rejected the prepaid/virtual
 > cards common in Côte d'Ivoire**, while Render is Stripe-billed. That constraint
-> lifted, and the migration was then forced by a different one — the Render free
-> Postgres was approaching its 90-day expiry, so the database had to move
-> regardless. Moving both at once cost nothing extra, because the whole point of
+> lifted, and the migration was then forced by a different one — the free Render
+> Postgres *appeared* to have expired (every database-backed route answered 500;
+> the symptom was observed, the cause inferred), so the database had to be
+> re-provisioned regardless. Moving both at once cost nothing extra, because the whole point of
 > the interfaces above is that the **same `backend/Dockerfile`** runs in either
 > place. Design:
 > [design/infra-gcp-migration.md](design/infra-gcp-migration.md).
@@ -52,6 +53,13 @@ Domain ✅ (`myweli.com`). Then: **Google Cloud** ✅ (project `myweli` — back
 Postgres) · Vercel ✅ · Cloudflare ✅ (R2 + DNS + Pages) · Twilio ✅ · Firebase ✅ ·
 Sentry ✅ · Apple Developer ($99/yr) ✅ · Google Play ($25 once) · a Myweli business
 WhatsApp number.
+
+**Twilio is opened but is not the launch provider, and its tick used to hide that.**
+A $26.60 / 54-segment test bill suspended the account — SMS to Côte d'Ivoire is
+~62× the US price. **Termii** is the intended channel at ~21× less, gated on
+company registration for a branded sender id, and until then production runs
+`MESSAGING_PROVIDER=disabled` by decision rather than by omission. See
+[design/messaging-termii.md](design/messaging-termii.md).
 
 ## Phase B — Provision services
 **B1. Postgres (Cloud SQL) ✅ — `myweli-db`, provisioned.** PostgreSQL 16,
@@ -208,7 +216,10 @@ which is how the reminder cron came to be switched off without anyone noticing.
    sets `ingress: internal-and-cloud-load-balancing`, so the `*.run.app` URL 404s
    by design and the load balancer is the only front door. Built by
    `infra/gcp/70-load-balancer.sh`.
-5. **Twilio webhook:** status callback →
+5. **Twilio webhook — not applicable yet**, listed so it is not forgotten when
+   messaging turns on. Production runs `MESSAGING_PROVIDER=disabled` and mounts
+   no Twilio credentials, so nothing calls this route today. When a provider is
+   configured, the status callback is
    `https://api.myweli.com/webhooks/messaging/status?secret=<MESSAGING_WEBHOOK_SECRET>`.
 6. **Crons are Cloud Scheduler jobs**, not dashboard entries: `myweli-reminders`
    every 15 min and `myweli-subscriptions` daily at 03:00 UTC, both authenticated

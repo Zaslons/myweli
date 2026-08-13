@@ -296,7 +296,7 @@ Côte d'Ivoire — a cross-border transfer that must be disclosed, and PRD **OQ-
   requires a prior declaration to ARTCI. There is no evidence one has been filed and
   no reference number to publish. The policy names the obligation without claiming
   compliance.
-- **`.com` vs `.ci`.** `render.yaml:41-44` and `DEPLOYMENT.md` use `myweli.com`;
+- **`.com` vs `.ci`.** `infra/gcp/service.yaml` (the CORS allowlist) and `DEPLOYMENT.md` use `myweli.com`;
   `PRD.md:506` says `myweli.ci`. This slice uses **`.com`** — what is actually
   deployed — and `SITE_BASE_URL` makes a switch one env var.
 - **Support and privacy contact addresses.** `no-reply@myweli.com` is send-only and
