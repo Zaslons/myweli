@@ -138,3 +138,69 @@ void assertProductionBootConfig({
   resolveDatabaseUrl(databaseUrl, guardsOn: guardsOn);
   resolveJwtSecret(jwtSecret, guardsOn: guardsOn);
 }
+
+/// Resolve every [dependencies] entry now, and throw **one** error naming all
+/// the ones that failed.
+///
+/// ## Why this exists
+///
+/// [assertProductionBootConfig] forces exactly two guards — `DATABASE_URL` and
+/// `JWT_SECRET`. **Every other guard in the composition root is a lazy Dart
+/// `final`**, resolved per-request through `provider<T>` lambdas, so it fires on
+/// the first request that touches it rather than at boot. That produces the
+/// failure this whole file was written against, one level up:
+///
+///   · `/health` reads nothing, so it is green;
+///   · `/providers` reads only the repository and the slot service, so it is
+///     green too;
+///   · therefore the deploy workflow's verify step — which checks exactly those
+///     two — **passes on a service missing every lazy secret**, and the
+///     revision is marked live.
+///
+/// The breakage then arrives per-feature, in production, at whatever hour
+/// someone first tries to upload a photo. A deploy check that a broken deploy
+/// passes is not a check.
+///
+/// ## Why one error rather than the first
+///
+/// A misconfigured deployment is usually missing a *set* of things — a whole
+/// secret group that was never twinned into the new environment. Failing on the
+/// first one turns that into a fix-deploy-fail cycle, once per variable. The
+/// point is to hand the operator the entire list in the first log line.
+///
+/// Takes callbacks rather than values so nothing is resolved before the guard
+/// runs, and takes them as an argument — the same reason everything else here is
+/// a pure function: `Platform.environment` cannot be flipped by a test.
+void assertEveryDependencyResolves(
+  Map<String, Object? Function()> dependencies,
+) {
+  final failures = <String>[];
+  for (final entry in dependencies.entries) {
+    try {
+      entry.value();
+    } catch (error) {
+      // Flattened and capped so eleven failures stay one readable log entry
+      // rather than eleven stack traces. 500 clears every guard message in
+      // `dependencies.dart` with headroom — an earlier 300 silently cut the
+      // `— or set STORAGE_PROVIDER=disabled` hint off the end of the longest
+      // one, which is the half an operator actually needs.
+      //
+      // The cap is about noise, NOT secrecy: a prefix of a leaked credential is
+      // still a leaked credential. What keeps this safe is that these are our
+      // own `must be set` errors, which name env VARIABLES and never values.
+      final message = '$error'.replaceAll('\n', ' ');
+      failures.add(
+        '  - ${entry.key}: '
+        '${message.length > 500 ? '${message.substring(0, 500)}…' : message}',
+      );
+    }
+  }
+  if (failures.isEmpty) return;
+  throw StateError(
+    'Refusing to start: ${failures.length} of ${dependencies.length} '
+    'configured dependencies could not be resolved.\n'
+    '${failures.join('\n')}\n'
+    'Each is a lazy singleton that would otherwise have thrown on the first '
+    'request that touched it, long after /health went green.',
+  );
+}

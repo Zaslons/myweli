@@ -132,7 +132,7 @@ void main() {
   });
 
   group('corsMiddleware', () {
-    final mw = corsMiddleware(const ['http://localhost:3000']);
+    final mw = corsMiddleware(() => const ['http://localhost:3000']);
     Handler wrap() => mw((_) async => Response(body: 'ok'));
 
     RequestContext ctx(String method, {String? origin}) {

@@ -211,4 +211,85 @@ void main() {
       );
     });
   });
+
+  group('assertEveryDependencyResolves — the lazy guards, forced', () {
+    test('all resolve → no throw, and every one was actually called', () {
+      // The failure this would hide is a probe map whose lambdas are never
+      // invoked: it would pass on every deploy and prove nothing, which is the
+      // exact shape of bug it exists to catch one level up.
+      final touched = <String>[];
+      assertEveryDependencyResolves({
+        'a': () => touched.add('a'),
+        'b': () => touched.add('b'),
+      });
+      expect(touched, ['a', 'b']);
+    });
+
+    test('ONE error naming ALL the failures, not the first', () {
+      // A fresh environment is missing a whole secret group, not one variable.
+      // Failing on the first turns that into one deploy per missing value.
+      expect(
+        () => assertEveryDependencyResolves({
+          'storageService': () => throw StateError('R2_BUCKET must be set'),
+          'emailProvider': () => 'fine',
+          'pushProvider': () => throw StateError('FCM_PROJECT_ID must be set'),
+        }),
+        throwsA(
+          isA<StateError>().having(
+            (e) => e.message,
+            'message',
+            allOf(
+              contains('2 of 3'),
+              contains('storageService'),
+              contains('R2_BUCKET must be set'),
+              contains('pushProvider'),
+              contains('FCM_PROJECT_ID must be set'),
+            ),
+          ),
+        ),
+      );
+    });
+
+    test('a runaway message is capped, but a real guard message is not', () {
+      // Eleven failures must stay one readable log entry. The cap is about
+      // noise: an earlier, tighter one cut the `— or set X=disabled` hint off
+      // the end of the longest real guard message, which is the half an
+      // operator needs. So assert BOTH halves — capped, and not so eagerly
+      // that the actionable text is lost.
+      expect(
+        () => assertEveryDependencyResolves({
+          'pushProvider': () => throw StateError('x' * 5000),
+        }),
+        throwsA(
+          isA<StateError>().having(
+            (e) => e.message.length,
+            'message length',
+            lessThan(800),
+          ),
+        ),
+      );
+
+      final realistic =
+          'Object storage must be configured in staging and '
+          '${'blah ' * 60}— or set STORAGE_PROVIDER=disabled to run '
+          'deliberately without object storage.';
+      expect(realistic.length, lessThan(500));
+      expect(
+        () => assertEveryDependencyResolves({
+          'storageService': () => throw StateError(realistic),
+        }),
+        throwsA(
+          isA<StateError>().having(
+            (e) => e.message,
+            'message',
+            contains('STORAGE_PROVIDER=disabled'),
+          ),
+        ),
+      );
+    });
+
+    test('an empty map is not a failure', () {
+      expect(() => assertEveryDependencyResolves({}), returnsNormally);
+    });
+  });
 }

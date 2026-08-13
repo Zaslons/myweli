@@ -100,7 +100,7 @@ value **throws at boot** rather than degrading to `dev`, which is what the old
 
 | Getter | True for | Governs |
 |---|---|---|
-| `guardsOn` | **staging + prod** | every "must be set" fail-fast: `DATABASE_URL`, `JWT_SECRET`, R2, messaging, push, the OAuth client-id checks, and CORS deny-by-default |
+| `guardsOn` | **staging + prod** | every "must be set" fail-fast: `DATABASE_URL`, `JWT_SECRET`, `WEB_ORIGINS`, R2, messaging, push, the OAuth client-id checks — all forced at boot (§3.2.2) |
 | `isProd` | **prod only** | the `devCode` echo above, and the smoke-seam disclosure warning |
 
 **Do not collapse these back into one flag.** They diverge in *opposite*
@@ -112,6 +112,38 @@ a single boolean makes `ENV=staging` an environment that is neither. Design:
 at the call site *and* refuses internally. It previously asked only whether the
 `providers` table was empty, so purging the fictional listings from production
 and redeploying re-created them.
+
+### 3.2.2 Every `guardsOn` fail-fast fires at BOOT, not on first use
+`_assertConfiguredDependenciesResolve()` (`dependencies.dart`) forces every
+configuration-derived singleton to resolve inside `initializeDatabase()`, which
+`main.dart` awaits **before `serve()`**. `assertEveryDependencyResolves`
+(`boot_config.dart`) collects the failures and throws **one** error naming all
+of them — a fresh environment is missing a whole secret group, and failing on
+the first turns that into one deploy per variable.
+
+**Why it had to exist.** Only three guards were ever boot-fatal: `ENV`,
+`DATABASE_URL`, `JWT_SECRET`. Every other one is a lazy Dart `final` handed to
+routes through `provider<T>((_) => x)` — and a lambda is not an evaluation, so
+the guard first ran on the first request that reached a route needing it.
+`/health` reads nothing and `/providers` reads only the repository and the slot
+service, so **a service missing every other secret passed the deploy workflow's
+verify step** and was promoted to serve traffic; the breakage then arrived
+per-feature, in production, whenever someone first tried to upload a photo.
+
+**Add an entry whenever a new singleton reads configuration.** Dart cannot
+enumerate a library's top-level finals, so the list is maintained by hand; the
+enforcement is that a staging deploy is a fresh environment where something is
+always missing, and it now fails loudly instead of going green.
+
+Two related fixes ride with it. `WEB_ORIGINS` is now part of the set — an empty
+allowlist is deny-by-default for an unknown origin, but for an *unset variable*
+it blocks the web app and the admin console from a service that looks perfectly
+healthy, visible only as an opaque browser CORS error. And `STORAGE_PROVIDER=disabled`
+gives object storage the escape hatch messaging and push already had, so
+"nothing configured" and "deliberately off" stop being the same answer; the
+gallery's origin allowlist is derived from the storage service in use
+(`galleryOriginsFor`) rather than re-reading `R2_PUBLIC_BASE_URL`, so switching
+storage off cannot silently switch the origin check off with it.
 
 ### 3.3 AuthZ
 - **Deny by default.** Protected routes require a valid access token; middleware

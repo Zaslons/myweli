@@ -94,6 +94,31 @@ defines), and `web/lib/api-base.ts` throws in production. CI's two web builds
 now state their API base explicitly — they had been building against the
 localhost fallback all along.
 
+### 1.4 The `guardsOn` fail-fasts did not actually fire at boot — **DONE**
+
+Found while building phase 3, and it falsifies a premise of §1.1 above: "with
+`guardsOn` on, staging would have refused to boot without FCM" was **not true**.
+Only three guards were ever boot-fatal — `ENV`, `DATABASE_URL`, `JWT_SECRET`.
+Every other one is a lazy Dart `final` handed to routes through
+`provider<T>((_) => x)`, and a lambda is not an evaluation, so each fired on the
+first request that reached a route needing it.
+
+The consequence lands squarely on this document's build order: `/health` reads
+nothing, `/providers` reads only the repository and the slot service, and those
+two are exactly what `deploy-backend.yml`'s verify step checks. **A staging
+service missing every lazy secret would have deployed green.** The environment
+whose entire job is to be a rehearsal would have been unable to tell you it was
+misconfigured — and neither could production.
+
+`_assertConfiguredDependenciesResolve()` now forces all eleven inside
+`initializeDatabase()`, before `serve()`, reporting every failure in one error.
+Two fixes rode with it: `WEB_ORIGINS` joined the guarded set (an unset value
+blocks the web app and admin console while the service looks healthy), and
+`STORAGE_PROVIDER=disabled` gives storage the escape hatch §1.1 gave push —
+with the gallery's origin allowlist now derived from the storage service in use,
+so switching storage off cannot switch the origin check off with it. See
+docs/BACKEND.md §3.2.2.
+
 ---
 
 ## 2. Architecture — what is separate, what is shared
@@ -106,7 +131,7 @@ resource by resource, with the reason each way.
 | Cloud Run service | **separate** `myweli-api-staging`, minScale **0**, maxScale 2 | Saves $18/mo vs matching prod's minScale 1, and *improves* the rehearsal: every staging request then exercises the cold start that runs migrations behind `pg_advisory_lock` before the port binds |
 | Cloud SQL | **separate instance** `myweli-db-staging` | Not for tidiness — the arithmetic was already red: `maxConnectionCount: 8` × maxScale 4 = **32** against a db-f1-micro whose default `max_connections` is **25**. Lowered to **4** in phase 2 PR D (4 × 4 = 16 inside the ~22 actually usable), so the ceiling is no longer breached — but sharing the instance would still add a second consumer to a budget with no room for one |
 | Database data | **synthetic by default; a scrubbed prod copy for rehearsals** | §2.1. An empty staging DB certifies every migration as instant (§3.2), but an un-scrubbed prod copy puts real phone numbers behind a reminder cron (§3.3) |
-| Secret Manager | **separate versions**, all 17 | `JWT_SECRET` especially: a shared value lets a staging-issued token authenticate against **production**, and staging is where we deliberately mint admin tokens |
+| Secret Manager | **separate versions** — the **18** `service.yaml` mounts, not all 20 that exist | `JWT_SECRET` especially: a shared value lets a staging-issued token authenticate against **production**, and staging is where we deliberately mint admin tokens. `SMOKE_OTP_SECRET` is unmounted, and `R2_ENDPOINT` is a secret with **zero versions** deliberately left unreferenced (it is derived from `R2_ACCOUNT_ID`) — anyone scripting "twin every secret" copies a stray. The single exception worth sharing is `SENTRY_DSN`: `error_reporter.dart` already tags events with `Env`, so staging lands in the same project tagged `staging` |
 | R2 | **3 separate buckets + a bucket-scoped token** | Bucket *names* cannot collide (unique per account). The risk is the **credential**: an account-scoped token reads and writes every bucket regardless of what `R2_BUCKET` says. A staging run of the user-erasure path would delete production objects |
 | `WEB_ORIGINS` | **separate**, staging origins only | Copying prod's value means staging accepts browser calls from `https://myweli.com`. When a preview gets CORS-blocked, the fix is a staging origin — **never** widening prod's list |
 | `CRON_SECRET` | **separate** | Plus a prod fix: both Scheduler jobs currently carry it as a literal `X-Cron-Secret` header (§7) |
@@ -318,9 +343,11 @@ credentials.
 
 ### 3.4 The pipeline that auto-deploys to production is the one nobody is watching
 
-`deploy-backend.yml` is manual, confirm-gated, and **has never run** — all 12
-revisions were hand-deployed from a laptop (`lastModifier: sadreddinedaher@…`,
-workflow run count 0).
+`deploy-backend.yml` is manual and confirm-gated. When this was written it had
+**never run** — all 12 revisions were hand-deployed from a laptop. It has since
+run: of 16 revisions, `00013`, `00015` and `00016` carry
+`lastModifier: myweli-deployer@`, so the declarative path is now the live one
+and the confirm gate is a real gate rather than an untested one.
 
 Meanwhile `deploy-admin.yml` fires on **every push to main** touching `mobile/**`
 and ships the admin console to production with
