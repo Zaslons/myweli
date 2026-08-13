@@ -144,13 +144,26 @@ String? _envOrNull(String key) {
 final List<String> webOrigins = () {
   final raw = _envOrNull('WEB_ORIGINS');
   if (raw != null) {
-    return raw
+    final origins = raw
         .split(',')
         .map((s) => s.trim())
         .where((s) => s.isNotEmpty)
         .toList();
+    if (origins.isNotEmpty) return origins;
   }
-  return _guardsOn ? const <String>[] : const ['http://localhost:3000'];
+  // Deny-by-default is the right posture for an unknown origin, but it is the
+  // wrong posture for an unset variable: an empty allowlist rejects the web app
+  // and the admin console from a service that is otherwise perfectly healthy,
+  // and it does it with a CORS failure in the browser rather than anything
+  // visible server-side. Fail at boot instead, where it is one log line.
+  if (_guardsOn) {
+    throw StateError(
+      'WEB_ORIGINS must be set in staging and production — an empty allowlist '
+      'blocks every browser call from the web app and the admin console, and '
+      'shows up only as an opaque CORS error in the client.',
+    );
+  }
+  return const ['http://localhost:3000'];
 }();
 
 /// R2 API endpoint: explicit `R2_ENDPOINT` wins, else derived from
@@ -330,6 +343,23 @@ final JournalService journalService = JournalService(
 /// no-network Fake for dev/CI. Production must configure it (fail-fast, like
 /// `JWT_SECRET`) so we never issue fake URLs in prod.
 final StorageService storageService = () {
+  // The supported way to run a guarded environment with no object storage —
+  // the same escape hatch `MESSAGING_PROVIDER` and `PUSH_PROVIDER` already
+  // have, and storage was the only one of the three without it. Until now
+  // "nothing configured" and "deliberately off" were indistinguishable here,
+  // which is precisely the ambiguity the other two were given a value to
+  // remove.
+  //
+  // Checked ABOVE the build, for the same reason theirs are: it must be a
+  // deliberate choice and never a fall-through, so "nothing configured" still
+  // reaches the fail-fast below. Never auto-detected.
+  //
+  // The Fake's URLs are visibly fake (`fake-storage.local`), so nothing here
+  // can be mistaken for real delivery — and `galleryOriginsFor` keeps the
+  // gallery's origin check switched on when it is selected.
+  if (_envOrNull('STORAGE_PROVIDER')?.toLowerCase() == 'disabled') {
+    return FakeStorageService();
+  }
   final endpoint = _r2Endpoint;
   final bucket = _envOrNull('R2_BUCKET');
   final keyId = _envOrNull('R2_ACCESS_KEY_ID');
@@ -360,19 +390,20 @@ final StorageService storageService = () {
       'R2_ENDPOINT (or '
       'R2_ACCOUNT_ID), R2_BUCKET, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, '
       'R2_PUBLIC_BASE_URL, R2_KYC_BUCKET and R2_DEPOSIT_BUCKET (two separate '
-      'private buckets).',
+      'private buckets) — or set STORAGE_PROVIDER=disabled to run deliberately '
+      'without object storage.',
     );
   }
   return FakeStorageService();
 }();
 
-/// When public delivery is configured, the gallery accepts only URLs from our
-/// own origin (anti-SSRF / hotlink) plus `asset:` seed placeholders; empty in
-/// dev/Fake (accept anything for local work).
-final List<String> _galleryAllowedOrigins = () {
-  final base = _envOrNull('R2_PUBLIC_BASE_URL');
-  return base == null ? const <String>[] : <String>[base, 'asset:'];
-}();
+/// Which origins the gallery accepts an image URL from — derived from the
+/// storage service actually in use, never from a second read of
+/// `R2_PUBLIC_BASE_URL`. See `galleryOriginsFor`.
+final List<String> _galleryAllowedOrigins = galleryOriginsFor(
+  storageService,
+  guardsOn: _guardsOn,
+);
 
 /// The authoritative upload size cap (T61) — R2 ignores a signed
 /// `content-length`, so the limit declared at signing time is advisory and this
@@ -381,8 +412,9 @@ final UploadVerificationService uploadVerificationService =
     UploadVerificationService(storage: storageService);
 
 /// Base for deriving an object key from a public delivery URL. Null in dev/Fake,
-/// which is why every claim path treats a null verifier/base as "skip".
-final String? _r2PublicBase = _envOrNull('R2_PUBLIC_BASE_URL');
+/// which is why every claim path treats a null verifier/base as "skip". Read off
+/// the storage service for the same reason the allowlist above is.
+final String? _r2PublicBase = storageService.publicBaseUrl;
 
 final ProviderCatalogService providerCatalogService = ProviderCatalogService(
   providersRepository,
@@ -825,6 +857,44 @@ final CronAuth cronAuth = () {
   );
 }();
 
+/// Force every configuration-derived singleton to resolve **at boot**.
+///
+/// `assertProductionBootConfig` above forces two values. Everything else in this
+/// file is a lazy `final` handed to routes through `provider<T>((_) => x)`, and
+/// a lambda is not an evaluation — so each of these guards first runs on the
+/// first request that reaches a route needing it. `/health` needs none of them
+/// and `/providers` needs only the repository and the slot service, which is why
+/// **a service missing every secret below still passes the deploy workflow's
+/// verify step** and is promoted to serve traffic.
+///
+/// This is the list that makes the deploy the check. It is maintained by hand
+/// because Dart offers no way to enumerate a library's top-level finals; the
+/// enforcement is that a staging deploy — which is a fresh environment where
+/// something is always missing — fails loudly the first time one is forgotten.
+///
+/// **Add an entry whenever a new singleton reads configuration.** Only the ones
+/// that can *fail* matter: a plain `String?` env read has nothing to prove.
+void _assertConfiguredDependenciesResolve() {
+  // Dev deliberately runs with almost nothing configured — that is the whole
+  // point of the in-memory fallbacks — so there is nothing here to assert.
+  if (!_guardsOn) return;
+  assertEveryDependencyResolves({
+    'webOrigins': () => webOrigins,
+    'tokenService': () => tokenService,
+    'authMethods': () => authMethods,
+    'smokeSeam': () => smokeSeam,
+    'googleIdTokenVerifier': () => googleIdTokenVerifier,
+    'appleIdTokenVerifier': () => appleIdTokenVerifier,
+    'emailProvider': () => emailProvider,
+    'messagingProvider': () => messagingProvider,
+    'pushProvider': () => pushProvider,
+    // Also covers `_galleryAllowedOrigins`, `_r2PublicBase` and
+    // `uploadVerificationService`, which are all derived from it.
+    'storageService': () => storageService,
+    'cronAuth': () => cronAuth,
+  });
+}
+
 /// Server-startup hook (called from the custom entrypoint `main.dart`): applies
 /// migrations and seeds providers when a database is configured. No-op for
 /// in-memory mode.
@@ -855,6 +925,7 @@ Future<void> initializeDatabase() async {
     jwtSecret: Platform.environment['JWT_SECRET'],
     guardsOn: _guardsOn,
   );
+  _assertConfiguredDependenciesResolve();
 
   final pool = _pool;
   if (pool != null) {

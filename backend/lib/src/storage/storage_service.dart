@@ -52,6 +52,15 @@ abstract interface class StorageService {
   /// The public (CDN) delivery URL for a public-bucket [key].
   String publicUrl(String key);
 
+  /// The origin [publicUrl] builds on, or **null when there is no real public
+  /// delivery** (the Fake).
+  ///
+  /// Exists so the gallery's origin allowlist can be derived from the storage
+  /// actually in use instead of re-reading `R2_PUBLIC_BASE_URL` — see
+  /// [galleryOriginsFor]. Two independent reads of one variable is two chances
+  /// to disagree, and the one that disagrees silently is the security control.
+  String? get publicBaseUrl;
+
   /// A short-lived **signed GET** URL for a [key] in a **private** [bucket]
   /// (KYC / deposit). The caller authorizes who may request it.
   String presignGet({
@@ -102,6 +111,36 @@ abstract interface class StorageService {
     required String toKey,
     required StorageBucket bucket,
   });
+}
+
+/// Which origins the gallery will accept an image URL from, derived from the
+/// [storage] actually in use (anti-hotlink / anti-SSRF).
+///
+/// **Derived, not read.** `R2_PUBLIC_BASE_URL` used to be read three separate
+/// times in the composition root: once inside storage's all-or-nothing
+/// fail-fast, once here, and once as the key-derivation base. Only the first
+/// participated in the guard, so the other two would happily carry a wrong or
+/// absent value while every route still returned 200 — a security control that
+/// is off and looks on.
+///
+/// `asset:` is the seed placeholder scheme, always allowed.
+///
+/// The `null` case is where the two environments part:
+///
+///   · **dev** → empty, meaning *accept anything*. Local work needs to paste an
+///     arbitrary image URL, and always has.
+///   · **guarded** (`STORAGE_PROVIDER=disabled` in staging) → the Fake's own
+///     origin plus `asset:`, so the fake upload flow still round-trips while
+///     switching storage off cannot silently widen what the gallery accepts.
+///     Turning a subsystem off must never turn a check off with it.
+List<String> galleryOriginsFor(
+  StorageService storage, {
+  required bool guardsOn,
+}) {
+  final base = storage.publicBaseUrl;
+  if (base != null) return <String>[base, 'asset:'];
+  if (guardsOn) return const <String>[FakeStorageService.origin, 'asset:'];
+  return const <String>[];
 }
 
 /// No-network stand-in for dev/CI/tests (selected when R2 isn't configured).
@@ -164,6 +203,12 @@ class FakeStorageService implements StorageService {
 
   @override
   String publicUrl(String key) => '$origin/$key';
+
+  /// **Null, not [origin].** There is no real delivery domain here, and the
+  /// gallery allowlist keys off exactly that distinction: null means "no public
+  /// origin to pin to", which is what dev has always meant.
+  @override
+  String? get publicBaseUrl => null;
 
   @override
   Future<int?> objectSize({
@@ -231,7 +276,9 @@ class R2StorageService implements StorageService {
   };
 
   /// Public delivery base, e.g. `https://cdn.myweli.com` (a domain bound to the
-  /// bucket). `publicUrl` = `$publicBaseUrl/$key`.
+  /// bucket). `publicUrl` = `$publicBaseUrl/$key`. Non-null here — R2 always has
+  /// one — which satisfies the interface's nullable getter.
+  @override
   final String publicBaseUrl;
 
   final String _accessKeyId;
