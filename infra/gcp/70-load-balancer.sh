@@ -99,7 +99,9 @@ cat <<EOF
 Load balancer ready.
 
   DNS (Cloudflare):  A   $DOMAIN   ->  $IP    [DNS only / grey cloud]
-                     and DELETE the CNAME to myweli-api.onrender.com
+
+  (Historically this also said to delete the CNAME to the old Render service.
+   Done at the 2026-08-06 cutover; Render is decommissioned.)
 
 The managed certificate stays PROVISIONING until that record resolves. Watch it:
 

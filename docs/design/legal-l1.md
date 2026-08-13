@@ -272,9 +272,23 @@ in three places:
    the **`depositMobileMoneyNumber`**. For a salon-as-business that is defensible;
    for a sole trader working à domicile it is personal data, and the policy says so.
 
-Also measured, and load-bearing for the text: **data is hosted in Frankfurt (EU)**,
-not Côte d'Ivoire (`render.yaml:15,24`) — a cross-border transfer that must be
-disclosed, and PRD **OQ-7** (ARTCI residency) is still open.
+Also measured, and load-bearing for the text: **data is hosted in the EU**, not
+Côte d'Ivoire — a cross-border transfer that must be disclosed, and PRD **OQ-7**
+(ARTCI residency) is still open.
+
+> **Updated 2026-08-13.** This originally read *Frankfurt*, measured from
+> `render.yaml`. The backend moved to **Cloud Run + Cloud SQL in
+> `europe-west9` (Paris)** on 2026-08-06 and Render is gone
+> ([infra-gcp-migration.md](infra-gcp-migration.md)). The legal conclusion is
+> unchanged — still the EU, still a transfer out of Côte d'Ivoire — but the
+> published texts named the wrong provider and the wrong country, which is a
+> statement about where personal data is processed and therefore not a
+> cosmetic error. `web/lib/legal.ts` and the privacy policy are corrected.
+>
+> **Open:** the mentions légales name *"Google Cloud"* by service rather than by
+> contracting entity, because which Google entity is the counterparty (Google
+> LLC vs Google Cloud EMEA Limited) depends on the billing account and has not
+> been verified. Confirm at registration, alongside the other `pendingFacts`.
 
 ## 12. Open questions
 
@@ -311,7 +325,8 @@ disclosed, and PRD **OQ-7** (ARTCI residency) is still open.
 > - the **mentions légales** minima for an unregistered entity trading in CI;
 > - the **CGU**'s liability, cancellation and deposit-dispute clauses, which
 >   interact with `docs/design/deposit-*.md` and consumer-protection law;
-> - whether the **cross-border transfer** to Frankfurt needs a stated safeguard.
+> - whether the **cross-border transfer** to the EU (Paris) needs a stated
+>   safeguard.
 >
 > **This marker string must never appear in shipped copy** — `tests/legal.test.tsx`
 > asserts that no page contains « à valider ».
@@ -359,7 +374,7 @@ peuvent vous identifier personnellement : n'y publiez que ce que vous acceptez d
 rendre public.
 
 **Où vos données sont hébergées.** Nos serveurs et notre base de données sont
-hébergés par **Render, à Francfort (Allemagne, Union européenne)** ; le site est
+hébergés par **Google Cloud, à Paris (France, Union européenne)** ; le site est
 servi par **Vercel** ; les fichiers (photos, captures, pièces KYC) par **Cloudflare
 R2**. **Vos données sortent donc de Côte d'Ivoire.**
 
@@ -433,7 +448,7 @@ et le représentant légal seront publiés ici dès l'immatriculation effective.
 
 **Directeur de la publication** — *(à compléter)*.
 **Contact** — *(l'adresse retenue ; voir §12)*.
-**Hébergeurs** — Render Inc. (Francfort, Allemagne) · Vercel Inc. (États-Unis) ·
+**Hébergeurs** — Google Cloud (Paris, France) · Vercel Inc. (États-Unis) ·
 Cloudflare Inc. (stockage R2).
 **Propriété intellectuelle** — la marque, le logo et le contenu éditorial de Myweli
 sont protégés ; le contenu publié par chaque salon reste la propriété de ce salon.

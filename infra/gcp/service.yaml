@@ -1,9 +1,10 @@
 # Cloud Run service — the MyWeli backend (G1).
 #
 # Declarative on purpose: the whole service (sidecar, secrets, probes, scaling)
-# is reviewable in a PR, which is the one property that made `render.yaml` good
-# and that the Render *dashboard* cron jobs lacked — they were invisible to
-# review, which is how the reminder cron came to be off without anyone noticing.
+# is reviewable in a PR, which is the one property that made the Render
+# Blueprint good and that the Render *dashboard* cron jobs lacked — they were
+# invisible to review, which is how the reminder cron came to be off without
+# anyone noticing. (That Blueprint is gone; the lesson is why this file exists.)
 #
 # Deployed by .github/workflows/deploy-backend.yml, which substitutes __IMAGE__.
 # Never `gcloud run deploy --set-env-vars` by hand: that creates a revision that

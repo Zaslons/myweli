@@ -38,7 +38,10 @@ Twilio SMS to Côte d'Ivoire is **$0.4925/segment** vs **$0.008** US (~62×) —
 | `TERMII_BASE_URL` | no | default `https://api.ng.termii.com` |
 | `TERMII_CHANNEL` | no | Termii route `generic`/`dnd` (default `generic`) |
 
-Documented in [.env.example](../../backend/.env.example); slots added to [render.yaml](../../render.yaml).
+Documented in [.env.example](../../backend/.env.example). (Written when the
+backend ran on Render, where the slots were declared in `render.yaml`; they are
+now Secret Manager entries referenced from
+[infra/gcp/service.yaml](../../infra/gcp/service.yaml).)
 
 ## 4. Security
 - **OTP authority stays server-side** (the reason we use plain-SMS, not Termii's Token API).
@@ -52,7 +55,7 @@ Coded results only (`termii_rejected` / `termii_<status>` / `termii_unreachable`
 [termii_messaging_provider_test.dart](../../backend/test/termii_messaging_provider_test.dart) (mocked `http.Client`): request shape + `+`-stripping + success/`message_id`, 2xx-without-id → rejected, non-2xx → coded, network → unreachable/never-throws, WhatsApp → not-configured + no call, custom route forwarded. Existing `messaging_test.dart` (service/outbox) stays green.
 
 ## 7. Rollout (zero-risk)
-Default behaviour is unchanged until `TERMII_*` + `MESSAGING_PROVIDER=termii` are set in Render (Render doesn't auto-sync `render.yaml` — set them in the dashboard). Then send one real OTP to a CI number, confirm delivery + price in the Termii dashboard, and leave it flipped. Twilio config stays for instant rollback.
+Default behaviour is unchanged until `TERMII_*` + `MESSAGING_PROVIDER=termii` are set. On Cloud Run that means adding the secrets (`gcloud secrets versions add`), referencing them from [infra/gcp/service.yaml](../../infra/gcp/service.yaml), and deploying — production currently runs `MESSAGING_PROVIDER=disabled`, and flipping it is a reviewed change to that file rather than a dashboard edit, which is the point of the declarative manifest. Then send one real OTP to a CI number, confirm delivery + price in the Termii dashboard, and leave it flipped. Twilio config stays for instant rollback.
 
 ## 8. Open questions
 - Branded **ARTCI-registered** sender ID (needs company registration) — replaces the generic sender later.

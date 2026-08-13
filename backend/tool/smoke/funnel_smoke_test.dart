@@ -372,8 +372,8 @@ void main() {
       // The assertion this whole slice was worth writing for. CI used to run
       // with `AUTH_METHODS` unset, and `auth_methods.dart:21` makes `phone` a
       // DEFAULT — so the old smoke's only auth assertion exercised a door
-      // `render.yaml:58` documents as dormant, at $0.49/segment, and never
-      // touched the e-mail door production actually serves.
+      // `infra/gcp/service.yaml` documents as dormant, at $0.49/segment, and
+      // never touched the e-mail door production actually serves.
       final r = await post(
         '/auth/otp/request',
         body: {'phoneNumber': '+2250700000009'},

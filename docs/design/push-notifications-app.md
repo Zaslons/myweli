@@ -214,7 +214,7 @@ So the repo carries **no Firebase config**, and everything still works:
 - `.gitleaks.toml` **pre-allowlists** the future config paths: Firebase *client*
   config ships inside the app binary and is public by design (its `AIza…` value
   trips the `gcp-api-key` rule). The **server** credential (`FCM_PRIVATE_KEY`)
-  is the real secret and lives only in Render's env.
+  is the real secret and lives only in GCP Secret Manager.
 
 ## 12. iOS — code-complete, unbuilt
 
