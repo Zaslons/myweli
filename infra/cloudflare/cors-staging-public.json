@@ -1,11 +1,13 @@
-[
-  {
-    "AllowedOrigins": [
-      "http://localhost:3000"
-    ],
-    "AllowedMethods": ["GET", "PUT", "POST", "HEAD"],
-    "AllowedHeaders": ["content-type"],
-    "ExposeHeaders": ["etag"],
-    "MaxAgeSeconds": 3600
-  }
-]
+{
+  "rules": [
+    {
+      "allowed": {
+        "origins": ["http://localhost:3000"],
+        "methods": ["GET", "PUT", "POST", "HEAD"],
+        "headers": ["content-type"]
+      },
+      "exposeHeaders": ["etag"],
+      "maxAgeSeconds": 3600
+    }
+  ]
+}
