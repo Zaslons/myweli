@@ -505,9 +505,32 @@ Each phase is a PR. Nothing in phase 2+ starts until §1 is merged.
    > for a key that does not exist and reading the answer: 404 from a bucket the
    > token may address, 403 from one it may not. Both halves asserted — a
    > revoked credential is denied everywhere and would pass a one-sided check.
-4. **Resources** — Cloud SQL instance, secrets, the service. (R2 moved up into
-   step 3, since it turned out to be committable configuration rather than
-   dashboard work.)
+4. **Resources** — Cloud SQL instance, the runtime identity, secrets, the
+   service, the crons. (R2 moved up into step 3, since it turned out to be
+   committable configuration rather than dashboard work.)
+   [`infra/gcp/90-staging.sh`](../../infra/gcp/90-staging.sh), run once by the
+   owner: the deploy service account holds `run.admin` and
+   `artifactregistry.writer` and deliberately nothing else, so it can deploy a
+   service it cannot provision.
+
+   > **Staging gets its own runtime identity**, `myweli-run-staging@`. Reusing
+   > production's would be cheaper and would make the secret split cosmetic —
+   > that account holds `secretAccessor` on every production secret version, so
+   > a manifest naming `DATABASE_URL` instead of `STAGING_DATABASE_URL` would
+   > simply work, and the isolation would rest on nobody mistyping a YAML key in
+   > a file a push trigger deploys.
+   >
+   > The crons are created **paused**: `*/15` against `minScale: 0` is ~96 cold
+   > starts a day, each running migrations, for an environment nobody is using
+   > between rehearsals. They carry **OIDC only, no `X-Cron-Secret`** — staging
+   > is where that path can be proven to carry traffic on its own, which is the
+   > evidence production needs before retiring the header (BACKEND.md §7 T21).
+   >
+   > `backend/test/infra/service_files_test.dart` asserts the script provisions
+   > **exactly** the seventeen secrets the manifest mounts. A secret added to one
+   > and forgotten in the other fails at revision creation with no application
+   > log — the deploy simply does not come up, and the cause is a name in a file
+   > nobody is looking at.
 5. **PITR restore into staging** (§3.2) — with the anonymisation step built
    into the restore script from the first run (§2.1), never added afterwards.
    Closes LAUNCH.md §5.5.
