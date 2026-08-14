@@ -6,11 +6,25 @@ Object storage for **staging** — build-order step 3 of
 | File | What it is |
 |---|---|
 | [`90-staging-r2.sh`](90-staging-r2.sh) | Creates the three buckets, enables the public delivery origin, applies CORS and lifecycle. Idempotent. |
-| [`cors-staging-public.json`](cors-staging-public.json) | CORS for the public bucket only. Staging origins — **never** `myweli.com`. |
-| [`lifecycle-staging.json`](lifecycle-staging.json) | Expire `pending/` uploads after a day; abort stale multipart uploads. |
+| [`cors-staging-public.json`](cors-staging-public.json) | CORS for the public bucket only. Staging origins — **never** `myweli.com`. **Wrangler's file format**, which is not the dashboard/API one. |
 
 Verified by
 [`backend/test/storage/r2_token_scope_test.dart`](../../backend/test/storage/r2_token_scope_test.dart).
+
+> **The first run half-failed, and that is recorded here rather than quietly
+> fixed.** This file was written in the dashboard/API format (a bare array of
+> `AllowedOrigins`); `wrangler r2 bucket cors set --file` wants
+> `{"rules":[{"allowed":{"origins":…}}]}`. `set -e` aborted the run correctly —
+> but CORS came before lifecycle, so **neither** was applied while the buckets
+> and the public origin were, and the only evidence was terminal scrollback.
+>
+> Two changes came out of it. The lifecycle rule is now applied with
+> `lifecycle add`'s explicit flags instead of a second file whose schema is
+> undocumented for wrangler — inferring a second format after the first was
+> wrong is how you get a rule that silently is not there. And **every step reads
+> its work back**, so a step that did not take effect fails instead of printing
+> a tick. A script that reports success it has not confirmed is the failure mode
+> this repository keeps finding.
 
 ## Why this directory exists
 

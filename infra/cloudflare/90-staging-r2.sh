@@ -15,6 +15,18 @@
 #
 # Idempotent: every step tolerates already-exists, so a partial run re-runs.
 #
+# EVERY STEP READS ITS WORK BACK. The first version did not, and the first real
+# run proved why: the CORS file was in the DASHBOARD/API format (a bare array of
+# `AllowedOrigins`) while `wrangler r2 bucket cors set --file` wants its own
+# shape (`{"rules":[{"allowed":{"origins":…}}]}`). `set -e` did abort the run —
+# loudly, to a terminal nobody was reading — and because CORS came before
+# lifecycle, NEITHER was applied while the buckets and the public origin were.
+# Half-configured, and the only evidence was scrollback.
+#
+# A step that reports success it has not confirmed is the failure mode this
+# whole repository keeps finding. So `verify` below re-reads each setting and
+# the script fails if what came back is not what went in.
+#
 #   npx wrangler login          # once, as the account owner
 #   bash infra/cloudflare/90-staging-r2.sh
 set -euo pipefail
@@ -69,21 +81,57 @@ echo "==> 3/4  CORS on $PUBLIC_BUCKET"
 # CORS-blocked preview is a staging origin, never widening production's.
 $WRANGLER r2 bucket cors set "$PUBLIC_BUCKET" \
   --file "$HERE/cors-staging-public.json" --force
+# Read it back. `set` exiting 0 means the API accepted the request, not that the
+# policy is there — and "the CORS configuration does not exist" is exactly what
+# this bucket answered after the first run reported nothing wrong.
+if ! $WRANGLER r2 bucket cors list "$PUBLIC_BUCKET" 2>&1 | grep -qi 'localhost:3000'; then
+  echo "::error:: CORS did not stick on $PUBLIC_BUCKET — read it back and see"
+  $WRANGLER r2 bucket cors list "$PUBLIC_BUCKET" || true
+  exit 1
+fi
+echo "    ✓ CORS verified by reading it back"
+
+# The private two must have NO CORS. Asserted rather than assumed: they are
+# reached only through presigned URLs the backend mints server-side, and a
+# browser-reachable surface on the buckets holding KYC documents and payment
+# proofs is the kind of thing that arrives by someone copying a working line.
+for b in "$KYC_BUCKET" "$DEPOSIT_BUCKET"; do
+  if $WRANGLER r2 bucket cors list "$b" 2>&1 | grep -qiE 'origins|AllowedOrigins'; then
+    echo "::error:: $b has a CORS policy and must not"
+    exit 1
+  fi
+  echo "    ✓ $b has no CORS, as intended"
+done
 
 echo "==> 4/4  Lifecycle rules on all three"
 # docs/BACKEND.md T61 records orphaned uploads as bounded only by a bucket
-# lifecycle rule, "Cloudflare-side, outstanding" — i.e. designed and never
-# applied. Staging is the cheap place to prove the rule does what the design
-# says before it runs against production objects.
+# lifecycle rule, "Cloudflare-side, outstanding" — designed and never applied.
 #
-# `pending/` is where uploads land before they are claimed, so anything still
-# under that prefix after a day is by construction an orphan
-# (docs/design/backend-upload-orphans.md). Applied to all three buckets: KYC and
-# deposit uploads use the same claim-then-promote flow.
+# `lifecycle add` with explicit flags rather than `set --file`: the file schema
+# for lifecycle is not documented for wrangler (the docs point at the REST API
+# body), and inferring a second undocumented format after the first one was
+# wrong is how you get a rule that silently is not there. These flags are read
+# from `wrangler r2 bucket lifecycle add --help`.
+#
+# ONE rule, not two. Cloudflare already creates a "Default Multipart Abort Rule"
+# at 7 days on every bucket — verified on all three of these — so a second
+# multipart rule would be redundant. `pending/` is where uploads land before
+# they are claimed, so anything still there after a day is by construction an
+# orphan (docs/design/backend-upload-orphans.md).
 for b in "$PUBLIC_BUCKET" "$KYC_BUCKET" "$DEPOSIT_BUCKET"; do
-  $WRANGLER r2 bucket lifecycle set "$b" \
-    --file "$HERE/lifecycle-staging.json" --force
-  echo "    ✓ $b"
+  if $WRANGLER r2 bucket lifecycle list "$b" 2>&1 | grep -q 'expire-pending-uploads'; then
+    echo "    ✓ $b already has the rule"
+  else
+    $WRANGLER r2 bucket lifecycle add "$b" expire-pending-uploads 'pending/' \
+      --expire-days 1 --force
+  fi
+  # Read back, same reason as CORS.
+  if ! $WRANGLER r2 bucket lifecycle list "$b" 2>&1 | grep -q 'expire-pending-uploads'; then
+    echo "::error:: the lifecycle rule did not stick on $b"
+    $WRANGLER r2 bucket lifecycle list "$b" || true
+    exit 1
+  fi
+  echo "    ✓ $b verified"
 done
 
 cat <<EOF

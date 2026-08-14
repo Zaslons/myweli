@@ -37,3 +37,10 @@
 .claude/settings.local.json
 .claude/*.local.json
 .claude/.session*
+
+# Wrangler's local cache. Created by `wrangler login` / any `wrangler` command
+# run from the repo root. `cache/wrangler-account.json` holds the Cloudflare
+# account id and name — not a credential, but local machine state that has no
+# business in a shared repository, and it appeared in `git status` the first
+# time the R2 provisioning script was run from here.
+.wrangler/
