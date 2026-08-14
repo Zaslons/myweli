@@ -18,6 +18,14 @@ Verified by
 > but CORS came before lifecycle, so **neither** was applied while the buckets
 > and the public origin were, and the only evidence was terminal scrollback.
 >
+> **Confirmed by the corrected run, since the docs do not say:** Cloudflare
+> documents only `allowed.origins` and `allowed.methods` for the wrangler shape.
+> `allowed.headers`, `exposeHeaders` and `maxAgeSeconds` are undocumented there
+> but **work** — set on 2026-08-14 and read back exactly as written
+> (`allowed_headers: content-type`, `exposed_headers: etag`,
+> `max_age_seconds: 3600`). `content-type` is not optional in practice: the
+> signed PUT pins that header, so a preflight without it fails.
+>
 > Two changes came out of it. The lifecycle rule is now applied with
 > `lifecycle add`'s explicit flags instead of a second file whose schema is
 > undocumented for wrangler — inferring a second format after the first was
