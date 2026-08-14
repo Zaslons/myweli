@@ -132,7 +132,7 @@ resource by resource, with the reason each way.
 | Cloud SQL | **separate instance** `myweli-db-staging` | Not for tidiness — the arithmetic was already red: `maxConnectionCount: 8` × maxScale 4 = **32** against a db-f1-micro whose default `max_connections` is **25**. Lowered to **4** in phase 2 PR D (4 × 4 = 16 inside the ~22 actually usable), so the ceiling is no longer breached — but sharing the instance would still add a second consumer to a budget with no room for one |
 | Database data | **synthetic by default; a scrubbed prod copy for rehearsals** | §2.1. An empty staging DB certifies every migration as instant (§3.2), but an un-scrubbed prod copy puts real phone numbers behind a reminder cron (§3.3) |
 | Secret Manager | **separate versions** — the **18** `service.yaml` mounts, not all 20 that exist | `JWT_SECRET` especially: a shared value lets a staging-issued token authenticate against **production**, and staging is where we deliberately mint admin tokens. `SMOKE_OTP_SECRET` is unmounted, and `R2_ENDPOINT` is a secret with **zero versions** deliberately left unreferenced (it is derived from `R2_ACCOUNT_ID`) — anyone scripting "twin every secret" copies a stray. The single exception worth sharing is `SENTRY_DSN`: `error_reporter.dart` already tags events with `Env`, so staging lands in the same project tagged `staging` |
-| R2 | **3 separate buckets + a bucket-scoped token** | Bucket *names* cannot collide (unique per account). The risk is the **credential**: an account-scoped token reads and writes every bucket regardless of what `R2_BUCKET` says. A staging run of the user-erasure path would delete production objects |
+| R2 | **3 separate buckets + a bucket-scoped token** | Bucket *names* cannot collide (unique per account). The risk is the **credential**: an account-scoped token reads and writes every bucket regardless of what `R2_BUCKET` says. A staging run of the user-erasure path would delete production objects. Provisioned by [`infra/cloudflare/90-staging-r2.sh`](../../infra/cloudflare/90-staging-r2.sh); the scoping is **proven**, not assumed, by `backend/test/storage/r2_token_scope_test.dart` |
 | `WEB_ORIGINS` | **separate**, staging origins only | Copying prod's value means staging accepts browser calls from `https://myweli.com`. When a preview gets CORS-blocked, the fix is a staging origin — **never** widening prod's list |
 | `CRON_SECRET` | **separate** | Plus a prod fix: both Scheduler jobs currently carry it as a literal `X-Cron-Secret` header (§7) |
 | `MESSAGING_PROVIDER` | **`disabled`, and it stays that way** | §3.3 |
@@ -488,7 +488,26 @@ Each phase is a PR. Nothing in phase 2+ starts until §1 is merged.
 3. **`infra/gcp/service-staging.yaml`** + the provisioning script, committed.
    Building staging by hand produces a second undocumented environment and
    doubles the drift surface — the thing that made this design necessary.
-4. **Resources** — Cloud SQL instance, secrets, R2 buckets, the service.
+   **Done** (PR #369), and with it **`infra/cloudflare/`** — the R2 half.
+
+   > **"The only genuinely un-scriptable blocker" was mostly wrong.** `wrangler`
+   > creates the buckets, sets CORS and lifecycle from committed JSON, and
+   > enables the `r2.dev` origin, so `90-staging-r2.sh` does all of it. **One**
+   > step needs the dashboard: minting the API token, because Cloudflare does
+   > not let a token create a token.
+   >
+   > That step is also the one that matters, so it is not left as an
+   > instruction. The token must be **bucket-scoped**, Cloudflare's screen
+   > defaults to *"apply to all buckets"*, and nothing else in the system can
+   > tell the difference — bucket names isolate nothing, since an account-scoped
+   > token reads and writes every bucket regardless of what `R2_BUCKET` says.
+   > `backend/test/storage/r2_token_scope_test.dart` proves it by signing a GET
+   > for a key that does not exist and reading the answer: 404 from a bucket the
+   > token may address, 403 from one it may not. Both halves asserted — a
+   > revoked credential is denied everywhere and would pass a one-sided check.
+4. **Resources** — Cloud SQL instance, secrets, the service. (R2 moved up into
+   step 3, since it turned out to be committable configuration rather than
+   dashboard work.)
 5. **PITR restore into staging** (§3.2) — with the anonymisation step built
    into the restore script from the first run (§2.1), never added afterwards.
    Closes LAUNCH.md §5.5.
