@@ -220,7 +220,14 @@ which is how the reminder cron came to be switched off without anyone noticing.
    messaging turns on. Production runs `MESSAGING_PROVIDER=disabled` and mounts
    no Twilio credentials, so nothing calls this route today. When a provider is
    configured, the status callback is
-   `https://api.myweli.com/webhooks/messaging/status?secret=<MESSAGING_WEBHOOK_SECRET>`.
+   `https://api.myweli.com/webhooks/messaging/status` — **no query string.**
+   Twilio authenticates its own callbacks with `X-Twilio-Signature`, verified
+   against `TWILIO_AUTH_TOKEN`, so there is no secret to append. Appending one
+   would also *break* verification: Twilio signs the URL as configured, query
+   string included, so a callback registered with `?secret=…` would fail every
+   signature check. Turning Twilio on therefore needs **`PUBLIC_BASE_URL` set as
+   well** — without it there is no URL to reconstruct and the webhook 404s
+   (BACKEND.md §7 T19).
 6. **Crons are Cloud Scheduler jobs**, not dashboard entries: `myweli-reminders`
    every 15 min and `myweli-subscriptions` daily at 03:00 UTC, both authenticated
    with a Google-signed OIDC token (`myweli-scheduler@`). A transitional

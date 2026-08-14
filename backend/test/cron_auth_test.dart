@@ -180,25 +180,21 @@ void main() {
   /// exactly what both routes used to do, putting a production secret into
   /// access logs, load-balancer logs and anything else that records a URL.
   ///
-  /// Source-pinned rather than exercised, because these routes read a global
-  /// composition-root singleton built from `Platform.environment` at import
-  /// time, so a handler test cannot configure them in-process. The repo already
-  /// uses this shape for its design-system pins.
+  /// **This pin moved, and grew, because it missed one.** It used to enumerate
+  /// the two cron files by path — and `routes/webhooks/messaging/status.dart`
+  /// was reading `?secret=` the whole time, so T21's claim that the pattern was
+  /// "source-pinned so no route can reintroduce it" was false as written. An
+  /// allowlist of the routes someone remembered is not a guard on the rule.
+  ///
+  /// It now scans the entire route tree and the composition root, with no
+  /// exemptions, in `test/no_secret_in_url_test.dart` — which covers these two
+  /// files along with every other.
   group('the secret cannot travel in a URL', () {
-    for (final path in [
-      'routes/internal/cron/reminders.dart',
-      'routes/internal/cron/subscriptions.dart',
-    ]) {
-      test('$path reads no query parameter', () {
-        final source = File(path).readAsStringSync();
-        expect(
-          source.contains('queryParameters'),
-          isFalse,
-          reason:
-              '$path must not accept the cron secret via ?secret= — it lands '
-              'in every log that records a URL',
-        );
-      });
-    }
+    test('is enforced tree-wide, not per-file — see no_secret_in_url_test', () {
+      // Kept as a signpost rather than deleted: someone looking for this rule
+      // will look here first, and a silently-vanished guard is indistinguishable
+      // from one that was never there.
+      expect(File('test/no_secret_in_url_test.dart').existsSync(), isTrue);
+    });
   });
 }
