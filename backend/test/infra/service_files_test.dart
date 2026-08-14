@@ -324,6 +324,69 @@ void main() {
     });
   });
 
+  group('the provisioning script provisions exactly what the manifest mounts', () {
+    // Two files, one list, edited months apart. A secret added to the manifest
+    // and forgotten in the script fails at REVISION CREATION with no
+    // application log — the deploy just does not come up, and the reason is a
+    // name in a YAML file nobody is looking at. The reverse, a secret created
+    // and never mounted, is a credential minted for nothing.
+    //
+    // Found while writing that script: 13 `STAGING_*` twins plus 4 deliberately
+    // shared with production is exactly the manifest's 17 mounts. This asserts
+    // it stays that way.
+    final script = File('$root/infra/gcp/90-staging.sh').readAsStringSync();
+
+    Set<String> created() => RegExp(
+      r'put_secret (STAGING_[A-Z0-9_]+)',
+    ).allMatches(script).map((m) => m.group(1)!).toSet();
+
+    Set<String> shared() {
+      // The loop that grants read access on production's non-credential
+      // secrets. Note the digit in `R2_ACCOUNT_ID` — a `[A-Z_]` class silently
+      // drops it, which is how the first version of this check under-counted.
+      final m = RegExp(r'for name in ([A-Z0-9_ ]+); do').firstMatch(script);
+      return m == null
+          ? {}
+          : m.group(1)!.split(' ').where((s) => s.isNotEmpty).toSet();
+    }
+
+    test('every mounted secret is created or explicitly shared', () {
+      expect(
+        secretNames(files['staging']!).difference(created().union(shared())),
+        isEmpty,
+        reason:
+            'mounted in service-staging.yaml but never provisioned — the '
+            'revision will fail to create, with no application log to explain it',
+      );
+    });
+
+    test('nothing is provisioned that the manifest does not mount', () {
+      expect(
+        created().union(shared()).difference(secretNames(files['staging']!)),
+        isEmpty,
+        reason: 'provisioned but unused — a credential minted for nothing',
+      );
+    });
+
+    test('the shared four are exactly the ones the manifest shares', () {
+      // Cross-checks the script against the SAME allowlist the secret-isolation
+      // test above enforces, so the two cannot drift into disagreeing about
+      // which secrets staging is allowed to read from production.
+      expect(
+        shared(),
+        secretNames(
+          files['prod']!,
+        ).intersection(secretNames(files['staging']!)),
+      );
+    });
+
+    test('the script never creates a secret without a STAGING_ prefix', () {
+      for (final name in created()) {
+        expect(name, startsWith('STAGING_'));
+      }
+    });
+  });
+
   group('the deploy substitutions', () {
     test('both files still carry the placeholders the workflow replaces', () {
       for (final name in ['service.yaml', 'service-staging.yaml']) {
