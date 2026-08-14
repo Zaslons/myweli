@@ -387,6 +387,66 @@ void main() {
     });
   });
 
+  group('the deploy workflow still earns the WIF trust condition', () {
+    // `infra/gcp/40-iam-wif.sh narrow` keys the deployer's trust on the
+    // `environment` claim GitHub puts in the OIDC token — and GitHub only puts
+    // it there when the JOB declares `environment:`. Delete that line and every
+    // deploy fails at the auth step with a permission error naming a service
+    // account, which reads like a GCP problem and is not.
+    //
+    // The two names must also match the two principalSets the script binds.
+    // They are declared in two files that nothing else connects.
+    final workflow = File(
+      '$root/.github/workflows/deploy-backend.yml',
+    ).readAsStringSync();
+    final wifScript = File('$root/infra/gcp/40-iam-wif.sh').readAsStringSync();
+
+    test('the job declares an environment', () {
+      expect(
+        RegExp(r'^\s{4}environment:', multiLine: true).hasMatch(workflow),
+        isTrue,
+        reason:
+            'without a job-level `environment:` the OIDC token carries no '
+            'environment claim, and the environment-scoped WIF bindings match '
+            'nothing — see infra/gcp/40-iam-wif.sh',
+      );
+    });
+
+    test('the environment names match the ones the WIF script binds', () {
+      final bound = RegExp(r'ENVIRONMENTS=\(([a-z- ]+)\)')
+          .firstMatch(wifScript)!
+          .group(1)!
+          .split(' ')
+          .where((s) => s.isNotEmpty)
+          .toSet();
+      expect(bound, {'backend-staging', 'backend-production'});
+      for (final env in bound) {
+        // The workflow builds the name as `backend-\${{ inputs.environment }}`,
+        // so what appears literally is the prefix plus each suffix.
+        final suffix = env.substring('backend-'.length);
+        expect(
+          workflow,
+          contains(suffix),
+          reason:
+              '$env is bound in the WIF script but the workflow never '
+              'produces it',
+        );
+      }
+    });
+
+    test('the names are NOT Production/Preview, which Vercel already owns', () {
+      // Reusing those would mix backend deploys into Vercel's deployment
+      // activity log — and both already exist in the repo's environment list.
+      expect(
+        RegExp(
+          r'^\s{4}environment:\s*(Production|Preview)\s*\$',
+          multiLine: true,
+        ).hasMatch(workflow),
+        isFalse,
+      );
+    });
+  });
+
   group('the deploy substitutions', () {
     test('both files still carry the placeholders the workflow replaces', () {
       for (final name in ['service.yaml', 'service-staging.yaml']) {

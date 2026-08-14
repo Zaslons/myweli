@@ -18,15 +18,18 @@
 # pinned on `attribute.repository` alone, so the `environment:` declared below
 # narrows nothing yet — it only makes the narrowing possible, by putting an
 # `environment` claim in the OIDC token for a condition to match. Adding that
-# condition is build-order step 4, and it must land before the `push:` trigger
-# below is uncommented. (The WIF setup itself lives only in the GCP project:
-# `infra/gcp/40-iam-wif.sh`, cited by this file's previous header, was never
-# committed — so step 4 owes that script too.)
+# condition is `infra/gcp/40-iam-wif.sh` — which now exists, after being cited
+# by this file's header since the migration without ever being committed. It
+# runs in three steps for a reason: `widen` adds the environment-scoped trust
+# alongside the repository-wide one, a real deploy proves the claim arrives, and
+# only then does `narrow` remove the old binding. **Do not uncomment the `push:`
+# trigger below until `narrow` has run.**
 #
 # **Manual trigger only, deliberately.** Push-to-deploy for staging is the goal
-# and the commented `push:` block below is most of it, but it must not be enabled
-# before that WIF condition exists: today any workflow on any branch can mint a
-# token holding project-wide `run.admin`.
+# and the commented `push:` block below is most of it. The script now exists; it
+# has not been RUN, so the trust is still repository-wide and any workflow on any
+# branch can still mint a token holding project-wide `run.admin`. Existing and
+# applied are different things, and this comment is the difference.
 name: Deploy — backend (Cloud Run)
 
 on:

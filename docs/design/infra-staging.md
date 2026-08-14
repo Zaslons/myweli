@@ -531,6 +531,31 @@ Each phase is a PR. Nothing in phase 2+ starts until §1 is merged.
    > and forgotten in the other fails at revision creation with no application
    > log — the deploy simply does not come up, and the cause is a name in a file
    > nobody is looking at.
+4b. **The WIF trust condition** — [`infra/gcp/40-iam-wif.sh`](../../infra/gcp/40-iam-wif.sh).
+
+   > The provider is pinned on `assertion.repository` alone and the deployer's
+   > binding on `attribute.repository`, so **any workflow, on any branch, with
+   > `id-token: write` can mint a token for `myweli-deployer@`** — which holds
+   > project-wide `roles/run.admin`, enough to replace *production*. Harmless
+   > while deploys are `workflow_dispatch` + a typed confirm; the moment
+   > `push: main` is uncommented, the blast radius of any merged workflow file
+   > becomes production. **That trigger must not be enabled before this lands.**
+   >
+   > Three steps, and the order is the safety property: `widen` is additive (both
+   > the old and the new trust work), a **real deploy** then proves the
+   > `environment` claim actually arrives, and only then does `narrow` remove the
+   > repository-wide binding. Reversed, the first evidence that the claim is
+   > missing would be a broken pipeline with no way to deploy the fix.
+   >
+   > Enforced by the binding rather than by the provider's CEL condition: a
+   > `principalSet` naming an attribute simply does not match a token lacking it,
+   > whereas a condition referencing an absent claim is an evaluation hazard that
+   > cannot be tested without applying it to the live provider.
+   >
+   > The script also commits the **baseline** — the pool, provider and bindings
+   > that have existed since the migration and lived only in the project, making
+   > the most security-relevant piece of this infrastructure the one piece nobody
+   > could review.
 5. **PITR restore into staging** (§3.2) — with the anonymisation step built
    into the restore script from the first run (§2.1), never added afterwards.
    Closes LAUNCH.md §5.5.
