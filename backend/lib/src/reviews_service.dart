@@ -93,46 +93,10 @@ class ReviewsService {
       }
     }
 
-    // Size, after origin. Ordering matters: deriving a key from a URL we have
-    // not yet vetted would hand an attacker-chosen path straight to storage.
-    if (photos.isNotEmpty && _verifier != null && _publicBaseUrl != null) {
-      final keys = photos
-          .map(
-            (u) => _verifier.keyFromPublicUrl(u, publicBaseUrl: _publicBaseUrl),
-          )
-          .whereType<String>()
-          .toList();
-      // Only URLs that passed the origin allowlist reach here, so a derived
-      // key is one of ours. Promotion moves each object out of `pending/`,
-      // and the STORED url is rebuilt from the promoted key — keeping the
-      // pending url would point at an object due to be expired.
-      //
-      // **REFUSE when one does not derive; do not skip the block.** This read
-      // `if (keys.length == photos.length)`, so a single url the allowlist
-      // accepts but `keyFromPublicUrl` cannot parse — an `asset:` seed
-      // placeholder — silently disabled verification AND promotion for every
-      // OTHER photo in the same request. An authenticated consumer could
-      // append one string and have their whole batch stored unverified and
-      // still pending: 200 now, gone tomorrow, and no T61 cap on any of it.
-      // The gallery had the identical guard and it is deleted there too.
-      if (keys.length != photos.length) {
-        return (ok: false, error: 'invalid_input', review: null);
-      }
-      {
-        final v = await _verifier.verifyAndPromote(
-          keys,
-          bucket: StorageBucket.public,
-        );
-        if (!v.ok) return (ok: false, error: v.error, review: null);
-        final base = _publicBaseUrl.endsWith('/')
-            ? _publicBaseUrl
-            : '$_publicBaseUrl/';
-        photos
-          ..clear()
-          ..addAll(v.keys.map((k) => '$base$k'));
-      }
-    }
-
+    // Everything above is pure validation of the client's own body — shape,
+    // length, origin — and touches no server state. **Promotion does not
+    // belong there, and used to.**
+    //
     // The appointment is the authority on who/what/which-salon.
     final appt = await _appointments.byId(appointmentId);
     if (appt == null) return (ok: false, error: 'not_found', review: null);
@@ -141,6 +105,47 @@ class ReviewsService {
     }
     if (appt['status'] != 'completed') {
       return (ok: false, error: 'not_completed', review: null);
+    }
+
+    // **This block ran BEFORE the three checks above.** `byId` is not
+    // ownership-scoped — the `userId` comparison is the only thing binding the
+    // appointment to the caller — so naming any appointment id still reached
+    // storage: HEAD, copy, and DELETE of the pending source. The request was
+    // then refused, and the objects were left promoted: moved OUT of
+    // `pending/`, the one prefix a lifecycle rule collects, referenced by no
+    // review that exists. Every refused attempt orphaned up to six objects
+    // nothing will ever reclaim, and nothing stops the loop
+    // (docs/design/backend-upload-orphans.md §1 — this is that denial of
+    // wallet, reachable without owning anything).
+    //
+    // Storage is now touched only once the caller is proven to own a completed
+    // visit. Validation stays above; only the mutation moved.
+    //
+    // The second half is the claim-vs-save distinction the gallery and KYC
+    // already learned: `verifyAndPromote` refuses anything not under
+    // `pending/`, which is right for a claim and wrong for a wholesale replace
+    // that re-sends urls the server itself issued. `alreadyStored` is THIS
+    // appointment's stored photos — read after ownership, so the set can only
+    // ever be the caller's own — matched by membership, never by shape.
+    if (photos.isNotEmpty && _verifier != null && _publicBaseUrl != null) {
+      final existing = await _reviews.reviewByAppointment(appointmentId);
+      // Projected, not cast: `photoUrls` arrives as `jsonDecode` output or a
+      // driver-decoded jsonb value — `List<dynamic>` either way, so a cast
+      // passes in-memory and throws against Postgres.
+      final stored = <String>{
+        for (final u in (existing?['photoUrls'] as List? ?? const []))
+          if (u is String) u,
+      };
+      final v = await _verifier.promoteNewUrls(
+        photos,
+        publicBaseUrl: _publicBaseUrl,
+        alreadyStored: stored,
+        bucket: StorageBucket.public,
+      );
+      if (!v.ok) return (ok: false, error: v.error, review: null);
+      photos
+        ..clear()
+        ..addAll(v.urls);
     }
     final providerId = appt['providerId'] as String;
     final provider = await _providers.byId(providerId);

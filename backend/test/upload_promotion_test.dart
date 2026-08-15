@@ -5,12 +5,15 @@ import 'package:dart_frog/dart_frog.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:myweli_backend/src/access/membership_repository.dart';
 import 'package:myweli_backend/src/access/membership_service.dart';
+import 'package:myweli_backend/src/appointments/appointment_repository.dart';
 import 'package:myweli_backend/src/auth/auth_repository.dart';
 import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
 import 'package:myweli_backend/src/auth/tokens.dart';
 import 'package:myweli_backend/src/kyc_service.dart';
 import 'package:myweli_backend/src/provider_catalog_service.dart';
 import 'package:myweli_backend/src/providers_repository.dart';
+import 'package:myweli_backend/src/reviews_repository.dart';
+import 'package:myweli_backend/src/reviews_service.dart';
 import 'package:myweli_backend/src/storage/storage_service.dart';
 import 'package:myweli_backend/src/upload_verification_service.dart';
 import 'package:test/test.dart';
@@ -597,6 +600,195 @@ void main() {
         'invalid_input',
       );
       expect(store.copied, isEmpty);
+    });
+  });
+
+  group('review photos — the last surface, and the ordering it got wrong', () {
+    late InMemoryReviewsRepository reviews;
+    late InMemoryAppointmentRepository appts;
+    late InMemoryProvidersRepository providers;
+    late _PublicStorage store;
+    late ReviewsService service;
+    final tokens = TokenService(secret: 'test-secret');
+
+    const owner = 'user_A';
+    const other = 'user_B';
+
+    setUp(() async {
+      reviews = InMemoryReviewsRepository();
+      appts = InMemoryAppointmentRepository();
+      providers = InMemoryProvidersRepository(_freshSeed());
+      store = _PublicStorage();
+      service = ReviewsService(
+        reviews,
+        appts,
+        providers,
+        InMemoryAuthRepository(tokens: tokens, isProd: false),
+        allowedImageOrigins: const [base],
+        verifier: UploadVerificationService(storage: store),
+        publicBaseUrl: base,
+      );
+      await appts.create({
+        'id': 'appt1',
+        'userId': owner,
+        'providerId': 'provider1',
+        'serviceIds': const ['service1'],
+        'artistId': null,
+        'appointmentDate': DateTime.utc(2030, 6, 10, 9).toIso8601String(),
+        'durationMinutes': 60,
+        'status': 'completed',
+        'totalPrice': 15000,
+        'depositAmount': 0,
+        'balanceDue': 15000,
+        'createdAt': DateTime.utc(2030).toIso8601String(),
+      });
+    });
+
+    Future<ReviewResult> submit(
+      List<String> photos, {
+      String as = owner,
+      String appointmentId = 'appt1',
+    }) => service.submitForAppointment(
+      as,
+      appointmentId,
+      rating: 5,
+      text: 'Impeccable',
+      photoUrls: photos,
+    );
+
+    Future<List<String>> stored() async {
+      final r = await reviews.reviewByAppointment('appt1');
+      return ((r?['photoUrls'] as List?) ?? const [])
+          .whereType<String>()
+          .toList();
+    }
+
+    test('the first submit promotes out of pending/', () async {
+      final r = await submit([url('pending/review/$owner/a.jpg')]);
+      expect(r.ok, isTrue, reason: 'error was ${r.error}');
+      expect(await stored(), [url('review/$owner/a.jpg')]);
+      expect(store.copied, [
+        'pending/review/$owner/a.jpg -> review/$owner/a.jpg',
+      ]);
+      expect(store.deleted, ['pending/review/$owner/a.jpg']);
+    });
+
+    test('a RESUBMIT carrying its own stored url does not 400', () async {
+      // The one that matters. `verifyAndPromote` refuses anything not pending,
+      // which is right for a claim and wrong for a wholesale replace — so the
+      // moment a client re-sends what the server handed it, every resubmit was
+      // a 400. Exactly the gallery's bug, one surface later.
+      await submit([url('pending/review/$owner/a.jpg')]);
+      store.copied.clear();
+
+      final r = await submit([url('review/$owner/a.jpg')]);
+      expect(r.ok, isTrue, reason: 'error was ${r.error}');
+      expect(await stored(), [url('review/$owner/a.jpg')]);
+      expect(store.copied, isEmpty, reason: 'nothing new was uploaded');
+    });
+
+    test('a resubmit mixing stored and new keeps both, in order', () async {
+      await submit([url('pending/review/$owner/a.jpg')]);
+      store.copied.clear();
+      final r = await submit([
+        url('review/$owner/a.jpg'),
+        url('pending/review/$owner/b.jpg'),
+      ]);
+      expect(r.ok, isTrue, reason: 'error was ${r.error}');
+      expect(await stored(), [
+        url('review/$owner/a.jpg'),
+        url('review/$owner/b.jpg'),
+      ]);
+      expect(store.copied, [
+        'pending/review/$owner/b.jpg -> review/$owner/b.jpg',
+      ]);
+    });
+
+    test('a resubmit may drop a photo', () async {
+      await submit([
+        url('pending/review/$owner/a.jpg'),
+        url('pending/review/$owner/b.jpg'),
+      ]);
+      final r = await submit([url('review/$owner/b.jpg')]);
+      expect(r.ok, isTrue, reason: 'error was ${r.error}');
+      expect(await stored(), [url('review/$owner/b.jpg')]);
+      // Deliberately NOT deleted. No save path in this repo deletes a dropped
+      // object, and until the forms prefill their photos the "dropped set" is
+      // every photo on every resubmit, involuntarily — a delete here would
+      // destroy what the user never chose to drop.
+      expect(store.deleted, isNot(contains('review/$owner/a.jpg')));
+    });
+
+    test("another review's promoted url is refused", () async {
+      // Shape vs membership: `review/user_B/x.jpg` looks exactly as promoted as
+      // our own. Only this appointment's stored set separates them.
+      await submit([url('pending/review/$owner/a.jpg')]);
+      final r = await submit([url('review/$other/theirs.jpg')]);
+      expect(r.ok, isFalse);
+      expect(r.error, 'invalid_input');
+      expect(await stored(), [url('review/$owner/a.jpg')]);
+    });
+
+    test('a NON-OWNER never reaches storage — it used to', () async {
+      // The promotion block ran ABOVE the ownership check, and `byId` is not
+      // ownership-scoped. So naming any appointment id got a HEAD, a copy and
+      // a DELETE of the pending source, and only then a 403 — leaving the
+      // object promoted OUT of `pending/`, the one prefix a lifecycle rule
+      // collects, referenced by no review that exists. Unbounded, and needing
+      // nothing but an account.
+      final r = await submit([url('pending/review/$other/x.jpg')], as: other);
+      expect(r.ok, isFalse);
+      expect(r.error, 'forbidden');
+      expect(
+        store.copied,
+        isEmpty,
+        reason: 'a refused request must not move an object out of pending/',
+      );
+      expect(store.deleted, isEmpty, reason: 'and must not delete one either');
+    });
+
+    test('an UNCOMPLETED visit never reaches storage either', () async {
+      await appts.create({
+        'id': 'appt2',
+        'userId': owner,
+        'providerId': 'provider1',
+        'serviceIds': const ['service1'],
+        'artistId': null,
+        'appointmentDate': DateTime.utc(2030, 7, 10, 9).toIso8601String(),
+        'durationMinutes': 60,
+        'status': 'pending',
+        'totalPrice': 15000,
+        'depositAmount': 0,
+        'balanceDue': 15000,
+        'createdAt': DateTime.utc(2030).toIso8601String(),
+      });
+      final r = await submit([
+        url('pending/review/$owner/x.jpg'),
+      ], appointmentId: 'appt2');
+      expect(r.error, 'not_completed');
+      expect(store.copied, isEmpty);
+      expect(store.deleted, isEmpty);
+    });
+
+    test('an unknown appointment never reaches storage either', () async {
+      final r = await submit([
+        url('pending/review/$owner/x.jpg'),
+      ], appointmentId: 'nope');
+      expect(r.error, 'not_found');
+      expect(store.copied, isEmpty);
+    });
+
+    test('a url that derives to no key refuses the whole batch', () async {
+      // The all-or-nothing bypass, held closed. `$base/` passes the origin
+      // allowlist and leaves an EMPTY key, so `keyFromPublicUrl` returns null.
+      final r = await submit(['$base/', url('pending/review/$owner/a.jpg')]);
+      expect(r.ok, isFalse);
+      expect(r.error, 'invalid_input');
+      expect(store.copied, isEmpty);
+    });
+
+    test('reviewByAppointment finds nothing for an unknown visit', () async {
+      expect(await reviews.reviewByAppointment('never'), isNull);
     });
   });
 
