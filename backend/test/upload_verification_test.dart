@@ -430,6 +430,62 @@ void main() {
       expect(svc(FakeStorageService()).publicBaseUrl, isNull);
     });
   });
+
+  group('promotedKey — a startsWith prefix check is not an ownership check', () {
+    test('a well-formed pending key promotes', () {
+      expect(promotedKey('pending/deposit/u1/a.jpg'), 'deposit/u1/a.jpg');
+      expect(promotedKey('pending/a.jpg'), 'a.jpg');
+    });
+
+    test('a non-pending key is not a claim', () {
+      expect(promotedKey('deposit/u1/a.jpg'), isNull);
+      expect(promotedKey(''), isNull);
+      expect(
+        promotedKey('pending/'),
+        isNull,
+        reason: 'this used to promote to the empty string, which is not a key',
+      );
+    });
+
+    test('DOT SEGMENTS are refused — this is the whole point', () {
+      // Every claim path proves ownership with a prefix, and
+      // `pending/deposit/u1/../u2/x.jpg` satisfies
+      // `startsWith('pending/deposit/u1/')`. Whether it then RESOLVES to u2's
+      // object depends on whether R2 normalises dot segments in an object key
+      // and on when `Uri` normalises relative to the SigV4 canonical request —
+      // two empirical questions about someone else's implementation. Refusing
+      // the shape here makes the answer irrelevant, for every claim path at
+      // once, because this function is the gate they all pass through.
+      expect(promotedKey('pending/deposit/u1/../u2/x.jpg'), isNull);
+      expect(promotedKey('pending/../kyc/acct/passport.pdf'), isNull);
+      expect(promotedKey('pending/deposit/u1/./x.jpg'), isNull);
+      expect(promotedKey('pending/deposit/u1//x.jpg'), isNull);
+      expect(promotedKey('pending/deposit/u1/..'), isNull);
+      expect(promotedKey('pending/..'), isNull);
+    });
+
+    test('a dot INSIDE a segment is still a normal key', () {
+      // The check is per segment, not a substring scan — `..` in a filename is
+      // ordinary, and refusing it would break real uploads.
+      expect(promotedKey('pending/g/p1/my..photo.jpg'), 'g/p1/my..photo.jpg');
+      expect(promotedKey('pending/g/p1/.hidden.jpg'), 'g/p1/.hidden.jpg');
+    });
+
+    test('the refusal reaches verifyAndPromote', () async {
+      // The unit above is only worth having if the claim path consults it.
+      final store = FakeStorageService(defaultSize: 10);
+      final r = await svc(store).verifyAndPromote([
+        'pending/deposit/u1/../u2/x.jpg',
+      ], bucket: StorageBucket.deposit);
+      expect(r.ok, isFalse);
+      expect(r.error, 'invalid_input');
+      expect(
+        store.copied,
+        isEmpty,
+        reason: 'and it refuses BEFORE any storage call',
+      );
+    });
+  });
 }
 
 /// Storage whose every call throws — the fail-closed fixture.
