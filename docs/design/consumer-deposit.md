@@ -53,6 +53,37 @@ enables pay-later/replace.)
 
 Errors: 400 `invalid_input` (foreign/missing key, wrong content-type), 401, 403, 404, 405. No new money endpoints (Myweli moves nothing).
 
+**Replace and replay (2026-08-15).** Neither surface offers a « renvoyer la
+capture » control — both gate the attach CTA on the proof being *absent* — so a
+second submit is never a deliberate act. It is exclusively a failure retry, and
+the two clients retried differently, hitting different defects:
+
+- **Web** re-uploads a fresh key on every click, so a request that landed but
+  whose reply was lost left the superseded object behind. It sits at its
+  promoted path, outside `pending/`, where no lifecycle rule reaches it — and
+  `anonymizeUser` hands erasure only the key each row *currently* holds, so a
+  real person's payment proof outlived `DELETE /me` with nothing pointing at it.
+  `submit` now deletes the object it supersedes: **after** the row points at the
+  new one (delete-then-failed-update would leave a live booking pointing at
+  destroyed proof the salon and an admin can both request), re-validated against
+  the caller's own `deposit/{userId}/` prefix, and best-effort — one leaked
+  object must never fail a recorded payment.
+- **Mobile** keeps the key across a failure and re-sends it. Claiming deletes the
+  pending source, so the retry HEADed an object we had deleted ourselves and got
+  `upload_not_found` → 400; the only way out was « Retirer » and re-pick. A
+  re-send whose **promoted** form already equals what is stored is now the
+  success it always was. The comparison must be on the promoted form: the client
+  only ever holds the pending key, so `key == stored` can never be true.
+
+The replay stays **below** the status gate — arriving after the salon accepted is
+still `invalid_state`, because re-confirming a key on a settled booking is a
+different act from retrying a lost reply. And it returns before any delete, so a
+replay destroys nothing.
+
+The route suppresses both notifications on a replay: the salon was already told,
+and telling it again would have it chase a justificatif it has been looking at
+since the first attempt.
+
 ## 4. Data model
 None new. `appointments.deposit_screenshot_url` now holds a **private object key** (not a public URL). The deposit "intent" is the appointment itself (`depositAmount` + `depositScreenshotUrl` + `pending` status); "receipt confirmed" = the salon's `accept` (`pending → confirmed`) — no separate payment entity (matches FR: no Myweli-side transaction). Screenshots live in a **dedicated private bucket `R2_DEPOSIT_BUCKET`**, kept apart from `R2_KYC_BUCKET` so the two can have independent retention (deposits are transient → can auto-expire; KYC is retained for compliance), credential scoping, and blast-radius isolation. Bucket selection is a typed `StorageBucket { public, kyc, deposit }`.
 
