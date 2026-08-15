@@ -30,6 +30,8 @@ import 'package:myweli_backend/src/reviews_service.dart';
 /// may read what clients wrote about it; there is no narrower capability
 /// because there is nothing narrower to protect — the reviews are public while
 /// the salon is live.
+/// no-upload-claim: this route only LISTS the salon's own reviews; it
+/// never reaches the photo-claim path.
 Future<Response> onRequest(RequestContext context) async {
   if (context.request.method != HttpMethod.get) return methodNotAllowed();
 

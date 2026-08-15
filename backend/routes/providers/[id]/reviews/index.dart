@@ -19,6 +19,8 @@ import 'package:myweli_backend/src/salon_visibility.dart';
 /// The gate lives HERE and not in `ReviewsService.list`, which is shared with
 /// `GET /me/provider/reviews`: a draft salon can hold reviews (T53 erasure, T54
 /// billing unpublish) and its owner must keep reading them.
+/// no-upload-claim: this route only LISTS reviews. The claim lives in
+/// `POST /appointments/{id}/review`, which maps the code itself.
 Future<Response> onRequest(RequestContext context, String id) async {
   if (context.request.method != HttpMethod.get) return methodNotAllowed();
 

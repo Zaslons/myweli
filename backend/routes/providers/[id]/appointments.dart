@@ -12,6 +12,11 @@ import 'package:myweli_backend/src/validators.dart';
 /// logged-after-the-fact, or a phone booking for a future date). Provider-only
 /// and ownership-scoped; server-priced; created `confirmed` with no online
 /// deposit. Design: docs/design/pro-manual-booking.md.
+/// no-upload-claim: this route calls `BookingService.bookManual`, which hardcodes
+/// `depositScreenshotUrl: null` — a salon-entered booking never carries a client
+/// proof, so it cannot reach the verifier. The CONSUMER booking route
+/// (`routes/appointments/index.dart`) shares the service and does claim; it maps
+/// the code itself.
 Future<Response> onRequest(RequestContext context, String id) async {
   final principal = principalOf(context);
   if (principal == null) {

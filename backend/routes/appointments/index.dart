@@ -161,6 +161,12 @@ Future<Response> _book(RequestContext context, String userId) async {
     depositScreenshotUrl: body['depositScreenshotUrl'] as String?,
   );
   if (!result.ok) {
+    // **Written FIRST this time.** Not reachable on this branch — it becomes so
+    // the moment the booking-time deposit proof is claimed here (the promotion
+    // can fail on an unreachable bucket) — but the two comments below record
+    // the last two codes that shipped as bad requests precisely because their
+    // arm was written second. This switch has now burned that twice.
+    if (result.error == 'storage_unavailable') return storageUnavailable();
     final status = switch (result.error) {
       'provider_not_found' => HttpStatus.notFound,
       'slot_unavailable' => HttpStatus.conflict,
