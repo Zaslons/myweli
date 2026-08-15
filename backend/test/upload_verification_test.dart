@@ -183,6 +183,137 @@ void main() {
       expect(r.error, 'storage_unavailable');
     });
   });
+
+  group('promoteNewUrls — a SAVE is not a claim', () {
+    const base = 'https://cdn.myweli.com';
+    String url(String key) => '$base/$key';
+
+    test('promotes the new url and passes the stored one through', () async {
+      // The shape every one of these surfaces actually has: one url the client
+      // just uploaded next to one the server handed it on the last read.
+      // `verifyAndPromote` refuses the second outright, which is why every
+      // caller that used it re-saved into a 400.
+      final store = FakeStorageService(sizes: {'pending/g/p1/new.jpg': 10});
+      final r = await svc(store).promoteNewUrls(
+        [url('g/p1/old.jpg'), url('pending/g/p1/new.jpg')],
+        publicBaseUrl: base,
+        alreadyStored: {url('g/p1/old.jpg')},
+        bucket: StorageBucket.public,
+      );
+      expect(r.ok, isTrue);
+      expect(r.urls, [url('g/p1/old.jpg'), url('g/p1/new.jpg')]);
+      expect(
+        store.copied,
+        ['pending/g/p1/new.jpg -> g/p1/new.jpg'],
+        reason: 'only the NEW object moves; the stored one is already promoted',
+      );
+    });
+
+    test('order survives the partition', () async {
+      // The result is reassembled from two lists, and before/after pairs are
+      // read positionally (`urls[i * 2]` / `urls[i * 2 + 1]`) — a scramble here
+      // swaps somebody's before with their after.
+      final store = FakeStorageService(defaultSize: 10);
+      final r = await svc(store).promoteNewUrls(
+        [
+          url('pending/a.jpg'),
+          url('kept-b.jpg'),
+          url('pending/c.jpg'),
+          url('kept-d.jpg'),
+        ],
+        publicBaseUrl: base,
+        alreadyStored: {url('kept-b.jpg'), url('kept-d.jpg')},
+        bucket: StorageBucket.public,
+      );
+      expect(r.ok, isTrue);
+      expect(r.urls, [
+        url('a.jpg'),
+        url('kept-b.jpg'),
+        url('c.jpg'),
+        url('kept-d.jpg'),
+      ]);
+    });
+
+    test('a promoted-looking url we do NOT hold is refused', () async {
+      // The security half. A promoted key is just a key without the prefix, so
+      // "not pending" is indistinguishable from "string the client invented" —
+      // membership in `alreadyStored` is the only thing that separates them.
+      // Accepting on shape would let a caller point its avatar at any object in
+      // the bucket, including another salon's.
+      final store = FakeStorageService(defaultSize: 10);
+      final r = await svc(store).promoteNewUrls(
+        [url('kyc/someone-else/passport.jpg')],
+        publicBaseUrl: base,
+        alreadyStored: const {},
+        bucket: StorageBucket.public,
+      );
+      expect(r.ok, isFalse);
+      expect(r.error, 'invalid_input');
+      expect(store.copied, isEmpty);
+    });
+
+    test('a foreign origin is refused', () async {
+      final r = await svc(FakeStorageService(defaultSize: 10)).promoteNewUrls(
+        ['https://evil.example/pending/x.jpg'],
+        publicBaseUrl: base,
+        alreadyStored: const {},
+        bucket: StorageBucket.public,
+      );
+      expect(r.ok, isFalse);
+      expect(r.error, 'invalid_input');
+    });
+
+    test('an oversized new upload refuses the WHOLE save', () async {
+      // Partial application would store a mix of promoted and pending urls,
+      // and the pending half would vanish a day later.
+      final store = FakeStorageService(
+        sizes: {'pending/ok.jpg': 10, 'pending/big.jpg': max + 1},
+      );
+      final r = await svc(store).promoteNewUrls(
+        [url('pending/ok.jpg'), url('pending/big.jpg')],
+        publicBaseUrl: base,
+        alreadyStored: const {},
+        bucket: StorageBucket.public,
+      );
+      expect(r.ok, isFalse);
+      expect(r.error, 'upload_too_large');
+      expect(store.copied, isEmpty);
+    });
+
+    test('an all-unchanged save touches storage not at all', () async {
+      // The common case — editing a caption, renaming an artist. It must not
+      // cost a HEAD per image, and must never fail.
+      final store = FakeStorageService(defaultSize: 10);
+      final r = await svc(store).promoteNewUrls(
+        [url('a.jpg'), url('b.jpg')],
+        publicBaseUrl: base,
+        alreadyStored: {url('a.jpg'), url('b.jpg')},
+        bucket: StorageBucket.public,
+      );
+      expect(r.ok, isTrue);
+      expect(r.urls, [url('a.jpg'), url('b.jpg')]);
+      expect(store.copied, isEmpty);
+      expect(store.deleted, isEmpty);
+    });
+
+    test('a trailing slash on the base does not double up', () async {
+      final store = FakeStorageService(defaultSize: 10);
+      final r = await svc(store).promoteNewUrls(
+        [url('pending/a.jpg')],
+        publicBaseUrl: '$base/',
+        alreadyStored: const {},
+        bucket: StorageBucket.public,
+      );
+      expect(r.urls, [url('a.jpg')]);
+    });
+
+    test('publicBaseUrl comes from storage, so it cannot drift', () {
+      // The route reads this instead of taking a second base from the
+      // composition root — one source, so a url can never be validated against
+      // an origin the objects are not served from.
+      expect(svc(FakeStorageService()).publicBaseUrl, isNull);
+    });
+  });
 }
 
 /// Storage whose every call throws — the fail-closed fixture.

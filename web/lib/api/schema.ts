@@ -589,6 +589,7 @@ export interface paths {
                         name?: string;
                         /** @description Empty string clears it. Changing it resets emailVerified. */
                         email?: string;
+                        /** @description Either a URL just returned by `POST /uploads/sign` (still under `pending/`) — which the server PROMOTES, storing and returning the promoted URL — or **exactly** the avatar currently stored, which passes through unchanged so an edit that only renames still works. Anything else → 400 `invalid_input`. Uploads that are never promoted are deleted by the `pending/` lifecycle rule (T61). */
                         avatarUrl?: string;
                         /** @description Contact phone (E.164). Empty string clears it. Setting a new value resets phoneVerified (verified later via SMS). */
                         phone?: string;
@@ -605,6 +606,7 @@ export interface paths {
                         "application/json": components["schemas"]["User"];
                     };
                 };
+                400: components["responses"]["BadRequest"];
                 401: components["responses"]["Unauthorized"];
                 404: components["responses"]["NotFound"];
             };
@@ -3027,6 +3029,8 @@ export interface paths {
         /**
          * Replace a salon's before/after pairs wholesale (FR-DISC-006)
          * @description Validated: ≤ 12 pairs; each `before`/`after` a non-empty URL ≤ 2048 chars (origin-allowlisted when public delivery is configured); optional `caption` ≤ 120 chars.
+         *
+         *     Wholesale means re-sending the pairs you already have. A URL from `POST /uploads/sign` (under `pending/`) is PROMOTED and the promoted URL is stored and returned; a URL already stored for this salon passes through unchanged. Anything else → 400 `invalid_input`. An upload that is never promoted is deleted by the `pending/` lifecycle rule (T61).
          */
         put: {
             parameters: {
@@ -6305,6 +6309,7 @@ export interface components {
         ArtistInput: {
             name?: string;
             specialization?: string | null;
+            /** @description A URL from `POST /uploads/sign` (under `pending/`) — promoted on save, and the PROMOTED url is stored and returned — or exactly the url currently stored for THIS artist, which passes through. Another artist's url, a foreign origin or an invented path → 400 `invalid_input` (T61). */
             imageUrl?: string | null;
             workingHours?: {
                 [key: string]: components["schemas"]["TimeSlot"][];

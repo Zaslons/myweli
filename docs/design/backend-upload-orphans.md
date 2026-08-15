@@ -109,6 +109,59 @@ so there is no data to migrate and nothing to lose. Built:
 promotion. Promoting first would move the offending object to its final key,
 where the lifecycle rule can no longer collect it.
 
+## 4.1 « All four claim paths » was three surfaces short — a **save** is not a claim
+
+Written down after the fact, because the sentence above was true of the paths it
+named and quietly false of the system. Three more surfaces went through
+`POST /uploads/sign` and therefore wrote under `pending/`, and none of them ever
+claimed: **before/after pairs**, **artist photos**, and the **consumer avatar**
+(`PATCH /me`, which had no origin check either — any string became someone's
+avatar and was served back from our own domain). Each image worked for a day and
+then 404'd forever, with its URL still in Postgres. The lifecycle rule was doing
+exactly what §3.2 designed it to do; the surfaces had simply never opted in.
+
+Wiring `verifyAndPromote` into them does not work, and the reason is the general
+point this section exists to record. A **claim** carries only keys the client
+has just uploaded, so `verifyAndPromote` rightly refuses anything not under
+`pending/`. A **save** is a wholesale replace: it re-sends the URLs the server
+handed back on the last read, alongside any new ones. Feed those to
+`verifyAndPromote` and the second save is a 400 — which is precisely the bug the
+**gallery** had from the other direction: it promoted unconditionally, so it
+worked once and refused every save after.
+
+Both failures are the same missing idea. *Pending* and *already ours* are
+different states:
+
+| | first save | second save |
+|---|---|---|
+| never promote (before/after, artists, avatar) | ✅ then deleted in 24h | ✅ then deleted in 24h |
+| promote everything (gallery) | ✅ | ❌ 400 |
+| `promoteNewUrls` | ✅ | ✅ |
+
+`UploadVerificationService.promoteNewUrls(urls, alreadyStored: …)` partitions a
+save: promote the pending ones, pass through the ones that are **exactly** what
+is stored today, refuse everything else.
+
+**Membership, not shape.** The obvious test — "does it look promoted?" — is not
+available: a promoted key is just a key without the prefix, so "not pending" is
+indistinguishable from "arbitrary string the client invented". So an unchanged
+URL must be one the caller *provably already had*, matched against what the
+repository holds. And the set is scoped as narrowly as the surface is: an
+artist's set is that artist's current photo, not the salon's, so artist B cannot
+be pointed at artist A's object.
+
+`updateGallery` still promotes unconditionally and is therefore still
+write-once; `promoteNewUrls` is what it needs, and that is a separate change
+against a separate report.
+
+**Blast radius when this was found: zero.** Production held 0 providers and 0
+objects across all three buckets — the mechanism was live and waiting for the
+first real upload, not eating existing ones.
+
+Tests: `backend/test/upload_promotion_test.dart` — every surface saves **twice**,
+because a first-save-only test passes against both bugs and is the reason
+neither was caught.
+
 ## 5. What is configured now
 
 - **`livetest/` expiry — owner action, and deliberately so.** Setting it via the
