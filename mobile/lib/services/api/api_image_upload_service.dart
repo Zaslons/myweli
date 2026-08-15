@@ -24,16 +24,24 @@ class ApiImageUploadService implements ImageUploadServiceInterface {
   ApiImageUploadService({
     http.Client? client,
     String? baseUrl,
-    SessionStore? providerSessionStore,
+    // **Named `providerSessionStore` until it wasn't one.** This pipeline is
+    // shared by pro AND consumer uploads, and the old name made a registration
+    // that handed it the PRO store read as obviously correct — which is how the
+    // consumer avatar ended up signing against a store its binary never fills.
+    // The store, the purpose and the refresh path are one decision; the name
+    // now says so.
+    SessionStore? sessionStore,
     ImageCompressor? compressor,
-    // P2b (audit 2.13): consumer review photos reuse this pipeline with a
-    // consumer session + `purpose=review`; the defaults keep the pro gallery.
+    // The defaults keep the pro gallery. Consumer purposes (`review`, `avatar`)
+    // MUST pass all three: a consumer session, their purpose, and
+    // `/auth/refresh` — the server role-gates per purpose, so a half-configured
+    // instance is a 403 at best and a foreign prefix at worst.
     this._purpose = 'gallery',
     String refreshPath = '/auth/provider/refresh',
   }) : _client = client ?? http.Client(),
        _baseUrl = baseUrl ?? AppConfig.apiBaseUrl,
        _compress = compressor ?? _defaultCompress,
-       _sessionStore = providerSessionStore ?? InMemorySessionStore() {
+       _sessionStore = sessionStore ?? InMemorySessionStore() {
     _authed = RefreshingHttpClient(
       client: _client,
       baseUrl: _baseUrl,

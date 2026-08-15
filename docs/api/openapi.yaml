@@ -2099,8 +2099,15 @@ paths:
         public; images only). **`purpose=review`** → **consumer-only**, the
         public bucket (review tiles render the photos), prefix
         `review/{userId}`, returns `publicUrl` (images only; review submit
-        caps `photoUrls` at 6). Role is gated **per purpose**:
-        `deposit`/`review` require `user`; `gallery`/`kyc` require `provider`.
+        caps `photoUrls` at 6). **`purpose=avatar`** → **consumer-only**, the
+        public bucket, prefix `avatar/{userId}`, returns `publicUrl` (images
+        only); the promoted URL is saved via `PATCH /me`. It shares the review
+        purpose's SHAPE and deliberately not its prefix — the purpose string is
+        the storage namespace erasure and moderation reason about
+        (docs/design/consumer-avatar-upload.md §3). Role is gated **per
+        purpose**, symmetrically: `deposit`/`review`/`avatar` require `user`;
+        `gallery`/`kyc` require `provider`; asking for the other role's purpose
+        is a 403 either way.
       security: [{ bearerAuth: [] }]
       requestBody:
         required: true
@@ -2113,7 +2120,7 @@ paths:
                 contentType:
                   type: string
                   enum: [image/jpeg, image/png, image/webp, application/pdf]
-                purpose: { type: string, enum: [gallery, kyc, deposit, review] }
+                purpose: { type: string, enum: [gallery, kyc, deposit, review, avatar] }
       responses:
         '200':
           description: A presigned upload ticket
@@ -4142,19 +4149,34 @@ components:
 
     UploadTicket:
       type: object
-      required: [method, uploadUrl, fields, key, maxBytes, expiresInSeconds]
+      description: >
+        Corrected to what the server actually returns. This schema still
+        described the presigned multipart **POST** policy that R2 answers with
+        501 NotImplemented — required a `fields` map the service has never sent
+        and pinned `method: POST` against a service returning `PUT`
+        (docs/design/backend-r2-presigned-put.md).
+      required: [method, uploadUrl, headers, key, maxBytes, expiresInSeconds]
       properties:
-        method: { type: string, enum: [POST] }
-        uploadUrl: { type: string, description: Multipart POST target (storage). }
-        fields:
+        method: { type: string, enum: [PUT] }
+        uploadUrl: { type: string, description: Presigned PUT target (storage). }
+        headers:
           type: object
           additionalProperties: { type: string }
-          description: Signed form fields; send these then the file (last).
+          description: >
+            Exactly the headers the signature pins. Sending anything else is a
+            403 from storage, so this is a requirement and not a hint.
         key: { type: string, description: The object key (used to reference the upload). }
         publicUrl:
           type: string
-          description: CDN URL — only for `gallery` (omitted for private `kyc`).
-        maxBytes: { type: integer }
+          description: >
+            CDN URL — present for every PUBLIC-bucket purpose (`gallery`,
+            `review`, `avatar`), omitted for the private ones (`kyc`,
+            `deposit`). The key is under `pending/` until claimed.
+        maxBytes:
+          type: integer
+          description: >
+            ADVISORY. R2 ignores a signed `content-length` on a presigned PUT,
+            so the authoritative check runs at claim time (threat T61).
         expiresInSeconds: { type: integer }
 
     KycStatus:

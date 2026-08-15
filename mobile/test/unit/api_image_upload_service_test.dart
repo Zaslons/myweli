@@ -25,12 +25,124 @@ ApiImageUploadService _service(
   return ApiImageUploadService(
     client: client,
     baseUrl: 'http://x',
-    providerSessionStore: store,
+    sessionStore: store,
     compressor: (_) async => bytes ?? Uint8List.fromList([1, 2, 3, 4]),
   );
 }
 
+/// The CONSUMER avatar instance, configured exactly as the composition root
+/// configures it: a consumer session store, `purpose: 'avatar'`, and the
+/// consumer refresh path. All three are one decision — a half-configured
+/// instance is a 403 at best and a foreign object prefix at worst.
+ApiImageUploadService _avatarService(MockClient client) {
+  final store = InMemorySessionStore();
+  store.save(
+    jsonEncode({
+      'token': 'utok',
+      'refreshToken': 'ur1',
+      'user': {'id': 'u1'},
+    }),
+  );
+  return ApiImageUploadService(
+    client: client,
+    baseUrl: 'http://x',
+    sessionStore: store,
+    purpose: 'avatar',
+    refreshPath: '/auth/refresh',
+    compressor: (_) async => Uint8List.fromList([1, 2, 3, 4]),
+  );
+}
+
 void main() {
+  group('the consumer avatar instance', () {
+    test('signs purpose=avatar with the CONSUMER token, no salonId', () async {
+      // Every part of this failed before: AuthProvider resolved the PRO
+      // instance, so the purpose was `gallery` (a 403 for a consumer token),
+      // the token came from a store the consumer binary never fills, and the
+      // gallery branch appends `?salonId=`.
+      Uri? signUri;
+      Map<String, dynamic>? signBody;
+      final client = MockClient((req) async {
+        if (req.url.path == '/uploads/sign') {
+          signUri = req.url;
+          signBody = jsonDecode(req.body) as Map<String, dynamic>;
+          expect(req.headers['Authorization'], 'Bearer utok');
+          return http.Response(
+            jsonEncode({
+              'method': 'PUT',
+              'uploadUrl': 'http://storage.local/bucket',
+              'headers': {'content-type': 'image/jpeg'},
+              'publicUrl': 'https://cdn/pending/avatar/u1/abc.jpg',
+              'maxBytes': 5242880,
+              'expiresInSeconds': 300,
+            }),
+            200,
+          );
+        }
+        return http.Response('', 200);
+      });
+
+      final res = await _avatarService(
+        client,
+      ).uploadImage(source: '/tmp/face.jpg');
+      expect(res.success, isTrue);
+      expect(res.data, 'https://cdn/pending/avatar/u1/abc.jpg');
+      expect(signBody!['purpose'], 'avatar');
+      expect(
+        signUri!.queryParameters.containsKey('salonId'),
+        isFalse,
+        reason: 'salon scoping is a GALLERY concern; an avatar has no salon',
+      );
+    });
+
+    test('a 401 refreshes at /auth/refresh, NOT the provider path', () async {
+      // The refresh path is the other half of "which session is this". Pointed
+      // at /auth/provider/refresh, a consumer refresh token is simply rejected
+      // and the upload dies on a retry that could never work.
+      final hit = <String>[];
+      var signed = false;
+      final client = MockClient((req) async {
+        hit.add(req.url.path);
+        if (req.url.path == '/auth/refresh') {
+          return http.Response(
+            jsonEncode({
+              'accessToken': 'utok2',
+              'refreshToken': 'ur2',
+              'expiresAt': DateTime(2030).toIso8601String(),
+            }),
+            200,
+          );
+        }
+        if (req.url.path == '/uploads/sign') {
+          if (!signed) {
+            signed = true;
+            return http.Response('{}', 401);
+          }
+          expect(req.headers['Authorization'], 'Bearer utok2');
+          return http.Response(
+            jsonEncode({
+              'method': 'PUT',
+              'uploadUrl': 'http://storage.local/bucket',
+              'headers': {'content-type': 'image/jpeg'},
+              'publicUrl': 'https://cdn/pending/avatar/u1/abc.jpg',
+              'maxBytes': 5242880,
+              'expiresInSeconds': 300,
+            }),
+            200,
+          );
+        }
+        return http.Response('', 200);
+      });
+
+      final res = await _avatarService(
+        client,
+      ).uploadImage(source: '/tmp/face.jpg');
+      expect(res.success, isTrue);
+      expect(hit, contains('/auth/refresh'));
+      expect(hit, isNot(contains('/auth/provider/refresh')));
+    });
+  });
+
   test('signs, uploads to storage, returns the public URL', () async {
     final paths = <String>[];
     final client = MockClient((req) async {
@@ -77,7 +189,7 @@ void main() {
     final service = ApiImageUploadService(
       client: client,
       baseUrl: 'http://x',
-      providerSessionStore: InMemorySessionStore(),
+      sessionStore: InMemorySessionStore(),
       compressor: (_) async => Uint8List.fromList([1]),
     );
     final res = await service.uploadImage(source: '/tmp/x.jpg');

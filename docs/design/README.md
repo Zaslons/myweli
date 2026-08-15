@@ -126,6 +126,7 @@ When is a spec required? Any new feature, slice, endpoint, screen, or integratio
 | Consumer reviews | [consumer-reviews.md](consumer-reviews.md) | Built |
 | Consumer favorites | [consumer-favorites.md](consumer-favorites.md) | Built |
 | Pro deposit policy management | [pro-deposit-policy.md](pro-deposit-policy.md) | Built |
+| Consumer avatar upload — a purpose of its own | [consumer-avatar-upload.md](consumer-avatar-upload.md) | **Built** — the profile-photo UI existed and had never worked in API mode, for two independent reasons: `AuthProvider` resolved the PRO upload instance (provider session + `purpose: gallery`), and the screen called the MOCK image picker unconditionally. Adds a consumer `avatar` purpose (public bucket, `avatar/{userId}`) rather than reusing `review` — the purpose string IS the storage namespace, and a profile photo filed under `review/` is both never erased today and swept by tomorrow's review-prefix cleanup. Closes the erasure gap (`DELETE /me` never deleted the avatar object) and makes the consumer web BFF REJECT an unknown purpose instead of coercing it to `deposit`. |
 | Image upload pipeline (Cloudflare R2) | [pro-image-upload-pipeline.md](pro-image-upload-pipeline.md) | Built |
 | Pro gallery photos (URL list) | [pro-gallery.md](pro-gallery.md) | Built |
 | Pro-side reschedule | [pro-reschedule.md](pro-reschedule.md) | Built |

@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:myweli/widgets/common/brand_loader.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/config/app_config.dart';
 import '../../core/forms/field_errors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
@@ -14,6 +15,7 @@ import '../../widgets/common/app_snack_bar.dart';
 import '../../widgets/common/app_text_field.dart';
 import '../../widgets/common/phone_number_field.dart';
 import '../../widgets/common/timed_cached_image.dart';
+import '../../widgets/provider/image_picker_sheet.dart';
 import '../../widgets/provider/mock_image_picker_sheet.dart';
 
 class EditProfileScreen extends StatefulWidget {
@@ -69,7 +71,18 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   Future<void> _pickAvatar(AuthProvider authProvider) async {
-    final source = await showMockImagePicker(context);
+    // The MOCK picker was called unconditionally, alone among every upload
+    // surface in the app — review photos, salon photos, the deposit proof and
+    // before/after all branch here. In API mode it hands back an `asset:` path
+    // the compressor cannot read, so the upload fails with « Image invalide »:
+    // a second, independent reason this feature was dead, which fixing the
+    // service wiring alone would not have touched.
+    final String? source;
+    if (AppConfig.useApiBackend) {
+      source = await showImagePicker(context);
+    } else {
+      source = await showMockImagePicker(context);
+    }
     if (source == null || !mounted) return;
     final ok = await authProvider.uploadAvatar(source);
     if (!mounted) return;
