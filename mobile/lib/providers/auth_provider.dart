@@ -13,7 +13,7 @@ class AuthProvider extends ChangeNotifier {
   // Resolved lazily so constructing AuthProvider doesn't require the upload
   // service to be registered (only uploadAvatar needs it).
   ImageUploadServiceInterface get _uploadService =>
-      serviceLocator.imageUploadService;
+      serviceLocator.avatarImageUploadService;
 
   User? _user;
   bool _isLoading = false;
