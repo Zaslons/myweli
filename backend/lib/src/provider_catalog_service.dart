@@ -352,32 +352,42 @@ class ProviderCatalogService {
       urls.add(url);
     }
 
-    // Size, after origin — same ordering rule as review photos: a key must
-    // never be derived from a URL that has not passed the allowlist.
-    if (urls.isNotEmpty && _verifier != null && _publicBaseUrl != null) {
-      final keys = urls
-          .map(
-            (u) => _verifier.keyFromPublicUrl(u, publicBaseUrl: _publicBaseUrl),
-          )
-          .whereType<String>()
-          .toList();
-      // Only URLs that passed the origin allowlist reach here, so a derived
-      // key is one of ours. Promotion moves each object out of `pending/`,
-      // and the STORED url is rebuilt from the promoted key — keeping the
-      // pending url would point at an object due to be expired.
-      if (keys.length == urls.length) {
-        final v = await _verifier.verifyAndPromote(
-          keys,
-          bucket: StorageBucket.public,
-        );
-        if (!v.ok) return (ok: false, error: v.error, data: null);
-        final base = _publicBaseUrl.endsWith('/')
-            ? _publicBaseUrl
-            : '$_publicBaseUrl/';
-        urls
-          ..clear()
-          ..addAll(v.keys.map((k) => '$base$k'));
-      }
+    // **The gallery was WRITE-ONCE, and two separate bugs lived in this block.**
+    //
+    // It called `verifyAndPromote` — the CLAIM form, which refuses any key not
+    // under `pending/` — on every url in the submitted list. But a gallery save
+    // is a wholesale replace: both clients seed from the server (`imageUrls`)
+    // and PUT the whole list back, so the second save carried the promoted urls
+    // the server itself had just returned, and 400'd. Not only "adding a photo"
+    // — reorder, restore and DELETE all PUT the full list, so every gallery
+    // mutation after the first was refused. Only clearing it worked.
+    //
+    // And the `keys.length == urls.length` guard was an all-or-nothing bypass:
+    // one url that does not derive to a key (an `asset:` seed placeholder,
+    // which the origin allowlist accepts) silently skipped the ENTIRE block, so
+    // every other photo in that request was stored unverified and unpromoted —
+    // 200 now, gone tomorrow. It is deleted rather than kept "to be safe":
+    // keeping it preserves the bypass.
+    //
+    // `alreadyStored` is what makes a re-save work, and it is matched by
+    // membership against `imageUrls` — authoritative server state — never by
+    // shape. Order is preserved because `photos[0]` is the listing cover.
+    if (_verifier != null && _publicBaseUrl != null) {
+      final existing = await _providers.byId(providerId);
+      final stored = <String>{
+        for (final u in (existing?['imageUrls'] as List? ?? const []))
+          if (u is String) u,
+      };
+      final v = await _verifier.promoteNewUrls(
+        urls,
+        publicBaseUrl: _publicBaseUrl,
+        alreadyStored: stored,
+        bucket: StorageBucket.public,
+      );
+      if (!v.ok) return (ok: false, error: v.error, data: null);
+      urls
+        ..clear()
+        ..addAll(v.urls);
     }
 
     final saved = await _providers.updateGallery(providerId, urls);
@@ -448,6 +458,39 @@ class ProviderCatalogService {
         if (caption.isNotEmpty) 'caption': caption,
       });
     }
+    // **Promote, or the images are deleted a day later.** These urls went
+    // through the same presign pipeline as the gallery but were never claimed,
+    // so the objects stayed under `pending/` — which production expires daily.
+    // The url survived in Postgres pointing at nothing; the photo did not.
+    //
+    // `alreadyStored` is what makes a re-save work: an unchanged pair carries
+    // the promoted url the server handed back last time, and that must pass
+    // through untouched rather than be re-promoted (which fails) or rejected.
+    if (_verifier != null && _publicBaseUrl != null) {
+      final existing = await _providers.byId(providerId);
+      final stored = <String>{
+        for (final p in (existing?['beforeAfters'] as List? ?? const []))
+          if (p is Map) ...[
+            if (p['before'] is String) p['before'] as String,
+            if (p['after'] is String) p['after'] as String,
+          ],
+      };
+      final urls = [
+        for (final p in pairs) ...[p['before'] as String, p['after'] as String],
+      ];
+      final v = await _verifier.promoteNewUrls(
+        urls,
+        publicBaseUrl: _publicBaseUrl,
+        alreadyStored: stored,
+        bucket: StorageBucket.public,
+      );
+      if (!v.ok) return (ok: false, error: v.error, data: null);
+      for (var i = 0; i < pairs.length; i++) {
+        pairs[i]['before'] = v.urls[i * 2];
+        pairs[i]['after'] = v.urls[i * 2 + 1];
+      }
+    }
+
     final saved = await _providers.updateBeforeAfters(providerId, pairs);
     if (saved == null) return _notFound;
     return (ok: true, error: null, data: {'beforeAfters': saved});
@@ -481,6 +524,37 @@ class ProviderCatalogService {
     );
   }
 
+  /// One artist image: origin-allowlisted, then promoted if it is new.
+  ///
+  /// Before this, `imageUrl` was `(body['imageUrl'] as String?)?.trim()` and
+  /// nothing else — **no origin check at all**, so any string reached the
+  /// database and was served back as an artist photo, and any genuine upload
+  /// stayed under `pending/` until the lifecycle rule deleted it.
+  ///
+  /// Returns `(ok: false, ...)` on a url that is neither ours-and-pending nor
+  /// the one already stored for this artist.
+  Future<({bool ok, String? error, String? url})> _artistImage(
+    Object? raw, {
+    String? currentUrl,
+  }) async {
+    if (raw == null) return (ok: true, error: null, url: null);
+    final trimmed = _validUrl(raw);
+    if (trimmed == null) return (ok: false, error: 'invalid_input', url: null);
+    final verifier = _verifier;
+    final base = _publicBaseUrl;
+    if (verifier == null || base == null) {
+      return (ok: true, error: null, url: trimmed);
+    }
+    final v = await verifier.promoteNewUrls(
+      [trimmed],
+      publicBaseUrl: base,
+      alreadyStored: {if (currentUrl != null) currentUrl},
+      bucket: StorageBucket.public,
+    );
+    if (!v.ok) return (ok: false, error: v.error, url: null);
+    return (ok: true, error: null, url: v.urls.first);
+  }
+
   Future<CatalogResult> createArtist(
     String accountId,
     String providerId,
@@ -493,11 +567,13 @@ class ProviderCatalogService {
     if (name is! String || name.trim().isEmpty) {
       return (ok: false, error: 'invalid_input', data: null);
     }
+    final img = await _artistImage(body['imageUrl']);
+    if (!img.ok) return (ok: false, error: img.error, data: null);
     final artist = {
       'id': _newId('artist'),
       'name': name.trim(),
       'specialization': (body['specialization'] as String?)?.trim(),
-      'imageUrl': (body['imageUrl'] as String?)?.trim(),
+      'imageUrl': img.url,
       'providerId': providerId,
       'rating': null, // server-owned; recomputed from reviews
       'reviewCount': null,
@@ -527,9 +603,21 @@ class ProviderCatalogService {
     const editable = ['name', 'specialization', 'imageUrl', 'workingHours'];
     final changes = {
       for (final k in editable)
-        if (body.containsKey(k))
+        if (body.containsKey(k) && k != 'imageUrl')
           k: body[k] is String ? (body[k] as String).trim() : body[k],
     };
+    if (body.containsKey('imageUrl')) {
+      // The artist's CURRENT image is the only non-pending url allowed through,
+      // so an edit that leaves the photo alone re-sends it and still works.
+      final existing = await _providers.byId(providerId);
+      final artists = (existing?['artists'] as List? ?? const [])
+          .whereType<Map<String, dynamic>>();
+      final match = artists.where((a) => a['id'] == artistId).firstOrNull;
+      final current = match?['imageUrl'] as String?;
+      final img = await _artistImage(body['imageUrl'], currentUrl: current);
+      if (!img.ok) return (ok: false, error: img.error, data: null);
+      changes['imageUrl'] = img.url;
+    }
     final updated = await _providers.updateArtist(
       providerId,
       artistId,

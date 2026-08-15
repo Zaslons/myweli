@@ -1027,6 +1027,27 @@ void main() {
         expect(await r.recentForProvider('provider1', 1), hasLength(1));
       },
     );
+
+    test('reviewByAppointment finds a HIDDEN review too', () async {
+      // The moderation filter every other read carries would be wrong here: a
+      // hidden review still owns its photo objects, so filtering it out makes
+      // its author's own resubmit fail on their own stored urls — the
+      // moderation state leaking out as an unexplained 400 on a path that has
+      // nothing to do with it.
+      final r = PostgresReviewsRepository(pool);
+      await r.upsertByAppointment(rv('7'));
+      await pool.execute(
+        Sql.named(
+          "UPDATE reviews SET moderation_status = 'hidden' "
+          'WHERE appointment_id = @a',
+        ),
+        parameters: {'a': '7'},
+      );
+      final got = await r.reviewByAppointment('7');
+      expect(got, isNotNull, reason: 'hidden is still the author\'s review');
+      expect(got!['photoUrls'], ['https://cdn/x.jpg']);
+      expect(await r.reviewByAppointment('no-such-appt'), isNull);
+    });
   });
 
   /// The statement that actually deletes production rows.

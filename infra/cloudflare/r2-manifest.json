@@ -1,0 +1,54 @@
+{
+  "$comment": [
+    "The R2 configuration this codebase DEPENDS ON, per environment.",
+    "",
+    "Read by 95-verify-r2.sh (compares it to the live account, read-only) and by",
+    "backend/test/infra/r2_manifest_test.dart (compares it to the code, offline).",
+    "Those two directions are the point: the test catches a manifest that has",
+    "drifted from what the backend actually does, and the script catches an",
+    "account that has drifted from the manifest. Neither alone is enough.",
+    "",
+    "PROPERTIES, NOT SNAPSHOTS. Everything here is a floor — 'the rule must exist',",
+    "'these methods must be allowed' — never an exact copy of the live config.",
+    "Production and staging already differ cosmetically (production allows any",
+    "header and no HEAD; staging allows content-type, HEAD, and exposes etag), and",
+    "a checker that failed on that would be turned off within a month.",
+    "",
+    "Rules are matched by PREFIX AND ACTION, never by name: production's pending",
+    "rule is called expire-unclaimed-uploads and staging's expire-pending-uploads,",
+    "because production was configured by hand before the staging script existed.",
+    "A name-matched check would report the production rule as missing."
+  ],
+  "environments": {
+    "production": {
+      "publicBucket": "myweli-uploads",
+      "buckets": [
+        "myweli-uploads",
+        "myweli-kyc-private",
+        "myweli-deposits-private"
+      ],
+      "corsAllowedOrigins": ["https://myweli.com"],
+      "$corsComment": "www.myweli.com is also allowed live; only the apex is required."
+    },
+    "staging": {
+      "publicBucket": "myweli-uploads-staging",
+      "buckets": [
+        "myweli-uploads-staging",
+        "myweli-kyc-private-staging",
+        "myweli-deposits-private-staging"
+      ],
+      "corsAllowedOrigins": ["http://localhost:3000"],
+      "$corsComment": "Staging has no deployed web origin yet — infra-staging.md step 5. When one exists, add it here FIRST and the checker will tell you the bucket has not caught up."
+    }
+  },
+  "lifecycle": {
+    "$comment": "Required on EVERY bucket in both environments. The promotion design in backend-upload-orphans.md rests entirely on this rule: an object under this prefix has never been claimed, so expiring it cannot delete anything a user still needs. Without it, `pending/` grows forever and the T61 size cap never applies to an unclaimed upload.",
+    "prefix": "pending/",
+    "expireAfterDays": 1
+  },
+  "cors": {
+    "$comment": "Public bucket only — the private KYC and deposit buckets are never read by a browser. The methods are what a presigned-PUT upload from the web app performs; the content-type header is what the presign SIGNS, so a bucket that strips it turns every browser upload into a 403 from storage.",
+    "requiredMethods": ["GET", "PUT"],
+    "requiredHeader": "content-type"
+  }
+}
