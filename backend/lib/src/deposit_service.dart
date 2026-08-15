@@ -101,6 +101,21 @@ class DepositService {
     if (key is! String || key.isEmpty) {
       return (ok: false, error: 'not_found', data: null);
     }
+    // **Authorization above is about the APPOINTMENT; this is about the KEY.**
+    // Every check above answers "may you see this booking's proof", and none of
+    // them answers "is this the booking's own proof" — so the moment any write
+    // path stores a foreign key, this endpoint presigns it for three different
+    // audiences. Both writers now guarantee `deposit/{userId}/…`, and this
+    // makes that a property the READ enforces rather than one it assumes,
+    // which is the same posture erasure already takes (`UserErasureService`
+    // skips any object outside the user's own prefix).
+    //
+    // A manual salon booking has a null `userId` and never carries a proof, so
+    // it exits at the empty-key check above and never reaches this.
+    final owner = appt['userId'];
+    if (owner is! String || !key.startsWith('deposit/$owner/')) {
+      return (ok: false, error: 'not_found', data: null);
+    }
     return (
       ok: true,
       error: null,

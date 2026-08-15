@@ -134,6 +134,28 @@ const String kPendingPrefix = 'pending/';
 ///
 /// Returns null when [key] is not a pending key, which the claim paths treat as
 /// invalid input rather than silently accepting an arbitrary path.
-String? promotedKey(String key) => key.startsWith(kPendingPrefix)
-    ? key.substring(kPendingPrefix.length)
-    : null;
+///
+/// **A `startsWith` prefix check is not an ownership check.** Every claim path
+/// proves ownership by requiring a prefix — `pending/deposit/{userId}/`,
+/// `pending/kyc/{accountId}/` — and `pending/deposit/{me}/../{you}/x.jpg`
+/// satisfies that check *and* this one. Whether it then resolves to the other
+/// tenant's object depends on whether R2 normalises dot segments in an object
+/// key (S3 keys are opaque strings, so probably not) and on whether `Uri`
+/// normalises the path before or after the SigV4 canonical request is built.
+/// Both are empirical questions about someone else's implementation, and
+/// neither was tested — which is the whole argument for closing this by
+/// construction instead of by analysis. Rejecting empty, `.` and `..` segments
+/// here covers every claim path at once, because this function is already the
+/// single gate they all pass through.
+///
+/// An empty remainder (`pending/` alone) is refused for the same reason: it
+/// used to promote to the empty string, which is not a key.
+String? promotedKey(String key) {
+  if (!key.startsWith(kPendingPrefix)) return null;
+  final rest = key.substring(kPendingPrefix.length);
+  if (rest.isEmpty) return null;
+  for (final segment in rest.split('/')) {
+    if (segment.isEmpty || segment == '.' || segment == '..') return null;
+  }
+  return rest;
+}

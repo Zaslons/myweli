@@ -4048,6 +4048,7 @@ export interface paths {
                         appointmentDateTime: string;
                         artistId?: string;
                         notes?: string;
+                        /** @description Optional Mobile Money proof attached at create time. Must be a key just returned by `POST /uploads/sign?purpose=deposit` — i.e. `pending/deposit/{userId}/…` under the CALLER's own prefix, with no `.`/`..`/empty path segment. The server size-verifies it (T61) and PROMOTES it out of `pending/`, storing `deposit/{userId}/…`; the response carries the promoted key. Anything else → 400 `invalid_input`, and no appointment is created. Attaching or replacing the proof after the fact goes through `POST /appointments/{id}/deposit`. */
                         depositScreenshotUrl?: string;
                     };
                 };
@@ -4062,7 +4063,15 @@ export interface paths {
                         "application/json": components["schemas"]["Appointment"];
                     };
                 };
-                400: components["responses"]["BadRequest"];
+                /** @description `invalid_input` — a missing/blank required field, a wrong-typed body value, or a `depositScreenshotUrl` that is not a freshly-signed key under the caller's own deposit prefix. `upload_too_large` / `upload_not_found` / `storage_unavailable` — the attached proof failed claim-time verification (T61); the booking is not created. */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
                 401: components["responses"]["Unauthorized"];
                 404: components["responses"]["NotFound"];
                 /** @description `slot_unavailable` — the requested time isn't a free slot (closed/past/break/already-booked/non-aligned). `beyond_horizon` — the date is further ahead than the salon's `bookingHorizonDays` (A14d). `too_soon` — the start is inside the salon's `minimumNoticeMinutes`. The last two are distinct from `slot_unavailable` on purpose: that code makes every client say some version of "someone else just took your slot", which is false for a window breach and leaves the user retrying a time that can never be offered. `provider_not_published` — the salon has never gone live, so it is absent from discovery and reachable only by a stale link or a favourite. `provider_suspended` — the salon was stopped. These two are split for the same reason as the pair above, and the split matters more here: a client cannot tell them apart for itself (the mobile `Provider` model has no `status` field), and the never-published case is the state EVERY salon starts in while the suspended one takes a deliberate admin act. */

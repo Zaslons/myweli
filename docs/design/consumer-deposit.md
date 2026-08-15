@@ -43,7 +43,12 @@ Complete the **no-custody deposit flow** on the real backend, **securely**. Per 
 
 ## 3. API & contract
 - **`POST /uploads/sign`** gains **`purpose=deposit`** — **consumer** (`user`) token → presigns into the **private** bucket, prefix `deposit/{userId}` (server-built from the token), returns the `key` only (images: jpeg/png/webp). (gallery/kyc remain provider-only; the route gates role by purpose.)
-- **`POST /appointments/{id}/deposit`** — **consumer owner** (`appointment.userId == sub`); body `{ "screenshotKey": "deposit/{userId}/…" }` (validated under the caller's prefix); the booking must be `pending`; sets `depositScreenshotUrl = key`. → 200 the updated `Appointment`. (Booking can still include the key inline at create; this enables pay-later/replace.)
+- **`POST /appointments/{id}/deposit`** — **consumer owner** (`appointment.userId == sub`); body `{ "screenshotKey": "deposit/{userId}/…" }` (validated under the caller's prefix); the booking must be `pending`; sets `depositScreenshotUrl = key`. → 200 the updated `Appointment`. (Booking can still include the key inline at create — **and since
+[backend-upload-claim-hardening.md](backend-upload-claim-hardening.md) §6.1 the create path
+applies the SAME prefix check, size verification and promotion; before that it stored the
+string verbatim, which made the read endpoint presign keys the booking did not own and let
+production's daily `pending/` expiry delete every honestly-attached proof.** This endpoint
+enables pay-later/replace.)
 - **`GET /appointments/{id}/deposit-screenshot`** — authorized to the booking's **consumer** (`userId == sub`) **or** the booking's **salon** (provider account's `providerId == appointment.providerId`); returns `{ "url": "<short-lived signed GET URL>" }`. 404 if no screenshot.
 
 Errors: 400 `invalid_input` (foreign/missing key, wrong content-type), 401, 403, 404, 405. No new money endpoints (Myweli moves nothing).

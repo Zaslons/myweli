@@ -2409,7 +2409,19 @@ paths:
                 appointmentDateTime: { type: string, format: date-time }
                 artistId: { type: string }
                 notes: { type: string }
-                depositScreenshotUrl: { type: string }
+                depositScreenshotUrl:
+                  type: string
+                  description: >
+                    Optional Mobile Money proof attached at create time. Must be
+                    a key just returned by `POST /uploads/sign?purpose=deposit`
+                    — i.e. `pending/deposit/{userId}/…` under the CALLER's own
+                    prefix, with no `.`/`..`/empty path segment. The server
+                    size-verifies it (T61) and PROMOTES it out of `pending/`,
+                    storing `deposit/{userId}/…`; the response carries the
+                    promoted key. Anything else → 400 `invalid_input`, and no
+                    appointment is created. Attaching or replacing the proof
+                    after the fact goes through
+                    `POST /appointments/{id}/deposit`.
               description: >
                 total/deposit/balance are NOT accepted from the client — the
                 server computes them from the provider's prices + deposit policy.
@@ -2419,7 +2431,16 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Appointment' }
-        '400': { $ref: '#/components/responses/BadRequest' }
+        '400':
+          description: >
+            `invalid_input` — a missing/blank required field, a wrong-typed body
+            value, or a `depositScreenshotUrl` that is not a freshly-signed key
+            under the caller's own deposit prefix. `upload_too_large` /
+            `upload_not_found` / `storage_unavailable` — the attached proof
+            failed claim-time verification (T61); the booking is not created.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409':
