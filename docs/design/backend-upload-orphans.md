@@ -113,10 +113,12 @@ where the lifecycle rule can no longer collect it.
 
 **Verified against Cloudflare on 2026-08-15** (`wrangler r2 bucket lifecycle
 list`, all six buckets), because this section did not previously say whether the
-rule §3.2 depends on had ever been applied — and the code asserts it has:
-`upload_verification_service.dart` tells the reader "production expires that
-prefix daily". A design whose central claim can only be checked by logging into
-a dashboard is a design nobody can check.
+rule §3.2 depends on had ever been applied — while the code is written around it
+existing: promotion tolerates a leftover pending object as "a few kilobytes the
+lifecycle rule collects anyway", and §3.2's whole contract is that "a lifecycle
+rule that expires the prefix cannot delete anything a user still needs". A design
+whose central claim can only be checked by logging into a dashboard is a design
+nobody can check.
 
 - **The `pending/` expiry — LIVE on all six buckets**, enabled, 1 day:
 
