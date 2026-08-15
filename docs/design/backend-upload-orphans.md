@@ -167,7 +167,62 @@ neither was caught.
 
 ## 5. What is configured now
 
-- **`livetest/` expiry — owner action, and deliberately so.** Setting it via the
+**Verified against Cloudflare on 2026-08-15** (`wrangler r2 bucket lifecycle
+list`, all six buckets), because this section did not previously say whether the
+rule §3.2 depends on had ever been applied — while the code is written around it
+existing: promotion tolerates a leftover pending object as "a few kilobytes the
+lifecycle rule collects anyway", and §3.2's whole contract is that "a lifecycle
+rule that expires the prefix cannot delete anything a user still needs". A design
+whose central claim can only be checked by logging into a dashboard is a design
+nobody can check.
+
+- **The `pending/` expiry — LIVE on all six buckets**, enabled, 1 day:
+
+  | bucket | rule name |
+  |---|---|
+  | `myweli-uploads`, `myweli-kyc-private`, `myweli-deposits-private` | `expire-unclaimed-uploads` |
+  | `myweli-uploads-staging`, `myweli-kyc-private-staging`, `myweli-deposits-private-staging` | `expire-pending-uploads` |
+
+  So every "the lifecycle rule collects it" claim in this repo is true. **Note
+  the names differ**: production's was created by hand before the staging script
+  existed, and `90-staging-r2.sh` greps for its own name when deciding whether
+  the rule is already there. Nothing breaks — that script only ever names the
+  staging buckets — but a reader comparing the two should not conclude one is
+  missing.
+
+- **Production still has no provisioning script — and deliberately will not get
+  one.** `infra/cloudflare/` provisions staging only, so production's buckets,
+  CORS and lifecycle exist nowhere but in Cloudflare. That is why this question
+  could not be answered from the repository.
+
+  Closed with a **checker rather than a provisioner**:
+  `infra/cloudflare/95-verify-r2.sh` compares the live account to
+  `r2-manifest.json` and can only look. Pointing a creation script at an
+  environment configured by hand is how you get two lifecycle rules for one
+  prefix — `90-staging-r2.sh` decides "already there?" by grepping its own rule
+  name, and production's is called something else. Being unable to write is the
+  feature; `backend/test/infra/r2_manifest_test.dart` greps the script for
+  wrangler's mutating subcommands so that stays true.
+
+  The manifest asserts **properties, not a snapshot** — "a rule for this prefix
+  exists", "these methods are allowed" — because the two environments already
+  differ cosmetically (production allows any header and no `HEAD`; staging
+  names `content-type`, allows `HEAD` and exposes `etag`), and a checker that
+  failed on that would be switched off within a month. Rules are matched by
+  **prefix and action, never by name**, for the reason above.
+
+  The test is the other half and the only one CI can run: it compares the
+  manifest to the CODE (`lifecycle.prefix` must equal `kPendingPrefix`; the
+  bucket names must equal the literals `r2_token_scope_test.dart` pins), so a
+  manifest that drifts from what the backend does cannot go on blessing the
+  account. CI cannot run the live half — it has no Cloudflare identity, and
+  giving it one means a token with bucket-configuration rights, which is the
+  posture this section argues against.
+
+      bash infra/cloudflare/95-verify-r2.sh            # both environments
+
+- **`livetest/` expiry — still owed, and confirmed absent.** `wrangler` shows no
+  such rule on `myweli-uploads`. Owner action, and deliberately so. Setting it via the
   S3 API with the application's own R2 credentials returns **403 AccessDenied**:
   that token is scoped to object read/write and cannot reconfigure buckets.
   **That is the correct posture** — the credentials the backend carries should
@@ -179,6 +234,8 @@ neither was caught.
 
   Safe because the prefix is only ever written by `r2_live_test.dart`, and the
   test now cleans up after itself anyway — this is the belt to that braces.
+  Lower priority than it reads: the `pending/` rule above is the one the design
+  rests on, and it is in place.
 - **The default multipart-abort rule (7 days)** already exists on each bucket
   from R2's defaults. It reclaims *incomplete* multipart uploads, which is a
   different failure from a completed-but-unclaimed object, and is not a fix for
