@@ -754,6 +754,7 @@ paths:
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
+        '503': { $ref: '#/components/responses/StorageUnavailable' }
 
   /me/devices:
     post:
@@ -1756,6 +1757,7 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/StorageUnavailable' }
 
   /providers/{id}/before-after:
     parameters:
@@ -2503,8 +2505,16 @@ paths:
         size signed at upload time, so this is where the cap holds (threat model
         T61). Errors: `upload_too_large` (400, and the object is deleted),
         `upload_not_found` (400, no object behind the key),
-        `storage_unavailable` (502, the check could not run — retry; the claim
-        is deliberately refused rather than accepted).
+        `storage_unavailable` (**503**, the check could not run — the claim is
+        deliberately refused rather than accepted, and the identical request is
+        worth re-sending; `Retry-After` says when). The first two are the
+        caller's to fix; the third is ours, which is why it no longer shares
+        their status.
+
+
+        This block previously documented 502 while the code answered 400 — the
+        contract and the implementation disagreed, and neither matched the
+        other doc. All three now say 503.
       security: [{ bearerAuth: [] }]
       parameters:
         - { in: path, name: id, required: true, schema: { type: string } }
@@ -2534,6 +2544,7 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
+        '503': { $ref: '#/components/responses/StorageUnavailable' }
 
   /appointments/{id}/deposit-screenshot:
     get:
@@ -2599,6 +2610,7 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/StorageUnavailable' }
 
   /appointments/{id}/reschedule:
     post:
@@ -3479,6 +3491,20 @@ components:
   responses:
     BadRequest:
       description: Invalid input
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    StorageUnavailable:
+      description: >
+        `storage_unavailable` — object storage could not be reached, so a
+        claim-time check could not run. The claim is **refused, never
+        accepted** (threat T61 fails closed). Ours, not the caller's: the
+        request was well-formed and re-sending it unchanged is the correct
+        response. Carries `Retry-After`.
+      headers:
+        Retry-After:
+          schema: { type: integer }
+          description: Seconds to wait before re-sending the identical request.
       content:
         application/json:
           schema: { $ref: '#/components/schemas/Error' }

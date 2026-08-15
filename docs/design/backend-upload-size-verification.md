@@ -84,7 +84,7 @@ Future<({bool ok, String? error})> verify(
 
 If the HEAD itself fails (network, credentials, R2 outage) the claim is
 **rejected**, not accepted. Accepting on error would make the control removable
-by anyone who can make one request fail. The route answers `502
+by anyone who can make one request fail. The route answers `503
 storage_unavailable` — distinct from `upload_too_large`, because the client's
 correct response differs: retry versus do not.
 
@@ -94,7 +94,7 @@ correct response differs: retry versus do not.
 |---|---|---|
 | `upload_too_large` | 400 | object exceeds `maxBytes` |
 | `upload_not_found` | 400 | key claimed but no such object |
-| `storage_unavailable` | 502 | the check could not be performed |
+| `storage_unavailable` | **503** | the check could not be performed. Ours, not the caller's — the request was well-formed and re-sending it unchanged is correct, so it no longer shares a status with `invalid_input`. Carries `Retry-After`. (Was written as 502 here while the code actually answered 400; all three now agree.) |
 
 ## 5. Security
 

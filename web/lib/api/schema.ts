@@ -1188,6 +1188,7 @@ export interface paths {
                 400: components["responses"]["BadRequest"];
                 401: components["responses"]["Unauthorized"];
                 403: components["responses"]["Forbidden"];
+                503: components["responses"]["StorageUnavailable"];
             };
         };
         delete?: never;
@@ -2978,6 +2979,7 @@ export interface paths {
                 401: components["responses"]["Unauthorized"];
                 403: components["responses"]["Forbidden"];
                 404: components["responses"]["NotFound"];
+                503: components["responses"]["StorageUnavailable"];
             };
         };
         post?: never;
@@ -4186,7 +4188,9 @@ export interface paths {
          * Attach a deposit-payment screenshot (B-deposit)
          * @description Consumer-only, and only the caller's **own** booking while it is still `pending` (pay-later: book now, pay the salon directly via Mobile Money, attach proof afterward — booking can also include the key inline). The `screenshotKey` must be one the caller just uploaded via `POST /uploads/sign?purpose=deposit` (validated under the caller's own `deposit/{userId}/` prefix). Myweli holds no funds; the salon confirms receipt by **accepting** the booking. The screenshot is private — view it via `GET /appointments/{id}/deposit-screenshot`.
          *
-         *     The object is **size-verified at claim time** — R2 does not enforce the size signed at upload time, so this is where the cap holds (threat model T61). Errors: `upload_too_large` (400, and the object is deleted), `upload_not_found` (400, no object behind the key), `storage_unavailable` (502, the check could not run — retry; the claim is deliberately refused rather than accepted).
+         *     The object is **size-verified at claim time** — R2 does not enforce the size signed at upload time, so this is where the cap holds (threat model T61). Errors: `upload_too_large` (400, and the object is deleted), `upload_not_found` (400, no object behind the key), `storage_unavailable` (**503**, the check could not run — the claim is deliberately refused rather than accepted, and the identical request is worth re-sending; `Retry-After` says when). The first two are the caller's to fix; the third is ours, which is why it no longer shares their status.
+         *
+         *     This block previously documented 502 while the code answered 400 — the contract and the implementation disagreed, and neither matched the other doc. All three now say 503.
          */
         post: {
             parameters: {
@@ -4228,6 +4232,7 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
+                503: components["responses"]["StorageUnavailable"];
             };
         };
         delete?: never;
@@ -4329,6 +4334,7 @@ export interface paths {
                 401: components["responses"]["Unauthorized"];
                 403: components["responses"]["Forbidden"];
                 404: components["responses"]["NotFound"];
+                503: components["responses"]["StorageUnavailable"];
             };
         };
         delete?: never;
@@ -6620,6 +6626,17 @@ export interface components {
         /** @description Invalid input */
         BadRequest: {
             headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
+        /** @description `storage_unavailable` — object storage could not be reached, so a claim-time check could not run. The claim is **refused, never accepted** (threat T61 fails closed). Ours, not the caller's: the request was well-formed and re-sending it unchanged is the correct response. Carries `Retry-After`. */
+        StorageUnavailable: {
+            headers: {
+                /** @description Seconds to wait before re-sending the identical request. */
+                "Retry-After"?: number;
                 [name: string]: unknown;
             };
             content: {
