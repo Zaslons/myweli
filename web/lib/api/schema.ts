@@ -1161,7 +1161,9 @@ export interface paths {
         put?: never;
         /**
          * Submit KYC documents (B-kyc)
-         * @description Provider-only. Each document's `key` is one the caller uploaded via `POST /uploads/sign?purpose=kyc` (must be under the caller's `kyc/{accountId}/` prefix). Sets `verificationStatus` to `pending` and clears any prior rejection. Approve/reject is a future admin slice.
+         * @description Provider-only, at most 8 documents. Sets `verificationStatus` to `pending` and clears any prior rejection.
+         *
+         *     **The list is the complete set, so a resubmit re-sends the documents that have not changed.** Each `key` must therefore be either one the caller has just uploaded via `POST /uploads/sign?purpose=kyc` — i.e. `pending/kyc/{accountId}/…` under the caller's own prefix — or **exactly** a key already stored on this account, which passes through untouched. A new key is size-verified and PROMOTED, and the promoted key is what is stored and returned by `GET /me/kyc`. Anything else, including a promoted-looking key belonging to another account or one this account no longer holds, → 400 `invalid_input`.
          */
         post: {
             parameters: {
@@ -2950,7 +2952,9 @@ export interface paths {
         };
         /**
          * Replace a salon's gallery wholesale (B-gallery)
-         * @description Validated: a list of non-empty URL strings, at most 20, each ≤ 2048 chars. Server stores exactly what's sent.
+         * @description Validated: a list of non-empty URL strings, at most 20, each ≤ 2048 chars, origin-allowlisted when public delivery is configured.
+         *
+         *     **Wholesale means re-sending the photos you already have** — which is what add, reorder, restore and remove all do. A URL from `POST /uploads/sign` (under `pending/`) is size-verified and PROMOTED, and the promoted URL is stored and returned; a URL already stored for this salon passes through unchanged. Anything else → 400 `invalid_input`. Order is preserved: `imageUrls[0]` is the listing cover. An upload that is never promoted is deleted by the `pending/` lifecycle rule (T61).
          */
         put: {
             parameters: {

@@ -150,9 +150,12 @@ repository holds. And the set is scoped as narrowly as the surface is: an
 artist's set is that artist's current photo, not the salon's, so artist B cannot
 be pointed at artist A's object.
 
-`updateGallery` still promotes unconditionally and is therefore still
-write-once; `promoteNewUrls` is what it needs, and that is a separate change
-against a separate report.
+`updateGallery` was still promoting unconditionally when this section was
+written — **closed since**, along with KYC, in
+[backend-upload-claim-hardening.md](backend-upload-claim-hardening.md): the
+gallery takes `promoteNewUrls`, and KYC takes the key-shaped
+`promoteNewKeys`, because the KYC bucket has no public base for the url-shaped
+function to strip.
 
 **Blast radius when this was found: zero.** Production held 0 providers and 0
 objects across all three buckets — the mechanism was live and waiting for the

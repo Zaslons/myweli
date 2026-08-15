@@ -352,32 +352,42 @@ class ProviderCatalogService {
       urls.add(url);
     }
 
-    // Size, after origin — same ordering rule as review photos: a key must
-    // never be derived from a URL that has not passed the allowlist.
-    if (urls.isNotEmpty && _verifier != null && _publicBaseUrl != null) {
-      final keys = urls
-          .map(
-            (u) => _verifier.keyFromPublicUrl(u, publicBaseUrl: _publicBaseUrl),
-          )
-          .whereType<String>()
-          .toList();
-      // Only URLs that passed the origin allowlist reach here, so a derived
-      // key is one of ours. Promotion moves each object out of `pending/`,
-      // and the STORED url is rebuilt from the promoted key — keeping the
-      // pending url would point at an object due to be expired.
-      if (keys.length == urls.length) {
-        final v = await _verifier.verifyAndPromote(
-          keys,
-          bucket: StorageBucket.public,
-        );
-        if (!v.ok) return (ok: false, error: v.error, data: null);
-        final base = _publicBaseUrl.endsWith('/')
-            ? _publicBaseUrl
-            : '$_publicBaseUrl/';
-        urls
-          ..clear()
-          ..addAll(v.keys.map((k) => '$base$k'));
-      }
+    // **The gallery was WRITE-ONCE, and two separate bugs lived in this block.**
+    //
+    // It called `verifyAndPromote` — the CLAIM form, which refuses any key not
+    // under `pending/` — on every url in the submitted list. But a gallery save
+    // is a wholesale replace: both clients seed from the server (`imageUrls`)
+    // and PUT the whole list back, so the second save carried the promoted urls
+    // the server itself had just returned, and 400'd. Not only "adding a photo"
+    // — reorder, restore and DELETE all PUT the full list, so every gallery
+    // mutation after the first was refused. Only clearing it worked.
+    //
+    // And the `keys.length == urls.length` guard was an all-or-nothing bypass:
+    // one url that does not derive to a key (an `asset:` seed placeholder,
+    // which the origin allowlist accepts) silently skipped the ENTIRE block, so
+    // every other photo in that request was stored unverified and unpromoted —
+    // 200 now, gone tomorrow. It is deleted rather than kept "to be safe":
+    // keeping it preserves the bypass.
+    //
+    // `alreadyStored` is what makes a re-save work, and it is matched by
+    // membership against `imageUrls` — authoritative server state — never by
+    // shape. Order is preserved because `photos[0]` is the listing cover.
+    if (_verifier != null && _publicBaseUrl != null) {
+      final existing = await _providers.byId(providerId);
+      final stored = <String>{
+        for (final u in (existing?['imageUrls'] as List? ?? const []))
+          if (u is String) u,
+      };
+      final v = await _verifier.promoteNewUrls(
+        urls,
+        publicBaseUrl: _publicBaseUrl,
+        alreadyStored: stored,
+        bucket: StorageBucket.public,
+      );
+      if (!v.ok) return (ok: false, error: v.error, data: null);
+      urls
+        ..clear()
+        ..addAll(v.urls);
     }
 
     final saved = await _providers.updateGallery(providerId, urls);

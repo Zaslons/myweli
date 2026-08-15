@@ -70,24 +70,57 @@ class UploadVerificationService {
 
   /// [verify], then **promote** each key out of `pending/` to its final path.
   ///
-  /// Returns the promoted keys in the same order, or an error. A claim records
-  /// the promoted key, never the pending one — that is what leaves `pending/`
-  /// containing only orphans.
+  /// The **claim** form: every key must be pending. Anything else is either
+  /// already claimed or attacker-chosen, and a claim carries only keys the
+  /// client has just uploaded — so refusing is correct here, and the deposit
+  /// and booking paths depend on it. A *save* re-sends keys the server issued
+  /// and needs [promoteNewKeys] instead.
   ///
-  /// Promotion is copy-then-delete because S3/R2 has no rename. The delete is
-  /// **best-effort**: if the copy succeeded the claim is valid, and failing it
-  /// over a leftover pending object would reject a booking to save a few
-  /// kilobytes the lifecycle rule collects anyway.
+  /// Exactly [promoteNewKeys] with an empty `alreadyStored`, and defined that
+  /// way so the refusal rule cannot exist in two functions and drift.
   Future<({bool ok, String? error, List<String> keys})> verifyAndPromote(
     List<String> keys, {
     required StorageBucket bucket,
+  }) => promoteNewKeys(keys, alreadyStored: const {}, bucket: bucket);
+
+  /// Promote the NEWLY-uploaded keys in [keys] and pass the unchanged ones
+  /// through, returning the list to store — in the same order.
+  ///
+  /// The **key**-shaped twin of [promoteNewUrls], and it has to exist
+  /// separately rather than being folded into it: KYC and deposits exchange
+  /// bare **private** object keys, and their buckets have no public base at
+  /// all, so there is nothing for `keyFromPublicUrl` to strip. A fix that
+  /// reached for the url-shaped function here would have to invent a base — or,
+  /// worse, relax the prefix check to "looks promoted", which is the exact
+  /// trust-the-shape hole [promoteNewUrls] documents at length.
+  ///
+  /// [alreadyStored] is matched by **membership, not shape**, and must be
+  /// scoped as narrowly as the surface: an account's own KYC documents, not
+  /// "any key under its prefix" — otherwise a caller can point a document at an
+  /// object it deleted, or never uploaded.
+  Future<({bool ok, String? error, List<String> keys})> promoteNewKeys(
+    List<String> keys, {
+    required Set<String> alreadyStored,
+    required StorageBucket bucket,
   }) async {
-    for (final k in keys) {
-      if (promotedKey(k) == null) {
-        // Not a pending key: either already claimed or attacker-chosen. Either
-        // way the caller must not act on it.
+    // Partition, preserving order — the caller reassembles positionally.
+    final result = List<String?>.filled(keys.length, null);
+    final toPromote = <String>[];
+    final slots = <int>[];
+    for (var i = 0; i < keys.length; i++) {
+      final key = keys[i];
+      if (alreadyStored.contains(key)) {
+        result[i] = key; // unchanged, and provably ours
+        continue;
+      }
+      if (promotedKey(key) == null) {
         return (ok: false, error: 'invalid_input', keys: <String>[]);
       }
+      toPromote.add(key);
+      slots.add(i);
+    }
+    if (toPromote.isEmpty) {
+      return (ok: true, error: null, keys: result.cast<String>());
     }
 
     // verify() HEADs every object, which also PROVES each source is visible to
@@ -95,23 +128,53 @@ class UploadVerificationService {
     // incidental: R2's CopyObject intermittently 404s on a source written
     // milliseconds earlier, measured while building the live test. Reversing
     // these two steps would make fast claims fail with storage_unavailable.
-    final v = await verify(keys, bucket: bucket);
+    final v = await verify(toPromote, bucket: bucket);
     if (!v.ok) return (ok: false, error: v.error, keys: <String>[]);
 
+    // **Copy them all, THEN delete them all.** Interleaving the two — copy,
+    // delete source, copy, delete source — destroyed nothing (the object
+    // deleted is always the source of a copy that succeeded), but a failure at
+    // key N left keys 0..N-1 sitting at their FINAL prefix, unrecorded in
+    // Postgres because every caller writes only after `ok`. Outside `pending/`,
+    // so no lifecycle rule collects them: a permanent billing orphan. And the
+    // identical retry could not recover, because `verify()` then HEADs a source
+    // promotion had already deleted — the second attempt failed *differently*
+    // (`upload_not_found` rather than `storage_unavailable`), which is how a
+    // transient storage blip turned into "re-upload everything".
+    //
+    // Not a compensating rollback: that would have to CopyObject *from* a
+    // just-written object, the exact source-visibility window documented above,
+    // and `copyObject` has no retry — the rollback would be the least reliable
+    // step in the sequence. This is idempotent instead. The destination is a
+    // pure function of the source (`promotedKey`), so a retry overwrites rather
+    // than duplicating, and a mid-loop copy failure leaves EVERY pending source
+    // intact — the whole request is retryable with the same payload.
     final promoted = <String>[];
-    for (final k in keys) {
-      final to = promotedKey(k)!;
+    for (final k in toPromote) {
       try {
-        await _storage.copyObject(fromKey: k, toKey: to, bucket: bucket);
+        await _storage.copyObject(
+          fromKey: k,
+          toKey: promotedKey(k)!,
+          bucket: bucket,
+        );
       } catch (_) {
         return (ok: false, error: 'storage_unavailable', keys: <String>[]);
       }
+      promoted.add(promotedKey(k)!);
+    }
+    // Best-effort, and only now that every copy has landed: failing a claim
+    // over a leftover pending object would reject a booking to save a few
+    // kilobytes the lifecycle rule collects anyway.
+    for (final k in toPromote) {
       try {
         await _storage.deleteObject(key: k, bucket: bucket);
       } catch (_) {}
-      promoted.add(to);
     }
-    return (ok: true, error: null, keys: promoted);
+
+    for (var j = 0; j < slots.length; j++) {
+      result[slots[j]] = promoted[j];
+    }
+    return (ok: true, error: null, keys: result.cast<String>());
   }
 
   /// Promote the NEWLY-uploaded urls in [urls] and pass the unchanged ones
@@ -180,7 +243,13 @@ class UploadVerificationService {
     }
 
     if (toPromote.isNotEmpty) {
-      final v = await verifyAndPromote(toPromote, bucket: bucket);
+      // The url-level pass-through happened above; everything reaching here is
+      // a key that must be pending, which is the empty-`alreadyStored` case.
+      final v = await promoteNewKeys(
+        toPromote,
+        alreadyStored: const {},
+        bucket: bucket,
+      );
       if (!v.ok) return (ok: false, error: v.error, urls: <String>[]);
       for (var j = 0; j < slots.length; j++) {
         result[slots[j]] = '$base${v.keys[j]}';

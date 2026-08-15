@@ -106,7 +106,19 @@ class ReviewsService {
       // key is one of ours. Promotion moves each object out of `pending/`,
       // and the STORED url is rebuilt from the promoted key — keeping the
       // pending url would point at an object due to be expired.
-      if (keys.length == photos.length) {
+      //
+      // **REFUSE when one does not derive; do not skip the block.** This read
+      // `if (keys.length == photos.length)`, so a single url the allowlist
+      // accepts but `keyFromPublicUrl` cannot parse — an `asset:` seed
+      // placeholder — silently disabled verification AND promotion for every
+      // OTHER photo in the same request. An authenticated consumer could
+      // append one string and have their whole batch stored unverified and
+      // still pending: 200 now, gone tomorrow, and no T61 cap on any of it.
+      // The gallery had the identical guard and it is deleted there too.
+      if (keys.length != photos.length) {
+        return (ok: false, error: 'invalid_input', review: null);
+      }
+      {
         final v = await _verifier.verifyAndPromote(
           keys,
           bucket: StorageBucket.public,

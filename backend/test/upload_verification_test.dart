@@ -184,6 +184,108 @@ void main() {
     });
   });
 
+  group('promoteNewKeys — the key-shaped twin, for the private buckets', () {
+    test(
+      'verifyAndPromote IS promoteNewKeys with an empty stored set',
+      () async {
+        // The drift pin. The two are defined as one function precisely so the
+        // refusal rule cannot live in two places and disagree — including in the
+        // fail-open direction.
+        const keys = ['pending/kyc/a1/id.jpg', 'pending/kyc/a1/selfie.jpg'];
+        final viaClaim = FakeStorageService(defaultSize: 10);
+        final viaSave = FakeStorageService(defaultSize: 10);
+        final a = await svc(
+          viaClaim,
+        ).verifyAndPromote(keys, bucket: StorageBucket.kyc);
+        final b = await svc(viaSave).promoteNewKeys(
+          keys,
+          alreadyStored: const {},
+          bucket: StorageBucket.kyc,
+        );
+        expect(a.ok, b.ok);
+        expect(a.keys, b.keys);
+        expect(viaClaim.copied, viaSave.copied);
+        expect(viaClaim.deleted, viaSave.deleted);
+
+        // …and they agree on the refusals too, not just the happy path.
+        for (final bad in ['kyc/a1/id.jpg', '', 'pending/']) {
+          final x = await svc(
+            FakeStorageService(),
+          ).verifyAndPromote([bad], bucket: StorageBucket.kyc);
+          final y = await svc(FakeStorageService()).promoteNewKeys(
+            [bad],
+            alreadyStored: const {},
+            bucket: StorageBucket.kyc,
+          );
+          expect(x.ok, isFalse, reason: bad);
+          expect(x.error, y.error, reason: bad);
+        }
+      },
+    );
+
+    test('a key we do NOT hold is refused however promoted it looks', () async {
+      final store = FakeStorageService(defaultSize: 10);
+      final r = await svc(store).promoteNewKeys(
+        ['kyc/someone_else/passport.pdf'],
+        alreadyStored: const {},
+        bucket: StorageBucket.kyc,
+      );
+      expect(r.ok, isFalse);
+      expect(r.error, 'invalid_input');
+      expect(store.copied, isEmpty);
+    });
+
+    test('an all-unchanged save touches storage not at all', () async {
+      final store = FakeStorageService(defaultSize: 10);
+      final r = await svc(store).promoteNewKeys(
+        ['kyc/a1/id.jpg'],
+        alreadyStored: const {'kyc/a1/id.jpg'},
+        bucket: StorageBucket.kyc,
+      );
+      expect(r.ok, isTrue);
+      expect(r.keys, ['kyc/a1/id.jpg']);
+      expect(store.copied, isEmpty);
+      expect(store.deleted, isEmpty);
+    });
+  });
+
+  group('a partial promotion must stay RETRYABLE', () {
+    test('a failure on the SECOND copy destroys no source', () async {
+      // The test the old one could not be. `_CopyFailsStorage` passes a single
+      // key, so the failure is always at index 0 and half-application is
+      // unobservable. Interleaved copy-then-delete left key 0 at its FINAL
+      // prefix — unrecorded in Postgres, outside `pending/`, so no lifecycle
+      // rule collects it — and made the identical retry fail DIFFERENTLY,
+      // because verify() then HEADs a source promotion had already deleted.
+      final store = _FailsSecondCopy();
+      const keys = ['pending/kyc/a1/one.jpg', 'pending/kyc/a1/two.jpg'];
+      final first = await svc(store).promoteNewKeys(
+        keys,
+        alreadyStored: const {},
+        bucket: StorageBucket.kyc,
+      );
+      expect(first.ok, isFalse);
+      expect(first.error, 'storage_unavailable');
+      expect(
+        store.deleted,
+        isEmpty,
+        reason: 'every pending source must survive, or the retry cannot work',
+      );
+
+      // Same payload, no re-upload. The destination is a pure function of the
+      // source, so the already-copied object is simply overwritten.
+      store.armed = false;
+      final second = await svc(store).promoteNewKeys(
+        keys,
+        alreadyStored: const {},
+        bucket: StorageBucket.kyc,
+      );
+      expect(second.ok, isTrue, reason: 'error was ${second.error}');
+      expect(second.keys, ['kyc/a1/one.jpg', 'kyc/a1/two.jpg']);
+      expect(store.deleted, keys);
+    });
+  });
+
   group('promoteNewUrls — a SAVE is not a claim', () {
     const base = 'https://cdn.myweli.com';
     String url(String key) => '$base/$key';
@@ -307,6 +409,20 @@ void main() {
       expect(r.urls, [url('a.jpg')]);
     });
 
+    test('a promoted key belongs to the SAME set as a promoted url', () async {
+      // promoteNewUrls delegates its pending half to promoteNewKeys, so the
+      // refusal rule exists once. This is the seam.
+      final store = FakeStorageService(defaultSize: 10);
+      final r = await svc(store).promoteNewKeys(
+        ['kept.jpg', 'pending/new.jpg'],
+        alreadyStored: const {'kept.jpg'},
+        bucket: StorageBucket.kyc,
+      );
+      expect(r.ok, isTrue);
+      expect(r.keys, ['kept.jpg', 'new.jpg']);
+      expect(store.copied, ['pending/new.jpg -> new.jpg']);
+    });
+
     test('publicBaseUrl comes from storage, so it cannot drift', () {
       // The route reads this instead of taking a second base from the
       // composition root — one source, so a url can never be validated against
@@ -332,6 +448,25 @@ class _ThrowingStorage implements StorageService {
 
   @override
   noSuchMethod(Invocation i) => super.noSuchMethod(i);
+}
+
+/// Storage that fails only the SECOND copy, and can be disarmed for the retry.
+class _FailsSecondCopy extends FakeStorageService {
+  _FailsSecondCopy() : super(defaultSize: 10);
+
+  bool armed = true;
+  int _copies = 0;
+
+  @override
+  Future<void> copyObject({
+    required String fromKey,
+    required String toKey,
+    required StorageBucket bucket,
+  }) async {
+    _copies++;
+    if (armed && _copies == 2) throw StateError('copy failed');
+    return super.copyObject(fromKey: fromKey, toKey: toKey, bucket: bucket);
+  }
 }
 
 /// Storage whose copy fails but whose stat succeeds — promotion must not
