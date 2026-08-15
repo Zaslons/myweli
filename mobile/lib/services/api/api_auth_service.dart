@@ -28,21 +28,83 @@ import 'refreshing_http_client.dart';
 /// true. The consumer session silently refreshes on a 401 via
 /// [RefreshingHttpClient]; the provider session does not yet (a fast-follow
 /// reuses the same client with `/auth/provider/refresh`).
+/// Mints a Google ID token, or null if Google signed the user in without one.
+///
+/// A `typedef` rather than a direct SDK call so the three Google entry points
+/// can be tested: cancel, other failures, no-token and the happy path. Throws
+/// [GoogleSignInException] to signal cancellation, which is what v7's
+/// `authenticate()` does.
+typedef GoogleIdTokenProvider = Future<String?> Function();
+
 class ApiAuthService implements AuthServiceInterface {
   ApiAuthService({
     http.Client? client,
     String? baseUrl,
     SessionStore? sessionStore,
     SessionStore? providerSessionStore,
+    GoogleIdTokenProvider? googleIdToken,
   }) : _client = client ?? http.Client(),
        _baseUrl = baseUrl ?? AppConfig.apiBaseUrl,
        _sessionStore = sessionStore ?? InMemorySessionStore(),
-       _providerSessionStore = providerSessionStore ?? InMemorySessionStore();
+       _providerSessionStore = providerSessionStore ?? InMemorySessionStore(),
+       _googleIdToken = googleIdToken ?? _nativeGoogleIdToken;
 
   final http.Client _client;
   final String _baseUrl;
   final SessionStore _sessionStore;
   final SessionStore _providerSessionStore;
+
+  /// The Google ID-token seam. Injected so the three Google entry points are
+  /// testable at all: before v7 this path constructed the SDK inline, and
+  /// `api_auth_service_test.dart` contained not one occurrence of "google".
+  /// Same shape as `ImageCompressor` in `ApiImageUploadService`.
+  final GoogleIdTokenProvider _googleIdToken;
+
+  /// **`initialize()` must run exactly once, and finish, before anything else.**
+  /// v7 replaced per-call construction with a process-wide singleton
+  /// (`GoogleSignIn.instance`), so the memo has to be process-wide too.
+  /// Cleared on failure, so a transient failure is retryable rather than
+  /// permanently poisoning sign-in for the run.
+  static Future<void>? _googleInit;
+
+  static Future<void> _ensureGoogleInitialized() async {
+    final pending = _googleInit ??= GoogleSignIn.instance.initialize(
+      // **The single most important argument in this file.** It makes the ID
+      // token's `aud` the WEB client, which is what the backend allowlists
+      // (GOOGLE_CLIENT_IDS). Lose it and Android signs a token for a different
+      // audience: a 401 `token_rejected` the app shows as the generic
+      // « Connexion impossible. Réessayez. », indistinguishable from a forged
+      // token and with no server-side signal saying which it was.
+      serverClientId: AppConfig.googleServerClientId,
+    );
+    try {
+      await pending;
+    } catch (_) {
+      if (identical(_googleInit, pending)) _googleInit = null;
+      rethrow;
+    }
+  }
+
+  /// Native Google sign-in → the ID token (aud = the web client, allowlisted).
+  ///
+  /// Deliberately NOT hoisted to app bootstrap: `google_sign_in_web` throws a
+  /// hard `StateError` on a second `init` and asserts `serverClientId == null`.
+  /// CI builds the Flutter package for web (`--target lib/main_admin.dart`),
+  /// and that target never constructs this service — which keeps the web build
+  /// safe only for as long as the initializer stays in here.
+  static Future<String?> _nativeGoogleIdToken() async {
+    await _ensureGoogleInitialized();
+    // `scopeHint` reproduces v6's `scopes: ['email']` exactly: Android ignores
+    // it, iOS forwards it as `additionalScopes`. Dropping it would be a
+    // gratuitous change to what the consent sheet asks for.
+    final account = await GoogleSignIn.instance.authenticate(
+      scopeHint: const ['email'],
+    );
+    // v7: a synchronous getter, and `idToken` is the ONLY field it carries —
+    // the access token moved to the authorization client, which this app has
+    // never used.
+    return account.authentication.idToken;
+  }
 
   /// Authenticated `/me` calls go through this so an expired access token is
   /// silently refreshed (and the session rotated) instead of logging the user
@@ -105,18 +167,7 @@ class ApiAuthService implements AuthServiceInterface {
   @override
   Future<ApiResponse<User>> signInWithGoogle() async {
     try {
-      // serverClientId = the WEB OAuth client, so the ID token's `aud` is in
-      // the backend allowlist (GOOGLE_CLIENT_IDS).
-      final google = GoogleSignIn(
-        scopes: const ['email'],
-        serverClientId: AppConfig.googleServerClientId,
-      );
-      final account = await google.signIn();
-      if (account == null) {
-        // User closed the sheet — silent cancel, no error banner.
-        return ApiResponse.error('', code: 'cancelled');
-      }
-      final idToken = (await account.authentication).idToken;
+      final idToken = await _googleIdToken();
       if (idToken == null) {
         return ApiResponse.error(
           'Connexion Google impossible.',
@@ -125,6 +176,23 @@ class ApiAuthService implements AuthServiceInterface {
       }
       final res = await _post('/auth/google', {'idToken': idToken});
       return _loginFrom(res);
+    } on GoogleSignInException catch (e) {
+      // **v7 turned the cancel into a throw.** `signIn()` used to return null
+      // when the user closed the sheet; `authenticate()` returns a non-nullable
+      // account and throws instead. Without this arm the throw lands in the
+      // bare `catch` below as `google_failed`, and the providers only suppress
+      // the banner for exactly `cancelled` — so every dismissal of the Google
+      // sheet would paint a red « Connexion Google impossible. » on the single
+      // most common non-happy path in the login flow.
+      //
+      // Same shape as the Apple block below, which has always done this.
+      if (e.code == GoogleSignInExceptionCode.canceled) {
+        return ApiResponse.error('', code: 'cancelled');
+      }
+      return ApiResponse.error(
+        'Connexion Google impossible.',
+        code: 'google_failed',
+      );
     } catch (_) {
       return ApiResponse.error(
         'Connexion Google impossible.',
@@ -390,29 +458,34 @@ class ApiAuthService implements AuthServiceInterface {
     return ProviderLoginResult.failure(_messageFor(code), code: code);
   }
 
-  /// Native Google sign-in → the ID token (aud = the web client, allowlisted).
-  Future<String?> _googleIdToken() async {
-    final google = GoogleSignIn(
-      scopes: const ['email'],
-      serverClientId: AppConfig.googleServerClientId,
-    );
-    final account = await google.signIn();
-    if (account == null) return null; // user closed the sheet
-    return (await account.authentication).idToken;
-  }
-
   @override
   Future<ProviderLoginResult> signInProviderWithGoogle() async {
     try {
       final idToken = await _googleIdToken();
       if (idToken == null) {
-        return const ProviderLoginResult.failure('', code: 'cancelled');
+        // **Behaviour change, on purpose.** This used to answer `cancelled`,
+        // because the old helper's `String?` conflated "user closed the sheet"
+        // with "signed in but no token" — so a genuine token failure showed the
+        // user nothing at all. v7 splits them for free: cancel throws, no-token
+        // still returns null. This now matches the consumer path.
+        return const ProviderLoginResult.failure(
+          'Connexion Google impossible.',
+          code: 'no_id_token',
+        );
       }
       final res = await _post('/auth/provider/google', {'idToken': idToken});
       // The very idToken just verified re-proves the identity on accept.
       return _providerLoginResultFrom(
         res,
         proof: GoogleInvitationProof(idToken),
+      );
+    } on GoogleSignInException catch (e) {
+      if (e.code == GoogleSignInExceptionCode.canceled) {
+        return const ProviderLoginResult.failure('', code: 'cancelled');
+      }
+      return const ProviderLoginResult.failure(
+        'Connexion Google impossible.',
+        code: 'google_failed',
       );
     } catch (_) {
       return const ProviderLoginResult.failure(
@@ -545,7 +618,14 @@ class ApiAuthService implements AuthServiceInterface {
   }) async {
     try {
       final idToken = await _googleIdToken();
-      if (idToken == null) return ApiResponse.error('', code: 'cancelled');
+      if (idToken == null) {
+        // See signInProviderWithGoogle: cancel now throws, so a null here is a
+        // real token failure and no longer disguises itself as a cancel.
+        return ApiResponse.error(
+          'Connexion Google impossible.',
+          code: 'no_id_token',
+        );
+      }
       final res = await _post('/auth/provider/register', {
         'idToken': idToken,
         'phoneNumber': phoneNumber,
@@ -555,6 +635,14 @@ class ApiAuthService implements AuthServiceInterface {
         if (areaId != null && areaId.isNotEmpty) 'areaId': areaId,
       });
       return _providerLoginFrom(res, expected: 201);
+    } on GoogleSignInException catch (e) {
+      if (e.code == GoogleSignInExceptionCode.canceled) {
+        return ApiResponse.error('', code: 'cancelled');
+      }
+      return ApiResponse.error(
+        'Connexion Google impossible.',
+        code: 'google_failed',
+      );
     } catch (_) {
       return ApiResponse.error(
         'Connexion Google impossible.',

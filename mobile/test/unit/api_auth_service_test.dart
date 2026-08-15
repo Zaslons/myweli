@@ -1,8 +1,11 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:myweli/models/api_response.dart';
+import 'package:myweli/models/provider_login_result.dart';
 import 'package:myweli/models/provider_user.dart';
 import 'package:myweli/services/api/api_auth_service.dart';
 import 'package:myweli/services/interfaces/session_store.dart';
@@ -312,5 +315,192 @@ void main() {
 
     expect(await store.read(), isNull);
     expect(await service.getCurrentProvider(), isNull);
+  });
+
+  _googleTests();
+}
+
+// ---------------------------------------------------------------------------
+// The Google paths — testable for the first time.
+//
+// Before the v7 migration this service constructed `GoogleSignIn` inline, so no
+// test in this repo executed a single line of these three methods. That is
+// precisely why the cancel contract could have been broken silently: v7 turned
+// the user closing the sheet from a null return into a THROW, and the bare
+// `catch (_)` would have reported it as `google_failed` — a red banner on the
+// most common non-happy path in the whole login flow.
+//
+// The contract, from docs/design/app-auth-social.md: **Google-cancel is
+// SILENT.** The providers suppress the banner only for code `cancelled` with an
+// empty message; every other code paints red.
+// ---------------------------------------------------------------------------
+
+/// Cancellation as v7 signals it.
+Future<String?> _cancelled() async =>
+    throw const GoogleSignInException(code: GoogleSignInExceptionCode.canceled);
+
+/// Any other SDK failure — a misconfiguration, no network, Play Services.
+Future<String?> _sdkFailure() async => throw const GoogleSignInException(
+  code: GoogleSignInExceptionCode.unknownError,
+);
+
+/// Signed in, but Google returned no ID token — distinct from a cancel, and
+/// the distinction the pro paths used to lose.
+Future<String?> _noToken() async => null;
+
+Future<String?> _token() async => 'google-id-token-abc';
+
+/// Asserts by existing: any HTTP on a refusal path is the bug.
+http.Client _neverCalled() => MockClient(
+  (req) async => throw StateError('unexpected HTTP call to ${req.url}'),
+);
+
+void _googleTests() {
+  group('signInWithGoogle', () {
+    test('a cancel is SILENT — empty message, and no request', () async {
+      final service = ApiAuthService(
+        client: _neverCalled(),
+        baseUrl: 'http://x',
+        googleIdToken: _cancelled,
+      );
+      final res = await service.signInWithGoogle();
+      expect(res.success, isFalse);
+      expect(res.code, 'cancelled');
+      expect(
+        res.error,
+        isEmpty,
+        reason: 'a non-empty message is what paints the red banner',
+      );
+    });
+
+    test('any OTHER SDK failure is not silent', () async {
+      final service = ApiAuthService(
+        client: _neverCalled(),
+        baseUrl: 'http://x',
+        googleIdToken: _sdkFailure,
+      );
+      final res = await service.signInWithGoogle();
+      expect(res.code, 'google_failed');
+      expect(res.error, isNotEmpty);
+    });
+
+    test('signed in without a token is its own code', () async {
+      final service = ApiAuthService(
+        client: _neverCalled(),
+        baseUrl: 'http://x',
+        googleIdToken: _noToken,
+      );
+      final res = await service.signInWithGoogle();
+      expect(res.code, 'no_id_token');
+      expect(res.error, isNotEmpty);
+    });
+
+    test('the happy path posts the token and parses the session', () async {
+      Map<String, dynamic>? sent;
+      final client = MockClient((req) async {
+        expect(req.url.path, '/auth/google');
+        sent = jsonDecode(req.body) as Map<String, dynamic>;
+        return _verifyOk();
+      });
+      final service = ApiAuthService(
+        client: client,
+        baseUrl: 'http://x',
+        googleIdToken: _token,
+      );
+      final res = await service.signInWithGoogle();
+      expect(res.success, isTrue, reason: res.error);
+      expect(sent, {
+        'idToken': 'google-id-token-abc',
+      }, reason: 'the wire shape the backend verifies — unchanged by v7');
+    });
+  });
+
+  group('signInProviderWithGoogle', () {
+    test('a cancel is SILENT', () async {
+      final service = ApiAuthService(
+        client: _neverCalled(),
+        baseUrl: 'http://x',
+        googleIdToken: _cancelled,
+      );
+      final res = await service.signInProviderWithGoogle();
+      expect(res.code, 'cancelled');
+      expect(res.error, isEmpty);
+    });
+
+    test('no token is NO LONGER disguised as a cancel', () async {
+      // The deliberate behaviour change. The old helper returned `String?` for
+      // both outcomes and the caller reported `cancelled`, so a genuine token
+      // failure showed the user nothing at all.
+      final service = ApiAuthService(
+        client: _neverCalled(),
+        baseUrl: 'http://x',
+        googleIdToken: _noToken,
+      );
+      final res = await service.signInProviderWithGoogle();
+      expect(res.code, 'no_id_token');
+      expect(
+        res.error,
+        isNotEmpty,
+        reason: 'silence on a real failure was the bug',
+      );
+    });
+
+    test('the 202 bridge carries the very token just verified', () async {
+      final client = MockClient((req) async {
+        expect(req.url.path, '/auth/provider/google');
+        return http.Response(
+          jsonEncode({
+            'invitations': [
+              {
+                'id': 'inv1',
+                'providerId': 'provider1',
+                'salonName': 'Élégance',
+                'role': 'manager',
+                'invitedBy': 'Awa',
+                'createdAt': DateTime(2026).toIso8601String(),
+              },
+            ],
+          }),
+          202,
+        );
+      });
+      final service = ApiAuthService(
+        client: client,
+        baseUrl: 'http://x',
+        googleIdToken: _token,
+      );
+      final res = await service.signInProviderWithGoogle();
+      expect(res.hasInvitations, isTrue, reason: res.error);
+      expect(
+        (res.proof! as GoogleInvitationProof).idToken,
+        'google-id-token-abc',
+        reason: 'accept re-proves identity with this exact token',
+      );
+    });
+  });
+
+  group('registerProviderWithGoogle', () {
+    Future<ApiResponse<ProviderUser>> register(GoogleIdTokenProvider g) =>
+        ApiAuthService(
+          client: _neverCalled(),
+          baseUrl: 'http://x',
+          googleIdToken: g,
+        ).registerProviderWithGoogle(
+          phoneNumber: _phone,
+          businessName: 'Élégance',
+          businessType: BusinessType.salon,
+        );
+
+    test('a cancel is SILENT', () async {
+      final res = await register(_cancelled);
+      expect(res.code, 'cancelled');
+      expect(res.error, isEmpty);
+    });
+
+    test('no token is its own code', () async {
+      final res = await register(_noToken);
+      expect(res.code, 'no_id_token');
+      expect(res.error, isNotEmpty);
+    });
   });
 }

@@ -28,7 +28,7 @@ Future<ApiResponse<String>> requestEmailOtp(String email);   // devCode when bac
 Future<ApiResponse<User>> verifyEmailOtp(String email, String code);
 Future<ApiResponse<User>> updateUser({String? name, String? email, String? avatarUrl, String? phone}); // + phone
 ```
-- **Api impl:** `google_sign_in` (^6) yields the **ID token** (with `serverClientId` = the **web** client ID, so the token's `aud` is in the backend allowlist) → `POST /auth/google {idToken}` → parse AuthSession exactly like `verifyOtp` today. Email OTP → the two new endpoints. `updateUser` passes `phone` to `PATCH /me`.
+- **Api impl:** `google_sign_in` (**^7** since the v7 migration — [app-google-signin-v7.md](app-google-signin-v7.md)) yields the **ID token**. `serverClientId` = the **web** client ID, so the token's `aud` is in the backend allowlist; under v7 it is passed to `GoogleSignIn.instance.initialize()` rather than a constructor, and the token's audience is unchanged → `POST /auth/google {idToken}` → parse AuthSession exactly like `verifyOtp` today. Email OTP → the two new endpoints. `updateUser` passes `phone` to `PATCH /me`.
 - **Mock impl:** simulated latency + failure paths; `123456` verifies; a mock Google user (`mock.google@myweli.test`); first login returns `phoneNumber: null` so the phone step is exercised in dev/tests.
 - **`User` model** mirrors the API DTO: `phoneNumber` → **nullable**, + `phoneVerified`, + `authProvider` (equatable/fromJson/toJson updated — ripples through mock data fixed at build).
 
@@ -47,11 +47,11 @@ CGU line (existing copy)
 ```
 - **Email code step** (same screen, step state — mirrors web): « Entrez le code reçu par e-mail à {email} » + 6-digit field + « Se connecter » + « Changer d'e-mail » + devCode hint when returned.
 - **Mandatory phone step** (blocking, after ANY login where `user.phoneNumber == null`): « Votre numéro de téléphone » + « Le salon l'utilise pour vous contacter. » + `PhoneNumberField` (existing intl picker) + « Continuer » → `updateUser(phone:)` → then `returnTo`.
-- States: per-action loading (AppButton `isLoading` → mark_loader), French errors (« Connexion Google impossible. », « Code incorrect ou expiré. », « Compte suspendu. », « Numéro invalide. »), Google-cancel = silent.
+- States: per-action loading (AppButton `isLoading` → mark_loader), French errors (« Connexion Google impossible. », « Code incorrect ou expiré. », « Compte suspendu. », « Numéro invalide. »), **Google-cancel = silent** — under v7 that is an explicit `on GoogleSignInException` arm checking for `canceled`, because `authenticate()` THROWS where `signIn()` returned null; without it every dismissal of the sheet paints a red banner. Pinned by tests in `api_auth_service_test.dart`.
 - **Profile** (`edit_profile_screen`): add contact-phone field (PhoneNumberField, prefilled) + « Non vérifié » helper when `phoneVerified == false` — parity with web.
 
 ## 5. Platform config (no secrets — all public identifiers)
-- **Android:** nothing in-repo — Google matches `com.myweli.app` + the registered SHA‑1 (debug SHA‑1 added 2026-07-02; release SHA‑1 at store time). `serverClientId` passed in code via `AppConfig` (`--dart-define=GOOGLE_SERVER_CLIENT_ID=…`, default = the real web ID — it's public).
+- **Android:** ~~nothing in-repo~~ — stale since the flavour `google-services.json` files landed (`android/app/src/{consumer,pro}/google-services.json`, each carrying the `client_type: 3` web entry that also backs v7's `default_web_client_id` fallback). Google matches `com.myweli.app` + the registered SHA‑1 (debug SHA‑1 added 2026-07-02; release SHA‑1 at store time). `serverClientId` passed in code via `AppConfig` (`--dart-define=GOOGLE_SERVER_CLIENT_ID=…`, default = the real web ID — it's public).
 - **iOS:** `Info.plist` gains `GIDClientID` (the iOS client ID) + the **reversed client ID** URL scheme (`com.googleusercontent.apps.731308991240-ah75c2…`).
 - **Apple:** `sign_in_with_apple` package + `FeatureFlags.appleSignIn = bool.fromEnvironment('APPLE_SIGN_IN', defaultValue: true)`.
   It defaulted to **false** and `APPLE_SIGN_IN` was passed **nowhere** — not in CI, not in `DEPLOYMENT.md`, not in any build script — so no build has ever shown the button. Store rule **4.8** makes Sign in with Apple mandatory on iOS once another third-party provider ships there, so that state was a rejection waiting to happen. **A rule-4.8 requirement must not depend on remembering a build flag**, hence the default flip; the flag stays only as a kill switch.
