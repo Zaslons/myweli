@@ -5,6 +5,8 @@ import 'package:myweli_backend/src/auth/auth_repository.dart';
 import 'package:myweli_backend/src/auth/principal.dart';
 import 'package:myweli_backend/src/privacy/user_erasure_service.dart';
 import 'package:myweli_backend/src/responses.dart';
+import 'package:myweli_backend/src/storage/storage_service.dart';
+import 'package:myweli_backend/src/upload_verification_service.dart';
 import 'package:myweli_backend/src/validators.dart';
 
 /// `/me` — the signed-in user's own account. Protected: the principal comes
@@ -44,11 +46,39 @@ Future<Response> onRequest(RequestContext context) async {
       if (phone != null && phone.isNotEmpty && !isValidE164(phone)) {
         return jsonError(HttpStatus.badRequest, 'invalid_phone');
       }
+      // **The avatar was stored exactly as sent — no origin check, no
+      // promotion.** Two consequences: any string at all became someone's
+      // avatar and was served back from our own domain, and a genuine upload
+      // stayed under `pending/` until production's daily expiry deleted it,
+      // leaving a url in Postgres pointing at nothing.
+      //
+      // Unchanged avatars re-send the promoted url the client was given, so
+      // the user's CURRENT avatar is the one non-pending value allowed through.
+      //
+      // A null base means dev/Fake storage: no delivery origin exists to
+      // validate against, and rejecting here would break the local loop. Same
+      // posture as the gallery, which also skips promotion under a Fake.
+      var avatarUrl = body['avatarUrl'] as String?;
+      final verifier = context.read<UploadVerificationService>();
+      final base = verifier.publicBaseUrl;
+      if (avatarUrl != null && avatarUrl.isNotEmpty && base != null) {
+        final current = await repo.userById(principal.userId);
+        final v = await verifier.promoteNewUrls(
+          [avatarUrl],
+          publicBaseUrl: base,
+          alreadyStored: {if (current?.avatarUrl != null) current!.avatarUrl!},
+          bucket: StorageBucket.public,
+        );
+        if (!v.ok) {
+          return jsonError(HttpStatus.badRequest, v.error ?? 'invalid_input');
+        }
+        avatarUrl = v.urls.first;
+      }
       final updated = await repo.updateUser(
         principal.userId,
         name: body['name'] as String?,
         email: body['email'] as String?,
-        avatarUrl: body['avatarUrl'] as String?,
+        avatarUrl: avatarUrl,
         phone: phone,
       );
       if (updated == null) {

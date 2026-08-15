@@ -589,6 +589,7 @@ export interface paths {
                         name?: string;
                         /** @description Empty string clears it. Changing it resets emailVerified. */
                         email?: string;
+                        /** @description Either a URL just returned by `POST /uploads/sign` (still under `pending/`) — which the server PROMOTES, storing and returning the promoted URL — or **exactly** the avatar currently stored, which passes through unchanged so an edit that only renames still works. Anything else → 400 `invalid_input`. Uploads that are never promoted are deleted by the `pending/` lifecycle rule (T61). */
                         avatarUrl?: string;
                         /** @description Contact phone (E.164). Empty string clears it. Setting a new value resets phoneVerified (verified later via SMS). */
                         phone?: string;
@@ -605,6 +606,7 @@ export interface paths {
                         "application/json": components["schemas"]["User"];
                     };
                 };
+                400: components["responses"]["BadRequest"];
                 401: components["responses"]["Unauthorized"];
                 404: components["responses"]["NotFound"];
             };
@@ -1159,7 +1161,9 @@ export interface paths {
         put?: never;
         /**
          * Submit KYC documents (B-kyc)
-         * @description Provider-only. Each document's `key` is one the caller uploaded via `POST /uploads/sign?purpose=kyc` (must be under the caller's `kyc/{accountId}/` prefix). Sets `verificationStatus` to `pending` and clears any prior rejection. Approve/reject is a future admin slice.
+         * @description Provider-only, at most 8 documents. Sets `verificationStatus` to `pending` and clears any prior rejection.
+         *
+         *     **The list is the complete set, so a resubmit re-sends the documents that have not changed.** Each `key` must therefore be either one the caller has just uploaded via `POST /uploads/sign?purpose=kyc` — i.e. `pending/kyc/{accountId}/…` under the caller's own prefix — or **exactly** a key already stored on this account, which passes through untouched. A new key is size-verified and PROMOTED, and the promoted key is what is stored and returned by `GET /me/kyc`. Anything else, including a promoted-looking key belonging to another account or one this account no longer holds, → 400 `invalid_input`.
          */
         post: {
             parameters: {
@@ -2949,7 +2953,9 @@ export interface paths {
         };
         /**
          * Replace a salon's gallery wholesale (B-gallery)
-         * @description Validated: a list of non-empty URL strings, at most 20, each ≤ 2048 chars. Server stores exactly what's sent.
+         * @description Validated: a list of non-empty URL strings, at most 20, each ≤ 2048 chars, origin-allowlisted when public delivery is configured.
+         *
+         *     **Wholesale means re-sending the photos you already have** — which is what add, reorder, restore and remove all do. A URL from `POST /uploads/sign` (under `pending/`) is size-verified and PROMOTED, and the promoted URL is stored and returned; a URL already stored for this salon passes through unchanged. Anything else → 400 `invalid_input`. Order is preserved: `imageUrls[0]` is the listing cover. An upload that is never promoted is deleted by the `pending/` lifecycle rule (T61).
          */
         put: {
             parameters: {
@@ -3029,6 +3035,8 @@ export interface paths {
         /**
          * Replace a salon's before/after pairs wholesale (FR-DISC-006)
          * @description Validated: ≤ 12 pairs; each `before`/`after` a non-empty URL ≤ 2048 chars (origin-allowlisted when public delivery is configured); optional `caption` ≤ 120 chars.
+         *
+         *     Wholesale means re-sending the pairs you already have. A URL from `POST /uploads/sign` (under `pending/`) is PROMOTED and the promoted URL is stored and returned; a URL already stored for this salon passes through unchanged. Anything else → 400 `invalid_input`. An upload that is never promoted is deleted by the `pending/` lifecycle rule (T61).
          */
         put: {
             parameters: {
@@ -3523,7 +3531,7 @@ export interface paths {
         put?: never;
         /**
          * Presign a direct-to-storage upload (B-upload, B-kyc)
-         * @description Provider-only. Returns a short-lived presigned **multipart POST** to object storage (Cloudflare R2). The object key is built server-side from the token, and the signed policy pins the key, content-type, and a size range — so bytes go client → storage directly (never through the API) and a caller can only write under its own prefix. **`purpose=gallery`** → public bucket, prefix `gallery/{providerId}`, returns `publicUrl` (saved via `PUT /providers/{id}/gallery`). **`purpose=kyc`** → a separate **private** bucket, prefix `kyc/{accountId}`, returns the `key` only (ID docs are never public) and additionally accepts `application/ pdf`. **`purpose=deposit`** → **consumer-only** (a `user` token), a **separate** private bucket (`R2_DEPOSIT_BUCKET`, kept apart from KYC), prefix `deposit/{userId}`, returns the `key` only (payment proof is never public; images only). **`purpose=review`** → **consumer-only**, the public bucket (review tiles render the photos), prefix `review/{userId}`, returns `publicUrl` (images only; review submit caps `photoUrls` at 6). Role is gated **per purpose**: `deposit`/`review` require `user`; `gallery`/`kyc` require `provider`.
+         * @description Provider-only. Returns a short-lived presigned **multipart POST** to object storage (Cloudflare R2). The object key is built server-side from the token, and the signed policy pins the key, content-type, and a size range — so bytes go client → storage directly (never through the API) and a caller can only write under its own prefix. **`purpose=gallery`** → public bucket, prefix `gallery/{providerId}`, returns `publicUrl` (saved via `PUT /providers/{id}/gallery`). **`purpose=kyc`** → a separate **private** bucket, prefix `kyc/{accountId}`, returns the `key` only (ID docs are never public) and additionally accepts `application/ pdf`. **`purpose=deposit`** → **consumer-only** (a `user` token), a **separate** private bucket (`R2_DEPOSIT_BUCKET`, kept apart from KYC), prefix `deposit/{userId}`, returns the `key` only (payment proof is never public; images only). **`purpose=review`** → **consumer-only**, the public bucket (review tiles render the photos), prefix `review/{userId}`, returns `publicUrl` (images only; review submit caps `photoUrls` at 6). **`purpose=avatar`** → **consumer-only**, the public bucket, prefix `avatar/{userId}`, returns `publicUrl` (images only); the promoted URL is saved via `PATCH /me`. It shares the review purpose's SHAPE and deliberately not its prefix — the purpose string is the storage namespace erasure and moderation reason about (docs/design/consumer-avatar-upload.md §3). Role is gated **per purpose**, symmetrically: `deposit`/`review`/`avatar` require `user`; `gallery`/`kyc` require `provider`; asking for the other role's purpose is a 403 either way.
          */
         post: {
             parameters: {
@@ -3541,7 +3549,7 @@ export interface paths {
                         /** @enum {string} */
                         contentType: "image/jpeg" | "image/png" | "image/webp" | "application/pdf";
                         /** @enum {string} */
-                        purpose: "gallery" | "kyc" | "deposit" | "review";
+                        purpose: "gallery" | "kyc" | "deposit" | "review" | "avatar";
                     };
                 };
             };
@@ -4050,6 +4058,7 @@ export interface paths {
                         appointmentDateTime: string;
                         artistId?: string;
                         notes?: string;
+                        /** @description Optional Mobile Money proof attached at create time. Must be a key just returned by `POST /uploads/sign?purpose=deposit` — i.e. `pending/deposit/{userId}/…` under the CALLER's own prefix, with no `.`/`..`/empty path segment. The server size-verifies it (T61) and PROMOTES it out of `pending/`, storing `deposit/{userId}/…`; the response carries the promoted key. Anything else → 400 `invalid_input`, and no appointment is created. Attaching or replacing the proof after the fact goes through `POST /appointments/{id}/deposit`. */
                         depositScreenshotUrl?: string;
                     };
                 };
@@ -4064,7 +4073,15 @@ export interface paths {
                         "application/json": components["schemas"]["Appointment"];
                     };
                 };
-                400: components["responses"]["BadRequest"];
+                /** @description `invalid_input` — a missing/blank required field, a wrong-typed body value, or a `depositScreenshotUrl` that is not a freshly-signed key under the caller's own deposit prefix. `upload_too_large` / `upload_not_found` / `storage_unavailable` — the attached proof failed claim-time verification (T61); the booking is not created. */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
                 401: components["responses"]["Unauthorized"];
                 404: components["responses"]["NotFound"];
                 /** @description `slot_unavailable` — the requested time isn't a free slot (closed/past/break/already-booked/non-aligned). `beyond_horizon` — the date is further ahead than the salon's `bookingHorizonDays` (A14d). `too_soon` — the start is inside the salon's `minimumNoticeMinutes`. The last two are distinct from `slot_unavailable` on purpose: that code makes every client say some version of "someone else just took your slot", which is false for a window breach and leaves the user retrying a time that can never be offered. `provider_not_published` — the salon has never gone live, so it is absent from discovery and reachable only by a stale link or a favourite. `provider_suspended` — the salon was stopped. These two are split for the same reason as the pair above, and the split matters more here: a client cannot tell them apart for itself (the mobile `Provider` model has no `status` field), and the never-published case is the state EVERY salon starts in while the suspended one takes a deliberate admin act. */
@@ -6311,6 +6328,7 @@ export interface components {
         ArtistInput: {
             name?: string;
             specialization?: string | null;
+            /** @description A URL from `POST /uploads/sign` (under `pending/`) — promoted on save, and the PROMOTED url is stored and returned — or exactly the url currently stored for THIS artist, which passes through. Another artist's url, a foreign origin or an invented path → 400 `invalid_input` (T61). */
             imageUrl?: string | null;
             workingHours?: {
                 [key: string]: components["schemas"]["TimeSlot"][];
@@ -6364,19 +6382,21 @@ export interface components {
             /** @description All-time */
             totalAppointments: number;
         };
+        /** @description Corrected to what the server actually returns. This schema still described the presigned multipart **POST** policy that R2 answers with 501 NotImplemented — required a `fields` map the service has never sent and pinned `method: POST` against a service returning `PUT` (docs/design/backend-r2-presigned-put.md). */
         UploadTicket: {
             /** @enum {string} */
-            method: "POST";
-            /** @description Multipart POST target (storage). */
+            method: "PUT";
+            /** @description Presigned PUT target (storage). */
             uploadUrl: string;
-            /** @description Signed form fields; send these then the file (last). */
-            fields: {
+            /** @description Exactly the headers the signature pins. Sending anything else is a 403 from storage, so this is a requirement and not a hint. */
+            headers: {
                 [key: string]: string;
             };
             /** @description The object key (used to reference the upload). */
             key: string;
-            /** @description CDN URL — only for `gallery` (omitted for private `kyc`). */
+            /** @description CDN URL — present for every PUBLIC-bucket purpose (`gallery`, `review`, `avatar`), omitted for the private ones (`kyc`, `deposit`). The key is under `pending/` until claimed. */
             publicUrl?: string;
+            /** @description ADVISORY. R2 ignores a signed `content-length` on a presigned PUT, so the authoritative check runs at claim time (threat T61). */
             maxBytes: number;
             expiresInSeconds: number;
         };

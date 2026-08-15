@@ -193,6 +193,23 @@ void main() {
       expect(data['publicUrl'], contains('review/u42/'));
     });
 
+    test('avatar purpose: public, its OWN prefix, scoped to the USER', () async {
+      final r = await service.sign(
+        'u42',
+        contentType: 'image/jpeg',
+        purpose: 'avatar',
+      );
+      expect(r.ok, isTrue);
+      final data = r.data!;
+      expect(data['key'], startsWith('pending/avatar/u42/'));
+      expect(data['publicUrl'], contains('avatar/u42/'));
+      // The point of the whole change: it shares the review branch's SHAPE
+      // (public bucket, own prefix) and not its NAMESPACE. Erasure, moderation
+      // and any lifecycle rule key on this prefix, so a profile photo filed
+      // under `review/` would be swept by the wrong broom in both directions.
+      expect(data['key'], isNot(contains('review/')));
+    });
+
     test('R6: a selected salon scopes the gallery key; a forged one is '
         'denied', () async {
       // The owner also owns provider2.
@@ -229,11 +246,22 @@ void main() {
         )).error,
         'invalid_input',
       );
+      // `avatar` used to be the example here. It is a real purpose now, so the
+      // negative branch needs one that is still genuinely unknown — otherwise
+      // adding a purpose silently deletes the coverage that guards the rest.
       expect(
         (await service.sign(
           accountId,
           contentType: 'image/jpeg',
-          purpose: 'avatar',
+          purpose: 'banner',
+        )).error,
+        'invalid_input',
+      );
+      expect(
+        (await service.sign(
+          accountId,
+          contentType: 'image/jpeg',
+          purpose: null,
         )).error,
         'invalid_input',
       );
@@ -488,6 +516,38 @@ void main() {
             '/uploads/sign',
             bearer: token,
             body: {'contentType': 'image/jpeg', 'purpose': 'review'},
+          ),
+        ),
+      );
+      expect(provider.statusCode, HttpStatus.forbidden);
+    });
+
+    test('avatar purpose: consumer → 200 public URL; provider → 403', () async {
+      final userToken = tokens
+          .issueAccessToken(subject: 'u1', role: 'user')
+          .token;
+      final ok = await sign_route.onRequest(
+        ctx(
+          post(
+            '/uploads/sign',
+            bearer: userToken,
+            body: {'contentType': 'image/jpeg', 'purpose': 'avatar'},
+          ),
+        ),
+      );
+      expect(ok.statusCode, HttpStatus.ok);
+      final body = jsonDecode(await ok.body()) as Map<String, dynamic>;
+      expect(body['key'], startsWith('pending/avatar/u1/'));
+      expect(body['publicUrl'], isNotNull);
+
+      // Symmetric: a PROVIDER token cannot borrow the consumer namespace
+      // either, which is what stops a salon writing into a user's prefix.
+      final provider = await sign_route.onRequest(
+        ctx(
+          post(
+            '/uploads/sign',
+            bearer: token,
+            body: {'contentType': 'image/jpeg', 'purpose': 'avatar'},
           ),
         ),
       );

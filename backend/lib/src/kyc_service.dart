@@ -29,6 +29,11 @@ class KycService {
     'addressProof',
   };
 
+  /// Generous against four document types, and a bound where there was none:
+  /// this list is handed straight to the verifier, making it the largest
+  /// promotion batch in the system with nothing capping it.
+  static const _maxDocuments = 8;
+
   Future<KycResult> status(String accountId) async {
     final account = await _providerAuth.accountById(accountId);
     if (account == null) return (ok: false, error: 'forbidden', data: null);
@@ -38,22 +43,42 @@ class KycService {
   Future<KycResult> submit(String accountId, Object? documents) async {
     final account = await _providerAuth.accountById(accountId);
     if (account == null) return (ok: false, error: 'forbidden', data: null);
-    if (documents is! List || documents.isEmpty) {
+    if (documents is! List ||
+        documents.isEmpty ||
+        documents.length > _maxDocuments) {
       return (ok: false, error: 'invalid_input', data: null);
     }
 
+    // **A rejected professional could not fix ONE document.** The gate below
+    // used to require every key to be pending — the CLAIM form — while
+    // `GET /me/kyc` hands back the PROMOTED keys and both clients repopulate
+    // the tile list from exactly that response. So replacing only the document
+    // the admin flagged, or simply pressing submit again, failed with a bare
+    // `invalid_input` the UI cannot attribute to a field, on the one screen
+    // standing between a salon and going live. (Re-uploading EVERY tile did
+    // work, so this was never the hard lockout it looked like — it was the
+    // natural action failing while an exhausting one succeeded.)
+    //
+    // Two states, not one. `stored` is this account's OWN current documents,
+    // read from the account already in hand — membership, never shape.
+    // Accepting `kyc/{accountId}/…` because it *looks* promoted would let the
+    // account point a document at an object it deleted or never uploaded; the
+    // set is scoped to its own docs for the same reason an artist's set is
+    // scoped to that artist rather than to the salon.
     final prefix = '${kPendingPrefix}kyc/$accountId/';
+    final stored = <String>{
+      for (final d in account.kycDocs)
+        if (d['key'] is String) d['key'] as String,
+    };
     final docs = <Map<String, dynamic>>[];
     for (final d in documents) {
       if (d is! Map) return (ok: false, error: 'invalid_input', data: null);
       final type = d['type'];
       final key = d['key'];
-      // The key must be one this account just uploaded (own KYC prefix) — no
-      // attaching a foreign/arbitrary object.
       if (type is! String || !_docTypes.contains(type)) {
         return (ok: false, error: 'invalid_input', data: null);
       }
-      if (key is! String || !key.startsWith(prefix)) {
+      if (key is! String || !(stored.contains(key) || key.startsWith(prefix))) {
         return (ok: false, error: 'invalid_input', data: null);
       }
       docs.add({
@@ -66,9 +91,11 @@ class KycService {
 
     // Every key is proven to belong to this account above; none is proven to
     // be a sane size. KYC lands in a RETAINED bucket, so an oversized document
-    // is paid for far longer than a deposit screenshot.
-    final v = await _verifier?.verifyAndPromote(
+    // is paid for far longer than a deposit screenshot. Keys, not urls: the KYC
+    // bucket has no public base at all, so there is nothing to strip.
+    final v = await _verifier?.promoteNewKeys(
       docs.map((d) => d['key'] as String).toList(),
+      alreadyStored: stored,
       bucket: StorageBucket.kyc,
     );
     if (v != null && !v.ok) {

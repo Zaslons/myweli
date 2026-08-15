@@ -36,19 +36,29 @@ Future<Response> onRequest(RequestContext context, String id) async {
     body['screenshotKey'],
   );
   if (r.ok) {
-    unawaited(
-      context.read<BookingNotifier>().notify(
-        r.data as Map<String, dynamic>?,
-        MessageTemplate.depositReceived,
-      ),
-    );
-    // The salon must know a justificatif landed — it gates the confirmation.
-    unawaited(
-      context.read<SalonNotifier>().notify(
-        r.data as Map<String, dynamic>?,
-        SalonEvent.depositSubmitted,
-      ),
-    );
+    // A REPLAY is the same claim arriving twice because the first response was
+    // dropped — the salon was already told, and telling it again would have it
+    // chase a justificatif it has been looking at since the first attempt. The
+    // body is identical either way, so the client cannot tell and does not
+    // need to. (Both notifiers are largely inert while messaging is off, which
+    // makes this cheap insurance rather than a visible fix — but it has to
+    // ship WITH the replay branch, or it becomes a real duplicate the day push
+    // lands.)
+    if (!r.replayed) {
+      unawaited(
+        context.read<BookingNotifier>().notify(
+          r.data as Map<String, dynamic>?,
+          MessageTemplate.depositReceived,
+        ),
+      );
+      // The salon must know a justificatif landed — it gates the confirmation.
+      unawaited(
+        context.read<SalonNotifier>().notify(
+          r.data as Map<String, dynamic>?,
+          SalonEvent.depositSubmitted,
+        ),
+      );
+    }
     return Response.json(body: r.data);
   }
   switch (r.error) {

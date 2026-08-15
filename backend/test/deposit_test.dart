@@ -42,6 +42,12 @@ void main() {
   late String salonAccountId; // provider1's account id
   late String otherSalonToken; // provider managing provider2
 
+  DepositService svcWith(FakeStorageService store) => DepositService(
+    appts,
+    MembershipService(InMemoryMembershipRepository(), providerAuth),
+    store,
+  );
+
   Future<void> seed(
     String id, {
     String userId = 'user_A',
@@ -310,8 +316,169 @@ void main() {
       final after = await appts.byId('a-big');
       expect(
         after!['depositScreenshotUrl'],
-        isNot('pending/deposit/user1/huge.jpg'),
+        isNull,
+        reason:
+            'was `isNot(the pending key)`, which passed for any OTHER wrong '
+            'value too — a refused claim must write nothing at all',
       );
+    });
+
+    test('a REPLACE deletes the object it supersedes', () async {
+      // The superseded object sits at its PROMOTED path, outside `pending/`,
+      // so no lifecycle rule collects it — and `anonymizeUser` hands erasure
+      // only the key each row CURRENTLY holds, so an abandoned proof outlived
+      // `DELETE /me` with nothing pointing at it. That, not the storage bill,
+      // is why this matters.
+      final store = _RealisticStorage();
+      final svc = svcWith(store);
+      await seed('a-rep', userId: 'user1', screenshot: 'deposit/user1/old.jpg');
+      final r = await svc.submit(
+        'user1',
+        'a-rep',
+        'pending/deposit/user1/new.jpg',
+      );
+      expect(r.ok, isTrue, reason: 'error was ${r.error}');
+      expect(
+        (await appts.byId('a-rep'))!['depositScreenshotUrl'],
+        'deposit/user1/new.jpg',
+      );
+      // containsAll, not an exact list: promotion deletes the pending source
+      // too, and that is a different delete.
+      expect(
+        store.deleted,
+        containsAll(<String>[
+          'pending/deposit/user1/new.jpg',
+          'deposit/user1/old.jpg',
+        ]),
+      );
+    });
+
+    test('a REFUSED replace leaves the old screenshot alone', () async {
+      // The delete must hang off a successful update, not off reaching the
+      // function. Wired one line higher, an oversized replacement would take
+      // the proof the booking still depends on.
+      final store = _RealisticStorage(
+        sizes: {'pending/deposit/user1/big.jpg': 50 * 1024 * 1024},
+      );
+      final svc = svcWith(store);
+      await seed('a-ref', userId: 'user1', screenshot: 'deposit/user1/old.jpg');
+      final r = await svc.submit(
+        'user1',
+        'a-ref',
+        'pending/deposit/user1/big.jpg',
+      );
+      expect(r.error, 'upload_too_large');
+      expect(
+        store.deleted,
+        ['pending/deposit/user1/big.jpg'],
+        reason: 'exactly the offending upload — never the live proof',
+      );
+      expect(
+        (await appts.byId('a-ref'))!['depositScreenshotUrl'],
+        'deposit/user1/old.jpg',
+      );
+    });
+
+    test(
+      "a prior key outside the caller's own prefix is NOT deleted",
+      () async {
+        // The column is bare text and the booking-time writer's verifier is
+        // nullable, so "always promoted, always ours" is a property of the
+        // writers rather than the schema. A value that fails the guard is
+        // skipped — never deleted, never an error.
+        final store = _RealisticStorage();
+        final svc = svcWith(store);
+        await seed(
+          'a-for',
+          userId: 'user1',
+          screenshot: 'deposit/user_OTHER/theirs.jpg',
+        );
+        final r = await svc.submit(
+          'user1',
+          'a-for',
+          'pending/deposit/user1/mine.jpg',
+        );
+        expect(r.ok, isTrue, reason: 'error was ${r.error}');
+        expect(
+          store.deleted,
+          isNot(contains('deposit/user_OTHER/theirs.jpg')),
+          reason: 'erasure takes the same posture — skip what is not ours',
+        );
+      },
+    );
+
+    test('re-sending the same key is idempotent, not a 400', () async {
+      // A dropped response was unrecoverable: claiming deletes the pending
+      // source, so the retry HEADed an object we deleted ourselves. The app
+      // keeps the key across a failure, so this IS its retry path.
+      final store = _RealisticStorage();
+      final svc = svcWith(store);
+      await seed('a-rep2', userId: 'user1');
+      final first = await svc.submit(
+        'user1',
+        'a-rep2',
+        'pending/deposit/user1/x.jpg',
+      );
+      expect(first.ok, isTrue);
+      expect(first.replayed, isFalse);
+
+      final second = await svc.submit(
+        'user1',
+        'a-rep2',
+        'pending/deposit/user1/x.jpg',
+      );
+      expect(second.ok, isTrue, reason: 'error was ${second.error}');
+      expect(second.replayed, isTrue);
+      expect(
+        (second.data! as Map)['depositScreenshotUrl'],
+        'deposit/user1/x.jpg',
+      );
+      // And the booking still holds exactly one key.
+      expect(
+        (await appts.byId('a-rep2'))!['depositScreenshotUrl'],
+        'deposit/user1/x.jpg',
+      );
+    });
+
+    test('a replay does NOT delete the live screenshot', () async {
+      // The cross-defect hazard: making the replay succeed is what first makes
+      // `prior == promoted` reachable inside submit, and an unguarded delete
+      // would then destroy the very screenshot it just re-confirmed.
+      //
+      // What this test pins is the FIRST defence — the replay returns before
+      // any delete. It does not force the second (`prior != promoted` on the
+      // delete), which stays unreachable while the branch above holds; that
+      // guard is there so moving or removing the branch cannot turn a replay
+      // into a self-destruct. Said plainly rather than claimed.
+      final store = _RealisticStorage();
+      final svc = svcWith(store);
+      await seed('a-rep3', userId: 'user1');
+      await svc.submit('user1', 'a-rep3', 'pending/deposit/user1/y.jpg');
+      store.deleted.clear();
+      await svc.submit('user1', 'a-rep3', 'pending/deposit/user1/y.jpg');
+      expect(
+        store.deleted,
+        isEmpty,
+        reason: 'a replay must destroy nothing at all',
+      );
+    });
+
+    test('a replay after the salon accepted is still a conflict', () async {
+      // The replay check sits BELOW the status gate on purpose: re-confirming
+      // a key on a settled booking is a different act from retrying a lost
+      // reply, and lifting it above the gate would be a contract change.
+      final store = _RealisticStorage();
+      final svc = svcWith(store);
+      await seed('a-rep4', userId: 'user1');
+      await svc.submit('user1', 'a-rep4', 'pending/deposit/user1/z.jpg');
+      await appts.update('a-rep4', {'status': 'confirmed'});
+      final r = await svc.submit(
+        'user1',
+        'a-rep4',
+        'pending/deposit/user1/z.jpg',
+      );
+      expect(r.ok, isFalse);
+      expect(r.error, 'invalid_state');
     });
 
     test('a claimed key with no object behind it is refused', () async {
@@ -333,4 +500,27 @@ void main() {
       expect(r.error, 'upload_not_found');
     });
   });
+}
+
+/// A fake where deleting actually deletes.
+///
+/// [FakeStorageService.objectSize] consults `sizes`/`missing`/`defaultSize` and
+/// **ignores `deleted`**, so an object stays visible after it has been removed.
+/// That is fine for the claim tests — and fatal for these: a replay test built
+/// on it passes against the very code it is meant to catch, because the second
+/// `verify` still finds the pending source the first claim deleted.
+///
+/// Modelling the delete is what makes « re-sending the same key » mean what it
+/// means in production.
+class _RealisticStorage extends FakeStorageService {
+  _RealisticStorage({super.sizes});
+
+  @override
+  Future<void> deleteObject({
+    required String key,
+    required StorageBucket bucket,
+  }) async {
+    await super.deleteObject(key: key, bucket: bucket);
+    missing.add(key);
+  }
 }
