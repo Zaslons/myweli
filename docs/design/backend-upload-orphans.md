@@ -111,7 +111,37 @@ where the lifecycle rule can no longer collect it.
 
 ## 5. What is configured now
 
-- **`livetest/` expiry — owner action, and deliberately so.** Setting it via the
+**Verified against Cloudflare on 2026-08-15** (`wrangler r2 bucket lifecycle
+list`, all six buckets), because this section did not previously say whether the
+rule §3.2 depends on had ever been applied — and the code asserts it has:
+`upload_verification_service.dart` tells the reader "production expires that
+prefix daily". A design whose central claim can only be checked by logging into
+a dashboard is a design nobody can check.
+
+- **The `pending/` expiry — LIVE on all six buckets**, enabled, 1 day:
+
+  | bucket | rule name |
+  |---|---|
+  | `myweli-uploads`, `myweli-kyc-private`, `myweli-deposits-private` | `expire-unclaimed-uploads` |
+  | `myweli-uploads-staging`, `myweli-kyc-private-staging`, `myweli-deposits-private-staging` | `expire-pending-uploads` |
+
+  So every "the lifecycle rule collects it" claim in this repo is true. **Note
+  the names differ**: production's was created by hand before the staging script
+  existed, and `90-staging-r2.sh` greps for its own name when deciding whether
+  the rule is already there. Nothing breaks — that script only ever names the
+  staging buckets — but a reader comparing the two should not conclude one is
+  missing.
+
+- **Production has no provisioning script.** `infra/cloudflare/` holds
+  `90-staging-r2.sh` and nothing else, so production's buckets, CORS and
+  lifecycle exist only in Cloudflare. That is precisely why this question could
+  not be answered from the repository, and it is the gap worth closing next —
+  a production counterpart, or a read-only checker that asserts the live
+  configuration matches a manifest, the way `service_files_test.dart` pins the
+  GCP side.
+
+- **`livetest/` expiry — still owed, and confirmed absent.** `wrangler` shows no
+  such rule on `myweli-uploads`. Owner action, and deliberately so. Setting it via the
   S3 API with the application's own R2 credentials returns **403 AccessDenied**:
   that token is scoped to object read/write and cannot reconfigure buckets.
   **That is the correct posture** — the credentials the backend carries should
@@ -123,6 +153,8 @@ where the lifecycle rule can no longer collect it.
 
   Safe because the prefix is only ever written by `r2_live_test.dart`, and the
   test now cleans up after itself anyway — this is the belt to that braces.
+  Lower priority than it reads: the `pending/` rule above is the one the design
+  rests on, and it is in place.
 - **The default multipart-abort rule (7 days)** already exists on each bucket
   from R2's defaults. It reclaims *incomplete* multipart uploads, which is a
   different failure from a completed-but-unclaimed object, and is not a fix for

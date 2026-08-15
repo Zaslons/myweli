@@ -119,6 +119,11 @@ echo "==> 4/4  Lifecycle rules on all three"
 # they are claimed, so anything still there after a day is by construction an
 # orphan (docs/design/backend-upload-orphans.md).
 for b in "$PUBLIC_BUCKET" "$KYC_BUCKET" "$DEPOSIT_BUCKET"; do
+  # Matched by NAME, and production's equivalent is called
+  # `expire-unclaimed-uploads` — created by hand before this script existed.
+  # Harmless here (this script only ever names the staging buckets) but do not
+  # copy this check to a production counterpart without reconciling the names,
+  # or it will happily add a second rule for the same prefix.
   if $WRANGLER r2 bucket lifecycle list "$b" 2>&1 | grep -q 'expire-pending-uploads'; then
     echo "    ✓ $b already has the rule"
   else
