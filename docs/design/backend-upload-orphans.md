@@ -132,13 +132,36 @@ a dashboard is a design nobody can check.
   staging buckets — but a reader comparing the two should not conclude one is
   missing.
 
-- **Production has no provisioning script.** `infra/cloudflare/` holds
-  `90-staging-r2.sh` and nothing else, so production's buckets, CORS and
-  lifecycle exist only in Cloudflare. That is precisely why this question could
-  not be answered from the repository, and it is the gap worth closing next —
-  a production counterpart, or a read-only checker that asserts the live
-  configuration matches a manifest, the way `service_files_test.dart` pins the
-  GCP side.
+- **Production still has no provisioning script — and deliberately will not get
+  one.** `infra/cloudflare/` provisions staging only, so production's buckets,
+  CORS and lifecycle exist nowhere but in Cloudflare. That is why this question
+  could not be answered from the repository.
+
+  Closed with a **checker rather than a provisioner**:
+  `infra/cloudflare/95-verify-r2.sh` compares the live account to
+  `r2-manifest.json` and can only look. Pointing a creation script at an
+  environment configured by hand is how you get two lifecycle rules for one
+  prefix — `90-staging-r2.sh` decides "already there?" by grepping its own rule
+  name, and production's is called something else. Being unable to write is the
+  feature; `backend/test/infra/r2_manifest_test.dart` greps the script for
+  wrangler's mutating subcommands so that stays true.
+
+  The manifest asserts **properties, not a snapshot** — "a rule for this prefix
+  exists", "these methods are allowed" — because the two environments already
+  differ cosmetically (production allows any header and no `HEAD`; staging
+  names `content-type`, allows `HEAD` and exposes `etag`), and a checker that
+  failed on that would be switched off within a month. Rules are matched by
+  **prefix and action, never by name**, for the reason above.
+
+  The test is the other half and the only one CI can run: it compares the
+  manifest to the CODE (`lifecycle.prefix` must equal `kPendingPrefix`; the
+  bucket names must equal the literals `r2_token_scope_test.dart` pins), so a
+  manifest that drifts from what the backend does cannot go on blessing the
+  account. CI cannot run the live half — it has no Cloudflare identity, and
+  giving it one means a token with bucket-configuration rights, which is the
+  posture this section argues against.
+
+      bash infra/cloudflare/95-verify-r2.sh            # both environments
 
 - **`livetest/` expiry — still owed, and confirmed absent.** `wrangler` shows no
   such rule on `myweli-uploads`. Owner action, and deliberately so. Setting it via the
