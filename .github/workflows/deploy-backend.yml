@@ -105,7 +105,7 @@ jobs:
           echo "::error::Type 'deploy' in the confirm input to deploy production."
           exit 1
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Resolve this environment's target
         run: |
@@ -163,12 +163,12 @@ jobs:
 
       - id: auth
         name: Authenticate to Google Cloud (WIF, no key)
-        uses: google-github-actions/auth@v2
+        uses: google-github-actions/auth@v3
         with:
           workload_identity_provider: projects/731308991240/locations/global/workloadIdentityPools/github/providers/myweli-repo
           service_account: myweli-deployer@myweli.iam.gserviceaccount.com
 
-      - uses: google-github-actions/setup-gcloud@v2
+      - uses: google-github-actions/setup-gcloud@v3
 
       - name: Configure Docker for Artifact Registry
         run: gcloud auth configure-docker ${{ env.REGISTRY }} -q
