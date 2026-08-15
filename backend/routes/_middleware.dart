@@ -51,6 +51,7 @@ import 'package:myweli_backend/src/salon_provisioning_service.dart';
 import 'package:myweli_backend/src/subscription/salon_subscription_service.dart';
 import 'package:myweli_backend/src/subscription/subscription_scheduler.dart';
 import 'package:myweli_backend/src/upload_signing_service.dart';
+import 'package:myweli_backend/src/upload_verification_service.dart';
 
 /// Provides the process-wide singletons into every request's context, so
 /// handlers share state and the repository impls can be swapped in one place
@@ -86,6 +87,9 @@ Handler middleware(Handler handler) {
       .use(provider<ProviderDashboardService>((_) => providerDashboardService))
       .use(provider<ProviderEarningsService>((_) => providerEarningsService))
       .use(provider<UploadSigningService>((_) => uploadSigningService))
+      .use(
+        provider<UploadVerificationService>((_) => uploadVerificationService),
+      )
       .use(provider<FavoritesService>((_) => favoritesService))
       .use(provider<KycService>((_) => kycService))
       .use(provider<SalonProvisioningService>((_) => salonProvisioningService))

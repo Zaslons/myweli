@@ -122,6 +122,26 @@ Future<Response> _book(RequestContext context, String userId) async {
     return jsonError(HttpStatus.badRequest, 'invalid_body');
   }
 
+  // **Shape before cast.** Every `as String?` below sits OUTSIDE the try above,
+  // which only wraps `request.json()` — so `{"notes": 5}` threw a TypeError
+  // into the observability middleware and came back as a 500 plus a Sentry
+  // event, for what is plainly a bad request. Checked as a set rather than
+  // per-field so a future field cannot be added without one.
+  for (final k in const [
+    'providerId',
+    'appointmentDateTime',
+    'artistId',
+    'notes',
+    'depositScreenshotUrl',
+  ]) {
+    if (body[k] != null && body[k] is! String) {
+      return jsonError(HttpStatus.badRequest, 'invalid_input');
+    }
+  }
+  if (body['serviceIds'] != null && body['serviceIds'] is! List) {
+    return jsonError(HttpStatus.badRequest, 'invalid_input');
+  }
+
   final providerId = (body['providerId'] as String?)?.trim() ?? '';
   final serviceIds =
       (body['serviceIds'] as List?)?.whereType<String>().toList() ?? const [];
@@ -141,6 +161,12 @@ Future<Response> _book(RequestContext context, String userId) async {
     depositScreenshotUrl: body['depositScreenshotUrl'] as String?,
   );
   if (!result.ok) {
+    // **Written FIRST this time.** Not reachable on this branch — it becomes so
+    // the moment the booking-time deposit proof is claimed here (the promotion
+    // can fail on an unreachable bucket) — but the two comments below record
+    // the last two codes that shipped as bad requests precisely because their
+    // arm was written second. This switch has now burned that twice.
+    if (result.error == 'storage_unavailable') return storageUnavailable();
     final status = switch (result.error) {
       'provider_not_found' => HttpStatus.notFound,
       'slot_unavailable' => HttpStatus.conflict,

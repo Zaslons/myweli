@@ -6,11 +6,35 @@ import 'auth/auth_repository.dart';
 import 'auth/provider_auth_repository.dart';
 
 /// Standard error envelope (docs/BACKEND.md §2): `{ error, message? }`.
-Response jsonError(int statusCode, String error, [String? message]) =>
-    Response.json(
-      statusCode: statusCode,
-      body: {'error': error, if (message != null) 'message': message},
-    );
+Response jsonError(
+  int statusCode,
+  String error, [
+  String? message,
+  Map<String, String>? headers,
+]) => Response.json(
+  statusCode: statusCode,
+  headers: headers ?? const {},
+  body: {'error': error, if (message != null) 'message': message},
+);
+
+/// **Storage could not be reached** — the one upload failure that is ours, not
+/// the caller's.
+///
+/// `UploadVerificationService` fails CLOSED on an unreachable bucket, which is
+/// right, but the refusal then travelled as a **400** alongside
+/// `invalid_input` and `upload_too_large` — so "your file is wrong, fix it and
+/// resend" and "our storage blinked, send exactly that again" were the same
+/// answer. A client cannot tell those apart, and the honest one is the only
+/// one worth retrying.
+///
+/// `Retry-After` because a 503 conventionally invites a retry, and each
+/// retried claim costs a fresh HEAD against a bucket that is already failing.
+Response storageUnavailable() => jsonError(
+  HttpStatus.serviceUnavailable,
+  'storage_unavailable',
+  null,
+  const {'retry-after': '5'},
+);
 
 /// 405 for an unsupported verb.
 Response methodNotAllowed() =>
@@ -18,7 +42,14 @@ Response methodNotAllowed() =>
 
 /// Maps a service result's machine code to the conventional status: ok → 200
 /// with [body]; `not_found` → 404; `forbidden` → 403; `invalid_state` → 409;
-/// anything else → 400. Keeps the lifecycle route handlers thin.
+/// `storage_unavailable` → **503**; anything else → 400. Keeps the lifecycle
+/// route handlers thin.
+///
+/// **This is not the only mapping in the codebase.** `POST /appointments`,
+/// `POST /appointments/{id}/deposit` and `POST /appointments/{id}/review` each
+/// carry their own switch, so a code added here alone reaches two surfaces out
+/// of five — the trap `routes/appointments/index.dart` already documents in a
+/// comment about a 409 that shipped as a 400.
 Response resultResponse({
   required bool ok,
   required String? error,
@@ -34,6 +65,8 @@ Response resultResponse({
       return jsonError(HttpStatus.forbidden, 'verification_required');
     case 'invalid_state':
       return jsonError(HttpStatus.conflict, 'invalid_state');
+    case 'storage_unavailable':
+      return storageUnavailable();
     default:
       return jsonError(HttpStatus.badRequest, error ?? 'error');
   }

@@ -4,6 +4,8 @@ import '../clients/clients_service.dart';
 import '../providers_repository.dart';
 import '../salon_time.dart';
 import '../salon_visibility.dart';
+import '../storage/storage_service.dart';
+import '../upload_verification_service.dart';
 import 'appointment_repository.dart';
 import 'booking_window.dart';
 import 'slot_service.dart';
@@ -27,7 +29,9 @@ class BookingService {
     this._appointments,
     this._slots, {
     ClientsService? clients,
-  }) : _clients = clients;
+    UploadVerificationService? verifier,
+  }) : _clients = clients,
+       _verifier = verifier;
 
   final ProvidersRepository _providers;
   final AppointmentRepository _appointments;
@@ -36,6 +40,13 @@ class BookingService {
   /// Module `clients`: every booking upserts the salon's client row
   /// ("derived, not entered" — docs/modules/clients.md). Best-effort.
   final ClientsService? _clients;
+
+  /// Claim-time verification for a deposit screenshot attached inline at
+  /// booking (T61). Optional so existing construction sites and the local flow
+  /// keep working; the composition root always supplies it, which is what makes
+  /// `_screenshotKey` below a real control in production.
+  final UploadVerificationService? _verifier;
+
   final Random _random = Random.secure();
 
   Future<BookingResult> book({
@@ -49,6 +60,28 @@ class BookingService {
   }) async {
     if (serviceIds.isEmpty) {
       return (ok: false, error: 'no_services', appointment: null);
+    }
+    // **The deposit proof is a CLAIM, and it was never treated as one.** This
+    // field arrived as an opaque string and went straight into the column, from
+    // where `DepositService.screenshotUrl` presigns it for the consumer, the
+    // salon and admins — while that endpoint authorizes on the APPOINTMENT
+    // (`appt['userId'] == sub`), never on the key. So owning a booking was
+    // enough to have the server presign a key you do not own. (Bounded to the
+    // deposit bucket, which is a compile-time constant at the presign call
+    // site, and not enumerable — object ids are 16 bytes of `Random.secure()`.)
+    //
+    // The certain damage was the honest path, not the attack: the app attaches
+    // the key it was just signed, which is a PENDING one, and nothing here ever
+    // promoted it — so production's daily expiry deleted the payment proof for
+    // a real dispute while the row went on claiming one was attached. And no
+    // `objectSize` ever ran on it, so T61 simply did not apply to this path.
+    //
+    // Ownership first, and free: no I/O, so a forged key costs nothing and
+    // creates nothing. `DepositService.submit` has always done exactly this;
+    // the inline path is the one that never did.
+    if (depositScreenshotUrl != null &&
+        !depositScreenshotUrl.startsWith('${kPendingPrefix}deposit/$userId/')) {
+      return (ok: false, error: 'invalid_input', appointment: null);
     }
     // One question, asked in one place (`clientBookingRefusal`): missing,
     // suspended and not-yet-published each have their own code, and the
@@ -145,6 +178,28 @@ class BookingService {
       return (ok: false, error: 'slot_unavailable', appointment: null);
     }
 
+    // Size-check and PROMOTE, immediately before the insert: a refused upload
+    // must not leave a booking behind, and a promoted object must not outlive
+    // one. `verifyAndPromote` and not `promoteNewUrls` on purpose — this column
+    // holds a bare private KEY (the read presigns it directly), and at create
+    // time there is no prior row, so `alreadyStored` is empty by construction.
+    // The claim form is the correct one.
+    //
+    // Residual, stated: if the insert below then loses the slot race, one
+    // promoted screenshot is orphaned. Rare, and strictly better than the
+    // status quo, where EVERY screenshot was orphaned under `pending/` and
+    // then deleted.
+    var screenshotKey = depositScreenshotUrl;
+    if (screenshotKey != null && _verifier != null) {
+      final v = await _verifier.verifyAndPromote([
+        screenshotKey,
+      ], bucket: StorageBucket.deposit);
+      if (!v.ok) {
+        return (ok: false, error: v.error, appointment: null);
+      }
+      screenshotKey = v.keys.single;
+    }
+
     final depositRequired = provider['depositRequired'] as bool? ?? false;
     final pct = (provider['depositPercentage'] as num?)?.toDouble() ?? 0;
     final deposit = depositRequired ? total * pct : 0.0;
@@ -170,7 +225,7 @@ class BookingService {
       'clientName': null,
       'clientPhone': null,
       'notes': notes,
-      'depositScreenshotUrl': depositScreenshotUrl,
+      'depositScreenshotUrl': screenshotKey,
       'createdAt': DateTime.now().toUtc().toIso8601String(),
     };
     final created = await _appointments.create(appointment);

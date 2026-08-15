@@ -29,6 +29,26 @@ The provider detail screen shows `rating` + `reviewCount` + `reviews.take(5)`; t
 
 ## 3. API & contract
 - **`POST /appointments/{appointmentId}/review`** — **consumer** token. The appointment must belong to the caller (`userId == sub`) and be **`completed`** (→ 403 `forbidden` / `not_completed`). Body: `{ rating:1..5, text, photoUrls? }`. The server derives `providerId`, `artistId`/`artistName`, `serviceName` (from the appointment + the provider's services), `userName` (profile), `verified=true`, `id`, `createdAt`. **One review per appointment** — resubmitting replaces it (upsert on `appointment_id`). → **201** the stored `Review`; recomputes provider + artist ratings.
+
+  **Photos on a resubmit (2026-08-15).** A wholesale replace re-sends urls the
+  server itself issued, so a `photoUrls` entry may be either a **new** upload
+  (still under `pending/`, which is promoted and stored at its promoted url) or
+  **exactly** one already stored on this appointment's review, which passes
+  through untouched. Anything else → 400 `invalid_input`. Matching is by
+  membership against the stored row, never by shape — a promoted-looking url is
+  indistinguishable from one the client invented.
+
+  Two consequences worth stating. **The promotion runs AFTER the ownership and
+  status checks**, so a refused request never moves an object out of `pending/`
+  (it used to: the block sat above them, and `AppointmentRepository.byId` is not
+  ownership-scoped, so any caller could orphan objects nothing collects).
+  And **a dropped photo is not deleted** — no save path in this codebase deletes
+  a dropped object, and while the forms send an empty list on every resubmit the
+  "dropped set" is every photo, involuntarily. Revisit when the forms prefill.
+
+  **The forms do not prefill.** Rating, text and photos all start blank on both
+  clients, and no endpoint returns the caller's own review, so "modifier un
+  avis" is not a flow that exists — see §9.
 - **`GET /providers/{id}/reviews?page=&pageSize=`** — **public**, paginated `{ items, page, pageSize, total }`, newest first; `pageSize` clamped (default 20, max 50).
 - **`GET /providers/{id}`** now returns accurate `rating`/`reviewCount` (+ per-artist in `artists[]`) and a **bounded recent `reviews`** array (latest 10).
 
@@ -94,3 +114,29 @@ CREATE INDEX IF NOT EXISTS reviews_provider_idx ON reviews (provider_id, created
 2. **Post-completion gated** — must be the caller's own `completed` appointment; `verified` always true. ✓
 3. **Flat, newest-first feed** with service + artist per card (not grouped-by-user). ✓
 4. **Photos accepted now** — `photoUrls` ≤ 6, validated + origin-allowlisted like the gallery (uploaded via the R2 pipeline). ✓
+
+## 9. Open — « modifier un avis » is not a flow
+
+Both forms are write-only: `_selectedRating = 0`, an empty text controller and
+`_photoUrls = []` on mobile; `useState(0)/useState('')/useState<string[]>([])`
+on web. Neither component can even *receive* an existing review — the mobile
+sheet takes providerId/appointmentId/artistName/onSubmitted, the web component
+takes `{ appointmentId }`. Every entry point gates on `status == 'completed'`
+alone, with no already-reviewed check, and the copy is « Donner mon avis » /
+« Laisser un avis » on both. The word « modifier » appears on no review surface.
+
+So a user who reviews twice gets a blank form and retypes rating and text
+**because they can see those fields are empty**. Photos are the one field where
+the loss is invisible: the form never showed them, so there is no cue to
+re-attach, and the submit replaces a populated `photo_urls` with `[]`.
+
+Making that work is a **feature, not a bug fix**, and it needs decisions this
+spec cannot make alone:
+
+- a read for the caller's own review (`GET /appointments/{id}/review`, mirroring
+  the GET+POST shape of `/me/kyc`), plus the client service/mock/BFF wiring;
+- an « already reviewed » state on both entry points, and copy for it;
+- the photo cap disagreement: the backend allows 6, both clients allow 3;
+- whether editing should then delete the photos it drops (see §3).
+
+Deliberately not built alongside the claim-path fix.

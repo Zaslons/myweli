@@ -79,10 +79,11 @@ void main() {
     const victim = 'A';
     const bystander = 'B';
 
-    AuthUser userRow(String id) => AuthUser(
+    AuthUser userRow(String id, {String? avatarUrl}) => AuthUser(
       id: id,
       phoneNumber: '+225070000000$id',
       name: 'Awa $id',
+      avatarUrl: avatarUrl,
       createdAt: DateTime.utc(2026),
     );
 
@@ -169,12 +170,18 @@ void main() {
       clients = InMemoryClientsRepository();
       erasedObjects = <String>[];
 
-      when(
-        () => auth.userById(victim),
-      ).thenAnswer((_) async => userRow(victim));
-      when(
-        () => auth.userById(bystander),
-      ).thenAnswer((_) async => userRow(bystander));
+      when(() => auth.userById(victim)).thenAnswer(
+        (_) async => userRow(
+          victim,
+          avatarUrl: 'https://cdn.myweli.com/avatar/$victim/face.jpg',
+        ),
+      );
+      when(() => auth.userById(bystander)).thenAnswer(
+        (_) async => userRow(
+          bystander,
+          avatarUrl: 'https://cdn.myweli.com/avatar/$bystander/face.jpg',
+        ),
+      );
       when(() => auth.userById('ghost')).thenAnswer((_) async => null);
       when(() => auth.deleteUser(any())).thenAnswer((_) async => true);
       when(() => auth.deleteUser('ghost')).thenAnswer((_) async => false);
@@ -360,6 +367,58 @@ void main() {
         erasedObjects.where((p) => p.contains('review/$bystander/')),
         isEmpty,
       );
+    });
+
+    test('the AVATAR object is erased — it was missed entirely', () async {
+      // A public object with nothing pointing at it once step 8 deletes the
+      // row. The cascade fetched the user for a null check and threw the row
+      // away, so `avatarUrl` was never read by anything.
+      expect((await erase(victim)).statusCode, HttpStatus.noContent);
+      expect(
+        erasedObjects.where((p) => p.contains('avatar/$victim/')),
+        hasLength(1),
+      );
+      expect(
+        erasedObjects.where((p) => p.contains('avatar/$bystander/')),
+        isEmpty,
+        reason: 'the bystander is on every assertion, or it proves nothing',
+      );
+    });
+
+    test(
+      'a FOREIGN avatar url on your own row is skipped, not fetched',
+      () async {
+        // The own-prefix filter is what stops erasure becoming a cross-tenant
+        // DELETE primitive: a value planted on this column would otherwise be
+        // presign-deleted under our own credentials.
+        when(() => auth.userById(victim)).thenAnswer(
+          (_) async => userRow(
+            victim,
+            avatarUrl: 'https://cdn.myweli.com/avatar/$bystander/face.jpg',
+          ),
+        );
+        expect((await erase(victim)).statusCode, HttpStatus.noContent);
+        expect(
+          erasedObjects.where((p) => p.contains('avatar/')),
+          isEmpty,
+          reason: "another user's object must survive this user's erasure",
+        );
+      },
+    );
+
+    test('a social-login picture URL is skipped', () async {
+      // `avatarUrl` also holds the Google/Apple `picture` at sign-up, which is
+      // not ours and not deletable. It falls out of the prefix check for free —
+      // which is the reason to go through `_eraseObjects` rather than
+      // hand-rolling a delete beside it.
+      when(() => auth.userById(victim)).thenAnswer(
+        (_) async => userRow(
+          victim,
+          avatarUrl: 'https://lh3.googleusercontent.com/a/ACg8ocK',
+        ),
+      );
+      expect((await erase(victim)).statusCode, HttpStatus.noContent);
+      expect(erasedObjects.where((p) => p.contains('avatar/')), isEmpty);
     });
 
     test('a filed report is deleted, not tombstoned', () async {

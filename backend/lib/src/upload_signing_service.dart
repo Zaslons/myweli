@@ -14,11 +14,27 @@ typedef SignResult = ({bool ok, String? error, Map<String, dynamic>? data});
 /// built server-side from the token**, so a salon can only write under its own
 /// prefix — the client never chooses the path. Content-type is allowlisted and
 /// the size cap is advisory until claim-time verification lands; bytes never pass through the API.
-/// Two purposes (designs: pro-image-upload-pipeline.md, pro-kyc.md):
+/// Five purposes — the header said "two" for three purposes' worth of drift.
+/// Designs: pro-image-upload-pipeline.md, pro-kyc.md, consumer-deposit.md,
+/// reviews-photos-reporting.md, consumer-avatar-upload.md.
+///
+/// PROVIDER token:
 /// - `gallery` → **public** bucket, prefix `gallery/{providerId}` (needs a
 ///   linked salon), returns a `publicUrl`.
 /// - `kyc` → **private** bucket, prefix `kyc/{accountId}`, returns the `key`
 ///   only (no public URL — ID documents are never public); accepts PDF too.
+///
+/// CONSUMER token:
+/// - `deposit` → **private** bucket, prefix `deposit/{userId}`, key only.
+/// - `review` → **public** bucket, prefix `review/{userId}`.
+/// - `avatar` → **public** bucket, prefix `avatar/{userId}`.
+///
+/// **The purpose string IS the storage namespace** — it is interpolated into
+/// the key and promotion only strips `pending/`. So a purpose is not a label:
+/// it is the prefix that erasure, moderation and any future lifecycle rule will
+/// reason about, forever. That is why the avatar got its own rather than
+/// borrowing `review`'s, which would have been free in code and wrong in data
+/// (docs/design/consumer-avatar-upload.md §3).
 class UploadSigningService {
   UploadSigningService(this._providerAuth, this._members, this._storage);
 
@@ -53,7 +69,9 @@ class UploadSigningService {
     // Consumer review photos (P2b, audit 2.13): public like gallery, but
     // scoped to the USER token — review/{userId}.
     final isReview = purpose == 'review';
-    if (!isGallery && !isKyc && !isDeposit && !isReview) {
+    // Consumer profile photo — same shape as a review photo, its OWN prefix.
+    final isAvatar = purpose == 'avatar';
+    if (!isGallery && !isKyc && !isDeposit && !isReview && !isAvatar) {
       return (ok: false, error: 'invalid_input', data: null);
     }
     // KYC accepts PDF; gallery + deposit (screenshots) are images only.
@@ -70,8 +88,11 @@ class UploadSigningService {
     if (isDeposit) {
       prefixId = accountId;
       bucket = StorageBucket.deposit;
-    } else if (isReview) {
-      // Public (review tiles render them), under the caller's own prefix.
+    } else if (isReview || isAvatar) {
+      // Public (review tiles and profile photos both render), under the
+      // caller's own prefix. They share this branch and NOT their key prefix:
+      // `purpose` is interpolated below, so they land in separate namespaces —
+      // which is the whole point (docs/design/consumer-avatar-upload.md §3).
       prefixId = accountId;
       bucket = StorageBucket.public;
     } else if (isKyc) {

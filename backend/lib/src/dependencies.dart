@@ -321,6 +321,9 @@ final BookingService bookingService = BookingService(
   appointmentRepository,
   slotService,
   clients: clientsService,
+  // T61 + ownership for a deposit screenshot attached inline at booking. Absent
+  // here, `book` stores whatever string arrived — which is what it used to do.
+  verifier: uploadVerificationService,
 );
 
 final AppointmentLifecycleService appointmentLifecycleService =
