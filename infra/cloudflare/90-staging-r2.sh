@@ -4,8 +4,8 @@
 #
 # WHY THIS IS A SCRIPT AND NOT A CHECKLIST. The plan called this "the only
 # genuinely un-scriptable blocker", and most of it turned out not to be:
-# `wrangler` creates buckets, sets CORS from a file, sets lifecycle from a file
-# and enables the r2.dev origin. Only ONE step actually needs the dashboard —
+# `wrangler` creates buckets, sets CORS from a file, adds lifecycle rules from
+# flags and enables the r2.dev origin. Only ONE step actually needs the dashboard —
 # minting the API token — because Cloudflare does not expose token creation to a
 # token. That step is called out below rather than buried.
 #
