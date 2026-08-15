@@ -174,18 +174,25 @@ spec:
             - name: CRON_SECRET
               valueFrom:
                 secretKeyRef: { name: STAGING_CRON_SECRET, key: latest }
-            # **`CRON_OIDC_AUDIENCE` / `CRON_SERVICE_ACCOUNT` are deliberately
-            # absent here, and this is the one place staging is behind
-            # production.** The audience must equal the Scheduler job's, which
-            # for staging is its own `*.run.app` URL — a value that does not
-            # exist until the service is first created. Setting production's
-            # here would be worse than leaving it out: the audience would then
-            # name a host this service is not, and `authenticate()` would fall
-            # through to the shared secret while looking configured.
+            # The audience must equal the Scheduler job's, and for staging that
+            # is the service's own `*.run.app` URL — a value that did not exist
+            # until `90-staging.sh` created the service, which is why this pair
+            # landed after the rest of the file.
             #
-            # Filled in by `90-staging.sh` (not yet written — build-order step 4)
-            # in the same run that creates the Scheduler jobs, which are created
-            # PAUSED, so nothing calls these routes in the interim.
+            # **It is `status.url`, not the other one.** Cloud Run publishes TWO
+            # run.app hostnames for one service: `gcloud run services replace`
+            # printed `myweli-api-staging-731308991240.europe-west9.run.app`
+            # while `status.url` — what the Scheduler jobs were pointed at — is
+            # the value below. They must match or the OIDC check fails and
+            # `authenticate()` falls through to the shared secret while looking
+            # configured, which is the failure this whole pair exists to remove.
+            #
+            # Production's audience here would be worse than none: it would name
+            # a host this service is not.
+            - name: CRON_OIDC_AUDIENCE
+              value: https://myweli-api-staging-5a24ymhbbq-od.a.run.app
+            - name: CRON_SERVICE_ACCOUNT
+              value: myweli-scheduler@myweli.iam.gserviceaccount.com
             # Messaging is disabled here, so nothing will ever call the delivery
             # webhook — but unset means the webhook is OPEN (deny-by-default is
             # off when there is no secret to compare), and this service is
