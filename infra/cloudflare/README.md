@@ -102,3 +102,29 @@ and the ordering is the safety property: create a scoped
 disabling the old ones, deploy, verify with `R2_TOKEN_UNDER_TEST=production`, and
 only then delete both old tokens. The verification exists precisely so that the
 deletion is not the first time anyone finds out.
+
+## Checking what is already there
+
+`90-staging-r2.sh` **creates** staging. Production was configured by hand before
+it existed and must not be pointed at a provisioning script: that script decides
+whether a lifecycle rule is present by grepping its own rule name, and
+production named the same rule differently — so a run would add a second rule
+for the same prefix rather than recognising the first.
+
+For an environment that already exists, use the checker:
+
+```bash
+bash infra/cloudflare/95-verify-r2.sh production
+bash infra/cloudflare/95-verify-r2.sh staging
+bash infra/cloudflare/95-verify-r2.sh            # both
+```
+
+It compares the live account to `r2-manifest.json` and **can only read** — no
+create, no delete, no `cors set`, no `lifecycle add`. That is enforced, not
+promised: `backend/test/infra/r2_manifest_test.dart` fails if a mutating
+wrangler subcommand appears in it, comments included.
+
+Needs `wrangler login`. It is not a CI job on purpose — CI has no Cloudflare
+identity, and giving it one would mean a token that can reconfigure buckets.
+The half that CAN run in CI is that same test, which pins the manifest against
+the backend's own constants.
