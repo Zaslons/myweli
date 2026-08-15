@@ -24,6 +24,7 @@ import 'package:myweli_backend/src/privacy/user_erasure_service.dart';
 import 'package:myweli_backend/src/push/device_token_repository.dart';
 import 'package:myweli_backend/src/reviews_repository.dart';
 import 'package:myweli_backend/src/storage/storage_service.dart';
+import 'package:myweli_backend/src/upload_verification_service.dart';
 import 'package:test/test.dart';
 
 import '../../routes/auth/otp/request.dart' as otp_request;
@@ -59,6 +60,13 @@ void main() {
       () => context.read<AuthMethods>(),
     ).thenReturn(const AuthMethods(AuthMethods.defaults));
     when(() => context.read<TokenService>()).thenReturn(ts);
+    // `PATCH /me` promotes a new avatar out of `pending/`. A Fake reports a
+    // null `publicBaseUrl`, which is what dev means and what makes the
+    // promotion no-op here — the promotion itself is covered against a
+    // configured origin in test/upload_promotion_test.dart.
+    when(
+      () => context.read<UploadVerificationService>(),
+    ).thenReturn(UploadVerificationService(storage: FakeStorageService()));
     when(() => context.read<MessagingService>()).thenReturn(messaging);
     when(() => context.read<ClientsService>()).thenReturn(() {
       final providerAuth = InMemoryProviderAuthRepository(

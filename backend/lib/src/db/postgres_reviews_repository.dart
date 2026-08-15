@@ -160,6 +160,21 @@ ON CONFLICT (appointment_id) DO UPDATE SET
   }
 
   @override
+  Future<Map<String, dynamic>?> reviewByAppointment(
+    String appointmentId,
+  ) async {
+    // No ORDER BY / LIMIT: `appointment_id text NOT NULL UNIQUE` (migration
+    // 0011) is what "one review per visit" means, and it supplies the index.
+    // No `moderation_status` filter — see the interface doc.
+    final rows = await _pool.execute(
+      Sql.named('SELECT * FROM reviews WHERE appointment_id = @appt'),
+      parameters: {'appt': appointmentId},
+    );
+    if (rows.isEmpty) return null;
+    return _dto(rows.first.toColumnMap());
+  }
+
+  @override
   Future<void> addReport(
     String reviewId,
     String reporterUserId,
