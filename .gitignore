@@ -37,6 +37,8 @@
 .claude/settings.local.json
 .claude/*.local.json
 .claude/.session*
+# Agent worktrees — transient checkouts, never part of the tree
+.claude/worktrees/
 
 # Wrangler's local cache. Created by `wrangler login` / any `wrangler` command
 # run from the repo root. `cache/wrangler-account.json` holds the Cloudflare

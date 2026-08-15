@@ -44,6 +44,9 @@ Future<Response> onRequest(RequestContext context, String id) async {
       return jsonError(HttpStatus.forbidden, 'forbidden');
     case 'not_completed':
       return jsonError(HttpStatus.forbidden, 'not_completed');
+    // Ours, not the caller's — and the only one here worth retrying.
+    case 'storage_unavailable':
+      return storageUnavailable();
     default:
       return jsonError(HttpStatus.badRequest, r.error ?? 'invalid_input');
   }

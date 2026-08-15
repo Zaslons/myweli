@@ -56,9 +56,21 @@ echo "==> 1/7  Cloud SQL instance ${INSTANCE}"
 if gcloud sql instances describe "$INSTANCE" --project="$PROJECT" >/dev/null 2>&1; then
   echo "    ✓ already exists"
 else
+  # **The edition is pinned, and that is not cosmetic.** Production is
+  # ENTERPRISE; gcloud's own default is now ENTERPRISE_PLUS, which refuses
+  # shared-core tiers outright:
+  #
+  #   Invalid Tier (db-f1-micro) for (ENTERPRISE_PLUS) Edition
+  #
+  # The first run of this script died exactly there. The edition had been read
+  # off the live instance along with the rest of the parity — tier, disk,
+  # zonality, SSL mode — and then not carried into the command. A property that
+  # matters, observed and dropped. Left unpinned it would also fail differently
+  # depending on WHEN the script ran, since the default is Google's to change.
   gcloud sql instances create "$INSTANCE" \
     --project="$PROJECT" \
     --database-version=POSTGRES_16 \
+    --edition=ENTERPRISE \
     --tier=db-f1-micro \
     --region="$REGION" \
     --availability-type=zonal \

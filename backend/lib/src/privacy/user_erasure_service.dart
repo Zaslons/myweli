@@ -72,7 +72,10 @@ class UserErasureService {
   /// up and the guarantee inverts: a partial failure becomes unrecoverable, and
   /// silently so.
   Future<({bool ok, String? error})> eraseUser(String userId) async {
-    if (await _auth.userById(userId) == null) {
+    // The row was fetched for a null check and thrown away; the avatar url is
+    // on it, and step 7 needs it. Read once, use twice.
+    final user = await _auth.userById(userId);
+    if (user == null) {
       return (ok: false, error: 'not_found');
     }
 
@@ -147,6 +150,22 @@ class UserErasureService {
     //    docs/design/account-deletion-erasure.md §11 rather than papered over.
     await _eraseObjects(depositKeys, 'deposit/$userId/', StorageBucket.deposit);
     await _eraseObjects(reviewPhotos, 'review/$userId/', StorageBucket.public);
+    //    The AVATAR was missed entirely: a public object, deleted from nothing,
+    //    while the row holding the only pointer to it goes at step 8. It has
+    //    its own prefix precisely so this line can exist — under `review/` it
+    //    would either be skipped (it never enters `reviews.photo_urls`) or, if
+    //    §11's sweep ever lands, take other people's review photos with it.
+    //
+    //    Through `_eraseObjects` and NOT a hand-rolled delete: the helper
+    //    normalises a url to a key and then enforces the own-prefix filter, so
+    //    a Google OAuth `picture` url sitting in this column is skipped rather
+    //    than fetched, and a foreign key planted on the row cannot turn erasure
+    //    into a cross-tenant delete primitive.
+    await _eraseObjects(
+      [if (user.avatarUrl != null) user.avatarUrl!],
+      'avatar/$userId/',
+      StorageBucket.public,
+    );
 
     // 8. And only now the identity.
     final ok = await _auth.deleteUser(userId);

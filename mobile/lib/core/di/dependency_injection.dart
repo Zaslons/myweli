@@ -80,6 +80,7 @@ class ServiceLocator {
   late final ProTeamServiceInterface proTeamService;
   late final ImageUploadServiceInterface imageUploadService;
   late final ImageUploadServiceInterface reviewImageUploadService;
+  late final ImageUploadServiceInterface avatarImageUploadService;
   late final ReviewServiceInterface reviewService;
   late final MessagingServiceInterface messagingService;
   late final PushNotificationServiceInterface pushNotificationService;
@@ -186,17 +187,31 @@ class ServiceLocator {
     // silent refresh; mock echoes the source in demo mode.
     imageUploadService = AppConfig.useApiBackend
         ? ApiImageUploadService(
-            providerSessionStore: SecureSessionStore(
-              key: 'myweli_provider_session',
-            ),
+            sessionStore: SecureSessionStore(key: 'myweli_provider_session'),
           )
         : MockImageUploadService();
     // Consumer review photos (P2b): same pipeline, CONSUMER session +
     // `purpose=review` (public, review/{userId}-scoped server-side).
     reviewImageUploadService = AppConfig.useApiBackend
         ? ApiImageUploadService(
-            providerSessionStore: SecureSessionStore(),
+            sessionStore: SecureSessionStore(),
             purpose: 'review',
+            refreshPath: '/auth/refresh',
+          )
+        : MockImageUploadService();
+    // The consumer PROFILE photo. A third slot rather than a reuse of the one
+    // above: `purpose` is interpolated into the object key, so it is the
+    // storage namespace erasure and moderation reason about — an avatar filed
+    // under `review/{userId}/` is both never erased today and swept by a
+    // future review-prefix cleanup. docs/design/consumer-avatar-upload.md §3.
+    //
+    // `AuthProvider` read `imageUploadService` — the PRO instance — so in API
+    // mode the consumer avatar upload died on an empty provider session before
+    // it ever reached the network.
+    avatarImageUploadService = AppConfig.useApiBackend
+        ? ApiImageUploadService(
+            sessionStore: SecureSessionStore(),
+            purpose: 'avatar',
             refreshPath: '/auth/refresh',
           )
         : MockImageUploadService();

@@ -1,6 +1,7 @@
 /// Consumer deposit-proof upload (module online-booking K2 — the app's
 /// pay-later flow on web): 1) the BFF presigns a private deposit upload
-/// (`/api/uploads/sign`, purpose fixed server-side), 2) the bytes POST
+/// (`/api/uploads/sign?purpose=deposit`; the key is server-scoped to the
+/// caller's own prefix), 2) the bytes POST
 /// **directly to storage** (never through our API), 3) the opaque key is
 /// attached to the booking via `POST /api/appointments/{id}/deposit`.
 /// Unit-tested with a mocked fetch.
@@ -16,7 +17,11 @@ export async function uploadDepositProof(file: File): Promise<string | null> {
   const signRes = await fetch('/api/uploads/sign', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ contentType: file.type }),
+    // Explicit. This used to send no purpose at all and rely on the BFF
+    // COERCING an unknown value to `deposit` — which meant a typo anywhere
+    // else silently signed a deposit too. The BFF now rejects, so every caller
+    // says what it wants.
+    body: JSON.stringify({ contentType: file.type, purpose: 'deposit' }),
   });
   if (!signRes.ok) return null;
   const sign = (await signRes.json().catch(() => ({}))) as SignResponse;

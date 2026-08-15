@@ -62,16 +62,77 @@ One radio button, no error, and nothing else in the system can tell. So it is no
 left as an instruction:
 
 ```bash
-R2_ACCOUNT_ID=… R2_ACCESS_KEY_ID=<staging> R2_SECRET_ACCESS_KEY=<staging> \
+R2_ACCOUNT_ID=… R2_ACCESS_KEY_ID=… R2_SECRET_ACCESS_KEY=… \
+  R2_TOKEN_UNDER_TEST=staging \
   dart test --tags r2 test/storage/r2_token_scope_test.dart
 ```
 
 It signs a GET for a key that does not exist — read-only, leaves nothing behind —
 and reads the answer: **404** from a bucket the token may address, **403** from
-one it may not. It asserts the staging buckets answer 404 **and** the production
-buckets answer 403. Both halves, because a revoked credential is denied
-everywhere and would sail through a check that only looked at the production side.
+one it may not. It asserts the reachable buckets answer 404 **and** the forbidden
+ones answer 403. Both halves, because a revoked credential is denied everywhere
+and would sail through a check that only looked at one side.
 
-**Check production's own token the same way while you are in that screen.** If it
-was created as "apply to all buckets", staging inherits the blast radius no matter
-how carefully this one is scoped.
+`R2_TOKEN_UNDER_TEST` picks which side the credential is — `staging` (default) or
+`production` — and the two expectations swap. **The bucket lists stay literals
+either way**: the variable selects between two hard-coded lists and cannot supply
+or empty one, because a list coming from the same environment as the credential
+could be emptied to make the test pass. An unrecognised value throws rather than
+defaulting, for the same reason `Env.parse` does.
+
+Proven to discriminate rather than merely to assert: the staging token passes as
+`staging` and **fails six of seven** as `production`.
+
+## Production's token is NOT scoped — checked 2026-08-15
+
+The staging token is correct: `myweli-staging-backend-r2`, applied to exactly the
+three `*-staging` buckets. Production's is not.
+
+The account holds **two** Account API tokens named `R2 Account Token`, both
+`Object Read & Write`, both applied to **All buckets**, both issued 2026-06-28,
+both Active. There are no User API tokens.
+
+Two separate problems:
+
+- **Production's credential can reach every bucket in the account**, staging
+  included — the blast radius runs the opposite way from the one this directory
+  was written to close. Bounded, since staging holds synthetic data, but far
+  broader than `infra/gcp/service.yaml` needs: only `myweli-uploads`,
+  `myweli-kyc-private` and `myweli-deposits-private`.
+- **Only one of the two can be in use.** The other is an unidentified live
+  credential with account-wide access, and the dashboard does not list access key
+  IDs, so which row matches the value in Secret Manager cannot be told by
+  inspection.
+
+The fix has the same shape as `infra/gcp/40-iam-wif.sh`'s widen/verify/narrow,
+and the ordering is the safety property: create a scoped
+`myweli-production-backend-r2`, add new Secret Manager versions **without**
+disabling the old ones, deploy, verify with `R2_TOKEN_UNDER_TEST=production`, and
+only then delete both old tokens. The verification exists precisely so that the
+deletion is not the first time anyone finds out.
+
+## Checking what is already there
+
+`90-staging-r2.sh` **creates** staging. Production was configured by hand before
+it existed and must not be pointed at a provisioning script: that script decides
+whether a lifecycle rule is present by grepping its own rule name, and
+production named the same rule differently — so a run would add a second rule
+for the same prefix rather than recognising the first.
+
+For an environment that already exists, use the checker:
+
+```bash
+bash infra/cloudflare/95-verify-r2.sh production
+bash infra/cloudflare/95-verify-r2.sh staging
+bash infra/cloudflare/95-verify-r2.sh            # both
+```
+
+It compares the live account to `r2-manifest.json` and **can only read** — no
+create, no delete, no `cors set`, no `lifecycle add`. That is enforced, not
+promised: `backend/test/infra/r2_manifest_test.dart` fails if a mutating
+wrangler subcommand appears in it, comments included.
+
+Needs `wrangler login`. It is not a CI job on purpose — CI has no Cloudflare
+identity, and giving it one would mean a token that can reconfigure buckets.
+The half that CAN run in CI is that same test, which pins the manifest against
+the backend's own constants.

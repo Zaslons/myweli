@@ -447,6 +447,62 @@ void main() {
     });
   });
 
+  group('cron OIDC — the pair that must agree with the Scheduler job', () {
+    // `CronAuth` verifies the Google-signed token only when BOTH are set. They
+    // were absent from production for the whole life of the feature, so every
+    // cron run authenticated on the shared `X-Cron-Secret` header while the
+    // better mechanism looked configured.
+    test('both environments set both variables', () {
+      for (final entry in files.entries) {
+        for (final key in ['CRON_OIDC_AUDIENCE', 'CRON_SERVICE_ACCOUNT']) {
+          expect(
+            plainEnv(entry.value, key),
+            isNotNull,
+            reason:
+                '${entry.key}: without $key the OIDC path is inert and '
+                'CronAuth silently falls back to the shared secret',
+          );
+        }
+      }
+    });
+
+    test('the audiences are DIFFERENT, and staging is not production', () {
+      final prod = plainEnv(files['prod']!, 'CRON_OIDC_AUDIENCE')!;
+      final staging = plainEnv(files['staging']!, 'CRON_OIDC_AUDIENCE')!;
+      expect(prod, 'https://api.myweli.com');
+      expect(
+        staging,
+        isNot(prod),
+        reason:
+            'staging carrying production\'s audience would name a host it '
+            'is not, so every OIDC check fails and authenticate() falls through '
+            'to the shared secret — configured, and doing nothing',
+      );
+      expect(
+        staging,
+        contains('.run.app'),
+        reason:
+            'staging has no load balancer; its audience is its own run.app '
+            'URL — and specifically `status.url`, since Cloud Run publishes two '
+            'hostnames for one service and only one is what the Scheduler job '
+            'was pointed at',
+      );
+    });
+
+    test('the service account is the Scheduler\'s, and shared', () {
+      // Not a credential — it is the principal CronAuth pins the token to.
+      // Without it the audience is a public string any Google account can mint
+      // a token for, which is not a check.
+      for (final entry in files.entries) {
+        expect(
+          plainEnv(entry.value, 'CRON_SERVICE_ACCOUNT'),
+          'myweli-scheduler@myweli.iam.gserviceaccount.com',
+          reason: entry.key,
+        );
+      }
+    });
+  });
+
   group('the deploy substitutions', () {
     test('both files still carry the placeholders the workflow replaces', () {
       for (final name in ['service.yaml', 'service-staging.yaml']) {

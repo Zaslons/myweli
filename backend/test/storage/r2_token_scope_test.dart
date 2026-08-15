@@ -36,8 +36,26 @@ import 'package:test/test.dart';
 /// composition root builds it. A bespoke signer here would prove something
 /// about the test rather than about what ships.
 ///
+/// ## It runs in BOTH directions
+///
+/// `R2_TOKEN_UNDER_TEST` selects which side the supplied credential is supposed
+/// to be, and the two expectations swap:
+///
+///   · `staging` (default) → reaches the three staging buckets, refused by prod
+///   · `production`        → reaches the three prod buckets, refused by staging
+///
+/// **The bucket lists themselves stay literals either way.** The variable
+/// selects between two hard-coded lists; it cannot supply or empty one. A list
+/// coming from the same environment that supplies the credential could be
+/// emptied to make the test pass, which would make it a test of nothing.
+///
+/// An unrecognised value **throws** rather than defaulting — the same reason
+/// `Env.parse` does: a typo that silently means "staging" would verify the
+/// wrong direction and report success.
+///
 ///   R2_ACCOUNT_ID=… \
-///   R2_ACCESS_KEY_ID=<staging> R2_SECRET_ACCESS_KEY=<staging> \
+///   R2_ACCESS_KEY_ID=… R2_SECRET_ACCESS_KEY=… \
+///   R2_TOKEN_UNDER_TEST=production \
 ///     dart test --tags r2 test/storage/r2_token_scope_test.dart
 ///
 /// Design: docs/design/infra-staging.md §2 · infra/cloudflare/90-staging-r2.sh
@@ -50,28 +68,43 @@ void main() {
   if ([account, keyId, secret].any((v) => v == null || v.isEmpty)) {
     group(
       'R2 token scope (skipped — set R2_ACCOUNT_ID/ACCESS_KEY_ID/SECRET_ACCESS_KEY)',
-      () => test('needs the staging credentials', () {}),
-      skip: 'requires the staging R2 token',
+      () => test('needs an R2 token to check', () {}),
+      skip: 'requires a real R2 token; set R2_TOKEN_UNDER_TEST to pick a side',
     );
     return;
   }
 
-  /// The three staging buckets the token is supposed to reach.
-  const staging = [
+  /// Both lists are literals. They are the *assertion*; a list supplied by the
+  /// same environment that supplies the credential could be emptied to make the
+  /// test pass.
+  const stagingBuckets = [
     'myweli-uploads-staging',
     'myweli-kyc-private-staging',
     'myweli-deposits-private-staging',
   ];
-
-  /// The three production buckets it must not. Named here rather than read from
-  /// env on purpose — this list is the *assertion*, and a list supplied by the
-  /// same environment that supplies the credential could be emptied to make the
-  /// test pass.
-  const production = [
+  const productionBuckets = [
     'myweli-uploads',
     'myweli-kyc-private',
     'myweli-deposits-private',
   ];
+
+  /// Which side the supplied credential claims to be. Unrecognised → throw, not
+  /// default: a typo that quietly meant `staging` would verify the opposite of
+  /// what the operator intended and report success.
+  final which = (env['R2_TOKEN_UNDER_TEST'] ?? 'staging').trim().toLowerCase();
+  if (which != 'staging' && which != 'production') {
+    throw StateError(
+      'R2_TOKEN_UNDER_TEST="$which" is not a known side — use staging or '
+      'production. Defaulting would verify the wrong direction and pass.',
+    );
+  }
+  final isStagingToken = which == 'staging';
+
+  /// The buckets this credential is SUPPOSED to reach, and the ones it must not.
+  final reachable = isStagingToken ? stagingBuckets : productionBuckets;
+  final forbidden = isStagingToken ? productionBuckets : stagingBuckets;
+  final side = isStagingToken ? 'staging' : 'production';
+  final otherSide = isStagingToken ? 'production' : 'staging';
 
   final client = HttpClient();
   tearDownAll(client.close);
@@ -100,17 +133,16 @@ void main() {
     return (status: res.statusCode, body: body);
   }
 
-  group('the staging token REACHES every staging bucket', () {
-    for (final bucket in staging) {
+  group('the $side token REACHES every $side bucket', () {
+    for (final bucket in reachable) {
       test(bucket, () async {
         final r = await probe(bucket);
         expect(
           r.body,
           isNot(contains('AccessDenied')),
           reason:
-              '$bucket refused the staging token. Either the bucket is missing '
-              '(run infra/cloudflare/90-staging-r2.sh) or the token was scoped '
-              'to fewer buckets than the three staging needs. '
+              '$bucket refused the $side token. Either the bucket is missing '
+              'or the token was scoped to fewer buckets than $side needs. '
               'Got ${r.status}: ${r.body}',
         );
         expect(
@@ -125,20 +157,20 @@ void main() {
     }
   });
 
-  group('and CANNOT reach any production bucket', () {
-    for (final bucket in production) {
+  group('and CANNOT reach any $otherSide bucket', () {
+    for (final bucket in forbidden) {
       test(bucket, () async {
         final r = await probe(bucket);
         expect(
           r.status,
           isNot(404),
           reason:
-              '**$bucket answered as if the token may address it.** The staging '
-              'R2 token is account-scoped, not bucket-scoped, so staging can '
-              'read and delete production objects — a staging run of the '
-              'user-erasure path would destroy real KYC documents. Re-create '
-              'the token with "Specify bucket(s)" and only the three staging '
-              'buckets. Got ${r.status}: ${r.body}',
+              '**$bucket answered as if the token may address it.** The $side '
+              'R2 token is account-scoped, not bucket-scoped, so $side can read '
+              'and delete $otherSide objects — and the user-erasure path deletes '
+              'KYC documents by key. Re-create the token with "Specify '
+              'bucket(s)" and only the three $side buckets. '
+              'Got ${r.status}: ${r.body}',
         );
         expect(
           r.status,
@@ -157,8 +189,16 @@ void main() {
     // future assertion edit while proving nothing about scoping. Stating the
     // lists are disjoint and non-empty is the cheap half of that; the paired
     // 404/403 assertions above are the real half.
-    expect(staging, isNotEmpty);
-    expect(production, isNotEmpty);
-    expect(staging.toSet().intersection(production.toSet()), isEmpty);
+    expect(reachable, isNotEmpty);
+    expect(forbidden, isNotEmpty);
+    expect(reachable.toSet().intersection(forbidden.toSet()), isEmpty);
+    // And that the selector actually selected — a bug that made both sides the
+    // same list would leave every assertion above satisfiable at once.
+    expect(
+      {...reachable, ...forbidden},
+      {...stagingBuckets, ...productionBuckets},
+      reason:
+          'the two sides together must be every bucket, whichever way round',
+    );
   });
 }

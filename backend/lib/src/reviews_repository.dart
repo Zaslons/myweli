@@ -35,6 +35,18 @@ abstract interface class ReviewsRepository {
   /// A single review (any moderation status), or null.
   Future<Map<String, dynamic>?> reviewById(String id);
 
+  /// The review for [appointmentId], or null. **Any moderation status.**
+  ///
+  /// That clause is load-bearing rather than lazy: a hidden review still owns
+  /// its photo objects, so filtering it out here would make its author's own
+  /// resubmit fail on their own stored urls — the moderation state would leak
+  /// out as an unexplained 400 on a path that has nothing to do with it.
+  ///
+  /// Exists because a *save* needs to know what it already holds
+  /// (`UploadVerificationService.promoteNewUrls`), and `upsertByAppointment`
+  /// could write that row without ever being able to read it back.
+  Future<Map<String, dynamic>?> reviewByAppointment(String appointmentId);
+
   /// A consumer flags a review. Idempotent per (review, reporter).
   Future<void> addReport(String reviewId, String reporterUserId, String reason);
 
@@ -159,6 +171,18 @@ class InMemoryReviewsRepository implements ReviewsRepository {
   Future<Map<String, dynamic>?> reviewById(String id) async {
     for (final r in _reviews) {
       if (r['id'] == id) return r;
+    }
+    return null;
+  }
+
+  @override
+  Future<Map<String, dynamic>?> reviewByAppointment(
+    String appointmentId,
+  ) async {
+    // Deliberately NOT through `_forProvider`/`_visible`: those apply the
+    // moderation filter, and a hidden review still owns its photos.
+    for (final r in _reviews) {
+      if (r['appointmentId'] == appointmentId) return r;
     }
     return null;
   }
