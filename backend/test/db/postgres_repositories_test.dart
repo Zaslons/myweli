@@ -414,6 +414,21 @@ void main() {
   });
 
   group('PostgresProvidersRepository', () {
+    /// Delete a salon this suite created, on the way out.
+    ///
+    /// **`providers` is the one table `setUp` deliberately does NOT truncate**
+    /// — the seeded demo salons have to survive, because sibling tests read
+    /// `provider1` by id and assert on the seeded ordering. So anything
+    /// `createSalon` writes here lives forever unless the test removes it, and
+    /// six such rows had accumulated in a local database before this was
+    /// noticed.
+    void deleteOnTearDown(String id) => addTearDown(
+      () => pool.execute(
+        Sql.named('DELETE FROM providers WHERE id = @id'),
+        parameters: {'id': id},
+      ),
+    );
+
     test('createSalon persists a hidden draft; linkProvider attaches it '
         '(pro-salon-lifecycle.md)', () async {
       final repo = PostgresProvidersRepository(pool);
@@ -425,12 +440,27 @@ void main() {
         address: 'Rue du Test',
       );
       final id = salon['id'] as String;
+      deleteOnTearDown(id);
       expect(salon['status'], 'draft');
       // Hidden from discovery (T51)…
       expect((await repo.query()).length, before);
       // …readable by id, and by slug at repo level (the route gates it).
       expect((await repo.byId(id))?['name'], 'Salon Test Lifecycle');
-      expect((await repo.bySlug('salon-test-lifecycle'))?['id'], id);
+      // **The slug is read back from the document, never guessed.**
+      //
+      // This asserted `bySlug('salon-test-lifecycle')` for a long time, and
+      // that is only correct against an EMPTY providers table. `slug` carries a
+      // unique index, so `createSalon` suffixes on collision — the second run
+      // against the same database creates `salon-test-lifecycle-2`, while
+      // `bySlug('salon-test-lifecycle')` keeps returning the row the FIRST run
+      // left behind. The test therefore passed exactly once per database and
+      // failed on every run after, which reads like flakiness and is not: the
+      // repository was behaving correctly and the assertion was wrong.
+      //
+      // CI never saw it, because CI runs `dart test` with no `DATABASE_URL` and
+      // every postgres-tagged suite self-skips. Only a developer with a local
+      // database ever ran it twice.
+      expect((await repo.bySlug(salon['slug'] as String))?['id'], id);
 
       // Publish → discoverable.
       await repo.setStatus(id, 'active');
@@ -455,6 +485,53 @@ void main() {
       await auth.linkProvider(reg.provider!.id, id);
       expect((await auth.accountById(reg.provider!.id))?.providerId, id);
     });
+
+    test(
+      'two salons of the same name get distinct slugs, each addressable',
+      () async {
+        // The behaviour that made the bug above look like flakiness, and which
+        // nothing exercised on purpose. `slug` carries a unique index
+        // (`providers_slug_idx`), so `createSalon` walks `-2`, `-3`, … until it
+        // finds a free one. Two salons genuinely may share a name — « Chez Awa »
+        // is not reserved to whoever registered first — so the suffix is product
+        // behaviour, not a workaround, and it deserves a test that says so.
+        final repo = PostgresProvidersRepository(pool);
+        const name = 'Salon Slug Collision';
+        const base = 'salon-slug-collision';
+
+        final first = await repo.createSalon(
+          name: name,
+          category: 'salon',
+          phoneNumber: '+2250700000043',
+        );
+        deleteOnTearDown(first['id'] as String);
+        final second = await repo.createSalon(
+          name: name,
+          category: 'salon',
+          phoneNumber: '+2250700000044',
+        );
+        deleteOnTearDown(second['id'] as String);
+
+        // Asserted as "shares the base, differs overall" rather than as the
+        // literal `$base-2`: on a database where an earlier row already holds
+        // the base, these are `-2` and `-3`. Pinning the exact suffix would
+        // reintroduce the very assumption this file just stopped making.
+        expect(first['slug'], startsWith(base));
+        expect(second['slug'], startsWith(base));
+        expect(second['slug'], isNot(first['slug']));
+
+        // Each resolves to ITS OWN row — the property the old assertion meant to
+        // check and could not, because it guessed the slug instead of reading it.
+        expect(
+          (await repo.bySlug(first['slug'] as String))?['id'],
+          first['id'],
+        );
+        expect(
+          (await repo.bySlug(second['slug'] as String))?['id'],
+          second['id'],
+        );
+      },
+    );
 
     test('query returns seeded providers sorted by rating desc', () async {
       final repo = PostgresProvidersRepository(pool);
