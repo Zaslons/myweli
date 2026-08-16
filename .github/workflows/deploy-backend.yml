@@ -50,6 +50,10 @@ on:
         description: 'Optional: an existing image tag (short SHA) to deploy instead of building. This is how a production deploy ships the exact artifact staging rehearsed — the tag is resolved to a digest either way.'
         required: false
         default: ''
+      unpin:
+        description: 'Type "yes" only if a rollback traffic pin is in place and THIS deploy should release it — docs/design/infra-rollback.md §7.1'
+        required: false
+        default: ''
   # Enabled 2026-08-16, after `40-iam-wif.sh narrow` and the deploy that
   # validated it. Staging now redeploys on every merge to main that touches the
   # server or its manifests.
@@ -185,6 +189,61 @@ jobs:
           service_account: myweli-deployer@myweli.iam.gserviceaccount.com
 
       - uses: google-github-actions/setup-gcloud@v3
+
+      - name: Guard — a rollback pin must not be lifted by accident
+        # **The step that makes the rollback runbook a control rather than
+        # prose.** Both service files commit `traffic: [{percent: 100,
+        # latestRevision: true}]`, and `gcloud run services replace` writes that
+        # block verbatim — so a `update-traffic --to-revisions` pin, which is
+        # the 30-second response to a bad production deploy, is UNDONE by the
+        # next deploy of that service. Nothing announces it, and the revision
+        # the pin was protecting against becomes the serving one again, because
+        # it is once again the latest.
+        #
+        # That was a slow trap while every deploy was a typed dispatch. Since
+        # 2026-08-16 a merge to main deploys staging with no human in the loop,
+        # so a pin can now be lifted by someone who was not part of the incident.
+        #
+        # Fails closed, because the two outcomes are not symmetric: a blocked
+        # deploy is visible and self-correcting, while a silent un-pin restores
+        # the exact revision somebody is mid-incident about AND reports success.
+        #
+        # Before the build (no reason to spend four minutes of Docker on a run
+        # that cannot deploy) and after auth (it has to ask Cloud Run).
+        run: |
+          set -euo pipefail
+          # `|| true`: on a service that does not exist yet — a first deploy —
+          # describe exits non-zero, and there is by definition no pin to lift.
+          # Without this the guard would make a new environment undeployable.
+          PINNED=$(gcloud run services describe "${SERVICE}" --region "${REGION}" \
+                     --format='value(spec.traffic[].revisionName)' 2>/dev/null || true)
+          # Empty is the healthy answer: with `latestRevision: true` there is no
+          # revisionName to print. `update-traffic --to-latest` restores that,
+          # so releasing a pin by hand also clears this guard.
+          if [ -z "${PINNED}" ]; then
+            echo "  ✓ traffic follows latestRevision — no pin to lift"
+            exit 0
+          fi
+          if [ "${UNPIN}" = "yes" ]; then
+            echo "::warning::${SERVICE} was pinned to ${PINNED}. This deploy RELEASES that pin — the new revision takes 100% of traffic."
+            echo "  ✓ pin on ${PINNED} released deliberately (unpin=yes)"
+            exit 0
+          fi
+          echo "::error::${SERVICE} traffic is PINNED to ${PINNED} — a rollback is in place, and deploying would silently release it."
+          echo ""
+          echo "  If you are shipping the fix, re-run this workflow from the Actions tab"
+          echo "  with unpin=yes. That is the deliberate act that ends the rollback."
+          echo ""
+          echo "  If you are NOT (a push to main reaches this line with no inputs at all),"
+          echo "  the pin is still holding something. Find out what before deploying:"
+          echo ""
+          echo "    gcloud run services describe ${SERVICE} --region ${REGION} \\"
+          echo "      --format='value(status.traffic[].revisionName)'"
+          echo ""
+          echo "  Runbook: docs/design/infra-rollback.md"
+          exit 1
+        env:
+          UNPIN: ${{ github.event.inputs.unpin }}
 
       - name: Configure Docker for Artifact Registry
         run: gcloud auth configure-docker ${{ env.REGISTRY }} -q

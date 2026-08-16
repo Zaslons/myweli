@@ -54,6 +54,19 @@ Rules:
   in `routes/_middleware.dart`, outside CORS — a 500 without CORS headers reaches
   the browser as an opaque network failure, which is how a server error gets
   misdiagnosed as a client one.
+- **Migrations are forward-only, and additive by default.** `migrations.dart`
+  is a list of `(id, statements)` records with **no down statements**, so a
+  backend rollback rolls the schema back by nothing. That is workable only while
+  an older image can still run against a newer schema, which holds for additive
+  DDL (`ADD COLUMN`, `CREATE TABLE`/`INDEX`, and the widening `DROP NOT NULL` /
+  `DROP CONSTRAINT`) and fails for `DROP COLUMN`, `DROP TABLE`, `RENAME`,
+  `SET NOT NULL` or a narrowing type change. Destructive DDL is **not banned** —
+  it is the *contract* step of expand → migrate → contract, which
+  [LAUNCH.md](LAUNCH.md) §1.4 already requires because installed app versions
+  cannot be rolled back either — but it must **declare itself** with a
+  `// rollback-unsafe: <why>` comment on the migration.
+  `migration_reversibility_test.dart` enforces it, and
+  [design/infra-rollback.md](design/infra-rollback.md) §5 is why.
 - **Method gating** — handlers reject unsupported verbs with 405.
 - **Pagination** — list endpoints return `{ items, page, pageSize, total }`;
   `pageSize` is clamped server-side (default 20, max 50).

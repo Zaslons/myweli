@@ -237,6 +237,31 @@ which is how the reminder cron came to be switched off without anyone noticing.
    uptime checks on `/health` *and* on a database-backed route, because `/health`
    never touches Postgres and reported `ok` throughout an outage. Alerts require
    two failing locations sustained for five minutes.
+8. **Staging deploys itself on merge to `main`** (touching `backend/**` or either
+   service file). Production stays `workflow_dispatch` with the typed `deploy`,
+   and a push cannot reach it.
+
+### Rolling back
+
+Full procedure — including the two things it cannot undo — is
+**[design/infra-rollback.md](design/infra-rollback.md)**. The tourniquet, when
+production is serving something bad and you do not want to wait for a build:
+
+```bash
+gcloud run services update-traffic myweli-api --region europe-west9 --to-revisions <previous-revision>=100
+```
+
+Three things about that command are worth knowing *before* you need it:
+
+- **It undoes itself.** Both service files commit `traffic: latestRevision:
+  true`, and the next `replace` writes that back — so the pin silently stops
+  holding at the next deploy. It buys minutes; the fix is a `git revert`. The
+  deploy workflow now refuses to lift a pin unless the run says `unpin: yes`.
+- **Only `status.traffic[].revisionName` tells you what is serving.** After a
+  pin, both `spec.template…image` and `status.latestReadyRevisionName` name the
+  revision you rolled *away from*, and they agree with each other.
+- **It does not touch the database.** Migrations are forward-only. Rollback is
+  safe today because all 31 are additive, and a test now keeps it that way.
 
 ## Phase D — Deploy the web (Vercel)
 Project root = `web/`. Env: `API_BASE_URL=https://api.myweli.com` (server-side BFF)
