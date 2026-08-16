@@ -1,0 +1,125 @@
+name: iOS build
+
+# **The one surface with no build coverage, until it cost us.**
+#
+# `firebase_core` 4.12.1 -> 4.13.0 (#388) wanted `firebase-ios-sdk` 12.17.0 while
+# `firebase_messaging` 16.4.3 pinned 12.15.0. Two Flutter plugins pinning
+# different versions of the same Swift package is an SPM resolution failure — it
+# happens at iOS build time, not at Dart resolution — so `flutter analyze` and
+# `flutter test` were both green on it, and `main` shipped unable to build for
+# iOS for about an hour before anyone tried (#391).
+#
+# Android has `Mobile — APK size`, web has `Lint, Typecheck & Build`. This is
+# the missing third.
+#
+# **Why its own workflow rather than a job in ci.yml:** macOS runners bill at
+# 10x, and this can only ever fail on a change under `mobile/`. `paths:` filters
+# are a workflow-level key, so a separate file is the only way to express that
+# without a third-party changed-files action. Backend-, web- and docs-only PRs
+# — most of them — skip it entirely.
+#
+# Safe to path-filter because `main` has no branch protection, so no required
+# check can hang waiting for a run that will never start. If required checks are
+# ever turned on, this one must NOT be marked required, or every backend PR
+# blocks forever.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'mobile/**'
+      - '.github/workflows/ios-build.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'mobile/**'
+      - '.github/workflows/ios-build.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-build-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: mobile
+
+jobs:
+  ios-build:
+    name: Mobile — iOS builds
+    runs-on: macos-latest
+    # The expensive runner in this repo. A hung Xcode or an SPM fetch waiting on
+    # a network that never answers would otherwise burn minutes at 10x until the
+    # 6-hour default. Ten minutes is roughly 2x a cold local build.
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      # Pinned to the same version as every other Flutter job. A build whose
+      # purpose is to prove native dependencies resolve must not take its
+      # toolchain from whatever the runner image ships this month — the SDK
+      # constrains the plugin versions, so a drifting toolchain silently changes
+      # the thing under test.
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.44.9
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      # `--simulator` on purpose: it needs no signing certificate, no
+      # provisioning profile and no Apple credentials in CI, while still doing
+      # the whole job — SPM + CocoaPods resolution, then a real compile and
+      # link. That resolution step is precisely what #391 failed on.
+      #
+      # `--debug` because a simulator build is unsigned either way and debug is
+      # ~2x faster; the failure this catches is in resolution and compilation,
+      # neither of which the release flag changes.
+      #
+      # CONSUMER ONLY, deliberately. The two flavours share their plugin set and
+      # therefore their native resolution, so building both would double the
+      # most expensive job in the repo for almost no extra signal. The gap that
+      # leaves — a break in the `pro` scheme or its xcconfig specifically —
+      # would not have been caught by this job's reason for existing.
+      - name: Build for simulator (consumer)
+        run: |
+          flutter build ios --simulator --debug \
+            --flavor consumer \
+            --target lib/main.dart
+
+      # The useful artefact when this job goes red: the failure text names the
+      # two conflicting requirements, and this says what was actually resolved
+      # the last time it worked.
+      #
+      # `jq`, not grep+paste. The first version paired alternate lines, which
+      # silently desynced on the pins that carry a revision instead of a version
+      # (dkcamera, dkimagepickercontroller, dkphotogallery) and mislabelled every
+      # row after them — a report that is confidently wrong is worse than none.
+      # `jq` is preinstalled on macos runners.
+      - name: Report the resolved Swift packages
+        if: always()
+        run: |
+          RESOLVED=ios/Runner.xcworkspace/xcshareddata/swiftpm/Package.resolved
+          if [ ! -f "$RESOLVED" ]; then
+            RESOLVED=ios/Runner.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
+          fi
+          if [ ! -f "$RESOLVED" ]; then
+            echo "No Package.resolved — the build failed before SPM resolution." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          {
+            echo "### Resolved Swift packages"
+            echo
+            echo '| package | version |'
+            echo '|---|---|'
+            jq -r '(.pins // .object.pins)[]
+                   | "| \(.identity // .package) | \(.state.version // (.state.revision[0:12])) |"' \
+              "$RESOLVED" | sort
+          } >> "$GITHUB_STEP_SUMMARY"
