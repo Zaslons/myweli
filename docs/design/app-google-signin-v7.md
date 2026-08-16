@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Built (device check outstanding — §9) |
+| **Status** | Built and **device-verified** (2026-08-15) — §9 |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-08-15 |
 | **PRD ref / phase** | FR-AUTH — social sign-in · V1 |
@@ -163,6 +163,36 @@ still carries `email` + `email_verified` with an `aud` inside `GOOGLE_CLIENT_IDS
 that Android's Credential Manager flow works on a real device; or that the iOS
 SPM bump to GoogleSignIn 9.x builds. There is no iOS build in CI at all, and
 backend CI runs with a placeholder `GOOGLE_CLIENT_IDS`.
+
+### Verified on device, 2026-08-15
+
+**Consumer iOS and consumer Android both sign in successfully** against
+production, on the owner's real handsets — the ID token is accepted, so the
+`aud` really is inside `GOOGLE_CLIENT_IDS` and `initialize()` really does
+complete before `authenticate()`. Android is the one that mattered: v7 moved
+that platform to Credential Manager, an entirely different native flow, while
+iOS changed comparatively little.
+
+The **silent cancel** was verified separately on the iOS simulator: tapping
+« Continuer avec Google » then dismissing the Google prompt returns to the login
+screen with no error banner — the regression a compile-only port would have
+shipped.
+
+**Pro Android was not run, and is now low risk rather than unverified.** Both
+pro entry points call the *same* `_nativeGoogleIdToken()` static as the consumer
+path, so the SDK-level flow proven on consumer Android is literally the same
+code. What differs is only which backend route the resulting token is posted to
+— pure Dart, covered by the unit tests. Before this change they were two
+separately-constructed `GoogleSignIn` instances; the migration is what made them
+one.
+
+**A note for whoever tests this next:** on a dev machine with no
+`android/key.properties`, `flutter run --release` will refuse to install
+(release is deliberately left unsigned), and only the **debug** SHA-1 is
+registered with Google. On Android, **debug is the correct build to test** — a
+release build would fail sign-in in a way indistinguishable from a cancel.
+
+---
 
 **Device procedure** (`app-auth-social.md:73`), on **consumer Android, consumer
 iOS, pro Android** at minimum:
