@@ -270,6 +270,22 @@ Every PR is tested; treat an unchecked box as "not done":
     `salon_visibility_test.dart` guards it.
   - A PR that reddens it fixes the cause or deletes the assertion. **Never a
     retry** (the B10 rule).
+- **Postgres suites must be re-runnable against the SAME database.** They are
+  `DATABASE_URL`-gated and self-skip, so CI — which runs a bare `dart test` with
+  no database — never executes them; the only thing that ever runs them twice is
+  a developer's local Postgres. Two rules, both learned from a real defect
+  (`postgres_repositories_test.dart` asserted `bySlug('salon-test-lifecycle')`
+  returned the salon it had just created — true only against an *empty*
+  `providers` table, because `slug` is unique and `createSalon` suffixes on
+  collision, so it passed exactly once per database and failed on every run
+  after):
+  - **Assert on what the code returned, never on a value you predicted it would
+    produce.** A hardcoded id, slug or generated key is an assumption about
+    prior state wearing the costume of an assertion.
+  - **Clean up what the test wrote.** `setUp` truncates most tables but
+    deliberately *not* `providers` (the seeded demo salons must survive), so a
+    test writing there owns the delete — `addTearDown` scoped to the ids it
+    created, never a blanket truncate that would take the seed with it.
 - **Load tests** — slot engine and (later) payment callbacks, before they ship.
 - Coverage must not decrease.
 
