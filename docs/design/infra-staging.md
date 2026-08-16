@@ -350,6 +350,26 @@ deploy instead of hanging the service. And restore a **prod PITR backup** into
 staging before rehearsing, timing the boot as a gate. This is also LAUNCH.md
 §5.5's unrehearsed-restore box, closed by the same act.
 
+> **The timeouts are implemented (2026-08-16) — but NOT where this paragraph
+> says, and the difference matters.**
+> [backend-migration-timeouts.md](backend-migration-timeouts.md).
+>
+> "At the top of each migration transaction" is exactly right, and applying it
+> one level up — to the schema-setup *connection*, where `withSchemaLock` takes
+> its advisory lock — would have broken every normal deploy. Measured against
+> PostgreSQL 16: **both** `lock_timeout` and `statement_timeout` abort a
+> **waiting `pg_advisory_lock()`**. That lock is contended by design, since
+> cold-starting instances are *supposed* to queue behind whichever one is
+> migrating, so a timeout there puts a deadline on healthy contention rather
+> than on a fault.
+>
+> They are therefore applied as `SET LOCAL` inside each transaction — measured
+> not to survive the commit, which matters because the same pool serves
+> requests — and the advisory lock is deliberately left unbounded.
+>
+> The **prod-PITR restore half of this paragraph is still owed**, and it is the
+> half that would tell us whether 60s is the right number.
+
 ### 3.3 Staging seeded from prod + any live channel = real SMS to real customers
 
 Two individually correct guards that are jointly dangerous. §3.2 wants a prod
