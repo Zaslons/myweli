@@ -94,8 +94,12 @@ lock-blocked.
 
 `seedProvidersIfEmpty` is **not** among them, and not by oversight: it opens no
 transaction (it inserts row by row on the pool) and it throws unless `ENV == dev`,
-so it never runs in staging or production at all. A test pins the count at four,
-so a fifth transaction appearing later cannot be silently unguarded.
+so it never runs in staging or production at all.
+
+A test enumerates every `runTx` call in the file and requires each to begin with
+the helper, so a fifth transaction added later cannot be silently unguarded —
+see §6, which records why the *first* version of that test could not have made
+this promise.
 
 `lock_timeout` (3s) is deliberately **much shorter** than `statement_timeout`
 (60s). PostgreSQL's own guidance is that a `lock_timeout` at or above
@@ -199,8 +203,32 @@ into request handling, which is Q5 and is pinned by a test.
 
 - **every `runTx` in `migrations.dart` applies the timeouts.** A new backfill
   added later would otherwise be silently unguarded — the failure this repo
-  keeps finding. The scan asserts a plausible number of transactions was found,
-  so a refactor cannot make it pass by matching nothing;
+  keeps finding. The scan also asserts a plausible number of calls was found, so
+  a refactor cannot make it pass by matching nothing.
+
+  **This guard failed its own standard twice, and an adversarial review of this
+  change caught both.** Recorded because the second one is the more instructive:
+
+  1. It matched the literal spelling `runTx((tx) async {` and paired it with a
+     floor of `>= 4` — today's exact count. That combination detects the pattern
+     breaking *downward* only. A **new** transaction spelled any other way is
+     not matched, the count stays at four, the floor still passes, and the
+     unguarded transaction is never inspected. Demonstrated by appending
+     `pool.runTx<void>((TxSession tx) async {` with no timeouts: format clean,
+     analyzer clean, whole suite green. And that spelling is the repo's existing
+     idiom — `postgres_providers_repository.dart` writes
+     `_pool.runTx<List<String>?>((tx) async {` at six sites — so it is the form
+     a value-returning schema-setup transaction would *naturally* take. Fixed by
+     enumerating loosely (`\brunTx\s*[<(]`) and checking every match, which
+     leaves the floor with only one job: noticing the scan collapse to zero.
+  2. It read a **240-character window** after the brace and took the first
+     non-comment line. A transaction whose opening comment ran longer than that
+     had its entire window skipped and failed with *"does not begin with
+     `applySchemaTimeouts`"* while the call sat 300 characters away — a guard
+     whose failure text is false, on a pure comment edit. The cheapest way to
+     get such a suite green again is to delete the comment, or the test. Fixed
+     by scanning forward to the first real statement with no byte cap, handling
+     `//` and `/* … */` alike;
 - `kSchemaLockTimeout < kSchemaStatementTimeout`, per §3;
 - both are comfortably inside the 300s `startupProbe` budget, read from the
   service files rather than restated, so a probe change cannot silently

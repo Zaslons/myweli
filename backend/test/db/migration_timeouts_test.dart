@@ -29,49 +29,96 @@ void main() {
     // the MOST likely to be slow or lock-blocked. A new one added later would
     // be silently unguarded, which is the shape of defect this repository keeps
     // finding: not a wrong rule, a rule that stopped covering everything.
-    final openings = RegExp(
-      r'runTx\(\(tx\) async \{',
-    ).allMatches(source).toList();
+    //
+    // **Enumerated LOOSELY, and that is the whole point.** The first version of
+    // this scan matched `runTx\(\(tx\) async \{` — today's exact spelling — and
+    // paired it with a `>= 4` floor. That combination can only detect the
+    // pattern breaking DOWNWARD: a *new* transaction written any other way is
+    // not matched, the count stays at four, the floor still passes, and the
+    // unguarded transaction is never inspected. It was demonstrated by
+    // appending a backfill spelled `pool.runTx((TxSession tx) async {` — format
+    // clean, analyzer clean, whole suite green.
+    //
+    // That spelling is not hypothetical: `postgres_providers_repository.dart`
+    // already writes `_pool.runTx<List<String>?>((tx) async {` at six sites, so
+    // a value-returning schema-setup transaction would *naturally* be written
+    // in a form the strict pattern misses.
+    //
+    // So: match any `runTx` that is called at all, and check every one.
+    final calls = RegExp(r'\brunTx\s*[<(]').allMatches(source).toList();
+
+    /// The first real statement after [from], skipping blank lines and both
+    /// comment forms — with **no byte window**.
+    ///
+    /// The first version truncated at 240 characters after the brace, so a
+    /// transaction whose opening comment was longer than that had its whole
+    /// window skipped, returned `''`, and failed with a message asserting the
+    /// call was missing while it sat 300 characters away. A guard whose failure
+    /// text is false is worse than none: the cheapest way to make the suite
+    /// green again is to delete the comment, or the test.
+    String firstStatementAfter(int from) {
+      var inBlock = false;
+      for (final raw in source.substring(from).split('\n')) {
+        var t = raw.trim();
+        while (t.isNotEmpty) {
+          if (inBlock) {
+            final close = t.indexOf('*/');
+            if (close < 0) {
+              t = '';
+              break;
+            }
+            t = t.substring(close + 2).trim();
+            inBlock = false;
+            continue;
+          }
+          if (t.startsWith('/*')) {
+            inBlock = true;
+            t = t.substring(2);
+            continue;
+          }
+          if (t.startsWith('//')) t = '';
+          break;
+        }
+        if (t.isNotEmpty) return t;
+      }
+      return '';
+    }
 
     test('the scan found the transactions it is supposed to check', () {
-      // Anti-vacuity. Every assertion below iterates `openings`; if the pattern
-      // stops matching — a reformat, a renamed parameter — the loop runs zero
-      // times and this file goes green while checking nothing.
+      // Anti-vacuity, and now it is the ONLY thing the floor has to do: every
+      // call the regex finds is inspected below, so the floor no longer has to
+      // notice a new one — it only has to notice the scan collapsing to zero.
       expect(
-        openings.length,
+        calls.length,
         greaterThanOrEqualTo(4),
         reason:
-            'found ${openings.length} `runTx((tx) async {` sites in '
-            'migrations.dart; there are at least four (runMigrations, the '
-            'catalogue backfill, the locality seed, the salon-market '
-            'backfill). The pattern no longer matches the source.',
+            'found ${calls.length} `runTx` calls in migrations.dart; there are '
+            'at least four (runMigrations, the catalogue backfill, the '
+            'locality seed, the salon-market backfill). The pattern no longer '
+            'matches the source.',
       );
     });
 
     test('each one applies the timeouts first', () {
-      for (final m in openings) {
-        // The next few lines only: `applySchemaTimeouts` must be the FIRST
-        // statement, because a migration's own `SET LOCAL` is meant to override
-        // the default (§3.3) and cannot if the default is applied afterwards.
-        final head = source.substring(
-          m.end,
-          (m.end + 240).clamp(0, source.length),
-        );
-        final firstStatement = head
-            .split('\n')
-            .map((l) => l.trim())
-            .firstWhere(
-              (l) => l.isNotEmpty && !l.startsWith('//'),
-              orElse: () => '',
-            );
+      for (final m in calls) {
+        // FIRST statement, because a migration's own `SET LOCAL` is meant to
+        // override the default (§3.3) and cannot if the default lands after it.
+        final brace = source.indexOf('{', m.start);
         expect(
-          firstStatement,
+          brace,
+          isNonNegative,
+          reason: 'a `runTx` call at offset ${m.start} opens no closure body',
+        );
+        final line = '\n'.allMatches(source.substring(0, m.start)).length + 1;
+        expect(
+          firstStatementAfter(brace + 1),
           contains('applySchemaTimeouts(tx)'),
           reason:
-              'a transaction in migrations.dart does not begin with '
-              '`await applySchemaTimeouts(tx);` — it runs unbounded, so a '
+              'the transaction opened at migrations.dart:$line does not begin '
+              'with `await applySchemaTimeouts(tx);` — it runs unbounded, so a '
               'lock-blocked statement inside it waits forever and queues every '
-              'reader of that table behind it.\n\nStarts with: $firstStatement',
+              'reader of that table behind it.\n\nStarts with: '
+              '${firstStatementAfter(brace + 1)}',
         );
       }
     });
