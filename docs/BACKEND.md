@@ -67,6 +67,18 @@ Rules:
   `// rollback-unsafe: <why>` comment on the migration.
   `migration_reversibility_test.dart` enforces it, and
   [design/infra-rollback.md](design/infra-rollback.md) §5 is why.
+- **Every schema-setup transaction is bounded.** `applySchemaTimeouts(tx)` is
+  the first statement inside every `runTx` on the boot path (`runMigrations`
+  plus the three seeds/backfills): `SET LOCAL lock_timeout = 3s` and
+  `statement_timeout = 60s`. Migrations run before the port binds while the
+  **previous revision is still serving**, so a blocked `ALTER` does not merely
+  wait — a pending `ACCESS EXCLUSIVE` request queues every later reader of that
+  table behind it. `SET LOCAL`, never `SET`: the same pool serves requests, and
+  a session-level setting would ride a pooled connection into them.
+  **Not applied to `withSchemaLock`** — both timeouts abort a *waiting*
+  `pg_advisory_lock()`, which is normal contention between cold-starting
+  instances. A migration that legitimately needs longer raises its own ceiling
+  as its first statement. [design/backend-migration-timeouts.md](design/backend-migration-timeouts.md).
 - **Method gating** — handlers reject unsupported verbs with 405.
 - **Pagination** — list endpoints return `{ items, page, pageSize, total }`;
   `pageSize` is clamped server-side (default 20, max 50).

@@ -434,15 +434,18 @@ not a requirement.
    measurement. What remains untested is the same cycle on **production**, where
    the load balancer sits in front and `minScale` is 1; nothing in the mechanism
    differs, but that is an argument, not evidence.
-2. **`lock_timeout` / `statement_timeout` are still unimplemented.**
-   [infra-staging.md](infra-staging.md) §3.2 prescribes `SET lock_timeout =
-   '3s'` and `statement_timeout = '60s'` at the top of each migration
-   transaction; `runMigrations` sets neither. A migration blocked on a lock
-   therefore hangs the boot instead of failing it — every cold instance waits,
-   and `startupProbe` takes 300s to give up. §6's "a failed deploy rolls itself
-   back" holds, but slowly and while looking like a hang. This is the largest
-   remaining gap next to this document, and it is a `backend/` change, not an
-   infra one.
+2. ~~**`lock_timeout` / `statement_timeout` are still unimplemented.**~~
+   **Closed 2026-08-16** —
+   [backend-migration-timeouts.md](backend-migration-timeouts.md). Both are now
+   applied as `SET LOCAL` at the top of every schema-setup transaction, so a
+   lock-blocked migration fails in 3s instead of hanging the boot until the
+   probe gives up at 300s. Watched: with the guard removed, a blocked `ALTER`
+   never returns.
+   **The advisory lock in `withSchemaLock` is deliberately excluded** — both
+   timeouts abort a *waiting* `pg_advisory_lock()`, and that wait is normal
+   contention between cold-starting instances, so bounding it would fail healthy
+   deploys. §6's "a failed deploy rolls itself back" now holds *quickly* rather
+   than after a silent 300s.
 3. **Cloud SQL PITR has never been exercised** ([LAUNCH.md](../LAUNCH.md) §5.5).
    §5.3 points at it as the recovery for bad *data*, which means the one
    mechanism this runbook defers to is the one nobody has tried.

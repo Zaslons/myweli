@@ -828,6 +828,61 @@ CREATE TABLE IF NOT EXISTS momo_operators (
   ),
 ];
 
+/// How long a schema-setup statement may **wait for a lock** before giving up.
+///
+/// Deliberately an order of magnitude below [kSchemaStatementTimeout]: a
+/// `lock_timeout` at or above the statement timeout can never be the reported
+/// cause, because the statement timeout fires first. Keeping them far apart is
+/// what makes *blocked* and *slow* distinguishable in a deploy log.
+const Duration kSchemaLockTimeout = Duration(seconds: 3);
+
+/// How long a schema-setup statement may **run** before giving up.
+///
+/// A migration that legitimately needs longer raises its own ceiling as its
+/// first statement — see [applySchemaTimeouts].
+const Duration kSchemaStatementTimeout = Duration(seconds: 60);
+
+/// Bounds one schema-setup transaction. Call it **first** inside every `runTx`
+/// on this path (docs/design/backend-migration-timeouts.md).
+///
+/// **The hazard.** Migrations run at boot, before the port binds, while the
+/// PREVIOUS Cloud Run revision is still serving traffic — so the database has
+/// concurrent readers throughout. An `ALTER TABLE` needs `ACCESS EXCLUSIVE`,
+/// and if anything holds a conflicting lock the `ALTER` waits; worse, a
+/// *pending* `ACCESS EXCLUSIVE` request queues every subsequent reader behind
+/// it, because new `ACCESS SHARE` requests do not jump the lock queue. One
+/// blocked migration then freezes a table that was serving fine a second
+/// earlier. Failing fast instead means the revision never becomes ready and the
+/// old one keeps serving — a deploy that rolls itself back.
+///
+/// **`SET LOCAL`, never `SET`.** This pool also serves requests. A plain `SET`
+/// would ride the pooled connection into application queries and give every
+/// later request on it a 60s statement timeout. Measured: `SET LOCAL` applies
+/// inside the transaction and reads back as `0` on six subsequent pooled
+/// queries.
+///
+/// **Not applied to [withSchemaLock].** Both timeouts DO abort a waiting
+/// `pg_advisory_lock()` — measured, not assumed — and that lock is contended by
+/// design: when instances cold-start together exactly one wins and the others
+/// are SUPPOSED to wait. A timeout there would not bound a pathology, it would
+/// put a deadline on normal contention and kill every instance that loses the
+/// race once migrations outlast it.
+///
+/// **The escape hatch.** These are applied first and the migration's own
+/// statements run after, in the same transaction, so a migration that needs
+/// longer simply says so:
+///
+///     statements: ["SET LOCAL statement_timeout = '10min'", 'UPDATE …'],
+Future<void> applySchemaTimeouts(TxSession tx) async {
+  await tx.execute(
+    "SET LOCAL lock_timeout = '${kSchemaLockTimeout.inMilliseconds}ms'",
+  );
+  await tx.execute(
+    "SET LOCAL statement_timeout = "
+    "'${kSchemaStatementTimeout.inMilliseconds}ms'",
+  );
+}
+
 /// Applies any not-yet-applied migrations. Idempotent.
 Future<void> runMigrations(Pool<void> pool) async {
   await pool.execute(
@@ -841,6 +896,8 @@ Future<void> runMigrations(Pool<void> pool) async {
     );
     if (applied.isNotEmpty) continue;
     await pool.runTx((tx) async {
+      // First, so a migration's own statements can raise the ceiling.
+      await applySchemaTimeouts(tx);
       for (final statement in migration.statements) {
         await tx.execute(statement);
       }
@@ -960,6 +1017,7 @@ Future<void> backfillCatalogueIfNeeded(Pool<void> pool) async {
   if (providers.isEmpty) return;
 
   await pool.runTx((tx) async {
+    await applySchemaTimeouts(tx);
     for (final row in providers) {
       final m = row.toColumnMap();
       final id = m['id'] as String;
@@ -1155,6 +1213,7 @@ Future<void> seedLocalitiesIfEmpty(Pool<void> pool) async {
   final count = await pool.execute('SELECT count(*) AS n FROM countries');
   if ((count.first.toColumnMap()['n'] as int) > 0) return;
   await pool.runTx((tx) async {
+    await applySchemaTimeouts(tx);
     for (final c in seedCountries) {
       await tx.execute(
         Sql.named(
@@ -1241,6 +1300,7 @@ Future<void> backfillSalonMarketIfNeeded(Pool<void> pool) async {
   if (providers.isEmpty) return;
 
   await pool.runTx((tx) async {
+    await applySchemaTimeouts(tx);
     for (final row in providers) {
       final m = row.toColumnMap();
       final raw = m['data'];
