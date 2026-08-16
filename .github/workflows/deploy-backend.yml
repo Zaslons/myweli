@@ -14,22 +14,23 @@
 # the deploy step refuses to run when that name disagrees with the environment
 # being deployed.
 #
-# **Narrowing the credential itself has NOT been done.** The provider is still
-# pinned on `attribute.repository` alone, so the `environment:` declared below
-# narrows nothing yet — it only makes the narrowing possible, by putting an
-# `environment` claim in the OIDC token for a condition to match. Adding that
-# condition is `infra/gcp/40-iam-wif.sh` — which now exists, after being cited
-# by this file's header since the migration without ever being committed. It
-# runs in three steps for a reason: `widen` adds the environment-scoped trust
-# alongside the repository-wide one, a real deploy proves the claim arrives, and
-# only then does `narrow` remove the old binding. **Do not uncomment the `push:`
-# trigger below until `narrow` has run.**
+# **The credential IS narrowed, as of 2026-08-16.** `infra/gcp/40-iam-wif.sh
+# widen` then `narrow confirm` ran, and the deploy AFTER `narrow` succeeded —
+# which is the only real evidence, because while both bindings existed IAM
+# granted on their union and GCP never reports which principalSet satisfied a
+# request. The deployer can now be impersonated only by
+# `attribute.environment/backend-staging` or `.../backend-production`, so a job
+# that does not declare an `environment:` cannot mint a token at all.
 #
-# **Manual trigger only, deliberately.** Push-to-deploy for staging is the goal
-# and the commented `push:` block below is most of it. The script now exists; it
-# has not been RUN, so the trust is still repository-wide and any workflow on any
-# branch can still mint a token holding project-wide `run.admin`. Existing and
-# applied are different things, and this comment is the difference.
+# The provider's `attributeCondition` is still `assertion.repository==
+# 'Zaslons/myweli'` and that is correct: it is the outer gate deciding who may
+# exchange a token, while the bindings above are the inner one deciding who may
+# become the deployer.
+#
+# **Staging is push-to-deploy; production is not.** The `push:` block below runs
+# on every merge to main that touches the server or its manifests. Production
+# remains `workflow_dispatch` with a typed confirmation, and a push cannot reach
+# it — see the note on the trigger.
 name: Deploy — backend (Cloud Run)
 
 on:
@@ -49,18 +50,33 @@ on:
         description: 'Optional: an existing image tag (short SHA) to deploy instead of building. This is how a production deploy ships the exact artifact staging rehearsed — the tag is resolved to a digest either way.'
         required: false
         default: ''
-  # push:
-  #   branches: [main]
-  #   paths:
-  #     - 'backend/**'
-  #     - 'infra/gcp/service.yaml'
-  #     - 'infra/gcp/service-staging.yaml'
-  #     - '.github/workflows/deploy-backend.yml'
+  # Enabled 2026-08-16, after `40-iam-wif.sh narrow` and the deploy that
+  # validated it. Staging now redeploys on every merge to main that touches the
+  # server or its manifests.
   #
-  # BEFORE ENABLING THIS, read the confirm guard below. A push event carries no
-  # `inputs`, so `inputs.environment` is empty and `inputs.confirm` is empty —
-  # which is why every expression in this file that reads them supplies an
-  # explicit default rather than relying on the value being there.
+  # A push event carries no `inputs`, so `inputs.environment` and
+  # `inputs.confirm` are both empty — which is why every expression in this file
+  # that reads them supplies an explicit default. Checked, one by one, before
+  # uncommenting: the concurrency group (:74), the GitHub environment (:92), the
+  # confirm guard (:103), the target resolver (:146), the build step (:232) and
+  # the verifier (:319) all default to `staging`.
+  #
+  # **A push therefore cannot reach production.** The confirm guard reads
+  # `(inputs.environment || 'staging') == 'production'`, which is false on a
+  # push, so the guard is skipped — and it is skipped because the deploy is
+  # staging, not because the confirmation was waived. Production stays
+  # dispatch-only, with the typed word.
+  #
+  # `image_tag` is the one expression with NO default, and that is correct: empty
+  # means "build from source" (:181-189), which is what a merge should do.
+  # Promotion of an existing digest stays a deliberate, dispatch-only act.
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - 'infra/gcp/service.yaml'
+      - 'infra/gcp/service-staging.yaml'
+      - '.github/workflows/deploy-backend.yml'
 
 env:
   PROJECT_ID: myweli
