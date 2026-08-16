@@ -256,5 +256,13 @@ Nothing to configure, no secret, no manifest change. Reverting is a code revert.
    Separate decision, larger blast radius.
 3. **60s may be wrong in either direction** and there is no evidence yet — no
    migration has ever been timed against production data volumes. The escape
-   hatch (§3.3) makes being wrong cheap, which is why 60s ships as-is rather
-   than waiting for a measurement that needs a prod-sized staging restore.
+   hatch (§3.3) makes being wrong cheap, which is why 60s ships as-is.
+
+   **And the measurement everyone assumed would settle it will not.**
+   infra-staging.md §3.2 pairs this with a prod-PITR restore into staging; that
+   restore was run on 2026-08-16 ([infra-dr-restore.md](infra-dr-restore.md))
+   and production turns out to hold **5 user rows and no salons**, so a restored
+   copy boots as fast as staging already does. Closing this needs **synthetic
+   volume generated in staging** — a committed script that writes realistic row
+   counts, then a timed migration against them. Nothing about copying production
+   helps until production has something in it.

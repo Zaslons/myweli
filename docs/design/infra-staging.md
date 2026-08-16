@@ -367,8 +367,19 @@ staging before rehearsing, timing the boot as a gate. This is also LAUNCH.md
 > not to survive the commit, which matters because the same pool serves
 > requests — and the advisory lock is deliberately left unbounded.
 >
-> The **prod-PITR restore half of this paragraph is still owed**, and it is the
-> half that would tell us whether 60s is the right number.
+> **The prod-PITR restore half was run on 2026-08-16, and it cannot answer the
+> 60s question** — [infra-dr-restore.md](infra-dr-restore.md).
+>
+> This paragraph assumed a production copy carries production volume. It does
+> not: production holds **5 user rows and no salons**, so a restored copy boots
+> exactly as fast as staging already does. The restore was still worth running —
+> it proved the backups are restorable and closed LAUNCH.md §5.5 — but the
+> *timing gate* this paragraph asks for needs **synthetic volume generated in
+> staging**, not a copy of an empty production.
+>
+> So `statement_timeout = 60s` ships unmeasured, deliberately, with the
+> per-migration escape hatch making that cheap to be wrong about
+> ([backend-migration-timeouts.md](backend-migration-timeouts.md) §3.3, §8 q3).
 
 ### 3.3 Staging seeded from prod + any live channel = real SMS to real customers
 

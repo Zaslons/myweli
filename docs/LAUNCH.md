@@ -274,10 +274,24 @@ it does. That is a launch-order constraint, not a backlog item.
 - [ ] Until then, treat every preview deployment as writing to production, and
       do not exercise booking or registration flows on one.
 
-### 5.5 Backups are unrehearsed
+### 5.5 Backups are unrehearsed — **rehearsed 2026-08-16**
 
-- [ ] Restore `myweli-db` to a staging instance from PITR and confirm the data.
-      Until that is done we do not know we have backups.
+- [x] Restore `myweli-db` from PITR and confirm the data. **Done** —
+      [design/infra-dr-restore.md](design/infra-dr-restore.md). We now know we
+      have backups: a point-in-time clone came up with **31 migrations and 39
+      tables** intact, in **26 min 14 s**.
+      - Restored into a **standalone instance**, not staging as this line
+        originally said. Staging is `ingress: all` and echoes OTP dev-codes, and
+        production holds 5 user rows — small, but not nothing
+        (infra-staging.md §2.1).
+      - **26 minutes is a floor**, measured against a 10 MB database. Quote the
+        RTO as *"at least half an hour"* and expect it to grow with the data.
+      - Five traps found, all of which read as a different problem — the worst
+        being that Cloud SQL's `postgres` role cannot see the app's tables, so a
+        healthy restore reports **zero tables**.
+- [ ] **Still owed:** nobody has *promoted* a restore — repointing
+      `DATABASE_URL` at a restored instance and accepting the write-loss window
+      is the hard step, and it is still theory (infra-dr-restore.md §7).
 
 ---
 
