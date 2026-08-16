@@ -292,9 +292,15 @@ has left them behind, and rolling back the image stops the writing without
 touching what was written.
 
 The available recovery is **Cloud SQL point-in-time recovery**, which restores to
-a *new instance* — it is a data-recovery operation with its own downtime, not a
-rollback, and it has never been rehearsed here ([LAUNCH.md](../LAUNCH.md) §5.5).
-If an incident needs it, that is the moment to stop following this document.
+a *new instance* — a data-recovery operation with its own downtime, not a
+rollback. If an incident needs it, stop following this document and open
+**[infra-dr-restore.md](infra-dr-restore.md)**, which has the procedure and the
+five traps that cost time when it was rehearsed on 2026-08-16.
+
+Two numbers to carry into that decision: the restore itself took **26 minutes**
+against a 10 MB database and grows from there, and **promoting** a restore —
+repointing `DATABASE_URL` and accepting the write-loss window between the
+restore point and the cutover — has never been rehearsed.
 
 ---
 
@@ -446,9 +452,11 @@ not a requirement.
    contention between cold-starting instances, so bounding it would fail healthy
    deploys. §6's "a failed deploy rolls itself back" now holds *quickly* rather
    than after a silent 300s.
-3. **Cloud SQL PITR has never been exercised** ([LAUNCH.md](../LAUNCH.md) §5.5).
-   §5.3 points at it as the recovery for bad *data*, which means the one
-   mechanism this runbook defers to is the one nobody has tried.
+3. ~~**Cloud SQL PITR has never been exercised.**~~ **Closed 2026-08-16** —
+   [infra-dr-restore.md](infra-dr-restore.md). A point-in-time clone of
+   production came up with 31 migrations and 39 tables intact in 26 min 14 s.
+   What remains untried is **promoting** one: repointing a running service at a
+   restored instance, which is the step that carries the write-loss window.
 4. **Nothing records that a pin exists *while it is holding*.** The rehearsal
    improved this by accident: §7.1's `::warning::` surfaces as a **run-level
    annotation** on the deploy that releases a pin, so the release is
