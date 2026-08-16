@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Module** | infrastructure (`infra/gcp/`, `.github/workflows/`, `backend/lib/src/db/`) |
-| **Status** | **Written 2026-08-16**, with the two guards it prescribes (§7) implemented. The procedure itself is **unrehearsed** — see §11. |
+| **Status** | **Written and REHEARSED 2026-08-16.** The two guards (§7) are implemented, and the full pin → blocked-deploy → release cycle was run against staging — §12 is the log. |
 | **Owner** | Sadreddine Daher |
 | **Decisions** | The pin is a tourniquet, never a fix (§3) · we do **not** make it durable (§3.1) · a deploy may not lift a pin by accident (§7.1) |
 | **Related** | [DEPLOYMENT.md](../DEPLOYMENT.md) · [infra-staging.md](infra-staging.md) · [infra-prod-hardening.md](infra-prod-hardening.md) · [LAUNCH.md](../LAUNCH.md) §1.4 |
@@ -83,6 +83,15 @@ Three fields plausibly answer "what is production running?" and after a pin
 Only the last one is about traffic. The other two describe intent and
 readiness, and both agree with each other while being wrong, which is the
 failure mode that reads as confirmation.
+
+**Measured, not reasoned** — staging pinned from `-00005-xr6` to `-00004-5kw`
+on 2026-08-16 (§12):
+
+```
+spec.template…image           : …@65de7e70…      ← the image of -00005, the one rolled AWAY from
+status.latestReadyRevisionName: myweli-api-staging-00005-xr6   ← likewise
+status.traffic[].revisionName : myweli-api-staging-00004-5kw   ← the truth
+```
 
 ```bash
 gcloud run services describe myweli-api --region europe-west9 --format='value(status.traffic[].revisionName)'
@@ -420,13 +429,11 @@ not a requirement.
 
 ## 11. Open questions
 
-1. **This procedure is unrehearsed.** Everything above is derived from the
-   manifests, the workflow and the live services, and the failure modes are
-   argued rather than observed. The honest next step is to pin staging to
-   `-00003`, watch §7.1 block the following merge, and unpin — perhaps 15
-   minutes, and it converts §3 and §7.1 from reasoning into evidence. Until then
-   this document is a design, and §0 is untested under the only conditions that
-   matter.
+1. ~~**This procedure is unrehearsed.**~~ **Closed 2026-08-16** — rehearsed
+   end to end on staging; §12 is the log, and §2's three-field table is now a
+   measurement. What remains untested is the same cycle on **production**, where
+   the load balancer sits in front and `minScale` is 1; nothing in the mechanism
+   differs, but that is an argument, not evidence.
 2. **`lock_timeout` / `statement_timeout` are still unimplemented.**
    [infra-staging.md](infra-staging.md) §3.2 prescribes `SET lock_timeout =
    '3s'` and `statement_timeout = '60s'` at the top of each migration
@@ -439,6 +446,54 @@ not a requirement.
 3. **Cloud SQL PITR has never been exercised** ([LAUNCH.md](../LAUNCH.md) §5.5).
    §5.3 points at it as the recovery for bad *data*, which means the one
    mechanism this runbook defers to is the one nobody has tried.
-4. **Nothing records that a pin exists.** §9's checklist asks a human to
-   remember. A scheduled check that alerts when live traffic is pinned would
-   close it; it is not worth building before question 1 is answered.
+4. **Nothing records that a pin exists *while it is holding*.** The rehearsal
+   improved this by accident: §7.1's `::warning::` surfaces as a **run-level
+   annotation** on the deploy that releases a pin, so the release is
+   permanently visible on the run rather than buried in step logs. But that
+   fires at the *end*. While a pin is in place, the only witnesses are a human's
+   memory and the next deploy going red. A scheduled check that alerts on
+   `spec.traffic[].revisionName` being non-empty would close it, and now that
+   question 1 is answered it is the next thing worth building here.
+
+---
+
+## 12. The rehearsal — 2026-08-16, on staging
+
+Run because §11 question 1 said this document was reasoning rather than
+evidence. Recorded in full because the value of a rehearsal is the part that did
+not go as written.
+
+| # | Act | Observed |
+|---|---|---|
+| 0 | baseline | all three fields agree on `-00005-xr6`; `spec.traffic[].revisionName` empty |
+| 1 | `update-traffic --to-revisions -00004-5kw=100` | traffic moved; `Routing traffic…done` |
+| 2 | inspect | **§2 confirmed** — two fields name `-00005`, only `status.traffic[]` names `-00004` |
+| 3 | the pinned revision serves | `/health` ok, `/providers` **HTTP 200** — the rollback target is genuinely serving, database included |
+| 4 | dispatch a staging deploy, `unpin` empty | **blocked at the guard**, exit 1, naming `-00004-5kw` |
+| 5 | inspect that run's steps | `Configure Docker`, **`Build and push`**, `Deploy`, `Verify` all **`skipped`** |
+| 6 | dispatch again with `unpin: yes` | succeeded; the `::warning::` became a **run annotation** |
+| 7 | final state | `-00006-pcq` serving, `spec.traffic latestRevision: True`, `/health` + `/providers` ok |
+| 8 | production | `myweli-api-00017-p4j` throughout, `"env":"prod"` — never touched |
+
+**Three things the rehearsal established that argument had not:**
+
+- **§7.1's placement earns itself.** Step 5 is the point: the guard sits before
+  `Configure Docker` and after auth, so a blocked deploy spends **no Docker
+  build at all**. That was a design claim; it is now an observation.
+- **`${UNPIN}` is safe under `set -u`.** A dispatch that leaves the input empty,
+  and a push which has no `inputs` object whatsoever, both make
+  `${{ github.event.inputs.unpin }}` evaluate to `''`, and GitHub still defines
+  the env var — so `[ "${UNPIN}" = "yes" ]` compares rather than aborting with
+  *unbound variable*. Worth having checked: had it aborted, the deploy would
+  still have failed (the safe direction) but with a message about shell scoping
+  instead of about a rollback.
+- **A dispatch with `unpin` empty is the same code path as a push.** Both
+  produce `UNPIN=''`; the guard cannot tell them apart, which is why step 4 is
+  evidence about the automatic path even though it was triggered by hand.
+
+**One claim this rehearsal did *not* establish.** §4.1 says to budget for a cold
+start on the target revision. `/health` answered in ~0.4s at step 3 — but
+`-00004` had been idle for roughly four minutes, well inside the window in which
+Cloud Run keeps an idle instance alive. **That is not a cold-start measurement**,
+and §4.1's advice stands unverified rather than confirmed.
+
