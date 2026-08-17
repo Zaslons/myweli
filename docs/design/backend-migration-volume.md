@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Module** | `backend/lib/src/db/migrations.dart`, `backend/tool/volume_probe.dart` |
-| **Status** | **Measured 2026-08-16.** Closes [backend-migration-timeouts.md](backend-migration-timeouts.md) §8 q3 and [infra-staging.md](infra-staging.md) §3.2's timing gate. |
+| **Status** | **Measured 2026-08-16; dedicated-core tier measured and priced 2026-08-17 (§7).** Closes [backend-migration-timeouts.md](backend-migration-timeouts.md) §8 q3 and [infra-staging.md](infra-staging.md) §3.2's timing gate. |
 | **Owner** | Sadreddine Daher |
 | **Skills checked** | myweli-backend-guardrails |
 | **Related** | [backend-migration-timeouts.md](backend-migration-timeouts.md) · [infra-dr-restore.md](infra-dr-restore.md) §4 · [infra-staging.md](infra-staging.md) §3.2 |
@@ -194,7 +194,7 @@ Billing catalog** for `europe-west9` (Zonal, Enterprise edition, PostgreSQL),
 |---|---|---|---|---|---|---|
 | `db-f1-micro` — today | **shared** | 0.6 GiB | $8.91 | $10.88 | — | — |
 | `db-g1-small` | **shared** | 1.7 GiB | $29.64 | $31.61 | **+$20.73** | **NO** |
-| `db-custom-1-3840` | **1 dedicated** | 3.75 GiB | $57.14 | $59.11 | **+$48.23** | yes — projected, §7.3 |
+| `db-custom-1-3840` | **1 dedicated** | 3.75 GiB | $57.14 | $59.11 | **+$48.23** | **yes — measured, §7.3** |
 | `db-custom-2-7680` | 2 dedicated | 7.5 GiB | $114.28 | $116.25 | +$105.38 | no better than 1 vCPU here |
 
 **`db-g1-small` is a trap, and it is the obvious choice.** It reads as "the next
@@ -241,34 +241,91 @@ with no connection retry, and ~800 MB of backends on a 0.6 GB machine).
 **So the tier bump's first payoff is connection headroom, not migration speed.**
 Migration speed is the second-order benefit, arriving at 100k appointments.
 
-### 7.3 The performance claim is a projection, not a measurement
+### 7.3 Measured on a dedicated core — and it refuted half the projection
 
-Stated plainly because §7.1's "fixes the cliff" column is the whole justification
-for the money.
+This section used to argue from a laptop and call the speedup 3.6–5.6×. A
+throwaway `db-custom-1-3840` was then measured directly (**$0.014**, 11 minutes),
+and the conclusion survived while the reasoning did not.
 
-What *is* measured: the cliff is CPU throttling (§2.4, utilisation pinned flat at
-18–19%), and it is not memory (§2.3). What is **not** measured is
-`db-custom-1-3840`. The supporting evidence is indirect — the same probe on a
-laptop with real cores ran **3.6–5.6× faster** at 25k–50k rows and showed no
-cliff — and a laptop is not a Cloud SQL dedicated core.
+| `appointments` | `db-f1-micro` GiST | `db-custom-1-3840` GiST | |
+|---|---|---|---|
+| 25 000 | 3.1 s | **3.6 s** | dedicated core *slower* |
+| 50 000 | 6.2 s | **8.2 s** | slower |
+| 100 000 | 14.3 s | **16.4 s** | slower |
+| 150 000 | **264 s** | **26.2 s** | **10× faster** |
 
-**Verifying is cheap: about $0.05 and 40 minutes.** Create a throwaway
-`db-custom-1-3840`, run `tool/volume_probe.dart` against it, delete it. Spending
-$0.05 to check a $579/year commitment is the obvious trade, and it should happen
-before the bump, not after.
+**Below ~100k the dedicated core is not faster. It is marginally slower.** The
+projection assumed the small-tier `f1-micro` numbers were already throttled;
+they were not — those builds finish inside the burst allowance, so the two
+machines are comparable, and a shared core with burst credit available is a
+perfectly good machine.
 
-### 7.4 Recommendation
+**What the money buys is the absence of the cliff, not speed.** The dedicated
+core scales smoothly — 3.6 → 8.2 → 16.4 → 26.2 s, close to linear — while
+`f1-micro` goes 14.3 → **264** the moment sustained work outlasts its credit.
+That is a 10× gap at 150k and it widens above.
 
-**Do not bump now.** Nothing is near the migration limit, and the connection
-ceiling is a rollout-time transient rather than a steady-state failure.
+Note `maintenance_work_mem` is **64 MB on both tiers**, so the dedicated core
+removes the cliff *without any extra memory* — independent confirmation of §2.3.
+What differs is `shared_buffers` (128 MB → 1222 MB) and, decisively, an
+unthrottled core.
 
-**Set a tripwire, not a date.** The trigger is a business milestone nobody can
-schedule:
+**60s at 150k becomes comfortable**: 26.2 s, with 2.3× headroom. Extrapolating
+the near-linear curve puts the 60s crossing near ~350k rows — but §2.2 is the
+standing warning against exactly that arithmetic, so treat it as indicative and
+re-run the probe before relying on it.
 
-- **`appointments` past ~50 000** — half the measured cliff, which leaves ample
-  runway. Worth adding to monitoring; nothing watches row counts today.
-- **`postgresql/num_backends` approaching 22** — already a metric Cloud
-  Monitoring collects, and the nearer of the two.
+### 7.4 The finding that reframes the whole purchase
 
-**When it happens: skip `db-g1-small`, go straight to `db-custom-1-3840`, and run
-the probe first.**
+`db-custom-1-3840` reports **`max_connections=100`**, against `db-f1-micro`'s 25.
+
+§7.2 argued the connection ceiling binds before the migration cliff. A tier bump
+**quadruples** it, taking the rollout-overlap worst case (8 instances × 4 = 32)
+from *over* the ~22 usable to comfortably inside ~97. That is the constraint
+which is real today, and it is fixed as a side effect.
+
+So the purchase is **headroom, in two independent forms** — 4× the connections
+now, and no migration cliff later — and in neither case is it *speed*. Anyone
+justifying it as "the database will be faster" will be disappointed at current
+volumes, and measurably so.
+
+### 7.5 Recommendation, and the tripwire that shipped
+
+**Do not bump now.** At today's volumes a dedicated core is not faster (§7.3),
+and the connection ceiling is a rollout-time transient rather than a steady-state
+failure. Current `num_backends` on both instances: **2**.
+
+**Skip `db-g1-small` when the time comes.** It is shared-core, so it fixes
+neither thing the bump is for.
+
+**One tripwire shipped, one deliberately not.**
+
+`infra/gcp/85-db-capacity-alert.sh` creates an alert policy per instance on
+`num_backends` **> 16 sustained for 10 minutes** — 16 being the documented budget
+(`kMaxConnectionsPerInstance` 4 × `maxScale` 4), and ten minutes being long
+enough that a draining rollout does not page anyone. Verified by resolving the
+policy's own filter against live data rather than trusting `create`'s exit code:
+both instances return real series, max 2, so the policy can fire.
+
+**The `appointments` row-count tripwire is a manual gate, not an alert, and that
+is the honest design.** Cloud Monitoring has no row-count metric, and the
+available proxies do not work at this scale:
+
+- `disk/bytes_used` is dominated by a ~90–105 MB baseline of system pages and
+  WAL, while 50 000 appointments adds only ~25 MB of table and index. The signal
+  sits inside the noise, and a threshold picked anyway would fire either
+  constantly or far too late.
+- A log-based metric would need the application to emit the count at boot. On
+  production, `minScale: 1` means boot happens only on deploy, so the metric
+  would be as stale as the last release — and a `COUNT(*)` in the boot path is a
+  cost on the one code path recently hardened.
+
+So the row count is checked **when it matters**, which is when someone is about
+to add an index — exactly where BACKEND.md §2 already sends them:
+
+```sql
+SELECT count(*) FROM appointments;   -- past ~50 000? run tool/volume_probe.dart first
+```
+
+A gate at the point of decision beats an alert nobody can act on, and it is
+better than an alert with a threshold chosen to make a graph look reassuring.
