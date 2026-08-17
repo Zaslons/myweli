@@ -377,9 +377,17 @@ staging before rehearsing, timing the boot as a gate. This is also LAUNCH.md
 > *timing gate* this paragraph asks for needs **synthetic volume generated in
 > staging**, not a copy of an empty production.
 >
-> So `statement_timeout = 60s` ships unmeasured, deliberately, with the
-> per-migration escape hatch making that cheap to be wrong about
-> ([backend-migration-timeouts.md](backend-migration-timeouts.md) §3.3, §8 q3).
+> **The timing gate this paragraph asks for was then run against synthetic
+> volume instead, on 2026-08-16** —
+> [backend-migration-volume.md](backend-migration-volume.md).
+>
+> This paragraph's instinct was right and its arithmetic was optimistic. The
+> `EXCLUDE USING gist` it names takes **14.3s at 100k appointments and 264s at
+> 150k** on `db-f1-micro` — a cliff caused by shared-core CPU throttling. So
+> `statement_timeout = 60s` stays, but it is **not** the binding constraint:
+> migrations run before the port binds, so the **300s `startupProbe`** is, and
+> the same statement exceeds *that* past ~200k rows. At that size the answer is
+> a tier bump or not building the index at boot — not a larger timeout.
 
 ### 3.3 Staging seeded from prod + any live channel = real SMS to real customers
 
