@@ -298,9 +298,18 @@ rollback. If an incident needs it, stop following this document and open
 five traps that cost time when it was rehearsed on 2026-08-16.
 
 Two numbers to carry into that decision: the restore itself took **26 minutes**
-against a 10 MB database and grows from there, and **promoting** a restore —
-repointing `DATABASE_URL` and accepting the write-loss window between the
-restore point and the cutover — has never been rehearsed.
+against a 10 MB database and grows from there, while **promoting** it — pointing
+the service at the restored instance — takes **17 seconds**. The restore
+dominates entirely, so an RTO estimate is a restore estimate.
+
+Promotion is a **two-line manifest change**, not a `DATABASE_URL` change
+(infra-dr-restore.md §8) — and it carries the **same self-erasing trap as the
+traffic pin in §3**: a hand-edited service config is reverted by the next deploy
+of the *committed* manifest. Commit the two lines.
+
+What no rehearsal can remove is the **write-loss window**: everything written
+between the restore point and the cutover is gone. That part stays a judgement
+call.
 
 ---
 

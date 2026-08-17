@@ -289,9 +289,18 @@ it does. That is a launch-order constraint, not a backlog item.
       - Five traps found, all of which read as a different problem — the worst
         being that Cloud SQL's `postgres` role cannot see the app's tables, so a
         healthy restore reports **zero tables**.
-- [ ] **Still owed:** nobody has *promoted* a restore — repointing
-      `DATABASE_URL` at a restored instance and accepting the write-loss window
-      is the hard step, and it is still theory (infra-dr-restore.md §7).
+- [x] **Promotion rehearsed 2026-08-17** (infra-dr-restore.md §8) — and it is
+      **not** a `DATABASE_URL` change, which four documents including this line
+      claimed. The instance is named in the service manifest **twice** (the
+      `cloudsql-instances` annotation and the proxy's argv); `DATABASE_URL` holds
+      `127.0.0.1:5432` and names no instance. Promotion is a **two-line diff plus
+      a deploy — 17 s**, with every secret untouched and no IAM step.
+      - **Commit the change.** A hand-edited service config is reverted by the
+        next deploy of the committed manifest — the same trap as a rollback
+        traffic pin.
+      - The **write-loss window** (everything written after the restore point)
+        is the only part that stays a judgement call. No rehearsal can remove it.
+- [ ] **Still owed:** RTO against real data. 26 min is the empty floor.
 
 ---
 

@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Module** | infrastructure (Cloud SQL `myweli-db`, `europe-west9`) |
-| **Status** | **Rehearsed end to end, 2026-08-16.** Closes [LAUNCH.md](../LAUNCH.md) §5.5 and gives [infra-rollback.md](infra-rollback.md) §5.3 a procedure instead of a pointer. |
+| **Status** | **Restore rehearsed 2026-08-16; PROMOTION rehearsed 2026-08-17 (§8).** Closes [LAUNCH.md](../LAUNCH.md) §5.5 and gives [infra-rollback.md](infra-rollback.md) §5.3 a procedure instead of a pointer. |
 | **Owner** | Sadreddine Daher |
 | **Skills checked** | myweli-backend-guardrails |
 | **Related** | [infra-rollback.md](infra-rollback.md) §5.3 · [infra-staging.md](infra-staging.md) §3.2 · [LAUNCH.md](../LAUNCH.md) §5.5 |
@@ -44,10 +44,9 @@ gcloud sql instances patch myweli-db-dr-<date> --no-deletion-protection -q
 gcloud sql instances delete myweli-db-dr-<date> -q
 ```
 
-**Promoting a restore to production is deliberately not scripted here.** It means
-repointing `DATABASE_URL` at the new instance and redeploying — a decision with
-its own data-loss window (everything written between the restore point and the
-cutover), which belongs to whoever is holding the incident, not to a snippet.
+**Promoting the restore — pointing the service at it — is §8.** It is *not* a
+`DATABASE_URL` change, which is what this section claimed until the promotion was
+rehearsed on 2026-08-17.
 
 ## 2. What went wrong, and why each one matters
 
@@ -142,13 +141,13 @@ Stated because the reason for running it was partly wrong.
 boot as a gate"*, on the assumption that a production copy carries production
 volume. It does not: production holds 5 user rows and no salons, so a restored
 copy boots exactly as fast as staging already does.
-[backend-migration-timeouts.md](backend-migration-timeouts.md) §8 q3 stays open,
-and the thing that would close it is **synthetic volume generated in staging**,
-not a copy of an empty production.
+That question was closed separately, by synthetic volume rather than by a copy of
+production — [backend-migration-volume.md](backend-migration-volume.md).
 
-**It did not exercise a promotion.** The clone was inspected and deleted. Nobody
-has repointed a running service at a restored instance, and §1 deliberately
-leaves that unscripted.
+~~**It did not exercise a promotion.**~~ **Rehearsed the next day — §8.** The
+clone here was only inspected and deleted; §8 is the separate rehearsal that
+pointed a service at a restored instance, and it found that this section's own
+description of promotion was wrong.
 
 **It says nothing about a restore under load.** Production was idle.
 
@@ -179,9 +178,9 @@ the kind of knowledge that goes stale silently when the platform changes.
 
 ## 7. Open questions
 
-1. **No promotion has been rehearsed** (§4). The runbook's hardest step —
-   repointing `DATABASE_URL` and accepting the write-loss window — is still
-   theory.
+1. ~~**No promotion has been rehearsed.**~~ **Rehearsed 2026-08-17 — §8.** It is
+   a **two-line manifest change**, not a `DATABASE_URL` change, and the only
+   genuinely hard part left is the write-loss decision.
 2. **RTO is unmeasured against real data** (§3). 26 minutes is the empty floor;
    nobody knows the slope.
 3. **Nothing verifies backups routinely.** Five consecutive automated backups
@@ -189,3 +188,124 @@ the kind of knowledge that goes stale silently when the platform changes.
    were restorable. A scheduled quarterly rehearsal — or a check that at least
    asserts the backup list is fresh — would keep this true rather than
    historical.
+
+---
+
+## 8. Promotion — pointing the service at the restored instance
+
+Rehearsed 2026-08-17 on staging: a backup-based clone of `myweli-db-staging`, a
+throwaway **private** Cloud Run service pointed at it, verified, both deleted.
+Neither live service and no production data were involved.
+
+### 8.1 It is not a `DATABASE_URL` change
+
+Four documents said it was, including §1 of this one. They were wrong about the
+mechanism, and the correction makes promotion far simpler than it read.
+
+`DATABASE_URL` holds **`127.0.0.1:5432`** — the Cloud SQL Auth Proxy sidecar
+running beside the app — and **names no instance at all**. The instance is
+selected by its connection name in **two** places in the service manifest:
+
+```yaml
+run.googleapis.com/cloudsql-instances: myweli:europe-west9:myweli-db   # :60
+…
+        - myweli:europe-west9:myweli-db                                # :317, the proxy's argv
+```
+
+`service-staging.yaml` already warns that this value appears twice and that
+"both must change together". Promotion is that change, and nothing else:
+
+```bash
+# edit BOTH occurrences to the restored instance, then
+gcloud run services replace infra/gcp/service.yaml --region europe-west9
+```
+
+**Secrets are untouched — including `DATABASE_URL`.** A clone or restore
+inherits the source's roles and passwords, so the existing secret keeps working
+unchanged. (The corollary matters: a database rebuilt into a *freshly created*
+instance would **not** inherit them, and would need a new secret version. Clone
+or restore, never create-and-copy.)
+
+**No IAM step.** `roles/cloudsql.client` is granted **project-wide** to both
+`myweli-run@` and `myweli-run-staging@`, so a brand-new instance is reachable the
+moment it exists. Verified from the sidecar's own log: `Authorizing with
+Application Default Credentials`.
+
+The rehearsal's manifest differed from the real staging manifest by **three
+lines** — the two connection names, plus the service name only because it ran
+*alongside* staging. A real promotion keeps the name, so it is a **two-line
+diff**.
+
+### 8.2 Promote by committing, or it un-promotes itself
+
+**This is the same trap as a traffic pin** ([infra-rollback.md](infra-rollback.md) §3).
+
+`gcloud run services replace` applies whatever manifest you hand it. Promote by
+editing the file locally and the service points at the restored instance — until
+the next merge to `main` deploys the **committed** manifest, which still names
+the old one. Nothing announces it; the service quietly goes back to the database
+you were recovering from.
+
+Staging deploys on every merge, so there the window is hours. So: **commit the
+two-line change on a branch and deploy through the workflow.** An incident is a
+bad time to be told to open a PR, which is exactly why it is written here in
+advance.
+
+### 8.3 What the rehearsal proved, and what it could not
+
+| | |
+|---|---|
+| Clone (backup-based, no PITR) | **12 min 33 s** |
+| `services replace` → revision Ready + traffic routed | **17 s** |
+| Revision | `myweli-api-dr-rehearsal-00001-vld`, `Ready=True` |
+| `/health` | `{"status":"ok","env":"staging"}` |
+| `/providers` | HTTP 200 |
+| Publicly reachable? | **no** — no `allUsers` binding; unauthenticated → **403** |
+
+**The restore dominates; the repoint is free.** 12.5 minutes against 17 seconds.
+Any RTO estimate is a restore estimate.
+
+**The verification I nearly shipped could not have failed.** `/providers`
+returning 200 proves *a* database answered, not *which* — and the clone is
+byte-identical to staging, so both would answer identically. The check that can
+actually fire is the proxy sidecar's own structured log:
+
+```
+[myweli:europe-west9:myweli-db-staging-dr] Listening on 127.0.0.1:5432
+[myweli:europe-west9:myweli-db-staging-dr] Accepted connection from 127.0.0.1:19098
+```
+
+That names the instance the running service is actually talking to. **Use it as
+the acceptance test for a real promotion** — the API answering 200 is not
+evidence of anything about which database it read.
+
+Two smaller confirmations: Cloud Run **health-checks a new revision even at
+`minScale: 0`** (`Instance started due to … deployment health check`), so
+`Ready=True` really does mean the app booted and reached the database; and
+`status.url` was again **different** from the hostname `gcloud run services
+replace` printed — the two-run.app-hostname trap, live for the third time.
+
+**Not proved: the write-loss window.** Everything written between the restore
+point and the cutover is gone, and no rehearsal can make that not so. It is the
+one part of promotion that stays a judgement call — how much recent data to
+abandon versus how long to stay down — and it belongs to whoever is holding the
+incident.
+
+**Not proved on production specifically.** Same mechanism, same project-wide
+IAM, different secrets and service account. The rehearsal deliberately avoided
+production data and production secrets; the manifest change is identical.
+
+### 8.4 Staging is much less recoverable than production
+
+Found while looking for something to clone:
+
+| | backups retained | PITR | granularity |
+|---|---|---|---|
+| `myweli-db` (production) | 7 | **enabled**, 7-day logs | any second in the last week |
+| `myweli-db-staging` | **1** | **disabled** | the last 03:00 backup, or nothing |
+
+Defensible — staging holds synthetic data by design (§2.1 of
+[infra-staging.md](infra-staging.md)) — but it is not what "staging mirrors
+production" suggests, and it is worth knowing before assuming a staging mistake
+is undoable. It also means staging cannot rehearse a *point-in-time* restore at
+all; the clone above came from the 03:00 backup.
