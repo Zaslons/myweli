@@ -498,7 +498,7 @@ that should send someone back to this section.
 |---|---|
 | Cloud SQL db-f1-micro, 24/7 | **$8.91** — 60–70% of the total, and it cannot scale to zero |
 | Cloud SQL storage, 10 GiB PD_SSD | $1.97 |
-| Backups + PITR (drop to 1 day on staging) | $0.20–0.50 |
+| Backups + PITR (drop to 1 day on staging) | $0.20–0.50 — **PITR enabled 2026-08-17**; the instance had been provisioned without it, so this line was budgeted and not delivered. One `gcloud sql instances patch --enable-point-in-time-recovery`, 5 minutes, logs in Cloud Storage (not instance disk). Retention stays at **1 backup / 1 day of logs**, exactly as this line always specified — the log-retention default of 7 was lowered to match, because with one base backup every WAL segment older than a day is unreadable and the `7` only misled. **Exercised, not just configured**: a marker written 18 min after the base backup came back in a clone restored to a point after it — see [infra-dr-restore.md](infra-dr-restore.md) §8.4–8.5 |
 | Cloud Run, minScale 0 | $0.50–2.00 |
 | Secret Manager, ~17 versions | $1.02 — the 6-version free tier is already consumed by prod's 19 |
 | R2, Scheduler, Artifact Registry, logging, egress | ~$0 |

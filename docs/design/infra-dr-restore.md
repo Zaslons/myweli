@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Module** | infrastructure (Cloud SQL `myweli-db`, `europe-west9`) |
-| **Status** | **Restore rehearsed 2026-08-16; PROMOTION rehearsed 2026-08-17 (§8).** Closes [LAUNCH.md](../LAUNCH.md) §5.5 and gives [infra-rollback.md](infra-rollback.md) §5.3 a procedure instead of a pointer. |
+| **Status** | **Restore rehearsed 2026-08-16; promotion rehearsed 2026-08-17 (§8); staging PITR enabled and EXERCISED 2026-08-17 (§8.4–8.5).** Closes [LAUNCH.md](../LAUNCH.md) §5.5 and gives [infra-rollback.md](infra-rollback.md) §5.3 a procedure instead of a pointer. |
 | **Owner** | Sadreddine Daher |
 | **Skills checked** | myweli-backend-guardrails |
 | **Related** | [infra-rollback.md](infra-rollback.md) §5.3 · [infra-staging.md](infra-staging.md) §3.2 · [LAUNCH.md](../LAUNCH.md) §5.5 |
@@ -295,17 +295,124 @@ incident.
 IAM, different secrets and service account. The rehearsal deliberately avoided
 production data and production secrets; the manifest change is identical.
 
-### 8.4 Staging is much less recoverable than production
+### 8.4 Staging was much less recoverable than production — fixed 2026-08-17
 
-Found while looking for something to clone:
+Found while looking for something to clone, and it turned out to be **drift from
+the design rather than a decision**: [infra-staging.md](infra-staging.md)'s cost
+table budgets *"Backups + PITR (drop to 1 day on staging), $0.20–0.50"*, so
+staging was always meant to have PITR. The provisioned instance simply never did.
 
-| | backups retained | PITR | granularity |
+| | backups retained | PITR | effective window |
 |---|---|---|---|
-| `myweli-db` (production) | 7 | **enabled**, 7-day logs | any second in the last week |
-| `myweli-db-staging` | **1** | **disabled** | the last 03:00 backup, or nothing |
+| `myweli-db` (production) | 7 | enabled, 7-day logs | any second in the last week |
+| `myweli-db-staging` **before** | 1 | **disabled** | the last 03:00 backup, or nothing |
+| `myweli-db-staging` **after** | 1 | **enabled**, 1-day logs | any second **since the last backup** — see below |
 
-Defensible — staging holds synthetic data by design (§2.1 of
-[infra-staging.md](infra-staging.md)) — but it is not what "staging mirrors
-production" suggests, and it is worth knowing before assuming a staging mistake
-is undoable. It also means staging cannot rehearse a *point-in-time* restore at
-all; the clone above came from the 03:00 backup.
+Enabling it was one command and took **5 minutes**:
+
+```bash
+gcloud sql instances patch myweli-db-staging --enable-point-in-time-recovery
+```
+
+`transactionalLogStorageState` moved `UNSPECIFIED → CLOUD_STORAGE`, matching
+production, so the logs do not consume instance disk. **No `RESTART` operation was
+recorded** — a single `UPDATE`, plus an immediate fresh `BACKUP_VOLUME`, which is
+what makes the new window start at once rather than at the next 03:00.
+
+**The window is bounded by the retained BACKUP, not by the log retention — and
+`transactionLogRetentionDays: 7` invites you to believe otherwise.** PITR needs a
+base backup *preceding* the target instant, and staging retains **one**. So the
+real granularity is *"any second since the most recent backup"* — at most about a
+day — while the setting reads 7.
+
+Proved rather than reasoned, by asking for a point before the window:
+
+```
+$ gcloud sql instances clone myweli-db-staging … --point-in-time='2026-08-16T12:00:00Z'
+ERROR 400: A successful backup that's required for carrying out the CLONE
+operation can't be found, or a backup that was created before the restored
+timestamp can't be found.
+```
+
+Rejected up front, with no instance created — so the probe is free, and it is the
+cheapest way to discover the true boundary of any environment.
+
+**The fix ran the other way, and deliberately.** Raising
+`--retained-backups-count=7` would have bought a true seven-day window for about
+$0.05/month — but §5 of [infra-staging.md](infra-staging.md) explicitly chose
+*"drop to 1 day on staging"*, staging holds synthetic data, and it turned out to
+hold **no users at all** before this rehearsal wrote one. Seven days of recovery
+granularity for an environment whose recovery path is "re-seed it" solves a
+problem that does not exist.
+
+What was actually wrong was the *number that lied*. With one retained backup,
+every WAL segment older than roughly a day is unreadable — no base backup
+precedes it — so `transactionLogRetentionDays: 7` was both misleading and paying
+to store logs that could never be used. Lowered to match the capability:
+
+```bash
+gcloud sql instances patch myweli-db-staging --retained-transaction-log-days=1
+```
+
+`--transaction-log-retention-days` is **not** the flag; gcloud answers that one
+with a help hint rather than an error, so the setting silently stays put. Caught
+only by re-reading the value afterwards. Assert the state, never the exit code.
+
+### 8.5 Staging's PITR, exercised
+
+Configuration is not capability, which is the distinction this whole sequence
+keeps turning on: production's backups all reported `SUCCESSFUL` for months and
+that was zero evidence until one was restored. So the flag was tested the same
+way.
+
+**The test had to prove log replay, not just that a clone boots.** A clone that
+merely restored the base backup would look identical to a working PITR. So a
+marker was written *after* the base backup, through staging's own public API — no
+database credential involved:
+
+| | |
+|---|---|
+| Base backup | `10:05:53Z` |
+| Marker user created (email OTP, `devCode` echoed since `isProd` is false) | **`10:23:32.999Z`** — 18 min later |
+| Restore target | `10:25:00Z` |
+| Clone duration | **23 min 21 s** |
+| Result | 31 migrations, 39 tables, **marker present** |
+
+```
+MARKER PRESENT? (1 = log replay worked, 0 = only the base backup was restored)
+  pitr-marker-1786962209@myweli.test -> 1
+  id=user_1786962213027737_3949424498  created_at=2026-08-17 10:23:32.9998+00
+```
+
+A row committed eighteen minutes after the base backup cannot be in that backup.
+Its presence is proof that WAL archiving is live and that the restore landed at
+the requested instant.
+
+Two notes. Phone OTP **404s** on staging — `AUTH_METHODS=google,apple,email`
+deliberately omits it — so the marker went through the email path, whose Resend
+key is a dead one by design, meaning nothing was delivered anywhere. And the
+marker user was **left in place**: removing it would mean opening staging's
+authorized networks and handling its credentials, to tidy one synthetic row in a
+synthetic environment. `users` went from **0 to 1**.
+
+**Restore cost, all three measured on `db-f1-micro`:**
+
+| | data | mechanism | duration |
+|---|---|---|---|
+| production | 10 MB | PITR (log replay) | 26 min 14 s |
+| staging | 89 MB | backup only | **12 min 33 s** |
+| staging | 89 MB | PITR (log replay) | **23 min 21 s** |
+
+**Log replay roughly doubles a restore**, consistently across both instances. If
+an incident can accept the last nightly backup instead of a precise instant, that
+choice halves the outage.
+
+And §2.1's trap appeared a third time: the instance reported `RUNNABLE` at ~1193 s
+while the operation still said `RUNNING`, finishing at 1401 s. Wait on the
+operation.
+
+The state this section originally recorded — no PITR at all — was defensible on
+the grounds that staging holds synthetic data (§2.1 of
+[infra-staging.md](infra-staging.md)), but it was not what *"staging mirrors
+production"* suggests, and it is what made §8's own clone a **backup**-based one
+rather than point-in-time. Staging can now rehearse the point-in-time path too.
