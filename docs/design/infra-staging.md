@@ -565,6 +565,22 @@ Each phase is a PR. Nothing in phase 2+ starts until §1 is merged.
    > is where that path can be proven to carry traffic on its own, which is the
    > evidence production needs before retiring the header (BACKEND.md §7 T21).
    >
+   > **Resumed 2026-08-17, and the evidence this paragraph predicted was
+   > obtained immediately.** Both jobs forced a run: `/internal/cron/reminders`
+   > and `/internal/cron/subscriptions` each answered **200**, and because these
+   > jobs send **no `X-Cron-Secret` at all**, a 200 can only mean the OIDC token
+   > verified. The negative half was checked too — an anonymous POST and a POST
+   > with a junk bearer both return **403 `forbidden`** — because a 200 proves
+   > authentication only if the route rejects the unauthenticated. See
+   > [infra-cron-oidc-evidence.md](infra-cron-oidc-evidence.md).
+   >
+   > The cost this paragraph names is real and small: ~96 cold starts a day is
+   > roughly **$0.7–1/month** of Cloud Run time, inside the $0.50–2.00 line §5
+   > already budgets. What it buys is continuous exercise of the boot path —
+   > migrations under the `SET LOCAL` timeouts, and the cron auth — on the
+   > environment whose job is to fail first. Re-pausing is one command if the
+   > noise is ever unwanted.
+   >
    > `backend/test/infra/service_files_test.dart` asserts the script provisions
    > **exactly** the seventeen secrets the manifest mounts. A secret added to one
    > and forgotten in the other fails at revision creation with no application
