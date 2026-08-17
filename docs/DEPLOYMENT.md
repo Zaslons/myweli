@@ -231,8 +231,14 @@ which is how the reminder cron came to be switched off without anyone noticing.
 6. **Crons are Cloud Scheduler jobs**, not dashboard entries: `myweli-reminders`
    every 15 min and `myweli-subscriptions` daily at 03:00 UTC, both authenticated
    with a Google-signed OIDC token (`myweli-scheduler@`). A transitional
-   `X-Cron-Secret` header is still accepted and is to be retired once real runs
-   are seen on the OIDC path.
+   `X-Cron-Secret` header is still accepted and was to be retired once real runs
+   were seen on the OIDC path. **That condition is now met, twice over
+   (2026-08-17)** — see
+   [design/infra-cron-oidc-evidence.md](design/infra-cron-oidc-evidence.md):
+   staging's jobs carry **no** shared secret and answer 200 (while anonymous
+   callers get 403), and production has run **251 consecutive cron requests on
+   revision `-00017-p4j` with zero `cron_auth_legacy`** log lines. Retiring the
+   header is unblocked and is a deliberate production change, not done yet.
 7. **Monitoring** is committed too — `infra/gcp/80-uptime-checks.sh` creates
    uptime checks on `/health` *and* on a database-backed route, because `/health`
    never touches Postgres and reported `ok` throughout an outage. Alerts require
