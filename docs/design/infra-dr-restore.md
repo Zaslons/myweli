@@ -295,17 +295,65 @@ incident.
 IAM, different secrets and service account. The rehearsal deliberately avoided
 production data and production secrets; the manifest change is identical.
 
-### 8.4 Staging is much less recoverable than production
+### 8.4 Staging was much less recoverable than production — fixed 2026-08-17
 
-Found while looking for something to clone:
+Found while looking for something to clone, and it turned out to be **drift from
+the design rather than a decision**: [infra-staging.md](infra-staging.md)'s cost
+table budgets *"Backups + PITR (drop to 1 day on staging), $0.20–0.50"*, so
+staging was always meant to have PITR. The provisioned instance simply never did.
 
-| | backups retained | PITR | granularity |
+| | backups retained | PITR | effective window |
 |---|---|---|---|
-| `myweli-db` (production) | 7 | **enabled**, 7-day logs | any second in the last week |
-| `myweli-db-staging` | **1** | **disabled** | the last 03:00 backup, or nothing |
+| `myweli-db` (production) | 7 | enabled, 7-day logs | any second in the last week |
+| `myweli-db-staging` **before** | 1 | **disabled** | the last 03:00 backup, or nothing |
+| `myweli-db-staging` **after** | 1 | **enabled**, 7-day logs | any second **since the last backup** — see below |
 
-Defensible — staging holds synthetic data by design (§2.1 of
-[infra-staging.md](infra-staging.md)) — but it is not what "staging mirrors
-production" suggests, and it is worth knowing before assuming a staging mistake
-is undoable. It also means staging cannot rehearse a *point-in-time* restore at
-all; the clone above came from the 03:00 backup.
+Enabling it was one command and took **5 minutes**:
+
+```bash
+gcloud sql instances patch myweli-db-staging --enable-point-in-time-recovery
+```
+
+`transactionalLogStorageState` moved `UNSPECIFIED → CLOUD_STORAGE`, matching
+production, so the logs do not consume instance disk. **No `RESTART` operation was
+recorded** — a single `UPDATE`, plus an immediate fresh `BACKUP_VOLUME`, which is
+what makes the new window start at once rather than at the next 03:00.
+
+**The window is bounded by the retained BACKUP, not by the log retention — and
+`transactionLogRetentionDays: 7` invites you to believe otherwise.** PITR needs a
+base backup *preceding* the target instant, and staging retains **one**. So the
+real granularity is *"any second since the most recent backup"* — at most about a
+day — while the setting reads 7.
+
+Proved rather than reasoned, by asking for a point before the window:
+
+```
+$ gcloud sql instances clone myweli-db-staging … --point-in-time='2026-08-16T12:00:00Z'
+ERROR 400: A successful backup that's required for carrying out the CLONE
+operation can't be found, or a backup that was created before the restored
+timestamp can't be found.
+```
+
+Rejected up front, with no instance created — so the probe is free, and it is the
+cheapest way to discover the true boundary of any environment.
+
+**To get the 7 days the setting implies, raise the backup retention too:**
+
+```bash
+gcloud sql instances patch myweli-db-staging --retained-backups-count=7
+```
+
+Deliberately not done: it is a separate setting with its own (small) storage
+cost, and one day of granularity is a defensible choice for an environment that
+holds synthetic data. It is recorded so the gap is a decision rather than a
+surprise.
+
+**Staging's PITR has not been exercised**, only configured and boundary-tested.
+The mechanism itself is proven on production (§3), and the configuration now
+matches, but nobody has completed a staging point-in-time restore.
+
+The state this section originally recorded — no PITR at all — was defensible on
+the grounds that staging holds synthetic data (§2.1 of
+[infra-staging.md](infra-staging.md)), but it was not what *"staging mirrors
+production"* suggests, and it is what made §8's own clone a **backup**-based one
+rather than point-in-time. Staging can now rehearse the point-in-time path too.
