@@ -840,6 +840,20 @@ const Duration kSchemaLockTimeout = Duration(seconds: 3);
 ///
 /// A migration that legitimately needs longer raises its own ceiling as its
 /// first statement — see [applySchemaTimeouts].
+///
+/// **Measured 2026-08-16** (docs/design/backend-migration-volume.md), and kept
+/// at 60s *because* of what the measurement found rather than in spite of it.
+/// On `db-f1-micro` an `EXCLUDE USING gist` build over `appointments` — a shape
+/// this file uses twice — takes 14.3s at 100k rows and **264s at 150k**: a
+/// cliff, caused by shared-core CPU throttling (not `maintenance_work_mem`,
+/// which was tested and made no difference).
+///
+/// Raising this would not help. Migrations run before the port binds, so the
+/// real ceiling is the **300s `startupProbe`** budget in both service files;
+/// past ~200k rows that statement exceeds it too, and a larger timeout only
+/// converts "aborted in a minute" into "revision never became ready after
+/// five". An index-building migration on a large table needs the escape hatch
+/// AND a check against 300s — or it should not run at boot at all.
 const Duration kSchemaStatementTimeout = Duration(seconds: 60);
 
 /// Bounds one schema-setup transaction. Call it **first** inside every `runTx`

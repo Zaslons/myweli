@@ -79,6 +79,18 @@ Rules:
   `pg_advisory_lock()`, which is normal contention between cold-starting
   instances. A migration that legitimately needs longer raises its own ceiling
   as its first statement. [design/backend-migration-timeouts.md](design/backend-migration-timeouts.md).
+- **An index-building migration is checked against 300s, not 60s.** Migrations
+  run before the port binds, so the binding ceiling is the `startupProbe`
+  budget (`periodSeconds 10 × failureThreshold 30`), not `statement_timeout`.
+  Measured on `db-f1-micro`: an `EXCLUDE USING gist` over `appointments` takes
+  **14.3s at 100k rows and 264s at 150k** — a cliff from shared-core CPU
+  throttling, unaffected by `maintenance_work_mem`. Past ~200k it exceeds the
+  probe, and no timeout setting makes it deployable. Before adding an index or
+  exclusion constraint to a large table, run `tool/volume_probe.dart` against
+  the current row count; if it does not fit in 300s the answer is a **tier
+  bump** or building it outside the boot path, not a bigger timeout.
+  `ADD COLUMN … NOT NULL DEFAULT <non-volatile>` is constant-time and safe at
+  any size. [design/backend-migration-volume.md](design/backend-migration-volume.md).
 - **Method gating** — handlers reject unsupported verbs with 405.
 - **Pagination** — list endpoints return `{ items, page, pageSize, total }`;
   `pageSize` is clamped server-side (default 20, max 50).

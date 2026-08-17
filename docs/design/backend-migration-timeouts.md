@@ -254,15 +254,22 @@ Nothing to configure, no secret, no manifest change. Reverting is a code revert.
 2. **Application queries have no `statement_timeout`** (§4). A runaway query on
    `db-f1-micro` consumes one of only ~22 available backends until it finishes.
    Separate decision, larger blast radius.
-3. **60s may be wrong in either direction** and there is no evidence yet — no
-   migration has ever been timed against production data volumes. The escape
-   hatch (§3.3) makes being wrong cheap, which is why 60s ships as-is.
+3. ~~**60s may be wrong in either direction.**~~ **Measured 2026-08-16** —
+   [backend-migration-volume.md](backend-migration-volume.md). 60s **stays**,
+   and the reason is not that it turned out to be generous.
 
-   **And the measurement everyone assumed would settle it will not.**
-   infra-staging.md §3.2 pairs this with a prod-PITR restore into staging; that
-   restore was run on 2026-08-16 ([infra-dr-restore.md](infra-dr-restore.md))
-   and production turns out to hold **5 user rows and no salons**, so a restored
-   copy boots as fast as staging already does. Closing this needs **synthetic
-   volume generated in staging** — a committed script that writes realistic row
-   counts, then a timed migration against them. Nothing about copying production
-   helps until production has something in it.
+   On `db-f1-micro`, an `EXCLUDE USING gist` build over `appointments` — a shape
+   §1 names and this file's migrations use twice — takes **14.3s at 100k rows
+   and 264s at 150k**. A cliff, not a slope, caused by **shared-core CPU
+   throttling** (CPU pinned flat at 18–19% for fourteen minutes;
+   `maintenance_work_mem` was tested at 64/256/512 MB and made no difference).
+
+   Raising this constant would not make such a migration deployable: migrations
+   run before the port binds, so the binding ceiling is the **300s
+   `startupProbe`**, which the same statement exceeds past ~200k rows. A bigger
+   timeout only converts *"aborted in a minute"* into *"revision never became
+   ready after five"*. The fix at that size is a **tier bump**, or not building
+   the index at boot — see backend-migration-volume.md §4.
+
+   `ADD COLUMN … NOT NULL DEFAULT now()` was confirmed constant-time (~358 ms at
+   every tier), so migration 0009's shape is safe at any size.
