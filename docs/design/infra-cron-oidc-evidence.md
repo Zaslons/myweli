@@ -148,12 +148,77 @@ is to fail first. Kept enabled on that basis; re-pausing is one command.
 ## 6. Open
 
 1. **The header is still accepted.** §4 is a three-step change nobody has made.
-2. **Nothing alerts on `cron_auth_legacy`.** It is a `print` that has to be
-   queried, and the history shows what that costs in both directions: the
-   fallback was in use for **~2.5 days** (2026-08-12T16:15 → 2026-08-15T02:00)
-   without anyone noticing, and then **stopped** without anyone noticing either —
-   so the documentation kept saying the evidence was owed for two more days after
-   it existed. A log-based metric with an alert would surface a regression to the
-   fallback; nothing today would.
+2. ~~**Nothing alerts on `cron_auth_legacy`.**~~ **Shipped — §7.**
 3. **Staging's subscription cron has never run on its own schedule** (03:00
    daily); only the forced run is observed.
+
+
+---
+
+## 7. The alert on `cron_auth_legacy`
+
+`infra/gcp/86-cron-auth-alert.sh`. The gap this closes is the one §3 is about: a
+`print` nobody reads is a diary, not evidence. The fallback ran ~2.5 days
+unnoticed and then *stopped* unnoticed, so the docs claimed the evidence was owed
+for two days after it existed.
+
+**A log-based alert, not a counter metric.** `conditionMatchedLog` fires on the
+**first** matching entry with no aggregation window, which is the right shape for
+a should-never-happen event — one fallback is already the whole finding, and any
+counter threshold above zero is a decision to tolerate some silent fallbacks.
+
+**Both services**, deliberately. Production still *sends* the header, so a line
+there means OIDC verification has started failing and the fallback is covering
+it. Staging sends no header at all, so a line there means one was added, or the
+jobs were recreated from production's definition.
+
+Three filter details worth keeping:
+
+- `textPayload:` — the line is a bare `print`, so it arrives unstructured;
+- both service names spelled out rather than a prefix match, because
+  `myweli-api` is a prefix of `myweli-api-staging` and a prefix filter would also
+  catch any future `myweli-api-*`;
+- **no severity clause.** `print` lands at INFO, and a severity filter is one
+  more way for the alert to stop matching if the app ever adopts a structured
+  logger.
+
+### 7.1 What is proven, and what is not
+
+A log-based alert only sees entries written after it exists, and production is on
+the OIDC path — so this policy would read "no incidents" forever whether or not
+its filter were correct. That is precisely a check that cannot fire, so it was
+attacked from both ends.
+
+| | |
+|---|---|
+| Policy stored as `conditionMatchedLog`, enabled, 1 channel | ✅ read back from the API |
+| Stored filter is the intended one (heredoc escaping survived) | ✅ read back verbatim |
+| **The filter matches real log lines** | ✅ run as a `logging read` against 7 days — **234 matches**, the historical production entries |
+| **The real code path still emits the line** | ✅ triggered deliberately on staging with the shared secret: HTTP 200 via the fallback, `cron_auth_legacy` logged at `16:32:15Z` |
+| Monitoring evaluates the filter → opens an incident | ❌ **not verifiable** — there is no public incidents API and no `gcloud` command |
+| The notification is delivered | ❌ **not verifiable from the API** — see §7.2 |
+
+Running the policy's own stored filter against historical logs is the trick worth
+reusing: it proves a filter matches **real** entries without waiting for the
+event, and without injecting a synthetic log line that would only prove the
+filter matches something you wrote yourself.
+
+### 7.2 The residual is bigger than this alert
+
+**Five alert policies now exist in this project and not one has ever delivered a
+notification.** The two uptime checks have never failed (104/0 and 102/0 probes at
+last count), and the three newer policies are hours old. So the last hop —
+channel → inbox — has never been exercised, by anything.
+
+The channel object does not help: `verificationStatus` is **absent** from it
+entirely, so the API cannot distinguish "verified" from "never verified".
+
+That is the same failure shape `80-uptime-checks.sh` was written to prevent —
+its own header says the project had no channels at all, so "any alert policy
+would have been a policy that notifies nobody". The channel exists now; whether
+it *delivers* is still an open question, and the only ground truth is whether the
+owner's inbox received the mail from the staging trigger above.
+
+**Until that is confirmed, treat every alert in this project as unproven at the
+last hop.** It is one observation away from being settled, and it applies to the
+uptime checks and the connection-ceiling alerts just as much as to this one.
