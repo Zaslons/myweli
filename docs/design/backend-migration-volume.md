@@ -167,5 +167,108 @@ Two traps met while doing it, both worth knowing:
 2. **Only `appointments` was measured.** It is the table that grows fastest and
    carries every expensive shape, but `reviews` and `salon_clients` will follow
    it eventually.
-3. **The tier bump is unpriced here.** §4 recommends it without saying what it
-   costs; that belongs with the launch budget, not with this measurement.
+3. ~~**The tier bump is unpriced here.**~~ **Priced — §7.**
+
+
+---
+
+## 7. What the tier bump costs, and why it is not needed yet
+
+§4 recommends a tier bump without a number. Here it is, from the **live Cloud
+Billing catalog** for `europe-west9` (Zonal, Enterprise edition, PostgreSQL),
+730 h/month. The method is validated against a previously audited figure:
+`0.0122 × 730 = $8.91`, exactly the `db-f1-micro` line in
+[infra-staging.md](infra-staging.md) §5.
+
+| SKU (Zonal, Enterprise, Paris) | rate | per month |
+|---|---|---|
+| Micro instance (`db-f1-micro`) | $0.0122/h | **$8.91** |
+| Small instance (`db-g1-small`) | $0.0406/h | **$29.64** |
+| Dedicated vCPU | $0.0479/h | **$34.97** each |
+| RAM | $0.0081/GiB/h | **$5.91** per GiB |
+| Standard storage | $0.1972/GiB/mo | $1.97 for 10 GiB |
+
+### 7.1 The options, per instance
+
+| tier | cores | RAM | compute | + storage | vs today | fixes the cliff? |
+|---|---|---|---|---|---|---|
+| `db-f1-micro` — today | **shared** | 0.6 GiB | $8.91 | $10.88 | — | — |
+| `db-g1-small` | **shared** | 1.7 GiB | $29.64 | $31.61 | **+$20.73** | **NO** |
+| `db-custom-1-3840` | **1 dedicated** | 3.75 GiB | $57.14 | $59.11 | **+$48.23** | yes — projected, §7.3 |
+| `db-custom-2-7680` | 2 dedicated | 7.5 GiB | $114.28 | $116.25 | +$105.38 | no better than 1 vCPU here |
+
+**`db-g1-small` is a trap, and it is the obvious choice.** It reads as "the next
+tier up", costs 2.8× the current bill, and **does not fix anything measured here**
+— it is still a *shared-core* machine, so the throttling that produced the cliff
+(§2.4) is unchanged. What it triples is RAM, which §2.3 measured to be
+irrelevant. Paying +$20.73/month for it would buy nothing on this axis.
+
+**Two vCPUs buy nothing either.** A GiST index build is single-threaded, so the
+second core cannot shorten the statement that matters. It would help concurrent
+query load — a different problem.
+
+So the answer is `db-custom-1-3840`, the cheapest dedicated-core tier Cloud SQL
+offers (custom instances have a 3.75 GiB floor), at **+$48.23/month per
+instance**:
+
+- **production only — +$579/year.** The production database line goes from
+  ~$11 to ~$59/month: a **5.4×** increase, and the largest single infra change
+  proposed so far.
+- **both instances — +$1,158/year.** Staging's whole budget is $13–17/month
+  ([infra-staging.md](infra-staging.md) §5), so this roughly **quadruples** the
+  environment deliberately designed to be cheap.
+
+### 7.2 It is not needed yet, and the reason is not "we can't afford it"
+
+The cliff bites between **100 000 and 150 000 appointments** (§2.1). Production
+holds **zero** ([infra-dr-restore.md](infra-dr-restore.md) §3). There is no
+migration urgency at any price.
+
+**But a different constraint probably binds first, and it is live today.** Both
+instances run the `db-f1-micro` default of **25** `max_connections` — verified,
+neither carries any `databaseFlags` — leaving ~22 after
+`superuser_reserved_connections`. `database.dart` budgets
+`kMaxConnectionsPerInstance` 4 × `maxScale` 4 = **16**, comfortable in steady
+state. But `maxScale` is **per revision**, so a rollout running the draining old
+revision beside the new one can transiently reach eight instances = **32**, over
+the ceiling.
+
+That is not a future problem, it is the current configuration at full scale, and
+raising `max_connections` on a `db-f1-micro` was already rejected on evidence
+(`database.dart`: a restart on a ZONAL instance with no replica, against an app
+with no connection retry, and ~800 MB of backends on a 0.6 GB machine).
+
+**So the tier bump's first payoff is connection headroom, not migration speed.**
+Migration speed is the second-order benefit, arriving at 100k appointments.
+
+### 7.3 The performance claim is a projection, not a measurement
+
+Stated plainly because §7.1's "fixes the cliff" column is the whole justification
+for the money.
+
+What *is* measured: the cliff is CPU throttling (§2.4, utilisation pinned flat at
+18–19%), and it is not memory (§2.3). What is **not** measured is
+`db-custom-1-3840`. The supporting evidence is indirect — the same probe on a
+laptop with real cores ran **3.6–5.6× faster** at 25k–50k rows and showed no
+cliff — and a laptop is not a Cloud SQL dedicated core.
+
+**Verifying is cheap: about $0.05 and 40 minutes.** Create a throwaway
+`db-custom-1-3840`, run `tool/volume_probe.dart` against it, delete it. Spending
+$0.05 to check a $579/year commitment is the obvious trade, and it should happen
+before the bump, not after.
+
+### 7.4 Recommendation
+
+**Do not bump now.** Nothing is near the migration limit, and the connection
+ceiling is a rollout-time transient rather than a steady-state failure.
+
+**Set a tripwire, not a date.** The trigger is a business milestone nobody can
+schedule:
+
+- **`appointments` past ~50 000** — half the measured cliff, which leaves ample
+  runway. Worth adding to monitoring; nothing watches row counts today.
+- **`postgresql/num_backends` approaching 22** — already a metric Cloud
+  Monitoring collects, and the nearer of the two.
+
+**When it happens: skip `db-g1-small`, go straight to `db-custom-1-3840`, and run
+the probe first.**
