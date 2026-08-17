@@ -195,13 +195,53 @@ attacked from both ends.
 | Stored filter is the intended one (heredoc escaping survived) | ✅ read back verbatim |
 | **The filter matches real log lines** | ✅ run as a `logging read` against 7 days — **234 matches**, the historical production entries |
 | **The real code path still emits the line** | ✅ triggered deliberately on staging with the shared secret: HTTP 200 via the fallback, `cron_auth_legacy` logged at `16:32:15Z` |
-| Monitoring evaluates the filter → opens an incident | ❌ **not verifiable** — there is no public incidents API and no `gcloud` command |
-| The notification is delivered | ❌ **not verifiable from the API** — see §7.2 |
+| Monitoring evaluates the filter → opens an incident | ✅ **verified 2026-08-17T21:38:04Z** — see §7.3 |
+| The notification is delivered | ❌ **not observable anywhere** — see §7.2 |
 
 Running the policy's own stored filter against historical logs is the trick worth
 reusing: it proves a filter matches **real** entries without waiting for the
 event, and without injecting a synthetic log line that would only prove the
 filter matches something you wrote yourself.
+
+### 7.3 It did not fire the first time, and the reason is a trap
+
+The first trigger produced the log line at `16:32:15Z` and **no incident**. That
+reads exactly like a broken filter, and it sent this investigation looking for
+one.
+
+The policy had been created at **`16:31:17Z`** — **58 seconds earlier**. A newly
+created alerting policy is not evaluating yet. The identical trigger against the
+identical policy five hours later:
+
+```
+log line   2026-08-17T21:37:29Z
+incident   2026-08-17T21:38:04Z   (35 seconds later)
+```
+
+**Wait several minutes after creating a log-based alert before testing it**, or
+the test measures the propagation delay and blames the filter.
+`86-cron-auth-alert.sh` now says so where someone will read it.
+
+**And incidents ARE observable programmatically** — this document previously said
+they were not, which was wrong. There is no incidents API, but Monitoring writes
+every opening to Cloud Logging:
+
+```bash
+gcloud logging read 'logName:"monitoring.googleapis.com%2FViolationOpenEventv1"' \
+  --limit=5 --freshness=1h \
+  --format='value(timestamp,labels.policy_display_name,labels.terse_message)'
+```
+
+which returned, verbatim:
+
+```
+policy_display_name : A cron authenticated on the LEGACY shared secret
+policy_id           : 12705279840136607574
+terse_message       : Log match condition fired for Cloud Run Revision with
+                      {… service_name=myweli-api-staging}
+```
+
+That closes every link except delivery.
 
 ### 7.2 The residual is bigger than this alert
 
@@ -211,7 +251,10 @@ last count), and the three newer policies are hours old. So the last hop —
 channel → inbox — has never been exercised, by anything.
 
 The channel object does not help: `verificationStatus` is **absent** from it
-entirely, so the API cannot distinguish "verified" from "never verified".
+entirely, so the API cannot distinguish "verified" from "never verified". Nor do
+the logs: `ViolationOpenEventv1` is the **only** `monitoring.googleapis.com`
+stream this project has, so an incident opening is recorded and a notification
+being sent is not.
 
 That is the same failure shape `80-uptime-checks.sh` was written to prevent —
 its own header says the project had no channels at all, so "any alert policy

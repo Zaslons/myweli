@@ -87,6 +87,13 @@ exists, and production is currently on the OIDC path — so this policy will rea
 "no incidents" forever whether or not its filter is correct. That is the exact
 shape of a check that cannot fire.
 
+*** WAIT SEVERAL MINUTES AFTER CREATING THE POLICY BEFORE TESTING. ***
+A newly created policy is not evaluating yet. Measured here: a trigger 58
+SECONDS after creation produced the log line and NO incident, which reads
+exactly like a broken filter and sent this investigation down the wrong path.
+The same trigger against the same policy five hours later opened an incident in
+35 seconds. Give it five minutes.
+
 Prove it against the real code path, on staging, by authenticating a cron with
 the shared secret on purpose:
 
@@ -99,4 +106,16 @@ the shared secret on purpose:
 That returns 200 via the fallback and prints cron_auth_legacy, which is a real
 line from the real branch rather than an injected entry. It will open an incident
 and send mail - that is the point.
+
+Then confirm the incident WITHOUT the console. There is no incidents API, but
+Monitoring writes every opening to Cloud Logging:
+
+  gcloud logging read \
+    'logName:"monitoring.googleapis.com%2FViolationOpenEventv1"' \
+    --limit=5 --freshness=1h \
+    --format='value(timestamp,labels.policy_display_name,labels.terse_message)'
+
+That is the only programmatic proof available. Notification DELIVERY is not
+logged anywhere - ViolationOpenEventv1 is the only monitoring.googleapis.com
+stream this project has - so the inbox remains the ground truth for the last hop.
 NOTE
