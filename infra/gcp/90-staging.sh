@@ -203,6 +203,10 @@ fi
 # authenticate against production.
 put_secret STAGING_JWT_SECRET "$(gen)"
 put_secret STAGING_MESSAGING_WEBHOOK_SECRET "$(gen)"
+# The Q1b seam's secret. `gen` is well above the 32-char floor
+# `smoke_seam.dart` enforces — below it, a configured secret is treated as
+# ABSENT, so a short one would disable the seam silently rather than loudly.
+put_secret STAGING_SMOKE_OTP_SECRET "$(gen)"
 put_secret STAGING_ADMIN_PASSWORD "$(gen)"
 
 # **A Resend key that cannot deliver, on purpose.** Email is a live channel

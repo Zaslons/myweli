@@ -537,6 +537,57 @@ void main() {
     });
   });
 
+  group('the OTP-disclosure seam is mounted on staging and NOWHERE else', () {
+    /// The seam lets a caller holding `SMOKE_OTP_SECRET` read an OTP back for an
+    /// identity in the RFC 2606 `.test` TLD. Staging needs it because the funnel
+    /// harness has no other way in since the unconditional `devCode` echo was
+    /// closed (docs/design/backend-staging-otp-disclosure.md).
+    ///
+    /// Production must never carry it as a matter of course. It is not that the
+    /// seam is unsafe — two independent conditions bound it, and the `.test`
+    /// suffix is a compile-time constant no environment value can widen — it is
+    /// that a disclosure path present by DEFAULT on the real thing is a
+    /// standing invitation, and the one that was once mounted there for a
+    /// cutover was deliberately removed afterwards.
+    List<String> envNames(YamlMap svc) => [
+      for (final e in podSpec(svc)['containers'][0]['env'] as YamlList)
+        e['name'] as String,
+    ];
+
+    test('staging mounts it', () {
+      expect(envNames(files['staging']!), contains('SMOKE_OTP_SECRET'));
+    });
+
+    test('production does NOT', () {
+      expect(
+        envNames(files['prod']!),
+        isNot(contains('SMOKE_OTP_SECRET')),
+        reason:
+            'a disclosure path present by default on production is a standing '
+            'invitation. Mounting it for a cutover is a reviewed, temporary '
+            'edit — not the committed state.',
+      );
+    });
+
+    test('staging reads it from a STAGING_-prefixed secret', () {
+      // Sharing production's secret would mean a staging leak is a production
+      // leak, which is the whole reason every other staging secret is
+      // separately named.
+      final env =
+          podSpec(files['staging']!)['containers'][0]['env'] as YamlList;
+      final e = env.firstWhere((x) => x['name'] == 'SMOKE_OTP_SECRET');
+      expect(
+        e['valueFrom']['secretKeyRef']['name'],
+        'STAGING_SMOKE_OTP_SECRET',
+      );
+    });
+
+    test('90-staging.sh creates it, so a fresh project is not half-built', () {
+      final script = File('$root/infra/gcp/90-staging.sh').readAsStringSync();
+      expect(script, contains('STAGING_SMOKE_OTP_SECRET'));
+    });
+  });
+
   group('scaling arithmetic, per file', () {
     // Both environments are on a db-f1-micro with no `databaseFlags` override,
     // so both inherit the default 25 and Postgres keeps 3 back for superusers.

@@ -237,6 +237,30 @@ spec:
             # sign-in to staging cannot complete**. Use Google or Apple;
             # automation uses the Q1b seam. If a human needs the email path,
             # mount a deliverable key here and accept that §3.3 no longer holds.
+            # The Q1b OTP-disclosure seam, mounted HERE and deliberately not
+            # on production.
+            #
+            # **Why staging needs it now, when it did not before.** Until
+            # 2026-08-18 staging echoed `devCode` unconditionally, so the funnel
+            # harness just read the code out of the response. That echo let
+            # anyone who found this public URL sign in as anyone, so it was
+            # closed (docs/design/backend-staging-otp-disclosure.md) — and the
+            # harness lost its way in. This is the way back, and it is the one
+            # the seam was built for.
+            #
+            # **Two independent conditions, and the second is load-bearing**: a
+            # constant-time match on this secret AND an identity in the RFC 2606
+            # `.test` TLD, which is a compile-time constant no environment value
+            # can widen. A fully leaked secret therefore buys sessions on
+            # unroutable throwaways and nothing else — which is what makes
+            # mounting a disclosure path on a `ingress: all` service defensible
+            # at all.
+            #
+            # The boot log announces it when active: a disclosure path quietly
+            # left enabled is the failure worth engineering against.
+            - name: SMOKE_OTP_SECRET
+              valueFrom:
+                secretKeyRef: { name: STAGING_SMOKE_OTP_SECRET, key: latest }
             - name: RESEND_API_KEY
               valueFrom:
                 secretKeyRef: { name: STAGING_RESEND_API_KEY, key: latest }
