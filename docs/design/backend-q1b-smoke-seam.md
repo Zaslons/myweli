@@ -168,6 +168,20 @@ are open rather than blocked:
 **Decided: option 3.** Staging now exists (docs/design/infra-staging.md), so the
 recurring gate runs against it and the question the cutover deferred is closed.
 
+> **The FUTURE was closed; the PAST was not** (found 2026-08-18 while reconciling
+> LAUNCH.md). Option 3 stops new residue. It does nothing about the residue
+> already there — and option 1's *"then purge by identity suffix"* was never
+> run. Production logs show the seam executing against the live database on
+> 2026-08-06: the `SMOKE_OTP_SECRET is set` warning, and three
+> `POST /auth/email/otp/verify → 200` in the same windows. Those accounts are
+> the ~5 `users` rows the DR rehearsal found in production
+> (docs/design/infra-dr-restore.md), and they are why LAUNCH.md §4's
+> "production contains no seeded/demo data" is **not** ticked.
+>
+> Worth naming the shape, because it recurs: choosing a decision that prevents a
+> problem reads as resolving it, and the heading was struck through accordingly.
+> Prevention and cleanup are two tasks, and only one of them was done.
+
 The decision is enforced in code rather than recorded as an intention.
 `backend/tool/smoke/smoke_target.dart` refuses any target that is not a loopback
 host or the staging Cloud Run service — **deny by default**, so a production

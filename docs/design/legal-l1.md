@@ -342,12 +342,22 @@ comportementale.**
 
 - **aucun outil de mesure d'audience** (pas de Google Analytics, pas de PostHog, pas
   de Mixpanel) ;
-- **aucun rapport de plantage** tiers (pas de Sentry, pas de Crashlytics) ;
+- **aucun profilage**, aucun score, aucune décision automatisée ;
 - **aucun SDK publicitaire**, aucun traceur, aucun cookie publicitaire ;
-- **aucun journal applicatif** : notre serveur n'enregistre ni votre adresse IP, ni
-  votre navigateur, ni le détail de vos requêtes ;
+- **aucun suivi** entre sites ou entre applications, aucun identifiant publicitaire ;
 - **aucune donnée bancaire** : Myweli ne détient jamais vos fonds. L'acompte se paie
   directement au salon par Mobile Money.
+
+> **Corrigé le 2026-08-18.** Cette liste comportait deux affirmations devenues
+> fausses : « aucun rapport de plantage tiers (pas de Sentry) » et « aucun
+> journal applicatif ». Sentry a été déployé sur le web et le backend après la
+> rédaction, et la migration vers Cloud Run a introduit la journalisation des
+> requêtes (IP, navigateur, URL). La page publique décrit désormais les deux
+> **positivement**, dans une section « Journaux techniques et rapports
+> d'erreur ». Leçon générale, à appliquer à toute cette section : **une
+> affirmation négative doit être re-vérifiée contre l'artefact déployé chaque
+> fois que la chose niée a pu être ajoutée** — une description qui vieillit
+> devient incomplète, une négation qui vieillit devient un mensonge.
 
 **Les données que nous traitons.**
 

@@ -14,8 +14,25 @@ export const metadata = legalMetadata('/politique-confidentialite');
 /// Every factual claim here is traceable to the code, not to the docs — the docs
 /// were measured wrong in three places while this was written (see
 /// docs/design/legal-l1.md §11). In particular: the PRD lists Crashlytics and
-/// ~20 analytics events as V1 and **none of it exists**, so this page says the
+/// ~20 analytics events as V1 and **no analytics exists**, so this page says the
 /// opposite, truthfully.
+///
+/// **CORRECTED 2026-08-18, and the correction is the lesson.** Two claims here
+/// were true when written and were made false by later changes that had no
+/// reason to look at this file:
+///
+///   · « aucun rapport de plantage tiers — pas de Sentry » — Sentry landed on
+///     web and backend afterwards, and the bundle served from myweli.com posts
+///     to ingest.de.sentry.io;
+///   · « aucun journal applicatif » — true on the old host, false on Cloud Run,
+///     which logs the IP, the user agent and the request URL of every call.
+///
+/// So being traceable to the code **at the time of writing** is not enough for a
+/// page that is a legal representation: a negative claim ("we do not do X") has
+/// to be re-verified against the DEPLOYED artifact whenever X could have been
+/// added. State positively what we do wherever we can — a description that
+/// grows stale reads as out of date; a denial that grows stale is a false
+/// statement to users and to the App Store.
 export default function Page() {
   return (
     <LegalPage slug="/politique-confidentialite">
@@ -36,15 +53,45 @@ export default function Page() {
           aucun outil de mesure d’audience — pas de Google Analytics, pas de
           PostHog, pas de Mixpanel&nbsp;;
         </Li>
-        <Li>aucun rapport de plantage tiers — pas de Sentry, pas de Crashlytics&nbsp;;</Li>
+        <Li>
+          aucun profilage, aucun score, aucune décision automatisée à votre
+          sujet&nbsp;;
+        </Li>
         <Li>aucun SDK publicitaire, aucun traceur, aucun cookie publicitaire&nbsp;;</Li>
         <Li>
-          aucun journal applicatif&nbsp;: notre serveur n’enregistre ni votre
-          adresse IP, ni votre navigateur, ni le détail de vos requêtes&nbsp;;
+          aucun suivi entre sites ni entre applications, et aucun identifiant
+          publicitaire&nbsp;;
         </Li>
         <Li>
           aucune donnée bancaire&nbsp;: MyWeli ne détient jamais vos fonds.
           L’acompte se paie directement au salon par Mobile Money.
+        </Li>
+      </Ul>
+
+      <H2>Journaux techniques et rapports d’erreur</H2>
+      <P>
+        Faire fonctionner un service impose d’en conserver la trace, et nous
+        préférons le dire plutôt que de le taire&nbsp;:
+      </P>
+      <Ul>
+        <Li>
+          <strong>Journaux de requêtes.</strong> Notre hébergeur, Google Cloud,
+          enregistre pour chaque appel à notre API la date, l’adresse de la page
+          demandée, le code de réponse, le navigateur ou l’application utilisée
+          et <strong>votre adresse IP</strong>. Ces journaux servent au
+          diagnostic et à la sécurité, et sont supprimés automatiquement au bout
+          de <strong>30 jours</strong>.
+        </Li>
+        <Li>
+          <strong>Rapports d’erreur.</strong> Lorsqu’une page ou notre serveur
+          rencontre une erreur, un rapport technique est transmis à{' '}
+          <strong>Sentry</strong>, dont les serveurs sont en{' '}
+          <strong>Allemagne</strong>. Ce rapport contient le message d’erreur, sa
+          trace technique, l’adresse de la page — <strong>sans</strong> ce qui
+          suit le «&nbsp;?&nbsp;» — et le type d’appareil. Nous en retirons
+          activement votre identité, vos cookies et vos saisies avant l’envoi.
+          Nous n’envoyons <strong>aucun</strong> rapport à Sentry lorsque rien
+          n’a échoué&nbsp;: ce n’est pas un outil de mesure d’audience.
         </Li>
       </Ul>
 
@@ -134,8 +181,8 @@ export default function Page() {
       <P>
         Uniquement des prestataires techniques, chacun pour une fonction
         précise&nbsp;: Twilio (SMS et WhatsApp), Firebase Cloud Messaging
-        (notifications), Resend (e-mails), Google et Apple (connexion), et CARTO
-        pour les fonds de carte — l’affichage d’une carte transmet votre adresse
+        (notifications), Resend (e-mails), Google et Apple (connexion), Sentry
+        (rapports d’erreur, ci-dessus), et CARTO pour les fonds de carte — l’affichage d’une carte transmet votre adresse
         IP à CARTO. <strong>Nous ne vendons ni ne louons aucune donnée.</strong>
       </P>
 

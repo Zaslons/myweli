@@ -18,16 +18,26 @@ questions none of our gates can answer:
    which is the correct state before the first real salon.
 2. **Can we work without breaking the people using it?** ~~Today there is exactly
    **one** backend (`myweli-api`) and **one** database (`myweli-db`). Testing a
-   change means testing it on the thing customers use.~~ **In progress.** The
-   second environment is being built: `service-staging.yaml` and a deploy
-   workflow that can address either environment are committed, and the resources
-   themselves are build-order step 4 of
-   [design/infra-staging.md](design/infra-staging.md). Not closed until a Vercel
-   preview is shown reading staging rather than production — which is the
-   specific reason this had to happen before the first real salon, not after.
-3. ~~**Would we know if it broke?**~~ **Closed 2026-08-12.** Sentry on all three
-   surfaces, proven with a real production error, plus uptime checks on
-   `/health` and a database-backed route, verified against real probe data
+   change means testing it on the thing customers use.~~ **Nearly closed.** Staging
+   **exists and serves**: `myweli-api-staging` + `myweli-db-staging`, deploying
+   itself on every merge to `main`, with its own secrets, PITR and alerting.
+   **One thing still stands between this and closed**, and it is the same one as
+   ever: a Vercel preview must be shown reading staging rather than production
+   (§5.4). Until then previews still write to the live database.
+3. **Would we know if it broke?** **Two surfaces of three** — this line said
+   "Closed 2026-08-12" and over-claimed (corrected 2026-08-18 by verifying each
+   surface against the deployed artifact rather than the source):
+   - **backend — yes.** `SENTRY_DSN` is mounted on the serving revision with a
+     real `RELEASE`, and production logs carry the request id that tags the event.
+   - **web — yes.** The deployed bundle on `myweli.com` contains a live DSN and
+     its own project id, with `environment=production` and the release set to the
+     HEAD commit.
+   - **app — NO.** `sentry_flutter` is wired, but **no mobile DSN exists**:
+     Secret Manager holds one `SENTRY_DSN` and it is the backend's. Release
+     builds carry no `--dart-define=SENTRY_DSN`, so mobile crash reporting is
+     **code-complete and inert** (§5.2).
+   Uptime checks on `/health` and a database-backed route are live and alerting
+   to a human, verified against real probe data
    (§5.2, [design/observability-error-reporting.md](design/observability-error-reporting.md)).
 
 This document is the answer to those three, plus the per-surface checklists.
@@ -58,7 +68,7 @@ Concretely for us that means a second Cloud Run service, a second database, a
 second set of R2 buckets and a second Firebase project. It is not free, and it
 is the single highest-value thing to build before launch.
 
-**Designed in detail in [design/infra-staging.md](design/infra-staging.md)** — **$13–17/month**. It was blocked on three code changes, all now landed (phase 1), plus six production bugs found while auditing the project ([design/infra-prod-hardening.md](design/infra-prod-hardening.md), phase 2). Among them the one that made §5.1 below *untickable*: `seedProvidersIfEmpty` was gated only on the `providers` table being empty, not on `ENV`, so purging the demo salons and deploying re-created them. **Fixed — the purge will now stick.** No staging resource exists yet.
+**Designed in detail in [design/infra-staging.md](design/infra-staging.md)** — **$13–17/month**. It was blocked on three code changes, all now landed (phase 1), plus six production bugs found while auditing the project ([design/infra-prod-hardening.md](design/infra-prod-hardening.md), phase 2). Among them the one that made §5.1 below *untickable*: `seedProvidersIfEmpty` was gated only on the `providers` table being empty, not on `ENV`, so purging the demo salons and deploying re-created them. **Fixed — the purge will now stick.** **Staging is now built and serving** (2026-08-16): its own Cloud Run service, Cloud SQL instance, secrets, PITR and alerting, deploying itself on every merge to `main`.
 
 ### 1.2 Pre-release distribution — *which build, in whose hands*
 
@@ -92,7 +102,9 @@ for different jobs:
 | store release | production | the public |
 
 We already have the machinery for this: `--dart-define=API_BASE_URL=…` and the
-`consumer`/`pro` flavours. What is missing is the staging backend to point at.
+`consumer`/`pro` flavours, and the staging backend to point at now exists. What
+is missing is a build actually pointed at it — no TestFlight or internal-track
+build has been produced at all (§6.2, §6.3).
 
 ### 1.4 The constraint that makes mobile different from web
 
@@ -130,18 +142,18 @@ absent:
 
 | Capability | State |
 |---|---|
-| Per-PR web previews | ✅ Vercel builds every PR — **but see §5.4**, they very likely talk to the production API |
+| Per-PR web previews | ✅ Vercel builds every PR — **but see §5.4**: confirmed, they talk to the production API, and still do |
 | Backend `ENV` seam | ✅ a three-value enum (`dev`/`staging`/`prod`) splitting `guardsOn` from `isProd`; an unknown value throws at boot |
 | App environment switch | ✅ `API_BASE_URL` + `USE_API_BACKEND` dart-defines |
 | Flavours (consumer/pro, both platforms) | ✅ |
 | CI: analyze, unit, widget, golden, e2e, APK size, secret scan, funnel smoke | ✅ strong |
 | Release signing + store prep | ✅ repo side (#337); accounts pending |
-| **Staging environment** | ❌ **nothing** |
-| **Crash / error reporting** | ⚠️ **code done on all three surfaces** (#359, #360, mobile) and **inert** — there is no Sentry account yet, so nothing reports and §5.2's "watch it arrive" is unproven. One account-side step away |
+| **Staging environment** | ✅ **built and serving** — `myweli-api-staging` + `myweli-db-staging`, auto-deployed on merge, PITR on, alerting on. **Except the web half**: Vercel previews still read production (§5.4) |
+| **Crash / error reporting** | ⚠️ **two of three live** (re-verified 2026-08-18 against the deployed artifacts, not the source): **backend** reports with a real release and the request id; **web** ships a DSN in the bundle served from `myweli.com`; **app is inert** — `sentry_flutter` is wired but no mobile DSN exists and no release build defines one |
 | **Uptime alerting** | ✅ **live 2026-08-12** — two Cloud Monitoring checks on `api.myweli.com` (`/health` for the process, `/providers` for the database, because `/health` reported ok right through the Render outage), alerting to email when 2+ regions fail for 5+ minutes. Verified against real probe results, not just created ([design/observability-error-reporting.md](design/observability-error-reporting.md) §8.5) |
 | **Forced upgrade** | ❌ nothing |
 | **Production data hygiene** | ✅ **purged 2026-08-12** — `provider1`–`provider4` deleted, and the purge **survived a forced cold boot** (revision 00014), which is the proof the gate holds. Production now serves zero salons |
-| **Backup / restore rehearsal** | ✅ **rehearsed 2026-08-12** — a PITR clone to six minutes before the demo-salon purge came back with all four salons, i.e. data that no longer exists in production. Takes **~23 minutes** ([design/infra-prod-hardening.md](design/infra-prod-hardening.md) §8) |
+| **Backup / restore rehearsal** | ✅ **rehearsed end to end** — restore *and* promotion. A PITR clone recovered data production no longer had (2026-08-12, ~23 min); a second, cleaner run took **26 min 14 s** and found five traps (2026-08-16); and **promotion** — the step that actually ends an incident — was rehearsed at **17 s**, disproving the `DATABASE_URL` mechanism four docs had recorded (2026-08-17, [design/infra-dr-restore.md](design/infra-dr-restore.md) §8). Both numbers are floors, measured on 10 MB |
 
 ---
 
@@ -154,9 +166,10 @@ absent:
   store review. It also lets real salons and clients use the product while the
   app is still in TestFlight, so the app launches into something that already
   works.
-- **iOS second** because it is furthest along (account exists, signing prepared,
-  Sign in with Apple working) and because App Store review is the slower gate —
-  starting it while web is live costs nothing.
+- **iOS second** because it is furthest along (account exists, signing prepared)
+  and because App Store review is the slower gate — starting it while web is
+  live costs nothing. *This line used to say "Sign in with Apple working"; it is
+  not — the entitlement is absent from both entitlements files (§6.2).*
 - **Android last.** It has the most outstanding work (no keystore, no Play
   account, R8 unproven) and the widest device variance, which is where the
   reference low-end Android in ROADMAP §6 has to be honoured.
@@ -171,14 +184,29 @@ at least a week**, with §5.2's monitoring proving it rather than our impression
 These block everything. None is surface-specific.
 
 - [ ] **Staging exists** and the full funnel has been rehearsed on it end to end.
-- [ ] **Production contains no seeded/demo data** (§5.1).
+      **Half done:** staging exists and serves (`myweli-api-staging-00010-4cg`);
+      the *rehearsal* has not happened. `funnel_smoke_test.dart` already accepts
+      `SMOKE_BASE_URL`, so pointing it at the staging host is the remaining step
+      — plus the web half, which needs §5.4.
+- [ ] **Production contains no seeded/demo data** (§5.1). **The demo salons are
+      gone** (verified live: `/providers` → `total: 0`, and the ENV gate that
+      makes it stick is in the deployed image). **But smoke-test residue was
+      never purged**: the Q1b seam ran against production on 2026-08-06 —
+      production logs show the `SMOKE_OTP_SECRET is set` warning and three
+      `POST /auth/email/otp/verify → 200` — and
+      [design/backend-q1b-smoke-seam.md](design/backend-q1b-smoke-seam.md)
+      §7 prescribed "purge by identity suffix", which
+      never ran. Those accounts are the ~5 `users` rows the PITR restore found.
 - [ ] **Crash reporting and error tracking** are live on backend, web and app,
       and have been *proven* by deliberately triggering an error and seeing it
       arrive. **The code is done on all three surfaces and is inert**: create the
       Sentry org and three projects, set the DSNs, then prove it. Until that
       happens this box is not merely unticked — it is untestable, and a
       dashboard that has never received an event is indistinguishable from one
-      that is not wired up.
+      that is not wired up. **Updated 2026-08-18: two of the three are now
+      live** (backend, web — DSNs verified on the deployed artifacts). What
+      remains is the **mobile** project and DSN, and the deliberate trigger on
+      web and app.
 - [x] **Uptime alerting** on `api.myweli.com` reaching a human. Done
       2026-08-12 — and on **two** paths, not one: `/health` never touches the
       database, so a check on it alone would miss the outage where the service
@@ -189,9 +217,26 @@ These block everything. None is surface-specific.
       minutes** end to end, which is the number to plan an incident around
       (§8 of the hardening doc).
 - [ ] **Secrets rotated** away from any value that has been in a terminal, a
-      log, or a chat during development.
+      log, or a chat during development. **One was exercised for real**:
+      `CRON_SECRET` was printed into a working transcript on 2026-08-18 and
+      **deleted** rather than rotated, because the header it authenticated had
+      just been retired ([design/infra-cron-oidc-evidence.md](design/infra-cron-oidc-evidence.md) §8).
+      That is the cheapest possible outcome and not evidence the others are
+      clean — every remaining secret still needs the same question asked of it.
 - [ ] **Legal pages live and accurate** — CGU, privacy policy, mentions légales
       (the RCCM line is still "not registered"; that must be true or updated).
+      **The privacy policy is live and contains two false statements** (found
+      2026-08-18 by reading the deployed page and the deployed bundle side by
+      side). Both were true when written and were made false by later changes,
+      which is exactly why "accurate" needs re-checking rather than remembering:
+      1. « aucun rapport de plantage tiers — pas de Sentry, pas de Crashlytics »
+         — the bundle served from `myweli.com` posts to `ingest.de.sentry.io`.
+      2. « aucun journal applicatif : notre serveur n'enregistre ni votre
+         adresse IP, ni votre navigateur, ni le détail de vos requêtes » —
+         Cloud Run logs all three on every request.
+      A privacy policy is a **representation to users and to the App Store**;
+      a false one is not a documentation bug. Corrected in the same change that
+      found it, with the French still owed a review per §"Legal" below.
 - [ ] **A support channel exists** and someone is behind it (WhatsApp per the
       product's context).
 - [ ] **Rate limiting** verified on the auth and booking routes against a real
@@ -213,11 +258,22 @@ This is fine today (no users) and unacceptable at launch: a marketplace whose
 listings are fabricated is a trust problem and, with invented review counts,
 arguably a consumer-protection one.
 
-- [ ] Seeding runs **only** when `ENV != prod`, enforced in code rather than by
-      remembering.
-- [ ] Production database purged of seed rows before the first real salon.
+- [x] Seeding runs **only** when `ENV != prod`, enforced in code rather than by
+      remembering. **Done** — two independent gates: the call site
+      (`dependencies.dart` `if (_env == Env.dev)`) and `seedProvidersIfEmpty`
+      itself, which throws before any query for anything but `dev`. Pinned by
+      `backend/test/db/seed_gate_test.dart`, and the commit is an ancestor of the
+      serving revision.
+- [x] Production database purged of seed rows before the first real salon.
+      **Done 2026-08-12** and still true four revisions later: `/providers` →
+      `total: 0`, and the seed ids/slugs 404. (Test-account residue is a
+      separate item — see §4.)
 - [ ] The `asset:` image convention retired for real salons — they upload to R2
       (the convention exists only to serve the demo set; see §21 row 90).
+      **Nothing enforces it**: `asset:` is still accepted by the gallery origin
+      allowlist in every environment. It holds today only because no real salon
+      has uploaded yet. Gate it on `Env.dev` and add a test that a
+      prod-configured gallery PUT rejects an `asset:` URL.
 
 ### 5.2 We would not know if it broke
 
@@ -226,17 +282,38 @@ is invisible to us forever; a 500 in the backend exists only in Cloud Run logs
 nobody is watching.
 
 - [ ] **App**: Crashlytics (Firebase is already wired) or Sentry, on both
-      flavours, with the release version attached.
-- [ ] **Backend**: structured error reporting to the same place, with the
-      request id already in the logs.
-- [ ] **Web**: browser error reporting.
+      flavours, with the release version attached. **Code done, inert** —
+      `sentry_flutter` is wired and scrubs hard, but **no mobile DSN exists**
+      (Secret Manager has one `SENTRY_DSN` and it is the backend's) and no
+      release build passes `--dart-define=SENTRY_DSN`. Create the `myweli-app`
+      project, then build with the define.
+- [x] **Backend**: structured error reporting to the same place, with the
+      request id already in the logs. **Done** — verified on the serving
+      revision, not in source: `SENTRY_DSN` mounted, `RELEASE` a real short SHA,
+      and production logs show `unhandled_route_error request_id=… method=… path=…`
+      with the same id tagged on the event.
+- [x] **Web**: browser error reporting. **Done** — verified in the *deployed*
+      bundle on `myweli.com`, which carries its own DSN, `environment=production`
+      and `release=<HEAD sha>`; error boundaries and scrubbing are in
+      `app/error.tsx`, `app/global-error.tsx`, `lib/sentry-scrub.ts`.
 - [ ] **Prove it**: trigger one real error per surface and watch it arrive.
-- [ ] Alert thresholds agreed — what crash rate halts a staged rollout.
+      **One of three.** Backend has a flush record; web has never been triggered
+      against production; mobile is blocked on the DSN above.
+- [ ] Alert thresholds agreed — what crash rate halts a staged rollout. The
+      number must land **in this document**, not only in a design doc, and the
+      crash-free-sessions alert is blocked on the mobile DSN.
 
 ### 5.3 No forced-upgrade path
 
 Per §1.4 we cannot recall a release. Without a minimum-version check we can also
 never *retire* one.
+
+**Nothing has been built** (verified 2026-08-18): no min-version field in
+`openapi.yaml`, no such route, and no startup check in either flavour. It is
+also the one gate that is **cheaper before the first release than after** — a
+v1.0 shipped without the check can never be told to update, so the floor can
+only ever apply from v1.1 onward. That makes this an iOS-blocker, not a
+post-launch item.
 
 - [ ] Backend exposes a minimum supported client version.
 - [ ] App checks it at startup and, below the floor, blocks with a « Mettre à
@@ -257,9 +334,9 @@ salons, and nothing distinguishes them from genuine ones afterwards.
 It is harmless *today* and only today: the marketplace is empty (§5.1) and there
 are no users. It stops being harmless the moment a real salon signs up.
 
-**The sequencing that follows, which is the real point:** the fix is to point
-Preview at staging, and **staging does not exist yet** (phase 3 of
-[design/infra-staging.md](design/infra-staging.md)). There is no good interim
+**The sequencing that followed, which was the real point:** the fix is to point
+Preview at staging, and **staging did not exist** (phase 3 of
+[design/infra-staging.md](design/infra-staging.md)). There was no good interim
 patch either — pointing Preview at nothing breaks the build, and pointing it at
 localhost publishes a preview with no salons and no error, which is the failure
 §1.3 was built to prevent.
@@ -268,11 +345,20 @@ So this is not a task that can be scheduled freely. **Staging must exist before
 the first real salon is onboarded**, or previews have to be switched off until
 it does. That is a launch-order constraint, not a backlog item.
 
+**Staging now exists (2026-08-16), so the precondition is met and only the act
+remains.** This is the last unfinished step of infra-staging.md's build order,
+and it is what still holds §0's question 2 open. Note staging's `WEB_ORIGINS` is
+currently `http://localhost:3000` only, so the preview origin has to be added
+there in the same change or the repointed preview gets an opaque CORS failure.
+
 - [ ] Split `NEXT_PUBLIC_API_BASE_URL` into two Vercel entries — Production →
       `https://api.myweli.com`, Preview → the staging service — on the day
-      staging exists.
+      staging exists. **That day has arrived — this is now the smallest
+      unblocked item on the list**, and the only one holding §0 question 2 open.
 - [ ] Until then, treat every preview deployment as writing to production, and
-      do not exercise booking or registration flows on one.
+      do not exercise booking or registration flows on one. **Still true today** —
+      and the production `users` table already carries test accounts from an
+      earlier seam run (§4), which is what this hazard looks like when it lands.
 
 ### 5.5 Backups are unrehearsed — **rehearsed 2026-08-16**
 
@@ -313,17 +399,35 @@ it does. That is a launch-order constraint, not a backlog item.
 - [ ] The full funnel on a real phone browser on a slow connection.
 - [ ] 404 and error states reachable and correct.
 - [ ] Analytics decision made (we currently have none — deliberate or not).
+      **Still none** — and the privacy policy states this as a promise, so
+      adding any is a policy change, not just a config one.
 - [ ] Install-the-app prompts point somewhere real, or are hidden until the apps
       exist. **They currently promise apps that are not published.**
 
 ### 6.2 iOS (second)
 
 - [ ] Everything in [mobile-store-submission.md](design/mobile-store-submission.md) §5.
+      Two of its claims are **stale as of 2026-08-18** and must be corrected
+      before they are relied on: the Sign in with Apple line below, and the §4
+      privacy table, which still answers "no third-party crash SDK" although
+      `sentry_flutter` ships in the app. An App Store privacy answer that
+      contradicts the binary is a rejection *and* a legal exposure.
 - [ ] A **signed** build verified — production `aps-environment` baked, not just
       configured, and a real push received from the production FCM project.
 - [ ] TestFlight internal build exercised by someone other than the developer.
+      **No *signed* build exists** — the only archive ever produced was built
+      `--no-codesign` (submission spec §6), which is why the box above says the
+      production `aps-environment` is configured but not baked. Nothing has been
+      uploaded anywhere, so every remaining line in §6.2 is downstream of one
+      signed archive.
 - [ ] Screenshots, description, keywords, age rating, privacy questionnaire.
-- [ ] Sign in with Apple working in the signed build (rule 4.8).
+- [ ] Sign in with Apple working in the signed build (rule 4.8). **The
+      entitlement is missing.** `com.apple.developer.applesignin` appears in
+      neither `Runner.entitlements` nor `RunnerRelease.entitlements`, so a
+      signed build cannot present the sheet at all — while
+      [design/mobile-store-submission.md](design/mobile-store-submission.md)
+      §"Sign in with Apple" reads as though it already works. Fix the doc and
+      the entitlement together; rule 4.8 is a rejection, not a warning.
 - [ ] Phased release enabled.
 
 ### 6.3 Android (last)
@@ -354,3 +458,48 @@ it does. That is a launch-order constraint, not a backlog item.
 The discipline this replaces is the one we have been using — merge and it is
 live — which is correct for a product with no users and wrong the moment there
 is one.
+
+---
+
+## 8. Reconciled 2026-08-18 — what is actually left
+
+Every box above was re-checked against the **deployed** artifact rather than the
+source or the design docs, in both directions: a box ticked that is not true is
+worse than one left unticked. Four were ticked, one was **unticked** (production
+data hygiene — §4), and a dozen gained the specific reason they are not done.
+
+**What the re-check cost, which is the argument for doing it again before
+launch:** three claims in this file were false, and every one had been true when
+written. Staging "does not exist" (it does), Sign in with Apple "working" (the
+entitlement is absent), error reporting "closed on all three surfaces" (mobile
+has no DSN). The same drift had reached the **live privacy policy**, where two
+statements had become false — corrected in this change, and now pinned by a test
+that fails if the page denies a vendor listed in `package.json`.
+
+Ordered by what unblocks what, not by size:
+
+1. **Point Vercel Preview at staging** (§5.4). The smallest item on the list and
+   the only one still holding §0's question 2 open. Until it lands, every PR
+   preview writes to the production database — and §4 shows what that looks like
+   once it happens.
+2. **Purge the smoke-test accounts from production** (§4), by identity suffix,
+   as `backend-q1b-smoke-seam.md` already prescribes. Until then "production
+   contains no seeded/demo data" cannot be ticked honestly.
+3. **Create the mobile Sentry project and DSN** (§5.2), then prove one real error
+   per surface. This also unblocks the crash-rate threshold, which §1.4's staged
+   rollout is defined in terms of — so it is an iOS prerequisite, not telemetry
+   nice-to-have.
+4. **Minimum supported version** (§5.3). Uniquely order-sensitive: a v1.0 shipped
+   without the check can never be told to update, so the floor would only ever
+   apply from v1.1. It is cheap now and impossible later.
+5. **Add `com.apple.developer.applesignin`** to both entitlements files and the
+   App ID (§6.2) — before the first archive, since 4.8 is found at review.
+6. **Rehearse the funnel on staging** (§4) — `funnel_smoke_test.dart` already
+   takes `SMOKE_BASE_URL`, so this is a host, not a project.
+7. The rest of the §4 gate, none of which is unblocked by anything above: the
+   secrets audit, the support channel, rate limiting against a real hostile
+   pattern, and the walk-through by someone who did not build it.
+
+Items 1, 2 and 6 are the ones that stop being safe the moment a real salon signs
+up. Items 3, 4 and 5 are the ones that become expensive the moment a build is in
+someone's hands. Nothing here is large; the ordering is the whole content.

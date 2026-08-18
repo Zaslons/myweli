@@ -81,11 +81,21 @@ what the code actually sends, for §5 step 6:
 | Precise location | Yes | Yes | No | « Près de moi » (`Geolocator.getCurrentPosition`) |
 | Photos | Yes | Yes | No | salon gallery, review photos, deposit screenshot |
 | Purchase history | **No** | — | — | MyWeli holds no funds (PRD OQ-1) |
-| Usage / diagnostics | **No** | — | — | no analytics or crash SDK |
+| Usage / diagnostics — **crash data** | **Yes** | **No** | No | `sentry_flutter` (`main.dart`), only when a mobile DSN is defined |
+| Usage / diagnostics — anything else | **No** | — | — | no analytics SDK in the tree |
 
 **Tracking is `false` across the board** and the manifest says so: there is no
 ad, analytics or attribution SDK in the tree. Confirm each row before answering
 — this table is derived from code, not from a lawyer.
+
+**The crash row was wrong until 2026-08-18** and read "no analytics or crash
+SDK". `sentry_flutter` shipped in the app afterwards and nothing brought this
+table with it. It is declared **unlinked** because `beforeSend` strips the user,
+the breadcrumbs and the query string before the event leaves the device — that
+is what makes the "No" in the *linked* column true, so the scrubbing must not be
+weakened without changing this row back. Apple treats a privacy answer that
+contradicts the binary as a misrepresentation, not a typo. The same drift made
+the public privacy policy state the opposite of the truth (LAUNCH.md §4).
 
 ## 5. Runbook — the account side (owner only)
 
@@ -123,9 +133,17 @@ nothing here should be handed credentials.
    the same as not being able to do one** (LAUNCH.md §1.4 is watched on the
    crash-free rate).
 6. **The privacy questionnaire** — §4's table.
-7. **Sign in with Apple** — already working (2026-08-07). Rule **4.8** requires
-   it wherever another third-party provider ships, which is why
-   `FeatureFlags.appleSignIn` defaults on.
+7. **Sign in with Apple** — **the entitlement is missing, and this line used to
+   claim it was "already working (2026-08-07)".** What works is the Dart and the
+   flag: `FeatureFlags.appleSignIn` defaults on because rule **4.8** requires the
+   button wherever another third-party provider ships. But
+   `com.apple.developer.applesignin` appears in **neither**
+   `ios/Runner/Runner.entitlements` **nor** `ios/Runner/RunnerRelease.entitlements`
+   (verified 2026-08-18), so a signed build cannot present the sheet at all —
+   the same class of defect as the push entitlement documented in
+   `Runner.entitlements`, which sat unreferenced for months. Add the key to both
+   files and enable the capability on the App ID **before** the first archive;
+   4.8 is a rejection, and it is discovered at review, not at build.
 
 ## 6. What this did NOT verify
 
