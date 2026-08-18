@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:myweli/screens/update/update_required_app.dart';
 
@@ -10,13 +11,20 @@ import '../support/golden.dart';
 /// wrong" but "the app is bricked with no way out". The 2× frame is the one
 /// that matters — a truncated « Mettre à jour » would strand someone on a build
 /// we deliberately blocked.
+/// The floor phone: the modal Android width here, not the 390 default.
+const Size _floor = Size(360, 780);
+
 void main() {
   group('update required', () {
     testWidgets('at the floor', (tester) async {
       // `UpdateRequiredApp` is its own MaterialApp (it replaces the app at
       // `runApp`), so it cannot go through `goldenApp` — the surface is pinned
       // directly instead.
-      goldenSurface(tester);
+      //
+      // 360, not the `kGoldenPhone` 390 default: this is the floor, the modal
+      // Android width in Côte d'Ivoire, and it is what the filename says. A
+      // baseline whose name and width disagree is worse than no baseline.
+      goldenSurface(tester, size: _floor);
       await tester.pumpWidget(
         const UpdateRequiredApp(
           updateUrl:
@@ -28,7 +36,7 @@ void main() {
     });
 
     testWidgets('at 200% — the action still whole', (tester) async {
-      goldenSurface(tester);
+      goldenSurface(tester, size: _floor);
       tester.platformDispatcher.textScaleFactorTestValue = 2;
       addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
       await tester.pumpWidget(
@@ -40,5 +48,5 @@ void main() {
       await tester.pump();
       await expectGolden(tester, 'update_required_w360_x2');
     });
-  });
+  }, skip: kGoldensSkip);
 }
