@@ -15,6 +15,7 @@ import 'core/theme/app_theme.dart';
 import 'core/utils/app_locale.dart';
 import 'core/utils/logger.dart';
 import 'core/utils/salon_time.dart';
+import 'core/version/client_version_gate.dart';
 import 'providers/appointment_provider.dart';
 import 'providers/auth_provider.dart';
 import 'providers/favorites_provider.dart';
@@ -23,6 +24,7 @@ import 'providers/messaging_provider.dart';
 import 'providers/notification_preferences_provider.dart';
 import 'providers/notifications_provider.dart';
 import 'providers/provider_provider.dart';
+import 'screens/update/update_required_app.dart';
 import 'services/push/fcm_message_bridge.dart';
 import 'widgets/common/content_width_cap.dart';
 
@@ -40,6 +42,17 @@ void main() {
         runApp(misconfigured);
         return;
       }
+
+      // The version gate, kicked off HERE and awaited just before `runApp`.
+      // Not awaited now: it runs concurrently with the init below, so the added
+      // wall clock is `max(0, deadline - elapsed_init)` — usually zero.
+      // docs/design/client-version-gate.md §7.
+      // Mock/demo builds never talk to a backend, so asking would only cost a
+      // failed request on every launch. The gate itself no longer makes this
+      // decision — it was untestable when it did.
+      final versionGate = ClientVersionGate.enabledForThisBuild
+          ? const ClientVersionGate().check()
+          : Future.value(kClientVersionAllowed);
 
       // Error reporting BEFORE anything that can fail, so a failure during
       // startup is itself reported. Inert without --dart-define=SENTRY_DSN, and
@@ -69,6 +82,19 @@ void main() {
       // cold-start tap once it lands (everything else stays inline below).
       final auth = AuthProvider();
       if (pushReady) await _startPush(auth);
+
+      // The verdict lands BEFORE the first frame — so the block is decided
+      // before the router exists, before DI-owned providers mount, and before a
+      // tapped notification has a router to `push` onto. `runApp` + return is
+      // the only genuinely inescapable shape here (the misconfigured-build
+      // guard above uses it for the same reason).
+      final version = await versionGate;
+      // Published for the nudge surfaces; see the holder's doc.
+      clientVersionResult = version;
+      if (version.verdict == ClientVersionVerdict.updateRequired) {
+        runApp(UpdateRequiredApp(updateUrl: version.updateUrl, isPro: false));
+        return;
+      }
 
       runApp(MyweliApp(auth: auth));
     },

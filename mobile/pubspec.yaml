@@ -118,6 +118,7 @@ dependencies:
   # The re-enable path when notifications are denied at the OS level.
   app_settings: ^8.0.3
   sentry_flutter: ^9.0.0
+  package_info_plus: ^9.0.1
 
 dev_dependencies:
   flutter_test:

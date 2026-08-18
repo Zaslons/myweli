@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../core/config/app_config.dart';
 import '../../core/constants/app_constants.dart';
@@ -46,14 +47,29 @@ class AboutScreen extends StatelessWidget {
                 children: [
                   Text(AppConstants.appName, style: AppTextStyles.titleLarge),
                   const SizedBox(height: AppTheme.spacingXS),
-                  Text(
-                    // ONE source. The row this screen replaces printed
-                    // « Version 1.0.0 » as a literal, a second copy of this
-                    // constant, with `pubspec.yaml` holding a third.
-                    'Version ${AppConstants.appVersion}',
-                    style: AppTextStyles.bodyMedium.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
+                  // ONE source, and now the RIGHT one. This printed
+                  // `AppConstants.appVersion` — a hand-typed '1.0.0' with no
+                  // build number, pinned to nothing, while `pubspec.yaml` held
+                  // the real value and both stores read that. Two copies of a
+                  // number that must never disagree.
+                  //
+                  // `PackageInfo` is what the OS actually installed, so it
+                  // cannot drift. The build number is shown too, because
+                  // « which build is this? » is the question support asks and
+                  // the one the version gate compares.
+                  FutureBuilder<PackageInfo>(
+                    future: PackageInfo.fromPlatform(),
+                    builder: (context, snap) {
+                      final info = snap.data;
+                      return Text(
+                        info == null
+                            ? 'Version…'
+                            : 'Version ${info.version} (${info.buildNumber})',
+                        style: AppTextStyles.bodyMedium.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                      );
+                    },
                   ),
                 ],
               ),

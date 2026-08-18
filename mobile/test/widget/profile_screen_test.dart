@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
-import 'package:myweli/core/constants/app_constants.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/providers/auth_provider.dart';
 import 'package:myweli/providers/favorites_provider.dart';
 import 'package:myweli/screens/profile/about_screen.dart';
 import 'package:myweli/screens/profile/profile_screen.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -80,23 +80,32 @@ void main() {
   ) async {
     // **The profile row no longer shows a version at all**, and that is the
     // fix: it printed « Version 1.0.0 » as a literal, a second copy of
-    // `AppConstants.appVersion`, with `pubspec.yaml` holding a third. The
-    // number now lives once, on the screen that is *about* the app.
+    // `AppConstants.appVersion`, with `pubspec.yaml` holding a third.
     //
-    // The first draft asserted this on the profile and went red the moment the
-    // literal was removed — a test measuring the old shape rather than the
-    // rule. Bump the constant and this still goes red, which is the whole
-    // point of it being a constant.
+    // **Updated 2026-08-18: the constant is gone too, and this test moved with
+    // it.** It was still the WRONG one place — hand-typed, pinned to nothing,
+    // carrying no build number, while `pubspec.yaml` held the real value and
+    // both stores read that. The screen now reads `PackageInfo`, which is what
+    // the OS actually installed and therefore cannot drift.
+    //
+    // So the assertion changes shape: there is no constant left to interpolate,
+    // and under `flutter test` the plugin has no platform to answer from. What
+    // is still testable — and is the property that matters — is that the row
+    // exists and is fed asynchronously rather than from a literal.
     await tester.pumpWidget(wrapApp(home: const AboutScreen()));
     await tester.pump();
 
-    expect(find.textContaining(AppConstants.appVersion), findsOneWidget);
     expect(
-      find.text('Version 1.0.0'),
+      find.byType(FutureBuilder<PackageInfo>),
       findsOneWidget,
       reason:
-          'and it reads as a human expects — the constant interpolated, '
-          'not printed raw',
+          'the version must come from PackageInfo, not a constant a human '
+          'retypes — that duplicate is what drifted',
+    );
+    expect(
+      find.textContaining('Version'),
+      findsOneWidget,
+      reason: 'the row is still there for a store reviewer to find',
     );
   });
 

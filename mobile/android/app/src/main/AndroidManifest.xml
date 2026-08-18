@@ -59,5 +59,27 @@
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
         </intent>
+        <!-- Android 11+ package visibility: without a <queries> entry per
+             scheme, `url_launcher` cannot SEE an app that handles it, so
+             `launchUrl` returns false and every external link silently does
+             nothing. Recorded as a TODO at docs/ROADMAP.md:200 and never done.
+
+             It matters most for the one link the user cannot work around: the
+             « Mettre à jour » button on the version-gate screen
+             (docs/design/client-version-gate.md). A dead button there strands
+             someone on a build we have deliberately blocked, with no way out.
+
+             `https` covers the Play listing URL and every legal/support link;
+             `market` covers the direct-to-Play-app deep link. `tel` and the
+             WhatsApp/`geo` links are separate schemes with their own call
+             sites — left alone here rather than widened speculatively. -->
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="https"/>
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="market"/>
+        </intent>
     </queries>
 </manifest>

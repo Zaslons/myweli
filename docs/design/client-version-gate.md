@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Approved · backend slice building |
+| **Status** | Slices 1 (backend) and 2 (mobile) built · slice 3 (admin console) pending |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-08-18 |
 | **PRD ref / phase** | LAUNCH.md §5.3 · V1 (launch gate) |
@@ -221,4 +221,26 @@ acceptable because the value being set is `0`.
    pending, but it must be filled before an iOS floor can ever be raised.
 2. **The Android `<queries>` fix is unverified on a device.** Whether
    `launchUrl(externalApplication)` currently fails without it is UNVERIFIED — no
-   device run. The manifest entry lands in the mobile slice regardless.
+   device run. The manifest entry landed in slice 2 regardless.
+
+## 13. What slice 2 changed about this spec
+
+**The action is pinned, not inside `EmptyState`.** §8.1 said to reuse
+`EmptyState` whole, action included, and that was right for every screen except
+this one. The 2× golden showed why: on a 780dp floor phone the column grows past
+the viewport and the button lands **below the fold**. Elsewhere you scroll, or
+you leave — this is the one screen a user cannot leave, so its single way out
+must never have to be hunted for. The message scrolls; the exit does not.
+
+Worth recording *how* it was found: the widget test passed, because it scrolled
+to reach the button first. Only looking at the picture caught it. The test now
+taps without scrolling, so the fold is the assertion.
+
+**Two seams the tests forced into the gate**, both instances of "a check that
+cannot fire":
+
+- it checked `AppConfig.useApiBackend` itself, which is a `bool.fromEnvironment`
+  and false under `flutter test` — so every test exercised the early return
+  rather than the gate. The caller decides whether to ask now;
+- the platform came from `dart:io`, and a test VM is neither Android nor iOS, so
+  the gate returned `ok` on the only machine that can run its tests.

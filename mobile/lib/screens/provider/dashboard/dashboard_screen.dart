@@ -15,6 +15,7 @@ import '../../../models/pro_membership.dart';
 import '../../../providers/notifications_provider.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_dashboard_provider.dart';
+import '../../../widgets/common/update_nudge_slot.dart';
 import '../../../widgets/provider/salon_picker_sheet.dart';
 import '../../../widgets/push/push_permission_sheet.dart';
 
@@ -200,6 +201,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Advice about the app itself, above the salon's own content.
+                  // Renders nothing in the normal case.
+                  const UpdateNudgeSlot(),
                   // R6: the header IS the salon switcher (chevron when the
                   // account has several salons; « Mes salons » lives on the
                   // Profil screen too).
