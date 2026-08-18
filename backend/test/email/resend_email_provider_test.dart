@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:myweli_backend/src/email/email_provider.dart';
 import 'package:myweli_backend/src/email/resend_email_provider.dart';
+import 'package:myweli_backend/src/email/send_budget.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -24,6 +25,7 @@ void main() {
     );
 
     final res = await p.send(
+      classification: EmailClass.warm,
       to: 'ama@x.com',
       subject: otpEmailSubject,
       text: renderOtpEmailText('123456'),
@@ -50,7 +52,12 @@ void main() {
         return http.Response(jsonEncode({'id': 'em_2'}), 200);
       }),
     );
-    await p.send(to: 'a@x.com', subject: 's', text: 't');
+    await p.send(
+      classification: EmailClass.cold,
+      to: 'a@x.com',
+      subject: 's',
+      text: 't',
+    );
     final body = jsonDecode(seen.body) as Map<String, dynamic>;
     expect(body.containsKey('html'), isFalse);
   });
@@ -60,12 +67,22 @@ void main() {
       MockClient((req) async => http.Response('{"message":"nope"}', 401)),
     );
     expect(
-      (await bad.send(to: 'a@x.com', subject: 's', text: 't')).error,
+      (await bad.send(
+        classification: EmailClass.cold,
+        to: 'a@x.com',
+        subject: 's',
+        text: 't',
+      )).error,
       'resend_401',
     );
 
     final down = provider(MockClient((req) async => throw Exception('down')));
-    final res = await down.send(to: 'a@x.com', subject: 's', text: 't');
+    final res = await down.send(
+      classification: EmailClass.cold,
+      to: 'a@x.com',
+      subject: 's',
+      text: 't',
+    );
     expect(res.ok, isFalse);
     expect(res.error, 'resend_unreachable');
   });

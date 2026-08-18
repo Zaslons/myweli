@@ -1,3 +1,5 @@
+import 'send_budget.dart';
+
 /// Result of handing an email to the provider. [providerMessageId] is the
 /// provider's id for the message (correlation/audit).
 typedef EmailSendResult = ({bool ok, String? providerMessageId, String? error});
@@ -8,12 +10,67 @@ typedef EmailSendResult = ({bool ok, String? providerMessageId, String? error});
 abstract interface class EmailProvider {
   /// Sends [text] (with an optional [html] alternative) to [to]. Must not
   /// throw — failures come back `ok: false`.
+  ///
+  /// [classification] is **required and deliberately not defaulted**. Both
+  /// defaults are wrong: `warm` leaves a new cold call site silently
+  /// unbudgeted — the exact failure the budget exists to prevent — and `cold`
+  /// makes legitimate mail fail mysteriously. Required means the author decides
+  /// once, visibly, in review.
+  /// Design: docs/design/backend-email-send-budget.md §4.
   Future<EmailSendResult> send({
     required String to,
     required String subject,
     required String text,
+    required EmailClass classification,
     String? html,
   });
+}
+
+/// Bounds outbound mail, whatever shape the traffic arrives in.
+///
+/// **A decorator, so nothing can route around it.** `dependencies.dart` wraps
+/// whichever provider it built, which means every present and future send —
+/// including ones nobody remembers to budget — passes through here.
+///
+/// Cloud Armor bought a 99.3% reduction against the trivial attacker and
+/// nothing against a patient one, because per-IP limits *requests* and requests
+/// are a proxy. The asset is the email channel and the domain's reputation, so
+/// this bounds the thing that can actually cause harm.
+class BudgetedEmailProvider implements EmailProvider {
+  BudgetedEmailProvider(this._inner, this._budget, {void Function(String)? log})
+    : _log = log ?? print;
+
+  final EmailProvider _inner;
+  final SendBudget _budget;
+  final void Function(String) _log;
+
+  @override
+  Future<EmailSendResult> send({
+    required String to,
+    required String subject,
+    required String text,
+    required EmailClass classification,
+    String? html,
+  }) async {
+    if (!await _budget.reserve(classification)) {
+      // The operator learns; the caller does not. `/auth/email/otp/request`
+      // returns 202 either way, deliberately — a caller must never learn
+      // whether an address exists or whether mail went out.
+      _log('email_budget_exhausted class=${classification.bucket}');
+      return (
+        ok: false,
+        providerMessageId: null,
+        error: 'send_budget_exhausted',
+      );
+    }
+    return _inner.send(
+      to: to,
+      subject: subject,
+      text: text,
+      html: html,
+      classification: classification,
+    );
+  }
 }
 
 /// Dev/CI provider: never touches the network, always "sends". Deliberately
@@ -26,6 +83,7 @@ class LogEmailProvider implements EmailProvider {
     required String to,
     required String subject,
     required String text,
+    required EmailClass classification,
     String? html,
   }) async => (ok: true, providerMessageId: 'log_email_${_seq++}', error: null);
 }

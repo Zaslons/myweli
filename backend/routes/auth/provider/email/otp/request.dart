@@ -5,6 +5,7 @@ import 'package:myweli_backend/src/auth/auth_methods.dart';
 import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
 import 'package:myweli_backend/src/auth/smoke_seam.dart';
 import 'package:myweli_backend/src/email/email_provider.dart';
+import 'package:myweli_backend/src/email/send_budget.dart';
 import 'package:myweli_backend/src/responses.dart';
 import 'package:myweli_backend/src/validators.dart';
 
@@ -39,6 +40,9 @@ Future<Response> onRequest(RequestContext context) async {
 
   if (result.code != null) {
     await context.read<EmailProvider>().send(
+      // COLD: an anonymous caller picked this address. Budgeted tightly —
+      // docs/design/backend-email-send-budget.md §2.
+      classification: EmailClass.cold,
       to: email,
       subject: otpEmailSubject,
       text: renderOtpEmailText(result.code!),

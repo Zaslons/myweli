@@ -872,6 +872,35 @@ CREATE TABLE IF NOT EXISTS momo_operators (
           "ON CONFLICT (app_id, platform) DO NOTHING",
     ],
   ),
+  (
+    id: '0033_email_send_budget',
+    statements: [
+      // The outbound-email ceiling (docs/design/backend-email-send-budget.md).
+      //
+      // **In Postgres, not memory, and the cautionary tale is in this repo.**
+      // `LoginThrottle` holds its state in a plain Map and its own comment says
+      // "move to a shared store if the API is ever horizontally scaled" — on a
+      // service that has run `maxScale: 4` for weeks. Per-instance counters
+      // mean N times the budget and a reset on every cold start, which for a
+      // SEND budget means the bound does not exist at all.
+      //
+      // `bucket` is the CLASS, not the recipient. One global ceiling would be
+      // worse than none: an attacker exhausts it in a minute and every
+      // legitimate email for the rest of the hour is dropped — booking
+      // confirmations included. That turns spam prevention into a cheaper
+      // availability attack. cold and warm never share a row.
+      'CREATE TABLE IF NOT EXISTS email_send_budget ('
+          'bucket text NOT NULL, '
+          'window_start timestamptz NOT NULL, '
+          'sent int NOT NULL DEFAULT 0, '
+          'PRIMARY KEY (bucket, window_start))',
+      // Old windows are dead weight; nothing reads them. Cheap to prune later,
+      // and an index on window_start is what makes that a range delete rather
+      // than a full scan.
+      'CREATE INDEX IF NOT EXISTS email_send_budget_window_idx '
+          'ON email_send_budget (window_start)',
+    ],
+  ),
 ];
 
 /// How long a schema-setup statement may **wait for a lock** before giving up.
