@@ -30,20 +30,23 @@ metadata:
     # would make staging unreachable by its own cron and by every Vercel preview,
     # which is the entire reason it exists.
     #
-    # The consequence, stated rather than implied: staging is a publicly
-    # reachable service that echoes OTP dev-codes (ENV=staging is `guardsOn` but
-    # not `isProd`), so **anyone who finds this URL can sign in as any identity
-    # in this database.** That is deliberate — it is how a tester signs in with
-    # no SMS channel — and it is fine for the synthetic data staging holds day
-    # to day (infra-staging.md §2.1).
+    # This block used to continue: "staging is a publicly reachable service
+    # that echoes OTP dev-codes ... so **anyone who finds this URL can sign in
+    # as any identity in this database.** That is deliberate", and flagged the
+    # prod-copy case as **unresolved before build-order step 5**. Step 5 ran on
+    # 2026-08-16 and the deadline passed unnoticed.
     #
-    # It is NOT fine for the other row of that table. §2.1 also allows a
-    # prod-volume copy, anonymised on the way in, for rehearsing a migration —
-    # and the scrub replaces phones, names and emails, not the appointments,
-    # deposits and KYC references around them. Put that behind this ingress and
-    # an unauthenticated caller signs in as any client in the derived copy.
-    # **Unresolved, and it must be resolved before build-order step 5 runs that
-    # restore** — see infra-staging.md §2.1.
+    # **Resolved 2026-08-18: the disclosure is gone.** `Env.echoesOtpDevCode` is
+    # `dev`-only, so no *deployed* environment returns an OTP — an open ingress
+    # no longer implies a signable identity, whatever database is attached, and
+    # the prod-copy tension in infra-staging.md §2.1 disappears rather than
+    # being managed. Enforced by
+    # backend/test/auth/staging_otp_disclosure_test.dart, because a deadline in
+    # a design doc demonstrably was not a mechanism.
+    #
+    # What the open ingress still means: every unauthenticated *read* this API
+    # exposes is public here, exactly as on production. That is the intended
+    # posture — the cron and every Vercel preview need it.
     run.googleapis.com/ingress: all
 spec:
   template:
@@ -107,8 +110,10 @@ spec:
           env:
             # The one value that makes this environment what it is. `guardsOn` is
             # ON (every fail-fast below is boot-fatal, exactly as in production)
-            # while `isProd` is OFF (OTP dev-codes are echoed, so a tester can
-            # sign in with no SMS channel). See boot_config.dart.
+            # while `isProd` is OFF, which keeps staging identifiable in logs,
+            # headers and Sentry rather than passing for production.
+            # **`echoesOtpDevCode` is also OFF** — it is `dev`-only, so this
+            # service discloses no OTP. See boot_config.dart.
             - name: ENV
               value: staging
             - name: TZ
@@ -218,10 +223,20 @@ spec:
             - name: APPLE_CLIENT_IDS
               valueFrom:
                 secretKeyRef: { name: APPLE_CLIENT_IDS, key: latest }
-            # A staging-only Resend key that CANNOT deliver. Email is a live
-            # channel reaching real inboxes, and §3.3's rule is that staging
-            # never has one. Sign-in still works: `isProd` is false, so the OTP
-            # is echoed in the response and nothing needs to arrive.
+            # A staging-only Resend key that CANNOT deliver — the placeholder
+            # `re_staging_placeholder_delivery_is_disabled`, which satisfies the
+            # non-empty boot guard and nothing else. Email is a live channel
+            # reaching real inboxes, and §3.3's rule is that staging never has
+            # one.
+            #
+            # **How you sign in here changed on 2026-08-18.** This comment used
+            # to end "sign-in still works: `isProd` is false, so the OTP is
+            # echoed in the response and nothing needs to arrive" — the echo was
+            # what made an undeliverable key safe. The echo is now `dev`-only
+            # (it let anyone sign in as anyone, §"ingress" above), so **email
+            # sign-in to staging cannot complete**. Use Google or Apple;
+            # automation uses the Q1b seam. If a human needs the email path,
+            # mount a deliverable key here and accept that §3.3 no longer holds.
             - name: RESEND_API_KEY
               valueFrom:
                 secretKeyRef: { name: STAGING_RESEND_API_KEY, key: latest }

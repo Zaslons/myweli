@@ -19,7 +19,7 @@ void main() {
   }
 
   setUp(() {
-    auth = InMemoryAuthRepository(tokens: tokens, isProd: false);
+    auth = InMemoryAuthRepository(tokens: tokens, echoDevCode: true);
     appts = InMemoryAppointmentRepository();
     audit = InMemoryAuditLogRepository();
     svc = AdminUserService(auth, appts, audit);

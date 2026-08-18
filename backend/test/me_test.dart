@@ -24,7 +24,7 @@ class _MockAuth extends Mock implements AuthRepository {}
 ClientsService _clientsService(TokenService tokens, AuthRepository auth) {
   final providerAuth = InMemoryProviderAuthRepository(
     tokens: tokens,
-    isProd: false,
+    echoDevCode: true,
   );
   return ClientsService(
     providerAuth,

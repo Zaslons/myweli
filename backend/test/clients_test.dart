@@ -80,9 +80,9 @@ void main() {
     appts = InMemoryAppointmentRepository();
     providerAuth = InMemoryProviderAuthRepository(
       tokens: tokens,
-      isProd: false,
+      echoDevCode: true,
     );
-    users = InMemoryAuthRepository(tokens: tokens, isProd: false);
+    users = InMemoryAuthRepository(tokens: tokens, echoDevCode: true);
     service = ClientsService(
       providerAuth,
       MembershipService(InMemoryMembershipRepository(), providerAuth),

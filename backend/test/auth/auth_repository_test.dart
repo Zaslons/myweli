@@ -12,14 +12,14 @@ void main() {
     expect(
       (await InMemoryAuthRepository(
         tokens: ts(),
-        isProd: false,
+        echoDevCode: true,
       ).requestOtp(phone)).devCode,
       isNotNull,
     );
     expect(
       (await InMemoryAuthRepository(
         tokens: ts(),
-        isProd: true,
+        echoDevCode: false,
       ).requestOtp(phone)).devCode,
       isNull,
     );
@@ -28,7 +28,7 @@ void main() {
   test('resend budget is enforced', () async {
     final repo = InMemoryAuthRepository(
       tokens: ts(),
-      isProd: false,
+      echoDevCode: true,
       maxResends: 1,
     );
     expect((await repo.requestOtp(phone)).ok, isTrue);
@@ -42,7 +42,7 @@ void main() {
       '(abandoned flow must not lock a later attempt)', () async {
     final repo = InMemoryAuthRepository(
       tokens: ts(),
-      isProd: false,
+      echoDevCode: true,
       otpValidity: Duration.zero, // every issued code is instantly expired
       maxResends: 1,
     );
@@ -57,7 +57,7 @@ void main() {
   });
 
   test('verifyOtp succeeds with the right code and issues tokens', () async {
-    final repo = InMemoryAuthRepository(tokens: ts(), isProd: false);
+    final repo = InMemoryAuthRepository(tokens: ts(), echoDevCode: true);
     final code = (await repo.requestOtp(phone)).devCode!;
     final res = await repo.verifyOtp(phone, code);
     expect(res.ok, isTrue);
@@ -67,7 +67,7 @@ void main() {
   });
 
   test('same phone resolves to the same user (find-or-create)', () async {
-    final repo = InMemoryAuthRepository(tokens: ts(), isProd: false);
+    final repo = InMemoryAuthRepository(tokens: ts(), echoDevCode: true);
     final id1 = (await repo.verifyOtp(
       phone,
       (await repo.requestOtp(phone)).devCode!,
@@ -82,7 +82,7 @@ void main() {
   test('wrong codes decrement the budget then lock out', () async {
     final repo = InMemoryAuthRepository(
       tokens: ts(),
-      isProd: false,
+      echoDevCode: true,
       maxAttempts: 2,
     );
     final code = (await repo.requestOtp(phone)).devCode!;
@@ -93,7 +93,7 @@ void main() {
   test('expired codes are rejected', () async {
     final repo = InMemoryAuthRepository(
       tokens: ts(),
-      isProd: false,
+      echoDevCode: true,
       otpValidity: const Duration(milliseconds: 1),
     );
     final code = (await repo.requestOtp(phone)).devCode!;
@@ -104,7 +104,7 @@ void main() {
   test(
     'refresh rotates, and replaying a rotated token revokes the family',
     () async {
-      final repo = InMemoryAuthRepository(tokens: ts(), isProd: false);
+      final repo = InMemoryAuthRepository(tokens: ts(), echoDevCode: true);
       final first = (await repo.verifyOtp(
         phone,
         (await repo.requestOtp(phone)).devCode!,
@@ -127,7 +127,7 @@ void main() {
   );
 
   test('updateUser mutates fields; deleteUser removes the account', () async {
-    final repo = InMemoryAuthRepository(tokens: ts(), isProd: false);
+    final repo = InMemoryAuthRepository(tokens: ts(), echoDevCode: true);
     final user = (await repo.verifyOtp(
       phone,
       (await repo.requestOtp(phone)).devCode!,

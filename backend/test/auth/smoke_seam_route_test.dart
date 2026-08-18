@@ -32,15 +32,17 @@ void main() {
   late InMemoryAuthRepository devRepo;
 
   setUp(() {
-    // isProd: true is the whole point — this is the configuration in which
-    // devCode is null and the seam is the only way to obtain the code.
+    // echoDevCode: false is the whole point — this is the configuration in
+    // which devCode is null and the seam is the only way to obtain the code.
+    // It is now the configuration of STAGING too, not just production
+    // (docs/design/backend-staging-otp-disclosure.md).
     prodRepo = InMemoryAuthRepository(
       tokens: TokenService(secret: 'test-secret'),
-      isProd: true,
+      echoDevCode: false,
     );
     devRepo = InMemoryAuthRepository(
       tokens: TokenService(secret: 'test-secret'),
-      isProd: false,
+      echoDevCode: true,
     );
   });
 

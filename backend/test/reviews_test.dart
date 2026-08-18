@@ -54,7 +54,7 @@ void main() {
       reviewsRepo,
       appts,
       providers,
-      InMemoryAuthRepository(tokens: tokens, isProd: false),
+      InMemoryAuthRepository(tokens: tokens, echoDevCode: true),
     );
     // Give provider1 an artist so attribution + per-artist recompute is testable.
     (await providers.byId('provider1'))!['artists'] = [
@@ -238,7 +238,7 @@ void main() {
         InMemoryReviewsRepository(),
         InMemoryAppointmentRepository(),
         salons,
-        InMemoryAuthRepository(tokens: tokens, isProd: false),
+        InMemoryAuthRepository(tokens: tokens, echoDevCode: true),
       );
     });
 

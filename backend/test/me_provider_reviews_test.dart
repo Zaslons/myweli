@@ -74,7 +74,7 @@ void main() {
           reviews,
           InMemoryAppointmentRepository(),
           providers,
-          InMemoryAuthRepository(tokens: tokens, isProd: false),
+          InMemoryAuthRepository(tokens: tokens, echoDevCode: true),
         ),
       );
       return c;

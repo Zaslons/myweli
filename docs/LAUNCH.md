@@ -478,10 +478,27 @@ that fails if the page denies a vendor listed in `package.json`.
 
 Ordered by what unblocks what, not by size:
 
+0. ~~**Stop staging handing out OTP codes.**~~ **Done 2026-08-18**, and it was
+   not on this list because nobody knew: staging is `ingress: all` with a
+   hostname in a public repo, and returned a `devCode` for **any** address — so
+   anyone could hold a session there as anyone. (No mail was involved: staging's
+   Resend key is a deliberate dud. An adversarial review caught that
+   overstatement before it shipped.) Found by asking what pointing previews at
+   staging would actually expose
+   ([design/backend-staging-otp-disclosure.md](design/backend-staging-otp-disclosure.md)).
 1. **Point Vercel Preview at staging** (§5.4). The smallest item on the list and
    the only one still holding §0's question 2 open. Until it lands, every PR
    preview writes to the production database — and §4 shows what that looks like
-   once it happens.
+   once it happens. **Two corrections to what this needs**, both from checking
+   rather than assuming:
+   - it does **not** need staging's `WEB_ORIGINS` widened. No browser call
+     crosses origins at all — the web is a BFF, 72 same-origin route handlers,
+     and 227 observed requests across five production pages went to `myweli.com`
+     without exception;
+   - it **does** hit a CORS wall nobody had named: browser uploads PUT straight
+     to **Cloudflare R2**, whose staging allowlist is `http://localhost:3000`,
+     and all four upload helpers return `null` on failure. Uploads will silently
+     do nothing on a preview until that is addressed (§6.1).
 2. **Purge the smoke-test accounts from production** (§4), by identity suffix,
    as `backend-q1b-smoke-seam.md` already prescribes. Until then "production
    contains no seeded/demo data" cannot be ticked honestly.

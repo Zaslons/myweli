@@ -35,7 +35,7 @@ void main() {
     providers = InMemoryProvidersRepository();
     providerAuth = InMemoryProviderAuthRepository(
       tokens: tokens,
-      isProd: false,
+      echoDevCode: true,
     );
     catalog = ProviderCatalogService(
       providers,

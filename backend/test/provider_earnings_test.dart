@@ -50,7 +50,7 @@ void main() {
     appts = InMemoryAppointmentRepository();
     providerAuth = InMemoryProviderAuthRepository(
       tokens: tokens,
-      isProd: false,
+      echoDevCode: true,
     );
     service = ProviderEarningsService(
       MembershipService(InMemoryMembershipRepository(), providerAuth),

@@ -117,11 +117,20 @@ Env get env => _env;
 /// this.
 bool get _guardsOn => _env.guardsOn;
 
-/// **This is the real thing.** True for prod ONLY — reserved for the two places
-/// staging must behave like dev rather than like production: echoing the OTP
-/// dev-code in API responses (staging has no SMS channel, so without it nobody
-/// can sign in), and the smoke-seam disclosure warning.
+/// **This is the real thing.** True for prod ONLY — and today it has exactly
+/// **one** use: the smoke-seam disclosure warning below.
+///
+/// It used to have two, and the second was the OTP dev-code echo, justified
+/// here as "staging has no SMS channel, so without it nobody can sign in".
+/// That moved to [_echoesOtpDevCode] on 2026-08-18 because staging is public,
+/// and the sentence is recorded rather than deleted: it was the argument that
+/// kept the hole open, and it sat four lines above the getter that closes it.
 bool get _isProd => _env.isProd;
+
+/// Whether an OTP may be handed back in an HTTP response — `dev` only.
+/// Deliberately NOT `!_isProd`: staging is reachable from the internet.
+/// docs/design/backend-staging-otp-disclosure.md.
+bool get _echoesOtpDevCode => _env.echoesOtpDevCode;
 
 String _resolveSecret() =>
     resolveJwtSecret(Platform.environment['JWT_SECRET'], guardsOn: _guardsOn);
@@ -251,8 +260,15 @@ final EmailProvider emailProvider = () {
 }();
 
 final AuthRepository authRepository = _pool == null
-    ? InMemoryAuthRepository(tokens: tokenService, isProd: _isProd)
-    : PostgresAuthRepository(_pool!, tokens: tokenService, isProd: _isProd);
+    ? InMemoryAuthRepository(
+        tokens: tokenService,
+        echoDevCode: _echoesOtpDevCode,
+      )
+    : PostgresAuthRepository(
+        _pool!,
+        tokens: tokenService,
+        echoDevCode: _echoesOtpDevCode,
+      );
 
 final ProvidersRepository providersRepository = _pool == null
     ? InMemoryProvidersRepository()
@@ -269,11 +285,14 @@ final LocalitiesService localitiesService = LocalitiesService(
 );
 
 final ProviderAuthRepository providerAuthRepository = _pool == null
-    ? InMemoryProviderAuthRepository(tokens: tokenService, isProd: _isProd)
+    ? InMemoryProviderAuthRepository(
+        tokens: tokenService,
+        echoDevCode: _echoesOtpDevCode,
+      )
     : PostgresProviderAuthRepository(
         _pool!,
         tokens: tokenService,
-        isProd: _isProd,
+        echoDevCode: _echoesOtpDevCode,
       );
 
 final AppointmentRepository appointmentRepository = _pool == null

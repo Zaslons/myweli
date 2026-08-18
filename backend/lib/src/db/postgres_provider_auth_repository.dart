@@ -25,19 +25,19 @@ class PostgresProviderAuthRepository implements ProviderAuthRepository {
   PostgresProviderAuthRepository(
     this._pool, {
     required TokenService tokens,
-    required bool isProd,
+    required bool echoDevCode,
     Duration otpValidity = const Duration(minutes: 5),
     int maxAttempts = 5,
     int maxResends = 3,
   }) : _tokens = tokens,
-       _isProd = isProd,
+       _echoDevCode = echoDevCode,
        _otpValidity = otpValidity,
        _maxAttempts = maxAttempts,
        _maxResends = maxResends;
 
   final Pool<void> _pool;
   final TokenService _tokens;
-  final bool _isProd;
+  final bool _echoDevCode;
   final Duration _otpValidity;
   final int _maxAttempts;
   final int _maxResends;
@@ -104,7 +104,7 @@ class PostgresProviderAuthRepository implements ProviderAuthRepository {
       ok: true,
       error: null,
       code: code,
-      devCode: _isProd ? null : code,
+      devCode: _echoDevCode ? code : null,
       expiresInSeconds: _otpValidity.inSeconds,
     );
   }

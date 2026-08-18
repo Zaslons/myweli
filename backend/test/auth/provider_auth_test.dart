@@ -69,7 +69,10 @@ void main() {
   group('InMemoryProviderAuthRepository — auth overhaul', () {
     test('register (google identity) creates the salon + a LIVE session; '
         'duplicate identity → provider_exists', () async {
-      final repo = InMemoryProviderAuthRepository(tokens: ts(), isProd: false);
+      final repo = InMemoryProviderAuthRepository(
+        tokens: ts(),
+        echoDevCode: true,
+      );
       final reg = await registerGoogle(repo);
       expect(reg.ok, isTrue);
       expect(reg.provider!.businessName, 'Élégance');
@@ -85,7 +88,10 @@ void main() {
 
     test('loginWithSocial: by sub → ok; unknown → provider_not_found '
         '(never auto-creates)', () async {
-      final repo = InMemoryProviderAuthRepository(tokens: ts(), isProd: false);
+      final repo = InMemoryProviderAuthRepository(
+        tokens: ts(),
+        echoDevCode: true,
+      );
       final none = await repo.loginWithSocial(
         provider: 'google',
         sub: 'g-sub-1',
@@ -102,7 +108,10 @@ void main() {
 
     test('a VERIFIED email links a new provider sub to the account; an '
         'unverified one never does (T35)', () async {
-      final repo = InMemoryProviderAuthRepository(tokens: ts(), isProd: false);
+      final repo = InMemoryProviderAuthRepository(
+        tokens: ts(),
+        echoDevCode: true,
+      );
       final reg = await registerGoogle(repo);
 
       // Apple with the same verified email → linked, same account.
@@ -127,7 +136,10 @@ void main() {
 
     test('email flow: login-only verify does NOT consume the code on '
         'provider_not_found → the same code registers', () async {
-      final repo = InMemoryProviderAuthRepository(tokens: ts(), isProd: false);
+      final repo = InMemoryProviderAuthRepository(
+        tokens: ts(),
+        echoDevCode: true,
+      );
       final sent = await repo.requestEmailOtp('new@salon.ci');
       final code = sent.devCode!;
 
@@ -160,7 +172,7 @@ void main() {
       () async {
         final repo = InMemoryProviderAuthRepository(
           tokens: ts(),
-          isProd: false,
+          echoDevCode: true,
           maxAttempts: 2,
         );
         final sent = await repo.requestEmailOtp('a@salon.ci');
@@ -179,7 +191,10 @@ void main() {
     );
 
     test('phone OTP still works at the repo level (dormant path)', () async {
-      final repo = InMemoryProviderAuthRepository(tokens: ts(), isProd: false);
+      final repo = InMemoryProviderAuthRepository(
+        tokens: ts(),
+        echoDevCode: true,
+      );
       await registerGoogle(repo);
       final otp = await repo.requestOtp(_phone);
       final ok = await repo.verifyOtp(_phone, otp.devCode!);
@@ -188,7 +203,10 @@ void main() {
     });
 
     test('refresh rotates; replay revokes the family', () async {
-      final repo = InMemoryProviderAuthRepository(tokens: ts(), isProd: false);
+      final repo = InMemoryProviderAuthRepository(
+        tokens: ts(),
+        echoDevCode: true,
+      );
       final first = (await registerGoogle(repo)).tokens!;
 
       final rotated = await repo.refresh(first.refreshToken);
@@ -208,7 +226,7 @@ void main() {
       () async {
         final repo = InMemoryProviderAuthRepository(
           tokens: ts(),
-          isProd: false,
+          echoDevCode: true,
           otpValidity: Duration.zero,
           maxResends: 1,
         );
@@ -228,7 +246,7 @@ void main() {
     late EmailProvider email;
 
     setUp(() {
-      repo = InMemoryProviderAuthRepository(tokens: ts(), isProd: false);
+      repo = InMemoryProviderAuthRepository(tokens: ts(), echoDevCode: true);
       salons = InMemoryProvidersRepository([]);
       methods = const AuthMethods(AuthMethods.defaults);
       google = _FakeGoogle(_googleClaims);
@@ -501,7 +519,7 @@ void main() {
       () async {
         final repo = InMemoryProviderAuthRepository(
           tokens: ts(),
-          isProd: false,
+          echoDevCode: true,
         );
         final reg = await registerGoogle(repo, providerId: 'p1');
         final accountId = reg.provider!.id;

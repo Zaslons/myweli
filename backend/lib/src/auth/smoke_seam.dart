@@ -35,8 +35,13 @@ const int kMinSmokeSecretLength = 32;
 /// unset there is no behavioural change anywhere, which is how production runs
 /// except while a cutover gate is being executed.
 ///
-/// Off-prod behaviour does not route through here at all — `devCode` is still
-/// echoed unconditionally, so CI and local development need no secret.
+/// **Corrected 2026-08-18.** This used to read "Off-prod behaviour does not
+/// route through here at all — `devCode` is still echoed unconditionally, so CI
+/// and local development need no secret." That was written when off-prod meant
+/// *local and CI*, both unreachable from the internet. Staging is off-prod and
+/// **public**, so the sentence quietly became a description of a hole. Now only
+/// `Env.dev` echoes; staging comes through this seam exactly as production
+/// does. Design: docs/design/backend-staging-otp-disclosure.md.
 bool smokeDisclosureAllowed({
   required String? configuredSecret,
   required String? providedSecret,

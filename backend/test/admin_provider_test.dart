@@ -25,7 +25,7 @@ void main() {
     audit = InMemoryAuditLogRepository();
     providerAuthStub = InMemoryProviderAuthRepository(
       tokens: TokenService(secret: 'test-secret'),
-      isProd: false,
+      echoDevCode: true,
     );
     svc = AdminProviderService(
       providers,

@@ -66,7 +66,9 @@ every backend change — the server-side mirror of `myweli-dev-guardrails`.
   - **AuthN:** access = signed JWT (HS256, ~15 min); refresh = opaque, **hashed
     at rest**, **rotated each use**, reuse → revoke the family.
   - **OTP:** hashed at rest, short TTL, **server-side rate-limit + lockout**;
-    dev code returned inline only when `ENV != prod`; never logged.
+    dev code returned inline only when **`ENV == dev`** (never on staging — it
+    is public; deployed environments disclose through the Q1b `.test`+secret
+    seam only); never logged.
   - **AuthZ:** deny by default; resolve the principal in middleware; **ownership
     check on every resource** (A's token must not touch B's data → 403).
   - **Validate every input** at the boundary (phone E.164, OTP, body schema,

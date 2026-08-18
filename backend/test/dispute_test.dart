@@ -37,7 +37,7 @@ void main() {
     audit = InMemoryAuditLogRepository();
     final providerAuth = InMemoryProviderAuthRepository(
       tokens: tokens,
-      isProd: false,
+      echoDevCode: true,
     );
     final deposit = DepositService(
       appts,

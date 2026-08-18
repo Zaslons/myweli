@@ -194,7 +194,7 @@ void main() {
     ClientsService clientsService() {
       final providerAuth = InMemoryProviderAuthRepository(
         tokens: tokens,
-        isProd: false,
+        echoDevCode: true,
       );
       return ClientsService(
         providerAuth,

@@ -124,11 +124,18 @@ Security is gated from the first endpoint, not deferred. Reference: OWASP ASVS.
 - **Server-side rate-limit + lockout**, mirroring the app: a wrong-attempt
   budget per code and a resend budget per phone (429 + `otp_*` codes when
   exceeded). The client UI hints are convenience; the server is the authority.
-- **Dev codes** are returned inline (`devCode`) **only when `ENV != prod`** — so
-  in dev *and staging*, which is deliberate: staging runs with
-  `MESSAGING_PROVIDER=disabled`, and without the inline code nobody could sign
-  in to it at all. Production sends via the SMS/WhatsApp provider and returns
-  nothing.
+- **Dev codes** are returned inline (`devCode`) **only when `ENV == dev`** —
+  the one environment not reachable from the internet.
+  **This rule used to say `ENV != prod`**, i.e. staging too, justified by
+  staging having no live channel to receive a code on. That left a public
+  service handing out codes for arbitrary addresses — `ingress: all`, hostname
+  in a public repo — so anyone could hold a staging session as anyone. Every
+  *deployed* environment now discloses through the **Q1b seam only** —
+  constant-time secret **and** an RFC 2606 `.test` identity.
+  **The cost is real and deliberate:** staging's Resend key is an undeliverable
+  placeholder chosen *because* of the echo, so **email sign-in to staging no
+  longer completes** — Google, Apple, or the seam.
+  Design: [design/backend-staging-otp-disclosure.md](design/backend-staging-otp-disclosure.md).
 
 ### 3.2.1 `ENV` is a three-value enum, and it answers two questions
 `Env.parse` (`boot_config.dart`) yields `dev | staging | prod`; an unrecognised
@@ -138,11 +145,14 @@ value **throws at boot** rather than degrading to `dev`, which is what the old
 | Getter | True for | Governs |
 |---|---|---|
 | `guardsOn` | **staging + prod** | every "must be set" fail-fast: `DATABASE_URL`, `JWT_SECRET`, `WEB_ORIGINS`, R2, messaging, push, the OAuth client-id checks — all forced at boot (§3.2.2) |
-| `isProd` | **prod only** | the `devCode` echo above, and the smoke-seam disclosure warning |
+| `isProd` | **prod only** | the smoke-seam disclosure warning |
+| `echoesOtpDevCode` | **dev only** | the `devCode` echo above — *deployed* is the property that matters, not *production* |
 
-**Do not collapse these back into one flag.** They diverge in *opposite*
-directions on staging — it needs production's guards *and* dev's dev-codes — so
-a single boolean makes `ENV=staging` an environment that is neither. Design:
+**Do not collapse these back into one flag.** They diverge on staging, and the
+third getter exists because two were not enough either: staging needs
+production's guards, production's OTP secrecy, and its own identity. Every time
+these have been conflated the result has been a hole that reads as a
+simplification. Design:
 [design/infra-staging.md](design/infra-staging.md) §1.1.
 
 **Demo salons are `dev` only.** `seedProvidersIfEmpty` is gated on `ENV == dev`

@@ -149,7 +149,7 @@ void main() {
           ),
           InMemoryAuthRepository(
             tokens: TokenService(secret: 'x'),
-            isProd: false,
+            echoDevCode: true,
           ),
           InMemoryProvidersRepository(),
           PushService(LogPushProvider(), InMemoryDeviceTokenRepository()),

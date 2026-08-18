@@ -96,7 +96,10 @@ void main() {
     late String accountId;
 
     setUp(() async {
-      providers = InMemoryProviderAuthRepository(tokens: tokens, isProd: false);
+      providers = InMemoryProviderAuthRepository(
+        tokens: tokens,
+        echoDevCode: true,
+      );
       audit = InMemoryAuditLogRepository();
       listings = InMemoryProvidersRepository([]);
       members = InMemoryMembershipRepository();

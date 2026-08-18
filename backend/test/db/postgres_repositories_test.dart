@@ -286,7 +286,7 @@ void main() {
         PostgresProviderAuthRepository(
           pool,
           tokens: tokens,
-          isProd: false,
+          echoDevCode: true,
           maxAttempts: maxAttempts,
         );
 
@@ -470,7 +470,7 @@ void main() {
       final auth = PostgresProviderAuthRepository(
         pool,
         tokens: TokenService(secret: 'test-secret'),
-        isProd: false,
+        echoDevCode: true,
       );
       final reg = await auth.register(
         businessName: 'Salon Test Lifecycle',
@@ -818,7 +818,7 @@ void main() {
         PostgresAuthRepository(
           pool,
           tokens: tokens,
-          isProd: false,
+          echoDevCode: true,
           maxAttempts: maxAttempts,
         );
 

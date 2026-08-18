@@ -146,6 +146,15 @@ still never logged.
 Plus handler tests on both OTP routes: prod + seam → `devCode` present; prod
 without the header → absent; non-prod → unchanged.
 
+> **Scope widened 2026-08-18.** This seam was built as *the production
+> OTP-disclosure path*. It is now the disclosure path for **every deployed
+> environment**: staging used to echo `devCode` unconditionally, which — being
+> `ingress: all` with a hostname in a public repo — meant anyone could obtain a
+> code for any address. The gate moved from `!isProd` to `Env.dev` only, so
+> staging comes through here exactly as production does. The seam itself is
+> unchanged; only what falls through to it. See
+> [backend-staging-otp-disclosure.md](backend-staging-otp-disclosure.md).
+
 ## 7. ~~Open~~ **Resolved — option 3.** Production data pollution
 
 **Raised here because the migration spec did not consider it.** The funnel

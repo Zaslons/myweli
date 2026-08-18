@@ -23,8 +23,9 @@ library;
 ///
 ///   · it needs production's fail-fast on missing configuration ([guardsOn]),
 ///     because an environment whose guards are off is not rehearsing anything;
-///   · it needs dev's OTP dev-code echo (`!`[isProd]), because staging runs
-///     with no SMS channel and there would otherwise be no way to sign in.
+///   · it needed dev's OTP dev-code echo, because staging ran with no SMS
+///     channel and there would otherwise have been no way to sign in — see
+///     [echoesOtpDevCode], which is where that reasoning stopped being true.
 ///
 /// A single flag cannot supply both, which is why `ENV=staging` against the old
 /// expression produced an environment that was neither. Design:
@@ -65,9 +66,51 @@ enum Env {
   /// This is the real thing — real users, real data, real money.
   ///
   /// True for **prod only**. Reserved for what must differ even from a
-  /// production-shaped staging: echoing OTP dev-codes in API responses, and the
-  /// smoke-seam disclosure warning.
+  /// production-shaped staging — today, the smoke-seam disclosure warning.
+  ///
+  /// **No longer covers the OTP dev-code echo**; that is [echoesOtpDevCode],
+  /// and the split is the point of this enum. See below.
   bool get isProd => this == Env.prod;
+
+  /// May an OTP be handed back in an HTTP response?
+  ///
+  /// **True for `dev` only** — the one environment that is not reachable from
+  /// the internet.
+  ///
+  /// This is the third question hiding inside a boolean, and it is here for the
+  /// same reason [guardsOn] is: a flag that answers two questions is right until
+  /// the day the answers diverge, and then it is wrong silently. The comment at
+  /// the top of this enum used to say staging *needed* the echo, "because
+  /// staging runs with no SMS channel and there would otherwise be no way to
+  /// sign in". True when written. Then staging got `RESEND_API_KEY` and
+  /// `AUTH_METHODS=google,apple,email`, so email, Google and Apple all work —
+  /// and nothing revisited this line.
+  ///
+  /// Meanwhile staging is `ingress: all` with `allUsers` as invoker, and its
+  /// hostname is committed to a **public** repository
+  /// (`infra/gcp/service-staging.yaml`). So `!isProd` meant: anyone on the
+  /// internet could ask for a code for **any** address and read it from the
+  /// response, i.e. hold a session as any identity in whatever database is
+  /// attached.
+  ///
+  /// **No mail was ever delivered**, and that is worth stating because the
+  /// first write-up of this got it wrong: staging's `RESEND_API_KEY` is the
+  /// deliberate placeholder `re_staging_placeholder_delivery_is_disabled`
+  /// (`infra/gcp/90-staging.sh:213`), which satisfies the non-empty boot guard
+  /// and delivers nothing. The disclosure is the whole of the exposure.
+  ///
+  /// The trade this makes, stated plainly: that placeholder was chosen
+  /// **because** of the echo — "sign-in still works, the OTP is echoed and
+  /// nothing needs to arrive". With the echo gone, **email sign-in to staging
+  /// cannot complete at all.** Google and Apple still work
+  /// (`AUTH_METHODS=google,apple,email`), and automation uses the seam. Mount a
+  /// deliverable key if a human ever needs the email path there.
+  ///
+  /// Deployed environments now keep exactly one disclosure path, the Q1b seam
+  /// (`auth/smoke_seam.dart`): a constant-time secret match **and** an identity
+  /// in the RFC 2606 `.test` TLD. Design:
+  /// docs/design/backend-staging-otp-disclosure.md.
+  bool get echoesOtpDevCode => this == Env.dev;
 }
 
 /// The Postgres URL, or null when the app should run on in-memory repositories.
