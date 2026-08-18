@@ -113,6 +113,18 @@ Future<String> uploadGalleryPhoto(String token, String salonId) async {
     return 'https://cdn.stub/${_photoNonce()}.jpg';
   }
 
+  // **Dev/CI presigns SUCCEED — that is what reddened CI on the first try.**
+  // `FakeStorageService.presignPut` returns 200 with a `fake-storage.local`
+  // url, deliberately mirroring R2's shape so the fake exercises the same
+  // client path. So `status != 200` is NOT the test for "there is nothing to
+  // upload to" — the ORIGIN is. PUTting to that host throws a SocketException,
+  // which is exactly how CI went red while staging was green.
+  //
+  // Returning the public url unuploaded is correct there: with the Fake,
+  // `publicBaseUrl` is null, so the gallery's promotion block never runs and
+  // the origin allowlist is empty.
+  if (uploadUrl.startsWith(_fakeStorageOrigin)) return publicUrl;
+
   // The smallest thing that is unambiguously a JPEG: SOI + EOI. The object only
   // has to exist and be verifiable — nothing ever renders it.
   final headers = <String, String>{
@@ -133,6 +145,12 @@ Future<String> uploadGalleryPhoto(String token, String salonId) async {
   }
   return publicUrl;
 }
+
+/// `FakeStorageService.origin` — dev/CI storage. Duplicated rather than
+/// imported because this harness is a BLACK BOX: it speaks HTTP to a server it
+/// may not share a build with, and importing the server's own constants would
+/// let it agree with a server it is not talking to.
+const String _fakeStorageOrigin = 'https://fake-storage.local';
 
 int _photoSeq = 0;
 String _photoNonce() => 'smoke-${_photoSeq++}';
