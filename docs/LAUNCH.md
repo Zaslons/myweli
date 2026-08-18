@@ -181,11 +181,22 @@ at least a week**, with §5.2's monitoring proving it rather than our impression
 
 These block everything. None is surface-specific.
 
-- [ ] **Staging exists** and the full funnel has been rehearsed on it end to end.
-      **Half done:** staging exists and serves (`myweli-api-staging-00010-4cg`);
-      the *rehearsal* has not happened. `funnel_smoke_test.dart` already accepts
-      `SMOKE_BASE_URL`, so pointing it at the staging host is the remaining step
-      — plus the web half, which needs §5.4.
+- [x] **Staging exists** and the full funnel has been rehearsed on it end to
+      end. **Done 2026-08-18 — 47/47 assertions**, against
+      `myweli-api-staging-00014-v6h`: sign-in, salon registration, the go-live
+      gate, booking, the pro accepting, cancellation, suspension and every
+      refusal in BACKEND.md §5's required list.
+      **It had never been run there, and that hid three things:**
+      - the harness needed `SMOKE_OTP_SECRET` mounted on staging, since closing
+        the `devCode` echo took away its old way in;
+      - two assertions were about the **dev fixture**, not the platform — a
+        seeded catalogue that only `Env.dev` has, and a `cdn.stub` gallery URL
+        that only an empty origin allowlist accepts. Both would have failed
+        against production too;
+      - the gallery now **uploads for real** (presign → PUT → promote), which
+        makes this the first thing in the repo to exercise **R2 end to end**.
+      The web half still needs §5.4's preview — which is done, so the remaining
+      web rehearsal is a manual walk.
 - [x] **Production contains no seeded/demo data** (§5.1). **Closed 2026-08-18**,
       in two halves a month apart.
       - **Demo salons** — purged 2026-08-12 and still gone: `/providers` →
