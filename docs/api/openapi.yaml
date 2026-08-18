@@ -3355,6 +3355,40 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /admin/users/{id}/erase:
+    delete:
+      tags: [admin]
+      summary: Erase a consumer account (B-admin) — audited, irreversible
+      description: |
+        Runs the **same cascade as `DELETE /me`** (`UserErasureService`, threat
+        T59): children first — device tokens, notifications, preferences,
+        favourites, review authorship, booking identity, salon client rows,
+        then storage objects, then the identity itself. Idempotent per step, so
+        a partial failure leaves a live account a retry converges on.
+
+        **Separate from ban.** Banning blocks login and is reversible; this
+        removes the person. It exists because an erasure request arrives by
+        e-mail, not through the app — the privacy policy promises erasure to
+        people who may no longer be able to sign in.
+
+        Refuses with `409 future_bookings` when the user still holds a pending
+        or confirmed appointment in the future: a salon holding a slot for a
+        named person must not be stranded with one it can neither contact nor
+        fill. Cancel those first — the same rule `DELETE /me` enforces.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string } }
+      responses:
+        '204': { description: Erased }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: The user still holds future bookings (`future_bookings`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
   /admin/users/{id}/ban:
     post:
       tags: [admin]

@@ -584,6 +584,7 @@ final AdminUserService adminUserService = AdminUserService(
   authRepository,
   appointmentRepository,
   auditLogRepository,
+  userErasureService,
 );
 
 final DisputesRepository disputesRepository = _pool == null

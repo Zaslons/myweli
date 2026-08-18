@@ -5635,6 +5635,71 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/users/{id}/erase": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Erase a consumer account (B-admin) — audited, irreversible
+         * @description Runs the **same cascade as `DELETE /me`** (`UserErasureService`, threat
+         *     T59): children first — device tokens, notifications, preferences,
+         *     favourites, review authorship, booking identity, salon client rows,
+         *     then storage objects, then the identity itself. Idempotent per step, so
+         *     a partial failure leaves a live account a retry converges on.
+         *
+         *     **Separate from ban.** Banning blocks login and is reversible; this
+         *     removes the person. It exists because an erasure request arrives by
+         *     e-mail, not through the app — the privacy policy promises erasure to
+         *     people who may no longer be able to sign in.
+         *
+         *     Refuses with `409 future_bookings` when the user still holds a pending
+         *     or confirmed appointment in the future: a salon holding a slot for a
+         *     named person must not be stranded with one it can neither contact nor
+         *     fill. Cancel those first — the same rule `DELETE /me` enforces.
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Erased */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                /** @description The user still holds future bookings (`future_bookings`) */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/users/{id}/ban": {
         parameters: {
             query?: never;

@@ -280,6 +280,44 @@ point of running one.
    does. **Closed in L2** — the owner answered the product question: the consumer
    is blocked too. See §11.
 
+## 12. The admin path — `DELETE /admin/users/{id}/erase` (2026-08-18)
+
+**Same cascade, second caller.** `UserErasureService` is untouched; the admin
+route calls `AdminUserService.erase`, which calls `eraseUser` and writes a
+`user.erase` audit row afterwards.
+
+**Why it exists.** §6 assumed the person can sign in — `DELETE /me` reads the
+identity from their own token. An erasure request arrives **by e-mail**, from
+someone with a lost phone, a closed mailbox or a changed number, and the privacy
+policy promises erasure to that person too. Until now, honouring it meant raw
+SQL against production — which is exactly how the cascade got missed the first
+time (`users` deleted, `device_tokens` left behind, so a deleted user's phone
+kept ringing). A second implementation would have been a second chance at the
+same bug.
+
+**What made it urgent.** Three Q1b smoke accounts sat in production from
+2026-08-06 (`e2e-…@smoke.test`, two `r2probe-…@smoke.test`).
+`backend-q1b-smoke-seam.md` §7 had prescribed "purge by identity suffix" and it
+was never run — LAUNCH.md §4 stayed unticked because of them.
+
+**Design notes worth keeping:**
+
+- **A sub-path, not `DELETE /admin/users/{id}`.** That URL serves the read-only
+  support view. Putting an irreversible action on the URL an agent loads to
+  *look* at someone is how a mistyped verb becomes an incident.
+- **The audit row is written after the cascade succeeds**, never before: a log
+  line claiming an erasure that did not happen is worse than none. Pinned by a
+  test asserting nothing is audited on `not_found`.
+- **The audit row carries no PII** — the id and an optional reason, nothing
+  else. Once the identity is gone this row is the only record it existed; if it
+  held the phone or e-mail, "erasure" would have *moved* the data. Also pinned.
+- **`future_bookings` still refuses, with no admin override.** A salon holding a
+  slot for a named person must not be stranded with one it can neither contact
+  nor fill. An admin bypass would make this endpoint the easy way around §6's
+  rule rather than a second door to the same room.
+- **The 401/403 boundary is not re-proven here** — `routes/admin/_middleware.dart`
+  gates every `/admin/*` path and `admin_test.dart` already holds it.
+
 ## 11. Open questions
 
 - **`outbound_messages` retention.** Phone + full body, growing without bound, and
