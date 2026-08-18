@@ -1,3 +1,4 @@
+import { putToStorage, reportUploadFailure } from '../upload-telemetry';
 /// Browser image upload for the pro Médias editors:
 /// 1) ask the pro BFF to presign (`/api/pro/uploads/sign`),
 /// 2) POST the bytes **directly to storage** (R2; never through our API),
@@ -18,21 +19,27 @@ export async function uploadGalleryImage(file: File): Promise<string | null> {
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ contentType: file.type, purpose: 'gallery' }),
   });
-  if (!signRes.ok) return null;
+  if (!signRes.ok) {
+    reportUploadFailure('sign', 'gallery', { status: signRes.status });
+    return null;
+  }
   const sign = (await signRes.json().catch(() => ({}))) as SignResponse;
-  if (!sign.uploadUrl || !sign.publicUrl) return null;
+  if (!sign.uploadUrl || !sign.publicUrl) {
+    reportUploadFailure('response', 'gallery');
+    return null;
+  }
 
   // Raw PUT, not a multipart POST: Cloudflare R2 does not implement presigned
   // POST and answers one with 501 NotImplemented. The signature covers these
   // headers, so send exactly them — a different content-type than the one
   // signed is a 403 from storage.
   // docs/design/backend-r2-presigned-put.md
-  const up = await fetch(sign.uploadUrl, {
-    method: sign.method ?? 'PUT',
-    headers: sign.headers ?? {},
-    body: file,
-  });
-  if (!up.ok) return null; // storage returns 200 on a successful PUT
+  const ok = await putToStorage(
+    sign.uploadUrl,
+    { method: sign.method ?? 'PUT', headers: sign.headers ?? {}, body: file },
+    'gallery',
+  );
+  if (!ok) return null; // storage returns 200 on a successful PUT
   return sign.publicUrl;
 }
 
@@ -47,18 +54,24 @@ export async function uploadKycDocument(
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ contentType: file.type, purpose: 'kyc' }),
   });
-  if (!signRes.ok) return null;
+  if (!signRes.ok) {
+    reportUploadFailure('sign', 'kyc', { status: signRes.status });
+    return null;
+  }
   const sign = (await signRes.json().catch(() => ({}))) as SignResponse;
-  if (!sign.uploadUrl || !sign.key) return null;
+  if (!sign.uploadUrl || !sign.key) {
+    reportUploadFailure('response', 'kyc');
+    return null;
+  }
 
   // Raw PUT, not a multipart POST: R2 does not implement presigned POST (501
   // NotImplemented). The signature covers these headers — send exactly them.
   // docs/design/backend-r2-presigned-put.md
-  const up = await fetch(sign.uploadUrl, {
-    method: sign.method ?? 'PUT',
-    headers: sign.headers ?? {},
-    body: file,
-  });
-  if (!up.ok) return null;
+  const ok = await putToStorage(
+    sign.uploadUrl,
+    { method: sign.method ?? 'PUT', headers: sign.headers ?? {}, body: file },
+    'kyc',
+  );
+  if (!ok) return null;
   return { key: sign.key, fileName: file.name };
 }

@@ -1,4 +1,4 @@
-import type { LocalityCity } from '../api/localities';
+import type { LocalityCity } from '../localities';
 import type { Provider } from '../api/providers';
 import { colors } from '../../styles/tokens';
 

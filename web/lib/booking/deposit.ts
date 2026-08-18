@@ -1,3 +1,4 @@
+import { putToStorage, reportUploadFailure } from '../upload-telemetry';
 /// Consumer deposit-proof upload (module online-booking K2 — the app's
 /// pay-later flow on web): 1) the BFF presigns a private deposit upload
 /// (`/api/uploads/sign?purpose=deposit`; the key is server-scoped to the
@@ -23,21 +24,27 @@ export async function uploadDepositProof(file: File): Promise<string | null> {
     // says what it wants.
     body: JSON.stringify({ contentType: file.type, purpose: 'deposit' }),
   });
-  if (!signRes.ok) return null;
+  if (!signRes.ok) {
+    reportUploadFailure('sign', 'deposit', { status: signRes.status });
+    return null;
+  }
   const sign = (await signRes.json().catch(() => ({}))) as SignResponse;
-  if (!sign.uploadUrl || !sign.key) return null;
+  if (!sign.uploadUrl || !sign.key) {
+    reportUploadFailure('response', 'deposit');
+    return null;
+  }
 
   // Raw PUT, not a multipart POST: Cloudflare R2 does not implement presigned
   // POST and answers one with 501 NotImplemented. The signature covers these
   // headers, so send exactly them — a different content-type than the one
   // signed is a 403 from storage.
   // docs/design/backend-r2-presigned-put.md
-  const up = await fetch(sign.uploadUrl, {
-    method: sign.method ?? 'PUT',
-    headers: sign.headers ?? {},
-    body: file,
-  });
-  if (!up.ok) return null; // storage returns 200 on a successful PUT
+  const ok = await putToStorage(
+    sign.uploadUrl,
+    { method: sign.method ?? 'PUT', headers: sign.headers ?? {}, body: file },
+    'deposit',
+  );
+  if (!ok) return null; // storage returns 200 on a successful PUT
   return sign.key;
 }
 

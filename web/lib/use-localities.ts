@@ -1,8 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import type { LocalityTree } from './api/localities';
-import { emptyTree } from './api/localities';
+import type { LocalityTree } from './localities';
+import { emptyTree } from './localities';
 
 /// Client-side locality tree (multi-pays MP3): one fetch of /api/localities
 /// per page load, shared across every consumer (pickers, operator catalogs,

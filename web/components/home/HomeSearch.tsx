@@ -2,8 +2,8 @@
 
 import { useRouter } from 'next/navigation';
 import { type FormEvent, useState } from 'react';
-import type { LocalityTree } from '../../lib/api/localities';
-import { allAreas } from '../../lib/api/localities';
+import type { LocalityTree } from '../../lib/localities';
+import { allAreas } from '../../lib/localities';
 import { resolveSearchHref } from '../../lib/discovery';
 
 /// Hero/discovery search: service + commune → an existing SEO landing when both

@@ -486,10 +486,27 @@ diverges from production.
 
 **That argument does not apply here.** The web surface is a BFF — session
 cookies are set on the **Next origin** (`lib/session.ts:3`) and the API is called
-**server-to-server**. Nothing under `app/`, `components/` or `lib/` imports the
-browser API client; `NEXT_PUBLIC_API_BASE_URL` survives only as a server-side
-fallback in `server-api.ts`. The browser never sees the API's domain, so the
-API's domain cannot affect cookie behaviour. The mobile app talks to the API
+**server-to-server** through 72 route handlers under `app/api/`. The browser
+never sees the API's domain, so the API's domain cannot affect cookie behaviour.
+
+> **The conclusion held; the reason given for it was false, and it had already
+> started to rot** (corrected 2026-08-18 while executing step 7). This paragraph
+> used to claim "Nothing under `app/`, `components/` or `lib/` imports the
+> browser API client; `NEXT_PUBLIC_API_BASE_URL` survives only as a server-side
+> fallback in `server-api.ts`." Both halves were wrong:
+> `lib/api/{providers,localities}.ts` are under `lib/` and do import it, and
+> `resolvePublicApiBase()` demonstrably shipped the API base into **four**
+> production client chunks — with `createClient()`'s return value discarded, so
+> nothing *called* it. True conclusion, false premise, and the gap between them
+> was one `api.GET(...)` in a client component.
+>
+> Now enforced instead of asserted: the pure locality lookups moved to
+> `web/lib/localities.ts`, and `web/lib/api/client.ts` carries
+> `import 'server-only'`. A client component that imports it **fails the build**
+> and the error names the file. Measured after: the API base appears in **0**
+> client chunks, down from 4. That guard is what the CORS decision now rests on
+> — an exact-match `WEB_ORIGINS` could never list a per-deployment Vercel
+> hostname anyway. The mobile app talks to the API
 directly but authenticates with bearer tokens, not cookies.
 
 One browser-direct caller **does** exist — the admin console (§2.3) calls the
@@ -638,9 +655,20 @@ Each phase is a PR. Nothing in phase 2+ starts until §1 is merged.
    `push: main` → staging; prod stays `workflow_dispatch` + confirm. Run it
    against **staging first**, which is also the first time that workflow ever
    executes.
-7. **Vercel Preview → staging** (LAUNCH.md §5.4) — one env-var change per scope,
-   after which every PR gets a full web environment on staging automatically.
-   The highest value-per-minute step in the plan; do it the day staging exists.
+7. ~~**Vercel Preview → staging**~~ **Done 2026-08-18** (LAUNCH.md §5.4). Both
+   `API_BASE_URL` **and** `NEXT_PUBLIC_API_BASE_URL` now point Preview at the
+   staging `*.run.app` and Production at `https://api.myweli.com`.
+   **Two things this plan got wrong, worth keeping:**
+   - it said "one env-var change". `API_BASE_URL` was also scoped
+     Production+Preview, and it is the one the BFF actually reads
+     (`resolveApiBase()` prefers it) — so changing only the `NEXT_PUBLIC_` one
+     would have left every preview talking to production while *looking* split;
+   - `vercel env rm <name> preview` removes the **whole variable**, not the one
+     scope. Doing it to a Production+Preview entry deleted production's value
+     outright. Caught by reading the state back; the live site was unaffected
+     because the value was already baked into the deployed build, and the next
+     production build would have failed loudly rather than silently — which is
+     precisely what `web/lib/api-base.ts` was written to guarantee.
 8. **Admin console** — a second Cloudflare Pages project `myweli-admin-staging`,
    and `deploy-admin.yml` parameterised the same way (§2.3).
 9. **Mobile** — separate bundle ids (§4), batched with the iOS launch work.

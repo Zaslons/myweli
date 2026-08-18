@@ -1,5 +1,5 @@
-import type { LocalityCity, LocalityTree } from './api/localities';
-import { allAreas } from './api/localities';
+import type { LocalityCity, LocalityTree } from './localities';
+import { allAreas } from './localities';
 
 /// SEO landing taxonomy — category side (multi-pays MP3,
 /// docs/design/multi-pays-end-version.md §6). Categories are PRODUCT

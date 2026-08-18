@@ -46,3 +46,10 @@
 # business in a shared repository, and it appeared in `git status` the first
 # time the R2 provisioning script was run from here.
 .wrangler/
+
+# Vercel's local project link. Created by `vercel link` / any `vercel` command
+# run from the repo root. `project.json` holds the project and org ids — not
+# credentials, but local machine state, and the same reason `.wrangler/` is
+# above: it appeared in `git status` the first time the Preview/Production env
+# split was configured from here.
+.vercel/

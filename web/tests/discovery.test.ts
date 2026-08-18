@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { emptyTree } from '../lib/api/localities';
+import { emptyTree } from '../lib/localities';
 import {
   resolveArea,
   resolveCategorySlug,

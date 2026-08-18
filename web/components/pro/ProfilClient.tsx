@@ -15,7 +15,7 @@ import {
   validateProfile,
 } from '../../lib/pro/profile';
 import dynamic from 'next/dynamic';
-import { findCity } from '../../lib/api/localities';
+import { findCity } from '../../lib/localities';
 import { centerOf } from '../../lib/discovery/map';
 import { hasCap } from '../../lib/pro/team';
 import { useLocalities } from '../../lib/use-localities';
