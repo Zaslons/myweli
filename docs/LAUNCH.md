@@ -301,12 +301,13 @@ No Crashlytics, Sentry, or equivalent anywhere. Today a crash on a user's phone
 is invisible to us forever; a 500 in the backend exists only in Cloud Run logs
 nobody is watching.
 
-- [ ] **App**: Crashlytics (Firebase is already wired) or Sentry, on both
-      flavours, with the release version attached. **Code done, inert** —
-      `sentry_flutter` is wired and scrubs hard, but **no mobile DSN exists**
-      (Secret Manager has one `SENTRY_DSN` and it is the backend's) and no
-      release build passes `--dart-define=SENTRY_DSN`. Create the `myweli-app`
-      project, then build with the define.
+- [x] **App**: Sentry on both flavours, with the release version attached.
+      **Done 2026-08-18.** The `myweli-app` project exists, its DSN is in
+      Secret Manager as `MOBILE_SENTRY_DSN` (verified distinct from the backend
+      and web projects), and `tool/release_build.sh` injects it — refusing to
+      build if it is missing, malformed or the backend's. The release string is
+      the SDK's own `package@version+build`, which is the build number §1.4's
+      staged rollout is watched on and the same one the version gate compares.
 - [x] **Backend**: structured error reporting to the same place, with the
       request id already in the logs. **Done** — verified on the serving
       revision, not in source: `SENTRY_DSN` mounted, `RELEASE` a real short SHA,
@@ -317,8 +318,15 @@ nobody is watching.
       and `release=<HEAD sha>`; error boundaries and scrubbing are in
       `app/error.tsx`, `app/global-error.tsx`, `lib/sentry-scrub.ts`.
 - [ ] **Prove it**: trigger one real error per surface and watch it arrive.
-      **One of three.** Backend has a flush record; web has never been triggered
-      against production; mobile is blocked on the DSN above.
+      **One of three, and the mobile half is now covered differently.** Backend
+      has a flush record; web has never been triggered against production.
+      For mobile a one-off run would prove only the build in front of you, so
+      the wiring is held by `test/unit/error_reporting_test.dart` instead —
+      run in CI **with a fake DSN**, because `String.fromEnvironment` means a
+      plain test run can only ever exercise the "no DSN → stay inert" branch.
+      Both mutations (PII on, scrubber leaking) were watched red. A real
+      end-to-end send still wants a device and is owed before the first
+      TestFlight build.
 - [ ] Alert thresholds agreed — what crash rate halts a staged rollout. The
       number must land **in this document**, not only in a design doc, and the
       crash-free-sessions alert is blocked on the mobile DSN.

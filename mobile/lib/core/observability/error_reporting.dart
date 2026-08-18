@@ -31,34 +31,7 @@ const String _environment = String.fromEnvironment(
 Future<void> initErrorReporting() async {
   if (_dsn.isEmpty) return;
   try {
-    await SentryFlutter.init((options) {
-      options
-        ..dsn = _dsn
-        ..environment = _environment
-        // `release` is deliberately NOT set. SentryFlutter reads it from the
-        // platform package info and produces `package@version+build` — exactly
-        // the shape wanted, and the number LAUNCH.md §1.4's staged rollout is
-        // watched on. Setting it by hand would mean depending on
-        // package_info_plus to reproduce what the SDK already does, and drifting
-        // from it the first time the format changes.
-        //
-        // Errors only. Performance monitoring is a separate decision with its
-        // own cost; shipping it on by accident is how telemetry bills surprise
-        // people.
-        ..tracesSampleRate = 0.0
-        // The app handles names, phone numbers and booking details throughout;
-        // none of it belongs in an error report.
-        ..sendDefaultPii = false
-        // A screenshot or view hierarchy of a booking form is a picture of
-        // someone's name and phone number. Set explicitly rather than trusting
-        // a default that could change.
-        ..attachScreenshot = false
-        // Experimental in the SDK; the risk it guards against is not. Kept
-        // explicit rather than trusting a default.
-        // ignore: experimental_member_use
-        ..attachViewHierarchy = false
-        ..beforeSend = (event, hint) => _scrub(event);
-    });
+    await SentryFlutter.init(configureSentry);
 
     AppLogger.onError = (message, {error, stackTrace}) {
       Sentry.captureException(
@@ -71,6 +44,43 @@ Future<void> initErrorReporting() async {
     // Reporting is best-effort. An app that will not start because its
     // telemetry failed to initialise is a worse outcome than a silent one.
   }
+}
+
+/// The options, as a NAMED function so a test can assert them.
+///
+/// **Extracted 2026-08-18.** They were an inline closure, and the only way to
+/// inspect them afterwards was `Sentry.currentHub.options` — internal API the
+/// analyzer refuses. So every guarantee below was stated in a comment and
+/// verified by nothing: the same shape as the missing Apple entitlement and the
+/// inert DSN, a promise with no mechanism behind it.
+/// Held by `test/unit/error_reporting_test.dart`.
+void configureSentry(SentryFlutterOptions options) {
+  options
+    ..dsn = _dsn
+    ..environment = _environment
+    // `release` is deliberately NOT set. SentryFlutter reads it from the
+    // platform package info and produces `package@version+build` — exactly
+    // the shape wanted, and the number LAUNCH.md §1.4's staged rollout is
+    // watched on. Setting it by hand would mean depending on
+    // package_info_plus to reproduce what the SDK already does, and drifting
+    // from it the first time the format changes.
+    //
+    // Errors only. Performance monitoring is a separate decision with its
+    // own cost; shipping it on by accident is how telemetry bills surprise
+    // people.
+    ..tracesSampleRate = 0.0
+    // The app handles names, phone numbers and booking details throughout;
+    // none of it belongs in an error report.
+    ..sendDefaultPii = false
+    // A screenshot or view hierarchy of a booking form is a picture of
+    // someone's name and phone number. Set explicitly rather than trusting
+    // a default that could change.
+    ..attachScreenshot = false
+    // Experimental in the SDK; the risk it guards against is not. Kept
+    // explicit rather than trusting a default.
+    // ignore: experimental_member_use
+    ..attachViewHierarchy = false
+    ..beforeSend = (event, hint) => _scrub(event);
 }
 
 /// Removes what must never leave the device.
