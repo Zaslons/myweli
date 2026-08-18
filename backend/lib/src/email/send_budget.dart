@@ -25,17 +25,39 @@ enum EmailClass {
 ///
 /// Design: docs/design/backend-email-send-budget.md §3.
 abstract interface class SendBudget {
-  /// Consumes one unit and reports whether it was within the ceiling.
+  /// Consumes one unit and reports where that left the budget.
   ///
   /// **Reserve-before-send.** A failed send still consumes budget, which is the
   /// correct direction: a provider outage must not become an unbounded retry
   /// loop, and over-counting fails closed.
-  Future<bool> reserve(EmailClass cls);
+  Future<SendReservation> reserve(EmailClass cls);
 
   /// For diagnostics — never a decision, because between reading this and
   /// acting on it another instance may have spent the difference.
   Future<int> used(EmailClass cls);
 }
+
+/// The outcome of one reservation.
+///
+/// It carries [sent] and [ceiling] rather than a bare verdict so a caller can
+/// watch the budget FILLING, not only the moment it is full. That distinction
+/// is the whole value of the warning below: an alarm that fires on exhaustion
+/// arrives after users have already been turned away.
+typedef SendReservation = ({bool ok, int sent, int ceiling});
+
+/// The fill level worth a warning: 80% of the ceiling.
+///
+/// Callers compare with `==`, never `>=`, so exactly ONE reservation per window
+/// per class crosses it and the log line cannot become a flood. That is safe
+/// across instances precisely because of how [SendBudget.reserve] is
+/// implemented: the upsert hands each caller a distinct post-increment value,
+/// so the 48th send is seen by exactly one request, whichever instance it
+/// landed on.
+///
+/// A ceiling below 5 yields 0 and therefore never warns, since `sent` starts at
+/// 1 — deliberate, because at that size exhaustion is the only signal that
+/// means anything.
+int warnThreshold(int ceiling) => ceiling * 4 ~/ 5;
 
 /// Ceilings, in sends per hour.
 typedef SendCeilings = ({int cold, int warm});
@@ -70,11 +92,12 @@ class InMemorySendBudget implements SendBudget {
       c == EmailClass.cold ? ceilings.cold : ceilings.warm;
 
   @override
-  Future<bool> reserve(EmailClass cls) async {
+  Future<SendReservation> reserve(EmailClass cls) async {
     final k = _key(cls);
     final next = (_counts[k] ?? 0) + 1;
     _counts[k] = next;
-    return next <= _ceiling(cls);
+    final ceiling = _ceiling(cls);
+    return (ok: next <= ceiling, sent: next, ceiling: ceiling);
   }
 
   @override

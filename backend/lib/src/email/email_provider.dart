@@ -52,15 +52,29 @@ class BudgetedEmailProvider implements EmailProvider {
     required EmailClass classification,
     String? html,
   }) async {
-    if (!await _budget.reserve(classification)) {
+    final reservation = await _budget.reserve(classification);
+    if (!reservation.ok) {
       // The operator learns; the caller does not. `/auth/email/otp/request`
       // returns 202 either way, deliberately — a caller must never learn
       // whether an address exists or whether mail went out.
-      _log('email_budget_exhausted class=${classification.bucket}');
+      _log(
+        'email_budget_exhausted class=${classification.bucket} '
+        'sent=${reservation.sent} ceiling=${reservation.ceiling}',
+      );
       return (
         ok: false,
         providerMessageId: null,
         error: 'send_budget_exhausted',
+      );
+    }
+    // **The half that arrives in time.** Alerting only on exhaustion means
+    // learning about a too-low ceiling from a user who could not sign in. This
+    // line fires once per window per class, while every send is still going
+    // out, and is what `infra/gcp/88-email-budget-alert.sh` watches.
+    if (reservation.sent == warnThreshold(reservation.ceiling)) {
+      _log(
+        'email_budget_warning class=${classification.bucket} '
+        'sent=${reservation.sent} ceiling=${reservation.ceiling}',
       );
     }
     return _inner.send(

@@ -18,7 +18,7 @@ class PostgresSendBudget implements SendBudget {
   }
 
   @override
-  Future<bool> reserve(EmailClass cls) async {
+  Future<SendReservation> reserve(EmailClass cls) async {
     // **One statement, and that is the point.** A read-then-write would race
     // across instances: two of them both read 59, both decide there is room,
     // and both send. The upsert increments and returns the post-increment
@@ -35,7 +35,8 @@ class PostgresSendBudget implements SendBudget {
       parameters: {'b': cls.bucket, 'w': _window()},
     );
     final sent = rows.first.toColumnMap()['sent'] as int;
-    return sent <= _ceiling(cls);
+    final ceiling = _ceiling(cls);
+    return (ok: sent <= ceiling, sent: sent, ceiling: ceiling);
   }
 
   @override

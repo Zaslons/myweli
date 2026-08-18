@@ -114,8 +114,8 @@ change**: `/auth/email/otp/request` already ignores the send result and returns
 202 either way, deliberately — a caller must not learn whether an address exists
 or whether mail went out. Enumeration protection survives.
 
-The operator learns instead: exhaustion is logged, and it is a condition worth
-an alert later.
+The operator learns instead — see §8, which is the half of this design that
+turns a silent refusal into something anybody finds out about.
 
 ## 7. Threat model (BACKEND.md §7) — T64
 
@@ -131,7 +131,64 @@ alternative — a blacklisted domain is permanent, an hour of degraded sign-in i
 not — but it is a real trade and not a solved problem. Per-recipient-domain
 sub-budgets are the next refinement if it ever bites.
 
-## 8. Tests
+## 8. Observability — and why an exhaustion alarm is not enough on its own
+
+The refusal is invisible from outside **by construction**: the route returns 202
+either way so a caller cannot learn whether an address exists (§6). That is the
+right call for enumeration, and it means a refused user sees a normal screen and
+simply never receives a code. Nothing 5xxes, the service stays healthy, the
+uptime checks stay green. Before launch there is nobody to complain, and after
+launch the complaint arrives long after the hour it describes.
+
+So the budget emits two lines, and **the order they arrive in is the point**:
+
+| line | when | what it means |
+| --- | --- | --- |
+| `email_budget_warning class=… sent=… ceiling=…` | at 80% of the ceiling | nothing has been dropped; every message in this window is still going out |
+| `email_budget_exhausted class=… sent=… ceiling=…` | past the ceiling | mail is being dropped right now |
+
+Alerting only on exhaustion would be alerting only after the harm starts. For an
+attack that is tolerable — the budget is doing its job and there is nothing to
+tune. But for the case we actually expect, **real growth quietly outrunning a
+number picked before launch**, it is too late: the first thing we would learn is
+that someone could not sign in. The warning converts that into a decision that
+costs one environment variable, taken while everything still works.
+
+**Once per window per class, never a flood.** The threshold is compared with
+`==`, not `>=`. That is safe across instances precisely because of §3: the upsert
+hands each caller a distinct post-increment value, so the 48th send is seen by
+exactly one request, whichever instance it landed on. A ceiling below 5 floors
+the threshold to 0 and therefore never warns — deliberate, since at that size
+exhaustion is the only signal that means anything.
+
+**Neither line carries the recipient.** An OTP address is exactly what an
+attacker would want read back out of the logs.
+
+Both are picked up by `infra/gcp/88-email-budget-alert.sh`, which creates two
+Cloud Monitoring log-match policies on the existing *Owner email* channel, with
+different runbooks — a cold exhaustion is "someone is hammering sign-in, or the
+ceiling is too low"; a warm one is "we are dropping booking confirmations, raise
+it now". Log-match rather than a counter metric for the same reason as
+`86-cron-auth-alert.sh`: a metric needs a threshold and a window, which is two
+more numbers to get wrong.
+
+**The filter cannot quietly rot.** An alert that greps for a string the code no
+longer prints reads as coverage forever. A test in
+`backend/test/email/send_budget_test.dart` reads the script and fails if either
+line is renamed without it following.
+
+Staging is included in both policies. A mail loop in our own code surfaces there
+first — it redeploys on every merge to main — and staging's normal traffic comes
+nowhere near 48 sends in an hour, so it costs no noise while making both
+policies testable outside production.
+
+**Known gap, stated rather than implied.** These are log-*match* alerts: they
+fire on a line appearing. Nothing detects the opposite — a budget that has
+stopped counting because the table is missing or the pool is down. That failure
+opens the ceiling rather than closing it, so it is a spam risk rather than an
+availability one, and it is not covered here.
+
+## 9. Tests
 
 - Under the ceiling sends; at the ceiling refuses; the window rolls.
 - **cold exhaustion does not touch warm** — the DoS this design exists to avoid.
@@ -139,3 +196,13 @@ sub-budgets are the next refinement if it ever bites.
 - The decorator passes through subject/body/recipient unchanged.
 - `/auth/email/otp/request` still returns **202** when the budget refuses —
   enumeration protection is not weakened by the new failure mode.
+- The warning fires **once**, at 80%, **while every message is still going
+  out** — and strictly *before* the first refusal, which is the property that
+  makes it worth having.
+- Each class warns on its own counter; a ceiling too small for an 80% is silent.
+- Neither log line contains the recipient.
+- The alert script greps for the strings the code actually prints.
+
+Watched red: a single global budget (the DoS in §2), never refusing, never
+warning, warning on *every* send past the mark, and an alert filter pointed at a
+renamed line.

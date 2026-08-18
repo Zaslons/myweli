@@ -196,4 +196,143 @@ void main() {
     );
     expect(routeSrc, contains('await context.read<EmailProvider>().send('));
   });
+
+  group('the early warning', () {
+    // An alarm that only fires on exhaustion arrives AFTER users have been
+    // turned away. For the case that actually worried us — real growth quietly
+    // outrunning a ceiling picked before launch — that is too late to be worth
+    // much. The warning is the half that arrives in time to act.
+    test('fires once, while every message is still going out', () async {
+      final logged = <String>[];
+      final inner = _Recording();
+      final p = BudgetedEmailProvider(
+        inner,
+        InMemorySendBudget(ceilings: (cold: 10, warm: 100)),
+        log: logged.add,
+      );
+      for (var i = 0; i < 10; i++) {
+        expect((await fire(p, cls: EmailClass.cold)).ok, isTrue);
+      }
+      expect(
+        inner.sent,
+        hasLength(10),
+        reason: 'a warning must never withhold mail',
+      );
+      final warnings = logged.where(
+        (l) => l.startsWith('email_budget_warning'),
+      );
+      expect(warnings, hasLength(1), reason: 'once per window, never a flood');
+      expect(warnings.single, contains('class=cold'));
+      expect(warnings.single, contains('sent=8'));
+      expect(warnings.single, contains('ceiling=10'));
+    });
+
+    test('and it arrives BEFORE the first refusal', () async {
+      // The ordering is the point. If the warning could only be emitted once
+      // something had already been dropped it would be an alarm wearing a
+      // different name.
+      final logged = <String>[];
+      final p = BudgetedEmailProvider(
+        _Recording(),
+        InMemorySendBudget(ceilings: (cold: 5, warm: 100)),
+        log: logged.add,
+      );
+      for (var i = 0; i < 7; i++) {
+        await fire(p, cls: EmailClass.cold);
+      }
+      final warned = logged.indexWhere(
+        (l) => l.startsWith('email_budget_warn'),
+      );
+      final refused = logged.indexWhere(
+        (l) => l.startsWith('email_budget_exh'),
+      );
+      expect(warned, isNonNegative, reason: 'it warned at all');
+      expect(refused, isNonNegative, reason: 'it refused at all');
+      expect(warned, lessThan(refused));
+    });
+
+    test('each class warns on its own counter', () async {
+      final logged = <String>[];
+      final p = BudgetedEmailProvider(
+        _Recording(),
+        InMemorySendBudget(ceilings: (cold: 5, warm: 10)),
+        log: logged.add,
+      );
+      for (var i = 0; i < 5; i++) {
+        await fire(p, cls: EmailClass.cold);
+      }
+      expect(
+        logged.where((l) => l.startsWith('email_budget_warning')),
+        hasLength(1),
+        reason: 'cold crossed 4/5; warm has sent nothing and must be silent',
+      );
+      expect(logged.single, contains('class=cold'));
+
+      for (var i = 0; i < 8; i++) {
+        await fire(p, cls: EmailClass.warm);
+      }
+      final warnings = logged
+          .where((l) => l.startsWith('email_budget_warning'))
+          .toList();
+      expect(warnings, hasLength(2));
+      expect(warnings.last, contains('class=warm'));
+      expect(warnings.last, contains('ceiling=10'));
+    });
+
+    test('a ceiling too small to have an 80% never warns', () async {
+      // 80% of 3 is 2.4, which floors to 2 — but the danger is a ceiling of 1,
+      // where the threshold floors to 0 and `sent` starts at 1. It must produce
+      // silence rather than a warning on every single send.
+      final logged = <String>[];
+      final p = BudgetedEmailProvider(
+        _Recording(),
+        InMemorySendBudget(ceilings: (cold: 1, warm: 1)),
+        log: logged.add,
+      );
+      for (var i = 0; i < 4; i++) {
+        await fire(p, cls: EmailClass.cold);
+      }
+      expect(
+        logged.where((l) => l.startsWith('email_budget_warning')),
+        isEmpty,
+        reason:
+            'at that size exhaustion is the only signal that means anything',
+      );
+      expect(warnThreshold(1), 0);
+    });
+
+    test('the threshold is 80% of the ceiling', () {
+      expect(warnThreshold(60), 48);
+      expect(warnThreshold(1000), 800);
+    });
+
+    test('the log lines carry no recipient', () async {
+      // Same rule as the exhaustion line: an OTP address is exactly what an
+      // attacker would want read back out of the logs.
+      final logged = <String>[];
+      final p = BudgetedEmailProvider(
+        _Recording(),
+        InMemorySendBudget(ceilings: (cold: 5, warm: 5)),
+        log: logged.add,
+      );
+      for (var i = 0; i < 6; i++) {
+        await fire(p, cls: EmailClass.cold);
+      }
+      expect(logged, isNotEmpty);
+      for (final line in logged) {
+        expect(line, isNot(contains('example.test')));
+      }
+    });
+  });
+
+  test('the alert script watches the strings the code actually prints', () {
+    // The literal reason this test exists: an alert that greps for a string the
+    // code no longer prints reads as coverage forever. Rename either line and
+    // this fails in CI rather than in production silence.
+    final script = File(
+      '../infra/gcp/88-email-budget-alert.sh',
+    ).readAsStringSync();
+    expect(script, contains('email_budget_exhausted'));
+    expect(script, contains('email_budget_warning'));
+  });
 }
