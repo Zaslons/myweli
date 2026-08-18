@@ -318,15 +318,43 @@ nobody is watching.
       and `release=<HEAD sha>`; error boundaries and scrubbing are in
       `app/error.tsx`, `app/global-error.tsx`, `lib/sentry-scrub.ts`.
 - [ ] **Prove it**: trigger one real error per surface and watch it arrive.
-      **One of three, and the mobile half is now covered differently.** Backend
-      has a flush record; web has never been triggered against production.
-      For mobile a one-off run would prove only the build in front of you, so
-      the wiring is held by `test/unit/error_reporting_test.dart` instead —
-      run in CI **with a fake DSN**, because `String.fromEnvironment` means a
-      plain test run can only ever exercise the "no DSN → stay inert" branch.
-      Both mutations (PII on, scrubber leaking) were watched red. A real
-      end-to-end send still wants a device and is owed before the first
-      TestFlight build.
+      **Two of three.**
+      - **App — done 2026-08-18, on a real iPhone.** A deliberate uncaught error
+        in a `--release` build arrived in `myweli-app` carrying
+        `logger_message: Uncaught zone error` — the proof it travelled the path
+        a real crash takes (`runZonedGuarded` → `AppLogger.error` → the hook
+        `initErrorReporting` installs) rather than a direct capture, which would
+        have skipped every piece of wiring between. Release `1.0.0 (1)`, the
+        build number §1.4's rollout is watched on and the version gate compares.
+        Environment `device-proof`, never `production`, so release health stayed
+        clean.
+        **What it does NOT prove, corrected the same day.** This first read
+        "the owner was signed in with Google and Sentry recorded zero users, so
+        the scrubber stripped the identity". Wrong on two independent grounds,
+        the first spotted by the owner: the error fires five seconds after
+        launch, before a sign-in completes — and, more fundamentally, **nothing
+        in the app ever sets a Sentry user**. No `configureScope`, no
+        `setUser`, nowhere in `lib/`. So `event.user` was already null before
+        `_scrub` ran, and `Users: 0` is exactly what an app with *no* scrubber
+        would show.
+        The scrubber's guarantee is real but it is proven **elsewhere** — by
+        `error_reporting_test.dart`, which builds an event carrying a user,
+        breadcrumbs and a request and asserts all three are gone. The
+        user-stripping line is deliberate defence for code someone writes later,
+        exactly as the web scrubber says of its own: *"Nothing sets these today,
+        and that is exactly why they are cleared."*
+      - **Backend** has a flush record. **Web has never been triggered against
+        production** — the one still outstanding.
+      The wiring also stays held by `test/unit/error_reporting_test.dart`, run
+      in CI **with a fake DSN**: `String.fromEnvironment` means a plain test run
+      can only reach the "no DSN → stay inert" branch, and a device run proves
+      only the build in front of you. Both mutations (PII on, scrubber leaking)
+      were watched red.
+      **A correction worth keeping.** The issue shows *two* events — the second
+      is a simulator run from earlier the same day, which was reported here as
+      having produced nothing. It reported fine; the log being read (`flutter
+      run` stdout) never carried the SDK's output. Absence of evidence in a
+      channel that could not have shown it.
 - [ ] Alert thresholds agreed — what crash rate halts a staged rollout. The
       number must land **in this document**, not only in a design doc, and the
       crash-free-sessions alert is blocked on the mobile DSN.
@@ -558,13 +586,13 @@ Ordered by what unblocks what, not by size:
 2. ~~**Purge the smoke-test accounts from production**~~ **Done 2026-08-18**
    (§4) — and the target was 3 rows, not the 5 this list had claimed; the other
    two are the owner's real accounts.
-3. ~~**Create the mobile Sentry project and DSN**~~ **Done 2026-08-18** (§5.2).
-   `MOBILE_SENTRY_DSN` is in Secret Manager, verified distinct from the backend
-   and web projects, and `tool/release_build.sh` refuses to build without it.
-   **The "prove one real error" half is split**, deliberately: the app's wiring
-   is held by a CI test run with a fake DSN — a one-off device run proves only
-   the build in front of you — and a **real end-to-end send from a device is
-   still owed** before the first TestFlight build.
+3. ~~**Create the mobile Sentry project and DSN**~~ **Done 2026-08-18** (§5.2),
+   device proof included: a deliberate error from a `--release` build on a real
+   iPhone arrived, carrying `logger_message: Uncaught zone error` — the tag that
+   shows it took the path a real crash takes. **Read §5.2 for the two things
+   that run did NOT prove**, both of which were claimed here first and corrected
+   after. What remains under "prove it" is **web**, never triggered against
+   production.
 4. ~~**Minimum supported version**~~ **Done 2026-08-18** (§5.3), in three
    slices. The mechanism is in the first build, which was the whole point of the
    ordering; every floor ships at 0, so it changes nobody's behaviour until
@@ -586,9 +614,11 @@ Ordered by what unblocks what, not by size:
    pattern, and the walk-through by someone who did not build it. None of it was
    ever unblocked by anything above.
 
-**Two things are owner-side and cannot be done from this repo:** a real Sentry
-send from a device (item 3), and the Apple/Play account steps in
-[design/mobile-store-submission.md](design/mobile-store-submission.md) §5.
+**One thing is owner-side and cannot be done from this repo:** the Apple/Play
+account steps in
+[design/mobile-store-submission.md](design/mobile-store-submission.md) §5. The
+device Sentry send was the other, and it was done on 2026-08-18 — see §5.2 for
+what it proved and, more usefully, the two things it did **not**.
 
 **A note on how this list can be wrong.** It said the Sign in with Apple
 capability was outstanding. It was not — and nothing in this repo can see the
@@ -597,7 +627,8 @@ checklist that states account-side facts it cannot observe will drift exactly
 the way §5.1's seeded-data line and §6.2's "already working" line did. Where an
 item depends on a console this repo cannot reach, say so.
 
-**Items 0–6 are closed.** What is left is item 7, plus the two owner-side steps above.
+**Items 0–6 are closed.** What is left is item 7, plus the one owner-side step
+above.
 
 The ordering did its job: items 1 and 2 were the ones that stopped being safe
 the moment a real salon signed up, and 3–5 were the ones that became expensive
