@@ -557,36 +557,56 @@ Ordered by what unblocks what, not by size:
 2. ~~**Purge the smoke-test accounts from production**~~ **Done 2026-08-18**
    (§4) — and the target was 3 rows, not the 5 this list had claimed; the other
    two are the owner's real accounts.
-3. **Create the mobile Sentry project and DSN** (§5.2), then prove one real error
-   per surface. This also unblocks the crash-rate threshold, which §1.4's staged
-   rollout is defined in terms of — so it is an iOS prerequisite, not telemetry
-   nice-to-have.
+3. ~~**Create the mobile Sentry project and DSN**~~ **Done 2026-08-18** (§5.2).
+   `MOBILE_SENTRY_DSN` is in Secret Manager, verified distinct from the backend
+   and web projects, and `tool/release_build.sh` refuses to build without it.
+   **The "prove one real error" half is split**, deliberately: the app's wiring
+   is held by a CI test run with a fake DSN — a one-off device run proves only
+   the build in front of you — and a **real end-to-end send from a device is
+   still owed** before the first TestFlight build.
 4. ~~**Minimum supported version**~~ **Done 2026-08-18** (§5.3), in three
    slices. The mechanism is in the first build, which was the whole point of the
    ordering; every floor ships at 0, so it changes nobody's behaviour until
    someone deliberately raises one.
-5. **Enable Sign in with Apple on the App ID** (§6.2) — the entitlement landed
-   in the repo on 2026-08-18, but the capability must be granted for both bundle
-   ids or the first signed build fails to sign at all.
-6. **Rehearse the funnel on staging** (§4) — `funnel_smoke_test.dart` already
-   takes `SMOKE_BASE_URL`, so this is a host, not a project. **One prerequisite
-   arrived on 2026-08-18:** staging no longer echoes OTP dev-codes, so the
-   harness needs `SMOKE_OTP_SECRET` mounted on the staging service — the seam it
-   was built for. Not done, deliberately, since nothing runs the funnel against
-   staging yet.
-7. The rest of the §4 gate, none of which is unblocked by anything above: the
-   secrets audit, the support channel, rate limiting against a real hostile
-   pattern, and the walk-through by someone who did not build it.
+5. **Enable Sign in with Apple on the App ID** (§6.2) — **owner action, and it
+   gates the first signed archive.** The entitlement landed in the repo on
+   2026-08-18 and is pinned by a test, but an entitlement the App ID does not
+   grant is not ignored: **code signing fails**. Both bundle ids.
+6. ~~**Rehearse the funnel on staging**~~ **Done 2026-08-18 — 47/47** (§4).
+   It had never been run there, and that hid three dev-shaped assumptions in the
+   harness: it needed `SMOKE_OTP_SECRET` mounted (the seam it was built for),
+   two assertions were about the dev *fixture* rather than the platform, and the
+   gallery had to start **uploading for real** — which made it the first thing
+   in the repo to exercise R2 end to end.
+7. **The rest of the §4 gate — now the only engineering left on this list:**
+   the secrets audit, the support channel, rate limiting against a real hostile
+   pattern, and the walk-through by someone who did not build it. None of it was
+   ever unblocked by anything above.
 
-Items 1 and 2 are **closed**. Item 6 is the one that stops being safe the moment
-a real salon signs up. Items 3, 4 and 5 become expensive the moment a build is in
-someone's hands. Nothing here is large; the ordering is the whole content.
+**Three things are owner-side and cannot be done from this repo:** the Sign in
+with Apple capability (item 5), a real Sentry send from a device (item 3), and
+the Apple/Play account steps in
+[design/mobile-store-submission.md](design/mobile-store-submission.md) §5.
 
-**What the two closed items cost, since it is the argument for the next one.**
-Neither was the work the list described. Item 1 needed two Vercel variables
-rather than one, needed nothing from the backend allowlist it had demanded for
-months, and surfaced a CORS wall in Cloudflare R2 no document had named. Item 2
-named five rows when the target was three, and two of the other five were the
-owner's own accounts. In both cases the list was written from what was
-remembered; both were corrected by reading the live thing first. That is the
-habit worth carrying into item 6, not the estimates.
+**Items 0–6 are closed.** What is left is item 7, plus three owner-side steps.
+
+The ordering did its job: items 1 and 2 were the ones that stopped being safe
+the moment a real salon signed up, and 3–5 were the ones that became expensive
+the moment a build reached someone's hands. Item 4 in particular could only ever
+have been done before the first release.
+
+**What the closed items cost, since it is the argument for how to do item 7.**
+**Not one of the seven was the work this list described.** Item 1 needed two
+Vercel variables rather than one, needed nothing from the backend allowlist it
+had demanded for months, and surfaced a CORS wall in Cloudflare R2 no document
+had named. Item 2 named five rows when the target was three — and two of the
+other five were the owner's own accounts. Item 5 found a button that had been
+rendering for eleven days against a capability that did not exist. Item 6 found
+three dev-shaped assumptions in a harness that had "supported" staging since it
+was written. Item 3's proof had to change instrument entirely.
+
+Every one of them was written from what was remembered, and every one was
+corrected by reading the live thing first. That is the habit item 7 wants — its
+four remaining pieces (a secrets audit, a support channel, rate limiting against
+a real hostile pattern, a walk-through by a stranger) are all *"we believe this
+is fine"* statements that nobody has tested.
