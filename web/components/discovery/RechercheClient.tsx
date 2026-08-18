@@ -5,7 +5,7 @@ import { chipLinkClasses } from '../Chip';
 import { EmptyState } from '../EmptyState';
 import { Loading } from '../Loading';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { defaultCity, findCity, type LocalityTree } from '../../lib/api/localities';
+import { defaultCity, findCity, type LocalityTree } from '../../lib/localities';
 import type { Provider } from '../../lib/api/providers';
 import { resolveArea } from '../../lib/discovery';
 import { categoryList } from '../../lib/landing';

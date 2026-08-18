@@ -10,7 +10,7 @@ import {
   getMyProvider,
   saveDepositPolicy,
 } from '../../lib/api/pro';
-import { operatorsFor } from '../../lib/api/localities';
+import { operatorsFor } from '../../lib/localities';
 import {
   type DepositForm,
   buildDepositPayload,

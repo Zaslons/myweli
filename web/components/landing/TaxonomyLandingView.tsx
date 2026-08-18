@@ -6,8 +6,8 @@ import type {
   LocalityArea,
   LocalityCity,
   LocalityTree,
-} from '../../lib/api/localities';
-import { defaultCity, defaultCountry } from '../../lib/api/localities';
+} from '../../lib/localities';
+import { defaultCity, defaultCountry } from '../../lib/localities';
 import {
   listProviders,
   listProvidersByCommune,

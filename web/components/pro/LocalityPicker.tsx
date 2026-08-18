@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import type { LocalityCity } from '../../lib/api/localities';
+import type { LocalityCity } from '../../lib/localities';
 import { slugify } from '../../lib/slug';
 import { useLocalities } from '../../lib/use-localities';
 import { Button } from '../Button';

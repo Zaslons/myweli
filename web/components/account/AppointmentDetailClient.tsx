@@ -22,7 +22,7 @@ import {
   getAppointment,
   rescheduleAppointment,
 } from "../../lib/api/account";
-import { countryName } from "../../lib/api/localities";
+import { countryName } from "../../lib/localities";
 import { fetchSlots } from "../../lib/booking/client";
 import {
   DEFAULT_HORIZON_DAYS,

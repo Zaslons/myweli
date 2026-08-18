@@ -16,14 +16,12 @@ questions none of our gates can answer:
    fictional salons with invented ratings; they are deleted, and the deletion
    held through a cold boot. The marketplace is now empty rather than fake —
    which is the correct state before the first real salon.
-2. **Can we work without breaking the people using it?** ~~Today there is exactly
-   **one** backend (`myweli-api`) and **one** database (`myweli-db`). Testing a
-   change means testing it on the thing customers use.~~ **Nearly closed.** Staging
-   **exists and serves**: `myweli-api-staging` + `myweli-db-staging`, deploying
-   itself on every merge to `main`, with its own secrets, PITR and alerting.
-   **One thing still stands between this and closed**, and it is the same one as
-   ever: a Vercel preview must be shown reading staging rather than production
-   (§5.4). Until then previews still write to the live database.
+2. ~~**Can we work without breaking the people using it?**~~ **Closed 2026-08-18.**
+   Staging exists and serves — `myweli-api-staging` + `myweli-db-staging`,
+   deploying itself on every merge to `main`, with its own secrets, PITR and
+   alerting — and **Vercel Preview now reads it**, verified on a real preview
+   deployment rather than in the dashboard. Previews no longer write to the
+   production database (§5.4).
 3. **Would we know if it broke?** **Two surfaces of three** — this line said
    "Closed 2026-08-12" and over-claimed (corrected 2026-08-18 by verifying each
    surface against the deployed artifact rather than the source):
@@ -142,13 +140,13 @@ absent:
 
 | Capability | State |
 |---|---|
-| Per-PR web previews | ✅ Vercel builds every PR — **but see §5.4**: confirmed, they talk to the production API, and still do |
+| Per-PR web previews | ✅ Vercel builds every PR, and since 2026-08-18 they talk to **staging** (§5.4) |
 | Backend `ENV` seam | ✅ a three-value enum (`dev`/`staging`/`prod`) splitting `guardsOn` from `isProd`; an unknown value throws at boot |
 | App environment switch | ✅ `API_BASE_URL` + `USE_API_BACKEND` dart-defines |
 | Flavours (consumer/pro, both platforms) | ✅ |
 | CI: analyze, unit, widget, golden, e2e, APK size, secret scan, funnel smoke | ✅ strong |
 | Release signing + store prep | ✅ repo side (#337); accounts pending |
-| **Staging environment** | ✅ **built and serving** — `myweli-api-staging` + `myweli-db-staging`, auto-deployed on merge, PITR on, alerting on. **Except the web half**: Vercel previews still read production (§5.4) |
+| **Staging environment** | ✅ **complete** — `myweli-api-staging` + `myweli-db-staging`, auto-deployed on merge, PITR on, alerting on, **and Vercel Preview pointed at it** (both `API_BASE_URL` and `NEXT_PUBLIC_API_BASE_URL`). The web half closed 2026-08-18 (§5.4) |
 | **Crash / error reporting** | ⚠️ **two of three live** (re-verified 2026-08-18 against the deployed artifacts, not the source): **backend** reports with a real release and the request id; **web** ships a DSN in the bundle served from `myweli.com`; **app is inert** — `sentry_flutter` is wired but no mobile DSN exists and no release build defines one |
 | **Uptime alerting** | ✅ **live 2026-08-12** — two Cloud Monitoring checks on `api.myweli.com` (`/health` for the process, `/providers` for the database, because `/health` reported ok right through the Render outage), alerting to email when 2+ regions fail for 5+ minutes. Verified against real probe results, not just created ([design/observability-error-reporting.md](design/observability-error-reporting.md) §8.5) |
 | **Forced upgrade** | ❌ nothing |
@@ -321,7 +319,7 @@ post-launch item.
 - [ ] Chosen deliberately: this is the only lever that works on a phone we
       cannot reach.
 
-### 5.4 Web previews DO write to production — confirmed 2026-08-12
+### 5.4 Web previews DID write to production — ~~confirmed 2026-08-12~~ **fixed 2026-08-18**
 
 Not "may". `NEXT_PUBLIC_API_BASE_URL` is a **single Vercel entry scoped to
 Production *and* Preview**, so one value serves both — and since production
@@ -345,20 +343,39 @@ So this is not a task that can be scheduled freely. **Staging must exist before
 the first real salon is onboarded**, or previews have to be switched off until
 it does. That is a launch-order constraint, not a backlog item.
 
-**Staging now exists (2026-08-16), so the precondition is met and only the act
-remains.** This is the last unfinished step of infra-staging.md's build order,
-and it is what still holds §0's question 2 open. Note staging's `WEB_ORIGINS` is
-currently `http://localhost:3000` only, so the preview origin has to be added
-there in the same change or the repointed preview gets an opaque CORS failure.
+**Done 2026-08-18.** Preview points at the staging `*.run.app`; Production keeps
+`https://api.myweli.com`. Four things this section had wrong, all found by
+checking rather than assuming:
 
-- [ ] Split `NEXT_PUBLIC_API_BASE_URL` into two Vercel entries — Production →
-      `https://api.myweli.com`, Preview → the staging service — on the day
-      staging exists. **That day has arrived — this is now the smallest
-      unblocked item on the list**, and the only one holding §0 question 2 open.
-- [ ] Until then, treat every preview deployment as writing to production, and
-      do not exercise booking or registration flows on one. **Still true today** —
-      and the production `users` table already carries test accounts from an
-      earlier seam run (§4), which is what this hazard looks like when it lands.
+1. **It named one variable; two were scoped Production+Preview.** `API_BASE_URL`
+   is the one the BFF actually reads (`resolveApiBase()` prefers it over the
+   `NEXT_PUBLIC_` one), so splitting only the public one would have left every
+   preview talking to production while *looking* split.
+2. **The staging `WEB_ORIGINS` change this section demanded was never needed.**
+   No browser call crosses origins: the web is a BFF with 72 same-origin route
+   handlers, and 227 observed requests across five production pages went to
+   `myweli.com` without exception. An exact-match allowlist could not have
+   covered previews anyway — Vercel mints a hostname per deployment.
+3. **That property was true but unenforced, and eroding.** The API base already
+   shipped in four client chunks (via pure helpers living beside a fetcher),
+   with `createClient()`'s result discarded. Now `web/lib/api/client.ts` carries
+   `import 'server-only'`, so a client component that imports it fails the build
+   by name. Measured after: **0** client chunks carry the API base.
+4. **There IS a CORS wall — Cloudflare R2, not the backend.** Browser uploads
+   (gallery, before/after, KYC, deposit proof, review photos) PUT *directly* to
+   R2, whose staging allowlist is `http://localhost:3000`. **Uploads do not work
+   on previews.** Accepted deliberately; see §6.1.
+
+- [x] Split the API base into two Vercel scopes — Production →
+      `https://api.myweli.com`, Preview → the staging service. **Done
+      2026-08-18**, for **both** `API_BASE_URL` and `NEXT_PUBLIC_API_BASE_URL`,
+      and verified by reading the values back per scope and by a real preview
+      deployment — not from the dashboard.
+- [x] ~~Until then, treat every preview deployment as writing to production, and
+      do not exercise booking or registration flows on one.~~ **No longer
+      necessary.** The production `users` table still carries the test accounts
+      from an earlier seam run (§4) — the residue of exactly this hazard, and
+      still owed a purge.
 
 ### 5.5 Backups are unrehearsed — **rehearsed 2026-08-16**
 
@@ -403,6 +420,13 @@ there in the same change or the repointed preview gets an opaque CORS failure.
       adding any is a policy change, not just a config one.
 - [ ] Install-the-app prompts point somewhere real, or are hidden until the apps
       exist. **They currently promise apps that are not published.**
+- [ ] **Uploads cannot be exercised on a preview** — the browser PUTs straight to
+      Cloudflare R2, and R2's staging allowlist is exact-match on
+      `http://localhost:3000` while Vercel mints a hostname per deployment. Test
+      uploads locally, or pin one stable preview alias and allowlist it. The
+      failure is now **reported** (`lib/upload-telemetry.ts` tags
+      `upload_likely_cors`), where before it produced no signal at all — a user
+      saw « Le téléversement a échoué. » and we saw nothing.
 
 ### 6.2 iOS (second)
 
@@ -486,19 +510,10 @@ Ordered by what unblocks what, not by size:
    overstatement before it shipped.) Found by asking what pointing previews at
    staging would actually expose
    ([design/backend-staging-otp-disclosure.md](design/backend-staging-otp-disclosure.md)).
-1. **Point Vercel Preview at staging** (§5.4). The smallest item on the list and
-   the only one still holding §0's question 2 open. Until it lands, every PR
-   preview writes to the production database — and §4 shows what that looks like
-   once it happens. **Two corrections to what this needs**, both from checking
-   rather than assuming:
-   - it does **not** need staging's `WEB_ORIGINS` widened. No browser call
-     crosses origins at all — the web is a BFF, 72 same-origin route handlers,
-     and 227 observed requests across five production pages went to `myweli.com`
-     without exception;
-   - it **does** hit a CORS wall nobody had named: browser uploads PUT straight
-     to **Cloudflare R2**, whose staging allowlist is `http://localhost:3000`,
-     and all four upload helpers return `null` on failure. Uploads will silently
-     do nothing on a preview until that is addressed (§6.1).
+1. ~~**Point Vercel Preview at staging**~~ **Done 2026-08-18** (§5.4), closing
+   §0's question 2. It needed **two** variables rather than the one this list
+   named, needed **nothing** from staging's `WEB_ORIGINS`, and surfaced a CORS
+   wall in Cloudflare R2 that no document had mentioned.
 2. **Purge the smoke-test accounts from production** (§4), by identity suffix,
    as `backend-q1b-smoke-seam.md` already prescribes. Until then "production
    contains no seeded/demo data" cannot be ticked honestly.

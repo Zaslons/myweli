@@ -9,7 +9,7 @@ import {
   findCity,
   operatorsFor,
   type LocalityTree,
-} from '../lib/api/localities';
+} from '../lib/localities';
 
 /// Multi-pays MP3 — the locality tree lookups (pure). The fixture mirrors
 /// the backend seed (CI) + the Gabon market the e2e stub plays.

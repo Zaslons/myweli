@@ -1,5 +1,5 @@
-import type { LocalityTree } from './api/localities';
-import { allAreas } from './api/localities';
+import type { LocalityTree } from './localities';
+import { allAreas } from './localities';
 import { buildTaxonomyPath, categoryList } from './landing';
 import { serviceSlugForQuery } from './service-landing';
 import { normalize, slugify } from './slug';

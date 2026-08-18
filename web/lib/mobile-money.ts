@@ -1,4 +1,4 @@
-import type { LocalityTree, MomoOperator } from './api/localities';
+import type { LocalityTree, MomoOperator } from './localities';
 
 /// Mobile-Money helpers (multi-pays MP3 — the web mirror of the app's
 /// core/utils/mobile_money.dart). Operator identity comes from the country

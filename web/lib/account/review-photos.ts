@@ -1,3 +1,4 @@
+import { putToStorage, reportUploadFailure } from '../upload-telemetry';
 /// Consumer review-photo upload + the form's photo-list rules (parity 2.13).
 /// Mirrors the app's submit sheet: ≤3 photos, direct-to-storage upload.
 /// Pure list helpers are unit-tested; the upload is the deposit pipeline with
@@ -32,19 +33,25 @@ export async function uploadReviewPhoto(file: File): Promise<string | null> {
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ contentType: file.type, purpose: 'review' }),
   });
-  if (!signRes.ok) return null;
+  if (!signRes.ok) {
+    reportUploadFailure('sign', 'review', { status: signRes.status });
+    return null;
+  }
   const sign = (await signRes.json().catch(() => ({}))) as SignResponse;
-  if (!sign.uploadUrl || !sign.publicUrl) return null;
+  if (!sign.uploadUrl || !sign.publicUrl) {
+    reportUploadFailure('response', 'review');
+    return null;
+  }
 
   // Raw PUT, not a multipart POST: R2 does not implement presigned POST (501
   // NotImplemented). The signature covers these headers — send exactly them.
   // docs/design/backend-r2-presigned-put.md
-  const up = await fetch(sign.uploadUrl, {
-    method: sign.method ?? 'PUT',
-    headers: sign.headers ?? {},
-    body: file,
-  });
-  return up.ok ? sign.publicUrl : null;
+  const ok = await putToStorage(
+    sign.uploadUrl,
+    { method: sign.method ?? 'PUT', headers: sign.headers ?? {}, body: file },
+    'review',
+  );
+  return ok ? sign.publicUrl : null;
 }
 
 /// Report a review for moderation (parity 2.14 — FR-REV-005).
