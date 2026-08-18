@@ -484,14 +484,15 @@ checking rather than assuming:
       uploaded anywhere, so every remaining line in §6.2 is downstream of one
       signed archive.
 - [ ] Screenshots, description, keywords, age rating, privacy questionnaire.
-- [ ] Sign in with Apple working in the signed build (rule 4.8). **Repo half
-      done 2026-08-18** — `com.apple.developer.applesignin` is in both
-      entitlements files, pinned by `test/infra/ios_entitlements_test.dart`
-      (which also catches the shape where the key exists only in a comment).
-      **Account half still owed, and it gates the first signed archive:** the
-      capability must be enabled on the App ID for both bundle ids, or code
-      signing *fails* — an entitlement the App ID does not grant is an error,
-      not a no-op.
+- [ ] Sign in with Apple working in the signed build (rule 4.8). **Both halves
+      are in place** as of 2026-08-18: `com.apple.developer.applesignin` is in
+      both entitlements files (pinned by `test/infra/ios_entitlements_test.dart`,
+      which also catches the shape where the key exists only in a comment), and
+      the capability is enabled on both App IDs.
+      **Still unticked on purpose:** neither half has been exercised by a
+      *signed* build, because none exists. The repo half was verified by
+      reading the files; the account half by the owner. Working in a signed
+      build is a third thing, and it is what this box asks for.
 - [ ] Phased release enabled.
 
 ### 6.3 Android (last)
@@ -568,10 +569,12 @@ Ordered by what unblocks what, not by size:
    slices. The mechanism is in the first build, which was the whole point of the
    ordering; every floor ships at 0, so it changes nobody's behaviour until
    someone deliberately raises one.
-5. **Enable Sign in with Apple on the App ID** (§6.2) — **owner action, and it
-   gates the first signed archive.** The entitlement landed in the repo on
-   2026-08-18 and is pinned by a test, but an entitlement the App ID does not
-   grant is not ignored: **code signing fails**. Both bundle ids.
+5. ~~**Enable Sign in with Apple on the App ID**~~ **Already done** (§6.2) —
+   the entitlement landed in the repo on 2026-08-18, and the capability was
+   already enabled on both App IDs. This list claimed otherwise for a few hours:
+   nothing here can see the Apple Developer portal, so that was a guess stated
+   as a fact. It remains untickable in §6.2 only because no *signed* build has
+   ever exercised it.
 6. ~~**Rehearse the funnel on staging**~~ **Done 2026-08-18 — 47/47** (§4).
    It had never been run there, and that hid three dev-shaped assumptions in the
    harness: it needed `SMOKE_OTP_SECRET` mounted (the seam it was built for),
@@ -583,10 +586,16 @@ Ordered by what unblocks what, not by size:
    pattern, and the walk-through by someone who did not build it. None of it was
    ever unblocked by anything above.
 
-**Three things are owner-side and cannot be done from this repo:** the Sign in
-with Apple capability (item 5), a real Sentry send from a device (item 3), and
-the Apple/Play account steps in
+**Two things are owner-side and cannot be done from this repo:** a real Sentry
+send from a device (item 3), and the Apple/Play account steps in
 [design/mobile-store-submission.md](design/mobile-store-submission.md) §5.
+
+**A note on how this list can be wrong.** It said the Sign in with Apple
+capability was outstanding. It was not — and nothing in this repo can see the
+Apple Developer portal, so the honest marking was **UNVERIFIED**, not "owed". A
+checklist that states account-side facts it cannot observe will drift exactly
+the way §5.1's seeded-data line and §6.2's "already working" line did. Where an
+item depends on a console this repo cannot reach, say so.
 
 **Items 0–6 are closed.** What is left is item 7, plus three owner-side steps.
 

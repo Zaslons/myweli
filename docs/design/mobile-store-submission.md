@@ -148,11 +148,16 @@ nothing here should be handed credentials.
    same class of defect as the push entitlement documented in
    `Runner.entitlements`, which sat unreferenced for months.
 
-   **⚠️ Still owed, and it must happen BEFORE the first signed archive:** enable
-   the *Sign in with Apple* capability on the App ID in the Apple Developer
-   portal, for **both** `com.myweli.app` and `com.myweli.pro`. An entitlement
-   the App ID does not grant is not ignored — **code signing fails**. Nothing
-   breaks today only because no signed build exists yet.
+   **The account half was already done** (owner, confirmed 2026-08-18): the
+   *Sign in with Apple* capability is enabled on both App IDs. This section
+   asserted the opposite for a few hours, which was a guess stated as a fact —
+   nothing in this repo can see the Apple Developer portal, so the honest
+   marking was UNVERIFIED, not "still owed".
+
+   Worth keeping the reason it matters: an entitlement the App ID does not grant
+   is not ignored — **code signing fails**. And editing capabilities invalidates
+   existing provisioning profiles, so if any were generated before the
+   capability was enabled they need regenerating.
 
 ## 6. What this did NOT verify
 
