@@ -70,7 +70,7 @@ void main() {
   setUp(() {
     repo = InMemoryAuthRepository(
       tokens: TokenService(secret: 'test-secret'),
-      isProd: false,
+      echoDevCode: true,
     );
     methods = const AuthMethods(AuthMethods.defaults);
     google = _FakeGoogle(_okClaims);

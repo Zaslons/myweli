@@ -208,7 +208,7 @@ void main() {
       when(() => auth.userById(any())).thenAnswer((_) async => null);
       providerAuth = InMemoryProviderAuthRepository(
         tokens: tokens,
-        isProd: false,
+        echoDevCode: true,
       );
       userToken = tokens
           .issueAccessToken(subject: 'user_A', role: 'user')

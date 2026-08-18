@@ -14,10 +14,10 @@ void main() {
   test('overview aggregates bookings, rates, providers + disputes', () async {
     final appts = InMemoryAppointmentRepository();
     final providers = InMemoryProvidersRepository();
-    final auth = InMemoryAuthRepository(tokens: tokens, isProd: false);
+    final auth = InMemoryAuthRepository(tokens: tokens, echoDevCode: true);
     final providerAuth = InMemoryProviderAuthRepository(
       tokens: tokens,
-      isProd: false,
+      echoDevCode: true,
     );
     final disputes = InMemoryDisputesRepository();
     final reviews = InMemoryReviewsRepository();
@@ -74,10 +74,10 @@ void main() {
   test('northStar buckets completed bookings by week × commune', () async {
     final appts = InMemoryAppointmentRepository();
     final providers = InMemoryProvidersRepository();
-    final auth = InMemoryAuthRepository(tokens: tokens, isProd: false);
+    final auth = InMemoryAuthRepository(tokens: tokens, echoDevCode: true);
     final providerAuth = InMemoryProviderAuthRepository(
       tokens: tokens,
-      isProd: false,
+      echoDevCode: true,
     );
     final disputes = InMemoryDisputesRepository();
     final reviews = InMemoryReviewsRepository();

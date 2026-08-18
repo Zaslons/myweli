@@ -206,10 +206,15 @@ put_secret STAGING_MESSAGING_WEBHOOK_SECRET "$(gen)"
 put_secret STAGING_ADMIN_PASSWORD "$(gen)"
 
 # **A Resend key that cannot deliver, on purpose.** Email is a live channel
-# reaching real inboxes, and §3.3's rule is that staging never has one. Sign-in
-# still works: `ENV=staging` is not `isProd`, so the OTP is echoed in the
-# response and nothing needs to arrive. The guard requires the variable to be
-# non-empty, not to be valid.
+# reaching real inboxes, and §3.3's rule is that staging never has one. The
+# guard requires the variable to be non-empty, not to be valid.
+#
+# This used to add "sign-in still works: `ENV=staging` is not `isProd`, so the
+# OTP is echoed in the response and nothing needs to arrive." That echo was
+# removed on 2026-08-18 — it meant anyone who found the public URL could sign in
+# as any identity (docs/design/backend-staging-otp-disclosure.md). So **email
+# sign-in to staging no longer completes**: use Google or Apple, or the Q1b seam
+# for automation. Left undeliverable deliberately; changing it re-opens §3.3.
 put_secret STAGING_RESEND_API_KEY "re_staging_placeholder_delivery_is_disabled"
 
 put_secret STAGING_ADMIN_EMAIL "$STAGING_ADMIN_EMAIL"

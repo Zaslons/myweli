@@ -32,7 +32,7 @@ void main() {
   late String ownerId;
 
   setUp(() async {
-    auth = InMemoryProviderAuthRepository(tokens: tokens, isProd: false);
+    auth = InMemoryProviderAuthRepository(tokens: tokens, echoDevCode: true);
     memberships = InMemoryMembershipRepository();
     providers = InMemoryProvidersRepository([
       {

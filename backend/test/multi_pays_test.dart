@@ -193,7 +193,7 @@ void main() {
       );
       providerAuth = InMemoryProviderAuthRepository(
         tokens: tokens,
-        isProd: false,
+        echoDevCode: true,
       );
       members = MembershipService(InMemoryMembershipRepository(), providerAuth);
       catalog = ProviderCatalogService(
@@ -347,7 +347,7 @@ void main() {
       providers = InMemoryProvidersRepository([]);
       provisioning = SalonProvisioningService(
         providers,
-        InMemoryProviderAuthRepository(tokens: tokens, isProd: false),
+        InMemoryProviderAuthRepository(tokens: tokens, echoDevCode: true),
         InMemoryMembershipRepository(),
       );
     });
@@ -401,7 +401,7 @@ void main() {
       appts = InMemoryAppointmentRepository();
       providerAuth = InMemoryProviderAuthRepository(
         tokens: tokens,
-        isProd: false,
+        echoDevCode: true,
       );
       members = MembershipService(InMemoryMembershipRepository(), providerAuth);
       final reg = await providerAuth.register(
@@ -487,7 +487,7 @@ void main() {
             ClientsService(
               providerAuth,
               members,
-              InMemoryAuthRepository(tokens: tokens, isProd: false),
+              InMemoryAuthRepository(tokens: tokens, echoDevCode: true),
               InMemoryClientsRepository(),
               appts,
               InMemoryProviderAuditLogRepository(),

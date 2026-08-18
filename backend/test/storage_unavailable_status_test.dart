@@ -81,7 +81,7 @@ void main() {
       appts = InMemoryAppointmentRepository();
       providerAuth = InMemoryProviderAuthRepository(
         tokens: tokens,
-        isProd: false,
+        echoDevCode: true,
       );
     });
 
@@ -163,7 +163,7 @@ void main() {
         InMemoryReviewsRepository(),
         appts,
         providers,
-        InMemoryAuthRepository(tokens: tokens, isProd: false),
+        InMemoryAuthRepository(tokens: tokens, echoDevCode: true),
         allowedImageOrigins: const ['https://cdn.myweli.com'],
         verifier: verifier(),
         publicBaseUrl: 'https://cdn.myweli.com',

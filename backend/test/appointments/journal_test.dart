@@ -93,14 +93,14 @@ void main() {
     appts = InMemoryAppointmentRepository();
     providerAuth = InMemoryProviderAuthRepository(
       tokens: tokens,
-      isProd: false,
+      echoDevCode: true,
     );
     memberships = InMemoryMembershipRepository();
     members = MembershipService(memberships, providerAuth);
     clients = ClientsService(
       providerAuth,
       members,
-      InMemoryAuthRepository(tokens: tokens, isProd: false),
+      InMemoryAuthRepository(tokens: tokens, echoDevCode: true),
       InMemoryClientsRepository(),
       appts,
       InMemoryProviderAuditLogRepository(),

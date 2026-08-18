@@ -50,7 +50,7 @@ void main() {
       providers = InMemoryProvidersRepository(_freshSeed());
       providerAuth = InMemoryProviderAuthRepository(
         tokens: tokens,
-        isProd: false,
+        echoDevCode: true,
       );
       store = _PublicStorage();
       catalog = ProviderCatalogService(
@@ -189,7 +189,7 @@ void main() {
       providers = InMemoryProvidersRepository(_freshSeed());
       providerAuth = InMemoryProviderAuthRepository(
         tokens: tokens,
-        isProd: false,
+        echoDevCode: true,
       );
       store = _PublicStorage();
       catalog = ProviderCatalogService(
@@ -322,7 +322,7 @@ void main() {
       providers = InMemoryProvidersRepository(_freshSeed());
       providerAuth = InMemoryProviderAuthRepository(
         tokens: tokens,
-        isProd: false,
+        echoDevCode: true,
       );
       store = _PublicStorage();
       catalog = ProviderCatalogService(
@@ -475,7 +475,7 @@ void main() {
     setUp(() async {
       providerAuth = InMemoryProviderAuthRepository(
         tokens: tokens,
-        isProd: false,
+        echoDevCode: true,
       );
       store = FakeStorageService(defaultSize: 10);
       // WITH a verifier. `kyc_test.dart` constructs `KycService(providerAuth)`
@@ -623,7 +623,7 @@ void main() {
         reviews,
         appts,
         providers,
-        InMemoryAuthRepository(tokens: tokens, isProd: false),
+        InMemoryAuthRepository(tokens: tokens, echoDevCode: true),
         allowedImageOrigins: const [base],
         verifier: UploadVerificationService(storage: store),
         publicBaseUrl: base,
@@ -801,7 +801,7 @@ void main() {
     final tokens = TokenService(secret: 'test-secret');
 
     setUp(() async {
-      auth = InMemoryAuthRepository(tokens: tokens, isProd: false);
+      auth = InMemoryAuthRepository(tokens: tokens, echoDevCode: true);
       store = _PublicStorage();
       verifier = UploadVerificationService(storage: store);
       const phone = '+2250700000055';

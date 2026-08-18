@@ -90,7 +90,7 @@ void main() {
 
   setUp(() async {
     now = DateTime.now().toUtc();
-    auth = InMemoryProviderAuthRepository(tokens: tokens, isProd: false);
+    auth = InMemoryProviderAuthRepository(tokens: tokens, echoDevCode: true);
     memberships = InMemoryMembershipRepository();
     providers = InMemoryProvidersRepository([
       {

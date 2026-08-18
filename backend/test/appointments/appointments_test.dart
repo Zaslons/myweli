@@ -70,7 +70,7 @@ void main() {
     booking = BookingService(providers, appts, SlotService(providers, appts));
     providerAuth = InMemoryProviderAuthRepository(
       tokens: tokens,
-      isProd: false,
+      echoDevCode: true,
     );
     auth = _MockAuth();
     // By default a token subject has no consumer account on file → no phone →

@@ -44,7 +44,9 @@ production's guards while remaining identifiable.
 at boot rather than degrading to `dev`. Of the eighteen `_isProd` call sites,
 **thirteen became `guardsOn`** (every fail-fast, plus CORS deny-by-default) and
 **five stayed `isProd`** — the four auth-repository `devCode` echoes and the
-smoke-seam warning. One gap the split exposed: with `guardsOn` on, staging would
+smoke-seam warning. *(The four echoes moved again on 2026-08-18, to a third
+getter `echoesOtpDevCode` that is `dev`-only — see §2.1's resolved note. Two
+questions turned out to be three.)* One gap the split exposed: with `guardsOn` on, staging would
 have refused to boot without FCM, so `PUSH_PROVIDER=disabled` was added,
 mirroring `MESSAGING_PROVIDER=disabled`.
 
@@ -169,26 +171,44 @@ optional:
 - The scrub belongs **in the restore script**, so an un-scrubbed restore is not
   a thing anyone can do by forgetting a step.
 
-> **OPEN — the rehearsal copy and the public ingress are in tension.** Surfaced
-> while writing `service-staging.yaml`, which needs a truthful comment about what
-> the open ingress exposes. Staging is `ingress: all` with no load balancer (its
-> `*.run.app` URL is the only door, §4.1) *and* it echoes the OTP dev-code,
-> because `ENV=staging` is `guardsOn` but not `isProd` — so **anyone who finds
-> the URL can sign in as any identity in whatever database is attached.**
+> **RESOLVED 2026-08-18 — and the resolution is broader than any of the three
+> options below.** The dev-code echo is now gated on `Env.dev` alone, so **no
+> deployed environment discloses an OTP** and the tension disappears rather than
+> being managed: a public ingress no longer implies a signable identity, whatever
+> database is attached. That is option 3 without its hard part — no "is this a
+> derived copy?" marker is needed, because the answer does not depend on the data.
 >
-> For the synthetic default state that is the design working as intended. For
-> the rehearsal row it is not: the scrub replaces phones, names and emails, and
-> leaves the appointments, deposits and KYC references around them intact and
-> real-shaped. A prod-volume copy behind that ingress is readable by an
-> unauthenticated caller who guesses the hostname.
+> Worth recording how it was found, because the process failed here. This block
+> said **"Decide before build-order step 5"**. Step 5 happened — the restore was
+> rehearsed on 2026-08-16 — and no decision was made or noticed; the item was
+> simply passed over. It surfaced two days later from an unrelated direction,
+> while checking whether the Vercel preview split was safe. **A deadline written
+> into a design doc is not a mechanism.** The mechanism is
+> `backend/test/auth/staging_otp_disclosure_test.dart`, which fails if the echo
+> comes back.
 >
-> Three candidate resolutions, none chosen yet: restore into a **temporary
-> instance not attached to the public service** (cleanest, but then the
-> rehearsal is not timing the real service's boot, which is the point of §3.2);
-> **close the ingress for the duration** of a rehearsal; or **suppress the
-> dev-code echo when the database is a derived copy**, which needs a marker the
-> app can read. **Decide before build-order step 5**, which is where the restore
-> first happens.
+> The original entry, for the record:
+>
+> > **OPEN — the rehearsal copy and the public ingress are in tension.** Surfaced
+> > while writing `service-staging.yaml`, which needs a truthful comment about what
+> > the open ingress exposes. Staging is `ingress: all` with no load balancer (its
+> > `*.run.app` URL is the only door, §4.1) *and* it echoes the OTP dev-code,
+> > because `ENV=staging` is `guardsOn` but not `isProd` — so **anyone who finds
+> > the URL can sign in as any identity in whatever database is attached.**
+> >
+> > For the synthetic default state that is the design working as intended. For
+> > the rehearsal row it is not: the scrub replaces phones, names and emails, and
+> > leaves the appointments, deposits and KYC references around them intact and
+> > real-shaped. A prod-volume copy behind that ingress is readable by an
+> > unauthenticated caller who guesses the hostname.
+> >
+> > Three candidate resolutions, none chosen yet: restore into a **temporary
+> > instance not attached to the public service** (cleanest, but then the
+> > rehearsal is not timing the real service's boot, which is the point of §3.2);
+> > **close the ingress for the duration** of a rehearsal; or **suppress the
+> > dev-code echo when the database is a derived copy**, which needs a marker the
+> > app can read. **Decide before build-order step 5**, which is where the restore
+> > first happens.
 
 Namespacing matters more than it sounds: `seedProviders` uses fixed ids today,
 so a staging and a production database contain the **same primary keys**. A log

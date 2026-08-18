@@ -146,7 +146,7 @@ void main() {
     setUp(() async {
       providerAuth = InMemoryProviderAuthRepository(
         tokens: tokens,
-        isProd: false,
+        echoDevCode: true,
       );
       memberships = InMemoryMembershipRepository();
       service = UploadSigningService(
@@ -369,7 +369,7 @@ void main() {
     setUp(() async {
       providerAuth = InMemoryProviderAuthRepository(
         tokens: tokens,
-        isProd: false,
+        echoDevCode: true,
       );
       service = UploadSigningService(
         providerAuth,

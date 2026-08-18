@@ -25,7 +25,7 @@ void main() {
   late _MockAppointments appointments;
 
   setUp(() {
-    auth = InMemoryProviderAuthRepository(tokens: tokens, isProd: false);
+    auth = InMemoryProviderAuthRepository(tokens: tokens, echoDevCode: true);
     providers = _MockProviders();
     appointments = _MockAppointments();
     when(

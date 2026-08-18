@@ -53,7 +53,7 @@ void main() {
     );
     providerAuth = InMemoryProviderAuthRepository(
       tokens: tokens,
-      isProd: false,
+      echoDevCode: true,
     );
     final reg = await providerAuth.register(
       email: 'reg6@test.pro',

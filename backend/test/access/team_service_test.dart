@@ -54,7 +54,7 @@ void main() {
 
   setUp(() {
     now = DateTime.now().toUtc();
-    auth = InMemoryProviderAuthRepository(tokens: tokens, isProd: false);
+    auth = InMemoryProviderAuthRepository(tokens: tokens, echoDevCode: true);
     memberships = InMemoryMembershipRepository();
     subs = InMemorySalonSubscriptionRepository();
     providers = InMemoryProvidersRepository([

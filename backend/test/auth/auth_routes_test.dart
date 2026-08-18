@@ -44,7 +44,7 @@ void main() {
 
   setUp(() {
     ts = TokenService(secret: 'test-secret');
-    repo = InMemoryAuthRepository(tokens: ts, isProd: false);
+    repo = InMemoryAuthRepository(tokens: ts, echoDevCode: true);
     messaging = MessagingService(
       LogMessagingProvider(),
       InMemoryMessagingOutboxRepository(),
@@ -71,7 +71,7 @@ void main() {
     when(() => context.read<ClientsService>()).thenReturn(() {
       final providerAuth = InMemoryProviderAuthRepository(
         tokens: ts,
-        isProd: false,
+        echoDevCode: true,
       );
       return ClientsService(
         providerAuth,
@@ -88,7 +88,7 @@ void main() {
     when(() => context.read<UserErasureService>()).thenReturn(() {
       final providerAuth = InMemoryProviderAuthRepository(
         tokens: ts,
-        isProd: false,
+        echoDevCode: true,
       );
       return UserErasureService(
         repo,

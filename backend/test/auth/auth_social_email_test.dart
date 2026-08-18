@@ -5,13 +5,13 @@ import 'package:test/test.dart';
 void main() {
   TokenService ts() => TokenService(secret: 'test-secret');
   InMemoryAuthRepository repo({
-    bool isProd = false,
+    bool echoDevCode = true,
     Duration otpValidity = const Duration(minutes: 5),
     int maxAttempts = 5,
     int maxResends = 3,
   }) => InMemoryAuthRepository(
     tokens: ts(),
-    isProd: isProd,
+    echoDevCode: echoDevCode,
     otpValidity: otpValidity,
     maxAttempts: maxAttempts,
     maxResends: maxResends,
@@ -109,7 +109,7 @@ void main() {
     test('devCode outside prod only', () async {
       expect((await repo().requestEmailOtp('a@x.com')).devCode, isNotNull);
       expect(
-        (await repo(isProd: true).requestEmailOtp('a@x.com')).devCode,
+        (await repo(echoDevCode: false).requestEmailOtp('a@x.com')).devCode,
         isNull,
       );
     });

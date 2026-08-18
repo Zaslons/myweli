@@ -21,7 +21,7 @@ void main() {
   setUp(() async {
     providerAuth = InMemoryProviderAuthRepository(
       tokens: tokens,
-      isProd: false,
+      echoDevCode: true,
     );
     service = KycService(providerAuth);
     final reg = await providerAuth.register(

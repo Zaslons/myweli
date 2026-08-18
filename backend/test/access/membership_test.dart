@@ -14,7 +14,7 @@ void main() {
   late MembershipService service;
 
   setUp(() {
-    auth = InMemoryProviderAuthRepository(tokens: tokens, isProd: false);
+    auth = InMemoryProviderAuthRepository(tokens: tokens, echoDevCode: true);
     members = InMemoryMembershipRepository();
     service = MembershipService(members, auth);
   });
