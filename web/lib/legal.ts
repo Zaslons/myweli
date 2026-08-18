@@ -85,9 +85,17 @@ export function legalRoute(slug: string): LegalRoute {
 /// Written out rather than formatted at render time, because a page rendered at
 /// build time and a page rendered on request must not disagree — and because a
 /// legal document's date is a claim, not a timestamp.
+///
+/// **Bumped 2026-08-18** for a substantive correction to the privacy policy: two
+/// claims in « Ce que nous ne faisons pas » had become false and were replaced
+/// by a « Journaux techniques et rapports d'erreur » section. The shared date
+/// means the other three documents now show a date on which they did not
+/// change — the accepted cost of one date. The alternative is worse: a privacy
+/// policy whose substance moved while its date stood still is the version a
+/// regulator reads as concealment.
 export const LEGAL_UPDATED_AT = {
-  iso: '2026-07-27',
-  label: '27 juillet 2026',
+  iso: '2026-08-18',
+  label: '18 août 2026',
 } as const;
 
 export const COMPANY = {

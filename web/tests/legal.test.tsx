@@ -4,6 +4,7 @@ import CguPage from '../app/cgu/page';
 import MentionsPage from '../app/mentions-legales/page';
 import ConfidentialitePage from '../app/politique-confidentialite/page';
 import SuppressionPage from '../app/suppression-compte/page';
+import pkg from '../package.json';
 import { COMPANY, LEGAL_ROUTES, LEGAL_UPDATED_AT } from '../lib/legal';
 
 /// L1 — the four documents, at the unit level.
@@ -59,6 +60,90 @@ describe('the legal documents', () => {
     for (const p of paragraphs) {
       expect(p.className).toMatch(/text-body(Large|Medium)/);
     }
+  });
+});
+
+/// The guard that did not exist on 2026-08-18, when the live privacy policy was
+/// found to contain two false statements.
+///
+/// Both had been true when written. « pas de Sentry » was made false by adding
+/// Sentry months later, and « aucun journal applicatif » by migrating to Cloud
+/// Run. Nothing failed, because **nothing was checking**: the page's own doc
+/// comment promised every claim was traceable to the code, and no test held it
+/// to that.
+///
+/// The asymmetry is the whole point. A *description* that goes stale is merely
+/// incomplete; a *denial* that goes stale is a false statement to users and to
+/// the App Store privacy questionnaire. So the denials are what get pinned.
+describe('the privacy policy does not deny what we actually ship', () => {
+  // Imported rather than read from disk: the path then resolves relative to
+  // THIS file, so the test cannot be silently defeated by the working directory
+  // the runner happens to use.
+  const deps = Object.keys(pkg.dependencies ?? {});
+
+  // Left column: how the page would name the vendor in French. Right column:
+  // how it appears in package.json. Add a row when a new telemetry vendor is
+  // considered — that is cheaper than remembering to re-read the policy.
+  const VENDORS: ReadonlyArray<readonly [string, string]> = [
+    ['Sentry', 'sentry'],
+    ['Crashlytics', 'crashlytics'],
+    ['Google Analytics', 'gtag'],
+    ['PostHog', 'posthog'],
+    ['Mixpanel', 'mixpanel'],
+    ['Amplitude', 'amplitude'],
+    ['Segment', 'segment'],
+  ];
+
+  /// The text of « Ce que nous ne faisons pas » ONLY — from that heading to the
+  /// next one.
+  ///
+  /// Scoping matters more than it looks. A first version of this test searched
+  /// the whole page for `aucun … Sentry` and failed on a sentence that is
+  /// **true**: « nous n'envoyons aucun rapport à Sentry lorsque rien n'a
+  /// échoué ». A guard that cannot tell a denial from an accurate description
+  /// gets disabled the first time it is wrong, and then guards nothing.
+  function denials(): string {
+    const { container } = render(<ConfidentialitePage />);
+    const start = Array.from(container.querySelectorAll('h2')).find((h) =>
+      /ce que nous ne faisons pas/i.test(h.textContent ?? ''),
+    );
+    // Not a soft skip: if the section is renamed away, this test silently stops
+    // checking anything, which is the failure mode it exists to prevent.
+    expect(start, 'the « Ce que nous ne faisons pas » heading').toBeTruthy();
+    let text = '';
+    for (let n = start!.nextElementSibling; n && n.tagName !== 'H2'; n = n.nextElementSibling) {
+      text += ` ${n.textContent ?? ''}`;
+    }
+    expect(text.length).toBeGreaterThan(50);
+    return text;
+  }
+
+  for (const [label, token] of VENDORS) {
+    const shipped = deps.some((d) => d.toLowerCase().includes(token));
+    it(`${shipped ? 'does not deny' : 'may keep denying'} ${label}`, () => {
+      if (shipped) {
+        // The page may still *describe* what we send to a vendor elsewhere —
+        // it must simply not claim, here, that we do not use it.
+        expect(denials()).not.toMatch(new RegExp(label, 'i'));
+      } else {
+        // Nothing to assert — the denial is true today. The row exists so that
+        // adding the dependency flips this test into the branch above.
+        expect(shipped).toBe(false);
+      }
+    });
+  }
+
+  it('discloses request logging rather than denying it', () => {
+    // Cloud Run logs the IP, the user agent and the request URL of every call,
+    // and no code in this repo can prove that — it is a property of the host.
+    // So the guard is a PRESENCE check: the disclosure must be on the page.
+    // Deleting it is how the old false claim would come back.
+    const { container } = render(<ConfidentialitePage />);
+    const text = container.textContent ?? '';
+    expect(text).toMatch(/adresse IP/i);
+    expect(text).toMatch(/30 jours/i);
+    // And the specific sentence that was false must never return.
+    expect(text).not.toMatch(/aucun journal applicatif/i);
   });
 });
 
