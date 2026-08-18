@@ -30,6 +30,12 @@ every backend change — the server-side mirror of `myweli-dev-guardrails`.
 > propose updating them. Keep them honest — a rule change lands in the docs in
 > the same PR.
 
+> **About to say something WORKS, is configured, is deployed, or is done?** Also
+> invoke **`myweli-verification-guardrails`** — every rule in it was learned from
+> a real defect here: a check that could not fire, a document that was true when
+> written, a claim about a console this repo cannot see. It is the one to reach
+> for before ticking a box or reporting a PR as verified.
+
 ## Before writing code
 0. **Write the design spec first.** Before any non-trivial slice, **invoke this
    skill, re-confirm it fits the ROADMAP / rules / security model / layering /
