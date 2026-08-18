@@ -3316,6 +3316,101 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
 
   # ---- Admin consumer management — B-admin Slice 2 / A3b ---------------------
+  /client-version:
+    get:
+      tags: [system]
+      summary: May this client build keep running? (LAUNCH.md §5.3)
+      description: |
+        Unauthenticated — the check runs at startup, before any login. Takes no
+        user data and returns none.
+
+        **The server decides; the client renders.** Not "serve the floor and let
+        the client compare": the comparison logic and the update URL are exactly
+        the two things that cannot be patched on a client we are trying to
+        retire, so both stay here.
+
+        `build` is the monotonic build number (`pubspec`'s `+N`, which feeds
+        `versionCode` / `CFBundleVersion` / `FLUTTER_BUILD_NUMBER`), **not**
+        semver. `version` is accepted and ignored — it rides along for the
+        access log, which is the only client-version telemetry that exists.
+
+        **Everything malformed answers `200 {"status":"ok"}`, never 400.** An
+        unknown flavour or a typo'd platform must not be indistinguishable from
+        an outage. A platform whose `updateUrl` is unset is never blocked,
+        whatever the floor says — you cannot block users you have nowhere to
+        send, and that rule is what makes it safe to ship this before the App
+        Store listing exists.
+
+        `Cache-Control: no-store`: the value of this lever is the latency
+        between the decision and its effect.
+      parameters:
+        - { in: query, name: app, schema: { type: string }, description: 'Application id, e.g. com.myweli.app' }
+        - { in: query, name: platform, schema: { type: string, enum: [android, ios] } }
+        - { in: query, name: build, schema: { type: integer }, description: 'Monotonic build number' }
+        - { in: query, name: version, schema: { type: string }, description: 'Display version; logged, never compared' }
+      responses:
+        '200':
+          description: The verdict
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status:
+                    type: string
+                    enum: [ok, update_available, update_required]
+                    description: |
+                      A client MUST treat any unrecognised value as `ok`, so a
+                      later server can add verdicts without breaking the oldest
+                      clients it is trying to manage.
+                  updateUrl:
+                    type: string
+                    description: Absent when the platform has no store URL yet.
+
+  /admin/client-version:
+    get:
+      tags: [admin]
+      summary: The client version floors, per app × platform (B-admin)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: '`{ items: [...] }`' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    put:
+      tags: [admin]
+      summary: Set one floor (B-admin) — audited as `client_floor.set`
+      description: |
+        Raising a floor is a denial of service to every user below it —
+        deliberate and necessary, and the reason every write is audited **with
+        the values** (unlike a user erasure, where metadata would be PII: here
+        the values are the record).
+
+        Updates only; the four (app, platform) pairs come from migration 0032. A
+        typo'd `appId` returns 404 rather than creating a row that governs
+        nothing. A `recommendedBuild` below `minimumBuild` is refused — everyone
+        below the floor is already blocked, so such a nudge could never show.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [appId, platform, minimumBuild, recommendedBuild]
+              properties:
+                appId: { type: string }
+                platform: { type: string, enum: [android, ios] }
+                minimumBuild: { type: integer, minimum: 0, description: '0 = no floor' }
+                recommendedBuild: { type: integer, minimum: 0, description: '0 = no nudge' }
+                updateUrl: { type: string, nullable: true }
+      responses:
+        '200': { description: The updated floor }
+        '400': { description: 'invalid_* / recommended_below_minimum' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   /admin/users:
     get:
       tags: [admin]

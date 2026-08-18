@@ -7,6 +7,7 @@ import 'access/membership_service.dart';
 import 'access/salon_directory_service.dart';
 import 'access/team_service.dart';
 import 'admin/admin_auth_repository.dart';
+import 'admin/admin_client_version_service.dart';
 import 'admin/admin_kyc_service.dart';
 import 'admin/admin_provider_service.dart';
 import 'admin/admin_user_service.dart';
@@ -28,6 +29,8 @@ import 'auth/provider_auth_repository.dart';
 import 'auth/smoke_seam.dart';
 import 'auth/tokens.dart';
 import 'boot_config.dart';
+import 'client_version/client_version_repository.dart';
+import 'client_version/client_version_service.dart';
 import 'clients/clients_repository.dart';
 import 'clients/clients_service.dart';
 import 'clients/provider_audit_log.dart';
@@ -38,6 +41,7 @@ import 'db/postgres_admin_auth_repository.dart';
 import 'db/postgres_appointment_repository.dart';
 import 'db/postgres_audit_log_repository.dart';
 import 'db/postgres_auth_repository.dart';
+import 'db/postgres_client_version_repository.dart';
 import 'db/postgres_clients_repository.dart';
 import 'db/postgres_device_token_repository.dart';
 import 'db/postgres_disputes_repository.dart';
@@ -579,6 +583,19 @@ final AdminProviderService adminProviderService = AdminProviderService(
   auditLogRepository,
   salonSubscriptionService,
 );
+
+/// The client version floors — Postgres in a real deployment, in-memory
+/// otherwise, exactly like every other repository here.
+final ClientVersionRepository clientVersionRepository = _pool == null
+    ? InMemoryClientVersionRepository()
+    : PostgresClientVersionRepository(_pool!);
+
+final ClientVersionService clientVersionService = ClientVersionService(
+  clientVersionRepository,
+);
+
+final AdminClientVersionService adminClientVersionService =
+    AdminClientVersionService(clientVersionRepository, auditLogRepository);
 
 final AdminUserService adminUserService = AdminUserService(
   authRepository,

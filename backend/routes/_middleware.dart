@@ -3,6 +3,7 @@ import 'package:myweli_backend/src/access/membership_service.dart';
 import 'package:myweli_backend/src/access/salon_directory_service.dart';
 import 'package:myweli_backend/src/access/team_service.dart';
 import 'package:myweli_backend/src/admin/admin_auth_repository.dart';
+import 'package:myweli_backend/src/admin/admin_client_version_service.dart';
 import 'package:myweli_backend/src/admin/admin_kyc_service.dart';
 import 'package:myweli_backend/src/admin/admin_provider_service.dart';
 import 'package:myweli_backend/src/admin/admin_user_service.dart';
@@ -22,6 +23,7 @@ import 'package:myweli_backend/src/auth/id_token_verifier.dart';
 import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
 import 'package:myweli_backend/src/auth/smoke_seam.dart';
 import 'package:myweli_backend/src/auth/tokens.dart';
+import 'package:myweli_backend/src/client_version/client_version_service.dart';
 import 'package:myweli_backend/src/clients/clients_service.dart';
 import 'package:myweli_backend/src/cors.dart';
 import 'package:myweli_backend/src/dependencies.dart';
@@ -111,6 +113,10 @@ Handler middleware(Handler handler) {
       .use(provider<ModerationService>((_) => moderationService))
       .use(provider<AdminProviderService>((_) => adminProviderService))
       .use(provider<AdminUserService>((_) => adminUserService))
+      .use(provider<ClientVersionService>((_) => clientVersionService))
+      .use(
+        provider<AdminClientVersionService>((_) => adminClientVersionService),
+      )
       .use(provider<DisputeService>((_) => disputeService))
       .use(provider<AnalyticsService>((_) => analyticsService))
       .use(provider<ReviewsRepository>((_) => reviewsRepository))

@@ -10,6 +10,7 @@ import 'package:myweli_backend/src/db/database.dart';
 import 'package:myweli_backend/src/db/migrations.dart';
 import 'package:myweli_backend/src/db/postgres_appointment_repository.dart';
 import 'package:myweli_backend/src/db/postgres_auth_repository.dart';
+import 'package:myweli_backend/src/db/postgres_client_version_repository.dart';
 import 'package:myweli_backend/src/db/postgres_clients_repository.dart';
 import 'package:myweli_backend/src/db/postgres_device_token_repository.dart';
 import 'package:myweli_backend/src/db/postgres_favorites_repository.dart';
@@ -897,6 +898,75 @@ void main() {
         expect(await r.listForUser('fav_user_A'), ['provider2']);
       },
     );
+  });
+
+  group('PostgresClientVersionRepository (migration 0032)', () {
+    test('the migration seeds four rows, all with NO floor', () async {
+      // The mechanism must be inert on the day it ships. If this fails, a
+      // deploy has started making version policy nobody decided.
+      final r = PostgresClientVersionRepository(pool);
+      final all = await r.all();
+      expect(all, hasLength(4));
+      expect(all.every((f) => f.minimumBuild == 0), isTrue);
+      expect(all.every((f) => f.recommendedBuild == 0), isTrue);
+      expect(all.map((f) => '${f.appId}/${f.platform}').toList(), [
+        'com.myweli.app/android',
+        'com.myweli.app/ios',
+        'com.myweli.pro/android',
+        'com.myweli.pro/ios',
+      ]);
+    });
+
+    test('android is seeded with a store URL, ios deliberately NULL', () async {
+      // Play's listing key IS the applicationId; iOS needs an adamId that does
+      // not exist yet. The nullability is the design, not an oversight.
+      final r = PostgresClientVersionRepository(pool);
+      final android = await r.floor('com.myweli.app', 'android');
+      final ios = await r.floor('com.myweli.app', 'ios');
+      expect(android!.updateUrl, contains('play.google.com'));
+      expect(ios!.updateUrl, isNull);
+    });
+
+    test('setFloor round-trips and UPDATEs, never inserts', () async {
+      final r = PostgresClientVersionRepository(pool);
+      final updated = await r.setFloor(
+        'com.myweli.pro',
+        'android',
+        minimumBuild: 4,
+        recommendedBuild: 6,
+        updateUrl: 'https://x.test/p',
+      );
+      expect(updated!.minimumBuild, 4);
+      expect((await r.floor('com.myweli.pro', 'android'))!.recommendedBuild, 6);
+
+      // A typo'd app id must not silently create a row that governs nothing.
+      expect(
+        await r.setFloor(
+          'com.myweli.typo',
+          'android',
+          minimumBuild: 1,
+          recommendedBuild: 0,
+          updateUrl: null,
+        ),
+        isNull,
+      );
+      expect(await r.all(), hasLength(4));
+
+      // Leave the shared fixture as we found it.
+      await r.setFloor(
+        'com.myweli.pro',
+        'android',
+        minimumBuild: 0,
+        recommendedBuild: 0,
+        updateUrl:
+            'https://play.google.com/store/apps/details?id=com.myweli.pro',
+      );
+    });
+
+    test('an unknown pair reads as null, not an error', () async {
+      final r = PostgresClientVersionRepository(pool);
+      expect(await r.floor('com.myweli.app', 'windows'), isNull);
+    });
   });
 
   group('journal J1 columns (module journal)', () {
