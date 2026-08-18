@@ -260,7 +260,24 @@ These block everything. None is surface-specific.
 - [ ] **A support channel exists** and someone is behind it (WhatsApp per the
       product's context).
 - [ ] **Rate limiting** verified on the auth and booking routes against a real
-      hostile pattern, not a unit test.
+      hostile pattern, not a unit test. **Verified 2026-08-18 — and it FAILS**
+      ([design/backend-rate-limiting.md](design/backend-rate-limiting.md)).
+      - **Holds:** brute-forcing one identity stops at 5 wrong codes
+        (`otp_locked`); resending stops at 4 (`otp_resend_limit`). Both live in
+        Postgres, so they hold across instances.
+      - **Does not exist:** any per-IP limit, anywhere — not in the app, not at
+        the load balancer. Measured: **60/60 accepted, 23 OTP requests per
+        second from one client**, simply by rotating the identifier. And
+        **100/100** unauthenticated reads at 42 req/s.
+      - On production that is **23 real emails a second** from
+        `no-reply@myweli.com` to addresses an attacker chooses — a
+        deliverability attack on the launch domain, not a billing one.
+      - **Fix in two layers, per the owner:** Cloud Armor at the LB
+        (`infra/gcp/87-rate-limit-policy.sh`, 10/min per IP on `/auth/*`) and an
+        app-level limiter. The box stays unticked until the policy is
+        **attached and its refusal observed**, and the control run —
+        `/providers` must NOT be refused, or the rule matches more than it
+        claims.
 - [ ] **The funnel has been walked by a person who did not build it**, on a real
       phone, on a real Ivorian network.
 
