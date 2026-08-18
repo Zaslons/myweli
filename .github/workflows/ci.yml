@@ -56,6 +56,21 @@ jobs:
       - name: Run tests (with coverage)
         run: flutter test --coverage
 
+      # The Sentry wiring has TWO branches and the suite above only ever sees
+      # one. `SENTRY_DSN` is a `String.fromEnvironment`, so without a define
+      # every run exercises "no DSN → stay inert" and the branch that matters —
+      # "a DSN → the SDK actually comes up, scrubbed" — is skipped silently.
+      #
+      # That asymmetry is exactly how the app shipped `sentry_flutter` in the
+      # pubspec and reported nothing for weeks (LAUNCH.md §5.2). The value here
+      # is a syntactically valid FAKE: it must never reach a real project, and
+      # nothing is transmitted — `initErrorReporting` is asserted on, not
+      # exercised end to end.
+      - name: Sentry wiring — the branch a plain test run cannot reach
+        run: |
+          flutter test test/unit/error_reporting_test.dart \
+            --dart-define=SENTRY_DSN=https://0000000000000000000000000000abcd@o0.ingest.de.sentry.io/0
+
       - name: Upload coverage report
         if: always()
         uses: actions/upload-artifact@v7

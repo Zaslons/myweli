@@ -115,8 +115,14 @@ nothing here should be handed credentials.
    has to allow it or the signed build fails).
 4. **App Store Connect** — create both app records; the bundle ids must match
    `com.myweli.app` / `com.myweli.pro` exactly.
-5. **Archive and upload** — once signing exists, and **with the observability
-   defines**, or the build reports nothing:
+5. **Archive and upload** — use **`./tool/release_build.sh <ios|android>
+   <consumer|pro>`**, which reads the DSN from Secret Manager so nobody handles
+   it, refuses to build if it is missing/malformed/the backend's, and adds the
+   obfuscation + split-debug-info the ROADMAP requires (without which every
+   Sentry stack trace is unreadable symbols).
+
+   The raw command, for reference — a placeholder in a runbook is a step that
+   gets skipped under pressure, and the failure is silent:
 
    ```sh
    flutter build ipa --flavor consumer --release \
