@@ -1,7 +1,11 @@
 class AppConstants {
   // App Info
   static const String appName = 'MyWeli';
-  static const String appVersion = '1.0.0';
+  // `appVersion` was here, hand-typed as '1.0.0' and pinned to nothing while
+  // `pubspec.yaml` held the real `1.0.0+1`. It drifted the moment either moved,
+  // and it carried no build number — which is the value the version gate
+  // actually compares. Removed 2026-08-18; « À propos » reads PackageInfo, the
+  // one source both stores also read.
 
   // Country Code (Côte d'Ivoire)
   static const String defaultCountryCode = '+225';

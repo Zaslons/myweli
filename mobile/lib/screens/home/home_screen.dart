@@ -16,6 +16,7 @@ import '../../widgets/booking/compact_appointment_tile.dart';
 import '../../widgets/common/commune_picker_sheet.dart';
 import '../../widgets/common/commune_pill.dart';
 import '../../widgets/common/section_heading.dart';
+import '../../widgets/common/update_nudge_slot.dart';
 import '../../widgets/home/announcement_stories.dart';
 import '../../widgets/home/category_chips.dart';
 import '../../widgets/home/search_bar.dart';
@@ -102,6 +103,9 @@ class _HomeScreenState extends State<HomeScreen> {
           },
           child: CustomScrollView(
             slivers: [
+              // The update nudge, above everything: it is advice about the app
+              // itself, not content, and it renders nothing in the normal case.
+              const SliverToBoxAdapter(child: UpdateNudgeSlot()),
               // Search Bar
               SliverToBoxAdapter(
                 child: Padding(
