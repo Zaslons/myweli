@@ -190,6 +190,14 @@ recurring gate runs against it and the question the cutover deferred is closed.
 > Worth naming the shape, because it recurs: choosing a decision that prevents a
 > problem reads as resolving it, and the heading was struck through accordingly.
 > Prevention and cleanup are two tasks, and only one of them was done.
+>
+> **Cleanup done 2026-08-18.** Three accounts, erased through the new
+> `DELETE /admin/users/{id}/erase` (account-deletion-erasure.md §12) so the
+> tested cascade ran rather than hand-written SQL. **And the count was wrong
+> everywhere it was written:** LAUNCH.md said "the ~5 `users` rows the PITR
+> restore found", conflating the residue with the whole table. Two of those five
+> are the owner's own Google and Apple sign-ins. Reading the table before
+> deleting from it is the only reason that did not become the story.
 
 The decision is enforced in code rather than recorded as an intention.
 `backend/tool/smoke/smoke_target.dart` refuses any target that is not a loopback

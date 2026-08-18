@@ -193,8 +193,13 @@ These block everything. None is surface-specific.
       production logs show the `SMOKE_OTP_SECRET is set` warning and three
       `POST /auth/email/otp/verify → 200` — and
       [design/backend-q1b-smoke-seam.md](design/backend-q1b-smoke-seam.md)
-      §7 prescribed "purge by identity suffix", which
-      never ran. Those accounts are the ~5 `users` rows the PITR restore found.
+      §7 prescribed "purge by identity suffix", which never ran.
+      **Correction (2026-08-18): the residue is 3 rows, not the 5 this line used
+      to claim.** It equated the smoke accounts with the whole `users` table.
+      Reading the table before deleting from it showed the other two are the
+      owner's own real sign-ins — one Google, one Apple — so a purge of "the 5
+      rows the PITR restore found" would have deleted them. The three are
+      `e2e-…@smoke.test` and two `r2probe-…@smoke.test`, all from 2026-08-06.
 - [ ] **Crash reporting and error tracking** are live on backend, web and app,
       and have been *proven* by deliberately triggering an error and seeing it
       arrive. **The code is done on all three surfaces and is inert**: create the
