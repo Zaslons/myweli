@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
+import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/utils/external_link.dart';
+import '../../widgets/common/app_button.dart';
 import '../../widgets/common/empty_state.dart';
 
 /// The blocking screen for a build below the floor.
@@ -61,23 +63,48 @@ class UpdateRequiredApp extends StatelessWidget {
         backgroundColor: AppColors.background,
         body: SafeArea(
           child: Builder(
-            builder: (context) => EmptyState(
-              icon: Icons.system_update_outlined,
-              title: 'Mise à jour requise',
-              description: isPro
-                  ? 'Cette version de MyWeli n’est plus prise en charge. '
-                        'Installez la dernière version pour continuer à gérer '
-                        'votre salon.'
-                  : 'Cette version de MyWeli n’est plus prise en charge. '
-                        'Installez la dernière version pour continuer à '
-                        'prendre vos rendez-vous.',
-              // No retry, and that is the point: SYSTEM.md §12 — the way out is
-              // a retry only when retrying can succeed. The only way out here
-              // is the store.
-              actionText: updateUrl == null ? null : 'Mettre à jour',
-              onAction: updateUrl == null
-                  ? null
-                  : () => open(context, updateUrl!),
+            builder: (context) => Column(
+              children: [
+                // The message scrolls…
+                Expanded(
+                  child: EmptyState(
+                    icon: Icons.system_update_outlined,
+                    title: 'Mise à jour requise',
+                    description: isPro
+                        ? 'Cette version de MyWeli n’est plus prise en charge. '
+                              'Installez la dernière version pour continuer à '
+                              'gérer votre salon.'
+                        : 'Cette version de MyWeli n’est plus prise en charge. '
+                              'Installez la dernière version pour continuer à '
+                              'prendre vos rendez-vous.',
+                  ),
+                ),
+                // …and the action does NOT.
+                //
+                // `EmptyState` normally carries its own action, and reusing that
+                // is what the first draft did. The 2× golden showed why it is
+                // wrong *here*: the column grows past the 780dp floor phone and
+                // the button lands below the fold. On any other screen that is
+                // fine — you scroll, or you leave. **This is the one screen a
+                // user cannot leave**, so its single way out must never have to
+                // be hunted for. The message may scroll; the exit may not.
+                //
+                // No retry either (SYSTEM.md §12: the way out is a retry only
+                // when retrying can succeed). The only way out is the store.
+                if (updateUrl != null)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppTheme.spacingXL,
+                      0,
+                      AppTheme.spacingXL,
+                      AppTheme.spacingXL,
+                    ),
+                    child: AppButton(
+                      text: 'Mettre à jour',
+                      onPressed: () => open(context, updateUrl!),
+                    ),
+                  ),
+              ],
             ),
           ),
         ),

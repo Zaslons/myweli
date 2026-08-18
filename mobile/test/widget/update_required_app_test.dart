@@ -99,11 +99,12 @@ void main() {
       expectNoVerticalClip(t, context: 'the update screen at ${scale}x');
 
       expect(find.text('Mise à jour requise'), findsOneWidget);
-      // Reachable, not merely present: scroll it into view and tap it. On a
-      // screen with exactly one way out, an unreachable button is the whole
-      // failure.
-      await t.scrollUntilVisible(find.text('Mettre à jour'), 100);
-      await t.tap(find.text('Mettre à jour'));
+      // Reachable WITHOUT scrolling, at every scale. On a screen with exactly
+      // one way out, an action below the fold is the whole failure — and the
+      // 2× golden is what caught it: the button had been inside `EmptyState`'s
+      // scroll view and fell off a 780dp phone. It is pinned now, so `tap`
+      // here is the assertion (it throws if the target is off-screen).
+      await t.tap(find.text('Mettre à jour'), warnIfMissed: true);
       await t.pump();
     });
   }
