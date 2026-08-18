@@ -260,7 +260,38 @@ These block everything. None is surface-specific.
 - [ ] **A support channel exists** and someone is behind it (WhatsApp per the
       product's context).
 - [ ] **Rate limiting** verified on the auth and booking routes against a real
-      hostile pattern, not a unit test.
+      hostile pattern, not a unit test. **Verified 2026-08-18 — and it FAILS**
+      ([design/backend-rate-limiting.md](design/backend-rate-limiting.md)).
+      - **Holds:** brute-forcing one identity stops at 5 wrong codes
+        (`otp_locked`); resending stops at 4 (`otp_resend_limit`). Both live in
+        Postgres, so they hold across instances.
+      - **Does not exist:** any per-IP limit, anywhere — not in the app, not at
+        the load balancer. Measured: **60/60 accepted, 23 OTP requests per
+        second from one client**, simply by rotating the identifier. And
+        **100/100** unauthenticated reads at 42 req/s.
+      - On production that is **23 real emails a second** from
+        `no-reply@myweli.com` to addresses an attacker chooses — a
+        deliverability attack on the launch domain, not a billing one.
+      - **Layer 1 is live and observed refusing, 2026-08-18.** Cloud Armor on
+        `myweli-api-backend`, 10/min per IP on `/auth/*`. Verified **on
+        production, in both directions**: an 18-request burst gave `202 ×10`
+        then `429 ×8`, and the control burst on `/providers` gave `200 ×18` —
+        so the rule refuses what it should and nothing else. 23/second
+        unbounded became 10/minute: a 99.3% reduction.
+        **It needed ~7 minutes to propagate.** A burst 2 minutes after
+        attaching passed 18/18, which is indistinguishable from a rule whose
+        expression never matches — worth knowing before concluding one is
+        broken.
+      - **Enforced rather than previewed, deliberately.** Preview calibrates
+        against real traffic and there is none: 2 users (both the owner's), 0
+        providers, 0 bookings, and 37 `/auth/*` requests in seven days, most of
+        them these probes. Preview would have learnt nothing while the hole
+        stayed open. Revisit the threshold when real traffic exists — shared
+        NAT in a salon is the false-positive risk, and it is a risk about a
+        future with users.
+      - **Layer 2** (the app-level limiter) still enforces nothing, pending the
+        `X-Forwarded-For` measurement in
+        [design/backend-rate-limiting.md](design/backend-rate-limiting.md) §4.
 - [ ] **The funnel has been walked by a person who did not build it**, on a real
       phone, on a real Ivorian network.
 
