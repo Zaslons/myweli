@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Module** | infrastructure (Cloud Scheduler, `backend/lib/src/cron_auth.dart`) |
-| **Status** | **Evidence obtained 2026-08-17; the header was RETIRED 2026-08-18 — §8.** |
+| **Status** | **Evidence obtained 2026-08-17; header RETIRED and deployed to both environments 2026-08-18 — §8.** |
 | **Owner** | Sadreddine Daher |
 | **Skills checked** | myweli-backend-guardrails |
 | **Related** | [DEPLOYMENT.md](../DEPLOYMENT.md) Phase C · [infra-staging.md](infra-staging.md) build order · [BACKEND.md](../BACKEND.md) §7 T21 |
@@ -127,6 +127,11 @@ step, in this order:
 3. `CRON_SECRET` can then leave `service.yaml` and Secret Manager — and until it
    does, an unset `CRON_SECRET` is still a live fallback, so removing the code
    before the jobs would be the wrong order.
+
+**This list turned out to be one step short.** Removing the secret from the
+manifest and deleting it from Secret Manager are *not* the same step: the
+running revision keeps its `secretKeyRef` until a deploy replaces it. See
+§8.4.1 — the deletion must follow the production deploy, not merely the commit.
 
 **Do not skip step 1's one-at-a-time.** Production's audience matches on all
 three sides (`https://api.myweli.com` in the manifest, the serving revision, and
@@ -367,22 +372,74 @@ plus a threshold plus a window, three numbers to get wrong. Not built.
 is fixed with it: `openapi.yaml` still documented a `?secret=` **query
 parameter** that the code had already stopped accepting.
 
-**The Secret Manager entries are NOT deleted here.** They are unmounted and
-unaccepted, so they authenticate nothing — but deletion is irreversible and is
-one command whenever wanted:
+`CRON_SECRET` was then deleted from Secret Manager, because the production value
+was printed in plain text while stripping the header from the jobs (§8.1) and
+should be considered disclosed. `STAGING_CRON_SECRET` remains — unmounted and
+unaccepted, and never exposed:
 
 ```bash
-gcloud secrets delete CRON_SECRET --project=myweli
-gcloud secrets delete STAGING_CRON_SECRET --project=myweli
+gcloud secrets delete STAGING_CRON_SECRET --project=myweli   # optional, inert either way
 ```
 
-Worth doing rather than leaving: the production value was printed in plain text
-while stripping the header from the jobs (§8.1), so it should be considered
-disclosed. It is inert either way.
+### 8.4.1 Never delete the secret before the revision that mounts it
 
-### 8.5 What is not true until production deploys
+**This is a fourth ordered step, and it was learned the hard way.**
 
-Merging this deploys **staging** automatically; production is a dispatch. Until
-that dispatch runs, production serves the old image and would still *accept* the
-header — but neither job sends it any more, so the fallback is already
-operationally dead. The deploy makes it structural.
+`CRON_SECRET` was deleted while production was still serving
+`myweli-api-00017-p4j` — a revision built from the *old* manifest, which mounted
+it with `secretKeyRef`. Production stayed healthy and answered `/health`
+normally, because **environment values are resolved when an instance starts**,
+and that instance had resolved the secret while it still existed.
+
+But any *new* instance of that revision could not have started. This document's
+own sibling already says what that looks like, in `service-staging.yaml`:
+
+> A `secretKeyRef` naming a secret that does not exist at all fails even earlier
+> — at revision creation, with no application log.
+
+So production was one instance replacement away from failing to serve, with
+nothing in the application log to explain it — a scale-up, a host migration, or
+any routine recycle. `minScale: 1` meant exactly one warm instance stood between
+the service and that. The window closed by deploying `-00018-l9q`, whose manifest
+does not mount the secret; the serving revision then reported **no CRON
+secretKeyRefs at all**.
+
+**The rule generalises, and it is the same shape as "never the code before the
+jobs" (§4):**
+
+> **The manifest is not the deployment.** Removing a secret from `service.yaml`
+> does not unmount it — the *running revision* is what holds the reference, and
+> it goes on holding it until a deploy replaces it. Delete the secret only after
+> the revision that mounts it is no longer serving.
+
+Which makes the retirement **four** steps, not three:
+
+1. strip the header from the Scheduler jobs, one at a time;
+2. stop accepting it in the code;
+3. remove it from the manifests **and deploy every environment**, so no serving
+   revision still references it;
+4. only then delete it from Secret Manager.
+
+Step 3's second half is the one that is easy to skip, because the diff looks
+finished and CI is green. Neither says anything about what is running.
+
+### 8.5 Both environments, deployed and verified
+
+| | |
+|---|---|
+| staging | `myweli-api-staging-00010-4cg` — auto-deployed on merge |
+| production | `myweli-api-00018-l9q` — dispatched, **promoting the exact digest staging validated** (`sha256:7e495247…` via tag `9a2552d`), so both run the identical artifact |
+
+Verified on each, and the pair is what makes it conclusive rather than
+suggestive:
+
+| | staging | production |
+|---|---|---|
+| Scheduler via OIDC, against code with no fallback | **200** | **200** |
+| the retired header, carrying the **correct** secret | **403** | — (secret deleted) |
+| `cron_auth_legacy` since | **0** | **0** — and now impossible; the branch is gone |
+| CRON `secretKeyRef` on the serving revision | none | none |
+
+The 403 is the one worth keeping: the credential that authenticated production
+crons for weeks now buys nothing, proven by presenting it rather than by
+asserting the code no longer reads it.
