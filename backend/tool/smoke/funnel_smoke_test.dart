@@ -61,6 +61,100 @@ final String jwtSecret = Platform.environment['JWT_SECRET'] ?? '';
 /// See docs/design/backend-q1b-smoke-seam.md.
 final String smokeSecret = Platform.environment['SMOKE_OTP_SECRET'] ?? '';
 
+/// The `ENV` the target SELF-REPORTS at `/health`, captured in `setUpAll`.
+///
+/// **Two assertions here are about the dev FIXTURE, not about the platform**,
+/// and this is how they tell the difference. `seedProvidersIfEmpty` runs only
+/// on `Env.dev`, so `provider1` exists nowhere else — and the gallery origin
+/// allowlist is empty (accept anything) only on dev, so `https://cdn.stub/…`
+/// is refused everywhere else with `invalid_input`.
+///
+/// Neither was noticed until 2026-08-18, because `smoke_target.dart` has
+/// permitted staging since it was written and nobody had ever pointed the
+/// harness at it. Both would fail against PRODUCTION too, which no longer has
+/// a seeded catalogue (docs/LAUNCH.md §5.1 deleted it).
+late final String targetEnv;
+
+/// True when the target carries the dev seed fixture.
+bool get hasDevFixture => targetEnv == 'dev';
+
+/// A gallery image URL the target will actually accept — by **uploading one**.
+///
+/// ## Two wrong answers before this one
+///
+/// The harness posted `https://cdn.stub/a.jpg`. That works only where the
+/// gallery origin allowlist is EMPTY, i.e. `Env.dev` (`galleryOriginsFor`);
+/// against staging it is `invalid_input`.
+///
+/// `asset:` looked like the fix — it is on the allowlist in every guarded
+/// environment — and it is not, for a better reason. When real storage is
+/// configured the gallery **promotes** every url out of `pending/`, and an
+/// `asset:` placeholder derives to no key. The bypass that used to let it
+/// through was deleted on purpose (`provider_catalog_service.dart`: "one url
+/// that does not derive to a key … silently skipped the ENTIRE block, so every
+/// other photo in that request was stored unverified and unpromoted — 200 now,
+/// gone tomorrow").
+///
+/// So the only shape that works against a real deployment is the one a real
+/// salon uses: presign → PUT the bytes → submit the returned public url —
+/// which makes this the first thing in the repo to exercise **R2 end to end**.
+///
+/// Falls back to the placeholder on dev, where storage is the Fake and
+/// `/uploads/sign` has nothing to sign.
+Future<String> uploadGalleryPhoto(String token, String salonId) async {
+  final signed = await post(
+    '/uploads/sign?salonId=$salonId',
+    body: {'contentType': 'image/jpeg', 'purpose': 'gallery'},
+    token: token,
+  );
+  final uploadUrl = signed.json['uploadUrl'] as String?;
+  final publicUrl = signed.json['publicUrl'] as String?;
+  if (signed.status != 200 || uploadUrl == null || publicUrl == null) {
+    return 'https://cdn.stub/${_photoNonce()}.jpg';
+  }
+
+  // **Dev/CI presigns SUCCEED — that is what reddened CI on the first try.**
+  // `FakeStorageService.presignPut` returns 200 with a `fake-storage.local`
+  // url, deliberately mirroring R2's shape so the fake exercises the same
+  // client path. So `status != 200` is NOT the test for "there is nothing to
+  // upload to" — the ORIGIN is. PUTting to that host throws a SocketException,
+  // which is exactly how CI went red while staging was green.
+  //
+  // Returning the public url unuploaded is correct there: with the Fake,
+  // `publicBaseUrl` is null, so the gallery's promotion block never runs and
+  // the origin allowlist is empty.
+  if (uploadUrl.startsWith(_fakeStorageOrigin)) return publicUrl;
+
+  // The smallest thing that is unambiguously a JPEG: SOI + EOI. The object only
+  // has to exist and be verifiable — nothing ever renders it.
+  final headers = <String, String>{
+    for (final e in (signed.json['headers'] as Map? ?? const {}).entries)
+      '${e.key}': '${e.value}',
+  };
+  final put = await _client.put(
+    Uri.parse(uploadUrl),
+    headers: headers,
+    body: <int>[0xFF, 0xD8, 0xFF, 0xD9],
+  );
+  if (put.statusCode < 200 || put.statusCode >= 300) {
+    throw StateError(
+      'gallery upload PUT failed (${put.statusCode}). The presign succeeded, so '
+      'this is storage refusing the bytes — most often the headers not matching '
+      'the ones the signature pins.',
+    );
+  }
+  return publicUrl;
+}
+
+/// `FakeStorageService.origin` — dev/CI storage. Duplicated rather than
+/// imported because this harness is a BLACK BOX: it speaks HTTP to a server it
+/// may not share a build with, and importing the server's own constants would
+/// let it agree with a server it is not talking to.
+const String _fakeStorageOrigin = 'https://fake-storage.local';
+
+int _photoSeq = 0;
+String _photoNonce() => 'smoke-${_photoSeq++}';
+
 /// Admin credentials, seeded by `dependencies.dart:750-752` when set. Phase 7
 /// needs them; they are fake and non-secret by construction.
 final String adminEmail = Platform.environment['ADMIN_EMAIL'] ?? '';
@@ -317,6 +411,7 @@ void main() {
       );
     }
     final reported = r.json['env'];
+    targetEnv = reported as String? ?? '';
     if (reported == null) {
       throw StateError(
         'Refusing to run: $baseUrl/health does not report `env`. Either it is '
@@ -362,13 +457,26 @@ void main() {
       );
       final items = r.json['items'] as List;
       steps++;
-      expect(
-        items.any((e) => (e as Map)['id'] == 'provider1'),
-        isTrue,
-        reason:
-            'migrations + seed did not run on a real Postgres, or the '
-            'discovery filter hides live salons — a blank home screen',
-      );
+      // **The seeded catalogue is a DEV fixture, not a platform property.**
+      // `seedProvidersIfEmpty` is `Env.dev`-only, so `provider1` exists nowhere
+      // else — and asserting it unconditionally made this harness pass only
+      // against the one environment it was ever pointed at. It would fail
+      // against production too, which deliberately has zero salons since
+      // LAUNCH.md §5.1's purge.
+      //
+      // What is asserted everywhere is the ENVELOPE above: the list answers
+      // with the contract's shape. Whether it has rows in it is a question
+      // about the data, and Phase 2 builds its own salon rather than borrowing
+      // one.
+      if (hasDevFixture) {
+        expect(
+          items.any((e) => (e as Map)['id'] == 'provider1'),
+          isTrue,
+          reason:
+              'migrations + seed did not run on a real Postgres, or the '
+              'discovery filter hides live salons — a blank home screen',
+        );
+      }
     });
 
     test('A2b a SEEDED salon is readable by DETAIL, not just by list', () async {
@@ -395,6 +503,13 @@ void main() {
       // reads a SEEDED salon by detail, only through `/providers`, which
       // filters in the repository (`postgres_providers_repository.dart:35`)
       // rather than through the predicate.
+      //
+      // Same fixture caveat as A2: `provider1` is the dev seed and exists
+      // nowhere else. Against a deployed target the equivalent read happens in
+      // Phase 2 (A20) on the salon this harness built itself, which is a
+      // stronger test of the same door — it is `active` because we published
+      // it, not because a seeder did.
+      if (!hasDevFixture) return;
       final r = await get('/providers/provider1');
       expectStatus(r, 200, 'A2b seeded salon detail read');
       steps++;
@@ -558,9 +673,9 @@ void main() {
         token: proToken,
         body: {
           'imageUrls': [
-            'https://cdn.stub/a.jpg',
-            'https://cdn.stub/b.jpg',
-            'https://cdn.stub/c.jpg',
+            await uploadGalleryPhoto(proToken, salon),
+            await uploadGalleryPhoto(proToken, salon),
+            await uploadGalleryPhoto(proToken, salon),
           ],
         },
       );
