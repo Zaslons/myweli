@@ -161,15 +161,13 @@ export interface paths {
         put?: never;
         /**
          * Reminder cron tick — dispatch due 24h/2h reminders (internal)
-         * @description Hit by an external scheduler (~every 15 min). Guarded by `CRON_SECRET` (`X-Cron-Secret` header or `?secret=`): 404 when unset (off), 403 on mismatch. Idempotent per tick.
+         * @description Hit by Cloud Scheduler (~every 15 min). Authenticated ONLY by the Google-signed OIDC token in `Authorization: Bearer`, verified against `CRON_OIDC_AUDIENCE` with the principal pinned to `CRON_SERVICE_ACCOUNT`. 404 when that pair is unconfigured (the surface does not exist), 403 otherwise. Idempotent per tick. The transitional `X-Cron-Secret` header was retired on 2026-08-18, and the `?secret=` query form before it — see docs/design/infra-cron-oidc-evidence.md.
          */
         post: {
             parameters: {
-                query?: {
-                    secret?: string;
-                };
+                query?: never;
                 header?: {
-                    "X-Cron-Secret"?: string;
+                    Authorization?: string;
                 };
                 path?: never;
                 cookie?: never;

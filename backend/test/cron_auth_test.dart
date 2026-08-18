@@ -35,33 +35,24 @@ class _StubVerifier implements IdTokenVerifier {
 
 void main() {
   const schedulerSa = 'myweli-scheduler@myweli.iam.gserviceaccount.com';
-  const secret = 'a-long-random-cron-secret-value';
-
-  CronAuth build({
-    IdTokenVerifier? verifier,
-    String? sa = schedulerSa,
-    String? shared = secret,
-  }) => CronAuth(
-    oidcVerifier: verifier,
-    schedulerServiceAccount: sa,
-    sharedSecret: shared,
-  );
+  CronAuth build({IdTokenVerifier? verifier, String? sa = schedulerSa}) =>
+      CronAuth(oidcVerifier: verifier, schedulerServiceAccount: sa);
 
   group('deny by default', () {
-    test('nothing configured → the route does not exist', () {
-      expect(build(sa: null, shared: null).isConfigured, isFalse);
+    test('no verifier → the route does not exist', () {
+      // The transitional shared secret is gone (2026-08-18), so OIDC is the
+      // only mechanism: unconfigured means 404, not a route that exists and
+      // can never authenticate anyone.
+      expect(build().isConfigured, isFalse);
+      expect(build(sa: null).isConfigured, isFalse);
     });
 
-    test('either mechanism configured → it exists', () {
-      expect(
-        build(shared: null, verifier: _StubVerifier()).isConfigured,
-        isTrue,
-      );
-      expect(build().isConfigured, isTrue);
+    test('a verifier → it exists', () {
+      expect(build(verifier: _StubVerifier()).isConfigured, isTrue);
     });
 
     test('no credentials at all → forbidden', () async {
-      final res = await build().authenticate();
+      final res = await build(verifier: _StubVerifier()).authenticate();
       expect(res.ok, isFalse);
       expect(res.error, 'forbidden');
     });
@@ -72,7 +63,6 @@ void main() {
       final v = _StubVerifier(email: schedulerSa);
       final res = await build(verifier: v).authenticate(bearer: 'Bearer tok');
       expect(res.ok, isTrue);
-      expect(res.method, CronAuthMethod.oidc);
       expect(v.calls, 1);
     });
 
@@ -117,59 +107,71 @@ void main() {
       },
     );
 
-    test('a valid OIDC token wins without the header being present', () async {
-      // The end state: once the Scheduler jobs stop carrying the secret, this
-      // is the only path left.
+    test('a valid OIDC token is the only path there is', () async {
       final res = await build(
         verifier: _StubVerifier(email: schedulerSa),
-        shared: null,
       ).authenticate(bearer: 'Bearer tok');
       expect(res.ok, isTrue);
-      expect(res.method, CronAuthMethod.oidc);
     });
   });
 
-  group('shared secret — transitional, and reported as such', () {
-    test(
-      'the correct header authenticates, and says which path it took',
-      () async {
-        final res = await build().authenticate(headerSecret: secret);
-        expect(res.ok, isTrue);
-        expect(
-          res.method,
-          CronAuthMethod.sharedSecret,
-          reason:
-              'the route logs this — it is the signal that the header can go',
-        );
-      },
-    );
+  group('the retired shared secret cannot come back', () {
+    // These are the tests that used to prove the fallback WORKED. Inverted
+    // rather than deleted: the header is now inert, and a silently-vanished
+    // group is indistinguishable from one that was never there.
 
-    test('a wrong secret is refused', () async {
-      expect((await build().authenticate(headerSecret: 'nope')).ok, isFalse);
-    });
-
-    test('a prefix of the real secret is refused', () async {
-      // Guards the constant-time comparison against a length short-circuit.
-      expect(
-        (await build().authenticate(
-          headerSecret: secret.substring(0, secret.length - 1),
-        )).ok,
-        isFalse,
-      );
-    });
-
-    test('an empty secret does not authenticate', () async {
-      expect((await build().authenticate(headerSecret: '')).ok, isFalse);
-    });
-
-    test('a bad OIDC token falls through to a good header', () async {
-      // During the transition a misconfigured audience must not take the crons
-      // down — the fallback is the whole point of shipping both at once.
+    test('a bad OIDC token is refused outright — there is no fallback', () async {
+      // This is the behaviour change. It used to fall through to the header so
+      // a misconfigured audience could not take the crons down; now an audience
+      // that stops matching CRON_OIDC_AUDIENCE fails closed, and
+      // 86-cron-auth-alert.sh is what makes that visible.
       final res = await build(
         verifier: _StubVerifier(ok: false),
-      ).authenticate(bearer: 'Bearer tok', headerSecret: secret);
-      expect(res.ok, isTrue);
-      expect(res.method, CronAuthMethod.sharedSecret);
+      ).authenticate(bearer: 'Bearer tok');
+      expect(res.ok, isFalse);
+      expect(res.error, 'forbidden');
+    });
+
+    test('authenticate() accepts no secret parameter at all', () {
+      // Checked against CODE, not prose: the class doc deliberately still says
+      // what was retired and why, so a plain `contains` over the whole file
+      // would fail on its own documentation. Comment lines are stripped first.
+      final code = File('lib/src/cron_auth.dart')
+          .readAsLinesSync()
+          .where((l) => !l.trimLeft().startsWith('//'))
+          .join('\n');
+      for (final gone in [
+        'sharedSecret',
+        'headerSecret',
+        'CronAuthMethod',
+        'x-cron-secret',
+      ]) {
+        expect(
+          code,
+          isNot(contains(gone)),
+          reason: '`$gone` is back in cron_auth.dart',
+        );
+      }
+    });
+
+    test('no route reads the header any more', () {
+      for (final f in [
+        'routes/internal/cron/reminders.dart',
+        'routes/internal/cron/subscriptions.dart',
+      ]) {
+        // Comment lines stripped, same as above: both routes' docs still say
+        // what was retired, and they should.
+        final code = File(f)
+            .readAsLinesSync()
+            .where((l) => !l.trimLeft().startsWith('//'))
+            .join('\n')
+            .toLowerCase();
+        expect(
+          code,
+          isNot(contains('cron-secret')),
+          reason: '$f still reads the retired header',
+        );
+      }
     });
   });
 

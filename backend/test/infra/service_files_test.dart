@@ -452,6 +452,11 @@ void main() {
     // were absent from production for the whole life of the feature, so every
     // cron run authenticated on the shared `X-Cron-Secret` header while the
     // better mechanism looked configured.
+    //
+    // That header was retired on 2026-08-18, so these two are no longer the
+    // BETTER mechanism — they are the ONLY one. Missing either now means the
+    // route 404s and the crons stop, rather than quietly degrading to a
+    // fallback (docs/design/infra-cron-oidc-evidence.md §8).
     test('both environments set both variables', () {
       for (final entry in files.entries) {
         for (final key in ['CRON_OIDC_AUDIENCE', 'CRON_SERVICE_ACCOUNT']) {

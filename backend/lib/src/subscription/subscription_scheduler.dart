@@ -9,8 +9,8 @@ import 'salon_subscription_service.dart';
 typedef SubscriptionTickResult = ({int notices, int unpublished});
 
 /// The daily subscription walk (docs/design/team-access-r2a-offers.md),
-/// driven by `POST /internal/cron/subscriptions` (CRON_SECRET-gated, like
-/// the reminders cron). Idempotent: every notice fires once per
+/// driven by `POST /internal/cron/subscriptions` (OIDC-gated, like the
+/// reminders cron). Idempotent: every notice fires once per
 /// (salon, kind) per billing cycle; enforcement flips a salon to `draft`
 /// ONLY when [enforce] is on and the grace window has ended — never a data
 /// lockout (T51 keeps the journal/data fully usable).

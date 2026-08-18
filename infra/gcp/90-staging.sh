@@ -202,7 +202,6 @@ fi
 # minted in staging — where we deliberately hand out admin credentials —
 # authenticate against production.
 put_secret STAGING_JWT_SECRET "$(gen)"
-put_secret STAGING_CRON_SECRET "$(gen)"
 put_secret STAGING_MESSAGING_WEBHOOK_SECRET "$(gen)"
 put_secret STAGING_ADMIN_PASSWORD "$(gen)"
 

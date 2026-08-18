@@ -1,34 +1,39 @@
 #!/usr/bin/env bash
-# Alert the moment a cron authenticates on the LEGACY shared secret.
+# Alert when a cron call is REFUSED.
 #
-# WHY. `cron_auth.dart` tries the OIDC token first and falls back to the
-# `X-Cron-Secret` header, so a fallback returns the same 200 as a success — the
-# route cannot tell you which credential worked, and neither can the cron
-# history. `reminders.dart` and `subscriptions.dart` therefore print
-# `cron_auth_legacy` when the shared secret is what authenticated.
+# WHAT THIS REPLACED, AND WHY. Until 2026-08-18 this file alerted on
+# `cron_auth_legacy` — the log line the routes printed when a cron authenticated
+# on the transitional `X-Cron-Secret` header instead of its OIDC token. That
+# header is now retired (docs/design/infra-cron-oidc-evidence.md §8), the branch
+# that printed the line is deleted, and so the old policy could never fire again.
+# A permanently-inert alert is worse than none, because it looks like coverage.
 #
-# That gate was placed on purpose and nobody queried it for five days. The
-# fallback ran ~2.5 days (2026-08-12 → 2026-08-15, revisions 00013–00016),
-# stopped when `-00017-p4j` deployed, and BOTH events went unnoticed — so the
-# documentation kept saying the OIDC evidence was owed for two days after it
-# existed. A `print` nobody reads is not evidence, it is a diary.
-# Details: docs/design/infra-cron-oidc-evidence.md.
+# THE FAILURE MODE MOVED. `cron_auth.dart` used to fall through to the secret
+# when OIDC verification failed, precisely so a misconfigured audience could not
+# take the crons down. With the fallback gone it fails closed: an audience that
+# stops matching `CRON_OIDC_AUDIENCE` — a redeploy, a changed run.app hostname,
+# a rotated service account — turns every cron into a 403 and the reminders
+# simply stop. Nothing else would notice: the service stays healthy, the uptime
+# checks stay green, and Scheduler keeps reporting its own attempts as made.
 #
-# WHY A LOG-BASED ALERT, NOT A METRIC + THRESHOLD. This is a should-never-happen
-# event, not a rate to watch. `conditionMatchedLog` fires on the FIRST matching
-# entry with no aggregation window, which is the right shape: one fallback is
-# already the whole finding. A counter metric would need a threshold, and any
-# threshold above zero is a decision to tolerate some silent fallbacks.
+# So the alert now watches for what that looks like from the receiving end: any
+# request to `/internal/cron/*` that does not return 2xx.
 #
-# BOTH SERVICES, deliberately. Production still SENDS the header, so a line there
-# means OIDC verification has started failing and the fallback is covering it.
-# Staging sends no header at all, so a line there means someone added one — or
-# the jobs were rebuilt from production's definition by mistake.
+# WHY NOT "no successful run in N minutes". That would also catch a paused or
+# deleted job, which is strictly more coverage — but Cloud Monitoring has no
+# absence-of-log condition, so it needs a counter metric plus a threshold plus a
+# window, and every one of those is a number to get wrong. A 4xx/5xx on a route
+# only Cloud Scheduler can reach is unambiguous and fires on the first one.
+# Recorded as the known gap: a job that stops running entirely is NOT covered.
+#
+# BOTH SERVICES. Staging is where a broken audience should surface first — it
+# redeploys on every merge to main, and its audience is a `*.run.app` hostname
+# that a service recreation would change.
 #
 # Idempotent-ish, like its siblings: `create` fails if the display name already
 # exists. Delete first or edit in the console.
 #
-# Design: docs/design/infra-cron-oidc-evidence.md §6
+# Design: docs/design/infra-cron-oidc-evidence.md §8
 set -euo pipefail
 
 PROJECT=myweli
@@ -50,14 +55,14 @@ echo "notification channel: ${CHANNEL}"
 #   · no severity filter. The line is printed at INFO (it is `print`), and
 #     filtering on severity is one more way for the alert to stop matching if the
 #     app ever switches to a structured logger.
-cat > /tmp/policy-cron-auth-legacy.json <<JSON
+cat > /tmp/policy-cron-refused.json <<JSON
 {
-  "displayName": "A cron authenticated on the LEGACY shared secret",
+  "displayName": "A cron call was REFUSED",
   "combiner": "OR",
   "conditions": [{
-    "displayName": "cron_auth_legacy appeared in the logs",
+    "displayName": "a request to /internal/cron/* did not return 2xx",
     "conditionMatchedLog": {
-      "filter": "resource.type=\\"cloud_run_revision\\" AND (resource.labels.service_name=\\"myweli-api\\" OR resource.labels.service_name=\\"myweli-api-staging\\") AND textPayload:\\"cron_auth_legacy\\""
+      "filter": "resource.type=\\"cloud_run_revision\\" AND (resource.labels.service_name=\\"myweli-api\\" OR resource.labels.service_name=\\"myweli-api-staging\\") AND httpRequest.requestUrl:\\"/internal/cron/\\" AND httpRequest.status>=400"
     }
   }],
   "alertStrategy": {
@@ -66,14 +71,14 @@ cat > /tmp/policy-cron-auth-legacy.json <<JSON
   },
   "notificationChannels": ["${CHANNEL}"],
   "documentation": {
-    "content": "A Cloud Scheduler cron authenticated with the transitional \`X-Cron-Secret\` header instead of its Google-signed OIDC token.\\n\\nOn PRODUCTION this means OIDC verification is failing and the fallback is hiding it - the request still returned 200, which is exactly why this log line exists. Check that the job's oidcToken audience still equals CRON_OIDC_AUDIENCE on the serving revision; they must match exactly.\\n\\nOn STAGING it means something added an X-Cron-Secret header to a job that is meant to carry OIDC only, or the jobs were recreated from production's definition.\\n\\nRunbook: docs/design/infra-cron-oidc-evidence.md",
+    "content": "A request to /internal/cron/* was refused. Since the transitional X-Cron-Secret fallback was retired (2026-08-18) the OIDC token is the ONLY way in, so a 403 here means the crons have stopped - reminders are not being dispatched and nobody else will notice, because the service is healthy and the uptime checks are green.\\n\\nFirst check: the Scheduler job's oidcToken.audience must equal CRON_OIDC_AUDIENCE on the SERVING revision, exactly. Compare all three - the manifest, the running service, and the job.\\n\\n  gcloud scheduler jobs describe myweli-reminders --location europe-west9 --format='value(httpTarget.oidcToken.audience)'\\n  gcloud run services describe myweli-api --region europe-west9 --format=json | grep -A1 CRON_OIDC_AUDIENCE\\n\\nA 404 instead means CRON_OIDC_AUDIENCE or CRON_SERVICE_ACCOUNT is unset on the revision, so the route does not exist at all.\\n\\nRunbook: docs/design/infra-cron-oidc-evidence.md",
     "mimeType": "text/markdown"
   }
 }
 JSON
 
 CLOUDSDK_CORE_DISABLE_PROMPTS=1 gcloud alpha monitoring policies create \
-  --project="${PROJECT}" --policy-from-file=/tmp/policy-cron-auth-legacy.json
+  --project="${PROJECT}" --policy-from-file=/tmp/policy-cron-refused.json
 
 echo
 echo "Policies now configured:"
@@ -83,39 +88,33 @@ gcloud alpha monitoring policies list --project="${PROJECT}" \
 cat <<'NOTE'
 
 VERIFYING IT CAN FIRE. A log-based alert only sees entries written after it
-exists, and production is currently on the OIDC path — so this policy will read
-"no incidents" forever whether or not its filter is correct. That is the exact
-shape of a check that cannot fire.
+exists, so a policy whose filter is wrong reads "no incidents" forever and looks
+identical to a healthy system.
 
 *** WAIT SEVERAL MINUTES AFTER CREATING THE POLICY BEFORE TESTING. ***
-A newly created policy is not evaluating yet. Measured here: a trigger 58
-SECONDS after creation produced the log line and NO incident, which reads
-exactly like a broken filter and sent this investigation down the wrong path.
-The same trigger against the same policy five hours later opened an incident in
-35 seconds. Give it five minutes.
+Measured: a trigger 58 SECONDS after creation produced the log line and NO
+incident, which reads exactly like a broken filter. The same trigger five hours
+later opened an incident in 35 seconds.
 
-Prove it against the real code path, on staging, by authenticating a cron with
-the shared secret on purpose:
+The old recipe for this file - send an X-Cron-Secret header - CANNOT work any
+more, because that is the whole point of the change: the header is refused. Use
+that refusal instead, which is now the thing being watched:
 
-  SECRET=$(gcloud secrets versions access latest --secret=STAGING_CRON_SECRET)
   URL=$(gcloud run services describe myweli-api-staging --region europe-west9 \
           --format='value(status.url)')
-  curl -s -o /dev/null -w '%{http_code}\n' -X POST \
-    -H "X-Cron-Secret: ${SECRET}" "${URL}/internal/cron/reminders"
+  curl -s -o /dev/null -w '%{http_code}\n' -X POST "${URL}/internal/cron/reminders"
 
-That returns 200 via the fallback and prints cron_auth_legacy, which is a real
-line from the real branch rather than an injected entry. It will open an incident
-and send mail - that is the point.
-
-Then confirm the incident WITHOUT the console. There is no incidents API, but
-Monitoring writes every opening to Cloud Logging:
+An unauthenticated POST returns 403 and is logged as a 4xx on that route, which
+is exactly the shape a broken OIDC audience produces. Confirm the incident
+without the console - there is no incidents API, but Monitoring logs every
+opening:
 
   gcloud logging read \
     'logName:"monitoring.googleapis.com%2FViolationOpenEventv1"' \
     --limit=5 --freshness=1h \
     --format='value(timestamp,labels.policy_display_name,labels.terse_message)'
 
-That is the only programmatic proof available. Notification DELIVERY is not
-logged anywhere - ViolationOpenEventv1 is the only monitoring.googleapis.com
-stream this project has - so the inbox remains the ground truth for the last hop.
+Notification DELIVERY is not logged anywhere, but it was confirmed by hand on
+2026-08-17: the mail arrived from alerting-noreply@google.com in the same second
+the incident opened.
 NOTE

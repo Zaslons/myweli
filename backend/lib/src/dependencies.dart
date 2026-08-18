@@ -867,11 +867,10 @@ final String? _sentryDsn = _envOrNull('SENTRY_DSN');
 /// anything — errors group by the exact artifact that produced them.
 final String? _release = _envOrNull('RELEASE');
 
-final String? cronSecret = _envOrNull('CRON_SECRET');
-
 /// Authenticates `/internal/cron/*` — the Google-signed OIDC token Cloud
-/// Scheduler already sends, with `CRON_SECRET` as the transitional fallback.
-/// See `cron_auth.dart` for why both exist at once.
+/// Scheduler already sends. The transitional `X-Cron-Secret` fallback was
+/// retired on 2026-08-18; see `cron_auth.dart` for the evidence that preceded
+/// it.
 ///
 /// `CRON_OIDC_AUDIENCE` must equal the `audience` on the Scheduler job
 /// (`https://api.myweli.com`), and `CRON_SERVICE_ACCOUNT` the job's
@@ -885,7 +884,6 @@ final CronAuth cronAuth = () {
         ? null
         : GoogleIdTokenVerifier(clientIds: [audience]),
     schedulerServiceAccount: serviceAccount,
-    sharedSecret: cronSecret,
   );
 }();
 
