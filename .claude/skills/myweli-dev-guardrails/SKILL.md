@@ -34,6 +34,12 @@ The two source-of-truth documents hold the detail; this skill makes sure they're
 >
 > Either way, this skill still governs the cross-cutting rules (V1 scope, git/PR workflow, no-Claude-attribution).
 
+> **About to say something WORKS, is configured, is deployed, or is done?** Also
+> invoke **`myweli-verification-guardrails`** — every rule in it was learned from
+> a real defect here: a check that could not fire, a document that was true when
+> written, a claim about a console this repo cannot see. It is the one to reach
+> for before ticking a box or reporting a PR as verified.
+
 If a rule below is ambiguous or a situation isn't covered, check these two docs first. If they don't answer it, ask the user — and propose updating the docs so the answer is captured for next time.
 
 ## Modules & the full-depth rule (2026-07-07)
