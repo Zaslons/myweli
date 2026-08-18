@@ -71,6 +71,11 @@ void main() {
     // typed a number".
     const snackBarComponent = '/widgets/common/app_snack_bar.dart';
     const dialogComponent = '/widgets/common/confirm_dialog.dart';
+    // The second dialog component, and the split is by BEHAVIOUR: ConfirmDialog
+    // decides and pops; FormDialog edits and must survive its own failure, so a
+    // server fault can attach to a field with the dialog still open and the
+    // values still typed. Two files own an AlertDialog; no screen does.
+    const formDialogComponent = '/widgets/common/form_dialog.dart';
 
     test('one snackbar entry point — no raw showSnackBar (§15)', () {
       expect(
@@ -99,7 +104,7 @@ void main() {
       expect(
         offenders(
           RegExp(r'(?:^|[^A-Za-z0-9_])AlertDialog\('),
-          allow: [dialogComponent],
+          allow: [dialogComponent, formDialogComponent],
         ),
         isEmpty,
         reason:
@@ -115,12 +120,14 @@ void main() {
       expect(
         offenders(
           RegExp(r'showDialog<(?:bool|String)>'),
-          allow: [dialogComponent],
+          allow: [dialogComponent, formDialogComponent],
         ),
         isEmpty,
         reason:
-            'a bool/String dialog IS a confirm or an input — both belong '
-            'to ConfirmDialog. (showDialog<void> for a lightbox is fine.)',
+            'a bool/String dialog IS a confirm, an input or a form — they '
+            'belong to ConfirmDialog / FormDialog, whose entry points own the '
+            'raw showDialog so this stays a grep rather than a convention. '
+            '(showDialog<void> for a lightbox is fine.)',
       );
     });
 

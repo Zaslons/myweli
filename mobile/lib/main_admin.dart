@@ -14,6 +14,7 @@ import 'core/utils/logger.dart';
 import 'core/utils/salon_time.dart';
 import 'providers/admin/admin_audit_provider.dart';
 import 'providers/admin/admin_auth_provider.dart';
+import 'providers/admin/admin_client_version_provider.dart';
 import 'providers/admin/admin_dashboard_provider.dart';
 import 'providers/admin/admin_dispute_detail_provider.dart';
 import 'providers/admin/admin_disputes_provider.dart';
@@ -74,6 +75,7 @@ class MyweliAdminApp extends StatelessWidget {
       child: MultiProvider(
         providers: [
           ChangeNotifierProvider(create: (_) => AdminDashboardProvider()),
+          ChangeNotifierProvider(create: (_) => AdminClientVersionProvider()),
           ChangeNotifierProvider(create: (_) => AdminKycProvider()),
           ChangeNotifierProvider(create: (_) => AdminModerationProvider()),
           ChangeNotifierProvider(create: (_) => AdminProvidersProvider()),
