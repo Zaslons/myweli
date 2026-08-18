@@ -37,6 +37,11 @@ const _groups = [
   _NavGroup('Opérations', [
     _NavItem('/admin/disputes', Icons.gavel_outlined, 'Litiges'),
     _NavItem('/admin/audit', Icons.history, 'Journal'),
+    _NavItem(
+      '/admin/client-version',
+      Icons.system_update_outlined,
+      'Versions client',
+    ),
   ]),
 ];
 

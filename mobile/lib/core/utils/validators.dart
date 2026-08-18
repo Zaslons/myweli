@@ -104,6 +104,25 @@ class Validators {
     return parsed <= 0 ? 'Indiquez $what supérieur à 0.' : null;
   };
 
+  /// A build number — digits only, **zero allowed**.
+  ///
+  /// Not [amount], and the difference is the whole reason this exists: `amount`
+  /// rejects 0, while 0 is the legal value on a version floor meaning *no
+  /// floor* — and the most common one, since every row ships at 0. Reusing
+  /// `amount` would make the default state unsavable.
+  ///
+  /// The ceiling mirrors the server's (`admin_client_version_service.dart`): a
+  /// floor above every build that will ever exist locks out everyone, and it is
+  /// far more likely to be a typo than an intention.
+  static FieldValidator buildNumber(String what) => (value) {
+    final text = value.trim();
+    if (text.isEmpty) return 'Indiquez $what.';
+    final parsed = int.tryParse(text);
+    if (parsed == null) return 'Indiquez $what en chiffres.';
+    if (parsed < 0) return 'Indiquez $what à partir de 0.';
+    return parsed > 1000000 ? 'Indiquez $what en dessous de 1 000 000.' : null;
+  };
+
   /// A duration in whole minutes, strictly positive.
   static FieldValidator minutes(String what) => (value) {
     final text = value.trim();

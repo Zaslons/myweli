@@ -324,11 +324,20 @@ v1.0 shipped without the check can never be told to update, so the floor can
 only ever apply from v1.1 onward. That makes this an iOS-blocker, not a
 post-launch item.
 
-- [ ] Backend exposes a minimum supported client version.
-- [ ] App checks it at startup and, below the floor, blocks with a « Mettre à
-      jour » screen rather than failing in strange ways.
-- [ ] Chosen deliberately: this is the only lever that works on a phone we
-      cannot reach.
+- [x] Backend exposes a minimum supported client version. **Done 2026-08-18** —
+      `GET /client-version`, the floor in the database so it moves in seconds
+      rather than a revision rollout
+      ([design/client-version-gate.md](design/client-version-gate.md)).
+- [x] App checks it at startup and, below the floor, blocks with a « Mettre à
+      jour » screen rather than failing in strange ways. **Done** — both
+      flavours, decided before the first frame, and **failing open on every
+      ambiguity** so a flaky network never bricks a working app.
+- [x] Chosen deliberately: this is the only lever that works on a phone we
+      cannot reach. **And it is set from the admin console**, not SQL.
+- [ ] **Still owed: the iOS `updateUrl`.** It stays NULL until the App Store
+      Connect record mints an `adamId`, and the server refuses to block a
+      platform it has nowhere to send — so the mechanism is safe today and the
+      iOS half is inert until that listing exists.
 
 ### 5.4 Web previews DID write to production — ~~confirmed 2026-08-12~~ **fixed 2026-08-18**
 
@@ -532,9 +541,10 @@ Ordered by what unblocks what, not by size:
    per surface. This also unblocks the crash-rate threshold, which §1.4's staged
    rollout is defined in terms of — so it is an iOS prerequisite, not telemetry
    nice-to-have.
-4. **Minimum supported version** (§5.3). Uniquely order-sensitive: a v1.0 shipped
-   without the check can never be told to update, so the floor would only ever
-   apply from v1.1. It is cheap now and impossible later.
+4. ~~**Minimum supported version**~~ **Done 2026-08-18** (§5.3), in three
+   slices. The mechanism is in the first build, which was the whole point of the
+   ordering; every floor ships at 0, so it changes nobody's behaviour until
+   someone deliberately raises one.
 5. **Add `com.apple.developer.applesignin`** to both entitlements files and the
    App ID (§6.2) — before the first archive, since 4.8 is found at review.
 6. **Rehearse the funnel on staging** (§4) — `funnel_smoke_test.dart` already

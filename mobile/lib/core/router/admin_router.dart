@@ -2,6 +2,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../providers/admin/admin_auth_provider.dart';
 import '../../screens/admin/admin_audit_screen.dart';
+import '../../screens/admin/admin_client_version_screen.dart';
 import '../../screens/admin/admin_dashboard_screen.dart';
 import '../../screens/admin/admin_dispute_detail_screen.dart';
 import '../../screens/admin/admin_disputes_screen.dart';
@@ -66,6 +67,10 @@ GoRouter createAdminRouter(AdminAuthProvider auth) => GoRouter(
           AdminDisputeDetailScreen(id: state.pathParameters['id']!),
     ),
     GoRoute(path: '/admin/audit', builder: (_, _) => const AdminAuditScreen()),
+    GoRoute(
+      path: '/admin/client-version',
+      builder: (_, _) => const AdminClientVersionScreen(),
+    ),
     GoRoute(
       path: '/admin/kyc/:id',
       builder: (_, state) =>

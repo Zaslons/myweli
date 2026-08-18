@@ -13,6 +13,7 @@ const Map<String, String> kAuditActions = {
   'user.unban': 'Client réactivé',
   'dispute.open': 'Litige ouvert',
   'dispute.resolve': 'Litige résolu',
+  'client_floor.set': 'Version minimale modifiée',
 };
 
 /// French label for an audit action code (falls back to the raw code).

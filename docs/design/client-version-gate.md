@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Slices 1 (backend) and 2 (mobile) built · slice 3 (admin console) pending |
+| **Status** | **Built** — all three slices |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-08-18 |
 | **PRD ref / phase** | LAUNCH.md §5.3 · V1 (launch gate) |
@@ -222,6 +222,75 @@ acceptable because the value being set is `0`.
 2. **The Android `<queries>` fix is unverified on a device.** Whether
    `launchUrl(externalApplication)` currently fails without it is UNVERIFIED — no
    device run. The manifest entry landed in slice 2 regardless.
+
+## 14. Slice 3 — the admin console screen
+
+**The UX section this spec owed.** §10 said "the admin console last — until it
+exists the floors are set by SQL", which was acceptable only while every value
+was `0`. The moment a floor is raised in anger, the person raising it should not
+be writing SQL against production.
+
+### The screen
+
+`/admin/client-version`, in the sidebar under **Opérations**. One
+`AdminDataTable` of four rows — the (app × platform) pairs migration 0032
+created and that nothing can add to — with an **Modifier** action per row.
+
+| Column | Value |
+|---|---|
+| Application | `MyWeli` / `MyWeli Pro`, from the app id |
+| Plateforme | Android / iOS |
+| Build minimum | the number, or « aucun » for 0 |
+| Build recommandé | the number, or « aucun » for 0 |
+| Lien | a `StatusChip` — configured, or **« manquant »** |
+
+**The « manquant » chip is the point of the Lien column.** A platform with no
+store URL is never blocked whatever the floor says (§4), so a floor set on a
+row with no link is a setting that silently does nothing. Showing it as a status
+rather than a URL is what makes that visible before someone relies on it.
+
+### The edit dialog
+
+Three fields: minimum build, recommended build, update URL. Not a single-field
+`showReasonDialog` — that widget takes one sentence-cased text area and this is
+two integers and a URL.
+
+**Errors belong to fields, not toasts** (SYSTEM.md §830). That includes the
+*server's* errors: `invalid_minimum_build`, `invalid_recommended_build`,
+`invalid_update_url` and `recommended_below_minimum` all name a field, so they
+attach to it via `FieldErrors.set` rather than surfacing as a snackbar the user
+must remember while retyping. Only the outcome — saved, or `not_found` — is a
+snackbar, and only after the dialog closes (a snackbar under an open dialog is
+invisible and pruned from the semantics tree).
+
+**A new validator, because none of the existing ones fit.** `Validators.amount`
+rejects `0`, and `0` is the legal value meaning *no floor* — the most common
+value on this screen. Reusing it would make the default state unsavable.
+
+### The system gained a component, because it lacked one
+
+The design-system pin refused a hand-built `AlertDialog` (§15: *"one
+ConfirmDialog"*), and it was right to. But `ConfirmDialog` does not fit either:
+it is a **decision** — at most one field, and it **pops on confirm**. A form has
+to survive its own failure, because a server fault that names a field must
+attach to that field with the dialog still open and the values still typed.
+Popping first and reporting after is how an operator retypes three inputs from a
+snackbar they can no longer see.
+
+So `FormDialog` was added to the system rather than worked around in a screen —
+the split is by **behaviour**: decide → `ConfirmDialog`, edit → `FormDialog`.
+Both own their `AlertDialog` and both expose an entry point, so the pin's rule
+stays a grep rather than a convention. It gained a second allowed file, not an
+exception.
+
+### What this screen deliberately does not do
+
+- **No row creation or deletion.** The four pairs are a property of what we
+  ship; the backend refuses to create rows for the same reason (§6), and an
+  admin who could invent `com.myweli.typo` would get a row that governs nothing.
+- **No "apply to all platforms".** iOS review latency means the same build ships
+  days apart; a single control that moved both floors would be the easiest way
+  to lock out an iPhone user for a build Apple has not approved yet.
 
 ## 13. What slice 2 changed about this spec
 

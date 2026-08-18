@@ -211,6 +211,45 @@ class AdminService {
     return _shape(res);
   }
 
+  // --- client version floors (docs/design/client-version-gate.md §14) -------
+
+  Future<ApiResponse<Map<String, dynamic>>> clientVersionFloors() =>
+      _get('/admin/client-version');
+
+  Future<ApiResponse<Map<String, dynamic>>> setClientVersionFloor({
+    required String appId,
+    required String platform,
+    required int minimumBuild,
+    required int recommendedBuild,
+    required String? updateUrl,
+  }) => _put(
+    '/admin/client-version',
+    body: {
+      'appId': appId,
+      'platform': platform,
+      'minimumBuild': minimumBuild,
+      'recommendedBuild': recommendedBuild,
+      'updateUrl': updateUrl,
+    },
+  );
+
+  Future<ApiResponse<Map<String, dynamic>>> _put(
+    String path, {
+    Map<String, dynamic>? body,
+  }) async {
+    final res = await _authed.send(
+      (t) => _client.put(
+        Uri.parse('$_baseUrl$path'),
+        headers: {
+          'Authorization': 'Bearer $t',
+          'content-type': 'application/json',
+        },
+        body: body == null ? null : jsonEncode(body),
+      ),
+    );
+    return _shape(res);
+  }
+
   Future<ApiResponse<Map<String, dynamic>>> _post(
     String path, {
     Map<String, dynamic>? body,
@@ -250,8 +289,23 @@ class AdminService {
     return ApiResponse.error(_messageFor(code), code: code);
   }
 
+  /// Server codes → French. **A code with no case here renders « Une erreur est
+  /// survenue. »**, which tells the operator nothing they can act on — so every
+  /// code an endpoint can emit belongs in this list, and the version-floor ones
+  /// were added with the endpoint rather than after someone hit one.
   String _messageFor(String? code) => switch (code) {
     'forbidden' => 'Action non autorisée.',
+    // Version floors. The four that name a field are ALSO attached to that
+    // field by the screen (SYSTEM.md §830 — errors belong to fields, not
+    // toasts); these strings are the fallback for anywhere that cannot.
+    'invalid_app' => 'Application inconnue.',
+    'invalid_platform' => 'Plateforme inconnue.',
+    'invalid_minimum_build' => 'Build minimum invalide (0 à 1 000 000).',
+    'invalid_recommended_build' => 'Build recommandé invalide (0 à 1 000 000).',
+    'recommended_below_minimum' =>
+      'Le build recommandé doit être supérieur ou égal au minimum.',
+    'invalid_update_url' => 'Lien de mise à jour invalide.',
+    'invalid_body' => 'Données invalides.',
     'not_found' => 'Introuvable.',
     'invalid_input' => 'Données invalides.',
     'unauthorized' => 'Veuillez vous reconnecter.',
