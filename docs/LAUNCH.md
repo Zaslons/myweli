@@ -186,20 +186,26 @@ These block everything. None is surface-specific.
       the *rehearsal* has not happened. `funnel_smoke_test.dart` already accepts
       `SMOKE_BASE_URL`, so pointing it at the staging host is the remaining step
       — plus the web half, which needs §5.4.
-- [ ] **Production contains no seeded/demo data** (§5.1). **The demo salons are
-      gone** (verified live: `/providers` → `total: 0`, and the ENV gate that
-      makes it stick is in the deployed image). **But smoke-test residue was
-      never purged**: the Q1b seam ran against production on 2026-08-06 —
-      production logs show the `SMOKE_OTP_SECRET is set` warning and three
-      `POST /auth/email/otp/verify → 200` — and
-      [design/backend-q1b-smoke-seam.md](design/backend-q1b-smoke-seam.md)
-      §7 prescribed "purge by identity suffix", which never ran.
-      **Correction (2026-08-18): the residue is 3 rows, not the 5 this line used
-      to claim.** It equated the smoke accounts with the whole `users` table.
-      Reading the table before deleting from it showed the other two are the
-      owner's own real sign-ins — one Google, one Apple — so a purge of "the 5
-      rows the PITR restore found" would have deleted them. The three are
-      `e2e-…@smoke.test` and two `r2probe-…@smoke.test`, all from 2026-08-06.
+- [x] **Production contains no seeded/demo data** (§5.1). **Closed 2026-08-18**,
+      in two halves a month apart.
+      - **Demo salons** — purged 2026-08-12 and still gone: `/providers` →
+        `total: 0`, with the `ENV` gate that makes it stick in the deployed
+        image.
+      - **Smoke-test residue** — the Q1b seam ran against production on
+        2026-08-06 (production logs show the `SMOKE_OTP_SECRET is set` warning
+        and three `POST /auth/email/otp/verify → 200`), and
+        [design/backend-q1b-smoke-seam.md](design/backend-q1b-smoke-seam.md) §7's
+        "purge by identity suffix" was never run. Erased 2026-08-18 through the
+        new `DELETE /admin/users/{id}/erase`, so the tested cascade ran instead
+        of hand-written SQL. Verified: **5 → 2 users**, three `user.erase` audit
+        rows, and a repeat call returns 404 rather than crashing.
+      - **The count in this line was wrong, and it mattered.** It said "the ~5
+        `users` rows the PITR restore found", equating the residue with the whole
+        table. Two of those five are the owner's own sign-ins — one Google, one
+        Apple — so purging "the 5" would have deleted them. Reading the table
+        before deleting from it is the only reason that did not happen, and it is
+        the reason this checklist now records **what was verified**, not what was
+        remembered.
 - [ ] **Crash reporting and error tracking** are live on backend, web and app,
       and have been *proven* by deliberately triggering an error and seeing it
       arrive. **The code is done on all three surfaces and is inert**: create the
@@ -519,9 +525,9 @@ Ordered by what unblocks what, not by size:
    §0's question 2. It needed **two** variables rather than the one this list
    named, needed **nothing** from staging's `WEB_ORIGINS`, and surfaced a CORS
    wall in Cloudflare R2 that no document had mentioned.
-2. **Purge the smoke-test accounts from production** (§4), by identity suffix,
-   as `backend-q1b-smoke-seam.md` already prescribes. Until then "production
-   contains no seeded/demo data" cannot be ticked honestly.
+2. ~~**Purge the smoke-test accounts from production**~~ **Done 2026-08-18**
+   (§4) — and the target was 3 rows, not the 5 this list had claimed; the other
+   two are the owner's real accounts.
 3. **Create the mobile Sentry project and DSN** (§5.2), then prove one real error
    per surface. This also unblocks the crash-rate threshold, which §1.4's staged
    rollout is defined in terms of — so it is an iOS prerequisite, not telemetry
@@ -532,11 +538,24 @@ Ordered by what unblocks what, not by size:
 5. **Add `com.apple.developer.applesignin`** to both entitlements files and the
    App ID (§6.2) — before the first archive, since 4.8 is found at review.
 6. **Rehearse the funnel on staging** (§4) — `funnel_smoke_test.dart` already
-   takes `SMOKE_BASE_URL`, so this is a host, not a project.
+   takes `SMOKE_BASE_URL`, so this is a host, not a project. **One prerequisite
+   arrived on 2026-08-18:** staging no longer echoes OTP dev-codes, so the
+   harness needs `SMOKE_OTP_SECRET` mounted on the staging service — the seam it
+   was built for. Not done, deliberately, since nothing runs the funnel against
+   staging yet.
 7. The rest of the §4 gate, none of which is unblocked by anything above: the
    secrets audit, the support channel, rate limiting against a real hostile
    pattern, and the walk-through by someone who did not build it.
 
-Items 1, 2 and 6 are the ones that stop being safe the moment a real salon signs
-up. Items 3, 4 and 5 are the ones that become expensive the moment a build is in
+Items 1 and 2 are **closed**. Item 6 is the one that stops being safe the moment
+a real salon signs up. Items 3, 4 and 5 become expensive the moment a build is in
 someone's hands. Nothing here is large; the ordering is the whole content.
+
+**What the two closed items cost, since it is the argument for the next one.**
+Neither was the work the list described. Item 1 needed two Vercel variables
+rather than one, needed nothing from the backend allowlist it had demanded for
+months, and surfaced a CORS wall in Cloudflare R2 no document had named. Item 2
+named five rows when the target was three, and two of the other five were the
+owner's own accounts. In both cases the list was written from what was
+remembered; both were corrected by reading the live thing first. That is the
+habit worth carrying into item 6, not the estimates.
