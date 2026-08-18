@@ -133,17 +133,20 @@ nothing here should be handed credentials.
    the same as not being able to do one** (LAUNCH.md §1.4 is watched on the
    crash-free rate).
 6. **The privacy questionnaire** — §4's table.
-7. **Sign in with Apple** — **the entitlement is missing, and this line used to
-   claim it was "already working (2026-08-07)".** What works is the Dart and the
-   flag: `FeatureFlags.appleSignIn` defaults on because rule **4.8** requires the
-   button wherever another third-party provider ships. But
-   `com.apple.developer.applesignin` appears in **neither**
-   `ios/Runner/Runner.entitlements` **nor** `ios/Runner/RunnerRelease.entitlements`
-   (verified 2026-08-18), so a signed build cannot present the sheet at all —
-   the same class of defect as the push entitlement documented in
-   `Runner.entitlements`, which sat unreferenced for months. Add the key to both
-   files and enable the capability on the App ID **before** the first archive;
-   4.8 is a rejection, and it is discovered at review, not at build.
+7. **Sign in with Apple** — **the repo half is done (2026-08-18); the account
+   half is yours.** `com.apple.developer.applesignin` is now in **both**
+   `Runner.entitlements` and `RunnerRelease.entitlements`, and
+   `mobile/test/infra/ios_entitlements_test.dart` fails if either loses it.
+   Until 2026-08-18 it was in neither, while `FeatureFlags.appleSignIn` had
+   defaulted on since 2026-08-07 and three screens rendered the button — the
+   same class of defect as the push entitlement documented in
+   `Runner.entitlements`, which sat unreferenced for months.
+
+   **⚠️ Still owed, and it must happen BEFORE the first signed archive:** enable
+   the *Sign in with Apple* capability on the App ID in the Apple Developer
+   portal, for **both** `com.myweli.app` and `com.myweli.pro`. An entitlement
+   the App ID does not grant is not ignored — **code signing fails**. Nothing
+   breaks today only because no signed build exists yet.
 
 ## 6. What this did NOT verify
 

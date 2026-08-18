@@ -465,13 +465,14 @@ checking rather than assuming:
       uploaded anywhere, so every remaining line in §6.2 is downstream of one
       signed archive.
 - [ ] Screenshots, description, keywords, age rating, privacy questionnaire.
-- [ ] Sign in with Apple working in the signed build (rule 4.8). **The
-      entitlement is missing.** `com.apple.developer.applesignin` appears in
-      neither `Runner.entitlements` nor `RunnerRelease.entitlements`, so a
-      signed build cannot present the sheet at all — while
-      [design/mobile-store-submission.md](design/mobile-store-submission.md)
-      §"Sign in with Apple" reads as though it already works. Fix the doc and
-      the entitlement together; rule 4.8 is a rejection, not a warning.
+- [ ] Sign in with Apple working in the signed build (rule 4.8). **Repo half
+      done 2026-08-18** — `com.apple.developer.applesignin` is in both
+      entitlements files, pinned by `test/infra/ios_entitlements_test.dart`
+      (which also catches the shape where the key exists only in a comment).
+      **Account half still owed, and it gates the first signed archive:** the
+      capability must be enabled on the App ID for both bundle ids, or code
+      signing *fails* — an entitlement the App ID does not grant is an error,
+      not a no-op.
 - [ ] Phased release enabled.
 
 ### 6.3 Android (last)
@@ -545,8 +546,9 @@ Ordered by what unblocks what, not by size:
    slices. The mechanism is in the first build, which was the whole point of the
    ordering; every floor ships at 0, so it changes nobody's behaviour until
    someone deliberately raises one.
-5. **Add `com.apple.developer.applesignin`** to both entitlements files and the
-   App ID (§6.2) — before the first archive, since 4.8 is found at review.
+5. **Enable Sign in with Apple on the App ID** (§6.2) — the entitlement landed
+   in the repo on 2026-08-18, but the capability must be granted for both bundle
+   ids or the first signed build fails to sign at all.
 6. **Rehearse the funnel on staging** (§4) — `funnel_smoke_test.dart` already
    takes `SMOKE_BASE_URL`, so this is a host, not a project. **One prerequisite
    arrived on 2026-08-18:** staging no longer echoes OTP dev-codes, so the

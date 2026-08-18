@@ -9,5 +9,19 @@
 	     built app carried no push entitlement and iOS issued no APNs token. -->
 	<key>aps-environment</key>
 	<string>development</string>
+	<!-- Sign in with Apple. **App Store rule 4.8**: an app offering any other
+	     third-party sign-in must offer this one, and the check happens at
+	     review — a rejection, not a warning.
+	     `FeatureFlags.appleSignIn` has defaulted ON since 2026-08-07 and three
+	     screens render the button, but this key was in NEITHER entitlements
+	     file, so a signed build could not present the sheet at all. Exactly the
+	     shape of the APNs defect above: the Dart looked finished and the
+	     capability was absent.
+	     `Default` = sign in with the user's own Apple ID (not Sign in with
+	     Apple at Work & School). -->
+	<key>com.apple.developer.applesignin</key>
+	<array>
+		<string>Default</string>
+	</array>
 </dict>
 </plist>

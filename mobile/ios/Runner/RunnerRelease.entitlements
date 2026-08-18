@@ -8,5 +8,13 @@
 	     Wired per-configuration by tool/setup_flavours.rb. -->
 	<key>aps-environment</key>
 	<string>production</string>
+	<!-- Sign in with Apple (rule 4.8) — see Runner.entitlements for why this
+	     was missing. It must be in BOTH files: Debug/Profile sign against
+	     Runner.entitlements and Release against this one, so a key in only one
+	     of them works in exactly the builds nobody ships. -->
+	<key>com.apple.developer.applesignin</key>
+	<array>
+		<string>Default</string>
+	</array>
 </dict>
 </plist>
