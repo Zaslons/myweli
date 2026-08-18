@@ -150,7 +150,7 @@ are none here, since the only client is the proxy.
 
 ## 5. Follow-ups, each gated on evidence rather than a guess
 
-1. **Retire the cron header.** Both jobs still carry `CRON_SECRET` as a literal.
+1. ~~**Retire the cron header.**~~ **Done 2026-08-18** — both jobs stripped, the code no longer accepts it, `CRON_SECRET` is out of every manifest. [infra-cron-oidc-evidence.md](infra-cron-oidc-evidence.md) §8.
    The backend now prefers the OIDC token and logs `cron_auth_legacy` whenever
    the header is used instead. When a real scheduled run is observed *without*
    that line, set `CRON_OIDC_AUDIENCE` and `CRON_SERVICE_ACCOUNT`, confirm again,

@@ -171,9 +171,6 @@ spec:
             - name: JWT_SECRET
               valueFrom:
                 secretKeyRef: { name: STAGING_JWT_SECRET, key: latest }
-            - name: CRON_SECRET
-              valueFrom:
-                secretKeyRef: { name: STAGING_CRON_SECRET, key: latest }
             # The audience must equal the Scheduler job's, and for staging that
             # is the service's own `*.run.app` URL — a value that did not exist
             # until `90-staging.sh` created the service, which is why this pair

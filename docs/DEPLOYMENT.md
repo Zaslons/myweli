@@ -237,8 +237,11 @@ which is how the reminder cron came to be switched off without anyone noticing.
    [design/infra-cron-oidc-evidence.md](design/infra-cron-oidc-evidence.md):
    staging's jobs carry **no** shared secret and answer 200 (while anonymous
    callers get 403), and production has run **251 consecutive cron requests on
-   revision `-00017-p4j` with zero `cron_auth_legacy`** log lines. Retiring the
-   header is unblocked and is a deliberate production change, not done yet.
+   revision `-00017-p4j` with zero `cron_auth_legacy`** log lines. **The header was retired on 2026-08-18** — both
+   jobs stripped one at a time (each forced afterwards: 200, no fallback), then
+   the code, then `CRON_SECRET` out of every manifest. OIDC is now the only cron
+   auth, so a broken audience fails closed; the alert moved with it, from
+   `cron_auth_legacy` to any non-2xx on `/internal/cron/*`.
 7. **Monitoring** is committed too — `infra/gcp/80-uptime-checks.sh` creates
    uptime checks on `/health` *and* on a database-backed route, because `/health`
    never touches Postgres and reported `ok` throughout an outage. Alerts require

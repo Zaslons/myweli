@@ -102,9 +102,6 @@ spec:
             - name: JWT_SECRET
               valueFrom:
                 secretKeyRef: { name: JWT_SECRET, key: latest }
-            - name: CRON_SECRET
-              valueFrom:
-                secretKeyRef: { name: CRON_SECRET, key: latest }
             # **The OIDC half of cron auth, which was never mounted.** `CronAuth`
             # verifies the Google-signed token Cloud Scheduler already sends —
             # but only when BOTH of these are set, and neither was, so the

@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Module** | infrastructure (Cloud Scheduler, `backend/lib/src/cron_auth.dart`) |
-| **Status** | **Evidence obtained 2026-08-17.** Retiring the transitional `X-Cron-Secret` header is now unblocked — and deliberately **not yet done**. |
+| **Status** | **Evidence obtained 2026-08-17; the header was RETIRED 2026-08-18 — §8.** |
 | **Owner** | Sadreddine Daher |
 | **Skills checked** | myweli-backend-guardrails |
 | **Related** | [DEPLOYMENT.md](../DEPLOYMENT.md) Phase C · [infra-staging.md](infra-staging.md) build order · [BACKEND.md](../BACKEND.md) §7 T21 |
@@ -117,9 +117,8 @@ caught the second.
 on its own with no fallback present. Production proves the OIDC path is the one
 actually in use, 251 runs deep.
 
-**Retiring the header is unblocked. It is deliberately not done here**, because
-it is a change to production's authentication and belongs in its own reviewed
-step:
+**Retiring the header was unblocked here and done in §8**, as its own reviewed
+step, in this order:
 
 1. remove the `X-Cron-Secret` header from both production Scheduler jobs, one at a
    time, forcing a run after each and confirming a 200;
@@ -147,7 +146,7 @@ is to fail first. Kept enabled on that basis; re-pausing is one command.
 
 ## 6. Open
 
-1. **The header is still accepted.** §4 is a three-step change nobody has made.
+1. ~~**The header is still accepted.**~~ **Retired 2026-08-18 — §8.**
 2. ~~**Nothing alerts on `cron_auth_legacy`.**~~ **Shipped — §7.**
 3. **Staging's subscription cron has never run on its own schedule** (03:00
    daily); only the forced run is observed.
@@ -286,3 +285,104 @@ human at the moment they need it.
 **One cosmetic gap:** the subject reads `[ALERT - No severity]` because the
 policy sets no `severity`. Harmless, but it means every alert here sorts the same
 in a mailbox.
+
+---
+
+## 8. The retirement — 2026-08-18
+
+Done in the order §4 prescribed, because the reverse order removes the fallback
+while it is still being sent.
+
+### 8.1 Jobs first — and this is the step that proved it
+
+Production's audience matched on all three sides, so it *should* have worked —
+but "should" is what §1 was about, and production reaches the app through a load
+balancer that staging does not have. So the header came off **one job at a time**,
+each forced immediately afterwards:
+
+| | |
+|---|---|
+| `myweli-reminders` header cleared → forced run | **200**, zero `cron_auth_legacy` |
+| `myweli-subscriptions` header cleared → forced run | **200**, zero `cron_auth_legacy` |
+
+That is the production-side proof that OIDC alone authenticates through the load
+balancer, obtained **before** any code depended on it.
+
+Two operational notes for whoever does this again:
+
+- **`gcloud scheduler jobs update http --remove-headers` crashes** — `TypeError:
+  'NoneType' object does not support item assignment`. `--clear-headers` works,
+  and is safe here because the only custom header on either job was this one.
+- **`gcloud scheduler jobs describe` prints the header value verbatim.** That is
+  the exposure `cron_auth.dart` documented all along, and it is why the secret
+  should be treated as compromised rather than merely unused — see §8.4.
+
+### 8.2 Then the code
+
+`CronAuth` loses `sharedSecret`, `_secret`, the fallback branch, its
+constant-time comparison and the `CronAuthMethod` enum; `CronAuthResult` becomes
+`({bool ok, String? error})`. Both routes lose the `headerSecret:` argument and
+the evidence gate that printed `cron_auth_legacy`.
+
+**The behaviour change is deliberate and worth stating.** Verification used to
+fall through to the secret so a misconfigured audience could not take the crons
+down. It now returns **403**. An audience that stops matching
+`CRON_OIDC_AUDIENCE` fails closed — which is correct, and is why §8.3 exists.
+
+`isConfigured` collapses to `_oidc != null`, and that is complete rather than
+partial: `dependencies.dart` builds the verifier as null unless **both**
+`CRON_OIDC_AUDIENCE` and `CRON_SERVICE_ACCOUNT` are set, so there is no state
+where the route exists but can never authenticate anyone.
+
+The tests that proved the fallback *worked* were **inverted rather than
+deleted** — a silently-vanished group is indistinguishable from one that was
+never there. `test/cron_auth_test.dart` now asserts a bad token is refused
+outright, and greps the source (comments stripped, so the docs may still explain
+what went) to prove no parameter or route can accept the header again.
+
+### 8.3 The alert had to move with it
+
+**The `cron_auth_legacy` alert built on 2026-08-17 became permanently inert the
+moment the branch that printed that line was deleted.** An alert that cannot fire
+is worse than none, because it reads as coverage.
+
+And removing the fallback created a *new* silent failure: a broken audience now
+means every cron returns 403 and simply stops, while the service stays healthy
+and the uptime checks stay green.
+
+So the policy was **replaced, not kept**: `infra/gcp/86-cron-auth-alert.sh` now
+alerts on any `/internal/cron/*` request that does not return 2xx. Its filter was
+verified the same way as before — run as a `logging read` against real history,
+matching the three genuine 403s from the negative tests in §2.
+
+**Known gap, stated rather than hidden:** this catches a *refused* cron, not an
+*absent* one. A job that is paused or deleted produces no log line at all, and
+Cloud Monitoring has no absence-of-log condition — that needs a counter metric
+plus a threshold plus a window, three numbers to get wrong. Not built.
+
+### 8.4 Config, and the secret itself
+
+`CRON_SECRET` is gone from `service.yaml`, `service-staging.yaml`,
+`90-staging.sh` and `.env.example`. The contract was stale in a second way and
+is fixed with it: `openapi.yaml` still documented a `?secret=` **query
+parameter** that the code had already stopped accepting.
+
+**The Secret Manager entries are NOT deleted here.** They are unmounted and
+unaccepted, so they authenticate nothing — but deletion is irreversible and is
+one command whenever wanted:
+
+```bash
+gcloud secrets delete CRON_SECRET --project=myweli
+gcloud secrets delete STAGING_CRON_SECRET --project=myweli
+```
+
+Worth doing rather than leaving: the production value was printed in plain text
+while stripping the header from the jobs (§8.1), so it should be considered
+disclosed. It is inert either way.
+
+### 8.5 What is not true until production deploys
+
+Merging this deploys **staging** automatically; production is a dispatch. Until
+that dispatch runs, production serves the old image and would still *accept* the
+header — but neither job sends it any more, so the fallback is already
+operationally dead. The deploy makes it structural.
