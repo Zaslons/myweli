@@ -195,30 +195,94 @@ attacked from both ends.
 | Stored filter is the intended one (heredoc escaping survived) | ✅ read back verbatim |
 | **The filter matches real log lines** | ✅ run as a `logging read` against 7 days — **234 matches**, the historical production entries |
 | **The real code path still emits the line** | ✅ triggered deliberately on staging with the shared secret: HTTP 200 via the fallback, `cron_auth_legacy` logged at `16:32:15Z` |
-| Monitoring evaluates the filter → opens an incident | ❌ **not verifiable** — there is no public incidents API and no `gcloud` command |
-| The notification is delivered | ❌ **not verifiable from the API** — see §7.2 |
+| Monitoring evaluates the filter → opens an incident | ✅ **verified 2026-08-17T21:38:04Z** — see §7.3 |
+| The notification is delivered | ✅ **verified 2026-08-17T21:38:04Z** — the email arrived, see §7.4 |
 
 Running the policy's own stored filter against historical logs is the trick worth
 reusing: it proves a filter matches **real** entries without waiting for the
 event, and without injecting a synthetic log line that would only prove the
 filter matches something you wrote yourself.
 
-### 7.2 The residual is bigger than this alert
+### 7.3 It did not fire the first time, and the reason is a trap
 
-**Five alert policies now exist in this project and not one has ever delivered a
-notification.** The two uptime checks have never failed (104/0 and 102/0 probes at
-last count), and the three newer policies are hours old. So the last hop —
-channel → inbox — has never been exercised, by anything.
+The first trigger produced the log line at `16:32:15Z` and **no incident**. That
+reads exactly like a broken filter, and it sent this investigation looking for
+one.
 
-The channel object does not help: `verificationStatus` is **absent** from it
-entirely, so the API cannot distinguish "verified" from "never verified".
+The policy had been created at **`16:31:17Z`** — **58 seconds earlier**. A newly
+created alerting policy is not evaluating yet. The identical trigger against the
+identical policy five hours later:
 
-That is the same failure shape `80-uptime-checks.sh` was written to prevent —
-its own header says the project had no channels at all, so "any alert policy
-would have been a policy that notifies nobody". The channel exists now; whether
-it *delivers* is still an open question, and the only ground truth is whether the
-owner's inbox received the mail from the staging trigger above.
+```
+log line   2026-08-17T21:37:29Z
+incident   2026-08-17T21:38:04Z   (35 seconds later)
+```
 
-**Until that is confirmed, treat every alert in this project as unproven at the
-last hop.** It is one observation away from being settled, and it applies to the
-uptime checks and the connection-ceiling alerts just as much as to this one.
+**Wait several minutes after creating a log-based alert before testing it**, or
+the test measures the propagation delay and blames the filter.
+`86-cron-auth-alert.sh` now says so where someone will read it.
+
+**And incidents ARE observable programmatically** — this document previously said
+they were not, which was wrong. There is no incidents API, but Monitoring writes
+every opening to Cloud Logging:
+
+```bash
+gcloud logging read 'logName:"monitoring.googleapis.com%2FViolationOpenEventv1"' \
+  --limit=5 --freshness=1h \
+  --format='value(timestamp,labels.policy_display_name,labels.terse_message)'
+```
+
+which returned, verbatim:
+
+```
+policy_display_name : A cron authenticated on the LEGACY shared secret
+policy_id           : 12705279840136607574
+terse_message       : Log match condition fired for Cloud Run Revision with
+                      {… service_name=myweli-api-staging}
+```
+
+That closes every link except delivery.
+
+### 7.4 The last hop, confirmed — and it settles all five policies
+
+Before this, **five alert policies existed in this project and not one had ever
+delivered a notification.** The two uptime checks have never failed (104/0 and
+102/0 probes), and the three newer policies were hours old. The channel →
+inbox hop had never been exercised, by anything — the same failure shape
+`80-uptime-checks.sh` was written to prevent, its own header noting that a policy
+with no channel "would have been a policy that notifies nobody".
+
+Neither the API nor the logs could settle it: `verificationStatus` is **absent**
+from the channel object, and `ViolationOpenEventv1` is the only
+`monitoring.googleapis.com` stream this project has, so an incident *opening* is
+recorded and a notification *being sent* is not.
+
+**The mail arrived.**
+
+| | |
+|---|---|
+| From | `Google Cloud Alerting <alerting-noreply@google.com>` |
+| Delivered | `2026-08-17 21:38:04Z` — the same second the incident opened |
+| Subject | `[ALERT - No severity] A cron authenticated on the LEGACY shared secret for Cloud Run Revision with {…}` |
+| Body | condition `cron_auth_legacy appeared in the logs`, the resource labels, and a VIEW INCIDENT link |
+
+So the channel delivers, and that is proven **once for all five policies** —
+including the two uptime checks that guard production. The absent
+`verificationStatus` was a red herring: an email channel created by a project
+owner needs no verification step.
+
+**The `documentation` field is worth the effort.** The runbook text written into
+the policy is rendered in the mail itself, so the notification carries its own
+diagnosis rather than just the fact that something fired:
+
+> On PRODUCTION this means OIDC verification is failing and the fallback is
+> hiding it — the request still returned 200, which is exactly why this log line
+> exists. Check that the job's oidcToken audience still equals
+> `CRON_OIDC_AUDIENCE` on the serving revision…
+
+Every policy in `infra/gcp/` sets that field. This is the evidence it reaches a
+human at the moment they need it.
+
+**One cosmetic gap:** the subject reads `[ALERT - No severity]` because the
+policy sets no `severity`. Harmless, but it means every alert here sorts the same
+in a mailbox.
