@@ -597,7 +597,7 @@ checklist that states account-side facts it cannot observe will drift exactly
 the way §5.1's seeded-data line and §6.2's "already working" line did. Where an
 item depends on a console this repo cannot reach, say so.
 
-**Items 0–6 are closed.** What is left is item 7, plus three owner-side steps.
+**Items 0–6 are closed.** What is left is item 7, plus the two owner-side steps above.
 
 The ordering did its job: items 1 and 2 were the ones that stopped being safe
 the moment a real salon signed up, and 3–5 were the ones that became expensive
