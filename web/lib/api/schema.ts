@@ -5545,6 +5545,172 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/client-version": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * May this client build keep running? (LAUNCH.md §5.3)
+         * @description Unauthenticated — the check runs at startup, before any login. Takes no
+         *     user data and returns none.
+         *
+         *     **The server decides; the client renders.** Not "serve the floor and let
+         *     the client compare": the comparison logic and the update URL are exactly
+         *     the two things that cannot be patched on a client we are trying to
+         *     retire, so both stay here.
+         *
+         *     `build` is the monotonic build number (`pubspec`'s `+N`, which feeds
+         *     `versionCode` / `CFBundleVersion` / `FLUTTER_BUILD_NUMBER`), **not**
+         *     semver. `version` is accepted and ignored — it rides along for the
+         *     access log, which is the only client-version telemetry that exists.
+         *
+         *     **Everything malformed answers `200 {"status":"ok"}`, never 400.** An
+         *     unknown flavour or a typo'd platform must not be indistinguishable from
+         *     an outage. A platform whose `updateUrl` is unset is never blocked,
+         *     whatever the floor says — you cannot block users you have nowhere to
+         *     send, and that rule is what makes it safe to ship this before the App
+         *     Store listing exists.
+         *
+         *     `Cache-Control: no-store`: the value of this lever is the latency
+         *     between the decision and its effect.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description Application id, e.g. com.myweli.app */
+                    app?: string;
+                    platform?: "android" | "ios";
+                    /** @description Monotonic build number */
+                    build?: number;
+                    /** @description Display version; logged, never compared */
+                    version?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description The verdict */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /**
+                             * @description A client MUST treat any unrecognised value as `ok`, so a
+                             *     later server can add verdicts without breaking the oldest
+                             *     clients it is trying to manage.
+                             * @enum {string}
+                             */
+                            status: "ok" | "update_available" | "update_required";
+                            /** @description Absent when the platform has no store URL yet. */
+                            updateUrl?: string;
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/client-version": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The client version floors, per app × platform (B-admin) */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description `{ items: [...] }` */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["Forbidden"];
+            };
+        };
+        /**
+         * Set one floor (B-admin) — audited as `client_floor.set`
+         * @description Raising a floor is a denial of service to every user below it —
+         *     deliberate and necessary, and the reason every write is audited **with
+         *     the values** (unlike a user erasure, where metadata would be PII: here
+         *     the values are the record).
+         *
+         *     Updates only; the four (app, platform) pairs come from migration 0032. A
+         *     typo'd `appId` returns 404 rather than creating a row that governs
+         *     nothing. A `recommendedBuild` below `minimumBuild` is refused — everyone
+         *     below the floor is already blocked, so such a nudge could never show.
+         */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        appId: string;
+                        /** @enum {string} */
+                        platform: "android" | "ios";
+                        /** @description 0 = no floor */
+                        minimumBuild: number;
+                        /** @description 0 = no nudge */
+                        recommendedBuild: number;
+                        updateUrl?: string | null;
+                    };
+                };
+            };
+            responses: {
+                /** @description The updated floor */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description invalid_* / recommended_below_minimum */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/users": {
         parameters: {
             query?: never;

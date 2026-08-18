@@ -826,6 +826,52 @@ CREATE TABLE IF NOT EXISTS momo_operators (
           'minimum_notice_minutes int NOT NULL DEFAULT 60',
     ],
   ),
+  (
+    id: '0032_client_version_floors',
+    statements: [
+      // The minimum supported client version, per app × platform
+      // (docs/design/client-version-gate.md §5).
+      //
+      // **In the database rather than an env var, deliberately.** An env var is
+      // changed by rolling a revision — single-digit minutes at best, and
+      // `deploy-backend.yml` refuses to deploy while a rollback traffic pin is
+      // in place, which is exactly the incident where you would want to retire
+      // a client. A row is seconds, and a pin does not touch it.
+      //
+      // `minimum_build`/`recommended_build` are BUILD numbers, not semver:
+      // pubspec's `+N` feeds versionCode, CFBundleVersion and
+      // FLUTTER_BUILD_NUMBER alike, so it is one monotonic integer with a total
+      // order and no parsing traps.
+      //
+      // **0 means "no floor", and every row is seeded 0/0** — shipping the
+      // mechanism must change nobody's behaviour on day one. Raising a floor is
+      // a separate, audited, deliberate act.
+      //
+      // `update_url` is NULLABLE and that nullability is load-bearing: iOS has
+      // no bundle-id-based store URL (it needs the numeric adamId, which App
+      // Store Connect mints when the record is created, and no record exists).
+      // The verdict service refuses to block a platform whose URL is NULL —
+      // you cannot block users you have nowhere to send.
+      'CREATE TABLE IF NOT EXISTS client_version_floors ('
+          'app_id text NOT NULL, '
+          'platform text NOT NULL, '
+          'minimum_build int NOT NULL DEFAULT 0, '
+          'recommended_build int NOT NULL DEFAULT 0, '
+          'update_url text, '
+          'updated_at timestamptz NOT NULL DEFAULT now(), '
+          'PRIMARY KEY (app_id, platform))',
+      // Android's listing key IS the applicationId, so its URL is knowable now.
+      // iOS is left NULL on purpose — see above.
+      "INSERT INTO client_version_floors (app_id, platform, update_url) VALUES "
+          "('com.myweli.app', 'android', "
+          "'https://play.google.com/store/apps/details?id=com.myweli.app'), "
+          "('com.myweli.app', 'ios', NULL), "
+          "('com.myweli.pro', 'android', "
+          "'https://play.google.com/store/apps/details?id=com.myweli.pro'), "
+          "('com.myweli.pro', 'ios', NULL) "
+          "ON CONFLICT (app_id, platform) DO NOTHING",
+    ],
+  ),
 ];
 
 /// How long a schema-setup statement may **wait for a lock** before giving up.
