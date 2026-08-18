@@ -44,9 +44,16 @@ final String baseUrl = resolveSmokeBaseUrl(
 /// proves.
 final String jwtSecret = Platform.environment['JWT_SECRET'] ?? '';
 
-/// `SMOKE_OTP_SECRET` — required only when the target runs `ENV=prod`, which
-/// suppresses `devCode` (`auth_repository.dart:224`). Against a dev/CI server
-/// this stays empty and nothing changes.
+/// `SMOKE_OTP_SECRET` — required against **any deployed** target.
+///
+/// This used to say "required only when the target runs `ENV=prod`", which was
+/// true until 2026-08-18: staging echoed `devCode` unconditionally, and the
+/// harness simply read it. That echo meant anyone who found staging's public
+/// URL could sign in as anyone, so it was closed — and the sentence became
+/// false the same day (docs/design/backend-staging-otp-disclosure.md).
+///
+/// Only `ENV=dev` echoes now, so against a dev/CI server this stays empty and
+/// nothing changes; against staging or production it is required.
 ///
 /// The identities below all end in `@smoke.test`, and that is now **enforced**
 /// server-side: the RFC 2606 reserved TLD is the constraint that stops this
