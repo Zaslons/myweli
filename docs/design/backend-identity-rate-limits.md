@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Slice 1 built (mechanism, inert) · slices 2–3 to follow |
+| **Status** | Slices 1–2 built (mechanism + status plumbing, both inert) · slice 3 to follow |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-08-19 |
 | **PRD ref / phase** | LAUNCH.md §4 · V1 (launch gate) |
@@ -201,9 +201,29 @@ later is a visible contract change.
    change.
 2. **The 429 plumbing, still inert** — `rate_limited` in `resultResponse` and in
    the two bespoke switches (`POST /appointments` and the review route each carry
-   their own, both falling back to 400), plus a source-derived gate test. The
-   gate lands **before the first emitter**, which is the opposite of how the
-   `storage_unavailable` mapping had to be retrofitted across four places.
+   their own, both falling back to 400). `POST /uploads/sign` inherits it by
+   delegating. The mapping lands **before the first emitter**, which is the
+   opposite of how `storage_unavailable` had to be retrofitted across four
+   places — `resultResponse`'s own comment records that it then "reaches two
+   surfaces out of five", and `routes/appointments/index.dart` carries two arms
+   that exist only because a code shipped as a 400 first.
+
+   **The gate is an inventory, not a derivation, and that is deliberate.** The
+   `storage_unavailable` gate derives its offender set from the services that
+   can emit the code — which is the better shape, and impossible here: in this
+   slice nothing emits `rate_limited`, so the derived set is empty and the
+   assertion is vacuous. An empty check that reads as coverage is the defect
+   this whole design is careful about. So slice 2 pins the **eight routes that
+   decide `badRequest` as their own fallback**, each declared with whether it is
+   rate-limited and why; a ninth appearing fails the test and forces the
+   decision. The derived scan, with an `isNotEmpty` guard, lands in slice 3
+   where it has emitters to derive from.
+
+   **A measured detail worth keeping:** the codebase writes that fallback three
+   different ways — a switch expression yielding a status, one yielding a whole
+   `Response`, and a `default:` arm. The first version of the rule knew only the
+   first shape and found **four** routes where there are **eight**. A detection
+   rule is itself a claim that needs checking.
 3. **Wire the three services**, with handler tests, the contract, and the docs.
 
 ## 8. Flagged, not fixed here

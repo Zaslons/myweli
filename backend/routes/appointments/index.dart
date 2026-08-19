@@ -180,6 +180,11 @@ Future<Response> _book(RequestContext context, String userId) async {
       // Row 82, and the comment above earned itself: this arm was written
       // second, after the gate caught the new code shipping as a 400.
       'provider_not_published' => HttpStatus.conflict,
+      // Per-identity rate limit. Written before anything can emit it, which is
+      // the whole reason this arm exists — the three codes above each shipped
+      // as a 400 first because their case was written second.
+      // docs/design/backend-identity-rate-limits.md §6.
+      'rate_limited' => HttpStatus.tooManyRequests,
       _ => HttpStatus.badRequest,
     };
     return jsonError(status, result.error!);

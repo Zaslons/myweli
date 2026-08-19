@@ -47,6 +47,10 @@ Future<Response> onRequest(RequestContext context, String id) async {
     // Ours, not the caller's — and the only one here worth retrying.
     case 'storage_unavailable':
       return storageUnavailable();
+    // Per-identity rate limit, written before the emitter exists.
+    // docs/design/backend-identity-rate-limits.md §6.
+    case 'rate_limited':
+      return jsonError(HttpStatus.tooManyRequests, 'rate_limited');
     default:
       return jsonError(HttpStatus.badRequest, r.error ?? 'invalid_input');
   }
