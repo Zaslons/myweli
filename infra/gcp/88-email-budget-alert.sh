@@ -33,8 +33,8 @@
 # backend/test/email/send_budget_test.dart fails if either is renamed without
 # this file following — so the filter cannot quietly stop matching.
 #
-# NUMBERING: 87 is claimed by the Cloud Armor rate-limit policy (PR #425). If
-# that PR is abandoned, 87 is a gap rather than a mistake.
+# NUMBERING: 87 is the Cloud Armor rate-limit policy, which landed just before
+# this.
 #
 # Idempotent-ish, like its siblings: `create` fails if the display name already
 # exists. Delete first or edit in the console.
@@ -141,6 +141,13 @@ the same shape:
       -H 'Content-Type: application/json' \
       -d "{\"email\":\"budget-probe-${i}@myweli.test\"}"
   done
+
+RUN IT AGAINST STAGING, NOT PRODUCTION, and not only because production is the
+live surface. 87-rate-limit-policy.sh puts Cloud Armor on the production load
+balancer at 10 requests/minute per IP over /auth/* with a five-minute ban, so
+the probe would be refused at request 11, never reach 48, print neither line,
+and read exactly like two broken filters. Staging is not behind that load
+balancer and the app-level limiter is not built yet, so 61 requests go through.
 
 No mail actually leaves: the budget is reserved BEFORE the send, and the
 addresses are .test, which no provider will deliver to. The identities this
