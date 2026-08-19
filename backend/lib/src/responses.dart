@@ -42,8 +42,8 @@ Response methodNotAllowed() =>
 
 /// Maps a service result's machine code to the conventional status: ok → 200
 /// with [body]; `not_found` → 404; `forbidden` → 403; `invalid_state` → 409;
-/// `storage_unavailable` → **503**; anything else → 400. Keeps the lifecycle
-/// route handlers thin.
+/// `storage_unavailable` → **503**; `rate_limited` → **429**; anything else →
+/// 400. Keeps the lifecycle route handlers thin.
 ///
 /// **This is not the only mapping in the codebase.** `POST /appointments`,
 /// `POST /appointments/{id}/deposit` and `POST /appointments/{id}/review` each
@@ -67,6 +67,12 @@ Response resultResponse({
       return jsonError(HttpStatus.conflict, 'invalid_state');
     case 'storage_unavailable':
       return storageUnavailable();
+    // Per-identity rate limits (docs/design/backend-identity-rate-limits.md).
+    // Written BEFORE anything emits it — the whole point of the ordering,
+    // because `storage_unavailable` had to be retrofitted across four places
+    // after the fact and shipped as a 400 from two of them in the meantime.
+    case 'rate_limited':
+      return jsonError(HttpStatus.tooManyRequests, 'rate_limited');
     default:
       return jsonError(HttpStatus.badRequest, error ?? 'error');
   }
