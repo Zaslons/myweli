@@ -151,3 +151,43 @@ mechanism lands first, inert, and the policy is a separate deliberate act.**
 3. **Shared NAT.** A salon and its clients on one connection share an address.
    10/min is generous for humans, but the first weeks of real traffic are the
    test, which is why layer 1 ships in **preview** first if the owner prefers.
+
+## 7. "Revisit the threshold once real traffic exists" was not blocked on traffic
+
+It was blocked on an **instrument**, and that is a different problem with a
+different fix.
+
+`myweli-api-backend` had no `logConfig` at all, so load-balancer request logging
+was off — and with it off, `enforcedSecurityPolicy`, the only field that records
+a refusal, is never written. **Measured 2026-08-19:** eight refusals were
+triggered against production while verifying rules 1000 and 1100, and a query
+for `outcome="DENY"` over the following six hours returned **nothing**. The
+rules worked; the evidence did not exist.
+
+So the open question above could never have been closed by waiting. The traffic
+would have arrived and told us nothing — and the failure it hides is the one
+§6.3 already names as the real risk: a salon and its clients behind one address,
+refused mid-booking, seeing an error while we see silence.
+
+**Closed 2026-08-19** by `infra/gcp/91-armor-deny-alert.sh`: logging enabled at
+sample rate 1.0 (the events worth seeing are rare, and sampling rare events away
+is how you conclude nothing is happening), plus an alert on
+`enforcedSecurityPolicy.outcome="DENY"`.
+
+**Verified as two separate claims**, because the first must hold before the
+second can even be tested:
+
+| | |
+|---|---|
+| refusals are now logged | 15 rotating admin logins → `401 ×10` then `429 ×5`; four DENY entries, tagged priority **1100** — against **zero** before |
+| the alert matches | incident *"Cloud Armor REFUSED a request"* opened 23:28:45Z, ~40s after the trigger |
+
+Addresses were rotated on every request, because the app also returns 429
+(`locked_out`) and a repeated address would have measured the wrong refusal.
+
+**This alert is a launch-window instrument that retires itself.** With 5 users
+and no salons, any DENY is a probe or an attacker and the signal is unambiguous.
+Once real traffic exists the same alert becomes noisy and its meaning shifts
+from *"someone is being refused"* to *"look at the ratio"* — which is precisely
+the condition §6's open question was waiting for. It is what closes that item,
+and then what makes itself redundant.
