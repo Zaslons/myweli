@@ -335,4 +335,30 @@ void main() {
     expect(script, contains('email_budget_exhausted'));
     expect(script, contains('email_budget_warning'));
   });
+
+  test('the alert runbooks contain no angle brackets — the email eats them', () {
+    // Found by reading the mail Google actually sent, not the policy we wrote.
+    // `documentation.content` is text/markdown and the notification renders it
+    // as HTML, so `<n>` and `<cold|warm>` were parsed as tags and DELETED: the
+    // sentence naming the log line to grep for arrived as `class= sent=
+    // ceiling=`. The stored policy looked perfect the whole time — the defect
+    // existed only in the artifact a paged operator reads.
+    final script = File(
+      '../infra/gcp/88-email-budget-alert.sh',
+    ).readAsStringSync();
+    final runbooks = script
+        .split('\n')
+        .where((l) => l.trimLeft().startsWith('"content":'))
+        .toList();
+    expect(runbooks, hasLength(2), reason: 'one runbook per policy');
+    for (final line in runbooks) {
+      expect(
+        line,
+        isNot(contains('<')),
+        reason:
+            'an angle bracket in runbook prose is silently deleted before the '
+            'operator sees it — use a concrete example value instead',
+      );
+    }
+  });
 }
