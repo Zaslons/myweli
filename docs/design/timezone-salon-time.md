@@ -155,6 +155,22 @@ mobile helpers are arithmetic only. No budget impact.
   `journal_test.dart` « fixed future Monday » `2026-07-13` detonated on
   2026-07-13 and failed every PR for one day; fixed alongside this spec —
   the mobile twin was R6b's `pro_appointment_detail_arrive_test`).
+- **…and computing the date is not enough if you compute it ONCE (2026-08-19).**
+  The e2e stub obeyed the rule above — it *derived* "today" rather than
+  hardcoding it — and still broke, because it derived it at **module load**
+  while the app derives its own per render. The stub is a long-lived process
+  and the Next build that follows it takes up to three minutes, so any CI run
+  spanning 00:00 UTC served a booking dated yesterday to a view filtering for
+  today: **5 of 168 failed, every one a date-dependent pro spec** (run
+  32199379368, started 23:5x); the same job on a tree differing by one merged
+  PR but started at 00:13 passed all nine. Green at every hour except one is
+  the worst shape a flake can have — it fails a future PR at random and looks
+  like that PR's fault. Fixed by tokenising the fixture dates and materialising
+  them in `json()`, the stub's single JSON writer, so nothing can route around
+  it and the harness answers with the day it is when it is **asked**. Seam and
+  full account: `web/tests/e2e/stub-clock.mjs`; regression:
+  `web/tests/stub-clock.test.ts`. **The rule generalises: a "today" is a
+  question, not a value — ask it at the moment of use.**
 
 ## 9. Rollout & scope discipline
 One PR (web + mobile + config + docs cross-links) — the slice is small and

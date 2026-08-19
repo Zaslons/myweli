@@ -3,6 +3,13 @@
 // Started by playwright.config.ts; serves one provider + the sitemap feed.
 import { createServer } from 'node:http';
 
+import {
+  materialiseDates,
+  stubDayKey,
+  TODAY,
+  TOMORROW,
+} from './stub-clock.mjs';
+
 const port = Number(process.env.STUB_PORT ?? 8787);
 
 const provider = {
@@ -99,7 +106,10 @@ const depositProvider = {
 
 function json(res, status, body) {
   res.writeHead(status, { 'content-type': 'application/json' });
-  res.end(JSON.stringify(body));
+  // Dates are materialised HERE, at the instant of the response, rather than
+  // frozen when this module loaded — see tests/e2e/stub-clock.mjs for the
+  // midnight rollover that shape used to cause.
+  res.end(materialiseDates(JSON.stringify(body)));
 }
 
 // Multi-pays MP1 — the public locality tree (GET /localities, T56). CI
@@ -178,12 +188,12 @@ const LOCALITIES = {
   ],
 };
 
-// Dated "today" (UTC) so the pro views show it whenever the suite runs.
-const todayAt9 = `${new Date().toISOString().slice(0, 10)}T09:00:00.000Z`;
+// Dated "today" as a TOKEN, resolved by json() when the response is written —
+// NOT frozen here at module load, which is what made the suite fail on any run
+// spanning midnight UTC. tests/e2e/stub-clock.mjs has the full account.
+const todayAt9 = `${TODAY}T09:00:00.000Z`;
 // Consumer bookings sit TOMORROW so future-only actions (« Reporter ») show.
-const tomorrowAt9 = `${new Date(Date.now() + 86400000)
-  .toISOString()
-  .slice(0, 10)}T09:00:00.000Z`;
+const tomorrowAt9 = `${TOMORROW}T09:00:00.000Z`;
 
 // Consumer side (M5/M6) — appt1; cancel is stateful.
 const cancelled = new Set();
@@ -223,7 +233,7 @@ const NOTIFS = [
 // the salon-day boundary probe (timezone-salon-time.md §8: it must land in
 // « Aujourd'hui » under the TZ-pinned harness; device-local bucketing used
 // to drop it on non-UTC machines) — and one older.
-const todayAt2330 = `${todayAt9.slice(0, 10)}T23:30:00.000Z`;
+const todayAt2330 = `${TODAY}T23:30:00.000Z`;
 const EARN_TX = [
   { id: 't1', appointmentId: 'e1', amount: 15000, date: todayAt9, status: 'completed' },
   { id: 't3', appointmentId: 'e3', amount: 2000, date: todayAt2330, status: 'completed' },
@@ -654,8 +664,7 @@ createServer(async (req, res) => {
     if (availFor && !['p1', 'p2'].includes(availFor)) {
       return json(res, 404, { error: 'provider_not_found' });
     }
-    const date =
-      url.searchParams.get('date') || new Date().toISOString().slice(0, 10);
+    const date = url.searchParams.get('date') || stubDayKey();
     const artistId = url.searchParams.get('artistId');
     const duration = Number(url.searchParams.get('durationMinutes') || 30);
     let slots = [
@@ -863,7 +872,7 @@ createServer(async (req, res) => {
   // --- module journal J1 ------------------------------------------------
   const journalM = url.pathname.match(/^\/providers\/([^/]+)\/journal$/);
   if (journalM) {
-    const date = url.searchParams.get('date') || todayAt9.slice(0, 10);
+    const date = url.searchParams.get('date') || stubDayKey();
     // Team access R5b: own-scope (staff) gets ONLY their artist's column +
     // their own rows — mirrors journal_service.dart's journalScope filter.
     if (roleOf(req) === 'staff') {
@@ -1355,9 +1364,13 @@ createServer(async (req, res) => {
   if (url.pathname.match(/^\/providers\/[^/]+\/earnings$/)) {
     const start = url.searchParams.get('startDate');
     const end = url.searchParams.get('endDate');
-    const tx = EARN_TX.filter(
-      (t) => (!start || t.date >= start) && (!end || t.date < end),
-    );
+    // Resolve BEFORE comparing: `t.date` is tokenised, and `start`/`end` are
+    // real ISO instants from the app's salonDayRange(). Comparing a token
+    // against those is a string comparison with no meaning.
+    const tx = EARN_TX.filter((t) => {
+      const date = materialiseDates(t.date);
+      return (!start || date >= start) && (!end || date < end);
+    });
     return json(res, 200, {
       totalEarnings: tx.reduce((sum, t) => sum + t.amount, 0),
       // Multi-pays MP1: the earnings envelope carries the salon currency.
