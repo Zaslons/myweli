@@ -423,6 +423,11 @@ final BookingService bookingService = BookingService(
   // T61 + ownership for a deposit screenshot attached inline at booking. Absent
   // here, `book` stores whatever string arrived — which is what it used to do.
   verifier: uploadVerificationService,
+  // T65. A null limiter means NO LIMIT, so this line is the control — and
+  // `dependencies_wiring_test.dart` is what makes that a check rather than a
+  // habit, because nothing behavioural can see a missing one.
+  limiter: rateLimiter,
+  limits: identityLimits,
 );
 
 final AppointmentLifecycleService appointmentLifecycleService =
@@ -538,6 +543,11 @@ final UploadSigningService uploadSigningService = UploadSigningService(
   providerAuthRepository,
   membershipService,
   storageService,
+  // T65. A null limiter means NO LIMIT, so this line is the control — and
+  // `dependencies_wiring_test.dart` is what makes that a check rather than a
+  // habit, because nothing behavioural can see a missing one.
+  limiter: rateLimiter,
+  limits: identityLimits,
 );
 
 final KycService kycService = KycService(
@@ -721,6 +731,11 @@ final ReviewsService reviewsService = ReviewsService(
   allowedImageOrigins: _galleryAllowedOrigins,
   verifier: uploadVerificationService,
   publicBaseUrl: _r2PublicBase,
+  // T65. A null limiter means NO LIMIT, so this line is the control — and
+  // `dependencies_wiring_test.dart` is what makes that a check rather than a
+  // habit, because nothing behavioural can see a missing one.
+  limiter: rateLimiter,
+  limits: identityLimits,
 );
 
 /// Outbound messaging (SMS, + WhatsApp later). The provider is chosen by

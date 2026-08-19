@@ -1,3 +1,4 @@
+// no-rate-limit: reads ReviewsService to LIST, never to submit.
 import 'dart:io';
 
 import 'package:dart_frog/dart_frog.dart';

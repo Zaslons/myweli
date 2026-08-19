@@ -261,15 +261,20 @@ These block everything. None is surface-specific.
 - [ ] **A support channel exists** and someone is behind it (WhatsApp per the
       product's context).
 - [ ] **Rate limiting** verified on the auth and booking routes against a real
-      hostile pattern, not a unit test. **Verified 2026-08-18 — and it FAILS**
-      ([design/backend-rate-limiting.md](design/backend-rate-limiting.md)).
+      hostile pattern, not a unit test. **Measured 2026-08-18 — it failed, and
+      is now closed in three layers**
+      ([design/backend-rate-limiting.md](design/backend-rate-limiting.md) ·
+      [design/backend-identity-rate-limits.md](design/backend-identity-rate-limits.md)).
+      **Still unchecked, deliberately — the last bullet says why.**
       - **Holds:** brute-forcing one identity stops at 5 wrong codes
         (`otp_locked`); resending stops at 4 (`otp_resend_limit`). Both live in
         Postgres, so they hold across instances.
-      - **Does not exist:** any per-IP limit, anywhere — not in the app, not at
-        the load balancer. Measured: **60/60 accepted, 23 OTP requests per
-        second from one client**, simply by rotating the identifier. And
-        **100/100** unauthenticated reads at 42 req/s.
+      - **Did not exist when measured:** any per-IP limit, anywhere — not in
+        the app, not at the load balancer. Measured: **60/60 accepted, 23 OTP
+        requests per second from one client**, simply by rotating the
+        identifier. And **100/100** unauthenticated reads at 42 req/s. Past
+        tense rather than deleted: the measurement is why everything below
+        exists.
       - On production that is **23 real emails a second** from
         `no-reply@myweli.com` to addresses an attacker chooses — a
         deliverability attack on the launch domain, not a billing one.
@@ -290,9 +295,28 @@ These block everything. None is surface-specific.
         stayed open. Revisit the threshold when real traffic exists — shared
         NAT in a salon is the false-positive risk, and it is a risk about a
         future with users.
-      - **Layer 2** (the app-level limiter) still enforces nothing, pending the
-        `X-Forwarded-For` measurement in
+      - **Layer 2** (the per-IP app-level limiter) still enforces nothing,
+        pending the `X-Forwarded-For` measurement in
         [design/backend-rate-limiting.md](design/backend-rate-limiting.md) §4.
+        It still owes the **anonymous** surface — the 100/100 reads above — and
+        layer 3 cannot touch those, because there is no identity to key on.
+      - **Layer 3 is live: per-identity limits on booking, review submission and
+        upload signing** (2026-08-19). Keyed on the JWT-verified `sub`, so
+        nobody can choose another's key and there was nothing to measure first —
+        which is precisely why this could ship enforcing while layer 2 cannot.
+        Booking 10/hour, review submission 5, signing 10–60 by purpose; refusal
+        is `rate_limited` at **429**. Design:
+        [design/backend-identity-rate-limits.md](design/backend-identity-rate-limits.md).
+      - **WHY THIS BOX IS STILL UNCHECKED.** It asks for a real hostile pattern,
+        **not a unit test** — and the auth half genuinely has one: Cloud Armor
+        was probed on production in both directions, with a control. The booking
+        half does not. Everything behind layer 3 is unit and handler tests, and
+        ticking the box on those would be exactly the defect this document keeps
+        finding. **What would close it:** against a deployed environment, obtain
+        a real access token, loop `POST /appointments` past the ceiling, observe
+        the 429 — **and run the control**, a second identity still receiving 201
+        in the same window. Without that control a 429 is indistinguishable from
+        having broken booking for everyone.
 - [ ] **The funnel has been walked by a person who did not build it**, on a real
       phone, on a real Ivorian network.
 
