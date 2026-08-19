@@ -524,6 +524,29 @@ void main() {
       }
     });
 
+    test('every REVISION states the commit it was built from', () {
+      // Answering "what commit is production running?" used to take four steps
+      // — find the deploy run, read its log, notice whether it PROMOTED a tag
+      // or built one, map the tag back to a commit — and it is answerable
+      // wrongly: run 32151417428 records headSha=d36fe475 while the image it
+      // shipped was built from b64dda0, because it promoted. The label makes
+      // the artifact answer for itself, and keeps answering correctly after a
+      // rollback, because it rides on the REVISION rather than the service.
+      for (final name in ['service.yaml', 'service-staging.yaml']) {
+        final svc = load(name);
+        final labels =
+            svc['spec']['template']['metadata']['labels'] as YamlMap?;
+        expect(
+          labels?['commit'],
+          '__RELEASE__',
+          reason:
+              '$name: the revision must carry its commit, on the TEMPLATE '
+              '(revision) metadata — a service-level label reports the latest '
+              'deploy even while an older revision serves',
+        );
+      }
+    });
+
     test('there is no THIRD placeholder nobody substitutes', () {
       // A `__SOMETHING__` the workflow does not know about deploys verbatim.
       final known = {'__IMAGE__', '__RELEASE__'};
@@ -534,6 +557,56 @@ void main() {
         ).allMatches(raw).map((m) => m.group(0)!).toSet();
         expect(found.difference(known), isEmpty, reason: name);
       }
+    });
+  });
+
+  group('production promotes, and cannot quietly rebuild', () {
+    final workflow = File(
+      '$root/.github/workflows/deploy-backend.yml',
+    ).readAsStringSync();
+
+    test('a production dispatch with no image_tag is REFUSED', () {
+      // The build step has always explained why a production rebuild is wrong
+      // — it ships an artifact staging never ran, from a mutable
+      // `FROM dart:stable` base. But the explanation only protected anything
+      // if the operator remembered to fill in `image_tag`, which defaults to
+      // empty, and forgetting it does the documented wrong thing SILENTLY:
+      // the run succeeds and every log line agrees.
+      expect(
+        workflow,
+        contains("github.event.inputs.environment == 'production'"),
+        reason: 'the guard must test the environment',
+      );
+      expect(
+        workflow,
+        contains("github.event.inputs.image_tag == ''"),
+        reason:
+            'the guard must fire on the EMPTY tag — a guard that only checks '
+            'the environment refuses every production deploy',
+      );
+      // Both halves in one `if:`, not two conditions that happen to appear.
+      expect(
+        workflow,
+        contains(
+          "if: \${{ github.event.inputs.environment == 'production' && "
+          "github.event.inputs.image_tag == '' }}",
+        ),
+      );
+    });
+
+    test('and the refusal hands over a tag that has actually run', () {
+      // Refusing without saying WHICH tag just moves the work to the operator,
+      // who then looks it up by hand — which is where the wrong value comes
+      // from. The message reads staging's serving image and prints its tags.
+      expect(workflow, contains('myweli-api-staging'));
+      expect(workflow, contains('image_summary.tags'));
+      expect(
+        workflow,
+        contains('spec.template.metadata.labels.commit'),
+        reason:
+            'the hint should also print the commit label, so the operator sees '
+            'what they are promoting rather than only its tag',
+      );
     });
   });
 

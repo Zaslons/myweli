@@ -51,6 +51,22 @@ metadata:
 spec:
   template:
     metadata:
+      labels:
+        # WHAT COMMIT IS THIS REVISION RUNNING? Today that question takes four
+        # steps — find the deploy run, read its log, notice whether it PROMOTED
+        # a tag or built one, map the tag back to a commit — and it is
+        # answerable wrongly. It was: run 32151417428 records
+        # headSha=d36fe475 and shipped an image built from b64dda0, because it
+        # promoted. Anyone reading the run alone concludes production runs a
+        # commit it has never run.
+        #
+        # A label on the REVISION (not the service) makes the artifact answer
+        # for itself, in one command, and keeps answering correctly after a
+        # rollback — an old revision reports the commit IT was built from:
+        #
+        #   gcloud run services describe myweli-api --region europe-west9 \
+        #     --format='value(spec.template.metadata.labels.commit)'
+        commit: __RELEASE__
       annotations:
         # Its OWN instance, not a second database on production's. The arithmetic
         # is the reason: myweli-db carries no `databaseFlags` at all, so it runs

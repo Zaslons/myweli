@@ -573,7 +573,13 @@ checking rather than assuming:
 1. Branch → PR → CI, exactly as now.
 2. Merge deploys to **staging** automatically.
 3. Rehearse on staging: the funnel, the migration, the new screen.
-4. Promote the same artifact to production behind a **flag, off**.
+4. Promote the same artifact to production behind a **flag, off**. *Enforced
+   since 2026-08-19*: a production dispatch with an empty `image_tag` is
+   refused, and the refusal prints the tag and commit staging is serving — so
+   "promote the same artifact" is a guard rather than a habit. Every revision
+   also carries a `commit` label, so what production is running is one command
+   away instead of four steps of log archaeology
+   ([infra-rollback.md](design/infra-rollback.md) §4.1).
 5. Enable for ourselves, then a slice, then everyone.
 6. For app changes: internal track → beta → staged rollout, watching crash rate
    at each step.

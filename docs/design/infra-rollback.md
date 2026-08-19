@@ -236,6 +236,37 @@ touched `infra/gcp/` before choosing this over §4.1.
 
 ---
 
+## 4.1 Why there is no canary, and what would change that
+
+Cloud Run can split traffic between revisions, and a production deploy here does
+not: `spec.traffic` is `latestRevision: true, percent: 100`, so a deploy is an
+instant, total cutover. That was reviewed on 2026-08-19 and **kept**, on three
+grounds worth writing down so it is not re-argued from scratch:
+
+1. **A canary needs traffic to compare, and there is none.** Production has 5
+   user rows, 0 salons and 0 appointments. Routing 5% of nothing to a new
+   revision produces no signal — it produces the *appearance* of caution, which
+   is worse, because it reads as a control that is working.
+2. **The dangerous class already fails closed.** Migrations run before the port
+   binds and the startup probe allows 300s; a revision that cannot migrate, or
+   cannot boot, never becomes Ready and therefore never takes traffic. §6 is
+   that property. A canary defends against a revision that boots fine and
+   behaves badly — a real class, but not the one the schema changes here belong
+   to.
+3. **Rollback is a real lever, not a theoretical one.** Previous revisions are
+   retained, and the schema changes shipping now are additive (`CREATE TABLE IF
+   NOT EXISTS`), so the old code runs unchanged against the new schema. §5 is
+   where that stops being true — and when it does, expand/contract is the
+   answer, not a traffic split.
+
+**What would change the decision:** real user traffic, which makes a percentage
+meaningful, or a release whose schema change is not backward-compatible, which
+breaks ground 3. Both are already covered by the working rhythm in
+[LAUNCH.md](../LAUNCH.md) §7 — "enable for ourselves, then a slice, then
+everyone" — so this is not a promise filed in a document with nothing to enforce
+it; it is a note explaining why that rhythm's traffic-splitting step is dormant
+today. It stays dormant until §7 step 5 is the step being worked.
+
 ## 5. What rollback does not undo: the database
 
 **Migrations are one-way.** `backend/lib/src/db/migrations.dart` holds 31

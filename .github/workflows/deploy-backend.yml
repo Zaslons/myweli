@@ -245,6 +245,55 @@ jobs:
         env:
           UNPIN: ${{ github.event.inputs.unpin }}
 
+      # **Production PROMOTES; it does not build.** The build step below already
+      # explains why — a rebuild ships an artifact staging never ran, from a
+      # mutable `FROM dart:stable` base — but that reasoning only protected a
+      # production deploy if the operator remembered to fill in `image_tag`,
+      # which defaults to empty. A dispatch that forgets it does the documented
+      # wrong thing SILENTLY: the run succeeds, every log line agrees, and
+      # production serves bytes nothing has ever booted.
+      #
+      # Refusing is the whole fix. But refusing without saying WHICH tag just
+      # moves the work, so the message resolves the digest staging is serving
+      # and prints the tag to paste back — the operator still chooses, and the
+      # value they are handed is one that has actually run.
+      #
+      # Deliberately NOT auto-defaulting to staging's tag: staging redeploys on
+      # every merge to main, so quietly promoting whatever it happens to be
+      # serving would make a production release depend on merge timing. The
+      # typed `confirm` gate exists because production deploys are chosen; the
+      # artifact should be chosen too.
+      - name: Production must promote a rehearsed image, never build a new one
+        if: ${{ github.event.inputs.environment == 'production' && github.event.inputs.image_tag == '' }}
+        run: |
+          set -euo pipefail
+          IMAGE="${REGISTRY}/${PROJECT_ID}/myweli/api"
+          echo "::error::a production deploy must name an image_tag — leaving it"
+          echo "::error::empty BUILDS A NEW IMAGE, which is the one thing this"
+          echo "::error::workflow's own build step says not to do for production."
+          echo ""
+          STAGING_IMAGE=$(gcloud run services describe myweli-api-staging \
+                            --region "${REGION}" \
+                            --format='value(spec.template.spec.containers[0].image)' 2>/dev/null || true)
+          if [ -n "${STAGING_IMAGE}" ]; then
+            TAGS=$(gcloud artifacts docker images describe "${STAGING_IMAGE}" \
+                     --format='value(image_summary.tags)' 2>/dev/null || true)
+            COMMIT=$(gcloud run services describe myweli-api-staging \
+                       --region "${REGION}" \
+                       --format='value(spec.template.metadata.labels.commit)' 2>/dev/null || true)
+            echo "  staging is serving: ${STAGING_IMAGE}"
+            echo "  its tags:           ${TAGS:-<none>}"
+            echo "  its commit label:   ${COMMIT:-<unset — deployed before the label landed>}"
+            echo ""
+            echo "  Dispatch again with image_tag set to one of those tags to ship"
+            echo "  the exact artifact staging has rehearsed."
+          else
+            echo "  (could not read myweli-api-staging to suggest a tag)"
+          fi
+          echo ""
+          echo "  Runbook: docs/design/infra-rollback.md"
+          exit 1
+
       - name: Configure Docker for Artifact Registry
         run: gcloud auth configure-docker ${{ env.REGISTRY }} -q
 
