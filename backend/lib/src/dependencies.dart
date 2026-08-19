@@ -25,6 +25,7 @@ import 'appointments/slot_service.dart';
 import 'auth/auth_methods.dart';
 import 'auth/auth_repository.dart';
 import 'auth/id_token_verifier.dart';
+import 'auth/login_throttle.dart';
 import 'auth/provider_auth_repository.dart';
 import 'auth/smoke_seam.dart';
 import 'auth/tokens.dart';
@@ -46,6 +47,7 @@ import 'db/postgres_clients_repository.dart';
 import 'db/postgres_device_token_repository.dart';
 import 'db/postgres_disputes_repository.dart';
 import 'db/postgres_favorites_repository.dart';
+import 'db/postgres_login_throttle.dart';
 import 'db/postgres_membership_repository.dart';
 import 'db/postgres_messaging_outbox_repository.dart';
 import 'db/postgres_messaging_prefs_repository.dart';
@@ -641,9 +643,29 @@ final DepositService depositService = DepositService(
   storageService,
 );
 
+/// The admin-login lockout. **Deliberately NOT wrapped in a fail-open
+/// decorator**, unlike `rateLimiter` above — that wrapper's justification is
+/// that every real control still holds without the limiter, and here the
+/// password and this throttle are the complete control set. The absence is the
+/// decision; `login_throttle.dart` carries the argument.
+///
+/// Hoisted to a name rather than inlined because the daily prune needs the same
+/// instance.
+final LoginThrottle adminLoginThrottle = _pool == null
+    ? InMemoryLoginThrottle()
+    : PostgresLoginThrottle(_pool!);
+
 final AdminAuthRepository adminAuthRepository = _pool == null
     ? InMemoryAdminAuthRepository(tokens: tokenService)
-    : PostgresAdminAuthRepository(_pool!, tokens: tokenService);
+    : PostgresAdminAuthRepository(
+        _pool!,
+        tokens: tokenService,
+        // `required`, so forgetting it is a compile error rather than a silent
+        // no-limit in production. A source test still checks the POSTGRES one
+        // is passed, because `required` cannot catch handing over the
+        // in-memory implementation.
+        throttle: adminLoginThrottle,
+      );
 
 final AuditLogRepository auditLogRepository = _pool == null
     ? InMemoryAuditLogRepository()
