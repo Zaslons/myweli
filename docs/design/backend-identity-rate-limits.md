@@ -240,8 +240,9 @@ namespacing · the `signReview ≥ reviewSubmit × 6` composition.
 Plus a `DATABASE_URL`-gated suite that proves the atomicity claim against a real
 Postgres — asserting that 25 concurrent callers each saw a **distinct**
 post-increment value, not merely that ten were allowed, since a count of ten
-could come from a different mistake. **Worth recording:** `PostgresSendBudget`
-has no equivalent test, so its atomicity currently rests on reading the SQL.
+could come from a different mistake. `PostgresSendBudget` gained the same test
+immediately afterwards — it had shipped to production with its atomicity resting
+on a reading of its SQL, which is the gap writing this one exposed.
 
 Watched red, slice 1: the off-by-one (`<` for `<=`); the bucket dropping the
 identity; the window becoming a constant; fail-open flipped to fail-closed;
