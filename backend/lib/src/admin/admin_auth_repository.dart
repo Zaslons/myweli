@@ -43,7 +43,7 @@ class InMemoryAdminAuthRepository implements AdminAuthRepository {
     required TokenService tokens,
     LoginThrottle? throttle,
   }) : _tokens = tokens,
-       _throttle = throttle ?? LoginThrottle();
+       _throttle = throttle ?? InMemoryLoginThrottle();
 
   final TokenService _tokens;
   final LoginThrottle _throttle;
@@ -71,8 +71,15 @@ class InMemoryAdminAuthRepository implements AdminAuthRepository {
 
   @override
   Future<AdminLoginResult> login(String email, String password) async {
-    final e = email.trim().toLowerCase();
-    if (_throttle.isLocked(e)) {
+    final e = adminThrottleKey(email);
+    // **Fail closed.** A `null` means the store could not answer, and it gets a
+    // code of its own — not `locked_out`, which would tell an operator at 2am
+    // that someone guessed too often when the truth is that Postgres is sick.
+    final locked = await throttleValue(() => _throttle.isLocked(e));
+    if (locked == null) {
+      return (ok: false, error: 'throttle_unavailable', tokens: null);
+    }
+    if (locked) {
       return (ok: false, error: 'locked_out', tokens: null);
     }
     final id = _idByEmail[e];
@@ -83,10 +90,19 @@ class InMemoryAdminAuthRepository implements AdminAuthRepository {
         account == null ||
         account.status != 'active' ||
         !BCrypt.checkpw(password, hash)) {
-      _throttle.recordFailure(e);
+      // Also fail closed: a failure that bcrypt rejected but the store did
+      // not COUNT is a repeatable free guess, which is the whole attack.
+      if (!await throttleOk(() => _throttle.recordFailure(e))) {
+        return (ok: false, error: 'throttle_unavailable', tokens: null);
+      }
       return (ok: false, error: 'invalid_credentials', tokens: null);
     }
-    _throttle.reset(e);
+    // **The one exception, and the asymmetry is the point: the operations that
+    // bound the ATTACKER fail closed; the one that forgives the USER fails
+    // open.** If this throws the count simply is not cleared — strictly
+    // stricter, never looser — and 503-ing someone who just proved they hold
+    // the password would be a self-inflicted outage with no security benefit.
+    await throttleOk(() => _throttle.reset(e));
     return (
       ok: true,
       error: null,

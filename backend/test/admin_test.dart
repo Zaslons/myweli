@@ -28,7 +28,7 @@ void main() {
     setUp(() async {
       repo = InMemoryAdminAuthRepository(
         tokens: tokens,
-        throttle: LoginThrottle(maxAttempts: 3),
+        throttle: InMemoryLoginThrottle(maxAttempts: 3),
       );
       await repo.ensureSeedAdmin(
         email: 'Admin@Myweli.ci',
@@ -297,5 +297,111 @@ void main() {
       );
       expect(bad.statusCode, HttpStatus.unauthorized);
     });
+
+    test('a locked account → 429 locked_out', () async {
+      // The route's 429 arm was unasserted: the only lockout test drove the
+      // REPOSITORY and checked the error string, so nothing anywhere proved
+      // the wire contract the mobile client reads.
+      repo = InMemoryAdminAuthRepository(
+        tokens: tokens,
+        throttle: InMemoryLoginThrottle(maxAttempts: 2),
+      );
+      await repo.ensureSeedAdmin(email: 'a@myweli.ci', password: 'pw12345');
+      for (var i = 0; i < 2; i++) {
+        await login_route.onRequest(
+          ctx({'email': 'a@myweli.ci', 'password': 'wrong'}),
+        );
+      }
+      final locked = await login_route.onRequest(
+        ctx({'email': 'a@myweli.ci', 'password': 'pw12345'}),
+      );
+      expect(locked.statusCode, HttpStatus.tooManyRequests);
+      expect(await locked.json(), {'error': 'locked_out'});
+    });
+
+    test('A THROTTLE THAT CANNOT ANSWER → 503, not 401 and not 429', () async {
+      // Fail closed, with a code of its own. Three distinct wrong answers this
+      // guards against: 401 would tell the admin their password is wrong when
+      // it is not; 429 would tell an operator someone guessed too often when
+      // the truth is that Postgres is sick; and letting it through would remove
+      // the only brute-force bound on the staff credential, silently.
+      repo = InMemoryAdminAuthRepository(
+        tokens: tokens,
+        throttle: _BrokenThrottle(),
+      );
+      await repo.ensureSeedAdmin(email: 'a@myweli.ci', password: 'pw12345');
+      final r = await login_route.onRequest(
+        ctx({'email': 'a@myweli.ci', 'password': 'pw12345'}),
+      );
+      expect(r.statusCode, HttpStatus.serviceUnavailable);
+      expect(await r.json(), {'error': 'throttle_unavailable'});
+      expect(
+        r.headers['retry-after'],
+        isNotNull,
+        reason: 'a retryable outage, not a verdict about the caller',
+      );
+    });
+
+    test('…and a failed COUNT is 503 too, not a free guess', () async {
+      // The subtler half. If bcrypt rejects the password but the store fails to
+      // RECORD it, the attempt was never counted — repeatable, and unlimited
+      // free guesses for anyone who can break the write.
+      repo = InMemoryAdminAuthRepository(
+        tokens: tokens,
+        throttle: _BrokenThrottle(onlyOnWrite: true),
+      );
+      await repo.ensureSeedAdmin(email: 'a@myweli.ci', password: 'pw12345');
+      final r = await login_route.onRequest(
+        ctx({'email': 'a@myweli.ci', 'password': 'wrong'}),
+      );
+      expect(r.statusCode, HttpStatus.serviceUnavailable);
+      expect(await r.json(), {'error': 'throttle_unavailable'});
+    });
   });
+
+  group('the composition root wires the SHARED throttle', () {
+    // `required` catches a forgotten argument at compile time, but it cannot
+    // catch handing over the in-memory implementation in production — which
+    // would look correct, compile, pass every behavioural test, and leave the
+    // per-instance defect exactly where it was.
+    final src = File('lib/src/dependencies.dart').readAsStringSync();
+
+    test('the Postgres branch gets PostgresLoginThrottle', () {
+      expect(src, contains('PostgresLoginThrottle(_pool!)'));
+      expect(src, contains('throttle: adminLoginThrottle'));
+    });
+
+    test('and it is NOT wrapped in a fail-open decorator', () {
+      // The booking limiter is, deliberately. This one must not be: there,
+      // every real control still holds without the limiter; here the password
+      // and the throttle are the whole control set.
+      final block = src.substring(
+        src.indexOf('final LoginThrottle adminLoginThrottle'),
+        src.indexOf('final AdminAuthRepository adminAuthRepository'),
+      );
+      expect(block, isNot(contains('FailOpen')));
+    });
+  });
+}
+
+/// A throttle whose store never answers.
+class _BrokenThrottle implements LoginThrottle {
+  _BrokenThrottle({this.onlyOnWrite = false});
+
+  /// When true, reads succeed and only the COUNT fails — the free-guess path.
+  final bool onlyOnWrite;
+
+  @override
+  Future<bool> isLocked(String key) async {
+    if (onlyOnWrite) return false;
+    throw StateError('throttle store is down');
+  }
+
+  @override
+  Future<void> recordFailure(String key) async =>
+      throw StateError('throttle store is down');
+
+  @override
+  Future<void> reset(String key) async =>
+      throw StateError('throttle store is down');
 }

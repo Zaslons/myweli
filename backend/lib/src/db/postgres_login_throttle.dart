@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'package:postgres/postgres.dart';
 
+import '../auth/login_throttle.dart';
+
 /// The admin-login lockout, shared across instances (table
 /// `admin_login_throttle`, migration `0035`).
 ///
@@ -18,7 +20,7 @@ import 'package:postgres/postgres.dart';
 /// `isLocked` must be a pure read taken BEFORE bcrypt.
 ///
 /// Design: docs/design/backend-admin-login-throttle.md
-class PostgresLoginThrottle {
+class PostgresLoginThrottle implements LoginThrottle {
   PostgresLoginThrottle(
     this._pool, {
     this.maxAttempts = kDefaultMaxAttempts,
@@ -48,6 +50,7 @@ class PostgresLoginThrottle {
   /// It deliberately does NOT delete an expired row. The original's lazy delete
   /// is what zeroed the counter; here the same job is done by the expiry arm of
   /// [recordFailure], which keeps this path a single cheap primary-key lookup.
+  @override
   Future<bool> isLocked(String key) async {
     final rows = await _pool.execute(
       Sql.named(
@@ -79,6 +82,7 @@ class PostgresLoginThrottle {
   /// `RETURNING` is unused by the caller and taken anyway: it is what lets the
   /// concurrency test assert DISTINCT post-increment values rather than a final
   /// total, which a different mistake could also produce.
+  @override
   Future<({int failCount, DateTime? lockedUntil})> recordFailure(
     String key,
   ) async {
@@ -121,6 +125,7 @@ class PostgresLoginThrottle {
   ///
   /// Without it, a wrong password on Monday and another on Friday accumulate
   /// toward a lockout across weeks.
+  @override
   Future<void> reset(String key) => _pool.execute(
     Sql.named('DELETE FROM admin_login_throttle WHERE key_hash = @k:text'),
     parameters: {'k': hashKey(key)},
@@ -148,17 +153,3 @@ class PostgresLoginThrottle {
     return rows.length;
   }
 }
-
-/// Five failures, then fifteen minutes. The values the in-memory original used,
-/// carried over deliberately rather than revisited: this change is about WHERE
-/// the state lives, and moving the numbers at the same time would make a
-/// regression indistinguishable from a policy change.
-const int kDefaultMaxAttempts = 5;
-const Duration kDefaultLockout = Duration(minutes: 15);
-
-/// The throttle key: one place, so a third call site cannot drift.
-///
-/// Dropping `.toLowerCase()` would silently double the guess budget —
-/// `Admin@x` and `admin@x` would become separate keys — which is a mutation
-/// worth being able to watch go red.
-String adminThrottleKey(String email) => email.trim().toLowerCase();

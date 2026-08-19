@@ -38,5 +38,21 @@ Future<Response> onRequest(RequestContext context) async {
   if (r.error == 'locked_out') {
     return jsonError(HttpStatus.tooManyRequests, 'locked_out');
   }
+  // **Ours, not the caller's.** The throttle store could not answer, so the
+  // login was refused rather than letting the only brute-force bound on this
+  // credential lapse silently. A code of its OWN, not `locked_out`: telling an
+  // operator at 2am that someone guessed too often, when the truth is that
+  // Postgres is sick, is the confusion `storageUnavailable()` exists to
+  // prevent. 503 + Retry-After, because it is a retryable outage rather than a
+  // verdict about the caller.
+  // docs/design/backend-admin-login-throttle.md
+  if (r.error == 'throttle_unavailable') {
+    return jsonError(
+      HttpStatus.serviceUnavailable,
+      'throttle_unavailable',
+      null,
+      const {'retry-after': '5'},
+    );
+  }
   return jsonError(HttpStatus.unauthorized, 'invalid_credentials');
 }
