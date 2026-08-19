@@ -60,11 +60,12 @@ The sentence is struck rather than deleted, because the failure it records is
 the one worth remembering: *a justification written into a design doc becomes
 the reason nobody looks again.* It was wrong on two independent grounds.
 
-1. **Nothing in this repository shows Cloudflare Access is configured.** Every
-   mention is an unexecuted instruction — `DEPLOYMENT.md:295` ("**put** … in
-   front of"), `deploy-admin.yml:8,24` — or a document repeating one.
-   `infra/cloudflare/` holds only R2 work, and `LAUNCH.md` mentions it **zero**
-   times, so nothing tracks whether it was ever done.
+1. ~~**Nothing in this repository shows Cloudflare Access is configured.**~~
+   **This ground was wrong.** Nothing in the repo *recorded* it — true — but
+   that is a fact about our records, not about the world. **Verified 2026-08-19
+   by fetching it:** `https://admin.myweli.com` redirects anonymously to
+   `blue-base-1ad1.cloudflareaccess.com` and serves the Access sign-in. It is
+   configured and it works.
 2. **Even configured it could not have protected this.** Access would front
    `admin.myweli.com` on Cloudflare Pages. The API is `api.myweli.com`, which
    `70-load-balancer.sh:62-63,101` keeps **DNS-only / grey-cloud on purpose** so

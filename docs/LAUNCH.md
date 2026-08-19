@@ -315,6 +315,18 @@ These block everything. None is surface-specific.
         start**, on the account that bypasses every tenant boundary. The lockout
         now lives in Postgres
         ([design/backend-admin-login-throttle.md](design/backend-admin-login-throttle.md)).
+        **Layer 1 now covers it, applied and measured 2026-08-19** — before:
+        `401 ×15` (unbounded); after: `401 ×10` then `429 ×5`; control: 15 ×
+        `/health` → `200 ×15`. Addresses rotated on every request, because the
+        app itself returns 429 for `locked_out` at five failures and a repeated
+        address would have measured the wrong refusal. The 429s carry Cloud
+        Armor's HTML page, not the app's JSON envelope.
+        **And layer 1 now covers it too** (2026-08-19):
+        `infra/gcp/89-admin-auth-rate-limit.sh` adds a rule at priority 1100 for
+        `startsWith('/admin/auth/')`, 10/min per IP — scoped to the login rather
+        than all of `/admin/`, because a rule over the whole console would
+        throttle ordinary paginated reads and the team plausibly shares one
+        address.
         **What would close this half:** against a deployed environment, six
         failed logins on a throttle-only test admin returning 429 `locked_out`
         — **and the control**, a second address still getting 401 in the same
@@ -337,17 +349,26 @@ These block everything. None is surface-specific.
         the 429 — **and run the control**, a second identity still receiving 201
         in the same window. Without that control a 429 is indistinguishable from
         having broken booking for everyone.
-- [ ] **Cloudflare Access is configured on the `myweli-admin` Pages project**,
-      and verified — an anonymous fetch of `https://admin.myweli.com` returns
-      the Access login rather than the app.
-      **Unticked because nothing has ever checked it.** Three files assert it as
-      settled fact (`DEPLOYMENT.md` §"Restrict", `deploy-admin.yml:8,24`,
-      and — until 2026-08-19 — `design/backend-rate-limiting.md`, where it was
-      the stated reason for leaving the admin lockout in memory). Every one of
-      those is an instruction or a claim; `infra/cloudflare/` holds only R2
-      work. Note it protects the console UI only: the API is a different origin
-      on a different provider, so this box does **not** close the admin half of
-      the rate-limiting box above.
+- [x] **Cloudflare Access is configured on the `myweli-admin` Pages project.**
+      **Verified 2026-08-19 by fetching it**, which is the only thing that could
+      settle it: an anonymous `GET https://admin.myweli.com` redirects to
+      `blue-base-1ad1.cloudflareaccess.com/cdn-cgi/access/login/admin.myweli.com`
+      and serves *"Sign in ・ Cloudflare Access"*. It works.
+      **Ticked late, and the delay is the point.** Three files asserted it as
+      settled fact (`DEPLOYMENT.md` §"Restrict", `deploy-admin.yml:8,24`, and —
+      until 2026-08-19 — `design/backend-rate-limiting.md`, where it was the
+      stated reason for leaving the admin lockout in memory), and none of them
+      was evidence. This file did not track it at all. So an unverified
+      assumption spent months doing load-bearing work, and when it was finally
+      checked it turned out to be **true** — which is the outcome that teaches
+      the least and costs the most, because nothing distinguishes a lucky
+      assumption from a checked one until someone looks.
+      **It protects the console UI only**, and that is measured too: an
+      anonymous `POST https://api.myweli.com/admin/auth/login` answers `401`
+      **directly**, no redirect. So this box does **not** close the admin half
+      of the rate-limiting box above — different origin, different provider,
+      and `api.myweli.com` is deliberately DNS-only so Google can validate its
+      certificate.
 
 - [ ] **The funnel has been walked by a person who did not build it**, on a real
       phone, on a real Ivorian network.
