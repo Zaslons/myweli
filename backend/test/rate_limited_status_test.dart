@@ -93,6 +93,72 @@ void main() {
     });
   });
 
+  test('EVERY ROUTE READING A LIMITED SERVICE MAPS THE CODE', () {
+    // The derived gate, which slice 2 could not have: it needs emitters to
+    // derive from, and there were none. Now there are three, so the set is
+    // computed rather than declared — a FOURTH limited surface added later
+    // would pass every named test above while quietly answering 400.
+    //
+    // Modelled on storage_unavailable_status_test.dart, including the two
+    // things that make it worth having: an isNotEmpty guard so the scan cannot
+    // go vacuous, and a declared opt-out so the exemption is visible.
+    final limited = <String>{};
+    for (final f in Directory('lib/src').listSync(recursive: true)) {
+      if (f is! File || !f.path.endsWith('.dart')) continue;
+      if (f.path.contains('security/')) continue; // the primitive itself
+      final src = f.readAsStringSync();
+      if (!src.contains("'rate_limited'")) continue;
+      for (final m in RegExp(
+        r'^class (\w+)',
+        multiLine: true,
+      ).allMatches(src)) {
+        limited.add(m.group(1)!);
+      }
+    }
+    expect(
+      limited,
+      isNotEmpty,
+      reason:
+          'the scan found no service that can emit rate_limited — it has '
+          'drifted, and an empty set makes the assertion below vacuous. This '
+          'is the guard slice 2 could not satisfy, which is why the gate was '
+          'an inventory until the emitters existed.',
+    );
+
+    const marker = '// no-rate-limit:';
+    final offenders = <String>[];
+    final orphaned = <String>[];
+    for (final f in Directory('routes').listSync(recursive: true)) {
+      if (f is! File || !f.path.endsWith('.dart')) continue;
+      final src = f.readAsStringSync();
+      final reads = limited.any((c) => src.contains('context.read<$c>()'));
+      if (!reads) {
+        if (src.contains(marker)) orphaned.add(f.path);
+        continue;
+      }
+      if (src.contains(marker)) continue;
+      if (src.contains('resultResponse')) continue;
+      if (src.contains('rate_limited')) continue;
+      offenders.add(f.path);
+    }
+    expect(
+      offenders,
+      isEmpty,
+      reason:
+          'these routes reach a service that can return rate_limited and '
+          'neither delegate to resultResponse nor name the code, so a 429 '
+          'falls to their 400 default. Add the arm, or declare `$marker` with '
+          'a reason if the route genuinely cannot be limited.',
+    );
+    expect(
+      orphaned,
+      isEmpty,
+      reason:
+          'these declare `$marker` but no longer read a limited service. A '
+          'stale exemption is how the next real one gets waved through.',
+    );
+  });
+
   test('NO TWELFTH BESPOKE MAPPING APPEARS UNNOTICED', () {
     // The forward guard, and the only test here that catches something nobody
     // is thinking about. A route that maps errors itself does NOT inherit

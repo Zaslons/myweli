@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Slices 1–2 built (mechanism + status plumbing, both inert) · slice 3 to follow |
+| **Status** | **Built** — all three slices; enforcing. LAUNCH.md §4's box stays unchecked pending a probe against a deployed environment |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-08-19 |
 | **PRD ref / phase** | LAUNCH.md §4 · V1 (launch gate) |
@@ -224,7 +224,15 @@ later is a visible contract change.
    `Response`, and a `default:` arm. The first version of the rule knew only the
    first shape and found **four** routes where there are **eight**. A detection
    rule is itself a claim that needs checking.
-3. **Wire the three services**, with handler tests, the contract, and the docs.
+3. **Wire the three services**, with tests, the contract, and the docs. Done
+   2026-08-19. The derived gate promised in slice 2 arrived here, where it has
+   emitters to derive from, and **immediately earned itself**: it found three
+   routes reading a limited service without mapping the code —
+   `providers/{id}/appointments` (calls `bookManual`, not `book`) and the two
+   review LIST routes. None can emit `rate_limited`, so each carries a
+   `// no-rate-limit:` declaration with its reason. *Reading a limited service
+   is not the same as calling its limited method*, and the gate is what turns
+   that from a comment into a decision somebody has to make.
 
 ## 8. Flagged, not fixed here
 

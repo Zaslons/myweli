@@ -4,6 +4,8 @@ import '../clients/clients_service.dart';
 import '../providers_repository.dart';
 import '../salon_time.dart';
 import '../salon_visibility.dart';
+import '../security/identity_limits.dart';
+import '../security/rate_limiter.dart';
 import '../storage/storage_service.dart';
 import '../upload_verification_service.dart';
 import 'appointment_repository.dart';
@@ -30,8 +32,12 @@ class BookingService {
     this._slots, {
     ClientsService? clients,
     UploadVerificationService? verifier,
+    RateLimiter? limiter,
+    IdentityLimits limits = kDefaultIdentityLimits,
   }) : _clients = clients,
-       _verifier = verifier;
+       _verifier = verifier,
+       _limiter = limiter,
+       _limits = limits;
 
   final ProvidersRepository _providers;
   final AppointmentRepository _appointments;
@@ -46,6 +52,15 @@ class BookingService {
   /// keep working; the composition root always supplies it, which is what makes
   /// `_screenshotKey` below a real control in production.
   final UploadVerificationService? _verifier;
+
+  /// Per-identity rate limit (T65). Optional for the same reason as the
+  /// verifier above — existing construction sites keep compiling — and the
+  /// composition root always supplies it, which is what makes this a real
+  /// control in production rather than a decoration. A source-level test in
+  /// `dependencies_wiring_test.dart` is what turns "always" from a claim into
+  /// a check, because a null limiter means NO LIMIT with every test green.
+  final RateLimiter? _limiter;
+  final IdentityLimits _limits;
 
   final Random _random = Random.secure();
 
@@ -83,6 +98,26 @@ class BookingService {
         !depositScreenshotUrl.startsWith('${kPendingPrefix}deposit/$userId/')) {
       return (ok: false, error: 'invalid_input', appointment: null);
     }
+    // **Counted before the work, not after it.** Everything above is pure
+    // validation of the caller's own body; from here the request costs reads,
+    // a slot computation and possibly a storage round trip. An attacker chooses
+    // whether their attempt succeeds — a booking refused for `slot_unavailable`
+    // leaves no row and still cost all of that — so they must not also get to
+    // choose whether they are counted.
+    //
+    // On T61's ordering rule: that rule forbids MUTATING before authorizing,
+    // and this is an INSERT. The subject is the difference. T61 protects
+    // against a mutation whose subject is not yet proven to be the caller's;
+    // this row's subject is the caller's own JWT-verified `sub`, established
+    // before the handler ran. docs/design/backend-identity-rate-limits.md §4.
+    if (!await allowUnderLimit(
+      _limiter,
+      bookingBucket(userId),
+      _limits.booking,
+    )) {
+      return (ok: false, error: 'rate_limited', appointment: null);
+    }
+
     // One question, asked in one place (`clientBookingRefusal`): missing,
     // suspended and not-yet-published each have their own code, and the
     // argument for the split lives with the rule rather than here. The

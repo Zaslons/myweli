@@ -1,3 +1,7 @@
+// no-rate-limit: calls BookingService.bookManual, not book. The salon-entered
+// path is capability-gated (Cap.journalManageAll) and is not the client
+// surface the limit defends; limiting inside `book` lands it on the consumer
+// path by construction. docs/design/backend-identity-rate-limits.md §3.
 import 'dart:io';
 
 import 'package:dart_frog/dart_frog.dart';

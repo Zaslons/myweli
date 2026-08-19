@@ -1,3 +1,5 @@
+// no-rate-limit: reads ReviewsService to LIST, never to submit. Reading a
+// limited service is not the same as calling its limited method.
 import 'dart:io';
 
 import 'package:dart_frog/dart_frog.dart';

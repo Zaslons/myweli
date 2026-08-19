@@ -8,6 +8,8 @@
 /// Design: docs/design/backend-identity-rate-limits.md §5
 library;
 
+import 'rate_limiter.dart';
+
 /// Per-identity ceilings, per hour.
 typedef IdentityLimits = ({
   int booking,
@@ -100,6 +102,47 @@ String reviewBucket(String sub) => 'review:$sub';
 /// whole salon team share one budget, so a colleague's portfolio upload would
 /// refuse yours. Bounding storage cost is T61's job, at claim time.
 String signBucket(String purpose, String sub) => 'sign:$purpose:$sub';
+
+/// The fill level worth a warning: 80% of the ceiling.
+///
+/// A deliberate twin of `warnThreshold` in `email/send_budget.dart` rather than
+/// an import of it: a security primitive should not reach into the email domain
+/// for one line of arithmetic, and moving the original would touch code that is
+/// live in production. Same rule of three as the counter table — if a third
+/// caller appears, extract it then.
+int warnAt(int limit) => limit * 4 ~/ 5;
+
+/// Consumes one unit against [bucket] and reports whether to proceed.
+///
+/// **The 80% line is the half that arrives in time.** A ceiling that only
+/// announces itself on exhaustion tells you a user was refused; this one tells
+/// you a threshold is wrong while everything still works. Compared with `==`,
+/// never `>=`, so it fires exactly once per bucket per window — safe across
+/// instances precisely because the upsert hands each caller a distinct
+/// post-increment value.
+///
+/// A null [limiter] means no limit — the shape that lets every existing
+/// construction site keep compiling, and the reason `dependencies.dart` has a
+/// source-level test proving it supplies one.
+Future<bool> allowUnderLimit(
+  RateLimiter? limiter,
+  String bucket,
+  int limit, {
+  void Function(String)? log,
+}) async {
+  if (limiter == null) return true;
+  final v = await limiter.hit(bucket, limit: limit, window: kIdentityWindow);
+  if (v.hits == warnAt(v.limit)) {
+    // The bucket carries a pseudonymous id, not contact data — unlike the send
+    // budget's recipient, which its own test forbids logging. It is also the
+    // only actionable field: without it the line says a threshold is close and
+    // not whose.
+    (log ?? print)(
+      'rate_limit_warning bucket=$bucket hits=${v.hits} limit=${v.limit}',
+    );
+  }
+  return v.ok;
+}
 
 /// The ceiling for a validated upload [purpose].
 int signLimitFor(String purpose, IdentityLimits limits) => switch (purpose) {

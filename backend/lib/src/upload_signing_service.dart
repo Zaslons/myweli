@@ -4,6 +4,8 @@ import 'dart:math';
 import 'access/capabilities.dart';
 import 'access/membership_service.dart';
 import 'auth/provider_auth_repository.dart';
+import 'security/identity_limits.dart';
+import 'security/rate_limiter.dart';
 import 'storage/storage_service.dart';
 import 'upload_verification_service.dart';
 
@@ -36,7 +38,25 @@ typedef SignResult = ({bool ok, String? error, Map<String, dynamic>? data});
 /// borrowing `review`'s, which would have been free in code and wrong in data
 /// (docs/design/consumer-avatar-upload.md §3).
 class UploadSigningService {
-  UploadSigningService(this._providerAuth, this._members, this._storage);
+  UploadSigningService(
+    this._providerAuth,
+    this._members,
+    this._storage, {
+    RateLimiter? limiter,
+    IdentityLimits limits = kDefaultIdentityLimits,
+  }) : _limiter = limiter,
+       _limits = limits;
+
+  /// Per-identity rate limit (T65). Null means no limit; the composition root
+  /// always supplies one, and a source test proves it.
+  ///
+  /// **This is the cheapest of the three surfaces to abuse** — no database
+  /// write, no repository, just a presign — and therefore the only one with no
+  /// persistent trace of the attempt to count afterwards. The signing-time size
+  /// cap is advisory (R2 ignores a signed content-length), so the real check is
+  /// at claim time and an attacker who never claims never reaches it.
+  final RateLimiter? _limiter;
+  final IdentityLimits _limits;
 
   final ProviderAuthRepository _providerAuth;
   final MembershipService _members;
@@ -78,6 +98,26 @@ class UploadSigningService {
     final ext = (isKyc ? _kycTypes : _imageTypes)[contentType];
     if (contentType is! String || ext == null) {
       return (ok: false, error: 'invalid_input', data: null);
+    }
+
+    // **Here, and not one line earlier.** `purpose` arrives from the client and
+    // is only known to be one of five literals AFTER the check above. Keying a
+    // rate limit on the raw value would let an attacker send a fresh random
+    // purpose per request: unbounded buckets, so the limit evaporates — and
+    // every miss writes a NEW ROW, turning the limiter into the amplifier they
+    // wanted. A rate-limit key may only be built from a closed set, which is
+    // the whole reason this check lives in the service rather than the route.
+    //
+    // Keyed on the token's `sub`, never the derived salon id: that would make
+    // one colleague's portfolio upload refuse another's.
+    // docs/design/backend-identity-rate-limits.md §4.
+    final validPurpose = purpose! as String;
+    if (!await allowUnderLimit(
+      _limiter,
+      signBucket(validPurpose, accountId),
+      signLimitFor(validPurpose, _limits),
+    )) {
+      return (ok: false, error: 'rate_limited', data: null);
     }
 
     // Prefix + target bucket per purpose. Deposit is a CONSUMER upload scoped

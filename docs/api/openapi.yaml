@@ -2172,6 +2172,7 @@ paths:
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
+        '429': { $ref: '#/components/responses/RateLimited' }
 
   /providers/{id}/clients:
     parameters:
@@ -2514,6 +2515,7 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
+        '429': { $ref: '#/components/responses/RateLimited' }
 
   /appointments/{id}:
     get:
@@ -2679,6 +2681,7 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '503': { $ref: '#/components/responses/StorageUnavailable' }
+        '429': { $ref: '#/components/responses/RateLimited' }
 
   /appointments/{id}/reschedule:
     post:

@@ -5,6 +5,8 @@ import 'auth/auth_repository.dart';
 import 'privacy/anonymized_identity.dart';
 import 'providers_repository.dart';
 import 'reviews_repository.dart';
+import 'security/identity_limits.dart';
+import 'security/rate_limiter.dart';
 import 'storage/storage_service.dart';
 import 'upload_verification_service.dart';
 
@@ -33,9 +35,18 @@ class ReviewsService {
     List<String> allowedImageOrigins = const [],
     UploadVerificationService? verifier,
     String? publicBaseUrl,
+    RateLimiter? limiter,
+    IdentityLimits limits = kDefaultIdentityLimits,
   }) : _allowedImageOrigins = allowedImageOrigins,
        _verifier = verifier,
-       _publicBaseUrl = publicBaseUrl;
+       _publicBaseUrl = publicBaseUrl,
+       _limiter = limiter,
+       _limits = limits;
+
+  /// Per-identity rate limit (T65). Null means no limit; the composition root
+  /// always supplies one, and a source test proves it.
+  final RateLimiter? _limiter;
+  final IdentityLimits _limits;
 
   final ReviewsRepository _reviews;
   final AppointmentRepository _appointments;
@@ -97,6 +108,21 @@ class ReviewsService {
     // length, origin — and touches no server state. **Promotion does not
     // belong there, and used to.**
     //
+    // **Counted here, before the reads.** This is the most expensive surface of
+    // the three: submission is an UPSERT, so the one-row-per-appointment
+    // constraint bounds review COUNT and not request count, and every call
+    // re-runs `recomputeRatings` — two aggregates and a `providers` write on a
+    // shared-core instance. Placed before the ownership check for the reason in
+    // §4: an attacker chooses whether their attempt succeeds, so they cannot
+    // choose whether it is counted.
+    if (!await allowUnderLimit(
+      _limiter,
+      reviewBucket(userId),
+      _limits.reviewSubmit,
+    )) {
+      return (ok: false, error: 'rate_limited', review: null);
+    }
+
     // The appointment is the authority on who/what/which-salon.
     final appt = await _appointments.byId(appointmentId);
     if (appt == null) return (ok: false, error: 'not_found', review: null);
