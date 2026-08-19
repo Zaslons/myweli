@@ -213,9 +213,28 @@ written — two distinct policy names in `ViolationOpenEventv1`, which is the
 check the script prescribes: one name would have meant the other filter was
 wrong.
 
-*Not* verified: notification **delivery**. Google logs incident opening and
-nothing about the mail it sends, so the last hop is confirmable only by looking
-in the inbox.
+### 8.2 Delivery confirmed — and the mail was not what we wrote
+
+The owner's inbox held both notifications, timestamped 02:37:09 UTC and carrying
+the policy ids the create step printed, so the last hop is closed: incident →
+`alerting-noreply@google.com` → a human.
+
+**And reading the mail found a defect that reading the policy could not.**
+`documentation.content` is declared `text/markdown`, and the notification renders
+it as HTML — so the `<cold|warm>` and `<n>` placeholders were parsed as tags and
+**deleted**. The sentence naming the log line to grep for arrived as:
+
+> The log line names the class and the numbers: `email_budget_exhausted class= sent= ceiling=`
+
+which is the single sentence a paged operator most needs, delivered empty. The
+stored policy was byte-perfect the whole time; the defect existed **only in the
+artifact somebody reads**, and no amount of describing the policy would have
+shown it. Fixed by using concrete example values — better than placeholders
+anyway — and pinned by a test that fails if a `<` returns to either runbook.
+
+The lesson generalises past this file: *verifying that an alert fires is not
+verifying that the alert says anything.* The other five policies were checked
+and are clean.
 
 **Known gap, stated rather than implied.** These are log-*match* alerts: they
 fire on a line appearing. Nothing detects the opposite — a budget that has
