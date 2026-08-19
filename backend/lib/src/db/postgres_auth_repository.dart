@@ -39,6 +39,28 @@ class PostgresAuthRepository implements AuthRepository {
   Future<OtpRequestResult> requestEmailOtp(String email) =>
       _requestOtpIn('email_otp_codes', 'email', email.trim().toLowerCase());
 
+  @override
+  Future<void> refundEmailOtpResend(String email) =>
+      _refundResendIn('email_otp_codes', 'email', email.trim().toLowerCase());
+
+  /// One statement, and LEAST() is the guard: the refund can never lift an
+  /// allowance above the maximum, however many times it is called. Scoped to an
+  /// unexpired row so a stale code cannot be revived. Design:
+  /// docs/design/backend-email-send-budget.md §9.
+  Future<void> _refundResendIn(
+    String table,
+    String keyColumn,
+    String key,
+  ) async {
+    await _pool.execute(
+      Sql.named(
+        'UPDATE $table SET resends_left = LEAST(resends_left + 1, @m) '
+        'WHERE $keyColumn = @p AND expires_at > now()',
+      ),
+      parameters: {'p': key, 'm': _maxResends},
+    );
+  }
+
   Future<OtpRequestResult> _requestOtpIn(
     String table,
     String keyColumn,

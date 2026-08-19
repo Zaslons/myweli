@@ -242,7 +242,63 @@ stopped counting because the table is missing or the pool is down. That failure
 opens the ceiling rather than closing it, so it is a spam risk rather than an
 availability one, and it is not covered here.
 
-## 9. Tests
+## 9. The refusal was not as cheap as §6 claimed
+
+§6 said the caller cannot tell a refusal from a send, and §7 stated the residual
+as "cold exhaustion still denies OTP mail for the rest of the hour". Both are
+true. Together they were **incomplete**, and the missing part is worse than
+either.
+
+`/auth/email/otp/request` calls `requestEmailOtp` FIRST — which writes the OTP
+row and decrements `resends_left` — and only then calls `send()`, where the
+budget refuses. So a refused email has already cost the caller one of their four
+resends. A real user in an exhausted window retries, spends the rest, and hits a
+hard **429 `otp_resend_limit`** — for a reason that has nothing to do with them,
+**and which outlasts the hour that caused it**. The budget resets at the top of
+the hour; their resend allowance does not.
+
+That converts a bounded, hour-long, global degradation into a per-user lockout
+with a longer tail than the condition that produced it. And reaching it is
+cheap: Cloud Armor allows roughly 10 requests per five-minute ban cycle per IP,
+so a single address can hold a 60/hour ceiling at zero indefinitely.
+
+**The fix: give the resend back when the budget — not the provider — refused.**
+Both cold routes now call `refundEmailOtpResend` on
+`error == 'send_budget_exhausted'`. It restores one resend on the live row,
+clamped at the maximum so it cannot inflate an allowance, and scoped to an
+unexpired row so it cannot resurrect a stale one.
+
+**Deliberately narrow.** A *provider* failure — a Resend outage, a rejected key
+— is NOT refunded. That was a real delivery attempt: we handed the message over
+and the budget was spent on it (reserve-before-send, §3). Refunding those would
+remove the per-identity bound exactly when the system is already degraded, and
+would let one identity consume the global budget repeatedly. The line is
+therefore: **the resend allowance is spent when we hand a message to the
+provider, and refunded when we ourselves declined to.**
+
+**The response does not change**, so this is not an enumeration oracle: 202 with
+the same body either way, and the exhaustion is global rather than per-address,
+so the extra write leaks nothing about the recipient. The guard for that used to
+be a test that read the route source and failed if it branched on the send
+result — a proxy. It is now a **handler test that drives the real route twice**,
+once against an exhausted budget and once against a fresh one, and fails if the
+status or body differ. Behaviour rather than shape.
+
+### 9.1 The ceilings are in the manifest now
+
+`EMAIL_BUDGET_COLD` and `EMAIL_BUDGET_WARM` were defaulted in code and absent
+from `infra/gcp/service.yaml`, so changing a ceiling meant editing the manifest
+and redeploying anyway — while the runbook told the operator to "raise
+EMAIL_BUDGET_COLD in infra/gcp/service.yaml", a variable that was not there. And
+the tempting shortcut is wrong twice over: `gcloud run services update
+--set-env-vars` needs `--container app` on this service (it runs `app` plus a
+`cloudsql-proxy` sidecar), and the deploy uses `services replace`, so a hand
+edit is reverted by the next deploy.
+
+Declared explicitly at the defaults, so the value an operator reads in the
+manifest is the value in force.
+
+## 10. Tests
 
 - Under the ceiling sends; at the ceiling refuses; the window rolls.
 - **cold exhaustion does not touch warm** — the DoS this design exists to avoid.

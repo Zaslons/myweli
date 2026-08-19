@@ -153,6 +153,28 @@ spec:
             - name: RESEND_API_KEY
               valueFrom:
                 secretKeyRef: { name: RESEND_API_KEY, key: latest }
+            # The outbound-email ceilings, per hour, per class. Declared here at
+            # the code defaults rather than left implicit, because the runbook
+            # on both budget alert policies tells the operator to "raise
+            # EMAIL_BUDGET_COLD in infra/gcp/service.yaml" — and until now the
+            # variable was not in this file to raise.
+            #
+            # The tempting shortcut is wrong twice over: `gcloud run services
+            # update --set-env-vars` needs `--container app` here (this service
+            # runs the app plus a cloudsql-proxy sidecar), and the deploy uses
+            # `services replace`, so a hand edit is reverted by the next deploy.
+            # Change it here, deploy, and the value an operator reads is the
+            # value in force.
+            #
+            # cold = an anonymous caller chose the address (OTP: the whole
+            # attack surface). warm = an authenticated actor, about their own
+            # thing — starving those drops booking confirmations, which is why
+            # the two counters never touch.
+            # docs/design/backend-email-send-budget.md §5.
+            - name: EMAIL_BUDGET_COLD
+              value: "60"
+            - name: EMAIL_BUDGET_WARM
+              value: "1000"
             # R2 — all seven together or storageService throws (dependencies.dart:308).
             # R2_ENDPOINT is deliberately NOT set: it is derived from the
             # account id (:141-146), and supplying both invites drift.

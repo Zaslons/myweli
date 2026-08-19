@@ -108,6 +108,19 @@ abstract interface class AuthRepository {
 
   // --- Email OTP (docs/design/auth-social-email.md §7) ----------------------
   Future<OtpRequestResult> requestEmailOtp(String email);
+
+  /// Give back one resend spent on a message we ourselves declined to send.
+  ///
+  /// The budget refuses AFTER `requestEmailOtp` has already decremented the
+  /// allowance, so without this a global ceiling becomes a per-user lockout
+  /// that outlasts the hour causing it — the user burns all four resends on
+  /// mail that never left, then gets a hard `otp_resend_limit` that survives
+  /// the window reset. Clamped at the maximum and scoped to an unexpired row,
+  /// so it can neither inflate an allowance nor revive a stale one.
+  ///
+  /// Deliberately NOT called for a provider failure: that was a real delivery
+  /// attempt. Design: docs/design/backend-email-send-budget.md §9.
+  Future<void> refundEmailOtpResend(String email);
   Future<OtpVerifyResult> verifyEmailOtp(String email, String code);
 
   /// Login with **verified** identity-provider claims (Google/Apple). Link
@@ -190,6 +203,15 @@ class InMemoryAuthRepository implements AuthRepository {
   @override
   Future<OtpRequestResult> requestEmailOtp(String email) async =>
       _requestOtpIn(_emailOtps, email.trim().toLowerCase());
+
+  @override
+  Future<void> refundEmailOtpResend(String email) async {
+    final stored = _emailOtps[email.trim().toLowerCase()];
+    if (stored == null) return;
+    if (DateTime.now().isAfter(stored.expiresAt)) return;
+    if (stored.resendsLeft >= _maxResends) return;
+    stored.resendsLeft += 1;
+  }
 
   OtpRequestResult _requestOtpIn(Map<String, _Otp> store, String key) {
     // An expired code (never verified, e.g. the user abandoned the flow)

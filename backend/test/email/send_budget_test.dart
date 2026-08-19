@@ -169,33 +169,17 @@ void main() {
     expect(kDefaultCeilings.warm, greaterThan(kDefaultCeilings.cold));
   });
 
-  test('a budget refusal must NOT change what the caller sees', () async {
-    // `/auth/email/otp/request` returns 202 whether or not mail went out, so a
-    // caller cannot learn whether an address exists. The budget adds a new way
-    // for a send to fail, and that must not become an oracle: refusal and
-    // success have to be indistinguishable from outside.
-    //
-    // The route ignores the send result entirely (`await …send(…)` with no
-    // branch), which is what makes this hold — asserted here so a future
-    // refactor that starts checking the result has to think about it.
-    final routeSrc = File(
-      'routes/auth/email/otp/request.dart',
-    ).readAsStringSync().replaceAll(RegExp(r'//.*'), '');
-    expect(
-      routeSrc,
-      isNot(
-        contains(
-          RegExp(
-            r'(if|final)\s*\w*\s*=?\s*await\s+context\.read<EmailProvider>',
-          ),
-        ),
-      ),
-      reason:
-          'the route must not branch on the send result — that would turn '
-          'a budget refusal into an address-exists oracle',
-    );
-    expect(routeSrc, contains('await context.read<EmailProvider>().send('));
-  });
+  // The property this used to guard — a budget refusal must not become an
+  // address-exists oracle — is now held by a BEHAVIOURAL test:
+  // test/auth/otp_resend_refund_test.dart drives the real route against an
+  // exhausted budget and a fresh one and fails if the status or body differ.
+  //
+  // What stood here read the route SOURCE and failed if it branched on the send
+  // result. That was a proxy for the property, and the proxy has now diverged
+  // from it: the route DOES branch, to refund a resend the budget's refusal
+  // would otherwise have cost an innocent caller (§9) — while returning exactly
+  // the same 202. Keeping the source check would have blocked a fix that makes
+  // the refusal cheaper, on the strength of a shape rather than a behaviour.
 
   group('the early warning', () {
     // An alarm that only fires on exhaustion arrives AFTER users have been
