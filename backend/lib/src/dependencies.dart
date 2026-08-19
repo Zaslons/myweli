@@ -54,6 +54,7 @@ import 'db/postgres_notifications_repository.dart';
 import 'db/postgres_provider_audit_repository.dart';
 import 'db/postgres_provider_auth_repository.dart';
 import 'db/postgres_providers_repository.dart';
+import 'db/postgres_rate_limiter.dart';
 import 'db/postgres_reminder_log_repository.dart';
 import 'db/postgres_reviews_repository.dart';
 import 'db/postgres_salon_subscription_repository.dart';
@@ -95,6 +96,8 @@ import 'push/push_service.dart';
 import 'reviews_repository.dart';
 import 'reviews_service.dart';
 import 'salon_provisioning_service.dart';
+import 'security/identity_limits.dart';
+import 'security/rate_limiter.dart';
 import 'storage/storage_service.dart';
 import 'subscription/salon_subscription_repository.dart';
 import 'subscription/salon_subscription_service.dart';
@@ -270,6 +273,48 @@ SendCeilings get _sendCeilings => (
   warm:
       int.tryParse(_envOrNull('EMAIL_BUDGET_WARM') ?? '') ??
       kDefaultCeilings.warm,
+);
+
+/// Per-identity rate limits for booking, review submission and upload signing.
+///
+/// **Wrapped in [FailOpenRateLimiter], so a Postgres blip cannot stop people
+/// booking.** Every real control still holds without the limiter — slot
+/// uniqueness, ownership, the role gates, T61's claim-time size check — so
+/// failing open costs a temporarily absent abuse ceiling. Failing closed would
+/// cost an outage. The opposite call from `UploadVerificationService`, and the
+/// difference is that there the failure IS the harm.
+///
+/// Same in-memory caveat as the send budget above: fine for dev and CI, no bound
+/// at all on a `maxScale: 4` service.
+final RateLimiter rateLimiter = FailOpenRateLimiter(
+  _pool == null ? InMemoryRateLimiter() : PostgresRateLimiter(_pool!),
+);
+
+/// The ceilings, per hour, per identity. Configurable for the same reason the
+/// send budget's are: a launch changes the right number, and a redeploy is a
+/// poor way to discover that.
+IdentityLimits get identityLimits => (
+  booking:
+      int.tryParse(_envOrNull('LIMIT_BOOKING') ?? '') ??
+      kDefaultIdentityLimits.booking,
+  reviewSubmit:
+      int.tryParse(_envOrNull('LIMIT_REVIEW_SUBMIT') ?? '') ??
+      kDefaultIdentityLimits.reviewSubmit,
+  signGallery:
+      int.tryParse(_envOrNull('LIMIT_SIGN_GALLERY') ?? '') ??
+      kDefaultIdentityLimits.signGallery,
+  signReview:
+      int.tryParse(_envOrNull('LIMIT_SIGN_REVIEW') ?? '') ??
+      kDefaultIdentityLimits.signReview,
+  signKyc:
+      int.tryParse(_envOrNull('LIMIT_SIGN_KYC') ?? '') ??
+      kDefaultIdentityLimits.signKyc,
+  signDeposit:
+      int.tryParse(_envOrNull('LIMIT_SIGN_DEPOSIT') ?? '') ??
+      kDefaultIdentityLimits.signDeposit,
+  signAvatar:
+      int.tryParse(_envOrNull('LIMIT_SIGN_AVATAR') ?? '') ??
+      kDefaultIdentityLimits.signAvatar,
 );
 
 /// **Wrapped, so nothing can route around it.** Every present and future send

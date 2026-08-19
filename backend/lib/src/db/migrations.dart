@@ -901,6 +901,41 @@ CREATE TABLE IF NOT EXISTS momo_operators (
           'ON email_send_budget (window_start)',
     ],
   ),
+  (
+    id: '0034_identity_rate_limits',
+    statements: [
+      // Per-identity rate limits for booking, review submission and upload
+      // signing (docs/design/backend-identity-rate-limits.md).
+      //
+      // **A sibling of `email_send_budget`, not a generalisation of it.** That
+      // table shipped to production, migrations here are forward-only, and
+      // `PostgresSendBudget` queries it by literal name — so renaming it to
+      // serve both would break every OTP email the moment anyone rolled the
+      // revision back. Two near-identical tables is the cheaper mistake. If a
+      // THIRD counter ever appears, that is the point to extract a shared
+      // windowed counter, not before.
+      //
+      // **In Postgres, not memory**, for the reason `LoginThrottle` and
+      // `TeamService._inviteCounts` demonstrate: per-instance counters on a
+      // `maxScale: 4` service mean N times the budget and a reset on every cold
+      // start, which is to say no bound at all.
+      //
+      // `bucket` holds a surface prefix plus a JWT-verified `sub` — never a
+      // client-supplied string. A key built from an open set would let an
+      // attacker mint a fresh bucket per request, which both evaporates the
+      // limit and turns this table into the write amplifier they wanted.
+      'CREATE TABLE IF NOT EXISTS identity_rate_limits ('
+          'bucket text NOT NULL, '
+          'window_start timestamptz NOT NULL, '
+          'hits int NOT NULL DEFAULT 0, '
+          'PRIMARY KEY (bucket, window_start))',
+      // Old windows are dead weight; nothing reads them. Cheap to prune later,
+      // and this index is what makes that a range delete rather than a full
+      // scan — the same reasoning as the budget table's.
+      'CREATE INDEX IF NOT EXISTS identity_rate_limits_window_idx '
+          'ON identity_rate_limits (window_start)',
+    ],
+  ),
 ];
 
 /// How long a schema-setup statement may **wait for a lock** before giving up.
