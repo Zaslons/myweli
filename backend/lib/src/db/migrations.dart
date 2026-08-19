@@ -936,6 +936,52 @@ CREATE TABLE IF NOT EXISTS momo_operators (
           'ON identity_rate_limits (window_start)',
     ],
   ),
+  (
+    id: '0035_admin_login_throttle',
+    statements: [
+      // The admin-login failure lockout (docs/design/backend-admin-login-throttle.md).
+      //
+      // **A third counter, and the rule of three does NOT fire.** `0033` and
+      // `0034` are windowed counters, and `0034`'s comment says a third is when
+      // to extract a shared one. This is not windowed: a lockout's penalty runs
+      // from the triggering failure, so it needs an absolute `locked_until` that
+      // no `window_start` can express. Five failures at 10:59:50 would be
+      // forgiven at 11:00:00 by a clock-aligned window. Extracting a shared
+      // abstraction across these three would produce the wrong one.
+      //
+      // **Why this moved out of memory at all.** `LoginThrottle` kept its state
+      // in a plain Map on a `maxScale: 4` service — up to 20 guesses per 15
+      // minutes, reset by every cold start — and the reason recorded for leaving
+      // it there was that admin login "sits behind Cloudflare Access". That
+      // premise was false twice over: nothing in this repo shows Access is
+      // configured, and `api.myweli.com` is DNS-only by design (the managed
+      // certificate needs Google to answer the challenge), so Cloudflare is not
+      // in the request path at all.
+      //
+      // **`key_hash`, not the email.** The key is the caller's own input on an
+      // unauthenticated endpoint, and unknown addresses are counted too —
+      // deliberately, so `locked_out` never reveals which addresses are admins.
+      // That makes the key set open, so a SHA-256 digest keeps every row 64
+      // bytes wide regardless of what was submitted, keeps third-party addresses
+      // out of the table, and makes the key safe to log. `sha256()` exists in
+      // Postgres, so the break-glass unlock stays one line.
+      //
+      // `updated_at` deliberately has NO `DEFAULT now()`: every write passes the
+      // injected Dart clock, and a default would let a forgotten parameter
+      // silently substitute the server's — the kind of divergence that surfaces
+      // in an expiry test six months later.
+      'CREATE TABLE IF NOT EXISTS admin_login_throttle ('
+          'key_hash text PRIMARY KEY, '
+          'fail_count int NOT NULL DEFAULT 0, '
+          'locked_until timestamptz, '
+          'updated_at timestamptz NOT NULL)',
+      // On `updated_at` rather than `locked_until`, because the prune must also
+      // reach rows that were never locked — a stalled count of three otherwise
+      // sits there forever, and a count that never decays is its own defect.
+      'CREATE INDEX IF NOT EXISTS admin_login_throttle_updated_idx '
+          'ON admin_login_throttle (updated_at)',
+    ],
+  ),
 ];
 
 /// How long a schema-setup statement may **wait for a lock** before giving up.
