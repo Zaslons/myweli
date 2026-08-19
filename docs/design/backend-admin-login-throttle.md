@@ -20,16 +20,29 @@ It was left that way on purpose. [backend-rate-limiting.md](backend-rate-limitin
 §1 recorded the reason: admin login *"sits behind Cloudflare Access, so the blast
 radius is small."* **That premise fails on two independent grounds.**
 
-1. **Nothing in this repository shows Access is configured.** Every mention is an
-   unexecuted instruction — `DEPLOYMENT.md:295`, `deploy-admin.yml:8,24` — or a
-   doc repeating one. `infra/cloudflare/` holds only R2 work, and `LAUNCH.md`
-   mentions it **zero** times, so nothing tracks whether it was ever done.
-2. **Even configured it could not protect this.** Access would front
-   `admin.myweli.com` on Cloudflare Pages. The API is `api.myweli.com`, kept
-   **DNS-only / grey-cloud on purpose** so Google can validate the managed
-   certificate (`70-load-balancer.sh:62-63,101`) — Cloudflare is not in the
-   request path. And Cloud Armor's single rule is `startsWith('/auth/')`, which
-   **`/admin/auth/login` does not match**.
+1. ~~**Nothing in this repository shows Access is configured.**~~ **This ground
+   was WRONG, and I am the one who got it wrong.** It was true that nothing in
+   the repo recorded it — every mention was an unexecuted instruction
+   (`DEPLOYMENT.md:295`, `deploy-admin.yml:8,24`), `infra/cloudflare/` holds only
+   R2 work, and `LAUNCH.md` mentioned it zero times. But "our records do not show
+   it" is not "it is not so", and I let the first stand as the second.
+   **Verified 2026-08-19 by fetching it:** `https://admin.myweli.com` redirects
+   anonymously to `blue-base-1ad1.cloudflareaccess.com` and serves *"Sign in ・
+   Cloudflare Access"*. **It is configured, and it works.**
+2. **Even configured it cannot protect this — and that is now the whole
+   argument rather than half of one.** Access fronts `admin.myweli.com`, the
+   Cloudflare Pages bundle. The API is `api.myweli.com`, kept **DNS-only /
+   grey-cloud on purpose** so Google can validate the managed certificate
+   (`70-load-balancer.sh:62-63,101`), so Cloudflare is not in its request path.
+   **Measured the same day:** an anonymous
+   `POST https://api.myweli.com/admin/auth/login` answers `401
+   invalid_credentials` **directly** — no redirect, no Access. And Cloud Armor's
+   single rule was `startsWith('/auth/')`, which `/admin/auth/login` does not
+   match (closed separately; see §8).
+
+**The conclusion is unchanged and the fix was right — but it was right for one
+reason, not the two I gave.** Which is its own instance of the lesson below: an
+absence of evidence in the repository is a fact about the repository.
 
 So `POST https://api.myweli.com/admin/auth/login` is reachable from any address
 with no per-IP limit, and this throttle is the only brute-force bound on the
@@ -181,7 +194,14 @@ the class guarded the credential:
   answered by the break-glass unlock in §5.
 - **T59 erasure does not enumerate this table.** Rows are window-scoped and
   transient, and the key is a digest, so this is declared rather than solved.
-- **`/admin/*` still matches no Cloud Armor rule.** Separate change, and the
-  ordering is deliberate: this throttle is the security fix (it bounds guesses
-  per credential, which per-IP cannot), the rule is the storage fix (it bounds
-  row growth at the source).
+- ~~**`/admin/*` still matches no Cloud Armor rule.**~~ **Closed 2026-08-19** —
+  `infra/gcp/89-admin-auth-rate-limit.sh` adds a rule at priority 1100 for
+  `startsWith('/admin/auth/')`, 10/min per IP with a 300s ban, on the existing
+  policy. Scoped to `/admin/auth/` rather than all of `/admin/`, because a rule
+  over the whole console would throttle ordinary paginated reads at ten a minute
+  and the team plausibly shares one address. **The ordering was deliberate and
+  is worth keeping in mind:** the throttle is the SECURITY fix — it bounds
+  guesses per credential, which per-IP fundamentally cannot, since an attacker
+  with a botnet walks through any IP ceiling — and the rule is the STORAGE fix,
+  bounding how fast one source can create rows in a table whose key set is open
+  by design.

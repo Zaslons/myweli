@@ -23,12 +23,16 @@ name: Deploy admin console
 # API. The deploy is not the risk — the console is internal and behind
 # Cloudflare Access — the *silence* is.
 #
-# **Correction, 2026-08-19: 'behind Cloudflare Access' is INTENDED, not
-# verified.** Nothing in this repository shows it was ever configured, and
-# LAUNCH.md now carries an unticked box for checking it. It would in any
-# case cover this Pages site only — the API is a different origin on a
-# different provider — so it must not be cited as a reason to weaken a
-# control on the backend. It was, once:
+# **Verified 2026-08-19, and it is true**: an anonymous fetch of
+# admin.myweli.com redirects to cloudflareaccess.com and serves the Access
+# sign-in. LAUNCH.md §4 carries the evidence. It had gone unchecked for
+# months while three files stated it as fact — including one that used it as
+# the reason to leave a security control weaker than it should have been.
+#
+# **It covers this Pages site ONLY.** The API is a different origin on a
+# different provider, and an anonymous POST to api.myweli.com/admin/auth/login
+# answers 401 directly, no redirect. So this must never again be cited as a
+# reason to weaken a backend control:
 # docs/design/backend-admin-login-throttle.md §1.
 #
 # Removing the trigger removed the only thing that compiled `main_admin.dart`,
