@@ -245,6 +245,35 @@ reviewed, because the review route gates `role == 'user'`. A data-integrity
 defect rather than privilege escalation: the booking is server-priced and
 `pending` like any other. Its own PR, its own test.
 
+## 8.1 Probed against a deployed service, 2026-08-19
+
+The tests are unit and handler tests, which is exactly what LAUNCH.md §4 says is
+insufficient. So the limit was driven against the deployed **staging** service
+with two real access tokens, minted through the Q1b seam:
+
+| | |
+|---|---|
+| identity A, 13 × `POST /appointments` | `404 ×10` then **`429 ×3`**, body `{"error":"rate_limited"}` |
+| **control** — identity B, same window | `404 ×5`, `provider_not_found` — untouched |
+| A once more | still `429` |
+
+**The control is the half that makes it evidence.** A burst of 429s alone is
+equally consistent with having broken booking for everyone; only a second
+identity still being served in the same window distinguishes a per-identity
+limit from an outage.
+
+**It also demonstrates §4's "count attempts, not successes" on the real
+service.** Every one of those bookings *failed* — `provider_not_found`, because
+staging has no salons — and consumed budget anyway. That is the property
+argued for on paper, observed. And the 429 arrives through `POST /appointments`'
+own bespoke switch rather than the shared mapper, which is the arm that would
+have shipped as a 400 had slice 2 not written the mapping before an emitter
+existed.
+
+**Production does not run this yet** — its last deploy predates the change. The
+probe verifies the mechanism, not its presence in production, and LAUNCH.md
+carries that as a separate unticked line.
+
 ## 9. Residuals
 
 - **Minting identities.** One budget per account; bounded by §2's composition.

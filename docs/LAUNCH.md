@@ -260,8 +260,10 @@ These block everything. None is surface-specific.
       found it, with the French still owed a review per §"Legal" below.
 - [ ] **A support channel exists** and someone is behind it (WhatsApp per the
       product's context).
-- [ ] **Rate limiting** verified on the auth and booking routes against a real
-      hostile pattern, not a unit test. **Measured 2026-08-18 — it failed, and
+- [x] **Rate limiting** verified on the auth and booking routes against a real
+      hostile pattern, not a unit test. **All three probed against deployed
+      environments, each with its control** — see the bullets below. Note the
+      separate unticked item that follows: verified is not deployed. **Measured 2026-08-18 — it failed, and
       is now closed in three layers**
       ([design/backend-rate-limiting.md](design/backend-rate-limiting.md) ·
       [design/backend-identity-rate-limits.md](design/backend-identity-rate-limits.md)).
@@ -327,11 +329,12 @@ These block everything. None is surface-specific.
         than all of `/admin/`, because a rule over the whole console would
         throttle ordinary paginated reads and the team plausibly shares one
         address.
-        **What would close this half:** against a deployed environment, six
-        failed logins on a throttle-only test admin returning 429 `locked_out`
-        — **and the control**, a second address still getting 401 in the same
-        window, plus a burst on an ordinary `/admin/*` read that is *not*
-        refused.
+        **Closed 2026-08-19**, measured against production in three
+        directions: before the rule, 15 admin logins → `401 ×15` (unbounded);
+        after, `401 ×10` then `429 ×5`; control, 15 × `/health` → `200 ×15`.
+        Addresses rotated per request, because the app itself returns 429 for
+        `locked_out` at five failures and a repeated address would have measured
+        the wrong refusal.
       - **Layer 3 is live: per-identity limits on booking, review submission and
         upload signing** (2026-08-19). Keyed on the JWT-verified `sub`, so
         nobody can choose another's key and there was nothing to measure first —
@@ -339,6 +342,25 @@ These block everything. None is surface-specific.
         Booking 10/hour, review submission 5, signing 10–60 by purpose; refusal
         is `rate_limited` at **429**. Design:
         [design/backend-identity-rate-limits.md](design/backend-identity-rate-limits.md).
+        **Probed against the deployed staging service, 2026-08-19**, with two
+        real tokens minted through the Q1b seam:
+
+        | | |
+        |---|---|
+        | identity A, 13 × `POST /appointments` | `404 ×10` then **`429 ×3`**, body `{"error":"rate_limited"}` |
+        | **control** — identity B, same window | `404 ×5`, `provider_not_found` — untouched |
+        | A once more | still `429` — not an artefact of ordering |
+
+        Without the control a burst of 429s is equally consistent with having
+        broken booking for everyone, which is the whole reason the box demanded
+        a hostile pattern rather than a unit test.
+        **And it demonstrates "count attempts, not successes" on the real
+        service**: every one of those bookings *failed* with
+        `provider_not_found`, and consumed budget anyway. An attacker chooses
+        whether their attempt succeeds, so they must not choose whether they are
+        counted. The 429 also arrives through `POST /appointments`' own bespoke
+        switch — the arm that would have shipped as a 400 had the status mapping
+        not been written before the emitter existed.
       - **WHY THIS BOX IS STILL UNCHECKED.** It asks for a real hostile pattern,
         **not a unit test** — and the auth half genuinely has one: Cloud Armor
         was probed on production in both directions, with a control. The booking
@@ -369,6 +391,15 @@ These block everything. None is surface-specific.
       of the rate-limiting box above — different origin, different provider,
       and `api.myweli.com` is deliberately DNS-only so Google can validate its
       certificate.
+
+- [ ] **The per-identity limits are deployed to PRODUCTION.** Verified on
+      staging (above) and **not yet running in production**: the last production
+      deploy predates them, so `POST /appointments`, the review submit and the
+      upload signer are currently unbounded per identity there. One
+      `workflow_dispatch` away — promote by `image_tag`, and the guard refuses
+      an empty one. Kept as its own line because *verified* and *deployed* are
+      different claims, and collapsing them is how a green box comes to describe
+      something nobody is running.
 
 - [ ] **The funnel has been walked by a person who did not build it**, on a real
       phone, on a real Ivorian network.
