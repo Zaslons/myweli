@@ -341,3 +341,29 @@ manifest is the value in force.
 Watched red: a single global budget (the DoS in §2), never refusing, never
 warning, warning on *every* send past the mark, and an alert filter pointed at a
 renamed line.
+
+### 10.1 The atomicity claim, finally evidenced
+
+§3's whole argument for Postgres over memory is one sentence in
+`postgres_send_budget.dart`: a read-then-write "would let two instances both read
+59, both decide there is room, and both send." That was **asserted, never
+demonstrated**. The suite above exercises only `InMemorySendBudget`, which runs
+on a single-threaded event loop and therefore proves the interface's semantics
+and nothing whatsoever about the SQL — so the claim went to production
+(2026-08-19, revision `myweli-api-00021-p9z`) resting on a reading of the
+statement.
+
+`backend/test/db/postgres_send_budget_test.dart` closes that, against a real
+Postgres 16: 25 concurrent reservations against a ceiling of 10 leave exactly ten
+`ok`, and — asserted separately, because a count of ten could come from a
+different mistake — **twenty-five distinct post-increment values**.
+
+**Watched red, and the number is the point.** Rewritten as
+`SELECT COALESCE(MAX(sent),0)+1` followed by a separate write, **all 25 callers
+read `sent = 1` and all 25 were allowed**. Not a slightly loose bound — under
+concurrency the counter does not exist. That is the failure the comment
+predicted, and it took a database to see it.
+
+The gap was found by writing the same test for `PostgresRateLimiter`
+([backend-identity-rate-limits.md](backend-identity-rate-limits.md) §10) and
+noticing the older, already-deployed twin had never had one.
