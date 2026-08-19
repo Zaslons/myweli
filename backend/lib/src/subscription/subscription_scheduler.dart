@@ -1,5 +1,6 @@
 import '../access/membership_repository.dart';
 import '../email/email_provider.dart';
+import '../email/send_budget.dart';
 import '../email/subscription_emails.dart';
 import '../providers_repository.dart';
 import '../push/push_service.dart';
@@ -107,6 +108,9 @@ class SubscriptionScheduler {
 
     if (owner.email.isNotEmpty) {
       await _email.send(
+        // WARM: a notice to a salon about its own subscription. Starving
+        // these is the availability attack the split exists to prevent.
+        classification: EmailClass.warm,
         to: owner.email,
         subject: subscriptionNoticeSubject(kind),
         text: renderSubscriptionNoticeText(kind, salonName),

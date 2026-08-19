@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import 'email_provider.dart';
+import 'send_budget.dart';
 
 /// Resend adapter (https://resend.com) — JSON POST to `/emails` with a Bearer
 /// API key. Credentials come from env (never the repo). Requires the sending
@@ -28,6 +29,7 @@ class ResendEmailProvider implements EmailProvider {
     required String to,
     required String subject,
     required String text,
+    required EmailClass classification,
     String? html,
   }) async {
     try {

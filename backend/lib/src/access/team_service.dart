@@ -1,6 +1,7 @@
 import '../clients/provider_audit_log.dart';
 import '../email/email_provider.dart';
 import '../email/invitation_emails.dart';
+import '../email/send_budget.dart';
 import '../providers_repository.dart';
 import '../subscription/salon_subscription_service.dart';
 import '../validators.dart';
@@ -351,6 +352,11 @@ class TeamService {
     final provider = await _providers.byId(providerId);
     final salonName = (provider?['name'] as String?) ?? 'Un salon';
     await _email.send(
+      // WARM: an authenticated actor inviting a colleague to their OWN
+      // salon. The closest of the warm set to cold — the address is chosen
+      // by a human — but it needs auth, a salon and a capability, so it is
+      // bounded by the actor rather than open to the internet.
+      classification: EmailClass.warm,
       to: email,
       subject: invitationEmailSubject(salonName),
       text: renderInvitationEmailText(salonName, role),

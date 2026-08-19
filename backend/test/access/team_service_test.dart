@@ -5,6 +5,7 @@ import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
 import 'package:myweli_backend/src/auth/tokens.dart';
 import 'package:myweli_backend/src/clients/provider_audit_log.dart';
 import 'package:myweli_backend/src/email/email_provider.dart';
+import 'package:myweli_backend/src/email/send_budget.dart';
 import 'package:myweli_backend/src/providers_repository.dart';
 import 'package:myweli_backend/src/subscription/salon_subscription_repository.dart';
 import 'package:myweli_backend/src/subscription/salon_subscription_service.dart';
@@ -18,6 +19,7 @@ class _RecordingEmail implements EmailProvider {
     required String to,
     required String subject,
     required String text,
+    required EmailClass classification,
     String? html,
   }) async {
     sent.add((to: to, subject: subject));

@@ -57,9 +57,11 @@ import 'db/postgres_providers_repository.dart';
 import 'db/postgres_reminder_log_repository.dart';
 import 'db/postgres_reviews_repository.dart';
 import 'db/postgres_salon_subscription_repository.dart';
+import 'db/postgres_send_budget.dart';
 import 'deposit_service.dart';
 import 'email/email_provider.dart';
 import 'email/resend_email_provider.dart';
+import 'email/send_budget.dart';
 import 'favorites_repository.dart';
 import 'favorites_service.dart';
 import 'kyc_service.dart';
@@ -249,7 +251,36 @@ final AppleIdTokenVerifier appleIdTokenVerifier = () {
 /// Outbound email (the OTP channel). Configured → Resend; else a no-network
 /// log provider for dev/CI (devCode is echoed inline off-prod). Production
 /// must configure it while the "email" method is enabled (fail-fast).
-final EmailProvider emailProvider = () {
+/// The send budget — Postgres in a real deployment, in-memory otherwise.
+///
+/// In-memory is fine for dev/CI and **fatal in a deployed service**: per-
+/// instance counters mean N times the budget and a reset on every cold start,
+/// which for a send budget means the bound does not exist. That is exactly the
+/// defect `LoginThrottle` still carries.
+final SendBudget sendBudget = _pool == null
+    ? InMemorySendBudget(ceilings: _sendCeilings)
+    : PostgresSendBudget(_pool!, ceilings: _sendCeilings);
+
+/// Sends per hour, per class. Configurable because a launch changes the right
+/// number and a redeploy is a poor way to discover that.
+SendCeilings get _sendCeilings => (
+  cold:
+      int.tryParse(_envOrNull('EMAIL_BUDGET_COLD') ?? '') ??
+      kDefaultCeilings.cold,
+  warm:
+      int.tryParse(_envOrNull('EMAIL_BUDGET_WARM') ?? '') ??
+      kDefaultCeilings.warm,
+);
+
+/// **Wrapped, so nothing can route around it.** Every present and future send
+/// goes through the budget — including ones nobody remembers to budget —
+/// because the wrapping happens here rather than at each call site.
+final EmailProvider emailProvider = BudgetedEmailProvider(
+  _rawEmailProvider,
+  sendBudget,
+);
+
+final EmailProvider _rawEmailProvider = () {
   final apiKey = _envOrNull('RESEND_API_KEY');
   final from = _envOrNull('EMAIL_FROM') ?? 'MyWeli <no-reply@myweli.com>';
   if (apiKey != null) return ResendEmailProvider(apiKey: apiKey, from: from);
