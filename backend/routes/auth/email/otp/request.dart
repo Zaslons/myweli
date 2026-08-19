@@ -39,7 +39,7 @@ Future<Response> onRequest(RequestContext context) async {
   // Deliver the code (best-effort; never logs it). In dev the LogProvider
   // no-ops and `devCode` is echoed below.
   if (result.code != null) {
-    await context.read<EmailProvider>().send(
+    final sent = await context.read<EmailProvider>().send(
       // COLD: an anonymous caller picked this address. Budgeted tightly —
       // docs/design/backend-email-send-budget.md §2.
       classification: EmailClass.cold,
@@ -48,6 +48,21 @@ Future<Response> onRequest(RequestContext context) async {
       text: renderOtpEmailText(result.code!),
       html: renderOtpEmailHtml(result.code!),
     );
+    // `requestEmailOtp` already spent one of this caller's four resends, and
+    // the budget then declined to send for reasons that have nothing to do
+    // with them. Left alone, an hour-long global ceiling becomes a per-user
+    // lockout that OUTLASTS it: four silent retries, then a hard
+    // `otp_resend_limit` that survives the window reset.
+    //
+    // A PROVIDER failure is deliberately not refunded — that was a real
+    // delivery attempt. docs/design/backend-email-send-budget.md §9.
+    // The response is IDENTICAL either way — 202 with the same body — so this is
+    // not an address-exists oracle: budget exhaustion is global, not per-address,
+    // and leaks nothing about the recipient. A handler test drives the real route
+    // against an exhausted budget and a fresh one and fails if they differ.
+    if (sent.error == 'send_budget_exhausted') {
+      await context.read<AuthRepository>().refundEmailOtpResend(email);
+    }
   }
 
   // Off-prod `devCode` is unchanged. In production it is null, and the ONLY
