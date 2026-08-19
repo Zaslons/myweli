@@ -315,6 +315,12 @@ These block everything. None is surface-specific.
         start**, on the account that bypasses every tenant boundary. The lockout
         now lives in Postgres
         ([design/backend-admin-login-throttle.md](design/backend-admin-login-throttle.md)).
+        **Layer 1 now covers it, applied and measured 2026-08-19** — before:
+        `401 ×15` (unbounded); after: `401 ×10` then `429 ×5`; control: 15 ×
+        `/health` → `200 ×15`. Addresses rotated on every request, because the
+        app itself returns 429 for `locked_out` at five failures and a repeated
+        address would have measured the wrong refusal. The 429s carry Cloud
+        Armor's HTML page, not the app's JSON envelope.
         **And layer 1 now covers it too** (2026-08-19):
         `infra/gcp/89-admin-auth-rate-limit.sh` adds a rule at priority 1100 for
         `startsWith('/admin/auth/')`, 10/min per IP — scoped to the login rather

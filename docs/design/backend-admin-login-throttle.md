@@ -205,3 +205,22 @@ the class guarded the credential:
   with a botnet walks through any IP ceiling — and the rule is the STORAGE fix,
   bounding how fast one source can create rows in a table whose key set is open
   by design.
+
+  **Applied to production 2026-08-19 and measured in three directions**, because
+  a burst of refusals alone is equally consistent with having broken the API:
+
+  | | result |
+  |---|---|
+  | before the rule, 15 admin logins | `401 ×15` — unbounded, the gap |
+  | after (waiting ~8 min to propagate) | `401 ×10` then **`429 ×5`** |
+  | control — 15 × `GET /health` | `200 ×15`, untouched |
+
+  **The addresses were rotated on every request**, and that is not incidental:
+  the app returns 429 for `locked_out` at five failures, so a repeated address
+  would have produced app-429s from the sixth attempt and the measurement would
+  have proved nothing about Cloud Armor. Rotating keeps every per-credential
+  counter below its threshold, leaving the per-IP rule as the only thing that
+  can refuse.
+
+  Confirmed at the body: the refusal is Cloud Armor's `<!doctype html>…429 Too
+  Many Requests` page, not the app's `{"error":"locked_out"}`.
