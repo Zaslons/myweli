@@ -597,15 +597,52 @@ void main() {
     test('and the refusal hands over a tag that has actually run', () {
       // Refusing without saying WHICH tag just moves the work to the operator,
       // who then looks it up by hand — which is where the wrong value comes
-      // from. The message reads staging's serving image and prints its tags.
+      // from. So the hint has to end in a concrete, correct value.
       expect(workflow, contains('myweli-api-staging'));
-      expect(workflow, contains('image_summary.tags'));
       expect(
         workflow,
         contains('spec.template.metadata.labels.commit'),
+        reason: 'the commit label is the tag by construction — start there',
+      );
+      expect(
+        workflow,
+        contains(r'image_tag=${SUGGEST}'),
+        reason: 'the operator must be handed a value, not a research task',
+      );
+    });
+
+    test('the hint does not ask gcloud a question it answers with silence', () {
+      // The first version of this hint read tags off a DIGEST reference:
+      //   gcloud artifacts docker images describe IMAGE@sha256:… \
+      //     --format='value(image_summary.tags)'
+      // which returns EMPTY, so it printed "<none>" for a tag that existed.
+      // Measured against the real registry on 2026-08-19 — by running the
+      // guard, not by reading it. Both halves are asserted because either
+      // alone would let it come back: the broken form must be gone, and the
+      // form that works on a digest must be present.
+      final hint = workflow
+          .split('Production must promote')[1]
+          .split('- name:')[0];
+      expect(
+        hint,
+        isNot(contains('image_summary.tags')),
         reason:
-            'the hint should also print the commit label, so the operator sees '
-            'what they are promoting rather than only its tag',
+            'that field is empty for a digest reference — use `artifacts docker '
+            'tags list --filter=version:<digest>`, which is not',
+      );
+      expect(hint, contains('tags list'));
+      expect(hint, contains(r'--filter="version:${STAGING_IMAGE##*@}"'));
+    });
+
+    test('and it VERIFIES the label rather than trusting it', () {
+      // A commit label that does not resolve to the digest staging serves is a
+      // label that is lying, and handing the operator a confident wrong tag is
+      // worse than handing them nothing.
+      expect(workflow, contains('image_summary.digest'));
+      expect(
+        workflow,
+        contains(r'"${IMAGE}@${RESOLVED}" = "${STAGING_IMAGE}"'),
+        reason: 'the suggestion is only offered when it provably matches',
       );
     });
   });

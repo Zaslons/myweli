@@ -159,8 +159,16 @@ and read exactly like two broken filters. Staging is not behind that load
 balancer and the app-level limiter is not built yet, so 61 requests go through.
 
 No mail actually leaves: the budget is reserved BEFORE the send, and the
-addresses are .test, which no provider will deliver to. The identities this
-leaves behind carry the .test suffix the purge script already keys on.
+addresses are .test, which no provider will deliver to.
+
+AND IT CREATES NO ACCOUNTS. An earlier version of this note said the probe
+leaves behind "identities ... the purge script already keys on". That was
+WRONG, and stating it invited a cleanup nobody needs. `INSERT INTO users`
+lives in `verifyEmailOtp`; REQUESTING a code only writes `email_otp_codes`,
+with expires_at five minutes out. The probe never verifies, so no account is
+created on any environment it is pointed at. What it does leave is one expired
+`email_otp_codes` row per address — no PII beyond an undeliverable .test
+string, and pinned by a test (test/auth/otp_request_creates_no_account_test.dart).
 
 Confirm both incidents without the console - there is no incidents API, but
 Monitoring logs every opening:
