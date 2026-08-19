@@ -247,3 +247,14 @@ Watched red, slice 1: the off-by-one (`<` for `<=`); the bucket dropping the
 identity; the window becoming a constant; fail-open flipped to fail-closed;
 `signReview` dropped below the composition floor; and — against a real Postgres —
 the atomic upsert rewritten as a read-then-write.
+
+**And adding a second DB-gated file found a drift.** `runMigrations` does not
+take the schema lock itself; the caller does, and `dependencies.dart` wraps the
+whole setup block in `withSchemaLock` precisely because *"Cloud Run boots cold
+instances in parallel where Render never did."* The existing test called it
+**bare**, which was safe only while it was the ONLY file that did. Two concurrent
+files, and `CREATE TABLE IF NOT EXISTS` is not atomic against a concurrent
+creator: both check, both find the table absent, one loses with `23505` on
+`pg_type_typname_nsp_index`. Reproduced red and then green against a real
+Postgres, on a fresh database each time. Both files now go through the lock, as
+production does — which also makes them a more faithful rehearsal of it.

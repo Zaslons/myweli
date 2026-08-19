@@ -36,7 +36,10 @@ void main() {
 
   setUpAll(() async {
     pool = createPool(url);
-    await runMigrations(pool);
+    // Under the schema lock, as `dependencies.dart` does — `runMigrations` does
+    // not take it itself, and this file racing the other DB-gated one is what
+    // exposed that the tests had drifted from production.
+    await withSchemaLock(pool, () => runMigrations(pool));
     limiter = PostgresRateLimiter(pool);
   });
 

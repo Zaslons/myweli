@@ -40,11 +40,22 @@ void main() {
   setUpAll(() async {
     initSalonTime(); // salonWallClock needs the tz database
     pool = createPool(url);
-    await runMigrations(pool);
-    await seedProvidersIfEmpty(pool, env: Env.dev);
-    await backfillCatalogueIfNeeded(
-      pool,
-    ); // match production: catalogue → tables
+    // **Under the schema lock, exactly as `dependencies.dart` does it.**
+    // `runMigrations` does not take the lock itself — the caller does — and
+    // calling it bare was safe here only while this was the ONLY test file that
+    // did. A second DB-gated file made the two race, and `CREATE TABLE IF NOT
+    // EXISTS` is not atomic against a concurrent creator: both check, both find
+    // it absent, and one loses with 23505 on `pg_type_typname_nsp_index`.
+    // Production already knew this — "Cloud Run boots cold instances in
+    // parallel where Render never did" — and the tests were the copy that had
+    // drifted.
+    await withSchemaLock(pool, () async {
+      await runMigrations(pool);
+      await seedProvidersIfEmpty(pool, env: Env.dev);
+      await backfillCatalogueIfNeeded(
+        pool,
+      ); // match production: catalogue → tables
+    });
   });
 
   tearDownAll(() async => pool.close());
