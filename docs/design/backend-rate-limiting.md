@@ -50,8 +50,32 @@ users to lose.
 *"Single-instance V1 … move to a shared store if the API is ever horizontally
 scaled."* Production runs `maxScale: 4`, so the condition it named has been met
 and nothing noticed — a design-doc deadline again. It guards **admin login
-only**, which sits behind Cloudflare Access, so the blast radius is small. Left
-as-is deliberately, and recorded here so the next person does not rediscover it.
+only**, ~~which sits behind Cloudflare Access, so the blast radius is small.
+Left as-is deliberately, and recorded here so the next person does not
+rediscover it.~~
+
+**That justification was FALSE, and the throttle moved to Postgres on
+2026-08-19** ([backend-admin-login-throttle.md](backend-admin-login-throttle.md)).
+The sentence is struck rather than deleted, because the failure it records is
+the one worth remembering: *a justification written into a design doc becomes
+the reason nobody looks again.* It was wrong on two independent grounds.
+
+1. **Nothing in this repository shows Cloudflare Access is configured.** Every
+   mention is an unexecuted instruction — `DEPLOYMENT.md:295` ("**put** … in
+   front of"), `deploy-admin.yml:8,24` — or a document repeating one.
+   `infra/cloudflare/` holds only R2 work, and `LAUNCH.md` mentions it **zero**
+   times, so nothing tracks whether it was ever done.
+2. **Even configured it could not have protected this.** Access would front
+   `admin.myweli.com` on Cloudflare Pages. The API is `api.myweli.com`, which
+   `70-load-balancer.sh:62-63,101` keeps **DNS-only / grey-cloud on purpose** so
+   Google can validate the managed certificate — Cloudflare is not in the
+   request path at all. And layer 1's rule is `startsWith('/auth/')`, which
+   **`/admin/auth/login` does not match**.
+
+So the blast radius was not small. The throttle was the only brute-force bound
+on the credential `admin/_middleware.dart` calls *"the only thing standing
+between the team and everyone's data"*, and across four instances it came to
+roughly **20 guesses per 15 minutes, reset by any cold start**.
 
 ## 2. The fix, in two layers
 

@@ -23,6 +23,14 @@ name: Deploy admin console
 # API. The deploy is not the risk — the console is internal and behind
 # Cloudflare Access — the *silence* is.
 #
+# **Correction, 2026-08-19: 'behind Cloudflare Access' is INTENDED, not
+# verified.** Nothing in this repository shows it was ever configured, and
+# LAUNCH.md now carries an unticked box for checking it. It would in any
+# case cover this Pages site only — the API is a different origin on a
+# different provider — so it must not be cited as a reason to weaken a
+# control on the backend. It was, once:
+# docs/design/backend-admin-login-throttle.md §1.
+#
 # Removing the trigger removed the only thing that compiled `main_admin.dart`,
 # so `ci.yml` now builds it on every PR (without deploying). Does-it-compile and
 # ship-it are separate questions, and only the second needs a human.

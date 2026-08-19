@@ -300,6 +300,26 @@ These block everything. None is surface-specific.
         [design/backend-rate-limiting.md](design/backend-rate-limiting.md) §4.
         It still owes the **anonymous** surface — the 100/100 reads above — and
         layer 3 cannot touch those, because there is no identity to key on.
+      - **The ADMIN surface was covered by none of the layers, and the reason
+        recorded for that was false** (2026-08-19).
+        [design/backend-rate-limiting.md](design/backend-rate-limiting.md) left
+        `LoginThrottle` in memory because admin login *"sits behind Cloudflare
+        Access."* Wrong twice: **no evidence Access is configured anywhere** —
+        every mention in the repo is an unexecuted instruction, and this file
+        mentioned it **zero** times, so nothing tracked it — and even configured
+        it would front `admin.myweli.com` on Pages, while the API is
+        `api.myweli.com`, kept **DNS-only on purpose** so Google can validate
+        the managed certificate, so Cloudflare is not in the request path.
+        Layer 1's rule matches `/auth/`, which `/admin/auth/login` does not. The
+        effective bound was **~20 guesses per 15 minutes, reset by any cold
+        start**, on the account that bypasses every tenant boundary. The lockout
+        now lives in Postgres
+        ([design/backend-admin-login-throttle.md](design/backend-admin-login-throttle.md)).
+        **What would close this half:** against a deployed environment, six
+        failed logins on a throttle-only test admin returning 429 `locked_out`
+        — **and the control**, a second address still getting 401 in the same
+        window, plus a burst on an ordinary `/admin/*` read that is *not*
+        refused.
       - **Layer 3 is live: per-identity limits on booking, review submission and
         upload signing** (2026-08-19). Keyed on the JWT-verified `sub`, so
         nobody can choose another's key and there was nothing to measure first —
@@ -317,6 +337,18 @@ These block everything. None is surface-specific.
         the 429 — **and run the control**, a second identity still receiving 201
         in the same window. Without that control a 429 is indistinguishable from
         having broken booking for everyone.
+- [ ] **Cloudflare Access is configured on the `myweli-admin` Pages project**,
+      and verified — an anonymous fetch of `https://admin.myweli.com` returns
+      the Access login rather than the app.
+      **Unticked because nothing has ever checked it.** Three files assert it as
+      settled fact (`DEPLOYMENT.md` §"Restrict", `deploy-admin.yml:8,24`,
+      and — until 2026-08-19 — `design/backend-rate-limiting.md`, where it was
+      the stated reason for leaving the admin lockout in memory). Every one of
+      those is an instruction or a claim; `infra/cloudflare/` holds only R2
+      work. Note it protects the console UI only: the API is a different origin
+      on a different provider, so this box does **not** close the admin half of
+      the rate-limiting box above.
+
 - [ ] **The funnel has been walked by a person who did not build it**, on a real
       phone, on a real Ivorian network.
 

@@ -20,7 +20,15 @@ Future<Response> onRequest(RequestContext context) async {
   if (email is! String ||
       password is! String ||
       email.isEmpty ||
-      password.isEmpty) {
+      password.isEmpty ||
+      // **RFC 5321's maximum, and a boundary this route never had.** The email
+      // is the caller's own input on an unauthenticated endpoint, and it
+      // becomes a throttle key — unknown addresses are counted deliberately, so
+      // `locked_out` cannot become an admin-address oracle. Without a cap a
+      // 1 MB address is a legal request, and the key set is unbounded in WIDTH
+      // as well as in count. The hash bounds the stored row; this bounds what
+      // has to be hashed. docs/design/backend-admin-login-throttle.md
+      email.length > 254) {
     return jsonError(HttpStatus.badRequest, 'invalid_input');
   }
 
