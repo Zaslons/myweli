@@ -182,6 +182,41 @@ first — it redeploys on every merge to main — and staging's normal traffic c
 nowhere near 48 sends in an hour, so it costs no noise while making both
 policies testable outside production.
 
+### 8.1 Verified live, 2026-08-19 — both fired
+
+Created against `myweli-api-staging` (running the image the send-budget commit
+built — digest matched against what the deploy pushed, and since migrations run
+before the port opens, a serving revision *is* the proof `0033` applied). Waited
+**nine minutes** for propagation, then fired 61 rotating `.test` addresses on top
+of one shape-checking request.
+
+What the service printed — the arithmetic is the interesting part:
+
+```
+02:36:26  email_budget_warning   class=cold sent=48 ceiling=60
+02:36:35  email_budget_exhausted class=cold sent=61 ceiling=60
+02:36:36  email_budget_exhausted class=cold sent=62 ceiling=60
+```
+
+62 = 1 + 61 across two separate bursts, which is the shared Postgres counter
+being exactly right rather than approximately right. The warning appears **once**
+— not fourteen times for 48 through 61 — so the `==` comparison holds in a real
+deployment with real concurrency, not only in the unit test. And it lands **nine
+seconds before the first refusal** in a synthetic burst; under real traffic that
+lead is hours.
+
+All 62 requests returned **202**. The caller genuinely cannot tell a refusal from
+a send, which is §6 holding under live conditions rather than by assertion.
+
+Monitoring then opened both incidents at **02:37:09**, ~33 s after the lines were
+written — two distinct policy names in `ViolationOpenEventv1`, which is the
+check the script prescribes: one name would have meant the other filter was
+wrong.
+
+*Not* verified: notification **delivery**. Google logs incident opening and
+nothing about the mail it sends, so the last hop is confirmable only by looking
+in the inbox.
+
 **Known gap, stated rather than implied.** These are log-*match* alerts: they
 fire on a line appearing. Nothing detects the opposite — a budget that has
 stopped counting because the table is missing or the pool is down. That failure
