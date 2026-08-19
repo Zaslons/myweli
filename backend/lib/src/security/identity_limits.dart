@@ -132,14 +132,31 @@ Future<bool> allowUnderLimit(
 }) async {
   if (limiter == null) return true;
   final v = await limiter.hit(bucket, limit: limit, window: kIdentityWindow);
+  final emit = log ?? print;
+  if (!v.ok) {
+    // **The refusal, and it is not symmetric with the warning above.**
+    //
+    // The warning fires once per window, because its job is to say "a threshold
+    // is close" and repeating that is noise. This fires EVERY time, because its
+    // job is to say "someone was turned away" — and the count is the whole
+    // signal. One line in an hour is a person who hit a ceiling; three hundred
+    // is an attacker the limit is holding.
+    //
+    // **Why this matters more than it looks.** The per-identity limits can be
+    // provoked on staging, where the Q1b seam can mint a token, and NOT on
+    // production, where that seam is deliberately absent — a standing
+    // OTP-disclosure path on the real thing is a permanent invitation, and it
+    // was removed on purpose. So production cannot be probed, and without this
+    // line a limit that fires there would be invisible: the caller sees a 429,
+    // and we see nothing. Observability is what replaces the probe.
+    emit('rate_limited bucket=$bucket hits=${v.hits} limit=${v.limit}');
+  }
   if (v.hits == warnAt(v.limit)) {
     // The bucket carries a pseudonymous id, not contact data — unlike the send
     // budget's recipient, which its own test forbids logging. It is also the
     // only actionable field: without it the line says a threshold is close and
     // not whose.
-    (log ?? print)(
-      'rate_limit_warning bucket=$bucket hits=${v.hits} limit=${v.limit}',
-    );
+    emit('rate_limit_warning bucket=$bucket hits=${v.hits} limit=${v.limit}');
   }
   return v.ok;
 }

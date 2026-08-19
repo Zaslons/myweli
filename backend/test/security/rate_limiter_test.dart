@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:myweli_backend/src/security/identity_limits.dart';
 import 'package:myweli_backend/src/security/rate_limiter.dart';
 import 'package:test/test.dart';
@@ -149,6 +151,78 @@ void main() {
         windowStart(DateTime.utc(2026, 8, 19, 10, 5), m),
         isNot(windowStart(DateTime.utc(2026, 8, 19, 10, 4), m)),
       );
+    });
+  });
+
+  group('what a refusal leaves behind', () {
+    // **This is what replaces the probe.** The per-identity limits can be
+    // provoked on staging, where the Q1b seam mints a token, and NOT on
+    // production, where that seam is deliberately absent. So a limit that fires
+    // in production would otherwise be invisible: the caller sees a 429 and we
+    // see nothing. The log line is the only signal there will ever be.
+
+    test('a refusal is logged, every time', () async {
+      final logged = <String>[];
+      final l = InMemoryRateLimiter();
+      for (var i = 0; i < 5; i++) {
+        await allowUnderLimit(l, 'book:u1', 2, log: logged.add);
+      }
+      final refusals = logged.where((x) => x.startsWith('rate_limited'));
+      expect(
+        refusals,
+        hasLength(3),
+        reason:
+            'EVERY refusal, unlike the warning — one line in an hour is a '
+            'person who hit a ceiling, three hundred is an attacker being held',
+      );
+      expect(refusals.first, contains('bucket=book:u1'));
+      expect(refusals.first, contains('limit=2'));
+    });
+
+    test('and it carries the count, which is the whole signal', () async {
+      final logged = <String>[];
+      final l = InMemoryRateLimiter();
+      for (var i = 0; i < 4; i++) {
+        await allowUnderLimit(l, 'book:u1', 2, log: logged.add);
+      }
+      final refusals = logged
+          .where((x) => x.startsWith('rate_limited'))
+          .toList();
+      expect(refusals[0], contains('hits=3'));
+      expect(refusals[1], contains('hits=4'));
+    });
+
+    test('an ALLOWED request logs no refusal', () async {
+      // The control: a line that appeared on every call would make the alert
+      // fire constantly and mean nothing.
+      final logged = <String>[];
+      await allowUnderLimit(
+        InMemoryRateLimiter(),
+        'book:u1',
+        10,
+        log: logged.add,
+      );
+      expect(logged.where((x) => x.startsWith('rate_limited')), isEmpty);
+    });
+
+    test('the line carries no recipient or address', () async {
+      // Same rule as the send budget's: the bucket is a pseudonymous id, and
+      // nothing else about the caller belongs in a log.
+      final logged = <String>[];
+      final l = InMemoryRateLimiter();
+      for (var i = 0; i < 3; i++) {
+        await allowUnderLimit(l, 'sign:avatar:user_abc', 1, log: logged.add);
+      }
+      for (final line in logged) {
+        expect(line, isNot(contains('@')));
+      }
+    });
+
+    test('the alert script watches the string the code actually prints', () {
+      final script = File(
+        '../infra/gcp/92-identity-limit-alert.sh',
+      ).readAsStringSync();
+      expect(script, contains('rate_limited'));
     });
   });
 
