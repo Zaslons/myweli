@@ -4704,6 +4704,15 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
+                /** @description `throttle_unavailable` — the lockout store could not answer, so the login was REFUSED rather than letting the only brute-force bound on this credential lapse. Deliberately distinct from 429: that means the caller guessed too often, this means the server is degraded. Carries `Retry-After`. */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
             };
         };
         delete?: never;

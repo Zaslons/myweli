@@ -60,6 +60,16 @@ class AdminService {
         code: 'locked_out',
       );
     }
+    // **Without this arm the fall-through below tells an admin their password
+    // is wrong during a database incident** — the most confusing possible
+    // message at the worst possible moment, and the reason the server answers
+    // with a distinct code rather than reusing 429.
+    if (res.statusCode == 503) {
+      return ApiResponse.error(
+        'Service momentanément indisponible. Réessayez dans un instant.',
+        code: 'throttle_unavailable',
+      );
+    }
     return ApiResponse.error(
       'Identifiants invalides',
       code: 'invalid_credentials',

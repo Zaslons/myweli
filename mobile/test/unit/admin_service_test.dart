@@ -54,6 +54,18 @@ void main() {
     );
     expect((await locked.login('a', 'b')).code, 'locked_out');
 
+    // A degraded server must not read as a wrong password.
+    final degraded = AdminService(
+      client: MockClient((_) async => http.Response('{}', 503)),
+      baseUrl: 'http://x',
+      store: InMemorySessionStore(),
+    );
+    expect(
+      (await degraded.login('a', 'b')).code,
+      'throttle_unavailable',
+      reason: 'not invalid_credentials — the password may well be right',
+    );
+
     final bad = AdminService(
       client: MockClient((_) async => http.Response('{}', 401)),
       baseUrl: 'http://x',

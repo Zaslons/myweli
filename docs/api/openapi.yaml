@@ -2909,6 +2909,16 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
+        '503':
+          description: >
+            `throttle_unavailable` — the lockout store could not answer, so the
+            login was REFUSED rather than letting the only brute-force bound on
+            this credential lapse. Deliberately distinct from 429: that means
+            the caller guessed too often, this means the server is degraded.
+            Carries `Retry-After`.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
 
   /admin/auth/refresh:
     post:

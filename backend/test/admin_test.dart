@@ -298,6 +298,34 @@ void main() {
       expect(bad.statusCode, HttpStatus.unauthorized);
     });
 
+    test('AN OVERSIZED EMAIL IS REFUSED BEFORE IT BECOMES A KEY', () async {
+      // RFC 5321's maximum, and a boundary this route never had. The address is
+      // the caller's own input on an unauthenticated endpoint and it becomes a
+      // throttle key — unknown addresses are counted deliberately, so
+      // `locked_out` cannot become an admin-address oracle. Without a cap a
+      // 1 MB address is a legal request, and the key set is unbounded in WIDTH
+      // as well as in count.
+      final huge = '${'a' * 250}@myweli.test'; // 262 chars
+      final r = await login_route.onRequest(
+        ctx({'email': huge, 'password': 'pw12345'}),
+      );
+      expect(r.statusCode, HttpStatus.badRequest);
+      expect(await r.json(), {'error': 'invalid_input'});
+
+      // …and 254 exactly is still accepted, so the cap is a boundary rather
+      // than an approximation.
+      final atLimit = '${'a' * 241}@myweli.test'; // 253 chars
+      expect(atLimit.length, lessThanOrEqualTo(254));
+      final ok = await login_route.onRequest(
+        ctx({'email': atLimit, 'password': 'pw12345'}),
+      );
+      expect(
+        ok.statusCode,
+        isNot(HttpStatus.badRequest),
+        reason: 'a legal address must reach the credential check',
+      );
+    });
+
     test('a locked account → 429 locked_out', () async {
       // The route's 429 arm was unasserted: the only lockout test drove the
       // REPOSITORY and checked the error string, so nothing anywhere proved
@@ -369,6 +397,24 @@ void main() {
     test('the Postgres branch gets PostgresLoginThrottle', () {
       expect(src, contains('PostgresLoginThrottle(_pool!)'));
       expect(src, contains('throttle: adminLoginThrottle'));
+    });
+
+    test('and the daily cron actually calls the prune', () {
+      // Found by mutation: removing the prune from the cron left every test
+      // green, because the DB suite exercises `prune()` directly and nothing
+      // asserted that anything CALLS it. A counter with no decay is the defect
+      // the prune exists to prevent, so its absence must not be silent.
+      final cron = File(
+        'routes/internal/cron/subscriptions.dart',
+      ).readAsStringSync();
+      expect(cron, contains('pruneAdminLoginThrottle('));
+      expect(
+        cron,
+        contains('throttleRowsPruned'),
+        reason:
+            'the count is returned so the operation is observable — a prune '
+            'nobody can see is the shape this repo keeps finding',
+      );
     });
 
     test('and it is NOT wrapped in a fail-open decorator', () {

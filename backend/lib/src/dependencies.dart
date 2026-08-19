@@ -655,6 +655,17 @@ final LoginThrottle adminLoginThrottle = _pool == null
     ? InMemoryLoginThrottle()
     : PostgresLoginThrottle(_pool!);
 
+/// Prunes the admin-throttle table; 0 when there is no database.
+///
+/// **A free function rather than an interface member**, because pruning is a
+/// property of the STORE and not of the throttle contract: the in-memory one is
+/// emptied by a process restart, and putting `prune` on `LoginThrottle` would
+/// oblige every implementation to answer a question only one of them has.
+Future<int> pruneAdminLoginThrottle(Duration olderThan) async {
+  final t = adminLoginThrottle;
+  return t is PostgresLoginThrottle ? t.prune(olderThan) : 0;
+}
+
 final AdminAuthRepository adminAuthRepository = _pool == null
     ? InMemoryAdminAuthRepository(tokens: tokenService)
     : PostgresAdminAuthRepository(
