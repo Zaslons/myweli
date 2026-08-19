@@ -236,6 +236,31 @@ The lesson generalises past this file: *verifying that an alert fires is not
 verifying that the alert says anything.* The other five policies were checked
 and are clean.
 
+### 8.3 The live policies patched, and the corrected mail read
+
+The repo fix does not reach the running system: the two policies had to be
+patched in place. Done 2026-08-19 with a **field-masked** `PATCH`
+(`updateMask=documentation`) rather than `gcloud … policies update`, whose
+`--fields` accepts only `disabled` and `notificationChannels` — without it the
+call *replaces* the policy, and the filter proven in §8.1 would have been
+re-created as a side effect of a text edit. Read back after: everything except
+`documentation` deep-equal to the capture taken before, the filter
+byte-identical, the new text equal to what the committed script renders.
+
+Then a second probe, and this time **the delivered email was read** rather than
+the stored policy — the whole point of §8.2. Both notifications arrived at
+04:19:34 UTC carrying the corrected sentence.
+
+**One thing the headers taught, which matters at 3am.** Both mails report
+*"Start time: Aug 19, 2026 at 2:37AM UTC (~1 hour, 42 min ago)"* — the first
+probe's time, not this one's. `In-Reply-To` points at the original incident, so
+these were **re-notifications on a still-open incident**: `autoClose` is 86400s,
+so an incident lingers up to a day after the last matching log, and the
+notification rate limits (1800s exhausted / 3600s warning) govern how often it
+re-mails. The consequence to remember: **the time in the mail is when the
+problem started, not when the message was sent.** An operator reading "1 hour 42
+min ago" on a freshly-arrived alert could reasonably conclude it is stale.
+
 **Known gap, stated rather than implied.** These are log-*match* alerts: they
 fire on a line appearing. Nothing detects the opposite — a budget that has
 stopped counting because the table is missing or the pool is down. That failure
