@@ -126,6 +126,12 @@ jobs:
           exit 1
 
       - uses: actions/checkout@v7
+        with:
+          # The emitter-lag check reads source at the commit each service is
+          # RUNNING, which on a promotion is not GITHUB_SHA. A shallow clone
+          # holds one commit, so `git grep <that-sha>` would fail — and the
+          # check refuses to run shallow rather than passing blind.
+          fetch-depth: 0
 
       - name: Resolve this environment's target
         run: |
@@ -474,3 +480,16 @@ jobs:
           echo "  ✓ /providers (database reachable)"
         env:
           ENVIRONMENT: ${{ github.event.inputs.environment || 'staging' }}
+
+      # Runs AFTER the deploy on purpose. As a gate it would block the very
+      # deploy that fixes the lag, because deploying is what brings the emitter.
+      #
+      # And it checks BOTH services every time, not the one this run deployed.
+      # The runs that followed #445 were staging pushes and staging DID have the
+      # string; a check scoped to the deployed service would have passed on every
+      # one of them while production stayed blind for two hours.
+      - name: Every alert can still produce the string it watches for
+        run: bash infra/gcp/95-emitter-lag.sh
+        env:
+          PROJECT: myweli
+          REGION: europe-west9

@@ -274,6 +274,65 @@ a change. It now asserts **exactly the declared fields changed, exactly to the
 declared values**, that condition ids are the ones we started with, and that the
 write did not disable the policy.
 
+### 5.6 An alert must not watch for a string the running artifact cannot emit
+
+Three legs, and the third was missing:
+
+| question | answered by |
+|---|---|
+| does the repo's filter match a string the code prints? | `alert_runbooks_test.dart` — **the working tree** |
+| does the live policy match the repo? | `93-sync-runbooks.sh` |
+| **can the artifact each service is RUNNING produce it?** | **`95-emitter-lag.sh`** |
+
+The third is what failed on 2026-08-20: `#445` merged its emitter after the last
+production deploy, so production ran a commit without the string while the policy
+filtered for it. Reproducible from git without touching anything:
+
+```
+PIN_myweli_api=34d55c0 bash infra/gcp/95-emitter-lag.sh
+  FAIL  A per-identity limit REFUSED a request  'rate_limited bucket='
+          myweli-api=CANNOT EMIT   myweli-api-staging=ok
+```
+
+**It checks every service a filter names, on every run — not the one just
+deployed.** That distinction is the whole point: the deploys after `#445` were
+staging pushes, and staging *did* have the string. A check scoped to the deployed
+service would have passed on every one of them while production stayed blind.
+
+**It runs after the deploy, deliberately.** As a gate it would block the very
+deploy that fixes the lag. The failure message leads with *"the deploy succeeded
+and traffic is live — this is about alert coverage"*, because a red run after a
+healthy shift otherwise reads as a broken release, and repeated misreadings train
+people to ignore red.
+
+**Provenance is a pair, not a label.** The revision's `commit` label is
+self-reported; a registry tag is mutable and `latest` shares a digest with a real
+SHA in this registry. Neither is sound alone. The check resolves
+`IMAGE:<label>` back to a digest and requires it to equal the digest the revision
+is serving — and prints which method it used, because an unverified fact stated
+as verified is the defect, not the fallback.
+
+**It refuses to run on a shallow clone.** `git grep <old-sha>` cannot work there,
+so `deploy-backend.yml`'s checkout now sets `fetch-depth: 0`. A check that cannot
+look must fail, not pass.
+
+**And it names what it cannot check** — the load-balancer and metric-based
+filters — rather than covering a third of the surface while looking total.
+
+### 5.6.1 One extractor, pinned to the other
+
+`policy-bodies.sh` now holds the renderer, shared by `93` and `95`. The Dart test
+regexes raw script text and cannot interpolate `${SERVICES}`, so it cannot say
+which services a filter names; a test asserts the two agree on the literal set,
+so they cannot drift.
+
+### 5.6.2 Created before deployed
+
+The create scripts now run the check after creating a policy and **warn**, naming
+the services that cannot yet emit the string. Warned rather than refused:
+staging an alert just ahead of its deploy is a legitimate order, and a hard stop
+only pushes someone into creating the policy in the console instead.
+
 ## 6. Related
 
 - `docs/design/backend-email-send-budget.md` §8.2–8.3 — the first two instances:

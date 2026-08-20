@@ -87,6 +87,17 @@ done
 # --- Prove it exists, rather than trusting the exit code ----------------------
 # The lesson from every other check in this repo: `create` exiting 0 means the
 # API accepted the request. Read the policies back.
+# A policy created before its emitter is deployed CANNOT FIRE, and looks exactly
+# like a healthy one. That is not hypothetical: it is how the identity-limit
+# alert spent two hours blind on 2026-08-20. Warned, not refused - staging the
+# alert just ahead of the deploy is a legitimate order, and a hard stop here
+# would only push someone into creating the policy in the console instead.
+bash "$(dirname "${BASH_SOURCE[0]}")/95-emitter-lag.sh" || {
+  echo
+  echo "::warning:: the policy was created, but see the report above - a service"
+  echo "::warning:: is running code that cannot emit what it watches for. Deploy."
+}
+
 echo
 echo "Policies now configured:"
 gcloud alpha monitoring policies list --project="${PROJECT}" \

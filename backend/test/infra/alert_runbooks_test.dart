@@ -332,6 +332,69 @@ void main() {
     }
   });
 
+  test('the two ways of reading a filter agree', () {
+    // There are two extractors: this file regexes the raw script text, and
+    // infra/gcp/policy-bodies.sh renders the heredoc and parses real JSON. The
+    // second is what the deployed-artifact check uses, because only it
+    // interpolates ${SERVICES} and can say WHICH services a filter names — the
+    // difference between "production is stale" and "staging is stale".
+    //
+    // Two extractors that disagree about what they are guarding is the drift
+    // this project keeps finding, so they are pinned to each other here.
+    for (final f in Directory('../infra/gcp').listSync().whereType<File>()) {
+      if (!f.path.endsWith('.sh')) continue;
+      final src = f.readAsStringSync();
+      final byRegex = RegExp(
+        r'textPayload:\\+"([^"\\]+)\\+"',
+      ).allMatches(src).map((m) => m.group(1)!).toSet();
+
+      final lines = f.readAsLinesSync();
+      final byRender = <String>{};
+      for (var i = 0; i < lines.length; i++) {
+        if (!RegExp(r'^\s*cat > .*<<JSON$').hasMatch(lines[i])) continue;
+        final end = lines.indexOf('JSON', i);
+        final tmp = File('${Directory.systemTemp.path}/agree_$i.sh')
+          ..writeAsStringSync(
+            ['cat <<JSON', ...lines.sublist(i + 1, end + 1)].join('\n'),
+          );
+        final out =
+            (Process.runSync(
+                      'bash',
+                      [tmp.path],
+                      environment: {
+                        'PROJECT': 'myweli',
+                        'CHANNEL':
+                            'projects/myweli/notificationChannels/SENTINEL',
+                      },
+                    ).stdout
+                    as String)
+                .trim();
+        tmp.deleteSync();
+        if (out.isEmpty) continue;
+        final policy = jsonDecode(out) as Map<String, dynamic>;
+        for (final c in (policy['conditions'] as List<dynamic>)) {
+          for (final entry in (c as Map<String, dynamic>).entries) {
+            if (!entry.key.startsWith('condition')) continue;
+            final filter = (entry.value as Map<String, dynamic>?)?['filter'];
+            if (filter is! String) continue;
+            byRender.addAll(
+              RegExp(
+                'textPayload:"([^"]+)"',
+              ).allMatches(filter).map((m) => m.group(1)!),
+            );
+          }
+        }
+      }
+      expect(
+        byRender,
+        equals(byRegex),
+        reason:
+            '${f.uri.pathSegments.last}: the regex and the renderer disagree '
+            'about which log strings this script watches for',
+      );
+    }
+  });
+
   test('no backtick is DOUBLE escaped', () {
     // A transform that escaped an already-escaped backtick produced \\` in
     // 85-db-capacity-alert.sh. In an unquoted heredoc that is a backslash
