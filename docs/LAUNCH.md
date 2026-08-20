@@ -701,9 +701,12 @@ checking rather than assuming:
       the pages existed, nothing told a crawler. Now derived from the locality
       **tree**, which knows every commune whether or not a salon has opened
       there — 39 URLs → 278 locally, deduped, asserted in `served-html.spec.ts`.
-      Still owed: `Organization.sameAs` is `[]` (needs real profile URLs, which
-      only the owner has), and provider pages cannot be listed until there is a
-      provider.
+      **`Organization.sameAs` is empty by decision, not omission** (2026-08-20):
+      MyWeli has no public social profiles yet, and listing a URL that 404s — or
+      one we do not control — ties the brand entity to something that is not us,
+      which is worse than listing nothing. To be filled the day the accounts
+      exist; the reason is recorded in `web/lib/seo/jsonld.ts` beside the field.
+      Provider pages cannot be listed until there is a provider.
 - [ ] The full funnel on a real phone browser on a slow connection.
 - [ ] 404 and error states reachable and correct.
       **Reachable and correctly statused; NOT correctly served.** A route that
@@ -716,9 +719,24 @@ checking rather than assuming:
       JS lands — which is exactly the case the "slow phone" item wants probed.
       **Every existing e2e was green on it**, because all four that assert 404
       routing drive a JS-enabled browser and observe the hydrated page.
-      Tried, did not fix: a not-found boundary colocated in `app/[slug]/`.
-      `force-dynamic` cannot be tested — Next rejects it alongside
-      `generateStaticParams`. A framework upgrade is the likely real fix.
+      **A framework upgrade does NOT fix it, and that is measured.** A minimal
+      reproduction — a root layout, a `not-found.tsx`, and one `[slug]` route
+      calling `notFound()` — behaves identically on **14.2.35, 15.5.23 and
+      16.3.1**: the matched route yields `__next_error__` with a handful of
+      visible characters, while an unmatched route serves the prerendered 404
+      correctly. This is how the App Router works, not a bug awaiting a release,
+      so the migration that was going to fix it would have cost React 19, async
+      `params` across every dynamic route, and changed caching defaults — for
+      nothing.
+      Also tried and did not fix it: a not-found boundary colocated in
+      `app/[slug]/`, and removing `generateStaticParams` entirely.
+      **The only real workaround is to stop the URL matching.** An unmatched
+      route already serves the page correctly, so middleware could rewrite
+      unknown slugs — but middleware would have to know whether a salon exists,
+      which means a per-request lookup and a cache to keep it current. That is a
+      lot of moving parts on an error path that already returns the right status
+      code and is not indexed. Deferred deliberately, and revisit if 404s ever
+      become a route real users take.
       Tracked by a `test.fail()` in `web/tests/e2e/served-html.spec.ts`, which
       passes while the defect exists and **fails the day it stops existing**.
       Its assertion strips `<script>` first — « Page introuvable » IS in the raw

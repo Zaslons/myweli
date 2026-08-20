@@ -20,6 +20,16 @@ export function organizationJsonLd() {
       'MyWeli — réservation beauté & bien-être en Côte d’Ivoire : ' +
       'coiffure, barbier, onglerie, spa. Réservez votre salon en ligne, 24/7.',
     areaServed: { '@type': 'Country', name: "Côte d'Ivoire" },
+    // Empty ON PURPOSE, and pending rather than forgotten (2026-08-20).
+    //
+    // `sameAs` is how a search engine learns that this site and a set of
+    // social profiles are ONE entity — it is what makes "MyWeli" resolve to
+    // us rather than to a similarly-named business, and most of how a
+    // knowledge panel is earned. It is also the cheapest SEO there is.
+    //
+    // MyWeli has no public profiles yet. Listing a URL that 404s, or one we
+    // do not control, is worse than listing nothing: it ties the brand to
+    // something that is not us. Fill this the day the accounts exist.
     sameAs: [] as string[],
   };
 }

@@ -12,6 +12,19 @@ import { taxonomyRootSlugs } from '../lib/taxonomy';
 
 export const revalidate = 3600;
 
+/// `<lastmod>` for every entry.
+///
+/// **One timestamp for the whole document, taken once.** Per-URL accuracy would
+/// need a real modification time per page, and nothing in this system records
+/// one — the landing pages are generated from the taxonomy and the locality
+/// tree, and the provider pages change whenever a salon edits itself, which we
+/// do not track. Inventing a per-URL date would be a lie a crawler acts on.
+///
+/// A document-level date is the honest version: it says "this listing was
+/// regenerated then", which is exactly true, and it revalidates hourly.
+/// Google treats an obviously-uniform lastmod as weak signal rather than as a
+/// claim about each page, which is the correct weight for what we know.
+
 /// Home + the nested landing tree (multi-pays MP3: roots → root×city →
 /// root×city×area combos present in the catalogue) + provider pages.
 /// Best-effort: everything falls back to empty if the API is unreachable, so
@@ -23,13 +36,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     getLandingParams(tree),
     getServiceLandingParams(tree),
   ]);
+  const lastModified = new Date();
   const entries: MetadataRoute.Sitemap = [
-    { url: `${siteUrl}/`, changeFrequency: 'daily', priority: 1 },
+    { url: `${siteUrl}/`, lastModified, changeFrequency: 'daily', priority: 1 },
     // L1 — the four legal documents. They join the HARD-CODED head because
     // everything below is API-derived and best-effort; a static route that is
     // not listed here is simply absent from the sitemap, silently.
     ...LEGAL_ROUTES.map((r) => ({
       url: `${siteUrl}${r.slug}`,
+      lastModified,
       changeFrequency: 'yearly' as const,
       priority: 0.3,
     })),
@@ -55,12 +70,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   for (const root of taxonomyRootSlugs()) {
     entries.push({
       url: `${siteUrl}${buildTaxonomyPath(root)}`,
+      lastModified,
       changeFrequency: 'weekly',
       priority: 0.5,
     });
     for (const city of cities) {
       entries.push({
         url: `${siteUrl}${buildTaxonomyPath(root, city)}`,
+        lastModified,
         changeFrequency: 'weekly',
         priority: 0.5,
       });
@@ -68,6 +85,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     for (const [city, area] of cityAreas) {
       entries.push({
         url: `${siteUrl}${buildTaxonomyPath(root, city, area)}`,
+        lastModified,
         changeFrequency: 'weekly',
         priority: 0.4,
       });
@@ -76,6 +94,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   for (const p of [...landings, ...serviceLandings]) {
     entries.push({
       url: `${siteUrl}${buildTaxonomyPath(p.slug, p.city, p.area)}`,
+      lastModified,
       changeFrequency: 'weekly',
       priority: 0.6,
     });
@@ -83,6 +102,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   for (const slug of providers) {
     entries.push({
       url: `${siteUrl}/${slug}`,
+      lastModified,
       changeFrequency: 'weekly',
       priority: 0.8,
     });
