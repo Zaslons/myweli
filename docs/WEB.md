@@ -178,8 +178,15 @@ honestly report.
 0.000**, `/connexion` **1457 ms · CLS 0.131**. Production is *faster* than the
 local build on LCP — CDN and edge caching — but `/connexion` **breaches CLS**
 there, caused by Google's asynchronously-rendered sign-in button landing late
-and pushing the page down. Height reserved; unthrottled it measures 0.000, which
-is why no local check saw it.
+and pushing the page down. Unthrottled it measures 0.000, which is why no local
+check saw it.
+
+**Reserving that button's height did NOT fix it** — shipped, deployed, and CLS
+unchanged at 0.131. Attributed with a throttled browser and a `layout-shift`
+observer (Lighthouse attributes nothing here): the shifts are `div#contenu`,
+`header` and `footer` moving as the page frame grows during hydration, not one
+late element. The fix is to make the auth card's server-rendered height match
+its hydrated height — a layout change, not a reservation. Open.
 
 **A gate can flatter as easily as it can fail.** The first production run
 reported green while two of three runs were over budget: `lhci`'s default

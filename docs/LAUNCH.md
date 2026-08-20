@@ -697,8 +697,25 @@ checking rather than assuming:
       and it is the Google sign-in button: Google renders it asynchronously from
       a third-party script, so on a slow connection it lands late and pushes the
       page down. Unthrottled it measures 0.000, which is why no local check ever
-      saw it. Height now reserved (`min-h-[44px]`); **stays unticked until the
-      check is green against production after deploy.**
+      page down. Unthrottled it measures 0.000, which is why no local check ever
+      saw it.
+      **That diagnosis was wrong, and the fix did not work.** Reserving the
+      button's height shipped and deployed — `flex min-h-12 justify-center` is in
+      the served HTML — and CLS is unchanged at **0.131 on every run**. Attributed
+      properly, with a throttled browser and a `layout-shift` observer reporting
+      sources (Lighthouse's own `layout-shifts` audit attributes nothing here):
+
+          0.0456   div#contenu, footer, header
+          0.0220   footer, div, button…, p
+          0.0304   footer, div, button…
+
+      **It is the page frame growing during hydration**, pushing header, main and
+      footer — not one late element. Fixing it means making the server-rendered
+      height of the auth card match its hydrated height, which is a layout change
+      with design implications, not a one-line reservation.
+      The `min-h-12` reservation is kept: it is correct, uses the system's own
+      token, and removes one contributor. **Box stays unticked** — the breach is
+      real, diagnosed, and open.
       **The first run of this check passed while the budget was breached.**
       `lhci`’s default aggregation is *optimistic* — it takes the BEST of the
       three runs. Two of three were over. Both configs now set
