@@ -701,9 +701,12 @@ checking rather than assuming:
       the pages existed, nothing told a crawler. Now derived from the locality
       **tree**, which knows every commune whether or not a salon has opened
       there — 39 URLs → 278 locally, deduped, asserted in `served-html.spec.ts`.
-      Still owed: `Organization.sameAs` is `[]` (needs real profile URLs, which
-      only the owner has), and provider pages cannot be listed until there is a
-      provider.
+      **`Organization.sameAs` is empty by decision, not omission** (2026-08-20):
+      MyWeli has no public social profiles yet, and listing a URL that 404s — or
+      one we do not control — ties the brand entity to something that is not us,
+      which is worse than listing nothing. To be filled the day the accounts
+      exist; the reason is recorded in `web/lib/seo/jsonld.ts` beside the field.
+      Provider pages cannot be listed until there is a provider.
 - [ ] The full funnel on a real phone browser on a slow connection.
 - [ ] 404 and error states reachable and correct.
       **Reachable and correctly statused; NOT correctly served.** A route that
