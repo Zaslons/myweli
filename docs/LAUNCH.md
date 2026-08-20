@@ -713,9 +713,21 @@ checking rather than assuming:
       footer — not one late element. Fixing it means making the server-rendered
       height of the auth card match its hydrated height, which is a layout change
       with design implications, not a one-line reservation.
-      The `min-h-12` reservation is kept: it is correct, uses the system's own
-      token, and removes one contributor. **Box stays unticked** — the breach is
-      real, diagnosed, and open.
+      **Found and fixed.** `/connexion` wrapped its client component in a bare
+      `<Suspense>` — no `fallback`, which means React renders **nothing** in that
+      slot. The server streamed an empty hole and the whole form dropped into it
+      on hydration. `/pro/connexion` had the same defect written as
+      `fallback={null}`.
+      Both now render `AuthFormSkeleton`, which mirrors the form's shape and
+      floors the slot at 288px against the 294px the hydrated form measures. The
+      design system already asked for exactly this: §12 says a skeleton is for
+      "loading states whose result shape is known" and that its purpose is
+      preventing layout jump.
+      The `min-h-12` reservation is kept — correct, on the system's own token,
+      and one contributor fewer. Asserted on the **served** HTML, since with JS
+      enabled every existing e2e sees the hydrated form and cannot tell the
+      difference; mutation watched red. **Box stays unticked until
+      `npm run check:cwv` is green against production after deploy.**
       **The first run of this check passed while the budget was breached.**
       `lhci`’s default aggregation is *optimistic* — it takes the BEST of the
       three runs. Two of three were over. Both configs now set

@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
+import { AuthFormSkeleton } from '../../components/auth/AuthFormSkeleton';
 import { ConnexionClient } from '../../components/auth/ConnexionClient';
 
 export const dynamic = 'force-dynamic';
@@ -18,7 +19,7 @@ export default function ConnexionPage() {
         Votre compte est créé automatiquement à votre première connexion.
       </p>
       <div className="mt-l">
-        <Suspense>
+        <Suspense fallback={<AuthFormSkeleton />}>
           <ConnexionClient />
         </Suspense>
       </div>
