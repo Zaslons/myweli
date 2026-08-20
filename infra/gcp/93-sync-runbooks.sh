@@ -69,8 +69,16 @@ trap on_exit EXIT
 render() { # $1 script, rest: VAR=VALUE
   local script=$1; shift
   local body="${WORK}/render.sh"
-  sed -n '/^ *cat > /,/^JSON$/p' "${script}" \
-    | sed -E 's|^ *cat > "?[^ "]*\.json"? |cat |' > "${body}"
+  # The heredoc alone is not the policy. Filters interpolate shell variables —
+  # ${SERVICES} names both Cloud Run services — and rendering without them
+  # produced `... AND  AND ...`, which read as drift on three policies that were
+  # perfectly correct. A check that compares the wrong string is worse than none,
+  # so the simple single-quoted assignments are carried across too.
+  {
+    grep -E "^[A-Z][A-Z_]*='[^']*'\$" "${script}" || true
+    sed -n '/^ *cat > /,/^JSON$/p' "${script}" \
+      | sed -E 's|^ *cat > "?[^ "]*\.json"? |cat |'
+  } > "${body}"
   env "$@" bash "${body}"
 }
 
@@ -116,10 +124,13 @@ add infra/gcp/94-identity-warning-alert.sh
 echo "rendered ${#INTENDED[@]} policy bodies from the repo"
 echo
 
-CHANGED=0; SKIPPED=0
+CHANGED=0; SKIPPED=0; FILTER_DRIFT=0
 for f in "${INTENDED[@]}"; do
   DISPLAY=$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["displayName"])' "${f}")
   WANT=$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["documentation"]["content"])' "${f}")
+  WANT_FILTER=$(python3 -c 'import json,sys
+d=json.load(open(sys.argv[1]))
+print("\\n".join(c["conditionMatchedLog"]["filter"] for c in d["conditions"] if "conditionMatchedLog" in c))' "${f}")
 
   ID=$(gcloud alpha monitoring policies list --project="${PROJECT}" \
         --filter="displayName=\"${DISPLAY}\"" --format='value(name)')
@@ -137,6 +148,25 @@ for f in "${INTENDED[@]}"; do
   AFTER="${WORK}/${SLUG}.after.json"
   gcloud alpha monitoring policies describe "${ID}" --project="${PROJECT}" \
     --format=json > "${BEFORE}"
+
+  # THE FILTER IS THE HALF THAT DECIDES WHETHER AN ALERT CAN FIRE AT ALL, and
+  # until 2026-08-20 this script did not look at it. A policy shipped with an
+  # unanchored filter, the repo was corrected, and the drift check said "same"
+  # because it only ever compared documentation.
+  #
+  # It is reported, not patched. Changing a filter means replacing the whole
+  # policy, which regenerates condition IDs unless done as a read-modify-write —
+  # a different and riskier operation than swapping a text field. Detection is
+  # the half that must never be silent; the fix stays deliberate.
+  HAVE_FILTER=$(python3 -c 'import json,sys
+d=json.load(open(sys.argv[1]))
+print("\\n".join(c["conditionMatchedLog"]["filter"] for c in d["conditions"] if "conditionMatchedLog" in c))' "${BEFORE}")
+  if [[ "${HAVE_FILTER}" != "${WANT_FILTER}" ]]; then
+    echo "  FILTER DRIFT  ${DISPLAY}"
+    echo "        live: ${HAVE_FILTER}"
+    echo "        repo: ${WANT_FILTER}"
+    FILTER_DRIFT=$((FILTER_DRIFT+1))
+  fi
   HAVE=$(python3 -c 'import json,sys;print((json.load(open(sys.argv[1])).get("documentation") or {}).get("content",""))' "${BEFORE}")
 
   # An empty render would BLANK the live runbook, and the read-back below would
@@ -193,7 +223,23 @@ PY
 done
 
 echo
-echo "changed: ${CHANGED}   already correct: ${SKIPPED}"
+echo "changed: ${CHANGED}   already correct: ${SKIPPED}   filter drift: ${FILTER_DRIFT}"
+if (( FILTER_DRIFT > 0 )); then
+  echo
+  echo "A FILTER DIFFERS BETWEEN THE REPO AND THE LIVE POLICY."
+  echo "This script does not patch filters - it reports them. Fix one with a"
+  echo "read-modify-write, which preserves the condition's generated id:"
+  echo
+  echo "  ID=\$(gcloud alpha monitoring policies list --project=${PROJECT} \\"
+  echo "        --filter='displayName=\"<NAME>\"' --format='value(name)')"
+  echo "  gcloud alpha monitoring policies describe \"\$ID\" --project=${PROJECT} --format=json > /tmp/p.json"
+  echo "  # edit conditions[].conditionMatchedLog.filter, drop creationRecord and mutationRecord"
+  echo "  gcloud alpha monitoring policies update \"\$ID\" --project=${PROJECT} --policy-from-file=/tmp/p.json"
+  echo
+  echo "Then read it back and assert the condition id and every other field are"
+  echo "unchanged - a careless full replace regenerates condition ids."
+  exit 1
+fi
 [[ "${DRY}" == "1" ]] && echo "(DRY=1 - nothing was written)"
 echo
 cat <<'NOTE'
