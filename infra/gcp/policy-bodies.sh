@@ -56,7 +56,17 @@ render() { # $1 script, rest: VAR=VALUE
   # PROJECT, so without this it rendered `database_id=":myweli-db"` against a
   # live `"myweli:myweli-db"` — drift reported against a correct production
   # policy, which is the renderer being wrong, not production.
-  env PROJECT="${PROJECT}" CHANNEL="${CHANNEL}" "$@" bash "${body}"
+  # Stderr is captured rather than left to leak. `80-uptime-checks.sh` looks up
+  # its uptime CHECK_ID live, and the deploy service account has no monitoring
+  # read — so in CI that produced two raw permission ERRORs inside a step that
+  # then passed. Unexplained ERROR lines in a green step teach people to ignore
+  # errors, which is the opposite of what a check is for. The caller reports
+  # them once, in words.
+  local errs="${WORK}/render.err"
+  env PROJECT="${PROJECT}" CHANNEL="${CHANNEL}" "$@" bash "${body}" 2>"${errs}"
+  if [[ -s "${errs}" ]]; then
+    RENDER_NOTES+=("$(basename "${script}"): a live lookup this identity cannot make")
+  fi
 }
 
 emit() { # split a stream of concatenated JSON objects into files
@@ -72,6 +82,7 @@ print(n)
 PY
 }
 
+declare -a RENDER_NOTES=()
 declare -a INTENDED=()
 n=0
 add() { # $1 script, rest env
