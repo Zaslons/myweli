@@ -81,6 +81,7 @@ cat > /tmp/policy-armor-deny.json <<JSON
 {
   "displayName": "Cloud Armor REFUSED a request",
   "combiner": "OR",
+  "enabled": true,
   "conditions": [{
     "displayName": "a rate-limit rule denied a request at the load balancer",
     "conditionMatchedLog": {

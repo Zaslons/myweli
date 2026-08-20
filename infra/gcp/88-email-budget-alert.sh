@@ -75,6 +75,7 @@ cat > /tmp/policy-email-budget-exhausted.json <<JSON
 {
   "displayName": "Email send budget EXHAUSTED - mail is being dropped",
   "combiner": "OR",
+  "enabled": true,
   "conditions": [{
     "displayName": "a send was refused by the budget",
     "conditionMatchedLog": {
@@ -97,6 +98,7 @@ cat > /tmp/policy-email-budget-warning.json <<JSON
 {
   "displayName": "Email send budget at 80%",
   "combiner": "OR",
+  "enabled": true,
   "conditions": [{
     "displayName": "a class crossed 80% of its hourly ceiling",
     "conditionMatchedLog": {

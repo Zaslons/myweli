@@ -59,6 +59,7 @@ cat > /tmp/policy-cron-refused.json <<JSON
 {
   "displayName": "A cron call was REFUSED",
   "combiner": "OR",
+  "enabled": true,
   "conditions": [{
     "displayName": "a request to /internal/cron/* did not return 2xx",
     "conditionMatchedLog": {

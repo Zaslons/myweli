@@ -222,6 +222,58 @@ correct policies were reported as drifted. Fourth instance in this file of the
 same lesson, and the reason the fix carries the simple single-quoted assignments
 across.
 
+### 5.5 The sync tool converges, and the renderer had to be fixed first
+
+#453 made the tool *detect* filter drift and print a recipe for fixing it by
+hand. That institutionalised the hand-patch. It now **converges** every field the
+repo declares — `combiner`, `alertStrategy`, `notificationChannels`,
+`documentation`, each condition's `displayName` and filter — across **all 11**
+policies, up from 9.
+
+**Two renderer bugs had to be fixed first, and either would have been
+destructive.**
+
+| | |
+|---|---|
+| `notificationChannels` rendered as `[""]` | every script resolves `CHANNEL=$(gcloud …)`, a command substitution the assignment grep cannot capture. A converge would have **detached all nine policies from the project's only channel**, while each still read *enabled, no incidents*. |
+| `85` rendered `database_id=":myweli-db"` | live is `"myweli:myweli-db"`; `PROJECT=myweli` is a bare word, also uncaptured. Extending detection first would have reported drift against a **correct** production policy. |
+
+Both are why the order was renderer → detection → converge, and why the first
+`DRY=1` run reading **`changed: 0, already correct: 11`** is the discriminating
+result rather than a formality.
+
+### 5.5.1 Read-modify-write is required, and here is the proof
+
+The API contract says *"Existing conditions are deleted if they are not
+updated"*. Measured on a throwaway policy created and deleted for the purpose:
+
+```
+condition name present in the body   14090412480863057604 -> 14090412480863057604   preserved
+condition name omitted (a raw body)  14090412480863057604 -> 16910435644902405133   CHURNED
+```
+
+A repo body carries no `conditions[].name`, so feeding one straight to
+`--policy-from-file` deletes and recreates the condition on **every run**,
+orphaning open incidents. The tool takes the live object and overwrites only the
+declared fields.
+
+### 5.5.2 `enabled` is declared and never converged
+
+Every body now says `"enabled": true` — absence means enabled on write, which is
+a coin flip that always lands the same way, not a declaration.
+
+**A live `enabled: false` is a hard stop**, not drift. Someone muted an alert
+deliberately; a sync tool has no standing to overrule that, and doing so
+mid-incident is the worst possible moment.
+
+### 5.5.3 The read-back got stronger
+
+It asserted *"nothing else moved"* by popping `documentation` and comparing the
+rest — protection that is **lost for any field the moment it is popped** to allow
+a change. It now asserts **exactly the declared fields changed, exactly to the
+declared values**, that condition ids are the ones we started with, and that the
+write did not disable the policy.
+
 ## 6. Related
 
 - `docs/design/backend-email-send-budget.md` §8.2–8.3 — the first two instances:

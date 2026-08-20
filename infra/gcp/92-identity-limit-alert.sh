@@ -67,6 +67,7 @@ cat > /tmp/policy-identity-limit.json <<JSON
 {
   "displayName": "A per-identity limit REFUSED a request",
   "combiner": "OR",
+  "enabled": true,
   "conditions": [{
     "displayName": "booking, review or upload signing was refused",
     "conditionMatchedLog": {

@@ -54,6 +54,7 @@ for INSTANCE in myweli-db myweli-db-staging; do
 {
   "displayName": "${INSTANCE} is running out of connections",
   "combiner": "OR",
+  "enabled": true,
   "conditions": [{
     "displayName": "num_backends above the 16-connection budget for 10 minutes",
     "conditionThreshold": {
