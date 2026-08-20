@@ -200,6 +200,28 @@ Third instance of the same lesson from this file: *a guard that reads the wrong
 string is worse than none.* The first two were reading one runbook per file, and
 taking `${DOC}` literally.
 
+### 5.4 The drift check watched the less important half
+
+Until 2026-08-20 `93-sync-runbooks.sh` compared only `documentation.content`.
+**The filter is the half that decides whether an alert can fire at all**, and it
+was unwatched — which is how *"A per-identity limit could NOT be enforced"*
+shipped with an unanchored `textPayload:"rate_limit_unavailable"`, was corrected
+in the repo, and still had the dry run report `same`.
+
+It now compares filters too, and **reports rather than patches**. Changing a
+filter means replacing the whole policy, which regenerates the condition's
+generated id unless done as a read-modify-write — a different and riskier
+operation than swapping a text field. Detection is the half that must never be
+silent; the fix stays deliberate, and the script prints the exact recipe.
+
+**The first version of that check was itself reading the wrong string.**
+`render()` extracts the heredoc but did not carry across the script's shell
+assignments, so `${SERVICES}` — which names both Cloud Run services — expanded to
+nothing and the repo-side filter came out as `... AND  AND ...`. Three perfectly
+correct policies were reported as drifted. Fourth instance in this file of the
+same lesson, and the reason the fix carries the simple single-quoted assignments
+across.
+
 ## 6. Related
 
 - `docs/design/backend-email-send-budget.md` §8.2–8.3 — the first two instances:
