@@ -354,6 +354,15 @@ These block everything. None is surface-specific.
         Without the control a burst of 429s is equally consistent with having
         broken booking for everyone, which is the whole reason the box demanded
         a hostile pattern rather than a unit test.
+        **Production is OBSERVED rather than probed, and deliberately so.** The
+        probe needs a token, the only way to mint one without a real account is
+        the Q1b seam, and that seam is absent from production on purpose — a
+        standing disclosure path on the real thing is a permanent invitation.
+        Reintroducing it to make testing easier would trade a security property
+        for evidence. So `allowUnderLimit` logs every refusal and
+        `infra/gcp/92-identity-limit-alert.sh` alerts on it: behaviour proven on
+        staging, the artifact proven identical by digest, and presence proven the
+        moment the limit acts.
         **And it demonstrates "count attempts, not successes" on the real
         service**: every one of those bookings *failed* with
         `provider_not_found`, and consumed budget anyway. An attacker chooses

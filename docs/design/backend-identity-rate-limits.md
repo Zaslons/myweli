@@ -274,6 +274,46 @@ existed.
 probe verifies the mechanism, not its presence in production, and LAUNCH.md
 carries that as a separate unticked line.
 
+## 8.2 Production is observed, because it cannot be probed
+
+§8.1's probe ran on **staging**, and it cannot be repeated on production. The
+probe needs an access token; the only way to mint one without a real account is
+the Q1b OTP-disclosure seam; and that seam is mounted on staging and
+**deliberately not** on production, pinned by `service_files_test.dart`. A
+standing disclosure path on the real thing is a permanent invitation, and it was
+removed on purpose.
+
+**Reintroducing it to make testing easier would trade a real security property
+for evidence.** So production gets the other half of the pair: it cannot be
+provoked, but it can be observed.
+
+`allowUnderLimit` now logs on **every** refusal —
+`rate_limited bucket=… hits=… limit=…` — and
+`infra/gcp/92-identity-limit-alert.sh` alerts on it.
+
+**Every refusal, unlike the 80% warning, and the asymmetry is deliberate.** The
+warning fires once per window because its job is *"a threshold is close"* and
+repeating that is noise. The refusal fires every time because the **count is the
+signal**: one line in an hour is a person who hit a ceiling; three hundred is an
+attacker the limit is holding. An operator cannot tell those apart from a single
+line, and the runbook says so.
+
+### The chain of evidence this completes
+
+| link | how |
+|---|---|
+| **behaviour** | proven on staging, with the control that distinguishes a per-identity limit from an outage |
+| **identity of the artifact** | production runs the same image **digest** staging rehearsed — the deploy asserts it, the `commit` revision label records it |
+| **presence** | this alert: the moment the limit does anything in production, we hear |
+
+Each link is weak alone. Together they are the strongest available without
+weakening the service in order to observe it.
+
+**And the case that matters is a LEGITIMATE refusal.** An attacker being refused
+is the limit working and needs nobody's attention. A real person refused
+mid-booking sees a 429 and gives up — and without the line we would learn from a
+complaint, or never.
+
 ## 9. Residuals
 
 - **Minting identities.** One budget per account; bounded by §2's composition.
