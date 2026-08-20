@@ -26,6 +26,21 @@
 # The proof is not the flag name, it is the read-back: this script captures each
 # policy before and after and FAILS if anything other than the documentation
 # moved.
+# ## DRY=1 is the drift detector
+#
+# `DRY=1 bash infra/gcp/93-sync-runbooks.sh` writes nothing and prints, per
+# policy, whether the live text still matches the repo. Run it whenever a runbook
+# changes, and after any incident that made someone edit a policy in the console.
+#
+# This is the check August did not have. The runbooks were corrected on
+# 2026-08-19 by a PATCH nobody committed, and by the next day nothing in the repo
+# could tell you whether production still carried that text - which is precisely
+# how the same class of defect was found again from a delivered email rather than
+# from a test.
+#
+# The guard in backend/test/infra/alert_runbooks_test.dart checks the SCRIPTS.
+# Only this dry run checks the LIVE POLICIES, and only it would notice a run that
+# stopped halfway.
 set -euo pipefail
 
 PROJECT=myweli

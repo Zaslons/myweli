@@ -121,6 +121,44 @@ and requires the policy body it is trying to avoid.
   the repo is skipped, so the recovery from a partial run is to re-run it. Every
   pre-patch capture is kept for rollback, and a failure prints what already moved.
 
+### 5.2 `DRY=1` is the drift detector
+
+```
+DRY=1 bash infra/gcp/93-sync-runbooks.sh
+```
+
+Writes nothing; prints per policy whether the live text still matches the repo.
+Run it whenever a runbook changes, and after any incident that made someone edit
+a policy in the console.
+
+**This is the check August did not have.** The runbooks were corrected on
+2026-08-19 by a `PATCH` nobody committed, and by the next day nothing in the repo
+could say whether production still carried that text — which is precisely how the
+same class of defect came back and was found from a delivered email rather than
+from a test.
+
+The guard in `backend/test/infra/alert_runbooks_test.dart` checks the **scripts**.
+Only this dry run checks the **live policies**, and only it would notice a sync
+that stopped halfway.
+
+### 5.3 Applied, 2026-08-20
+
+All **7** policies needing a change were patched; the two uptime policies were
+correctly left alone. Verified three independent ways:
+
+1. **Per patch** — stored content equals the intended content, *and* every field
+   outside `documentation` is deep-equal to the pre-patch capture.
+2. **Fresh re-scan of live content** — the same hazard scan that found the defect
+   now reports **0 hazards across all 9 policies**, and the identity-limit runbook
+   contains no `ceiling=` and no `LIMIT_*`.
+3. **Drift check** — a fresh render byte-matches a fresh read on all 7.
+
+The invocation matched the source-verified safe form exactly: only
+`--documentation-from-file`, and `printf '%s'` to write it, because gcloud's
+`FileContents` does not strip and a trailing newline would land in the stored
+text. No policy carries `documentation.subject` or `links`, so nothing was at
+risk from the narrower mask either way.
+
 ## 6. Related
 
 - `docs/design/backend-email-send-budget.md` §8.2–8.3 — the first two instances:
