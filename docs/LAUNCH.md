@@ -687,13 +687,47 @@ checking rather than assuming:
 ### 6.1 Web (first)
 
 - [ ] Lighthouse/CWV budgets green on the real domain, not a preview.
-- [ ] SEO: sitemap, robots, canonical URLs, JSON-LD validating.
+- [x] SEO: sitemap, robots, canonical URLs, JSON-LD validating.
+      **Measured on the live domain 2026-08-20**, not on a preview. `robots.txt`
+      and `sitemap.xml` exist and every listed URL answers 200; the home and
+      landing pages carry title, description, canonical, OG, Twitter and valid
+      `Organization` / `WebSite` / `BreadcrumbList` / `FAQPage` JSON-LD, all
+      parsing.
+      **The sitemap was missing its whole third level.** It derived
+      root×city×area from `getLandingParams`, which lists "combos present in the
+      catalogue" — and production has zero salons, so **~187 live, indexable,
+      200-answering commune pages were absent**. `/coiffure/abidjan/cocody` and
+      its siblings each have their own title, canonical and `BreadcrumbList`;
+      the pages existed, nothing told a crawler. Now derived from the locality
+      **tree**, which knows every commune whether or not a salon has opened
+      there — 39 URLs → 278 locally, deduped, asserted in `served-html.spec.ts`.
+      Still owed: `Organization.sameAs` is `[]` (needs real profile URLs, which
+      only the owner has), and provider pages cannot be listed until there is a
+      provider.
 - [ ] The full funnel on a real phone browser on a slow connection.
 - [ ] 404 and error states reachable and correct.
+      **Reachable and correctly statused; NOT correctly served.** A route that
+      matches nothing (`/a/b/c/d/e`) serves the prerendered 404 properly — 307
+      characters of visible text. But `notFound()` called from a route that
+      MATCHED (`/this-does-not-exist` hits `app/[slug]/page.tsx`) makes Next
+      14.2.35 serve `<html id="__next_error__">` with **44 characters of visible
+      text** and the generic title. The real UI arrives only in the RSC payload,
+      so a visitor on a slow connection sees a blank white page until ~232 KB of
+      JS lands — which is exactly the case the "slow phone" item wants probed.
+      **Every existing e2e was green on it**, because all four that assert 404
+      routing drive a JS-enabled browser and observe the hydrated page.
+      Tried, did not fix: a not-found boundary colocated in `app/[slug]/`.
+      `force-dynamic` cannot be tested — Next rejects it alongside
+      `generateStaticParams`. A framework upgrade is the likely real fix.
+      Tracked by a `test.fail()` in `web/tests/e2e/served-html.spec.ts`, which
+      passes while the defect exists and **fails the day it stops existing**.
+      Its assertion strips `<script>` first — « Page introuvable » IS in the raw
+      bytes, inside the RSC payload, so a plain substring check reports the
+      defect as fixed. The first version of that test did exactly that.
 - [ ] Analytics decision made (we currently have none — deliberate or not).
       **Still none** — and the privacy policy states this as a promise, so
       adding any is a policy change, not just a config one.
-- [ ] Install-the-app prompts point somewhere real, or are hidden until the apps
+- [x] Install-the-app prompts point somewhere real, or are hidden until the apps
       exist. **They currently promise apps that are not published.**
 - [ ] **Uploads cannot be exercised on a preview** — the browser PUTs straight to
       Cloudflare R2, and R2's staging allowlist is exact-match on
