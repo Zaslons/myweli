@@ -7,20 +7,47 @@
         "http://127.0.0.1:3000/connexion",
         "http://127.0.0.1:3000/suppression-compte"
       ],
-      "numberOfRuns": 1,
+      "numberOfRuns": 3,
       "settings": {
-        "preset": "desktop"
+        "formFactor": "mobile",
+        "screenEmulation": {
+          "mobile": true,
+          "width": 412,
+          "height": 823,
+          "deviceScaleFactor": 1.75,
+          "disabled": false
+        },
+        "throttling": {
+          "rttMs": 150,
+          "throughputKbps": 1638,
+          "cpuSlowdownMultiplier": 4,
+          "requestLatencyMs": 562,
+          "downloadThroughputKbps": 1474,
+          "uploadThroughputKbps": 675
+        }
       }
     },
     "assert": {
       "assertMatrix": [
         {
-          "matchingUrlPattern": ".*/suppression-compte",
+          "matchingUrlPattern": "http://127.0.0.1:3000/$",
           "assertions": {
-            "categories:seo": [
+            "largest-contentful-paint": [
               "error",
               {
-                "minScore": 0.9
+                "maxNumericValue": 2500
+              }
+            ],
+            "cumulative-layout-shift": [
+              "error",
+              {
+                "maxNumericValue": 0.1
+              }
+            ],
+            "total-blocking-time": [
+              "error",
+              {
+                "maxNumericValue": 200
               }
             ],
             "categories:accessibility": [
@@ -29,8 +56,49 @@
                 "minScore": 0.95
               }
             ],
-            "categories:performance": [
+            "categories:seo": [
+              "error",
+              {
+                "minScore": 0.9
+              }
+            ],
+            "categories:best-practices": [
               "warn",
+              {
+                "minScore": 0.9
+              }
+            ]
+          }
+        },
+        {
+          "matchingUrlPattern": ".*/suppression-compte",
+          "assertions": {
+            "largest-contentful-paint": [
+              "error",
+              {
+                "maxNumericValue": 2500
+              }
+            ],
+            "cumulative-layout-shift": [
+              "error",
+              {
+                "maxNumericValue": 0.1
+              }
+            ],
+            "total-blocking-time": [
+              "error",
+              {
+                "maxNumericValue": 200
+              }
+            ],
+            "categories:accessibility": [
+              "error",
+              {
+                "minScore": 0.95
+              }
+            ],
+            "categories:seo": [
+              "error",
               {
                 "minScore": 0.9
               }
@@ -46,45 +114,28 @@
         {
           "matchingUrlPattern": ".*/connexion",
           "assertions": {
-            "categories:accessibility": [
+            "largest-contentful-paint": [
               "error",
               {
-                "minScore": 0.95
+                "maxNumericValue": 2900
               }
             ],
-            "categories:performance": [
-              "warn",
-              {
-                "minScore": 0.8
-              }
-            ],
-            "categories:best-practices": [
-              "warn",
-              {
-                "minScore": 0.9
-              }
-            ]
-          }
-        },
-        {
-          "matchingUrlPattern": "http://127.0.0.1:3000/$",
-          "assertions": {
-            "categories:seo": [
+            "cumulative-layout-shift": [
               "error",
               {
-                "minScore": 0.9
+                "maxNumericValue": 0.1
+              }
+            ],
+            "total-blocking-time": [
+              "error",
+              {
+                "maxNumericValue": 200
               }
             ],
             "categories:accessibility": [
               "error",
               {
                 "minScore": 0.95
-              }
-            ],
-            "categories:performance": [
-              "warn",
-              {
-                "minScore": 0.8
               }
             ],
             "categories:best-practices": [
