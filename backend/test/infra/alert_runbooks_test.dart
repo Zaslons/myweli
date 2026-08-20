@@ -181,6 +181,25 @@ void main() {
     }
   });
 
+  test('a code span does not swallow sentence punctuation', () {
+    // The transform that introduced spans matched `EMAIL_BUDGET_COLD.` with the
+    // period inside, because the token pattern allows a dot (for file paths like
+    // identity_limits.dart). Rendered, the operator is shown a variable name
+    // that ends in a full stop, which is worse than the underscore bug it fixed.
+    for (final e in _runbooks().entries) {
+      for (final m in RegExp('`([^`]*)`').allMatches(e.value)) {
+        final span = m.group(1)!;
+        if (RegExp(r'^(gcloud|curl|psql|kubectl) ').hasMatch(span)) continue;
+        expect(
+          RegExp(r'[.,;:)]$').hasMatch(span),
+          isFalse,
+          reason:
+              '${e.key}: `$span` ends in punctuation that belongs to the sentence',
+        );
+      }
+    }
+  });
+
   test('no backtick is DOUBLE escaped', () {
     // A transform that escaped an already-escaped backtick produced \\` in
     // 85-db-capacity-alert.sh. In an unquoted heredoc that is a backslash
