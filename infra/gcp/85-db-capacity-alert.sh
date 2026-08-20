@@ -71,7 +71,7 @@ for INSTANCE in myweli-db myweli-db-staging; do
   }],
   "notificationChannels": ["${CHANNEL}"],
   "documentation": {
-    "content": "\`${INSTANCE}\` has held more than 16 Postgres backends for ten minutes. The ceiling is ~22 (db-f1-micro's default max_connections of 25, less superuser_reserved_connections), and 16 is the documented budget: kMaxConnectionsPerInstance 4 x maxScale 4 (backend/lib/src/db/database.dart).\\n\\nA deploy exceeds 16 briefly while the old revision drains. Ten minutes means connections are not being returned, or maxScale has been raised without recomputing the budget.\\n\\nDo NOT fix this by raising max_connections on this tier - that was rejected on evidence in database.dart. The fix is a tier bump, priced in docs/design/backend-migration-volume.md §7.",
+    "content": "\`${INSTANCE}\` has held more than 16 Postgres backends for ten minutes. The ceiling is ~22 (db-f1-micro's default \`max_connections\` of 25, less \`superuser_reserved_connections\`), and 16 is the documented budget: kMaxConnectionsPerInstance 4 x maxScale 4 (backend/lib/src/db/database.dart).\\n\\nA deploy exceeds 16 briefly while the old revision drains. Ten minutes means connections are not being returned, or maxScale has been raised without recomputing the budget.\\n\\nDo NOT fix this by raising \`max_connections\` on this tier - that was rejected on evidence in database.dart. The fix is a tier bump, priced in docs/design/backend-migration-volume.md §7.",
     "mimeType": "text/markdown"
   }
 }
