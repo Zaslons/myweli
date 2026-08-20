@@ -312,16 +312,19 @@ export function LoginOptions({ onSuccess }: { onSuccess: () => void }) {
   // --- Options ---------------------------------------------------------------
   return (
     <div className="flex flex-col gap-s">
-      {/* `min-h-[44px]` below reserves the Google button's height BEFORE the
+      {/* `min-h-12` below reserves the Google button's height BEFORE the
           script arrives. Google renders that button itself, asynchronously,
           from a third-party script — so on a slow connection it appears late
           and pushes everything under it down. Measured on production under
           mobile/3G emulation: CLS 0.131 against a 0.1 budget, on all three
           runs. Unthrottled it is 0.000, which is why no local check saw it.
-          44px is the rendered height of the standard GSI button and also the
-          minimum tap target (SYSTEM.md §13). */}
+          `min-h-12` is the design system's 48px tap-target floor (SYSTEM.md
+          §13.2) and comfortably clears the standard GSI button, so the space is
+          already there when it arrives. An arbitrary `min-h-[44px]` was the
+          first attempt and the lint rule rejected it, correctly: a value the
+          theme does not know is a value nothing else can reuse. */}
       {googleClientId ? (
-        <div ref={googleDiv} className="flex min-h-[44px] justify-center" />
+        <div ref={googleDiv} className="flex min-h-12 justify-center" />
       ) : null}
       {appleClientId ? (
         <AppleSignInButton onClick={signInWithApple} disabled={busy} />
