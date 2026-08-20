@@ -19,4 +19,28 @@ Sentry.init({
   // with user data on our behalf.
   sendDefaultPii: false,
   beforeSend: scrubEvent,
+  // **Errors, and NOTHING ELSE leaves the browser.**
+  //
+  // The privacy policy says « nous n'envoyons aucun rapport à Sentry lorsque
+  // rien n'a échoué » and « aucun outil de mesure d'audience ». Measured on
+  // production 2026-08-20, both were FALSE: a clean page load with no error
+  // sent three envelopes — a session with `errors: 0` carrying the session id,
+  // the release and the full user-agent, plus the visitor's IP at the network
+  // layer, to Germany. `browserSessionIntegration` is Sentry Release Health,
+  // which counts sessions and users; that is audience measurement.
+  //
+  // This is the SECOND time a published denial about Sentry has been false
+  // here. Rather than soften the sentence, the software is made to match it:
+  //
+  //   BrowserSession  — sends a session envelope per page load. Removed.
+  //   BrowserTracing  — builds pageload transactions. `tracesSampleRate: 0`
+  //                     drops them, but the DROP itself is reported in a
+  //                     `client_report` envelope, so "nothing is sent" was
+  //                     still untrue. Removed, so nothing is built to drop.
+  //
+  // Anything added here later must keep that sentence true, or change it.
+  integrations: (defaults) =>
+    defaults.filter(
+      (i) => i.name !== 'BrowserSession' && i.name !== 'BrowserTracing',
+    ),
 });

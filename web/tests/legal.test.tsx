@@ -94,6 +94,18 @@ describe('the privacy policy does not deny what we actually ship', () => {
     ['Segment', 'segment'],
   ];
 
+  /// **This scoping hid a false sentence, and that is the lesson to keep.** The
+  /// note below is right that a guard which cannot tell a denial from a
+  /// description gets disabled the first time it is wrong. But it then resolved
+  /// the ambiguity by ASSUMING « nous n'envoyons aucun rapport à Sentry lorsque
+  /// rien n'a échoué » was true, and it was false: a clean page load sent three
+  /// session envelopes carrying the session id, the release and the full
+  /// user-agent.
+  ///
+  /// Measuring beats scoping. `web/tool/check-privacy-promise.spec.ts` runs
+  /// against a DEPLOYED url and fails if any envelope leaves on a clean load —
+  /// the only place this class of defect has ever lived.
+  ///
   /// The text of « Ce que nous ne faisons pas » ONLY — from that heading to the
   /// next one.
   ///

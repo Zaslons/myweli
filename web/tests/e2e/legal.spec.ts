@@ -100,3 +100,56 @@ test('the deletion page tells you what survives, not just what goes', async ({
   await expect(body).toContainText(/Profil/);
   await expect(body).toContainText(/exporter/i);
 });
+
+/// What the page PROMISES, checked against what the built app DOES.
+///
+/// **Why this is here and not in `legal.test.tsx`.** That file renders the TSX
+/// and greps `package.json`. Both of this project's privacy failures lived in
+/// the served bundle, where it cannot look:
+///
+///   2026-08-12  the live policy denied using Sentry while the bundle posted to it
+///   2026-08-20  the live policy said « aucun rapport … lorsque rien n'a échoué »
+///               while a clean page load sent THREE session envelopes carrying
+///               the session id, the release and the full user-agent
+///
+/// The second one is the sharper lesson. `legal.test.tsx`'s own comment records
+/// that a broader version of it "failed on a sentence that is true" — so the
+/// guard was narrowed to exempt that sentence, and the sentence was false. It
+/// resolved an ambiguity by assuming rather than measuring.
+///
+/// **The Sentry half of this is NOT here, deliberately.** `Sentry.init` does not
+/// run client-side in the e2e build — no client is created, so every in-browser
+/// assertion about it passes for the wrong reason. Three attempts to make one
+/// fail are recorded in `tool/check-privacy-promise.spec.ts`, which runs the
+/// same checks against a DEPLOYED url, where the SDK is live. What remains here
+/// is the cookie half, which does discriminate.
+test.describe('the privacy policy is true of the built app', () => {
+  test('a public page sets no cookie at all', async ({ page, context }) => {
+    await context.clearCookies();
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+    const jar = await context.cookies();
+    expect(
+      jar.map((c) => c.name),
+      '« Sur les pages publiques, aucun cookie n’est déposé »',
+    ).toEqual([]);
+  });
+
+  test('the sign-in page sets only Google’s cookie, and the page says so', async ({
+    page,
+    context,
+  }) => {
+    await context.clearCookies();
+    await page.goto('/connexion');
+    await page.waitForLoadState('networkidle');
+    const names = (await context.cookies()).map((c) => c.name).sort();
+    // g_state is Google's, JS-readable, and disclosed by name in the policy.
+    // Anything ELSE appearing here is undisclosed, which is the defect.
+    for (const n of names) {
+      expect(
+        n,
+        `an undisclosed cookie "${n}" is set before sign-in`,
+      ).toMatch(/^g_state$/);
+    }
+  });
+});

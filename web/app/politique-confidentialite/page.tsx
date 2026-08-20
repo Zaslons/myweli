@@ -86,12 +86,16 @@ export default function Page() {
           <strong>Rapports d’erreur.</strong> Lorsqu’une page ou notre serveur
           rencontre une erreur, un rapport technique est transmis à{' '}
           <strong>Sentry</strong>, dont les serveurs sont en{' '}
-          <strong>Allemagne</strong>. Ce rapport contient le message d’erreur, sa
+          <strong>Allemagne</strong> — depuis le site, depuis notre serveur, et
+          depuis l’application mobile. Ce rapport contient le message d’erreur, sa
           trace technique, l’adresse de la page — <strong>sans</strong> ce qui
           suit le «&nbsp;?&nbsp;» — et le type d’appareil. Nous en retirons
           activement votre identité, vos cookies et vos saisies avant l’envoi.
           Nous n’envoyons <strong>aucun</strong> rapport à Sentry lorsque rien
-          n’a échoué&nbsp;: ce n’est pas un outil de mesure d’audience.
+          n’a échoué&nbsp;: ce n’est pas un outil de mesure d’audience. Les
+          fonctions de Sentry qui compteraient les visites ou les sessions sont
+          <strong>désactivées</strong> dans notre configuration, et un test le
+          vérifie sur le site réellement publié.
         </Li>
       </Ul>
 
@@ -180,20 +184,46 @@ export default function Page() {
       <H2>Qui d’autre les reçoit</H2>
       <P>
         Uniquement des prestataires techniques, chacun pour une fonction
-        précise&nbsp;: Twilio (SMS et WhatsApp), Firebase Cloud Messaging
-        (notifications), Resend (e-mails), Google et Apple (connexion), Sentry
-        (rapports d’erreur, ci-dessus), et CARTO pour les fonds de carte — l’affichage d’une carte transmet votre adresse
-        IP à CARTO. <strong>Nous ne vendons ni ne louons aucune donnée.</strong>
+        précise&nbsp;: Firebase Cloud Messaging (notifications), Resend (e-mails,
+        hébergé aux États-Unis), Google et Apple (connexion), Sentry (rapports
+        d’erreur, ci-dessus), et CARTO pour les fonds de carte — l’affichage
+        d’une carte transmet votre adresse IP à CARTO.
+        <strong>Nous ne vendons ni ne louons aucune donnée.</strong>
+      </P>
+      <P>
+        <strong>Aucun SMS ni message WhatsApp n’est envoyé aujourd’hui.</strong>
+        L’envoi est désactivé au niveau du serveur&nbsp;; aucun numéro de
+        téléphone ne part chez un opérateur de messagerie. Lorsque ce service
+        sera activé — après notre immatriculation — le prestataire sera
+        <strong>Termii</strong>, et cette page sera mise à jour avant le premier
+        message, pas après.
       </P>
 
       <H2>Cookies</H2>
       <P>
         Le site dépose des cookies <strong>strictement nécessaires</strong>, et
-        rien d’autre&nbsp;: deux pour une session client, trois pour une session
-        professionnelle — jamais les deux à la fois. Ils sont ils sont inaccessibles au JavaScript, transmis uniquement
-        en HTTPS, et limités à notre site. Il n’existe aucun cookie de mesure
-        d’audience ni de publicité. C’est pourquoi vous ne voyez pas de bandeau de
-        consentement&nbsp;: il n’y a rien à consentir. L’application, elle,
+        rien d’autre. Sur les pages publiques&nbsp;— accueil, recherche, pages de
+        salon, pages légales —&nbsp;<strong>aucun cookie n’est déposé</strong>.
+        Une fois connecté&nbsp;: deux cookies pour une session client, trois pour
+        une session professionnelle — jamais les deux à la fois. Ceux-là sont
+        <strong>inaccessibles au JavaScript</strong>, transmis uniquement en
+        HTTPS, et limités à notre site.
+      </P>
+      <P>
+        Une exception, et elle vient de Google. Sur les pages de connexion et
+        d’inscription uniquement, le bouton officiel «&nbsp;Continuer avec
+        Google&nbsp;» est affiché par un script de Google, qui dépose son propre
+        cookie <strong>g_state</strong> pour se souvenir de l’état de votre connexion.
+        Il est déposé par Google et non par nous, il <strong>est</strong> lisible
+        par le JavaScript de la page, et charger ce script transmet à Google votre
+        adresse IP et votre navigateur. Nous le chargeons uniquement sur ces
+        pages, parce qu’il est nécessaire au moyen de connexion que vous y venez
+        utiliser&nbsp;; il n’apparaît nulle part ailleurs sur le site.
+      </P>
+      <P>
+        Il n’existe aucun cookie de mesure d’audience ni de publicité. C’est
+        pourquoi vous ne voyez pas de bandeau de consentement&nbsp;: tout ce qui
+        précède est strictement nécessaire au service que vous demandez. L’application, elle,
         conserve votre session dans le coffre-fort du système d’exploitation.
       </P>
 

@@ -260,7 +260,27 @@ These block everything. None is surface-specific.
          Cloud Run logs all three on every request.
       A privacy policy is a **representation to users and to the App Store**;
       a false one is not a documentation bug. Corrected in the same change that
-      found it, with the French still owed a review per §"Legal" below.
+      found it.
+      **It happened a second time, on the same subject, 2026-08-20.** The page
+      said « nous n’envoyons **aucun** rapport à Sentry lorsque rien n’a échoué »
+      and « aucun outil de mesure d’audience ». Measured on the deployed site: a
+      clean load with no error sent **three session envelopes** carrying the
+      session id, the release and the full user-agent, plus the IP at the network
+      layer — `browserSessionIntegration` is Sentry Release Health, which counts
+      sessions and users. Two further claims failed at once: Google’s sign-in
+      script sets a **JS-readable** third-party `g_state` cookie before any
+      sign-in, against « deux cookies », « inaccessibles au JavaScript » and
+      « limités à notre site ».
+      **The guard written after the first incident could not catch the second**,
+      and not by accident: its own comment records that a broader version
+      "failed on a sentence that is true", so it was scoped to exempt that
+      sentence — resolving an ambiguity by assuming instead of measuring. It is
+      also source-level, and **both** failures lived in the served bundle.
+      Replaced by `web/tool/check-privacy-promise.spec.ts`, which runs against a
+      **deployed** url, carries a control asserting the SDK is actually live so
+      it cannot pass vacuously, and was **watched failing against production**
+      before the fix shipped. The French copy review is still owed and now has a
+      home: §8.1.
 - [ ] **A support channel exists** and someone is behind it (WhatsApp per the
       product's context).
 - [x] **Rate limiting** verified on the auth and booking routes against a real
@@ -844,3 +864,30 @@ corrected by reading the live thing first. That is the habit item 7 wants — it
 four remaining pieces (a secrets audit, a support channel, rate limiting against
 a real hostile pattern, a walk-through by a stranger) are all *"we believe this
 is fine"* statements that nobody has tested.
+
+### 8.1 The French legal copy still owes a review
+
+The four documents were written in French by an engineer, not a lawyer, and
+`§5`'s legal box has twice pointed at a `§"Legal"` section that **did not
+exist** — so the review it promised had no home and was silently skipped both
+times. This is its home.
+
+**What is owed, and what is not.** The *factual* half is now measured rather
+than remembered: the processor list, the storage regions, what each bucket
+holds, what erasure actually deletes, which cookies are set and by whom. Each of
+those is checked by `web/tool/check-privacy-promise.spec.ts` against a deployed
+url, or traceable to a file in this repo.
+
+What no test can settle is the *legal* half: whether the liability limits, the
+jurisdiction clause and the consumer-rights language hold under Ivorian law, and
+whether « société en cours d'immatriculation » in the mentions légales is still
+true. Those need a professional and the owner respectively.
+
+**Two facts a reviewer will need and cannot get from this repo:**
+
+- **Where the production R2 buckets physically live.** Staging is pinned `weur`;
+  production "was configured by hand before the staging script existed"
+  (`infra/cloudflare/r2-manifest.json`), and the policy says
+  « serveurs répartis mondialement ». Only the Cloudflare dashboard knows.
+- **Whether the RCCM registration is still pending.**
+
