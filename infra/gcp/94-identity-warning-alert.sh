@@ -49,6 +49,7 @@ cat > /tmp/policy-identity-warning.json <<JSON
 {
   "displayName": "A per-identity limit is CLOSE to refusing",
   "combiner": "OR",
+  "enabled": true,
   "conditions": [{
     "displayName": "a bucket crossed 80% of its ceiling",
     "conditionMatchedLog": {
@@ -71,6 +72,7 @@ cat > /tmp/policy-identity-unavailable.json <<JSON
 {
   "displayName": "A per-identity limit could NOT be enforced",
   "combiner": "OR",
+  "enabled": true,
   "conditions": [{
     "displayName": "the limiter threw and the request was allowed through",
     "conditionMatchedLog": {

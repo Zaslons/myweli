@@ -160,7 +160,17 @@ void main() {
             ].join('\n');
             final tmp = File('${Directory.systemTemp.path}/rb_$s0.sh')
               ..writeAsStringSync(body);
-            final r = Process.runSync('bash', [tmp.path]);
+            // PROJECT and CHANNEL are resolved at RUNTIME by the authoring scripts
+            // — `CHANNEL=\$(gcloud … channels list …)` — so a heredoc run bare
+            // renders `"notificationChannels": [""]`. A sentinel is injected rather
+            // than calling gcloud, which tests something stronger than a shape:
+            // that the body actually interpolates the channel it is given.
+            const sentinel = 'projects/myweli/notificationChannels/SENTINEL';
+            final r = Process.runSync(
+              'bash',
+              [tmp.path],
+              environment: {'PROJECT': 'myweli', 'CHANNEL': sentinel},
+            );
             expect(r.exitCode, 0, reason: 'bash: ${r.stderr}');
             final out = (r.stdout as String).trim();
             expect(out, isNotEmpty, reason: 'the heredoc produced nothing');
@@ -172,6 +182,61 @@ void main() {
                   'INVALID JSON — a live backtick ate part of it:\n'
                   '${out.length > 300 ? out.substring(0, 300) : out}',
             );
+            // The parsed body is already in hand, and until 2026-08-20 nothing
+            // looked at anything but the documentation. `notificationChannels`
+            // is the one that matters most: the sync tool's renderer produced
+            // `[""]` for every policy, and a converge built on that would have
+            // detached all nine from the project's only channel while each still
+            // read "enabled, no incidents".
+            final channels = policy['notificationChannels'] as List<dynamic>?;
+            expect(
+              channels,
+              isNotNull,
+              reason: 'no notificationChannels declared',
+            );
+            expect(
+              channels,
+              isNotEmpty,
+              reason: 'a policy that notifies nobody',
+            );
+            for (final ch in channels!) {
+              expect(
+                ch,
+                sentinel,
+                reason:
+                    'the body did not interpolate the channel it was given — '
+                    'a hardcoded or empty value silences the policy while '
+                    'leaving every observable sign of health intact',
+              );
+            }
+
+            expect(
+              policy['enabled'],
+              isTrue,
+              reason:
+                  'absence means enabled on write — declare it, do not infer it',
+            );
+            expect(policy['combiner'], 'OR');
+
+            final conds = policy['conditions'] as List<dynamic>;
+            expect(conds, isNotEmpty);
+            for (final cond in conds.cast<Map<String, dynamic>>()) {
+              expect(cond['displayName'], isNotNull);
+              expect(
+                cond.keys.where((k) => k.startsWith('condition')),
+                hasLength(1),
+                reason: 'exactly one condition kind per condition',
+              );
+            }
+
+            final strategy = policy['alertStrategy'] as Map<String, dynamic>?;
+            if (strategy != null) {
+              expect(strategy['autoClose'], matches(r'^\d+s$'));
+              final rl =
+                  strategy['notificationRateLimit'] as Map<String, dynamic>?;
+              if (rl != null) expect(rl['period'], matches(r'^\d+s$'));
+            }
+
             final c = (policy['documentation']?['content'] ?? '') as String;
             expect(
               '`'.allMatches(c).length.isEven,

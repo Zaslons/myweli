@@ -89,6 +89,7 @@ for NAME in api-health api-providers-database; do
 {
   "displayName": "${TITLE}",
   "combiner": "OR",
+  "enabled": true,
   "conditions": [{
     "displayName": "uptime check ${CHECK_ID} failing from 2+ locations",
     "conditionThreshold": {
