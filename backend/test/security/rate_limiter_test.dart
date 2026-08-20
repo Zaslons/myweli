@@ -161,6 +161,10 @@ void main() {
     // in production would otherwise be invisible: the caller sees a 429 and we
     // see nothing. The log line is the only signal there will ever be.
 
+    // The WARNING half. Until 2026-08-20 `warnAt` and the line it produces had
+    // no test at all — no format, no cadence, no arithmetic — while the refusal
+    // beside it had five. The asymmetry was invisible because nothing asked.
+
     test('a refusal is logged, every time', () async {
       final logged = <String>[];
       final l = InMemoryRateLimiter();
@@ -223,6 +227,100 @@ void main() {
         '../infra/gcp/92-identity-limit-alert.sh',
       ).readAsStringSync();
       expect(script, contains('rate_limited'));
+    });
+  });
+
+  group('what the warning leaves behind', () {
+    test('it fires exactly ONCE per bucket per window', () async {
+      // Compared with `==`, not `>=`, precisely so it fires once. The
+      // refusal is the opposite: every time, because there the count is the
+      // signal. Getting this backwards makes the early warning a flood.
+      final logged = <String>[];
+      final l = InMemoryRateLimiter();
+      for (var i = 0; i < 12; i++) {
+        await allowUnderLimit(l, 'book:u1', 10, log: logged.add);
+      }
+      expect(
+        logged.where((x) => x.startsWith('rate_limit_warning')),
+        hasLength(1),
+        reason: 'once per crossing — the alert period assumes exactly this',
+      );
+    });
+
+    test('it carries bucket, hits and limit, in that shape', () async {
+      final logged = <String>[];
+      final l = InMemoryRateLimiter();
+      for (var i = 0; i < 8; i++) {
+        await allowUnderLimit(l, 'book:u1', 10, log: logged.add);
+      }
+      final w = logged.firstWhere((x) => x.startsWith('rate_limit_warning'));
+      expect(w, 'rate_limit_warning bucket=book:u1 hits=8 limit=10');
+    });
+
+    test('the warning arrives BEFORE the first refusal', () async {
+      // Its whole worth is being early. If it could arrive after, it would be
+      // a second alarm rather than a chance to act.
+      final logged = <String>[];
+      final l = InMemoryRateLimiter();
+      for (var i = 0; i < 12; i++) {
+        await allowUnderLimit(l, 'book:u1', 10, log: logged.add);
+      }
+      final w = logged.indexWhere((x) => x.startsWith('rate_limit_warning'));
+      final r = logged.indexWhere((x) => x.startsWith('rate_limited'));
+      expect(w, greaterThanOrEqualTo(0));
+      expect(r, greaterThan(w));
+    });
+
+    test('a request below the mark logs nothing at all', () async {
+      final logged = <String>[];
+      await allowUnderLimit(
+        InMemoryRateLimiter(),
+        'book:u1',
+        10,
+        log: logged.add,
+      );
+      expect(logged, isEmpty);
+    });
+
+    test('warnAt is 80% of the ceiling, floored', () {
+      expect(warnAt(10), 8);
+      expect(warnAt(5), 4);
+      expect(warnAt(60), 48);
+      expect(warnAt(40), 32);
+    });
+
+    test('a ceiling too small to have an 80% never warns', () async {
+      // warnAt(1) == 0, and a real limiter hands out hits starting at 1, so
+      // nothing ever equals it. Latent rather than live — no default is that
+      // small — but the ceilings are settable from the environment now, so an
+      // operator can configure a surface into silence without being told.
+      expect(warnAt(1), 0);
+      expect(warnAt(0), 0);
+      final logged = <String>[];
+      final l = InMemoryRateLimiter();
+      for (var i = 0; i < 4; i++) {
+        await allowUnderLimit(l, 'book:u1', 1, log: logged.add);
+      }
+      expect(
+        logged.where((x) => x.startsWith('rate_limit_warning')),
+        isEmpty,
+        reason: 'a ceiling of 1 is silent — the refusal is the only signal',
+      );
+    });
+
+    test('reviewSubmit buys exactly one request of notice', () async {
+      // warnAt(5) == 4, last allowed is 5, refusal at 6. Strictly earlier than
+      // the refusal, but only just — the runbook says so, because on that
+      // surface both alerts will often fire seconds apart.
+      final logged = <String>[];
+      final l = InMemoryRateLimiter();
+      for (var i = 0; i < 6; i++) {
+        await allowUnderLimit(l, 'review:u1', 5, log: logged.add);
+      }
+      final w = logged.indexWhere((x) => x.startsWith('rate_limit_warning'));
+      final r = logged.indexWhere((x) => x.startsWith('rate_limited'));
+      expect(logged[w], contains('hits=4'));
+      expect(logged[r], contains('hits=6'));
     });
   });
 

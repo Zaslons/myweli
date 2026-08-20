@@ -287,6 +287,34 @@ spec:
             # message at least announces where it came from.
             - name: EMAIL_FROM
               value: MyWeli STAGING <no-reply@myweli.com>
+            # The per-identity ceilings, per hour, per identity. Declared at
+            # the code defaults so a staging rehearsal exercises the SAME numbers
+            # the production runbook names — a rehearsal against different
+            # ceilings proves less than it appears to.
+            #
+            # (Note EMAIL_BUDGET_COLD/WARM are declared in service.yaml and NOT
+            # here, so staging runs the code defaults for those. That divergence
+            # predates this block and is left alone rather than changed in
+            # passing.)
+            #
+            # LIMIT_SIGN_REVIEW is not independent: a review carries up to six
+            # photos, so raising LIMIT_REVIEW_SUBMIT without raising this
+            # re-creates a lockout on a surface the user never approached.
+            # docs/design/backend-identity-rate-limits.md §5.
+            - name: LIMIT_BOOKING
+              value: "10"
+            - name: LIMIT_REVIEW_SUBMIT
+              value: "5"
+            - name: LIMIT_SIGN_GALLERY
+              value: "60"
+            - name: LIMIT_SIGN_REVIEW
+              value: "40"
+            - name: LIMIT_SIGN_KYC
+              value: "10"
+            - name: LIMIT_SIGN_DEPOSIT
+              value: "10"
+            - name: LIMIT_SIGN_AVATAR
+              value: "10"
             # R2 — the whole set together or `storageService` throws. Real
             # staging buckets rather than STORAGE_PROVIDER=disabled: uploads are
             # the riskiest surface here (presigned PUTs, private KYC and deposit

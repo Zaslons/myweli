@@ -324,6 +324,60 @@ void main() {
     });
   });
 
+  group('the per-identity ceilings the code reads are actually declared', () {
+    // Added 2026-08-20 after the runbook on the per-identity alert told an
+    // operator to "set the matching LIMIT_* environment variable in
+    // infra/gcp/service.yaml" when no such line was in that file — and was then
+    // "corrected" to claim no such variable existed at all, which is worse,
+    // because dependencies.dart reads all seven. Both halves of that mistake are
+    // caught by the same assertion: the names the code reads, and the names the
+    // manifests declare, have to be the same set.
+    final deps = File(
+      '$root/backend/lib/src/dependencies.dart',
+    ).readAsStringSync();
+    final read = RegExp(
+      r"_envOrNull\('(LIMIT_[A-Z_]+)'\)",
+    ).allMatches(deps).map((m) => m.group(1)!).toSet();
+
+    test('dependencies.dart reads a non-empty set of them', () {
+      // Without this, a rename in the code would empty the set and make every
+      // assertion below vacuously true.
+      expect(read, isNotEmpty);
+      expect(read, contains('LIMIT_BOOKING'));
+    });
+
+    for (final env in files.entries) {
+      test('${env.key} declares every one of them', () {
+        final declared = <String>{
+          for (final e in appEnv(env.value))
+            if ((e['name'] as String).startsWith('LIMIT_')) e['name'] as String,
+        };
+        expect(
+          declared,
+          equals(read),
+          reason:
+              'a ceiling read by the code but absent here silently falls back '
+              'to the compiled default, so the manifest an operator reads is '
+              'not the configuration in force',
+        );
+      });
+
+      test('${env.key} gives each a positive integer', () {
+        for (final name in read) {
+          final v = int.tryParse(plainEnv(env.value, name) ?? '');
+          expect(v, isNotNull, reason: '$name is not a number');
+          expect(
+            v,
+            greaterThan(1),
+            reason:
+                'warnAt(1) == 0 and real hits start at 1, so a ceiling of 0 or '
+                '1 never warns — the surface goes silent without saying so',
+          );
+        }
+      });
+    }
+  });
+
   group('the provisioning script provisions exactly what the manifest mounts', () {
     // Two files, one list, edited months apart. A secret added to the manifest
     // and forgotten in the script fails at REVISION CREATION with no
