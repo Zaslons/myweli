@@ -362,6 +362,61 @@ arrives **before** the first refusal, which is its whole worth; that a request
 below the mark logs nothing; the arithmetic; that a ceiling too small to have an
 80% never warns; and that `reviewSubmit` buys exactly **one** request of notice —
 warn at 4, refuse at 6 — so on that surface both alerts fire seconds apart.
+## 8.5 The other two things a limit can do
+
+The refusal alert says someone **was** turned away. Two things were unwatched.
+
+### The warning — someone is *about to* be
+
+`infra/gcp/94-identity-warning-alert.sh`, policy **"A per-identity limit is CLOSE
+to refusing"**, on `rate_limit_warning bucket=`. Its worth is being early: the
+person it names can still finish what they are doing.
+
+The cadence difference from its sibling is load-bearing. The refusal fires on
+**every** refused request, because there the count is the signal. The warning
+fires **once** per bucket per window, by an exact equality in `allowUnderLimit`,
+so `notificationRateLimit: 3600s` means one notification per crossing rather than
+a flood.
+
+**Review submission is the tight one:** ceiling 5, warns at 4, refuses at 6 — one
+further request of notice, and both alerts will often arrive seconds apart.
+Upload signing is the one that can warn on legitimate heavy use, because a
+photo-rich review signs many uploads. That was accepted deliberately: narrowing
+it later with real evidence is the same argument that closed *"revisit the
+threshold when traffic exists"*.
+
+### The one that is not a warning at all
+
+Policy **"A per-identity limit could NOT be enforced"**, on
+`rate_limit_unavailable`. `FailOpenRateLimiter` allows the request when the
+limiter throws — the right choice, since every real control still holds without
+it and failing closed would turn a Postgres blip into nobody being able to book —
+but **while it lasts the surface has no per-identity ceiling at all**, and nothing
+said so.
+
+It also explains a silence in the first policy: if the counter advanced in the
+database while the caller was handed a failure, that window's warning is **gone
+for good** rather than late, because the warning fires on `==` once. Bounded, and
+now announced.
+
+It **cannot be triggered on demand**, and should not be — that would mean taking
+the database down. Its filter is pinned by a test instead.
+
+### The guard that was green while the alert was broken
+
+The obvious pin — `expect(script, contains('rate_limit_warning'))` — does **not**
+catch a renamed emitter: `rate_limit_warnings` contains `rate_limit_warning`, so
+the assertion stays green while the filter greps a string nothing prints. That
+mutation was **watched green** before the check was rewritten.
+
+It now runs the other way: the `textPayload` literal is extracted from each
+script and looked for **in the source**, a direction a substring cannot satisfy.
+It covers all three scripts and five filter strings, so `88`'s two — which had no
+such check either — are covered as a side effect.
+
+`alert_runbooks_test.dart`'s "example line matches what the code prints" rule was
+likewise hard-wired to the refusal policy. Generalised over a
+`(source, prefix, runbook)` list, it now covers all three.
 
 ## 9. Residuals
 

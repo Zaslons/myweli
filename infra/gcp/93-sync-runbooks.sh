@@ -111,6 +111,7 @@ add infra/gcp/86-cron-auth-alert.sh
 add infra/gcp/88-email-budget-alert.sh
 add infra/gcp/91-armor-deny-alert.sh
 add infra/gcp/92-identity-limit-alert.sh
+add infra/gcp/94-identity-warning-alert.sh
 
 echo "rendered ${#INTENDED[@]} policy bodies from the repo"
 echo

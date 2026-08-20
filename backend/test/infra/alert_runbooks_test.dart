@@ -225,6 +225,48 @@ void main() {
     }
   });
 
+  group('every textPayload filter greps a string the code actually prints', () {
+    // A filter that greps a string nothing emits reads "no incidents" forever
+    // and is indistinguishable from a healthy service.
+    //
+    // The obvious pin — `expect(script, contains('rate_limit_warning'))` — does
+    // NOT catch this. Renaming the emitter to `rate_limit_warnings` throughout
+    // leaves that assertion green, because the longer string contains the
+    // shorter one. Watched green on 2026-08-20 while the alert was broken.
+    //
+    // So the filter literal is extracted from the script and looked for in the
+    // source instead. That direction cannot be satisfied by a substring.
+    final lib = Directory('lib')
+        .listSync(recursive: true)
+        .whereType<File>()
+        .where((f) => f.path.endsWith('.dart'))
+        .map((f) => f.readAsStringSync())
+        .join('\n');
+
+    for (final f in Directory('../infra/gcp').listSync().whereType<File>()) {
+      if (!f.path.endsWith('.sh')) continue;
+      final src = f.readAsStringSync();
+      final lits = RegExp(
+        r'textPayload:\\+"([^"\\]+)\\+"',
+      ).allMatches(src).map((m) => m.group(1)!).toSet();
+      if (lits.isEmpty) continue;
+
+      test(
+        '${f.uri.pathSegments.last}: ${lits.length} filter string(s) exist in lib/',
+        () {
+          for (final lit in lits) {
+            expect(
+              lib,
+              contains(lit),
+              reason:
+                  'no file under lib/ prints "$lit", so this alert can never fire',
+            );
+          }
+        },
+      );
+    }
+  });
+
   test('no backtick is DOUBLE escaped', () {
     // A transform that escaped an already-escaped backtick produced \\` in
     // 85-db-capacity-alert.sh. In an unquoted heredoc that is a backslash
@@ -242,33 +284,59 @@ void main() {
     }
   });
 
-  test('the example log line is one the code can actually produce', () {
-    // The delivered email showed `ceiling=10`. The code prints `limit=`. An
-    // operator grepping the documented shape would have found nothing.
-    final src = File(
+  // Every runbook that quotes a log line must quote one the code can actually
+  // produce. Until 2026-08-20 this was hard-wired to the refusal policy, so the
+  // two sibling policies added the same day had no format check at all — the
+  // rule existed and covered one third of the surface it looked like it covered.
+  const examples = [
+    (
       'lib/src/security/identity_limits.dart',
-    ).readAsStringSync();
-    final fmt = RegExp(r"'(rate_limited bucket=[^']*)'").firstMatch(src);
-    expect(fmt, isNotNull, reason: 'the refusal log line moved or was removed');
+      'rate_limited bucket=',
+      '92-identity-limit-alert.sh#0',
+    ),
+    (
+      'lib/src/security/identity_limits.dart',
+      'rate_limit_warning bucket=',
+      '94-identity-warning-alert.sh#0',
+    ),
+    (
+      'lib/src/security/rate_limiter.dart',
+      'rate_limit_unavailable bucket=',
+      '94-identity-warning-alert.sh#1',
+    ),
+  ];
 
-    final keys = RegExp(
-      r'(\w+)=',
-    ).allMatches(fmt!.group(1)!).map((m) => m.group(1)).toSet();
-    final book = books['92-identity-limit-alert.sh#0'];
-    expect(book, isNotNull);
-    for (final k in keys) {
+  for (final (source, prefix, key) in examples) {
+    test('$key quotes a line $prefix that the code produces', () {
+      // The delivered email showed `ceiling=10`. The code prints `limit=`. An
+      // operator grepping the documented shape would have found nothing.
+      final src = File(source).readAsStringSync();
+      final fmt = RegExp("'($prefix[^']*)'").firstMatch(src);
+      expect(
+        fmt,
+        isNotNull,
+        reason: '$prefix moved or was removed from $source',
+      );
+
+      final keys = RegExp(
+        r'(\w+)=',
+      ).allMatches(fmt!.group(1)!).map((m) => m.group(1)).toSet();
+      final book = books[key];
+      expect(book, isNotNull, reason: 'no runbook found at $key');
+      for (final k in keys) {
+        expect(
+          book,
+          contains('$k='),
+          reason: 'the code prints $k= and $key never mentions it',
+        );
+      }
       expect(
         book,
-        contains('$k='),
-        reason: 'the code prints $k= and the runbook never mentions it',
+        isNot(contains('ceiling=')),
+        reason: 'nothing prints ceiling=; the runbook invented it',
       );
-    }
-    expect(
-      book,
-      isNot(contains('ceiling=')),
-      reason: 'nothing prints ceiling=; the runbook invented it',
-    );
-  });
+    });
+  }
 
   test('every env var a runbook tells you to change really exists', () {
     // The delivered email told the operator to "set the matching LIMIT_*
