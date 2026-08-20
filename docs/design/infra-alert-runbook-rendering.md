@@ -89,6 +89,38 @@ excludes code from both, and the delivered `<code>` tag proves spans render — 
 the span we observed contained no hazard characters. **The next alert email is
 the falsifier**, and the command in it is either pasteable or it is not.
 
+## 5.1 Applying it to the live policies
+
+`infra/gcp/93-sync-runbooks.sh` pushes the repo's runbook text onto the live
+policies, and exists because **every other script here only calls
+`policies create`.** A policy's identity is the numeric id assigned at creation,
+not its `displayName`, so those scripts cannot re-run. When the runbooks were
+last corrected (§8.3 of the send-budget spec, 2026-08-19) it was done with a
+hand-written REST `PATCH` **that was never committed** — which is why the drift
+was invisible again the next day.
+
+It changes **only `documentation.content`**. `gcloud alpha monitoring policies
+update` with `--documentation-from-file` and *no* `--policy-from-file` does a
+read-modify-write and sends `updateMask=documentation.content` — narrower even
+than August's `updateMask=documentation`, because it cannot touch `mimeType`.
+Passing `--policy-from-file` instead sends `updateMask=None`, a **full replace**
+that would drop `alertStrategy`, `notificationChannels` and `conditions`.
+`--fields` does not help: it accepts only `disabled` and `notificationChannels`,
+and requires the policy body it is trying to avoid.
+
+### What an adversarial review of it found
+
+- **An empty render would blank a live runbook, and the read-back would certify
+  it** — `got == want` with both empty. `gcloud` does not treat an empty file as
+  "no change" either. The script now refuses anything under 200 characters, and
+  refuses an odd number of backticks, which is what an executed code span leaves.
+- **Popping `documentation` from both sides before comparing** proves nothing
+  about the field being changed. The script asserts the stored content equals the
+  intended content *first*, and only then compares everything else.
+- **The run is not atomic.** It is idempotent instead: a policy already matching
+  the repo is skipped, so the recovery from a partial run is to re-run it. Every
+  pre-patch capture is kept for rollback, and a failure prints what already moved.
+
 ## 6. Related
 
 - `docs/design/backend-email-send-budget.md` §8.2–8.3 — the first two instances:
