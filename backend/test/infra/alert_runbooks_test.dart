@@ -36,7 +36,8 @@ Map<String, String> _runbooks() {
       final m = RegExp(r'(?:"content": "|^\s*DOC=")(.*)"').firstMatch(line);
       if (m == null) continue;
       final raw = m.group(1)!;
-      if (raw.startsWith(r'$')) continue; // an interpolation, resolved elsewhere
+      if (raw.startsWith(r'$'))
+        continue; // an interpolation, resolved elsewhere
       out['$name#${i++}'] = raw
           .replaceAll(r'\n', '\n')
           .replaceAll(r'\"', '"')
@@ -69,25 +70,30 @@ void main() {
   test('the scripts that create alert policies were all found', () {
     // Guards the extraction itself: a regex that silently matched nothing
     // would make every assertion below vacuously true.
-    expect(books.length, greaterThanOrEqualTo(6), reason: 'found: ${books.keys}');
+    expect(
+      books.length,
+      greaterThanOrEqualTo(6),
+      reason: 'found: ${books.keys}',
+    );
   });
 
   group('markdown cannot damage what an operator has to type', () {
     for (final e in books.entries) {
       test('${e.key}: identifiers with _ are in code spans', () {
-        final bad = RegExp(r'[A-Za-z0-9][A-Za-z0-9./*-]*_[A-Za-z0-9./*_-]*')
-            .allMatches(_prose(e.value))
-            .map((m) => m.group(0))
-            .toSet();
-        expect(bad, isEmpty,
-            reason: 'markdown turns a pair of _ into <em> and DELETES them');
+        final bad = RegExp(
+          r'[A-Za-z0-9][A-Za-z0-9./*-]*_[A-Za-z0-9./*_-]*',
+        ).allMatches(_prose(e.value)).map((m) => m.group(0)).toSet();
+        expect(
+          bad,
+          isEmpty,
+          reason: 'markdown turns a pair of _ into <em> and DELETES them',
+        );
       });
 
       test('${e.key}: --flags are in code spans', () {
-        final bad = RegExp(r'(?<![-\w])--[a-z]')
-            .allMatches(_prose(e.value))
-            .map((m) => m.group(0))
-            .toSet();
+        final bad = RegExp(
+          r'(?<![-\w])--[a-z]',
+        ).allMatches(_prose(e.value)).map((m) => m.group(0)).toSet();
         expect(bad, isEmpty, reason: 'markdown turns -- into an en dash');
       });
 
@@ -97,19 +103,32 @@ void main() {
             .map((l) => l.trim())
             .where((l) => RegExp(r'^(gcloud|curl|psql|kubectl) ').hasMatch(l))
             .toList();
-        expect(bad, isEmpty, reason: 'a command outside a code span is retyped by hand');
+        expect(
+          bad,
+          isEmpty,
+          reason: 'a command outside a code span is retyped by hand',
+        );
       });
     }
   });
 
-  group('these are shell strings, so a bare backtick is command substitution', () {
-    for (final e in _runbookLines()) {
-      test('${e.key}: backticks escaped in ${e.value.trimLeft().split(' ').first}', () {
-        expect(RegExp(r'(?<!\\)`').hasMatch(e.value), isFalse,
-            reason: 'an unescaped ` in an unquoted heredoc or "..." RUNS');
-      });
-    }
-  });
+  group(
+    'these are shell strings, so a bare backtick is command substitution',
+    () {
+      for (final e in _runbookLines()) {
+        test(
+          '${e.key}: backticks escaped in ${e.value.trimLeft().split(' ').first}',
+          () {
+            expect(
+              RegExp(r'(?<!\\)`').hasMatch(e.value),
+              isFalse,
+              reason: 'an unescaped ` in an unquoted heredoc or "..." RUNS',
+            );
+          },
+        );
+      }
+    },
+  );
 
   group('the shell actually emits valid JSON', () {
     // The rule the Dart-only checks could not enforce. A backtick that survives
@@ -125,31 +144,40 @@ void main() {
       }
       if (starts.isEmpty) continue;
 
-      test('${f.uri.pathSegments.last}: ${starts.length} policy body/bodies parse', () {
-        for (final s0 in starts) {
-          final end = lines.indexOf('JSON', s0);
-          expect(end, greaterThan(s0), reason: 'unterminated heredoc');
-          final body = [
-            'cat <<JSON',
-            ...lines.sublist(s0 + 1, end + 1),
-          ].join('\n');
-          final tmp = File('${Directory.systemTemp.path}/rb_$s0.sh')
-            ..writeAsStringSync(body);
-          final r = Process.runSync('bash', [tmp.path]);
-          expect(r.exitCode, 0, reason: 'bash: ${r.stderr}');
-          final out = (r.stdout as String).trim();
-          expect(out, isNotEmpty, reason: 'the heredoc produced nothing');
-          late final Map<String, dynamic> policy;
-          expect(() => policy = jsonDecode(out) as Map<String, dynamic>,
+      test(
+        '${f.uri.pathSegments.last}: ${starts.length} policy body/bodies parse',
+        () {
+          for (final s0 in starts) {
+            final end = lines.indexOf('JSON', s0);
+            expect(end, greaterThan(s0), reason: 'unterminated heredoc');
+            final body = [
+              'cat <<JSON',
+              ...lines.sublist(s0 + 1, end + 1),
+            ].join('\n');
+            final tmp = File('${Directory.systemTemp.path}/rb_$s0.sh')
+              ..writeAsStringSync(body);
+            final r = Process.runSync('bash', [tmp.path]);
+            expect(r.exitCode, 0, reason: 'bash: ${r.stderr}');
+            final out = (r.stdout as String).trim();
+            expect(out, isNotEmpty, reason: 'the heredoc produced nothing');
+            late final Map<String, dynamic> policy;
+            expect(
+              () => policy = jsonDecode(out) as Map<String, dynamic>,
               returnsNormally,
-              reason: 'INVALID JSON — a live backtick ate part of it:\n'
-                  '${out.length > 300 ? out.substring(0, 300) : out}');
-          final c = (policy['documentation']?['content'] ?? '') as String;
-          expect('`'.allMatches(c).length.isEven, isTrue,
-              reason: 'an unclosed code span leaks into the next paragraph');
-          tmp.deleteSync();
-        }
-      });
+              reason:
+                  'INVALID JSON — a live backtick ate part of it:\n'
+                  '${out.length > 300 ? out.substring(0, 300) : out}',
+            );
+            final c = (policy['documentation']?['content'] ?? '') as String;
+            expect(
+              '`'.allMatches(c).length.isEven,
+              isTrue,
+              reason: 'an unclosed code span leaks into the next paragraph',
+            );
+            tmp.deleteSync();
+          }
+        },
+      );
     }
   });
 
@@ -161,31 +189,41 @@ void main() {
     // UNescaped backtick and was green throughout.
     for (final f in Directory('../infra/gcp').listSync().whereType<File>()) {
       if (!f.path.endsWith('.sh')) continue;
-      expect(f.readAsStringSync(), isNot(contains(r'\\`')),
-          reason: '${f.uri.pathSegments.last}: \\` is a live backtick, not an escaped one');
+      expect(
+        f.readAsStringSync(),
+        isNot(contains(r'\\`')),
+        reason:
+            '${f.uri.pathSegments.last}: \\` is a live backtick, not an escaped one',
+      );
     }
   });
 
   test('the example log line is one the code can actually produce', () {
     // The delivered email showed `ceiling=10`. The code prints `limit=`. An
     // operator grepping the documented shape would have found nothing.
-    final src =
-        File('lib/src/security/identity_limits.dart').readAsStringSync();
+    final src = File(
+      'lib/src/security/identity_limits.dart',
+    ).readAsStringSync();
     final fmt = RegExp(r"'(rate_limited bucket=[^']*)'").firstMatch(src);
     expect(fmt, isNotNull, reason: 'the refusal log line moved or was removed');
 
-    final keys = RegExp(r'(\w+)=')
-        .allMatches(fmt!.group(1)!)
-        .map((m) => m.group(1))
-        .toSet();
+    final keys = RegExp(
+      r'(\w+)=',
+    ).allMatches(fmt!.group(1)!).map((m) => m.group(1)).toSet();
     final book = books['92-identity-limit-alert.sh#0'];
     expect(book, isNotNull);
     for (final k in keys) {
-      expect(book, contains('$k='),
-          reason: 'the code prints $k= and the runbook never mentions it');
+      expect(
+        book,
+        contains('$k='),
+        reason: 'the code prints $k= and the runbook never mentions it',
+      );
     }
-    expect(book, isNot(contains('ceiling=')),
-        reason: 'nothing prints ceiling=; the runbook invented it');
+    expect(
+      book,
+      isNot(contains('ceiling=')),
+      reason: 'nothing prints ceiling=; the runbook invented it',
+    );
   });
 
   test('every env var a runbook tells you to change really exists', () {
@@ -196,11 +234,15 @@ void main() {
     final yaml = File('../infra/gcp/service.yaml').readAsStringSync();
     for (final e in _runbooks().entries) {
       if (!e.value.contains('service.yaml')) continue;
-      for (final m in RegExp(r'`([A-Z][A-Z0-9]*(?:_[A-Z0-9*]+)+)`').allMatches(e.value)) {
-        expect(yaml, contains(m.group(1)!.replaceAll('*', '')),
-            reason: '${e.key} points at an env var service.yaml does not set');
+      for (final m in RegExp(
+        r'`([A-Z][A-Z0-9]*(?:_[A-Z0-9*]+)+)`',
+      ).allMatches(e.value)) {
+        expect(
+          yaml,
+          contains(m.group(1)!.replaceAll('*', '')),
+          reason: '${e.key} points at an env var service.yaml does not set',
+        );
       }
     }
   });
-
 }
