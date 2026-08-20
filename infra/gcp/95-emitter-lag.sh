@@ -55,6 +55,15 @@ WORK=$(mktemp -d); trap 'rm -rf "${WORK}"' EXIT
 # shellcheck source=infra/gcp/policy-bodies.sh
 source "$(dirname "${BASH_SOURCE[0]}")/policy-bodies.sh"
 
+if (( ${#RENDER_NOTES[@]} )); then
+  echo "Rendering notes - stated so an unexplained error never sits in a green run:"
+  for n in "${RENDER_NOTES[@]}"; do echo "  ${n}"; done
+  echo "  Affects only interpolated ids, not the textPayload literals below. The"
+  echo "  policies concerned are metric-based and not checkable against source"
+  echo "  either way, so nothing is lost - see the skipped list at the end."
+  echo
+fi
+
 python3 - "${PROJECT}" "${REGION}" "${INTENDED[@]}" <<'PY'
 import json, os, re, subprocess, sys
 

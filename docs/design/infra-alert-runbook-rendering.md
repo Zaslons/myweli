@@ -333,6 +333,24 @@ the services that cannot yet emit the string. Warned rather than refused:
 staging an alert just ahead of its deploy is a legitimate order, and a hard stop
 only pushes someone into creating the policy in the console instead.
 
+### 5.6.3 What the first real CI run showed
+
+Two things, on the staging deploy of `365afe3`:
+
+**It caught genuine drift immediately.** `myweli-api 0b23724` against
+`myweli-api-staging 365afe3` — production lagging staging, which is the exact
+condition that unmasks this hole. Correctly `ok`, because `0b23724` does contain
+all five strings. Both resolved as *"label verified against the serving digest"*,
+so the provenance chain works under the deploy service account.
+
+**And it leaked two raw permission ERRORs into a passing step.**
+`80-uptime-checks.sh` looks up its uptime `CHECK_ID` live, and the deployer has no
+monitoring read. Nothing was actually wrong — `80`'s filters are metric-based and
+skipped either way — but **unexplained ERROR lines inside a green step teach
+people to ignore errors**, which is the opposite of what a check is for. `render()`
+now captures stderr and the caller says it once, in words, pointing at the
+skipped list.
+
 ## 6. Related
 
 - `docs/design/backend-email-send-budget.md` §8.2–8.3 — the first two instances:
