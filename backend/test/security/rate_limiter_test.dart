@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:myweli_backend/src/db/postgres_rate_limiter.dart';
 import 'package:myweli_backend/src/security/identity_limits.dart';
 import 'package:myweli_backend/src/security/rate_limiter.dart';
 import 'package:test/test.dart';
@@ -324,6 +325,95 @@ void main() {
     });
   });
 
+  group('failing open means failing FAST', () {
+    test('every limiter query carries a deadline', () {
+      // Source-level, because the behaviour needs a database that accepts the
+      // connection and then never answers — which cannot be arranged in a unit
+      // test and must not be arranged in a deployed one.
+      //
+      // Counting call sites rather than grepping for the word: a file that
+      // mentions `timeout` once while a second query goes unbounded is exactly
+      // the shape this misses.
+      final src = File(
+        'lib/src/db/postgres_rate_limiter.dart',
+      ).readAsStringSync();
+      final calls = '_pool.execute('.allMatches(src).length;
+      final bounded = 'timeout: kLimiterQueryTimeout'.allMatches(src).length;
+      expect(
+        calls,
+        greaterThan(0),
+        reason: 'the queries moved or were renamed',
+      );
+      expect(
+        bounded,
+        calls,
+        reason:
+            'an unbounded query cannot throw when the database wedges, so '
+            'FailOpenRateLimiter never catches, rate_limit_unavailable is '
+            'never printed, and the alert cannot fire in the one scenario it '
+            'exists for — while the caller waits out Cloud Run\'s 300s',
+      );
+    });
+
+    test('the deadline is well under the request deadline', () {
+      expect(kLimiterQueryTimeout, lessThan(const Duration(seconds: 10)));
+      expect(kLimiterQueryTimeout, greaterThan(const Duration(seconds: 1)));
+    });
+
+    test(
+      'the fail-open verdict is allowed, uncounted, and announced',
+      () async {
+        final logged = <String>[];
+        final v = await FailOpenRateLimiter(
+          _ThrowingLimiter(),
+          log: logged.add,
+        ).hit('book:u1', limit: 10, window: const Duration(hours: 1));
+        expect(v.ok, isTrue, reason: 'the request must go through');
+        expect(
+          v.hits,
+          0,
+          reason: 'nothing was counted, and it must not pretend',
+        );
+        expect(v.limit, 10);
+        expect(logged, ['rate_limit_unavailable bucket=book:u1']);
+      },
+    );
+
+    test('the announcement carries no exception text', () async {
+      // The bucket says which surface is unbounded. A stack trace from the pool
+      // says nothing a reader of this line needs, and is the usual way an
+      // internal detail reaches a log that a human forwards elsewhere.
+      final logged = <String>[];
+      await FailOpenRateLimiter(
+        _ThrowingLimiter(
+          boom: 'connection refused to 10.1.2.3:5432 as myweli_app',
+        ),
+        log: logged.add,
+      ).hit('book:u1', limit: 10, window: const Duration(hours: 1));
+      expect(logged.single, isNot(contains('10.1.2.3')));
+      expect(logged.single, isNot(contains('myweli_app')));
+      expect(logged.single, isNot(contains('Exception')));
+    });
+
+    test('a fail-open verdict cannot raise a warning', () async {
+      // The fabricated hits:0 equals warnAt for any ceiling of 0 or 1, so every
+      // failed hit during an outage would announce a threshold nobody crossed.
+      // No shipped ceiling is that small, but they are settable per environment.
+      final logged = <String>[];
+      await allowUnderLimit(
+        FailOpenRateLimiter(_ThrowingLimiter(), log: (_) {}),
+        'book:u1',
+        1,
+        log: logged.add,
+      );
+      expect(
+        logged.where((x) => x.startsWith('rate_limit_warning')),
+        isEmpty,
+        reason: 'nothing was counted, so no threshold was crossed',
+      );
+    });
+  });
+
   group('the policy', () {
     test('buckets are namespaced per surface', () {
       expect(bookingBucket('u1'), 'book:u1');
@@ -385,4 +475,20 @@ class _Broken implements RateLimiter {
   @override
   Future<int> used(String bucket, {required Duration window}) async =>
       throw StateError('pool is down');
+}
+
+class _ThrowingLimiter implements RateLimiter {
+  _ThrowingLimiter({this.boom = 'down'});
+  final String boom;
+
+  @override
+  Future<RateVerdict> hit(
+    String bucket, {
+    required int limit,
+    required Duration window,
+  }) async => throw Exception(boom);
+
+  @override
+  Future<int> used(String bucket, {required Duration window}) async =>
+      throw Exception(boom);
 }

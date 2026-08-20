@@ -151,7 +151,13 @@ Future<bool> allowUnderLimit(
     // and we see nothing. Observability is what replaces the probe.
     emit('rate_limited bucket=$bucket hits=${v.hits} limit=${v.limit}');
   }
-  if (v.hits == warnAt(v.limit)) {
+  // `v.hits > 0` guards the FAIL-OPEN verdict, which fabricates `hits: 0`
+  // without having counted anything. With every shipped ceiling `warnAt` is at
+  // least 4, so 0 can never equal it — but a ceiling of 0 or 1 makes
+  // `warnAt` == 0, and every failed hit during a database outage would then
+  // announce a threshold nobody crossed. The ceilings are settable from the
+  // environment, so that is a configuration away rather than a code change.
+  if (v.hits > 0 && v.hits == warnAt(v.limit)) {
     // The bucket carries a pseudonymous id, not contact data — unlike the send
     // budget's recipient, which its own test forbids logging. It is also the
     // only actionable field: without it the line says a threshold is close and
