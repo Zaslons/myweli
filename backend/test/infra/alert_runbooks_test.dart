@@ -36,8 +36,8 @@ Map<String, String> _runbooks() {
       final m = RegExp(r'(?:"content": "|^\s*DOC=")(.*)"').firstMatch(line);
       if (m == null) continue;
       final raw = m.group(1)!;
-      if (raw.startsWith(r'$'))
-        continue; // an interpolation, resolved elsewhere
+      // an interpolation, resolved elsewhere
+      if (raw.startsWith(r'$')) continue;
       out['$name#${i++}'] = raw
           .replaceAll(r'\n', '\n')
           .replaceAll(r'\"', '"')
