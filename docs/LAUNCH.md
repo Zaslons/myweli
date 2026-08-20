@@ -479,7 +479,28 @@ nobody is watching.
       and `release=<HEAD sha>`; error boundaries and scrubbing are in
       `app/error.tsx`, `app/global-error.tsx`, `lib/sentry-scrub.ts`.
 - [ ] **Prove it**: trigger one real error per surface and watch it arrive.
-      **Two of three.**
+      **Three of three transmitted; the web one is awaiting a look at the
+      dashboard.**
+      - **Web — transmitted and accepted 2026-08-20, against production.** A
+        deliberate uncaught error on `myweli.com`, thrown from a `setTimeout` so
+        it travels `window.onerror` → the Sentry global handler → `scrubEvent` →
+        the transport, **not** the SDK's capture API — which would prove only
+        that a function works, not that a real break is reported. Evidence, in
+        order: the error object came back carrying Sentry's own
+        `__sentry_captured__: true`; Resource Timing recorded **7 envelope POSTs**
+        to `o4511899558281216.ingest.de.sentry.io/api/4511899664318544/envelope/`;
+        every one returned **HTTP 200**. Search Sentry for
+        `MYWELI_WEB_SENTRY_PROOF` to see them.
+        **The oracle nearly lied, and that is worth recording.** A patched
+        `window.fetch` plus the browser's own network recorder both showed
+        *nothing* — `patchedFetchSaw: 0` against seven real requests — because
+        the Sentry transport caches a native `fetch` at init precisely to dodge
+        app-level instrumentation. On that evidence alone the honest-looking
+        conclusion was "web crash reporting is broken", and it was wrong. Only
+        Resource Timing, which sees every request however it was made,
+        discriminated.
+        **What is still owed is one look**: 200 from ingest means accepted, not
+        displayed. Nothing in this repo can see the Sentry UI.
       - **App — done 2026-08-18, on a real iPhone.** A deliberate uncaught error
         in a `--release` build arrived in `myweli-app` carrying
         `logger_message: Uncaught zone error` — the proof it travelled the path
