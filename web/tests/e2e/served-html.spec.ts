@@ -31,6 +31,17 @@ test('the sitemap lists the commune level, not only roots and cities', async ({ 
   }
 });
 
+test('every sitemap entry carries a <lastmod>', async ({ request }) => {
+  // One document-level timestamp, not a per-URL invention: nothing in this
+  // system records when an individual landing page last changed, and a fake
+  // per-URL date is a claim a crawler acts on.
+  const xml = await (await request.get('/sitemap.xml')).text();
+  const locs = [...xml.matchAll(/<loc>/g)].length;
+  const mods = [...xml.matchAll(/<lastmod>/g)].length;
+  expect(locs).toBeGreaterThan(0);
+  expect(mods, 'every <url> needs a <lastmod>, not just some').toBe(locs);
+});
+
 test('the sitemap has no duplicate <loc>', async ({ request }) => {
   const xml = await (await request.get('/sitemap.xml')).text();
   const locs = [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
