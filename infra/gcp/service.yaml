@@ -191,6 +191,34 @@ spec:
               value: "60"
             - name: EMAIL_BUDGET_WARM
               value: "1000"
+            # The per-identity ceilings, per hour, per identity. Declared
+            # here at the code defaults for the same reason the email budgets
+            # above are, and after the same defect: the runbook on the
+            # per-identity alert pointed an operator at a variable that was not
+            # in this file. It then over-corrected and claimed no such variable
+            # existed at all — which is worse, because `dependencies.dart` reads
+            # all seven, and a console hand-edit does work. It is simply
+            # reverted by the next `services replace`, exactly as above.
+            #
+            # LIMIT_SIGN_REVIEW is not independent: a review carries up to six
+            # photos, so raising LIMIT_REVIEW_SUBMIT without raising this
+            # re-creates a lockout on a surface the user never approached. A
+            # test enforces the relationship.
+            # docs/design/backend-identity-rate-limits.md §5.
+            - name: LIMIT_BOOKING
+              value: "10"
+            - name: LIMIT_REVIEW_SUBMIT
+              value: "5"
+            - name: LIMIT_SIGN_GALLERY
+              value: "60"
+            - name: LIMIT_SIGN_REVIEW
+              value: "40"
+            - name: LIMIT_SIGN_KYC
+              value: "10"
+            - name: LIMIT_SIGN_DEPOSIT
+              value: "10"
+            - name: LIMIT_SIGN_AVATAR
+              value: "10"
             # R2 — all seven together or storageService throws (dependencies.dart:308).
             # R2_ENDPOINT is deliberately NOT set: it is derived from the
             # account id (:141-146), and supplying both invites drift.

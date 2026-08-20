@@ -314,6 +314,55 @@ is the limit working and needs nobody's attention. A real person refused
 mid-booking sees a 429 and gives up — and without the line we would learn from a
 complaint, or never.
 
+## 8.3 The ceilings are in the manifest, and the runbook said the opposite
+
+The alert runbook told an operator to *"set the matching `LIMIT_*` environment
+variable in `infra/gcp/service.yaml`"* — and no such line was in that file. On
+2026-08-20 I "corrected" it to say **"there is no environment variable for them,
+so a hand-edit in the console is not a thing that can be done."**
+
+**Both clauses are false.** `dependencies.dart:298-320` reads all seven, they are
+documented in `.env.example:59-68`, and a console hand-edit does work. I asserted
+a negative after grepping two files that were never where those vars are read,
+and shipped it to production, in the runbook an operator follows at 3am.
+
+The first version was closer to right than my correction. That is the failure
+mode worth naming: *prefer describing what you do over denying what you do not*,
+because a denial only has to be wrong once.
+
+**The fix is the one the email budgets already had.** All seven are now declared
+in `service.yaml` **and** `service-staging.yaml` at the code defaults — zero
+behaviour change, since they equal `kDefaultIdentityLimits`. `service.yaml`'s
+comment on `EMAIL_BUDGET_COLD` describes this exact defect, in the past tense,
+about itself: *"the runbook … tells the operator to raise `EMAIL_BUDGET_COLD` in
+`infra/gcp/service.yaml` — and until now the variable was not in this file to
+raise."* The same mistake, the same file, six weeks apart.
+
+Staging declares them too, so a rehearsal exercises the same numbers the
+production runbook names. (`EMAIL_BUDGET_*` are in `service.yaml` only; that
+divergence predates this and was left alone rather than changed in passing.)
+
+**The guard** — `service_files_test.dart` now asserts the set of `LIMIT_*` names
+`dependencies.dart` reads equals the set each manifest declares, so both halves
+of the mistake fail the same test: a variable named in a runbook but absent from
+the manifest, and a manifest that has quietly stopped covering what the code
+reads. It also refuses a ceiling of 0 or 1, because `warnAt(1) == 0` and real
+hits start at 1 — such a surface never warns and says nothing about it.
+
+## 8.4 The warning line had no tests at all
+
+`warnAt` and `rate_limit_warning` had **no test of any kind** — no format, no
+cadence, no arithmetic — while the refusal beside them had five. The asymmetry
+was invisible because nothing asked.
+
+Seven tests now cover it, modelled on the send budget's: it fires exactly **once**
+per bucket per window (`==`, not `>=` — the refusal is the opposite, and getting
+it backwards turns an early warning into a flood); its exact shape; that it
+arrives **before** the first refusal, which is its whole worth; that a request
+below the mark logs nothing; the arithmetic; that a ceiling too small to have an
+80% never warns; and that `reviewSubmit` buys exactly **one** request of notice —
+warn at 4, refuse at 6 — so on that surface both alerts fire seconds apart.
+
 ## 9. Residuals
 
 - **Minting identities.** One budget per account; bounded by §2's composition.
