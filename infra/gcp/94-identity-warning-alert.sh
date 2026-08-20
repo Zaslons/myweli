@@ -96,6 +96,17 @@ for f in warning unavailable; do
     --project="${PROJECT}" --policy-from-file="/tmp/policy-identity-${f}.json"
 done
 
+# A policy created before its emitter is deployed CANNOT FIRE, and looks exactly
+# like a healthy one. That is not hypothetical: it is how the identity-limit
+# alert spent two hours blind on 2026-08-20. Warned, not refused - staging the
+# alert just ahead of the deploy is a legitimate order, and a hard stop here
+# would only push someone into creating the policy in the console instead.
+bash "$(dirname "${BASH_SOURCE[0]}")/95-emitter-lag.sh" || {
+  echo
+  echo "::warning:: the policy was created, but see the report above - a service"
+  echo "::warning:: is running code that cannot emit what it watches for. Deploy."
+}
+
 echo
 echo "Policies now configured:"
 gcloud alpha monitoring policies list --project="${PROJECT}" \
