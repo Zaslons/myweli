@@ -150,7 +150,7 @@ absent:
 | CI: analyze, unit, widget, golden, e2e, APK size, secret scan, funnel smoke | ✅ strong |
 | Release signing + store prep | ✅ repo side (#337); accounts pending |
 | **Staging environment** | ✅ **complete** — `myweli-api-staging` + `myweli-db-staging`, auto-deployed on merge, PITR on, alerting on, **and Vercel Preview pointed at it** (both `API_BASE_URL` and `NEXT_PUBLIC_API_BASE_URL`). The web half closed 2026-08-18 (§5.4) |
-| **Crash / error reporting** | ⚠️ **three of three wired, two of three proven** (re-verified 2026-08-20 against the deployed artifacts, not the source): **backend** reports with a real release and the request id; **web** ships a DSN in the bundle served from `myweli.com`; **app** has its own `MOBILE_SENTRY_DSN` and `tool/release_build.sh` refuses to build without it — but no **signed** build exists yet (§6.2), so nothing in a store has carried it. The remaining proof is §5.2's *"trigger one real error per surface"*, still **two of three** |
+| **Crash / error reporting** | ✅ **three of three wired and proven** (re-verified 2026-08-20 against the deployed artifacts, not the source): **backend** reports with a real release and the request id; **web** ships a DSN in the bundle served from `myweli.com`; **app** has its own `MOBILE_SENTRY_DSN` and `tool/release_build.sh` refuses to build without it — but no **signed** build exists yet (§6.2), so nothing in a store has carried it. The remaining proof is §5.2's *"trigger one real error per surface"*, still **two of three** |
 | **Uptime alerting** | ✅ **live 2026-08-12** — two Cloud Monitoring checks on `api.myweli.com` (`/health` for the process, `/providers` for the database, because `/health` reported ok right through the Render outage), alerting to email when 2+ regions fail for 5+ minutes. Verified against real probe results, not just created ([design/observability-error-reporting.md](design/observability-error-reporting.md) §8.5) |
 | **Outbound-email alerting** | ✅ **live 2026-08-19** — two Cloud Monitoring policies on the send budget, and **both watched fire** against staging rather than merely created: a warning at 80% of the hourly ceiling (`sent=48`, once, nine seconds *before* the first refusal) and the exhaustion alarm (`sent=61`, `sent=62`), incidents opening ~33 s later. The refusal is invisible to the caller by design — 202 either way — so without these a legitimate exhaustion would surface as a user who could not sign in and no signal at all ([design/backend-email-send-budget.md](design/backend-email-send-budget.md) §8.1) |
 | **Forced upgrade** | ❌ nothing |
@@ -478,9 +478,8 @@ nobody is watching.
       bundle on `myweli.com`, which carries its own DSN, `environment=production`
       and `release=<HEAD sha>`; error boundaries and scrubbing are in
       `app/error.tsx`, `app/global-error.tsx`, `lib/sentry-scrub.ts`.
-- [ ] **Prove it**: trigger one real error per surface and watch it arrive.
-      **Three of three transmitted; the web one is awaiting a look at the
-      dashboard.**
+- [x] **Prove it**: trigger one real error per surface and watch it arrive.
+      **Three of three, all seen in the dashboard.**
       - **Web — transmitted and accepted 2026-08-20, against production.** A
         deliberate uncaught error on `myweli.com`, thrown from a `setTimeout` so
         it travels `window.onerror` → the Sentry global handler → `scrubEvent` →
@@ -499,8 +498,15 @@ nobody is watching.
         conclusion was "web crash reporting is broken", and it was wrong. Only
         Resource Timing, which sees every request however it was made,
         discriminated.
-        **What is still owed is one look**: 200 from ingest means accepted, not
-        displayed. Nothing in this repo can see the Sentry UI.
+        **Confirmed in the Sentry UI, 2026-08-20** — issue `141896043` in
+        `myweli-web` (project `4511899664318544`), 3 events. Two tags in it prove
+        more than the transmission did:
+        `mechanism: auto.browser.browserapierrors.setTimeout` and `handled: no`.
+        That is Sentry's own record that the event arrived through the automatic
+        global instrumentation as an **unhandled** error — the path a real crash
+        takes — and not through a manual `capture` call. `environment:
+        production` and a real `release` confirm the deployed bundle's config
+        alongside it.
       - **App — done 2026-08-18, on a real iPhone.** A deliberate uncaught error
         in a `--release` build arrived in `myweli-app` carrying
         `logger_message: Uncaught zone error` — the proof it travelled the path
