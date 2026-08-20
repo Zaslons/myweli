@@ -687,6 +687,29 @@ checking rather than assuming:
 ### 6.1 Web (first)
 
 - [ ] Lighthouse/CWV budgets green on the real domain, not a preview.
+      **Measured for the first time 2026-08-20 — `cd web && npm run check:cwv`.**
+      Same mobile/3G settings as the CI gate, against `myweli.com` itself. The
+      CI gate measures the *code*; this measures the *site*, which has a CDN, a
+      TLS handshake and real latency the runner does not.
+      Medians of three: `/` **LCP 2030 ms · CLS 0.000**, `/suppression-compte`
+      **1873 ms · 0.000**, `/connexion` **1457 ms · CLS 0.131**.
+      **`/connexion` breaches the CLS budget on the real domain** (0.131 vs 0.1),
+      and it is the Google sign-in button: Google renders it asynchronously from
+      a third-party script, so on a slow connection it lands late and pushes the
+      page down. Unthrottled it measures 0.000, which is why no local check ever
+      saw it. Height now reserved (`min-h-[44px]`); **stays unticked until the
+      check is green against production after deploy.**
+      **The first run of this check passed while the budget was breached.**
+      `lhci`’s default aggregation is *optimistic* — it takes the BEST of the
+      three runs. Two of three were over. Both configs now set
+      `aggregationMethod: median`, per assertMatrix block, which is where lhci
+      accepts it.
+      **And lab numbers are not the last word.** These come from a laptop in
+      Europe emulating a mid-range phone, not from a real handset on a real
+      Abidjan network. The honest measure of what users experience is *field*
+      data — CrUX, or real-user monitoring — and that needs traffic this product
+      does not have yet. Revisit once there is any; until then this check is the
+      best available proxy and should be read as one.
 - [x] SEO: sitemap, robots, canonical URLs, JSON-LD validating.
       **Measured on the live domain 2026-08-20**, not on a preview. `robots.txt`
       and `sitemap.xml` exist and every listed URL answers 200; the home and
@@ -708,6 +731,19 @@ checking rather than assuming:
       exist; the reason is recorded in `web/lib/seo/jsonld.ts` beside the field.
       Provider pages cannot be listed until there is a provider.
 - [ ] The full funnel on a real phone browser on a slow connection.
+      **Automated under constraint 2026-08-20; the real-domain walk still waits
+      on inventory.** `web/tests/e2e/slow-phone.spec.ts` walks home → recherche
+      → provider → réserver with the network throttled to ~1.6 Mbps / 150 ms RTT
+      and the CPU at 4×, asserting each step renders something useful. It runs
+      every CI, so the answer stays true rather than being true for a day.
+      **Nothing else in the suite throttled anything** — 19 spec files drive an
+      unthrottled desktop Chromium on loopback, where 232 KB of JS costs nothing.
+      That is precisely why the 404 empty shell sat green in four separate files.
+      **What it cannot tell you**, stated so the box is not over-read: it runs
+      against the stub on loopback — no CDN, no TLS handshake to Abidjan, no real
+      API latency. It measures the *shape* of the funnel under constraint, not
+      production timings. The real-domain walk needs the first real salon, since
+      production has zero and steps 3–5 have no page to open.
 - [ ] 404 and error states reachable and correct.
       **Reachable and correctly statused; NOT correctly served.** A route that
       matches nothing (`/a/b/c/d/e`) serves the prerendered 404 properly — 307
@@ -742,9 +778,24 @@ checking rather than assuming:
       Its assertion strips `<script>` first — « Page introuvable » IS in the raw
       bytes, inside the RSC payload, so a plain substring check reports the
       defect as fixed. The first version of that test did exactly that.
-- [ ] Analytics decision made (we currently have none — deliberate or not).
-      **Still none** — and the privacy policy states this as a promise, so
-      adding any is a policy change, not just a config one.
+- [x] Analytics decision made (we currently have none — deliberate or not).
+      **Decided 2026-08-20: none, deliberately.** No Google Analytics, no
+      Plausible, no PostHog, no Vercel Analytics — nothing. Verified in the
+      served bundle, not just in `package.json`: the live homepage references
+      exactly two external hosts, `myweli.com` and `schema.org` (the JSON-LD
+      `@context`), and all twelve script tags are our own chunks.
+      **The decision is load-bearing in three places**, which is why leaving it
+      unrecorded was worse than it looked: the privacy policy publishes it as a
+      promise (« aucun outil de mesure d’audience »), `web/tests/legal.test.tsx`
+      pins the vendor names, and it is the reason the site needs no consent
+      banner. **Adding any analytics is therefore a policy change and a legal
+      review, not a config change** — and it would land alongside the cookie
+      banner the site currently, honestly, does not need.
+      **What it costs, stated plainly:** at launch we will not know how many
+      people reach the booking page or where they abandon. Sentry reports errors,
+      not indifference. Revisit once there is traffic worth measuring; the
+      cheapest honest option then is a cookieless, EU-hosted tool, which keeps
+      the no-banner posture.
 - [x] Install-the-app prompts point somewhere real, or are hidden until the apps
       exist. **They currently promise apps that are not published.**
 - [ ] **Uploads cannot be exercised on a preview** — the browser PUTs straight to

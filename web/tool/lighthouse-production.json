@@ -1,11 +1,10 @@
 {
   "ci": {
     "collect": {
-      "startServerCommand": "npm run start",
       "url": [
-        "http://127.0.0.1:3000/",
-        "http://127.0.0.1:3000/connexion",
-        "http://127.0.0.1:3000/suppression-compte"
+        "https://myweli.com/",
+        "https://myweli.com/connexion",
+        "https://myweli.com/suppression-compte"
       ],
       "numberOfRuns": 3,
       "settings": {
@@ -30,7 +29,7 @@
     "assert": {
       "assertMatrix": [
         {
-          "matchingUrlPattern": "http://127.0.0.1:3000/$",
+          "matchingUrlPattern": "https://myweli\\.com/$",
           "assertions": {
             "largest-contentful-paint": [
               "error",

@@ -468,18 +468,25 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # The stub the e2e suite already uses. Until 2026-08-20 this job built
+      # against http://localhost:8080, which does not exist in CI — the
+      # build-time fetches degrade to EMPTY results rather than failing, so
+      # Lighthouse was scoring a site with no salons in it. An empty page is
+      # faster than a real one, which flatters every number the gate reports.
+      - name: Start the stub API
+        run: node tests/e2e/stub-api.mjs &
+
       - name: Build
         run: npm run build
-        # Explicit, not inherited from a default. `lib/api-base.ts` refuses to
-        # resolve a production build without this, because the build-time
-        # fetches degrade to EMPTY results rather than failing — so a missing
-        # value publishes a site with no salons and no error anywhere. CI has no
-        # backend, so it states localhost deliberately; the guard is about the
-        # value being chosen, not about which value it is.
         env:
-          NEXT_PUBLIC_API_BASE_URL: http://localhost:8080
+          NEXT_PUBLIC_API_BASE_URL: http://127.0.0.1:8787
 
-      - name: Lighthouse budgets (home + connexion)
+      # Mobile emulation with 3G-ish throttling, asserting the three numbers
+      # docs/WEB.md §7 actually states — LCP, CLS and TBT (the lab proxy for
+      # INP, which is a field metric Lighthouse cannot measure). It used a
+      # DESKTOP preset and asserted only category scores, with performance at
+      # `warn`, so none of the budgeted numbers could fail the build.
+      - name: Lighthouse budgets (mobile, the WEB.md §7 numbers)
         run: npm run lhci
 
   # A9-fix: NFR-PERF-002 sets <30 MB and PR-0 shipped it with no measured

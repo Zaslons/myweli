@@ -14,7 +14,8 @@
     "lhci": "lhci autorun",
     "gen:api": "openapi-typescript ../docs/api/openapi.yaml -o lib/api/schema.ts",
     "gen:tokens": "node scripts/gen-tokens.mjs",
-    "check:privacy": "playwright test tool/check-privacy-promise.spec.ts --config=tool/privacy.config.ts"
+    "check:privacy": "playwright test tool/check-privacy-promise.spec.ts --config=tool/privacy.config.ts",
+    "check:cwv": "lhci autorun --config=tool/lighthouse-production.json"
   },
   "dependencies": {
     "@sentry/nextjs": "^10.70.0",
