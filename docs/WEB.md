@@ -173,7 +173,21 @@ honestly report.
 | `/suppression-compte` | 2307 ms | 0.049 | 0 ms |
 | `/connexion` | **2774 ms** | 0.038 | 8 ms |
 
-**`/connexion` does not meet the budget**, and the gate says so rather than
+**On the real domain** (`npm run check:cwv`, same settings, against
+`myweli.com`): `/` **2030 ms · CLS 0.000**, `/suppression-compte` **1873 ms ·
+0.000**, `/connexion` **1457 ms · CLS 0.131**. Production is *faster* than the
+local build on LCP — CDN and edge caching — but `/connexion` **breaches CLS**
+there, caused by Google's asynchronously-rendered sign-in button landing late
+and pushing the page down. Height reserved; unthrottled it measures 0.000, which
+is why no local check saw it.
+
+**A gate can flatter as easily as it can fail.** The first production run
+reported green while two of three runs were over budget: `lhci`'s default
+aggregation is *optimistic*, taking the best run. Both configs now set
+`aggregationMethod: median` inside each `assertMatrix` block — lhci rejects it at
+the top level.
+
+**`/connexion` does not meet the local budget**, and the gate says so rather than
 hiding it: it carries **253 KB of JS across 18 files** against the home page's
 192 KB in 11 — the auth and phone-input components. Its ceiling is set to
 **2900 ms**, above today's number and below the target, so the page cannot get

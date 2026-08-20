@@ -687,6 +687,29 @@ checking rather than assuming:
 ### 6.1 Web (first)
 
 - [ ] Lighthouse/CWV budgets green on the real domain, not a preview.
+      **Measured for the first time 2026-08-20 — `cd web && npm run check:cwv`.**
+      Same mobile/3G settings as the CI gate, against `myweli.com` itself. The
+      CI gate measures the *code*; this measures the *site*, which has a CDN, a
+      TLS handshake and real latency the runner does not.
+      Medians of three: `/` **LCP 2030 ms · CLS 0.000**, `/suppression-compte`
+      **1873 ms · 0.000**, `/connexion` **1457 ms · CLS 0.131**.
+      **`/connexion` breaches the CLS budget on the real domain** (0.131 vs 0.1),
+      and it is the Google sign-in button: Google renders it asynchronously from
+      a third-party script, so on a slow connection it lands late and pushes the
+      page down. Unthrottled it measures 0.000, which is why no local check ever
+      saw it. Height now reserved (`min-h-[44px]`); **stays unticked until the
+      check is green against production after deploy.**
+      **The first run of this check passed while the budget was breached.**
+      `lhci`’s default aggregation is *optimistic* — it takes the BEST of the
+      three runs. Two of three were over. Both configs now set
+      `aggregationMethod: median`, per assertMatrix block, which is where lhci
+      accepts it.
+      **And lab numbers are not the last word.** These come from a laptop in
+      Europe emulating a mid-range phone, not from a real handset on a real
+      Abidjan network. The honest measure of what users experience is *field*
+      data — CrUX, or real-user monitoring — and that needs traffic this product
+      does not have yet. Revisit once there is any; until then this check is the
+      best available proxy and should be read as one.
 - [x] SEO: sitemap, robots, canonical URLs, JSON-LD validating.
       **Measured on the live domain 2026-08-20**, not on a preview. `robots.txt`
       and `sitemap.xml` exist and every listed URL answers 200; the home and
