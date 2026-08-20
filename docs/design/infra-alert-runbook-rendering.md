@@ -159,6 +159,47 @@ The invocation matched the source-verified safe form exactly: only
 text. No policy carries `documentation.subject` or `links`, so nothing was at
 risk from the narrower mask either way.
 
+## 5.4 Proven by a delivered email, 2026-08-20
+
+The cron alert was triggered deliberately (an unauthenticated `POST` to
+`/internal/cron/subscriptions` on staging, 403). The delivered mail settles §5's
+open question — **a code span suppresses the typographic substitutions as well as
+emphasis**:
+
+| claim | delivered |
+|---|---|
+| underscores survive | `CRON_OIDC_AUDIENCE` — intact |
+| `--` stays two hyphens | `--location`, `--region`, `--format` — intact |
+| quotes stay straight | `--format='value(httpTarget.oidcToken.audience)'` |
+| no en dash inside a span | clean |
+
+And prose outside the spans still gets proper typography, which is what it should
+get. **The commands in that email are pasteable as printed.**
+
+### 5.4.1 The same email exposed one more defect
+
+Its `<p>` structure showed **two `gcloud` commands sharing one paragraph.**
+Markdown folds a single newline into a space, so consecutive command lines
+arrive run-together on one wrapped line, and an operator can copy both as one
+command. Separated by a blank line, and guarded: no two command spans may share
+a paragraph.
+
+Finding it required looking at the *structure* of the delivered HTML rather than
+the characters in it — the four character-level claims all passed.
+
+### 5.4.2 And a defect in the guard itself
+
+The paragraph test failed on a runbook that was already correct. The cause was in
+the guard's own decoder: the file holds `\\n`, the shell strips one level and
+JSON the second, but the test decoded only one — leaving a stray backslash before
+every newline, so a split on `\n\n` never matched and **every runbook read as a
+single paragraph**. Every earlier test still passed, because they all worked
+per-span rather than per-paragraph.
+
+Third instance of the same lesson from this file: *a guard that reads the wrong
+string is worse than none.* The first two were reading one runbook per file, and
+taking `${DOC}` literally.
+
 ## 6. Related
 
 - `docs/design/backend-email-send-budget.md` §8.2–8.3 — the first two instances:

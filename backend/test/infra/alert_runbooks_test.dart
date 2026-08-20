@@ -39,8 +39,12 @@ Map<String, String> _runbooks() {
       // an interpolation, resolved elsewhere
       if (raw.startsWith(r'$')) continue;
       out['$name#${i++}'] = raw
-          .replaceAll(r'\n', '\n')
-          .replaceAll(r'\"', '"')
+          // The file holds \\n and \\" (the shell strips one level in the
+          // unquoted heredoc, JSON strips the second). Decoding only one level
+          // left a stray backslash before every newline, so a paragraph split
+          // on \n\n never matched and every runbook read as ONE paragraph.
+          .replaceAll(r'\\n', '\n')
+          .replaceAll(r'\\"', '"')
           .replaceAll(r'\`', '`');
     }
   }
@@ -178,6 +182,27 @@ void main() {
           }
         },
       );
+    }
+  });
+
+  test('two commands never share a paragraph', () {
+    // Markdown folds a single newline into a space, so consecutive command
+    // lines render run-together on one wrapped line and an operator can copy
+    // both as one command. Seen in the delivered cron alert (2026-08-20): the
+    // scheduler and the run-services command arrived as one visual line.
+    for (final e in _runbooks().entries) {
+      for (final para in e.value.split('\n\n')) {
+        final cmds = RegExp('`([^`]*)`')
+            .allMatches(para)
+            .map((m) => m.group(1)!)
+            .where((s) => RegExp(r'^(gcloud|curl|psql|kubectl) ').hasMatch(s))
+            .toList();
+        expect(
+          cmds.length,
+          lessThan(2),
+          reason: '${e.key}: ${cmds.length} commands fold into one paragraph',
+        );
+      }
     }
   });
 
