@@ -418,6 +418,62 @@ such check either — are covered as a side effect.
 likewise hard-wired to the refusal policy. Generalised over a
 `(source, prefix, runbook)` list, it now covers all three.
 
+## 8.6 "Fail open" was silently "hang for five minutes"
+
+Asked to prove that **"A per-identity limit could NOT be enforced"** can fire, the
+honest answer turned out not to be a cleverer probe. It was that **the alert could
+not fire in the one scenario it exists for**, and neither could the behaviour it
+was watching for.
+
+`FailOpenRateLimiter` catches an error and lets the request through, so a limiter
+blip costs a temporarily absent ceiling rather than a booking nobody can make.
+**That reasoning holds only if the query actually errors.** Neither `PoolSettings`
+nor the two `execute` calls set a deadline, so a database that accepts the
+connection and then never answers — a wedged instance, a black-holed network, an
+exhausted upstream pool — produced no error at all. The future never completed.
+
+The consequences, in order of who notices:
+
+| | |
+|---|---|
+| **the caller** | waits out Cloud Run's **300 second** request deadline for a booking |
+| **the operator** | `rate_limit_unavailable` is printed *in that catch*, so the line is never printed and the alert never fires |
+| **the reader** | every document says the limiter fails open, and it does not |
+
+**The fix is two seconds, twice.** `kLimiterQueryTimeout` on both queries — far
+beyond any healthy single-row upsert on an indexed primary key, far below
+anything a person would wait for.
+
+**A pool-wide `queryTimeout` was the tempting fix and is the wrong one.** It also
+bounds `withSchemaLock`, whose advisory-lock wait is *supposed* to wait — the
+migration-timeout design already reasoned this out for `statement_timeout`, and a
+client-side deadline has the same effect for the same reason.
+
+### The filter was also wrong
+
+It read `textPayload:"rate_limit_unavailable"`, unanchored, while both siblings
+end in ` bucket=`. Now anchored to match the emitter and the runbook.
+
+### What is proven, precisely
+
+Because the honest answer here is narrower than "verified":
+
+| link | status |
+|---|---|
+| the condition can occur | yes — the pool can throw, and now *does* rather than hanging |
+| the code prints the line | **unit-tested**, including that it carries no exception text or credentials |
+| the line reaches the log | wired through `print`, the same path as its two siblings |
+| the filter matches the line | **by construction**, and the same filter shape is proven live by both siblings |
+| a human is told | proven live by both siblings, same channel |
+
+**It has still never been watched firing, and that is stated rather than papered
+over.** Synthetic log injection was considered and rejected: it enters the chain
+at the filter and can only prove the last links — the three that the siblings
+already prove — while spending the policy's suppression window, opening a
+24-hour incident on a condition that never happened, and leaving a forged line
+that nothing can distinguish from a real one in the exact query the runbook tells
+the on-call to run.
+
 ## 9. Residuals
 
 - **Minting identities.** One budget per account; bounded by §2's composition.
