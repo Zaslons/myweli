@@ -30,10 +30,13 @@ questions none of our gates can answer:
    - **web — yes.** The deployed bundle on `myweli.com` contains a live DSN and
      its own project id, with `environment=production` and the release set to the
      HEAD commit.
-   - **app — NO.** `sentry_flutter` is wired, but **no mobile DSN exists**:
-     Secret Manager holds one `SENTRY_DSN` and it is the backend's. Release
-     builds carry no `--dart-define=SENTRY_DSN`, so mobile crash reporting is
-     **code-complete and inert** (§5.2).
+   - **app — wired, not yet proven in a store build.** `MOBILE_SENTRY_DSN`
+     exists in Secret Manager (created 2026-08-18, its own Sentry project,
+     distinct from the backend's and the web's), and `tool/release_build.sh`
+     injects it as `--dart-define=SENTRY_DSN` — refusing to build if it is
+     missing, malformed, or the backend's. What is still owed is not the DSN but
+     a **signed build**: none exists yet (§6.2), so no store artifact has ever
+     carried it (§5.2).
    Uptime checks on `/health` and a database-backed route are live and alerting
    to a human, verified against real probe data
    (§5.2, [design/observability-error-reporting.md](design/observability-error-reporting.md)).
@@ -147,7 +150,7 @@ absent:
 | CI: analyze, unit, widget, golden, e2e, APK size, secret scan, funnel smoke | ✅ strong |
 | Release signing + store prep | ✅ repo side (#337); accounts pending |
 | **Staging environment** | ✅ **complete** — `myweli-api-staging` + `myweli-db-staging`, auto-deployed on merge, PITR on, alerting on, **and Vercel Preview pointed at it** (both `API_BASE_URL` and `NEXT_PUBLIC_API_BASE_URL`). The web half closed 2026-08-18 (§5.4) |
-| **Crash / error reporting** | ⚠️ **two of three live** (re-verified 2026-08-18 against the deployed artifacts, not the source): **backend** reports with a real release and the request id; **web** ships a DSN in the bundle served from `myweli.com`; **app is inert** — `sentry_flutter` is wired but no mobile DSN exists and no release build defines one |
+| **Crash / error reporting** | ⚠️ **three of three wired, two of three proven** (re-verified 2026-08-20 against the deployed artifacts, not the source): **backend** reports with a real release and the request id; **web** ships a DSN in the bundle served from `myweli.com`; **app** has its own `MOBILE_SENTRY_DSN` and `tool/release_build.sh` refuses to build without it — but no **signed** build exists yet (§6.2), so nothing in a store has carried it. The remaining proof is §5.2's *"trigger one real error per surface"*, still **two of three** |
 | **Uptime alerting** | ✅ **live 2026-08-12** — two Cloud Monitoring checks on `api.myweli.com` (`/health` for the process, `/providers` for the database, because `/health` reported ok right through the Render outage), alerting to email when 2+ regions fail for 5+ minutes. Verified against real probe results, not just created ([design/observability-error-reporting.md](design/observability-error-reporting.md) §8.5) |
 | **Outbound-email alerting** | ✅ **live 2026-08-19** — two Cloud Monitoring policies on the send budget, and **both watched fire** against staging rather than merely created: a warning at 80% of the hourly ceiling (`sent=48`, once, nine seconds *before* the first refusal) and the exhaustion alarm (`sent=61`, `sent=62`), incidents opening ~33 s later. The refusal is invisible to the caller by design — 202 either way — so without these a legitimate exhaustion would surface as a user who could not sign in and no signal at all ([design/backend-email-send-budget.md](design/backend-email-send-budget.md) §8.1) |
 | **Forced upgrade** | ❌ nothing |
@@ -262,12 +265,11 @@ These block everything. None is surface-specific.
       product's context).
 - [x] **Rate limiting** verified on the auth and booking routes against a real
       hostile pattern, not a unit test. **All three probed against deployed
-      environments, each with its control** — see the bullets below. Note the
-      separate unticked item that follows: verified is not deployed. **Measured 2026-08-18 — it failed, and
+      environments, each with its control** — see the bullets below. The separate
+      line that follows tracks *deployed*, a different claim, and is now ticked too. **Measured 2026-08-18 — it failed, and
       is now closed in three layers**
       ([design/backend-rate-limiting.md](design/backend-rate-limiting.md) ·
       [design/backend-identity-rate-limits.md](design/backend-identity-rate-limits.md)).
-      **Still unchecked, deliberately — the last bullet says why.**
       - **Holds:** brute-forcing one identity stops at 5 wrong codes
         (`otp_locked`); resending stops at 4 (`otp_resend_limit`). Both live in
         Postgres, so they hold across instances.
@@ -370,16 +372,24 @@ These block everything. None is surface-specific.
         counted. The 429 also arrives through `POST /appointments`' own bespoke
         switch — the arm that would have shipped as a 400 had the status mapping
         not been written before the emitter existed.
-      - **WHY THIS BOX IS STILL UNCHECKED.** It asks for a real hostile pattern,
-        **not a unit test** — and the auth half genuinely has one: Cloud Armor
-        was probed on production in both directions, with a control. The booking
-        half does not. Everything behind layer 3 is unit and handler tests, and
-        ticking the box on those would be exactly the defect this document keeps
-        finding. **What would close it:** against a deployed environment, obtain
-        a real access token, loop `POST /appointments` past the ceiling, observe
-        the 429 — **and run the control**, a second identity still receiving 201
-        in the same window. Without that control a 429 is indistinguishable from
-        having broken booking for everyone.
+      - **WHAT CLOSED IT.** The box asks for a real hostile pattern, **not a
+        unit test**, and for a long time only the auth half had one: Cloud Armor
+        probed on production in both directions, with a control. The booking half
+        was unit and handler tests, and ticking on those would have been exactly
+        the defect this document keeps finding. Closed 2026-08-19 against the
+        deployed **staging** service: a real access token, `POST /appointments`
+        looped past the ceiling, the 429 observed — **and the control run**, a
+        second identity still answering in the same window. Without that control
+        a burst of 429s is equally consistent with having broken booking for
+        everyone.
+      - **THE OBSERVABILITY HALF WAS ASSERTED BEFORE IT WAS TRUE.** This box
+        claimed production was observed *"the moment the limit acts"* on
+        2026-08-19. It was not: the emitter shipped in `#445`, which merged
+        **after** that day's production deploy, so production ran a commit
+        without the log line while the alert filtered for it — a check that could
+        not fire, on the one surface it was built for. True since `94973a7`
+        (revision `myweli-api-00023-hxm`) on 2026-08-20. Full account in
+        `docs/ROADMAP.md`.
 - [x] **Cloudflare Access is configured on the `myweli-admin` Pages project.**
       **Verified 2026-08-19 by fetching it**, which is the only thing that could
       settle it: an anonymous `GET https://admin.myweli.com` redirects to
@@ -401,14 +411,16 @@ These block everything. None is surface-specific.
       and `api.myweli.com` is deliberately DNS-only so Google can validate its
       certificate.
 
-- [ ] **The per-identity limits are deployed to PRODUCTION.** Verified on
-      staging (above) and **not yet running in production**: the last production
-      deploy predates them, so `POST /appointments`, the review submit and the
-      upload signer are currently unbounded per identity there. One
-      `workflow_dispatch` away — promote by `image_tag`, and the guard refuses
-      an empty one. Kept as its own line because *verified* and *deployed* are
-      different claims, and collapsing them is how a green box comes to describe
-      something nobody is running.
+- [x] **The per-identity limits are deployed to PRODUCTION.** **Enforcing since
+      2026-08-19** — revision `myweli-api-00022-t9x`, commit `34d55c0`, which
+      contains #438 and migration `0034_identity_rate_limits`. **Their instrument
+      followed on 2026-08-20** — revision `myweli-api-00023-hxm`, commit
+      `94973a7`, digest `sha256:844de7f5…`, byte-identical to the image staging
+      had been running and promoted by `image_tag` rather than rebuilt. Kept as
+      its own line because *verified* and *deployed* are different claims, and
+      collapsing them is how a green box comes to describe something nobody is
+      running — which is exactly what happened to the observability half of the
+      box above, for about two hours, and this line is how it was caught.
 
 - [ ] **The funnel has been walked by a person who did not build it**, on a real
       phone, on a real Ivorian network.
