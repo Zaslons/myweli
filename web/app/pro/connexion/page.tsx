@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { AuthFormSkeleton } from '../../../components/auth/AuthFormSkeleton';
 import { Suspense } from 'react';
 import { OpenInAppButton } from '../../../components/OpenInAppButton';
 import { ProConnexionClient } from '../../../components/pro/ProConnexionClient';
@@ -18,7 +19,7 @@ export default function ProConnexionPage() {
       </p>
       <div className="mt-l">
         {/* Suspense: the client reads ?motif= via useSearchParams (R5b). */}
-        <Suspense fallback={null}>
+        <Suspense fallback={<AuthFormSkeleton />}>
           <ProConnexionClient />
         </Suspense>
       </div>

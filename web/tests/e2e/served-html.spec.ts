@@ -48,6 +48,24 @@ test('the sitemap has no duplicate <loc>', async ({ request }) => {
   expect(locs.length - new Set(locs).size, 'duplicate <loc> entries').toBe(0);
 });
 
+test('the sign-in slot is reserved in the SERVED html', async ({ request }) => {
+  // `/connexion` wrapped its client component in a bare `<Suspense>` — no
+  // fallback means React renders NOTHING there, so the server streamed an empty
+  // hole and the form dropped into it on hydration. Production measured CLS
+  // 0.131 against a 0.1 budget, on every run, under mobile/3G.
+  //
+  // Asserted on the SERVED html because that is where the hole was: with JS on,
+  // every existing e2e sees the hydrated form and cannot tell the difference.
+  for (const path of ['/connexion', '/pro/connexion']) {
+    const html = await (await request.get(path)).text();
+    expect(
+      html,
+      `${path} streams an empty Suspense slot — the form will drop in and shift `
+        + 'the page',
+    ).toContain('auth-form-skeleton');
+  }
+});
+
 /// **A KNOWN DEFECT, tracked rather than hidden.**
 ///
 /// `notFound()` called from a route that MATCHED — `/this-does-not-exist` hits
