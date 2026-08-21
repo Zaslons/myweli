@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
-import { notFound } from 'next/navigation';
+import { redirect } from 'next/navigation';
+
 import { BookingFlow } from '../../../components/booking/BookingFlow';
 import { countryName, getLocalityTree } from '../../../lib/api/localities';
 import { getProviderBySlug } from '../../../lib/api/providers';
@@ -28,7 +29,17 @@ export default async function ReserverPage({
   searchParams: { services?: string; artist?: string };
 }) {
   const p = await getProviderBySlug(params.slug);
-  if (!p) notFound();
+  // **Hand the 404 to `/[slug]`, which serves a real one.**
+  //
+  // `notFound()` here cannot: this page reads `searchParams`, so it renders
+  // per-request, and a dynamically-rendered route does not enforce
+  // `dynamicParams = false` — measured both ways, and a segment `layout.tsx`
+  // carrying the bound does not gate it either. Giving up `searchParams` WOULD
+  // fix it, at the cost of this funnel's server-rendered service list
+  // (« Tresses 15 000 – 25 000 FCFA … »), which is exactly the content a slow
+  // phone needs. So the visitor goes one segment up, where the params ARE
+  // closed. 307, not 308 — a slug with no salon today may have one tomorrow.
+  if (!p) redirect(`/${params.slug}`);
   // The salon-time hint's country label (multi-pays MP3) — tree lookup on
   // the salon's own countryCode, server-side.
   const country = countryName(await getLocalityTree(), p.countryCode);

@@ -1,5 +1,6 @@
 import '../appointments/appointment_repository.dart';
 import '../providers_repository.dart';
+import '../site/site_rebuild_notifier.dart';
 import '../subscription/salon_subscription_service.dart';
 import 'admin_kyc_service.dart' show AdminResult;
 import 'audit_log_repository.dart';
@@ -12,13 +13,19 @@ class AdminProviderService {
     this._providers,
     this._appointments,
     this._audit,
-    this._subscriptions,
-  );
+    this._subscriptions, {
+    SiteRebuildNotifier? rebuild,
+  }) : _rebuild = rebuild ?? NoopSiteRebuildNotifier();
 
   final ProvidersRepository _providers;
   final AppointmentRepository _appointments;
   final AuditLogRepository _audit;
   final SalonSubscriptionService _subscriptions;
+
+  /// Suspending or restoring changes the set `/sitemap/providers` lists, and
+  /// the web prebuilds that set (`dynamicParams = false`). Without a rebuild a
+  /// restored salon stays 404 until the next deploy.
+  final SiteRebuildNotifier _rebuild;
 
   Future<AdminResult> list({
     String? status,
@@ -71,6 +78,10 @@ class AdminProviderService {
   ) async {
     final updated = await _providers.setStatus(id, status);
     if (updated == null) return (ok: false, error: 'not_found', data: null);
+    // After the write, and awaited only so a test can observe it — it swallows
+    // its own failures, so this can never turn a successful suspension into an
+    // error for the operator.
+    await _rebuild.requestRebuild(action);
     await _audit.append((
       actorAdminId: adminId,
       action: action,

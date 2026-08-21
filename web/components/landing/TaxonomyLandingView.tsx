@@ -193,9 +193,23 @@ export async function taxonomyMetadata(
     title,
     description,
     alternates: { canonical: url },
-    // Thin/empty landings stay crawlable for links but unindexed.
-    robots:
-      providers.length === 0 ? { index: false, follow: true } : undefined,
+    // **No `noindex` on an empty landing, decided 2026-08-21.** The rule used
+    // to be `providers.length === 0 → noindex`, on a thin-content argument.
+    // Two things made it wrong in practice.
+    //
+    // First, production holds ZERO salons, so the rule did not apply to a few
+    // stragglers — it applied to EVERY root, city and commune page. The site's
+    // entire indexable surface was the homepage and the four legal documents.
+    //
+    // Second, `sitemap.ts` submits all of them, and a sitemap full of `noindex`
+    // URLs is a Search Console error, not a neutral act. Two deliberate
+    // decisions contradicted each other and nothing noticed, because the
+    // sitemap guard asserted only that the URLs answered 200 — and a `noindex`
+    // page answers 200 exactly like an indexable one.
+    //
+    // These pages are not thin: an H1, a descriptive intro, breadcrumbs and
+    // locality links, ~1150 characters before any salon exists. A landing page
+    // for an empty commune is how the FIRST salon there gets discovered.
     openGraph: { title, description, url },
   };
 }

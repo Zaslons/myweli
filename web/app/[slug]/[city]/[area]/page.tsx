@@ -15,21 +15,27 @@ import {
   getServiceLandingParams,
 } from '../../../../lib/api/providers';
 import { resolveTaxonomyRoot } from '../../../../lib/taxonomy';
+import { taxonomyAreaParams } from '../../../../lib/taxonomyParams';
 
 export const revalidate = 3600;
-export const dynamicParams = true;
+// **false, and that is the 404 fix.** An unknown commune then never enters this
+// route: Next serves the prerendered 404 page, 311 characters of real HTML,
+// instead of the 44-character `__next_error__` shell a request-time
+// `notFound()` produces. Measured — see served-html.spec.ts.
+//
+// Safe only because `taxonomyAreaParams` enumerates the COMPLETE space from the
+// locality tree. The old `generateStaticParams` here asked the catalogue, which
+// is empty until a salon opens, so closing the params on THAT would have 404'd
+// 187 valid pages — the same defect the sitemap had until 2026-08-20.
+export const dynamicParams = false;
 
 /// Area level of the nested SEO tree (/coiffure/abidjan/cocody — multi-pays
 /// MP3): the main indexed landing, one per taxonomy root × area. Prebuilds
 /// the combos present in the live catalogue; the rest render on demand.
 export async function generateStaticParams() {
-  const tree = await getLocalityTree();
-  const [categories, services] = await Promise.all([
-    getLandingParams(tree),
-    getServiceLandingParams(tree),
-  ]);
-  return [...categories, ...services];
+  return taxonomyAreaParams(await getLocalityTree());
 }
+
 
 async function resolve(params: {
   slug: string;

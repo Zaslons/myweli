@@ -1,7 +1,5 @@
 import 'dart:io';
-
 import 'package:postgres/postgres.dart';
-
 import 'access/membership_repository.dart';
 import 'access/membership_service.dart';
 import 'access/salon_directory_service.dart';
@@ -100,6 +98,7 @@ import 'reviews_service.dart';
 import 'salon_provisioning_service.dart';
 import 'security/identity_limits.dart';
 import 'security/rate_limiter.dart';
+import 'site/site_rebuild_notifier.dart';
 import 'storage/storage_service.dart';
 import 'subscription/salon_subscription_repository.dart';
 import 'subscription/salon_subscription_service.dart';
@@ -598,12 +597,41 @@ final SalonSubscriptionService salonSubscriptionService =
     );
 
 /// R6 — « Mes salons »: the multi-salon directory + « Ajouter un salon ».
+/// Asks the web host to rebuild when the set of publicly listable salons
+/// changes.
+///
+/// The web's `/[slug]` route sets `dynamicParams = false` — the only mechanism
+/// that makes Next serve a real 404 in the HTML instead of a 44-character
+/// shell — so its slug set is fixed at BUILD time. Without this, a salon that
+/// becomes listable after the last build 404s until the next one.
+///
+/// **Unset is the default and is not an error**: dev, CI and any self-hosted
+/// run get the no-op and behave exactly as before. The URL is a SECRET (anyone
+/// holding it can trigger unlimited builds), so it lives in Secret Manager and
+/// is never logged. docs/design/backend-web-rebuild-hook.md
+final SiteRebuildNotifier siteRebuildNotifier = () {
+  final raw = _envOrNull('WEB_DEPLOY_HOOK_URL');
+  final uri = raw == null ? null : Uri.tryParse(raw);
+  if (uri == null || !uri.isScheme('https')) {
+    if (raw != null) {
+      // ignore: avoid_print — boot diagnostics go to the container log.
+      print(
+        'WARNING: WEB_DEPLOY_HOOK_URL is set but is not a valid https URL — '
+        'salon visibility changes will NOT trigger a web rebuild.',
+      );
+    }
+    return NoopSiteRebuildNotifier();
+  }
+  return HttpSiteRebuildNotifier(uri);
+}();
+
 final SalonDirectoryService salonDirectoryService = SalonDirectoryService(
   membershipRepository,
   membershipService,
   providersRepository,
   salonSubscriptionService,
   providerAuthRepository,
+  rebuild: siteRebuildNotifier,
 );
 
 final bool subscriptionEnforcement =
@@ -701,6 +729,7 @@ final AdminProviderService adminProviderService = AdminProviderService(
   appointmentRepository,
   auditLogRepository,
   salonSubscriptionService,
+  rebuild: siteRebuildNotifier,
 );
 
 /// The client version floors — Postgres in a real deployment, in-memory
