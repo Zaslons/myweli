@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { appStoreUrl } from '../lib/appStore';
 
 const dismissKey = 'myweli_install_dismissed';
 
@@ -15,12 +16,12 @@ export function AppInstallBanner() {
 
   if (!visible) return null;
 
-  // No '#' fallback: an <a href="#"> is a dead link wearing a CTA — render the
-  // button only when a store URL actually exists (env-gated, like the SSO ids).
-  const href =
-    process.env.NEXT_PUBLIC_ANDROID_APP_URL ??
-    process.env.NEXT_PUBLIC_IOS_APP_URL ??
-    null;
+  // **No store URL means no banner at all**, not a banner with its button
+  // removed. Hiding only the link left « téléchargez l'app MyWeli » above a
+  // dismiss button and nothing to download — an offer a visitor cannot take.
+  // An `<a href="#">` was the previous version of the same mistake.
+  const href = appStoreUrl();
+  if (!href) return null;
 
   function dismiss() {
     window.localStorage.setItem(dismissKey, '1');

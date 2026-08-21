@@ -1,3 +1,4 @@
+import { appStoreUrl } from '../lib/appStore';
 /// "Ouvrir dans l'app" — contextual install/open push (WEB-DESIGN-STANDARDS §7).
 /// Store/deep-link URLs come from env (filled at the accounts phase).
 export function OpenInAppButton({ className = '' }: { className?: string }) {
@@ -5,10 +6,7 @@ export function OpenInAppButton({ className = '' }: { className?: string }) {
   // an <a href="#"> is a dead link wearing a CTA. Production served exactly
   // that on the homepage until 2026-08-20, because the store URLs do not exist
   // until the apps are listed. Render nothing until there is somewhere to go.
-  const href =
-    process.env.NEXT_PUBLIC_ANDROID_APP_URL ??
-    process.env.NEXT_PUBLIC_IOS_APP_URL ??
-    null;
+  const href = appStoreUrl();
   if (!href) return null;
   return (
     <a
