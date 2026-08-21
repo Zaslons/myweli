@@ -31,6 +31,7 @@ on:
 
 permissions:
   contents: read
+  issues: write
 
 concurrency:
   group: production-checks
@@ -80,3 +81,44 @@ jobs:
         run: npm run check:privacy
         env:
           PRIVACY_URL: ${{ github.event.inputs.target || 'https://myweli.com' }}
+
+  # **A monitor whose only signal is a red row in the Actions tab is a monitor
+  # nobody reads.** Every other alert in this system reaches a person — the
+  # Cloud Monitoring policies all carry the 'Owner email' channel — and this one
+  # did not, which made it the weakest link in exactly the layer that exists to
+  # catch what CI cannot see.
+  #
+  # One issue, reopened and commented rather than duplicated, so a week of
+  # failures is one thread and not seven.
+  report:
+    name: Say so, if either check failed
+    needs: [cwv, privacy]
+    if: failure()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Open or update the tracking issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          TITLE="Production checks are failing"
+          BODY="The scheduled real-domain checks failed.
+
+          CWV: ${{ needs.cwv.result }} · privacy: ${{ needs.privacy.result }}
+
+          $RUN
+
+          These run against myweli.com, not a preview and not a stub, so a
+          failure here means production is **already** wrong — this cannot block
+          a merge because there is nothing to block. The CWV job asserts the
+          docs/WEB.md section 7 budgets; the privacy job asserts that no page
+          reaches a third party before the visitor chooses one."
+          EXISTING=$(gh issue list --state all --search "$TITLE in:title" \
+            --json number,state --jq '.[0] | "\(.number) \(.state)"' || true)
+          if [ -n "$EXISTING" ]; then
+            NUM=${EXISTING%% *}; STATE=${EXISTING##* }
+            [ "$STATE" = "CLOSED" ] && gh issue reopen "$NUM"
+            gh issue comment "$NUM" --body "$BODY"
+          else
+            gh issue create --title "$TITLE" --body "$BODY"
+          fi
