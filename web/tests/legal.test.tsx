@@ -92,6 +92,17 @@ describe('the privacy policy does not deny what we actually ship', () => {
     ['Mixpanel', 'mixpanel'],
     ['Amplitude', 'amplitude'],
     ['Segment', 'segment'],
+    // Added 2026-08-21. The table had no row for the one vendor this project
+    // is most likely to acquire by accident: we deploy on Vercel, where
+    // `@vercel/analytics` is one dependency and one import away, and
+    // docs/LAUNCH.md's own analytics decision names it explicitly. `analytics`
+    // is deliberately a broad token — it also catches `@segment/analytics-next`
+    // and `firebase_analytics` — and `gtm` catches the modern Google install
+    // path (`@next/third-parties`) that none of the rows above would match.
+    ['Vercel Analytics', 'vercel'],
+    ['Plausible', 'plausible'],
+    ['Google Tag Manager', 'gtm'],
+    ['un outil de mesure d’audience', 'analytics'],
   ];
 
   /// **This scoping hid a false sentence, and that is the lesson to keep.** The
@@ -138,12 +149,29 @@ describe('the privacy policy does not deny what we actually ship', () => {
         // it must simply not claim, here, that we do not use it.
         expect(denials()).not.toMatch(new RegExp(label, 'i'));
       } else {
-        // Nothing to assert — the denial is true today. The row exists so that
-        // adding the dependency flips this test into the branch above.
-        expect(shipped).toBe(false);
+        // **This branch used to be `expect(shipped).toBe(false)`** — a
+        // tautology restating the `if` it is inside. Six of the seven rows took
+        // it, so the table read as coverage while asserting nothing at all.
+        //
+        // Now it asserts the thing that is actually load-bearing: the page
+        // still SAYS SO. A silent deletion of « aucun outil de mesure
+        // d'audience » would otherwise pass every check here while the
+        // no-consent-banner posture quietly lost its stated justification.
+        expect(
+          denials().length,
+          'the denials section must still be making claims',
+        ).toBeGreaterThan(50);
       }
     });
   }
+
+  /// The `else` branch above proves the denials SECTION survives; this proves
+  /// the one sentence the whole no-consent-banner posture rests on survives.
+  /// Deleting « aucun outil de mesure d'audience » while shipping no analytics
+  /// package would otherwise pass every row in the table.
+  it('still denies audience measurement, which is what justifies no banner', () => {
+    expect(denials()).toMatch(/aucun outil de mesure d’audience/i);
+  });
 
   it('discloses request logging rather than denying it', () => {
     // Cloud Run logs the IP, the user agent and the request URL of every call,

@@ -69,3 +69,62 @@ test('a public page sets no cookie', async ({ page, context }) => {
   await page.waitForLoadState('networkidle');
   expect((await context.cookies()).map((c) => c.name)).toEqual([]);
 });
+
+/// **The sign-in page, cold, on the real domain — the check that was missing.**
+///
+/// Nothing here ever visited a sign-in page, so the one place the site DOES
+/// talk to a third party was measured nowhere. On 2026-08-21 a manual probe
+/// found what that cost: `/connexion` fetched `accounts.google.com/gsi/client`
+/// from a mount-time effect and Google set `g_state`, with zero interaction —
+/// while the live policy said everything on the page was « strictement
+/// nécessaire » and the e2e cookie check looped over an empty array because
+/// `NEXT_PUBLIC_GOOGLE_CLIENT_ID` was unset in that build.
+///
+/// An allowlist rather than a Google-shaped filter: the failure was a host
+/// nobody had thought about, so the guard has to fail on hosts nobody has
+/// thought about. `fonts.gstatic.com` is on the list because Google Fonts is
+/// self-hosted by Next but the FONT FILES are not — that too is a disclosure
+/// and belongs in « Qui d'autre les reçoit » before it belongs here.
+const ALLOWED_HOSTS = [/(^|\.)myweli\.com$/];
+
+for (const path of ['/', '/connexion', '/pro/connexion']) {
+  test(`${path} reaches no third party before any interaction`, async ({
+    page,
+    context,
+  }) => {
+    await context.clearCookies();
+    await page.goto(path);
+    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(2000);
+
+    const hosts: string[] = await page.evaluate(() =>
+      Array.from(
+        new Set(
+          performance
+            .getEntriesByType('resource')
+            .map((e) => {
+              try {
+                return new URL(e.name).hostname;
+              } catch {
+                return '';
+              }
+            })
+            .filter(Boolean),
+        ),
+      ),
+    );
+    const foreign = hosts.filter(
+      (h) => !ALLOWED_HOSTS.some((re) => re.test(h)),
+    );
+    expect(
+      foreign,
+      `${path} contacted a third party with no user action — every host here `
+        + 'must be named in « Qui d’autre les reçoit », or removed',
+    ).toEqual([]);
+
+    expect(
+      (await context.cookies()).map((c) => c.name),
+      `${path} set a cookie before the visitor chose anything`,
+    ).toEqual([]);
+  });
+}

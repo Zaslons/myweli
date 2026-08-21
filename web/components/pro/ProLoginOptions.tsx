@@ -14,7 +14,7 @@ import { teamErrorMessage, type TeamInvitation } from '../../lib/pro/team';
 import { useFieldErrors } from '../../lib/forms/useFieldErrors';
 import { Button } from '../Button';
 import { TextField } from '../TextField';
-import { gisOptions } from '../auth/socialButton';
+import { GoogleSignInButton } from '../auth/GoogleSignInButton';
 
 /// The identity proof retained IN MEMORY across the 202 invitation bridge
 /// (team access R5a): the Google credential or the still-unconsumed
@@ -56,57 +56,9 @@ export function ProLoginOptions({ onSuccess }: { onSuccess: () => void }) {
         : 'Saisissez une adresse e-mail valide.',
     code: (v: string) => (v.length >= 4 ? null : 'Saisissez le code reçu par e-mail.'),
   });
-  const googleDiv = useRef<HTMLDivElement>(null);
 
   const notFoundMessage = 'Compte introuvable.';
 
-  useEffect(() => {
-    if (!googleClientId || !googleDiv.current) return;
-    let cancelled = false;
-    const src = 'https://accounts.google.com/gsi/client';
-    const load = (): Promise<void> =>
-      new Promise((resolve, reject) => {
-        if (document.querySelector(`script[src="${src}"]`)) return resolve();
-        const s = document.createElement('script');
-        s.src = src;
-        s.async = true;
-        s.onload = () => resolve();
-        s.onerror = () => reject(new Error('script_load_failed'));
-        document.head.appendChild(s);
-      });
-    load()
-      .then(() => {
-        if (cancelled || !window.google || !googleDiv.current) return;
-        window.google.accounts.id.initialize({
-          client_id: googleClientId,
-          callback: async ({ credential }) => {
-            setBusy(true);
-            setError(null);
-            const r = await loginProWithGoogle(credential);
-            setBusy(false);
-            if (r.invitations?.length) {
-              proofRef.current = { idToken: credential };
-              setInvitations(r.invitations);
-              return setStep('invitations');
-            }
-            if (!r.ok) {
-              return setError(
-                r.error === 'provider_not_found'
-                  ? notFoundMessage
-                  : 'Connexion Google impossible.',
-              );
-            }
-            onSuccess();
-          },
-        });
-        window.google.accounts.id.renderButton(googleDiv.current, gisOptions('continue_with'));
-      })
-      .catch(() => setError('Connexion Google indisponible.'));
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [googleClientId]);
 
   async function sendCode() {
     if (!fields.validate({ email: email.trim() })) return;
@@ -266,19 +218,37 @@ export function ProLoginOptions({ onSuccess }: { onSuccess: () => void }) {
 
   return (
     <div className="flex flex-col gap-s">
-      {/* `min-h-12` below reserves the Google button's height BEFORE the
-          script arrives. Google renders that button itself, asynchronously,
-          from a third-party script — so on a slow connection it appears late
-          and pushes everything under it down. Measured on production under
-          mobile/3G emulation: CLS 0.131 against a 0.1 budget, on all three
-          runs. Unthrottled it is 0.000, which is why no local check saw it.
-          `min-h-12` is the design system's 48px tap-target floor (SYSTEM.md
-          §13.2) and comfortably clears the standard GSI button, so the space is
-          already there when it arrives. An arbitrary `min-h-[44px]` was the
-          first attempt and the lint rule rejected it, correctly: a value the
-          theme does not know is a value nothing else can reuse. */}
+      {/* The Google script is fetched by this button's FIRST tap, never on
+          mount — see GoogleSignInButton for the production measurement of what
+          mounting it cost. The facade also occupies the slot from first paint,
+          so `min-h-12` now reserves space for a real control instead of a hole
+          that CLS 0.131 was measured against. */}
       {googleClientId ? (
-        <div ref={googleDiv} className="flex min-h-12 justify-center" />
+        <GoogleSignInButton
+          clientId={googleClientId}
+          text="continue_with"
+          disabled={busy}
+          onUnavailable={() => setError('Connexion Google indisponible.')}
+          onCredential={async (credential) => {
+            setBusy(true);
+            setError(null);
+            const r = await loginProWithGoogle(credential);
+            setBusy(false);
+            if (r.invitations?.length) {
+              proofRef.current = { idToken: credential };
+              setInvitations(r.invitations);
+              return setStep('invitations');
+            }
+            if (!r.ok) {
+              return setError(
+                r.error === 'provider_not_found'
+                  ? notFoundMessage
+                  : 'Connexion Google impossible.',
+              );
+            }
+            onSuccess();
+          }}
+        />
       ) : null}
       {googleClientId ? (
         <div className="flex items-center gap-s text-bodySmall text-textTertiary">

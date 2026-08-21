@@ -14,8 +14,9 @@ import { useFieldErrors } from '../../lib/forms/useFieldErrors';
 import { Button } from '../Button';
 import { PhoneField } from '../PhoneField';
 import { TextField } from '../TextField';
-import { gisOptions } from './socialButton';
+import { loadScript } from '../../lib/loadScript';
 import { AppleSignInButton } from './AppleSignInButton';
+import { GoogleSignInButton } from './GoogleSignInButton';
 
 /// Consumer sign-in — Google + Apple + email OTP (auth overhaul P2, replaces
 /// phone-OTP). Google/Apple render only when their public client IDs are
@@ -26,27 +27,6 @@ import { AppleSignInButton } from './AppleSignInButton';
 
 declare global {
   interface Window {
-    google?: {
-      accounts: {
-        id: {
-          initialize: (config: {
-            client_id: string;
-            callback: (r: { credential: string }) => void;
-          }) => void;
-          renderButton: (
-            el: HTMLElement,
-            options: {
-              theme?: string;
-              size?: string;
-              width?: number;
-              locale?: string;
-              /// GIS button text variant (e.g. 'signup_with' → « S'inscrire »).
-              text?: string;
-            },
-          ) => void;
-        };
-      };
-    };
     AppleID?: {
       auth: {
         init: (config: {
@@ -64,19 +44,6 @@ declare global {
       };
     };
   }
-}
-
-function loadScript(src: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const existing = document.querySelector(`script[src="${src}"]`);
-    if (existing) return resolve();
-    const s = document.createElement('script');
-    s.src = src;
-    s.async = true;
-    s.onload = () => resolve();
-    s.onerror = () => reject(new Error('script_load_failed'));
-    document.head.appendChild(s);
-  });
 }
 
 function randomNonce(): string {
@@ -119,7 +86,6 @@ export function LoginOptions({ onSuccess }: { onSuccess: () => void }) {
         ? null
         : 'Saisissez un numéro de téléphone valide.',
   });
-  const googleDiv = useRef<HTMLDivElement>(null);
 
   /// Post-login: the contact phone is MANDATORY — block until the profile has
   /// one (fresh registrations arrive without it).
@@ -131,33 +97,6 @@ export function LoginOptions({ onSuccess }: { onSuccess: () => void }) {
     }
     onSuccess();
   }
-
-  // Google Identity Services — official branded button (env-gated).
-  useEffect(() => {
-    if (!googleClientId || !googleDiv.current) return;
-    let cancelled = false;
-    loadScript('https://accounts.google.com/gsi/client')
-      .then(() => {
-        if (cancelled || !window.google || !googleDiv.current) return;
-        window.google.accounts.id.initialize({
-          client_id: googleClientId,
-          callback: async ({ credential }) => {
-            setBusy(true);
-            setError(null);
-            const r = await loginWithGoogle(credential);
-            setBusy(false);
-            if (!r.ok) return setError('Connexion Google impossible.');
-            afterLogin(r.user);
-          },
-        });
-        window.google.accounts.id.renderButton(googleDiv.current, gisOptions('continue_with'));
-      })
-      .catch(() => setError('Connexion Google indisponible.'));
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [googleClientId]);
 
   async function signInWithApple() {
     if (!appleClientId || busy) return;
@@ -312,19 +251,28 @@ export function LoginOptions({ onSuccess }: { onSuccess: () => void }) {
   // --- Options ---------------------------------------------------------------
   return (
     <div className="flex flex-col gap-s">
-      {/* `min-h-12` below reserves the Google button's height BEFORE the
-          script arrives. Google renders that button itself, asynchronously,
-          from a third-party script — so on a slow connection it appears late
-          and pushes everything under it down. Measured on production under
-          mobile/3G emulation: CLS 0.131 against a 0.1 budget, on all three
-          runs. Unthrottled it is 0.000, which is why no local check saw it.
-          `min-h-12` is the design system's 48px tap-target floor (SYSTEM.md
-          §13.2) and comfortably clears the standard GSI button, so the space is
-          already there when it arrives. An arbitrary `min-h-[44px]` was the
-          first attempt and the lint rule rejected it, correctly: a value the
-          theme does not know is a value nothing else can reuse. */}
+      {/* The Google script is fetched by this button's FIRST tap, never on
+          mount. Opening this page used to disclose the visitor's IP and
+          user-agent to Google and let it set `g_state`, before any consent and
+          before Google had been chosen — see GoogleSignInButton for the
+          measurement. The facade also occupies the slot from first paint, so
+          the `min-h-12` reservation that was papering over CLS 0.131 now holds
+          a real control rather than a hole. */}
       {googleClientId ? (
-        <div ref={googleDiv} className="flex min-h-12 justify-center" />
+        <GoogleSignInButton
+          clientId={googleClientId}
+          text="continue_with"
+          disabled={busy}
+          onUnavailable={() => setError('Connexion Google indisponible.')}
+          onCredential={async (credential) => {
+            setBusy(true);
+            setError(null);
+            const r = await loginWithGoogle(credential);
+            setBusy(false);
+            if (!r.ok) return setError('Connexion Google impossible.');
+            afterLogin(r.user);
+          }}
+        />
       ) : null}
       {appleClientId ? (
         <AppleSignInButton onClick={signInWithApple} disabled={busy} />

@@ -86,6 +86,15 @@ export function legalRoute(slug: string): LegalRoute {
 /// build time and a page rendered on request must not disagree — and because a
 /// legal document's date is a claim, not a timestamp.
 ///
+/// **Bumped 2026-08-21**: the cookies section now describes a page that only
+/// contacts Google once the visitor chooses Google. It also repairs a breach of
+/// the rule below — the 2026-08-20 rewrite of that same section (g_state named,
+/// mobile added as a third Sentry surface, Termii disclosed, Twilio removed)
+/// shipped WITHOUT bumping this constant, so for two days the page carried a
+/// « Dernière mise à jour » and a JSON-LD `dateModified` that predated its own
+/// substance. That is precisely the concealment reading this rule exists to
+/// avoid, committed by the very change that wrote the rule down.
+///
 /// **Bumped 2026-08-18** for a substantive correction to the privacy policy: two
 /// claims in « Ce que nous ne faisons pas » had become false and were replaced
 /// by a « Journaux techniques et rapports d'erreur » section. The shared date
@@ -94,8 +103,8 @@ export function legalRoute(slug: string): LegalRoute {
 /// policy whose substance moved while its date stood still is the version a
 /// regulator reads as concealment.
 export const LEGAL_UPDATED_AT = {
-  iso: '2026-08-18',
-  label: '18 août 2026',
+  iso: '2026-08-21',
+  label: '21 août 2026',
 } as const;
 
 export const COMPANY = {
