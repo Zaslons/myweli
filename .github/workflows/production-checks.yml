@@ -1,0 +1,82 @@
+name: Production checks
+
+# **The measurements that were only ever taken by hand.**
+#
+# `check:cwv` and `check:privacy` run against the REAL domain, and both existed
+# only as npm scripts someone had to remember. `grep "schedule:|cron:"` over
+# this directory returned nothing at all, so the repo's entire safety net was
+# push-triggered — and CI's own Lighthouse job measures **localhost against a
+# stub**, where neither of the two real findings could ever have appeared:
+#
+#   /connexion CLS 0.131   — only reproducible on the deployed page
+#   g_state before consent — only visible in the deployed bundle
+#
+# A one-shot measurement written into LAUNCH.md is true for a day. A Vercel
+# deploy tomorrow can regress either of these and nothing would fire. This is
+# the mechanism that replaces remembering.
+#
+# It is a MONITOR, not a gate: it cannot block a merge, so a failure here means
+# production is already wrong and needs looking at.
+
+on:
+  schedule:
+    # 06:00 UTC daily — before the Abidjan working day (UTC+0, so local too).
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Base URL to measure (defaults to production)'
+        required: false
+        default: 'https://myweli.com'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-checks
+  cancel-in-progress: false
+
+jobs:
+  cwv:
+    name: Real domain — Core Web Vitals (mobile)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      # No build and no server: `tool/lighthouse-production.json` has no
+      # `startServerCommand`, deliberately — sharing the localhost config would
+      # quietly measure a local build instead of the thing being asserted.
+      - name: Lighthouse against myweli.com
+        run: npm run check:cwv
+
+  privacy:
+    name: Real domain — the privacy promises
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      # Asserts against the DEPLOYED bundle, where Sentry is actually
+      # initialised — the reason three earlier in-repo attempts at this check
+      # passed for the wrong reason (`tool/check-privacy-promise.spec.ts`
+      # records all three).
+      - name: Privacy promises against myweli.com
+        run: npm run check:privacy
+        env:
+          PRIVACY_URL: ${{ github.event.inputs.target || 'https://myweli.com' }}
