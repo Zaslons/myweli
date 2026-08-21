@@ -13,9 +13,9 @@
 /// tag's `load` event instead, and memoises the promise so concurrent callers
 /// share one download.
 ///
-/// **A rejection is deliberately not cached.** Caching it would let one network
-/// blip disable the sign-in button for the rest of the session, with a retry
-/// that silently returns the old failure.
+/// **A rejection is deliberately not cached**, so a retry is a real attempt
+/// rather than a replay of the old failure — and the failed TAG is discarded
+/// with it, or the retry finds a corpse and hangs instead.
 const inFlight = new Map<string, Promise<void>>();
 
 export function loadScript(src: string): Promise<void> {
@@ -28,16 +28,31 @@ export function loadScript(src: string): Promise<void> {
       `script[src="${src}"]`,
     );
     if (existing) {
-      // Added by someone else (or by a previous, evicted promise). If it has
-      // already finished, `load` will never fire again — hence the marker.
+      // Already finished: `load` will never fire again, hence the marker.
       if (existing.dataset.loaded === 'true') return resolve();
-      existing.addEventListener('load', () => resolve(), { once: true });
-      existing.addEventListener('error', fail, { once: true });
-      return;
+
+      // **A tag that is neither loaded nor in flight is a corpse, and
+      // subscribing to it hangs forever.** `inFlight` was checked above and
+      // missed, so nothing is awaiting this element; its `load`/`error` pair
+      // already fired and both listeners were registered `{ once: true }`.
+      // Attaching new ones waits for events that can never come again: the
+      // promise never settles, the caller's `catch` never runs, and a button
+      // that awaits it stays disabled for the life of the page.
+      //
+      // That is precisely the failure this file exists to remove, and its
+      // first version shipped with it — the rejected promise was evicted from
+      // the cache while the dead tag was left in the document, so the SECOND
+      // tap after any failed load hung. Reachable whenever the first load
+      // fails: offline, a blocked host, an ad blocker — which is exactly when
+      // someone taps again.
+      existing.remove();
     }
     const s = document.createElement('script');
     s.src = src;
     s.async = true;
+    // Removed at failure, not merely skipped later: a dead tag left in the
+    // document is what the `existing` branch above has to defend against, and
+    // the narrower the window in which one exists, the better.
     s.addEventListener(
       'load',
       () => {
@@ -46,7 +61,14 @@ export function loadScript(src: string): Promise<void> {
       },
       { once: true },
     );
-    s.addEventListener('error', fail, { once: true });
+    s.addEventListener(
+      'error',
+      () => {
+        s.remove();
+        fail();
+      },
+      { once: true },
+    );
     document.head.appendChild(s);
   });
 
