@@ -77,6 +77,161 @@ void main() {
     return r.isEmpty ? null : r.first.toColumnMap()['fail_count'] as int;
   }
 
+  /// **`changePassword` against a real database.**
+  ///
+  /// Until now the only coverage was an in-memory double, so the production
+  /// claim — "every refresh token for the admin is revoked in the SAME
+  /// transaction as the hash update" — was asserted against code that is not
+  /// the code that runs. The in-memory version revokes with
+  /// `_refreshByHash.removeWhere`; the real one issues
+  /// `DELETE FROM admin_refresh_tokens WHERE admin_id = @i` inside `runTx`, and
+  /// nothing had ever executed that statement.
+  group('changePassword, against Postgres', () {
+    Future<int> refreshRows(String adminId) async {
+      final r = await pool.execute(
+        Sql.named(
+          'SELECT count(*) FROM admin_refresh_tokens WHERE admin_id = @i',
+        ),
+        parameters: {'i': adminId},
+      );
+      return (r.first.toColumnMap()['count'] as int?) ?? 0;
+    }
+
+    Future<String> adminIdOf(String email) async {
+      final r = await pool.execute(
+        Sql.named('SELECT id FROM admins WHERE email = @e'),
+        parameters: {'e': email},
+      );
+      return r.first.toColumnMap()['id'] as String;
+    }
+
+    test('the new password logs in and THE OLD ONE DOES NOT', () async {
+      final e = freshEmail();
+      addTearDown(() => purge(e));
+      final r = repo();
+      await r.ensureSeedAdmin(email: e, password: 'old-password-1');
+      final id = await adminIdOf(e);
+
+      final res = await r.changePassword(
+        adminId: id,
+        currentPassword: 'old-password-1',
+        newPassword: 'new-password-12',
+      );
+      expect(res.ok, isTrue, reason: res.error);
+
+      expect((await r.login(e, 'new-password-12')).ok, isTrue);
+      expect(
+        (await r.login(e, 'old-password-1')).ok,
+        isFalse,
+        reason: 'the hash was not actually written to the admins row',
+      );
+    });
+
+    test(
+      'EVERY REFRESH ROW IS GONE — the production claim, on real rows',
+      () async {
+        final e = freshEmail();
+        addTearDown(() => purge(e));
+        final r = repo();
+        await r.ensureSeedAdmin(email: e, password: 'old-password-1');
+        final id = await adminIdOf(e);
+
+        // Three sessions, so a partial delete is distinguishable from a full one.
+        for (var i = 0; i < 3; i++) {
+          expect((await r.login(e, 'old-password-1')).ok, isTrue);
+        }
+        expect(
+          await refreshRows(id),
+          greaterThanOrEqualTo(3),
+          reason: 'control: the rows exist before the change',
+        );
+
+        final tok = (await r.login(e, 'old-password-1')).tokens!.refreshToken;
+        await r.changePassword(
+          adminId: id,
+          currentPassword: 'old-password-1',
+          newPassword: 'new-password-12',
+        );
+
+        expect(await refreshRows(id), 0);
+        expect(
+          (await r.refresh(tok)).ok,
+          isFalse,
+          reason: 'a leaked refresh token must die with the rotation',
+        );
+      },
+    );
+
+    test('a wrong current password changes nothing and COUNTS', () async {
+      final e = freshEmail();
+      addTearDown(() => purge(e));
+      final r = repo();
+      await r.ensureSeedAdmin(email: e, password: 'old-password-1');
+      final id = await adminIdOf(e);
+
+      final res = await r.changePassword(
+        adminId: id,
+        currentPassword: 'not-the-password',
+        newPassword: 'new-password-12',
+      );
+      expect(res.ok, isFalse);
+      expect(res.error, 'invalid_credentials');
+      expect(
+        await failCount(e),
+        1,
+        reason: 'an uncounted wrong guess is a repeatable free guess',
+      );
+      expect(
+        (await r.login(e, 'old-password-1')).ok,
+        isTrue,
+        reason: 'the stored hash must be untouched after a refused change',
+      );
+    });
+
+    test('a short or unchanged password is refused, and only AFTER the '
+        'current one verifies', () async {
+      final e = freshEmail();
+      addTearDown(() => purge(e));
+      final r = repo();
+      await r.ensureSeedAdmin(email: e, password: 'old-password-1');
+      final id = await adminIdOf(e);
+
+      expect(
+        (await r.changePassword(
+          adminId: id,
+          currentPassword: 'old-password-1',
+          newPassword: 'short',
+        )).error,
+        'weak_password',
+      );
+      expect(
+        (await r.changePassword(
+          adminId: id,
+          currentPassword: 'old-password-1',
+          newPassword: 'old-password-1',
+        )).error,
+        'password_unchanged',
+      );
+      // Neither refusal counted against the throttle: the caller proved they
+      // hold the password, so these are policy refusals, not failed guesses.
+      expect(await failCount(e), isNull);
+    });
+
+    test(
+      'an unknown admin id is refused without touching the throttle',
+      () async {
+        final r = repo();
+        final res = await r.changePassword(
+          adminId: 'admin_does_not_exist',
+          currentPassword: 'whatever-goes-here',
+          newPassword: 'new-password-12',
+        );
+        expect(res.ok, isFalse);
+        expect(res.error, 'not_found');
+      },
+    );
+  });
+
   test('a correct password mints an admin token', () async {
     final e = freshEmail();
     addTearDown(() => purge(e));

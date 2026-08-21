@@ -303,6 +303,23 @@ These block everything. None is surface-specific.
         working transcript on 2026-08-18 and **deleted** rather than rotated,
         because the header it authenticated had just been retired
         ([design/infra-cron-oidc-evidence.md](design/infra-cron-oidc-evidence.md) §8).
+      - **The two items that were named and not built, now built (2026-08-21).**
+        A re-audit found both still open after the box was ticked. `gitleaks`
+        cannot silently narrow again: `ci_secret_scan_test.dart` asserts
+        `fetch-depth: 0` is present and `--no-git` is absent, finds the job by
+        what it RUNS rather than by name, and checks the step cannot be made
+        non-blocking — four mutations watched red. And `changePassword` finally
+        has **Postgres-backed** coverage: the production claim that every refresh
+        token is revoked in the same transaction as the hash update was asserted
+        only against an in-memory double, whose revocation is a
+        `removeWhere` on a map rather than the `DELETE` that actually runs.
+        Three mutations watched red against a real database.
+
+        The scan test caught a defect **in itself** while being written: it
+        matched `gitleaks` inside a `run:` block's COMMENTS and selected the
+        wrong job entirely. That is the third time in this repo a check has
+        matched a string present only in a comment.
+
       - **Still owner-only, and deliberately not done blind:** narrowing
         `CLOUDFLARE_API_TOKEN` (a Pages:Edit GitHub Actions secret from
         2026-06-29, the oldest credential in the system, and one a Secret
