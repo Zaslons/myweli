@@ -230,8 +230,100 @@ test('P3 extras: proof view, salon visits card, search hearts, support', async (
     name: /Ajouter Beauté Divine aux favoris|Retirer Beauté Divine des favoris/,
   });
   await expect(heart).toBeVisible();
+  // Two waits, both load-bearing, neither a timeout bump.
+  //
+  // FIRST: the heart is disabled until `/api/me/favorites` has answered.
+  // Before that the card cannot know whether you are signed in — and clicking
+  // during the window used to navigate a signed-in visitor to /connexion,
+  // because `favIds === null` meant both "loading" and "anonymous". Waiting for
+  // enabled is waiting for the component to know.
+  await expect(heart).toBeEnabled();
   const before = await heart.getAttribute('aria-pressed');
+  // SECOND: the toggle is NOT optimistic — `RechercheClient` only calls
+  // `setFavIds` after the write resolves, which is the honest choice (it never
+  // shows a state the server has not accepted). So the assertion has to wait
+  // for the write, not for a re-render that has not been scheduled yet. Under
+  // CI load that round-trip outran the default timeout, which is the whole of
+  // the flake.
+  const written = page.waitForResponse(
+    (r) =>
+      /\/api\/me\/favorites\//.test(r.url()) &&
+      ['POST', 'DELETE'].includes(r.request().method()),
+  );
   await heart.click();
+  await written;
+  await expect(heart).toHaveAttribute(
+    'aria-pressed',
+    before === 'true' ? 'false' : 'true',
+  );
+});
+
+test('a signed-in visitor clicking a heart before favourites load is NOT sent to login', async ({
+  page,
+}) => {
+  // The bug behind the flake, forced instead of raced.
+  //
+  // `favIds === null` meant BOTH "still asking" and "anonymous", and
+  // `toggleFavorite` read it as the second — so clicking a heart during the
+  // window between page load and `/api/me/favorites` answering navigated a
+  // SIGNED-IN visitor to /connexion. Locally that window is a few milliseconds;
+  // on a slow connection it is not, and in CI it was long enough to make
+  // `P3 extras` fail.
+  //
+  // Holding the GET open makes the window arbitrarily wide, so this fails
+  // deterministically without the fix rather than once in twenty runs.
+  // Signed in the same way every other test in this file does.
+  await page.goto('/connexion');
+  await page.locator('input[type=email]').fill('awa@example.com');
+  await page.getByRole('button', { name: 'Continuer avec e-mail' }).click();
+  await page.locator('input[type=text]').fill('123456');
+  await page.getByRole('button', { name: 'Se connecter' }).click();
+  await expect(page).toHaveURL(/\/mon-compte/);
+
+  await page.route('**/basemaps.cartocdn.com/**', (r) => r.abort());
+
+  let release = () => {};
+  const held = new Promise<void>((r) => {
+    release = r;
+  });
+  await page.route('**/api/me/favorites', async (route) => {
+    if (route.request().method() === 'GET') await held;
+    await route.continue();
+  });
+
+  await page.goto('/recherche?q=tresses');
+  const heart = page.getByRole('button', {
+    name: /Ajouter Beauté Divine aux favoris|Retirer Beauté Divine des favoris/,
+  });
+  await expect(heart).toBeVisible();
+
+  // While the answer is unknown the control must not look ready.
+  await expect(heart, 'the heart is live while it cannot know who you are').toBeDisabled();
+
+  // `RechercheClient.toggleFavorite` also returns early while `!favLoaded`.
+  // NOT asserted here, deliberately: the browser dispatches no click on a
+  // disabled button — not even `click({ force: true })` — so that guard is
+  // unreachable through the DOM while `disabled` is in place, and a test for it
+  // would pass no matter what the guard did. Removing `disabled` turns this
+  // test red; removing the guard alone does not, and pretending otherwise
+  // would be exactly the vacuous check this suite keeps deleting. The guard
+  // stays as an invariant of the function for non-DOM callers.
+
+  release();
+  await expect(heart).toBeEnabled();
+
+  const before = await heart.getAttribute('aria-pressed');
+  const written = page.waitForResponse(
+    (r) =>
+      /\/api\/me\/favorites\//.test(r.url()) &&
+      ['POST', 'DELETE'].includes(r.request().method()),
+  );
+  await heart.click();
+  await written;
+
+  await expect(page, 'a signed-in visitor was sent to the login page').not.toHaveURL(
+    /\/connexion/,
+  );
   await expect(heart).toHaveAttribute(
     'aria-pressed',
     before === 'true' ? 'false' : 'true',
