@@ -464,8 +464,19 @@ jobs:
   web-lighthouse:
     name: Web — Lighthouse
     runs-on: ubuntu-latest
-    # BLOCKING since B5 (§14): a11y ≥ 0.95 and SEO ≥ 0.9 are errors;
-    # performance/best-practices stay warn (the flake-prone pair).
+    # BLOCKING: a11y ≥ 0.95, SEO ≥ 0.9, **and the three WEB.md §7 numbers** —
+    # LCP, CLS and TBT — are all `error`. Only `best-practices` is `warn`.
+    #
+    # This comment used to say "performance … stay warn", which was true until
+    # 2026-08-20 and false afterwards: the rewrite dropped the
+    # `categories:performance` assertion entirely and replaced it with the three
+    # individual audits. Left as it was, it told a reader that a performance
+    # regression could not fail the build, which had become the opposite of
+    # the truth.
+    #
+    # NOTE this job measures **localhost against the stub**. The real domain is
+    # measured by `production-checks.yml`, on a schedule — the only budget
+    # breach ever found (/connexion CLS 0.131) lived there, not here.
     defaults:
       run:
         working-directory: web

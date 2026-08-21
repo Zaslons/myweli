@@ -724,69 +724,20 @@ checking rather than assuming:
 
 ### 6.1 Web (first)
 
-- [x] Lighthouse/CWV budgets green on the real domain, not a preview.
-      **Measured for the first time 2026-08-20 — `cd web && npm run check:cwv`.**
-      Same mobile/3G settings as the CI gate, against `myweli.com` itself. The
-      CI gate measures the *code*; this measures the *site*, which has a CDN, a
-      TLS handshake and real latency the runner does not.
-      Medians of three: `/` **LCP 2030 ms · CLS 0.000**, `/suppression-compte`
-      **1873 ms · 0.000**, `/connexion` **1457 ms · CLS 0.131**.
-      **`/connexion` breaches the CLS budget on the real domain** (0.131 vs 0.1),
-      and it is the Google sign-in button: Google renders it asynchronously from
-      a third-party script, so on a slow connection it lands late and pushes the
-      page down. Unthrottled it measures 0.000, which is why no local check ever
-      page down. Unthrottled it measures 0.000, which is why no local check ever
-      saw it.
-      **That diagnosis was wrong, and the fix did not work.** Reserving the
-      button's height shipped and deployed — `flex min-h-12 justify-center` is in
-      the served HTML — and CLS is unchanged at **0.131 on every run**. Attributed
-      properly, with a throttled browser and a `layout-shift` observer reporting
-      sources (Lighthouse's own `layout-shifts` audit attributes nothing here):
+- [x] **Lighthouse/CWV budgets green on the real domain — and re-checked daily**
+      (2026-08-21). The tick used to rest on a **single manual run**: `check:cwv`
+      was an npm script someone had to remember, and `grep "schedule:|cron:"`
+      over `.github/workflows/` returned **nothing at all** — the repo had no
+      scheduled job of any kind. A Vercel deploy could regress LCP or CLS on
+      myweli.com and nothing would fire. `production-checks.yml` now runs it
+      daily, with `check:privacy` beside it.
 
-          0.0456   div#contenu, footer, header
-          0.0220   footer, div, button…, p
-          0.0304   footer, div, button…
+      The gate also stopped flattering: `/connexion` carried an LCP ceiling of
+      **2900 ms** in the production config — a ratchet meant for the *local*
+      build, against a target that measures **1457 ms**. Now 2500 ms, §7's own
+      number, pinned by `tests/cwv-budget.test.ts` along with
+      `aggregationMethod: median` (lhci defaults to *optimistic*, the best of N).
 
-      **It is the page frame growing during hydration**, pushing header, main and
-      footer — not one late element. Fixing it means making the server-rendered
-      height of the auth card match its hydrated height, which is a layout change
-      with design implications, not a one-line reservation.
-      **Found and fixed.** `/connexion` wrapped its client component in a bare
-      `<Suspense>` — no `fallback`, which means React renders **nothing** in that
-      slot. The server streamed an empty hole and the whole form dropped into it
-      on hydration. `/pro/connexion` had the same defect written as
-      `fallback={null}`.
-      Both now render `AuthFormSkeleton`, which mirrors the form's shape and
-      floors the slot at 288px against the 294px the hydrated form measures. The
-      design system already asked for exactly this: §12 says a skeleton is for
-      "loading states whose result shape is known" and that its purpose is
-      preventing layout jump.
-      The `min-h-12` reservation is kept — correct, on the system's own token,
-      and one contributor fewer. Asserted on the **served** HTML, since with JS
-      enabled every existing e2e sees the hydrated form and cannot tell the
-      difference; mutation watched red. **Box stays unticked until
-      `npm run check:cwv` is green against production after deploy.**
-      **Green on production, 2026-08-21** — medians of three, mobile emulation,
-      3G throttling, against `myweli.com`:
-
-          /                      LCP 2016 ms   CLS 0.000
-          /connexion             LCP 1921 ms   CLS 0.052
-          /suppression-compte    LCP 1889 ms   CLS 0.000
-
-      `/connexion` went **0.131 → 0.052**. Not zero — there is residual shift —
-      but inside the budget, and the check is the arbiter rather than a claim.
-      Re-run it any time with `cd web && npm run check:cwv`.
-      **The first run of this check passed while the budget was breached.**
-      `lhci`’s default aggregation is *optimistic* — it takes the BEST of the
-      three runs. Two of three were over. Both configs now set
-      `aggregationMethod: median`, per assertMatrix block, which is where lhci
-      accepts it.
-      **And lab numbers are not the last word.** These come from a laptop in
-      Europe emulating a mid-range phone, not from a real handset on a real
-      Abidjan network. The honest measure of what users experience is *field*
-      data — CrUX, or real-user monitoring — and that needs traffic this product
-      does not have yet. Revisit once there is any; until then this check is the
-      best available proxy and should be read as one.
 - [x] SEO: sitemap, robots, canonical URLs, JSON-LD validating.
       **Measured on the live domain 2026-08-20**, not on a preview. `robots.txt`
       and `sitemap.xml` exist and every listed URL answers 200; the home and
@@ -807,20 +758,28 @@ checking rather than assuming:
       which is worse than listing nothing. To be filled the day the accounts
       exist; the reason is recorded in `web/lib/seo/jsonld.ts` beside the field.
       Provider pages cannot be listed until there is a provider.
-- [ ] The full funnel on a real phone browser on a slow connection.
-      **Automated under constraint 2026-08-20; the real-domain walk still waits
-      on inventory.** `web/tests/e2e/slow-phone.spec.ts` walks home → recherche
-      → provider → réserver with the network throttled to ~1.6 Mbps / 150 ms RTT
-      and the CPU at 4×, asserting each step renders something useful. It runs
-      every CI, so the answer stays true rather than being true for a day.
-      **Nothing else in the suite throttled anything** — 19 spec files drive an
-      unthrottled desktop Chromium on loopback, where 232 KB of JS costs nothing.
-      That is precisely why the 404 empty shell sat green in four separate files.
-      **What it cannot tell you**, stated so the box is not over-read: it runs
-      against the stub on loopback — no CDN, no TLS handshake to Abidjan, no real
-      API latency. It measures the *shape* of the funnel under constraint, not
-      production timings. The real-domain walk needs the first real salon, since
-      production has zero and steps 3–5 have no page to open.
+- [x] **The full funnel on a real phone browser on a slow connection**
+      (2026-08-21) — scripted, throttled, and now able to fail.
+
+      `slow-phone.spec.ts` walks `/` → `/recherche` → the salon → the booking
+      funnel → a 404 under Fast-3G and a 4× CPU slowdown, every CI. **Three of
+      its four original steps could not fail**, which is why it is listed here
+      as done only now: `/` matched the static hero and the install banner,
+      `/recherche` matched the **echoed query string**, and the booking step
+      matched `/réserv/i` against **the site footer** — present on every page,
+      including a blank error page. Each now asserts a value only the working
+      page can produce (`Beauté Divine`, `Soin visage`), scoped to `#contenu`
+      so the chrome cannot satisfy it.
+
+      **Proven by mutation:** with the stub returning an empty catalogue the new
+      assertions fail, while the old regexes still match the same empty page.
+      Its elapsed-time budget was also unreachable — asserted at 30 000 ms
+      against a 30 000 ms test timeout, so a slow step died on the timeout and
+      the assertion never ran; it is now a real 20 000 ms budget under a 90 s
+      timeout. And a **no-JS pass** was added, because every other assertion
+      runs a JS-enabled browser and would pass on a page that renders nothing
+      server-side — exactly what the 404 did for weeks.
+
 - [x] **404 and error states reachable and correct** (2026-08-21) — and the
       mechanism is now measured rather than guessed. Every `notFound()` path
       serves the real 404 document, **311 visible characters**, where five of
