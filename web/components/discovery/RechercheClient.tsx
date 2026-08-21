@@ -69,6 +69,12 @@ export function RechercheClient({
   // Parity 2.15: hearts on the result cards — ONE session probe (anonymous
   // 401 → null keeps the hearts as login CTAs).
   const [favIds, setFavIds] = useState<Set<string> | null>(null);
+  // `favIds === null` meant BOTH "still asking" and "anonymous", and
+  // `toggleFavorite` read it as the second — so a signed-in visitor who clicked
+  // a heart before `/api/me/favorites` answered was sent to the login page.
+  // The window is small locally and real on a slow connection; it is also what
+  // made `account.spec.ts`'s heart assertion flaky in CI.
+  const [favLoaded, setFavLoaded] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [mobileView, setMobileView] = useState<'list' | 'map'>('list');
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
@@ -84,17 +90,25 @@ export function RechercheClient({
 
   useEffect(() => {
     let active = true;
-    getFavorites().then((r) => {
-      if (active && r.status === 200) {
-        setFavIds(new Set(r.favorites.map((f) => f.id)));
-      }
-    });
+    getFavorites()
+      .then((r) => {
+        if (!active) return;
+        if (r.status === 200) setFavIds(new Set(r.favorites.map((f) => f.id)));
+      })
+      // Loaded means "we have an answer", including 401 and a failed probe —
+      // otherwise an anonymous visitor's heart would stay disabled forever
+      // instead of becoming the login CTA it is meant to be.
+      .finally(() => {
+        if (active) setFavLoaded(true);
+      });
     return () => {
       active = false;
     };
   }, []);
 
   async function toggleFavorite(id: string) {
+    // Unknown is not the same as anonymous.
+    if (!favLoaded) return;
     if (favIds === null) {
       const back = `${window.location.pathname}${window.location.search}`;
       window.location.assign(`/connexion?returnTo=${encodeURIComponent(back)}`);
@@ -238,6 +252,7 @@ export function RechercheClient({
                   provider={p}
                   favorite={favIds?.has(p.id) ?? false}
                   onToggleFavorite={() => toggleFavorite(p.id)}
+                  favoriteBusy={!favLoaded}
                 />
               </div>
             ))

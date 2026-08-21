@@ -8,10 +8,17 @@ export function ProviderCard({
   provider,
   favorite,
   onToggleFavorite,
+  favoriteBusy = false,
 }: {
   provider: Provider;
   favorite?: boolean;
   onToggleFavorite?: () => void;
+  /// True while the favourite state is UNKNOWN — the list has not finished
+  /// asking who you are. The heart is disabled then, because a control whose
+  /// only honest answers are "not yet" and "I don't know" must not look ready:
+  /// clicking during that window used to send a SIGNED-IN visitor to the login
+  /// page, since `null` meant both "loading" and "anonymous".
+  favoriteBusy?: boolean;
 }) {
   const active = (provider.services ?? []).filter((s) => s.active !== false);
   const min = active.length ? Math.min(...active.map((s) => s.price)) : null;
@@ -66,7 +73,9 @@ export function ProviderCard({
             : `Ajouter ${provider.name} aux favoris`
         }
         onClick={onToggleFavorite}
-        className={`absolute bottom-0 right-0 flex h-12 w-12 items-center justify-center rounded-pill text-iconM leading-none ${
+        disabled={favoriteBusy}
+        aria-busy={favoriteBusy || undefined}
+        className={`absolute bottom-0 right-0 flex h-12 w-12 items-center justify-center rounded-pill text-iconM leading-none disabled:opacity-50 ${
           favorite ? 'text-error' : 'text-textTertiary'
         } hover:bg-surfaceVariant`}
       >
