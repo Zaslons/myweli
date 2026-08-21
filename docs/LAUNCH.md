@@ -686,7 +686,7 @@ checking rather than assuming:
 
 ### 6.1 Web (first)
 
-- [ ] Lighthouse/CWV budgets green on the real domain, not a preview.
+- [x] Lighthouse/CWV budgets green on the real domain, not a preview.
       **Measured for the first time 2026-08-20 — `cd web && npm run check:cwv`.**
       Same mobile/3G settings as the CI gate, against `myweli.com` itself. The
       CI gate measures the *code*; this measures the *site*, which has a CDN, a
@@ -728,6 +728,16 @@ checking rather than assuming:
       enabled every existing e2e sees the hydrated form and cannot tell the
       difference; mutation watched red. **Box stays unticked until
       `npm run check:cwv` is green against production after deploy.**
+      **Green on production, 2026-08-21** — medians of three, mobile emulation,
+      3G throttling, against `myweli.com`:
+
+          /                      LCP 2016 ms   CLS 0.000
+          /connexion             LCP 1921 ms   CLS 0.052
+          /suppression-compte    LCP 1889 ms   CLS 0.000
+
+      `/connexion` went **0.131 → 0.052**. Not zero — there is residual shift —
+      but inside the budget, and the check is the arbiter rather than a claim.
+      Re-run it any time with `cd web && npm run check:cwv`.
       **The first run of this check passed while the budget was breached.**
       `lhci`’s default aggregation is *optimistic* — it takes the BEST of the
       three runs. Two of three were over. Both configs now set
