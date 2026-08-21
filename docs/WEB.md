@@ -188,6 +188,27 @@ observer (Lighthouse attributes nothing here): the shifts are `div#contenu`,
 late element. The fix is to make the auth card's server-rendered height match
 its hydrated height — a layout change, not a reservation. Open.
 
+**The real-domain gate now asserts §7's numbers, and runs on a schedule
+(2026-08-21).** Two things were wrong with "enforced" even after the rewrite
+above. First, `/connexion` carried an LCP ceiling of **2900 ms** in the
+production config as well as the local one — a ratchet against the *local*
+build's 2774 ms median, copied to a target that measures **1457 ms**. A ceiling
+with 1443 ms of slack does not enforce anything. It is now **2500 ms**, §7's own
+number, in the production config; the **local** config keeps 2900 deliberately,
+because an un-CDN'd localhost build really is slower and tightening it there
+would fail on something production does not have. `tests/cwv-budget.test.ts`
+pins that asymmetry, and pins `aggregationMethod: median` — lhci's default is
+*optimistic*, the best of N runs, which is how three runs of a flaky page report
+the luckiest one.
+
+Second, and worse: **nothing re-ran it.** `check:cwv` and `check:privacy` were
+npm scripts someone had to remember, and `grep "schedule:|cron:"` over
+`.github/workflows/` returned nothing at all — the repo had no scheduled job of
+any kind. A one-shot measurement recorded in LAUNCH.md is true for a day. Both
+now run daily from `production-checks.yml`, against the real domain. It is a
+**monitor, not a gate**: it cannot block a merge, so a failure there means
+production is already wrong.
+
 **A gate can flatter as easily as it can fail.** The first production run
 reported green while two of three runs were over budget: `lhci`'s default
 aggregation is *optimistic*, taking the best run. Both configs now set
