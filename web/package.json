@@ -15,11 +15,13 @@
     "gen:api": "openapi-typescript ../docs/api/openapi.yaml -o lib/api/schema.ts",
     "gen:tokens": "node scripts/gen-tokens.mjs",
     "check:privacy": "playwright test tool/check-privacy-promise.spec.ts --config=tool/privacy.config.ts",
-    "check:cwv": "lhci autorun --config=tool/lighthouse-production.json"
+    "check:cwv": "lhci autorun --config=tool/lighthouse-production.json",
+    "prebuild": "node tool/copy-flags.mjs"
   },
   "dependencies": {
     "@sentry/nextjs": "^10.70.0",
     "@vis.gl/react-maplibre": "^8.1.1",
+    "country-flag-icons": "^1.6.19",
     "maplibre-gl": "^5.24.0",
     "next": "^14.2.5",
     "openapi-fetch": "^0.12.2",

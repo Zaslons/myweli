@@ -87,7 +87,20 @@ test('a public page sets no cookie', async ({ page, context }) => {
 /// and belongs in « Qui d'autre les reçoit » before it belongs here.
 const ALLOWED_HOSTS = [/(^|\.)myweli\.com$/];
 
-for (const path of ['/', '/connexion', '/pro/connexion']) {
+/// **Every route that renders a phone field belongs here, and that was learned
+/// the hard way.** This list held `/`, `/connexion` and `/pro/connexion` and
+/// passed — while `/pro/inscription` fetched a flag SVG from
+/// `purecatamphetamine.github.io` on load, because `react-phone-number-input`
+/// defaults `flagUrl` to a GitHub Pages host. The guard was green on the pages
+/// someone had thought of, which is the failure mode an allowlist is supposed
+/// to prevent, not reproduce.
+for (const path of [
+  '/',
+  '/connexion',
+  '/pro/connexion',
+  '/pro/inscription',
+  '/mon-compte',
+]) {
   test(`${path} reaches no third party before any interaction`, async ({
     page,
     context,
