@@ -83,6 +83,13 @@ export default defineConfig({
       env: {
         NEXT_PUBLIC_API_BASE_URL: `http://127.0.0.1:${STUB_PORT}`,
         NEXT_PUBLIC_SITE_URL: baseURL,
+        // **Without this the Google button does not render at all**, and every
+        // assertion about it passes for the wrong reason — which is exactly
+        // what happened: `legal.spec.ts`'s cookie check looped over an empty
+        // array for weeks while the real page set `g_state` on load. A dummy
+        // id is enough; the suite never lets a request reach Google (it is
+        // intercepted), so the value only has to be non-empty.
+        NEXT_PUBLIC_GOOGLE_CLIENT_ID: 'e2e-dummy.apps.googleusercontent.com',
         TZ: 'UTC',
       },
     },

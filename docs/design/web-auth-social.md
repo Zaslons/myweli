@@ -34,7 +34,47 @@ The **BFF pattern stays exactly as-is** ([web-m5](web-m5-booking.md)): the brows
 All read `body.tokens` (nested AuthSession — the #151 lesson); errors pass through the machine code.
 
 ## 3. Identity-provider wiring (client side)
-- **Google — GIS (Google Identity Services).** Load `https://accounts.google.com/gsi/client`; render the **official branded button** (`renderButton` — required by Google's branding rules, and the only way to obtain the **ID token** the backend's `GoogleIdTokenVerifier` accepts; a custom button would need the auth-code flow, a client SECRET we do not hold, and a new exchange endpoint — so this is not merely a branding constraint); One Tap **off**; callback posts the credential to the BFF.
+- **Google — GIS, loaded on the visitor's FIRST TAP, never on mount (2026-08-21).**
+  For nine months all three surfaces fetched the script from a mount-time
+  `useEffect`. Measured on production, with zero interaction and `/` as the
+  control:
+
+  ```
+    /           third-party hosts: (none)                       cookies: (none)
+    /connexion  third-party hosts: accounts.google.com, fonts.gstatic.com
+                cookies: g_state@myweli.com
+  ```
+
+  So opening the sign-in page disclosed the visitor's IP and user-agent to
+  Google and let Google set a JS-readable cookie — before any consent, before
+  any sign-in, and before Google had been chosen. The privacy policy's
+  « strictement nécessaire » justification for having no consent banner could
+  not survive that; an earlier attempt fixed the *sentence* instead of the
+  software and left the claim false.
+
+  **`GoogleSignInButton` is now the only place that touches GIS.** It renders
+  our own facade at first paint; the first tap loads the script and hands the
+  slot to Google's real button; the second tap is Google's. **Two taps is not
+  an oversight** — the constraint below (branding + the ID token) means Google's
+  button must be the one actually pressed, so the facade cannot post directly.
+  The cost falls only on people who choose Google.
+
+  It also makes the CLS reservation honest: `min-h-12` used to hold space for a
+  late cross-origin iframe (production measured **CLS 0.131** against a 0.1
+  budget); it now holds a real control from the first paint. The pro
+  registration form, which never had the reservation at all, gains it.
+
+  The callback is read through a **ref**, not captured at registration: the pro
+  registration form's old effect re-registered GIS on every keystroke because
+  the callback closes over the business fields. One registration reading a live
+  ref is correct; collapsing that back to a single captured closure would submit
+  stale field values.
+
+  `loadScript` moved to `web/lib/loadScript.ts` — there were three copies, and
+  all three resolved on *tag presence* rather than *load completion*, a race
+  each call site worked around separately.
+
+  Render the **official branded button** (`renderButton` — required by Google's branding rules, and the only way to obtain the **ID token** the backend's `GoogleIdTokenVerifier` accepts; a custom button would need the auth-code flow, a client SECRET we do not hold, and a new exchange endpoint — so this is not merely a branding constraint); One Tap **off**; callback posts the credential to the BFF.
   **Its options are one shared object**, `gisOptions(text)` in `components/auth/socialButton.ts`: `{theme:'outline', shape:'rectangular', size:'large', text, width:320, locale:'fr'}`. The three call sites had drifted — two omitted `text`, so GIS fell back to `signin_with` and web read « Se connecter avec Google » beside « Continuer avec Apple » while both apps said « Continuer avec »; one omitted `locale`. Nothing failed, the copy was just wrong, which is why it stood. `text` is the **only** key allowed to vary (`signup_with` on pro registration), and `social-buttons.test.ts` asserts exactly that. Client ID from **`NEXT_PUBLIC_GOOGLE_CLIENT_ID`** (a public identifier, not a secret).
 - **Apple — Sign in with Apple JS.** Our own `AppleSignInButton`, **built to match the GIS silhouette** (40 × 320, ~4px radius, mark left) — the one place the app/web relationship inverts, because Google's button is uneditable and Apple's is ours. Sized in **px, not rem**: GIS sizes its iframe absolutely, so a rem-sized neighbour drifts away from it the moment the root font size changes.
   It is **not** the shared `Button`: `Button` pins `min-h-12` (48px, the tap-target floor) and GIS's tallest preset is 40px, so matching Google and honouring the floor conflict. Resolved the way the tap-target rule itself prescribes — **grow the target, not the glyph**: the `<button>` is a 48px hit box, the painted `<span>` inside is 40 × 320. Neither the floor nor its test is weakened.

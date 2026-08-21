@@ -210,21 +210,33 @@ export default function Page() {
         HTTPS, et limités à notre site.
       </P>
       <P>
-        Une exception, et elle vient de Google. Sur les pages de connexion et
-        d’inscription uniquement, le bouton officiel «&nbsp;Continuer avec
-        Google&nbsp;» est affiché par un script de Google, qui dépose son propre
-        cookie <strong>g_state</strong> pour se souvenir de l’état de votre connexion.
-        Il est déposé par Google et non par nous, il <strong>est</strong> lisible
-        par le JavaScript de la page, et charger ce script transmet à Google votre
-        adresse IP et votre navigateur. Nous le chargeons uniquement sur ces
-        pages, parce qu’il est nécessaire au moyen de connexion que vous y venez
-        utiliser&nbsp;; il n’apparaît nulle part ailleurs sur le site.
+        Une exception, et elle vient de Google&nbsp;— mais seulement si vous la
+        déclenchez. Là où «&nbsp;Continuer avec Google&nbsp;» est proposé, ce
+        bouton est d’abord <strong>le nôtre</strong>, et rien n’est demandé à
+        Google. Ce n’est qu’en le touchant que le script de Google est chargé,
+        qu’il affiche à son tour son bouton officiel, et qu’il dépose son propre
+        cookie <strong>g_state</strong>. Ce cookie est déposé par Google et non
+        par nous, il <strong>est</strong> lisible par le JavaScript de la page,
+        et charger ce script transmet à Google votre adresse IP et votre
+        navigateur.
+      </P>
+      <P>
+        Autrement dit&nbsp;: <strong>tant que vous ne choisissez pas Google,
+        rien n’est envoyé à Google</strong>&nbsp;— y compris sur les pages de
+        connexion et d’inscription. Ce n’était pas le cas auparavant&nbsp;: le
+        script se chargeait dès l’ouverture de la page, donc avant tout choix de
+        votre part. Nous l’avons corrigé dans le logiciel plutôt que dans cette
+        page&nbsp;— la date en haut de cette page est celle de cette
+        correction.
       </P>
       <P>
         Il n’existe aucun cookie de mesure d’audience ni de publicité. C’est
-        pourquoi vous ne voyez pas de bandeau de consentement&nbsp;: tout ce qui
-        précède est strictement nécessaire au service que vous demandez. L’application, elle,
-        conserve votre session dans le coffre-fort du système d’exploitation.
+        pourquoi vous ne voyez pas de bandeau de consentement&nbsp;: tout ce que
+        nous déposons est strictement nécessaire au service que vous demandez,
+        et la seule chose qui ne vienne pas de nous&nbsp;— le cookie de
+        Google&nbsp;— n’arrive qu’après que vous avez choisi Google.
+        L’application, elle, conserve votre session dans le coffre-fort du
+        système d’exploitation.
       </P>
 
       <H2>Vos droits</H2>

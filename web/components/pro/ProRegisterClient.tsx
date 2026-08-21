@@ -10,7 +10,7 @@ import { Button } from '../Button';
 import { PhoneField } from '../PhoneField';
 import { TextField } from '../TextField';
 import { LocalityPicker } from './LocalityPicker';
-import { gisOptions } from '../auth/socialButton';
+import { GoogleSignInButton } from '../auth/GoogleSignInButton';
 
 const BUSINESS_TYPES = [
   { value: 'salon', label: 'Salon de beauté' },
@@ -45,7 +45,6 @@ export function ProRegisterClient() {
 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const googleDiv = useRef<HTMLDivElement>(null);
 
   // §14 rules 1/2/5 (web-b4-controls.md): the old fieldsOrError() named the
   // failing field IN A FORM-LEVEL message — the message now lives UNDER the
@@ -101,39 +100,6 @@ export function ProRegisterClient() {
     );
   }
 
-  // Google (GIS) — env-gated, same loader as the login page.
-  useEffect(() => {
-    if (!googleClientId || !googleDiv.current) return;
-    let cancelled = false;
-    const src = 'https://accounts.google.com/gsi/client';
-    const load = (): Promise<void> =>
-      new Promise((resolve, reject) => {
-        if (document.querySelector(`script[src="${src}"]`)) return resolve();
-        const s = document.createElement('script');
-        s.src = src;
-        s.async = true;
-        s.onload = () => resolve();
-        s.onerror = () => reject(new Error('script_load_failed'));
-        document.head.appendChild(s);
-      });
-    load()
-      .then(() => {
-        if (cancelled || !window.google || !googleDiv.current) return;
-        window.google.accounts.id.initialize({
-          client_id: googleClientId,
-          callback: async ({ credential }) => {
-            if (!fieldsOrError()) return;
-            await submit({ idToken: credential });
-          },
-        });
-        window.google.accounts.id.renderButton(googleDiv.current, gisOptions('signup_with'));
-      })
-      .catch(() => {/* the email path stays available */});
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [googleClientId, businessName, businessType, phone, address, areaId]);
 
   async function sendCode() {
     if (
@@ -224,9 +190,26 @@ export function ProRegisterClient() {
         Elle vous servira à vous connecter à votre espace pro.
       </p>
 
+      {/* Fetched on the FIRST tap, never on mount — see GoogleSignInButton.
+          This form also gains the `min-h-12` reservation the two login
+          surfaces already had and this one was missing, so its slot no longer
+          collapses before the control exists.
+
+          The old effect re-registered GIS on every keystroke, listing each
+          business field in its dep array, because the callback closes over
+          them. `GoogleSignInButton` reads the handler through a ref, so one
+          registration stays correct — but that is the reason this must not be
+          "simplified" back into a single mount-time registration. */}
       {googleClientId ? (
-        <div className="mt-m flex justify-center">
-          <div ref={googleDiv} />
+        <div className="mt-m">
+          <GoogleSignInButton
+            clientId={googleClientId}
+            text="signup_with"
+            onCredential={async (credential) => {
+              if (!fieldsOrError()) return;
+              await submit({ idToken: credential });
+            }}
+          />
         </div>
       ) : null}
 

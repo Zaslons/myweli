@@ -135,21 +135,81 @@ test.describe('the privacy policy is true of the built app', () => {
     ).toEqual([]);
   });
 
-  test('the sign-in page sets only Google’s cookie, and the page says so', async ({
+  /// **« tant que vous ne choisissez pas Google, rien n'est envoyé à Google ».**
+  ///
+  /// Until 2026-08-21 that was false: the script was fetched from a mount-time
+  /// effect, so simply opening this page disclosed the visitor's IP and
+  /// user-agent to Google and let it set `g_state`. Measured on production,
+  /// zero interaction, with `/` as the control:
+  ///
+  ///   /           third-party hosts: (none)                    cookies: (none)
+  ///   /connexion  third-party hosts: accounts.google.com, …    cookies: g_state
+  ///
+  /// **Requests are intercepted, never allowed out.** Letting the suite really
+  /// fetch from Google would make CI depend on a third party's uptime and would
+  /// have this repo contact Google on every run to prove it does not contact
+  /// Google. Aborting the route still proves the request was ATTEMPTED, which
+  /// is the thing being asserted.
+  ///
+  /// **The tap is the control.** Without it, "zero requests to Google" is also
+  /// what a page with no Google button at all would report — and that is not a
+  /// hypothetical: this file's previous version asserted cookies on a page
+  /// where `NEXT_PUBLIC_GOOGLE_CLIENT_ID` was unset, so the button never
+  /// rendered and the loop it ran had nothing to iterate.
+  test('the sign-in page contacts Google only after the visitor chooses Google', async ({
     page,
     context,
   }) => {
     await context.clearCookies();
+    const googleHits: string[] = [];
+    await page.route('**://accounts.google.com/**', (route) => {
+      googleHits.push(route.request().url());
+      return route.abort();
+    });
+
     await page.goto('/connexion');
     await page.waitForLoadState('networkidle');
-    const names = (await context.cookies()).map((c) => c.name).sort();
-    // g_state is Google's, JS-readable, and disclosed by name in the policy.
-    // Anything ELSE appearing here is undisclosed, which is the defect.
-    for (const n of names) {
-      expect(
-        n,
-        `an undisclosed cookie "${n}" is set before sign-in`,
-      ).toMatch(/^g_state$/);
-    }
+
+    expect(
+      googleHits,
+      'opening the sign-in page must not reach Google — nothing has been chosen yet',
+    ).toEqual([]);
+    expect(
+      (await context.cookies()).map((c) => c.name),
+      'no cookie may be set before the visitor chooses a sign-in method',
+    ).toEqual([]);
+
+    // The control: our own facade is present, and pressing it DOES reach out.
+    const facade = page.getByRole('button', { name: /Continuer avec Google/i });
+    await expect(facade).toBeVisible();
+    await facade.click();
+    await expect
+      .poll(() => googleHits.length, {
+        message:
+          'the facade must actually load GSI — otherwise the assertion above '
+          + 'is satisfied by a button that does nothing',
+      })
+      .toBeGreaterThan(0);
+  });
+
+  /// The broader claim, and the one that would have caught the Google script
+  /// on its own: the sign-in page reaches NO third party before a choice is
+  /// made. Nothing in `web/` inspected requests before this.
+  test('the sign-in page loads no third-party resource at all', async ({
+    page,
+    context,
+  }) => {
+    await context.clearCookies();
+    const foreign = new Set<string>();
+    page.on('request', (r) => {
+      const host = new URL(r.url()).hostname;
+      if (host !== '127.0.0.1' && host !== 'localhost') foreign.add(host);
+    });
+    await page.goto('/connexion');
+    await page.waitForLoadState('networkidle');
+    expect(
+      [...foreign],
+      'every host here is one the privacy policy must name',
+    ).toEqual([]);
   });
 });
