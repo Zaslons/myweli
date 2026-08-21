@@ -281,6 +281,26 @@ spec:
             - name: ADMIN_PASSWORD
               valueFrom:
                 secretKeyRef: { name: ADMIN_PASSWORD, key: latest }
+            # Asks Vercel to rebuild the web when the set of publicly listable
+            # salons changes (created / suspended / restored).
+            #
+            # The web's `/[slug]` sets `dynamicParams = false` — the only thing
+            # that makes Next serve a real 404 in the HTML rather than a
+            # 44-character blank shell — so its slug set is fixed at BUILD time.
+            # Without this, a salon that becomes listable after the last build
+            # 404s until the next deploy.
+            #
+            # **Production only.** Staging must not hold it: a staging event
+            # would trigger a PRODUCTION build, and staging is where we
+            # deliberately create and suspend salons while testing. Pinned by
+            # service_files_test.dart.
+            #
+            # The URL is a credential — anyone holding it can trigger unlimited
+            # (paid) builds. Secret Manager, never a literal, never logged.
+            # docs/design/backend-web-rebuild-hook.md
+            - name: WEB_DEPLOY_HOOK_URL
+              valueFrom:
+                secretKeyRef: { name: WEB_DEPLOY_HOOK_URL, key: latest }
           startupProbe:
             tcpSocket:
               port: 8080

@@ -307,26 +307,36 @@ serves rather than failing silently in the browser).
   Update the secret afterwards too, so a database bootstrapped from scratch
   later does not come up holding the old password.
 
-### Web rebuild hook (owner action, not yet configured)
+### Web rebuild hook (configured 2026-08-21)
 
 The web's `/[slug]` route sets `dynamicParams = false` — the only mechanism that
 makes Next serve a real 404 in the served HTML rather than a 44-character blank
 shell. Its slug set is therefore fixed at **build** time, so a salon that becomes
-publicly listable after the last build 404s until the next one.
+publicly listable after the last build would 404 until the next one.
 
-The backend already asks for a rebuild on the three transitions that change the
-listable set (salon created / suspended / restored). It is a **no-op until
-configured**, which is why nothing is mounted yet:
+The backend asks Vercel to rebuild on the three transitions that change the
+listable set (salon created / suspended / restored). Configuration, all done:
 
-1. Vercel → the `myweli` project → Settings → Git → **Deploy Hooks** → create one
-   on the production branch. Copy the URL.
-2. `gcloud secrets create WEB_DEPLOY_HOOK_URL --project=myweli` and add the URL
-   as a version. **Treat it as a credential** — anyone holding it can trigger
-   unlimited (paid) builds.
-3. Mount it in `infra/gcp/service.yaml` as `WEB_DEPLOY_HOOK_URL` and deploy.
+1. Vercel → `myweli` → Settings → Git → **Deploy Hooks**, on the production
+   branch.
+2. `WEB_DEPLOY_HOOK_URL` in Secret Manager, with
+   `roles/secretmanager.secretAccessor` for `myweli-run@`. **Treat it as a
+   credential** — anyone holding it can trigger unlimited (paid) builds.
+3. Mounted in `infra/gcp/service.yaml`. **Production only**: staging is where
+   salons are created and suspended while testing, and a staging event would
+   trigger a *production* build. `service_files_test.dart` pins that asymmetry
+   and pins that the value comes from Secret Manager rather than a literal.
 
-Until step 3, salon visibility changes do not trigger a rebuild and a new
-salon's public page waits for the next deploy. Design:
+**Confirming it works:** suspend a salon in the admin console and a deployment
+starts in Vercel within seconds; the backend logs
+`site_rebuild sent reason=provider.suspend status=201` — reason and status only,
+never the URL. An unparseable URL prints a `WARNING` at boot, so a quiet boot log
+means it resolved.
+
+Two deliberate behaviours: a **60s per-process cooldown** (rapid changes trigger
+one build; a dropped event is safe because the next build reads the current set)
+and it **fails open** — an unreachable hook is logged, never propagated, because
+the write that triggered it already succeeded. Design:
 [backend-web-rebuild-hook.md](design/backend-web-rebuild-hook.md).
 
 ## Phase F — Mobile apps

@@ -701,6 +701,52 @@ void main() {
     });
   });
 
+  group('the web rebuild hook is mounted on production and NOWHERE else', () {
+    /// The inverse asymmetry to the one below, and for a sharper reason.
+    ///
+    /// The hook triggers a **production** Vercel build. Staging is precisely
+    /// where salons get created and suspended while something is being tested,
+    /// so mounting it there would have staging traffic spending money
+    /// rebuilding the live site — and publishing whatever `main` happens to
+    /// hold at that moment.
+    ///
+    /// Production needs it because the web's `/[slug]` sets
+    /// `dynamicParams = false`, the only mechanism that serves a real 404 in
+    /// the HTML, which fixes the slug set at BUILD time.
+    /// docs/design/backend-web-rebuild-hook.md
+    List<String> envNames(YamlMap svc) => [
+      for (final e in podSpec(svc)['containers'][0]['env'] as YamlList)
+        e['name'] as String,
+    ];
+
+    test('production mounts it', () {
+      expect(envNames(files['prod']!), contains('WEB_DEPLOY_HOOK_URL'));
+    });
+
+    test('staging does NOT', () {
+      expect(
+        envNames(files['staging']!),
+        isNot(contains('WEB_DEPLOY_HOOK_URL')),
+        reason:
+            'a staging salon change would trigger a PRODUCTION build — staging '
+            'is where salons are created and suspended for testing',
+      );
+    });
+
+    test('it comes from Secret Manager, never a literal', () {
+      final env = podSpec(files['prod']!)['containers'][0]['env'] as YamlList;
+      final e = env.firstWhere((x) => x['name'] == 'WEB_DEPLOY_HOOK_URL');
+      expect(
+        e['value'],
+        isNull,
+        reason:
+            'a build-triggering URL inlined in a manifest is a leaked '
+            'credential in git history',
+      );
+      expect(e['valueFrom']['secretKeyRef']['name'], 'WEB_DEPLOY_HOOK_URL');
+    });
+  });
+
   group('the OTP-disclosure seam is mounted on staging and NOWHERE else', () {
     /// The seam lets a caller holding `SMOKE_OTP_SECRET` read an OTP back for an
     /// identity in the RFC 2606 `.test` TLD. Staging needs it because the funnel
