@@ -90,6 +90,29 @@ would.
 
 Each watched red.
 
+## 7.1 What is proven, and what is not (2026-08-21)
+
+| link | evidence |
+|---|---|
+| the secret exists, right shape, no trailing newline | checked; a newline would make `Uri.tryParse` fail and silently wire the no-op |
+| mounted on the serving revision | `myweli-api-00028-zhs` |
+| the HTTP notifier is wired, not the no-op | no `WEB_DEPLOY_HOOK_URL` warning in the boot log |
+| the hook URL triggers a real build | `HTTP 201` + a `PENDING` job + a Vercel deployment |
+| **Cloud Run reaching Vercel on a salon change** | **not exercised** |
+
+The last row cannot be closed until a real salon exists — production holds zero,
+so nothing can be created, suspended or restored. Two things cover it:
+
+- the **alert** `infra/gcp/96-rebuild-hook-alert.sh`, which fires on
+  `site_rebuild FAILED`. The notifier fails open, so a failure is otherwise
+  invisible: the operator sees a salon created, the public page 404s, and
+  nothing connects the two.
+- **LAUNCH.md §6.4**, the checklist for the day the first salon appears.
+
+The alert covers the failure; the checklist covers the confirmation. Neither
+alone is enough — an alert that never fires is indistinguishable from a healthy
+system, and a checklist nobody re-reads is a wish.
+
 ## 8. Open questions
 
 - **Build cost at scale.** One rebuild per approval is fine at tens-to-hundreds
