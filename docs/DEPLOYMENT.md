@@ -327,7 +327,21 @@ listable set (salon created / suspended / restored). Configuration, all done:
    trigger a *production* build. `service_files_test.dart` pins that asymmetry
    and pins that the value comes from Secret Manager rather than a literal.
 
-**Confirming it works:** suspend a salon in the admin console and a deployment
+**Confirmed live, 2026-08-21 — and precisely how far.** POSTing the hook URL
+returned `HTTP 201` with a `PENDING` job and Vercel started a production
+deployment, so the URL is real and the status matches what the backend logs
+(`status=201`). It is mounted on revision `myweli-api-00028-zhs`, and the boot
+log carries **no** `WEB_DEPLOY_HOOK_URL` warning — which is what distinguishes
+the HTTP notifier from the silent no-op.
+
+**One hop is still unexercised, and saying so is the point.** Nothing has proven
+that *Cloud Run reaches Vercel* on a real salon change: production holds zero
+salons, so there is nothing to create, suspend or restore. The first real salon
+exercises it — success logs `site_rebuild sent reason=salon.created status=201`,
+and a blocked egress would log `site_rebuild FAILED` while the salon is still
+created, because the notifier fails open.
+
+**Confirming that last hop:** suspend a salon in the admin console and a deployment
 starts in Vercel within seconds; the backend logs
 `site_rebuild sent reason=provider.suspend status=201` — reason and status only,
 never the URL. An unparseable URL prints a `WARNING` at boot, so a quiet boot log
