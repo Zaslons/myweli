@@ -4765,6 +4765,84 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/auth/password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Change your own admin password (B-admin)
+         * @description An authenticated admin changes their own password. **The current password is required even though the caller already holds an admin token**: without it a stolen access token — fifteen minutes of access — converts into permanent account takeover.
+         *
+         *     Exists because rotating the credential by redeploying `ADMIN_PASSWORD` is a **no-op**: the seeder is insert-only, so on any database that already holds the admin the mounted value is read and discarded. The service says so in its boot log.
+         *
+         *     On success every refresh token for the admin is revoked. The caller's *access* token is stateless and stays valid until it expires (~15 min); there is no denylist. Throttled on the **same key as login**, so a stolen access token cannot buy a fresh guess budget. Design: docs/design/backend-admin-password-change.md
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        currentPassword: string;
+                        /** @description bcrypt truncates at 72 bytes, so anything past it is not part of the password. */
+                        newPassword: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Password changed; refresh tokens revoked */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description `invalid_body`, `invalid_input` (missing field, shorter than 12, or longer than 72), or `password_unchanged`. */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["Forbidden"];
+                /** @description Locked out after too many wrong current-password attempts */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description `throttle_unavailable` — the lockout store could not answer, so the change was refused rather than letting the brute-force bound lapse. Carries `Retry-After`. */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/kyc": {
         parameters: {
             query?: never;
