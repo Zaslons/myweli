@@ -16,6 +16,16 @@ class AdminAccount {
 
 typedef AdminLoginResult = ({bool ok, String? error, TokenPair? tokens});
 
+typedef AdminPasswordChangeResult = ({bool ok, String? error});
+
+/// The floor on a staff password, and the first one this codebase states.
+///
+/// The seeder has never had one: `ADMIN_PASSWORD` could be `x` and the admin
+/// would exist. That is not fixed here — a floor applied at boot turns a weak
+/// secret into a service that will not start — but every password set through
+/// [AdminAuthRepository.changePassword] clears it.
+const int kAdminPasswordMinLength = 12;
+
 /// Admin authentication: email/password login → access JWT (role `admin`) + a
 /// rotating opaque refresh token (hashed at rest; reuse revokes the family,
 /// like the consumer/provider flows).
@@ -24,8 +34,46 @@ abstract interface class AdminAuthRepository {
   Future<RefreshResult> refresh(String refreshToken);
   Future<AdminAccount?> adminById(String id);
 
-  /// Idempotent: create the seed super-admin if no admin with [email] exists.
-  Future<void> ensureSeedAdmin({
+  /// Change [adminId]'s own password, proving possession of the current one.
+  ///
+  /// **The current password is required even though the caller already holds an
+  /// admin token**, because otherwise a stolen access token — fifteen minutes
+  /// of access — converts into permanent account takeover. With it, the thief
+  /// must also know the password, which is the thing they were trying to get.
+  ///
+  /// On success every refresh token for the admin is revoked, so a leaked
+  /// refresh token dies with the rotation. The caller's *access* token is not
+  /// revoked and stays valid until it expires: access tokens are stateless JWTs
+  /// and there is no denylist. A bounded (~15 min) residual, written down here
+  /// rather than left to be discovered.
+  ///
+  /// Errors: `invalid_credentials`, `locked_out`, `throttle_unavailable`,
+  /// `password_unchanged`, `weak_password`, `not_found`.
+  /// Design: docs/design/backend-admin-password-change.md
+  Future<AdminPasswordChangeResult> changePassword({
+    required String adminId,
+    required String currentPassword,
+    required String newPassword,
+  });
+
+  /// **Bootstrap only — this does NOT rotate the password.**
+  ///
+  /// Creates the seed super-admin if no admin with [email] exists, and
+  /// otherwise returns having done nothing. Changing `ADMIN_PASSWORD` and
+  /// redeploying therefore has **no effect** on a database that already holds
+  /// the admin, which is every database that has ever booted. Rotate through
+  /// [changePassword]; `dependencies.dart` says so in the boot log when this
+  /// call finds an existing row.
+  ///
+  /// Overwriting here instead would mean anyone who can set an environment
+  /// variable owns the admin account, and a rollback to an old revision would
+  /// silently restore an old password. Two tests pin the no-overwrite.
+  ///
+  /// Returns **true when it created the admin**, false when one already
+  /// existed and the supplied password was therefore discarded. The caller
+  /// says so in the boot log — a rotation that quietly fails is worse than one
+  /// that errors, because the operator's belief updates and the system does not.
+  Future<bool> ensureSeedAdmin({
     required String email,
     required String password,
   });
@@ -54,16 +102,17 @@ class InMemoryAdminAuthRepository implements AdminAuthRepository {
   var _seq = 0;
 
   @override
-  Future<void> ensureSeedAdmin({
+  Future<bool> ensureSeedAdmin({
     required String email,
     required String password,
   }) async {
     final e = email.trim().toLowerCase();
-    if (_idByEmail.containsKey(e)) return;
+    if (_idByEmail.containsKey(e)) return false;
     final id = 'admin_${_seq++}';
     _byId[id] = AdminAccount(id: id, email: e, status: 'active');
     _idByEmail[e] = id;
     _hashByEmail[e] = BCrypt.hashpw(password, BCrypt.gensalt());
+    return true;
   }
 
   @override
@@ -108,6 +157,39 @@ class InMemoryAdminAuthRepository implements AdminAuthRepository {
       error: null,
       tokens: _issueInFamily(id, _tokens.generateRefreshToken()),
     );
+  }
+
+  @override
+  Future<AdminPasswordChangeResult> changePassword({
+    required String adminId,
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    final account = _byId[adminId];
+    if (account == null) return (ok: false, error: 'not_found');
+    final e = adminThrottleKey(account.email);
+    // Same key as `login`, deliberately: a key of its own would hand a stolen
+    // access token a FRESH five-guess budget that login's lockout never sees.
+    final locked = await throttleValue(() => _throttle.isLocked(e));
+    if (locked == null) return (ok: false, error: 'throttle_unavailable');
+    if (locked) return (ok: false, error: 'locked_out');
+    final hash = _hashByEmail[e];
+    if (hash == null || !BCrypt.checkpw(currentPassword, hash)) {
+      if (!await throttleOk(() => _throttle.recordFailure(e))) {
+        return (ok: false, error: 'throttle_unavailable');
+      }
+      return (ok: false, error: 'invalid_credentials');
+    }
+    if (newPassword.length < kAdminPasswordMinLength) {
+      return (ok: false, error: 'weak_password');
+    }
+    if (BCrypt.checkpw(newPassword, hash)) {
+      return (ok: false, error: 'password_unchanged');
+    }
+    _hashByEmail[e] = BCrypt.hashpw(newPassword, BCrypt.gensalt());
+    _refreshByHash.removeWhere((_, r) => r.adminId == adminId);
+    await throttleOk(() => _throttle.reset(e));
+    return (ok: true, error: null);
   }
 
   @override

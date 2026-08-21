@@ -296,6 +296,16 @@ serves rather than failing silently in the browser).
   email-allowlist to your address(es). The backend also enforces admin authz +
   the seeded `ADMIN_EMAIL`/`ADMIN_PASSWORD` login, but Access keeps the console
   unreachable to the public.
+- **Rotating the admin password is NOT done by changing the secret.**
+  `ADMIN_PASSWORD` is **bootstrap only**: `ensureSeedAdmin` is insert-only, so on
+  any database that already holds the admin the mounted value is read and
+  **discarded**. Changing the secret and redeploying looks like a rotation and
+  changes nothing; the boot log prints a `NOTICE` saying so. Rotate with
+  `POST /admin/auth/password` (current + new password, ≥12 chars), which also
+  revokes every admin refresh token
+  ([backend-admin-password-change.md](design/backend-admin-password-change.md)).
+  Update the secret afterwards too, so a database bootstrapped from scratch
+  later does not come up holding the old password.
 
 ## Phase F — Mobile apps
 1. **Android — scaffolded ✅ (#3).** Two Gradle flavors: `consumer`

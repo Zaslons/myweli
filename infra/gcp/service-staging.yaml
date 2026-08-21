@@ -364,6 +364,11 @@ spec:
               value: __RELEASE__
             # Separate credentials, because this is the account that can suspend
             # salons and read KYC — and staging is where we hand it out.
+            # STAGING_ADMIN_PASSWORD is BOOTSTRAP ONLY: the seeder is
+            # insert-only, so on a database that already holds the admin this
+            # value is read and DISCARDED — changing it here rotates nothing,
+            # and the boot log says so. Rotate through POST /admin/auth/password.
+            # docs/design/backend-admin-password-change.md
             - name: ADMIN_EMAIL
               valueFrom:
                 secretKeyRef: { name: STAGING_ADMIN_EMAIL, key: latest }

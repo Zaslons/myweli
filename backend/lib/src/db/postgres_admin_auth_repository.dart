@@ -30,7 +30,7 @@ class PostgresAdminAuthRepository implements AdminAuthRepository {
   }
 
   @override
-  Future<void> ensureSeedAdmin({
+  Future<bool> ensureSeedAdmin({
     required String email,
     required String password,
   }) async {
@@ -39,7 +39,7 @@ class PostgresAdminAuthRepository implements AdminAuthRepository {
       Sql.named('SELECT 1 FROM admins WHERE email = @e'),
       parameters: {'e': e},
     );
-    if (existing.isNotEmpty) return;
+    if (existing.isNotEmpty) return false;
     await _pool.execute(
       Sql.named(
         'INSERT INTO admins (id, email, password_hash) '
@@ -51,6 +51,7 @@ class PostgresAdminAuthRepository implements AdminAuthRepository {
         'h': BCrypt.hashpw(password, BCrypt.gensalt()),
       },
     );
+    return true;
   }
 
   @override
@@ -116,6 +117,67 @@ class PostgresAdminAuthRepository implements AdminAuthRepository {
       error: null,
       tokens: await _issueInFamily(id, _id('fam')),
     );
+  }
+
+  @override
+  Future<AdminPasswordChangeResult> changePassword({
+    required String adminId,
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    final r = await _pool.execute(
+      Sql.named(
+        'SELECT email, password_hash, status FROM admins WHERE id = @i',
+      ),
+      parameters: {'i': adminId},
+    );
+    if (r.isEmpty) return (ok: false, error: 'not_found');
+    final email = r.first[0]! as String;
+    final hash = r.first[1]! as String;
+    final status = r.first[2]! as String;
+
+    // Same key as `login`, deliberately: a key of its own would hand a stolen
+    // access token a FRESH five-guess budget that login's lockout never sees.
+    final e = adminThrottleKey(email);
+    // Fail closed, for login's reason — the password and this throttle are the
+    // complete control set on the staff credential.
+    final locked = await throttleValue(() => _throttle.isLocked(e));
+    if (locked == null) return (ok: false, error: 'throttle_unavailable');
+    if (locked) return (ok: false, error: 'locked_out');
+
+    if (status != 'active' || !BCrypt.checkpw(currentPassword, hash)) {
+      if (!await throttleOk(() => _throttle.recordFailure(e))) {
+        return (ok: false, error: 'throttle_unavailable');
+      }
+      return (ok: false, error: 'invalid_credentials');
+    }
+    // Checked only AFTER the current password verifies, so an unauthenticated
+    // guess learns nothing about the policy from the shape of the refusal.
+    if (newPassword.length < kAdminPasswordMinLength) {
+      return (ok: false, error: 'weak_password');
+    }
+    if (BCrypt.checkpw(newPassword, hash)) {
+      return (ok: false, error: 'password_unchanged');
+    }
+
+    final next = BCrypt.hashpw(newPassword, BCrypt.gensalt());
+    // **One transaction, because the halves are not independent.** A crash
+    // between them would leave the password changed with every old session
+    // still alive — the exact state the rotation exists to end.
+    await _pool.runTx((tx) async {
+      await tx.execute(
+        Sql.named('UPDATE admins SET password_hash = @h WHERE id = @i'),
+        parameters: {'h': next, 'i': adminId},
+      );
+      await tx.execute(
+        Sql.named('DELETE FROM admin_refresh_tokens WHERE admin_id = @i'),
+        parameters: {'i': adminId},
+      );
+    });
+    // Fails open, like login's: the caller just proved they hold the password,
+    // and refusing them over a throttle write would be a self-inflicted outage.
+    await throttleOk(() => _throttle.reset(e));
+    return (ok: true, error: null);
   }
 
   @override
