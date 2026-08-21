@@ -195,21 +195,28 @@ test.describe('the privacy policy is true of the built app', () => {
   /// The broader claim, and the one that would have caught the Google script
   /// on its own: the sign-in page reaches NO third party before a choice is
   /// made. Nothing in `web/` inspected requests before this.
-  test('the sign-in page loads no third-party resource at all', async ({
-    page,
-    context,
-  }) => {
-    await context.clearCookies();
-    const foreign = new Set<string>();
-    page.on('request', (r) => {
-      const host = new URL(r.url()).hostname;
-      if (host !== '127.0.0.1' && host !== 'localhost') foreign.add(host);
+  /// Covers every route that renders a phone field, not only the sign-in page.
+  /// The narrower version of this was green while `/pro/inscription` fetched a
+  /// flag SVG from GitHub Pages on load — `react-phone-number-input` defaults
+  /// `flagUrl` to `purecatamphetamine.github.io`. A guard that only inspects
+  /// the pages someone already suspected is the failure it exists to prevent.
+  for (const path of ['/connexion', '/pro/connexion', '/pro/inscription']) {
+    test(`${path} loads no third-party resource at all`, async ({
+      page,
+      context,
+    }) => {
+      await context.clearCookies();
+      const foreign = new Set<string>();
+      page.on('request', (r) => {
+        const host = new URL(r.url()).hostname;
+        if (host !== '127.0.0.1' && host !== 'localhost') foreign.add(host);
+      });
+      await page.goto(path);
+      await page.waitForLoadState('networkidle');
+      expect(
+        [...foreign],
+        'every host here is one the privacy policy must name',
+      ).toEqual([]);
     });
-    await page.goto('/connexion');
-    await page.waitForLoadState('networkidle');
-    expect(
-      [...foreign],
-      'every host here is one the privacy policy must name',
-    ).toEqual([]);
-  });
+  }
 });

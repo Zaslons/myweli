@@ -62,6 +62,18 @@ export function PhoneField({
       <PhoneInput
         international
         defaultCountry="CI"
+        // **Ours, not GitHub's.** The library defaults `flagUrl` to
+        // `https://purecatamphetamine.github.io/country-flag-icons/3x2/{XX}.svg`,
+        // so simply opening a page with a phone field disclosed the visitor's
+        // IP and user-agent to GitHub Pages — measured on production
+        // 2026-08-21 on `/pro/inscription`, with no interaction. GitHub is
+        // named nowhere in « Qui d'autre les reçoit », and the policy says
+        // nothing reaches a third party until the visitor picks one.
+        //
+        // `tool/copy-flags.mjs` (a `prebuild` step) puts the same SVGs from the
+        // locked dependency under `public/flags/`, so this is a same-origin
+        // request and the sentence stays true.
+        flagUrl="/flags/{XX}.svg"
         labels={fr}
         value={value}
         disabled={disabled}

@@ -9,3 +9,8 @@ next-env.d.ts
 /test-results
 /playwright-report
 /.lighthouseci
+
+# Vendor flag SVGs, copied from country-flag-icons by tool/copy-flags.mjs.
+# Not committed: 267 files, 1.3MB, and regenerating them from the locked
+# dependency is what keeps them from drifting out of step with it.
+/public/flags
