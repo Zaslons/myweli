@@ -1,4 +1,13 @@
 import { expect, test } from '@playwright/test';
+import { taxonomyRootSlugs } from '../../lib/taxonomy';
+
+/// The stub the suite runs against, so the oracle below is derived from the
+/// same tree the app reads rather than from a number written down here.
+const STUB = 'http://127.0.0.1:8787';
+
+type LocalityCountry = {
+  cities?: { areas?: unknown[] }[];
+};
 
 /// **What a crawler, a slow phone, and `curl` actually receive.**
 ///
@@ -18,11 +27,28 @@ test('the sitemap lists the commune level, not only roots and cities', async ({ 
   const xml = await (await request.get('/sitemap.xml')).text();
   const locs = [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
   const threeLevel = locs.filter((u) => new URL(u).pathname.split('/').filter(Boolean).length === 3);
+
+  // **`> 0` could not fail on the defect it was written for.** The old source,
+  // `getLandingParams`, lists "combos present in the catalogue" — which is
+  // ZERO in production, where no salon exists, and NON-ZERO here, where the
+  // stub has one. So reverting the derivation would have kept this green in
+  // CI while silently dropping ~187 pages from the live sitemap: the guard
+  // passed on the stub for the same reason the bug hid in production.
+  //
+  // The oracle has to be the derivation itself. Every taxonomy root × every
+  // commune in the tree, exactly — no more (a duplicate or a stale catalogue
+  // entry) and no fewer (a dropped loop, or a partial revert).
+  const tree = await (await request.get(`${STUB}/localities`)).json();
+  const communes = (tree.countries ?? []).flatMap((c: LocalityCountry) =>
+    (c.cities ?? []).flatMap((city) => city.areas ?? []),
+  ).length;
+  const expected = taxonomyRootSlugs().length * communes;
+  expect(communes, 'the stub served no communes — the oracle is vacuous').toBeGreaterThan(0);
   expect(
     threeLevel.length,
-    'the commune level is derived from the locality tree, so it does not '
-      + 'disappear when the catalogue is empty',
-  ).toBeGreaterThan(0);
+    `expected ${taxonomyRootSlugs().length} roots x ${communes} communes = `
+      + `${expected} commune URLs; the sitemap has ${threeLevel.length}`,
+  ).toBe(expected);
 
   // And every listed URL must actually answer — a sitemap of 404s is worse
   // than a short one.
