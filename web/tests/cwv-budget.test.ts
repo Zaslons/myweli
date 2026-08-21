@@ -57,6 +57,37 @@ describe('the real-domain CWV gate enforces the documented budget', () => {
     });
   }
 
+  /// **The hole this file was added to close, found in this file.**
+  ///
+  /// Every assertion above iterates `assertMatrix` — so it checks that the
+  /// blocks which EXIST are strict, and nothing at all about whether a measured
+  /// URL has a block. Delete the `/connexion` matrix entry and every test here
+  /// still passes while that page is measured and asserted against nothing.
+  /// That is the plan's own rule 1, in the guard written to enforce rule 1.
+  it('EVERY MEASURED URL IS ACTUALLY ASSERTED', () => {
+    for (const url of production.ci.collect.url) {
+      const covering = matrices.filter((m) =>
+        new RegExp(m.matchingUrlPattern).test(url),
+      );
+      expect(
+        covering.length,
+        `${url} is collected but no assertMatrix pattern matches it — it is `
+          + 'measured and then ignored',
+      ).toBeGreaterThan(0);
+    }
+  });
+
+  it('and no matrix block is dead — every pattern matches something', () => {
+    // The inverse: a pattern that matches no collected URL is a budget nobody
+    // is subject to, which reads as coverage on the page and is not.
+    for (const m of matrices) {
+      const hit = production.ci.collect.url.some((u) =>
+        new RegExp(m.matchingUrlPattern).test(u),
+      );
+      expect(hit, `${m.matchingUrlPattern} matches no collected URL`).toBe(true);
+    }
+  });
+
   it('runs each URL more than once, or a median means nothing', () => {
     expect(production.ci.collect.numberOfRuns).toBeGreaterThan(1);
   });

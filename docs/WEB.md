@@ -181,33 +181,25 @@ there, caused by Google's asynchronously-rendered sign-in button landing late
 and pushing the page down. Unthrottled it measures 0.000, which is why no local
 check saw it.
 
-**Reserving that button's height did NOT fix it** — shipped, deployed, and CLS
-unchanged at 0.131. Attributed with a throttled browser and a `layout-shift`
-observer (Lighthouse attributes nothing here): the shifts are `div#contenu`,
-`header` and `footer` moving as the page frame grows during hydration, not one
-late element. The fix is to make the auth card's server-rendered height match
-its hydrated height — a layout change, not a reservation. Open.
+**CLOSED 2026-08-21, and by a different fix than the two that failed.**
+Reserving the button's height did nothing — shipped, deployed, CLS unchanged at
+0.131. Attribution with a throttled browser and a `layout-shift` observer
+(Lighthouse attributes nothing here) showed the shifts were `div#contenu`,
+`header` and `footer` moving as the page frame grew during hydration, not one
+late element.
 
-**The real-domain gate now asserts §7's numbers, and runs on a schedule
-(2026-08-21).** Two things were wrong with "enforced" even after the rewrite
-above. First, `/connexion` carried an LCP ceiling of **2900 ms** in the
-production config as well as the local one — a ratchet against the *local*
-build's 2774 ms median, copied to a target that measures **1457 ms**. A ceiling
-with 1443 ms of slack does not enforce anything. It is now **2500 ms**, §7's own
-number, in the production config; the **local** config keeps 2900 deliberately,
-because an un-CDN'd localhost build really is slower and tightening it there
-would fail on something production does not have. `tests/cwv-budget.test.ts`
-pins that asymmetry, and pins `aggregationMethod: median` — lhci's default is
-*optimistic*, the best of N runs, which is how three runs of a flaky page report
-the luckiest one.
+What actually closed it was **removing the late element entirely**: the Google
+button is no longer rendered by Google's script at mount. `GoogleSignInButton`
+paints our own facade at first paint and only fetches GSI when the visitor taps
+it, so the reservation holds a real control instead of a hole. That change was
+made for a privacy reason — the script was setting a third-party cookie before
+any consent — and closing this was a side effect.
 
-Second, and worse: **nothing re-ran it.** `check:cwv` and `check:privacy` were
-npm scripts someone had to remember, and `grep "schedule:|cron:"` over
-`.github/workflows/` returned nothing at all — the repo had no scheduled job of
-any kind. A one-shot measurement recorded in LAUNCH.md is true for a day. Both
-now run daily from `production-checks.yml`, against the real domain. It is a
-**monitor, not a gate**: it cannot block a merge, so a failure there means
-production is already wrong.
+Measured on production after it deployed, mobile emulation with the same 3G-ish
+throttling: `/` **CLS 0.049**, `/connexion` **CLS 0.046**, against a 0.1 budget.
+The first scheduled run of `production-checks.yml` (2026-08-21, the first time
+that workflow ever executed) asserted 3 URLs × 3 runs against the real domain
+and passed every budget.
 
 **A gate can flatter as easily as it can fail.** The first production run
 reported green while two of three runs were over budget: `lhci`'s default

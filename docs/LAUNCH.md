@@ -755,6 +755,12 @@ checking rather than assuming:
       myweli.com and nothing would fire. `production-checks.yml` now runs it
       daily, with `check:privacy` beside it.
 
+      **First executed 2026-08-21** — until then it was a mechanism with no
+      evidence behind it, which is not the same as a working check. Both jobs
+      passed: 3 URLs × 3 runs asserted against the real domain, and 8 privacy
+      assertions including the phone-field routes. A failure now also opens a
+      GitHub issue rather than only reddening a row in the Actions tab.
+
       The gate also stopped flattering: `/connexion` carried an LCP ceiling of
       **2900 ms** in the production config — a ratchet meant for the *local*
       build, against a target that measures **1457 ms**. Now 2500 ms, §7's own
