@@ -26,8 +26,21 @@ test('the sitemap lists the commune level, not only roots and cities', async ({ 
 
   // And every listed URL must actually answer — a sitemap of 404s is worse
   // than a short one.
+  //
+  // **200 alone does not test the claim being made.** The sitemap asserts these
+  // are INDEXABLE pages; a `noindex` page answers 200 exactly like an
+  // indexable one, so the old status-only check could not tell the difference
+  // between a sitemap of real landing pages and a sitemap of pages telling
+  // crawlers to go away. `/[slug]/reserver` is a live example of a 200 that
+  // must never appear here.
   for (const u of threeLevel.slice(0, 5)) {
-    expect((await request.get(new URL(u).pathname)).status()).toBe(200);
+    const res = await request.get(new URL(u).pathname);
+    expect(res.status(), `${u} is listed but does not answer`).toBe(200);
+    const html = await res.text();
+    expect(
+      /<meta[^>]+name="robots"[^>]+noindex/i.test(html),
+      `${u} is in the sitemap but tells crawlers not to index it`,
+    ).toBe(false);
   }
 });
 
@@ -66,28 +79,38 @@ test('the sign-in slot is reserved in the SERVED html', async ({ request }) => {
   }
 });
 
-/// **A KNOWN DEFECT, tracked rather than hidden.**
+/// **The 404 on the wire — fixed 2026-08-21, and this is how.**
 ///
-/// `notFound()` called from a route that MATCHED — `/this-does-not-exist` hits
-/// `app/[slug]/page.tsx` — makes Next 14.2.35 serve `<html id="__next_error__">`
-/// with 44 characters of visible text and the generic title. The real 404 UI
-/// arrives only in the RSC payload, so a visitor on a slow connection sees a
-/// blank white page until the JS lands.
+/// `notFound()` called from a route that MATCHED used to make Next serve
+/// `<html id="__next_error__">` with 44 characters of visible text: the real UI
+/// existed only in the RSC payload, so a visitor on a slow connection saw a
+/// blank white page until ~232 KB of JS landed. A route matching NOTHING served
+/// the prerendered page correctly. That contrast was the whole diagnosis, and
+/// the mechanism is now measured rather than guessed:
 ///
-/// A route that matches NOTHING (`/a/b/c/d/e`) serves the prerendered
-/// `_not-found.html` correctly, 307 visible characters. That contrast is the
-/// whole diagnosis: the prerendered page is fine and is simply not used.
+///   PRERENDERED notFound()  -> the real 404, 311 visible characters
+///   REQUEST-TIME notFound() -> the __next_error__ shell, 44 characters
 ///
-/// Tried and did not fix it: a not-found boundary colocated in `app/[slug]/`.
-/// `force-dynamic` cannot be tested — it is rejected alongside
-/// `generateStaticParams`.
+/// and request-time is unavoidable once the params are open. Ruled out by
+/// measurement, not assumption: a framework upgrade (identical on 14.2.35,
+/// 15.5.23 and 16.3.1), a `not-found.tsx` colocated in `app/[slug]/` (its
+/// marker reaches the RSC payload and nothing else), `force-dynamic`
+/// (`/[slug]/reserver` already had it and still shelled), and a segment
+/// `layout.tsx` carrying the bound (does not gate a dynamically-rendered
+/// child).
 ///
-/// `test.fail()` rather than `skip`: this PASSES while the defect exists and
-/// FAILS the day it stops existing, which is when someone should delete it.
+/// **The fix is `dynamicParams = false`** on the three routes whose valid space
+/// is finite and known at build time, so an unknown param never enters the
+/// route and takes the already-working unmatched path. `/[slug]/reserver` reads
+/// `searchParams`, which forces a per-request render and defeats the bound, so
+/// it hands its 404 one segment up instead — giving up `searchParams` there
+/// would have cost the funnel its server-rendered service list, which is the
+/// content this whole item exists to protect.
+///
 /// The assertion must strip `<script>` first. « Page introuvable » IS present
-/// in the raw bytes — inside the RSC flight payload — so a plain
-/// `toContain` passes while the visitor sees a blank page. The first version of
-/// this test did exactly that and reported the defect as fixed.
+/// in the raw bytes of the broken version — inside the RSC flight payload — so
+/// a plain `toContain` passes while the visitor sees a blank page. The first
+/// version of this test did exactly that and reported the defect as fixed.
 function visibleText(html: string): string {
   const stripped = html
     .replace(/<script[\s\S]*?<\/script>/g, '')
@@ -96,15 +119,43 @@ function visibleText(html: string): string {
   return stripped.replace(/\s+/g, ' ').trim();
 }
 
-test.fail('KNOWN: notFound() from a matched route serves an empty shell', async ({ request }) => {
-  const html = await (await request.get('/this-does-not-exist')).text();
-  expect(visibleText(html)).toContain('Page introuvable');
+/// Every `notFound()` call site in the app, plus the control. `/[slug]/reserver`
+/// was never in any test before this — the one cell nobody had measured.
+const NOT_FOUND_PATHS = [
+  ['a route matching nothing (CONTROL)', '/a/b/c/d/e'],
+  ['[slug] — an unknown slug', '/this-does-not-exist'],
+  ['[slug] — a suspended salon', '/salon-arrete'],
+  ['[slug]/[city]', '/coiffure/nowhere'],
+  ['[slug]/[city]/[area]', '/coiffure/abidjan/nowhere'],
+  ['[slug]/reserver', '/unknown-salon/reserver'],
+] as const;
+
+for (const [label, path] of NOT_FOUND_PATHS) {
+  test(`404 in the SERVED html: ${label}`, async ({ request }) => {
+    const res = await request.get(path);
+    expect(res.status(), `${path} must still be a 404`).toBe(404);
+    const text = visibleText(await res.text());
+    expect(
+      text,
+      `${path} served ${text.length} visible characters — a blank page until the JS lands`,
+    ).toContain('Page introuvable');
+  });
+}
+
+test('the booking funnel keeps its server-rendered content', async ({ request }) => {
+  // The reason `/[slug]/reserver` defers its 404 instead of dropping
+  // `searchParams`: this list is what a slow phone reads before any JS runs,
+  // and a Suspense boundary would replace all of it with a skeleton.
+  const text = visibleText(await (await request.get('/beaute-divine/reserver')).text());
+  expect(text).toContain('Tresses');
+  expect(text).toContain('Soin visage');
 });
 
-test('a route matching nothing serves a real 404 in the HTML', async ({ request }) => {
-  // The control for the test above. If this ever breaks too, the diagnosis
-  // changes from "notFound() bails" to "the 404 page is broken".
-  const res = await request.get('/a/b/c/d/e');
-  expect(res.status()).toBe(404);
-  expect(visibleText(await res.text())).toContain('Page introuvable');
+test('the legacy flat landing still redirects rather than 404ing', async ({ request }) => {
+  // Closing `dynamicParams` blocks any slug `generateStaticParams` did not
+  // list, and the legacy flat slugs 308 from inside `[slug]/page.tsx`. Leaving
+  // them out turned every one of those redirects into a 404 — measured, and
+  // the reason `legacyFlatSlugs` exists.
+  const res = await request.get('/coiffure-cocody', { maxRedirects: 0 });
+  expect(res.status(), 'a 404 here is a silent SEO regression').toBe(308);
 });
