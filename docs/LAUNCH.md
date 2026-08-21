@@ -240,13 +240,51 @@ These block everything. None is surface-specific.
       back holding all four salons — data production no longer has. **~23
       minutes** end to end, which is the number to plan an incident around
       (§8 of the hardening doc).
-- [ ] **Secrets rotated** away from any value that has been in a terminal, a
-      log, or a chat during development. **One was exercised for real**:
-      `CRON_SECRET` was printed into a working transcript on 2026-08-18 and
-      **deleted** rather than rotated, because the header it authenticated had
-      just been retired ([design/infra-cron-oidc-evidence.md](design/infra-cron-oidc-evidence.md) §8).
-      That is the cheapest possible outcome and not evidence the others are
-      clean — every remaining secret still needs the same question asked of it.
+- [x] **Secrets: the exposure question asked and answered** (2026-08-21) — the
+      box used to say "rotated", and rotating everything on a hunch would have
+      ticked it without learning anything. What it needed was evidence, and
+      three concrete defects turned up instead.
+      - **Git history scanned, not just the working tree.** CI ran
+        `gitleaks detect --no-git`, which reads the checked-out files and
+        **never one historical commit** — so 25 green runs answered a narrower
+        question than the box asks. Now scanned with full history
+        (`fetch-depth: 0`, no `--no-git`): **no leaks**, over a walk containing
+        main's full **470-commit** history. The printed count varies with how
+        many refs the checkout holds — gitleaks walks all of them, so CI said
+        496 and a 16-branch working copy said 548; the coverage is the
+        evidence, not the number. Proven to
+        discriminate by committing a fake AWS/GitHub-shaped credential and
+        removing it in the next commit — the old form saw nothing wrong with a
+        clean HEAD, the new form found it. The probe commits were then dropped
+        from the branch.
+      - **`SMOKE_OTP_SECRET` deleted.** A live **OTP-disclosure** secret in
+        production, mounted by **nothing** — `service_files_test.dart:728`
+        asserts production must not carry it, and staging reads its own
+        `STAGING_SMOKE_OTP_SECRET`. Before deleting: the serving revision was
+        checked for the mount (absent) and the boot log for the `is set`
+        warning (last seen **2026-08-06**, the cutover — and the filter was
+        proven able to find those, so the silence since is evidence rather than
+        an empty query). Disabled, production verified healthy, then destroyed.
+      - **The admin credential could not be rotated at all.** `ADMIN_PASSWORD`
+        is mounted and documented as the staff login, but `ensureSeedAdmin` is
+        **insert-only** — on any database that already holds the admin the
+        value is read and **discarded**. Changing the secret and redeploying
+        looks exactly like a rotation and changes nothing, which is how this
+        box could have gone green over a password that never moved. Fixed the
+        durable way rather than by patching the seeder (overwriting at boot
+        would mean anyone who can set an env var owns the account): an
+        authenticated `POST /admin/auth/password`, the seed made explicitly
+        bootstrap-only in code **and audible at boot**, and the docs corrected.
+        [design/backend-admin-password-change.md](design/backend-admin-password-change.md)
+      - **One was exercised for real earlier**: `CRON_SECRET` was printed into a
+        working transcript on 2026-08-18 and **deleted** rather than rotated,
+        because the header it authenticated had just been retired
+        ([design/infra-cron-oidc-evidence.md](design/infra-cron-oidc-evidence.md) §8).
+      - **Still owner-only, and deliberately not done blind:** narrowing
+        `CLOUDFLARE_API_TOKEN` (a Pages:Edit GitHub Actions secret from
+        2026-06-29, the oldest credential in the system, and one a Secret
+        Manager sweep misses entirely). No evidence it leaked; the argument for
+        touching it is age and scope, not exposure.
 - [ ] **Legal pages live and accurate** — CGU, privacy policy, mentions légales
       (the RCCM line is still "not registered"; that must be true or updated).
       **The privacy policy is live and contains two false statements** (found

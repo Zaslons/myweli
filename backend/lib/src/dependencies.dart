@@ -1152,9 +1152,23 @@ Future<void> initializeDatabase() async {
   final adminEmail = _envOrNull('ADMIN_EMAIL');
   final adminPassword = _envOrNull('ADMIN_PASSWORD');
   if (adminEmail != null && adminPassword != null) {
-    await adminAuthRepository.ensureSeedAdmin(
+    final seeded = await adminAuthRepository.ensureSeedAdmin(
       email: adminEmail,
       password: adminPassword,
     );
+    // **The no-op made audible.** `ensureSeedAdmin` is insert-only, so on every
+    // database that already holds the admin the mounted `ADMIN_PASSWORD` is
+    // read and discarded. Rotating the secret and redeploying therefore changes
+    // nothing — silently, which is the part that could have let a launch
+    // checklist tick "credential rotated" over a password that never moved.
+    // Say so where an operator watching a deploy will see it.
+    if (!seeded) {
+      // ignore: avoid_print — boot diagnostics go to the container log.
+      print(
+        'NOTICE: ADMIN_PASSWORD was NOT applied — an admin already exists and '
+        'the seed is bootstrap-only. Rotate via POST /admin/auth/password '
+        '(docs/design/backend-admin-password-change.md).',
+      );
+    }
   }
 }
