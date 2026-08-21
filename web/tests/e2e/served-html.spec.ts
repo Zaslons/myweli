@@ -159,3 +159,36 @@ test('the legacy flat landing still redirects rather than 404ing', async ({ requ
   const res = await request.get('/coiffure-cocody', { maxRedirects: 0 });
   expect(res.status(), 'a 404 here is a silent SEO regression').toBe(308);
 });
+
+/// **An offer a visitor cannot take.** `OpenInAppButton` and `AppInstallBanner`
+/// each correctly render no LINK while the apps are unlisted — but the copy
+/// around them stayed, so production served « L'app MyWeli — Réservez plus vite
+/// et gérez vos rendez-vous depuis votre poche. » with no store link anywhere in
+/// the document (measured 2026-08-21).
+///
+/// `open-in-app.test.tsx` could not see it: it renders the button in isolation
+/// and passes, because the orphan is the WRAPPER.
+///
+/// Written as an INVARIANT rather than "the section is absent", so it keeps
+/// working the day the apps are listed: promise and link appear together or not
+/// at all. Both directions can fail — copy without a link is today's defect, and
+/// a link with no copy would be a bare button nobody can interpret.
+test('the app is promised only where it can actually be got', async ({ page }) => {
+  await page.goto('/');
+  await page.waitForLoadState('networkidle');
+
+  const body = (await page.locator('body').innerText()).toLowerCase();
+  const promises = ["l’app myweli", "l'app myweli", 'téléchargez l’app', "téléchargez l'app"];
+  const promised = promises.some((p) => body.includes(p));
+
+  const links = await page
+    .locator('a[href*="apps.apple.com"], a[href*="play.google.com"]')
+    .count();
+
+  expect(
+    promised === links > 0,
+    promised
+      ? 'the page offers the app and gives no way to install it'
+      : 'there is a store link but nothing telling anyone what it is',
+  ).toBe(true);
+});

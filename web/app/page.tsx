@@ -9,6 +9,7 @@ import { defaultCity, getLocalityTree } from '../lib/api/localities';
 import { searchProviders } from '../lib/api/providers';
 import { buildTaxonomyPath, categoryList } from '../lib/landing';
 import { faqJsonLd, websiteJsonLd } from '../lib/seo/jsonld';
+import { appStoreUrl } from '../lib/appStore';
 
 export const revalidate = 3600; // ISR — featured refreshes hourly
 
@@ -174,17 +175,26 @@ export default async function HomePage() {
           ))}
         </section>
 
-        <section className="mt-xl flex flex-col items-start justify-between gap-m rounded-xl border border-border bg-surfaceVariant p-l sm:flex-row sm:items-center">
-          <div>
-            <p className="text-titleLarge font-semibold text-textPrimary">
-              L’app MyWeli
-            </p>
-            <p className="mt-xs text-bodyLarge text-textSecondary">
-              Réservez plus vite et gérez vos rendez-vous depuis votre poche.
-            </p>
-          </div>
-          <OpenInAppButton />
-        </section>
+        {/* **The whole section, not just the button.** `OpenInAppButton`
+            already renders nothing while the apps are unlisted — but the copy
+            around it stayed, so production served « L'app MyWeli — Réservez
+            plus vite … » with no way to get it (verified 2026-08-21: no
+            apps.apple.com or play.google.com anywhere in the document). The
+            component-level test could not see it, because the orphan is the
+            wrapper. */}
+        {appStoreUrl() ? (
+          <section className="mt-xl flex flex-col items-start justify-between gap-m rounded-xl border border-border bg-surfaceVariant p-l sm:flex-row sm:items-center">
+            <div>
+              <p className="text-titleLarge font-semibold text-textPrimary">
+                L’app MyWeli
+              </p>
+              <p className="mt-xs text-bodyLarge text-textSecondary">
+                Réservez plus vite et gérez vos rendez-vous depuis votre poche.
+              </p>
+            </div>
+            <OpenInAppButton />
+          </section>
+        ) : null}
 
         <section className="mt-xl">
           <h2 className="text-titleLarge font-semibold text-textPrimary">
