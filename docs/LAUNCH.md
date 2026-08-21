@@ -912,6 +912,72 @@ checking rather than assuming:
 
 ---
 
+## 6.4 The first real salon — the one hop nothing has exercised
+
+Production has held **zero salons** throughout everything above, which means one
+link in the web's correctness has never been tested and cannot be until a real
+salon exists. This is the list for that day.
+
+**Why there is anything to check at all.** The web's `/[slug]` route sets
+`dynamicParams = false` — the only mechanism that makes Next serve a real 404 in
+the HTML rather than a 44-character blank page — so the set of salon slugs is
+**fixed at build time**. The backend therefore asks Vercel to rebuild whenever a
+salon is created, suspended or restored. Every link in that chain is verified
+except the last one: *does Cloud Run actually reach Vercel*.
+
+- [ ] **The rebuild fired.** Within seconds of the salon being created, a
+      deployment starts in Vercel, and the backend log carries
+      `site_rebuild sent reason=salon.created status=201`:
+
+      ```bash
+      gcloud logging read 'resource.type="cloud_run_revision" AND textPayload=~"site_rebuild (sent|FAILED|skipped)"' --project=myweli --limit=20 --freshness=1h --format='value(timestamp,textPayload)'
+      ```
+
+      **`FAILED` instead means egress is the problem** — the salon is still
+      created, because the notifier fails open. That case is covered by the
+      *"The web rebuild hook FAILED"* alert (`infra/gcp/96-rebuild-hook-alert.sh`),
+      so it will find you rather than waiting to be looked for.
+
+      **Neither line appearing** is the worse outcome, and the alert cannot see
+      it: it means the no-op notifier is wired, so check the serving revision
+      mounts `WEB_DEPLOY_HOOK_URL` and that the boot log has no warning for it.
+
+- [ ] **The salon's public page exists after that build.** `/{slug}` returns 200
+      with the salon's name in the **served HTML**, not only after hydration:
+
+      ```bash
+      curl -s https://myweli.com/THE-SLUG | sed 's/<script[^>]*>.*\?<\/script>//g; s/<[^>]*>/ /g' | tr -s ' ' | head -c 400
+      ```
+
+      If it 404s, the rebuild did not happen or did not include it — trigger a
+      deploy and re-check. This is the failure the whole `dynamicParams` trade
+      accepts, and the rebuild hook is what pays for it.
+
+- [ ] **The landing pages stop being empty.** The commune page for that salon
+      (`/coiffure/abidjan/<commune>`) now lists it. Until the first salon these
+      pages were correct but empty, which is also why their `noindex` was
+      removed on 2026-08-21 — that rule had quietly made the entire site
+      unindexable.
+
+- [ ] **Suspend and restore it once**, in the admin console, and confirm each
+      transition produces its own `site_rebuild sent` line. Creation is the only
+      one the first salon exercises by itself, and suspension is the transition
+      that matters most later: a departed salon whose page keeps serving is a
+      worse failure than a new one whose page is late.
+
+- [ ] **Re-run the real-domain checks with actual content in them.** Every
+      Lighthouse and privacy measurement to date was taken against a site with
+      no salons, and an empty page flatters every number:
+
+      ```bash
+      cd web && npm run check:cwv && npm run check:privacy
+      ```
+
+      These also run daily from `production-checks.yml`, so a regression after
+      this point surfaces on its own.
+
+Design: [design/backend-web-rebuild-hook.md](design/backend-web-rebuild-hook.md).
+
 ## 7. After launch — the working rhythm
 
 1. Branch → PR → CI, exactly as now.
