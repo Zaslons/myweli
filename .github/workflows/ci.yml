@@ -391,16 +391,31 @@ jobs:
       - name: Unit tests
         run: npm test
 
+      - name: Start the stub API
+        run: |
+          node tests/e2e/stub-api.mjs &
+          # **Wait for the port, do not just background and hope.** Playwright's
+          # webServer waits; these jobs used to race it, and the build's own
+          # fetches degrade to EMPTY results rather than failing — which is
+          # exactly how a gate ends up scoring a site with no salons in it.
+          for i in $(seq 1 30); do
+            curl -sf -o /dev/null "http://127.0.0.1:8787/localities" && exit 0
+            sleep 1
+          done
+          echo "::error::the stub API never came up on 8787"; exit 1
+
       - name: Build
         run: npm run build
-        # Explicit, not inherited from a default. `lib/api-base.ts` refuses to
-        # resolve a production build without this, because the build-time
-        # fetches degrade to EMPTY results rather than failing — so a missing
-        # value publishes a site with no salons and no error anywhere. CI has no
-        # backend, so it states localhost deliberately; the guard is about the
-        # value being chosen, not about which value it is.
+        # **Against the stub, not a dead localhost.** This used to point at
+        # http://localhost:8080, where nothing listens in CI, on the reasoning
+        # that the guard was "about the value being chosen, not which value".
+        # That stopped being true: the landing routes now set
+        # `dynamicParams = false` and the legacy redirects are generated from
+        # `/localities` at build, so an unreachable API is no longer a site with
+        # empty lists — it is a site where every landing page 404s. The build
+        # refuses rather than shipping that, which is what caught this.
         env:
-          NEXT_PUBLIC_API_BASE_URL: http://localhost:8080
+          NEXT_PUBLIC_API_BASE_URL: http://127.0.0.1:8787
 
   web-e2e:
     name: Web — e2e (Playwright)
@@ -474,7 +489,17 @@ jobs:
       # Lighthouse was scoring a site with no salons in it. An empty page is
       # faster than a real one, which flatters every number the gate reports.
       - name: Start the stub API
-        run: node tests/e2e/stub-api.mjs &
+        run: |
+          node tests/e2e/stub-api.mjs &
+          # **Wait for the port, do not just background and hope.** Playwright's
+          # webServer waits; these jobs used to race it, and the build's own
+          # fetches degrade to EMPTY results rather than failing — which is
+          # exactly how a gate ends up scoring a site with no salons in it.
+          for i in $(seq 1 30); do
+            curl -sf -o /dev/null "http://127.0.0.1:8787/localities" && exit 0
+            sleep 1
+          done
+          echo "::error::the stub API never came up on 8787"; exit 1
 
       - name: Build
         run: npm run build
