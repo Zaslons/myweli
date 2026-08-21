@@ -276,6 +276,29 @@ These block everything. None is surface-specific.
         authenticated `POST /admin/auth/password`, the seed made explicitly
         bootstrap-only in code **and audible at boot**, and the docs corrected.
         [design/backend-admin-password-change.md](design/backend-admin-password-change.md)
+      - **And then actually rotated — 2026-08-21, through the route.** The
+        mechanism shipping is not the same as the credential moving, and this
+        box would have been a lie until it did. Verified in **both** directions,
+        which is the check the old « rotation » could never have survived:
+
+        ```
+          login with the CURRENT password -> 200   (proved before changing anything)
+          POST /admin/auth/password       -> 204
+          login with the NEW password     -> 200
+          login with the OLD password     -> 401   <- the point
+        ```
+
+        The audit row is exactly what it should be: `admin.password_changed`,
+        actor equal to target, metadata `{"refreshTokensRevoked": true}`, **no
+        bcrypt prefix anywhere in it**, 275 characters end to end. And the boot
+        log carries the notice that made the old no-op visible —
+        `NOTICE: ADMIN_PASSWORD was NOT applied — an admin already exists`.
+
+        The new value was written to Secret Manager **before** the rotation, so
+        a mid-flight failure could not lose it, and version 1 — the 2026-08-06
+        cutover password — is now **disabled**, so a rebuilt database cannot come
+        up holding it. No password passed through a transcript: the script read
+        from Secret Manager and printed status codes only.
       - **One was exercised for real earlier**: `CRON_SECRET` was printed into a
         working transcript on 2026-08-18 and **deleted** rather than rotated,
         because the header it authenticated had just been retired
