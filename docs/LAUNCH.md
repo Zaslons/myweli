@@ -248,7 +248,11 @@ These block everything. None is surface-specific.
         `gitleaks detect --no-git`, which reads the checked-out files and
         **never one historical commit** — so 25 green runs answered a narrower
         question than the box asks. Now scanned with full history
-        (`fetch-depth: 0`, no `--no-git`): **548 commits, no leaks**. Proven to
+        (`fetch-depth: 0`, no `--no-git`): **no leaks**, over a walk containing
+        main's full **470-commit** history. The printed count varies with how
+        many refs the checkout holds — gitleaks walks all of them, so CI said
+        496 and a 16-branch working copy said 548; the coverage is the
+        evidence, not the number. Proven to
         discriminate by committing a fake AWS/GitHub-shaped credential and
         removing it in the next commit — the old form saw nothing wrong with a
         clean HEAD, the new form found it. The probe commits were then dropped

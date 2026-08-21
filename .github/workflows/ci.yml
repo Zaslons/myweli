@@ -612,8 +612,13 @@ jobs:
       # sits in the history forever. Every green run of this job answered a
       # narrower question than its own name implied.
       #
-      # First full-history run, 2026-08-21: 548 commits, no leaks. That is the
-      # evidence the LAUNCH.md secrets box was asking for, and it took 3.6s.
+      # First full-history run, 2026-08-21: no leaks, in under two seconds.
+      #
+      # The commit COUNT it prints varies by checkout and is not a target:
+      # gitleaks walks every ref present, so CI (main + this branch + whatever
+      # else the fetch brought) reported 496 while a working copy with 16 local
+      # branches reported 548. What matters is that main's full history — 470
+      # commits — sits inside both walks, which `--no-git` never did.
       - name: Secret scan (gitleaks, full history)
         run: |
           docker run --rm -v "${{ github.workspace }}:/repo" \
