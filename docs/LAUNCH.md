@@ -783,40 +783,46 @@ checking rather than assuming:
       API latency. It measures the *shape* of the funnel under constraint, not
       production timings. The real-domain walk needs the first real salon, since
       production has zero and steps 3–5 have no page to open.
-- [ ] 404 and error states reachable and correct.
-      **Reachable and correctly statused; NOT correctly served.** A route that
-      matches nothing (`/a/b/c/d/e`) serves the prerendered 404 properly — 307
-      characters of visible text. But `notFound()` called from a route that
-      MATCHED (`/this-does-not-exist` hits `app/[slug]/page.tsx`) makes Next
-      14.2.35 serve `<html id="__next_error__">` with **44 characters of visible
-      text** and the generic title. The real UI arrives only in the RSC payload,
-      so a visitor on a slow connection sees a blank white page until ~232 KB of
-      JS lands — which is exactly the case the "slow phone" item wants probed.
-      **Every existing e2e was green on it**, because all four that assert 404
-      routing drive a JS-enabled browser and observe the hydrated page.
-      **A framework upgrade does NOT fix it, and that is measured.** A minimal
-      reproduction — a root layout, a `not-found.tsx`, and one `[slug]` route
-      calling `notFound()` — behaves identically on **14.2.35, 15.5.23 and
-      16.3.1**: the matched route yields `__next_error__` with a handful of
-      visible characters, while an unmatched route serves the prerendered 404
-      correctly. This is how the App Router works, not a bug awaiting a release,
-      so the migration that was going to fix it would have cost React 19, async
-      `params` across every dynamic route, and changed caching defaults — for
-      nothing.
-      Also tried and did not fix it: a not-found boundary colocated in
-      `app/[slug]/`, and removing `generateStaticParams` entirely.
-      **The only real workaround is to stop the URL matching.** An unmatched
-      route already serves the page correctly, so middleware could rewrite
-      unknown slugs — but middleware would have to know whether a salon exists,
-      which means a per-request lookup and a cache to keep it current. That is a
-      lot of moving parts on an error path that already returns the right status
-      code and is not indexed. Deferred deliberately, and revisit if 404s ever
-      become a route real users take.
-      Tracked by a `test.fail()` in `web/tests/e2e/served-html.spec.ts`, which
-      passes while the defect exists and **fails the day it stops existing**.
-      Its assertion strips `<script>` first — « Page introuvable » IS in the raw
-      bytes, inside the RSC payload, so a plain substring check reports the
-      defect as fixed. The first version of that test did exactly that.
+- [x] **404 and error states reachable and correct** (2026-08-21) — and the
+      mechanism is now measured rather than guessed. Every `notFound()` path
+      serves the real 404 document, **311 visible characters**, where five of
+      them served a 44-character `__next_error__` shell:
+
+      | path | before | after |
+      |---|---|---|
+      | a route matching nothing (control) | real | real |
+      | `/[slug]` unknown | shell | **real** |
+      | `/[slug]` a suspended salon | shell | **real** |
+      | `/[slug]/[city]` | shell | **real** |
+      | `/[slug]/[city]/[area]` | shell | **real** |
+      | `/[slug]/reserver` | shell (never measured before) | **real** |
+
+      **The mechanism.** `notFound()` produces the real page only when it
+      happens during PRERENDERING — and not even always then: a static route
+      whose whole body is `notFound()` prerenders the shell too. So the fix is
+      to make an unknown param never enter the route: `dynamicParams = false`,
+      which hands it to Next's already-working unmatched path. Ruled out by
+      measurement, not assumption: a framework upgrade (identical on 14.2.35 /
+      15.5.23 / 16.3.1), a colocated `not-found.tsx` (its marker reaches the RSC
+      payload and nothing else), `force-dynamic` (`/reserver` already had it and
+      still shelled), and a segment `layout.tsx` carrying the bound (does not
+      gate a dynamically-rendered child).
+
+      **Two things closing the params broke, both caught and fixed.** Legacy
+      flat landings 308 from inside `[slug]`, and a PRERENDERED redirect answers
+      308 with **no `Location` header at all** — the redirect lives in the RSC
+      payload, the same defect one level up. They moved to `next.config.mjs`,
+      where they are real HTTP redirects resolved before routing. And
+      `/[slug]/reserver` reads `searchParams`, which forces a per-request render
+      and defeats the bound; giving that up would have cost the funnel its
+      server-rendered service list, so it hands its 404 one segment up instead.
+
+      **The cost, stated:** the slug set is fixed at build, so admin
+      suspend/restore and salon creation now ask Vercel to rebuild
+      (`WEB_DEPLOY_HOOK_URL`, absent by default — see DEPLOYMENT.md for the
+      three owner steps; until then a new salon's page waits for the next
+      deploy).
+
 - [x] Analytics decision made (we currently have none — deliberate or not).
       **Decided 2026-08-20: none, deliberately.** No Google Analytics, no
       Plausible, no PostHog, no Vercel Analytics — nothing. Verified in the

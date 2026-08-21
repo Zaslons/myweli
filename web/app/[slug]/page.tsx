@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { notFound, permanentRedirect } from 'next/navigation';
+import { notFound } from 'next/navigation';
 import {
   TaxonomyLandingView,
   taxonomyMetadata,
@@ -17,6 +17,7 @@ import { parseFlatLanding } from '../../lib/landing';
 import { parseFlatServiceLanding } from '../../lib/service-landing';
 import { resolveTaxonomyRoot, taxonomyRootSlugs } from '../../lib/taxonomy';
 
+
 // **300, not 3600, since PR1d.** Decision C closes the API to a salon that is
 // `draft` or `suspended`, but an already-generated page keeps serving from the
 // ISR cache until its window expires — T51's promise defeated by a stale file.
@@ -28,7 +29,15 @@ import { resolveTaxonomyRoot, taxonomyRootSlugs } from '../../lib/taxonomy';
 // collapses 5xx and network failures into `null` too, so a 30-second backend
 // blip cached a 404 for a LIVE salon for the whole window (§9).
 export const revalidate = 300;
-export const dynamicParams = true;
+// **false, and that is the 404 fix.** An unknown slug then never enters this
+// route, so Next serves the prerendered 404 — 311 characters of real HTML —
+// instead of the 44-character `__next_error__` shell a request-time
+// `notFound()` produces. Measured; see served-html.spec.ts for what was ruled
+// out.
+//
+// It also means a salon approved after the last build is not reachable until
+// the next one, which is why admin KYC approval fires a rebuild.
+export const dynamicParams = false;
 
 /// Single-segment space (multi-pays MP3): taxonomy ROOT (/coiffure, /tresses
 /// — safe first: the backend reserves these slugs, no salon can own one) →
@@ -42,11 +51,6 @@ export async function generateStaticParams() {
   }));
 }
 
-/// The nested path a LEGACY flat slug 308s to, or null.
-async function flatRedirectTarget(slug: string): Promise<string | null> {
-  const tree = await getLocalityTree();
-  return parseFlatLanding(slug, tree) ?? parseFlatServiceLanding(slug, tree);
-}
 
 export async function generateMetadata({
   params,
@@ -65,9 +69,6 @@ export async function generateMetadata({
       params.slug,
       countryName(tree, provider.countryCode),
     );
-  }
-  if (await flatRedirectTarget(params.slug)) {
-    return { robots: { index: false, follow: true } };
   }
   return { title: 'Page introuvable' };
 }
@@ -95,8 +96,8 @@ export default async function SlugPage({
     );
   }
 
-  const target = await flatRedirectTarget(params.slug);
-  if (target) permanentRedirect(target);
-
+  // Unreachable with the params closed — an unlisted slug never gets here, and
+  // the legacy flat landings now 308 from `next.config.mjs` before routing.
+  // Kept as a belt-and-braces refusal rather than a silent fallthrough.
   notFound();
 }

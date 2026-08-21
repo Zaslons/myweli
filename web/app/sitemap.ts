@@ -9,6 +9,10 @@ import { buildTaxonomyPath } from '../lib/landing';
 import { LEGAL_ROUTES } from '../lib/legal';
 import { siteUrl } from '../lib/seo/jsonld';
 import { taxonomyRootSlugs } from '../lib/taxonomy';
+import {
+  taxonomyAreaParams,
+  taxonomyCityParams,
+} from '../lib/taxonomyParams';
 
 export const revalidate = 3600;
 
@@ -61,12 +65,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // The tree knows every commune whether or not a salon has opened there, and a
   // landing page for an empty commune is exactly the page a crawler should find
   // first — it is how the first salon in that commune gets discovered.
-  const cities = tree.countries.flatMap((c) => c.cities.map((x) => x.slug));
-  const cityAreas = tree.countries.flatMap((c) =>
-    c.cities.flatMap((city) =>
-      (city.areas ?? []).map((area) => [city.slug, area.slug] as const),
-    ),
-  );
+  // **The SAME derivation the two landing routes prebuild from** — see
+  // lib/taxonomyParams.ts. Until 2026-08-21 each computed its own: the sitemap
+  // read the tree (fixed on 2026-08-20) while `generateStaticParams` still
+  // asked the catalogue, so the sitemap advertised 187 URLs the build never
+  // prebuilt. Sharing it means they cannot drift apart again — and now that
+  // both routes set `dynamicParams = false`, a URL listed here that this
+  // function did not produce would be a 404 in the sitemap.
+  const cityParams = taxonomyCityParams(tree);
+  const areaParams = taxonomyAreaParams(tree);
   for (const root of taxonomyRootSlugs()) {
     entries.push({
       url: `${siteUrl}${buildTaxonomyPath(root)}`,
@@ -74,7 +81,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: 'weekly',
       priority: 0.5,
     });
-    for (const city of cities) {
+    for (const { city } of cityParams.filter((p) => p.slug === root)) {
       entries.push({
         url: `${siteUrl}${buildTaxonomyPath(root, city)}`,
         lastModified,
@@ -82,7 +89,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         priority: 0.5,
       });
     }
-    for (const [city, area] of cityAreas) {
+    for (const { city, area } of areaParams.filter((p) => p.slug === root)) {
       entries.push({
         url: `${siteUrl}${buildTaxonomyPath(root, city, area)}`,
         lastModified,

@@ -3,6 +3,7 @@ import 'auth/provider_auth_repository.dart';
 import 'localities/localities_repository.dart';
 import 'localities/localities_service.dart';
 import 'providers_repository.dart';
+import 'site/site_rebuild_notifier.dart';
 import 'subscription/salon_subscription_service.dart';
 
 /// Salon lifecycle (docs/design/pro-salon-lifecycle.md): every pro account
@@ -15,7 +16,9 @@ class SalonProvisioningService {
     this._accounts,
     this._members, {
     SalonSubscriptionService? subscriptions,
-  }) : _subscriptions = subscriptions;
+    SiteRebuildNotifier? rebuild,
+  }) : _subscriptions = subscriptions,
+       _rebuild = rebuild ?? NoopSiteRebuildNotifier();
 
   final ProvidersRepository _providers;
   final ProviderAuthRepository _accounts;
@@ -24,6 +27,10 @@ class SalonProvisioningService {
   /// The offer gate (pricing pivot): publishing requires a live offer.
   /// Nullable only for legacy unit tests; production wiring always passes it.
   final SalonSubscriptionService? _subscriptions;
+
+  /// A new salon joins the set the web prebuilds (`dynamicParams = false`);
+  /// without a rebuild its public page 404s until the next deploy.
+  final SiteRebuildNotifier _rebuild;
 
   /// Upper bound on a salon's display name — the same two call sites as
   /// [businessTypes], and for the same reason: one source of truth.
@@ -85,6 +92,8 @@ class SalonProvisioningService {
       address: account.address,
     );
     final id = salon['id'] as String;
+    // The listable set just grew, and the web prebuilds it.
+    await _rebuild.requestRebuild('salon.created');
     if (market != null) {
       await _providers.updateProfile(id, market.providerChanges);
     }

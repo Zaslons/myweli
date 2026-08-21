@@ -2,6 +2,7 @@ import '../auth/provider_auth_repository.dart';
 import '../localities/localities_service.dart';
 import '../providers_repository.dart';
 import '../salon_provisioning_service.dart';
+import '../site/site_rebuild_notifier.dart';
 import '../subscription/salon_subscription_service.dart';
 import 'membership_repository.dart';
 import 'membership_service.dart';
@@ -18,14 +19,19 @@ class SalonDirectoryService {
     this._memberService,
     this._providers,
     this._subscriptions,
-    this._accounts,
-  );
+    this._accounts, {
+    SiteRebuildNotifier? rebuild,
+  }) : _rebuild = rebuild ?? NoopSiteRebuildNotifier();
 
   final MembershipRepository _members;
   final MembershipService _memberService;
   final ProvidersRepository _providers;
   final SalonSubscriptionService _subscriptions;
   final ProviderAuthRepository _accounts;
+
+  /// A new salon joins the set the web prebuilds; without a rebuild its public
+  /// page 404s until the next deploy.
+  final SiteRebuildNotifier _rebuild;
 
   /// Anti-abuse bound on « Ajouter un salon » (threat T55): no legitimate
   /// pre-launch network needs more; raise deliberately when one does.
@@ -141,6 +147,8 @@ class SalonDirectoryService {
       address: where,
     );
     final id = salon['id'] as String;
+    // The listable set just grew, and the web prebuilds it.
+    await _rebuild.requestRebuild('salon.created');
     // Multi-pays MP1: the route-validated locality pick stamps the derived
     // market facts (commune/city/timezone/currency — threat T57).
     if (market != null) {
