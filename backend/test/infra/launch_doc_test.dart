@@ -190,7 +190,9 @@ void main() {
     /// nine contexts: `monitor-alive` — the dead-man's switch — was added in
     /// #488, after protection was configured in #482, and nothing reconciled
     /// them. It ran, it passed, and it could not block a merge, which is the
-    /// one thing it exists to do.
+    /// one thing it exists to do. The tenth context was added the same day,
+    /// once a sweep of LAUNCH.md turned the gap up; this pin is what stops the
+    /// ELEVENTH job from repeating it.
     ///
     /// A test cannot read branch protection (that needs a token CI does not
     /// have here), so it pins the input instead: change this list and you are
