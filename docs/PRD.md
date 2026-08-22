@@ -413,7 +413,7 @@ Dev / Staging / Prod. Feature flags for phased rollout and commune-by-commune la
 
 ### 9.7 Favorites, notifications, retention
 
-- **FR-FAV-001 [V1]** Add/remove favorites; favorites map view; deep-link focus. *(exists: `favorites/`)*
+- **FR-FAV-001 [V1]** Add/remove favorites; favorites map view; deep-link focus. *(the map IS the view: `screens/map/map_screen.dart` at `/carte`, heart per marker, `?providerId=` focus. The pointer said `favorites/` — a list screen that was registered on no route and reachable from nowhere, deleted 2026-08-22.)*
 - **FR-NOTIF-001 [V1]** Push (FCM) + SMS fallback + WhatsApp for: booking confirmed, deposit received, reminder (24h & 2h), provider accepted/declined, reschedule, cancellation, refund. *(✅ built — Twilio WhatsApp/SMS adapter + OTP-over-SMS + booking lifecycle events + 24h/2h reminder scheduler + FCM push; real BSP creds/templates are the ops step. ROADMAP §1.8.)*
 - **FR-NOTIF-002 [V1]** In-app notification center. *(✅ done — backend feed + write-on-events + `ApiNotificationService`.)*
 - **FR-NOTIF-003 [V2]** **Rebook lifecycle reminder** — "Il y a 6 semaines depuis vos dernières tresses chez Beauté Divine — réserver à nouveau ?" (single biggest repeat-booking driver).

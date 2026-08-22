@@ -17,6 +17,7 @@ import '../../providers/provider_provider.dart';
 import '../../widgets/booking/appointment_card.dart';
 import '../../widgets/common/app_button.dart';
 import '../../widgets/common/app_snack_bar.dart';
+import '../../widgets/common/consumer_bottom_nav.dart';
 import '../../widgets/common/empty_state.dart';
 import '../../widgets/common/inline_feedback.dart';
 
@@ -113,25 +114,8 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
           );
         },
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: 2,
-        onTap: (index) {
-          if (index == 0) context.go('/home');
-          if (index == 1) context.push('/favorites');
-          if (index == 3) context.push('/notifications');
-        },
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Accueil'),
-          BottomNavigationBarItem(icon: Icon(Icons.map), label: 'Carte'),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.calendar_today),
-            label: 'Rendez-vous',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.notifications_none),
-            label: 'Actu',
-          ),
-        ],
+      bottomNavigationBar: const ConsumerBottomNav(
+        current: ConsumerTab.rendezVous,
       ),
     );
   }
