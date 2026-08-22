@@ -177,3 +177,25 @@ test('a phone field really is exercised, and its flag is ours', async ({ page })
   const res = await page.request.get(new URL(src!, page.url()).toString());
   expect(res.status(), 'the flag 404s — has the prebuild copy run?').toBe(200);
 });
+
+/// The same headers, **on production**. A `next.config.mjs` header can be
+/// correct in source and absent from the deployment, and nothing else here would
+/// notice — the same gap that let a privacy policy contradict its own bundle.
+test('production sends the security headers', async ({ request }) => {
+  const h = (await request.get('/')).headers();
+  expect(h['x-frame-options']).toBe('DENY');
+  expect(h['x-content-type-options']).toBe('nosniff');
+  expect(h['referrer-policy']).toBe('strict-origin-when-cross-origin');
+
+  // Vercel already sends HSTS; we deliberately do not re-declare it, because
+  // re-declaring risks weakening it. Assert it is there all the same — the
+  // promise is that the site has it, not that we set it.
+  expect(h['strict-transport-security'], 'HSTS disappeared').toBeTruthy();
+
+  const csp = h['content-security-policy-report-only'];
+  expect(csp, 'the CSP is absent from the deployment').toBeTruthy();
+  expect(csp).toContain('*.r2.cloudflarestorage.com');
+  expect(csp).toContain('worker-src blob:');
+  // Violations must reach a person, or Report-Only is a policy nobody reads.
+  expect(csp, 'no report-uri — violations would go nowhere').toContain('report-uri');
+});

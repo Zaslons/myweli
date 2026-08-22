@@ -282,3 +282,35 @@ test('the phone field asks OUR origin for its flag', async ({ page }) => {
     expect(new URL(u).hostname, 'a flag came from somewhere else').toBe('127.0.0.1');
   }
 });
+
+/// **The headers as a browser receives them.** `next.config.mjs` can be right in
+/// source and absent from the response for a dozen reasons — a `headers()` that
+/// throws, a `source` pattern that misses, a route served by the routing layer
+/// before the page. This file's whole purpose is what is actually on the wire.
+test('the security headers are on the response', async ({ request }) => {
+  const h = (await request.get('/')).headers();
+
+  expect(h['x-frame-options']).toBe('DENY');
+  expect(h['x-content-type-options']).toBe('nosniff');
+  expect(h['referrer-policy']).toBe('strict-origin-when-cross-origin');
+
+  const csp = h['content-security-policy-report-only'];
+  expect(csp, 'no CSP at all — headers() is not reaching the response').toBeTruthy();
+  // Report-Only, deliberately, until real violations say enforcing is safe.
+  expect(h['content-security-policy'], 'enforcing before the reports were read').toBeUndefined();
+
+  // Spot-check the three whose omission breaks production silently, so this
+  // fails on a policy that shipped without them rather than only on no policy.
+  expect(csp).toContain('worker-src blob:');
+  expect(csp).toContain('*.cartocdn.com');
+  expect(csp).toContain('*.r2.cloudflarestorage.com');
+  expect(csp).toContain("frame-ancestors 'none'");
+});
+
+test('the headers are on a 404 too, not only on pages that succeed', async ({ request }) => {
+  // A `source: '/:path*'` rule is easy to get subtly wrong, and an error page
+  // is exactly where clickjacking protection still matters.
+  const h = (await request.get('/this-does-not-exist')).headers();
+  expect(h['x-frame-options']).toBe('DENY');
+  expect(h['content-security-policy-report-only']).toBeTruthy();
+});

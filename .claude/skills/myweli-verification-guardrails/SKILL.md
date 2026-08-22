@@ -313,6 +313,46 @@ to lower the bar; it is the most likely place to need it.
 
 ---
 
+## 14. Audit the step before starting the next one
+
+Not at the end. **Between.**
+
+> **The incident.** A four-phase plan was reported closed three times and was
+> closed none of them. Each audit found a live, user-facing defect **introduced
+> by the previous round's fix**. The discovery rate did not fall between rounds
+> — what changed the outcome was auditing at all.
+
+**Scale it to the change; do not ritualise it.** A ritual nobody can afford is a
+rule nobody follows.
+
+| the change | the audit |
+|---|---|
+| one guard or one fix | probe the deployed thing; mutate the new guard and watch it fail |
+| a step of a plan | re-read that step's own deliverables against production, with a control |
+| a phase, or anything you are about to call "done" | the adversarial pass — separate eyes, told to refute |
+
+**What the audit is looking for is not "did I write the code".** It is:
+
+- does the new guard fail on the defect it was written for, or only on a
+  simpler one nearby?
+- is any claim in the commit message an inference wearing an observation's
+  label?
+- what did fixing this put *out of reach* of an existing guard? (Self-hosting a
+  vendor asset moved the next failure to our own origin, where a third-party
+  allowlist cannot see it.)
+
+> **Two audits in this repo each produced a finding about the guard just
+> written**, not about the code: a coverage check blind to the one origin that
+> is never a source literal, and a read-only assertion matching a string inside
+> the comment that explained the footgun. Neither was findable by re-reading the
+> diff.
+
+**Rule:** finish a step, audit it, *then* start the next. On this project's
+evidence the audit is not overhead on the work — it is the part that made the
+work true.
+
+---
+
 ## The one-line version
 
 **Before you say it works: name the observation that would prove you wrong, and
