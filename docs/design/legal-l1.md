@@ -142,6 +142,25 @@ confirmed it. Past 90 days the daily `production-checks` run fails and opens the
 tracking issue. It is a monitor, never a merge gate — a suite that turns red on
 a date fails a future PR at random and looks like that PR's fault.
 
+Three things join it, because a guard that only reads the repository can only
+ever be half of this. `web/tool/check-registration-claim.spec.ts` fetches the
+LIVE mentions légales and privacy policy on the same cron and fails when what
+myweli.com publishes disagrees with the manifest — `web/` has no deploy
+workflow, so production is whatever Vercel last promoted, and a rollback would
+otherwise restore the old wording with every check green.
+`infra/ci/99-verify-monitor-alive.mjs` runs in **CI** and fails a build when
+that cron has been silent for three days: CI is the only thing that reliably
+runs when a schedule does not, and GitHub disables schedules after 60 days of
+repository inactivity. And each surface records a `publishedAnchor` — the
+wording that REPLACES the pending claim — so once registered the gate asserts
+the RCCM is **present**, not merely that the old sentence is gone. Without it,
+deleting the number the day after registration passed everything.
+
+The same PR must move `LEGAL_UPDATED_AT` (held to `legalUpdatedAtWhenPending` in
+both directions, so the snapshot cannot go stale) and put the RCCM into
+`organizationJsonLd()`, which is published site-wide and carries no legal
+identity at all while there is none to publish.
+
 ## 5. Architecture & patterns
 
 ### Web

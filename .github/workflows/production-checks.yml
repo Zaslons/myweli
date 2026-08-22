@@ -85,6 +85,33 @@ jobs:
         env:
           PRIVACY_URL: ${{ github.event.inputs.target || 'https://myweli.com' }}
 
+  legal:
+    name: Real domain — the registration claim the site publishes
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      # **The only check in this repo that looks at the live legal pages.**
+      # Everything else reads the repository: the merge gate holds the manifest
+      # to the source, the attestation job asks whether anyone re-confirmed the
+      # fact. None of them can see myweli.com — and `web/` has no deploy
+      # workflow, so production is whatever Vercel last promoted. A rollback to
+      # a pre-registration deployment would restore the old wording to the live
+      # mentions légales with the entire suite green.
+      - name: The published claim matches the manifest
+        run: npm run check:legal
+        env:
+          PRIVACY_URL: ${{ github.event.inputs.target || 'https://myweli.com' }}
+
   retention:
     name: Real domain — the 30-day log retention we promise
     runs-on: ubuntu-latest
@@ -181,7 +208,7 @@ jobs:
   # failures is one thread and not seven.
   report:
     name: Say so, if any check failed
-    needs: [cwv, privacy, retention, attestation]
+    needs: [cwv, privacy, legal, retention, attestation]
     if: failure()
     runs-on: ubuntu-latest
     steps:
@@ -196,6 +223,7 @@ jobs:
           RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           CWV: ${{ needs.cwv.result }}
           PRIVACY: ${{ needs.privacy.result }}
+          LEGAL: ${{ needs.legal.result }}
           RETENTION: ${{ needs.retention.result }}
           ATTESTATION: ${{ needs.attestation.result }}
         run: |
@@ -214,19 +242,23 @@ jobs:
           BODY=$(printf '%s\n' \
             'The scheduled real-domain checks failed.' \
             '' \
-            "CWV: ${CWV} · privacy: ${PRIVACY} · retention: ${RETENTION} · attestation: ${ATTESTATION}" \
+            "CWV: ${CWV} · privacy: ${PRIVACY} · legal: ${LEGAL} · retention: ${RETENTION} · attestation: ${ATTESTATION}" \
             '' \
             "${RUN}" \
             '' \
-            'Three of these run against myweli.com — not a preview, not a' \
-            'stub — so if CWV, privacy or retention failed, production is' \
-            '**already** wrong. There is no merge to block, which is why this' \
-            'is a monitor and not a gate.' \
+            'Four of these run against myweli.com — not a preview, not a' \
+            'stub — so if CWV, privacy, legal or retention failed, production' \
+            'is **already** wrong. There is no merge to block, which is why' \
+            'this is a monitor and not a gate.' \
             '' \
             'The CWV job asserts the docs/WEB.md §7 budgets. The privacy job' \
             'asserts that no page reaches an undisclosed third party before the' \
             'visitor chooses one. The retention job asserts the live log bucket' \
-            'still matches the 30 days the privacy policy promises users.' \
+            'still matches the 30 days the privacy policy promises users. The' \
+            'legal job asserts the mentions légales and the privacy policy on' \
+            'the live site still publish the registration status the manifest' \
+            'records — a red row there usually means Vercel is serving an older' \
+            'deployment, since web/ has no deploy workflow of its own.' \
             '' \
             '**The attestation job is different, and a failure there does NOT' \
             'mean production is wrong.** It asserts that somebody has confirmed' \

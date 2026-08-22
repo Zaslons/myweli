@@ -15,6 +15,7 @@
     "gen:api": "openapi-typescript ../docs/api/openapi.yaml -o lib/api/schema.ts",
     "gen:tokens": "node scripts/gen-tokens.mjs",
     "check:privacy": "playwright test tool/check-privacy-promise.spec.ts --config=tool/privacy.config.ts",
+    "check:legal": "playwright test tool/check-registration-claim.spec.ts --config=tool/privacy.config.ts",
     "check:cwv": "lhci autorun --config=tool/lighthouse-production.json",
     "prebuild": "node tool/copy-flags.mjs"
   },

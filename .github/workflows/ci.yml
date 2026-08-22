@@ -628,6 +628,43 @@ jobs:
           }
           echo "Within budget."
 
+  # **The one job here allowed to fail for something that is not in your diff.**
+  #
+  # `production-checks.yml` is where every claim this repo cannot verify at
+  # merge time goes to be watched. It is a monitor, and a monitor that stops
+  # firing is indistinguishable from a monitor with nothing to report — silence
+  # is the same shape as health. GitHub disables scheduled workflows after 60
+  # days of repository inactivity, and nothing would have said so.
+  #
+  # CI is the only thing that reliably runs when a cron does not, which is why
+  # this lives here and blocks. A dead monitor is a broken repository, not a
+  # date passing; three days of silence on a daily job means it is actually
+  # broken, and the failure message names the button to press.
+  monitor-alive:
+    name: The production monitor is still firing
+    runs-on: ubuntu-latest
+    # Job-level, following deploy-backend.yml, so the workflow's top-level
+    # `contents: read` is not widened for the other nine jobs. Nothing else in
+    # this repository requests `actions: read`.
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      # `event=schedule` is the whole point, and it is not defensive
+      # programming: on the day this was written production-checks.yml had four
+      # runs, three of them manual, so an unfiltered query would have reported a
+      # healthy schedule on the strength of someone clicking "Run workflow".
+      # Measured against deploy-backend.yml the same day: 59 runs, 0 scheduled.
+      - name: production-checks.yml has run on its schedule recently
+        working-directory: .
+        run: node infra/ci/99-verify-monitor-alive.mjs
+        env:
+          GH_REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   security:
     name: Security — secrets & dependencies
     runs-on: ubuntu-latest

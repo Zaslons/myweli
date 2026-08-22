@@ -63,6 +63,24 @@
   "attestedBy": "owner, in conversation — « for now the company is not registered »",
   "attestationMaxAgeDays": 90,
 
+  "$legalUpdatedAt_comment": [
+    "What web/lib/legal.ts's LEGAL_UPDATED_AT reads while the claim is pending.",
+    "",
+    "The largest legal-copy change this product will ever make is the one case",
+    "the date discipline did not cover: legal.ts carries a 30-line docstring",
+    "about a substantive rewrite that shipped WITHOUT bumping the date, and",
+    "calls that the version a regulator reads as concealment. Registration is",
+    "exactly that change, and nothing required the bump.",
+    "",
+    "Held in two directions, so the snapshot cannot go stale: while pending, the",
+    "gate requires this to EQUAL the constant — so anyone bumping the date for",
+    "an unrelated amendment bumps this line too, in the same PR. Once registered",
+    "it must DIFFER, which is the bump this exists to force. Without the first",
+    "half the second is worthless: a date already moved for other reasons would",
+    "satisfy a later-than test while the registration PR changed nothing."
+  ],
+  "legalUpdatedAtWhenPending": "2026-08-22",
+
   "surfaces": [
     {
       "file": "web/lib/legal.ts",
@@ -80,13 +98,13 @@
       "file": "web/app/mentions-legales/page.tsx",
       "anchor": "Immatriculation en cours.",
       "what": "the Callout — hard-coded, NOT read from COMPANY",
-      "atRegistration": "delete the Callout"
+      "atRegistration": "replace the Callout with the published facts — deleting it is not enough, the gate also requires the new wording recorded in publishedAnchor to be PRESENT"
     },
     {
       "file": "web/app/mentions-legales/page.tsx",
       "anchor": "l’immatriculation sera effective",
       "what": "the Callout's second sentence — the promise to publish later",
-      "atRegistration": "delete the Callout"
+      "atRegistration": "replace the Callout with the published facts — deleting it is not enough, the gate also requires the new wording recorded in publishedAnchor to be PRESENT"
     },
     {
       "file": "web/app/mentions-legales/page.tsx",
@@ -131,7 +149,14 @@
       "to be ABSENT once registered, and this one is the thing being published.",
       "Add the new sentences to `allowedAnchors` in the SAME PR that rewrites the",
       "pages. The failing test says so in its own message, so nobody has to have",
-      "read this paragraph first."
+      "read this paragraph first.",
+      "",
+      "AND THAT INCLUDES THE JSON-LD. Registration also puts the RCCM into",
+      "`organizationJsonLd()` in web/lib/seo/jsonld.ts, which is under `roots` —",
+      "so that line is a scan hit too, and it is not prose anyone would think of",
+      "as a « sentence ». It goes in `allowedAnchors` like the rest, and it has",
+      "to clear the same shape floor: quote the whole property, not the bare",
+      "number."
     ],
     "roots": ["web/app", "web/lib", "web/components"],
     "pattern": "immatricul|RCCM",
