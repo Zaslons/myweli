@@ -1,0 +1,51 @@
+{
+  "$comment": [
+    "The Cloud Logging retention this codebase PUBLISHES A PROMISE ABOUT.",
+    "",
+    "web/app/politique-confidentialite/page.tsx tells users, in French and in",
+    "public: « Ces journaux ... sont supprimés automatiquement au bout de 30",
+    "jours. » That is a representation to users and to the app stores, not",
+    "documentation. Until 2026-08-22 the number behind it existed nowhere in this",
+    "repo — `_Default` appeared in exactly one prose sentence in ROADMAP.md — so",
+    "raising the bucket to 400 days would have left every check green while the",
+    "published sentence quietly became false.",
+    "",
+    "Read in two directions, which is the point:",
+    "  backend/test/infra/log_retention_test.dart  manifest <-> the published page",
+    "                                              (offline, runs on every push)",
+    "  infra/gcp/97-verify-log-retention.sh        manifest <-> the live bucket",
+    "                                              (read-only, runs on the cron)",
+    "Neither alone is enough: the test cannot see GCP, and the script cannot see",
+    "whether anyone changed the sentence.",
+    "",
+    "A PROPERTY, NOT A SNAPSHOT. `maxRetentionDays` is a CEILING, because the",
+    "promise is a maximum — 'deleted after 30 days'. A bucket set to 7 keeps the",
+    "promise (data is gone sooner); a bucket set to 400 breaks it. A checker that",
+    "demanded exact equality would fail on a change that is not a defect, and",
+    "would be turned off within a month.",
+    "",
+    "NOT LOCKED, DELIBERATELY. GCP bucket locking is irreversible: there is no",
+    "--unlock, and the `unless it is empty` escape does not apply to _Default,",
+    "which Cloud Run streams into continuously. It could not be established that",
+    "locking even blocks retention INCREASES — the only direction that breaks this",
+    "promise — so it is an act that cannot be undone, cannot be rehearsed, and",
+    "whose protective effect is unverified. Watched drift is the honest trade.",
+    "",
+    "NOTE FOR THE CHECKER: `describe` omits `locked` entirely when it is false.",
+    "The control is _Required, which GCP always locks and which does print",
+    "`locked: true`. Comparing a shell variable against the string 'false' passes",
+    "for the wrong reason."
+  ],
+  "buckets": {
+    "_Default": {
+      "location": "global",
+      "maxRetentionDays": 30,
+      "mustNotBeLocked": true,
+      "backsPublishedClaim": {
+        "page": "web/app/politique-confidentialite/page.tsx",
+        "text": "au bout de 30 jours",
+        "why": "the retention the privacy policy states to users"
+      }
+    }
+  }
+}
