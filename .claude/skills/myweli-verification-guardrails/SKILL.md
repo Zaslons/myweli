@@ -70,6 +70,18 @@ red, you have not written a check — you have written a comment that runs.
 > - Two tests matched strings that appeared only in **comments** — one of them
 >   the comment explaining the defect it was meant to catch. Strip comments
 >   before matching.
+> - **And a comment is not the only thing that is not code.** A guard on
+>   `release_build.sh` asserted the script passes `--target`; deleting the flag
+>   from the actual invocation left
+>   `echo "→ flutter build ipa … --target $ENTRY"` behind, so the grep found it
+>   in a sentence *about* the command and **the original defect passed the guard
+>   written for it**. A second assertion, requiring the target be a variable,
+>   was rescued by the same line. And `stripComments` is JavaScript-shaped, so
+>   it does not touch YAML `#`: an assertion that `ci.yml` grants
+>   `actions: read` was satisfied by the comment *above* the permissions block,
+>   and stayed green with the grant deleted. Strip comments, progress messages
+>   and the host language's own comment syntax; then ask what else in the file
+>   is prose rather than instruction.
 > - A version gate returned "allow" on the only machine that could run its
 >   tests: it read `Platform.isAndroid`, and a test VM is neither Android nor
 >   iOS. Every test exercised an early return.
@@ -350,6 +362,14 @@ rule nobody follows.
 **Rule:** finish a step, audit it, *then* start the next. On this project's
 evidence the audit is not overhead on the work — it is the part that made the
 work true.
+
+**It is also a standing instruction, not only a guardrail.** The owner asked on
+2026-08-22 for this to hold for every task, so it lives in memory
+(`audit-after-every-task`) as well as here: this file loads when a claim is
+about to be made, and memory loads every session. The evidence for keeping both
+is in this file's own history — the first attempt to record this rule went into
+a plan document, a commit message three PRs later reported it "encoded", and a
+`grep` found it nowhere.
 
 ---
 
