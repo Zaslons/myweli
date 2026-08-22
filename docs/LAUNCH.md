@@ -359,6 +359,38 @@ These block everything. None is surface-specific.
       it cannot pass vacuously, and was **watched failing against production**
       before the fix shipped. The French copy review is still owed and now has a
       home: §8.1.
+
+      **A THIRD time, and this one was the fix's own doing (2026-08-21).** The
+      remedy for the `g_state` incident above was written as a *rewrite of the
+      sentence* rather than a change to the software — which inverts this plan's
+      opening instruction, and did not even work: the reworded page still
+      justified having no consent banner with « tout ce qui précède est
+      strictement nécessaire », while the Google script kept loading at mount.
+      Measured on production, zero interaction, with `/` as the control:
+      `/connexion` fetched `accounts.google.com` and `fonts.gstatic.com` and
+      carried `g_state`.
+
+      **Fixed in the software this time.** `GoogleSignInButton` renders our own
+      facade at first paint and loads GSI only on the visitor's tap; verified
+      live afterwards — every sign-in route reports no third-party host and no
+      cookie on a cold load, with the tap as the control proving the button is
+      not merely dead. Two follow-ons came out of it: the shared `loadScript`
+      helper **hung on the second tap after a failed load**, which would have
+      left the sign-in card looking alive and doing nothing (fixed, with the
+      shipped bug mutated back and watched fail); and `/pro/inscription` was
+      fetching a flag SVG from **GitHub Pages** on load — an undisclosed third
+      party — now self-hosted.
+
+      **And a fourth, 2026-08-22, found by audit rather than by the page
+      changing:** the cookies section named Google as « la seule chose qui ne
+      vienne pas de nous », which was never true — « Continuer avec Apple »
+      loads a script from `appleid.cdn-apple.com` on the same terms. Apple is
+      now described rather than counted.
+
+      **The pattern is the point.** Four incidents, all on the same page, none
+      found by a user and none by the guard written after the previous one. What
+      caught the third and fourth was auditing the deployed artifact against the
+      plan rather than reading the source.
 - [ ] **A support channel exists** and someone is behind it (WhatsApp per the
       product's context).
 - [x] **Rate limiting** verified on the auth and booking routes against a real

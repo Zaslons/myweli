@@ -86,6 +86,11 @@ export function legalRoute(slug: string): LegalRoute {
 /// build time and a page rendered on request must not disagree — and because a
 /// legal document's date is a claim, not a timestamp.
 ///
+/// **Bumped 2026-08-22**: the cookies section named Google as « la seule chose
+/// qui ne vienne pas de nous », which was not true — « Continuer avec Apple »
+/// loads a script from `appleid.cdn-apple.com` on the same terms. Apple is now
+/// described rather than counted. Found by an audit, not by the page changing.
+///
 /// **Bumped 2026-08-21**: the cookies section now describes a page that only
 /// contacts Google once the visitor chooses Google. It also repairs a breach of
 /// the rule below — the 2026-08-20 rewrite of that same section (g_state named,
@@ -103,8 +108,8 @@ export function legalRoute(slug: string): LegalRoute {
 /// policy whose substance moved while its date stood still is the version a
 /// regulator reads as concealment.
 export const LEGAL_UPDATED_AT = {
-  iso: '2026-08-21',
-  label: '21 août 2026',
+  iso: '2026-08-22',
+  label: '22 août 2026',
 } as const;
 
 export const COMPANY = {

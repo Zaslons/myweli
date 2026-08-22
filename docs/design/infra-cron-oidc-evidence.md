@@ -374,11 +374,13 @@ parameter** that the code had already stopped accepting.
 
 `CRON_SECRET` was then deleted from Secret Manager, because the production value
 was printed in plain text while stripping the header from the jobs (§8.1) and
-should be considered disclosed. `STAGING_CRON_SECRET` remains — unmounted and
+should be considered disclosed. `STAGING_CRON_SECRET` was **deleted 2026-08-22**
+— it had been left as "optional, inert either way", and an audit pointed out
+that the launch plan said *delete*, not *document*. Unmounted and
 unaccepted, and never exposed:
 
 ```bash
-gcloud secrets delete STAGING_CRON_SECRET --project=myweli   # optional, inert either way
+gcloud secrets delete STAGING_CRON_SECRET --project=myweli   # done 2026-08-22
 ```
 
 ### 8.4.1 Never delete the secret before the revision that mounts it

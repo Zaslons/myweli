@@ -3,6 +3,7 @@ import { AuthFormSkeleton } from '../../../components/auth/AuthFormSkeleton';
 import { Suspense } from 'react';
 import { OpenInAppButton } from '../../../components/OpenInAppButton';
 import { ProConnexionClient } from '../../../components/pro/ProConnexionClient';
+import { appStoreUrl } from '../../../lib/appStore';
 
 export const dynamic = 'force-dynamic';
 export const metadata: Metadata = {
@@ -23,12 +24,26 @@ export default function ProConnexionPage() {
           <ProConnexionClient />
         </Suspense>
       </div>
-      <p className="mt-l text-bodyLarge text-textTertiary">
-        Pas encore inscrit&nbsp;? Créez votre salon dans l’app MyWeli Pro.
-      </p>
-      <div className="mt-s">
-        <OpenInAppButton />
-      </div>
+      {/* **The same orphan #478 fixed on the homepage, on a page its guard
+          never visited.** `OpenInAppButton` renders nothing while the apps are
+          unlisted, so this shipped as « Créez votre salon dans l'app MyWeli
+          Pro. » with no way to get it — copy and control must appear together
+          or not at all.
+
+          NOTE, separate and deliberately not fixed here: there is only ONE pair
+          of store URLs (`NEXT_PUBLIC_*_APP_URL`, the CONSUMER app, `ci.myweli`).
+          When they are set, this pro page will link a salon owner to the client
+          app. That needs a pro-specific pair, not a gate. */}
+      {appStoreUrl() ? (
+        <>
+          <p className="mt-l text-bodyLarge text-textTertiary">
+            Pas encore inscrit&nbsp;? Créez votre salon dans l’app MyWeli Pro.
+          </p>
+          <div className="mt-s">
+            <OpenInAppButton />
+          </div>
+        </>
+      ) : null}
     </main>
   );
 }
