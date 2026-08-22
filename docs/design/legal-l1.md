@@ -124,8 +124,9 @@ once a year is infrastructure nobody needs.
 `COMPANY` block that carries the company facts.
 
 **`COMPANY` is not "one edit", and saying so was a defect.** This section claimed
-the RCCM lands in a single place; it lands in **seven**, three of them hard-coded
-prose in two different documents and one of them this spec's own Annex A.4. The
+the RCCM lands in a single place; it lands in **seven**: two `COMPANY` fields,
+**four hard-coded sentences** across the mentions légales and the privacy
+policy, and this spec's own Annex A.4. The
 list, and what each becomes, is `infra/legal/registration-manifest.json`;
 `web/tests/registration-claim.test.ts` turns it into a failing checklist the
 moment `registered` is flipped. The five surfaces first written by hand were

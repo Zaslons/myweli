@@ -353,6 +353,34 @@ work true.
 
 ---
 
+## 15. Ask which event turns the guard red
+
+A check can fire perfectly and still be aimed at the wrong end of the fact.
+This is **not** §2 — the check works. It goes red on the *good* event and stays
+green through the *bad* one.
+
+> **The incident.** `web/tests/legal.test.tsx` asserted that
+> `COMPANY.registration` still matched `/en cours d'immatriculation/i` — that a
+> published legal claim was still saying the company was **not yet registered**.
+> It was the only automated thing touching that claim, and it would have gone
+> red the day someone **corrected** it and stayed green for years while it
+> rotted. Its own comment said what it wanted — « this object is the ONE edit,
+> which is only true if the page reads it from here » — a *wiring* property. It
+> asserted the *value* instead.
+>
+> **Then the replacement committed the identical error, one commit later.** The
+> first draft opened with `expect(manifest.registered).toBe(false)` — pinning
+> today's world in the very test written to stop that. Caught only by asking, of
+> each assertion in turn, *which change makes this red?* The fix reads the flag
+> instead of pinning it, so it is correct in both worlds.
+
+**Rule:** for every assertion, name the change that turns it red and say whether
+that change is a **defect** or a **repair**. If it is a repair, the guard is
+backwards. And when a claim's truth cannot be observed from the repo at all, the
+checkable thing is not the claim — it is **when someone last confirmed it**.
+
+---
+
 ## The one-line version
 
 **Before you say it works: name the observation that would prove you wrong, and
