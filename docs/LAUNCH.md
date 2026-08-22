@@ -1222,11 +1222,29 @@ jurisdiction clause and the consumer-rights language hold under Ivorian law, and
 whether « société en cours d'immatriculation » in the mentions légales is still
 true. Those need a professional and the owner respectively.
 
+**The registration half is now asked, if not answered.** No API can tell this
+repo whether MyWeli has been registered, so nothing here verifies the claim.
+What it does now is record *when someone last confirmed it*
+(`infra/legal/registration-manifest.json`) and fail the daily
+`production-checks` run once that confirmation passes 90 days, which opens the
+usual tracking issue. Until 2026-08-22 the only automated thing touching this
+claim asserted it was still PENDING — a guard that went red the day the claim
+was **corrected** and stayed green while it went stale.
+
+The consistency half is a merge gate rather than a monitor:
+`web/tests/registration-claim.test.ts` holds all **seven** surfaces of the claim
+to each other, so no one can correct one paragraph and leave the mentions
+légales contradicting themselves. Flipping `registered` in the manifest turns
+that test into a checklist naming every file and what it must become.
+
 **Two facts a reviewer will need and cannot get from this repo:**
 
 - **Where the production R2 buckets physically live.** Staging is pinned `weur`;
   production "was configured by hand before the staging script existed"
   (`infra/cloudflare/r2-manifest.json`), and the policy says
   « serveurs répartis mondialement ». Only the Cloudflare dashboard knows.
-- **Whether the RCCM registration is still pending.**
+- **Whether the RCCM registration is still pending.** Still owner-only — but no
+  longer unwatched: the date of the last confirmation is in
+  `infra/legal/registration-manifest.json`, and the cron asks again every 90
+  days rather than waiting for someone to remember.
 

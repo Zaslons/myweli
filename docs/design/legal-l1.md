@@ -132,6 +132,13 @@ moment `registered` is flipped. The five surfaces first written by hand were
 already missing one — which is why that list is re-derived from the tree rather
 than maintained.
 
+Whether the claim is still *true* is a different question, and nothing in this
+repo can answer it — no API knows. `infra/legal/98-verify-registration-attestation.mjs`
+therefore checks the only thing that is checkable: how long since someone
+confirmed it. Past 90 days the daily `production-checks` run fails and opens the
+tracking issue. It is a monitor, never a merge gate — a suite that turns red on
+a date fails a future PR at random and looks like that PR's fault.
+
 ## 5. Architecture & patterns
 
 ### Web

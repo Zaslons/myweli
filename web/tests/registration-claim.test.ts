@@ -142,6 +142,17 @@ describe('the registration claim, and every surface that carries it', () => {
     expect(stripComments(raw)).toContain('numéro RCCM');
   });
 
+  it('the cron checker stays read-only, and is not merely empty', () => {
+    // infra/gcp/97-verify-log-retention.sh is pinned the same way by
+    // backend/test/infra/log_retention_test.dart: a commented-out mutating
+    // call is a line someone uncomments at 2am. The `readFileSync` assertion
+    // is the control — without it this passes just as happily on a file that
+    // does nothing at all.
+    const src = readRepoFile('infra/legal/98-verify-registration-attestation.mjs');
+    expect(src).toContain('readFileSync');
+    expect(src).not.toMatch(/writeFileSync|appendFile|unlinkSync|execSync|spawn/);
+  });
+
   it('carries an attestation the cron can actually read', () => {
     // `attestedOn` is consumed only by infra/legal/98-verify-*.mjs, which runs
     // once a day. Without this, a typo there would be invisible until the next

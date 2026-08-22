@@ -85,14 +85,6 @@ jobs:
         env:
           PRIVACY_URL: ${{ github.event.inputs.target || 'https://myweli.com' }}
 
-  # **A monitor whose only signal is a red row in the Actions tab is a monitor
-  # nobody reads.** Every other alert in this system reaches a person — the
-  # Cloud Monitoring policies all carry the 'Owner email' channel — and this one
-  # did not, which made it the weakest link in exactly the layer that exists to
-  # catch what CI cannot see.
-  #
-  # One issue, reopened and commented rather than duplicated, so a week of
-  # failures is one thread and not seven.
   retention:
     name: Real domain — the 30-day log retention we promise
     runs-on: ubuntu-latest
@@ -152,9 +144,44 @@ jobs:
       - name: Live bucket matches infra/gcp/logging-manifest.json
         run: bash infra/gcp/97-verify-log-retention.sh
 
+  attestation:
+    name: The registration claim — has anyone confirmed it lately?
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      # **The one check here that cannot verify its subject.** The mentions
+      # légales tell the public MyWeli is « société en cours d'immatriculation ».
+      # No API answers whether that is still true — the only person who knows is
+      # the owner. So this asserts that someone LOOKED, and fails when nobody
+      # has in 90 days.
+      #
+      # Until now the guard on that claim was pointed backwards: a unit test
+      # asserted the claim was still PENDING, so it went red the day the claim
+      # was CORRECTED and stayed green while it went stale.
+      #
+      # The consistency half — all seven surfaces of the claim agreeing with
+      # each other — is clock-free and lives in the merge gate
+      # (web/tests/registration-claim.test.ts). Only the « is it still true? »
+      # half is here, because a suite that turns red on a date fails a future PR
+      # at random and looks like that PR's fault.
+      - name: Is the registration claim still attested?
+        run: node infra/legal/98-verify-registration-attestation.mjs
+
+  # **A monitor whose only signal is a red row in the Actions tab is a monitor
+  # nobody reads.** Every other alert in this system reaches a person — the
+  # Cloud Monitoring policies all carry the 'Owner email' channel — and this one
+  # did not, which made it the weakest link in exactly the layer that exists to
+  # catch what CI cannot see.
+  #
+  # One issue, reopened and commented rather than duplicated, so a week of
+  # failures is one thread and not seven.
   report:
-    name: Say so, if either check failed
-    needs: [cwv, privacy, retention]
+    name: Say so, if any check failed
+    needs: [cwv, privacy, retention, attestation]
     if: failure()
     runs-on: ubuntu-latest
     steps:
@@ -170,6 +197,7 @@ jobs:
           CWV: ${{ needs.cwv.result }}
           PRIVACY: ${{ needs.privacy.result }}
           RETENTION: ${{ needs.retention.result }}
+          ATTESTATION: ${{ needs.attestation.result }}
         run: |
           set -euo pipefail
           TITLE='Production checks are failing'
@@ -186,18 +214,28 @@ jobs:
           BODY=$(printf '%s\n' \
             'The scheduled real-domain checks failed.' \
             '' \
-            "CWV: ${CWV} · privacy: ${PRIVACY} · retention: ${RETENTION}" \
+            "CWV: ${CWV} · privacy: ${PRIVACY} · retention: ${RETENTION} · attestation: ${ATTESTATION}" \
             '' \
             "${RUN}" \
             '' \
-            'These run against myweli.com — not a preview, not a stub — so a' \
-            'failure here means production is **already** wrong. There is no' \
-            'merge to block, which is why this is a monitor and not a gate.' \
+            'Three of these run against myweli.com — not a preview, not a' \
+            'stub — so if CWV, privacy or retention failed, production is' \
+            '**already** wrong. There is no merge to block, which is why this' \
+            'is a monitor and not a gate.' \
             '' \
             'The CWV job asserts the docs/WEB.md §7 budgets. The privacy job' \
             'asserts that no page reaches an undisclosed third party before the' \
             'visitor chooses one. The retention job asserts the live log bucket' \
-            'still matches the 30 days the privacy policy promises users.')
+            'still matches the 30 days the privacy policy promises users.' \
+            '' \
+            '**The attestation job is different, and a failure there does NOT' \
+            'mean production is wrong.** It asserts that somebody has confirmed' \
+            'in the last 90 days that « société en cours d immatriculation » is' \
+            'still true — a fact no API can answer. If it is the only one red,' \
+            'the fix is a one-line edit to' \
+            'infra/legal/registration-manifest.json: either flip `registered`' \
+            'and let web/tests/registration-claim.test.ts list every surface to' \
+            'rewrite, or move `attestedOn` to today.')
 
           if [ -n "$NUM" ]; then
             STATE=$(gh issue view "$NUM" --json state --jq .state)
