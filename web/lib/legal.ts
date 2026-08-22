@@ -9,8 +9,11 @@
 /// is not registered yet (owner decision, docs/design/legal-l1.md §12), so
 /// `registration` says so plainly rather than leaving a blank that reads as an
 /// oversight. This file used to claim registration was "one edit" here; it is
-/// six, across two documents, three of them hard-coded prose. The full list —
-/// and what each becomes — is `infra/legal/registration-manifest.json`, and
+/// not — most of the surfaces are hard-coded prose in other documents. **The
+/// number is deliberately not written here**: the first version of this fix
+/// said "six" in three files while the manifest said "five", which is the same
+/// stale-count defect one level out. The list — and what each becomes — is
+/// `infra/legal/registration-manifest.json`, and
 /// `tests/registration-claim.test.ts` prints it as a checklist the moment
 /// `registered` is flipped.
 ///

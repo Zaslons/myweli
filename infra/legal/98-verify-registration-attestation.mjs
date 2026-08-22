@@ -61,6 +61,15 @@ try {
   fail(`cannot read ${MANIFEST}: ${e.message}`);
 }
 
+// A manifest that is valid JSON but the wrong SHAPE — an array, a bare string,
+// null — must produce the designed message, not an unhandled throw. Exiting 1
+// either way is not the same thing: a crash prints a stack trace, emits no
+// ::error:: annotation, and leaves the tracking issue saying only "failure" on
+// the one signal path that exists to tell a human what to do.
+if (manifest === null || typeof manifest !== 'object' || Array.isArray(manifest)) {
+  fail(`${MANIFEST} is not a JSON object: got ${Array.isArray(manifest) ? 'an array' : typeof manifest}`);
+}
+
 const { attestedOn, attestationMaxAgeDays, registered } = manifest;
 
 if (typeof attestedOn !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(attestedOn)) {
@@ -71,6 +80,18 @@ if (typeof attestedOn !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(attestedOn)) {
 const attested = new Date(`${attestedOn}T00:00:00Z`);
 if (Number.isNaN(attested.getTime())) {
   fail(`attestedOn is not a real date: ${attestedOn}`);
+}
+// **`new Date('2026-02-30')` is 2 March — valid, and up to three days FRESHER
+// than whoever typed it meant.** Every date JavaScript silently repairs rolls
+// FORWARD, which is the one direction a staleness monitor must never fail in:
+// a fat-fingered day buys extra silence. The round trip is the only way to tell
+// a real calendar date from a repaired one.
+if (attested.toISOString().slice(0, 10) !== attestedOn) {
+  fail(
+    `attestedOn is not a real calendar date: ${attestedOn} — JavaScript reads ` +
+      `it as ${attested.toISOString().slice(0, 10)}, which is NEWER, so a typo ` +
+      `here buys silence rather than costing it`,
+  );
 }
 if (!Number.isFinite(attestationMaxAgeDays) || attestationMaxAgeDays <= 0) {
   fail(
@@ -92,20 +113,24 @@ const claim = registered
 // The remediation has to match the world the manifest is in. Telling someone to
 // flip a flag that is already flipped is the kind of instruction that gets a
 // monitor ignored.
+// **The remedy has to be the WHOLE remedy.** An earlier version said "flip
+// `registered`" as if that were the fix; flipping it alone turns the merge gate
+// red for every open PR until all the surfaces are rewritten. Someone woken by
+// this issue at 06:00 must be told it is one PR, not one line.
 const remedy = registered
-  ? 'Either one of those facts changed — correct every surface, and ' +
-    'web/tests/registration-claim.test.ts will confirm none still reads as ' +
-    'pending — or nothing changed, and `attestedOn` becomes today.'
-  : 'Either registration completed — flip `registered` to true in ' +
-    'infra/legal/registration-manifest.json and ' +
-    'web/tests/registration-claim.test.ts will list every surface to rewrite ' +
-    '— or it has not, and `attestedOn` becomes today.';
+  ? 'Either one of those facts changed — correct every surface in the same PR, ' +
+    'and web/tests/registration-claim.test.ts will list any you missed — or ' +
+    'nothing changed, and `attestedOn` becomes today (that one IS a one-line PR).'
+  : 'Either registration completed — in ONE PR, flip `registered` to true in ' +
+    'infra/legal/registration-manifest.json AND rewrite every surface it lists; ' +
+    'the merge gate stays red until both are done, by design — or it has not, ' +
+    'and `attestedOn` becomes today, which is a one-line PR.';
 
 if (days > attestationMaxAgeDays) {
   console.log(`  ✗ last confirmed ${days} days ago, on ${attestedOn}`);
   console.log(
     `::error::Nobody has confirmed ${claim} in ${days} days ` +
-      `(limit ${attestationMaxAgeDays}). ${remedy} Both are one edit in a PR.`,
+      `(limit ${attestationMaxAgeDays}). ${remedy}`,
   );
   process.exit(1);
 }

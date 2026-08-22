@@ -1227,14 +1227,19 @@ repo whether MyWeli has been registered, so nothing here verifies the claim.
 What it does now is record *when someone last confirmed it*
 (`infra/legal/registration-manifest.json`) and fail the daily
 `production-checks` run once that confirmation passes 90 days, which opens the
-usual tracking issue. Until 2026-08-22 the only automated thing touching this
+usual tracking issue. Until 2026-08-22 the only automated guard on *this*
 claim asserted it was still PENDING — a guard that went red the day the claim
-was **corrected** and stayed green while it went stale.
+was **corrected** and stayed green while it went stale. (Other published legal
+copy was already guarded: `legal.test.tsx` pins the vendor denials against
+`package.json` and the log-retention sentence against the bucket manifest. It
+was this claim that had nothing.)
 
 The consistency half is a merge gate rather than a monitor:
-`web/tests/registration-claim.test.ts` holds all **seven** surfaces of the claim
-to each other, so no one can correct one paragraph and leave the mentions
-légales contradicting themselves. Flipping `registered` in the manifest turns
+`web/tests/registration-claim.test.ts` holds every recorded surface of the claim
+to the others, so no one can correct one paragraph and leave the mentions
+légales contradicting themselves. The surfaces are listed in the manifest and
+re-derived from the tree on every run, so the number is not written down
+anywhere — a count beside a list is a second source of truth. Flipping `registered` in the manifest turns
 that test into a checklist naming every file and what it must become.
 
 **Two facts a reviewer will need and cannot get from this repo:**

@@ -19,7 +19,7 @@ export const metadata = legalMetadata('/mentions-legales');
 /// so the RCCM, the siège social, the capital and the legal representative do not
 /// exist to publish. The choice was between leaving blanks — which read as an
 /// oversight — and stating the situation. It states it — and the Callout below
-/// is one of SIX surfaces that must change at registration, not something
+/// is one of several surfaces that must change at registration, not something
 /// `COMPANY` completes on its own. `infra/legal/registration-manifest.json`
 /// holds the list; flipping `registered` there turns it into a failing
 /// checklist naming every one.

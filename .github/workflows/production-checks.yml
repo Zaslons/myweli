@@ -232,10 +232,12 @@ jobs:
             'mean production is wrong.** It asserts that somebody has confirmed' \
             'in the last 90 days that « société en cours d immatriculation » is' \
             'still true — a fact no API can answer. If it is the only one red,' \
-            'the fix is a one-line edit to' \
-            'infra/legal/registration-manifest.json: either flip `registered`' \
-            'and let web/tests/registration-claim.test.ts list every surface to' \
-            'rewrite, or move `attestedOn` to today.')
+            'there are exactly two fixes, and only one of them is one line.' \
+            'If registration completed: in ONE PR flip `registered` in' \
+            'infra/legal/registration-manifest.json AND rewrite every surface it' \
+            'lists — the merge gate stays red until both are done, by design, so' \
+            'flipping the flag alone turns every open PR red. If it has not' \
+            'completed: move `attestedOn` to today, and that IS one line.')
 
           if [ -n "$NUM" ]; then
             STATE=$(gh issue view "$NUM" --json state --jq .state)
