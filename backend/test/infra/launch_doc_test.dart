@@ -44,8 +44,12 @@ List<String> staleCitations(String text, int? Function(String) lineCountOf) {
 }
 
 int? lineCountOf(String root, String path) {
-  for (final c in ['$root/$path', '$root/mobile/$path', '$root/backend/$path',
-      '$root/web/$path']) {
+  for (final c in [
+    '$root/$path',
+    '$root/mobile/$path',
+    '$root/backend/$path',
+    '$root/web/$path',
+  ]) {
     final f = File(c);
     if (f.existsSync()) return f.readAsLinesSync().length;
   }
@@ -80,10 +84,9 @@ void main() {
   /// Backticked tokens that look like a repo path: a slash and a known
   /// extension. Deliberately narrow — `api.myweli.com/providers` is a URL, and
   /// `provider1`–`provider4` are data.
-  final paths = RegExp(r'`([A-Za-z0-9_./-]+\.(?:dart|ts|tsx|mjs|sh|ya?ml|json|md))`')
-      .allMatches(prose)
-      .map((m) => m.group(1)!)
-      .toSet();
+  final paths = RegExp(
+    r'`([A-Za-z0-9_./-]+\.(?:dart|ts|tsx|mjs|sh|ya?ml|json|md))`',
+  ).allMatches(prose).map((m) => m.group(1)!).toSet();
 
   /// The doc names files relative to whichever surface it is discussing, and
   /// often by BARE NAME — « `layout.tsx` », « `dependencies.dart` » — where the
@@ -144,10 +147,9 @@ void main() {
       // fenced block is precisely the one a reader copies and runs. Stripping
       // fences here found zero commands and passed for the wrong reason —
       // caught by the non-empty control on the next line.
-      final named = RegExp(r'npm run ([A-Za-z0-9:_-]+)')
-          .allMatches(doc)
-          .map((m) => m.group(1)!)
-          .toSet();
+      final named = RegExp(
+        r'npm run ([A-Za-z0-9:_-]+)',
+      ).allMatches(doc).map((m) => m.group(1)!).toSet();
       expect(named, isNotEmpty);
       expect(
         named.difference(scripts).toList()..sort(),
@@ -223,15 +225,18 @@ void main() {
     });
 
     test('the workflows LAUNCH.md names are real', () {
-      final named = RegExp(r'`([a-z0-9-]+\.yml)`')
-          .allMatches(prose)
-          .map((m) => m.group(1)!)
-          .toSet();
+      final named = RegExp(
+        r'`([a-z0-9-]+\.yml)`',
+      ).allMatches(prose).map((m) => m.group(1)!).toSet();
       expect(named, isNotEmpty);
       final missing = named
           .where((w) => !File('$root/.github/workflows/$w').existsSync())
           .toList();
-      expect(missing, isEmpty, reason: 'LAUNCH.md names a workflow that is gone');
+      expect(
+        missing,
+        isEmpty,
+        reason: 'LAUNCH.md names a workflow that is gone',
+      );
     });
   });
 
@@ -241,8 +246,10 @@ void main() {
     /// one place and « two of the three are now live » in another. Restoring it
     /// restores the defect.
     test('it does not grow a status column again', () {
-      final header = RegExp(r'^\| Capability \| ([^|]+) \|', multiLine: true)
-          .firstMatch(doc);
+      final header = RegExp(
+        r'^\| Capability \| ([^|]+) \|',
+        multiLine: true,
+      ).firstMatch(doc);
       expect(header, isNotNull, reason: 'the §2 table is gone entirely');
       expect(
         header!.group(1)!.trim(),
