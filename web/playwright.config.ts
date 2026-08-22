@@ -90,6 +90,14 @@ export default defineConfig({
         // id is enough; the suite never lets a request reach Google (it is
         // intercepted), so the value only has to be non-empty.
         NEXT_PUBLIC_GOOGLE_CLIENT_ID: 'e2e-dummy.apps.googleusercontent.com',
+        // Same reasoning as the line above, one control further on: the
+        // « Aide & Support » row and the pro « Nous contacter » CTA now render
+        // NOTHING when no number is configured, rather than linking to
+        // `wa.me/?text=…` — WhatsApp's landing page, which looks like it
+        // worked. Without a value here the e2e would assert against a row that
+        // is legitimately absent. The absent case is covered by
+        // `tests/support.test.ts`; this covers the configured one.
+        NEXT_PUBLIC_MYWELI_WHATSAPP: '2250700000000',
         TZ: 'UTC',
       },
     },

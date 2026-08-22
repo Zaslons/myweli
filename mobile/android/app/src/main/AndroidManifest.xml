@@ -1,6 +1,18 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- Required in release for the API client + push (debug adds its own). -->
     <uses-permission android:name="android.permission.INTERNET"/>
+
+    <!-- geolocator requires the APP to declare these; the plugin ships none.
+         Without them `Geolocator.requestPermission()` returns denied without
+         ever showing the OS dialog, so the map's locate-me, « Près de moi » and
+         the pro salon pin all dead-ended on a French message asking the user to
+         grant a permission they were never offered. iOS had its usage string
+         from the start; Android was simply missing.
+         COARSE as well as FINE: every use here centres a map or picks the
+         nearest commune, and a user who grants only approximate location should
+         get the feature rather than the dead end. -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
     <!-- Android 13+: the runtime notification permission. firebase_messaging's
          requestPermission() raises the dialog; without this it can't.
          Design: docs/design/push-notifications-app.md -->

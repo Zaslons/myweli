@@ -83,7 +83,11 @@ class ProfileScreen extends StatelessWidget {
                 if (user != null)
                   SettingsTile(
                     icon: Icons.favorite,
-                    title: 'Mes favoris',
+                    // « Mes favoris » alone read as a list; it opens the map,
+                    // which IS the favourites view (FR-FAV-001). The home
+                    // screen's own section already spells this out with
+                    // « Voir la carte » — this tile now does too.
+                    title: 'Mes favoris sur la carte',
                     onTap: () {
                       context.push('/carte');
                     },

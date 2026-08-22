@@ -142,8 +142,14 @@ export function tierName(tier: string): string {
 export const CONTACT_MESSAGE =
   'Bonjour MyWeli, je souhaite activer mon offre pour mon salon.';
 
-/// wa.me contact link (number filled at the accounts phase via env).
-export function contactWhatsAppUrl(message?: string): string {
+/// wa.me contact link, or **null when no number is configured** — the same
+/// contract as `lib/support.ts`, and for the same reason: interpolating an
+/// empty string yields `https://wa.me/?text=…`, WhatsApp's own landing page,
+/// which looks like the link worked. This one sits on the subscription banner,
+/// where the copy says « contactez-nous pour régler » — a dead link there is a
+/// salon unable to pay.
+export function contactWhatsAppUrl(message?: string): string | null {
   const number = process.env.NEXT_PUBLIC_MYWELI_WHATSAPP ?? '';
+  if (!number) return null;
   return `https://wa.me/${number}?text=${encodeURIComponent(message ?? CONTACT_MESSAGE)}`;
 }
