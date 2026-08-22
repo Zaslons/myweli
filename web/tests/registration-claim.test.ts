@@ -94,8 +94,13 @@ export function pendingViolations(
   read: (file: string) => string,
 ): string[] {
   return surfaces.flatMap((s) => {
-    const src = stripComments(read(s.file));
-    const pending = src.includes(s.anchor);
+    // **Whitespace-normalised.** Anchors and published wording alike are
+    // Prettier-wrapped in JSX, and a raw `includes` cannot match a sentence
+    // broken across lines — the defect that cost the SCAN two rounds, left
+    // standing in the function beside it.
+    const flat = (t: string) => t.replace(/\s+/g, ' ');
+    const src = flat(stripComments(read(s.file)));
+    const pending = src.includes(flat(s.anchor));
 
     if (!registered) {
       return pending
@@ -118,7 +123,7 @@ export function pendingViolations(
           `add \`publishedAnchor\` so the new claim is asserted PRESENT rather ` +
           `than only the old one absent — ${s.atRegistration}`,
       );
-    } else if (!src.includes(s.publishedAnchor)) {
+    } else if (!src.includes(flat(s.publishedAnchor))) {
       out.push(
         `${s.file}: does not carry the published wording ` +
           `« ${s.publishedAnchor} » — ${s.atRegistration}`,
@@ -126,6 +131,33 @@ export function pendingViolations(
     }
     return out;
   });
+}
+
+/// **YAML is not JavaScript, and this file kept forgetting.** `stripComments`
+/// handles `//` and `/* */`; a workflow's comments are `#`, so every assertion
+/// that read a .yml as raw text could be satisfied by the very comment
+/// explaining the thing it was checking. Measured three times in one commit:
+/// `npm run check:legal` demoted into a comment, `actions: read` deleted with
+/// its comment left behind, a ROUTES entry commented out — all green.
+export function stripYamlComments(src: string): string {
+  // Only a `#` at line start or after whitespace: `#` inside a quoted string or
+  // a `${{ }}` expression is not a comment, and blanking one would be worse
+  // than the defect. Line count is preserved for readable failures.
+  return src.replace(/(^|\s)#.*$/gm, (m, before: string) => before);
+}
+
+/// One job's block, so an assertion cannot be satisfied by a DIFFERENT job.
+/// Measured: `actions: read` granted to an unrelated job kept the monitor's own
+/// grant deletable and green; a `needs:` list on another job satisfied the one
+/// `report` was supposed to have.
+export function yamlJob(src: string, name: string): string {
+  // `\\Z` is Perl, not JavaScript — it matched nothing and every job came back
+  // empty, which the first assertion caught. `$(?![\\s\\S])` is the JS spelling
+  // of end-of-input.
+  const m = stripYamlComments(src).match(
+    new RegExp(`^  ${name}:$[\\s\\S]*?(?=^  \\S[^\\n]*:$|$(?![\\s\\S]))`, 'm'),
+  );
+  return m ? m[0] : '';
 }
 
 /// Registration must move the legal date, and the snapshot that proves it must
@@ -167,33 +199,43 @@ export function organizationProblems(
   registered: boolean,
   org: Record<string, unknown>,
 ): string[] {
-  // Serialised, not coerced. A registration number in schema.org is normally
-  // `{ '@type': 'PropertyValue', propertyID: 'RCCM', value: '…' }`, and
-  // `String()` renders that as « [object Object] » — so the canonical encoding
-  // was reported as « carries no RCCM identifier » while sitting right there,
-  // and the message told the author to add what they had already added.
-  const identifier =
-    org.identifier == null
-      ? ''
-      : typeof org.identifier === 'string'
-        ? org.identifier
-        : JSON.stringify(org.identifier);
+  // A registration number in schema.org is normally
+  // `{ '@type': 'PropertyValue', propertyID: 'RCCM', value: '…' }`. `String()`
+  // rendered that as « [object Object] » and rejected the canonical encoding;
+  // `JSON.stringify` then accepted it for the WRONG reason — the serialisation
+  // includes KEYS, so `propertyID: 'RCCM'` with no `value` at all satisfied
+  // /RCCM/i. The fix widened the guard past the defect it exists for. Read the
+  // value out instead.
+  const asObject = (v: unknown): { id: string; value: string } => {
+    if (v == null) return { id: '', value: '' };
+    if (typeof v === 'string') return { id: v, value: v };
+    const o = v as Record<string, unknown>;
+    return { id: String(o.propertyID ?? ''), value: String(o.value ?? '') };
+  };
+  const { id: identifierKind, value: identifierValue } = asObject(org.identifier);
+  const identifier = identifierValue.trim();
   if (!registered) {
     // Publishing a registration number we do not have would be a worse defect
     // than publishing none, so this direction is asserted too.
-    return identifier
-      ? [`Organization JSON-LD claims identifier « ${identifier} » while the manifest says the company is not registered`]
+    return identifier || identifierKind
+      ? [
+          `Organization JSON-LD claims identifier « ${identifier || identifierKind} » ` +
+            `while the manifest says the company is not registered`,
+        ]
       : [];
   }
   const problems: string[] = [];
-  if (!/RCCM/i.test(identifier)) {
+  if (!identifier || !/RCCM/i.test(`${identifierKind} ${identifier}`)) {
     problems.push(
       'Organization JSON-LD carries no RCCM `identifier` — the registered ' +
         'entity is published to humans on /mentions-legales and to machines ' +
         'nowhere. Add it in web/lib/seo/jsonld.ts.',
     );
   }
-  if (!String(org.legalName ?? '')) {
+  // Trimmed, and typed: `String()` on an object gives a truthy
+  // « [object Object] », and '   ' is truthy — the very idiom removed one
+  // branch above, left standing here.
+  if (typeof org.legalName !== 'string' || !org.legalName.trim()) {
     problems.push('Organization JSON-LD carries no `legalName`');
   }
   return problems;
@@ -404,6 +446,36 @@ describe('organizationProblems', () => {
         },
       }),
     ).toEqual([]);
+  });
+
+  it('rejects a PropertyValue that declares RCCM and publishes no number', () => {
+    // The hole the previous fix opened: `JSON.stringify` includes KEYS, so
+    // `propertyID: 'RCCM'` alone satisfied /RCCM/i. Declare the schema, publish
+    // nothing — the exact silence `publishedAnchor` exists to refuse.
+    expect(
+      organizationProblems(true, {
+        legalName: 'MyWeli SARL',
+        identifier: { '@type': 'PropertyValue', propertyID: 'RCCM' },
+      }),
+    ).toHaveLength(1);
+    expect(
+      organizationProblems(true, {
+        legalName: 'MyWeli SARL',
+        identifier: { '@type': 'PropertyValue', propertyID: 'RCCM', value: '  ' },
+      }),
+    ).toHaveLength(1);
+  });
+
+  it.each([
+    ['an object', {}],
+    ['whitespace', '   '],
+  ])('rejects a legalName that is %s', (_l, legalName) => {
+    expect(
+      organizationProblems(true, {
+        legalName,
+        identifier: 'RCCM CI-ABJ-2026-B-12345',
+      }).join(' '),
+    ).toContain('legalName');
   });
 
   it('is silent once the RCCM and legal name are there', () => {
@@ -754,11 +826,28 @@ describe('the live-site probe is wired, and covers every published surface', () 
 
   it('runs on the cron and reaches the tracking issue', () => {
     const wf = readRepoFile('.github/workflows/production-checks.yml');
-    expect(wf).toMatch(/^ {2}legal:$/m);
-    expect(wf).toContain('npm run check:legal');
+
+    // The JOB, not the file. `toContain('npm run check:legal')` was satisfied
+    // by `run: echo skipped # npm run check:legal`, and said nothing about
+    // `continue-on-error`, which makes a probe that cannot fail.
+    const legal = yamlJob(wf, 'legal');
+    expect(legal, 'no `legal` job in production-checks.yml').not.toBe('');
+    expect(legal).toContain('npm run check:legal');
+    expect(
+      legal,
+      'continue-on-error makes the probe incapable of opening the issue',
+    ).not.toContain('continue-on-error');
+
     // Without this a red probe never opens the issue: `report` has
-    // `if: failure()`, and failure() only sees jobs listed in `needs`.
-    expect(wf).toMatch(/needs: \[[^\]]*\blegal\b[^\]]*\]/);
+    // `if: failure()`, and failure() only sees jobs listed in `needs`. Anchored
+    // to `report` and split on commas — the file-wide regex matched any job's
+    // needs list, and `\blegal\b` matched `legal-preflight` besides.
+    const report = yamlJob(wf, 'report');
+    const needs = report.match(/needs:\s*\[([^\]]*)\]/)?.[1] ?? '';
+    expect(
+      needs.split(',').map((n) => n.trim()),
+      'the legal job is not in report.needs, so a red probe opens nothing',
+    ).toContain('legal');
 
     const pkg = JSON.parse(readRepoFile('web/package.json')) as {
       scripts: Record<string, string>;
@@ -773,10 +862,21 @@ describe('the live-site probe is wired, and covers every published surface', () 
     // truth. A new legal page recorded as a surface must not go unprobed —
     // widening a list fixes the instance, not the blindness, so the list is
     // derived here rather than trusted.
-    const spec = readRepoFile('web/tool/check-registration-claim.spec.ts');
-    const routed = [...spec.matchAll(/'(web\/app\/[^']+)':\s*'([^']+)'/g)].map(
-      (m) => m[1],
+    // Comment-stripped and quote-agnostic. Raw, a route COMMENTED OUT kept this
+    // green while the probe stopped fetching that page — and a Prettier pass to
+    // double quotes turned it red for nothing. The URL is checked too: it was
+    // captured and thrown away, so repointing a probe at the homepage passed.
+    const spec = stripComments(
+      readRepoFile('web/tool/check-registration-claim.spec.ts'),
     );
+    const entries = [
+      ...spec.matchAll(/['"](web\/app\/[^'"]+)['"]:\s*['"]([^'"]+)['"]/g),
+    ];
+    const routed = entries.map((m) => m[1]);
+    for (const [, file, url] of entries) {
+      const slug = file.replace(/^web\/app\//, '').replace(/\/page\.tsx$/, '');
+      expect(url, `${file} is probed at ${url}`).toBe(`/${slug}`);
+    }
     const published = [
       ...new Set(
         manifest.surfaces
@@ -884,10 +984,14 @@ describe("the dead-man's switch, exercised rather than described", () => {
     const ci = readRepoFile('.github/workflows/ci.yml');
     expect(ci).toContain('monitor-alive:');
     expect(ci).toContain('infra/ci/99-verify-monitor-alive.mjs');
-    // Anchored to a whole line: `actions: read` also appears in the comment
-    // above the permissions block, so `toContain` stayed green with the real
-    // grant deleted. `stripComments` is JS-shaped and does not touch YAML `#`.
-    expect(ci).toMatch(/^\s+actions: read$/m);
+    // Scoped to the job, and comment-stripped. File-wide, this stayed green
+    // when the grant was deleted from `monitor-alive` and added to an unrelated
+    // job — leaving the switch to 403 forever, which reads as a broken check
+    // the team removes rather than a working one.
+    const job = yamlJob(ci, 'monitor-alive');
+    expect(job, 'no monitor-alive job in ci.yml').not.toBe('');
+    expect(job).toMatch(/^\s+actions: read$/m);
+    expect(job).toContain('infra/ci/99-verify-monitor-alive.mjs');
 
     // **THE FUSE IS A POLICY CONSTANT, AND I DID NOT INHERIT MY OWN RULE.**
     // `attestationMaxAgeDays` is pinned to exactly 90 a few hundred lines up,
@@ -898,13 +1002,19 @@ describe("the dead-man's switch, exercised rather than described", () => {
     // One env line in this workflow disarms the whole design in a PR nothing
     // goes red on — the same kill-switch shape an earlier round found in
     // `allowedAnchors`, and it reads in review as configuration.
-    for (const knob of [
-      'MONITOR_MAX_AGE_DAYS',
-      'MONITOR_RUNS_JSON',
-      'MONITOR_WORKFLOW',
-    ]) {
-      expect(ci, `${knob} is set in ci.yml — that silences the switch`).not.toContain(knob);
+    for (const knob of ['MONITOR_MAX_AGE_DAYS', 'MONITOR_RUNS_JSON', 'MONITOR_WORKFLOW']) {
+      // `SET`, not merely mentioned: the ban used `toContain` over the whole
+      // file, so naming a knob in a comment failed the build with a message
+      // that then said something untrue.
+      expect(
+        job,
+        `${knob} is set in the monitor-alive job — that silences the switch`,
+      ).not.toMatch(new RegExp(`^\\s+${knob}:`, 'm'));
     }
+    // And the default it falls back to, which the ban does not reach.
+    expect(
+      readRepoFile('infra/ci/99-verify-monitor-alive.mjs'),
+    ).toContain("?? 'production-checks.yml'");
   });
 });
 

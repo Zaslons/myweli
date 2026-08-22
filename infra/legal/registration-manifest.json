@@ -98,13 +98,13 @@
       "file": "web/app/mentions-legales/page.tsx",
       "anchor": "Immatriculation en cours.",
       "what": "the Callout — hard-coded, NOT read from COMPANY",
-      "atRegistration": "delete the Callout"
+      "atRegistration": "replace the Callout with the published facts — deleting it is not enough, the gate also requires the new wording recorded in publishedAnchor to be PRESENT"
     },
     {
       "file": "web/app/mentions-legales/page.tsx",
       "anchor": "l’immatriculation sera effective",
       "what": "the Callout's second sentence — the promise to publish later",
-      "atRegistration": "delete the Callout"
+      "atRegistration": "replace the Callout with the published facts — deleting it is not enough, the gate also requires the new wording recorded in publishedAnchor to be PRESENT"
     },
     {
       "file": "web/app/mentions-legales/page.tsx",
@@ -149,7 +149,14 @@
       "to be ABSENT once registered, and this one is the thing being published.",
       "Add the new sentences to `allowedAnchors` in the SAME PR that rewrites the",
       "pages. The failing test says so in its own message, so nobody has to have",
-      "read this paragraph first."
+      "read this paragraph first.",
+      "",
+      "AND THAT INCLUDES THE JSON-LD. Registration also puts the RCCM into",
+      "`organizationJsonLd()` in web/lib/seo/jsonld.ts, which is under `roots` —",
+      "so that line is a scan hit too, and it is not prose anyone would think of",
+      "as a « sentence ». It goes in `allowedAnchors` like the rest, and it has",
+      "to clear the same shape floor: quote the whole property, not the bare",
+      "number."
     ],
     "roots": ["web/app", "web/lib", "web/components"],
     "pattern": "immatricul|RCCM",
