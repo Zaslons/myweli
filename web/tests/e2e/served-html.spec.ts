@@ -168,6 +168,23 @@ for (const [label, path] of NOT_FOUND_PATHS) {
   });
 }
 
+/// **The `[slug]/reserver` row above measures the wrong thing on its own.**
+/// `request.get()` follows redirects by default, so it silently walks the 307
+/// to `/{slug}` and asserts on THAT page — the row labelled "the one cell nobody
+/// had measured" was re-measuring the cell beside it. The hop itself needs
+/// pinning, or retargeting the redirect at any other 404-ing path keeps it
+/// green.
+test('[slug]/reserver hands its 404 one segment up, and that is the hop', async ({
+  request,
+}) => {
+  const res = await request.get('/unknown-salon/reserver', { maxRedirects: 0 });
+  expect(res.status(), 'a 307 is the mechanism; a 404 here means it changed').toBe(307);
+  expect(
+    res.headers()['location'],
+    'the redirect must land on /[slug], whose params ARE closed',
+  ).toBe('/unknown-salon');
+});
+
 test('the booking funnel keeps its server-rendered content', async ({ request }) => {
   // The reason `/[slug]/reserver` defers its 404 instead of dropping
   // `searchParams`: this list is what a slow phone reads before any JS runs,
@@ -226,3 +243,42 @@ test(`the app is promised only where it can actually be got: ${path}`, async ({ 
   ).toBe(true);
 });
 }
+
+/// **The flags must actually be there, not merely same-origin.**
+///
+/// `#476` moved the phone-field flags off GitHub Pages by copying them into
+/// `public/flags/` from a `prebuild` step. Delete that step and the guards all
+/// stay green: the request becomes `myweli.com/flags/CI.svg`, which is not a
+/// foreign host, so the third-party allowlist — the guard written for exactly
+/// this defect — is structurally blind to it. The visitor gets a broken image
+/// and the privacy fix silently reverts to nothing.
+///
+/// So the assertion is that the file is SERVED, not that the URL is ours.
+test('the self-hosted flags are actually served', async ({ request }) => {
+  const res = await request.get('/flags/CI.svg');
+  expect(res.status(), '/flags/CI.svg is missing — has the prebuild step run?').toBe(200);
+  expect(res.headers()['content-type']).toContain('svg');
+
+  // The control: the origin is not blanket-200ing, so the check above means
+  // the file exists rather than that everything under /flags/ answers.
+  expect((await request.get('/flags/ZZZ.svg')).status()).toBe(404);
+});
+
+/// And the page that uses them points at ours.
+test('the phone field asks OUR origin for its flag', async ({ page }) => {
+  const flagRequests: string[] = [];
+  page.on('request', (r) => {
+    if (/\.svg(\?|$)/.test(r.url()) && /flag/i.test(r.url())) flagRequests.push(r.url());
+  });
+  const res = await page.goto('/pro/inscription');
+  await page.waitForLoadState('networkidle');
+  expect(res?.status()).toBe(200);
+
+  // The page must really render a phone field, or this passes vacuously — the
+  // exact trap the privacy allowlist fell into with a /mon-compte entry that
+  // redirects to /connexion and renders no phone field at all.
+  await expect(page.locator('img[src*="/flags/"]').first()).toBeVisible();
+  for (const u of flagRequests) {
+    expect(new URL(u).hostname, 'a flag came from somewhere else').toBe('127.0.0.1');
+  }
+});

@@ -102,6 +102,72 @@ void main() {
     }
   });
 
+  /// **Four other ways to narrow it, all of which the first version missed.**
+  ///
+  /// `--no-git` and a shallow checkout are the two everyone thinks of. An audit
+  /// found four more, each a silent narrowing that leaves the job green:
+  test('IT IS `detect`, NOT `dir` — the modern spelling of --no-git', () {
+    // gitleaks v8.19 renamed the working-tree scan to `gitleaks dir`. Same
+    // defect, different word: a guard that only forbids `--no-git` waves it
+    // through.
+    final steps = scanJob().value['steps'] as YamlList;
+    for (final st in steps) {
+      final run = (st as YamlMap)['run'];
+      if (run is! String || !code(run).contains('gitleaks')) continue;
+      final c = code(run);
+      expect(
+        RegExp(r'gitleaks[^\n|&]*\bdir\b').hasMatch(c),
+        isFalse,
+        reason:
+            '`gitleaks dir` scans the working tree only, exactly like '
+            '--no-git',
+      );
+      expect(
+        c.contains('detect'),
+        isTrue,
+        reason: 'the history-walking subcommand is `detect`',
+      );
+    }
+  });
+
+  test('THE SOURCE IS THE WHOLE REPO, and no --log-opts trims the walk', () {
+    final steps = scanJob().value['steps'] as YamlList;
+    for (final st in steps) {
+      final run = (st as YamlMap)['run'];
+      if (run is! String || !code(run).contains('gitleaks')) continue;
+      final c = code(run);
+      // A narrowed source (`--source=/repo/web`) scans history, and only one
+      // subtree of it — green while the backend's history goes unread.
+      final src = RegExp(r'--source=(\S+)').firstMatch(c)?.group(1);
+      expect(src, '/repo', reason: 'the scan must cover the whole repository');
+      // `--log-opts` is passed straight to `git log`; `--log-opts=-1` walks one
+      // commit and reports "1 commits scanned. no leaks found".
+      expect(
+        c.contains('--log-opts'),
+        isFalse,
+        reason: '--log-opts can trim the walk to a single commit',
+      );
+    }
+  });
+
+  test('nothing conditions the job or the step out of existence', () {
+    // `if: false`, or a condition on a branch/event that never matches, makes
+    // the job SKIP — which GitHub reports as neither success nor failure and
+    // which a required-check rule treats as absent rather than failed.
+    final entry = scanJob();
+    expect(
+      entry.value['if'],
+      isNull,
+      reason: 'a conditioned scan job is one `if:` away from never running',
+    );
+    for (final st in entry.value['steps'] as YamlList) {
+      final run = (st as YamlMap)['run'];
+      if (run is String && code(run).contains('gitleaks')) {
+        expect(st['if'], isNull, reason: 'the scan step is conditioned');
+      }
+    }
+  });
+
   test('the scan can fail the job — no continue-on-error', () {
     final job = scanJob().value;
     expect(job['continue-on-error'], isNot(true));

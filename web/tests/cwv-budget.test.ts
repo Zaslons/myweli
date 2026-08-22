@@ -51,6 +51,16 @@ describe('the real-domain CWV gate enforces the documented budget', () => {
       /// flaky page then report the luckiest one, which is how a gate flatters.
       /// It must be set inside each matrix block; at the top level lhci errors
       /// with "Cannot use assertMatrix with other options".
+      /// TBT is the lab proxy for INP — WEB.md §7 and ci.yml both say it is
+      /// enforced, and nothing checked it. Deleting the assertion, or
+      /// downgrading it to `warn`, left every test here green while two
+      /// documents went on claiming otherwise.
+      it('asserts TBT as an error, the lab proxy for INP', () => {
+        const [level, opts] = m.assertions['total-blocking-time'];
+        expect(level, 'a warn cannot fail the run').toBe('error');
+        expect(opts.maxNumericValue).toBeLessThanOrEqual(200);
+      });
+
       it('takes the MEDIAN of the runs, not the best', () => {
         expect(m.aggregationMethod).toBe('median');
       });
@@ -104,5 +114,38 @@ describe('the real-domain CWV gate enforces the documented budget', () => {
     expect(
       connexion!.assertions['largest-contentful-paint'][1].maxNumericValue,
     ).toBeGreaterThanOrEqual(WEB_MD_LCP_MS);
+  });
+
+  /// **The LOCAL config is the one that blocks a merge, and nothing covered it.**
+  /// Everything above reads `tool/lighthouse-production.json`, which runs on a
+  /// schedule and cannot fail a PR. `lighthouserc.json` is what `npm run lhci`
+  /// uses in CI — so the config with teeth had no coverage at all, in the file
+  /// added to make the budget real.
+  describe('the BLOCKING localhost gate', () => {
+    const localMatrices = local.ci.assert.assertMatrix as unknown as Matrix[];
+
+    it('measures localhost, not the real domain', () => {
+      for (const u of local.ci.collect.url) {
+        expect(u).toMatch(/^http:\/\/127\.0\.0\.1:/);
+      }
+    });
+
+    it('every collected URL is asserted here too', () => {
+      for (const url of local.ci.collect.url) {
+        expect(
+          localMatrices.filter((m) => new RegExp(m.matchingUrlPattern).test(url))
+            .length,
+          `${url} is collected by the BLOCKING gate and asserted by nothing`,
+        ).toBeGreaterThan(0);
+      }
+    });
+
+    for (const m of localMatrices) {
+      it(`${m.matchingUrlPattern}: CLS and TBT are errors, median aggregation`, () => {
+        expect(m.assertions['cumulative-layout-shift'][0]).toBe('error');
+        expect(m.assertions['total-blocking-time'][0]).toBe('error');
+        expect(m.aggregationMethod).toBe('median');
+      });
+    }
   });
 });
