@@ -18,13 +18,50 @@
 #
 # Design: docs/design/mobile-ios-flavours.md
 
+# **This script writes non-ASCII and then cannot read it back.** The generated
+# script phase below contains an em-dash, and `xcodeproj` regex-matches the
+# project file on read — so on a machine whose locale is not UTF-8 (Ruby then
+# defaults to US-ASCII) the second run dies with
+# `invalid byte sequence in US-ASCII` inside the gem, pointing at a file this
+# script itself produced. Measured 2026-08-22; `LANG=en_US.UTF-8` was the
+# workaround, and this is the fix.
+Encoding.default_external = Encoding::UTF_8
+Encoding.default_internal = Encoding::UTF_8
+
 require 'xcodeproj'
 require 'fileutils'
 
+# `google_client_id` is the flavour's **iOS OAuth client**, and it has to be
+# here rather than in Info.plist because ONE Info.plist serves both apps.
+#
+# Until 2026-08-22 `com.myweli.pro` had no iOS client at all — verified against
+# the Firebase API, not the checked-in plist — and Info.plist hardcoded the
+# consumer's in two places. So the Pro app presented a Google button that
+# authenticated as the consumer's client under the Pro bundle id, which Google
+# rejects. Nothing failed loudly: `google_sign_in_ios` reads `CLIENT_ID` from
+# the bundled `GoogleService-Info.plist` FIRST and only falls back to
+# `GIDClientID`, so the fallback was simply wrong rather than absent.
+#
+# The reversed form is the OAuth redirect scheme, and it has NO such fallback —
+# `CFBundleURLSchemes` must be in Info.plist, so it genuinely has to vary.
 FLAVOURS = {
-  'consumer' => { bundle_id: 'com.myweli.app', display_name: 'MyWeli' },
-  'pro'      => { bundle_id: 'com.myweli.pro', display_name: 'MyWeli Pro' },
+  'consumer' => {
+    bundle_id: 'com.myweli.app',
+    display_name: 'MyWeli',
+    google_client_id: '731308991240-ah75c2bvv4ojfipa7crlj38n7rdg60fv.apps.googleusercontent.com',
+  },
+  'pro'      => {
+    bundle_id: 'com.myweli.pro',
+    display_name: 'MyWeli Pro',
+    google_client_id: '731308991240-o68qiuivc9ts8ablihabvts5bdel4j65.apps.googleusercontent.com',
+  },
 }.freeze
+
+# The redirect scheme is the client id reversed, always — derived rather than
+# written twice, so the pair cannot drift.
+def reversed_client_id(client_id)
+  'com.googleusercontent.apps.' + client_id.sub('.apps.googleusercontent.com', '')
+end
 
 # Flutter's contract: <Action>-<flavour>. Run/Test/Analyze take Debug, the
 # profile action takes Profile, archive takes Release.
@@ -69,6 +106,15 @@ FLAVOURS.each do |flavour, meta|
     # Info.plist reads $(APP_DISPLAY_NAME) — the analogue of Android's
     # resValue("string", "app_name", …).
     cfg.build_settings['APP_DISPLAY_NAME'] = meta[:display_name]
+    # Info.plist reads $(GOOGLE_CLIENT_ID) and $(GOOGLE_REVERSED_CLIENT_ID).
+    cfg.build_settings['GOOGLE_CLIENT_ID'] = meta[:google_client_id]
+    cfg.build_settings['GOOGLE_REVERSED_CLIENT_ID'] =
+      reversed_client_id(meta[:google_client_id])
+    # Inert, misspelled, and it rides along in the Marshal deep-copy above:
+    # the BUILT Runner.app/Info.plist reads `CFBundleDisplayName = MyWeli`, so
+    # $(APP_DISPLAY_NAME) wins and this never applied. Removed so nobody has to
+    # work that out again.
+    cfg.build_settings.delete('INFOPLIST_KEY_CFBundleDisplayName')
 
     next if tests.nil?
 
@@ -90,6 +136,14 @@ end
 
   cfg.build_settings['PRODUCT_BUNDLE_IDENTIFIER'] = 'com.myweli.app'
   cfg.build_settings['APP_DISPLAY_NAME'] = 'MyWeli'
+  # These describe the consumer build, so they take the consumer client. Left
+  # unset, $(GOOGLE_CLIENT_ID) expands to EMPTY here — Google sign-in would
+  # fail with no configuration at all, which is a worse failure than the one
+  # this change fixes.
+  cfg.build_settings['GOOGLE_CLIENT_ID'] = FLAVOURS['consumer'][:google_client_id]
+  cfg.build_settings['GOOGLE_REVERSED_CLIENT_ID'] =
+    reversed_client_id(FLAVOURS['consumer'][:google_client_id])
+  cfg.build_settings.delete('INFOPLIST_KEY_CFBundleDisplayName')
 end
 
 # --- per-flavour xcconfig ---------------------------------------------------
