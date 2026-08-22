@@ -49,9 +49,12 @@ if (!Number.isFinite(MAX_AGE_DAYS) || MAX_AGE_DAYS <= 0) {
   fail(`MONITOR_MAX_AGE_DAYS must be a positive number, got ${process.env.MONITOR_MAX_AGE_DAYS}`);
 }
 
-// A rehearsal seam, not a silencer: it supplies the API's ANSWER, so it can
-// only ever be used to make the check fail in a test. It announces itself so a
-// CI log can never quietly be running on fixture data.
+// A rehearsal seam. It supplies the API's ANSWER, so it can make this check
+// PASS as well as fail — an earlier version of this comment claimed otherwise,
+// and the suite's own happy-path case disproves it by using this very variable
+// to pass. What keeps it honest is not the seam: it announces itself in the
+// log, and the CI-wiring test forbids it — and the other two MONITOR_* knobs —
+// from appearing in ci.yml at all.
 const fixture = process.env.MONITOR_RUNS_JSON;
 
 async function runs() {

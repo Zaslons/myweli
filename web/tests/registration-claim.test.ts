@@ -167,7 +167,17 @@ export function organizationProblems(
   registered: boolean,
   org: Record<string, unknown>,
 ): string[] {
-  const identifier = String(org.identifier ?? '');
+  // Serialised, not coerced. A registration number in schema.org is normally
+  // `{ '@type': 'PropertyValue', propertyID: 'RCCM', value: '…' }`, and
+  // `String()` renders that as « [object Object] » — so the canonical encoding
+  // was reported as « carries no RCCM identifier » while sitting right there,
+  // and the message told the author to add what they had already added.
+  const identifier =
+    org.identifier == null
+      ? ''
+      : typeof org.identifier === 'string'
+        ? org.identifier
+        : JSON.stringify(org.identifier);
   if (!registered) {
     // Publishing a registration number we do not have would be a worse defect
     // than publishing none, so this direction is asserted too.
@@ -339,13 +349,21 @@ describe('anchorShapeProblems', () => {
     ).toEqual([]);
   });
 
+  // **Each row asserts the rule that catches IT.** They shared one
+  // `length > 0` oracle, and `tooShort` fires on all four — so the
+  // `not a phrase` and `bare pattern token` branches could both be deleted with
+  // the suite green. The bare-token rule is the one the entire kill-switch
+  // defence rests on.
   it.each([
-    ['a bare pattern token', 'RCCM'],
-    ['a bare token with punctuation', '(immatricul)'],
-    ['two words', 'RCCM number'],
-    ['short', 'immatriculée au RCCM'],
-  ])('rejects %s', (_label, bad) => {
-    expect(anchorShapeProblems(bad, pattern).length).toBeGreaterThan(0);
+    ['a bare pattern token', 'RCCM', 'bare pattern token'],
+    ['a bare token with punctuation', '(immatricul)', 'bare pattern token'],
+    ['two words', 'RCCM number', 'is not a phrase'],
+    ['something short', 'immatriculée au RCCM', 'too short'],
+    // Long enough to clear `tooShort`, so `not a phrase` is the ONLY rule that
+    // can catch it — without this row that branch is unpinned.
+    ['a long two-word string', 'immatriculation-du-registre RCCM-CI-ABJ-2026', 'is not a phrase'],
+  ])('rejects %s, by the rule that catches it', (_label, bad, because) => {
+    expect(anchorShapeProblems(bad, pattern).join(' | ')).toContain(because);
   });
 });
 
@@ -374,6 +392,20 @@ describe('organizationProblems', () => {
   it('fires once registered with nothing published', () => {
     expect(organizationProblems(true, { name: 'MyWeli' })).toHaveLength(2);
   });
+  it('accepts the structured PropertyValue form', () => {
+    // The accepted encoding is data, not an unwritten convention.
+    expect(
+      organizationProblems(true, {
+        legalName: 'MyWeli SARL',
+        identifier: {
+          '@type': 'PropertyValue',
+          propertyID: 'RCCM',
+          value: 'CI-ABJ-2026-B-12345',
+        },
+      }),
+    ).toEqual([]);
+  });
+
   it('is silent once the RCCM and legal name are there', () => {
     expect(
       organizationProblems(true, {
@@ -712,6 +744,54 @@ describe('the surface list cannot go stale behind our backs', () => {
   });
 });
 
+describe('the live-site probe is wired, and covers every published surface', () => {
+  /// **Nothing pinned any of this.** The probe, its npm script, its job and its
+  /// place in `report.needs` were referenced only by the stale-count guard,
+  /// which reads those files as flat text and asserts nothing about them. Each
+  /// could be deleted in a one-line edit with the whole suite green — and the
+  /// commit that added it says an earlier audit had already caught exactly the
+  /// `report.needs` omission once.
+
+  it('runs on the cron and reaches the tracking issue', () => {
+    const wf = readRepoFile('.github/workflows/production-checks.yml');
+    expect(wf).toMatch(/^ {2}legal:$/m);
+    expect(wf).toContain('npm run check:legal');
+    // Without this a red probe never opens the issue: `report` has
+    // `if: failure()`, and failure() only sees jobs listed in `needs`.
+    expect(wf).toMatch(/needs: \[[^\]]*\blegal\b[^\]]*\]/);
+
+    const pkg = JSON.parse(readRepoFile('web/package.json')) as {
+      scripts: Record<string, string>;
+    };
+    expect(pkg.scripts['check:legal']).toContain(
+      'tool/check-registration-claim.spec.ts',
+    );
+  });
+
+  it('probes every surface a visitor can actually read', () => {
+    // ROUTES in the spec is hand-maintained; the manifest is the source of
+    // truth. A new legal page recorded as a surface must not go unprobed —
+    // widening a list fixes the instance, not the blindness, so the list is
+    // derived here rather than trusted.
+    const spec = readRepoFile('web/tool/check-registration-claim.spec.ts');
+    const routed = [...spec.matchAll(/'(web\/app\/[^']+)':\s*'([^']+)'/g)].map(
+      (m) => m[1],
+    );
+    const published = [
+      ...new Set(
+        manifest.surfaces
+          .map((s) => s.file)
+          .filter((f) => f.startsWith('web/app/')),
+      ),
+    ];
+    expect(published.length).toBeGreaterThan(0);
+    expect(
+      published.filter((f) => !routed.includes(f)),
+      'these surfaces are on pages a visitor can read, and the live probe never fetches them',
+    ).toEqual([]);
+  });
+});
+
 describe("the dead-man's switch, exercised rather than described", () => {
   /// The attestation monitor shipped with eight "watched red" mutations that
   /// nothing could repeat — an audit called that an unrepeatable manual claim,
@@ -788,8 +868,13 @@ describe("the dead-man's switch, exercised rather than described", () => {
     // runs appear in the same list. Measured the day it was written —
     // production-checks.yml had four runs, three manual; deploy-backend.yml had
     // 59 runs and 0 scheduled. The filter is the assertion.
-    const src = readRepoFile('infra/ci/99-verify-monitor-alive.mjs');
-    expect(src).toContain('event=schedule');
+    // **Stripped, and matched on the query rather than the bare token.**
+    // `event=schedule` appears twice in that file: once in the comment
+    // explaining why it matters, once in the URL that does it. Removing the
+    // filter left the comment behind and this assertion green — the repo's
+    // most-cited footgun, in the file that exports `stripComments` for it.
+    const src = stripComments(readRepoFile('infra/ci/99-verify-monitor-alive.mjs'));
+    expect(src).toContain('runs?event=schedule');
   });
 
   it('is wired into CI with the permission it needs', () => {
@@ -798,8 +883,28 @@ describe("the dead-man's switch, exercised rather than described", () => {
     // but a job that always 403s is a job nobody keeps.
     const ci = readRepoFile('.github/workflows/ci.yml');
     expect(ci).toContain('monitor-alive:');
-    expect(ci).toContain('actions: read');
     expect(ci).toContain('infra/ci/99-verify-monitor-alive.mjs');
+    // Anchored to a whole line: `actions: read` also appears in the comment
+    // above the permissions block, so `toContain` stayed green with the real
+    // grant deleted. `stripComments` is JS-shaped and does not touch YAML `#`.
+    expect(ci).toMatch(/^\s+actions: read$/m);
+
+    // **THE FUSE IS A POLICY CONSTANT, AND I DID NOT INHERIT MY OWN RULE.**
+    // `attestationMaxAgeDays` is pinned to exactly 90 a few hundred lines up,
+    // with the note « set it to 36500 and the monitor congratulates you for a
+    // century ». The switch's fuse is read from the environment and was pinned
+    // by nothing: MEASURED, `MONITOR_MAX_AGE_DAYS=36500` reports ✓ on a run 964
+    // days old, and `MONITOR_RUNS_JSON` makes it pass unconditionally, forever.
+    // One env line in this workflow disarms the whole design in a PR nothing
+    // goes red on — the same kill-switch shape an earlier round found in
+    // `allowedAnchors`, and it reads in review as configuration.
+    for (const knob of [
+      'MONITOR_MAX_AGE_DAYS',
+      'MONITOR_RUNS_JSON',
+      'MONITOR_WORKFLOW',
+    ]) {
+      expect(ci, `${knob} is set in ci.yml — that silences the switch`).not.toContain(knob);
+    }
   });
 });
 
