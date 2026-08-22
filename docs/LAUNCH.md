@@ -123,7 +123,9 @@ consequences, all of which change how we work:
   watch the crash rate between steps — which requires §5.2.
 - **A forced-upgrade path.** A minimum-supported-version check the app honours,
   so that when we *must* retire an old client we can tell it to update rather
-  than serve it something it will mishandle. **We do not have this** (§5.3).
+  than serve it something it will mishandle. **This is built** (§5.3); what is
+  still owed is the iOS `updateUrl`, which stays NULL until the App Store listing
+  exists.
 
 ### 1.5 Feature flags — deploying without exposing
 
@@ -141,21 +143,31 @@ switch that works quickly on mobile.
 Not everything is missing. Worth being precise so we build what is actually
 absent:
 
-| Capability | State |
+> **This table is an INDEX, not a status board.** It used to carry a `State`
+> column, and that column is why `Crash / error reporting` could read
+> « three of three wired and proven » while the checkbox eleven hundred lines
+> away read « two of the three are now live », and why `Forced upgrade` read
+> « ❌ nothing » about a gate that had been built, shipped and tested. Two
+> hand-maintained copies of one fact disagree; it is only a question of when.
+>
+> The checkbox is now the single place the answer lives. This tells you which
+> one to read.
+
+| Capability | Where the answer lives |
 |---|---|
-| Per-PR web previews | ✅ Vercel builds every PR, and since 2026-08-18 they talk to **staging** (§5.4) |
-| Backend `ENV` seam | ✅ a three-value enum (`dev`/`staging`/`prod`) splitting `guardsOn` from `isProd`; an unknown value throws at boot |
-| App environment switch | ✅ `API_BASE_URL` + `USE_API_BACKEND` dart-defines |
-| Flavours (consumer/pro, both platforms) | ✅ |
-| CI: analyze, unit, widget, golden, e2e, APK size, secret scan, funnel smoke | ✅ strong |
-| Release signing + store prep | ✅ repo side (#337); accounts pending |
-| **Staging environment** | ✅ **complete** — `myweli-api-staging` + `myweli-db-staging`, auto-deployed on merge, PITR on, alerting on, **and Vercel Preview pointed at it** (both `API_BASE_URL` and `NEXT_PUBLIC_API_BASE_URL`). The web half closed 2026-08-18 (§5.4) |
-| **Crash / error reporting** | ✅ **three of three wired and proven** (re-verified 2026-08-20 against the deployed artifacts, not the source): **backend** reports with a real release and the request id; **web** ships a DSN in the bundle served from `myweli.com`; **app** has its own `MOBILE_SENTRY_DSN` and `tool/release_build.sh` refuses to build without it — but no **signed** build exists yet (§6.2), so nothing in a store has carried it. The remaining proof is §5.2's *"trigger one real error per surface"*, still **two of three** |
-| **Uptime alerting** | ✅ **live 2026-08-12** — two Cloud Monitoring checks on `api.myweli.com` (`/health` for the process, `/providers` for the database, because `/health` reported ok right through the Render outage), alerting to email when 2+ regions fail for 5+ minutes. Verified against real probe results, not just created ([design/observability-error-reporting.md](design/observability-error-reporting.md) §8.5) |
-| **Outbound-email alerting** | ✅ **live 2026-08-19** — two Cloud Monitoring policies on the send budget, and **both watched fire** against staging rather than merely created: a warning at 80% of the hourly ceiling (`sent=48`, once, nine seconds *before* the first refusal) and the exhaustion alarm (`sent=61`, `sent=62`), incidents opening ~33 s later. The refusal is invisible to the caller by design — 202 either way — so without these a legitimate exhaustion would surface as a user who could not sign in and no signal at all ([design/backend-email-send-budget.md](design/backend-email-send-budget.md) §8.1) |
-| **Forced upgrade** | ❌ nothing |
-| **Production data hygiene** | ✅ **purged 2026-08-12** — `provider1`–`provider4` deleted, and the purge **survived a forced cold boot** (revision 00014), which is the proof the gate holds. Production now serves zero salons |
-| **Backup / restore rehearsal** | ✅ **rehearsed end to end** — restore *and* promotion. A PITR clone recovered data production no longer had (2026-08-12, ~23 min); a second, cleaner run took **26 min 14 s** and found five traps (2026-08-16); and **promotion** — the step that actually ends an incident — was rehearsed at **17 s**, disproving the `DATABASE_URL` mechanism four docs had recorded (2026-08-17, [design/infra-dr-restore.md](design/infra-dr-restore.md) §8). Both numbers are floors, measured on 10 MB |
+| Per-PR web previews | §5.4 |
+| Backend `ENV` seam | §1.1 — background capability, not a launch gate |
+| App environment switch | §1.1 — background capability, not a launch gate |
+| Flavours (consumer/pro, both platforms) | §1.2 — background capability, not a launch gate |
+| CI: analyze, unit, widget, golden, e2e, APK size, secret scan, funnel smoke | §7, and `.github/workflows/ci.yml` |
+| Release signing + store prep | §6.2 (iOS) and §6.3 (Android) |
+| **Staging environment** | §4 — "A staging environment exists" |
+| **Crash / error reporting** | §5.2 — four boxes, and §4 — "Crash reporting and error tracking" |
+| **Uptime alerting** | §4 — "Uptime alerting on `api.myweli.com`" |
+| **Outbound-email alerting** | §4 — "Outbound-email alerting" |
+| **Forced upgrade** | §5.3 — three boxes, plus the iOS `updateUrl` still owed |
+| **Production data hygiene** | §4 — "Production contains no seeded/demo data" |
+| **Backup / restore rehearsal** | §5.5, and §4 — "A database restore has actually been performed" |
 
 ---
 
@@ -171,7 +183,10 @@ absent:
 - **iOS second** because it is furthest along (account exists, signing prepared)
   and because App Store review is the slower gate — starting it while web is
   live costs nothing. *This line used to say "Sign in with Apple working"; it is
-  not — the entitlement is absent from both entitlements files (§6.2).*
+  not *proven*, because no signed build exists. The entitlement itself is
+  in **both** files — `Runner.entitlements` and `RunnerRelease.entitlements`,
+  pinned by `mobile/test/infra/ios_entitlements_test.dart` — since 2026-08-18.
+  This line said « the entitlement is absent » for four days after it landed.*
 - **Android last.** It has the most outstanding work (no keystore, no Play
   account, R8 unproven) and the widest device variance, which is where the
   reference low-end Android in ROADMAP §6 has to be honoured.
@@ -227,10 +242,21 @@ These block everything. None is surface-specific.
       Sentry org and three projects, set the DSNs, then prove it. Until that
       happens this box is not merely unticked — it is untestable, and a
       dashboard that has never received an event is indistinguishable from one
-      that is not wired up. **Updated 2026-08-18: two of the three are now
-      live** (backend, web — DSNs verified on the deployed artifacts). What
-      remains is the **mobile** project and DSN, and the deliberate trigger on
-      web and app.
+      that is not wired up. **Updated 2026-08-22: all three are wired.** This line said « two of the
+      three are now live … what remains is the mobile project and DSN » for four
+      days after that DSN landed: it has been in Secret Manager since
+      2026-08-18, and `tool/release_build.sh` refuses to build without it. **The
+      blocker is not the DSN — it is that no signed build exists**, so the app
+      half cannot be proven where it has to be. Whether the *web* trigger was
+      seen in the Sentry dashboard is recorded twice in this document with
+      opposite answers (§5.2 names an issue id; §8 says it never happened):
+      **UNVERIFIED from this repo** — only the Sentry UI settles it.
+- [x] **Outbound-email alerting.** Done 2026-08-19 — two Cloud Monitoring
+      policies on the send budget, **both watched fire** against staging rather
+      than assumed. *Added as a box on 2026-08-22: it was claimed in §2's table
+      and tracked by no checkbox, which is exactly the Cloudflare Access failure
+      this document diagnoses in §4 — "this file did not track it at all, so an
+      unverified assumption spent months doing load-bearing work."*
 - [x] **Uptime alerting** on `api.myweli.com` reaching a human. Done
       2026-08-12 — and on **two** paths, not one: `/health` never touches the
       database, so a check on it alone would miss the outage where the service
@@ -249,7 +275,7 @@ These block everything. None is surface-specific.
         **never one historical commit** — so 25 green runs answered a narrower
         question than the box asks. Now scanned with full history
         (`fetch-depth: 0`, no `--no-git`): **no leaks**, over a walk containing
-        main's full **470-commit** history. The printed count varies with how
+        main's full **491-commit (470 when written)** history. The printed count varies with how
         many refs the checkout holds — gitleaks walks all of them, so CI said
         496 and a 16-branch working copy said 548; the coverage is the
         evidence, not the number. Proven to
@@ -258,7 +284,9 @@ These block everything. None is surface-specific.
         clean HEAD, the new form found it. The probe commits were then dropped
         from the branch.
       - **`SMOKE_OTP_SECRET` deleted.** A live **OTP-disclosure** secret in
-        production, mounted by **nothing** — `service_files_test.dart:728`
+        production, mounted by **nothing** — `service_files_test.dart` (the assertion moved when the file grew; find it
+        by name, not by line — a line-number citation into code rots silently,
+        and this one already had)
         asserts production must not carry it, and staging reads its own
         `STAGING_SMOKE_OTP_SECRET`. Before deleting: the serving revision was
         checked for the mount (absent) and the boot log for the `is set`
@@ -439,8 +467,8 @@ These block everything. None is surface-specific.
         [design/backend-rate-limiting.md](design/backend-rate-limiting.md) left
         `LoginThrottle` in memory because admin login *"sits behind Cloudflare
         Access."* Wrong twice: **no evidence Access is configured anywhere** —
-        every mention in the repo is an unexecuted instruction, and this file
-        mentioned it **zero** times, so nothing tracked it — and even configured
+        every mention in the repo is an unexecuted instruction, and this file mentioned it **zero** times at the time, so nothing tracked it
+        (there is a box for it now) — and even configured
         it would front `admin.myweli.com` on Pages, while the API is
         `api.myweli.com`, kept **DNS-only on purpose** so Google can validate
         the managed certificate, so Cloudflare is not in the request path.
@@ -559,11 +587,18 @@ These block everything. None is surface-specific.
 
 ## 5. The specific gaps, with what to do
 
-### 5.1 Production is serving fictional salons
+### 5.1 Production was serving fictional salons — **purged 2026-08-12**
 
-`GET https://api.myweli.com/providers` returns `provider3` « Barber King »,
-« Beauté Divine », « Élégance Coiffure », « Nails & Co » — `seedProviders` from
-`providers_repository.dart`, complete with invented ratings and review counts.
+*Written in the present tense until 2026-08-22, four days after it was fixed.
+That is the defect this document keeps recording about itself, and it had it in
+three more places at once — see §5.2 and §5.3.*
+
+`GET https://api.myweli.com/providers` **used to return** `provider3`
+« Barber King », « Beauté Divine », « Élégance Coiffure », « Nails & Co » —
+`seedProviders` from `providers_repository.dart`, complete with invented ratings
+and review counts. It now returns `total: 0`. The seed data itself still lives
+in `backend/lib/src/providers_repository.dart`, correctly: it is `Env.dev`-gated
+and is what the test suite runs against.
 
 This is fine today (no users) and unacceptable at launch: a marketplace whose
 listings are fabricated is a trust problem and, with invented review counts,
@@ -586,11 +621,20 @@ arguably a consumer-protection one.
       has uploaded yet. Gate it on `Env.dev` and add a test that a
       prod-configured gallery PUT rejects an `asset:` URL.
 
-### 5.2 We would not know if it broke
+### 5.2 We would not have known if it broke — **wired on all three surfaces**
 
-No Crashlytics, Sentry, or equivalent anywhere. Today a crash on a user's phone
-is invisible to us forever; a 500 in the backend exists only in Cloud Run logs
-nobody is watching.
+*This paragraph read « **No Crashlytics, Sentry, or equivalent anywhere** » until
+2026-08-22, with three ticked boxes beneath it saying otherwise. It is the same
+sentence that made the published privacy policy false **twice** (§4, the legal
+box), which is why it is corrected here rather than deleted: the wording is the
+hazard, not just the fact.*
+
+Sentry now ships on all three surfaces — `mobile/pubspec.yaml`
+(`sentry_flutter`), `backend/pubspec.yaml` (`sentry`), `web/package.json`
+(`@sentry/nextjs`). Before that, a crash on a user's phone was invisible to us
+forever and a 500 in the backend existed only in Cloud Run logs nobody was
+watching. What remains is proof on a **signed** build, not wiring — see the
+boxes below.
 
 - [x] **App**: Sentry on both flavours, with the release version attached.
       **Done 2026-08-18.** The `myweli-app` project exists, its DSN is in
@@ -661,7 +705,7 @@ nobody is watching.
         user-stripping line is deliberate defence for code someone writes later,
         exactly as the web scrubber says of its own: *"Nothing sets these today,
         and that is exactly why they are cleared."*
-      - **Backend** has a flush record. **Web has never been triggered against
+      - **Backend** has a flush record. Whether **web** has been triggered against
         production** — the one still outstanding.
       The wiring also stays held by `test/unit/error_reporting_test.dart`, run
       in CI **with a fake DSN**: `String.fromEnvironment` means a plain test run
@@ -674,17 +718,21 @@ nobody is watching.
       run` stdout) never carried the SDK's output. Absence of evidence in a
       channel that could not have shown it.
 - [ ] Alert thresholds agreed — what crash rate halts a staged rollout. The
-      number must land **in this document**, not only in a design doc, and the
-      crash-free-sessions alert is blocked on the mobile DSN.
+      number must land **in this document**, not only in a design doc, and the crash-free-sessions alert waits on a **signed build** — the mobile
+      DSN itself has existed since 2026-08-18.
 
-### 5.3 No forced-upgrade path
+### 5.3 No forced-upgrade path — **built 2026-08-18**
 
 Per §1.4 we cannot recall a release. Without a minimum-version check we can also
 never *retire* one.
 
-**Nothing has been built** (verified 2026-08-18): no min-version field in
-`openapi.yaml`, no such route, and no startup check in either flavour. It is
-also the one gate that is **cheaper before the first release than after** — a
+*This paragraph said « **Nothing has been built** (verified 2026-08-18) » —
+naming three specific absences — while sitting **three lines above** a box
+reading « Done 2026-08-18 ». All three now exist: `/client-version` in
+`docs/api/openapi.yaml`, `backend/routes/client-version/`, and
+`mobile/lib/core/version/client_version_gate.dart` wired into both flavours.*
+
+It is the one gate that is **cheaper before the first release than after** — a
 v1.0 shipped without the check can never be told to update, so the floor can
 only ever apply from v1.1 onward. That makes this an iOS-blocker, not a
 post-launch item.
@@ -760,17 +808,19 @@ checking rather than assuming:
       do not exercise booking or registration flows on one.~~ **No longer
       necessary.** The production `users` table still carries the test accounts
       from an earlier seam run (§4) — the residue of exactly this hazard, and
-      still owed a purge.
+      ~~still owed a purge~~ — **purged 2026-08-18**, verified 5 → 2 users.
 
 ### 5.5 Backups are unrehearsed — **rehearsed 2026-08-16**
 
 - [x] Restore `myweli-db` from PITR and confirm the data. **Done** —
       [design/infra-dr-restore.md](design/infra-dr-restore.md). We now know we
-      have backups: a point-in-time clone came up with **31 migrations and 39
-      tables** intact, in **26 min 14 s**.
+      have backups: a point-in-time clone came up with **31 migrations and 39 tables** *(35 and 43 as of 2026-08-22 — growth, not
+      corruption; dated because an operator seeing a different number needs to
+      know which)* intact, in **26 min 14 s**.
       - Restored into a **standalone instance**, not staging as this line
         originally said. Staging is `ingress: all` and echoes OTP dev-codes, and
-        production holds 5 user rows — small, but not nothing
+        production held 5 user rows when this was written — **2 since the
+        2026-08-18 purge**
         (infra-staging.md §2.1).
       - **26 minutes is a floor**, measured against a 10 MB database. Quote the
         RTO as *"at least half an hour"* and expect it to grow with the data.
@@ -806,13 +856,13 @@ checking rather than assuming:
 
       **First executed 2026-08-21** — until then it was a mechanism with no
       evidence behind it, which is not the same as a working check. Both jobs
-      passed: 3 URLs × 3 runs asserted against the real domain, and 8 privacy
+      passed: 3 URLs × 3 runs asserted against the real domain, and 10 privacy
       assertions including the phone-field routes. A failure now also opens a
       GitHub issue rather than only reddening a row in the Actions tab.
 
       The gate also stopped flattering: `/connexion` carried an LCP ceiling of
       **2900 ms** in the production config — a ratchet meant for the *local*
-      build, against a target that measures **1457 ms**. Now 2500 ms, §7's own
+      build, against a target that measures **1457 ms**. Now 2500 ms, **docs/WEB.md** §7's own
       number, pinned by `tests/cwv-budget.test.ts` along with
       `aggregationMethod: median` (lhci defaults to *optimistic*, the best of N).
 
@@ -917,7 +967,11 @@ checking rather than assuming:
       cheapest honest option then is a cookieless, EU-hosted tool, which keeps
       the no-banner posture.
 - [x] Install-the-app prompts point somewhere real, or are hidden until the apps
-      exist. **They currently promise apps that are not published.**
+      exist. *This box's own sentence used to read « They currently promise apps that
+      are not published », contradicting its own tick. Resolved by making the
+      promise conditional on the link: `web/lib/appStore.ts` returns `null` with
+      no store URL, and both the banner and the button then render nothing at
+      all rather than copy without a link.*
 - [ ] **Uploads cannot be exercised on a preview** — the browser PUTs straight to
       Cloudflare R2, and R2's staging allowlist is exact-match on
       `http://localhost:3000` while Vercel mints a hostname per deployment. Test
@@ -931,8 +985,8 @@ checking rather than assuming:
 - [ ] Everything in [mobile-store-submission.md](design/mobile-store-submission.md) §5.
       Two of its claims are **stale as of 2026-08-18** and must be corrected
       before they are relied on: the Sign in with Apple line below, and the §4
-      privacy table, which still answers "no third-party crash SDK" although
-      `sentry_flutter` ships in the app. An App Store privacy answer that
+      privacy table, **corrected 2026-08-18** — it now answers « crash data:
+      Yes », naming `sentry_flutter`, so that reason is spent. An App Store privacy answer that
       contradicts the binary is a rejection *and* a legal exposure.
 - [ ] A **signed** build verified — production `aps-environment` baked, not just
       configured, and a real push received from the production FCM project.
@@ -1037,9 +1091,19 @@ Design: [design/backend-web-rebuild-hook.md](design/backend-web-rebuild-hook.md)
 
 1. Branch → PR → CI, exactly as now — **and enforced since 2026-08-22 rather
    than merely practised.** `main` is protected: no direct pushes, no
-   force-pushes, no branch deletion, all nine CI checks required and required to
-   be green against **current** main (`strict`), conversations resolved, and
-   `enforce_admins` on so the owner is not exempt. Verified by attempting a
+   force-pushes, no branch deletion, required checks that must be green against
+   **current** main (`strict`), conversations resolved, and `enforce_admins` on
+   so the owner is not exempt.
+
+   **⚠️ The required list is nine contexts; `ci.yml` defines ten.** Measured
+   2026-08-22 against the API. The missing one is **"The production monitor is
+   still firing"** — the dead-man's switch added in #488, *after* protection was
+   configured in #482, with nothing reconciling the two. So that check runs,
+   passes, and **cannot block a merge**, which is precisely what it was built to
+   do. This line originally said "all nine CI checks required" and was correct
+   the day it was written; the drift is the job count, not the protection.
+   `backend/test/infra/launch_doc_test.dart` now fails when a job is added
+   without this being revisited. Verified by attempting a
    direct push and reading `GH006: Protected branch update failed` — a
    protection nobody has watched refuse something is the same shape as a test
    nobody has watched fail.
@@ -1101,7 +1165,9 @@ that could not fire; widening a list fixed the instance and never the blindness;
 and three times running, the newest defect was in the previous round's fix.
 
 **The cost.** Roughly twenty PRs, three multi-agent audits, and a great deal of
-re-work — against a checklist that went from 24 ticked to 30 and, more to the
+re-work — against a checklist that grew as fast as it was ticked (the ratio is the point,
+and it is why no count is quoted here — one written three edits ago was already
+wrong) and, more to the
 point, from ticks that recorded intentions to ticks that record measurements.
 The alternative was launching on the first "closed", which would have shipped a
 privacy policy contradicting the served bundle, a 404 that was a blank page, and
@@ -1144,7 +1210,9 @@ Ordered by what unblocks what, not by size:
    iPhone arrived, carrying `logger_message: Uncaught zone error` — the tag that
    shows it took the path a real crash takes. **Read §5.2 for the two things
    that run did NOT prove**, both of which were claimed here first and corrected
-   after. What remains under "prove it" is **web**, never triggered against
+   after. What remains under "prove it" is **UNVERIFIED**: §5.2 records web as
+   triggered on 2026-08-20 with a Sentry issue id, and this line records it as
+   never triggered against
    production.
 4. ~~**Minimum supported version**~~ **Done 2026-08-18** (§5.3), in three
    slices. The mechanism is in the first build, which was the whole point of the
@@ -1163,7 +1231,8 @@ Ordered by what unblocks what, not by size:
    gallery had to start **uploading for real** — which made it the first thing
    in the repo to exercise R2 end to end.
 7. **The rest of the §4 gate — now the only engineering left on this list:**
-   the secrets audit, the support channel, rate limiting against a real hostile
+   ~~the secrets audit~~ (closed 2026-08-21), the support channel,
+   ~~rate limiting~~ (closed 2026-08-19) against a real hostile
    pattern, and the walk-through by someone who did not build it. None of it was
    ever unblocked by anything above.
 
@@ -1180,7 +1249,8 @@ checklist that states account-side facts it cannot observe will drift exactly
 the way §5.1's seeded-data line and §6.2's "already working" line did. Where an
 item depends on a console this repo cannot reach, say so.
 
-**Items 0–6 are closed.** What is left is item 7, plus the one owner-side step
+**Items 0–6 are closed, and item 7 is down to two of its four.** What is left
+is the support channel and the stranger's walk-through, plus the owner-side step
 above.
 
 The ordering did its job: items 1 and 2 were the ones that stopped being safe
@@ -1200,14 +1270,15 @@ was written. Item 3's proof had to change instrument entirely.
 
 Every one of them was written from what was remembered, and every one was
 corrected by reading the live thing first. That is the habit item 7 wants — its
-four remaining pieces (a secrets audit, a support channel, rate limiting against
+two remaining pieces (a support channel and a walk-through by a stranger;
+the secrets audit closed 2026-08-21 and rate limiting against
 a real hostile pattern, a walk-through by a stranger) are all *"we believe this
 is fine"* statements that nobody has tested.
 
 ### 8.1 The French legal copy still owes a review
 
 The four documents were written in French by an engineer, not a lawyer, and
-`§5`'s legal box has twice pointed at a `§"Legal"` section that **did not
+`§4`'s legal box has twice pointed at a `§"Legal"` section that **did not
 exist** — so the review it promised had no home and was silently skipped both
 times. This is its home.
 
