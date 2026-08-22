@@ -26,7 +26,7 @@
 // web/tests/stub-clock.test.ts: « a suite that is green at every hour except
 // one fails a future PR at random and looks like that PR's fault. » Web unit
 // tests block merges; this cannot. It runs on the production-checks cron and
-// opens an issue. The CONSISTENCY half — that all seven surfaces agree — is
+// opens an issue. The CONSISTENCY half — every recorded surface agreeing — is
 // clock-free and does live in the merge gate
 // (web/tests/registration-claim.test.ts).
 //

@@ -73,7 +73,7 @@
     {
       "file": "web/lib/legal.ts",
       "anchor": "numéro RCCM",
-      "what": "COMPANY.pendingFacts — the five facts the page says are missing",
+      "what": "COMPANY.pendingFacts — the facts the page admits it cannot publish",
       "atRegistration": "empty the list and publish the facts themselves"
     },
     {

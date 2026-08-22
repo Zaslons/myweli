@@ -1231,8 +1231,9 @@ usual tracking issue. Until 2026-08-22 the only automated guard on *this*
 claim asserted it was still PENDING — a guard that went red the day the claim
 was **corrected** and stayed green while it went stale. (Other published legal
 copy was already guarded: `legal.test.tsx` pins the vendor denials against
-`package.json` and the log-retention sentence against the bucket manifest. It
-was this claim that had nothing.)
+`package.json` and asserts the « 30 jours » sentence is present, while
+`backend/test/infra/log_retention_test.dart` is what holds that sentence to
+`infra/gcp/logging-manifest.json`. It was this claim that had nothing.)
 
 The consistency half is a merge gate rather than a monitor:
 `web/tests/registration-claim.test.ts` holds every recorded surface of the claim

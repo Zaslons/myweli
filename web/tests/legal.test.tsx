@@ -211,7 +211,9 @@ describe('lib/legal.ts is the single source of truth', () => {
     // here » — so that is what is asserted now. The claim itself is guarded by
     // tests/registration-claim.test.ts against
     // infra/legal/registration-manifest.json, which also records that the
-    // « one edit » was never true — the claim has surfaces in three documents.
+    // « one edit » was never true — the claim has surfaces in several files,
+    // listed in infra/legal/registration-manifest.json. The number is not
+    // written here on purpose: two rounds of this fix shipped a wrong one.
     expect(COMPANY.tradingName).toBe('MyWeli');
 
     const { container } = render(<MentionsPage />);

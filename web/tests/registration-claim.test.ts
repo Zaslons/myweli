@@ -88,12 +88,19 @@ export function pendingViolations(
 // Fixture readers. `read` receives a FILE, and several surfaces share a file,
 // so "pending" must return every anchor recorded against that file — returning
 // only the first would fake a violation for its siblings.
-const stillPending = (file: string) =>
-  manifest.surfaces
-    .filter((s) => s.file === file)
-    .map((s) => s.anchor)
-    .join('\n');
+const anchorsIn = (file: string) =>
+  manifest.surfaces.filter((s) => s.file === file).map((s) => s.anchor);
+const stillPending = (file: string) => anchorsIn(file).join('\n');
 const alreadyRewritten = () => 'a document with nothing pending left in it';
+/// The anchors are present as TEXT but only inside comments, so this must read
+/// as REWRITTEN. Delete the `stripComments` call from `pendingViolations` and
+/// THIS is the fixture that goes red — measured: without it the whole suite
+/// stayed green with the stripping removed, leaving this repo's most-repeated
+/// footgun unguarded inside the one function built around it.
+const onlyInComments = (file: string) =>
+  anchorsIn(file)
+    .map((anchor) => `/// a docstring that happens to quote ${anchor}`)
+    .join('\n');
 
 describe('pendingViolations — all four cells, in fixtures, in every world', () => {
   // The real tree is in exactly ONE of these states at a time, so asserting
@@ -126,6 +133,19 @@ describe('pendingViolations — all four cells, in fixtures, in every world', ()
     }
   });
 
+  it('an anchor surviving only in a comment is not a surface', () => {
+    // THE STRIPPER, exercised where it actually runs. The dedicated
+    // `stripComments` test proves the function; this proves `pendingViolations`
+    // still calls it.
+    expect(
+      pendingViolations(true, manifest.surfaces, onlyInComments),
+      'a commented-out anchor must not count as the claim still being made',
+    ).toEqual([]);
+    expect(
+      pendingViolations(false, manifest.surfaces, onlyInComments),
+    ).toHaveLength(manifest.surfaces.length);
+  });
+
   it('not registered + already rewritten → also flagged, also actionable', () => {
     // The half-corrected state: someone edited the pages and not the manifest.
     // This message ALSO carries `atRegistration`, because the first version did
@@ -150,16 +170,58 @@ describe('the real tree agrees with the manifest', () => {
     ).toEqual([]);
   });
 
-  it('the manifest states no surface count of its own', () => {
-    // The first version of this branch fixed « three files repeat a false
-    // count » by leaving four files repeating a different false count — the
-    // manifest header said FIVE while its array held SEVEN. A number written
-    // beside a list is a second source of truth that only ever goes stale.
-    const prose = JSON.stringify(manifest.$comment ?? '');
-    expect(
-      prose,
-      'do not write a surface count in prose — the array is the count',
-    ).not.toMatch(/\b(five|six|seven|eight|nine)\s+surfaces\b/i);
+  it('carries an attestation the cron can read, with a pinned limit', () => {
+    // `attestedOn` is consumed only by the daily monitor; a typo there would be
+    // invisible until 06:00 and would look like the monitor's fault.
+    expect(manifest.attestedOn).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(Number.isNaN(Date.parse(manifest.attestedOn))).toBe(false);
+    // **Pinned exactly, not merely positive.** The limit is operator-controlled
+    // and read only by the cron, so `> 0` let anyone silence the entire design
+    // with a one-line PR: set it to 36500 and the monitor congratulates you for
+    // a century. It is a policy constant — changing it should mean changing
+    // this line, on purpose, in a review.
+    expect(manifest.attestationMaxAgeDays).toBe(90);
+  });
+
+  it('nothing writes a surface count in prose — the array is the count', () => {
+    // Two rounds of this fix shipped a wrong count. The first said FIVE in the
+    // manifest header while the array held SEVEN, and SIX in three source
+    // files. The second left SEVEN inside the monitor script itself and FIVE
+    // beside `pendingFacts`. A number written next to a list is a second source
+    // of truth, and it only ever goes stale.
+    //
+    // The first version of THIS guard read `JSON.stringify(manifest.$comment)`
+    // and matched /five|six|…\s+surfaces/. Measured blind spots: French
+    // (« sept surfaces »), digits (« 7 surfaces »), counts outside the five-to-
+    // nine window, and — the likeliest form, since `$comment` is hard-wrapped —
+    // a count split across two array entries, where `","` sits between the
+    // number and the noun and `\s+` cannot match.
+    const strings = (v: unknown): string[] =>
+      typeof v === 'string'
+        ? [v]
+        : Array.isArray(v)
+          ? v.flatMap(strings)
+          : v && typeof v === 'object'
+            ? Object.values(v).flatMap(strings)
+            : [];
+
+    const COUNT =
+      /\b(\d+|one|two|three|four|five|six|seven|eight|nine|ten|un|une|deux|trois|quatre|cinq|sept|huit|neuf|dix)\s+(surfaces?|facts?|faits?)\b/i;
+
+    // Joined with a single space: line wrapping must not hide a count. Both the
+    // manifest and the monitor are checked, because the second round's worst
+    // survivor was in the monitor, which a manifest-scoped guard cannot see.
+    for (const [what, text] of [
+      ['infra/legal/registration-manifest.json', strings(manifest).join(' ')],
+      [
+        'infra/legal/98-verify-registration-attestation.mjs',
+        readRepoFile('infra/legal/98-verify-registration-attestation.mjs')
+          .split('\n')
+          .join(' '),
+      ],
+    ] as const) {
+      expect(text, `${what} writes a count beside a list`).not.toMatch(COUNT);
+    }
   });
 });
 
@@ -190,14 +252,13 @@ describe('stripComments', () => {
     expect(out.split('\n')).toHaveLength(src.split('\n').length);
   });
 
-  it('is actually applied to the files the scan reads', () => {
-    // The control for the above: prove the real pipeline strips, on a phrase
-    // that lives in a comment and is not a claim about the world.
-    const raw = readRepoFile('web/lib/legal.ts');
-    const inACommentOnly = 'owner decision, docs/design/legal-l1.md';
-    expect(raw).toContain(inACommentOnly);
-    expect(stripComments(raw)).not.toContain(inACommentOnly);
-  });
+  // **A second control used to live here**, pinning « owner decision,
+  // docs/design/legal-l1.md » from `lib/legal.ts` as proof the stripper runs on
+  // real files. That phrase sits inside a paragraph stating the company is not
+  // registered, so the registration-day rewrite would have turned it red — the
+  // same defend-the-stale-world trap, one notch quieter. « an anchor surviving
+  // only in a comment is not a surface » covers the same property with a
+  // fixture that holds no opinion about the world.
 });
 
 describe('the surface list cannot go stale behind our backs', () => {
@@ -234,23 +295,28 @@ describe('the surface list cannot go stale behind our backs', () => {
         .filter((l) => pattern.test(l.text)),
     );
 
-  it('finds the sentences it is supposed to be looking at', () => {
-    // THE CONTROL. A scan pointed at a path that does not exist returns zero
-    // lines and passes the next test for the wrong reason.
+  it('every declared root is a real directory that yielded real files', () => {
+    // THE CONTROL, and it took three attempts.
     //
-    // It asserts PRESENCE PER FILE rather than a total, because a total has
-    // only as much slack as there are unrelated matches — two ordinary copy
-    // edits elsewhere would have fired it and sent the reader hunting for a
-    // broken scan root.
-    const scanned = manifest.surfaces
-      .map((s) => s.file)
-      .filter((f) => manifest.scan.roots.some((r) => f.startsWith(r)));
-    expect(scanned.length).toBeGreaterThan(0);
-    for (const file of new Set(scanned)) {
+    // v1 asserted a TOTAL hit count — its only slack was the unrelated matches,
+    // so an ordinary copy edit fired it. v2 asserted a hit in every file
+    // holding a surface, which goes RED ON REGISTRATION DAY: those sentences
+    // are correctly removed that day, and the message blames the scan for a
+    // repair. Both were the defend-the-current-world trap, twice more.
+    //
+    // What a control here must rule out is a root that reaches NOTHING — a
+    // rename, a typo, a deletion. That is a property of the roots rather than
+    // of the claim, so registration day does not touch it. It also covers
+    // `web/components`, which no surface-keyed version ever reached: no surface
+    // lives there, so that root could have been dropped in silence.
+    for (const root of manifest.scan.roots) {
+      const files = walk(join(REPO, root)).filter(
+        (abs) => !manifest.scan.allowedFiles.includes(relative(REPO, abs)),
+      );
       expect(
-        hits.map((h) => h.file),
-        `the scan reached no line of ${file}`,
-      ).toContain(file);
+        files.length,
+        `scan root "${root}" reached no .ts/.tsx file — renamed, or a typo?`,
+      ).toBeGreaterThan(0);
     }
   });
 
@@ -355,8 +421,12 @@ describe('the attestation monitor, exercised rather than described', () => {
     expect(r.out).not.toMatch(/^\s+at /m);
   });
 
-  it('refuses a manifest it cannot read at all', () => {
+  it('refuses a manifest it cannot read at all, and says so', () => {
+    // The table above asserts a message per row; this case did not, so the one
+    // property the design most depends on — failing LOUDLY rather than quietly
+    // — was pinned by an exit code that any crash also produces.
     let code = 0;
+    let out = '';
     try {
       execFileSync('node', [SCRIPT], {
         env: { ...process.env, REGISTRATION_MANIFEST: join(dir, 'absent.json') },
@@ -364,9 +434,13 @@ describe('the attestation monitor, exercised rather than described', () => {
         stdio: ['ignore', 'pipe', 'pipe'],
       });
     } catch (e) {
-      code = (e as { status?: number }).status ?? -1;
+      const err = e as { status?: number; stdout?: string; stderr?: string };
+      code = err.status ?? -1;
+      out = `${err.stdout ?? ''}${err.stderr ?? ''}`;
     }
     expect(code).toBe(1);
+    expect(out).toContain('cannot read');
+    expect(out).toContain('::error::');
   });
 
   it('stays read-only, and is not merely empty', () => {

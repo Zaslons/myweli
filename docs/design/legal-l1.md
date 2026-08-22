@@ -127,13 +127,13 @@ once a year is infrastructure nobody needs.
 the RCCM lands in a single place. It does not: besides the two `COMPANY`
 fields there are hard-coded sentences in the mentions légales and the privacy
 policy, and this spec's own Annex A.4. **The count is deliberately not repeated
-here** — the first version of the fix wrote it into four files and they
-disagreed within two commits. The
+here** — two rounds of this fix wrote counts into several files and they
+disagreed with each other within two commits. The
 list, and what each becomes, is `infra/legal/registration-manifest.json`;
 `web/tests/registration-claim.test.ts` turns it into a failing checklist the
-moment `registered` is flipped. The five surfaces first written by hand were
-already missing one — which is why that list is re-derived from the tree rather
-than maintained.
+moment `registered` is flipped. The list first written by hand was already
+incomplete — which is why it is re-derived from the tree rather than
+maintained.
 
 Whether the claim is still *true* is a different question, and nothing in this
 repo can answer it — no API knows. `infra/legal/98-verify-registration-attestation.mjs`

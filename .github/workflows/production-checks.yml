@@ -163,7 +163,7 @@ jobs:
       # asserted the claim was still PENDING, so it went red the day the claim
       # was CORRECTED and stayed green while it went stale.
       #
-      # The consistency half — all seven surfaces of the claim agreeing with
+      # The consistency half — every recorded surface of the claim agreeing with
       # each other — is clock-free and lives in the merge gate
       # (web/tests/registration-claim.test.ts). Only the « is it still true? »
       # half is here, because a suite that turns red on a date fails a future PR
@@ -230,8 +230,9 @@ jobs:
             '' \
             '**The attestation job is different, and a failure there does NOT' \
             'mean production is wrong.** It asserts that somebody has confirmed' \
-            'in the last 90 days that « société en cours d immatriculation » is' \
-            'still true — a fact no API can answer. If it is the only one red,' \
+            'recently — the job log gives the exact age and limit — that the' \
+            'registration status published in the mentions légales is still' \
+            'true, a fact no API can answer. If it is the only one red,' \
             'there are exactly two fixes, and only one of them is one line.' \
             'If registration completed: in ONE PR flip `registered` in' \
             'infra/legal/registration-manifest.json AND rewrite every surface it' \
