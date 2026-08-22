@@ -1095,13 +1095,16 @@ Design: [design/backend-web-rebuild-hook.md](design/backend-web-rebuild-hook.md)
    **current** main (`strict`), conversations resolved, and `enforce_admins` on
    so the owner is not exempt.
 
-   **⚠️ The required list is nine contexts; `ci.yml` defines ten.** Measured
-   2026-08-22 against the API. The missing one is **"The production monitor is
-   still firing"** — the dead-man's switch added in #488, *after* protection was
-   configured in #482, with nothing reconciling the two. So that check runs,
-   passes, and **cannot block a merge**, which is precisely what it was built to
-   do. This line originally said "all nine CI checks required" and was correct
-   the day it was written; the drift is the job count, not the protection.
+   **All ten of `ci.yml`'s jobs are required contexts** — verified against the
+   API on 2026-08-22, the required set equal to the job set with nothing missing
+   and nothing extra.
+
+   *It was nine for part of that day.* « The production monitor is still
+   firing » — the dead-man's switch — was added in #488, **after** protection
+   was configured in #482, and nothing reconciled the two: it ran, it passed,
+   and it could block nothing, which is the one thing it exists for. The gap was
+   found by a sweep of this document, closed the same day, and is the reason for
+   the pin below rather than a story about it.
    `backend/test/infra/launch_doc_test.dart` now fails when a job is added
    without this being revisited. Verified by attempting a
    direct push and reading `GH006: Protected branch update failed` — a
