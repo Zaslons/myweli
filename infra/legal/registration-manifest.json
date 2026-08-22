@@ -63,6 +63,24 @@
   "attestedBy": "owner, in conversation — « for now the company is not registered »",
   "attestationMaxAgeDays": 90,
 
+  "$legalUpdatedAt_comment": [
+    "What web/lib/legal.ts's LEGAL_UPDATED_AT reads while the claim is pending.",
+    "",
+    "The largest legal-copy change this product will ever make is the one case",
+    "the date discipline did not cover: legal.ts carries a 30-line docstring",
+    "about a substantive rewrite that shipped WITHOUT bumping the date, and",
+    "calls that the version a regulator reads as concealment. Registration is",
+    "exactly that change, and nothing required the bump.",
+    "",
+    "Held in two directions, so the snapshot cannot go stale: while pending, the",
+    "gate requires this to EQUAL the constant — so anyone bumping the date for",
+    "an unrelated amendment bumps this line too, in the same PR. Once registered",
+    "it must DIFFER, which is the bump this exists to force. Without the first",
+    "half the second is worthless: a date already moved for other reasons would",
+    "satisfy a later-than test while the registration PR changed nothing."
+  ],
+  "legalUpdatedAtWhenPending": "2026-08-22",
+
   "surfaces": [
     {
       "file": "web/lib/legal.ts",
