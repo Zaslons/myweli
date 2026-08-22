@@ -1,0 +1,114 @@
+{
+  "$comment": [
+    "The company-registration status this codebase PUBLISHES A CLAIM ABOUT.",
+    "",
+    "web/app/mentions-legales/page.tsx tells the public, in French, that MyWeli is",
+    "« société en cours d'immatriculation au Registre du Commerce et du Crédit",
+    "Mobilier de Côte d'Ivoire ». That is a representation to users, to salons and",
+    "to the app stores. It is TRUE as of the date below (owner-confirmed), and it",
+    "is the kind of statement that stops being true without anything in this repo",
+    "changing.",
+    "",
+    "WHY THIS FILE EXISTS. Until 2026-08-22 the only automated thing touching the",
+    "claim was web/tests/legal.test.tsx, which asserted the claim was STILL",
+    "PENDING — so it went red the day someone CORRECTED it and stayed green",
+    "forever while it rotted. A guard pointed at the wrong end of the fact.",
+    "",
+    "AND THE 'ONE EDIT' WAS NEVER TRUE. lib/legal.ts and mentions-legales/page.tsx",
+    "both claimed COMPANY was the single edit that completes registration. The",
+    "claim actually has FIVE surfaces (below), three of them hard-coded prose in",
+    "two different documents. Editing the constant alone leaves the mentions",
+    "légales contradicting themselves one paragraph later, and leaves the privacy",
+    "policy promising a future event that has already happened.",
+    "",
+    "Read in two directions, like infra/gcp/logging-manifest.json:",
+    "  web/tests/registration-claim.test.ts   manifest <-> the five surfaces",
+    "                                         (offline, merge gate, CLOCK-FREE)",
+    "  infra/legal/98-verify-registration-attestation.mjs",
+    "                                         attestedOn <-> today",
+    "                                         (the daily monitor, never a gate)",
+    "",
+    "WHY THE STALENESS HALF IS NOT A UNIT TEST. web/tests/stub-clock.test.ts says",
+    "it best: « a suite that is green at every hour except one fails a future PR",
+    "at random and looks like that PR's fault. » Web unit tests block merges. So",
+    "consistency is asserted in the gate (no clock), and staleness is asserted on",
+    "the production-checks cron, which opens an issue and cannot block anyone.",
+    "",
+    "WHAT TO DO WHEN THE ISSUE OPENS. Either the company is now registered — flip",
+    "`registered` to true, and the test will fail listing EVERY surface still",
+    "carrying pending prose until each is rewritten — or it is not, and you bump",
+    "`attestedOn` to today. Both are one-line edits reviewed in a PR. The point is",
+    "that re-confirming is cheap and forgetting is noisy.",
+    "",
+    "THE SCAN IS THE PART THAT DEFENDS ITSELF. Listing five surfaces fixes five",
+    "instances; it does not fix the blindness. `scan` re-derives the surface list",
+    "from the source tree on every run, so a SIXTH sentence written next month",
+    "fails until it is recorded here. Comments are stripped before matching —",
+    "four separate guards in this repo have matched text that lived only in a",
+    "comment, one of them the comment explaining that very footgun.",
+    "",
+    "IT EARNED ITSELF ON ITS FIRST RUN. The surface list below was hand-built",
+    "from a careful case-insensitive grep, reviewed, and still missed one of",
+    "the two lines of the mentions-légales Callout. Five surfaces written by",
+    "hand, six in the tree — which is the whole argument for deriving the",
+    "list instead of maintaining it."
+  ],
+
+  "registered": false,
+  "attestedOn": "2026-08-22",
+  "attestedBy": "owner, in conversation — « for now the company is not registered »",
+  "attestationMaxAgeDays": 90,
+
+  "surfaces": [
+    {
+      "file": "web/lib/legal.ts",
+      "anchor": "en cours d’immatriculation",
+      "what": "COMPANY.registration — the sentence the mentions légales renders",
+      "atRegistration": "replace with the RCCM number and the registered name"
+    },
+    {
+      "file": "web/lib/legal.ts",
+      "anchor": "numéro RCCM",
+      "what": "COMPANY.pendingFacts — the five facts the page says are missing",
+      "atRegistration": "empty the list and publish the facts themselves"
+    },
+    {
+      "file": "web/app/mentions-legales/page.tsx",
+      "anchor": "Immatriculation en cours.",
+      "what": "the Callout — hard-coded, NOT read from COMPANY",
+      "atRegistration": "delete the Callout"
+    },
+    {
+      "file": "web/app/mentions-legales/page.tsx",
+      "anchor": "l’immatriculation sera effective",
+      "what": "the Callout's second sentence — the promise to publish later",
+      "atRegistration": "delete the Callout"
+    },
+    {
+      "file": "web/app/mentions-legales/page.tsx",
+      "anchor": "mentions d’immatriculation ci-dessus",
+      "what": "Directeur de la publication defers to a section that will be gone",
+      "atRegistration": "name the legal representative"
+    },
+    {
+      "file": "web/app/politique-confidentialite/page.tsx",
+      "anchor": "après notre immatriculation",
+      "what": "the SMS/WhatsApp section conditions Termii on this same event",
+      "atRegistration": "restate as a present-tense fact, whichever way it lands"
+    }
+  ],
+
+  "scan": {
+    "$comment": [
+      "Every line under `roots` matching `pattern`, after comments are stripped,",
+      "must contain one of the surface anchors above or one of the exemptions",
+      "below. Exemptions are by MEANING, not by line number: both inline hits are",
+      "about the registration papers a SALON uploads, which is a different",
+      "subject, and lib/pro/kyc.ts is that subject's whole module."
+    ],
+    "roots": ["web/app", "web/lib", "web/components"],
+    "pattern": "immatricul|RCCM",
+    "allowedFiles": ["web/lib/pro/kyc.ts"],
+    "allowedAnchors": ["pièces d’identité et d’immatriculation"]
+  }
+}

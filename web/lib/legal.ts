@@ -5,9 +5,14 @@
 /// time one was amended — and a privacy policy dated later than the practice it
 /// describes is worse than an undated one.
 ///
-/// **`COMPANY` is where the RCCM lands as one edit.** MyWeli is not registered
-/// yet (owner decision, docs/design/legal-l1.md §12), so `registration` says so
-/// plainly rather than leaving a blank that reads as an oversight.
+/// **`COMPANY` is where the RCCM lands — but it is NOT the only edit.** MyWeli
+/// is not registered yet (owner decision, docs/design/legal-l1.md §12), so
+/// `registration` says so plainly rather than leaving a blank that reads as an
+/// oversight. This file used to claim registration was "one edit" here; it is
+/// six, across two documents, three of them hard-coded prose. The full list —
+/// and what each becomes — is `infra/legal/registration-manifest.json`, and
+/// `tests/registration-claim.test.ts` prints it as a checklist the moment
+/// `registered` is flipped.
 ///
 /// **`LEGAL_ROUTES` is half of a cross-surface contract.** `AppConfig.privacyUrl`
 /// and its three siblings build these exact paths into the mobile binary, and
@@ -126,7 +131,6 @@ export const COMPANY = {
     'numéro de compte contribuable',
     'représentant légal',
   ],
-  country: 'Côte d’Ivoire',
   /// Mentions légales name the host; ours are three, in two jurisdictions.
   hosts: [
     'Google Cloud — serveurs applicatifs et base de données, Paris (France)',
