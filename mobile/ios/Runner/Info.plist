@@ -29,14 +29,17 @@
 			<string>Editor</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>com.googleusercontent.apps.731308991240-ah75c2bvv4ojfipa7crlj38n7rdg60fv</string>
+				<string>$(GOOGLE_REVERSED_CLIENT_ID)</string>
 			</array>
 		</dict>
 	</array>
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
+	<!-- Per-flavour, set by tool/setup_flavours.rb — ONE Info.plist serves both
+	     apps, so a literal here is the consumer's client in the Pro build.
+	     Same mechanism as $(APP_DISPLAY_NAME) above. -->
 	<key>GIDClientID</key>
-	<string>731308991240-ah75c2bvv4ojfipa7crlj38n7rdg60fv.apps.googleusercontent.com</string>
+	<string>$(GOOGLE_CLIENT_ID)</string>
 	<key>LSApplicationQueriesSchemes</key>
 	<array>
 		<string>comgooglemaps</string>
