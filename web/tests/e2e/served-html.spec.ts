@@ -199,8 +199,15 @@ test('the legacy flat landing still redirects rather than 404ing', async ({ requ
 /// working the day the apps are listed: promise and link appear together or not
 /// at all. Both directions can fail — copy without a link is today's defect, and
 /// a link with no copy would be a bare button nobody can interpret.
-test('the app is promised only where it can actually be got', async ({ page }) => {
-  await page.goto('/');
+/// **Every page that could carry the promise, not just the homepage.** The
+/// first version visited `/` only — and the identical defect was live on
+/// `/pro/connexion` (« Créez votre salon dans l'app MyWeli Pro. » with no store
+/// link) for as long as this guard existed, because the invariant was stated
+/// site-wide in the docstring and enforced on one URL. That is the same shape
+/// as the privacy allowlist that watched three routes and missed the fourth.
+for (const path of ['/', '/connexion', '/pro/connexion', '/recherche?q=tresses']) {
+test(`the app is promised only where it can actually be got: ${path}`, async ({ page }) => {
+  await page.goto(path);
   await page.waitForLoadState('networkidle');
 
   const body = (await page.locator('body').innerText()).toLowerCase();
@@ -214,7 +221,8 @@ test('the app is promised only where it can actually be got', async ({ page }) =
   expect(
     promised === links > 0,
     promised
-      ? 'the page offers the app and gives no way to install it'
-      : 'there is a store link but nothing telling anyone what it is',
+      ? `${path} offers the app and gives no way to install it`
+      : `${path} has a store link but nothing telling anyone what it is`,
   ).toBe(true);
 });
+}

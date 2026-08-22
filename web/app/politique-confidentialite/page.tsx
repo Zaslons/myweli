@@ -210,7 +210,7 @@ export default function Page() {
         HTTPS, et limités à notre site.
       </P>
       <P>
-        Une exception, et elle vient de Google&nbsp;— mais seulement si vous la
+        Deux exceptions, et elles ne se déclenchent que si vous les
         déclenchez. Là où «&nbsp;Continuer avec Google&nbsp;» est proposé, ce
         bouton est d’abord <strong>le nôtre</strong>, et rien n’est demandé à
         Google. Ce n’est qu’en le touchant que le script de Google est chargé,
@@ -221,9 +221,18 @@ export default function Page() {
         navigateur.
       </P>
       <P>
-        Autrement dit&nbsp;: <strong>tant que vous ne choisissez pas Google,
-        rien n’est envoyé à Google</strong>&nbsp;— y compris sur les pages de
-        connexion et d’inscription. Ce n’était pas le cas auparavant&nbsp;: le
+        La seconde est «&nbsp;Continuer avec Apple&nbsp;», et elle fonctionne de
+        la même façon&nbsp;: le bouton est le nôtre, et ce n’est qu’en le
+        touchant que le script d’Apple est chargé depuis{' '}
+        <strong>appleid.cdn-apple.com</strong>, ce qui transmet à Apple votre
+        adresse IP et votre navigateur. Apple ne dépose pas de cookie sur ce
+        site.
+      </P>
+      <P>
+        Autrement dit&nbsp;: <strong>tant que vous ne choisissez pas l’un de
+        ces deux moyens de connexion, rien n’est envoyé ni à Google ni à
+        Apple</strong>&nbsp;— y compris sur les pages de connexion et
+        d’inscription. Ce n’était pas le cas auparavant&nbsp;: le
         script se chargeait dès l’ouverture de la page, donc avant tout choix de
         votre part. Nous l’avons corrigé dans le logiciel plutôt que dans cette
         page&nbsp;— la date en haut de cette page est celle de cette
@@ -233,8 +242,9 @@ export default function Page() {
         Il n’existe aucun cookie de mesure d’audience ni de publicité. C’est
         pourquoi vous ne voyez pas de bandeau de consentement&nbsp;: tout ce que
         nous déposons est strictement nécessaire au service que vous demandez,
-        et la seule chose qui ne vienne pas de nous&nbsp;— le cookie de
-        Google&nbsp;— n’arrive qu’après que vous avez choisi Google.
+        et ce qui ne vient pas de nous&nbsp;— le script de Google, celui
+        d’Apple&nbsp;— n’arrive qu’après que vous avez choisi ce moyen de
+        connexion.
         L’application, elle, conserve votre session dans le coffre-fort du
         système d’exploitation.
       </P>

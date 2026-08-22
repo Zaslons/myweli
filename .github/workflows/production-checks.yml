@@ -99,26 +99,47 @@ jobs:
       - name: Open or update the tracking issue
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # **Without this `gh` cannot resolve the repository at all.** This job
+          # does not check out — it has nothing to build — and `gh` falls back to
+          # the git remote, so every command died with "not a git repository".
+          # Verified by running the same command outside a checkout.
+          GH_REPO: ${{ github.repository }}
           RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          CWV: ${{ needs.cwv.result }}
+          PRIVACY: ${{ needs.privacy.result }}
         run: |
-          TITLE="Production checks are failing"
-          BODY="The scheduled real-domain checks failed.
+          set -euo pipefail
+          TITLE='Production checks are failing'
 
-          CWV: ${{ needs.cwv.result }} · privacy: ${{ needs.privacy.result }}
+          # **`.[0] | "\(.number)"` on an empty list yields the STRING "null
+          # null", which is not empty** — so the old script took the update path
+          # and ran `gh issue reopen null`. The repo has zero issues, so the
+          # FIRST failure, the only one that matters, took the broken path.
+          # `// empty` emits nothing instead. Verified against the real repo.
+          NUM=$(gh issue list --state all --search "$TITLE in:title" \
+                  --json number,title \
+                  --jq "map(select(.title == \"$TITLE\")) | .[0].number // empty")
 
-          $RUN
+          BODY=$(printf '%s\n' \
+            'The scheduled real-domain checks failed.' \
+            '' \
+            "CWV: ${CWV} · privacy: ${PRIVACY}" \
+            '' \
+            "${RUN}" \
+            '' \
+            'These run against myweli.com — not a preview, not a stub — so a' \
+            'failure here means production is **already** wrong. There is no' \
+            'merge to block, which is why this is a monitor and not a gate.' \
+            '' \
+            'The CWV job asserts the docs/WEB.md §7 budgets. The privacy job' \
+            'asserts that no page reaches an undisclosed third party before the' \
+            'visitor chooses one.')
 
-          These run against myweli.com, not a preview and not a stub, so a
-          failure here means production is **already** wrong — this cannot block
-          a merge because there is nothing to block. The CWV job asserts the
-          docs/WEB.md section 7 budgets; the privacy job asserts that no page
-          reaches a third party before the visitor chooses one."
-          EXISTING=$(gh issue list --state all --search "$TITLE in:title" \
-            --json number,state --jq '.[0] | "\(.number) \(.state)"' || true)
-          if [ -n "$EXISTING" ]; then
-            NUM=${EXISTING%% *}; STATE=${EXISTING##* }
-            [ "$STATE" = "CLOSED" ] && gh issue reopen "$NUM"
+          if [ -n "$NUM" ]; then
+            STATE=$(gh issue view "$NUM" --json state --jq .state)
+            [ "$STATE" = 'CLOSED' ] && gh issue reopen "$NUM"
             gh issue comment "$NUM" --body "$BODY"
+            echo "commented on #$NUM"
           else
             gh issue create --title "$TITLE" --body "$BODY"
           fi
