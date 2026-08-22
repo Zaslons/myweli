@@ -32,6 +32,9 @@ on:
 permissions:
   contents: read
   issues: write
+  # Workload Identity Federation for the retention check below. No key material
+  # anywhere — the token is minted per run and expires with it.
+  id-token: write
 
 concurrency:
   group: production-checks
@@ -90,9 +93,68 @@ jobs:
   #
   # One issue, reopened and commented rather than duplicated, so a week of
   # failures is one thread and not seven.
+  retention:
+    name: Real domain — the 30-day log retention we promise
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # **A separate identity holding one custom role with two permissions.**
+      # Not the deployer (it holds run.admin project-wide), and not
+      # roles/logging.viewer — that one grants logging.logEntries.list, so it
+      # can read log ENTRIES, which on this service contain user IP addresses
+      # and user agents. Reading production logs containing PII in order to
+      # check a PRIVACY setting would be a net loss.
+      # Provisioned by infra/gcp/41-iam-checks-sa.sh.
+      - uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: projects/731308991240/locations/global/workloadIdentityPools/github/providers/myweli-repo
+          service_account: myweli-checks@myweli.iam.gserviceaccount.com
+
+      - uses: google-github-actions/setup-gcloud@v3
+
+      # The privacy policy tells users « Ces journaux … sont supprimés
+      # automatiquement au bout de 30 jours ». backend/test/infra/
+      # log_retention_test.dart holds the manifest to the published page on
+      # every push; this holds the LIVE bucket to the manifest. Neither alone is
+      # enough — the test cannot see GCP, and this cannot see the sentence.
+      # **The negative control, and it is the point of the custom role.**
+      #
+      # That this identity CAN read the bucket is proved by the step below. That
+      # it CANNOT read log entries was, until this step existed, an INFERENCE
+      # from the role definition — nobody had watched it be refused. The whole
+      # argument for a two-permission custom role over roles/logging.viewer is
+      # that log entries on this service carry user IP addresses and user
+      # agents; an argument nobody has tested is a claim, not a control.
+      #
+      # Runs daily, so a future `add-iam-policy-binding` that quietly widens
+      # this identity fails here instead of going unnoticed.
+      - name: It CANNOT read a log entry — refusal is the assertion
+        run: |
+          set -uo pipefail
+          if out=$(gcloud logging read 'severity>=DEFAULT' --project=myweli \
+                     --limit=1 --format='value(timestamp)' 2>&1); then
+            echo "::error::this identity READ A LOG ENTRY. The custom role has been"
+            echo "::error::widened, and CI can now see user IP addresses."
+            exit 1
+          fi
+          case "$out" in
+            *PERMISSION_DENIED*|*does\ not\ have*|*Forbidden*|*403*)
+              echo "refused, as designed: ${out%%$'\n'*}" ;;
+            *)
+              # A network blip or a changed error shape must not be read as a
+              # security property. Fail rather than assume the refusal was real.
+              echo "::error::the read failed, but not with a permission error —"
+              echo "::error::cannot conclude the identity is bounded: ${out}"
+              exit 1 ;;
+          esac
+
+      - name: Live bucket matches infra/gcp/logging-manifest.json
+        run: bash infra/gcp/97-verify-log-retention.sh
+
   report:
     name: Say so, if either check failed
-    needs: [cwv, privacy]
+    needs: [cwv, privacy, retention]
     if: failure()
     runs-on: ubuntu-latest
     steps:
@@ -107,6 +169,7 @@ jobs:
           RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           CWV: ${{ needs.cwv.result }}
           PRIVACY: ${{ needs.privacy.result }}
+          RETENTION: ${{ needs.retention.result }}
         run: |
           set -euo pipefail
           TITLE='Production checks are failing'
@@ -123,7 +186,7 @@ jobs:
           BODY=$(printf '%s\n' \
             'The scheduled real-domain checks failed.' \
             '' \
-            "CWV: ${CWV} · privacy: ${PRIVACY}" \
+            "CWV: ${CWV} · privacy: ${PRIVACY} · retention: ${RETENTION}" \
             '' \
             "${RUN}" \
             '' \
@@ -133,7 +196,8 @@ jobs:
             '' \
             'The CWV job asserts the docs/WEB.md §7 budgets. The privacy job' \
             'asserts that no page reaches an undisclosed third party before the' \
-            'visitor chooses one.')
+            'visitor chooses one. The retention job asserts the live log bucket' \
+            'still matches the 30 days the privacy policy promises users.')
 
           if [ -n "$NUM" ]; then
             STATE=$(gh issue view "$NUM" --json state --jq .state)
