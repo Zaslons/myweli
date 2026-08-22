@@ -1075,6 +1075,38 @@ is one.
 
 ---
 
+## 7.1 What three audits cost, and what actually worked
+
+Recorded because the method transferred and the conclusion is not obvious.
+
+**The plan was reported closed three times. It was closed none of them.** Audit
+one graded every phase partial. A round of fixes shipped; audit two still graded
+three of four partial **and found a live bug in the fix itself**. A second round
+shipped; audit three found no new live defect but six guards that could not fail
+on what they watched, and one more instance of a defect a previous fix had half
+closed.
+
+**What did not work:** reading the source, trusting a green CI run, and
+remembering what had been done. Every false closure was written in good faith
+from a correct-looking diff.
+
+**What worked, every time:** probing the **deployed artifact** against the plan,
+with a control — load `/` and the page under test in the same session and
+compare; call the route that should exist and one that should not; read the
+policy the server actually serves rather than the file that generates it.
+
+**What the failures had in common** is now rules 11 to 13 of
+`myweli-verification-guardrails`: the guard nobody mutated was every time the one
+that could not fire; widening a list fixed the instance and never the blindness;
+and three times running, the newest defect was in the previous round's fix.
+
+**The cost.** Roughly twenty PRs, three multi-agent audits, and a great deal of
+re-work — against a checklist that went from 24 ticked to 30 and, more to the
+point, from ticks that recorded intentions to ticks that record measurements.
+The alternative was launching on the first "closed", which would have shipped a
+privacy policy contradicting the served bundle, a 404 that was a blank page, and
+a staff credential whose rotation did nothing.
+
 ## 8. Reconciled 2026-08-18 — what is actually left
 
 Every box above was re-checked against the **deployed** artifact rather than the

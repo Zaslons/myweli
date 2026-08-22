@@ -240,7 +240,83 @@ silently re-baselined screens nobody touched.
 
 ---
 
+## 11. The guard you skipped mutating is the one that cannot fire
+
+Not "usually". **Every time it was checked.**
+
+> **The incident.** Three audits of one launch effort compared each PR's
+> "mutations watched red" list against the guards that PR actually added. Three
+> PRs, three omissions — and the omitted guard was, each time, the one a later
+> audit proved could not fail: the analytics denial branch that reduced to
+> `expect(false).toBe(false)`; the sitemap guard whose `> 0` passed on the exact
+> defect it was written for; the CWV pin that iterated the blocks that exist and
+> never asked whether a measured URL had one.
+>
+> The list in the commit message is not paperwork. It is the only record of
+> which guards were actually exercised, and the gap in it predicts the failure.
+
+**And a mutation that does not apply proves nothing.** In one session four
+mutations printed a reassuring "GREEN under mutation" while the edit had silently
+failed to match — wrong indentation, a moved string. `assert` that the
+replacement changed the file, and treat a non-applying mutation as *no result*,
+never as a pass.
+
+---
+
+## 12. Widening a list fixes the instance, not the blindness
+
+When a guard misses something, the reflex is to add the missed item. Ask instead
+what the list **structurally cannot see**.
+
+> **The incidents, all from one effort.**
+> - A third-party allowlist watched `/`, `/connexion` and `/pro/connexion`, and
+>   `/pro/inscription` shipped fetching a flag from GitHub Pages. Widened — and
+>   it then emerged that of the five routes listed, exactly **one** rendered a
+>   phone field at all: `/mon-compte` redirects to `/connexion` when anonymous,
+>   and `/connexion` is email-first. The list read as phone-field coverage and
+>   was not.
+> - The install-prompt guard visited `/`. The identical defect — copy offering
+>   an app with no store link — was live on `/pro/connexion` the whole time,
+>   because the invariant was stated site-wide in the docstring and enforced on
+>   one URL.
+> - Self-hosting those flags moved the request to our own origin, which put the
+>   *next* failure — the prebuild step deleted, the file 404ing — permanently
+>   outside what a third-party allowlist can detect.
+
+**Rule:** for every allowlist, denylist or route list, write down the class of
+failure it cannot detect, and put a different guard on that class.
+
+---
+
+## 13. The fix is where the next defect lives
+
+A correction is new code written under time pressure by someone who has stopped
+looking for problems because they just found one.
+
+> **The incident.** Three consecutive audits of the same plan each found a live,
+> user-facing defect **introduced by the previous round's fix**.
+> - The remedy for a false privacy sentence was to rewrite the sentence rather
+>   than the software — and the rewrite was still false.
+> - The remedy for that shipped a `loadScript` helper that hung on the second
+>   tap after a failed load, leaving the sign-in card looking alive and doing
+>   nothing — in the file whose own comment claimed to prevent exactly that.
+> - The remedy for an orphaned app-install prompt fixed the homepage and left
+>   the identical copy live on `/pro/connexion`.
+>
+> None was found by a user. None was found by the guard written after the
+> previous one. All three were found by auditing the **deployed artifact**
+> against the plan.
+
+**Rule:** audit the fix with the same suspicion as the defect, and against what
+is deployed rather than what was merged. A round of remediation is not a reason
+to lower the bar; it is the most likely place to need it.
+
+---
+
 ## The one-line version
 
 **Before you say it works: name the observation that would prove you wrong, and
 go make it.**
+
+And when the thing you are checking is your own fix, assume it is wrong in a way
+you have not thought of yet — because three times running, it was.
