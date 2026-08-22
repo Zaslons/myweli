@@ -15,6 +15,7 @@ import '../../providers/provider_provider.dart';
 import '../../widgets/booking/compact_appointment_tile.dart';
 import '../../widgets/common/commune_picker_sheet.dart';
 import '../../widgets/common/commune_pill.dart';
+import '../../widgets/common/consumer_bottom_nav.dart';
 import '../../widgets/common/section_heading.dart';
 import '../../widgets/common/update_nudge_slot.dart';
 import '../../widgets/home/announcement_stories.dart';
@@ -365,7 +366,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           child: SectionHeading(
                             title: 'Mes favoris',
                             action: TextButton(
-                              onPressed: () => context.push('/favorites'),
+                              onPressed: () => context.push('/carte'),
                               child: const Text('Voir la carte'),
                             ),
                           ),
@@ -465,25 +466,8 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: 0,
-        onTap: (index) {
-          if (index == 1) context.push('/favorites');
-          if (index == 2) context.push('/bookings');
-          if (index == 3) context.push('/notifications');
-        },
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Accueil'),
-          BottomNavigationBarItem(icon: Icon(Icons.map), label: 'Carte'),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.calendar_today),
-            label: 'Rendez-vous',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.notifications_none),
-            label: 'Actu',
-          ),
-        ],
+      bottomNavigationBar: const ConsumerBottomNav(
+        current: ConsumerTab.accueil,
       ),
     );
   }

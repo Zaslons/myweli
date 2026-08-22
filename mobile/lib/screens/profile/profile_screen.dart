@@ -85,7 +85,7 @@ class ProfileScreen extends StatelessWidget {
                     icon: Icons.favorite,
                     title: 'Mes favoris',
                     onTap: () {
-                      context.push('/favorites');
+                      context.push('/carte');
                     },
                   ),
                 if (user != null)

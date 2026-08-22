@@ -15,6 +15,7 @@ import '../../models/provider.dart' as models;
 import '../../providers/auth_provider.dart';
 import '../../providers/favorites_provider.dart';
 import '../../providers/provider_provider.dart';
+import '../../widgets/common/consumer_bottom_nav.dart';
 import '../../widgets/common/timed_cached_image.dart';
 
 class MapScreen extends StatefulWidget {
@@ -270,7 +271,7 @@ class _MapScreenState extends State<MapScreen> {
                               if (!auth.isAuthenticated || auth.user == null) {
                                 Navigator.of(sheetCtx).pop();
                                 parentContext.go(
-                                  '/login?returnTo=${Uri.encodeComponent('/favorites')}',
+                                  '/login?returnTo=${Uri.encodeComponent('/carte')}',
                                 );
                                 return;
                               }
@@ -507,26 +508,7 @@ class _MapScreenState extends State<MapScreen> {
           ),
         ],
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: 1,
-        onTap: (index) {
-          if (index == 0) context.go('/home');
-          if (index == 2) context.push('/bookings');
-          if (index == 3) context.push('/notifications');
-        },
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Accueil'),
-          BottomNavigationBarItem(icon: Icon(Icons.map), label: 'Carte'),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.calendar_today),
-            label: 'Rendez-vous',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.notifications_none),
-            label: 'Actu',
-          ),
-        ],
-      ),
+      bottomNavigationBar: const ConsumerBottomNav(current: ConsumerTab.carte),
     );
   }
 }

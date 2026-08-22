@@ -147,9 +147,14 @@ class AppRouter {
         name: 'about',
         builder: (context, state) => const AboutScreen(),
       ),
+      // **Named for what it builds.** This was `path: '/favorites'` building
+      // `MapScreen`, which is PRD FR-FAV-001's « favorites map view » — correct
+      // behaviour under a name that flatly contradicted it. Every reader met a
+      // « Carte » tab pushing `/favorites` and reported a routing bug; the
+      // behaviour was right and the name was the lie.
       GoRoute(
-        path: '/favorites',
-        name: 'favorites',
+        path: '/carte',
+        name: 'carte',
         builder: (context, state) {
           final focusProviderId = state.uri.queryParameters['providerId'];
           return MapScreen(focusProviderId: focusProviderId);
