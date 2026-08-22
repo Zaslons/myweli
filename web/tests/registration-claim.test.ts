@@ -10,6 +10,8 @@ import {
 import { tmpdir } from 'node:os';
 import { join, relative } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { LEGAL_UPDATED_AT } from '../lib/legal';
+import { organizationJsonLd } from '../lib/seo/jsonld';
 
 /// L1 — the guard on « société en cours d'immatriculation ».
 ///
@@ -37,6 +39,11 @@ type Surface = {
   anchor: string;
   what: string;
   atRegistration: string;
+  /// The wording that REPLACES `anchor` once registered. Absent while pending,
+  /// required the day the flag flips — see `pendingViolations`. Without it the
+  /// design only ever checks that the old claim is GONE, so deleting the RCCM
+  /// number the day after registration would pass every guard here.
+  publishedAnchor?: string;
 };
 
 type Manifest = {
@@ -45,6 +52,10 @@ type Manifest = {
   attestedOn: string;
   attestationMaxAgeDays: number;
   surfaces: Surface[];
+  /// What `LEGAL_UPDATED_AT.iso` reads while the claim is pending. Once
+  /// registered it must have moved — the largest legal-copy change this product
+  /// will ever make is the one case the date discipline did not cover.
+  legalUpdatedAtWhenPending: string;
   scan: {
     roots: string[];
     pattern: string;
@@ -67,77 +78,281 @@ export function stripComments(src: string): string {
     .replace(/(^|[^:])\/\/.*$/gm, (_m, before: string) => before);
 }
 
-/// THE PURE CORE. Both directions in one function so neither can be the branch
-/// nobody exercises: while unregistered, a MISSING anchor is the defect; once
-/// registered, a SURVIVING anchor is. **Both messages carry `atRegistration`**
-/// — the first version put it only on the registered branch, so on registration
-/// day the checklist assertion failed on a message that was otherwise correct.
+/// THE PURE CORE. Every direction in one function so none is the branch nobody
+/// exercises: while unregistered, a MISSING anchor is the defect; once
+/// registered, a SURVIVING anchor is — **and so is the absence of what replaced
+/// it.** Every message carries `atRegistration`; the first version put it only
+/// on one branch, and that is what turned the suite red on registration day.
+///
+/// The third arm is the answer to « the registered world has no positive
+/// assertion ». Without it this design checks only that the old claim is gone,
+/// so on the day after registration someone could delete the RCCM number, empty
+/// `COMPANY.registration`, and every guard here would stay green.
 export function pendingViolations(
   registered: boolean,
   surfaces: Surface[],
   read: (file: string) => string,
 ): string[] {
   return surfaces.flatMap((s) => {
-    const present = stripComments(read(s.file)).includes(s.anchor);
-    if (registered && present) {
-      return [`${s.file}: still says « ${s.anchor} » — ${s.atRegistration}`];
+    // **Whitespace-normalised.** Anchors and published wording alike are
+    // Prettier-wrapped in JSX, and a raw `includes` cannot match a sentence
+    // broken across lines — the defect that cost the SCAN two rounds, left
+    // standing in the function beside it.
+    const flat = (t: string) => t.replace(/\s+/g, ' ');
+    const src = flat(stripComments(read(s.file)));
+    const pending = src.includes(flat(s.anchor));
+
+    if (!registered) {
+      return pending
+        ? []
+        : [
+            `${s.file}: « ${s.anchor} » is gone (${s.what}) but the manifest ` +
+              `still says registered=false — ${s.atRegistration}`,
+          ];
     }
-    if (!registered && !present) {
-      return [
-        `${s.file}: « ${s.anchor} » is gone (${s.what}) but the manifest still ` +
-          `says registered=false — ${s.atRegistration}`,
-      ];
+
+    const out: string[] = [];
+    if (pending) {
+      out.push(`${s.file}: still says « ${s.anchor} » — ${s.atRegistration}`);
     }
-    return [];
+    if (!s.publishedAnchor) {
+      // A surface with nothing recorded as its replacement is a silence, and
+      // registration day must not be able to end in one.
+      out.push(
+        `${s.file}: nothing is recorded as having replaced « ${s.anchor} » — ` +
+          `add \`publishedAnchor\` so the new claim is asserted PRESENT rather ` +
+          `than only the old one absent — ${s.atRegistration}`,
+      );
+    } else if (!src.includes(flat(s.publishedAnchor))) {
+      out.push(
+        `${s.file}: does not carry the published wording ` +
+          `« ${s.publishedAnchor} » — ${s.atRegistration}`,
+      );
+    }
+    return out;
   });
 }
 
-// Fixture readers. `read` receives a FILE, and several surfaces share a file,
-// so "pending" must return every anchor recorded against that file — returning
-// only the first would fake a violation for its siblings.
-const anchorsIn = (file: string) =>
-  manifest.surfaces.filter((s) => s.file === file).map((s) => s.anchor);
-const stillPending = (file: string) => anchorsIn(file).join('\n');
-const alreadyRewritten = () => 'a document with nothing pending left in it';
-/// The anchors are present as TEXT but only inside comments, so this must read
-/// as REWRITTEN. Delete the `stripComments` call from `pendingViolations` and
-/// THIS is the fixture that goes red — measured: without it the whole suite
-/// stayed green with the stripping removed, leaving this repo's most-repeated
-/// footgun unguarded inside the one function built around it.
+/// **YAML is not JavaScript, and this file kept forgetting.** `stripComments`
+/// handles `//` and `/* */`; a workflow's comments are `#`, so every assertion
+/// that read a .yml as raw text could be satisfied by the very comment
+/// explaining the thing it was checking. Measured three times in one commit:
+/// `npm run check:legal` demoted into a comment, `actions: read` deleted with
+/// its comment left behind, a ROUTES entry commented out — all green.
+export function stripYamlComments(src: string): string {
+  // Only a `#` at line start or after whitespace: `#` inside a quoted string or
+  // a `${{ }}` expression is not a comment, and blanking one would be worse
+  // than the defect. Line count is preserved for readable failures.
+  return src.replace(/(^|\s)#.*$/gm, (m, before: string) => before);
+}
+
+/// One job's block, so an assertion cannot be satisfied by a DIFFERENT job.
+/// Measured: `actions: read` granted to an unrelated job kept the monitor's own
+/// grant deletable and green; a `needs:` list on another job satisfied the one
+/// `report` was supposed to have.
+export function yamlJob(src: string, name: string): string {
+  // `\\Z` is Perl, not JavaScript — it matched nothing and every job came back
+  // empty, which the first assertion caught. `$(?![\\s\\S])` is the JS spelling
+  // of end-of-input.
+  const m = stripYamlComments(src).match(
+    new RegExp(`^  ${name}:$[\\s\\S]*?(?=^  \\S[^\\n]*:$|$(?![\\s\\S]))`, 'm'),
+  );
+  return m ? m[0] : '';
+}
+
+/// Registration must move the legal date, and the snapshot that proves it must
+/// not go stale. Held BOTH ways: while pending the manifest has to track the
+/// constant, so an unrelated amendment bumps both in one PR; once registered
+/// they must differ. Without the pending half the registered half is worthless
+/// — a date already moved for another reason would satisfy a later-than test
+/// while the registration PR changed nothing.
+export function legalDateProblems(
+  registered: boolean,
+  iso: string,
+  whenPending: string,
+): string[] {
+  if (!registered) {
+    return iso === whenPending
+      ? []
+      : [
+          `LEGAL_UPDATED_AT.iso is ${iso} but the manifest still records ` +
+            `${whenPending}. Bump \`legalUpdatedAtWhenPending\` in the same PR — ` +
+            `it is the snapshot that makes the registration-day check mean ` +
+            `something.`,
+        ];
+  }
+  return iso !== whenPending
+    ? []
+    : [
+        `LEGAL_UPDATED_AT.iso is still ${iso}, the date it read while the ` +
+          `company was unregistered. Registration is the largest legal-copy ` +
+          `change this product will make; a document whose substance moved ` +
+          `while its date stood still is the version a regulator reads as ` +
+          `concealment.`,
+      ];
+}
+
+/// The RCCM published to machines. `organizationJsonLd()` goes out site-wide
+/// from app/layout.tsx and carries no legal identity at all today — which is
+/// right while there is none, and wrong the moment there is.
+export function organizationProblems(
+  registered: boolean,
+  org: Record<string, unknown>,
+): string[] {
+  // A registration number in schema.org is normally
+  // `{ '@type': 'PropertyValue', propertyID: 'RCCM', value: '…' }`. `String()`
+  // rendered that as « [object Object] » and rejected the canonical encoding;
+  // `JSON.stringify` then accepted it for the WRONG reason — the serialisation
+  // includes KEYS, so `propertyID: 'RCCM'` with no `value` at all satisfied
+  // /RCCM/i. The fix widened the guard past the defect it exists for. Read the
+  // value out instead.
+  const asObject = (v: unknown): { id: string; value: string } => {
+    if (v == null) return { id: '', value: '' };
+    if (typeof v === 'string') return { id: v, value: v };
+    const o = v as Record<string, unknown>;
+    return { id: String(o.propertyID ?? ''), value: String(o.value ?? '') };
+  };
+  const { id: identifierKind, value: identifierValue } = asObject(org.identifier);
+  const identifier = identifierValue.trim();
+  if (!registered) {
+    // Publishing a registration number we do not have would be a worse defect
+    // than publishing none, so this direction is asserted too.
+    return identifier || identifierKind
+      ? [
+          `Organization JSON-LD claims identifier « ${identifier || identifierKind} » ` +
+            `while the manifest says the company is not registered`,
+        ]
+      : [];
+  }
+  const problems: string[] = [];
+  if (!identifier || !/RCCM/i.test(`${identifierKind} ${identifier}`)) {
+    problems.push(
+      'Organization JSON-LD carries no RCCM `identifier` — the registered ' +
+        'entity is published to humans on /mentions-legales and to machines ' +
+        'nowhere. Add it in web/lib/seo/jsonld.ts.',
+    );
+  }
+  // Trimmed, and typed: `String()` on an object gives a truthy
+  // « [object Object] », and '   ' is truthy — the very idiom removed one
+  // branch above, left standing here.
+  if (typeof org.legalName !== 'string' || !org.legalName.trim()) {
+    problems.push('Organization JSON-LD carries no `legalName`');
+  }
+  return problems;
+}
+
+/// Shared by `allowedAnchors` and `publishedAnchor`: an anchor has to be a
+/// sentence. A bare pattern token as an exemption blinds the whole scan, and a
+/// one-word `publishedAnchor` asserts nothing. Extracted so BOTH callers are
+/// covered by fixtures — the `allowedAnchors` loop is the only one with data in
+/// it today, so a shape rule applied inline to `publishedAnchor` would be a
+/// loop that never runs.
+export function anchorShapeProblems(anchor: string, pattern: string): string[] {
+  const problems: string[] = [];
+  if (anchor.length <= 24) problems.push(`« ${anchor} » is too short to be a sentence`);
+  if (anchor.trim().split(/\s+/).length <= 2) problems.push(`« ${anchor} » is not a phrase`);
+  if (new RegExp(`^\\W*(${pattern})\\W*$`, 'i').test(anchor)) {
+    problems.push(`« ${anchor} » is a bare pattern token`);
+  }
+  return problems;
+}
+
+/// **The cells run on FIXTURE surfaces, not on `manifest.surfaces`.**
+///
+/// They used to derive from the real list, and that coupling breaks the moment
+/// a `publishedAnchor` is required: the real surfaces have none while the claim
+/// is pending, so « registered + already rewritten → silence » would go red on
+/// data that is correct. The truth table is a property of the FUNCTION; giving
+/// it its own data keeps it that way, and the real manifest gets its own
+/// separate shape test below.
+const FX: Surface[] = [
+  {
+    file: 'lib/legal.ts',
+    anchor: 'en cours d’immatriculation',
+    publishedAnchor:
+      'immatriculée au RCCM n° CI-ABJ-2026-B-12345, au capital de 1 000 000 FCFA',
+    what: 'the constant the mentions légales render',
+    atRegistration: 'publish the RCCM number and the registered name',
+  },
+  {
+    // Two surfaces in one file: `read` receives a FILE, so a fixture that
+    // returned only the first anchor would fake a violation for its sibling.
+    file: 'lib/legal.ts',
+    anchor: "'numéro RCCM',",
+    publishedAnchor: 'siège social situé à Cocody, Abidjan, Côte d’Ivoire',
+    what: 'the list of facts the page admits it cannot publish',
+    atRegistration: 'empty the pending list and publish the facts themselves',
+  },
+  {
+    file: 'app/mentions-legales/page.tsx',
+    anchor: 'Immatriculation en cours.',
+    publishedAnchor:
+      'Société à responsabilité limitée immatriculée au registre du commerce',
+    what: 'the Callout, hard-coded rather than read from the constant',
+    atRegistration: 'delete the Callout',
+  },
+];
+
+const fx = (file: string) => FX.filter((s) => s.file === file);
+const stillPending = (file: string) => fx(file).map((s) => s.anchor).join('\n');
+const alreadyRewritten = (file: string) =>
+  fx(file).map((s) => s.publishedAnchor).join('\n');
+/// Anchors present as TEXT but only inside comments, so this must read as
+/// REWRITTEN. Delete the `stripComments` call from `pendingViolations` and THIS
+/// is the fixture that goes red — measured: without it the whole suite stayed
+/// green with the stripping removed, leaving this repo's most-repeated footgun
+/// unguarded inside the one function built around it. The published wording is
+/// included so the fixture isolates the stripper rather than tripping the
+/// positive assertion beside it.
 const onlyInComments = (file: string) =>
-  anchorsIn(file)
-    .map((anchor) => `/// a docstring that happens to quote ${anchor}`)
-    .join('\n');
+  [
+    ...fx(file).map((s) => `/// a docstring that happens to quote ${s.anchor}`),
+    ...fx(file).map((s) => s.publishedAnchor),
+  ].join('\n');
 
-describe('pendingViolations — all four cells, in fixtures, in every world', () => {
-  // The real tree is in exactly ONE of these states at a time, so asserting
-  // against it can only ever exercise half the function. These four cannot go
-  // stale, cannot go red on a repair, and cover the transition itself.
-
+describe('pendingViolations — every cell, in fixtures, in every world', () => {
   it('not registered + still pending → silence, correctly', () => {
-    expect(pendingViolations(false, manifest.surfaces, stillPending)).toEqual([]);
+    expect(pendingViolations(false, FX, stillPending)).toEqual([]);
   });
 
-  it('registered + already rewritten → silence, correctly', () => {
-    expect(pendingViolations(true, manifest.surfaces, alreadyRewritten)).toEqual(
-      [],
-    );
+  it('registered + rewritten, with the new wording present → silence', () => {
+    expect(pendingViolations(true, FX, alreadyRewritten)).toEqual([]);
   });
 
   it('registered + still pending → the checklist, with an instruction each', () => {
-    const checklist = pendingViolations(true, manifest.surfaces, stillPending);
-    expect(checklist).toHaveLength(manifest.surfaces.length);
-    for (const s of manifest.surfaces) {
+    const checklist = pendingViolations(true, FX, stillPending);
+    // Two per surface now: the old wording still there, AND the new wording
+    // not there yet. Both are true of a page nobody has touched, and both are
+    // work the author has to do.
+    expect(checklist).toHaveLength(FX.length * 2);
+    for (const s of FX) {
       // `toContain('')` is true of every string, so the instruction has to be
       // shown to exist before it is looked for. Found by mutation: blanking an
       // `atRegistration` left this test green.
-      expect(
-        s.atRegistration.length,
-        `${s.file} « ${s.anchor} » records no instruction`,
-      ).toBeGreaterThan(10);
+      expect(s.atRegistration.length).toBeGreaterThan(10);
       expect(checklist.join('\n')).toContain(s.file);
       expect(checklist.join('\n')).toContain(s.atRegistration);
+      expect(checklist.join('\n')).toContain(s.anchor);
     }
+  });
+
+  it('registered + rewritten, but nothing recorded as the replacement', () => {
+    // THE SILENCE THIS EXISTS TO CLOSE. A surface with no `publishedAnchor` is
+    // a surface whose new claim nothing asserts — so registration day could
+    // end with every guard green and the RCCM published nowhere.
+    const undeclared = FX.map(({ publishedAnchor, ...rest }) => rest);
+    const flagged = pendingViolations(true, undeclared, alreadyRewritten);
+    expect(flagged).toHaveLength(FX.length);
+    expect(flagged.join('\n')).toContain('nothing is recorded as having replaced');
+  });
+
+  it('registered, recorded, but the page does not carry it', () => {
+    // The RCCM deleted the day after registration: old wording gone, new
+    // wording recorded, page silent. Green before this arm existed.
+    const emptied = () => 'a page with neither the old claim nor the new one';
+    const flagged = pendingViolations(true, FX, emptied);
+    expect(flagged).toHaveLength(FX.length);
+    expect(flagged.join('\n')).toContain('does not carry the published wording');
   });
 
   it('an anchor surviving only in a comment is not a surface', () => {
@@ -145,23 +360,152 @@ describe('pendingViolations — all four cells, in fixtures, in every world', ()
     // `stripComments` test proves the function; this proves `pendingViolations`
     // still calls it.
     expect(
-      pendingViolations(true, manifest.surfaces, onlyInComments),
+      pendingViolations(true, FX, onlyInComments),
       'a commented-out anchor must not count as the claim still being made',
     ).toEqual([]);
-    expect(
-      pendingViolations(false, manifest.surfaces, onlyInComments),
-    ).toHaveLength(manifest.surfaces.length);
+    expect(pendingViolations(false, FX, onlyInComments)).toHaveLength(FX.length);
   });
 
   it('not registered + already rewritten → also flagged, also actionable', () => {
     // The half-corrected state: someone edited the pages and not the manifest.
     // This message ALSO carries `atRegistration`, because the first version did
     // not and that is what turned the suite red on registration day.
-    const flagged = pendingViolations(false, manifest.surfaces, alreadyRewritten);
-    expect(flagged).toHaveLength(manifest.surfaces.length);
-    for (const s of manifest.surfaces) {
-      expect(flagged.join('\n')).toContain(s.atRegistration);
-    }
+    const flagged = pendingViolations(false, FX, alreadyRewritten);
+    expect(flagged).toHaveLength(FX.length);
+    for (const s of FX) expect(flagged.join('\n')).toContain(s.atRegistration);
+  });
+});
+
+describe('anchorShapeProblems', () => {
+  // Fixture-tested because the only caller with data in it today is
+  // `allowedAnchors`; a shape rule applied inline to `publishedAnchor` would be
+  // a loop that never runs while the claim is pending.
+  const pattern = 'immatricul|RCCM';
+
+  it('accepts a real published sentence', () => {
+    expect(
+      anchorShapeProblems(
+        'immatriculée au RCCM n° CI-ABJ-2026-B-12345, au capital de 1 000 000 FCFA',
+        pattern,
+      ),
+    ).toEqual([]);
+  });
+
+  // **Each row asserts the rule that catches IT.** They shared one
+  // `length > 0` oracle, and `tooShort` fires on all four — so the
+  // `not a phrase` and `bare pattern token` branches could both be deleted with
+  // the suite green. The bare-token rule is the one the entire kill-switch
+  // defence rests on.
+  it.each([
+    ['a bare pattern token', 'RCCM', 'bare pattern token'],
+    ['a bare token with punctuation', '(immatricul)', 'bare pattern token'],
+    ['two words', 'RCCM number', 'is not a phrase'],
+    ['something short', 'immatriculée au RCCM', 'too short'],
+    // Long enough to clear `tooShort`, so `not a phrase` is the ONLY rule that
+    // can catch it — without this row that branch is unpinned.
+    ['a long two-word string', 'immatriculation-du-registre RCCM-CI-ABJ-2026', 'is not a phrase'],
+  ])('rejects %s, by the rule that catches it', (_label, bad, because) => {
+    expect(anchorShapeProblems(bad, pattern).join(' | ')).toContain(because);
+  });
+});
+
+describe('legalDateProblems', () => {
+  it('is silent when the snapshot tracks the constant, pending', () => {
+    expect(legalDateProblems(false, '2026-08-22', '2026-08-22')).toEqual([]);
+  });
+  it('fires when the date moved while pending and the snapshot did not', () => {
+    expect(legalDateProblems(false, '2026-09-01', '2026-08-22')).toHaveLength(1);
+  });
+  it('fires when registration did not move the date', () => {
+    expect(legalDateProblems(true, '2026-08-22', '2026-08-22')).toHaveLength(1);
+  });
+  it('is silent once registration moved it', () => {
+    expect(legalDateProblems(true, '2026-11-03', '2026-08-22')).toEqual([]);
+  });
+});
+
+describe('organizationProblems', () => {
+  it('is silent while pending with no identifier', () => {
+    expect(organizationProblems(false, { name: 'MyWeli' })).toEqual([]);
+  });
+  it('fires on an identifier we have no right to publish', () => {
+    expect(organizationProblems(false, { identifier: 'RCCM CI-X' })).toHaveLength(1);
+  });
+  it('fires once registered with nothing published', () => {
+    expect(organizationProblems(true, { name: 'MyWeli' })).toHaveLength(2);
+  });
+  it('accepts the structured PropertyValue form', () => {
+    // The accepted encoding is data, not an unwritten convention.
+    expect(
+      organizationProblems(true, {
+        legalName: 'MyWeli SARL',
+        identifier: {
+          '@type': 'PropertyValue',
+          propertyID: 'RCCM',
+          value: 'CI-ABJ-2026-B-12345',
+        },
+      }),
+    ).toEqual([]);
+  });
+
+  it('rejects a PropertyValue that declares RCCM and publishes no number', () => {
+    // The hole the previous fix opened: `JSON.stringify` includes KEYS, so
+    // `propertyID: 'RCCM'` alone satisfied /RCCM/i. Declare the schema, publish
+    // nothing — the exact silence `publishedAnchor` exists to refuse.
+    expect(
+      organizationProblems(true, {
+        legalName: 'MyWeli SARL',
+        identifier: { '@type': 'PropertyValue', propertyID: 'RCCM' },
+      }),
+    ).toHaveLength(1);
+    expect(
+      organizationProblems(true, {
+        legalName: 'MyWeli SARL',
+        identifier: { '@type': 'PropertyValue', propertyID: 'RCCM', value: '  ' },
+      }),
+    ).toHaveLength(1);
+  });
+
+  it.each([
+    ['an object', {}],
+    ['whitespace', '   '],
+  ])('rejects a legalName that is %s', (_l, legalName) => {
+    expect(
+      organizationProblems(true, {
+        legalName,
+        identifier: 'RCCM CI-ABJ-2026-B-12345',
+      }).join(' '),
+    ).toContain('legalName');
+  });
+
+  it('is silent once the RCCM and legal name are there', () => {
+    expect(
+      organizationProblems(true, {
+        legalName: 'MyWeli SARL',
+        identifier: 'RCCM CI-ABJ-2026-B-12345',
+      }),
+    ).toEqual([]);
+  });
+});
+
+describe('the rest of what registration must change', () => {
+  it('the legal date and its snapshot agree with the world we are in', () => {
+    expect(
+      legalDateProblems(
+        manifest.registered,
+        LEGAL_UPDATED_AT.iso,
+        manifest.legalUpdatedAtWhenPending,
+      ),
+    ).toEqual([]);
+  });
+
+  it('the machine-readable entity agrees with the world we are in', () => {
+    expect(
+      organizationProblems(
+        manifest.registered,
+        organizationJsonLd() as unknown as Record<string, unknown>,
+      ),
+    ).toEqual([]);
   });
 });
 
@@ -246,6 +590,8 @@ describe('the real tree agrees with the manifest', () => {
       ['.github/workflows/production-checks.yml', flat('.github/workflows/production-checks.yml')],
       ['docs/design/legal-l1.md', flat('docs/design/legal-l1.md')],
       ['web/tests/legal.test.tsx', flat('web/tests/legal.test.tsx')],
+      ['web/tool/check-registration-claim.spec.ts', flat('web/tool/check-registration-claim.spec.ts')],
+      ['infra/ci/99-verify-monitor-alive.mjs', flat('infra/ci/99-verify-monitor-alive.mjs')],
     ] as const) {
       expect(text, `${what} writes a count beside a list`).not.toMatch(COUNT);
     }
@@ -411,17 +757,20 @@ describe('the surface list cannot go stale behind our backs', () => {
     // (« immatriculée au RCCM n° CI-ABJ-… », 40+ characters, six-plus words)
     // satisfies all three; a bare token satisfies none. Registration day is
     // untouched.
-    const bareToken = new RegExp(`^\\W*(${manifest.scan.pattern})\\W*$`, 'i');
     for (const a of manifest.scan.allowedAnchors) {
-      expect(a.length, `exemption « ${a} » is too short to be a sentence`).toBeGreaterThan(24);
-      expect(
-        a.trim().split(/\s+/).length,
-        `exemption « ${a} » is not a phrase`,
-      ).toBeGreaterThan(2);
-      expect(
-        bareToken.test(a),
-        `exemption « ${a} » is a bare pattern token — it would blind the whole scan`,
-      ).toBe(false);
+      expect(anchorShapeProblems(a, manifest.scan.pattern), a).toEqual([]);
+    }
+    // The same floor on every declared `publishedAnchor`: a one-word one
+    // asserts nothing, and a bare pattern token in `allowedAnchors` beside it
+    // would blind the scan. Empty today — which is why the rule lives in a
+    // helper with its own fixtures rather than only in this loop.
+    for (const s of manifest.surfaces) {
+      if (s.publishedAnchor) {
+        expect(
+          anchorShapeProblems(s.publishedAnchor, manifest.scan.pattern),
+          `${s.file} publishedAnchor`,
+        ).toEqual([]);
+      }
     }
   });
 
@@ -464,6 +813,208 @@ describe('the surface list cannot go stale behind our backs', () => {
         'the thing being published, so it can never be a surface, whose anchor ' +
         'must be ABSENT once registered.',
     ).toEqual([]);
+  });
+});
+
+describe('the live-site probe is wired, and covers every published surface', () => {
+  /// **Nothing pinned any of this.** The probe, its npm script, its job and its
+  /// place in `report.needs` were referenced only by the stale-count guard,
+  /// which reads those files as flat text and asserts nothing about them. Each
+  /// could be deleted in a one-line edit with the whole suite green — and the
+  /// commit that added it says an earlier audit had already caught exactly the
+  /// `report.needs` omission once.
+
+  it('runs on the cron and reaches the tracking issue', () => {
+    const wf = readRepoFile('.github/workflows/production-checks.yml');
+
+    // The JOB, not the file. `toContain('npm run check:legal')` was satisfied
+    // by `run: echo skipped # npm run check:legal`, and said nothing about
+    // `continue-on-error`, which makes a probe that cannot fail.
+    const legal = yamlJob(wf, 'legal');
+    expect(legal, 'no `legal` job in production-checks.yml').not.toBe('');
+    expect(legal).toContain('npm run check:legal');
+    expect(
+      legal,
+      'continue-on-error makes the probe incapable of opening the issue',
+    ).not.toContain('continue-on-error');
+
+    // Without this a red probe never opens the issue: `report` has
+    // `if: failure()`, and failure() only sees jobs listed in `needs`. Anchored
+    // to `report` and split on commas — the file-wide regex matched any job's
+    // needs list, and `\blegal\b` matched `legal-preflight` besides.
+    const report = yamlJob(wf, 'report');
+    const needs = report.match(/needs:\s*\[([^\]]*)\]/)?.[1] ?? '';
+    expect(
+      needs.split(',').map((n) => n.trim()),
+      'the legal job is not in report.needs, so a red probe opens nothing',
+    ).toContain('legal');
+
+    const pkg = JSON.parse(readRepoFile('web/package.json')) as {
+      scripts: Record<string, string>;
+    };
+    expect(pkg.scripts['check:legal']).toContain(
+      'tool/check-registration-claim.spec.ts',
+    );
+  });
+
+  it('probes every surface a visitor can actually read', () => {
+    // ROUTES in the spec is hand-maintained; the manifest is the source of
+    // truth. A new legal page recorded as a surface must not go unprobed —
+    // widening a list fixes the instance, not the blindness, so the list is
+    // derived here rather than trusted.
+    // Comment-stripped and quote-agnostic. Raw, a route COMMENTED OUT kept this
+    // green while the probe stopped fetching that page — and a Prettier pass to
+    // double quotes turned it red for nothing. The URL is checked too: it was
+    // captured and thrown away, so repointing a probe at the homepage passed.
+    const spec = stripComments(
+      readRepoFile('web/tool/check-registration-claim.spec.ts'),
+    );
+    const entries = [
+      ...spec.matchAll(/['"](web\/app\/[^'"]+)['"]:\s*['"]([^'"]+)['"]/g),
+    ];
+    const routed = entries.map((m) => m[1]);
+    for (const [, file, url] of entries) {
+      const slug = file.replace(/^web\/app\//, '').replace(/\/page\.tsx$/, '');
+      expect(url, `${file} is probed at ${url}`).toBe(`/${slug}`);
+    }
+    const published = [
+      ...new Set(
+        manifest.surfaces
+          .map((s) => s.file)
+          .filter((f) => f.startsWith('web/app/')),
+      ),
+    ];
+    expect(published.length).toBeGreaterThan(0);
+    expect(
+      published.filter((f) => !routed.includes(f)),
+      'these surfaces are on pages a visitor can read, and the live probe never fetches them',
+    ).toEqual([]);
+  });
+});
+
+describe("the dead-man's switch, exercised rather than described", () => {
+  /// The attestation monitor shipped with eight "watched red" mutations that
+  /// nothing could repeat — an audit called that an unrepeatable manual claim,
+  /// and it was right. This one is covered from the start.
+  ///
+  /// `MONITOR_RUNS_JSON` supplies the API's ANSWER, so these run offline and
+  /// cannot be flaky on GitHub's availability. The seam can only ever be used
+  /// to make the check fail, never to make a real run pass, and the script
+  /// announces when it is reading fixture data.
+  const SWITCH = join(REPO, 'infra/ci/99-verify-monitor-alive.mjs');
+  const daysAgo = (n: number) => new Date(Date.now() - n * 86_400_000).toISOString();
+  const runsJson = (created: string | null) =>
+    JSON.stringify({
+      workflow_runs: created === null ? [] : [{ created_at: created, conclusion: 'success' }],
+    });
+
+  const run = (env: Record<string, string>) => {
+    try {
+      const out = execFileSync('node', [SWITCH], {
+        env: { ...process.env, GH_REPO: '', GH_TOKEN: '', ...env },
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
+      return { code: 0, out };
+    } catch (e) {
+      const err = e as { status?: number; stdout?: string; stderr?: string };
+      return { code: err.status ?? -1, out: `${err.stdout ?? ''}${err.stderr ?? ''}` };
+    }
+  };
+
+  it('passes on a recent scheduled run, and on the exact boundary', () => {
+    expect(run({ MONITOR_RUNS_JSON: runsJson(daysAgo(0)) }).code).toBe(0);
+    expect(run({ MONITOR_RUNS_JSON: runsJson(daysAgo(3)) }).code).toBe(0);
+  });
+
+  it.each([
+    ['one day past the fuse', runsJson(daysAgo(4)), 'last ran on its schedule'],
+    ['a long silence', runsJson(daysAgo(70)), '70 days ago'],
+    // The case GitHub actually produces when it disables a schedule.
+    ['never scheduled at all', runsJson(null), 'NEVER run on its schedule'],
+    ['a run dated in the future', runsJson(daysAgo(-5)), 'in the future'],
+    ['an unreadable date', runsJson('not-a-date'), 'unreadable date'],
+    ['an unexpected API shape', '{"nope":1}', 'no workflow_runs array'],
+    ['a fixture that is not JSON', '{oops', 'not JSON'],
+  ])('fails closed on %s, saying which', (_label, json, expected) => {
+    const r = run({ MONITOR_RUNS_JSON: json });
+    expect(r.code).toBe(1);
+    expect(r.out).toContain(expected as string);
+    expect(r.out).toContain('::error::');
+    // An unhandled throw exits 1 too, but prints a stack and no annotation.
+    expect(r.out).not.toMatch(/^\s+at /m);
+  });
+
+  it('refuses to run without the repo or the token, rather than skipping', () => {
+    // A check that quietly passes when it cannot authenticate is the failure
+    // this whole file exists about.
+    const noRepo = run({ GH_TOKEN: 'x' });
+    expect(noRepo.code).toBe(1);
+    expect(noRepo.out).toContain('GH_REPO is not set');
+
+    const noToken = run({ GH_REPO: 'owner/repo' });
+    expect(noToken.code).toBe(1);
+    expect(noToken.out).toContain('GH_TOKEN is not set');
+  });
+
+  it('rejects a fuse that is not a positive number', () => {
+    const r = run({ MONITOR_MAX_AGE_DAYS: '0', MONITOR_RUNS_JSON: runsJson(daysAgo(0)) });
+    expect(r.code).toBe(1);
+    expect(r.out).toContain('positive number');
+  });
+
+  it('asks GitHub only for SCHEDULED runs', () => {
+    // The way this check would pass for the wrong reason: `workflow_dispatch`
+    // runs appear in the same list. Measured the day it was written —
+    // production-checks.yml had four runs, three manual; deploy-backend.yml had
+    // 59 runs and 0 scheduled. The filter is the assertion.
+    // **Stripped, and matched on the query rather than the bare token.**
+    // `event=schedule` appears twice in that file: once in the comment
+    // explaining why it matters, once in the URL that does it. Removing the
+    // filter left the comment behind and this assertion green — the repo's
+    // most-cited footgun, in the file that exports `stripComments` for it.
+    const src = stripComments(readRepoFile('infra/ci/99-verify-monitor-alive.mjs'));
+    expect(src).toContain('runs?event=schedule');
+  });
+
+  it('is wired into CI with the permission it needs', () => {
+    // `actions: read` is requested nowhere else in this repository, and without
+    // it the API answers 403 — which the script reports rather than swallows,
+    // but a job that always 403s is a job nobody keeps.
+    const ci = readRepoFile('.github/workflows/ci.yml');
+    expect(ci).toContain('monitor-alive:');
+    expect(ci).toContain('infra/ci/99-verify-monitor-alive.mjs');
+    // Scoped to the job, and comment-stripped. File-wide, this stayed green
+    // when the grant was deleted from `monitor-alive` and added to an unrelated
+    // job — leaving the switch to 403 forever, which reads as a broken check
+    // the team removes rather than a working one.
+    const job = yamlJob(ci, 'monitor-alive');
+    expect(job, 'no monitor-alive job in ci.yml').not.toBe('');
+    expect(job).toMatch(/^\s+actions: read$/m);
+    expect(job).toContain('infra/ci/99-verify-monitor-alive.mjs');
+
+    // **THE FUSE IS A POLICY CONSTANT, AND I DID NOT INHERIT MY OWN RULE.**
+    // `attestationMaxAgeDays` is pinned to exactly 90 a few hundred lines up,
+    // with the note « set it to 36500 and the monitor congratulates you for a
+    // century ». The switch's fuse is read from the environment and was pinned
+    // by nothing: MEASURED, `MONITOR_MAX_AGE_DAYS=36500` reports ✓ on a run 964
+    // days old, and `MONITOR_RUNS_JSON` makes it pass unconditionally, forever.
+    // One env line in this workflow disarms the whole design in a PR nothing
+    // goes red on — the same kill-switch shape an earlier round found in
+    // `allowedAnchors`, and it reads in review as configuration.
+    for (const knob of ['MONITOR_MAX_AGE_DAYS', 'MONITOR_RUNS_JSON', 'MONITOR_WORKFLOW']) {
+      // `SET`, not merely mentioned: the ban used `toContain` over the whole
+      // file, so naming a knob in a comment failed the build with a message
+      // that then said something untrue.
+      expect(
+        job,
+        `${knob} is set in the monitor-alive job — that silences the switch`,
+      ).not.toMatch(new RegExp(`^\\s+${knob}:`, 'm'));
+    }
+    // And the default it falls back to, which the ban does not reach.
+    expect(
+      readRepoFile('infra/ci/99-verify-monitor-alive.mjs'),
+    ).toContain("?? 'production-checks.yml'");
   });
 });
 

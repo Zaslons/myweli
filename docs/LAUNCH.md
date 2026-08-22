@@ -1250,7 +1250,14 @@ that test into a checklist naming every file and what it must become.
   (`infra/cloudflare/r2-manifest.json`), and the policy says
   « serveurs répartis mondialement ». Only the Cloudflare dashboard knows.
 - **Whether the RCCM registration is still pending.** Still owner-only — but no
-  longer unwatched: the date of the last confirmation is in
-  `infra/legal/registration-manifest.json`, and the cron asks again every 90
-  days rather than waiting for someone to remember.
+  longer unwatched, and no longer only in the repo. The date of the last
+  confirmation is in `infra/legal/registration-manifest.json` and the cron asks
+  again every 90 days; `web/tool/check-registration-claim.spec.ts` fetches the
+  live mentions légales and privacy policy daily and fails if what myweli.com
+  publishes disagrees with what the manifest records — which is what a rollback
+  to a pre-registration deployment looks like, and `web/` has no deploy
+  workflow, so production is whatever Vercel last promoted. And because a
+  monitor that stops firing looks exactly like a monitor with nothing to
+  report, `infra/ci/99-verify-monitor-alive.mjs` runs in CI and fails a build
+  when the schedule has been silent for three days.
 
