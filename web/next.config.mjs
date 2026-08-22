@@ -66,6 +66,138 @@ async function legacyFlatRedirects() {
   );
 }
 
+
+/// The Content-Security-Policy, exported so a test can assert its content
+/// without a build. `tests/csp.test.ts` imports this exactly as
+/// `tests/legacy-redirects.test.ts` imports TAXONOMY_ROOTS.
+///
+/// **Every entry below is a measured dependency, not a guess.** Three of them
+/// would break production silently and are invisible to the entire local test
+/// suite:
+///
+///   *.cartocdn.com   map tiles come from tiles-a..d.basemaps.cartocdn.com, and
+///                    a bare-host source does NOT match a subdomain. Omit it and
+///                    the map renders blank. Seven e2e files stub the map by
+///                    substring, so they pass either way.
+///   *.r2.cloudflarestorage.com
+///                    uploads PUT straight at R2 from the browser, bypassing the
+///                    BFF. Omit it and every upload fails — AND a CSP-blocked
+///                    fetch is indistinguishable from a CORS rejection, so
+///                    upload-telemetry.ts would self-report it as
+///                    `upload_likely_cors` and send us chasing Cloudflare.
+///   worker-src blob: maplibre builds its worker from a Blob URL
+///                    (maplibre-gl.js:34). Omit it and no map constructs at all.
+///
+/// **`script-src 'unsafe-inline'` is forced, and the reason is worth keeping.**
+/// The strongest policy is nonce-based with 'strict-dynamic'. We cannot have it:
+/// Next derives a nonce from an INCOMING request header, which requires
+/// middleware, and a nonce forces DYNAMIC rendering. Dynamic rendering is
+/// exactly what makes `notFound()` serve the 44-character `__next_error__`
+/// shell. A nonce-based CSP would reintroduce the blank-page 404 that took a
+/// whole phase to fix. So this policy does not pretend to stop XSS execution —
+/// what it does buy is `frame-ancestors 'none'`, `object-src 'none'`, a locked
+/// `base-uri`/`form-action`, and above all a `connect-src` allowlist that bounds
+/// EXFILTRATION, which is the defect class this project has now caught twice by
+/// detection alone (Google's script, then GitHub Pages flags).
+///
+/// `style-src 'unsafe-inline'` is likewise unavoidable: next/image emits
+/// `style="color:transparent"`, 22 React style props exist, and GSI injects its
+/// own stylesheet. Nonces do not apply to style ATTRIBUTES.
+export function cspDirectives({ dev = false, reportUri = null } = {}) {
+  const d = {
+    'default-src': ["'self'"],
+    // 'unsafe-eval' for `next dev` only — HMR and eval-based source maps. The
+    // e2e suite runs a production build, so it never needs it.
+    'script-src': [
+      "'self'",
+      "'unsafe-inline'",
+      ...(dev ? ["'unsafe-eval'"] : []),
+      'https://accounts.google.com',
+      'https://appleid.cdn-apple.com',
+    ],
+    // accounts.google.com serves the branded button's stylesheet; omitting it
+    // gives an UNSTYLED Google button rather than a hard failure, which is the
+    // kind of break nobody reports.
+    'style-src': ["'self'", "'unsafe-inline'", 'https://accounts.google.com'],
+    'img-src': ["'self'", 'data:', 'blob:', 'https://cdn.myweli.com'],
+    'font-src': ["'self'"],
+    'connect-src': [
+      "'self'",
+      'https://*.ingest.de.sentry.io',
+      'https://accounts.google.com',
+      'https://oauth2.googleapis.com',
+      'https://*.cartocdn.com',
+      'https://*.r2.cloudflarestorage.com',
+    ],
+    // GSI renders a cross-origin iframe. Apple opens a popup rather than a
+    // frame, but appleid.apple.com is listed as insurance: the evidence is a
+    // static read of one locale's bundle, and Apple has shipped iframe-based
+    // variants before.
+    'frame-src': ['https://accounts.google.com', 'https://appleid.apple.com'],
+    'worker-src': ['blob:'],
+    'frame-ancestors': ["'none'"],
+    'base-uri': ["'self'"],
+    'form-action': ["'self'"],
+    'object-src': ["'none'"],
+  };
+  if (reportUri) d['report-uri'] = [reportUri];
+  return d;
+}
+
+export function cspString(opts) {
+  return Object.entries(cspDirectives(opts))
+    .map(([k, v]) => `${k} ${v.join(' ')}`)
+    .join('; ');
+}
+
+/// Sentry's security-header endpoint, derived from the DSN we already have, so
+/// Report-Only violations reach a person instead of a void. A report-only
+/// policy nobody reads is the "guard that cannot fire" pattern in another suit.
+///
+/// DSN shape: https://<publicKey>@<host>/<projectId>
+function sentryReportUri() {
+  const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN;
+  if (!dsn) return null;
+  try {
+    const u = new URL(dsn);
+    const projectId = u.pathname.replace(/^\//, '');
+    if (!u.username || !projectId) return null;
+    return `https://${u.host}/api/${projectId}/security/?sentry_key=${u.username}`;
+  } catch {
+    return null;
+  }
+}
+
+/// **Report-Only first, deliberately.** An allowlist is a claim about traffic
+/// that has not happened yet, and production currently holds ZERO salons — the
+/// booking and salon-page journeys cannot be exercised at all. Enforcing a
+/// policy derived only from what is reachable today would be a guess. The flip
+/// to enforcing is a follow-up, gated on real violation reports rather than on
+/// someone remembering.
+///
+/// HSTS is NOT set here: Vercel already sends
+/// `strict-transport-security: max-age=63072000`, and re-declaring it risks
+/// weakening it. Measured on the deployed site rather than assumed.
+async function securityHeaders() {
+  const dev = process.env.NODE_ENV !== 'production';
+  return [
+    {
+      // One entry, not many: `redirects()` above already emits 17 x communes
+      // routes into the same Vercel routing budget.
+      source: '/:path*',
+      headers: [
+        { key: 'X-Frame-Options', value: 'DENY' },
+        { key: 'X-Content-Type-Options', value: 'nosniff' },
+        { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+        {
+          key: 'Content-Security-Policy-Report-Only',
+          value: cspString({ dev, reportUri: sentryReportUri() }),
+        },
+      ],
+    },
+  ];
+}
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
@@ -81,6 +213,9 @@ const nextConfig = {
   },
   async redirects() {
     return legacyFlatRedirects();
+  },
+  async headers() {
+    return securityHeaders();
   },
   experimental: {
     // Required on Next 14 for `instrumentation.ts` to run at all (stable in 15).
