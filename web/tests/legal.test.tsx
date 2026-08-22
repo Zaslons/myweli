@@ -227,7 +227,12 @@ describe('lib/legal.ts is the single source of truth', () => {
       'utf8',
     );
     expect(src).toContain('{COMPANY.registration}');
-    expect(src).not.toContain('Registre du Commerce');
+    // **Derived from the constant, not from today's wording.** This used to
+    // pin the literal « Registre du Commerce ». That phrase leaves the constant
+    // at registration, so the assertion would stop discriminating: still green,
+    // but no longer proving anything about a hard-coded copy. Slicing the
+    // constant keeps it honest in whatever world we are in.
+    expect(src).not.toContain(COMPANY.registration.slice(0, 40));
   });
 
   it('names all three hosts, because mentions légales must name the host', () => {

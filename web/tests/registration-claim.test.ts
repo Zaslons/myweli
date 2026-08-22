@@ -1,5 +1,12 @@
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, relative } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -205,20 +212,40 @@ describe('the real tree agrees with the manifest', () => {
             ? Object.values(v).flatMap(strings)
             : [];
 
-    const COUNT =
-      /\b(\d+|one|two|three|four|five|six|seven|eight|nine|ten|un|une|deux|trois|quatre|cinq|sept|huit|neuf|dix)\s+(surfaces?|facts?|faits?)\b/i;
+    // Ordinals, a hyphen, and ONE intervening adjective — « seven recorded
+    // surfaces », « the seventh surface », « a seven-surface list » all escaped
+    // the first version. `of|de|des` is excluded so « four of those surfaces »
+    // (a reference, not a count) does not fire.
+    const N =
+      '\\d+|one|two|three|four|five|six|seven|eight|nine|ten' +
+      '|first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth' +
+      '|un|une|deux|trois|quatre|cinq|sept|huit|neuf|dix';
+    const COUNT = new RegExp(
+      `\\b(${N})[-\\s]+(?:(?!of\\b|de\\b|des\\b)[A-Za-zÀ-ÿ]+[-\\s]+)?(surfaces?|facts?|faits?)\\b`,
+      'i',
+    );
 
     // Joined with a single space: line wrapping must not hide a count. Both the
     // manifest and the monitor are checked, because the second round's worst
     // survivor was in the monitor, which a manifest-scoped guard cannot see.
+    // **Every file that has ever carried a stale count**, not the two where the
+    // last round happened to find one. Round two fixed four more by hand in the
+    // same commit that added a guard which could not see them.
+    //
+    // NOT read, and each for a reason: docs/LAUNCH.md and docs/ROADMAP.md, where
+    // "surfaces" means app/web/pro and a count is legitimate; and this file,
+    // whose comment above quotes « sept surfaces » and « 7 surfaces » as
+    // examples, so it would match itself.
+    const flat = (f: string) => readRepoFile(f).split('\n').join(' ');
     for (const [what, text] of [
       ['infra/legal/registration-manifest.json', strings(manifest).join(' ')],
       [
         'infra/legal/98-verify-registration-attestation.mjs',
-        readRepoFile('infra/legal/98-verify-registration-attestation.mjs')
-          .split('\n')
-          .join(' '),
+        flat('infra/legal/98-verify-registration-attestation.mjs'),
       ],
+      ['.github/workflows/production-checks.yml', flat('.github/workflows/production-checks.yml')],
+      ['docs/design/legal-l1.md', flat('docs/design/legal-l1.md')],
+      ['web/tests/legal.test.tsx', flat('web/tests/legal.test.tsx')],
     ] as const) {
       expect(text, `${what} writes a count beside a list`).not.toMatch(COUNT);
     }
@@ -263,6 +290,10 @@ describe('stripComments', () => {
 
 describe('the surface list cannot go stale behind our backs', () => {
   const walk = (dir: string, out: string[] = []): string[] => {
+    // A renamed or deleted root threw ENOENT out of module scope, taking every
+    // test in this file with it — so the control's own « renamed, or a typo? »
+    // message could never print for the case it names.
+    if (!existsSync(dir)) return out;
     for (const name of readdirSync(dir)) {
       const p = join(dir, name);
       if (statSync(p).isDirectory()) walk(p, out);
@@ -288,12 +319,40 @@ describe('the surface list cannot go stale behind our backs', () => {
     .flatMap((root) => walk(join(REPO, root)))
     .map((abs) => ({ rel: relative(REPO, abs), abs }))
     .filter((f) => !manifest.scan.allowedFiles.includes(f.rel))
-    .flatMap((f) =>
-      stripComments(readFileSync(f.abs, 'utf8'))
-        .split('\n')
-        .map((line, i) => ({ file: f.rel, line: i + 1, text: line }))
-        .filter((l) => pattern.test(l.text)),
-    );
+    .flatMap((f) => {
+      const lines = stripComments(readFileSync(f.abs, 'utf8')).split('\n');
+      return lines
+        .map((line, i) => ({
+          file: f.rel,
+          line: i + 1,
+          text: line,
+          // **Anchors are matched on a WINDOW, not a line.** Prettier wraps at
+          // 80 columns, so the published « immatriculée au RCCM n° … » will
+          // land across two lines and a per-line exemption would only ever see
+          // half of it — flagging a correctly rewritten page on registration
+          // day, for the fourth time in this file's history.
+          window: [lines[i - 1] ?? '', line, lines[i + 1] ?? ''].join(' '),
+        }))
+        .filter((l) => pattern.test(l.text));
+    });
+
+  it('the scan configuration itself is pinned, like the 90 beside it', () => {
+    // **v3 of the control below removed the only detection of scan tampering.**
+    // Measured: `roots: []`, a blanked `pattern`, and adding the surface files
+    // to `allowedFiles` each leave the whole suite green — the surface list is
+    // back to hand-maintained and nothing says so. v1 and v2 caught two of
+    // those; v3 dropped the hit assertion to stop going red on registration day
+    // and took the tamper detection with it.
+    //
+    // roots / pattern / allowedFiles do not change at registration: the
+    // published wording « immatriculée au RCCM n° … » still matches this
+    // pattern, and the manifest sends the new sentences to `allowedAnchors` —
+    // which is deliberately NOT pinned, because it is the one field that must
+    // grow that day.
+    expect(manifest.scan.roots).toEqual(['web/app', 'web/lib', 'web/components']);
+    expect(manifest.scan.pattern).toBe('immatricul|RCCM');
+    expect(manifest.scan.allowedFiles).toEqual(['web/lib/pro/kyc.ts']);
+  });
 
   it('every declared root is a real directory that yielded real files', () => {
     // THE CONTROL, and it took three attempts.
@@ -328,7 +387,9 @@ describe('the surface list cannot go stale behind our backs', () => {
     const unrecorded = hits.filter((h) => {
       const rest = anchorsFor(h.file).reduce(
         (t, a) => t.split(a).join(' '),
-        h.text,
+        // Whitespace-normalised so an anchor broken by a line wrap still
+        // matches the recorded text.
+        h.window.replace(/\s+/g, ' '),
       );
       return pattern.test(rest);
     });

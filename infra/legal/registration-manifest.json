@@ -72,8 +72,8 @@
     },
     {
       "file": "web/lib/legal.ts",
-      "anchor": "numéro RCCM",
-      "what": "COMPANY.pendingFacts — the facts the page admits it cannot publish",
+      "anchor": "'numéro RCCM',",
+      "what": "COMPANY.pendingFacts — the facts the page admits it cannot publish. The anchor is the ARRAY-LITERAL form, quotes and comma included: the bare label « numéro RCCM » is reproduced by the registered page that publishes the number, so it would keep the gate red on the very repair it exists for.",
       "atRegistration": "empty the list and publish the facts themselves"
     },
     {
