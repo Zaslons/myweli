@@ -121,7 +121,26 @@ once a year is infrastructure nobody needs.
 
 `web/lib/legal.ts` is the single source of truth: `LEGAL_ROUTES` (slug · h1 · title
 · description), **one** `LEGAL_UPDATED_AT` so four pages cannot drift, and a
-`COMPANY` block where the RCCM lands as **one edit**.
+`COMPANY` block that carries the company facts.
+
+**`COMPANY` is not "one edit", and saying so was a defect.** This section claimed
+the RCCM lands in a single place. It does not: besides the two `COMPANY`
+fields there are hard-coded sentences in the mentions légales and the privacy
+policy, and this spec's own Annex A.4. **The count is deliberately not repeated
+here** — two rounds of this fix wrote counts into several files and they
+disagreed with each other within two commits. The
+list, and what each becomes, is `infra/legal/registration-manifest.json`;
+`web/tests/registration-claim.test.ts` turns it into a failing checklist the
+moment `registered` is flipped. The list first written by hand was already
+incomplete — which is why it is re-derived from the tree rather than
+maintained.
+
+Whether the claim is still *true* is a different question, and nothing in this
+repo can answer it — no API knows. `infra/legal/98-verify-registration-attestation.mjs`
+therefore checks the only thing that is checkable: how long since someone
+confirmed it. Past 90 days the daily `production-checks` run fails and opens the
+tracking issue. It is a monitor, never a merge gate — a suite that turns red on
+a date fails a future PR at random and looks like that PR's fault.
 
 ## 5. Architecture & patterns
 
@@ -237,7 +256,8 @@ as one contract, in one PR. Stated rather than discovered later.
 shipping mobile first means a store reviewer taps a dead link.
 
 V1 only. Mentions légales ships with a « société en cours d'immatriculation »
-notice; the RCCM is one edit to `COMPANY` when registration completes.
+notice; at registration every surface in
+`infra/legal/registration-manifest.json` changes together — see §5.
 
 ## 10. Definition of done
 

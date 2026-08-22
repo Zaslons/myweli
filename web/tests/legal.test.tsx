@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import CguPage from '../app/cgu/page';
@@ -197,13 +199,61 @@ describe('lib/legal.ts is the single source of truth', () => {
     }
   });
 
-  it('carries the mentions-légales facts, and admits the missing ones', () => {
-    // The entity is not registered yet (owner decision), so the page says so
-    // rather than inventing an RCCM. When registration lands this object is the
-    // ONE edit — which is only true if the page reads it from here.
+  it('the mentions légales render COMPANY, not a second copy of it', () => {
+    // **This assertion used to be `COMPANY.registration` matching
+    // /en cours d’immatriculation/i** — a guard aimed at the wrong end of the
+    // fact. It went red the day someone CORRECTED the claim and stayed green
+    // forever while it went stale, which is the opposite of what a guard on a
+    // published legal claim is for.
+    //
+    // What the comment above it always said it wanted was the WIRING — « this
+    // object is the ONE edit, which is only true if the page reads it from
+    // here » — so that is what is asserted now. The claim itself is guarded by
+    // tests/registration-claim.test.ts against
+    // infra/legal/registration-manifest.json, which also records that the
+    // « one edit » was never true — the claim has surfaces in several files,
+    // listed in infra/legal/registration-manifest.json. The number is not
+    // written here on purpose: two rounds of this fix shipped a wrong one.
     expect(COMPANY.tradingName).toBe('MyWeli');
-    expect(COMPANY.registration).toMatch(/en cours d’immatriculation/i);
-    expect(COMPANY.hosts.length).toBeGreaterThan(0);
+
+    const { container } = render(<MentionsPage />);
+    expect(container.textContent ?? '').toContain(COMPANY.registration);
+
+    // Rendering the same words proves nothing on its own — a hard-coded copy
+    // would read identically today and diverge at the first edit. The
+    // discriminating half is that the page has no copy to diverge.
+    const src = readFileSync(
+      join(process.cwd(), 'app/mentions-legales/page.tsx'),
+      'utf8',
+    );
+    expect(src).toContain('{COMPANY.registration}');
+    // **Derived from the constant, not from today's wording.** This used to
+    // pin the literal « Registre du Commerce ». That phrase leaves the constant
+    // at registration, so the assertion would stop discriminating: still green,
+    // but no longer proving anything about a hard-coded copy. Slicing the
+    // constant keeps it honest in whatever world we are in.
+    // Whitespace-normalised on both sides: a hard-coded copy in JSX is
+    // Prettier-wrapped across lines, so a raw `toContain` of a 40-char slice
+    // can never match one — the control replaced a stale literal with a
+    // vacuous check.
+    const flat = (t: string) => t.replace(/\s+/g, ' ');
+    expect(flat(src)).not.toContain(flat(COMPANY.registration).slice(0, 40));
+  });
+
+  it('names all three hosts, because mentions légales must name the host', () => {
+    // **`COMPANY.hosts.length > 0`** was the same tautology this file records
+    // against the vendor table above: true of any non-empty list, including a
+    // wrong one. Where MyWeli runs is a disclosure, so moving it has to touch
+    // this line and be reviewed.
+    expect([...COMPANY.hosts]).toEqual([
+      'Google Cloud — serveurs applicatifs et base de données, Paris (France)',
+      'Vercel Inc. — site web, États-Unis',
+      'Cloudflare Inc. — stockage des fichiers (R2)',
+    ]);
+    const { container } = render(<MentionsPage />);
+    for (const h of COMPANY.hosts) {
+      expect(container.textContent ?? '').toContain(h);
+    }
   });
 
   it('the slugs mobile hard-codes are the slugs that exist', () => {
