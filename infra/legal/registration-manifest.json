@@ -91,6 +91,12 @@
       "atRegistration": "name the legal representative"
     },
     {
+      "file": "docs/design/legal-l1.md",
+      "anchor": "société en cours d'immatriculation",
+      "what": "the L1 spec: §9 scope and the Annex A.4 source copy",
+      "atRegistration": "update §9 and Annex A.4 to the published RCCM facts"
+    },
+    {
       "file": "web/app/politique-confidentialite/page.tsx",
       "anchor": "après notre immatriculation",
       "what": "the SMS/WhatsApp section conditions Termii on this same event",
@@ -105,6 +111,15 @@
       "below. Exemptions are by MEANING, not by line number: both inline hits are",
       "about the registration papers a SALON uploads, which is a different",
       "subject, and lib/pro/kyc.ts is that subject's whole module."
+    ],
+    "$roots_comment": [
+      "web/ SOURCE ONLY, deliberately. The scan's job is the sentences a",
+      "visitor can read; widening it to docs/ would flag every paragraph that",
+      "discusses registration and be switched off within a month. The one doc",
+      "that must change at registration — this spec's Annex A.4 — is a recorded",
+      "surface above instead, which is the narrow claim the scan cannot make.",
+      "It uses a STRAIGHT apostrophe where the code uses U+2019; anchors are",
+      "matched byte-for-byte, so the two are not interchangeable."
     ],
     "roots": ["web/app", "web/lib", "web/components"],
     "pattern": "immatricul|RCCM",

@@ -121,7 +121,16 @@ once a year is infrastructure nobody needs.
 
 `web/lib/legal.ts` is the single source of truth: `LEGAL_ROUTES` (slug · h1 · title
 · description), **one** `LEGAL_UPDATED_AT` so four pages cannot drift, and a
-`COMPANY` block where the RCCM lands as **one edit**.
+`COMPANY` block that carries the company facts.
+
+**`COMPANY` is not "one edit", and saying so was a defect.** This section claimed
+the RCCM lands in a single place; it lands in **seven**, three of them hard-coded
+prose in two different documents and one of them this spec's own Annex A.4. The
+list, and what each becomes, is `infra/legal/registration-manifest.json`;
+`web/tests/registration-claim.test.ts` turns it into a failing checklist the
+moment `registered` is flipped. The five surfaces first written by hand were
+already missing one — which is why that list is re-derived from the tree rather
+than maintained.
 
 ## 5. Architecture & patterns
 
@@ -237,7 +246,8 @@ as one contract, in one PR. Stated rather than discovered later.
 shipping mobile first means a store reviewer taps a dead link.
 
 V1 only. Mentions légales ships with a « société en cours d'immatriculation »
-notice; the RCCM is one edit to `COMPANY` when registration completes.
+notice; at registration every surface in
+`infra/legal/registration-manifest.json` changes together — see §5.
 
 ## 10. Definition of done
 
