@@ -232,7 +232,12 @@ describe('lib/legal.ts is the single source of truth', () => {
     // at registration, so the assertion would stop discriminating: still green,
     // but no longer proving anything about a hard-coded copy. Slicing the
     // constant keeps it honest in whatever world we are in.
-    expect(src).not.toContain(COMPANY.registration.slice(0, 40));
+    // Whitespace-normalised on both sides: a hard-coded copy in JSX is
+    // Prettier-wrapped across lines, so a raw `toContain` of a 40-char slice
+    // can never match one — the control replaced a stale literal with a
+    // vacuous check.
+    const flat = (t: string) => t.replace(/\s+/g, ' ');
+    expect(flat(src)).not.toContain(flat(COMPANY.registration).slice(0, 40));
   });
 
   it('names all three hosts, because mentions légales must name the host', () => {

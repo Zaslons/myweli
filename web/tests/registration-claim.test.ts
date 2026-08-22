@@ -315,26 +315,68 @@ describe('the surface list cannot go stale behind our backs', () => {
     ...manifest.scan.allowedAnchors,
   ];
 
-  const hits = manifest.scan.roots
+  /// **Anchors are matched against the WHOLE FILE, not a line and not a window.**
+  ///
+  /// Per-line came first: Prettier wraps at 80 columns, so a recorded sentence
+  /// spanning two lines was only ever half-seen and a correctly rewritten page
+  /// was flagged. A ±1 window replaced it — and a real French éditeur clause
+  /// carrying RCCM number, capital and siège social wraps over THREE lines,
+  /// with the matched token on the first, so the window reached two thirds of
+  /// it and failed the same way one notch out. A window is a constant that has
+  /// to be guessed against a wrap count nobody controls.
+  ///
+  /// The window also over-reported: `rest` came from the neighbours' text but
+  /// the message printed only the hit line, so an already-recorded line was
+  /// listed whenever an adjacent one was not — telling the reader to record
+  /// wording that was already recorded.
+  ///
+  /// So: normalise the file once, blank every anchor occurrence IN PLACE
+  /// (preserving offsets so line numbers survive), then report the pattern
+  /// matches that are still standing. Wrap-count independent, and each reported
+  /// line is one that genuinely still matches.
+  const scanFile = (rel: string, src: string) => {
+    const lines = stripComments(src).split('\n');
+    const lineOfOffset: number[] = [];
+    let flat = '';
+    lines.forEach((line, i) => {
+      // **Trimmed, not merely collapsed.** Indented JSX leaves a leading space
+      // on every line, so joining produced a DOUBLE space at each boundary and
+      // no recorded sentence could ever match across a wrap — the fix for
+      // wrapping, broken by wrapping. Caught by re-running the probe that
+      // found the window bug rather than trusting the rewrite.
+      const norm = line.replace(/\s+/g, ' ').trim();
+      for (let k = 0; k <= norm.length; k += 1) lineOfOffset[flat.length + k] = i + 1;
+      flat += `${norm} `;
+    });
+
+    let masked = flat;
+    for (const anchor of anchorsFor(rel)) {
+      const needle = anchor.replace(/\s+/g, ' ').trim();
+      if (!needle) continue;
+      for (let at = masked.indexOf(needle); at !== -1; at = masked.indexOf(needle, at + needle.length)) {
+        masked = masked.slice(0, at) + ' '.repeat(needle.length) + masked.slice(at + needle.length);
+      }
+    }
+
+    const re = new RegExp(manifest.scan.pattern, 'gi');
+    // Deduped by line: « immatriculée au RCCM » is two pattern matches on one
+    // sentence, and listing the same line twice makes a checklist look longer
+    // than the work it describes.
+    const seen = new Map<number, { file: string; line: number; text: string }>();
+    for (let m = re.exec(masked); m !== null; m = re.exec(masked)) {
+      const line = lineOfOffset[m.index] ?? 1;
+      if (!seen.has(line)) {
+        seen.set(line, { file: rel, line, text: (lines[line - 1] ?? '').trim() });
+      }
+    }
+    return [...seen.values()];
+  };
+
+  const unrecorded = manifest.scan.roots
     .flatMap((root) => walk(join(REPO, root)))
     .map((abs) => ({ rel: relative(REPO, abs), abs }))
     .filter((f) => !manifest.scan.allowedFiles.includes(f.rel))
-    .flatMap((f) => {
-      const lines = stripComments(readFileSync(f.abs, 'utf8')).split('\n');
-      return lines
-        .map((line, i) => ({
-          file: f.rel,
-          line: i + 1,
-          text: line,
-          // **Anchors are matched on a WINDOW, not a line.** Prettier wraps at
-          // 80 columns, so the published « immatriculée au RCCM n° … » will
-          // land across two lines and a per-line exemption would only ever see
-          // half of it — flagging a correctly rewritten page on registration
-          // day, for the fourth time in this file's history.
-          window: [lines[i - 1] ?? '', line, lines[i + 1] ?? ''].join(' '),
-        }))
-        .filter((l) => pattern.test(l.text));
-    });
+    .flatMap((f) => scanFile(f.rel, readFileSync(f.abs, 'utf8')));
 
   it('the scan configuration itself is pinned, like the 90 beside it', () => {
     // **v3 of the control below removed the only detection of scan tampering.**
@@ -352,6 +394,35 @@ describe('the surface list cannot go stale behind our backs', () => {
     expect(manifest.scan.roots).toEqual(['web/app', 'web/lib', 'web/components']);
     expect(manifest.scan.pattern).toBe('immatricul|RCCM');
     expect(manifest.scan.allowedFiles).toEqual(['web/lib/pro/kyc.ts']);
+  });
+
+  it('an exemption must be a sentence, not a bare pattern token', () => {
+    // **`allowedAnchors` was left unpinned because it is the one field that has
+    // to grow on registration day — and that made it a kill switch.**
+    // MEASURED: adding « immatricul » and « RCCM » as exemptions subtracts a
+    // whole pattern alternative from every file in the tree, so a brand-new
+    // unrecorded claim passes and the suite stays green. It is worse than
+    // emptying `roots`, because `roots: []` reads in review as a suspicious
+    // deletion while two plausible French tokens in an anchor list read as
+    // recording wording — which is exactly what the failing test tells the
+    // author to do.
+    //
+    // So the SHAPE is pinned rather than the value. The published wording
+    // (« immatriculée au RCCM n° CI-ABJ-… », 40+ characters, six-plus words)
+    // satisfies all three; a bare token satisfies none. Registration day is
+    // untouched.
+    const bareToken = new RegExp(`^\\W*(${manifest.scan.pattern})\\W*$`, 'i');
+    for (const a of manifest.scan.allowedAnchors) {
+      expect(a.length, `exemption « ${a} » is too short to be a sentence`).toBeGreaterThan(24);
+      expect(
+        a.trim().split(/\s+/).length,
+        `exemption « ${a} » is not a phrase`,
+      ).toBeGreaterThan(2);
+      expect(
+        bareToken.test(a),
+        `exemption « ${a} » is a bare pattern token — it would blind the whole scan`,
+      ).toBe(false);
+    }
   });
 
   it('every declared root is a real directory that yielded real files', () => {
@@ -384,15 +455,6 @@ describe('the surface list cannot go stale behind our backs', () => {
     // re-derived here instead of trusted. A new « dès notre immatriculation »
     // fails until someone records what it must become, and so does the same
     // sentence copied onto a page that never had it.
-    const unrecorded = hits.filter((h) => {
-      const rest = anchorsFor(h.file).reduce(
-        (t, a) => t.split(a).join(' '),
-        // Whitespace-normalised so an anchor broken by a line wrap still
-        // matches the recorded text.
-        h.window.replace(/\s+/g, ' '),
-      );
-      return pattern.test(rest);
-    });
     expect(
       unrecorded.map((h) => `${h.file}:${h.line} ${h.text.trim()}`),
       'unrecorded registration wording. Add each to ' +
