@@ -87,13 +87,26 @@ test('a public page sets no cookie', async ({ page, context }) => {
 /// and belongs in « Qui d'autre les reçoit » before it belongs here.
 const ALLOWED_HOSTS = [/(^|\.)myweli\.com$/];
 
-/// **Every route that renders a phone field belongs here, and that was learned
-/// the hard way.** This list held `/`, `/connexion` and `/pro/connexion` and
-/// passed — while `/pro/inscription` fetched a flag SVG from
-/// `purecatamphetamine.github.io` on load, because `react-phone-number-input`
-/// defaults `flagUrl` to a GitHub Pages host. The guard was green on the pages
-/// someone had thought of, which is the failure mode an allowlist is supposed
-/// to prevent, not reproduce.
+/// **The routes worth watching, and an honest note about which of them
+/// actually exercise a phone field.** The list held `/`, `/connexion` and
+/// `/pro/connexion` and passed — while `/pro/inscription` fetched a flag SVG
+/// from `purecatamphetamine.github.io` on load, because
+/// `react-phone-number-input` defaults `flagUrl` to a GitHub Pages host. The
+/// guard was green on the pages someone had thought of, which is the failure an
+/// allowlist is supposed to prevent, not reproduce.
+///
+/// Widening it exposed a second, quieter problem an audit had to point out:
+/// **most of these do not render a phone field at all.** `/mon-compte` redirects
+/// to `/connexion?returnTo=…` when anonymous, so that row measures `/connexion`
+/// a second time; `/connexion` itself is email-first and renders no phone input
+/// until after sign-in. Exactly ONE listed route — `/pro/inscription` —
+/// exercises a `PhoneField` anonymously.
+///
+/// They are all still worth checking for third parties. But the list is not the
+/// phone-field coverage it reads as, so the test below pins the premise
+/// separately: if the one route that does exercise one ever stops, this file
+/// becomes a third-party check that no longer covers the defect it was widened
+/// for, and it should say so out loud rather than stay green.
 for (const path of [
   '/',
   '/connexion',
@@ -141,3 +154,26 @@ for (const path of [
     ).toEqual([]);
   });
 }
+
+/// The premise of the list above: at least one route really does render a phone
+/// field, with its flag coming from our own origin. Without this the whole
+/// widening degrades into checking pages that were never at risk.
+test('a phone field really is exercised, and its flag is ours', async ({ page }) => {
+  await page.goto('/pro/inscription');
+  await page.waitForLoadState('networkidle');
+
+  const flag = page.locator('img[src*="/flags/"]').first();
+  await expect(
+    flag,
+    'no phone-field flag rendered — the third-party list no longer covers the '
+      + 'case it was widened for',
+  ).toBeVisible();
+
+  const src = await flag.getAttribute('src');
+  expect(src, 'the flag must be same-origin, not a vendor CDN').toMatch(/^\/flags\//);
+
+  // And it must actually load: a 404 from OUR origin is not a foreign host, so
+  // the allowlist above is structurally blind to it.
+  const res = await page.request.get(new URL(src!, page.url()).toString());
+  expect(res.status(), 'the flag 404s — has the prebuild copy run?').toBe(200);
+});
