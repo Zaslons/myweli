@@ -51,11 +51,11 @@
 	<key>NSCalendarsWriteOnlyAccessUsageDescription</key>
 	<string>MyWeli ajoute vos rendez-vous à votre calendrier.</string>
 	<key>NSCameraUsageDescription</key>
-	<string>MyWeli utilise l’appareil photo pour ajouter des photos à la galerie de votre salon.</string>
+	<string>MyWeli utilise l’appareil photo pour vos photos d’avis, votre photo de profil et, côté salon, la galerie de votre établissement.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Nous utilisons votre position pour afficher les salons autour de vous sur la carte.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>MyWeli accède à vos photos pour ajouter des images à la galerie de votre salon.</string>
+	<string>MyWeli accède à vos photos pour vos photos d’avis, votre photo de profil, votre justificatif d’acompte et, côté salon, la galerie de votre établissement.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

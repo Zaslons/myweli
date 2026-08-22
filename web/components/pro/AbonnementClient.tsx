@@ -127,9 +127,9 @@ export function AbonnementClient() {
             {banner.title}
           </p>
           <p className="mt-xs text-bodyLarge text-textSecondary">{banner.subtitle}</p>
-          {banner.urgent ? (
+          {banner.urgent && contactWhatsAppUrl() ? (
             <a
-              href={contactWhatsAppUrl()}
+              href={contactWhatsAppUrl()!}
               target="_blank"
               rel="noopener noreferrer"
               className="mt-m inline-flex items-center justify-center rounded-lg bg-primary px-l py-s text-labelLarge font-medium text-secondary hover:bg-primaryHover"

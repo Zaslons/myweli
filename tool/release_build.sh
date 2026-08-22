@@ -59,9 +59,20 @@ fi
 
 cd "$(dirname "$0")/../mobile"
 
+# **`--flavor` chooses the NATIVE config; `--target` chooses the APP.** Without
+# the target, every build compiles `lib/main.dart` — so `release_build.sh <p> pro`
+# produced an artifact with the Pro bundle id, the Pro icon and the Pro Firebase
+# config, containing the CONSUMER app. It builds, signs, uploads and installs;
+# you find out when you open it. `main.dart` mounts `AppRouter`, `main_pro.dart`
+# mounts `ProRouter`, and nothing branches on the flavour at runtime, so there is
+# no later chance to notice.
+ENTRY="lib/main.dart"
+[[ "$FLAVOUR" == pro ]] && ENTRY="lib/main_pro.dart"
+
 COMMON=(
   --release
   --flavor "$FLAVOUR"
+  --target "$ENTRY"
   --dart-define=USE_API_BACKEND=true
   --dart-define=API_BASE_URL=https://api.myweli.com
   --dart-define=SENTRY_DSN="$DSN"
@@ -74,10 +85,10 @@ COMMON=(
 )
 
 if [[ "$PLATFORM" == ios ]]; then
-  echo "→ flutter build ipa --flavor $FLAVOUR (DSN injected, not shown)"
+  echo "→ flutter build ipa --flavor $FLAVOUR --target $ENTRY (DSN injected, not shown)"
   flutter build ipa "${COMMON[@]}"
 else
-  echo "→ flutter build appbundle --flavor $FLAVOUR (DSN injected, not shown)"
+  echo "→ flutter build appbundle --flavor $FLAVOUR --target $ENTRY (DSN injected, not shown)"
   flutter build appbundle "${COMMON[@]}"
 fi
 

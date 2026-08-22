@@ -104,7 +104,20 @@ describe('misc', () => {
   });
 
   it('contact URL carries the prefilled message', () => {
-    expect(contactWhatsAppUrl()).toContain('wa.me/');
-    expect(contactWhatsAppUrl()).toContain('text=');
+    // **`toContain('wa.me/')` passed on the defect.** With no number
+    // configured — which is every build this repo produces — the old
+    // implementation returned `https://wa.me/?text=…`, WhatsApp's landing
+    // page, and this assertion was green on it. The number has to be named.
+    // The unconfigured case now returns null and is covered in
+    // `tests/support.test.ts`.
+    const saved = process.env.NEXT_PUBLIC_MYWELI_WHATSAPP;
+    process.env.NEXT_PUBLIC_MYWELI_WHATSAPP = '2250700000000';
+    try {
+      expect(contactWhatsAppUrl()).toContain('wa.me/2250700000000');
+      expect(contactWhatsAppUrl()).toContain('text=');
+    } finally {
+      if (saved === undefined) delete process.env.NEXT_PUBLIC_MYWELI_WHATSAPP;
+      else process.env.NEXT_PUBLIC_MYWELI_WHATSAPP = saved;
+    }
   });
 });

@@ -117,9 +117,30 @@ nothing here should be handed credentials.
    `com.myweli.app` / `com.myweli.pro` exactly.
 5. **Archive and upload** — use **`./tool/release_build.sh <ios|android>
    <consumer|pro>`**, which reads the DSN from Secret Manager so nobody handles
-   it, refuses to build if it is missing/malformed/the backend's, and adds the
-   obfuscation + split-debug-info the ROADMAP requires (without which every
-   Sentry stack trace is unreadable symbols).
+   it, refuses to build if it is missing/malformed/the backend's, selects the
+   right Dart entry point, and adds the obfuscation + split-debug-info the
+   ROADMAP requires (without which every Sentry stack trace is unreadable
+   symbols).
+
+   > **It did not select the entry point until 2026-08-22, and this step told
+   > you to trust it.** `--flavor` chooses the NATIVE configuration — bundle id,
+   > icon, Firebase config — and **not** the Dart `main`. Without `--target`,
+   > every build compiled `lib/main.dart`, so `release_build.sh <p> pro`
+   > produced an artifact wearing the Pro identity and containing the CONSUMER
+   > app. It builds, signs, uploads and installs; nothing dispatches on the
+   > flavour at runtime, so the first sign is opening it. `mobile/scripts/
+   > build_consumer.sh` and `build_pro.sh` had the same defect plus two more
+   > (APK instead of AAB, no `--dart-define`s, so the artifact would not boot);
+   > they are deleted rather than fixed, because `tool/release_build.sh` is the
+   > one path that should exist.
+   >
+   > And this is why **launching each signed build on a device before
+   > uploading** is not optional — the practice `LAUNCH.md` §6.2 tracks as
+   > « TestFlight internal build exercised by someone other than the
+   > developer ». It is the only check that catches an artifact which is
+   > correct in every respect except which app is inside it. No test in this
+   > repository can: CI never archives, and the wrong app passes every one of
+   > them.
 
    The raw command, for reference — a placeholder in a runbook is a step that
    gets skipped under pressure, and the failure is silent:
