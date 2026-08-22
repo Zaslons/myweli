@@ -118,6 +118,37 @@ jobs:
       # log_retention_test.dart holds the manifest to the published page on
       # every push; this holds the LIVE bucket to the manifest. Neither alone is
       # enough — the test cannot see GCP, and this cannot see the sentence.
+      # **The negative control, and it is the point of the custom role.**
+      #
+      # That this identity CAN read the bucket is proved by the step below. That
+      # it CANNOT read log entries was, until this step existed, an INFERENCE
+      # from the role definition — nobody had watched it be refused. The whole
+      # argument for a two-permission custom role over roles/logging.viewer is
+      # that log entries on this service carry user IP addresses and user
+      # agents; an argument nobody has tested is a claim, not a control.
+      #
+      # Runs daily, so a future `add-iam-policy-binding` that quietly widens
+      # this identity fails here instead of going unnoticed.
+      - name: It CANNOT read a log entry — refusal is the assertion
+        run: |
+          set -uo pipefail
+          if out=$(gcloud logging read 'severity>=DEFAULT' --project=myweli \
+                     --limit=1 --format='value(timestamp)' 2>&1); then
+            echo "::error::this identity READ A LOG ENTRY. The custom role has been"
+            echo "::error::widened, and CI can now see user IP addresses."
+            exit 1
+          fi
+          case "$out" in
+            *PERMISSION_DENIED*|*does\ not\ have*|*Forbidden*|*403*)
+              echo "refused, as designed: ${out%%$'\n'*}" ;;
+            *)
+              # A network blip or a changed error shape must not be read as a
+              # security property. Fail rather than assume the refusal was real.
+              echo "::error::the read failed, but not with a permission error —"
+              echo "::error::cannot conclude the identity is bounded: ${out}"
+              exit 1 ;;
+          esac
+
       - name: Live bucket matches infra/gcp/logging-manifest.json
         run: bash infra/gcp/97-verify-log-retention.sh
 
