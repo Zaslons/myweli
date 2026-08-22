@@ -1035,7 +1035,25 @@ Design: [design/backend-web-rebuild-hook.md](design/backend-web-rebuild-hook.md)
 
 ## 7. After launch — the working rhythm
 
-1. Branch → PR → CI, exactly as now.
+1. Branch → PR → CI, exactly as now — **and enforced since 2026-08-22 rather
+   than merely practised.** `main` is protected: no direct pushes, no
+   force-pushes, no branch deletion, all nine CI checks required and required to
+   be green against **current** main (`strict`), conversations resolved, and
+   `enforce_admins` on so the owner is not exempt. Verified by attempting a
+   direct push and reading `GH006: Protected branch update failed` — a
+   protection nobody has watched refuse something is the same shape as a test
+   nobody has watched fail.
+
+   **Approving review is NOT required, and that is a deliberate limit, not an
+   oversight.** There is one collaborator, and GitHub does not let anyone
+   approve their own pull request, so requiring an approval would mean nothing
+   could ever merge. Every PR of this launch effort was therefore self-merged
+   with zero reviews — which an audit rightly called out, since the plan
+   governing that work reserved legal corrections for review before merge. The
+   honest position is written down here rather than left as a contradiction:
+   **what is structural is "via a PR, on green CI"; the second pair of eyes is
+   not, and will not be until there is a second person.** Revisit the moment
+   there is one.
 2. Merge deploys to **staging** automatically.
 3. Rehearse on staging: the funnel, the migration, the new screen.
 4. Promote the same artifact to production behind a **flag, off**. *Enforced
