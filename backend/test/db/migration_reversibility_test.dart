@@ -15,7 +15,8 @@ import 'package:test/test.dart';
 /// **What is safe.** Additive statements — `ADD COLUMN`, `CREATE TABLE`,
 /// `CREATE INDEX`, and also `DROP NOT NULL` or dropping a `UNIQUE` constraint,
 /// which WIDEN what the schema accepts. Old code ignores what it does not
-/// select. All 31 migrations are of this kind today.
+/// select. Most migrations are of this kind; the five that are not carry a
+/// `// rollback-unsafe:` line naming what an older image would fail to write.
 ///
 /// **What is not.** `DROP COLUMN`, `DROP TABLE`, `RENAME`, `SET NOT NULL`, a
 /// narrowing type change: old code selects a column that is gone, or inserts a
@@ -42,6 +43,14 @@ void main() {
 
   /// The comment a migration carries to declare it knows what it is doing.
   const declaration = '// rollback-unsafe:';
+
+  /// The companion marker, for a narrowing constraint that has been looked at
+  /// and is genuinely fine. Both exist because the alternative was worse: the
+  /// patterns below match 13 real statements, only 5 of which are unsafe, and
+  /// demanding `rollback-unsafe:` on all 13 would make the word meaningless —
+  /// which is the reflex this file's header already warns against. `grep
+  /// rollback-unsafe:` still returns exactly the dangerous ones.
+  const safeDeclaration = '// rollback-safe:';
 
   /// DDL that leaves an older image unable to run.
   ///
@@ -70,6 +79,37 @@ void main() {
     ),
     'TRUNCATE': RegExp(r'\bTRUNCATE\b', caseSensitive: false),
   };
+
+  /// DDL that NARROWS what the schema accepts, rather than removing something.
+  ///
+  /// `docs/BACKEND.md` lists `CREATE TABLE`/`CREATE INDEX` among the safe
+  /// shapes, and that is where the conflation started: `CREATE INDEX` is safe,
+  /// `CREATE UNIQUE INDEX` is the opposite. A constraint that accepts fewer
+  /// rows leaves an older image writing rows the database now rejects — the
+  /// same stranding as a `DROP`, arriving through an `ADD`.
+  ///
+  /// Kept apart from `destructive` because these carry an exemption that the
+  /// others do not: see the group below.
+  final narrowing = <String, RegExp>{
+    'CREATE UNIQUE INDEX': RegExp(
+      r'\bCREATE\s+UNIQUE\s+INDEX\b',
+      caseSensitive: false,
+    ),
+    'an EXCLUDE constraint': RegExp(
+      r'\bEXCLUDE\s+USING\b',
+      caseSensitive: false,
+    ),
+  };
+
+  /// Adjacent Dart string literals joined before matching.
+  ///
+  /// The SQL is written as `'CREATE UNIQUE INDEX foo '` followed by
+  /// `'ON bar (baz)'`, so the table name lands on the *next* source line. Every
+  /// first attempt at this analysis missed 9 of the 11 unique indexes for
+  /// exactly that reason, and a pattern that silently matches nothing is the
+  /// defect this file exists to prevent.
+  String sql(String chunkText) =>
+      chunkText.replaceAll(RegExp(r"'\s*\n\s*'"), ' ');
 
   // ---- slice the list into one chunk per migration --------------------------
   // Per-migration rather than whole-file, so the declaration comment has to sit
@@ -165,6 +205,72 @@ void main() {
     }
   });
 
+  group('no migration narrows a table an older image already writes', () {
+    /// **The exemption that keeps this honest.** A unique index created in the
+    /// same migration as its own table cannot strand anything: an image
+    /// deployed before that migration does not know the table exists, so it
+    /// never writes a row for the constraint to reject. Three of the eleven
+    /// unique indexes in this file are that case.
+    ///
+    /// Everything else must be CLASSIFIED — either marker will do. The point is
+    /// not to forbid narrowing, which is often exactly right; it is that
+    /// whoever is holding the runbook at 2am gets a greppable answer instead of
+    /// deriving it from DDL under pressure.
+    for (var i = 0; i < ids.length; i++) {
+      final m = chunk(i);
+      test('${m.id} declares any narrowing constraint', () {
+        final text = sql(m.text);
+        final classified =
+            text.contains(declaration) || text.contains(safeDeclaration);
+
+        final born = RegExp(
+          r'CREATE\s+TABLE(?:\s+IF\s+NOT\s+EXISTS)?\s+(\w+)',
+          caseSensitive: false,
+        ).allMatches(text).map((x) => x.group(1)!.toLowerCase()).toSet();
+
+        void require(String what, String table) {
+          if (born.contains(table)) return;
+          expect(
+            classified,
+            isTrue,
+            reason:
+                'migration ${m.id} adds $what on `$table`, a table that already '
+                'existed. An image deployed before this migration writes rows '
+                'the database will now reject, and there are no down statements '
+                'to undo it.\n\n'
+                'Say which it is on the migration:\n\n'
+                '    $declaration <what an older image would fail to write>\n'
+                '    $safeDeclaration <why an older image cannot violate it>\n\n'
+                'See docs/design/infra-rollback.md §5.2.',
+          );
+        }
+
+        for (final x in RegExp(
+          r'CREATE\s+UNIQUE\s+INDEX(?:\s+IF\s+NOT\s+EXISTS)?\s+\w+\s+ON\s+(\w+)',
+          caseSensitive: false,
+        ).allMatches(text)) {
+          require('a unique index', x.group(1)!.toLowerCase());
+        }
+
+        // An EXCLUDE is written inside an ALTER/CREATE TABLE, so the table it
+        // constrains is the nearest one named before it.
+        for (final x in RegExp(
+          r'EXCLUDE\s+USING',
+          caseSensitive: false,
+        ).allMatches(text)) {
+          final owners = RegExp(
+            r'(?:ALTER|CREATE)\s+TABLE(?:\s+IF\s+NOT\s+EXISTS)?\s+(\w+)',
+            caseSensitive: false,
+          ).allMatches(text.substring(0, x.start)).toList();
+          require(
+            'an EXCLUDE constraint',
+            owners.isEmpty ? '<unknown>' : owners.last.group(1)!.toLowerCase(),
+          );
+        }
+      });
+    }
+  });
+
   group('the guard can fire', () {
     // Without this, every pattern above could be quietly wrong — a typo, an
     // anchor that never matches real DDL — and the suite would stay green
@@ -181,6 +287,65 @@ void main() {
           'ALTER TABLE appointments ALTER COLUMN total_price TYPE int',
       'TRUNCATE': 'TRUNCATE TABLE appointments',
     };
+
+    /// The narrowing patterns need the same proof, and more of it: they were
+    /// added to catch statements that had been shipping undetected for months,
+    /// so "it matches something" is not enough — it has to match the real DDL
+    /// in this file, and the exemption has to actually exempt.
+    const narrowingSamples = {
+      'CREATE UNIQUE INDEX':
+          'CREATE UNIQUE INDEX IF NOT EXISTS users_email_lower_key '
+          'ON users (lower(email)) WHERE email IS NOT NULL',
+      'an EXCLUDE constraint':
+          'ALTER TABLE appointments ADD CONSTRAINT appointments_no_overlap '
+          'EXCLUDE USING gist (provider_id WITH =, during WITH &&)',
+    };
+
+    test('every narrowing pattern matches the statement it is named for', () {
+      expect(
+        narrowingSamples.keys.toSet(),
+        narrowing.keys.toSet(),
+        reason: 'a narrowing pattern was added or renamed without a sample',
+      );
+      narrowingSamples.forEach((name, sample) {
+        expect(
+          narrowing[name]!.hasMatch(sample),
+          isTrue,
+          reason: '$name does not match its own sample',
+        );
+      });
+    });
+
+    test('a plain CREATE INDEX is NOT flagged', () {
+      // The distinction the whole change rests on, and the one docs/BACKEND.md
+      // lost: `CREATE INDEX` accepts every row it always did. Only UNIQUE
+      // narrows. If this ever fails, the pattern has grown too greedy and will
+      // flag ordinary index work until someone deletes it.
+      expect(
+        narrowing['CREATE UNIQUE INDEX']!.hasMatch(
+          'CREATE INDEX IF NOT EXISTS appointments_provider_idx '
+          'ON appointments (provider_id)',
+        ),
+        isFalse,
+      );
+    });
+
+    test('the string-literal joiner finds the ON clause it needs', () {
+      // Nine of the eleven unique indexes are written across two adjacent Dart
+      // literals, so the table name is on the next source line. Without the
+      // joiner the analysis silently sees two statements instead of one and
+      // exempts everything it cannot attribute.
+      const split =
+          "'CREATE UNIQUE INDEX IF NOT EXISTS users_email_lower_key '\n"
+          "    'ON users (lower(email))'";
+      expect(
+        RegExp(
+          r'CREATE\s+UNIQUE\s+INDEX(?:\s+IF\s+NOT\s+EXISTS)?\s+\w+\s+ON\s+(\w+)',
+          caseSensitive: false,
+        ).firstMatch(sql(split))?.group(1),
+        'users',
+      );
+    });
 
     test('every pattern matches the statement it is named for', () {
       expect(
