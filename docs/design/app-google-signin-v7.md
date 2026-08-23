@@ -210,9 +210,23 @@ sheet: no banner, no log.
 
 ## 10. Not in this change — pre-existing, named so it is not mistaken for fallout
 
-The iOS **pro** flavour's `GoogleService-Info.plist` has no `CLIENT_ID`, so the
+~~The iOS **pro** flavour's `GoogleService-Info.plist` has no `CLIENT_ID`, so the
 plugin's configuration is never assigned, the Dart `serverClientId` is silently
 dropped, and GIDSignIn falls back to `Runner/Info.plist`'s consumer client.
 **v6 does exactly the same** — this change neither causes nor fixes it. If pro
 iOS sign-in fails, verify against a pre-bump build before blaming this. Whether
-pro iOS is meant to offer Google sign-in at all is undocumented.
+pro iOS is meant to offer Google sign-in at all is undocumented.~~
+
+**Fixed in #499 (2026-08-22)** — struck rather than deleted, because the
+paragraph is why the defect survived this long: named as pre-existing, it read
+as somebody else's problem. Pro now has its own iOS OAuth client
+(`…o68qiuiv…`), its `GoogleService-Info.plist` carries `CLIENT_ID`, and
+`Runner/Info.plist` hardcodes **neither** flavour's — `GIDClientID` and the
+redirect scheme are per-configuration build settings written by
+`ios/tool/setup_flavours.rb`. `ios_google_client_test.dart` pins that the two
+flavours carry different clients and that `Info.plist` names none.
+
+The last sentence's open question is answered too: pro **does** offer Google
+sign-in (`pro_login_screen.dart` renders the button unconditionally), which is
+what made the fallback a store-rule 2.1 rejection rather than dead code. See
+[app-auth-social.md](app-auth-social.md) §5.
