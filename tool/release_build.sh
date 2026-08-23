@@ -72,9 +72,8 @@ fi
 # which client the build will present, Secret Manager knows which the backend
 # will accept. A test can see the first, a monitor the second, neither both.
 echo "→ verifying $FLAVOUR/$PLATFORM can actually sign in with Google…"
-GOOGLE_CLIENT_IDS="$(gcloud secrets versions access latest --secret=GOOGLE_CLIENT_IDS --project="$PROJECT")" \
-  node "$(dirname "$0")/../infra/mobile/96-verify-google-identity.mjs" \
-    --platform "$PLATFORM" --flavour "$FLAVOUR"
+node "$(dirname "$0")/../infra/mobile/96-verify-google-identity.mjs" \
+  --platform "$PLATFORM" --flavour "$FLAVOUR"
 
 cd "$(dirname "$0")/../mobile"
 

@@ -39,9 +39,10 @@
 //
 //   node infra/mobile/96-verify-google-identity.mjs --platform android --flavour pro
 //
-// GOOGLE_CLIENT_IDS (CSV) must be in the environment. Its VALUE IS NEVER
-// PRINTED — only whether a given id is a member. Absent is a failure and not a
-// skip: a check that quietly does nothing is the thing this file is about.
+// The allowlist is read from `infra/gcp/service.yaml`, which is where it lives
+// now — it is a set of public audiences, not a secret, so this script needs no
+// gcloud and no credentials at all. It used to read the environment, which
+// meant the release gate could only run somewhere Secret Manager was reachable.
 
 import { readFileSync } from 'node:fs'
 import { resolve, dirname } from 'node:path'
@@ -251,13 +252,18 @@ if (!passesServerClientId) {
   )
 }
 
-const raw = process.env.GOOGLE_CLIENT_IDS
+// A single quoted-scalar `value:` under the env entry. Parsed rather than
+// imported because this file deliberately has no dependencies.
+const serviceYaml = read('infra/gcp/service.yaml')
+const m = /- name: GOOGLE_CLIENT_IDS\s*\n\s*value:\s*(\S+)/.exec(serviceYaml)
+const raw = m ? m[1] : undefined
+
 if (raw === undefined || raw.trim() === '') {
   fail(
-    'GOOGLE_CLIENT_IDS is not in the environment',
+    'GOOGLE_CLIENT_IDS is not a plain value in infra/gcp/service.yaml',
     'the audience half cannot be checked, and skipping it would mean this script ' +
-      'reports success having verified less than it says. Export it from Secret ' +
-      'Manager (tool/release_build.sh does)',
+      'reports success having verified less than it says. If it went back to a ' +
+      'secretKeyRef, this script and the merge gate both go blind',
   )
 } else if (!audience.id) {
   fail(
@@ -274,9 +280,7 @@ if (raw === undefined || raw.trim() === '') {
       `GOOGLE_CLIENT_IDS does not contain ${audience.what} (${audience.id})`,
       'Google would succeed and the BACKEND would reject the token: the user sees ' +
         'the Google sheet, picks an account, and lands back on an error. Fix: add ' +
-        'it to the GOOGLE_CLIENT_IDS secret, then REDEPLOY — the secret is mounted ' +
-        'key: latest and resolved at container start, so a running instance keeps ' +
-        'the old value',
+        'it to GOOGLE_CLIENT_IDS in infra/gcp/service.yaml, then deploy',
     )
   }
 }

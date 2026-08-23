@@ -117,7 +117,7 @@ fi
 # naming `DATABASE_URL` instead of `STAGING_DATABASE_URL` would simply work, and
 # the isolation would rest on nobody mistyping a YAML key in a file that a push
 # trigger deploys. This account is bound below to the thirteen `STAGING_*`
-# secrets and the four shared ones, and to nothing else.
+# secrets and the two shared ones, and to nothing else.
 echo "==> 3/7  Runtime service account ${RUN_SA}"
 gcloud iam service-accounts describe "$RUN_SA" --project="$PROJECT" >/dev/null 2>&1 ||
   gcloud iam service-accounts create myweli-run-staging \
@@ -229,12 +229,18 @@ put_secret STAGING_R2_PUBLIC_BASE_URL "$STAGING_R2_PUBLIC_BASE_URL"
 put_secret STAGING_R2_ACCESS_KEY_ID "$STAGING_R2_ACCESS_KEY_ID"
 put_secret STAGING_R2_SECRET_ACCESS_KEY "$STAGING_R2_SECRET_ACCESS_KEY"
 
-# The four shared ones: no new secret, only read access for the new identity.
-# Each is a non-credential — a write-only Sentry DSN, two public OAuth client-id
-# allowlists, and the Cloudflare account id — which is why sharing them is
-# correct rather than merely convenient (service-staging.yaml states the reason
-# per entry).
-for name in SENTRY_DSN GOOGLE_CLIENT_IDS APPLE_CLIENT_IDS R2_ACCOUNT_ID; do
+# The two shared ones: no new secret, only read access for the new identity.
+# Each is a non-credential — a write-only Sentry DSN and the Cloudflare account
+# id — which is why sharing them is correct rather than merely convenient
+# (service-staging.yaml states the reason per entry).
+#
+# GOOGLE_CLIENT_IDS and APPLE_CLIENT_IDS were here until they stopped being
+# secrets at all: they are public audiences that ship inside the app binary, so
+# both manifests now carry them as plain values. Granting access to a secret no
+# manifest mounts is a permission nothing needs, which is why
+# service_files_test.dart asserts this list and the mounts are the same set —
+# in both directions, so a leftover grant fails the build.
+for name in SENTRY_DSN R2_ACCOUNT_ID; do
   gcloud secrets add-iam-policy-binding "$name" --project="$PROJECT" \
     --member="serviceAccount:${RUN_SA}" \
     --role=roles/secretmanager.secretAccessor -q >/dev/null

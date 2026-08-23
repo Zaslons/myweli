@@ -108,7 +108,7 @@ spec:
       # a push trigger.
       #
       # This account is granted access to the thirteen `STAGING_*` secrets and
-      # the four shared ones, and to nothing else. A staging revision that
+      # the two shared ones, and to nothing else. A staging revision that
       # reaches for a production secret fails at revision creation.
       serviceAccountName: myweli-run-staging@myweli.iam.gserviceaccount.com
       timeoutSeconds: 300
@@ -233,12 +233,31 @@ spec:
             # is the opposite of a rehearsal. Unlike JWT_SECRET this grants no
             # crossover: an ID token replayed at production only authenticates
             # the same Google account its owner could sign in with anyway.
+            # **Plain values, not secrets, and that is the point.**
+            #
+            # These are the audiences the backend will accept on an ID token.
+            # They are PUBLIC identifiers — service_files_test.dart says so in
+            # as many words, one of them is committed in
+            # mobile/lib/core/config/app_config.dart, and every one ships inside
+            # the app binary and the web bundle. Nothing here is confidential.
+            #
+            # Held in Secret Manager they were unreviewable: the day an audience
+            # was suspected wrong, answering it meant `gcloud secrets versions
+            # access` rather than reading the file that configures the service.
+            # Worse, the expected set and the actual set were two copies with no
+            # check between them. Here they are one string, in a PR, next to
+            # WEB_ORIGINS — a strictly more security-relevant allowlist that has
+            # always been a plain literal for the same reason.
+            #
+            # backend/test/infra/oauth_audience_test.dart holds these to what the
+            # apps actually present, in both directions, on every push.
+            #
+            # The values are byte-identical to the secret they replace. This
+            # change is about WHERE the allowlist lives, not what is in it.
             - name: GOOGLE_CLIENT_IDS
-              valueFrom:
-                secretKeyRef: { name: GOOGLE_CLIENT_IDS, key: latest }
+              value: 731308991240-dairlha8r67p4l5d52m44qnt82qdp5js.apps.googleusercontent.com,731308991240-g3jbungp06eqj6fp5neigk84ivjdpj9e.apps.googleusercontent.com,731308991240-ah75c2bvv4ojfipa7crlj38n7rdg60fv.apps.googleusercontent.com
             - name: APPLE_CLIENT_IDS
-              valueFrom:
-                secretKeyRef: { name: APPLE_CLIENT_IDS, key: latest }
+              value: com.myweli.app,com.myweli.pro,com.myweli.signin
             # A staging-only Resend key that CANNOT deliver — the placeholder
             # `re_staging_placeholder_delivery_is_disabled`, which satisfies the
             # non-empty boot guard and nothing else. Email is a live channel
