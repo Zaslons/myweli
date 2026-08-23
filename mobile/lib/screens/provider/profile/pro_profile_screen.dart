@@ -4,10 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/config/app_config.dart';
 import '../../../core/di/dependency_injection.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
+import '../../../core/utils/external_link.dart';
 import '../../../models/pro_membership.dart';
 import '../../../models/provider_user.dart';
 import '../../../models/team_member.dart';
@@ -363,6 +365,21 @@ class _ProProfileScreenState extends State<ProProfileScreen> {
                 // than `SettingsTile`: its thirteen rows are all built this way, and
                 // unifying them is a refactor that does not belong in a
                 // store-submission change.
+                // **The Pro app had no support affordance anywhere.** Its only
+                // contact control lived on the subscription screen, three taps
+                // in, and it opened a WhatsApp link that no build configures.
+                // A salon with a problem had nowhere to go.
+                Card(
+                  child: ListTile(
+                    leading: const Icon(Icons.help_outline),
+                    title: const Text('Aide & Support'),
+                    subtitle: const Text('Nous écrire'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => openExternalUrl(context, AppConfig.supportUrl),
+                  ),
+                ),
+                const SizedBox(height: AppTheme.spacingM),
+
                 Card(
                   child: ListTile(
                     leading: const Icon(Icons.info_outline),

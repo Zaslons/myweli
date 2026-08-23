@@ -25,7 +25,7 @@ import {
 } from '../../lib/api/account';
 import type { Provider } from '../../lib/api/providers';
 import { updateContactPhone } from '../../lib/auth/client';
-import { supportWhatsAppUrl } from '../../lib/support';
+import { SUPPORT } from '../../lib/support';
 import { Button } from '../Button';
 import { SkeletonRows } from '../Skeleton';
 import { TextField } from '../TextField';
@@ -355,22 +355,18 @@ export function AccountClient() {
         <span className="text-textTertiary">›</span>
       </Link>
 
-      {/* Aide & Support (parity 15.2) — manual intake via WhatsApp.
-          Rendered only when a number exists: an « Aide & Support » row that
-          opens WhatsApp's landing page is a promise the product cannot keep,
-          and three legal documents already name this as the contact of
-          record. */}
-      {supportWhatsAppUrl() && (
-        <a
-          href={supportWhatsAppUrl()!}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mt-s flex items-center justify-between rounded-xl border border-border bg-secondary p-m text-bodyLarge text-textPrimary hover:bg-surfaceVariant"
-        >
-          <span>Aide &amp; Support</span>
-          <span className="text-textTertiary">›</span>
-        </a>
-      )}
+      {/* Aide & Support (parity 15.2).
+          It used to render ONLY when a WhatsApp number existed — and the number
+          is unset in every build, so this row has never once appeared, while
+          three legal documents name it as the contact of record. It now points
+          at /support, which always carries an address. */}
+      <Link
+        href={SUPPORT.path}
+        className="mt-s flex items-center justify-between rounded-xl border border-border bg-secondary p-m text-bodyLarge text-textPrimary hover:bg-surfaceVariant"
+      >
+        <span>Aide &amp; Support</span>
+        <span className="text-textTertiary">›</span>
+      </Link>
 
       {/* Confidentialité (parity 11.1/11.2 — AUTH-004/005 on web) */}
       <section className="mt-l rounded-xl border border-border bg-secondary p-m">

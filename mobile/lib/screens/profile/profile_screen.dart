@@ -109,14 +109,16 @@ class ProfileScreen extends StatelessWidget {
                 SettingsTile(
                   icon: Icons.help_outline,
                   title: 'Aide & Support',
-                  // Parity 15.2: manual intake via WhatsApp support.
-                  onTap: () => openWhatsApp(
-                    context,
-                    number: AppConfig.supportWhatsApp,
-                    message:
-                        'Bonjour MyWeli, j’ai besoin d’aide concernant '
-                        'mon compte.',
-                  ),
+                  // **This tile has never worked.** It opened WhatsApp with
+                  // `AppConfig.supportWhatsApp`, which has no default and is
+                  // passed by no build — so every artifact ever shipped showed
+                  // « Contact bientôt disponible. » here, while the mentions
+                  // légales told the public this was the contact of record.
+                  //
+                  // A page instead of a `wa.me` link: the number waits on
+                  // company registration, and /support can gain a channel
+                  // without an app release.
+                  onTap: () => openExternalUrl(context, AppConfig.supportUrl),
                 ),
                 SettingsTile(
                   icon: Icons.info_outline,

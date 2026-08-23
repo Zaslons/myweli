@@ -103,6 +103,16 @@ class AppConfig {
   static String get legalNoticeUrl => '$siteBaseUrl/mentions-legales';
   static String get accountDeletionUrl => '$siteBaseUrl/suppression-compte';
 
+  /// Support. Same contract as the four above, and the same review rule.
+  ///
+  /// It replaced a `wa.me` link built from `supportWhatsApp`, which had no
+  /// default and was passed by no build — so « Aide & Support » showed
+  /// « Contact bientôt disponible. » in every artifact ever shipped, while the
+  /// mentions légales told the public it was the contact channel of record.
+  /// A page can carry an address today and gain WhatsApp later without an app
+  /// release, which matters because the number waits on company registration.
+  static String get supportUrl => '$siteBaseUrl/support';
+
   /// Google Sign-In server client ID (the **web** OAuth client) — makes the
   /// native flow return an ID token whose `aud` the backend allowlists.
   /// A public identifier, not a secret; overridable per environment.
