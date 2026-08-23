@@ -148,8 +148,15 @@ for name, lit, svcs in checkable:
         commit, _ = running(s)
         if not commit:
             marks.append('%s=UNRESOLVED' % s); lag += 1; continue
-        ok = subprocess.run(['git', 'grep', '-q', lit, commit, '--', 'backend/lib'],
-                            capture_output=True).returncode == 0
+        # `-h` yields bare matching lines (verified against a rev), so a hit
+        # that lives only in a comment can be told from one in code. Without
+        # this the check passes on the paragraph EXPLAINING a deleted emitter,
+        # and reports "every alert can produce every string it watches for".
+        # Same defect its sibling alert_runbooks_test.dart carried.
+        hits = subprocess.run(
+            ['git', 'grep', '-h', lit, commit, '--', 'backend/lib'],
+            capture_output=True, text=True).stdout.split('\n')
+        ok = any(lit in h and not h.lstrip().startswith('//') for h in hits)
         marks.append('%s=%s' % (s, 'ok' if ok else 'CANNOT EMIT'))
         if not ok:
             lag += 1
