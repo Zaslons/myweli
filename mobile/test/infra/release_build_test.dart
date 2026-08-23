@@ -84,6 +84,75 @@ void main() {
     });
   });
 
+  group('every artifact gets its own build number', () {
+    /// **Every build this script ever produced claimed to be build 1.**
+    ///
+    /// `pubspec.yaml` is `version: 1.0.0+1` and nothing overrode it, so the
+    /// number was frozen. Both stores reject a second upload reusing a build
+    /// number — but that is the least of it. `client-version-gate.md` makes the
+    /// build number the identity of a release, and three things already key on
+    /// it: the server-side version floor, the Sentry release string, and the
+    /// staged-rollout crash-free signal. All three were reading a constant.
+    test('it passes --build-number at all', () {
+      expect(
+        code,
+        contains('--build-number'),
+        reason:
+            'without it every artifact is build 1, the second upload to either '
+            'store is rejected, and the version-gate floor can never be raised '
+            'above a shipped build',
+      );
+    });
+
+    test('and the number is a variable, not a literal', () {
+      // A hardcoded `--build-number 2` satisfies the test above and reintroduces
+      // the whole defect one release later.
+      expect(
+        RegExp(r'--build-number\s+"?\$').hasMatch(code),
+        isTrue,
+        reason: 'the build number must be derived, not typed',
+      );
+    });
+
+    test('it refuses rather than defaulting when it cannot derive one', () {
+      // The script's stated philosophy: a build that cannot read what it needs
+      // FAILS here rather than shipping blind. A default would be worse than
+      // useless — a build number that goes backwards can never be used again,
+      // because the store has already seen the higher one.
+      expect(code, contains('BUILD_NUMBER'));
+      expect(
+        code.contains('is-shallow-repository'),
+        isTrue,
+        reason:
+            'a shallow clone returns a SMALLER commit count, which is the one '
+            'way this number can go backwards — and it does so silently',
+      );
+    });
+
+    test('the premise: pubspec still carries the frozen +1', () {
+      // If someone starts bumping pubspec by hand, the derived number and the
+      // typed one disagree and the last one on the command line wins. This test
+      // exists so that day is noticed rather than discovered from a store.
+      final pubspec = File('pubspec.yaml').readAsStringSync();
+      final version = RegExp(
+        r'^version:\s*(\S+)',
+        multiLine: true,
+      ).firstMatch(pubspec)?.group(1);
+      expect(
+        version,
+        isNotNull,
+        reason: 'pubspec.yaml has no version line at all',
+      );
+      expect(
+        version,
+        contains('+'),
+        reason:
+            'the +N suffix IS the build number Flutter passes through to '
+            'CFBundleVersion and versionCode',
+      );
+    });
+  });
+
   group('the premise: the two entry points are different apps', () {
     /// If these ever converged, `--target` would stop mattering and the test
     /// above would be pinning a flag with no consequence. Stating the reason

@@ -87,6 +87,37 @@ cd "$(dirname "$0")/../mobile"
 ENTRY="lib/main.dart"
 [[ "$FLAVOUR" == pro ]] && ENTRY="lib/main_pro.dart"
 
+# **The build number is the identity of a release here, and it was frozen at 1.**
+#
+# `pubspec.yaml` says `version: 1.0.0+1` and nothing overrode it, so every
+# artifact this script has ever produced claimed to be build 1. Both stores
+# reject a second upload with a build number already used — but the store is the
+# least of it. `client-version-gate.md` establishes "build numbers, not semver"
+# as the release identity, and three things already key on it: the server-side
+# version floor (`GET /client-version`), the Sentry release string, and the
+# staged-rollout crash-free signal. All three were wired to a constant.
+#
+# The commit count is monotonic on main, reproducible from a commit, and needs
+# nobody to remember anything.
+BUILD_NUMBER="$(git -C "$(dirname "$0")/.." rev-list --count HEAD 2>/dev/null || true)"
+
+# Refuse rather than default, exactly as the DSN checks above do. A shallow
+# clone silently returns a SMALLER count, which is the one way this could go
+# backwards — and a build number that goes backwards is unrecoverable: the store
+# will not accept the number again, ever.
+if [[ -z "$BUILD_NUMBER" || ! "$BUILD_NUMBER" =~ ^[0-9]+$ || "$BUILD_NUMBER" -lt 1 ]]; then
+  echo "::error:: could not derive a build number from the git history." >&2
+  echo "          Refusing to build an artifact that would claim build 1 —" >&2
+  echo "          the number both stores use to tell releases apart." >&2
+  exit 1
+fi
+if [[ "$(git -C "$(dirname "$0")/.." rev-parse --is-shallow-repository)" != "false" ]]; then
+  echo "::error:: this is a SHALLOW clone, so the commit count is short and the" >&2
+  echo "          build number would go BACKWARDS. Fetch the full history:" >&2
+  echo "            git fetch --unshallow" >&2
+  exit 1
+fi
+
 COMMON=(
   --release
   --flavor "$FLAVOUR"
@@ -95,6 +126,7 @@ COMMON=(
   --dart-define=API_BASE_URL=https://api.myweli.com
   --dart-define=SENTRY_DSN="$DSN"
   --dart-define=SENTRY_ENV=production
+  --build-number "$BUILD_NUMBER"
   # Release builds are obfuscated (ROADMAP Part 5). Without the split debug
   # info, every Sentry stack trace is unreadable symbols — the report arrives
   # and tells you nothing, which is its own kind of blind.
@@ -103,10 +135,10 @@ COMMON=(
 )
 
 if [[ "$PLATFORM" == ios ]]; then
-  echo "→ flutter build ipa --flavor $FLAVOUR --target $ENTRY (DSN injected, not shown)"
+  echo "→ flutter build ipa --flavor $FLAVOUR --target $ENTRY --build-number $BUILD_NUMBER (DSN injected, not shown)"
   flutter build ipa "${COMMON[@]}"
 else
-  echo "→ flutter build appbundle --flavor $FLAVOUR --target $ENTRY (DSN injected, not shown)"
+  echo "→ flutter build appbundle --flavor $FLAVOUR --target $ENTRY --build-number $BUILD_NUMBER (DSN injected, not shown)"
   flutter build appbundle "${COMMON[@]}"
 fi
 
