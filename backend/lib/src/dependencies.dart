@@ -211,44 +211,41 @@ final AuthMethods authMethods = AuthMethods.parse(_envOrNull('AUTH_METHODS'));
 /// is set. See `auth/smoke_seam.dart` and docs/design/backend-q1b-smoke-seam.md.
 final SmokeSeam smokeSeam = SmokeSeam(_envOrNull('SMOKE_OTP_SECRET'));
 
-List<String> _csvEnv(String key) =>
-    _envOrNull(
-      key,
-    )?.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList() ??
-    const [];
-
 /// Google Sign-In ID-token verifier. `GOOGLE_CLIENT_IDS` = the OAuth client-ID
 /// allowlist (web + Android + iOS). Unconfigured → the verifier rejects every
 /// token (fail closed); prod fails fast when the method is enabled.
 final GoogleIdTokenVerifier googleIdTokenVerifier = () {
-  final ids = _csvEnv('GOOGLE_CLIENT_IDS');
-  if (_guardsOn &&
-      authMethods.explicit &&
-      authMethods.contains('google') &&
-      ids.isEmpty) {
-    throw StateError(
-      'GOOGLE_CLIENT_IDS must be set in staging and production while the '
-      '"google" auth '
-      'method is enabled (AUTH_METHODS).',
-    );
-  }
+  final ids = resolveOauthAudiences(
+    _envOrNull('GOOGLE_CLIENT_IDS'),
+    name: 'GOOGLE_CLIENT_IDS',
+    required: authMethods.explicit && authMethods.contains('google'),
+    guardsOn: _guardsOn,
+    shape: kGoogleAudienceShape,
+    shapeHint:
+        'A Google OAuth client id looks like '
+        '<project-number>-<random>.apps.googleusercontent.com.',
+  );
   return GoogleIdTokenVerifier(clientIds: ids);
 }();
 
 /// Sign in with Apple verifier. `APPLE_CLIENT_IDS` = iOS bundle id + the web
 /// Service ID. Same fail-closed/fail-fast posture as Google.
 final AppleIdTokenVerifier appleIdTokenVerifier = () {
-  final ids = _csvEnv('APPLE_CLIENT_IDS');
-  if (_guardsOn &&
-      authMethods.explicit &&
-      authMethods.contains('apple') &&
-      ids.isEmpty) {
-    throw StateError(
-      'APPLE_CLIENT_IDS must be set in staging and production while the '
-      '"apple" auth '
-      'method is enabled (AUTH_METHODS).',
-    );
-  }
+  final ids = resolveOauthAudiences(
+    _envOrNull('APPLE_CLIENT_IDS'),
+    name: 'APPLE_CLIENT_IDS',
+    required: authMethods.explicit && authMethods.contains('apple'),
+    guardsOn: _guardsOn,
+    shape: kAppleAudienceShape,
+    shapeHint:
+        'An Apple audience is an iOS bundle id or the web Services ID, in '
+        'reverse-DNS form (com.myweli.app).',
+    forbid: kGoogleAudienceShape,
+    forbidHint:
+        'That is a Google client id. Apple tokens carry the bundle id or the '
+        'Services ID as their audience, so this list would reject every real '
+        'Apple sign-in while looking correctly configured.',
+  );
   return AppleIdTokenVerifier(clientIds: ids);
 }();
 

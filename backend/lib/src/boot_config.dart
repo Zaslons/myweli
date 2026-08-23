@@ -12,6 +12,139 @@
 /// and not one was a test file. The guards were real and entirely unproven.
 library;
 
+/// The OAuth audience allowlists, validated by SHAPE.
+///
+/// ## Why shape and not membership
+///
+/// `GOOGLE_CLIENT_IDS` and `APPLE_CLIENT_IDS` are the audiences the backend
+/// will accept on an ID token. Until now the only check was `isEmpty`, so a
+/// three-entry allowlist and a five-entry one were indistinguishable — while
+/// `DEPLOYMENT.md` promised "a misconfigured revision never serves". That
+/// promise was true for *absent* and false for *present and wrong*.
+///
+/// **It deliberately does not check which ids are there.** That belongs to the
+/// merge gate, where the app configs are readable; a boot guard demanding a
+/// particular set would have to be told the set, which is a second copy of it.
+/// And the specific set is easy to get wrong in the dangerous direction: the
+/// four per-flavour mobile client ids are NEVER presented as an audience —
+/// `serverClientId` makes it the web client on both platforms — so a guard
+/// requiring them would refuse a release that works perfectly. That mistake has
+/// already been made once here and cost a day.
+///
+/// What is left is worth having, because every one of these is a real way to
+/// break sign-in with a value that looks configured:
+///
+///   * an entry that is not an audience at all (a secret name, a URL, a
+///     truncated paste);
+///   * the same CSV pasted into both variables — the likeliest operator error,
+///     and the `MESSAGING_PROVIDER=log` shape: plausible and definitely wrong;
+///   * a duplicate, which is the signature of a bad merge and costs nothing to
+///     reject.
+///
+/// Unlike everything else in this file, the offending value IS named in the
+/// error. These are published identifiers — one is committed in
+/// `app_config.dart` and ships inside the app binary — so there is nothing to
+/// leak, and a guard that says only "invalid" sends someone to read a secret
+/// they otherwise never need to open. Capped so a pasted blob cannot flood
+/// Cloud Logging.
+List<String> resolveOauthAudiences(
+  String? raw, {
+  required String name,
+  required bool required,
+  required bool guardsOn,
+  required RegExp shape,
+  required String shapeHint,
+  RegExp? forbid,
+  String? forbidHint,
+}) {
+  // Identical to `_csvEnv` in dependencies.dart, so a good value behaves
+  // exactly as it did before this function existed.
+  final ids = (raw ?? '')
+      .split(',')
+      .map((s) => s.trim())
+      .where((s) => s.isNotEmpty)
+      .toList();
+
+  if (ids.isEmpty) {
+    // The original guard, preserved verbatim in meaning.
+    if (guardsOn && required) {
+      throw StateError(
+        '$name must be set in staging and production while the matching auth '
+        'method is enabled (AUTH_METHODS).',
+      );
+    }
+    return ids;
+  }
+
+  if (!guardsOn) return ids;
+
+  String show(String v) => v.length <= 80 ? v : '${v.substring(0, 77)}...';
+
+  for (var i = 0; i < ids.length; i++) {
+    if (!shape.hasMatch(ids[i])) {
+      throw StateError(
+        '$name entry $i is not a valid audience: "${show(ids[i])}". $shapeHint '
+        'A value that is present and wrong reaches every request and rejects '
+        'every sign-in, which is why this is fatal at boot rather than a log '
+        'line.',
+      );
+    }
+  }
+
+  // **The likeliest operator error, and the regex above cannot catch it.** A
+  // Google client id is valid reverse-DNS — `731308991240-dairlha8....apps.
+  // googleusercontent.com` matches the Apple shape perfectly — so the same CSV
+  // pasted into both variables passes every check made so far while making
+  // Apple sign-in reject every real token. Same idea as the
+  // `MESSAGING_PROVIDER=log` guard: a value that looks deliberate and is
+  // definitely wrong.
+  if (forbid != null) {
+    for (var i = 0; i < ids.length; i++) {
+      if (forbid.hasMatch(ids[i])) {
+        throw StateError(
+          '$name entry $i belongs to the other provider: "${show(ids[i])}". '
+          '${forbidHint ?? ''}',
+        );
+      }
+    }
+  }
+
+  final seen = <String>{};
+  for (final id in ids) {
+    if (!seen.add(id)) {
+      throw StateError(
+        '$name lists "${show(id)}" more than once. A duplicate is the '
+        'signature of a bad paste or merge; it changes nothing about which '
+        'tokens are accepted, so rejecting it costs nothing and catching the '
+        'paste it came with may cost a great deal.',
+      );
+    }
+  }
+
+  return ids;
+}
+
+/// Google OAuth client ids: `<project-number>-<random>.apps.googleusercontent.com`.
+///
+/// The random half is optional because the legacy bare-project-number form is
+/// still valid, and a guard that false-rejects a real console value on the day
+/// someone pastes it is worse than no guard. `[a-z0-9]`, **not** `[a-z]`:
+/// `service_files_test.dart` records the day a `[A-Z_]` class silently dropped
+/// `R2_ACCOUNT_ID`, and the same slip here would reject every real id.
+final RegExp kGoogleAudienceShape = RegExp(
+  r'^\d{6,}(-[a-z0-9]{8,64})?\.apps\.googleusercontent\.com$',
+);
+
+/// Apple audiences: an iOS bundle id, or the web Services ID. Reverse-DNS.
+///
+/// Deliberately weak. Apple's Services ID is a name someone chooses, and
+/// guessing its label count is how a guard false-rejects on the day it changes.
+/// The one thing it must catch is a Google client id pasted in here, which the
+/// cross-provider check below does far more reliably than a regex could.
+final RegExp kAppleAudienceShape = RegExp(
+  r'^[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?)+$',
+);
+
 /// Which deployment this process is.
 ///
 /// **Three values, because two cannot express staging.** `ENV` used to be read

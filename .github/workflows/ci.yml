@@ -300,7 +300,14 @@ jobs:
           # about a *channel* CI has no business reaching. Never blank: an unset
           # value is what the guards exist to catch.
           WEB_ORIGINS: http://localhost:8788
-          GOOGLE_CLIENT_IDS: ci-not-a-real-client-id.apps.googleusercontent.com
+          # Shaped like a real client id, not merely non-blank. The old value,
+          # `ci-not-a-real-client-id.apps.googleusercontent.com`, has no
+          # project-number prefix and no console emits it — so it could not have
+          # passed the boot guard production runs, which is this step's own
+          # complaint about itself two comments up: it was rehearsing a
+          # configuration production could never have had. Still self-evidently
+          # fake, and public identifiers besides.
+          GOOGLE_CLIENT_IDS: 000000000000-cinotarealclientid0000000000.apps.googleusercontent.com
           APPLE_CLIENT_IDS: com.myweli.app.ci
           MESSAGING_PROVIDER: disabled
           PUSH_PROVIDER: disabled
@@ -355,6 +362,78 @@ jobs:
           R=$(req 'client@smoke.test' "$SMOKE_OTP_SECRET")
           if ! has_code "$R"; then echo "::error::the seam did not disclose for a valid smoke identity: $R"; exit 1; fi
           echo "  ok  .test identity + correct secret → devCode present"
+
+      # **The claim "it fails at boot" was an inference until this step.**
+      #
+      # docs/DEPLOYMENT.md tells the reader a revision missing a required value
+      # never serves, and BACKEND.md §3.2.2 says every guardsOn fail-fast fires
+      # at boot. Both rest on `main.dart` awaiting `initializeDatabase()` before
+      # `serve()` — true by reading, and never once watched. production-checks
+      # already makes this argument about IAM: an argument nobody has tested is
+      # a claim, not a control.
+      #
+      # So this boots the real binary with an allowlist that is PRESENT and
+      # WRONG — the exact defect the shape guard was added for, and the one the
+      # old `isEmpty` check could not see — and requires the process to die
+      # naming the variable, without ever binding the port.
+      - name: A present-but-wrong allowlist really does refuse to boot
+        working-directory: backend/build
+        env:
+          ENV: prod
+          JWT_SECRET: ci-prod-mode-secret
+          AUTH_METHODS: google,apple,email
+          RESEND_API_KEY: not-a-resend-key-delivery-is-ignored-here
+          WEB_ORIGINS: http://localhost:8789
+          # A bundle id where a Google client id belongs. Non-empty, so the
+          # guard this replaces was perfectly happy with it.
+          GOOGLE_CLIENT_IDS: com.myweli.app
+          APPLE_CLIENT_IDS: com.myweli.app.ci
+          MESSAGING_PROVIDER: disabled
+          PUSH_PROVIDER: disabled
+          STORAGE_PROVIDER: disabled
+        run: |
+          set -uo pipefail
+          PORT=8789
+          export SMOKE_OTP_SECRET="ci-placeholder-$(printf 'x%.0s' $(seq 1 24))"
+
+          # `timeout` is the load-bearing part: if the guard does NOT fire, the
+          # server serves happily and would block this job forever. A 124 is
+          # therefore a failure of the thing under test, not a flake.
+          set +e
+          out=$(timeout 90 env PORT=$PORT ./bin/server 2>&1)
+          rc=$?
+          set -e
+          echo "$out" | tail -20
+
+          if [ "$rc" -eq 124 ]; then
+            echo "::error::the server BOOTED with a malformed GOOGLE_CLIENT_IDS."
+            echo "::error::The shape guard did not fire, so a present-and-wrong"
+            echo "::error::allowlist reaches production and rejects every sign-in."
+            exit 1
+          fi
+          if [ "$rc" -eq 0 ]; then
+            echo "::error::the server exited 0 with a malformed allowlist."
+            exit 1
+          fi
+
+          # Non-zero is not enough on its own: a typo in DATABASE_URL would also
+          # be non-zero and would prove nothing about this guard.
+          case "$out" in
+            *GOOGLE_CLIENT_IDS*)
+              echo "refused at boot, naming the variable, as designed" ;;
+            *)
+              echo "::error::it failed, but not for the reason under test —"
+              echo "::error::the message does not mention GOOGLE_CLIENT_IDS."
+              exit 1 ;;
+          esac
+
+          if curl -fsS "http://localhost:${PORT}/health" >/dev/null 2>&1; then
+            echo "::error::the port is open; the process bound before failing."
+            exit 1
+          fi
+          echo "and the port never opened."
+
+
 
   web:
     name: Web — Lint, Typecheck & Build
