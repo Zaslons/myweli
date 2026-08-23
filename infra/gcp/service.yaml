@@ -138,6 +138,24 @@ spec:
             # docs/DEPLOYMENT.md for the full procedure and the ordering rule
             # (never disable a version a live manifest still pins).
             #
+            #
+            # **Measured on staging 2026-08-23, not inferred.** Three facts this
+            # repository cannot prove on its own:
+            #
+            #   1. `gcloud run services replace` accepts a numeric key — the
+            #      revision became ready and records `key: '1'` verbatim, so a
+            #      revision spec now tells you which version it resolved. Under
+            #      `latest` it recorded only the word `latest`, which is why the
+            #      drift could not be read off the running service at all.
+            #   2. Re-applying an IDENTICAL manifest creates no revision and does
+            #      not bump the generation — while gcloud still prints "New
+            #      configuration has been applied". That is the misleading
+            #      success the deploy workflow now annotates.
+            #   3. A DISABLED pinned version fails LOUDLY, and earlier than
+            #      expected: not at container start but at revision creation,
+            #      naming the secret, the version and the state —
+            #      "Secret Version [...] is in DISABLED state." The deploy fails;
+            #      nothing half-starts.
             # One real cost, stated so it is not a surprise: re-creating this
             # project from scratch puts every secret back at version 1, and
             # these pins would all be wrong. That failure is loud, once, and
