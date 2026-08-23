@@ -57,6 +57,25 @@ if [[ "$DSN" == "$(gcloud secrets versions access latest --secret=SENTRY_DSN --p
   exit 1
 fi
 
+# **The two ways a store build fails Google sign-in without saying so**, both
+# real on 2026-08-22, both invisible to the whole test suite:
+#
+#   the signing key — Google matches an Android sign-in by (package, cert
+#   SHA-1), and the only fingerprint registered is a development keystore. Every
+#   build tested here works; the Play-signed build fails for everyone.
+#
+#   the audience — the backend accepts only the client ids in GOOGLE_CLIENT_IDS.
+#   Giving the Pro app its own OAuth clients fixed the client side and moved the
+#   rejection downstream, where it looks like the user's fault.
+#
+# This is the only moment both halves are visible at once: the repository knows
+# which client the build will present, Secret Manager knows which the backend
+# will accept. A test can see the first, a monitor the second, neither both.
+echo "→ verifying $FLAVOUR/$PLATFORM can actually sign in with Google…"
+GOOGLE_CLIENT_IDS="$(gcloud secrets versions access latest --secret=GOOGLE_CLIENT_IDS --project="$PROJECT")" \
+  node "$(dirname "$0")/../infra/mobile/96-verify-google-identity.mjs" \
+    --platform "$PLATFORM" --flavour "$FLAVOUR"
+
 cd "$(dirname "$0")/../mobile"
 
 # **`--flavor` chooses the NATIVE config; `--target` chooses the APP.** Without

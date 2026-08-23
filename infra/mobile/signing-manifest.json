@@ -1,0 +1,97 @@
+{
+  "$comment": [
+    "The Google identity surface of the two Android apps, recorded once so that",
+    "a machine can check it. Two facts live here that no test could otherwise",
+    "know: which signing fingerprints are LEGITIMATELY registered against our",
+    "OAuth clients, and whether Play App Signing has been enrolled yet.",
+    "",
+    "Why it matters: Google matches an Android sign-in request by (package name,",
+    "signing certificate SHA-1). Today the only fingerprint registered for either",
+    "package is a DEVELOPMENT keystore. Every build the owner tests signs with it",
+    "package is a DEVELOPMENT keystore. Every build the owner tests signs with it",
+    "and signs in perfectly. The store build is signed by Google with a different",
+    "key and matches no OAuth client.",
+    "",
+    "**And the user is shown nothing.** Under Credential Manager (google_sign_in",
+    "v7) a wrong signing SHA comes back as `canceled`, which the plugin cannot",
+    "tell from a dismissal — docs/design/app-google-signin-v7.md §9 says so, and",
+    "that is the reason it says so. api_auth_service.dart:189 maps it to code",
+    "'cancelled' with an EMPTY message, and auth_provider.dart:141 sets _error =",
+    "null for that code. No banner, no log, no crash: the button simply does",
+    "nothing, forever. The success case and the failure case are the same code",
+    "path, and the failure case is silent.",
+    "google-services.json is generated from console state and emits one",
+    "oauth_client entry with client_type 1 per registered fingerprint, so the",
+    "committed file is a faithful (if possibly stale) mirror of what Google will",
+    "accept. A stale file makes the gate refuse a release that would have worked,",
+    "which is the safe direction to be wrong in: the fix is to re-download."
+  ],
+
+  "packages": {
+    "com.myweli.app": { "flavour": "consumer", "config": "mobile/android/app/src/consumer/google-services.json" },
+    "com.myweli.pro": { "flavour": "pro", "config": "mobile/android/app/src/pro/google-services.json" }
+  },
+
+  "developmentFingerprints": [
+    {
+      "sha1": "7a5cb3b03a4da2a4e933d39593a94229a626511e",
+      "what": "the owner's ~/.android/debug.keystore (androiddebugkey)",
+      "registeredOn": "2026-08-22",
+      "releaseSafe": false
+    }
+  ],
+
+  "playAppSigning": {
+    "enrolled": false,
+    "sha1": null,
+    "recordedOn": null,
+    "howToGetIt": [
+      "Play Console → the app → Test and release → Setup → App signing.",
+      "Copy the SHA-1 under 'App signing key certificate' — NOT the upload key.",
+      "Add it in Firebase Console → Project settings → the Android app → Add",
+      "fingerprint, for BOTH com.myweli.app and com.myweli.pro. Then re-download",
+      "each google-services.json and commit it, or this gate stays red.",
+      "",
+      "Store it here lowercase with the colons stripped, the way",
+      "google-services.json stores it. The console shows AA:BB:CC…; pasting that",
+      "form in would compare unequal against every entry in the file and the",
+      "gate would refuse every release with no hint as to why."
+    ]
+  },
+
+  "audience": {
+    "$comment": [
+      "Which OAuth client id the apps present as the `aud` of a Google ID token.",
+      "The backend's GoogleIdTokenVerifier accepts only the ids in the",
+      "GOOGLE_CLIENT_IDS secret and rejects everything else, so an audience that",
+      "is not in that list is a sign-in that fails AFTER Google succeeds: the user",
+      "sees the Google sheet, picks an account, and lands back on an error.",
+      "",
+      "**Both platforms send `server`, not their own client id.** The app passes",
+      "serverClientId to GoogleSignIn.instance.initialize, and that argument sets",
+      "the audience on BOTH platforms — not only Android. Verified from source",
+      "rather than assumed, because assuming it was how this file first got it",
+      "wrong: google_sign_in_ios-6.3.0 FLTGoogleSignInPlugin.m:344 forwards it into",
+      "GIDConfiguration, whose header says of serverClientID `This will be returned",
+      "as the audience property of the OpenID Connect ID token`, and GIDSignIn.m:901",
+      "sets additionalParameters[@\"audience\"] from it.",
+      "",
+      "So `clients` below is NOT an allowlist requirement. Those four ids are what",
+      "each build carries as its OWN identity (azp), and they are recorded so the",
+      "checks can tell that the committed configs still match. Requiring them in",
+      "GOOGLE_CLIENT_IDS would refuse a release that works perfectly.",
+      "",
+      "The load-bearing invariant is conditional, and the check evaluates it that",
+      "way: WHILE the app passes serverClientId the audience is `server`; if that",
+      "argument is ever dropped, the audience silently becomes the per-flavour id",
+      "and every one of those must then be allowlisted instead."
+    ],
+    "server": "731308991240-dairlha8r67p4l5d52m44qnt82qdp5js.apps.googleusercontent.com",
+    "clients": [
+      { "id": "731308991240-ah75c2bvv4ojfipa7crlj38n7rdg60fv.apps.googleusercontent.com", "platform": "ios", "flavour": "consumer" },
+      { "id": "731308991240-o68qiuivc9ts8ablihabvts5bdel4j65.apps.googleusercontent.com", "platform": "ios", "flavour": "pro" },
+      { "id": "731308991240-g3jbungp06eqj6fp5neigk84ivjdpj9e.apps.googleusercontent.com", "platform": "android", "flavour": "consumer" },
+      { "id": "731308991240-bo1ksgu77025t33r5fjt1uvt9jmp57g9.apps.googleusercontent.com", "platform": "android", "flavour": "pro" }
+    ]
+  }
+}
