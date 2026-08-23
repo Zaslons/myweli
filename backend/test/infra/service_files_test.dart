@@ -43,6 +43,17 @@ void main() {
     return null;
   }
 
+  /// Every `secretKeyRef` in a manifest, as {name, key} — the `key` half is
+  /// what nothing looked at until secret drift turned out to be live.
+  List<Map<String, dynamic>> secretRefs(YamlMap svc) => [
+    for (final e in appEnv(svc))
+      if (e['valueFrom']?['secretKeyRef'] != null)
+        {
+          'name': e['valueFrom']['secretKeyRef']['name'],
+          'key': e['valueFrom']['secretKeyRef']['key'],
+        },
+  ];
+
   Set<String> secretNames(YamlMap svc) => {
     for (final e in appEnv(svc))
       if (e['valueFrom'] != null)
@@ -218,6 +229,97 @@ void main() {
         expect(secretNames(f), isNot(contains('GOOGLE_CLIENT_IDS')));
         expect(secretNames(f), isNot(contains('APPLE_CLIENT_IDS')));
       }
+    });
+
+    /// **Secret versions are pinned, and `latest` is the defect.**
+    ///
+    /// Cloud Run resolves a secret reference at container start, and production
+    /// runs minScale: 1 — one start per revision, ever. `latest` therefore left
+    /// the running process holding whatever it read at boot while
+    /// `gcloud secrets versions add` appeared to have applied. ADMIN_PASSWORD
+    /// v2 sat unread for two days that way, against a v1 that was by then
+    /// disabled.
+    ///
+    /// Nothing asserted the `key` at all before this, in either direction.
+    group('secret versions are pinned', () {
+      /// Anti-vacuity first: every assertion below loops over the mounts, so if
+      /// `secretRefs` ever returns nothing — a reshaped manifest, a renamed
+      /// key — the loops run zero times and this whole group passes while
+      /// checking nothing.
+      test('the mounts were actually found', () {
+        for (final e in files.entries) {
+          expect(
+            secretRefs(e.value),
+            hasLength(greaterThanOrEqualTo(12)),
+            reason:
+                '${e.key} parsed ${secretRefs(e.value).length} secret mounts, '
+                'far fewer than it has — the shape this test reads has changed',
+          );
+        }
+      });
+
+      for (final e in files.entries) {
+        test('${e.key}: no mount uses `latest`', () {
+          final loose = secretRefs(
+            e.value,
+          ).where((r) => r['key'] == 'latest').map((r) => r['name']).toList();
+          expect(
+            loose,
+            isEmpty,
+            reason:
+                'these resolve at container start and then never again, so a '
+                'new version does not reach the running instance: $loose',
+          );
+        });
+
+        test('${e.key}: every key is a quoted version number', () {
+          for (final r in secretRefs(e.value)) {
+            final key = r['key'];
+            expect(
+              key,
+              isA<String>(),
+              reason:
+                  '${r['name']} has an unquoted key. YAML reads it as an '
+                  'integer and the API wants a string — quote it',
+            );
+            expect(
+              RegExp(r'^[1-9][0-9]*$').hasMatch(key as String),
+              isTrue,
+              reason:
+                  '${r['name']} is pinned to "$key", which is not a version '
+                  'number. `latest` is the value this group exists to reject, '
+                  'and an alias is the same problem wearing a name',
+            );
+          }
+        });
+      }
+
+      test('a secret mounted by both files is pinned to the same version', () {
+        // They deploy independently, so two literals can drift where one shared
+        // `latest` could not. The property is now asserted rather than arranged.
+        final prod = {
+          for (final r in secretRefs(files['prod']!)) r['name']: r['key'],
+        };
+        final staging = {
+          for (final r in secretRefs(files['staging']!)) r['name']: r['key'],
+        };
+        final shared = prod.keys.toSet().intersection(staging.keys.toSet());
+        expect(
+          shared,
+          isNotEmpty,
+          reason: 'SENTRY_DSN and R2_ACCOUNT_ID are shared',
+        );
+        for (final name in shared) {
+          expect(
+            staging[name],
+            prod[name],
+            reason:
+                '$name is pinned to v${prod[name]} in production and '
+                'v${staging[name]} in staging, so the two environments hold '
+                'different values for one secret',
+          );
+        }
+      });
     });
 
     test('JWT_SECRET and DATABASE_URL are never shared, stated separately', () {

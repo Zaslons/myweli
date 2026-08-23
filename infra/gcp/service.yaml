@@ -112,12 +112,60 @@ spec:
             # variable never serves traffic (BACKEND.md §3.2.2).
             - name: WEB_ORIGINS
               value: https://myweli.com,https://www.myweli.com,https://admin.myweli.com
+            # **Every secret is pinned to a version, never `latest`.**
+            #
+            # Cloud Run resolves a secret reference when the CONTAINER STARTS,
+            # and production runs minScale: 1 — the logs show exactly one
+            # container start per revision, ever. So `latest` meant the running
+            # process kept whatever it read at boot, indefinitely, while
+            # DEPLOYMENT.md documented `gcloud secrets versions add` as the
+            # whole procedure. It bit us: ADMIN_PASSWORD v2 was added on
+            # 2026-08-21 and the instance ran for two days on v1 — a value that
+            # by then matched no ENABLED version. Harmless only because the
+            # admin seeder is insert-only.
+            #
+            # Under maxScale: 4 it is worse than stale, because it is not even
+            # uniform: an instance started after a `versions add` holds the new
+            # value while the pinned one holds the old. On JWT_SECRET that is
+            # some instances signing with a key the others reject, with no log
+            # line saying so. A pin makes that divergence impossible rather
+            # than merely detectable — no timestamp check could ever see it.
+            #
+            # The cost is deliberate: changing a secret now takes a PR. That
+            # cost is close to zero, because the one-command path never reached
+            # the running service anyway — and the manifest edit is what forces
+            # a new revision, so the change actually takes effect. See
+            # docs/DEPLOYMENT.md for the full procedure and the ordering rule
+            # (never disable a version a live manifest still pins).
+            #
+            #
+            # **Measured on staging 2026-08-23, not inferred.** Three facts this
+            # repository cannot prove on its own:
+            #
+            #   1. `gcloud run services replace` accepts a numeric key — the
+            #      revision became ready and records `key: '1'` verbatim, so a
+            #      revision spec now tells you which version it resolved. Under
+            #      `latest` it recorded only the word `latest`, which is why the
+            #      drift could not be read off the running service at all.
+            #   2. Re-applying an IDENTICAL manifest creates no revision and does
+            #      not bump the generation — while gcloud still prints "New
+            #      configuration has been applied". That is the misleading
+            #      success the deploy workflow now annotates.
+            #   3. A DISABLED pinned version fails LOUDLY, and earlier than
+            #      expected: not at container start but at revision creation,
+            #      naming the secret, the version and the state —
+            #      "Secret Version [...] is in DISABLED state." The deploy fails;
+            #      nothing half-starts.
+            # One real cost, stated so it is not a surprise: re-creating this
+            # project from scratch puts every secret back at version 1, and
+            # these pins would all be wrong. That failure is loud, once, and
+            # fixable — unlike the silent one it replaces.
             - name: DATABASE_URL
               valueFrom:
-                secretKeyRef: { name: DATABASE_URL, key: latest }
+                secretKeyRef: { name: DATABASE_URL, key: '1' }
             - name: JWT_SECRET
               valueFrom:
-                secretKeyRef: { name: JWT_SECRET, key: latest }
+                secretKeyRef: { name: JWT_SECRET, key: '1' }
             # **Cron auth, and editing these two is NOT risk-free.** `CronAuth`
             # verifies the Google-signed token Cloud Scheduler sends, and since
             # 2026-08-18 that is the ONLY mechanism — the transitional
@@ -148,7 +196,7 @@ spec:
               value: myweli-scheduler@myweli.iam.gserviceaccount.com
             - name: MESSAGING_WEBHOOK_SECRET
               valueFrom:
-                secretKeyRef: { name: MESSAGING_WEBHOOK_SECRET, key: latest }
+                secretKeyRef: { name: MESSAGING_WEBHOOK_SECRET, key: '1' }
             # Error reporting. In Secret Manager rather than as a plain value
             # BECAUSE THIS REPOSITORY IS PUBLIC — a DSN here would be published
             # on GitHub. It only authorises *writing* events, so the exposure is
@@ -158,7 +206,7 @@ spec:
             # Design: docs/design/observability-error-reporting.md §4.3.
             - name: SENTRY_DSN
               valueFrom:
-                secretKeyRef: { name: SENTRY_DSN, key: latest }
+                secretKeyRef: { name: SENTRY_DSN, key: '1' }
             # -- OWNER-SUPPLIED ----------------------------------------------
             # Every one of these WAS a lazy guard: absent, the service still
             # booted green and 500d on the first request that touched it
@@ -196,7 +244,7 @@ spec:
               value: com.myweli.app,com.myweli.pro,com.myweli.signin
             - name: RESEND_API_KEY
               valueFrom:
-                secretKeyRef: { name: RESEND_API_KEY, key: latest }
+                secretKeyRef: { name: RESEND_API_KEY, key: '1' }
             # The outbound-email ceilings, per hour, per class. Declared here at
             # the code defaults rather than left implicit, because the runbook
             # on both budget alert policies tells the operator to "raise
@@ -252,16 +300,16 @@ spec:
             # account id (:141-146), and supplying both invites drift.
             - name: R2_ACCOUNT_ID
               valueFrom:
-                secretKeyRef: { name: R2_ACCOUNT_ID, key: latest }
+                secretKeyRef: { name: R2_ACCOUNT_ID, key: '1' }
             - name: R2_BUCKET
               valueFrom:
-                secretKeyRef: { name: R2_BUCKET, key: latest }
+                secretKeyRef: { name: R2_BUCKET, key: '1' }
             - name: R2_ACCESS_KEY_ID
               valueFrom:
-                secretKeyRef: { name: R2_ACCESS_KEY_ID, key: latest }
+                secretKeyRef: { name: R2_ACCESS_KEY_ID, key: '2' }
             - name: R2_SECRET_ACCESS_KEY
               valueFrom:
-                secretKeyRef: { name: R2_SECRET_ACCESS_KEY, key: latest }
+                secretKeyRef: { name: R2_SECRET_ACCESS_KEY, key: '2' }
             # Also the gallery's origin allowlist (anti-hotlink). This used to be
             # a SECOND, independent read that bypassed the fail-fast above, so a
             # wrong or absent value left the check off while those routes still
@@ -269,13 +317,13 @@ spec:
             # actually in use (`galleryOriginsFor`), so the two cannot disagree.
             - name: R2_PUBLIC_BASE_URL
               valueFrom:
-                secretKeyRef: { name: R2_PUBLIC_BASE_URL, key: latest }
+                secretKeyRef: { name: R2_PUBLIC_BASE_URL, key: '1' }
             - name: R2_KYC_BUCKET
               valueFrom:
-                secretKeyRef: { name: R2_KYC_BUCKET, key: latest }
+                secretKeyRef: { name: R2_KYC_BUCKET, key: '1' }
             - name: R2_DEPOSIT_BUCKET
               valueFrom:
-                secretKeyRef: { name: R2_DEPOSIT_BUCKET, key: latest }
+                secretKeyRef: { name: R2_DEPOSIT_BUCKET, key: '1' }
             # FCM — only the private key is secret. The other two are public
             # identifiers read from the project, so they are plain config
             # rather than three Secret Manager round-trips.
@@ -296,7 +344,7 @@ spec:
               value: firebase-adminsdk-fbsvc@myweli.iam.gserviceaccount.com
             - name: FCM_PRIVATE_KEY
               valueFrom:
-                secretKeyRef: { name: FCM_PRIVATE_KEY, key: latest }
+                secretKeyRef: { name: FCM_PRIVATE_KEY, key: '3' }
             # Seeds the super-admin at boot. ADMIN_PASSWORD is BOOTSTRAP ONLY:
             # the seeder is insert-only, so on a database that already holds the
             # admin this value is read and DISCARDED — changing it here does not
@@ -305,10 +353,10 @@ spec:
             # docs/design/backend-admin-password-change.md
             - name: ADMIN_EMAIL
               valueFrom:
-                secretKeyRef: { name: ADMIN_EMAIL, key: latest }
+                secretKeyRef: { name: ADMIN_EMAIL, key: '1' }
             - name: ADMIN_PASSWORD
               valueFrom:
-                secretKeyRef: { name: ADMIN_PASSWORD, key: latest }
+                secretKeyRef: { name: ADMIN_PASSWORD, key: '2' }
             # Asks Vercel to rebuild the web when the set of publicly listable
             # salons changes (created / suspended / restored).
             #
@@ -328,7 +376,7 @@ spec:
             # docs/design/backend-web-rebuild-hook.md
             - name: WEB_DEPLOY_HOOK_URL
               valueFrom:
-                secretKeyRef: { name: WEB_DEPLOY_HOOK_URL, key: latest }
+                secretKeyRef: { name: WEB_DEPLOY_HOOK_URL, key: '1' }
           startupProbe:
             tcpSocket:
               port: 8080

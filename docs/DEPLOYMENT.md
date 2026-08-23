@@ -208,28 +208,41 @@ which is how the reminder cron came to be switched off without anyone noticing.
    `FCM_PRIVATE_KEY` is a secret. Migrations run at boot, serialised across
    instances behind a Postgres advisory lock, **before the port binds**.
 
-   **Adding a version is not the whole procedure, and on its own it changes
-   nothing.** Every mount uses `key: latest`, which Cloud Run resolves **when the
-   container starts** — and production pins `minScale: '1'`, so the instance does
-   not restart on its own. The logs show exactly one container start per
-   revision, ever. So:
+   **Every mount is pinned to a version number — never `latest`.** Cloud Run
+   resolves a secret reference when the container starts, and production runs
+   `minScale: '1'`; the logs show exactly one container start per revision,
+   ever. So `latest` meant the running process kept whatever it read at boot,
+   indefinitely, while `gcloud secrets versions add` appeared to have applied.
+   Under `maxScale: 4` it was worse than stale and not even uniform: an instance
+   started after the change held the new value while the pinned one held the
+   old. On `JWT_SECRET` that is some instances signing with a key the others
+   reject, with nothing in the logs saying why.
 
-   ```
-   printf '%s' "$NEW" | gcloud secrets versions add <NAME> --data-file=-
-   ```
+   **Changing a secret, in order:**
 
-   then **deploy**, so a new revision starts and re-resolves it. `printf` rather
-   than `echo`: Dart trims the trailing newline, nothing outside Dart does.
-   Confirm the serving revision name actually changed — a deploy at an unchanged
-   commit renders a byte-identical manifest and creates no revision at all, which
-   looks green and re-resolves nothing. Only once the new value is serving should
-   the superseded version be disabled.
+   1. `printf '%s' "$NEW" | gcloud secrets versions add <NAME> --data-file=-`
+      — `printf`, not `echo`: Dart trims the trailing newline, nothing outside
+      Dart does.
+   2. Note the version number it prints.
+   3. Set that number as `key:` in `infra/gcp/service.yaml`, and in
+      `service-staging.yaml` too if the secret is shared (`SENTRY_DSN`,
+      `R2_ACCOUNT_ID` — the manifest test fails if the two disagree).
+   4. Open a PR and merge it. **The manifest edit is what forces a new
+      revision** — see step 6.
+   5. Run the deploy workflow.
+   6. Confirm the serving revision name **changed**. A deploy at an unchanged
+      commit renders a byte-identical template, creates no revision, and
+      re-resolves nothing; the workflow now prints a `::notice::` saying exactly
+      that, because it is otherwise indistinguishable from a deploy that worked.
+   7. **Only now** disable the superseded version. Never disable a version any
+      live manifest still pins: the running instance survives on it, so the
+      failure surfaces at the next scale-up or rollback rather than at your
+      keyboard.
 
-   This bit us: `ADMIN_PASSWORD` v2 was added 2026-08-21 and the instance ran for
-   two days on v1, which by then was disabled — a value matching no enabled
-   version. Harmless only because the admin seeder is insert-only. The same drift
-   on `JWT_SECRET`, under `maxScale: 4`, is some instances signing with the new
-   key while others verify with the old.
+   This bit us before the pins existed. `ADMIN_PASSWORD` v2 was added on
+   2026-08-21 and the instance ran two more days on v1, which by then was
+   disabled — a value matching no enabled version at all. Harmless only because
+   the admin seeder is insert-only, which is luck rather than a control.
 3. **A revision missing a required value never serves.** Every `guardsOn`
    fail-fast fires during startup rather than on first use, so a deploy missing a
    secret fails loudly instead of going green and 500-ing per feature later.
@@ -307,12 +320,13 @@ Three things about that command are worth knowing *before* you need it:
   backend/lib/src/db/migrations.dart` is the 2am answer. `0026` is the one
   to watch — it is the most recent of the five and the failure lands on the
   booking path.
-- **It does not roll back secrets, and it may move them forward.** The old
-  revision starts a new container, and every mount is `key: latest` — resolved at
-  container start. So it comes up holding whatever the *current* secret values
-  are, not the ones it originally ran with. If the thing you are rolling away
-  from included a secret change, the rollback does not undo it; and older code
-  meets a newer value it may not understand.
+- **It rolls secrets back too, which is usually right and occasionally
+  blocking.** The old revision starts a new container and re-resolves *its own*
+  pinned versions — the ones it was deployed with, not today's. So a rollback
+  undoes a secret change along with the code, which is what you almost always
+  want. The exception: if one of those versions has since been **disabled**, the
+  old revision cannot start at all, and the rollback fails when you least want
+  it to. That is the reason step 7 above is ordered the way it is.
 
 ## Phase D — Deploy the web (Vercel)
 Project root = `web/`. Env: `API_BASE_URL=https://api.myweli.com` (server-side BFF)

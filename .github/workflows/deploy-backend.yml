@@ -405,7 +405,37 @@ jobs:
           sed -e "s|__IMAGE__|${{ steps.build.outputs.image }}|g" \
               -e "s|__RELEASE__|${{ steps.build.outputs.sha }}|g" \
             "${SERVICE_YAML}" > /tmp/service.yaml
+          # **A deploy that changes nothing looks exactly like one that worked.**
+          #
+          # Knative creates a revision only when `spec.template` differs. The only
+          # substitutions above are the image DIGEST and the short SHA, so
+          # re-dispatching at the same commit renders a byte-identical template,
+          # the generation does not bump, and no revision is created. The verify
+          # step below still passes — the serving image IS the built image and
+          # /health answers — so a run that did nothing reads as a success.
+          #
+          # That matters most for secrets. Every mount is pinned to a version and
+          # resolved at container start, so "just re-run the deploy" to pick up a
+          # new secret value is exactly the case that silently no-ops. With pins
+          # the no-op is CORRECT — nothing is left to re-resolve — but it has to
+          # SAY so, or the next person concludes the value took effect. The fix is
+          # to bump the key: in infra/gcp/service.yaml, which changes the template
+          # and therefore does roll a revision.
+          BEFORE=$(gcloud run services describe "${SERVICE}" --region "${REGION}" \
+                     --format='value(status.latestReadyRevisionName)' 2>/dev/null || true)
+          
           gcloud run services replace /tmp/service.yaml --region "${REGION}" -q
+          
+          AFTER=$(gcloud run services describe "${SERVICE}" --region "${REGION}" \
+                    --format='value(status.latestReadyRevisionName)')
+          if [ -n "${BEFORE}" ] && [ "${BEFORE}" = "${AFTER}" ]; then
+            echo "::notice::No new revision: the rendered manifest is byte-identical"
+            echo "::notice::to what is already deployed (${AFTER}). Nothing restarted"
+            echo "::notice::and no secret was re-resolved. To pick up a new secret"
+            echo "::notice::value, bump its key: in infra/gcp/service.yaml."
+          else
+            echo "revision ${BEFORE:-<none>} -> ${AFTER}"
+          fi
 
       - name: Verify the revision actually serves
         run: |
