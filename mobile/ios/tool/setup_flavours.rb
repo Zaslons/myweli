@@ -49,11 +49,13 @@ FLAVOURS = {
     bundle_id: 'com.myweli.app',
     display_name: 'MyWeli',
     google_client_id: '731308991240-ah75c2bvv4ojfipa7crlj38n7rdg60fv.apps.googleusercontent.com',
+    app_icon: 'AppIcon',
   },
   'pro'      => {
     bundle_id: 'com.myweli.pro',
     display_name: 'MyWeli Pro',
     google_client_id: '731308991240-o68qiuivc9ts8ablihabvts5bdel4j65.apps.googleusercontent.com',
+    app_icon: 'AppIcon-pro',
   },
 }.freeze
 
@@ -110,6 +112,13 @@ FLAVOURS.each do |flavour, meta|
     cfg.build_settings['GOOGLE_CLIENT_ID'] = meta[:google_client_id]
     cfg.build_settings['GOOGLE_REVERSED_CLIENT_ID'] =
       reversed_client_id(meta[:google_client_id])
+    # **The Pro app shipped the CONSUMER icon until 2026-08-23.** There is one
+    # `AppIcon` in the Flutter template and all nine configurations inherited it
+    # through the Marshal deep-copy above — the same mechanism the deleted
+    # display-name setting below rode in on. Two store listings wearing one icon
+    # is also how an App Store 4.3 (duplicate apps) conversation starts. The art
+    # was in the designer bundle the whole time; only the wiring was missing.
+    cfg.build_settings['ASSETCATALOG_COMPILER_APPICON_NAME'] = meta[:app_icon]
     # Inert, misspelled, and it rides along in the Marshal deep-copy above:
     # the BUILT Runner.app/Info.plist reads `CFBundleDisplayName = MyWeli`, so
     # $(APP_DISPLAY_NAME) wins and this never applied. Removed so nobody has to
@@ -143,6 +152,11 @@ end
   cfg.build_settings['GOOGLE_CLIENT_ID'] = FLAVOURS['consumer'][:google_client_id]
   cfg.build_settings['GOOGLE_REVERSED_CLIENT_ID'] =
     reversed_client_id(FLAVOURS['consumer'][:google_client_id])
+  # Same reasoning for the icon: these configurations build the consumer app, so
+  # they take the consumer icon. Written explicitly rather than inherited, so the
+  # value sits where the others do.
+  cfg.build_settings['ASSETCATALOG_COMPILER_APPICON_NAME'] =
+    FLAVOURS['consumer'][:app_icon]
   cfg.build_settings.delete('INFOPLIST_KEY_CFBundleDisplayName')
 end
 

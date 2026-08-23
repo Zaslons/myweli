@@ -253,7 +253,7 @@
 				9705A1C41CF9048500538489 /* Embed Frameworks */,
 				3B06AD1E1E4923F5004D2608 /* Thin Binary */,
 				95950B56BB4FE3EEF36D4299 /* [CP] Embed Pods Frameworks */,
-				C39303C3EC1C5FAC74DF808E /* Copy Firebase config (per flavour) */,
+				BEF58840F4E289989F964F53 /* Copy Firebase config (per flavour) */,
 			);
 			buildRules = (
 			);
@@ -380,7 +380,7 @@
 			shellPath = /bin/sh;
 			shellScript = "/bin/sh \"$FLUTTER_ROOT/packages/flutter_tools/bin/xcode_backend.sh\" build";
 		};
-		BDCC90BFD801BAE265C27DEA /* Copy Firebase config (per flavour) */ = {
+		BEF58840F4E289989F964F53 /* Copy Firebase config (per flavour) */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -542,7 +542,7 @@
 			baseConfigurationReference = 169B5A234C2F0AC9D2EBF3D5 /* Profile-pro.xcconfig */;
 			buildSettings = {
 				APP_DISPLAY_NAME = "MyWeli Pro";
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = "AppIcon-pro";
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;
 				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
@@ -1293,7 +1293,7 @@
 			baseConfigurationReference = 504A1A95D6C5BB7303C2AA59 /* Release-pro.xcconfig */;
 			buildSettings = {
 				APP_DISPLAY_NAME = "MyWeli Pro";
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = "AppIcon-pro";
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = Runner/RunnerRelease.entitlements;
 				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
@@ -1320,7 +1320,7 @@
 			baseConfigurationReference = 603347A38205B2BFF5B4D60C /* Debug-pro.xcconfig */;
 			buildSettings = {
 				APP_DISPLAY_NAME = "MyWeli Pro";
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = "AppIcon-pro";
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;
 				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
