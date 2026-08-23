@@ -395,6 +395,28 @@ jobs:
           ENVIRONMENT: ${{ github.event.inputs.environment || 'staging' }}
           IMAGE_TAG: ${{ github.event.inputs.image_tag }}
 
+      # **Refuse to deploy a manifest whose pins are wrong.**
+      #
+      # Every secretKeyRef is pinned to a version number rather than `latest`,
+      # which removes silent staleness and introduces two loud failures instead.
+      # This catches both before the service is replaced:
+      #
+      #   a DISABLED pin  — the new revision cannot start. Cloud Run would fail
+      #                     this at readiness anyway; failing here is merely
+      #                     faster and says why.
+      #   a STALE pin     — Cloud Run would NOT fail it. The deploy succeeds and
+      #                     serves the version nobody meant to be running, which
+      #                     is the case worth having a gate for.
+      #
+      # Needs only secret version METADATA — the same custom role the daily
+      # checks use, never versions.access. Provisioned by
+      # infra/gcp/42-iam-secret-pins-sa.sh.
+      - name: The pinned secret versions are still enabled and current
+        run: bash infra/gcp/98-verify-secret-pins.sh
+        env:
+          PROJECT: ${{ env.PROJECT }}
+
+
       - name: Deploy the service
         run: |
           set -euo pipefail

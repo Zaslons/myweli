@@ -171,6 +171,66 @@ jobs:
       - name: Live bucket matches infra/gcp/logging-manifest.json
         run: bash infra/gcp/97-verify-log-retention.sh
 
+  secretpins:
+    name: Real project — the secret versions the manifests pin
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # A SECOND custom role on the same identity, not a widening of the first.
+      # The log-entry control below is about `logBucketConfigReader`; this job's
+      # control is about `secretVersionLister`. Blurring them into one role would
+      # make one control's message false. Provisioned by
+      # infra/gcp/42-iam-secret-pins-sa.sh.
+      - uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: projects/731308991240/locations/global/workloadIdentityPools/github/providers/myweli-repo
+          service_account: myweli-checks@myweli.iam.gserviceaccount.com
+
+      - uses: google-github-actions/setup-gcloud@v3
+
+      # **The negative control, and the reason the role is custom.**
+      #
+      # That this identity can read version METADATA is proved by the step
+      # below. That it CANNOT read a version's VALUE would otherwise be an
+      # inference from the role definition — and the whole argument for a
+      # four-permission custom role over roles/secretmanager.viewer is that the
+      # values include JWT_SECRET and DATABASE_URL. An argument nobody has
+      # tested is a claim, not a control.
+      #
+      # The target is R2_ACCOUNT_ID deliberately. The binding is project-level,
+      # so a refusal on any one secret proves the role lacks versions.access on
+      # all of them — which makes the right target the one whose disclosure
+      # would cost least if this control ever came back green.
+      # service_files_test.dart already describes it as a non-credential.
+      # (Residual, stated rather than left silent: a per-secret DENY policy
+      # could produce a refusal here while access is granted elsewhere. No deny
+      # policies exist in this project.)
+      - name: It CANNOT read a secret value — refusal is the assertion
+        run: |
+          set -uo pipefail
+          if out=$(gcloud secrets versions access latest --secret=R2_ACCOUNT_ID \
+                     --project=myweli 2>&1); then
+            echo "::error::this identity READ A SECRET VALUE. secretVersionLister"
+            echo "::error::has been widened, and CI can now read JWT_SECRET."
+            exit 1
+          fi
+          case "$out" in
+            *PERMISSION_DENIED*|*does\ not\ have*|*Forbidden*|*403*)
+              echo "refused, as designed" ;;
+            *)
+              # A network blip must not be read as a security property.
+              echo "::error::the read failed, but not with a permission error —"
+              echo "::error::cannot conclude the identity is bounded: ${out}"
+              exit 1 ;;
+          esac
+
+      # SECRET_PINS_FIXTURE_JSON is deliberately NOT set here; secret_pins_test
+      # fails if it ever appears in a workflow. A rehearsal that runs on the
+      # schedule is a monitor that measures nothing.
+      - name: Every pinned version is enabled and current
+        run: bash infra/gcp/98-verify-secret-pins.sh
+
   attestation:
     name: The registration claim — has anyone confirmed it lately?
     runs-on: ubuntu-latest
@@ -208,7 +268,7 @@ jobs:
   # failures is one thread and not seven.
   report:
     name: Say so, if any check failed
-    needs: [cwv, privacy, legal, retention, attestation]
+    needs: [cwv, privacy, legal, retention, attestation, secretpins]
     if: failure()
     runs-on: ubuntu-latest
     steps:
@@ -226,6 +286,7 @@ jobs:
           LEGAL: ${{ needs.legal.result }}
           RETENTION: ${{ needs.retention.result }}
           ATTESTATION: ${{ needs.attestation.result }}
+          SECRETPINS: ${{ needs.secretpins.result }}
         run: |
           set -euo pipefail
           TITLE='Production checks are failing'
@@ -242,7 +303,7 @@ jobs:
           BODY=$(printf '%s\n' \
             'The scheduled real-domain checks failed.' \
             '' \
-            "CWV: ${CWV} · privacy: ${PRIVACY} · legal: ${LEGAL} · retention: ${RETENTION} · attestation: ${ATTESTATION}" \
+            "CWV: ${CWV} · privacy: ${PRIVACY} · legal: ${LEGAL} · retention: ${RETENTION} · attestation: ${ATTESTATION} · secret pins: ${SECRETPINS}" \
             '' \
             "${RUN}" \
             '' \

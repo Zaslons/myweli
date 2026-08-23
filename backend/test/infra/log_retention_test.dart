@@ -137,9 +137,16 @@ void main() {
         'iam roles create',
         'iam roles update',
       ];
+      // **This used to read `code`, which has comments stripped — so the claim
+      // three lines above was false.** Verified on 2026-08-23 by adding
+      // `# gcloud logging buckets update _Default --retention-days=400` to the
+      // script and watching this test pass. The whole point is that a
+      // commented-out mutation is a line someone uncomments at 2am, so it is
+      // matched against the raw file. None of the script's own prose names a
+      // mutating verb, so nothing had to be reworded.
       for (final verb in mutating) {
         expect(
-          code.contains(verb),
+          checker.contains(verb),
           isFalse,
           reason: 'the read-only checker contains `$verb`',
         );
