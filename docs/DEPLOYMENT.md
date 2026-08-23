@@ -296,7 +296,13 @@ Three things about that command are worth knowing *before* you need it:
   pin, both `spec.template…image` and `status.latestReadyRevisionName` name the
   revision you rolled *away from*, and they agree with each other.
 - **It does not touch the database.** Migrations are forward-only. Rollback is
-  safe today because all 31 are additive, and a test now keeps it that way.
+  safe today, but not because everything is additive — five migrations add a
+  constraint that NARROWS what the schema accepts (`0009`, `0022`, `0023`
+  and both halves of `0026`), and an older image writes rows the database
+  will now reject. Each says so on itself: `grep 'rollback-unsafe:'
+  backend/lib/src/db/migrations.dart` is the 2am answer. `0026` is the one
+  to watch — it is the most recent of the five and the failure lands on the
+  booking path.
 - **It does not roll back secrets, and it may move them forward.** The old
   revision starts a new container, and every mount is `key: latest` — resolved at
   container start. So it comes up holding whatever the *current* secret values

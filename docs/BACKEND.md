@@ -58,9 +58,14 @@ Rules:
   is a list of `(id, statements)` records with **no down statements**, so a
   backend rollback rolls the schema back by nothing. That is workable only while
   an older image can still run against a newer schema, which holds for additive
-  DDL (`ADD COLUMN`, `CREATE TABLE`/`INDEX`, and the widening `DROP NOT NULL` /
-  `DROP CONSTRAINT`) and fails for `DROP COLUMN`, `DROP TABLE`, `RENAME`,
-  `SET NOT NULL` or a narrowing type change. Destructive DDL is **not banned** —
+  DDL (`ADD COLUMN`, `CREATE TABLE`, plain `CREATE INDEX`, and the widening
+  `DROP NOT NULL` / `DROP CONSTRAINT`) and fails for `DROP COLUMN`,
+  `DROP TABLE`, `RENAME`, `SET NOT NULL` or a narrowing type change — **and**
+  for anything that NARROWS what the schema accepts, which is the half this
+  sentence used to miss. `CREATE UNIQUE INDEX` and `EXCLUDE USING` arrive
+  through an `ADD` and strand an older image exactly as a `DROP` does; five
+  migrations do it, each declaring so on itself. Destructive DDL is
+  **not banned** —
   it is the *contract* step of expand → migrate → contract, which
   [LAUNCH.md](LAUNCH.md) §1.4 already requires because installed app versions
   cannot be rolled back either — but it must **declare itself** with a

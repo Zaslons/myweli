@@ -269,7 +269,7 @@ today. It stays dormant until §7 step 5 is the step being worked.
 
 ## 5. What rollback does not undo: the database
 
-**Migrations are one-way.** `backend/lib/src/db/migrations.dart` holds 31
+**Migrations are one-way.** `backend/lib/src/db/migrations.dart` holds 35
 migrations as ordered `(id, statements)` records with **no down statements**, and
 none are planned. Rolling the image back rolls the schema back by nothing at all.
 
@@ -301,7 +301,21 @@ That is a property of the migrations, not of the rollback:
   inserts a row that now violates a constraint. **Rollback across such a
   migration breaks the old image**, and there is no down statement to undo it.
 
-**Today, every one of the 31 migrations is additive.** The only statements that
+**Most migrations are additive; five are not, and they say so.** A count is
+deliberately not repeated here — a number beside a list is a second source of
+truth, and this one was three behind for months. `grep 'rollback-unsafe:'
+backend/lib/src/db/migrations.dart` is authoritative, and
+`migration_reversibility_test.dart` fails any new narrowing constraint that
+is neither declared unsafe nor explained as safe.
+
+The five add a UNIQUE index or an EXCLUDE constraint to a table that already
+existed, so an older image can write a row the database now refuses:
+`0009` (appointment overlap), `0022` and `0023` (one account per email, where
+email had been free text since `0001`/`0003`), and `0026`, which adds BOTH a
+per-artist unique slot and a per-artist overlap exclusion — an image that
+books per salon has no notion of an artist calendar.
+
+The other statements that look destructive
 look destructive are `ALTER TABLE users ALTER COLUMN phone_number DROP NOT NULL`
 and two `DROP CONSTRAINT IF EXISTS` on unique indexes — all three *widen* the
 schema, which is the safe direction.

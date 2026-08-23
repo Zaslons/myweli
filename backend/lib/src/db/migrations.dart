@@ -259,6 +259,11 @@ CREATE TABLE IF NOT EXISTS reviews (
     // [start, start+duration) so back-to-back bookings are allowed. Buffer
     // stays an app-level slot-engine concern.
     id: '0009_booking_overlap_exclusion',
+    // rollback-unsafe: appointments_no_overlap rejects any time-range overlap
+    // per provider. An image from before this migration books by exact slot
+    // only, so two overlapping-but-not-identical bookings were legal to it and
+    // the database now refuses the second. The constraint survives a rollback;
+    // the code that respected it does not.
     statements: [
       'ALTER TABLE appointments '
           'ADD COLUMN IF NOT EXISTS duration_minutes int NOT NULL DEFAULT 30',
@@ -482,6 +487,10 @@ CREATE TABLE notification_preferences (
   ),
   (
     id: '0021_providers_slug',
+    // rollback-safe: providers_slug_idx is unique over a NULLABLE column that
+    // this same migration adds. An older image does not know `slug`, so every
+    // row it inserts leaves it NULL, and Postgres allows any number of NULLs in
+    // a unique index. Nothing it can write violates this.
     statements: [
       // Public web slug per provider (myweli.ci/<slug>). Backfill from the seed
       // data jsonb, then enforce uniqueness. Design: docs/design/web-m1-backend-glue.md.
@@ -492,6 +501,13 @@ CREATE TABLE notification_preferences (
   ),
   (
     id: '0022_auth_social_email',
+    // rollback-unsafe: users_email_lower_key. `users.email` has existed since
+    // 0001 as a free-text profile field with no uniqueness — identity was the
+    // phone number — so an older image can create two accounts sharing one
+    // email, which this partial index now refuses.
+    // rollback-safe: users_google_sub_key and users_apple_sub_key are unique
+    // over columns THIS migration adds, and both are partial (WHERE ... IS NOT
+    // NULL). An older image leaves them NULL and is excluded from the index.
     statements: [
       // Auth overhaul (docs/design/auth-social-email.md): identity = verified
       // email (Google/Apple/email-OTP); phone becomes an optional, initially
@@ -527,6 +543,11 @@ CREATE TABLE IF NOT EXISTS email_otp_codes (
   ),
   (
     id: '0023_provider_auth_social',
+    // rollback-unsafe: provider_users_email_lower_key. Same shape as 0022 —
+    // `provider_users.email` has been a non-unique field since 0003, so an
+    // older image can register two salons under one email.
+    // rollback-safe: provider_users_google_sub_key and _apple_sub_key are on
+    // columns added here, partial, and NULL for anything an older image writes.
     statements: [
       // Pro auth overhaul (docs/design/pro-auth-social.md): salon identity =
       // verified email (Google/Apple/email-OTP); phone stays the REQUIRED
@@ -655,6 +676,12 @@ ON CONFLICT DO NOTHING''',
   ),
   (
     id: '0026_per_artist_capacity',
+    // rollback-unsafe: BOTH appointments_artist_slot_unique and
+    // appointments_artist_no_overlap. Every image before this one books per
+    // SALON — it has no notion of an artist's calendar — so two bookings for
+    // one artist at one time were correct behaviour and are now rejected. This
+    // is the migration a rollback is most likely to cross, being the most
+    // recent of the five, and the failure lands on the booking path.
     statements: [
       // Capacity model (docs/design/booking-capacity-web-hub.md): a salon is
       // no longer one chair. Collisions are enforced PER ARTIST; unassigned
