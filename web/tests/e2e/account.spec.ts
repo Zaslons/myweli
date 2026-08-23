@@ -199,9 +199,14 @@ test('P3 extras: proof view, salon visits card, search hearts, support', async (
   await expect(page).toHaveURL(/\/mon-compte/);
 
   // 15.2 — the support entry.
+  //
+  // It used to assert a `wa.me` href, which only ever passed because
+  // playwright.config.ts sets a dummy NEXT_PUBLIC_MYWELI_WHATSAPP. No real
+  // build sets that variable, so in production the row did not render at all —
+  // the e2e was green on a configuration no user has ever had.
   await expect(
     page.getByRole('link', { name: 'Aide & Support' }),
-  ).toHaveAttribute('href', /wa\.me/);
+  ).toHaveAttribute('href', '/support');
 
   // 1.3 — « Voir ma capture » on the pending booking with an attached proof.
   await page.goto('/mon-compte/appt3');
