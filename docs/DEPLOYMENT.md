@@ -198,8 +198,12 @@ which is how the reminder cron came to be switched off without anyone noticing.
    repo or in GitHub secrets: a leaked repo leaks no credential. It builds
    `backend/Dockerfile` for `linux/amd64`, pushes to Artifact Registry, and
    substitutes only the image and the release into the service file.
-2. **Secrets** live in **Secret Manager**, mounted by `secretKeyRef` — 18 of
-   them, listed in `infra/gcp/service.yaml`. `FCM_PROJECT_ID` and
+2. **Secrets** live in **Secret Manager**, mounted by `secretKeyRef` — 16 of
+   them, listed in `infra/gcp/service.yaml`. The two OAuth audience allowlists
+   used to be here and are now plain values in that file: they are public
+   identifiers that ship inside the app binary, and holding them as secrets
+   made the one question anyone ever asks of them — *which ids are in it?* —
+   answerable only with `gcloud`. `FCM_PROJECT_ID` and
    `FCM_CLIENT_EMAIL` are public identifiers and stay plain config; only
    `FCM_PRIVATE_KEY` is a secret. Migrations run at boot, serialised across
    instances behind a Postgres advisory lock, **before the port binds**.

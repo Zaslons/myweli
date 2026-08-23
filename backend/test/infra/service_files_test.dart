@@ -145,11 +145,13 @@ void main() {
       // `Env` the guards use, so one project is correct and two would split
       // release health for one codebase.
       'SENTRY_DSN',
-      // Public OAuth client identifiers — they ship inside the app binary.
-      // They are an audience allowlist, so different values would mean staging
-      // accepts tokens production rejects.
-      'GOOGLE_CLIENT_IDS',
-      'APPLE_CLIENT_IDS',
+      // GOOGLE_CLIENT_IDS and APPLE_CLIENT_IDS used to be here, for a reason
+      // that is still true and is now enforced somewhere better: they are an
+      // audience allowlist, so different values would mean staging accepts
+      // tokens production rejects. They are also PUBLIC — they ship inside the
+      // app binary — so they became plain `value:` entries in both manifests,
+      // reviewable in a PR. The sameness is asserted directly below, on the
+      // values themselves rather than on the fact that one secret feeds both.
       // The Cloudflare account id. A twin would be byte-identical, and two
       // copies of one value is drift waiting to happen. The R2 *credential* is
       // separate and bucket-scoped.
@@ -170,6 +172,52 @@ void main() {
             'staging (where we hand out admin credentials) would then '
             'authenticate against production.',
       );
+    });
+
+    /// **What moving them out of Secret Manager must not lose.**
+    ///
+    /// Sharing one secret between the two services made divergence impossible
+    /// by construction. Two plain literals can drift, so the property is now
+    /// asserted rather than arranged — and asserted on the values, which is
+    /// strictly stronger than the old check that merely saw the same secret
+    /// NAME in both files.
+    for (final name in ['GOOGLE_CLIENT_IDS', 'APPLE_CLIENT_IDS']) {
+      test('$name is a plain value, identical in both files', () {
+        final prod = plainEnv(files['prod']!, name);
+        final staging = plainEnv(files['staging']!, name);
+
+        expect(
+          prod,
+          isNotNull,
+          reason:
+              '$name is not a plain value in the production manifest. If it '
+              'went back to a secretKeyRef, the reviewability this was moved '
+              'for is gone and the test below cannot see the value at all',
+        );
+        expect(staging, isNotNull);
+        expect(
+          staging,
+          prod,
+          reason:
+              'staging and production would accept different audiences, so a '
+              'token minted for one is rejected by the other — the exact thing '
+              'sharing a single secret used to make impossible',
+        );
+        expect(
+          prod!.split(',').where((e) => e.trim().isNotEmpty),
+          isNotEmpty,
+          reason: 'an empty allowlist fails the boot guard on the next deploy',
+        );
+      });
+    }
+
+    test('neither is mounted as a secret any more', () {
+      // Otherwise both forms could coexist, and which one wins would depend on
+      // Cloud Run's ordering rather than on anything written down.
+      for (final f in files.values) {
+        expect(secretNames(f), isNot(contains('GOOGLE_CLIENT_IDS')));
+        expect(secretNames(f), isNot(contains('APPLE_CLIENT_IDS')));
+      }
     });
 
     test('JWT_SECRET and DATABASE_URL are never shared, stated separately', () {

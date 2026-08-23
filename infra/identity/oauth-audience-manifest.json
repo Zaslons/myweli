@@ -1,0 +1,32 @@
+{
+  "$comment": [
+    "The one audience the repository cannot derive from anything else.",
+    "",
+    "Every other id an ID token can carry is already declared somewhere",
+    "authoritative, and re-listing it here would make this file a second source",
+    "of truth — the defect android_signing_test.dart already forbids in as many",
+    "words. So this declares the Apple web Services ID and nothing else:",
+    "",
+    "  Google, all platforms  -> infra/mobile/signing-manifest.json, audience.server",
+    "                            (cross-checked against app_config.dart)",
+    "  Apple, the two iOS apps -> PRODUCT_BUNDLE_IDENTIFIER in the Xcode project",
+    "  Apple, the web          -> here, because it exists only in Apple's portal",
+    "                            and in Vercel's environment",
+    "",
+    "backend/test/infra/oauth_audience_test.dart holds the manifests' allowlists",
+    "to the union of those three on every push."
+  ],
+
+  "appleWebServicesId": {
+    "id": "com.myweli.signin",
+    "what": "the Sign in with Apple Services ID used by the web surface",
+    "servedAs": "NEXT_PUBLIC_APPLE_CLIENT_ID, set in Vercel and inlined at build",
+    "documentedIn": ["web/.env.example", "docs/design/auth-social-email.md"],
+    "$note": [
+      "Unlike a bundle id this is a name somebody chose, so nothing about the",
+      "app binaries implies it. It was already live and allowlisted when this",
+      "file was written — measured against the real secret on 2026-08-23, which",
+      "corrected a design that had assumed it did not exist yet."
+    ]
+  }
+}
