@@ -292,4 +292,191 @@ void main() {
       expect(() => assertEveryDependencyResolves({}), returnsNormally);
     });
   });
+
+  group('resolveOauthAudiences', () {
+    /// **Measured against the real production secrets before this shipped.**
+    /// All three Google entries and all three Apple entries match, there are no
+    /// duplicates and no cross-contamination — checked by membership, without
+    /// printing a value. A shape guard written against unmeasured values is an
+    /// outage scheduled for the next deploy, which is why that came first.
+    List<String> google(
+      String? raw, {
+      bool required = true,
+      bool guardsOn = true,
+    }) => resolveOauthAudiences(
+      raw,
+      name: 'GOOGLE_CLIENT_IDS',
+      required: required,
+      guardsOn: guardsOn,
+      shape: kGoogleAudienceShape,
+      shapeHint: 'hint',
+    );
+
+    List<String> apple(
+      String? raw, {
+      bool required = true,
+      bool guardsOn = true,
+    }) => resolveOauthAudiences(
+      raw,
+      name: 'APPLE_CLIENT_IDS',
+      required: required,
+      guardsOn: guardsOn,
+      shape: kAppleAudienceShape,
+      shapeHint: 'hint',
+      forbid: kGoogleAudienceShape,
+      forbidHint: 'that is a Google client id',
+    );
+
+    const realGoogle =
+        '731308991240-dairlha8r67p4l5d52m44qnt82qdp5js.apps.googleusercontent.com';
+
+    test('the shapes production actually uses are accepted', () {
+      expect(
+        google(
+          '$realGoogle,731308991240-ah75c2bvv4ojfipa7crlj38n7rdg60fv'
+          '.apps.googleusercontent.com',
+        ),
+        hasLength(2),
+      );
+      expect(
+        apple('com.myweli.app,com.myweli.pro,com.myweli.signin'),
+        hasLength(3),
+      );
+    });
+
+    test('the legacy bare-project-number form is still accepted', () {
+      // A guard that false-rejects a real console value on the day someone
+      // pastes it is worse than no guard.
+      expect(google('731308991240.apps.googleusercontent.com'), hasLength(1));
+    });
+
+    test('whitespace and empty entries are handled as before', () {
+      expect(google(' $realGoogle , '), [realGoogle]);
+    });
+
+    group('rejections', () {
+      final cases = <String, ({String? raw, bool google, String needle})>{
+        'a bundle id in the Google list': (
+          raw: 'com.myweli.app',
+          google: true,
+          needle: 'not a valid audience',
+        ),
+        'a secret name pasted in': (
+          raw: 'GOOGLE_CLIENT_IDS',
+          google: true,
+          needle: 'not a valid audience',
+        ),
+        'a URL': (
+          raw: 'https://accounts.google.com',
+          google: true,
+          needle: 'not a valid audience',
+        ),
+        'a truncated paste': (
+          raw: '731308991240-dairlha8r67p4l5d52m44qnt82qdp5js',
+          google: true,
+          needle: 'not a valid audience',
+        ),
+        'an uppercase id (the [a-z] vs [a-z0-9] trap, inverted)': (
+          raw:
+              '731308991240-DAIRLHA8R67P4L5D52M44QNT82QDP5JS'
+              '.apps.googleusercontent.com',
+          google: true,
+          needle: 'not a valid audience',
+        ),
+        'a duplicate': (
+          raw: '$realGoogle,$realGoogle',
+          google: true,
+          needle: 'more than once',
+        ),
+        'a Google id in the Apple list': (
+          raw: 'com.myweli.app,$realGoogle',
+          google: false,
+          needle: 'belongs to the other provider',
+        ),
+        'the whole Google CSV pasted into Apple': (
+          raw: realGoogle,
+          google: false,
+          needle: 'belongs to the other provider',
+        ),
+        'a bare label with no dot in the Apple list': (
+          raw: 'myweli',
+          google: false,
+          needle: 'not a valid audience',
+        ),
+      };
+
+      cases.forEach((name, c) {
+        test(name, () {
+          expect(
+            () => c.google ? google(c.raw) : apple(c.raw),
+            throwsA(
+              isA<StateError>().having(
+                (e) => e.message,
+                'message',
+                allOf(contains(c.needle), contains('CLIENT_IDS')),
+              ),
+            ),
+          );
+        });
+      });
+    });
+
+    test('the offending value is named, because these are public ids', () {
+      // Every other guard in this file hides its value on purpose. These ship
+      // inside the app binary, and "invalid" with no value sends someone to
+      // open a secret they otherwise never need to read.
+      expect(
+        () => google('com.myweli.app'),
+        throwsA(
+          isA<StateError>().having(
+            (e) => e.message,
+            'message',
+            contains('com.myweli.app'),
+          ),
+        ),
+      );
+    });
+
+    test('a pasted blob is truncated rather than flooding the log', () {
+      final blob = 'x' * 500;
+      expect(
+        () => google(blob),
+        throwsA(
+          isA<StateError>().having(
+            (e) => e.message,
+            'message',
+            allOf(contains('...'), isNot(contains(blob))),
+          ),
+        ),
+      );
+    });
+
+    group('what it must NOT do', () {
+      test('dev is never blocked, however wrong the value', () {
+        // guardsOn is false in dev. A developer with a junk value gets the old
+        // behaviour: it is simply passed through and the verifier rejects
+        // tokens. Failing here would make the guard the first thing anyone
+        // deletes.
+        expect(google('nonsense,,,rubbish', guardsOn: false), hasLength(2));
+      });
+
+      test('an absent value is fine when the method is not enabled', () {
+        expect(google(null, required: false), isEmpty);
+        expect(google('', required: false), isEmpty);
+      });
+
+      test('the original empty-and-required throw is preserved', () {
+        expect(
+          () => google(null),
+          throwsA(
+            isA<StateError>().having(
+              (e) => e.message,
+              'message',
+              contains('must be set in staging and production'),
+            ),
+          ),
+        );
+      });
+    });
+  });
 }
