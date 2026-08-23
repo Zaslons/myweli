@@ -99,8 +99,8 @@ void main() {
     await tester.pump();
   }
 
-  testWidgets('SETUP: the picker headline + three cards with anchors, '
-      'seats and « 3 mois offerts »', (tester) async {
+  testWidgets('SETUP: the picker headline + three cards with seats and '
+      '« 3 mois offerts », and NO price', (tester) async {
     await tester.pumpWidget(app());
     await settle(tester);
 
@@ -113,8 +113,13 @@ void main() {
     await scrollTo(tester, find.text('Business'));
     expect(find.text('15 places'), findsOneWidget);
     await scrollTo(tester, find.text('Réseau'));
-    expect(find.text('Sur devis'), findsOneWidget);
     expect(find.text('15 places par salon'), findsOneWidget);
+    // App Store 3.1.1: no price in the binary. « Sur devis » went with the
+    // struck-through anchors — a tier whose price is "ask us" is still a price
+    // on a card next to a way to buy.
+    expect(find.text('Sur devis'), findsNothing);
+    expect(find.textContaining('FCFA'), findsNothing);
+    expect(find.text('/mois'), findsNothing);
     // R6: multi-salons is LIVE — the entitlement no longer says bientôt.
     expect(
       find.text('Multi-salons — ajoutez des salons à votre compte'),
@@ -149,7 +154,10 @@ void main() {
 
     expect(find.text('Votre offre a expiré'), findsOneWidget);
     expect(find.textContaining('dépublication'), findsOneWidget);
-    expect(find.text('Nous contacter'), findsWidgets);
+    // Was « Nous contacter », which opened WhatsApp with « je souhaite régler
+    // mon offre » — a purchase conversation begun inside the app.
+    expect(find.text('Aide & Support'), findsWidgets);
+    expect(find.text('Nous contacter'), findsNothing);
   });
 
   testWidgets('EXPIRED + unpublished: « Salon dépublié » with the '

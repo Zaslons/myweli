@@ -21,7 +21,7 @@ import '../../../widgets/common/loading_indicator.dart';
 /// « Mon abonnement » — the offer picker + billing states (pricing pivot,
 /// team access R3). Setup (no offer) → the 3-card picker with « 3 mois
 /// offerts »; then trial/paid/grace/expired states, the seats bar and the
-/// manual-payment contact path (« Nous contacter », no custody).
+/// support path (no custody, and no pricing in the binary — App Store 3.1.1).
 /// Design: docs/design/team-access-r3-app.md §2.4.
 class ProSubscriptionScreen extends StatefulWidget {
   const ProSubscriptionScreen({super.key});
@@ -51,13 +51,15 @@ class _ProSubscriptionScreenState extends State<ProSubscriptionScreen> {
     context.read<ProSubscriptionProvider>().load(providerId);
   }
 
-  Future<void> _contact([String? message]) => openWhatsApp(
-    context,
-    number: AppConfig.supportWhatsApp,
-    message:
-        message ??
-        'Bonjour MyWeli, je souhaite activer mon offre pour mon salon.',
-  );
+  /// **Support, not a checkout.**
+  ///
+  /// This used to open WhatsApp with « je souhaite activer mon offre » — a
+  /// purchase conversation started from inside the app, which is the other half
+  /// of the 3.1.1 problem the prices were. It also never worked:
+  /// `AppConfig.supportWhatsApp` has no default and is passed by no build, so
+  /// every one of these buttons showed « Contact bientôt disponible. » in every
+  /// artifact ever shipped.
+  Future<void> _support() => openExternalUrl(context, AppConfig.supportUrl);
 
   Future<void> _choose(String providerId, SalonTier tier) async {
     final provider = context.read<ProSubscriptionProvider>();
@@ -114,7 +116,7 @@ class _ProSubscriptionScreenState extends State<ProSubscriptionScreen> {
                 return _Body(
                   provider: provider,
                   onChoose: (tier) => _choose(providerId, tier),
-                  onContact: _contact,
+                  onContact: _support,
                 );
               },
             ),
@@ -131,7 +133,7 @@ class _Body extends StatelessWidget {
 
   final ProSubscriptionProvider provider;
   final ValueChanged<SalonTier> onChoose;
-  final Future<void> Function([String? message]) onContact;
+  final Future<void> Function() onContact;
 
   @override
   Widget build(BuildContext context) {
@@ -214,9 +216,8 @@ class _Body extends StatelessWidget {
             const SizedBox(width: AppTheme.spacingS),
             Expanded(
               child: Text(
-                'Le paiement se fait manuellement — contactez-nous à la fin '
-                'de votre période d’essai. Vos données ne sont jamais '
-                'bloquées.',
+                'Votre offre se gère depuis votre espace professionnel sur '
+                'myweli.com. Vos données ne sont jamais bloquées.',
                 style: AppTextStyles.bodySmall.copyWith(
                   color: AppColors.textTertiary,
                 ),
@@ -226,9 +227,9 @@ class _Body extends StatelessWidget {
         ),
         const SizedBox(height: AppTheme.spacingM),
         AppButton(
-          text: 'Nous contacter',
+          text: 'Aide & Support',
           type: AppButtonType.secondary,
-          onPressed: () => onContact(),
+          onPressed: onContact,
         ),
       ],
     );
@@ -241,7 +242,7 @@ class _StatusBanner extends StatelessWidget {
   const _StatusBanner({required this.salon, required this.onContact});
 
   final SalonSubscription salon;
-  final Future<void> Function([String? message]) onContact;
+  final Future<void> Function() onContact;
 
   @override
   Widget build(BuildContext context) {
@@ -273,7 +274,7 @@ class _StatusBanner extends StatelessWidget {
         Icons.warning_amber,
         'Votre offre a expiré',
         'Jusqu’au ${Formatters.formatDate(salon.graceEndsAt)} avant la '
-            'dépublication de votre salon. Contactez-nous pour régler.',
+            'dépublication de votre salon. Gérez votre offre sur myweli.com.',
         true,
       ),
       SalonOfferStatus.expired => (
@@ -283,9 +284,9 @@ class _StatusBanner extends StatelessWidget {
         salon.unpublishedForBilling ? 'Salon dépublié' : 'Offre expirée',
         salon.unpublishedForBilling
             ? 'Votre salon n’est plus visible des clients. '
-                  'Contactez-nous pour réactiver — vos données sont '
+                  'Réactivez votre offre sur myweli.com — vos données sont '
                   'intactes.'
-            : 'Contactez-nous pour réactiver votre offre.',
+            : 'Réactivez votre offre sur myweli.com.',
         true,
       ),
     };
@@ -321,13 +322,7 @@ class _StatusBanner extends StatelessWidget {
           ),
           if (urgent) ...[
             const SizedBox(height: AppTheme.spacingM),
-            AppButton(
-              text: 'Nous contacter',
-              onPressed: () => onContact(
-                'Bonjour MyWeli, je souhaite régler mon offre pour '
-                'réactiver mon salon.',
-              ),
-            ),
+            AppButton(text: 'Aide & Support', onPressed: onContact),
           ],
         ],
       ),
@@ -388,7 +383,7 @@ class _SeatsBar extends StatelessWidget {
 class _TrialUsedNotice extends StatelessWidget {
   const _TrialUsedNotice({required this.onContact});
 
-  final Future<void> Function([String? message]) onContact;
+  final Future<void> Function() onContact;
 
   @override
   Widget build(BuildContext context) {
@@ -408,19 +403,16 @@ class _TrialUsedNotice extends StatelessWidget {
           ),
           const SizedBox(height: AppTheme.spacingS),
           Text(
-            'Contactez-nous pour activer votre offre.',
+            'Activez votre offre depuis votre espace sur myweli.com.',
             style: AppTextStyles.bodyMedium.copyWith(
               color: AppColors.textSecondary,
             ),
           ),
           const SizedBox(height: AppTheme.spacingS),
           AppButton(
-            text: 'Nous contacter',
+            text: 'Aide & Support',
             type: AppButtonType.secondary,
-            onPressed: () => onContact(
-              'Bonjour MyWeli, mon essai est terminé — je souhaite activer '
-              'mon offre.',
-            ),
+            onPressed: onContact,
           ),
         ],
       ),
@@ -445,11 +437,6 @@ class _OfferCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final anchor = switch (tier) {
-      SalonTier.pro => SubscriptionPlans.proAnchorMonthlyFcfa,
-      SalonTier.business => SubscriptionPlans.businessAnchorMonthlyFcfa,
-      SalonTier.reseau => null,
-    };
     final seatsLine = switch (tier) {
       SalonTier.pro => '${SubscriptionPlans.proSeats} places',
       SalonTier.business => '${SubscriptionPlans.businessSeats} places',
@@ -498,30 +485,21 @@ class _OfferCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: AppTheme.spacingS),
-          if (anchor != null)
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  // PLATFORM billing — Myweli invoices in XOF regardless
-                  // of the salon's market (multi-pays §4).
-                  Formatters.formatCurrency(anchor.toDouble()),
-                  style: AppTextStyles.titleMedium.copyWith(
-                    color: AppColors.textTertiary,
-                    decoration: TextDecoration.lineThrough,
-                  ),
-                ),
-                const SizedBox(width: AppTheme.spacingS),
-                Text(
-                  '/mois',
-                  style: AppTextStyles.bodySmall.copyWith(
-                    color: AppColors.textTertiary,
-                  ),
-                ),
-              ],
-            )
-          else
-            Text('Sur devis', style: AppTextStyles.titleMedium),
+          // **No price here, and that is deliberate — App Store 3.1.1.**
+          //
+          // These cards used to show a struck-through anchor (« 70 000 FCFA »)
+          // and « /mois » beside a CTA that opened WhatsApp to arrange payment.
+          // A subscription that unlocks app functionality is digital content in
+          // Apple's reading, so advertising its price and routing the purchase
+          // off-platform is the shape that gets an app rejected — on a first
+          // submission, costing a review cycle.
+          //
+          // The plans and their prices live on the web dashboard
+          // (`web/app/pro/(dash)/abonnement/`), which is where billing belongs
+          // and where PRD.md OQ-3 already said it should be.
+          //
+          // What stays is what the salon needs to decide: how many seats, what
+          // is included, and that the trial is free.
           Text(
             '${SubscriptionPlans.trialMonths} mois offerts',
             style: AppTextStyles.titleSmall.copyWith(color: AppColors.success),
