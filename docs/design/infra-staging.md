@@ -475,7 +475,7 @@ The cost of deferring is real and bounded: until phase 8, **app builds point at
 production**, so the app is the one surface without a rehearsal. Accepted
 knowingly, because it is exactly the surface that launches last.
 
-`APPLE_CLIENT_IDS` **is** the bundle id (`com.myweli.app`), so phase 8 is a
+`APPLE_CLIENT_IDS` **is** the set of bundle ids — `com.myweli.app` AND `com.myweli.pro`, because Apple has no `serverClientId` indirection and the `aud` is whichever app is running (both call it). Written here as singular before the Pro flavour shipped; measured 2026-08-23, both are present. So phase 8 is a
 backend config change too, not only a mobile one.
 
 ### 4.1 Staging URL — the `*.run.app` URL, not a hostname

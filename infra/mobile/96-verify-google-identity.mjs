@@ -20,11 +20,19 @@
 //      cannot tell from a dismissal, so the button does nothing and logs
 //      nothing.
 //
-//   2. **The audience.** Creating the Pro app's own OAuth clients fixed the
-//      client side and moved the failure downstream: the backend's
-//      GoogleIdTokenVerifier accepts only the ids in GOOGLE_CLIENT_IDS, and
-//      neither Pro id was in it. Google succeeds, the user picks an account,
-//      and the app rejects them.
+//   2. **The audience.** The backend accepts only the ids in
+//      GOOGLE_CLIENT_IDS and rejects everything else, so a build presenting
+//      an audience outside that list fails AFTER Google succeeds: the user
+//      picks an account and lands back on an error.
+//
+//      **This header used to call that a live defect, and it was wrong.** It
+//      said the Pro ids were missing from the allowlist and Pro sign-in was
+//      therefore broken. They are missing, and it is not broken:
+//      `serverClientId` sets the audience to the WEB client on both
+//      platforms, which IS allowed — the chain is in section 4 below. The
+//      per-flavour ids are never presented as an audience at all, and a gate
+//      requiring them would refuse a release that works perfectly. The
+//      invariant is conditional, and section 4 evaluates it as one.
 //
 // Neither failure produces a crash, a log line, or a red test. Both are one
 // comparison away from being impossible.

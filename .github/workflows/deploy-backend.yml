@@ -468,10 +468,16 @@ jobs:
           #
           # Neither proves the service is CONFIGURED: /health reads no config and
           # /providers reads only the repository and the slot service, so both
-          # would pass on a revision missing every secret. That hole is closed in
-          # the application instead — every guarded fail-fast now fires at boot,
-          # so a misconfigured revision never becomes ready and `replace` above
-          # fails first (docs/BACKEND.md §3.2.2).
+          # would pass on a revision missing every secret. A revision missing a
+          # REQUIRED VALUE is closed off in the application instead — every guarded
+          # fail-fast fires at boot, so it never becomes ready (BACKEND.md §3.2.2).
+          #
+          # **Two things this comment used to say that were not true.** It said a
+          # MISCONFIGURED revision never becomes ready: the guards test whether a
+          # value is absent, so one that is present and wrong boots and serves. And
+          # it said `replace` "fails first" — `replace` exits 0 the moment the API
+          # accepts the manifest; readiness fails afterwards, which is the whole
+          # reason this step exists.
           #
           # This asserts REACHABILITY, not content: since the demo salons were
           # purged, a healthy production returns `{"items":[],"total":0}` with a

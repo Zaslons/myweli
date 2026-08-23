@@ -118,17 +118,26 @@ spec:
             - name: JWT_SECRET
               valueFrom:
                 secretKeyRef: { name: JWT_SECRET, key: latest }
-            # **The OIDC half of cron auth, which was never mounted.** `CronAuth`
-            # verifies the Google-signed token Cloud Scheduler already sends —
-            # but only when BOTH of these are set, and neither was, so the
-            # better mechanism has been inert since it shipped and every cron
-            # run has authenticated on the `X-Cron-Secret` header alone. The
-            # header is the transitional fallback, and it cannot be retired
-            # until the path replacing it is demonstrably carrying traffic.
+            # **Cron auth, and editing these two is NOT risk-free.** `CronAuth`
+            # verifies the Google-signed token Cloud Scheduler sends, and since
+            # 2026-08-18 that is the ONLY mechanism — the transitional
+            # `X-Cron-Secret` fallback is gone (`cron_auth.dart` records the
+            # evidence that retired it).
             #
-            # Purely additive: `authenticate()` falls through to the secret when
-            # the token is absent or the audience is wrong, deliberately, so a
-            # misconfiguration here cannot take the crons down.
+            # So this block fails CLOSED, and the previous version of this comment
+            # said the opposite — 'purely additive ... a misconfiguration here
+            # cannot take the crons down' — which was true only while the fallback
+            # existed. What actually happens now:
+            #
+            #   an audience that stops matching -> `authenticate()` returns
+            #   forbidden, and EVERY cron gets 403;
+            #   either variable unset -> `isConfigured` is false and
+            #   /internal/cron/* returns 404.
+            #
+            # Either way reminders and subscription runs stop while the service
+            # stays healthy and every uptime check passes, because none of them
+            # calls these routes. `infra/gcp/86-cron-auth-alert.sh` is what makes
+            # that visible; there is no second path that keeps the crons running.
             #
             # `CRON_SERVICE_ACCOUNT` is what makes the audience mean anything —
             # any Google account can mint a token for a public string, so

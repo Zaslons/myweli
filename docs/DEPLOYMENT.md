@@ -199,14 +199,40 @@ which is how the reminder cron came to be switched off without anyone noticing.
    `backend/Dockerfile` for `linux/amd64`, pushes to Artifact Registry, and
    substitutes only the image and the release into the service file.
 2. **Secrets** live in **Secret Manager**, mounted by `secretKeyRef` — 18 of
-   them, listed in `infra/gcp/service.yaml`. Set a value with
-   `gcloud secrets versions add <NAME> --data-file=-`. `FCM_PROJECT_ID` and
+   them, listed in `infra/gcp/service.yaml`. `FCM_PROJECT_ID` and
    `FCM_CLIENT_EMAIL` are public identifiers and stay plain config; only
    `FCM_PRIVATE_KEY` is a secret. Migrations run at boot, serialised across
    instances behind a Postgres advisory lock, **before the port binds**.
-3. **A misconfigured revision never serves.** Every `guardsOn` fail-fast fires
-   during startup rather than on first use, so a deploy missing a secret fails
-   loudly instead of going green and 500-ing per feature later
+
+   **Adding a version is not the whole procedure, and on its own it changes
+   nothing.** Every mount uses `key: latest`, which Cloud Run resolves **when the
+   container starts** — and production pins `minScale: '1'`, so the instance does
+   not restart on its own. The logs show exactly one container start per
+   revision, ever. So:
+
+   ```
+   printf '%s' "$NEW" | gcloud secrets versions add <NAME> --data-file=-
+   ```
+
+   then **deploy**, so a new revision starts and re-resolves it. `printf` rather
+   than `echo`: Dart trims the trailing newline, nothing outside Dart does.
+   Confirm the serving revision name actually changed — a deploy at an unchanged
+   commit renders a byte-identical manifest and creates no revision at all, which
+   looks green and re-resolves nothing. Only once the new value is serving should
+   the superseded version be disabled.
+
+   This bit us: `ADMIN_PASSWORD` v2 was added 2026-08-21 and the instance ran for
+   two days on v1, which by then was disabled — a value matching no enabled
+   version. Harmless only because the admin seeder is insert-only. The same drift
+   on `JWT_SECRET`, under `maxScale: 4`, is some instances signing with the new
+   key while others verify with the old.
+3. **A revision missing a required value never serves.** Every `guardsOn`
+   fail-fast fires during startup rather than on first use, so a deploy missing a
+   secret fails loudly instead of going green and 500-ing per feature later.
+   **Note the narrowness — it is "missing", not "misconfigured".** The guards
+   test whether a value is *absent*; a value that is present and wrong passes
+   every one of them and serves. This sentence used to say "misconfigured", which
+   claimed a great deal more than the mechanism delivers
    ([BACKEND.md §3.2.2](BACKEND.md)). The workflow's verify step then asserts the
    serving image is the one just built, that `/health` and a database-backed
    route answer, and that the service **reports the environment it was asked to
@@ -271,6 +297,12 @@ Three things about that command are worth knowing *before* you need it:
   revision you rolled *away from*, and they agree with each other.
 - **It does not touch the database.** Migrations are forward-only. Rollback is
   safe today because all 31 are additive, and a test now keeps it that way.
+- **It does not roll back secrets, and it may move them forward.** The old
+  revision starts a new container, and every mount is `key: latest` — resolved at
+  container start. So it comes up holding whatever the *current* secret values
+  are, not the ones it originally ran with. If the thing you are rolling away
+  from included a secret change, the rollback does not undo it; and older code
+  meets a newer value it may not understand.
 
 ## Phase D — Deploy the web (Vercel)
 Project root = `web/`. Env: `API_BASE_URL=https://api.myweli.com` (server-side BFF)
