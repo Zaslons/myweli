@@ -301,11 +301,35 @@ void main() {
     //
     // So the filter literal is extracted from the script and looked for in the
     // source instead. That direction cannot be satisfied by a substring.
+    /// **Comments stripped, and this assertion is exactly why.** It reads the
+    /// filter literal out of the alert script and requires some file under
+    /// `lib/` to contain it — but it was concatenating the source RAW, so a
+    /// literal surviving only in a doc comment satisfied it. The failure
+    /// message says "so this alert can never fire", which is the one claim a
+    /// comment cannot support.
+    ///
+    /// That is this repository's most-repeated defect: two guards have already
+    /// matched a string that existed only in a comment, one of them the comment
+    /// explaining the very defect it was meant to catch.
+    /// `ci_secret_scan_test.dart` strips shell comments for the same reason.
+    ///
+    /// Line comments (`//`, `///`) and block comments are removed. A trailing
+    /// comment on a line of code is NOT, deliberately: `//` also appears inside
+    /// string literals (every URL has one), and truncating there would drop
+    /// real `print` calls and fail an alert that is perfectly healthy. A guard
+    /// that cries wolf gets switched off. The case that actually occurs — an
+    /// emitter deleted while the paragraph explaining it stays — is covered.
+    String code(String dart) => dart
+        .replaceAll(RegExp(r'/\*.*?\*/', dotAll: true), '')
+        .split('\n')
+        .where((l) => !l.trimLeft().startsWith('//'))
+        .join('\n');
+
     final lib = Directory('lib')
         .listSync(recursive: true)
         .whereType<File>()
         .where((f) => f.path.endsWith('.dart'))
-        .map((f) => f.readAsStringSync())
+        .map((f) => code(f.readAsStringSync()))
         .join('\n');
 
     for (final f in Directory('../infra/gcp').listSync().whereType<File>()) {
