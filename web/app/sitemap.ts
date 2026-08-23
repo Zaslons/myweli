@@ -7,6 +7,7 @@ import {
 } from '../lib/api/providers';
 import { buildTaxonomyPath } from '../lib/landing';
 import { LEGAL_ROUTES } from '../lib/legal';
+import { SUPPORT } from '../lib/support';
 import { siteUrl } from '../lib/seo/jsonld';
 import { taxonomyRootSlugs } from '../lib/taxonomy';
 import {
@@ -46,6 +47,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // L1 — the four legal documents. They join the HARD-CODED head because
     // everything below is API-derived and best-effort; a static route that is
     // not listed here is simply absent from the sitemap, silently.
+    // Support is not a legal document, so it is not in LEGAL_ROUTES — but it is
+    // a public page both store listings point at, and a page missing from the
+    // sitemap is a page nobody finds.
+    {
+      url: `${siteUrl}${SUPPORT.path}`,
+      lastModified,
+      changeFrequency: 'yearly' as const,
+      priority: 0.3,
+    },
     ...LEGAL_ROUTES.map((r) => ({
       url: `${siteUrl}${r.slug}`,
       lastModified,

@@ -62,6 +62,10 @@ const Set<String> reservedPublicSlugs = {
   // `/cgu`, Next's static route wins, and that salon's public page becomes
   // unreachable — a salon silently delisted by a document.
   'cgu', 'mentions-legales', 'politique-confidentialite', 'suppression-compte',
+  // The support page (web/lib/support.ts). Same hazard as the four above: a
+  // salon taking `/support` would be shadowed by the static route AND would
+  // capture the address both store listings point at.
+  'support',
   // Seeded city slugs (the nested landing tree /<taxo>/<ville>/<commune>).
   'abidjan',
 };

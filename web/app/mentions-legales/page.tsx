@@ -1,3 +1,4 @@
+import { SUPPORT, supportMailto } from '../../lib/support';
 import {
   A,
   Callout,
@@ -53,10 +54,11 @@ export default function Page() {
 
       <H2>Nous contacter</H2>
       <P>
-        Depuis l’application, <strong>Profil → Aide &amp; Support</strong> ouvre
-        une conversation avec notre équipe. C’est aujourd’hui le canal de contact
-        de référence&nbsp;: l’adresse d’expédition de nos e-mails automatiques
-        n’est pas relevée.
+        Écrivez-nous à <A href={supportMailto()}>{SUPPORT.email}</A>, ou passez
+        par la page <A href={SUPPORT.path}>Aide &amp; Support</A> — accessible
+        aussi depuis l’application, <strong>Profil → Aide &amp; Support</strong>.
+        L’adresse d’expédition de nos e-mails automatiques n’est pas relevée et
+        ne doit pas être utilisée.
       </P>
 
       <H2>Hébergement</H2>
