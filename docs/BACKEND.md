@@ -144,7 +144,7 @@ value **throws at boot** rather than degrading to `dev`, which is what the old
 
 | Getter | True for | Governs |
 |---|---|---|
-| `guardsOn` | **staging + prod** | every "must be set" fail-fast: `DATABASE_URL`, `JWT_SECRET`, `WEB_ORIGINS`, R2, messaging, push, the OAuth client-id checks — all forced at boot (§3.2.2) |
+| `guardsOn` | **staging + prod** | every "must be set" fail-fast: `DATABASE_URL`, `JWT_SECRET`, `WEB_ORIGINS`, R2, messaging, push, and `GOOGLE_CLIENT_IDS`/`APPLE_CLIENT_IDS` — all forced at boot (§3.2.2). **"Must be set" is the whole of it**: each asks whether the value is absent, not whether it is right. An allowlist that is present and wrong passes. |
 | `isProd` | **prod only** | the smoke-seam disclosure warning |
 | `echoesOtpDevCode` | **dev only** | the `devCode` echo above — *deployed* is the property that matters, not *production* |
 

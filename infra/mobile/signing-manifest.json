@@ -8,7 +8,6 @@
     "Why it matters: Google matches an Android sign-in request by (package name,",
     "signing certificate SHA-1). Today the only fingerprint registered for either",
     "package is a DEVELOPMENT keystore. Every build the owner tests signs with it",
-    "package is a DEVELOPMENT keystore. Every build the owner tests signs with it",
     "and signs in perfectly. The store build is signed by Google with a different",
     "key and matches no OAuth client.",
     "",

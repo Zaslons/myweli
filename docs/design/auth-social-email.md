@@ -171,7 +171,7 @@ Future<OtpVerifyResult>  verifyEmailOtp(String email, String code);
 `AuthUser.phoneNumber` becomes **nullable**; add `authProvider`. The existing `requestOtp/verifyOtp` (phone) stay for the dormant path.
 
 ### Config / env (new)
-`GOOGLE_CLIENT_IDS` (comma-sep audiences), `APPLE_CLIENT_ID`/`APPLE_SERVICE_ID`, `APPLE_TEAM_ID`, `EMAIL_PROVIDER`, `RESEND_API_KEY`, `EMAIL_FROM`. Verifiers configured → real; unset off-prod → a permissive dev stub is **not** allowed (verification must be real even in dev for these — use test tokens in tests).
+`GOOGLE_CLIENT_IDS` (comma-sep audiences), `APPLE_CLIENT_IDS` (comma-sep, the bundle ids — `APPLE_CLIENT_ID`, `APPLE_SERVICE_ID` and `APPLE_TEAM_ID` appeared here but are read by no code), `EMAIL_PROVIDER`, `RESEND_API_KEY`, `EMAIL_FROM`. Verifiers configured → real; unset off-prod → a permissive dev stub is **not** allowed (verification must be real even in dev for these — use test tokens in tests).
 
 ---
 
