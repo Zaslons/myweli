@@ -96,6 +96,11 @@ describe('the Content-Security-Policy', () => {
     [/^schema\.org$/, 'a JSON-LD @context string, never fetched'],
     [/^wa\.me$/, 'a WhatsApp link href — a top-level navigation'],
     [/^calendar\.google\.com$/, 'an "add to calendar" link href'],
+    [
+      /^www\.instagram\.com$/,
+      'the brand social profile — a footer link href and a `sameAs` string, '
+        + 'both top-level navigations rather than fetches',
+    ],
     [/^pay\.wave\.com$/, 'a Mobile Money link href'],
     [/^www\.google\.com$/, 'a Maps search link href'],
     [/^apps\.apple\.com$/, 'a store link href'],
