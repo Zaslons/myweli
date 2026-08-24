@@ -74,7 +74,7 @@ dependencies:
   cached_network_image: ^3.3.1
   flutter_svg: ^2.0.9
   # Brand loader animations (Lottie): in-app loading (mark_loader) + app-open (loader_v2).
-  lottie: ^3.1.2
+  lottie: ^3.5.1
   # Pull-to-refresh with the brand mark_loader instead of the Material spinner.
   custom_refresh_indicator: ^4.0.1
   flutter_slidable: ^4.0.3
