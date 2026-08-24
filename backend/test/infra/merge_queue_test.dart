@@ -213,5 +213,26 @@ void main() {
         reason: 'tool/roadmap-log.sh is not executable',
       );
     });
+
+    test('and its date filter actually matches a date', () {
+      // **Watched failing on the real script.** The first version globbed
+      // `[0-9]*${FILTER}*.md`, which requires a digit BEFORE the filter — so
+      // `./tool/roadmap-log.sh 2026-08`, the usage the README documents,
+      // matched nothing. Documented and never run.
+      final out = Process.runSync('bash', [
+        '$root/tool/roadmap-log.sh',
+        '2026-08',
+      ], workingDirectory: root);
+      expect(
+        out.exitCode,
+        0,
+        reason: 'the documented date filter returns nothing: ${out.stderr}',
+      );
+      expect(
+        (out.stdout as String),
+        contains('2026-08'),
+        reason: 'the filter matched, but not the entries it names',
+      );
+    });
   });
 }

@@ -14,7 +14,15 @@ DIR="$(dirname "${BASH_SOURCE[0]}")/../docs/roadmap/entries"
 FILTER="${1:-}"
 
 shopt -s nullglob
-files=("$DIR"/[0-9]*"${FILTER}"*.md)
+# **A prefix match, not a substring one.** The first version globbed
+# `[0-9]*${FILTER}*.md`, which requires a digit BEFORE the filter — so the very
+# usage the README documents, a date like `2026-08`, could never match. Found by
+# running it rather than by reading it.
+if [[ -n "$FILTER" ]]; then
+  files=("$DIR/$FILTER"*.md)
+else
+  files=("$DIR"/[0-9]*.md)
+fi
 
 if [[ ${#files[@]} -eq 0 ]]; then
   echo "No entries${FILTER:+ matching \"$FILTER\"} in ${DIR}." >&2
