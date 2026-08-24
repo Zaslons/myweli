@@ -5,6 +5,23 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  # **Required for the merge queue, and required BEFORE it is enabled.**
+  #
+  # A queued pull request is tested on a temporary `gh-readonly-queue/…` ref, not
+  # on the PR ref. Every check `main` requires is produced by this workflow, so
+  # without this trigger the queue waits forever for checks that can never run —
+  # and it fails closed, silently, on every merge.
+  #
+  # It is also the point of the queue. `main` requires branches to be up to date,
+  # so today each merge puts every other open PR behind and forces a rebase plus
+  # a fresh 8-minute run: 37 CI runs for 13 pull requests on 2026-08-23, roughly
+  # three per PR, serialised because each rebase waits on the previous merge. The
+  # queue tests them together against the projected `main` instead.
+  #
+  # Nothing here reads `github.event.pull_request`, so the jobs behave identically
+  # under all three events. The concurrency group keys on `github.ref`, which is
+  # unique per queue entry, so entries do not cancel each other.
+  merge_group:
 
 permissions:
   contents: read
