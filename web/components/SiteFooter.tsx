@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { LEGAL_ROUTES } from '../lib/legal';
+import { SOCIAL_PROFILES } from '../lib/social';
 
 /// The site footer (L1) — and the product's first `<footer>` landmark.
 ///
@@ -41,6 +42,29 @@ export function SiteFooter() {
                 >
                   {r.footerLabel}
                 </Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
+        {/* The reciprocal half of `organizationJsonLd().sameAs` — same list,
+            same URLs, enforced by `social.test.ts`. `rel="me"` is the
+            microformat that says "this profile is also me", which is the
+            human-readable statement `sameAs` makes to machines; declaring the
+            profile in JSON-LD while never linking to it is the weaker half of
+            one claim. `noopener noreferrer` follows the house idiom for
+            external links. */}
+        <nav aria-label="Réseaux sociaux" className="mt-s">
+          <ul className="flex flex-wrap items-center gap-x-l">
+            {SOCIAL_PROFILES.map((profile) => (
+              <li key={profile.url}>
+                <a
+                  href={profile.url}
+                  target="_blank"
+                  rel="me noopener noreferrer"
+                  className="inline-flex min-h-12 items-center text-bodyMedium text-textSecondary underline hover:text-textPrimary"
+                >
+                  {profile.name}
+                </a>
               </li>
             ))}
           </ul>
