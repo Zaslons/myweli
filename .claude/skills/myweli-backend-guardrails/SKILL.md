@@ -108,7 +108,10 @@ Treat any unchecked box as "not done":
   user. Conventional commit, **authored as the user — no Claude author /
   `Co-Authored-By`**.
 - All CI jobs green (mobile · backend · security) before requesting merge.
-- **Refresh `docs/ROADMAP.md`** (slice status) so the roadmap stays trustworthy.
+- **Add a roadmap entry** — one new file in `docs/roadmap/entries/`
+  (`YYYY-MM-DD-slug.md`), never an edit to a shared list. Two branches adding
+  two files cannot conflict; every PR editing the top of `ROADMAP.md` §1.8 did,
+  every time.
 - Never commit secrets, `.env`, or build artifacts.
 
 ## Keep the guardrails honest

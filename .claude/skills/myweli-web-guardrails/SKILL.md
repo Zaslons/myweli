@@ -125,7 +125,8 @@ Treat any unchecked box as "not done":
   user. Conventional commit, **authored as the user — no Claude author /
   `Co-Authored-By`**.
 - All CI jobs green (mobile · backend · **web** · security) before requesting merge.
-- **Refresh `docs/ROADMAP.md`** (milestone status) so the roadmap stays trustworthy.
+- **Add a roadmap entry** — one new file in `docs/roadmap/entries/`
+  (`YYYY-MM-DD-slug.md`), never an edit to a shared list.
 - Never commit secrets, `.env`, build artifacts (`.next/`, `node_modules/`).
 
 ## Keep the guardrails honest
