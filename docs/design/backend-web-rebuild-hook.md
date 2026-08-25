@@ -21,24 +21,59 @@ that gap: the backend asks Vercel to rebuild whenever the listable set changes.
 **Goal.** `GET /sitemap/providers` and the web's prebuilt slug set stay in
 agreement without anyone remembering to deploy.
 
-**In scope:** an outbound POST to a Vercel Deploy Hook on the three events that
-change the listable set. **Out of scope:** per-page on-demand revalidation
+**In scope:** an outbound POST to a Vercel Deploy Hook on ~~the three events~~
+the **five status transitions** that change the listable set (§2, corrected
+2026-08-25). **Out of scope:** per-page on-demand revalidation
 (`revalidatePath` cannot add params to a closed set), and any read path.
 
-## 2. The events
+## 2. The events — corrected 2026-08-25
 
-`/sitemap/providers` returns `query()`, which lists non-suspended providers. So
-the set changes on exactly three transitions, and all three are already single
-choke points:
+~~`/sitemap/providers` returns `query()`, which lists non-suspended providers.
+So the set changes on exactly three transitions, and all three are already
+single choke points: salon created, salon suspended, salon restored.~~
 
-| event | seam |
-|---|---|
-| salon created | `SalonDirectoryService` · `SalonProvisioningService` |
-| salon suspended | `AdminProviderService._setStatus` |
-| salon restored | `AdminProviderService._setStatus` |
+**That premise was the root error of this spec.** `query()` excludes
+**drafts too** (`status NOT IN ('suspended', 'draft')` —
+`salon_visibility.dart` is the canonical statement), and every salon is
+CREATED `'draft'`. Two consequences, both real in production until
+2026-08-25:
+
+- the "salon created" fires built **nothing** — the new row was not in the
+  set — while consuming the cooldown window, where they could swallow a real
+  publish's fire seconds later;
+- the transition that actually grows the set, **publish** (`draft → active`),
+  fired nothing at all, so a salon that published got a public page that
+  404s until an unrelated deploy — while `/recherche` (force-dynamic) linked
+  to it and the sitemap advertised it to Google.
+
+The set changes on exactly **five** transitions, each fired inside the
+service that writes the status (the `BudgetedEmailProvider` placement — no
+caller can route around it), once per logical operation:
+
+| transition | seam | reason string |
+|---|---|---|
+| publish (`draft → active`) | `SalonProvisioningService.publish` | `salon.published` |
+| admin suspend | `AdminProviderService._setStatus` | `provider.suspend` |
+| admin restore | `AdminProviderService._setStatus` | `provider.restore` |
+| republish on payment (`draft → active`) | `SalonSubscriptionService.markPaid` | `salon.republished` |
+| billing unpublish (`active → draft`) | `SubscriptionScheduler.tick` — **once per tick**, however many salons expired | `salon.unpublished` |
+| account erasure (`active → draft` per owned salon) | `ProviderAccountService.deleteAccount` — **once per account**, guarded on a prior `'active'` | `account.erased` |
+
+(Six rows because suspend/restore share a seam.) Salon **creation** is
+deliberately not an event: `SalonDirectoryService` no longer takes a notifier
+at all, so a creation fire is uncompilable rather than merely absent, and
+`salon_lifecycle_test.dart` pins that `ensureSalon` fires nothing.
 
 KYC approval deliberately does **not** fire: `query()` does not filter on
 verification, so approving a salon does not change the listable set.
+
+**The wiring is guarded**: `SalonProvisioningService` was constructed in
+`dependencies.dart` WITHOUT the notifier from the day the seam was written
+until 2026-08-25 — an optional param whose omission compiles clean and logs
+nothing, so its fire had never once run in production.
+`test/site/site_rebuild_wiring_test.dart` now greps the composition root
+(comments stripped) for `rebuild: siteRebuildNotifier` on all five
+constructions, and for its absence on `SalonDirectoryService`.
 
 ## 3. Contract
 
@@ -64,9 +99,18 @@ run behave exactly as before.
   the environment, so there is nothing to inject.
 - **Denial of wallet** is the real risk: builds cost money and a suspend/restore
   loop could be driven by an admin. Bounded by a **cooldown** — one build per
-  `kRebuildCooldown` (60s) per process; further events inside the window are
+  `kRebuildCooldown` (60s) per process. ~~Further events inside the window are
   dropped, not queued. A dropped event is safe: the next build picks up the
-  current state, since the slug set is read fresh at build.
+  current state, since the slug set is read fresh at build.~~ **Corrected
+  2026-08-25: there is no "next build".** Every trigger IS a set change, so a
+  dropped last-event-in-a-burst never gets picked up — two salons publishing
+  <60s apart would leave the second 404ing indefinitely. In-window events are
+  now **coalesced into one trailing fire** at window expiry (a `Timer`
+  carrying the last deferred reason). The bound is unchanged: at most one
+  build per window per process; the `skipped` log token is kept because the
+  alert filter and both runbooks grep it. Residual: an instance dying with a
+  pending timer loses the fire — the same outcome the drop guaranteed, so
+  strictly no worse.
 - Threat model **T68**.
 
 ## 6. Failure behaviour
@@ -80,15 +124,28 @@ The residual is honest and written down: if the hook fails, the new salon's page
 404s until the next deploy. That is strictly better than today, where it always
 would.
 
-## 7. Testing plan
+## 7. Testing plan — revised 2026-08-25
 
-- fires on create, on suspend, on restore
-- does **not** fire on KYC approval (the set did not change)
-- an exception from the hook does not propagate to the caller
-- the cooldown drops a second event inside the window and allows one after it
+- fires on publish, republish-on-payment, billing unpublish (once per tick,
+  proven with a two-salon fixture), erasure (once per account, guarded on a
+  prior `'active'`), suspend, restore
+- does **not** fire on: creation (`ensureSalon`), a gate-blocked publish, an
+  idempotent re-publish, a markPaid whose gate fails (stays draft), an
+  enforcement-off tick, an all-draft erasure, KYC approval
+- an exception from the hook does not propagate to the caller (posture pinned
+  for both `AdminProviderService` and `publish`)
+- in-window events coalesce into ONE trailing fire carrying the last reason
+  (short real cooldowns — a `Timer` cannot be driven by the injected clock)
 - with the env unset, the no-op is wired and nothing is attempted
+- the composition root passes the notifier to all five services, and NOT to
+  `SalonDirectoryService` (source-level, comments stripped first)
 
-Each watched red.
+Each watched red — sixteen mutations on 2026-08-25, one of which SURVIVED the
+first pass (the markPaid fire hoisted out of the gate branch; no test covered
+"unpublished but incomplete", so that test now exists) and one of which was
+correctly survived (`??=` → `=` on the trailing timer: the stacked timers all
+find the pending reason already consumed — the consumption holds the bound,
+not the `??=`).
 
 ## 7.1 What is proven, and what is not (2026-08-21)
 
@@ -101,7 +158,9 @@ Each watched red.
 | **Cloud Run reaching Vercel on a salon change** | **not exercised** |
 
 The last row cannot be closed until a real salon exists — production holds zero,
-so nothing can be created, suspended or restored. Two things cover it:
+so nothing can be created, suspended or restored. *(2026-08-25: the transition
+that will actually close it is the first salon's PUBLISH — creation no longer
+fires at all, per §2.)* Two things cover it:
 
 - the **alert** `infra/gcp/96-rebuild-hook-alert.sh`, which fires on
   `site_rebuild FAILED`. The notifier fails open, so a failure is otherwise

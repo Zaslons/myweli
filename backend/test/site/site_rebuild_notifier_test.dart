@@ -50,9 +50,9 @@ void main() {
 
     test('POSTs the hook and logs the outcome', () async {
       final n = HttpSiteRebuildNotifier(url(), log: logs.add);
-      await n.requestRebuild('salon.created');
+      await n.requestRebuild('salon.published');
       expect(hits, ['POST']);
-      expect(logs.single, contains('reason=salon.created'));
+      expect(logs.single, contains('reason=salon.published'));
       expect(logs.single, contains('status=201'));
     });
 
@@ -60,7 +60,7 @@ void main() {
       // Anyone holding this URL can spend money on unlimited builds. The log
       // line an operator reads must not become the place it leaks.
       final n = HttpSiteRebuildNotifier(url(), log: logs.add);
-      await n.requestRebuild('salon.created');
+      await n.requestRebuild('salon.published');
       for (final l in logs) {
         expect(l, isNot(contains(url().toString())));
         expect(l, isNot(contains('/hook')));
@@ -123,7 +123,7 @@ void main() {
         Uri.parse('http://127.0.0.1:1/nothing-listens-here'),
         log: logs.add,
       );
-      await expectLater(n.requestRebuild('salon.created'), completes);
+      await expectLater(n.requestRebuild('salon.published'), completes);
       expect(logs.single, contains('FAILED'));
     });
   });
