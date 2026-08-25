@@ -575,6 +575,8 @@ final ProviderAccountService providerAccountService = ProviderAccountService(
   // L1/T59 — a deleted salon owner's phone must stop ringing too.
   devices: deviceTokenRepository,
   notifications: notificationsRepository,
+  // Erasure unpublishes every owned salon — the prebuilt slug set shrank.
+  rebuild: siteRebuildNotifier,
 );
 
 /// The pricing pivot (R2a): salon offers + the daily warning/enforcement
@@ -591,6 +593,8 @@ final SalonSubscriptionService salonSubscriptionService =
       membershipRepository,
       providersRepository,
       providerAuthRepository,
+      // markPaid can republish a billing-unpublished salon — a set change.
+      rebuild: siteRebuildNotifier,
     );
 
 /// R6 — « Mes salons »: the multi-salon directory + « Ajouter un salon ».
@@ -622,13 +626,16 @@ final SiteRebuildNotifier siteRebuildNotifier = () {
   return HttpSiteRebuildNotifier(uri);
 }();
 
+// No notifier here, deliberately: addSalon creates DRAFT salons, which the
+// prebuilt slug set excludes, so a creation fire would build nothing while
+// consuming the cooldown window. The parameter itself is gone from the
+// service, so it cannot be wired back by accident.
 final SalonDirectoryService salonDirectoryService = SalonDirectoryService(
   membershipRepository,
   membershipService,
   providersRepository,
   salonSubscriptionService,
   providerAuthRepository,
-  rebuild: siteRebuildNotifier,
 );
 
 final bool subscriptionEnforcement =
@@ -641,6 +648,8 @@ final SubscriptionScheduler subscriptionScheduler = SubscriptionScheduler(
   emailProvider,
   pushService,
   enforce: subscriptionEnforcement,
+  // A billing unpublish removes slugs from the prebuilt set.
+  rebuild: siteRebuildNotifier,
 );
 
 /// Module `access` R2b: invitations + Equipe mutations (owner-gated,
@@ -660,6 +669,11 @@ final SalonProvisioningService salonProvisioningService =
       providerAuthRepository,
       membershipRepository,
       subscriptions: salonSubscriptionService,
+      // **This argument was missing until 2026-08-25**, so the service held
+      // the Noop default and its rebuild call had never fired in production —
+      // an optional param whose omission compiles clean and logs nothing.
+      // `site_rebuild_wiring_test.dart` now pins all five constructions.
+      rebuild: siteRebuildNotifier,
     );
 
 final DepositService depositService = DepositService(

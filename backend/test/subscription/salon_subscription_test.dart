@@ -8,12 +8,20 @@ import 'package:myweli_backend/src/email/send_budget.dart';
 import 'package:myweli_backend/src/providers_repository.dart';
 import 'package:myweli_backend/src/push/push_service.dart';
 import 'package:myweli_backend/src/salon_provisioning_service.dart';
+import 'package:myweli_backend/src/site/site_rebuild_notifier.dart';
 import 'package:myweli_backend/src/subscription/salon_subscription_repository.dart';
 import 'package:myweli_backend/src/subscription/salon_subscription_service.dart';
 import 'package:myweli_backend/src/subscription/subscription_scheduler.dart';
 import 'package:test/test.dart';
 
 class _MockPush extends Mock implements PushService {}
+
+/// Records what it was asked to do, so a call site can be observed.
+class _RecordingNotifier implements SiteRebuildNotifier {
+  final reasons = <String>[];
+  @override
+  Future<void> requestRebuild(String reason) async => reasons.add(reason);
+}
 
 class _RecordingEmail implements EmailProvider {
   final List<({String to, String subject})> sent = [];
@@ -41,6 +49,7 @@ void main() {
   late InMemorySalonSubscriptionRepository subs;
   late InMemoryProvidersRepository providers;
   late MembershipService memberService;
+  late _RecordingNotifier rebuild;
   DateTime now = DateTime.utc(2026, 7, 11, 12);
 
   SalonSubscriptionService service() => SalonSubscriptionService(
@@ -50,6 +59,7 @@ void main() {
     providers,
     auth,
     clock: () => now,
+    rebuild: rebuild,
   );
 
   setUp(() {
@@ -58,6 +68,7 @@ void main() {
     subs = InMemorySalonSubscriptionRepository();
     providers = InMemoryProvidersRepository();
     memberService = MembershipService(memberships, auth);
+    rebuild = _RecordingNotifier();
     now = DateTime.utc(2026, 7, 11, 12);
   });
 
@@ -199,8 +210,56 @@ void main() {
       expect(r.data!['unpublishedForBilling'], isFalse);
       final doc = await providers.byId(realId);
       expect(doc!['status'], 'active');
+      expect(
+        rebuild.reasons,
+        ['salon.republished'],
+        reason:
+            'the slug re-entered the prebuilt set — without this fire the '
+            'republished salon keeps 404ing until an unrelated deploy',
+      );
       // The notice cycle reopened.
       expect(await subs.markNoticeIfNew(realId, 'grace'), isTrue);
+    });
+
+    test('markPaid on an unpublished salon whose gate FAILS asks for NO '
+        'rebuild — it stays draft', () async {
+      // The mutation this catches: the fire hoisted out of the gate check
+      // but still inside the unpublishedAt branch — every test with a
+      // publish-ready salon stays green while an incomplete salon would
+      // trigger a build for a page that stays 404.
+      final owner = await registerOwner();
+      final salon = await providers.createSalon(
+        name: 'Salon Z',
+        category: 'salon',
+        phoneNumber: '+22502',
+      );
+      final id = salon['id'] as String;
+      await memberships.ensureOwner(
+        providerId: id,
+        accountId: owner,
+        email: 'owner@x.pro',
+      );
+      await service().chooseOffer(owner, id, 'pro');
+      // Billing-unpublished, and INCOMPLETE: the bare createSalon doc fails
+      // the publish gate (no description, no photos, no schedule).
+      await subs.update(id, unpublishedAt: now);
+
+      final r = await service().markPaid(id, months: 1);
+      expect(r.ok, isTrue);
+      expect((await providers.byId(id))!['status'], 'draft');
+      expect(rebuild.reasons, isEmpty);
+    });
+
+    test('markPaid with nothing unpublished asks for NO rebuild', () async {
+      final owner = await registerOwner();
+      await service().chooseOffer(owner, 'p1', 'pro');
+      final r = await service().markPaid('p1', months: 1);
+      expect(r.ok, isTrue);
+      expect(
+        rebuild.reasons,
+        isEmpty,
+        reason: 'the set did not change, so nothing needs rebuilding',
+      );
     });
 
     test('bounds: months outside 1..24 → invalid_input; unknown salon → '
@@ -284,6 +343,7 @@ void main() {
           email,
           push,
           enforce: enforce,
+          rebuild: rebuild,
         );
 
     setUp(() {
@@ -343,6 +403,11 @@ void main() {
         final r = await scheduler().tick(now);
         expect(r.unpublished, 0);
         expect((await providers.byId(id))!['status'], 'active');
+        expect(
+          rebuild.reasons,
+          isEmpty,
+          reason: 'nothing was unpublished, so nothing needs rebuilding',
+        );
       },
     );
 
@@ -354,10 +419,57 @@ void main() {
       expect(r.unpublished, 1);
       expect((await providers.byId(id))!['status'], 'draft');
       expect(email.sent.last.subject, contains('plus visible'));
+      expect(
+        rebuild.reasons,
+        ['salon.unpublished'],
+        reason:
+            'the slug left the prebuilt set — without this the stale page '
+            'keeps serving a salon that is no longer live',
+      );
 
       final again = await scheduler(enforce: true).tick(now);
       expect(again.unpublished, 0);
       expect(again.notices, 0);
+      expect(rebuild.reasons, hasLength(1), reason: 'idempotent tick');
+    });
+
+    test('TWO expired salons in one tick → exactly ONE rebuild', () async {
+      // Once per tick, not per salon: firing inside the loop would lean on
+      // the notifier cooldown to coalesce, semantics this fire must not
+      // depend on.
+      final a = await liveSalon();
+      // A second owner, registered directly: `registerOwner` hardcodes the
+      // email and googleSub, and a second call collides with the first.
+      final regB = await auth.register(
+        businessName: 'Y',
+        businessType: 'salon',
+        phoneNumber: '+2250500000042',
+        email: 'owner2@x.pro',
+        authProvider: 'google',
+        googleSub: 'sub-own2',
+        providerId: 'p2',
+      );
+      final owner2 = regB.provider!.id;
+      final salon2 = await providers.createSalon(
+        name: 'Salon Y',
+        category: 'salon',
+        phoneNumber: '+22501',
+      );
+      final b = salon2['id'] as String;
+      await memberships.ensureOwner(
+        providerId: b,
+        accountId: owner2,
+        email: 'owner2@x.pro',
+      );
+      await providers.setStatus(b, 'active');
+      await service().chooseOffer(owner2, b, 'pro');
+
+      now = now.add(const Duration(days: 100));
+      final r = await scheduler(enforce: true).tick(now);
+      expect(r.unpublished, 2);
+      expect((await providers.byId(a))!['status'], 'draft');
+      expect((await providers.byId(b))!['status'], 'draft');
+      expect(rebuild.reasons, ['salon.unpublished']);
     });
   });
 

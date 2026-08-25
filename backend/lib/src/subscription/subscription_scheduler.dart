@@ -4,6 +4,7 @@ import '../email/send_budget.dart';
 import '../email/subscription_emails.dart';
 import '../providers_repository.dart';
 import '../push/push_service.dart';
+import '../site/site_rebuild_notifier.dart';
 import 'salon_subscription_repository.dart';
 import 'salon_subscription_service.dart';
 
@@ -23,7 +24,9 @@ class SubscriptionScheduler {
     this._email,
     this._push, {
     required bool enforce,
-  }) : _enforce = enforce;
+    SiteRebuildNotifier? rebuild,
+  }) : _enforce = enforce,
+       _rebuild = rebuild ?? NoopSiteRebuildNotifier();
 
   final SalonSubscriptionRepository _subscriptions;
   final MembershipRepository _memberships;
@@ -31,6 +34,7 @@ class SubscriptionScheduler {
   final EmailProvider _email;
   final PushService _push;
   final bool _enforce;
+  final SiteRebuildNotifier _rebuild;
 
   Future<SubscriptionTickResult> tick(DateTime now) async {
     var notices = 0;
@@ -65,6 +69,13 @@ class SubscriptionScheduler {
           unpublished++;
         }
       }
+    }
+    // Once per tick, not per salon: the loop's own `status == 'active'`
+    // guard makes the counter exactly "the prebuilt set shrank". Firing
+    // inside the loop would lean on the notifier's cooldown to coalesce —
+    // semantics this fire should not depend on.
+    if (unpublished > 0) {
+      await _rebuild.requestRebuild('salon.unpublished');
     }
     return (notices: notices, unpublished: unpublished);
   }

@@ -9,12 +9,20 @@ import 'package:myweli_backend/src/notifications/notifications_repository.dart';
 import 'package:myweli_backend/src/provider_account_service.dart';
 import 'package:myweli_backend/src/providers_repository.dart';
 import 'package:myweli_backend/src/push/device_token_repository.dart';
+import 'package:myweli_backend/src/site/site_rebuild_notifier.dart';
 import 'package:myweli_backend/src/storage/storage_service.dart';
 import 'package:test/test.dart';
 
 class _MockProviders extends Mock implements ProvidersRepository {}
 
 class _MockAppointments extends Mock implements AppointmentRepository {}
+
+/// Records what it was asked to do, so a call site can be observed.
+class _RecordingNotifier implements SiteRebuildNotifier {
+  final reasons = <String>[];
+  @override
+  Future<void> requestRebuild(String reason) async => reasons.add(reason);
+}
 
 /// T53 — the storage-erasure half of account deletion: the KYC objects go
 /// with the account (own-prefix only; a storage hiccup never blocks).
@@ -34,6 +42,12 @@ void main() {
     when(
       () => providers.setStatus(any(), any()),
     ).thenAnswer((_) async => {'id': 'p1', 'status': 'draft'});
+    // The erasure fire is GUARDED on the prior status, so the service now
+    // reads each salon before unpublishing it. Live by default in this file;
+    // the all-draft negative overrides per test.
+    when(
+      () => providers.byId(any()),
+    ).thenAnswer((_) async => {'id': 'p1', 'status': 'active'});
   });
 
   Future<String> registerWithKyc({required List<String> keys}) async {
@@ -204,9 +218,11 @@ void main() {
   group('R6 — deletion across ALL owned salons (T53)', () {
     late InMemoryMembershipRepository memberships;
     late ProviderAccountService service;
+    late _RecordingNotifier rebuild;
 
     setUp(() {
       memberships = InMemoryMembershipRepository();
+      rebuild = _RecordingNotifier();
       service = ProviderAccountService(
         auth,
         providers,
@@ -214,7 +230,34 @@ void main() {
         FakeStorageService(),
         memberships,
         client: MockClient((req) async => http.Response('', 204)),
+        rebuild: rebuild,
       );
+    });
+
+    test('erasing an owner with a LIVE salon asks for ONE rebuild', () async {
+      final id = await registerWithKyc(keys: []);
+      final r = await service.deleteAccount(id);
+      expect(r.ok, isTrue);
+      expect(
+        rebuild.reasons,
+        ['account.erased'],
+        reason:
+            'the slug left the prebuilt set — one erasure, one build, '
+            'however many salons the account owned',
+      );
+    });
+
+    test('an all-draft owner asks for NO rebuild', () async {
+      // The guard this pins: draft → draft changes nothing in the prebuilt
+      // set, and an unguarded fire would recreate the build-nothing-but-
+      // burn-the-cooldown defect this slice removed from salon creation.
+      when(
+        () => providers.byId(any()),
+      ).thenAnswer((_) async => {'id': 'p1', 'status': 'draft'});
+      final id = await registerWithKyc(keys: []);
+      final r = await service.deleteAccount(id);
+      expect(r.ok, isTrue);
+      expect(rebuild.reasons, isEmpty);
     });
 
     test('a future booking in the SECOND owned salon blocks the '

@@ -73,31 +73,34 @@ void main() {
     // callback re-enters `requestRebuild` against a frozen clock, chaining
     // timers forever. The group already runs a real `HttpServer`; tens of
     // real milliseconds is the same idiom.
-    test('in-window calls COALESCE into one trailing fire, never drop', () async {
-      // The old behaviour — drop — was safe only while every trigger had a
-      // "next build" behind it. With publish as a trigger there is none: the
-      // second salon to publish inside the window would 404 indefinitely.
-      final n = HttpSiteRebuildNotifier(
-        url(),
-        log: logs.add,
-        cooldown: const Duration(milliseconds: 300),
-      );
-      await n.requestRebuild('salon.published');
-      await n.requestRebuild('provider.suspend');
-      await n.requestRebuild('provider.restore');
-      expect(hits, hasLength(1), reason: 'two are inside the window');
-      expect(
-        logs.where((l) => l.contains('cause=cooldown')),
-        hasLength(2),
-        reason: 'the log token stays `skipped` — the alert filter greps it',
-      );
+    test(
+      'in-window calls COALESCE into one trailing fire, never drop',
+      () async {
+        // The old behaviour — drop — was safe only while every trigger had a
+        // "next build" behind it. With publish as a trigger there is none: the
+        // second salon to publish inside the window would 404 indefinitely.
+        final n = HttpSiteRebuildNotifier(
+          url(),
+          log: logs.add,
+          cooldown: const Duration(milliseconds: 300),
+        );
+        await n.requestRebuild('salon.published');
+        await n.requestRebuild('provider.suspend');
+        await n.requestRebuild('provider.restore');
+        expect(hits, hasLength(1), reason: 'two are inside the window');
+        expect(
+          logs.where((l) => l.contains('cause=cooldown')),
+          hasLength(2),
+          reason: 'the log token stays `skipped` — the alert filter greps it',
+        );
 
-      // Wait past the window: exactly ONE trailing fire lands, carrying the
-      // LAST deferred reason — three requests, two builds, nothing lost.
-      await Future<void>.delayed(const Duration(milliseconds: 450));
-      expect(hits, hasLength(2), reason: 'coalesced, not one per deferral');
-      expect(logs.last, contains('sent reason=provider.restore'));
-    });
+        // Wait past the window: exactly ONE trailing fire lands, carrying the
+        // LAST deferred reason — three requests, two builds, nothing lost.
+        await Future<void>.delayed(const Duration(milliseconds: 450));
+        expect(hits, hasLength(2), reason: 'coalesced, not one per deferral');
+        expect(logs.last, contains('sent reason=provider.restore'));
+      },
+    );
 
     test('a call after an idle window fires immediately, no timer', () async {
       final n = HttpSiteRebuildNotifier(
