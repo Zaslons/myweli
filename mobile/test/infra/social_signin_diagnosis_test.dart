@@ -27,7 +27,9 @@ import 'package:flutter_test/flutter_test.dart';
 /// plugin, which needs a platform channel. Same reasoning as
 /// `ios_google_client_test.dart`.
 void main() {
-  final source = File('lib/services/api/api_auth_service.dart').readAsStringSync();
+  final source = File(
+    'lib/services/api/api_auth_service.dart',
+  ).readAsStringSync();
 
   /// Comments stripped BEFORE matching. Four guards in this repo have gone
   /// green against their own explanatory comment, one of them written the same
@@ -42,9 +44,13 @@ void main() {
     // Vacuity guard: every assertion below counts occurrences, so a source
     // file that failed to load, or a refactor that moved these elsewhere,
     // would satisfy all of them with zero.
-    expect(count('.canceled)'), greaterThanOrEqualTo(6),
-        reason: 'expected the six social catch arms; the file or the '
-            'comment-stripper is wrong');
+    expect(
+      count('.canceled)'),
+      greaterThanOrEqualTo(6),
+      reason:
+          'expected the six social catch arms; the file or the '
+          'comment-stripper is wrong',
+    );
   });
 
   test('all twelve failure paths report which failure it was', () {
