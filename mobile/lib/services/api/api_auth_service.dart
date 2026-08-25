@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
 import '../../core/config/app_config.dart';
+import '../../core/utils/logger.dart';
 import '../../models/api_response.dart';
 import '../../models/pro_membership.dart';
 import '../../models/provider_login_result.dart';
@@ -164,6 +165,32 @@ class ApiAuthService implements AuthServiceInterface {
 
   // ---- Auth overhaul (docs/design/app-auth-social.md) ----------------------
 
+  /// Reports WHICH social sign-in failure happened, and nothing about who.
+  ///
+  /// **Six call sites had none of this**, across the consumer login, the pro
+  /// login and the pro email-OTP registration — so a misconfigured signing
+  /// SHA-1, a network blip and an unsupported device were indistinguishable in
+  /// telemetry. The user always saw the right error; we learned nothing from it
+  /// and would have heard about a systemic failure from a salon owner rather
+  /// than a dashboard.
+  ///
+  /// **A cancel is never reported.** Under `google_sign_in` 7.x `canceled` has
+  /// exactly one source, `GetCredentialCancellationException` — a real user
+  /// dismissal — so reporting it would be pure noise. It is emphatically NOT
+  /// what an unregistered SHA-1 produces: that arrives as `NoCredentialException`
+  /// and, because `authenticate()` passes `throwForNoAuth: true`, surfaces as
+  /// `unknownError`, which lands on the reported path above.
+  ///
+  /// **The code, and deliberately nothing else.** `description` and `details`
+  /// stay out: `_scrub` nulls breadcrumbs and `extra` precisely because
+  /// free-form strings cannot be guaranteed PII-free as screens are added. An
+  /// enum name is a closed, known-safe set, and it is the part that
+  /// discriminates. A breadcrumb would not have worked here at all — `_scrub`
+  /// deletes those outright, so this goes through `AppLogger.error`, the one
+  /// integration point, keeping this file ignorant of Sentry.
+  void _reportSignInFailure(String provider, String code) =>
+      AppLogger.error('social_sign_in_failed provider=$provider code=$code');
+
   @override
   Future<ApiResponse<User>> signInWithGoogle() async {
     try {
@@ -189,11 +216,13 @@ class ApiAuthService implements AuthServiceInterface {
       if (e.code == GoogleSignInExceptionCode.canceled) {
         return ApiResponse.error('', code: 'cancelled');
       }
+      _reportSignInFailure('google', e.code.name);
       return ApiResponse.error(
         'Connexion Google impossible.',
         code: 'google_failed',
       );
     } catch (_) {
+      _reportSignInFailure('google', 'non_plugin_error');
       return ApiResponse.error(
         'Connexion Google impossible.',
         code: 'google_failed',
@@ -235,11 +264,13 @@ class ApiAuthService implements AuthServiceInterface {
       if (e.code == AuthorizationErrorCode.canceled) {
         return ApiResponse.error('', code: 'cancelled');
       }
+      _reportSignInFailure('apple', e.code.name);
       return ApiResponse.error(
         'Connexion Apple impossible.',
         code: 'apple_failed',
       );
     } catch (_) {
+      _reportSignInFailure('apple', 'non_plugin_error');
       return ApiResponse.error(
         'Connexion Apple impossible.',
         code: 'apple_failed',
@@ -483,11 +514,13 @@ class ApiAuthService implements AuthServiceInterface {
       if (e.code == GoogleSignInExceptionCode.canceled) {
         return const ProviderLoginResult.failure('', code: 'cancelled');
       }
+      _reportSignInFailure('google', e.code.name);
       return const ProviderLoginResult.failure(
         'Connexion Google impossible.',
         code: 'google_failed',
       );
     } catch (_) {
+      _reportSignInFailure('google', 'non_plugin_error');
       return const ProviderLoginResult.failure(
         'Connexion Google impossible.',
         code: 'google_failed',
@@ -523,11 +556,13 @@ class ApiAuthService implements AuthServiceInterface {
       if (e.code == AuthorizationErrorCode.canceled) {
         return const ProviderLoginResult.failure('', code: 'cancelled');
       }
+      _reportSignInFailure('apple', e.code.name);
       return const ProviderLoginResult.failure(
         'Connexion Apple impossible.',
         code: 'apple_failed',
       );
     } catch (_) {
+      _reportSignInFailure('apple', 'non_plugin_error');
       return const ProviderLoginResult.failure(
         'Connexion Apple impossible.',
         code: 'apple_failed',
@@ -639,11 +674,13 @@ class ApiAuthService implements AuthServiceInterface {
       if (e.code == GoogleSignInExceptionCode.canceled) {
         return ApiResponse.error('', code: 'cancelled');
       }
+      _reportSignInFailure('google', e.code.name);
       return ApiResponse.error(
         'Connexion Google impossible.',
         code: 'google_failed',
       );
     } catch (_) {
+      _reportSignInFailure('google', 'non_plugin_error');
       return ApiResponse.error(
         'Connexion Google impossible.',
         code: 'google_failed',
@@ -692,11 +729,13 @@ class ApiAuthService implements AuthServiceInterface {
       if (e.code == AuthorizationErrorCode.canceled) {
         return ApiResponse.error('', code: 'cancelled');
       }
+      _reportSignInFailure('apple', e.code.name);
       return ApiResponse.error(
         'Inscription Apple impossible.',
         code: 'apple_failed',
       );
     } catch (_) {
+      _reportSignInFailure('apple', 'non_plugin_error');
       return ApiResponse.error(
         'Inscription Apple impossible.',
         code: 'apple_failed',
