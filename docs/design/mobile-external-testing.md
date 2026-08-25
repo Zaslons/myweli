@@ -47,8 +47,16 @@ TestFlight**, which means **Beta App Review**, which means **a demo account**
 (§5.2).
 
 **A Play internal/closed tester is an email address.** No console access, no
-role, no review for the internal track. Google's side of this is a list you
-paste in.
+role. Google's side of this is a list you paste in — or, better, a Google Group
+people join themselves (§4.1).
+
+**But "no review on the internal track" is false, and this document said it.**
+A *first* release on the internal track is reviewed before it can be published —
+hours, up to seven days — **unless the app is not fully configured**, in which
+case it ships at once and testers see a placeholder app name for up to 48 hours
+until that first review lands. Subsequent builds are not reviewed. The opt-in
+link also appears only once the app's status is *Published*, and can take
+several hours to propagate. "Minutes" describes updates, not the first build.
 
 So: **Android can have salons testing within days. iOS cannot, and what gates it
 is the demo account, not the build.** Plan around that rather than discovering
@@ -68,32 +76,118 @@ An organisation account is exempt. The cost of choosing closed when you did not
 have to is a little more metadata up front; the cost of choosing internal when
 you did have to is a fortnight.
 
+**And open testing is not the escape hatch it looks like.** Google's own
+sentence: *"Open testing becomes available after you gain production access."*
+So on a personal post-2023 account the public "anyone can join the beta" track
+is locked behind the *same* closed test that locks production — it cannot be
+used to get there. ([answer/14151465](https://support.google.com/googleplay/android-developer/answer/14151465))
+
 > **Read the rule in the Play Console rather than here.** Its thresholds have
 > changed more than once since it was announced, and this repository cannot see
 > which account type we hold or what Google is currently asking of it. The
 > console states the requirement against the actual account, and that is the
 > authority.
 
+### 4.1 Self-enrolment — reaching salons without collecting their emails
+
+Both tracks above assume you type in each tester's address. Neither platform
+requires that, and the alternatives are better for recruiting strangers.
+
+**iOS — the TestFlight public link.** An external group can carry a link
+(`testflight.apple.com/join/…`) that anyone opens to join, no invitation and no
+address collected. Up to **10,000** testers, and a lower cap can be set (1 to
+10,000). Only the **first build of a version** goes to Beta App Review; you may
+submit up to six builds in 24 hours. The link can be disabled later.
+([App Store Connect Help](https://developer.apple.com/help/app-store-connect/test-a-beta-version/invite-external-testers/))
+
+Two consequences of it being public, both operational:
+
+- **Those testers are anonymous to you.** Name and email display as anonymous
+  and they are **excluded from the CSV export**. You cannot contact them through
+  App Store Connect at all. Run a WhatsApp group alongside from day one.
+- Testers need iOS 16+ and the TestFlight app; a build is testable for 90 days
+  from upload, across up to 30 of their devices.
+
+**Android — a closed track pointed at a Google Group.** The closed track accepts
+`yourgroup@googlegroups.com` in place of an email list, and a Google Group can be
+set to **"Anyone can join"** — as opposed to *"Anyone can ask"*, which needs your
+approval. Publish the group link and the opt-in link; people enrol themselves and
+you never open the tester tab. Unlike internal testing it still **counts as closed
+testing**, so the §4 clock runs while you recruit.
+([answer/9845334](https://support.google.com/googleplay/android-developer/answer/9845334) ·
+[Groups](https://support.google.com/groups/answer/2464926))
+
+The tester's journey has a step people skip: **join the group, *then* open the
+opt-in link.** Google's words — *"users must join the group before opting into
+your test."* Joining the group alone installs nothing.
+
+**Country targeting will silently break this.** Internal testing is exempt —
+*"Country targeting won't apply to apps on the Internal testing track"* — but a
+**closed** track syncs its countries from production by default, and production
+has no country list because MyWeli is not distributed yet. Unsync and add Côte
+d'Ivoire explicitly before publicising anything.
+([answer/7550024](https://support.google.com/googleplay/android-developer/answer/7550024))
+
+**The trap that outlives the recruiting.** Applying for production access
+requires describing *"whether testers used all available app features"* and
+summarising *"the feedback received from testers"*. Anonymous, self-enrolled
+group members are exactly the population that cannot be characterised or
+contacted. So run the open group for volume **and** keep a named, reachable
+cohort of around fifteen real Abidjan salon owners. The group solves
+recruitment; it does not solve the application.
+
+**And a tester opted into an internal test is ineligible for that app's closed
+test until they opt out.** Another reason not to start salons on internal: each
+one would have to be walked back out before the fourteen days could begin.
+
 ## 5. What stops it, in the order it bites
 
-### 5.1 Google sign-in fails silently on every Play-distributed build
+### 5.1 Google sign-in fails on every Play-distributed build
 
 Play strips the upload signature and **re-signs with the App Signing key** it
 holds. Google resolves an Android sign-in by *(package name, signing
-certificate SHA-1)*, and that key's fingerprint is registered nowhere. The
-lookup finds nothing and Credential Manager returns `canceled` — which the app
-cannot distinguish from the user dismissing the sheet. **No error, no log,
-nothing in Sentry. The button simply does nothing.**
+certificate SHA-1)*, and that key's fingerprint is registered nowhere, so the
+lookup finds nothing and sign-in fails.
 
 The only fingerprint currently registered is the debug keystore
 (`7a5cb3b0…`), which is why sign-in works on a development phone today and
 tells you nothing about what a tester will see.
 
+**How it fails — this section had it wrong, and the correction matters.** It
+said the failure was *silent*: that Credential Manager returns `canceled`, that
+the app cannot tell it from the user dismissing the sheet, and that the button
+"simply does nothing". All three are false, and reading the plugin settles it:
+
+- `canceled` has exactly one source, `GetCredentialCancellationException` —
+  a genuine user dismissal (`GoogleSignInPlugin.java:307`).
+- A missing credential arrives as `NoCredentialException`, and because
+  `authenticate()` — the button flow we call — passes `throwForNoAuth: true`
+  (`google_sign_in_android.dart:88`), it maps to **`unknownError`**, never
+  `canceled` (`:188-218`).
+- `api_auth_service.dart` sends anything that is not `canceled` to
+  `google_failed`, and both providers suppress the banner for **exactly**
+  `cancelled` (`auth_provider.dart:141`, `pro_auth_provider.dart:400`).
+
+So the tester sees « **Connexion Google impossible.** » It is loud, not silent.
+The conclusion the section was built on is unchanged — Google sign-in is broken
+on a Play-signed build until the SHA-1 is registered — but a wrong mechanism
+produces wrong fixes and wrong severity, which is why it is corrected here
+rather than quietly rewritten.
+
+**What is genuinely missing is diagnosis, not the error.** Five distinct
+`GoogleSignInExceptionCode` values collapse into one opaque `google_failed`,
+`e.description` and `e.details` are discarded, and **nothing on any sign-in path
+reports to Sentry** — verified: zero Sentry references in `api_auth_service.dart`,
+`auth_provider.dart` and `pro_auth_provider.dart`. A misconfigured SHA-1, a
+network blip and an unsupported device are indistinguishable in our telemetry.
+We would learn about this from a salon owner's message, not a dashboard.
+
 It is a chicken-and-egg, so the order is not negotiable:
 
 1. create the Play app record
 2. enrol in Play App Signing
-3. read the SHA-1 (**Setup → App integrity → App signing**)
+3. read the SHA-1 (**Protected with Play → Play Store distribution → Play
+   app signing**; the old *Setup → App integrity* path is gone)
 4. register it on the Android OAuth client in Google Cloud
 5. record it in `infra/mobile/signing-manifest.json`
 6. **then** invite the first tester
@@ -274,7 +368,26 @@ about those is marked as something to check, never as a fact. Specifically
 - whether the Play developer account is personal or an organisation (§4)
 - whether either app record exists in either console (§6 Phase 0)
 - whether `myweli.com` is a verified Resend sending domain (§5.5)
-- which App content items Play will gate the first closed release on (§6)
+
+And these were researched against Google's and Apple's own pages and came back
+**genuinely unsettled** — the silence is verified, not merely unlooked-for:
+
+- **whether Google Group members count toward the 12-testers requirement**
+  (§4.1). `answer/14151465` never mentions Google Groups, email lists or any
+  tester-adding mechanic. Nothing suggests they do not count; nothing states
+  they do.
+- **whether TestFlight public links are restricted by country.** No Apple page
+  either imposes or rules it out. Test with one Ivorian Apple Account before
+  assuming.
+- **which App content items gate a closed release.** The **Data safety form is
+  confirmed required** for closed, open and production (internal-only apps are
+  exempt) — [answer/10787469](https://support.google.com/googleplay/android-developer/answer/10787469).
+  The content-ratings page does not mention testing tracks at all. Treat the
+  rest as likely but unverified; the release page names whatever is blocking.
+- **a separate gate lands 2026-09-30** — *Play Console Requirements*, under
+  which apps must be registered in Play Console for Android developer
+  verification. Confirm it in the console; it is outside anything this repo
+  can see.
 
 ## 9. Open questions
 
