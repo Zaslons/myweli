@@ -52,6 +52,14 @@ class BudgetedEmailProvider implements EmailProvider {
     required EmailClass classification,
     String? html,
   }) async {
+    // `.test` is reserved by RFC 2606 and can never receive mail — every
+    // attempt would fail at the provider AFTER consuming budget
+    // (reserve-before-send is deliberate and stays). Refused here, at the
+    // wrapper every send passes through and BEFORE the reserve, so the demo
+    // identity's subscription notices cannot bleed the cold/warm ceilings.
+    if (to.trim().toLowerCase().endsWith('.test')) {
+      return (ok: false, providerMessageId: null, error: 'unroutable');
+    }
     final reservation = await _budget.reserve(classification);
     if (!reservation.ok) {
       // The operator learns; the caller does not. `/auth/email/otp/request`

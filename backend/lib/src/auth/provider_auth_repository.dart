@@ -148,6 +148,9 @@ abstract interface class ProviderAuthRepository {
   /// authorize pro actions (resolve the account → the Provider it manages).
   Future<ProviderAccount?> accountById(String id);
 
+  /// The account behind [email] (trimmed, case-insensitive), or null.
+  Future<ProviderAccount?> accountByEmail(String email);
+
   /// Store submitted KYC [docs] for the account and reset verification to
   /// `pending` (clearing any prior rejection). Returns the updated account, or
   /// null if it doesn't exist. (Design: docs/design/pro-kyc.md.)
@@ -246,6 +249,10 @@ class InMemoryProviderAuthRepository implements ProviderAuthRepository {
 
   @override
   Future<ProviderAccount?> accountById(String id) async => _byId[id];
+
+  @override
+  Future<ProviderAccount?> accountByEmail(String email) async =>
+      _byEmail[email.trim().toLowerCase()];
 
   @override
   Future<ProviderAccount?> submitKyc(

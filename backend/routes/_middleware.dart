@@ -19,6 +19,7 @@ import 'package:myweli_backend/src/appointments/pro_appointment_service.dart';
 import 'package:myweli_backend/src/appointments/slot_service.dart';
 import 'package:myweli_backend/src/auth/auth_methods.dart';
 import 'package:myweli_backend/src/auth/auth_repository.dart';
+import 'package:myweli_backend/src/auth/demo_seam.dart';
 import 'package:myweli_backend/src/auth/id_token_verifier.dart';
 import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
 import 'package:myweli_backend/src/auth/smoke_seam.dart';
@@ -26,6 +27,7 @@ import 'package:myweli_backend/src/auth/tokens.dart';
 import 'package:myweli_backend/src/client_version/client_version_service.dart';
 import 'package:myweli_backend/src/clients/clients_service.dart';
 import 'package:myweli_backend/src/cors.dart';
+import 'package:myweli_backend/src/demo/demo_reset_service.dart';
 import 'package:myweli_backend/src/dependencies.dart';
 import 'package:myweli_backend/src/deposit_service.dart';
 import 'package:myweli_backend/src/email/email_provider.dart';
@@ -63,6 +65,8 @@ Handler middleware(Handler handler) {
       .use(provider<AuthRepository>((_) => authRepository))
       .use(provider<AuthMethods>((_) => authMethods))
       .use(provider<SmokeSeam>((_) => smokeSeam))
+      .use(provider<DemoSeam>((_) => demoSeam))
+      .use(provider<DemoResetService>((_) => demoResetService))
       .use(provider<GoogleIdTokenVerifier>((_) => googleIdTokenVerifier))
       .use(provider<AppleIdTokenVerifier>((_) => appleIdTokenVerifier))
       .use(provider<EmailProvider>((_) => emailProvider))

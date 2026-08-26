@@ -7,6 +7,7 @@ import 'package:myweli_backend/src/access/membership_repository.dart';
 import 'package:myweli_backend/src/access/membership_service.dart';
 import 'package:myweli_backend/src/access/team_service.dart';
 import 'package:myweli_backend/src/auth/auth_methods.dart';
+import 'package:myweli_backend/src/auth/demo_seam.dart';
 import 'package:myweli_backend/src/auth/id_token_verifier.dart';
 import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
 import 'package:myweli_backend/src/auth/tokens.dart';
@@ -155,6 +156,7 @@ void main() {
       () => c.read<AuthMethods>(),
     ).thenReturn(AuthMethods.parse('google,apple,email'));
     when(() => c.read<GoogleIdTokenVerifier>()).thenReturn(google);
+    when(() => c.read<DemoSeam>()).thenReturn(const DemoSeam(null));
     when(() => c.read<ProviderAuthRepository>()).thenReturn(auth);
     when(() => c.read<MembershipService>()).thenReturn(resolver);
     when(() => c.read<TeamService>()).thenReturn(team);
@@ -216,6 +218,47 @@ void main() {
           ctx(req('GET', '/me/provider/members', token: tok('ghost'))),
         );
         expect(ghost.statusCode, HttpStatus.forbidden);
+      },
+    );
+
+    test(
+      'THE DEMO SALON MAY NEVER INVITE — 403, the mail cannon stays cold',
+      () async {
+        // T69: an invitation is the one surface that emails an ARBITRARY third
+        // party from an authenticated session, and the demo credential is
+        // public. Keyed on the owner-membership email, like the publish refusal.
+        final regDemo = await auth.register(
+          businessName: 'Salon Démo MyWeli',
+          businessType: 'salon',
+          phoneNumber: '+2250700000100',
+          email: kDemoProviderEmail,
+          authProvider: 'email',
+          emailCode: (await auth.requestEmailOtp(kDemoProviderEmail)).devCode,
+          providerId: 'p-demo',
+        );
+        final demoOwner = regDemo.provider!.id;
+        await memberships.ensureOwner(
+          providerId: 'p-demo',
+          accountId: demoOwner,
+          email: kDemoProviderEmail,
+        );
+        await subscriptions.chooseOffer(demoOwner, 'p-demo', 'pro');
+
+        final res = await members.onRequest(
+          ctx(
+            req(
+              'POST',
+              '/me/provider/members',
+              token: tok(demoOwner),
+              body: {'email': 'victime@exemple.ci', 'role': 'manager'},
+            ),
+          ),
+        );
+        expect(res.statusCode, HttpStatus.forbidden);
+        expect(((await res.json()) as Map)['error'], 'demo_account_locked');
+        // The harness's EmailProvider is a null sink, so the strongest
+        // observable here is the refusal itself: no member row was created.
+        expect(await memberships.listForProvider('p-demo'), hasLength(1));
       },
     );
 

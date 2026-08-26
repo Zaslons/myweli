@@ -15,6 +15,15 @@ class PostgresAppointmentRepository implements AppointmentRepository {
   final Pool<void> _pool;
 
   @override
+  Future<int> wipeForProvider(String providerId) async {
+    final r = await _pool.execute(
+      Sql.named('DELETE FROM appointments WHERE provider_id = @p'),
+      parameters: {'p': providerId},
+    );
+    return r.affectedRows;
+  }
+
+  @override
   Future<Map<String, dynamic>?> create(Map<String, dynamic> a) async {
     final start = DateTime.parse(a['appointmentDate'] as String);
     final durationMinutes = (a['durationMinutes'] as num?)?.toInt() ?? 30;

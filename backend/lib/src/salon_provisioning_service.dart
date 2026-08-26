@@ -1,4 +1,5 @@
 import 'access/membership_repository.dart';
+import 'auth/demo_seam.dart';
 import 'auth/provider_auth_repository.dart';
 import 'localities/localities_repository.dart';
 import 'localities/localities_service.dart';
@@ -105,6 +106,14 @@ class SalonProvisioningService {
     return account;
   }
 
+  /// Whether [providerId]'s OWNER membership is the demo identity — the
+  /// membership rows carry the email (`_ensureOwnerRow` writes it), so no
+  /// account read is needed.
+  Future<bool> _ownedByDemoAccount(String providerId) async {
+    final members = await _members.listForProvider(providerId);
+    return members.any((m) => m.role == 'owner' && isDemoIdentity(m.email));
+  }
+
   Future<void> _ensureOwnerRow(ProviderAccount account, String salonId) =>
       _members.ensureOwner(
         providerId: salonId,
@@ -160,6 +169,15 @@ class SalonProvisioningService {
     var provider = await _providers.byId(providerId);
     if (provider == null) {
       return (ok: false, error: 'not_found', data: null);
+    }
+    // The demo review account (T69) may never publish: its credential is
+    // PUBLIC (printed in both stores' review notes), so its salon must never
+    // enter the public slug set, discovery, the sitemap — or fire the
+    // rebuild below. Keyed on the owner-membership email against the
+    // compile-time demo constant: in the service, not the route, so no
+    // future caller can route around it.
+    if (await _ownedByDemoAccount(providerId)) {
+      return (ok: false, error: 'demo_account_locked', data: null);
     }
     // Multi-pays MP1 self-heal: a legacy commune display name that matches a
     // seeded area gets its market facts stamped before gating.

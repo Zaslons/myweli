@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:dart_frog/dart_frog.dart';
 import 'package:myweli_backend/src/auth/auth_methods.dart';
+import 'package:myweli_backend/src/auth/demo_seam.dart';
 import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
 import 'package:myweli_backend/src/auth/smoke_seam.dart';
 import 'package:myweli_backend/src/email/email_provider.dart';
@@ -38,7 +39,14 @@ Future<Response> onRequest(RequestContext context) async {
     return jsonError(HttpStatus.tooManyRequests, result.error!);
   }
 
-  if (result.code != null) {
+  // The demo identity (T69): a real record was just created — same path, same
+  // TTL in the 202 — but no mail is attempted (`.test` is structurally
+  // undeliverable, RFC 2606) and the resend slot is refunded, which is that
+  // method's documented purpose: a slot consumed with no delivery attempted.
+  // The reviewer will type the FIXED code; the verify route handles it.
+  if (isDemoIdentity(email)) {
+    await context.read<ProviderAuthRepository>().refundEmailOtpResend(email);
+  } else if (result.code != null) {
     final sent = await context.read<EmailProvider>().send(
       // COLD: an anonymous caller picked this address. Budgeted tightly —
       // docs/design/backend-email-send-budget.md §2.

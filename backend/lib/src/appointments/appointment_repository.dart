@@ -46,6 +46,15 @@ abstract interface class AppointmentRepository {
   /// `notes` are not in its `sets` builder, so it cannot clear them.
   Future<List<String>> anonymizeUser(String userId);
 
+  /// Deletes EVERY appointment of [providerId] and returns the count.
+  ///
+  /// **Exists for exactly one caller: the demo-salon reset (T69).** Account
+  /// erasure deliberately KEEPS appointments (business history ≠ identity —
+  /// `provider_account_service.dart`), so any new caller of this method is
+  /// almost certainly wrong; the reset service re-verifies the target is the
+  /// demo salon before calling it.
+  Future<int> wipeForProvider(String providerId);
+
   /// Admin analytics: a count of appointments per `status`
   /// (`pending`/`confirmed`/`completed`/`cancelled`/`noShow`).
   Future<Map<String, int>> countsByStatus();
@@ -65,6 +74,13 @@ abstract interface class AppointmentRepository {
 
 class InMemoryAppointmentRepository implements AppointmentRepository {
   final List<Map<String, dynamic>> _all = [];
+
+  @override
+  Future<int> wipeForProvider(String providerId) async {
+    final before = _all.length;
+    _all.removeWhere((a) => a['providerId'] == providerId);
+    return before - _all.length;
+  }
 
   @override
   Future<Map<String, int>> countsByStatus() async {

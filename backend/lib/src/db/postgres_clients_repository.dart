@@ -15,6 +15,24 @@ class PostgresClientsRepository implements ClientsRepository {
 
   final Pool<void> _pool;
 
+  @override
+  Future<int> wipeForProvider(String providerId) async {
+    return _pool.runTx<int>((tx) async {
+      await tx.execute(
+        Sql.named('''
+          DELETE FROM salon_client_notes WHERE client_id IN
+            (SELECT id FROM salon_clients WHERE provider_id = @p)
+        '''),
+        parameters: {'p': providerId},
+      );
+      final r = await tx.execute(
+        Sql.named('DELETE FROM salon_clients WHERE provider_id = @p'),
+        parameters: {'p': providerId},
+      );
+      return r.affectedRows;
+    });
+  }
+
   static String _digits(String s) => s.replaceAll(RegExp(r'[^0-9]'), '');
 
   @override

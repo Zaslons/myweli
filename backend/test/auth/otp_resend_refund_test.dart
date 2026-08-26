@@ -71,7 +71,7 @@ void main() {
     () async {
       // The whole regression, end to end. An exhausted window, a real person
       // trying repeatedly, and then the window rolls.
-      const email = 'awa@example.test';
+      const email = 'awa@example.example';
       for (var i = 0; i <= maxResends + 2; i++) {
         final r = await hit(email, ceiling: 0); // budget refuses everything
         expect(
@@ -101,7 +101,7 @@ void main() {
       // The refund must not become a way to bypass the per-identity limit. With
       // a generous ceiling every send is real, so nothing is refunded and the
       // budget behaves exactly as before this change.
-      const email = 'bintou@example.test';
+      const email = 'bintou@example.example';
       for (var i = 0; i <= maxResends; i++) {
         expect((await hit(email, ceiling: 60)).statusCode, HttpStatus.accepted);
       }
@@ -121,8 +121,8 @@ void main() {
       // the send result. That was a proxy for the property, and the property is
       // what matters: a refusal must not be an address-exists oracle. Now the
       // real route is driven both ways and the answers are compared.
-      final sent = await hit('one@example.test', ceiling: 60);
-      final refused = await hit('two@example.test', ceiling: 0);
+      final sent = await hit('one@example.example', ceiling: 60);
+      final refused = await hit('two@example.example', ceiling: 0);
 
       expect(refused.statusCode, sent.statusCode);
       expect(
@@ -134,7 +134,7 @@ void main() {
 
   group('the refund is bounded', () {
     test('it cannot lift an allowance above the maximum', () async {
-      const email = 'cissé@example.test';
+      const email = 'cissé@example.example';
       await hit(email, ceiling: 0); // one request, one refusal, one refund
       for (var i = 0; i < 5; i++) {
         await repo.refundEmailOtpResend(email); // and four spurious ones
@@ -154,11 +154,11 @@ void main() {
     });
 
     test('it is a no-op for an address with no live code', () async {
-      await repo.refundEmailOtpResend('nobody@example.test');
+      await repo.refundEmailOtpResend('nobody@example.example');
       // …and the first real request still starts from a full allowance.
       for (var i = 0; i <= maxResends; i++) {
         expect(
-          (await hit('nobody@example.test', ceiling: 60)).statusCode,
+          (await hit('nobody@example.example', ceiling: 60)).statusCode,
           HttpStatus.accepted,
         );
       }
@@ -171,7 +171,7 @@ void main() {
     // exactly when the system is already degraded. The line: the allowance is
     // spent when we hand a message to the provider, refunded when we ourselves
     // declined to.
-    const email = 'dede@example.test';
+    const email = 'dede@example.example';
     final failing = _AlwaysFailsEmailProvider();
     for (var i = 0; i <= maxResends; i++) {
       final context = ctx(email, ceiling: 60);
