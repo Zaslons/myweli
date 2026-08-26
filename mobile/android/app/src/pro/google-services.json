@@ -22,6 +22,14 @@
           }
         },
         {
+          "client_id": "731308991240-qjmarg2g04jj36pi67oee3sp9h2k22nq.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.myweli.app",
+            "certificate_hash": "4d3da1f2d9fd49d1a58bc9acbc02e099a7c18938"
+          }
+        },
+        {
           "client_id": "731308991240-dairlha8r67p4l5d52m44qnt82qdp5js.apps.googleusercontent.com",
           "client_type": 3
         }
@@ -57,6 +65,14 @@
         }
       },
       "oauth_client": [
+        {
+          "client_id": "731308991240-59gnnvnu0gjkdelec7q5l8bohr0dv6fl.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.myweli.pro",
+            "certificate_hash": "a161c030cbf4641c8235f145d1b5545af8ceffa8"
+          }
+        },
         {
           "client_id": "731308991240-bo1ksgu77025t33r5fjt1uvt9jmp57g9.apps.googleusercontent.com",
           "client_type": 1,

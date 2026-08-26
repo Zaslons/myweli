@@ -101,25 +101,48 @@ for (const f of manifest.developmentFingerprints) {
   }
 }
 
+// One SHA-1 PER PACKAGE (`packages.<name>.playSha1`) — the first design held
+// a single field on the assumption that one App Signing key covers both
+// apps; the real enrolment (2026-08-26) generated one key per app.
+const playShas = Object.entries(manifest.packages).map(
+  ([name, entry]) => [name, entry.playSha1 ?? null],
+)
 if (play.enrolled) {
-  if (!SHA1.test(play.sha1 ?? '')) {
+  for (const [name, sha] of playShas) {
+    if (!SHA1.test(sha ?? '')) {
+      fail(
+        `packages["${name}"].playSha1 is ${JSON.stringify(sha)}`,
+        'enrolled without a well-formed SHA-1 — 40 lowercase hex, colons stripped',
+      )
+    } else if (devHashes.includes(sha)) {
+      // The shortcut somebody reaches for at 2am when the gate is in the way.
+      fail(
+        `packages["${name}"].playSha1 is one of the development fingerprints`,
+        'that is the debug keystore wearing the release label, and it makes every ' +
+          'check below pass while changing nothing about what Google will accept',
+      )
+    }
+  }
+  const values = playShas.map(([, sha]) => sha)
+  if (new Set(values).size !== values.length) {
     fail(
-      `playAppSigning.sha1 is ${JSON.stringify(play.sha1)}`,
-      'enrolled without a well-formed SHA-1 — 40 lowercase hex, colons stripped',
-    )
-  } else if (devHashes.includes(play.sha1)) {
-    // The shortcut somebody reaches for at 2am when the gate is in the way.
-    fail(
-      'playAppSigning.sha1 is one of the development fingerprints',
-      'that is the debug keystore wearing the release label, and it makes every ' +
-        'check below pass while changing nothing about what Google will accept',
+      'two packages record the SAME playSha1',
+      'Play generates one App Signing key per app, so identical values here ' +
+        'means somebody pasted one fingerprint twice — or pasted the UPLOAD ' +
+        'key, which is shared because one keystore signs both uploads. That ' +
+        'exact confusion happened on 2026-08-26 and the artifact-side check ' +
+        'caught it; this makes the manifest catch it too',
     )
   }
-} else if (play.sha1 !== null) {
-  fail(
-    'playAppSigning.sha1 is set while enrolled is false',
-    'one of the two is wrong, and guessing which would be the whole defect again',
-  )
+} else {
+  for (const [name, sha] of playShas) {
+    if (sha != null) {
+      fail(
+        `packages["${name}"].playSha1 is set while enrolled is false`,
+        'one of the two is wrong, and guessing which would be the whole defect again',
+      )
+    }
+  }
 }
 
 // ── 2. the fingerprints Google will actually match on ───────────────────────
@@ -149,7 +172,7 @@ if (platform === 'android') {
     }
 
     const undeclared = registered.filter(
-      (h) => !devHashes.includes(h) && h !== play.sha1,
+      (h) => !devHashes.includes(h) && h !== packageEntry.playSha1,
     )
     if (undeclared.length) {
       fail(
@@ -191,7 +214,7 @@ if (platform === 'android') {
             'creates the enrolment — set BOOTSTRAP_PLAY_ENROLMENT=1.',
         )
       }
-    } else if (!registered.includes(play.sha1)) {
+    } else if (!registered.includes(packageEntry.playSha1)) {
       fail(
         `${packageEntry.config} does not carry the Play App Signing SHA-1`,
         'the fingerprint is recorded here but not in the config, which means the ' +
@@ -222,9 +245,16 @@ if (platform === 'ios') {
   actual = i < 0 ? null : /<string>([^<]*)<\/string>/.exec(body.slice(i))?.[1]
 } else {
   const cfg = json(packageEntry.config)
-  actual = cfg.client
+  // A package now carries ONE android client PER FINGERPRINT (the play key
+  // gained its own on 2026-08-26), so \`.find(...)\` — first entry wins — made
+  // this check depend on the ordering Google happens to emit: consumer
+  // passed and pro failed on identical states. The declared id must be
+  // AMONG the package's type-1 clients, whichever order they arrive in.
+  const androidIds = cfg.client
     .find((c) => c.client_info?.android_client_info?.package_name === packageName)
-    ?.oauth_client.find((c) => c.client_type === 1)?.client_id
+    ?.oauth_client.filter((c) => c.client_type === 1)
+    .map((c) => c.client_id)
+  actual = androidIds?.includes(declared?.id) ? declared.id : androidIds?.[0]
 }
 
 if (declared && actual && declared.id !== actual) {

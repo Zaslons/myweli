@@ -25,12 +25,18 @@
     "accept. A stale file makes the gate refuse a release that would have worked,",
     "which is the safe direction to be wrong in: the fix is to re-download."
   ],
-
   "packages": {
-    "com.myweli.app": { "flavour": "consumer", "config": "mobile/android/app/src/consumer/google-services.json" },
-    "com.myweli.pro": { "flavour": "pro", "config": "mobile/android/app/src/pro/google-services.json" }
+    "com.myweli.app": {
+      "flavour": "consumer",
+      "config": "mobile/android/app/src/consumer/google-services.json",
+      "playSha1": "4d3da1f2d9fd49d1a58bc9acbc02e099a7c18938"
+    },
+    "com.myweli.pro": {
+      "flavour": "pro",
+      "config": "mobile/android/app/src/pro/google-services.json",
+      "playSha1": "a161c030cbf4641c8235f145d1b5545af8ceffa8"
+    }
   },
-
   "developmentFingerprints": [
     {
       "sha1": "7a5cb3b03a4da2a4e933d39593a94229a626511e",
@@ -39,11 +45,9 @@
       "releaseSafe": false
     }
   ],
-
   "playAppSigning": {
-    "enrolled": false,
-    "sha1": null,
-    "recordedOn": null,
+    "enrolled": true,
+    "recordedOn": "2026-08-26",
     "howToGetIt": [
       "Play Console → the app → Test and release → Setup → App signing.",
       "Copy the SHA-1 under 'App signing key certificate' — NOT the upload key.",
@@ -55,9 +59,9 @@
       "google-services.json stores it. The console shows AA:BB:CC…; pasting that",
       "form in would compare unequal against every entry in the file and the",
       "gate would refuse every release with no hint as to why."
-    ]
+    ],
+    "$comment": "sha1 used to live here, singular — designed on the assumption that one App Signing key covers both apps. The real enrolment (2026-08-26) generated ONE KEY PER APP, so the values live per package as packages.<name>.playSha1. The upload key (4f27c26254ce329b8607e04664506af79c8e65d1) is deliberately NOT here: it signs what Google receives, never what users run, and recording it as release-relevant is the exact confusion the first read of the console produced."
   },
-
   "audience": {
     "$comment": [
       "Which OAuth client id the apps present as the `aud` of a Google ID token.",
@@ -87,10 +91,26 @@
     ],
     "server": "731308991240-dairlha8r67p4l5d52m44qnt82qdp5js.apps.googleusercontent.com",
     "clients": [
-      { "id": "731308991240-ah75c2bvv4ojfipa7crlj38n7rdg60fv.apps.googleusercontent.com", "platform": "ios", "flavour": "consumer" },
-      { "id": "731308991240-o68qiuivc9ts8ablihabvts5bdel4j65.apps.googleusercontent.com", "platform": "ios", "flavour": "pro" },
-      { "id": "731308991240-g3jbungp06eqj6fp5neigk84ivjdpj9e.apps.googleusercontent.com", "platform": "android", "flavour": "consumer" },
-      { "id": "731308991240-bo1ksgu77025t33r5fjt1uvt9jmp57g9.apps.googleusercontent.com", "platform": "android", "flavour": "pro" }
+      {
+        "id": "731308991240-ah75c2bvv4ojfipa7crlj38n7rdg60fv.apps.googleusercontent.com",
+        "platform": "ios",
+        "flavour": "consumer"
+      },
+      {
+        "id": "731308991240-o68qiuivc9ts8ablihabvts5bdel4j65.apps.googleusercontent.com",
+        "platform": "ios",
+        "flavour": "pro"
+      },
+      {
+        "id": "731308991240-g3jbungp06eqj6fp5neigk84ivjdpj9e.apps.googleusercontent.com",
+        "platform": "android",
+        "flavour": "consumer"
+      },
+      {
+        "id": "731308991240-bo1ksgu77025t33r5fjt1uvt9jmp57g9.apps.googleusercontent.com",
+        "platform": "android",
+        "flavour": "pro"
+      }
     ]
   }
 }

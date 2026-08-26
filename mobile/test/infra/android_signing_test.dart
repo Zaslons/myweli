@@ -112,31 +112,54 @@ void main() {
       }
     });
 
-    test('the Play SHA-1 is present exactly when enrolment is claimed', () {
-      if (play['enrolled'] == true) {
-        expect(
-          hex40.hasMatch((play['sha1'] as String?) ?? ''),
-          isTrue,
-          reason: 'enrolled without a well-formed fingerprint verifies nothing',
+    test(
+      'a Play SHA-1 per package, present exactly when enrolment is claimed',
+      () {
+        // One PER PACKAGE — the first shape held a single field on the
+        // assumption that one App Signing key covers both apps; the real
+        // enrolment (2026-08-26) generated one key per app.
+        final shas = packages.map(
+          (name, meta) =>
+              MapEntry(name, (meta as Map<String, dynamic>)['playSha1']),
         );
-        expect(
-          devHashes.contains(play['sha1']),
-          isFalse,
-          reason:
-              'that is the debug keystore wearing the release label — the '
-              'shortcut that makes every check pass and changes nothing about '
-              'what Google accepts',
-        );
-      } else {
-        expect(
-          play['sha1'],
-          isNull,
-          reason:
-              'a fingerprint recorded while enrolled is false means one of '
-              'the two is wrong, and guessing which is the whole defect again',
-        );
-      }
-    });
+        if (play['enrolled'] == true) {
+          shas.forEach((name, sha) {
+            expect(
+              hex40.hasMatch((sha as String?) ?? ''),
+              isTrue,
+              reason:
+                  '$name: enrolled without a well-formed fingerprint verifies '
+                  'nothing',
+            );
+            expect(
+              devHashes.contains(sha),
+              isFalse,
+              reason:
+                  '$name: that is the debug keystore wearing the release label',
+            );
+          });
+          expect(
+            shas.values.toSet(),
+            hasLength(shas.length),
+            reason:
+                'Play generates one App Signing key PER APP; identical values '
+                'means one fingerprint pasted twice — or the UPLOAD key, which '
+                'is shared because one keystore signs both uploads. Exactly '
+                'that confusion happened on 2026-08-26',
+          );
+        } else {
+          shas.forEach((name, sha) {
+            expect(
+              sha,
+              isNull,
+              reason:
+                  '$name: a fingerprint recorded while enrolled is false means '
+                  'one of the two is wrong',
+            );
+          });
+        }
+      },
+    );
   });
 
   group('the committed configs agree with the manifest', () {
@@ -158,7 +181,7 @@ void main() {
         ).map((c) => (c['android_info'] as Map)['certificate_hash'] as String);
         for (final hash in registered) {
           expect(
-            devHashes.contains(hash) || hash == play['sha1'],
+            devHashes.contains(hash) || hash == meta['playSha1'],
             isTrue,
             reason:
                 'somebody registered signing key $hash against a production '
@@ -178,7 +201,7 @@ void main() {
           package,
         ).map((c) => (c['android_info'] as Map)['certificate_hash'] as String);
         expect(
-          registered.contains(play['sha1']),
+          registered.contains(meta['playSha1']),
           isTrue,
           reason:
               'the Play App Signing key is recorded in the manifest but absent '
@@ -216,8 +239,23 @@ void main() {
           final package = packages.entries
               .firstWhere((e) => (e.value as Map)['flavour'] == flavour)
               .key;
-          actual =
-              androidClients(flavour, package).first['client_id'] as String?;
+          // A package carries one android client PER FINGERPRINT since the
+          // play key gained its own (2026-08-26), and `.first` made this
+          // check depend on Google's emission order — consumer passed and
+          // pro failed on identical states. Membership, not position.
+          final ids = androidClients(
+            flavour,
+            package,
+          ).map((cl) => cl['client_id']).toList();
+          expect(
+            ids,
+            contains(c['id']),
+            reason:
+                'the manifest describes a client no build presents, so the '
+                'release gate would be checking the wrong id against the '
+                'backend allowlist',
+          );
+          return;
         }
         expect(
           actual,
@@ -319,7 +357,9 @@ void main() {
           // gate exists to prevent.
           final escape = mjs.indexOf('BOOTSTRAP_PLAY_ENROLMENT');
           final enrolledBranch = mjs.indexOf('if (!play.enrolled)');
-          final shaBranch = mjs.indexOf('registered.includes(play.sha1)');
+          final shaBranch = mjs.indexOf(
+            'registered.includes(packageEntry.playSha1)',
+          );
           expect(escape, greaterThan(enrolledBranch));
           expect(escape, lessThan(shaBranch));
           // The DOOR is the env read; the refusal MESSAGE also names the flag
