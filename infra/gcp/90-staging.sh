@@ -167,7 +167,8 @@ echo "    ✓ all present"
 # 4. Secrets
 # ---------------------------------------------------------------------------
 # Thirteen `STAGING_*` twins. The other four mounts in service-staging.yaml —
-# SENTRY_DSN, GOOGLE_CLIENT_IDS, APPLE_CLIENT_IDS, R2_ACCOUNT_ID — are
+# SENTRY_DSN, GOOGLE_CLIENT_IDS, APPLE_CLIENT_IDS, R2_ACCOUNT_ID,
+# DEMO_PROVIDER_CODE — are
 # deliberately SHARED with production and are not created here; they need an
 # accessor binding for the new identity instead (below).
 echo "==> 5/7  Secrets"
@@ -240,7 +241,7 @@ put_secret STAGING_R2_SECRET_ACCESS_KEY "$STAGING_R2_SECRET_ACCESS_KEY"
 # manifest mounts is a permission nothing needs, which is why
 # service_files_test.dart asserts this list and the mounts are the same set —
 # in both directions, so a leftover grant fails the build.
-for name in SENTRY_DSN R2_ACCOUNT_ID; do
+for name in SENTRY_DSN R2_ACCOUNT_ID DEMO_PROVIDER_CODE; do
   gcloud secrets add-iam-policy-binding "$name" --project="$PROJECT" \
     --member="serviceAccount:${RUN_SA}" \
     --role=roles/secretmanager.secretAccessor -q >/dev/null

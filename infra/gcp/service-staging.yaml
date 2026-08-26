@@ -274,6 +274,13 @@ spec:
             - name: SENTRY_DSN
               valueFrom:
                 secretKeyRef: { name: SENTRY_DSN, key: '1' }
+            # The store-review demo sign-in (T69) — the SAME shared secret as
+            # production, deliberately: staging is the rehearsal for the demo
+            # salon's curation (backend-demo-review-account.md §9), and one
+            # code in two environments is one code in the review notes.
+            - name: DEMO_PROVIDER_CODE
+              valueFrom:
+                secretKeyRef: { name: DEMO_PROVIDER_CODE, key: '1' }
             # SHARED — public OAuth client identifiers, not credentials. They
             # ship inside the app binary and the web bundle. They are an
             # *audience allowlist* for Google-signed ID tokens, so different

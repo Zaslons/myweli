@@ -167,6 +167,14 @@ void main() {
       // copies of one value is drift waiting to happen. The R2 *credential* is
       // separate and bucket-scoped.
       'R2_ACCOUNT_ID',
+      // The store-review demo sign-in code (T69). PUBLIC BY DESIGN — it is
+      // printed into both stores' review notes — so sharing it with staging
+      // discloses nothing. One value on purpose: staging is the rehearsal
+      // for the demo salon's curation (backend-demo-review-account.md §9),
+      // and one code in two environments is one code in the review notes.
+      // What the secret buys is the KILL SWITCH (unset → the seam is absent)
+      // and the pin monitor's watch, not confidentiality.
+      'DEMO_PROVIDER_CODE',
     };
 
     test('no production secret is mounted into staging by accident', () {
