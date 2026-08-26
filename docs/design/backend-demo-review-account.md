@@ -4,7 +4,7 @@
 |---|---|
 | **Status** | Draft — awaiting owner sign-off before any code |
 | **Owner** | Sadreddine |
-| **Last updated** | 2026-08-26 |
+| **Last updated** | 2026-08-26 — §10's questions decided (owner), reset designed |
 | **PRD ref / phase** | store submission (mobile-external-testing.md §5.2) · V1 |
 | **Related** | [backend-q1b-smoke-seam.md](backend-q1b-smoke-seam.md) (prior art) · [pro-salon-lifecycle.md](pro-salon-lifecycle.md) · [mobile-external-testing.md](mobile-external-testing.md) · BACKEND.md §7 **T69 (new)** |
 | **Skills checked** | myweli-backend-guardrails · myweli-verification-guardrails |
@@ -77,10 +77,16 @@ additions are the only contract diff.
 
 ## 4. Data model
 
-**No new tables, no migration.** The demo account and salon are ordinary rows
-created through the ordinary registration flow. Nothing marks them in the
-database — the identity itself is the marker (§5), which means there is no
-flag an operator can forget to set or accidentally set on a real salon.
+The demo account and salon are ordinary rows created through the ordinary
+registration flow. Nothing marks them in the database — the identity itself is
+the marker (§5), which means there is no flag an operator can forget to set or
+accidentally set on a real salon.
+
+**One tiny table** for the reset (§6.3): `demo_snapshot` — a single row
+holding the curated salon document (`doc` jsonb), `provider_id`,
+`captured_at`, and `last_reset_at`. Interface + in-memory + Postgres, like
+every repository. *(The first draft claimed "no migration"; the automatic
+reset is what changed that, and one row is the whole cost.)*
 
 ## 5. Architecture — the seam
 
@@ -153,6 +159,7 @@ What a holder of the code can do — and the mechanism that bounds each:
 | **team invitations** | **refused** — the only surface that emails an arbitrary third party (« X vous invite ») from an authenticated session; a public credential must not become a mail cannon |
 | uploads (photos, KYC) | existing signing rate limits; own-prefix storage |
 | sessions | normal JWT + rotating refresh; many holders share one account, which is fine — reuse-detection revokes families as designed |
+| junk / defacement inside the demo salon | the **7-day automatic reset** (§6.3) — restore from snapshot, wipe + regenerate |
 
 ### 6.1 The publish refusal
 
@@ -167,7 +174,49 @@ Draft is not a degraded state for review purposes — the dashboard is fully
 functional on drafts by design (T51), which is precisely why the sandbox
 costs the reviewer nothing.
 
-### 6.2 Threat-model delta — new row T69
+### 6.2 The automatic reset — one mechanism, three problems
+
+**Owner decision (2026-08-26): the demo resets automatically every 7 days.**
+The design makes that one mechanism answer three of §10's original questions
+at once:
+
+1. **Junk & defacement** — anyone holding the public code can fill the demo
+   salon's agenda, rename it, or upload photos. The reset restores the salon
+   **document** (name, description, services, photos, availability) from a
+   snapshot captured after the owner curates it once through the real app.
+2. **A live-looking agenda, forever** — restoring *frozen* bookings would show
+   September dates in January. So the reset wipes the salon's appointments and
+   clients and **regenerates a small fixed agenda with dates relative to now**
+   (a few completed, one today, a couple upcoming), through the real
+   `bookManual` path so the rows — and the auto-created client records — are
+   exactly what the product produces.
+3. **Trial expiry** — rather than a human remembering a periodic `markPaid`
+   (a human pretending to be a cron) or a demo-exempt trial (a special case
+   inside *real* billing logic, the kind of carve-out that bites later), the
+   reset **extends the demo subscription's paid coverage** as it runs. Demo
+   concerns stay inside the demo module; billing logic stays untouched; a
+   future reviewer never sees an expired banner.
+
+**Mechanics.**
+
+- **Capture**: `POST /admin/demo/snapshot` (admin-authenticated) stores the
+  current demo-salon document. Owner-triggered once after curating — and
+  re-triggerable any time the demo is improved.
+- **Schedule**: the reset **rides the existing daily subscriptions cron** as
+  `tickIfDue(now)` — a no-op unless ≥7 days since `last_reset_at`. The cron
+  route's own comment reserves extraction of `/internal/cron/maintenance` for
+  the day a third task arrives; this is that task, but it is *due-gated
+  internally*, so it would need its own cadence logic even on a dedicated
+  job — riding is strictly cheaper: no new Scheduler job, no new audience,
+  nothing new that can stop silently. The comment is updated to record this.
+- **Safety, in the code and not the operator's head**: every destructive step
+  re-verifies the target salon's owner-membership email is
+  `kDemoProviderEmail` before acting, and the whole reset is a no-op when the
+  seam is absent or no snapshot exists (logged, not silent).
+- **No rebuild fires** — the salon is draft before and after; the reset never
+  touches `status`.
+
+### 6.3 Threat-model delta — new row T69
 
 **T69 — demo review account** (S/E/D): a deliberately public credential into
 production. Spoofing a real user: impossible structurally (`.test`).
@@ -177,7 +226,8 @@ path with capabilities added. Disclosure of others' data: none reachable.
 DoS/abuse: per-identity rate limits; the off switch is unsetting
 `DEMO_PROVIDER_CODE`; junk data accumulates only inside the demo salon (§10
 resets). Residual, stated: someone who signs in can deface the demo salon's
-own content — visible to the next reviewer only, cured by a reset.
+own content — visible to the next reviewer only, and cured automatically
+within 7 days by the reset (§6.2), or immediately by re-running it.
 
 ## 7. Performance
 
@@ -209,6 +259,14 @@ mutating the constant.
 Send-skip: a `.test` recipient is refused before the budget reserve (the
 recording budget stays empty).
 
+Reset (`demo_reset_test.dart`): due-gating (6 days → no-op, 7 → runs, runs
+again only 7 days later); restore actually reverts a defaced document;
+appointments/clients wiped and regenerated relative to `now` (asserted
+against the injected clock); subscription coverage extended and notices
+cleared; **a non-demo salon is untouchable** — the safety check keyed on the
+membership email, watched red by mutating the constant; seam absent or no
+snapshot → logged no-op; **no rebuild fires** (recording notifier empty).
+
 Each guard watched red; comments stripped before any source-level match; the
 mutation list recorded in the PR.
 
@@ -228,27 +286,28 @@ mutation list recorded in the PR.
 5. After store approval, the code MAY be rotated or unset between review
    cycles; the account data stays.
 
-**Ops note:** the trial expires after 90 days. The dashboard keeps working
-(T54, unpublish-not-lockout — and the salon is draft anyway), but subscription
-banners will show expired state to a future reviewer. `markPaid` on the demo
-salon is safe — its republish branch cannot fire (`unpublishedAt` is never
-set on a salon that was never published) — so a periodic admin `markPaid`
-keeps the demo clean. Listed in §10.
+**Ops note:** ~~the trial expires after 90 days … a periodic admin `markPaid`
+keeps the demo clean~~ — superseded by §6.2: the weekly reset extends the
+demo subscription's coverage, so no operator task exists. (Kept for the
+record: `markPaid` on the demo salon would have been safe — its republish
+branch cannot fire on a never-published salon.)
 
-## 10. Open questions
+**Rollout gains one step:** after curating the salon (step 3), capture the
+snapshot — `POST /admin/demo/snapshot` — before pasting credentials into the
+consoles.
 
-1. **Reset cadence.** Junk accumulates inside the demo salon (anyone with the
-   code can write there). A manual reset before each submission cycle is
-   enough to start; a monthly cron is the later nicety. Decide after the
-   first review round.
-2. **Trial-expiry cosmetics** (§9 ops note): periodic `markPaid`, or a
-   demo-exempt trial? Start with `markPaid`; a demo-exempt trial is more
-   code for the same result.
-3. **Does Play's App access form accept an OTP-field code as a "password"?**
-   Phrase the form entry as: email + code, both static, reusable,
-   no real OTP sent. If a reviewer rejects that shape, the fallback is a
-   dedicated password field in the app — a much larger slice, not designed
-   here.
+## 10. Decisions (were open questions — owner, 2026-08-26)
+
+1. **Reset cadence: automatic, every 7 days** — designed in §6.2.
+2. **Trial expiry: folded into the reset** (§6.2 point 3). A periodic manual
+   `markPaid` is a human pretending to be a cron; a demo-exempt trial is a
+   special case inside real billing logic. The reset extending coverage keeps
+   demo concerns inside the demo module.
+3. **Play App access wording, as proposed**: the form entry reads — email
+   `revue@myweli.test`, code `<the 6 digits>`, both static and reusable; no
+   real one-time password is sent for this identity. The fallback (a
+   dedicated password field in the app) stays a documented contingency, built
+   only if a reviewer rejects this shape.
 
 ## 11. Definition of done
 
