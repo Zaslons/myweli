@@ -112,52 +112,54 @@ void main() {
       }
     });
 
-    test('a Play SHA-1 per package, present exactly when enrolment is claimed',
-        () {
-      // One PER PACKAGE — the first shape held a single field on the
-      // assumption that one App Signing key covers both apps; the real
-      // enrolment (2026-08-26) generated one key per app.
-      final shas = packages.map(
-        (name, meta) =>
-            MapEntry(name, (meta as Map<String, dynamic>)['playSha1']),
-      );
-      if (play['enrolled'] == true) {
-        shas.forEach((name, sha) {
-          expect(
-            hex40.hasMatch((sha as String?) ?? ''),
-            isTrue,
-            reason:
-                '$name: enrolled without a well-formed fingerprint verifies '
-                'nothing',
-          );
-          expect(
-            devHashes.contains(sha),
-            isFalse,
-            reason:
-                '$name: that is the debug keystore wearing the release label',
-          );
-        });
-        expect(
-          shas.values.toSet(),
-          hasLength(shas.length),
-          reason:
-              'Play generates one App Signing key PER APP; identical values '
-              'means one fingerprint pasted twice — or the UPLOAD key, which '
-              'is shared because one keystore signs both uploads. Exactly '
-              'that confusion happened on 2026-08-26',
+    test(
+      'a Play SHA-1 per package, present exactly when enrolment is claimed',
+      () {
+        // One PER PACKAGE — the first shape held a single field on the
+        // assumption that one App Signing key covers both apps; the real
+        // enrolment (2026-08-26) generated one key per app.
+        final shas = packages.map(
+          (name, meta) =>
+              MapEntry(name, (meta as Map<String, dynamic>)['playSha1']),
         );
-      } else {
-        shas.forEach((name, sha) {
+        if (play['enrolled'] == true) {
+          shas.forEach((name, sha) {
+            expect(
+              hex40.hasMatch((sha as String?) ?? ''),
+              isTrue,
+              reason:
+                  '$name: enrolled without a well-formed fingerprint verifies '
+                  'nothing',
+            );
+            expect(
+              devHashes.contains(sha),
+              isFalse,
+              reason:
+                  '$name: that is the debug keystore wearing the release label',
+            );
+          });
           expect(
-            sha,
-            isNull,
+            shas.values.toSet(),
+            hasLength(shas.length),
             reason:
-                '$name: a fingerprint recorded while enrolled is false means '
-                'one of the two is wrong',
+                'Play generates one App Signing key PER APP; identical values '
+                'means one fingerprint pasted twice — or the UPLOAD key, which '
+                'is shared because one keystore signs both uploads. Exactly '
+                'that confusion happened on 2026-08-26',
           );
-        });
-      }
-    });
+        } else {
+          shas.forEach((name, sha) {
+            expect(
+              sha,
+              isNull,
+              reason:
+                  '$name: a fingerprint recorded while enrolled is false means '
+                  'one of the two is wrong',
+            );
+          });
+        }
+      },
+    );
   });
 
   group('the committed configs agree with the manifest', () {
@@ -237,8 +239,23 @@ void main() {
           final package = packages.entries
               .firstWhere((e) => (e.value as Map)['flavour'] == flavour)
               .key;
-          actual =
-              androidClients(flavour, package).first['client_id'] as String?;
+          // A package carries one android client PER FINGERPRINT since the
+          // play key gained its own (2026-08-26), and `.first` made this
+          // check depend on Google's emission order — consumer passed and
+          // pro failed on identical states. Membership, not position.
+          final ids = androidClients(
+            flavour,
+            package,
+          ).map((cl) => cl['client_id']).toList();
+          expect(
+            ids,
+            contains(c['id']),
+            reason:
+                'the manifest describes a client no build presents, so the '
+                'release gate would be checking the wrong id against the '
+                'backend allowlist',
+          );
+          return;
         }
         expect(
           actual,

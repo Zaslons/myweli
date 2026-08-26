@@ -245,9 +245,16 @@ if (platform === 'ios') {
   actual = i < 0 ? null : /<string>([^<]*)<\/string>/.exec(body.slice(i))?.[1]
 } else {
   const cfg = json(packageEntry.config)
-  actual = cfg.client
+  // A package now carries ONE android client PER FINGERPRINT (the play key
+  // gained its own on 2026-08-26), so \`.find(...)\` — first entry wins — made
+  // this check depend on the ordering Google happens to emit: consumer
+  // passed and pro failed on identical states. The declared id must be
+  // AMONG the package's type-1 clients, whichever order they arrive in.
+  const androidIds = cfg.client
     .find((c) => c.client_info?.android_client_info?.package_name === packageName)
-    ?.oauth_client.find((c) => c.client_type === 1)?.client_id
+    ?.oauth_client.filter((c) => c.client_type === 1)
+    .map((c) => c.client_id)
+  actual = androidIds?.includes(declared?.id) ? declared.id : androidIds?.[0]
 }
 
 if (declared && actual && declared.id !== actual) {
