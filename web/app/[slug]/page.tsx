@@ -35,8 +35,12 @@ export const revalidate = 300;
 // `notFound()` produces. Measured; see served-html.spec.ts for what was ruled
 // out.
 //
-// It also means a salon approved after the last build is not reachable until
-// the next one, which is why admin KYC approval fires a rebuild.
+// It also means a salon PUBLISHED after the last build is not reachable until
+// the next one, which is why the backend fires a Vercel deploy hook on every
+// transition that changes the public set — publish, republish, billing
+// unpublish, erasure, admin suspend/restore (backend-web-rebuild-hook.md §2).
+// Until 2026-08-25 this comment credited "admin KYC approval", which fires
+// nothing and never did: KYC does not change the listable set.
 export const dynamicParams = false;
 
 /// Single-segment space (multi-pays MP3): taxonomy ROOT (/coiffure, /tresses

@@ -4,9 +4,16 @@ import 'dart:io';
 /// One build per minute, per process.
 ///
 /// **Denial of wallet is the risk this bounds** (BACKEND.md §7 T68): builds cost
-/// money, and a suspend/restore loop would otherwise trigger one each time. A
-/// dropped event is safe — the next build reads the listable set fresh, so it
-/// picks up everything that happened during the window.
+/// money, and a suspend/restore loop would otherwise trigger one each time.
+///
+/// ~~A dropped event is safe — the next build reads the listable set fresh, so
+/// it picks up everything that happened during the window.~~ **That sentence
+/// was the root error (2026-08-25): there is no "next build".** Every trigger
+/// is a set change; if the last one in a burst is dropped, nothing else ever
+/// fires, and with publish as a trigger a second salon publishing inside the
+/// window would 404 indefinitely. In-window requests are therefore COALESCED
+/// into one trailing fire at window expiry, never dropped. The wallet bound is
+/// unchanged: at most one build per cooldown per process.
 const Duration kRebuildCooldown = Duration(seconds: 60);
 
 /// Asks the web host to rebuild, because the set of publicly listable salons
@@ -50,12 +57,38 @@ class HttpSiteRebuildNotifier implements SiteRebuildNotifier {
   final void Function(String) _log;
   DateTime? _lastFired;
 
+  /// The trailing fire (see [kRebuildCooldown]): in-window requests overwrite
+  /// [_pendingReason]; the timer consumes it exactly once (nulling it before
+  /// re-entering), which is what holds the one-build-per-window bound — proven
+  /// by mutating `??=` to `=` below: the stacked timers all run, and every one
+  /// after the first finds nothing pending. `??=` only keeps timers from
+  /// stacking at all.
+  Timer? _trailing;
+  String? _pendingReason;
+
   @override
   Future<void> requestRebuild(String reason) async {
     final now = _clock().toUtc();
     final last = _lastFired;
     if (last != null && now.difference(last) < _cooldown) {
+      // **`skipped` is kept as the log token** — the alert filter and both
+      // runbooks grep `site_rebuild (sent|FAILED|skipped)`, and a new token
+      // would put deferral outside every existing filter. What changed is
+      // what the word means: the request is coalesced into the trailing fire
+      // below, not dropped.
       _log('site_rebuild skipped reason=$reason cause=cooldown');
+      _pendingReason = reason;
+      // Real wall-clock, deliberately, where the window test above uses the
+      // injected [_clock]: a Timer cannot be driven by a fake clock, so the
+      // trailing path is tested with short REAL cooldowns instead. If the
+      // instance dies before the timer lands, the fire is lost — the same
+      // outcome the old drop guaranteed, so strictly no worse.
+      _trailing ??= Timer(_cooldown - now.difference(last), () {
+        _trailing = null;
+        final pending = _pendingReason;
+        _pendingReason = null;
+        if (pending != null) requestRebuild(pending);
+      });
       return;
     }
     _lastFired = now;

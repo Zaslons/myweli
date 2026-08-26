@@ -4,6 +4,7 @@ import '../access/membership_service.dart';
 import '../auth/provider_auth_repository.dart';
 import '../providers_repository.dart';
 import '../salon_provisioning_service.dart';
+import '../site/site_rebuild_notifier.dart';
 import 'salon_subscription_repository.dart';
 import 'subscription.dart';
 
@@ -20,7 +21,9 @@ class SalonSubscriptionService {
     this._providers,
     this._providerAuth, {
     DateTime Function()? clock,
-  }) : _now = clock ?? (() => DateTime.now().toUtc());
+    SiteRebuildNotifier? rebuild,
+  }) : _now = clock ?? (() => DateTime.now().toUtc()),
+       _rebuild = rebuild ?? NoopSiteRebuildNotifier();
 
   final SalonSubscriptionRepository _subscriptions;
   final MembershipService _memberService;
@@ -28,6 +31,12 @@ class SalonSubscriptionService {
   final ProvidersRepository _providers;
   final ProviderAuthRepository _providerAuth;
   final DateTime Function() _now;
+
+  /// Optional so the existing test constructions keep compiling — but wired
+  /// in `dependencies.dart`, and `site_rebuild_wiring_test.dart` fails if it
+  /// is not (the omission compiles clean and logs nothing, which is exactly
+  /// how the provisioning service ran with the Noop for a week).
+  final SiteRebuildNotifier _rebuild;
 
   /// Seats per tier — the ONE place tier entitlements live server-side
   /// (display copy/prices stay client-side + « à confirmer »).
@@ -126,6 +135,10 @@ class SalonSubscriptionService {
           providerId,
           clearUnpublished: true,
         );
+        // The slug just re-entered the prebuilt set. Here rather than in the
+        // admin route that happens to be today's only caller, so a future
+        // payments webhook calling markPaid inherits the fire.
+        await _rebuild.requestRebuild('salon.republished');
       }
     }
     return (ok: true, error: null, data: await _derive(updated!));

@@ -8,6 +8,7 @@ import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
 import 'package:myweli_backend/src/auth/tokens.dart';
 import 'package:myweli_backend/src/providers_repository.dart';
 import 'package:myweli_backend/src/salon_provisioning_service.dart';
+import 'package:myweli_backend/src/site/site_rebuild_notifier.dart';
 import 'package:test/test.dart';
 
 import '../routes/providers/[id]/publish.dart' as publish_route;
@@ -26,6 +27,20 @@ ProviderAccount _account(String id, {String? providerId}) => ProviderAccount(
   businessType: 'salon',
   createdAt: DateTime.utc(2026),
 )..providerId = providerId;
+
+/// Records what it was asked to do, so a call site can be observed.
+class _RecordingNotifier implements SiteRebuildNotifier {
+  final reasons = <String>[];
+  @override
+  Future<void> requestRebuild(String reason) async => reasons.add(reason);
+}
+
+/// Always throws, for the caller-does-not-guard posture test.
+class _ThrowingNotifier implements SiteRebuildNotifier {
+  @override
+  Future<void> requestRebuild(String reason) async =>
+      throw StateError('vercel is down');
+}
 
 void main() {
   group('slugifySalonName', () {
@@ -152,14 +167,17 @@ void main() {
     late InMemoryProvidersRepository providers;
     late _MockProviderAuth auth;
     late SalonProvisioningService service;
+    late _RecordingNotifier rebuild;
 
     setUp(() async {
       providers = InMemoryProvidersRepository([]);
       auth = _MockProviderAuth();
+      rebuild = _RecordingNotifier();
       service = SalonProvisioningService(
         providers,
         auth,
         InMemoryMembershipRepository(),
+        rebuild: rebuild,
       );
     });
 
@@ -245,14 +263,77 @@ void main() {
         expect(res.statusCode, HttpStatus.ok);
         expect(((await res.json()) as Map)['status'], 'active');
         expect(await providers.query(), hasLength(1)); // now discoverable
+        expect(
+          rebuild.reasons,
+          ['salon.published'],
+          reason:
+              'the prebuilt slug set just grew — without this fire the '
+              'salon 404s until an unrelated deploy (dynamicParams = false)',
+        );
 
         final again = await publish_route.onRequest(
           ctx(post(id, token: tok('acc1', 'provider'))),
           id,
         );
         expect(again.statusCode, HttpStatus.ok);
+        expect(
+          rebuild.reasons,
+          hasLength(1),
+          reason:
+              'an idempotent re-publish changes nothing and must not '
+              'consume the notifier cooldown window',
+        );
       },
     );
+
+    test('a gate-blocked publish asks for NO rebuild', () async {
+      final salon = await makeDraft(); // incomplete on purpose
+      final id = salon['id'] as String;
+      when(
+        () => auth.accountById('acc1'),
+      ).thenAnswer((_) async => _account('acc1', providerId: id));
+
+      final res = await publish_route.onRequest(
+        ctx(post(id, token: tok('acc1', 'provider'))),
+        id,
+      );
+      expect(res.statusCode, HttpStatus.conflict);
+      expect(
+        rebuild.reasons,
+        isEmpty,
+        reason: 'nothing changed, so nothing needs rebuilding',
+      );
+    });
+
+    test('ensureSalon asks for NO rebuild — creation is a draft', () async {
+      // Pinned per the denial rule: this used to fire 'salon.created', a
+      // build of exactly nothing (drafts are excluded from the slug set)
+      // that consumed the cooldown window and could swallow a real publish
+      // seconds later. A denial without a test grows back.
+      final account = _account('acc9');
+      when(() => auth.linkProvider(any(), any())).thenAnswer((_) async {});
+      await service.ensureSalon(account);
+      expect(rebuild.reasons, isEmpty);
+    });
+
+    test('a THROWING notifier propagates out of publish', () async {
+      // Mirrors the AdminProviderService posture pinned in
+      // site_rebuild_notifier_test.dart: callers rely on the notifier's own
+      // never-throws contract rather than guarding. If that posture ever
+      // changes, change it deliberately — this test is the tripwire.
+      final broken = SalonProvisioningService(
+        providers,
+        auth,
+        InMemoryMembershipRepository(),
+        rebuild: _ThrowingNotifier(),
+      );
+      final salon = await makeDraft();
+      await complete(salon);
+      await expectLater(
+        broken.publish(salon['id'] as String),
+        throwsA(isA<StateError>()),
+      );
+    });
 
     test('T50: cross-tenant / anon / wrong role → 403/401', () async {
       final salon = await makeDraft();

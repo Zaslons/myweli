@@ -92,8 +92,10 @@ class SalonProvisioningService {
       address: account.address,
     );
     final id = salon['id'] as String;
-    // The listable set just grew, and the web prebuilds it.
-    await _rebuild.requestRebuild('salon.created');
+    // No rebuild here, deliberately: the salon is created 'draft', and the
+    // prebuilt slug set excludes drafts — a build now would change zero bytes
+    // while consuming the notifier's cooldown window. The set grows at
+    // publish(), which is where the fire lives.
     if (market != null) {
       await _providers.updateProfile(id, market.providerChanges);
     }
@@ -187,6 +189,14 @@ class SalonProvisioningService {
       return (ok: true, error: null, data: provider);
     }
     final updated = await _providers.setStatus(providerId, 'active');
+    // The listable set just grew, and the web prebuilds it (`dynamicParams =
+    // false`): without this fire the salon's public page 404s until an
+    // unrelated deploy, while /recherche (force-dynamic) already links to it.
+    // After the write, and NOT on the idempotent already-active return above —
+    // a re-publish changes nothing and must not consume the cooldown window.
+    if (updated != null) {
+      await _rebuild.requestRebuild('salon.published');
+    }
     return (ok: true, error: null, data: updated);
   }
 }

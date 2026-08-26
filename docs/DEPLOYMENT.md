@@ -370,8 +370,13 @@ makes Next serve a real 404 in the served HTML rather than a 44-character blank
 shell. Its slug set is therefore fixed at **build** time, so a salon that becomes
 publicly listable after the last build would 404 until the next one.
 
-The backend asks Vercel to rebuild on the three transitions that change the
-listable set (salon created / suspended / restored). Configuration, all done:
+The backend asks Vercel to rebuild on the five status transitions that change
+the listable set — publish, republish-on-payment, billing unpublish, account
+erasure, admin suspend/restore. (Until 2026-08-25 this read "salon created /
+suspended / restored": creation makes a `draft`, which the set excludes, and
+the transition that actually grows it — publish — fired nothing.) In-window
+events coalesce into one trailing fire per 60 s cooldown, never dropped.
+Configuration, all done:
 
 1. Vercel → `myweli` → Settings → Git → **Deploy Hooks**, on the production
    branch.
@@ -393,9 +398,10 @@ the HTTP notifier from the silent no-op.
 **One hop is still unexercised, and saying so is the point.** Nothing has proven
 that *Cloud Run reaches Vercel* on a real salon change: production holds zero
 salons, so there is nothing to create, suspend or restore. The first real salon
-exercises it — success logs `site_rebuild sent reason=salon.created status=201`,
+exercises it at PUBLISH — success logs
+`site_rebuild sent reason=salon.published status=201`,
 and a blocked egress would log `site_rebuild FAILED` while the salon is still
-created, because the notifier fails open.
+published, because the notifier fails open.
 
 **Confirming that last hop:** suspend a salon in the admin console and a deployment
 starts in Vercel within seconds; the backend logs

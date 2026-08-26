@@ -6,6 +6,7 @@ import 'auth/provider_auth_repository.dart';
 import 'notifications/notifications_repository.dart';
 import 'providers_repository.dart';
 import 'push/device_token_repository.dart';
+import 'site/site_rebuild_notifier.dart';
 import 'storage/storage_service.dart';
 
 /// Provider ACCOUNT lifecycle (audit 11.5 — threat T53): the deletion flow
@@ -22,9 +23,11 @@ class ProviderAccountService {
     DeviceTokenRepository? devices,
     NotificationsRepository? notifications,
     http.Client? client,
+    SiteRebuildNotifier? rebuild,
   }) : _devices = devices,
        _notifications = notifications,
-       _client = client ?? http.Client();
+       _client = client ?? http.Client(),
+       _rebuild = rebuild ?? NoopSiteRebuildNotifier();
 
   final ProviderAuthRepository _auth;
   final ProvidersRepository _providers;
@@ -37,6 +40,7 @@ class ProviderAccountService {
   final DeviceTokenRepository? _devices;
   final NotificationsRepository? _notifications;
   final http.Client _client;
+  final SiteRebuildNotifier _rebuild;
 
   /// Delete the account behind [accountId]. Error codes: `forbidden`
   /// (unknown account), `future_bookings` (settle the agenda first).
@@ -66,8 +70,21 @@ class ProviderAccountService {
     }
     // Unpublish, don't destroy: T51 hides drafts everywhere while bookings,
     // reviews and the CRM keep resolving (business history ≠ identity).
+    //
+    // The prior status is read per salon because the fire below must be
+    // GUARDED: an owner whose salons were all draft (or suspended) changes
+    // nothing in the prebuilt slug set, and an unguarded fire would recreate
+    // the build-nothing-but-burn-the-cooldown defect this slice removed from
+    // salon creation.
+    var anyWasActive = false;
     for (final providerId in owned) {
+      final before = await _providers.byId(providerId);
+      if (before?['status'] == 'active') anyWasActive = true;
       await _providers.setStatus(providerId, 'draft');
+    }
+    // Once for the whole account, after the loop — one erasure, one build.
+    if (anyWasActive) {
+      await _rebuild.requestRebuild('account.erased');
     }
 
     // Erase the KYC objects from the private bucket (T53 — « définitive »

@@ -301,6 +301,11 @@ void main() {
       when(
         () => providers.setStatus('p1', 'draft'),
       ).thenAnswer((_) async => {'id': 'p1', 'status': 'draft'});
+      // The erasure's rebuild fire is guarded on the PRIOR status, so the
+      // service now reads the salon before unpublishing it.
+      when(
+        () => providers.byId('p1'),
+      ).thenAnswer((_) async => {'id': 'p1', 'status': 'active'});
       when(() => auth.deleteAccount('acc1')).thenAnswer((_) async => true);
 
       final res = await me_provider.onRequest(

@@ -1030,13 +1030,19 @@ salon exists. This is the list for that day.
 **Why there is anything to check at all.** The web's `/[slug]` route sets
 `dynamicParams = false` — the only mechanism that makes Next serve a real 404 in
 the HTML rather than a 44-character blank page — so the set of salon slugs is
-**fixed at build time**. The backend therefore asks Vercel to rebuild whenever a
-salon is created, suspended or restored. Every link in that chain is verified
-except the last one: *does Cloud Run actually reach Vercel*.
+**fixed at build time**. The backend therefore asks Vercel to rebuild on every
+transition that changes the public set — **publish** (the one the first salon
+exercises), republish-on-payment, billing unpublish, erasure, and admin
+suspend/restore. *(Until 2026-08-25 this paragraph said "whenever a salon is
+created" — creation makes a `draft`, which the slug set excludes, and the
+publish transition fired nothing, so this checklist could pass while the page
+404s.)* Every link in that chain is verified except the last one: *does Cloud
+Run actually reach Vercel*.
 
-- [ ] **The rebuild fired.** Within seconds of the salon being created, a
-      deployment starts in Vercel, and the backend log carries
-      `site_rebuild sent reason=salon.created status=201`:
+- [ ] **The rebuild fired.** Within seconds of the salon being PUBLISHED
+      (« Mettre en ligne » — not merely created), a deployment starts in
+      Vercel, and the backend log carries
+      `site_rebuild sent reason=salon.published status=201`:
 
       ```bash
       gcloud logging read 'resource.type="cloud_run_revision" AND textPayload=~"site_rebuild (sent|FAILED|skipped)"' --project=myweli --limit=20 --freshness=1h --format='value(timestamp,textPayload)'
@@ -1069,10 +1075,12 @@ except the last one: *does Cloud Run actually reach Vercel*.
       unindexable.
 
 - [ ] **Suspend and restore it once**, in the admin console, and confirm each
-      transition produces its own `site_rebuild sent` line. Creation is the only
+      transition produces its own `site_rebuild sent` line. Publish is the only
       one the first salon exercises by itself, and suspension is the transition
       that matters most later: a departed salon whose page keeps serving is a
-      worse failure than a new one whose page is late.
+      worse failure than a new one whose page is late. (Two transitions inside
+      60 s log `skipped cause=cooldown` for the second, then a trailing `sent`
+      at window expiry — deferred, not lost.)
 
 - [ ] **Re-run the real-domain checks with actual content in them.** Every
       Lighthouse and privacy measurement to date was taken against a site with

@@ -17,6 +17,10 @@ register (web/app) ──creates──▶ salon { status: 'draft' } linked to th
            sitemap) · bookings refused
 owner completes setup ──POST /providers/{id}/publish──▶ status: 'active'
     (server re-checks completeness; incomplete → 409 + the missing list)
+    (and fires the web rebuild — the public page is prebuilt from a CLOSED
+     slug set, so without it the published salon 404s until an unrelated
+     deploy; [backend-web-rebuild-hook.md](backend-web-rebuild-hook.md) §2,
+     added 2026-08-25)
 admin suspend/restore keeps working as today ('suspended' ⇄ 'active')
 ```
 
