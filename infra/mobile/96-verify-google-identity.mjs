@@ -161,15 +161,36 @@ if (platform === 'android') {
     }
 
     if (!play.enrolled) {
-      fail(
-        `Play App Signing is not enrolled, so ${packageName} is signed for release by a key Google does not know`,
-        'the ONLY fingerprint registered is a development keystore. This build ' +
-          'would install, launch, look perfect, and fail Google sign-in for every ' +
-          'real user WITHOUT SHOWING THEM ANYTHING — Credential Manager reports a ' +
-          'wrong signing SHA as a cancellation, so the button does nothing and ' +
-          'logs nothing. See infra/mobile/signing-manifest.json → ' +
-          'playAppSigning.howToGetIt',
-      )
+      // **The chicken-and-egg this gate did not model at first:** enrolment
+      // HAPPENS at the first AAB upload, so refusing every unenrolled build
+      // also refuses the one build that can end the unenrolled state. The
+      // explicit escape: BOOTSTRAP_PLAY_ENROLMENT=1 accepts exactly this
+      // case, loudly, for an artifact whose only job is to make Play
+      // generate the App Signing key. It is inherently non-final — after
+      // enrolment the SHA gets registered, google-services.json
+      // re-downloaded, and a NEW build made, which this gate then holds to
+      // the full bar.
+      if (process.env.BOOTSTRAP_PLAY_ENROLMENT === '1') {
+        console.log(
+          `\n  ⚠ BOOTSTRAP BUILD — Play App Signing is NOT enrolled for ${packageName}.\n` +
+            '  This artifact exists to be uploaded ONCE so Play generates the App\n' +
+            '  Signing key. Google sign-in is DEAD in it (silently — the button\n' +
+            '  does nothing). Upload it, read the SHA-1, register it, re-download\n' +
+            '  google-services.json, rebuild WITHOUT this flag — and never hand\n' +
+            '  this artifact to a tester.\n',
+        )
+      } else {
+        fail(
+          `Play App Signing is not enrolled, so ${packageName} is signed for release by a key Google does not know`,
+          'the ONLY fingerprint registered is a development keystore. This build ' +
+            'would install, launch, look perfect, and fail Google sign-in for every ' +
+            'real user WITHOUT SHOWING THEM ANYTHING — Credential Manager reports a ' +
+            'wrong signing SHA as a cancellation, so the button does nothing and ' +
+            'logs nothing. See infra/mobile/signing-manifest.json → ' +
+            'playAppSigning.howToGetIt. For the FIRST upload — the one that ' +
+            'creates the enrolment — set BOOTSTRAP_PLAY_ENROLMENT=1.',
+        )
+      }
     } else if (!registered.includes(play.sha1)) {
       fail(
         `${packageEntry.config} does not carry the Play App Signing SHA-1`,
