@@ -287,6 +287,54 @@ void main() {
         isTrue,
       );
     });
+
+    group('the bootstrap-enrolment escape (comments stripped first)', () {
+      // Enrolment HAPPENS at the first AAB upload, so a gate that refuses
+      // every unenrolled build also refuses the one build that can end the
+      // unenrolled state. The escape must exist — and must be exactly as
+      // narrow as the chicken-and-egg it resolves.
+      final mjs = File('../infra/mobile/96-verify-google-identity.mjs')
+          .readAsStringSync()
+          .replaceAll(RegExp(r'/\*.*?\*/', dotAll: true), '')
+          .replaceAll(RegExp('//[^\n]*'), '');
+
+      test('it exists, keyed on the exact env var', () {
+        expect(
+          mjs,
+          contains("process.env.BOOTSTRAP_PLAY_ENROLMENT === '1'"),
+          reason:
+              'without it, the first upload — the one that creates the '
+              'enrolment — cannot be built at all',
+        );
+      });
+
+      test(
+        'it covers ONLY the not-enrolled branch, never the SHA mismatch',
+        () {
+          // The escape must sit inside `if (!play.enrolled)` and before the
+          // `else if` that catches an enrolled app whose google-services.json
+          // was never re-downloaded. That second failure is a config that
+          // LOOKS finished and is not — bypassing it would ship the silent
+          // sign-in failure to real testers, which is the thing this whole
+          // gate exists to prevent.
+          final escape = mjs.indexOf('BOOTSTRAP_PLAY_ENROLMENT');
+          final enrolledBranch = mjs.indexOf('if (!play.enrolled)');
+          final shaBranch = mjs.indexOf('registered.includes(play.sha1)');
+          expect(escape, greaterThan(enrolledBranch));
+          expect(escape, lessThan(shaBranch));
+          // The DOOR is the env read; the refusal MESSAGE also names the flag
+          // (that is how an operator learns it exists) — so the count is on
+          // `process.env.` reads, not on the string.
+          expect(
+            'process.env.BOOTSTRAP_PLAY_ENROLMENT'.allMatches(mjs),
+            hasLength(1),
+            reason:
+                'one escape, one branch — a second env read would be a '
+                'second door',
+          );
+        },
+      );
+    });
   });
 
   group('the premise: these are the packages that ship', () {
