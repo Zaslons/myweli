@@ -530,6 +530,16 @@ class PostgresProviderAuthRepository implements ProviderAuthRepository {
   }
 
   @override
+  Future<ProviderAccount?> accountByEmail(String email) async {
+    final rows = await _pool.execute(
+      Sql.named('SELECT * FROM provider_users WHERE lower(email) = @e'),
+      parameters: {'e': email.trim().toLowerCase()},
+    );
+    if (rows.isEmpty) return null;
+    return _toAccount(rows.first.toColumnMap());
+  }
+
+  @override
   Future<ProviderAccount?> submitKyc(
     String accountId,
     List<Map<String, dynamic>> docs,

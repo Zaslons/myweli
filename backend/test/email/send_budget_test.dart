@@ -30,7 +30,7 @@ class _Recording implements EmailProvider {
 void main() {
   Future<EmailSendResult> fire(EmailProvider p, {required EmailClass cls}) =>
       p.send(
-        to: 'someone@example.test',
+        to: 'someone@example.example',
         subject: 's',
         text: 't',
         classification: cls,
@@ -121,16 +121,46 @@ void main() {
     expect(inner.sent, hasLength(10));
   });
 
+  test(
+    'a `.test` recipient is refused BEFORE the budget reserve (T69)',
+    () async {
+      // RFC 2606: .test can never receive mail, so an attempted send would
+      // fail at the provider AFTER consuming a budget unit — every demo-owner
+      // subscription notice bleeding the cold/warm ceilings. Refused at the
+      // wrapper, before the reserve: both the inner provider AND the budget
+      // must stay untouched, and the second assertion is the load-bearing one.
+      final inner = _Recording();
+      final budget = InMemorySendBudget(ceilings: (cold: 2, warm: 2));
+      final p = BudgetedEmailProvider(inner, budget, log: (_) {});
+      final r = await p.send(
+        to: 'revue@myweli.test',
+        subject: 's',
+        text: 't',
+        classification: EmailClass.cold,
+      );
+      expect(r.ok, isFalse);
+      expect(r.error, 'unroutable');
+      expect(inner.sent, isEmpty);
+      final after = await p.send(
+        to: 'a@b.example',
+        subject: 's',
+        text: 't',
+        classification: EmailClass.cold,
+      );
+      expect(after.ok, isTrue, reason: 'no budget was consumed by the refusal');
+    },
+  );
+
   test('the decorator passes the message through unchanged', () async {
     final inner = _Recording();
     final p = BudgetedEmailProvider(inner, InMemorySendBudget(), log: (_) {});
     await p.send(
-      to: 'a@b.test',
+      to: 'a@b.example',
       subject: 'Votre code',
       text: 'body',
       classification: EmailClass.cold,
     );
-    expect(inner.sent.single, 'a@b.test|Votre code|cold');
+    expect(inner.sent.single, 'a@b.example|Votre code|cold');
   });
 
   test(
@@ -147,7 +177,7 @@ void main() {
       expect(logged.single, contains('cold'));
       // The recipient must NOT be in the log line — it is user data, and an OTP
       // address is exactly what an attacker would want read back.
-      expect(logged.single, isNot(contains('example.test')));
+      expect(logged.single, isNot(contains('example.example')));
     },
   );
 
@@ -304,7 +334,7 @@ void main() {
       }
       expect(logged, isNotEmpty);
       for (final line in logged) {
-        expect(line, isNot(contains('example.test')));
+        expect(line, isNot(contains('example.example')));
       }
     });
   });

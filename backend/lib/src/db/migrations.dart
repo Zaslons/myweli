@@ -1009,6 +1009,22 @@ CREATE TABLE IF NOT EXISTS momo_operators (
           'ON admin_login_throttle (updated_at)',
     ],
   ),
+  (
+    id: '0036_demo_snapshot',
+    statements: [
+      // The store-review demo account's reset (T69,
+      // docs/design/backend-demo-review-account.md §6.2): a SINGLE row
+      // holding the curated demo-salon document, restored weekly by the
+      // due-gated tick on the subscriptions cron. `CHECK (id = 1)` makes the
+      // single-row-ness a database fact rather than a code convention.
+      'CREATE TABLE IF NOT EXISTS demo_snapshot ('
+          'id int PRIMARY KEY DEFAULT 1 CHECK (id = 1), '
+          'provider_id text NOT NULL, '
+          'doc jsonb NOT NULL, '
+          'captured_at timestamptz NOT NULL, '
+          'last_reset_at timestamptz)',
+    ],
+  ),
 ];
 
 /// How long a schema-setup statement may **wait for a lock** before giving up.

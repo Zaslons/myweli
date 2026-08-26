@@ -37,6 +37,11 @@ Future<Response> onRequest(RequestContext context, String id) async {
   if (r.error == 'not_found') {
     return jsonError(HttpStatus.notFound, 'not_found');
   }
+  // T69: the demo review account may never publish — 403, not the 409 the
+  // completeness arm below would otherwise dress it in.
+  if (r.error == 'demo_account_locked') {
+    return jsonError(HttpStatus.forbidden, 'demo_account_locked');
+  }
   // incomplete → 409 with the missing checklist keys.
   return Response.json(
     statusCode: HttpStatus.conflict,

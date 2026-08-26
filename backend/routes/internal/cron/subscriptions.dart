@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:dart_frog/dart_frog.dart';
+import 'package:myweli_backend/src/demo/demo_reset_service.dart';
 import 'package:myweli_backend/src/dependencies.dart'
     show cronAuth, pruneAdminLoginThrottle;
 import 'package:myweli_backend/src/responses.dart';
@@ -30,8 +31,14 @@ Future<Response> onRequest(RequestContext context) async {
   // **The admin-throttle prune rides here rather than on a job of its own.**
   // This one already runs daily, is already OIDC-authenticated, and is already
   // covered by the missed-cron alert — so it costs no new Scheduler job, no new
-  // audience to keep in sync, and nothing new that can stop silently. A third
-  // maintenance task is when to extract `/internal/cron/maintenance`.
+  // audience to keep in sync, and nothing new that can stop silently. ~~A third
+  // maintenance task is when to extract `/internal/cron/maintenance`.~~
+  //
+  // The third task arrived (2026-08-26, the demo reset below) and the
+  // extraction deliberately did NOT happen: the reset is DUE-GATED internally
+  // (a no-op six days out of seven), so it would need its own cadence logic
+  // even on a dedicated job — riding is strictly cheaper. A FOURTH rider is
+  // when to extract, and it should take all three.
   //
   // **And the window is a security parameter, not housekeeping.** A `fail_count`
   // whose `locked_until` is NULL never decays on its own, so without this four
@@ -43,11 +50,19 @@ Future<Response> onRequest(RequestContext context) async {
   // a prune nobody can see is the shape this repo keeps finding.
   final pruned = await pruneAdminLoginThrottle(const Duration(hours: 24));
 
+  // The demo-salon reset (T69): due-gated to every 7 days inside the
+  // service, so this is a no-op six days out of seven. Same observability
+  // rule as the prune — the outcome is in the response, not just a log.
+  final demo = await context.read<DemoResetService>().tickIfDue(
+    DateTime.now().toUtc(),
+  );
+
   return Response.json(
     body: {
       'notices': r.notices,
       'unpublished': r.unpublished,
       'throttleRowsPruned': pruned,
+      'demoReset': demo.ran,
     },
   );
 }

@@ -57,6 +57,11 @@ abstract interface class ClientsRepository {
 
   Future<bool> deleteNote(String clientId, String noteId);
 
+  /// Deletes EVERY client (and their notes) of [providerId]; returns the
+  /// count. Same single-caller warning as
+  /// `AppointmentRepository.wipeForProvider`: the demo reset only.
+  Future<int> wipeForProvider(String providerId);
+
   // ---- Privacy (threat T48) ------------------------------------------------
 
   /// Deleted-account anonymization across EVERY salon: unlink `userId`, wipe
@@ -67,6 +72,18 @@ abstract interface class ClientsRepository {
 class InMemoryClientsRepository implements ClientsRepository {
   final List<Map<String, dynamic>> _clients = [];
   final List<Map<String, dynamic>> _notes = [];
+
+  @override
+  Future<int> wipeForProvider(String providerId) async {
+    final gone = _clients
+        .where((c) => c['providerId'] == providerId)
+        .map((c) => c['id'])
+        .toSet();
+    _notes.removeWhere((n) => gone.contains(n['clientId']));
+    final before = _clients.length;
+    _clients.removeWhere((c) => c['providerId'] == providerId);
+    return before - _clients.length;
+  }
 
   static String _digits(String s) => s.replaceAll(RegExp(r'[^0-9]'), '');
 

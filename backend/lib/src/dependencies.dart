@@ -1,5 +1,7 @@
 import 'dart:io';
+
 import 'package:postgres/postgres.dart';
+
 import 'access/membership_repository.dart';
 import 'access/membership_service.dart';
 import 'access/salon_directory_service.dart';
@@ -22,6 +24,7 @@ import 'appointments/pro_appointment_service.dart';
 import 'appointments/slot_service.dart';
 import 'auth/auth_methods.dart';
 import 'auth/auth_repository.dart';
+import 'auth/demo_seam.dart';
 import 'auth/id_token_verifier.dart';
 import 'auth/login_throttle.dart';
 import 'auth/provider_auth_repository.dart';
@@ -42,6 +45,7 @@ import 'db/postgres_audit_log_repository.dart';
 import 'db/postgres_auth_repository.dart';
 import 'db/postgres_client_version_repository.dart';
 import 'db/postgres_clients_repository.dart';
+import 'db/postgres_demo_snapshot_repository.dart';
 import 'db/postgres_device_token_repository.dart';
 import 'db/postgres_disputes_repository.dart';
 import 'db/postgres_favorites_repository.dart';
@@ -59,6 +63,8 @@ import 'db/postgres_reminder_log_repository.dart';
 import 'db/postgres_reviews_repository.dart';
 import 'db/postgres_salon_subscription_repository.dart';
 import 'db/postgres_send_budget.dart';
+import 'demo/demo_reset_service.dart';
+import 'demo/demo_snapshot_repository.dart';
 import 'deposit_service.dart';
 import 'email/email_provider.dart';
 import 'email/resend_email_provider.dart';
@@ -210,6 +216,11 @@ final AuthMethods authMethods = AuthMethods.parse(_envOrNull('AUTH_METHODS'));
 /// The production OTP-disclosure seam (Q1b) — absent unless `SMOKE_OTP_SECRET`
 /// is set. See `auth/smoke_seam.dart` and docs/design/backend-q1b-smoke-seam.md.
 final SmokeSeam smokeSeam = SmokeSeam(_envOrNull('SMOKE_OTP_SECRET'));
+
+/// The store-review demo sign-in (T69) — absent unless `DEMO_PROVIDER_CODE`
+/// is set (and 6 digits). See `auth/demo_seam.dart` and
+/// docs/design/backend-demo-review-account.md.
+final DemoSeam demoSeam = DemoSeam(_envOrNull('DEMO_PROVIDER_CODE'));
 
 /// Google Sign-In ID-token verifier. `GOOGLE_CLIENT_IDS` = the OAuth client-ID
 /// allowlist (web + Android + iOS). Unconfigured → the verifier rejects every
@@ -596,6 +607,23 @@ final SalonSubscriptionService salonSubscriptionService =
       // markPaid can republish a billing-unpublished salon — a set change.
       rebuild: siteRebuildNotifier,
     );
+
+/// The demo salon's snapshot + weekly reset (T69,
+/// docs/design/backend-demo-review-account.md §6.2).
+final DemoSnapshotRepository demoSnapshotRepository = _pool == null
+    ? InMemoryDemoSnapshotRepository()
+    : PostgresDemoSnapshotRepository(_pool!);
+
+final DemoResetService demoResetService = DemoResetService(
+  providerAuthRepository,
+  providersRepository,
+  appointmentRepository,
+  clientsRepository,
+  salonSubscriptionRepository,
+  membershipRepository,
+  bookingService,
+  demoSnapshotRepository,
+);
 
 /// R6 — « Mes salons »: the multi-salon directory + « Ajouter un salon ».
 /// Asks the web host to rebuild when the set of publicly listable salons
@@ -1149,6 +1177,18 @@ Future<void> initializeDatabase() async {
       'WARNING: SMOKE_OTP_SECRET is set — the OTP disclosure seam is ACTIVE in '
       'production for *.test identities. Unset it once the cutover gate has '
       'run (docs/design/backend-q1b-smoke-seam.md).',
+    );
+  }
+  if (_isProd && demoSeam.isActive) {
+    // Same reasoning as the smoke seam above: a sign-in path quietly left
+    // enabled is the failure mode worth engineering against. Expected to stay
+    // on while the apps are under store review; unset between cycles if the
+    // demo account is abused.
+    // ignore: avoid_print — boot diagnostics go to the container log.
+    print(
+      'WARNING: DEMO_PROVIDER_CODE is set — the store-review demo sign-in is '
+      'ACTIVE in production for $kDemoProviderEmail '
+      '(docs/design/backend-demo-review-account.md).',
     );
   }
   assertProductionBootConfig(

@@ -4,6 +4,7 @@ import 'package:dart_frog/dart_frog.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:myweli_backend/src/access/membership_repository.dart';
 import 'package:myweli_backend/src/access/membership_service.dart';
+import 'package:myweli_backend/src/auth/demo_seam.dart';
 import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
 import 'package:myweli_backend/src/auth/tokens.dart';
 import 'package:myweli_backend/src/providers_repository.dart';
@@ -168,15 +169,17 @@ void main() {
     late _MockProviderAuth auth;
     late SalonProvisioningService service;
     late _RecordingNotifier rebuild;
+    late InMemoryMembershipRepository memberships;
 
     setUp(() async {
       providers = InMemoryProvidersRepository([]);
       auth = _MockProviderAuth();
       rebuild = _RecordingNotifier();
+      memberships = InMemoryMembershipRepository();
       service = SalonProvisioningService(
         providers,
         auth,
-        InMemoryMembershipRepository(),
+        memberships,
         rebuild: rebuild,
       );
     });
@@ -313,6 +316,33 @@ void main() {
       final account = _account('acc9');
       when(() => auth.linkProvider(any(), any())).thenAnswer((_) async {});
       await service.ensureSalon(account);
+      expect(rebuild.reasons, isEmpty);
+    });
+
+    test('THE DEMO ACCOUNT MAY NEVER PUBLISH — 403, and NO rebuild', () async {
+      // T69: the demo credential is printed in both stores' review notes —
+      // public — so its salon must never enter the public slug set, and must
+      // never fire the rebuild. Keyed on the owner-membership email against
+      // the compile-time constant.
+      final salon = await makeDraft();
+      final id = salon['id'] as String;
+      await complete(salon);
+      await memberships.ensureOwner(
+        providerId: id,
+        accountId: 'acc-demo',
+        email: kDemoProviderEmail,
+      );
+      when(
+        () => auth.accountById('acc-demo'),
+      ).thenAnswer((_) async => _account('acc-demo', providerId: id));
+
+      final res = await publish_route.onRequest(
+        ctx(post(id, token: tok('acc-demo', 'provider'))),
+        id,
+      );
+      expect(res.statusCode, HttpStatus.forbidden);
+      expect(((await res.json()) as Map)['error'], 'demo_account_locked');
+      expect((await providers.byId(id))!['status'], 'draft');
       expect(rebuild.reasons, isEmpty);
     });
 

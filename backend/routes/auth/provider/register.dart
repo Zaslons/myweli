@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:dart_frog/dart_frog.dart';
 import 'package:myweli_backend/src/auth/auth_methods.dart';
+import 'package:myweli_backend/src/auth/demo_seam.dart';
 import 'package:myweli_backend/src/auth/id_token_verifier.dart';
 import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
 import 'package:myweli_backend/src/localities/localities_service.dart';
@@ -127,6 +128,19 @@ Future<Response> onRequest(RequestContext context) async {
     if (!methods.contains('email')) {
       return jsonError(HttpStatus.notFound, 'auth_method_disabled');
     }
+    // The demo identity (T69): the same mint-and-consume dance as the verify
+    // route, used exactly once ever — the one-time provisioning of the demo
+    // salon THROUGH the real product (design §9). Seam absent → false, and
+    // the demo address registers like any other, i.e. fails on the code.
+    var emailCode = code;
+    if (context.read<DemoSeam>().allows(email: email, otp: code)) {
+      final minted = await repo.requestEmailOtp(email);
+      if (!minted.ok) {
+        return jsonError(HttpStatus.tooManyRequests, minted.error!);
+      }
+      await repo.refundEmailOtpResend(email);
+      emailCode = minted.code!;
+    }
     return providerSessionResponse(
       await _provisioned(
         context,
@@ -137,7 +151,7 @@ Future<Response> onRequest(RequestContext context) async {
           phoneNumber: phone,
           email: email,
           authProvider: 'email',
-          emailCode: code,
+          emailCode: emailCode,
           address: address,
           providerId: providerId,
         ),

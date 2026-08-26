@@ -1,3 +1,4 @@
+import '../auth/demo_seam.dart';
 import '../clients/provider_audit_log.dart';
 import '../email/email_provider.dart';
 import '../email/invitation_emails.dart';
@@ -81,6 +82,15 @@ class TeamService {
   }) async {
     if (!await _resolver.can(accountId, providerId, Cap.membersManage)) {
       return (ok: false, error: 'forbidden', data: null);
+    }
+    // The demo review account (T69): its credential is public, and an
+    // invitation is the one surface that emails an ARBITRARY third party
+    // from an authenticated session (« X vous invite comme Y ») — a public
+    // credential must not become a mail cannon. Keyed on the owner
+    // membership, same constant, same reasoning as the publish refusal.
+    final owners = await _members.listForProvider(providerId);
+    if (owners.any((m) => m.role == 'owner' && isDemoIdentity(m.email))) {
+      return (ok: false, error: 'demo_account_locked', data: null);
     }
     if (email is! String || !isValidEmail(email)) {
       return (ok: false, error: 'invalid_input', data: null);

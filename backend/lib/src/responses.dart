@@ -129,6 +129,11 @@ Response teamResponse(
   return switch (result.error) {
     'forbidden' => jsonError(HttpStatus.forbidden, 'forbidden'),
     'owner_protected' => jsonError(HttpStatus.forbidden, 'owner_protected'),
+    // T69: the demo review account may never email a third party.
+    'demo_account_locked' => jsonError(
+      HttpStatus.forbidden,
+      'demo_account_locked',
+    ),
     'not_found' => jsonError(HttpStatus.notFound, 'not_found'),
     'member_exists' => jsonError(HttpStatus.conflict, 'member_exists'),
     'offer_required' => jsonError(HttpStatus.conflict, 'offer_required'),

@@ -7,11 +7,13 @@ import 'package:myweli_backend/src/access/membership_repository.dart';
 import 'package:myweli_backend/src/access/membership_service.dart';
 import 'package:myweli_backend/src/access/team_service.dart';
 import 'package:myweli_backend/src/auth/auth_methods.dart';
+import 'package:myweli_backend/src/auth/demo_seam.dart';
 import 'package:myweli_backend/src/auth/id_token_verifier.dart';
 import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
 import 'package:myweli_backend/src/auth/tokens.dart';
 import 'package:myweli_backend/src/clients/provider_audit_log.dart';
 import 'package:myweli_backend/src/email/email_provider.dart';
+import 'package:myweli_backend/src/email/send_budget.dart';
 import 'package:myweli_backend/src/providers_repository.dart';
 import 'package:myweli_backend/src/salon_provisioning_service.dart';
 import 'package:myweli_backend/src/subscription/salon_subscription_repository.dart';
@@ -45,6 +47,23 @@ const IdTokenResult _googleClaims = (
 );
 
 const _phone = '+2250544556677';
+
+/// Records recipients, so a test can assert nothing was mailed.
+class _RecordingEmailProvider implements EmailProvider {
+  _RecordingEmailProvider(this.sent);
+  final List<String> sent;
+  @override
+  Future<EmailSendResult> send({
+    required String to,
+    required String subject,
+    required String text,
+    required EmailClass classification,
+    String? html,
+  }) async {
+    sent.add(to);
+    return (ok: true, providerMessageId: 'rec', error: null);
+  }
+}
 
 void main() {
   TokenService ts() => TokenService(secret: 'test-secret');
@@ -258,6 +277,7 @@ void main() {
       when(() => context.request).thenReturn(request);
       when(() => context.read<ProviderAuthRepository>()).thenReturn(repo);
       when(() => context.read<AuthMethods>()).thenReturn(methods);
+      when(() => context.read<DemoSeam>()).thenReturn(const DemoSeam(null));
       when(() => context.read<GoogleIdTokenVerifier>()).thenReturn(google);
       when(() => context.read<EmailProvider>()).thenReturn(email);
       when(() => context.read<SalonProvisioningService>()).thenReturn(
@@ -291,6 +311,14 @@ void main() {
       body: jsonEncode(body),
     );
 
+    /// The demo-armed context: identical to [ctx] except the seam holds the
+    /// fixed code — exactly what production looks like during a review cycle.
+    RequestContext demoCtx(Request request) {
+      final c = ctx(request);
+      when(() => c.read<DemoSeam>()).thenReturn(const DemoSeam('123456'));
+      return c;
+    }
+
     Future<Map<String, dynamic>> jsonOf(Response r) async =>
         await r.json() as Map<String, dynamic>;
 
@@ -301,6 +329,107 @@ void main() {
       if (email != null) 'email': email,
       if (code != null) 'code': code,
     };
+
+    group('the demo review sign-in (T69)', () {
+      test(
+        'request for the demo identity: 202, and NO mail attempted',
+        () async {
+          final sends = <String>[];
+          final recording = _RecordingEmailProvider(sends);
+          final c = demoCtx(
+            post('/auth/provider/email/otp/request', {
+              'email': 'revue@myweli.test',
+            }),
+          );
+          when(() => c.read<EmailProvider>()).thenReturn(recording);
+          final res = await pe_request.onRequest(c);
+          expect(res.statusCode, HttpStatus.accepted);
+          expect(sends, isEmpty, reason: '.test is structurally undeliverable');
+        },
+      );
+
+      test('the FIXED code signs in through the real path: fresh repo → the '
+          'LOGIN-ONLY 404, never otp_invalid', () async {
+        // The discriminating pair: a WRONG fixed code is otp_invalid, the
+        // RIGHT one reaches the account lookup — so 404 here proves the
+        // mint-and-consume verified a real record.
+        final r404 = await pe_verify.onRequest(
+          demoCtx(
+            post('/auth/provider/email/otp/verify', {
+              'email': 'revue@myweli.test',
+              'code': '123456',
+            }),
+          ),
+        );
+        expect(r404.statusCode, HttpStatus.notFound);
+        expect((await jsonOf(r404))['error'], 'provider_not_found');
+
+        final wrong = await pe_verify.onRequest(
+          demoCtx(
+            post('/auth/provider/email/otp/verify', {
+              'email': 'revue@myweli.test',
+              'code': '654321',
+            }),
+          ),
+        );
+        expect(wrong.statusCode, HttpStatus.badRequest);
+      });
+
+      test('register with the fixed code → 201 and a draft salon; a later '
+          'verify → 200 session', () async {
+        final reg = await p_register.onRequest(
+          demoCtx(
+            post(
+              '/auth/provider/register',
+              regBody(email: 'revue@myweli.test', code: '123456'),
+            ),
+          ),
+        );
+        expect(reg.statusCode, HttpStatus.created);
+
+        final login = await pe_verify.onRequest(
+          demoCtx(
+            post('/auth/provider/email/otp/verify', {
+              'email': 'revue@myweli.test',
+              'code': '123456',
+            }),
+          ),
+        );
+        expect(login.statusCode, HttpStatus.ok);
+        expect((await jsonOf(login))['accessToken'], isNotNull);
+      });
+
+      test('NON-INTERFERENCE: a real address with the demo code stays on the '
+          'normal path', () async {
+        final res = await pe_verify.onRequest(
+          demoCtx(
+            post('/auth/provider/email/otp/verify', {
+              'email': 'vraie@proprietaire.ci',
+              'code': '123456',
+            }),
+          ),
+        );
+        expect(res.statusCode, HttpStatus.badRequest);
+        expect((await jsonOf(res))['error'], isNot('provider_not_found'));
+      });
+
+      test(
+        'SEAM ABSENT: the demo identity behaves like any unknown address',
+        () async {
+          // ctx(), not demoCtx(): DemoSeam(null) — the off switch. Asserted,
+          // not assumed: the absence case is the one an operator relies on.
+          final res = await pe_verify.onRequest(
+            ctx(
+              post('/auth/provider/email/otp/verify', {
+                'email': 'revue@myweli.test',
+                'code': '123456',
+              }),
+            ),
+          );
+          expect(res.statusCode, HttpStatus.badRequest);
+        },
+      );
+    });
 
     test(
       'register with a Google identity → 201 FLAT session; duplicate → 409',
