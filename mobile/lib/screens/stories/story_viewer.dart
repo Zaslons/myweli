@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 
@@ -150,144 +151,151 @@ class _StoryViewerState extends State<StoryViewer>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: SafeArea(
-        child: Stack(
-          children: [
-            GestureDetector(
-              onTapDown: _onTapDown,
-              onLongPressStart: (_) => _pause(),
-              onLongPressEnd: (_) => _resume(),
-              child: PageView.builder(
-                controller: _pageController,
-                itemCount: widget.stories.length,
-                onPageChanged: _onPageChanged,
-                itemBuilder: (context, index) {
-                  final story = widget.stories[index];
-                  return Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      _buildStoryMedia(story),
-                      // subtle dark gradient for UI legibility
-                      const DecoratedBox(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              Color(0x99000000),
-                              Color(0x00000000),
-                              Color(0x99000000),
-                            ],
+    // Light status-bar icons: the app-wide default is dark icons on light
+    // surfaces (app_theme.dart), and this is one of the three full-bleed dark
+    // surfaces where that default would render time/battery invisible — the
+    // same defect the hidden status bar caused app-wide until 2026-08-27.
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.light,
+      child: Scaffold(
+        backgroundColor: Colors.black,
+        body: SafeArea(
+          child: Stack(
+            children: [
+              GestureDetector(
+                onTapDown: _onTapDown,
+                onLongPressStart: (_) => _pause(),
+                onLongPressEnd: (_) => _resume(),
+                child: PageView.builder(
+                  controller: _pageController,
+                  itemCount: widget.stories.length,
+                  onPageChanged: _onPageChanged,
+                  itemBuilder: (context, index) {
+                    final story = widget.stories[index];
+                    return Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        _buildStoryMedia(story),
+                        // subtle dark gradient for UI legibility
+                        const DecoratedBox(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                Color(0x99000000),
+                                Color(0x00000000),
+                                Color(0x99000000),
+                              ],
+                            ),
                           ),
                         ),
-                      ),
-                    ],
-                  );
-                },
+                      ],
+                    );
+                  },
+                ),
               ),
-            ),
-            // Progress bars
-            Positioned(
-              left: AppTheme.spacingM,
-              right: AppTheme.spacingM,
-              top: AppTheme.spacingS,
-              child: Row(
-                children: List.generate(widget.stories.length, (i) {
-                  final isPast = i < _index;
-                  final isCurrent = i == _index;
-                  return Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppTheme.spacingXS,
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(
-                          AppTheme.radiusPill,
+              // Progress bars
+              Positioned(
+                left: AppTheme.spacingM,
+                right: AppTheme.spacingM,
+                top: AppTheme.spacingS,
+                child: Row(
+                  children: List.generate(widget.stories.length, (i) {
+                    final isPast = i < _index;
+                    final isCurrent = i == _index;
+                    return Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppTheme.spacingXS,
                         ),
-                        child: Container(
-                          height: 3,
-                          color: Colors.white.withValues(alpha: 0.25),
-                          child: Align(
-                            alignment: Alignment.centerLeft,
-                            child: AnimatedBuilder(
-                              animation: _progress,
-                              builder: (context, _) {
-                                final v = isPast
-                                    ? 1.0
-                                    : isCurrent
-                                    ? _progress.value
-                                    : 0.0;
-                                return FractionallySizedBox(
-                                  widthFactor: v,
-                                  child: Container(color: Colors.white),
-                                );
-                              },
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(
+                            AppTheme.radiusPill,
+                          ),
+                          child: Container(
+                            height: 3,
+                            color: Colors.white.withValues(alpha: 0.25),
+                            child: Align(
+                              alignment: Alignment.centerLeft,
+                              child: AnimatedBuilder(
+                                animation: _progress,
+                                builder: (context, _) {
+                                  final v = isPast
+                                      ? 1.0
+                                      : isCurrent
+                                      ? _progress.value
+                                      : 0.0;
+                                  return FractionallySizedBox(
+                                    widthFactor: v,
+                                    child: Container(color: Colors.white),
+                                  );
+                                },
+                              ),
                             ),
                           ),
                         ),
                       ),
-                    ),
-                  );
-                }),
+                    );
+                  }),
+                ),
               ),
-            ),
-            // Header
-            Positioned(
-              left: AppTheme.spacingM,
-              right: AppTheme.spacingM,
-              top: 16,
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      widget.stories[_index].title,
-                      style: AppTextStyles.titleMedium.copyWith(
-                        color: Colors.white,
+              // Header
+              Positioned(
+                left: AppTheme.spacingM,
+                right: AppTheme.spacingM,
+                top: 16,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        widget.stories[_index].title,
+                        style: AppTextStyles.titleMedium.copyWith(
+                          color: Colors.white,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
                     ),
-                  ),
-                  IconButton(
-                    tooltip: 'Fermer',
-                    onPressed: () => Navigator.of(context).maybePop(),
-                    icon: const Icon(Icons.close, color: Colors.white),
-                  ),
-                ],
+                    IconButton(
+                      tooltip: 'Fermer',
+                      onPressed: () => Navigator.of(context).maybePop(),
+                      icon: const Icon(Icons.close, color: Colors.white),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            // CTA
-            Positioned(
-              left: AppTheme.spacingM,
-              right: AppTheme.spacingM,
-              bottom: AppTheme.spacingL,
-              child: Builder(
-                builder: (context) {
-                  final s = widget.stories[_index];
-                  if (s.ctaLabel == null || s.ctaRoute == null) {
-                    return const SizedBox.shrink();
-                  }
-                  return SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.secondary,
-                        foregroundColor: AppColors.primary,
+              // CTA
+              Positioned(
+                left: AppTheme.spacingM,
+                right: AppTheme.spacingM,
+                bottom: AppTheme.spacingL,
+                child: Builder(
+                  builder: (context) {
+                    final s = widget.stories[_index];
+                    if (s.ctaLabel == null || s.ctaRoute == null) {
+                      return const SizedBox.shrink();
+                    }
+                    return SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.secondary,
+                          foregroundColor: AppColors.primary,
+                        ),
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                          // Allow both absolute paths and query routes
+                          context.push(s.ctaRoute!);
+                        },
+                        child: Text(s.ctaLabel!),
                       ),
-                      onPressed: () {
-                        Navigator.of(context).pop();
-                        // Allow both absolute paths and query routes
-                        context.push(s.ctaRoute!);
-                      },
-                      child: Text(s.ctaLabel!),
-                    ),
-                  );
-                },
+                    );
+                  },
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

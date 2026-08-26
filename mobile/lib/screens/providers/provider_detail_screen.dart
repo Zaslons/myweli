@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -1258,58 +1259,74 @@ class _FullScreenPhotoGalleryState extends State<_FullScreenPhotoGallery> {
 
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
-    return Dialog(
-      backgroundColor: Colors.transparent,
-      insetPadding: EdgeInsets.zero,
-      child: Stack(
-        children: [
-          PageView.builder(
-            controller: _pageController,
-            itemCount: widget.imageUrls.length,
-            itemBuilder: (context, index) {
-              return GestureDetector(
-                onTap: widget.onClose,
-                child: InteractiveViewer(
-                  minScale: 0.5,
-                  maxScale: 4,
-                  child: Center(
-                    child: TimedCachedImage(
-                      imageUrl: widget.imageUrls[index],
-                      fit: BoxFit.cover,
-                      width: size.width,
-                      height: size.height,
+    // Light status-bar icons over the scrim — one of the three full-bleed
+    // dark surfaces where the app-wide dark-icons default would render
+    // time/battery invisible (see Info.plist, 2026-08-27).
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.light,
+      child: Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: EdgeInsets.zero,
+        child: Stack(
+          children: [
+            PageView.builder(
+              controller: _pageController,
+              itemCount: widget.imageUrls.length,
+              itemBuilder: (context, index) {
+                return GestureDetector(
+                  onTap: widget.onClose,
+                  child: InteractiveViewer(
+                    minScale: 0.5,
+                    maxScale: 4,
+                    child: Center(
+                      // `contain`, EXPLICITLY — the widget's own default is
+                      // `cover`, which at viewport size CROPS every photo whose
+                      // aspect differs from the screen's: the owner opened a
+                      // landscape shot on a portrait phone and saw a zoomed
+                      // slice. This was the sole `cover` among the app's six
+                      // lightboxes; review_tile.dart was already the model.
+                      // The width/height pair is gone with it — it was the
+                      // residue of the ContentWidthCap mis-size bug
+                      // (content_width_cap.dart), and `contain` inside a
+                      // full-screen Center needs no explicit size at any width.
+                      child: TimedCachedImage(
+                        imageUrl: widget.imageUrls[index],
+                        fit: BoxFit.contain,
+                        semanticLabel:
+                            'Photo du salon '
+                            '${index + 1} sur ${widget.imageUrls.length}',
+                      ),
                     ),
                   ),
-                ),
-              );
-            },
-          ),
-          Positioned(
-            top: MediaQuery.of(context).padding.top + 8,
-            right: 16,
-            child: IconButton(
-              tooltip: 'Fermer',
-              onPressed: widget.onClose,
-              icon: const Icon(
-                Icons.close,
-                color: Colors.white,
-                size: AppTheme.iconL,
-              ),
-              style: IconButton.styleFrom(backgroundColor: Colors.black54),
+                );
+              },
             ),
-          ),
-          if (widget.imageUrls.length > 1)
             Positioned(
-              left: 0,
-              right: 0,
-              bottom: MediaQuery.of(context).padding.bottom + 16,
-              child: PageViewIndicator(
-                pageController: _pageController,
-                itemCount: widget.imageUrls.length,
+              top: MediaQuery.of(context).padding.top + 8,
+              right: 16,
+              child: IconButton(
+                tooltip: 'Fermer',
+                onPressed: widget.onClose,
+                icon: const Icon(
+                  Icons.close,
+                  color: Colors.white,
+                  size: AppTheme.iconL,
+                ),
+                style: IconButton.styleFrom(backgroundColor: Colors.black54),
               ),
             ),
-        ],
+            if (widget.imageUrls.length > 1)
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: MediaQuery.of(context).padding.bottom + 16,
+                child: PageViewIndicator(
+                  pageController: _pageController,
+                  itemCount: widget.imageUrls.length,
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }

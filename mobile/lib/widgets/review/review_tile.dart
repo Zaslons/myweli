@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
@@ -21,26 +22,32 @@ class ReviewTile extends StatelessWidget {
   void _openPhoto(BuildContext context, String url) {
     showDialog<void>(
       context: context,
-      builder: (_) => Dialog(
-        backgroundColor: Colors.black,
-        insetPadding: const EdgeInsets.all(AppTheme.spacingM),
-        child: Stack(
-          children: [
-            InteractiveViewer(
-              child: Center(
-                child: TimedCachedImage(imageUrl: url, fit: BoxFit.contain),
+      // Light status-bar icons over the black scrim — one of the three
+      // full-bleed dark surfaces where the app-wide dark-icons default would
+      // render time/battery invisible (see Info.plist, 2026-08-27).
+      builder: (_) => AnnotatedRegion<SystemUiOverlayStyle>(
+        value: SystemUiOverlayStyle.light,
+        child: Dialog(
+          backgroundColor: Colors.black,
+          insetPadding: const EdgeInsets.all(AppTheme.spacingM),
+          child: Stack(
+            children: [
+              InteractiveViewer(
+                child: Center(
+                  child: TimedCachedImage(imageUrl: url, fit: BoxFit.contain),
+                ),
               ),
-            ),
-            Positioned(
-              top: 4,
-              right: 4,
-              child: IconButton(
-                tooltip: 'Fermer',
-                icon: const Icon(Icons.close, color: Colors.white),
-                onPressed: () => Navigator.of(context).pop(),
+              Positioned(
+                top: 4,
+                right: 4,
+                child: IconButton(
+                  tooltip: 'Fermer',
+                  icon: const Icon(Icons.close, color: Colors.white),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
