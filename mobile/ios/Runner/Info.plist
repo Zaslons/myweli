@@ -92,8 +92,13 @@
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
 	<string>Main</string>
+	<!-- FALSE, deliberately, since 2026-08-27. `true` arrived in the branding
+	     P4 native-splash rewrite (144ef89) with no stated rationale — splash
+	     collateral never scoped back — and hid the time/battery/network in
+	     BOTH apps until the owner noticed during the demo-salon curation.
+	     `mobile/test/infra/ios_status_bar_test.dart` pins both keys. -->
 	<key>UIStatusBarHidden</key>
-	<true/>
+	<false/>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
@@ -107,8 +112,12 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<!-- TRUE so Flutter's SystemUiOverlayStyle / AnnotatedRegion actually
+	     control icon brightness per screen — with `false` the plist is the
+	     sole authority and the dark-surface screens (story viewer, photo
+	     lightboxes) could never request light icons. -->
 	<key>UIViewControllerBasedStatusBarAppearance</key>
-	<false/>
+	<true/>
 	<!-- Export compliance. MyWeli uses only HTTPS/TLS provided by the OS and
 	     Apple's own crypto for the Sign in with Apple nonce — no proprietary or
 	     non-standard encryption. Declaring it here means every upload stops
