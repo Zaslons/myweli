@@ -308,29 +308,32 @@ void main() {
         );
       });
 
-      test('it covers ONLY the not-enrolled branch, never the SHA mismatch',
-          () {
-        // The escape must sit inside `if (!play.enrolled)` and before the
-        // `else if` that catches an enrolled app whose google-services.json
-        // was never re-downloaded. That second failure is a config that
-        // LOOKS finished and is not — bypassing it would ship the silent
-        // sign-in failure to real testers, which is the thing this whole
-        // gate exists to prevent.
-        final escape = mjs.indexOf('BOOTSTRAP_PLAY_ENROLMENT');
-        final enrolledBranch = mjs.indexOf('if (!play.enrolled)');
-        final shaBranch = mjs.indexOf('registered.includes(play.sha1)');
-        expect(escape, greaterThan(enrolledBranch));
-        expect(escape, lessThan(shaBranch));
-        // The DOOR is the env read; the refusal MESSAGE also names the flag
-        // (that is how an operator learns it exists) — so the count is on
-        // `process.env.` reads, not on the string.
-        expect(
-          'process.env.BOOTSTRAP_PLAY_ENROLMENT'.allMatches(mjs),
-          hasLength(1),
-          reason: 'one escape, one branch — a second env read would be a '
-              'second door',
-        );
-      });
+      test(
+        'it covers ONLY the not-enrolled branch, never the SHA mismatch',
+        () {
+          // The escape must sit inside `if (!play.enrolled)` and before the
+          // `else if` that catches an enrolled app whose google-services.json
+          // was never re-downloaded. That second failure is a config that
+          // LOOKS finished and is not — bypassing it would ship the silent
+          // sign-in failure to real testers, which is the thing this whole
+          // gate exists to prevent.
+          final escape = mjs.indexOf('BOOTSTRAP_PLAY_ENROLMENT');
+          final enrolledBranch = mjs.indexOf('if (!play.enrolled)');
+          final shaBranch = mjs.indexOf('registered.includes(play.sha1)');
+          expect(escape, greaterThan(enrolledBranch));
+          expect(escape, lessThan(shaBranch));
+          // The DOOR is the env read; the refusal MESSAGE also names the flag
+          // (that is how an operator learns it exists) — so the count is on
+          // `process.env.` reads, not on the string.
+          expect(
+            'process.env.BOOTSTRAP_PLAY_ENROLMENT'.allMatches(mjs),
+            hasLength(1),
+            reason:
+                'one escape, one branch — a second env read would be a '
+                'second door',
+          );
+        },
+      );
     });
   });
 
