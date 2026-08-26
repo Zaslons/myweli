@@ -83,8 +83,9 @@ coordinates** — the PATCH allowlist had no latitude/longitude, so no real
 salon would appear on the discovery map, and its page's Localisation section
 would stay address-only forever. The audit also found: the pro APP has no
 profile editing at all (web-only, 7.3e-i), the category is frozen at
-registration, and `logoUrl` is displayed (app) but never settable (minor,
-parked).
+registration, and `logoUrl` is displayed (app) but never settable (resolved
+2026-08-26 — [salon-logo.md](salon-logo.md): dedicated `logo` purpose,
+promotion-guarded PATCH branch, editors on both platforms).
 
 - **L1 (built — backend + web)**: `latitude`/`longitude` join the PATCH
   allowlist (validated: a PAIR, −90..90 / −180..180) and **`category`**

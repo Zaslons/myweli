@@ -213,7 +213,12 @@ class MockProService implements ProServiceInterface {
           role: roleById[id] ?? TeamRole.staff,
           salonStatus: MockData.draftSalonIds.contains(id) ? 'draft' : 'active',
           verified: salon.verified,
-          imageUrl: salon.imageUrls.isNotEmpty ? salon.imageUrls.first : null,
+          // The server prefers the logo over the first gallery photo
+          // (salon_directory_service._thumbOf) — mirror it, or the picker
+          // renders differently in demo mode than in production.
+          imageUrl:
+              salon.logoUrl ??
+              (salon.imageUrls.isNotEmpty ? salon.imageUrls.first : null),
         ),
       );
     }

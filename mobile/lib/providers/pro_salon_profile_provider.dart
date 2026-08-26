@@ -60,6 +60,40 @@ class ProSalonProfileProvider extends ChangeNotifier implements SalonScoped {
     return res.success;
   }
 
+  bool _isUploadingLogo = false;
+  bool get isUploadingLogo => _isUploadingLogo;
+  String? _logoError;
+  String? get logoError => _logoError;
+
+  /// Upload [sourcePath] and save it as the salon's logo — immediately, the
+  /// avatar pattern: the PATCH carries ONLY `logoUrl`, so it cannot fight
+  /// the rest of the form, which stays staged until « Enregistrer ».
+  /// Design: docs/design/salon-logo.md §2.
+  Future<bool> uploadLogo(String providerId, String sourcePath) async {
+    _isUploadingLogo = true;
+    _logoError = null;
+    notifyListeners();
+    final up = await serviceLocator.logoImageUploadService.uploadImage(
+      source: sourcePath,
+    );
+    if (!up.success || up.data == null) {
+      _isUploadingLogo = false;
+      _logoError = 'Échec de l’envoi. Réessayez.';
+      notifyListeners();
+      return false;
+    }
+    final ok = await save(providerId, {'logoUrl': up.data});
+    _isUploadingLogo = false;
+    if (!ok) _logoError = 'Échec de l’envoi. Réessayez.';
+    notifyListeners();
+    return ok;
+  }
+
+  /// Clears the logo — the empty string is the contract's delete
+  /// (salon-logo.md §3, the `/me` `phone` semantics).
+  Future<bool> removeLogo(String providerId) =>
+      save(providerId, {'logoUrl': ''});
+
   /// R6 multi-salons: drop the previous salon's data on a switch.
   @override
   void resetForSalonSwitch() {

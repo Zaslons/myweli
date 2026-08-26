@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { Card } from '../Card';
 import { ErrorState } from '../ErrorState';
 import { useRouter } from 'next/navigation';
-import { type ReactNode, useEffect, useState } from 'react';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
 import type { ProProfile } from '../../lib/api/pro';
 import { getMyProvider, updateProviderProfile } from '../../lib/api/pro';
 import {
@@ -18,6 +18,7 @@ import dynamic from 'next/dynamic';
 import { findCity } from '../../lib/localities';
 import { centerOf } from '../../lib/discovery/map';
 import { hasCap } from '../../lib/pro/team';
+import { uploadLogoImage } from '../../lib/pro/upload';
 import { useLocalities } from '../../lib/use-localities';
 import { Button } from '../Button';
 import { Loading } from '../Loading';
@@ -60,6 +61,11 @@ export function ProfilClient() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  // The logo uploader (salon-logo.md §5) — upload now, persist via
+  // « Enregistrer » with the rest of the staged form.
+  const logoRef = useRef<HTMLInputElement>(null);
+  const [logoUploading, setLogoUploading] = useState(false);
+  const [logoError, setLogoError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -145,6 +151,64 @@ export function ProfilClient() {
       <h1 className="text-headlineSmall font-semibold text-textPrimary">Profil</h1>
 
       <Card as="section" className="mt-l space-y-s">
+        {/* Logo du salon (salon-logo.md §5) — first, like the app's editor. */}
+        <div className="flex items-center gap-m">
+          {form.logoUrl ? (
+            <span className="relative">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={form.logoUrl}
+                alt="Logo du salon"
+                className="h-14 w-14 rounded-pill object-cover"
+              />
+              {/* §13.2: the 48px TARGET is the button; the visible pill is the
+                  inner span, unmoved at the thumbnail's corner. */}
+              <button
+                type="button"
+                aria-label="Supprimer le logo"
+                onClick={() => {
+                  set('logoUrl', null);
+                  setLogoError(null);
+                }}
+                className="absolute -right-s -top-s flex h-12 w-12 items-center justify-center"
+              >
+                <span className="rounded-pill bg-primary px-xs text-iconXS text-secondary">
+                  ✕
+                </span>
+              </button>
+            </span>
+          ) : null}
+          <input
+            ref={logoRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            className="hidden"
+            aria-label="Logo du salon"
+            onChange={async (e) => {
+              const file = e.target.files?.[0];
+              e.target.value = '';
+              if (!file) return;
+              setLogoUploading(true);
+              setLogoError(null);
+              const url = await uploadLogoImage(file);
+              setLogoUploading(false);
+              if (!url) return setLogoError('Échec de l’envoi du logo.');
+              set('logoUrl', url);
+            }}
+          />
+          <Button
+            variant="secondary"
+            isLoading={logoUploading}
+            onClick={() => logoRef.current?.click()}
+          >
+            {form.logoUrl ? 'Changer le logo' : 'Ajouter un logo'}
+          </Button>
+        </div>
+        {logoError ? (
+          <p role="alert" className="text-bodyMedium text-error">
+            {logoError}
+          </p>
+        ) : null}
         <Field label="Nom du salon">
           <input
             className={input}

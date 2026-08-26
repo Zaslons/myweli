@@ -389,6 +389,8 @@ spec:
               value: "10"
             - name: LIMIT_SIGN_AVATAR
               value: "10"
+            - name: LIMIT_SIGN_LOGO
+              value: "10"
             # R2 — the whole set together or `storageService` throws. Real
             # staging buckets rather than STORAGE_PROVIDER=disabled: uploads are
             # the riskiest surface here (presigned PUTs, private KYC and deposit

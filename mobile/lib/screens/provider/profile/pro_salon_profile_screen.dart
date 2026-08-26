@@ -4,6 +4,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/config/app_config.dart';
 import '../../../core/forms/field_errors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
@@ -18,6 +19,9 @@ import '../../../widgets/common/app_text_field.dart';
 import '../../../widgets/common/commune_picker_sheet.dart';
 import '../../../widgets/common/empty_state.dart';
 import '../../../widgets/common/loading_indicator.dart';
+import '../../../widgets/common/timed_cached_image.dart';
+import '../../../widgets/provider/image_picker_sheet.dart';
+import '../../../widgets/provider/mock_image_picker_sheet.dart';
 
 /// The listing categories a salon can choose (the canonical taxonomy —
 /// mirrors the server's PATCH validation, pro-salon-lifecycle L1/L2).
@@ -228,6 +232,16 @@ class _ProSalonProfileScreenState extends State<ProSalonProfileScreen> {
     }
   }
 
+  Future<void> _pickLogo(ProSalonProfileProvider profile) async {
+    // The picker MUST branch on the backend flag — its absence was the
+    // avatar slice's defect B (consumer-avatar-upload.md).
+    final source = AppConfig.useApiBackend
+        ? await showImagePicker(context)
+        : await showMockImagePicker(context);
+    if (source == null || _providerId == null) return;
+    await profile.uploadLogo(_providerId!, source);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -260,6 +274,20 @@ class _ProSalonProfileScreenState extends State<ProSalonProfileScreen> {
           return ListView(
             padding: const EdgeInsets.all(AppTheme.spacingM),
             children: [
+              // The salon's brand mark — settable at last (salon-logo.md).
+              // Uploads and saves IMMEDIATELY (the avatar pattern): the
+              // PATCH carries only `logoUrl`, so it cannot fight the staged
+              // form below.
+              _LogoField(
+                logoUrl: p.logoUrl,
+                isUploading: profile.isUploadingLogo,
+                error: profile.logoError,
+                onPick: () => _pickLogo(profile),
+                onRemove: p.logoUrl == null
+                    ? null
+                    : () => profile.removeLogo(_providerId!),
+              ),
+              const SizedBox(height: AppTheme.spacingM),
               AppTextField(
                 label: 'Nom du salon',
                 controller: _name,
@@ -483,6 +511,102 @@ class _LocationField extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// The circular logo editor at the top of the profile form.
+///
+/// 88 dp (radius 44) — comfortably over the 48 dp floor — showing the logo,
+/// a store glyph when unset, a progress ring while uploading, and a camera
+/// badge naming the action. Errors render inline under the field, never as a
+/// toast (SYSTEM.md forms rule).
+class _LogoField extends StatelessWidget {
+  final String? logoUrl;
+  final bool isUploading;
+  final String? error;
+  final VoidCallback onPick;
+  final VoidCallback? onRemove;
+
+  const _LogoField({
+    required this.logoUrl,
+    required this.isUploading,
+    required this.error,
+    required this.onPick,
+    required this.onRemove,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final label = logoUrl == null ? 'Ajouter un logo' : 'Changer le logo';
+    return Column(
+      children: [
+        Semantics(
+          button: true,
+          label: label,
+          child: InkWell(
+            onTap: isUploading ? null : onPick,
+            customBorder: const CircleBorder(),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                CircleAvatar(
+                  radius: 44,
+                  backgroundColor: AppColors.secondary,
+                  child: logoUrl == null
+                      ? const Icon(
+                          Icons.store_outlined,
+                          size: AppTheme.iconL,
+                          color: AppColors.textTertiary,
+                        )
+                      : ClipOval(
+                          child: TimedCachedImage(
+                            imageUrl: logoUrl!,
+                            width: 88,
+                            height: 88,
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                ),
+                if (isUploading)
+                  const SizedBox(
+                    width: 88,
+                    height: 88,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                const Positioned(
+                  right: 0,
+                  bottom: 0,
+                  child: CircleAvatar(
+                    radius: 14,
+                    backgroundColor: AppColors.primary,
+                    child: Icon(
+                      Icons.photo_camera_outlined,
+                      size: AppTheme.iconXS,
+                      color: AppColors.surface,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: AppTheme.spacingXS),
+        Text(label, style: AppTextStyles.bodySmall),
+        if (onRemove != null)
+          TextButton(
+            onPressed: isUploading ? null : onRemove,
+            child: const Text('Supprimer le logo'),
+          ),
+        if (error != null)
+          Padding(
+            padding: const EdgeInsets.only(top: AppTheme.spacingXS),
+            child: Text(
+              error!,
+              style: AppTextStyles.bodySmall.copyWith(color: AppColors.error),
+            ),
+          ),
+      ],
     );
   }
 }

@@ -324,6 +324,9 @@ IdentityLimits get identityLimits => (
   signAvatar:
       int.tryParse(_envOrNull('LIMIT_SIGN_AVATAR') ?? '') ??
       kDefaultIdentityLimits.signAvatar,
+  signLogo:
+      int.tryParse(_envOrNull('LIMIT_SIGN_LOGO') ?? '') ??
+      kDefaultIdentityLimits.signLogo,
 );
 
 /// **Wrapped, so nothing can route around it.** Every present and future send

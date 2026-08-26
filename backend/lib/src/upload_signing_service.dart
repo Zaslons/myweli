@@ -25,6 +25,11 @@ typedef SignResult = ({bool ok, String? error, Map<String, dynamic>? data});
 ///   linked salon), returns a `publicUrl`.
 /// - `kyc` → **private** bucket, prefix `kyc/{accountId}`, returns the `key`
 ///   only (no public URL — ID documents are never public); accepts PDF too.
+/// - `logo` → **public** bucket, prefix `logo/{providerId}` — the salon's
+///   brand mark (docs/design/salon-logo.md). Gated on `profile.manage`, NOT
+///   `catalogue.manage`, deliberately: the claim (`PATCH /providers/{id}`)
+///   is profile-gated, and a purpose whose sign gate is wider than its claim
+///   gate is a guaranteed-orphan generator.
 ///
 /// CONSUMER token:
 /// - `deposit` → **private** bucket, prefix `deposit/{userId}`, key only.
@@ -91,7 +96,16 @@ class UploadSigningService {
     final isReview = purpose == 'review';
     // Consumer profile photo — same shape as a review photo, its OWN prefix.
     final isAvatar = purpose == 'avatar';
-    if (!isGallery && !isKyc && !isDeposit && !isReview && !isAvatar) {
+    // The salon's brand mark — its OWN prefix for the same §3 reason the
+    // avatar has one: the purpose IS the namespace, and a logo filed under
+    // gallery/ would look like a portfolio photo to every future sweep.
+    final isLogo = purpose == 'logo';
+    if (!isGallery &&
+        !isKyc &&
+        !isDeposit &&
+        !isReview &&
+        !isAvatar &&
+        !isLogo) {
       return (ok: false, error: 'invalid_input', data: null);
     }
     // KYC accepts PDF; gallery + deposit (screenshots) are images only.
@@ -143,14 +157,16 @@ class UploadSigningService {
       bucket = StorageBucket.kyc;
     } else {
       // Module `access` R1: gallery uploads need catalogue.manage inside
-      // the caller's acting salon; R6: `?salonId=` selects among ACTIVE
-      // memberships (T55).
+      // the caller's acting salon; the logo needs profile.manage (its claim
+      // surface's gate — salon-logo.md §6). R6: `?salonId=` selects among
+      // ACTIVE memberships (T55).
       final providerId = await _members.salonForRequest(
         accountId,
         salonId: salonId,
       );
+      final cap = isLogo ? Cap.profileManage : Cap.catalogueManage;
       if (providerId == null ||
-          !await _members.can(accountId, providerId, Cap.catalogueManage)) {
+          !await _members.can(accountId, providerId, cap)) {
         return (ok: false, error: 'forbidden', data: null);
       }
       prefixId = providerId;

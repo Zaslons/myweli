@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:dart_frog/dart_frog.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:myweli_backend/src/access/capabilities.dart';
 import 'package:myweli_backend/src/access/membership_repository.dart';
 import 'package:myweli_backend/src/access/membership_service.dart';
 import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
@@ -14,6 +15,25 @@ import 'package:test/test.dart';
 import '../routes/uploads/sign.dart' as sign_route;
 
 class _MockRequestContext extends Mock implements RequestContext {}
+
+/// A membership world where catalogue.manage and profile.manage SEPARATE.
+/// The preset matrix couples them today (manager holds both, reception
+/// neither), so no role fixture can observe WHICH capability the sign gate
+/// asks for — and V3 sparse grants are exactly the future where they differ.
+class _CatalogueOnlyMembers extends MembershipService {
+  _CatalogueOnlyMembers(super.members, super.providerAuth);
+
+  @override
+  Future<String?> salonForRequest(String accountId, {String? salonId}) async =>
+      salonId;
+
+  @override
+  Future<bool> can(
+    String accountId,
+    String providerId,
+    String capability,
+  ) async => capability == Cap.catalogueManage;
+}
 
 void main() {
   group('StorageService', () {
@@ -208,6 +228,99 @@ void main() {
       // and any lifecycle rule key on this prefix, so a profile photo filed
       // under `review/` would be swept by the wrong broom in both directions.
       expect(data['key'], isNot(contains('review/')));
+    });
+
+    test('logo purpose: public, its OWN prefix, scoped to the SALON', () async {
+      await memberships.ensureOwner(
+        providerId: 'provider1',
+        accountId: accountId,
+        email: 'reg12@test.pro',
+      );
+      final r = await service.sign(
+        accountId,
+        contentType: 'image/png',
+        purpose: 'logo',
+      );
+      expect(r.ok, isTrue, reason: r.error ?? '');
+      final data = r.data!;
+      expect(data['key'], startsWith('pending/logo/provider1/'));
+      expect(data['publicUrl'], contains('logo/provider1/'));
+      // Its own namespace, not the gallery's: a logo filed under gallery/
+      // would look like a portfolio photo to every future gallery sweep
+      // (salon-logo.md §5, the avatar's §3 argument verbatim).
+      expect(data['key'], isNot(contains('gallery/')));
+    });
+
+    test(
+      'logo: a member WITHOUT profile.manage is refused at sign time',
+      () async {
+        // Reception holds neither profile.manage nor catalogue.manage — but
+        // the point of gating on profile.manage specifically is the CLAIM
+        // surface's gate: a sign gate wider than the claim gate would let a
+        // member sign uploads they can never save (salon-logo.md §6).
+        await memberships.ensureOwner(
+          providerId: 'provider1',
+          accountId: accountId,
+          email: 'reg12@test.pro',
+        );
+        final reg2 = await providerAuth.register(
+          email: 'reception@test.pro',
+          authProvider: 'google',
+          googleSub: 'reg-sub-13',
+          phoneNumber: '+2250500000061',
+          businessName: 'X',
+          businessType: 'salon',
+          providerId: 'provider1x',
+        );
+        final receptionId = reg2.provider!.id;
+        final inv = await memberships.invite(
+          providerId: 'provider1',
+          email: 'reception@test.pro',
+          role: 'reception',
+          expiresAt: DateTime.now().toUtc().add(const Duration(days: 1)),
+        );
+        await memberships.activate(inv.id, receptionId);
+
+        final r = await service.sign(
+          receptionId,
+          contentType: 'image/jpeg',
+          purpose: 'logo',
+          salonId: 'provider1',
+        );
+        expect(r.ok, isFalse);
+        expect(r.error, 'forbidden');
+      },
+    );
+
+    test('logo: catalogue.manage alone is NOT enough — the gate asks for the '
+        "claim surface's own cap", () async {
+      // salon-logo.md §6 decision 2: the PATCH that claims a logo requires
+      // profile.manage, so a sign gate satisfied by catalogue.manage would
+      // let a catalogue-only member sign uploads it can never save — an
+      // orphan generator. The role presets cannot test this (no role holds
+      // catalogue.manage without profile.manage), hence the stub.
+      final catalogueOnly = UploadSigningService(
+        providerAuth,
+        _CatalogueOnlyMembers(memberships, providerAuth),
+        FakeStorageService(),
+      );
+      // Control: the same member CAN sign a gallery upload…
+      final gallery = await catalogueOnly.sign(
+        accountId,
+        contentType: 'image/jpeg',
+        purpose: 'gallery',
+        salonId: 'provider1',
+      );
+      expect(gallery.ok, isTrue, reason: gallery.error ?? '');
+      // …and is refused a logo.
+      final r = await catalogueOnly.sign(
+        accountId,
+        contentType: 'image/jpeg',
+        purpose: 'logo',
+        salonId: 'provider1',
+      );
+      expect(r.ok, isFalse);
+      expect(r.error, 'forbidden');
     });
 
     test('R6: a selected salon scopes the gallery key; a forged one is '

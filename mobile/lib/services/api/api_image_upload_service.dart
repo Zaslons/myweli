@@ -62,7 +62,10 @@ class ApiImageUploadService implements ImageUploadServiceInterface {
   /// account/user-scoped.
   Future<Uri> _signUri() async {
     final base = Uri.parse('$_baseUrl/uploads/sign');
-    if (_purpose != 'gallery') return base;
+    // Gallery AND logo are salon-scoped (R6): both keys carry the salon id,
+    // so both signs must name the salon the pro is acting in — without this
+    // a multi-salon owner's logo would land on their DEFAULT salon.
+    if (_purpose != 'gallery' && _purpose != 'logo') return base;
     final raw = await _sessionStore.read();
     if (raw == null) return base;
     try {

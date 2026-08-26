@@ -19,6 +19,16 @@ describe('provider JSON-LD', () => {
     expect(ld.geo).toMatchObject({ latitude: 5.35, longitude: -3.99 });
   });
 
+  it('LocalBusiness.logo appears only when the salon has one', () => {
+    // salon-logo.md §5 — the SEO half of the logo render set.
+    const branded = localBusinessJsonLd(
+      { ...providerFixture, logoUrl: 'https://cdn.example/logo.jpg' },
+      'https://myweli.ci/beaute-divine',
+    );
+    expect(branded.logo).toBe('https://cdn.example/logo.jpg');
+    expect('logo' in ld).toBe(false);
+  });
+
   it('includes aggregateRating, reviews and offers', () => {
     expect(ld.aggregateRating).toMatchObject({ ratingValue: 4.8, reviewCount: 12 });
     expect(ld.review).toHaveLength(1);

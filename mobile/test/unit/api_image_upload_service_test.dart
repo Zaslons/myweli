@@ -53,7 +53,68 @@ ApiImageUploadService _avatarService(MockClient client) {
   );
 }
 
+/// The salon LOGO instance: provider session + `purpose: 'logo'` — and,
+/// unlike the avatar, SALON-SCOPED: the sign must carry `?salonId=` when the
+/// pro has switched salons, or a multi-salon owner's logo lands on their
+/// default salon (salon-logo.md; the R6 arm in `_signUri`).
+ApiImageUploadService _logoService(MockClient client) {
+  final store = InMemorySessionStore();
+  store.save(
+    jsonEncode({
+      'token': 'tok',
+      'refreshToken': 'r1',
+      'provider': {'id': 'p1'},
+      'selectedSalonId': 'provider2',
+    }),
+  );
+  return ApiImageUploadService(
+    client: client,
+    baseUrl: 'http://x',
+    sessionStore: store,
+    purpose: 'logo',
+    compressor: (_) async => Uint8List.fromList([1, 2, 3, 4]),
+  );
+}
+
 void main() {
+  group('the salon logo instance', () {
+    test('signs purpose=logo WITH the selected salonId', () async {
+      Uri? signUri;
+      Map<String, dynamic>? signBody;
+      final client = MockClient((req) async {
+        if (req.url.path == '/uploads/sign') {
+          signUri = req.url;
+          signBody = jsonDecode(req.body) as Map<String, dynamic>;
+          return http.Response(
+            jsonEncode({
+              'method': 'PUT',
+              'uploadUrl': 'http://storage.local/bucket',
+              'headers': {'content-type': 'image/jpeg'},
+              'publicUrl': 'https://cdn/pending/logo/provider2/abc.jpg',
+              'maxBytes': 5242880,
+              'expiresInSeconds': 300,
+            }),
+            200,
+          );
+        }
+        return http.Response('', 200);
+      });
+
+      final res = await _logoService(
+        client,
+      ).uploadImage(source: '/tmp/logo.png');
+      expect(res.success, isTrue);
+      expect(signBody!['purpose'], 'logo');
+      expect(
+        signUri!.queryParameters['salonId'],
+        'provider2',
+        reason:
+            'the logo is salon-scoped under R6 — without the arm in _signUri '
+            'a switched-to salon would get its logo on the default one',
+      );
+    });
+  });
+
   group('the consumer avatar instance', () {
     test('signs purpose=avatar with the CONSUMER token, no salonId', () async {
       // Every part of this failed before: AuthProvider resolved the PRO

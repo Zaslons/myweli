@@ -171,6 +171,12 @@ void main() {
       reason: 'the name field is prefilled from the loaded listing',
     );
 
+    // The logo field heads the form (salon-logo.md §2) — « Ajouter un logo »
+    // for a salon without one; the affordance existing at all is the point,
+    // logoUrl having been displayed-but-never-settable since the audit
+    // parked it.
+    expect(find.text('Ajouter un logo'), findsOneWidget);
+
     // Clear it and submit. Rule 5 keeps « Enregistrer » live, so the press
     // MUST answer rather than silently do nothing.
     await tester.enterText(nameField(), '');

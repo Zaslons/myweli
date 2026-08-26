@@ -434,6 +434,20 @@ void main() {
       expect(signLimitFor('gallery', l), l.signGallery);
       expect(signLimitFor('kyc', l), l.signKyc);
       expect(signLimitFor('avatar', l), l.signAvatar);
+      // Against a fixture where the two DIFFER — the defaults are both 10,
+      // so asserting on them cannot tell the explicit 'logo' arm from the
+      // default arm's silent fall-through to signAvatar.
+      final distinct = (
+        booking: l.booking,
+        reviewSubmit: l.reviewSubmit,
+        signGallery: l.signGallery,
+        signReview: l.signReview,
+        signKyc: l.signKyc,
+        signDeposit: l.signDeposit,
+        signAvatar: l.signAvatar,
+        signLogo: l.signLogo + 1,
+      );
+      expect(signLimitFor('logo', distinct), distinct.signLogo);
     });
 
     test('signReview clears reviewSubmit x maxPhotos — the composition', () {

@@ -11,6 +11,7 @@ import 'package:myweli/services/mock/mock_device_registration_service.dart';
 import 'package:myweli/services/mock/mock_pro_service.dart';
 import 'package:myweli/services/mock/mock_push_notification_service.dart';
 import 'package:myweli/services/mock/mock_subscription_service.dart';
+import 'package:myweli/widgets/common/timed_cached_image.dart';
 import 'package:myweli/widgets/provider/salon_picker_sheet.dart';
 import 'package:provider/provider.dart';
 
@@ -93,6 +94,21 @@ void main() {
     expect(find.text('Mes salons'), findsOneWidget);
     expect(find.text('Salon Excellence'), findsOneWidget);
     expect(find.text('Beauté Divine'), findsOneWidget);
+
+    // The rows render the salon's MARK when the wire carries one — the
+    // `imageUrl` field was parsed and thrown away here since R6, an initial
+    // rendering while the data sat in the model (salon-logo.md §"render").
+    // Mock salons derive imageUrl from logoUrl ?? first gallery photo, the
+    // server's own preference, so at least one row must show an image and
+    // any row without one keeps its initial.
+    expect(
+      find.descendant(
+        of: find.byType(ListTile),
+        matching: find.byType(TimedCachedImage),
+      ),
+      findsWidgets,
+      reason: 'a salon with a photo renders it, not its initial',
+    );
     expect(find.text('Propriétaire'), findsNWidgets(2));
     expect(find.byIcon(Icons.check), findsOneWidget);
     // No live Réseau offer → no add row.

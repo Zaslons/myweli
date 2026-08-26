@@ -19,6 +19,7 @@ typedef IdentityLimits = ({
   int signKyc,
   int signDeposit,
   int signAvatar,
+  int signLogo,
 });
 
 /// **These are guesses, and saying so is the point.** Production holds 0
@@ -56,6 +57,9 @@ const IdentityLimits kDefaultIdentityLimits = (
   signKyc: 10,
   signDeposit: 10,
   signAvatar: 10,
+  // One logo, room to retry — the avatar's sizing logic. A salon changes its
+  // brand mark rarely; ten an hour is generous headroom, not a workflow.
+  signLogo: 10,
 );
 
 /// One hour, for every surface in v1.
@@ -173,5 +177,10 @@ int signLimitFor(String purpose, IdentityLimits limits) => switch (purpose) {
   'review' => limits.signReview,
   'kyc' => limits.signKyc,
   'deposit' => limits.signDeposit,
+  // Explicit, though the default arm would return the same NUMBER today: a
+  // new purpose silently inheriting the avatar ceiling is the trap this
+  // switch's shape invites, and the wiring test pins signLogo != signAvatar
+  // in its fixture precisely so this arm cannot be deleted unnoticed.
+  'logo' => limits.signLogo,
   _ => limits.signAvatar,
 };

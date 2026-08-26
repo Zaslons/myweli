@@ -1503,6 +1503,15 @@ paths:
                 category:
                   type: string
                   enum: [salon, barber, spa, nails, massage]
+                logoUrl:
+                  type: string
+                  nullable: true
+                  description: >
+                    The salon's brand mark. A fresh value must be a URL this
+                    deployment issued via `purpose=logo` (it is promoted out
+                    of `pending/` on save); re-sending the stored value is a
+                    no-op; the empty string clears it to null
+                    (docs/design/salon-logo.md).
       responses:
         '200':
           description: The updated provider
@@ -2151,10 +2160,16 @@ paths:
         only); the promoted URL is saved via `PATCH /me`. It shares the review
         purpose's SHAPE and deliberately not its prefix — the purpose string is
         the storage namespace erasure and moderation reason about
-        (docs/design/consumer-avatar-upload.md §3). Role is gated **per
+        (docs/design/consumer-avatar-upload.md §3). **`purpose=logo`** →
+        **provider-only**, the public bucket, prefix `logo/{providerId}` — the
+        salon's brand mark, its own namespace for the avatar's §3 reason;
+        gated on `profile.manage` (not `catalogue.manage`) because its claim
+        (`PATCH /providers/{id}`) is profile-gated, and a sign gate wider than
+        the claim gate is an orphan generator; salon-scoped via `?salonId=`
+        (docs/design/salon-logo.md). Role is gated **per
         purpose**, symmetrically: `deposit`/`review`/`avatar` require `user`;
-        `gallery`/`kyc` require `provider`; asking for the other role's purpose
-        is a 403 either way.
+        `gallery`/`kyc`/`logo` require `provider`; asking for the other role's
+        purpose is a 403 either way.
       security: [{ bearerAuth: [] }]
       requestBody:
         required: true
@@ -2167,7 +2182,7 @@ paths:
                 contentType:
                   type: string
                   enum: [image/jpeg, image/png, image/webp, application/pdf]
-                purpose: { type: string, enum: [gallery, kyc, deposit, review, avatar] }
+                purpose: { type: string, enum: [gallery, kyc, deposit, review, avatar, logo] }
       responses:
         '200':
           description: A presigned upload ticket
@@ -4476,7 +4491,7 @@ components:
           type: string
           description: >
             CDN URL — present for every PUBLIC-bucket purpose (`gallery`,
-            `review`, `avatar`), omitted for the private ones (`kyc`,
+            `review`, `avatar`, `logo`), omitted for the private ones (`kyc`,
             `deposit`). The key is under `pending/` until claimed.
         maxBytes:
           type: integer
