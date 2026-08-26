@@ -29,12 +29,12 @@
     "com.myweli.app": {
       "flavour": "consumer",
       "config": "mobile/android/app/src/consumer/google-services.json",
-      "playSha1": "4d3da1f2d9fd49d1a58bc9acbc02e099a7c18938"
+      "playSha1": "b73647c6b06001af04d38ee2d0a5aa4722ca156f"
     },
     "com.myweli.pro": {
       "flavour": "pro",
       "config": "mobile/android/app/src/pro/google-services.json",
-      "playSha1": "a161c030cbf4641c8235f145d1b5545af8ceffa8"
+      "playSha1": "94be494a905b2c2adc66ad5720edde124089c985"
     }
   },
   "developmentFingerprints": [
@@ -49,18 +49,25 @@
     "enrolled": true,
     "recordedOn": "2026-08-26",
     "howToGetIt": [
-      "Play Console → the app → Test and release → Setup → App signing.",
-      "Copy the SHA-1 under 'App signing key certificate' — NOT the upload key.",
-      "Add it in Firebase Console → Project settings → the Android app → Add",
-      "fingerprint, for BOTH com.myweli.app and com.myweli.pro. Then re-download",
-      "each google-services.json and commit it, or this gate stays red.",
+      "Do NOT transcribe this from a Play Console page — that method produced a",
+      "wrong value twice on 2026-08-26 (the upload key, then another generated",
+      "certificate from the same page). Read it off the artifact Google actually",
+      "delivers, which cannot lie:",
       "",
-      "Store it here lowercase with the colons stripped, the way",
-      "google-services.json stores it. The console shows AA:BB:CC…; pasting that",
-      "form in would compare unequal against every entry in the file and the",
-      "gate would refuse every release with no hint as to why."
+      "  1. Roll the release out to yourself on the internal track, install it",
+      "     on a phone THROUGH PLAY, enable USB debugging, plug in.",
+      "  2. adb pull \"$(adb shell pm path <package> | sed 's/package://' | head -1)\" app.apk",
+      "  3. apksigner verify --print-certs app.apk   (build-tools; the signer,",
+      "     NOT the source stamp — both say CN=Android/O=Google)",
+      "  4. Register that SHA-1 as an Android OAuth client in the GCP console",
+      "     (Firebase fingerprint auto-provisioning did NOT create OAuth clients",
+      "     when tried; manual creation worked instantly), and mirror it in the",
+      "     Firebase app's fingerprint list so that registry tells the truth too.",
+      "  5. Store it here lowercase with the colons stripped, the way",
+      "     google-services.json stores it, then re-download each config and",
+      "     commit it, or the gate stays red."
     ],
-    "$comment": "sha1 used to live here, singular — designed on the assumption that one App Signing key covers both apps. The real enrolment (2026-08-26) generated ONE KEY PER APP, so the values live per package as packages.<name>.playSha1. The upload key (4f27c26254ce329b8607e04664506af79c8e65d1) is deliberately NOT here: it signs what Google receives, never what users run, and recording it as release-relevant is the exact confusion the first read of the console produced."
+    "$comment": "sha1 used to live here, singular — one-key assumption, wrong: Play generated one key per app. And the first per-package values recorded were wrong TOO: read off the Play Console App-signing page, they matched nothing Google serves (sign-in failed with UNREGISTERED_ON_API_CONSOLE until the true certificates were read from the DELIVERED artifact). Console-page transcription produced a wrong value twice in one day — first the upload key (shared across apps, since one keystore signs both uploads), then whatever generated-certificate block 4d3d…/a161… came from. The values below came from the installed bytes; see howToGetIt."
   },
   "audience": {
     "$comment": [
