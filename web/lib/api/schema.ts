@@ -794,7 +794,7 @@ export interface paths {
         put?: never;
         /**
          * Invite a team member by email (access R2b)
-         * @description Owner-only. Role ∈ manager/reception/staff (`invalid_role`); staff requires a salon-owned `artistId` (`artist_required` / `artist_not_found`). 409 `member_exists` (already active or pending), `offer_required` (no live offer — R2a pricing pivot), `seat_limit` (offer seats full). 429 `invite_rate_limited` (per-salon daily cap, threat T37). Sends the branded invitation email (7-day validity). R6: `?salonId=` selects the salon.
+         * @description Owner-only. Role ∈ manager/reception/staff (`invalid_role`); staff requires a salon-owned `artistId` (`artist_required` / `artist_not_found`). 409 `member_exists` (already active or pending), `offer_required` (no live offer — R2a pricing pivot), `seat_limit` (offer seats full). 403 `demo_account_locked` when the salon is the store-review demo account's (T69 — a public credential must not email arbitrary third parties). 429 `invite_rate_limited` (per-salon daily cap, threat T37). Sends the branded invitation email (7-day validity). R6: `?salonId=` selects the salon.
          */
         post: {
             parameters: {
@@ -3140,7 +3140,7 @@ export interface paths {
         put?: never;
         /**
          * Take the salon live (pro-salon-lifecycle)
-         * @description Owner-only (the token's account must own {id} — T50). Flips the salon from `draft` to `active` when the server-computed go-live gate passes (PRD FR-PRO-ONB-001): profile (description + address + commune), ≥3 active services, ≥3 photos, at least one open weekday. Incomplete → 409 `incomplete` with the missing checklist keys. Idempotent for an already-active salon. Drafts are invisible on every public surface (discovery, by-slug, sitemap) and refuse bookings (T51).
+         * @description Owner-only (the token's account must own {id} — T50). Flips the salon from `draft` to `active` when the server-computed go-live gate passes (PRD FR-PRO-ONB-001): profile (description + address + commune), ≥3 active services, ≥3 photos, at least one open weekday. Incomplete → 409 `incomplete` with the missing checklist keys. Idempotent for an already-active salon. Drafts are invisible on every public surface (discovery, by-slug, sitemap) and refuse bookings (T51). The store-review demo account is refused outright — 403 `demo_account_locked` (T69): its credential is public, so its salon may never enter the public set.
          */
         post: {
             parameters: {

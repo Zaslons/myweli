@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Draft — awaiting owner sign-off before any code |
+| **Status** | **Built** (2026-08-26) — the account-provisioning and console steps (§9) are owner-side |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-08-26 — §10's questions decided (owner), reset designed |
 | **PRD ref / phase** | store submission (mobile-external-testing.md §5.2) · V1 |

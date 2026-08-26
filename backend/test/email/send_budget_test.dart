@@ -130,7 +130,11 @@ void main() {
       // wrapper, before the reserve: both the inner provider AND the budget
       // must stay untouched, and the second assertion is the load-bearing one.
       final inner = _Recording();
-      final budget = InMemorySendBudget(ceilings: (cold: 2, warm: 2));
+      // Ceiling of ONE, deliberately: with room for two, a skip placed AFTER
+      // the reserve still leaves a unit for the follow-up send, and the
+      // "nothing was consumed" assertion below is vacuous — exactly how the
+      // first version of this test let that mutation survive.
+      final budget = InMemorySendBudget(ceilings: (cold: 1, warm: 1));
       final p = BudgetedEmailProvider(inner, budget, log: (_) {});
       final r = await p.send(
         to: 'revue@myweli.test',
