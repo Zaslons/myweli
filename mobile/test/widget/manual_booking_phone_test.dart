@@ -157,6 +157,19 @@ void main() {
     // +225… strips to 13 digits ≠ 10, so rebooking a client from their card
     // failed client-side.
     await pump(tester, initialClientPhone: '+2250708091011');
+
+    // The FIELD must show the number, not merely the state carry it: a
+    // dropped initialValue with the state still seeded submits a number the
+    // receptionist cannot see — the payload assertion alone missed exactly
+    // that mutant.
+    final editable = tester.widget<EditableText>(
+      find.descendant(
+        of: find.byType(IntlPhoneField),
+        matching: find.byType(EditableText),
+      ),
+    );
+    expect(editable.controller.text.replaceAll(' ', ''), '0708091011');
+
     await tester.tap(find.text('Tresses'));
     await tester.pump();
     await submit(tester);
