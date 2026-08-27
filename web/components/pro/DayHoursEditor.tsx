@@ -13,11 +13,16 @@ export function DayHoursEditor({
   onLabel = 'Ouvert',
   offLabel = 'Fermé',
   onPatch,
+  onCopyToAll,
 }: {
   days: DayForm[];
   onLabel?: string;
   offLabel?: string;
   onPatch: (index: number, patch: Partial<DayForm>) => void;
+  /// « Copier sur les autres jours » on each OPEN row — provided by the call
+  /// sites whose mobile twin has the gesture (salon hours, artist hours);
+  /// absent on breaks (parity: the app has no copy there).
+  onCopyToAll?: (index: number) => void;
 }) {
   return (
     <div className="space-y-s">
@@ -60,6 +65,18 @@ export function DayHoursEditor({
                 value={d.end}
                 onChange={(e) => onPatch(i, { end: e.target.value })}
               />
+              {onCopyToAll ? (
+                // A visible-name control per open row; the accessible name
+                // carries the day so seven of them stay distinguishable.
+                <button
+                  type="button"
+                  aria-label={`Copier ${d.label} sur les autres jours`}
+                  className="min-h-12 text-bodyMedium text-textTertiary underline"
+                  onClick={() => onCopyToAll(i)}
+                >
+                  Copier sur les autres jours
+                </button>
+              ) : null}
             </span>
           ) : (
             <span className="text-bodyMedium text-textTertiary">{offLabel}</span>

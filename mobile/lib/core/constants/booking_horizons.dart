@@ -78,3 +78,54 @@ abstract final class BookingWindowPresets {
   /// construction — 1440 minutes against 30 × 1440.
   static const List<int> notices = [0, 60, 720, 1440];
 }
+
+/// One « Horaires de travail » starting point a salon applies in a tap and
+/// edits afterwards (docs/design/availability-presets.md).
+typedef WeeklySchedulePreset = ({
+  String label,
+  Set<int> days,
+  int startHour,
+  int endHour,
+});
+
+/// What the pro's hours section offers as models (curation feedback
+/// 2026-08-26).
+///
+/// Public and here beside [BookingWindowPresets] for the same reason it is:
+/// a test asserts the properties the list must satisfy — no preset may
+/// produce end ≤ start, days are a non-empty subset of 0..6 (0 = Lundi, the
+/// `weeklySchedule` convention), labels are unique — and the LABELS are
+/// pinned character-for-character against the web's `SCHEDULE_PRESETS`
+/// (identical French on both surfaces is the product rule, not a
+/// coincidence). « – » is the en dash and « · » the middot, the A14d chip
+/// idiom (`horizonLabel`).
+abstract final class WeeklySchedulePresets {
+  static const List<WeeklySchedulePreset> all = [
+    (
+      label: 'Mar–Sam · 9h–18h',
+      days: {1, 2, 3, 4, 5},
+      startHour: 9,
+      endHour: 18,
+    ),
+    (
+      label: 'Lun–Sam · 8h–17h',
+      days: {0, 1, 2, 3, 4, 5},
+      startHour: 8,
+      endHour: 17,
+    ),
+    (
+      label: 'Tous les jours · 9h–19h',
+      days: {0, 1, 2, 3, 4, 5, 6},
+      startHour: 9,
+      endHour: 19,
+    ),
+  ];
+}
+
+/// The créneaux explainer under both platforms' hours headings — the one
+/// section of four with no explanatory sentence, on the exact question the
+/// owner fielded while curating (« où crée-t-on les créneaux ? » — nulle
+/// part : ils sont dérivés). Identical on web (`CRENEAUX_COPY`), pinned.
+const String kCreneauxCopy =
+    'Vos créneaux de réservation sont calculés automatiquement à partir de '
+    'ces horaires et de la durée de chaque prestation.';

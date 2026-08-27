@@ -20,6 +20,7 @@ import {
 import { formatDuration, priceRange } from '../../lib/format';
 import {
   type DayForm,
+  copyDayToAll,
   daysToSchedule,
   scheduleToDays,
 } from '../../lib/pro/availability';
@@ -645,6 +646,14 @@ function ArtistFormCard({
                 const next = hoursDays.map((x, j) =>
                   j === idx ? { ...x, ...patch } : x,
                 );
+                setHoursDays(next);
+                setForm((f) => ({
+                  ...f,
+                  workingHours: daysToSchedule(next, f.workingHours),
+                }));
+              }}
+              onCopyToAll={(idx: number) => {
+                const next = copyDayToAll(hoursDays, idx);
                 setHoursDays(next);
                 setForm((f) => ({
                   ...f,

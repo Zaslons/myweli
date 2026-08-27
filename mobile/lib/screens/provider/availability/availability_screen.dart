@@ -156,6 +156,48 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
                       color: AppColors.textPrimary,
                     ),
                   ),
+                  const SizedBox(height: AppTheme.spacingXS),
+                  // The one section of four that had no explanatory sentence —
+                  // and the derived-créneaux question is the one the owner
+                  // actually fielded (availability-presets.md §2).
+                  Text(
+                    kCreneauxCopy,
+                    style: AppTextStyles.bodySmall.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: AppTheme.spacingS),
+                  // Sub-labelled like the window card's rows: an unlabelled
+                  // Wrap after an unrelated sentence would be a puzzle.
+                  Text(
+                    'Modèles',
+                    style: AppTextStyles.bodySmall.copyWith(
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: AppTheme.spacingXS),
+                  Wrap(
+                    spacing: AppTheme.spacingS,
+                    runSpacing: AppTheme.spacingS,
+                    children: WeeklySchedulePresets.all.map((preset) {
+                      return ChoiceChip(
+                        label: Text(preset.label),
+                        // Honest selection: lit only while the schedule IS
+                        // the model — any manual edit unlights every chip.
+                        selected: weeklyScheduleMatchesPreset(
+                          availability.weeklySchedule,
+                          preset,
+                        ),
+                        onSelected: (_) => _applyPreset(
+                          context,
+                          preset,
+                          availability,
+                          availabilityProvider,
+                          _resolvedProviderId(context),
+                        ),
+                      );
+                    }).toList(),
+                  ),
                   const SizedBox(height: AppTheme.spacingM),
                   ...List.generate(7, (index) {
                     final dayName = _getDayName(index);
@@ -464,6 +506,68 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
       confirmLabel: 'Enregistrer',
       icon: Icons.edit_calendar,
     );
+  }
+
+  Future<void> _applyPreset(
+    BuildContext context,
+    WeeklySchedulePreset preset,
+    Availability availability,
+    ProAvailabilityProvider provider,
+    String providerId,
+  ) async {
+    // Already the model → a tap is a no-op, the `_setWindow` unchanged rule.
+    if (weeklyScheduleMatchesPreset(availability.weeklySchedule, preset)) {
+      return;
+    }
+
+    // Replacing CONFIGURED hours passes a confirm — the screen's one rule for
+    // destructive writes. A blank week (a new salon) applies directly: there
+    // is nothing to lose and the empty-state dialog would cry wolf.
+    final hasAny = availability.weeklySchedule.values.any(
+      (slots) => slots.isNotEmpty,
+    );
+    if (hasAny) {
+      final confirmed = await showConfirmDialog(
+        context,
+        title: 'Appliquer ce modèle ?',
+        message:
+            'Vos horaires actuels seront remplacés par ${preset.label}. '
+            'Vous pourrez les ajuster ensuite.',
+        confirmLabel: 'Appliquer',
+        icon: Icons.schedule,
+        isDestructive: false,
+      );
+      if (!confirmed) return;
+    }
+    if (!context.mounted) return;
+
+    // §18 — a preset hour is salon wall time, through `salonDateTime` like
+    // every slot the day editor writes. Days outside the model are written
+    // EMPTY, not left alone: a model is the whole week, and « Mar–Sam »
+    // silently keeping an old Sunday would misname the chip it lights.
+    final tz = context.read<ProAuthProvider>().salonTimezone;
+    final today = salonToday(tz: tz);
+    DateTime at(int hour) =>
+        salonDateTime(today.year, today.month, today.day, hour: hour, tz: tz);
+    final schedule = <int, List<TimeSlot>>{
+      for (var day = 0; day < 7; day++)
+        day: preset.days.contains(day)
+            ? [
+                TimeSlot(
+                  startTime: at(preset.startHour),
+                  endTime: at(preset.endHour),
+                  isAvailable: true,
+                ),
+              ]
+            : const <TimeSlot>[],
+    };
+    await provider.updateAvailability(
+      providerId,
+      availability.copyWith(weeklySchedule: schedule),
+    );
+    if (context.mounted && provider.error != null) {
+      AppSnackBar.show(context, provider.error!, kind: SnackKind.error);
+    }
   }
 
   Future<void> _setWindow(
@@ -972,6 +1076,19 @@ class _DayScheduleEditScreenState extends State<_DayScheduleEditScreen> {
                       onRemove: () => _removeTimeSlot(index),
                     );
                   }),
+                // Only a day WITH hours offers itself as the model: copying
+                // « fermé » onto the whole week is a trap, not a feature
+                // (availability-presets.md §2).
+                if (_slots.isNotEmpty) ...[
+                  const SizedBox(height: AppTheme.spacingS),
+                  OutlinedButton.icon(
+                    onPressed: provider.isLoading
+                        ? null
+                        : () => _copyToAllDays(availability, provider),
+                    icon: const Icon(Icons.copy_all),
+                    label: const Text('Copier sur les autres jours'),
+                  ),
+                ],
                 const SizedBox(height: AppTheme.spacingL),
                 ElevatedButton(
                   onPressed: provider.isLoading
@@ -1093,6 +1210,50 @@ class _DayScheduleEditScreenState extends State<_DayScheduleEditScreen> {
     });
   }
 
+  /// The whole week takes THIS day's slots — multi-range included — in ONE
+  /// wholesale PUT. It confirms because the gesture writes six days the pro
+  /// is not looking at, and it copies the EDITED list, not the saved one:
+  /// what you see is what the week gets.
+  Future<void> _copyToAllDays(
+    Availability availability,
+    ProAvailabilityProvider provider,
+  ) async {
+    final confirmed = await showConfirmDialog(
+      context,
+      title: 'Copier sur les autres jours ?',
+      message:
+          'Tous les jours de la semaine prendront les horaires affichés '
+          'pour ${widget.dayName}.',
+      confirmLabel: 'Copier',
+      icon: Icons.copy_all,
+      isDestructive: false,
+    );
+    if (!confirmed || !mounted) return;
+
+    final schedule = <int, List<TimeSlot>>{
+      for (var day = 0; day < 7; day++) day: List<TimeSlot>.from(_slots),
+    };
+    final success = await provider.updateAvailability(
+      widget.providerId,
+      availability.copyWith(weeklySchedule: schedule),
+    );
+    if (!mounted) return;
+    if (success) {
+      AppSnackBar.show(
+        context,
+        'Horaires copiés sur tous les jours',
+        kind: SnackKind.success,
+      );
+      Navigator.pop(context);
+    } else {
+      AppSnackBar.show(
+        context,
+        provider.error ?? 'Erreur lors de l’enregistrement',
+        kind: SnackKind.error,
+      );
+    }
+  }
+
   Future<void> _saveSchedule(
     Availability availability,
     ProAvailabilityProvider provider,
@@ -1209,4 +1370,33 @@ class _DeltaLine extends StatelessWidget {
       ],
     );
   }
+}
+
+/// Whether [schedule] IS exactly [preset]: one slot per preset day at its
+/// hours, every other day closed. The read lens is the screen's own —
+/// `TimeOfDay.fromDateTime` raw fields, exactly what the day editor seeds its
+/// pickers with — so a chip's « selected » can never disagree with the cards.
+///
+/// Top-level and public so a test can reach it (the State class is private):
+/// the mutation that matters is this answering true after a manual edit — a
+/// chip lying about the week.
+bool weeklyScheduleMatchesPreset(
+  Map<int, List<TimeSlot>> schedule,
+  WeeklySchedulePreset preset,
+) {
+  for (var day = 0; day < 7; day++) {
+    final slots = schedule[day] ?? const <TimeSlot>[];
+    if (!preset.days.contains(day)) {
+      if (slots.isNotEmpty) return false;
+      continue;
+    }
+    if (slots.length != 1) return false;
+    final start = TimeOfDay.fromDateTime(slots.single.startTime);
+    final end = TimeOfDay.fromDateTime(slots.single.endTime);
+    if (start != TimeOfDay(hour: preset.startHour, minute: 0) ||
+        end != TimeOfDay(hour: preset.endHour, minute: 0)) {
+      return false;
+    }
+  }
+  return true;
 }

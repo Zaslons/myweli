@@ -136,3 +136,53 @@ describe('DisponibilitesClient — the bookable window (A14d)', () => {
     ).toHaveLength(2);
   });
 });
+
+describe('DisponibilitesClient — models + copy (availability-presets.md)', () => {
+  it('renders the créneaux line and stages a model that the save carries', async () => {
+    mockFetch();
+    render(<DisponibilitesClient />);
+    await screen.findByText('Fenêtre de réservation');
+
+    screen.getByText(
+      'Vos créneaux de réservation sont calculés automatiquement à partir ' +
+        'de ces horaires et de la durée de chaque prestation.',
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Tous les jours · 9h–19h' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }));
+    await waitFor(() => expect(sent).toHaveLength(1));
+
+    const ws = sent[0].weeklySchedule as Record<
+      string,
+      { startTime: string; endTime: string }[]
+    >;
+    for (const key of ['0', '1', '2', '3', '4', '5', '6']) {
+      expect(ws[key], `day ${key}`).toHaveLength(1);
+      expect(ws[key][0].startTime).toContain('09:00');
+      expect(ws[key][0].endTime).toContain('19:00');
+    }
+  });
+
+  it('« Copier sur les autres jours » stages the source row onto the week', async () => {
+    mockFetch();
+    render(<DisponibilitesClient />);
+    await screen.findByText('Fenêtre de réservation');
+
+    // The fixture opens only Lundi (09:00–17:00) — its row offers the copy.
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Copier Lundi sur les autres jours' }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }));
+    await waitFor(() => expect(sent).toHaveLength(1));
+
+    const ws = sent[0].weeklySchedule as Record<
+      string,
+      { startTime: string; endTime: string }[]
+    >;
+    for (const key of ['0', '1', '2', '3', '4', '5', '6']) {
+      expect(ws[key], `day ${key}`).toHaveLength(1);
+      expect(ws[key][0].startTime).toContain('09:00');
+      expect(ws[key][0].endTime).toContain('17:00');
+    }
+  });
+});
