@@ -10,11 +10,16 @@ import {
   type Availability,
   type DayForm,
   BUFFER_PRESETS,
+  CRENEAUX_COPY,
   HORIZON_PRESETS,
   NOTICE_PRESETS,
+  SCHEDULE_PRESETS,
+  applyPreset,
+  copyDayToAll,
   horizonLabel,
   noticeLabel,
   daysToSchedule,
+  presetMatches,
   scheduleToDays,
   toApi,
   toEditable,
@@ -143,8 +148,36 @@ export function DisponibilitesClient() {
 
       <Card as="section" className="mt-l">
         <h2 className="text-titleLarge font-semibold text-textPrimary">Horaires</h2>
+        {/* The one card of five without an explanatory line — and the
+            derived-créneaux question is the one salons actually ask
+            (availability-presets.md §2). Same French as the app, pinned. */}
+        <p className="mt-xs text-bodySmall text-textSecondary">
+          {CRENEAUX_COPY}
+        </p>
+        <p className="mt-m text-bodySmall text-textPrimary">Modèles</p>
+        <div className="mt-xs flex flex-wrap gap-s">
+          {SCHEDULE_PRESETS.map((p) => (
+            <ChipButton
+              key={p.label}
+              selected={presetMatches(days, p)}
+              onClick={() => {
+                setDays((d) => applyPreset(d, p));
+                setSaved(false);
+              }}
+            >
+              {p.label}
+            </ChipButton>
+          ))}
+        </div>
         <div className="mt-m space-y-s">
-          <DayHoursEditor days={days} onPatch={patchDay} />
+          <DayHoursEditor
+            days={days}
+            onPatch={patchDay}
+            onCopyToAll={(i) => {
+              setDays((d) => copyDayToAll(d, i));
+              setSaved(false);
+            }}
+          />
         </div>
       </Card>
 

@@ -167,6 +167,88 @@ export function daysToSchedule(
   return ws;
 }
 
+/// One « Horaires » starting point a salon applies in a click and edits
+/// afterwards (docs/design/availability-presets.md).
+export type SchedulePreset = {
+  label: string;
+  /// 0 = Lundi .. 6 = Dimanche, the `weeklySchedule` convention.
+  days: number[];
+  start: string;
+  end: string;
+};
+
+/// The web mirror of mobile's `WeeklySchedulePresets` — labels pinned
+/// character-for-character (identical French on both surfaces is the product
+/// rule). « – » is the en dash and « · » the middot, the chip-label idiom.
+export const SCHEDULE_PRESETS: SchedulePreset[] = [
+  {
+    label: "Mar–Sam · 9h–18h",
+    days: [1, 2, 3, 4, 5],
+    start: "09:00",
+    end: "18:00",
+  },
+  {
+    label: "Lun–Sam · 8h–17h",
+    days: [0, 1, 2, 3, 4, 5],
+    start: "08:00",
+    end: "17:00",
+  },
+  {
+    label: "Tous les jours · 9h–19h",
+    days: [0, 1, 2, 3, 4, 5, 6],
+    start: "09:00",
+    end: "19:00",
+  },
+];
+
+/// The créneaux explainer under both platforms' hours headings — identical to
+/// mobile's `kCreneauxCopy`, pinned.
+export const CRENEAUX_COPY =
+  "Vos créneaux de réservation sont calculés automatiquement à partir de " +
+  "ces horaires et de la durée de chaque prestation.";
+
+/// Apply [preset] to the staged rows: preset days open at its hours, every
+/// other day CLOSED — a model is the whole week, and « Mar–Sam » silently
+/// keeping an old Sunday would misname the chip it lights. Staged only;
+/// nothing is written until « Enregistrer ».
+export function applyPreset(
+  days: DayForm[],
+  preset: SchedulePreset,
+): DayForm[] {
+  return days.map((d, i) =>
+    preset.days.includes(i)
+      ? { ...d, open: true, start: preset.start, end: preset.end }
+      : { ...d, open: false },
+  );
+}
+
+/// Honest chip state: selected iff the staged rows ARE exactly the model —
+/// any manual edit unlights every chip.
+export function presetMatches(
+  days: DayForm[],
+  preset: SchedulePreset,
+): boolean {
+  return days.every((d, i) =>
+    preset.days.includes(i)
+      ? d.open && d.start === preset.start && d.end === preset.end
+      : !d.open,
+  );
+}
+
+/// Row [i]'s {open, start, end} onto every row — « Copier sur les autres
+/// jours ». One-range-per-day editing model: each day's EXTRA ranges (the
+/// `slice(1)` that `toApi`/`daysToSchedule` preserve from base) survive the
+/// copy, exactly like every other web edit.
+export function copyDayToAll(days: DayForm[], i: number): DayForm[] {
+  const src = days[i];
+  return days.map((d) => ({
+    ...d,
+    open: src.open,
+    start: src.start,
+    end: src.end,
+  }));
+}
+
 /// What the pro's « Fenêtre de réservation » card offers — the web mirror of
 /// mobile's `BookingWindowPresets`.
 ///

@@ -3,8 +3,12 @@ import {
   type Availability,
   HORIZON_PRESETS,
   NOTICE_PRESETS,
+  SCHEDULE_PRESETS,
+  applyPreset,
+  copyDayToAll,
   horizonLabel,
   noticeLabel,
+  presetMatches,
   toApi,
   toEditable,
   validateHours,
@@ -210,5 +214,71 @@ describe('the wire format is a date-time, both directions (Q1)', () => {
     const days = toEditable(empty).map((d) => ({ ...d, open: true }));
     const slot = toApi(days, empty).weeklySchedule['0'][0];
     expect(Number.isNaN(Date.parse(slot.startTime))).toBe(false);
+  });
+});
+
+describe('the « Horaires » models (availability-presets.md)', () => {
+  it('invariants: end > start, days a non-empty subset of 0..6, labels unique', () => {
+    for (const p of SCHEDULE_PRESETS) {
+      expect(p.start < p.end, p.label).toBe(true);
+      expect(p.days.length, p.label).toBeGreaterThan(0);
+      expect(p.days.every((d) => d >= 0 && d <= 6), p.label).toBe(true);
+    }
+    const labels = SCHEDULE_PRESETS.map((p) => p.label);
+    expect(new Set(labels).size).toBe(labels.length);
+  });
+
+  it('applyPreset opens the model days at its hours and CLOSES the rest', () => {
+    const rows = toEditable(base); // Lundi + Samedi open from the fixture
+    const preset = SCHEDULE_PRESETS[0]; // Mar–Sam · 9h–18h
+    const next = applyPreset(rows, preset);
+    expect(next).toHaveLength(7);
+    for (let i = 0; i < 7; i++) {
+      if (preset.days.includes(i)) {
+        expect(next[i].open, `day ${i}`).toBe(true);
+        expect(next[i].start).toBe('09:00');
+        expect(next[i].end).toBe('18:00');
+      } else {
+        // A model is the whole week: Lundi (open in the fixture, outside
+        // Mar–Sam) must CLOSE, or a lit chip would misname the schedule.
+        expect(next[i].open, `day ${i}`).toBe(false);
+      }
+    }
+  });
+
+  it('presetMatches is honest: exact model only, any edit unlights', () => {
+    const preset = SCHEDULE_PRESETS[0];
+    const applied = applyPreset(toEditable(base), preset);
+    expect(presetMatches(applied, preset)).toBe(true);
+    for (const other of SCHEDULE_PRESETS.slice(1)) {
+      expect(presetMatches(applied, other), other.label).toBe(false);
+    }
+    // Edited closing hour.
+    const edited = applied.map((d, i) => (i === 2 ? { ...d, end: '19:00' } : d));
+    expect(presetMatches(edited, preset)).toBe(false);
+    // A day outside the model opened.
+    const sunday = applied.map((d, i) => (i === 6 ? { ...d, open: true } : d));
+    expect(presetMatches(sunday, preset)).toBe(false);
+  });
+
+  it('copyDayToAll copies {open, start, end} onto every row, keys intact', () => {
+    const rows = toEditable(base);
+    const next = copyDayToAll(rows, 5); // Samedi 10:00–16:00
+    for (let i = 0; i < 7; i++) {
+      expect(next[i].open, `day ${i}`).toBe(true);
+      expect(next[i].start).toBe('10:00');
+      expect(next[i].end).toBe('16:00');
+      expect(next[i].key).toBe(rows[i].key);
+      expect(next[i].label).toBe(rows[i].label);
+    }
+  });
+
+  it('the copy leaves each day\'s EXTRA ranges to survive the save', () => {
+    // The one-range-per-day trap honoured: Lundi's second range rides
+    // `toApi`'s slice(1) from base, copy or no copy.
+    const out = toApi(copyDayToAll(toEditable(base), 5), base);
+    expect(out.weeklySchedule['0']).toHaveLength(2);
+    expect(out.weeklySchedule['0'][0].startTime).toContain('10:00');
+    expect(out.weeklySchedule['0'][1].startTime).toContain('14:00');
   });
 });
