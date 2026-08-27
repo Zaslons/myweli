@@ -422,6 +422,30 @@ mobile is actually distributed.
 **Do not block on any of this.** Errors flow without the integration; it is an
 enhancement, and a fiddly one can wait until events are arriving.
 
+### 9.5.1 Symbol upload — first done 2026-08-27 (build 530), amendments
+
+The Android obfuscation symbols were uploaded for the first time on
+2026-08-27, and three things this document could not know are now measured:
+
+- **The auth token** lives in Secret Manager as `SENTRY_AUTH_TOKEN` (an
+  *organization token* named `symbol-upload`, created in the Sentry UI —
+  the same env name `web/next.config.mjs` reads, so web sourcemap upload is
+  unlocked by the same secret). A token's value is visible only at creation;
+  the pre-existing 15-day-old org token could not be reused and was left
+  untouched (it likely belongs to an integration).
+- **No `--url` is needed** despite the org living on Sentry EU
+  (`ingest.de.sentry.io` is the DSN half only): organization tokens embed
+  their own API address, and `sentry-cli` uses it — a manually-passed
+  `--url` is ignored with a warning. Measured, not assumed.
+- **Uploads are debug-ID-matched and release-independent** — no build
+  number is named, both flavours share `myweli-app`, and re-uploading is a
+  no-op. Verification is server-side, never the upload log:
+  `GET /api/0/projects/myweli/myweli-app/files/dsyms/` listed the 12 new
+  entries (3 ABIs × sources+companion × 2 flavours).
+
+The exact command is printed by `tool/release_build.sh` at the end of every
+Android build, with real values — no placeholders.
+
 ### 9.6 Then, to switch it on
 
 1. **Backend** — put the DSN in Secret Manager, add `SENTRY_DSN` (via

@@ -122,6 +122,16 @@ nothing here should be handed credentials.
    ROADMAP requires (without which every Sentry stack trace is unreadable
    symbols).
 
+   **Then upload those symbols to Sentry** — the one step the script prints
+   but does not run (first done 2026-08-27 for build 530; the exact working
+   command with real values is in the script's own closing note, token from
+   Secret Manager's `SENTRY_AUTH_TOKEN`, both flavour dirs in one call).
+   Verify server-side: `GET /api/0/projects/myweli/myweli-app/files/dsyms/`
+   lists the new debug IDs. Skipping this ships a build whose crashes are
+   detected but undiagnosable — see
+   [observability-error-reporting.md](observability-error-reporting.md)
+   §9.5.1.
+
    > **It did not select the entry point until 2026-08-22, and this step told
    > you to trust it.** `--flavor` chooses the NATIVE configuration — bundle id,
    > icon, Firebase config — and **not** the Dart `main`. Without `--target`,

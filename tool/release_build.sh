@@ -148,8 +148,18 @@ Symbols were written to mobile/build/symbols/<flavour>/.
 
 **Upload them to Sentry before releasing**, or every stack trace stays
 obfuscated. That step needs a Sentry auth token and is the one thing this
-script deliberately does not do for you:
+script deliberately does not do for you. The working command, as first run
+for build 530 (2026-08-27) — token from Secret Manager, never pasted; both
+flavour dirs in ONE call; no --url needed (the org token embeds its own API
+address, measured — the CLI ignores a manual one with a warning):
 
-  sentry-cli debug-files upload --include-sources -o <org> -p myweli-app \
-    mobile/build/symbols/<flavour>
+  SENTRY_AUTH_TOKEN="$(gcloud secrets versions access latest \
+      --secret=SENTRY_AUTH_TOKEN --project=myweli)" \
+    sentry-cli debug-files upload --include-sources -o myweli -p myweli-app \
+      mobile/build/symbols/consumer mobile/build/symbols/pro
+
+Verify against the SERVER, not the upload log:
+GET /api/0/projects/myweli/myweli-app/files/dsyms/ must list the new debug
+IDs (12 entries per Android build pair). Uploads are debug-ID-matched and
+release-independent — no build number is named, and re-uploading is a no-op.
 NOTE
