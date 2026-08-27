@@ -260,6 +260,24 @@ void main() {
         'provider1',
       );
       expect(badPhone.statusCode, HttpStatus.badRequest);
+
+      // The REALISTIC input, not a strawman: a receptionist types the local
+      // ten-digit form. E.164 is the contract (openapi.yaml clientPhone), so
+      // this refuses — and both clients now convert at the field, which is
+      // why this pin matters: relaxing it server-side would silently store
+      // un-normalized numbers the SMS channel can never reach.
+      final localPhone = await manual.onRequest(
+        ctx(
+          post(
+            '/providers/provider1/appointments',
+            bearer: token,
+            body: {...validBody(), 'clientPhone': '0708091011'},
+          ),
+        ),
+        'provider1',
+      );
+      expect(localPhone.statusCode, HttpStatus.badRequest);
+      expect(jsonDecode(await localPhone.body())['error'], 'invalid_phone');
     });
   });
 }

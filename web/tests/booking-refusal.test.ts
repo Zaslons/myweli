@@ -109,3 +109,14 @@ describe("the way out is offered only where it leads somewhere", () => {
     }
   });
 });
+
+describe("invalid_phone names the field, for either audience", () => {
+  // The manual-booking lesson: this code used to fall through `default` to
+  // « Création impossible. Réessayez. » — a retry invitation for a failure
+  // retrying can never fix. Same copy as « Ajouter un client », verbatim.
+  it("maps to the international-format sentence", () => {
+    const copy = "Numéro invalide (format international, ex. +2250700000000).";
+    expect(conflictMessage("invalid_phone", salon)).toBe(copy);
+    expect(conflictMessage("invalid_phone", client)).toBe(copy);
+  });
+});
