@@ -79,11 +79,22 @@ test('provider page: Avant/Après, map, booking panel (M8.2)', async ({
   // T52/15.1: the « Vérifié » badge on the hero (stub salon is verified).
   await expect(page.getByText('✔ Vérifié')).toBeVisible();
 
-  // Avant/Après section (seeded pair).
+  // Avant/Après — the drag-reveal comparator (web-provider-before-after.md).
   await expect(
     page.getByRole('heading', { name: 'Avant / Après' }),
   ).toBeVisible();
+  const slider = page.getByRole('slider', { name: 'Comparateur avant/après' });
+  await expect(slider).toBeVisible();
+  await expect(slider).toHaveValue('50');
+  // The corner tag (aria-hidden, still painted) and the named fullscreen way.
   await expect(page.getByText('Avant', { exact: true }).first()).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Agrandir', exact: true }),
+  ).toBeVisible();
+  // TWO seeded pairs → the thumbnail strip exists and switches.
+  await expect(
+    page.getByRole('button', { name: 'Comparaison 2' }),
+  ).toBeVisible();
 
   // Horaires renders the TIME, not the wire (the screenshot bug): the stub
   // now serves the real 2024-01-01T… shape, so both directions discriminate —

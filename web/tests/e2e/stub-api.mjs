@@ -29,8 +29,11 @@ const provider = {
   latitude: 5.35,
   longitude: -3.99,
   imageUrls: ['https://cdn.stub/p1.jpg', 'https://cdn.stub/p2.jpg'],
+  // TWO pairs: the thumbnail strip renders only above one, and an e2e that
+  // never sees it certifies nothing (web-provider-before-after.md §5).
   beforeAfters: [
     { before: 'https://cdn.stub/b1.jpg', after: 'https://cdn.stub/a1.jpg', caption: 'Belle transformation' },
+    { before: 'https://cdn.stub/b2.jpg', after: 'https://cdn.stub/a2.jpg' },
   ],
   rating: 4.8,
   reviewCount: 2,
