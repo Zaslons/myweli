@@ -303,6 +303,17 @@ class _ProSalonProfileScreenState extends State<ProSalonProfileScreen> {
               ),
               const SizedBox(height: AppTheme.spacingS),
               AppTextField(label: 'Adresse', controller: _address),
+              const SizedBox(height: AppTheme.spacingXS),
+              // Input-side hygiene (fix/address-commune-dedupe): owners typed
+              // the commune here, echoing the picker just below — the web
+              // renders dedupe it, this stops the data being stored twice.
+              // Same French as the web's hint, verbatim.
+              Text(
+                'Rue et numéro — la commune est choisie ci-dessous.',
+                style: AppTextStyles.bodySmall.copyWith(
+                  color: AppColors.textTertiary,
+                ),
+              ),
               const SizedBox(height: AppTheme.spacingS),
               InkWell(
                 onTap: _pickCommune,

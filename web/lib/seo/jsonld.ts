@@ -1,3 +1,4 @@
+import { streetAddressWithoutCommune } from '../address';
 import { timeOfDay } from '../time-of-day';
 import type { Provider } from '../api/providers';
 import { SOCIAL_PROFILES } from '../social';
@@ -139,7 +140,10 @@ export function localBusinessJsonLd(p: Provider, url: string) {
     telephone: p.phoneNumber,
     address: {
       '@type': 'PostalAddress',
-      streetAddress: p.address,
+      // The street line only: `addressLocality` below already carries the
+      // commune, and repeating it inside streetAddress is a structured-data
+      // error (and exactly what the owner's stored address did).
+      streetAddress: streetAddressWithoutCommune(p.address, p.commune),
       addressLocality: p.commune ?? p.city ?? undefined,
       // Multi-pays MP3: the salon's own market fields ('CI' = the
       // pre-backfill fallback only).

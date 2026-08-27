@@ -229,7 +229,17 @@ export function ProfilClient() {
             className={input}
             value={form.address}
             onChange={(e) => set('address', e.target.value)}
+            aria-describedby="adresse-hint"
           />
+          {/* Input-side hygiene (fix/address-commune-dedupe): the owner typed
+              the commune here, echoing the picker just below — the render
+              dedupe hides it, this stops the data being stored twice. */}
+          <span
+            id="adresse-hint"
+            className="mt-xs block text-bodySmall text-textTertiary"
+          >
+            Rue et numéro — la commune est choisie ci-dessous.
+          </span>
         </Field>
         {/* Multi-pays MP3: the area picker writes areaId — the serveur en
             dérive commune/ville (et fuseau/devise, T57). */}
