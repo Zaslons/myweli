@@ -55,20 +55,12 @@ export const BUFFER_PRESETS = [0, 5, 10, 15, 30];
 /// time-of-day is significant — so the date is a carrier, not data.
 const WIRE_DATE = "2024-01-01";
 
-/// Wire date-time → `HH:mm` for `<input type="time">`, which accepts nothing
-/// else (`DayHoursEditor.tsx:52`).
-///
-/// **Parsed with a regex, never with `new Date()`.** The instant is meaningless
-/// but a `Date` is not: `new Date('2024-01-01T09:00:00.000Z').getHours()` is 10
-/// in Abidjan-plus-one and 4 in New York, so a salon's opening hour would move
-/// with the browser's timezone. The digits after the `T` are the datum.
-export function timeOfDay(wire: string): string {
-  const m = /T(\d{2}):(\d{2})/.exec(wire);
-  if (m) return `${m[1]}:${m[2]}`;
-  // Tolerated on READ only: a bare HH:mm is what this file used to write, so
-  // any salon that somehow has one stored still edits cleanly.
-  return /^\d{2}:\d{2}$/.test(wire) ? wire : "";
-}
+/// Wire date-time → `HH:mm` for `<input type="time">` — hosted in the neutral
+/// `lib/time-of-day.ts` since the PUBLIC page reads it too; re-exported here
+/// so the editor's call sites did not churn.
+import { timeOfDay } from "../time-of-day";
+
+export { timeOfDay };
 
 /// `HH:mm` → the wire date-time. The inverse of [timeOfDay], and the reason a
 /// web-onboarded salon can set its hours at all: the server validates with

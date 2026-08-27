@@ -85,6 +85,12 @@ test('provider page: Avant/Après, map, booking panel (M8.2)', async ({
   ).toBeVisible();
   await expect(page.getByText('Avant', { exact: true }).first()).toBeVisible();
 
+  // Horaires renders the TIME, not the wire (the screenshot bug): the stub
+  // now serves the real 2024-01-01T… shape, so both directions discriminate —
+  // the formatted range must show AND no ISO residue may reach the page.
+  await expect(page.getByText('09:00 – 18:00')).toBeVisible();
+  await expect(page.getByText('2024-01-01', { exact: false })).toHaveCount(0);
+
   // Localisation: the shared MapLibre map mounts lazily on approach.
   await page.locator('[aria-label^="Carte"]').scrollIntoViewIfNeeded();
   await expect(page.locator('.maplibregl-map')).toBeVisible();
