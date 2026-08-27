@@ -142,31 +142,39 @@ void main() {
     expect(chip.selected, isTrue);
   });
 
-  testWidgets('configured hours pass a confirm — and cancel writes nothing', (
-    tester,
-  ) async {
+  testWidgets('configured hours pass a confirm — cancel writes nothing, and '
+      'an OPEN off-model day is emptied on apply', (tester) async {
+    // Lundi is open and OUTSIDE « Mar–Sam » — the fixture that tells « off
+    // days written empty » apart from « off days left alone ».
     await pumpWith(tester, {
       0: [slotAt(10, 12)],
     });
     await scrollToChips(tester);
 
-    await tester.tap(find.text('Lun–Sam · 8h–17h'));
+    await tester.tap(find.text('Mar–Sam · 9h–18h'));
     await settleMocks(tester);
     expect(find.text('Appliquer ce modèle ?'), findsOneWidget);
     await tester.tap(find.text('Annuler'));
     await settleMocks(tester);
     verifyNever(() => service.updateAvailability(any(), any()));
 
-    await tester.tap(find.text('Lun–Sam · 8h–17h'));
+    await tester.tap(find.text('Mar–Sam · 9h–18h'));
     await settleMocks(tester);
     await tester.tap(find.text('Appliquer'));
     await settleMocks(tester);
 
     final sent = capturedWrite();
-    expect(sent.weeklySchedule[0], hasLength(1));
     expect(
-      tod(sent.weeklySchedule[0]!.single.startTime),
-      const TimeOfDay(hour: 8, minute: 0),
+      sent.weeklySchedule[0],
+      isEmpty,
+      reason:
+          'Lundi had hours and sits outside the model — keeping them would '
+          'light a chip over a week it does not describe',
+    );
+    expect(sent.weeklySchedule[1], hasLength(1));
+    expect(
+      tod(sent.weeklySchedule[1]!.single.startTime),
+      const TimeOfDay(hour: 9, minute: 0),
     );
     expect(sent.weeklySchedule[6], isEmpty);
   });
