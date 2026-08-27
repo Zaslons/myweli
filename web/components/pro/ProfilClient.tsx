@@ -224,23 +224,28 @@ export function ProfilClient() {
             onChange={(e) => set('description', e.target.value)}
           />
         </Field>
-        <Field label="Adresse">
-          <input
-            className={input}
-            value={form.address}
-            onChange={(e) => set('address', e.target.value)}
-            aria-describedby="adresse-hint"
-          />
-          {/* Input-side hygiene (fix/address-commune-dedupe): the owner typed
-              the commune here, echoing the picker just below — the render
-              dedupe hides it, this stops the data being stored twice. */}
+        {/* Input-side hygiene (fix/address-commune-dedupe): owners typed the
+            commune here, echoing the picker just below — the render dedupe
+            hides it, this stops the data being stored twice. The hint lives
+            OUTSIDE the wrapping <label> deliberately: inside it, its text
+            joins the field's accessible NAME, and « …la commune… » made
+            getByLabel('Commune') ambiguous (the e2e caught it). */}
+        <div>
+          <Field label="Adresse">
+            <input
+              className={input}
+              value={form.address}
+              onChange={(e) => set('address', e.target.value)}
+              aria-describedby="adresse-hint"
+            />
+          </Field>
           <span
             id="adresse-hint"
             className="mt-xs block text-bodySmall text-textTertiary"
           >
             Rue et numéro — la commune est choisie ci-dessous.
           </span>
-        </Field>
+        </div>
         {/* Multi-pays MP3: the area picker writes areaId — the serveur en
             dérive commune/ville (et fuseau/devise, T57). */}
         <LocalityPicker
