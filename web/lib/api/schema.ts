@@ -2428,6 +2428,8 @@ export interface paths {
                         longitude?: number;
                         /** @enum {string} */
                         category?: "salon" | "barber" | "spa" | "nails" | "massage";
+                        /** @description The salon's brand mark. A fresh value must be a URL this deployment issued via `purpose=logo` (it is promoted out of `pending/` on save); re-sending the stored value is a no-op; the empty string clears it to null (docs/design/salon-logo.md). */
+                        logoUrl?: string | null;
                     };
                 };
             };
@@ -3529,7 +3531,7 @@ export interface paths {
         put?: never;
         /**
          * Presign a direct-to-storage upload (B-upload, B-kyc)
-         * @description Provider-only. Returns a short-lived presigned **multipart POST** to object storage (Cloudflare R2). The object key is built server-side from the token, and the signed policy pins the key, content-type, and a size range — so bytes go client → storage directly (never through the API) and a caller can only write under its own prefix. **`purpose=gallery`** → public bucket, prefix `gallery/{providerId}`, returns `publicUrl` (saved via `PUT /providers/{id}/gallery`). **`purpose=kyc`** → a separate **private** bucket, prefix `kyc/{accountId}`, returns the `key` only (ID docs are never public) and additionally accepts `application/ pdf`. **`purpose=deposit`** → **consumer-only** (a `user` token), a **separate** private bucket (`R2_DEPOSIT_BUCKET`, kept apart from KYC), prefix `deposit/{userId}`, returns the `key` only (payment proof is never public; images only). **`purpose=review`** → **consumer-only**, the public bucket (review tiles render the photos), prefix `review/{userId}`, returns `publicUrl` (images only; review submit caps `photoUrls` at 6). **`purpose=avatar`** → **consumer-only**, the public bucket, prefix `avatar/{userId}`, returns `publicUrl` (images only); the promoted URL is saved via `PATCH /me`. It shares the review purpose's SHAPE and deliberately not its prefix — the purpose string is the storage namespace erasure and moderation reason about (docs/design/consumer-avatar-upload.md §3). Role is gated **per purpose**, symmetrically: `deposit`/`review`/`avatar` require `user`; `gallery`/`kyc` require `provider`; asking for the other role's purpose is a 403 either way.
+         * @description Provider-only. Returns a short-lived presigned **multipart POST** to object storage (Cloudflare R2). The object key is built server-side from the token, and the signed policy pins the key, content-type, and a size range — so bytes go client → storage directly (never through the API) and a caller can only write under its own prefix. **`purpose=gallery`** → public bucket, prefix `gallery/{providerId}`, returns `publicUrl` (saved via `PUT /providers/{id}/gallery`). **`purpose=kyc`** → a separate **private** bucket, prefix `kyc/{accountId}`, returns the `key` only (ID docs are never public) and additionally accepts `application/ pdf`. **`purpose=deposit`** → **consumer-only** (a `user` token), a **separate** private bucket (`R2_DEPOSIT_BUCKET`, kept apart from KYC), prefix `deposit/{userId}`, returns the `key` only (payment proof is never public; images only). **`purpose=review`** → **consumer-only**, the public bucket (review tiles render the photos), prefix `review/{userId}`, returns `publicUrl` (images only; review submit caps `photoUrls` at 6). **`purpose=avatar`** → **consumer-only**, the public bucket, prefix `avatar/{userId}`, returns `publicUrl` (images only); the promoted URL is saved via `PATCH /me`. It shares the review purpose's SHAPE and deliberately not its prefix — the purpose string is the storage namespace erasure and moderation reason about (docs/design/consumer-avatar-upload.md §3). **`purpose=logo`** → **provider-only**, the public bucket, prefix `logo/{providerId}` — the salon's brand mark, its own namespace for the avatar's §3 reason; gated on `profile.manage` (not `catalogue.manage`) because its claim (`PATCH /providers/{id}`) is profile-gated, and a sign gate wider than the claim gate is an orphan generator; salon-scoped via `?salonId=` (docs/design/salon-logo.md). Role is gated **per purpose**, symmetrically: `deposit`/`review`/`avatar` require `user`; `gallery`/`kyc`/`logo` require `provider`; asking for the other role's purpose is a 403 either way.
          */
         post: {
             parameters: {
@@ -3547,7 +3549,7 @@ export interface paths {
                         /** @enum {string} */
                         contentType: "image/jpeg" | "image/png" | "image/webp" | "application/pdf";
                         /** @enum {string} */
-                        purpose: "gallery" | "kyc" | "deposit" | "review" | "avatar";
+                        purpose: "gallery" | "kyc" | "deposit" | "review" | "avatar" | "logo";
                     };
                 };
             };
@@ -6713,7 +6715,7 @@ export interface components {
             };
             /** @description The object key (used to reference the upload). */
             key: string;
-            /** @description CDN URL — present for every PUBLIC-bucket purpose (`gallery`, `review`, `avatar`), omitted for the private ones (`kyc`, `deposit`). The key is under `pending/` until claimed. */
+            /** @description CDN URL — present for every PUBLIC-bucket purpose (`gallery`, `review`, `avatar`, `logo`), omitted for the private ones (`kyc`, `deposit`). The key is under `pending/` until claimed. */
             publicUrl?: string;
             /** @description ADVISORY. R2 ignores a signed `content-length` on a presigned PUT, so the authoritative check runs at claim time (threat T61). */
             maxBytes: number;

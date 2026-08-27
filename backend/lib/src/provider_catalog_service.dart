@@ -144,8 +144,11 @@ class ProviderCatalogService {
   }
 
   /// Update the salon's editable public profile (name/description/address/
-  /// city/commune/phoneNumber/whatsapp). Protected fields (slug, rating,
-  /// status, services, …) are ignored — they have their own endpoints.
+  /// city/commune/phoneNumber/whatsapp), plus two specially-validated
+  /// siblings the flat allowlist cannot carry: `areaId` (locality-tree
+  /// validated, market facts derive — T57) and `logoUrl` (promotion-guarded —
+  /// docs/design/salon-logo.md §6). Protected fields (slug, rating, status,
+  /// services, …) are ignored — they have their own endpoints.
   Future<CatalogResult> updateProfile(
     String accountId,
     String providerId,
@@ -200,6 +203,46 @@ class ProviderCatalogService {
     } else if (changes['commune'] is String) {
       final area = seedAreaForCommuneName(changes['commune'] as String);
       if (area != null) changes.addAll(marketChangesForArea(area));
+    }
+
+    // The salon logo (docs/design/salon-logo.md). NOT a flat allowlist entry,
+    // deliberately: that would let a client PATCH an arbitrary string into
+    // `logoUrl` — the exact hole `/me` closed for avatars. A fresh URL must
+    // be one this deployment issued and is promoted out of `pending/`;
+    // re-sending the stored value is a no-op (`alreadyStored` membership, the
+    // gallery's write-once lesson); the empty string clears to null (the
+    // `/me` `phone` semantics — no separate DELETE verb).
+    if (body.containsKey('logoUrl')) {
+      final raw = body['logoUrl'];
+      if (raw is! String || raw.length > _maxUrlLength) {
+        return (ok: false, error: 'invalid_input', data: null);
+      }
+      final url = raw.trim();
+      if (url.isEmpty) {
+        changes['logoUrl'] = null;
+      } else {
+        if (_allowedImageOrigins.isNotEmpty &&
+            !_allowedImageOrigins.any(url.startsWith)) {
+          return (ok: false, error: 'invalid_input', data: null);
+        }
+        if (_verifier != null && _publicBaseUrl != null) {
+          final existing = await _providers.byId(providerId);
+          final v = await _verifier.promoteNewUrls(
+            [url],
+            publicBaseUrl: _publicBaseUrl,
+            alreadyStored: {
+              if (existing?['logoUrl'] is String)
+                existing!['logoUrl'] as String,
+            },
+            bucket: StorageBucket.public,
+          );
+          if (!v.ok) return (ok: false, error: v.error, data: null);
+          changes['logoUrl'] = v.urls.single;
+        } else {
+          // Dev/Fake storage: no promotion, same posture as the gallery.
+          changes['logoUrl'] = url;
+        }
+      }
     }
 
     if (changes.isEmpty) {

@@ -101,6 +101,7 @@ void main() {
           signKyc: 10,
           signDeposit: 10,
           signAvatar: 10,
+          signLogo: 10,
         ),
       );
       final r = await svc.book(
@@ -289,6 +290,10 @@ IdentityLimits _limits({
   int signKyc = 10,
   int signDeposit = 10,
   int signAvatar = 10,
+  // NOT the avatar's number in this fixture: signLimitFor's default arm
+  // falls through to signAvatar, so if the two were equal here the explicit
+  // 'logo' arm could be deleted and every assertion would still pass.
+  int signLogo = 11,
 }) => (
   booking: booking,
   reviewSubmit: reviewSubmit,
@@ -297,6 +302,7 @@ IdentityLimits _limits({
   signKyc: signKyc,
   signDeposit: signDeposit,
   signAvatar: signAvatar,
+  signLogo: signLogo,
 );
 
 class _BrokenLimiter implements RateLimiter {

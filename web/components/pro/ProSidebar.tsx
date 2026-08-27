@@ -163,7 +163,23 @@ export function ProSidebar({
                         onClick={() => pick(s.salonId, active)}
                         className="flex min-h-12 w-full items-center justify-between gap-xs px-s text-left text-bodyMedium text-textPrimary hover:bg-surfaceVariant disabled:opacity-60"
                       >
-                        <span className="min-w-0">
+                        {s.imageUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={s.imageUrl}
+                            alt=""
+                            className="h-8 w-8 shrink-0 rounded-pill object-cover"
+                          />
+                        ) : (
+                          // Initial-letter fallback — the app's picker parity.
+                          <span
+                            aria-hidden="true"
+                            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-pill bg-surfaceVariant text-bodyMedium text-textSecondary"
+                          >
+                            {s.salonName.slice(0, 1).toUpperCase()}
+                          </span>
+                        )}
+                        <span className="min-w-0 flex-1">
                           {/* clip-ok: one row per salon this account owns, in
                               the same 240px rail. The button's accessible name
                               is the full string, and picking a salon puts its

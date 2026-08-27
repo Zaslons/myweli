@@ -9,6 +9,7 @@ import '../../models/team_member.dart';
 import '../../providers/pro_auth_provider.dart';
 import '../common/brand_loader.dart';
 import '../common/inline_feedback.dart';
+import '../common/timed_cached_image.dart';
 
 /// « Mes salons » (module `access` R6 — docs/design/
 /// team-access-r6-multi-salons.md §6): the salon switcher bottom sheet.
@@ -176,20 +177,36 @@ class _SalonTile extends StatelessWidget {
       if (salon.isDraft) 'Brouillon — pas encore en ligne',
     ];
     return ListTile(
-      leading: CircleAvatar(
-        backgroundColor: isActive
-            ? AppColors.primary
-            : AppColors.surfaceVariant,
-        foregroundColor: isActive ? AppColors.secondary : AppColors.textPrimary,
-        child: Text(
-          salon.salonName.isEmpty
-              ? '?'
-              : salon.salonName.characters.first.toUpperCase(),
-          style: AppTextStyles.titleSmall.copyWith(
-            color: isActive ? AppColors.secondary : AppColors.textPrimary,
-          ),
-        ),
-      ),
+      // The salon's mark, at last: `imageUrl` (the server prefers logoUrl,
+      // falling back to the first gallery photo) was parsed and thrown away
+      // here since R6 — the rows rendered an initial while the data sat on
+      // the wire (salon-logo.md §"render"). The initial stays as the
+      // fallback for salons with neither.
+      leading: salon.imageUrl != null
+          ? ClipOval(
+              child: TimedCachedImage(
+                imageUrl: salon.imageUrl!,
+                width: 40,
+                height: 40,
+                fit: BoxFit.cover,
+              ),
+            )
+          : CircleAvatar(
+              backgroundColor: isActive
+                  ? AppColors.primary
+                  : AppColors.surfaceVariant,
+              foregroundColor: isActive
+                  ? AppColors.secondary
+                  : AppColors.textPrimary,
+              child: Text(
+                salon.salonName.isEmpty
+                    ? '?'
+                    : salon.salonName.characters.first.toUpperCase(),
+                style: AppTextStyles.titleSmall.copyWith(
+                  color: isActive ? AppColors.secondary : AppColors.textPrimary,
+                ),
+              ),
+            ),
       title: Row(
         children: [
           Flexible(

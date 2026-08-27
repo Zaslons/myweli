@@ -177,6 +177,118 @@ void main() {
     });
   });
 
+  group('the salon logo (salon-logo.md §6)', () {
+    late InMemoryProvidersRepository providers;
+    late InMemoryProviderAuthRepository providerAuth;
+    late _PublicStorage store;
+    late ProviderCatalogService catalog;
+    late String accountId;
+    final tokens = TokenService(secret: 'test-secret');
+
+    setUp(() async {
+      providers = InMemoryProvidersRepository(_freshSeed());
+      providerAuth = InMemoryProviderAuthRepository(
+        tokens: tokens,
+        echoDevCode: true,
+      );
+      store = _PublicStorage();
+      catalog = ProviderCatalogService(
+        providers,
+        providerAuth,
+        MembershipService(InMemoryMembershipRepository(), providerAuth),
+        allowedImageOrigins: const [base],
+        verifier: UploadVerificationService(storage: store),
+        publicBaseUrl: base,
+      );
+      final reg = await providerAuth.register(
+        email: 'logo@test.pro',
+        authProvider: 'google',
+        googleSub: 'logo-sub',
+        phoneNumber: '+2250500000022',
+        businessName: 'X',
+        businessType: 'salon',
+        providerId: 'provider1',
+      );
+      accountId = reg.provider!.id;
+    });
+
+    Future<CatalogResult> save(String? logoUrl) =>
+        catalog.updateProfile(accountId, 'provider1', {'logoUrl': logoUrl});
+
+    test('promoted out of pending/ on the first save', () async {
+      final r = await save(url('pending/logo/provider1/l1.png'));
+      expect(r.ok, isTrue, reason: r.error ?? '');
+      expect((r.data! as Map)['logoUrl'], url('logo/provider1/l1.png'));
+      expect(
+        store.deleted,
+        ['pending/logo/provider1/l1.png'],
+        reason: 'the object must LEAVE pending/, or the expiry still gets it',
+      );
+    });
+
+    test('re-sending the stored value is a no-op, not a 400', () async {
+      // The gallery's write-once lesson: both clients seed from the server
+      // and send the field back; a claim-form check here would refuse every
+      // profile save after the first.
+      await save(url('pending/logo/provider1/l1.png'));
+      store.copied.clear();
+      final again = await save(url('logo/provider1/l1.png'));
+      expect(again.ok, isTrue, reason: again.error ?? '');
+      expect(store.copied, isEmpty, reason: 'nothing new to promote');
+    });
+
+    test('a url we never issued is refused', () async {
+      // The naive-allowlist hole: were logoUrl a flat editable entry, this
+      // arbitrary same-origin string would be stored as-is.
+      final r = await save(url('logo/provider1/never-issued.png'));
+      expect(r.ok, isFalse);
+    });
+
+    test('a foreign origin is refused', () async {
+      final r = await save('https://evil.example/logo.png');
+      expect(r.ok, isFalse);
+      expect(r.error, 'invalid_input');
+    });
+
+    test('dev posture (no verifier): the origin allowlist is the ONLY gate — '
+        'and still refuses', () async {
+      // With a verifier, promotion independently refuses a foreign origin,
+      // so the allowlist reads redundant there. This is the construction
+      // where it is load-bearing: dev/Fake storage skips promotion entirely.
+      final devCatalog = ProviderCatalogService(
+        providers,
+        providerAuth,
+        MembershipService(InMemoryMembershipRepository(), providerAuth),
+        allowedImageOrigins: const [base],
+      );
+      final r = await devCatalog.updateProfile(accountId, 'provider1', {
+        'logoUrl': 'https://evil.example/logo.png',
+      });
+      expect(r.ok, isFalse);
+      expect(r.error, 'invalid_input');
+      // Control: an allowlisted origin passes through unverified.
+      final ok = await devCatalog.updateProfile(accountId, 'provider1', {
+        'logoUrl': url('pending/logo/provider1/l9.png'),
+      });
+      expect(ok.ok, isTrue, reason: ok.error ?? '');
+    });
+
+    test("l'empty string clears to null — the /me phone semantics", () async {
+      await save(url('pending/logo/provider1/l1.png'));
+      final r = await save('');
+      expect(r.ok, isTrue);
+      expect((r.data! as Map)['logoUrl'], isNull);
+    });
+
+    test('cross-tenant: an account that manages another salon → 403', () async {
+      final r = await catalog.updateProfile(accountId, 'provider2', {
+        'logoUrl': url('pending/logo/provider2/l1.png'),
+      });
+      expect(r.ok, isFalse);
+      expect(r.error, 'forbidden');
+    });
+  });
+
   group('artist photos', () {
     late InMemoryProvidersRepository providers;
     late InMemoryProviderAuthRepository providerAuth;

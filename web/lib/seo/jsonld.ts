@@ -96,6 +96,7 @@ export function localBusinessJsonLd(p: Provider, url: string) {
     url,
     description: p.description,
     image: p.imageUrls ?? [],
+    ...(p.logoUrl ? { logo: p.logoUrl } : {}),
     telephone: p.phoneNumber,
     address: {
       '@type': 'PostalAddress',

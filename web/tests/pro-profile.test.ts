@@ -1,10 +1,11 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   type ProfileForm,
   buildProfilePayload,
   profileToForm,
   validateProfile,
 } from '../lib/pro/profile';
+import { uploadLogoImage } from '../lib/pro/upload';
 import {
   type DepositForm,
   buildDepositPayload,
@@ -24,6 +25,7 @@ const profile: ProfileForm = {
   category: 'salon',
   latitude: null,
   longitude: null,
+  logoUrl: null,
 };
 
 describe('pro profile form', () => {
@@ -44,7 +46,23 @@ describe('pro profile form', () => {
       phoneNumber: '+2250700000000',
       whatsapp: null,
       category: 'salon',
+      logoUrl: '',
     });
+  });
+
+  it('the logo rides the staged payload; none staged sends \'\' (clear/no-op)', () => {
+    // salon-logo.md §4: '' clears server-side, and re-sending the stored URL
+    // is a promotion no-op — so the payload ALWAYS carries the field.
+    const url = 'https://cdn.example/logo/p1/1.jpg';
+    expect(buildProfilePayload({ ...profile, logoUrl: url }).logoUrl).toBe(url);
+    expect(buildProfilePayload(profile).logoUrl).toBe('');
+  });
+
+  it('profileToForm carries the stored logoUrl', () => {
+    expect(profileToForm({ logoUrl: 'https://cdn.example/l.jpg' }).logoUrl).toBe(
+      'https://cdn.example/l.jpg',
+    );
+    expect(profileToForm({}).logoUrl).toBeNull();
   });
 
   it('an areaId REPLACES the name fields — the server derives them (MP3)', () => {
@@ -133,5 +151,50 @@ describe('pro deposit form', () => {
         cancellationWindowHours: 48,
       }).percent,
     ).toBe('25');
+  });
+});
+
+describe('uploadLogoImage', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it('signs with purpose=logo → PUTs bytes → returns publicUrl', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            method: 'PUT',
+            uploadUrl: 'https://r2/upload',
+            headers: { 'content-type': 'image/jpeg' },
+            publicUrl: 'https://cdn/logo/p1/1.jpg',
+          }),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(new Response(null, { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const file = new File(['x'], 'l.jpg', { type: 'image/jpeg' });
+    expect(await uploadLogoImage(file)).toBe('https://cdn/logo/p1/1.jpg');
+    expect(String(fetchMock.mock.calls[0][0])).toContain('/api/pro/uploads/sign');
+    // The purpose IS the storage namespace (salon-logo.md §5) — never gallery.
+    expect(
+      JSON.parse(fetchMock.mock.calls[0][1]?.body as string).purpose,
+    ).toBe('logo');
+  });
+
+  it('returns null when the storage PUT fails', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({ uploadUrl: 'https://r2/u', publicUrl: 'https://cdn/x' }),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(new Response(null, { status: 403 }));
+    vi.stubGlobal('fetch', fetchMock);
+    const file = new File(['x'], 'l.jpg', { type: 'image/jpeg' });
+    expect(await uploadLogoImage(file)).toBeNull();
   });
 });

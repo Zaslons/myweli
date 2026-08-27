@@ -23,6 +23,8 @@ export type ProviderProfile = {
   category?: string;
   latitude?: number | null;
   longitude?: number | null;
+  /// The salon's brand mark (docs/design/salon-logo.md).
+  logoUrl?: string | null;
 };
 
 export type ProfileForm = {
@@ -42,6 +44,10 @@ export type ProfileForm = {
   /// The map pin (pro-salon-lifecycle L1) — PAIRED, saved only when placed.
   latitude: number | null;
   longitude: number | null;
+  /// The salon's logo — staged like every other field; null = none. The
+  /// payload always carries it: '' clears server-side, a re-sent stored URL
+  /// is a promotion no-op (salon-logo.md §4).
+  logoUrl: string | null;
 };
 
 export function profileToForm(p?: ProviderProfile): ProfileForm {
@@ -57,6 +63,7 @@ export function profileToForm(p?: ProviderProfile): ProfileForm {
     category: p?.category ?? 'salon',
     latitude: p?.latitude ?? null,
     longitude: p?.longitude ?? null,
+    logoUrl: p?.logoUrl ?? null,
   };
 }
 
@@ -92,5 +99,6 @@ export function buildProfilePayload(f: ProfileForm): Record<string, unknown> {
     ...(f.latitude != null && f.longitude != null
       ? { latitude: f.latitude, longitude: f.longitude }
       : {}),
+    logoUrl: f.logoUrl ?? '',
   };
 }

@@ -81,6 +81,12 @@ class ServiceLocator {
   late final ImageUploadServiceInterface imageUploadService;
   late final ImageUploadServiceInterface reviewImageUploadService;
   late final ImageUploadServiceInterface avatarImageUploadService;
+
+  /// The salon LOGO. A fourth slot for the avatar's §3 reason: `purpose` is
+  /// the storage namespace, so a logo filed under `gallery/{providerId}/`
+  /// would look like a portfolio photo to every future gallery sweep —
+  /// docs/design/salon-logo.md §5. Provider session, like the gallery.
+  late final ImageUploadServiceInterface logoImageUploadService;
   late final ReviewServiceInterface reviewService;
   late final MessagingServiceInterface messagingService;
   late final PushNotificationServiceInterface pushNotificationService;
@@ -213,6 +219,14 @@ class ServiceLocator {
             sessionStore: SecureSessionStore(),
             purpose: 'avatar',
             refreshPath: '/auth/refresh',
+          )
+        : MockImageUploadService();
+    // The salon logo — provider session + its own purpose (the default
+    // refreshPath is already the provider one). salon-logo.md.
+    logoImageUploadService = AppConfig.useApiBackend
+        ? ApiImageUploadService(
+            sessionStore: SecureSessionStore(key: 'myweli_provider_session'),
+            purpose: 'logo',
           )
         : MockImageUploadService();
     // Reviews on the real backend (consumer session for submit; the list is

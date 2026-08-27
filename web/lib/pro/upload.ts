@@ -13,6 +13,33 @@ type SignResponse = {
   key?: string;
 };
 
+/// The salon's brand mark — the gallery helper's shape with its OWN purpose
+/// (the purpose string is the storage namespace; salon-logo.md §5) and its
+/// own telemetry surface, so a CORS or signature failure names the feature.
+export async function uploadLogoImage(file: File): Promise<string | null> {
+  const signRes = await fetch('/api/pro/uploads/sign', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ contentType: file.type, purpose: 'logo' }),
+  });
+  if (!signRes.ok) {
+    reportUploadFailure('sign', 'logo', { status: signRes.status });
+    return null;
+  }
+  const sign = (await signRes.json().catch(() => ({}))) as SignResponse;
+  if (!sign.uploadUrl || !sign.publicUrl) {
+    reportUploadFailure('response', 'logo');
+    return null;
+  }
+  const ok = await putToStorage(
+    sign.uploadUrl,
+    { method: sign.method ?? 'PUT', headers: sign.headers ?? {}, body: file },
+    'logo',
+  );
+  if (!ok) return null;
+  return sign.publicUrl;
+}
+
 export async function uploadGalleryImage(file: File): Promise<string | null> {
   const signRes = await fetch('/api/pro/uploads/sign', {
     method: 'POST',

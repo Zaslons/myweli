@@ -304,6 +304,8 @@ spec:
               value: "10"
             - name: LIMIT_SIGN_AVATAR
               value: "10"
+            - name: LIMIT_SIGN_LOGO
+              value: "10"
             # R2 — all seven together or storageService throws (dependencies.dart:308).
             # R2_ENDPOINT is deliberately NOT set: it is derived from the
             # account id (:141-146), and supplying both invites drift.

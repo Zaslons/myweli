@@ -7,6 +7,7 @@ import { BookingCta } from '../BookingCta';
 
 export function ProviderHero({ provider }: { provider: Provider }) {
   const hero = provider.imageUrls?.[0];
+  const logo = provider.logoUrl;
   const sub = [categoryLabelFr(provider.category), provider.commune]
     .filter(Boolean)
     .join(' · ');
@@ -22,6 +23,19 @@ export function ProviderHero({ provider }: { provider: Provider }) {
             sizes="100vw"
             className="object-cover"
           />
+          {logo ? (
+            // The salon's brand mark over its cover (salon-logo.md §5) —
+            // bottom-left, ringed so it reads on any photo.
+            <div className="absolute bottom-m left-m h-16 w-16 overflow-hidden rounded-pill border-2 border-secondary bg-secondary shadow-lg">
+              <Image
+                src={logo}
+                alt={`Logo ${provider.name}`}
+                fill
+                sizes="64px"
+                className="object-cover"
+              />
+            </div>
+          ) : null}
         </div>
       ) : null}
       <div className="px-m py-l">
