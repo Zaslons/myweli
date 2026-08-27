@@ -1,3 +1,4 @@
+import { addressWithCommune } from '../../lib/address';
 import type { Metadata } from 'next';
 import type { Provider } from '../../lib/api/providers';
 import { formatFcfa } from '../../lib/format';
@@ -66,9 +67,12 @@ function buildFaq(
     },
     {
       question: `Où se trouve ${p.name} ?`,
-      answer:
-        `${p.name} est situé à ${commune}` +
-        `${p.address ? `, ${p.address}` : ''}, ${country}.`,
+      // addressWithCommune — this sentence ships into FAQPage JSON-LD and is
+      // quotable by AI overviews; before the dedupe it read « … situé à
+      // Marcory, marcory, Rue des Nguéssous 93, … » on the owner's own page.
+      answer: `${p.name} est situé à ${
+        p.address ? addressWithCommune(p.address, commune) : commune
+      }, ${country}.`,
     },
   ];
   const active = (p.services ?? []).filter((s) => s.active !== false);

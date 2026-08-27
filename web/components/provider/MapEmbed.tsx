@@ -1,5 +1,6 @@
 'use client';
 
+import { addressWithCommune } from '../../lib/address';
 import dynamic from 'next/dynamic';
 import { Loading } from '../Loading';
 import { useEffect, useRef, useState } from 'react';
@@ -61,9 +62,11 @@ export function MapEmbed({
   return (
     <section className="px-m py-l">
       <h2 className="text-titleLarge font-semibold text-textPrimary">Localisation</h2>
+      {/* addressWithCommune: the owner's page read « marcory, …, Marcory »
+          — the commune appends only when the address does not already say
+          it (segment-wise, case/accent-insensitive). */}
       <p className="mt-xs text-textSecondary">
-        {address}
-        {commune ? `, ${commune}` : ''}
+        {addressWithCommune(address, commune)}
       </p>
       {hasCoords ? (
         <>

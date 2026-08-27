@@ -10,6 +10,19 @@ import { providerFixture } from './fixtures';
 describe('provider JSON-LD', () => {
   const ld = localBusinessJsonLd(providerFixture, 'https://myweli.ci/beaute-divine');
 
+  it('streetAddress carries the STREET — the commune lives in addressLocality only', () => {
+    // The owner's stored address began with the commune; repeating it inside
+    // streetAddress is a structured-data error (fix/address-commune-dedupe).
+    const dup = localBusinessJsonLd(
+      { ...providerFixture, address: 'marcory, Rue des Nguéssous 93', commune: 'Marcory' },
+      'https://myweli.ci/beaute-divine',
+    );
+    expect(dup.address.streetAddress).toBe('Rue des Nguéssous 93');
+    expect(dup.address.addressLocality).toBe('Marcory');
+    // The base fixture's address ends with its commune too — stripped.
+    expect(ld.address.streetAddress).toBe('Rue des Jardins');
+  });
+
   it('maps a salon to a LocalBusiness with address + geo', () => {
     expect(ld['@type']).toBe('HairSalon');
     expect(ld.name).toBe('Beauté Divine');
