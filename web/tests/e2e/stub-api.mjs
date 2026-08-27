@@ -71,7 +71,18 @@ const provider = {
   ],
   availability: {
     providerId: 'p1',
-    weeklySchedule: { '0': [{ startTime: '09:00', endTime: '18:00' }] },
+    // The REAL wire shape — bare '09:00' here is exactly the fixture
+    // blindness that let Hours.tsx render raw ISO strings for weeks: the
+    // stub looked correct while production did not.
+    weeklySchedule: {
+      '0': [
+        {
+          startTime: '2024-01-01T09:00:00.000Z',
+          endTime: '2024-01-01T18:00:00.000Z',
+          isAvailable: true,
+        },
+      ],
+    },
     blockedDates: [],
     bufferMinutes: 0,
   },

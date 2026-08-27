@@ -1,3 +1,4 @@
+import { timeOfDay } from '../time-of-day';
 import type { Provider } from '../api/providers';
 import { SOCIAL_PROFILES } from '../social';
 
@@ -79,6 +80,44 @@ function schemaTypeFor(category: string): string {
   return categoryMap[category]?.schemaType ?? 'HealthAndBeautyBusiness';
 }
 
+/// schema.org weekday names, indexed by the wire's `weeklySchedule` keys
+/// ("0".."6" = Mon..Sun — the app/backend convention).
+const SCHEMA_DAYS = [
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
+  'Sunday',
+];
+
+/// `openingHoursSpecification` from the salon's availability — the spec's
+/// long-missing half (web-m3-provider-page.md §"LocalBusiness"). One entry
+/// per AVAILABLE range; `opens`/`closes` are bare `HH:mm` via [timeOfDay]
+/// (the wire's date part is a carrier, and Google wants the time alone).
+/// Empty when there is no availability — the caller omits the key then.
+function openingHoursSpec(p: Provider) {
+  const schedule = p.availability?.weeklySchedule;
+  if (!schedule) return [];
+  const spec = [];
+  for (let day = 0; day < 7; day++) {
+    for (const w of schedule[String(day)] ?? []) {
+      if (w.isAvailable === false) continue;
+      const opens = timeOfDay(w.startTime);
+      const closes = timeOfDay(w.endTime);
+      if (!opens || !closes) continue;
+      spec.push({
+        '@type': 'OpeningHoursSpecification',
+        dayOfWeek: SCHEMA_DAYS[day],
+        opens,
+        closes,
+      });
+    }
+  }
+  return spec;
+}
+
 /// LocalBusiness (BeautySalon family) entity for a provider page (SEO).
 export function localBusinessJsonLd(p: Provider, url: string) {
   const services = (p.services ?? []).filter((s) => s.active !== false);
@@ -106,6 +145,9 @@ export function localBusinessJsonLd(p: Provider, url: string) {
       // pre-backfill fallback only).
       addressCountry: p.countryCode ?? 'CI',
     },
+    ...(openingHoursSpec(p).length
+      ? { openingHoursSpecification: openingHoursSpec(p) }
+      : {}),
     ...(p.latitude != null && p.longitude != null
       ? {
           geo: {

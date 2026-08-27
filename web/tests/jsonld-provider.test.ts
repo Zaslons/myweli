@@ -29,6 +29,39 @@ describe('provider JSON-LD', () => {
     expect('logo' in ld).toBe(false);
   });
 
+  it('openingHoursSpecification: available ranges only, bare HH:mm, real day names', () => {
+    // The spec's long-missing half (web-m3-provider-page.md). The fixture:
+    // Monday split (two ranges), Tuesday one UNAVAILABLE slot, rest closed.
+    const spec = ld.openingHoursSpecification as {
+      dayOfWeek: string;
+      opens: string;
+      closes: string;
+    }[];
+    expect(spec).toHaveLength(2);
+    expect(spec[0]).toMatchObject({
+      '@type': 'OpeningHoursSpecification',
+      dayOfWeek: 'Monday',
+      opens: '09:00',
+      closes: '12:00',
+    });
+    expect(spec[1]).toMatchObject({ dayOfWeek: 'Monday', opens: '14:00' });
+    // The unavailable Tuesday slot must NOT advertise the salon as open.
+    expect(spec.some((s) => s.dayOfWeek === 'Tuesday')).toBe(false);
+    // Bare times — the wire's carrier date must not leak into search.
+    for (const s of spec) {
+      expect(s.opens).toMatch(/^\d{2}:\d{2}$/);
+      expect(s.closes).toMatch(/^\d{2}:\d{2}$/);
+    }
+  });
+
+  it('no availability → the key is omitted entirely', () => {
+    const bare = localBusinessJsonLd(
+      { ...providerFixture, availability: undefined },
+      'https://myweli.ci/beaute-divine',
+    );
+    expect('openingHoursSpecification' in bare).toBe(false);
+  });
+
   it('includes aggregateRating, reviews and offers', () => {
     expect(ld.aggregateRating).toMatchObject({ ratingValue: 4.8, reviewCount: 12 });
     expect(ld.review).toHaveLength(1);
