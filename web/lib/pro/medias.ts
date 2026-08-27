@@ -22,6 +22,14 @@ export function removeAt<T>(arr: T[], i: number): T[] {
   return arr.filter((_, idx) => idx !== i);
 }
 
+/// « Définir comme photo principale » (gallery-set-cover.md): item `i` jumps
+/// to the head — the cover slot — and the rest keep their relative order.
+/// No-op at 0 (already the cover) and out of bounds.
+export function toCover<T>(arr: T[], i: number): T[] {
+  if (i <= 0 || i >= arr.length) return arr;
+  return [arr[i], ...arr.filter((_, idx) => idx !== i)];
+}
+
 export function canAddPhoto(photos: string[]): boolean {
   return photos.length < MAX_GALLERY;
 }

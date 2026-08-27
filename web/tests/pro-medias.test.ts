@@ -4,6 +4,7 @@ import {
   canAddPair,
   canAddPhoto,
   moveItem,
+  toCover,
   removeAt,
 } from '../lib/pro/medias';
 import { uploadGalleryImage } from '../lib/pro/upload';
@@ -13,6 +14,13 @@ describe('pro medias helpers', () => {
     expect(moveItem(['a', 'b', 'c'], 0, 1)).toEqual(['b', 'a', 'c']);
     expect(moveItem(['a', 'b', 'c'], 2, 1)).toEqual(['a', 'b', 'c']); // bottom
     expect(moveItem(['a', 'b', 'c'], 0, -1)).toEqual(['a', 'b', 'c']); // top
+  });
+
+  it('toCover promotes to the head, relative order preserved; no-op at 0/oob', () => {
+    expect(toCover(['a', 'b', 'c', 'd'], 2)).toEqual(['c', 'a', 'b', 'd']);
+    expect(toCover(['a', 'b', 'c'], 0)).toEqual(['a', 'b', 'c']); // already cover
+    expect(toCover(['a', 'b', 'c'], 3)).toEqual(['a', 'b', 'c']); // oob
+    expect(toCover(['a', 'b', 'c'], -1)).toEqual(['a', 'b', 'c']);
   });
 
   it('removeAt drops the index', () => {

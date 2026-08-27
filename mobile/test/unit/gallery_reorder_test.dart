@@ -50,6 +50,52 @@ void main() {
     },
   );
 
+  test('setCover promotes the photo to index 0 in ONE write', () async {
+    when(
+      () => service.updateGalleryPhotos('p1', ['c', 'a', 'b']),
+    ).thenAnswer((_) async => ApiResponse.success(['c', 'a', 'b']));
+
+    expect(await gallery.setCover('p1', 2), isTrue);
+    expect(gallery.photos, ['c', 'a', 'b']);
+    verify(() => service.updateGalleryPhotos('p1', ['c', 'a', 'b'])).called(1);
+  });
+
+  test('setCover on the cover or out of bounds writes nothing', () async {
+    expect(await gallery.setCover('p1', 0), isFalse);
+    expect(await gallery.setCover('p1', -1), isFalse);
+    expect(await gallery.setCover('p1', 3), isFalse);
+    verifyNever(() => service.updateGalleryPhotos(any(), any()));
+    expect(gallery.photos, ['a', 'b', 'c']);
+  });
+
+  test(
+    'setCover derives from the CURRENT list — the restorePhotoAt rule',
+    () async {
+      // Remove 'a' first; the promotion must be computed from ['b', 'c'],
+      // not from any list captured earlier.
+      when(
+        () => service.updateGalleryPhotos('p1', ['b', 'c']),
+      ).thenAnswer((_) async => ApiResponse.success(['b', 'c']));
+      await gallery.removePhoto('p1', 0);
+
+      when(
+        () => service.updateGalleryPhotos('p1', ['c', 'b']),
+      ).thenAnswer((_) async => ApiResponse.success(['c', 'b']));
+      expect(await gallery.setCover('p1', 1), isTrue);
+      expect(gallery.photos, ['c', 'b']);
+    },
+  );
+
+  test('setCover keeps the order and surfaces the error on failure', () async {
+    when(
+      () => service.updateGalleryPhotos(any(), any()),
+    ).thenAnswer((_) async => ApiResponse.error('network_error'));
+
+    expect(await gallery.setCover('p1', 1), isFalse);
+    expect(gallery.photos, ['a', 'b', 'c']);
+    expect(gallery.error, 'network_error');
+  });
+
   test('movePhoto keeps the order and surfaces the error on failure', () async {
     when(
       () => service.updateGalleryPhotos('p1', any()),

@@ -110,6 +110,24 @@ class _ProPhotosScreenState extends State<ProPhotosScreen> {
     );
   }
 
+  Future<void> _setCover(
+    String providerId,
+    ProGalleryProvider gallery,
+    int index,
+  ) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final ok = await gallery.setCover(providerId, index);
+    // Unlike the arrows (which discard their future), a failed promotion says
+    // so — nothing on the tile moves, so silence would read as a dead tap.
+    if (!ok) {
+      AppSnackBar.showOn(
+        messenger,
+        gallery.error ?? 'Échec du déplacement',
+        kind: SnackKind.error,
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -161,6 +179,12 @@ class _ProPhotosScreenState extends State<ProPhotosScreen> {
                       url: gallery.photos[i],
                       isCover: i == 0,
                       onRemove: () => _removePhoto(providerId, gallery, i),
+                      // gallery-set-cover.md: one gesture instead of i arrow
+                      // taps. No success snackbar — the « Couverture » badge
+                      // jumps onto this very tile.
+                      onSetCover: i > 0
+                          ? () => _setCover(providerId, gallery, i)
+                          : null,
                       // Audit 3.6: reorder — the first photo is the cover.
                       onMoveLeft: i > 0
                           ? () => gallery.movePhoto(providerId, i, -1)
@@ -190,6 +214,7 @@ class _PhotoTile extends StatelessWidget {
   final String url;
   final bool isCover;
   final VoidCallback onRemove;
+  final VoidCallback? onSetCover;
   final VoidCallback? onMoveLeft;
   final VoidCallback? onMoveRight;
 
@@ -197,6 +222,7 @@ class _PhotoTile extends StatelessWidget {
     required this.url,
     required this.isCover,
     required this.onRemove,
+    this.onSetCover,
     this.onMoveLeft,
     this.onMoveRight,
   });
@@ -210,6 +236,41 @@ class _PhotoTile extends StatelessWidget {
           borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
           child: TimedCachedImage(imageUrl: url, fit: BoxFit.cover),
         ),
+        // The ✕'s mirror twin at the free corner: top-left is the only spot
+        // the tile has left (✕ top-right, arrows bottom, badge bottom-left on
+        // the cover only — and this control renders only OFF the cover).
+        if (onSetCover != null)
+          Positioned(
+            top: 4,
+            left: 4,
+            child: Semantics(
+              button: true,
+              label: 'Définir comme photo principale',
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: onSetCover,
+                child: SizedBox(
+                  width: 48,
+                  height: 48,
+                  child: Align(
+                    alignment: Alignment.topLeft,
+                    child: Container(
+                      padding: const EdgeInsets.all(AppTheme.spacingXS),
+                      decoration: const BoxDecoration(
+                        color: Colors.black54,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.star_outline,
+                        size: AppTheme.iconXS,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
         Positioned(
           top: 4,
           right: 4,

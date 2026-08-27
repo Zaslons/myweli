@@ -108,6 +108,27 @@ class ProGalleryProvider extends ChangeNotifier implements SalonScoped {
     return false;
   }
 
+  /// « Définir comme photo principale » (gallery-set-cover.md): the photo
+  /// jumps to index 0 — ONE wholesale PUT instead of `index` arrow taps.
+  /// Derives from the CURRENT list at call time, never a captured one — the
+  /// [restorePhotoAt] rule.
+  Future<bool> setCover(String providerId, int index) async {
+    // 0 is already the cover; nothing to write.
+    if (index <= 0 || index >= _photos.length) return false;
+    final next = [..._photos];
+    next.insert(0, next.removeAt(index));
+    final saved = await _proService.updateGalleryPhotos(providerId, next);
+    if (saved.success && saved.data != null) {
+      _photos = saved.data!;
+      _error = null;
+      notifyListeners();
+      return true;
+    }
+    _error = saved.error ?? 'Échec du déplacement';
+    notifyListeners();
+    return false;
+  }
+
   /// A6/§15: put ONE photo back where it was — the Undo behind the delete
   /// confirmation.
   ///

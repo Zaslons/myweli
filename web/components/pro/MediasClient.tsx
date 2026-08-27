@@ -11,6 +11,7 @@ import {
   canAddPhoto,
   moveItem,
   removeAt,
+  toCover,
 } from '../../lib/pro/medias';
 import { uploadGalleryImage } from '../../lib/pro/upload';
 import { Button } from '../Button';
@@ -158,6 +159,16 @@ function PhotosTab({
                 <span />
               )}
               <span className="flex gap-s">
+                {i > 0 ? (
+                  // gallery-set-cover.md: one click instead of i « Monter »s.
+                  // Staged like the arrows; « Enregistrer » persists.
+                  <IconBtn
+                    label="Définir comme photo principale"
+                    onClick={() => setPhotos(toCover(photos, i))}
+                  >
+                    ★
+                  </IconBtn>
+                ) : null}
                 <IconBtn
                   label="Monter"
                   onClick={() => setPhotos(moveItem(photos, i, -1))}
