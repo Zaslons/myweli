@@ -142,3 +142,44 @@ body {
   border: 3px solid theme('colors.secondary');
   box-shadow: 0 2px 8px rgb(0 0 0 / 0.25);
 }
+
+/* Avant/Après comparator (web-provider-before-after.md) — the native range
+   IS the control: keyboard, touch, pointer scrub and click-jumps all native.
+   The track is invisible (the images are the track); the thumb is the
+   visible handle — the app's 34px white circle. */
+.myweli-ba {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  cursor: ew-resize;
+  margin: 0;
+  padding: 0;
+}
+.myweli-ba::-webkit-slider-runnable-track {
+  background: transparent;
+  border: none;
+}
+.myweli-ba::-moz-range-track {
+  background: transparent;
+  border: none;
+}
+.myweli-ba::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 2.125rem;
+  height: 2.125rem;
+  border-radius: theme('borderRadius.pill');
+  background-color: theme('colors.secondary');
+  border: 1px solid theme('colors.borderStrong');
+  box-shadow: theme('boxShadow.lg');
+  cursor: ew-resize;
+}
+.myweli-ba::-moz-range-thumb {
+  width: 2.125rem;
+  height: 2.125rem;
+  border-radius: theme('borderRadius.pill');
+  background-color: theme('colors.secondary');
+  border: 1px solid theme('colors.borderStrong');
+  box-shadow: theme('boxShadow.lg');
+  cursor: ew-resize;
+}
