@@ -20,8 +20,11 @@ import {
   manualBookingTotal,
 } from "../../lib/pro/manual-booking";
 import { salonToday } from "../../lib/time";
+import { isPossiblePhoneNumber } from "react-phone-number-input";
+import { useFieldErrors } from "../../lib/forms/useFieldErrors";
 import { Button } from "../Button";
 import { Modal } from "../Modal";
+import { PhoneField } from "../PhoneField";
 import { conflictMessage } from "../../lib/booking/window";
 
 const todayYmd = (tz?: string) => salonToday(new Date(), tz);
@@ -100,6 +103,16 @@ export function ManualBookingDialog({
   }
 
   const [error, setError] = useState<string | null>(null);
+  // The phone-field fault sits UNDER the field (§14) — the E.164 lesson: the
+  // backend refuses non-E.164 with `invalid_phone`, and this dialog used to
+  // send raw text and label the refusal « Création impossible. Réessayez. ».
+  // PhoneField emits E.164 (or ''), so a possible number here IS sendable.
+  const fields = useFieldErrors({
+    phone: (v: string) =>
+      !v || isPossiblePhoneNumber(v)
+        ? null
+        : "Saisissez un numéro de téléphone valide.",
+  });
 
   const canSubmit = canSubmitManualBooking({
     serviceIds: selected,
@@ -109,6 +122,9 @@ export function ManualBookingDialog({
 
   async function create() {
     if (!canSubmit || !dt) return;
+    // Only the NEW-client phone needs the gate — a picked client's stored
+    // phone is already E.164 (the clients module refuses anything else).
+    if (!picked && !fields.validate({ phone: newPhone })) return;
     // The app's future-only guard — on the standalone path (a grid cell is
     // the salon's own calendar choice).
     if (!fixed && !isFutureIso(dt)) {
@@ -262,14 +278,16 @@ export function ManualBookingDialog({
               ))}
             </ul>
           ) : query.trim().length >= 1 ? (
-            <input
-              type="tel"
-              value={newPhone}
-              onChange={(e) => setNewPhone(e.target.value)}
-              placeholder="Téléphone (pour retrouver ce client)"
-              aria-label="Téléphone du nouveau client"
-              className="mt-xs w-full min-h-12 rounded-lg border border-borderStrong bg-surface p-m text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
-            />
+            <div className="mt-xs">
+              <PhoneField
+                label="Téléphone (pour retrouver ce client)"
+                onChange={(v) => {
+                  setNewPhone(v);
+                  fields.revalidate("phone", v);
+                }}
+                error={fields.errors.phone}
+              />
+            </div>
           ) : null}
         </div>
       )}

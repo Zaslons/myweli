@@ -32,6 +32,7 @@ class PhoneNumberField extends StatelessWidget {
     this.initialCountryCode = 'CI',
     this.initialValue,
     this.errorText,
+    this.enabled = true,
   });
 
   /// The field-level fault — see [AppTextField.errorText], same contract.
@@ -46,9 +47,14 @@ class PhoneNumberField extends StatelessWidget {
   /// derives the country from it.
   final String? initialValue;
 
+  /// Greys the field out (the walk-in checkbox's contract) — same meaning as
+  /// [AppTextField.enabled].
+  final bool enabled;
+
   @override
   Widget build(BuildContext context) {
     return IntlPhoneField(
+      enabled: enabled,
       initialCountryCode: initialCountryCode,
       initialValue: initialValue,
       languageCode: 'fr',

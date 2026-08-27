@@ -836,6 +836,11 @@ class ApiProService implements ProServiceInterface {
       // slot conflict ». The comment was right and the copy was not.
       case 'slot_unavailable':
         return 'Ce créneau est déjà pris. Choisissez un autre horaire.';
+      // Same French as the web's conflictMessage — parity. Defence in depth:
+      // the field converts to E.164 before sending, so reaching this means a
+      // bypass, and « Une erreur est survenue » would hide which field.
+      case 'invalid_phone':
+        return 'Numéro invalide (format international, ex. +2250700000000).';
       default:
         return 'Une erreur est survenue.';
     }

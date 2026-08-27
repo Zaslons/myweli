@@ -602,6 +602,18 @@ void main() {
       },
     );
 
+    test(
+      'invalid_phone names the field — same French as the web, verbatim',
+      () async {
+        // Defence in depth behind the E.164 field: reaching this code means a
+        // bypass, and « Une erreur est survenue » would hide WHICH field.
+        expect(
+          await manualBookingError('invalid_phone'),
+          'Numéro invalide (format international, ex. +2250700000000).',
+        );
+      },
+    );
+
     test('an unknown code still falls back', () async {
       expect(
         await manualBookingError('something_new'),

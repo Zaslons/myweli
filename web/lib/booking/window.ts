@@ -139,6 +139,12 @@ export function conflictMessage(
       return audience === "salon"
         ? "Ce salon est introuvable."
         : "Ce salon n’est plus disponible sur MyWeli.";
+    // The manual-booking phone lesson: this code fell to the fallback
+    // (« Création impossible. Réessayez. ») — a retry invitation for a
+    // failure retrying can never fix. Same copy as the « Ajouter un
+    // client » modal, verbatim.
+    case "invalid_phone":
+      return "Numéro invalide (format international, ex. +2250700000000).";
     default:
       return fallback;
   }

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/constants/booking_horizons.dart';
@@ -23,6 +22,7 @@ import '../../../widgets/common/label_value_row.dart';
 import '../../../widgets/common/loading_indicator.dart';
 import '../../../widgets/common/myweli_date_picker.dart';
 import '../../../widgets/common/myweli_time_picker.dart';
+import '../../../widgets/common/phone_number_field.dart';
 
 class ProManualBookingScreen extends StatefulWidget {
   const ProManualBookingScreen({
@@ -51,9 +51,9 @@ class _ProManualBookingScreenState extends State<ProManualBookingScreen> {
   // (salon_time.dart) — tz from ProAuthProvider, seeded in initState.
   DateTime? _date;
   TimeOfDay? _time;
-  late final _phone = TextEditingController(
-    text: widget.initialClientPhone ?? '',
-  );
+  // E.164 from [PhoneNumberField] — a String, not a controller: the widget
+  // owns its text and hands the full number out.
+  late String _phone = widget.initialClientPhone ?? '';
   late final _name = TextEditingController(
     text: widget.initialClientName ?? '',
   );
@@ -86,8 +86,6 @@ class _ProManualBookingScreenState extends State<ProManualBookingScreen> {
 
   @override
   void dispose() {
-    _phoneFocus.dispose();
-    _phone.dispose();
     _name.dispose();
     _note.dispose();
     super.dispose();
@@ -113,11 +111,12 @@ class _ProManualBookingScreenState extends State<ProManualBookingScreen> {
   /// they land form-level. The phone DOES have one.
   String? _selectionError;
   late final _errors = FieldErrors({
-    // The one field that really is typed as local digits — its formatter is
-    // `digitsOnly`, so a `+` cannot even be entered.
-    'phone': Validators.localPhoneNumber,
+    // E.164 — what [PhoneNumberField] emits and what the backend stores. The
+    // previous shape here was a self-contradiction that made every phoned
+    // booking fail: a `digitsOnly` formatter under a « +225 … » hint, judged
+    // by a 10-local-digits rule, sent raw to a server that requires `+`.
+    'phone': Validators.phoneNumber,
   });
-  final _phoneFocus = FocusNode();
 
   /// The minute grid the time picker offers, so this screen's own lift lands on
   /// a value the picker would have shown.
@@ -209,9 +208,8 @@ class _ProManualBookingScreenState extends State<ProManualBookingScreen> {
       );
       return;
     }
-    if (!_anonymous && !_errors.validate({'phone': _phone.text})) {
+    if (!_anonymous && !_errors.validate({'phone': _phone})) {
       setState(() => _selectionError = null);
-      _phoneFocus.requestFocus();
       return;
     }
     setState(() {
@@ -226,10 +224,10 @@ class _ProManualBookingScreenState extends State<ProManualBookingScreen> {
       serviceIds: _selected.toList(),
       appointmentDateTime: dt,
       clientName: _name.text.trim().isEmpty ? null : _name.text.trim(),
-      clientPhone: _anonymous ? null : _phone.text.trim(),
+      clientPhone: _anonymous ? null : _phone.trim(),
       notes: _note.text.trim().isEmpty ? null : _note.text.trim(),
       artistId: widget.initialArtistId,
-      sendSmsInvite: _sendSms && !_anonymous && _phone.text.trim().isNotEmpty,
+      sendSmsInvite: _sendSms && !_anonymous && _phone.trim().isNotEmpty,
     );
     if (!mounted) return;
     setState(() => _submitting = false);
@@ -331,17 +329,15 @@ class _ProManualBookingScreenState extends State<ProManualBookingScreen> {
               ),
               const SizedBox(height: AppTheme.spacingM),
               _label('CLIENT'),
-              AppTextField(
+              PhoneNumberField(
                 label: 'Téléphone du client',
-                hint: '+225 …',
-                controller: _phone,
-                focusNode: _phoneFocus,
-                keyboardType: TextInputType.phone,
+                initialValue: widget.initialClientPhone,
                 enabled: !_anonymous,
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                 errorText: _errors['phone'],
-                onChanged: (v) =>
-                    setState(() => _errors.revalidate('phone', v)),
+                onChanged: (e164) => setState(() {
+                  _phone = e164;
+                  _errors.revalidate('phone', e164);
+                }),
               ),
               CheckboxListTile(
                 value: _anonymous,
@@ -358,8 +354,8 @@ class _ProManualBookingScreenState extends State<ProManualBookingScreen> {
               ),
               const SizedBox(height: AppTheme.spacingS),
               SwitchListTile(
-                value: _sendSms && !_anonymous && _phone.text.trim().isNotEmpty,
-                onChanged: (_anonymous || _phone.text.trim().isEmpty)
+                value: _sendSms && !_anonymous && _phone.trim().isNotEmpty,
+                onChanged: (_anonymous || _phone.trim().isEmpty)
                     ? null
                     : (v) => setState(() => _sendSms = v),
                 title: const Text('Envoyer la confirmation par SMS'),
