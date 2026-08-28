@@ -1018,6 +1018,11 @@ checking rather than assuming:
       only an emulator.
 - [ ] Staged rollout starting at a small percentage.
 - [ ] Data safety form completed, consistent with the iOS privacy answers.
+      **Every answer is pre-derived** — store listing texts, App access (the
+      demo review credentials), IARC and the full Data-safety tables for BOTH
+      apps live in [design/play-store-forms.md](design/play-store-forms.md),
+      each derived from the published privacy policy or the binary, never
+      invented. The operator types; the thinking is done.
 
 ---
 
