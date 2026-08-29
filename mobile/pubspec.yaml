@@ -76,7 +76,7 @@ dependencies:
   # Brand loader animations (Lottie): in-app loading (mark_loader) + app-open (loader_v2).
   lottie: ^3.5.1
   # Pull-to-refresh with the brand mark_loader instead of the Material spinner.
-  custom_refresh_indicator: ^4.0.1
+  custom_refresh_indicator: ^4.0.2
   flutter_slidable: ^4.0.3
   # A9 (§9.1 of nothing — §17): the Material/Cupertino defaults, in French.
   # Pins `intl: 0.20.2` and `path: 1.9.1` EXACTLY, which we already resolve to —
