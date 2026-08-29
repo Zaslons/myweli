@@ -116,7 +116,7 @@ dependencies:
   # salon-time seam runs on (core/utils/salon_time.dart).
   flutter_local_notifications: ^22.2.0
   # The re-enable path when notifications are denied at the OS level.
-  app_settings: ^8.0.3
+  app_settings: ^9.0.0
   sentry_flutter: ^9.0.0
   package_info_plus: ^9.0.1
 
