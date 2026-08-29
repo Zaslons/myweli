@@ -137,6 +137,21 @@ COMMON=(
 if [[ "$PLATFORM" == ios ]]; then
   echo "→ flutter build ipa --flavor $FLAVOUR --target $ENTRY --build-number $BUILD_NUMBER (DSN injected, not shown)"
   flutter build ipa "${COMMON[@]}"
+  # **Park the IPA under the flavour's own name.** `flutter build ipa` always
+  # exports to build/ios/ipa/MyWeli.ipa regardless of flavour — measured
+  # 2026-08-29, when `ios pro` silently overwrote the consumer IPA and only a
+  # bytes-level entitlement check caught it. Android never had this problem
+  # (bundle paths are flavour-specific); iOS now matches. Refuse loudly if
+  # the expected file is absent rather than "succeeding" with nothing.
+  IPA_DIR="build/ios/ipa"
+  if [[ ! -f "$IPA_DIR/MyWeli.ipa" ]]; then
+    echo "::error:: expected $IPA_DIR/MyWeli.ipa after the build — not found." >&2
+    exit 1
+  fi
+  mv "$IPA_DIR/MyWeli.ipa" "$IPA_DIR/MyWeli-$FLAVOUR.ipa"
+  [[ -f "$IPA_DIR/DistributionSummary.plist" ]] && \
+    mv "$IPA_DIR/DistributionSummary.plist" "$IPA_DIR/DistributionSummary-$FLAVOUR.plist"
+  echo "→ IPA: mobile/$IPA_DIR/MyWeli-$FLAVOUR.ipa"
 else
   echo "→ flutter build appbundle --flavor $FLAVOUR --target $ENTRY --build-number $BUILD_NUMBER (DSN injected, not shown)"
   flutter build appbundle "${COMMON[@]}"
