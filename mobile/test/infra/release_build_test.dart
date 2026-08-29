@@ -41,6 +41,32 @@ void main() {
       })
       .join('\n');
 
+  group('the iOS IPA survives building the OTHER flavour', () {
+    // `flutter build ipa` always exports to build/ios/ipa/MyWeli.ipa, so
+    // without the flavour-suffixed move, `ios pro` after `ios consumer`
+    // silently replaces the consumer IPA — measured 2026-08-29, caught only
+    // by a bytes-level entitlement check on what was ABOUT to be uploaded.
+    test('the script parks the IPA under the flavour name', () {
+      expect(
+        code,
+        contains(r'MyWeli-$FLAVOUR.ipa'),
+        reason:
+            'the move to a flavour-suffixed IPA is gone — the second iOS '
+            'build will silently overwrite the first again',
+      );
+    });
+
+    test('and refuses when the expected IPA is absent', () {
+      expect(
+        code,
+        contains(r'! -f "$IPA_DIR/MyWeli.ipa"'),
+        reason:
+            'without the existence check, a build that produced nothing '
+            'still "succeeds" and the operator uploads yesterday\'s file',
+      );
+    });
+  });
+
   group('the release script compiles the app it is naming', () {
     test('it passes --target at all', () {
       expect(
