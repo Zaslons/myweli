@@ -41,7 +41,12 @@ void main() {
   test('a realistic rolling deploy fits', () {
     // `maxScale` is per REVISION, so a deploy runs two revisions at once. The
     // realistic shape is the NEW revision scaling to maxScale while the OLD one
-    // drains at `minScale: 1` — five instances, not eight.
+    // drains at `minScale` — five instances, not eight.
+    //
+    // DELIBERATELY the LAUNCH value, not today's: prod temporarily runs
+    // minScale 0 (pre-launch economy, LAUNCH.md §6.5 flips it back), and 0
+    // would only WEAKEN this bound — testing the stricter launch posture
+    // means the flip-back cannot break the connection math unnoticed.
     const minScale = 1;
     expect(
       kMaxConnectionsPerInstance * (maxScale + minScale),
