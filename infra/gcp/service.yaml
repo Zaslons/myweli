@@ -68,10 +68,18 @@ spec:
         # reach migrations before the proxy is listening and the revision dies.
         run.googleapis.com/container-dependencies: '{"app":["cloudsql-proxy"]}'
 
-        # min-instances 1: every cold start serializes behind the schema
-        # advisory lock before the port is bound, so user traffic must never be
-        # the thing that triggers a cold start.
-        autoscaling.knative.dev/minScale: '1'
+        # **Pre-launch economy (2026-08-30, owner decision): 0, not 1.**
+        # The launch posture is minScale 1 — a cold start runs migrations and
+        # the seed steps behind the schema advisory lock before the port is
+        # bound, so PAYING user traffic must never be the thing that triggers
+        # one. But with zero public users, an always-on pod (app + SQL-proxy
+        # sidecar) was ~2/3 of the entire GCP bill. Until launch the only
+        # callers are the owner, CI probes and store reviewers, all of whom
+        # can wait out one cold boot. **LAUNCH.md §6.5 gates the flip back to
+        # '1' before announcing** — and pool_sizing_test deliberately keeps
+        # its arithmetic at the LAUNCH value, so the flip-back cannot break
+        # the connection math.
+        autoscaling.knative.dev/minScale: '0'
         autoscaling.knative.dev/maxScale: '4'
         run.googleapis.com/startup-cpu-boost: 'true'
     spec:
@@ -115,8 +123,8 @@ spec:
             # **Every secret is pinned to a version, never `latest`.**
             #
             # Cloud Run resolves a secret reference when the CONTAINER STARTS,
-            # and production runs minScale: 1 — the logs show exactly one
-            # container start per revision, ever. So `latest` meant the running
+            # and production ran minScale: 1 at the time — the logs showed
+            # exactly one container start per revision. So `latest` meant the running
             # process kept whatever it read at boot, indefinitely, while
             # DEPLOYMENT.md documented `gcloud secrets versions add` as the
             # whole procedure. It bit us: ADMIN_PASSWORD v2 was added on

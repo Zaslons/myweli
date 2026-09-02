@@ -293,6 +293,24 @@ which is how the reminder cron came to be switched off without anyone noticing.
    service file). Production stays `workflow_dispatch` with the typed `deploy`,
    and a push cannot reach it.
 
+### The staging database sleeps between rehearsals (pre-launch economy, 2026-08-30)
+
+`myweli-db-staging` is STOPPED by default (`activation-policy NEVER`) and its
+two scheduler jobs are PAUSED — an idle 24/7 database plus 100 failing cron
+wakes/day bought nothing. **Before any staging deploy or rehearsal**:
+
+```bash
+gcloud sql instances patch myweli-db-staging --project myweli --activation-policy=ALWAYS
+gcloud scheduler jobs resume myweli-reminders-staging --location europe-west9 --project myweli
+gcloud scheduler jobs resume myweli-subscriptions-staging --location europe-west9 --project myweli
+```
+
+(the instance takes ~1–2 min to accept connections; a staging deploy's boot
+smoke FAILS against a stopped database — start it first, always). After the
+rehearsal, the reverse: `--activation-policy=NEVER` and
+`gcloud scheduler jobs pause` on both. LAUNCH.md §6.5 restarts it durably for
+the launch rhythm.
+
 ### Rolling back
 
 Full procedure — including the two things it cannot undo — is

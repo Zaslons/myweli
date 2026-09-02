@@ -986,7 +986,11 @@ void main() {
       // the schema advisory lock; staging must, because that is the path worth
       // rehearsing — and because the compute should not join the Cloud SQL
       // instance in being unable to scale to zero.
-      expect(scale(files['prod']!, 'minScale'), greaterThanOrEqualTo(1));
+      // Pre-launch economy (2026-08-30): prod deliberately runs 0 — an
+      // always-on pod was ~2/3 of the GCP bill with zero public users.
+      // LAUNCH.md §6.5 gates the flip back to ≥1 before announcing; when
+      // that lands, this pin goes back to greaterThanOrEqualTo(1).
+      expect(scale(files['prod']!, 'minScale'), 0);
       expect(scale(files['staging']!, 'minScale'), 0);
     });
   });
