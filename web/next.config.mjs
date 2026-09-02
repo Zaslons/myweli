@@ -34,7 +34,21 @@ export const TAXONOMY_ROOTS = [
 ///
 /// The tree is fetched at build. If it comes back empty the build FAILS rather
 /// than silently shipping a site where every legacy URL 404s.
+///
+/// **Production only.** Previews point at STAGING, whose database now sleeps
+/// between rehearsals (pre-launch economy, DEPLOYMENT.md) — the first preview
+/// after that change died right here on `GET /localities -> 500`, turning the
+/// Vercel check red on every PR. A preview that builds without legacy
+/// redirects (and with the SSG spine's own empty-tree fallbacks) is degraded
+/// but honest; a PRODUCTION build without them would silently 404 every
+/// legacy URL, so that hard fail is kept bit-for-bit. The seam is
+/// [failClosed] so a test can drive both postures without a network.
+export function redirectsFailClosed(env = process.env) {
+  return env.VERCEL_ENV === 'production' || !env.VERCEL_ENV;
+}
+
 async function legacyFlatRedirects() {
+  const failClosed = redirectsFailClosed();
   const base =
     process.env.API_BASE_URL ?? process.env.NEXT_PUBLIC_API_BASE_URL ?? '';
   if (!base) {
@@ -43,19 +57,33 @@ async function legacyFlatRedirects() {
         + 'Set NEXT_PUBLIC_API_BASE_URL.',
     );
   }
-  const res = await fetch(`${base}/localities`);
-  if (!res.ok) throw new Error(`GET /localities -> ${res.status}`);
-  const tree = await res.json();
+  let tree;
+  try {
+    const res = await fetch(`${base}/localities`);
+    if (!res.ok) throw new Error(`GET /localities -> ${res.status}`);
+    tree = await res.json();
+  } catch (e) {
+    if (failClosed) throw e;
+    console.warn(
+      `[preview] ${e}: staging is likely asleep (pre-launch economy) — `
+        + 'building this PREVIEW without legacy redirects.',
+    );
+    return [];
+  }
   const pairs = (tree.countries ?? []).flatMap((c) =>
     (c.cities ?? []).flatMap((city) =>
       (city.areas ?? []).map((area) => [city.slug, area.slug]),
     ),
   );
   if (pairs.length === 0) {
-    throw new Error(
-      'The locality tree yielded no areas. Refusing to build: every legacy '
-        + 'flat URL would 404.',
-    );
+    if (redirectsFailClosed()) {
+      throw new Error(
+        'The locality tree yielded no areas. Refusing to build: every legacy '
+          + 'flat URL would 404.',
+      );
+    }
+    console.warn('[preview] empty locality tree — no legacy redirects.');
+    return [];
   }
   return TAXONOMY_ROOTS.flatMap((root) =>
     pairs.map(([city, area]) => ({

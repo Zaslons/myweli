@@ -1,4 +1,5 @@
 import type { LocalityTree } from './api/localities';
+import { buildFailsClosed } from './build-posture';
 import { taxonomyRootSlugs } from './taxonomy';
 
 /// The complete set of nested landing pages, derived from the **locality tree**.
@@ -31,6 +32,13 @@ import { taxonomyRootSlugs } from './taxonomy';
 /// `API_BASE_URL` is unset.
 function assertNonEmpty<T>(params: T[], level: string): T[] {
   if (params.length === 0) {
+    // Previews degrade instead of dying — buildFailsClosed carries the
+    // reasoning (staging sleeps between rehearsals; a preview's landing
+    // pages 404ing is honest, every PR's Vercel check going red is not).
+    if (!buildFailsClosed()) {
+      console.warn(`[preview] empty locality tree — no ${level} pages.`);
+      return params;
+    }
     throw new Error(
       `The locality tree yielded no ${level} params. Refusing to build: with `
         + 'dynamicParams=false this would 404 every landing page on the site. '
