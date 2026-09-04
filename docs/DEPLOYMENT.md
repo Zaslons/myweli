@@ -293,23 +293,25 @@ which is how the reminder cron came to be switched off without anyone noticing.
    service file). Production stays `workflow_dispatch` with the typed `deploy`,
    and a push cannot reach it.
 
-### The staging database sleeps between rehearsals (pre-launch economy, 2026-08-30)
+### The staging database runs 24/7 — and why sleeping it was reversed (2026-09-04)
 
-`myweli-db-staging` is STOPPED by default (`activation-policy NEVER`) and its
-two scheduler jobs are PAUSED — an idle 24/7 database plus 100 failing cron
-wakes/day bought nothing. **Before any staging deploy or rehearsal**:
+Tried on 2026-09-02 as part of the pre-launch economy: `activation-policy
+NEVER` between rehearsals, its two scheduler jobs paused. **Reversed two
+days later on a measured fact**, not a preference: Google bills a public
+IPv4 on a STOPPED instance at $0.01/h (~$7.30/mo, Cloud SQL pricing →
+Network → "IPv4 addresses while idle"), and an instance cannot exist with
+no IP at all (`--no-assign-ip` on the stopped instance → 400 "At least one
+of Public IP or Private IP or PSC connectivity must be enabled"). Private
+IP would need a VPC path whose connector costs more than it saves. So a
+sleeping staging costs ~$9.3/mo against ~$10.9/mo awake — **$1.60 of
+saving** for a start-before-every-rehearsal step and previews without real
+data. Not worth it. Staging stays awake; the economy that mattered is the
+production `minScale: 0` (LAUNCH.md §6.5).
 
-```bash
-gcloud sql instances patch myweli-db-staging --project myweli --activation-policy=ALWAYS
-gcloud scheduler jobs resume myweli-reminders-staging --location europe-west9 --project myweli
-gcloud scheduler jobs resume myweli-subscriptions-staging --location europe-west9 --project myweli
-```
-
-(the instance takes ~1–2 min to accept connections; a staging deploy's boot
-smoke FAILS against a stopped database — start it first, always). After the
-rehearsal, the reverse: `--activation-policy=NEVER` and
-`gcloud scheduler jobs pause` on both. LAUNCH.md §6.5 restarts it durably for
-the launch rhythm.
+If it is ever slept again anyway, remember the two crons
+(`gcloud scheduler jobs pause/resume myweli-reminders-staging
+myweli-subscriptions-staging --location europe-west9`) and that a staging
+deploy's boot smoke fails against a stopped database.
 
 ### Rolling back
 
