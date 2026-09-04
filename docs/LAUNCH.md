@@ -1029,20 +1029,19 @@ checking rather than assuming:
 ### 6.5 Pre-launch economy — MUST be reverted before announcing
 
 Taken 2026-08-30 (owner decision): with zero public users, the always-on
-production pod and the idle staging database were most of the GCP bill
-(~90 USD/mo projected → target 15–25). Two knobs moved; **both revert
-before launch is announced, and this section is the gate**:
+production pod was most of the GCP bill (~90 USD/mo projected → measured
+trajectory ≈ 25). One knob remains moved — **it reverts before launch is
+announced, and this section is the gate**:
 
 - [ ] `infra/gcp/service.yaml` `minScale: '0'` → back to `'1'` (+ the
       `service_files_test.dart` pin back to `greaterThanOrEqualTo(1)`), PR +
       prod deploy. Rationale in the manifest comment: a cold start runs
       migrations behind the advisory lock; paying traffic must never trigger
       one. `pool_sizing_test.dart` already asserts the launch arithmetic.
-- [ ] Staging database restarted for the launch rhythm:
-      `gcloud sql instances patch myweli-db-staging --activation-policy=ALWAYS`
-      and the two staging scheduler jobs resumed
-      (`gcloud scheduler jobs resume myweli-reminders-staging myweli-subscriptions-staging --location europe-west9`).
-      The stop/start routine lives in DEPLOYMENT.md (staging section).
+- [x] ~~Staging database restarted for the launch rhythm~~ — **already
+      awake**: the sleep was reversed on 2026-09-04 (a stopped instance's
+      public IPv4 is billed idle, so sleeping saved $1.60/mo for real
+      friction — DEPLOYMENT.md, staging section). Nothing to restart.
 
 ## 6.4 The first real salon — the one hop nothing has exercised
 
