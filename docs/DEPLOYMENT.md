@@ -313,6 +313,54 @@ If it is ever slept again anyway, remember the two crons
 myweli-subscriptions-staging --location europe-west9`) and that a staging
 deploy's boot smoke fails against a stopped database.
 
+The `$0.01/h` above is the pricing page's headline; the SKU that actually
+billed during those two days reads **`Cloud SQL for PostgreSQL: Zonal - IP
+address reservation in Paris` at $0.0116/h**. It billed **64.58 hours** —
+the sleep window to the minute — and had never appeared on this account
+before. That is the measurement the reversal was decided on, arriving after
+the decision and agreeing with it.
+
+### What the project actually costs — measured 2026-09-09, not projected
+
+Read from **Billing → Reports, grouped by SKU, daily**. September 1–8:
+**$12.45**, steady days **$1.62–1.67**, Google's month forecast **$51.03**.
+Ten SKUs carry it and they sum to the total to the cent, so the other 25
+rows on the account are $0.00 (logging is 0.099 GiB against 50 free, uptime
+checks are inside the free million, Artifact Registry is 337 MB against 0.5
+GiB, Cloud SQL egress is intra-region at $0.00):
+
+| SKU | Sep 1–8 | Steady state |
+|---|---|---|
+| Cloud Load Balancer Forwarding Rule Minimum Global | $4.57 | **$18.25/mo** |
+| Cloud SQL for PostgreSQL: Zonal - Micro instance in Paris (×2) | $3.80 | $17.81/mo |
+| Networking Cloud Armor Policy | $1.27 | **$5.00/mo** |
+| Cloud SQL for PostgreSQL: Zonal - Standard storage in Paris (2×10 GiB) | $1.04 | $3.94/mo |
+| Networking Cloud Armor Rule (3 rules) | $0.76 | **$3.00/mo** |
+| Cloud SQL: Zonal - IP address reservation in Paris | $0.75 | $0 — only bills while STOPPED |
+| Secret Manager: Secret version replica storage | $0.23 | $0.89/mo |
+| Networking Cloud Armor Requests | $0.03 | $0.12/mo |
+| Cloud SQL: Backups in Paris · ALB data processing | $0.00 | ~$0 |
+
+**Two flat network charges — $26.42/mo — are 53% of the bill and were in no
+projection.** They do not move with traffic, with `minScale`, or with the
+staging database, which is why the (real) −99% drop in billable instance
+time barely moved the total. The load balancer exists because Cloud Run
+domain mappings return **501 UNIMPLEMENTED** in europe-west9 and a
+Cloudflare CNAME to `*.run.app` 404s on the Host header
+(design/infra-gcp-migration.md, priced there at $18–25/mo and approved
+before creation on 2026-08-06); prod ingress is then locked to
+`internal-and-cloud-load-balancing`, which is why Cloud Armor's per-IP rate
+limiting lives on the backend service rather than only in the app. Cloud
+Armor bills its **non-deletable default rule** too: three rule-months, not
+two.
+
+**There is no Cloud Billing budget on this account.** `85-db-capacity-alert.sh`
+and `88-email-budget-alert.sh` are about Postgres connections and email
+sends, not money. Until a budget with threshold alerts exists, the only
+thing standing between a cost regression and the invoice is someone opening
+this page.
+
+
 ### Rolling back
 
 Full procedure — including the two things it cannot undo — is
