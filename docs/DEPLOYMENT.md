@@ -354,6 +354,20 @@ limiting lives on the backend service rather than only in the app. Cloud
 Armor bills its **non-deletable default rule** too: three rule-months, not
 two.
 
+**Re-checked 2026-09-09, because the whole case for spending it rests on
+this:** `run/docs/mapping-custom-domains` still lists ten regions for
+domain mappings — `asia-east1`, `asia-northeast1`, `asia-southeast1`,
+`europe-north1`, `europe-west1`, `europe-west4`, `us-central1`, `us-east1`,
+`us-east4`, `us-west1` — and **europe-west9 is not among them**. Google's
+own recommended alternative for the other regions is *"a global external
+Application Load Balancer"*. So this line is not an over-build to be
+regretted; it is the documented way to put a custom domain in front of
+Cloud Run in Paris, and \$18.25/mo is its price. The only cheaper path is a
+Cloudflare Worker rewriting the `Host` header, which requires reopening
+prod ingress from `internal-and-cloud-load-balancing` to `all` — the
+`run.app` URL becomes reachable again and the edge rate limit becomes
+bypassable unless origin authentication replaces it.
+
 **There is no Cloud Billing budget on this account.** `85-db-capacity-alert.sh`
 and `88-email-budget-alert.sh` are about Postgres connections and email
 sends, not money. Until a budget with threshold alerts exists, the only
