@@ -158,6 +158,7 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/AuthSession' }
         '400': { $ref: '#/components/responses/BadRequest' }
+        '429': { $ref: '#/components/responses/RateLimited' }
 
   /auth/google:
     post:
@@ -187,6 +188,7 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
 
   /auth/apple:
     post:
@@ -219,6 +221,7 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
 
   /auth/email/otp/request:
     post:
@@ -279,6 +282,7 @@ paths:
         '400': { $ref: '#/components/responses/BadRequest' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
 
   /auth/refresh:
     post:
@@ -300,6 +304,7 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/TokenPair' }
         '401': { $ref: '#/components/responses/Unauthorized' }
+        '429': { $ref: '#/components/responses/RateLimited' }
 
   /me:
     get:
@@ -1133,6 +1138,7 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '409':
           description: An account already exists for this identity (provider_exists)
+        '429': { $ref: '#/components/responses/RateLimited' }
 
   /auth/provider/google:
     post:
@@ -1174,6 +1180,7 @@ paths:
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
 
   /auth/provider/apple:
     post:
@@ -1198,6 +1205,7 @@ paths:
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
 
   /auth/provider/email/otp/request:
     post:
@@ -1271,6 +1279,7 @@ paths:
                     items: { $ref: '#/components/schemas/TeamInvitation' }
         '400': { $ref: '#/components/responses/BadRequest' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
 
   /auth/provider/invitations/accept:
     post:
@@ -1315,6 +1324,7 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
+        '429': { $ref: '#/components/responses/RateLimited' }
 
   /auth/provider/invitations/decline:
     post:
@@ -1350,6 +1360,7 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
 
   /auth/provider/otp/verify:
     post:
@@ -1384,6 +1395,7 @@ paths:
                     description: Access-token expiry.
         '400': { $ref: '#/components/responses/BadRequest' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
 
   /auth/provider/refresh:
     post:
@@ -1406,6 +1418,7 @@ paths:
               schema: { $ref: '#/components/schemas/TokenPair' }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
+        '429': { $ref: '#/components/responses/RateLimited' }
 
   /localities:
     get:
@@ -2961,6 +2974,7 @@ paths:
               schema: { $ref: '#/components/schemas/TokenPair' }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
+        '429': { $ref: '#/components/responses/RateLimited' }
 
   /admin/auth/password:
     post:
@@ -3848,6 +3862,15 @@ components:
 
     Error:
       type: object
+      description: >
+        The envelope of every non-2xx response. Two codes can appear on ANY
+        path and are therefore documented here rather than per operation:
+        `origin_required` (403, every path except `GET /health`) — the request
+        did not come through `api.myweli.com`; production is reachable only
+        through the Cloudflare front door, and the direct `*.run.app` door
+        refuses whatever lacks the origin header
+        (docs/design/infra-cloudflare-front-door.md §3). `internal_error`
+        (500) — an unhandled failure, carrying `X-Request-Id`.
       required: [error]
       properties:
         error: { type: string, description: Stable machine code, e.g. otp_expired }

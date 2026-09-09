@@ -119,4 +119,31 @@ void main() {
   test('an unused bucket reports 0 rather than throwing', () async {
     expect(await limiter.used(freshBucket(), window: kIdentityWindow), 0);
   });
+
+  test('prune removes stale windows and spares fresh ones', () async {
+    // The per-IP auth buckets made the key set open (every new address is a
+    // row), so the table needs the pruner the identity-limits design demanded
+    // of such a key. Same shape as the login throttle's prune test: a row in
+    // the past, a row in the present, one prune from the present.
+    final b = freshBucket();
+    addTearDown(() => purge(b));
+    final now = DateTime.utc(2026, 9, 9, 12);
+    final past = DateTime.utc(2026, 9, 7, 12);
+    PostgresRateLimiter at(DateTime t) =>
+        PostgresRateLimiter(pool, clock: () => t);
+    await at(past).hit(b, limit: 10, window: kIdentityWindow);
+    await at(now).hit(b, limit: 10, window: kIdentityWindow);
+    final deleted = await at(now).prune(const Duration(days: 1));
+    expect(deleted, greaterThanOrEqualTo(1));
+    expect(
+      await at(past).used(b, window: kIdentityWindow),
+      0,
+      reason: 'the two-day-old window is gone',
+    );
+    expect(
+      await at(now).used(b, window: kIdentityWindow),
+      1,
+      reason: 'the current window must survive',
+    );
+  });
 }

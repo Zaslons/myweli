@@ -52,6 +52,7 @@ import 'package:myweli_backend/src/query_sanity.dart';
 import 'package:myweli_backend/src/reviews_repository.dart';
 import 'package:myweli_backend/src/reviews_service.dart';
 import 'package:myweli_backend/src/salon_provisioning_service.dart';
+import 'package:myweli_backend/src/security/origin_front_door.dart';
 import 'package:myweli_backend/src/subscription/salon_subscription_service.dart';
 import 'package:myweli_backend/src/subscription/subscription_scheduler.dart';
 import 'package:myweli_backend/src/upload_signing_service.dart';
@@ -136,6 +137,13 @@ Handler middleware(Handler handler) {
       // request id, and outside everything else so no handler ever sees a
       // control character (lib/src/query_sanity.dart).
       .use(querySanityMiddleware())
+      // The origin gate + the per-IP auth limit (T70, T71). INSIDE observability
+      // so a refusal carries a request id and is logged and reported; OUTSIDE
+      // CORS, query sanity and every provider so nothing downstream runs for a
+      // request that did not come through api.myweli.com. Two callbacks, for
+      // the reason `corsMiddleware` gives above (lib/src/security/
+      // origin_front_door.dart · docs/design/infra-cloudflare-front-door.md).
+      .use(originFrontDoorMiddleware(() => originAuth, () => rateLimiter))
       // **Outermost** (the LAST `.use` wraps everything above it): request id,
       // error→envelope, structured log, report.
       //

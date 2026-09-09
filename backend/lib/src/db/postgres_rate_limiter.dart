@@ -32,9 +32,16 @@ import '../security/rate_limiter.dart';
 const kLimiterQueryTimeout = Duration(seconds: 2);
 
 class PostgresRateLimiter implements RateLimiter {
-  PostgresRateLimiter(this._pool);
+  PostgresRateLimiter(this._pool, {DateTime Function()? clock})
+    : _clock = clock ?? DateTime.now;
 
   final Pool<void> _pool;
+
+  /// Injected for the same reason `PostgresLoginThrottle` injects its clock:
+  /// [prune]'s cutoff and [hit]'s window must be computed from ONE source, so
+  /// a test can place a row in the past and a prune in the present without
+  /// waiting for either.
+  final DateTime Function() _clock;
 
   @override
   Future<RateVerdict> hit(
@@ -61,7 +68,7 @@ class PostgresRateLimiter implements RateLimiter {
         'DO UPDATE SET hits = identity_rate_limits.hits + 1 '
         'RETURNING hits',
       ),
-      parameters: {'b': bucket, 'w': windowStart(DateTime.now(), window)},
+      parameters: {'b': bucket, 'w': windowStart(_clock(), window)},
       timeout: kLimiterQueryTimeout,
     );
     final hits = rows.first.toColumnMap()['hits'] as int;
@@ -75,10 +82,46 @@ class PostgresRateLimiter implements RateLimiter {
         'SELECT hits FROM identity_rate_limits '
         'WHERE bucket = @b AND window_start = @w',
       ),
-      parameters: {'b': bucket, 'w': windowStart(DateTime.now(), window)},
+      parameters: {'b': bucket, 'w': windowStart(_clock(), window)},
       timeout: kLimiterQueryTimeout,
     );
     if (rows.isEmpty) return 0;
     return rows.first.toColumnMap()['hits'] as int;
+  }
+
+  /// Deletes every window that started more than [olderThan] ago; returns how
+  /// many rows went.
+  ///
+  /// **Why this arrived with the per-IP auth buckets and not before.** The
+  /// identity buckets (`book:`, `review:`, `sign:`) are keyed on a JWT `sub`,
+  /// so the table was bounded by the user set and a stale row cost nothing.
+  /// `ip:auth:<digest>` is keyed on whoever knocks: every new address writes
+  /// a row, the key set is open, and without a pruner the table only grows —
+  /// the identity-limits design's own requirement for an open-set key
+  /// (docs/design/infra-cloudflare-front-door.md §4).
+  ///
+  /// Nothing reads a window older than its own length (1 h for identity
+  /// buckets, 1 min for IP buckets), so the daily caller's 1-day retention is
+  /// generous by design: this is housekeeping, not — unlike the login
+  /// throttle's prune — a security parameter.
+  ///
+  /// Bounded by [kLimiterQueryTimeout] like every other statement here — the
+  /// `every limiter query carries a deadline` pin counts call sites, and the
+  /// reason it gives holds for a cron too: a database that accepts the
+  /// connection and never answers would otherwise hang the daily job for Cloud
+  /// Run's 300 s instead of failing it, and a failed cron is what the
+  /// missed-cron alert can see. Two seconds is ample: the table gains at most
+  /// (distinct addresses × active minutes) rows a day, and the delete walks
+  /// the `window_start` index.
+  Future<int> prune(Duration olderThan) async {
+    final r = await _pool.execute(
+      Sql.named(
+        'DELETE FROM identity_rate_limits '
+        'WHERE window_start < @cutoff:timestamptz',
+      ),
+      parameters: {'cutoff': _clock().toUtc().subtract(olderThan)},
+      timeout: kLimiterQueryTimeout,
+    );
+    return r.affectedRows;
   }
 }

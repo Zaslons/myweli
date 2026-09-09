@@ -980,10 +980,14 @@ CREATE TABLE IF NOT EXISTS momo_operators (
       // in a plain Map on a `maxScale: 4` service — up to 20 guesses per 15
       // minutes, reset by every cold start — and the reason recorded for leaving
       // it there was that admin login "sits behind Cloudflare Access". That
-      // premise was false twice over: nothing in this repo shows Access is
-      // configured, and `api.myweli.com` is DNS-only by design (the managed
-      // certificate needs Google to answer the challenge), so Cloudflare is not
-      // in the request path at all.
+      // premise was false twice over when this was written: nothing in this
+      // repo shows Access is configured, and `api.myweli.com` was DNS-only by
+      // design (the managed certificate needed Google to answer the
+      // challenge), so Cloudflare was not in the request path at all. Since
+      // the front door (docs/design/infra-cloudflare-front-door.md) the record
+      // IS proxied and Cloudflare IS in the path — but as a Worker plus a
+      // 10-per-10-s edge rule, still not Access, so the argument for a shared
+      // store stands unchanged.
       //
       // **`key_hash`, not the email.** The key is the caller's own input on an
       // unauthenticated endpoint, and unknown addresses are counted too —
