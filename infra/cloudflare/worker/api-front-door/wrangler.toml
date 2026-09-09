@@ -1,0 +1,49 @@
+# The Cloudflare Worker fronting api.myweli.com
+# (docs/design/infra-cloudflare-front-door.md §5.3).
+#
+# Deployed by infra/cloudflare/96-api-front-door.sh, never by CI: CI has no
+# Cloudflare identity (infra/cloudflare/README.md), and the one token that can
+# deploy this lives in Secret Manager and is read on the owner's machine only.
+#
+# NO SECRET IN THIS FILE. ORIGIN_AUTH_SECRET is a Worker secret, piped from
+# Secret Manager into `wrangler secret put` over stdin by the script. A
+# `[vars]` entry for it here would put the origin credential in a public repo.
+
+# The script name in the dashboard, in `wrangler deployments list`, and the
+# `script` a route points at. Pinned by the spec; the retire script and the
+# launch runbook refer to it by this name.
+name = "myweli-api-front-door"
+
+# Plain JavaScript, no build step: wrangler ships this file as-is.
+main = "src/index.js"
+
+# Freezes the runtime's behaviour at this date so a later runtime change
+# cannot alter how fetch()/Request/redirect behave under us. Set to the day the
+# Worker was written; bump deliberately, with a redeploy and a re-run of
+# infra/gcp/72-verify-front-door.sh.
+compatibility_date = "2026-09-09"
+
+# No <name>.workers.dev hostname. That would be a SECOND public door to the
+# origin, carrying the header — exactly what the route + origin gate close.
+workers_dev = false
+
+[vars]
+# The Cloud Run hostname the Worker forwards to, in the `status.url` form
+# (Cloud Run publishes two run.app hostnames per service and only status.url
+# is the right one — .github/workflows/deploy-backend.yml). Read back from
+# `gcloud run services describe myweli-api --region europe-west9
+# --format='value(status.url)'` on 2026-09-09. Not a secret: the direct door
+# answers 403 `origin_required` to anyone who knows it.
+ORIGIN_HOST = "myweli-api-5a24ymhbbq-od.a.run.app"
+
+# A ROUTE, not a Custom Domain: routes are the documented shape for a Worker in
+# front of a non-Worker origin (Cloud Run); a Custom Domain makes the Worker
+# the origin and creates its own DNS record. The route only fires while the
+# api.myweli.com DNS record is PROXIED (orange cloud) — step 4 of the script.
+# `/*` because route matching includes the query string, so a bare hostname
+# would not match `?page=2`. No scheme, so both http:// and https:// reach the
+# Worker (the origin's own redirect behaviour is preserved by redirect:
+# 'manual').
+[[routes]]
+pattern = "api.myweli.com/*"
+zone_name = "myweli.com"

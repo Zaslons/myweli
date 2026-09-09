@@ -1,12 +1,18 @@
 # `infra/cloudflare/`
 
 Object storage for **staging** — build-order step 3 of
-[design/infra-staging.md](../../docs/design/infra-staging.md).
+[design/infra-staging.md](../../docs/design/infra-staging.md) — and, since
+2026-09, the **front door** for `api.myweli.com`
+([design/infra-cloudflare-front-door.md](../../docs/design/infra-cloudflare-front-door.md)).
 
 | File | What it is |
 |---|---|
 | [`90-staging-r2.sh`](90-staging-r2.sh) | Creates the three buckets, enables the public delivery origin, applies CORS and lifecycle. Idempotent. |
 | [`cors-staging-public.json`](cors-staging-public.json) | CORS for the public bucket only. Staging origins — **never** `myweli.com`. **Wrangler's file format**, which is not the dashboard/API one. |
+| [`95-verify-r2.sh`](95-verify-r2.sh) + [`r2-manifest.json`](r2-manifest.json) | Read-only checker of the live account against the manifest, for both environments. Never writes — enforced by `r2_manifest_test.dart`. |
+| [`worker/api-front-door/src/index.js`](worker/api-front-door/src/index.js) | The Worker on `api.myweli.com/*`: forwards to the Cloud Run `run.app` hostname (Host follows the URL) and adds the one `X-Myweli-Origin-Auth` header. Never sets Host, copies Content-Length, reads the body or follows a redirect; answers 500 `front door misconfigured` rather than forward without the header. |
+| [`worker/api-front-door/wrangler.toml`](worker/api-front-door/wrangler.toml) | Script name `myweli-api-front-door`, the route on zone `myweli.com`, `ORIGIN_HOST` as a plain var, `workers_dev = false`. **Holds no secret** — `ORIGIN_AUTH_SECRET` is put over stdin by the script. |
+| [`96-api-front-door.sh`](96-api-front-door.sh) | Spec §5.4, steps 1–5: token from Secret Manager (never printed) → SSL-mode precheck + security-level report → `wrangler deploy` + secret → A record flipped to proxied → the one free-plan rate-limit rule (refuses to `PUT` over a rule it did not write). Every step reads its work back. Idempotent; re-run at launch. |
 
 Verified by
 [`backend/test/storage/r2_token_scope_test.dart`](../../backend/test/storage/r2_token_scope_test.dart).
@@ -136,3 +142,38 @@ Needs `wrangler login`. It is not a CI job on purpose — CI has no Cloudflare
 identity, and giving it one would mean a token that can reconfigure buckets.
 The half that CAN run in CI is that same test, which pins the manifest against
 the backend's own constants.
+
+## The front door — `api.myweli.com` without the load balancer
+
+Cloud Run domain mappings are unimplemented in `europe-west9`, and the global
+load balancer that stood in for one cost $26.5/month in flat charges at zero
+traffic. Since 2026-09 the hostname is served by **Cloudflare's edge** (a
+proxied A record, one free-plan rate-limiting rule on `/auth/*` and
+`/admin/auth/*`: 10 per 10 s per IP, block 10 s — burst protection only) →
+**the Worker** `myweli-api-front-door` in `worker/api-front-door/` (route
+`api.myweli.com/*`; forwards to the `run.app` hostname and adds
+`X-Myweli-Origin-Auth`) → **Cloud Run** with `ingress: all`, where the
+backend's origin gate refuses anything without that header except
+`GET /health`, and only then trusts `CF-Connecting-IP` for the authoritative
+10/minute per-IP limiter. The direct `run.app` door therefore answers
+`403 origin_required`; the header is what closed it, not ingress. Design and
+rollout order: [design/infra-cloudflare-front-door.md](../../docs/design/infra-cloudflare-front-door.md);
+retirement of the LB: `infra/gcp/71-retire-load-balancer.sh`; acceptance on
+the live path: `infra/gcp/72-verify-front-door.sh`.
+
+**One toggle is dashboard-only, and the script ends by naming it.** Workers
+Free is 100 000 requests/day; past the cap a route in *Fail open* mode
+**bypasses the Worker** — traffic reaches the origin without the header —
+while *Fail closed* answers a clean Error 1027. The route must be set to
+**Fail closed** by hand (Workers & Pages → the Worker → Settings → Domains &
+Routes → the route), recorded in DEPLOYMENT.md, and re-read at launch
+(LAUNCH.md §6.5, where the Free → Paid decision also lives).
+
+**CI never holds this token.** `96-api-front-door.sh` reads
+`CLOUDFLARE_FRONT_DOOR_TOKEN` from Secret Manager on the owner's machine —
+minted in the dashboard (a token cannot create a token), scoped to zone
+`myweli.com` only with no R2 and no Pages (spec §6.3) — exports it for
+`wrangler` and `curl`, and never prints it. `production-checks.yml` already
+asserts CI cannot read any secret value, so the stance above (« CI has no
+Cloudflare identity ») stays true: the Worker is an owner-run deploy, like
+the buckets.
