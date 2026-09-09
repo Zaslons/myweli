@@ -118,7 +118,14 @@ add infra/gcp/80-uptime-checks.sh
 add infra/gcp/85-db-capacity-alert.sh
 add infra/gcp/86-cron-auth-alert.sh
 add infra/gcp/88-email-budget-alert.sh
-add infra/gcp/91-armor-deny-alert.sh
+# 91-armor-deny-alert.sh is NOT listed while the load balancer is retired
+# (docs/design/infra-cloudflare-front-door.md §5.5): its policy, "Cloud Armor
+# REFUSED a request", is deleted by 71-retire-load-balancer.sh, and
+# 93-sync-runbooks.sh exits 1 on a rendered policy with no live twin — so
+# leaving the line here would fail every deploy's post-step for an alert that
+# has nothing left to watch. The line goes back in with the rest of the
+# re-apply list (LAUNCH.md §6.5) if the load balancer ever returns.
+#   add infra/gcp/91-armor-deny-alert.sh
 add infra/gcp/92-identity-limit-alert.sh
 add infra/gcp/94-identity-warning-alert.sh
 add infra/gcp/96-rebuild-hook-alert.sh

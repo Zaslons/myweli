@@ -329,6 +329,14 @@ jobs:
           MESSAGING_PROVIDER: disabled
           PUSH_PROVIDER: disabled
           STORAGE_PROVIDER: disabled
+          # The origin gate (docs/design/infra-cloudflare-front-door.md §5.2):
+          # production refuses to boot without ORIGIN_AUTH_SECRET, and this job
+          # rehearses production's configuration — the secret itself is
+          # composed in the `run:` block below, for the gitleaks reason given
+          # there. `log`, not `enforce`, because every curl in this step
+          # carries no origin header BY DESIGN: it is the OTP seam under test,
+          # not the gate. The gate has its own step right after this one.
+          ORIGIN_AUTH_MODE: log
         run: |
           set -euo pipefail
           PORT=8788
@@ -337,6 +345,9 @@ jobs:
           # generic-api-key rule matches, and a placeholder that trips the
           # credential scanner would train us to wave the scanner through.
           export SMOKE_OTP_SECRET="ci-placeholder-$(printf 'x%.0s' $(seq 1 24))"
+          # Same reason, same shape: ≥32 chars because the gate refuses shorter
+          # in EVERY environment (short means "door open", not "feature off").
+          export ORIGIN_AUTH_SECRET="ci-origin-auth-not-a-secret-$(printf 'x%.0s' $(seq 1 24))"
           PORT=$PORT ./bin/server & SRV=$!
           trap 'kill $SRV 2>/dev/null || true' EXIT
           for i in $(seq 1 60); do
@@ -380,6 +391,125 @@ jobs:
           if ! has_code "$R"; then echo "::error::the seam did not disclose for a valid smoke identity: $R"; exit 1; fi
           echo "  ok  .test identity + correct secret → devCode present"
 
+      # **The branch a plain test run cannot reach: the enforce mode of the
+      # origin gate, on the real binary.** docs/design/infra-cloudflare-front-
+      # door.md §5.2 opens production's ingress to `all` so the Cloudflare
+      # Worker can reach it, and the ONLY thing that then closes the reopened
+      # *.run.app door is `originFrontDoorMiddleware` answering 403
+      # `origin_required` to a request without `X-Myweli-Origin-Auth`. The
+      # middleware has unit tests; this proves the wiring — that the chain in
+      # `routes/_middleware.dart` actually runs it, in front of the routes, in
+      # a process booted the way production boots. Q1b above runs in `log`
+      # mode by design, so nothing else in CI ever sees a 403 from the gate.
+      #
+      # Then the second half of the same contract: a secret that is present
+      # but too short must refuse to BOOT, naming the variable — «too short»
+      # means «door open» here, not «feature off», which is why it is a
+      # fail-fast in every environment and not only in prod.
+      - name: The origin front door — the reopened run.app door is closed
+        working-directory: backend/build
+        env:
+          ENV: prod
+          JWT_SECRET: ci-prod-mode-secret
+          AUTH_METHODS: google,apple,email
+          RESEND_API_KEY: not-a-resend-key-delivery-is-ignored-here
+          WEB_ORIGINS: http://localhost:8790
+          GOOGLE_CLIENT_IDS: 000000000000-cinotarealclientid0000000000.apps.googleusercontent.com
+          APPLE_CLIENT_IDS: com.myweli.app.ci
+          MESSAGING_PROVIDER: disabled
+          PUSH_PROVIDER: disabled
+          STORAGE_PROVIDER: disabled
+          # The point of the step. Unset would ALSO mean enforce (the safe
+          # default), but a rehearsal should say what it rehearses.
+          ORIGIN_AUTH_MODE: enforce
+        run: |
+          set -euo pipefail
+          PORT=8790
+          # Composed, not a literal — the gitleaks reason in the step above.
+          export ORIGIN_AUTH_SECRET="ci-origin-auth-not-a-secret-$(printf 'x%.0s' $(seq 1 24))"
+          PORT=$PORT ./bin/server & SRV=$!
+          trap 'kill $SRV 2>/dev/null || true' EXIT
+          for i in $(seq 1 60); do
+            curl -fsS "http://localhost:${PORT}/health" >/dev/null 2>&1 && break
+            kill -0 "$SRV" 2>/dev/null || { echo '::error::server died during boot'; exit 1; }
+            sleep 1
+          done
+
+          # status + body of one request; the body is what tells a gate 403
+          # from any other 403.
+          probe() { # path [header]
+            curl -sS -o /tmp/fd.body -w '%{http_code}' \
+              ${2:+-H "X-Myweli-Origin-Auth: $2"} \
+              "http://localhost:${PORT}$1"
+          }
+
+          # 1. /health without the header → 200. Cloud Run's liveness probe
+          #    GETs it with no header every 30 s; a gate that closed it would
+          #    restart every instance in production.
+          C=$(probe /health)
+          [ "$C" = "200" ] || { echo "::error::/health without header → $C, expected 200 (the liveness probe would fail)"; exit 1; }
+          echo "  ok  /health, no header → 200"
+
+          # 2. A real route without the header → 403 origin_required. This is
+          #    the assertion the whole slice exists to make true.
+          C=$(probe /providers)
+          [ "$C" = "403" ] || { echo "::error::/providers without header → $C, expected 403 — the reopened run.app door is OPEN"; exit 1; }
+          grep -q 'origin_required' /tmp/fd.body || { echo "::error::403 without origin_required in the body: $(cat /tmp/fd.body)"; exit 1; }
+          echo "  ok  /providers, no header → 403 origin_required"
+
+          # 3. The right header → 200. A gate that only ever refuses would be
+          #    as broken as one that always passes: the Worker could not get in.
+          C=$(probe /providers "$ORIGIN_AUTH_SECRET")
+          [ "$C" = "200" ] || { echo "::error::/providers with the correct header → $C, expected 200: $(cat /tmp/fd.body)"; exit 1; }
+          echo "  ok  /providers, correct header → 200"
+
+          # 4. Wrong value, SAME LENGTH, last byte differs — a shorter value
+          #    would fail the length check before the byte compare, which is
+          #    the part worth testing (the Q1b rule).
+          C=$(probe /providers "${ORIGIN_AUTH_SECRET%?}y")
+          [ "$C" = "403" ] || { echo "::error::/providers with a wrong header → $C, expected 403"; exit 1; }
+          echo "  ok  /providers, wrong header (same length) → 403"
+
+          kill "$SRV" 2>/dev/null || true
+          wait "$SRV" 2>/dev/null || true
+          trap - EXIT
+
+          # 5. Too short → refuses to boot, naming ORIGIN_AUTH_SECRET. Same
+          #    shape as the allowlist step below: `timeout` is load-bearing
+          #    (a server that boots would block the job forever) and 124 is a
+          #    failure of the subject, not a flake.
+          PORT=8791
+          set +e
+          out=$(timeout 90 env PORT=$PORT ORIGIN_AUTH_SECRET=too-short ./bin/server 2>&1)
+          rc=$?
+          set -e
+          echo "$out" | tail -20
+          if [ "$rc" -eq 124 ]; then
+            echo "::error::the server BOOTED with a 9-character ORIGIN_AUTH_SECRET."
+            echo "::error::The length guard did not fire, so a weak secret reaches"
+            echo "::error::production with the run.app door guarded by a guess."
+            exit 1
+          fi
+          if [ "$rc" -eq 0 ]; then
+            echo "::error::the server exited 0 with a too-short ORIGIN_AUTH_SECRET."
+            exit 1
+          fi
+          # Non-zero is not enough on its own: a typo in DATABASE_URL would
+          # also be non-zero and would prove nothing about this guard.
+          case "$out" in
+            *ORIGIN_AUTH_SECRET*)
+              echo "refused at boot, naming the variable, as designed" ;;
+            *)
+              echo "::error::it failed, but not for the reason under test —"
+              echo "::error::the message does not mention ORIGIN_AUTH_SECRET."
+              exit 1 ;;
+          esac
+          if curl -fsS "http://localhost:${PORT}/health" >/dev/null 2>&1; then
+            echo "::error::the port is open; the process bound before failing."
+            exit 1
+          fi
+          echo "and the port never opened."
+
       # **The claim "it fails at boot" was an inference until this step.**
       #
       # docs/DEPLOYMENT.md tells the reader a revision missing a required value
@@ -412,6 +542,11 @@ jobs:
           set -uo pipefail
           PORT=8789
           export SMOKE_OTP_SECRET="ci-placeholder-$(printf 'x%.0s' $(seq 1 24))"
+          # Production refuses to boot without it, and this step rehearses
+          # production's configuration — a boot that died for a MISSING origin
+          # secret would exit non-zero naming the wrong variable, and the
+          # `case` below would catch that as "not the reason under test".
+          export ORIGIN_AUTH_SECRET="ci-origin-auth-not-a-secret-$(printf 'x%.0s' $(seq 1 24))"
 
           # `timeout` is the load-bearing part: if the guard does NOT fire, the
           # server serves happily and would block this job forever. A 124 is

@@ -22,13 +22,15 @@ metadata:
   labels:
     cloud.googleapis.com/location: europe-west9
   annotations:
-    # **`all`, unlike production — and not an oversight.** Production is
-    # `internal-and-cloud-load-balancing` because a global load balancer is the
-    # only front door and the *.run.app URL must not be a second one. Staging has
-    # no load balancer (the $18.25/mo hostname is declined — infra-staging.md
-    # §4.1), so its run.app URL is the ONLY door. Copying production's value here
-    # would make staging unreachable by its own cron and by every Vercel preview,
-    # which is the entire reason it exists.
+    # **`all`, like production since 2026-09 — and for a different reason.**
+    # Production is `all` because a Cloudflare Worker fronts api.myweli.com and
+    # reaches the service on its *.run.app hostname; the second door that opens
+    # is closed by the origin gate (`ORIGIN_AUTH_SECRET`, production only —
+    # docs/design/infra-cloudflare-front-door.md §5.6). Staging has no Worker,
+    # no gate and no load balancer (the $18.25/mo hostname is declined —
+    # infra-staging.md §4.1), so its run.app URL is the ONLY door and must stay
+    # open with nothing in front of it: its own cron and every Vercel preview
+    # call it directly, with no header, which is the entire reason it exists.
     #
     # This block used to continue: "staging is a publicly reachable service
     # that echoes OTP dev-codes ... so **anyone who finds this URL can sign in

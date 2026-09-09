@@ -17,8 +17,10 @@
 # not have to is rehearsing something else. Tuning any of those here without
 # tuning them there is the whole failure mode, so
 # `backend/test/infra/service_files_test.dart` asserts the shared subset matches
-# and that the per-environment fields (service name, database, secrets, ingress,
-# scaling) do not.
+# and that the per-environment fields (service name, database, secrets,
+# scaling) do not. Ingress is the one field that is `all` in BOTH files, for two
+# different reasons, and the test pins each reason rather than a difference —
+# an earlier version of this sentence claimed a difference the test never read.
 apiVersion: serving.knative.dev/v1
 kind: Service
 metadata:
@@ -26,16 +28,28 @@ metadata:
   labels:
     cloud.googleapis.com/location: europe-west9
   annotations:
-    # Only the global load balancer may reach this service. Without it the
-    # *.run.app URL is a SECOND public front door, bypassing the LB (and any
-    # Cloud Armor policy attached to it later).
+    # **`all`, since the front door moved to Cloudflare** — the global load
+    # balancer is retired (docs/design/infra-cloudflare-front-door.md). The
+    # Worker on api.myweli.com forwards to this service's *.run.app hostname,
+    # and nothing but an open ingress lets it in. That makes the *.run.app URL
+    # a SECOND public front door again, and it is CLOSED — but by the ORIGIN
+    # GATE, not by ingress: every request except `GET /health` must carry the
+    # `X-Myweli-Origin-Auth` header only the Worker holds
+    # (`ORIGIN_AUTH_SECRET` below; `lib/src/security/origin_front_door.dart`),
+    # or it is answered 403 `origin_required`. The old value,
+    # `internal-and-cloud-load-balancing`, did this job and would now shut the
+    # Worker out too.
     #
-    # ORDERING: Cloud Scheduler called the run.app URL directly until this
-    # landed. Both jobs were repointed at api.myweli.com and PROVEN to still
-    # return 200 BEFORE this annotation was applied — reversing that order
-    # stops the reminder cron silently, which is the exact failure this
-    # migration already fixed once (infra-gcp-migration.md §5).
-    run.googleapis.com/ingress: internal-and-cloud-load-balancing
+    # ORDERING, the mirror image of the rule that used to stand here: open
+    # this ingress BEFORE the DNS record moves to Cloudflare (a proxied record
+    # pointing at a closed door is an outage), and keep the load balancer
+    # alive UNTIL enforcement is proven on the direct door —
+    # `71-retire-load-balancer.sh` refuses to delete it otherwise. The old
+    # rule (repoint the crons before locking ingress) was learned when the
+    # reminder cron stopped silently (infra-gcp-migration.md §5); this one is
+    # its inverse and is written down for the same reason. Rollout, step by
+    # step, in infra-cloudflare-front-door.md §9.
+    run.googleapis.com/ingress: all
 spec:
   template:
     metadata:
@@ -396,6 +410,35 @@ spec:
             - name: WEB_DEPLOY_HOOK_URL
               valueFrom:
                 secretKeyRef: { name: WEB_DEPLOY_HOOK_URL, key: '1' }
+            # **The origin gate** (docs/design/infra-cloudflare-front-door.md
+            # §5.2). With ingress `all`, this pair is what keeps the *.run.app
+            # URL from being a second front door: the Cloudflare Worker sends
+            # `X-Myweli-Origin-Auth: <ORIGIN_AUTH_SECRET>` on every request,
+            # and the origin refuses everything else except `GET /health`.
+            #
+            # `ORIGIN_AUTH_MODE` is `log` for PHASE A of the rollout (§9 step
+            # 4): the direct door stays open and every request without the
+            # header is COUNTED (`origin_auth_missing`), so the log-mode window
+            # can prove that nothing legitimate reaches the origin without the
+            # Worker before the door is shut. It becomes `enforce` in PHASE B
+            # (§9 step 7), and `71-retire-load-balancer.sh` refuses to run
+            # until that is observably live. The code's default when the
+            # variable is UNSET is `enforce` — the safe direction — which is
+            # exactly why `log` has to be written down here to exist: an
+            # operator reading this file sees the open door, and deleting the
+            # line closes it rather than opening it.
+            #
+            # The secret is production-only (the `WEB_DEPLOY_HOOK_URL`
+            # precedent): staging has no Worker and no secret, so its gate is
+            # inert (`OriginAuthOff`), and `service_files_test.dart` pins that
+            # asymmetry. Production REFUSES TO BOOT without it — once the load
+            # balancer is gone an unset secret is an open door, so it is a
+            # fail-fast like the rest, not a warning.
+            - name: ORIGIN_AUTH_MODE
+              value: log
+            - name: ORIGIN_AUTH_SECRET
+              valueFrom:
+                secretKeyRef: { name: ORIGIN_AUTH_SECRET, key: '1' }
           startupProbe:
             tcpSocket:
               port: 8080

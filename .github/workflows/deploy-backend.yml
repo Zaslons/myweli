@@ -155,11 +155,16 @@ jobs:
             production)
               echo "SERVICE=myweli-api" >> "$GITHUB_ENV"
               echo "SERVICE_YAML=infra/gcp/service.yaml" >> "$GITHUB_ENV"
-              # The opposite: `ingress: internal-and-cloud-load-balancing` makes
-              # production's run.app URL 404 BY DESIGN, so `status.url` is the
-              # wrong answer here. The hostname belongs to the load balancer
-              # (infra/gcp/70-load-balancer.sh) and is not discoverable from the
-              # Cloud Run service, which is why it is a literal.
+              # The opposite: production's hostname is served by Cloudflare —
+              # a proxied record, a Worker that forwards to the run.app URL
+              # and adds the origin-auth header
+              # (docs/design/infra-cloudflare-front-door.md §5.1). `status.url` is still the
+              # wrong answer: the direct door answers 403 `origin_required` to
+              # everything but /health, so a check against it could only ever
+              # prove the gate is shut. The hostname is not discoverable from
+              # the Cloud Run service, and it is what users, the crons and the
+              # uptime checks actually hit — which is why it is a literal.
+              # (URL_SOURCE keeps its historical name; it selects the literal.)
               echo "URL_SOURCE=load-balancer" >> "$GITHUB_ENV"
               echo "PUBLIC_URL=https://api.myweli.com" >> "$GITHUB_ENV"
               ;;
@@ -488,14 +493,18 @@ jobs:
           fi
 
           # This step used to curl the service's own *.run.app address for
-          # PRODUCTION, and that could never have worked: `service.yaml` sets
-          # `ingress: internal-and-cloud-load-balancing`, so the run.app URL
-          # 404s by design and the only public entrance is the load balancer.
-          # The check went unnoticed until this workflow's first execution, on
-          # 2026-08-12, which failed here while the deploy itself was fine
-          # (docs/design/infra-prod-hardening.md §6). Staging is the mirror
-          # image: `ingress: all` and no load balancer, so run.app is the ONLY
-          # door and a hardcoded hostname would be the wrong answer there.
+          # PRODUCTION, and that could never have worked: at the time
+          # `ingress: internal-and-cloud-load-balancing` made the run.app URL
+          # 404 by design. The check went unnoticed until this workflow's first
+          # execution, on 2026-08-12, which failed here while the deploy itself
+          # was fine (docs/design/infra-prod-hardening.md §6). Since the front
+          # door moved to Cloudflare (docs/design/infra-cloudflare-front-door.md)
+          # the direct door is reachable but answers 403 `origin_required` to
+          # everything except /health, so curling it would prove only that the
+          # gate is shut — the public hostname (Cloudflare → Worker → run.app)
+          # is the one path users take and the one worth asserting. Staging is
+          # the mirror image: `ingress: all`, no Worker and no gate, so run.app
+          # is the ONLY door and a hardcoded hostname would be wrong there.
           echo "Public URL: ${PUBLIC_URL}"
           HEALTH=$(curl -fsS --retry 5 --retry-delay 5 --retry-all-errors "${PUBLIC_URL}/health")
           echo "  ✓ /health"
