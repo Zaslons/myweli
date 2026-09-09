@@ -522,6 +522,12 @@ serverless NEG → backend service → url-map → managed cert. That path is
 provisioned once by a committed script (`infra/gcp/70-load-balancer.sh`) and
 changes rarely, so **$18.25/month is not worth it today**.
 
+*2026-09: production's chain is now Cloudflare → Worker → `run.app`
+([infra-cloudflare-front-door.md](infra-cloudflare-front-door.md)), and a
+second Worker for staging would cost nothing — still declined, for the same
+reason: the chain is one committed script and changes rarely, and staging's
+`run.app` URL is what every preview and cron already uses.*
+
 **The condition that would reverse this** is narrower than "a browser-direct
 call": it is a browser-direct call that relies on **cookies**, since only then
 does the API's registrable domain start to matter. Introducing one is the change

@@ -8,7 +8,7 @@ truth for backend keys: [`backend/.env.example`](../backend/.env.example); for w
 ## 0. What runs where
 | Component | Tech | Host | Domain |
 |---|---|---|---|
-| Backend API | dart_frog (Docker) | **Cloud Run** (`europe-west9`, Paris) — `infra/gcp/service.yaml` | `api.myweli.com` (via a global HTTPS load balancer) |
+| Backend API | dart_frog (Docker) | **Cloud Run** (`europe-west9`, Paris) — `infra/gcp/service.yaml` | `api.myweli.com` (Cloudflare → Worker → `run.app`, since 2026-09; the load balancer is retired) |
 | Database | PostgreSQL 16 | **Cloud SQL** `myweli-db` (same region), reached through the Auth Proxy sidecar | internal |
 | Web | Next.js | **Vercel** | `myweli.com` + `www` |
 | Admin console | Flutter Web | static host (Vercel/CF Pages) | `admin.myweli.com` |
@@ -243,6 +243,17 @@ which is how the reminder cron came to be switched off without anyone noticing.
    2026-08-21 and the instance ran two more days on v1, which by then was
    disabled — a value matching no enabled version at all. Harmless only because
    the admin seeder is insert-only, which is luck rather than a control.
+
+   **Rotating `ORIGIN_AUTH_SECRET` is the one rotation with a second holder.**
+   The Worker and the origin must agree, and the origin accepts exactly one
+   value, so: set `ORIGIN_AUTH_MODE: log` in `service.yaml` and deploy (the
+   origin now lets a missing or stale header through, counted); `versions add`
+   v2 and pin `key: '2'`; `gcloud secrets versions access 2 --secret=ORIGIN_AUTH_SECRET | npx --yes wrangler@4 secret put ORIGIN_AUTH_SECRET`
+   from `infra/cloudflare/worker/api-front-door/`; deploy; check
+   `origin_auth_missing` is silent on the Worker path; set `enforce` and deploy;
+   only then disable v1. Skipping the `log` step is an outage of exactly the
+   deploy's length — every request through the Worker is refused until the
+   origin has the new value.
 3. **A revision missing a required value never serves.** Every `guardsOn`
    fail-fast fires during startup rather than on first use, so a deploy missing a
    secret fails loudly instead of going green and 500-ing per feature later.
@@ -254,11 +265,19 @@ which is how the reminder cron came to be switched off without anyone noticing.
    serving image is the one just built, that `/health` and a database-backed
    route answer, and that the service **reports the environment it was asked to
    deploy**.
-4. **`api.myweli.com` is a global HTTPS load balancer, not a domain mapping** —
-   Cloud Run domain mappings are unimplemented in `europe-west9`. The service
-   sets `ingress: internal-and-cloud-load-balancing`, so the `*.run.app` URL 404s
-   by design and the load balancer is the only front door. Built by
-   `infra/gcp/70-load-balancer.sh`.
+4. **`api.myweli.com` is Cloudflare → a Worker → Cloud Run, not a domain
+   mapping and no longer a load balancer** (since 2026-09;
+   [design/infra-cloudflare-front-door.md](design/infra-cloudflare-front-door.md)).
+   Cloud Run domain mappings are still unimplemented in `europe-west9`, so the
+   Worker `myweli-api-front-door` forwards every request to the `*.run.app`
+   hostname with a secret `X-Myweli-Origin-Auth` header. The service is
+   `ingress: all` — it has to be — and the **origin gate** in the backend
+   answers `403 origin_required` to anything that did not come through the
+   Worker, except `GET /health` (the liveness probe carries no header). Built by
+   `infra/cloudflare/96-api-front-door.sh`; proven by
+   `infra/gcp/72-verify-front-door.sh`; the load balancer was retired by
+   `infra/gcp/71-retire-load-balancer.sh`, and `70`/`87`/`89`/`91` are kept as
+   the re-application path LAUNCH.md §6.5 names.
 5. **Twilio webhook — not applicable yet**, listed so it is not forgotten when
    messaging turns on. Production runs `MESSAGING_PROVIDER=disabled` and mounts
    no Twilio credentials, so nothing calls this route today. When a provider is
@@ -385,7 +404,10 @@ Cloud Run in Paris, and $18.25/mo is its price. The only cheaper path is a
 Cloudflare Worker rewriting the `Host` header, which requires reopening
 prod ingress from `internal-and-cloud-load-balancing` to `all` — the
 `run.app` URL becomes reachable again and the edge rate limit becomes
-bypassable unless origin authentication replaces it.
+bypassable unless origin authentication replaces it. **That is now the
+design** ([design/infra-cloudflare-front-door.md](design/infra-cloudflare-front-door.md),
+approved 2026-09-09): origin authentication replaces it. Steady state with
+the front door: ≈$24/month with staging, ≈$13 without; launch week ≈$44.
 
 **There is no Cloud Billing budget on this account.** `85-db-capacity-alert.sh`
 and `88-email-budget-alert.sh` are about Postgres connections and email

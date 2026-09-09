@@ -413,6 +413,13 @@ door bypassing the LB. Closed with ingress `internal-and-cloud-load-balancing`,
 set in `service.yaml` rather than by CLI so the deployed service cannot drift
 from the file.
 
+> **Superseded 2026-09 — [infra-cloudflare-front-door.md](infra-cloudflare-front-door.md).**
+> The bill, read by SKU, made the « $18/month » above $26.5/month with Cloud
+> Armor, 53 % of everything. The Worker this section declined is now the front
+> door; ingress is `all` again, and the second door is closed by an
+> origin-authentication header rather than by ingress. The LB scripts are kept
+> as the re-application path in LAUNCH.md §6.5.
+
 **The ordering was the whole risk.** Cloud Scheduler called the `run.app` URL
 directly, so locking ingress first would have stopped the reminder cron
 *silently* — the exact failure §5 exists to describe. Sequence actually

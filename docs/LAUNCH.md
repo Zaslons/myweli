@@ -462,6 +462,15 @@ These block everything. None is surface-specific.
         [design/backend-rate-limiting.md](design/backend-rate-limiting.md) §4.
         It still owes the **anonymous** surface — the 100/100 reads above — and
         layer 3 cannot touch those, because there is no identity to key on.
+        **2026-09 — layer 1 moved and layer 2 finally enforces.** Cloud Armor
+        and the load balancer are retired for cost
+        ([design/infra-cloudflare-front-door.md](design/infra-cloudflare-front-door.md)):
+        the edge is now a Cloudflare free-plan rule (per IP, 10 per 10 s), and
+        the 10/min per IP on `/auth/*` + `/admin/auth/*` lives **in the app**,
+        keyed on `CF-Connecting-IP` read only behind the origin gate — verified
+        by construction, which is what the §4 measurement was for. The
+        anonymous-read surface is still unbounded. Proven on the live path by
+        `infra/gcp/72-verify-front-door.sh`.
       - **The ADMIN surface was covered by none of the layers, and the reason
         recorded for that was false** (2026-08-19).
         [design/backend-rate-limiting.md](design/backend-rate-limiting.md) left
@@ -471,7 +480,8 @@ These block everything. None is surface-specific.
         (there is a box for it now) — and even configured
         it would front `admin.myweli.com` on Pages, while the API is
         `api.myweli.com`, kept **DNS-only on purpose** so Google can validate
-        the managed certificate, so Cloudflare is not in the request path.
+        the managed certificate, so Cloudflare is not in the request path
+        *(true until 2026-09; the front door put Cloudflare in the path)*.
         Layer 1's rule matches `/auth/`, which `/admin/auth/login` does not. The
         effective bound was **~20 guesses per 15 minutes, reset by any cold
         start**, on the account that bypasses every tenant boundary. The lockout
@@ -566,8 +576,9 @@ These block everything. None is surface-specific.
       anonymous `POST https://api.myweli.com/admin/auth/login` answers `401`
       **directly**, no redirect. So this box does **not** close the admin half
       of the rate-limiting box above — different origin, different provider,
-      and `api.myweli.com` is deliberately DNS-only so Google can validate its
-      certificate.
+      and `api.myweli.com` was deliberately DNS-only so Google could validate
+      its certificate *(proxied since the 2026-09 front door; Access still
+      fronts only the console)*.
 
 - [x] **The per-identity limits are deployed to PRODUCTION.** **Enforcing since
       2026-08-19** — revision `myweli-api-00022-t9x`, commit `34d55c0`, which
@@ -1052,6 +1063,35 @@ is the gate**:
       awake**: the sleep was reversed on 2026-09-04 (a stopped instance's
       public IPv4 is billed idle, so sleeping saved $1.60/mo for real
       friction — DEPLOYMENT.md, staging section). Nothing to restart.
+
+**The front door (2026-09) — what to re-apply, what to decide.** The load
+balancer and Cloud Armor were retired for the Cloudflare front door
+([design/infra-cloudflare-front-door.md](design/infra-cloudflare-front-door.md));
+the owner asked that this list be kept here, where launch is decided:
+
+- [ ] **Workers plan** — Free is 100 000 requests/day, fail **closed**
+      (Error 1027 beyond). If any launch day could near it, switch to Paid
+      ($5/month, unlimited) in the Cloudflare dashboard **before** announcing.
+      Re-read the route's fail mode while there.
+- [ ] **Web BFF forwards the browser IP** — today every web visitor shares
+      Vercel's egress address in the per-IP auth bucket (10/min for all of
+      them together). A second trusted header from Vercel only, never from the
+      world. Spec §11 item 6.
+- [ ] **Load balancer + Cloud Armor back? — decide.** +$26.5/month. Buys
+      300 s bans, adaptive protection, Google anycast and no Cloudflare
+      dependency; loses nothing the front door ships. If yes, in order:
+      `infra/gcp/70-load-balancer.sh` (new IP) → the `api.myweli.com` A record
+      DNS-only at that IP → wait for `myweli-api-cert` `ACTIVE` →
+      `infra/gcp/87-rate-limit-policy.sh`, `infra/gcp/89-admin-auth-rate-limit.sh`,
+      `infra/gcp/91-armor-deny-alert.sh` → `ingress: internal-and-cloud-load-balancing`
+      in `infra/gcp/service.yaml` + deploy → remove the Worker route → restore
+      the `91` line in `infra/gcp/policy-bodies.sh`. The scripts carry RETIRED
+      banners so nobody runs them by accident.
+- [ ] **Re-read the two Cloudflare facts the design leans on** — Free = one
+      rate-limiting rule, per IP, 10 s window; Workers Free = 100k/day. Plans
+      change; a design doc does not notice.
+- [ ] **Staging database** — if it was deleted meanwhile for cost, re-create it
+      from `infra/gcp/90-staging.sh` before the launch rehearsals.
 
 ## 6.4 The first real salon — the one hop nothing has exercised
 
