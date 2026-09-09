@@ -322,26 +322,32 @@ the decision and agreeing with it.
 
 ### What the project actually costs — measured 2026-09-09, not projected
 
-Read from **Billing → Reports, grouped by SKU, daily**. September 1–8:
-**$12.45**, steady days **$1.62–1.67**, Google's month forecast **$51.03**.
-Ten SKUs carry it and they sum to the total to the cent, so the other 25
-rows on the account are $0.00 (logging is 0.099 GiB against 50 free, uptime
-checks are inside the free million, Artifact Registry is 337 MB against 0.5
-GiB, Cloud SQL egress is intra-region at $0.00):
+Read from **Billing → Reports, grouped by SKU**. Use **three fully settled
+days** rather than a month-to-date window: the current month's last day or
+two are still filling in, and reading them early is how a correct figure
+gets "corrected" into a wrong one. **September 5–7, 2026 — $4.95**, three
+days with both databases awake, prod at `minScale: 0`, and no staging sleep
+in the window:
 
-| SKU | Sep 1–8 | Steady state |
+| SKU | 3 days | /month |
 |---|---|---|
-| Cloud Load Balancer Forwarding Rule Minimum Global | $4.57 | **$18.25/mo** |
-| Cloud SQL for PostgreSQL: Zonal - Micro instance in Paris (×2) | $3.80 | $17.81/mo |
-| Networking Cloud Armor Policy | $1.27 | **$5.00/mo** |
-| Cloud SQL for PostgreSQL: Zonal - Standard storage in Paris (2×10 GiB) | $1.04 | $3.94/mo |
-| Networking Cloud Armor Rule (3 rules) | $0.76 | **$3.00/mo** |
-| Cloud SQL: Zonal - IP address reservation in Paris | $0.75 | $0 — only bills while STOPPED |
-| Secret Manager: Secret version replica storage | $0.23 | $0.89/mo |
-| Networking Cloud Armor Requests | $0.03 | $0.12/mo |
-| Cloud SQL: Backups in Paris · ALB data processing | $0.00 | ~$0 |
+| Cloud Load Balancer Forwarding Rule Minimum Global (72 h) | $1.80 | **$18.26** |
+| Cloud SQL for PostgreSQL: Zonal - Micro instance in Paris (144 h = 2×24×3) | $1.76 | $17.86 |
+| Networking Cloud Armor Policy | $0.50 | **$5.07** |
+| Cloud SQL for PostgreSQL: Zonal - Standard storage in Paris (2×10 GiB) | $0.39 | $3.96 |
+| Networking Cloud Armor Rule (0.3 rule-months = **3 rules**) | $0.30 | **$3.04** |
+| Secret Manager: Secret version replica storage | $0.19 | $1.93 |
+| Networking Cloud Armor Requests (18,461) | $0.01 | $0.10 |
+| **Total** | **$4.95** | **≈$50** |
 
-**Two flat network charges — $26.42/mo — are 53% of the bill and were in no
+Those seven rows sum to $4.95 to the cent, so **the other 21 SKU rows are
+$0.00**: Cloud Run ($0.16 gross, fully covered by the free-tier credit and
+therefore absent from the list), backups, ALB data processing, logging
+(0.099 GiB against 50 free), uptime checks, Artifact Registry (337 MB
+against 0.5 GiB), and `Network Internet Data Transfer Out from Paris` —
+confirming the Cloud SQL WAL stream is not billed as egress.
+
+**Two flat network charges — $26.4/mo — are 53% of the bill and were in no
 projection.** They do not move with traffic, with `minScale`, or with the
 staging database, which is why the (real) −99% drop in billable instance
 time barely moved the total. The load balancer exists because Cloud Run
@@ -354,6 +360,19 @@ limiting lives on the backend service rather than only in the app. Cloud
 Armor bills its **non-deletable default rule** too: three rule-months, not
 two.
 
+**What it becomes at launch: ~$70/mo.** LAUNCH.md §6.5 flips `minScale`
+back to `'1'` before announcing, and that configuration has already been
+measured — **2026-08-30 and 08-31 both billed $2.29/day** with Cloud Armor
+already in place, against $1.65/day now. The always-on pod is $0.64/day
+($19.6/mo); everything else is unchanged. Budget for **~$70/mo from launch
+week**, not $50, and not the $25 this repo carried until 2026-09-09.
+
+**There is no Cloud Billing budget on this account.** `85-db-capacity-alert.sh`
+and `88-email-budget-alert.sh` are about Postgres connections and email
+sends, not money. Until a budget with threshold alerts exists, the only
+thing standing between a cost regression and the invoice is someone opening
+this page.
+
 **Re-checked 2026-09-09, because the whole case for spending it rests on
 this:** `run/docs/mapping-custom-domains` still lists ten regions for
 domain mappings — `asia-east1`, `asia-northeast1`, `asia-southeast1`,
@@ -362,7 +381,7 @@ domain mappings — `asia-east1`, `asia-northeast1`, `asia-southeast1`,
 own recommended alternative for the other regions is *"a global external
 Application Load Balancer"*. So this line is not an over-build to be
 regretted; it is the documented way to put a custom domain in front of
-Cloud Run in Paris, and \$18.25/mo is its price. The only cheaper path is a
+Cloud Run in Paris, and $18.25/mo is its price. The only cheaper path is a
 Cloudflare Worker rewriting the `Host` header, which requires reopening
 prod ingress from `internal-and-cloud-load-balancing` to `all` — the
 `run.app` URL becomes reachable again and the edge rate limit becomes

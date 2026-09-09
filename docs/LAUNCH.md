@@ -1032,9 +1032,14 @@ Taken 2026-08-30 (owner decision): with zero public users, the always-on
 production pod was a large part of the GCP bill (~90 USD/mo projected). The
 knob worked — `billable_instance_time` fell 1.00 → 0.008 — but **the bill
 lands at ~50 USD/mo, not the ≈25 this section claimed until 2026-09-09**:
-the global load balancer's forwarding-rule minimum (18.25) and Cloud Armor
-(8.17) are flat 24/7 charges that no compute knob touches. Read from
-Billing → Reports, by SKU; the anatomy is in DEPLOYMENT.md. One knob
+the global load balancer's forwarding-rule minimum (18.26) and Cloud Armor
+(8.21) are flat 24/7 charges that no compute knob touches. Read from
+Billing → Reports, by SKU; the anatomy is in DEPLOYMENT.md.
+
+**Flipping the knob back costs 0.64 USD/day, and that is measured, not
+estimated** — 2026-08-30 and 08-31 each billed **2.29 USD/day** in exactly
+the launch configuration, against **1.65** now. **Expect ~70 USD/mo from
+launch week.** Budget for it before announcing, not after. One knob
 remains moved — **it reverts before launch is announced, and this section
 is the gate**:
 
