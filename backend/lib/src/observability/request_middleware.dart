@@ -68,7 +68,16 @@ Middleware observabilityMiddleware(ErrorReporter Function() reporter) {
           headers: {...response.headers, kRequestIdHeader: id},
         );
       } catch (error, stackTrace) {
-        final method = context.request.method.value;
+        // The diagnostic must never be the thing that throws: an unsupported
+        // verb makes `request.method` throw, and a throw here would escape the
+        // catch as a bare 500 with a stack trace and no request id.
+        String method;
+        try {
+          method = context.request.method.value;
+        } on Exception {
+          // dart_frog's UnsupportedHttpMethodException (not exported).
+          method = 'unsupported';
+        }
         // The PATH only — `context.request.uri` carries the query string, and
         // query strings are where secrets end up by accident.
         final path = context.request.uri.path;

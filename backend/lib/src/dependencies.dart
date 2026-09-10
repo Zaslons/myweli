@@ -340,8 +340,13 @@ final PostgresRateLimiter? _postgresRateLimiter = _pool == null
 /// Needed since the per-IP auth buckets: every new client address writes a
 /// row, so the key set is open and the table would otherwise only grow (the
 /// identity buckets are bounded by the user set and never needed this).
-Future<int> pruneRateLimitWindows(Duration olderThan) async =>
-    _postgresRateLimiter?.prune(olderThan) ?? 0;
+Future<int?> pruneRateLimitWindows(Duration olderThan) async {
+  final limiter = _postgresRateLimiter;
+  if (limiter == null) return 0;
+  // `null` = the prune failed and said so on one log line; the cron reports
+  // it rather than failing (lib/src/security/rate_limiter.dart).
+  return pruneOrReport(() => limiter.prune(olderThan));
+}
 
 /// The ceilings, per hour, per identity. Configurable for the same reason the
 /// send budget's are: a launch changes the right number, and a redeploy is a

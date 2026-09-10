@@ -1105,5 +1105,34 @@ void main() {
       ).where((n) => n.contains('ORIGIN_AUTH')).toList();
       expect(secrets, isEmpty, reason: 'staging mounts $secrets');
     });
+
+    test('a `log` window is dated, and the date has not passed', () {
+      // `log` mode leaves the public direct door with no per-IP limit at all
+      // (docs/design/infra-cloudflare-front-door.md §9 step 4). A deadline in
+      // a document is a wish; a date the test reads is a mechanism: the day
+      // after `log-mode-until`, CI is red until the manifest says `enforce`.
+      final prodFile = File('$root/infra/gcp/service.yaml').readAsStringSync();
+      final mode = plainEnv(files['prod']!, 'ORIGIN_AUTH_MODE');
+      if (mode != 'log') return;
+      final m = RegExp(
+        r'# log-mode-until: (\d{4}-\d{2}-\d{2})',
+      ).firstMatch(prodFile);
+      expect(
+        m,
+        isNotNull,
+        reason:
+            'ORIGIN_AUTH_MODE is `log` without a `# log-mode-until: '
+            'YYYY-MM-DD` line above it — an unbounded window',
+      );
+      final until = DateTime.parse(m!.group(1)!);
+      expect(
+        DateTime.now().toUtc().isBefore(until.add(const Duration(days: 1))),
+        isTrue,
+        reason:
+            'the log-mode window ended on ${m.group(1)} and production '
+            'still says `log`: the direct door has had no per-IP limit past '
+            'the date the rollout promised. Deploy `enforce` (spec §9 step 7).',
+      );
+    });
   });
 }

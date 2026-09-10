@@ -97,7 +97,14 @@ export default {
       new Request(url, {
         method: request.method,
         headers,
-        body: request.body, // streamed, not buffered
+        // Streamed, not buffered — except that a GET/HEAD must carry none:
+        // the Fetch spec makes `new Request` throw on a GET with a body, and a
+        // malformed `curl -X GET --data` would otherwise crash this Worker
+        // into an exception page instead of being forwarded (found in review).
+        body:
+          request.method === 'GET' || request.method === 'HEAD'
+            ? null
+            : request.body,
         redirect: 'manual', // 3xx returned as-is; never follows with Authorization
       }),
     );

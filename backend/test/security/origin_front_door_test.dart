@@ -264,6 +264,21 @@ void main() {
     });
   });
 
+  group('8b. an unsupported verb on the direct door', () {
+    test(
+      'PROPFIND without the header → 405, not a 500 from the log line',
+      () async {
+        // `request.method` throws for a verb outside dart_frog's enum; the gate
+        // must answer 405 rather than let the diagnostic be the thing that
+        // throws (found in review).
+        final r = await run(enforce, ctx('/providers', method: 'PROPFIND'));
+        expect(r.res.statusCode, HttpStatus.methodNotAllowed);
+        expect(jsonDecode(await r.res.body()), {'error': 'method_not_allowed'});
+        expect(r.innerRan, isFalse);
+      },
+    );
+  });
+
   group('9. verified, /auth/* — the per-IP limit', () {
     const ip = '203.0.113.9';
     RequestContext authReq(String path, {String from = ip}) => ctx(
@@ -290,6 +305,30 @@ void main() {
       final bucket = ipAuthBucket(ip);
       expect(r.log, ['rate_limited bucket=$bucket hits=11 limit=10']);
       expect(r.res.headers.containsKey('retry-after'), isFalse);
+    });
+
+    test('an IPv6 /64 is ONE bucket — the low 64 bits are not a free key', () {
+      // A residential or cloud IPv6 allocation is a /64; keyed on the full
+      // address, an attacker would get 2^64 fresh buckets for nothing.
+      expect(ipAuthBucket('2001:db8::1'), ipAuthBucket('2001:db8::ffff'));
+      expect(
+        ipAuthBucket('2001:db8::1'),
+        ipAuthBucket('2001:db8:0:0:ffff:ffff:ffff:ffff'),
+      );
+      // The next /64 over is a different subscriber.
+      expect(
+        ipAuthBucket('2001:db8::1'),
+        isNot(ipAuthBucket('2001:db8:0:1::1')),
+      );
+      expect(ipAuthKeySource('2001:db8::1'), startsWith('v6/64:'));
+    });
+
+    test('IPv4 is keyed on its canonical form; junk on itself', () {
+      expect(ipAuthBucket('203.0.113.9'), ipAuthBucket('203.0.113.9'));
+      expect(ipAuthBucket('203.0.113.9'), isNot(ipAuthBucket('203.0.113.10')));
+      expect(ipAuthKeySource('203.0.113.9'), '203.0.113.9');
+      expect(ipAuthKeySource('not-an-address'), 'not-an-address');
+      expect(ipAuthBucket('not-an-address'), startsWith('ip:auth:'));
     });
 
     test('a different IP is still at 1/10', () async {

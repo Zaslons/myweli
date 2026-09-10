@@ -133,7 +133,13 @@ the identity-limits design demands of an open-set key are honoured:
   reason recorded there: a prune nobody can see is the shape this repo keeps
   finding), with `olderThan = 1 day`. Nothing reads a window older than its
   own length (1 h for identity buckets, 1 min for IP buckets), so the retention
-  is generous by design.
+  is generous by design. **Batched** (5 000 rows a statement, each under the
+  deadline, at most 200 statements): one unbounded DELETE would, the day the
+  backlog outgrew two seconds, time out today and again tomorrow on a bigger
+  table, forever. **Reported, never fatal**: a prune that throws becomes
+  `rateLimitWindowsPruned: null` in the cron's response and one
+  `rate_limit_prune_failed type=…` line, not a 500 that skips the demo reset
+  and pages the missed-cron alert (both found in review).
 
 ## 5. Architecture & patterns
 
@@ -229,13 +235,15 @@ was waiting for: the key is verified **by construction**, not by measurement.
 `clientIpFrom` (the XFF-depth resolver) stays as it is — unwired — and its
 header comment is corrected to say so.
 
-**Placement** in `routes/_middleware.dart`: the `.use` immediately before
-`observabilityMiddleware` — inside observability so a refusal carries a
-request id and is logged and reported; outside CORS, query sanity and every
-provider so nothing downstream runs for a request that did not come through
-the door. Preflights: the Worker adds the header to **every** method, so an
-`OPTIONS` from `admin.myweli.com` carries it and reaches the CORS middleware
-as today.
+**Placement** in `routes/_middleware.dart`: **inside CORS, outside every
+provider** — in file order, after the last `provider<…>` and before
+`corsMiddleware`. Inside CORS because a 429 from the limiter must reach the
+admin console's browser *with* the CORS headers (outside CORS it is an opaque
+network error, and a browser preflight would count as a hit — found in
+review); outside every provider so nothing that reaches a database runs for a
+request that did not come through the door. Query sanity and CORS run first:
+both are pure header/URL checks. Preflights from `admin.myweli.com` are
+answered by CORS before the gate, so a login costs one hit, not two.
 
 **Fail-open, stated.** `rateLimiter` is `FailOpenRateLimiter(Postgres…)`. A
 Postgres blip therefore removes the app-side per-IP bound. This costs nothing
@@ -277,7 +285,10 @@ does), `[[routes]] pattern = "api.myweli.com/*", zone_name = "myweli.com"`.
 The secret is **never** in the file: `gcloud secrets versions access … |
 wrangler secret put ORIGIN_AUTH_SECRET` (wrangler reads stdin when piped).
 
-Also done, beyond the sketch: a request arriving over `http://` is answered
+Also done, beyond the sketch: a `GET`/`HEAD` is forwarded **without a body**
+(the Fetch spec throws on a GET with one; a malformed `curl -X GET --data`
+would otherwise crash the Worker into an exception page — found in review);
+a request arriving over `http://` is answered
 **301 to `https://` on the public hostname** (the load balancer's redirect
 url-map did this; proxying it in clear would let Cloud Run answer 301 naming
 its own `run.app` hostname, which the client would follow to the direct door —
@@ -413,7 +424,7 @@ annotation — is replaced by the assertions.
 | # | Surface | Threat (STRIDE) | Mitigation | Status |
 |---|---|---|---|---|
 | **T70** | The direct `*.run.app` door, reopened (`ingress: all`, `allUsers` invoker) so that Cloudflare can reach the service | **E/T** — anything that reaches the origin without passing the edge bypasses the edge rate limit and could forge `CF-Connecting-IP`, turning the per-IP limiter into a per-attacker-chosen-key limiter | **The origin gate**: every request but `/health` must carry `X-Myweli-Origin-Auth` equal (constant-time) to a ≥32-char secret only the Worker and the origin hold; production **refuses to boot** without it; the default mode is `enforce`, and `log` exists only as a written, bounded rollout state (§9). `CF-Connecting-IP` is read **after** the gate, never before. A forged header on the direct door is answered 403 before any limiter runs. **Residual:** the secret is a bearer credential shared by two systems; rotation needs a `log` window (§6.2). The `/health` exemption reveals that a service exists at the alias — public information already. | Implemented (this slice) |
-| **T71** | `/auth/*` and `/admin/auth/*` per-IP limiting, now in the app | **D** — an attacker rotating identifiers is bounded per source address at 10/minute (T65's « bounded by Cloud Armor's 10/min » becomes « bounded by this row ») | Postgres limiter keyed on `ip:auth:<sha256>` behind the gate; Cloudflare rule at the edge (per IP, 10 per 10 s, block 10 s) so a burst never reaches Postgres. **Residual:** shared egress collapses many humans into one bucket — the web BFF forwards no browser IP, so every web visitor shares Vercel's address (status quo under Cloud Armor; launch item §11); distributed attackers pay one address per 10 req/min (unchanged); edge counters are per data centre (documented) — the app limit is the precise one. | Implemented (this slice) |
+| **T71** | `/auth/*` and `/admin/auth/*` per-IP limiting, now in the app | **D** — an attacker rotating identifiers is bounded per source address at 10/minute (T65's « bounded by Cloud Armor's 10/min » becomes « bounded by this row ») | Postgres limiter keyed on `ip:auth:<sha256>` behind the gate; Cloudflare rule at the edge (per IP, 10 per 10 s, block 10 s) so a burst never reaches Postgres. **Residual:** shared egress collapses many humans into one bucket — the web BFF forwards no browser IP, so every web visitor shares Vercel's address (status quo under Cloud Armor; launch item §11); **IPv6 is keyed on its /64** (`ipAuthKeySource`), so a subscriber's allocation is one bucket and its 2^64 addresses are not a free key (found in review) — the Cloudflare edge rule keys on the full `ip.src`, the Free plan offers nothing coarser, which is one more reason the app limit is the authoritative one; distributed IPv4 attackers pay one address per 10 req/min (unchanged); edge counters are per data centre (documented). | Implemented (this slice) |
 
 T65 and T66 lose the sentences that are now false (« bounded by Cloud Armor's
 10/min per IP on `/auth/*` », « `api.myweli.com` is DNS-only by design so
@@ -557,7 +568,12 @@ word. Nothing before step 3 changes what serves traffic.
    manifest) — a free proof that `OriginAuthOff` changes nothing.
 4. **[owner] Production deploy, phase A**: `ingress: all` + secret + `log`.
    The LB still fronts the hostname; the direct door is open **and counted**
-   (`origin_auth_missing`). Verify: `api.myweli.com/health` 200 via the LB;
+   (`origin_auth_missing`) — **and, in `log` mode, has no per-IP limit of any
+   kind**: the limiter runs only for verified requests, the door's hostname
+   is a literal in this public repo, and no edge rule fronts it. The window
+   closes the same day, and mechanically: `service.yaml` carries a
+   `# log-mode-until: YYYY-MM-DD` line that `service_files_test` reads —
+   past that date with the value still `log`, CI is red (found in review). Verify: `api.myweli.com/health` 200 via the LB;
    `run.app/health` 200 (ingress open); `run.app/providers` 200 with a log
    line (log mode).
 5. **[owner] `96-api-front-door.sh`**: SSL precheck, Worker, secret, proxied

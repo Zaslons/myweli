@@ -60,6 +60,9 @@ Future<Response> onRequest(RequestContext context) async {
   // address writes a row, so without this the table only grows. Unlike the
   // throttle's window this one is housekeeping — no bucket reads a window
   // older than its own length — so 1 day is generous, not load-bearing.
+  // `null` here means the prune failed and logged `rate_limit_prune_failed`;
+  // the cron still runs the rest and reports it, rather than 500ing every
+  // day on a table that only grows (found in review).
   final windowsPruned = await pruneRateLimitWindows(const Duration(days: 1));
 
   // The demo-salon reset (T69): due-gated to every 7 days inside the

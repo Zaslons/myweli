@@ -285,7 +285,11 @@ which is how the reminder cron came to be switched off without anyone noticing.
    - [ ] Secrets `ORIGIN_AUTH_SECRET` (v1, accessor `myweli-run@`) and
          `CLOUDFLARE_FRONT_DOOR_TOKEN` exist — **before the merge**, or the
          staging deploy's `98-verify-secret-pins.sh` gate goes red.
-   - [ ] Production phase A deployed (`ingress: all`, secret, `log`).
+   - [ ] Production phase A deployed (`ingress: all`, secret, `log`). **In
+         `log` mode the direct `run.app` door has no per-IP limit at all**
+         (the limiter runs only behind the gate) and its hostname is public:
+         close the window the same day. `service.yaml` carries
+         `# log-mode-until:`; past it, CI is red until `enforce` lands.
    - [ ] `96-api-front-door.sh` run; **Worker route fail mode set to « Fail
          closed »** in the dashboard on: ________ (the docs give no default;
          re-read at launch).

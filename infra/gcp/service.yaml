@@ -435,6 +435,13 @@ spec:
             # asymmetry. Production REFUSES TO BOOT without it — once the load
             # balancer is gone an unset secret is an open door, so it is a
             # fail-fast like the rest, not a warning.
+            # `log` is a MEASUREMENT WINDOW, not a state: while it is set, the
+            # direct run.app door (a public hostname) has NO per-IP limit of any
+            # kind — the limiter only runs for verified requests. The date below
+            # is read by service_files_test.dart, which fails once it has passed
+            # while the value is still `log`: the window closes by CI going
+            # red, not by someone remembering.
+            # log-mode-until: 2026-09-17
             - name: ORIGIN_AUTH_MODE
               value: log
             - name: ORIGIN_AUTH_SECRET

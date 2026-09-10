@@ -32,20 +32,21 @@ void main() {
       );
     });
 
-    test('placed AFTER querySanityMiddleware and BEFORE observability', () {
-      // In dart_frog the LAST `.use` is OUTERMOST. After query sanity in file
-      // order means it runs BEFORE it at runtime — outside CORS, query sanity
-      // and every provider, so nothing downstream runs for a request that did
-      // not come through the door. Before observability in file order means
-      // INSIDE it, so a refusal still carries a request id.
-      final sanity = src.indexOf('.use(querySanityMiddleware())');
+    test('placed INSIDE CORS and OUTSIDE every provider', () {
+      final cors = src.indexOf('.use(corsMiddleware(');
       final door = src.indexOf('.use(originFrontDoorMiddleware(');
       final obs = src.indexOf('.use(observabilityMiddleware(');
-      expect(sanity, isNonNegative);
+      final lastProvider = src.lastIndexOf('.use(provider<');
+      expect(cors, isNonNegative);
       expect(door, isNonNegative);
       expect(obs, isNonNegative);
-      expect(door, greaterThan(sanity), reason: 'after querySanity in file');
-      expect(door, lessThan(obs), reason: 'before observability in file');
+      // dart_frog: the LAST `.use` is OUTERMOST. Inside CORS = before it in
+      // file order, so a 429 gets the CORS headers and a preflight is answered
+      // before the limiter counts it; after every provider in file order =
+      // outside them, so nothing that reaches a database runs unverified.
+      expect(door, greaterThan(lastProvider), reason: 'outside every provider');
+      expect(door, lessThan(cors), reason: 'inside CORS (before it in file)');
+      expect(door, lessThan(obs), reason: 'inside observability');
     });
   });
 
@@ -82,15 +83,21 @@ void main() {
       );
     });
 
-    test('the cron prune reaches the UNWRAPPED Postgres limiter', () {
+    test('the cron prune reaches the UNWRAPPED Postgres limiter, reported', () {
       expect(
         src,
-        contains('Future<int> pruneRateLimitWindows(Duration olderThan)'),
+        contains('Future<int?> pruneRateLimitWindows(Duration olderThan)'),
+        reason: 'null is how a failed prune is reported to the cron',
       );
       expect(
         src,
-        contains('_postgresRateLimiter?.prune(olderThan) ?? 0'),
+        contains('final limiter = _postgresRateLimiter;'),
         reason: 'FailOpenRateLimiter hides what it wraps; the prune needs it',
+      );
+      expect(
+        src,
+        contains('pruneOrReport(() => limiter.prune(olderThan))'),
+        reason: 'a prune that throws must not fail the cron it rides on',
       );
       expect(
         src,

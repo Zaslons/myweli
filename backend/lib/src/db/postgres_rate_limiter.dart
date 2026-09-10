@@ -31,6 +31,12 @@ import '../security/rate_limiter.dart';
 /// (docs/design/backend-migration-timeouts.md).
 const kLimiterQueryTimeout = Duration(seconds: 2);
 
+/// Rows per prune statement, and how many statements one prune may issue.
+/// 200 × 5 000 = a million rows a day, far above what (addresses × active
+/// minutes) can write; the cap exists so a runaway table cannot hold the cron.
+const int kPruneBatchSize = 5000;
+const int kPruneMaxBatches = 200;
+
 class PostgresRateLimiter implements RateLimiter {
   PostgresRateLimiter(this._pool, {DateTime Function()? clock})
     : _clock = clock ?? DateTime.now;
@@ -113,15 +119,29 @@ class PostgresRateLimiter implements RateLimiter {
   /// missed-cron alert can see. Two seconds is ample: the table gains at most
   /// (distinct addresses × active minutes) rows a day, and the delete walks
   /// the `window_start` index.
+  ///
+  /// **Batched, because the table is open-set and the deadline is 2 s.** One
+  /// unbounded DELETE would, the day the backlog outgrew two seconds, time
+  /// out — and time out again tomorrow on a bigger table, forever, until an
+  /// operator deleted by hand (found in review). Each batch is its own
+  /// statement under the same deadline, so a large backlog is drained a slice
+  /// at a time and a slow day costs one extra batch, not the prune itself.
   Future<int> prune(Duration olderThan) async {
-    final r = await _pool.execute(
-      Sql.named(
-        'DELETE FROM identity_rate_limits '
-        'WHERE window_start < @cutoff:timestamptz',
-      ),
-      parameters: {'cutoff': _clock().toUtc().subtract(olderThan)},
-      timeout: kLimiterQueryTimeout,
-    );
-    return r.affectedRows;
+    final cutoff = _clock().toUtc().subtract(olderThan);
+    var total = 0;
+    for (var batch = 0; batch < kPruneMaxBatches; batch++) {
+      final r = await _pool.execute(
+        Sql.named(
+          'DELETE FROM identity_rate_limits WHERE ctid = ANY(ARRAY('
+          'SELECT ctid FROM identity_rate_limits '
+          'WHERE window_start < @cutoff:timestamptz LIMIT $kPruneBatchSize))',
+        ),
+        parameters: {'cutoff': cutoff},
+        timeout: kLimiterQueryTimeout,
+      );
+      total += r.affectedRows;
+      if (r.affectedRows < kPruneBatchSize) break;
+    }
+    return total;
   }
 }

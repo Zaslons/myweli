@@ -42,6 +42,27 @@ library;
 /// `SendReservation` does, and the reason [warnThreshold] is worth reusing.
 typedef RateVerdict = ({bool ok, int hits, int limit});
 
+/// Runs a prune and reports its failure instead of propagating it.
+///
+/// The daily prune rides on the subscriptions cron; a prune that throws must
+/// not fail the cron it rides on (the demo reset after it would be skipped and
+/// the missed-cron alert would page for housekeeping — found in review). So a
+/// failure becomes `null` in the cron's response and one log line an operator
+/// can grep for, never a 500. The exception's type is printed, never its
+/// message: a database error message can quote SQL.
+Future<int?> pruneOrReport(
+  Future<int> Function() prune, {
+  String what = 'rate_limit',
+  void Function(String) log = print,
+}) async {
+  try {
+    return await prune();
+  } catch (e) {
+    log('${what}_prune_failed type=${e.runtimeType}');
+    return null;
+  }
+}
+
 /// Consumes one unit against an opaque [bucket] and reports where that left it.
 ///
 /// **The limit and the window are parameters, not implementation state** —

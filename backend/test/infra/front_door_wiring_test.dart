@@ -88,6 +88,16 @@ void main() {
       );
     });
 
+    test('strips the body from GET and HEAD before forwarding', () {
+      expect(
+        js,
+        contains("request.method === 'GET' || request.method === 'HEAD'"),
+        reason:
+            'the Fetch spec throws on a GET with a body; without this a '
+            'malformed request crashes the Worker into an exception page',
+      );
+    });
+
     test('never sets a Host header — the runtime derives it from the URL', () {
       expect(js.toLowerCase(), isNot(contains("set('host'")));
       expect(js.toLowerCase(), isNot(contains('set("host"')));

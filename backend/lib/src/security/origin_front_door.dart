@@ -60,14 +60,38 @@ const Duration kIpAuthWindow = Duration(minutes: 1);
 bool isIpLimitedPath(String path) =>
     path.startsWith('/auth/') || path.startsWith('/admin/auth/');
 
-/// `ip:auth:` + the first 32 hex characters of SHA-256 of the address.
+/// What of an address is actually keyed on, before hashing.
+///
+/// **IPv6 is collapsed to its /64.** A residential or cloud IPv6 allocation is
+/// a /64 as a rule, which hands an attacker 2^64 distinct addresses for free;
+/// keyed on the full address, every request would land in a fresh bucket at
+/// 1/10 and the per-source bound would be nothing at all (found in review).
+/// One /64 is one subscriber, the mapping the identity-limits design calls
+/// « one human, one bucket ». IPv4 is keyed on its canonical dotted form, so
+/// two spellings of one address share a bucket. An unparsable string is keyed
+/// verbatim — it can only ever be its own bucket.
+///
+/// The Cloudflare edge rule keys on `ip.src`, the full address; the Free plan
+/// offers nothing coarser, so this collapse is the app limiter's alone and the
+/// reason it is the authoritative one (spec §5.4, §6.1 T71).
+String ipAuthKeySource(String ip) {
+  final parsed = InternetAddress.tryParse(ip);
+  if (parsed == null) return ip;
+  if (parsed.type == InternetAddressType.IPv6) {
+    final prefix = parsed.rawAddress.sublist(0, 8);
+    return 'v6/64:${prefix.map((b) => b.toRadixString(16).padLeft(2, '0')).join()}';
+  }
+  return parsed.address;
+}
+
+/// `ip:auth:` + the first 32 hex characters of SHA-256 of [ipAuthKeySource].
 ///
 /// Hashed, so the `identity_rate_limits` column holds a bounded 32-character
 /// key whatever the client sends, and no address is stored in clear — the two
 /// things the identity-limits design demands of an open-set key (spec §4).
 /// The same reason `admin_login_throttle` keys on a digest.
 String ipAuthBucket(String ip) =>
-    'ip:auth:${sha256.convert(utf8.encode(ip)).toString().substring(0, 32)}';
+    'ip:auth:${sha256.convert(utf8.encode(ipAuthKeySource(ip))).toString().substring(0, 32)}';
 
 /// Four ordered steps per request (spec §5.2), and the order is the security:
 ///
@@ -111,7 +135,20 @@ Middleware originFrontDoorMiddleware(
       final verified =
           provided != null && constantTimeEquals(on.secret, provided);
       if (!verified) {
-        log('origin_auth_missing method=${request.method.value} path=$path');
+        // A verb outside dart_frog's enum (PROPFIND, TRACE, PURGE…) makes
+        // `request.method` throw, and the observability catch would then throw
+        // again reading it — a bare 500 with a stack trace on the direct door
+        // instead of a refusal (found in review). 405 is what such a verb gets
+        // anywhere else here.
+        final String verb;
+        try {
+          verb = request.method.value;
+        } on Exception {
+          // dart_frog's UnsupportedHttpMethodException, which the package
+          // does not export; nothing else in `.method.value` can throw.
+          return jsonError(HttpStatus.methodNotAllowed, 'method_not_allowed');
+        }
+        log('origin_auth_missing method=$verb path=$path');
         if (on.mode == OriginAuthMode.enforce) {
           return jsonError(
             HttpStatus.forbidden,
