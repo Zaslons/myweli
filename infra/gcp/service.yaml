@@ -28,12 +28,13 @@ metadata:
   labels:
     cloud.googleapis.com/location: europe-west9
   annotations:
-    # **`all`, since the front door moved to Cloudflare** — the global load
-    # balancer is retired (docs/design/infra-cloudflare-front-door.md). The
+    # **`all`, for the Cloudflare front door** — the global load balancer is
+    # being retired (docs/design/infra-cloudflare-front-door.md §9; it serves
+    # until 71-retire-load-balancer.sh has run). The
     # Worker on api.myweli.com forwards to this service's *.run.app hostname,
     # and nothing but an open ingress lets it in. That makes the *.run.app URL
     # a SECOND public front door again, and it is CLOSED — but by the ORIGIN
-    # GATE, not by ingress: every request except `GET /health` must carry the
+    # GATE, not by ingress: every request except `/health` must carry the
     # `X-Myweli-Origin-Auth` header only the Worker holds
     # (`ORIGIN_AUTH_SECRET` below; `lib/src/security/origin_front_door.dart`),
     # or it is answered 403 `origin_required`. The old value,

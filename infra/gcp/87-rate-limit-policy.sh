@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 #
-# RETIRED 2026-09-09 by docs/design/infra-cloudflare-front-door.md — kept as
-# the launch-time re-application path (LAUNCH.md §6.5). Re-running it recreates
+# SCHEDULED FOR RETIREMENT (docs/design/infra-cloudflare-front-door.md §9):
+# what this script created is LIVE and serving until 71-retire-load-balancer.sh
+# has run. Kept afterwards as the launch-time re-application path (LAUNCH.md
+# §6.5). Re-running it recreates
 # a billable resource (a Cloud Armor policy, ~$5/month, plus ~$1/month per
 # rule — and it needs the load balancer of `70` to attach to). Do not run
 # without the owner's word. What this rule did is now done twice over: by the

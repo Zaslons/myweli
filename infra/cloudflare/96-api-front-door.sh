@@ -72,8 +72,9 @@ CF_API=https://api.cloudflare.com/client/v4
 # The load balancer's static address (infra/gcp/70-load-balancer.sh). While
 # the LB is alive, a proxied record keeps pointing at it — the fail-open target
 # still serves the hostname with a valid certificate. After the LB is retired,
-# 71-retire-load-balancer.sh's follow-up sets the documented originless
-# placeholder 192.0.2.0. Named here only so the read-back can assert that
+# 71-retire-load-balancer.sh's follow-up sets 192.0.2.0, an RFC 5737 TEST-NET
+# address (Cloudflare's own documented originless placeholder is `AAAA 100::`;
+# either never answers). Named here only so the read-back can assert that
 # `dig` no longer returns it: a proxied record answers with Cloudflare's
 # addresses, never the origin's.
 LB_IP=8.232.126.191
@@ -180,8 +181,12 @@ esac
 # proves each client end-to-end (spec §5.4 step 2, §11 item 3).
 SECURITY_LEVEL=$(cf GET "/zones/$ZONE_ID/settings/security_level" | jq -r '.result.value')
 BROWSER_CHECK=$(cf GET "/zones/$ZONE_ID/settings/browser_check" | jq -r '.result.value')
+# Reported too: with it on, the edge answers http:// before the Worker does;
+# with it off, the Worker's own 301 does the same job (src/index.js).
+ALWAYS_HTTPS=$(cf GET "/zones/$ZONE_ID/settings/always_use_https" | jq -r '.result.value')
 echo "    · security_level: $SECURITY_LEVEL   (note it — 72-verify-front-door.sh proves the non-browser clients)"
 echo "    · browser_check:  $BROWSER_CHECK   (\"on\" = Browser Integrity Check may challenge the Dart client / probes)"
+echo "    · always_use_https: $ALWAYS_HTTPS   (either way http:// ends in a 301 to https:// on this hostname)"
 
 echo "==> 3/5  Worker $WORKER_NAME — deploy, secret, read back"
 # The origin's own floor, applied before the Worker ever holds the value:
@@ -291,7 +296,8 @@ echo "    ✓ dig: $API_HOST → $(tr '\n' ' ' <<<"$ANSWER")(Cloudflare, not $LB
 # Cloudflare's edge. Retried for the same reason. Read-only GET of /health.
 CF_RAY_OK=0
 for attempt in 1 2 3 4 5 6; do
-  HEAD_OUT=$(curl -sI --max-time 15 "https://$API_HOST/health" 2>/dev/null || true)
+  # A GET with captured headers, not `-I`: /health answers 405 to HEAD.
+  HEAD_OUT=$(curl -s -D - -o /dev/null --max-time 15 "https://$API_HOST/health" 2>/dev/null || true)
   if grep -qi '^cf-ray:' <<<"$HEAD_OUT"; then
     CF_RAY_OK=1
     break
@@ -304,7 +310,7 @@ if ((CF_RAY_OK == 0)); then
   sed 's/^/      | /' <<<"$HEAD_OUT"
   exit 1
 fi
-echo "    ✓ https://$API_HOST/health: $(head -n 1 <<<"$HEAD_OUT" | tr -d '\r') · $(grep -i '^cf-ray:' <<<"$HEAD_OUT" | tr -d '\r')"
+echo "    ✓ https://$API_HOST/health: $(grep -i '^HTTP/' <<<"$HEAD_OUT" | tail -n 1 | tr -d '\r') · $(grep -i '^cf-ray:' <<<"$HEAD_OUT" | tr -d '\r')"
 
 echo "==> 5/5  Edge rate-limit rule (http_ratelimit phase)"
 # Free plan: ONE rule, IP characteristic, 10 s period, 10 s timeout, fields

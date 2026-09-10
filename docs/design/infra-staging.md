@@ -140,7 +140,7 @@ resource by resource, with the reason each way.
 | `MESSAGING_PROVIDER` | **`disabled`, and it stays that way** | §3.3 |
 | Artifact Registry | **shared** — same `:${SHA}` image | Deploy the identical immutable digest to staging, then promote **that same digest** to prod. A separately built prod image is a different artifact and defeats the rehearsal |
 | Firebase / FCM | **separate project**, from phase 8 | Enabled by §4's separate bundle ids. Until phase 8 the app is not part of staging at all, so there is nothing for a staging Firebase project to serve — and sharing prod's would put staging pushes on real phones |
-| Ingress | **`all`** on staging, using the **`*.run.app` URL** — *not* prod's `internal-and-cloud-load-balancing` | Copying prod's value verbatim makes staging unreachable by its own cron, and Cloud Run domain mappings are unimplemented in europe-west9. The $18.25 hostname is **declined** — see §4.1 |
+| Ingress | **`all`** on staging, using the **`*.run.app` URL** — *not* prod's `internal-and-cloud-load-balancing` *(2026-09: prod becomes `all` too, closed by the origin gate instead — [infra-cloudflare-front-door.md](infra-cloudflare-front-door.md))* | Copying prod's value verbatim makes staging unreachable by its own cron, and Cloud Run domain mappings are unimplemented in europe-west9. The $18.25 hostname is **declined** — see §4.1 |
 
 ### 2.1 No shared database — and what data staging actually holds
 

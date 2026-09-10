@@ -42,8 +42,8 @@ ORIGIN_HOST = "myweli-api-5a24ymhbbq-od.a.run.app"
 # api.myweli.com DNS record is PROXIED (orange cloud) — step 4 of the script.
 # `/*` because route matching includes the query string, so a bare hostname
 # would not match `?page=2`. No scheme, so both http:// and https:// reach the
-# Worker (the origin's own redirect behaviour is preserved by redirect:
-# 'manual').
+# Worker — which answers http:// with a 301 to https:// on THIS hostname, the
+# way the load balancer's redirect url-map did (src/index.js).
 [[routes]]
 pattern = "api.myweli.com/*"
 zone_name = "myweli.com"

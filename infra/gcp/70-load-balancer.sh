@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 #
-# RETIRED 2026-09-09 by docs/design/infra-cloudflare-front-door.md — kept as
-# the launch-time re-application path (LAUNCH.md §6.5). Re-running it recreates
+# SCHEDULED FOR RETIREMENT (docs/design/infra-cloudflare-front-door.md §9):
+# what this script created is LIVE and serving until 71-retire-load-balancer.sh
+# has run. Kept afterwards as the launch-time re-application path (LAUNCH.md
+# §6.5). Re-running it recreates
 # a billable resource (two global forwarding rules, ~$18/month at zero traffic —
 # the largest single line of the bill this retirement removed). Do not run
 # without the owner's word. The hostname it built is now served by Cloudflare →

@@ -95,6 +95,23 @@ void main() {
     });
 
     test(
+      'answers http:// with a 301 to https:// on the public host, never proxies in clear',
+      () {
+        expect(
+          js,
+          contains("url.protocol === 'http:'"),
+          reason:
+              'without this, an http:// client is proxied to the origin over '
+              'http, Cloud Run answers 301 naming its own run.app hostname, and '
+              "redirect: 'manual' hands that to the client — who follows it to "
+              'the direct door and is refused (found in review)',
+        );
+        expect(js, contains('Response.redirect('));
+        expect(js, contains('301'));
+      },
+    );
+
+    test(
       'refuses to forward without the secret rather than forwarding bare',
       () {
         expect(js, contains('!env.ORIGIN_AUTH_SECRET'));

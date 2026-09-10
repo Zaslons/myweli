@@ -21,7 +21,7 @@
 #
 #   1. `dig +short api.myweli.com` returns no 8.232.126.191 — the record is
 #      proxied, so the load balancer's address serves nobody;
-#   2. `curl -sI https://api.myweli.com/health` is 200 AND carries `cf-ray` —
+#   2. a GET of https://api.myweli.com/health is 200 AND carries `cf-ray` —
 #      the hostname answers, and it answers through Cloudflare;
 #   3. the direct door answers 403 `origin_required` on /providers and 200 on
 #      /health — enforcement is LIVE, so deleting the load balancer removes no
@@ -151,8 +151,11 @@ if grep -qF "${LB_IP}" <<< "${DIG}"; then
 fi
 echo "  ✓ (1) ${DOMAIN} resolves to $(tr '\n' ' ' <<< "${DIG}")— not ${LB_IP}"
 
-HEAD=$(curl -sI --max-time 20 "https://${DOMAIN}/health" 2>/dev/null || true)
-STATUS=$(printf '%s' "${HEAD}" | head -1 | awk '{print $2}')
+# A GET whose headers are captured — NOT `curl -sI`: that is a HEAD, and
+# routes/health.dart answers 405 to every verb but GET, so a HEAD-based check
+# could never pass (found in review before it was ever run).
+HEAD=$(curl -s -D - -o /dev/null --max-time 20 "https://${DOMAIN}/health" 2>/dev/null || true)
+STATUS=$(printf '%s' "${HEAD}" | grep -i '^HTTP/' | tail -1 | awk '{print $2}')
 if [[ "${STATUS}" != "200" ]]; then
   echo "::error:: (2) https://${DOMAIN}/health answered '${STATUS:-nothing}', expected 200."
   exit 1
@@ -304,7 +307,8 @@ Retired. Two follow-ups this script cannot do itself:
 
   1. DNS (Cloudflare): the proxied A record for ${DOMAIN} still holds
      ${LB_IP}, an address that now belongs to nobody. Set its content to
-     192.0.2.0 (the documented originless placeholder for a Worker route);
+     192.0.2.0 — an RFC 5737 TEST-NET address that never answers, the same
+     trick as Cloudflare's documented originless `AAAA 100::` (either works);
      the Worker answers regardless of the record's content, so this is
      hygiene, not a cutover.
 

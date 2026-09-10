@@ -462,15 +462,17 @@ These block everything. None is surface-specific.
         [design/backend-rate-limiting.md](design/backend-rate-limiting.md) §4.
         It still owes the **anonymous** surface — the 100/100 reads above — and
         layer 3 cannot touch those, because there is no identity to key on.
-        **2026-09 — layer 1 moved and layer 2 finally enforces.** Cloud Armor
-        and the load balancer are retired for cost
-        ([design/infra-cloudflare-front-door.md](design/infra-cloudflare-front-door.md)):
-        the edge is now a Cloudflare free-plan rule (per IP, 10 per 10 s), and
-        the 10/min per IP on `/auth/*` + `/admin/auth/*` lives **in the app**,
+        **2026-09 — layer 1 moves and layer 2 finally enforces (built, rollout
+        pending).** Cloud Armor and the load balancer are being retired for
+        cost ([design/infra-cloudflare-front-door.md](design/infra-cloudflare-front-door.md)
+        §9; they serve until `infra/gcp/71-retire-load-balancer.sh` runs): the
+        edge becomes a Cloudflare free-plan rule (per IP, 10 per 10 s), and the
+        10/min per IP on `/auth/*` + `/admin/auth/*` lives **in the app**,
         keyed on `CF-Connecting-IP` read only behind the origin gate — verified
         by construction, which is what the §4 measurement was for. The
-        anonymous-read surface is still unbounded. Proven on the live path by
-        `infra/gcp/72-verify-front-door.sh`.
+        anonymous-read surface is still unbounded. To be proven on the live
+        path by `infra/gcp/72-verify-front-door.sh` before the load balancer
+        goes.
       - **The ADMIN surface was covered by none of the layers, and the reason
         recorded for that was false** (2026-08-19).
         [design/backend-rate-limiting.md](design/backend-rate-limiting.md) left
@@ -481,7 +483,7 @@ These block everything. None is surface-specific.
         it would front `admin.myweli.com` on Pages, while the API is
         `api.myweli.com`, kept **DNS-only on purpose** so Google can validate
         the managed certificate, so Cloudflare is not in the request path
-        *(true until 2026-09; the front door put Cloudflare in the path)*.
+        *(true until the 2026-09 front door puts Cloudflare in the path)*.
         Layer 1's rule matches `/auth/`, which `/admin/auth/login` does not. The
         effective bound was **~20 guesses per 15 minutes, reset by any cold
         start**, on the account that bypasses every tenant boundary. The lockout
@@ -577,8 +579,8 @@ These block everything. None is surface-specific.
       **directly**, no redirect. So this box does **not** close the admin half
       of the rate-limiting box above — different origin, different provider,
       and `api.myweli.com` was deliberately DNS-only so Google could validate
-      its certificate *(proxied since the 2026-09 front door; Access still
-      fronts only the console)*.
+      its certificate *(proxied once the 2026-09 front door lands; Access
+      still fronts only the console)*.
 
 - [x] **The per-identity limits are deployed to PRODUCTION.** **Enforcing since
       2026-08-19** — revision `myweli-api-00022-t9x`, commit `34d55c0`, which
@@ -1065,7 +1067,7 @@ is the gate**:
       friction — DEPLOYMENT.md, staging section). Nothing to restart.
 
 **The front door (2026-09) — what to re-apply, what to decide.** The load
-balancer and Cloud Armor were retired for the Cloudflare front door
+balancer and Cloud Armor are being retired for the Cloudflare front door
 ([design/infra-cloudflare-front-door.md](design/infra-cloudflare-front-door.md));
 the owner asked that this list be kept here, where launch is decided:
 

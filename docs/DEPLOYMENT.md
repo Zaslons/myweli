@@ -8,7 +8,7 @@ truth for backend keys: [`backend/.env.example`](../backend/.env.example); for w
 ## 0. What runs where
 | Component | Tech | Host | Domain |
 |---|---|---|---|
-| Backend API | dart_frog (Docker) | **Cloud Run** (`europe-west9`, Paris) — `infra/gcp/service.yaml` | `api.myweli.com` (Cloudflare → Worker → `run.app`, since 2026-09; the load balancer is retired) |
+| Backend API | dart_frog (Docker) | **Cloud Run** (`europe-west9`, Paris) — `infra/gcp/service.yaml` | `api.myweli.com` (global HTTPS load balancer today; **scheduled** to become Cloudflare → Worker → `run.app` — [design/infra-cloudflare-front-door.md](design/infra-cloudflare-front-door.md) §9) |
 | Database | PostgreSQL 16 | **Cloud SQL** `myweli-db` (same region), reached through the Auth Proxy sidecar | internal |
 | Web | Next.js | **Vercel** | `myweli.com` + `www` |
 | Admin console | Flutter Web | static host (Vercel/CF Pages) | `admin.myweli.com` |
@@ -265,19 +265,34 @@ which is how the reminder cron came to be switched off without anyone noticing.
    serving image is the one just built, that `/health` and a database-backed
    route answer, and that the service **reports the environment it was asked to
    deploy**.
-4. **`api.myweli.com` is Cloudflare → a Worker → Cloud Run, not a domain
-   mapping and no longer a load balancer** (since 2026-09;
-   [design/infra-cloudflare-front-door.md](design/infra-cloudflare-front-door.md)).
-   Cloud Run domain mappings are still unimplemented in `europe-west9`, so the
-   Worker `myweli-api-front-door` forwards every request to the `*.run.app`
-   hostname with a secret `X-Myweli-Origin-Auth` header. The service is
-   `ingress: all` — it has to be — and the **origin gate** in the backend
-   answers `403 origin_required` to anything that did not come through the
-   Worker, except `GET /health` (the liveness probe carries no header). Built by
+4. **`api.myweli.com` is a global HTTPS load balancer today, and is scheduled
+   to become Cloudflare → a Worker → Cloud Run**
+   ([design/infra-cloudflare-front-door.md](design/infra-cloudflare-front-door.md),
+   built 2026-09-09, rollout in §9 of that spec). Cloud Run domain mappings are
+   still unimplemented in `europe-west9`, so the Worker `myweli-api-front-door`
+   forwards every request to the `*.run.app` hostname with a secret
+   `X-Myweli-Origin-Auth` header. The service then runs `ingress: all` — it
+   has to be — and the **origin gate** in the backend answers
+   `403 origin_required` to anything that did not come through the Worker,
+   except `/health` (the liveness probe carries no header). Built by
    `infra/cloudflare/96-api-front-door.sh`; proven by
-   `infra/gcp/72-verify-front-door.sh`; the load balancer was retired by
-   `infra/gcp/71-retire-load-balancer.sh`, and `70`/`87`/`89`/`91` are kept as
-   the re-application path LAUNCH.md §6.5 names.
+   `infra/gcp/72-verify-front-door.sh`; the load balancer is retired by
+   `infra/gcp/71-retire-load-balancer.sh`; `70`/`87`/`89`/`91` stay as the
+   re-application path LAUNCH.md §6.5 names.
+
+   **Cutover status** (tick as each spec §9 step runs; the sentence above is
+   in the future tense until the last box):
+   - [ ] Secrets `ORIGIN_AUTH_SECRET` (v1, accessor `myweli-run@`) and
+         `CLOUDFLARE_FRONT_DOOR_TOKEN` exist — **before the merge**, or the
+         staging deploy's `98-verify-secret-pins.sh` gate goes red.
+   - [ ] Production phase A deployed (`ingress: all`, secret, `log`).
+   - [ ] `96-api-front-door.sh` run; **Worker route fail mode set to « Fail
+         closed »** in the dashboard on: ________ (the docs give no default;
+         re-read at launch).
+   - [ ] Log window measured (no `origin_auth_missing` on the Worker path).
+   - [ ] Production phase B deployed (`enforce`); direct door answers 403.
+   - [ ] `72-verify-front-door.sh` green; `71-retire-load-balancer.sh` run;
+         DNS placeholder set; Billing rows gone the next day.
 5. **Twilio webhook — not applicable yet**, listed so it is not forgotten when
    messaging turns on. Production runs `MESSAGING_PROVIDER=disabled` and mounts
    no Twilio credentials, so nothing calls this route today. When a provider is
@@ -366,7 +381,7 @@ therefore absent from the list), backups, ALB data processing, logging
 against 0.5 GiB), and `Network Internet Data Transfer Out from Paris` —
 confirming the Cloud SQL WAL stream is not billed as egress.
 
-**Two flat network charges — $26.4/mo — are 53% of the bill and were in no
+**Two flat network charges — $26.5/mo — are 53% of the bill and were in no
 projection.** They do not move with traffic, with `minScale`, or with the
 staging database, which is why the (real) −99% drop in billable instance
 time barely moved the total. The load balancer exists because Cloud Run
@@ -408,13 +423,6 @@ bypassable unless origin authentication replaces it. **That is now the
 design** ([design/infra-cloudflare-front-door.md](design/infra-cloudflare-front-door.md),
 approved 2026-09-09): origin authentication replaces it. Steady state with
 the front door: ≈$24/month with staging, ≈$13 without; launch week ≈$44.
-
-**There is no Cloud Billing budget on this account.** `85-db-capacity-alert.sh`
-and `88-email-budget-alert.sh` are about Postgres connections and email
-sends, not money. Until a budget with threshold alerts exists, the only
-thing standing between a cost regression and the invoice is someone opening
-this page.
-
 
 ### Rolling back
 

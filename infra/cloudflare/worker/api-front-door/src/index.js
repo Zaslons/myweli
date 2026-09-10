@@ -78,6 +78,15 @@ export default {
     }
 
     const url = new URL(request.url);
+    // The load balancer's redirect url-map sent http:// to https:// on the
+    // PUBLIC hostname. Without this, an http:// client would be proxied to
+    // the origin over http, Cloud Run would answer 301 with a Location naming
+    // its own run.app hostname, and redirect: 'manual' would hand that to the
+    // client — who would follow it to the direct door and be refused.
+    if (url.protocol === 'http:') {
+      url.protocol = 'https:';
+      return Response.redirect(url.toString(), 301);
+    }
     url.hostname = env.ORIGIN_HOST; // Host follows the URL — the rewrite
     const headers = new Headers(request.headers);
     headers.set(ORIGIN_AUTH_HEADER, env.ORIGIN_AUTH_SECRET);
