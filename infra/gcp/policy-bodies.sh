@@ -118,7 +118,19 @@ add infra/gcp/80-uptime-checks.sh
 add infra/gcp/85-db-capacity-alert.sh
 add infra/gcp/86-cron-auth-alert.sh
 add infra/gcp/88-email-budget-alert.sh
-add infra/gcp/91-armor-deny-alert.sh
+# 91-armor-deny-alert.sh follows the LIVE state of what it watches, in both
+# directions. Its policy, "Cloud Armor REFUSED a request", watches the load
+# balancer's request log; 71-retire-load-balancer.sh deletes both the Cloud
+# Armor policy and this alert, and 93-sync-runbooks.sh exits 1 on a rendered
+# policy with no live twin — so a fixed `add` line here would fail every
+# deploy's post-step from the retirement on, and a fixed omission would stop
+# syncing a live alert until then (docs/design/infra-cloudflare-front-door.md
+# §5.5). Gating on the security policy's existence makes the list true before
+# the cutover, after it, and again at launch if LAUNCH.md §6.5 brings it back.
+if gcloud compute security-policies describe myweli-api-rate-limit \
+    --project="${PROJECT:-myweli}" >/dev/null 2>&1; then
+  add infra/gcp/91-armor-deny-alert.sh
+fi
 add infra/gcp/92-identity-limit-alert.sh
 add infra/gcp/94-identity-warning-alert.sh
 add infra/gcp/96-rebuild-hook-alert.sh

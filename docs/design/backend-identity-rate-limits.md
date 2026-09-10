@@ -50,8 +50,9 @@ It is also a smaller thing to get wrong: a mis-set per-IP threshold locks out
 everyone behind one address, a mis-set per-identity one locks out one account.
 
 **The residual, stated rather than implied.** An identity limit is only as strong
-as the cost of minting an identity. That cost is bounded by layer 1 (10/min per
-IP on `/auth/*`, live and observed refusing) and by the cold send budget (60
+as the cost of minting an identity. That cost is bounded by the 10/min per IP
+on `/auth/*` (Cloud Armor until 2026-09, then the app's own limiter behind the
+front door — T71) and by the cold send budget (60
 emails/hour globally). That composition is what makes layer 3 sound — and it is
 also why layer 3 is not an argument for dropping layer 2.
 

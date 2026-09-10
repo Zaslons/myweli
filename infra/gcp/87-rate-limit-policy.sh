@@ -1,5 +1,15 @@
 #!/usr/bin/env bash
 #
+# SCHEDULED FOR RETIREMENT (docs/design/infra-cloudflare-front-door.md §9):
+# what this script created is LIVE and serving until 71-retire-load-balancer.sh
+# has run. Kept afterwards as the launch-time re-application path (LAUNCH.md
+# §6.5). Re-running it recreates
+# a billable resource (a Cloud Armor policy, ~$5/month, plus ~$1/month per
+# rule — and it needs the load balancer of `70` to attach to). Do not run
+# without the owner's word. What this rule did is now done twice over: by the
+# app's per-IP limiter behind the origin gate (10/minute, the authoritative
+# bound) and by a Cloudflare rate-limiting rule at the edge (10 per 10 s).
+#
 # Per-IP rate limiting at the load balancer (Cloud Armor).
 #
 # ## What this closes
@@ -20,13 +30,19 @@
 #
 # ## Why HERE and not only in the app
 #
-# Production ingress is `internal-and-cloud-load-balancing` and the `run.app`
-# URL 404s, so the LB is the ONLY way in — a policy here cannot be walked
-# around. It also throttles before the request reaches the service, so it bounds
-# volumetric load rather than only abuse, and costs no per-request database
-# write. The app-level limiter (docs/design/backend-rate-limiting.md §2, layer
-# 2) is defence in depth for staging and local runs; this is the one that
-# protects the launch surface.
+# **No longer true as of 2026-09-09** — kept as the reasoning that held while
+# the load balancer existed. Production ingress was
+# `internal-and-cloud-load-balancing` and the `run.app` URL 404ed, so the LB
+# was the ONLY way in and a policy here could not be walked around. Today
+# ingress is `all`, the direct door is closed by the origin gate instead, and
+# the un-bypassable per-IP bound is the app's limiter keyed on
+# `CF-Connecting-IP` behind that gate (infra-cloudflare-front-door.md §5.2).
+# The rest of the argument stands: a policy at the edge throttles before the
+# request reaches the service, bounds volumetric load rather than only abuse,
+# and costs no per-request database write — which is what the Cloudflare edge
+# rule now does. The app-level limiter (docs/design/backend-rate-limiting.md
+# §2, layer 2) was defence in depth for staging and local runs when this was
+# written; it is now the authoritative layer on production.
 #
 # ## The threshold
 #

@@ -17,6 +17,11 @@ import 'package:yaml/yaml.dart';
 ///
 /// The files are read from disk rather than fixtured, so this fails when the
 /// real deployed configuration drifts, not when a copy of it does.
+///
+/// **Ingress is asserted, not merely described.** `service.yaml`'s header once
+/// claimed this file asserted that ingress *differs* between the two files. It
+/// never read the annotation at all. Both are `all` now, for two different
+/// reasons (the front-door group at the end), and each reason is pinned.
 void main() {
   final root = Directory.current.path.endsWith('backend')
       ? '${Directory.current.path}/..'
@@ -992,6 +997,142 @@ void main() {
       // that lands, this pin goes back to greaterThanOrEqualTo(1).
       expect(scale(files['prod']!, 'minScale'), 0);
       expect(scale(files['staging']!, 'minScale'), 0);
+    });
+  });
+
+  group('the front door — ingress is open, and the origin gate closes it', () {
+    /// docs/design/infra-cloudflare-front-door.md §5.6. Production's ingress
+    /// opened to `all` so the Cloudflare Worker can reach the *.run.app URL;
+    /// what closes the reopened direct door is `ORIGIN_AUTH_SECRET`, compared
+    /// by the middleware on every request but `GET /health`. The two halves
+    /// are only safe TOGETHER: `all` without the secret is an open door, and
+    /// the secret without `all` shuts the Worker out. So both are pinned, in
+    /// the same group, with the reason each exists.
+    String ingress(YamlMap svc) =>
+        svc['metadata']['annotations']['run.googleapis.com/ingress'] as String;
+
+    List<String> envNames(YamlMap svc) => [
+      for (final e in appEnv(svc)) e['name'] as String,
+    ];
+
+    test('production ingress is `all` — the Worker needs the run.app door', () {
+      expect(
+        ingress(files['prod']!),
+        'all',
+        reason:
+            'the Cloudflare Worker forwards to the *.run.app hostname and '
+            'nothing but an open ingress lets it in; '
+            '`internal-and-cloud-load-balancing` would 404 every request '
+            'the front door forwards, and the load balancer it named is '
+            'retired (71-retire-load-balancer.sh)',
+      );
+    });
+
+    test('staging ingress is `all` — its run.app URL is the only door', () {
+      expect(
+        ingress(files['staging']!),
+        'all',
+        reason:
+            'staging has no Worker, no gate and no load balancer; its cron '
+            'and every Vercel preview call run.app directly',
+      );
+    });
+
+    test(
+      'ORIGIN_AUTH_SECRET is mounted in production, pinned to a version',
+      () {
+        // From Secret Manager, never a literal: the value is the bearer
+        // credential that distinguishes the Worker from the rest of the world.
+        final env = appEnv(files['prod']!);
+        final e = env.firstWhere(
+          (x) => x['name'] == 'ORIGIN_AUTH_SECRET',
+          orElse: () => null,
+        );
+        expect(
+          e,
+          isNotNull,
+          reason:
+              'with ingress `all` and no ORIGIN_AUTH_SECRET, production '
+              'refuses to boot — and if it did boot, the run.app URL would be '
+              'a second, ungated front door',
+        );
+        expect(e['value'], isNull, reason: 'a literal secret in a manifest');
+        expect(e['valueFrom']['secretKeyRef']['name'], 'ORIGIN_AUTH_SECRET');
+        final key = e['valueFrom']['secretKeyRef']['key'];
+        expect(key, isA<String>(), reason: 'quote the key');
+        expect(
+          RegExp(r'^[1-9][0-9]*$').hasMatch(key as String),
+          isTrue,
+          reason: 'pinned to a version number, never `latest`',
+        );
+      },
+    );
+
+    test(
+      'ORIGIN_AUTH_MODE is written down in production, as log or enforce',
+      () {
+        // Unset means `enforce` in the code, so a missing line is safe; but the
+        // rollout (§9) needs `log` to exist as a written, reviewable state, and
+        // an unknown spelling is a boot failure. Only the two spellings pass.
+        final mode = plainEnv(files['prod']!, 'ORIGIN_AUTH_MODE');
+        expect(mode, isNotNull, reason: 'the mode must be a reviewable line');
+        expect(
+          mode,
+          anyOf('log', 'enforce'),
+          reason:
+              '"$mode" is not a mode the resolver accepts — production would '
+              'refuse to boot naming ORIGIN_AUTH_MODE',
+        );
+      },
+    );
+
+    test('staging declares NO ORIGIN_AUTH_* — env or secret', () {
+      // Staging has no Worker to send the header, so a secret there would
+      // gate out its own cron, every Vercel preview and the funnel harness.
+      // The middleware is `OriginAuthOff` precisely because nothing is set.
+      final env = envNames(
+        files['staging']!,
+      ).where((n) => n.startsWith('ORIGIN_AUTH_')).toList();
+      expect(
+        env,
+        isEmpty,
+        reason:
+            'staging declares $env — with a secret set the gate turns on '
+            'and nothing that calls staging carries the header',
+      );
+      final secrets = secretNames(
+        files['staging']!,
+      ).where((n) => n.contains('ORIGIN_AUTH')).toList();
+      expect(secrets, isEmpty, reason: 'staging mounts $secrets');
+    });
+
+    test('a `log` window is dated, and the date has not passed', () {
+      // `log` mode leaves the public direct door with no per-IP limit at all
+      // (docs/design/infra-cloudflare-front-door.md §9 step 4). A deadline in
+      // a document is a wish; a date the test reads is a mechanism: the day
+      // after `log-mode-until`, CI is red until the manifest says `enforce`.
+      final prodFile = File('$root/infra/gcp/service.yaml').readAsStringSync();
+      final mode = plainEnv(files['prod']!, 'ORIGIN_AUTH_MODE');
+      if (mode != 'log') return;
+      final m = RegExp(
+        r'# log-mode-until: (\d{4}-\d{2}-\d{2})',
+      ).firstMatch(prodFile);
+      expect(
+        m,
+        isNotNull,
+        reason:
+            'ORIGIN_AUTH_MODE is `log` without a `# log-mode-until: '
+            'YYYY-MM-DD` line above it — an unbounded window',
+      );
+      final until = DateTime.parse(m!.group(1)!);
+      expect(
+        DateTime.now().toUtc().isBefore(until.add(const Duration(days: 1))),
+        isTrue,
+        reason:
+            'the log-mode window ended on ${m.group(1)} and production '
+            'still says `log`: the direct door has had no per-IP limit past '
+            'the date the rollout promised. Deploy `enforce` (spec §9 step 7).',
+      );
     });
   });
 }

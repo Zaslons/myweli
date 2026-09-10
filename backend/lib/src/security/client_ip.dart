@@ -1,5 +1,17 @@
 /// Resolving the caller's address from `X-Forwarded-For`.
 ///
+/// **Still unwired, and now by decision rather than by delay.** This resolver
+/// was written for the day the app would enforce a per-IP limit on `/auth/*`
+/// and could not, because its key was unverified: the depth of trustworthy
+/// `X-Forwarded-For` entries was never measured. The Cloudflare front door
+/// (docs/design/infra-cloudflare-front-door.md §5.2) made that measurement
+/// unnecessary — `origin_front_door.dart` keys on `CF-Connecting-IP`, which
+/// Cloudflare sets on a Worker subrequest the Worker cannot alter, and reads it
+/// only after the origin secret verified. The key is verified by construction,
+/// not by counting hops. What follows is the record of the problem this
+/// function was meant to solve, kept because the reasoning about the two
+/// wrong shortcuts still holds for anyone tempted to read XFF elsewhere.
+///
 /// ## Why this is a pure function with a depth argument
 ///
 /// **The app had never seen a client address** — there was no XFF handling

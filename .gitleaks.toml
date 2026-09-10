@@ -23,3 +23,20 @@ paths = [
   '''mobile/android/app/src/(consumer|pro)/google-services\.json''',
   '''mobile/ios/.*GoogleService-Info.*\.plist''',
 ]
+# Matched against the whole LINE, not the redacted secret, so the shape below
+# is judged in context.
+regexTarget = "line"
+regexes = [
+  # A rate-limit bucket for an address is the first 32 hex characters of the
+  # SHA-256 of that address (backend/lib/src/security/origin_front_door.dart).
+  # The runbook of 92-identity-limit-alert.sh shows one so an operator can
+  # recognise the log line, and the middleware test asserts one so the hash
+  # cannot be silently re-keyed. A digest of an IP is not a credential; its
+  # entropy (3.57 bits/char) trips generic-api-key regardless.
+  '''ip:auth:[0-9a-f]{32}''',
+  # The middleware test's fake origin secret is the alphabet in order — chosen
+  # to be ≥ 32 chars (the gate refuses shorter) and self-evidently not a
+  # credential, which is exactly why a scanner that scores entropy alone
+  # (5.4 bits/char) cannot tell. Allowlisted as this literal only.
+  '''abcdefghijklmnopqrstuvwxyz0123456789ABCDEF''',
+]

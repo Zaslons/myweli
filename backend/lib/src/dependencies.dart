@@ -103,6 +103,7 @@ import 'reviews_repository.dart';
 import 'reviews_service.dart';
 import 'salon_provisioning_service.dart';
 import 'security/identity_limits.dart';
+import 'security/origin_auth.dart';
 import 'security/rate_limiter.dart';
 import 'site/site_rebuild_notifier.dart';
 import 'storage/storage_service.dart';
@@ -133,10 +134,13 @@ Env get env => _env;
 /// this.
 bool get _guardsOn => _env.guardsOn;
 
-/// **This is the real thing.** True for prod ONLY — and today it has exactly
-/// **one** use: the smoke-seam disclosure warning below.
+/// **This is the real thing.** True for prod ONLY. Its uses: the two seam
+/// warnings below, and — since the Cloudflare front door — the one guard that
+/// is prod-only rather than `guardsOn`: `ORIGIN_AUTH_SECRET` must exist in
+/// production, while staging keeps its `run.app` door public by design and
+/// runs with the gate off (`originAuth` below).
 ///
-/// It used to have two, and the second was the OTP dev-code echo, justified
+/// It once had two uses, and the second was the OTP dev-code echo, justified
 /// here as "staging has no SMS channel, so without it nobody can sign in".
 /// That moved to [_echoesOtpDevCode] on 2026-08-18 because staging is public,
 /// and the sentence is recorded rather than deleted: it was the argument that
@@ -222,6 +226,20 @@ final SmokeSeam smokeSeam = SmokeSeam(_envOrNull('SMOKE_OTP_SECRET'));
 /// docs/design/backend-demo-review-account.md.
 final DemoSeam demoSeam = DemoSeam(_envOrNull('DEMO_PROVIDER_CODE'));
 
+/// The origin gate (T70) — `ORIGIN_AUTH_SECRET` + `ORIGIN_AUTH_MODE`. Off when
+/// the secret is unset off-production (dev, CI, staging — no Worker in front);
+/// production refuses to boot without it, because with ingress open to `all`
+/// this secret is the only thing closing the direct `run.app` door. Unlike the
+/// two seams above, a short value is refused rather than treated as absent —
+/// `security/origin_auth.dart` carries the argument. Enforced by
+/// `security/origin_front_door.dart`, wired in `routes/_middleware.dart`.
+/// Design: docs/design/infra-cloudflare-front-door.md §5.2.
+final OriginAuth originAuth = resolveOriginAuth(
+  _envOrNull('ORIGIN_AUTH_SECRET'),
+  _envOrNull('ORIGIN_AUTH_MODE'),
+  isProd: _isProd,
+);
+
 /// Google Sign-In ID-token verifier. `GOOGLE_CLIENT_IDS` = the OAuth client-ID
 /// allowlist (web + Android + iOS). Unconfigured → the verifier rejects every
 /// token (fail closed); prod fails fast when the method is enabled.
@@ -295,9 +313,40 @@ SendCeilings get _sendCeilings => (
 ///
 /// Same in-memory caveat as the send budget above: fine for dev and CI, no bound
 /// at all on a `maxScale: 4` service.
+///
+/// Since the Cloudflare front door it also carries the per-IP `/auth/*` limit
+/// (`security/origin_front_door.dart`, buckets `ip:auth:<digest>`), so the
+/// fail-open call now covers sign-in too. That costs nothing new: every
+/// `/auth/*` route already needs Postgres to do its work, so a request the
+/// limiter waves through in that state fails a few lines later anyway, and the
+/// Cloudflare edge rule stays regardless of Postgres (spec §5.2).
 final RateLimiter rateLimiter = FailOpenRateLimiter(
-  _pool == null ? InMemoryRateLimiter() : PostgresRateLimiter(_pool!),
+  _postgresRateLimiter ?? InMemoryRateLimiter(),
 );
+
+/// The Postgres limiter, hoisted to a name for the same reason
+/// `adminLoginThrottle` is: the daily prune needs the same instance, and it
+/// needs the UNWRAPPED one — `FailOpenRateLimiter` deliberately hides what it
+/// wraps, and exposing it would invite a caller to skip the fail-open.
+final PostgresRateLimiter? _postgresRateLimiter = _pool == null
+    ? null
+    : PostgresRateLimiter(_pool!);
+
+/// Prunes `identity_rate_limits` windows older than [olderThan]; 0 when there
+/// is no database. The same shape as [pruneAdminLoginThrottle], for the same
+/// reason: pruning is a property of the STORE, not of the `RateLimiter`
+/// contract, and the in-memory one is emptied by a process restart.
+///
+/// Needed since the per-IP auth buckets: every new client address writes a
+/// row, so the key set is open and the table would otherwise only grow (the
+/// identity buckets are bounded by the user set and never needed this).
+Future<int?> pruneRateLimitWindows(Duration olderThan) async {
+  final limiter = _postgresRateLimiter;
+  if (limiter == null) return 0;
+  // `null` = the prune failed and said so on one log line; the cron reports
+  // it rather than failing (lib/src/security/rate_limiter.dart).
+  return pruneOrReport(() => limiter.prune(olderThan));
+}
 
 /// The ceilings, per hour, per identity. Configurable for the same reason the
 /// send budget's are: a launch changes the right number, and a redeploy is a
@@ -1145,6 +1194,9 @@ void _assertConfiguredDependenciesResolve() {
     'tokenService': () => tokenService,
     'authMethods': () => authMethods,
     'smokeSeam': () => smokeSeam,
+    // Production dies here without ORIGIN_AUTH_SECRET — at boot, in the
+    // aggregated line, never on the first request through the open door.
+    'originAuth': () => originAuth,
     'googleIdTokenVerifier': () => googleIdTokenVerifier,
     'appleIdTokenVerifier': () => appleIdTokenVerifier,
     'emailProvider': () => emailProvider,

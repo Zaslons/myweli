@@ -1,5 +1,19 @@
 #!/usr/bin/env bash
 #
+# SCHEDULED FOR RETIREMENT (docs/design/infra-cloudflare-front-door.md §9):
+# what this script created is LIVE and serving until 71-retire-load-balancer.sh
+# has run. Kept afterwards as the launch-time re-application path (LAUNCH.md
+# §6.5). Re-running it recreates
+# a billable resource (load-balancer request logging at sample rate 1.0 — log
+# ingestion billed per GiB — and an alert policy on a backend service that
+# `70` must have rebuilt first). Do not run without the owner's word. Its
+# policy, "Cloud Armor REFUSED a request", is deleted by
+# `71-retire-load-balancer.sh`, and its `add` line in `policy-bodies.sh` is
+# commented out for as long as the policy has no live twin — restore both
+# together (policy-bodies.sh gates the line on the policy's existence). What it
+# watches becomes the app's own `rate_limited bucket=ip:auth:` line, which
+# `92-identity-limit-alert.sh` pages on.
+#
 # Make a Cloud Armor refusal VISIBLE, and alert on the first one.
 #
 # ## The gap

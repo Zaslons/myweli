@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Cloud Armor built · app-level limiter groundwork built, enforcement OFF pending measurement |
+| **Status** | Cloud Armor built (2026-08-18) · **superseded 2026-09 by [infra-cloudflare-front-door.md](infra-cloudflare-front-door.md)**: layer 1 moves to a Cloudflare edge rule, layer 2 enforces in the app behind the origin gate — see the notes under §2 and §6 |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-08-18 |
 | **PRD ref / phase** | LAUNCH.md §4 · V1 (launch gate) |
@@ -80,6 +80,14 @@ roughly **20 guesses per 15 minutes, reset by any cold start**.
 
 ## 2. The fix, in two layers
 
+> **Superseded 2026-09 — [infra-cloudflare-front-door.md](infra-cloudflare-front-door.md).**
+> The load balancer and Cloud Armor are being retired for cost. Layer 1
+> becomes a Cloudflare free-plan rate-limiting rule at the edge (per IP, 10 per
+> 10 s — burst protection, imprecise by design); layer 2 **enforces** on
+> production, keyed on `CF-Connecting-IP` read only after the origin gate —
+> verified by construction, so §4's `X-Forwarded-For` measurement is no longer
+> the gate. The paragraphs below describe the 2026-08 design as built.
+
 **Layer 1 — Cloud Armor at the load balancer.** Production ingress is
 `internal-and-cloud-load-balancing`, the `run.app` URL 404s, and an external LB
 (`myweli-api-backend`) already exists with **no policy attached**. A per-IP
@@ -145,6 +153,10 @@ mechanism lands first, inert, and the policy is a separate deliberate act.**
 
 1. **Cloud Armor does not cover staging**, which has no LB. Acceptable: staging
    is not the launch surface, and layer 2 covers it once enforcing.
+   *2026-09: layer 2 enforces on production only — behind the origin gate,
+   which staging does not have (no Worker, no secret, deliberately). Staging
+   stays uncovered per IP, and this sentence says so rather than implying
+   otherwise.*
 2. **Per-IP is defeated by a distributed attacker.** It raises the cost by
    orders of magnitude and removes the trivial single-source case measured
    above; it is not a claim to have solved abuse.

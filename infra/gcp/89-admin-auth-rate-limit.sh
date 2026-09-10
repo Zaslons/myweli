@@ -1,5 +1,15 @@
 #!/usr/bin/env bash
 #
+# SCHEDULED FOR RETIREMENT (docs/design/infra-cloudflare-front-door.md §9):
+# what this script created is LIVE and serving until 71-retire-load-balancer.sh
+# has run. Kept afterwards as the launch-time re-application path (LAUNCH.md
+# §6.5). Re-running it recreates
+# a billable resource (one more Cloud Armor rule, ~$1/month, on the policy `87`
+# builds — which must exist and be attached first). Do not run without the
+# owner's word. `/admin/auth/` is now bounded by the app's per-IP limiter
+# behind the origin gate, in the same scope as `/auth/` (Cloud Armor's two
+# expressions, verbatim), and by the Cloudflare edge rule.
+#
 # Per-IP rate limiting on the ADMIN login, at the load balancer.
 #
 # ## The gap this closes
@@ -14,10 +24,14 @@
 #
 # **Access IS configured — verified 2026-08-19 by fetching it** — and it covers
 # `admin.myweli.com`, the Cloudflare Pages bundle. It does not cover the API.
-# `api.myweli.com` is deliberately DNS-only / grey-cloud so Google can validate
-# the managed certificate (70-load-balancer.sh:62-63), so Cloudflare is not in
-# its request path. Measured the same day: an anonymous POST to
-# api.myweli.com/admin/auth/login answers 401 directly, no redirect.
+# At the time `api.myweli.com` was deliberately DNS-only / grey-cloud so Google
+# could validate the managed certificate (70-load-balancer.sh), so Cloudflare
+# was not in its request path. Measured the same day: an anonymous POST to
+# api.myweli.com/admin/auth/login answered 401 directly, no redirect.
+# **Inverted 2026-09-09**: the record is proxied (orange cloud) and Cloudflare
+# IS the request path — a Worker forwards to the run.app origin
+# (infra-cloudflare-front-door.md §5.1). Access still covers only the Pages
+# bundle, so the argument that the API login needs its own bound is unchanged.
 #
 # ## Why `/admin/auth/` and not `/admin/`
 #

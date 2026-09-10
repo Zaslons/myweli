@@ -229,6 +229,7 @@ export interface paths {
                     };
                 };
                 400: components["responses"]["BadRequest"];
+                429: components["responses"]["RateLimited"];
             };
         };
         delete?: never;
@@ -279,6 +280,7 @@ export interface paths {
                 401: components["responses"]["Unauthorized"];
                 403: components["responses"]["Forbidden"];
                 404: components["responses"]["NotFound"];
+                429: components["responses"]["RateLimited"];
             };
         };
         delete?: never;
@@ -333,6 +335,7 @@ export interface paths {
                 401: components["responses"]["Unauthorized"];
                 403: components["responses"]["Forbidden"];
                 404: components["responses"]["NotFound"];
+                429: components["responses"]["RateLimited"];
             };
         };
         delete?: never;
@@ -438,6 +441,7 @@ export interface paths {
                 400: components["responses"]["BadRequest"];
                 403: components["responses"]["Forbidden"];
                 404: components["responses"]["NotFound"];
+                429: components["responses"]["RateLimited"];
             };
         };
         delete?: never;
@@ -481,6 +485,7 @@ export interface paths {
                     };
                 };
                 401: components["responses"]["Unauthorized"];
+                429: components["responses"]["RateLimited"];
             };
         };
         delete?: never;
@@ -1816,6 +1821,7 @@ export interface paths {
                     };
                     content?: never;
                 };
+                429: components["responses"]["RateLimited"];
             };
         };
         delete?: never;
@@ -1875,6 +1881,7 @@ export interface paths {
                 400: components["responses"]["BadRequest"];
                 401: components["responses"]["Unauthorized"];
                 404: components["responses"]["NotFound"];
+                429: components["responses"]["RateLimited"];
             };
         };
         delete?: never;
@@ -1921,6 +1928,7 @@ export interface paths {
                 400: components["responses"]["BadRequest"];
                 401: components["responses"]["Unauthorized"];
                 404: components["responses"]["NotFound"];
+                429: components["responses"]["RateLimited"];
             };
         };
         delete?: never;
@@ -2033,6 +2041,7 @@ export interface paths {
                 };
                 400: components["responses"]["BadRequest"];
                 404: components["responses"]["NotFound"];
+                429: components["responses"]["RateLimited"];
             };
         };
         delete?: never;
@@ -2109,6 +2118,7 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
+                429: components["responses"]["RateLimited"];
             };
         };
         delete?: never;
@@ -2164,6 +2174,7 @@ export interface paths {
                 401: components["responses"]["Unauthorized"];
                 403: components["responses"]["Forbidden"];
                 404: components["responses"]["NotFound"];
+                429: components["responses"]["RateLimited"];
             };
         };
         delete?: never;
@@ -2217,6 +2228,7 @@ export interface paths {
                 };
                 400: components["responses"]["BadRequest"];
                 404: components["responses"]["NotFound"];
+                429: components["responses"]["RateLimited"];
             };
         };
         delete?: never;
@@ -2261,6 +2273,7 @@ export interface paths {
                 };
                 400: components["responses"]["BadRequest"];
                 401: components["responses"]["Unauthorized"];
+                429: components["responses"]["RateLimited"];
             };
         };
         delete?: never;
@@ -4759,6 +4772,7 @@ export interface paths {
                 };
                 400: components["responses"]["BadRequest"];
                 401: components["responses"]["Unauthorized"];
+                429: components["responses"]["RateLimited"];
             };
         };
         delete?: never;
@@ -6323,6 +6337,7 @@ export interface components {
             /** Format: date-time */
             time: string;
         };
+        /** @description The envelope of every non-2xx response. Two codes can appear on ANY path and are therefore documented here rather than per operation: `origin_required` (403, every path except `GET /health`) — the request did not come through `api.myweli.com`; production is reachable only through the Cloudflare front door, and the direct `*.run.app` door refuses whatever lacks the origin header (docs/design/infra-cloudflare-front-door.md §3). `internal_error` (500) — an unhandled failure, carrying `X-Request-Id`. */
         Error: {
             /** @description Stable machine code */
             error: string;

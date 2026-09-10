@@ -1,4 +1,17 @@
 #!/usr/bin/env bash
+#
+# SCHEDULED FOR RETIREMENT (docs/design/infra-cloudflare-front-door.md §9):
+# what this script created is LIVE and serving until 71-retire-load-balancer.sh
+# has run. Kept afterwards as the launch-time re-application path (LAUNCH.md
+# §6.5). Re-running it recreates
+# a billable resource (two global forwarding rules, ~$18/month at zero traffic —
+# the largest single line of the bill this retirement removed). Do not run
+# without the owner's word. The hostname it built is now served by Cloudflare →
+# Worker → the *.run.app URL, and `71-retire-load-balancer.sh` is what undoes
+# this file. If it ever comes back: DNS-only A record → wait for the
+# certificate → `87`, `89`, `91` → `ingress: internal-and-cloud-load-balancing`
+# → remove the Worker route (the §9.5 order).
+#
 # api.myweli.com → Cloud Run, via a global external Application Load Balancer.
 #
 # WHY A LOAD BALANCER AND NOT A DOMAIN MAPPING. Cloud Run's own custom-domain

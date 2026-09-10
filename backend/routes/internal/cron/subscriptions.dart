@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:dart_frog/dart_frog.dart';
 import 'package:myweli_backend/src/demo/demo_reset_service.dart';
 import 'package:myweli_backend/src/dependencies.dart'
-    show cronAuth, pruneAdminLoginThrottle;
+    show cronAuth, pruneAdminLoginThrottle, pruneRateLimitWindows;
 import 'package:myweli_backend/src/responses.dart';
 import 'package:myweli_backend/src/subscription/subscription_scheduler.dart';
 
@@ -50,6 +50,21 @@ Future<Response> onRequest(RequestContext context) async {
   // a prune nobody can see is the shape this repo keeps finding.
   final pruned = await pruneAdminLoginThrottle(const Duration(hours: 24));
 
+  // **The rate-limit window prune rides here too, and it is the throttle
+  // prune's twin rather than a fourth rider.** Same table family (a windowed
+  // counter, migration `0034`), same 24 h, same reason it is here and not on
+  // a job of its own — and the same rule that the count is in the response.
+  // It became necessary the day the per-IP auth buckets landed
+  // (`ip:auth:<digest>`, docs/design/infra-cloudflare-front-door.md §4): the
+  // identity buckets were bounded by the user set, but every new client
+  // address writes a row, so without this the table only grows. Unlike the
+  // throttle's window this one is housekeeping — no bucket reads a window
+  // older than its own length — so 1 day is generous, not load-bearing.
+  // `null` here means the prune failed and logged `rate_limit_prune_failed`;
+  // the cron still runs the rest and reports it, rather than 500ing every
+  // day on a table that only grows (found in review).
+  final windowsPruned = await pruneRateLimitWindows(const Duration(days: 1));
+
   // The demo-salon reset (T69): due-gated to every 7 days inside the
   // service, so this is a no-op six days out of seven. Same observability
   // rule as the prune — the outcome is in the response, not just a log.
@@ -62,6 +77,7 @@ Future<Response> onRequest(RequestContext context) async {
       'notices': r.notices,
       'unpublished': r.unpublished,
       'throttleRowsPruned': pruned,
+      'rateLimitWindowsPruned': windowsPruned,
       'demoReset': demo.ran,
     },
   );

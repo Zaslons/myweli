@@ -21,9 +21,11 @@ const _uuid = Uuid();
 /// with a request-id" — while `routes/_middleware.dart` was a chain of DI
 /// providers and nothing else.
 ///
-/// Reuses the caller's id when there is one, because the load balancer already
-/// assigns one and inventing a second makes a single request look like two
-/// across the two logs.
+/// Reuses the caller's id when there is one, because a proxy in front may have
+/// assigned one (the load balancer did until 2026-09; Cloudflare sets `CF-Ray`,
+/// not `X-Request-Id`, so behind the front door the id is minted here unless a
+/// client sends one) and inventing a second makes a single request look like
+/// two across the two logs.
 /// Gives every request an id and catches whatever a handler throws
 /// (docs/BACKEND.md §1, §2, §3.6).
 ///
@@ -42,9 +44,9 @@ const _uuid = Uuid();
 /// nothing enforced. Here the id is a local: in scope for the success path, the
 /// failure path, and the response header of both.
 ///
-/// The id is reused from the caller when present, because the load balancer
-/// already assigns one and minting a second makes a single request look like
-/// two across the two logs.
+/// The id is reused from the caller when present, because a proxy in front may
+/// have assigned one and minting a second makes a single request look like two
+/// across the two logs.
 ///
 /// **[reporter] is a callback, not an instance, and that is load-bearing.**
 /// dart_frog builds the whole middleware chain *before* the custom entrypoint
@@ -66,7 +68,16 @@ Middleware observabilityMiddleware(ErrorReporter Function() reporter) {
           headers: {...response.headers, kRequestIdHeader: id},
         );
       } catch (error, stackTrace) {
-        final method = context.request.method.value;
+        // The diagnostic must never be the thing that throws: an unsupported
+        // verb makes `request.method` throw, and a throw here would escape the
+        // catch as a bare 500 with a stack trace and no request id.
+        String method;
+        try {
+          method = context.request.method.value;
+        } on Exception {
+          // dart_frog's UnsupportedHttpMethodException (not exported).
+          method = 'unsupported';
+        }
         // The PATH only — `context.request.uri` carries the query string, and
         // query strings are where secrets end up by accident.
         final path = context.request.uri.path;

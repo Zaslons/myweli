@@ -3,28 +3,34 @@
 /// **Why this exists when Cloud Armor already runs.**
 /// `docs/design/backend-rate-limiting.md` §1 measured two gaps on 2026-08-18.
 /// The auth one — 23 accepted OTP requests/second from a single client by
-/// rotating the identifier — was closed by a per-IP rule at the load balancer.
+/// rotating the identifier — was first closed by a per-IP rule at the load
+/// balancer, and is now closed by the origin front door: this same limiter,
+/// keyed on the client address Cloudflare reports, behind the origin gate
+/// (`origin_front_door.dart` · docs/design/infra-cloudflare-front-door.md).
 /// The other row in that table, `Booking routes — no limit of any kind`, was
 /// not, and `POST /appointments`, `POST /appointments/{id}/review` and
 /// `POST /uploads/sign` still return no 429 of any kind.
 ///
-/// **Why this can enforce when the per-IP limiter deliberately cannot.** §4 of
-/// that document keeps layer 2 inert because its KEY is unverified: the app has
+/// **Why this could enforce when the per-IP limiter could not.** §4 of that
+/// document kept layer 2 inert because its KEY was unverified: the app had
 /// never resolved a client IP, `X-Forwarded-For` has a different shape in
 /// production (behind a load balancer) than on staging (direct), and a limiter
 /// that hardcodes a position is either trivially spoofed or lumps all traffic
 /// into one bucket. None of that applies to a key the server derives from an
 /// HMAC-verified JWT: a caller cannot choose another's `sub` without the
 /// signing key, and no two callers collapse together. There is nothing to
-/// measure, so there is nothing to wait for.
+/// measure, so there is nothing to wait for. The per-IP key later earned the
+/// same status by a different route — verified by construction, because it is
+/// read only after the origin secret matched — which is what finally let the
+/// front door wire it.
 ///
 /// It is also a smaller thing to get wrong. A mis-set per-IP threshold locks
 /// out everyone behind one address; a mis-set per-identity one locks out one
 /// account.
 ///
-/// **This does not replace layer 2**, which still owes the anonymous surface —
-/// §1's other finding was 100/100 unauthenticated reads accepted at 42 req/s,
-/// and no identity key can touch those.
+/// **This does not cover the anonymous READ surface** — §1's other finding was
+/// 100/100 unauthenticated reads accepted at 42 req/s, and neither an identity
+/// key nor the front door's `/auth/*`-scoped IP limit touches those.
 ///
 /// Design: docs/design/backend-identity-rate-limits.md
 library;
@@ -35,6 +41,27 @@ library;
 /// a budget FILLING rather than only the moment it is full — the same reason
 /// `SendReservation` does, and the reason [warnThreshold] is worth reusing.
 typedef RateVerdict = ({bool ok, int hits, int limit});
+
+/// Runs a prune and reports its failure instead of propagating it.
+///
+/// The daily prune rides on the subscriptions cron; a prune that throws must
+/// not fail the cron it rides on (the demo reset after it would be skipped and
+/// the missed-cron alert would page for housekeeping — found in review). So a
+/// failure becomes `null` in the cron's response and one log line an operator
+/// can grep for, never a 500. The exception's type is printed, never its
+/// message: a database error message can quote SQL.
+Future<int?> pruneOrReport(
+  Future<int> Function() prune, {
+  String what = 'rate_limit',
+  void Function(String) log = print,
+}) async {
+  try {
+    return await prune();
+  } catch (e) {
+    log('${what}_prune_failed type=${e.runtimeType}');
+    return null;
+  }
+}
 
 /// Consumes one unit against an opaque [bucket] and reports where that left it.
 ///

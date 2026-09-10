@@ -69,8 +69,9 @@ report from it."
 CORS headers reaches the browser as an opaque network failure, which is how a
 server error gets misdiagnosed as a client one). It:
 
-- takes `X-Request-Id` from the caller when present (the load balancer sets one;
-  minting a second makes one request look like two across the two logs), else
+- takes `X-Request-Id` from the caller when present (a proxy in front may set
+  one — the load balancer did until 2026-09; minting a second makes one request
+  look like two across the two logs), else
   mints a UUID — and echoes it on **every** response, success and failure
 - returns the **standard envelope** (`{"error":"internal_error"}`, 500) on any
   throw — never a stack trace, per §2's "never leak internals", enforced by
