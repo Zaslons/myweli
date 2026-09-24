@@ -1,6 +1,8 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:myweli/core/config/subscription_plans.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/provider_user.dart';
@@ -195,6 +197,152 @@ void main() {
       find.text('Votre essai gratuit a déjà été utilisé.'),
       findsOneWidget,
     );
+  });
+
+  /// Walks the whole (lazy) ListView from the TOP to the bottom and fails if
+  /// any of [finders] matches at any point — `find` only sees built widgets,
+  /// so one look at the first screen would prove nothing about the cards
+  /// below it.
+  ///
+  /// **It jumps to the top first, and that is load-bearing.** The first
+  /// version started wherever the list was; a second `pumpWidget` of the same
+  /// screen keeps the scroll offset, so a check made after an earlier walk
+  /// began at the bottom and never saw the first card. The ROI-line mutation
+  /// survived that way — a guard that could not fail.
+  Future<void> expectNowhere(WidgetTester tester, List<Finder> finders) async {
+    final scrollable = find.byType(Scrollable).first;
+    tester.state<ScrollableState>(scrollable).position.jumpTo(0);
+    await tester.pump();
+    for (var i = 0; i < 25; i++) {
+      for (final f in finders) {
+        expect(f, findsNothing, reason: 'found on scroll step $i: $f');
+      }
+      await tester.drag(find.byType(ListView).first, const Offset(0, -300));
+      await tester.pump();
+    }
+    for (final f in finders) {
+      expect(f, findsNothing);
+    }
+  }
+
+  /// Every test in this group runs AS iOS. `flutter test` reports Android, so
+  /// without the override the store-policy branch is unreachable — the blind
+  /// spot this repo has already been bitten by. Reset in a `finally`: the
+  /// framework checks debug overrides at the end of the body, before tearDowns.
+  Future<void> asIos(Future<void> Function() body) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+    try {
+      await body();
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
+  }
+
+  group('iOS — the offer state, never where to pay (App Store 3.1.1)', () {
+    testWidgets('SETUP: no « myweli.com », no ROI line, no « Tarif '
+        'personnalisé » anywhere in the list', (tester) async {
+      await asIos(() async {
+        await tester.pumpWidget(app());
+        await settle(tester);
+        expect(
+          find.text('Choisissez votre offre — 3 mois offerts'),
+          findsOneWidget,
+        );
+        await expectNowhere(tester, [
+          find.textContaining('myweli.com'),
+          find.text(SubscriptionPlans.roiLine),
+          find.text(SubscriptionPlans.reseauPricingLine),
+        ]);
+      });
+    });
+
+    testWidgets('control — Android keeps the web pointer and the ROI line', (
+      tester,
+    ) async {
+      // Without this, a guard that hid the copy EVERYWHERE would pass too.
+      // Top-down in one pass: the ROI line sits in the first card, the web
+      // pointer below the last — a second pump would keep the scroll offset.
+      await tester.pumpWidget(app());
+      await settle(tester);
+      await scrollTo(tester, find.text(SubscriptionPlans.roiLine));
+      await scrollTo(tester, find.textContaining('myweli.com'));
+    });
+
+    testWidgets('GRACE: urgent and dated, but no « Gérez votre offre sur '
+        'myweli.com »', (tester) async {
+      subs.inner = MockSubscriptionService(
+        initial: state(status: SalonOfferStatus.grace),
+      );
+      await asIos(() async {
+        await tester.pumpWidget(app());
+        await settle(tester);
+        expect(find.text('Votre offre a expiré'), findsOneWidget);
+        expect(find.textContaining('dépublication'), findsOneWidget);
+        await expectNowhere(tester, [find.textContaining('myweli.com')]);
+      });
+    });
+
+    testWidgets('EXPIRED + unpublished: reassurance kept, « Réactivez … sur '
+        'myweli.com » gone', (tester) async {
+      subs.inner = MockSubscriptionService(
+        initial: state(status: SalonOfferStatus.expired, unpublished: true),
+      );
+      await asIos(() async {
+        await tester.pumpWidget(app());
+        await settle(tester);
+        expect(find.text('Salon dépublié'), findsOneWidget);
+        expect(
+          find.textContaining('Vos données sont intactes'),
+          findsOneWidget,
+        );
+        await expectNowhere(tester, [find.textContaining('Réactivez')]);
+      });
+    });
+
+    testWidgets('trial already used: the notice, without « Activez votre '
+        'offre … sur myweli.com »', (tester) async {
+      subs.inner = MockSubscriptionService(
+        initial: state(status: SalonOfferStatus.expired, unpublished: true),
+      );
+      await asIos(() async {
+        await tester.pumpWidget(app());
+        await settle(tester);
+        await scrollTo(tester, find.text('Business'));
+        await tester.tap(find.text('Changer d’offre').first);
+        await settle(tester);
+        for (
+          var i = 0;
+          i < 20 &&
+              find
+                  .text('Votre essai gratuit a déjà été utilisé.')
+                  .evaluate()
+                  .isEmpty;
+          i++
+        ) {
+          await tester.drag(find.byType(ListView).first, const Offset(0, 400));
+          await tester.pump();
+        }
+        expect(
+          find.text('Votre essai gratuit a déjà été utilisé.'),
+          findsOneWidget,
+        );
+        expect(find.textContaining('Activez votre offre'), findsNothing);
+        expect(find.textContaining('myweli.com'), findsNothing);
+      });
+    });
+
+    testWidgets('EXPIRED (still published): « Offre expirée » with no '
+        'purchase pointer', (tester) async {
+      subs.inner = MockSubscriptionService(
+        initial: state(status: SalonOfferStatus.expired),
+      );
+      await asIos(() async {
+        await tester.pumpWidget(app());
+        await settle(tester);
+        expect(find.text('Offre expirée'), findsOneWidget);
+        await expectNowhere(tester, [find.textContaining('myweli.com')]);
+      });
+    });
   });
 
   testWidgets('a bare member account gets the owner-only guard', (

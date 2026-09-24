@@ -91,7 +91,7 @@ dependencies:
   image_picker: ^1.2.3
   flutter_image_compress: ^2.5.1
   # KYC: pick identity documents (images or PDF) for private upload.
-  file_picker: ^11.0.2
+  file_picker: ^13.1.0
 
 
   # Utilities
@@ -118,7 +118,7 @@ dependencies:
   # The re-enable path when notifications are denied at the OS level.
   app_settings: ^8.0.3
   sentry_flutter: ^9.0.0
-  package_info_plus: ^9.0.1
+  package_info_plus: ^10.2.1
 
 dev_dependencies:
   flutter_test:

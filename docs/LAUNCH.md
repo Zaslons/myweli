@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Status** | Living document. Nothing here is done until its box is ticked **with evidence**. |
-| **Order** | **Web first → iOS → Android last** (§3) |
+| **Order** | **Web first → iOS → Android last** (§3) — *amended 2026-09-24 (owner): the **Pro app goes to the Apple App Store first** — TestFlight and App Review now, the public release still behind production restored and stable (§3)* |
 | **Related** | [ROADMAP.md](ROADMAP.md) · [DEPLOYMENT.md](DEPLOYMENT.md) · [BACKEND.md](BACKEND.md) · [design/mobile-store-submission.md](design/mobile-store-submission.md) |
 
 ## 0. Why this document exists
@@ -36,7 +36,10 @@ questions none of our gates can answer:
      injects it as `--dart-define=SENTRY_DSN` — refusing to build if it is
      missing, malformed, or the backend's. What is still owed is not the DSN but
      a **signed build**: none exists yet (§6.2), so no store artifact has ever
-     carried it (§5.2).
+     carried it (§5.2). *(2026-09-24: one exists — the Pro IPA, build 536,
+     signed 2026-08-29 — but it is superseded by the App Store audit and was
+     never uploaded as far as this repo records; the next one is a rebuild,
+     §6.2.)*
    Uptime checks on `/health` and a database-backed route are live and alerting
    to a human, verified against real probe data
    (§5.2, [design/observability-error-reporting.md](design/observability-error-reporting.md)).
@@ -105,7 +108,8 @@ for different jobs:
 We already have the machinery for this: `--dart-define=API_BASE_URL=…` and the
 `consumer`/`pro` flavours, and the staging backend to point at now exists. What
 is missing is a build actually pointed at it — no TestFlight or internal-track
-build has been produced at all (§6.2, §6.3).
+build has been produced at all (§6.2, §6.3). *(2026-09-24: a signed Pro IPA
+exists but was never uploaded; nothing is in TestFlight yet.)*
 
 ### 1.4 The constraint that makes mobile different from web
 
@@ -183,7 +187,9 @@ absent:
 - **iOS second** because it is furthest along (account exists, signing prepared)
   and because App Store review is the slower gate — starting it while web is
   live costs nothing. *This line used to say "Sign in with Apple working"; it is
-  not *proven*, because no signed build exists. The entitlement itself is
+  not *proven*, because no signed build exists (2026-09-24: one exists, with
+  the entitlement baked in, but Sign in with Apple has never been exercised on
+  a device — §6.2). The entitlement itself is
   in **both** files — `Runner.entitlements` and `RunnerRelease.entitlements`,
   pinned by `mobile/test/infra/ios_entitlements_test.dart` — since 2026-08-18.
   This line said « the entitlement is absent » for four days after it landed.*
@@ -193,6 +199,25 @@ absent:
 
 Each surface has a hard prerequisite: **the one before it is live and stable for
 at least a week**, with §5.2's monitoring proving it rather than our impression.
+
+**Owner decision, 2026-09-24 — the Pro app goes to the Apple App Store
+first.** The order above is kept as the history of the reasoning, and it
+still governs the **public release**; what changes is when the Apple work
+starts. Concretely:
+
+- **Now:** TestFlight and App Review for **MyWeli Pro** (`com.myweli.pro`).
+  Review is the slow gate, so it starts before web is proven, not after.
+- **Not now:** pressing « Release ». The version is set to *manual release*,
+  and it waits for production to be restored and stable — the gate this
+  section already states.
+- **Not even the submission while production is down.** App Review signs in
+  with the demo account against `api.myweli.com` (guideline 2.1), so the
+  outage (billing disabled by 2026-09-16, both databases suspended on
+  2026-09-23) blocks the submission itself; only the upload and internal TestFlight can precede it.
+- The consumer app and Android keep their places in the order.
+
+The form-by-form packet, the rebuild commands and the owner's ordered
+checklist are [design/app-store-forms.md](design/app-store-forms.md).
 
 ---
 
@@ -247,7 +272,10 @@ These block everything. None is surface-specific.
       days after that DSN landed: it has been in Secret Manager since
       2026-08-18, and `tool/release_build.sh` refuses to build without it. **The
       blocker is not the DSN — it is that no signed build exists**, so the app
-      half cannot be proven where it has to be. Whether the *web* trigger was
+      half cannot be proven where it has to be. *(2026-09-24: a signed Pro IPA
+      exists but has never run in anyone's hands, so no mobile event has been
+      seen from a store build; and while the billing account is closed the
+      script cannot read the DSN at all.)* Whether the *web* trigger was
       seen in the Sentry dashboard is recorded twice in this document with
       opposite answers (§5.2 names an issue id; §8 says it never happened):
       **UNVERIFIED from this repo** — only the Sentry UI settles it.
@@ -763,7 +791,9 @@ post-launch item.
 - [ ] **Still owed: the iOS `updateUrl`.** It stays NULL until the App Store
       Connect record mints an `adamId`, and the server refuses to block a
       platform it has nowhere to send — so the mechanism is safe today and the
-      iOS half is inert until that listing exists.
+      iOS half is inert until that listing exists. *Step and value for the Pro
+      app: [design/app-store-forms.md](design/app-store-forms.md) §12
+      (2026-09-24).*
 
 ### 5.4 Web previews DID write to production — ~~confirmed 2026-08-12~~ **fixed 2026-08-18**
 
@@ -995,21 +1025,52 @@ checking rather than assuming:
 
 ### 6.2 iOS (second)
 
+> **2026-09-24 — the Pro app goes first (owner decision, §3), and its packet
+> is [design/app-store-forms.md](design/app-store-forms.md)**: every App Store
+> Connect answer pre-derived, the rebuild and upload commands in order, and
+> the owner's checklist from today to « Submit for Review ». The five-lens
+> audit behind it found the signed build of 2026-08-29 unsubmittable; the code
+> half is fixed (commit `68fc33c`, pinned by
+> `mobile/test/infra/ios_store_readiness_test.dart`), the rest is owner-side:
+> billing (production down), the Xcode 27 license, the App Store Connect
+> record, the demo salon in production, and the 3.1.1 decision.
+
 - [ ] Everything in [mobile-store-submission.md](design/mobile-store-submission.md) §5.
       Two of its claims are **stale as of 2026-08-18** and must be corrected
       before they are relied on: the Sign in with Apple line below, and the §4
       privacy table, **corrected 2026-08-18** — it now answers « crash data:
       Yes », naming `sentry_flutter`, so that reason is spent. An App Store privacy answer that
       contradicts the binary is a rejection *and* a legal exposure.
+      *2026-09-24: §4 is superseded for the Pro app by app-store-forms.md §7
+      (it under-declared Pro — address, Mobile Money number, KYC documents,
+      push token, performance data), and its location row is corrected for the
+      consumer app.*
 - [ ] A **signed** build verified — production `aps-environment` baked, not just
       configured, and a real push received from the production FCM project.
+      *2026-09-24: half of this now exists and is superseded.* The Pro IPA,
+      1.0.0 build 536, signed 2026-08-29 (« Cloud Managed Apple Distribution »,
+      App Store profile for `com.myweli.pro`), has `aps-environment =
+      production` **baked** — read from the bytes by the App Store audit. But
+      the audit found that build unsubmittable (SDKs without privacy
+      manifests, a consumer location string, iPad declared, Sentry sessions,
+      purchase pointers), so **a rebuild is required** (app-store-forms.md §1,
+      §11), and a real production push has still never been observed. Stays
+      unticked.
 - [ ] TestFlight internal build exercised by someone other than the developer.
       **No *signed* build exists** — the only archive ever produced was built
       `--no-codesign` (submission spec §6), which is why the box above says the
       production `aps-environment` is configured but not baked. Nothing has been
       uploaded anywhere, so every remaining line in §6.2 is downstream of one
-      signed archive.
+      signed archive. *Corrected 2026-09-24: a signed archive exists (above)
+      but is superseded; nothing has been uploaded, as far as this repo
+      records. The device checks this box asks for are listed in
+      app-store-forms.md §11.6.*
 - [ ] Screenshots, description, keywords, age rating, privacy questionnaire.
+      *2026-09-24: for the Pro app every answer is pre-derived —
+      app-store-forms.md §4 (texts, counted in characters and bytes), §6 (age
+      rating), §7 (App Privacy), §10 (6.9-inch iPhone screenshots only: Pro is
+      iPhone-only since `68fc33c`). Unticked until typed into App Store Connect
+      and the screenshots exist.*
 - [ ] Sign in with Apple working in the signed build (rule 4.8). **Both halves
       are in place** as of 2026-08-18: `com.apple.developer.applesignin` is in
       both entitlements files (pinned by `test/infra/ios_entitlements_test.dart`,
@@ -1019,7 +1080,12 @@ checking rather than assuming:
       *signed* build, because none exists. The repo half was verified by
       reading the files; the account half by the owner. Working in a signed
       build is a third thing, and it is what this box asks for.
-- [ ] Phased release enabled.
+      *2026-09-24: the signed IPA 536 carries the entitlement and its profile
+      grants it; exercising it on a device is still owed (app-store-forms.md
+      §11.6).*
+- [ ] Phased release enabled. *(2026-09-24: Apple's phased release applies to
+      updates, so there is nothing to phase on 1.0.0; the first version is set
+      to manual release instead — app-store-forms.md §9.)*
 
 ### 6.3 Android (last)
 

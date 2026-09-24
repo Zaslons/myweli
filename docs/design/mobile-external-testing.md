@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Module** | release engineering (`mobile/ios`, `mobile/android`, `backend/`) |
-| **Status** | **Plan.** Nothing here is done. §6 is the sequence; §5 is what stops it. |
+| **Status** | **Plan.** Nothing here is done. §6 is the sequence; §5 is what stops it. *Corrected 2026-09-24: parts are done — the demo review account (§5.2) was built on 2026-08-26 ([backend-demo-review-account.md](backend-demo-review-account.md)), and a signed Pro IPA was produced on 2026-08-29, now superseded by the App Store audit (§5.4). The Pro App Store packet is [app-store-forms.md](app-store-forms.md).* |
 | **Related** | [mobile-store-submission.md](mobile-store-submission.md) · [LAUNCH.md §1.2](../LAUNCH.md) · [pro-salon-lifecycle.md](pro-salon-lifecycle.md) · [infra-staging.md](infra-staging.md) |
 
 ## 1. What this is for
@@ -227,7 +227,10 @@ And the two apps are not equally exposed:
 
 So what is needed is a **pre-provisioned provider account — published, with
 services, photos and a schedule — that a reviewer can enter with a fixed
-credential.** The repository already has a seam of roughly the right shape (the
+credential.** *Corrected 2026-09-24: as built, the demo salon is
+**permanently draft** — publishing is refused with 403 `demo_account_locked`
+([backend-demo-review-account.md](backend-demo-review-account.md) §6.1); the
+dashboard works fully on drafts, so the reviewer loses nothing.* The repository already has a seam of roughly the right shape (the
 `.test`-suffix + secret arrangement in
 [backend-q1b-smoke-seam.md](backend-q1b-smoke-seam.md)), but turning it into a
 review credential is a change to the authentication path and gets its own design
@@ -260,6 +263,12 @@ Worth saying plainly to the salons: this is roughly half an hour of work, and
 three photos is the step people stall on.
 
 ### 5.4 No signed build has ever been produced
+
+*Corrected 2026-09-24: one has — the Pro IPA, 1.0.0 build 536, signed
+2026-08-29 with production `aps-environment` baked in. It was never uploaded
+(as far as the repo records) and is **superseded** by the App Store audit; a
+rebuild is required ([app-store-forms.md](app-store-forms.md) §1, §11). The
+production push below is still unobserved.*
 
 The only iOS archive this project has made was built `--no-codesign`
 ([mobile-store-submission.md §6](mobile-store-submission.md)). The production

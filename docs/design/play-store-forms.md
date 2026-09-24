@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Prêt à saisir (owner) — rédigé 2026-08-28 |
+| **Status** | Prêt à saisir (owner) — rédigé 2026-08-28 ; **corrigé 2026-09-24** (libellés de connexion du §2, adresse + numéro Mobile Money dans la table Pro du §4.2 — audit App Store, [app-store-forms.md](app-store-forms.md)) |
 | **Portée** | Les DEUX fiches Play : MyWeli (`com.myweli.app`) et MyWeli Pro (`com.myweli.pro`) |
 | **Source de vérité** | La politique de confidentialité publiée (`/politique-confidentialite`) et le binaire — un formulaire qui les contredit est un rejet ET une exposition légale (LAUNCH.md §6.3) |
 | **Règle** | Chaque réponse ci-dessous est dérivée du code ou de la politique, jamais inventée. En cas de doute en saisissant : STOP, on vérifie. |
@@ -107,15 +107,25 @@ Choisir « **Tout ou partie des fonctionnalités sont restreintes** » puis
 
 - **Instructions supplémentaires** (coller tel quel) :
 
-> Ouvrir « Se connecter par e-mail », saisir revue@myweli.test, demander le
-> code, puis saisir le code à 6 chiffres fourni ci-dessus (l'e-mail
-> n'existe pas : le code fourni remplace celui normalement envoyé). Vous
+> Sur l'écran « Espace Pro », saisir revue@myweli.test dans le champ
+> « Votre e-mail », toucher « Continuer avec e-mail », puis saisir le code à
+> 6 chiffres fourni ci-dessus dans « Code à 6 chiffres » et toucher « Se
+> connecter » (l'e-mail n'existe pas : aucun message n'est envoyé, le code
+> fourni remplace celui normalement envoyé). Vous
 > arrivez sur un salon de démonstration complet : agenda rempli,
 > réservations manuelles, clients, catalogue, photos, disponibilités,
 > exports — tout fonctionne. Deux actions sont volontairement désactivées
 > sur ce compte de démonstration (mise en ligne publique du salon et
 > invitations d'équipe) et l'affichent clairement : « Compte de
 > démonstration — cette action est désactivée. »
+
+*Corrigé le 2026-09-24 (audit App Store,
+[app-store-forms.md](app-store-forms.md) §8) : ce texte disait « Ouvrir « Se
+connecter par e-mail » », un libellé qui n'existe pas dans l'app — l'écran de
+connexion montre directement « Votre e-mail » puis « Continuer avec e-mail »,
+et l'étape du code « Code à 6 chiffres » puis « Se connecter »
+(`pro_login_screen.dart`). **Si l'ancien texte a déjà été saisi dans la Play
+Console, le remplacer (owner).***
 
 ### MyWeli (consommateur)
 
@@ -190,6 +200,20 @@ Principes transversaux, valables pour chaque ligne :
 | **Photos** | Oui | Galerie, logo, avant/après — publics ; ET pièces KYC — privées |
 | Infos perso → **Autres informations** | **Oui** | Pièces d'identité et d'immatriculation (KYC) : stockage privé séparé, jamais publiées, consultation admin par lien signé 5 min, journalisée |
 | Activité → Contenu utilisateur | Oui | Fiches clients (nom, téléphone, notes du salon), catalogue, horaires |
+| Infos perso → **Adresse** | **Oui** | « Adresse » à l'inscription et adresse du salon — publiée sur la page du salon *(ajouté 2026-09-24)* |
+| Infos financières → **Autres infos financières** | **Oui** | Le **numéro Mobile Money de réception** des acomptes (« Numéro Mobile Money », paramètres d'acompte) — stocké et publié sur la page du salon. **Remplace, pour Pro, le « Non » hérité de la ligne consommateur.** *(ajouté 2026-09-24)* |
+
+> **Ajouté le 2026-09-24 — le formulaire Play Pro doit être mis à jour
+> (owner).** L'audit App Store de l'app Pro
+> ([app-store-forms.md](app-store-forms.md) §7) a relu le code : l'app Pro
+> envoie et stocke une **adresse** (`pro_register_screen.dart`, colonne
+> `provider_users.address`) et le **numéro Mobile Money de réception**
+> (`deposit_settings_screen.dart` → `depositMobileMoneyNumber`), qu'aucune
+> ligne de cette table ne déclarait — et « pareil, PLUS » faisait hériter à
+> Pro le « Infos financières : Non » du consommateur, activement faux. Les
+> deux lignes ci-dessus sont ajoutées ; si la section Sécurité des données
+> Pro a déjà été saisie, **la rouvrir dans la Play Console et les ajouter**,
+> pour que Play, l'App Store et la politique racontent la même histoire.
 
 > Sur l'écran de synthèse, Play affiche un aperçu de la section — la
 > relire en la comparant à `/politique-confidentialite` avant de valider :
@@ -215,4 +239,7 @@ Principes transversaux, valables pour chaque ligne :
 2. La bannière 1024×500 : me demander quand tu veux — je la produis aux
    couleurs de la marque.
 3. iOS reprendra les MÊMES réponses (App Privacy) — cette page est écrite
-   pour servir deux fois.
+   pour servir deux fois. *(2026-09-24 : pour l'app Pro, le dossier iOS
+   existe — [app-store-forms.md](app-store-forms.md) ; Apple demande en plus
+   « lié à l'identité » par type, et ses catégories ne recoupent pas celles de
+   Play une pour une.)*
