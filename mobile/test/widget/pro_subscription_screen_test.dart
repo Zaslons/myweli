@@ -294,6 +294,38 @@ void main() {
       });
     });
 
+    testWidgets('trial already used: the notice, without « Activez votre '
+        'offre … sur myweli.com »', (tester) async {
+      subs.inner = MockSubscriptionService(
+        initial: state(status: SalonOfferStatus.expired, unpublished: true),
+      );
+      await asIos(() async {
+        await tester.pumpWidget(app());
+        await settle(tester);
+        await scrollTo(tester, find.text('Business'));
+        await tester.tap(find.text('Changer d’offre').first);
+        await settle(tester);
+        for (
+          var i = 0;
+          i < 20 &&
+              find
+                  .text('Votre essai gratuit a déjà été utilisé.')
+                  .evaluate()
+                  .isEmpty;
+          i++
+        ) {
+          await tester.drag(find.byType(ListView).first, const Offset(0, 400));
+          await tester.pump();
+        }
+        expect(
+          find.text('Votre essai gratuit a déjà été utilisé.'),
+          findsOneWidget,
+        );
+        expect(find.textContaining('Activez votre offre'), findsNothing);
+        expect(find.textContaining('myweli.com'), findsNothing);
+      });
+    });
+
     testWidgets('EXPIRED (still published): « Offre expirée » with no '
         'purchase pointer', (tester) async {
       subs.inner = MockSubscriptionService(
