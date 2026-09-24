@@ -195,6 +195,32 @@ void main() {
     );
   });
 
+  test('the SwiftPM lockfiles no longer pin the DK chain', () {
+    // Removing file_picker <12 took DKImagePickerController (and its DKCamera,
+    // DKPhotoGallery, SwiftyGif, TOCropViewController) out of the graph, but
+    // the committed Package.resolved files still pinned them — and Xcode
+    // crashed resolving that (« INTERNAL ERROR: Uncaught exception » in
+    // IDESwiftPackageCore, CI run of 2026-09-24). Both copies are checked:
+    // Xcode reads the workspace one, `flutter build` the project one.
+    for (final path in const [
+      'ios/Runner.xcworkspace/xcshareddata/swiftpm/Package.resolved',
+      'ios/Runner.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved',
+    ]) {
+      final resolved = File(path).readAsStringSync().toLowerCase();
+      for (final dk in const [
+        'dkimagepickercontroller',
+        'dkphotogallery',
+        'dkcamera',
+        'swiftygif',
+        'tocropviewcontroller',
+      ]) {
+        expect(resolved, isNot(contains('"$dk"')), reason: '$path pins $dk');
+      }
+      // SDWebImage stays: flutter_image_compress_common declares it.
+      expect(resolved, contains('"sdwebimage"'), reason: path);
+    }
+  });
+
   test('file_picker is past the DK chain (>= 12)', () {
     final lock = File('pubspec.lock').readAsStringSync();
     final m = RegExp(
