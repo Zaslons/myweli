@@ -199,16 +199,30 @@ void main() {
     );
   });
 
-  /// Walks the whole (lazy) ListView top to bottom and fails if [finder]
-  /// matches anything at any point — `find` only sees built widgets, so one
-  /// look at the first screen would prove nothing about the cards below it.
-  Future<void> expectNowhere(WidgetTester tester, Finder finder) async {
+  /// Walks the whole (lazy) ListView from the TOP to the bottom and fails if
+  /// any of [finders] matches at any point — `find` only sees built widgets,
+  /// so one look at the first screen would prove nothing about the cards
+  /// below it.
+  ///
+  /// **It jumps to the top first, and that is load-bearing.** The first
+  /// version started wherever the list was; a second `pumpWidget` of the same
+  /// screen keeps the scroll offset, so a check made after an earlier walk
+  /// began at the bottom and never saw the first card. The ROI-line mutation
+  /// survived that way — a guard that could not fail.
+  Future<void> expectNowhere(WidgetTester tester, List<Finder> finders) async {
+    final scrollable = find.byType(Scrollable).first;
+    tester.state<ScrollableState>(scrollable).position.jumpTo(0);
+    await tester.pump();
     for (var i = 0; i < 25; i++) {
-      expect(finder, findsNothing, reason: 'found on scroll step $i');
+      for (final f in finders) {
+        expect(f, findsNothing, reason: 'found on scroll step $i: $f');
+      }
       await tester.drag(find.byType(ListView).first, const Offset(0, -300));
       await tester.pump();
     }
-    expect(finder, findsNothing);
+    for (final f in finders) {
+      expect(f, findsNothing);
+    }
   }
 
   /// Every test in this group runs AS iOS. `flutter test` reports Android, so
@@ -234,20 +248,11 @@ void main() {
           find.text('Choisissez votre offre — 3 mois offerts'),
           findsOneWidget,
         );
-        await expectNowhere(tester, find.textContaining('myweli.com'));
-      });
-      await asIos(() async {
-        await tester.pumpWidget(app());
-        await settle(tester);
-        await expectNowhere(tester, find.text(SubscriptionPlans.roiLine));
-      });
-      await asIos(() async {
-        await tester.pumpWidget(app());
-        await settle(tester);
-        await expectNowhere(
-          tester,
+        await expectNowhere(tester, [
+          find.textContaining('myweli.com'),
+          find.text(SubscriptionPlans.roiLine),
           find.text(SubscriptionPlans.reseauPricingLine),
-        );
+        ]);
       });
     });
 
@@ -273,7 +278,7 @@ void main() {
         await settle(tester);
         expect(find.text('Votre offre a expiré'), findsOneWidget);
         expect(find.textContaining('dépublication'), findsOneWidget);
-        await expectNowhere(tester, find.textContaining('myweli.com'));
+        await expectNowhere(tester, [find.textContaining('myweli.com')]);
       });
     });
 
@@ -290,7 +295,7 @@ void main() {
           find.textContaining('Vos données sont intactes'),
           findsOneWidget,
         );
-        await expectNowhere(tester, find.textContaining('Réactivez'));
+        await expectNowhere(tester, [find.textContaining('Réactivez')]);
       });
     });
 
@@ -335,7 +340,7 @@ void main() {
         await tester.pumpWidget(app());
         await settle(tester);
         expect(find.text('Offre expirée'), findsOneWidget);
-        await expectNowhere(tester, find.textContaining('myweli.com'));
+        await expectNowhere(tester, [find.textContaining('myweli.com')]);
       });
     });
   });
