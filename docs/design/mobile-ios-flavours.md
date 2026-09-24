@@ -123,7 +123,12 @@ and that fact is recorded here rather than left implicit:
    (mirroring §B4's two `google-services.json`, which are **also still missing**
    — `mobile/` has no Firebase client config for any platform, so push is unwired
    client-side regardless of the FCM server secrets).
-3. Two App Store Connect records.
+   *Done (recorded 2026-09-24): `mobile/ios/config/{consumer,pro}/GoogleService-Info.plist`
+   and both `google-services.json` exist, and the signed Pro IPA of
+   2026-08-29 carries the `com.myweli.pro` config (project `myweli`). Whether
+   the APNs auth key is uploaded to Firebase is still unrecorded.*
+3. Two App Store Connect records. *(2026-09-24: the Pro record is unverified —
+   [app-store-forms.md](app-store-forms.md) §3.)*
 
 ## 5.1 APNs entitlements (added with the push work)
 
@@ -149,12 +154,24 @@ Verified through `xcodebuild -showBuildSettings`, not just the project file:
 **Still owner-side:** the App IDs in the Apple portal need the **Push
 Notifications** capability enabled. The earlier registration only ticked Sign in
 with Apple, so a provisioning profile will not carry APNs until that is added
-for `com.myweli.app` and `com.myweli.pro`.
+for `com.myweli.app` and `com.myweli.pro`. *Done for `com.myweli.pro`
+(recorded 2026-09-24): the Xcode-managed App Store profile in the signed IPA
+of 2026-08-29 grants `aps-environment = production` and Sign in with Apple, and
+the entitlement is baked into the signed binary.*
 
 ## 6. Open
 
 - **Signing** is untouched — no team, no provisioning profiles. Deliberate:
   those are account-bound and belong to the owner, and `--no-codesign` proves
-  the project without them.
+  the project without them. *Since done (recorded 2026-09-24): automatic
+  signing with team 5VWKJD956A; a signed Pro IPA was exported on 2026-08-29.*
 - **Launcher icons per flavour** are not done here (§B4 item 3 territory). Both
-  flavours currently share the default asset.
+  flavours currently share the default asset. *Since done (recorded
+  2026-09-24): Pro builds with `AppIcon-pro` — all 13 PNGs present, the 1024
+  marketing icon without alpha (checked on the asset set with `sips`) — and
+  the signed IPA carries it.*
+- *Added 2026-09-24:* `setup_flavours.rb` now also writes, per flavour, the
+  **device family** (Pro `1`, iPhone-only; consumer `"1,2"`) and the three
+  **purpose strings** (location, camera, photos) as build settings read by
+  `Info.plist`, pinned by `mobile/test/infra/ios_store_readiness_test.dart` —
+  [app-store-forms.md](app-store-forms.md) §1.
