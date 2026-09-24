@@ -80,6 +80,20 @@ void configureSentry(SentryFlutterOptions options) {
     // explicit rather than trusting a default.
     // ignore: experimental_member_use
     ..attachViewHierarchy = false
+    // **No release-health sessions.** The SDK defaults this to true, which
+    // sends a session envelope on EVERY launch — data leaving the phone when
+    // nothing has failed. The public privacy policy promises the opposite
+    // (« Les fonctions de Sentry qui compteraient les visites ou les sessions
+    // sont désactivées », web/app/politique-confidentialite), the web already
+    // made this trade (browserSessionIntegration removed), and the App Store
+    // privacy label must match what the binary does. The cost is the
+    // crash-free-sessions rate; crashes themselves are still reported.
+    ..enableAutoSessionTracking = false
+    // App hangs stay ON, deliberately and explicitly: a hang is a failure,
+    // reported only when one happens — inside the policy's « nothing is sent
+    // when nothing has failed ». Declared on the App Store label as
+    // Performance Data, not linked to the user (docs/design/app-store-forms.md).
+    ..enableAppHangTracking = true
     ..beforeSend = (event, hint) => _scrub(event);
 }
 

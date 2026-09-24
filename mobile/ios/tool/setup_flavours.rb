@@ -44,19 +44,48 @@ require 'fileutils'
 #
 # The reversed form is the OAuth redirect scheme, and it has NO such fallback —
 # `CFBundleURLSchemes` must be in Info.plist, so it genuinely has to vary.
+#
+# **Purpose strings are per flavour too** (2026-09-24). One Info.plist served
+# both apps with literal strings, so the Pro app asked for location « pour
+# afficher les salons autour de vous sur la carte » — a consumer feature Pro
+# does not have. Pro asks for location to place the salon's own pin and to find
+# its commune. A purpose string that does not describe the use is a textbook
+# App Review 5.1.1 rejection, and the Pro submission is the first one. The
+# consumer strings are unchanged, verbatim.
+#
+# **`device_family`**: Pro is iPhone-only ('1') for its first release — an iPad
+# declaration makes 13-inch iPad screenshots mandatory and puts an untested
+# layout in front of App Review, and a device family, once shipped, cannot be
+# withdrawn, only added. Consumer keeps '1,2', written explicitly rather than
+# inherited. Design: docs/design/app-store-forms.md §1.
 FLAVOURS = {
   'consumer' => {
     bundle_id: 'com.myweli.app',
     display_name: 'MyWeli',
     google_client_id: '731308991240-ah75c2bvv4ojfipa7crlj38n7rdg60fv.apps.googleusercontent.com',
     app_icon: 'AppIcon',
+    device_family: '1,2',
+    location_usage: 'Nous utilisons votre position pour afficher les salons autour de vous sur la carte.',
+    camera_usage: 'MyWeli utilise l’appareil photo pour vos photos d’avis, votre photo de profil et, côté salon, la galerie de votre établissement.',
+    photos_usage: 'MyWeli accède à vos photos pour vos photos d’avis, votre photo de profil, votre justificatif d’acompte et, côté salon, la galerie de votre établissement.',
   },
   'pro'      => {
     bundle_id: 'com.myweli.pro',
     display_name: 'MyWeli Pro',
     google_client_id: '731308991240-o68qiuivc9ts8ablihabvts5bdel4j65.apps.googleusercontent.com',
     app_icon: 'AppIcon-pro',
+    device_family: '1',
+    location_usage: 'MyWeli Pro utilise votre position pour placer votre salon sur la carte et trouver votre commune.',
+    camera_usage: 'MyWeli Pro utilise l’appareil photo pour la galerie de votre salon, vos photos avant/après, le logo du salon et les photos de votre équipe.',
+    photos_usage: 'MyWeli Pro accède à vos photos pour la galerie de votre salon, vos photos avant/après, le logo du salon et les photos de votre équipe.',
   },
+}.freeze
+
+# The Info.plist keys each purpose string lands in, via $(BUILD_SETTING).
+PURPOSE_SETTINGS = {
+  location_usage: 'LOCATION_USAGE_DESCRIPTION',
+  camera_usage: 'CAMERA_USAGE_DESCRIPTION',
+  photos_usage: 'PHOTO_LIBRARY_USAGE_DESCRIPTION',
 }.freeze
 
 # The redirect scheme is the client id reversed, always — derived rather than
@@ -124,6 +153,12 @@ FLAVOURS.each do |flavour, meta|
     # $(APP_DISPLAY_NAME) wins and this never applied. Removed so nobody has to
     # work that out again.
     cfg.build_settings.delete('INFOPLIST_KEY_CFBundleDisplayName')
+    # Info.plist reads $(LOCATION_USAGE_DESCRIPTION) and its two siblings.
+    PURPOSE_SETTINGS.each { |key, setting| cfg.build_settings[setting] = meta[key] }
+    # At TARGET level, so it overrides the project-level '1,2' the Flutter
+    # template carries — setting it only on the project configuration would
+    # lose to nothing and win nothing.
+    cfg.build_settings['TARGETED_DEVICE_FAMILY'] = meta[:device_family]
 
     next if tests.nil?
 
@@ -158,6 +193,13 @@ end
   cfg.build_settings['ASSETCATALOG_COMPILER_APPICON_NAME'] =
     FLAVOURS['consumer'][:app_icon]
   cfg.build_settings.delete('INFOPLIST_KEY_CFBundleDisplayName')
+  # Unset, $(LOCATION_USAGE_DESCRIPTION) would expand to EMPTY in these
+  # consumer builds — and an empty purpose string is a crash the moment the
+  # permission is requested, not a rejection. Consumer values, explicitly.
+  PURPOSE_SETTINGS.each do |key, setting|
+    cfg.build_settings[setting] = FLAVOURS['consumer'][key]
+  end
+  cfg.build_settings['TARGETED_DEVICE_FAMILY'] = FLAVOURS['consumer'][:device_family]
 end
 
 # --- per-flavour xcconfig ---------------------------------------------------
