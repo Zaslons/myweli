@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Prêt à remplir, en attente de** : la facturation GCP (production arrêtée), la licence Xcode 27, la fiche App Store Connect (non vérifiée), l'état du salon démo en production, et **la décision 3.1.1** (§2). Rédigé 2026-09-24. |
+| **Status** | **Prêt à remplir, en attente de** : la facturation GCP (production arrêtée), le premier lancement d'Xcode 27 (licence acceptée le 2026-10-05), la fiche App Store Connect (non vérifiée), l'état du salon démo en production, et **la décision 3.1.1** (§2). Rédigé 2026-09-24. |
 | **Portée** | L'app **MyWeli Pro** seule — `com.myweli.pro`, nom affiché « MyWeli Pro », iPhone uniquement. Le consommateur (`com.myweli.app`) aura son propre dossier. |
 | **Source** | L'audit App Store du 2026-09-24 (cinq lentilles, chaque constat bloquant/majeur revu par un vérificateur indépendant) et le commit `68fc33c` qui en corrige la partie code. |
 | **Pendant Android** | [play-store-forms.md](play-store-forms.md) — même règle, même ton. |
@@ -28,7 +28,7 @@ code est corrigé (§1) ; **il faut reconstruire** (§11). Ce qui reste bloquant
 | # | Bloquant | Nature | Ce qui le lève |
 |---|---|---|---|
 | 1 | **Production arrêtée.** Compte de facturation fermé (facturation coupée au plus tard le 2026-09-16 10:30 UTC — le dernier contrôle vert date du 15) ; les deux bases Cloud SQL suspendues le 2026-09-23 06:23 UTC, motif `BILLING_ISSUE` — Google supprime une instance suspendue au bout de **90 jours** ; le workflow « Production checks » est rouge chaque jour du 2026-09-16 au 2026-09-24 ; `api.myweli.com/health` injoignable le 2026-09-24. Le binaire ne parle qu'à `https://api.myweli.com` (c'est voulu), donc le relecteur ne passe pas l'écran de connexion — rejet 2.1 assuré (« turn on your back-end service! »). Secret Manager refuse aussi (`BILLING_DISABLED`) : pas de nouveau build (`tool/release_build.sh` lit `MOBILE_SENTRY_DSN`) et pas de code démo lisible. | owner | Rétablir la facturation ; `/health` 200 ; « Production checks » vert. L'envoi à TestFlight **interne** peut précéder (il ne contacte pas l'API), la soumission non. |
-| 2 | **Licence Xcode 27 non acceptée** (Xcode remplacé le 2026-09-19). Bloque `git`, `flutter`, `xcodebuild`, `xcrun altool` via les shims `/usr/bin`. | owner | `sudo xcodebuild -license accept` puis `sudo xcodebuild -runFirstLaunch` (§11). |
+| 2 | **Machine de build.** Licence Xcode 27 **acceptée le 2026-10-05** ; `xcodebuild -checkFirstLaunchStatus` répond encore 69 (premier lancement non fait). Le build iOS non signé de Pro passe sous Xcode 27 depuis le correctif du Podfile (§11.1). | owner | `sudo xcodebuild -runFirstLaunch` ; équipe connectée dans Xcode → Réglages → Comptes (§11.1). |
 | 3 | **Fiche App Store Connect non vérifiée.** Le profil « iOS Team Store Provisioning Profile: com.myweli.pro » prouve que l'App ID existe dans le portail développeur, pas que la fiche App Store Connect existe. Rien dans le dépôt ne l'atteste ; sans fiche, l'envoi est refusé. | owner | Vérifier ou créer (§3), puis noter ici l'Apple ID (adamId) et la date. |
 | 4 | **Salon démo en production non vérifié.** Le propriétaire a curé « Salon Démo MyWeli » vers le 2026-08-26/27, sans que l'environnement (staging ou prod) ni la capture du snapshot en prod soient consignés ; le logo réel doit encore être téléversé **puis le snapshot recapturé** (sinon la remise à zéro de 7 jours l'annule). | owner | Une fois la prod revenue, **avant que quoi que ce soit ne touche la base staging** : se connecter en démo, vérifier, logo, `POST /admin/demo/snapshot`, consigner date + environnement dans [backend-demo-review-account.md](backend-demo-review-account.md) §9. |
 | 5 | **Décision 3.1.1 ouverte** : le sélecteur d'offre et les incitations à choisir une offre sont encore dans l'app iOS (§2). | décision owner, puis code | Choisir (a) ou (b) au §2.4 ; livrer le code ; remplacer la ligne réservée des notes (§8). |
@@ -576,12 +576,27 @@ DSN), la PR de ce dossier fusionnée, `main` à jour et arbre propre.
 sudo xcodebuild -license accept
 sudo xcodebuild -runFirstLaunch
 xcodebuild -version            # attendu : Xcode 27.0, Build version 27A266a
-flutter doctor -v              # Flutter 3.44.9 n'a jamais construit avec Xcode 27
+flutter doctor -v
 ```
 
-Si `flutter doctor` juge Xcode 27 non pris en charge : monter Flutter dans sa
-propre PR (épingle CI comprise). **Pas de repli sur l'IPA 536** : il est périmé
-(§1). Dans Xcode → Réglages → Comptes, l'équipe **SADR EDDINE DAHER
+**Constaté le 2026-10-05** : Flutter 3.44.9 construit avec Xcode 27, à une
+condition. Xcode 27 traite une cible de déploiement inférieure à iOS 15 comme
+une **erreur** (Xcode 26, celui de la CI, n'en fait qu'un avertissement), et le
+`Flutter.podspec` généré dit 13.0 — une cible que `podhelper` ne corrige pas,
+puisqu'elle est Flutter lui-même. Le `post_install` du Podfile supprime ce
+réglage, qui hérite alors du 15.0 du projet Pods ; épinglé par
+`mobile/test/infra/ios_store_readiness_test.dart`, car la CI ne voit pas
+l'échec. Le binaire non signé de ce jour (`flutter build ios --release
+--flavor pro --target lib/main_pro.dart --no-codesign`) a été lu :
+`UIDeviceFamily` `[1]`, les trois phrases d'autorisation Pro résolues, aucune
+`$(…)` restante, `CFBundleLocalizations` `[fr]`, `MinimumOSVersion` 15.0,
+aucun DKImagePickerController / DKPhotoGallery / SwiftyGif /
+TOCropViewController, et un `PrivacyInfo.xcprivacy` dans chacun des 32
+bundles de ressources ainsi que dans Flutter et Sentry. Ce binaire n'est
+**pas** envoyable (ni DSN, ni numéro de build, ni signature) : seul le
+§11.2 produit l'IPA.
+
+**Pas de repli sur l'IPA 536** : il est périmé (§1). Dans Xcode → Réglages → Comptes, l'équipe **SADR EDDINE DAHER
 (5VWKJD956A)** doit être connectée : la signature « Cloud Managed Apple
 Distribution » passe par ce compte (seule une identité de développement est
 dans le trousseau).

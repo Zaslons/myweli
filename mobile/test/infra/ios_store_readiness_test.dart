@@ -221,6 +221,34 @@ void main() {
     }
   });
 
+  test('no pod target stays below iOS 15 (Xcode 27 refuses to build it)', () {
+    // The generated Flutter.podspec says 13.0 and podhelper skips the Flutter
+    // target itself, so on Xcode 27 every iOS build failed with « The iOS
+    // deployment target 'IPHONEOS_DEPLOYMENT_TARGET' is set to 13.0 » — an
+    // error there, a warning on the Xcode 26 CI runs. CI cannot see this
+    // failure, which is why the Podfile is pinned here.
+    final podfile = File('ios/Podfile')
+        .readAsStringSync()
+        .split('\n')
+        .map((l) => l.trimLeft().startsWith('#') ? '' : l)
+        .join('\n');
+    expect(podfile, contains("platform :ios, '15.0'"));
+    final postInstall = RegExp(
+      r'post_install do \|installer\|(.*)\nend',
+      dotAll: true,
+    ).firstMatch(podfile)?.group(1);
+    expect(postInstall, isNotNull, reason: 'the post_install hook is gone');
+    expect(
+      postInstall,
+      contains("Gem::Version.new(ios) < Gem::Version.new('15.0')"),
+    );
+    expect(
+      postInstall,
+      contains("config.build_settings.delete('IPHONEOS_DEPLOYMENT_TARGET')"),
+      reason: 'a pod target below 15.0 must inherit the project 15.0',
+    );
+  });
+
   test('file_picker is past the DK chain (>= 12)', () {
     final lock = File('pubspec.lock').readAsStringSync();
     final m = RegExp(
