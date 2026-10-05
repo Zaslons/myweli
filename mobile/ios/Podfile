@@ -40,5 +40,17 @@ end
 post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
+    # Xcode 27 makes a deployment target below iOS 15 a build ERROR, and the
+    # generated Flutter.podspec still says 13.0. podhelper never touches that
+    # target (it only adjusts pods that depend on Flutter, not Flutter itself),
+    # so every iOS build failed on Xcode 27 while CI's older Xcode only warned.
+    # Deleting the setting inherits the 15.0 that `platform :ios` gives the
+    # Pods project. Design: docs/design/app-store-forms.md §11.
+    target.build_configurations.each do |config|
+      ios = config.build_settings['IPHONEOS_DEPLOYMENT_TARGET']
+      next unless ios && Gem::Version.new(ios) < Gem::Version.new('15.0')
+
+      config.build_settings.delete('IPHONEOS_DEPLOYMENT_TARGET')
+    end
   end
 end

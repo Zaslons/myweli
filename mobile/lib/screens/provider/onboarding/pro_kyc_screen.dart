@@ -159,9 +159,15 @@ class _ProKycScreenState extends State<ProKycScreen> {
     final String source;
     final String contentType;
     if (AppConfig.useApiBackend) {
-      // **`FilePicker.pickFiles`, not `FilePicker.platform.pickFiles`** —
-      // file_picker 11.0.0 refactored the class to static methods and removed
-      // the `platform` getter entirely, so the old form no longer resolves.
+      // **`FilePicker.pickFile` (13.x), single file, returns the file itself.**
+      // 12.0.0's federated rewrite dropped `FilePickerResult` and made
+      // `pickFiles` multi-select by default; `pickFile` is the single-file
+      // call. The upgrade was not optional: through 11.x the iOS side linked
+      // DKImagePickerController and DKPhotoGallery, both on Apple's list of
+      // SDKs that must ship a privacy manifest, and neither bundle carried one
+      // in the IPA — an ITMS-91061 refusal for a new app. 12.0.0 removed that
+      // dependency chain; `file_picker_darwin` declares its own manifest as a
+      // SwiftPM resource (docs/design/app-store-forms.md §1).
       //
       // **`compressionQuality: 30` is passed explicitly, and that is the whole
       // reason this line is not a one-word edit.** 10.0.0 moved the default
@@ -173,12 +179,12 @@ class _ProKycScreenState extends State<ProKycScreen> {
       // already spent the bytes, which on Ivorian mobile data is the expensive
       // way to fail. 30 is what shipped before this bump; keeping it named
       // means the next default change cannot move it silently.
-      final picked = await FilePicker.pickFiles(
+      final picked = await FilePicker.pickFile(
         type: FileType.custom,
         allowedExtensions: const ['jpg', 'jpeg', 'png', 'webp', 'pdf'],
         compressionQuality: 30,
       );
-      final path = picked?.files.single.path;
+      final path = picked?.path;
       if (path == null) return;
       source = path;
       contentType = _contentTypeFor(path);

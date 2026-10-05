@@ -573,7 +573,12 @@ word. Nothing before step 3 changes what serves traffic.
    is a literal in this public repo, and no edge rule fronts it. The window
    closes the same day, and mechanically: `service.yaml` carries a
    `# log-mode-until: YYYY-MM-DD` line that `service_files_test` reads —
-   past that date with the value still `log`, CI is red (found in review). Verify: `api.myweli.com/health` 200 via the LB;
+   past that date with the value still `log`, CI is red (found in review).
+   **The date is set in the PR that precedes this dispatch, to the day after
+   it** — the test reads the manifest, not production, so a date written at
+   merge time starts the clock before the window opens. Learnt 2026-09-18: the
+   rollout paused (billing closed 2026-09-16) with phase A merged but never
+   dispatched, and the pin went red for a window that was not open. Verify: `api.myweli.com/health` 200 via the LB;
    `run.app/health` 200 (ingress open); `run.app/providers` 200 with a log
    line (log mode).
 5. **[owner] `96-api-front-door.sh`**: SSL precheck, Worker, secret, proxied

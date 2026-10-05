@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/config/app_config.dart';
+import '../../../core/config/store_policy.dart';
 import '../../../core/config/subscription_plans.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
@@ -216,8 +217,11 @@ class _Body extends StatelessWidget {
             const SizedBox(width: AppTheme.spacingS),
             Expanded(
               child: Text(
-                'Votre offre se gère depuis votre espace professionnel sur '
-                'myweli.com. Vos données ne sont jamais bloquées.',
+                // iOS: the state only, never where to pay (store_policy.dart).
+                hidesExternalPurchaseCopy
+                    ? 'Vos données ne sont jamais bloquées.'
+                    : 'Votre offre se gère depuis votre espace professionnel '
+                          'sur myweli.com. Vos données ne sont jamais bloquées.',
                 style: AppTextStyles.bodySmall.copyWith(
                   color: AppColors.textTertiary,
                 ),
@@ -246,6 +250,8 @@ class _StatusBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // iOS: the state only, never where to pay (store_policy.dart).
+    final ios = hidesExternalPurchaseCopy;
     final (bg, fg, icon, title, subtitle, urgent) = switch (salon.status) {
       SalonOfferStatus.trial => (
         AppColors.successLight.withValues(alpha: 0.12),
@@ -274,7 +280,8 @@ class _StatusBanner extends StatelessWidget {
         Icons.warning_amber,
         'Votre offre a expiré',
         'Jusqu’au ${Formatters.formatDate(salon.graceEndsAt)} avant la '
-            'dépublication de votre salon. Gérez votre offre sur myweli.com.',
+            'dépublication de votre salon.'
+            '${ios ? '' : ' Gérez votre offre sur myweli.com.'}',
         true,
       ),
       SalonOfferStatus.expired => (
@@ -282,11 +289,17 @@ class _StatusBanner extends StatelessWidget {
         AppColors.error,
         Icons.error_outline,
         salon.unpublishedForBilling ? 'Salon dépublié' : 'Offre expirée',
-        salon.unpublishedForBilling
-            ? 'Votre salon n’est plus visible des clients. '
-                  'Réactivez votre offre sur myweli.com — vos données sont '
-                  'intactes.'
-            : 'Réactivez votre offre sur myweli.com.',
+        switch ((salon.unpublishedForBilling, ios)) {
+          (true, false) =>
+            'Votre salon n’est plus visible des clients. '
+                'Réactivez votre offre sur myweli.com — vos données sont '
+                'intactes.',
+          (true, true) =>
+            'Votre salon n’est plus visible des clients. '
+                'Vos données sont intactes.',
+          (false, false) => 'Réactivez votre offre sur myweli.com.',
+          (false, true) => 'Vos données sont intactes.',
+        },
         true,
       ),
     };
@@ -401,13 +414,16 @@ class _TrialUsedNotice extends StatelessWidget {
             'Votre essai gratuit a déjà été utilisé.',
             style: AppTextStyles.titleSmall.copyWith(color: AppColors.warning),
           ),
-          const SizedBox(height: AppTheme.spacingS),
-          Text(
-            'Activez votre offre depuis votre espace sur myweli.com.',
-            style: AppTextStyles.bodyMedium.copyWith(
-              color: AppColors.textSecondary,
+          // iOS: no « activate it on myweli.com » (store_policy.dart).
+          if (!hidesExternalPurchaseCopy) ...[
+            const SizedBox(height: AppTheme.spacingS),
+            Text(
+              'Activez votre offre depuis votre espace sur myweli.com.',
+              style: AppTextStyles.bodyMedium.copyWith(
+                color: AppColors.textSecondary,
+              ),
             ),
-          ),
+          ],
           const SizedBox(height: AppTheme.spacingS),
           AppButton(
             text: 'Aide & Support',
@@ -522,7 +538,10 @@ class _OfferCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: AppTheme.spacingM),
-          for (final line in SubscriptionPlans.entitlementsFor(tier))
+          for (final line in SubscriptionPlans.entitlementsFor(
+            tier,
+            withPricing: !hidesExternalPurchaseCopy,
+          ))
             Padding(
               padding: const EdgeInsets.only(bottom: AppTheme.spacingS),
               child: Row(
@@ -545,7 +564,7 @@ class _OfferCard extends StatelessWidget {
                 ],
               ),
             ),
-          if (tier == SalonTier.pro) ...[
+          if (tier == SalonTier.pro && !hidesExternalPurchaseCopy) ...[
             const SizedBox(height: AppTheme.spacingS),
             Text(
               SubscriptionPlans.roiLine,

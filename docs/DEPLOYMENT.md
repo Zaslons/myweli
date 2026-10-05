@@ -181,6 +181,15 @@ apps); what's left is console work. Specs:
    register the two iOS apps in Firebase, add `GoogleService-Info.plist`, and
    upload the **APNs key** to Firebase. Then re-run the smoke test on an iPhone
    (a simulator never receives push).
+   *Superseded 2026-09-24 — most of this is no longer true.* iOS compiles; the
+   bundle ids are `com.myweli.app` / `com.myweli.pro`, the entitlements are
+   wired per configuration by `mobile/ios/tool/setup_flavours.rb`, both
+   `GoogleService-Info.plist` live in `mobile/ios/config/`, and a **signed**
+   Pro IPA was produced on 2026-08-29 with production APNs and Sign in with
+   Apple baked in (that IPA is superseded by the App Store audit; rebuild per
+   [design/app-store-forms.md](design/app-store-forms.md) §11). Still owed:
+   confirming the APNs key is in Firebase, and a real push received on a
+   TestFlight install (app-store-forms.md §11.6).
 
 ## Phase C — Deploy the backend (Cloud Run) ✅ — provisioned, and this is how it works
 

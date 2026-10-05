@@ -44,19 +44,37 @@ class SubscriptionPlans {
     'Support prioritaire dédié',
   ];
 
+  /// « Ask us what it costs » — a price in all but figure. Shown on Android
+  /// and the web; left out on iOS by [entitlementsFor] (store_policy.dart).
+  static const String reseauPricingLine = 'Tarif personnalisé';
+
   static const List<String> reseauEntitlements = [
     'Tout de l’offre Business',
     'Multi-salons — ajoutez des salons à votre compte',
-    'Tarif personnalisé',
+    reseauPricingLine,
   ];
 
-  static List<String> entitlementsFor(SalonTier tier) => switch (tier) {
-    SalonTier.pro => proEntitlements,
-    SalonTier.business => businessEntitlements,
-    SalonTier.reseau => reseauEntitlements,
-  };
+  /// The display checklist for [tier]. `withPricing: false` drops the lines
+  /// that speak about price (App Store 3.1.1 — store_policy.dart).
+  static List<String> entitlementsFor(
+    SalonTier tier, {
+    bool withPricing = true,
+  }) {
+    final all = switch (tier) {
+      SalonTier.pro => proEntitlements,
+      SalonTier.business => businessEntitlements,
+      SalonTier.reseau => reseauEntitlements,
+    };
+    return withPricing
+        ? all
+        : [
+            for (final l in all)
+              if (l != reseauPricingLine) l,
+          ];
+  }
 
-  /// The binding ROI narrative (PRD §6.1).
+  /// The binding ROI narrative (PRD §6.1). « … paie le mois » speaks about
+  /// paying, so it is not shown on iOS (store_policy.dart).
   static const String roiLine =
       'Un seul rendez-vous manqué évité paie le mois.';
 }

@@ -98,6 +98,33 @@ void main() {
     );
   });
 
+  test('no session is sent when nothing has failed — the policy says so', () {
+    // The SDK defaults `enableAutoSessionTracking` to TRUE: a session envelope
+    // on every launch. The public privacy policy says Sentry's session
+    // counting is disabled, and the App Store privacy label is filled from
+    // that promise (docs/design/app-store-forms.md). Nothing asserted either
+    // flag before 2026-09-24, so the default shipped silently.
+    final o = SentryFlutterOptions();
+    configureSentry(o);
+
+    expect(
+      o.enableAutoSessionTracking,
+      isFalse,
+      reason:
+          'a session per launch is data leaving the phone when nothing '
+          'failed — the policy and the App Store label both deny it',
+    );
+    expect(
+      o.enableAppHangTracking,
+      isTrue,
+      reason:
+          'a hang is a failure, reported only when one happens; it is '
+          'declared as Performance Data on the label, so turning it off '
+          'silently would make the label over-declare, and on silently '
+          'would make it under-declare',
+    );
+  });
+
   test('the scrubber drops user, breadcrumbs and request', () {
     // The security-critical half, and the least visible: if it is wrong,
     // names and phone numbers go to a third party and NOTHING notices.

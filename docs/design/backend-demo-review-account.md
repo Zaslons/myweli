@@ -4,7 +4,7 @@
 |---|---|
 | **Status** | **Built** (2026-08-26) — the account-provisioning and console steps (§9) are owner-side |
 | **Owner** | Sadreddine |
-| **Last updated** | 2026-08-26 — §10's questions decided (owner), reset designed |
+| **Last updated** | 2026-09-24 — reviewer labels corrected (§2); demo-salon environment unrecorded + deletion not demo-locked (§9 notes) · 2026-08-26 — §10's questions decided (owner), reset designed |
 | **PRD ref / phase** | store submission (mobile-external-testing.md §5.2) · V1 |
 | **Related** | [backend-q1b-smoke-seam.md](backend-q1b-smoke-seam.md) (prior art) · [pro-salon-lifecycle.md](pro-salon-lifecycle.md) · [mobile-external-testing.md](mobile-external-testing.md) · BACKEND.md §7 **T69 (new)** |
 | **Skills checked** | myweli-backend-guardrails · myweli-verification-guardrails |
@@ -41,10 +41,18 @@ that bounds what the account can do, and the send-skip for `.test` addresses.
 
 ## 2. The reviewer's experience (UX)
 
-1. Open MyWeli Pro → « Se connecter par e-mail ».
-2. Type `revue@myweli.test`, request the code (the app shows the normal
-   « Code envoyé » state — the server sent nothing, see §5).
-3. Type the fixed code from the review notes.
+1. Open MyWeli Pro → the « Espace Pro » login screen.
+2. Type `revue@myweli.test` in « Votre e-mail », tap « Continuer avec
+   e-mail » (the app shows the normal « Code envoyé » state — the server sent
+   nothing, see §5).
+3. Type the fixed code from the review notes in « Code à 6 chiffres », tap
+   « Se connecter ».
+
+*Corrected 2026-09-24 (App Store audit): step 1 said « Se connecter par
+e-mail », a label that exists nowhere in the app — the e-mail field sits
+directly on the login screen under Google and Apple (`pro_login_screen.dart`).
+The store-facing wording lives in [app-store-forms.md](app-store-forms.md) §8
+and [play-store-forms.md](play-store-forms.md) §2.*
 4. Land on the dashboard of « Salon Démo MyWeli » — a complete draft salon:
    3+ services, photos, a weekly schedule, a filled agenda and client list
    (manual bookings work on drafts by design — `booking_service.dart:301`,
@@ -296,6 +304,35 @@ branch cannot fire on a never-published salon.)
 snapshot — `POST /admin/demo/snapshot` — before pasting credentials into the
 consoles.
 
+> **Unrecorded as of 2026-09-24 — check before anything else happens.** The
+> roadmap shows the owner curated « Salon Démo MyWeli » around 2026-08-26/27
+> (`2026-08-27-status-bar-and-lightbox`, `2026-08-27-gallery-set-cover`) and
+> that a snapshot **recapture** is owed after the real logo upload
+> (`2026-08-27-salon-logo`). Nothing records **which environment** holds the
+> curated salon (step 3 says staging first, then prod), nor whether the
+> snapshot was ever captured **in production**. Production has been down
+> since the billing account closed on 2026-09-16, so none of it can be
+> checked today. **Once prod is back, and BEFORE anything touches the staging
+> database** (it may hold the only curated copy, and stopping, resetting or
+> retiring it would lose that copy): sign in as the demo identity against prod, confirm
+> the salon (services, photos, agenda, the 403 on publish and invite), upload
+> the logo, recapture the snapshot, and write the date and the environment
+> here. Owner checklist: [app-store-forms.md](app-store-forms.md) §13.
+>
+> **The demo identity is not protected from deletion** (found by the same
+> audit). Publish and invite are demo-locked; `DELETE /me/provider` is not.
+> The only thing that stops a reviewer's deletion is the 409
+> `future_bookings`, and the reset (§6.2) creates upcoming appointments only
+> at +1 and +2 days (`demo_reset_service.dart`), so for most of each week
+> nothing stops it. A deleted identity is not re-created: the next login
+> falls into `provider_not_found`, and the reset probably keeps restoring an
+> orphaned salon (INFERRED from the code, not run). Mitigation chosen for now: the App Store review notes ask reviewers
+> not to delete the shared account and to test deletion end to end on a
+> fresh Sign in with Apple account ([app-store-forms.md](app-store-forms.md)
+> §8). If it happens anyway: re-register through the app, re-curate,
+> recapture. The code alternative — the reset re-provisions a missing
+> identity — is listed in app-store-forms.md §14, not built.
+
 ## 10. Decisions (were open questions — owner, 2026-08-26)
 
 1. **Reset cadence: automatic, every 7 days** — designed in §6.2.
@@ -305,7 +342,9 @@ consoles.
    demo concerns inside the demo module.
 3. **Play App access wording, as proposed**: the form entry reads — email
    `revue@myweli.test`, code `<the 6 digits>`, both static and reusable; no
-   real one-time password is sent for this identity. The fallback (a
+   real one-time password is sent for this identity. *(The App Store
+   equivalent — code in the Password field, English notes with the French
+   labels — is [app-store-forms.md](app-store-forms.md) §8, 2026-09-24.)* The fallback (a
    dedicated password field in the app) stays a documented contingency, built
    only if a reviewer rejects this shape.
 

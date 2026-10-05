@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Module** | release engineering (`mobile/ios`, `mobile/android`) |
-| **Status** | Repo side **done**; the account side is a runbook (§5) |
+| **Status** | Repo side **done**; the account side is a runbook (§5). *2026-09-24: for the Pro app, the form-by-form packet and the upload commands are [app-store-forms.md](app-store-forms.md); §4 is superseded there for Pro.* |
 | **Related** | [mobile-ios-first-run.md](mobile-ios-first-run.md) · [mobile-ios-flavours.md](mobile-ios-flavours.md) · [DEPLOYMENT.md](../DEPLOYMENT.md) |
 
 ## 1. Three things made submission impossible
@@ -72,17 +72,27 @@ Connect questionnaire is the authoritative declaration; a second copy in the
 repo that drifts from it is worse than one copy. Draft answers, derived from
 what the code actually sends, for §5 step 6:
 
+> **Superseded for the Pro app on 2026-09-24 by
+> [app-store-forms.md](app-store-forms.md) §7** — do not fill the Pro label
+> from this table. It is one table for two apps and under-declares Pro: no
+> physical address, no Mobile Money receiving number (Other Financial Info),
+> no KYC documents (Other Data Types), no salon-client records, no push token
+> (Device ID), and no Performance Data (Sentry app hangs). It stays as the
+> starting point for the **consumer** label, with the location row corrected
+> below.
+
 | Data | Collected? | Linked to identity | Used for tracking | Where in the code |
 |---|---|---|---|---|
 | Email address | Yes | Yes | No | auth (Google/Apple/OTP) |
 | Name | Yes | Yes | No | Google/Apple credential |
 | Phone number | Yes | Yes | No | mandatory contact phone |
 | User ID | Yes | Yes | No | account id |
-| Precise location | Yes | Yes | No | « Près de moi » (`Geolocator.getCurrentPosition`) |
+| Precise location | **Consumer: No** — on-device only, never transmitted (policy: « Elle ne quitte jamais votre appareil ») · **Pro: Yes** — the salon pin | Pro: Yes | No | consumer « Près de moi » only centres the map; Pro « Utiliser ma position » sends the salon's latitude/longitude. *Corrected 2026-09-24: this row said « Yes » for both, citing « Près de moi », contradicting [play-store-forms.md](play-store-forms.md) §4.1 and the policy.* |
 | Photos | Yes | Yes | No | salon gallery, review photos, deposit screenshot |
 | Purchase history | **No** | — | — | MyWeli holds no funds (PRD OQ-1) |
 | Usage / diagnostics — **crash data** | **Yes** | **No** | No | `sentry_flutter` (`main.dart`), only when a mobile DSN is defined |
 | Usage / diagnostics — anything else | **No** | — | — | no analytics SDK in the tree |
+| Diagnostics — **performance data** *(added 2026-09-24)* | **Yes** | **No** | No | Sentry app-hang events (`enableAppHangTracking = true`, pinned); release-health **sessions are off** (`enableAutoSessionTracking = false`), so no Other Diagnostic Data — [app-store-forms.md](app-store-forms.md) §1.5 |
 
 **Tracking is `false` across the board** and the manifest says so: there is no
 ad, analytics or attribution SDK in the tree. Confirm each row before answering
@@ -112,9 +122,13 @@ nothing here should be handed credentials.
 3. **Apple certificates and profiles** — Distribution certificate, App Store
    provisioning profiles for both bundle ids, with the **Push Notifications**
    capability enabled (the entitlement is already in the project; the profile
-   has to allow it or the signed build fails).
+   has to allow it or the signed build fails). *2026-09-24: done for
+   `com.myweli.pro` — the Xcode-managed App Store profile embedded in the
+   signed IPA 536 grants production APNs and Sign in with Apple (expires
+   2027-08-29).*
 4. **App Store Connect** — create both app records; the bundle ids must match
-   `com.myweli.app` / `com.myweli.pro` exactly.
+   `com.myweli.app` / `com.myweli.pro` exactly. *2026-09-24: whether the Pro
+   record exists is unrecorded — [app-store-forms.md](app-store-forms.md) §3.*
 5. **Archive and upload** — use **`./tool/release_build.sh <ios|android>
    <consumer|pro>`**, which reads the DSN from Secret Manager so nobody handles
    it, refuses to build if it is missing/malformed/the backend's, selects the
@@ -163,13 +177,22 @@ nothing here should be handed credentials.
      --dart-define=SENTRY_ENV=production
    ```
 
-   Then Xcode Organizer or `xcrun altool`. The first two defines are not
+   Then upload — **the exact ordered commands (verify the IPA, `xcrun altool
+   --validate-app`, `--upload-package … --api-key --api-issuer --wait`,
+   `--build-status`, Transporter as the fallback) are in
+   [app-store-forms.md](app-store-forms.md) §11** *(2026-09-24; this line said
+   « Xcode Organizer or `xcrun altool` », with no command and no credential)*.
+   **Never** Product → Archive in Xcode on the `pro` scheme:
+   `Flutter/Generated.xcconfig` holds the last `flutter build`'s target and
+   flavour, so Xcode would compile the consumer Dart under the Pro identity.
+   The first two defines are not
    optional — a release build without them refuses to start
    (`build_config_guard.dart`). `SENTRY_DSN` is optional in the sense that the
    build runs without it; it just runs blind, which for a **staged rollout is
    the same as not being able to do one** (LAUNCH.md §1.4 is watched on the
    crash-free rate).
-6. **The privacy questionnaire** — §4's table.
+6. **The privacy questionnaire** — §4's table; for the Pro app,
+   [app-store-forms.md](app-store-forms.md) §7 *(2026-09-24)*.
 7. **Sign in with Apple** — **the repo half is done (2026-08-18); the account
    half is yours.** `com.apple.developer.applesignin` is now in **both**
    `Runner.entitlements` and `RunnerRelease.entitlements`, and
@@ -197,10 +220,23 @@ nothing here should be handed credentials.
   measured as 3 configurations production / 6 development) but not *baked*. A
   production APNs send to a sandbox token is silently dropped, and that is the
   failure that looks like nothing happening.
+  *Update 2026-09-24: a signed build now exists — `MyWeli-pro.ipa`, 1.0.0
+  build 536, signed 2026-08-29 (« Cloud Managed Apple Distribution », team
+  5VWKJD956A, profile « iOS Team Store Provisioning Profile: com.myweli.pro »),
+  with `aps-environment = production`, Sign in with Apple, `get-task-allow =
+  false` baked in, read from the bytes by the App Store audit. It is
+  **superseded**: the audit found it unsubmittable (DK SDKs without privacy
+  manifests, consumer location string, iPad declared, Sentry sessions,
+  purchase pointers), fixed in code by `68fc33c` — **a rebuild is required**
+  ([app-store-forms.md](app-store-forms.md) §1, §11). A real production push
+  is still unobserved.*
 - **The upload itself**, and everything App Store Connect / Play Console
   validates on receipt.
 - **R8**, per §2.
 - **Store assets** — screenshots, descriptions, age rating. Not started.
+  *2026-09-24: for the Pro app all of it is pre-derived in
+  [app-store-forms.md](app-store-forms.md) §4–§10; the typing and the
+  screenshots remain.*
 
 ## 7. Verified here
 
@@ -212,3 +248,4 @@ nothing here should be handed credentials.
 | The privacy manifest reaches the bundle | present in `Runner.app/` inside the archive |
 | Export compliance is declared | `ITSAppUsesNonExemptEncryption = false` in the built `Info.plist` |
 | Identity is right | `com.myweli.app` / « MyWeli » in the built plist |
+| *(2026-09-24)* Pro identity is right in a **signed** build | `com.myweli.pro` / « MyWeli Pro » in the Info.plist of the signed IPA 536 (2026-08-29), whose Dart snapshot is the Pro app — read by the App Store audit; that IPA is superseded (§6) |

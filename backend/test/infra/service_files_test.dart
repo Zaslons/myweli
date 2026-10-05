@@ -1129,9 +1129,11 @@ void main() {
         DateTime.now().toUtc().isBefore(until.add(const Duration(days: 1))),
         isTrue,
         reason:
-            'the log-mode window ended on ${m.group(1)} and production '
-            'still says `log`: the direct door has had no per-IP limit past '
-            'the date the rollout promised. Deploy `enforce` (spec §9 step 7).',
+            'the log-mode window ended on ${m.group(1)} and the manifest '
+            'still says `log`. If production runs it, the direct door has had '
+            'no per-IP limit past the date the rollout promised — deploy '
+            '`enforce` (spec §9 step 7). If phase A was never dispatched, '
+            're-date it in the PR that precedes the dispatch (§9 step 4).',
       );
     });
   });
