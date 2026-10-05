@@ -236,7 +236,7 @@ Add-ons (V2+): extra staff seats, featured placement (paid promotion), SMS bundl
 
 ### 6.3 Billing requirements
 - Subscriptions billed via **Mobile Money** (recurring or reminder-based renewal; true auto-debit support varies by operator — design for both auto-renew where supported and a one-tap renewal reminder where not). *(Note: collecting subscriptions is Myweli **receiving** funds, so it has the same incorporation/merchant-account dependency as custody — at launch this rides the 30-day free trial + free tier; paid collection turns on once Myweli is registered and on an aggregator. Until then, early paid salons can be handled manually.)*
-- In-app purchase rules: subscriptions sold to **providers** through the Pro app must respect Apple/Google policies — because Pro is a B2B SaaS tool, bill **outside** IAP via Mobile Money where store policy allows (B2B carve-out); otherwise gate provider signup/billing to web to avoid store IAP cut. **(Open question OQ-3.)**
+- In-app purchase rules: subscriptions sold to **providers** through the Pro app must respect Apple/Google policies — because Pro is a B2B SaaS tool, bill **outside** IAP via Mobile Money where store policy allows (B2B carve-out); otherwise gate provider signup/billing to web to avoid store IAP cut. **(Open question OQ-3.)** *(OQ-3 decided 2026-10-05: plan choice and billing are web-only; the Pro app on both stores is a free companion that shows the plan's state and never sells — §21 OQ-3.)*
 - Free trial: 30 days of Pro on signup, no Mobile Money required to start.
 - Dunning: grace period + WhatsApp/SMS renewal nudges before downgrade to Free.
 - Proration, upgrade/downgrade, annual vs monthly, receipts (PDF), TVA handling (§18).
@@ -494,7 +494,7 @@ These exist today as **unrouted UI mocks** in `screens/provider/features/`. They
 - **FR-PRO-OPS-006 [V3]** Multi-location & freelancer-network management (the empty `freelancers/`, `more/` folders).
 
 ### 10.8 Subscription (in-app)
-- **FR-PRO-SUB-001 [V1]** View plan, entitlements, usage; Pro trial; upgrade/downgrade; pay via Mobile Money; renewal reminders; invoices/receipts (TVA). *(✅ **view built** — "Mon abonnement": plan + **3-month** trial status (derived from signup, `GET /me/subscription`), Pro entitlements, anchor pricing, "Nous contacter" CTA. **In-app billing / upgrade-downgrade / renewals / TVA invoices deferred** with paid collection — same no-custody/incorporation block + store-IAP OQ-3; early paid salons handled manually. See §6.)*
+- **FR-PRO-SUB-001 [V1]** View plan, entitlements, usage; Pro trial; upgrade/downgrade; pay via Mobile Money; renewal reminders; invoices/receipts (TVA). *(✅ **view built** — "Mon abonnement": plan + **3-month** trial status (derived from signup, `GET /me/subscription`), Pro entitlements, anchor pricing, "Nous contacter" CTA. **In-app billing / upgrade-downgrade / renewals / TVA invoices deferred** with paid collection — same no-custody/incorporation block + store-IAP OQ-3; early paid salons handled manually. See §6.)* *(2026-10-05 — OQ-3: in the Pro app, on both stores, « Mon abonnement » is read-only — the current plan's state only, no offer cards, no button; choosing or changing an offer is web-only. Design: docs/design/pro-companion-path.md.)*
 
 ---
 
@@ -676,7 +676,7 @@ Builds on existing models (`User`, `ProviderUser`, `Provider`, `Service`, `Artis
 | Low-end device perf | Churn | Strict perf budget; offline tolerance; small app size. |
 | No-show disputes / refund fairness | Trust erosion both sides | Deterministic policy engine; clear pre-payment terms; admin dispute path. |
 | Scope creep into ERP | Burns runway pre-PMF | V3 gating; hide unrouted feature mocks until then. |
-| Store IAP policy on provider billing | Revenue leakage / rejection | Resolve OQ-3 early; prefer web/Mobile Money B2B billing. |
+| Store IAP policy on provider billing | Revenue leakage / rejection | Resolve OQ-3 early; prefer web/Mobile Money B2B billing. *(Resolved 2026-10-05 — OQ-3: the 3.1.3(f) companion path, both apps.)* |
 
 ---
 
@@ -684,7 +684,7 @@ Builds on existing models (`User`, `ProviderUser`, `Provider`, `Service`, `Artis
 
 - **OQ-1** ✅ **Resolved (V1): no custody.** Deposits flow **directly client→salon** on the salon's own Mobile Money handle; Myweli facilitates + records intent but never holds/settles funds — avoiding BCEAO e-money/PSP licensing and an aggregator merchant account (both need a registered company Myweli lacks at launch). *Revisit post-incorporation:* a licensed aggregator + optional **escrow** for salons wanting guaranteed/auto-refundable deposits. This makes `FR-PRO-PAYOUT-001` (Myweli paying out collected deposits) **not applicable in V1**.
 - **OQ-2** Exact subscription pricing & free-tier caps — needs field validation with ~20 Cocody salons. *(Working direction 2026-06-28: base ≈ 20 000–40 000 FCFA/mo, **70 000 anchor**, 3-month free trial — see §6.2; provisional config in `subscription_plans.dart`.)*
-- **OQ-3** Apple/Google IAP treatment of provider SaaS billing — confirm B2B carve-out vs. web-only billing.
+- **OQ-3** ✅ **Decided (2026-10-05, owner): the companion path — App Store guideline 3.1.3(f), on both apps.** The Pro app, on iOS **and** Android (Google Play's payments policy has the same steering rule for digital subscriptions — the reason the spec retained; the current Play policy text was not re-read, UNVERIFIED, as play-store-forms.md §3 records), is a free companion to the paid web service: no plan choice, no purchase, no call to action to purchase elsewhere — « Mon abonnement » shows only the current plan's state. Offers are chosen on the web; a salon that never chose gets its 3-month trial at its first successful publish; billing stays manual (« Nous contacter », no custody — OQ-1). In-app purchase (path (b)) is not for V1. Design: docs/design/pro-companion-path.md · docs/design/app-store-forms.md §2. *(Was: Apple/Google IAP treatment of provider SaaS billing — confirm B2B carve-out vs. web-only billing.)*
 - **OQ-4** 🚫 **Moot (V1): no aggregator.** Deposits stay no-custody/screenshot (OQ-1; user decision 2026-06-27) — Myweli integrates no Mobile Money aggregator. Revisit only post-incorporation if escrow is ever pursued.
 - **OQ-5** ✅ **Decided: Twilio** (WhatsApp + SMS). The backend adapter + OTP + reminders are built; remaining is the ops step (register the account, get templates approved). See docs/design/messaging-notifications.md.
 - **OQ-6** Home-service transport-fee model: flat, distance-based, or provider-set? (V2 design input.)

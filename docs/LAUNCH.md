@@ -793,7 +793,10 @@ post-launch item.
       platform it has nowhere to send — so the mechanism is safe today and the
       iOS half is inert until that listing exists. *Step and value for the Pro
       app: [design/app-store-forms.md](design/app-store-forms.md) §12
-      (2026-09-24).*
+      (2026-09-24).* *2026-10-05: the Pro record exists — Apple ID
+      6805272779 — so the value is known:
+      https://apps.apple.com/app/id6805272779. Setting it needs production
+      back (the admin console); still unticked.*
 
 ### 5.4 Web previews DID write to production — ~~confirmed 2026-08-12~~ **fixed 2026-08-18**
 
@@ -1034,6 +1037,24 @@ checking rather than assuming:
 > `mobile/test/infra/ios_store_readiness_test.dart`), the rest is owner-side:
 > billing (production down), the Xcode 27 license, the App Store Connect
 > record, the demo salon in production, and the 3.1.1 decision.
+>
+> **2026-10-05 — three of those five are done.** The Xcode 27 license and
+> first launch are done, and an unsigned Pro build under Xcode 27 was read
+> (app-store-forms.md §11.1). The App Store Connect record **exists** — Apple
+> ID 6805272779, SKU myweli-pro, verified read-only in App Store Connect
+> (app-store-forms.md §3). The 3.1.1 decision is **taken**: path (a), the
+> free companion app of guideline 3.1.3(f), on **both** apps — no plan choice
+> in the Pro app on iOS or Android, the trial starting at a salon's first
+> publish when it never chose ([design/pro-companion-path.md](design/pro-companion-path.md),
+> built 2026-10-05). PR #550 is merged (`f6ffb585`). **Still owner-side:**
+> billing, the demo salon in production, **deploying the companion-path
+> backend to production before the submission** (from « Accueil », App
+> Review can open « Configurer mon profil » and take its fresh account live;
+> against the old backend that publish is refused, and the app reads « …l’offre
+> de votre salon n’est plus active. » for an offer that never existed), and
+> two App Store Connect notices — EU trader
+> status (DSA) and the new social-media age-rating questions
+> (app-store-forms.md §9.1, §6).
 
 - [ ] Everything in [mobile-store-submission.md](design/mobile-store-submission.md) §5.
       Two of its claims are **stale as of 2026-08-18** and must be corrected

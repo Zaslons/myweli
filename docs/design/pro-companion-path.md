@@ -6,7 +6,7 @@
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-10-05 |
 | **PRD ref / phase** | PRD §6.2 (salon offers), OQ-3 (store billing) · V1 |
-| **ROADMAP entry** | [2026-09-24-pro-app-store-readiness](../roadmap/entries/2026-09-24-pro-app-store-readiness.md) |
+| **ROADMAP entry** | [2026-10-05-pro-companion-path](../roadmap/entries/2026-10-05-pro-companion-path.md) (parent: [2026-09-24-pro-app-store-readiness](../roadmap/entries/2026-09-24-pro-app-store-readiness.md)) |
 | **Skills checked** | myweli-dev-guardrails · myweli-backend-guardrails · myweli-verification-guardrails |
 | **Decision** | Owner, 2026-10-05: App Store path **(a)** of [app-store-forms.md](app-store-forms.md) §2.4 — the Pro app is a free companion app; no plan choice, no purchase, no call to action to purchase elsewhere — on **both** iPhone and Android (§11 Q3). |
 
@@ -27,7 +27,9 @@ it at the salon's first successful publish (§3.1).
 
 **Both apps (§11 Q3).** The rule is not a platform branch: the Flutter Pro app
 stops offering plan choice on iOS **and** Android (Google Play's payments
-policy has the same steering rule for digital subscriptions). So the picker,
+policy has the same steering rule for digital subscriptions — the reason
+retained; the current Play policy text was not re-read, UNVERIFIED, as
+[play-store-forms.md](play-store-forms.md) §3 records). So the picker,
 the Android-only « …sur myweli.com » lines and `store_policy.dart` leave the
 Flutter app; the web is the only place an offer is chosen.
 
@@ -124,8 +126,13 @@ Salon picker « Offre Réseau — un salon de plus dans votre compte »: unchang
 **iPhone-only salon, start to live.** Register → onboarding checklist without
 an offer step → complete profile, pin, ≥3 services, ≥3 photos, hours →
 « Mettre mon profil en ligne » → the server starts the 3-month trial on the
-default tier and publishes → « Mon abonnement » shows « Essai gratuit — 90
+default tier and publishes → « Mon abonnement » shows « Essai gratuit — 89
 jours restants ». No screen ever mentions choosing.
+*(Corrected 2026-10-05: 89, not 90. The server sets `trialEndsAt` to exactly
+publish + 90 days, and the app counts whole days left, truncated
+(`SalonSubscription.trialDaysLeft`, `Duration.inDays`), so a read even a
+second later gives 89. It gives 90 only if the phone's clock runs behind the
+server's.)*
 
 **Trial ends.** The existing J-14/J-7/J-1/grace e-mails and pushes run (they
 are outside the binary or state-only). In the app: the grace then expired
@@ -157,13 +164,22 @@ on the chosen tier; the app shows it.
   create the row (default tier, `trialEndsAt = now + 90 days`), then flip to
   `active`;
 - a row exists but is not live (`expired`) → `missing: ['offer']` as today;
+- *(added in review, 2026-10-05)* a `suspended` salon → 403
+  `provider_suspended`, checked right after the demo lock, before the gate and
+  before any trial start. Publish used to flip **every** non-active status to
+  `active`, so an owner could undo an admin suspension (T17) in one call, and
+  with this section that same call would also have minted a trial. Only the
+  audited admin restore lifts a suspension. The defect predates this work;
+  the publish-time trial made it worse;
 - the row write is **insert-if-absent** in both repositories (Postgres
   `ON CONFLICT (provider_id) DO NOTHING`; in-memory must not replace an
   existing row) — today's `DO UPDATE SET tier` would let a racing publish
   overwrite a web choice.
 
 **Default tier:** `reseau` when the owner account already owns another salon
-with a live Réseau offer (the salon was added under Réseau), else `pro`.
+whose Réseau offer is still live **at that publish** (the salon was added
+under Réseau), else `pro`. A salon added under Réseau whose sibling's offer
+lapsed before its first publish starts on `pro`.
 
 `openapi.yaml`: the publish description and the 409 `offer` semantics; the
 subscription GET 404 description (« setup — the trial starts at the first
@@ -179,6 +195,16 @@ publish or at the first choice »).
 `DemoResetService` ensures the demo salon **has** a row (create if absent),
 pins `tier = 'pro'`, `paidUntil = now + 30 days` — today it only updates an
 existing row, so a demo recreated without a choice would show the setup state.
+
+*Built with one deviation (2026-10-05): the **snapshot capture**
+(`POST /admin/demo/snapshot`) pins the offer the same way, not only the reset.
+A capture restarts the 7-day reset clock, so with the reset as the only
+writer, a demo salon recreated and captured would have shown the setup state
+for up to 7 days. With the capture pinning too, it shows « Offre Pro active »
+from the moment it is captured. A row the capture creates gets the ordinary
+`trialEndsAt = now + 90 days` as a fallback, so it still reads as live if the
+resets ever stop (`demo_reset_service.dart` `_pinDemoOffer`; test « a demo
+with NO offer row gets one at capture »).*
 
 ## 4. Data model
 No migration. `provider_subscriptions` unchanged; one new write path (§3.1)
@@ -234,14 +260,69 @@ deleted. Every new guard is watched red by mutation on committed work.
 `App.framework` strings for the forbidden phrases (the binary is what Apple
 reviews).
 
+*Pinned 2026-10-05.* The check is only meaningful under these conditions:
+
+- **The build.** It must be built the way the store build is, with the API
+  defines, for example `flutter build ios --release --no-codesign --flavor
+  pro -t lib/main_pro.dart --dart-define=USE_API_BACKEND=true
+  --dart-define=API_BASE_URL=https://api.myweli.com`. Without the defines,
+  tree shaking reduces the app to the misconfigured-build screen (the
+  reviewer measured about 5.6 MB, with no app strings at all), and every
+  phrase counts 0 for the wrong reason.
+- **The file.** Grep `Runner.app/Frameworks/App.framework/App` (the AOT
+  snapshot), not `flutter_assets`. Pubspec assets are shared across flavours,
+  so the consumer story art `promo_weekend.svg` (« Offre limitée »,
+  « Voir l’offre ») ships in the Pro bundle too. It is a salon promotion for
+  consumers, not a Pro offer.
+- **The encodings.** Search the bytes as UTF-8, UTF-16LE and Latin-1. Dart
+  stores a string with a character outside Latin-1, such as the apostrophe
+  in « Changer d’offre », as UTF-16.
+- **The phrases that must count 0.** The `removed` list of
+  `mobile/test/infra/pro_subscription_no_pricing_test.dart`, plus the other
+  removed sentences and the 3.1.1 price strings: « Le changement d’offre »,
+  « Votre salon reste gratuit », « Chaque salon a sa propre offre »,
+  « Contactez-nous », « Paiement à jour », « Choix impossible », « /mois »,
+  « Sur devis », « Nous contacter », « FCFA par mois », « Abonnement
+  Mensuel », « 3,500 ».
+- **Not on the list, because they stay legitimately.** These are not the
+  widget-test « nowhere » list above, which is scoped to « Mon abonnement »:
+  « Choisir » alone (« Choisir une commune », « Choisir une date »),
+  « Aide & Support » (the Profil help row), « myweli.com » (the site base URL
+  and the legal links), and « Business » / « Réseau » (the label of the
+  **current** tier).
+- **The control.** The new sentences must each count at least 1. That proves
+  the app's strings are actually in the file.
+
+*Run 2026-10-05, 18:03 build (`App`, 11.5 MB, defines as above), re-read
+independently on the same file.* Every phrase on the 0 list counts 0. Each of
+the nine new sentences counts 1 (« Pas encore d’offre active », « Votre offre
+démarre à la mise en ligne de votre salon. », « Période de grâce jusqu’au »,
+« La mise en ligne est indisponible », « Compte de démonstration — cette
+action est désactivée. », « Vous pourrez inviter votre équipe », « Les
+invitations sont indisponibles », « L’ajout de salons », « Nombre maximal de
+salons atteint. »). The legitimate phrases count « Choisir » 5, « Aide &
+Support » 1, « myweli.com » 7, « Business » 4, « Réseau » 3. The reviewer also
+calibrated the scan on the pre-change Pro build (16:06), where « Choisir mon
+offre », « Changer d’offre » (UTF-16) and « Tarif personnalisé » each counted
+1. That binary has since been overwritten, so this calibration was not re-read
+here. The check runs again on the IPA that is submitted
+([app-store-forms.md](app-store-forms.md) §11.3).
+
 ## 9. Rollout & scope discipline
 1. PR #550 merged (owner's go).
 2. One PR, separate commits: backend (§3) · mobile (§2) · docs.
 3. Staging deploys on merge; **production needs the owner's go** and a
    working billing account. The backend change is backward compatible (old
    apps always choose first).
-4. The production backend must run §3.1 **before** the build is submitted:
-   App Review's fresh account goes through onboarding.
+4. The production backend must run §3.1 **before** the build is submitted.
+   The notes ask App Review to create a fresh account. Registration opens
+   « Accueil », and from there the reviewer can open « Configurer mon
+   profil » and take the salon live. Against the old backend, that publish
+   returns 409 `missing: ['offer']`, and the app shows « …l’offre de votre
+   salon n’est plus active. » for an offer that never existed.
+   *(Corrected 2026-10-05: this said the fresh account "goes through
+   onboarding". It does not; onboarding is optional, reached from the
+   « Configurer mon profil » card. See app-store-forms.md §8.)*
 5. Then §11 of app-store-forms.md: signed IPA, TestFlight, screenshots,
    review notes with the 3.1.3(f) sentence.
 
@@ -250,7 +331,11 @@ reviews).
 - [ ] `dart analyze` / `flutter analyze` 0, format clean, all tests green,
       CI green.
 - [ ] Each new guard watched red; mutations on committed work.
-- [ ] The rebuilt Pro binary contains none of the forbidden strings.
+- [x] The rebuilt Pro binary contains none of the forbidden strings. The
+      phrase list, the build defines and the encodings are pinned in §8.
+      *Run on the 2026-10-05 18:03 unsigned build: 22 phrases at 0, 9
+      control phrases present.* The check runs again on the IPA that is
+      submitted (app-store-forms.md §11.3).
 - [ ] app-store-forms.md §2 marked decided, §8 SUBSCRIPTION sentence in place,
       byte count re-checked.
 

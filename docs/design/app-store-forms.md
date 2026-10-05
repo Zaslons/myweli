@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Prêt à remplir, en attente de** : la facturation GCP (production arrêtée), la fiche App Store Connect (non vérifiée), l'état du salon démo en production, et **la décision 3.1.1** (§2). Rédigé 2026-09-24. |
+| **Status** | **Prêt à remplir, en attente de** : la facturation GCP (production arrêtée), l'état du salon démo en production, et **la voie compagnon** ([pro-companion-path.md](pro-companion-path.md), construite le 2026-10-05) — sa fusion, et son backend déployé en production **avant** la soumission. Rédigé 2026-09-24 ; **mis à jour 2026-10-05** : fiche App Store Connect vérifiée (Apple ID 6805272779, §0 #3, §3), décision 3.1.1 prise — voie (a), sur les deux apps (§2), Xcode 27 prêt (§0 #2), deux avis App Store Connect à traiter (§0 #6). |
 | **Portée** | L'app **MyWeli Pro** seule — `com.myweli.pro`, nom affiché « MyWeli Pro », iPhone uniquement. Le consommateur (`com.myweli.app`) aura son propre dossier. |
 | **Source** | L'audit App Store du 2026-09-24 (cinq lentilles, chaque constat bloquant/majeur revu par un vérificateur indépendant) et le commit `68fc33c` qui en corrige la partie code. |
 | **Pendant Android** | [play-store-forms.md](play-store-forms.md) — même règle, même ton. |
@@ -29,9 +29,10 @@ code est corrigé (§1) ; **il faut reconstruire** (§11). Ce qui reste bloquant
 |---|---|---|---|
 | 1 | **Production arrêtée.** Compte de facturation fermé (facturation coupée au plus tard le 2026-09-16 10:30 UTC — le dernier contrôle vert date du 15) ; les deux bases Cloud SQL suspendues le 2026-09-23 06:23 UTC, motif `BILLING_ISSUE` — Google supprime une instance suspendue au bout de **90 jours** ; le workflow « Production checks » est rouge chaque jour du 2026-09-16 au 2026-09-24 ; `api.myweli.com/health` injoignable le 2026-09-24. Le binaire ne parle qu'à `https://api.myweli.com` (c'est voulu), donc le relecteur ne passe pas l'écran de connexion — rejet 2.1 assuré (« turn on your back-end service! »). Secret Manager refuse aussi (`BILLING_DISABLED`) : pas de nouveau build (`tool/release_build.sh` lit `MOBILE_SENTRY_DSN`) et pas de code démo lisible. | owner | Rétablir la facturation ; `/health` 200 ; « Production checks » vert. L'envoi à TestFlight **interne** peut précéder (il ne contacte pas l'API), la soumission non. |
 | 2 | ~~**Machine de build.**~~ **Levé le 2026-10-05** : licence Xcode 27 acceptée, premier lancement fait (`xcodebuild -checkFirstLaunchStatus` → 0), build iOS non signé de Pro réussi sous Xcode 27 depuis le correctif du Podfile (§11.1). Une liste de comptes existe dans les réglages d'Xcode ; que ce soit l'équipe **5VWKJD956A** ne se voit que dans Xcode. | owner | Vérifier l'équipe dans Xcode → Réglages → Comptes avant le §11.2. |
-| 3 | **Fiche App Store Connect non vérifiée.** Le profil « iOS Team Store Provisioning Profile: com.myweli.pro » prouve que l'App ID existe dans le portail développeur, pas que la fiche App Store Connect existe. Rien dans le dépôt ne l'atteste ; sans fiche, l'envoi est refusé. | owner | Vérifier ou créer (§3), puis noter ici l'Apple ID (adamId) et la date. |
+| 3 | ~~**Fiche App Store Connect non vérifiée.** Le profil « iOS Team Store Provisioning Profile: com.myweli.pro » prouve que l'App ID existe dans le portail développeur, pas que la fiche App Store Connect existe. Rien dans le dépôt ne l'atteste ; sans fiche, l'envoi est refusé.~~ **Levé le 2026-10-05** : la fiche « MyWeli Pro » existe, relue en lecture seule dans App Store Connect (navigateur du propriétaire) — Apple ID **6805272779**, SKU `myweli-pro`, bundle `com.myweli.pro`, langue principale français, version iOS 1.0 « Prepare for Submission », aucun build dans TestFlight. Encore vides : catégorie, sous-titre, droits sur le contenu (§3). | owner | Fait. Reste à remplir les champs (§3, §4, §5, §9). |
 | 4 | **Salon démo en production non vérifié.** Le propriétaire a curé « Salon Démo MyWeli » vers le 2026-08-26/27, sans que l'environnement (staging ou prod) ni la capture du snapshot en prod soient consignés ; le logo réel doit encore être téléversé **puis le snapshot recapturé** (sinon la remise à zéro de 7 jours l'annule). | owner | Une fois la prod revenue, **avant que quoi que ce soit ne touche la base staging** : se connecter en démo, vérifier, logo, `POST /admin/demo/snapshot`, consigner date + environnement dans [backend-demo-review-account.md](backend-demo-review-account.md) §9. |
-| 5 | **Décision 3.1.1 ouverte** : le sélecteur d'offre et les incitations à choisir une offre sont encore dans l'app iOS (§2). | décision owner, puis code | Choisir (a) ou (b) au §2.4 ; livrer le code ; remplacer la ligne réservée des notes (§8). |
+| 5 | ~~**Décision 3.1.1 ouverte** : le sélecteur d'offre et les incitations à choisir une offre sont encore dans l'app iOS (§2).~~ **Décidé le 2026-10-05** : voie (a) — app compagnon gratuite (3.1.3(f)) — sur **les deux** apps, iOS et Android, sans branche de plateforme (§2.4). Construite selon [pro-companion-path.md](pro-companion-path.md) le 2026-10-05 sur `feat/pro-companion-path` (backend, mobile, docs). La ligne SUBSCRIPTION des notes est en place (§8). | code + déploiement | La PR fusionnée ; le backend qui démarre l'essai à la première mise en ligne **déployé en production avant la soumission** : depuis « Accueil », le relecteur peut ouvrir « Configurer mon profil » et mettre son compte neuf en ligne. Sans ce backend, il lirait « …l’offre de votre salon n’est plus active. » pour une offre qui n'a jamais existé (spec §9.4). Feu vert du propriétaire pour la production. |
+| 6 | **Deux avis dans App Store Connect** (relevés le 2026-10-05) : le **statut de professionnel UE** (Digital Services Act) est exigé pour soumettre de nouvelles apps distribuées dans l'UE ; « **Review New Social Media Questions on Age Ratings** ». Qu'ils bloquent la soumission d'une app distribuée hors UE : UNVERIFIED. | décision owner | Choisir l'option DSA (§9.1) ; répondre aux nouvelles questions (§6). |
 
 **Décision du propriétaire, 2026-09-24** : l'app Pro part **d'abord sur l'App
 Store d'Apple** — TestFlight et la revue maintenant ; la **publication
@@ -129,13 +130,21 @@ en test, puis sur l'IPA (la seule chose qui voit un `$(SETTING)` résolu).
    en iOS et remise dans un `finally`. **Le sélecteur d'offre et les autres
    incitations restent** : décision ouverte, §2.
 
+   *2026-10-05 — dépassé par la voie compagnon (§2.4)* : le sélecteur, les
+   phrases Android « … sur myweli.com » et `store_policy.dart` quittent l'app
+   sur **les deux** plateformes — supprimés, pas conditionnés
+   ([pro-companion-path.md](pro-companion-path.md) §5). Le compte ci-dessus
+   était d'ailleurs faux : le groupe a **six** tests — cinq forcés en iOS et
+   le témoin Android, qui ne l'est pas (relevé par l'audit du 2026-10-05) ;
+   ils sont réécrits par cette voie, pas supprimés (spec §8).
+
 **L'IPA 536 est donc périmé.** Le prochain numéro de build est le nombre de
 commits de `main` au moment du build (> 536, monotone) — construire depuis
 `main`, jamais depuis une branche (§14).
 
 ---
 
-## 2 · Règle 3.1.1 — notre position, et la décision ouverte
+## 2 · Règle 3.1.1 — notre position, et la décision (prise le 2026-10-05)
 
 ### 2.1 Pourquoi c'est le point le plus risqué
 
@@ -155,14 +164,27 @@ exceptions, vérifiées une à une par l'audit :
 | 3.1.3(c) entreprise | Non : les salons s'inscrivent eux-mêmes, rien n'est vendu à une organisation pour ses employés. |
 | Exception de lien du storefront US | Non : ne couvre pas la Côte d'Ivoire, et un binaire est relu pour tous les storefronts. |
 
-La question métier est ouverte depuis le début ([PRD.md](../PRD.md) OQ-3).
+La question métier était ouverte depuis le début ([PRD.md](../PRD.md) OQ-3) ;
+**tranchée le 2026-10-05** par le propriétaire : voie (a), sur les deux apps
+(§2.4).
 
 ### 2.2 Ce qui est fait (commit `68fc33c`)
 
 Sur iOS, l'écran « Mon abonnement » ne dit plus **où ni comment payer** (§1.6).
 Les prix avaient déjà disparu le 2026-08-23.
 
-### 2.3 Ce qui reste dans l'app iOS — l'objet de la décision
+### 2.3 Ce qui restait dans l'app iOS — l'objet de la décision
+
+*2026-10-05 : l'inventaire qui fait foi est désormais
+[pro-companion-path.md](pro-companion-path.md) §2.2 — chaque surface, état par
+état, avec le texte exact **avant → après**, relevé par un audit en quatre
+passes (un sceptique par passe, puis un critique d'exhaustivité) et relu dans
+le code. Le tableau ci-dessous, relevé du 2026-09-24, est gardé pour
+l'historique : il était incomplet — il ne nommait ni « Le changement d’offre
+conserve votre période d’essai. », ni la carte « Ajouter un salon » (« Chaque
+salon a sa propre offre et son propre essai. »), ni la phrase « … offre et
+période d’essai. » de l'écran d'ajout de salon, ni les boutons « Aide &
+Support » sous les états d'offre.*
 
 | Où | Quoi |
 |---|---|
@@ -174,8 +196,11 @@ Les prix avaient déjà disparu le 2026-08-23.
 **L'enjeu monte avec nos propres notes** : elles demandent au relecteur de
 tester la suppression sur un **compte Apple neuf** (§8), qui passe par
 l'onboarding — donc par « Choisissez votre offre ».
+*(Corrigé le 2026-10-05 : l'inscription ouvre « Accueil », pas l'onboarding
+(§8). L'onboarding est facultatif et s'ouvre par la carte « Configurer mon
+profil » ; c'est là que l'étape d'offre attendait le relecteur.)*
 
-### 2.4 Les deux voies — **recommandée : (a)**
+### 2.4 Les deux voies — **choisie le 2026-10-05 : (a), sur les deux apps**
 
 **(a) App compagnon, sans choix d'offre sur iOS (recommandé).** Sur iOS
 (même mécanisme `store_policy.dart`) : l'écran d'abonnement devient un état en
@@ -189,8 +214,31 @@ l'app ne peut pas lui dire où le faire — soit l'essai démarre automatiquemen
 côté serveur à la création du salon, soit l'activation passe par
 l'accompagnement (support, web). Android et le web gardent le flux actuel.
 
+**Décision du propriétaire, 2026-10-05** — (a), chaque option recommandée de
+[pro-companion-path.md](pro-companion-path.md) §11, qui la spécifie :
+
+- **Les deux apps, pas iOS seul.** L'app Pro cesse de proposer un choix
+  d'offre sur iPhone **et** sur Android, sans branche de plateforme : la
+  politique de paiements de Google Play a la même règle d'incitation pour les
+  abonnements numériques (raison retenue par la spec, §11 Q3 ; le texte actuel de la politique Play n'a pas été relu — UNVERIFIED, comme le note [play-store-forms.md](play-store-forms.md) §3). Le sélecteur,
+  les phrases Android « … sur myweli.com » et `store_policy.dart` sont
+  **supprimés**, pas conditionnés — le paragraphe ci-dessus (« même mécanisme
+  `store_policy.dart` », « Android … gardent le flux actuel ») est dépassé.
+- **La conséquence produit est résolue côté serveur** : quand le salon n'a
+  encore aucune offre, **l'essai de 3 mois démarre à sa première mise en ligne
+  réussie** — ni à la création du salon (des jours d'essai brûlés pendant la
+  configuration), ni par le support. Palier par défaut : Réseau si le
+  propriétaire possède déjà un salon à offre Réseau en cours, sinon Pro. Un
+  salon dont l'offre a expiré n'obtient jamais un second essai (spec §3.1).
+- **Les invitations d'équipe** restent liées à une offre en cours ; l'app le
+  dit par une phrase neutre (« Vous pourrez inviter votre équipe une fois
+  votre salon en ligne. »), sans bouton.
+- **Le web** reste le seul endroit où une offre se choisit — divergence
+  assumée avec « le web suit le parcours de l'app » (spec §5).
+
 Phrase à mettre dans les notes (§8, rubrique SUBSCRIPTION) **une fois (a)
-livré** :
+livré** — *en place au §8 depuis le 2026-10-05, suivie d'une phrase sur
+l'essai qui démarre à la mise en ligne* :
 
 ```text
 MyWeli Pro is a free companion app to the MyWeli service for salons (guideline 3.1.3(f)). There is no purchasing in the app and no link to, or instruction about, purchasing elsewhere: Profil > « Mon abonnement » only shows the salon's current plan and its status.
@@ -208,7 +256,8 @@ The Pro, Business and Réseau plans are auto-renewable subscriptions sold with I
 ```
 
 **Ne jamais soumettre avec la ligne réservée** `[TO REPLACE BEFORE
-SUBMITTING…]` du §8 : elle est là pour que l'oubli se voie.
+SUBMITTING…]` du §8 : elle est là pour que l'oubli se voie. *2026-10-05 : elle
+est remplacée par la phrase (a) (§8).*
 
 ---
 
@@ -216,6 +265,29 @@ SUBMITTING…]` du §8 : elle est là pour que l'oubli se voie.
 
 Rôle requis : Account Holder, Admin ou App Manager. **Créer la fiche tôt**
 réserve le nom (sa disponibilité ne se connaît qu'à la création).
+
+**La fiche existe — relue le 2026-10-05**, en lecture seule, dans App Store
+Connect (navigateur du propriétaire). Ce qu'elle contient, face à ce que ce
+dossier proposait :
+
+| Champ | Dans App Store Connect (2026-10-05) | Proposé ici | Suite |
+|---|---|---|---|
+| **Apple ID** (adamId) | **6805272779** | — | sert au §11.5 et au §12.1 |
+| Nom | « MyWeli Pro » | `MyWeli Pro — Gestion de salon` (§4) | le nom proposé reste **le choix du propriétaire**, à appliquer s'il le retient |
+| Bundle ID | `com.myweli.pro` | `com.myweli.pro` | conforme |
+| SKU | `myweli-pro` | `MYWELI-PRO-IOS` | **définitif** tel quel ; jamais affiché, sans conséquence |
+| Langue principale | français | Français (fr-FR) | conforme |
+| Catégorie | non renseignée | Business + Productivity (§5) | à remplir |
+| Sous-titre | vide | `Agenda, clients, réservations` (§4) | à remplir |
+| Droits sur le contenu | non renseignés | « Oui … et j'ai les droits nécessaires » (§9) | à remplir |
+| Version | iOS **1.0**, « Prepare for Submission » | 1.0.0 (le binaire, §11.3) | qu'App Store Connect rattache un build `1.0.0` à une version nommée « 1.0 » : UNVERIFIED — le vérifier en choisissant le build (§13) |
+| TestFlight | aucun build | — | §11.5 |
+
+L'app consommateur « MyWeli » a aussi sa fiche (iOS 1.0, « Prepare for
+Submission ») ; elle aura son propre dossier.
+
+Le tableau qui suit est la saisie telle qu'elle était prévue avant la création
+de la fiche, gardé pour l'historique :
 
 | Champ | Valeur |
 |---|---|
@@ -234,7 +306,7 @@ Apple standard**.
 
 Après création, noter ici l'**Apple ID** de l'app (l'adamId, 10 chiffres) :
 il sert à `altool --build-status` (§11) et à l'`updateUrl` iOS (§12).
-*Apple ID : — (à remplir, avec la date).*
+*Apple ID : **6805272779** (relu dans App Store Connect le 2026-10-05).*
 
 ---
 
@@ -333,6 +405,17 @@ STOP.
 Résultat attendu : **4+** (INFERRED — Apple le calcule ; s'il sort plus haut à
 cause du contenu généré par les utilisateurs, l'accepter, ce n'est pas un
 défaut).
+
+**Nouvelles questions « réseaux sociaux » — à répondre (owner).** Le
+2026-10-05, App Store Connect affiche l'avis « Review New Social Media
+Questions on Age Ratings ». Leur libellé exact **n'a pas été lu** : il n'est
+pas recopié ici et aucune réponse n'est préparée (UNVERIFIED). À la saisie :
+lire chaque question à l'écran et répondre avec les faits déjà établis
+ci-dessus — aucune messagerie entre utilisateurs (Messaging and Chat), du
+contenu publié par les salons et des avis de clients affichés
+(User-Generated Content), Social Media : **No** ; si une question n'est pas
+couverte par ces faits : STOP, on vérifie. Puis **consigner ici** chaque
+question et sa réponse, pour la version suivante.
 
 ---
 
@@ -438,10 +521,14 @@ n'y a pas d'autre source connue du code — UNVERIFIED qu'une copie existe
 ailleurs ; si le secret a été perdu avec le projet, il faut en frapper un
 nouveau et redéployer.
 
-**Notes** (coller tel quel ; remplacer d'abord la ligne réservée de la rubrique
-SUBSCRIPTION par la phrase de la voie choisie, §2.4). Poids : **3 005 octets**
-avec la ligne réservée, **3 181 octets** avec la phrase (a), 3 130 avec la
-phrase (b) — sous la limite de 4 000.
+**Notes** (coller tel quel). Poids : **3 483 octets** (3 430 caractères) —
+sous la limite de 4 000. Recompté le 2026-10-05 par script sur le texte exact
+du bloc, sans le saut de ligne final (`printf '%s' "$(cat notes.txt)" | wc -c` ;
+la même méthode redonne bien les 3 005 octets de la version du 2026-09-24).
+*Historique : 3 005 octets avec la ligne réservée, 3 181 avec la seule phrase
+(a) ; le 2026-10-05, la ligne réservée est remplacée par la phrase (a) suivie
+d'une phrase sur l'essai (§2.4), et les deux dernières rubriques sont
+corrigées (ci-dessous).*
 
 ```text
 MyWeli Pro is the business app for beauty salons in Côte d'Ivoire (French UI). Salon owners and their staff manage their agenda, clients, services, photos and opening hours; their customers book through the separate MyWeli app and myweli.com.
@@ -459,7 +546,7 @@ PAYMENTS
 No payment of any kind happens in the app. A salon may ask its customers for a booking deposit; the customer pays it directly to the salon's own Mobile Money account, outside the app, for an in-person beauty service, and the salon confirms it in the app. MyWeli never holds or moves money.
 
 SUBSCRIPTION
-[TO REPLACE BEFORE SUBMITTING: the sentence of the chosen path, app-store-forms.md §2.4]
+MyWeli Pro is a free companion app to the MyWeli service for salons (guideline 3.1.3(f)). There is no purchasing in the app and no link to, or instruction about, purchasing elsewhere: Profil > « Mon abonnement » only shows the salon's current plan and its status. A new salon's free trial starts automatically when the salon goes live; nothing is chosen or bought in the app.
 
 IDENTITY DOCUMENTS (Profil > « Vérification »)
 Uploading identity documents is optional. It is needed only to switch on customer deposits, so that deposits go only to verified salons. The documents are stored privately, never published, and read only by a MyWeli administrator.
@@ -471,9 +558,9 @@ LOCATION
 Location is requested only when the owner taps « Utiliser ma position » (Profil > « Profil du salon ») or « Près de moi » in the commune list, to place the salon's pin on the map or find its commune. The pin is the salon's public business address.
 
 ACCOUNT DELETION
-Profil > « Supprimer mon compte », then type SUPPRIMER to confirm. Please do not delete the shared demo account: later reviews use it. If it has upcoming appointments, the app first asks to finish or cancel them. To test deletion end to end, please create a fresh account with Sign in with Apple and delete that one.
+Profil > « Supprimer mon compte », then type SUPPRIMER to confirm. Please do not delete the shared demo account: later reviews use it. If it has upcoming appointments, the app first asks to finish or cancel them. To test deletion end to end, please create a fresh account (below) and delete that one.
 
-Sign in with Apple and Google create a new, empty salon account (onboarding), so please use the demo account above to see a populated salon.
+Sign in with Apple and Google only sign in to an existing salon account. A new identity is offered « Créer un compte », which opens the « Inscription Pro » form: fill in the salon's name, type, phone and address, then tap « S’inscrire avec Apple » to create a new, empty salon. Please use the demo account above to see a populated salon.
 ```
 
 Libellés relus dans le code le 2026-09-24 : `pro_login_screen.dart`
@@ -484,6 +571,26 @@ chiffres », « Se connecter »), `dashboard_screen.dart` (« Accueil », icône
 `SUPPRIMER`), `pro_salon_profile_screen.dart` (« Utiliser ma position »),
 `commune_picker_sheet.dart` (« Près de moi »), `reviews_screen.dart` (« Avis »).
 **Si un libellé change, ces notes changent dans la même PR.**
+
+**Corrigé le 2026-10-05** (critique d'exhaustivité de l'audit de la voie
+compagnon, puis relu dans le code) :
+
+- *Apple et Google* : la note disait qu'ils « create a new, empty salon
+  account (onboarding) ». Faux : les deux routes sont **de connexion
+  seulement** (`backend/routes/auth/provider/apple.dart`, `google.dart` —
+  « LOGIN-ONLY ») ; une identité inconnue revient en `provider_not_found`, et
+  l'écran de connexion propose alors « Créer un compte » → `/pro/register`
+  (`pro_login_screen.dart`), le formulaire « Inscription Pro »
+  (`pro_register_screen.dart` : nom, type, téléphone et adresse de
+  l'entreprise exigés avant « S’inscrire avec Apple » / « S’inscrire avec
+  Google »), qui ouvre ensuite « Accueil », pas l'onboarding.
+- *Refus démo* : la phrase « Compte de démonstration — cette action est
+  désactivée. » que la note promet **n'existait dans aucune surface de
+  l'app** — un refus démo affichait « Une erreur est survenue. » (publication)
+  ou « Une erreur est survenue. Réessayez. » (invitation). Elle est
+  **implémentée sur cette branche** ([pro-companion-path.md](pro-companion-path.md)
+  §2.2) ; la voir à l'écran sur le build TestFlight avant de soumettre
+  (§11.6).
 
 Pourquoi la rubrique ACCOUNT DELETION est écrite ainsi : la suppression n'est
 pas verrouillée pour l'identité démo, et la remise à zéro hebdomadaire ne crée
@@ -507,11 +614,30 @@ la note dit au relecteur (risque assumé, §14).
 | **Conformité export** | **déjà répondue par le binaire** : `ITSAppUsesNonExemptEncryption = false` (`Info.plist`, présent dans l'IPA) | HTTPS/TLS du système uniquement, plus un SHA-256 pour le nonce Apple ; App Store Connect ne pose pas la question à l'envoi ; aucune déclaration de chiffrement française à fournir |
 | **Droits sur le contenu** | « **Oui**, l'app contient, affiche ou accède à du contenu tiers, **et j'ai les droits nécessaires** » | contenu publié par les salons et les clients sous les CGU (`/cgu`) ; tuiles de carte OSM/CARTO avec attribution |
 | **Prix** | **Gratuit** | aucun achat intégré (aucune dépendance StoreKit) |
-| **Disponibilité** | **Côte d'Ivoire uniquement** | le périmètre du produit (PRD : « for Côte d'Ivoire », pas de multi-pays en V1–V2 ; seuls des référentiels CI) ; le storefront CIV a le français par défaut, donc une fiche en français seul convient ; **aucun storefront UE → pas de déclaration de statut de professionnel (DSA)** à fournir pour distribuer. Les testeurs TestFlight ne sont pas concernés. |
+| **Disponibilité** | **Côte d'Ivoire uniquement** | le périmètre du produit (PRD : « for Côte d'Ivoire », pas de multi-pays en V1–V2 ; seuls des référentiels CI) ; le storefront CIV a le français par défaut, donc une fiche en français seul convient ; **aucun storefront UE** coché. Que la déclaration de statut de professionnel (DSA) ne soit alors pas exigée : UNVERIFIED, à constater à la soumission (§9.1 ; avis d'App Store Connect à ce sujet relevé le 2026-10-05). Les testeurs TestFlight ne sont pas concernés. |
 | **Apps iPhone et iPad sur Mac (Apple silicon)** | **décocher** | jamais testé ; le profil rend l'app éligible par défaut |
 | **Apple Vision Pro** | **décocher** | idem (le profil liste iOS, xrOS, visionOS) |
 | **Publication de la version** | **« Publier manuellement cette version »** | l'approbation ne doit pas publier : la sortie publique attend la production rétablie et stable (§0) |
 | Publication progressive | sans objet pour la 1.0.0 | elle s'applique aux **mises à jour** (utilisateurs en mise à jour automatique) ; à activer dès la 1.0.1 ([LAUNCH.md](../LAUNCH.md) §6.2) |
+
+### 9.1 Statut de professionnel UE (DSA) — décision du propriétaire
+
+Le 2026-10-05, App Store Connect affiche : le statut de professionnel
+(*trader status*, Digital Services Act) doit être fourni pour soumettre de
+nouvelles apps **distribuées dans l'UE**. Deux options :
+
+1. **Déclarer le statut de professionnel.** Apple publie alors une adresse, un
+   téléphone et un e-mail sur la fiche de l'app dans les storefronts UE.
+   L'équipe de distribution étant une personne physique (5VWKJD956A, §3), ce
+   seraient les coordonnées du propriétaire (INFERRED).
+2. **Ne pas distribuer dans l'UE** : garder les storefronts UE exclus dans
+   *Tarifs et disponibilité* — ce que la ligne « Disponibilité » ci-dessus
+   prévoit déjà (Côte d'Ivoire uniquement).
+
+L'option 2 est celle que ce dossier suppose. Qu'App Store Connect accepte la
+soumission sans aucune réponse sur ce point quand aucun storefront UE n'est
+coché : UNVERIFIED — à constater au moment de soumettre (§13), et à consigner
+ici.
 
 ---
 
@@ -569,6 +695,14 @@ n'apparaisse. Aperçus vidéo : facultatifs, non prévus.
 Pré-requis : facturation GCP rétablie (le script lit `MOBILE_SENTRY_DSN` dans
 Secret Manager et s'arrête sinon — ne **pas** contourner en construisant sans
 DSN), la PR de ce dossier fusionnée, `main` à jour et arbre propre.
+*2026-10-05 : la PR de ce dossier (#550) est fusionnée — squash `f6ffb585`.
+S'y ajoutent la PR de la voie compagnon ([pro-companion-path.md](pro-companion-path.md),
+construite le 2026-10-05) fusionnée, et son backend **déployé en production avant l'envoi en
+revue** (feu vert du propriétaire). Depuis « Accueil », le relecteur peut
+ouvrir « Configurer mon profil » et mettre son compte neuf en ligne. Sans ce
+backend, la publication serait refusée (409 `missing: ['offer']`) et il
+lirait « …l’offre de votre salon n’est plus active. » pour une offre qui n'a
+jamais existé (spec §9.4).*
 
 ### 11.1 La machine
 
@@ -642,6 +776,34 @@ unzip -p "$IPA" Payload/Runner.app/Frameworks/App.framework/App | LC_ALL=C grep 
 D=$(mktemp -d) && unzip -q "$IPA" -d "$D" && codesign -d --entitlements - "$D/Payload/Runner.app"
 ```
 
+*Ajouté le 2026-10-05 — la voie compagnon, vérifiée dans le binaire*
+([pro-companion-path.md](pro-companion-path.md) §8, qui explique la liste, les
+trois encodages et ce qui n'y figure pas exprès). Aucune phrase retirée ne doit
+y être, et chaque nouvelle phrase doit y être : ces témoins prouvent que le
+fichier contient bien le texte de l'app.
+
+```bash
+unzip -p "$IPA" Payload/Runner.app/Frameworks/App.framework/App | python3 -c '
+import sys
+b = sys.stdin.buffer.read()
+def n(p):
+    found = set()
+    for e in ("utf-8", "utf-16-le", "latin-1"):
+        try: found.add(p.encode(e))
+        except UnicodeEncodeError: pass
+    return sum(b.count(x) for x in found)
+gone = ["Choisir mon offre", "Changer d’offre", "Choisissez votre offre", "mois offerts", "Tarif personnalisé", "Réactivez votre offre", "Activez votre offre", "Passez à l’offre", "activer votre offre", "se gère depuis votre espace", "Le changement d’offre", "Votre salon reste gratuit", "Chaque salon a sa propre offre", "Contactez-nous", "Paiement à jour", "Choix impossible", "/mois", "Sur devis", "Nous contacter", "FCFA par mois", "Abonnement Mensuel", "3,500"]
+new = ["Pas encore d’offre active", "Votre offre démarre à la mise en ligne", "Période de grâce jusqu’au", "La mise en ligne est indisponible", "Compte de démonstration — cette action est désactivée.", "Vous pourrez inviter votre équipe", "Les invitations sont indisponibles", "L’ajout de salons", "Nombre maximal de salons atteint."]
+bad = [p for p in gone if n(p)] + [p for p in new if not n(p)]
+print("ÉCHEC :", bad) if bad else print("OK :", len(gone), "phrases à 0,", len(new), "témoins présents")
+'
+```
+
+Le script a été vérifié le 2026-10-05 sur le binaire du build non signé de
+18:03 : il affiche `OK`. Il a aussi été vu échouer dans les deux sens : avec
+« Changer d’offre » ajouté en UTF-16, puis sur un fichier tronqué où les
+témoins manquent.
+
 | Attendu | Valeur |
 |---|---|
 | `CFBundleIdentifier` | `com.myweli.pro` |
@@ -653,6 +815,7 @@ D=$(mktemp -d) && unzip -q "$IPA" -d "$D" && codesign -d --entitlements - "$D/Pa
 | caméra / photos | les deux textes Pro du §1.3 |
 | `ITSAppUsesNonExemptEncryption` | `false` |
 | DK… | **0** occurrence |
+| phrases de la voie compagnon | `OK : 22 phrases à 0, 9 témoins présents` |
 | droits (entitlements) | `aps-environment = production`, `com.apple.developer.applesignin`, `get-task-allow = false`, `beta-reports-active = true` |
 
 Un seul écart : on ne l'envoie pas.
@@ -687,7 +850,7 @@ Connect (INFERRED) : ne pas l'utiliser ici ; le ranger ailleurs en `chmod 600`.
 cd "/Users/sadreddinedaher/beauty app/mobile"
 xcrun altool --validate-app build/ios/ipa/MyWeli-pro.ipa --api-key <KEY_ID> --api-issuer <ISSUER_ID>
 xcrun altool --upload-package build/ios/ipa/MyWeli-pro.ipa --api-key <KEY_ID> --api-issuer <ISSUER_ID> --wait --show-progress
-xcrun altool --build-status --apple-id <APPLE_ID_DE_L_APP> --bundle-version <N> --platform ios \
+xcrun altool --build-status --apple-id 6805272779 --bundle-version <N> --platform ios \
   --api-key <KEY_ID> --api-issuer <ISSUER_ID>
 ```
 
@@ -707,9 +870,48 @@ jours. À vérifier sur l'appareil, contre la production :
 
 - [ ] **Connexion démo** : `revue@myweli.test` + le code, exactement comme les
       notes du §8 le décrivent — c'est aussi le test « le code n'a pas expiré ».
-- [ ] **Sign in with Apple** : crée un compte neuf → onboarding (4.8 ; jamais
-      exercé par un build signé). Puis **supprimer ce compte** (Profil →
-      « Supprimer mon compte » → `SUPPRIMER`) : la suppression aboutit.
+- [ ] **Sign in with Apple** : crée un compte neuf (4.8 ; jamais exercé par
+      un build signé). *Corrigé le 2026-10-05 : pas directement — « Continuer
+      avec Apple » sur une identité neuve propose « Créer un compte » →
+      « Inscription Pro » → « S’inscrire avec Apple » → « Accueil » (§8).*
+      Ce compte neuf sert aux quatre cases suivantes, **dans cet ordre** ;
+      puis **le supprimer** (Profil → « Supprimer mon compte » → `SUPPRIMER`) :
+      la suppression aboutit.
+- [ ] **Onboarding sans étape d'offre** (compte neuf) : « Configurer mon
+      profil » → la liste n'a **aucune** étape « Choisissez votre offre » /
+      « 3 mois offerts », et « N étapes sur M » ne la compte pas
+      ([pro-companion-path.md](pro-companion-path.md) §2.2).
+- [ ] **« Mon abonnement » en lecture seule** (compte neuf, avant la mise en
+      ligne) : « Pas encore d’offre active » / « Votre offre démarre à la mise
+      en ligne de votre salon. », et rien d'autre — aucune carte, aucun
+      bouton.
+- [ ] **Feuille d'invitation neutre** (compte neuf, **avant** la mise en
+      ligne — après, l'invitation partirait vraiment) : Profil → « Équipe » →
+      « Inviter un membre » → saisir une adresse à vous dans « E-mail du
+      membre » → « Continuer » → choisir « Manager » → « Envoyer
+      l’invitation ». La phrase n'apparaît qu'à ce moment, quand le serveur
+      refuse : « Vous pourrez inviter votre équipe une fois votre salon en
+      ligne. », sans bouton ajouté (ni « Choisir mon offre », ni « Changer
+      d’offre ») — la feuille garde ses propres boutons.
+- [ ] **Mise en ligne du compte neuf, de bout en bout** — exige le backend de
+      la voie compagnon **déployé en production** (§0 #5) : fiche, point sur
+      la carte, ≥ 3 prestations, ≥ 3 photos, horaires → « Mettre mon profil
+      en ligne » → le salon passe en ligne, et « Mon abonnement » affiche
+      « Essai gratuit — 89 jours restants » / « Offre Pro · se termine le
+      {date} », la jauge « {used} / {cap} places » et « Vos données ne sont
+      jamais bloquées. », sans carte ni bouton. *89, pas 90* : le serveur
+      fixe la fin de l'essai à la publication + 90 jours, et l'app compte les
+      jours entiers restants, arrondis vers le bas — une lecture une seconde
+      plus tard donne 89 (90 seulement si l'horloge du téléphone retarde sur
+      celle du serveur). Le salon est
+      alors public sur myweli.com jusqu'à la suppression du compte (INFERRED :
+      c'est ce que fait une publication) — d'où la suppression juste après.
+- [ ] **Refus démo à l'écran** (compte démo) : Profil → « Équipe » →
+      « Inviter un membre » → une adresse à vous → « Continuer » →
+      « Manager » → « Envoyer l’invitation » ; et « Mettre mon profil en
+      ligne » si le bouton est actif. Les deux affichent alors « Compte de
+      démonstration — cette action est désactivée. », sans bouton ajouté —
+      la phrase que les notes promettent (§8).
 - [ ] **Invite de position** : Profil → « Profil du salon » → « Utiliser ma
       position » → l'alerte affiche le texte Pro du §1.3, boutons en français.
 - [ ] **Appareil photo / photos** : Photos du salon → alerte avec le texte Pro.
@@ -720,7 +922,13 @@ jours. À vérifier sur l'appareil, contre la production :
       de production et de la clé APNs dans Firebase, jamais attestée.
 - [ ] **« Mon abonnement »** : aucune mention de myweli.com, ni ligne de ROI,
       ni « Tarif personnalisé » ; et selon la voie choisie au §2.4, pas de
-      sélecteur.
+      sélecteur. *2026-10-05, voie (a) — sur le compte démo* : « Offre Pro
+      active » / « Jusqu’au {date} », la jauge « {used} / {cap} places » et
+      la ligne « Vos données ne sont jamais bloquées. », **rien d'autre** —
+      ni carte d'offre, ni « Choisir » / « Changer d’offre », ni « 3 mois
+      offerts », ni bouton « Aide & Support »
+      ([pro-companion-path.md](pro-companion-path.md) §2.2 ; l'état « Pro »
+      tient à la capture et à la remise à zéro démo, spec §3.3).
 - [ ] Faire pivoter le téléphone : le paysage est encore permis (§14) —
       noter ce qui casse.
 
@@ -734,7 +942,7 @@ on renvoie. Rien n'est soumis sur un build non vérifié.
 1. **`updateUrl` iOS** — la mise à jour forcée reste inerte sur iOS tant
    qu'elle est vide ([LAUNCH.md](../LAUNCH.md) §5.3). Dans la console admin
    (prod rétablie), plateforme Pro iOS :
-   `https://apps.apple.com/app/id<APPLE_ID_DE_L_APP>`.
+   `https://apps.apple.com/app/id6805272779` (Apple ID relu le 2026-10-05, §3).
 2. **Symboles Sentry** — sans eux, les plantages du premier build TestFlight
    arrivent mais restent illisibles. `sentry-cli` n'est pas installé ici et
    son jeton est dans Secret Manager :
@@ -760,48 +968,86 @@ on renvoie. Rien n'est soumis sur un build non vérifié.
 
 ## 13 · La liste du propriétaire, d'aujourd'hui à « Soumettre pour la revue »
 
-1. [ ] **Trancher 3.1.1** (§2.4, recommandé : (a)) → la PR mobile qui retire
-       le choix d'offre sur iOS, avec ses tests iOS forcés.
+*Mise à jour le 2026-10-05 : points 1, 7 et 8 annotés ; points 6 et 9
+ajoutés (la liste est renumérotée, aucun renvoi extérieur ne cite ses
+numéros).*
+
+1. [x] **Trancher 3.1.1** (§2.4, recommandé : (a)) → la PR mobile qui retire
+       le choix d'offre sur iOS, avec ses tests iOS forcés. **Tranché le
+       2026-10-05 : (a), sur les deux apps** (§2.4) ; la PR est **construite
+       le 2026-10-05** — backend, mobile et docs, tests sur les deux
+       plateformes ([pro-companion-path.md](pro-companion-path.md)) ; sa
+       fusion est le point 5, son déploiement le point 6.
 2. [ ] **Rétablir la facturation GCP.** Puis : Cloud SQL et Cloud Run servent
        (`/health` 200), « Production checks » vert, `DEMO_PROVIDER_CODE`
        lisible et monté sur la révision servie.
 3. [ ] **Avant que quoi que ce soit ne touche la base staging** : établir où
        vit le salon démo curé (prod ? staging ?) — se connecter en démo contre
        la prod ; s'il n'existe qu'en staging, le recréer en prod par l'app.
+       *2026-10-05 : le recréer ne demande plus aucun choix d'offre dans
+       l'app. Sa ligne d'offre Pro est créée par la **capture du snapshot**
+       (point 4) : `POST /admin/demo/snapshot` crée la ligne si elle manque,
+       épingle `tier = pro` et `paidUntil = maintenant + 30 jours`, comme
+       chaque remise à zéro hebdomadaire ensuite. « Mon abonnement » affiche
+       donc « Offre Pro active » dès la capture
+       ([backend-demo-review-account.md](backend-demo-review-account.md) §6.2,
+       §9).*
 4. [ ] **Salon démo** : prestations, photos, horaires, agenda ; « Publier » et
        « Inviter » répondent 403 `demo_account_locked` ; téléverser le **vrai
        logo** ; **recapturer le snapshot** (`POST /admin/demo/snapshot`) ;
        consigner date + environnement dans
        [backend-demo-review-account.md](backend-demo-review-account.md) §9.
+       *2026-10-05 : et « Mon abonnement » affiche « Offre Pro active »
+       (§11.6).*
 5. [ ] Fusionner la PR de l'audit (et celle du point 1) ; CI vert sur `main`.
-6. [ ] **Licence Xcode**, `runFirstLaunch`, `xcodebuild -version`,
-       `flutter doctor -v`, compte Xcode connecté (§11.1).
-7. [ ] **App Store Connect** : vérifier ou créer la fiche (§3) ; noter l'Apple
-       ID ici.
-8. [ ] **Clé d'API** App Store Connect (§11.4) — ou installer Transporter.
-9. [ ] **Build** `./tool/release_build.sh ios pro` depuis `main` ; ranger
+       *2026-10-05 : la PR de l'audit (#550) est fusionnée — squash
+       `f6ffb585` ; reste celle du point 1.*
+6. [ ] **Déployer en production le backend de la voie compagnon** (feu vert
+       du propriétaire, après le point 2) **avant la soumission** : l'essai qui
+       démarre à la première mise en ligne et les verrous démo doivent tourner
+       quand le relecteur crée son compte neuf. Depuis « Accueil », il peut
+       ouvrir « Configurer mon profil » et mettre ce salon en ligne ; sans ce
+       backend, il lirait « …l’offre de votre salon n’est plus active. » pour
+       une offre qui n'a jamais existé (spec §9.3–9.4).
+7. [ ] **Licence Xcode**, `runFirstLaunch`, `xcodebuild -version`,
+       `flutter doctor -v`, compte Xcode connecté (§11.1). *2026-10-05 :
+       licence et premier lancement faits, build iOS non signé de Pro réussi
+       sous Xcode 27 (§0 #2, §11.1) ; reste à voir l'équipe 5VWKJD956A dans
+       Xcode → Réglages → Comptes.*
+8. [x] **App Store Connect** : vérifier ou créer la fiche (§3) ; noter l'Apple
+       ID ici. **Fiche vérifiée le 2026-10-05 — Apple ID 6805272779** (§3).
+9. [ ] **Les deux avis App Store Connect** (§0 #6) : choisir l'option du
+       **statut de professionnel UE** (§9.1) ; répondre aux **nouvelles
+       questions « réseaux sociaux »** de la classification et les consigner
+       (§6).
+10. [ ] **Clé d'API** App Store Connect (§11.4) — ou installer Transporter.
+11. [ ] **Build** `./tool/release_build.sh ios pro` depuis `main` ; ranger
        l'archive ; **vérifier l'IPA** (§11.3).
-10. [ ] **Valider, envoyer**, attendre le traitement (§11.5).
-11. [ ] **TestFlight interne** et toutes les cases du §11.6.
-12. [ ] **Symboles Sentry** (§12.2).
-13. [ ] **Captures** 6,9 pouces sur le salon démo (§10).
-14. [ ] **Remplir App Store Connect** : informations sur l'app (§3, §5, §6,
+12. [ ] **Valider, envoyer**, attendre le traitement (§11.5).
+13. [ ] **TestFlight interne** et toutes les cases du §11.6.
+14. [ ] **Symboles Sentry** (§12.2).
+15. [ ] **Captures** 6,9 pouces sur le salon démo (§10).
+16. [ ] **Remplir App Store Connect** : informations sur l'app (§3, §5, §6,
        §9), tarifs et disponibilité — Côte d'Ivoire seule, Mac et Vision Pro
        décochés (§9), confidentialité (§7), page 1.0.0 — captures, texte
        promotionnel, description, mots-clés, URL, copyright, **build**,
        publication **manuelle** (§4, §9, §10), informations pour la revue avec
        le code lu à ce moment-là et la **ligne SUBSCRIPTION remplacée** (§8).
-15. [ ] **`updateUrl` iOS** dans la console admin (§12.1).
-16. [ ] **Porte d'entrée Cloudflare** : ne pas lancer la phase A pendant une
+       *2026-10-05 : la ligne est remplacée dans le dossier — coller les notes
+       du §8 telles quelles ; le nom « MyWeli Pro — Gestion de salon » si le
+       propriétaire le retient (§3) ; vérifier que le build 1.0.0 se rattache
+       à la version « 1.0 » (§3, UNVERIFIED).*
+17. [ ] **`updateUrl` iOS** dans la console admin (§12.1).
+18. [ ] **Porte d'entrée Cloudflare** : ne pas lancer la phase A pendant une
        revue ; si elle a été déployée avant, vérifier qu'un client non
        navigateur (l'app) n'est pas mis au défi par Browser Integrity Check /
        Bot Fight Mode sur `api.myweli.com`
        ([infra-cloudflare-front-door.md](infra-cloudflare-front-door.md)).
-17. [ ] **Le jour même** : connexion démo sur le build TestFlight contre la
+19. [ ] **Le jour même** : connexion démo sur le build TestFlight contre la
        prod, « Production checks » vert.
-18. [ ] **Soumettre pour la revue.** Ne plus toucher au code démo tant que la
+20. [ ] **Soumettre pour la revue.** Ne plus toucher au code démo tant que la
        version est en revue.
-19. [ ] Après approbation : **ne pas publier** avant que [LAUNCH.md](../LAUNCH.md)
+21. [ ] Après approbation : **ne pas publier** avant que [LAUNCH.md](../LAUNCH.md)
        §3 le permette (production rétablie et stable) — la publication est
        manuelle (§9).
 
@@ -830,6 +1076,9 @@ on renvoie. Rien n'est soumis sur un build non vérifié.
 
 ## 15 · Liens
 
+- La voie compagnon (3.1.3(f), décision du 2026-10-05) :
+  [pro-companion-path.md](pro-companion-path.md) — l'inventaire avant → après,
+  le contrat serveur, les tests.
 - Android : [play-store-forms.md](play-store-forms.md) — la table Pro de
   sécurité des données a été alignée sur le §7 le 2026-09-24.
 - Compte démo : [backend-demo-review-account.md](backend-demo-review-account.md).

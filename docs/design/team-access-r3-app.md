@@ -4,10 +4,24 @@
 |---|---|
 | **Status** | Built (2026-07-12) |
 | **Owner** | Sadreddine |
-| **Last updated** | 2026-07-12 |
+| **Last updated** | 2026-10-05 — superseded in part by the companion path (block below) · 2026-07-12 |
 | **PRD ref / phase** | Module `access` (docs/modules/access.md §5.1–5.2, §10 A2/R2 "screens = R3/R5") · pre-launch |
 | **ROADMAP entry** | docs/ROADMAP.md — « Team access R3 » |
 | **Skills checked** | myweli-dev-guardrails (app slice — no backend change) |
+
+> **Superseded in part on 2026-10-05: the companion path**
+> ([pro-companion-path.md](pro-companion-path.md) §2.2, owner decision, App
+> Store 3.1.3(f), on iOS **and** Android). Pieces 4 and 5 below, the offer
+> picker (§2.4) and the onboarding offer step (§2.5), are **removed** from the
+> app, along with the invite sheet's « Choisir mon offre » / « Changer
+> d’offre » actions. « Mon abonnement » is read-only now: the current offer's
+> state, the seats and no button. The onboarding has no offer step, because
+> the server starts the trial at the first successful publish. The
+> `offer_required` / `seat_limit` / `demo_account_locked` refusals are neutral
+> sentences without a button. The web keeps the picker
+> ([web-team-access-r5.md](web-team-access-r5.md) §2.3). The rest of this
+> spec (Équipe, the invitation steps, the roles) is unchanged; the sections
+> below describe R3 as built on 2026-07-12 and are not rewritten.
 
 ## 1. Goal & scope
 

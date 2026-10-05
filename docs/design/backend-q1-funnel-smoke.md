@@ -12,10 +12,34 @@
 |---|---|
 | **Status** | **Draft** — needs sign-off before any code |
 | **Owner** | Sadreddine |
-| **Last updated** | 2026-08-04 |
+| **Last updated** | 2026-10-05 — the companion path changes Phase 2 and adds Phase 2b (note below) · 2026-08-04 |
 | **PRD ref / phase** | Cross-cutting launch readiness (§1.8 🟣 Quality) · V1 |
 | **ROADMAP entry** | `docs/ROADMAP.md:191` (the false sentence) · `:373` (the boot-smoke bullet) · `:425` (the backend test-pyramid row) |
 | **Skills checked** | myweli-dev-guardrails · myweli-backend-guardrails |
+
+> **2026-10-05 — the companion path**
+> ([pro-companion-path.md](pro-companion-path.md) §3.1, App Store 3.1.3(f)).
+> A salon with **no** offer row is no longer refused for `offer`. Its trial
+> starts at its first successful publish, because the Pro app no longer
+> offers a choice. The smoke follows, and the step tables below are updated
+> in place:
+> - **A12**: the exact `missing` set loses `offer`.
+> - **A12b** (new): the refused publish minted no trial (the subscription
+>   GET is still 404).
+> - **A17–A19** are now the **web path**. The offer is chosen first
+>   (`business`, so a publish that overwrote it with the default tier would
+>   show), then the publish goes through, and the tier and the clock are kept.
+> - **Phase 2b, A21a–A21d** (new) is the **app path**. A second salon is
+>   built complete with no offer (still 404 before), publishes → 200, and the
+>   GET then shows `trial` / `pro` / 88–90 days.
+> - **A42b** (new): Phase 7 suspends that second salon too, so a deployed
+>   target does not collect live smoke salons.
+> - **A46b** (new, same review): the owner of the suspended salon cannot lift
+>   the suspension by publishing (403 `provider_suspended`, still 404 to the
+>   public).
+>
+> The harness has **54** `test()` cases; `main` had 47. The observed-red
+> ledger (§4.5) is the 2026-08 run, kept as it was, with a dated note.
 
 ---
 
@@ -53,7 +77,8 @@ before any of it is switched on. That is exactly the surface Q1 covers.
 - Extending `backend-boot-smoke` into a real funnel e2e (§5 decides the shape).
 - The **anonymous** platform reads (health, discovery, localities).
 - The **pro** half: register → the go-live gate refuses → complete the salon →
-  offer → publish.
+  offer → publish. *(2026-10-05: and a second salon that publishes with no
+  offer, its trial started by the server — Phase 2b.)*
 - The **consumer** half: availability → book → the slot is consumed → double-book
   refused.
 - The **salon's** answer: list → accept → the state machine holds.
@@ -234,16 +259,31 @@ smoke registers (§6). All emails/phones carry a per-run nonce.
 
 | # | Request | Status | Body invariant | A failure in production means |
 |---|---|---|---|---|
-| A12 | `POST /providers/{SALON}/publish` (pro bearer) | **409** | `error == "incomplete"`; `missing` as a **set** == `{profile, location, services, photos, availability, offer}` | The go-live checklist is not server-authoritative (PRD FR-PRO-ONB-001). A salon with no hours and no services goes live and takes bookings into a void. Set-equality (not "contains") is what makes a *silently dropped* check red. |
+| A12 | `POST /providers/{SALON}/publish` (pro bearer) | **409** | `error == "incomplete"`; `missing` as a **set** == `{profile, location, services, photos, availability}` — *2026-10-05: `offer` left the set; a salon with no row is never refused for it (the companion path)* | The go-live checklist is not server-authoritative (PRD FR-PRO-ONB-001). A salon with no hours and no services goes live and takes bookings into a void. Set-equality (not "contains") is what makes a *silently dropped* check red. |
+| A12b *(2026-10-05)* | `GET /providers/{SALON}/subscription` (pro bearer) | **404** | `error == "not_found"` | A refused publish minted a trial: a salon would get its one trial before it is complete, and the clock would run during setup. The pair for A21c. |
 | A13 | `PATCH /providers/{SALON}` `{description, latitude, longitude}` | 200 | echoed values persist | The salon can never satisfy `profile`/`location`; the discovery map has no pin. |
 | A14 | `POST /providers/{SALON}/services` ×3 (e.g. 5000 XOF / 30 min) | 201 each | server sets `id`, `providerId`, `active == true`; client-sent `id` is ignored | The catalogue accepts client-chosen ids/state — the server stops being the authority on the thing it later prices. |
 | A15 | `PUT /providers/{SALON}/gallery` `{imageUrls: [3 urls]}` | 200 | `imageUrls.length == 3` | Photos cannot be attached; the publish gate is unsatisfiable and the listing is blank. |
 | A16 | `PUT /providers/{SALON}/availability` `{weeklySchedule "0".."6" 09:00–18:00, bufferMinutes 0, blockedDates []}` | 200 | re-`GET` returns 7 open days and `bookingHorizonDays`/`minimumNoticeMinutes` at their defaults (365/60) | Hours do not persist, or the allow-list at `provider_catalog_service.dart:279-291` silently drops a key and answers 200 anyway — the failure mode that file's own comment warns about. |
-| A17 | `POST /providers/{SALON}/publish` | **409** | `missing == ["offer"]` **exactly** | The pricing pivot (T54) is not the last door: either a salon goes live without an offer (free forever), or one of the five completeness checks silently stopped working. |
-| A18 | `PUT /providers/{SALON}/subscription` `{tier:"pro"}` | 200 | `status == "trial"`; a `trialEndsAt` in the future | The one-trial-per-salon clock does not start; revenue state is not created at the moment the salon commits. |
-| A19 | `POST /providers/{SALON}/publish` | **200** | `status == "active"` | Nobody can ever go live. The single most expensive possible bug in the pro funnel. |
+| A17 *(rewritten 2026-10-05 — the web path)* | `PUT /providers/{SALON}/subscription` `{tier:"business"}` | 200 | `status == "trial"`; `tier == "business"`; a `trialEndsAt` in the future, kept for A19 | The web choice no longer starts the one trial. `business`, not the default `pro`, so a publish that overwrote the row would show in A19. *(Was: a publish → 409 `missing == ["offer"]` exactly.)* |
+| A18 *(2026-10-05)* | `POST /providers/{SALON}/publish` | **200** | `status == "active"` | Nobody can ever go live. The single most expensive possible bug in the pro funnel. *(Was A19.)* |
+| A19 *(2026-10-05)* | `GET /providers/{SALON}/subscription` | 200 | `tier == "business"`; `trialEndsAt` == A17's | The publish replaced a web choice with its default tier, or restarted the clock: one trial per salon is broken, and a racing publish can overwrite what the owner chose. The concurrent half is proven in process and on Postgres (`postgres_repositories_test.dart`). |
 | A20 | `GET /providers/{SALON}` (anonymous) | **200** | `id == SALON`; `name` matches; `reviews` is an array | Paired with A8: publication does not actually open the public door. **A8 and A20 falsify each other** — a server that 404s everything passes A8 and fails A20; one that 200s everything does the reverse. |
 | A21 | `GET /providers?q=<unique salon name>` | 200 | `items` contains `SALON` | The salon is readable by direct link but invisible in discovery — i.e. the list filter and the detail gate disagree (they are two different spellings of the same rule: `postgres_providers_repository.dart:35` vs `salon_visibility.dart:42-43`). |
+
+### Phase 2b — the companion path: live WITHOUT a choice (added 2026-10-05)
+
+The Pro app never offers a plan choice (App Store 3.1.3(f),
+[pro-companion-path.md](pro-companion-path.md)), so a salon built entirely in
+the app must still go live, with the server starting its trial at the
+publish. It runs on a salon of its own, so Phase 2's web path stays intact.
+
+| # | Request | Status | Body invariant | A failure in production means |
+|---|---|---|---|---|
+| A21a | register a second salon; `PATCH` profile + location, 3 services, 3 photos, one open day | 201 / 200 each | — (arrange) | The fixture is broken, not the product. Every later 2b case would then fail for the wrong reason. |
+| A21b | `GET /providers/{SALON2}/subscription` | **404** | `error == "not_found"` | A salon got an offer row it never asked for, before going live. |
+| A21c | `POST /providers/{SALON2}/publish` (no choice ever made) | **200** | `status == "active"` | **An iPhone-only salon can never go live**, and the app may not tell it where to go. This is the defect the companion path exists to prevent. |
+| A21d | `GET /providers/{SALON2}/subscription` | 200 | `status == "trial"`; `tier == "pro"`; `trialEndsAt` − now in **88–90** whole days (a window: the harness and the server do not share a clock) | The salon is live with no offer row: free forever, invisible to the notices and to enforcement. |
 
 ### Phase 3 — the consumer books
 
@@ -304,10 +344,12 @@ executes the fourth, and proves the asymmetry Decision A turns on.
 |---|---|---|---|---|
 | A41 | `POST /admin/auth/login` `{email: $ADMIN_EMAIL, password: $ADMIN_PASSWORD}` | 200 | an admin token pair | The staff door is shut, so nothing below can run — and no salon can ever be suspended, which is the platform's only lever against a bad actor. |
 | A42 | `POST /admin/providers/{SALON}/suspend` `{reason}` (admin bearer) | 200 | the salon's `status == "suspended"` | Suspension is not enforceable: a salon the platform has decided to stop keeps taking money. |
+| A42b *(2026-10-05)* | `POST /admin/providers/{SALON2}/suspend` `{reason}` | 200 | — | Housekeeping with an assertion: A21c left a second live salon, and a deployed target must not collect public smoke salons run after run. |
 | A43 | `GET /providers/{SALON}` (anonymous) | **404** | body exactly `{"error":"not_found"}` | A suspended salon stays publicly readable — the same T51 oracle A8 guards, reached from the other direction (draft never-published vs live-then-stopped). |
 | A44 | `POST /appointments` `{providerId: SALON, …}` (consumer bearer) | **409** | `error == "provider_suspended"` — **not** `provider_not_published` | The client is told the salon "has not published yet" about a salon that traded yesterday. Row 82 exists because one code carried both states and every client said the wrong thing. |
 | A45 | `POST /appointments` with `providerId` = the **bystander's draft** salon | **409** | `error == "provider_not_published"` | Paired with A44: a server that answers one code for everything passes one of these and fails the other. This is what makes A44 non-degenerate. |
 | A46 | `POST /appointments/manual` (pro bearer of the **suspended** salon) | **409** | `error == "provider_suspended"` | **Decision A, half one.** A suspended salon must not write its own calendar either — suspension that only stops clients is not suspension. |
+| A46b *(2026-10-05)* | `POST /providers/{SALON}/publish` (pro bearer of the **suspended** salon), then `GET /providers/{SALON}` (anonymous) | **403**, then **404** | `error == "provider_suspended"`; then exactly `{"error":"not_found"}` | The owner undoes an admin suspension in one call. Only the audited admin restore may lift it (T17). Since the companion path, that call would also mint a trial. |
 | A47 | `POST /appointments/manual` (pro bearer of the **bystander's draft** salon) | **2xx** | the booking is created | **Decision A, half two, and the one that makes A46 mean something.** A salon that has not published yet *owns its calendar*. If this reddens, someone folded the two states together and quietly took the calendar away from every salon still onboarding. |
 
 > A46 + A47 are the executable form of `salon_visibility.dart:74-78`'s comment —
@@ -316,6 +358,11 @@ executes the fourth, and proves the asymmetry Decision A turns on.
 
 **Totals:** 47 assertions, ~55 HTTP requests, 5 identities (1 pro, 1 bystander
 pro, 2 consumers, 1 admin) and 1 throwaway email for the lockout.
+*2026-10-05: the harness has **54** `test()` cases. `main` had 47 before
+the companion path: the build added A2b, A7b and A48 (the self-check, in
+place of A40) and merged A5–A7 into one case. The companion path adds A12b,
+A21a–A21d, A42b and A46b. There are 6 identities: a second pro, the
+companion salon of Phase 2b.*
 
 ---
 
@@ -344,8 +391,8 @@ defect *in the suite*, and blocks the PR.
 | `slot_service.dart:59` → drop `requireVisibleSalon` | A9 |
 | `booking_service.dart:59` → skip `clientBookingRefusal` | A11 |
 | `salon_provisioning_service.dart:114` → `services < 1` | ~~A12~~ → **nothing — a NO-OP mutation.** ✗ This row was wrong too: A12 runs with *zero* services, so `0 < 1` still adds the key, and A17 runs with three, so `3 < 1` is still false. The mutation cannot change behaviour anywhere in this funnel. `services < 0` would have been the mutation that bites |
-| `salon_provisioning_service.dart:154` → `subs = null` | A12, A17 |
-| `salon_provisioning_service.dart:150` → move `publishGate` after the active early-return | A12/A17 (the gate stops gating) |
+| `salon_provisioning_service.dart:154` → `subs = null` | A12, A17 — *2026-10-05: predicted A21d instead, not yet observed. A12 no longer carries `offer`, A17 is a PUT, and with no subscription service the app-path publish creates no row, so A21d's GET is a 404* |
+| `salon_provisioning_service.dart:150` → move `publishGate` after the active early-return | A12/A17 (the gate stops gating) — *2026-10-05: A17 is no longer a publish; A12 stays* |
 | `booking_service.dart` total → read `body['totalPrice']` | A23 |
 | `slot_service.dart:398` → stop skipping non-cancelled bookings | A24 (slot never consumed) |
 | `booking_service.dart:135-142` → drop the `isAtSameMomentAs` check | A25 |
@@ -375,7 +422,8 @@ pair.
 
 A12 and A17 assert the `missing` list as an exact set. `contains` would stay green
 while a check silently disappeared — the failure mode that motivates the whole
-slice.
+slice. *(2026-10-05: A12 alone now. A17 is the web path's PUT, and the
+`offer` key left A12's set.)*
 
 ### 4.4 The anti-vacuity guard
 
@@ -415,6 +463,22 @@ predicted to.**
 | `routes/appointments/[id]/index.dart` ownership check dropped | A35 | ✅ A35 |
 | `membership_service.dart` journal scope always `all` | A36 | ✅ A36 |
 | `appointment_lifecycle_service.dart` `_terminal` emptied | A39 | ✅ A39 |
+
+*2026-10-05 — the offer gate changed under this ledger*
+([pro-companion-path.md](pro-companion-path.md) §3.1). The « offer gate always
+passes » row above is the 2026-08 run, when A17 was the publish that only
+the offer refused. The gate now refuses an **expired** row only; a missing row
+starts the trial instead. Two consequences:
+
+- The backend build reports that its smoke run against a server with the
+  **old** gate (no row → `offer`) reddened **A12, A21c and A21d**. That is
+  what the code predicts: `offer` comes back into A12's set, the app-path
+  publish is refused, and no row exists afterwards. It was not re-run for
+  this note.
+- A mutation that only lets an **expired** row through cannot be seen by the
+  funnel, because no funnel salon reaches an expired offer. That half is
+  guarded in process: `salon_subscription_test.dart` « an EXPIRED offer →
+  incomplete [offer]; never a second trial ».
 
 Separately verified one at a time, before the re-run: `health.dart` → A1;
 the `AUTH_METHODS` gate deleted → A4; `_isProd → true` (the `devCode` withheld)
@@ -587,11 +651,18 @@ reasons, in order of force:
    answers `409 incomplete` with `missing: [services, photos, offer]` — for a salon
    that is live and bookable. **Do not** add a publish call for `provider1` and
    **do not** read that 409 as evidence of anything.
+   *(2026-10-05: without `offer` now. A seeded salon has no offer row on a
+   fresh database: the grandfather migration runs before the seed. So the
+   companion path does not refuse it for an offer, and it would **start a
+   trial** the day the salon passed the gate. That is one more reason never
+   to publish a seeded salon.)*
 3. **Draft is where row 82 lives.** A freshly registered salon is `draft`
    (`providers_repository.dart:700-748`), which hands us A8/A9/A11 for free.
 
 So: A1–A3 use the seed (proving migrations + seed ran on real Postgres); A4–A39
 run on a salon the smoke creates, completes, funds with an offer and publishes.
+*(2026-10-05: plus a second salon of its own that publishes with no offer,
+Phase 2b.)*
 
 ### 6.3 What the smoke must set up, explicitly
 
@@ -603,7 +674,7 @@ run on a salon the smoke creates, completes, funds with an offer and publishes.
 | 3 services | `POST …/services` ×3 | Threshold is `< 3` (`salon_provisioning_service.dart:114`) |
 | 3 photos | `PUT …/gallery` | `_allowedImageOrigins` is empty when `R2_PUBLIC_BASE_URL` is unset → any URL is accepted in CI (`provider_catalog_service.dart:336-339`) |
 | Hours | `PUT …/availability`, **all seven days open** | Deliberately unlike the seed (Mon–Sat): opening `"0".."6"` removes the Sunday-closed trap from every date calculation for good |
-| Offer | `PUT …/subscription {tier:"pro"}` | Starts the salon's one trial; without it publish returns `missing:["offer"]` |
+| Offer | `PUT …/subscription {tier:"business"}` (A17, the web path) | Starts the salon's one trial on the chosen tier. *2026-10-05: without it, the publish starts the trial itself on the default tier (Phase 2b); `missing:["offer"]` is left for an expired offer only.* *(Was `{tier:"pro"}`; without it, publish returned `missing:["offer"]`.)* |
 | **Not** needed | `ADMIN_EMAIL` / `ADMIN_PASSWORD` | No admin hop in Q1 → suspension is out of scope (§8). Adding them is Open Question 2. |
 | **Not** needed | KYC | Only `depositRequired: true` needs a verified account (`provider_catalog_service.dart:554-558`); Q1 leaves deposits off. |
 

@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Prêt à saisir (owner) — rédigé 2026-08-28 ; **corrigé 2026-09-24** (libellés de connexion du §2, adresse + numéro Mobile Money dans la table Pro du §4.2 — audit App Store, [app-store-forms.md](app-store-forms.md)) |
+| **Status** | Prêt à saisir (owner) — rédigé 2026-08-28 ; **corrigé 2026-09-24** (libellés de connexion du §2, adresse + numéro Mobile Money dans la table Pro du §4.2 — audit App Store, [app-store-forms.md](app-store-forms.md)) ; **2026-10-05** : l'app Pro Android ne propose plus de choix d'offre non plus (§3) |
 | **Portée** | Les DEUX fiches Play : MyWeli (`com.myweli.app`) et MyWeli Pro (`com.myweli.pro`) |
 | **Source de vérité** | La politique de confidentialité publiée (`/politique-confidentialite`) et le binaire — un formulaire qui les contredit est un rejet ET une exposition légale (LAUNCH.md §6.3) |
 | **Règle** | Chaque réponse ci-dessous est dérivée du code ou de la politique, jamais inventée. En cas de doute en saisissant : STOP, on vérifie. |
@@ -155,6 +155,25 @@ communication ou autre »** :
 
 Résultat attendu : **Tout public / PEGI 3** avec la mention « Interaction
 entre utilisateurs ».
+
+*2026-10-05 — l'app Pro Android cesse elle aussi de proposer un choix
+d'offre* (décision du propriétaire, [pro-companion-path.md](pro-companion-path.md)
+§11 Q3 ; [app-store-forms.md](app-store-forms.md) §2.4). Plus de sélecteur
+« Choisir » / « Changer d’offre », plus de « Votre offre se gère depuis votre
+espace professionnel sur myweli.com » ni de « Réactivez votre offre sur
+myweli.com » : « Mon abonnement » ne montre que l'état de l'offre en cours, et
+l'essai d'un salon qui n'a rien choisi démarre à sa première mise en ligne.
+**Pourquoi Android aussi, alors que la règle d'origine est celle d'Apple
+(3.1.3(f))** : la politique de paiements de Google Play a la même règle
+d'incitation (*steering*) pour les abonnements numériques — c'est la raison
+retenue par la spec et approuvée par le propriétaire ; le texte actuel de la
+politique Play n'a pas été relu pour ce dossier (UNVERIFIED). Une seule
+conduite sur les deux stores, et le code du sélecteur quitte l'app Flutter.
+C'est aussi la conduite cohérente avec la réponse « Achats numériques dans
+l'app ? **Non** » ci-dessus. Le choix d'une offre se fait sur le web. Les
+testeurs internes restés sur un ancien build choisissent encore avant de
+publier — compatible : le serveur ne démarre l'essai à la publication que
+si aucune offre n'existe (spec §2.4).
 
 ---
 
