@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 
 import '../../core/config/app_config.dart';
 import '../../core/utils/salon_time.dart';
+import '../../core/utils/team_error_messages.dart';
 import '../../models/api_response.dart';
 import '../../models/appointment.dart';
 import '../../models/availability.dart';
@@ -239,8 +240,11 @@ class ApiProService implements ProServiceInterface {
     );
     if (res == null) return _networkError();
     if (res.statusCode == 409) {
-      // The gate's `missing` keys — `offer` (pricing pivot) gets its own
-      // code so the screen can CTA to the offer picker.
+      // The gate's `missing` keys — `offer` gets its own code. The server
+      // starts the trial at the first publish, so only an EXPIRED offer
+      // lands here: the sentence states that and points nowhere (App Store
+      // 3.1.3(f) — docs/design/pro-companion-path.md §2.2). The screen
+      // carries the same sentence and falls back to this one elsewhere.
       List<dynamic> missing = const [];
       try {
         missing =
@@ -252,7 +256,7 @@ class ApiProService implements ProServiceInterface {
       }
       if (missing.contains('offer')) {
         return ApiResponse.error(
-          'Choisissez votre offre avant la mise en ligne.',
+          publishOfferInactiveMessage,
           code: 'offer_required',
         );
       }
@@ -841,6 +845,15 @@ class ApiProService implements ProServiceInterface {
       // bypass, and « Une erreur est survenue » would hide which field.
       case 'invalid_phone':
         return 'Numéro invalide (format international, ex. +2250700000000).';
+      // « Ajouter un salon » (403 `reseau_required` / 409 `salon_limit`) and
+      // the demo account's lock (publish, POST /me/salons): the team table's
+      // neutral sentences, so the mock and the API can never drift. They read
+      // « Une erreur est survenue. » before — and the old mock copy pointed
+      // the salon to an upgrade (docs/design/pro-companion-path.md §2.2).
+      case 'reseau_required':
+      case 'salon_limit':
+      case 'demo_account_locked':
+        return teamErrorMessage(code);
       default:
         return 'Une erreur est survenue.';
     }

@@ -7,6 +7,7 @@ import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/utils/onboarding.dart';
+import '../../../core/utils/team_error_messages.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_onboarding_provider.dart';
 import '../../../widgets/common/app_button.dart';
@@ -35,31 +36,26 @@ class _ProOnboardingScreenState extends State<ProOnboardingScreen> {
 
   Future<void> _goLive() async {
     final messenger = ScaffoldMessenger.of(context);
-    final router = GoRouter.of(context);
     final providerId = context.read<ProAuthProvider>().activeSalonId ?? '';
     final onboarding = context.read<ProOnboardingProvider>();
     final ok = await onboarding.publish(providerId);
     if (!mounted) return;
-    // Pricing pivot: the server's `offer` gate points to the picker.
-    final offerRequired =
+    // The server starts the trial at the first publish, so `offer_required`
+    // now means the salon's offer EXPIRED. The bar states that and carries
+    // NO action: it used to open the offer picker (« Choisir »), which the
+    // Pro app no longer has (App Store 3.1.3(f) — docs/design/
+    // pro-companion-path.md §2.2). Any other refusal — the demo account's
+    // lock included — shows the service's sentence.
+    final offerInactive =
         !ok && onboarding.publishErrorCode == 'offer_required';
     AppSnackBar.showOn(
       messenger,
       ok
           ? '🎉 Votre profil est en ligne !'
-          : offerRequired
-          ? 'Choisissez votre offre avant la mise en ligne.'
+          : offerInactive
+          ? publishOfferInactiveMessage
           : (onboarding.error ?? 'La mise en ligne a échoué'),
       kind: ok ? SnackKind.success : SnackKind.error,
-      // The product's only pre-A6 action — a NAVIGATION, not an undo. It ran
-      // at Material's 4s default; §15 gives it the 10s it always needed,
-      // because the snackbar is the only route to the offer picker from here.
-      action: offerRequired
-          ? SnackAction(
-              label: 'Choisir',
-              onPressed: () => router.push('/pro/subscription'),
-            )
-          : null,
     );
   }
 
@@ -205,8 +201,6 @@ class _StepRow extends StatelessWidget {
         return 'Vérification (KYC)';
       case OnboardingStepKey.photos:
         return 'Photos (3 minimum)';
-      case OnboardingStepKey.offer:
-        return 'Choisissez votre offre';
     }
   }
 
@@ -228,8 +222,6 @@ class _StepRow extends StatelessWidget {
         return '/pro/verification';
       case OnboardingStepKey.photos:
         return '/pro/photos';
-      case OnboardingStepKey.offer:
-        return '/pro/subscription';
     }
   }
 
@@ -240,9 +232,6 @@ class _StepRow extends StatelessWidget {
     }
     if (step.key == OnboardingStepKey.photos) {
       return 'Ajouter des photos du salon';
-    }
-    if (step.key == OnboardingStepKey.offer) {
-      return '3 mois offerts';
     }
     if (step.status == OnboardingStepStatus.inProgress) {
       return 'En cours';

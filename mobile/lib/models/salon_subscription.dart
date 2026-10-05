@@ -3,7 +3,8 @@ import 'package:equatable/equatable.dart';
 import '../core/utils/app_clock.dart';
 
 /// The offer ladder (pricing pivot, team access R2a): Pro (5 places) ·
-/// Business (15) · Réseau (multi-salons, 15/salon, tarif personnalisé).
+/// Business (15) · Réseau (multi-salons, 15/salon). The app only ever shows
+/// the salon's CURRENT tier (docs/design/pro-companion-path.md).
 enum SalonTier { pro, business, reseau }
 
 /// Derived billing status: trial → paid → grace (7 j) → expired.
@@ -33,9 +34,9 @@ class SalonSeats extends Equatable {
 }
 
 /// The salon's offer & billing state — mirrors the backend
-/// `SalonSubscription` DTO (GET/PUT /providers/{id}/subscription). The
-/// SETUP state (no offer yet) is a 404, not a row — the service maps it to
-/// code `no_offer`. Design: docs/design/team-access-r3-app.md.
+/// `SalonSubscription` DTO (GET /providers/{id}/subscription; the PUT is the
+/// web's). The SETUP state (no offer yet) is a 404, not a row — the service
+/// maps it to code `no_offer`. Design: docs/design/team-access-r3-app.md.
 class SalonSubscription extends Equatable {
   const SalonSubscription({
     required this.tier,

@@ -1,23 +1,17 @@
 import '../../models/salon_subscription.dart';
 
-/// Provider offer-ladder presentation config (pricing pivot, team access
-/// R2a/R3). **Provisional — pricing is unvalidated (OQ-2).** All figures live
-/// here so they're trivial to change at launch. Billing stays manual
-/// (« Nous contacter », no custody); this is display-only.
-/// Design: docs/design/team-access-r3-app.md.
+/// Seats per offer — the backend tier config mirrored for the mock world
+/// (the mock derives a salon's seat cap from its tier, the server sends it).
+///
+/// **Nothing here is displayed.** The Pro app shows only the salon's CURRENT
+/// offer — its tier, status, dates and seats, all from the server — and never
+/// another tier, a price, a trial promotion or an entitlement list: it is a
+/// companion app (App Store 3.1.3(f)), and offers are chosen on the web. The
+/// trial length, the anchors, the entitlement checklists and the ROI line
+/// left with the picker. Design: docs/design/pro-companion-path.md §2.
 class SubscriptionPlans {
   const SubscriptionPlans._();
 
-  /// Advertised free period (must match the backend trial of 90 days).
-  static const int trialMonths = 3;
-
-  /// **Anchor** ("regular") monthly prices in FCFA — intentionally higher
-  /// than the planned launch prices so the eventual paid price reads as a
-  /// discount off these anchors. Réseau has no figure (« Sur devis »).
-  static const int proAnchorMonthlyFcfa = 70000;
-  static const int businessAnchorMonthlyFcfa = 120000;
-
-  /// Seats per offer (mirrors the backend tier config).
   static const int proSeats = 5;
   static const int businessSeats = 15;
   static const int reseauSeatsPerSalon = 15;
@@ -27,54 +21,4 @@ class SubscriptionPlans {
     SalonTier.business => businessSeats,
     SalonTier.reseau => reseauSeatsPerSalon,
   };
-
-  /// What each offer includes (display checklists).
-  static const List<String> proEntitlements = [
-    'Réservations illimitées',
-    'Jusqu’à 5 membres d’équipe',
-    'Rappels automatiques WhatsApp/SMS (24 h / 2 h)',
-    'Règles d’acompte & protection no-show',
-    'Photos & galerie avant/après',
-    'Statistiques & gestion des avis',
-  ];
-
-  static const List<String> businessEntitlements = [
-    'Tout de l’offre Pro',
-    'Jusqu’à 15 membres d’équipe',
-    'Support prioritaire dédié',
-  ];
-
-  /// « Ask us what it costs » — a price in all but figure. Shown on Android
-  /// and the web; left out on iOS by [entitlementsFor] (store_policy.dart).
-  static const String reseauPricingLine = 'Tarif personnalisé';
-
-  static const List<String> reseauEntitlements = [
-    'Tout de l’offre Business',
-    'Multi-salons — ajoutez des salons à votre compte',
-    reseauPricingLine,
-  ];
-
-  /// The display checklist for [tier]. `withPricing: false` drops the lines
-  /// that speak about price (App Store 3.1.1 — store_policy.dart).
-  static List<String> entitlementsFor(
-    SalonTier tier, {
-    bool withPricing = true,
-  }) {
-    final all = switch (tier) {
-      SalonTier.pro => proEntitlements,
-      SalonTier.business => businessEntitlements,
-      SalonTier.reseau => reseauEntitlements,
-    };
-    return withPricing
-        ? all
-        : [
-            for (final l in all)
-              if (l != reseauPricingLine) l,
-          ];
-  }
-
-  /// The binding ROI narrative (PRD §6.1). « … paie le mois » speaks about
-  /// paying, so it is not shown on iOS (store_policy.dart).
-  static const String roiLine =
-      'Un seul rendez-vous manqué évité paie le mois.';
 }

@@ -16,11 +16,14 @@ import '../../../widgets/common/commune_picker_sheet.dart';
 
 /// « Ajouter un salon » (module `access` R6 — docs/design/
 /// team-access-r6-multi-salons.md §6): the second-salon form, reached from
-/// the Réseau offer card or the « Mes salons » switcher. Réseau-gated
-/// SERVER-side (403 `reseau_required` / 409 `salon_limit` — the codes render
-/// through the shared French table). Success switches to the new DRAFT
-/// salon and lands on its onboarding checklist — the same setup arc as the
-/// first salon.
+/// the live-Réseau card of « Mon abonnement » or the « Mes salons »
+/// switcher. Réseau-gated SERVER-side (403 `reseau_required` / 409
+/// `salon_limit`, and 403 `demo_account_locked` for the demo account) — the
+/// mock and the API both render those codes through the shared French table
+/// (`team_error_messages.dart`), neutral sentences with no upgrade pointer.
+/// Success switches to the new DRAFT salon and lands on its onboarding
+/// checklist — the same setup arc as the first salon, whose first publish
+/// starts its trial (docs/design/pro-companion-path.md §2.2).
 class AddSalonScreen extends StatefulWidget {
   const AddSalonScreen({super.key});
 
@@ -141,8 +144,7 @@ class _AddSalonScreenState extends State<AddSalonScreen> {
               const SizedBox(height: AppTheme.spacingS),
               Text(
                 'Le nouveau salon démarre en brouillon avec sa propre '
-                'configuration : fiche, catalogue, équipe, offre et '
-                'période d’essai.',
+                'configuration : fiche, catalogue, équipe.',
                 style: AppTextStyles.bodyMedium.copyWith(
                   color: AppColors.textSecondary,
                 ),

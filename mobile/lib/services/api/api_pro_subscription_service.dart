@@ -11,9 +11,11 @@ import '../interfaces/subscription_service_interface.dart';
 import 'refreshing_http_client.dart';
 
 /// Real HTTP implementation of [SubscriptionServiceInterface] (pricing
-/// pivot, team access R2a/R3): `GET/PUT /providers/{id}/subscription` on the
+/// pivot, team access R2a/R3): `GET /providers/{id}/subscription` on the
 /// **provider** session (silent refresh). The SETUP state is the server's
-/// 404 → code `no_offer`. Design: docs/design/team-access-r3-app.md.
+/// 404 → code `no_offer`. The `PUT` (choosing an offer) is the web's alone —
+/// the Pro app never sells. Design: docs/design/team-access-r3-app.md,
+/// docs/design/pro-companion-path.md.
 class ApiProSubscriptionService implements SubscriptionServiceInterface {
   ApiProSubscriptionService({
     http.Client? client,
@@ -50,28 +52,6 @@ class ApiProSubscriptionService implements SubscriptionServiceInterface {
     );
     if (res == null) return _networkError();
     if (res.statusCode == 404) return ApiResponse.error('', code: 'no_offer');
-    if (res.statusCode != 200) return _errorFrom(res);
-    return ApiResponse.success(
-      SalonSubscription.fromJson(jsonDecode(res.body) as Map<String, dynamic>),
-    );
-  }
-
-  @override
-  Future<ApiResponse<SalonSubscription>> chooseOffer(
-    String providerId,
-    SalonTier tier,
-  ) async {
-    if (await _authed.accessToken() == null) {
-      return ApiResponse.error('Non connecté');
-    }
-    final res = await _authed.send(
-      (t) => _client.put(
-        _uri('/providers/$providerId/subscription'),
-        headers: {..._bearer(t), 'Content-Type': 'application/json'},
-        body: jsonEncode({'tier': tier.name}),
-      ),
-    );
-    if (res == null) return _networkError();
     if (res.statusCode != 200) return _errorFrom(res);
     return ApiResponse.success(
       SalonSubscription.fromJson(jsonDecode(res.body) as Map<String, dynamic>),

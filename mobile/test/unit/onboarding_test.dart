@@ -14,7 +14,6 @@ void main() {
     VerificationStatus verificationStatus = VerificationStatus.verified,
     bool hasSubmittedKyc = true,
     BusinessType businessType = BusinessType.salon,
-    bool offerLive = true,
   }) => buildOnboardingChecklist(
     profileComplete: profileComplete,
     locationSet: locationSet,
@@ -26,7 +25,6 @@ void main() {
     verificationStatus: verificationStatus,
     hasSubmittedKyc: hasSubmittedKyc,
     businessType: businessType,
-    offerLive: offerLive,
   );
 
   OnboardingStepStatus statusOf(
@@ -125,15 +123,45 @@ void main() {
     expect(canGoLive(build(photoCount: 0)), isFalse);
   });
 
-  test('the OFFER gates go-live (pricing pivot — team access R2a/R3)', () {
-    final steps = build(offerLive: false);
-    expect(statusOf(steps, OnboardingStepKey.offer), OnboardingStepStatus.todo);
-    expect(canGoLive(steps), isFalse);
+  test('there is no offer step, and go-live never waits for an offer — the '
+      'server starts the trial at the first publish (pro-companion-path)', () {
+    // The checklist used to end on « Choisissez votre offre » / « 3 mois
+    // offerts » and block « Mettre mon profil en ligne » until a choice was
+    // made. The Pro app no longer offers a choice (App Store 3.1.3(f)), so a
+    // gate on one would be a dead end it could not explain.
+    final steps = build();
     expect(
-      statusOf(build(), OnboardingStepKey.offer),
-      OnboardingStepStatus.done,
+      steps.map((s) => s.key.name),
+      isNot(contains('offer')),
+      reason: 'the offer step is back in the checklist',
     );
-    expect(canGoLive(build()), isTrue);
+    expect(
+      OnboardingStepKey.values.map((k) => k.name),
+      isNot(contains('offer')),
+    );
+    // Every server gate key done, and nothing else asked: live.
+    expect(canGoLive(steps), isTrue);
+  });
+
+  test('the go-live keys are exactly the server publish gate', () {
+    // Each of the five gates, alone, blocks; nothing else does.
+    expect(canGoLive(build(profileComplete: false)), isFalse);
+    expect(canGoLive(build(locationSet: false)), isFalse);
+    expect(canGoLive(build(serviceCount: 2)), isFalse);
+    expect(canGoLive(build(availabilitySet: false)), isFalse);
+    expect(canGoLive(build(photoCount: 2)), isFalse);
+    expect(
+      canGoLive(
+        build(
+          depositConfigured: false,
+          verificationStatus: VerificationStatus.pending,
+          hasSubmittedKyc: false,
+          businessType: BusinessType.other,
+          staffCount: 0,
+        ),
+      ),
+      isTrue,
+    );
   });
 
   test('progress ignores optional steps', () {
@@ -144,8 +172,8 @@ void main() {
     );
     final p = onboardingProgress(steps);
     // actionable = profile, location, services, availability, deposit,
-    // verification, photos, offer (staff optional for a freelancer).
-    expect(p.total, 8);
-    expect(p.done, 7); // photos still todo
+    // verification, photos (staff optional for a freelancer; no offer step).
+    expect(p.total, 7);
+    expect(p.done, 6); // photos still todo
   });
 }

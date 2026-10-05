@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/forms/field_errors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
+import '../../../core/utils/team_error_messages.dart';
 import '../../../core/utils/validators.dart';
 import '../../../models/team_member.dart';
 import '../../../providers/pro_artist_provider.dart';
+import '../../../providers/pro_auth_provider.dart';
+import '../../../providers/pro_subscription_provider.dart';
 import '../../../providers/pro_team_provider.dart';
 import '../../../widgets/common/app_button.dart';
 import '../../../widgets/common/app_snack_bar.dart';
@@ -138,9 +140,45 @@ class _InviteMemberSheetState extends State<InviteMemberSheet> {
     }
   }
 
+  /// The sentence under a refused invite. `offer_required` is ONE server
+  /// code for two salons that need different sentences, and the code alone
+  /// cannot tell them apart — the salon's offer state can, and so can its
+  /// publish status. « Équipe » loads the offer state before this sheet opens
+  /// (the seats header reads it), so the sheet decides from what it holds:
+  ///
+  /// - an offer row is KNOWN to exist (`salon != null`) yet the server says
+  ///   it is not live → it expired: « …n’est plus active » ;
+  /// - the salon is ONLINE → it has a row (publishing creates one when there
+  ///   is none — pro-companion-path §3.1), so a refusal by the offer gate
+  ///   means that row expired: the same sentence. This is what keeps it true
+  ///   when the offer state has not loaded or failed to: with
+  ///   `SUBSCRIPTION_ENFORCEMENT` off an expired salon is never unpublished,
+  ///   and the setup sentence « …une fois votre salon en ligne » would be
+  ///   said to a salon that is already online — a promise that cannot come
+  ///   true, since the trial starts at a publish that already happened;
+  /// - otherwise — a draft salon (no row: the trial starts at the first
+  ///   publish) — the setup sentence, which the service already produced.
+  String? _inviteFeedback(
+    ProTeamProvider team,
+    ProSubscriptionProvider subscription, {
+    required bool salonOnline,
+  }) {
+    if (team.inviteErrorCode != 'offer_required') return team.inviteError;
+    return inviteOfferRequiredMessage(
+      offerExists: subscription.salon != null || salonOnline,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final team = context.watch<ProTeamProvider>();
+    final subscription = context.watch<ProSubscriptionProvider>();
+    // The acting salon's lifecycle from the session (GET /me/provider) — only
+    // when it IS the salon this sheet invites into.
+    final salonOnline = context.select<ProAuthProvider, bool>((auth) {
+      final salon = auth.activeSalon;
+      return salon != null && salon.id == widget.providerId && salon.isLive;
+    });
     return Padding(
       padding: EdgeInsets.only(
         left: AppTheme.spacingL,
@@ -188,21 +226,15 @@ class _InviteMemberSheetState extends State<InviteMemberSheet> {
               // A6's in-modal slot, replacing a hand-rolled red Text: a snackbar
               // here would be pruned by the sheet's ModalBarrier, and a bare Text
               // is not a live region — so this failure was silent either way.
-              InlineFeedback(team.inviteError),
-              if (team.inviteErrorCode == 'offer_required' ||
-                  team.inviteErrorCode == 'seat_limit') ...[
-                const SizedBox(height: AppTheme.spacingS),
-                AppButton(
-                  text: team.inviteErrorCode == 'offer_required'
-                      ? 'Choisir mon offre'
-                      : 'Changer d’offre',
-                  type: AppButtonType.secondary,
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                    context.push('/pro/subscription');
-                  },
-                ),
-              ],
+              //
+              // A sentence and nothing else: no « choose / change your offer »
+              // button for `offer_required` or `seat_limit` — the Pro app never
+              // sells (App Store 3.1.3(f), docs/design/pro-companion-path.md
+              // §2.2). And because this is a live region, the sentence itself
+              // is what VoiceOver reads: it must be neutral too.
+              InlineFeedback(
+                _inviteFeedback(team, subscription, salonOnline: salonOnline),
+              ),
             ],
           ],
         ),

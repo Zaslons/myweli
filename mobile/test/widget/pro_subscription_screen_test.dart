@@ -1,9 +1,9 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/date_symbol_data_local.dart';
-import 'package:myweli/core/config/subscription_plans.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
+import 'package:myweli/core/utils/formatters.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/provider_user.dart';
 import 'package:myweli/models/salon_subscription.dart';
@@ -18,6 +18,8 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../support/pump_app.dart';
+import '../support/settle.dart';
+import '../support/surface.dart';
 
 class _SwitchableAuth extends MockAuthService {
   ProviderUser? current;
@@ -26,7 +28,8 @@ class _SwitchableAuth extends MockAuthService {
   Future<ProviderUser?> getCurrentProvider() async => current;
 }
 
-/// Scenario-switchable offer state (each test picks its inner service).
+/// Scenario-switchable offer state (each test picks its inner service) —
+/// serviceLocator fields are late-final, so scenarios swap through `inner`.
 class _SwitchableSubs implements SubscriptionServiceInterface {
   SubscriptionServiceInterface inner = MockSubscriptionService();
 
@@ -34,30 +37,39 @@ class _SwitchableSubs implements SubscriptionServiceInterface {
   Future<ApiResponse<SalonSubscription>> getSalonSubscription(
     String providerId,
   ) => inner.getSalonSubscription(providerId);
-
-  @override
-  Future<ApiResponse<SalonSubscription>> chooseOffer(
-    String providerId,
-    SalonTier tier,
-  ) => inner.chooseOffer(providerId, tier);
 }
 
-/// Team access R3 §2.4 — « Mon abonnement »: the setup picker, the offer
-/// cards (anchor prices, seats, 3 mois offerts), the four billing states,
-/// trial_used and the owner-only guard.
+/// « Mon abonnement » is READ-ONLY — the Pro app never sells (App Store
+/// 3.1.3(f), docs/design/pro-companion-path.md §2.2): each state shows the
+/// salon's current offer and nothing that chooses, switches, promotes or
+/// points to where an offer is obtained. The key tests run on BOTH platforms
+/// (`TargetPlatformVariant`): the rule is not a platform branch, and the
+/// variant is what proves none exists — `flutter test` reports Android, so
+/// without it an iOS-only branch would never render here.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   final auth = _SwitchableAuth();
   final subs = _SwitchableSubs();
+  final bothPlatforms = TargetPlatformVariant(const {
+    TargetPlatform.android,
+    TargetPlatform.iOS,
+  });
+
+  final trialEnd = DateTime.now().add(const Duration(days: 45));
+  final graceEnd = DateTime.now().add(const Duration(days: 52));
+  final paidUntil = DateTime.now().add(const Duration(days: 20));
 
   SalonSubscription state({
+    SalonTier tier = SalonTier.pro,
     SalonOfferStatus status = SalonOfferStatus.trial,
     bool unpublished = false,
+    DateTime? paid,
   }) => SalonSubscription(
-    tier: SalonTier.pro,
+    tier: tier,
     status: status,
-    trialEndsAt: DateTime.now().add(const Duration(days: 45)),
-    graceEndsAt: DateTime.now().add(const Duration(days: 52)),
+    trialEndsAt: trialEnd,
+    graceEndsAt: graceEnd,
+    paidUntil: paid,
     unpublishedForBilling: unpublished,
     seats: const SalonSeats(cap: 5, used: 3),
   );
@@ -70,6 +82,7 @@ void main() {
   });
 
   setUp(() {
+    MockData.resetTeam();
     auth.current = MockData.providerUsers.first;
     subs.inner = MockSubscriptionService(); // setup state
   });
@@ -82,267 +95,278 @@ void main() {
     home: const ProSubscriptionScreen(),
   );
 
-  Future<void> settle(WidgetTester tester) async {
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 400));
-    await tester.pump(const Duration(milliseconds: 400));
-    await tester.pump();
+  /// Session load → offer load: two sequential mock calls.
+  Future<void> pumpScreen(WidgetTester tester) async {
+    await tester.pumpWidget(app());
+    await settleMocks(tester, rounds: 2);
   }
 
-  /// The offer cards are tall and the ListView mounts lazily — drag until
-  /// the target is built, then bring it fully into view.
-  Future<void> scrollTo(WidgetTester tester, Finder finder) async {
-    for (var i = 0; i < 20 && finder.evaluate().isEmpty; i++) {
-      await tester.drag(find.byType(ListView).first, const Offset(0, -400));
-      await tester.pump();
-    }
-    expect(finder, findsWidgets);
-    await tester.ensureVisible(finder.first);
-    await tester.pump();
-  }
+  /// The seat cap the mock derives from the tier, against the seeded team.
+  String seatsLine(int cap) =>
+      '${MockData.teamSeatsUsed(providerId: 'provider1')} / $cap places';
 
-  testWidgets('SETUP: the picker headline + three cards with seats and '
-      '« 3 mois offerts », and NO price', (tester) async {
-    await tester.pumpWidget(app());
-    await settle(tester);
+  /// Everything the read-only screen may never show, in any state, on any
+  /// platform — the spec's §2.1 rule as finders. « Pro » / « Business » /
+  /// « Réseau » are EXACT matches: they were the offer cards' titles, while
+  /// the banner legitimately names the current tier inside a longer line
+  /// (« Offre Réseau active »).
+  List<Finder> forbidden() => [
+    find.textContaining('Choisir'),
+    find.textContaining('Choisissez'),
+    find.textContaining('Changer d’offre'),
+    find.textContaining('changement d’offre'),
+    find.textContaining('mois offerts'),
+    find.text('Votre offre'),
+    find.text('Pro'),
+    find.text('Business'),
+    find.text('Réseau'),
+    find.textContaining('Aide & Support'),
+    find.textContaining('myweli.com'),
+    find.textContaining('Tarif personnalisé'),
+    find.textContaining('Réactivez'),
+    find.textContaining('Activez'),
+    find.textContaining('paie le mois'),
+    find.textContaining('Réservations illimitées'),
+    find.textContaining('Tout de l’offre'),
+    find.textContaining('FCFA'),
+    find.textContaining('Paiement à jour'),
+    find.textContaining('essai gratuit a déjà'),
+    // No button of any kind: the only control the screen keeps is the
+    // live-Réseau « Ajouter un salon » row, which is a ListTile.
+    find.byWidgetPredicate((w) => w is ButtonStyleButton),
+  ];
 
-    expect(
-      find.text('Choisissez votre offre — 3 mois offerts'),
-      findsOneWidget,
-    );
-    expect(find.text('Pro'), findsOneWidget);
-    expect(find.text('5 places'), findsOneWidget);
-    await scrollTo(tester, find.text('Business'));
-    expect(find.text('15 places'), findsOneWidget);
-    await scrollTo(tester, find.text('Réseau'));
-    expect(find.text('15 places par salon'), findsOneWidget);
-    // App Store 3.1.1: no price in the binary. « Sur devis » went with the
-    // struck-through anchors — a tier whose price is "ask us" is still a price
-    // on a card next to a way to buy.
-    expect(find.text('Sur devis'), findsNothing);
-    expect(find.textContaining('FCFA'), findsNothing);
-    expect(find.text('/mois'), findsNothing);
-    // R6: multi-salons is LIVE — the entitlement no longer says bientôt.
-    expect(
-      find.text('Multi-salons — ajoutez des salons à votre compte'),
-      findsOneWidget,
-    );
-  });
-
-  testWidgets('choosing Pro starts the trial: snackbar + banner + seats bar '
-      '+ « Votre offre » badge', (tester) async {
-    await tester.pumpWidget(app());
-    await settle(tester);
-
-    await tester.tap(find.text('Choisir').first);
-    await settle(tester);
-
-    expect(find.textContaining('Offre Pro choisie'), findsOneWidget);
-    expect(find.textContaining('Essai gratuit'), findsOneWidget);
-    await scrollTo(tester, find.text('Votre offre'));
-    await scrollTo(tester, find.text('Changer d’offre').first);
-    await scrollTo(
-      tester,
-      find.text('Le changement d’offre conserve votre période d’essai.'),
-    );
-  });
-
-  testWidgets('GRACE: the urgent banner + WhatsApp CTA', (tester) async {
-    subs.inner = MockSubscriptionService(
-      initial: state(status: SalonOfferStatus.grace),
-    );
-    await tester.pumpWidget(app());
-    await settle(tester);
-
-    expect(find.text('Votre offre a expiré'), findsOneWidget);
-    expect(find.textContaining('dépublication'), findsOneWidget);
-    // Was « Nous contacter », which opened WhatsApp with « je souhaite régler
-    // mon offre » — a purchase conversation begun inside the app.
-    expect(find.text('Aide & Support'), findsWidgets);
-    expect(find.text('Nous contacter'), findsNothing);
-  });
-
-  testWidgets('EXPIRED + unpublished: « Salon dépublié » with the '
-      'data-intact reassurance; a re-choice surfaces trial_used', (
-    tester,
-  ) async {
-    subs.inner = MockSubscriptionService(
-      initial: state(status: SalonOfferStatus.expired, unpublished: true),
-    );
-    await tester.pumpWidget(app());
-    await settle(tester);
-
-    expect(find.text('Salon dépublié'), findsOneWidget);
-    expect(find.textContaining('vos données sont intactes'), findsOneWidget);
-
-    // `.first` throws on an empty candidate set while scrolling — reach
-    // the Business card by its (unique) name first.
-    await scrollTo(tester, find.text('Business'));
-    await tester.tap(find.text('Changer d’offre').first);
-    await settle(tester);
-    // The trial-used notice lands ABOVE the cards — scroll back up.
-    for (
-      var i = 0;
-      i < 20 &&
-          find
-              .text('Votre essai gratuit a déjà été utilisé.')
-              .evaluate()
-              .isEmpty;
-      i++
-    ) {
-      await tester.drag(find.byType(ListView).first, const Offset(0, 400));
-      await tester.pump();
-    }
-    expect(
-      find.text('Votre essai gratuit a déjà été utilisé.'),
-      findsOneWidget,
-    );
-  });
-
-  /// Walks the whole (lazy) ListView from the TOP to the bottom and fails if
-  /// any of [finders] matches at any point — `find` only sees built widgets,
-  /// so one look at the first screen would prove nothing about the cards
-  /// below it.
+  /// Walks the whole screen from the TOP to the BOTTOM and fails if any of
+  /// [finders] matches at any point — `find` only sees built widgets, so one
+  /// look at the first screen proves nothing about what is below it.
   ///
-  /// **It jumps to the top first, and that is load-bearing.** The first
-  /// version started wherever the list was; a second `pumpWidget` of the same
-  /// screen keeps the scroll offset, so a check made after an earlier walk
-  /// began at the bottom and never saw the first card. The ROI-line mutation
-  /// survived that way — a guard that could not fail.
+  /// **It jumps to the top first, and that is load-bearing.** A second
+  /// `pumpWidget` of the same screen keeps the scroll offset, and an earlier
+  /// version of this walk that started wherever the list was let a mutation
+  /// survive — it began at the bottom and never saw the first card.
+  ///
+  /// **It asserts it reached the bottom**, so a list that grew past the walk's
+  /// bound fails here instead of passing unseen.
   Future<void> expectNowhere(WidgetTester tester, List<Finder> finders) async {
     final scrollable = find.byType(Scrollable).first;
-    tester.state<ScrollableState>(scrollable).position.jumpTo(0);
+    final position = tester.state<ScrollableState>(scrollable).position;
+    position.jumpTo(0);
     await tester.pump();
-    for (var i = 0; i < 25; i++) {
+    for (var i = 0; i < 40; i++) {
       for (final f in finders) {
         expect(f, findsNothing, reason: 'found on scroll step $i: $f');
       }
-      await tester.drag(find.byType(ListView).first, const Offset(0, -300));
+      if (position.pixels >= position.maxScrollExtent) break;
+      await tester.drag(scrollable, const Offset(0, -300));
       await tester.pump();
     }
+    expect(
+      position.pixels,
+      position.maxScrollExtent,
+      reason: 'the walk never reached the bottom of the screen',
+    );
     for (final f in finders) {
       expect(f, findsNothing);
     }
   }
 
-  /// Every test in this group runs AS iOS. `flutter test` reports Android, so
-  /// without the override the store-policy branch is unreachable — the blind
-  /// spot this repo has already been bitten by. Reset in a `finally`: the
-  /// framework checks debug overrides at the end of the body, before tearDowns.
-  Future<void> asIos(Future<void> Function() body) async {
-    debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
-    try {
-      await body();
-    } finally {
-      debugDefaultTargetPlatformOverride = null;
-    }
-  }
+  group('read-only on both platforms — no plan choice, no promotion, no '
+      'pointer', () {
+    testWidgets('SETUP (no offer row): the fact and when it changes — '
+        'nothing else', (tester) async {
+      await pumpScreen(tester);
 
-  group('iOS — the offer state, never where to pay (App Store 3.1.1)', () {
-    testWidgets('SETUP: no « myweli.com », no ROI line, no « Tarif '
-        'personnalisé » anywhere in the list', (tester) async {
-      await asIos(() async {
-        await tester.pumpWidget(app());
-        await settle(tester);
-        expect(
-          find.text('Choisissez votre offre — 3 mois offerts'),
-          findsOneWidget,
-        );
-        await expectNowhere(tester, [
-          find.textContaining('myweli.com'),
-          find.text(SubscriptionPlans.roiLine),
-          find.text(SubscriptionPlans.reseauPricingLine),
-        ]);
-      });
-    });
+      expect(find.text('Pas encore d’offre active'), findsOneWidget);
+      expect(
+        find.text('Votre offre démarre à la mise en ligne de votre salon.'),
+        findsOneWidget,
+      );
+      // « Nothing else » (§2.2): no seats, no reassurance footer, no card.
+      expect(find.textContaining('places'), findsNothing);
+      expect(find.text('Vos données ne sont jamais bloquées.'), findsNothing);
+      // The old setup headline and line, gone with the picker.
+      expect(find.textContaining('reste gratuit'), findsNothing);
+      await expectNowhere(tester, forbidden());
+    }, variant: bothPlatforms);
 
-    testWidgets('control — Android keeps the web pointer and the ROI line', (
+    testWidgets('TRIAL: the banner and the seats bar, no cards', (
       tester,
     ) async {
-      // Without this, a guard that hid the copy EVERYWHERE would pass too.
-      // Top-down in one pass: the ROI line sits in the first card, the web
-      // pointer below the last — a second pump would keep the scroll offset.
-      await tester.pumpWidget(app());
-      await settle(tester);
-      await scrollTo(tester, find.text(SubscriptionPlans.roiLine));
-      await scrollTo(tester, find.textContaining('myweli.com'));
-    });
+      subs.inner = MockSubscriptionService(initial: state());
+      await pumpScreen(tester);
 
-    testWidgets('GRACE: urgent and dated, but no « Gérez votre offre sur '
-        'myweli.com »', (tester) async {
+      expect(find.textContaining('Essai gratuit — '), findsOneWidget);
+      expect(
+        find.text(
+          'Offre Pro · se termine le ${Formatters.formatDate(trialEnd)}',
+        ),
+        findsOneWidget,
+      );
+      expect(find.text(seatsLine(5)), findsOneWidget);
+      expect(find.text('Vos données ne sont jamais bloquées.'), findsOneWidget);
+      await expectNowhere(tester, forbidden());
+    }, variant: bothPlatforms);
+
+    testWidgets('PAID: « Offre {tier} active » until its date, seats, no '
+        'cards', (tester) async {
+      subs.inner = MockSubscriptionService(
+        initial: state(
+          tier: SalonTier.business,
+          status: SalonOfferStatus.paid,
+          paid: paidUntil,
+        ),
+      );
+      await pumpScreen(tester);
+
+      expect(find.text('Offre Business active'), findsOneWidget);
+      expect(
+        find.text('Jusqu’au ${Formatters.formatDate(paidUntil)}'),
+        findsOneWidget,
+      );
+      expect(find.text(seatsLine(15)), findsOneWidget);
+      await expectNowhere(tester, forbidden());
+    }, variant: bothPlatforms);
+
+    testWidgets('GRACE: urgent and dated, with no button', (tester) async {
       subs.inner = MockSubscriptionService(
         initial: state(status: SalonOfferStatus.grace),
       );
-      await asIos(() async {
-        await tester.pumpWidget(app());
-        await settle(tester);
-        expect(find.text('Votre offre a expiré'), findsOneWidget);
-        expect(find.textContaining('dépublication'), findsOneWidget);
-        await expectNowhere(tester, [find.textContaining('myweli.com')]);
-      });
-    });
+      await pumpScreen(tester);
 
-    testWidgets('EXPIRED + unpublished: reassurance kept, « Réactivez … sur '
-        'myweli.com » gone', (tester) async {
-      subs.inner = MockSubscriptionService(
-        initial: state(status: SalonOfferStatus.expired, unpublished: true),
+      expect(find.text('Votre offre a expiré'), findsOneWidget);
+      expect(
+        find.text(
+          'Période de grâce jusqu’au ${Formatters.formatDate(graceEnd)}.',
+        ),
+        findsOneWidget,
       );
-      await asIos(() async {
-        await tester.pumpWidget(app());
-        await settle(tester);
-        expect(find.text('Salon dépublié'), findsOneWidget);
-        expect(
-          find.textContaining('Vos données sont intactes'),
-          findsOneWidget,
-        );
-        await expectNowhere(tester, [find.textContaining('Réactivez')]);
-      });
-    });
+      // The old line announced the unpublishing and, on Android, where to pay.
+      expect(find.textContaining('dépublication'), findsNothing);
+      await expectNowhere(tester, forbidden());
+    }, variant: bothPlatforms);
 
-    testWidgets('trial already used: the notice, without « Activez votre '
-        'offre … sur myweli.com »', (tester) async {
-      subs.inner = MockSubscriptionService(
-        initial: state(status: SalonOfferStatus.expired, unpublished: true),
-      );
-      await asIos(() async {
-        await tester.pumpWidget(app());
-        await settle(tester);
-        await scrollTo(tester, find.text('Business'));
-        await tester.tap(find.text('Changer d’offre').first);
-        await settle(tester);
-        for (
-          var i = 0;
-          i < 20 &&
-              find
-                  .text('Votre essai gratuit a déjà été utilisé.')
-                  .evaluate()
-                  .isEmpty;
-          i++
-        ) {
-          await tester.drag(find.byType(ListView).first, const Offset(0, 400));
-          await tester.pump();
-        }
-        expect(
-          find.text('Votre essai gratuit a déjà été utilisé.'),
-          findsOneWidget,
-        );
-        expect(find.textContaining('Activez votre offre'), findsNothing);
-        expect(find.textContaining('myweli.com'), findsNothing);
-      });
-    });
-
-    testWidgets('EXPIRED (still published): « Offre expirée » with no '
-        'purchase pointer', (tester) async {
+    testWidgets('EXPIRED (still published): « Offre expirée », data intact, '
+        'no button', (tester) async {
       subs.inner = MockSubscriptionService(
         initial: state(status: SalonOfferStatus.expired),
       );
-      await asIos(() async {
-        await tester.pumpWidget(app());
-        await settle(tester);
-        expect(find.text('Offre expirée'), findsOneWidget);
-        await expectNowhere(tester, [find.textContaining('myweli.com')]);
-      });
-    });
+      await pumpScreen(tester);
+
+      expect(find.text('Offre expirée'), findsOneWidget);
+      expect(find.text('Vos données sont intactes.'), findsOneWidget);
+      await expectNowhere(tester, forbidden());
+    }, variant: bothPlatforms);
+
+    testWidgets('EXPIRED + unpublished: « Salon dépublié » with the '
+        'reassurance, no button', (tester) async {
+      subs.inner = MockSubscriptionService(
+        initial: state(status: SalonOfferStatus.expired, unpublished: true),
+      );
+      await pumpScreen(tester);
+
+      expect(find.text('Salon dépublié'), findsOneWidget);
+      expect(
+        find.text(
+          'Votre salon n’est plus visible des clients. '
+          'Vos données sont intactes.',
+        ),
+        findsOneWidget,
+      );
+      await expectNowhere(tester, forbidden());
+    }, variant: bothPlatforms);
+
+    testWidgets('LIVE RÉSEAU: « Ajouter un salon » states what the offer '
+        'allows — never another offer or a trial', (tester) async {
+      subs.inner = MockSubscriptionService(
+        initial: state(tier: SalonTier.reseau),
+      );
+      await pumpScreen(tester);
+
+      expect(
+        find.text(
+          'Offre Réseau · se termine le ${Formatters.formatDate(trialEnd)}',
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('Ajouter un salon'), findsOneWidget);
+      expect(find.text('Un salon de plus dans votre compte.'), findsOneWidget);
+      expect(find.textContaining('propre essai'), findsNothing);
+      await expectNowhere(tester, forbidden());
+    }, variant: bothPlatforms);
+  });
+
+  testWidgets('PAID with no `paidUntil`: the title alone — the dead « Paiement '
+      'à jour » fallback is gone', (tester) async {
+    subs.inner = MockSubscriptionService(
+      initial: state(status: SalonOfferStatus.paid),
+    );
+    await pumpScreen(tester);
+
+    expect(find.text('Offre Pro active'), findsOneWidget);
+    expect(find.textContaining('Jusqu’au'), findsNothing);
+    expect(find.textContaining('Paiement à jour'), findsNothing);
+  });
+
+  testWidgets('an EXPIRED Réseau offer does not open « Ajouter un salon »', (
+    tester,
+  ) async {
+    subs.inner = MockSubscriptionService(
+      initial: state(tier: SalonTier.reseau, status: SalonOfferStatus.expired),
+    );
+    await pumpScreen(tester);
+
+    expect(find.text('Offre expirée'), findsOneWidget);
+    expect(find.text('Ajouter un salon'), findsNothing);
+  });
+
+  testWidgets('« Ajouter un salon » opens the add-salon form', (tester) async {
+    subs.inner = MockSubscriptionService(
+      initial: state(tier: SalonTier.reseau),
+    );
+    final router = GoRouter(
+      routes: [
+        GoRoute(path: '/', builder: (_, _) => const ProSubscriptionScreen()),
+        GoRoute(
+          path: '/pro/salons/nouveau',
+          builder: (_, _) => const Scaffold(body: Text('NOUVEAU SALON')),
+        ),
+      ],
+    );
+    await tester.pumpWidget(
+      wrapApp(
+        providers: [
+          ChangeNotifierProvider(create: (_) => ProAuthProvider()),
+          ChangeNotifierProvider(create: (_) => ProSubscriptionProvider()),
+        ],
+        routerConfig: router,
+      ),
+    );
+    await settleMocks(tester, rounds: 2);
+
+    await tester.tap(find.text('Ajouter un salon'));
+    await settleMocks(tester);
+    expect(find.text('NOUVEAU SALON'), findsOneWidget);
+  });
+
+  testWidgets('200 % text on a 360dp phone: the longest state lays out '
+      'without overflow', (tester) async {
+    pinSurface(tester, size: kFloorPhone, scale: 2.0);
+    subs.inner = MockSubscriptionService(
+      initial: state(status: SalonOfferStatus.expired, unpublished: true),
+    );
+    await pumpScreen(tester);
+
+    expect(find.text('Salon dépublié'), findsOneWidget);
+    await expectNowhere(tester, forbidden());
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('a load failure offers a retry, not a dead end', (tester) async {
+    subs.inner = _FailingSubs();
+    await pumpScreen(tester);
+
+    expect(find.text('Une erreur est survenue'), findsOneWidget);
+    expect(find.text('Réessayer'), findsOneWidget);
   });
 
   testWidgets('a bare member account gets the owner-only guard', (
@@ -356,8 +380,14 @@ void main() {
       email: 'x@b.com',
       createdAt: DateTime(2026),
     );
-    await tester.pumpWidget(app());
-    await settle(tester);
+    await pumpScreen(tester);
     expect(find.text('Réservé au propriétaire'), findsOneWidget);
   });
+}
+
+class _FailingSubs implements SubscriptionServiceInterface {
+  @override
+  Future<ApiResponse<SalonSubscription>> getSalonSubscription(
+    String providerId,
+  ) async => ApiResponse.error('Pas de connexion. Réessayez.');
 }
