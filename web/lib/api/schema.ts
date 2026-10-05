@@ -1462,7 +1462,7 @@ export interface paths {
         };
         /**
          * « Mes salons » — every ACTIVE membership + the add-salon gate (access R6)
-         * @description Provider-only. Every salon the caller holds an ACTIVE membership in (owned first, then salonName), each with the caller's role there and the salon's status/badge — the switcher payload. `canAddSalon` is SERVER-computed (≥1 owned salon on a live Réseau offer, under the salon cap — clients never derive rights). A bare account gets `{items: [], canAddSalon: false}`.
+         * @description Provider-only. Every salon the caller holds an ACTIVE membership in (owned first, then salonName), each with the caller's role there and the salon's status/badge — the switcher payload. `canAddSalon` is SERVER-computed (≥1 owned salon on a live Réseau offer, under the salon cap, never for the store-review demo account — clients never derive rights). A bare account gets `{items: [], canAddSalon: false}`.
          */
         get: {
             parameters: {
@@ -1492,7 +1492,7 @@ export interface paths {
         put?: never;
         /**
          * « Ajouter un salon » — an additional draft salon (access R6, Réseau-gated)
-         * @description Provider-only (threat T55). Requires ≥1 OWNED salon with a live (trial/paid/grace) Réseau offer → else 403 `reseau_required`; capped at 20 owned salons → 409 `salon_limit`. Creates a DRAFT salon (own setup state — its own offer, its own trial, its own publish gate; no subscription row) plus the owner membership row; the account's default salon link is untouched. The « Vérifié » badge is inherited when the account's KYC is approved (T52). `phoneNumber` defaults to the account's.
+         * @description Provider-only (threat T55). Requires ≥1 OWNED salon with a live (trial/paid/grace) Réseau offer → else 403 `reseau_required`; capped at 20 owned salons → 409 `salon_limit`. The store-review demo account → 403 `demo_account_locked` (T69 — its credential is public; checked in the service before any salon field is read — a malformed body or `areaId` still answers 400 first — and `GET`'s `canAddSalon` is false for it). Creates a DRAFT salon (own setup state — its own offer, its own trial, its own publish gate; no subscription row — its trial starts at its first publish: on Réseau while the owner's other Réseau offer is still live then, else on Pro) plus the owner membership row; the account's default salon link is untouched. The « Vérifié » badge is inherited when the account's KYC is approved (T52). `phoneNumber` defaults to the account's.
          */
         post: {
             parameters: {
@@ -1528,7 +1528,7 @@ export interface paths {
                 };
                 400: components["responses"]["BadRequest"];
                 401: components["responses"]["Unauthorized"];
-                /** @description Not a provider (`forbidden`), or no live Réseau offer on any owned salon (`reseau_required`). */
+                /** @description Not a provider (`forbidden`), no live Réseau offer on any owned salon (`reseau_required`), or the store-review demo account (`demo_account_locked`, T69). */
                 403: {
                     headers: {
                         [name: string]: unknown;
@@ -3155,7 +3155,7 @@ export interface paths {
         put?: never;
         /**
          * Take the salon live (pro-salon-lifecycle)
-         * @description Owner-only (the token's account must own {id} — T50). Flips the salon from `draft` to `active` when the server-computed go-live gate passes (PRD FR-PRO-ONB-001): profile (description + address + commune), ≥3 active services, ≥3 photos, at least one open weekday. Incomplete → 409 `incomplete` with the missing checklist keys. Idempotent for an already-active salon. Drafts are invisible on every public surface (discovery, by-slug, sitemap) and refuse bookings (T51). The store-review demo account is refused outright — 403 `demo_account_locked` (T69): its credential is public, so its salon may never enter the public set.
+         * @description Owner-only (the token's account must own {id} — T50). Flips the salon from `draft` to `active` when the server-computed go-live gate passes (PRD FR-PRO-ONB-001): profile (description + address + commune), map pin, ≥3 active services, ≥3 photos, at least one open weekday, and a live offer. Incomplete → 409 `incomplete` with the missing checklist keys. **The trial starts here when no offer exists** (docs/design/pro-companion-path.md §3.1): a salon with NO subscription row is never refused for `offer` — once every other key passes, the server creates its ONE 3-month trial (tier `reseau` when the owner already owns another salon on a live Réseau offer, else `pro`; insert-if-absent, so an offer chosen first on the web keeps its tier and its clock) and then publishes. `offer` is reported only when a row exists and is no longer live (`expired`) — never a second trial. Idempotent for an already-active salon. Drafts are invisible on every public surface (discovery, by-slug, sitemap) and refuse bookings (T51). The store-review demo account is refused outright — 403 `demo_account_locked` (T69): its credential is public, so its salon may never enter the public set. A salon an admin SUSPENDED is refused too — 403 `provider_suspended` (T17): only the audited admin restore lifts a suspension, and the refusal comes before the gate, so a suspended salon never gets a trial here.
          */
         post: {
             parameters: {
@@ -3178,9 +3178,17 @@ export interface paths {
                     };
                 };
                 401: components["responses"]["Unauthorized"];
-                403: components["responses"]["Forbidden"];
+                /** @description Not the salon's owner (`forbidden`), the store-review demo account's salon (`demo_account_locked`, T69), or a salon an admin suspended (`provider_suspended`, T17 — lifted only by the admin restore). */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
                 404: components["responses"]["NotFound"];
-                /** @description The go-live gate failed */
+                /** @description The go-live gate failed. `offer` appears only for a salon whose existing offer is no longer live (expired); a salon with no offer yet gets its trial at this publish instead. */
                 409: {
                     headers: {
                         [name: string]: unknown;
@@ -3384,7 +3392,7 @@ export interface paths {
         };
         /**
          * The salon's offer state (pricing pivot — R2a)
-         * @description Owner-only (`subscription.manage`, threat T54). 404 while the salon is in the free setup state (no offer chosen). Status lifecycle: `trial` → (`paid`)* → `grace` (7 days) → `expired`; expiry leads to UNPUBLISH (draft, T51) — never a data lockout.
+         * @description Owner-only (`subscription.manage`, threat T54). 404 while the salon is in the free setup state — no offer yet: the trial starts at the first publish or at the first choice, whichever comes first (docs/design/pro-companion-path.md §3.1). Status lifecycle: `trial` → (`paid`)* → `grace` (7 days) → `expired`; expiry leads to UNPUBLISH (draft, T51) — never a data lockout.
          */
         get: {
             parameters: {
@@ -3408,12 +3416,20 @@ export interface paths {
                 };
                 401: components["responses"]["Unauthorized"];
                 403: components["responses"]["Forbidden"];
-                404: components["responses"]["NotFound"];
+                /** @description Setup state — the salon has no offer yet (`not_found`); its trial starts at its first publish or its first choice. */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
             };
         };
         /**
          * Choose or switch the salon's offer (3 mois offerts)
-         * @description Owner-only. The FIRST choice starts the salon's ONE 3-month trial; switches keep the clock; once `expired`, re-choosing → 409 `trial_used` (payment is manual — « Nous contacter », admin-recorded).
+         * @description Owner-only. The FIRST choice starts the salon's ONE 3-month trial — unless its first publish already did, in which case this is a switch; switches keep the clock; once `expired`, re-choosing → 409 `trial_used` (payment is manual — « Nous contacter », admin-recorded). Offers are chosen on the web only — the Pro app shows the state and never offers a choice (App Store 3.1.3(f)). 403 `demo_account_locked` for the store-review demo account's salon (T69 — its credential is public).
          */
         put: {
             parameters: {
@@ -3444,7 +3460,15 @@ export interface paths {
                 };
                 400: components["responses"]["BadRequest"];
                 401: components["responses"]["Unauthorized"];
-                403: components["responses"]["Forbidden"];
+                /** @description Not the salon's owner (`forbidden`), or the store-review demo account's salon (`demo_account_locked`, T69). */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
                 /** @description Trial already used (`trial_used`) */
                 409: {
                     headers: {
@@ -5458,6 +5482,58 @@ export interface paths {
         };
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/demo/snapshot": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Capture the demo salon's snapshot and pin its offer (T69) — audited
+         * @description Takes no body: the target is derived server-side from the compile-time demo identity (`revue@myweli.test`'s salon), never from input, and must be demo-OWNED (its owner membership is the demo identity) or nothing is written. Stores the canonical snapshot the 7-day reset restores, and puts the demo salon on its live Pro offer — the row is created if absent, `tier` pinned to `pro`, `paidUntil` = now + 30 days (docs/design/pro-companion-path.md §3.3). Audited as `demo.snapshot` (T17).
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Captured */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            providerId: string;
+                        };
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["Forbidden"];
+                /** @description Nothing captured: no demo account (`demo_account_missing`), its salon is gone (`demo_salon_missing`), or the salon its link points at is not demo-owned (`not_demo_owned`). */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
         delete?: never;
         options?: never;
         head?: never;

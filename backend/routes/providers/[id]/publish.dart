@@ -12,6 +12,7 @@ import 'package:myweli_backend/src/salon_provisioning_service.dart';
 /// Provider-only + ownership-scoped (T50); the completeness gate is computed
 /// from SERVER state (profile · ≥3 services · ≥3 photos · opening hours) —
 /// incomplete → 409 `incomplete` + the missing checklist keys. Idempotent.
+/// 403 `demo_account_locked` (T69) · 403 `provider_suspended` (T17).
 Future<Response> onRequest(RequestContext context, String id) async {
   final principal = principalOf(context);
   if (principal == null) {
@@ -41,6 +42,11 @@ Future<Response> onRequest(RequestContext context, String id) async {
   // completeness arm below would otherwise dress it in.
   if (r.error == 'demo_account_locked') {
     return jsonError(HttpStatus.forbidden, 'demo_account_locked');
+  }
+  // T17: an admin suspension is lifted only by the admin restore. 403 like
+  // the demo lock — not a 409 the clients would read as a missing step.
+  if (r.error == 'provider_suspended') {
+    return jsonError(HttpStatus.forbidden, 'provider_suspended');
   }
   // incomplete → 409 with the missing checklist keys.
   return Response.json(

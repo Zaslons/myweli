@@ -1,5 +1,10 @@
+import 'dart:io';
+
+import 'package:dart_frog/dart_frog.dart';
+import 'package:mocktail/mocktail.dart';
 import 'package:myweli_backend/src/access/membership_repository.dart';
 import 'package:myweli_backend/src/access/membership_service.dart';
+import 'package:myweli_backend/src/admin/audit_log_repository.dart';
 import 'package:myweli_backend/src/appointments/appointment_repository.dart';
 import 'package:myweli_backend/src/appointments/booking_service.dart';
 import 'package:myweli_backend/src/appointments/slot_service.dart';
@@ -15,6 +20,10 @@ import 'package:myweli_backend/src/demo/demo_snapshot_repository.dart';
 import 'package:myweli_backend/src/providers_repository.dart';
 import 'package:myweli_backend/src/subscription/salon_subscription_repository.dart';
 import 'package:test/test.dart';
+
+import '../../routes/admin/demo/snapshot.dart' as snapshot_route;
+
+class _MockRequestContext extends Mock implements RequestContext {}
 
 /// The demo salon's 7-day reset (T69) — restore, wipe, regenerate, extend.
 /// Design: docs/design/backend-demo-review-account.md §6.2.
@@ -69,8 +78,10 @@ void main() {
     );
   });
 
-  /// The demo account + curated salon, provisioned the way production would.
-  Future<String> provisionDemo() async {
+  /// The demo account + curated salon, provisioned the way production would
+  /// — with an offer row only when [withOffer] (a demo provisioned since
+  /// the companion path has no way to choose one).
+  Future<String> provisionDemo({bool withOffer = true}) async {
     final reg = await auth.register(
       businessName: 'Salon Démo MyWeli',
       businessType: 'salon',
@@ -100,11 +111,13 @@ void main() {
         {'id': 's2', 'name': 'Brushing', 'active': true, 'price': 7000},
       ],
     });
-    await subs.create(
-      providerId: id,
-      tier: 'pro',
-      trialEndsAt: t0.add(const Duration(days: 90)),
-    );
+    if (withOffer) {
+      await subs.create(
+        providerId: id,
+        tier: 'pro',
+        trialEndsAt: t0.add(const Duration(days: 90)),
+      );
+    }
     return id;
   }
 
@@ -263,5 +276,157 @@ void main() {
     expect(logs.single, contains('REFUSED'));
     expect((await providers.byId(realId))!['name'], 'Vrai Salon');
     expect(await appointments.listForProvider(realId), hasLength(1));
+    expect(
+      await subs.byProvider(realId),
+      isNull,
+      reason: 'the offer pin writes billing state — never on a real salon',
+    );
+  });
+  // docs/design/pro-companion-path.md §3.3 — the demo is ALWAYS on a live
+  // Pro offer: the app no longer offers a choice and the demo account may
+  // not make one, so the reset is the row's only writer.
+  test(
+    'a demo with NO offer row gets one at capture: pro, paid 30 days',
+    () async {
+      final id = await provisionDemo(withOffer: false);
+      expect(await subs.byProvider(id), isNull);
+
+      await service.capture(t0);
+      final row = (await subs.byProvider(id))!;
+      expect(row.tier, 'pro');
+      expect(row.paidUntil, t0.add(const Duration(days: 30)));
+      expect(
+        row.trialEndsAt,
+        t0.add(const Duration(days: 90)),
+        reason: 'the ordinary trial clock — the backstop if resets stop',
+      );
+    },
+  );
+
+  test('the reset itself creates the row when absent', () async {
+    final id = await provisionDemo(withOffer: false);
+    // A snapshot written without the capture path (e.g. before this
+    // change shipped): the reset must still leave a live row behind.
+    await snapshots.capture(
+      providerId: id,
+      doc: (await providers.byId(id))!,
+      capturedAt: t0,
+    );
+    expect(await subs.byProvider(id), isNull);
+
+    final now = t0.add(const Duration(days: 7));
+    final r = await service.tickIfDue(now);
+    expect(r.ran, isTrue);
+    final row = (await subs.byProvider(id))!;
+    expect(row.tier, 'pro');
+    expect(row.paidUntil, now.add(const Duration(days: 30)));
+  });
+
+  test('CAPTURE REFUSES A NON-DEMO-OWNED TARGET — no snapshot, no billing '
+      'write', () async {
+    // The capture writes billing state now (the offer pin), so it runs the
+    // reset's owner check itself: the demo account's scalar link alone may
+    // not aim a 30-day paid extension and a tier pin at someone's salon.
+    final reg = await auth.register(
+      businessName: 'Salon Démo MyWeli',
+      businessType: 'salon',
+      phoneNumber: '+2250700000100',
+      email: kDemoProviderEmail,
+      authProvider: 'email',
+      emailCode: (await auth.requestEmailOtp(kDemoProviderEmail)).code,
+    );
+    final salon = await providers.createSalon(
+      name: 'Vrai Salon',
+      category: 'salon',
+      phoneNumber: '+2250700000200',
+    );
+    final realId = salon['id'] as String;
+    await members.ensureOwner(
+      providerId: realId,
+      accountId: 'acc-real',
+      email: 'vraie@proprietaire.ci',
+    );
+    await subs.create(
+      providerId: realId,
+      tier: 'reseau',
+      trialEndsAt: t0.add(const Duration(days: 90)),
+    );
+    await auth.linkProvider(reg.provider!.id, realId);
+
+    final r = await service.capture(t0);
+    expect(r.ok, isFalse);
+    expect(r.error, 'not_demo_owned');
+    expect(logs.single, contains('REFUSED'));
+    expect(await snapshots.read(), isNull, reason: 'nothing written');
+    final row = (await subs.byProvider(realId))!;
+    expect(row.tier, 'reseau', reason: 'the real tier is never pinned');
+    expect(row.paidUntil, isNull, reason: 'no paid coverage minted');
+  });
+
+  test(
+    'the reset pins the tier back to pro and never re-mints the clock',
+    () async {
+      final id = await provisionDemo();
+      await service.capture(t0);
+      final trialEnd = (await subs.byProvider(id))!.trialEndsAt;
+      // Whatever a switch made before the PUT lock existed.
+      await subs.update(id, tier: 'reseau');
+
+      final now = t0.add(const Duration(days: 7));
+      await service.tickIfDue(now);
+      final row = (await subs.byProvider(id))!;
+      expect(row.tier, 'pro');
+      expect(row.trialEndsAt, trialEnd, reason: 'an existing row is kept');
+      expect(row.paidUntil, now.add(const Duration(days: 30)));
+    },
+  );
+
+  /// The admin route: audited (T17) — it writes the demo's billing state.
+  group('POST /admin/demo/snapshot', () {
+    late InMemoryAuditLogRepository audit;
+
+    setUp(() => audit = InMemoryAuditLogRepository());
+
+    RequestContext ctx(String method) {
+      final c = _MockRequestContext();
+      when(() => c.request).thenReturn(
+        Request(
+          method,
+          Uri.parse('http://localhost/admin/demo/snapshot'),
+          headers: {
+            'Authorization':
+                'Bearer ${tokens.issueAccessToken(subject: 'adm1', role: 'admin').token}',
+          },
+        ),
+      );
+      when(() => c.read<TokenService>()).thenReturn(tokens);
+      when(() => c.read<DemoResetService>()).thenReturn(service);
+      when(() => c.read<AuditLogRepository>()).thenReturn(audit);
+      return c;
+    }
+
+    test('200 + ONE audit entry naming the admin and the demo salon', () async {
+      final id = await provisionDemo(withOffer: false);
+      final res = await snapshot_route.onRequest(ctx('POST'));
+      expect(res.statusCode, HttpStatus.ok);
+      expect((await res.json() as Map)['providerId'], id);
+      final entry = (await audit.list()).items.single;
+      expect(entry['action'], 'demo.snapshot');
+      expect(entry['actorAdminId'], 'adm1');
+      expect(entry['targetType'], 'provider');
+      expect(entry['targetId'], id);
+    });
+
+    test('a refused capture → 409 and NO audit entry', () async {
+      final res = await snapshot_route.onRequest(ctx('POST'));
+      expect(res.statusCode, HttpStatus.conflict);
+      expect((await res.json() as Map)['error'], 'demo_account_missing');
+      expect((await audit.list()).total, 0);
+    });
+
+    test('GET → 405', () async {
+      final res = await snapshot_route.onRequest(ctx('GET'));
+      expect(res.statusCode, HttpStatus.methodNotAllowed);
+    });
   });
 }

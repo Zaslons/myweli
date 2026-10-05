@@ -6,6 +6,7 @@ import '../auth/provider_auth_repository.dart';
 import '../clients/clients_repository.dart';
 import '../providers_repository.dart';
 import '../subscription/salon_subscription_repository.dart';
+import '../subscription/subscription.dart';
 import 'demo_snapshot_repository.dart';
 
 /// How often the demo salon is restored to its curated state.
@@ -49,8 +50,10 @@ class DemoResetService {
   ///
   /// **The target is derived from [kDemoProviderEmail], never from input** —
   /// an operator typo must not be able to aim the weekly wipe at a real
-  /// salon. Re-capturing restarts the reset clock (the fresh state is by
-  /// definition clean).
+  /// salon — and the salon it points at must be demo-OWNED (owner membership
+  /// = the demo identity) or nothing is written (`not_demo_owned`).
+  /// Re-capturing restarts the reset clock (the fresh state is by definition
+  /// clean).
   Future<({bool ok, String? error, String? providerId})> capture(
     DateTime now,
   ) async {
@@ -63,7 +66,22 @@ class DemoResetService {
     if (doc == null) {
       return (ok: false, error: 'demo_salon_missing', providerId: null);
     }
+    // The reset's owner check, run here too: the capture now WRITES billing
+    // state (the offer pin below), so the scalar link alone may not aim it.
+    // Refused before anything is written, the snapshot included — the reset
+    // would refuse that snapshot forever anyway.
+    if (!await _demoOwned(providerId)) {
+      _log(
+        'demo_reset capture REFUSED provider=$providerId cause=not_demo_owned',
+      );
+      return (ok: false, error: 'not_demo_owned', providerId: null);
+    }
     await _snapshots.capture(providerId: providerId, doc: doc, capturedAt: now);
+    // The offer too, from the first minute rather than the first reset: the
+    // review notes are pasted right after this capture, and a demo salon
+    // provisioned since the companion path cannot get a row any other way
+    // (no choice in the app, the web choice demo-locked, publish refused).
+    await _pinDemoOffer(providerId, now);
     _log('demo_reset captured provider=$providerId');
     return (ok: true, error: null, providerId: providerId);
   }
@@ -87,15 +105,11 @@ class DemoResetService {
     }
 
     // **The safety condition lives here, not in the operator's head**: even
-    // though capture() derives the target from the constant, the destructive
-    // half re-verifies it independently. A snapshot row pointing at a salon
+    // though capture() derives the target from the constant and checks it,
+    // the destructive half re-verifies it independently. A snapshot row pointing at a salon
     // whose owner is not the demo identity is refused loudly, whatever wrote
     // it.
-    final members = await _members.listForProvider(snap.providerId);
-    final demoOwned = members.any(
-      (m) => m.role == 'owner' && isDemoIdentity(m.email),
-    );
-    if (!demoOwned) {
+    if (!await _demoOwned(snap.providerId)) {
       _log(
         'demo_reset REFUSED provider=${snap.providerId} '
         'cause=not_demo_owned',
@@ -123,11 +137,7 @@ class DemoResetService {
     // 4. The subscription never shows expired to a reviewer: coverage is
     //    extended as part of the reset — no operator task, and no demo
     //    special case inside real billing logic.
-    await _subscriptions.update(
-      snap.providerId,
-      paidUntil: now.add(const Duration(days: 30)),
-    );
-    await _subscriptions.clearNotices(snap.providerId);
+    await _pinDemoOffer(snap.providerId, now);
 
     await _snapshots.markReset(now);
     _log(
@@ -135,6 +145,34 @@ class DemoResetService {
       'regenerated=$regenerated',
     );
     return (ran: true, error: null);
+  }
+
+  /// Whether [providerId]'s OWNER membership is the demo identity — the one
+  /// safety condition both writers (capture and reset) verify independently.
+  Future<bool> _demoOwned(String providerId) async {
+    final members = await _members.listForProvider(providerId);
+    return members.any((m) => m.role == 'owner' && isDemoIdentity(m.email));
+  }
+
+  /// The demo salon is ALWAYS on a live Pro offer (docs/design/
+  /// pro-companion-path.md §3.3), so the reviewer sees « Offre Pro active »:
+  /// the row is created if absent (it used to be chosen through the app,
+  /// which no longer offers a choice), the tier is pinned back to `pro`
+  /// (whatever a pre-lock switch left), and paid coverage runs 30 days from
+  /// [now]. The trial clock a created row gets is the ordinary 90 days — the
+  /// backstop that still reads « live » if the resets ever stop.
+  Future<void> _pinDemoOffer(String providerId, DateTime now) async {
+    await _subscriptions.createIfAbsent(
+      providerId: providerId,
+      tier: 'pro',
+      trialEndsAt: now.add(const Duration(days: kProTrialDays)),
+    );
+    await _subscriptions.update(
+      providerId,
+      tier: 'pro',
+      paidUntil: now.add(const Duration(days: 30)),
+    );
+    await _subscriptions.clearNotices(providerId);
   }
 
   /// A handful of manual bookings around [now]: a few past (history for the

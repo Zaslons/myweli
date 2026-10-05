@@ -18,6 +18,7 @@ import 'package:myweli_backend/src/db/postgres_provider_audit_repository.dart';
 import 'package:myweli_backend/src/db/postgres_provider_auth_repository.dart';
 import 'package:myweli_backend/src/db/postgres_providers_repository.dart';
 import 'package:myweli_backend/src/db/postgres_reviews_repository.dart';
+import 'package:myweli_backend/src/db/postgres_salon_subscription_repository.dart';
 import 'package:myweli_backend/src/salon_time.dart';
 import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
@@ -1260,6 +1261,109 @@ void main() {
       final r = PostgresDeviceTokenRepository(pool);
       await r.remove('never-existed');
       expect(await r.tokensForUser('dtu1'), isNot(contains('never-existed')));
+    });
+  });
+
+  /// The publish-time trial start (docs/design/pro-companion-path.md §3.1)
+  /// writes through `createIfAbsent`, and its whole claim is the SQL: `ON
+  /// CONFLICT DO NOTHING`, where `create` says `DO UPDATE SET tier`. The
+  /// in-memory twin proves the interface; only this proves the statement.
+  group('PostgresSalonSubscriptionRepository (companion path)', () {
+    /// `provider_subscriptions` references `providers(id)`, which `setUp`
+    /// does not truncate — so each test makes its own salon and removes
+    /// both rows on the way out.
+    Future<String> freshSalon() async {
+      final salon = await PostgresProvidersRepository(pool).createSalon(
+        name: 'Salon Test Offre',
+        category: 'salon',
+        phoneNumber: '+2250700000043',
+      );
+      final id = salon['id'] as String;
+      addTearDown(() async {
+        await pool.execute(
+          Sql.named(
+            'DELETE FROM provider_subscriptions WHERE provider_id = @id',
+          ),
+          parameters: {'id': id},
+        );
+        await pool.execute(
+          Sql.named('DELETE FROM providers WHERE id = @id'),
+          parameters: {'id': id},
+        );
+      });
+      return id;
+    }
+
+    test('createIfAbsent inserts once, then NEVER overwrites tier, clock or '
+        'paid coverage', () async {
+      final repo = PostgresSalonSubscriptionRepository(pool);
+      final id = await freshSalon();
+      final t1 = DateTime.utc(2027, 1, 1);
+      final created = await repo.createIfAbsent(
+        providerId: id,
+        tier: 'business',
+        trialEndsAt: t1,
+      );
+      expect(created.tier, 'business');
+      expect(created.trialEndsAt.toUtc(), t1);
+      final paid = DateTime.utc(2027, 2, 1);
+      await repo.update(id, paidUntil: paid);
+
+      final again = await repo.createIfAbsent(
+        providerId: id,
+        tier: 'pro',
+        trialEndsAt: DateTime.utc(2030, 1, 1),
+      );
+      expect(again.tier, 'business', reason: 'the winner row is read back');
+      expect(again.trialEndsAt.toUtc(), t1);
+      expect(again.paidUntil?.toUtc(), paid);
+      final stored = (await repo.byProvider(id))!;
+      expect(stored.tier, 'business');
+      expect(stored.trialEndsAt.toUtc(), t1);
+    });
+
+    test('two concurrent createIfAbsent calls leave exactly ONE row, and both '
+        'callers see it', () async {
+      final repo = PostgresSalonSubscriptionRepository(pool);
+      final id = await freshSalon();
+      final results = await Future.wait([
+        repo.createIfAbsent(
+          providerId: id,
+          tier: 'pro',
+          trialEndsAt: DateTime.utc(2027, 1, 1),
+        ),
+        repo.createIfAbsent(
+          providerId: id,
+          tier: 'reseau',
+          trialEndsAt: DateTime.utc(2028, 1, 1),
+        ),
+      ]);
+      expect(results[0].tier, results[1].tier);
+      expect(results[0].trialEndsAt, results[1].trialEndsAt);
+      final count = await pool.execute(
+        Sql.named(
+          'SELECT count(*)::int AS n FROM provider_subscriptions '
+          'WHERE provider_id = @id',
+        ),
+        parameters: {'id': id},
+      );
+      expect(count.first.toColumnMap()['n'], 1);
+    });
+
+    test('create keeps its upsert: a later CHOICE switches the tier and keeps '
+        'the clock (chooseOffer semantics unchanged)', () async {
+      final repo = PostgresSalonSubscriptionRepository(pool);
+      final id = await freshSalon();
+      final t1 = DateTime.utc(2027, 1, 1);
+      await repo.createIfAbsent(providerId: id, tier: 'pro', trialEndsAt: t1);
+
+      final chosen = await repo.create(
+        providerId: id,
+        tier: 'business',
+        trialEndsAt: DateTime.utc(2030, 1, 1),
+      );
+      expect(chosen.tier, 'business');
+      expect(chosen.trialEndsAt.toUtc(), t1);
     });
   });
 }
