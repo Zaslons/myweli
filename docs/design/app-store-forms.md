@@ -32,7 +32,7 @@ code est corrigé (§1) ; **il faut reconstruire** (§11). Ce qui reste bloquant
 | 3 | ~~**Fiche App Store Connect non vérifiée.** Le profil « iOS Team Store Provisioning Profile: com.myweli.pro » prouve que l'App ID existe dans le portail développeur, pas que la fiche App Store Connect existe. Rien dans le dépôt ne l'atteste ; sans fiche, l'envoi est refusé.~~ **Levé le 2026-10-05** : la fiche « MyWeli Pro » existe, relue en lecture seule dans App Store Connect (navigateur du propriétaire) — Apple ID **6805272779**, SKU `myweli-pro`, bundle `com.myweli.pro`, langue principale français, version iOS 1.0 « Prepare for Submission », aucun build dans TestFlight. Encore vides : catégorie, sous-titre, droits sur le contenu (§3). | owner | Fait. Reste à remplir les champs (§3, §4, §5, §9). |
 | 4 | **Salon démo en production non vérifié.** Le propriétaire a curé « Salon Démo MyWeli » vers le 2026-08-26/27, sans que l'environnement (staging ou prod) ni la capture du snapshot en prod soient consignés ; le logo réel doit encore être téléversé **puis le snapshot recapturé** (sinon la remise à zéro de 7 jours l'annule). | owner | Une fois la prod revenue, **avant que quoi que ce soit ne touche la base staging** : se connecter en démo, vérifier, logo, `POST /admin/demo/snapshot`, consigner date + environnement dans [backend-demo-review-account.md](backend-demo-review-account.md) §9. |
 | 5 | ~~**Décision 3.1.1 ouverte** : le sélecteur d'offre et les incitations à choisir une offre sont encore dans l'app iOS (§2).~~ **Décidé le 2026-10-05** : voie (a) — app compagnon gratuite (3.1.3(f)) — sur **les deux** apps, iOS et Android, sans branche de plateforme (§2.4). Construite selon [pro-companion-path.md](pro-companion-path.md) le 2026-10-05 sur `feat/pro-companion-path` (backend, mobile, docs). La ligne SUBSCRIPTION des notes est en place (§8). | code + déploiement | La PR fusionnée ; le backend qui démarre l'essai à la première mise en ligne **déployé en production avant la soumission** : depuis « Accueil », le relecteur peut ouvrir « Configurer mon profil » et mettre son compte neuf en ligne. Sans ce backend, il lirait « …l’offre de votre salon n’est plus active. » pour une offre qui n'a jamais existé (spec §9.4). Feu vert du propriétaire pour la production. |
-| 6 | **Deux avis dans App Store Connect** (relevés le 2026-10-05). **Classification : faite le 2026-10-06** (4+, nouvelles questions répondues, §6). **Statut de professionnel UE : déclaré le 2026-10-06** (option 1, coordonnées vérifiées par code, §9.1) — **reste l'étape « Identification Documents »**. Prix (gratuit), disponibilité (Côte d'Ivoire seule) et exclusion Mac / Vision Pro faits le même jour (§9). | owner | Téléverser les pièces d'identité dans Business → « Complete Compliance Requirements » (§9.1). |
+| 6 | **Deux avis dans App Store Connect** (relevés le 2026-10-05). **Classification : faite le 2026-10-06** (4+, nouvelles questions répondues, §6). **Statut de professionnel UE : déclaré le 2026-10-06** (option 1, coordonnées vérifiées par code, certificat de résidence téléversé — « In Review » chez Apple, §9.1). Prix (gratuit), disponibilité (Côte d'Ivoire seule) et exclusion Mac / Vision Pro faits le même jour (§9). | Apple | Attendre la décision d'Apple sur la déclaration DSA (Business → Compliance) ; répondre à toute demande de pièce. |
 
 **Décision du propriétaire, 2026-09-24** : l'app Pro part **d'abord sur l'App
 Store d'Apple** — TestFlight et la revue maintenant ; la **publication
@@ -644,12 +644,12 @@ réponse vaut pour **tout le compte développeur** (les deux apps). Saisi le
 2026-10-06 dans Business → « Complete Compliance Requirements » : l'adresse
 est celle du compte Apple, l'e-mail et le téléphone sont ceux du propriétaire
 (choisis par lui, en sachant qu'ils s'affichent sur les fiches UE). L'e-mail
-puis le téléphone ont été **vérifiés par code**. **Reste au propriétaire
-seul : l'étape « Identification Documents »** (choisir la langue, puis
-téléverser les pièces qui confirment ces informations) — des pièces
-d'identité, qu'aucun agent ne manipule. Tant qu'elle n'est pas terminée, le
-bandeau rouge reste dans Business ; la Côte d'Ivoire seule étant cochée, il
-ne bloque a priori pas la soumission (UNVERIFIED — à constater, §13).
+puis le téléphone ont été **vérifiés par code**. L'étape « Identification
+Documents » — des pièces d'identité, qu'aucun agent ne manipule — a été faite
+par le propriétaire le 2026-10-06 (un certificat de résidence). **Constaté le
+même jour dans Business → Compliance : « Digital Services Act », 27 pays ou
+régions, « In Review »**, et le bandeau rouge a disparu. Reste la décision
+d'Apple ; une demande de pièce complémentaire arriverait par e-mail.
 
 ---
 
@@ -1028,12 +1028,11 @@ numéros).*
        Xcode → Réglages → Comptes.*
 8. [x] **App Store Connect** : vérifier ou créer la fiche (§3) ; noter l'Apple
        ID ici. **Fiche vérifiée le 2026-10-05 — Apple ID 6805272779** (§3).
-9. [ ] **Les deux avis App Store Connect** (§0 #6). *Fait le 2026-10-06 :*
+9. [x] **Les deux avis App Store Connect** (§0 #6). *Fait le 2026-10-06 :*
        la classification (4+, nouvelles questions consignées, §6), le statut
-       de professionnel UE déclaré et ses coordonnées vérifiées (§9.1), le
-       prix, la disponibilité et l'exclusion Mac / Vision Pro (§9).
-       **Reste : téléverser les pièces d'identité** (§9.1) — le propriétaire
-       seul.
+       de professionnel UE déclaré, ses coordonnées vérifiées et le
+       certificat de résidence téléversé — « In Review » chez Apple (§9.1),
+       le prix, la disponibilité et l'exclusion Mac / Vision Pro (§9).
 10. [ ] **Clé d'API** App Store Connect (§11.4) — ou installer Transporter.
 11. [ ] **Build** `./tool/release_build.sh ios pro` depuis `main` ; ranger
        l'archive ; **vérifier l'IPA** (§11.3).
