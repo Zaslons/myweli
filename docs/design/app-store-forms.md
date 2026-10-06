@@ -32,7 +32,7 @@ code est corrigé (§1) ; **il faut reconstruire** (§11). Ce qui reste bloquant
 | 3 | ~~**Fiche App Store Connect non vérifiée.** Le profil « iOS Team Store Provisioning Profile: com.myweli.pro » prouve que l'App ID existe dans le portail développeur, pas que la fiche App Store Connect existe. Rien dans le dépôt ne l'atteste ; sans fiche, l'envoi est refusé.~~ **Levé le 2026-10-05** : la fiche « MyWeli Pro » existe, relue en lecture seule dans App Store Connect (navigateur du propriétaire) — Apple ID **6805272779**, SKU `myweli-pro`, bundle `com.myweli.pro`, langue principale français, version iOS 1.0 « Prepare for Submission », aucun build dans TestFlight. Encore vides : catégorie, sous-titre, droits sur le contenu (§3). | owner | Fait. Reste à remplir les champs (§3, §4, §5, §9). |
 | 4 | **Salon démo en production non vérifié.** Le propriétaire a curé « Salon Démo MyWeli » vers le 2026-08-26/27, sans que l'environnement (staging ou prod) ni la capture du snapshot en prod soient consignés ; le logo réel doit encore être téléversé **puis le snapshot recapturé** (sinon la remise à zéro de 7 jours l'annule). | owner | Une fois la prod revenue, **avant que quoi que ce soit ne touche la base staging** : se connecter en démo, vérifier, logo, `POST /admin/demo/snapshot`, consigner date + environnement dans [backend-demo-review-account.md](backend-demo-review-account.md) §9. |
 | 5 | ~~**Décision 3.1.1 ouverte** : le sélecteur d'offre et les incitations à choisir une offre sont encore dans l'app iOS (§2).~~ **Décidé le 2026-10-05** : voie (a) — app compagnon gratuite (3.1.3(f)) — sur **les deux** apps, iOS et Android, sans branche de plateforme (§2.4). Construite selon [pro-companion-path.md](pro-companion-path.md) le 2026-10-05 sur `feat/pro-companion-path` (backend, mobile, docs). La ligne SUBSCRIPTION des notes est en place (§8). | code + déploiement | La PR fusionnée ; le backend qui démarre l'essai à la première mise en ligne **déployé en production avant la soumission** : depuis « Accueil », le relecteur peut ouvrir « Configurer mon profil » et mettre son compte neuf en ligne. Sans ce backend, il lirait « …l’offre de votre salon n’est plus active. » pour une offre qui n'a jamais existé (spec §9.4). Feu vert du propriétaire pour la production. |
-| 6 | **Deux avis dans App Store Connect** (relevés le 2026-10-05) : le **statut de professionnel UE** (Digital Services Act) est exigé pour soumettre de nouvelles apps distribuées dans l'UE ; « **Review New Social Media Questions on Age Ratings** ». Qu'ils bloquent la soumission d'une app distribuée hors UE : UNVERIFIED. | décision owner | Choisir l'option DSA (§9.1) ; répondre aux nouvelles questions (§6). |
+| 6 | **Deux avis dans App Store Connect** (relevés le 2026-10-05). **Classification : faite le 2026-10-06** (4+, nouvelles questions répondues, §6). **Statut de professionnel UE : déclaré le 2026-10-06** (option 1, coordonnées vérifiées par code, §9.1) — **reste l'étape « Identification Documents »**. Prix (gratuit), disponibilité (Côte d'Ivoire seule) et exclusion Mac / Vision Pro faits le même jour (§9). | owner | Téléverser les pièces d'identité dans Business → « Complete Compliance Requirements » (§9.1). |
 
 **Décision du propriétaire, 2026-09-24** : l'app Pro part **d'abord sur l'App
 Store d'Apple** — TestFlight et la revue maintenant ; la **publication
@@ -406,16 +406,21 @@ Résultat attendu : **4+** (INFERRED — Apple le calcule ; s'il sort plus haut 
 cause du contenu généré par les utilisateurs, l'accepter, ce n'est pas un
 défaut).
 
-**Nouvelles questions « réseaux sociaux » — à répondre (owner).** Le
-2026-10-05, App Store Connect affiche l'avis « Review New Social Media
-Questions on Age Ratings ». Leur libellé exact **n'a pas été lu** : il n'est
-pas recopié ici et aucune réponse n'est préparée (UNVERIFIED). À la saisie :
-lire chaque question à l'écran et répondre avec les faits déjà établis
-ci-dessus — aucune messagerie entre utilisateurs (Messaging and Chat), du
-contenu publié par les salons et des avis de clients affichés
-(User-Generated Content), Social Media : **No** ; si une question n'est pas
-couverte par ces faits : STOP, on vérifie. Puis **consigner ici** chaque
-question et sa réponse, pour la version suivante.
+**Saisi et enregistré le 2026-10-06** (questionnaire en 7 étapes, réponses
+du tableau ci-dessus, propriétaire d'accord). Les deux nouvelles questions
+« réseaux sociaux », lues à l'écran :
+
+| Question (libellé Apple) | Réponse | Pourquoi |
+|---|---|---|
+| Social Media — « Redistribution, amplification, or interaction with user-generated content through a social feed or similar discovery method that visibly spreads content to many users. » | **No** | aucun fil social : l'app gère un salon |
+| Social Media Disabled for Users Under 13 — « Users under 13 don't have access to social media capabilities… » | **No** | l'aide d'Apple : répondre **Yes** exige Social Media, User-Generated Content **et** Age Assurance à Yes ; sans fil social, la question ne s'applique pas |
+
+Étape 7 : « Age Categories and Override » = **Not Applicable** (les CGU et la
+politique de confidentialité ne fixent aucun âge minimum — vérifié dans
+`web/app/cgu/page.tsx` et `web/app/politique-confidentialite/page.tsx`, ce
+qu'Apple impose de refléter sinon) ; « Age Suitability URL » vide.
+**Résultat : 4+** dans 172 pays ou régions, avec les équivalents locaux
+Brésil « A6 », Corée « ALL », Vietnam « 00+ ».
 
 ---
 
@@ -613,10 +618,10 @@ la note dit au relecteur (risque assumé, §14).
 |---|---|---|
 | **Conformité export** | **déjà répondue par le binaire** : `ITSAppUsesNonExemptEncryption = false` (`Info.plist`, présent dans l'IPA) | HTTPS/TLS du système uniquement, plus un SHA-256 pour le nonce Apple ; App Store Connect ne pose pas la question à l'envoi ; aucune déclaration de chiffrement française à fournir |
 | **Droits sur le contenu** | « **Oui**, l'app contient, affiche ou accède à du contenu tiers, **et j'ai les droits nécessaires** » | contenu publié par les salons et les clients sous les CGU (`/cgu`) ; tuiles de carte OSM/CARTO avec attribution |
-| **Prix** | **Gratuit** | aucun achat intégré (aucune dépendance StoreKit) |
-| **Disponibilité** | **Côte d'Ivoire uniquement** | le périmètre du produit (PRD : « for Côte d'Ivoire », pas de multi-pays en V1–V2 ; seuls des référentiels CI) ; le storefront CIV a le français par défaut, donc une fiche en français seul convient ; **aucun storefront UE** coché. Que la déclaration de statut de professionnel (DSA) ne soit alors pas exigée : UNVERIFIED, à constater à la soumission (§9.1 ; avis d'App Store Connect à ce sujet relevé le 2026-10-05). Les testeurs TestFlight ne sont pas concernés. |
-| **Apps iPhone et iPad sur Mac (Apple silicon)** | **décocher** | jamais testé ; le profil rend l'app éligible par défaut |
-| **Apple Vision Pro** | **décocher** | idem (le profil liste iOS, xrOS, visionOS) |
+| **Prix** | **Gratuit** — **fait le 2026-10-06** (pays de base États-Unis, 0,00 $, 175 pays) | aucun achat intégré (aucune dépendance StoreKit) |
+| **Disponibilité** | **Côte d'Ivoire uniquement** — **fait le 2026-10-06** (« Available on App Release », tous les autres pays « Not Available ») | le périmètre réel : l'arbre des localités et le catalogue Mobile Money ne contiennent que la Côte d'Ivoire, donc un salon d'un autre pays ne peut pas choisir sa localité ni être publié ; le storefront CIV a le français par défaut, donc une fiche en français seul convient. **Ajouter un pays = un réglage ici, sans build ni revue**, une fois ses données saisies (vague 1 de [modules/multi-pays.md](../modules/multi-pays.md) : Sénégal, Mali, Burkina Faso, Togo) ; en retirer un après la sortie prive ses salons de l'app — d'où l'ordre « d'abord la CI » (décision du propriétaire, 2026-10-06). Les testeurs TestFlight ne sont pas concernés. |
+| **Apps iPhone et iPad sur Mac (Apple silicon)** | **décoché le 2026-10-06** | jamais testé ; le profil rend l'app éligible par défaut |
+| **Apple Vision Pro** | **décoché le 2026-10-06** | idem (le profil liste iOS, xrOS, visionOS) |
 | **Publication de la version** | **« Publier manuellement cette version »** | l'approbation ne doit pas publier : la sortie publique attend la production rétablie et stable (§0) |
 | Publication progressive | sans objet pour la 1.0.0 | elle s'applique aux **mises à jour** (utilisateurs en mise à jour automatique) ; à activer dès la 1.0.1 ([LAUNCH.md](../LAUNCH.md) §6.2) |
 
@@ -634,10 +639,17 @@ nouvelles apps **distribuées dans l'UE**. Deux options :
    *Tarifs et disponibilité* — ce que la ligne « Disponibilité » ci-dessus
    prévoit déjà (Côte d'Ivoire uniquement).
 
-L'option 2 est celle que ce dossier suppose. Qu'App Store Connect accepte la
-soumission sans aucune réponse sur ce point quand aucun storefront UE n'est
-coché : UNVERIFIED — à constater au moment de soumettre (§13), et à consigner
-ici.
+**Décision du propriétaire, 2026-10-06 : l'option 1, professionnel.** La
+réponse vaut pour **tout le compte développeur** (les deux apps). Saisi le
+2026-10-06 dans Business → « Complete Compliance Requirements » : l'adresse
+est celle du compte Apple, l'e-mail et le téléphone sont ceux du propriétaire
+(choisis par lui, en sachant qu'ils s'affichent sur les fiches UE). L'e-mail
+puis le téléphone ont été **vérifiés par code**. **Reste au propriétaire
+seul : l'étape « Identification Documents »** (choisir la langue, puis
+téléverser les pièces qui confirment ces informations) — des pièces
+d'identité, qu'aucun agent ne manipule. Tant qu'elle n'est pas terminée, le
+bandeau rouge reste dans Business ; la Côte d'Ivoire seule étant cochée, il
+ne bloque a priori pas la soumission (UNVERIFIED — à constater, §13).
 
 ---
 
@@ -1016,10 +1028,12 @@ numéros).*
        Xcode → Réglages → Comptes.*
 8. [x] **App Store Connect** : vérifier ou créer la fiche (§3) ; noter l'Apple
        ID ici. **Fiche vérifiée le 2026-10-05 — Apple ID 6805272779** (§3).
-9. [ ] **Les deux avis App Store Connect** (§0 #6) : choisir l'option du
-       **statut de professionnel UE** (§9.1) ; répondre aux **nouvelles
-       questions « réseaux sociaux »** de la classification et les consigner
-       (§6).
+9. [ ] **Les deux avis App Store Connect** (§0 #6). *Fait le 2026-10-06 :*
+       la classification (4+, nouvelles questions consignées, §6), le statut
+       de professionnel UE déclaré et ses coordonnées vérifiées (§9.1), le
+       prix, la disponibilité et l'exclusion Mac / Vision Pro (§9).
+       **Reste : téléverser les pièces d'identité** (§9.1) — le propriétaire
+       seul.
 10. [ ] **Clé d'API** App Store Connect (§11.4) — ou installer Transporter.
 11. [ ] **Build** `./tool/release_build.sh ios pro` depuis `main` ; ranger
        l'archive ; **vérifier l'IPA** (§11.3).
