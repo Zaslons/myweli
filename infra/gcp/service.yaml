@@ -448,10 +448,14 @@ spec:
             # balancer, with no ORIGIN_AUTH_* at all — so no window is open and
             # this date bounds nothing real yet. It went red on 2026-09-18 as
             # designed; re-dated here as the "rollout paused, decide by" line.
+            # Re-checked 2026-10-06 (`gcloud run services describe` and
+            # `gcloud billing projects describe`): billing still disabled,
+            # traffic still on myweli-api-00033-f6g — pushed a month, since the
+            # end of the billing closure is not known.
             # **In the PR that precedes the phase-A dispatch, set this to the
             # day after the dispatch** (docs/design/infra-cloudflare-front-door.md
             # §9 step 4).
-            # log-mode-until: 2026-10-08
+            # log-mode-until: 2026-11-05
             - name: ORIGIN_AUTH_MODE
               value: log
             - name: ORIGIN_AUTH_SECRET
