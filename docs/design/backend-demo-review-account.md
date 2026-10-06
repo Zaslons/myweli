@@ -4,7 +4,7 @@
 |---|---|
 | **Status** | **Built** (2026-08-26) — the account-provisioning and console steps (§9) are owner-side |
 | **Owner** | Sadreddine |
-| **Last updated** | 2026-09-24 — reviewer labels corrected (§2); demo-salon environment unrecorded + deletion not demo-locked (§9 notes) · 2026-08-26 — §10's questions decided (owner), reset designed |
+| **Last updated** | 2026-10-05 — the companion path ([pro-companion-path.md](pro-companion-path.md)): two more demo locks (offer change, salon creation — §3, §6), the capture and every reset create and pin a live Pro offer row (§6.2), §9 step 3 needs no offer choice, and the on-screen refusal sentence of §2 — missing from the app until now — is built · 2026-09-24 — reviewer labels corrected (§2); demo-salon environment unrecorded + deletion not demo-locked (§9 notes) · 2026-08-26 — §10's questions decided (owner), reset designed |
 | **PRD ref / phase** | store submission (mobile-external-testing.md §5.2) · V1 |
 | **Related** | [backend-q1b-smoke-seam.md](backend-q1b-smoke-seam.md) (prior art) · [pro-salon-lifecycle.md](pro-salon-lifecycle.md) · [mobile-external-testing.md](mobile-external-testing.md) · BACKEND.md §7 **T69 (new)** |
 | **Skills checked** | myweli-backend-guardrails · myweli-verification-guardrails |
@@ -67,6 +67,16 @@ review notes say so up front.
 « Compte de démonstration — cette action est désactivée. » (403,
 `demo_account_locked`).
 
+*2026-10-05 — that sentence was never on screen.* The App Store audit of the
+companion path found it nowhere in the app: the publish refusal fell through
+`api_pro_service.dart`'s message map to « Une erreur est survenue. », and the
+invite refusal through `teamErrorMessage` to « Une erreur est survenue.
+Réessayez. » — while the store notes promised the sentence. It is wired in on
+`feat/pro-companion-path` for both refusals
+([pro-companion-path.md](pro-companion-path.md) §2.2). "Zero Flutter diff"
+(§1) stayed true for the seam itself; this is the app learning one more error
+code, not demo logic in the binary.
+
 ## 3. API & contract
 
 **No new endpoints and no shape changes** — the seam alters the behaviour of
@@ -82,6 +92,11 @@ three existing routes for exactly one identity:
 byte-identical in shape. The 403 `demo_account_locked` is a new error code on
 `POST /providers/{id}/publish` and the team-invitation route — those two enum
 additions are the only contract diff.
+
+*2026-10-05 — two more routes refuse the demo identity with the same 403
+`demo_account_locked`* ([pro-companion-path.md](pro-companion-path.md) §3.2):
+`PUT /providers/{id}/subscription` (an offer change — its credential is public
+and the web dashboard accepts it) and `POST /me/salons` (creating salons).
 
 ## 4. Data model
 
@@ -168,6 +183,8 @@ What a holder of the code can do — and the mechanism that bounds each:
 | uploads (photos, KYC) | existing signing rate limits; own-prefix storage |
 | sessions | normal JWT + rotating refresh; many holders share one account, which is fine — reuse-detection revokes families as designed |
 | junk / defacement inside the demo salon | the **7-day automatic reset** (§6.3) — restore from snapshot, wipe + regenerate |
+| **offer change** *(2026-10-05)* | **refused** — a tier switched by a reviewer survived the weekly reset (the reset only extended `paidUntil`, and the subscription update leaves `tier` alone when none is given), and a switch to Réseau would have opened « Ajouter un salon » on the demo account |
+| **salon creation** *(2026-10-05)* | **refused** — `POST /me/salons` had no demo lock, so the public credential could create real draft salons once the demo salon was on a live Réseau offer |
 
 ### 6.1 The publish refusal
 
@@ -176,7 +193,9 @@ email** (the membership rows already carry it — `_ensureOwnerRow` writes it)
 and refuses with 403 `demo_account_locked` when it is `kDemoProviderEmail`.
 In the service, not the route, for the reason the rebuild fires live in
 services: no future caller can route around it. The same check, same error,
-in `TeamService.invite`.
+in `TeamService.invite`. *2026-10-05: and on the two routes added in §3 — the
+offer change and salon creation ([pro-companion-path.md](pro-companion-path.md)
+§3.2).*
 
 Draft is not a degraded state for review purposes — the dashboard is fully
 functional on drafts by design (T51), which is precisely why the sandbox
@@ -205,11 +224,32 @@ at once:
    concerns stay inside the demo module; billing logic stays untouched; a
    future reviewer never sees an expired banner.
 
+   *2026-10-05 — the capture and every reset now **create and pin** the row*
+   ([pro-companion-path.md](pro-companion-path.md) §3.3): both ensure the
+   demo salon **has** a subscription row (created if absent), pin
+   `tier = 'pro'` and set `paidUntil = now + 30 days`. Until now the reset
+   only updated an existing row (`update` changes nothing when no row
+   exists). That was harmless while the owner chose the offer in the app
+   (§9 step 3). The Pro app no longer offers a choice, the web choice is
+   demo-locked, and the publish-time trial of the companion path never fires
+   for this salon (its publish is refused first). So the demo module is the
+   only writer left for this row. It writes the row at the **capture** too,
+   not only at the reset: a capture restarts the 7-day reset clock, so with
+   the reset alone, a demo salon recreated and captured would have shown the
+   setup state for up to 7 days. A row the capture creates also gets the
+   ordinary `trialEndsAt = now + 90 days`, a fallback that still reads as
+   live if the resets ever stop. Pinning the tier also undoes any switch a
+   reviewer made before the offer change was locked
+   (`demo_reset_service.dart` `_pinDemoOffer`; tests in
+   `backend/test/demo/demo_reset_test.dart`, including « a demo with NO offer
+   row gets one at capture: pro, paid 30 days »).
+
 **Mechanics.**
 
 - **Capture**: `POST /admin/demo/snapshot` (admin-authenticated) stores the
   current demo-salon document. Owner-triggered once after curating — and
-  re-triggerable any time the demo is improved.
+  re-triggerable any time the demo is improved. *2026-10-05: it also pins the
+  demo offer, as the reset does (step 3 above).*
 - **Schedule**: the reset **rides the existing daily subscriptions cron** as
   `tickIfDue(now)` — a no-op unless ≥7 days since `last_reset_at`. The cron
   route's own comment reserves extraction of `/internal/cron/maintenance` for
@@ -230,7 +270,9 @@ at once:
 production. Spoofing a real user: impossible structurally (`.test`).
 Elevation: bounded by ownership + the two refusals; the account is an
 ordinary provider account with two capabilities subtracted, never a special
-path with capabilities added. Disclosure of others' data: none reachable.
+path with capabilities added. *(2026-10-05: four — offer change and salon
+creation joined publish and invite, [pro-companion-path.md](pro-companion-path.md)
+§6.)* Disclosure of others' data: none reachable.
 DoS/abuse: per-identity rate limits; the off switch is unsetting
 `DEMO_PROVIDER_CODE`; junk data accumulates only inside the demo salon (§10
 resets). Residual, stated: someone who signs in can deface the demo salon's
@@ -278,6 +320,11 @@ snapshot → logged no-op; **no rebuild fires** (recording notifier empty).
 Each guard watched red; comments stripped before any source-level match; the
 mutation list recorded in the PR.
 
+*2026-10-05 additions* ([pro-companion-path.md](pro-companion-path.md) §8):
+`PUT /providers/{id}/subscription` and `POST /me/salons` → 403
+`demo_account_locked` for the demo identity; the reset **creates** the row
+when none exists and **pins** `tier = 'pro'` over a switched one.
+
 ## 9. Rollout
 
 1. Land the seam (one PR: seam + refusals + send-skip + tests + this spec's
@@ -290,6 +337,18 @@ mutation list recorded in the PR.
    bookings, the 90-day trial offer. No seed script: the demo salon is
    created through the product it demonstrates, which is itself a rehearsal
    of the salon-onboarding flow.
+
+   *2026-10-05 — recreating the demo no longer involves an offer choice.* The
+   Pro app offers none any more, on either platform (App Store 3.1.3(f),
+   [pro-companion-path.md](pro-companion-path.md)), and the demo salon cannot
+   go live, so the first-publish trial never starts for it. Its offer row
+   comes from the **snapshot capture** (`POST /admin/demo/snapshot`, the last
+   step of curating), which creates the row if absent and pins Pro, paid
+   30 days. Every weekly reset then does the same (§6.2). So a recreated demo
+   shows « Offre Pro active » as soon as it is captured. It does not wait
+   7 days for the first reset, which the capture's restart of the reset clock
+   would otherwise impose ([app-store-forms.md](app-store-forms.md) §13
+   point 3).
 4. Paste the credentials into both consoles' review forms.
 5. After store approval, the code MAY be rotated or unset between review
    cycles; the account data stays.

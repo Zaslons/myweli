@@ -4,7 +4,7 @@
 |---|---|
 | **Status** | Built — R5a + R5b (2026-07-12) |
 | **Owner** | Sadreddine |
-| **Last updated** | 2026-07-12 |
+| **Last updated** | 2026-10-05 — the offer picker is now web-only (§2.3 note) · 2026-07-12 |
 | **PRD ref / phase** | Module `access` §5.4 (web parity) · pre-launch |
 | **ROADMAP entry** | docs/ROADMAP.md — « Team access R5a / R5b » |
 | **Skills checked** | myweli-web-guardrails (+ dev-guardrails cross-cutting) |
@@ -76,6 +76,16 @@ urgent : « Votre offre a expiré — {date} avant la dépublication » + WhatsA
 réactiver »)** · barre de places · `trial_used` · « Le changement d'offre
 conserve votre période d'essai. ». Checklist de mise en ligne : étape
 « Choisissez votre offre »; publish 409 `missing:['offer']` → message + CTA.
+
+*2026-10-05 — divergence assumée avec l'app*
+([pro-companion-path.md](pro-companion-path.md) §5). L'app Pro, iOS et
+Android, n'a plus ni sélecteur ni étape d'offre : App Store 3.1.3(f), « Mon
+abonnement » en lecture seule, et le serveur démarre l'essai à la première
+mise en ligne réussie quand aucune offre n'existe. **Le web garde ce
+sélecteur et cette étape** : c'est le seul endroit où une offre se choisit, et
+sa checklist exige toujours le choix avant la mise en ligne
+(`web/lib/pro/onboarding.ts`, clé `offer`). Sur ce point, le web ne suit plus
+le parcours de l'app.
 
 ### 2.4 Le web par rôle (R5b)
 Contexte membership (fetch /api/pro/me au montage + à CHAQUE navigation — la

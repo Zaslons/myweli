@@ -1,3 +1,4 @@
+import '../auth/demo_seam.dart';
 import '../auth/provider_auth_repository.dart';
 import '../localities/localities_service.dart';
 import '../providers_repository.dart';
@@ -71,8 +72,10 @@ class SalonDirectoryService {
 
   /// The « Ajouter un salon » gate (user decision 2026-07-12): the account
   /// OWNS ≥1 salon with a LIVE (trial/paid/grace) Réseau offer, under the
-  /// abuse cap.
+  /// abuse cap — and is not the demo review account, which [addSalon]
+  /// refuses (T69), so the flag never advertises a door that 403s.
   Future<bool> canAddSalon(String accountId) async {
+    if (await _isDemoAccount(accountId)) return false;
     final owned = await _ownedSalonIds(accountId);
     if (owned.isEmpty || owned.length >= maxOwnedSalons) return false;
     for (final id in owned) {
@@ -88,8 +91,9 @@ class SalonDirectoryService {
   /// « Ajouter un salon » (R6): create an ADDITIONAL draft salon under the
   /// caller's account. Never touches `account.providerId` (the scalar stays
   /// the default salon); no subscription row (fresh SETUP — its own offer,
-  /// its own trial, its own publish gate). The verified badge is inherited
-  /// from the account's KYC (T52).
+  /// its own trial, its own publish gate; the trial starts at its first
+  /// publish, on Réseau — docs/design/pro-companion-path.md §3.1). The
+  /// verified badge is inherited from the account's KYC (T52).
   Future<DirectoryResult> addSalon(
     String accountId, {
     required Object? businessName,
@@ -100,6 +104,14 @@ class SalonDirectoryService {
   }) async {
     final account = await _accounts.accountById(accountId);
     if (account == null) return (ok: false, error: 'forbidden', data: null);
+    // The demo review account (T69) may not create salons: its credential is
+    // public, so each one would be a real draft row — and a real owner
+    // membership — minted by anyone who read the store notes. First, before
+    // any input is read: the refusal does not depend on what was sent.
+    // Design: docs/design/pro-companion-path.md §3.2.
+    if (isDemoIdentity(account.email ?? '')) {
+      return (ok: false, error: 'demo_account_locked', data: null);
+    }
 
     final name = businessName is String ? businessName.trim() : '';
     final type = businessType is String ? businessType : '';
@@ -171,6 +183,13 @@ class SalonDirectoryService {
         'imageUrl': null,
       },
     );
+  }
+
+  /// The demo identity, read from the ACCOUNT — the caller is the subject
+  /// here, not a salon (publish/invite key on the salon's owner row).
+  Future<bool> _isDemoAccount(String accountId) async {
+    final account = await _accounts.accountById(accountId);
+    return account != null && isDemoIdentity(account.email ?? '');
   }
 
   /// Salons the account OWNS: the scalar link ∪ active owner rows (the

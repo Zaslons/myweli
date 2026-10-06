@@ -6,6 +6,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:myweli_backend/src/access/membership_repository.dart';
 import 'package:myweli_backend/src/access/membership_service.dart';
 import 'package:myweli_backend/src/access/salon_directory_service.dart';
+import 'package:myweli_backend/src/auth/demo_seam.dart';
 import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
 import 'package:myweli_backend/src/auth/tokens.dart';
 import 'package:myweli_backend/src/providers_repository.dart';
@@ -27,6 +28,7 @@ void main() {
   late InMemoryMembershipRepository memberships;
   late InMemoryProvidersRepository providers;
   late MembershipService resolver;
+  late InMemorySalonSubscriptionRepository subsRepo;
   late SalonSubscriptionService subscriptions;
   late SalonDirectoryService directory;
   late String ownerId;
@@ -45,8 +47,9 @@ void main() {
       {'id': 'p2', 'name': 'Beauté Zen', 'status': 'draft'},
     ]);
     resolver = MembershipService(memberships, auth);
+    subsRepo = InMemorySalonSubscriptionRepository();
     subscriptions = SalonSubscriptionService(
-      InMemorySalonSubscriptionRepository(),
+      subsRepo,
       resolver,
       memberships,
       providers,
@@ -445,6 +448,109 @@ void main() {
       expect((after['seats'] as Map)['used'], beforeUsed);
       final p2State = (await subscriptions.stateFor(p2Id))!;
       expect((p2State['seats'] as Map)['used'], greaterThanOrEqualTo(2));
+    });
+  });
+
+  /// T69 (docs/design/pro-companion-path.md §3.2): the demo credential is
+  /// public, so a salon it creates is a real draft row minted by anyone who
+  /// read the store notes.
+  group('THE DEMO ACCOUNT MAY NOT ADD A SALON', () {
+    late String demoId;
+
+    RequestContext ctx(Request request) {
+      final c = _MockRequestContext();
+      when(() => c.request).thenReturn(request);
+      when(() => c.read<TokenService>()).thenReturn(tokens);
+      when(() => c.read<SalonDirectoryService>()).thenReturn(directory);
+      return c;
+    }
+
+    String demoToken() =>
+        tokens.issueAccessToken(subject: demoId, role: 'provider').token;
+
+    setUp(() async {
+      final reg = await auth.register(
+        businessName: 'Salon Démo MyWeli',
+        businessType: 'salon',
+        phoneNumber: '+2250700000100',
+        email: kDemoProviderEmail,
+        authProvider: 'google',
+        googleSub: 'sub-demo',
+        providerId: 'p2',
+      );
+      demoId = reg.provider!.id;
+      await memberships.ensureOwner(
+        providerId: 'p2',
+        accountId: demoId,
+        email: kDemoProviderEmail,
+      );
+      // ON a live Réseau offer (written past the chooseOffer lock): so the
+      // refusal below is the demo lock, not the Réseau gate.
+      await subsRepo.create(
+        providerId: 'p2',
+        tier: 'reseau',
+        trialEndsAt: DateTime.now().toUtc().add(const Duration(days: 90)),
+      );
+    });
+
+    test('addSalon → demo_account_locked; nothing is created', () async {
+      final r = await directory.addSalon(
+        demoId,
+        businessName: 'Deux',
+        businessType: 'salon',
+      );
+      expect(r.ok, isFalse);
+      expect(r.error, 'demo_account_locked');
+      final rows = await memberships.listForAccount(demoId);
+      expect(rows.map((m) => m.providerId), ['p2']);
+    });
+
+    test('the lock comes before input validation', () async {
+      final r = await directory.addSalon(
+        demoId,
+        businessName: '',
+        businessType: 'nope',
+      );
+      expect(r.error, 'demo_account_locked');
+    });
+
+    test('canAddSalon is false for the demo — the flag never advertises a '
+        'door that 403s', () async {
+      expect(await directory.canAddSalon(demoId), isFalse);
+      // The same Réseau state on an ordinary owner opens it.
+      await makeReseau('p1');
+      expect(await directory.canAddSalon(ownerId), isTrue);
+    });
+
+    test('POST /me/salons → 403 demo_account_locked; GET → canAddSalon '
+        'false', () async {
+      final res = await me_salons.onRequest(
+        ctx(
+          Request(
+            'POST',
+            Uri.parse('http://localhost/me/salons'),
+            headers: {
+              'Authorization': 'Bearer ${demoToken()}',
+              'content-type': 'application/json',
+            },
+            body: jsonEncode({'businessName': 'Deux', 'businessType': 'salon'}),
+          ),
+        ),
+      );
+      expect(res.statusCode, HttpStatus.forbidden);
+      expect((await res.json() as Map)['error'], 'demo_account_locked');
+
+      final got = await me_salons.onRequest(
+        ctx(
+          Request(
+            'GET',
+            Uri.parse('http://localhost/me/salons'),
+            headers: {'Authorization': 'Bearer ${demoToken()}'},
+          ),
+        ),
+      );
+      expect(got.statusCode, HttpStatus.ok);
+      expect((await got.json() as Map)['canAddSalon'], isFalse);
     });
   });
 }

@@ -254,7 +254,14 @@ the list is short enough to hand a salon owner directly:
 - **at least 3 active services**
 - **at least 3 photos**
 - at least one open day in the weekly schedule
-- **a live offer** — the 90-day free trial, chosen on the subscription screen
+- **a live offer** — the 90-day free trial, chosen on the subscription screen.
+  *2026-10-05: no longer a step for the owner in the app. The Pro app (iOS
+  and Android) has no offer choice any more, and the server starts the
+  90-day trial automatically at the salon's first successful publish, unless
+  an offer was already chosen on the web
+  ([pro-companion-path.md](pro-companion-path.md)). Only a salon whose offer
+  has **expired** is refused for it. Pilot owners on an older build still
+  choose first, which is compatible.*
 
 **There is no KYC gate on publishing**, so nothing waits on an admin. A salon
 that completes the list is live to consumers the moment it publishes.

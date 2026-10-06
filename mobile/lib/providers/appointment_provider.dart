@@ -23,7 +23,8 @@ class AppointmentProvider extends ChangeNotifier {
 
   /// The machine code behind [_error], kept because a sentence alone cannot
   /// say whether the refusal has a way out (§21 row 82). Same shape as
-  /// `ProTeamProvider._inviteErrorCode`, which the offer CTAs already use.
+  /// `ProTeamProvider._inviteErrorCode`, which the invite sheet reads to
+  /// pick its `offer_required` sentence.
   String? _errorCode;
 
   List<Appointment> get appointments => _appointments;

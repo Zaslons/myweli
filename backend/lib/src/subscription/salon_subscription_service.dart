@@ -1,6 +1,7 @@
 import '../access/capabilities.dart';
 import '../access/membership_repository.dart';
 import '../access/membership_service.dart';
+import '../auth/demo_seam.dart';
 import '../auth/provider_auth_repository.dart';
 import '../providers_repository.dart';
 import '../salon_provisioning_service.dart';
@@ -10,9 +11,10 @@ import 'subscription.dart';
 
 /// The pricing pivot's server core (docs/design/team-access-r2a-offers.md):
 /// offers hang on the SALON — Pro/Business/Réseau, ONE 3-month trial per
-/// salon starting at the first offer choice, then manual billing
-/// (« Nous contacter », admin-confirmed), a 7-day grace window, and
-/// unpublish-not-lockout on expiry (threat T54).
+/// salon starting at the first offer choice or, when none was made, at the
+/// first successful publish (docs/design/pro-companion-path.md §3.1), then
+/// manual billing (« Nous contacter », admin-confirmed), a 7-day grace
+/// window, and unpublish-not-lockout on expiry (threat T54).
 class SalonSubscriptionService {
   SalonSubscriptionService(
     this._subscriptions,
@@ -49,8 +51,9 @@ class SalonSubscriptionService {
   static const Duration trialLength = Duration(days: kProTrialDays);
   static const Duration graceLength = Duration(days: 7);
 
-  /// The derived state for [providerId], or null when no offer was ever
-  /// chosen (the free setup state).
+  /// The derived state for [providerId], or null while the salon has no
+  /// offer row (the free setup state — until the first choice or the first
+  /// publish).
   Future<Map<String, dynamic>?> stateFor(String providerId) async {
     final row = await _subscriptions.byProvider(providerId);
     if (row == null) return null;
@@ -59,17 +62,70 @@ class SalonSubscriptionService {
 
   /// True when the salon may operate (publish, receive bookings, invite):
   /// `trial`, `paid` or still in `grace`.
-  Future<bool> hasLiveOffer(String providerId) async {
-    final state = await stateFor(providerId);
-    if (state == null) return false;
-    final status = state['status'] as String;
-    return status == 'trial' || status == 'paid' || status == 'grace';
+  Future<bool> hasLiveOffer(String providerId) async =>
+      isLiveState(await stateFor(providerId));
+
+  /// The one spelling of « live » over a derived [state] (null = setup).
+  static bool isLiveState(Map<String, dynamic>? state) =>
+      state != null && _isLiveStatus(state['status'] as String);
+
+  static bool _isLiveStatus(String status) =>
+      status == 'trial' || status == 'paid' || status == 'grace';
+
+  /// The companion path (docs/design/pro-companion-path.md §3.1): the Pro
+  /// app no longer offers a choice (App Store 3.1.3(f)), so a salon that
+  /// never chose gets its ONE trial at its first successful publish. Called
+  /// only by `SalonProvisioningService.publish`, after the full publish gate
+  /// and the demo lock — minting a trial still takes a complete salon.
+  ///
+  /// Insert-if-absent: a web choice that landed first keeps its tier and its
+  /// clock, and an existing row (even an expired one) is never replaced —
+  /// one trial per salon, as `trial_used` says. Returns the derived state of
+  /// whichever row now exists, so the caller re-checks rather than assumes.
+  Future<Map<String, dynamic>> startDefaultTrial(String providerId) async {
+    final row = await _subscriptions.createIfAbsent(
+      providerId: providerId,
+      tier: await _defaultTierFor(providerId),
+      trialEndsAt: _now().add(trialLength),
+    );
+    return _derive(row);
+  }
+
+  /// `reseau` when the salon's OWNER already owns ANOTHER salon on a live
+  /// Réseau offer — the only way to add a salon is under Réseau, so the new
+  /// one joins the network's tier — else `pro`. Owned = the scalar link ∪
+  /// active owner rows, the same set `SalonDirectoryService` gates on.
+  Future<String> _defaultTierFor(String providerId) async {
+    final members = await _memberships.listForProvider(providerId);
+    final ownerId = members
+        .where((m) => m.role == 'owner' && m.status == 'active')
+        .map((m) => m.accountId)
+        .nonNulls
+        .firstOrNull;
+    if (ownerId == null) return 'pro';
+    final owned = <String>{};
+    final account = await _providerAuth.accountById(ownerId);
+    if (account?.providerId != null) owned.add(account!.providerId!);
+    for (final m in await _memberships.listForAccount(ownerId)) {
+      if (m.role == 'owner' && m.status == 'active') owned.add(m.providerId);
+    }
+    owned.remove(providerId);
+    for (final id in owned) {
+      final row = await _subscriptions.byProvider(id);
+      if (row != null &&
+          row.tier == 'reseau' &&
+          _isLiveStatus(_statusOf(row))) {
+        return 'reseau';
+      }
+    }
+    return 'pro';
   }
 
   /// Owner-only (`subscription.manage`): pick or switch the offer. The FIRST
-  /// choice starts the salon's ONE trial; switches keep the clock; once
-  /// `expired`, choosing again does not restart it (409 `trial_used` —
-  /// payment goes through « Nous contacter »).
+  /// choice starts the salon's ONE trial (unless a publish already did —
+  /// then it is a switch); switches keep the clock; once `expired`, choosing
+  /// again does not restart it (409 `trial_used` — payment goes through
+  /// « Nous contacter »).
   Future<({bool ok, String? error, Map<String, dynamic>? data})> chooseOffer(
     String accountId,
     String providerId,
@@ -81,6 +137,16 @@ class SalonSubscriptionService {
       Cap.subscriptionManage,
     )) {
       return (ok: false, error: 'forbidden', data: null);
+    }
+    // The demo review account (T69): its credential is public and the web
+    // dashboard accepts it, so a tier switch made with it is made by anyone
+    // — and it would hand the shared demo a Réseau offer (and its « Ajouter
+    // un salon » door) until the weekly reset. Keyed on the owner membership,
+    // same constant, same reasoning as the publish and invite refusals.
+    // Design: docs/design/pro-companion-path.md §3.2.
+    final members = await _memberships.listForProvider(providerId);
+    if (members.any((m) => m.role == 'owner' && isDemoIdentity(m.email))) {
+      return (ok: false, error: 'demo_account_locked', data: null);
     }
     if (tier is! String || !tierSeats.containsKey(tier)) {
       return (ok: false, error: 'invalid_tier', data: null);

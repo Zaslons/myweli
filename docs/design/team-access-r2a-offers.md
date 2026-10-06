@@ -5,6 +5,19 @@
 **Backend + contract + one admin-console button.** UIs (offer picker,
 banners) land in R3/R5.
 
+> **2026-10-05 — the trial also starts at the first publish**
+> ([pro-companion-path.md](pro-companion-path.md), owner decision, App Store
+> 3.1.3(f)). The Pro app — iOS and Android — no longer offers a choice, so
+> `chooseOffer` stops being the only way a trial starts: when a salon passes
+> the publish gate with **no** subscription row, the server creates one on a
+> default tier (`reseau` when the owner already owns a salon with a live
+> Réseau offer, else `pro`) with `trialEndsAt = now + 90 jours`, then
+> publishes. The write is **insert-if-absent** in both repositories, so a
+> racing web choice is never overwritten; a web choice made later switches
+> the tier and keeps the clock. The web stays where offers are chosen. Built
+> on `feat/pro-companion-path` (2026-10-05); the sections below describe R2a
+> as built and are not rewritten.
+
 ## Goal & scope
 
 The pricing pivot's server side: offers hang on the SALON (Pro 5 places ·
@@ -53,6 +66,8 @@ ONLY when enforcement is on and grace has ended.
 - **Publish** now requires a live offer: no row or `expired` → the 409
   `incomplete` payload gains the `offer` missing-key (clients map it to
   « Choisissez une offre » in R3/R5).
+  *2026-10-05: "no row" no longer refuses — it starts the trial (see the
+  note at the top); only `expired` still returns `offer`.*
 - `/me/subscription` (legacy, consumed verbatim by the app/web/e2e-stub)
   keeps its `{tier: free|pro, status, trialEndsAt, trialDaysLeft}` shape —
   now derived from the salon row (`pro|business|reseau → 'pro'`); accounts
@@ -70,6 +85,10 @@ Subscription state is server-owned: the owner sets only `tier` (pre-expiry),
 `paid_until` flips only through the audited admin action, enforcement only
 through the secret-gated cron, and the state never enters a public payload
 (separate table, never merged into `data`).
+*2026-10-05: T54 gains the publish-time start — it runs only inside the
+owner-only publish (`Cap.salonPublish`), after the full publish gate, so
+minting a trial still needs a complete salon
+([pro-companion-path.md](pro-companion-path.md) §6).*
 
 ## Tests
 

@@ -3,14 +3,20 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
+import 'package:myweli/core/utils/team_error_messages.dart';
 import 'package:myweli/models/api_response.dart';
+import 'package:myweli/models/provider.dart' as models;
 import 'package:myweli/models/salon_subscription.dart';
 import 'package:myweli/models/team_invitation.dart';
 import 'package:myweli/models/team_member.dart';
 import 'package:myweli/providers/pro_artist_provider.dart';
+import 'package:myweli/providers/pro_auth_provider.dart';
+import 'package:myweli/providers/pro_subscription_provider.dart';
 import 'package:myweli/providers/pro_team_provider.dart';
 import 'package:myweli/screens/provider/team/invite_member_sheet.dart';
 import 'package:myweli/services/interfaces/pro_team_service_interface.dart';
+import 'package:myweli/services/interfaces/subscription_service_interface.dart';
+import 'package:myweli/services/mock/mock_auth_service.dart';
 import 'package:myweli/services/mock/mock_data.dart';
 import 'package:myweli/services/mock/mock_image_upload_service.dart';
 import 'package:myweli/services/mock/mock_pro_artist_service.dart';
@@ -63,43 +69,113 @@ class _SwitchableTeam implements ProTeamServiceInterface {
       inner.declineInvitation(invitationId);
 }
 
+/// The salon's offer state the sheet reads (« Équipe » loads it before the
+/// sheet opens) — swapped per scenario like the team service.
+class _SwitchableSubs implements SubscriptionServiceInterface {
+  SubscriptionServiceInterface inner = MockSubscriptionService();
+
+  @override
+  Future<ApiResponse<SalonSubscription>> getSalonSubscription(
+    String providerId,
+  ) => inner.getSalonSubscription(providerId);
+}
+
+class _FailingSubs implements SubscriptionServiceInterface {
+  @override
+  Future<ApiResponse<SalonSubscription>> getSalonSubscription(
+    String providerId,
+  ) async => ApiResponse.error('Pas de connexion. Réessayez.');
+}
+
+/// The session's acting salon (GET /me/provider). Its publish status is what
+/// the sheet falls back on when the offer state is unknown.
+class _SessionAuth extends ProAuthProvider {
+  _SessionAuth(this.salon);
+
+  final models.Provider? salon;
+
+  @override
+  models.Provider? get activeSalon => salon;
+}
+
+/// The demo account's lock (the server refuses the invite before any gate).
+class _DemoLockedTeam extends MockProTeamService {
+  @override
+  Future<ApiResponse<TeamMember>> inviteMember({
+    required String email,
+    required TeamRole role,
+    String? artistId,
+  }) async => ApiResponse.error(
+    teamErrorMessage('demo_account_locked'),
+    code: 'demo_account_locked',
+  );
+}
+
 /// Team access R3 §2.1 — the 3-step invite sheet: email validation, the
 /// role cards' locked copy, the Collaborateur fiche step (+ inline create),
-/// duplicate errors inline and the offer CTA.
+/// duplicate errors inline — and the refusals, which are a neutral sentence
+/// and nothing else: the Pro app never sells (App Store 3.1.3(f),
+/// docs/design/pro-companion-path.md §2.2).
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   final team = _SwitchableTeam();
+  final subs = _SwitchableSubs();
+  // The refusals are what App Review meets on an iPhone: run them on BOTH
+  // platforms — no platform branch may exist (pro-companion-path §8), and
+  // `flutter test` alone only ever renders Android.
+  final bothPlatforms = TargetPlatformVariant(const {
+    TargetPlatform.android,
+    TargetPlatform.iOS,
+  });
 
-  void useOffer({required bool live}) {
-    // Business cap: the R4b seeds already occupy 5 of a Pro offer's seats.
-    final subs = live
-        ? MockSubscriptionService(
-            initial: SalonSubscription(
-              tier: SalonTier.business,
-              status: SalonOfferStatus.trial,
-              trialEndsAt: DateTime.now().add(const Duration(days: 60)),
-              graceEndsAt: DateTime.now().add(const Duration(days: 67)),
-              seats: const SalonSeats(cap: 15, used: 0),
-            ),
-          )
-        : MockSubscriptionService();
-    team.inner = MockProTeamService(subscriptions: subs);
+  /// The sheet's salon with a given lifecycle (`draft` · `active`).
+  models.Provider salonIn(String status, {String id = 'provider1'}) => MockData
+      .providers
+      .firstWhere((p) => p.id == 'provider1')
+      .copyWith(id: id, status: status);
+
+  /// The session's acting salon for the next pump — online by default.
+  models.Provider? sessionSalon;
+
+  SalonSubscription offer({
+    SalonTier tier = SalonTier.business,
+    SalonOfferStatus status = SalonOfferStatus.trial,
+  }) => SalonSubscription(
+    tier: tier,
+    status: status,
+    trialEndsAt: DateTime.now().add(const Duration(days: 60)),
+    graceEndsAt: DateTime.now().add(const Duration(days: 67)),
+    seats: const SalonSeats(cap: 15, used: 0),
+  );
+
+  /// One offer world for BOTH the team gate and the sheet's own read — the
+  /// way production shares one server.
+  void useOffer(MockSubscriptionService state) {
+    subs.inner = state;
+    team.inner = MockProTeamService(subscriptions: state);
   }
+
+  // Business cap: the R4b seeds already occupy 5 of a Pro offer's seats.
+  void useLiveOffer() => useOffer(MockSubscriptionService(initial: offer()));
 
   setUpAll(() async {
     await initializeDateFormatting('fr_FR', null);
     SharedPreferences.setMockInitialValues({});
+    // ProAuthProvider's ctor resolves the auth service (no one signed in).
+    serviceLocator.authService = MockAuthService();
     serviceLocator.proArtistService = MockProArtistService();
     // ProArtistProvider's ctor resolves the upload service too.
     serviceLocator.imageUploadService = MockImageUploadService();
     serviceLocator.proTeamService = team;
-    useOffer(live: true);
+    serviceLocator.subscriptionService = subs;
+    useLiveOffer();
   });
 
   setUp(() {
     MockData.resetTeam();
-    useOffer(live: true);
+    useLiveOffer();
+    sessionSalon = salonIn('active');
   });
 
   Widget app() {
@@ -117,6 +193,10 @@ void main() {
       providers: [
         ChangeNotifierProvider(create: (_) => ProTeamProvider()),
         ChangeNotifierProvider(create: (_) => ProArtistProvider()),
+        ChangeNotifierProvider(create: (_) => ProSubscriptionProvider()),
+        ChangeNotifierProvider<ProAuthProvider>(
+          create: (_) => _SessionAuth(sessionSalon),
+        ),
       ],
       routerConfig: router,
     );
@@ -276,35 +356,180 @@ void main() {
     expect(find.text('Cette personne est déjà dans l’équipe.'), findsOneWidget);
   });
 
-  testWidgets('offer_required renders the CTA to the offer picker', (
-    tester,
-  ) async {
-    useOffer(live: false); // setup state — invites gated
+  /// Submits a Manager invite and returns how many buttons the sheet had
+  /// before and after the refusal — a refusal may add a sentence, never a
+  /// control.
+  Future<({int before, int after})> submitManager(WidgetTester tester) async {
     await reachRoleStep(tester);
-
     await tester.tap(find.text('Manager'));
     await tester.pump();
+    int buttons() =>
+        find.byWidgetPredicate((w) => w is ButtonStyleButton).evaluate().length;
+    final before = buttons();
     await tester.tap(find.text('Envoyer l’invitation'));
     await settle(tester);
+    return (before: before, after: buttons());
+  }
+
+  /// What no refusal may say or offer (§2.1).
+  void expectNoSalesPath() {
+    for (final f in [
+      find.textContaining('Choisir'),
+      find.textContaining('Choisissez'),
+      find.textContaining('Changer d’offre'),
+      find.textContaining('mois offerts'),
+      find.textContaining('Contactez'),
+      find.textContaining('myweli.com'),
+      find.text('OFFRES'), // the stubbed offer route — nothing navigates
+    ]) {
+      expect(f, findsNothing, reason: '$f');
+    }
+  }
+
+  const setupSentence =
+      'Vous pourrez inviter votre équipe une fois votre salon en ligne.';
+  const expiredSentence =
+      'Les invitations sont indisponibles : l’offre de votre salon n’est '
+      'plus active.';
+
+  testWidgets('offer_required on a SETUP salon (no offer row): the invites '
+      'open once the salon is online — no button', (tester) async {
+    useOffer(MockSubscriptionService()); // setup — the GET is a 404
+    sessionSalon = salonIn('draft');
+    final buttons = await submitManager(tester);
+
+    expect(find.text(setupSentence), findsOneWidget);
+    expect(find.text(expiredSentence), findsNothing);
+    expect(
+      buttons.after,
+      buttons.before,
+      reason: 'the refusal added a control',
+    );
+    expectNoSalesPath();
+  }, variant: bothPlatforms);
+
+  testWidgets('offer_required on an EXPIRED offer: the invites are '
+      'unavailable — no button', (tester) async {
+    useOffer(
+      MockSubscriptionService(
+        initial: offer(tier: SalonTier.pro, status: SalonOfferStatus.expired),
+      ),
+    );
+    final buttons = await submitManager(tester);
+
+    expect(find.text(expiredSentence), findsOneWidget);
+    expect(find.text(setupSentence), findsNothing);
+    expect(
+      buttons.after,
+      buttons.before,
+      reason: 'the refusal added a control',
+    );
+    expectNoSalesPath();
+  }, variant: bothPlatforms);
+
+  testWidgets('offer_required while the offer state FAILED to load, on a '
+      'DRAFT salon: the setup sentence — never claim an offer expired without '
+      'a sign of one', (tester) async {
+    useOffer(MockSubscriptionService()); // the server: no live offer
+    subs.inner = _FailingSubs(); // the sheet: no state to read
+    sessionSalon = salonIn('draft');
+    await submitManager(tester);
+
+    expect(find.text(setupSentence), findsOneWidget);
+    expect(find.text(expiredSentence), findsNothing);
+    expectNoSalesPath();
+  }, variant: bothPlatforms);
+
+  testWidgets('offer_required while the offer state FAILED to load, on an '
+      'ONLINE salon: its offer expired — never « une fois votre salon en '
+      'ligne » to a salon that is online', (tester) async {
+    // Publishing creates the row, so an online salon refused by the offer
+    // gate has an expired one — and with enforcement off it stays online.
+    useOffer(
+      MockSubscriptionService(
+        initial: offer(tier: SalonTier.pro, status: SalonOfferStatus.expired),
+      ),
+    );
+    subs.inner = _FailingSubs();
+    final buttons = await submitManager(tester);
+
+    expect(find.text(expiredSentence), findsOneWidget);
+    expect(find.text(setupSentence), findsNothing);
+    expect(
+      buttons.after,
+      buttons.before,
+      reason: 'the refusal added a control',
+    );
+    expectNoSalesPath();
+  }, variant: bothPlatforms);
+
+  testWidgets('offer_required, state FAILED to load, and the session holds '
+      'ANOTHER salon: its status says nothing about this one — the setup '
+      'sentence', (tester) async {
+    useOffer(MockSubscriptionService());
+    subs.inner = _FailingSubs();
+    sessionSalon = salonIn('active', id: 'another-salon');
+    await submitManager(tester);
+    expect(find.text(setupSentence), findsOneWidget);
+    expect(find.text(expiredSentence), findsNothing);
+  });
+
+  testWidgets('seat_limit: the places are taken — the sentence, no « change '
+      'offer » button', (tester) async {
+    // Pro cap = 5 and the R4b seeds already occupy exactly 5 seats.
+    useOffer(MockSubscriptionService(initial: offer(tier: SalonTier.pro)));
+    final buttons = await submitManager(tester);
 
     expect(
-      find.text(
-        'Choisissez d’abord votre offre pour inviter votre '
-        'équipe.',
-      ),
+      find.text('Toutes les places de votre offre sont occupées.'),
       findsOneWidget,
     );
-    await tester.tap(find.text('Choisir mon offre'));
-    await settle(tester);
-    expect(find.text('OFFRES'), findsOneWidget);
-  });
+    expect(
+      buttons.after,
+      buttons.before,
+      reason: 'the refusal added a control',
+    );
+    expectNoSalesPath();
+  }, variant: bothPlatforms);
+
+  testWidgets('demo_account_locked: the demo sentence, not « Une erreur est '
+      'survenue »', (tester) async {
+    team.inner = _DemoLockedTeam();
+    final buttons = await submitManager(tester);
+
+    expect(
+      find.text('Compte de démonstration — cette action est désactivée.'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('Une erreur est survenue'), findsNothing);
+    expect(
+      buttons.after,
+      buttons.before,
+      reason: 'the refusal added a control',
+    );
+    expectNoSalesPath();
+  }, variant: bothPlatforms);
 }
 
 /// Hosts the sheet behind a button so it opens as a REAL modal bottom
 /// sheet (production presents it with showModalBottomSheet — popping it
 /// must not pop a router page).
-class _SheetHost extends StatelessWidget {
+class _SheetHost extends StatefulWidget {
   const _SheetHost();
+
+  @override
+  State<_SheetHost> createState() => _SheetHostState();
+}
+
+class _SheetHostState extends State<_SheetHost> {
+  @override
+  void initState() {
+    super.initState();
+    // « Équipe » loads the salon's offer state before the sheet can open.
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => context.read<ProSubscriptionProvider>().load('provider1'),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {

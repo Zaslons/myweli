@@ -14,6 +14,7 @@ import '../../models/provider.dart';
 import '../../models/provider_user.dart';
 import '../../models/review.dart';
 import '../../models/salon_membership_info.dart';
+import '../../models/salon_subscription.dart';
 import '../../models/service.dart';
 import '../../models/team_member.dart';
 import '../interfaces/pro_service_interface.dart';
@@ -516,18 +517,51 @@ class MockProService implements ProServiceInterface {
   @override
   Future<ApiResponse<bool>> publishSalon(String providerId) async {
     await Future<void>.delayed(const Duration(milliseconds: 300));
-    // Pricing pivot (R2a/R3): publishing requires a live offer — mirror the
-    // server's `offer` missing-key so the demo exercises the real flow.
-    final sub = await serviceLocator.subscriptionService.getSalonSubscription(
-      providerId,
-    );
-    if (!sub.success || !(sub.data?.isLive ?? false)) {
+    // The server's offer rule, mirrored (docs/design/pro-companion-path.md
+    // §3.1): NO offer row → the first publish starts the salon's one trial
+    // on the default tier; a row that is no longer live (expired) →
+    // `offer_required`, never a second trial; a live row → publish.
+    final subs = serviceLocator.subscriptionService;
+    final sub = await subs.getSalonSubscription(providerId);
+    if (sub.success && sub.data != null) {
+      if (!sub.data!.isLive) {
+        return ApiResponse.error(
+          publishOfferInactiveMessage,
+          code: 'offer_required',
+        );
+      }
+    } else if (sub.code == 'no_offer') {
+      if (subs is MockSubscriptionService) {
+        subs.startTrialIfAbsent(
+          providerId,
+          tier: await _defaultTrialTier(providerId, subs),
+        );
+      }
+    } else {
       return ApiResponse.error(
-        'Choisissez votre offre avant la mise en ligne.',
-        code: 'offer_required',
+        sub.error ?? 'La mise en ligne a échoué',
+        code: sub.code,
       );
     }
     return ApiResponse.success(true, message: 'Votre salon est en ligne');
+  }
+
+  /// The server's default trial tier: `reseau` when the owner already owns
+  /// ANOTHER salon on a live Réseau offer (the salon was added under Réseau),
+  /// else `pro`.
+  Future<SalonTier> _defaultTrialTier(
+    String providerId,
+    MockSubscriptionService subs,
+  ) async {
+    ProviderUser? account;
+    try {
+      account = await serviceLocator.authService.getCurrentProvider();
+    } catch (_) {
+      account = null; // locator not wired (isolated tests)
+    }
+    if (account == null) return SalonTier.pro;
+    final others = _ownedSalonIds(account)..remove(providerId);
+    return subs.hasLiveReseauAmong(others) ? SalonTier.reseau : SalonTier.pro;
   }
 
   @override

@@ -21,6 +21,18 @@
 >   manual payment → republished. Enforcement **config-driven** (lenient
 >   during the cold-start). Team invites require an active offer.
 > - Existing salons at migration: grandfathered with a fresh 3-month trial.
+> - **2026-10-05 (owner) — the companion path**
+>   ([pro-companion-path.md](../design/pro-companion-path.md), App Store
+>   3.1.3(f)): the trial **also** starts at the salon's **first successful
+>   publish** when no offer was chosen — default tier `reseau` when the owner
+>   already owns a salon with a live Réseau offer, else `pro`; written
+>   insert-if-absent, so a racing web choice is never overwritten. Still one
+>   trial per salon: an expired salon gets the 409 `offer`, never a second
+>   trial. **The apps never choose an offer** (iOS and Android alike — no
+>   picker, no « 3 mois offerts », no pointer to where to pay); **the web is
+>   where offers are chosen**, and it keeps requiring the choice before
+>   go-live. Team invites still require a live offer — the app's sentence for
+>   it is neutral. Built on `feat/pro-companion-path` (2026-10-05).
 >
 > Slices R1–R6 (see §10); R2 carries the offer selection + expiry mechanics +
 > the admin « marquer payé / prolonger » action. **R6 (pre-launch, after R5)
@@ -330,7 +342,7 @@ set ops. No new N+1: member list joins artists in one query. Budgets unchanged.
 | Slice | Contents | Phase |
 |---|---|---|
 | A1/R1 | ~~Migration + membership model + middleware swap (owner-only behavior unchanged — pure refactor, zero UX change)~~ ✅ done 2026-07-11 (PR feat/team-access-r1-foundation; + the provisioning guard, deletion revocation and `salon.publish`) | pre-launch |
-| A2/R2 | Invites + accept flow + presets enforcement + audit + tests — **R2a (offers/seats server side) ✅ 2026-07-11 · R2b (invitations API + login bridge) ✅ 2026-07-12 · R3 (pro APP: Équipe screen, login « Invitations » step, offer picker, publish-gate mirror) ✅ 2026-07-12** (docs/design/team-access-r3-app.md); web screens **R5a ✅ 2026-07-12** | pre-launch |
+| A2/R2 | Invites + accept flow + presets enforcement + audit + tests — **R2a (offers/seats server side) ✅ 2026-07-11 · R2b (invitations API + login bridge) ✅ 2026-07-12 · R3 (pro APP: Équipe screen, login « Invitations » step, offer picker, publish-gate mirror) ✅ 2026-07-12** (docs/design/team-access-r3-app.md; *2026-10-05: the app's offer picker and the offer step of its publish gate are removed — companion path, see the sign-off block*); web screens **R5a ✅ 2026-07-12** | pre-launch |
 | A3/R4 | Role-shaped experience ✅ — **R4a (backend: membership-aware /me/provider + `not_a_member` + T40 own-scope enforcement w/ off-day contact masking) ✅ 2026-07-12 · R4b (app: role-gated dashboard/profil, the Collaborateur « Ma journée » 3-tab shell, revoked-mid-session sign-out, mock role demos) ✅ 2026-07-12** (docs/design/team-access-r4-role-shaped-app.md); web own-calendar **R5b ✅ 2026-07-12** (docs/design/web-team-access-r5.md — **the R5 web-parity pair is complete**) | pre-launch |
 | A4 | Seats gate (config-off until pricing) | V2, flag-hidden |
 | A5/R6 | **Multi-salons** (pre-launch, sign-off 2026-07-11): switcher + « Ajouter un salon » + Réseau gating + badge inheritance — **R6a (backend: the `?salonId=` selector via `salonForRequest`, GET/POST /me/salons, KYC badge fan-out, deletion across all owned salons; threat T55) ✅ 2026-07-12 · R6b (app: the « Mes salons » switcher — tappable dashboard header + Profil row + picker sheet —, `ProSalonScope` per-salon state reset, session-persisted selection w/ silent per-salon-403 fallback, « Ajouter un salon » flow → onboarding, the 15-screen `activeSalonId` sweep) ✅ 2026-07-13 · R6c (web: the sidebar « Mes salons » switcher, the validated `myweli_pro_salon` httpOnly cookie + BFF `?salonId=` threading, the switch-epoch page remount, /pro/salons/nouveau + the Réseau CTA) ✅ 2026-07-13 — **A5/R6 COMPLETE; the team-access module is fully built (R1→R6) across backend, app and web** | pre-launch |

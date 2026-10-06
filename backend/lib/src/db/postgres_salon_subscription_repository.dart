@@ -37,6 +37,35 @@ class PostgresSalonSubscriptionRepository
     return _fromRow(r.first.toColumnMap());
   }
 
+  /// `DO NOTHING`, not [create]'s `DO UPDATE SET tier`: the publish-time
+  /// trial start must never overwrite a web choice that won the race
+  /// (docs/design/pro-companion-path.md §3.1). On a conflict `RETURNING`
+  /// yields no row, so the winner's row is read back — the primary key
+  /// makes the insert itself the arbiter, no read-then-write window.
+  @override
+  Future<SalonSubscriptionRow> createIfAbsent({
+    required String providerId,
+    required String tier,
+    required DateTime trialEndsAt,
+  }) async {
+    final r = await _pool.execute(
+      Sql.named(
+        'INSERT INTO provider_subscriptions (provider_id, tier, trial_ends_at) '
+        'VALUES (@p, @t, @e) '
+        'ON CONFLICT (provider_id) DO NOTHING RETURNING *',
+      ),
+      parameters: {'p': providerId, 't': tier, 'e': trialEndsAt},
+    );
+    if (r.isNotEmpty) return _fromRow(r.first.toColumnMap());
+    final existing = await byProvider(providerId);
+    if (existing == null) {
+      // Nothing deletes these rows; reaching this means the schema changed
+      // under the code, and a silent null would surface far from the cause.
+      throw StateError('provider_subscriptions conflict without a row');
+    }
+    return existing;
+  }
+
   @override
   Future<SalonSubscriptionRow?> update(
     String providerId, {

@@ -144,16 +144,23 @@ void main() {
   ) async {
     final auth = await signInOwner(tester);
     await tester.runAsync(() async {
-      final chosen = await serviceLocator.subscriptionService.chooseOffer(
-        'provider1',
-        SalonTier.reseau,
+      // provider1 on a live Réseau offer (chosen on the web, in production —
+      // the app never chooses one).
+      expect(
+        (serviceLocator.subscriptionService as MockSubscriptionService)
+            .startTrialIfAbsent('provider1', tier: SalonTier.reseau),
+        isTrue,
       );
-      expect(chosen.success, isTrue);
       await auth.loadMySalons();
     });
     await pumpPicker(tester, auth);
 
     expect(find.text('Ajouter un salon'), findsOneWidget);
+    // States the offer the account HAS — unchanged by the companion path.
+    expect(
+      find.text('Offre Réseau — un salon de plus dans votre compte'),
+      findsOneWidget,
+    );
     await drain(tester);
   });
 }

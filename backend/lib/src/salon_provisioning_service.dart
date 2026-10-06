@@ -25,7 +25,8 @@ class SalonProvisioningService {
   final ProviderAuthRepository _accounts;
   final MembershipRepository _members;
 
-  /// The offer gate (pricing pivot): publishing requires a live offer.
+  /// The offer gate (pricing pivot): publishing requires a live offer, and
+  /// the first publish of a salon that never had one starts its trial.
   /// Nullable only for legacy unit tests; production wiring always passes it.
   final SalonSubscriptionService? _subscriptions;
 
@@ -161,8 +162,12 @@ class SalonProvisioningService {
     return missing;
   }
 
-  /// Publish [providerId]: flips `draft` → `active` when the gate passes.
-  /// `{ok: true}` also for an already-active salon (idempotent).
+  /// Publish [providerId]: flips `draft` → `active` when the gate passes,
+  /// starting the salon's trial first when it has no offer row yet.
+  /// `{ok: true}` also for an already-active salon (idempotent) — which,
+  /// with no offer row, still gets its trial here: the first successful
+  /// publish is the start, whatever the status was. A `suspended` salon is
+  /// refused (`provider_suspended`).
   Future<({bool ok, String? error, Object? data})> publish(
     String providerId,
   ) async {
@@ -179,6 +184,15 @@ class SalonProvisioningService {
     if (await _ownedByDemoAccount(providerId)) {
       return (ok: false, error: 'demo_account_locked', data: null);
     }
+    // An admin suspension (T17) is lifted only by the audited admin restore.
+    // Publish flips every non-active status to `active`, so without this an
+    // owner undid a suspension in one call — and, since the companion path,
+    // that call would also mint the salon's trial. Before the gate and the
+    // trial start: a suspended salon writes nothing here, billing included.
+    // Design: docs/design/pro-companion-path.md §3.1.
+    if (provider['status'] == 'suspended') {
+      return (ok: false, error: 'provider_suspended', data: null);
+    }
     // Multi-pays MP1 self-heal: a legacy commune display name that matches a
     // seeded area gets its market facts stamped before gating.
     if (provider['areaId'] == null) {
@@ -194,14 +208,38 @@ class SalonProvisioningService {
       }
     }
     final missing = publishGate(provider);
-    // The pricing pivot: going live requires a live offer (trial/paid/grace)
-    // — the `offer` key sends the clients to « Choisissez une offre ».
+    // The pricing pivot: going live requires a live offer (trial/paid/grace).
+    // The companion path (docs/design/pro-companion-path.md §3.1): a salon
+    // with NO offer row is not refused for it — the Pro app may not send it
+    // anywhere to choose (App Store 3.1.3(f)), so its trial starts below once
+    // every other key passes. Only a row that exists and is no longer live
+    // still yields `offer`: one trial per salon, the `trial_used` rule.
     final subs = _subscriptions;
-    if (subs != null && !await subs.hasLiveOffer(providerId)) {
-      missing.add('offer');
+    var startTrial = false;
+    if (subs != null) {
+      final state = await subs.stateFor(providerId);
+      if (state == null) {
+        startTrial = true;
+      } else if (!SalonSubscriptionService.isLiveState(state)) {
+        missing.add('offer');
+      }
     }
     if (missing.isNotEmpty) {
       return (ok: false, error: 'incomplete', data: {'missing': missing});
+    }
+    if (startTrial && subs != null) {
+      // Insert-if-absent, then re-checked: whichever row won a race with a
+      // web choice is the one that counts, and it must be live to go live.
+      final started = await subs.startDefaultTrial(providerId);
+      if (!SalonSubscriptionService.isLiveState(started)) {
+        return (
+          ok: false,
+          error: 'incomplete',
+          data: {
+            'missing': ['offer'],
+          },
+        );
+      }
     }
     if ((provider['status'] ?? 'active') == 'active') {
       return (ok: true, error: null, data: provider);

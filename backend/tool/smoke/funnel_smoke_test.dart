@@ -384,6 +384,7 @@ void main() {
   // Shared across phases: the funnel is one story, not 47 independent cases.
   late String salon; // the salon that goes live
   late String proToken;
+  late String companion; // live WITHOUT a plan choice (A21a–A21d)
   late String bystanderSalon; // a second salon, left DRAFT on purpose
   late String bystanderToken;
   late String consumerToken;
@@ -606,11 +607,23 @@ void main() {
       steps++;
       // SET equality, not `contains`: a silently dropped check is the failure
       // mode, and `contains` cannot see it.
+      //
+      // No `offer`: a salon with no offer row is never refused for one — its
+      // trial starts at its first successful publish (the companion path,
+      // docs/design/pro-companion-path.md §3.1). An app that may not tell the
+      // salon where to choose cannot be handed a step it cannot take.
       expect(
         (r.json['missing'] as List).cast<String>().toSet(),
-        {'profile', 'location', 'services', 'photos', 'availability', 'offer'},
+        {'profile', 'location', 'services', 'photos', 'availability'},
         reason: 'the go-live checklist must stay server-authoritative',
       );
+    });
+
+    test('A12b …and an incomplete publish mints NO trial', () async {
+      final r = await get('/providers/$salon/subscription', token: proToken);
+      // The pair for A21c: a trial costs a complete salon, so the refused
+      // publish above must have left the setup state (404) behind it.
+      expectError(r, 404, 'not_found', 'A12b setup state after a refusal');
     });
 
     test('A13 profile + location persist', () async {
@@ -725,38 +738,54 @@ void main() {
       },
     );
 
-    test('A17 only the OFFER is left', () async {
-      final r = await post('/providers/$salon/publish', token: proToken);
-      expectStatus(r, 409, 'A17 publish without an offer');
-      steps++;
-      expect(
-        (r.json['missing'] as List).cast<String>(),
-        ['offer'],
-        reason: 'the pricing pivot must be the last door, not an optional one',
-      );
-    });
+    // A17–A19 are THE WEB PATH: the offer is chosen before the first publish
+    // (the web dashboard keeps its picker). The app's path — publish with no
+    // choice at all — is A21a–A21d on a salon of its own.
+    late String webTrialEndsAt;
 
-    test('A18 the trial starts', () async {
-      final r = await put(
-        '/providers/$salon/subscription',
-        token: proToken,
-        body: {'tier': 'pro'},
-      );
-      expectStatus(r, 200, 'A18 subscription');
-      steps++;
-      expect(r.json['status'], 'trial');
-      steps++;
-      expect(
-        DateTime.parse(r.json['trialEndsAt'] as String).isAfter(DateTime.now()),
-        isTrue,
-      );
-    });
+    test(
+      'A17 the web path: the offer is chosen first, and the trial starts',
+      () async {
+        // `business`, not the default: if the publish below overwrote the row
+        // with its own default, A19 could not tell `pro` from `pro`.
+        final r = await put(
+          '/providers/$salon/subscription',
+          token: proToken,
+          body: {'tier': 'business'},
+        );
+        expectStatus(r, 200, 'A17 subscription');
+        steps++;
+        expect(r.json['status'], 'trial');
+        steps++;
+        expect(r.json['tier'], 'business');
+        webTrialEndsAt = r.json['trialEndsAt'] as String;
+        steps++;
+        expect(DateTime.parse(webTrialEndsAt).isAfter(DateTime.now()), isTrue);
+      },
+    );
 
-    test('A19 the salon goes live', () async {
+    test('A18 the salon goes live', () async {
       final r = await post('/providers/$salon/publish', token: proToken);
-      expectStatus(r, 200, 'A19 publish');
+      expectStatus(r, 200, 'A18 publish');
       steps++;
       expect(r.json['status'], 'active');
+    });
+
+    test('A19 …and the publish KEPT the web choice — tier and clock', () async {
+      final r = await get('/providers/$salon/subscription', token: proToken);
+      expectStatus(r, 200, 'A19 subscription after publish');
+      steps++;
+      expect(
+        r.json['tier'],
+        'business',
+        reason:
+            'a publish must leave an existing offer alone — the trial start '
+            'fires only when NO row exists, and never with the default tier '
+            'over a web choice (the concurrent half of that rule is proven '
+            'in-process and on Postgres: postgres_repositories_test.dart)',
+      );
+      steps++;
+      expect(r.json['trialEndsAt'], webTrialEndsAt, reason: 'one trial');
     });
 
     test('A20 …and the public door opens (the pair for A8)', () async {
@@ -780,6 +809,116 @@ void main() {
             'rule; when they disagree a salon is linkable but unfindable',
       );
     });
+  });
+
+  // -------------------------------------------------------------------------
+  group('Phase 2b — the companion path: live WITHOUT a choice', () {
+    // The Pro app never offers a plan choice (App Store 3.1.3(f) —
+    // docs/design/pro-companion-path.md): a salon built entirely in the app
+    // must still go live, with the server starting its trial at the publish.
+    // Its own salon, so Phase 2's web path stays intact; suspended in Phase 7
+    // so a deployed target does not collect live smoke salons.
+    late String companionToken;
+
+    test('A21a a second salon, built complete, with NO offer', () async {
+      final s = await registerSalon('companion');
+      companion = s.salonId;
+      companionToken = s.access;
+
+      final profile = await patch(
+        '/providers/$companion',
+        token: companionToken,
+        body: {
+          'description': 'Salon compagnon, Cocody.',
+          'latitude': 5.36,
+          'longitude': -3.98,
+        },
+      );
+      expectStatus(profile, 200, 'A21a profile');
+      for (var i = 0; i < 3; i++) {
+        final svc = await post(
+          '/providers/$companion/services',
+          token: companionToken,
+          body: {
+            'name': 'Tresse $i',
+            'price': 4000,
+            'durationMinutes': 30,
+            'category': 'coiffure',
+          },
+        );
+        expectStatus(svc, 201, 'A21a service $i');
+      }
+      final gallery = await put(
+        '/providers/$companion/gallery',
+        token: companionToken,
+        body: {
+          'imageUrls': [
+            await uploadGalleryPhoto(companionToken, companion),
+            await uploadGalleryPhoto(companionToken, companion),
+            await uploadGalleryPhoto(companionToken, companion),
+          ],
+        },
+      );
+      expectStatus(gallery, 200, 'A21a gallery');
+      final hours = await put(
+        '/providers/$companion/availability',
+        token: companionToken,
+        body: {
+          'weeklySchedule': {
+            '1': [
+              {
+                'startTime': wireTime('09:00'),
+                'endTime': wireTime('18:00'),
+                'isAvailable': true,
+              },
+            ],
+          },
+          'bufferMinutes': 0,
+          'blockedDates': <String>[],
+        },
+      );
+      expectStatus(hours, 200, 'A21a availability');
+    });
+
+    test('A21b …still in the setup state: no offer row', () async {
+      final r = await get(
+        '/providers/$companion/subscription',
+        token: companionToken,
+      );
+      expectError(r, 404, 'not_found', 'A21b setup state before publish');
+    });
+
+    test('A21c publish WITHOUT a choice → live', () async {
+      final r = await post(
+        '/providers/$companion/publish',
+        token: companionToken,
+      );
+      expectStatus(r, 200, 'A21c publish without a choice');
+      steps++;
+      expect(r.json['status'], 'active');
+    });
+
+    test(
+      'A21d …and the trial started at that publish: trial, pro, 90 days',
+      () async {
+        final r = await get(
+          '/providers/$companion/subscription',
+          token: companionToken,
+        );
+        expectStatus(r, 200, 'A21d subscription after publish');
+        steps++;
+        expect(r.json['status'], 'trial');
+        steps++;
+        expect(r.json['tier'], 'pro', reason: 'the default tier');
+        steps++;
+        final left = DateTime.parse(
+          r.json['trialEndsAt'] as String,
+        ).difference(DateTime.now().toUtc());
+        // A window, not equality: the harness and the server do not share a
+        // clock, and a deployed target sits behind a network round-trip.
+        expect(left.inDays, inInclusiveRange(88, 90), reason: 'a 90-day trial');
+      },
+    );
   });
 
   // -------------------------------------------------------------------------
@@ -1091,6 +1230,17 @@ void main() {
       expectStatus(r, 200, 'A42 suspend');
     });
 
+    test('A42b the companion salon is suspended too', () async {
+      // Housekeeping with an assertion: A21c left a second LIVE salon, and a
+      // deployed target must not collect public smoke salons run after run.
+      final r = await post(
+        '/admin/providers/$companion/suspend',
+        token: adminToken,
+        body: {'reason': 'Q1 smoke (companion path)'},
+      );
+      expectStatus(r, 200, 'A42b suspend the companion salon');
+    });
+
     test('A43 a suspended salon leaves the public read', () async {
       final r = await get('/providers/$salon');
       // Same 404 as A8, reached from the other direction: never-published vs
@@ -1153,6 +1303,16 @@ void main() {
         expectError(r, 409, 'provider_suspended', 'A46 manual on suspended');
       },
     );
+
+    test('A46b the owner cannot lift the suspension by publishing', () async {
+      // T17: only the audited admin restore lifts it. Publish flipped every
+      // non-active status to `active`, so one owner call undid A42 — and
+      // since the companion path it would also mint a trial.
+      final r = await post('/providers/$salon/publish', token: proToken);
+      expectError(r, 403, 'provider_suspended', 'A46b publish while suspended');
+      final read = await get('/providers/$salon');
+      expectError(read, 404, 'not_found', 'A46b still hidden after it');
+    });
 
     test(
       'A47 …but a DRAFT salon owns its calendar (the half that matters)',

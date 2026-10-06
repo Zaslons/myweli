@@ -22,6 +22,12 @@ import '../support/pump_app.dart';
 /// Team access R4b §5.3 — the role-shaped Profil: owner keeps every row;
 /// manager loses money/team/owner rows; staff is the slim personal profile
 /// with the member header card (« Salon » + role chip).
+///
+/// « Aide & Support » is pinned for EVERY role: since the companion path took
+/// the help buttons off « Mon abonnement » (an offer surface may not point
+/// anywhere — App Store 3.1.3(f)), this row is the Pro app's one help entry.
+/// An owner whose offer is in grace or expired has nowhere else to go.
+/// Design: docs/design/pro-companion-path.md §2.2.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   final auth = MockAuthService();
@@ -142,6 +148,7 @@ void main() {
     // must reach the privacy policy. Placed ABOVE « Déconnexion » so the
     // existing scroll ladder still reaches it.
     expect(find.text('À propos'), findsOneWidget);
+    expect(find.text('Aide & Support'), findsOneWidget);
     expect(find.text('Déconnexion'), findsOneWidget);
   });
 
@@ -164,6 +171,7 @@ void main() {
     expect(find.text('Mon abonnement'), findsNothing);
     await scrollDown(tester);
     expect(find.text('À propos'), findsOneWidget);
+    expect(find.text('Aide & Support'), findsOneWidget);
     expect(find.text('Déconnexion'), findsOneWidget);
     expect(find.text('Supprimer mon compte'), findsOneWidget);
   });
@@ -191,5 +199,6 @@ void main() {
     await scrollDown(tester);
     await scrollDown(tester);
     expect(find.text('À propos'), findsOneWidget);
+    expect(find.text('Aide & Support'), findsOneWidget);
   });
 }

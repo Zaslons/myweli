@@ -17,14 +17,17 @@ class _MockSubscriptionService extends Mock
     implements SubscriptionServiceInterface {}
 
 /// Team access R3 (docs/design/team-access-r3-app.md §2.4): the salon offer
-/// model, the setup→choose→trial arc (ONE trial, switches keep the clock),
-/// grace/expired states and the API path/status mapping.
+/// model, the mock's setup → first-publish trial arc (ONE trial per salon,
+/// insert-if-absent — docs/design/pro-companion-path.md §3.1), grace/expired
+/// states and the API path/status mapping. The app reads the offer and never
+/// writes it: the choose/switch tests left with the picker.
 void main() {
   SalonSubscription sample({
+    SalonTier tier = SalonTier.pro,
     SalonOfferStatus status = SalonOfferStatus.trial,
     bool unpublished = false,
   }) => SalonSubscription(
-    tier: SalonTier.pro,
+    tier: tier,
     status: status,
     trialEndsAt: DateTime.now().add(const Duration(days: 30)),
     graceEndsAt: DateTime.now().add(const Duration(days: 37)),
@@ -76,7 +79,7 @@ void main() {
     });
   });
 
-  group('MockSubscriptionService — the offer arc', () {
+  group('MockSubscriptionService — the offer arc (server mirror)', () {
     test('defaults to SETUP (no offer) → code no_offer', () async {
       final res = await MockSubscriptionService().getSalonSubscription(
         'provider1',
@@ -85,32 +88,54 @@ void main() {
       expect(res.code, 'no_offer');
     });
 
-    test('first choice starts the ONE 3-month trial; a switch keeps the '
-        'clock and changes the cap', () async {
+    test('startTrialIfAbsent: no row → the ONE 90-day trial on the given '
+        'tier, with that tier\'s cap (pro-companion-path §3.1)', () async {
       final svc = MockSubscriptionService();
-      final chosen = await svc.chooseOffer('provider1', SalonTier.pro);
-      expect(chosen.success, isTrue);
-      expect(chosen.data!.status, SalonOfferStatus.trial);
-      expect(chosen.data!.seats.cap, 5);
-      final firstEnd = chosen.data!.trialEndsAt;
+      expect(svc.startTrialIfAbsent('provider1'), isTrue);
+      final state = await svc.getSalonSubscription('provider1');
+      expect(state.data!.status, SalonOfferStatus.trial);
+      expect(state.data!.tier, SalonTier.pro);
+      expect(state.data!.seats.cap, 5);
+      expect(
+        state.data!.trialEndsAt.difference(DateTime.now()).inDays,
+        inInclusiveRange(89, 90),
+      );
 
-      final switched = await svc.chooseOffer('provider1', SalonTier.business);
-      expect(switched.success, isTrue);
-      expect(switched.data!.tier, SalonTier.business);
-      expect(switched.data!.trialEndsAt, firstEnd);
-      expect(switched.data!.seats.cap, 15);
+      expect(svc.startTrialIfAbsent('salon_b', tier: SalonTier.reseau), isTrue);
+      final reseau = await svc.getSalonSubscription('salon_b');
+      expect(reseau.data!.tier, SalonTier.reseau);
+      expect(reseau.data!.seats.cap, 15);
     });
 
-    test('expired → choose is trial_used (payment is manual)', () async {
-      final svc = MockSubscriptionService(
+    test('startTrialIfAbsent never replaces a row: a web choice, a running '
+        'trial or an EXPIRED offer stays exactly as it is', () async {
+      // A web choice (Business) made before the first publish.
+      final chosen = MockSubscriptionService(
+        initial: sample(tier: SalonTier.business),
+      );
+      expect(chosen.startTrialIfAbsent('provider1'), isFalse);
+      expect(
+        (await chosen.getSalonSubscription('provider1')).data!.tier,
+        SalonTier.business,
+      );
+
+      // Expired: never a second trial.
+      final expired = MockSubscriptionService(
         initial: sample(status: SalonOfferStatus.expired, unpublished: true),
       );
-      final res = await svc.chooseOffer('provider1', SalonTier.pro);
-      expect(res.success, isFalse);
-      expect(res.code, 'trial_used');
-
-      final state = await svc.getSalonSubscription('provider1');
+      expect(expired.startTrialIfAbsent('provider1'), isFalse);
+      final state = await expired.getSalonSubscription('provider1');
+      expect(state.data!.status, SalonOfferStatus.expired);
       expect(state.data!.unpublishedForBilling, isTrue);
+
+      // A second start on the same salon is a no-op too.
+      final svc = MockSubscriptionService();
+      expect(svc.startTrialIfAbsent('p'), isTrue);
+      final first = (await svc.getSalonSubscription('p')).data!.trialEndsAt;
+      expect(svc.startTrialIfAbsent('p', tier: SalonTier.reseau), isFalse);
+      final again = (await svc.getSalonSubscription('p')).data!;
+      expect(again.tier, SalonTier.pro);
+      expect(again.trialEndsAt, first);
     });
   });
 
@@ -154,43 +179,6 @@ void main() {
       expect(setup.code, 'no_offer');
     });
 
-    test('PUT {tier} → 200 state; 409 preserves trial_used', () async {
-      var call = 0;
-      final svc = ApiProSubscriptionService(
-        client: MockClient((req) async {
-          expect(req.method, 'PUT');
-          expect(
-            (jsonDecode(req.body) as Map<String, dynamic>)['tier'],
-            'reseau',
-          );
-          call++;
-          if (call == 1) {
-            return http.Response(
-              jsonEncode({
-                'tier': 'reseau',
-                'status': 'trial',
-                'trialEndsAt': '2026-10-01T00:00:00.000Z',
-                'graceEndsAt': '2026-10-08T00:00:00.000Z',
-                'unpublishedForBilling': false,
-                'seats': {'cap': 15, 'used': 1},
-              }),
-              200,
-            );
-          }
-          return http.Response(jsonEncode({'error': 'trial_used'}), 409);
-        }),
-        baseUrl: 'http://x',
-        providerSessionStore: await connectedStore(),
-      );
-      final ok = await svc.chooseOffer('p1', SalonTier.reseau);
-      expect(ok.success, isTrue);
-      expect(ok.data!.tier, SalonTier.reseau);
-
-      final used = await svc.chooseOffer('p1', SalonTier.reseau);
-      expect(used.success, isFalse);
-      expect(used.code, 'trial_used');
-    });
-
     test('not connected → error', () async {
       final svc = ApiProSubscriptionService(
         client: MockClient((_) async => http.Response('{}', 200)),
@@ -205,7 +193,6 @@ void main() {
     late _MockSubscriptionService service;
 
     setUpAll(() {
-      registerFallbackValue(SalonTier.pro);
       service = _MockSubscriptionService();
       serviceLocator.subscriptionService = service;
     });
@@ -242,27 +229,6 @@ void main() {
       await p.load('p1');
       expect(p.loadFailed, isTrue);
       expect(p.salon, isNull);
-    });
-
-    test('choose success updates the state in place; trial_used surfaces '
-        'its code', () async {
-      when(
-        () => service.getSalonSubscription('p1'),
-      ).thenAnswer((_) async => ApiResponse.error('', code: 'no_offer'));
-      when(
-        () => service.chooseOffer('p1', SalonTier.pro),
-      ).thenAnswer((_) async => ApiResponse.success(sample()));
-      final p = ProSubscriptionProvider();
-      await p.load('p1');
-      expect(await p.choose('p1', SalonTier.pro), isTrue);
-      expect(p.isSetup, isFalse);
-      expect(p.salon!.tier, SalonTier.pro);
-
-      when(() => service.chooseOffer('p1', SalonTier.business)).thenAnswer(
-        (_) async => ApiResponse.error('essai utilisé', code: 'trial_used'),
-      );
-      expect(await p.choose('p1', SalonTier.business), isFalse);
-      expect(p.chooseErrorCode, 'trial_used');
     });
   });
 }

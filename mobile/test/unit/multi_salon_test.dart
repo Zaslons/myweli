@@ -248,11 +248,12 @@ void main() {
       'with Réseau live: creates the draft, switches to it, lists it',
       () async {
         final auth = await signInOwner();
-        final chosen = await serviceLocator.subscriptionService.chooseOffer(
-          'provider1',
-          SalonTier.reseau,
+        // provider1 on a live Réseau offer (chosen on the web, in production).
+        expect(
+          (serviceLocator.subscriptionService as MockSubscriptionService)
+              .startTrialIfAbsent('provider1', tier: SalonTier.reseau),
+          isTrue,
         );
-        expect(chosen.success, isTrue);
 
         final created = await auth.addSalon(
           businessName: 'Salon Trois',
@@ -271,17 +272,74 @@ void main() {
       },
     );
 
-    test(
-      'per-salon trials: salon 2 gets a FRESH trial after salon 1 chose',
-      () async {
-        final subs = serviceLocator.subscriptionService;
-        await subs.chooseOffer('provider1', SalonTier.pro);
-        final second = await subs.chooseOffer('provider2', SalonTier.business);
-        expect(second.success, isTrue);
-        expect(second.data!.status, SalonOfferStatus.trial);
-      },
-    );
+    test('the new salon\'s FIRST publish starts its own trial — on Réseau, the '
+        'offer it was added under (pro-companion-path §3.1)', () async {
+      final auth = await signInOwner();
+      final subs =
+          serviceLocator.subscriptionService as MockSubscriptionService;
+      subs.startTrialIfAbsent('provider1', tier: SalonTier.reseau);
+      final created = await auth.addSalon(
+        businessName: 'Salon Trois',
+        businessType: BusinessType.salon,
+      );
+
+      final published = await serviceLocator.proService.publishSalon(
+        created!.salonId,
+      );
+      expect(published.success, isTrue);
+      final offer = await subs.getSalonSubscription(created.salonId);
+      expect(offer.data!.status, SalonOfferStatus.trial);
+      expect(offer.data!.tier, SalonTier.reseau);
+    });
   });
+
+  group(
+    'publish starts the trial (mock mirror of pro-companion-path §3.1)',
+    () {
+      test('no offer row → publish succeeds and starts the ONE trial on Pro; '
+          'per salon', () async {
+        await signInOwner();
+        final subs =
+            serviceLocator.subscriptionService as MockSubscriptionService;
+
+        final res = await serviceLocator.proService.publishSalon('provider1');
+        expect(res.success, isTrue);
+        final first = (await subs.getSalonSubscription('provider1')).data!;
+        expect(first.status, SalonOfferStatus.trial);
+        expect(first.tier, SalonTier.pro);
+
+        // Salon 2 gets its OWN fresh trial; salon 1's is untouched.
+        expect(
+          (await serviceLocator.proService.publishSalon('provider2')).success,
+          isTrue,
+        );
+        expect(
+          (await subs.getSalonSubscription('provider2')).data!.status,
+          SalonOfferStatus.trial,
+        );
+        expect(
+          (await subs.getSalonSubscription('provider1')).data!.trialEndsAt,
+          first.trialEndsAt,
+        );
+      });
+
+      test('a live offer (e.g. chosen on the web) is kept as it is', () async {
+        await signInOwner();
+        final subs =
+            serviceLocator.subscriptionService as MockSubscriptionService;
+        subs.startTrialIfAbsent('provider1', tier: SalonTier.business);
+
+        expect(
+          (await serviceLocator.proService.publishSalon('provider1')).success,
+          isTrue,
+        );
+        expect(
+          (await subs.getSalonSubscription('provider1')).data!.tier,
+          SalonTier.business,
+        );
+      });
+    },
+  );
 
   group('the sweep pin', () {
     test(

@@ -11,10 +11,12 @@ import 'package:myweli_backend/src/subscription/salon_subscription_service.dart'
 ///
 /// `GET /providers/{id}/subscription` — the derived state (tier, status
 /// trial/paid/grace/expired, clocks, seats), or 404 while the salon is in
-/// the free setup state (no offer chosen yet).
+/// the free setup state (no offer yet — the trial starts at the first
+/// publish or at the first choice, docs/design/pro-companion-path.md).
 /// `PUT /providers/{id}/subscription` `{tier}` — choose/switch the offer;
 /// the FIRST choice starts the salon's ONE 3-month trial. Owner-only
-/// (`subscription.manage`, threat T54).
+/// (`subscription.manage`, threat T54); 403 `demo_account_locked` for the
+/// store-review demo salon (T69).
 Future<Response> onRequest(RequestContext context, String id) async {
   final principal = principalOf(context);
   if (principal == null) {
@@ -54,6 +56,10 @@ Future<Response> onRequest(RequestContext context, String id) async {
       if (!r.ok) {
         return switch (r.error) {
           'forbidden' => jsonError(HttpStatus.forbidden, 'forbidden'),
+          'demo_account_locked' => jsonError(
+            HttpStatus.forbidden,
+            'demo_account_locked',
+          ),
           'trial_used' => jsonError(HttpStatus.conflict, 'trial_used'),
           _ => jsonError(HttpStatus.badRequest, r.error ?? 'invalid_input'),
         };

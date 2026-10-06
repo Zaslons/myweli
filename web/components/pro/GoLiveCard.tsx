@@ -10,8 +10,11 @@ import { Button } from '../Button';
 
 /// The draft banner + go-live checklist (docs/design/pro-salon-lifecycle.md
 /// B2): shown on the pro home while the salon is a DRAFT. Mirrors the app's
-/// onboarding checklist; « Mettre en ligne » calls the server-authoritative
-/// publish gate.
+/// onboarding checklist except for the `offer` step: the web is where an
+/// offer is chosen, so it keeps that step, while the apps never show it and
+/// the server starts the trial at their first publish
+/// (docs/design/pro-companion-path.md §5). « Mettre en ligne » calls the
+/// server-authoritative publish gate.
 export function GoLiveCard({
   profile,
   offerLive = false,

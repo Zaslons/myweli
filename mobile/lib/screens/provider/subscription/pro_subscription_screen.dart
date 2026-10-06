@@ -2,28 +2,31 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
-import '../../../core/config/app_config.dart';
-import '../../../core/config/store_policy.dart';
-import '../../../core/config/subscription_plans.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
-import '../../../core/utils/external_link.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../models/pro_membership.dart';
 import '../../../models/salon_subscription.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_subscription_provider.dart';
-import '../../../widgets/common/app_button.dart';
-import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/empty_state.dart';
 import '../../../widgets/common/loading_indicator.dart';
 
-/// « Mon abonnement » — the offer picker + billing states (pricing pivot,
-/// team access R3). Setup (no offer) → the 3-card picker with « 3 mois
-/// offerts »; then trial/paid/grace/expired states, the seats bar and the
-/// support path (no custody, and no pricing in the binary — App Store 3.1.1).
-/// Design: docs/design/team-access-r3-app.md §2.4.
+/// « Mon abonnement » — the salon's CURRENT offer, read-only: its status
+/// (trial / paid / grace / expired), its dates and its seats. Nothing else.
+///
+/// **The Pro app never sells** (App Store 3.1.3(f), « free stand-alone
+/// companion app to a paid web based tool »): no plan choice, no other tier,
+/// no price, no trial promotion, no entitlement list, and no pointer — web,
+/// support, e-mail — to where an offer is obtained. This screen used to be the
+/// offer picker; choosing now happens on the web, and the app never says so.
+/// The salon's trial starts at its first publish, server-side, so a salon
+/// never needs this screen to go live. Same on iOS and Android — there is no
+/// platform branch to keep in step.
+///
+/// General help stays where every screen's help lives: Profil → « Aide &
+/// Support ». Design: docs/design/pro-companion-path.md §2.2.
 class ProSubscriptionScreen extends StatefulWidget {
   const ProSubscriptionScreen({super.key});
 
@@ -50,40 +53,6 @@ class _ProSubscriptionScreenState extends State<ProSubscriptionScreen> {
     if (providerId == null || !auth.can(ProCap.subscriptionManage)) return;
     _loadRequested = true;
     context.read<ProSubscriptionProvider>().load(providerId);
-  }
-
-  /// **Support, not a checkout.**
-  ///
-  /// This used to open WhatsApp with « je souhaite activer mon offre » — a
-  /// purchase conversation started from inside the app, which is the other half
-  /// of the 3.1.1 problem the prices were. It also never worked:
-  /// `AppConfig.supportWhatsApp` has no default and is passed by no build, so
-  /// every one of these buttons showed « Contact bientôt disponible. » in every
-  /// artifact ever shipped.
-  Future<void> _support() => openExternalUrl(context, AppConfig.supportUrl);
-
-  Future<void> _choose(String providerId, SalonTier tier) async {
-    final provider = context.read<ProSubscriptionProvider>();
-    final messenger = ScaffoldMessenger.of(context);
-    final wasSetup = provider.isSetup;
-    final ok = await provider.choose(providerId, tier);
-    if (!mounted) return;
-    if (ok) {
-      AppSnackBar.showOn(
-        messenger,
-        wasSetup
-            ? 'Offre ${salonTierLabel(tier)} choisie — '
-                  '${SubscriptionPlans.trialMonths} mois offerts !'
-            : 'Vous êtes maintenant sur l’offre ${salonTierLabel(tier)}.',
-        kind: SnackKind.success,
-      );
-    } else if (provider.chooseErrorCode != 'trial_used') {
-      AppSnackBar.showOn(
-        messenger,
-        provider.chooseError ?? 'Choix impossible.',
-        kind: SnackKind.error,
-      );
-    }
   }
 
   @override
@@ -114,11 +83,22 @@ class _ProSubscriptionScreenState extends State<ProSubscriptionScreen> {
                   );
                 }
 
-                return _Body(
-                  provider: provider,
-                  onChoose: (tier) => _choose(providerId, tier),
-                  onContact: _support,
-                );
+                // SETUP (no offer row — GET 404): a fact and when it changes,
+                // nothing else. The trial starts when the salon goes live.
+                if (provider.isSetup) {
+                  return const EmptyState(
+                    icon: Icons.workspace_premium_outlined,
+                    title: 'Pas encore d’offre active',
+                    description:
+                        'Votre offre démarre à la mise en ligne de votre '
+                        'salon.',
+                  );
+                }
+
+                final salon = provider.salon;
+                // The first frame, before the post-frame load has started.
+                if (salon == null) return const LoadingIndicator();
+                return _Body(salon: salon);
               },
             ),
     );
@@ -126,86 +106,37 @@ class _ProSubscriptionScreenState extends State<ProSubscriptionScreen> {
 }
 
 class _Body extends StatelessWidget {
-  const _Body({
-    required this.provider,
-    required this.onChoose,
-    required this.onContact,
-  });
+  const _Body({required this.salon});
 
-  final ProSubscriptionProvider provider;
-  final ValueChanged<SalonTier> onChoose;
-  final Future<void> Function() onContact;
+  final SalonSubscription salon;
 
   @override
   Widget build(BuildContext context) {
-    final salon = provider.salon;
     return ListView(
       padding: const EdgeInsets.all(AppTheme.spacingM),
       children: [
-        if (provider.isSetup) ...[
-          Text(
-            'Choisissez votre offre — '
-            '${SubscriptionPlans.trialMonths} mois offerts',
-            style: AppTextStyles.headlineSmall,
-          ),
-          const SizedBox(height: AppTheme.spacingS),
-          Text(
-            'Votre salon reste gratuit pendant la configuration, mais une '
-            'offre est nécessaire pour le publier.',
-            style: AppTextStyles.bodyMedium.copyWith(
-              color: AppColors.textSecondary,
-            ),
-          ),
-          const SizedBox(height: AppTheme.spacingM),
-        ] else if (salon != null) ...[
-          _StatusBanner(salon: salon, onContact: onContact),
-          const SizedBox(height: AppTheme.spacingM),
-          _SeatsBar(seats: salon.seats),
-          const SizedBox(height: AppTheme.spacingM),
-          // R6 multi-salons: a LIVE Réseau offer opens « Ajouter un salon »
-          // (each new salon = its own setup, offer, trial & publish gate).
-          if (salon.tier == SalonTier.reseau && salon.isLive) ...[
-            Card(
-              child: ListTile(
-                leading: const Icon(
-                  Icons.add_business_outlined,
-                  color: AppColors.textPrimary,
-                ),
-                title: const Text('Ajouter un salon'),
-                subtitle: const Text(
-                  'Chaque salon a sa propre offre et son propre essai.',
-                ),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => context.push('/pro/salons/nouveau'),
+        _StatusBanner(salon: salon),
+        const SizedBox(height: AppTheme.spacingM),
+        _SeatsBar(seats: salon.seats),
+        const SizedBox(height: AppTheme.spacingM),
+        // R6 multi-salons: a LIVE Réseau offer opens « Ajouter un salon ».
+        // It states what the account can do with the offer it HAS — not
+        // another offer, a trial or a price.
+        if (salon.tier == SalonTier.reseau && salon.isLive) ...[
+          Card(
+            child: ListTile(
+              leading: const Icon(
+                Icons.add_business_outlined,
+                color: AppColors.textPrimary,
               ),
+              title: const Text('Ajouter un salon'),
+              subtitle: const Text('Un salon de plus dans votre compte.'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => context.push('/pro/salons/nouveau'),
             ),
-            const SizedBox(height: AppTheme.spacingM),
-          ],
-        ],
-        if (provider.chooseErrorCode == 'trial_used') ...[
-          _TrialUsedNotice(onContact: onContact),
-          const SizedBox(height: AppTheme.spacingM),
-        ],
-        for (final tier in SalonTier.values) ...[
-          _OfferCard(
-            tier: tier,
-            current: salon?.tier == tier && !provider.isSetup,
-            isSetup: provider.isSetup,
-            busy: provider.isChoosing,
-            onChoose: () => onChoose(tier),
           ),
           const SizedBox(height: AppTheme.spacingM),
         ],
-        if (!provider.isSetup && salon != null)
-          Padding(
-            padding: const EdgeInsets.only(bottom: AppTheme.spacingS),
-            child: Text(
-              'Le changement d’offre conserve votre période d’essai.',
-              style: AppTextStyles.bodySmall.copyWith(
-                color: AppColors.textTertiary,
-              ),
-            ),
-          ),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -217,11 +148,7 @@ class _Body extends StatelessWidget {
             const SizedBox(width: AppTheme.spacingS),
             Expanded(
               child: Text(
-                // iOS: the state only, never where to pay (store_policy.dart).
-                hidesExternalPurchaseCopy
-                    ? 'Vos données ne sont jamais bloquées.'
-                    : 'Votre offre se gère depuis votre espace professionnel '
-                          'sur myweli.com. Vos données ne sont jamais bloquées.',
+                'Vos données ne sont jamais bloquées.',
                 style: AppTextStyles.bodySmall.copyWith(
                   color: AppColors.textTertiary,
                 ),
@@ -229,30 +156,22 @@ class _Body extends StatelessWidget {
             ),
           ],
         ),
-        const SizedBox(height: AppTheme.spacingM),
-        AppButton(
-          text: 'Aide & Support',
-          type: AppButtonType.secondary,
-          onPressed: onContact,
-        ),
       ],
     );
   }
 }
 
-/// Trial / paid / grace / expired — the salon's billing state, urgent when
-/// it needs to be (grace → amber, unpublished → red).
+/// Trial / paid / grace / expired — the salon's billing state, urgent in
+/// colour when it needs to be (grace → amber, expired → red), and only ever
+/// a statement: no button, no « where to pay ».
 class _StatusBanner extends StatelessWidget {
-  const _StatusBanner({required this.salon, required this.onContact});
+  const _StatusBanner({required this.salon});
 
   final SalonSubscription salon;
-  final Future<void> Function() onContact;
 
   @override
   Widget build(BuildContext context) {
-    // iOS: the state only, never where to pay (store_policy.dart).
-    final ios = hidesExternalPurchaseCopy;
-    final (bg, fg, icon, title, subtitle, urgent) = switch (salon.status) {
+    final (bg, fg, icon, title, subtitle) = switch (salon.status) {
       SalonOfferStatus.trial => (
         AppColors.successLight.withValues(alpha: 0.12),
         AppColors.success,
@@ -262,45 +181,35 @@ class _StatusBanner extends StatelessWidget {
             '${salon.trialDaysLeft > 1 ? 's' : ''}',
         'Offre ${salon.tierLabel} · se termine le '
             '${Formatters.formatDate(salon.trialEndsAt)}',
-        false,
       ),
+      // A paid row always carries `paidUntil`; without one the banner says
+      // only what it knows (the old « Paiement à jour » fallback was dead).
       SalonOfferStatus.paid => (
         AppColors.successLight.withValues(alpha: 0.12),
         AppColors.success,
         Icons.verified,
         'Offre ${salon.tierLabel} active',
-        salon.paidUntil != null
-            ? 'Jusqu’au ${Formatters.formatDate(salon.paidUntil!)}'
-            : 'Paiement à jour',
-        false,
+        salon.paidUntil == null
+            ? null
+            : 'Jusqu’au ${Formatters.formatDate(salon.paidUntil!)}',
       ),
       SalonOfferStatus.grace => (
         AppColors.warningLight.withValues(alpha: 0.16),
         AppColors.warning,
         Icons.warning_amber,
         'Votre offre a expiré',
-        'Jusqu’au ${Formatters.formatDate(salon.graceEndsAt)} avant la '
-            'dépublication de votre salon.'
-            '${ios ? '' : ' Gérez votre offre sur myweli.com.'}',
-        true,
+        'Période de grâce jusqu’au '
+            '${Formatters.formatDate(salon.graceEndsAt)}.',
       ),
       SalonOfferStatus.expired => (
         AppColors.error.withValues(alpha: 0.08),
         AppColors.error,
         Icons.error_outline,
         salon.unpublishedForBilling ? 'Salon dépublié' : 'Offre expirée',
-        switch ((salon.unpublishedForBilling, ios)) {
-          (true, false) =>
-            'Votre salon n’est plus visible des clients. '
-                'Réactivez votre offre sur myweli.com — vos données sont '
-                'intactes.',
-          (true, true) =>
-            'Votre salon n’est plus visible des clients. '
-                'Vos données sont intactes.',
-          (false, false) => 'Réactivez votre offre sur myweli.com.',
-          (false, true) => 'Vos données sont intactes.',
-        },
-        true,
+        salon.unpublishedForBilling
+            ? 'Votre salon n’est plus visible des clients. '
+                  'Vos données sont intactes.'
+            : 'Vos données sont intactes.',
       ),
     };
 
@@ -326,16 +235,14 @@ class _StatusBanner extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: AppTheme.spacingS),
-          Text(
-            subtitle,
-            style: AppTextStyles.bodyMedium.copyWith(
-              color: AppColors.textSecondary,
+          if (subtitle != null) ...[
+            const SizedBox(height: AppTheme.spacingS),
+            Text(
+              subtitle,
+              style: AppTextStyles.bodyMedium.copyWith(
+                color: AppColors.textSecondary,
+              ),
             ),
-          ),
-          if (urgent) ...[
-            const SizedBox(height: AppTheme.spacingM),
-            AppButton(text: 'Aide & Support', onPressed: onContact),
           ],
         ],
       ),
@@ -369,9 +276,14 @@ class _SeatsBar extends StatelessWidget {
                 color: AppColors.textSecondary,
               ),
               const SizedBox(width: AppTheme.spacingS),
-              Text(
-                '${seats.used} / ${seats.cap} places',
-                style: AppTextStyles.titleSmall,
+              // Expanded: at 200 % text on a 360dp phone the bare Text
+              // overflowed this row by 71px (SYSTEM.md §13.3 — divide the
+              // row, don't size the boxes).
+              Expanded(
+                child: Text(
+                  '${seats.used} / ${seats.cap} places',
+                  style: AppTextStyles.titleSmall,
+                ),
               ),
             ],
           ),
@@ -387,203 +299,6 @@ class _SeatsBar extends StatelessWidget {
               ),
             ),
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class _TrialUsedNotice extends StatelessWidget {
-  const _TrialUsedNotice({required this.onContact});
-
-  final Future<void> Function() onContact;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppTheme.spacingM),
-      decoration: BoxDecoration(
-        color: AppColors.warningLight.withValues(alpha: 0.16),
-        borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-        border: Border.all(color: AppColors.warning.withValues(alpha: 0.4)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Votre essai gratuit a déjà été utilisé.',
-            style: AppTextStyles.titleSmall.copyWith(color: AppColors.warning),
-          ),
-          // iOS: no « activate it on myweli.com » (store_policy.dart).
-          if (!hidesExternalPurchaseCopy) ...[
-            const SizedBox(height: AppTheme.spacingS),
-            Text(
-              'Activez votre offre depuis votre espace sur myweli.com.',
-              style: AppTextStyles.bodyMedium.copyWith(
-                color: AppColors.textSecondary,
-              ),
-            ),
-          ],
-          const SizedBox(height: AppTheme.spacingS),
-          AppButton(
-            text: 'Aide & Support',
-            type: AppButtonType.secondary,
-            onPressed: onContact,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _OfferCard extends StatelessWidget {
-  const _OfferCard({
-    required this.tier,
-    required this.current,
-    required this.isSetup,
-    required this.busy,
-    required this.onChoose,
-  });
-
-  final SalonTier tier;
-  final bool current;
-  final bool isSetup;
-  final bool busy;
-  final VoidCallback onChoose;
-
-  @override
-  Widget build(BuildContext context) {
-    final seatsLine = switch (tier) {
-      SalonTier.pro => '${SubscriptionPlans.proSeats} places',
-      SalonTier.business => '${SubscriptionPlans.businessSeats} places',
-      SalonTier.reseau =>
-        '${SubscriptionPlans.reseauSeatsPerSalon} places par salon',
-    };
-
-    return Container(
-      padding: const EdgeInsets.all(AppTheme.spacingL),
-      decoration: BoxDecoration(
-        color: AppColors.secondary,
-        borderRadius: BorderRadius.circular(AppTheme.radiusXL),
-        border: Border.all(
-          color: current ? AppColors.primary : AppColors.border,
-          width: current ? 2 : 1,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  salonTierLabel(tier),
-                  style: AppTextStyles.titleLarge,
-                ),
-              ),
-              if (current)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppTheme.spacingS,
-                    vertical: AppTheme.spacingXS,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary,
-                    borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
-                  ),
-                  child: Text(
-                    'Votre offre',
-                    style: AppTextStyles.labelSmall.copyWith(
-                      color: AppColors.secondary,
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: AppTheme.spacingS),
-          // **No price here, and that is deliberate — App Store 3.1.1.**
-          //
-          // These cards used to show a struck-through anchor (« 70 000 FCFA »)
-          // and « /mois » beside a CTA that opened WhatsApp to arrange payment.
-          // A subscription that unlocks app functionality is digital content in
-          // Apple's reading, so advertising its price and routing the purchase
-          // off-platform is the shape that gets an app rejected — on a first
-          // submission, costing a review cycle.
-          //
-          // The plans and their prices live on the web dashboard
-          // (`web/app/pro/(dash)/abonnement/`), which is where billing belongs
-          // and where PRD.md OQ-3 already said it should be.
-          //
-          // What stays is what the salon needs to decide: how many seats, what
-          // is included, and that the trial is free.
-          Text(
-            '${SubscriptionPlans.trialMonths} mois offerts',
-            style: AppTextStyles.titleSmall.copyWith(color: AppColors.success),
-          ),
-          const SizedBox(height: AppTheme.spacingS),
-          Row(
-            children: [
-              const Icon(
-                Icons.group_outlined,
-                size: AppTheme.iconXS,
-                color: AppColors.textSecondary,
-              ),
-              const SizedBox(width: AppTheme.spacingS),
-              Text(
-                seatsLine,
-                style: AppTextStyles.bodyMedium.copyWith(
-                  color: AppColors.textSecondary,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppTheme.spacingM),
-          for (final line in SubscriptionPlans.entitlementsFor(
-            tier,
-            withPricing: !hidesExternalPurchaseCopy,
-          ))
-            Padding(
-              padding: const EdgeInsets.only(bottom: AppTheme.spacingS),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Icon(
-                    Icons.check,
-                    size: AppTheme.iconXS,
-                    color: AppColors.success,
-                  ),
-                  const SizedBox(width: AppTheme.spacingS),
-                  Expanded(
-                    child: Text(
-                      line,
-                      style: AppTextStyles.bodyMedium.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          if (tier == SalonTier.pro && !hidesExternalPurchaseCopy) ...[
-            const SizedBox(height: AppTheme.spacingS),
-            Text(
-              SubscriptionPlans.roiLine,
-              style: AppTextStyles.bodySmall.copyWith(
-                color: AppColors.textTertiary,
-                fontStyle: FontStyle.italic,
-              ),
-            ),
-          ],
-          if (!current) ...[
-            const SizedBox(height: AppTheme.spacingM),
-            AppButton(
-              text: isSetup ? 'Choisir' : 'Changer d’offre',
-              type: isSetup ? AppButtonType.primary : AppButtonType.secondary,
-              isLoading: busy,
-              isFullWidth: true,
-              onPressed: busy ? null : onChoose,
-            ),
-          ],
         ],
       ),
     );

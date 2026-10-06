@@ -67,6 +67,11 @@ class _TeamScreenState extends State<TeamScreen> {
           ChangeNotifierProvider.value(
             value: context.read<ProArtistProvider>(),
           ),
+          // The offer state this screen loaded — the sheet reads it to tell
+          // a setup salon from an expired one on `offer_required`.
+          ChangeNotifierProvider.value(
+            value: context.read<ProSubscriptionProvider>(),
+          ),
         ],
         child: InviteMemberSheet(providerId: providerId),
       ),

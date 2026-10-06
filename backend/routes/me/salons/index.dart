@@ -15,7 +15,8 @@ import 'package:myweli_backend/src/responses.dart';
 ///
 /// `POST /me/salons` `{businessName, businessType, phoneNumber?, address?}`
 /// — « Ajouter un salon » (Réseau-gated, T55): 201 the new draft salon's
-/// directory entry · 403 `reseau_required` · 409 `salon_limit` · 400
+/// directory entry · 403 `reseau_required` · 403 `demo_account_locked`
+/// (the store-review demo account, T69) · 409 `salon_limit` · 400
 /// `invalid_input`/`invalid_body`.
 Future<Response> onRequest(RequestContext context) async {
   final principal = principalOf(context);
@@ -66,6 +67,12 @@ Future<Response> onRequest(RequestContext context) async {
           'reseau_required' => jsonError(
             HttpStatus.forbidden,
             'reseau_required',
+          ),
+          // Its own arm, not the `forbidden` default below: the app shows
+          // the demo sentence only when it can tell the two apart.
+          'demo_account_locked' => jsonError(
+            HttpStatus.forbidden,
+            'demo_account_locked',
           ),
           'salon_limit' => jsonError(HttpStatus.conflict, 'salon_limit'),
           'invalid_input' => jsonError(HttpStatus.badRequest, 'invalid_input'),

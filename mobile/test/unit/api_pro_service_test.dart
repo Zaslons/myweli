@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:myweli/models/appointment.dart';
 import 'package:myweli/models/availability.dart';
+import 'package:myweli/models/provider_user.dart';
 import 'package:myweli/services/api/api_pro_service.dart';
 import 'package:myweli/services/interfaces/session_store.dart';
 
@@ -618,6 +619,86 @@ void main() {
       expect(
         await manualBookingError('something_new'),
         'Une erreur est survenue.',
+      );
+    });
+  });
+
+  // The Pro app never sells (App Store 3.1.3(f)): a refusal states a fact and
+  // points nowhere. Design: docs/design/pro-companion-path.md §2.2.
+  group('publish and « Ajouter un salon » refusals are neutral', () {
+    Future<({String? error, String? code})> publish(
+      int status,
+      Map<String, dynamic> body,
+    ) async {
+      final client = MockClient((req) async {
+        expect(req.method, 'POST');
+        expect(req.url.path, '/providers/provider1/publish');
+        return http.Response(jsonEncode(body), status);
+      });
+      final res = await _linked(client).publishSalon('provider1');
+      return (error: res.error, code: res.code);
+    }
+
+    test('409 missing offer (an EXPIRED offer — the server starts the trial '
+        'otherwise): the neutral sentence, code offer_required', () async {
+      final res = await publish(409, {
+        'error': 'incomplete',
+        'missing': ['offer'],
+      });
+      expect(res.code, 'offer_required');
+      expect(
+        res.error,
+        'La mise en ligne est indisponible : l’offre de votre salon n’est '
+        'plus active.',
+      );
+    });
+
+    test('409 with other missing keys stays « incomplete »', () async {
+      final res = await publish(409, {
+        'error': 'incomplete',
+        'missing': ['photos'],
+      });
+      expect(res.code, 'incomplete');
+      expect(
+        res.error,
+        'Complétez les étapes requises avant la mise en ligne.',
+      );
+    });
+
+    test('403 demo_account_locked: the demo sentence the review notes '
+        'promise — it read « Une erreur est survenue. »', () async {
+      final res = await publish(403, {'error': 'demo_account_locked'});
+      expect(res.code, 'demo_account_locked');
+      expect(
+        res.error,
+        'Compte de démonstration — cette action est désactivée.',
+      );
+    });
+
+    Future<String?> addSalonError(int status, String code) async {
+      final client = MockClient((req) async {
+        expect(req.url.path, '/me/salons');
+        return http.Response(jsonEncode({'error': code}), status);
+      });
+      final res = await _linked(
+        client,
+      ).addSalon(businessName: 'Salon Trois', businessType: BusinessType.salon);
+      return res.error;
+    }
+
+    test('add-salon codes read the shared neutral table, no upgrade '
+        'pointer', () async {
+      expect(
+        await addSalonError(403, 'reseau_required'),
+        'L’ajout de salons n’est pas disponible avec l’offre actuelle.',
+      );
+      expect(
+        await addSalonError(409, 'salon_limit'),
+        'Nombre maximal de salons atteint.',
+      );
+      expect(
+        await addSalonError(403, 'demo_account_locked'),
+        'Compte de démonstration — cette action est désactivée.',
       );
     });
   });

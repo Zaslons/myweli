@@ -1,6 +1,7 @@
 import 'package:mocktail/mocktail.dart';
 import 'package:myweli_backend/src/access/membership_repository.dart';
 import 'package:myweli_backend/src/access/membership_service.dart';
+import 'package:myweli_backend/src/auth/demo_seam.dart';
 import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
 import 'package:myweli_backend/src/auth/tokens.dart';
 import 'package:myweli_backend/src/email/email_provider.dart';
@@ -473,10 +474,77 @@ void main() {
     });
   });
 
-  group('publish offer gate', () {
-    test('publish without a live offer → incomplete with the offer key; '
-        'with one → active', () async {
-      final owner = await registerOwner();
+  group('createIfAbsent (in-memory)', () {
+    test('creates when absent; NEVER replaces an existing row', () async {
+      final t1 = now.add(const Duration(days: 90));
+      final created = await subs.createIfAbsent(
+        providerId: 'px',
+        tier: 'pro',
+        trialEndsAt: t1,
+      );
+      expect(created.tier, 'pro');
+      expect(created.trialEndsAt, t1);
+      await subs.update('px', paidUntil: now.add(const Duration(days: 30)));
+
+      // A second writer with different values gets the FIRST row back —
+      // tier, clock and paid coverage all intact.
+      final again = await subs.createIfAbsent(
+        providerId: 'px',
+        tier: 'reseau',
+        trialEndsAt: now.add(const Duration(days: 400)),
+      );
+      expect(again.tier, 'pro');
+      expect(again.trialEndsAt, t1);
+      expect(again.paidUntil, now.add(const Duration(days: 30)));
+      final stored = (await subs.byProvider('px'))!;
+      expect(stored.tier, 'pro');
+      expect(stored.trialEndsAt, t1);
+      expect(await subs.all(), hasLength(1));
+    });
+  });
+
+  /// The companion path (docs/design/pro-companion-path.md §3.1, §8): the
+  /// Pro app no longer offers a choice, so a salon's ONE trial starts at its
+  /// first successful publish when no offer row exists.
+  group('publish starts the trial (companion path)', () {
+    late String owner;
+
+    SalonProvisioningService provisioning() => SalonProvisioningService(
+      providers,
+      auth,
+      memberships,
+      subscriptions: service(),
+      rebuild: rebuild,
+    );
+
+    const completeProfile = <String, dynamic>{
+      'description': 'desc',
+      'address': 'Cocody',
+      'commune': 'Cocody',
+      'latitude': 5.3,
+      'longitude': -4.0,
+      'imageUrls': ['a', 'b', 'c'],
+      'services': [
+        {'id': 's1', 'name': 'A', 'active': true},
+        {'id': 's2', 'name': 'B', 'active': true},
+        {'id': 's3', 'name': 'C', 'active': true},
+      ],
+      'availability': {
+        'weeklySchedule': {
+          '0': [
+            {'startTime': '09:00', 'endTime': '18:00'},
+          ],
+        },
+      },
+    };
+
+    /// A draft salon owned by [ownerId] — publish-ready unless
+    /// [complete] is false.
+    Future<String> ownedSalon(
+      String ownerId, {
+      bool complete = true,
+      String email = 'owner@x.pro',
+    }) async {
       final salon = await providers.createSalon(
         name: 'Salon X',
         category: 'salon',
@@ -485,44 +553,417 @@ void main() {
       final id = salon['id'] as String;
       await memberships.ensureOwner(
         providerId: id,
-        accountId: owner,
+        accountId: ownerId,
+        email: email,
+      );
+      if (complete) await providers.updateProfile(id, completeProfile);
+      return id;
+    }
+
+    setUp(() async {
+      owner = await registerOwner();
+    });
+
+    test('no offer row + complete → active, ONE trial on pro for 90 days, '
+        'one rebuild', () async {
+      final id = await ownedSalon(owner);
+      expect(await subs.byProvider(id), isNull, reason: 'setup state');
+
+      final r = await provisioning().publish(id);
+      expect(r.ok, isTrue, reason: '${r.error} ${r.data}');
+      expect((r.data! as Map)['status'], 'active');
+      final row = (await subs.byProvider(id))!;
+      expect(row.tier, 'pro');
+      expect(row.trialEndsAt, now.add(const Duration(days: 90)));
+      final state = (await service().stateFor(id))!;
+      expect(state['status'], 'trial');
+      expect(rebuild.reasons, ['salon.published']);
+    });
+
+    test(
+      'a re-publish is idempotent: no second trial, no second rebuild',
+      () async {
+        final id = await ownedSalon(owner);
+        await provisioning().publish(id);
+        final firstEnd = (await subs.byProvider(id))!.trialEndsAt;
+
+        now = now.add(const Duration(days: 10));
+        final again = await provisioning().publish(id);
+        expect(again.ok, isTrue);
+        expect((await subs.byProvider(id))!.trialEndsAt, firstEnd);
+        expect(rebuild.reasons, hasLength(1));
+      },
+    );
+
+    test('no offer row + INCOMPLETE → incomplete WITHOUT `offer`, and no '
+        'trial is minted', () async {
+      final id = await ownedSalon(owner, complete: false);
+      final r = await provisioning().publish(id);
+      expect(r.ok, isFalse);
+      expect(r.error, 'incomplete');
+      final missing = (r.data! as Map)['missing'] as List;
+      expect(missing, containsAll(['profile', 'services', 'photos']));
+      expect(
+        missing,
+        isNot(contains('offer')),
+        reason:
+            'the app may not send a setup salon anywhere to choose — the '
+            'trial starts at publish, so `offer` is not a missing step',
+      );
+      expect(
+        await subs.byProvider(id),
+        isNull,
+        reason: 'minting a trial still takes a complete salon',
+      );
+      expect(rebuild.reasons, isEmpty);
+    });
+
+    test(
+      'an EXPIRED offer → incomplete [offer]; never a second trial',
+      () async {
+        final id = await ownedSalon(owner);
+        await service().chooseOffer(owner, id, 'business');
+        final before = (await subs.byProvider(id))!;
+
+        now = now.add(const Duration(days: 100)); // past trial + grace
+        final r = await provisioning().publish(id);
+        expect(r.ok, isFalse);
+        expect(r.error, 'incomplete');
+        expect((r.data! as Map)['missing'], ['offer']);
+        final after = (await subs.byProvider(id))!;
+        expect(after.tier, 'business');
+        expect(after.trialEndsAt, before.trialEndsAt, reason: 'one trial');
+        expect((await providers.byId(id))!['status'], 'draft');
+        expect(rebuild.reasons, isEmpty);
+      },
+    );
+
+    test(
+      'a web choice made FIRST is untouched — its tier and its clock',
+      () async {
+        final id = await ownedSalon(owner);
+        await service().chooseOffer(owner, id, 'business');
+        final chosen = (await subs.byProvider(id))!;
+
+        now = now.add(const Duration(days: 3));
+        final r = await provisioning().publish(id);
+        expect(r.ok, isTrue);
+        final row = (await subs.byProvider(id))!;
+        expect(row.tier, 'business');
+        expect(row.trialEndsAt, chosen.trialEndsAt);
+      },
+    );
+
+    test("a Réseau owner's SECOND salon starts on reseau", () async {
+      final first = await ownedSalon(owner);
+      await service().chooseOffer(owner, first, 'reseau');
+      final second = await ownedSalon(owner);
+
+      final r = await provisioning().publish(second);
+      expect(r.ok, isTrue);
+      final row = (await subs.byProvider(second))!;
+      expect(row.tier, 'reseau');
+      expect(row.trialEndsAt, now.add(const Duration(days: 90)));
+    });
+
+    test('the Réseau default needs the OWNER\'s other salon on a LIVE '
+        'Réseau offer — expired → pro', () async {
+      final first = await ownedSalon(owner);
+      await service().chooseOffer(owner, first, 'reseau');
+      now = now.add(const Duration(days: 100)); // first's offer expired
+      final second = await ownedSalon(owner);
+
+      await provisioning().publish(second);
+      expect((await subs.byProvider(second))!.tier, 'pro');
+    });
+
+    test('…and a live NON-Réseau offer elsewhere → pro', () async {
+      final first = await ownedSalon(owner);
+      await service().chooseOffer(owner, first, 'business');
+      final second = await ownedSalon(owner);
+
+      await provisioning().publish(second);
+      expect((await subs.byProvider(second))!.tier, 'pro');
+    });
+
+    test(
+      "…and ANOTHER account's live Réseau → pro (no cross-account read)",
+      () async {
+        final reg = await auth.register(
+          businessName: 'Y',
+          businessType: 'salon',
+          phoneNumber: '+2250500000042',
+          email: 'owner2@x.pro',
+          authProvider: 'google',
+          googleSub: 'sub-own2',
+        );
+        final owner2 = reg.provider!.id;
+        final theirs = await ownedSalon(owner2, email: 'owner2@x.pro');
+        await service().chooseOffer(owner2, theirs, 'reseau');
+        final mine = await ownedSalon(owner);
+
+        await provisioning().publish(mine);
+        expect((await subs.byProvider(mine))!.tier, 'pro');
+      },
+    );
+
+    test('…and a Réseau salon the owner only MANAGES → pro (owned, not '
+        'joined)', () async {
+      final reg = await auth.register(
+        businessName: 'Y',
+        businessType: 'salon',
+        phoneNumber: '+2250500000042',
+        email: 'owner2@x.pro',
+        authProvider: 'google',
+        googleSub: 'sub-own2',
+      );
+      final owner2 = reg.provider!.id;
+      final theirs = await ownedSalon(owner2, email: 'owner2@x.pro');
+      await service().chooseOffer(owner2, theirs, 'reseau');
+      final inv = await memberships.invite(
+        providerId: theirs,
         email: 'owner@x.pro',
+        role: 'manager',
+        expiresAt: now.add(const Duration(days: 7)),
       );
-      await providers.updateProfile(id, {
-        'description': 'desc',
-        'address': 'Cocody',
-        'commune': 'Cocody',
-        'latitude': 5.3,
-        'longitude': -4.0,
-        'imageUrls': ['a', 'b', 'c'],
-        'services': [
-          {'id': 's1', 'name': 'A', 'active': true},
-          {'id': 's2', 'name': 'B', 'active': true},
-          {'id': 's3', 'name': 'C', 'active': true},
-        ],
-        'availability': {
-          'weeklySchedule': {
-            '0': [
-              {'startTime': '09:00', 'endTime': '18:00'},
-            ],
-          },
-        },
-      });
+      await memberships.activate(inv.id, owner);
+      final mine = await ownedSalon(owner);
 
-      final provisioning = SalonProvisioningService(
-        providers,
-        auth,
-        memberships,
-        subscriptions: service(),
+      await provisioning().publish(mine);
+      expect((await subs.byProvider(mine))!.tier, 'pro');
+    });
+
+    test("…and a Réseau salon linked ONLY by the account's scalar (a legacy "
+        'owner with no membership row there) → reseau', () async {
+      // Owned = the scalar link ∪ active owner rows — this pins the scalar
+      // half, which every test above reaches through a membership row.
+      final sibling = await providers.createSalon(
+        name: 'Salon Historique',
+        category: 'salon',
+        phoneNumber: '+22501',
       );
-      final blocked = await provisioning.publish(id);
-      expect(blocked.ok, isFalse);
-      expect(blocked.error, 'incomplete');
-      expect((blocked.data! as Map)['missing'], contains('offer'));
+      final siblingId = sibling['id'] as String;
+      final reg = await auth.register(
+        businessName: 'Z',
+        businessType: 'salon',
+        phoneNumber: '+2250500000043',
+        email: 'legacy@x.pro',
+        authProvider: 'google',
+        googleSub: 'sub-legacy',
+        providerId: siblingId,
+      );
+      final legacy = reg.provider!.id;
+      await subs.create(
+        providerId: siblingId,
+        tier: 'reseau',
+        trialEndsAt: now.add(const Duration(days: 90)),
+      );
+      expect(
+        await memberships.listForProvider(siblingId),
+        isEmpty,
+        reason: 'the scalar is the only link',
+      );
+      final second = await ownedSalon(legacy, email: 'legacy@x.pro');
 
+      final r = await provisioning().publish(second);
+      expect(r.ok, isTrue);
+      expect((await subs.byProvider(second))!.tier, 'reseau');
+    });
+
+    test('…and a live Réseau salon whose owner row was REVOKED → pro '
+        '(active owner rows only)', () async {
+      final first = await ownedSalon(owner);
+      await service().chooseOffer(owner, first, 'reseau');
+      final ownerRow = (await memberships.listForProvider(
+        first,
+      )).singleWhere((m) => m.role == 'owner');
+      await memberships.revoke(ownerRow.id);
+      final second = await ownedSalon(owner);
+
+      await provisioning().publish(second);
+      expect((await subs.byProvider(second))!.tier, 'pro');
+    });
+
+    test(
+      'an ALREADY-ACTIVE salon with no offer row gets its trial at '
+      'publish — and asks for no rebuild (the public set is unchanged)',
+      () async {
+        // A legacy salon live before the pricing pivot: the first successful
+        // publish is the start, whatever the status was (spec §3.1).
+        final id = await ownedSalon(owner);
+        await providers.setStatus(id, 'active');
+
+        final r = await provisioning().publish(id);
+        expect(r.ok, isTrue);
+        final row = (await subs.byProvider(id))!;
+        expect(row.tier, 'pro');
+        expect(row.trialEndsAt, now.add(const Duration(days: 90)));
+        expect((await providers.byId(id))!['status'], 'active');
+        expect(rebuild.reasons, isEmpty);
+      },
+    );
+
+    test('A SUSPENDED salon with no offer row → provider_suspended: no '
+        'trial, still suspended, no rebuild', () async {
+      // T17: only the audited admin restore lifts a suspension. Publish
+      // flipped every non-active status to `active`, so one owner call undid
+      // it — and since the companion path would also have minted a trial.
+      final id = await ownedSalon(owner);
+      await providers.setStatus(id, 'suspended');
+
+      final r = await provisioning().publish(id);
+      expect(r.ok, isFalse);
+      expect(r.error, 'provider_suspended');
+      expect(
+        await subs.byProvider(id),
+        isNull,
+        reason: 'a suspended salon writes no billing state',
+      );
+      expect((await providers.byId(id))!['status'], 'suspended');
+      expect(rebuild.reasons, isEmpty);
+    });
+
+    test('…and with a LIVE offer → refused too (the pre-companion '
+        'un-suspend)', () async {
+      final id = await ownedSalon(owner);
       await service().chooseOffer(owner, id, 'pro');
-      final ok = await provisioning.publish(id);
-      expect(ok.ok, isTrue);
+      await providers.setStatus(id, 'suspended');
+
+      final r = await provisioning().publish(id);
+      expect(r.error, 'provider_suspended');
+      expect((await providers.byId(id))!['status'], 'suspended');
+      expect(rebuild.reasons, isEmpty);
+    });
+
+    test('THE DEMO SALON: its lock answers BEFORE the trial start — no row, '
+        'still draft, no rebuild', () async {
+      // T69 + T54: the publish-time start runs only after the demo lock. A
+      // lock moved below the start would refuse the publish but leave a
+      // trial behind on the public-credential salon.
+      final id = await ownedSalon('acc-demo', email: kDemoProviderEmail);
+      expect(await subs.byProvider(id), isNull);
+
+      final r = await provisioning().publish(id);
+      expect(r.ok, isFalse);
+      expect(r.error, 'demo_account_locked');
+      expect(await subs.byProvider(id), isNull, reason: 'no trial minted');
+      expect((await providers.byId(id))!['status'], 'draft');
+      expect(rebuild.reasons, isEmpty);
+    });
+
+    test('insert-if-absent under a race: a web choice that lands between '
+        "publish's read and its insert keeps its tier", () async {
+      final racing = _RacingSubscriptions();
+      subs = racing;
+      final id = await ownedSalon(owner);
+      racing.racer = (
+        tier: 'business',
+        trialEndsAt: now.add(const Duration(days: 90)),
+      );
+
+      final r = await provisioning().publish(id);
+      expect(r.ok, isTrue);
+      expect((await subs.byProvider(id))!.tier, 'business');
+    });
+
+    test('…and the row that won is RE-CHECKED: a non-live winner keeps the '
+        'salon draft', () async {
+      // Not reachable through today's writers (a new row is always a fresh
+      // trial) — which is exactly why the re-check needs its own test: a
+      // publish that assumed its insert won would go live on a row it
+      // never wrote.
+      final racing = _RacingSubscriptions();
+      subs = racing;
+      final id = await ownedSalon(owner);
+      racing.racer = (
+        tier: 'pro',
+        trialEndsAt: now.subtract(const Duration(days: 30)),
+      );
+
+      final r = await provisioning().publish(id);
+      expect(r.ok, isFalse);
+      expect((r.data! as Map)['missing'], ['offer']);
+      expect((await providers.byId(id))!['status'], 'draft');
+      expect(rebuild.reasons, isEmpty);
     });
   });
+
+  /// T69 (docs/design/pro-companion-path.md §3.2): the demo credential is
+  /// public and the web dashboard accepts it.
+  group('THE DEMO SALON CANNOT CHOOSE OR SWITCH ITS OFFER', () {
+    Future<String> demoSalon() async {
+      final salon = await providers.createSalon(
+        name: 'Salon Démo MyWeli',
+        category: 'salon',
+        phoneNumber: '+2250700000100',
+      );
+      final id = salon['id'] as String;
+      await memberships.ensureOwner(
+        providerId: id,
+        accountId: 'acc-demo',
+        email: kDemoProviderEmail,
+      );
+      return id;
+    }
+
+    test('a first choice → demo_account_locked, no row written', () async {
+      final id = await demoSalon();
+      final r = await service().chooseOffer('acc-demo', id, 'reseau');
+      expect(r.ok, isFalse);
+      expect(r.error, 'demo_account_locked');
+      expect(await subs.byProvider(id), isNull);
+    });
+
+    test('a switch → demo_account_locked, the tier stays', () async {
+      final id = await demoSalon();
+      await subs.create(
+        providerId: id,
+        tier: 'pro',
+        trialEndsAt: now.add(const Duration(days: 90)),
+      );
+      final r = await service().chooseOffer('acc-demo', id, 'reseau');
+      expect(r.error, 'demo_account_locked');
+      expect((await subs.byProvider(id))!.tier, 'pro');
+    });
+
+    test('the capability check still answers first for a stranger', () async {
+      final id = await demoSalon();
+      final r = await service().chooseOffer('ghost', id, 'pro');
+      expect(r.error, 'forbidden');
+    });
+
+    test('an ordinary owner is not caught by the lock', () async {
+      final owner = await registerOwner();
+      final r = await service().chooseOffer(owner, 'p1', 'reseau');
+      expect(r.ok, isTrue);
+    });
+  });
+}
+
+/// Simulates another request (a web choice) inserting the row between
+/// publish's `stateFor` read and its `createIfAbsent` — the window the
+/// insert-if-absent write exists for.
+class _RacingSubscriptions extends InMemorySalonSubscriptionRepository {
+  ({String tier, DateTime trialEndsAt})? racer;
+
+  @override
+  Future<SalonSubscriptionRow> createIfAbsent({
+    required String providerId,
+    required String tier,
+    required DateTime trialEndsAt,
+  }) async {
+    final r = racer;
+    if (r != null) {
+      await create(
+        providerId: providerId,
+        tier: r.tier,
+        trialEndsAt: r.trialEndsAt,
+      );
+    }
+    return super.createIfAbsent(
+      providerId: providerId,
+      tier: tier,
+      trialEndsAt: trialEndsAt,
+    );
+  }
 }

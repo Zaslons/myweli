@@ -9,7 +9,6 @@ enum OnboardingStepKey {
   deposit,
   verification,
   photos,
-  offer,
 }
 
 enum OnboardingStepStatus { done, todo, inProgress, optional }
@@ -39,7 +38,6 @@ List<OnboardingStep> buildOnboardingChecklist({
   required VerificationStatus verificationStatus,
   required bool hasSubmittedKyc,
   required BusinessType businessType,
-  required bool offerLive,
 }) {
   OnboardingStepStatus doneIf(bool ok) =>
       ok ? OnboardingStepStatus.done : OnboardingStepStatus.todo;
@@ -74,24 +72,26 @@ List<OnboardingStep> buildOnboardingChecklist({
     OnboardingStep(OnboardingStepKey.verification, verificationStep()),
     // The upload pipeline shipped — photos gate go-live like the server does.
     OnboardingStep(OnboardingStepKey.photos, doneIf(photoCount >= kMinPhotos)),
-    // Pricing pivot (team access R2a/R3): publishing requires a live offer
-    // (trial/paid/grace) — the server gate's `offer` key mirrored.
-    OnboardingStep(OnboardingStepKey.offer, doneIf(offerLive)),
+    // No offer step. The server starts the salon's trial at its first
+    // successful publish, so a salon with no offer goes live like any other
+    // — and the Pro app never asks for a choice it may not offer (App Store
+    // 3.1.3(f), docs/design/pro-companion-path.md §2.2).
   ];
 }
 
 /// The steps that gate « Mettre mon profil en ligne » — the MIRROR of the
-/// server's publish gate (docs/design/pro-salon-lifecycle.md + the R2a
-/// pricing pivot): profile + location + ≥3 services + hours + ≥3 photos +
-/// a live offer. Deposit and verification are shown and recommended but
-/// never block (matching the server).
+/// server's publish gate (docs/design/pro-salon-lifecycle.md): profile +
+/// location + ≥3 services + hours + ≥3 photos. Deposit and verification are
+/// shown and recommended but never block (matching the server). The offer is
+/// not a step: the server starts the trial when the salon first publishes,
+/// and refuses (`offer_required`) only a salon whose offer EXPIRED — a state
+/// the checklist cannot fix (docs/design/pro-companion-path.md §3.1).
 const Set<OnboardingStepKey> _goLiveKeys = {
   OnboardingStepKey.profile,
   OnboardingStepKey.location,
   OnboardingStepKey.services,
   OnboardingStepKey.availability,
   OnboardingStepKey.photos,
-  OnboardingStepKey.offer,
 };
 
 bool canGoLive(List<OnboardingStep> steps) =>

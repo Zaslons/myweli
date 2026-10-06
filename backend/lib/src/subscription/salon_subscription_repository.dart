@@ -18,7 +18,9 @@ class SalonSubscriptionRow {
   /// `pro` | `business` | `reseau` (see [salonTiers]).
   final String tier;
 
-  /// The ONE trial per salon: set on the first `chooseOffer`, never reset.
+  /// The ONE trial per salon: set when the row is created — at the first
+  /// `chooseOffer`, or at the first successful publish when no offer was
+  /// ever chosen (`startDefaultTrial`) — and never reset.
   final DateTime trialEndsAt;
 
   /// Manual billing (« Nous contacter ») — extended only by the audited
@@ -53,6 +55,18 @@ abstract interface class SalonSubscriptionRepository {
 
   /// First offer choice: creates the row and starts the ONE trial.
   Future<SalonSubscriptionRow> create({
+    required String providerId,
+    required String tier,
+    required DateTime trialEndsAt,
+  });
+
+  /// Insert-if-absent: creates the row only when the salon has none, and
+  /// returns whichever row now exists — an existing one is NEVER replaced
+  /// (not its tier, not its clock). The publish-time trial start writes
+  /// through this, so a web choice that lands first keeps its tier and a
+  /// racing publish cannot overwrite it, which [create]'s Postgres upsert
+  /// would. Design: docs/design/pro-companion-path.md §3.1.
+  Future<SalonSubscriptionRow> createIfAbsent({
     required String providerId,
     required String tier,
     required DateTime trialEndsAt,
@@ -102,6 +116,21 @@ class InMemorySalonSubscriptionRepository
     _rows[providerId] = row;
     return row;
   }
+
+  @override
+  Future<SalonSubscriptionRow> createIfAbsent({
+    required String providerId,
+    required String tier,
+    required DateTime trialEndsAt,
+  }) async => _rows.putIfAbsent(
+    providerId,
+    () => SalonSubscriptionRow(
+      providerId: providerId,
+      tier: tier,
+      trialEndsAt: trialEndsAt,
+      chosenAt: DateTime.now().toUtc(),
+    ),
+  );
 
   @override
   Future<SalonSubscriptionRow?> update(
