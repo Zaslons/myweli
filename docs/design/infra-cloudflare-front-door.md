@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| **Status** | Approved 2026-09-09 (owner: « go, write the spec and build it ») · **Built 2026-09-09 — rollout pending, the load balancer serves until §9 step 9** |
+| **Status** | Approved 2026-09-09 (owner: « go, write the spec and build it ») · Built 2026-09-09 · **Live 2026-10-07** — phase A 01:02Z, Worker + proxied DNS from 01:04Z and the edge rule on `96`'s second run, phase B (`enforce`) 01:22Z, `72` green 01:26Z, load balancer + Cloud Armor deleted 01:27Z–02:07Z (§9, annotated as run). **Open:** the settled-day Billing check (§9 step 9) |
 | **Owner** | Sadreddine Daher |
-| **Last updated** | 2026-09-09 |
+| **Last updated** | 2026-10-07 |
 | **PRD ref / phase** | Infrastructure · launch scope (no PRD requirement; a cost decision) |
 | **ROADMAP entry** | [2026-09-09-cloudflare-front-door.md](../roadmap/entries/2026-09-09-cloudflare-front-door.md) |
 | **Skills checked** | myweli-dev-guardrails · myweli-backend-guardrails · myweli-verification-guardrails |
@@ -310,7 +310,10 @@ excluded — a header-only proxy is well inside. Request body cap 100 MB (Free
 zone plan); no response cap. **Fail mode past the daily cap is a per-route
 dashboard toggle**; this Worker is security-critical, so the runbook sets
 **« Fail closed »** (the documented recommendation) and records it — the
-default is not stated in the docs (§11).
+default is not stated in the docs (§11). *2026-10-07, read in the dashboard:
+the route already showed « Fail closed (block) », labelled « Default » by
+Cloudflare — nothing was changed. The `workers.dev` Production and Preview
+URLs are both off, so the Worker has no second public hostname.*
 
 ### 5.4 The Cloudflare zone — `infra/cloudflare/96-api-front-door.sh`
 
@@ -352,7 +355,10 @@ against). Idempotent — safe to re-run at launch. Steps:
    the prefixes are served by nothing else on the zone. Read back the rule id.
    **Whether the Free plan accepts a function or an `or` in the expression is
    UNVERIFIED in the docs** — this step is the proof, and the script fails
-   loudly if the API rejects it.
+   loudly if the API rejects it. *Proven 2026-10-07: accepted as written —
+   rule `f2c675369a854c65bbdaac5b30d5a23c` (block · 10 per 10 s per IP ·
+   `/auth/*` and `/admin/auth/*`), read back by the script; no fallback
+   needed.*
 
 Numbers, and why: Cloud Armor was 10/minute with a 300 s ban. The Free plan
 gives a 10 s window and a 10 s block, and its counters are per data centre
@@ -381,7 +387,11 @@ static address → security policy → the `Cloud Armor REFUSED a request` alert
 policy (looked up by display name, the `93-sync-runbooks.sh` idiom). Never the
 « Owner email » channel, which every other alert shares. Ends by printing the
 two follow-ups it cannot do itself: the DNS placeholder, and the console SKU
-rows that must disappear the next day.
+rows that must disappear the next day. *2026-10-07, learnt by running it: the
+backend-service delete took ~35 min server-side, past gcloud's 1800 s
+client-side wait; the script now separates « finished after gcloud gave up »
+(carry on) from « still in flight » (stop; re-run once DONE) and from a real
+failure (§9.4).*
 
 `70-load-balancer.sh`, `87-…`, `89-…`, `91-…` are **kept, with a RETIRED
 banner** naming this spec: they are the launch-time re-application path the
@@ -474,7 +484,9 @@ Settings: Read* · *Zone: Read*. Stored with
 - One extra hop: client → Cloudflare PoP → Paris. The uptime checks' latency
   series (`/health`, `/providers`) is the before/after instrument; budget
   **+50 ms p50** or the decision is revisited. Bodies stream; nothing is
-  buffered in the Worker.
+  buffered in the Worker. *2026-10-07: availability across the switch is
+  measured (§9 step 8 — no failed uptime check); the latency comparison and
+  the OTP-request p50 have **not** been read yet.*
 - No cold-start change; `minScale` untouched.
 
 ## 8. Testing plan
@@ -608,6 +620,43 @@ DNS-only A record → certificate `PROVISIONING` until DNS resolves → `87`, `8
 `91` → lock ingress) — tens of minutes, and the reason the LB is kept alive
 until enforcement is proven.
 
+*Corrected 2026-10-07 (preflight, before phase A was dispatched): « Before 5:
+nothing to undo » is wrong once phase A has shipped. Ingress is a
+**service-level** setting (`metadata.annotations` of the Service, not of the
+revision template), so `gcloud run services update-traffic` back to an older
+revision leaves `ingress: all` in place — and no revision before `00034`
+runs the gate at all. Rolling back phase A is the traffic move **and**
+`ingress: internal-and-cloud-load-balancing` restored (manifest + deploy,
+or the door stays open). The same holds after step 9 for any traffic pin to
+a revision older than `00035`: the service stays `all`, and the revision it
+lands on runs the gate in `log` (`00034`) or not at all — DEPLOYMENT.md
+« Rolling back » says so next to the tourniquet.*
+
+### 9.4 As run — 2026-10-07 (UTC, measured; the owner's word given in chat before each **[owner]** step)
+
+Billing had been closed since 2026-09-16 and reopened on 2026-10-06 at
+~23:4xZ; both Cloud SQL instances were `RUNNABLE` at 23:56Z (the 23:45
+reminders run answered 503 while the database resumed, 00:00 → 200).
+
+| Step | When | What was observed |
+|---|---|---|
+| 2 | 01:01:13Z | `CLOUDFLARE_FRONT_DOOR_TOKEN` v1 stored by the owner — custom token `myweli-front-door`, minted in the dashboard with exactly the §6.3 scopes. `ORIGIN_AUTH_SECRET` v1 already existed — created 2026-09-10 08:57Z, before step 3's merge, as step 2 requires (phase A's revision mounts it and serves). The token came later; `98-verify-secret-pins.sh` never checks it, because it is not a manifest pin. |
+| 3 | 2026-09-10 09:08Z; 00:40:31Z | The merge itself was #547 (`6c1f9fb`, 2026-09-10); the rollout then paused with billing closed. #553 (`fb7c2d7`) merged at 00:40:31Z: `# log-mode-until: 2026-10-08`, the day after the dispatch, set in the PR that precedes it (the step 4 rule). Its merge rebuilt the image — the three previous push builds had failed at `docker push` while billing was closed. |
+| 4 | 01:02:08Z | Phase A dispatched (run 37555060998): image `fb7c2d7` (`sha256:99fbaf99…`), revision `myweli-api-00034-76l`, `ingress: all`, `ORIGIN_AUTH_MODE=log`. Nine probes 200 — both `run.app` aliases and `api.myweli.com` (still the LB) × `/health`, `/providers`, `/localities`; `origin_auth_missing` logged from `00034`; no ERROR line. |
+| 5 | 01:04–01:06Z, then a second run | Run 1: Worker `myweli-api-front-door` deployed (version `473c70bb-5ca6-41d3-b872-67f733cd7c40`; the secret upload made `55f2c548-327c-4b0e-9492-4c9e0b0abaa7`), route `api.myweli.com/*` read back, record proxied — then the script's own `cf-ray` read-back failed, as expected: its `dig` asks the zone's nameservers, but `curl` uses the local resolver, which still held the LB address (TTL 300 s against 60 s of retries). Not a cutover failure — a `--resolve` probe pinned to a Cloudflare address answered 200 + `cf-ray` on `/health`, `/providers`, `/localities`. Run 2, after the cache expired: all five steps green, rate rule `f2c675369a854c65bbdaac5b30d5a23c` read back (§11 Q1). Zone: `ssl=full`, `security_level=medium`, `browser_check=on`. Dashboard: `workers.dev` URLs off; route fail mode « Fail closed (block) », Cloudflare's default (§11 Q2). |
+| 6 | before phase B (01:22Z) | Paired probe, id `5eff438e4cc8`: one `/providers/…` request through Cloudflare, one to the direct door, both 404 (no such provider). The only `origin_auth_missing` logged was the direct one (`method=GET path=/providers/probe-direct-5eff438e4cc8`), and none other since the switch — the Worker path carries the header. `myweli-reminders` (target `https://api.myweli.com/internal/cron/reminders`) at 01:15:02Z → 200 through the Worker, the origin seeing the `run.app` host: OIDC checks the configured audience, not the Host. **Not compared:** `CF-Connecting-IP` against this machine's address; that it arrives at all is shown by step 8's app-side 429s (without it the limiter never runs, §8 case 10). |
+| 7 | 01:22:43Z | #548 rebased onto `main`, merged as `12d3455` (01:19:36Z); phase B dispatched (run 37556790138), revision `myweli-api-00035-r8x`, `enforce`. Direct door: `/providers` → 403 `{"error":"origin_required"}` on **both** aliases (`myweli-api-5a24ymhbbq-od.a.run.app`, `myweli-api-731308991240.europe-west9.run.app`), `/health` → 200; `api.myweli.com` 200 + `cf-ray`. |
+| 8 | ~01:26Z | `72-verify-front-door.sh` with `RUN_CRON=1`: exit 0, 14 checks — per-IP limit (10 accepted, then 5 × 429 `rate_limited`), 15 × `/health` 200 control, direct door 403 + older alias 403, `cf-ray`, `http` → 301 `https`, uptime `api-health` 212 passed / 0 failed and `api-providers-database` 215 / 0 over 30 min spanning the switch, CORS preflight from `https://admin.myweli.com`, Dart User-Agent → 200 (not challenged), forced `myweli-reminders` at 01:26:35Z → 200 through the Worker. **Not recorded:** the Vercel production build's `/localities` fetch — UNVERIFIED until a web redeploy's build log is read. |
+| 9 | 01:27:31Z → 02:04:56Z, then a second run (its compute deletes 02:06:23–02:06:46Z) | `CONFIRM=retire`, run 1: the three prechecks held; forwarding rules, target proxies, URL maps deleted, security policy detached (01:27:31–01:29:21Z by the compute operation log); then `backend-services delete` outlived gcloud's 1800 s client wait and `set -e` stopped the script — server-side the operation finished DONE at 02:04:56Z, no error (~35 min). Run 2: NEG, certificate `myweli-api-cert`, address `myweli-api-ip` (`8.232.126.191`), policy `myweli-api-rate-limit` (rules 1000, 1100) and the alert « Cloud Armor REFUSED a request » deleted. A read-only listing afterwards: no forwarding rule, backend service, NEG, certificate, address or security policy remains. DNS placeholder set in the dashboard — the proxied A record holds `192.0.2.0`; `api.myweli.com` still 200 + `cf-ray`, direct `/providers` still 403. The deleted certificate had been `FAILED_NOT_VISIBLE` (expiry 2026-11-04) — moot now; Cloudflare's edge certificate covers `myweli.com` + `*.myweli.com`. **Pending:** Billing → Reports by SKU after a settled day — `Cloud Load Balancer Forwarding Rule Minimum Global` and the Cloud Armor rows gone; expected run-rate ≈ $24/month (from ≈ $50). |
+
+**Two defects in `71`, both found by running it and fixed the same day**
+(neither changed the end state; the first cost a second run): (1) the backend-service delete can outlive
+gcloud's 1800 s client-side wait while the server carries on — the script now
+tells « finished after gcloud gave up » (continue), « still in flight »
+(stop, re-run once DONE) and a real failure apart; (2) its closing heredoc
+was unquoted, so the backticks around `AAAA 100::` ran as a command
+(« `AAAA: command not found` ») — now escaped, the variables still expand.
+
 ### 9.5 The launch gate — what to re-apply, and what to decide (LAUNCH.md §6.5)
 
 The owner's instruction: keep a record that at launch « we need to reapply
@@ -628,7 +677,7 @@ all of them ». The list, with the honest split between *must* and *decide*:
 - [ ] Contract (`openapi.yaml`), threat model (T70, T71, T65/T66/T21 edits), ROADMAP entry, `.env.example`, DEPLOYMENT.md, LAUNCH.md §6.5, README index — in the same PR.
 - [ ] Every stale « DNS-only / run.app 404s by design » sentence rewritten: `service.yaml`, `service-staging.yaml`, `deploy-backend.yml` (two places), `87`, `89`, `70` banners, `migrations.dart:984`, `client_ip.dart` header, `rate_limiter.dart` header, DEPLOYMENT.md, LAUNCH.md, `infra-staging.md`.
 - [ ] Mutations of §8 watched red on committed work; CI step reaches the enforce branch.
-- [ ] Rollout §9 executed step by step with the owner's word at each **[owner]**; `72-verify-front-door.sh` green on the live path; console rows gone.
+- [ ] Rollout §9 executed step by step with the owner's word at each **[owner]**; `72-verify-front-door.sh` green on the live path; console rows gone. *2026-10-07: executed and `72` green (§9.4); left open only for the console rows — the settled-day Billing check.*
 - [ ] Feature branch + PR; no Claude attribution.
 
 ## 11. Open questions
@@ -638,16 +687,32 @@ all of them ». The list, with the honest split between *must* and *decide*:
    the proof; if refused, fall back to `http.request.uri.path matches "^/(admin/)?auth/"`
    and, failing that, one prefix (`/auth/`) at the edge with `/admin/auth/`
    covered by the app limiter only.
+   **Answered 2026-10-07: accepted.** The Free plan took the `or` of two
+   `starts_with` as written (rule `f2c675369a854c65bbdaac5b30d5a23c`, read
+   back); neither fallback was needed.
 2. **Fail mode default** — not documented; set « Fail closed » by hand and
    record it in DEPLOYMENT.md; a launch check re-reads it.
+   **Answered 2026-10-07: the default is « Fail closed (block) ».** The
+   route's dashboard page showed it already selected and labelled « Default »;
+   nothing was changed. Recorded in DEPLOYMENT.md; LAUNCH.md §6.5 still
+   re-reads it, because a default is the thing a plan change moves.
 3. **Browser Integrity Check / Bot Fight Mode** — reported by `96`, proven by
    `72` (Dart User-Agent, Google probes, Scheduler, Vercel build). If any is
    challenged: a Configuration Rule disabling BIC for the `api` host.
+   **Answered 2026-10-07, with `browser_check=on` and `security_level=medium`:
+   no challenge** for the Dart client (User-Agent `Dart/3.5 (dart:io)` → 200),
+   Cloud Scheduler (forced and scheduled `myweli-reminders` → 200 through the
+   Worker) or Google's uptime probes (212 + 215 passes, 0 failures over the
+   30 min spanning the switch) — all measured. The Vercel build fetch is the
+   one client not yet observed (§9.4 step 8).
 4. **Two `run.app` aliases** — the Worker targets `status.url`; `72` proves
    the older alias also answers 403 after enforcement.
+   **Answered 2026-10-07:** 403 `origin_required` on both after phase B.
 5. **Vercel env** — docs say Production → `api.myweli.com`, Preview → staging
    `run.app`; read back in the dashboard before phase B (a scope holding the
    prod `run.app` would 403).
+   *2026-10-07: no read-back recorded during the cutover — UNVERIFIED, still
+   open.*
 6. **BFF client IP** — out of scope here, on the §6.5 list: the BFF must send
    the browser address in a header the origin trusts *from Vercel only*, which
    is a second origin-auth relationship, not a header the world may set.
