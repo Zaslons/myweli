@@ -245,8 +245,43 @@ if gcloud compute backend-services describe myweli-api-backend --global --projec
       --project="${PROJECT}" --security-policy="" -q
     echo "  − detached the security policy from myweli-api-backend"
   fi
-  gcloud compute backend-services delete myweli-api-backend --global --project="${PROJECT}" -q
-  echo "  − backend service myweli-api-backend"
+  # gcloud waits on a compute operation for at most 1800 s on the client side
+  # (`_POLLING_TIMEOUT_SEC` in its compute waiters), then exits non-zero while
+  # the operation carries on server-side. On 2026-10-07 this delete took ~35 min
+  # (01:29:23Z → DONE 02:04:56Z, no error): gcloud gave up first and `set -e`
+  # stopped the script with the NEG, certificate, address, policy and alert
+  # still in place. A timeout is therefore not a failed delete. Three cases:
+  #   - the backend is gone by now → the delete finished after gcloud stopped
+  #     waiting; carry on;
+  #   - a delete operation on it is still in flight → stop and say "re-run
+  #     once it is DONE" (the NEG cannot go while the backend references it;
+  #     every step above is skipped as "already gone" on the re-run);
+  #   - neither → a real failure; stop on gcloud's error above.
+  # The status is filtered here, not in --filter: the API rejects
+  # `status!=DONE` in a list filter, and gcloud reports that as a WARNING
+  # with exit 0 — i.e. an empty answer that looks like "nothing in flight".
+  if ! gcloud compute backend-services delete myweli-api-backend --global --project="${PROJECT}" -q; then
+    if ! gcloud compute backend-services describe myweli-api-backend --global --project="${PROJECT}" >/dev/null 2>&1; then
+      echo "  − backend service myweli-api-backend (gcloud stopped waiting; the delete finished anyway)"
+    else
+      PENDING=$(gcloud compute operations list --global --project="${PROJECT}" \
+        --filter="operationType=delete AND targetLink~'/backendServices/myweli-api-backend\$'" \
+        --format='value(name,status)' | awk '$2 != "DONE" {print $1}' || true)
+      if [[ -n "${PENDING}" ]]; then
+        echo "  … backend service myweli-api-backend: the delete is still running server-side"
+        printf '%s\n' "${PENDING}" | sed 's/^/      /'
+        echo "    gcloud stopped waiting; the operation did not stop. Check it with"
+        echo "      gcloud compute operations describe <name> --global --project=${PROJECT} --format='value(status,error)'"
+        echo "    and re-run this script once it says DONE — everything already gone is skipped."
+        exit 1
+      fi
+      echo "::error:: deleting backend service myweli-api-backend failed and no delete"
+      echo "          operation on it is in flight — read gcloud's error above."
+      exit 1
+    fi
+  else
+    echo "  − backend service myweli-api-backend"
+  fi
 else
   echo "  · backend service myweli-api-backend already gone"
 fi
@@ -301,6 +336,10 @@ else
   echo "  · alert policy '${ARMOR_ALERT}' already gone"
 fi
 
+# Unquoted delimiter, so ${DOMAIN} and ${LB_IP} expand — which means a
+# backtick in the text is command substitution, not punctuation. It must be
+# written \` here. Until 2026-10-07 it was not: the run printed
+# "AAAA: command not found" and the sentence lost its example.
 cat <<EOF
 
 Retired. Two follow-ups this script cannot do itself:
@@ -308,7 +347,7 @@ Retired. Two follow-ups this script cannot do itself:
   1. DNS (Cloudflare): the proxied A record for ${DOMAIN} still holds
      ${LB_IP}, an address that now belongs to nobody. Set its content to
      192.0.2.0 — an RFC 5737 TEST-NET address that never answers, the same
-     trick as Cloudflare's documented originless `AAAA 100::` (either works);
+     trick as Cloudflare's documented originless \`AAAA 100::\` (either works);
      the Worker answers regardless of the record's content, so this is
      hygiene, not a cutover.
 

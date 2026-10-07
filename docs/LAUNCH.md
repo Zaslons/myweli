@@ -500,7 +500,11 @@ These block everything. None is surface-specific.
         by construction, which is what the §4 measurement was for. The
         anonymous-read surface is still unbounded. To be proven on the live
         path by `infra/gcp/72-verify-front-door.sh` before the load balancer
-        goes.
+        goes. **2026-10-07: live and proven** — `72` green on the live path
+        (from one address: 10 accepted, then 5 × 429 `rate_limited` in the
+        app's JSON envelope), the edge rule accepted by the Free plan, and only
+        then the load balancer and Cloud Armor deleted (spec §9.4). The
+        anonymous-read surface is still unbounded.
       - **The ADMIN surface was covered by none of the layers, and the reason
         recorded for that was false** (2026-08-19).
         [design/backend-rate-limiting.md](design/backend-rate-limiting.md) left
@@ -1134,7 +1138,10 @@ knob worked — `billable_instance_time` fell 1.00 → 0.008 — but **the bill
 lands at ~50 USD/mo, not the ≈25 this section claimed until 2026-09-09**:
 the global load balancer's forwarding-rule minimum (18.26) and Cloud Armor
 (8.21) are flat 24/7 charges that no compute knob touches. Read from
-Billing → Reports, by SKU; the anatomy is in DEPLOYMENT.md.
+Billing → Reports, by SKU; the anatomy is in DEPLOYMENT.md. **Both were
+deleted on 2026-10-07** (the front door, below): expected ≈ 24 USD/mo now and
+≈ 44 at launch — projected until a settled Billing day after the deletion
+shows neither row.
 
 **Flipping the knob back costs 0.64 USD/day, and that is measured, not
 estimated** — 2026-08-30 and 08-31 each billed **2.29 USD/day** in exactly
@@ -1152,16 +1159,26 @@ is the gate**:
       awake**: the sleep was reversed on 2026-09-04 (a stopped instance's
       public IPv4 is billed idle, so sleeping saved $1.60/mo for real
       friction — DEPLOYMENT.md, staging section). Nothing to restart.
+      *Corrected 2026-10-07 (from the 2026-10-06 cost audit): ~$0.44/mo,
+      not $1.60 — the idle IP bills at the measured $0.0116/h, not the
+      $0.01/h headline, against the instance's $0.0122/h.*
 
 **The front door (2026-09) — what to re-apply, what to decide.** The load
 balancer and Cloud Armor are being retired for the Cloudflare front door
 ([design/infra-cloudflare-front-door.md](design/infra-cloudflare-front-door.md));
-the owner asked that this list be kept here, where launch is decided:
+the owner asked that this list be kept here, where launch is decided.
+**Live since 2026-10-07**: `api.myweli.com` is Cloudflare → the Worker →
+`run.app` with the origin gate enforcing; the load balancer and Cloud Armor
+were deleted the same night (spec §9.4). The list below is unchanged by
+that — it is what launch still has to re-apply or decide:
 
 - [ ] **Workers plan** — Free is 100 000 requests/day, fail **closed**
       (Error 1027 beyond). If any launch day could near it, switch to Paid
       ($5/month, unlimited) in the Cloudflare dashboard **before** announcing.
-      Re-read the route's fail mode while there.
+      Re-read the route's fail mode while there. *2026-10-07: it reads « Fail
+      closed (block) », Cloudflare's own default (verified in the dashboard,
+      nothing set by hand) — re-read anyway, because a plan change is exactly
+      what moves a default.*
 - [ ] **Web BFF forwards the browser IP** — today every web visitor shares
       Vercel's egress address in the per-IP auth bucket (10/min for all of
       them together). A second trusted header from Vercel only, never from the

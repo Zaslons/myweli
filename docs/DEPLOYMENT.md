@@ -8,7 +8,7 @@ truth for backend keys: [`backend/.env.example`](../backend/.env.example); for w
 ## 0. What runs where
 | Component | Tech | Host | Domain |
 |---|---|---|---|
-| Backend API | dart_frog (Docker) | **Cloud Run** (`europe-west9`, Paris) — `infra/gcp/service.yaml` | `api.myweli.com` (global HTTPS load balancer today; **scheduled** to become Cloudflare → Worker → `run.app` — [design/infra-cloudflare-front-door.md](design/infra-cloudflare-front-door.md) §9) |
+| Backend API | dart_frog (Docker) | **Cloud Run** (`europe-west9`, Paris) — `infra/gcp/service.yaml` | `api.myweli.com` (Cloudflare → Worker `myweli-api-front-door` → `run.app` **since 2026-10-07**; the global load balancer and Cloud Armor are retired — [design/infra-cloudflare-front-door.md](design/infra-cloudflare-front-door.md) §9.4) |
 | Database | PostgreSQL 16 | **Cloud SQL** `myweli-db` (same region), reached through the Auth Proxy sidecar | internal |
 | Web | Next.js | **Vercel** | `myweli.com` + `www` |
 | Admin console | Flutter Web | static host (Vercel/CF Pages) | `admin.myweli.com` |
@@ -274,10 +274,10 @@ which is how the reminder cron came to be switched off without anyone noticing.
    serving image is the one just built, that `/health` and a database-backed
    route answer, and that the service **reports the environment it was asked to
    deploy**.
-4. **`api.myweli.com` is a global HTTPS load balancer today, and is scheduled
-   to become Cloudflare → a Worker → Cloud Run**
+4. **`api.myweli.com` is Cloudflare → a Worker → Cloud Run, live since
+   2026-10-07** — it was a global HTTPS load balancer until that day
    ([design/infra-cloudflare-front-door.md](design/infra-cloudflare-front-door.md),
-   built 2026-09-09, rollout in §9 of that spec). Cloud Run domain mappings are
+   built 2026-09-09, rolled out per §9 of that spec, as run in §9.4). Cloud Run domain mappings are
    still unimplemented in `europe-west9`, so the Worker `myweli-api-front-door`
    forwards every request to the `*.run.app` hostname with a secret
    `X-Myweli-Origin-Auth` header. The service then runs `ingress: all` — it
@@ -285,27 +285,56 @@ which is how the reminder cron came to be switched off without anyone noticing.
    `403 origin_required` to anything that did not come through the Worker,
    except `/health` (the liveness probe carries no header). Built by
    `infra/cloudflare/96-api-front-door.sh`; proven by
-   `infra/gcp/72-verify-front-door.sh`; the load balancer is retired by
+   `infra/gcp/72-verify-front-door.sh`; the load balancer was retired by
    `infra/gcp/71-retire-load-balancer.sh`; `70`/`87`/`89`/`91` stay as the
    re-application path LAUNCH.md §6.5 names.
 
-   **Cutover status** (tick as each spec §9 step runs; the sentence above is
-   in the future tense until the last box):
-   - [ ] Secrets `ORIGIN_AUTH_SECRET` (v1, accessor `myweli-run@`) and
+   **Cutover status** (ticked as each spec §9 step ran, all 2026-10-07 UTC,
+   the owner's word given before each production step; the full record is
+   spec §9.4):
+   - [x] Secrets `ORIGIN_AUTH_SECRET` (v1, accessor `myweli-run@`) and
          `CLOUDFLARE_FRONT_DOOR_TOKEN` exist — **before the merge**, or the
          staging deploy's `98-verify-secret-pins.sh` gate goes red.
-   - [ ] Production phase A deployed (`ingress: all`, secret, `log`). **In
+         *`ORIGIN_AUTH_SECRET` v1 created 2026-09-10 08:57Z, before #547
+         merged (09:08Z), accessor `myweli-run@` only, and mounted by the
+         serving revisions. `CLOUDFLARE_FRONT_DOOR_TOKEN` came later — v1
+         stored 2026-10-07 01:01:13Z, custom token `myweli-front-door`, the
+         spec §6.3 scopes, zone `myweli.com` only; `98` never checks it, as it
+         is not a manifest pin, so « before the merge » held for the one
+         secret it binds.*
+   - [x] Production phase A deployed (`ingress: all`, secret, `log`). **In
          `log` mode the direct `run.app` door has no per-IP limit at all**
          (the limiter runs only behind the gate) and its hostname is public:
          close the window the same day. `service.yaml` carries
          `# log-mode-until:`; past it, CI is red until `enforce` lands.
-   - [ ] `96-api-front-door.sh` run; **Worker route fail mode set to « Fail
-         closed »** in the dashboard on: ________ (the docs give no default;
-         re-read at launch).
-   - [ ] Log window measured (no `origin_auth_missing` on the Worker path).
-   - [ ] Production phase B deployed (`enforce`); direct door answers 403.
-   - [ ] `72-verify-front-door.sh` green; `71-retire-load-balancer.sh` run;
-         DNS placeholder set; Billing rows gone the next day.
+         *01:02:08Z, run 37555060998, revision `myweli-api-00034-76l`; nine
+         probes 200 (both `run.app` aliases + `api.myweli.com` ×
+         `/health`, `/providers`, `/localities`). `log` lasted ~20 minutes.*
+   - [x] `96-api-front-door.sh` run; **Worker route fail mode set to « Fail
+         closed »** in the dashboard on: *not needed — already the default,
+         read 2026-10-07* (the docs give no default; re-read at launch).
+         *Two runs from 01:04Z — the first stopped on its own `cf-ray`
+         read-back because this machine's resolver still cached the LB
+         address (TTL 300 s); a `--resolve` probe to Cloudflare already
+         answered 200 + `cf-ray`; the second run was green, edge rule
+         `f2c675369a854c65bbdaac5b30d5a23c` read back. Fail mode: **« Fail
+         closed (block) » was already selected, labelled « Default » by
+         Cloudflare** — nothing changed. `workers.dev` URLs off.*
+   - [x] Log window measured (no `origin_auth_missing` on the Worker path).
+         *Paired probe `5eff438e4cc8`: only the direct-door twin was logged;
+         `myweli-reminders` at 01:15:02Z → 200 through the Worker.*
+   - [x] Production phase B deployed (`enforce`); direct door answers 403.
+         *01:22:43Z, run 37556790138, `myweli-api-00035-r8x`: `/providers` →
+         403 `origin_required` on both aliases, `/health` 200.*
+   - [x] `72-verify-front-door.sh` green; `71-retire-load-balancer.sh` run;
+         DNS placeholder set. *`72` ~01:26Z with `RUN_CRON=1`, 14 checks.
+         `71` twice: the backend-service delete outlived gcloud's 1800 s
+         client wait (DONE server-side at 02:04:56Z), the re-run deleted the
+         rest, and a read-only listing shows no LB resource left. A record →
+         `192.0.2.0`; `api.myweli.com` still 200 + `cf-ray`.*
+   - [ ] Billing rows gone the next day — Billing → Reports by SKU, a
+         **settled** day after the deletion: no `Cloud Load Balancer
+         Forwarding Rule Minimum Global`, no Cloud Armor rows (below).
 5. **Twilio webhook — not applicable yet**, listed so it is not forgotten when
    messaging turns on. Production runs `MESSAGING_PROVIDER=disabled` and mounts
    no Twilio credentials, so nothing calls this route today. When a provider is
@@ -351,7 +380,8 @@ no IP at all (`--no-assign-ip` on the stopped instance → 400 "At least one
 of Public IP or Private IP or PSC connectivity must be enabled"). Private
 IP would need a VPC path whose connector costs more than it saves. So a
 sleeping staging costs ~$9.3/mo against ~$10.9/mo awake — **$1.60 of
-saving** for a start-before-every-rehearsal step and previews without real
+saving** *(at the rate actually billed: asleep ≈ $10.5, so ~$0.44 of
+saving — corrected below, 2026-10-07)* for a start-before-every-rehearsal step and previews without real
 data. Not worth it. Staging stays awake; the economy that mattered is the
 production `minScale: 0` (LAUNCH.md §6.5).
 
@@ -367,6 +397,13 @@ the sleep window to the minute — and had never appeared on this account
 before. That is the measurement the reversal was decided on, arriving after
 the decision and agreeing with it.
 
+**Corrected 2026-10-07 (from the 2026-10-06 cost audit): the saving was
+~$0.44/mo, not $1.60.** The $1.60 above priced the idle IP at the $0.01/h
+headline; at the billed $0.0116/h it is ~$8.47/mo, against the instance's
+$0.0122/h (~$8.91/mo) — a difference of $0.0006/h. Storage bills either way.
+Sleeping staging saved almost nothing; deleting it (≈ $10.98/mo) is the only
+staging lever, and that stays an owner decision.
+
 ### What the project actually costs — measured 2026-09-09, not projected
 
 Read from **Billing → Reports, grouped by SKU**. Use **three fully settled
@@ -378,13 +415,13 @@ in the window:
 
 | SKU | 3 days | /month |
 |---|---|---|
-| Cloud Load Balancer Forwarding Rule Minimum Global (72 h) | $1.80 | **$18.26** |
+| Cloud Load Balancer Forwarding Rule Minimum Global (72 h) — *retired 2026-10-07* | $1.80 | **$18.26** |
 | Cloud SQL for PostgreSQL: Zonal - Micro instance in Paris (144 h = 2×24×3) | $1.76 | $17.86 |
-| Networking Cloud Armor Policy | $0.50 | **$5.07** |
+| Networking Cloud Armor Policy — *retired 2026-10-07* | $0.50 | **$5.07** |
 | Cloud SQL for PostgreSQL: Zonal - Standard storage in Paris (2×10 GiB) | $0.39 | $3.96 |
-| Networking Cloud Armor Rule (0.3 rule-months = **3 rules**) | $0.30 | **$3.04** |
+| Networking Cloud Armor Rule (0.3 rule-months = **3 rules**) — *retired 2026-10-07* | $0.30 | **$3.04** |
 | Secret Manager: Secret version replica storage | $0.19 | $1.93 |
-| Networking Cloud Armor Requests (18,461) | $0.01 | $0.10 |
+| Networking Cloud Armor Requests (18,461) — *retired 2026-10-07* | $0.01 | $0.10 |
 | **Total** | **$4.95** | **≈$50** |
 
 Those seven rows sum to $4.95 to the cent, so **the other 21 SKU rows are
@@ -437,6 +474,22 @@ design** ([design/infra-cloudflare-front-door.md](design/infra-cloudflare-front-
 approved 2026-09-09): origin authentication replaces it. Steady state with
 the front door: ≈$24/month with staging, ≈$13 without; launch week ≈$44.
 
+**2026-10-07 — the resources behind the four rows marked retired are deleted.** The
+load balancer (forwarding rules, proxies, URL maps, backend service, NEG,
+certificate, address `8.232.126.191`) and the Cloud Armor policy were deleted
+between 01:27Z and 02:07Z (compute operation log: the first forwarding
+rule at 01:27:31Z, the Cloud Armor policy last at 02:06:46Z); a read-only
+listing afterwards shows none of them
+([spec §9.4](design/infra-cloudflare-front-door.md)). The expected run-rate is
+**≈ $24/month** (≈ $50 − $26.5) — **projected, not yet read**. The check:
+Billing → Reports by SKU for the first **whole** day after the deletion,
+read once it has settled — never a day still filling in (mind the report's
+day boundary: the last deletion landed at ~02:07 UTC): no
+`Cloud Load Balancer Forwarding Rule Minimum Global` row, no Cloud Armor rows.
+If either still bills, re-run `71-retire-load-balancer.sh`; it reports what
+is left. Until that read, ≈ $24 is a projection like the ones this section
+was written to correct.
+
 ### Rolling back
 
 Full procedure — including the two things it cannot undo — is
@@ -447,7 +500,21 @@ production is serving something bad and you do not want to wait for a build:
 gcloud run services update-traffic myweli-api --region europe-west9 --to-revisions <previous-revision>=100
 ```
 
-Three things about that command are worth knowing *before* you need it:
+Five things about that command are worth knowing *before* you need it:
+
+- **It does not move ingress, and since 2026-10-07 that matters.** Ingress is
+  a *service*-level annotation in `service.yaml`, not part of a revision, so
+  a traffic pin keeps `ingress: all`. The origin gate is what closes the
+  direct `run.app` door: `myweli-api-00035-r8x` was the first revision to
+  enforce it, `00034` runs it in `log`, and nothing older has it at all. Pin
+  to a revision older than `00035` and the direct door is **open** — no
+  gate, no per-IP limit — while `api.myweli.com` keeps working through the
+  Worker, so nothing looks wrong. With the load balancer gone there is no
+  ingress value that closes it again (`internal-and-cloud-load-balancing`
+  would shut the Worker out too): pin no further back than `00035`, and fix
+  anything older forward
+  ([spec §9](design/infra-cloudflare-front-door.md), the 2026-10-07
+  rollback correction).
 
 - **It undoes itself.** Both service files commit `traffic: latestRevision:
   true`, and the next `replace` writes that back — so the pin silently stops
