@@ -1207,7 +1207,8 @@ that — it is what launch still has to re-apply or decide:
       change; a design doc does not notice.
 - [ ] **Staging back before the launch rehearsals and the first real salon.**
       Retired for cost from 2026-10-07 — the switch `infra/gcp/staging.state`
-      reads `absent`; the deletions are planned, owner-gated
+      reads `absent`; the deletions were done on 2026-10-07, with a final
+      database backup kept until 2027-10-07
       ([design/infra-staging.md](design/infra-staging.md) §9.2). The recreate,
       in order (§9.3 has every command; about 30–45 minutes):
       - [ ] the shared pieces are still there — `myweli-deployer@`,
