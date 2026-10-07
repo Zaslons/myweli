@@ -365,9 +365,48 @@ which is how the reminder cron came to be switched off without anyone noticing.
    uptime checks on `/health` *and* on a database-backed route, because `/health`
    never touches Postgres and reported `ok` throughout an outage. Alerts require
    two failing locations sustained for five minutes.
-8. **Staging deploys itself on merge to `main`** (touching `backend/**` or either
-   service file). Production stays `workflow_dispatch` with the typed `deploy`,
-   and a push cannot reach it.
+8. **Staging deploys itself on merge to `main`** (touching `backend/**`, either
+   service file or `infra/gcp/staging.state`). Production stays `workflow_dispatch` with the typed `deploy`,
+   and a push cannot reach it. **While `infra/gcp/staging.state` reads
+   `absent`** — staging retired for cost, below — the merge still builds and
+   pushes the image and runs the pin and emitter checks, deploys nothing, and
+   prints `promote with image_tag=<sha>`.
+
+### Staging retired for cost (2026-10-07) — the switch, and the way back
+
+**Owner decision, 2026-10-07:** delete staging while there are no users
+(≈ $11.7/month), and bring it back **before the launch rehearsals and the
+first real salon** (LAUNCH.md §6.5, last box). The design, the deletion order
+and the full runbook are in
+[design/infra-staging.md](design/infra-staging.md) §9. **The deletions there
+are planned, not done** — each waits for the owner's go-ahead, after this
+switch's own merge run is green.
+
+- **The switch is one committed word**, `infra/gcp/staging.state`:
+  `present` or `absent`. The deploy workflow (staging runs only),
+  `98-verify-secret-pins.sh` and `95-emitter-lag.sh` read it; anything else in
+  it fails all three. The resolver's production branch never reads it, so it
+  cannot skip a production deploy — **but 98 and 95 read it on production runs
+  too**: a bad value, or `present` before `90-staging.sh` has recreated the
+  `STAGING_*` secrets, fails 98 and blocks every production dispatch. That is
+  why the test pins its content and the recreate flips it last.
+- **While absent:** a merge builds and pushes the image and deploys nothing;
+  98 checks `service.yaml` alone (18 pins); 95 reports staging ABSENT and
+  still checks production. `service-staging.yaml` and `90-staging.sh` stay —
+  a secret shared with production is still bumped in both manifests.
+- **Releasing while absent — merge builds, promote by tag.** Take the tag from
+  the merge run's notice (or from a refused production dispatch, which lists
+  the five newest images whenever it cannot derive a verified tag from
+  staging) and dispatch production with `image_tag=<sha>`. Nothing has rehearsed it; CI's boot smoke and the
+  deploy's verify step are what run before production.
+- **The way back**, in short (§9.3 has every command): confirm
+  `STAGING_DATABASE_URL` does not exist → R2 buckets + a **new** bucket-scoped
+  token → `bash infra/gcp/90-staging.sh` with the seven values exported (it
+  creates PITR at one day, and refuses a database secret that outlived its
+  instance) → read `status.url` back against `CRON_OIDC_AUDIENCE` → a PR
+  flipping `staging.state` to `present`, whose merge is the first deploy →
+  resume the two crons → acceptance (funnel smoke, 98 and 95 green, a preview
+  reaching staging, the next daily check green).
 
 ### The staging database runs 24/7 — and why sleeping it was reversed (2026-09-04)
 
@@ -402,7 +441,8 @@ the decision and agreeing with it.
 headline; at the billed $0.0116/h it is ~$8.47/mo, against the instance's
 $0.0122/h (~$8.91/mo) — a difference of $0.0006/h. Storage bills either way.
 Sleeping staging saved almost nothing; deleting it (≈ $10.98/mo) is the only
-staging lever, and that stays an owner decision.
+staging lever, and that stays an owner decision. *Decided 2026-10-07: retire
+it until the launch rehearsals — see « Staging retired for cost » above.*
 
 ### What the project actually costs — measured 2026-09-09, not projected
 

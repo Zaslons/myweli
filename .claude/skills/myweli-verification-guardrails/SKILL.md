@@ -108,8 +108,9 @@ page.
 >   `myweli.com` posted to `ingest.de.sentry.io`. Both claims were true when
 >   written; a later change made them false and had no reason to open that file.
 > - A backend feature was merged and *not* in production — staging auto-deploys
->   on merge, production is `workflow_dispatch`. `/client-version` answered on
->   one and 404'd on the other.
+>   on merge (while it exists: `infra/gcp/staging.state`), production is
+>   `workflow_dispatch`. `/client-version` answered on one and 404'd on the
+>   other.
 > - Cloud Run publishes two hostnames; only `status.url` is the one traffic
 >   uses. `spec.template…image` and `status.latestReadyRevisionName` both lie
 >   after a traffic pin.

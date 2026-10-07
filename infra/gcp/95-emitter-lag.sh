@@ -50,6 +50,29 @@ if [[ "$(git rev-parse --is-shallow-repository 2>/dev/null)" == "true" ]]; then
   exit 1
 fi
 
+# ## When staging is retired
+#
+# infra/gcp/staging.state reads `present` or `absent` (docs/design/infra-staging.md
+# §9). The filters keep naming myweli-api-staging while it is absent - an OR
+# branch on a service that does not exist matches nothing, and rewriting live
+# policies to drop it would be churn to undo at the recreate - so without this
+# every run would report staging UNRESOLVED and fail, after every deploy and
+# every alert script that calls this. With it, staging is reported ABSENT and
+# excluded from the count; production is checked exactly as before, and a
+# production service that cannot be found still fails.
+#
+# Anything but the two words fails here: a typo must not quietly stop checking a
+# live service, nor fail every run against one that is gone.
+STATE_FILE="$(dirname "${BASH_SOURCE[0]}")/staging.state"
+STAGING_STATE="$(cat "${STATE_FILE}" 2>/dev/null || true)"
+case "${STAGING_STATE}" in
+  present|absent) export STAGING_STATE ;;
+  *)
+    echo "::error:: ${STATE_FILE} reads '${STAGING_STATE}' - expected 'present' or 'absent'." >&2
+    echo "          Refusing to guess which services exist (docs/design/infra-staging.md §9)." >&2
+    exit 1 ;;
+esac
+
 CHANNEL=${CHANNEL:-projects/placeholder/notificationChannels/0}
 WORK=$(mktemp -d); trap 'rm -rf "${WORK}"' EXIT
 # shellcheck source=infra/gcp/policy-bodies.sh
@@ -80,8 +103,18 @@ def sh(*a):
 # resolve IMAGE:<label> back to a digest, and require it to equal the digest the
 # revision is serving. That is the pattern deploy-backend.yml already uses.
 _cache = {}
+# Retired for cost when infra/gcp/staging.state reads `absent` (validated by the
+# bash above). Only this literal name: production is never ABSENT, so a
+# production service that is not found stays UNRESOLVED and fails the run.
+STAGING = 'myweli-api-staging'
+STAGING_ABSENT = os.environ.get('STAGING_STATE') == 'absent'
+ABSENT = 'ABSENT (infra/gcp/staging.state)'
+
 def running(service):
     if service in _cache:
+        return _cache[service]
+    if STAGING_ABSENT and service == STAGING:
+        _cache[service] = (None, ABSENT)
         return _cache[service]
     pin = os.environ.get('PIN_' + service.replace('-', '_'))
     if pin:
@@ -134,17 +167,44 @@ for path in bodies:
             for lit in lits:
                 checkable.append((d['displayName'], lit, svcs or ['myweli-api']))
 
+def absent(service):
+    return running(service)[1] == ABSENT
+
 print('CAN THE RUNNING CODE PRODUCE WHAT THE ALERTS WATCH FOR?')
 print()
+# "Absent" is a claim about the cloud made by a file in the repo, so it is
+# checked against the cloud rather than trusted. A service that still exists
+# while the file says absent is one of two planned windows, and the warning
+# names both because the advice is opposite. Mid-recreate
+# (docs/design/infra-staging.md §9.3), 90-staging.sh has just created it and
+# the file stays absent until the flip PR merges - deleting it then would undo
+# the recreate. Otherwise it is the window between the switch PR and the
+# deletion (§9.2) - expected for a day, a forgotten resource if it lasts.
+# Said, not failed: nothing deployed is wrong.
+if STAGING_ABSENT:
+    still = sh('gcloud', 'run', 'services', 'describe', STAGING, '--region', region,
+               '--project', project, '--format=value(metadata.name)')
+    if still:
+        print('::warning::infra/gcp/staging.state says absent, but %s still exists'
+              ' - it is not checked here. Mid-recreate (docs/design/infra-staging.md'
+              ' §9.3) this is expected until the PR flipping the file to present'
+              ' merges. Otherwise it is a leftover of the retirement - delete it'
+              ' (§9.2).' % STAGING)
+        print()
 for s in sorted({s for _, _, sv in checkable for s in sv}):
     commit, how = running(s)
-    print('  %-22s %-10s [%s]' % (s, commit or 'UNRESOLVED', how))
+    print('  %-22s %-10s [%s]' % (s, commit or ('ABSENT' if absent(s) else 'UNRESOLVED'), how))
 print()
 
 lag = 0
 for name, lit, svcs in checkable:
     marks = []
     for s in svcs:
+        if absent(s):
+            # Not a lag: there is no artifact to lag. Not counted, and shown, so
+            # a filter that names ONLY absent services reads "n/a" below rather
+            # than "ok" - checked against nothing is not checked.
+            marks.append('%s=ABSENT' % s); continue
         commit, _ = running(s)
         if not commit:
             marks.append('%s=UNRESOLVED' % s); lag += 1; continue
@@ -161,7 +221,9 @@ for name, lit, svcs in checkable:
         if not ok:
             lag += 1
     bad = any(('CANNOT EMIT' in m) or ('UNRESOLVED' in m) for m in marks)
-    print('  %s  %-42s %r' % ('FAIL' if bad else 'ok  ', name[:42], lit))
+    checked = any(not m.endswith('=ABSENT') for m in marks)
+    print('  %s  %-42s %r' % ('FAIL' if bad else 'ok  ' if checked else 'n/a ',
+                              name[:42], lit))
     print('          %s' % '   '.join(marks))
 
 if skipped:
@@ -180,5 +242,8 @@ if lag:
     print('This failure is about alert coverage, not the release. Deploy the')
     print('service that is behind, or correct the filter.')
     sys.exit(1)
+if STAGING_ABSENT:
+    # The green line below must not read wider than what was checked.
+    print('%s is ABSENT (infra/gcp/staging.state) and was not checked.' % STAGING)
 print('No emitter lag: every alert can produce every string it watches for.')
 PY

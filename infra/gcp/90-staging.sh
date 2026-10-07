@@ -19,6 +19,11 @@
 # PREREQUISITE: infra/cloudflare/90-staging-r2.sh has run and its bucket-scoped
 # token exists. This script reads those four values from the environment and
 # refuses to invent them; see the block at the top of §4.
+#
+# **It is also the RECREATE path.** Staging can be retired for cost and brought
+# back before the launch rehearsals — docs/design/infra-staging.md §9.3 is the
+# runbook, and this script is its step 3. Run it with infra/gcp/staging.state
+# still reading `absent`; the PR that flips it to `present` is what deploys.
 set -euo pipefail
 
 PROJECT=myweli
@@ -43,9 +48,13 @@ gen() { openssl rand -base64 48 | tr -d '\n=' | tr '+/' '-_'; }
 #
 # THREE DELIBERATE DIFFERENCES, all in the same direction — staging should be
 # cheap and destroyable:
-#   · 1 retained backup instead of 7, and NO point-in-time recovery. PITR bills
-#     transaction-log storage continuously for an environment whose data is
-#     synthetic and re-seedable.
+#   · 1 retained backup and 1 day of transaction logs, instead of 7 and 7.
+#     **Point-in-time recovery is ON**, at that one day. This line used to say
+#     NO PITR, and the first instance was created without it; it was patched
+#     on 2026-08-17 because the restore rehearsal needs it
+#     (docs/design/infra-staging.md §5 — exercised, not just configured). A
+#     recreate from the old flag would have silently dropped it again, so the
+#     create below now carries it.
 #   · deletion protection OFF. Production has it on precisely so it cannot be
 #     deleted by accident; staging exists to be torn down and rebuilt, and a
 #     protected instance makes that a two-step irritation that gets automated
@@ -79,7 +88,8 @@ else
     --storage-auto-increase \
     --backup-start-time=03:00 \
     --retained-backups-count=1 \
-    --no-enable-point-in-time-recovery \
+    --enable-point-in-time-recovery \
+    --retained-transaction-log-days=1 \
     --ssl-mode=ENCRYPTED_ONLY \
     --no-deletion-protection \
     -q
@@ -93,7 +103,27 @@ gcloud sql databases describe myweli --instance="$INSTANCE" --project="$PROJECT"
 # The password is generated here and never printed. It goes straight into
 # STAGING_DATABASE_URL below; if that secret already exists this whole branch is
 # skipped, so re-running cannot desynchronise the user from the secret.
+#
+# **Unless the secret outlived its instance.** After staging is retired and
+# recreated (docs/design/infra-staging.md §9), a surviving STAGING_DATABASE_URL
+# holds the password of a user the NEW instance does not have — and skipping
+# here would provision an environment whose every database call fails to sign
+# in, with nothing in this run saying why. A fresh instance has no `myweli_app`,
+# so its absence beside an existing secret is that case. Checked by the user
+# rather than by "created this run", so a re-run after a failure still catches it.
+# Captured, not piped into `grep -q`: under pipefail an early-exiting grep can
+# SIGPIPE the writer and read as "no such user" — the one wrong answer here.
 if gcloud secrets describe STAGING_DATABASE_URL --project="$PROJECT" >/dev/null 2>&1; then
+  DB_USERS="$(gcloud sql users list --instance="$INSTANCE" --project="$PROJECT" \
+                --format='value(name)')"
+  if ! grep -qx myweli_app <<<"$DB_USERS"; then
+    echo "::error:: STAGING_DATABASE_URL exists, but ${INSTANCE} has no myweli_app user."
+    echo "          The secret belongs to a previous instance, and its password"
+    echo "          matches nothing here. Remove it, then re-run this script — it"
+    echo "          recreates it as v1, the version service-staging.yaml pins:"
+    echo "            gcloud secrets delete STAGING_DATABASE_URL --project=${PROJECT}"
+    exit 1
+  fi
   echo "    ✓ user + STAGING_DATABASE_URL already provisioned"
   DB_PASSWORD=""
 else
@@ -321,31 +351,22 @@ make_job myweli-subscriptions-staging '0 3 * * *'    /internal/cron/subscription
 
 cat <<EOF
 
-Staging infrastructure is up. Three things remain, in order.
+Staging infrastructure is up. Read back, before anything else:
 
-1. **Finish service-staging.yaml.** Two values could not exist until now,
-   because they are derived from the service's own URL:
+  status.url   ${STAGING_URL}
 
-     CRON_OIDC_AUDIENCE    ${STAGING_URL}
-     WEB_ORIGINS           (unchanged for now — localhost only until step 5)
+1. **It must equal CRON_OIDC_AUDIENCE** in infra/gcp/service-staging.yaml and
+   the Vercel Preview API base. The hash in a run.app hostname is per project,
+   so a recreate should get the same URL back — verify rather than assume; if
+   it differs, correct the manifest in the PR below.
 
-   Add the CRON_* pair to infra/gcp/service-staging.yaml, in the block that
-   currently explains why they are absent, and open a PR. Without them
-   \`CronAuth\` runs on the shared secret alone — the same gap production had
-   until PR #369.
+2. **The service is serving Google's placeholder, and both crons are PAUSED.**
+   Once the PR below has merged and its push run has deployed, resume them:
 
-2. **Deploy for real**: Actions → "Deploy — backend (Cloud Run)" →
-   environment \`staging\`. The verify step asserts the service reports
-   \`env=staging\`, so a manifest pointed at the wrong place fails loudly.
+     gcloud scheduler jobs resume myweli-reminders-staging --location=${REGION}
+     gcloud scheduler jobs resume myweli-subscriptions-staging --location=${REGION}
 
-3. **Tighten the WIF trust condition** — but only AFTER a staging deploy has
-   succeeded, so the thing being narrowed is known to work first. The provider
-   is pinned on \`attribute.repository\` alone, which means any workflow on any
-   branch can mint a token holding project-wide \`run.admin\` — enough to
-   replace PRODUCTION. \`deploy-backend.yml\` now declares \`environment:\`, so
-   the OIDC token carries an environment claim a condition can match. That
-   script is owed and does not exist yet; neither does \`40-iam-wif.sh\`, which
-   this repo has cited since the migration and never contained.
+   then run the acceptance list in docs/design/infra-staging.md §9.3.
 
-   **Do not uncomment the \`push: main\` trigger before that lands.**
+Now flip infra/gcp/staging.state to present.
 EOF
