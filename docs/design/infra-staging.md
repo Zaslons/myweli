@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Module** | infrastructure (`infra/gcp/`, `backend/`, `.github/workflows/`) |
-| **Status** | **Built 2026-08-16; being retired for cost from 2026-10-07 (§9).** The switch `infra/gcp/staging.state` reads `absent`, so merges build and push the image and deploy nothing. **The cloud deletions in §9.2 are PLANNED, not done** — each waits for the owner's go-ahead, after the switch's own merge run is green. It comes back before the launch rehearsals and the first real salon (§9.3; [LAUNCH.md](../LAUNCH.md) §6.5). *(Phases 1 and 2 — §1's code changes, the local environment §2.2, §7's six production bugs — are complete.)* |
+| **Status** | **Built 2026-08-16; retired for cost on 2026-10-07 (§9) — it no longer exists.** The switch `infra/gcp/staging.state` reads `absent`, so merges build and push the image and deploy nothing. **The cloud deletions in §9.2 were DONE on 2026-10-07** (owner's go-ahead; the switch's merge run green first) — staging no longer exists; a final database backup is kept until 2027-10-07. It comes back before the launch rehearsals and the first real salon (§9.3; [LAUNCH.md](../LAUNCH.md) §6.5). *(Phases 1 and 2 — §1's code changes, the local environment §2.2, §7's six production bugs — are complete.)* |
 | **Decisions** | Staging URL = `*.run.app` (§4.1) · separate bundle ids, deferred to phase 8 (§4) |
 | **Cost** | **$13–17/month** — the $18.25 hostname is declined (§4.1). Retiring it saves **≈ $11.7/month** (§9.5) |
 | **Related** | [LAUNCH.md](../LAUNCH.md) · [infra-gcp-migration.md](infra-gcp-migration.md) · [DEPLOYMENT.md](../DEPLOYMENT.md) |
@@ -796,9 +796,40 @@ before production: CI's `backend-boot-smoke` job (a real boot, migrations and
 the funnel against Postgres) and the deploy's own verify step. That is the cost
 accepted until §9.3.
 
-### 9.2 The deletion — PLANNED, owner-gated, in this order
+### 9.2 The deletion — DONE 2026-10-07, in this order
 
-Verified read-only against the live project on 2026-10-07; none of it has run.
+**As run (2026-10-07, owner's go-ahead in chat).** Gate: the demo salon lives in
+PRODUCTION — the prod log of 2026-10-07 03:00Z reads `demo_reset ran
+provider=provider_1787778426683705 wiped=8 regenerated=4`, and staging logged no
+demo activity in its last 30 days; the switch (#555) merged and its run
+(37632934321) printed `staging is ABSENT`, `✓ …/api:58f98c0 → sha256:63e6430d…`,
+`18 pinned mounts across 1 manifest(s)`, `staging absent — promote with
+image_tag=58f98c0` and the exact 95 line below, conclusion success; staging was
+left on `00065-wkh`. Then, each with a read-back before and after:
+(1) both `*-staging` Scheduler jobs deleted — `myweli-reminders` and
+`myweli-subscriptions` remain, ENABLED, on `https://api.myweli.com/…`;
+(2) Cloud Run `myweli-api-staging` deleted — its image was production's digest
+(`sha256:c5c87f50…`), `myweli-api` the only service left;
+(3) Cloud SQL `myweli-db-staging` deleted with a final backup — **backup
+`projects/myweli/backups/19022966-6002-4bd3-9e29-8edba12b840a`**, SNAPSHOT,
+SUCCESSFUL, expires **2027-10-07** (found with the v1 `projects/myweli/backups`
+API; `gcloud sql backups list --instance=-` does not show final backups);
+`myweli-db` RUNNABLE, deletion protection on;
+(4) the thirteen `STAGING_*` secrets deleted — `98` then green on production's
+pins ("Every pinned secret version is enabled and current");
+(5) `myweli-run-staging@` (uniqueId 110434731260194631369): its project
+`cloudsql.client` binding and its accessor bindings on the five shared secrets
+removed — each of the five still lists `myweli-run@` only — then the account
+deleted. Kept, as planned: the staging alert policy 13208100060994431759 (no
+data, never fires; deleting it would make a re-run of `85` duplicate
+production's). After it: `api.myweli.com` health/providers/localities 200, the
+direct run.app `/providers` 403, the 14:00Z reminders run OK, `95` green with
+staging ABSENT. **Outside GCP, owner-only and still to do:** revoke the
+staging bucket-scoped R2 token (Cloudflare → R2 → Manage API tokens) and the
+staging Resend API key (Resend dashboard) — their values were in the deleted
+secrets, so nobody holds them, but they still exist on those platforms.
+
+The plan as written before it ran (verified read-only the same day):
 
 0. **Gate.** Settle where « Salon Démo MyWeli » lives — a demo sign-in against
    production ([app-store-forms.md](app-store-forms.md) §13 item 3,
@@ -822,7 +853,7 @@ Verified read-only against the live project on 2026-10-07; none of it has run.
    ```bash
    gcloud sql instances delete myweli-db-staging --project=myweli \
      --enable-final-backup --final-backup-retention-days=365 \
-     --final-backup-description="staging retired 2026-10-xx; may hold the curated demo salon"
+     --final-backup-description="staging retired 2026-10-07 for cost (demo salon lives in prod: provider_1787778426683705)"
    ```
 
    Record the backup's id. Production's `myweli-db` has deletion protection,
@@ -875,7 +906,7 @@ green; three settled billing days later, the staging Cloud SQL lines are gone.
 5. **Read `status.url` back** (90 prints it). It must equal
    `CRON_OIDC_AUDIENCE` in `service-staging.yaml` and the Vercel Preview API
    base. The hostname's hash is per project, so it should match — verify.
-6. *Optional:* restore the final backup now, before the first deploy, then
+6. *Optional:* restore the final backup now (`projects/myweli/backups/19022966-6002-4bd3-9e29-8edba12b840a`, kept until 2027-10-07 — synthetic data only; the demo salon lives in production), before the first deploy, then
    reset `myweli_app` to the password inside `STAGING_DATABASE_URL`.
 7. **Open a PR that flips `staging.state` to `present`, and merge it** —
    only after step 3. The file is a deploy trigger, so that merge's run is
