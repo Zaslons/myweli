@@ -3,9 +3,9 @@
 | | |
 |---|---|
 | **Module** | infrastructure (`infra/gcp/`, `backend/`, `.github/workflows/`) |
-| **Status** | **Phases 1 and 2 complete.** §1's three code changes and the local environment (§2.2) are done; §7's six production bugs are fixed ([infra-prod-hardening.md](infra-prod-hardening.md)). **No staging resource exists yet** — that is phase 3. |
+| **Status** | **Built 2026-08-16; being retired for cost from 2026-10-07 (§9).** The switch `infra/gcp/staging.state` reads `absent`, so merges build and push the image and deploy nothing. **The cloud deletions in §9.2 are PLANNED, not done** — each waits for the owner's go-ahead, after the switch's own merge run is green. It comes back before the launch rehearsals and the first real salon (§9.3; [LAUNCH.md](../LAUNCH.md) §6.5). *(Phases 1 and 2 — §1's code changes, the local environment §2.2, §7's six production bugs — are complete.)* |
 | **Decisions** | Staging URL = `*.run.app` (§4.1) · separate bundle ids, deferred to phase 8 (§4) |
-| **Cost** | **$13–17/month** — the $18.25 hostname is declined (§4.1) |
+| **Cost** | **$13–17/month** — the $18.25 hostname is declined (§4.1). Retiring it saves **≈ $11.7/month** (§9.5) |
 | **Related** | [LAUNCH.md](../LAUNCH.md) · [infra-gcp-migration.md](infra-gcp-migration.md) · [DEPLOYMENT.md](../DEPLOYMENT.md) |
 
 Grounded in the live project: `myweli` (731308991240), `europe-west9` (Paris),
@@ -716,3 +716,207 @@ for each cloud change, is in
 - **The `api.myweli.com` cutover itself** — one global IP, one managed cert.
 - **Production data volume** — hence §3.2's restore, which is the closest
   available substitute.
+
+---
+
+## 9. Retired for cost — the switch, and the way back (2026-10-07)
+
+**Owner decision, 2026-10-07:** delete staging while there are no users, to
+save **≈ $11.7/month** (§9.5), and recreate it **before the launch rehearsals
+and the first real salon** — not after real users arrive ([LAUNCH.md](../LAUNCH.md)
+§6.5, last box; §5.4).
+
+**Status.** §9.1 is code and lands first, on its own PR. **§9.2 is a plan:
+nothing in it has been deleted.** Each step waits for the owner's explicit
+go-ahead, and none starts before the switch's own merge run is green.
+
+### 9.1 The switch — `infra/gcp/staging.state`
+
+One committed word: `present` or `absent`. **A file, not a repository or
+environment variable**, for three reasons:
+
+- deploy configuration is reviewable in a PR — the stance written into
+  `deploy-backend.yml`'s target resolver, and the reason `service.yaml` is
+  declarative;
+- `98-verify-secret-pins.sh` and `95-emitter-lag.sh` also run **outside
+  Actions** — by hand, and from every alert script that ends by calling 95 —
+  where `vars.*` does not exist;
+- `production-checks.yml` reads the checked-out repository, so the daily check
+  follows the same word without a second setting to keep in step.
+
+| Reader | `present` | `absent` | anything else |
+|---|---|---|---|
+| `deploy-backend.yml`, **staging runs only** | deploy + verify, as before | **build, push, 98 and 95 still run**; *Deploy* and *Verify* are skipped (`DEPLOY=skip`); the rollback-pin guard passes without asking Cloud Run (nothing is deployed, so no pin can be lifted — and failing before the build would leave production nothing to promote); a notice prints `promote with image_tag=<sha>` | the run fails |
+| `98-verify-secret-pins.sh` | both manifests (31 unique pins) | `service.yaml` only (18 pins — the three shared ones are in it too) | exit 1 — on production runs too, so it **blocks production dispatches** |
+| `95-emitter-lag.sh` | both services | `myweli-api-staging` reported **ABSENT** and excluded from the count; a `::warning::` if it still exists; `myweli-api` not found **stays fatal** | exit 1 — after a production deploy too, and in every alert script |
+
+**The resolver's production branch never reads it**, so the resolver cannot
+skip a production deploy. **That is not "the file cannot touch production"**:
+98 — production's pin gate, and the daily check — and 95 read it on every run,
+production's included. A value other than `present`/`absent`, or `present`
+before `90-staging.sh` has recreated the `STAGING_*` secrets, fails 98 and so
+blocks every production dispatch (and turns the daily check red). Two things
+hold that line: `backend/test/infra/staging_state_test.dart` pins the file's
+content on every PR, and §9.3 flips it only after 90 has run. The same test
+pins the resolver by *running* its own `run:` text — production with a garbage
+file and a missing one stays untouched — and pins the rest the same way: 98 on
+its rehearsal fixture, 95 in a throwaway repository behind a stub `gcloud`.
+
+**Why `absent` still builds.** The merge run is the only thing that builds an
+image, so it is the only source of the tag a production dispatch promotes. A
+workflow that skipped the whole staging run while staging was absent would
+leave production nothing to deploy — the reason the build, the 98 gate and
+the 95 check carry no `if:`, and the test fails if they gain one.
+
+**What stays while staging is absent, deliberately:**
+
+- **`infra/gcp/service-staging.yaml` and `infra/gcp/90-staging.sh`** — they are
+  the recreate. A secret shared with production (`SENTRY_DSN`,
+  `R2_ACCOUNT_ID`, `DEMO_PROVIDER_CODE`) is still bumped in **both** manifests:
+  `service_files_test.dart` asserts the two pins are equal.
+- **The `backend-staging` GitHub environment and its WIF binding.** Merge runs
+  log in through them; they are the only path that builds images.
+- **The alert policies.** The six whose filters OR in staging match nothing on
+  a missing service. The staging-only database alert never fires without data,
+  and deleting it would make a re-run of `85-db-capacity-alert.sh` duplicate
+  production's policy and `93-sync-runbooks.sh` exit MISSING.
+- **The Vercel Preview `API_BASE_URL` / `NEXT_PUBLIC_API_BASE_URL`.** Unsetting
+  them breaks every preview build (`web/next.config.mjs` refuses an empty API
+  base). Left pointing at the staging `run.app`, a preview build degrades
+  instead — the same file already falls back when staging does not answer,
+  which it learned while staging slept in September — and its pages show empty
+  results or errors until staging returns. Accepted.
+
+**Releasing while it is absent: merge builds, promote by tag.** There is no
+rehearsal. Take the tag from the merge run's notice — or from a refused
+production dispatch, which now lists the five newest images whenever it cannot
+derive a verified tag from staging (gone, or mid-recreate on Google's
+placeholder) — and dispatch production with `image_tag=<sha>`. What still runs
+before production: CI's `backend-boot-smoke` job (a real boot, migrations and
+the funnel against Postgres) and the deploy's own verify step. That is the cost
+accepted until §9.3.
+
+### 9.2 The deletion — PLANNED, owner-gated, in this order
+
+Verified read-only against the live project on 2026-10-07; none of it has run.
+
+0. **Gate.** Settle where « Salon Démo MyWeli » lives — a demo sign-in against
+   production ([app-store-forms.md](app-store-forms.md) §13 item 3,
+   [backend-demo-review-account.md](backend-demo-review-account.md) §9). If it
+   exists only in staging, recreate it in production first. Then merge the
+   switch and read its run: `staging is ABSENT`, `✓ …/api:<sha7> → sha256:…`,
+   `18 pinned mounts`,
+   `myweli-api-staging is ABSENT (infra/gcp/staging.state) and was not checked.`
+   (95's closing line, quoted exactly as it prints — its table pads the
+   columns, so a shorter search string finds nothing), conclusion success.
+   **Never delete a secret before this**: 98 would refuse every production
+   deploy and turn the daily check red.
+1. **Scheduler jobs** — `myweli-reminders-staging`,
+   `myweli-subscriptions-staging`. Keep `myweli-scheduler@`; production's jobs
+   use it.
+2. **The Cloud Run service** `myweli-api-staging`. Its image is production's
+   digest, so no unique artifact is lost — only the revision history.
+3. **The Cloud SQL instance** `myweli-db-staging` — **irreversible except
+   through the final backup**:
+
+   ```bash
+   gcloud sql instances delete myweli-db-staging --project=myweli \
+     --enable-final-backup --final-backup-retention-days=365 \
+     --final-backup-description="staging retired 2026-10-xx; may hold the curated demo salon"
+   ```
+
+   Record the backup's id. Production's `myweli-db` has deletion protection,
+   so a typo in the name is refused — copy `-staging` exactly anyway. The name
+   may stay blocked for about a week.
+4. **The thirteen `STAGING_*` secrets** — **irreversible**, Secret Manager has
+   no undelete. First the owner revokes the staging bucket-scoped R2 token in
+   the Cloudflare dashboard: once the secret is gone nobody holds that key.
+   `STAGING_DATABASE_URL` must go **with** the database — a survivor carries
+   the password of a user the next instance will not have, and `90-staging.sh`
+   now refuses to run past one (§9.3).
+5. **The runtime identity** `myweli-run-staging@` — its project
+   `cloudsql.client` binding, its accessor bindings on the five shared secrets
+   (`SENTRY_DSN`, `DEMO_PROVIDER_CODE`, `R2_ACCOUNT_ID`, `GOOGLE_CLIENT_IDS`,
+   `APPLE_CLIENT_IDS`), then the account itself. Afterwards each of those five
+   must **still** list `myweli-run@`: production's next revision needs it.
+
+**Never touched:** `myweli-db`, `myweli-api`, `myweli-run@`,
+`myweli-deployer@`, `myweli-scheduler@`, the WIF provider, the
+`backend-staging` binding and environment, the Artifact Registry repository
+and its tags, the five shared secrets, the owner's notification channel, the
+R2 staging buckets (free), and the Vercel Preview values.
+
+**After it** (production unchanged): `api.myweli.com/health` and `/providers`
+200, the direct `run.app` `/providers` 403; both production crons ran on time;
+`98` green on 18 pins; `95` shows staging ABSENT and no lag; the next merge
+run builds an image whose tag resolves to a digest; the next daily check is
+green; three settled billing days later, the staging Cloud SQL lines are gone.
+
+### 9.3 The recreate — owner, about 30–45 minutes
+
+1. **Leave `staging.state` at `absent` throughout.** Check that
+   `myweli-deployer@`, `myweli-scheduler@`, the `backend-staging` binding and
+   the shared secrets are all present, and that **`STAGING_DATABASE_URL` does
+   not exist**.
+2. **Cloudflare.** The three `*-staging` buckets exist, or
+   `infra/cloudflare/90-staging-r2.sh` recreates them. Mint a **new**
+   bucket-scoped token in the dashboard (Object Read & Write, the three staging
+   buckets only) and run `backend/test/storage/r2_token_scope_test.dart`.
+3. **Export the seven values** — `STAGING_R2_BUCKET`, `STAGING_R2_KYC_BUCKET`,
+   `STAGING_R2_DEPOSIT_BUCKET`, `STAGING_R2_PUBLIC_BASE_URL`,
+   `STAGING_R2_ACCESS_KEY_ID`, `STAGING_R2_SECRET_ACCESS_KEY`,
+   `STAGING_ADMIN_EMAIL` — and run `bash infra/gcp/90-staging.sh`. It creates
+   the instance with point-in-time recovery at one day of logs, matching what
+   the first instance was patched to on 2026-08-17. If the name is still
+   blocked, wait.
+4. **Read PITR back** — `gcloud sql instances describe myweli-db-staging
+   --project=myweli --format='value(settings.backupConfiguration.pointInTimeRecoveryEnabled,settings.backupConfiguration.transactionLogRetentionDays)'`
+   → `True 1`.
+5. **Read `status.url` back** (90 prints it). It must equal
+   `CRON_OIDC_AUDIENCE` in `service-staging.yaml` and the Vercel Preview API
+   base. The hostname's hash is per project, so it should match — verify.
+6. *Optional:* restore the final backup now, before the first deploy, then
+   reset `myweli_app` to the password inside `STAGING_DATABASE_URL`.
+7. **Open a PR that flips `staging.state` to `present`, and merge it** —
+   only after step 3. The file is a deploy trigger, so that merge's run is
+   staging's first real deploy. Until then the service serves Google's
+   placeholder and 95 ignores it (with a warning that names this window).
+   **Flipping early blocks production**: with `present`, 98 checks the
+   `STAGING_*` pins, and before 90 has recreated those secrets every one is
+   `NOT_FOUND` — every production dispatch stops at 98 and the daily check
+   turns red.
+8. **Resume both crons** (90 creates them paused), force one with
+   `gcloud scheduler jobs run`, read 200 in its log; an anonymous
+   `POST /internal/cron/reminders` must answer 403.
+9. **Acceptance:** the funnel smoke against staging passes; 98 green across
+   both manifests; 95 green; a PR preview reaches staging; the next day's
+   production checks are green — then tick LAUNCH.md §6.5.
+
+### 9.4 What cannot be restored
+
+- **All staging data**, unless the final backup is still inside its
+  retention: synthetic users, the smoke and PITR markers, and possibly the only
+  curated demo salon and its snapshot (§9.2 step 0 exists for that).
+- The PITR logs and the automated backup; the 65-revision history.
+- **Every generated secret value** — JWT, webhook, smoke OTP, admin password,
+  database password all come back new. Every pin stays `key: '1'`, because the
+  recreated secrets start at v1 — the version the manifest already names.
+- The R2 secret key: a new token is required.
+- The service account's old `uniqueId`; old `deleted:` IAM entries are
+  cosmetic.
+- The instance name, for up to about a week.
+
+### 9.5 The saving
+
+| Item | Monthly | Basis |
+|---|---|---|
+| Cloud SQL instance | $8.91 | measured, $0.0122/h ([DEPLOYMENT.md](../DEPLOYMENT.md), staging section) |
+| 10 GiB storage | $1.97 | measured, $0.1972/GiB ([backend-migration-volume.md](backend-migration-volume.md)) |
+| 13 secret versions | ≈ $0.78 | estimate, 13 × $0.06 |
+| Scheduler | ≈ $0.10 | estimate: 4 jobs against 3 free, back to 2 |
+| Final backup | + cents | ≈ 0.1 GB of backup storage |
+
+**≈ $11.7/month.** Cloud Run, backups, PITR, Monitoring and Artifact Registry
+measured $0 for staging. The bill goes from about $24 to about $12–13 a month
+— the $24 is the post-front-door projection, not yet read; confirm on three
+settled days in Billing → Reports.

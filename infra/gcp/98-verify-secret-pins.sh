@@ -85,8 +85,43 @@ newest_enabled() {  # $1 = secret
 # ---------------------------------------------------------------------------
 # The pins, read out of the manifests that are actually deployed.
 # ---------------------------------------------------------------------------
+# **Which manifests are deployed is itself committed**: infra/gcp/staging.state
+# reads `present` or `absent` (docs/design/infra-staging.md §9). Once staging
+# is retired for cost, its thirteen STAGING_* secrets go with it, so reading
+# service-staging.yaml would report thirteen NOT_FOUND pins on every
+# deploy and every daily run — a red that means nothing, which trains everyone
+# to ignore the red that does. And it would block PRODUCTION deploys, which run
+# this as their gate.
+#
+# Anything other than the two words FAILS rather than defaulting: a default of
+# `absent` would let a typo silently stop checking a live environment, and a
+# default of `present` would turn a typo into the red described above. The
+# shared pins (SENTRY_DSN, R2_ACCOUNT_ID, DEMO_PROVIDER_CODE) are in
+# service.yaml as well, so `absent` drops no production pin.
+#
+# The price, stated because it is easy to forget: this script is production's
+# gate, so a bad value here — or `present` before 90-staging.sh has recreated
+# the STAGING_* secrets — blocks every PRODUCTION dispatch and turns the daily
+# check red. Fail-closed is still right; staging_state_test pins the file's
+# content on every PR, and the recreate (§9.3) flips it only after 90 has run.
+STATE_FILE="${HERE}/staging.state"
+STAGING_STATE="$(cat "$STATE_FILE" 2>/dev/null || true)"
+case "$STAGING_STATE" in
+  present)
+    MANIFESTS=("${HERE}/service.yaml" "${HERE}/service-staging.yaml") ;;
+  absent)
+    MANIFESTS=("${HERE}/service.yaml")
+    echo "  staging is ABSENT (infra/gcp/staging.state) — service-staging.yaml"
+    echo "  is not checked; its secrets need not exist while it is retired."
+    echo ;;
+  *)
+    echo "::error::${STATE_FILE} reads '${STAGING_STATE}' — expected 'present' or 'absent'."
+    echo "::error::Refusing to guess which manifests are deployed (docs/design/infra-staging.md §9)."
+    exit 1 ;;
+esac
+
 PAIRS=""
-for f in "${HERE}/service.yaml" "${HERE}/service-staging.yaml"; do
+for f in "${MANIFESTS[@]}"; do
   [[ -f "$f" ]] || { fail "manifest missing: $f"; continue; }
   # `name: X, key: 'N'` on one line, which is how both files write it.
   while read -r line; do
@@ -106,7 +141,7 @@ if [[ "$COUNT" -lt 12 ]]; then
   echo "::error::Refusing to report success — the shape this script reads has changed."
   exit 1
 fi
-echo "  ${COUNT} pinned mounts across both manifests"
+echo "  ${COUNT} pinned mounts across ${#MANIFESTS[@]} manifest(s)"
 echo
 
 # ---------------------------------------------------------------------------

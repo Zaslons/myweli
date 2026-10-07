@@ -31,6 +31,22 @@
 # on every merge to main that touches the server or its manifests. Production
 # remains `workflow_dispatch` with a typed confirmation, and a push cannot reach
 # it — see the note on the trigger.
+#
+# **Staging can be retired for cost, and this file keeps working when it is.**
+# `infra/gcp/staging.state` reads `present` or `absent`
+# (docs/design/infra-staging.md §9). While it reads `absent` a merge still
+# BUILDS and pushes the image — this workflow is the only thing that builds
+# one, so it is also the only source of the tag a production dispatch promotes —
+# and still runs the pin and emitter checks against production; it skips only
+# the deploy and its verify, and prints the tag to promote.
+#
+# The resolver's production branch never reads the file, so the resolver cannot
+# skip a production deploy. That is NOT "the file cannot touch production":
+# 98 (production's pin gate, and the daily check) and 95 read it on every run.
+# A value other than present/absent — or `present` before 90-staging.sh has
+# recreated the STAGING_* secrets — fails 98 and so blocks every production
+# dispatch. staging_state_test pins the file's content on every PR, and the
+# recreate (docs/design/infra-staging.md §9.3) flips it only after 90 has run.
 name: Deploy — backend (Cloud Run)
 
 on:
@@ -74,12 +90,17 @@ on:
   # `image_tag` is the one expression with NO default, and that is correct: empty
   # means "build from source" (:181-189), which is what a merge should do.
   # Promotion of an existing digest stays a deliberate, dispatch-only act.
+  #
+  # `staging.state` is a trigger path so that the PR flipping it back to
+  # `present` is itself the first staging deploy of the recreated environment
+  # (docs/design/infra-staging.md §9.3) — no hand dispatch to forget.
   push:
     branches: [main]
     paths:
       - 'backend/**'
       - 'infra/gcp/service.yaml'
       - 'infra/gcp/service-staging.yaml'
+      - 'infra/gcp/staging.state'
       - '.github/workflows/deploy-backend.yml'
 
 env:
@@ -151,6 +172,30 @@ jobs:
               # constructed, because Cloud Run publishes two run.app hostnames
               # for one service and only `status.url` is the right one.
               echo "URL_SOURCE=status-url" >> "$GITHUB_ENV"
+              # **Does staging exist at all?** It can be retired for cost
+              # (docs/design/infra-staging.md §9), and a merge must stay green
+              # when it is: this run is the only thing that builds the image
+              # production promotes. `absent` keeps the build, the pin check
+              # and the emitter check, and skips the two steps that need a
+              # service. Anything else FAILS — a typo must not quietly turn
+              # deploys off, nor on against a service that is not there.
+              # The production branch below never looks at this file, so the
+              # resolver cannot skip a production deploy — but 98 and 95 do
+              # read it on production runs too (see the header).
+              STATE="$(cat infra/gcp/staging.state 2>/dev/null || true)"
+              case "${STATE}" in
+                present)
+                  echo "  ✓ staging is present (infra/gcp/staging.state)"
+                  ;;
+                absent)
+                  echo "DEPLOY=skip" >> "$GITHUB_ENV"
+                  echo "::notice::staging is ABSENT (infra/gcp/staging.state) — this run builds, pushes and checks the image, and deploys nothing."
+                  ;;
+                *)
+                  echo "::error::infra/gcp/staging.state reads '${STATE}' — expected 'present' or 'absent' (docs/design/infra-staging.md §9)"
+                  exit 1
+                  ;;
+              esac
               ;;
             production)
               echo "SERVICE=myweli-api" >> "$GITHUB_ENV"
@@ -223,6 +268,16 @@ jobs:
         # that cannot deploy) and after auth (it has to ask Cloud Run).
         run: |
           set -euo pipefail
+          # Staging absent (infra/gcp/staging.state, docs/design/infra-staging.md
+          # §9): this run deploys nothing, so it cannot lift a pin — and failing
+          # here, before the build, would leave production no image to promote.
+          # The service may still exist (until it is deleted, or mid-recreate),
+          # so asking it would be asking the wrong question. DEPLOY comes from
+          # the resolver's GITHUB_ENV, exported to every later step.
+          if [ "${DEPLOY:-}" = skip ]; then
+            echo "  ✓ staging absent — nothing will be deployed, so no pin can be lifted"
+            exit 0
+          fi
           # `|| true`: on a service that does not exist yet — a first deploy —
           # describe exits non-zero, and there is by definition no pin to lift.
           # Without this the guard would make a new environment undeployable.
@@ -283,6 +338,7 @@ jobs:
           echo "::error::empty BUILDS A NEW IMAGE, which is the one thing this"
           echo "::error::workflow's own build step says not to do for production."
           echo ""
+          SUGGEST=""
           STAGING_IMAGE=$(gcloud run services describe myweli-api-staging \
                             --region "${REGION}" \
                             --format='value(spec.template.spec.containers[0].image)' 2>/dev/null || true)
@@ -296,7 +352,6 @@ jobs:
             COMMIT=$(gcloud run services describe myweli-api-staging \
                        --region "${REGION}" \
                        --format='value(spec.template.metadata.labels.commit)' 2>/dev/null || true)
-            SUGGEST=""
             if [ -n "${COMMIT}" ]; then
               # The commit label IS the tag by construction (the build step tags
               # with the short SHA). Verified rather than trusted: if the tag
@@ -333,6 +388,35 @@ jobs:
             fi
           else
             echo "  (could not read myweli-api-staging to suggest a tag)"
+          fi
+          # **Whenever no verified tag came out of staging, list the newest
+          # images** — not only when staging cannot be read. Since 2026-10
+          # staging can be retired for cost (infra/gcp/staging.state,
+          # docs/design/infra-staging.md §9), and there are two windows where
+          # the file reads `absent` but the service still answers: before it is
+          # deleted, and mid-recreate, when 90-staging.sh has created it on
+          # Google's placeholder labelled `bootstrap` — a label that resolves to
+          # no tag, which lands in "Could not derive" above. (Before the
+          # deletion staging still serves its last rehearsed tag, and that one
+          # IS suggested above; the merge run's notice names any newer one.)
+          # Then nothing has rehearsed anything, but every merge still builds
+          # and pushes an image tagged with its short SHA — so the honest hint
+          # is the newest tags, and the operator still chooses. Run rather than
+          # only printed, for the reason above: a value, not a research task.
+          # Measured against the real registry on 2026-10-07 (it lists tags,
+          # newest first; `|| true` because a hint must never be what fails
+          # the step).
+          if [ -z "${SUGGEST}" ]; then
+            echo ""
+            echo "  If staging is retired (infra/gcp/staging.state reads 'absent'),"
+            echo "  or mid-recreate on Google's placeholder, nothing has rehearsed"
+            echo "  these — but each merge's run printed 'promote with"
+            echo "  image_tag=<sha>'. The newest images:"
+            echo ""
+            gcloud artifacts docker images list "${IMAGE}" --include-tags \
+              --sort-by=~UPDATE_TIME --limit=5 2>/dev/null || true
+            echo ""
+            echo "  Dispatch again with image_tag=<the merge you mean to ship>."
           fi
           echo ""
           echo "  Runbook: docs/design/infra-rollback.md"
@@ -416,13 +500,25 @@ jobs:
       # Needs only secret version METADATA — the same custom role the daily
       # checks use, never versions.access. Provisioned by
       # infra/gcp/42-iam-secret-pins-sa.sh.
+      #
+      # **No `if:` on this step or on the build, and that is load-bearing.** A
+      # staging run with staging ABSENT still builds, pushes and checks: the
+      # image it pushes is the only thing a production dispatch can promote,
+      # and 98 reads `infra/gcp/staging.state` itself, so while staging is
+      # absent it checks production's pins alone (docs/design/infra-staging.md
+      # §9). Skipping either here would leave production nothing to promote.
       - name: The pinned secret versions are still enabled and current
         run: bash infra/gcp/98-verify-secret-pins.sh
         env:
           PROJECT: ${{ env.PROJECT }}
 
 
+      # Skipped only on a staging run while `infra/gcp/staging.state` reads
+      # `absent` — the resolver above sets DEPLOY=skip, and nothing else does.
+      # There is no service to replace, and `replace` would CREATE one from
+      # a manifest whose secrets no longer exist.
       - name: Deploy the service
+        if: env.DEPLOY != 'skip'
         run: |
           set -euo pipefail
           # Declarative: the whole service (sidecar, secrets, probes, scaling)
@@ -465,6 +561,7 @@ jobs:
           fi
 
       - name: Verify the revision actually serves
+        if: env.DEPLOY != 'skip'
         run: |
           set -euo pipefail
 
@@ -548,6 +645,23 @@ jobs:
         env:
           ENVIRONMENT: ${{ github.event.inputs.environment || 'staging' }}
 
+      # The skip has to SAY what it skipped and what to do instead, or a green
+      # run that deployed nothing reads exactly like one that deployed. While
+      # staging is absent, the tag below is the artifact this merge produced —
+      # the value a production dispatch's `image_tag` wants. Nothing has
+      # rehearsed it, which is the cost docs/design/infra-staging.md §9 accepts.
+      - name: Staging is absent — nothing deployed, here is the tag to promote
+        if: env.DEPLOY == 'skip'
+        run: |
+          echo "::notice::staging absent — promote with image_tag=${SHA}"
+          echo "  The image is in the registry (${IMAGE}); no service was replaced."
+          echo "  Production: Actions → this workflow → environment=production,"
+          echo "  confirm=deploy, image_tag=${SHA}."
+          echo "  Recreate staging: docs/design/infra-staging.md §9.3."
+        env:
+          SHA: ${{ steps.build.outputs.sha }}
+          IMAGE: ${{ steps.build.outputs.image }}
+
       # Runs AFTER the deploy on purpose. As a gate it would block the very
       # deploy that fixes the lag, because deploying is what brings the emitter.
       #
@@ -555,6 +669,11 @@ jobs:
       # The runs that followed #445 were staging pushes and staging DID have the
       # string; a check scoped to the deployed service would have passed on every
       # one of them while production stayed blind for two hours.
+      #
+      # No `if:` either, for the same reason: while staging is absent this is
+      # the only post-merge check that production's running commit can still
+      # emit what its alerts watch for. 95 reads `infra/gcp/staging.state`
+      # itself and reports staging ABSENT rather than unresolved.
       - name: Every alert can still produce the string it watches for
         run: bash infra/gcp/95-emitter-lag.sh
         env:

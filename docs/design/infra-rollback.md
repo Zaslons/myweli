@@ -131,16 +131,22 @@ So:
 
 Before 2026-08-16 that was a slow trap: production deploys are dispatch-only, so
 someone would have had to type `deploy` to spring it. **Staging now deploys on
-every merge to `main` that touches `backend/**` or either manifest**, so a pin on
-staging is undone by the next merge — quite possibly within the hour, by someone
-who was not part of the incident.
+every merge to `main` that touches `backend/**`, either manifest or
+`infra/gcp/staging.state`**, so a pin on staging is undone by the next merge —
+quite possibly within the hour, by someone who was not part of the incident.
+*(Not while staging is retired — `infra/gcp/staging.state` reads `absent`,
+[infra-staging.md](infra-staging.md) §9: the merge deploys nothing, so it cannot
+lift a pin, and the guard of §7.1 passes without asking Cloud Run.)*
 
 **Therefore the pin is never the fix.** It buys the minutes in which you do the
 real one:
 
 1. **Pin** — traffic stops reaching the bad revision. (§0)
 2. **Revert** — `git revert <sha>`, open a PR, merge. Staging redeploys itself
-   from the reverted source; production is a dispatch (§4.2).
+   from the reverted source; production is a dispatch (§4.2). *(While staging
+   is retired — `infra/gcp/staging.state` reads `absent`,
+   [infra-staging.md](infra-staging.md) §9 — the merge only builds the
+   reverted image, and its run prints the tag that dispatch needs.)*
 3. **Release the pin** — deliberately, as part of that deploy (§7.1).
 
 ### 3.1 Why we do not make the pin durable
@@ -195,7 +201,11 @@ rolling back the image changes nothing — fix the secret version instead.
 repository describing what is deployed, which is the property the whole
 declarative-manifest stance exists to preserve.
 
-- **Staging** redeploys itself on the merge.
+- **Staging** redeploys itself on the merge — while it exists. While
+  `infra/gcp/staging.state` reads `absent` ([infra-staging.md](infra-staging.md)
+  §9) the merge builds and pushes the reverted image and deploys nothing; its
+  run prints `promote with image_tag=<sha>`, the value the production
+  dispatch below needs.
 - **Production** is `workflow_dispatch` with the typed `deploy` confirmation,
   plus `unpin: yes` if a pin is in place (§7.1).
 
@@ -399,6 +409,12 @@ explicitly declares `unpin: yes`.
   staging service fails the deploy rather than quietly un-pinning. Loud, and in
   the safe direction: staging pins are rare and deliberate, and the message says
   what to do.
+- **While staging is retired** (`infra/gcp/staging.state` reads `absent`,
+  [infra-staging.md](infra-staging.md) §9) the guard passes without asking
+  Cloud Run: that run deploys nothing, so it cannot lift a pin — and since the
+  guard sits before the build, failing on a leftover pinned service would leave
+  production no image to promote. `staging_state_test.dart` runs the guard's
+  own text both ways.
 
 Failing closed is the right default here because the two outcomes are not
 symmetric. A blocked deploy is visible and self-correcting; a silent un-pin

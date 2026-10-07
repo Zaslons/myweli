@@ -22,6 +22,14 @@ questions none of our gates can answer:
    alerting — and **Vercel Preview now reads it**, verified on a real preview
    deployment rather than in the dashboard. Previews no longer write to the
    production database (§5.4).
+   **Reopened on purpose, 2026-10-07:** staging is being retired for cost
+   (≈ $11.7/month) while there are no users. The switch `infra/gcp/staging.state`
+   reads `absent`, so a merge builds the image and deploys nothing; the cloud
+   deletions are planned, not done
+   ([design/infra-staging.md](design/infra-staging.md) §9). Until it returns,
+   a production release is a promotion by tag **with no rehearsal**, and once
+   it is deleted previews reach no backend. It comes back before the launch rehearsals and
+   the first real salon — §6.5, last box.
 3. **Would we know if it broke?** **Two surfaces of three** — this line said
    "Closed 2026-08-12" and over-claimed (corrected 2026-08-18 by verifying each
    surface against the deployed artifact rather than the source):
@@ -72,7 +80,7 @@ Concretely for us that means a second Cloud Run service, a second database, a
 second set of R2 buckets and a second Firebase project. It is not free, and it
 is the single highest-value thing to build before launch.
 
-**Designed in detail in [design/infra-staging.md](design/infra-staging.md)** — **$13–17/month**. It was blocked on three code changes, all now landed (phase 1), plus six production bugs found while auditing the project ([design/infra-prod-hardening.md](design/infra-prod-hardening.md), phase 2). Among them the one that made §5.1 below *untickable*: `seedProvidersIfEmpty` was gated only on the `providers` table being empty, not on `ENV`, so purging the demo salons and deploying re-created them. **Fixed — the purge will now stick.** **Staging is now built and serving** (2026-08-16): its own Cloud Run service, Cloud SQL instance, secrets, PITR and alerting, deploying itself on every merge to `main`.
+**Designed in detail in [design/infra-staging.md](design/infra-staging.md)** — **$13–17/month**. It was blocked on three code changes, all now landed (phase 1), plus six production bugs found while auditing the project ([design/infra-prod-hardening.md](design/infra-prod-hardening.md), phase 2). Among them the one that made §5.1 below *untickable*: `seedProvidersIfEmpty` was gated only on the `providers` table being empty, not on `ENV`, so purging the demo salons and deploying re-created them. **Fixed — the purge will now stick.** **Staging is now built and serving** (2026-08-16): its own Cloud Run service, Cloud SQL instance, secrets, PITR and alerting, deploying itself on every merge to `main`. *(2026-10-07: being retired for cost until the launch rehearsals — §0 item 2.)*
 
 ### 1.2 Pre-release distribution — *which build, in whose hands*
 
@@ -100,13 +108,14 @@ for different jobs:
 
 | Build | Points at | Answers |
 |---|---|---|
-| dev / simulator | staging | "does my feature work at all?" |
-| TestFlight / internal track | **staging** | "does it work on a real device, for someone who is not me?" |
+| dev / simulator | staging — *while staging is retired: the local backend* ([design/infra-staging.md](design/infra-staging.md) §2.2) | "does my feature work at all?" |
+| TestFlight / internal track | **staging** — *while retired: production, there is nothing else* | "does it work on a real device, for someone who is not me?" |
 | TestFlight / internal track | **production** | "is this exact artifact safe to release?" — the release candidate |
 | store release | production | the public |
 
 We already have the machinery for this: `--dart-define=API_BASE_URL=…` and the
-`consumer`/`pro` flavours, and the staging backend to point at now exists. What
+`consumer`/`pro` flavours, and the staging backend to point at now exists
+*(retired for cost from 2026-10-07 until the launch rehearsals — §0 item 2)*. What
 is missing is a build actually pointed at it — no TestFlight or internal-track
 build has been produced at all (§6.2, §6.3). *(2026-09-24: a signed Pro IPA
 exists but was never uploaded; nothing is in TestFlight yet.)*
@@ -1196,8 +1205,30 @@ that — it is what launch still has to re-apply or decide:
 - [ ] **Re-read the two Cloudflare facts the design leans on** — Free = one
       rate-limiting rule, per IP, 10 s window; Workers Free = 100k/day. Plans
       change; a design doc does not notice.
-- [ ] **Staging database** — if it was deleted meanwhile for cost, re-create it
-      from `infra/gcp/90-staging.sh` before the launch rehearsals.
+- [ ] **Staging back before the launch rehearsals and the first real salon.**
+      Retired for cost from 2026-10-07 — the switch `infra/gcp/staging.state`
+      reads `absent`; the deletions are planned, owner-gated
+      ([design/infra-staging.md](design/infra-staging.md) §9.2). The recreate,
+      in order (§9.3 has every command; about 30–45 minutes):
+      - [ ] the shared pieces are still there — `myweli-deployer@`,
+            `myweli-scheduler@`, the `backend-staging` WIF binding, the shared
+            secrets — and `STAGING_DATABASE_URL` does **not** exist
+      - [ ] Cloudflare: the three `*-staging` buckets
+            (`infra/cloudflare/90-staging-r2.sh` if they are gone), a **new**
+            bucket-scoped token, `r2_token_scope_test.dart` green
+      - [ ] `infra/gcp/90-staging.sh` with the seven values exported — it
+            creates point-in-time recovery at one day; read it back (`True 1`)
+      - [ ] `status.url` read back equals `CRON_OIDC_AUDIENCE` in
+            `infra/gcp/service-staging.yaml` and the Vercel Preview API base
+      - [ ] *optional:* the final backup restored, `myweli_app` reset to the
+            password in `STAGING_DATABASE_URL`
+      - [ ] a PR flipping `infra/gcp/staging.state` to `present`, merged — its
+            push run is staging's first real deploy
+      - [ ] both crons resumed; one forced → 200 in its log; an anonymous
+            `POST /internal/cron/reminders` → 403
+      - [ ] acceptance: the funnel smoke against staging, `98` green across
+            both manifests, `95` green, a PR preview reaching staging, the next
+            day's production checks green
 
 ## 6.4 The first real salon — the one hop nothing has exercised
 
@@ -1307,14 +1338,23 @@ Design: [design/backend-web-rebuild-hook.md](design/backend-web-rebuild-hook.md)
    **what is structural is "via a PR, on green CI"; the second pair of eyes is
    not, and will not be until there is a second person.** Revisit the moment
    there is one.
-2. Merge deploys to **staging** automatically.
-3. Rehearse on staging: the funnel, the migration, the new screen.
+2. Merge deploys to **staging** automatically. *While staging is retired
+   (`infra/gcp/staging.state` reads `absent`, from 2026-10-07): the merge
+   builds and pushes the image, deploys nothing, and its run prints
+   `promote with image_tag=<sha>` —
+   [design/infra-staging.md](design/infra-staging.md) §9.1.*
+3. Rehearse on staging: the funnel, the migration, the new screen. *While it
+   is retired there is no rehearsal: CI's boot smoke and the deploy's own
+   verify step are all that run before production. That is the cost accepted
+   until §6.5's last box — which is why staging must be back before launch.*
 4. Promote the same artifact to production behind a **flag, off**. *Enforced
    since 2026-08-19*: a production dispatch with an empty `image_tag` is
    refused, and the refusal prints the tag and commit staging is serving — so
-   "promote the same artifact" is a guard rather than a habit. Every revision
-   also carries a `commit` label, so what production is running is one command
-   away instead of four steps of log archaeology
+   "promote the same artifact" is a guard rather than a habit. *(While staging
+   is retired the refusal lists the five newest images whenever staging
+   yields no verified tag; the merge run's notice names the one it built.)*
+   Every revision also carries a `commit` label, so what production is running
+   is one command away instead of four steps of log archaeology
    ([infra-rollback.md](design/infra-rollback.md) §4.1).
 5. Enable for ourselves, then a slice, then everyone.
 6. For app changes: internal track → beta → staged rollout, watching crash rate
