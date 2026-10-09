@@ -61,6 +61,8 @@
 	<string>$(CAMERA_USAGE_DESCRIPTION)</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>$(LOCATION_USAGE_DESCRIPTION)</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>$(LOCATION_ALWAYS_USAGE_DESCRIPTION)</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>$(PHOTO_LIBRARY_USAGE_DESCRIPTION)</string>
 	<key>UIApplicationSceneManifest</key>

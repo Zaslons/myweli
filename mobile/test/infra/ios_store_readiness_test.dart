@@ -68,6 +68,11 @@ void main() {
     'NSLocationWhenInUseUsageDescription': 'LOCATION_USAGE_DESCRIPTION',
     'NSCameraUsageDescription': 'CAMERA_USAGE_DESCRIPTION',
     'NSPhotoLibraryUsageDescription': 'PHOTO_LIBRARY_USAGE_DESCRIPTION',
+    // ITMS-90683 on build 551 (2026-10-09): geolocator_apple references
+    // requestAlwaysAuthorization, so Apple requires this key even though the
+    // apps only ever request when-in-use.
+    'NSLocationAlwaysAndWhenInUseUsageDescription':
+        'LOCATION_ALWAYS_USAGE_DESCRIPTION',
   };
 
   group('purpose strings are per flavour', () {
@@ -147,6 +152,23 @@ void main() {
         );
       }
     });
+  });
+
+  test('the "Always" location text says the apps never use it', () {
+    // The apps never request Always (NSLocationWhenInUseUsageDescription is
+    // present, so geolocator asks for when-in-use only). A purpose string
+    // that invented a background use would be its own 5.1.1 problem.
+    for (final bundle in const ['com.myweli.pro', 'com.myweli.app']) {
+      for (final MapEntry(key: name, value: body) in runnerConfigs(
+        bundle,
+      ).entries) {
+        expect(
+          setting(body, 'LOCATION_ALWAYS_USAGE_DESCRIPTION'),
+          contains('que pendant que vous utilisez l’app'),
+          reason: '$name: the Always text must say it is only while in use',
+        );
+      }
+    }
   });
 
   group('Pro is iPhone-only for its first release', () {
