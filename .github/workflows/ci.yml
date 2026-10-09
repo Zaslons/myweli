@@ -116,7 +116,11 @@ jobs:
     # database; without DATABASE_URL those tests skip (e.g. local dev).
     services:
       postgres:
-        image: postgres:16
+        # The official postgres image via its ECR Public mirror, not Docker
+        # Hub: Hub's unauthenticated pull limit is shared by GitHub's runners
+        # and failed both backend jobs on #558 and #559 (2026-10-09,
+        # "toomanyrequests"). Same Docker Official Image, no pull limit.
+        image: public.ecr.aws/docker/library/postgres:16
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
@@ -169,7 +173,11 @@ jobs:
     # before they reach a deploy.
     services:
       postgres:
-        image: postgres:16
+        # The official postgres image via its ECR Public mirror, not Docker
+        # Hub: Hub's unauthenticated pull limit is shared by GitHub's runners
+        # and failed both backend jobs on #558 and #559 (2026-10-09,
+        # "toomanyrequests"). Same Docker Official Image, no pull limit.
+        image: public.ecr.aws/docker/library/postgres:16
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
