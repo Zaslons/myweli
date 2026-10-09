@@ -824,10 +824,17 @@ deleted. Kept, as planned: the staging alert policy 13208100060994431759 (no
 data, never fires; deleting it would make a re-run of `85` duplicate
 production's). After it: `api.myweli.com` health/providers/localities 200, the
 direct run.app `/providers` 403, the 14:00Z reminders run OK, `95` green with
-staging ABSENT. **Outside GCP, owner-only and still to do:** revoke the
-staging bucket-scoped R2 token (Cloudflare → R2 → Manage API tokens) and the
-staging Resend API key (Resend dashboard) — their values were in the deleted
-secrets, so nobody holds them, but they still exist on those platforms.
+staging ABSENT. **Outside GCP, done the same day:** the staging bucket-scoped R2
+token `myweli-staging-backend-r2` (the three `-staging` buckets only) was
+deleted in Cloudflare → R2 → API tokens, after reading its scope;
+`myweli-production-backend-r2` (the three production buckets) is untouched and
+Active. **There was no staging Resend key to revoke**: `STAGING_RESEND_API_KEY`
+held the deliberate placeholder `re_staging_placeholder_delivery_is_disabled`
+(`90-staging.sh`, §3.3 — staging never has a live email channel), and the
+Resend account lists only two keys, both named `myweli-api-prod` (one last used
+~1 month before, one ~3 months before — the older is probably a pre-GCP
+leftover; which one production mounts is not readable without its secret
+value, so neither was touched).
 
 The plan as written before it ran (verified read-only the same day):
 
