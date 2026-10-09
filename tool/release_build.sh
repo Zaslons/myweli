@@ -136,19 +136,33 @@ COMMON=(
 
 if [[ "$PLATFORM" == ios ]]; then
   echo "→ flutter build ipa --flavor $FLAVOUR --target $ENTRY --build-number $BUILD_NUMBER (DSN injected, not shown)"
+  # Everything this run exports is newer than this marker (see below).
+  BUILD_MARK="$(mktemp)"
   flutter build ipa "${COMMON[@]}"
-  # **Park the IPA under the flavour's own name.** `flutter build ipa` always
-  # exports to build/ios/ipa/MyWeli.ipa regardless of flavour — measured
+  # **Park the IPA under the flavour's own name.** `flutter build ipa` exported
+  # every flavour to the same build/ios/ipa/MyWeli.ipa — measured
   # 2026-08-29, when `ios pro` silently overwrote the consumer IPA and only a
   # bytes-level entitlement check caught it. Android never had this problem
   # (bundle paths are flavour-specific); iOS now matches. Refuse loudly if
   # the expected file is absent rather than "succeeding" with nothing.
+  #
+  # **Find the IPA by recency, not by name.** Xcode names the export after
+  # CFBundleName, which is per flavour since the App Store audit (#550):
+  # « MyWeli Pro.ipa » for pro, « MyWeli.ipa » for consumer. The fixed name
+  # this used to expect refused a good pro build on 2026-10-07 (build 551).
+  # Exactly one IPA newer than the marker, and not an already-parked
+  # MyWeli-<flavour>.ipa, or nothing moves.
   IPA_DIR="build/ios/ipa"
-  if [[ ! -f "$IPA_DIR/MyWeli.ipa" ]]; then
-    echo "::error:: expected $IPA_DIR/MyWeli.ipa after the build — not found." >&2
+  FRESH=()
+  while IFS= read -r -d '' f; do
+    FRESH+=("$f")
+  done < <(find "$IPA_DIR" -maxdepth 1 -name '*.ipa' ! -name 'MyWeli-*.ipa' -newer "$BUILD_MARK" -print0 2>/dev/null)
+  rm -f "$BUILD_MARK"
+  if [[ ${#FRESH[@]} -ne 1 ]]; then
+    echo "::error:: expected exactly one IPA exported by this build in $IPA_DIR — found ${#FRESH[@]}." >&2
     exit 1
   fi
-  mv "$IPA_DIR/MyWeli.ipa" "$IPA_DIR/MyWeli-$FLAVOUR.ipa"
+  mv "${FRESH[0]}" "$IPA_DIR/MyWeli-$FLAVOUR.ipa"
   [[ -f "$IPA_DIR/DistributionSummary.plist" ]] && \
     mv "$IPA_DIR/DistributionSummary.plist" "$IPA_DIR/DistributionSummary-$FLAVOUR.plist"
   echo "→ IPA: mobile/$IPA_DIR/MyWeli-$FLAVOUR.ipa"

@@ -56,13 +56,28 @@ void main() {
       );
     });
 
-    test('and refuses when the expected IPA is absent', () {
+    test('and refuses unless THIS build exported exactly one IPA', () {
+      // Found by recency, not by name: since the App Store audit (#550)
+      // Xcode names the export after the flavour's CFBundleName (« MyWeli
+      // Pro.ipa »), and the old fixed-name check refused a good build 551.
       expect(
         code,
-        contains(r'! -f "$IPA_DIR/MyWeli.ipa"'),
+        contains(r'-newer "$BUILD_MARK"'),
         reason:
-            'without the existence check, a build that produced nothing '
-            'still "succeeds" and the operator uploads yesterday\'s file',
+            'without the marker, yesterday\'s IPA counts as this build\'s '
+            'and the operator uploads it',
+      );
+      expect(
+        code,
+        contains(r'${#FRESH[@]} -ne 1'),
+        reason:
+            'without the exactly-one check, a build that produced nothing '
+            'still "succeeds", or two candidates are guessed between',
+      );
+      expect(
+        code,
+        isNot(contains(r'"$IPA_DIR/MyWeli.ipa"')),
+        reason: 'the fixed export name is wrong since #550 (CFBundleName)',
       );
     });
   });
