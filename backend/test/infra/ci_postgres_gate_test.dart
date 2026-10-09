@@ -65,7 +65,14 @@ void main() {
       for (final v in services!.values) (v as YamlMap)['image'].toString(),
     ];
     expect(
-      images.any((i) => i.startsWith('postgres')),
+      // The official image, from Docker Hub or from its ECR Public mirror
+      // (Hub's anonymous pull limit failed CI on 2026-10-09, #560) — and
+      // nothing else that merely contains the word.
+      images.any(
+        (i) => RegExp(
+          r'^(public\.ecr\.aws/docker/library/)?postgres(:|$)',
+        ).hasMatch(i),
+      ),
       isTrue,
       reason: 'services exist but none is postgres: $images',
     );
