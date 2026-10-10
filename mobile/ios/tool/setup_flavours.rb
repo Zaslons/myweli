@@ -68,6 +68,7 @@ FLAVOURS = {
     location_usage: 'Nous utilisons votre position pour afficher les salons autour de vous sur la carte.',
     camera_usage: 'MyWeli utilise l’appareil photo pour vos photos d’avis, votre photo de profil et, côté salon, la galerie de votre établissement.',
     photos_usage: 'MyWeli accède à vos photos pour vos photos d’avis, votre photo de profil, votre justificatif d’acompte et, côté salon, la galerie de votre établissement.',
+    location_always_usage: 'MyWeli n’utilise votre position que pendant que vous utilisez l’app, pour afficher les salons autour de vous sur la carte.',
   },
   'pro'      => {
     bundle_id: 'com.myweli.pro',
@@ -78,14 +79,25 @@ FLAVOURS = {
     location_usage: 'MyWeli Pro utilise votre position pour placer votre salon sur la carte et trouver votre commune.',
     camera_usage: 'MyWeli Pro utilise l’appareil photo pour la galerie de votre salon, vos photos avant/après, le logo du salon et les photos de votre équipe.',
     photos_usage: 'MyWeli Pro accède à vos photos pour la galerie de votre salon, vos photos avant/après, le logo du salon et les photos de votre équipe.',
+    location_always_usage: 'MyWeli Pro n’utilise votre position que pendant que vous utilisez l’app, pour placer votre salon sur la carte et trouver votre commune.',
   },
 }.freeze
 
 # The Info.plist keys each purpose string lands in, via $(BUILD_SETTING).
+#
+# **`location_always_usage`** (2026-10-09): Apple's delivery scan for build
+# 551 returned ITMS-90683 — NSLocationAlwaysAndWhenInUseUsageDescription
+# missing. geolocator_apple compiles `requestAlwaysAuthorization` into the
+# binary unless BYPASS_PERMISSION_LOCATION_ALWAYS is defined, and Apple flags
+# the reference, not the call. The apps never ask for "Always": with
+# NSLocationWhenInUseUsageDescription present, geolocator requests
+# when-in-use only (PermissionHandler.m), so this string is never shown — and
+# it therefore says exactly that, rather than inventing a background use.
 PURPOSE_SETTINGS = {
   location_usage: 'LOCATION_USAGE_DESCRIPTION',
   camera_usage: 'CAMERA_USAGE_DESCRIPTION',
   photos_usage: 'PHOTO_LIBRARY_USAGE_DESCRIPTION',
+  location_always_usage: 'LOCATION_ALWAYS_USAGE_DESCRIPTION',
 }.freeze
 
 # The redirect scheme is the client id reversed, always — derived rather than

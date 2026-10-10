@@ -862,9 +862,20 @@ Connect (INFERRED) : ne pas l'utiliser ici ; le ranger ailleurs en `chmod 600`.
 cd "/Users/sadreddinedaher/beauty app/mobile"
 xcrun altool --validate-app build/ios/ipa/MyWeli-pro.ipa --api-key <KEY_ID> --api-issuer <ISSUER_ID>
 xcrun altool --upload-package build/ios/ipa/MyWeli-pro.ipa --api-key <KEY_ID> --api-issuer <ISSUER_ID> --wait --show-progress
-xcrun altool --build-status --apple-id 6805272779 --bundle-version <N> --platform ios \
+xcrun altool --build-status --delivery-id <DELIVERY_UUID_IMPRIMÉ_PAR_L_ENVOI> \
   --api-key <KEY_ID> --api-issuer <ISSUER_ID>
 ```
+
+*Corrigé le 2026-10-09 :* `--build-status` exige `--delivery-id` (ou
+`--bundle-short-version-string` avec `--apple-id`/`--bundle-version`) ; la
+forme précédente échouait (`Expected delivery ID argument is missing`). Clé
+d'API créée le 2026-10-09 : équipe, rôle **App Manager**, nom
+`myweli-ci-upload`, Key ID `SRP86N339X`, Issuer ID
+`c83c2a4a-ebe8-43df-879c-c31bffbe692b` (identifiants, pas des secrets — le
+`.p8` reste dans `~/.appstoreconnect/private_keys/`). Build 551 : validé,
+envoyé (delivery `b953e22a-f2c3-41be-8570-25ec41a62524`), traité `VALID` en
+deux minutes — puis l'e-mail **ITMS-90683** (texte « Always » manquant, voir
+§1) : corrigé, build suivant.
 
 Syntaxe relue dans l'aide de l'`altool` local (version 27.0.5) :
 `--upload-package` est la forme de ses exemples ; `--upload-app -f` existe
