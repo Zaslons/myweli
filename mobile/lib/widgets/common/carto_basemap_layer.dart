@@ -119,7 +119,7 @@ class CartoAttribution extends StatelessWidget {
 /// a map while the key was unusable — not yet activated, mistyped, refused
 /// for quota — showing the watermark for 30 days after the fix, under the
 /// very URL the fix makes good again. So it is never stored, and an entry
-/// already holding one counts as absent. Spec §2.2 / §5.3.
+/// already holding one counts as absent. Spec §2 / §5.3.
 class CartoWatermarkRefusingCache implements MapCachingProvider {
   /// [inner] for tests; the app uses flutter_map's built-in singleton,
   /// resolved lazily exactly as the tile provider would resolve it.

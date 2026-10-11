@@ -702,9 +702,11 @@ the write that triggered it already succeeded. Design:
    `MOBILE_SENTRY_DSN` and **`CARTO_BASEMAPS_KEY`** — the **app** CARTO key,
    restricted to the two bundle ids / packages (+ release certs); without it
    every map shows « API KEY REQUIRED »
-   ([map-basemap-key.md](design/map-basemap-key.md)). Create it with
-   `printf '%s' "$KEY" | gcloud secrets create CARTO_BASEMAPS_KEY
-   --project=myweli --data-file=-`.
+   ([map-basemap-key.md](design/map-basemap-key.md) §9). Create it from the
+   clipboard, so it never reaches shell history (the script refuses a key
+   with a space or tab in it): `pbpaste | gcloud secrets create
+   CARTO_BASEMAPS_KEY --project=myweli --replication-policy=automatic
+   --data-file=-`.
 5. Store listings + privacy policy; submit to App Store + Play.
 6. Set `NEXT_PUBLIC_IOS_APP_URL` / `NEXT_PUBLIC_ANDROID_APP_URL` on the web.
 

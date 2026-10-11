@@ -62,6 +62,17 @@ web/
   anywhere**. Set it per Vercel environment — Production → production API,
   Preview → staging ([LAUNCH.md](LAUNCH.md) §5.4). Design:
   [design/infra-staging.md](design/infra-staging.md) §1.3.
+- **Every environment variable the web reads is listed in `web/.env.example`**
+  (copy it to `.env.local`; production values live in Vercel —
+  [DEPLOYMENT.md](DEPLOYMENT.md) Phase D). A `NEXT_PUBLIC_*` value is inlined
+  into the bundle at build time: public by construction, never a secret.
+- **The basemap is built in one place** — `lib/basemap.ts` (`cartoStyleUrl`),
+  exported as `MAP_STYLE` by `components/map/salon-pin.tsx` and handed to
+  every `<Map>`. It carries `?key=` when `NEXT_PUBLIC_CARTO_BASEMAPS_KEY` (the
+  **web** CARTO key, restricted to the myweli.com hosts) is set, and is the
+  keyless style otherwise; no other file may name the CARTO host
+  (`tests/basemap.test.ts`). Design:
+  [design/map-basemap-key.md](design/map-basemap-key.md).
 - Reads for public pages run server-side (RSC/route handlers); writes
   (booking/auth) call the existing hardened API endpoints — reuse their
   validation/authz/notifications; never reimplement business logic on web.
