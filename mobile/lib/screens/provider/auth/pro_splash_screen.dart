@@ -2,13 +2,14 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lottie/lottie.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/a11y/reduce_motion.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
-import '../../../core/theme/text_styles.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../splash/splash_screen.dart';
 
@@ -214,11 +215,11 @@ class _ProSplashScreenState extends State<ProSplashScreen>
                 WidgetsBinding.instance.addPostFrameCallback(
                   (_) => _finishIntro(),
                 );
-                return Text(
-                  ProSplashScreen.semanticsLabel,
-                  style: AppTextStyles.displaySmall.copyWith(
-                    color: AppColors.textPrimary,
-                  ),
+                // The still brand mark, as `BrandLoader` holds it — the logo
+                // is never typed text (branding-integration.md §2).
+                return SvgPicture.asset(
+                  'assets/brand/myweli_mark_black.svg',
+                  height: AppTheme.iconXL,
                 );
               },
             ),

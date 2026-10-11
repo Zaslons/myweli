@@ -1,5 +1,6 @@
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lottie/lottie.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
@@ -155,7 +156,11 @@ void main() {
     final session = FakeProSession();
     await pumpSplash(tester, session, bundle: _MissingAssetBundle());
     await tester.pump();
-    expect(find.text(ProSplashScreen.semanticsLabel), findsOneWidget);
+    expect(
+      find.byType(SvgPicture),
+      findsOneWidget,
+      reason: 'the still brand mark stands in for the animation',
+    );
 
     session.load.complete();
     await land(tester);
