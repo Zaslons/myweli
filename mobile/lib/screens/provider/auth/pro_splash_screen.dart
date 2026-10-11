@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lottie/lottie.dart';
@@ -146,10 +147,18 @@ class _ProSplashScreenState extends State<ProSplashScreen>
       _controller.stop();
       return;
     }
+    // Clamped: lottie ends a composition at `op - 0.01`, so a marker running
+    // to the last frame ends a hair past progress 1.0 — and `repeat` asserts
+    // its bounds sit inside the controller's.
+    final min = clampDouble(loop.start, 0, 1);
+    final max = clampDouble(loop.end, 0, 1);
     _controller.repeat(
-      min: loop.start,
-      max: loop.end,
-      period: _framesToDuration(composition, loop.durationFrames),
+      min: min,
+      max: max,
+      period: _framesToDuration(
+        composition,
+        (max - min) * composition.durationFrames,
+      ),
     );
   }
 
