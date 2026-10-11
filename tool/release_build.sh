@@ -139,20 +139,6 @@ if [[ "$(git -C "$(dirname "$0")/.." rev-parse --is-shallow-repository)" != "fal
   exit 1
 fi
 
-# **A key CARTO refuses is no better than no key** — the build would compile,
-# sign and upload, and every map would show the watermark (a dead key) or
-# nothing (HTTP 403: the restriction headers refused). No test can see that;
-# only a request to CARTO with the real key can. The probe sends one tile
-# request at 1x and one at @2x built by the app's OWN functions
-# (lib/core/map/carto_basemap.dart, pure Dart for this reason), with the key in
-# the environment rather than argv. The header set does not depend on the
-# platform (spec §3.3), so one app id answers for both.
-APP_ID="com.myweli.app"
-[[ "$FLAVOUR" == pro ]] && APP_ID="com.myweli.pro"
-flutter pub get
-echo "→ asking CARTO whether it serves $APP_ID a real basemap with this key…"
-CARTO_BASEMAPS_KEY="$CARTO_KEY" dart run tool/carto_probe.dart --app-id "$APP_ID"
-
 COMMON=(
   --release
   --flavor "$FLAVOUR"

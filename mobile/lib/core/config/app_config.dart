@@ -121,8 +121,8 @@ class AppConfig {
   /// keyless request gets a tile reading « API KEY REQUIRED ». **Empty by
   /// default, and that is visible on purpose** — `flutter run`, the tests and
   /// CI build without it and show that watermark (`cartoTileUrlTemplate`).
-  /// `tool/release_build.sh` reads it from Secret Manager, refuses to build
-  /// without it, and checks CARTO accepts it before compiling.
+  /// `tool/release_build.sh` reads it from Secret Manager and refuses to
+  /// build a store release without it.
   ///
   /// Public by construction (it ships in the binary); the dashboard
   /// restrictions are what bound its reuse, not this define.

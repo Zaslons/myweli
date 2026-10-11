@@ -1,11 +1,12 @@
 import 'dart:io';
-import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
+import 'package:myweli/core/map/carto_basemap.dart';
 import 'package:myweli/providers/auth_provider.dart';
 import 'package:myweli/providers/favorites_provider.dart';
 import 'package:myweli/providers/provider_provider.dart';
@@ -96,20 +97,40 @@ void main() {
       );
     });
 
-    testWidgets('every restriction header, and the real User-Agent', (
+    testWidgets('on Android: the package, its cert, the real User-Agent', (
       tester,
     ) async {
+      // `flutter test` reports Android unless told otherwise.
       runningAs('com.myweli.pro');
       await tester.pumpWidget(map(const CartoBasemapLayer(apiKey: 'k')));
       await tester.pump();
 
       expect(tileLayer(tester).tileProvider.headers, {
-        'X-Ios-Bundle-Identifier': 'com.myweli.pro',
         'X-Android-Package': 'com.myweli.pro',
         'X-Android-Cert': '94BE494A905B2C2ADC66AD5720EDDE124089C985',
         // Was `flutter_map (com.sadreddine.myweli)` on both screens.
         'User-Agent': 'flutter_map (com.myweli.pro)',
       });
+    });
+
+    testWidgets('on iOS: the bundle id, and no Android headers', (
+      tester,
+    ) async {
+      runningAs('com.myweli.app');
+      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+      try {
+        await tester.pumpWidget(map(const CartoBasemapLayer(apiKey: 'k')));
+        await tester.pump();
+
+        expect(tileLayer(tester).tileProvider.headers, {
+          'X-Ios-Bundle-Identifier': 'com.myweli.app',
+          'User-Agent': 'flutter_map (com.myweli.app)',
+        });
+      } finally {
+        // In a `finally`, not addTearDown: the binding checks the override
+        // before tear-downs run.
+        debugDefaultTargetPlatformOverride = null;
+      }
     });
 
     testWidgets('and the provider caches through the watermark guard', (
@@ -184,6 +205,19 @@ void main() {
         'B73647C6B06001AF04D38EE2D0A5AA4722CA156F',
       );
     });
+  });
+
+  test('the platform a request claims follows the device', () {
+    expect(cartoPlatformOf(TargetPlatform.iOS), CartoPlatform.ios);
+    expect(cartoPlatformOf(TargetPlatform.android), CartoPlatform.android);
+    for (final p in [
+      TargetPlatform.macOS,
+      TargetPlatform.linux,
+      TargetPlatform.windows,
+      TargetPlatform.fuchsia,
+    ]) {
+      expect(cartoPlatformOf(p), CartoPlatform.other);
+    }
   });
 
   group('the watermark never reaches the device cache', () {

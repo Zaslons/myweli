@@ -1,5 +1,4 @@
-import 'dart:typed_data';
-
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -17,9 +16,10 @@ import '../../core/map/carto_basemap.dart';
 /// FlutterMap(children: [const CartoBasemapLayer(), markers, const CartoAttribution()])
 /// ```
 ///
-/// It keys every request with [apiKey] and sends CARTO's restriction headers
-/// for the running app, whose id it reads from the OS (`PackageInfo` — the
-/// bundle id on iOS, the package on Android) rather than trusting the entry
+/// Everything it requests comes from the pure [cartoBasemapRequest]: the URL
+/// keyed with [apiKey], and CARTO's restriction headers for the running
+/// platform and app. The app id is read from the OS (`PackageInfo` — the
+/// bundle id on iOS, the package on Android) rather than trusted to the entry
 /// point. Nothing is drawn for the frame that takes; if the id cannot be read
 /// (no platform — widget tests) the layer still draws, without headers, and a
 /// restricted key refuses it visibly.
@@ -36,6 +36,13 @@ class CartoBasemapLayer extends StatefulWidget {
   State<CartoBasemapLayer> createState() => _CartoBasemapLayerState();
 }
 
+/// The [CartoPlatform] a Flutter [TargetPlatform] requests as.
+CartoPlatform cartoPlatformOf(TargetPlatform platform) => switch (platform) {
+  TargetPlatform.iOS => CartoPlatform.ios,
+  TargetPlatform.android => CartoPlatform.android,
+  _ => CartoPlatform.other,
+};
+
 class _CartoBasemapLayerState extends State<CartoBasemapLayer> {
   /// Built ONCE per layer. A `TileLayer` without a `tileProvider` constructs
   /// a fresh provider (and HTTP client) in its initializer on every rebuild,
@@ -43,6 +50,7 @@ class _CartoBasemapLayerState extends State<CartoBasemapLayer> {
   /// before this widget existed.
   NetworkTileProvider? _provider;
   String? _appId;
+  final CartoPlatform _platform = cartoPlatformOf(defaultTargetPlatform);
 
   @override
   void initState() {
@@ -62,21 +70,27 @@ class _CartoBasemapLayerState extends State<CartoBasemapLayer> {
     setState(() {
       _appId = id;
       _provider = NetworkTileProvider(
-        headers: cartoRestrictionHeaders(appId: id),
+        headers: _request().headers,
         cachingProvider: const CartoWatermarkRefusingCache(),
       );
     });
   }
 
+  CartoBasemapRequest _request() => cartoBasemapRequest(
+    key: widget.apiKey,
+    platform: _platform,
+    appId: _appId,
+  );
+
   @override
   Widget build(BuildContext context) {
     final provider = _provider;
     if (provider == null) return const SizedBox.shrink();
+    final request = _request();
     return TileLayer(
-      urlTemplate: cartoTileUrlTemplate(widget.apiKey),
+      urlTemplate: request.urlTemplate,
       tileProvider: provider,
-      // flutter_map's User-Agent. It was the stale `com.sadreddine.myweli`.
-      userAgentPackageName: _appId ?? 'myweli',
+      userAgentPackageName: request.userAgentPackageName,
       retinaMode: true,
     );
   }

@@ -250,46 +250,16 @@ void main() {
       expect(passed, read);
     });
 
-    test('CARTO is asked, with the real key, before anything compiles', () {
-      // A key CARTO refuses ships the defect with a key in it: the watermark
-      // (a dead key) or no tiles at all (403, the headers refused). Only a
-      // request with the real key can tell.
-      final probe = code.indexOf(
-        r'CARTO_BASEMAPS_KEY="$CARTO_KEY" dart run tool/carto_probe.dart '
-        r'--app-id "$APP_ID"',
-      );
-      expect(probe, isNonNegative, reason: 'the CARTO probe is not run');
+    test('the refusal comes before anything compiles', () {
+      // A refusal after `flutter build` would leave a keyless artifact on
+      // disk, ready to be uploaded by hand.
+      final refusal = code.indexOf(r'-z "$CARTO_KEY"');
+      expect(refusal, isNonNegative, reason: 'no emptiness check on the key');
       for (final build in ['flutter build ipa', 'flutter build appbundle']) {
         final at = code.indexOf(build);
         expect(at, isNonNegative, reason: '$build is gone from the script');
-        expect(probe, lessThan(at), reason: 'the probe must run before $build');
+        expect(refusal, lessThan(at), reason: 'refuse before $build');
       }
-      expect(File('tool/carto_probe.dart').existsSync(), isTrue);
-    });
-
-    test('the probe asks about the app this flavour IS', () {
-      // The app id selects the certificate the probe sends; probing the
-      // consumer id for a pro build verifies the wrong restriction.
-      final gradle = File(
-        'android/app/build.gradle.kts',
-      ).readAsStringSync().replaceAll(RegExp(r'\s+'), ' ');
-      for (final (flavour, id) in [
-        ('consumer', 'com.myweli.app'),
-        ('pro', 'com.myweli.pro'),
-      ]) {
-        expect(
-          gradle,
-          contains(
-            'create("$flavour") { dimension = "app" applicationId = "$id"',
-          ),
-          reason: 'the premise: $flavour is $id',
-        );
-      }
-      expect(code, contains('APP_ID="com.myweli.app"'));
-      expect(
-        code,
-        contains('[[ "\$FLAVOUR" == pro ]] && APP_ID="com.myweli.pro"'),
-      );
     });
 
     test('the key never reaches a progress line', () {

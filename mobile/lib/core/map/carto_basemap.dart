@@ -1,16 +1,14 @@
-/// The CARTO basemap every app map draws on — its URL, the restriction
-/// headers CARTO checks, and how to tell a real tile from the « API KEY
+/// The CARTO basemap every app map draws on — its keyed URL, the restriction
+/// headers CARTO checks per platform, and how to recognise the « API KEY
 /// REQUIRED » watermark. Design: docs/design/map-basemap-key.md.
 ///
-/// **Pure Dart, deliberately — no Flutter import.** Two reasons:
-///
-/// - `tool/carto_probe.dart` runs these exact functions under plain `dart`
-///   at release time, so the request it checks is the request the app makes.
-///   A probe with its own copy of the URL or the headers would verify a
-///   sentence about the app, not the app.
-/// - Both branches (key / no key) must be testable, and a `flutter test` run
-///   cannot vary a `String.fromEnvironment` — so nothing here reads one. The
-///   key arrives as a parameter (`AppConfig.cartoBasemapsKey` in the app).
+/// **Pure Dart, deliberately — no Flutter import, no define read here.** Both
+/// branches (key / no key) and both platforms must be testable, and a
+/// `flutter test` run can vary neither a `String.fromEnvironment` nor the
+/// platform it reports (always Android). So the key, the platform and the app
+/// id all arrive as parameters: `CartoBasemapLayer` passes
+/// `AppConfig.cartoBasemapsKey`, `defaultTargetPlatform` and the OS-reported
+/// package name.
 library;
 
 /// The raster style — the light basemap the app has always used (`light_all`
@@ -24,7 +22,7 @@ const String cartoRasterStyle = 'light_all';
 /// keyless raster request with a tile reading « API KEY REQUIRED ». That is
 /// what a `flutter run` without the define, a test, or a CI build shows — and
 /// it is the right thing to show: it names its own cause, where a
-/// plausible-looking fallback would hide it. Release builds cannot get here:
+/// plausible-looking fallback would hide it. A store build cannot get here:
 /// `tool/release_build.sh` refuses to build without the key.
 ///
 /// The key is query-encoded, so nothing in it can ever be read as a
@@ -37,127 +35,117 @@ String cartoTileUrlTemplate(String key) {
   return k.isEmpty ? base : '$base?key=${Uri.encodeQueryComponent(k)}';
 }
 
+/// The platform a request comes from, as far as CARTO's restrictions care.
+enum CartoPlatform { ios, android, other }
+
 /// The header names CARTO's mobile-app restriction reads (CARTO FAQ,
-/// 2026-10-11).
+/// 2026-10-11): the bundle id on iOS, the package + signing cert on Android.
 const String cartoIosBundleHeader = 'X-Ios-Bundle-Identifier';
 const String cartoAndroidPackageHeader = 'X-Android-Package';
 const String cartoAndroidCertHeader = 'X-Android-Cert';
 
-/// The Play App Signing certificate SHA-1 of each Android app, lower-case hex
-/// without colons — the form `google-services.json` and
-/// `infra/mobile/signing-manifest.json` store. A test pins this table to the
-/// manifest's `playSha1`, which was read off the Play-DELIVERED artifacts
-/// (the console page gave two wrong values on 2026-08-26).
+/// The release signing certificate SHA-1 of each Android app (Play App
+/// Signing), lower-case hex without colons — the form `google-services.json`
+/// and `infra/mobile/signing-manifest.json` store it in. A test pins this
+/// table to both files.
 ///
-/// It is a constant, not something the app measures: a debug build signed
-/// with the development keystore sends the same value, so a key restricted
-/// to the release certificates works there too. The header is a claim, not a
-/// proof — anyone can read these from an APK.
+/// A constant, not something the app measures: a debug build signed with the
+/// development keystore sends the same value, so a key restricted to the
+/// release certificates also serves `flutter run`. The header is a claim, not
+/// a proof — anyone can read these from an APK.
 const Map<String, String> cartoAndroidReleaseCertSha1 = {
   'com.myweli.app': 'b73647c6b06001af04d38ee2d0a5aa4722ca156f',
   'com.myweli.pro': '94be494a905b2c2adc66ad5720edde124089c985',
 };
 
 /// How the certificate travels in [cartoAndroidCertHeader]: upper-case hex,
-/// no colons — Google's convention for the header CARTO's naming copies.
+/// no colons — Google's convention for its own `X-Android-Cert` header, whose
+/// name CARTO's copies.
 ///
 /// **UNVERIFIED for CARTO**, which documents the header but not its format.
-/// This is the one place to change it; `tool/carto_probe.dart` tells you at
-/// the first release build whether it is right (spec §10 A).
+/// This is the one place to change it if the post-key verification (spec
+/// §10) answers 403 on Android only.
 String cartoAndroidCertHeaderValue(String sha1) =>
     sha1.replaceAll(':', '').toUpperCase();
 
-/// The restriction headers for the app with [appId] (its bundle id on iOS,
-/// its package on Android — the same string in this project).
+/// The restriction headers for the app [appId] (its bundle id on iOS, its
+/// package on Android — the same string in this project) on [platform].
 ///
-/// **The iOS AND the Android headers, on every platform.** CARTO ANDs
-/// restriction types (« a request must pass all of them ») and does not say
-/// whether iOS and Android are one type or two. Sending both sets passes
-/// under either reading with a single app key; sending only the running
-/// platform's would need one key per platform under the second. Spec §3.3.
-///
-/// No [appId] → no headers (a restricted key then refuses, visibly). An id
-/// with no known certificate gets the package without a cert.
+/// - iOS → the bundle id.
+/// - Android → the package, plus its release certificate when it is one of
+///   ours (an unknown package gets no cert header).
+/// - anything else, or no [appId] → none (a restricted key then refuses,
+///   visibly).
 ///
 /// Returns a fresh, mutable map: flutter_map writes its User-Agent into it.
-Map<String, String> cartoRestrictionHeaders({required String? appId}) {
+Map<String, String> cartoRestrictionHeaders({
+  required CartoPlatform platform,
+  required String? appId,
+}) {
   final id = appId?.trim() ?? '';
   if (id.isEmpty) return <String, String>{};
-  final sha1 = cartoAndroidReleaseCertSha1[id];
-  return <String, String>{
-    cartoIosBundleHeader: id,
-    cartoAndroidPackageHeader: id,
-    if (sha1 != null) cartoAndroidCertHeader: cartoAndroidCertHeaderValue(sha1),
-  };
+  switch (platform) {
+    case CartoPlatform.ios:
+      return <String, String>{cartoIosBundleHeader: id};
+    case CartoPlatform.android:
+      final sha1 = cartoAndroidReleaseCertSha1[id];
+      return <String, String>{
+        cartoAndroidPackageHeader: id,
+        if (sha1 != null)
+          cartoAndroidCertHeader: cartoAndroidCertHeaderValue(sha1),
+      };
+    case CartoPlatform.other:
+      return <String, String>{};
+  }
+}
+
+/// Everything one flutter_map `TileLayer` needs to fetch the keyed basemap.
+class CartoBasemapRequest {
+  /// For `TileLayer.urlTemplate` ([cartoTileUrlTemplate]).
+  final String urlTemplate;
+
+  /// For `NetworkTileProvider.headers` ([cartoRestrictionHeaders]).
+  final Map<String, String> headers;
+
+  /// For `TileLayer.userAgentPackageName` — the running app's id. It was the
+  /// stale `com.sadreddine.myweli` on both maps before this existed.
+  final String userAgentPackageName;
+
+  const CartoBasemapRequest({
+    required this.urlTemplate,
+    required this.headers,
+    required this.userAgentPackageName,
+  });
+}
+
+/// The one function both app maps build their basemap from: [key] (empty →
+/// keyless, the visible watermark), the [platform] the request comes from,
+/// and the running app's [appId] (null when the OS could not say).
+CartoBasemapRequest cartoBasemapRequest({
+  required String key,
+  required CartoPlatform platform,
+  required String? appId,
+}) {
+  final id = appId?.trim() ?? '';
+  return CartoBasemapRequest(
+    urlTemplate: cartoTileUrlTemplate(key),
+    headers: cartoRestrictionHeaders(platform: platform, appId: id),
+    userAgentPackageName: id.isEmpty ? 'myweli' : id,
+  );
 }
 
 /// Whether an `etag` is CARTO's watermark tile (`"wm-da89c20e77c1-light"`,
-/// measured 2026-10-11), strong or weak.
+/// measured 2026-10-11 on every keyless and bogus-key request), strong or
+/// weak.
 ///
 /// The watermark is served `200` with `max-age=2592000, immutable`, so a tile
 /// cache that stores it shows it for 30 days after whatever made the key
-/// unusable has been fixed. The app's cache refuses these.
+/// unusable has been fixed. The app's cache refuses these
+/// (`CartoWatermarkRefusingCache`).
 bool isCartoWatermarkEtag(String? etag) {
   if (etag == null) return false;
   var e = etag.trim();
   if (e.startsWith('W/')) e = e.substring(2);
   if (e.startsWith('"')) e = e.substring(1);
   return e.startsWith('wm-');
-}
-
-/// The probe's tile: Abidjan (the app's default centre) at zoom 11.
-const String cartoProbeTilePath = '11/1001/993';
-
-/// The concrete URL of the probe tile — [cartoTileUrlTemplate] with the
-/// placeholders filled the way flutter_map fills them.
-String cartoProbeTileUrl(String key, {required bool retina}) {
-  final parts = cartoProbeTilePath.split('/');
-  return cartoTileUrlTemplate(key)
-      .replaceAll('{z}', parts[0])
-      .replaceAll('{x}', parts[1])
-      .replaceAll('{y}', parts[2])
-      .replaceAll('{r}', retina ? '@2x' : '');
-}
-
-/// Why a response is NOT a usable basemap tile, or null when it is.
-///
-/// Used by `tool/carto_probe.dart`. Each refusal names what it means, because
-/// the operator reading it at release time has to act on it.
-String? cartoTileVerdict({
-  required int status,
-  required String? contentType,
-  required String? etag,
-  required List<int> body,
-  required bool retina,
-}) {
-  if (status == 403) {
-    return 'HTTP 403 — CARTO refused the restriction headers for this key '
-        '(dashboard restrictions vs. what the app sends; see spec §10 A).';
-  }
-  if (status != 200) return 'HTTP $status — not a tile.';
-  if (isCartoWatermarkEtag(etag)) {
-    return 'the « API KEY REQUIRED » watermark (etag $etag) — CARTO did not '
-        'accept the key at all (revoked, mistyped, or not activated).';
-  }
-  if (contentType == null || !contentType.startsWith('image/png')) {
-    return 'content-type ${contentType ?? 'absent'} — not a PNG tile.';
-  }
-  final width = _pngWidth(body);
-  final expected = retina ? 512 : 256;
-  if (width != expected) {
-    return 'PNG width ${width ?? 'unreadable'} px, expected $expected'
-        '${retina ? ' — CARTO ignores @2x on this path; set retinaMode: false '
-                  'in CartoBasemapLayer' : ''}.';
-  }
-  return null;
-}
-
-/// A PNG's width from its IHDR chunk (bytes 16–19, big-endian), or null.
-int? _pngWidth(List<int> b) {
-  const signature = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
-  if (b.length < 24) return null;
-  for (var i = 0; i < signature.length; i++) {
-    if (b[i] != signature[i]) return null;
-  }
-  return (b[16] << 24) | (b[17] << 16) | (b[18] << 8) | b[19];
 }

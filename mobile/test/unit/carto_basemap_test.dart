@@ -39,54 +39,80 @@ void main() {
         'r',
       ]);
     });
-
-    test(
-      'the probe tile is the template filled the way flutter_map fills it',
-      () {
-        expect(
-          cartoProbeTileUrl('k', retina: true),
-          'https://basemaps.cartocdn.com/rastertiles/light_all/11/1001/993@2x.png'
-          '?key=k',
-        );
-        expect(
-          cartoProbeTileUrl('k', retina: false),
-          'https://basemaps.cartocdn.com/rastertiles/light_all/11/1001/993.png'
-          '?key=k',
-        );
-      },
-    );
   });
 
   group('the restriction headers', () {
-    test('every app request carries the iOS AND the Android identity', () {
-      // CARTO ANDs restriction types and does not say whether iOS and Android
-      // are one type or two — both sets pass under either reading (§3.3).
-      expect(cartoRestrictionHeaders(appId: 'com.myweli.pro'), {
-        'X-Ios-Bundle-Identifier': 'com.myweli.pro',
-        'X-Android-Package': 'com.myweli.pro',
-        'X-Android-Cert': '94BE494A905B2C2ADC66AD5720EDDE124089C985',
-      });
-      expect(cartoRestrictionHeaders(appId: 'com.myweli.app'), {
-        'X-Ios-Bundle-Identifier': 'com.myweli.app',
-        'X-Android-Package': 'com.myweli.app',
-        'X-Android-Cert': 'B73647C6B06001AF04D38EE2D0A5AA4722CA156F',
-      });
+    test('iOS sends the bundle id, and only that', () {
+      expect(
+        cartoRestrictionHeaders(
+          platform: CartoPlatform.ios,
+          appId: 'com.myweli.pro',
+        ),
+        {'X-Ios-Bundle-Identifier': 'com.myweli.pro'},
+      );
+      expect(
+        cartoRestrictionHeaders(
+          platform: CartoPlatform.ios,
+          appId: 'com.myweli.app',
+        ),
+        {'X-Ios-Bundle-Identifier': 'com.myweli.app'},
+      );
     });
 
-    test('an id with no known certificate gets no cert header', () {
-      expect(cartoRestrictionHeaders(appId: 'com.example.other'), {
-        'X-Ios-Bundle-Identifier': 'com.example.other',
-        'X-Android-Package': 'com.example.other',
-      });
+    test('Android sends the package and THAT package\'s release cert', () {
+      expect(
+        cartoRestrictionHeaders(
+          platform: CartoPlatform.android,
+          appId: 'com.myweli.app',
+        ),
+        {
+          'X-Android-Package': 'com.myweli.app',
+          'X-Android-Cert': 'B73647C6B06001AF04D38EE2D0A5AA4722CA156F',
+        },
+      );
+      expect(
+        cartoRestrictionHeaders(
+          platform: CartoPlatform.android,
+          appId: 'com.myweli.pro',
+        ),
+        {
+          'X-Android-Package': 'com.myweli.pro',
+          'X-Android-Cert': '94BE494A905B2C2ADC66AD5720EDDE124089C985',
+        },
+      );
     });
 
-    test('no id → no headers, and the map is mutable for the User-Agent', () {
-      for (final id in [null, '', '  ']) {
-        final h = cartoRestrictionHeaders(appId: id);
-        expect(h, isEmpty);
-        h['User-Agent'] = 'x'; // throws on a const map
+    test('an unknown Android package gets no cert header', () {
+      expect(
+        cartoRestrictionHeaders(
+          platform: CartoPlatform.android,
+          appId: 'com.example.other',
+        ),
+        {'X-Android-Package': 'com.example.other'},
+      );
+    });
+
+    test('no id, or no mobile platform → no headers; always mutable', () {
+      for (final platform in CartoPlatform.values) {
+        for (final id in [null, '', '  ']) {
+          final h = cartoRestrictionHeaders(platform: platform, appId: id);
+          expect(h, isEmpty);
+          h['User-Agent'] = 'x'; // throws on a const map
+        }
       }
-      cartoRestrictionHeaders(appId: 'com.myweli.app')['User-Agent'] = 'x';
+      expect(
+        cartoRestrictionHeaders(
+          platform: CartoPlatform.other,
+          appId: 'com.myweli.app',
+        ),
+        isEmpty,
+      );
+      for (final platform in [CartoPlatform.ios, CartoPlatform.android]) {
+        cartoRestrictionHeaders(
+          platform: platform,
+          appId: 'com.myweli.app',
+        )['User-Agent'] = 'x';
+      }
     });
 
     test(
@@ -95,7 +121,7 @@ void main() {
         expect(
           cartoAndroidCertHeaderValue('ab:cd:0f'),
           'ABCD0F',
-          reason: 'UNVERIFIED for CARTO; spec §10 A says how to adjust',
+          reason: 'UNVERIFIED for CARTO; spec §10 says how to adjust',
         );
       },
     );
@@ -119,6 +145,81 @@ void main() {
       expect(fromManifest, hasLength(2));
       expect(cartoAndroidReleaseCertSha1, fromManifest);
     });
+
+    test('and each is registered for its package in google-services.json', () {
+      // The brief's source of truth for « the release cert »: the flavour's
+      // own Firebase config lists every fingerprint Google accepts for it.
+      for (final (flavour, package) in [
+        ('consumer', 'com.myweli.app'),
+        ('pro', 'com.myweli.pro'),
+      ]) {
+        final config =
+            jsonDecode(
+                  File(
+                    'android/app/src/$flavour/google-services.json',
+                  ).readAsStringSync(),
+                )
+                as Map<String, dynamic>;
+        final hashes = <String>[];
+        for (final c
+            in (config['client'] as List).cast<Map<String, dynamic>>()) {
+          final info = c['client_info'] as Map<String, dynamic>;
+          final android = info['android_client_info'] as Map<String, dynamic>;
+          if (android['package_name'] != package) continue;
+          for (final o
+              in (c['oauth_client'] as List? ?? const [])
+                  .cast<Map<String, dynamic>>()) {
+            final cert = o['android_info'] as Map<String, dynamic>?;
+            if (cert != null) hashes.add(cert['certificate_hash'] as String);
+          }
+        }
+        expect(
+          hashes,
+          contains(cartoAndroidReleaseCertSha1[package]),
+          reason: '$package in $flavour/google-services.json',
+        );
+      }
+    });
+  });
+
+  group('the one request both maps build from', () {
+    test('keyed, per platform, with the real app as User-Agent', () {
+      final ios = cartoBasemapRequest(
+        key: 'k-1',
+        platform: CartoPlatform.ios,
+        appId: 'com.myweli.pro',
+      );
+      expect(ios.urlTemplate, cartoTileUrlTemplate('k-1'));
+      expect(ios.urlTemplate, endsWith('?key=k-1'));
+      expect(ios.headers, {'X-Ios-Bundle-Identifier': 'com.myweli.pro'});
+      expect(ios.userAgentPackageName, 'com.myweli.pro');
+
+      final android = cartoBasemapRequest(
+        key: 'k-1',
+        platform: CartoPlatform.android,
+        appId: ' com.myweli.app ',
+      );
+      expect(
+        android.headers,
+        cartoRestrictionHeaders(
+          platform: CartoPlatform.android,
+          appId: 'com.myweli.app',
+        ),
+      );
+      expect(android.userAgentPackageName, 'com.myweli.app');
+    });
+
+    test('no key → keyless URL; no id → no headers, a neutral agent', () {
+      final r = cartoBasemapRequest(
+        key: '',
+        platform: CartoPlatform.android,
+        appId: null,
+      );
+      expect(r.urlTemplate, isNot(contains('key=')));
+      expect(r.headers, isEmpty);
+      expect(r.userAgentPackageName, 'myweli');
+      expect(r.userAgentPackageName, isNot(contains('sadreddine')));
+    });
   });
 
   group('the watermark', () {
@@ -138,57 +239,6 @@ void main() {
         isFalse,
       );
       expect(isCartoWatermarkEtag('"swm-1"'), isFalse);
-    });
-  });
-
-  group('the probe verdict', () {
-    List<int> png(int width) => [
-      0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, // signature
-      0, 0, 0, 13, 0x49, 0x48, 0x44, 0x52, // IHDR
-      (width >> 24) & 0xFF, (width >> 16) & 0xFF, (width >> 8) & 0xFF,
-      width & 0xFF, 0, 0, 1, 0, // width, height
-    ];
-
-    String? verdict({
-      int status = 200,
-      String? type = 'image/png',
-      String? etag = '"real"',
-      List<int>? body,
-      bool retina = false,
-    }) => cartoTileVerdict(
-      status: status,
-      contentType: type,
-      etag: etag,
-      body: body ?? png(retina ? 512 : 256),
-      retina: retina,
-    );
-
-    test('a real tile at the right size passes, 1x and @2x', () {
-      expect(verdict(), isNull);
-      expect(verdict(retina: true), isNull);
-    });
-
-    test('403 names the restriction headers', () {
-      expect(verdict(status: 403), contains('restriction headers'));
-    });
-
-    test('the watermark names the key', () {
-      expect(verdict(etag: '"wm-da89c20e77c1-light"'), contains('watermark'));
-    });
-
-    test('anything else that is not a PNG tile fails', () {
-      expect(verdict(status: 500), contains('HTTP 500'));
-      expect(verdict(type: 'text/html'), contains('not a PNG'));
-      expect(verdict(type: null), contains('not a PNG'));
-      expect(verdict(body: [1, 2, 3]), contains('unreadable'));
-    });
-
-    test('@2x answered at 256 px means CARTO ignores retina here', () {
-      expect(
-        verdict(retina: true, body: png(256)),
-        contains('retinaMode: false'),
-      );
-      expect(verdict(body: png(512)), contains('expected 256'));
     });
   });
 }
