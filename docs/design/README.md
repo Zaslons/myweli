@@ -133,6 +133,7 @@ When is a spec required? Any new feature, slice, endpoint, screen, or integratio
 | Termii SMS provider (cheap CI SMS) | [messaging-termii.md](messaging-termii.md) | Built — 2nd BSP behind the seam (~21× cheaper to CI than Twilio) + `MESSAGING_PROVIDER` selector; Termii creds = ops |
 | Push notifications (FCM) — backend | [push-notifications-fcm.md](push-notifications-fcm.md) | Building (token registry + FCM v1 adapter + event wiring); app plugin + creds = ops |
 | Push notifications (FCM) — app | [push-notifications-app.md](push-notifications-app.md) | Built (token-registration seam + permission UX on mocks; consumer + pro #2b); real firebase_messaging impl = accounts phase |
+| Session refresh (single flight · provider endpoint) | [session-refresh.md](session-refresh.md) | **Built** 2026-10-11 — one in-flight refresh per session shared by every client; the Pro push registration refreshes on `/auth/provider/refresh` (it signed salon owners out on cold start); DI wiring pinned |
 | Web — images + OG / brand | [web-images-og-brand.md](web-images-og-brand.md) | Built (next/image + CDN allowlist + OG image + favicon + logo.svg) |
 | Provider before/after showcase (FR-DISC-006) | [provider-before-after.md](provider-before-after.md) | Complete — backend + pro editor + consumer drag-reveal slider |
 | Discovery sort & filter (FR-DISC-007) | [discovery-sort-filter.md](discovery-sort-filter.md) | Complete — backend sort + available-today · app Trier sheet + toggle (à domicile = V2) |

@@ -194,6 +194,7 @@ class ServiceLocator {
     imageUploadService = AppConfig.useApiBackend
         ? ApiImageUploadService(
             sessionStore: SecureSessionStore(key: 'myweli_provider_session'),
+            refreshPath: '/auth/provider/refresh',
           )
         : MockImageUploadService();
     // Consumer review photos (P2b): same pipeline, CONSUMER session +
@@ -221,12 +222,12 @@ class ServiceLocator {
             refreshPath: '/auth/refresh',
           )
         : MockImageUploadService();
-    // The salon logo — provider session + its own purpose (the default
-    // refreshPath is already the provider one). salon-logo.md.
+    // The salon logo — provider session + its own purpose. salon-logo.md.
     logoImageUploadService = AppConfig.useApiBackend
         ? ApiImageUploadService(
             sessionStore: SecureSessionStore(key: 'myweli_provider_session'),
             purpose: 'logo',
+            refreshPath: '/auth/provider/refresh',
           )
         : MockImageUploadService();
     // Reviews on the real backend (consumer session for submit; the list is
@@ -256,10 +257,13 @@ class ServiceLocator {
       devices: deviceRegistrationService,
     );
     // Pro app: same device token, but registered under the PROVIDER session so
-    // /me/devices is scoped to the provider principal (#2b).
+    // /me/devices is scoped to the provider principal (#2b) — and refreshed on
+    // the PROVIDER endpoint: the consumer one refuses a provider token, and a
+    // refused refresh ends the session (session-refresh.md).
     proDeviceRegistrationService = AppConfig.useApiBackend
         ? ApiDeviceRegistrationService(
             sessionStore: SecureSessionStore(key: 'myweli_provider_session'),
+            refreshPath: '/auth/provider/refresh',
           )
         : MockDeviceRegistrationService();
     proPushRegistration = PushRegistration(
