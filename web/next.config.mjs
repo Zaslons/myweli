@@ -103,10 +103,12 @@ async function legacyFlatRedirects() {
 /// would break production silently and are invisible to the entire local test
 /// suite:
 ///
-///   *.cartocdn.com   map tiles come from tiles-a..d.basemaps.cartocdn.com, and
-///                    a bare-host source does NOT match a subdomain. Omit it and
-///                    the map renders blank. Seven e2e files stub the map by
-///                    substring, so they pass either way.
+///   *.cartocdn.com   the style comes from basemaps.cartocdn.com (keyed or not —
+///                    a query string never matters to CSP) and its tiles, sprite
+///                    and glyphs from tiles.basemaps.cartocdn.com (measured
+///                    2026-10-11); a bare-host source does NOT match a
+///                    subdomain. Omit it and the map renders blank. Seven e2e
+///                    files stub the map by substring, so they pass either way.
 ///   *.r2.cloudflarestorage.com
 ///                    uploads PUT straight at R2 from the browser, bypassing the
 ///                    BFF. Omit it and every upload fails — AND a CSP-blocked

@@ -583,7 +583,10 @@ Five things about that command are worth knowing *before* you need it:
 Project root = `web/`. Env: `API_BASE_URL=https://api.myweli.com` (server-side BFF)
 · `NEXT_PUBLIC_API_BASE_URL=https://api.myweli.com` · `NEXT_PUBLIC_SITE_URL=https://myweli.com`
 · `NEXT_PUBLIC_MYWELI_WHATSAPP=225…` · `NEXT_PUBLIC_IOS_APP_URL` /
-`NEXT_PUBLIC_ANDROID_APP_URL` (after the apps ship). Point `myweli.com` DNS →
+`NEXT_PUBLIC_ANDROID_APP_URL` (after the apps ship) · `NEXT_PUBLIC_CARTO_BASEMAPS_KEY`
+(the **web** CARTO key, restricted to the myweli.com hosts; unset → the keyless
+GL style — [map-basemap-key.md](design/map-basemap-key.md)). Every variable the
+web reads is listed in `web/.env.example`. Point `myweli.com` DNS →
 Vercel; confirm `WEB_ORIGINS` matches. Verify `/sitemap.xml`, `/robots.txt`,
 `/llms.txt`, JSON-LD, `/opengraph-image`, `/logo.svg` (a real raster `logo.png` +
 designed OG art can replace the generated ones later).
@@ -693,6 +696,15 @@ the write that triggered it already succeeded. Design:
    `flutter build appbundle --flavor consumer -t lib/main.dart
    --dart-define=USE_API_BACKEND=true --dart-define=API_BASE_URL=https://api.myweli.com`
    (and `--flavor pro -t lib/main_pro.dart`).
+   Store artifacts are built by **`tool/release_build.sh <ios|android>
+   <consumer|pro>`**, which reads its secrets from Secret Manager (project
+   `myweli`, never printed) and refuses to build without them:
+   `MOBILE_SENTRY_DSN` and **`CARTO_BASEMAPS_KEY`** — the **app** CARTO key,
+   restricted to the two bundle ids / packages (+ release certs); without it
+   every map shows « API KEY REQUIRED »
+   ([map-basemap-key.md](design/map-basemap-key.md)). Create it with
+   `printf '%s' "$KEY" | gcloud secrets create CARTO_BASEMAPS_KEY
+   --project=myweli --data-file=-`.
 5. Store listings + privacy policy; submit to App Store + Play.
 6. Set `NEXT_PUBLIC_IOS_APP_URL` / `NEXT_PUBLIC_ANDROID_APP_URL` on the web.
 

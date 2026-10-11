@@ -78,6 +78,12 @@ describe('the Content-Security-Policy', () => {
       'https://*.ingest.de.sentry.io',
       'the ingest host comes from NEXT_PUBLIC_SENTRY_DSN, not from source',
     ],
+    [
+      'connect-src',
+      'https://*.cartocdn.com',
+      'the GL style names tiles.basemaps.cartocdn.com for its tiles, sprite '
+        + 'and glyphs (measured 2026-10-11) — the source only names the style',
+    ],
   ];
 
   it('COVERS THE ORIGINS NO SOURCE WALK CAN FIND', () => {
