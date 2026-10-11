@@ -202,6 +202,28 @@ void main() {
     expect(statusIcons(), Brightness.dark, reason: 'the bar, not the photo');
   });
 
+  testWidgets('collapsed, a tap on the bar opens no photo nobody can see', (
+    tester,
+  ) async {
+    await pumpPreview(tester, seed, size: const Size(390, 844));
+    // The middle of the toolbar: the preview has no heart and no « Retour »,
+    // so nothing but the cover is under this point.
+    const onTheBar = Offset(195, statusBar + kToolbarHeight / 2);
+
+    await tester.drag(find.byType(CustomScrollView), const Offset(0, -600));
+    await tester.pumpAndSettle();
+    await tester.tapAt(onTheBar);
+    await tester.pumpAndSettle();
+    expect(find.byType(Dialog), findsNothing, reason: 'the cover has faded');
+
+    // C: the same point IS the cover once it shows again.
+    await tester.drag(find.byType(CustomScrollView), const Offset(0, 600));
+    await tester.pumpAndSettle();
+    await tester.tapAt(onTheBar);
+    await tester.pumpAndSettle();
+    expect(find.byType(Dialog), findsOneWidget, reason: 'C: the cover opens');
+  });
+
   testWidgets('a cover that fails to load keeps its band — no jump', (
     tester,
   ) async {
