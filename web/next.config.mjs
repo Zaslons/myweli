@@ -104,9 +104,10 @@ async function legacyFlatRedirects() {
 /// suite:
 ///
 ///   *.cartocdn.com   the style comes from basemaps.cartocdn.com (keyed or not —
-///                    a query string never matters to CSP) and its tiles, sprite
-///                    and glyphs from tiles.basemaps.cartocdn.com (measured
-///                    2026-10-11); a bare-host source does NOT match a
+///                    a query string never matters to CSP), its tiles.json,
+///                    sprite and glyphs from tiles.basemaps.cartocdn.com, and
+///                    the vector tiles from tiles-a..d.basemaps.cartocdn.com
+///                    (measured 2026-10-11); a bare-host source does NOT match a
 ///                    subdomain. Omit it and the map renders blank. Seven e2e
 ///                    files stub the map by substring, so they pass either way.
 ///   *.r2.cloudflarestorage.com

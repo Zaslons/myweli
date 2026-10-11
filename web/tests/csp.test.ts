@@ -81,8 +81,9 @@ describe('the Content-Security-Policy', () => {
     [
       'connect-src',
       'https://*.cartocdn.com',
-      'the GL style names tiles.basemaps.cartocdn.com for its tiles, sprite '
-        + 'and glyphs (measured 2026-10-11) — the source only names the style',
+      'the GL style sends MapLibre to tiles.basemaps.cartocdn.com (tiles.json, '
+        + 'sprite, glyphs) and tiles-a..d.basemaps.cartocdn.com (vector tiles), '
+        + 'measured 2026-10-11 — the source only names the style',
     ],
   ];
 
