@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Built (code + tests) — goldens Linux et corrections de docs en cours, branche `feat/salon-cover-photo` |
+| **Status** | **Built** (code, tests, docs) — **goldens Linux en attente** (§8 : l'image Docker de Flutter 3.44.9 n'est pas publiée ; le workflow `goldens.yml` les produira) |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-11 |
 | **Module** | `online-booking` (la page salon de la marketplace) — [MODULES.md](../MODULES.md) |
@@ -184,15 +184,15 @@ Une image de plus — **la même URL** que la carte de l'accueil (cache disque) 
 
 | Fichier | Ce qu'il tient |
 |---|---|
-| `test/widget/salon_cover_test.dart` (nouveau) | couverture = `imageUrls[0]`, rect `0,0 → W × (barre d'état + 224)` ; logo à 16 + 2 dp du coin, 60 dp dans un anneau de 2 dp ; nom sous la photo ; sémantique (libellé, indice, bouton, tap) → visionneuse « 1 sur 2 » ; sans logo → aucun disque ; couverture seule → pas de « Photos » ; branche B ; barre d'état **claire** puis **sombre** une fois repliée (`SystemChrome.latestStyle`, ce que le framework a réellement envoyé) ; photo en échec → la bande garde sa hauteur ; pastilles 90 % ≥ 48 dp ; cœur `textPrimary` dans les deux branches, sans pastille en B |
+| `test/widget/salon_cover_test.dart` (nouveau) | couverture = `imageUrls[0]`, rect `0,0 → W × (barre d'état + 224)` ; logo à 16 + 2 dp du coin, 60 dp dans un anneau de 2 dp ; nom sous la photo ; sémantique (libellé, indice, bouton, tap) → visionneuse « 1 sur 2 » ; sans logo → aucun disque ; couverture seule → pas de « Photos » ; branche B ; barre d'état **claire** puis **sombre** une fois repliée (`SystemChrome.latestStyle`, ce que le framework a réellement envoyé) ; le voile (couleurs, rect barre d'état + barre d'outils) ; repliée, un tap sur la barre n'ouvre rien (témoin : dépliée, le même point ouvre) ; photo en échec → la bande garde sa hauteur ; pastilles 90 % ≥ 48 dp ; cœur `textPrimary` dans les deux branches, sans pastille en B |
 | `test/widget/photo_lightbox_test.dart` | la couverture ouvre la photo 1 (`contain`, libellé, barre claire) ; la bande ne répète pas la couverture et sa **première vignette ouvre la photo 2** |
 | `test/widget/salon_preview_test.dart` | l'Aperçu rend la couverture **depuis la charge `/me/provider`** (service public interdit) ; une charge sans photo rend la branche B |
 | `test/a11y/salon_header_test.dart` | les répliques A13 (branche B) restent ; l'écran réel (Aperçu, salon vérifié) : branche B **empile** et garde le nom entier à 1,5/1,6/1,7× sur 360/375/390 ; branche A garde le nom entier à 2× sur les trois largeurs, à la gouttière (rien à côté) |
 | `test/a11y/layout_test.dart` | « the salon page fits » (branche A) + « the salon page without photos fits » (branche B), 3 largeurs × 2 échelles ; `expectAppBarTitleWhole` seulement en B (la barre de A ne porte aucun texte) |
-| goldens | `consumer_provider_detail` (390 × 1×, avec un logo), `consumer_provider_detail_w360_x2` (360 × 2×), **nouveau** `consumer_provider_detail_no_photos` (390 × 1×, branche B) — rendus sous Linux, chaque PNG regardé |
+| goldens | `consumer_provider_detail` (390 × 1×, branche A, sans logo — provider1 n'en a pas), `consumer_provider_detail_w360_x2` (360 × 2×), **nouveau** `consumer_provider_detail_no_photo` (390 × 1×, branche B, déconnecté). **Pas encore régénérés** : `tool/update_goldens.sh` refuse (`ghcr.io/cirruslabs/flutter:3.44.9` : *manifest unknown*) et la voie CI (`goldens.yml`) exige la branche poussée. D'ici là la porte golden de la CI est rouge sur ces trois fichiers — attendu. Aperçus macOS regardés puis jetés : la photo s'affiche, le cœur est lisible |
 
 Chaque nouvelle garde est **regardée rouge** sur le code commité (mutation →
-test rouge → restauration).
+test rouge → restauration) : MUTCOUNT, consignées dans le message de commit.
 
 ## 9. Rollout & scope discipline
 
@@ -202,9 +202,10 @@ apps ; le site ne change pas. V1.
 ## 10. Definition of done
 
 - [x] `flutter analyze` = 0 · `dart format` propre · tests ciblés verts
-- [ ] goldens Linux régénérés et regardés ; mutations consignées
-- [ ] spec indexée (`README.md`) et liée depuis l'entrée de roadmap (le code la cite déjà)
-- [ ] docs corrigées : `gallery-set-cover.md` §1, `parity-audit-modules-2026-07.md` ligne 2.9, `mobile-a13-copy-and-breaks.md` §3, SYSTEM.md §5 (exemple) + §21
+- [x] mutations consignées · suite complète + `flutter analyze` verts
+- [ ] **goldens Linux régénérés et regardés** (`goldens.yml` après le push)
+- [x] spec indexée (`README.md`), liée depuis l'entrée de roadmap et depuis le code
+- [x] docs corrigées : `gallery-set-cover.md` §1, `parity-audit-modules-2026-07.md` ligne 2.9, `mobile-a13-copy-and-breaks.md` §3, SYSTEM.md §5 (exemple) + §21 (ligne 62, ligne 91)
 - [ ] essai sur appareil (iOS + Android) — barre d'état sur une photo claire, propriétaire
 
 ## 11. Open questions

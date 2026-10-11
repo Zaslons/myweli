@@ -79,6 +79,15 @@ height. Those precedents work because their chips wrap real text.
 
 ## 3. Row 62 — the salon header
 
+> **Since 2026-10-11 this section governs one of two headers**
+> ([salon-cover-photo.md](salon-cover-photo.md)). A salon with at least one
+> photo now gets a full-bleed cover with the logo ON the photo, and its name
+> sits below at the full padded width — **312dp at 360 (284 verified)**,
+> intrinsic height, no line cap — so « Excellence » holds to **2.31× (2.11×
+> verified)** and that header neither stacks nor computes a bound. Everything
+> below — the 224dp box, the 1.6/1.45 thresholds, `textScaledBound(68 | 148,
+> 92)` — is the header of a salon **with no photo**, unchanged.
+
 `provider_detail_screen.dart:283`. The name gets `W − 24 − 72 − 16 − 24` = **224dp
 at 360**, while `Excellence` needs **270.3dp at 2×** — so it breaks above
 **1.66× / 1.77× / 1.88×** at 360/375/390, and « Salon Ex / cellence » at the
