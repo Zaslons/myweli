@@ -190,6 +190,11 @@ void main() {
         beforeAfters: const [],
       );
       addTearDown(() => MockData.providers[i] = seed);
+      // The three pictures above signed `user1` in, and that session lives in
+      // the DI singleton — `signedIn: false` alone would restore it, and this
+      // picture would carry their appointments card and a red heart instead
+      // of `consumer_provider_detail`'s signed-out page.
+      await tester.runAsync(serviceLocator.authService.logout);
 
       await _pumpScreen(
         tester,
