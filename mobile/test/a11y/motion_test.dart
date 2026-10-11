@@ -5,10 +5,15 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lottie/lottie.dart';
+import 'package:myweli/core/di/dependency_injection.dart';
+import 'package:myweli/providers/pro_auth_provider.dart';
 import 'package:myweli/screens/splash/splash_screen.dart';
 import 'package:myweli/screens/stories/story_viewer.dart';
+import 'package:myweli/services/mock/mock_auth_service.dart';
 import 'package:myweli/widgets/common/brand_loader.dart';
+import 'package:provider/provider.dart';
 
+import '../support/pro_splash.dart';
 import '../support/pump_app.dart';
 import '../support/surface.dart';
 import '_motion.dart';
@@ -578,6 +583,116 @@ void main() {
             'a 200px box has room for a 48px mark and one line of text',
       );
     });
+  });
+
+  /// The Pro splash (docs/design/pro-open-animation.md) — the consumer
+  /// splash gate's twin, with the one thing the consumer splash does not have:
+  /// a session to wait for. Under the flag it holds « MyWeli Pro » STILL —
+  /// not the end mark, not frame 0's empty canvas — keeps the intro's hold,
+  /// and still waits for the session however long that takes.
+  group('§9 — the Pro splash holds « MyWeli Pro » still', () {
+    setUpAll(() => serviceLocator.authService = MockAuthService());
+    final timeline = ProOpenTimeline.load();
+
+    Future<void> pumpProSplash(
+      WidgetTester tester,
+      FakeProSession session,
+    ) async {
+      await pumpWithReducedMotion(tester, const SizedBox.shrink());
+      pinSurface(tester, size: const Size(_kPinnedWidth, 1600));
+      await tester.pumpWidget(
+        wrapApp(
+          routerConfig: proSplashRouter(),
+          providers: [
+            ChangeNotifierProvider<ProAuthProvider>.value(value: session),
+          ],
+        ),
+      );
+      // Decoded off a real bundle read — until it lands, frames are for the
+      // LOAD, not for motion (the consumer gate's reasoning).
+      await tester.runAsync(
+        () async => Future<void>.delayed(const Duration(milliseconds: 300)),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+    }
+
+    double frameOnScreen(WidgetTester tester) => timeline.frameOf(
+      tester
+          .widget<LottieBuilder>(find.byType(LottieBuilder))
+          .controller!
+          .value,
+    );
+
+    Future<void> land(WidgetTester tester) async {
+      for (var i = 0; i < 3; i++) {
+        await tester.pump();
+      }
+    }
+
+    testWidgets('a still « MyWeli Pro » — not the mark, not a blank canvas', (
+      tester,
+    ) async {
+      await pumpProSplash(tester, FakeProSession());
+
+      final (start, end) = timeline.wordmarkFrames;
+      expect(
+        frameOnScreen(tester),
+        inInclusiveRange(start, end),
+        reason:
+            'the still is the wordmark hold — the only frames where every '
+            'letter of « MyWeli Pro » is at full opacity',
+      );
+      expect(
+        tester.binding.hasScheduledFrame,
+        isFalse,
+        reason: 'and it must not animate',
+      );
+    });
+
+    testWidgets('…still waits for the session, and never starts moving', (
+      tester,
+    ) async {
+      final session = FakeProSession();
+      await pumpProSplash(tester, session);
+      final still = frameOnScreen(tester);
+
+      await tester.pump(timeline.intro + const Duration(seconds: 5));
+      expect(find.text('route:login', skipOffstage: false), findsNothing);
+      expect(
+        frameOnScreen(tester),
+        still,
+        reason:
+            'the intro ending must not hand over to the redraw loop for '
+            'these users',
+      );
+      expect(tester.binding.hasScheduledFrame, isFalse);
+
+      session.load.complete();
+      await land(tester);
+      expect(find.text('route:login'), findsOneWidget);
+    });
+
+    testWidgets(
+      '…and keeps the intro\'s hold: the same boot, not a shorter one',
+      (tester) async {
+        final session = FakeProSession()..load.complete();
+        await pumpProSplash(tester, session);
+
+        // `pumpProSplash` already spent 400 ms of the hold.
+        const spent = Duration(milliseconds: 400);
+        const margin = Duration(milliseconds: 100);
+        await tester.pump(timeline.intro - spent - margin);
+        expect(
+          find.text('route:login', skipOffstage: false),
+          findsNothing,
+          reason: 'the intro hold must not be collapsed for these users',
+        );
+        await tester.pump(margin * 2);
+        await land(tester);
+        expect(find.text('route:login'), findsOneWidget);
+      },
+    );
   });
 
   // ── The story-dwell bug is NOT gated here, deliberately. ────────────────
