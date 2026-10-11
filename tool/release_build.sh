@@ -57,6 +57,27 @@ if [[ "$DSN" == "$(gcloud secrets versions access latest --secret=SENTRY_DSN --p
   exit 1
 fi
 
+# **The basemap key, read the same way and refused the same way.** Since
+# 2026-09-25 CARTO serves no raster tile without a usable key: every map in a
+# keyless build shows « API KEY REQUIRED » instead of streets — which is
+# exactly what builds up to 555 ship. `AppConfig.cartoBasemapsKey` defaults to
+# empty so debug runs and CI show that watermark on purpose; a STORE build
+# without the key would be the defect again, so it cannot be made from here.
+# It is the APP key (restricted to our bundle ids / packages) — the web has its
+# own. Public once shipped (it is in the binary); kept out of git and shell
+# history all the same. docs/design/map-basemap-key.md §9.
+echo "→ reading CARTO_BASEMAPS_KEY from Secret Manager (never printed)…"
+CARTO_KEY="$(gcloud secrets versions access latest --secret=CARTO_BASEMAPS_KEY --project="$PROJECT")"
+if [[ -z "$CARTO_KEY" ]]; then
+  echo "::error:: CARTO_BASEMAPS_KEY is empty or unreadable. Refusing to build a" >&2
+  echo "          release whose maps would show « API KEY REQUIRED »." >&2
+  exit 1
+fi
+if [[ "$CARTO_KEY" =~ [[:space:]] ]]; then
+  echo "::error:: CARTO_BASEMAPS_KEY contains whitespace — a paste went wrong." >&2
+  exit 1
+fi
+
 # **The two ways a store build fails Google sign-in without saying so**, both
 # real on 2026-08-22, both invisible to the whole test suite:
 #
@@ -118,6 +139,20 @@ if [[ "$(git -C "$(dirname "$0")/.." rev-parse --is-shallow-repository)" != "fal
   exit 1
 fi
 
+# **A key CARTO refuses is no better than no key** — the build would compile,
+# sign and upload, and every map would show the watermark (a dead key) or
+# nothing (HTTP 403: the restriction headers refused). No test can see that;
+# only a request to CARTO with the real key can. The probe sends one tile
+# request at 1x and one at @2x built by the app's OWN functions
+# (lib/core/map/carto_basemap.dart, pure Dart for this reason), with the key in
+# the environment rather than argv. The header set does not depend on the
+# platform (spec §3.3), so one app id answers for both.
+APP_ID="com.myweli.app"
+[[ "$FLAVOUR" == pro ]] && APP_ID="com.myweli.pro"
+flutter pub get
+echo "→ asking CARTO whether it serves $APP_ID a real basemap with this key…"
+CARTO_BASEMAPS_KEY="$CARTO_KEY" dart run tool/carto_probe.dart --app-id "$APP_ID"
+
 COMMON=(
   --release
   --flavor "$FLAVOUR"
@@ -126,6 +161,7 @@ COMMON=(
   --dart-define=API_BASE_URL=https://api.myweli.com
   --dart-define=SENTRY_DSN="$DSN"
   --dart-define=SENTRY_ENV=production
+  --dart-define=CARTO_BASEMAPS_KEY="$CARTO_KEY"
   --build-number "$BUILD_NUMBER"
   # Release builds are obfuscated (ROADMAP Part 5). Without the split debug
   # info, every Sentry stack trace is unreadable symbols — the report arrives
@@ -135,7 +171,7 @@ COMMON=(
 )
 
 if [[ "$PLATFORM" == ios ]]; then
-  echo "→ flutter build ipa --flavor $FLAVOUR --target $ENTRY --build-number $BUILD_NUMBER (DSN injected, not shown)"
+  echo "→ flutter build ipa --flavor $FLAVOUR --target $ENTRY --build-number $BUILD_NUMBER (DSN + basemap key injected, not shown)"
   # Everything this run exports is newer than this marker (see below).
   BUILD_MARK="$(mktemp)"
   flutter build ipa "${COMMON[@]}"
@@ -167,7 +203,7 @@ if [[ "$PLATFORM" == ios ]]; then
     mv "$IPA_DIR/DistributionSummary.plist" "$IPA_DIR/DistributionSummary-$FLAVOUR.plist"
   echo "→ IPA: mobile/$IPA_DIR/MyWeli-$FLAVOUR.ipa"
 else
-  echo "→ flutter build appbundle --flavor $FLAVOUR --target $ENTRY --build-number $BUILD_NUMBER (DSN injected, not shown)"
+  echo "→ flutter build appbundle --flavor $FLAVOUR --target $ENTRY --build-number $BUILD_NUMBER (DSN + basemap key injected, not shown)"
   flutter build appbundle "${COMMON[@]}"
 fi
 
