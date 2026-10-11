@@ -202,6 +202,35 @@ void main() {
     expect(statusIcons(), Brightness.dark, reason: 'the bar, not the photo');
   });
 
+  testWidgets('a scrim under the status bar and the toolbar', (tester) async {
+    // Light icons on a white wall are invisible: §19's story scrim, black 60%
+    // → transparent, over exactly the band the icons and the pills sit in.
+    await pumpPreview(tester, seed);
+    final scrim = find.descendant(
+      of: find.byType(SliverAppBar),
+      matching: find.byWidgetPredicate(
+        (w) =>
+            w is DecoratedBox &&
+            w.decoration is BoxDecoration &&
+            (w.decoration as BoxDecoration).gradient is LinearGradient,
+      ),
+    );
+    expect(scrim, findsOneWidget);
+    final gradient =
+        (tester.widget<DecoratedBox>(scrim).decoration as BoxDecoration)
+                .gradient!
+            as LinearGradient;
+    expect(gradient.colors, [
+      Colors.black.withValues(alpha: 0.6),
+      Colors.transparent,
+    ]);
+    expect(gradient.begin, Alignment.topCenter);
+    expect(
+      tester.getRect(scrim),
+      const Rect.fromLTWH(0, 0, 390, statusBar + kToolbarHeight),
+    );
+  });
+
   testWidgets('collapsed, a tap on the bar opens no photo nobody can see', (
     tester,
   ) async {
