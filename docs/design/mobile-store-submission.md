@@ -134,7 +134,9 @@ nothing here should be handed credentials.
    it, refuses to build if it is missing/malformed/the backend's, selects the
    right Dart entry point, and adds the obfuscation + split-debug-info the
    ROADMAP requires (without which every Sentry stack trace is unreadable
-   symbols).
+   symbols). It reads **`CARTO_BASEMAPS_KEY`** the same way and refuses to
+   build without it — a keyless build shows « API KEY REQUIRED » on every map
+   ([map-basemap-key.md](map-basemap-key.md); the key must exist first, §9).
 
    **Then upload those symbols to Sentry** — the one step the script prints
    but does not run (first done 2026-08-27 for build 530; the exact working
