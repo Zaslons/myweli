@@ -170,7 +170,7 @@ One `PackageInfo` call and one provider per layer. Quota, for planning only:
 |---|---|
 | `mobile/test/unit/carto_basemap_test.dart` | URL keyed / keyless / trimmed / encoded · headers per platform and flavour, unknown package, no id · cert format · **cert table = `signing-manifest.json` and ∈ each `google-services.json`** · the request + User-Agent · watermark etag |
 | `mobile/test/widget/carto_basemap_layer_test.dart` | the real layer in a real `FlutterMap`: the fetched URL (`@2x`, `?key=`), the provider's headers on Android **and** iOS, no key, no platform, the cache guard, the attribution, `MapScreen` through it · **no other `lib/` file builds a `TileLayer` or names `cartocdn`** (comments stripped, positive control) |
-| `mobile/test/infra/release_build_test.dart` | secret read · empty → `exit 1` · define passed · **its name = the one `AppConfig` reads** · refusal before both builds · no `echo` leaks the key |
+| `mobile/test/infra/release_build_test.dart` | secret read · empty → `exit 1` · whitespace → `exit 1` · define passed · **its name = the one `AppConfig` reads** · refusal before both builds · no `echo` leaks the key |
 | `web/tests/basemap.test.ts` · `web/tests/csp.test.ts` | `cartoStyleUrl` · `MAP_STYLE` follows the env var · no other source names `cartocdn.com` · the three `<Map>`s get `MAP_STYLE` · `*.cartocdn.com` stays in `connect-src` |
 
 Every new guard was watched red (commit body, roadmap entry). No golden
