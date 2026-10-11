@@ -224,6 +224,27 @@ void main() {
       );
     });
 
+    test('and refuses a key with whitespace in it', () {
+      // A key pasted with a stray space or line ends up in the URL as `%20` /
+      // `%0A` — CARTO treats a damaged key as no key: the watermark again.
+      // (`$(…)` strips trailing newlines; anything else survives into it.)
+      final at = code.indexOf(r'"$CARTO_KEY" =~ [[:space:]]');
+      expect(at, isNonNegative, reason: 'no whitespace check on the key');
+      final end = RegExp(
+        r'^\s*fi\s*$',
+        multiLine: true,
+      ).allMatches(code).firstWhere((m) => m.start > at).start;
+      expect(
+        code.substring(at, end),
+        contains('exit 1'),
+        reason:
+            'a damaged key must stop the build, not be reported and ignored',
+      );
+      final build = code.indexOf('flutter build');
+      expect(build, isNonNegative);
+      expect(at, lessThan(build), reason: 'refuse before anything compiles');
+    });
+
     test('it passes the key as a define, from the variable', () {
       expect(
         RegExp(
