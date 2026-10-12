@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **In progress**: frame and tool built, content tidied, agenda filled, 4 of 7 captured (2026-10-12); screens 1, 2, 4 on 2026-10-13 |
+| **Status** | **In progress**: frame and tool built, content tidied, agenda filled, 4 of 8 captured (2026-10-12); screens 1, 2, 4 on the morning of 2026-10-13, 8 that evening |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-10-12 |
 | **PRD ref / phase** | Launch — store submission · V1 |
@@ -11,7 +11,7 @@
 
 ## 1. Goal & scope
 
-Seven French screenshots of MyWeli Pro (iPhone only), taken on the
+Eight French screenshots of MyWeli Pro (iPhone only), taken on the
 production demo salon « Maison Nala », framed with a short caption in the
 brand's type, for the App Store listing. Build 565's code is what is shown:
 `main` has had no `mobile/` commit since `75503243`, the commit 565 was built
@@ -55,6 +55,7 @@ the capture into a card.
 | 5 | Services | Accueil → « Configuration » → « Services » | top of the list |
 | 6 | Disponibilité | Accueil → « Disponibilité » | scrolled to the hours and « Modèles »; **no taps** (every chip writes) |
 | 7 | Aperçu de ma page | Accueil → « Configurer mon profil » → « Aperçu de ma page » | « Services » card on top, then « Contact »: whole map, address, phone (masked), WhatsApp, hours; never « Mettre mon profil en ligne » |
+| 8 | Revenus | Accueil → « Analyses » → « Revenus » | « Semaine » tab, on the evening of 13 Oct after that day's bookings are marked « Terminé » (the screen counts completed bookings) |
 
 **Avant / Après was dropped** (owner, 2026-10-12): the demo pairs looked weak
 live. The Aperçu sits on « Contact » rather than the header, which would show
@@ -120,7 +121,32 @@ Every claim was checked against the code by the research pass; « SMS »,
 | 4 | Vos clients, connus / visite après visite. | Historique, notes et étiquettes, / à chaque réservation. |
 | 5 | Vos prestations, / vos prix en FCFA. | Chaque prestation, son prix / et sa durée, en un coup d’œil. (The list shows the minimum price only — a range would not be visible, §9.) |
 | 6 | Fixez vos horaires, / les créneaux suivent. | Pauses, jours bloqués et modèles / d’horaires prêts à l’emploi. |
-| 7 | Votre page, telle que / vos clients la verront. | Relisez-la avant de la mettre en ligne. |
+| 7 | Votre page MyWeli, / prête pour vos clients. | Prestations, horaires, plan d’accès : / ils réservent dès la mise en ligne. |
+| 8 | Suivez vos revenus, / jour après jour. | Chaque rendez-vous terminé est compté, / par jour, semaine ou mois. |
+
+### 6.1 What the set does not show, and why (owner review, 2026-10-13)
+
+The eight frames tell the day-to-day story (agenda, home, booking, clients,
+services, hours, public page, revenue). Three things are not shown, each for a
+reason that is checked, not assumed:
+- **Online bookings from clients** (the « En attente » requests): the demo
+  salon cannot be published, so it never receives one; « En attente » is
+  always 0. Screen 7's caption carries the promise instead, worded to match
+  the « Réserver (après la mise en ligne) » button in the frame.
+- **Deposits (« Acompte & annulation »)**: on the demo the screen shows « Les
+  acomptes sont disponibles après la vérification de votre compte » and the
+  switch locked — KYC, which the demo cannot pass.
+- **Team, reviews, notifications**: empty on the demo (no employees,
+  invitations blocked, 0 reviews). The store description carries them.
+
+Owner decisions: screen 4 kept as is on 565 (the « dimanch / e » break, §9);
+screen 7's caption changed to the online-booking promise; screen 8 added.
+
+**Photos.** The owner says the salon photos were found online. None of the
+eight frames shows them (screen 7 is framed on « Contact »), so the listing
+carries no copyright exposure; the demo salon still shows them to App Review.
+Before launch: replace them with free-licence images (Unsplash, Pexels) or
+the owner's own.
 
 ## 6a. The shoot, 2026-10-12 (owner-approved production writes)
 
@@ -140,6 +166,9 @@ Captured: 3 (a walk-in « Aya T. » on Thu 15 10:00, form never submitted),
 5, 6, 7. **On 13 Oct** (« Arrivé » works on the booking's day only): mark
 08:00 « Terminé » and 09:00 « Arrivé », then capture 1 (agenda), 2
 (Accueil) and 4 (Awa K.'s card; mask her number, measured on the raw).
+**On the evening of 13 Oct**: mark the rest of that day's bookings « Terminé »
+(after their time — never a future one), then capture 8 (« Revenus »,
+« Semaine »).
 
 The salon phone on screen 7 (`+225 07 00 00 01 00`) is masked after
 « +225 07 », like the clients'.

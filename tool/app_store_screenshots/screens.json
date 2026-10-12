@@ -85,11 +85,12 @@
       "name": "apercu",
       "raw": "pro-07-apercu.png",
       "headline": [
-        "Votre page, telle que",
-        "vos clients la verront."
+        "Votre page MyWeli,",
+        "prête pour vos clients."
       ],
       "subline": [
-        "Relisez-la avant de la mettre en ligne."
+        "Prestations, horaires, plan d’accès :",
+        "ils réservent dès la mise en ligne."
       ],
       "masks": [
         [
@@ -98,6 +99,19 @@
           256,
           46
         ]
+      ]
+    },
+    {
+      "id": "08",
+      "name": "revenus",
+      "raw": "pro-08-revenus.png",
+      "headline": [
+        "Suivez vos revenus,",
+        "jour après jour."
+      ],
+      "subline": [
+        "Chaque rendez-vous terminé est compté,",
+        "par jour, semaine ou mois."
       ]
     }
   ]
