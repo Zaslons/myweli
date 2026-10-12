@@ -144,6 +144,23 @@ void main() {
       expect(provider.cachingProvider, isA<CartoWatermarkRefusingCache>());
     });
 
+    testWidgets('panBuffer reaches the TileLayer — 1 unless a map says 0', (
+      tester,
+    ) async {
+      runningAs('com.myweli.app');
+      await tester.pumpWidget(map(const CartoBasemapLayer(apiKey: 'k')));
+      await tester.pump();
+      expect(tileLayer(tester).panBuffer, 1, reason: 'flutter_map’s default');
+
+      // The salon page's preview never moves: no ring of tiles nobody can
+      // pan to (salon-location-map.md §7).
+      await tester.pumpWidget(
+        map(const CartoBasemapLayer(apiKey: 'k', panBuffer: 0)),
+      );
+      await tester.pump();
+      expect(tileLayer(tester).panBuffer, 0);
+    });
+
     testWidgets('no key → the same URL, keyless (the visible watermark)', (
       tester,
     ) async {
@@ -311,13 +328,42 @@ void main() {
       expect(offenders, isEmpty);
     });
 
-    test('both maps use the layer and its attribution', () {
-      for (final screen in [
+    // **Every** map, found — not a list of the two screens that had one. A
+    // fixed list is how a third map (the salon page's location preview,
+    // salon-location-map.md) would have shipped unguarded: green, because
+    // nobody added it to the list.
+    int count(String code, Pattern p) => p.allMatches(code).length;
+    final flutterMap = RegExp(r'\bFlutterMap\(');
+    final mapFiles =
+        files.entries
+            .where((e) => flutterMap.hasMatch(e.value))
+            .map((e) => e.key)
+            .toList()
+          ..sort();
+
+    test('the maps are found — exactly the three there are', () {
+      // A count, not a floor: the day a fourth map lands, this goes red and
+      // the reader decides whether the scan still means what it says.
+      expect(mapFiles, [
         'lib/screens/map/map_screen.dart',
         'lib/screens/provider/profile/pro_salon_profile_screen.dart',
-      ]) {
-        expect(files[screen], contains('const CartoBasemapLayer()'));
-        expect(files[screen], contains('const CartoAttribution()'));
+        'lib/widgets/providers/salon_location_preview.dart',
+      ]);
+    });
+
+    test('every FlutterMap( has the layer and its attribution — one each', () {
+      for (final f in mapFiles) {
+        final maps = count(files[f]!, flutterMap);
+        expect(
+          count(files[f]!, RegExp(r'\bCartoBasemapLayer\(')),
+          maps,
+          reason: '$f: a FlutterMap without the keyed CARTO layer',
+        );
+        expect(
+          count(files[f]!, 'CartoAttribution()'),
+          maps,
+          reason: '$f: a FlutterMap without the attribution CARTO requires',
+        );
       }
     });
   });
