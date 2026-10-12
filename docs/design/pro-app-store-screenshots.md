@@ -71,8 +71,17 @@ about six bookings on the capture day, one or two later that week, one past
 visit marked « Terminé », tags on that client, and on the day itself 08:00
 « Terminé » and 09:00 « Arrivé » (« Arrivé » works on the booking's day only).
 The next reset (due 2026-10-18 10:37 UTC, run at the next 03:00 UTC tick)
-wipes them. **The snapshot is not recaptured**, so nothing from the shoot is
-frozen into the demo.
+wipes them.
+
+**What a snapshot recapture would keep** (read in
+`backend/lib/src/demo/demo_reset_service.dart`, `capture` and steps 1–3 of the
+reset): the snapshot holds the **salon document only** (name, services,
+prices, address, description, photos…). The agenda and the client book are
+wiped and regenerated relative to « now » at every reset, whatever the
+snapshot says. So recapturing after the shoot keeps the tidied content (§6a)
+and freezes none of the bookings, tags or statuses; it also restarts the
+7-day clock. The recapture is the owner's call (`POST /admin/demo/snapshot`,
+production).
 
 **Privacy.** The demo clients' numbers (`+225 07 00 00 01 01`–`04`) look
 like real Orange CI numbers. The owner chose to **mask the digits** on any
@@ -115,8 +124,8 @@ Every claim was checked against the code by the research pass; « SMS »,
 
 ## 6a. The shoot, 2026-10-12 (owner-approved production writes)
 
-Content tidied in the app as the demo account (to survive the 19 Oct reset,
-the owner recaptures the snapshot afterwards): « Coupe femme », « Coupe
+Content tidied in the app as the demo account (it survives the next reset
+only if the owner recaptures the snapshot, §4): « Coupe femme », « Coupe
 homme », « Brushing » capitalised; Tresses priced 15 000–25 000 FCFA (the
 Pro list shows only the minimum, hence screen 5's subline); address « Zone 4,
 Marcory », commune Marcory, description « …de Marcory… sur rendez-vous ».
