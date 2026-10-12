@@ -25,7 +25,10 @@ import '../support/surface.dart';
 /// every route; these hold the leak, the fix, and the installation.
 ///
 /// `SystemChrome.latestStyle` is what the framework actually SENT, not what a
-/// widget declares — the same reading `salon_cover_test.dart` takes.
+/// widget declares — the same reading `salon_cover_test.dart` takes. The app
+/// starts dark either way (`MaterialApp` sends dark once, for its light theme,
+/// and never again on a route change), so only the style AFTER back tells the
+/// two apart.
 void main() {
   setUpAll(() {
     // `ProviderProvider` takes its service at construction. The preview never
@@ -106,6 +109,9 @@ void main() {
   testWidgets('with the root default: dark on the home, light over the cover, '
       'dark again after back', (tester) async {
     await pumpHome(tester, rootDefault: true);
+    // Not the guard: `MaterialApp` itself sends dark once, when it builds its
+    // light theme (material/app.dart, `_themeBuilder`) — which is why the
+    // leak only shows AFTER a light screen. The guard is the last assertion.
     expect(statusIcons(), Brightness.dark, reason: 'a home without an AppBar');
 
     await openSalon(tester);
