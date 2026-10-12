@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Approved (owner decision 2026-10-12: « atomic + 30 s grace ») — **built 2026-10-12** on `fix/refresh-rotation-atomic` (§10); production deploy only with the owner's go |
+| **Status** | Approved (owner decision 2026-10-12: « atomic + 30 s grace ») — **built 2026-10-12** (#567, §10) — **in production since 2026-10-12 14:10 UTC** with the owner's go: revision `myweli-api-00036-pr2`, image `b15c29b` (`sha256:df5a1213…`), 100 % of traffic; verified by a bogus-token probe of all three refresh routes (each `401 refresh_invalid`, not a 500 — the new step-2 SELECT reads `rotated_at`, so the column exists) and their `INFO: auth_refresh principal=… outcome=invalid` lines in the revision's log |
 | **Owner** | backend |
 | **Last updated** | 2026-10-12 |
 | **PRD ref / phase** | Auth & session — BACKEND.md §3.1, threat T4 / T17 · V1 |
