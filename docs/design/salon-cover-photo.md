@@ -2,13 +2,13 @@
 
 | | |
 |---|---|
-| **Status** | **Built** (code, tests, docs) — **goldens Linux en attente** (§8 : l'image Docker de Flutter 3.44.9 n'est pas publiée ; le workflow `goldens.yml` les produira) |
+| **Status** | **Built** (code, tests, docs, goldens Linux regardés) — reste l'essai sur appareil (§10) |
 | **Owner** | Sadreddine |
-| **Last updated** | 2026-10-11 |
+| **Last updated** | 2026-10-12 |
 | **Module** | `online-booking` (la page salon de la marketplace) — [MODULES.md](../MODULES.md) |
 | **PRD ref / phase** | FR-DISC-006 (« Provider profile: hero gallery… ») · V1 |
 | **ROADMAP entry** | [2026-10-11-salon-cover-photo.md](../roadmap/entries/2026-10-11-salon-cover-photo.md) |
-| **Governs** | `mobile/lib/screens/providers/provider_detail_screen.dart` — l'en-tête, la bande « Photos », le cœur. Un seul écran pour `/provider/:id` (client) **et** `/pro/apercu` (`SalonPreviewScreen` → `GET /me/provider` → `ProviderDetailScreen(preview: true)`) |
+| **Governs** | `mobile/lib/screens/providers/provider_detail_screen.dart` — l'en-tête, la bande « Photos », le cœur. Un seul écran pour `/provider/:id` (client) **et** `/pro/apercu` (`SalonPreviewScreen` → `GET /me/provider` → `ProviderDetailScreen(preview: true)`) ; et `mobile/lib/widgets/common/default_status_bar_style.dart`, posé dans `main.dart` et `main_pro.dart` (la barre d'état au retour, §2.1) |
 | **Contract** | **Aucun changement.** `imageUrls[0]` est déjà la couverture (`docs/api/openapi.yaml`, `imageUrls` : « `imageUrls[0]` is the listing cover ») ; `logoUrl` : [salon-logo.md](salon-logo.md) |
 | **Skills checked** | myweli-dev-guardrails |
 
@@ -71,6 +71,15 @@ icônes claires aux sombres quand l'opacité descend sous 0,5** — un seul nomb
 (`_coverVisibility`) pilote le fondu ET la barre d'état. Entièrement fondue,
 la couverture ignore les taps (pas de photo invisible ouverte par un tap sur
 la barre repliée). Repliée, les deux pastilles restent sur `background`.
+
+**Au retour, la barre d'état redevient sombre.** Trouvé en revue : l'accueil
+n'a pas d'`AppBar`, donc aucune `AnnotatedRegion` sous la barre d'état ;
+Flutter n'envoie alors rien (`RenderView._updateSystemChrome` s'arrête), la
+plateforme garde le dernier style reçu, et les icônes **claires** de la
+couverture restaient sur l'accueil presque blanc (même cause après les
+stories). `DefaultStatusBarStyle` — le style sombre des `AppBar` — enveloppe
+le `builder` des deux apps ; la région la plus profonde l'emporte toujours,
+donc la couverture garde ses icônes claires tant qu'elle est à l'écran.
 
 **Tap sur la photo** → la visionneuse existante (`_FullScreenPhotoGallery`),
 **sur la photo 1**, sur la liste complète.
@@ -152,6 +161,11 @@ Tout dans `provider_detail_screen.dart` :
   sa borne calculée exige ; branche A : aucun plafond).
 - `_favoriteAction` — le cœur, partagé. `_galleryIndices` — les vrais index
   de la bande « Photos ».
+- `DefaultStatusBarStyle` (`widgets/common/`, hors de l'écran) — le style par
+  défaut sous chaque route, posé dans le `builder` de `main.dart` et de
+  `main_pro.dart` (pas de l'admin, une console de bureau). `MaterialApp`
+  n'envoie le style sombre qu'une fois, en construisant son thème clair —
+  jamais à un changement de route.
 - Les pastilles : un `IconButtonTheme` autour du `SliverAppBar` de la
   branche A. L'`AppBar` le relit pour son `BackButton` implicite et ses
   actions (`app_bar.dart`, `style?.copyWith(...)` garde le
@@ -189,10 +203,22 @@ Une image de plus — **la même URL** que la carte de l'accueil (cache disque) 
 | `test/widget/salon_preview_test.dart` | l'Aperçu rend la couverture **depuis la charge `/me/provider`** (service public interdit) ; une charge sans photo rend la branche B |
 | `test/a11y/salon_header_test.dart` | les répliques A13 (branche B) restent ; l'écran réel (Aperçu, salon vérifié) : branche B **empile** et garde le nom entier à 1,5/1,6/1,7× sur 360/375/390 ; branche A garde le nom entier à 2× sur les trois largeurs, à la gouttière (rien à côté) |
 | `test/a11y/layout_test.dart` | « the salon page fits » (branche A) + « the salon page without photos fits » (branche B), 3 largeurs × 2 échelles ; `expectAppBarTitleWhole` seulement en B (la barre de A ne porte aucun texte) |
-| goldens | `consumer_provider_detail` (390 × 1×, branche A, sans logo — provider1 n'en a pas), `consumer_provider_detail_w360_x2` (360 × 2×), **nouveau** `consumer_provider_detail_no_photo` (390 × 1×, branche B, déconnecté). **Pas encore régénérés** : `tool/update_goldens.sh` refuse (`ghcr.io/cirruslabs/flutter:3.44.9` : *manifest unknown*) et la voie CI (`goldens.yml`) exige la branche poussée. D'ici là la porte golden de la CI est rouge sur ces trois fichiers — attendu. Aperçus macOS regardés puis jetés : la photo s'affiche, le cœur est lisible |
+| `test/widget/default_status_bar_style_test.dart` (nouveau) | accueil sans `AppBar` → page salon (couverture) → retour : **sans** le défaut, les icônes claires restent (témoin C : le défaut reproduit) ; **avec**, sombre → claire → **sombre** ; épingle de source, commentaires retirés : les deux racines téléphone l'installent |
+| goldens | `consumer_provider_detail` (390 × 1×, branche A, sans logo — provider1 n'en a pas), `consumer_provider_detail_w360_x2` (360 × 2×), **nouveau** `consumer_provider_detail_no_photo` (390 × 1×, branche B, déconnecté). **Régénérés sur Linux** par le workflow `goldens.yml` (run 38185286424, commit `1badf5e0`) et regardés : la photo s'affiche, le cœur est lisible, la branche B est l'en-tête d'avant. Le défaut de barre d'état n'en change aucun : une `AnnotatedRegion` ne peint rien, et les goldens ne passent pas par le `builder` des racines |
 
-Chaque nouvelle garde est **regardée rouge** sur le code commité (mutation →
-test rouge → restauration) : MUTCOUNT, consignées dans le message de commit.
+Chaque garde est **regardée rouge** sur le code commité (mutation → test ciblé
+rouge → `git checkout` → arbre propre) : **32 mutations, 36 exécutions** —
+toutes rouges, sauf la déconnexion du golden sans photo, vue par l'image :
+
+| Garde | Mutation → rouge |
+|---|---|
+| `salon_cover_test` | hauteur 224 → 200 (rect 224 ≠ 248) · couverture = `imageUrls.last` · anneau 2 → 4 (logo à 20 ≠ 18) · tap → photo 2 (« 1 sur 2 » absent) · indice retiré · pastille « magasin » sur une couverture sans logo · « Photos » gardé quand la couverture est seule · sans photo, `''` au lieu de `null` (rouge par le délai de `pumpAndSettle` — l'URL vide charge sans fin —, pas par une assertion) et sa jumelle : la barre de la branche B envoie des icônes claires (sombre attendu) · seuil 0,5 → 0 (claire une fois repliée) · voile 0,6 → 0,4 · voile réduit à la barre d'état (24 ≠ 80) · couverture fondue tapable (`Dialog` ouvert) · bande sans l'encart de la barre d'état (photo en échec : 224 ≠ 248) · pastille 90 % → 50 % · cible `shrinkWrap` (40 < 48) · cœur `secondary` |
+| `photo_lightbox_test` | tap sur la couverture → photo 2 · vignette ouverte à sa position dans la bande (« 2 sur 2 » absent) · bande commencée à 0 (« Agrandir la photo 1 sur 2 » présent) |
+| `salon_preview_test` | aucune couverture (le défaut du propriétaire) · couverture = `imageUrls.last` · l'Aperçu lit la route publique avant de rendre · « Aucune photo » retiré pour une charge sans photo |
+| `salon_header_test` | branche B n'empile jamais (nom à 16 < logo à 68, ×3) · branche A : nom décalé de 88 (x = 112 ≠ 24, ×3) · branche A : rangée amputée de 88 à droite (`expectNoMidWordBreak` : 196,5 < 269,7, ×3) |
+| `layout_test` | aucune couverture (témoin C, ×6) · nom plafonné à une ligne sous la couverture (témoin de `expectNoMidWordBreak` : toutes les occurrences en `maxLines: 1`, ×6) · borne de B sans la chrome empilée (débordement de 80 dp à 2×, ×3) |
+| golden sans photo | « Aucune photo » retiré → rouge au témoin (ligne 206), avant la comparaison · **`logout` retiré : vu par l'image, pas par un rouge local** — un rendu macOS diffère toujours de la base Linux (3,59 % sans mutation, 16,46 % avec), et l'image mutée montre le cœur rouge et la carte de rendez-vous ; la porte reste la comparaison Linux de la CI |
+| `default_status_bar_style_test` | le défaut ne pose rien (claire après le retour) · le défaut envoie clair · `main.dart` sans lui (épingle : `['lib/main.dart']`) · `main_pro.dart` sans lui |
 
 ## 9. Rollout & scope discipline
 
@@ -202,8 +228,10 @@ apps ; le site ne change pas. V1.
 ## 10. Definition of done
 
 - [x] `flutter analyze` = 0 · `dart format` propre · tests ciblés verts
-- [x] mutations consignées · suite complète + `flutter analyze` verts
-- [ ] **goldens Linux régénérés et regardés** (`goldens.yml` après le push)
+- [x] mutations consignées (§8 : 32 mutations, 36 exécutions, sur le code commité)
+- [ ] suite complète verte — la CI de la PR (pas rejouée localement depuis le défaut de barre d'état)
+- [x] **goldens Linux régénérés et regardés** (`goldens.yml`, run 38185286424, commit `1badf5e0`)
+- [x] la barre d'état au retour (§2.1) — `DefaultStatusBarStyle` aux deux racines, regardé rouge
 - [x] spec indexée (`README.md`), liée depuis l'entrée de roadmap et depuis le code
 - [x] docs corrigées : `gallery-set-cover.md` §1, `parity-audit-modules-2026-07.md` ligne 2.9, `mobile-a13-copy-and-breaks.md` §3, SYSTEM.md §5 (exemple) + §21 (ligne 62, ligne 91)
 - [ ] essai sur appareil (iOS + Android) — barre d'état sur une photo claire, propriétaire
