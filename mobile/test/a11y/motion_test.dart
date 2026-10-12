@@ -524,6 +524,12 @@ void main() {
       // started at the decode would run while no frame is drawn (a cold
       // start's slow first frame) and cut the visible hold short by as much.
       // The player starts it from the first frame that draws the still.
+      //
+      // A cold decode, or there is no gap to measure: a composition an
+      // earlier test decoded is handed back from the cache at once, and
+      // `onLoaded` lands with the first frame. (Measured — without this line
+      // the "timed from the decode" mutation survived.)
+      Lottie.cache.clear();
       final timeline = OpenTimeline.consumer();
       final router = GoRouter(
         initialLocation: '/',
