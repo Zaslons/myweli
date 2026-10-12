@@ -8,7 +8,7 @@
 | **Module** | `online-booking` (la page salon de la marketplace) — [MODULES.md](../MODULES.md) |
 | **PRD ref / phase** | FR-DISC-006 (page salon) · FR-FAV-001 (la carte) · V1 |
 | **ROADMAP entry** | [2026-10-12-salon-location-map.md](../roadmap/entries/2026-10-12-salon-location-map.md) |
-| **Governs** | `mobile/lib/widgets/providers/salon_location_preview.dart` (nouveau) · `mobile/lib/widgets/common/salon_map_marker.dart` (nouveau, extrait de `map_screen.dart`) · la carte « Contact » de `mobile/lib/screens/providers/provider_detail_screen.dart` · le focus `?providerId=` de `mobile/lib/screens/map/map_screen.dart` · `ProviderProvider.providerForMap` · le lien « Voir sur la carte » de `mobile/lib/widgets/booking/appointment_card.dart` · `CartoBasemapLayer.panBuffer` |
+| **Governs** | `mobile/lib/widgets/providers/salon_location_preview.dart` (nouveau) · `mobile/lib/widgets/common/salon_map_marker.dart` (nouveau, extrait de `map_screen.dart`) · la carte « Contact » de `mobile/lib/screens/providers/provider_detail_screen.dart` · le focus `?providerId=` de `mobile/lib/screens/map/map_screen.dart` · `ProviderProvider.providerForMap` / `selectedProviderId` / `restoreSalon` · `CartoAttribution.sheet()` · le lien « Voir sur la carte » de `mobile/lib/widgets/booking/appointment_card.dart` · `CartoBasemapLayer.panBuffer` |
 | **Guards** | `mobile/test/widget/salon_location_map_test.dart` (nouveau) · `mobile/test/unit/route_literals_test.dart` (nouveau) · `mobile/test/widget/carto_basemap_layer_test.dart` (la garde « chaque `FlutterMap(` passe par la couche ») |
 | **Contract** | **Aucun changement** — `latitude` / `longitude` existent déjà sur `Provider` (`docs/api/openapi.yaml`) |
 | **Skills checked** | myweli-dev-guardrails |
@@ -71,15 +71,16 @@ De haut en bas dans la carte « Contact » : le titre « Contact », **l'aperçu
 | fond | `AppColors.surfaceVariant` (`MapOptions.backgroundColor`) | le `bg-surfaceVariant` du site avant le chargement ; c'est la surface neutre sur laquelle les tuiles arrivent |
 | caméra | centrée sur le salon, **zoom 15** | le `zoom: 15` de `SalonLocationMap.tsx` |
 | marqueur | `SalonMapMarker(category:)` — **le marqueur de `MapScreen`**, extrait sans changer un pixel : disque blanc 48 dp, anneau 2 dp et icône de la catégorie (`categoryColor`) | le `SalonPin` du site *est* déjà le `_SalonMarker` de l'app (`salon-pin.tsx`) ; pas de cœur « favori » ici (la page a déjà le sien) |
-| fond de carte | `CartoBasemapLayer(panBuffer: 0)` + `CartoAttribution()` | la couche clé unique ([map-basemap-key.md](map-basemap-key.md)) ; `panBuffer: 0` car une carte qui ne bouge pas n'a pas besoin de l'anneau de tuiles d'avance (§7) |
+| fond de carte | `CartoBasemapLayer(panBuffer: 0)` + `CartoAttribution.sheet()` | la couche clé unique ([map-basemap-key.md](map-basemap-key.md)) ; `panBuffer: 0` car une carte qui ne bouge pas n'a pas besoin de l'anneau de tuiles d'avance (§7) |
+| crédits | un « i » (`Icons.info_outline`, `iconM`, cible 48 dp, info-bulle « Crédits de la carte ») en bas à droite ; un tap ouvre **une feuille** « Données cartographiques » : « © OpenStreetMap contributors », « © CARTO » — le texte de `CartoAttribution`, une seule source | **Pas la bulle de flutter_map.** Sa `RichAttributionWidget` ouvre ses crédits *dans* la carte : une colonne de texte dans une boîte de 160 dp. Mesuré par la revue (390 × 844, tap sur « i ») : débordement de **56 px à 1,3×, 80 à 1,5×, 220 à 2,0×** — une `FlutterError` en debug, les crédits obligatoires coupés en release. SYSTEM.md §13.3 : *une boîte qui contient du texte n'a pas de hauteur fixe* ; ici la boîte est fixe par conception, donc le texte en sort. La feuille a toute la largeur, défile, et s'enroule à tout facteur. « Carte » et la carte du profil Pro gardent la bulle (`CartoAttribution()`) — voir §11. |
 | gestes | **aucun** : `InteractionOptions(flags: InteractiveFlag.none)` | ni glisser, ni zoomer, ni pincer. Sans drapeau de glisser, flutter_map n'enregistre aucun reconnaisseur de glisser : un glisser vertical sur la carte **fait défiler la page** (testé, §8). Le site a besoin des *cooperative gestures* parce que sa carte est interactive ; celle-ci ne l'est pas. |
 | focus clavier | `ExcludeFocus` | le nœud `Focus` interne de flutter_map serait un arrêt clavier sans indicateur ; la ligne d'adresse, juste dessous, est l'équivalent clavier |
 
 **États**
 
 - **Avec coordonnées** — l'aperçu s'affiche dès que la page a son salon.
-  *Chargement* : le fond `surfaceVariant`, le marqueur et l'attribution sont là
-  immédiatement ; les tuiles arrivent par-dessus (le fondu par défaut de
+  *Chargement* : le fond `surfaceVariant`, le marqueur et le « i » des crédits
+  sont là immédiatement ; les tuiles arrivent par-dessus (le fondu par défaut de
   flutter_map, une opacité, pas un mouvement — §9.1 n'est pas concerné).
   *Échec des tuiles* (hors ligne, clé refusée) : le fond neutre reste, le
   marqueur et le lien restent — rien ne casse, rien ne saute. *Filigrane CARTO* :
@@ -98,7 +99,7 @@ De haut en bas dans la carte « Contact » : le titre « Contact », **l'aperçu
 | tap sur l'aperçu | `push('/carte?providerId=<id>')` | le **sélecteur d'app de cartes** (`Helpers.launchNavigation`) — celui de l'icône « Itinéraire » |
 | tap sur la ligne d'adresse | idem | idem |
 | icône « Itinéraire » | sélecteur (inchangé) | sélecteur (inchangé) |
-| tap sur « i » (attribution) | ouvre l'attribution CARTO / OSM, ne navigue pas | idem |
+| tap sur « i » (crédits) | ouvre la feuille « Données cartographiques », ne navigue pas | idem |
 
 L'Aperçu reste une copie fidèle de la page client (même texte « Voir sur la
 carte ») ; seule la destination diffère, parce que l'app Pro n'a pas de carte.
@@ -110,13 +111,22 @@ carte « Vos rendez-vous ici » et le bouton « Réserver ».
 
 ### 2.3 `/carte?providerId=` — le salon, sa feuille ouverte
 
-1. `MapScreen` charge la liste comme avant (marqueurs).
-2. Le salon à montrer est résolu par `ProviderProvider.providerForMap(id)` :
-   d'abord la liste chargée, puis le salon que la page salon tient déjà
-   (`selectedProvider` — le cas « je viens de la page salon », qui marche donc
-   aussi hors ligne), sinon **une** lecture publique `getProviderById`. Elle ne
-   touche **aucun état partagé** : la page salon, encore montée sous la carte,
-   lit `selectedProvider` et `isLoading`.
+1. `MapScreen` **lance** la liste (marqueurs) et les favoris (cœurs) comme
+   avant — **sans les attendre** pour le salon.
+2. Le salon à montrer est résolu **tout de suite**, par
+   `ProviderProvider.providerForMap(id)` : d'abord la liste déjà en mémoire,
+   puis le salon que la page salon tient déjà (`selectedProvider` — le cas « je
+   viens de la page salon » : **aucun réseau**, donc hors ligne aussi), sinon
+   **une** lecture publique `getProviderById`, **en parallèle** de la liste,
+   jamais après elle. Elle ne touche **aucun état partagé** : la page salon,
+   encore montée sous la carte, lit `selectedProvider` et `isLoading`.
+   *Avant la revue* : le focus attendait `loadProviders()` puis
+   `loadFavorites()` — sur un réseau lent, la caméra restait sur Abidjan et la
+   feuille fermée aussi longtemps que la liste, même quand le salon était déjà
+   en main (aucun délai d'expiration n'est appliqué aux requêtes :
+   `AppConstants.apiTimeout` est déclaré, jamais lu). Le prix : quand ni la
+   liste en mémoire ni la page salon ne tiennent le salon, une lecture de plus
+   que si l'on avait attendu une liste qui l'aurait contenu.
 3. Coordonnées connues → caméra sur le salon au zoom 14 (inchangé), feuille du
    salon ouverte (« Voir le salon », « Y aller »). S'il n'est pas dans la liste
    (autre commune, au-delà de la page 1), **son marqueur est ajouté** — sinon la
@@ -139,9 +149,13 @@ carte « Vos rendez-vous ici » et le bouton « Réserver ».
 - **Cibles** : l'aperçu fait 160 dp × la largeur ; la ligne d'adresse garde
   `minHeight: 48` ; l'icône « Itinéraire » est un `IconButton` (48) avec
   info-bulle.
-- **Texte à 200 %** : la carte ne contient pas de texte (sa hauteur est
-  constante, §5) ; la ligne d'adresse s'enroule, sans `maxLines` ; « Itinéraire »
-  reste à droite. Testé à 360 dp × 2,0.
+- **Texte à 200 %** : la boîte de 160 dp ne contient **aucun texte**, même
+  ouverte — ses crédits s'ouvrent dans une feuille (§2.1, « crédits ») ; la
+  première version l'affirmait alors que la bulle d'attribution de flutter_map
+  *est* du texte, et débordait dès 1,3× (la revue l'a mesuré ; le test « 200 % »
+  n'ouvrait jamais la bulle). La ligne d'adresse s'enroule, sans `maxLines` ;
+  « Itinéraire » reste à droite. Testé à 360 dp × 2,0, **le « i » ouvert** :
+  aucune exception, les deux crédits entiers dans la feuille.
 - **Mouvement réduit** : la caméra est fixe ; rien ne s'anime hormis le fondu
   d'opacité des tuiles.
 - **Couleur seule** : non — l'icône de catégorie porte la catégorie, comme sur
@@ -154,6 +168,9 @@ carte « Vos rendez-vous ici » et le bouton « Réserver ».
 | libellé sémantique de l'aperçu | « Voir {nom} sur la carte » |
 | sous l'adresse (avec coordonnées) | « Voir sur la carte » (inchangé) |
 | `MapScreen`, salon non résolu | « Ce salon n’a pas pu être affiché sur la carte. » |
+| info-bulle du « i » de l'aperçu | « Crédits de la carte » |
+| titre de la feuille des crédits | « Données cartographiques » |
+| crédits (texte légal, non traduit — celui de `CartoAttribution`) | « © OpenStreetMap contributors » · « © CARTO » |
 
 ### 2.6 Parité avec la « Localisation » du site
 
@@ -170,6 +187,51 @@ carte « Vos rendez-vous ici » et le bouton « Réserver ».
 Même identité de carte, deux usages : sur le site la carte **est** la
 destination ; dans l'app elle est la porte vers « Carte ».
 
+### 2.7 Une page salon montre son salon — jamais un autre
+
+**Le défaut (revue, vérifié par une sonde)** : salon A → tap sur la carte →
+`/carte` → marqueur de B → « Voir le salon » → `/provider/B` → retour →
+retour : **la page de A affiche B** — sa carte, son adresse, son bouton
+« Réserver » (qui réserverait chez B), ses rendez-vous. La cause est plus
+ancienne que cette branche : `ProviderProvider.selectedProvider` est **une
+seule case** partagée par toutes les pages salon de la pile, la page la lisait
+sans la comparer à `widget.providerId`, et la page de B l'écrase en chargeant.
+Sur `main`, ce chemin était inatteignable — le lien de la page salon vers la
+carte était mort ; le réparer l'a ouvert.
+
+**La règle** : une page salon (`!preview`) n'affiche que **son** salon.
+
+| la case contient… | la page affiche |
+|---|---|
+| son salon (`selectedProvider.id == providerId`) | ce salon — et en garde **sa copie** |
+| le résultat de **sa** lecture, en échec (`selectedProviderId == providerId`, `selectedProvider == null`) | l'état « salon indisponible » (§12), inchangé |
+| sa lecture **en cours** (`selectedProviderId == providerId`, la case tient encore l'ancien salon) | le chargeur |
+| le salon d'**une autre** page (ou son échec) | **sa copie** ; sans copie, le chargeur |
+
+`selectedProviderId` (nouveau, sur `ProviderProvider`) dit **à qui** est la
+case : l'id de la dernière `loadProviderById`, posé **avant** la lecture, ou
+de `showPreloaded` / `restoreSalon`. `selectedProvider` seul ne peut pas le
+dire : pendant une lecture il tient encore le salon précédent, et après un
+échec il est `null` pour tout le monde.
+
+**Reprendre la case** : quand la page redevient **la route du dessus**
+(`ModalRoute.isCurrentOf`) et que la case est à une autre page, elle la
+reprend après l'image en cours — `restoreSalon(copie)` (aucun réseau, aucun
+chargeur : la page affichait déjà cette copie) ; sans copie,
+`loadProviderById(providerId)`. **Jamais** tant qu'une autre page est
+au-dessus : deux pages qui se reprendraient la case l'une à l'autre en
+boucle. Rien à reprendre avant que la lecture initiale soit partie (pas de
+double lecture à l'image 1).
+
+Le corps, la barre « Réserver / Appeler » et la devise des prix lisent tous
+le salon par ce seul chemin. **Conséquence voulue** : la page d'un salon
+ouverte après un autre montrait l'**autre** salon pendant toute sa lecture
+(la case n'est vidée qu'à la réponse) ; elle montre désormais le chargeur.
+L'Aperçu Pro n'est pas concerné (une seule page, amorcée, sans lecture).
+`booking_hub_screen.dart` et `booking_confirmation_screen.dart` lisent la
+même case de la même façon ; aucun lien de la carte n'y mène — hors périmètre,
+§11.
+
 ## 3. API & contract — aucun changement
 
 ## 4. Data model — aucun
@@ -181,9 +243,10 @@ destination ; dans l'app elle est la porte vers « Carte ».
 | `widgets/providers/salon_location_preview.dart` | `SalonLocationPreview({salonName, category, latitude, longitude, onOpen})` — la boîte de §2.1, sans état, sans navigation : l'appelant décide où mène `onOpen` |
 | `widgets/common/salon_map_marker.dart` | `SalonMapMarker({category, isFavorite})` + `salonCategoryIcon` — **déplacés** de `map_screen.dart` (`_SalonMarker`, `_categoryIcon`), à l'identique |
 | `widgets/common/carto_basemap_layer.dart` | `CartoBasemapLayer.panBuffer` (défaut 1 = celui de flutter_map, donc les deux cartes existantes ne changent pas) |
-| `screens/providers/provider_detail_screen.dart` | `_openOnMap(p)` : `preview` → sélecteur, sinon `/carte?providerId=` ; la carte « Contact » |
-| `screens/map/map_screen.dart` | focus via `providerForMap`, marqueur du salon focalisé s'il manque, la localisation qui ne vole plus la caméra |
-| `providers/provider_provider.dart` | `providerForMap(id)` (§2.3) |
+| `screens/providers/provider_detail_screen.dart` | `_openOnMap(p)` : `preview` → sélecteur, sinon `/carte?providerId=` ; la carte « Contact » ; `_salonOf` / `_reclaimIfUncovered` — la page ne montre que son salon (§2.7) |
+| `screens/map/map_screen.dart` | focus via `providerForMap` **avant** la liste et les favoris (lancés, pas attendus), marqueur du salon focalisé s'il manque, la localisation qui ne vole plus la caméra |
+| `providers/provider_provider.dart` | `providerForMap(id)` (§2.3) ; `selectedProviderId` et `restoreSalon(salon)` (§2.7) |
+| `widgets/common/carto_basemap_layer.dart` | `CartoAttribution.sheet()` — les crédits dans une feuille, pour une boîte de carte fixe (§2.1) ; `cartoCredits`, le texte légal, une seule fois |
 | `widgets/booking/appointment_card.dart` | la cible `/carte?providerId=` |
 
 ## 6. Security & authz
@@ -313,3 +376,12 @@ l'image montre le fond `surfaceVariant`, le marqueur et l'attribution.
 - **Écrans dormants** — `phone_login_screen.dart` pousse `/verify-otp`, que
   plus aucun routeur n'enregistre ; le garde ne lit que les fichiers qu'une app
   importe. Le jour où l'écran revient dans un routeur, le garde le verra.
+- **La carte du profil Pro (240 dp) garde la bulle de flutter_map** — même
+  défaut de classe que l'aperçu (§2.1, « crédits ») : une boîte fixe. Par le
+  calcul, pas par une mesure (contenu de la bulle ≈ 352 px à 2,0× sur 390 dp,
+  ≈ 212 disponibles dans 240 dp), elle déborderait vers 1,5×. Hors de cette
+  branche ; `CartoAttribution.sheet()` est la correction toute prête.
+- **La case partagée, ailleurs** — `booking_hub_screen.dart` et
+  `booking_confirmation_screen.dart` lisent `selectedProvider` comme le faisait
+  la page salon (§2.7). Aucun chemin de la carte n'y mène aujourd'hui ; la
+  règle de §2.7 s'y appliquerait telle quelle si un jour il en existe un.
