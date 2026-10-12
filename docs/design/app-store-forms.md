@@ -281,7 +281,7 @@ dossier proposait :
 | Sous-titre | vide | `Agenda, clients, réservations` (§4) | à remplir |
 | Droits sur le contenu | non renseignés | « Oui … et j'ai les droits nécessaires » (§9) | à remplir |
 | Version | iOS **1.0**, « Prepare for Submission » | 1.0.0 (le binaire, §11.3) | qu'App Store Connect rattache un build `1.0.0` à une version nommée « 1.0 » : UNVERIFIED — le vérifier en choisissant le build (§13) |
-| TestFlight | aucun build | — | §11.5 — *2026-10-10 : builds 551 et 555 envoyés, traités `VALID` ; le groupe interne ne reçoit que le 555 (§11.6)* |
+| TestFlight | aucun build | — | §11.5 — *2026-10-12 : builds 551, 555 et **560** envoyés, traités `VALID` ; le groupe interne ne reçoit que le **560** (il remplace le 555)*. *2026-10-10 : builds 551 et 555 envoyés, traités `VALID` ; le groupe interne ne reçoit que le 555 (§11.6)* |
 
 L'app consommateur « MyWeli » a aussi sa fiche (iOS 1.0, « Prepare for
 Submission ») ; elle aura son propre dossier.
@@ -889,8 +889,20 @@ saveur) : IPA relue au §11.3 (la clé
 `NSLocationAlwaysAndWhenInUseUsageDescription` présente), validé, envoyé le
 2026-10-10 (delivery `47f7ae26-c09c-430c-8c64-cba9af151085`), traité
 `VALID`, conformité export déjà répondue (`usesNonExemptEncryption` faux).
-**C'est le build à soumettre ; le 551 reste dans TestFlight, jamais
-soumis.**
+~~C'est le build à soumettre~~ — remplacé par le 560 (ci-dessous) ; le 551
+reste dans TestFlight, jamais soumis.
+
+**Build 560** (2026-10-12, depuis `main` après #562–#567 ; le numéro compte les
+commits, d'où 560 et non 556) : la carte (clé CARTO, #563), l'animation
+d'ouverture « MyWeli Pro » (#564), la photo de couverture du salon (#565) et
+la correction des déconnexions au redémarrage (#562). IPA relue au §11.3 :
+1.0.0 (560), iPhone seul, `fr`, les textes de position dont « Always »,
+entitlements de production, l'asset `myweli_loader_mixed_pro.json` présent,
+35 manifestes de confidentialité ; la **clé d'app CARTO est dans le binaire**
+(une occurrence dans `App.framework/App`, comparée sans l'afficher), la clé
+web n'y est pas, un témoin inventé non plus. Validé, envoyé, traité `VALID`
+(build `d7279396-17f1-402b-b76c-566cd3a7c4fa`), archive rangée en
+`Runner-pro-560.xcarchive`. **C'est le build à soumettre.**
 
 Syntaxe relue dans l'aide de l'`altool` local (version 27.0.5) :
 `--upload-package` est la forme de ses exemples ; `--upload-app -f` existe
@@ -913,7 +925,11 @@ soumis (chaque nouveau build s'y ajoute à la main, ou par l'API). Testeur :
 le propriétaire (l'utilisateur App Store Connect Account Holder), état
 `INVITED` à la création — l'invitation part par e-mail. Le « What to Test »
 du 555 (fr-FR) résume la liste ci-dessous. Relu après coup par l'API : un
-build (555), un testeur.
+build (555), un testeur. *2026-10-12 :* le **560** remplace le 555 dans le
+groupe (relu : un seul build, 560), avec son « What to Test » en français —
+la liste ci-dessous plus les quatre corrections du 560 (animation, rester
+connecté après 15 min, carte, couverture Maison Nala, lien de
+notification).
 
 - [ ] **Connexion démo** : `revue@myweli.test` + le code, exactement comme les
       notes du §8 le décrivent — c'est aussi le test « le code n'a pas expiré ».
@@ -1011,6 +1027,8 @@ on renvoie. Rien n'est soumis sur un build non vérifié.
    `GET /api/0/projects/myweli/myweli-app/files/dsyms/` liste les nouveaux
    debug IDs (la note du script ne compte que les entrées Android). Ne pas
    bloquer TestFlight sur cette étape.
+   *Build 560, 2026-10-12 :* symboles Dart et dSYM natifs envoyés, `Runner`
+   (`a00e3585…`) relu côté serveur.
    *Build 555, 2026-10-10 :* les symboles Dart étaient déjà sur le serveur
    (même identifiant que le 551, code Dart inchangé), mais **cinq des six
    dSYM natifs manquaient** — envoyer seulement `build/symbols/pro` les
@@ -1082,11 +1100,11 @@ numéros).*
 11. [x] **Build** `./tool/release_build.sh ios pro` depuis `main` ; ranger
        l'archive ; **vérifier l'IPA** (§11.3). *Build 555, 2026-10-10 ;
        archive rangée en `Runner-pro-555.xcarchive`.*
-12. [x] **Valider, envoyer**, attendre le traitement (§11.5). *555 `VALID`.*
+12. [x] **Valider, envoyer**, attendre le traitement (§11.5). *555 `VALID` ; **560 `VALID`** (2026-10-12), le build à soumettre.*
 13. [ ] **TestFlight interne** et toutes les cases du §11.6. *Groupe et
        invitation faits le 2026-10-10 ; les vérifications sur l'appareil
        restent au propriétaire.*
-14. [x] **Symboles Sentry** (§12.2). *Dart et natifs, build 555.*
+14. [x] **Symboles Sentry** (§12.2). *Dart et natifs, builds 555 et 560.*
 15. [ ] **Captures** 6,9 pouces sur le salon démo (§10).
 16. [ ] **Remplir App Store Connect** : informations sur l'app (§3, §5, §6,
        §9), tarifs et disponibilité — Côte d'Ivoire seule, Mac et Vision Pro

@@ -1076,6 +1076,15 @@ checking rather than assuming:
 > is invited. Dart and native symbols for 555 are in Sentry. Still open: the
 > device checks of app-store-forms.md §11.6, screenshots, the App Store
 > Connect version page, the demo salon's logo and snapshot.
+>
+> **2026-10-12 — build 560 replaces 555.** From `main` after #562–#567: the
+> CARTO map key, the « MyWeli Pro » open animation, the salon cover photo, and
+> the fix for salon owners being signed out on a cold start. Validated,
+> uploaded, `VALID`, the only build in « Équipe MyWeli »; symbols in Sentry.
+> The demo salon is « Maison Nala », logo uploaded and snapshot recaptured
+> (#566). The backend's atomic refresh rotation (#567) is in production.
+> Still open: the device checks of §11.6 on 560, screenshots, the App Store
+> Connect version page.
 
 - [ ] Everything in [mobile-store-submission.md](design/mobile-store-submission.md) §5.
       Two of its claims are **stale as of 2026-08-18** and must be corrected
