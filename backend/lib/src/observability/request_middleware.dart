@@ -123,3 +123,20 @@ class RequestId {
   const RequestId(this.value);
   final String value;
 }
+
+/// The current request's id for a log line, or `none` when the chain did not
+/// provide one (a handler driven by a test double, say).
+///
+/// **Never throws, deliberately.** A route logs AFTER its work is done — a
+/// refresh route after the rotation has committed — so a throw here would turn
+/// a success the database already recorded into a 500, and the client would
+/// lose the token pair it was owed. The diagnostic must never be the thing that
+/// fails the request, for the same reason [observabilityMiddleware] guards its
+/// own.
+String requestIdOf(RequestContext context) {
+  try {
+    return context.read<RequestId>().value;
+  } on Object {
+    return 'none';
+  }
+}

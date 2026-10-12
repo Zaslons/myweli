@@ -1029,6 +1029,32 @@ CREATE TABLE IF NOT EXISTS momo_operators (
           'last_reset_at timestamptz)',
     ],
   ),
+  (
+    id: '0037_refresh_rotated_at',
+    statements: [
+      // WHEN each refresh token was rotated, on all three principals' tables
+      // (docs/design/backend-refresh-rotation-atomic.md §4). The exchange
+      // claims a token atomically and answers a second presentation inside a
+      // 30-second grace with a sibling in the same family; past the grace it
+      // is reuse and the family is revoked. The grace is measured on the
+      // DATABASE clock — `rotated_at = now()` on the claim, compared against
+      // `now()` on the second presentation — so no instance ever compares its
+      // own clock with another's.
+      //
+      // Nullable, no backfill, on purpose: a row rotated before this migration
+      // has `rotated_at IS NULL` and is treated as rotated long ago, i.e.
+      // outside the grace — exactly today's behaviour for it. Purely additive:
+      // an older image never selects the column and runs unchanged. No unique
+      // index on the family either — siblings inside the grace are allowed by
+      // design.
+      'ALTER TABLE refresh_tokens '
+          'ADD COLUMN IF NOT EXISTS rotated_at timestamptz',
+      'ALTER TABLE provider_refresh_tokens '
+          'ADD COLUMN IF NOT EXISTS rotated_at timestamptz',
+      'ALTER TABLE admin_refresh_tokens '
+          'ADD COLUMN IF NOT EXISTS rotated_at timestamptz',
+    ],
+  ),
 ];
 
 /// How long a schema-setup statement may **wait for a lock** before giving up.

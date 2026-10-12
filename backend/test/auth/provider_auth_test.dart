@@ -7,6 +7,8 @@ import 'package:myweli_backend/src/access/membership_repository.dart';
 import 'package:myweli_backend/src/access/membership_service.dart';
 import 'package:myweli_backend/src/access/team_service.dart';
 import 'package:myweli_backend/src/auth/auth_methods.dart';
+import 'package:myweli_backend/src/auth/auth_repository.dart'
+    show kRefreshReuseGrace;
 import 'package:myweli_backend/src/auth/demo_seam.dart';
 import 'package:myweli_backend/src/auth/id_token_verifier.dart';
 import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
@@ -222,9 +224,11 @@ void main() {
     });
 
     test('refresh rotates; replay revokes the family', () async {
+      var now = DateTime.utc(2026, 10, 12, 9);
       final repo = InMemoryProviderAuthRepository(
         tokens: ts(),
         echoDevCode: true,
+        clock: () => now,
       );
       final first = (await registerGoogle(repo)).tokens!;
 
@@ -232,6 +236,9 @@ void main() {
       expect(rotated.ok, isTrue);
       expect(rotated.tokens!.refreshToken, isNot(first.refreshToken));
 
+      // Past the 30 s grace — inside it a replay gets a sibling
+      // (test/auth/refresh_rotation_test.dart).
+      now = now.add(kRefreshReuseGrace + const Duration(seconds: 1));
       final reuse = await repo.refresh(first.refreshToken);
       expect(reuse.error, 'refresh_reused');
       expect(
@@ -263,9 +270,15 @@ void main() {
     late AuthMethods methods;
     late GoogleIdTokenVerifier google;
     late EmailProvider email;
+    late DateTime now;
 
     setUp(() {
-      repo = InMemoryProviderAuthRepository(tokens: ts(), echoDevCode: true);
+      now = DateTime.utc(2026, 10, 12, 9);
+      repo = InMemoryProviderAuthRepository(
+        tokens: ts(),
+        echoDevCode: true,
+        clock: () => now,
+      );
       salons = InMemoryProvidersRepository([]);
       methods = const AuthMethods(AuthMethods.defaults);
       google = _FakeGoogle(_googleClaims);
@@ -611,6 +624,9 @@ void main() {
         expect(rotated.statusCode, HttpStatus.ok);
         expect((await jsonOf(rotated))['refreshToken'], isNotEmpty);
 
+        // Past the 30 s grace — inside it a replay gets a sibling
+        // (test/auth/refresh_rotation_test.dart).
+        now = now.add(kRefreshReuseGrace + const Duration(seconds: 1));
         final reuse = await p_refresh.onRequest(
           ctx(
             post('/auth/provider/refresh', {

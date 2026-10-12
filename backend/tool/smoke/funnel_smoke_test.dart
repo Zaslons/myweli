@@ -1090,7 +1090,16 @@ void main() {
       expectStatus(r, 401, 'A32 expired but correctly signed');
     });
 
-    test('A33 replayed refresh revokes the FAMILY', () async {
+    // **Since 2026-10-12 a replay is reuse only AFTER a 30 s grace**
+    // (docs/design/backend-refresh-rotation-atomic.md). Inside it, a second
+    // presentation is a concurrent or retried legitimate use — two calls that
+    // 401 together on a cold start — and gets a sibling in the same family.
+    // So this waits the grace out, on real time: the server measures it on the
+    // database clock, and a black-box harness has no other way past it. It is
+    // the slowest assertion here by far, and the only one that proves the
+    // family revoke still happens against a real server.
+    test('A33 replayed refresh: a sibling inside the 30 s grace; past it, the '
+        'FAMILY is revoked', () async {
       final first = await post(
         '/auth/refresh',
         body: {'refreshToken': consumerRefresh},
@@ -1098,21 +1107,33 @@ void main() {
       expectStatus(first, 200, 'A33 first refresh');
       final child = first.json['refreshToken'] as String;
 
+      final inGrace = await post(
+        '/auth/refresh',
+        body: {'refreshToken': consumerRefresh},
+      );
+      expectStatus(inGrace, 200, 'A33 replay inside the grace');
+      final sibling = inGrace.json['refreshToken'] as String;
+      expect(sibling, isNot(child), reason: 'a sibling, not the same pair');
+
+      await Future<void>.delayed(const Duration(seconds: 32));
       final replay = await post(
         '/auth/refresh',
         body: {'refreshToken': consumerRefresh},
       );
-      expectStatus(replay, 401, 'A33 replay');
+      expectStatus(replay, 401, 'A33 replay past the grace');
+      expect(replay.json['error'], 'refresh_reused');
 
-      // The one that matters: the CHILD must be dead too, or the family was
-      // not revoked and a stolen token still buys a session
-      // (`postgres_auth_repository.dart:287-290`).
-      final afterRevoke = await post(
-        '/auth/refresh',
-        body: {'refreshToken': child},
-      );
-      expectStatus(afterRevoke, 401, 'A33 child after family revoke');
-    });
+      // The one that matters: the CHILD — and the grace sibling — must be
+      // dead too, or the family was not revoked and a stolen token still
+      // buys a session (`lib/src/db/refresh_exchange.dart`, step 4).
+      for (final (name, token) in [('child', child), ('sibling', sibling)]) {
+        final afterRevoke = await post(
+          '/auth/refresh',
+          body: {'refreshToken': token},
+        );
+        expectStatus(afterRevoke, 401, 'A33 $name after family revoke');
+      }
+    }, timeout: const Timeout(Duration(seconds: 90)));
 
     test('A34 OTP lockout', () async {
       final email = 'lock-$nonce@smoke.test';

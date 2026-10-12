@@ -4,11 +4,13 @@ import 'package:postgres/postgres.dart';
 
 import '../auth/auth_repository.dart';
 import '../auth/tokens.dart';
+import 'refresh_exchange.dart';
 
 /// Postgres-backed [AuthRepository]. Same security logic as
 /// [InMemoryAuthRepository] (OTP hashed + attempt/resend budgets; refresh
-/// hashed, rotated, reuse → family revoke) expressed in SQL. All queries are
-/// parameterized; multi-write paths run in a transaction.
+/// hashed, rotated atomically, reuse past a 30 s grace → family revoke —
+/// docs/design/backend-refresh-rotation-atomic.md) expressed in SQL. All
+/// queries are parameterized; multi-write paths run in a transaction.
 class PostgresAuthRepository implements AuthRepository {
   PostgresAuthRepository(
     this._pool, {
@@ -290,42 +292,25 @@ class PostgresAuthRepository implements AuthRepository {
     return _userFrom(rows.first.toColumnMap());
   }
 
+  /// One transaction: atomic claim, 30 s grace on the database clock, family
+  /// revoke past it. Design: docs/design/backend-refresh-rotation-atomic.md.
   @override
-  Future<RefreshResult> refresh(String refreshToken) async {
+  Future<RefreshResult> refresh(String refreshToken) {
     final hash = _tokens.hashToken(refreshToken);
-    final rows = await _pool.execute(
-      Sql.named(
-        'SELECT user_id, role, family_id, rotated '
-        'FROM refresh_tokens WHERE token_hash = @h',
-      ),
-      parameters: {'h': hash},
-    );
-    if (rows.isEmpty) {
-      return (ok: false, error: 'refresh_invalid', tokens: null);
-    }
-    final row = rows.first.toColumnMap();
-    if (row['rotated'] as bool) {
-      await _pool.execute(
-        Sql.named('DELETE FROM refresh_tokens WHERE family_id = @f'),
-        parameters: {'f': row['family_id']},
-      );
-      return (ok: false, error: 'refresh_reused', tokens: null);
-    }
-    return _pool.runTx((tx) async {
-      await tx.execute(
-        Sql.named(
-          'UPDATE refresh_tokens SET rotated = true WHERE token_hash = @h',
-        ),
-        parameters: {'h': hash},
-      );
-      final tokens = await _issueInFamily(
+    return _pool.runTx(
+      (tx) => exchangeRefreshToken(
         tx,
-        row['user_id'] as String,
-        row['role'] as String,
-        row['family_id'] as String,
-      );
-      return (ok: true, error: null, tokens: tokens);
-    });
+        table: 'refresh_tokens',
+        ownerColumns: 'user_id, role',
+        tokenHash: hash,
+        issueChild: (row) => _issueInFamily(
+          tx,
+          row['user_id'] as String,
+          row['role'] as String,
+          row['family_id'] as String,
+        ),
+      ),
+    );
   }
 
   @override
