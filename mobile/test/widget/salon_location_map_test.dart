@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -328,6 +329,10 @@ void main() {
     for (final (size, scale) in [
       (const Size(390, 844), 1.3),
       (const Size(360, 780), 2.0),
+      // Wide: the test font draws every glyph a full square, so on a phone the
+      // credits line alone is wider than the screen and a shrunk sheet would
+      // look full width anyway. At 800dp the text no longer fills it.
+      (const Size(800, 900), 1.0),
     ]) {
       testWidgets('the credits « i » at $scale×: a sheet, whole, no overflow, '
           'no navigation', (tester) async {
@@ -373,7 +378,12 @@ void main() {
         final surface = find
             .descendant(of: sheet, matching: find.byType(Material))
             .first;
-        expect(tester.getSize(surface).width, size.width, reason: 'full width');
+        // Full width, up to Material 3's 640dp cap for bottom sheets.
+        expect(
+          tester.getSize(surface).width,
+          math.min(size.width, 640),
+          reason: 'full width',
+        );
         for (final credit in [CartoAttribution.sheetTitle, ...cartoCredits]) {
           final text = find.descendant(of: sheet, matching: find.text(credit));
           expect(text, findsOneWidget, reason: credit);
