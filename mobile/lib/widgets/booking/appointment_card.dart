@@ -188,8 +188,11 @@ class AppointmentCard extends StatelessWidget {
                                       );
                                       return;
                                     }
+                                    // The map, on this salon. Was `/favorites`
+                                    // — renamed `/carte` on 2026-08-22 (#491)
+                                    // and dead here since (salon-location-map.md).
                                     context.push(
-                                      '/favorites?providerId=${provider.id}',
+                                      '/carte?providerId=${provider.id}',
                                     );
                                   },
                                   child: Center(

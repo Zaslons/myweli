@@ -205,6 +205,29 @@ class ProviderProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// The salon `/carte?providerId=` should centre
+  /// (docs/design/salon-location-map.md §2.3): the loaded list first, then
+  /// the salon page's own [selectedProvider] — the « Voir sur la carte » case,
+  /// which therefore needs no network — else one public read.
+  ///
+  /// **It writes nothing.** The salon page is still mounted under the map and
+  /// reads [selectedProvider], [isLoading] and [error]; a lookup that set any
+  /// of them would repaint that page behind the user's back. `null` = not
+  /// found, gone, or unreachable — the caller says so.
+  Future<Provider?> providerForMap(String id) async {
+    for (final p in _providers) {
+      if (p.id == id) return p;
+    }
+    final selected = _selectedProvider;
+    if (selected != null && selected.id == id) return selected;
+    try {
+      final response = await _providerService.getProviderById(id);
+      return response.success ? response.data : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
   void clearSelectedProvider() {
     _selectedProvider = null;
     notifyListeners();

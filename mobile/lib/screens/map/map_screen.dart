@@ -9,17 +9,20 @@ import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
-import '../../core/utils/category_colors.dart';
 import '../../core/utils/helpers.dart';
 import '../../models/provider.dart' as models;
 import '../../providers/auth_provider.dart';
 import '../../providers/favorites_provider.dart';
 import '../../providers/provider_provider.dart';
+import '../../widgets/common/app_snack_bar.dart';
 import '../../widgets/common/carto_basemap_layer.dart';
 import '../../widgets/common/consumer_bottom_nav.dart';
+import '../../widgets/common/salon_map_marker.dart';
 import '../../widgets/common/timed_cached_image.dart';
 
 class MapScreen extends StatefulWidget {
+  /// `/carte?providerId=` — open centred on this salon with its sheet up
+  /// (docs/design/salon-location-map.md §2.3).
   final String? focusProviderId;
 
   const MapScreen({super.key, this.focusProviderId});
@@ -38,6 +41,12 @@ class _MapScreenState extends State<MapScreen> {
   Position? _position;
   bool _locating = false;
   String? _locationError;
+
+  /// The salon `focusProviderId` resolved to. Its marker is drawn even when
+  /// the list — page 1, filtered by the chosen commune — does not hold it,
+  /// and the camera is its: the user's position no longer moves it on
+  /// arrival (salon-location-map.md §2.3).
+  models.Provider? _focused;
 
   @override
   void initState() {
@@ -60,31 +69,51 @@ class _MapScreenState extends State<MapScreen> {
         );
         await favoritesProvider.loadFavorites(authProvider.user!.id);
       }
+      if (!mounted) return;
 
-      // If we were opened from a provider/booking, focus that provider on the map.
+      // Opened from a salon page or a booking: centre that salon.
       final focusId = widget.focusProviderId;
       if (focusId != null && focusId.isNotEmpty) {
-        final p = providerProvider.providers
-            .where((x) => x.id == focusId)
-            .cast<models.Provider?>()
-            .firstWhere((x) => x != null, orElse: () => null);
-        if (p != null && p.latitude != null && p.longitude != null) {
-          final lat = p.latitude!;
-          final lng = p.longitude!;
-          _mapController.move(LatLng(lat, lng), 14);
-          // Open sheet after the first frame on this screen settles.
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (!mounted) return;
-            _openProviderSheet(p);
-          });
-        }
+        await _focusOn(providerProvider, focusId);
+        if (!mounted) return;
       }
 
-      await _initLocation();
+      await _initLocation(recenter: _focused == null);
     });
   }
 
-  Future<void> _initLocation() async {
+  /// Centre [id] and open its sheet — wherever it is: the loaded list, the
+  /// salon page beneath this one, or one public read
+  /// ([ProviderProvider.providerForMap]). The list alone missed every salon
+  /// outside the commune filter or past page 1, and the map then opened on
+  /// Abidjan with no sheet.
+  Future<void> _focusOn(ProviderProvider providers, String id) async {
+    final p = await providers.providerForMap(id);
+    if (!mounted) return;
+    final lat = p?.latitude;
+    final lng = p?.longitude;
+    if (p == null || lat == null || lng == null) {
+      AppSnackBar.show(
+        context,
+        'Ce salon n’a pas pu être affiché sur la carte.',
+        kind: SnackKind.error,
+      );
+      return;
+    }
+    setState(() => _focused = p);
+    _mapController.move(LatLng(lat, lng), 14);
+    // Open sheet after the first frame on this screen settles.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _openProviderSheet(p);
+    });
+  }
+
+  /// Ask for the user's position and draw it. [recenter]: move the camera
+  /// there when it arrives — not when a salon was centred, whose sheet the
+  /// user is reading (salon-location-map.md §2.3). « Me localiser » and
+  /// « Activer » call this bare, and recenter.
+  Future<void> _initLocation({bool recenter = true}) async {
     setState(() {
       _locating = true;
       _locationError = null;
@@ -118,6 +147,7 @@ class _MapScreenState extends State<MapScreen> {
       setState(() {
         _position = pos;
       });
+      if (!recenter) return;
 
       // Center map on the user after we have a position (clean first experience)
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -140,21 +170,6 @@ class _MapScreenState extends State<MapScreen> {
     if (pos == null) return;
     _mapController.move(LatLng(pos.latitude, pos.longitude), 14);
   }
-
-  IconData _categoryIcon(String category) {
-    switch (category) {
-      case 'spa':
-        return Icons.spa;
-      case 'barber':
-        return Icons.content_cut;
-      case 'salon':
-        return Icons.face_retouching_natural;
-      default:
-        return Icons.store_mall_directory;
-    }
-  }
-
-  Color _categoryColor(String category) => categoryColor(category);
 
   void _openProviderSheet(models.Provider p) {
     final parentContext =
@@ -354,7 +369,15 @@ class _MapScreenState extends State<MapScreen> {
   List<Marker> _buildProviderMarkers(BuildContext context) {
     final providerProvider = context.watch<ProviderProvider>();
     final favoritesProvider = context.watch<FavoritesProvider>();
-    final providers = providerProvider.providers;
+    final focused = _focused;
+    final providers = [
+      ...providerProvider.providers,
+      // The centred salon, when the list does not hold it — or its sheet
+      // closes on an empty spot of the map.
+      if (focused != null &&
+          !providerProvider.providers.any((p) => p.id == focused.id))
+        focused,
+    ];
 
     return providers.where((p) => p.latitude != null && p.longitude != null).map((
       p,
@@ -362,8 +385,6 @@ class _MapScreenState extends State<MapScreen> {
       final lat = p.latitude!;
       final lng = p.longitude!;
       final isFav = favoritesProvider.isFavorite(p.id);
-      final icon = _categoryIcon(p.category);
-      final color = _categoryColor(p.category);
 
       return Marker(
         point: LatLng(lat, lng),
@@ -378,7 +399,7 @@ class _MapScreenState extends State<MapScreen> {
               _mapController.move(LatLng(lat, lng), 14);
               _openProviderSheet(p);
             },
-            child: _SalonMarker(icon: icon, color: color, isFavorite: isFav),
+            child: SalonMapMarker(category: p.category, isFavorite: isFav),
           ),
         ),
       );
@@ -499,57 +520,6 @@ class _MapScreenState extends State<MapScreen> {
         ],
       ),
       bottomNavigationBar: const ConsumerBottomNav(current: ConsumerTab.carte),
-    );
-  }
-}
-
-class _SalonMarker extends StatelessWidget {
-  final IconData icon;
-  final Color color;
-  final bool isFavorite;
-
-  const _SalonMarker({
-    required this.icon,
-    required this.color,
-    required this.isFavorite,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            shape: BoxShape.circle,
-            border: Border.all(color: color, width: 2),
-            boxShadow: AppTheme.elevation2,
-          ),
-          child: Center(
-            child: Icon(icon, color: color, size: AppTheme.iconS),
-          ),
-        ),
-        if (isFavorite)
-          Positioned(
-            right: -2,
-            top: -2,
-            child: Container(
-              width: 16,
-              height: 16,
-              decoration: BoxDecoration(
-                color: AppColors.favorite,
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 2),
-              ),
-              child: const Icon(
-                Icons.favorite,
-                size: AppTheme.iconXS,
-                color: Colors.white,
-              ),
-            ),
-          ),
-      ],
     );
   }
 }

@@ -27,6 +27,7 @@ import '../../widgets/common/salon_unavailable_view.dart';
 import '../../widgets/common/section_heading.dart';
 import '../../widgets/common/timed_cached_image.dart';
 import '../../widgets/providers/before_after_section.dart';
+import '../../widgets/providers/salon_location_preview.dart';
 import '../../widgets/review/review_tile.dart';
 import '../../widgets/review/submit_review_sheet.dart';
 
@@ -34,7 +35,8 @@ import '../../widgets/review/submit_review_sheet.dart';
 /// « Aperçu de ma page » in the pro app.
 ///
 /// Its header has two branches, chosen by whether the salon has a cover
-/// (`imageUrls[0]`): see docs/design/salon-cover-photo.md.
+/// (`imageUrls[0]`): see docs/design/salon-cover-photo.md. Its « Contact »
+/// card opens on a map of the salon: docs/design/salon-location-map.md.
 class ProviderDetailScreen extends StatefulWidget {
   final String providerId;
 
@@ -161,6 +163,31 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
       success: 'Merci. Notre équipe va examiner cet avis.',
       error: 'Le signalement a échoué. Réessayez.',
     );
+  }
+
+  /// « Voir sur la carte » — the location preview and the address row
+  /// (docs/design/salon-location-map.md §2.2).
+  ///
+  /// The consumer app opens its own map on this salon, its sheet up. The pro
+  /// « Aperçu » has no map: `ProRouter` registers no `/carte`, so pushing it
+  /// there is « Page Not Found » — it opens the map-app picker the
+  /// « Itinéraire » icon opens. `/favorites`, this link's target until
+  /// 2026-10-12, had been renamed `/carte` on 2026-08-22 (#491) and was dead
+  /// in both apps; `route_literals_test.dart` now reads every push target.
+  void _openOnMap(models.Provider p) {
+    final lat = p.latitude;
+    final lng = p.longitude;
+    if (lat == null || lng == null) return;
+    if (widget.preview) {
+      Helpers.launchNavigation(
+        latitude: lat,
+        longitude: lng,
+        label: p.name,
+        context: context,
+      );
+      return;
+    }
+    context.push('/carte?providerId=${p.id}');
   }
 
   /// The cover photo, or null when the salon has none — `imageUrls[0]`, which
@@ -625,74 +652,89 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // Address + map
-                            InkWell(
-                              onTap: () {
-                                if (p.latitude == null || p.longitude == null) {
-                                  AppSnackBar.show(
-                                    context,
-                                    'Localisation non disponible',
-                                    kind: SnackKind.error,
-                                  );
-                                  return;
-                                }
-                                context.push('/favorites?providerId=${p.id}');
-                              },
-                              borderRadius: BorderRadius.circular(
-                                AppTheme.radiusLarge,
+                            // Where it is — the website's « Localisation »,
+                            // only when there is a where to show
+                            // (docs/design/salon-location-map.md §2.1).
+                            if (p.latitude != null && p.longitude != null) ...[
+                              SalonLocationPreview(
+                                salonName: p.name,
+                                category: p.category,
+                                latitude: p.latitude!,
+                                longitude: p.longitude!,
+                                onOpen: () => _openOnMap(p),
                               ),
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: AppTheme.spacingS,
+                              const SizedBox(height: AppTheme.spacingSM),
+                            ],
+                            // The address. A way onto the map only when the
+                            // salon has coordinates — without them it is just
+                            // the address, not a link to an error message.
+                            ConstrainedBox(
+                              constraints: const BoxConstraints(
+                                minHeight: 48,
+                              ), // §13.2 touch target
+                              child: InkWell(
+                                onTap: p.latitude != null && p.longitude != null
+                                    ? () => _openOnMap(p)
+                                    : null,
+                                borderRadius: BorderRadius.circular(
+                                  AppTheme.radiusLarge,
                                 ),
-                                child: Row(
-                                  children: [
-                                    const Icon(
-                                      Icons.map_outlined,
-                                      size: AppTheme.iconS,
-                                      color: AppColors.textTertiary,
-                                    ),
-                                    const SizedBox(width: AppTheme.spacingSM),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            p.address,
-                                            style: AppTextStyles.bodyMedium
-                                                .copyWith(
-                                                  color: AppColors.textPrimary,
-                                                ),
-                                          ),
-                                          Text(
-                                            'Voir sur la carte',
-                                            style: AppTextStyles.bodySmall
-                                                .copyWith(
-                                                  color: AppColors.primary,
-                                                ),
-                                          ),
-                                        ],
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: AppTheme.spacingS,
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      const Icon(
+                                        Icons.map_outlined,
+                                        size: AppTheme.iconS,
+                                        color: AppColors.textTertiary,
                                       ),
-                                    ),
-                                    if (p.latitude != null &&
-                                        p.longitude != null)
-                                      IconButton(
-                                        tooltip: 'Itinéraire',
-                                        icon: const Icon(
-                                          Icons.directions,
-                                          color: AppColors.primary,
+                                      const SizedBox(width: AppTheme.spacingSM),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              p.address,
+                                              style: AppTextStyles.bodyMedium
+                                                  .copyWith(
+                                                    color:
+                                                        AppColors.textPrimary,
+                                                  ),
+                                            ),
+                                            if (p.latitude != null &&
+                                                p.longitude != null)
+                                              Text(
+                                                'Voir sur la carte',
+                                                style: AppTextStyles.bodySmall
+                                                    .copyWith(
+                                                      color: AppColors.primary,
+                                                    ),
+                                              ),
+                                          ],
                                         ),
-                                        onPressed: () {
-                                          Helpers.launchNavigation(
-                                            latitude: p.latitude!,
-                                            longitude: p.longitude!,
-                                            label: p.name,
-                                            context: context,
-                                          );
-                                        },
                                       ),
-                                  ],
+                                      if (p.latitude != null &&
+                                          p.longitude != null)
+                                        IconButton(
+                                          tooltip: 'Itinéraire',
+                                          icon: const Icon(
+                                            Icons.directions,
+                                            color: AppColors.primary,
+                                          ),
+                                          onPressed: () {
+                                            Helpers.launchNavigation(
+                                              latitude: p.latitude!,
+                                              longitude: p.longitude!,
+                                              label: p.name,
+                                              context: context,
+                                            );
+                                          },
+                                        ),
+                                    ],
+                                  ),
                                 ),
                               ),
                             ),

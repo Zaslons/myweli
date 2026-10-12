@@ -7,7 +7,9 @@ import '../../core/config/app_config.dart';
 import '../../core/map/carto_basemap.dart';
 
 /// The CARTO light basemap — the ONE tile layer every app map uses (the
-/// consumer « Carte » and the pro « Profil du salon » pin map).
+/// consumer « Carte », the pro « Profil du salon » pin map and the salon
+/// page's location preview). `carto_basemap_layer_test.dart` holds every
+/// `FlutterMap(` in `lib/` to it.
 /// Design: docs/design/map-basemap-key.md §5.2.
 ///
 /// Put it first in a `FlutterMap`'s children, and [CartoAttribution] last:
@@ -27,9 +29,16 @@ class CartoBasemapLayer extends StatefulWidget {
   /// Overridable for tests only — a `flutter test` cannot set a define.
   final String apiKey;
 
+  /// Rings of tiles loaded beyond the visible ones — flutter_map's
+  /// `TileLayer.panBuffer`, whose default (1) this keeps. A map that never
+  /// moves passes 0: the ring would be requests nobody can pan to
+  /// (salon-location-map.md §7).
+  final int panBuffer;
+
   const CartoBasemapLayer({
     super.key,
     this.apiKey = AppConfig.cartoBasemapsKey,
+    this.panBuffer = 1,
   });
 
   @override
@@ -92,6 +101,7 @@ class _CartoBasemapLayerState extends State<CartoBasemapLayer> {
       tileProvider: provider,
       userAgentPackageName: request.userAgentPackageName,
       retinaMode: true,
+      panBuffer: widget.panBuffer,
     );
   }
 }
