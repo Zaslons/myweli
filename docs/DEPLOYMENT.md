@@ -583,7 +583,26 @@ Five things about that command are worth knowing *before* you need it:
 Project root = `web/`. Env: `API_BASE_URL=https://api.myweli.com` (server-side BFF)
 · `NEXT_PUBLIC_API_BASE_URL=https://api.myweli.com` · `NEXT_PUBLIC_SITE_URL=https://myweli.com`
 · `NEXT_PUBLIC_MYWELI_WHATSAPP=225…` · `NEXT_PUBLIC_IOS_APP_URL` /
-`NEXT_PUBLIC_ANDROID_APP_URL` (after the apps ship). Point `myweli.com` DNS →
+`NEXT_PUBLIC_ANDROID_APP_URL` (after the apps ship). Every variable an operator
+sets is listed in `web/.env.example`; the platform- and build-set ones
+(`VERCEL_ENV`, `VERCEL_GIT_COMMIT_SHA`, `SENTRY_AUTH_TOKEN`) appear there
+commented.
+
+**`NEXT_PUBLIC_CARTO_BASEMAPS_KEY` — NOT set, on purpose, until CARTO requires
+keys on vector.** It is the **web** CARTO key (restricted to `myweli.com`,
+`www.myweli.com`); its value lives in Secret Manager as
+`CARTO_BASEMAPS_WEB_KEY` (project `myweli`, the record). Set, it keys the style
+and every CARTO request the maps make — and spends the free tier all keys share
+(1 M requests a month) on vector tiles CARTO still serves free keyless, from
+every salon page ([map-basemap-key.md](design/map-basemap-key.md) §7). The day
+CARTO changes, the `basemap` job of `production-checks.yml` goes red and the
+tracking issue names this step: set it in Vercel for **Production only** (a
+preview host is not on the key → `403`), from
+`gcloud secrets versions access latest --secret=CARTO_BASEMAPS_WEB_KEY --project=myweli`,
+then **redeploy** — Next inlines it at build time, so nothing changes until a
+new build (spec §9 step 3).
+
+Point `myweli.com` DNS →
 Vercel; confirm `WEB_ORIGINS` matches. Verify `/sitemap.xml`, `/robots.txt`,
 `/llms.txt`, JSON-LD, `/opengraph-image`, `/logo.svg` (a real raster `logo.png` +
 designed OG art can replace the generated ones later).
@@ -689,10 +708,25 @@ the write that triggered it already succeeded. Design:
    the cron, the device smoke test) — and, for iOS, the Apple developer account.
 3. Real launcher icons/splash (per flavor); iOS signing (Apple Dev); Android
    signing keystore (`key.properties`, gitignored).
-4. Build prod (per flavor):
-   `flutter build appbundle --flavor consumer -t lib/main.dart
+4. Build prod (per flavor). **For a store artifact, never the bare command** —
+   it carries neither the Sentry DSN nor the CARTO key, so it builds, ships
+   and shows « API KEY REQUIRED » on every map. For a local check or reference
+   only: `flutter build appbundle --flavor consumer -t lib/main.dart
    --dart-define=USE_API_BACKEND=true --dart-define=API_BASE_URL=https://api.myweli.com`
    (and `--flavor pro -t lib/main_pro.dart`).
+   Store artifacts are built by **`tool/release_build.sh <ios|android>
+   <consumer|pro>`**, which reads its secrets from Secret Manager (project
+   `myweli`, never printed) and refuses to build without them:
+   `MOBILE_SENTRY_DSN` and **`CARTO_BASEMAPS_KEY`** — the **app** CARTO key,
+   restricted to the two bundle ids / packages (+ release certs); without it
+   every map shows « API KEY REQUIRED »
+   ([map-basemap-key.md](design/map-basemap-key.md) §9). It exists since
+   2026-10-11 and passed the real-key check (spec §10 A). To recreate it, from
+   the clipboard, so it never reaches shell history (the script refuses a key
+   with a space or tab in it, or not shaped like a CARTO key — letters,
+   digits, `_`, `-`, at least 20): `pbpaste | gcloud secrets create
+   CARTO_BASEMAPS_KEY --project=myweli --replication-policy=automatic
+   --data-file=-`.
 5. Store listings + privacy policy; submit to App Store + Play.
 6. Set `NEXT_PUBLIC_IOS_APP_URL` / `NEXT_PUBLIC_ANDROID_APP_URL` on the web.
 

@@ -29,6 +29,13 @@ import '../support/sign_in.dart';
 /// already used `contain`, as does the web's Lightbox — and no test or golden
 /// photographed the open dialog, which is why it survived.
 ///
+/// **Two ways in since the cover** (docs/design/salon-cover-photo.md §2.1):
+/// the cover opens photo 1, and the « Photos » strip — which no longer
+/// repeats the cover — opens each thumbnail at its TRUE index, so its first
+/// thumbnail is photo 2. An index taken from the strip's position instead
+/// would open the cover a second time, which is the regression the second
+/// test pins.
+///
 /// Three assertions, three regressions this pins:
 /// - `contain` (the crop coming back),
 /// - the semantic label (the photo used to be excluded from semantics),
@@ -48,37 +55,32 @@ void main() {
     setupDependencyInjection();
   });
 
+  Future<void> pumpSalon(WidgetTester tester) async {
+    final auth = await signInConsumer(tester);
+    await pumpPushedAtWidth(
+      tester,
+      width: 390,
+      providers: [
+        ChangeNotifierProvider.value(value: auth),
+        ChangeNotifierProvider(create: (_) => ProviderProvider()),
+        ChangeNotifierProvider(create: (_) => AppointmentProvider()),
+        ChangeNotifierProvider(create: (_) => FavoritesProvider()),
+      ],
+      // provider1 has two photos: the cover, and one in the strip.
+      subject: const ProviderDetailScreen(providerId: 'provider1'),
+      rounds: 5,
+    );
+  }
+
   testWidgets(
     'the salon photo lightbox: contain, labelled, light status icons',
     (tester) async {
-      final auth = await signInConsumer(tester);
-      await pumpPushedAtWidth(
-        tester,
-        width: 390,
-        providers: [
-          ChangeNotifierProvider.value(value: auth),
-          ChangeNotifierProvider(create: (_) => ProviderProvider()),
-          ChangeNotifierProvider(create: (_) => AppointmentProvider()),
-          ChangeNotifierProvider(create: (_) => FavoritesProvider()),
-        ],
-        subject: const ProviderDetailScreen(providerId: 'provider1'),
-        rounds: 5,
-      );
+      await pumpSalon(tester);
 
-      // Reach the Photos strip and open the first photo.
-      await tester.scrollUntilVisible(
-        find.text('Photos'),
-        300,
-        scrollable: find.byType(Scrollable).first,
+      // The cover is the way in to photo 1.
+      await tester.tap(
+        find.bySemanticsLabel('Photo du salon Salon Excellence'),
       );
-      await tester.pumpAndSettle();
-      final thumb = find
-          .descendant(
-            of: find.byType(ListView),
-            matching: find.byType(GestureDetector),
-          )
-          .first;
-      await tester.tap(thumb);
       await tester.pumpAndSettle();
 
       final dialog = find.byType(Dialog);
@@ -99,11 +101,12 @@ void main() {
         );
       }
 
-      // 2. The photo the user deliberately opened is not a semantic void.
+      // 2. The photo the user deliberately opened is not a semantic void —
+      //    and it is the cover, photo 1.
       expect(
         find.descendant(
           of: dialog,
-          matching: find.bySemanticsLabel(RegExp('Photo du salon 1 sur')),
+          matching: find.bySemanticsLabel('Photo du salon 1 sur 2'),
         ),
         findsOneWidget,
       );
@@ -120,4 +123,37 @@ void main() {
       expect(region.value, SystemUiOverlayStyle.light);
     },
   );
+
+  testWidgets('the strip skips the cover, and its first thumbnail is photo 2', (
+    tester,
+  ) async {
+    await pumpSalon(tester);
+    await tester.scrollUntilVisible(
+      find.text('Photos'),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+
+    // One thumbnail for two photos: the cover is not repeated.
+    expect(find.bySemanticsLabel('Agrandir la photo 1 sur 2'), findsNothing);
+    final thumb = find.bySemanticsLabel('Agrandir la photo 2 sur 2');
+    expect(thumb, findsOneWidget);
+
+    await tester.tap(thumb);
+    await tester.pumpAndSettle();
+
+    final dialog = find.byType(Dialog);
+    expect(dialog, findsOneWidget, reason: 'the lightbox opened');
+    expect(
+      find.descendant(
+        of: dialog,
+        matching: find.bySemanticsLabel('Photo du salon 2 sur 2'),
+      ),
+      findsOneWidget,
+      reason:
+          'the thumbnail opens at its TRUE index in imageUrls — its position '
+          'in the strip (0) would open the cover a second time',
+    );
+  });
 }

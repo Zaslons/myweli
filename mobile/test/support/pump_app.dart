@@ -35,6 +35,9 @@ Widget wrapApp({
   // whole theme rather than passing a family keeps `AppTheme` the single author
   // of what a theme is.
   ThemeData? theme,
+  // The app roots' `MaterialApp(builder:)` — for the test that needs what a
+  // root installs above every route (default_status_bar_style_test.dart).
+  TransitionBuilder? builder,
 }) {
   assert(
     (home == null) != (routerConfig == null),
@@ -62,6 +65,7 @@ Widget wrapApp({
           localizationsDelegates: GlobalMaterialLocalizations.delegates,
           supportedLocales: const [Locale('fr', 'FR')],
           scaffoldMessengerKey: scaffoldMessengerKey,
+          builder: builder,
           home: home,
         )
       : MaterialApp.router(
@@ -70,6 +74,7 @@ Widget wrapApp({
           localizationsDelegates: GlobalMaterialLocalizations.delegates,
           supportedLocales: const [Locale('fr', 'FR')],
           scaffoldMessengerKey: scaffoldMessengerKey,
+          builder: builder,
           routerConfig: routerConfig,
         );
 

@@ -290,10 +290,45 @@ class ProAuthProvider extends ChangeNotifier {
     // The global 403 seam (access §5.3): forbidden responses anywhere in the
     // pro surfaces trigger ONE membership probe — revoked members sign out.
     ProAccessGuard.onForbidden = checkMembershipAlive;
-    loadCurrentProvider();
+    ready = loadCurrentProvider();
   }
 
-  Future<void> loadCurrentProvider() async {
+  /// The constructor's session load — restore, then the live membership
+  /// refresh. **What the Pro splash awaits**, rather than starting a load of
+  /// its own: `main_pro.dart` builds this provider and then awaits the version
+  /// gate (up to 1.5 s) before `runApp`, so a fast load has usually finished
+  /// before the splash exists, and a second call would run it all again
+  /// (docs/design/pro-open-animation.md §5).
+  ///
+  /// Never completes with an error: the load catches its own failures.
+  late final Future<void> ready;
+
+  final Completer<void> _restored = Completer<void>();
+
+  /// Completes once the stored session, the cached membership and the salon
+  /// selection have been read — local storage only, BEFORE the live refresh.
+  /// From here [isAuthenticated] and [isStaff] answer from the stored session,
+  /// which is what the splash routes on when the network is too slow to wait
+  /// for (pro-open-animation.md §2.3). Once, for the constructor's load.
+  Future<void> get restored => _restored.future;
+
+  void _markRestored() {
+    if (!_restored.isCompleted) _restored.complete();
+  }
+
+  Future<void>? _loading;
+
+  /// Restores the stored session, then refreshes the membership live — for
+  /// an explicit reload; the cold start is [ready]. Concurrent callers share
+  /// the load in flight: a second, parallel load would fire duplicate
+  /// authenticated requests, exactly when the access token tends to be
+  /// expired (docs/design/session-refresh.md).
+  Future<void> loadCurrentProvider() =>
+      _loading ??= _loadCurrentProvider().whenComplete(() {
+        _loading = null;
+      });
+
+  Future<void> _loadCurrentProvider() async {
     _isLoading = true;
     notifyListeners();
 
@@ -306,6 +341,7 @@ class ProAuthProvider extends ChangeNotifier {
         // R4b — and validates the selection, falling back on a 403).
         _membership = await _authService.getCachedProviderMembership();
         _selectedSalonId = await _authService.getSelectedProviderSalon();
+        _markRestored();
         _syncPush();
         await refreshMembership();
         unawaited(loadMySalons());
@@ -313,6 +349,9 @@ class ProAuthProvider extends ChangeNotifier {
     } catch (e) {
       _error = e.toString();
     } finally {
+      // Signed out, or the restore itself failed: there is nothing more the
+      // stored session can say, so it counts as restored.
+      _markRestored();
       _isLoading = false;
       notifyListeners();
     }

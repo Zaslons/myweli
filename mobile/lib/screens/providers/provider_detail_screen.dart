@@ -13,6 +13,7 @@ import '../../core/utils/formatters.dart';
 import '../../core/utils/helpers.dart';
 import '../../models/appointment.dart';
 import '../../models/availability.dart';
+import '../../models/provider.dart' as models;
 import '../../models/service.dart';
 import '../../providers/appointment_provider.dart';
 import '../../providers/auth_provider.dart';
@@ -29,6 +30,11 @@ import '../../widgets/providers/before_after_section.dart';
 import '../../widgets/review/review_tile.dart';
 import '../../widgets/review/submit_review_sheet.dart';
 
+/// The salon page — `/provider/:id` in the consumer app and, with [preview],
+/// « Aperçu de ma page » in the pro app.
+///
+/// Its header has two branches, chosen by whether the salon has a cover
+/// (`imageUrls[0]`): see docs/design/salon-cover-photo.md.
 class ProviderDetailScreen extends StatefulWidget {
   final String providerId;
 
@@ -157,6 +163,191 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
     );
   }
 
+  /// The cover photo, or null when the salon has none — `imageUrls[0]`, which
+  /// the contract already names the listing cover (openapi.yaml, `imageUrls`).
+  ///
+  /// An empty string is « no cover », as it is on the website, where
+  /// `provider.imageUrls?.[0]` is falsy and the Hero renders nothing.
+  String? _coverUrl(models.Provider p) =>
+      p.imageUrls.isNotEmpty && p.imageUrls.first.isNotEmpty
+      ? p.imageUrls.first
+      : null;
+
+  /// The indices of `imageUrls` the « Photos » strip shows: all of them, minus
+  /// the cover when there is one (it is already at the top of the page).
+  List<int> _galleryIndices(models.Provider p) => [
+    for (var i = _coverUrl(p) == null ? 0 : 1; i < p.imageUrls.length; i++) i,
+  ];
+
+  /// The favourite heart — the bar's only action, on both header branches.
+  Widget _favoriteAction() => Consumer2<FavoritesProvider, AuthProvider>(
+    builder: (context, favoritesProvider, authProvider, _) {
+      final isFavorite = authProvider.isAuthenticated
+          ? favoritesProvider.isFavorite(widget.providerId)
+          : false;
+      final userId = authProvider.user?.id ?? '';
+
+      return IconButton(
+        tooltip: isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris',
+        icon: Icon(
+          isFavorite ? Icons.favorite : Icons.favorite_border,
+          // `textPrimary` when off. It was `secondary` — #FFFFFF on the white
+          // header — so the heart was invisible until it turned red
+          // (salon-cover-photo.md §1). Same pair as provider_card.dart.
+          color: isFavorite ? AppColors.favorite : AppColors.textPrimary,
+        ),
+        onPressed: () async {
+          if (!authProvider.isAuthenticated) {
+            AppSnackBar.show(
+              context,
+              'Connectez-vous pour ajouter aux favoris',
+            );
+            final currentPath = GoRouterState.of(context).uri.toString();
+            context.go('/login?returnTo=${Uri.encodeComponent(currentPath)}');
+            return;
+          }
+          final messenger = ScaffoldMessenger.of(context);
+          // The toggle can fail. Announcing success either way is a lie, and
+          // « Annuler » on a failed toggle would PERFORM the action instead of
+          // undoing it.
+          final ok = await favoritesProvider.toggleFavorite(
+            userId,
+            widget.providerId,
+          );
+          AppSnackBar.outcomeOn(
+            messenger,
+            ok: ok,
+            success: isFavorite ? 'Retiré des favoris' : 'Ajouté aux favoris',
+            error:
+                favoritesProvider.error ??
+                'Une erreur est survenue. Réessayez.',
+            action: !ok
+                ? null
+                : SnackAction(
+                    label: 'Annuler',
+                    onPressed: () => favoritesProvider.toggleFavorite(
+                      userId,
+                      widget.providerId,
+                    ),
+                    // §15 as amended by A6: the heart itself is a one-tap
+                    // undo, so this keeps the kind's 3s instead of occluding
+                    // the screen for 10.
+                    isOnlyRouteBack: false,
+                  ),
+          );
+        },
+      );
+    },
+  );
+
+  /// Branch A — the salon has a cover (salon-cover-photo.md §2.1).
+  ///
+  /// The bar's height is the photo's, a constant: only text scales, and the
+  /// name, place and rating live in the sliver below at their intrinsic
+  /// height. So this branch has no computed bound and no A13 stacking — the
+  /// name no longer shares its row with a logo.
+  Widget _coverAppBar(models.Provider p, String cover) => IconButtonTheme(
+    // « Retour » and the heart on white pills over the photo — the idiom of
+    // provider_card.dart. A THEME and not a `leading:`, so the AppBar still
+    // decides whether there is a way back (`impliesAppBarDismissal`): it
+    // re-reads this theme for its implied BackButton and for its actions, and
+    // its `style?.copyWith(...)` keeps the background (app_bar.dart). M3's
+    // IconButton paints a 40dp disc inside a 48dp target (§13.2).
+    data: IconButtonThemeData(
+      style: IconButton.styleFrom(
+        backgroundColor: AppColors.secondary.withValues(alpha: 0.9),
+        foregroundColor: AppColors.textPrimary,
+      ),
+    ),
+    child: SliverAppBar(
+      expandedHeight: _coverHeight,
+      pinned: true,
+      actions: [if (!widget.preview) _favoriteAction()],
+      flexibleSpace: _SalonCover(
+        imageUrl: cover,
+        salonName: p.name,
+        logoUrl: p.logoUrl,
+        // The cover IS photo 1: the viewer opens on it, over the full list.
+        onTap: () => _showFullScreenPhoto(context, p.imageUrls, 0),
+      ),
+    ),
+  );
+
+  /// Branch B — the salon has no photo: the header exactly as it was before
+  /// the cover (salon-cover-photo.md §2.2), logo beside the name, A13 stacking
+  /// and all.
+  Widget _noPhotoAppBar(BuildContext context, models.Provider p) {
+    final stacked = _headerStacked(context, verified: p.verified);
+    return SliverAppBar(
+      // §13.3 (A11 C5). `expandedHeight: 160` was a fixed height around text
+      // and the header clipped by **92dp at 200%** — the same class as
+      // `ProviderCard.carouselHeight`, and the same fix.
+      //
+      // The split is derived, not guessed: the overflow is 92dp at 360, 375
+      // and 390 alike, so the block does not re-wrap and its growth is linear.
+      // `chrome + text = 160` at 1× and `chrome + 2×text = 252` at 2× gives
+      // text = 92, chrome = 68. `textScaledBound` floors at the 1× value, so
+      // nothing moves below 100%.
+      expandedHeight: AppTheme.textScaledBound(
+        context,
+        constant: stacked ? _headerChromeStacked : _headerChrome,
+        text: _headerTextBlock,
+      ),
+      pinned: true,
+      actions: [if (!widget.preview) _favoriteAction()],
+      flexibleSpace: FlexibleSpaceBar(
+        background: Container(
+          color: AppColors.secondary,
+          child: SafeArea(
+            bottom: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppTheme.spacingL,
+                AppTheme.spacingM,
+                AppTheme.spacingL,
+                AppTheme.spacingM,
+              ),
+              // A13, §21 row 62 — **the salon's name is its identity, and
+              // « Salon Ex / cellence » is not a name.** §13.3 used to name "a
+              // salon name" as a permitted mid-word break; A13 decides
+              // otherwise and amends it.
+              //
+              // Beside a hard 72×72 logo the name gets 224dp at 360 while
+              // « Excellence » wants 269.7 at 2×. Shrinking the logo cannot
+              // reach the contract point — measured at 56/48/40dp it still
+              // breaks, and **deleting it outright only just clears 2×** — so
+              // the fix is the one §13.3 mandates and this file already uses
+              // for « Appeler » further down: more width, by stacking. (The
+              // cover branch needs none of this: its name has the full row.)
+              child: Flex(
+                direction: stacked ? Axis.vertical : Axis.horizontal,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _SalonLogo(logoUrl: p.logoUrl),
+                  SizedBox(
+                    width: stacked ? 0 : AppTheme.spacingM,
+                    height: stacked ? AppTheme.spacingS : 0,
+                  ),
+                  // Stacked, the Flex is vertical and an `Expanded` would
+                  // fight the `SliverAppBar`'s bounded height; beside the logo
+                  // it is what gives the name the rest of the row. So the
+                  // wrapper differs by axis.
+                  _HeaderTextBlock(
+                    stacked: stacked,
+                    // Two lines: this bar's height is a computed bound with
+                    // zero slack at 2× (see `_headerChromeStacked`).
+                    child: _SalonIdentity(salon: p, nameMaxLines: 2),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -180,243 +371,33 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
             );
           }
 
+          final gallery = _galleryIndices(p);
           return CustomScrollView(
             slivers: [
-              SliverAppBar(
-                // §13.3 (A11 C5). `expandedHeight: 160` was a fixed height
-                // around text and the header clipped by **92dp at 200%** — the
-                // same class as `ProviderCard.carouselHeight`, and the same fix.
-                //
-                // The split is derived, not guessed: the overflow is 92dp at
-                // 360, 375 and 390 alike, so the block does not re-wrap and its
-                // growth is linear. `chrome + text = 160` at 1× and
-                // `chrome + 2×text = 252` at 2× gives text = 92, chrome = 68.
-                // `textScaledBound` floors at the 1× value, so nothing moves
-                // below 100%.
-                expandedHeight: AppTheme.textScaledBound(
-                  context,
-                  constant: _headerStacked(context, verified: p.verified)
-                      ? _headerChromeStacked
-                      : _headerChrome,
-                  text: _headerTextBlock,
-                ),
-                pinned: true,
-                actions: [
-                  if (!widget.preview)
-                    Consumer2<FavoritesProvider, AuthProvider>(
-                      builder: (context, favoritesProvider, authProvider, _) {
-                        final isFavorite = authProvider.isAuthenticated
-                            ? favoritesProvider.isFavorite(widget.providerId)
-                            : false;
-                        final userId = authProvider.user?.id ?? '';
-
-                        return IconButton(
-                          tooltip: isFavorite
-                              ? 'Retirer des favoris'
-                              : 'Ajouter aux favoris',
-                          icon: Icon(
-                            isFavorite ? Icons.favorite : Icons.favorite_border,
-                            color: isFavorite
-                                ? AppColors.favorite
-                                : AppColors.secondary,
-                          ),
-                          onPressed: () async {
-                            if (!authProvider.isAuthenticated) {
-                              AppSnackBar.show(
-                                context,
-                                'Connectez-vous pour ajouter aux favoris',
-                              );
-                              final currentPath = GoRouterState.of(
-                                context,
-                              ).uri.toString();
-                              context.go(
-                                '/login?returnTo=${Uri.encodeComponent(currentPath)}',
-                              );
-                              return;
-                            }
-                            final messenger = ScaffoldMessenger.of(context);
-                            // The toggle can fail. Announcing success either
-                            // way is a lie, and « Annuler » on a failed toggle
-                            // would PERFORM the action instead of undoing it.
-                            final ok = await favoritesProvider.toggleFavorite(
-                              userId,
-                              widget.providerId,
-                            );
-                            AppSnackBar.outcomeOn(
-                              messenger,
-                              ok: ok,
-                              success: isFavorite
-                                  ? 'Retiré des favoris'
-                                  : 'Ajouté aux favoris',
-                              error:
-                                  favoritesProvider.error ??
-                                  'Une erreur est survenue. Réessayez.',
-                              action: !ok
-                                  ? null
-                                  : SnackAction(
-                                      label: 'Annuler',
-                                      onPressed: () =>
-                                          favoritesProvider.toggleFavorite(
-                                            userId,
-                                            widget.providerId,
-                                          ),
-                                      // §15 as amended by A6: the heart itself
-                                      // is a one-tap undo, so this keeps the
-                                      // kind's 3s instead of occluding the
-                                      // screen for 10.
-                                      isOnlyRouteBack: false,
-                                    ),
-                            );
-                          },
-                        );
-                      },
-                    ),
-                ],
-                flexibleSpace: FlexibleSpaceBar(
-                  background: Container(
+              // Two headers, chosen by whether the salon has a cover
+              // (docs/design/salon-cover-photo.md §2): `imageUrls[0]` full-bleed
+              // like the website's Hero, or — no photo at all — the header as
+              // it always was.
+              if (_coverUrl(p) case final cover?) ...[
+                _coverAppBar(p, cover),
+                SliverToBoxAdapter(
+                  child: ColoredBox(
                     color: AppColors.secondary,
-                    child: SafeArea(
-                      bottom: false,
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(
-                          AppTheme.spacingL,
-                          AppTheme.spacingM,
-                          AppTheme.spacingL,
-                          AppTheme.spacingM,
-                        ),
-                        // A13, §21 row 62 — **the salon's name is its
-                        // identity, and « Salon Ex / cellence » is not a name.**
-                        // §13.3 used to name "a salon name" as a permitted
-                        // mid-word break; A13 decides otherwise and amends it.
-                        //
-                        // Beside a hard 72×72 logo the name gets 224dp at 360
-                        // while « Excellence » wants 269.7 at 2×. Shrinking the
-                        // logo cannot reach the contract point — measured at
-                        // 56/48/40dp it still breaks, and **deleting it outright
-                        // only just clears 2×** — so the fix is the one §13.3
-                        // mandates and this file already uses for « Appeler »
-                        // twelve hundred lines down: more width, by stacking.
-                        child: Flex(
-                          direction:
-                              _headerStacked(context, verified: p.verified)
-                              ? Axis.vertical
-                              : Axis.horizontal,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            _SalonLogo(logoUrl: p.logoUrl),
-                            SizedBox(
-                              width:
-                                  _headerStacked(context, verified: p.verified)
-                                  ? 0
-                                  : AppTheme.spacingM,
-                              height:
-                                  _headerStacked(context, verified: p.verified)
-                                  ? AppTheme.spacingS
-                                  : 0,
-                            ),
-                            // Stacked, the Flex is vertical and an `Expanded`
-                            // would fight the `SliverAppBar`'s bounded height;
-                            // beside the logo it is what gives the name the rest
-                            // of the row. So the wrapper differs by axis.
-                            _HeaderTextBlock(
-                              stacked: _headerStacked(
-                                context,
-                                verified: p.verified,
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Row(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Flexible(
-                                        child: Text(
-                                          p.name,
-                                          style: AppTextStyles.headlineMedium
-                                              .copyWith(
-                                                color: AppColors.textPrimary,
-                                              ),
-                                          maxLines: 2,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ),
-                                      if (p.verified) ...[
-                                        const SizedBox(
-                                          width: AppTheme.spacingS,
-                                        ),
-                                        const Padding(
-                                          padding: EdgeInsets.only(
-                                            top: AppTheme.spacingXS,
-                                          ),
-                                          child: Icon(
-                                            Icons.verified,
-                                            size: AppTheme.iconS,
-                                            color: AppColors.info,
-                                            semanticLabel: 'Salon vérifié',
-                                          ),
-                                        ),
-                                      ],
-                                    ],
-                                  ),
-                                  const SizedBox(height: AppTheme.spacingS),
-                                  Row(
-                                    children: [
-                                      const Icon(
-                                        Icons.location_on_outlined,
-                                        size: AppTheme.iconXS,
-                                        color: AppColors.textTertiary,
-                                      ),
-                                      const SizedBox(width: AppTheme.spacingXS),
-                                      Expanded(
-                                        child: Text(
-                                          p.city ?? p.address,
-                                          style: AppTextStyles.bodySmall
-                                              .copyWith(
-                                                color: AppColors.textSecondary,
-                                              ),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: AppTheme.spacingXS),
-                                  Row(
-                                    children: [
-                                      const Icon(
-                                        Icons.star,
-                                        size: AppTheme.iconXS,
-                                        color: AppColors.starRating,
-                                      ),
-                                      const SizedBox(width: AppTheme.spacingXS),
-                                      Text(
-                                        p.rating.toStringAsFixed(1),
-                                        style: AppTextStyles.bodySmall.copyWith(
-                                          color: AppColors.textSecondary,
-                                        ),
-                                      ),
-                                      const SizedBox(width: AppTheme.spacingS),
-                                      Text(
-                                        '${p.reviewCount} avis',
-                                        style: AppTextStyles.bodySmall.copyWith(
-                                          color: AppColors.textTertiary,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(
+                        AppTheme.spacingL,
+                        AppTheme.spacingM,
+                        AppTheme.spacingL,
+                        AppTheme.spacingM,
                       ),
+                      // Intrinsic height, full padded width (312dp at 360):
+                      // nothing bounds the name, so nothing truncates it.
+                      child: _SalonIdentity(salon: p),
                     ),
                   ),
                 ),
-              ),
+              ] else
+                _noPhotoAppBar(context, p),
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(
@@ -867,55 +848,73 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                         ),
                       ),
 
-                      // Section: Photos (always shown, even with one picture)
-                      _SectionCard(
-                        title: 'Photos',
-                        child: p.imageUrls.isEmpty
-                            ? Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: AppTheme.spacingS,
-                                ),
-                                child: Text(
-                                  'Aucune photo pour le moment.',
-                                  style: AppTextStyles.bodySmall.copyWith(
-                                    color: AppColors.textTertiary,
+                      // Section: Photos — every photo EXCEPT the cover, which
+                      // is already on screen (the website's
+                      // `Gallery images={imageUrls.slice(1)}`). Gone when the
+                      // cover is the only photo: « Aucune photo pour le
+                      // moment. » would be false, and « no other photo » is
+                      // noise. Without any photo it says so, as it always did.
+                      if (gallery.isNotEmpty || p.imageUrls.isEmpty)
+                        _SectionCard(
+                          title: 'Photos',
+                          child: p.imageUrls.isEmpty
+                              ? Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: AppTheme.spacingS,
                                   ),
-                                ),
-                              )
-                            : SizedBox(
-                                height: 120,
-                                child: ListView.separated(
-                                  scrollDirection: Axis.horizontal,
-                                  itemCount: p.imageUrls.length,
-                                  separatorBuilder: (_, _) =>
-                                      const SizedBox(width: AppTheme.spacingS),
-                                  itemBuilder: (context, i) {
-                                    return GestureDetector(
-                                      onTap: () => _showFullScreenPhoto(
-                                        context,
-                                        p.imageUrls,
-                                        i,
-                                      ),
-                                      child: SizedBox(
-                                        width: 160,
-                                        height: 120,
-                                        child: ClipRRect(
-                                          borderRadius: BorderRadius.circular(
-                                            AppTheme.radiusLarge,
+                                  child: Text(
+                                    'Aucune photo pour le moment.',
+                                    style: AppTextStyles.bodySmall.copyWith(
+                                      color: AppColors.textTertiary,
+                                    ),
+                                  ),
+                                )
+                              : SizedBox(
+                                  height: 120,
+                                  child: ListView.separated(
+                                    scrollDirection: Axis.horizontal,
+                                    itemCount: gallery.length,
+                                    separatorBuilder: (_, _) => const SizedBox(
+                                      width: AppTheme.spacingS,
+                                    ),
+                                    itemBuilder: (context, k) {
+                                      // The TRUE index into `imageUrls`, so
+                                      // the viewer opens on this photo and a
+                                      // swipe back reaches the cover.
+                                      final i = gallery[k];
+                                      return Semantics(
+                                        button: true,
+                                        label:
+                                            'Agrandir la photo ${i + 1} '
+                                            'sur ${p.imageUrls.length}',
+                                        child: GestureDetector(
+                                          onTap: () => _showFullScreenPhoto(
+                                            context,
+                                            p.imageUrls,
+                                            i,
                                           ),
-                                          child: TimedCachedImage(
-                                            imageUrl: p.imageUrls[i],
+                                          child: SizedBox(
                                             width: 160,
                                             height: 120,
-                                            fit: BoxFit.cover,
+                                            child: ClipRRect(
+                                              borderRadius:
+                                                  BorderRadius.circular(
+                                                    AppTheme.radiusLarge,
+                                                  ),
+                                              child: TimedCachedImage(
+                                                imageUrl: p.imageUrls[i],
+                                                width: 160,
+                                                height: 120,
+                                                fit: BoxFit.cover,
+                                              ),
+                                            ),
                                           ),
                                         ),
-                                      ),
-                                    );
-                                  },
+                                      );
+                                    },
+                                  ),
                                 ),
-                              ),
-                      ),
+                        ),
 
                       // Section: Avant / Après (only when the salon has pairs)
                       if (p.beforeAfters.isNotEmpty)
@@ -1369,13 +1368,20 @@ class PageViewIndicator extends StatelessWidget {
   }
 }
 
-/// The salon header's non-text chrome (logo, paddings) and its text block, at
-/// 1×. Derived from the measured 92dp overflow at 200% — see `expandedHeight`.
+/// The NO-PHOTO header's non-text chrome (logo, paddings) and its text block,
+/// at 1×. Derived from the measured 92dp overflow at 200% — see
+/// `_noPhotoAppBar`'s `expandedHeight`.
+///
+/// **Everything from here to `_headerStacked` governs that branch only**
+/// (salon-cover-photo.md §2.2). Under a cover the name is not beside the logo:
+/// it has the full padded row — 312dp at 360, 284 with the verified badge —
+/// so « Excellence » (134.85dp at 1×) holds to 2.31× / 2.11×, past the 2×
+/// contract, and that branch has no stacking and no computed bound.
 const double _headerChrome = 68;
 const double _headerTextBlock = 92;
 
-/// Above this text scale the header **stacks** the logo above the name (A13,
-/// §21 row 62).
+/// Above this text scale the no-photo header **stacks** the logo above the
+/// name (A13, §21 row 62).
 ///
 /// **1.6, not the 1.3 this file already uses twelve hundred lines down.** The
 /// action bar's threshold is 1.3 because « Appeler » crosses there; the salon
@@ -1489,6 +1495,265 @@ class _SectionCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// The cover's height below the status bar — the website's `h-56` on phones
+/// (`web/components/provider/Hero.tsx`).
+///
+/// Constant chrome: only text scales, and a photo is not text. A named
+/// constant at the call site and not an `AppTheme` token, by SYSTEM.md §5
+/// « What §5 does not govern »: there is no sizing scale, and an image's
+/// height is a layout dimension like `ProviderCard._imageHeight`.
+const double _coverHeight = 224;
+
+/// The logo on the cover — the website's `h-16 w-16` circle and its
+/// `border-2` white ring, bottom-left at `spacingM` (`bottom-m left-m`).
+const double _coverLogoSize = 64;
+const double _coverLogoRing = 2;
+
+/// How much of the cover is showing, 1 → 0, from the bar's scroll position.
+///
+/// Fully opaque for the first half of the collapse, then a linear fade into
+/// the bar. **One number drives both the fade and the status bar** (light
+/// icons while this is ≥ 0.5), so the two cannot disagree.
+double _coverVisibility(FlexibleSpaceBarSettings? settings) {
+  if (settings == null) return 1;
+  final range = settings.maxExtent - settings.minExtent;
+  if (range <= 0) return 1;
+  final collapsed = ((settings.maxExtent - settings.currentExtent) / range)
+      .clamp(0.0, 1.0);
+  return collapsed <= 0.5 ? 1 : (2 - 2 * collapsed).clamp(0.0, 1.0);
+}
+
+/// The cover — `imageUrls[0]` full-bleed under the status bar and the
+/// toolbar, with the logo bottom-left (salon-cover-photo.md §2.1). It is the
+/// `SliverAppBar`'s flexible space, so it reads the bar's extent from the
+/// `FlexibleSpaceBarSettings` the bar provides.
+///
+/// **A failed photo keeps the band** (§2.4): `TimedCachedImage` paints its
+/// neutral « image unavailable » surface in the same 224dp. Falling back to
+/// the no-photo header instead would need a failure signal the widget does
+/// not expose, and would move the page under the reader's thumb after the
+/// fact.
+class _SalonCover extends StatelessWidget {
+  const _SalonCover({
+    required this.imageUrl,
+    required this.salonName,
+    required this.logoUrl,
+    required this.onTap,
+  });
+
+  final String imageUrl;
+  final String salonName;
+  final String? logoUrl;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final settings = context
+        .dependOnInheritedWidgetOfExactType<FlexibleSpaceBarSettings>();
+    final visibility = _coverVisibility(settings);
+    final topInset = MediaQuery.paddingOf(context).top;
+    // The photo keeps its full height and is anchored to the bar's bottom, so
+    // it scrolls with the content (no parallax) and the bar clips its top.
+    final photoHeight = settings?.maxExtent ?? topInset + _coverHeight;
+    final logo = logoUrl;
+
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      // Light icons over the photo, the app's dark ones once it has faded.
+      // Nested inside the AppBar's own region, and the deepest region wins:
+      // `AnnotatedRegionLayer.findAnnotations` asks its children first.
+      value: visibility >= 0.5
+          ? SystemUiOverlayStyle.light
+          : SystemUiOverlayStyle.dark,
+      child: IgnorePointer(
+        // Faded out, the cover is not there — a tap on the collapsed bar must
+        // not open a photo nobody can see.
+        ignoring: visibility == 0,
+        child: Opacity(
+          opacity: visibility,
+          child: Semantics(
+            container: true,
+            button: true,
+            label: 'Photo du salon $salonName',
+            hint: 'Agrandir la photo',
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: onTap,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    height: photoHeight,
+                    // Decorative to the reader: the Semantics above names it.
+                    child: TimedCachedImage(
+                      imageUrl: imageUrl,
+                      width: double.infinity,
+                      height: photoHeight,
+                    ),
+                  ),
+                  // The status bar and the toolbar sit on the photo; this is
+                  // what keeps light icons legible on a white wall. §19's
+                  // story scrim, same strength (`story_viewer.dart`, 0x99).
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    top: 0,
+                    height: topInset + kToolbarHeight,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.black.withValues(alpha: 0.6),
+                            Colors.transparent,
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  if (logo != null && logo.isNotEmpty)
+                    Positioned(
+                      left: AppTheme.spacingM,
+                      bottom: AppTheme.spacingM,
+                      child: _CoverLogo(logoUrl: logo),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The salon's logo on its cover, ringed in white so it reads on any photo.
+///
+/// Absent when the salon has no logo, as on the website — a generic « shop »
+/// disc on a photo identifies nothing. Decorative: the name follows at once.
+class _CoverLogo extends StatelessWidget {
+  const _CoverLogo({required this.logoUrl});
+
+  final String logoUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    const inner = _coverLogoSize - 2 * _coverLogoRing;
+    return Container(
+      width: _coverLogoSize,
+      height: _coverLogoSize,
+      decoration: BoxDecoration(
+        color: AppColors.secondary,
+        shape: BoxShape.circle,
+        border: Border.all(color: AppColors.secondary, width: _coverLogoRing),
+        boxShadow: AppTheme.elevation3,
+      ),
+      child: ClipOval(
+        child: TimedCachedImage(imageUrl: logoUrl, width: inner, height: inner),
+      ),
+    );
+  }
+}
+
+/// The salon's name (+ verified badge), place and rating — shared by both
+/// header branches (salon-cover-photo.md §5).
+///
+/// [nameMaxLines] is the no-photo header's: its bar height is a computed bound
+/// with zero slack at 2×, so the name stops at two lines there. Under the
+/// cover the block sits in an ordinary sliver at its intrinsic height; nothing
+/// bounds the name, so nothing truncates it (§13.3).
+class _SalonIdentity extends StatelessWidget {
+  const _SalonIdentity({required this.salon, this.nameMaxLines});
+
+  final models.Provider salon;
+  final int? nameMaxLines;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Flexible(
+              child: Text(
+                salon.name,
+                style: AppTextStyles.headlineMedium.copyWith(
+                  color: AppColors.textPrimary,
+                ),
+                maxLines: nameMaxLines,
+                overflow: nameMaxLines == null ? null : TextOverflow.ellipsis,
+              ),
+            ),
+            if (salon.verified) ...[
+              const SizedBox(width: AppTheme.spacingS),
+              const Padding(
+                padding: EdgeInsets.only(top: AppTheme.spacingXS),
+                child: Icon(
+                  Icons.verified,
+                  size: AppTheme.iconS,
+                  color: AppColors.info,
+                  semanticLabel: 'Salon vérifié',
+                ),
+              ),
+            ],
+          ],
+        ),
+        const SizedBox(height: AppTheme.spacingS),
+        Row(
+          children: [
+            const Icon(
+              Icons.location_on_outlined,
+              size: AppTheme.iconXS,
+              color: AppColors.textTertiary,
+            ),
+            const SizedBox(width: AppTheme.spacingXS),
+            Expanded(
+              child: Text(
+                salon.city ?? salon.address,
+                style: AppTextStyles.bodySmall.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppTheme.spacingXS),
+        Row(
+          children: [
+            const Icon(
+              Icons.star,
+              size: AppTheme.iconXS,
+              color: AppColors.starRating,
+            ),
+            const SizedBox(width: AppTheme.spacingXS),
+            Text(
+              salon.rating.toStringAsFixed(1),
+              style: AppTextStyles.bodySmall.copyWith(
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(width: AppTheme.spacingS),
+            Text(
+              '${salon.reviewCount} avis',
+              style: AppTextStyles.bodySmall.copyWith(
+                color: AppColors.textTertiary,
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }

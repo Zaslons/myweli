@@ -54,6 +54,10 @@ Signed-off layout, with the agreed refinements:
   Positron VECTOR style** (`basemaps.cartocdn.com/gl/positron-gl-style`) —
   the vector twin of the app MapScreen's `light_all` raster basemap: same
   design language, still keyless/free, crisper rendering and smooth zoom.
+  *(2026-10-11: CARTO now refuses keyless RASTER tiles — the apps carry a key;
+  the web style and every CARTO request are keyed when
+  `NEXT_PUBLIC_CARTO_BASEMAPS_KEY` is set, which production leaves unset until
+  CARTO requires keys on vector — [map-basemap-key.md](map-basemap-key.md) §7.)*
   This is the open-source equivalent of the Woosmap+OpenMapTiles stack
   Planity buys (renderer upgrade decided by the user 2026-07-10; Leaflet
   removed). **Dynamically imported with `ssr: false`** so the chunk (larger

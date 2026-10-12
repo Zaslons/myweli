@@ -5,7 +5,7 @@ import { Icon } from '../Icon';
 import { Map, Marker, NavigationControl } from '@vis.gl/react-maplibre';
 import { useState } from 'react';
 import { FALLBACK_CENTER } from '../../lib/discovery/map';
-import { MAP_STYLE } from '../map/salon-pin';
+import { MAP_STYLE, MAP_TRANSFORM_REQUEST } from '../map/salon-pin';
 
 /// The salon pin picker (docs/design/pro-salon-lifecycle.md L1): tap or drag
 /// the marker onto the salon, or « Utiliser ma position ». Same MapLibre +
@@ -47,6 +47,7 @@ export function LocationPicker({
             zoom: placed ? 15 : 11,
           }}
           mapStyle={MAP_STYLE}
+          transformRequest={MAP_TRANSFORM_REQUEST}
           cooperativeGestures
           style={{ width: '100%', height: '100%' }}
           onClick={(e) => onChange(e.lngLat.lat, e.lngLat.lng)}
