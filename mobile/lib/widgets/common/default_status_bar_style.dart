@@ -10,8 +10,8 @@ import 'package:flutter/services.dart';
 /// Flutter sends a status-bar style only when an `AnnotatedRegion` sits under
 /// the status bar — `RenderView._updateSystemChrome` returns early when it
 /// finds none, and the platform keeps whatever it was sent last. `MaterialApp`
-/// sends dark once, when it builds its light theme, and never on a route
-/// change. A screen with an `AppBar` states its own (the bar is a region); a
+/// sends dark only when it builds its light theme — at start-up, never on a
+/// route change. A screen with an `AppBar` states its own (the bar is a region); a
 /// screen without one — the consumer home, among others — states nothing. So
 /// once a screen that sent LIGHT icons is popped (the salon cover,
 /// salon-cover-photo.md §2.1; the story viewer), its white icons stayed on the

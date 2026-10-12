@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -26,9 +27,9 @@ import '../support/surface.dart';
 ///
 /// `SystemChrome.latestStyle` is what the framework actually SENT, not what a
 /// widget declares — the same reading `salon_cover_test.dart` takes. The app
-/// starts dark either way (`MaterialApp` sends dark once, for its light theme,
-/// and never again on a route change), so only the style AFTER back tells the
-/// two apart.
+/// starts dark either way (`MaterialApp` sends dark when it builds its light
+/// theme, never on a route change), so only the style AFTER back tells the two
+/// apart.
 void main() {
   setUpAll(() {
     // `ProviderProvider` takes its service at construction. The preview never
@@ -74,10 +75,15 @@ void main() {
   /// home → the salon page (the owner preview: seeded, fetches nothing — the
   /// same `ProviderDetailScreen` the client opens) → back.
   Future<void> openSalon(WidgetTester tester) async {
-    Navigator.of(tester.element(find.byType(Scaffold))).push(
-      MaterialPageRoute<void>(
-        builder: (_) =>
-            const ProviderDetailScreen(providerId: 'provider1', preview: true),
+    // Not awaited: the route's future completes on pop, after this returns.
+    unawaited(
+      Navigator.of(tester.element(find.byType(Scaffold))).push(
+        MaterialPageRoute<void>(
+          builder: (_) => const ProviderDetailScreen(
+            providerId: 'provider1',
+            preview: true,
+          ),
+        ),
       ),
     );
     await tester.pumpAndSettle();
@@ -109,9 +115,10 @@ void main() {
   testWidgets('with the root default: dark on the home, light over the cover, '
       'dark again after back', (tester) async {
     await pumpHome(tester, rootDefault: true);
-    // Not the guard: `MaterialApp` itself sends dark once, when it builds its
-    // light theme (material/app.dart, `_themeBuilder`) — which is why the
-    // leak only shows AFTER a light screen. The guard is the last assertion.
+    // Not the guard: `MaterialApp` itself sends dark when it builds its light
+    // theme (material/app.dart, `_themeBuilder`) — at start-up, never on a
+    // route change — which is why the leak only shows AFTER a light screen.
+    // The guard is the last assertion.
     expect(statusIcons(), Brightness.dark, reason: 'a home without an AppBar');
 
     await openSalon(tester);

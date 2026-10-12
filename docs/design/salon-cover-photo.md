@@ -164,7 +164,7 @@ Tout dans `provider_detail_screen.dart` :
 - `DefaultStatusBarStyle` (`widgets/common/`, hors de l'écran) — le style par
   défaut sous chaque route, posé dans le `builder` de `main.dart` et de
   `main_pro.dart` (pas de l'admin, une console de bureau). `MaterialApp`
-  n'envoie le style sombre qu'une fois, en construisant son thème clair —
+  n'envoie le style sombre qu'en construisant son thème clair — au démarrage,
   jamais à un changement de route.
 - Les pastilles : un `IconButtonTheme` autour du `SliverAppBar` de la
   branche A. L'`AppBar` le relit pour son `BackButton` implicite et ses
