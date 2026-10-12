@@ -169,22 +169,28 @@ void main() {
     final frozenAt = covered().value;
     expect(frozenAt, lessThan(1), reason: 'covered mid-pass');
 
-    // Frames keep coming for longer than the whole pass and its rest.
-    final longer = timeline.firstPass + rest + const Duration(seconds: 2);
-    for (var t = Duration.zero; t < longer; t += justUnder) {
-      await tester.pump(justUnder);
+    // Frames keep coming — a second's worth, read while the splash is still
+    // there to read; then longer than the whole pass and its rest.
+    Future<void> framesFor(Duration span) async {
+      for (var t = Duration.zero; t < span; t += justUnder) {
+        await tester.pump(justUnder);
+      }
     }
+
+    await framesFor(const Duration(seconds: 1));
     expect(
       covered().value,
       frozenAt,
       reason: 'the covered splash ticked on — its ticker was not muted',
     );
+    await framesFor(timeline.firstPass + rest + const Duration(seconds: 1));
     expect(
       home,
       findsNothing,
       reason: 'the splash went /home under the page that covers it',
     );
     expect(booking, findsOneWidget);
+    expect(covered().value, frozenAt, reason: 'still frozen');
 
     // « Retour »: the first frame back draws where the pass would be by now —
     // the end frame — and the finished mark rests before /home.
