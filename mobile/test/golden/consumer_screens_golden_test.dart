@@ -178,10 +178,12 @@ void main() {
 
     // docs/design/salon-cover-photo.md — branch B, a salon with NO photo keeps
     // the pre-cover header (logo beside the name). Same frame as
-    // `consumer_provider_detail`, so the two headers diff side by side. Last in
-    // the group on purpose: it renders no image at all (no photo, no before /
-    // after), so it neither reads nor feeds the image cache the earlier
-    // pictures were taken with.
+    // `consumer_provider_detail`, so the two headers diff side by side. No
+    // salon photo and no before / after — but not « no image »: the Avis
+    // card's review1 thumbnails (mock_data.dart) are built too, since the page
+    // is one Column, and they sit BELOW the 1200dp frame, so none is in the
+    // picture. Last in the group on purpose: nothing it loads into the image
+    // cache can reach a picture taken before it.
     testWidgets('the provider detail with no photo', (tester) async {
       final i = MockData.providers.indexWhere((p) => p.id == 'provider1');
       final seed = MockData.providers[i];

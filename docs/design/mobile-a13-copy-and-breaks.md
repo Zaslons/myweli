@@ -85,8 +85,9 @@ height. Those precedents work because their chips wrap real text.
 > sits below at the full padded width — **312dp at 360 (284 verified)**,
 > intrinsic height, no line cap — so « Excellence » holds to **2.31× (2.11×
 > verified)** and that header neither stacks nor computes a bound. Everything
-> below — the 224dp box, the 1.6/1.45 thresholds, `textScaledBound(68 | 148,
-> 92)` — is the header of a salon **with no photo**, unchanged.
+> below — the 224dp name column beside the logo (at 360), the 1.6/1.45
+> thresholds, `textScaledBound(68 | 148, 92)` — is the header of a salon
+> **with no photo**, unchanged.
 
 `provider_detail_screen.dart:283`. The name gets `W − 24 − 72 − 16 − 24` = **224dp
 at 360**, while `Excellence` needs **270.3dp at 2×** — so it breaks above
