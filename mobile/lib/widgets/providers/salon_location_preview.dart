@@ -16,10 +16,11 @@ import '../common/salon_map_marker.dart';
 /// and the full map is one tap away. With no drag flag, flutter_map registers
 /// no drag recogniser at all, so a vertical drag here scrolls the page.
 ///
-/// Tapping anywhere but the attribution's « i » calls [onOpen]; where that
-/// leads is the caller's decision — the consumer app has a map screen, the
-/// pro « Aperçu » does not (§2.2). For a screen reader it is one button,
-/// « Voir {nom} sur la carte », the website pin's own label.
+/// Tapping anywhere but the credits' « i » calls [onOpen]; where that leads is
+/// the caller's decision — the consumer app has a map screen, the pro
+/// « Aperçu » does not (§2.2). The « i » opens the credits in a bottom sheet,
+/// never inside this box (§2.1 « crédits »). For a screen reader it is one
+/// button, « Voir {nom} sur la carte », the website pin's own label.
 class SalonLocationPreview extends StatelessWidget {
   final String salonName;
   final String category;
@@ -27,8 +28,8 @@ class SalonLocationPreview extends StatelessWidget {
   final double longitude;
   final VoidCallback onOpen;
 
-  /// The box's height. Constant chrome — no text inside, so 200 % text does
-  /// not move it. A named constant at the call site and not an `AppTheme`
+  /// The box's height. Constant chrome — no text inside, not even with the
+  /// credits open (they open in a sheet), so 200 % text does not move it. A named constant at the call site and not an `AppTheme`
   /// token, by SYSTEM.md §5 « What §5 does not govern »: there is no sizing
   /// scale, and a map box's height is a layout dimension like the cover's
   /// `_coverHeight`. 160, not the website's 256 (`h-64`): this one is a
@@ -93,7 +94,9 @@ class SalonLocationPreview extends StatelessWidget {
                     ),
                   ],
                 ),
-                const CartoAttribution(),
+                // The sheet form: flutter_map's popup is text, and overflows
+                // this fixed box from 1.3× text up (§2.1 « crédits »).
+                const CartoAttribution.sheet(),
               ],
             ),
           ),

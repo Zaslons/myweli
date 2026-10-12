@@ -34,19 +34,22 @@ import '../support/secure_storage.dart';
 void main() {
   const abidjan = TileCoordinates(1001, 993, 11);
 
-  Widget map(Widget layer) => wrapApp(
-    home: SizedBox(
-      width: 400,
-      height: 400,
-      child: FlutterMap(
-        options: const MapOptions(
-          initialCenter: LatLng(5.336, -4.026),
-          initialZoom: 11,
+  Widget map(Widget layer, {Widget attribution = const CartoAttribution()}) =>
+      wrapApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 400,
+            height: 400,
+            child: FlutterMap(
+              options: const MapOptions(
+                initialCenter: LatLng(5.336, -4.026),
+                initialZoom: 11,
+              ),
+              children: [layer, attribution],
+            ),
+          ),
         ),
-        children: [layer, const CartoAttribution()],
-      ),
-    ),
-  );
+      );
 
   TileLayer tileLayer(WidgetTester tester) =>
       tester.widget<TileLayer>(find.byType(TileLayer));
@@ -189,6 +192,38 @@ void main() {
         ),
         ['© OpenStreetMap contributors', '© CARTO'],
       );
+    });
+
+    testWidgets('the sheet form: the same credits, in a sheet, not the map', (
+      tester,
+    ) async {
+      runningAs('com.myweli.app');
+      await tester.pumpWidget(
+        map(
+          const CartoBasemapLayer(apiKey: 'k'),
+          attribution: const CartoAttribution.sheet(),
+        ),
+      );
+      await tester.pump();
+      expect(find.byType(RichAttributionWidget), findsNothing);
+      expect(find.text('© CARTO'), findsNothing, reason: 'closed: no text');
+
+      await tester.tap(find.byTooltip('Crédits de la carte'));
+      await tester.pumpAndSettle();
+
+      final sheet = find.byType(BottomSheet);
+      expect(sheet, findsOneWidget);
+      for (final text in [
+        'Données cartographiques',
+        '© OpenStreetMap contributors',
+        '© CARTO',
+      ]) {
+        expect(
+          find.descendant(of: sheet, matching: find.text(text)),
+          findsOneWidget,
+          reason: text,
+        );
+      }
     });
 
     testWidgets('the consumer « Carte » draws through it', (tester) async {
@@ -359,8 +394,10 @@ void main() {
           maps,
           reason: '$f: a FlutterMap without the keyed CARTO layer',
         );
+        // Either form: the popup, or the sheet a fixed box needs
+        // (salon-location-map.md §2.1 « crédits »).
         expect(
-          count(files[f]!, 'CartoAttribution()'),
+          count(files[f]!, RegExp(r'\bCartoAttribution(?:\.sheet)?\(\)')),
           maps,
           reason: '$f: a FlutterMap without the attribution CARTO requires',
         );

@@ -254,8 +254,8 @@ void main() {
       SemanticsFinder withTooltip(String t) =>
           find.semantics.byPredicate((n) => n.tooltip == t);
       expect(withTooltip('Itinéraire'), findsOne);
-      expect(withTooltip('Attributions'), findsNothing);
-      expect(withTooltip('flutter_map'), findsNothing);
+      expect(find.byTooltip(CartoAttribution.sheetTooltip), findsOneWidget);
+      expect(withTooltip(CartoAttribution.sheetTooltip), findsNothing);
 
       // The screen reader's tap goes where a finger's does.
       tester.semantics.tap(
@@ -308,6 +308,67 @@ void main() {
       expect(directions.width, greaterThanOrEqualTo(48));
       expect(directions.right, lessThanOrEqualTo(360));
     });
+
+    // The review's probe: flutter_map's popup opened INSIDE the 160dp box and
+    // overflowed by 56px at 1.3×, 80 at 1.5×, 220 at 2× — a FlutterError in
+    // debug, the required credits cut in release. The « 200% » case above
+    // never opened it.
+    for (final (size, scale) in [
+      (const Size(390, 844), 1.3),
+      (const Size(360, 780), 2.0),
+    ]) {
+      testWidgets('the credits « i » at $scale×: a sheet, whole, no overflow, '
+          'no navigation', (tester) async {
+        final router = await pumpSalon(
+          tester,
+          salon: excellence,
+          size: size,
+          scale: scale,
+        );
+        await showContact(tester);
+        final box = tester.getRect(preview);
+        final info = find.descendant(
+          of: preview,
+          matching: find.byTooltip(CartoAttribution.sheetTooltip),
+        );
+        // The button, not its tooltip: M3 paints a 40dp disc inside the 48dp
+        // target (§13.2).
+        final target = tester.getRect(
+          find.ancestor(of: info, matching: find.byType(IconButton)),
+        );
+        expect(target.width, greaterThanOrEqualTo(48), reason: '§13.2');
+        expect(target.height, greaterThanOrEqualTo(48), reason: '§13.2');
+
+        await tester.tap(info);
+        await tester.pumpAndSettle();
+
+        expect(tester.takeException(), isNull);
+        expect(locationOf(router), '/', reason: 'the « i » is not the map');
+        // Nothing opened inside the box: it is still text-free and 160dp.
+        expect(
+          find.descendant(of: preview, matching: find.byType(Text)),
+          findsNothing,
+        );
+        expect(tester.getRect(preview), box);
+        // The credits, whole, in a sheet on screen.
+        final sheet = find.byType(BottomSheet);
+        expect(sheet, findsOneWidget);
+        for (final credit in [CartoAttribution.sheetTitle, ...cartoCredits]) {
+          final text = find.descendant(of: sheet, matching: find.text(credit));
+          expect(text, findsOneWidget, reason: credit);
+          expect(
+            tester.renderObject<RenderParagraph>(text).didExceedMaxLines,
+            isFalse,
+            reason: credit,
+          );
+          final rect = tester.getRect(text);
+          expect(rect.right, lessThanOrEqualTo(size.width), reason: credit);
+          expect(rect.bottom, lessThanOrEqualTo(size.height), reason: credit);
+        }
+        expect(cartoCredits, contains('© CARTO'));
+        expect(cartoCredits, contains('© OpenStreetMap contributors'));
+      });
+    }
   });
 
   group('where a tap leads (§2.2)', () {
