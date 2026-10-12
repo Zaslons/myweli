@@ -2,10 +2,14 @@ import 'dart:io';
 
 import 'package:dart_frog/dart_frog.dart';
 import 'package:myweli_backend/src/admin/admin_auth_repository.dart';
+import 'package:myweli_backend/src/observability/refresh_log.dart';
 import 'package:myweli_backend/src/responses.dart';
 
-/// `POST /admin/auth/refresh` — rotate an admin refresh token. Reuse of an
-/// already-rotated token revokes the whole family. Design: docs/design/admin-console.md.
+/// `POST /admin/auth/refresh` — rotate an admin refresh token. A second
+/// presentation within 30 s of the rotation gets a sibling pair; after that,
+/// reuse of an already-rotated token revokes the whole family. Logs one
+/// `auth_refresh` outcome line. Design: docs/design/admin-console.md,
+/// docs/design/backend-refresh-rotation-atomic.md.
 Future<Response> onRequest(RequestContext context) async {
   if (context.request.method != HttpMethod.post) return methodNotAllowed();
 
@@ -19,6 +23,7 @@ Future<Response> onRequest(RequestContext context) async {
   if (token.isEmpty) return jsonError(HttpStatus.badRequest, 'invalid_input');
 
   final r = await context.read<AdminAuthRepository>().refresh(token);
+  logRefreshOutcome(context, RefreshPrincipal.admin, r.outcome);
   if (r.ok) {
     final t = r.tokens!;
     return Response.json(

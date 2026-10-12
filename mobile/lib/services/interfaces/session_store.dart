@@ -4,6 +4,12 @@ abstract class SessionStore {
   Future<void> save(String value);
   Future<String?> read();
   Future<void> clear();
+
+  /// What identifies the persisted session across store INSTANCES: two stores
+  /// with equal identities read and write the same session (every service
+  /// builds its own `SecureSessionStore` on the same key). [RefreshingHttpClient]
+  /// shares one in-flight refresh per identity.
+  Object get identity;
 }
 
 /// In-memory store — used in tests and as a safe default; not persisted across
@@ -19,4 +25,8 @@ class InMemorySessionStore implements SessionStore {
 
   @override
   Future<void> clear() async => _value = null;
+
+  /// Each in-memory store is its own session.
+  @override
+  Object get identity => this;
 }

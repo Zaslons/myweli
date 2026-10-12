@@ -4,6 +4,8 @@ library;
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:myweli_backend/src/auth/auth_repository.dart'
+    show RefreshOutcome, RefreshResult, TokenPair, kRefreshReuseGrace;
 import 'package:myweli_backend/src/auth/tokens.dart';
 import 'package:myweli_backend/src/boot_config.dart';
 import 'package:myweli_backend/src/db/database.dart';
@@ -70,6 +72,47 @@ void main() {
       'provider_audit_log CASCADE',
     );
   });
+
+  /// Moves a token's rotation [ago] into the past on the DATABASE clock — the
+  /// clock the grace is measured on — or, with null, clears it the way a row
+  /// rotated before migration 0037 has it. How a test reaches either side of
+  /// the 30 s grace without sleeping.
+  Future<void> rotatedAgo(String table, String token, Duration? ago) =>
+      pool.execute(
+        Sql.named(
+          ago == null
+              ? 'UPDATE $table SET rotated_at = NULL WHERE token_hash = @h'
+              : 'UPDATE $table SET rotated_at = now() - @ago:interval '
+                    'WHERE token_hash = @h',
+        ),
+        parameters: {'h': tokens.hashToken(token), 'ago': ?ago},
+      );
+
+  /// The refresh-token family [token] belongs to, or null once it is gone.
+  Future<String?> familyOf(String table, String token) async {
+    final r = await pool.execute(
+      Sql.named('SELECT family_id FROM $table WHERE token_hash = @h'),
+      parameters: {'h': tokens.hashToken(token)},
+    );
+    return r.isEmpty ? null : r.first.toColumnMap()['family_id'] as String;
+  }
+
+  /// The token's `rotated_at` exactly as stored, or null.
+  Future<DateTime?> rotatedAtOf(String table, String token) async {
+    final r = await pool.execute(
+      Sql.named('SELECT rotated_at FROM $table WHERE token_hash = @h'),
+      parameters: {'h': tokens.hashToken(token)},
+    );
+    return r.first.toColumnMap()['rotated_at'] as DateTime?;
+  }
+
+  Future<int> familySize(String table, String familyId) async {
+    final r = await pool.execute(
+      Sql.named('SELECT count(*)::int AS n FROM $table WHERE family_id = @f'),
+      parameters: {'f': familyId},
+    );
+    return r.first.toColumnMap()['n'] as int;
+  }
 
   Map<String, dynamic> apptMap({
     required String id,
@@ -362,6 +405,13 @@ void main() {
         final rotated = await r.refresh(first.refreshToken);
         expect(rotated.ok, isTrue);
 
+        // Past the 30 s grace — inside it a replay gets a sibling (the
+        // `refresh exchange` group below).
+        await rotatedAgo(
+          'provider_refresh_tokens',
+          first.refreshToken,
+          kRefreshReuseGrace + const Duration(seconds: 1),
+        );
         final reuse = await r.refresh(first.refreshToken);
         expect(reuse.error, 'refresh_reused');
         expect(
@@ -872,6 +922,13 @@ void main() {
         final rotated = await r.refresh(first.refreshToken);
         expect(rotated.ok, isTrue);
 
+        // Past the 30 s grace — inside it a replay gets a sibling (the
+        // `refresh exchange` group below).
+        await rotatedAgo(
+          'refresh_tokens',
+          first.refreshToken,
+          kRefreshReuseGrace + const Duration(seconds: 1),
+        );
         final reuse = await r.refresh(first.refreshToken);
         expect(reuse.error, 'refresh_reused');
         expect(
@@ -892,6 +949,356 @@ void main() {
       expect(await r.deleteUser(user.id), isTrue);
       expect(await r.userById(user.id), isNull);
     });
+  });
+
+  // The atomic exchange with the 30 s grace, on the two tables this file owns
+  // (docs/design/backend-refresh-rotation-atomic.md §8). Here and not in a file
+  // of its own because this file TRUNCATEs both tables in `setUp`: a second
+  // file would race that. Admin is pinned in postgres_admin_auth_test.dart.
+  group('refresh exchange — atomic, 30 s grace', () {
+    // A second pool, so eight exchanges can hold eight connections AT ONCE —
+    // one pool is capped at four per instance (kMaxConnectionsPerInstance).
+    late Pool<void> pool2;
+    setUpAll(() => pool2 = createPool(url));
+    tearDownAll(() => pool2.close());
+
+    // Holds a child INSERT into one family until the test lets go: a BEFORE
+    // INSERT trigger, scoped to that family, that must take an advisory lock
+    // the test holds. Keys are this file's own (postgres_admin_auth_test.dart
+    // uses another range), so a concurrently running file never waits on one.
+    const kHoldClass = 0x4D57;
+    var nextHoldKey = 1000;
+    Future<int> holdChildInserts(String table, String family) async {
+      final key = nextHoldKey++;
+      await pool.execute(
+        r'CREATE OR REPLACE FUNCTION mw_test_hold_child() RETURNS trigger '
+        r'LANGUAGE plpgsql AS $$ BEGIN '
+        r'PERFORM pg_advisory_xact_lock(TG_ARGV[0]::int, TG_ARGV[1]::int); '
+        r'RETURN NEW; END $$',
+      );
+      Future<void> drop() =>
+          pool.execute('DROP TRIGGER IF EXISTS mw_test_hold_child ON $table');
+      addTearDown(drop);
+      await pool.execute(
+        'CREATE TRIGGER mw_test_hold_child BEFORE INSERT ON $table '
+        "FOR EACH ROW WHEN (NEW.family_id = '$family') "
+        "EXECUTE FUNCTION mw_test_hold_child('$kHoldClass', '$key')",
+      );
+      return key;
+    }
+
+    Future<bool> childInsertWaiting(int key) async {
+      final r = await pool.execute(
+        'SELECT count(*)::int AS n FROM pg_locks '
+        "WHERE locktype = 'advisory' AND NOT granted "
+        'AND classid = $kHoldClass AND objid = $key AND objsubid = 2',
+      );
+      return r.first.toColumnMap()['n'] == 1;
+    }
+
+    Future<bool> familyDeleteWaiting(String table) async {
+      final r = await pool.execute(
+        'SELECT count(*)::int AS n FROM pg_stat_activity '
+        "WHERE wait_event_type = 'Lock' "
+        "AND query LIKE 'DELETE FROM $table WHERE family_id%'",
+      );
+      return r.first.toColumnMap()['n'] == 1;
+    }
+
+    /// Polls [probe] until true — bounded, so a setup that never reaches the
+    /// interleaving fails loudly instead of hanging or passing.
+    Future<void> until(Future<bool> Function() probe, String what) async {
+      final deadline = DateTime.now().add(const Duration(seconds: 15));
+      while (!await probe()) {
+        if (DateTime.now().isAfter(deadline)) fail('never reached: $what');
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+      }
+    }
+
+    var n = 0;
+    // `email_otp_codes` is not truncated between tests, so addresses carry a
+    // per-run nonce — a re-run must not meet its own unexpired codes.
+    final nonce = DateTime.now().microsecondsSinceEpoch;
+    final principals =
+        <
+          ({
+            String name,
+            String table,
+            Future<TokenPair> Function() login,
+            Future<RefreshResult> Function(Pool<void> on, String token) refresh,
+          })
+        >[
+          (
+            name: 'consumer',
+            table: 'refresh_tokens',
+            login: () async {
+              final r = PostgresAuthRepository(
+                pool,
+                tokens: tokens,
+                echoDevCode: true,
+              );
+              final email = 'rot${n++}-$nonce@myweli.test';
+              final code = (await r.requestEmailOtp(email)).devCode!;
+              return (await r.verifyEmailOtp(email, code)).tokens!;
+            },
+            refresh: (on, t) => PostgresAuthRepository(
+              on,
+              tokens: tokens,
+              echoDevCode: true,
+            ).refresh(t),
+          ),
+          (
+            name: 'provider',
+            table: 'provider_refresh_tokens',
+            login: () async {
+              final i = n++;
+              return (await PostgresProviderAuthRepository(
+                    pool,
+                    tokens: tokens,
+                    echoDevCode: true,
+                  ).register(
+                    email: 'rot$i@test.pro',
+                    authProvider: 'google',
+                    googleSub: 'rot-sub-$i',
+                    phoneNumber: '+2250566${i.toString().padLeft(6, '0')}',
+                    businessName: 'Rotation $i',
+                    businessType: 'salon',
+                  ))
+                  .tokens!;
+            },
+            refresh: (on, t) => PostgresProviderAuthRepository(
+              on,
+              tokens: tokens,
+              echoDevCode: true,
+            ).refresh(t),
+          ),
+        ];
+
+    for (final p in principals) {
+      test('${p.name}: N = 8 concurrent exchanges of one token → all ok, '
+          'EXACTLY ONE rotated, seven grace siblings, all in its family '
+          '(repeated, to make an interleaving likely)', () async {
+        for (var round = 0; round < 6; round++) {
+          final first = await p.login();
+          final family = (await familyOf(p.table, first.refreshToken))!;
+          final results = await Future.wait([
+            for (var i = 0; i < 8; i++)
+              p.refresh(i.isEven ? pool : pool2, first.refreshToken),
+          ]);
+          expect(
+            results.map((r) => r.ok),
+            everyElement(isTrue),
+            reason: 'round $round: every racer is a legitimate use',
+          );
+          expect(
+            results.where((r) => r.outcome == RefreshOutcome.rotated),
+            hasLength(1),
+            reason: 'round $round: the claim is atomic — exactly one winner',
+          );
+          expect(
+            results.where((r) => r.outcome == RefreshOutcome.grace),
+            hasLength(7),
+            reason: 'round $round',
+          );
+          for (final r in results) {
+            expect(
+              await familyOf(p.table, r.tokens!.refreshToken),
+              family,
+              reason: 'round $round: no fork — every child is in the family',
+            );
+          }
+          // The parent plus eight children, and the parent rotated once.
+          expect(await familySize(p.table, family), 9, reason: 'round $round');
+          final parent = await pool.execute(
+            Sql.named(
+              'SELECT rotated, rotated_at FROM ${p.table} WHERE token_hash = @h',
+            ),
+            parameters: {'h': tokens.hashToken(first.refreshToken)},
+          );
+          expect(parent.first.toColumnMap()['rotated'], isTrue);
+          expect(parent.first.toColumnMap()['rotated_at'], isNotNull);
+        }
+      });
+
+      test('${p.name}: rotated 29 s ago → GRACE, family intact; '
+          '31 s ago → refresh_reused and the family is gone', () async {
+        final first = await p.login();
+        final child = await p.refresh(pool, first.refreshToken);
+        expect(child.outcome, RefreshOutcome.rotated);
+        final family = (await familyOf(p.table, first.refreshToken))!;
+
+        await rotatedAgo(
+          p.table,
+          first.refreshToken,
+          const Duration(seconds: 29),
+        );
+        final rotatedAt = await rotatedAtOf(p.table, first.refreshToken);
+        expect(rotatedAt, isNotNull);
+        final sibling = await p.refresh(pool, first.refreshToken);
+        expect(sibling.outcome, RefreshOutcome.grace);
+        expect(sibling.ok, isTrue);
+        expect(sibling.error, isNull);
+        expect(
+          await familyOf(p.table, sibling.tokens!.refreshToken),
+          family,
+          reason: 'a sibling joins the SAME family',
+        );
+        expect(await familySize(p.table, family), 3, reason: 'nothing revoked');
+        // The grace runs from the FIRST rotation. A grace exchange that moved
+        // `rotated_at` would let a replay every 29 s keep it open forever, and
+        // reuse would never be detected. The 31 s step below backdates the
+        // row itself, so it cannot see this; only this read can.
+        expect(
+          await rotatedAtOf(p.table, first.refreshToken),
+          rotatedAt,
+          reason: 'a grace exchange must not move the parent\'s rotated_at',
+        );
+
+        await rotatedAgo(
+          p.table,
+          first.refreshToken,
+          const Duration(seconds: 31),
+        );
+        final reuse = await p.refresh(pool, first.refreshToken);
+        expect(reuse.outcome, RefreshOutcome.reused);
+        expect(reuse.ok, isFalse);
+        expect(reuse.error, 'refresh_reused');
+        expect(reuse.tokens, isNull);
+        expect(await familySize(p.table, family), 0, reason: 'family revoked');
+        for (final dead in [child, sibling]) {
+          final r = await p.refresh(pool, dead.tokens!.refreshToken);
+          expect(r.outcome, RefreshOutcome.invalid);
+          expect(r.error, 'refresh_invalid');
+        }
+      });
+
+      test('${p.name}: a row rotated before migration 0037 (rotated_at NULL) '
+          'is outside the grace → refresh_reused', () async {
+        final first = await p.login();
+        final child = await p.refresh(pool, first.refreshToken);
+        expect(child.outcome, RefreshOutcome.rotated);
+        await rotatedAgo(p.table, first.refreshToken, null);
+
+        final reuse = await p.refresh(pool, first.refreshToken);
+        expect(reuse.outcome, RefreshOutcome.reused);
+        expect(reuse.error, 'refresh_reused');
+        expect(
+          (await p.refresh(pool, child.tokens!.refreshToken)).error,
+          'refresh_invalid',
+        );
+      });
+
+      test(
+        '${p.name}: a grace exchange that arrives while a family revoke '
+        'already holds the rows WAITS for it and mints nothing (FOR UPDATE)',
+        () async {
+          final first = await p.login();
+          await p.refresh(pool, first.refreshToken); // rotated: now in grace
+          final family = (await familyOf(p.table, first.refreshToken))!;
+
+          late Future<RefreshResult> racing;
+          await pool.runTx((tx) async {
+            await tx.execute(
+              Sql.named('DELETE FROM ${p.table} WHERE family_id = @f'),
+              parameters: {'f': family},
+            );
+            // The revoke holds the family's rows, uncommitted. The exchange
+            // starts now, on another connection, and must wait for it.
+            racing = p.refresh(pool2, first.refreshToken);
+            await Future<void>.delayed(const Duration(milliseconds: 500));
+          });
+
+          final r = await racing;
+          expect(r.outcome, RefreshOutcome.invalid);
+          expect(r.error, 'refresh_invalid');
+          expect(
+            await familySize(p.table, family),
+            0,
+            reason: 'no sibling slipped into the family as it was revoked',
+          );
+        },
+      );
+
+      // The other order: the exchange locked its row FIRST and is inserting
+      // its child when the revoke arrives. The revoke's DELETE waits on that
+      // row, and its snapshot predates the child — so ONE DELETE left the child
+      // alive, unrotated, in a family whose reuse caller was told
+      // refresh_reused. The revoke now repeats until it deletes nothing.
+      // Ordered with an advisory lock the child insert must take (a trigger
+      // scoped to this family), not with sleeps.
+      for (final grace in [true, false]) {
+        final what = grace
+            ? 'a grace sibling'
+            : 'the child of a plain rotation of the newest token';
+        test(
+          '${p.name}: $what, minted while a family revoke waits on its '
+          'row, is deleted by that revoke too (the DELETE repeats)',
+          () async {
+            final t0 = await p.login();
+            final t1 = (await p.refresh(pool, t0.refreshToken)).tokens!;
+            final newest = (await p.refresh(pool, t1.refreshToken)).tokens!;
+            final family = (await familyOf(p.table, t0.refreshToken))!;
+            // t0 past the grace: presenting it is reuse. t1 was rotated just
+            // now, so it is in the grace; the newest is unrotated.
+            await rotatedAgo(
+              p.table,
+              t0.refreshToken,
+              const Duration(minutes: 1),
+            );
+            final key = await holdChildInserts(p.table, family);
+
+            late Future<RefreshResult> minting;
+            late Future<RefreshResult> revoking;
+            await pool.runTx((hold) async {
+              await hold.execute(
+                'SELECT pg_advisory_xact_lock($kHoldClass, $key)',
+              );
+              minting = p.refresh(
+                pool2,
+                grace ? t1.refreshToken : newest.refreshToken,
+              );
+              await until(
+                () => childInsertWaiting(key),
+                'the exchange holds its row and waits to insert its child',
+              );
+              revoking = p.refresh(pool2, t0.refreshToken);
+              await until(
+                () => familyDeleteWaiting(p.table),
+                'the revoke DELETE waits on the row the exchange holds',
+              );
+            }); // the hold ends: the child commits, then the DELETE resumes
+
+            final m = await minting;
+            expect(
+              m.outcome,
+              grace ? RefreshOutcome.grace : RefreshOutcome.rotated,
+            );
+            final r = await revoking;
+            expect(r.outcome, RefreshOutcome.reused);
+            expect(r.error, 'refresh_reused');
+            expect(
+              await familySize(p.table, family),
+              0,
+              reason:
+                  'the child committed while the revoke waited is revoked '
+                  'with the rest of its family',
+            );
+            expect(
+              (await p.refresh(pool, m.tokens!.refreshToken)).outcome,
+              RefreshOutcome.invalid,
+            );
+          },
+        );
+      }
+
+      test('${p.name}: an unknown token → refresh_invalid', () async {
+        final r = await p.refresh(pool, 'never-issued');
+        expect(r.outcome, RefreshOutcome.invalid);
+        expect(r.ok, isFalse);
+        expect(r.error, 'refresh_invalid');
+        expect(r.tokens, isNull);
+      });
+    }
   });
 
   group('PostgresFavoritesRepository', () {

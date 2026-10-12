@@ -8,6 +8,7 @@ import '../auth/auth_repository.dart'
 import '../auth/provider_auth_repository.dart'
     show ProviderAccount, ProviderAuthRepository, ProviderVerifyResult;
 import '../auth/tokens.dart';
+import 'refresh_exchange.dart';
 
 /// Postgres-backed [ProviderAuthRepository]. Same security logic as the
 /// in-memory impl (hashed OTP + attempt/resend budgets; registration required
@@ -453,42 +454,24 @@ class PostgresProviderAuthRepository implements ProviderAuthRepository {
     });
   }
 
+  /// One transaction: atomic claim, 30 s grace on the database clock, family
+  /// revoke past it. Design: docs/design/backend-refresh-rotation-atomic.md.
   @override
-  Future<RefreshResult> refresh(String refreshToken) async {
+  Future<RefreshResult> refresh(String refreshToken) {
     final hash = _tokens.hashToken(refreshToken);
-    final rows = await _pool.execute(
-      Sql.named(
-        'SELECT account_id, family_id, rotated '
-        'FROM provider_refresh_tokens WHERE token_hash = @h',
-      ),
-      parameters: {'h': hash},
-    );
-    if (rows.isEmpty) {
-      return (ok: false, error: 'refresh_invalid', tokens: null);
-    }
-    final row = rows.first.toColumnMap();
-    if (row['rotated'] as bool) {
-      await _pool.execute(
-        Sql.named('DELETE FROM provider_refresh_tokens WHERE family_id = @f'),
-        parameters: {'f': row['family_id']},
-      );
-      return (ok: false, error: 'refresh_reused', tokens: null);
-    }
-    return _pool.runTx((tx) async {
-      await tx.execute(
-        Sql.named(
-          'UPDATE provider_refresh_tokens SET rotated = true '
-          'WHERE token_hash = @h',
-        ),
-        parameters: {'h': hash},
-      );
-      final tokens = await _issueInFamily(
+    return _pool.runTx(
+      (tx) => exchangeRefreshToken(
         tx,
-        row['account_id'] as String,
-        row['family_id'] as String,
-      );
-      return (ok: true, error: null, tokens: tokens);
-    });
+        table: 'provider_refresh_tokens',
+        ownerColumns: 'account_id',
+        tokenHash: hash,
+        issueChild: (row) => _issueInFamily(
+          tx,
+          row['account_id'] as String,
+          row['family_id'] as String,
+        ),
+      ),
+    );
   }
 
   Future<TokenPair> _issueInFamily(

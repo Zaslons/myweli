@@ -11,6 +11,10 @@ import '../../core/theme/colors.dart';
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
+  /// The open animation's on-screen width — shared with the Pro splash
+  /// (`ProSplashScreen`), so both apps draw the mark at the same scale.
+  static const double animationWidth = 220;
+
   @override
   State<SplashScreen> createState() => _SplashScreenState();
 }
@@ -58,7 +62,7 @@ class _SplashScreenState extends State<SplashScreen> {
         // disposal, so there is no controller to leak.
         child: Lottie.asset(
           'assets/lottie/open/myweli_loader_mixed.json',
-          width: 220,
+          width: SplashScreen.animationWidth,
           controller: reduceMotion ? const AlwaysStoppedAnimation(1) : null,
           repeat: !reduceMotion,
         ),

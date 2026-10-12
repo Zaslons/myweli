@@ -33,8 +33,10 @@ import 'package:myweli/screens/provider/earnings/earnings_screen.dart';
 import 'package:myweli/screens/provider/reviews/reviews_screen.dart';
 import 'package:myweli/screens/providers/provider_detail_screen.dart';
 import 'package:myweli/screens/providers/provider_list_screen.dart';
+import 'package:myweli/services/mock/mock_data.dart';
 import 'package:myweli/widgets/common/commune_pill.dart';
 import 'package:myweli/widgets/common/legal_consent_text.dart';
+import 'package:myweli/widgets/common/timed_cached_image.dart';
 import 'package:myweli/widgets/notifications/notification_tile.dart';
 import 'package:myweli/widgets/provider/provider_card.dart';
 import 'package:provider/provider.dart';
@@ -625,20 +627,98 @@ void main() {
         // §13.3, A11 C8: « Appeler » is one word and a 1:2 split left it 81dp
         // against the ~105 it wants at 2×, so the button read « Appel » / « er ».
         expectNoMidWordBreak(tester, 'Appeler', at);
+        // provider1 has photos, so this is the COVER header
+        // (docs/design/salon-cover-photo.md §2.1) — the subject below this one
+        // is the header without a photo.
+        expect(
+          find.descendant(
+            of: find.byType(SliverAppBar),
+            matching: find.byWidgetPredicate(
+              (w) =>
+                  w is TimedCachedImage &&
+                  w.imageUrl ==
+                      MockData.providers
+                          .firstWhere((p) => p.id == 'provider1')
+                          .imageUrls
+                          .first,
+            ),
+          ),
+          findsOneWidget,
+          reason: 'C: the cover is the subject, and it did not render',
+        );
         // A13, §21 row 62's other open item — and the one that IS the heading
         // question the row deferred. §13.3 named "a salon name" as a permitted
         // mid-word break; A13 decides otherwise, because a salon's name is what
         // identifies the business and « Salon Ex / cellence » is not a name.
         //
-        // The header gives it `W − 24 − 72 (logo) − 16 − 24` = **224dp at 360**
-        // and `Excellence` wants **270.3 at 2×**, so it breaks above 1.66× /
-        // 1.77× / 1.88× at the three widths — the ≈1.95× device photo is that
-        // arithmetic, not a coincidence.
+        // Under the cover the name has the whole padded row — `W − 24 − 24` =
+        // **312dp at 360** — against the 224 it had beside the logo, and
+        // `Excellence` wants 270.3 at 2×: it holds to 2.31×, with no stacking.
         expectNoMidWordBreak(tester, 'Salon Excellence', at);
         expectNoUndeclaredTruncation(tester, context: 'the salon page at $at');
         expectNoLegibilityCrush(tester, context: 'the salon page at $at');
         expectNoVerticalClip(tester, context: 'the salon page at $at');
-        expectAppBarTitleWhole(tester, at: 'the salon page at $at');
+        // No `expectAppBarTitleWhole` here, deliberately: the cover's bar
+        // carries no text at all (back, heart, photo), so this screen is not
+        // a caller — the helper says so itself. The name moved to the sliver
+        // below, where the three sweeps above measure it.
+        expect(tester.takeException(), isNull, reason: 'A: $at');
+      });
+
+      // ---- the salon page, WITHOUT photos -----------------------------------
+      //
+      // The other header branch (salon-cover-photo.md §2.2): the logo beside
+      // the name, A13's stacking above 1.6× (1.45× verified) and a computed
+      // `textScaledBound` height. It was this file's subject until the cover
+      // took provider1's header, so it gets its own rather than none. The
+      // owner preview is the cheap way to seed a salon without photos: it
+      // reads nothing, and renders the logged-out client page.
+
+      testWidgets('the salon page without photos fits $at', (tester) async {
+        final salon = ProviderProvider()
+          ..showPreloaded(
+            MockData.providers
+                .firstWhere((p) => p.id == 'provider1')
+                .copyWith(imageUrls: const []),
+          );
+        await pumpPushedAtWidth(
+          tester,
+          width: width,
+          scale: scale,
+          providers: [ChangeNotifierProvider.value(value: salon)],
+          subject: const ProviderDetailScreen(
+            providerId: 'provider1',
+            preview: true,
+          ),
+        );
+
+        expect(
+          find.byIcon(Icons.store_outlined),
+          findsOneWidget,
+          reason:
+              'C: the no-photo header draws the logo disc (no logo → the '
+              '« shop » glyph) — without it this is not the branch under test',
+        );
+        expect(find.text('Aucune photo pour le moment.'), findsOneWidget);
+        expectNoMidWordBreak(tester, 'Salon Excellence', at);
+        expectNoUndeclaredTruncation(
+          tester,
+          context: 'the salon page without photos at $at',
+        );
+        expectNoLegibilityCrush(
+          tester,
+          context: 'the salon page without photos at $at',
+        );
+        expectNoVerticalClip(
+          tester,
+          context: 'the salon page without photos at $at',
+        );
+        // Here the name IS inside the bar (its flexible space), so the bar's
+        // text gate applies.
+        expectAppBarTitleWhole(
+          tester,
+          at: 'the salon page without photos at $at',
+        );
         expect(tester.takeException(), isNull, reason: 'A: $at');
       });
 

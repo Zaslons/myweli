@@ -8,9 +8,11 @@ import '../admin/admin_auth_repository.dart';
 import '../auth/auth_repository.dart' show RefreshResult, TokenPair;
 import '../auth/login_throttle.dart';
 import '../auth/tokens.dart';
+import 'refresh_exchange.dart';
 
 /// Postgres-backed admin auth. Mirrors the provider refresh design: opaque
-/// refresh tokens hashed at rest, rotated on use, family revoked on reuse.
+/// refresh tokens hashed at rest, rotated atomically on use, family revoked on
+/// reuse past the 30 s grace (docs/design/backend-refresh-rotation-atomic.md).
 class PostgresAdminAuthRepository implements AdminAuthRepository {
   PostgresAdminAuthRepository(
     this._pool, {
@@ -115,7 +117,7 @@ class PostgresAdminAuthRepository implements AdminAuthRepository {
     return (
       ok: true,
       error: null,
-      tokens: await _issueInFamily(id, _id('fam')),
+      tokens: await _issueInFamily(_pool, id, _id('fam')),
     );
   }
 
@@ -180,46 +182,40 @@ class PostgresAdminAuthRepository implements AdminAuthRepository {
     return (ok: true, error: null);
   }
 
+  /// **One transaction, the child insert inside it.** This used to be three
+  /// independent statements, so a failure between the UPDATE and the INSERT
+  /// left the token rotated with no child — the session unrecoverable, and the
+  /// client's retry then revoked as theft. Atomic claim, 30 s grace on the
+  /// database clock, family revoke past it — the consumer/provider exchange.
+  /// Design: docs/design/backend-refresh-rotation-atomic.md.
   @override
-  Future<RefreshResult> refresh(String refreshToken) async {
-    final h = _tokens.hashToken(refreshToken);
-    final r = await _pool.execute(
-      Sql.named(
-        'SELECT admin_id, family_id, rotated '
-        'FROM admin_refresh_tokens WHERE token_hash = @h',
+  Future<RefreshResult> refresh(String refreshToken) {
+    final hash = _tokens.hashToken(refreshToken);
+    return _pool.runTx(
+      (tx) => exchangeRefreshToken(
+        tx,
+        table: 'admin_refresh_tokens',
+        ownerColumns: 'admin_id',
+        tokenHash: hash,
+        issueChild: (row) => _issueInFamily(
+          tx,
+          row['admin_id'] as String,
+          row['family_id'] as String,
+        ),
       ),
-      parameters: {'h': h},
-    );
-    if (r.isEmpty) return (ok: false, error: 'refresh_invalid', tokens: null);
-    final row = r.first;
-    final adminId = row[0]! as String;
-    final familyId = row[1]! as String;
-    final rotated = row[2]! as bool;
-    if (rotated) {
-      await _pool.execute(
-        Sql.named('DELETE FROM admin_refresh_tokens WHERE family_id = @f'),
-        parameters: {'f': familyId},
-      );
-      return (ok: false, error: 'refresh_reused', tokens: null);
-    }
-    await _pool.execute(
-      Sql.named(
-        'UPDATE admin_refresh_tokens SET rotated = true '
-        'WHERE token_hash = @h',
-      ),
-      parameters: {'h': h},
-    );
-    return (
-      ok: true,
-      error: null,
-      tokens: await _issueInFamily(adminId, familyId),
     );
   }
 
-  Future<TokenPair> _issueInFamily(String adminId, String familyId) async {
+  /// Writes through [session]: the pool for a login, the exchange's own
+  /// transaction for a refresh.
+  Future<TokenPair> _issueInFamily(
+    Session session,
+    String adminId,
+    String familyId,
+  ) async {
     final access = _tokens.issueAccessToken(subject: adminId, role: 'admin');
     final refresh = _tokens.generateRefreshToken();
-    await _pool.execute(
+    await session.execute(
       Sql.named(
         'INSERT INTO admin_refresh_tokens (token_hash, admin_id, family_id) '
         'VALUES (@h, @a, @f)',

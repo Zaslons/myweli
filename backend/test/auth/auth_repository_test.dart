@@ -104,7 +104,12 @@ void main() {
   test(
     'refresh rotates, and replaying a rotated token revokes the family',
     () async {
-      final repo = InMemoryAuthRepository(tokens: ts(), echoDevCode: true);
+      var now = DateTime.utc(2026, 10, 12, 9);
+      final repo = InMemoryAuthRepository(
+        tokens: ts(),
+        echoDevCode: true,
+        clock: () => now,
+      );
       final first = (await repo.verifyOtp(
         phone,
         (await repo.requestOtp(phone)).devCode!,
@@ -114,7 +119,10 @@ void main() {
       expect(rotated.ok, isTrue);
       final second = rotated.tokens!.refreshToken;
 
-      // Replay the now-rotated first token → reuse detected, family revoked.
+      // Replay the now-rotated first token AFTER the 30 s grace (inside it a
+      // replay is a concurrent use and gets a sibling — see
+      // refresh_rotation_test.dart) → reuse detected, family revoked.
+      now = now.add(kRefreshReuseGrace + const Duration(seconds: 1));
       final reuse = await repo.refresh(first.refreshToken);
       expect(reuse.ok, isFalse);
       expect(reuse.error, 'refresh_reused');

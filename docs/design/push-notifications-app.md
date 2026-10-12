@@ -148,9 +148,12 @@ that isolate has no DI, no providers, no router.
 
 ### 10.4 The two hard cases
 - **Cold start.** A tap can *launch* the app: the router isn't mounted, the
-  session isn't restored. The handler **buffers** the payload; the hoisted auth
-  provider flushes it the moment we're signed in. Otherwise the splash/login
-  redirect would eat the deep link.
+  session isn't restored. The handler **buffers** the payload and replays it once
+  signed in **and** past the splash / sign-in screens — flushing on sign-in alone
+  (as this section first said) still let the splash's `go` eat the deep link,
+  because the session signs in *during* the splash. Pro: `landedPushHandler`
+  ([pro-open-animation.md](pro-open-animation.md) §2.6); the consumer app still
+  flushes on sign-in (follow-up, same spec §11).
 - **Multi-salon (R6).** A salon push carries `providerId`, and its route carries
   `?salon=` (so a tapped *feed row* switches too). If it isn't the active salon,
   `ProAuthProvider.switchSalon` runs first — which also resets every

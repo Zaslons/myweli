@@ -58,6 +58,38 @@ void main() {
     expect(sent, {'token': 'fcm-123'});
   });
 
+  test('on the provider session, an expired token refreshes on '
+      '/auth/provider/refresh — never on the consumer endpoint', () async {
+    final refreshPaths = <String>[];
+    final s = ApiDeviceRegistrationService(
+      client: MockClient((req) async {
+        if (req.url.path.endsWith('/refresh')) {
+          refreshPaths.add(req.url.path);
+          if (req.url.path != '/auth/provider/refresh') {
+            // What production answered on 2026-10-11 — and the client then
+            // ended the provider session.
+            return http.Response('{"error":"unauthorized"}', 401);
+          }
+          return http.Response(
+            jsonEncode({'accessToken': 't2', 'refreshToken': 'r2'}),
+            200,
+          );
+        }
+        final ok = req.headers['Authorization'] == 'Bearer t2';
+        return http.Response('{}', ok ? 200 : 401);
+      }),
+      baseUrl: 'http://x',
+      sessionStore: store,
+      refreshPath: '/auth/provider/refresh',
+    );
+
+    final res = await s.register('fcm-123', 'ios');
+
+    expect(refreshPaths, ['/auth/provider/refresh']);
+    expect(res.success, isTrue);
+    expect(await store.read(), isNotNull, reason: 'still signed in');
+  });
+
   test('not connected → error (no token)', () async {
     final s = ApiDeviceRegistrationService(
       client: MockClient((_) async => http.Response('{}', 200)),

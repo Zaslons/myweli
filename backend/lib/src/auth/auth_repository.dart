@@ -29,8 +29,81 @@ typedef OtpVerifyResult = ({
   TokenPair? tokens,
 });
 
-/// Outcome of a refresh-token exchange.
-typedef RefreshResult = ({bool ok, String? error, TokenPair? tokens});
+/// What one refresh-token exchange did — the same four answers on every
+/// principal (consumer, provider, admin) and in every store. Design:
+/// docs/design/backend-refresh-rotation-atomic.md §5.
+///
+/// It is logged by the refresh routes (§6) and never sent: `ok` and `error`
+/// keep their meaning, so the responses — and the API contract — are unchanged.
+enum RefreshOutcome {
+  /// This exchange claimed the token. Exactly one exchange per token can ever
+  /// get here, however many arrive at once.
+  rotated,
+
+  /// The token was already rotated, within [kRefreshReuseGrace]: a concurrent
+  /// or retried legitimate use (two calls 401 together on a cold start, a
+  /// response lost on the way back). Answered with a SIBLING pair in the same
+  /// family; nothing is revoked.
+  grace,
+
+  /// The token was rotated longer ago than the grace — or before the grace
+  /// existed. Reuse: the whole family is revoked → `refresh_reused`.
+  reused,
+
+  /// No such token: never issued, or its family is already gone →
+  /// `refresh_invalid`.
+  invalid,
+}
+
+/// How long after its rotation a refresh token is still answered with a
+/// sibling instead of revoking its family.
+///
+/// **The trade, stated** (design §3): a thief who replays a stolen token within
+/// this window of the owner's own refresh gets a sibling instead of tripping
+/// revocation — the standard "reuse interval" (Auth0, Okta). In return no
+/// client race signs a user out. Reuse after the window is detected exactly as
+/// before, and every acceptance inside it is logged (`outcome=grace`).
+///
+/// ONE constant for the three Postgres repositories (passed into the SQL as a
+/// parameter, compared on the database clock) and the three in-memory twins.
+const Duration kRefreshReuseGrace = Duration(seconds: 30);
+
+/// Whether a token rotated at [rotatedAt] is still inside the grace at [now] —
+/// inclusive at the boundary, as the SQL's `rotated_at >= now() - grace` is.
+/// The in-memory twins' copy of that comparison, kept in one place.
+bool withinRefreshGrace(DateTime rotatedAt, DateTime now) =>
+    !now.isAfter(rotatedAt.add(kRefreshReuseGrace));
+
+/// Outcome of a refresh-token exchange. [ok]/[error] are what the client sees;
+/// [outcome] is what happened, for the log line.
+typedef RefreshResult = ({
+  bool ok,
+  String? error,
+  TokenPair? tokens,
+  RefreshOutcome outcome,
+});
+
+/// The four result shapes, one per outcome, so no implementation can pair an
+/// outcome with the wrong `ok`/`error`.
+RefreshResult refreshRotated(TokenPair tokens) =>
+    (ok: true, error: null, tokens: tokens, outcome: RefreshOutcome.rotated);
+
+RefreshResult refreshGrace(TokenPair tokens) =>
+    (ok: true, error: null, tokens: tokens, outcome: RefreshOutcome.grace);
+
+const RefreshResult refreshInvalid = (
+  ok: false,
+  error: 'refresh_invalid',
+  tokens: null,
+  outcome: RefreshOutcome.invalid,
+);
+
+const RefreshResult refreshReused = (
+  ok: false,
+  error: 'refresh_reused',
+  tokens: null,
+  outcome: RefreshOutcome.reused,
+);
 
 /// Public-facing user fields. Mirrors the app's `User` DTO and the OpenAPI
 /// `User` schema field-for-field. Since the auth overhaul
@@ -95,7 +168,9 @@ class _Refresh {
   final String userId;
   final String role;
   final String familyId;
-  bool rotated = false;
+
+  /// When this token was rotated; null while it is still unused.
+  DateTime? rotatedAt;
 }
 
 /// Auth storage + security logic behind the auth routes (docs/BACKEND.md §3).
@@ -174,11 +249,13 @@ class InMemoryAuthRepository implements AuthRepository {
     Duration otpValidity = const Duration(minutes: 5),
     int maxAttempts = 5,
     int maxResends = 3,
+    DateTime Function()? clock,
   }) : _tokens = tokens,
        _echoDevCode = echoDevCode,
        _otpValidity = otpValidity,
        _maxAttempts = maxAttempts,
-       _maxResends = maxResends;
+       _maxResends = maxResends,
+       _clock = clock ?? DateTime.now;
 
   final TokenService _tokens;
   final bool _echoDevCode;
@@ -186,6 +263,11 @@ class InMemoryAuthRepository implements AuthRepository {
   final int _maxAttempts;
   final int _maxResends;
   final Random _random = Random.secure();
+
+  /// Drives the refresh reuse grace only — the Postgres twin reads the
+  /// database's `now()` there, and a test must step past 30 s without
+  /// sleeping. OTP expiry still reads the wall clock.
+  final DateTime Function() _clock;
 
   final Map<String, AuthUser> _usersByPhone = {};
   final Map<String, AuthUser> _usersById = {};
@@ -351,24 +433,26 @@ class InMemoryAuthRepository implements AuthRepository {
     );
   }
 
-  /// Exchange a refresh token for a fresh pair. Rotates the token; presenting
-  /// an already-rotated token is treated as theft and revokes the whole family.
+  /// Exchange a refresh token for a fresh pair, with the Postgres twin's
+  /// semantics (docs/design/backend-refresh-rotation-atomic.md §5): the first
+  /// exchange rotates it; another within [kRefreshReuseGrace] of that gets a
+  /// sibling in the same family; after the grace it is reuse and the whole
+  /// family is revoked. No `await` between the read and the write, so the
+  /// claim is atomic by construction on the one isolate.
   @override
   Future<RefreshResult> refresh(String refreshToken) async {
     final rec = _refreshByHash[_tokens.hashToken(refreshToken)];
-    if (rec == null) {
-      return (ok: false, error: 'refresh_invalid', tokens: null);
+    if (rec == null) return refreshInvalid;
+    final rotatedAt = rec.rotatedAt;
+    if (rotatedAt == null) {
+      rec.rotatedAt = _clock();
+      return refreshRotated(_issueInFamily(rec.userId, rec.role, rec.familyId));
     }
-    if (rec.rotated) {
-      _revokeFamily(rec.familyId);
-      return (ok: false, error: 'refresh_reused', tokens: null);
+    if (withinRefreshGrace(rotatedAt, _clock())) {
+      return refreshGrace(_issueInFamily(rec.userId, rec.role, rec.familyId));
     }
-    rec.rotated = true;
-    return (
-      ok: true,
-      error: null,
-      tokens: _issueInFamily(rec.userId, rec.role, rec.familyId),
-    );
+    _revokeFamily(rec.familyId);
+    return refreshReused;
   }
 
   @override

@@ -7,6 +7,8 @@ import 'package:myweli_backend/src/access/membership_repository.dart';
 import 'package:myweli_backend/src/admin/admin_auth_repository.dart';
 import 'package:myweli_backend/src/admin/admin_kyc_service.dart';
 import 'package:myweli_backend/src/admin/audit_log_repository.dart';
+import 'package:myweli_backend/src/auth/auth_repository.dart'
+    show kRefreshReuseGrace;
 import 'package:myweli_backend/src/auth/login_throttle.dart';
 import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
 import 'package:myweli_backend/src/auth/tokens.dart';
@@ -24,11 +26,14 @@ void main() {
 
   group('InMemoryAdminAuthRepository', () {
     late InMemoryAdminAuthRepository repo;
+    late DateTime now;
 
     setUp(() async {
+      now = DateTime.utc(2026, 10, 12, 9);
       repo = InMemoryAdminAuthRepository(
         tokens: tokens,
         throttle: InMemoryLoginThrottle(maxAttempts: 3),
+        clock: () => now,
       );
       await repo.ensureSeedAdmin(
         email: 'Admin@Myweli.ci',
@@ -69,6 +74,9 @@ void main() {
         )).tokens!;
         final rotated = await repo.refresh(first.refreshToken);
         expect(rotated.ok, isTrue);
+        // Past the 30 s grace — inside it a replay gets a sibling
+        // (test/auth/refresh_rotation_test.dart).
+        now = now.add(kRefreshReuseGrace + const Duration(seconds: 1));
         expect(
           (await repo.refresh(first.refreshToken)).error,
           'refresh_reused',

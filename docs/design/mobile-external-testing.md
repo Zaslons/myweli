@@ -221,7 +221,7 @@ And the two apps are not equally exposed:
   browsable signed-out — discovery, salon pages, services, prices. A reviewer
   can evaluate most of it with no account, and only needs one to complete a
   booking.
-- **Pro** opens to `/pro/login` (`pro_splash_screen.dart:66-69`). **A reviewer
+- **Pro** opens to `/pro/login` (`ProSplashScreen`'s `_routeWhenReady`). **A reviewer
   sees a login wall and nothing else.** Without credentials there is nothing to
   review.
 
