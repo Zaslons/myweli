@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
+import 'package:myweli/core/theme/colors.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/appointment.dart';
 import 'package:myweli/models/provider.dart' as models;
@@ -206,6 +207,9 @@ void main() {
           )
           .options;
       expect(options.interactionOptions.flags, InteractiveFlag.none);
+      // The neutral surface the tiles arrive on — and what stays when they
+      // cannot (no tile is ever fetched under `flutter test`).
+      expect(options.backgroundColor, AppColors.surfaceVariant);
     });
 
     testWidgets('no coordinates: no map, and the address is not a link', (
