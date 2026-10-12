@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
@@ -5,6 +7,7 @@ import 'package:myweli/core/push/landed_push_handler.dart';
 import 'package:myweli/core/push/push_message_handler.dart';
 import 'package:myweli/core/router/pro_router.dart';
 import 'package:myweli/providers/pro_auth_provider.dart';
+import 'package:myweli/screens/provider/auth/pro_splash_screen.dart';
 import 'package:myweli/services/mock/mock_auth_service.dart';
 import 'package:provider/provider.dart';
 
@@ -142,8 +145,43 @@ void main() {
     await settle(tester);
     expect(find.text('route:dashboard'), findsOneWidget);
 
-    await handler.handleData(tap);
+    var handled = false;
+    unawaited(handler.handleData(tap).then((_) => handled = true));
     await settle(tester);
     expect(find.text('route:appointment a1'), findsOneWidget);
+    expect(
+      handled,
+      isTrue,
+      reason:
+          'handling a tap must not wait for its page to be popped — '
+          'main_pro.dart awaits the launch tap\'s handling before runApp',
+    );
+  });
+
+  testWidgets('a tap before runApp on an already-restored session waits too', (
+    tester,
+  ) async {
+    // `getInitialMessage` can answer after the stored session is read: signed
+    // in, but no router mounted yet — nothing to push onto.
+    final session = FakeProSession(signedIn: true);
+    final router = proSplashRouter();
+    final handler = wire(router, session);
+
+    var handled = false;
+    unawaited(handler.handleData(tap).then((_) => handled = true));
+    await tester.pump();
+    expect(handled, isTrue, reason: 'buffered at once — runApp is waiting');
+
+    await launch(tester, router, session);
+    expect(find.byType(ProSplashScreen), findsOneWidget);
+    expect(appointment, findsNothing);
+
+    session.load.complete();
+    await tester.pump(timeline.intro);
+    await settle(tester);
+    expect(find.text('route:appointment a1'), findsOneWidget);
+    router.pop();
+    await settle(tester);
+    expect(find.text('route:dashboard'), findsOneWidget);
   });
 }

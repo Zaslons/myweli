@@ -230,11 +230,15 @@ void main() {
       final session = FakeProSession(signedIn: true);
       await pumpSplash(tester, session);
       await tester.pump(timeline.intro + ProSplashScreen.sessionDeadline * 3);
-      expect(
-        find.text('route:login', skipOffstage: false),
-        findsNothing,
-        reason: 'without the stored session there is no right answer',
-      );
+      await land(tester);
+      expect(find.byType(ProSplashScreen), findsOneWidget);
+      for (final route in ['login', 'dashboard', 'staff']) {
+        expect(
+          find.text('route:$route', skipOffstage: false),
+          findsNothing,
+          reason: 'without the stored session there is no right answer',
+        );
+      }
 
       session.restore.complete();
       await tester.pump(ProSplashScreen.sessionDeadline);
