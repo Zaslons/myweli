@@ -1,7 +1,7 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { CARTO_STYLE_BASE, cartoStyleUrl } from '../lib/basemap';
+import { CARTO_STYLE_BASE, cartoStyleUrl, cartoTransformRequest } from '../lib/basemap';
 
 /// The web's keyed CARTO style (docs/design/map-basemap-key.md).
 
@@ -88,6 +88,46 @@ describe('every web map goes through the one keyed style', () => {
     ]);
     for (const [p, src] of maps) {
       expect(src, p).toContain('mapStyle={MAP_STYLE}');
+      expect(src, p).toContain('transformRequest={MAP_TRANSFORM_REQUEST}');
     }
+  });
+});
+
+describe('cartoTransformRequest — the requests after the style', () => {
+  const keyed = cartoTransformRequest('web-key');
+
+  it('keys tiles.json, vector tiles, sprite and glyphs on every CARTO host', () => {
+    for (const url of [
+      'https://tiles.basemaps.cartocdn.com/vector/carto.streets/v1/tiles.json',
+      'https://tiles-a.basemaps.cartocdn.com/vectortiles/carto.streets/v1/12/2002/1987.mvt',
+      'https://tiles.basemaps.cartocdn.com/gl/positron-gl-style/sprite@2x.json',
+      'https://tiles.basemaps.cartocdn.com/fonts/Montserrat%20Medium/0-255.pbf',
+    ]) {
+      const out = new URL(keyed(url).url);
+      expect(out.searchParams.get('key'), url).toBe('web-key');
+      expect(`${out.origin}${out.pathname}`, url).toBe(url);
+    }
+  });
+
+  it('never touches another host, and never overwrites a key', () => {
+    for (const url of [
+      'https://api.myweli.com/providers',
+      'https://cdn.myweli.com/a.jpg',
+      'https://evil.example/cartocdn.com/x.png',
+      'https://cartocdn.com.evil.example/x.png',
+    ]) {
+      expect(keyed(url).url, url).toBe(url);
+    }
+    const already = `${CARTO_STYLE_BASE}?key=other`;
+    expect(keyed(already).url).toBe(already);
+  });
+
+  it('is a pass-through without a key, or on a URL it cannot parse', () => {
+    for (const none of [undefined, null, '', '  ']) {
+      const t = cartoTransformRequest(none);
+      const url = 'https://tiles-a.basemaps.cartocdn.com/vectortiles/carto.streets/v1/1/1/1.mvt';
+      expect(t(url).url).toBe(url);
+    }
+    expect(keyed('not a url').url).toBe('not a url');
   });
 });

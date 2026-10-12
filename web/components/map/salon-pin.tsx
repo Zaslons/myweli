@@ -1,7 +1,7 @@
 'use client';
 
 import { Icon, type IconName } from '../Icon';
-import { cartoStyleUrl } from '../../lib/basemap';
+import { cartoStyleUrl, cartoTransformRequest } from '../../lib/basemap';
 import { markerColor } from '../../lib/discovery/map';
 
 /// Shared MyWeli map identity (docs/design/web-discovery-map.md §3) — used by
@@ -13,6 +13,12 @@ import { markerColor } from '../../lib/discovery/map';
 /// The env read must stay a literal `process.env.NEXT_PUBLIC_…` access: that is
 /// what Next inlines into the client bundle at build time.
 export const MAP_STYLE = cartoStyleUrl(
+  process.env.NEXT_PUBLIC_CARTO_BASEMAPS_KEY,
+);
+
+/// …and every tile, sprite and glyph request the style then triggers
+/// (`cartoTransformRequest`). Handed to each `<Map>` next to MAP_STYLE.
+export const MAP_TRANSFORM_REQUEST = cartoTransformRequest(
   process.env.NEXT_PUBLIC_CARTO_BASEMAPS_KEY,
 );
 

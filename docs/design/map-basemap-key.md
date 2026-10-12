@@ -70,15 +70,21 @@ contributors », « © CARTO ») work in every state.
   `X-Android-Cert`). **Several types on one key are ANDed**; a restricted key
   without the right header → `403`. A partial or re-cased key counts as none.
 - Free commercial tier: 1 M tile requests per calendar month, all keys summed.
-- **Undocumented:** the cert format; whether iOS and Android are one
-  restriction type or two; `@2x` on `rastertiles/`; quota exhaustion.
+- **Undocumented, then measured with the real keys (§10, 2026-10-11):** the
+  cert format (any — upper or lower case, with or without colons); iOS and
+  Android are ONE restriction type (each passes alone); `@2x` on `rastertiles/`
+  works (512 × 512). Still unknown: quota exhaustion.
 
 ### 3.3 Two keys, because restrictions are ANDed
 
 | Key | CARTO restrictions | Stored as | Read by |
 |---|---|---|---|
 | **app** | iOS `com.myweli.app`, `com.myweli.pro` · Android the same two + their certs | Secret Manager `CARTO_BASEMAPS_KEY` (project `myweli`) | `release_build.sh` → define → `AppConfig.cartoBasemapsKey` |
-| **web** | websites `myweli.com`, `www.myweli.com` | Vercel `NEXT_PUBLIC_CARTO_BASEMAPS_KEY` (Production) | `salon-pin.tsx` → `cartoStyleUrl` |
+| **web** | websites `myweli.com`, `www.myweli.com` | Secret Manager `CARTO_BASEMAPS_WEB_KEY` (the record) → Vercel `NEXT_PUBLIC_CARTO_BASEMAPS_KEY` (Production) | `salon-pin.tsx` → `cartoStyleUrl` + `cartoTransformRequest` |
+
+The first key the owner made carried BOTH restriction types and refused every
+request that did not carry a myweli.com `Referer` AND an app header — measured
+before splitting it (§10).
 
 ### 3.4 The headers each build sends
 
@@ -93,10 +99,9 @@ equal packages here). The certs are the Play App Signing SHA-1s
 (`b73647c6…156f`, `94be494a…c985`), pinned to
 `infra/mobile/signing-manifest.json` and each flavour's `google-services.json`;
 constants, so debug builds send them too, as **upper-case hex without colons**
-(Google's convention for its own header of that name) — **UNVERIFIED for
-CARTO**; one place to change: `cartoAndroidCertHeaderValue`. **Per platform
-bets on one reading of §3.2**: if CARTO ANDs iOS and Android, one set is
-refused — §10 A detects it; the fix is in `cartoRestrictionHeaders`.
+(Google's convention for its own header of that name) — **verified 2026-10-11**:
+CARTO accepts it (and colon-separated, and lower case); a wrong cert or a
+missing one → `403`. Per platform is right: iOS and Android each pass alone.
 
 ## 4. Data model — none (no backend, API, migration or stored state)
 
@@ -179,6 +184,9 @@ format, `@2x`, or the web `Referer` — that is §10.
 
 ## 9. Rollout
 
+*Steps 1–2 done 2026-10-11 (app key `CARTO_BASEMAPS_KEY`, web key recorded
+as `CARTO_BASEMAPS_WEB_KEY`); §10 A and B passed. Step 3 waits for this PR.*
+
 1. **Owner — two keys** at <https://carto.com/basemaps/apikey/> (commercial):
    **app** with §3.3's mobile restrictions (certs as the dashboard asks —
    `B73647C6B06001AF04D38EE2D0A5AA4722CA156F`, `94BE494A905B2C2ADC66AD5720EDDE124089C985`);
@@ -228,23 +236,35 @@ raster tile is today's only proof a web key works (vector ignores keys).
 Last, `https://myweli.com/recherche`, DevTools → Network → `cartocdn`: the
 style carries `key=`, nothing is `403`.
 
+**Run 2026-10-11 with the real keys — all pass.** A: iOS `com.myweli.app` /
+`com.myweli.pro` and Android both packages with their certs (upper case, lower
+case, colons) → `200`, 72 813 B, 512 × 512, etag not `wm-`; controls — no
+headers `403`, myweli.com `Referer` only `403`, package without cert `403`,
+wrong bundle or cert `403`, keyless `200` watermark. B: web key + myweli.com /
+www `Referer` → `200`; no referer, iOS header only, a foreign site → `403`;
+the keyed style answers `200` and its sources carry **no** key (count `0`);
+keyed `tiles.json`, vector tile and glyphs + `Referer` → `200`, keyed vector
+tile without `Referer` → `403` — CARTO validates a key on vector requests
+whenever one is present, so the web keys them all (`cartoTransformRequest`).
+
 **C. On devices**, after the next release build: both apps' maps show
 streets and labels, on an iPhone and an Android phone.
 
 ## 11. Open questions
 
-1. The `X-Android-Cert` format — §10 A.
-2. iOS and Android: one restriction type or two — §10 A; only « two » needs code.
-3. `@2x` on `rastertiles/` — §10 A.
+1. ~~The `X-Android-Cert` format~~ — any (§10).
+2. ~~iOS and Android: one restriction type or two~~ — one (§10).
+3. ~~`@2x` on `rastertiles/`~~ — works (§10).
 4. Quota exhaustion: refusal, watermark or throttling? If the watermark, §5.3
    already keeps it off devices.
-5. **Vector key requirement.** If CARTO extends it and a valid key does not
-   rewrite the style's URLs (§10 B), the web needs a MapLibre
-   `transformRequest` keying every CARTO request. Not built: nothing today can
-   show it is needed, and a bogus key proves nothing (§3.1).
+5. ~~**Vector key requirement.**~~ Built: the style does not key its own URLs
+   (§10 B), so `cartoTransformRequest` keys every CARTO request each `<Map>`
+   makes; CARTO validates the key on them today (keyed without `Referer` →
+   `403`), so the day it requires one, the web already sends it.
 
 ## 12. Definition of done
 
 - [x] `flutter analyze` 0 · format clean · full suite green · web typecheck, lint, unit green.
 - [x] Every new guard watched red · indexed in [README.md](README.md) · cross-linked from the code · [DEPLOYMENT.md](../DEPLOYMENT.md) lists the secret · roadmap entry.
-- [ ] Owner: keys created and stored (§9). · [ ] Lead: §10 with the real keys.
+- [x] Owner: keys created and stored (§9). · [x] Lead: §10 with the real keys (2026-10-11).
+- [ ] Owner: Vercel `NEXT_PUBLIC_CARTO_BASEMAPS_KEY` (§9 step 3) · [ ] §10 C on devices.

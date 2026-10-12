@@ -23,3 +23,32 @@ export function cartoStyleUrl(key: string | undefined | null): string {
   const k = (key ?? '').trim();
   return k ? `${CARTO_STYLE_BASE}?key=${encodeURIComponent(k)}` : CARTO_STYLE_BASE;
 }
+
+/// Keys every OTHER request maplibre makes to CARTO once the style is loaded —
+/// tiles.json, the vector tiles, sprite, glyphs. CARTO's style.json does not
+/// pass the style URL's key on to them (measured 2026-10-11 with the real web
+/// key), and CARTO validates a key wherever one is present: keyed + myweli.com
+/// referer → 200, keyed without a referer → 403. So a keyed style alone would
+/// leave the tiles keyless the day CARTO extends the requirement to vector.
+///
+/// Only CARTO hosts are touched, an existing `key` is never overwritten, and
+/// without a key every request passes through unchanged. Pure, like
+/// `cartoStyleUrl`; the env read lives in `components/map/salon-pin.tsx`.
+export function cartoTransformRequest(
+  key: string | undefined | null,
+): (url: string) => { url: string } {
+  const k = (key ?? '').trim();
+  return (url) => {
+    if (!k) return { url };
+    let u: URL;
+    try {
+      u = new URL(url);
+    } catch {
+      return { url };
+    }
+    const carto = u.hostname === 'cartocdn.com' || u.hostname.endsWith('.cartocdn.com');
+    if (!carto || u.searchParams.has('key')) return { url };
+    u.searchParams.set('key', k);
+    return { url: u.toString() };
+  };
+}

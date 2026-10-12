@@ -62,9 +62,8 @@ const Map<String, String> cartoAndroidReleaseCertSha1 = {
 /// no colons — Google's convention for its own `X-Android-Cert` header, whose
 /// name CARTO's copies.
 ///
-/// **UNVERIFIED for CARTO**, which documents the header but not its format.
-/// This is the one place to change it if the post-key verification (spec
-/// §10) answers 403 on Android only.
+/// Verified against CARTO with the real app key on 2026-10-11 (spec §10):
+/// accepted — as are colon-separated and lower case; a wrong cert → 403.
 String cartoAndroidCertHeaderValue(String sha1) =>
     sha1.replaceAll(':', '').toUpperCase();
 
