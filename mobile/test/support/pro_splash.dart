@@ -14,19 +14,31 @@ import 'package:myweli/screens/provider/auth/pro_splash_screen.dart';
 /// Callers set `serviceLocator.authService` once in `setUpAll` — the base
 /// constructor reads it (and it is a `late final`, so only once per file).
 
-/// A [ProAuthProvider] whose session load finishes when the test says so.
+/// A [ProAuthProvider] whose session load finishes when the test says so —
+/// in the two stages the real one has: the stored session read ([restore]),
+/// then the live membership refresh (the rest of [load]).
 ///
-/// The base constructor already starts one load (as `main_pro.dart` does);
-/// [loadCalls] counts that one too, so tests compare against a baseline.
+/// The base constructor starts the one load (as `main_pro.dart` does) and
+/// keeps it as `ready`; [loadCalls] counts that one too, so tests compare
+/// against a baseline.
 class FakeProSession extends ProAuthProvider {
   FakeProSession({this.signedIn = false, this.staff = false});
 
-  final bool signedIn;
+  /// What the stored session says. [signIn] flips it, as a login would.
+  bool signedIn;
   final bool staff;
 
-  /// Complete it to finish `loadCurrentProvider()`.
+  /// Complete it to finish the whole load — restore AND live refresh.
   final Completer<void> load = Completer<void>();
+
+  /// Complete it to finish only the restore: the stored session is read and
+  /// the live refresh is still running (or hanging).
+  final Completer<void> restore = Completer<void>();
+
   int loadCalls = 0;
+
+  /// The salons a replayed notification switched to.
+  final List<String> switchedTo = [];
 
   @override
   Future<void> loadCurrentProvider() {
@@ -35,14 +47,30 @@ class FakeProSession extends ProAuthProvider {
   }
 
   @override
+  Future<void> get restored => Future.any([restore.future, load.future]);
+
+  @override
   bool get isAuthenticated => signedIn;
 
   @override
   bool get isStaff => staff;
+
+  @override
+  Future<bool> switchSalon(String salonId) async {
+    switchedTo.add(salonId);
+    return true;
+  }
+
+  /// The session signs in and says so — what the restore, or a login, does.
+  void signIn() {
+    signedIn = true;
+    notifyListeners();
+  }
 }
 
 /// `/pro/splash` plus the three places it can send the user, each a plain
-/// « route:… » text so a test can tell them apart.
+/// « route:… » text so a test can tell them apart — and the booking page a
+/// notification opens (« route:appointment `id` »).
 GoRouter proSplashRouter() => GoRouter(
   initialLocation: '/pro/splash',
   routes: [
@@ -52,6 +80,12 @@ GoRouter proSplashRouter() => GoRouter(
         path: '/pro/$name',
         builder: (_, _) => Scaffold(body: Text('route:$name')),
       ),
+    GoRoute(
+      path: '/pro/appointment/:id',
+      builder: (_, state) => Scaffold(
+        body: Text('route:appointment ${state.pathParameters['id']}'),
+      ),
+    ),
   ],
 );
 

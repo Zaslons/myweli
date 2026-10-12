@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lottie/lottie.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
+import 'package:myweli/core/theme/text_styles.dart';
 import 'package:myweli/providers/pro_auth_provider.dart';
 import 'package:myweli/screens/splash/splash_screen.dart';
 import 'package:myweli/screens/stories/story_viewer.dart';
@@ -587,19 +588,26 @@ void main() {
 
   /// The Pro splash (docs/design/pro-open-animation.md) — the consumer
   /// splash gate's twin, with the one thing the consumer splash does not have:
-  /// a session to wait for. Under the flag it holds « MyWeli Pro » STILL —
-  /// not the end mark, not frame 0's empty canvas — keeps the intro's hold,
-  /// and still waits for the session however long that takes.
+  /// a session to wait for. Under the flag it holds « MyWeli Pro » STILL
+  /// through the intro — not the end mark, not frame 0's empty canvas — and
+  /// keeps the intro's hold. Past the intro, while the session still loads,
+  /// it holds the finished mark and SAYS « Chargement… », as `BrandLoader`
+  /// does: a frozen logo and a broken screen look identical (§9.1).
   group('§9 — the Pro splash holds « MyWeli Pro » still', () {
     setUpAll(() => serviceLocator.authService = MockAuthService());
     final timeline = ProOpenTimeline.load();
 
     Future<void> pumpProSplash(
       WidgetTester tester,
-      FakeProSession session,
-    ) async {
+      FakeProSession session, {
+      double textScale = 1.0,
+    }) async {
       await pumpWithReducedMotion(tester, const SizedBox.shrink());
-      pinSurface(tester, size: const Size(_kPinnedWidth, 1600));
+      pinSurface(
+        tester,
+        size: const Size(_kPinnedWidth, 1600),
+        scale: textScale,
+      );
       await tester.pumpWidget(
         wrapApp(
           routerConfig: proSplashRouter(),
@@ -650,27 +658,122 @@ void main() {
       );
     });
 
-    testWidgets('…still waits for the session, and never starts moving', (
+    testWidgets('no caption during the intro — it is not waiting yet', (
       tester,
     ) async {
-      final session = FakeProSession();
-      await pumpProSplash(tester, session);
-      final still = frameOnScreen(tester);
+      await pumpProSplash(tester, FakeProSession());
+      expect(find.text(BrandLoader.semanticsLabel), findsNothing);
+    });
 
-      await tester.pump(timeline.intro + const Duration(seconds: 5));
-      expect(find.text('route:login', skipOffstage: false), findsNothing);
+    testWidgets(
+      'past the intro: the finished mark, still, and « Chargement… »',
+      (tester) async {
+        final handle = tester.ensureSemantics();
+        final session = FakeProSession();
+        await pumpProSplash(tester, session);
+
+        await tester.pump(timeline.intro + const Duration(seconds: 5));
+        expect(find.text('route:login', skipOffstage: false), findsNothing);
+        expect(
+          frameOnScreen(tester),
+          closeTo(timeline.endFrame, 0.01),
+          reason:
+              'the mark the motion users see once the intro is over — not the '
+              'wordmark the intro has just finished with',
+        );
+        expect(
+          tester.binding.hasScheduledFrame,
+          isFalse,
+          reason:
+              'the intro ending must not hand over to the redraw loop for '
+              'these users',
+        );
+        expect(
+          find.text(BrandLoader.semanticsLabel),
+          findsOneWidget,
+          reason: 'a frozen logo is indistinguishable from a broken screen',
+        );
+        expect(
+          tester.getSemantics(find.text(BrandLoader.semanticsLabel)),
+          isSemantics(label: BrandLoader.semanticsLabel, isLiveRegion: true),
+          reason: 'it appears away from focus, so it must be announced',
+        );
+        handle.dispose();
+
+        session.load.complete();
+        await land(tester);
+        expect(find.text('route:login'), findsOneWidget);
+      },
+    );
+
+    testWidgets('the caption leaves the mark where the native splash put it', (
+      tester,
+    ) async {
+      await pumpProSplash(tester, FakeProSession());
+      final centred = tester.getCenter(find.byType(LottieBuilder));
+
+      await tester.pump(timeline.intro);
+      expect(find.text(BrandLoader.semanticsLabel), findsOneWidget);
+      expect(tester.getCenter(find.byType(LottieBuilder)), centred);
       expect(
-        frameOnScreen(tester),
-        still,
-        reason:
-            'the intro ending must not hand over to the redraw loop for '
-            'these users',
+        tester.getTopLeft(find.text(BrandLoader.semanticsLabel)).dy,
+        greaterThanOrEqualTo(
+          tester.getBottomLeft(find.byType(LottieBuilder)).dy,
+        ),
+        reason: 'below the mark, not over it',
       );
-      expect(tester.binding.hasScheduledFrame, isFalse);
+    });
 
-      session.load.complete();
-      await land(tester);
-      expect(find.text('route:login'), findsOneWidget);
+    testWidgets('…and holds at 2× text, on one line, on a floor phone', (
+      tester,
+    ) async {
+      await pumpProSplash(tester, FakeProSession(), textScale: 2);
+      await tester.pump(timeline.intro);
+
+      final caption = find.text(BrandLoader.semanticsLabel);
+      expect(caption, findsOneWidget);
+      expect(tester.takeException(), isNull);
+      final box = tester.getRect(caption);
+      expect(box.left, greaterThanOrEqualTo(0));
+      expect(box.right, lessThanOrEqualTo(_kPinnedWidth));
+      final line =
+          AppTextStyles.bodySmall.fontSize! *
+          2 *
+          AppTextStyles.bodySmall.height!;
+      expect(box.height, closeTo(line, 1), reason: 'one line, not wrapped');
+    });
+
+    testWidgets('turned on mid-loop: the finished mark, never the wordmark', (
+      tester,
+    ) async {
+      // Motion ON first: the intro plays out and the redraw loop runs.
+      pinSurface(tester, size: const Size(_kPinnedWidth, 1600));
+      await tester.pumpWidget(
+        wrapApp(
+          routerConfig: proSplashRouter(),
+          providers: [
+            ChangeNotifierProvider<ProAuthProvider>.value(
+              value: FakeProSession(),
+            ),
+          ],
+        ),
+      );
+      await tester.runAsync(
+        () async => Future<void>.delayed(const Duration(milliseconds: 300)),
+      );
+      await tester.pump();
+      await tester.pump(timeline.intro);
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(tester.binding.hasScheduledFrame, isTrue, reason: 'looping');
+
+      setReducedMotion(tester);
+      // The flip is applied inside that frame's build, which repaints once;
+      // after it, nothing may still be ticking.
+      await tester.pump();
+      await tester.pump();
+      expect(frameOnScreen(tester), closeTo(timeline.endFrame, 0.01));
+      expect(tester.binding.hasScheduledFrame, isFalse, reason: 'stopped');
+      expect(find.text(BrandLoader.semanticsLabel), findsOneWidget);
     });
 
     testWidgets(

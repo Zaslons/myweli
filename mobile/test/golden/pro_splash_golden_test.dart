@@ -16,9 +16,10 @@ import '../support/pro_splash.dart';
 /// A picture of an animation is a picture of an arbitrary frame unless the
 /// frame is chosen (SYSTEM.md §20.1), so both are — and neither by guesswork:
 ///
-///   · the **wordmark** is the still reduced motion holds — the shipped
-///     behaviour, not a frame this test picked — and the test asserts it sits
-///     inside the asset's `wordmark` hold before photographing it;
+///   · the **wordmark** is the still reduced motion holds through the intro
+///     — the shipped behaviour, not a frame this test picked — and the test
+///     asserts it sits inside the asset's `wordmark` hold before
+///     photographing it (past the intro that still becomes the end frame);
 ///   · the **end frame** is the composition's last frame, where the intro's
 ///     morph and every pass of the redraw loop come to rest.
 ///
