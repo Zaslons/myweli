@@ -24,4 +24,8 @@ class SecureSessionStore implements SessionStore {
 
   @override
   Future<void> clear() => _storage.delete(key: _key);
+
+  /// The storage key IS the session: every service builds its own instance.
+  @override
+  Object get identity => 'secure:$_key';
 }

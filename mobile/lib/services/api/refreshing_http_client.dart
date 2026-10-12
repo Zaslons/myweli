@@ -20,6 +20,16 @@ import '../interfaces/session_store.dart';
 /// It is store-shape-agnostic: it only touches the top-level `token` and
 /// `refreshToken` keys of the persisted JSON, so the same client works for the
 /// consumer [Session] and the provider session.
+///
+/// **One refresh at a time per session.** Refresh tokens are single-use and
+/// the server revokes the whole family when it sees one twice
+/// (`refresh_reused`). Every service builds its own client over the same
+/// stored session, and a cold start fires several requests at once — so two
+/// 401s racing into two refreshes with the same token would sign the user out.
+/// Concurrent refreshes of one session therefore share a single exchange, and
+/// a 401 that arrives after another request already rotated the session just
+/// retries with the stored token. Seen in production on 2026-10-11 (two
+/// `/auth/refresh` calls within 12 ms; docs/design/session-refresh.md).
 class RefreshingHttpClient {
   RefreshingHttpClient({
     required this._client,
@@ -46,6 +56,12 @@ class RefreshingHttpClient {
     if (token == null) return null;
     final first = await _guard(() => run(token));
     if (first == null || first.statusCode != 401) return first;
+
+    // Another request already rotated the session while this one was in
+    // flight: its token is the fresh one — no second exchange.
+    final stored = await accessToken();
+    if (stored == null) return first; // the session ended meanwhile
+    if (stored != token) return _guard(() => run(stored));
 
     final fresh = await _refresh();
     if (fresh == null) return first; // refresh failed → original 401 stands
@@ -77,11 +93,25 @@ class RefreshingHttpClient {
     }
   }
 
+  /// The refresh in flight per session (store identity + endpoint), shared by
+  /// every client instance — see the class comment.
+  static final Map<(Object, String), Future<String?>> _inflight = {};
+
+  /// Joins the session's in-flight refresh, or starts one.
+  Future<String?> _refresh() {
+    final key = (_store.identity, '$_baseUrl$refreshPath');
+    // A block body on purpose: `=> _inflight.remove(key)` would return this
+    // very future to whenComplete, which would then wait on itself forever.
+    return _inflight[key] ??= _exchange().whenComplete(() {
+      _inflight.remove(key);
+    });
+  }
+
   /// Exchange the stored refresh token for a new pair and rotate the session.
   /// Returns the new access token, or null. Clears the session only when the
   /// refresh is genuinely dead (no token, malformed, or server rejection) — not
   /// on a transport failure, so a flaky network keeps the user signed in.
-  Future<String?> _refresh() async {
+  Future<String?> _exchange() async {
     final map = await _readMap();
     if (map == null) {
       await _store.clear();
