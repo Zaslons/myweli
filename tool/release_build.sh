@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
-# Build a store artifact with the observability defines, WITHOUT anyone ever
-# handling the DSN.
+# Build a store artifact with the observability defines and the basemap key,
+# WITHOUT anyone ever handling the DSN or the key.
 #
 #   ./tool/release_build.sh ios consumer
 #   ./tool/release_build.sh android pro
@@ -23,6 +23,11 @@
 # The other two defines are already fatal at runtime (`build_config_guard.dart`
 # refuses a release build without them). Sentry deliberately is not — so this
 # script is where that gap is closed, at the only moment it can be.
+#
+# The CARTO basemap key (`CARTO_BASEMAPS_KEY`, the APP key) is the same gap
+# again: without it nothing fails, every map just shows « API KEY REQUIRED ».
+# Read from Secret Manager the same way, refused when empty, blank-bearing or
+# not shaped like a key, and never printed (docs/design/map-basemap-key.md §5.4).
 set -euo pipefail
 
 PLATFORM="${1:-}"
@@ -75,6 +80,15 @@ if [[ -z "$CARTO_KEY" ]]; then
 fi
 if [[ "$CARTO_KEY" =~ [[:space:]] ]]; then
   echo "::error:: CARTO_BASEMAPS_KEY contains whitespace — a paste went wrong." >&2
+  exit 1
+fi
+# Shape, not value — as for the DSN. Non-empty and blank-free still lets a
+# placeholder through (`TODO`, a truncated paste), and CARTO answers a key it
+# does not know with the watermark, exactly as if there were none. A CARTO key
+# is letters, digits, `_` and `-`, and long; the message never echoes it.
+if [[ ! "$CARTO_KEY" =~ ^[A-Za-z0-9_-]{20,}$ ]]; then
+  echo "::error:: CARTO_BASEMAPS_KEY does not look like a CARTO key (letters," >&2
+  echo "          digits, _ or -, at least 20 of them). Value not shown." >&2
   exit 1
 fi
 

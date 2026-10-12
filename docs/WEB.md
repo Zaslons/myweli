@@ -62,17 +62,25 @@ web/
   anywhere**. Set it per Vercel environment — Production → production API,
   Preview → staging ([LAUNCH.md](LAUNCH.md) §5.4). Design:
   [design/infra-staging.md](design/infra-staging.md) §1.3.
-- **Every environment variable the web reads is listed in `web/.env.example`**
-  (copy it to `.env.local`; production values live in Vercel —
+- **Every environment variable an operator sets for the web is listed in
+  `web/.env.example`** — the platform- and build-set ones (`VERCEL_ENV`,
+  `VERCEL_GIT_COMMIT_SHA`, `SENTRY_AUTH_TOKEN`) appear there commented (copy
+  it to `.env.local`; production values live in Vercel —
   [DEPLOYMENT.md](DEPLOYMENT.md) Phase D). A `NEXT_PUBLIC_*` value is inlined
   into the bundle at build time: public by construction, never a secret.
-- **The basemap is built in one place** — `lib/basemap.ts` (`cartoStyleUrl`),
-  exported as `MAP_STYLE` by `components/map/salon-pin.tsx` and handed to
-  every `<Map>`. It carries `?key=` when `NEXT_PUBLIC_CARTO_BASEMAPS_KEY` (the
-  **web** CARTO key, restricted to the myweli.com hosts) is set, and is the
-  keyless style otherwise; no other file may name the CARTO host
-  (`tests/basemap.test.ts`). Design:
-  [design/map-basemap-key.md](design/map-basemap-key.md).
+- **The basemap is built in one place** — `lib/basemap.ts` (`cartoStyleUrl`,
+  `cartoTransformRequest`), exported as `MAP_STYLE` and
+  `MAP_TRANSFORM_REQUEST` by `components/map/salon-pin.tsx`; **every `<Map>`
+  gets both**: `mapStyle={MAP_STYLE}` and
+  `transformRequest={MAP_TRANSFORM_REQUEST}`. When
+  `NEXT_PUBLIC_CARTO_BASEMAPS_KEY` (the **web** CARTO key, restricted to the
+  myweli.com hosts) is set, the style and every CARTO request the map makes
+  carry it; unset, everything is keyless. No other file may name the CARTO
+  host, and a `<Map>` without both props fails `tests/basemap.test.ts`.
+  **Production leaves the variable unset, by decision**, until CARTO requires
+  keys on vector — the shared free tier is not spent on tiles that are free
+  keyless; `production-checks.yml` (`basemap`) goes red that day. Design:
+  [design/map-basemap-key.md](design/map-basemap-key.md) §5.5, §7, §9.
 - Reads for public pages run server-side (RSC/route handlers); writes
   (booking/auth) call the existing hardened API endpoints — reuse their
   validation/authz/notifications; never reimplement business logic on web.

@@ -121,7 +121,10 @@ void main() {
         expect(
           cartoAndroidCertHeaderValue('ab:cd:0f'),
           'ABCD0F',
-          reason: 'UNVERIFIED for CARTO; spec §10 says how to adjust',
+          reason:
+              'the wire format CARTO was verified with (spec §10, 2026-10-11): '
+              'any case, with or without colons, is accepted — upper case '
+              'without colons is what we send',
         );
       },
     );

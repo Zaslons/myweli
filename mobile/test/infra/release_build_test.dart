@@ -245,6 +245,85 @@ void main() {
       expect(at, lessThan(build), reason: 'refuse before anything compiles');
     });
 
+    group('and refuses a key not shaped like one — run for real', () {
+      // Non-empty and blank-free still lets a placeholder through (`TODO`, a
+      // truncated paste), and CARTO answers a key it does not know with the
+      // watermark: every map « API KEY REQUIRED » in a build that looked
+      // fine. So the script checks the SHAPE — letters, digits, `_`, `-`, at
+      // least 20 — never the value, and never prints it.
+      //
+      // Executed, not grepped: `gcloud` and `node` are stubbed on PATH, so the
+      // script runs its real checks and stops at the first thing it cannot
+      // fake. A refused key exits 1 before the Google sign-in check; an
+      // accepted one reaches it (the stub `node` exits 42) — still before any
+      // `flutter build`.
+      late Directory stubs;
+
+      setUpAll(() {
+        stubs = Directory.systemTemp.createTempSync('release-build-stubs-');
+        File('${stubs.path}/gcloud').writeAsStringSync(r'''#!/bin/sh
+case "$*" in
+  *--secret=MOBILE_SENTRY_DSN*) echo 'https://abc123@o1.ingest.de.sentry.io/2' ;;
+  *--secret=SENTRY_DSN*) echo 'https://def456@o1.ingest.de.sentry.io/3' ;;
+  *--secret=CARTO_BASEMAPS_KEY*) printf '%s\n' "$STUB_CARTO_KEY" ;;
+  *) exit 99 ;;
+esac
+''');
+        File(
+          '${stubs.path}/node',
+        ).writeAsStringSync('#!/bin/sh\necho STUB_NODE_REACHED\nexit 42\n');
+        Process.runSync('chmod', [
+          '+x',
+          '${stubs.path}/gcloud',
+          '${stubs.path}/node',
+        ]);
+      });
+
+      tearDownAll(() => stubs.deleteSync(recursive: true));
+
+      ProcessResult build(String key) => Process.runSync(
+        'bash',
+        ['../tool/release_build.sh', 'ios', 'consumer'],
+        environment: {
+          'PATH': '${stubs.path}:${Platform.environment['PATH']}',
+          'STUB_CARTO_KEY': key,
+        },
+      );
+
+      final bad = {
+        'a placeholder': 'TODO',
+        'another placeholder': 'changeme',
+        'one character short': 'a' * 19,
+        'a dot': '${'a' * 24}.',
+        'base64 padding': '${'A' * 22}==',
+        'a slash': '${'k' * 12}/${'k' * 12}',
+        'a plus': '${'k' * 12}+${'k' * 12}',
+      };
+      bad.forEach((what, key) {
+        test('refuses $what, and does not print it', () {
+          final r = build(key);
+          final out = '${r.stdout}${r.stderr}';
+          expect(r.exitCode, 1, reason: out);
+          expect(out, contains('CARTO_BASEMAPS_KEY'));
+          expect(
+            out,
+            isNot(contains('STUB_NODE_REACHED')),
+            reason: 'refused only after the next step started',
+          );
+          expect(out, isNot(contains(key)), reason: 'the key was printed');
+        });
+      });
+
+      test('accepts a well-shaped key and goes on — without printing it', () {
+        const good = 'aB3_-zZ9-q_Wk8yLmN0pQrStU';
+        final r = build(good);
+        final out = '${r.stdout}${r.stderr}';
+        expect(out, contains('STUB_NODE_REACHED'), reason: out);
+        expect(r.exitCode, 42, reason: out);
+        expect(out, isNot(contains(good)));
+      });
+    });
+
     test('it passes the key as a define, from the variable', () {
       expect(
         RegExp(

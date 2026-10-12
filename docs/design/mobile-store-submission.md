@@ -169,14 +169,20 @@ nothing here should be handed credentials.
    > them.
 
    The raw command, for reference — a placeholder in a runbook is a step that
-   gets skipped under pressure, and the failure is silent:
+   gets skipped under pressure, and the failure is silent. **Both secrets are
+   required**: without the DSN the build reports nothing, without
+   `CARTO_BASEMAPS_KEY` every map shows « API KEY REQUIRED » — and neither
+   fails the build. The key is the **app** key, from Secret Manager
+   (`gcloud secrets versions access latest --secret=CARTO_BASEMAPS_KEY
+   --project=myweli`), never the web one:
 
    ```sh
    flutter build ipa --flavor consumer --release \
      --dart-define=USE_API_BACKEND=true \
      --dart-define=API_BASE_URL=https://api.myweli.com \
      --dart-define=SENTRY_DSN=<the myweli-app DSN> \
-     --dart-define=SENTRY_ENV=production
+     --dart-define=SENTRY_ENV=production \
+     --dart-define=CARTO_BASEMAPS_KEY=<the app key from Secret Manager>
    ```
 
    Then upload — **the exact ordered commands (verify the IPA, `xcrun altool

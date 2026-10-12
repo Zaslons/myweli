@@ -16,6 +16,11 @@ export const CARTO_STYLE_BASE =
 /// before. Never a fallback that hides a missing key: if CARTO starts refusing
 /// keyless styles, a keyless deployment shows it.
 ///
+/// Production runs keyless ON PURPOSE until then: a key spends the free tier
+/// every key shares, on vector tiles that cost nothing keyless (spec §7).
+/// `production-checks.yml` (`basemap`) asks CARTO daily and goes red the day
+/// the variable has to be set (spec §9 step 3).
+///
 /// Pure (the key is a parameter) so both branches are testable; the env read
 /// lives at the call site (`components/map/salon-pin.tsx`), where Next inlines
 /// it at build time.
@@ -27,9 +32,10 @@ export function cartoStyleUrl(key: string | undefined | null): string {
 /// Keys every OTHER request maplibre makes to CARTO once the style is loaded —
 /// tiles.json, the vector tiles, sprite, glyphs. CARTO's style.json does not
 /// pass the style URL's key on to them (measured 2026-10-11 with the real web
-/// key), and CARTO validates a key wherever one is present: keyed + myweli.com
-/// referer → 200, keyed without a referer → 403. So a keyed style alone would
-/// leave the tiles keyless the day CARTO extends the requirement to vector.
+/// key), and CARTO enforces a real key's restrictions on vector requests too:
+/// the web key + a myweli.com referer → 200, the same without a referer → 403.
+/// So a keyed style alone would leave the tiles keyless the day CARTO extends
+/// the requirement to vector.
 ///
 /// Only CARTO hosts are touched, an existing `key` is never overwritten, and
 /// without a key every request passes through unchanged. Pure, like

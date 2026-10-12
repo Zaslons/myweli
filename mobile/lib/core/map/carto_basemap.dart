@@ -16,7 +16,9 @@ library;
 const String cartoRasterStyle = 'light_all';
 
 /// The URL template for flutter_map's `TileLayer.urlTemplate`, `{r}` being its
-/// retina slot (`@2x` on dense screens).
+/// retina slot: with `retinaMode: true` and `{r}` in the template, flutter_map
+/// resolves `RetinaMode.server` and substitutes `@2x` ALWAYS, whatever the
+/// screen density — 512 × 512 tiles from CARTO (verified 2026-10-11).
 ///
 /// **No key → no `?key=`, on purpose.** Since 2026-09-25 CARTO answers a
 /// keyless raster request with a tile reading « API KEY REQUIRED ». That is
