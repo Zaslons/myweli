@@ -292,6 +292,30 @@ lecture publique, déjà appelée par la page salon.
   arrive → la caméra reste sur le salon ; un salon introuvable → le message ;
 - `appointment_card` : « Voir sur la carte » → `/carte?providerId=`.
 
+Ajouts de la revue (2026-10-12) :
+- **le « i » ouvert** à 1,3× (390 dp) et 2,0× (360 dp) : aucune exception,
+  aucune navigation, la boîte toujours sans texte et à 160 dp, le titre et les
+  deux crédits entiers dans la feuille, cible ≥ 48 dp ; la recherche par
+  info-bulle du test « lecteur d'écran » a son contrôle positif dans l'arbre
+  (`find.byTooltip`) ;
+- **la liste qui ne répond jamais** (`getProviders` sur un `Completer` jamais
+  complété) : depuis la page salon → feuille et caméra sur le salon, zoom 14,
+  **aucune** lecture ; salon absent de la mémoire → **une** lecture, la feuille
+  sans attendre la liste ; « déjà dans la liste » se lit désormais « dans la
+  liste déjà en mémoire » ;
+- **§2.7** — le chemin de la revue avec la vraie `MapScreen` : A → carte → B →
+  retour → retour : l'adresse de A, pas celle de B, la case rendue à A,
+  **2 lectures** (pas de troisième : la copie), « Réserver » → `/booking?providerId=provider1` ;
+  pendant que B est dessus, la case reste à B trois images de suite (pas de
+  ping-pong) ; une page ouverte quand la case tient un autre salon → le
+  chargeur, ni ce salon ni son « Réserver » ; une page couverte avant son
+  salon → de retour en haut, ni l'état « indisponible » d'une autre, une
+  lecture, puis son salon ; une réponse arrivée après que la case a changé de
+  mains est ignorée ;
+- `carto_basemap_layer_test` : la forme feuille (mêmes crédits, aucune bulle,
+  aucun texte fermée) ; la garde « chaque `FlutterMap(` » accepte
+  `CartoAttribution()` **ou** `CartoAttribution.sheet()`.
+
 `test/unit/route_literals_test.dart` — **le garde qui aurait vu `/favorites`** :
 chaque littéral de chemin d'un `push` / `go` / `pushReplacement` / `replace`
 (et le nom d'un `*Named`) du code de `lib/`, commentaires retirés — y compris
@@ -362,6 +386,8 @@ l'image montre le fond `surfaceVariant`, le marqueur et l'attribution.
       `appointment_card`, `pro_reads_own_salon`, `design_system_pin`, a11y
       `salon_header` et `layout` (181 cas).
 - [x] 24 mutations vues rouges (§8).
+- [x] Revue du 2026-10-12 : les trois constats corrigés (§2.1 « crédits »,
+      §2.3, §2.7), leurs gardes ajoutées (§8) et vues rouges (M25–M35).
 - [x] Spec liée depuis le code ; index `README.md` ; SYSTEM.md §11.1
       (`SalonMapMarker`, `SalonLocationPreview`) ; map-basemap-key.md §5.1 ;
       ligne 2.9 de l'audit de parité corrigée ; entrée de roadmap.
