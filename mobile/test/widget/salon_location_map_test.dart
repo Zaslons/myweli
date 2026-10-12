@@ -367,7 +367,13 @@ void main() {
         // floated centred until 2026-10-12).
         final sheet = find.byType(BottomSheet);
         expect(sheet, findsOneWidget);
-        expect(tester.getSize(sheet).width, size.width, reason: 'full width');
+        // The visible surface, not the BottomSheet widget: under Material 3
+        // the widget centres its Material in an Align that spans the screen,
+        // so the widget is full width even when the surface shrinks.
+        final surface = find
+            .descendant(of: sheet, matching: find.byType(Material))
+            .first;
+        expect(tester.getSize(surface).width, size.width, reason: 'full width');
         for (final credit in [CartoAttribution.sheetTitle, ...cartoCredits]) {
           final text = find.descendant(of: sheet, matching: find.text(credit));
           expect(text, findsOneWidget, reason: credit);

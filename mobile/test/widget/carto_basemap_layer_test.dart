@@ -397,7 +397,8 @@ void main() {
         // Either form: the popup, or the sheet a fixed box needs
         // (salon-location-map.md §2.1 « crédits »).
         expect(
-          count(files[f]!, RegExp(r'\bCartoAttribution(?:\.sheet)?\(\)')),
+          // A call, with or without arguments (« Carte » passes its corner).
+          count(files[f]!, RegExp(r'\bCartoAttribution(?:\.sheet)?\(')),
           maps,
           reason: '$f: a FlutterMap without the attribution CARTO requires',
         );
