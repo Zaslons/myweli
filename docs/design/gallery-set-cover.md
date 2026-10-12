@@ -11,7 +11,9 @@
 ## 1. Goal & scope
 
 La couverture EST `imageUrls[0]` sur toutes les surfaces (cartes, détail,
-Hero, OG, sitemap). Le seul chemin pour promouvoir une photo est aujourd'hui
+Hero, OG, sitemap). *Correction 2026-10-11 : le détail **mobile** ne
+l'affichait pas — son en-tête ne lisait jamais `imageUrls` (le cœur et le logo
+seulement) ; c'est [salon-cover-photo.md](salon-cover-photo.md) qui l'y met.* Le seul chemin pour promouvoir une photo est aujourd'hui
 la flèche voisine — n gestes, n écritures. Un geste direct : « Définir comme
 photo principale ».
 

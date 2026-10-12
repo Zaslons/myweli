@@ -1,7 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/core/theme/app_theme.dart';
 import 'package:myweli/core/theme/text_styles.dart';
+import 'package:myweli/models/provider.dart' as models;
+import 'package:myweli/providers/provider_provider.dart';
+import 'package:myweli/screens/providers/provider_detail_screen.dart';
+import 'package:myweli/services/mock/mock_data.dart';
+import 'package:myweli/services/mock/mock_provider_service.dart';
+import 'package:provider/provider.dart';
 
 import '../support/fonts.dart';
 import '_a11y.dart';
@@ -23,8 +30,20 @@ import '_a11y.dart';
 /// This reproduces the header's geometry rather than pumping the screen: the
 /// screen needs a signed-in session, a provider fetch and five settle rounds
 /// per configuration, and what is under test is one `Row`'s arithmetic.
+///
+/// **Since the cover there are two headers** (docs/design/salon-cover-photo.md
+/// §2), and the replicas below describe only the one WITHOUT a photo. So the
+/// file also pumps the real screen — through the owner preview, which is
+/// seeded and fetches nothing, so it costs one pump — for both branches: the
+/// no-photo header must still stack a verified salon inside the band, and the
+/// cover header must not need to, because its name has the whole row.
 void main() {
-  setUpAll(loadRealFonts);
+  setUpAll(() async {
+    await loadRealFonts();
+    // `ProviderProvider` takes its service at construction. The preview never
+    // calls it (salon_preview_test.dart holds that); this only lets it exist.
+    serviceLocator.providerService = MockProviderService();
+  });
 
   /// `W − screen padding (24×2) − logo (72) − gap (16)`, then minus the badge.
   Widget header({required bool verified, required double width}) => Scaffold(
@@ -103,4 +122,86 @@ void main() {
     );
     expectNoMidWordBreak(tester, 'Salon Excellence', '360dp × 1.5×');
   });
+
+  // ---- the real screen, both branches ------------------------------------
+
+  models.Provider salon({required bool withPhotos}) {
+    final seed = MockData.providers.firstWhere((p) => p.id == 'provider1');
+    return seed.copyWith(
+      verified: true, // the worse population: the badge costs the name 28dp
+      imageUrls: withPhotos ? null : const [],
+    );
+  }
+
+  Future<void> pumpPreview(
+    WidgetTester tester, {
+    required models.Provider salon,
+    required double width,
+    required double scale,
+  }) => pumpAtWidth(
+    tester,
+    width: width,
+    scale: scale,
+    providers: [
+      ChangeNotifierProvider.value(
+        value: ProviderProvider()..showPreloaded(salon),
+      ),
+    ],
+    home: const ProviderDetailScreen(providerId: 'provider1', preview: true),
+  );
+
+  // Branch B, inside the band `layout_test`'s `[1, 2]` cannot see: the same
+  // three just-past-the-crossing pairs as the replicas, on the real header.
+  for (final (width, scale) in [(360.0, 1.5), (375.0, 1.6), (390.0, 1.7)]) {
+    testWidgets('without photos, a verified salon stacks at $scale× on '
+        '${width.toInt()}dp and keeps its name whole', (tester) async {
+      await pumpPreview(
+        tester,
+        salon: salon(withPhotos: false),
+        width: width,
+        scale: scale,
+      );
+      final at = '${width.toInt()}dp × $scale×';
+      // No logo → the « shop » disc, which is the thing that stacks.
+      final logo = tester.getRect(find.byIcon(Icons.store_outlined));
+      final name = tester.getRect(find.text('Salon Excellence').first);
+      expect(
+        name.top,
+        greaterThanOrEqualTo(logo.bottom),
+        reason: 'the logo must sit ABOVE the name at $at (A13)',
+      );
+      expectNoMidWordBreak(tester, 'Salon Excellence', at);
+      expect(tester.takeException(), isNull, reason: 'A: $at');
+    });
+  }
+
+  // Branch A, at the contract point: under the cover the name is not beside
+  // a logo, so a verified salon gets `W − 48 − 28` — 284dp at 360 — and
+  // « Excellence » (269.7dp at 2×) fits without stacking anything.
+  for (final width in [360.0, 375.0, 390.0]) {
+    testWidgets('under a cover, a verified salon keeps its name whole at 2× on '
+        '${width.toInt()}dp with the full row', (tester) async {
+      await pumpPreview(
+        tester,
+        salon: salon(withPhotos: true),
+        width: width,
+        scale: 2,
+      );
+      final at = '${width.toInt()}dp × 2×';
+      expect(
+        find.byIcon(Icons.store_outlined),
+        findsNothing,
+        reason: 'C: the cover header draws no logo disc beside the name',
+      );
+      expect(
+        tester.getTopLeft(find.text('Salon Excellence').first).dx,
+        AppTheme.spacingL,
+        reason:
+            'the name starts at the page gutter at $at — nothing sits '
+            'beside it, which is why this branch needs no stacking',
+      );
+      expectNoMidWordBreak(tester, 'Salon Excellence', at);
+      expect(tester.takeException(), isNull, reason: 'A: $at');
+    });
+  }
 }

@@ -42,6 +42,7 @@ import 'providers/provider_provider.dart';
 import 'screens/update/update_required_app.dart';
 import 'services/push/fcm_message_bridge.dart';
 import 'widgets/common/content_width_cap.dart';
+import 'widgets/common/default_status_bar_style.dart';
 
 void main() {
   // Run inside a guarded zone so framework errors and uncaught async errors
@@ -240,8 +241,13 @@ class MyweliProApp extends StatelessWidget {
           // identity, which is every phone this ships to. See
           // ContentWidthCap: `main_admin.dart` deliberately does NOT install
           // it, and a source pin holds that.
-          builder: (context, child) =>
-              ContentWidthCap(child: child ?? const SizedBox.shrink()),
+          //
+          // Outside it, the status bar's default for screens without an
+          // AppBar — or a cover's light icons outlive the cover after back
+          // (DefaultStatusBarStyle; salon-cover-photo.md §2.1).
+          builder: (context, child) => DefaultStatusBarStyle(
+            child: ContentWidthCap(child: child ?? const SizedBox.shrink()),
+          ),
           routerConfig: ProRouter.router,
         ),
       ),
