@@ -504,7 +504,9 @@ void main() {
             margin,
       );
       expect(
-        find.text('accueil'),
+        // Offstage too: a pushed page spends its first frame offstage, so an
+        // onstage-only finder misses a route decided one frame ago.
+        find.text('accueil', skipOffstage: false),
         findsNothing,
         reason: 'the hold must not be collapsed for these users',
       );
@@ -542,16 +544,17 @@ void main() {
       );
       // The decode has landed (`onLoaded` has run — the test bundle answers
       // at once), and then a second passes with nothing drawn: a slow first
-      // frame. Measured: with a pump BEFORE this delay, that pump was already
-      // the first frame, there was no gap, and the "timed from the decode"
-      // mutation survived.
+      // frame. Measured twice before this held: with a pump BEFORE the delay,
+      // that pump was already the first frame and there was no gap; and with
+      // an onstage-only finder below, the route decided a frame earlier was
+      // still offstage. The "timed from the decode" mutation survived both.
       await tester.binding.delayed(const Duration(seconds: 1));
       await tester.pump(); // the first frame that shows the still
 
       const margin = Duration(milliseconds: 100);
       await tester.pump(timeline.firstPass + OpenAnimationPlayer.rest - margin);
       expect(
-        find.text('accueil'),
+        find.text('accueil', skipOffstage: false),
         findsNothing,
         reason:
             'the hold was timed from the decode, not from the frame that '
