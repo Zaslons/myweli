@@ -293,13 +293,52 @@ with `MYWELI_GOLDEN_LOCAL=1`). Each guard was committed, then broken:
 | M15 | an unmounted router counts as landed | a tap before `runApp` on a restored session |
 | M16 | broken asset never flags itself | broken asset says « Chargement… » |
 
+**The full spin (2026-10-12).** New: `splash_screen_test` (the consumer
+screen), `open_animation_asset_test` (the consumer file's markers and keyframes,
+and **both files rendered frame by frame** with `LottieDrawable` — the ink
+counted on every frame from the wordmark to the spin, and the end frame
+byte-compared with the spin's first frame); the shared timeline moved to
+`test/support/open_timeline.dart` (`OpenTimeline.pro()` / `.consumer()`,
+`pumpFirstFrame`). Every Pro test that pumped `timeline.intro` now plays the
+first pass and its rest. Goldens `pro_splash_wordmark` / `pro_splash_end` still
+match the committed PNGs (run locally with `MYWELI_GOLDEN_LOCAL=1`, compared,
+not regenerated); the end-frame golden now reaches the end frame by playing the
+pass instead of setting the controller. Each guard was committed, then broken,
+then restored with `git checkout` and the tree checked clean:
+
+| # | Broke | Went red |
+|---|---|---|
+| M17 | the Pro gate back at the `intro` marker (build 560) | session first → the spin plays…; the ticker clock; spins from `loop`; lands mid-spin; refresh hangs; stored session waited |
+| M18 | `rest` = 0 | Pro session first (the 400 ms floor); consumer whole file — red on the written floor, not on the constant read back |
+| M19 | a wall-clock `Timer` ends the pass, beside the ticker | exactly the two « the clock is the ticker » tests (Pro, consumer) |
+| M20 | the pass end restarts the animation (the old `repeat`) | 13 tests: Pro session first (stopped, no frame scheduled), consumer whole file, and every test that waits past a pass end |
+| M21 | pending: leave as soon as the session allows, mid-spin | lands mid-spin; refresh hangs |
+| M22 | pending: the spin replays from frame 0 (the wordmark) | spins from `loop`; lands mid-spin; refresh hangs |
+| M23 | no session deadline | refresh hangs; stored session waited for |
+| M24 | a settled session still spins once at the gate | the 3 routing decisions, no second load ×2, session first, the ticker clock |
+| M25 | reduced motion: the still's timer starts at the decode, not the first frame | « the still is timed from the frame that SHOWS it » — **survived twice first**: a pump before the delay made it the first frame (no gap), then an onstage-only finder missed the page built offstage one frame earlier. Both fixed; then red |
+| M26 | reduced motion: the wordmark held for the whole pass (no switch to the mark) | consumer « SHOWS the brand »; Pro « no caption during the first pass » (end frame past the intro) |
+| M27 | reduced motion: a flip mid-pass restarts the hold from the top | turned on mid-pass (boot length); turned on mid-spin |
+| M28 | reduced motion: the holds collapse to 0 | 6 motion tests (consumer + Pro boot length, stills, first-frame timing) |
+| M29 | consumer: a broken asset never leaves | consumer broken asset |
+| M30 | consumer: a broken asset leaves at once | consumer broken asset (« held for a rest, not flashed ») |
+| M31 | consumer: no « MyWeli » label | a screen reader hears « MyWeli » |
+| M32 | the file's M/W back to 100 → 0 over 53→54 | the keyframe pin AND the render: « frame 54 … 0 of the finished mark's 2283 ink pixels » |
+| M33 | the file loses its `wordmark` marker | markers; the hold; decode; the hand-off render; consumer « SHOWS the brand » |
+| M34 | caption whenever reduced (not only pending past the gate) | no caption during the first pass |
+
+Re-run on the retimed tests: **M12** (replay on sign-in alone) — all 3 cold-start
+sequences red again; **M7** (no caption) — 4 motion tests + broken asset red.
+
 ## 9. Rollout & 10. Definition of done
 No flag; ships with both apps. Done: analyze 0, format, the tests above,
 goldens unchanged, spec indexed and cross-linked, roadmap entries
 (2026-10-11-pro-open-animation, 2026-10-12-splash-full-spin), branding P4/P5.
 **Not done here — device verification:** the native splash → animation hand-off,
 a cold-start tap on a booking notification, airplane mode (the deadline),
-VoiceOver/TalkBack with Reduce Motion on.
+VoiceOver/TalkBack with Reduce Motion on — and, for the full spin, that the
+spin and the rest read well on a real phone in both apps (the timing is pinned
+in fake time; nothing here has watched it on a screen).
 
 ## 11. Follow-ups (not in this part)
 - **The consumer app has the same cold-start defect, by reading (not reproduced):**
