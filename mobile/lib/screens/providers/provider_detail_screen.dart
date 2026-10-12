@@ -59,6 +59,69 @@ class ProviderDetailScreen extends StatefulWidget {
 class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
   bool _servicesExpanded = false;
 
+  /// This page's own copy of its salon — the last one it rendered from the
+  /// shared slot (salon-location-map.md §2.7). Shown while another salon page
+  /// holds the slot, and handed back to it by [_reclaimIfUncovered].
+  models.Provider? _own;
+
+  bool _reclaimScheduled = false;
+
+  /// The salon this page shows — **its own, never another** (§2.7). The slot
+  /// ([ProviderProvider.selectedProvider]) is one, shared by every salon page
+  /// in the stack; the map's « Voir le salon » pushes a second one, whose read
+  /// overwrites it, and this page used to render whatever it held.
+  ///
+  /// `null` = the loader, or — when the slot is this page's and its read is
+  /// over ([_slotIsMine]) — the « salon indisponible » state.
+  models.Provider? _salonOf(ProviderProvider providers) {
+    final shared = providers.selectedProvider;
+    if (widget.preview) return shared; // seeded, alone: nobody to share with
+    if (shared != null && shared.id == widget.providerId) return _own = shared;
+    // The slot is this page's — its read is out (the slot still holds the
+    // previous salon) or it failed: never the copy, which would hide a
+    // « no longer on MyWeli » behind a stale page.
+    if (providers.selectedProviderId == widget.providerId) return null;
+    // Another salon page has the slot.
+    return _own;
+  }
+
+  /// Whether the slot's failure, if any, is this page's to show (§12).
+  bool _slotIsMine(ProviderProvider providers) =>
+      widget.preview || providers.selectedProviderId == widget.providerId;
+
+  /// §2.7 — this page is the top route again (the map and the salon page it
+  /// pushed are gone) and another salon page holds the slot: take it back,
+  /// after this frame (notifying mid-build throws). With its copy,
+  /// [ProviderProvider.restoreSalon] — no network, no loader: the page was
+  /// already rendering that copy. Without one, a read.
+  ///
+  /// **Never while covered**: two salon pages taking the slot from each other
+  /// would loop. Run by [_SlotKeeper] on every change of the slot or of
+  /// whether this route is on top — not by the body, which would then rebuild
+  /// whenever a sheet or a dialog opens over it.
+  ///
+  /// Frame 1 schedules one too (the slot is still the last page's), and it
+  /// finds nothing to do: `initState`'s callback — registered before any
+  /// build's — has already sent the first read, which claims the slot.
+  void _reclaimIfUncovered(ProviderProvider providers, bool isCurrent) {
+    if (widget.preview || !isCurrent || _reclaimScheduled) return;
+    if (providers.selectedProviderId == widget.providerId) return;
+    _reclaimScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _reclaimScheduled = false;
+      if (!mounted) return;
+      final slot = context.read<ProviderProvider>();
+      // Re-read: the first read, or a page above, may have settled it since.
+      if (slot.selectedProviderId == widget.providerId) return;
+      final own = _own;
+      if (own != null) {
+        slot.restoreSalon(own);
+      } else {
+        slot.loadProviderById(widget.providerId);
+      }
+    });
+  }
+
   @override
   void initState() {
     super.initState();
@@ -377,15 +440,17 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    final page = Scaffold(
       backgroundColor: AppColors.background,
       body: Consumer<ProviderProvider>(
         builder: (context, provider, _) {
-          if (provider.isLoading && provider.selectedProvider == null) {
+          // This page's salon, never the slot's other one (§2.7). Nothing to
+          // show: its read is out, or another page has the slot and this one
+          // has no copy yet — the loader; its own read failed — §12.
+          final p = _salonOf(provider);
+          if (p == null && (provider.isLoading || !_slotIsMine(provider))) {
             return const LoadingIndicator();
           }
-
-          final p = provider.selectedProvider;
           if (p == null) {
             // §12, shared with the booking hub and the confirmation screen.
             // « Retour » used to live here and is gone deliberately: this
@@ -628,7 +693,10 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                                 )
                               else
                                 ...p.services.map(
-                                  (service) => _ServiceTile(service: service),
+                                  (service) => _ServiceTile(
+                                    service: service,
+                                    currency: p.currency,
+                                  ),
                                 ),
                             ],
                           ),
@@ -1137,7 +1205,9 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
       ),
       bottomNavigationBar: Consumer<ProviderProvider>(
         builder: (context, provider, _) {
-          final p = provider.selectedProvider;
+          // The same salon as the body — « Réserver » under page A booked
+          // salon B when the slot held B (§2.7).
+          final p = _salonOf(provider);
           if (p == null) return const SizedBox.shrink();
 
           return SafeArea(
@@ -1264,6 +1334,30 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
         },
       ),
     );
+    // The preview is one seeded page with nobody to share the slot with.
+    return widget.preview
+        ? page
+        : _SlotKeeper(onChange: _reclaimIfUncovered, child: page);
+  }
+}
+
+/// Watches what [_ProviderDetailScreenState._reclaimIfUncovered] needs — the
+/// shared salon slot, and whether this route is on top — and nothing else: a
+/// sheet or a dialog opening over the page rebuilds this, never [child], the
+/// same instance between two builds of the page (salon-location-map.md §2.7).
+class _SlotKeeper extends StatelessWidget {
+  final void Function(ProviderProvider providers, bool isCurrent) onChange;
+  final Widget child;
+
+  const _SlotKeeper({required this.onChange, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    onChange(
+      context.watch<ProviderProvider>(),
+      ModalRoute.isCurrentOf(context) ?? true,
+    );
+    return child;
   }
 }
 
@@ -1852,7 +1946,11 @@ class _Divider extends StatelessWidget {
 class _ServiceTile extends StatelessWidget {
   final Service service;
 
-  const _ServiceTile({required this.service});
+  /// The page's salon's — handed down, not read off the shared slot, which
+  /// may hold another salon (salon-location-map.md §2.7).
+  final String? currency;
+
+  const _ServiceTile({required this.service, required this.currency});
 
   @override
   Widget build(BuildContext context) {
@@ -1910,10 +2008,7 @@ class _ServiceTile extends StatelessWidget {
               Formatters.formatPriceRange(
                 service.price,
                 service.priceMax,
-                currency: context
-                    .read<ProviderProvider>()
-                    .selectedProvider
-                    ?.currency,
+                currency: currency,
               ),
               textAlign: TextAlign.end,
               style: AppTextStyles.titleSmall.copyWith(

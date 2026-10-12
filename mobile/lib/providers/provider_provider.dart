@@ -19,6 +19,13 @@ class ProviderProvider extends ChangeNotifier {
   List<Provider> _providers = [];
   List<Provider> _featuredProviders = [];
   Provider? _selectedProvider;
+
+  /// WHOSE salon the [selectedProvider] slot holds — or is loading, or failed
+  /// to load (docs/design/salon-location-map.md §2.7). The slot is one, shared
+  /// by every salon page in the stack; [selectedProvider] alone cannot say
+  /// whose it is: during a read it still holds the previous salon, and after
+  /// a failed one it is `null` for everybody.
+  String? _selectedProviderId;
   bool _isLoading = false;
   bool _isSubmittingReview = false;
   String? _error;
@@ -43,6 +50,10 @@ class ProviderProvider extends ChangeNotifier {
   List<Provider> get providers => _providers;
   List<Provider> get featuredProviders => _featuredProviders;
   Provider? get selectedProvider => _selectedProvider;
+
+  /// The id of the last [loadProviderById] — set BEFORE its read —, or of the
+  /// last [showPreloaded] / [restoreSalon]. See [_selectedProviderId].
+  String? get selectedProviderId => _selectedProviderId;
   bool get isLoading => _isLoading;
   bool get isSubmittingReview => _isSubmittingReview;
   String? get error => _error;
@@ -158,30 +169,36 @@ class ProviderProvider extends ChangeNotifier {
   void beginProviderLoad() => _isLoading = true;
 
   Future<void> loadProviderById(String id) async {
+    _selectedProviderId = id;
     _isLoading = true;
     _error = null;
     _errorCode = null;
     notifyListeners();
 
+    Provider? salon;
+    String? error;
+    String? code;
     try {
       final response = await _providerService.getProviderById(id);
       if (response.success && response.data != null) {
-        _selectedProvider = response.data;
-        _error = null;
-        _errorCode = null;
+        salon = response.data;
       } else {
-        _error = response.error ?? 'Ce salon n’est plus disponible sur MyWeli.';
-        _errorCode = response.code;
-        _selectedProvider = null;
+        error = response.error ?? 'Ce salon n’est plus disponible sur MyWeli.';
+        code = response.code;
       }
     } catch (e) {
-      _error = e.toString();
-      _errorCode = 'network';
-      _selectedProvider = null;
-    } finally {
-      _isLoading = false;
-      notifyListeners();
+      error = e.toString();
+      code = 'network';
     }
+    // Another salon was asked for while this read was out — a later load, or
+    // a page taking the slot back ([restoreSalon], §2.7). This answer is no
+    // longer anybody's: written, it would put salon B under page A's id.
+    if (_selectedProviderId != id) return;
+    _selectedProvider = salon;
+    _error = error;
+    _errorCode = code;
+    _isLoading = false;
+    notifyListeners();
   }
 
   /// Show a salon the caller ALREADY has, without a network read.
@@ -193,14 +210,27 @@ class ProviderProvider extends ChangeNotifier {
   /// (`SalonPreviewClient` → `ProviderView`): the screen reads a notifier
   /// rather than a parameter, so the notifier is what gets handed the payload.
   ///
-  /// This is the ONLY way `_selectedProvider` is set without
-  /// [loadProviderById], and it exists so a pro surface never has to knock on
-  /// the anonymous door for its own salon (T51 — « Pro-own surfaces resolve by
-  /// account »). `salon_preview_test.dart` fails the test if the public
+  /// With [restoreSalon], the only way `_selectedProvider` is set without
+  /// [loadProviderById]; this one exists so a pro surface never has to knock
+  /// on the anonymous door for its own salon (T51 — « Pro-own surfaces resolve
+  /// by account »). `salon_preview_test.dart` fails the test if the public
   /// service is called at all.
-  void showPreloaded(Provider provider) {
-    _selectedProvider = provider;
+  void showPreloaded(Provider provider) => _show(provider);
+
+  /// Give the slot back to a salon page that already shows its salon
+  /// (docs/design/salon-location-map.md §2.7): another salon page, pushed
+  /// above it — the map's « Voir le salon » —, took the slot while it was
+  /// covered. No network and no loader: the page was already rendering this
+  /// very copy.
+  void restoreSalon(Provider salon) => _show(salon);
+
+  /// The slot is [salon]'s, settled. `_isLoading` goes false with it: a read
+  /// this supersedes drops its answer and would never reset it.
+  void _show(Provider salon) {
+    _selectedProvider = salon;
+    _selectedProviderId = salon.id;
     _error = null;
+    _errorCode = null;
     _isLoading = false;
     notifyListeners();
   }
@@ -230,6 +260,7 @@ class ProviderProvider extends ChangeNotifier {
 
   void clearSelectedProvider() {
     _selectedProvider = null;
+    _selectedProviderId = null;
     notifyListeners();
   }
 

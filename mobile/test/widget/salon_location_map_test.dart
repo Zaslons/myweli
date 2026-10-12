@@ -27,7 +27,9 @@ import 'package:myweli/services/mock/mock_favorites_service.dart';
 import 'package:myweli/services/mock/mock_provider_service.dart';
 import 'package:myweli/widgets/booking/appointment_card.dart';
 import 'package:myweli/widgets/common/carto_basemap_layer.dart';
+import 'package:myweli/widgets/common/loading_indicator.dart';
 import 'package:myweli/widgets/common/salon_map_marker.dart';
+import 'package:myweli/widgets/common/salon_unavailable_view.dart';
 import 'package:myweli/widgets/providers/salon_location_preview.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -74,6 +76,7 @@ void main() {
       ..others = const []
       ..list = [excellence]
       ..hangList = false
+      ..gate = null
       ..byIdCalls = 0;
   });
 
@@ -81,16 +84,21 @@ void main() {
   /// a `/carte` stub. [preview]: what `/pro/apercu` mounts — ONLY
   /// ProviderProvider, seeded, and a router with no `/carte` (ProRouter has
   /// none).
+  ///
+  /// [providers]: the slot as the app left it (another salon page's salon).
+  /// [settle]: false when the page is meant to stay on its loader.
   Future<GoRouter> pumpSalon(
     WidgetTester tester, {
     required models.Provider salon,
     bool preview = false,
     Size size = const Size(390, 844),
     double scale = 1,
+    ProviderProvider? providers,
+    bool settle = true,
   }) async {
     pinSurface(tester, size: size, scale: scale);
     service.salon = salon;
-    final providers = ProviderProvider();
+    providers ??= ProviderProvider();
     AuthProvider? auth;
     if (preview) {
       providers.showPreloaded(salon);
@@ -133,7 +141,7 @@ void main() {
         routerConfig: router,
       ),
     );
-    await tester.pumpAndSettle();
+    if (settle) await tester.pumpAndSettle();
     return router;
   }
 
@@ -487,37 +495,36 @@ void main() {
     });
   });
 
-  group('/carte?providerId= — the salon, its sheet open (§2.3)', () {
-    const geolocator = MethodChannel('flutter.baseflow.com/geolocator');
-    // Somewhere that is not the salon: Treichville.
-    const userLat = 5.30;
-    const userLng = -4.00;
+  const geolocator = MethodChannel('flutter.baseflow.com/geolocator');
+  // Somewhere that is not the salon: Treichville.
+  const userLat = 5.30;
+  const userLng = -4.00;
 
-    void locationGranted(WidgetTester tester, List<String> asked) {
-      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-        geolocator,
-        (call) async {
-          asked.add(call.method);
-          return switch (call.method) {
-            'isLocationServiceEnabled' => true,
-            'checkPermission' => 2, // whileInUse
-            'getCurrentPosition' => {
-              'latitude': userLat,
-              'longitude': userLng,
-              'timestamp': 0,
-            },
-            _ => null,
-          };
+  void locationGranted(WidgetTester tester, List<String> asked) {
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(geolocator, (
+      call,
+    ) async {
+      asked.add(call.method);
+      return switch (call.method) {
+        'isLocationServiceEnabled' => true,
+        'checkPermission' => 2, // whileInUse
+        'getCurrentPosition' => {
+          'latitude': userLat,
+          'longitude': userLng,
+          'timestamp': 0,
         },
-      );
-      addTearDown(
-        () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-          geolocator,
-          null,
-        ),
-      );
-    }
+        _ => null,
+      };
+    });
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        geolocator,
+        null,
+      ),
+    );
+  }
 
+  group('/carte?providerId= — the salon, its sheet open (§2.3)', () {
     /// [providers]: what the app already holds when the map opens — the
     /// salon page's salon, a list loaded earlier. Fresh by default.
     Future<void> pumpMap(
@@ -683,6 +690,186 @@ void main() {
     });
   });
 
+  group('a salon page shows its salon — never another (§2.7)', () {
+    /// The consumer stack the review walked: salon pages, the real map, and a
+    /// booking stub. Starts on salon A's page; does not settle (a page may be
+    /// meant to stay on its loader).
+    Future<(GoRouter, ProviderProvider)> pumpStack(WidgetTester tester) async {
+      pinSurface(tester, size: const Size(390, 844));
+      late AuthProvider auth;
+      await tester.runAsync(() async {
+        auth = AuthProvider();
+        for (var i = 0; i < 60 && auth.isLoading; i++) {
+          await Future<void>.delayed(const Duration(milliseconds: 25));
+        }
+      });
+      final providers = ProviderProvider();
+      final router = GoRouter(
+        initialLocation: '/provider/provider1',
+        routes: [
+          GoRoute(
+            path: '/provider/:id',
+            builder: (_, state) =>
+                ProviderDetailScreen(providerId: state.pathParameters['id']!),
+          ),
+          GoRoute(
+            path: '/carte',
+            builder: (_, state) => MapScreen(
+              focusProviderId: state.uri.queryParameters['providerId'],
+            ),
+          ),
+          GoRoute(
+            path: '/booking',
+            builder: (_, state) => Scaffold(body: Text('Booking ${state.uri}')),
+          ),
+        ],
+      );
+      addTearDown(router.dispose);
+      await tester.pumpWidget(
+        wrapApp(
+          providers: [
+            ChangeNotifierProvider.value(value: providers),
+            ChangeNotifierProvider<AuthProvider>.value(value: auth),
+            ChangeNotifierProvider(create: (_) => FavoritesProvider()),
+            ChangeNotifierProvider(create: (_) => AppointmentProvider()),
+          ],
+          routerConfig: router,
+        ),
+      );
+      return (router, providers);
+    }
+
+    /// Past a route transition and the map's post-frame work, without
+    /// waiting on a loader that may be meant to spin.
+    Future<void> frames(WidgetTester tester) async {
+      for (var i = 0; i < 6; i++) {
+        await tester.pump(const Duration(milliseconds: 300));
+      }
+    }
+
+    testWidgets('A → its map → B → back → back: A’s page is A’s — address, '
+        '« Réserver », the slot — taken back with no read', (tester) async {
+      locationGranted(tester, []);
+      service
+        ..salon = excellence
+        ..others = [divine]
+        ..list = [excellence, divine];
+      expect(excellence.address, isNot(divine.address));
+      final (router, providers) = await pumpStack(tester);
+      await frames(tester);
+      expect(find.text(excellence.address), findsOneWidget);
+
+      await showContact(tester);
+      await tester.tap(preview);
+      await frames(tester);
+      expect(locationOf(router), '/carte?providerId=provider1');
+      Navigator.of(tester.element(find.text('Voir le salon'))).pop();
+      await frames(tester);
+
+      // What the sheet's « Voir le salon » does for salon B (map_screen.dart).
+      unawaited(router.push('/provider/provider2'));
+      await frames(tester);
+      expect(find.text(divine.address), findsOneWidget);
+      // The page underneath does not take the slot back while covered: two
+      // pages doing so would hand it to each other every frame.
+      for (var i = 0; i < 3; i++) {
+        await tester.pump();
+        expect(providers.selectedProviderId, 'provider2');
+      }
+
+      router.pop();
+      await frames(tester);
+      expect(locationOf(router), '/carte?providerId=provider1');
+      router.pop();
+      await frames(tester);
+
+      expect(locationOf(router), '/provider/provider1');
+      expect(find.text(excellence.address), findsOneWidget);
+      expect(find.text(divine.address), findsNothing);
+      expect(providers.selectedProviderId, 'provider1');
+      expect(providers.selectedProvider?.id, 'provider1');
+      expect(
+        service.byIdCalls,
+        2,
+        reason: 'A once, B once — A’s own copy, not a third read',
+      );
+      final book = find.text('Réserver');
+      expect(book, findsOneWidget);
+      await tester.tap(book);
+      await frames(tester);
+      expect(locationOf(router), '/booking?providerId=provider1');
+    });
+
+    testWidgets('opened while the slot holds another salon: the loader, never '
+        'that salon — nor its « Réserver »', (tester) async {
+      service.gate = Completer<void>(); // this page's read never answers
+      await pumpSalon(
+        tester,
+        salon: excellence,
+        // What the last salon page left.
+        providers: ProviderProvider()..showPreloaded(divine),
+        settle: false,
+      );
+      await tester.pump();
+      await tester.pump();
+
+      expect(service.byIdCalls, 1, reason: 'its read is out');
+      expect(find.byType(LoadingIndicator), findsOneWidget);
+      expect(find.text(divine.name), findsNothing);
+      expect(find.text(divine.address), findsNothing);
+      expect(find.text('Réserver'), findsNothing);
+    });
+
+    testWidgets('covered before its salon arrived: back on top, a read and the '
+        'loader — never another page’s state', (tester) async {
+      locationGranted(tester, []);
+      service
+        ..salon = excellence
+        ..others = [divine]
+        ..gate = Completer<void>();
+      final (router, providers) = await pumpStack(tester);
+      await tester.pump();
+      expect(find.byType(LoadingIndicator), findsOneWidget);
+
+      // Salon B above it before A's read answered; then both answer — A's to
+      // nobody (the slot is B's by then).
+      unawaited(router.push('/provider/provider2'));
+      await frames(tester);
+      service.gate!.complete();
+      await frames(tester);
+      expect(find.text(divine.address), findsOneWidget);
+      expect(providers.selectedProviderId, 'provider2');
+
+      router.pop();
+      await tester.pump();
+      // A has no copy: the slot's state is B's, not A's to show.
+      expect(find.byType(SalonUnavailableView), findsNothing);
+      await frames(tester);
+      expect(find.text(excellence.address), findsOneWidget);
+      expect(providers.selectedProviderId, 'provider1');
+      expect(service.byIdCalls, 3, reason: 'A, B, and A again');
+    });
+
+    test('a read answered after the slot changed hands is dropped', () async {
+      service
+        ..others = [divine]
+        ..gate = Completer<void>();
+      final providers = ProviderProvider();
+
+      final read = providers.loadProviderById('provider2');
+      expect(providers.selectedProviderId, 'provider2', reason: 'before');
+      // Page A takes the slot back while B's read is out.
+      providers.restoreSalon(excellence);
+      service.gate!.complete();
+      await read;
+
+      expect(providers.selectedProvider, same(excellence));
+      expect(providers.selectedProviderId, 'provider1');
+      expect(providers.isLoading, isFalse);
+      expect(providers.error, isNull);
+    });
+  });
+
   test('ProviderProvider.providerForMap writes nothing', () async {
     // The salon page under the map reads these; a lookup must not move them.
     service
@@ -717,6 +904,9 @@ class _Salons extends MockProviderService {
   /// The list read never answers — a slow network, with no timeout to end it.
   bool hangList = false;
 
+  /// Reads by id wait for this, when set — never completed, they hang.
+  Completer<void>? gate;
+
   @override
   Future<ApiResponse<List<models.Provider>>> getProviders({
     String? category,
@@ -733,6 +923,8 @@ class _Salons extends MockProviderService {
   @override
   Future<ApiResponse<models.Provider>> getProviderById(String id) async {
     byIdCalls++;
+    final g = gate;
+    if (g != null) await g.future;
     for (final s in [?salon, ...others]) {
       if (s.id == id) return ApiResponse.success(s);
     }
