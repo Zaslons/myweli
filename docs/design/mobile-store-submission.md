@@ -169,7 +169,7 @@ nothing here should be handed credentials.
    > them.
 
    The raw command, for reference — a placeholder in a runbook is a step that
-   gets skipped under pressure, and the failure is silent. **Both secrets are
+   gets skipped under pressure, and the failure is silent. **Both values are
    required**: without the DSN the build reports nothing, without
    `CARTO_BASEMAPS_KEY` every map shows « API KEY REQUIRED » — and neither
    fails the build. The key is the **app** key, from Secret Manager
