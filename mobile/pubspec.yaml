@@ -97,6 +97,12 @@ dependencies:
   # Utilities
   uuid: ^4.6.0
   equatable: ^2.1.0
+  # Elapsed time that runs with the timers it is measured against — a fake
+  # clock under flutter_test, the real one in the app. Already in the app
+  # through `intl`; named here because `OpenAnimationPlayer` imports it
+  # (pro-open-animation.md §2.4). Not for "which instant is now": that is
+  # `AppClock` (core/utils/app_clock.dart).
+  clock: ^1.1.2
 
   # Icons
   cupertino_icons: ^1.0.6

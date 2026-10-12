@@ -8,6 +8,7 @@ import 'package:myweli/core/push/push_message_handler.dart';
 import 'package:myweli/core/router/pro_router.dart';
 import 'package:myweli/providers/pro_auth_provider.dart';
 import 'package:myweli/screens/provider/auth/pro_splash_screen.dart';
+import 'package:myweli/screens/splash/open_animation_player.dart';
 import 'package:myweli/services/mock/mock_auth_service.dart';
 import 'package:provider/provider.dart';
 
@@ -19,11 +20,11 @@ import '../support/pump_app.dart';
 /// (docs/design/pro-open-animation.md §2.6, push-notifications-app.md §10.4).
 ///
 /// The sequence is main_pro.dart's, in order: `getInitialMessage` delivers
-/// the tap before `runApp`; the session load signs in while the intro is
+/// the tap before `runApp`; the session load signs in while the animation is
 /// still playing; the splash routes with `context.go`. The replay used to
 /// fire at the sign-in — above the splash — and the `go` replaced it.
 void main() {
-  final timeline = ProOpenTimeline.load();
+  final timeline = OpenTimeline.pro();
   const tap = <String, Object?>{
     'route': '/pro/appointment/a1?salon=s1',
     'providerId': 's1',
@@ -60,7 +61,14 @@ void main() {
     await tester.runAsync(
       () => Future<void>.delayed(const Duration(milliseconds: 300)),
     );
-    await tester.pump();
+    await pumpFirstFrame(tester);
+  }
+
+  /// The splash's first pass — the whole animation — and its rest on the
+  /// finished mark: where it routes (pro-open-animation.md §2.2).
+  Future<void> throughTheGate(WidgetTester tester) async {
+    await tester.pump(timeline.firstPass + OpenTimeline.frame);
+    await tester.pump(OpenAnimationPlayer.rest);
   }
 
   /// A navigation lands over a few frames (and a page transition).
@@ -81,9 +89,10 @@ void main() {
 
     // 1. Before `runApp`: the tap that launched the app.
     await handler.handleData(tap);
-    // 2. `runApp` — the splash and its intro.
+    // 2. `runApp` — the splash and its first pass.
     await launch(tester, router, session);
-    // 3. The stored session signs in mid-intro: where the replay used to run.
+    // 3. The stored session signs in mid-animation: where the replay used to
+    //    run.
     session.signIn();
     session.load.complete();
     await tester.pump();
@@ -94,8 +103,8 @@ void main() {
       reason: 'pushed above the splash, it would be replaced by its go',
     );
 
-    // 4. The intro ends; the splash routes; the tap replays on top.
-    await tester.pump(timeline.intro);
+    // 4. The first pass ends; the splash routes; the tap replays on top.
+    await throughTheGate(tester);
     await settle(tester);
     expect(find.text('route:appointment a1'), findsOneWidget);
     expect(session.switchedTo, ['s1'], reason: 'the salon switch replays too');
@@ -115,7 +124,7 @@ void main() {
 
     await handler.handleData(tap);
     await launch(tester, router, session);
-    await tester.pump(timeline.intro);
+    await throughTheGate(tester);
     await settle(tester);
     expect(find.text('route:login'), findsOneWidget);
 
@@ -141,7 +150,7 @@ void main() {
     final handler = wire(router, session);
 
     await launch(tester, router, session);
-    await tester.pump(timeline.intro);
+    await throughTheGate(tester);
     await settle(tester);
     expect(find.text('route:dashboard'), findsOneWidget);
 
@@ -177,7 +186,7 @@ void main() {
     expect(appointment, findsNothing);
 
     session.load.complete();
-    await tester.pump(timeline.intro);
+    await throughTheGate(tester);
     await settle(tester);
     expect(find.text('route:appointment a1'), findsOneWidget);
     router.pop();

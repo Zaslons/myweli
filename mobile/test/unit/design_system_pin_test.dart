@@ -288,16 +288,19 @@ void main() {
     // So it matches the LITERAL, not the argument — and pays for that with a
     // scope. `services/mock/` latency, `AppConstants.mockDelay` and the two
     // `Timer` cooldowns are durations that never move a pixel; they live outside
-    // these two directories and are simply not in view. The three non-motion
-    // millisecond literals that DO live here carry a `// ds-ignore` with a
-    // reason on the line above, which is the point of the escape hatch: an
-    // exception you can read beats a rule that quietly does not apply.
+    // these two directories and are simply not in view. The non-motion
+    // millisecond literals that DO live here — a search debounce, a microtask
+    // yield, the Pro splash's session deadline and the open animation's rest
+    // on the finished mark — carry a `// ds-ignore` with a reason on the line
+    // above, which is the point of the escape hatch: an exception you can read
+    // beats a rule that quietly does not apply.
     //
     // `Duration(seconds:` is deliberately out of scope, not overlooked: §9's
     // five tokens are 50–400 ms, so nothing measured in seconds can be one of
-    // them. The story reel's 6 s dwell and the splash's 3800 ms are content
-    // timers, not motion — the same distinction §12 draws for its "~300ms"
-    // spinner heuristic, which is also not a token.
+    // them. The story reel's 6 s dwell and the open animation's rest are
+    // content timers, not motion — the same distinction §12 draws for its
+    // "~300ms" spinner heuristic, which is also not a token. (The splash's old
+    // fixed 3800 ms hold is gone: the animation's own controller is its clock.)
     //
     // `core/router/` is in scope even though it holds no animation today (0
     // hits, checked): go_router's `CustomTransitionPage(transitionDuration:,
