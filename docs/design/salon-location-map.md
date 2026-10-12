@@ -250,7 +250,7 @@ devient : **chaque fichier de code contenant `FlutterMap(` utilise
 contrôle.
 
 **Mutations vues rouges** (sur le code commité, chacune restaurée par
-`git checkout --` puis l'arbre vérifié propre) — 23 :
+`git checkout --` puis l'arbre vérifié propre) — 24 :
 
 | # | mutation | garde |
 |---|---|---|
@@ -277,6 +277,7 @@ contrôle.
 | M21 | `providerForMap` ignore le salon de la page salon | « writes nothing » |
 | M22 | `providerForMap` écrit `selectedProvider` | « writes nothing » |
 | M23 | un salon introuvable échoue en silence | « cannot be found » |
+| M24 | l'aperçu perd son fond `surfaceVariant` | « atop » |
 
 ## 9. Rollout & scope discipline
 
@@ -297,7 +298,7 @@ l'image montre le fond `surfaceVariant`, le marqueur et l'attribution.
       `salon_landing_states`, `photo_lightbox`, `default_status_bar_style`,
       `appointment_card`, `pro_reads_own_salon`, `design_system_pin`, a11y
       `salon_header` et `layout` (181 cas).
-- [x] 23 mutations vues rouges (§8).
+- [x] 24 mutations vues rouges (§8).
 - [x] Spec liée depuis le code ; index `README.md` ; SYSTEM.md §11.1
       (`SalonMapMarker`, `SalonLocationPreview`) ; map-basemap-key.md §5.1 ;
       ligne 2.9 de l'audit de parité corrigée ; entrée de roadmap.
