@@ -362,9 +362,12 @@ void main() {
           findsNothing,
         );
         expect(tester.getRect(preview), box);
-        // The credits, whole, in a sheet on screen.
+        // The credits, whole, in a sheet on screen — as wide as the screen,
+        // like every sheet in the app (it shrank to its longest line and
+        // floated centred until 2026-10-12).
         final sheet = find.byType(BottomSheet);
         expect(sheet, findsOneWidget);
+        expect(tester.getSize(sheet).width, size.width, reason: 'full width');
         for (final credit in [CartoAttribution.sheetTitle, ...cartoCredits]) {
           final text = find.descendant(of: sheet, matching: find.text(credit));
           expect(text, findsOneWidget, reason: credit);
@@ -602,6 +605,30 @@ void main() {
         cameraOf(tester).center,
         LatLng(excellence.latitude!, excellence.longitude!),
       );
+    });
+
+    testWidgets('the credits « i » is never under « Me localiser »', (
+      tester,
+    ) async {
+      locationGranted(tester, []);
+      service
+        ..list = [divine]
+        ..salon = divine;
+      await pumpMap(tester, divine.id);
+      // The salon sheet is up on a focused map; the corners are what matter.
+      Navigator.of(tester.element(find.byType(BottomSheet))).pop();
+      await tester.pumpAndSettle();
+
+      final credits = tester.getRect(find.byTooltip('Attributions'));
+      final locate = tester.getRect(find.byTooltip('Me localiser'));
+      expect(
+        credits.overlaps(locate),
+        isFalse,
+        reason: 'the data licence requires the « i » to be reachable',
+      );
+      // And it is on the map, not off it.
+      final map = tester.getRect(find.byType(FlutterMap));
+      expect(map.contains(credits.center), isTrue);
     });
 
     testWidgets('a salon already in the loaded list is not fetched again', (

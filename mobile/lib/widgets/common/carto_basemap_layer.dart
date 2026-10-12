@@ -129,11 +129,21 @@ const cartoCredits = ['© OpenStreetMap contributors', '© CARTO'];
 ///   a box holding text has no fixed height). The sheet has the full width,
 ///   scrolls, and wraps at any text scale.
 class CartoAttribution extends StatelessWidget {
-  const CartoAttribution({super.key}) : _inSheet = false;
+  const CartoAttribution({
+    super.key,
+    this.alignment = AttributionAlignment.bottomRight,
+  }) : _inSheet = false;
 
-  const CartoAttribution.sheet({super.key}) : _inSheet = true;
+  const CartoAttribution.sheet({super.key})
+    : _inSheet = true,
+      alignment = AttributionAlignment.bottomRight;
 
   final bool _inSheet;
+
+  /// The popup form's corner — a map that keeps its own controls in the
+  /// bottom-right (« Carte »'s « Me localiser ») puts the credits bottom-left,
+  /// or the button hides the « i » the data licence requires.
+  final AttributionAlignment alignment;
 
   /// The sheet form's « i » — its name wherever the map does not merge it into
   /// one button (the salon preview does, salon-location-map.md §2.4).
@@ -146,6 +156,7 @@ class CartoAttribution extends StatelessWidget {
   Widget build(BuildContext context) {
     if (!_inSheet) {
       return RichAttributionWidget(
+        alignment: alignment,
         attributions: [for (final c in cartoCredits) TextSourceAttribution(c)],
       );
     }
@@ -177,36 +188,53 @@ class _CartoCreditsSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // The full width, as every sheet in the app: inside a bottom sheet the
+    // scroll view's width is loose, so without this the sheet shrank to its
+    // longest line and floated centred (seen on the simulator, 2026-10-12).
     return SafeArea(
       top: false,
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(AppTheme.spacingL),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Semantics(
-              header: true,
+        child: SizedBox(
+          width: double.infinity,
+          child: const _CartoCreditsBody(),
+        ),
+      ),
+    );
+  }
+}
+
+class _CartoCreditsBody extends StatelessWidget {
+  const _CartoCreditsBody();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(AppTheme.spacingL),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Semantics(
+            header: true,
+            child: Text(
+              CartoAttribution.sheetTitle,
+              style: AppTextStyles.titleMedium.copyWith(
+                color: AppColors.textPrimary,
+              ),
+            ),
+          ),
+          const SizedBox(height: AppTheme.spacingSM),
+          for (final credit in cartoCredits)
+            Padding(
+              padding: const EdgeInsets.only(bottom: AppTheme.spacingXS),
               child: Text(
-                CartoAttribution.sheetTitle,
-                style: AppTextStyles.titleMedium.copyWith(
+                credit,
+                style: AppTextStyles.bodyMedium.copyWith(
                   color: AppColors.textPrimary,
                 ),
               ),
             ),
-            const SizedBox(height: AppTheme.spacingSM),
-            for (final credit in cartoCredits)
-              Padding(
-                padding: const EdgeInsets.only(bottom: AppTheme.spacingXS),
-                child: Text(
-                  credit,
-                  style: AppTextStyles.bodyMedium.copyWith(
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-              ),
-          ],
-        ),
+        ],
       ),
     );
   }

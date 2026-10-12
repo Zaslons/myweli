@@ -454,7 +454,12 @@ class _MapScreenState extends State<MapScreen> {
               // (docs/design/map-basemap-key.md).
               const CartoBasemapLayer(),
               MarkerLayer(markers: markers),
-              const CartoAttribution(),
+              // Bottom-left: « Me localiser » owns the bottom-right corner and
+              // hid the « i » the data licence requires (seen on the simulator,
+              // 2026-10-12).
+              const CartoAttribution(
+                alignment: AttributionAlignment.bottomLeft,
+              ),
             ],
           ),
           if (_locationError != null)
