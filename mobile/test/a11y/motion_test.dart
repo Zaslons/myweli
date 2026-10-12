@@ -517,6 +517,48 @@ void main() {
       );
     });
 
+    testWidgets('…and the still is timed from the frame that SHOWS it', (
+      tester,
+    ) async {
+      // Nothing ticks under the flag, so timers hold the stills — and a timer
+      // started at the decode would run while no frame is drawn (a cold
+      // start's slow first frame) and cut the visible hold short by as much.
+      // The player starts it from the first frame that draws the still.
+      final timeline = OpenTimeline.consumer();
+      final router = GoRouter(
+        initialLocation: '/',
+        routes: [
+          GoRoute(path: '/', builder: (_, _) => const SplashScreen()),
+          GoRoute(
+            path: '/home',
+            builder: (_, _) => const Scaffold(body: Text('accueil')),
+          ),
+        ],
+      );
+      await pumpWithReducedMotion(tester, const SizedBox.shrink());
+      await tester.pumpWidget(wrapApp(routerConfig: router));
+      await tester.runAsync(
+        () async => Future<void>.delayed(const Duration(milliseconds: 300)),
+      );
+      await tester.pump(); // the decode lands: `onLoaded`
+      // A slow first frame: a second passes with nothing drawn.
+      await tester.binding.delayed(const Duration(seconds: 1));
+      await tester.pump(); // the first frame that shows the still
+
+      const margin = Duration(milliseconds: 100);
+      await tester.pump(timeline.firstPass + OpenAnimationPlayer.rest - margin);
+      expect(
+        find.text('accueil'),
+        findsNothing,
+        reason:
+            'the hold was timed from the decode, not from the frame that '
+            'showed it — a second of it was never seen',
+      );
+      await tester.pump(margin * 2);
+      await tester.pump();
+      expect(find.text('accueil'), findsOneWidget);
+    });
+
     testWidgets('the caption never overflows a box too small to hold it', (
       tester,
     ) async {
