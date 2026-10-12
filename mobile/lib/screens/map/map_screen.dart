@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
@@ -52,24 +54,25 @@ class _MapScreenState extends State<MapScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      // Load providers so we can place markers
       final providerProvider = Provider.of<ProviderProvider>(
         context,
         listen: false,
       );
-      await providerProvider.loadProviders();
-      if (!mounted) return;
-
-      // Load favorites if user is authenticated (for heart markers)
+      // The markers, and their hearts when signed in — STARTED, not awaited
+      // before the salon below (salon-location-map.md §2.3). Nothing bounds a
+      // request in time (`AppConstants.apiTimeout` is declared, never read),
+      // so awaiting them kept the camera on Abidjan and the sheet shut for as
+      // long as the list took — even for a salon the page beneath already
+      // held. Both catch their own failures; the layer redraws as they land.
+      unawaited(providerProvider.loadProviders());
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       if (authProvider.isAuthenticated && authProvider.user != null) {
         final favoritesProvider = Provider.of<FavoritesProvider>(
           context,
           listen: false,
         );
-        await favoritesProvider.loadFavorites(authProvider.user!.id);
+        unawaited(favoritesProvider.loadFavorites(authProvider.user!.id));
       }
-      if (!mounted) return;
 
       // Opened from a salon page or a booking: centre that salon.
       final focusId = widget.focusProviderId;
@@ -82,8 +85,9 @@ class _MapScreenState extends State<MapScreen> {
     });
   }
 
-  /// Centre [id] and open its sheet — wherever it is: the loaded list, the
-  /// salon page beneath this one, or one public read
+  /// Centre [id] and open its sheet — wherever it is: the list already in
+  /// memory, the salon page beneath this one (no network at all), or one
+  /// public read running alongside the list's
   /// ([ProviderProvider.providerForMap]). The list alone missed every salon
   /// outside the commune filter or past page 1, and the map then opened on
   /// Abidjan with no sheet.

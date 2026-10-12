@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -69,7 +71,9 @@ void main() {
   setUp(() {
     service
       ..salon = excellence
+      ..others = const []
       ..list = [excellence]
+      ..hangList = false
       ..byIdCalls = 0;
   });
 
@@ -514,7 +518,13 @@ void main() {
       );
     }
 
-    Future<void> pumpMap(WidgetTester tester, String focus) async {
+    /// [providers]: what the app already holds when the map opens — the
+    /// salon page's salon, a list loaded earlier. Fresh by default.
+    Future<void> pumpMap(
+      WidgetTester tester,
+      String focus, {
+      ProviderProvider? providers,
+    }) async {
       pinSurface(tester, size: const Size(390, 844));
       late AuthProvider auth;
       await tester.runAsync(() async {
@@ -526,7 +536,9 @@ void main() {
       await tester.pumpWidget(
         wrapApp(
           providers: [
-            ChangeNotifierProvider(create: (_) => ProviderProvider()),
+            ChangeNotifierProvider.value(
+              value: providers ?? ProviderProvider(),
+            ),
             ChangeNotifierProvider<AuthProvider>.value(value: auth),
             ChangeNotifierProvider(create: (_) => FavoritesProvider()),
           ],
@@ -585,15 +597,20 @@ void main() {
       );
     });
 
-    testWidgets('a salon already on screen is not fetched again', (
+    testWidgets('a salon already in the loaded list is not fetched again', (
       tester,
     ) async {
       locationGranted(tester, []);
       service
         ..list = [excellence, divine]
         ..salon = excellence;
+      // The list the user was browsing before (it is app-wide). The map does
+      // not wait for its own reload to look (§2.3), so « in the list » means
+      // in memory when it opens.
+      final providers = ProviderProvider();
+      await providers.loadProviders();
 
-      await pumpMap(tester, 'provider1');
+      await pumpMap(tester, 'provider1', providers: providers);
 
       expect(service.byIdCalls, 0);
       expect(find.text('Voir le salon'), findsOneWidget);
@@ -603,6 +620,49 @@ void main() {
         reason: 'no duplicate marker for a listed salon',
       );
       expect(markersAt(tester, divine), 1);
+    });
+
+    // The review's probe: the list read never completing, the salon page's
+    // salon already in hand — the camera sat on Abidjan with no sheet for as
+    // long as the list took, because the focus awaited it (and the
+    // favourites) first. Nothing bounds a request in time.
+    testWidgets('from the salon page, the list never answering: the salon is '
+        'centred and its sheet up — no network', (tester) async {
+      locationGranted(tester, []);
+      service
+        ..hangList = true
+        ..salon = excellence;
+      // What the salon page beneath leaves in the shared slot.
+      final providers = ProviderProvider()..showPreloaded(excellence);
+
+      await pumpMap(tester, 'provider1', providers: providers);
+
+      expect(providers.isLoading, isTrue, reason: 'the list is still out');
+      expect(find.text('Voir le salon'), findsOneWidget);
+      expect(
+        cameraOf(tester).center,
+        LatLng(excellence.latitude!, excellence.longitude!),
+      );
+      expect(cameraOf(tester).zoom, 14);
+      expect(markersAt(tester, excellence), 1);
+      expect(service.byIdCalls, 0, reason: 'the salon page had it');
+    });
+
+    testWidgets('not in memory, the list never answering: its one read runs '
+        'alongside the list, not after it', (tester) async {
+      locationGranted(tester, []);
+      service
+        ..hangList = true
+        ..salon = excellence;
+
+      await pumpMap(tester, 'provider1');
+
+      expect(service.byIdCalls, 1);
+      expect(find.text('Voir le salon'), findsOneWidget);
+      expect(
+        cameraOf(tester).center,
+        LatLng(excellence.latitude!, excellence.longitude!),
+      );
     });
 
     testWidgets('a salon that cannot be found says so', (tester) async {
@@ -648,8 +708,14 @@ void main() {
 /// The salons the screens are given, scripted per test.
 class _Salons extends MockProviderService {
   models.Provider? salon;
+
+  /// Salons a read by id also finds, beside [salon].
+  List<models.Provider> others = const [];
   List<models.Provider> list = const [];
   int byIdCalls = 0;
+
+  /// The list read never answers — a slow network, with no timeout to end it.
+  bool hangList = false;
 
   @override
   Future<ApiResponse<List<models.Provider>>> getProviders({
@@ -660,14 +726,16 @@ class _Salons extends MockProviderService {
     bool availableToday = false,
     int page = 1,
     int limit = 20,
-  }) async => ApiResponse.success(list);
+  }) => hangList
+      ? Completer<ApiResponse<List<models.Provider>>>().future
+      : Future.value(ApiResponse.success(list));
 
   @override
   Future<ApiResponse<models.Provider>> getProviderById(String id) async {
     byIdCalls++;
-    final s = salon;
-    return s != null && s.id == id
-        ? ApiResponse.success(s)
-        : ApiResponse.error('Salon introuvable', code: 'not_found');
+    for (final s in [?salon, ...others]) {
+      if (s.id == id) return ApiResponse.success(s);
+    }
+    return ApiResponse.error('Salon introuvable', code: 'not_found');
   }
 }
