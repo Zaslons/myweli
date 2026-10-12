@@ -95,10 +95,13 @@ void main() {
       reason: 'nothing ticking while the mark rests',
     );
 
-    await tester.pump(rest - justUnder);
+    // Long enough to be SEEN — a floor written here, not read from the
+    // constant, so a rest tuned down to nothing fails.
+    const seen = Duration(milliseconds: 400);
+    await tester.pump(seen);
     expect(home, findsNothing, reason: 'the finished mark is still resting');
 
-    await tester.pump(justUnder * 2);
+    await tester.pump(rest - seen + justUnder);
     await land(tester);
     expect(find.text('accueil'), findsOneWidget);
   });

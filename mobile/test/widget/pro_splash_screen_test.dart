@@ -194,12 +194,15 @@ void main() {
           reason: 'not even a page building offstage',
         );
 
-        // The rest: the finished mark held still, long enough to be seen.
-        await tester.pump(rest - justUnder);
+        // The rest: the finished mark held still, long enough to be SEEN — a
+        // floor written here, not read from the constant, so a rest tuned
+        // down to nothing fails (build 560: « on ne voit pas la fin »).
+        const seen = Duration(milliseconds: 400);
+        await tester.pump(seen);
         expect(routed('dashboard'), findsNothing, reason: 'still resting');
         expect(frameOnScreen(tester), closeTo(timeline.endFrame, 0.01));
 
-        await tester.pump(justUnder * 2);
+        await tester.pump(rest - seen + justUnder);
         await land(tester);
         expect(find.text('route:dashboard'), findsOneWidget);
       },
