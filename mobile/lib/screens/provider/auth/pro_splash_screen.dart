@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
@@ -13,24 +12,30 @@ import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../widgets/common/brand_loader.dart';
+import '../../splash/open_animation_player.dart';
 import '../../splash/splash_screen.dart';
 
 /// Pro app-open screen: the MyWeli open animation, opening on « MyWeli Pro »,
 /// over the light `#FAFAFA` the native pro splash ends on — then routing on.
 /// Design: docs/design/pro-open-animation.md.
 ///
-/// **Two gates, run side by side.** The session load is the one
-/// `ProAuthProvider`'s constructor started before `runApp` (`auth.ready`) —
-/// the splash never starts its own — and the intro plays meanwhile; the
-/// screen routes when BOTH are done, never after a fixed delay chained in
-/// front of the load (the old 2 s `Future.delayed` → `loadCurrentProvider()`).
+/// **The whole first pass, then the gate.** The animation plays through once —
+/// wordmark → morph → spin (the mark erasing and redrawing) → the finished
+/// mark — and rests on that mark ([OpenAnimationPlayer.rest]) before anything
+/// may route (§2.2). The clock is the animation's own controller, never a
+/// wall-clock timer beside it, so the gate cannot open on a mark the user has
+/// not seen drawn.
 ///
-/// **A bounded wait.** Once the intro is over and the stored session is read,
-/// the live membership refresh gets [sessionDeadline] more; past it the screen
-/// routes on the stored session and the refresh finishes in the background.
+/// **The session runs underneath.** The load is the one `ProAuthProvider`'s
+/// constructor started before `runApp` (`auth.ready`) — the splash never starts
+/// its own. Settled at the gate: the mark is already stopped on its end frame
+/// and the screen routes. Still pending: the mark keeps spinning, and the
+/// screen leaves at the end of a spin — always on the finished mark — once the
+/// session is settled, or the stored session is read and [sessionDeadline] has
+/// passed since the gate (§2.3).
 ///
-/// **The composition is the timeline.** Every frame and duration below is read
-/// from the asset's markers (`intro`, `wordmark`, `loop`), so a designer's
+/// **The composition is the timeline.** Every frame and duration is read from
+/// the asset's markers (`intro`, `wordmark`, `loop`), so a designer's
 /// replacement only has to keep the markers — `pro_open_animation_asset_test`
 /// pins them.
 class ProSplashScreen extends StatefulWidget {
@@ -42,24 +47,24 @@ class ProSplashScreen extends StatefulWidget {
   /// What a screen reader announces — the wordmark the animation draws.
   static const semanticsLabel = 'MyWeli Pro';
 
-  /// How long the live membership refresh may hold the splash once the intro
-  /// is over and the stored session is read. The refresh began before
-  /// `runApp`, so by then it has had the whole intro (2.96 s) and more; the
-  /// version gate's bound, for the same reason — past it the network is the
-  /// problem, and waiting only stalls the user (pro-open-animation.md §2.3).
+  /// How long the live membership refresh may hold the splash once the gate
+  /// is open and the stored session is read. The refresh began before
+  /// `runApp`, so by then it has had the whole first pass (5.68 s) and more;
+  /// the version gate's bound, for the same reason — past it the network is
+  /// the problem, and waiting only stalls the user (pro-open-animation.md
+  /// §2.3). The screen still leaves only at a spin's end.
   // A network deadline, not motion — §9's tokens time movement; this times a
   // request, like `ClientVersionGate.deadline`.
   static const sessionDeadline = Duration(milliseconds: 1500); // ds-ignore
 
-  /// Reduced motion's still DURING the intro (the full « MyWeli Pro »); once
-  /// the intro is over and the session is still loading it is the end frame.
-  static const wordmarkMarker = 'wordmark';
+  /// Reduced motion's still during the intro (the full « MyWeli Pro »).
+  static const wordmarkMarker = OpenAnimationPlayer.wordmarkMarker;
 
-  /// Plays once: wordmark → morph into the mark.
-  static const introMarker = 'intro';
+  /// The wordmark draws, holds and morphs into the mark.
+  static const introMarker = OpenAnimationPlayer.introMarker;
 
-  /// Repeats while the session is still loading: the mark redraw only.
-  static const loopMarker = 'loop';
+  /// The spin — what repeats while the session is still loading.
+  static const loopMarker = OpenAnimationPlayer.loopMarker;
 
   @override
   State<ProSplashScreen> createState() => _ProSplashScreenState();
@@ -67,19 +72,16 @@ class ProSplashScreen extends StatefulWidget {
 
 class _ProSplashScreenState extends State<ProSplashScreen>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(vsync: this);
+  late final OpenAnimationPlayer _player = OpenAnimationPlayer(vsync: this);
 
-  /// Completes when the intro has had its time — played (motion on), held
-  /// still (reduced motion: the same boot, not a shorter one), or skipped
-  /// because the asset could not load (never strand the user on a splash).
-  final Completer<void> _intro = Completer<void>();
-  Timer? _introTimer;
+  /// Opens when the first pass and its rest are over — or at once if the
+  /// asset could not load (never strand the user on a splash).
+  final Completer<void> _gate = Completer<void>();
   Timer? _deadlineTimer;
 
   LottieComposition? _composition;
-  bool _reduceMotion = false;
 
-  /// The intro is over and the session is not: the screen is now waiting.
+  /// The gate is open and the session is not: the screen is now waiting.
   bool _sessionPending = false;
 
   /// The asset failed and the still brand mark stands in for it.
@@ -87,13 +89,14 @@ class _ProSplashScreenState extends State<ProSplashScreen>
 
   /// A still on screen while the session loads says so (SYSTEM.md §9.1:
   /// a frozen logo and a broken screen look identical). With motion on, the
-  /// redraw loop is that signal.
-  bool get _showCaption => _sessionPending && (_reduceMotion || _assetFailed);
+  /// spin is that signal.
+  bool get _showCaption =>
+      _sessionPending && (_player.reduceMotion || _assetFailed);
 
   @override
   void initState() {
     super.initState();
-    // Starts nothing — it only awaits the constructor's load and the intro, so
+    // Starts nothing — it only awaits the constructor's load and the gate, so
     // there is no notify to keep out of this frame's build.
     _routeWhenReady();
   }
@@ -101,11 +104,8 @@ class _ProSplashScreenState extends State<ProSplashScreen>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final reduce = reduceMotionOf(context);
-    if (reduce != _reduceMotion) {
-      _reduceMotion = reduce;
-      _syncMotion();
-    }
+    // Applied mid-pass too; the build that follows redraws the caption.
+    _player.reduceMotion = reduceMotionOf(context);
   }
 
   Future<void> _routeWhenReady() async {
@@ -113,24 +113,47 @@ class _ProSplashScreenState extends State<ProSplashScreen>
     var settled = false;
     final ready = _quietly(auth.ready).whenComplete(() => settled = true);
 
-    await _intro.future;
+    await _gate.future;
     if (!mounted) return;
+
+    // Settled at the gate: the controller is stopped on the end frame — the
+    // finished mark — and stays there. Nothing restarts; the screen goes.
     if (!settled) {
       setState(() => _sessionPending = true);
-      // Only the still depends on it; the loop is already running, and a
-      // second `repeat` would restart it a few frames off.
-      if (_reduceMotion) _syncMotion();
-    }
+      final mayLeave = Completer<void>();
+      void allow() {
+        if (!mayLeave.isCompleted) mayLeave.complete();
+      }
 
-    // The stored session first — local storage, so it is waited for: without
-    // it there is no route to take. Then the live refresh, up to the deadline.
-    await _quietly(auth.restored);
-    if (!mounted) return;
-    final deadline = Completer<void>();
-    _deadlineTimer = Timer(ProSplashScreen.sessionDeadline, deadline.complete);
-    await Future.any<void>([ready, deadline.future]);
-    _deadlineTimer?.cancel();
-    if (!mounted) return;
+      unawaited(ready.then((_) => allow()));
+      // The stored session first — local storage, so it is waited for:
+      // without it there is no route to take. Then the live refresh, up to
+      // the deadline, counted from the gate.
+      unawaited(
+        _quietly(auth.restored).then((_) {
+          if (!mounted) return;
+          _deadlineTimer = Timer(ProSplashScreen.sessionDeadline, allow);
+        }),
+      );
+
+      final composition = _composition;
+      final loop = composition?.getMarker(ProSplashScreen.loopMarker);
+      if (composition == null || loop == null) {
+        // No spin to end on — a broken asset, or a file without `loop` (its
+        // end frame stays up): leave as soon as the session allows.
+        await mayLeave.future;
+      } else {
+        // Spin until allowed; leave only at a spin's end, on the finished
+        // mark. The first check always spins once: `allow` lands in a
+        // microtask, after the gate already found the session pending.
+        while (!mayLeave.isCompleted) {
+          await _player.play(composition, from: loop.start);
+          if (!mounted) return;
+        }
+      }
+      _deadlineTimer?.cancel();
+      if (!mounted) return;
+    }
 
     // Past the deadline these answer from the stored session and the cached
     // membership; a later refresh reshapes the app in place, and a revoked
@@ -147,107 +170,21 @@ class _ProSplashScreenState extends State<ProSplashScreen>
       future.then<void>((_) {}, onError: (Object _) {});
 
   void _onLoaded(LottieComposition composition) {
+    // Once: a rebuild never reloads an equal `AssetLottie`, but a second first
+    // pass would silently lengthen the boot, so the guard is not left to that.
+    if (_composition != null) return;
     _composition = composition;
-    // Once: a rebuild never reloads an equal `AssetLottie`, but a restarted
-    // timer would silently lengthen the boot, so the guard is not left to that.
-    if (_introTimer == null) {
-      final intro = composition.getMarker(ProSplashScreen.introMarker);
-      _introTimer = Timer(
-        _framesToDuration(composition, intro?.durationFrames),
-        _onIntroDone,
-      );
-    }
-    _syncMotion();
+    _player.play(composition).then((_) => _openGate());
   }
 
-  void _onIntroDone() {
-    _finishIntro();
-    _syncMotion();
-  }
-
-  void _finishIntro() {
-    if (!_intro.isCompleted) _intro.complete();
-  }
-
-  /// Puts the controller where the current state says it should be.
-  void _syncMotion() {
-    final composition = _composition;
-    if (composition == null) return;
-
-    if (_reduceMotion) {
-      _controller
-        ..stop()
-        ..value = _stillProgress(composition, waiting: _sessionPending);
-      return;
-    }
-
-    if (!_intro.isCompleted) {
-      final end = composition.getMarker(ProSplashScreen.introMarker)?.end ?? 1;
-      if (_controller.value >= end) return;
-      _controller.animateTo(
-        end,
-        duration: _framesToDuration(
-          composition,
-          (end - _controller.value) * composition.durationFrames,
-        ),
-      );
-      return;
-    }
-
-    // The intro is over and the session is still loading: redraw the mark,
-    // never the wordmark. No `loop` marker → hold the intro's last frame.
-    final loop = composition.getMarker(ProSplashScreen.loopMarker);
-    if (loop == null) {
-      _controller.stop();
-      return;
-    }
-    // Clamped: lottie ends a composition at `op - 0.01`, so a marker running
-    // to the last frame ends a hair past progress 1.0 — and `repeat` asserts
-    // its bounds sit inside the controller's.
-    final min = clampDouble(loop.start, 0, 1);
-    final max = clampDouble(loop.end, 0, 1);
-    _controller.repeat(
-      min: min,
-      max: max,
-      period: _framesToDuration(
-        composition,
-        (max - min) * composition.durationFrames,
-      ),
-    );
-  }
-
-  /// Reduced motion's still. During the intro: the middle of the `wordmark`
-  /// hold, where every letter of « MyWeli Pro » is at full opacity. Once the
-  /// screen is [waiting] on the session: the end frame — the finished mark
-  /// every pass of the redraw loop comes to rest on, so turning the flag on
-  /// mid-loop never jumps back to the wordmark. A file without the marker
-  /// holds the end frame throughout, as the consumer splash does.
-  static double _stillProgress(
-    LottieComposition composition, {
-    required bool waiting,
-  }) {
-    final wordmark = composition.getMarker(ProSplashScreen.wordmarkMarker);
-    if (waiting || wordmark == null) return 1;
-    return (wordmark.start + wordmark.end) / 2;
-  }
-
-  /// A span of composition frames as wall-clock time (null → the whole file).
-  static Duration _framesToDuration(
-    LottieComposition composition,
-    double? frames,
-  ) {
-    final seconds =
-        (frames ?? composition.durationFrames) / composition.frameRate;
-    return Duration(
-      microseconds: (seconds * Duration.microsecondsPerSecond).round(),
-    );
+  void _openGate() {
+    if (!_gate.isCompleted) _gate.complete();
   }
 
   @override
   void dispose() {
-    _introTimer?.cancel();
     _deadlineTimer?.cancel();
-    _controller.dispose();
+    _player.dispose();
     super.dispose();
   }
 
@@ -270,7 +207,7 @@ class _ProSplashScreenState extends State<ProSplashScreen>
               child: ExcludeSemantics(
                 child: Lottie.asset(
                   ProSplashScreen.asset,
-                  controller: _controller,
+                  controller: _player.controller,
                   onLoaded: _onLoaded,
                   // The consumer splash's size: the same mark, at the same
                   // scale.
@@ -324,7 +261,7 @@ class _ProSplashScreenState extends State<ProSplashScreen>
   }
 
   void _onAssetFailed() {
-    _finishIntro();
+    _openGate();
     if (mounted && !_assetFailed) setState(() => _assetFailed = true);
   }
 }
