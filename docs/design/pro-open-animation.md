@@ -2,13 +2,13 @@
 
 | | |
 |---|---|
-| **Status** | **Built** (2026-10-11; review fixes 2026-10-12) |
+| **Status** | **Built** (2026-10-11; review fixes 2026-10-12; the full spin, both apps, 2026-10-12 — §2.2, §2.8) |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-10-12 |
 | **PRD ref / phase** | Launch polish — branding P5 (Pro flavour) · V1 |
-| **ROADMAP entry** | [2026-10-11-pro-open-animation](../roadmap/entries/2026-10-11-pro-open-animation.md) |
+| **ROADMAP entry** | [2026-10-11-pro-open-animation](../roadmap/entries/2026-10-11-pro-open-animation.md) · [2026-10-12-splash-full-spin](../roadmap/entries/2026-10-12-splash-full-spin.md) |
 | **Skills checked** | myweli-dev-guardrails · myweli-verification-guardrails |
-| **Governs** | `pro_splash_screen.dart` · `myweli_loader_mixed_pro.json` · `ProAuthProvider.ready`/`.restored` · `landed_push_handler.dart` · `ProRouter.launchPaths` |
+| **Governs** | `pro_splash_screen.dart` · `splash_screen.dart` (§2.8) · `open_animation_player.dart` · `myweli_loader_mixed_pro.json` · `myweli_loader_mixed.json` (§2.8) · `ProAuthProvider.ready`/`.restored` · `landed_push_handler.dart` · `ProRouter.launchPaths` |
 
 ## 1. Goal & scope
 
@@ -20,8 +20,18 @@ the word « Pro »), and routes as soon as the animation AND the session allow.
 
 **In scope:** the asset, the screen, its gates, reduced motion, the broken-asset
 fallback, the session-load hand-off, a notification that cold-starts the app.
-**Out of scope:** the consumer splash (§11), the native launch screen (shared,
-already `#FAFAFA` + black mark), the Pro login lockup (§11).
+**Out of scope:** the native launch screen (shared, already `#FAFAFA` + black
+mark), the Pro login lockup (§11).
+
+**The full spin (owner, Pro build 560, 2026-10-12).** « The animation plays but
+closes too fast, we can't see the end » — decision: **« we should see at least
+one spin of the logo », in both apps.** Measured, not guessed: the Pro screen
+routed at the `intro` marker (2.96 s) once the session was ready, so the spin
+(the mark erasing and redrawing, frames 74→142) was never seen; the consumer
+screen held a fixed 3800 ms against a 4.96 s file and left at frame ≤ 95 — on a
+mostly erased mark. Both now play the **whole file once** and rest on the
+finished mark before leaving (§2.2, §2.8). The consumer splash is therefore in
+scope from this change on.
 
 ## 2. UX & flows
 
@@ -32,38 +42,74 @@ of hard-coding frames — a designer's replacement only has to keep them:
 
 | Marker | Frames | Time | What it is |
 |---|---|---|---|
-| `intro` | 0–74 | 2.96 s | « MyWeli Pro » draws, holds, M/W morph into the mark — plays once |
+| `intro` | 0–74 | 2.96 s | « MyWeli Pro » draws, holds, M/W morph into the mark |
 | `wordmark` | 12–38 | 1.04 s | the hold where every letter is at 100 % (≥ 1 s, pinned) |
-| `loop` | 74–142 | 2.72 s | the mark redraw only — repeats while the session is pending |
+| `loop` | 74–142 | 2.72 s | **the spin**: the mark erases (74→104, trim start) and redraws (104→142, trim end) |
+
+Frame 142 — the end frame — is **the finished mark**, the same picture as 72–74,
+so a spin can start again from 74 without a jump. The whole file is **142 frames,
+5.68 s** (lottie plays `op − 0.01`: 5.6796 s).
 
 It is the consumer `myweli_loader_mixed.json` with **18 frames inserted** for the
 wordmark hold; the mark end-state and the `redraw` layer are byte-identical
 after re-timing (pinned). M/W stay at 100 % until frame 72, where `redraw` is
-already in — the consumer file's blank hand-off frame is not reproduced (§11).
+already in — no blank hand-off frame (the consumer file had one; fixed, §2.8).
 
-### 2.2 Two gates, side by side
-The screen routes when **both** the intro has had its time and the session is
-known — never one chained behind the other. Signed in → `/pro/dashboard`
-(`/pro/staff` for a Collaborateur); signed out → `/pro/login`. Session first →
-it waits for the intro end (2.96 s). Intro first → the `loop` segment repeats
-(the mark, never the wordmark again) until the session lands.
+### 2.2 The first pass, then the gate — and the clock is the ticker
+**A pass** plays from a start frame to the **end frame** (the finished mark) and
+then **rests** there for **`OpenAnimationPlayer.rest` = 500 ms**: the finished
+mark held still long enough to be seen. A screen may leave only when a pass is
+over — so **the user always leaves on the finished mark**.
 
-### 2.3 A bounded wait
+1. **The first pass is the whole file** — wordmark → morph → spin (erase +
+   redraw) → end frame, 0→142 — plus the rest. **The gate opens only then:
+   6.18 s after the first frame** (5.68 + 0.5). It replaces the old gate at the
+   `intro` marker (2.96 s), which cut the spin off.
+2. **At the gate, the session decides.** Signed in → `/pro/dashboard`
+   (`/pro/staff` for a Collaborateur); signed out → `/pro/login`.
+   - **Settled** (`auth.ready` done): the controller is already **stopped on
+     the end frame** (value 1.0) — nothing restarts — and the screen routes.
+   - **Pending**: the screen keeps **spinning** — each spin is a pass from the
+     `loop` marker's start to the end frame, plus its rest; never the wordmark
+     again — and routes **at the end of the first spin after which it may
+     leave** (§2.3). Never mid-spin: always on the finished mark.
+
+**The clock is the controller, not the wall.** With motion on, a pass is over
+when the ticker has *drawn* its end frame (`animateTo(1)` completing on a
+frame), and the rest is counted from that frame. The old screen ran a `Timer`
+beside the animation; a wall-clock timer keeps running when frames do not — a
+slow first frame on a cold start, a janky low-end Android, an app sent to the
+background mid-splash — and then routes on a mark the user never saw drawn. The
+ticker cannot get ahead of what is on screen, because it *is* what is on screen;
+starting it from the first frame that shows the composition is the ticker's own
+behaviour (it starts on the next frame after `animateTo`). The controller is
+`AnimationBehavior.preserve`: it is the gate's clock, so the framework's 5 %
+scale under the OS flag must never reach it (§9.1, "a content timer must not be
+collapsed") — though under that flag nothing animates anyway (§2.4).
+
+The rest is a content hold, not motion (SYSTEM.md §9: how long a still is
+*looked at*); it keeps its literal with a `// ds-ignore` and its reason, as the
+session deadline does. One constant, shared by both apps (§2.8).
+
+### 2.3 A bounded wait — counted from the gate, decided at a pass end
 The session load is two stages: **restore** (secure storage: the stored
 session, the cached membership, the R6 salon selection — `auth.restored`) and
 the **live refresh** (`GET /me/provider` on an `http.Client` with no timeout).
-Once the intro is over and the restore is done, the refresh gets
-**`ProSplashScreen.sessionDeadline` = 1.5 s**; past it the screen routes on the
-stored session and the refresh carries on in the background.
+Once the gate is open and the restore is done, the refresh gets
+**`ProSplashScreen.sessionDeadline` = 1.5 s**; past it the screen may route on
+the stored session and the refresh carries on in the background. **"May"**:
+it leaves at the next pass end (§2.2), so a pending session costs **exactly one
+more spin** (2.72 s + 0.5 s rest = 3.22 s) — the 1.5 s deadline is shorter than
+a spin, so it only decides whether the screen leaves at the first spin's end or
+keeps spinning for the stored session. A refresh that lands mid-spin routes at
+that spin's end, never mid-spin.
 
-*Why 1.5 s:* the refresh starts in `ProAuthProvider`'s constructor, before
-`runApp` — so at the deadline it has had the whole intro (2.96 s), the time to
-the first frame, and 1.5 s more: ≥ 4.5 s for one request (plus a token refresh).
-A healthy 3G round trip is well under that; past it the network is the problem
-(captive portal, dead link), and waiting longer only stalls the user. It is the
-version gate's bound for the same reason (`ClientVersionGate.deadline`,
-client-version-gate.md §7). It is a bound, not a delay: a refresh that lands
-inside the window routes at once.
+*Why 1.5 s still:* the refresh starts in `ProAuthProvider`'s constructor, before
+`runApp` — so by the gate it has had the whole first pass (5.68 s), the rest,
+the time to the first frame, and then 1.5 s more. A healthy 3G round trip is
+well under that; past it the network is the problem (captive portal, dead
+link), and waiting longer only stalls the user. It is the version gate's bound
+for the same reason (`ClientVersionGate.deadline`, client-version-gate.md §7).
 
 *What routing early costs:* the first screen is shaped by the **cached**
 membership. A later refresh reshapes it in place (`notifyListeners`), and a
@@ -71,25 +117,40 @@ revoked member is still signed out by it (`_signOutRevoked` → `/pro/login`);
 every call is re-authorized server-side (T38), and a 403 probes the membership
 (`ProAccessGuard`). Not handled: a role change between owner-shaped and staff
 shells while the app was closed lands on the old shell until the next start.
-*The restore is not bounded* — local I/O, and without it there is no right route.
+*The restore is not bounded* — local I/O, and without it there is no right route:
+while it is missing the screen keeps spinning.
 
-### 2.4 Reduced motion (SYSTEM.md §9.1)
-Same boot, no movement. During the intro the screen holds the **wordmark** still
-(the middle of the `wordmark` hold) for the intro's full 2.96 s — a content
-hold, not motion, so it is not collapsed. If the session is still pending at the
-intro end, the still becomes the **end frame** (the finished mark, where every
-pass of the loop comes to rest) and a **« Chargement… »** caption appears below
-it — `BrandLoader`'s string, style (`bodySmall`, `textSecondary`) and gap
-(`spacingS`), in a `Semantics(liveRegion: true)` so it is announced as it
-appears — a frozen logo and a broken screen look identical. Turning the flag on
-mid-loop holds the end frame, never the wordmark. The caption hangs below the
-mark without moving it off the native splash's centre; one line at 200 % text.
+### 2.4 Reduced motion (SYSTEM.md §9.1) — the same boot, held still
+Same boot, no movement: **the same pass ends, the same gate, the same length**.
+Nothing ticks, so the passes are held on timers (the first one started from the
+frame that first shows the still — never from the decode). During the `intro`
+portion the screen holds the **wordmark** still (the middle of the `wordmark`
+hold, 2.96 s); for the rest of the first pass and its rest it holds the **end
+frame** (the finished mark, 2.72 s + 0.5 s) — the gate opens at 6.18 s, as with
+motion. A pending session's spins are held as end-frame stills of the same
+length, so a reduced-motion user leaves at the same moment as everyone else.
+The holds are content time, not motion, so they are not collapsed.
 
-### 2.5 Broken asset
+**« Chargement… » only while pending after the gate** — `BrandLoader`'s string,
+style (`bodySmall`, `textSecondary`) and gap (`spacingS`), in a
+`Semantics(liveRegion: true)` so it is announced as it appears — a frozen logo
+and a broken screen look identical. Never during the first pass: nothing is
+waiting yet. The caption hangs below the mark without moving it off the native
+splash's centre; one line at 200 % text.
+
+**The flag flipped mid-pass.** On: the picture freezes on the still for where
+the pass is (the wordmark inside the intro, the end frame after it) and the
+frames it had left are held — the boot keeps its length. Off: the pass carries
+on as motion from the still on screen (from the end frame, that is the pass's
+end). During a rest nothing changes — it is the finished mark in both modes.
+
+### 2.5 Broken asset — unchanged
 A bundled asset that fails to decode is a broken build, but must not strand the
 user: the still brand mark (`myweli_mark_black.svg`, as `BrandLoader` holds it —
-never typed text) stands in, the intro gate opens at once, and the session is the
-only gate left. While it is pending the still says « Chargement… » too.
+never typed text) stands in, **the gate opens at once**, and the session is the
+only gate left — with no pass to end on, the screen leaves as soon as the
+session allows (§2.3's rule without the spin). While it is pending the still
+says « Chargement… » too.
 
 ### 2.6 A notification that cold-starts the app
 `getInitialMessage` delivers the tap before `runApp`; the handler buffers it
@@ -112,7 +173,44 @@ awaits the launch tap's handling, which `main_pro.dart` awaits before `runApp`.
 
 ### 2.7 Copy & semantics
 « MyWeli Pro » (an image node over the animation); « Chargement… » (live
-region) only while a still is waiting.
+region) only while a still is waiting after the gate. The consumer splash says
+« MyWeli » the same way (§2.8).
+
+### 2.8 The consumer splash — the same rule (branding-integration.md P4)
+`/splash` (`SplashScreen`) plays `myweli_loader_mixed.json` through the same
+`OpenAnimationPlayer`: **the whole file once** — « MyWeli » draws, holds, M/W
+morph into the mark, the mark spins (erase 56→86, redraw 86→124) — then **the
+rest** on the end frame, **stopped there** (no `repeat`), then `go('/home')`.
+124 frames: **4.96 s + 0.5 s = 5.46 s** after the first frame. No session to wait
+for (browsing needs no sign-in), so no loop, no deadline, no caption.
+
+| Marker | Frames | Time | What it is |
+|---|---|---|---|
+| `intro` | 0–56 | 2.24 s | « MyWeli » draws, holds, M/W morph into the mark |
+| `wordmark` | 12–20 | 0.32 s | the hold where every letter is at 100 % — **added** by this change (metadata only: no frame of the picture moves), so reduced motion has a wordmark still to hold |
+| `loop` | 56–124 | 2.72 s | the spin — played once here, inside the first pass |
+
+- **No wall-clock hold.** The fixed 3800 ms `Future.delayed` is gone — it left at
+  frame ≤ 95, on a mostly erased mark, and ran on regardless of frames.
+- **Reduced motion:** the « MyWeli » wordmark still for the `intro` portion
+  (2.24 s), then the finished-mark still for the rest of the file and the rest
+  (3.22 s) — the same 5.46 s. It used to hold the end frame for 3800 ms
+  (`AlwaysStoppedAnimation(1)`): right frame, wrong length, and no wordmark.
+- **Broken asset:** it had no `errorBuilder` — a failed decode rendered nothing
+  for 3.8 s. Now the still brand mark (`myweli_mark_black.svg`, as the Pro
+  screen) stands in and the screen leaves after **one rest** (0.5 s): a short,
+  bounded hold, so a broken build never strands the user and never shows a
+  one-frame flash either.
+- **Semantics:** « MyWeli », an image node over the animation (it had none).
+- **The blank hand-off frame, fixed in the file.** M/W dropped to 0 over frames
+  53→54 while `redraw` came in at 54; lottie draws index 54 at 53.996 (`op −
+  0.01`), where `redraw` is not yet in and M/W are at ~0 % — one empty 40 ms
+  frame mid-morph. M/W now hold 100 % to **54** and drop over 54→55, exactly as
+  the Pro file holds them to 72 with `redraw` in at 72: one frame where both
+  draw the same finished mark. Pinned by keyframe AND by rendering the hand-off
+  frames as lottie draws them (`open_animation_asset_test`).
+  `myweli_loader_mixed_white.json` carries the same defect but is **not used**
+  (reserved for dark mode, branding-integration.md §2) — left untouched (§11).
 
 ## 3. API & contract — none (the refresh is the existing `GET /me/provider`)
 
@@ -133,7 +231,15 @@ region) only while a still is waiting.
   space (> 2 × the letter gap), the whole word re-centred on the canvas. The
   outlines were not re-derived from the font file in CI (none is in the repo).
 
-## 5. Architecture — one session load
+## 5. Architecture — one clock, one session load
+**`OpenAnimationPlayer`** (`lib/screens/splash/open_animation_player.dart`)
+owns the `AnimationController` and plays passes (§2.2): `play(composition,
+from:)` completes after the end frame *and* the rest. It reads the markers
+(`intro`, `wordmark`, `loop` — names shared by both files), holds the
+reduced-motion stills on timers (§2.4), and switches between the two mid-pass
+when the flag flips. Both splash screens use it; neither keeps a timer of its own
+for the animation. The Pro screen adds the session gate (§2.3) and the caption.
+
 `ProAuthProvider`'s constructor starts the load and keeps it as **`ready`**
 (`late final`); `restored` completes once the stored session is read. The splash
 **awaits `ready`/`restored` and never calls `loadCurrentProvider()`**: `main_pro`
@@ -150,8 +256,16 @@ Same deep-link allowlist (`kProRoutePrefixes`) and R6 salon switch before the
 replay; routing on the cached membership is UI shaping only (§2.3).
 
 ## 7. Performance
-Earliest route 2.96 s after the first frame (was a fixed 2 s *then* the whole
-load); worst case with a hanging network 2.96 + 1.5 s. Vector JSON, one decode.
+**The boot is longer on purpose** (owner decision, §1): the Pro app leaves at
+**6.18 s** after the first frame at the earliest (was 2.96 s; before this spec a
+fixed 2 s *then* the whole load); worst case with a hanging network **9.40 s**
+(the gate + one spin, was 2.96 + 1.5 s). The consumer app leaves at **5.46 s**
+(was 3.8 s). The session load still runs underneath from before `runApp`, so a
+slow network costs at most one extra spin. ROADMAP Part 6's cold-start budget
+(p95 < 3.5 s) is time to the first frame, which this does not move — but the
+time to the first *usable* screen is now ≥ 5.46 s on every open; recorded as an
+owner trade-off (§11). Vector JSON, one decode; the ticker runs only while a
+pass plays (stopped on the end frame during every rest).
 
 ## 8. Testing — and the mutations watched red
 Asset contract (`pro_open_animation_asset_test`), screen (`pro_splash_screen_test`),
@@ -180,20 +294,26 @@ with `MYWELI_GOLDEN_LOCAL=1`). Each guard was committed, then broken:
 | M16 | broken asset never flags itself | broken asset says « Chargement… » |
 
 ## 9. Rollout & 10. Definition of done
-No flag; ships with the Pro app. Done: analyze 0, format, the tests above,
-goldens unchanged, spec indexed and cross-linked, roadmap entry, branding P5.
+No flag; ships with both apps. Done: analyze 0, format, the tests above,
+goldens unchanged, spec indexed and cross-linked, roadmap entries
+(2026-10-11-pro-open-animation, 2026-10-12-splash-full-spin), branding P4/P5.
 **Not done here — device verification:** the native splash → animation hand-off,
 a cold-start tap on a booking notification, airplane mode (the deadline),
 VoiceOver/TalkBack with Reduce Motion on.
 
 ## 11. Follow-ups (not in this part)
 - **The consumer app has the same cold-start defect, by reading (not reproduced):**
-  `main.dart` replays on sign-in while `/splash` holds 3.8 s, then `go`s to
+  `main.dart` replays on sign-in while `/splash` plays its first pass (5.46 s), then `go`s to
   `/home`. `landedPushHandler` is generic — wire it there with its launch paths.
-- **The consumer asset's blank frame.** `myweli_loader_mixed.json` drops M/W to
-  0 over frames 53→54 while `redraw` comes in at 54; lottie renders index 54 a
-  hair early, so one 40 ms frame is empty. The Pro file holds M/W to 72 with
-  `redraw` in at 72; the consumer file is untouched.
+- ~~**The consumer asset's blank frame.**~~ Fixed 2026-10-12 (§2.8).
+  **`myweli_loader_mixed_white.json` still has it** (M/W 100 % → 0 over 53→54,
+  `redraw` in at 54) — unused today; fix it the same way (hold M/W to 54) the
+  day dark mode wires it, and extend `open_animation_asset_test`'s hand-off
+  render to it.
+- **The boot length** (§7): every open now costs ≥ 5.46 s (consumer) / 6.18 s
+  (Pro) before the first usable screen, by the owner's decision. If that proves
+  too long in use, the lever is the file (a shorter wordmark hold or spin), not
+  the screen — the screen only promises to show the file through once.
 - **The Pro login lockup.** `ProLoginScreen` shows the « MyWeli » vertical
   lockup; a « MyWeli Pro » lockup needs these glyphs as an SVG (a brand asset).
 - **A role flip while the app was closed** (§2.3) lands on the old shell after a
