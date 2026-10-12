@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mocktail/mocktail.dart';
@@ -14,6 +16,7 @@ import 'package:myweli/services/interfaces/pro_service_interface.dart';
 import 'package:myweli/services/mock/mock_auth_service.dart';
 import 'package:myweli/services/mock/mock_data.dart';
 import 'package:myweli/services/mock/mock_provider_service.dart';
+import 'package:myweli/widgets/common/carto_basemap_layer.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -139,8 +142,8 @@ void main() {
   /// A tall surface, because the form is one long `ListView` ending in the
   /// map and « Enregistrer » — off-screen at 800×600, and a test that has to
   /// scroll past a `FlutterMap` to reach the submit is a test about scrolling.
-  Future<void> openForm(WidgetTester tester) async {
-    tester.view.physicalSize = const Size(1000, 3000);
+  Future<void> openForm(WidgetTester tester, {double width = 1000}) async {
+    tester.view.physicalSize = Size(width, 3000);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
 
@@ -315,4 +318,45 @@ void main() {
     );
     verify(() => pro.updateSalonProfile('provider1', any())).called(1);
   });
+
+  // The position map is a fixed 240dp box. flutter_map's own credits popup
+  // opened INSIDE it and overflowed at 2× text on a phone (140px), and the
+  // « Utiliser ma position » row overflowed sideways from 1.5× (134px; 272 at
+  // 2×) — both measured at 390dp, invisible on the 1000dp surface the other
+  // tests use. The credits now open in a sheet and the row wraps.
+  for (final scale in [1.5, 2.0]) {
+    testWidgets(
+      'at $scale× on a phone: the form fits, and the map credits « i » '
+      'opens a sheet with the credits whole',
+      (tester) async {
+        tester.platformDispatcher.textScaleFactorTestValue = scale;
+        addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+        await openForm(tester, width: 390);
+        expect(tester.takeException(), isNull, reason: 'the form at $scale×');
+
+        final info = find.descendant(
+          of: find.byType(FlutterMap),
+          matching: find.byTooltip(CartoAttribution.sheetTooltip),
+        );
+        expect(info, findsOneWidget, reason: 'the credits button on the map');
+        await tester.ensureVisible(info);
+        await tester.pump();
+        await tester.tap(info);
+        await tester.pumpAndSettle();
+
+        expect(tester.takeException(), isNull);
+        final sheet = find.byType(BottomSheet);
+        expect(sheet, findsOneWidget);
+        for (final credit in [CartoAttribution.sheetTitle, ...cartoCredits]) {
+          final text = find.descendant(of: sheet, matching: find.text(credit));
+          expect(text, findsOneWidget, reason: credit);
+          expect(
+            tester.renderObject<RenderParagraph>(text).didExceedMaxLines,
+            isFalse,
+            reason: credit,
+          );
+        }
+      },
+    );
+  }
 }

@@ -416,7 +416,13 @@ class _ProSalonProfileScreenState extends State<ProSalonProfileScreen> {
                 onPick: (latLng) => setState(() => _pin = latLng),
               ),
               const SizedBox(height: AppTheme.spacingS),
-              Row(
+              // A Wrap, not a Row: from 1.5× text the button and its hint do
+              // not fit side by side on a phone (the Row overflowed by 134px
+              // at 1.5×, 272 at 2×, measured at 390dp) — the hint drops below.
+              Wrap(
+                spacing: AppTheme.spacingSM,
+                runSpacing: AppTheme.spacingXS,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   OutlinedButton.icon(
                     onPressed: _locating ? null : _useMyPosition,
@@ -429,15 +435,12 @@ class _ProSalonProfileScreenState extends State<ProSalonProfileScreen> {
                       side: const BorderSide(color: AppColors.borderStrong),
                     ),
                   ),
-                  const SizedBox(width: AppTheme.spacingSM),
-                  Expanded(
-                    child: Text(
-                      _pin == null
-                          ? 'Touchez la carte pour placer votre salon.'
-                          : 'Touchez la carte pour ajuster.',
-                      style: AppTextStyles.bodySmall.copyWith(
-                        color: AppColors.textTertiary,
-                      ),
+                  Text(
+                    _pin == null
+                        ? 'Touchez la carte pour placer votre salon.'
+                        : 'Touchez la carte pour ajuster.',
+                    style: AppTextStyles.bodySmall.copyWith(
+                      color: AppColors.textTertiary,
                     ),
                   ),
                 ],
@@ -509,7 +512,10 @@ class _LocationField extends StatelessWidget {
                   ),
                 ],
               ),
-            const CartoAttribution(),
+            // The credits in a sheet: flutter_map's popup opens inside this
+            // 240dp box and overflowed it at 2× text on a phone (measured,
+            // 140px) — the salon page's preview had the same defect.
+            const CartoAttribution.sheet(),
           ],
         ),
       ),

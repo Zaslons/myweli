@@ -438,11 +438,13 @@ sa case à elle).
 - **Écrans dormants** — `phone_login_screen.dart` pousse `/verify-otp`, que
   plus aucun routeur n'enregistre ; le garde ne lit que les fichiers qu'une app
   importe. Le jour où l'écran revient dans un routeur, le garde le verra.
-- **La carte du profil Pro (240 dp) garde la bulle de flutter_map** — même
-  défaut de classe que l'aperçu (§2.1, « crédits ») : une boîte fixe. Par le
-  calcul, pas par une mesure (contenu de la bulle ≈ 352 px à 2,0× sur 390 dp,
-  ≈ 212 disponibles dans 240 dp), elle déborderait vers 1,5×. Hors de cette
-  branche ; `CartoAttribution.sheet()` est la correction toute prête.
+- ~~**La carte du profil Pro (240 dp) garde la bulle de flutter_map**~~ —
+  **mesuré puis corrigé le 2026-10-12** : à 390 dp, la bulle débordait de
+  140 px à 2× (sur la surface de 1000 dp des autres tests, rien — d'où une
+  première mesure trompeuse), et la rangée « Utiliser ma position » débordait
+  de 134 px à 1,5× (272 à 2×), un défaut plus ancien que cette branche. Les
+  crédits s'ouvrent désormais en feuille (`CartoAttribution.sheet()`) et la
+  rangée passe à la ligne (`Wrap`) ; un test à 1,5× et 2× sur 390 dp les tient.
 - **La case partagée, ailleurs** — `booking_hub_screen.dart` et
   `booking_confirmation_screen.dart` lisent `selectedProvider` comme le faisait
   la page salon (§2.7). Aucun chemin de la carte n'y mène aujourd'hui ; la
