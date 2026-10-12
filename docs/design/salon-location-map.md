@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Built** (code, tests, docs) — reste : goldens Linux à régénérer et regarder (§9), essai sur appareil (§10) |
+| **Status** | **Built** (code, tests, docs) ; **revue du 2026-10-12 appliquée** (crédits dans une feuille §2.1, focus avant la liste §2.3, une page salon ne montre que son salon §2.7) — reste : goldens Linux à régénérer et regarder (§9), essai sur appareil (§10) |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-12 |
 | **Module** | `online-booking` (la page salon de la marketplace) — [MODULES.md](../MODULES.md) |
@@ -366,6 +366,31 @@ contrôle.
 | M23 | un salon introuvable échoue en silence | « cannot be found » |
 | M24 | l'aperçu perd son fond `surfaceVariant` | « atop » |
 
+**Revue du 2026-10-12** — 13 de plus, même protocole (sur le code commité,
+restaurées par `git checkout --`, arbre vérifié propre) :
+
+| # | mutation | garde |
+|---|---|---|
+| M25 | l'aperçu reprend `CartoAttribution()` (la bulle) | « credits « i » » 1,3× et 2,0× ; « screen reader » (le contrôle positif `find.byTooltip`) |
+| M26 | la forme feuille dessine la bulle | `carto_basemap_layer_test` « the sheet form » |
+| M27 | l'aperçu perd `CartoAttribution.sheet()` | `carto_basemap_layer_test` « every FlutterMap( » (la regex compte bien la forme feuille) |
+| M28 | la feuille oublie « © CARTO » | « the sheet form » ; « credits « i » » 1,3× et 2,0× |
+| M29 | le focus attend de nouveau la liste | « the list never answering » × 2 |
+| M30 | `_salonOf` rend la case sans comparer l'id | §2.7 « A → map → B », « opened while », « covered before » |
+| M31 | la page ne reprend jamais la case | « A → map → B » (la case reste à B), « covered before » |
+| M32 | la page reprend la case même couverte | « A → map → B » (ping-pong : la case passe à A sous B), « covered before » |
+| M33 | tout échec de la case est « le sien » (`_slotIsMine` toujours vrai) | « covered before » (l'état « indisponible » de B affiché sur A) |
+| M34 | la reprise relit au lieu de rendre la copie | « A → map → B » (3 lectures, pas 2) |
+| M35 | une réponse arrivée après le changement de mains écrit la case | « a read answered after… » |
+| M36 | `selectedProviderId` posé après la lecture | les quatre cas §2.7 (la reprise de l'image 1 double la lecture) |
+| M37 | la barre « Réserver » lit la case partagée | « opened while » (« Réserver » d'un autre salon) |
+
+**Non gardés, assumés** : l'attente des favoris avant le focus n'est plus là,
+mais aucun test ne connecte un compte sur la carte (la liste, elle, est
+gardée — M29) ; la devise des prix passée à `_ServiceTile` au lieu d'être lue
+dans la case — les deux salons de démonstration sont en XOF, une mutation
+survivrait.
+
 ## 9. Rollout & scope discipline
 
 Pas de drapeau : une correction de lien mort et une section de page. V1.
@@ -375,7 +400,13 @@ Mac) : `consumer_provider_detail_w360_x2` (cadre de 4 200 dp),
 1 200 dp : le titre « Contact » mesuré à ~770 dp, l'aperçu à 804–964 dp, avec
 la police de test — la marge est large). Sous `flutter test`, `PackageInfo` ne
 répond jamais dans l'horloge simulée : la couche ne dessine aucune tuile, et
-l'image montre le fond `surfaceVariant`, le marqueur et l'attribution.
+l'image montre le fond `surfaceVariant`, le marqueur et le « i » des crédits.
+**Après la revue**, ce coin change dans les trois mêmes images : la forme
+feuille dessine un seul « i » (`info_outline`, `textSecondary`) là où la bulle
+de flutter_map dessinait son logo et un « i » noir à 50 % d'opacité — à
+regarder en régénérant. Les goldens de « Carte » ne changent pas (elle garde
+la bulle) ; ceux de la page salon ne bougent pas pour §2.7 (une seule page,
+sa case à elle).
 
 ## 10. Definition of done
 
@@ -387,7 +418,12 @@ l'image montre le fond `surfaceVariant`, le marqueur et l'attribution.
       `salon_header` et `layout` (181 cas).
 - [x] 24 mutations vues rouges (§8).
 - [x] Revue du 2026-10-12 : les trois constats corrigés (§2.1 « crédits »,
-      §2.3, §2.7), leurs gardes ajoutées (§8) et vues rouges (M25–M35).
+      §2.3, §2.7), leurs gardes ajoutées (§8) et vues rouges (M25–M37) ;
+      `salon_location_map_test` (21 cas) vert, et les vingt fichiers qui
+      couvrent la page salon, la carte et `ProviderProvider` —
+      `carto_basemap_layer_test`, `provider_provider_test`, `route_literals`,
+      `design_system_pin`, les cinq a11y… — verts (308 cas) ;
+      `flutter analyze` 0.
 - [x] Spec liée depuis le code ; index `README.md` ; SYSTEM.md §11.1
       (`SalonMapMarker`, `SalonLocationPreview`) ; map-basemap-key.md §5.1 ;
       ligne 2.9 de l'audit de parité corrigée ; entrée de roadmap.
