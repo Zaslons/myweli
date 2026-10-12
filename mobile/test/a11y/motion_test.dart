@@ -8,6 +8,7 @@ import 'package:lottie/lottie.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/core/theme/text_styles.dart';
 import 'package:myweli/providers/pro_auth_provider.dart';
+import 'package:myweli/screens/splash/open_animation_player.dart';
 import 'package:myweli/screens/splash/splash_screen.dart';
 import 'package:myweli/screens/stories/story_viewer.dart';
 import 'package:myweli/services/mock/mock_auth_service.dart';
@@ -424,10 +425,14 @@ void main() {
       //
       // Asserting the CONTROLLER is what makes this a gate rather than a
       // restatement: a pinned progress is the only thing that both stops the
-      // ticker and lands on a frame with ink in it.
-      // A real router, because the 3800 ms hold ends in a `context.go` — and
-      // because "the hold is intact" is a definition-of-done claim that
-      // nothing was asserting.
+      // ticker and lands on a frame with ink in it. Since the full spin
+      // (pro-open-animation.md §2.8) it is two stills, as on the Pro splash:
+      // the « MyWeli » wordmark through the intro, then the finished mark.
+      //
+      // A real router, because the hold ends in a `context.go` — and because
+      // "the hold is intact" is a definition-of-done claim that nothing was
+      // asserting.
+      final timeline = OpenTimeline.consumer();
       final router = GoRouter(
         initialLocation: '/',
         routes: [
@@ -447,8 +452,10 @@ void main() {
       await tester.runAsync(
         () async => Future<void>.delayed(const Duration(milliseconds: 300)),
       );
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 400));
+      // The first frame of the still: the hold is timed from here.
+      await pumpFirstFrame(tester);
+      const spent = Duration(milliseconds: 400);
+      await tester.pump(spent);
 
       final lottie = tester.widget<LottieBuilder>(find.byType(LottieBuilder));
       expect(
@@ -459,10 +466,13 @@ void main() {
             'it renders a blank splash. The progress must be pinned to a '
             'frame that has the mark on it.',
       );
+      final (start, end) = timeline.wordmarkFrames;
       expect(
-        lottie.controller!.value,
-        greaterThan(0.0),
-        reason: 'pinned to frame 0 is the same blank screen with extra steps',
+        timeline.frameOf(lottie.controller!.value),
+        inInclusiveRange(start, end),
+        reason:
+            'through the intro: the « MyWeli » wordmark, every letter at full '
+            'opacity — not frame 0, not a letter mid-fade',
       );
       expect(
         tester.binding.hasScheduledFrame,
@@ -470,18 +480,35 @@ void main() {
         reason: 'and it must still not animate',
       );
 
-      // Still on the splash at 3.7 s, gone by 3.9 s: the hold is a `Timer`, so
-      // the framework's 5 % scale never touches it and reduced-motion users
-      // get the same boot sequence as everyone else (§9.1's "not a different
-      // app"). Nothing was asserting that, which is how a well-meant
-      // "shorten the wait for them" would have landed unnoticed.
-      await tester.pump(const Duration(milliseconds: 3300));
+      // Past the intro: the finished mark, still.
+      await tester.pump(timeline.intro);
+      expect(
+        timeline.frameOf(lottie.controller!.value),
+        closeTo(timeline.endFrame, 0.01),
+        reason: 'the mark the motion users see the spin end on',
+      );
+      expect(tester.binding.hasScheduledFrame, isFalse);
+
+      // On the splash until the whole file and the rest have had their time,
+      // gone just after: the holds are timers, so the framework's 5 % scale
+      // never touches them and reduced-motion users get the same boot as
+      // everyone else (§9.1's "not a different app"). Nothing was asserting
+      // that, which is how a well-meant "shorten the wait for them" would have
+      // landed unnoticed.
+      const margin = Duration(milliseconds: 100);
+      await tester.pump(
+        timeline.firstPass +
+            OpenAnimationPlayer.rest -
+            spent -
+            timeline.intro -
+            margin,
+      );
       expect(
         find.text('accueil'),
         findsNothing,
-        reason: 'the 3800ms hold must not be collapsed for these users',
+        reason: 'the hold must not be collapsed for these users',
       );
-      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump(margin * 2);
       await tester.pump();
       expect(
         find.text('accueil'),
@@ -589,14 +616,19 @@ void main() {
   /// The Pro splash (docs/design/pro-open-animation.md) — the consumer
   /// splash gate's twin, with the one thing the consumer splash does not have:
   /// a session to wait for. Under the flag it holds « MyWeli Pro » STILL
-  /// through the intro — not the end mark, not frame 0's empty canvas — and
-  /// keeps the intro's hold. Past the intro, while the session still loads,
-  /// it holds the finished mark and SAYS « Chargement… », as `BrandLoader`
-  /// does: a frozen logo and a broken screen look identical (§9.1).
+  /// through the intro — not the end mark, not frame 0's empty canvas — then
+  /// the finished mark, for exactly the first pass and its rest: the same
+  /// boot as motion (§2.4). Past the gate, while the session still loads, it
+  /// SAYS « Chargement… », as `BrandLoader` does: a frozen logo and a broken
+  /// screen look identical (§9.1).
   group('§9 — the Pro splash holds « MyWeli Pro » still', () {
     setUpAll(() => serviceLocator.authService = MockAuthService());
-    final timeline = ProOpenTimeline.load();
+    final timeline = OpenTimeline.pro();
+    const rest = OpenAnimationPlayer.rest;
+    const margin = Duration(milliseconds: 100);
 
+    /// Ends 400 ms after the still's first frame — [spent] of the boot.
+    const spent = Duration(milliseconds: 400);
     Future<void> pumpProSplash(
       WidgetTester tester,
       FakeProSession session, {
@@ -621,9 +653,12 @@ void main() {
       await tester.runAsync(
         () async => Future<void>.delayed(const Duration(milliseconds: 300)),
       );
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 400));
+      await pumpFirstFrame(tester);
+      await tester.pump(spent);
     }
+
+    /// From the end of [pumpProSplash] to just past the gate.
+    final pastTheGate = timeline.firstPass + rest - spent + margin;
 
     double frameOnScreen(WidgetTester tester) => timeline.frameOf(
       tester
@@ -658,35 +693,40 @@ void main() {
       );
     });
 
-    testWidgets('no caption during the intro — it is not waiting yet', (
+    testWidgets('no caption during the first pass — it is not waiting yet', (
       tester,
     ) async {
       await pumpProSplash(tester, FakeProSession());
       expect(find.text(BrandLoader.semanticsLabel), findsNothing);
+
+      // Past the intro, before the gate: the finished mark, and still no
+      // caption — the pass is not over, nothing is waiting.
+      await tester.pump(timeline.intro);
+      expect(frameOnScreen(tester), closeTo(timeline.endFrame, 0.01));
+      expect(tester.binding.hasScheduledFrame, isFalse);
+      expect(find.text(BrandLoader.semanticsLabel), findsNothing);
     });
 
     testWidgets(
-      'past the intro: the finished mark, still, and « Chargement… »',
+      'past the gate: the finished mark, still, and « Chargement… »',
       (tester) async {
         final handle = tester.ensureSemantics();
         final session = FakeProSession();
         await pumpProSplash(tester, session);
 
-        await tester.pump(timeline.intro + const Duration(seconds: 5));
+        await tester.pump(pastTheGate + const Duration(seconds: 4));
         expect(find.text('route:login', skipOffstage: false), findsNothing);
         expect(
           frameOnScreen(tester),
           closeTo(timeline.endFrame, 0.01),
           reason:
-              'the mark the motion users see once the intro is over — not the '
-              'wordmark the intro has just finished with',
+              'the mark the motion users see every spin end on — not the '
+              'wordmark the intro has finished with',
         );
         expect(
           tester.binding.hasScheduledFrame,
           isFalse,
-          reason:
-              'the intro ending must not hand over to the redraw loop for '
-              'these users',
+          reason: 'the gate must not hand over to the spin for these users',
         );
         expect(
           find.text(BrandLoader.semanticsLabel),
@@ -700,7 +740,9 @@ void main() {
         );
         handle.dispose();
 
+        // It leaves where the motion users would: at a spin's end.
         session.load.complete();
+        await tester.pump(timeline.spin + rest);
         await land(tester);
         expect(find.text('route:login'), findsOneWidget);
       },
@@ -712,7 +754,7 @@ void main() {
       await pumpProSplash(tester, FakeProSession());
       final centred = tester.getCenter(find.byType(LottieBuilder));
 
-      await tester.pump(timeline.intro);
+      await tester.pump(pastTheGate);
       expect(find.text(BrandLoader.semanticsLabel), findsOneWidget);
       expect(tester.getCenter(find.byType(LottieBuilder)), centred);
       expect(
@@ -728,7 +770,7 @@ void main() {
       tester,
     ) async {
       await pumpProSplash(tester, FakeProSession(), textScale: 2);
-      await tester.pump(timeline.intro);
+      await tester.pump(pastTheGate);
 
       final caption = find.text(BrandLoader.semanticsLabel);
       expect(caption, findsOneWidget);
@@ -743,28 +785,35 @@ void main() {
       expect(box.height, closeTo(line, 1), reason: 'one line, not wrapped');
     });
 
-    testWidgets('turned on mid-loop: the finished mark, never the wordmark', (
-      tester,
+    Future<void> pumpWithMotion(
+      WidgetTester tester,
+      FakeProSession session,
     ) async {
-      // Motion ON first: the intro plays out and the redraw loop runs.
       pinSurface(tester, size: const Size(_kPinnedWidth, 1600));
       await tester.pumpWidget(
         wrapApp(
           routerConfig: proSplashRouter(),
           providers: [
-            ChangeNotifierProvider<ProAuthProvider>.value(
-              value: FakeProSession(),
-            ),
+            ChangeNotifierProvider<ProAuthProvider>.value(value: session),
           ],
         ),
       );
       await tester.runAsync(
         () async => Future<void>.delayed(const Duration(milliseconds: 300)),
       );
-      await tester.pump();
-      await tester.pump(timeline.intro);
+      await pumpFirstFrame(tester);
+    }
+
+    testWidgets('turned on mid-spin: the finished mark, never the wordmark', (
+      tester,
+    ) async {
+      // Motion ON first: the first pass plays out, the gate finds the session
+      // pending, and the spin runs.
+      await pumpWithMotion(tester, FakeProSession());
+      await tester.pump(timeline.firstPass + OpenTimeline.frame);
+      await tester.pump(rest);
       await tester.pump(const Duration(milliseconds: 300));
-      expect(tester.binding.hasScheduledFrame, isTrue, reason: 'looping');
+      expect(tester.binding.hasScheduledFrame, isTrue, reason: 'spinning');
 
       setReducedMotion(tester);
       // The flip is applied inside that frame's build, which repaints once;
@@ -777,19 +826,52 @@ void main() {
     });
 
     testWidgets(
-      '…and keeps the intro\'s hold: the same boot, not a shorter one',
+      'turned on mid-pass: the frames left are held — the boot keeps its length',
+      (tester) async {
+        final session = FakeProSession()..load.complete();
+        await pumpWithMotion(tester, session);
+        const playedFor = Duration(seconds: 1);
+        await tester.pump(playedFor);
+
+        setReducedMotion(tester);
+        await tester.pump();
+        await tester.pump();
+        final (start, end) = timeline.wordmarkFrames;
+        expect(
+          frameOnScreen(tester),
+          inInclusiveRange(start, end),
+          reason: 'inside the intro, the still is the wordmark',
+        );
+        expect(tester.binding.hasScheduledFrame, isFalse, reason: 'stopped');
+
+        // Neither cut short nor restarted: the gate is where it always was.
+        await tester.pump(timeline.firstPass + rest - playedFor - margin);
+        expect(
+          find.text('route:login', skipOffstage: false),
+          findsNothing,
+          reason: 'the frames the pass had left were not held',
+        );
+        await tester.pump(margin * 2);
+        await land(tester);
+        expect(
+          find.text('route:login'),
+          findsOneWidget,
+          reason: 'the pass was held from the start again, not resumed',
+        );
+      },
+    );
+
+    testWidgets(
+      '…and keeps the first pass and its rest: the same boot, not a shorter one',
       (tester) async {
         final session = FakeProSession()..load.complete();
         await pumpProSplash(tester, session);
 
-        // `pumpProSplash` already spent 400 ms of the hold.
-        const spent = Duration(milliseconds: 400);
-        const margin = Duration(milliseconds: 100);
-        await tester.pump(timeline.intro - spent - margin);
+        await tester.pump(timeline.firstPass + rest - spent - margin);
         expect(
           find.text('route:login', skipOffstage: false),
           findsNothing,
-          reason: 'the intro hold must not be collapsed for these users',
+          reason: 'the hold must not be collapsed for these users',
         );
         await tester.pump(margin * 2);
         await land(tester);
