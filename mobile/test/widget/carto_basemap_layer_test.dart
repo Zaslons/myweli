@@ -34,19 +34,22 @@ import '../support/secure_storage.dart';
 void main() {
   const abidjan = TileCoordinates(1001, 993, 11);
 
-  Widget map(Widget layer) => wrapApp(
-    home: SizedBox(
-      width: 400,
-      height: 400,
-      child: FlutterMap(
-        options: const MapOptions(
-          initialCenter: LatLng(5.336, -4.026),
-          initialZoom: 11,
+  Widget map(Widget layer, {Widget attribution = const CartoAttribution()}) =>
+      wrapApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 400,
+            height: 400,
+            child: FlutterMap(
+              options: const MapOptions(
+                initialCenter: LatLng(5.336, -4.026),
+                initialZoom: 11,
+              ),
+              children: [layer, attribution],
+            ),
+          ),
         ),
-        children: [layer, const CartoAttribution()],
-      ),
-    ),
-  );
+      );
 
   TileLayer tileLayer(WidgetTester tester) =>
       tester.widget<TileLayer>(find.byType(TileLayer));
@@ -144,6 +147,23 @@ void main() {
       expect(provider.cachingProvider, isA<CartoWatermarkRefusingCache>());
     });
 
+    testWidgets('panBuffer reaches the TileLayer — 1 unless a map says 0', (
+      tester,
+    ) async {
+      runningAs('com.myweli.app');
+      await tester.pumpWidget(map(const CartoBasemapLayer(apiKey: 'k')));
+      await tester.pump();
+      expect(tileLayer(tester).panBuffer, 1, reason: 'flutter_map’s default');
+
+      // The salon page's preview never moves: no ring of tiles nobody can
+      // pan to (salon-location-map.md §7).
+      await tester.pumpWidget(
+        map(const CartoBasemapLayer(apiKey: 'k', panBuffer: 0)),
+      );
+      await tester.pump();
+      expect(tileLayer(tester).panBuffer, 0);
+    });
+
     testWidgets('no key → the same URL, keyless (the visible watermark)', (
       tester,
     ) async {
@@ -172,6 +192,38 @@ void main() {
         ),
         ['© OpenStreetMap contributors', '© CARTO'],
       );
+    });
+
+    testWidgets('the sheet form: the same credits, in a sheet, not the map', (
+      tester,
+    ) async {
+      runningAs('com.myweli.app');
+      await tester.pumpWidget(
+        map(
+          const CartoBasemapLayer(apiKey: 'k'),
+          attribution: const CartoAttribution.sheet(),
+        ),
+      );
+      await tester.pump();
+      expect(find.byType(RichAttributionWidget), findsNothing);
+      expect(find.text('© CARTO'), findsNothing, reason: 'closed: no text');
+
+      await tester.tap(find.byTooltip('Crédits de la carte'));
+      await tester.pumpAndSettle();
+
+      final sheet = find.byType(BottomSheet);
+      expect(sheet, findsOneWidget);
+      for (final text in [
+        'Données cartographiques',
+        '© OpenStreetMap contributors',
+        '© CARTO',
+      ]) {
+        expect(
+          find.descendant(of: sheet, matching: find.text(text)),
+          findsOneWidget,
+          reason: text,
+        );
+      }
     });
 
     testWidgets('the consumer « Carte » draws through it', (tester) async {
@@ -311,13 +363,45 @@ void main() {
       expect(offenders, isEmpty);
     });
 
-    test('both maps use the layer and its attribution', () {
-      for (final screen in [
+    // **Every** map, found — not a list of the two screens that had one. A
+    // fixed list is how a third map (the salon page's location preview,
+    // salon-location-map.md) would have shipped unguarded: green, because
+    // nobody added it to the list.
+    int count(String code, Pattern p) => p.allMatches(code).length;
+    final flutterMap = RegExp(r'\bFlutterMap\(');
+    final mapFiles =
+        files.entries
+            .where((e) => flutterMap.hasMatch(e.value))
+            .map((e) => e.key)
+            .toList()
+          ..sort();
+
+    test('the maps are found — exactly the three there are', () {
+      // A count, not a floor: the day a fourth map lands, this goes red and
+      // the reader decides whether the scan still means what it says.
+      expect(mapFiles, [
         'lib/screens/map/map_screen.dart',
         'lib/screens/provider/profile/pro_salon_profile_screen.dart',
-      ]) {
-        expect(files[screen], contains('const CartoBasemapLayer()'));
-        expect(files[screen], contains('const CartoAttribution()'));
+        'lib/widgets/providers/salon_location_preview.dart',
+      ]);
+    });
+
+    test('every FlutterMap( has the layer and its attribution — one each', () {
+      for (final f in mapFiles) {
+        final maps = count(files[f]!, flutterMap);
+        expect(
+          count(files[f]!, RegExp(r'\bCartoBasemapLayer\(')),
+          maps,
+          reason: '$f: a FlutterMap without the keyed CARTO layer',
+        );
+        // Either form: the popup, or the sheet a fixed box needs
+        // (salon-location-map.md §2.1 « crédits »).
+        expect(
+          // A call, with or without arguments (« Carte » passes its corner).
+          count(files[f]!, RegExp(r'\bCartoAttribution(?:\.sheet)?\(')),
+          maps,
+          reason: '$f: a FlutterMap without the attribution CARTO requires',
+        );
       }
     });
   });
