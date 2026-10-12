@@ -53,7 +53,8 @@ e-mail », a label that exists nowhere in the app — the e-mail field sits
 directly on the login screen under Google and Apple (`pro_login_screen.dart`).
 The store-facing wording lives in [app-store-forms.md](app-store-forms.md) §8
 and [play-store-forms.md](play-store-forms.md) §2.*
-4. Land on the dashboard of « Salon Démo MyWeli » — a complete draft salon:
+4. Land on the dashboard of « Maison Nala » (named « Salon Démo MyWeli »
+   until 2026-10-11, §9) — a complete draft salon:
    3+ services, photos, a weekly schedule, a filled agenda and client list
    (manual bookings work on drafts by design — `booking_service.dart:301`,
    « the salon owns its calendar »), revenue on the dashboard, the works.
@@ -363,6 +364,32 @@ branch cannot fire on a never-published salon.)
 snapshot — `POST /admin/demo/snapshot` — before pasting credentials into the
 consoles.
 
+**Recorded 2026-10-11 — the demo salon lives in PRODUCTION** (`provider_1787778426683705`;
+the weekly reset ran there on 2026-10-07, staging held no demo activity and has
+since been deleted). The owner, signed in as the demo identity on the TestFlight
+build, renamed it **« Maison Nala »** and uploaded its logo, then recaptured
+the snapshot — production log: demo sign-in 10:29 UTC, upload sign + two
+`PATCH /providers/provider_1787778426683705` 10:29–10:30, `POST /admin/demo/snapshot`
+**200** at 10:37. Why a new name: « Salon Démo MyWeli » showed « Démo » in every
+App Store screenshot, and a MyWeli logo in the salon's circle would read as
+« MyWeli's salon » rather than « your salon, run with MyWeli ». « Maison Nala »
+was chosen by the owner from three candidates that web searches found unused by
+any salon in Côte d'Ivoire (eight checked; Ahou Beauté collides with the
+booking app Ahoufé, Kady/Kadi with five Ivorian beauty businesses, Adjoua and
+Bintou with *Aya de Yopougon*). Caveat recorded at the time: « Nala » evokes
+*The Lion King* — no animal in the logo for that reason. The logo is original,
+drawn for the demo (an ivory Didot « N » and « MAISON » in a ring on clay,
+`#96402A` / `#F5E9DA`, contrast 5.7:1), safe inside the app's circle crop:
+[assets/demo-salon/maison-nala-logo.png](assets/demo-salon/maison-nala-logo.png)
+(1024 × 1024, opaque — what was uploaded) and its
+[SVG source](assets/demo-salon/maison-nala-logo.svg) (live text: re-rendering
+needs macOS's Didot and Avenir Next). **If the demo identity is ever lost**
+(the deletion risk below), re-curate under this name with this file, then
+recapture.
+
+> ~~**Unrecorded as of 2026-09-24**~~ — *answered 2026-10-11, see the record
+> above.* The original note, kept for the history:
+>
 > **Unrecorded as of 2026-09-24 — check before anything else happens.** The
 > roadmap shows the owner curated « Salon Démo MyWeli » around 2026-08-26/27
 > (`2026-08-27-status-bar-and-lightbox`, `2026-08-27-gallery-set-cover`) and
