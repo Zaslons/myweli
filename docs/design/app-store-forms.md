@@ -281,7 +281,7 @@ dossier proposait :
 | Sous-titre | vide | `Agenda, clients, réservations` (§4) | à remplir |
 | Droits sur le contenu | non renseignés | « Oui … et j'ai les droits nécessaires » (§9) | à remplir |
 | Version | iOS **1.0**, « Prepare for Submission » | 1.0.0 (le binaire, §11.3) | qu'App Store Connect rattache un build `1.0.0` à une version nommée « 1.0 » : UNVERIFIED — le vérifier en choisissant le build (§13) |
-| TestFlight | aucun build | — | §11.5 — *2026-10-12 : builds 551, 555 et **560** envoyés, traités `VALID` ; le groupe interne ne reçoit que le **560** (il remplace le 555)*. *2026-10-10 : builds 551 et 555 envoyés, traités `VALID` ; le groupe interne ne reçoit que le 555 (§11.6)* |
+| TestFlight | aucun build | — | §11.5 — *2026-10-12, soir : build **565** envoyé, traité `VALID` ; le groupe interne ne reçoit que le **565** (il remplace le 560)*. *2026-10-12 : builds 551, 555 et **560** envoyés, traités `VALID` ; le groupe interne ne reçoit que le **560** (il remplace le 555)*. *2026-10-10 : builds 551 et 555 envoyés, traités `VALID` ; le groupe interne ne reçoit que le 555 (§11.6)* |
 
 L'app consommateur « MyWeli » a aussi sa fiche (iOS 1.0, « Prepare for
 Submission ») ; elle aura son propre dossier.
@@ -902,7 +902,25 @@ entitlements de production, l'asset `myweli_loader_mixed_pro.json` présent,
 (une occurrence dans `App.framework/App`, comparée sans l'afficher), la clé
 web n'y est pas, un témoin inventé non plus. Validé, envoyé, traité `VALID`
 (build `d7279396-17f1-402b-b76c-566cd3a7c4fa`), archive rangée en
-`Runner-pro-560.xcarchive`. **C'est le build à soumettre.**
+`Runner-pro-560.xcarchive`. ~~C'est le build à soumettre~~ — remplacé par le
+565 (ci-dessous) après les retours du propriétaire sur l'iPhone : l'animation
+se fermait avant la fin, et la page salon n'avait pas de carte.
+
+**Build 565** (2026-10-12 au soir, depuis `main` à `75503243`, après #569 et
+#570) : l'animation d'ouverture joue **un tour complet du logo** puis marque
+une pause avant l'app (#569), la page salon montre **une carte de
+l'adresse** dans « Contact » et « Voir sur la carte » remarche (#570), les
+crédits de la carte du profil Pro s'ouvrent en feuille, hors du bouton « Me
+localiser ». IPA relue au §11.3 : 1.0.0 (565), `com.myweli.pro`, iPhone seul,
+`fr`, les textes de position dont « Always », `ITSAppUsesNonExemptEncryption`
+faux, entitlements de production (`aps-environment` production,
+`get-task-allow` faux, `beta-reports-active` vrai), l'asset
+`myweli_loader_mixed_pro.json` présent, 35 manifestes de confidentialité ; la
+clé d'app CARTO dans le binaire (une occurrence, comparée sans l'afficher), la
+clé web absente, un témoin absent. `altool --validate-app` réussi, envoyé
+(delivery `10b428cf-76e5-4ccd-a805-277e54bb802f`), traité `VALID`, état bêta
+`READY_FOR_BETA_TESTING` ; archive rangée en `Runner-pro-565.xcarchive`.
+**C'est le build à soumettre.**
 
 Syntaxe relue dans l'aide de l'`altool` local (version 27.0.5) :
 `--upload-package` est la forme de ses exemples ; `--upload-app -f` existe
@@ -929,7 +947,13 @@ build (555), un testeur. *2026-10-12 :* le **560** remplace le 555 dans le
 groupe (relu : un seul build, 560), avec son « What to Test » en français —
 la liste ci-dessous plus les quatre corrections du 560 (animation, rester
 connecté après 15 min, carte, couverture Maison Nala, lien de
-notification).
+notification). *2026-10-12, soir :* le **565** remplace le 560 (relu : un
+seul build, 565). Son « What to Test » fr-FR existait déjà à la création du
+build — un `POST` aurait répondu 409 —, il a donc été modifié par `PATCH` :
+le tour complet du logo, la carte de l'aperçu et le choix d'apps de cartes,
+la carte du profil et ses crédits, rester connecté, la connexion démo, le
+compte neuf Apple. Les quatre cases ci-dessous, avant « Faire pivoter »,
+reprennent ce qui est propre au 565.
 
 - [ ] **Connexion démo** : `revue@myweli.test` + le code, exactement comme les
       notes du §8 le décrivent — c'est aussi le test « le code n'a pas expiré ».
@@ -992,6 +1016,18 @@ notification).
       offerts », ni bouton « Aide & Support »
       ([pro-companion-path.md](pro-companion-path.md) §2.2 ; l'état « Pro »
       tient à la capture et à la remise à zéro démo, spec §3.3).
+- [ ] **Ouverture** (Pro, appli fermée) : « MyWeli Pro », le logo, puis
+      **un tour complet** du logo et une courte pause avant l'app — rien ne
+      se coupe en route (#569).
+- [ ] **Carte de l'aperçu** : Profil → « Configurer mon profil » → « Aperçu
+      de ma page » → « Contact » : une carte avec les rues et le repère du
+      salon ; la toucher ouvre le choix d'apps de cartes (#570).
+- [ ] **Carte du profil** : Profil → « Profil du salon » : la carte affiche
+      les rues ; le « i » ouvre les crédits en feuille, pleine largeur, et
+      n'est pas caché par « Me localiser ».
+- [ ] **Rester connecté** : fermer l'app plus de 15 min, la rouvrir → toujours
+      connecté ; le journal de production montre alors un
+      `auth_refresh … outcome=rotated` (ou `grace`), pas de `reused`.
 - [ ] Faire pivoter le téléphone : le paysage est encore permis (§14) —
       noter ce qui casse.
 
@@ -1027,6 +1063,12 @@ on renvoie. Rien n'est soumis sur un build non vérifié.
    `GET /api/0/projects/myweli/myweli-app/files/dsyms/` liste les nouveaux
    debug IDs (la note du script ne compte que les entrées Android). Ne pas
    bloquer TestFlight sur cette étape.
+   *Build 565, 2026-10-12 :* symboles Dart (2 fichiers manquants envoyés) et
+   dSYM natifs (2 envoyés) ; relus dans la liste du serveur : `Runner`
+   (`691b934c…`), `App` (`0c7143a3-47bf-01e0…`) et le paquet source Dart.
+   Attention : `?query=<debug ID>` sur cette route répond une liste **vide**
+   même pour un fichier présent — lire la liste (`?per_page=…`), pas le
+   filtre.
    *Build 560, 2026-10-12 :* symboles Dart et dSYM natifs envoyés, `Runner`
    (`a00e3585…`) relu côté serveur.
    *Build 555, 2026-10-10 :* les symboles Dart étaient déjà sur le serveur
@@ -1099,12 +1141,13 @@ numéros).*
        *Fait le 2026-10-09 : `SRP86N339X`, équipe, App Manager.*
 11. [x] **Build** `./tool/release_build.sh ios pro` depuis `main` ; ranger
        l'archive ; **vérifier l'IPA** (§11.3). *Build 555, 2026-10-10 ;
-       archive rangée en `Runner-pro-555.xcarchive`.*
-12. [x] **Valider, envoyer**, attendre le traitement (§11.5). *555 `VALID` ; **560 `VALID`** (2026-10-12), le build à soumettre.*
+       archive rangée en `Runner-pro-555.xcarchive`. Puis 560 et **565**
+       (2026-10-12), archive `Runner-pro-565.xcarchive`.*
+12. [x] **Valider, envoyer**, attendre le traitement (§11.5). *555 `VALID` ; 560 `VALID` ; **565 `VALID`** (2026-10-12), le build à soumettre.*
 13. [ ] **TestFlight interne** et toutes les cases du §11.6. *Groupe et
        invitation faits le 2026-10-10 ; les vérifications sur l'appareil
        restent au propriétaire.*
-14. [x] **Symboles Sentry** (§12.2). *Dart et natifs, builds 555 et 560.*
+14. [x] **Symboles Sentry** (§12.2). *Dart et natifs, builds 555, 560 et 565.*
 15. [ ] **Captures** 6,9 pouces sur le salon démo (§10).
 16. [ ] **Remplir App Store Connect** : informations sur l'app (§3, §5, §6,
        §9), tarifs et disponibilité — Côte d'Ivoire seule, Mac et Vision Pro
