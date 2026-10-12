@@ -243,7 +243,15 @@ void main() {
         ),
       );
       // Tiles, pin and the attribution button are not read one by one.
-      expect(find.bySemanticsLabel('Attributions'), findsNothing);
+      // An IconButton's name is its TOOLTIP, not a label — so that is what
+      // is searched; « Itinéraire », a tooltip outside the map, proves the
+      // search can find one (a by-label search here passed with the
+      // exclusion removed).
+      SemanticsFinder withTooltip(String t) =>
+          find.semantics.byPredicate((n) => n.tooltip == t);
+      expect(withTooltip('Itinéraire'), findsOne);
+      expect(withTooltip('Attributions'), findsNothing);
+      expect(withTooltip('flutter_map'), findsNothing);
 
       // The screen reader's tap goes where a finger's does.
       tester.semantics.tap(
