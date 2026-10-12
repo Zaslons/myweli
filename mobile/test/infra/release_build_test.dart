@@ -194,6 +194,185 @@ void main() {
     });
   });
 
+  group('the maps get their basemap key (docs/design/map-basemap-key.md)', () {
+    /// **Builds up to 555 draw « API KEY REQUIRED » on every map.** Since
+    /// 2026-09-25 CARTO serves no raster tile without a usable key, and the
+    /// key is a `String.fromEnvironment` that defaults to empty — so a build
+    /// missing the define does not fail, warn or crash. It ships, and every
+    /// map is a watermark. This script is the only place that can refuse.
+
+    test('it reads CARTO_BASEMAPS_KEY from Secret Manager', () {
+      expect(
+        code,
+        contains('--secret=CARTO_BASEMAPS_KEY'),
+        reason: 'the key must come from Secret Manager, never be typed',
+      );
+    });
+
+    test('and refuses to build when it is empty', () {
+      final at = code.indexOf(r'-z "$CARTO_KEY"');
+      expect(at, isNonNegative, reason: 'no emptiness check on the key');
+      final end = RegExp(
+        r'^\s*fi\s*$',
+        multiLine: true,
+      ).allMatches(code).firstWhere((m) => m.start > at).start;
+      final branch = code.substring(at, end);
+      expect(
+        branch,
+        contains('exit 1'),
+        reason: 'an empty key must stop the build, not be reported and ignored',
+      );
+    });
+
+    test('and refuses a key with whitespace in it', () {
+      // A key pasted with a stray space or line ends up in the URL as `%20` /
+      // `%0A` — CARTO treats a damaged key as no key: the watermark again.
+      // (`$(…)` strips trailing newlines; anything else survives into it.)
+      final at = code.indexOf(r'"$CARTO_KEY" =~ [[:space:]]');
+      expect(at, isNonNegative, reason: 'no whitespace check on the key');
+      final end = RegExp(
+        r'^\s*fi\s*$',
+        multiLine: true,
+      ).allMatches(code).firstWhere((m) => m.start > at).start;
+      expect(
+        code.substring(at, end),
+        contains('exit 1'),
+        reason:
+            'a damaged key must stop the build, not be reported and ignored',
+      );
+      final build = code.indexOf('flutter build');
+      expect(build, isNonNegative);
+      expect(at, lessThan(build), reason: 'refuse before anything compiles');
+    });
+
+    group('and refuses a key not shaped like one — run for real', () {
+      // Non-empty and blank-free still lets a placeholder through (`TODO`, a
+      // truncated paste), and CARTO answers a key it does not know with the
+      // watermark: every map « API KEY REQUIRED » in a build that looked
+      // fine. So the script checks the SHAPE — letters, digits, `_`, `-`, at
+      // least 20 — never the value, and never prints it.
+      //
+      // Executed, not grepped: `gcloud` and `node` are stubbed on PATH, so the
+      // script runs its real checks and stops at the first thing it cannot
+      // fake. A refused key exits 1 before the Google sign-in check; an
+      // accepted one reaches it (the stub `node` exits 42) — still before any
+      // `flutter build`.
+      late Directory stubs;
+
+      setUpAll(() {
+        stubs = Directory.systemTemp.createTempSync('release-build-stubs-');
+        File('${stubs.path}/gcloud').writeAsStringSync(r'''#!/bin/sh
+case "$*" in
+  *--secret=MOBILE_SENTRY_DSN*) echo 'https://abc123@o1.ingest.de.sentry.io/2' ;;
+  *--secret=SENTRY_DSN*) echo 'https://def456@o1.ingest.de.sentry.io/3' ;;
+  *--secret=CARTO_BASEMAPS_KEY*) printf '%s\n' "$STUB_CARTO_KEY" ;;
+  *) exit 99 ;;
+esac
+''');
+        File(
+          '${stubs.path}/node',
+        ).writeAsStringSync('#!/bin/sh\necho STUB_NODE_REACHED\nexit 42\n');
+        Process.runSync('chmod', [
+          '+x',
+          '${stubs.path}/gcloud',
+          '${stubs.path}/node',
+        ]);
+      });
+
+      tearDownAll(() => stubs.deleteSync(recursive: true));
+
+      ProcessResult build(String key) => Process.runSync(
+        'bash',
+        ['../tool/release_build.sh', 'ios', 'consumer'],
+        environment: {
+          'PATH': '${stubs.path}:${Platform.environment['PATH']}',
+          'STUB_CARTO_KEY': key,
+        },
+      );
+
+      final bad = {
+        'a placeholder': 'TODO',
+        'another placeholder': 'changeme',
+        'one character short': 'a' * 19,
+        'a dot': '${'a' * 24}.',
+        'base64 padding': '${'A' * 22}==',
+        'a slash': '${'k' * 12}/${'k' * 12}',
+        'a plus': '${'k' * 12}+${'k' * 12}',
+      };
+      bad.forEach((what, key) {
+        test('refuses $what, and does not print it', () {
+          final r = build(key);
+          final out = '${r.stdout}${r.stderr}';
+          expect(r.exitCode, 1, reason: out);
+          expect(out, contains('CARTO_BASEMAPS_KEY'));
+          expect(
+            out,
+            isNot(contains('STUB_NODE_REACHED')),
+            reason: 'refused only after the next step started',
+          );
+          expect(out, isNot(contains(key)), reason: 'the key was printed');
+        });
+      });
+
+      test('accepts a well-shaped key and goes on — without printing it', () {
+        const good = 'aB3_-zZ9-q_Wk8yLmN0pQrStU';
+        final r = build(good);
+        final out = '${r.stdout}${r.stderr}';
+        expect(out, contains('STUB_NODE_REACHED'), reason: out);
+        expect(r.exitCode, 42, reason: out);
+        expect(out, isNot(contains(good)));
+      });
+    });
+
+    test('it passes the key as a define, from the variable', () {
+      expect(
+        RegExp(
+          r'--dart-define=CARTO_BASEMAPS_KEY="?\$CARTO_KEY',
+        ).hasMatch(code),
+        isTrue,
+        reason:
+            'without the define the app builds keyless and every map shows '
+            'the watermark',
+      );
+    });
+
+    test('the define is the very name AppConfig reads', () {
+      // A rename on either side compiles, builds and ships keyless — the
+      // define is passed, nothing reads it.
+      final config = File('lib/core/config/app_config.dart').readAsStringSync();
+      final read = RegExp(
+        r"cartoBasemapsKey\s*=\s*String\.fromEnvironment\(\s*'(\w+)'",
+      ).firstMatch(config)?.group(1);
+      final passed = RegExp(
+        r'--dart-define=(\w+)="?\$CARTO_KEY',
+      ).firstMatch(code)?.group(1);
+      expect(read, isNotNull, reason: 'AppConfig no longer reads a define');
+      expect(passed, read);
+    });
+
+    test('the refusal comes before anything compiles', () {
+      // A refusal after `flutter build` would leave a keyless artifact on
+      // disk, ready to be uploaded by hand.
+      final refusal = code.indexOf(r'-z "$CARTO_KEY"');
+      expect(refusal, isNonNegative, reason: 'no emptiness check on the key');
+      for (final build in ['flutter build ipa', 'flutter build appbundle']) {
+        final at = code.indexOf(build);
+        expect(at, isNonNegative, reason: '$build is gone from the script');
+        expect(refusal, lessThan(at), reason: 'refuse before $build');
+      }
+    });
+
+    test('the key never reaches a progress line', () {
+      // Uses the RAW script: `code` has the echo lines stripped.
+      final leaks = script
+          .split('\n')
+          .where((l) => l.trimLeft().startsWith('echo '))
+          .where((l) => l.contains(r'$CARTO_KEY') || l.contains(r'${CARTO_KEY'))
+          .toList();
+      expect(leaks, isEmpty);
+    });
+  });
+
   group('the premise: the two entry points are different apps', () {
     /// If these ever converged, `--target` would stop mattering and the test
     /// above would be pinning a flag with no consequence. Stating the reason

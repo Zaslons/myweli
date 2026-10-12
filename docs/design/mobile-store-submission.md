@@ -134,7 +134,9 @@ nothing here should be handed credentials.
    it, refuses to build if it is missing/malformed/the backend's, selects the
    right Dart entry point, and adds the obfuscation + split-debug-info the
    ROADMAP requires (without which every Sentry stack trace is unreadable
-   symbols).
+   symbols). It reads **`CARTO_BASEMAPS_KEY`** the same way and refuses to
+   build without it — a keyless build shows « API KEY REQUIRED » on every map
+   ([map-basemap-key.md](map-basemap-key.md); the key must exist first, §9).
 
    **Then upload those symbols to Sentry** — the one step the script prints
    but does not run (first done 2026-08-27 for build 530; the exact working
@@ -167,14 +169,20 @@ nothing here should be handed credentials.
    > them.
 
    The raw command, for reference — a placeholder in a runbook is a step that
-   gets skipped under pressure, and the failure is silent:
+   gets skipped under pressure, and the failure is silent. **Both values are
+   required**: without the DSN the build reports nothing, without
+   `CARTO_BASEMAPS_KEY` every map shows « API KEY REQUIRED » — and neither
+   fails the build. The key is the **app** key, from Secret Manager
+   (`gcloud secrets versions access latest --secret=CARTO_BASEMAPS_KEY
+   --project=myweli`), never the web one:
 
    ```sh
    flutter build ipa --flavor consumer --release \
      --dart-define=USE_API_BACKEND=true \
      --dart-define=API_BASE_URL=https://api.myweli.com \
      --dart-define=SENTRY_DSN=<the myweli-app DSN> \
-     --dart-define=SENTRY_ENV=production
+     --dart-define=SENTRY_ENV=production \
+     --dart-define=CARTO_BASEMAPS_KEY=<the app key from Secret Manager>
    ```
 
    Then upload — **the exact ordered commands (verify the IPA, `xcrun altool

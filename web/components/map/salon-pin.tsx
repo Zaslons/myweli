@@ -1,18 +1,26 @@
 'use client';
 
 import { Icon, type IconName } from '../Icon';
+import { cartoStyleUrl, cartoTransformRequest } from '../../lib/basemap';
 import { markerColor } from '../../lib/discovery/map';
 
 /// Shared MyWeli map identity (docs/design/web-discovery-map.md §3) — used by
 /// the /recherche results map AND the salon page's Localisation map so every
 /// map on the site looks the same.
 
-/// The CARTO Positron gl style — the VECTOR twin of the app MapScreen's
-/// `light_all` raster basemap (keyless/free; OpenMapTiles schema — the
-/// open-source version of the stack Planity buys from Woosmap).
-export const MAP_STYLE =
-  'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json';
+/// The CARTO Positron GL style every web map uses — keyed with the WEB key
+/// when `NEXT_PUBLIC_CARTO_BASEMAPS_KEY` is set (docs/design/map-basemap-key.md).
+/// The env read must stay a literal `process.env.NEXT_PUBLIC_…` access: that is
+/// what Next inlines into the client bundle at build time.
+export const MAP_STYLE = cartoStyleUrl(
+  process.env.NEXT_PUBLIC_CARTO_BASEMAPS_KEY,
+);
 
+/// …and every tile, sprite and glyph request the style then triggers
+/// (`cartoTransformRequest`). Handed to each `<Map>` next to MAP_STYLE.
+export const MAP_TRANSFORM_REQUEST = cartoTransformRequest(
+  process.env.NEXT_PUBLIC_CARTO_BASEMAPS_KEY,
+);
 
 /// maplibre stamps `role="button"` + « Map marker » on its wrapper div at
 /// addTo() — but only when no role exists. Our child IS the real control

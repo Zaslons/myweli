@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
-# Build a store artifact with the observability defines, WITHOUT anyone ever
-# handling the DSN.
+# Build a store artifact with the observability defines and the basemap key,
+# WITHOUT anyone ever handling the DSN or the key.
 #
 #   ./tool/release_build.sh ios consumer
 #   ./tool/release_build.sh android pro
@@ -23,6 +23,11 @@
 # The other two defines are already fatal at runtime (`build_config_guard.dart`
 # refuses a release build without them). Sentry deliberately is not — so this
 # script is where that gap is closed, at the only moment it can be.
+#
+# The CARTO basemap key (`CARTO_BASEMAPS_KEY`, the APP key) is the same gap
+# again: without it nothing fails, every map just shows « API KEY REQUIRED ».
+# Read from Secret Manager the same way, refused when empty, blank-bearing or
+# not shaped like a key, and never printed (docs/design/map-basemap-key.md §5.4).
 set -euo pipefail
 
 PLATFORM="${1:-}"
@@ -54,6 +59,36 @@ fi
 if [[ "$DSN" == "$(gcloud secrets versions access latest --secret=SENTRY_DSN --project="$PROJECT" 2>/dev/null || true)" ]]; then
   echo "::error:: MOBILE_SENTRY_DSN is the BACKEND's DSN. The app needs its own" >&2
   echo "          project, or phone crashes land in the API's release health." >&2
+  exit 1
+fi
+
+# **The basemap key, read the same way and refused the same way.** Since
+# 2026-09-25 CARTO serves no raster tile without a usable key: every map in a
+# keyless build shows « API KEY REQUIRED » instead of streets — which is
+# exactly what builds up to 555 ship. `AppConfig.cartoBasemapsKey` defaults to
+# empty so debug runs and CI show that watermark on purpose; a STORE build
+# without the key would be the defect again, so it cannot be made from here.
+# It is the APP key (restricted to our bundle ids / packages) — the web has its
+# own. Public once shipped (it is in the binary); kept out of git and shell
+# history all the same. docs/design/map-basemap-key.md §9.
+echo "→ reading CARTO_BASEMAPS_KEY from Secret Manager (never printed)…"
+CARTO_KEY="$(gcloud secrets versions access latest --secret=CARTO_BASEMAPS_KEY --project="$PROJECT")"
+if [[ -z "$CARTO_KEY" ]]; then
+  echo "::error:: CARTO_BASEMAPS_KEY is empty or unreadable. Refusing to build a" >&2
+  echo "          release whose maps would show « API KEY REQUIRED »." >&2
+  exit 1
+fi
+if [[ "$CARTO_KEY" =~ [[:space:]] ]]; then
+  echo "::error:: CARTO_BASEMAPS_KEY contains whitespace — a paste went wrong." >&2
+  exit 1
+fi
+# Shape, not value — as for the DSN. Non-empty and blank-free still lets a
+# placeholder through (`TODO`, a truncated paste), and CARTO answers a key it
+# does not know with the watermark, exactly as if there were none. A CARTO key
+# is letters, digits, `_` and `-`, and long; the message never echoes it.
+if [[ ! "$CARTO_KEY" =~ ^[A-Za-z0-9_-]{20,}$ ]]; then
+  echo "::error:: CARTO_BASEMAPS_KEY does not look like a CARTO key (letters," >&2
+  echo "          digits, _ or -, at least 20 of them). Value not shown." >&2
   exit 1
 fi
 
@@ -126,6 +161,7 @@ COMMON=(
   --dart-define=API_BASE_URL=https://api.myweli.com
   --dart-define=SENTRY_DSN="$DSN"
   --dart-define=SENTRY_ENV=production
+  --dart-define=CARTO_BASEMAPS_KEY="$CARTO_KEY"
   --build-number "$BUILD_NUMBER"
   # Release builds are obfuscated (ROADMAP Part 5). Without the split debug
   # info, every Sentry stack trace is unreadable symbols — the report arrives
@@ -135,7 +171,7 @@ COMMON=(
 )
 
 if [[ "$PLATFORM" == ios ]]; then
-  echo "→ flutter build ipa --flavor $FLAVOUR --target $ENTRY --build-number $BUILD_NUMBER (DSN injected, not shown)"
+  echo "→ flutter build ipa --flavor $FLAVOUR --target $ENTRY --build-number $BUILD_NUMBER (DSN + basemap key injected, not shown)"
   # Everything this run exports is newer than this marker (see below).
   BUILD_MARK="$(mktemp)"
   flutter build ipa "${COMMON[@]}"
@@ -167,7 +203,7 @@ if [[ "$PLATFORM" == ios ]]; then
     mv "$IPA_DIR/DistributionSummary.plist" "$IPA_DIR/DistributionSummary-$FLAVOUR.plist"
   echo "→ IPA: mobile/$IPA_DIR/MyWeli-$FLAVOUR.ipa"
 else
-  echo "→ flutter build appbundle --flavor $FLAVOUR --target $ENTRY --build-number $BUILD_NUMBER (DSN injected, not shown)"
+  echo "→ flutter build appbundle --flavor $FLAVOUR --target $ENTRY --build-number $BUILD_NUMBER (DSN + basemap key injected, not shown)"
   flutter build appbundle "${COMMON[@]}"
 fi
 

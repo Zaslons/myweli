@@ -231,6 +231,58 @@ jobs:
       - name: Every pinned version is enabled and current
         run: bash infra/gcp/98-verify-secret-pins.sh
 
+  basemap:
+    name: CARTO — do the web maps still load without a key?
+    runs-on: ubuntu-latest
+    steps:
+      # **A decision with an expiry date nobody can see from the repository.**
+      #
+      # Since 2026-09-25 CARTO refuses keyless RASTER tiles, so the apps carry
+      # a key. The web draws VECTOR tiles, which CARTO still serves keyless —
+      # and the web runs keyless ON PURPOSE: the free tier (1 M requests a
+      # month) is shared by every key, every salon page renders a map, and a
+      # keyed web would spend that quota on tiles that cost nothing today
+      # (docs/design/map-basemap-key.md §7). The code is ready: the day
+      # NEXT_PUBLIC_CARTO_BASEMAPS_KEY is set in Vercel, every CARTO request
+      # the web makes carries it.
+      #
+      # The day CARTO extends its requirement to vector, every web map goes
+      # blank or watermarked with the whole suite green — nothing in this repo
+      # can see CARTO change its mind. So this asks, daily, exactly what a
+      # myweli.com visitor's browser asks: one vector tile, no key.
+      #
+      # Red means set the variable (§9 step 3). Not a gate: CARTO changes on
+      # its own schedule, not on a merge. web/tests/basemap.test.ts runs this
+      # very script against a local server, both ways, and holds it here.
+      - name: A keyless CARTO vector tile is still a 200 protobuf
+        env:
+          # Abidjan at z12 — a tile with data in it, where our maps open.
+          TILE: https://tiles-a.basemaps.cartocdn.com/vectortiles/carto.streets/v1/12/2002/1987.mvt
+        run: |
+          set -uo pipefail
+          meta=$(curl -sS -o tile.mvt -D headers.txt --max-time 30 \
+                   --retry 3 --retry-delay 5 \
+                   -w '%{http_code} %{size_download} %{content_type}' "$TILE") \
+            || meta="000 0 unreachable"
+          read -r code size type <<<"$meta"
+          etag=$(tr -d '\r' 2>/dev/null < headers.txt | grep -i '^etag:' | tail -n 1)
+          if [ "$code" = 000 ]; then
+            # The network, not CARTO: this says nothing about keys. Fail
+            # rather than assume — a check that measured nothing is not green.
+            echo "::error::could not reach CARTO at all — nothing measured; re-run the job."
+            exit 1
+          fi
+          # A 200 alone proves nothing: CARTO's raster refusal IS a 200, a
+          # watermark tile with a `wm-` etag (spec §3.1).
+          if [ "$code" = 200 ] && [[ "${type:-}" == application/x-protobuf* ]] \
+             && [ "$size" -gt 0 ] && [[ "${etag:-}" != *wm-* ]]; then
+            echo "still free: 200 ${type}, ${size} bytes, ${etag:-no etag}"
+            exit 0
+          fi
+          echo "::error::a KEYLESS CARTO vector tile answered ${code} ${type:-no type} (${size} bytes; ${etag:-no etag}) — CARTO now wants a key on vector, and the web maps run keyless."
+          echo "::error::Set NEXT_PUBLIC_CARTO_BASEMAPS_KEY in Vercel, Production only, to Secret Manager CARTO_BASEMAPS_WEB_KEY, then redeploy — docs/design/map-basemap-key.md §9 step 3."
+          exit 1
+
   attestation:
     name: The registration claim — has anyone confirmed it lately?
     runs-on: ubuntu-latest
@@ -268,7 +320,7 @@ jobs:
   # failures is one thread and not seven.
   report:
     name: Say so, if any check failed
-    needs: [cwv, privacy, legal, retention, attestation, secretpins]
+    needs: [cwv, privacy, legal, retention, attestation, secretpins, basemap]
     if: failure()
     runs-on: ubuntu-latest
     steps:
@@ -287,6 +339,7 @@ jobs:
           RETENTION: ${{ needs.retention.result }}
           ATTESTATION: ${{ needs.attestation.result }}
           SECRETPINS: ${{ needs.secretpins.result }}
+          BASEMAP: ${{ needs.basemap.result }}
         run: |
           set -euo pipefail
           TITLE='Production checks are failing'
@@ -303,7 +356,7 @@ jobs:
           BODY=$(printf '%s\n' \
             'The scheduled real-domain checks failed.' \
             '' \
-            "CWV: ${CWV} · privacy: ${PRIVACY} · legal: ${LEGAL} · retention: ${RETENTION} · attestation: ${ATTESTATION} · secret pins: ${SECRETPINS}" \
+            "CWV: ${CWV} · privacy: ${PRIVACY} · legal: ${LEGAL} · retention: ${RETENTION} · attestation: ${ATTESTATION} · secret pins: ${SECRETPINS} · basemap: ${BASEMAP}" \
             '' \
             "${RUN}" \
             '' \
@@ -331,7 +384,14 @@ jobs:
             'infra/legal/registration-manifest.json AND rewrite every surface it' \
             'lists — the merge gate stays red until both are done, by design, so' \
             'flipping the flag alone turns every open PR red. If it has not' \
-            'completed: move `attestedOn` to today, and that IS one line.')
+            'completed: move `attestedOn` to today, and that IS one line.' \
+            '' \
+            '**The basemap job asks CARTO, not myweli.com.** Red there means a' \
+            'KEYLESS CARTO vector tile is no longer served, and the web maps run' \
+            'keyless by decision (docs/design/map-basemap-key.md §7) — so they' \
+            'are blank or watermarked right now. Set NEXT_PUBLIC_CARTO_BASEMAPS_KEY' \
+            'in Vercel, Production only, to the value of Secret Manager' \
+            'CARTO_BASEMAPS_WEB_KEY, then redeploy (§9 step 3).')
 
           if [ -n "$NUM" ]; then
             STATE=$(gh issue view "$NUM" --json state --jq .state)

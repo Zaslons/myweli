@@ -2,7 +2,7 @@
 
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { Map, Marker, NavigationControl } from '@vis.gl/react-maplibre';
-import { MAP_STYLE, SalonPin } from '../map/salon-pin';
+import { MAP_STYLE, MAP_TRANSFORM_REQUEST, SalonPin } from '../map/salon-pin';
 
 /// The salon page's Localisation map (docs/design/web-m8-2-provider.md,
 /// upgraded with #201's renderer): the same MapLibre + Positron + salon-pin
@@ -23,6 +23,7 @@ export function SalonLocationMap({
     <Map
       initialViewState={{ longitude, latitude, zoom: 15 }}
       mapStyle={MAP_STYLE}
+      transformRequest={MAP_TRANSFORM_REQUEST}
       cooperativeGestures
       style={{ width: '100%', height: '100%' }}
     >
