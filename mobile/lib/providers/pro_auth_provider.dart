@@ -293,7 +293,19 @@ class ProAuthProvider extends ChangeNotifier {
     loadCurrentProvider();
   }
 
-  Future<void> loadCurrentProvider() async {
+  Future<void>? _loading;
+
+  /// Restores the stored session, then refreshes the membership live.
+  /// Concurrent callers share the load in flight: the constructor starts it
+  /// and the Pro splash awaits the same one — a second, parallel load would
+  /// fire duplicate authenticated requests at cold start, exactly when the
+  /// access token tends to be expired (docs/design/session-refresh.md).
+  Future<void> loadCurrentProvider() =>
+      _loading ??= _loadCurrentProvider().whenComplete(() {
+        _loading = null;
+      });
+
+  Future<void> _loadCurrentProvider() async {
     _isLoading = true;
     notifyListeners();
 
