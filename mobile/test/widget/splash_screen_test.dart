@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -27,11 +29,21 @@ void main() {
         path: '/home',
         builder: (_, _) => const Scaffold(body: Text('accueil')),
       ),
+      // What a cold-start notification tap opens (§11).
+      GoRoute(
+        path: '/booking',
+        builder: (_, _) => const Scaffold(body: Text('réservation')),
+      ),
     ],
   );
 
-  Future<void> pumpSplash(WidgetTester tester, {AssetBundle? bundle}) async {
-    Widget app = wrapApp(routerConfig: router());
+  /// Returns the router, for the tests that push over the splash.
+  Future<GoRouter> pumpSplash(
+    WidgetTester tester, {
+    AssetBundle? bundle,
+  }) async {
+    final routes = router();
+    Widget app = wrapApp(routerConfig: routes);
     if (bundle != null) app = DefaultAssetBundle(bundle: bundle, child: app);
     await tester.pumpWidget(app);
     // The composition is decoded off a real bundle read.
@@ -39,6 +51,7 @@ void main() {
       () => Future<void>.delayed(const Duration(milliseconds: 300)),
     );
     await pumpFirstFrame(tester);
+    return routes;
   }
 
   AnimationController controllerOf(WidgetTester tester) =>
@@ -122,6 +135,64 @@ void main() {
       reason: 'a wall-clock hold would have gone home on an unseen mark',
     );
     expect(frameOnScreen(tester), closeTo(timeline.endFrame, 0.01));
+
+    await tester.pump(rest + justUnder);
+    await land(tester);
+    expect(find.text('accueil'), findsOneWidget);
+  });
+
+  testWidgets('covered by a page, the pass freezes: no /home under it — '
+      'uncovered, the end frame, the rest, then /home', (tester) async {
+    // §2.2, §11 — measured, then pinned. A page pushed over the splash (the
+    // consumer's cold-start tap replays with a `push` while the first pass
+    // plays) puts it offstage, built under `TickerMode(enabled: false)`: its
+    // ticker is muted and the pass stops. With motion on, the splash does
+    // NOT `go` under the page — unlike reduced motion and the rest, which run
+    // on timers (§11). The follow-up starts from this, not from a reading.
+    final routes = await pumpSplash(tester);
+    final booking = find.text('réservation', skipOffstage: false);
+    AnimationController covered() =>
+        tester
+                .widget<LottieBuilder>(
+                  find.byType(LottieBuilder, skipOffstage: false),
+                )
+                .controller!
+            as AnimationController;
+
+    await tester.pump(const Duration(seconds: 1));
+    // Not awaited: a push completes on its pop.
+    unawaited(routes.push('/booking'));
+    // Frames, as a real screen draws them, through the page's transition.
+    for (var i = 0; i < 40; i++) {
+      await tester.pump(OpenTimeline.frame);
+    }
+    final frozenAt = covered().value;
+    expect(frozenAt, lessThan(1), reason: 'covered mid-pass');
+
+    // Frames keep coming for longer than the whole pass and its rest.
+    final longer = timeline.firstPass + rest + const Duration(seconds: 2);
+    for (var t = Duration.zero; t < longer; t += justUnder) {
+      await tester.pump(justUnder);
+    }
+    expect(
+      covered().value,
+      frozenAt,
+      reason: 'the covered splash ticked on — its ticker was not muted',
+    );
+    expect(
+      home,
+      findsNothing,
+      reason: 'the splash went /home under the page that covers it',
+    );
+    expect(booking, findsOneWidget);
+
+    // « Retour »: the first frame back draws where the pass would be by now —
+    // the end frame — and the finished mark rests before /home.
+    routes.pop();
+    await tester.pump();
+    await tester.pump();
+    expect(covered().value, 1, reason: 'the end frame, drawn on return');
+    expect(home, findsNothing, reason: 'resting on the finished mark');
 
     await tester.pump(rest + justUnder);
     await land(tester);

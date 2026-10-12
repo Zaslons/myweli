@@ -565,6 +565,155 @@ void main() {
       expect(find.text('accueil'), findsOneWidget);
     });
 
+    /// The flag turned OFF mid-pass (pro-open-animation.md §2.4): the time
+    /// spent on a still counts as played, so motion resumes where those frames
+    /// would have brought it and the pass ends when the hold would have. It
+    /// used to resume from the still's own frame: from the finished mark that
+    /// is the end frame — the spin cut off, `/home` up to 2.72 s early; from
+    /// the wordmark, a replay that moved the end by however far the clock was
+    /// from that frame. Nothing was asserting either.
+    group('turned OFF mid-pass — the boot keeps its length', () {
+      final timeline = OpenTimeline.consumer();
+      const margin = Duration(milliseconds: 100);
+      final home = find.text('accueil', skipOffstage: false);
+
+      /// The still's first frame — every time below is counted from here.
+      Future<void> pumpReducedSplash(WidgetTester tester) async {
+        final router = GoRouter(
+          initialLocation: '/',
+          routes: [
+            GoRoute(path: '/', builder: (_, _) => const SplashScreen()),
+            GoRoute(
+              path: '/home',
+              builder: (_, _) => const Scaffold(body: Text('accueil')),
+            ),
+          ],
+        );
+        await pumpWithReducedMotion(tester, const SizedBox.shrink());
+        await tester.pumpWidget(wrapApp(routerConfig: router));
+        await tester.runAsync(
+          () async => Future<void>.delayed(const Duration(milliseconds: 300)),
+        );
+        await pumpFirstFrame(tester);
+      }
+
+      AnimationController controllerOf(WidgetTester tester) =>
+          tester.widget<LottieBuilder>(find.byType(LottieBuilder)).controller!
+              as AnimationController;
+
+      double frameOnScreen(WidgetTester tester) =>
+          timeline.frameOf(controllerOf(tester).value);
+
+      /// Where motion would be [elapsed] after the first frame: the pass is
+      /// linear in time, 0 → 1 over the whole file.
+      double motionFrameAt(Duration elapsed) => timeline.frameOf(
+        elapsed.inMicroseconds / timeline.firstPass.inMicroseconds,
+      );
+
+      /// Clears the flag, and plays the frame whose build applies it plus one
+      /// more, so the ticker has drawn. Returns the time since the first frame.
+      Future<Duration> turnOff(WidgetTester tester, Duration held) async {
+        tester.platformDispatcher.accessibilityFeaturesTestValue =
+            const FakeAccessibilityFeatures();
+        await tester.pump();
+        await tester.pump(OpenTimeline.frame);
+        return held + OpenTimeline.frame;
+      }
+
+      /// From [elapsed] after the first frame: the end frame drawn when the
+      /// whole file has had its time, the rest, then `/home` — not before.
+      Future<void> expectTheSameGate(
+        WidgetTester tester,
+        Duration elapsed,
+      ) async {
+        await tester.pump(timeline.firstPass - elapsed - margin);
+        expect(home, findsNothing, reason: 'routed early: frames were skipped');
+        expect(
+          controllerOf(tester).isAnimating,
+          isTrue,
+          reason: 'the pass ended early: frames were skipped',
+        );
+
+        await tester.pump(margin + OpenTimeline.frame);
+        expect(
+          frameOnScreen(tester),
+          closeTo(timeline.endFrame, 0.01),
+          reason:
+              'the end frame is not drawn when the whole file has had its '
+              'time — the held frames were played again',
+        );
+        expect(controllerOf(tester).isAnimating, isFalse);
+
+        await tester.pump(OpenAnimationPlayer.rest - margin);
+        expect(home, findsNothing, reason: 'the finished mark is resting');
+        await tester.pump(margin * 2);
+        await tester.pump();
+        expect(find.text('accueil'), findsOneWidget);
+      }
+
+      testWidgets('on the finished mark: the rest of the spin plays', (
+        tester,
+      ) async {
+        await pumpReducedSplash(tester);
+        // A third of the way into the finished-mark hold.
+        final held =
+            timeline.intro + (timeline.firstPass - timeline.intro) ~/ 3;
+        await tester.pump(held);
+        expect(frameOnScreen(tester), closeTo(timeline.endFrame, 0.01));
+        expect(tester.binding.hasScheduledFrame, isFalse, reason: 'a still');
+
+        final elapsed = await turnOff(tester, held);
+        expect(
+          tester.binding.hasScheduledFrame,
+          isTrue,
+          reason: 'moving again — not left on the still',
+        );
+        expect(
+          frameOnScreen(tester),
+          allOf(
+            greaterThan(timeline.loopStartFrame),
+            lessThan(timeline.endFrame - 1),
+          ),
+          reason: 'the spin — the mark erasing — not the end frame',
+        );
+        expect(
+          frameOnScreen(tester),
+          closeTo(motionFrameAt(elapsed), 1),
+          reason: 'the time held counts as played: resumed where it would be',
+        );
+
+        await expectTheSameGate(tester, elapsed);
+      });
+
+      testWidgets('on the wordmark: resumed where the frames would be', (
+        tester,
+      ) async {
+        await pumpReducedSplash(tester);
+        // Past the wordmark's own frames, still inside the intro.
+        final (start, end) = timeline.wordmarkFrames;
+        final held = timeline.intro * 0.6;
+        expect(
+          motionFrameAt(held),
+          greaterThan(end + 2),
+          reason: 'the premise: motion would be past the wordmark by now',
+        );
+        await tester.pump(held);
+        expect(frameOnScreen(tester), inInclusiveRange(start, end));
+
+        final elapsed = await turnOff(tester, held);
+        expect(tester.binding.hasScheduledFrame, isTrue);
+        expect(
+          frameOnScreen(tester),
+          closeTo(motionFrameAt(elapsed), 1),
+          reason:
+              'replayed from the wordmark: the boot grows by the time held '
+              'past it',
+        );
+
+        await expectTheSameGate(tester, elapsed);
+      });
+    });
+
     testWidgets('the caption never overflows a box too small to hold it', (
       tester,
     ) async {

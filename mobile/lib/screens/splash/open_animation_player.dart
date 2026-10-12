@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:clock/clock.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
@@ -20,14 +21,25 @@ import 'package:lottie/lottie.dart';
 /// ticker frame), and the rest is counted from that frame. A wall-clock timer
 /// started beside the animation — what the Pro screen used to run — keeps
 /// going when frames do not: a slow first frame on a cold start, a janky
-/// low-end Android, an app sent to the background mid-splash. It then routes
-/// on a mark the user never saw drawn. The ticker cannot get ahead of what is
-/// on screen, because it is what is on screen.
+/// low-end Android, an app sent to the background mid-splash, a page pushed
+/// over the splash (the `Overlay` builds a covered route inside
+/// `TickerMode(enabled: false)`, which mutes this ticker). It then routes on a
+/// mark the user never saw drawn. The ticker cannot get ahead of what is on
+/// screen, because it is what is on screen: in all of those cases the pass
+/// FREEZES, and the first frame back draws where the wall clock has got to
+/// (a muted ticker keeps its start time) — the end frame, if the gap outlasted
+/// it — then the rest, then the route.
+///
+/// **Two clocks do not freeze**, because nothing is drawn while they run: the
+/// [rest] and reduced motion's holds are `Timer`s. A screen covered during
+/// either routes under the page that covers it (pro-open-animation.md §2.2,
+/// §11 — the consumer cold-start tap).
 ///
 /// Under reduced motion nothing ticks (the picture is a still, SYSTEM.md
 /// §9.1), so timers stand in for the frames — the first one started from the
 /// frame that first SHOWS the still, never from the decode. The boot is the
-/// same length either way: the still holds the frames motion would have played.
+/// same length either way: the still holds the frames motion would have played,
+/// and the flag flipped mid-pass, either way, keeps it (§2.4).
 class OpenAnimationPlayer {
   OpenAnimationPlayer({required TickerProvider vsync})
     : controller = AnimationController(
@@ -79,15 +91,25 @@ class OpenAnimationPlayer {
   Timer? _restTimer;
   bool _disposed = false;
 
+  /// Reduced motion: the stretch of the pass the still on screen stands for,
+  /// [_holdFrom] → [_holdUntil], and how long it has been on screen — null
+  /// while no hold runs (motion, a rest, the still not drawn yet).
+  double _holdFrom = 0;
+  double _holdUntil = 0;
+  Stopwatch? _held;
+
   /// Whether passes are held still rather than played.
   bool get reduceMotion => _reduceMotion;
 
-  /// Applies the OS flag — at once, mid-pass included.
+  /// Applies the OS flag — at once, mid-pass included. Either way the pass
+  /// ends when it would have: the boot keeps its length (§2.4).
   ///
   /// ON mid-pass: the picture freezes on the still for where the pass is, and
-  /// the frames it had left are held, so the boot keeps its length. OFF
-  /// mid-hold: the pass carries on as motion from the still on screen. During
-  /// a rest the picture is the finished mark in both modes — nothing changes.
+  /// the frames it had left are held. OFF mid-hold: the time already held
+  /// counts as played — motion resumes where those frames would have brought
+  /// it, not from the still's own frame (from the finished mark, that cut the
+  /// spin off and left up to 2.72 s early). During a rest the picture is the
+  /// finished mark in both modes — nothing changes.
   set reduceMotion(bool value) {
     if (value == _reduceMotion) return;
     _reduceMotion = value;
@@ -95,8 +117,23 @@ class OpenAnimationPlayer {
     if (value) {
       _hold(from: controller.value);
     } else {
-      _animate(from: controller.value);
+      _animate(from: _heldProgress());
     }
+  }
+
+  /// Where the pass would be had the hold under way been played: its start,
+  /// plus the share of its length already held.
+  double _heldProgress() {
+    final held = _held;
+    final span = _holdUntil - _holdFrom;
+    if (held == null || span <= 0) return _holdFrom;
+    final length = _framesToDuration(
+      _composition!,
+      span * _composition!.durationFrames,
+    );
+    if (length <= Duration.zero) return _holdFrom;
+    final share = held.elapsedMicroseconds / length.inMicroseconds;
+    return _holdFrom + span * clampDouble(share, 0, 1);
   }
 
   /// Plays one pass, [from] (a progress: 0 for the whole file, the `loop`
@@ -108,6 +145,10 @@ class OpenAnimationPlayer {
     final done = _done = Completer<void>();
     _playing = true;
     final start = clampDouble(from, 0, 1);
+    // Nothing held yet: a flag turned off before the first still is drawn
+    // starts the pass from its start.
+    _holdFrom = _holdUntil = start;
+    _held = null;
 
     if (!_reduceMotion) {
       // The ticker starts on the next frame — the first one that draws it.
@@ -132,6 +173,7 @@ class OpenAnimationPlayer {
     final composition = _composition!;
     final driver = ++_driver;
     _holdTimer?.cancel();
+    _held = null;
     controller.value = from;
     controller
         .animateTo(
@@ -160,6 +202,11 @@ class OpenAnimationPlayer {
     _holdTimer?.cancel();
     final introEnd = _introEnd(composition);
     final until = from < introEnd ? introEnd : 1.0;
+    _holdFrom = from;
+    _holdUntil = until;
+    // On the clock the hold's `Timer` runs on — the fake one under
+    // flutter_test, where a `Stopwatch` would read the real wall.
+    _held = clock.stopwatch()..start();
     final still = _stillAt(from);
     // Set only on change: an equal value would still notify, and repaint.
     if (controller.value != still) {
@@ -187,6 +234,7 @@ class OpenAnimationPlayer {
   void _endPass() {
     _playing = false;
     _holdTimer = null;
+    _held = null;
     _restTimer = Timer(rest, () {
       final done = _done;
       _done = null;
