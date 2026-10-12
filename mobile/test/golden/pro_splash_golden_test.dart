@@ -20,8 +20,10 @@ import '../support/pro_splash.dart';
 ///     — the shipped behaviour, not a frame this test picked — and the test
 ///     asserts it sits inside the asset's `wordmark` hold before
 ///     photographing it (past the intro that still becomes the end frame);
-///   · the **end frame** is the composition's last frame, where the intro's
-///     morph and every pass of the redraw loop come to rest.
+///   · the **end frame** is the composition's last frame — the finished mark
+///     the first pass and every spin come to rest on, and the frame the
+///     screen leaves on (§2.2). It is reached by playing the pass through,
+///     not by setting the controller: the shipped stop, photographed.
 ///
 /// The session never resolves here, so the splash stays up to be photographed.
 void main() {
@@ -30,7 +32,7 @@ void main() {
       await loadRealFonts();
       serviceLocator.authService = MockAuthService();
     });
-    final timeline = ProOpenTimeline.load();
+    final timeline = OpenTimeline.pro();
 
     Future<void> pumpProSplash(WidgetTester tester) async {
       goldenSurface(tester);
@@ -53,7 +55,7 @@ void main() {
       await tester.runAsync(
         () => Future<void>.delayed(const Duration(milliseconds: 300)),
       );
-      await tester.pump();
+      await pumpFirstFrame(tester);
     }
 
     AnimationController controllerOf(WidgetTester tester) =>
@@ -89,18 +91,17 @@ void main() {
       tester,
     ) async {
       await pumpProSplash(tester);
-      // The intro plays out; the session is still pending, so the screen has
-      // handed over to the redraw loop. Stop it on the frame every pass ends on.
-      await tester.pump(timeline.intro);
-      final controller = controllerOf(tester)
-        ..stop()
-        ..value = 1;
-      await tester.pump();
+      // The whole first pass plays out and stops on its end frame, where the
+      // mark rests before the gate (the session never resolves here, so the
+      // screen is still up to be photographed).
+      await tester.pump(timeline.firstPass + OpenTimeline.frame);
+      final controller = controllerOf(tester);
 
       expect(
         timeline.frameOf(controller.value),
         closeTo(timeline.endFrame, 0.01),
       );
+      expect(controller.isAnimating, isFalse, reason: 'resting, not spinning');
 
       await expectGolden(tester, 'pro_splash_end');
     });
