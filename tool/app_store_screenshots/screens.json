@@ -1,0 +1,104 @@
+{
+  "_spec": "docs/design/pro-app-store-screenshots.md — upload order is the id order; masks are [x, y, w, h] in raw-capture pixels",
+  "screens": [
+    {
+      "id": "01",
+      "name": "agenda",
+      "raw": "pro-01-agenda.png",
+      "headline": [
+        "Votre journée,",
+        "heure par heure."
+      ],
+      "subline": [
+        "Acceptez, reprogrammez ou marquez",
+        "l’arrivée d’un geste."
+      ]
+    },
+    {
+      "id": "02",
+      "name": "accueil",
+      "raw": "pro-02-accueil.png",
+      "headline": [
+        "L’essentiel du salon,",
+        "dès l’ouverture."
+      ],
+      "subline": [
+        "Rendez-vous du jour, demandes",
+        "en attente et revenus."
+      ]
+    },
+    {
+      "id": "03",
+      "name": "reservation",
+      "raw": "pro-03-reservation.png",
+      "headline": [
+        "Ajoutez un rendez-vous",
+        "en quelques gestes."
+      ],
+      "subline": [
+        "Pris au téléphone ou au comptoir,",
+        "même pour un client sans numéro."
+      ]
+    },
+    {
+      "id": "04",
+      "name": "client",
+      "raw": "pro-04-client.png",
+      "headline": [
+        "Vos clients, connus",
+        "visite après visite."
+      ],
+      "subline": [
+        "Historique, notes et étiquettes,",
+        "à chaque réservation."
+      ],
+      "masks": []
+    },
+    {
+      "id": "05",
+      "name": "prestations",
+      "raw": "pro-05-prestations.png",
+      "headline": [
+        "Vos prestations,",
+        "vos prix en FCFA."
+      ],
+      "subline": [
+        "Chaque prestation, son prix",
+        "et sa durée, en un coup d’œil."
+      ]
+    },
+    {
+      "id": "06",
+      "name": "disponibilite",
+      "raw": "pro-06-disponibilite.png",
+      "headline": [
+        "Fixez vos horaires,",
+        "les créneaux suivent."
+      ],
+      "subline": [
+        "Pauses, jours bloqués et modèles",
+        "d’horaires prêts à l’emploi."
+      ]
+    },
+    {
+      "id": "07",
+      "name": "apercu",
+      "raw": "pro-07-apercu.png",
+      "headline": [
+        "Votre page, telle que",
+        "vos clients la verront."
+      ],
+      "subline": [
+        "Relisez-la avant de la mettre en ligne."
+      ],
+      "masks": [
+        [
+          395,
+          1736,
+          256,
+          46
+        ]
+      ]
+    }
+  ]
+}
