@@ -281,7 +281,7 @@ dossier proposait :
 | Sous-titre | vide | `Agenda, clients, réservations` (§4) | à remplir |
 | Droits sur le contenu | non renseignés | « Oui … et j'ai les droits nécessaires » (§9) | à remplir |
 | Version | iOS **1.0**, « Prepare for Submission » | 1.0.0 (le binaire, §11.3) | qu'App Store Connect rattache un build `1.0.0` à une version nommée « 1.0 » : UNVERIFIED — le vérifier en choisissant le build (§13) |
-| TestFlight | aucun build | — | §11.5 |
+| TestFlight | aucun build | — | §11.5 — *2026-10-10 : builds 551 et 555 envoyés, traités `VALID` ; le groupe interne ne reçoit que le 555 (§11.6)* |
 
 L'app consommateur « MyWeli » a aussi sa fiche (iOS 1.0, « Prepare for
 Submission ») ; elle aura son propre dossier.
@@ -774,6 +774,15 @@ cp -R build/ios/archive/Runner.xcarchive "build/ios/archive/Runner-pro-$N.xcarch
 build` (aujourd'hui `FLUTTER_TARGET=lib/main.dart`, `FLAVOR=consumer`), donc
 Xcode compilerait l'app **consommateur** sous l'identité Pro.
 
+**La signature passe par le compte Apple ouvert dans Xcode** (constaté le
+2026-10-10). L'export de l'IPA a échoué deux fois en « No Accounts » / « No
+signing certificate » : la session du compte dans Xcode avait expiré. La clé
+d'API du §11.4 ne remplace pas ce compte : avec son rôle **App Manager**,
+Apple refuse la signature gérée dans le cloud (« Cloud signing permission
+error ») — il faudrait le rôle Admin, et on ne l'élargit pas pour ça. Le
+remède : Xcode → Réglages → Comptes → le compte → « Download Manual
+Profiles », puis relancer le script.
+
 ### 11.3 Vérifier l'IPA — avant tout envoi
 
 ```bash
@@ -875,7 +884,13 @@ d'API créée le 2026-10-09 : équipe, rôle **App Manager**, nom
 `.p8` reste dans `~/.appstoreconnect/private_keys/`). Build 551 : validé,
 envoyé (delivery `b953e22a-f2c3-41be-8570-25ec41a62524`), traité `VALID` en
 deux minutes — puis l'e-mail **ITMS-90683** (texte « Always » manquant, voir
-§1) : corrigé, build suivant.
+§1) : corrigé, build suivant. **Build 555** (#559, le texte « Always » par
+saveur) : IPA relue au §11.3 (la clé
+`NSLocationAlwaysAndWhenInUseUsageDescription` présente), validé, envoyé le
+2026-10-10 (delivery `47f7ae26-c09c-430c-8c64-cba9af151085`), traité
+`VALID`, conformité export déjà répondue (`usesNonExemptEncryption` faux).
+**C'est le build à soumettre ; le 551 reste dans TestFlight, jamais
+soumis.**
 
 Syntaxe relue dans l'aide de l'`altool` local (version 27.0.5) :
 `--upload-package` est la forme de ses exemples ; `--upload-app -f` existe
@@ -890,6 +905,15 @@ export déjà répondue. Créer un **groupe interne** (jusqu'à 100 utilisateurs
 App Store Connect, **sans revue**), s'y ajouter, installer via l'app
 TestFlight sur un iPhone réglé en français. Les builds expirent au bout de 90
 jours. À vérifier sur l'appareil, contre la production :
+
+*Fait le 2026-10-10, par l'API App Store Connect (la clé du §11.4) :* groupe
+interne **« Équipe MyWeli »**, `hasAccessToAllBuilds` **faux** — il ne
+contient que le **build 555**, pour qu'on teste exactement ce qui sera
+soumis (chaque nouveau build s'y ajoute à la main, ou par l'API). Testeur :
+le propriétaire (l'utilisateur App Store Connect Account Holder), état
+`INVITED` à la création — l'invitation part par e-mail. Le « What to Test »
+du 555 (fr-FR) résume la liste ci-dessous. Relu après coup par l'API : un
+build (555), un testeur.
 
 - [ ] **Connexion démo** : `revue@myweli.test` + le code, exactement comme les
       notes du §8 le décrivent — c'est aussi le test « le code n'a pas expiré ».
@@ -967,8 +991,11 @@ on renvoie. Rien n'est soumis sur un build non vérifié.
    (prod rétablie), plateforme Pro iOS :
    `https://apps.apple.com/app/id6805272779` (Apple ID relu le 2026-10-05, §3).
 2. **Symboles Sentry** — sans eux, les plantages du premier build TestFlight
-   arrivent mais restent illisibles. `sentry-cli` n'est pas installé ici et
-   son jeton est dans Secret Manager :
+   arrivent mais restent illisibles. Le jeton est dans Secret Manager ;
+   `sentry-cli` est installé depuis le 2026-10-10 hors de Homebrew (dont le
+   téléchargement échouait) — `~/.local/sentry-cli/node_modules/.bin/sentry-cli`,
+   par `npm --prefix ~/.local/sentry-cli install @sentry/cli
+   @sentry/cli-darwin` :
 
    ```bash
    brew install getsentry/tools/sentry-cli
@@ -984,6 +1011,12 @@ on renvoie. Rien n'est soumis sur un build non vérifié.
    `GET /api/0/projects/myweli/myweli-app/files/dsyms/` liste les nouveaux
    debug IDs (la note du script ne compte que les entrées Android). Ne pas
    bloquer TestFlight sur cette étape.
+   *Build 555, 2026-10-10 :* les symboles Dart étaient déjà sur le serveur
+   (même identifiant que le 551, code Dart inchangé), mais **cinq des six
+   dSYM natifs manquaient** — envoyer seulement `build/symbols/pro` les
+   aurait laissés dehors. Les six sont maintenant listés par l'API ci-dessus
+   (`Runner` 75aa8dd8…, `App` 0c7143a3…, `Flutter` 4c4c4467…, vérifiés un
+   par un).
 3. **Consigner** ici et dans [LAUNCH.md](../LAUNCH.md) §6.2 : Apple ID de
    l'app, numéro de build envoyé, date, résultat des vérifications du §11.6.
 
@@ -1044,12 +1077,16 @@ numéros).*
        de professionnel UE déclaré, ses coordonnées vérifiées et le
        certificat de résidence téléversé — « In Review » chez Apple (§9.1),
        le prix, la disponibilité et l'exclusion Mac / Vision Pro (§9).
-10. [ ] **Clé d'API** App Store Connect (§11.4) — ou installer Transporter.
-11. [ ] **Build** `./tool/release_build.sh ios pro` depuis `main` ; ranger
-       l'archive ; **vérifier l'IPA** (§11.3).
-12. [ ] **Valider, envoyer**, attendre le traitement (§11.5).
-13. [ ] **TestFlight interne** et toutes les cases du §11.6.
-14. [ ] **Symboles Sentry** (§12.2).
+10. [x] **Clé d'API** App Store Connect (§11.4) — ou installer Transporter.
+       *Fait le 2026-10-09 : `SRP86N339X`, équipe, App Manager.*
+11. [x] **Build** `./tool/release_build.sh ios pro` depuis `main` ; ranger
+       l'archive ; **vérifier l'IPA** (§11.3). *Build 555, 2026-10-10 ;
+       archive rangée en `Runner-pro-555.xcarchive`.*
+12. [x] **Valider, envoyer**, attendre le traitement (§11.5). *555 `VALID`.*
+13. [ ] **TestFlight interne** et toutes les cases du §11.6. *Groupe et
+       invitation faits le 2026-10-10 ; les vérifications sur l'appareil
+       restent au propriétaire.*
+14. [x] **Symboles Sentry** (§12.2). *Dart et natifs, build 555.*
 15. [ ] **Captures** 6,9 pouces sur le salon démo (§10).
 16. [ ] **Remplir App Store Connect** : informations sur l'app (§3, §5, §6,
        §9), tarifs et disponibilité — Côte d'Ivoire seule, Mac et Vision Pro

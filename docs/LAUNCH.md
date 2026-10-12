@@ -1068,6 +1068,14 @@ checking rather than assuming:
 > two App Store Connect notices — EU trader
 > status (DSA) and the new social-media age-rating questions
 > (app-store-forms.md §9.1, §6).
+>
+> **2026-10-10 — the Pro build is in TestFlight.** Build 555 (1.0.0) is
+> uploaded and processed `VALID`, with the ITMS-90683 fix that Apple's email
+> on build 551 asked for (#559); 551 stays in TestFlight and is never
+> submitted. An internal group « Équipe MyWeli » holds only 555, and the owner
+> is invited. Dart and native symbols for 555 are in Sentry. Still open: the
+> device checks of app-store-forms.md §11.6, screenshots, the App Store
+> Connect version page, the demo salon's logo and snapshot.
 
 - [ ] Everything in [mobile-store-submission.md](design/mobile-store-submission.md) §5.
       Two of its claims are **stale as of 2026-08-18** and must be corrected
