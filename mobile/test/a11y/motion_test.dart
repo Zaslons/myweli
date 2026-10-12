@@ -524,12 +524,6 @@ void main() {
       // started at the decode would run while no frame is drawn (a cold
       // start's slow first frame) and cut the visible hold short by as much.
       // The player starts it from the first frame that draws the still.
-      //
-      // A cold decode, or there is no gap to measure: a composition an
-      // earlier test decoded is handed back from the cache at once, and
-      // `onLoaded` lands with the first frame. (Measured — without this line
-      // the "timed from the decode" mutation survived.)
-      Lottie.cache.clear();
       final timeline = OpenTimeline.consumer();
       final router = GoRouter(
         initialLocation: '/',
@@ -546,8 +540,11 @@ void main() {
       await tester.runAsync(
         () async => Future<void>.delayed(const Duration(milliseconds: 300)),
       );
-      await tester.pump(); // the decode lands: `onLoaded`
-      // A slow first frame: a second passes with nothing drawn.
+      // The decode has landed (`onLoaded` has run — the test bundle answers
+      // at once), and then a second passes with nothing drawn: a slow first
+      // frame. Measured: with a pump BEFORE this delay, that pump was already
+      // the first frame, there was no gap, and the "timed from the decode"
+      // mutation survived.
       await tester.binding.delayed(const Duration(seconds: 1));
       await tester.pump(); // the first frame that shows the still
 

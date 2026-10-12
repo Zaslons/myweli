@@ -70,11 +70,13 @@ class OpenTimeline {
   }
 }
 
-/// The composition's first frame: `onLoaded` runs on the pump that flushes
-/// the decode, and the NEXT frame is the first to draw it — the ticker's first
-/// tick, the moment every pass is timed from. A splash test pumps this after
-/// its `runAsync` decode, so the clock starts where the test thinks it does.
+/// The composition's first frame — the ticker's first tick, the moment every
+/// pass is timed from. `onLoaded` runs once the decode lands (with the test
+/// bundle, already at the end of `pumpWidget`; a slower decode, on the next
+/// flush), and the frame AFTER it is the first to draw the composition. Two
+/// zero-length pumps cover both orders: after them the composition has been
+/// drawn and no time has passed, so the clock starts where the test thinks.
 Future<void> pumpFirstFrame(WidgetTester tester) async {
-  await tester.pump(); // the decode lands: `onLoaded`, the pass starts
-  await tester.pump(); // the first frame that draws it: the clock starts
+  await tester.pump();
+  await tester.pump();
 }
