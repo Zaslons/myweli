@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Built** (2026-10-11; review fixes 2026-10-12; the full spin, both apps, 2026-10-12 — §2.2, §2.8) |
+| **Status** | **Built** (2026-10-11; review fixes 2026-10-12; the full spin, both apps, 2026-10-12 — §2.2, §2.8; its review fixes — a covered splash freezes, the flag off mid-hold keeps the length — 2026-10-12, §2.2, §2.4, §11) |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-10-12 |
 | **PRD ref / phase** | Launch polish — branding P5 (Pro flavour) · V1 |
@@ -87,6 +87,22 @@ behaviour (it starts on the next frame after `animateTo`). The controller is
 scale under the OS flag must never reach it (§9.1, "a content timer must not be
 collapsed") — though under that flag nothing animates anyway (§2.4).
 
+**When the ticker stops — three cases, one behaviour.** Frames stop reaching
+the controller when none is drawn (a slow first frame, a janky device), when
+the app is in the background, and **when a route covers the splash**: the
+`Overlay` builds a route under an opaque page offstage, inside
+`TickerMode(enabled: false)`, which **mutes** the screen's ticker. In all three
+the pass **freezes** — no end frame, no rest, no route. Time still runs on the
+ticker's clock (a muted ticker keeps its start time), so the first frame back
+draws where the pass would be by then — the end frame, if the gap outlasted
+it — then the rest is held, then the screen routes. **Two clocks do not stop:**
+the rest is a wall-clock `Timer` (nothing is drawn during it), and so are
+reduced motion's holds (§2.4). A screen covered during either still routes
+under the page that covers it. Measured on the consumer splash (§11): covered
+at 1 s, the controller sat at 0.30 for 10 s of frames; the first frame after
+the pop drew 1.0, and `/home` came one rest later. Under reduced motion, or
+covered during the rest, `/home` replaced the page that covered it.
+
 The rest is a content hold, not motion (SYSTEM.md §9: how long a still is
 *looked at*); it keeps its literal with a `// ds-ignore` and its reason, as the
 session deadline does. One constant, shared by both apps (§2.8).
@@ -138,11 +154,22 @@ and a broken screen look identical. Never during the first pass: nothing is
 waiting yet. The caption hangs below the mark without moving it off the native
 splash's centre; one line at 200 % text.
 
-**The flag flipped mid-pass.** On: the picture freezes on the still for where
-the pass is (the wordmark inside the intro, the end frame after it) and the
-frames it had left are held — the boot keeps its length. Off: the pass carries
-on as motion from the still on screen (from the end frame, that is the pass's
-end). During a rest nothing changes — it is the finished mark in both modes.
+**The flag flipped mid-pass — the boot keeps its length both ways.** On: the
+picture freezes on the still for where the pass is (the wordmark inside the
+intro, the end frame after it) and the frames it had left are held. Off: the
+time already spent on the still **counts as played** — the pass carries on as
+motion from where those frames would have brought it, `from + held ÷ hold
+length × (until − from)` for a hold standing for `from`→`until`, never from
+the still's own frame — so it ends when the hold would have. Off on the
+finished-mark still: the rest of the spin plays (from the end frame, the spin
+was cut off and the screen left up to 2.72 s early). Off on the wordmark
+still: it resumes at the intro frame the time held has reached (replaying
+from the wordmark's own frame moved the end by however far the clock was from
+that frame — later, past it; earlier, before it) — a jump, as any flip is.
+Off before the first still is drawn: nothing was held, so the pass starts
+from its start. The time held is measured by a stopwatch on `package:clock`,
+the clock the hold `Timer`s run on (the fake one under `flutter_test`).
+During a rest nothing changes — it is the finished mark in both modes.
 
 ### 2.5 Broken asset — unchanged
 A bundled asset that fails to decode is a broken build, but must not strand the
@@ -237,7 +264,10 @@ owns the `AnimationController` and plays passes (§2.2): `play(composition,
 from:)` completes after the end frame *and* the rest. It reads the markers
 (`intro`, `wordmark`, `loop` — names shared by both files), holds the
 reduced-motion stills on timers (§2.4), and switches between the two mid-pass
-when the flag flips. Both splash screens use it; neither keeps a timer of its own
+when the flag flips — measuring how long a still has been held with
+`package:clock`'s stopwatch, so the switch back to motion keeps the boot's
+length (a direct dependency since 2026-10-12; already in the app through
+`intl`). Both splash screens use it; neither keeps a timer of its own
 for the animation. The Pro screen adds the session gate (§2.3) and the caption.
 
 `ProAuthProvider`'s constructor starts the load and keeps it as **`ready`**
@@ -341,9 +371,29 @@ spin and the rest read well on a real phone in both apps (the timing is pinned
 in fake time; nothing here has watched it on a screen).
 
 ## 11. Follow-ups (not in this part)
-- **The consumer app has the same cold-start defect, by reading (not reproduced):**
-  `main.dart` replays on sign-in while `/splash` plays its first pass (5.46 s), then `go`s to
-  `/home`. `landedPushHandler` is generic — wire it there with its launch paths.
+- **The consumer app's cold-start tap — the same defect, but not always, and
+  the OS flag decides (measured with a scratch probe, 2026-10-12; one case
+  pinned).** `main.dart` replays a launch tap on sign-in, which lands while
+  `/splash` plays its first pass, and replays it with a **`push`** above
+  `/splash`. What follows depends on which clock the splash is on (§2.2):
+  - **Motion on, the push lands during the pass:** the page covers the splash,
+    the covered route is built under `TickerMode(enabled: false)`, its ticker
+    is muted, and the pass **freezes** — no `go`, the booking stays. « Retour »
+    uncovers the splash: its first frame back draws where the pass would be by
+    then (the end frame, if the booking was open longer), it rests 0.5 s, and
+    only then `go('/home')`. Not a clobber — a back button that shows the
+    splash's end again. Pinned: `splash_screen_test` « covered by a page… ».
+  - **Reduced motion, or a push that lands during the rest:** the holds and
+    the rest are wall-clock `Timer`s, which `TickerMode` does not mute; the
+    `go('/home')` fires under the booking and replaces the whole stack — the
+    Pro defect (§2.6). Measured both: the booking gone, the location `/home`.
+  So the same tap ends two different ways depending on the user's Reduce
+  Motion setting. The fix is the Pro one, not a splash change: wire
+  `landedPushHandler` (generic) with the consumer launch paths (`/splash`, and
+  the sign-in screens that hand over with a `go`), so the tap replays only once
+  the splash has gone — which removes the covered splash too, and with it the
+  pinned case above (re-read that test then: it pushes over the splash
+  directly, so it still holds, but no longer describes a real path).
 - ~~**The consumer asset's blank frame.**~~ Fixed 2026-10-12 (§2.8).
   **`myweli_loader_mixed_white.json` still has it** (M/W 100 % → 0 over 53→54,
   `redraw` in at 54) — unused today; fix it the same way (hold M/W to 54) the
