@@ -94,7 +94,7 @@ describe('every web map goes through the one keyed style', () => {
     expect(offenders).toEqual([]);
   });
 
-  it('each map renderer is handed MAP_STYLE', () => {
+  it('each map renderer is handed MAP_STYLE and MAP_TRANSFORM_REQUEST', () => {
     const maps = [...files.entries()].filter(([, src]) => /<Map\b/.test(src));
     expect(maps.map(([p]) => p).sort()).toEqual([
       'components/discovery/ResultsMap.tsx',
