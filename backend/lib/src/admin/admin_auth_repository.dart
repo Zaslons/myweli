@@ -1,6 +1,14 @@
 import 'package:bcrypt/bcrypt.dart';
 
-import '../auth/auth_repository.dart' show RefreshResult, TokenPair;
+import '../auth/auth_repository.dart'
+    show
+        RefreshResult,
+        TokenPair,
+        refreshGrace,
+        refreshInvalid,
+        refreshReused,
+        refreshRotated,
+        withinRefreshGrace;
 import '../auth/login_throttle.dart';
 import '../auth/tokens.dart';
 
@@ -31,6 +39,11 @@ const int kAdminPasswordMinLength = 12;
 /// like the consumer/provider flows).
 abstract interface class AdminAuthRepository {
   Future<AdminLoginResult> login(String email, String password);
+
+  /// Exactly one exchange rotates the token; another within
+  /// `kRefreshReuseGrace` (30 s) gets a sibling in the same family; after the
+  /// grace it is reuse and revokes the family. One transaction in Postgres.
+  /// Design: docs/design/backend-refresh-rotation-atomic.md.
   Future<RefreshResult> refresh(String refreshToken);
   Future<AdminAccount?> adminById(String id);
 
@@ -83,18 +96,26 @@ class _Refresh {
   _Refresh({required this.adminId, required this.familyId});
   final String adminId;
   final String familyId;
-  bool rotated = false;
+
+  /// When this token was rotated; null while it is still unused.
+  DateTime? rotatedAt;
 }
 
 class InMemoryAdminAuthRepository implements AdminAuthRepository {
   InMemoryAdminAuthRepository({
     required TokenService tokens,
     LoginThrottle? throttle,
+    DateTime Function()? clock,
   }) : _tokens = tokens,
-       _throttle = throttle ?? InMemoryLoginThrottle();
+       _throttle = throttle ?? InMemoryLoginThrottle(),
+       _clock = clock ?? DateTime.now;
 
   final TokenService _tokens;
   final LoginThrottle _throttle;
+
+  /// Drives the refresh reuse grace — the Postgres twin reads the database's
+  /// `now()` there, and a test must step past 30 s without sleeping.
+  final DateTime Function() _clock;
   final Map<String, AdminAccount> _byId = {};
   final Map<String, String> _idByEmail = {};
   final Map<String, String> _hashByEmail = {};
@@ -192,22 +213,22 @@ class InMemoryAdminAuthRepository implements AdminAuthRepository {
     return (ok: true, error: null);
   }
 
+  /// Same semantics as the Postgres twin (design §5); no `await` between the
+  /// read and the write, so the claim is atomic on the one isolate.
   @override
   Future<RefreshResult> refresh(String refreshToken) async {
     final rec = _refreshByHash[_tokens.hashToken(refreshToken)];
-    if (rec == null) {
-      return (ok: false, error: 'refresh_invalid', tokens: null);
+    if (rec == null) return refreshInvalid;
+    final rotatedAt = rec.rotatedAt;
+    if (rotatedAt == null) {
+      rec.rotatedAt = _clock();
+      return refreshRotated(_issueInFamily(rec.adminId, rec.familyId));
     }
-    if (rec.rotated) {
-      _refreshByHash.removeWhere((_, r) => r.familyId == rec.familyId);
-      return (ok: false, error: 'refresh_reused', tokens: null);
+    if (withinRefreshGrace(rotatedAt, _clock())) {
+      return refreshGrace(_issueInFamily(rec.adminId, rec.familyId));
     }
-    rec.rotated = true;
-    return (
-      ok: true,
-      error: null,
-      tokens: _issueInFamily(rec.adminId, rec.familyId),
-    );
+    _refreshByHash.removeWhere((_, r) => r.familyId == rec.familyId);
+    return refreshReused;
   }
 
   TokenPair _issueInFamily(String adminId, String familyId) {

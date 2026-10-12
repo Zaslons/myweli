@@ -1,6 +1,15 @@
 import 'dart:math';
 
-import 'auth_repository.dart' show OtpRequestResult, RefreshResult, TokenPair;
+import 'auth_repository.dart'
+    show
+        OtpRequestResult,
+        RefreshResult,
+        TokenPair,
+        refreshGrace,
+        refreshInvalid,
+        refreshReused,
+        refreshRotated,
+        withinRefreshGrace;
 import 'tokens.dart';
 
 /// Public-facing provider-account fields. Mirrors the app's `ProviderUser` DTO
@@ -139,9 +148,11 @@ abstract interface class ProviderAuthRepository {
     String? providerId,
   });
 
-  /// Exchange a refresh token for a fresh pair. Rotates the presented token;
-  /// replaying an already-rotated token is treated as theft and revokes the
-  /// whole family (mirrors the consumer flow).
+  /// Exchange a refresh token for a fresh pair (mirrors the consumer flow).
+  /// Exactly one exchange rotates the presented token; another presentation
+  /// within `kRefreshReuseGrace` (30 s) of that rotation gets a sibling in the
+  /// same family; after the grace it is reuse and revokes the whole family.
+  /// Design: docs/design/backend-refresh-rotation-atomic.md.
   Future<RefreshResult> refresh(String refreshToken);
 
   /// The provider account for an id (the access-token `sub`), or null — used to
@@ -211,7 +222,9 @@ class _Refresh {
   _Refresh({required this.accountId, required this.familyId});
   final String accountId;
   final String familyId;
-  bool rotated = false;
+
+  /// When this token was rotated; null while it is still unused.
+  DateTime? rotatedAt;
 }
 
 class InMemoryProviderAuthRepository implements ProviderAuthRepository {
@@ -226,11 +239,13 @@ class InMemoryProviderAuthRepository implements ProviderAuthRepository {
     Duration otpValidity = const Duration(minutes: 5),
     int maxAttempts = 5,
     int maxResends = 3,
+    DateTime Function()? clock,
   }) : _tokens = tokens,
        _echoDevCode = echoDevCode,
        _otpValidity = otpValidity,
        _maxAttempts = maxAttempts,
-       _maxResends = maxResends;
+       _maxResends = maxResends,
+       _clock = clock ?? DateTime.now;
 
   final TokenService _tokens;
   final bool _echoDevCode;
@@ -238,6 +253,11 @@ class InMemoryProviderAuthRepository implements ProviderAuthRepository {
   final int _maxAttempts;
   final int _maxResends;
   final Random _random = Random.secure();
+
+  /// Drives the refresh reuse grace only — the Postgres twin reads the
+  /// database's `now()` there, and a test must step past 30 s without
+  /// sleeping. OTP expiry still reads the wall clock.
+  final DateTime Function() _clock;
 
   final Map<String, _Refresh> _refreshByHash = {};
   final Map<String, ProviderAccount> _byPhone = {};
@@ -591,22 +611,22 @@ class InMemoryProviderAuthRepository implements ProviderAuthRepository {
     );
   }
 
+  /// Same semantics as the Postgres twin (design §5); no `await` between the
+  /// read and the write, so the claim is atomic on the one isolate.
   @override
   Future<RefreshResult> refresh(String refreshToken) async {
     final rec = _refreshByHash[_tokens.hashToken(refreshToken)];
-    if (rec == null) {
-      return (ok: false, error: 'refresh_invalid', tokens: null);
+    if (rec == null) return refreshInvalid;
+    final rotatedAt = rec.rotatedAt;
+    if (rotatedAt == null) {
+      rec.rotatedAt = _clock();
+      return refreshRotated(_issueInFamily(rec.accountId, rec.familyId));
     }
-    if (rec.rotated) {
-      _revokeFamily(rec.familyId);
-      return (ok: false, error: 'refresh_reused', tokens: null);
+    if (withinRefreshGrace(rotatedAt, _clock())) {
+      return refreshGrace(_issueInFamily(rec.accountId, rec.familyId));
     }
-    rec.rotated = true;
-    return (
-      ok: true,
-      error: null,
-      tokens: _issueInFamily(rec.accountId, rec.familyId),
-    );
+    _revokeFamily(rec.familyId);
+    return refreshReused;
   }
 
   /// Issues an access JWT (role `provider`) + a rotating opaque refresh token,

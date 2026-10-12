@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import 'package:myweli_backend/src/auth/auth_repository.dart'
+    show RefreshOutcome, RefreshResult, TokenPair, kRefreshReuseGrace;
 import 'package:myweli_backend/src/auth/login_throttle.dart';
 import 'package:myweli_backend/src/auth/tokens.dart';
 import 'package:myweli_backend/src/db/database.dart';
@@ -65,6 +67,43 @@ void main() {
       Sql.named('DELETE FROM admin_login_throttle WHERE key_hash = @k:text'),
       parameters: {'k': PostgresLoginThrottle.hashKey(adminThrottleKey(email))},
     );
+  }
+
+  /// Moves a token's rotation [ago] into the past on the DATABASE clock — the
+  /// one the grace is measured on — or, with null, clears it as a row rotated
+  /// before migration 0037 has it.
+  Future<void> rotatedAgo(String token, Duration? ago) => pool.execute(
+    Sql.named(
+      ago == null
+          ? 'UPDATE admin_refresh_tokens SET rotated_at = NULL '
+                'WHERE token_hash = @h'
+          : 'UPDATE admin_refresh_tokens SET rotated_at = now() - '
+                '@ago:interval WHERE token_hash = @h',
+    ),
+    parameters: {'h': tokens.hashToken(token), 'ago': ?ago},
+  );
+
+  /// The token's row, or null once it is gone.
+  Future<Map<String, dynamic>?> tokenRow(String token) async {
+    final r = await pool.execute(
+      Sql.named(
+        'SELECT family_id, rotated, rotated_at FROM admin_refresh_tokens '
+        'WHERE token_hash = @h',
+      ),
+      parameters: {'h': tokens.hashToken(token)},
+    );
+    return r.isEmpty ? null : r.first.toColumnMap();
+  }
+
+  Future<int> familySize(String familyId) async {
+    final r = await pool.execute(
+      Sql.named(
+        'SELECT count(*)::int AS n FROM admin_refresh_tokens '
+        'WHERE family_id = @f',
+      ),
+      parameters: {'f': familyId},
+    );
+    return r.first.toColumnMap()['n'] as int;
   }
 
   Future<int?> failCount(String email) async {
@@ -401,6 +440,12 @@ void main() {
     final second = await r.refresh(first.refreshToken);
     expect(second.ok, isTrue);
 
+    // Past the 30 s grace — inside it a replay gets a sibling (the
+    // `refresh exchange` group below).
+    await rotatedAgo(
+      first.refreshToken,
+      kRefreshReuseGrace + const Duration(seconds: 1),
+    );
     final replay = await r.refresh(first.refreshToken);
     expect(replay.ok, isFalse, reason: 'the used token cannot be replayed');
     final afterRevoke = await r.refresh(second.tokens!.refreshToken);
@@ -409,5 +454,368 @@ void main() {
       isFalse,
       reason: 'reuse revokes the whole FAMILY, not just the replayed token',
     );
+  });
+
+  /// The atomic exchange with the 30 s grace on `admin_refresh_tokens`
+  /// (docs/design/backend-refresh-rotation-atomic.md §8) — the consumer and
+  /// provider tables are pinned the same way in postgres_repositories_test.dart.
+  group('refresh exchange — atomic, 30 s grace, one transaction', () {
+    // A second pool, so eight exchanges can hold eight connections AT ONCE.
+    late Pool<void> pool2;
+    setUpAll(() => pool2 = createPool(url));
+    tearDownAll(() => pool2.close());
+
+    // Holds a child INSERT into one family until the test lets go: a BEFORE
+    // INSERT trigger, scoped to that family, that must take an advisory lock
+    // the test holds. Keys are this file's own (postgres_repositories_test.dart
+    // uses another range), so a concurrently running file never waits on one.
+    const kHoldClass = 0x4D57;
+    var nextHoldKey = 2000;
+    Future<int> holdChildInserts(String family) async {
+      final key = nextHoldKey++;
+      await pool.execute(
+        r'CREATE OR REPLACE FUNCTION mw_test_hold_admin_child() '
+        r'RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN '
+        r'PERFORM pg_advisory_xact_lock(TG_ARGV[0]::int, TG_ARGV[1]::int); '
+        r'RETURN NEW; END $$',
+      );
+      Future<void> drop() => pool.execute(
+        'DROP TRIGGER IF EXISTS mw_test_hold_admin_child '
+        'ON admin_refresh_tokens',
+      );
+      addTearDown(drop);
+      await pool.execute(
+        'CREATE TRIGGER mw_test_hold_admin_child BEFORE INSERT '
+        'ON admin_refresh_tokens FOR EACH ROW '
+        "WHEN (NEW.family_id = '$family') "
+        "EXECUTE FUNCTION mw_test_hold_admin_child('$kHoldClass', '$key')",
+      );
+      return key;
+    }
+
+    Future<bool> childInsertWaiting(int key) async {
+      final r = await pool.execute(
+        'SELECT count(*)::int AS n FROM pg_locks '
+        "WHERE locktype = 'advisory' AND NOT granted "
+        'AND classid = $kHoldClass AND objid = $key AND objsubid = 2',
+      );
+      return r.first.toColumnMap()['n'] == 1;
+    }
+
+    Future<bool> familyDeleteWaiting() async {
+      final r = await pool.execute(
+        'SELECT count(*)::int AS n FROM pg_stat_activity '
+        "WHERE wait_event_type = 'Lock' "
+        "AND query LIKE 'DELETE FROM admin_refresh_tokens WHERE family_id%'",
+      );
+      return r.first.toColumnMap()['n'] == 1;
+    }
+
+    /// Polls [probe] until true — bounded, so a setup that never reaches the
+    /// interleaving fails loudly instead of hanging or passing.
+    Future<void> until(Future<bool> Function() probe, String what) async {
+      final deadline = DateTime.now().add(const Duration(seconds: 15));
+      while (!await probe()) {
+        if (DateTime.now().isAfter(deadline)) fail('never reached: $what');
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+      }
+    }
+
+    /// A fresh admin, logged in. The admin's id comes back too, for the
+    /// fault-injection triggers below.
+    Future<({TokenPair first, String adminId})> loggedIn() async {
+      final e = freshEmail();
+      addTearDown(() => purge(e));
+      final r = repo();
+      await r.ensureSeedAdmin(email: e, password: 'pw12345');
+      final first = (await r.login(e, 'pw12345')).tokens!;
+      final payload = tokens.verifyAccessToken(first.accessToken)!.payload;
+      return (first: first, adminId: (payload as Map)['sub'] as String);
+    }
+
+    test(
+      'N = 8 concurrent exchanges of one token → all ok, EXACTLY ONE '
+      'rotated, seven grace siblings, all in its family (repeated)',
+      () async {
+        for (var round = 0; round < 6; round++) {
+          final first = (await loggedIn()).first;
+          final family = (await tokenRow(first.refreshToken))!['family_id'];
+          final results = await Future.wait([
+            for (var i = 0; i < 8; i++)
+              PostgresAdminAuthRepository(
+                i.isEven ? pool : pool2,
+                tokens: tokens,
+                throttle: InMemoryLoginThrottle(),
+              ).refresh(first.refreshToken),
+          ]);
+          expect(
+            results.map((r) => r.ok),
+            everyElement(isTrue),
+            reason: 'round $round',
+          );
+          expect(
+            results.where((r) => r.outcome == RefreshOutcome.rotated),
+            hasLength(1),
+            reason: 'round $round: the claim is atomic — exactly one winner',
+          );
+          expect(
+            results.where((r) => r.outcome == RefreshOutcome.grace),
+            hasLength(7),
+            reason: 'round $round',
+          );
+          for (final r in results) {
+            expect(
+              (await tokenRow(r.tokens!.refreshToken))!['family_id'],
+              family,
+              reason: 'round $round: no fork — every child is in the family',
+            );
+          }
+          expect(await familySize(family as String), 9, reason: 'round $round');
+          final parent = (await tokenRow(first.refreshToken))!;
+          expect(parent['rotated'], isTrue);
+          expect(parent['rotated_at'], isNotNull);
+        }
+      },
+    );
+
+    test('rotated 29 s ago → GRACE, family intact; 31 s ago → refresh_reused '
+        'and the family is gone', () async {
+      final r = repo();
+      final first = (await loggedIn()).first;
+      final child = await r.refresh(first.refreshToken);
+      expect(child.outcome, RefreshOutcome.rotated);
+      final family =
+          (await tokenRow(first.refreshToken))!['family_id'] as String;
+
+      await rotatedAgo(first.refreshToken, const Duration(seconds: 29));
+      final rotatedAt = (await tokenRow(first.refreshToken))!['rotated_at'];
+      expect(rotatedAt, isNotNull);
+      final sibling = await r.refresh(first.refreshToken);
+      expect(sibling.outcome, RefreshOutcome.grace);
+      expect(sibling.ok, isTrue);
+      expect(
+        (await tokenRow(sibling.tokens!.refreshToken))!['family_id'],
+        family,
+      );
+      expect(await familySize(family), 3, reason: 'nothing revoked');
+      // The grace runs from the FIRST rotation. A grace exchange that moved
+      // `rotated_at` would let a replay every 29 s keep it open forever, and
+      // reuse would never be detected. The 31 s step below backdates the row
+      // itself, so it cannot see this; only this read can.
+      expect(
+        (await tokenRow(first.refreshToken))!['rotated_at'],
+        rotatedAt,
+        reason: 'a grace exchange must not move the parent\'s rotated_at',
+      );
+
+      await rotatedAgo(first.refreshToken, const Duration(seconds: 31));
+      final reuse = await r.refresh(first.refreshToken);
+      expect(reuse.outcome, RefreshOutcome.reused);
+      expect(reuse.error, 'refresh_reused');
+      expect(reuse.tokens, isNull);
+      expect(await familySize(family), 0, reason: 'family revoked');
+      for (final dead in [child, sibling]) {
+        final x = await r.refresh(dead.tokens!.refreshToken);
+        expect(x.outcome, RefreshOutcome.invalid);
+        expect(x.error, 'refresh_invalid');
+      }
+    });
+
+    test(
+      'rotated before migration 0037 (rotated_at NULL) → refresh_reused',
+      () async {
+        final r = repo();
+        final first = (await loggedIn()).first;
+        final child = await r.refresh(first.refreshToken);
+        await rotatedAgo(first.refreshToken, null);
+        final reuse = await r.refresh(first.refreshToken);
+        expect(reuse.outcome, RefreshOutcome.reused);
+        expect(reuse.error, 'refresh_reused');
+        expect(
+          (await r.refresh(child.tokens!.refreshToken)).error,
+          'refresh_invalid',
+        );
+      },
+    );
+
+    test('a grace exchange that arrives while a family revoke already holds '
+        'the rows WAITS for it and mints nothing (FOR UPDATE)', () async {
+      final first = (await loggedIn()).first;
+      await repo().refresh(first.refreshToken); // rotated: now in grace
+      final family =
+          (await tokenRow(first.refreshToken))!['family_id'] as String;
+
+      late Future<RefreshResult> racing;
+      await pool.runTx((tx) async {
+        await tx.execute(
+          Sql.named('DELETE FROM admin_refresh_tokens WHERE family_id = @f'),
+          parameters: {'f': family},
+        );
+        // The revoke holds the family's rows, uncommitted. The exchange starts
+        // now, on another connection, and must wait for it.
+        racing = PostgresAdminAuthRepository(
+          pool2,
+          tokens: tokens,
+          throttle: InMemoryLoginThrottle(),
+        ).refresh(first.refreshToken);
+        await Future<void>.delayed(const Duration(milliseconds: 500));
+      });
+
+      final r = await racing;
+      expect(r.outcome, RefreshOutcome.invalid);
+      expect(await familySize(family), 0);
+    });
+
+    // The other order: the exchange locked its row FIRST and is inserting its
+    // child when the revoke arrives. The revoke's DELETE waits on that row, and
+    // its snapshot predates the child — so ONE DELETE left the child alive,
+    // unrotated, in a family whose reuse caller was told refresh_reused. The
+    // revoke now repeats until it deletes nothing. Ordered with an advisory
+    // lock the child insert must take (a trigger scoped to this family), not
+    // with sleeps.
+    for (final grace in [true, false]) {
+      final what = grace
+          ? 'a grace sibling'
+          : 'the child of a plain rotation of the newest token';
+      test('$what, minted while a family revoke waits on its row, is deleted '
+          'by that revoke too (the DELETE repeats)', () async {
+        final r = repo();
+        final t0 = (await loggedIn()).first;
+        final t1 = (await r.refresh(t0.refreshToken)).tokens!;
+        final newest = (await r.refresh(t1.refreshToken)).tokens!;
+        final family =
+            (await tokenRow(t0.refreshToken))!['family_id'] as String;
+        // t0 past the grace: presenting it is reuse. t1 was rotated just now,
+        // so it is in the grace; the newest is unrotated.
+        await rotatedAgo(t0.refreshToken, const Duration(minutes: 1));
+        final key = await holdChildInserts(family);
+        final other = PostgresAdminAuthRepository(
+          pool2,
+          tokens: tokens,
+          throttle: InMemoryLoginThrottle(),
+        );
+
+        late Future<RefreshResult> minting;
+        late Future<RefreshResult> revoking;
+        await pool.runTx((hold) async {
+          await hold.execute('SELECT pg_advisory_xact_lock($kHoldClass, $key)');
+          minting = other.refresh(
+            grace ? t1.refreshToken : newest.refreshToken,
+          );
+          await until(
+            () => childInsertWaiting(key),
+            'the exchange holds its row and waits to insert its child',
+          );
+          revoking = other.refresh(t0.refreshToken);
+          await until(
+            familyDeleteWaiting,
+            'the revoke DELETE waits on the row the exchange holds',
+          );
+        }); // the hold ends: the child commits, then the DELETE resumes
+
+        final m = await minting;
+        expect(
+          m.outcome,
+          grace ? RefreshOutcome.grace : RefreshOutcome.rotated,
+        );
+        final x = await revoking;
+        expect(x.outcome, RefreshOutcome.reused);
+        expect(x.error, 'refresh_reused');
+        expect(
+          await familySize(family),
+          0,
+          reason:
+              'the child committed while the revoke waited is revoked '
+              'with the rest of its family',
+        );
+        expect(
+          (await r.refresh(m.tokens!.refreshToken)).outcome,
+          RefreshOutcome.invalid,
+        );
+      });
+    }
+
+    test('an unknown token → refresh_invalid', () async {
+      final x = await repo().refresh('never-issued');
+      expect(x.outcome, RefreshOutcome.invalid);
+      expect(x.error, 'refresh_invalid');
+      expect(x.tokens, isNull);
+    });
+
+    // **The exchange is ONE transaction**, proved from both directions by
+    // fault injection scoped to one admin id (so nothing else in the database
+    // can trip it). This was three independent statements: a failure between
+    // the UPDATE and the INSERT left the token rotated with no child.
+
+    test('a child insert that FAILS rolls the claim back: the token is still '
+        'unrotated, and the retry is a clean rotation', () async {
+      final r = repo();
+      final (:first, :adminId) = await loggedIn();
+      await pool.execute(
+        r'CREATE OR REPLACE FUNCTION mw_test_refuse_admin_child() '
+        r'RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN '
+        r"RAISE EXCEPTION 'test: child insert refused'; END $$",
+      );
+      Future<void> drop() => pool.execute(
+        'DROP TRIGGER IF EXISTS mw_test_refuse_admin_child '
+        'ON admin_refresh_tokens',
+      );
+      addTearDown(drop);
+      await pool.execute(
+        'CREATE TRIGGER mw_test_refuse_admin_child BEFORE INSERT '
+        'ON admin_refresh_tokens FOR EACH ROW '
+        "WHEN (NEW.admin_id = '$adminId') "
+        'EXECUTE FUNCTION mw_test_refuse_admin_child()',
+      );
+
+      await expectLater(r.refresh(first.refreshToken), throwsA(anything));
+      await drop();
+
+      final row = (await tokenRow(first.refreshToken))!;
+      expect(row['rotated'], isFalse, reason: 'the claim rolled back with it');
+      expect(row['rotated_at'], isNull);
+      expect(
+        (await r.refresh(first.refreshToken)).outcome,
+        RefreshOutcome.rotated,
+        reason: 'not a grace sibling, not a revocation — a clean retry',
+      );
+    });
+
+    test('a claim that fails at COMMIT leaves no child behind: the child '
+        'insert is inside the same transaction', () async {
+      final r = repo();
+      final (:first, :adminId) = await loggedIn();
+      final family =
+          (await tokenRow(first.refreshToken))!['family_id'] as String;
+      await pool.execute(
+        r'CREATE OR REPLACE FUNCTION mw_test_refuse_admin_commit() '
+        r'RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN '
+        r"RAISE EXCEPTION 'test: commit refused'; END $$",
+      );
+      Future<void> drop() => pool.execute(
+        'DROP TRIGGER IF EXISTS mw_test_refuse_admin_commit '
+        'ON admin_refresh_tokens',
+      );
+      addTearDown(drop);
+      // Deferred: fires at COMMIT, after the child insert has run.
+      await pool.execute(
+        'CREATE CONSTRAINT TRIGGER mw_test_refuse_admin_commit AFTER UPDATE '
+        'ON admin_refresh_tokens DEFERRABLE INITIALLY DEFERRED FOR EACH ROW '
+        "WHEN (NEW.admin_id = '$adminId') "
+        'EXECUTE FUNCTION mw_test_refuse_admin_commit()',
+      );
+
+      await expectLater(r.refresh(first.refreshToken), throwsA(anything));
+      await drop();
+
+      expect(
+        await familySize(family),
+        1,
+        reason:
+            'the parent alone — a child written outside the transaction '
+            'would have survived its rollback',
+      );
+      expect((await tokenRow(first.refreshToken))!['rotated'], isFalse);
+    });
   });
 }
