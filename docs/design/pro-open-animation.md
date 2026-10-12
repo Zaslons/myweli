@@ -99,7 +99,7 @@ it — then the rest is held, then the screen routes. **Two clocks do not stop:*
 the rest is a wall-clock `Timer` (nothing is drawn during it), and so are
 reduced motion's holds (§2.4). A screen covered during either still routes
 under the page that covers it. Measured on the consumer splash (§11): covered
-at 1 s, the controller sat at 0.30 for 10 s of frames; the first frame after
+at 1 s, the controller sat at 0.30 for 10 s of frames; the first tick after
 the pop drew 1.0, and `/home` came one rest later. Under reduced motion, or
 covered during the rest, `/home` replaced the page that covered it.
 
@@ -360,6 +360,24 @@ then restored with `git checkout` and the tree checked clean:
 Re-run on the retimed tests: **M12** (replay on sign-in alone) — all 3 cold-start
 sequences red again; **M7** (no caption) — 4 motion tests + broken asset red.
 
+**Review fixes (2026-10-12): the flag off mid-hold, the covered splash.** New:
+`motion_test` « turned OFF mid-pass — the boot keeps its length » (on the
+finished mark, on the wordmark: the frame resumed, the end frame drawn when the
+whole file has had its time, the rest, `/home`), `splash_screen_test` « covered
+by a page, the pass freezes… » (§2.2, §11). Before them, deleting the OFF
+branch left every splash and motion test green (the reviewer's mutation). Each
+was committed, broken, restored with `git checkout`, the tree checked clean:
+
+| # | Broke | Went red |
+|---|---|---|
+| M35 | flag off: motion resumes from the still's own frame (the old `_animate(from: controller.value)`) | both « turned OFF » tests — on the finished mark, « moving again » (the end frame: the spin cut off, `/home` a rest later); on the wordmark, frame 16.4 where motion would be at ~34 |
+| M36 | no OFF branch at all (the reviewer's mutation) | both « turned OFF » tests: left on the still |
+| M37 | the time held not counted (resumes from the hold's start) | both: frame 56.4 / 0.4 instead of where motion would be |
+| M38 | a `dart:core` `Stopwatch` instead of `package:clock`'s | both: it measured the real wall, ~0 of a fake-time hold — frame 56.6 / 0.6 |
+| M39 | one stopwatch for the whole pass, not restarted per hold | on the finished mark only: the share clamped to 1, resumed on the end frame |
+| M40 | the splash's ticker ignores `TickerMode` (a raw `Ticker`) | « covered by a page… », « the covered splash ticked on » (0.54 after a second) — **first red on a missing widget**: the splash had already gone `/home`; reordered to read it while it is still there, then red on its reason |
+| M41 | a wall-clock `Timer` ends the pass, beside the ticker (M19 again) | « covered by a page… » (« went /home under the page ») and « the clock is the ticker » |
+
 ## 9. Rollout & 10. Definition of done
 No flag; ships with both apps. Done: analyze 0, format, the tests above,
 goldens unchanged, spec indexed and cross-linked, roadmap entries
@@ -368,7 +386,10 @@ goldens unchanged, spec indexed and cross-linked, roadmap entries
 a cold-start tap on a booking notification, airplane mode (the deadline),
 VoiceOver/TalkBack with Reduce Motion on — and, for the full spin, that the
 spin and the rest read well on a real phone in both apps (the timing is pinned
-in fake time; nothing here has watched it on a screen).
+in fake time; nothing here has watched it on a screen). Also unwatched on a
+device: Reduce Motion turned off mid-splash (Control Centre on iOS, the
+accessibility shortcut on Android) and the consumer cold-start tap of §11 —
+both measured in `flutter_test` only.
 
 ## 11. Follow-ups (not in this part)
 - **The consumer app's cold-start tap — the same defect, but not always, and
@@ -390,7 +411,9 @@ in fake time; nothing here has watched it on a screen).
   So the same tap ends two different ways depending on the user's Reduce
   Motion setting. The fix is the Pro one, not a splash change: wire
   `landedPushHandler` (generic) with the consumer launch paths (`/splash`, and
-  the sign-in screens that hand over with a `go`), so the tap replays only once
+  whichever consumer screens hand over with a `go` — the Pro list is
+  `ProRouter.launchPaths`; the consumer's is not audited here), so the tap
+  replays only once
   the splash has gone — which removes the covered splash too, and with it the
   pinned case above (re-read that test then: it pushes over the splash
   directly, so it still holds, but no longer describes a real path).
