@@ -1085,6 +1085,18 @@ checking rather than assuming:
 > (#566). The backend's atomic refresh rotation (#567) is in production.
 > Still open: the device checks of §11.6 on 560, screenshots, the App Store
 > Connect version page.
+>
+> **2026-10-12 (evening) — build 565 replaces 560.** The owner's checks on 560
+> found the open animation closing before the logo finished its turn, and no
+> map on the salon page. From `main` at `75503243` (#569, #570): one full turn
+> of the logo before the app, a map of the salon's address in « Contact »
+> that opens the map-app picker, and the Pro profile map's credits in a
+> sheet. IPA re-read, validated, uploaded, `VALID`; the only build in
+> « Équipe MyWeli », with its French « What to Test »; symbols in Sentry, read
+> back from the server's listing. **565 is the build to submit.** Still open:
+> the device checks of app-store-forms.md §11.6 on 565, the push test (the
+> owner postponed it), screenshots on Maison Nala, the App Store Connect
+> version page.
 
 - [ ] Everything in [mobile-store-submission.md](design/mobile-store-submission.md) §5.
       Two of its claims are **stale as of 2026-08-18** and must be corrected
