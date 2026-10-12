@@ -274,8 +274,10 @@ void main() {
   test(
     'M/W stay on screen until the redraw is in — no blank hand-off frame',
     () {
-      // The consumer file drops M/W to 0 over [53, 54] and the redraw is in at
-      // 54: lottie renders index 54 a hair early, so one 40 ms frame is empty.
+      // The consumer file used to drop M/W to 0 over [53, 54] with the redraw
+      // in at 54: lottie renders index 54 a hair early, so one 40 ms frame was
+      // empty (fixed 2026-10-12; both files are also RENDERED frame by frame
+      // in `open_animation_asset_test`).
       final redrawIn = layer(pro, 'redraw')['ip'] as num;
       for (final name in ['M', 'W']) {
         final kfs = opacity(layer(pro, name));
