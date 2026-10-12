@@ -318,7 +318,7 @@ publish. It runs on a salon of its own, so Phase 2's web path stays intact.
 | A30 | `GET /appointments`, no `Authorization` header | **401** | `error == "unauthorized"` | **missing auth** |
 | A31 | `GET /appointments`, `Authorization: Bearer not-a-token` | **401** | `error == "unauthorized"` | **invalid token** |
 | A32 | `GET /appointments` with an HS256 JWT signed by the job's `JWT_SECRET`, `sub` = the real consumer, `exp` 1 h in the past | **401** | `error == "unauthorized"` | **expired token** — minted in the harness with `dart_jsonwebtoken` (already a dependency, `backend/pubspec.yaml:13`), i.e. a token that is *valid in every way except time*. |
-| A33 | `POST /auth/refresh` `{R1}` → 200 (yields `R2`); `POST /auth/refresh` `{R1}` again → **401** `refresh_reused`; then `POST /auth/refresh` `{R2}` → **401** `refresh_invalid` | 200, 401, 401 | the three codes above | **replayed token** — and the third call is the one that matters: it proves the *family* was revoked (`postgres_auth_repository.dart:287-290`), not merely the replayed token rejected. |
+| A33 | `POST /auth/refresh` `{R1}` → 200 (yields `R2`); `POST /auth/refresh` `{R1}` again **at once** → 200 (a grace sibling `R2'`); **wait 32 s**; `{R1}` again → **401** `refresh_reused`; then `{R2}` and `{R2'}` → **401** `refresh_invalid` | 200, 200, 401, 401, 401 | the codes above | **replayed token** — and the last calls are the ones that matter: they prove the *family* was revoked (`lib/src/db/refresh_exchange.dart`, step 4), not merely the replayed token rejected. *Amended 2026-10-12 ([backend-refresh-rotation-atomic.md](backend-refresh-rotation-atomic.md)): a replay within 30 s of the rotation is a legitimate concurrent use and gets a sibling, so reuse is only observable past the grace — the harness waits it out on real time, the one slow step in the funnel.* |
 | A34 | `POST /auth/email/otp/request` for `lock-<nonce>@…`, then 5 verifies with a code derived from `devCode` (first digit +1 mod 10, so it can never accidentally be correct) | 400 ×4 then 400 | `otp_invalid` ×4, then `otp_locked`; a 6th attempt also `otp_locked` | **rate-limit / lockout** (`maxAttempts = 5`, `postgres_auth_repository.dart:18, 238-245`) |
 | A35 | `GET /appointments/{id}` with **consumer B's** bearer | **403** | `error == "forbidden"` (not 404) | **cross-tenant → 403** (`backend/routes/appointments/[id]/index.dart:23-25`) |
 | A36 | `POST /appointments/{id}/accept` with a **bystander pro's** bearer (a second registration, salon left draft) | **403** | `error == "forbidden"` | **cross-tenant → 403**, and the guard *order*: scope is checked before state (`pro_appointment_service.dart:143-147`), so a confirmed booking still answers 403 and not 409 — the difference between "not yours" and "already done" must not leak. |
@@ -399,7 +399,7 @@ defect *in the suite*, and blocks the PR.
 | `pro_appointment_service.dart:40` `accept` `from:` → `{'pending','confirmed'}` | A28 |
 | `appointment_enrichment.dart` → return the row unchanged | A29 |
 | `principal.dart:17` → `JWT.decode` instead of `verifyAccessToken` | A31, A32 |
-| `postgres_auth_repository.dart:287` → remove the family `DELETE` | A33 (third call) |
+| `postgres_auth_repository.dart:287` → remove the family `DELETE` (since 2026-10-12: `refresh_exchange.dart` step 4) | A33 (the calls after the wait) |
 | `postgres_auth_repository.dart:18` → `maxAttempts = 999` | A34 |
 | `routes/appointments/[id]/index.dart:23` → drop the ownership check | A35 |
 | `membership_service` `journalScope` → always `all: true` | A36 |

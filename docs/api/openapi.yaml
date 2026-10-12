@@ -288,6 +288,17 @@ paths:
     post:
       tags: [auth]
       summary: Exchange a refresh token for a new token pair (B2)
+      description: >-
+        Rotates the presented refresh token, atomically: however many
+        exchanges of one token arrive at once, exactly one rotates it. A
+        second presentation **within 30 seconds** of that rotation is treated
+        as a concurrent or retried legitimate use (two calls that 401 together,
+        a response lost on the way back) and answered 200 with a sibling pair
+        in the same family. After 30 seconds it is reuse: the whole token
+        family is revoked and the call answers 401 `refresh_reused`. An unknown
+        or already-revoked token answers 401 `refresh_invalid`. The window is
+        measured on the server's database clock. Design:
+        docs/design/backend-refresh-rotation-atomic.md.
       requestBody:
         required: true
         content:
@@ -1408,6 +1419,12 @@ paths:
     post:
       tags: [auth]
       summary: Exchange a provider refresh token for a new token pair (B-prov)
+      description: >-
+        Same exchange as `/auth/refresh`: exactly one presentation of a token
+        rotates it; another **within 30 seconds** of that rotation gets a 200
+        with a sibling pair in the same family; after 30 seconds it is reuse —
+        the family is revoked, 401 `refresh_reused`. Unknown or revoked → 401
+        `refresh_invalid`. Design: docs/design/backend-refresh-rotation-atomic.md.
       requestBody:
         required: true
         content:
@@ -3005,6 +3022,13 @@ paths:
     post:
       tags: [admin]
       summary: Rotate an admin refresh token (B-admin)
+      description: >-
+        Same exchange as `/auth/refresh`, in one transaction: exactly one
+        presentation of a token rotates it; another **within 30 seconds** of
+        that rotation gets a 200 with a sibling pair in the same family; after
+        30 seconds it is reuse — the family is revoked, 401 `refresh_reused`.
+        Unknown or revoked → 401 `refresh_invalid`. Design:
+        docs/design/backend-refresh-rotation-atomic.md.
       requestBody:
         required: true
         content:

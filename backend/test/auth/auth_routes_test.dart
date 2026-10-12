@@ -41,10 +41,16 @@ void main() {
   late TokenService ts;
   late AuthRepository repo;
   late MessagingService messaging;
+  late DateTime now;
 
   setUp(() {
     ts = TokenService(secret: 'test-secret');
-    repo = InMemoryAuthRepository(tokens: ts, echoDevCode: true);
+    now = DateTime.utc(2026, 10, 12, 9);
+    repo = InMemoryAuthRepository(
+      tokens: ts,
+      echoDevCode: true,
+      clock: () => now,
+    );
     messaging = MessagingService(
       LogMessagingProvider(),
       InMemoryMessagingOutboxRepository(),
@@ -169,6 +175,9 @@ void main() {
     );
     expect(rotated.statusCode, HttpStatus.ok);
 
+    // Past the 30 s grace — inside it a replay gets a sibling
+    // (test/auth/refresh_rotation_test.dart).
+    now = now.add(kRefreshReuseGrace + const Duration(seconds: 1));
     final reuse = await refresh_route.onRequest(
       ctx(post('/auth/refresh', {'refreshToken': first.refreshToken})),
     );

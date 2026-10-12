@@ -16,6 +16,7 @@ import '../../../providers/pro_salon_profile_provider.dart';
 import '../../../widgets/common/app_button.dart';
 import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/app_text_field.dart';
+import '../../../widgets/common/carto_basemap_layer.dart';
 import '../../../widgets/common/commune_picker_sheet.dart';
 import '../../../widgets/common/empty_state.dart';
 import '../../../widgets/common/loading_indicator.dart';
@@ -455,7 +456,8 @@ class _ProSalonProfileScreenState extends State<ProSalonProfileScreen> {
   }
 }
 
-/// The tap-to-place pin map (the app map's CARTO light basemap).
+/// The tap-to-place pin map — the app map's keyed CARTO light basemap
+/// (docs/design/map-basemap-key.md).
 class _LocationField extends StatelessWidget {
   final LatLng? pin;
   final LatLng defaultCenter;
@@ -483,13 +485,7 @@ class _LocationField extends StatelessWidget {
             ),
           ),
           children: [
-            TileLayer(
-              urlTemplate:
-                  'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
-              subdomains: const ['a', 'b', 'c', 'd'],
-              userAgentPackageName: 'com.sadreddine.myweli',
-              retinaMode: true,
-            ),
+            const CartoBasemapLayer(),
             if (pin != null)
               MarkerLayer(
                 markers: [
@@ -513,12 +509,7 @@ class _LocationField extends StatelessWidget {
                   ),
                 ],
               ),
-            const RichAttributionWidget(
-              attributions: [
-                TextSourceAttribution('© OpenStreetMap contributors'),
-                TextSourceAttribution('© CARTO'),
-              ],
-            ),
+            const CartoAttribution(),
           ],
         ),
       ),

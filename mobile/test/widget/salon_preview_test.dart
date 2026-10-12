@@ -8,6 +8,7 @@ import 'package:myweli/providers/provider_provider.dart';
 import 'package:myweli/screens/providers/provider_detail_screen.dart';
 import 'package:myweli/services/interfaces/provider_service_interface.dart';
 import 'package:myweli/services/mock/mock_data.dart';
+import 'package:myweli/widgets/common/timed_cached_image.dart';
 import 'package:provider/provider.dart';
 
 import '../support/pump_app.dart';
@@ -56,11 +57,11 @@ void main() {
     serviceLocator.providerService = _ForbiddenProviderService();
   });
 
-  Widget wrap() {
+  Widget wrap({models.Provider? salon}) {
     final providers = ProviderProvider();
     // What the pro preview screen does with the payload of /me/provider.
     providers.showPreloaded(
-      MockData.providers.firstWhere((p) => p.id == 'provider1'),
+      salon ?? MockData.providers.firstWhere((p) => p.id == 'provider1'),
     );
     return wrapApp(
       providers: [ChangeNotifierProvider.value(value: providers)],
@@ -100,4 +101,69 @@ void main() {
       );
     },
   );
+
+  /// The owner's complaint, held where it happened: « Aperçu » showed no
+  /// cover where the website does (docs/design/salon-cover-photo.md §1). The
+  /// photo must come from the payload the preview was SEEDED with — the
+  /// forbidden public service above fails the test if anything fetches.
+  testWidgets('preview renders the cover from the /me/provider payload', (
+    tester,
+  ) async {
+    // Distinct from every MockData URL, so a cover drawn from anywhere but
+    // this payload cannot match.
+    const cover = 'asset:assets/images/providers/beaute_divine_photo.png';
+    final salon = MockData.providers
+        .firstWhere((p) => p.id == 'provider1')
+        .copyWith(
+          imageUrls: const [
+            cover,
+            'asset:assets/images/providers/spa_relax_photo.png',
+          ],
+        );
+    await tester.pumpWidget(wrap(salon: salon));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.descendant(
+        of: find.byType(SliverAppBar),
+        matching: find.byWidgetPredicate(
+          (w) => w is TimedCachedImage && w.imageUrl == cover,
+        ),
+      ),
+      findsOneWidget,
+      reason: 'the cover is imageUrls[0] of the seeded payload, at the top',
+    );
+    expect(
+      find.bySemanticsLabel('Photo du salon ${salon.name}'),
+      findsOneWidget,
+    );
+    // Still the owner's view: no heart, banner on.
+    expect(find.byIcon(Icons.favorite_border), findsNothing);
+    expect(
+      find.text('Aperçu — voici ce que verront vos clients.'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('a payload without photos previews the header without a cover', (
+    tester,
+  ) async {
+    final salon = MockData.providers
+        .firstWhere((p) => p.id == 'provider1')
+        .copyWith(imageUrls: const []);
+    await tester.pumpWidget(wrap(salon: salon));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.descendant(
+        of: find.byType(SliverAppBar),
+        matching: find.byType(TimedCachedImage),
+      ),
+      findsNothing,
+      reason: 'no photo, no cover — and no logo URL either, so no image',
+    );
+    expect(find.bySemanticsLabel(RegExp('^Photo du salon')), findsNothing);
+    expect(find.byIcon(Icons.store_outlined), findsOneWidget);
+    expect(find.text('Aucune photo pour le moment.'), findsOneWidget);
+  });
 }

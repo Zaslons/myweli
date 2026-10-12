@@ -13,7 +13,7 @@
 
 **Goal.** Both stores require working sign-in credentials when an app is
 gated by a login. The Pro app opens to `/pro/login` and shows nothing without
-one (`pro_splash_screen.dart:66-69`), and none of its three methods can be
+one (`ProSplashScreen`'s `_routeWhenReady`), and none of its three methods can be
 handed to a reviewer: Google/Apple signs the reviewer into a **fresh account**
 — the registration funnel, not a dashboard — and the email OTP goes to an
 address we control. This is the blocker for TestFlight external review and for

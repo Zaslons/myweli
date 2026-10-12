@@ -14,6 +14,7 @@ import 'package:myweli/screens/auth/login_screen.dart';
 import 'package:myweli/screens/booking/booking_hub_screen.dart';
 import 'package:myweli/screens/home/home_screen.dart';
 import 'package:myweli/screens/providers/provider_detail_screen.dart';
+import 'package:myweli/services/mock/mock_data.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../support/frozen_clock.dart';
@@ -173,6 +174,37 @@ void main() {
     testWidgets('the login screen', (tester) async {
       await _pumpScreen(tester, const LoginScreen());
       await expectGolden(tester, 'consumer_login');
+    });
+
+    // docs/design/salon-cover-photo.md — branch B, a salon with NO photo keeps
+    // the pre-cover header (logo beside the name). Same frame as
+    // `consumer_provider_detail`, so the two headers diff side by side. No
+    // salon photo and no before / after — but not « no image »: the Avis
+    // card's review1 thumbnails (mock_data.dart) are built too, since the page
+    // is one Column, and they sit BELOW the 1200dp frame, so none is in the
+    // picture. Last in the group on purpose: nothing it loads into the image
+    // cache can reach a picture taken before it.
+    testWidgets('the provider detail with no photo', (tester) async {
+      final i = MockData.providers.indexWhere((p) => p.id == 'provider1');
+      final seed = MockData.providers[i];
+      MockData.providers[i] = seed.copyWith(
+        imageUrls: const [],
+        beforeAfters: const [],
+      );
+      addTearDown(() => MockData.providers[i] = seed);
+      // The three pictures above signed `user1` in, and that session lives in
+      // the DI singleton — `signedIn: false` alone would restore it, and this
+      // picture would carry their appointments card and a red heart instead
+      // of `consumer_provider_detail`'s signed-out page.
+      await tester.runAsync(serviceLocator.authService.logout);
+
+      await _pumpScreen(
+        tester,
+        const ProviderDetailScreen(providerId: 'provider1'),
+        size: const Size(390, 1200),
+      );
+      expect(find.text('Aucune photo pour le moment.'), findsOneWidget);
+      await expectGolden(tester, 'consumer_provider_detail_no_photo');
     });
   }, skip: kGoldensSkip);
 }

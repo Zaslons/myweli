@@ -15,6 +15,7 @@ import '../../models/provider.dart' as models;
 import '../../providers/auth_provider.dart';
 import '../../providers/favorites_provider.dart';
 import '../../providers/provider_provider.dart';
+import '../../widgets/common/carto_basemap_layer.dart';
 import '../../widgets/common/consumer_bottom_nav.dart';
 import '../../widgets/common/timed_cached_image.dart';
 
@@ -424,22 +425,11 @@ class _MapScreenState extends State<MapScreen> {
               ),
             ),
             children: [
-              TileLayer(
-                // Clean "light" basemap (no API key).
-                // Requires attribution; we show it via the AttributionWidget below.
-                urlTemplate:
-                    'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
-                subdomains: const ['a', 'b', 'c', 'd'],
-                userAgentPackageName: 'com.sadreddine.myweli',
-                retinaMode: true,
-              ),
+              // The keyed CARTO light basemap + its required attribution
+              // (docs/design/map-basemap-key.md).
+              const CartoBasemapLayer(),
               MarkerLayer(markers: markers),
-              const RichAttributionWidget(
-                attributions: [
-                  TextSourceAttribution('© OpenStreetMap contributors'),
-                  TextSourceAttribution('© CARTO'),
-                ],
-              ),
+              const CartoAttribution(),
             ],
           ),
           if (_locationError != null)

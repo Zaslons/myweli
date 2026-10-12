@@ -18,7 +18,7 @@ import {
   boundsFor,
 } from '../../lib/discovery/map';
 import { formatFcfa } from '../../lib/format';
-import { MAP_STYLE, SalonPin, presentationalMarkerRef } from '../map/salon-pin';
+import { MAP_STYLE, MAP_TRANSFORM_REQUEST, SalonPin, presentationalMarkerRef } from '../map/salon-pin';
 
 const FIT_OPTS = { padding: 40, maxZoom: 15 };
 
@@ -66,6 +66,7 @@ export function ResultsMap({
           zoom: DEFAULT_ZOOM,
         }}
         mapStyle={MAP_STYLE}
+        transformRequest={MAP_TRANSFORM_REQUEST}
         onLoad={() => setLoaded(true)}
         style={{ width: '100%', height: '100%' }}
       >
