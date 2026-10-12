@@ -249,22 +249,55 @@ devient : **chaque fichier de code contenant `FlutterMap(` utilise
 `CartoBasemapLayer(` et `CartoAttribution()`**, avec un compte exact (3) comme
 contrôle.
 
-**Mutations vues rouges** (sur le code commité, restaurées par `git checkout`) :
-la liste est dans l'entrée de roadmap et dans le rapport de la branche.
+**Mutations vues rouges** (sur le code commité, chacune restaurée par
+`git checkout --` puis l'arbre vérifié propre) — 23 :
+
+| # | mutation | garde |
+|---|---|---|
+| M1 | la page salon pousse de nouveau `/favorites` | `route_literals_test` |
+| M2 | Mes rendez-vous pousse de nouveau `/favorites` | `route_literals_test` |
+| M3 | idem | `salon_location_map_test` « Mes rendez-vous » |
+| M4 | le tableau de bord Pro pousse `/journal` (aucune app ne l'a) | `route_literals_test` |
+| M5 | la route imbriquée `/profile/data` disparaît du routeur client | `route_literals_test` |
+| M6 | l'aperçu perd `CartoAttribution()` | `carto_basemap_layer_test` |
+| M7 | l'aperçu perd `CartoBasemapLayer` | `carto_basemap_layer_test` |
+| M8 | `panBuffer` n'atteint plus le `TileLayer` | `carto_basemap_layer_test` |
+| M9 | l'aperçu charge l'anneau de tuiles (`panBuffer` par défaut) | « atop » |
+| M10 | l'aperçu prend les gestes (`InteractiveFlag.all`) | « vertical drag » |
+| M11 | `excludeSemantics: false` — **a d'abord survécu** : le test cherchait « Attributions » comme libellé, c'est une info-bulle ; corrigé (recherche par info-bulle, contrôle positif « Itinéraire »), puis rouge | « screen reader » |
+| M12 | le libellé perd le nom du salon | « screen reader » |
+| M13 | plus de branche `preview` : l'Aperçu pousse `/carte` | « Aperçu » |
+| M14 | l'adresse reste un lien sans coordonnées | « no coordinates » |
+| M15 | `maxLines: 1` sur l'adresse | « 200% » |
+| M16 | zoom 14 | « atop » |
+| M17 | hauteur 120 | « atop » |
+| M18 | la position recentre de nouveau la caméra | « outside the loaded list » |
+| M19 | pas de marqueur pour le salon focalisé | « outside the loaded list » |
+| M20 | le focus ne lit que la liste (l'ancien comportement) | « outside the loaded list » |
+| M21 | `providerForMap` ignore le salon de la page salon | « writes nothing » |
+| M22 | `providerForMap` écrit `selectedProvider` | « writes nothing » |
+| M23 | un salon introuvable échoue en silence | « cannot be found » |
 
 ## 9. Rollout & scope discipline
 
 Pas de drapeau : une correction de lien mort et une section de page. V1.
 **Goldens qui changent** (régénérés sur Linux par `goldens.yml`, jamais sur un
-Mac) : `consumer_provider_detail_w360_x2` (la carte « Contact » est dans le
-cadre de 4 200 dp) ; `consumer_provider_detail` et
-`consumer_provider_detail_no_photo` **si** « Contact » tombe dans leur cadre de
-1 200 dp — à regarder. Le fond des tuiles en test est `surfaceVariant` (aucune
-tuile n'est téléchargée sous `flutter test`).
+Mac) : `consumer_provider_detail_w360_x2` (cadre de 4 200 dp),
+`consumer_provider_detail` et `consumer_provider_detail_no_photo` (cadres de
+1 200 dp : le titre « Contact » mesuré à ~770 dp, l'aperçu à 804–964 dp, avec
+la police de test — la marge est large). Sous `flutter test`, `PackageInfo` ne
+répond jamais dans l'horloge simulée : la couche ne dessine aucune tuile, et
+l'image montre le fond `surfaceVariant`, le marqueur et l'attribution.
 
 ## 10. Definition of done
 
-- [x] `flutter analyze` = 0 · `dart format` propre · tests ciblés verts.
+- [x] `flutter analyze` = 0 · `dart format` propre · tests ciblés verts
+      — les trois fichiers ci-dessus (13 + 11 + 18 cas), et les dix qui
+      couvrent la page salon ou la carte : `salon_preview`, `salon_cover`,
+      `salon_landing_states`, `photo_lightbox`, `default_status_bar_style`,
+      `appointment_card`, `pro_reads_own_salon`, `design_system_pin`, a11y
+      `salon_header` et `layout` (181 cas).
+- [x] 23 mutations vues rouges (§8).
 - [x] Spec liée depuis le code ; index `README.md` ; SYSTEM.md §11.1
       (`SalonMapMarker`, `SalonLocationPreview`) ; map-basemap-key.md §5.1 ;
       ligne 2.9 de l'audit de parité corrigée ; entrée de roadmap.
