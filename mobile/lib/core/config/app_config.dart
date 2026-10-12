@@ -113,6 +113,23 @@ class AppConfig {
   /// release, which matters because the number waits on company registration.
   static String get supportUrl => '$siteBaseUrl/support';
 
+  /// The CARTO basemaps key for the app maps — the **app** key, restricted to
+  /// our two bundle ids / packages (the web has its own, restricted to
+  /// myweli.com). Design: docs/design/map-basemap-key.md.
+  ///
+  /// Since 2026-09-25 CARTO serves no raster tile without a usable key: every
+  /// keyless request gets a tile reading « API KEY REQUIRED ». **Empty by
+  /// default, and that is visible on purpose** — `flutter run`, the tests and
+  /// CI build without it and show that watermark (`cartoTileUrlTemplate`).
+  /// `tool/release_build.sh` reads it from Secret Manager and refuses to
+  /// build a store release without it.
+  ///
+  /// Public by construction (it ships in the binary); the dashboard
+  /// restrictions are what bound its reuse, not this define.
+  static const String cartoBasemapsKey = String.fromEnvironment(
+    'CARTO_BASEMAPS_KEY',
+  );
+
   /// Google Sign-In server client ID (the **web** OAuth client) — makes the
   /// native flow return an ID token whose `aud` the backend allowlists.
   /// A public identifier, not a secret; overridable per environment.

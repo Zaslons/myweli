@@ -9,15 +9,22 @@ import '../interfaces/session_store.dart';
 import 'refreshing_http_client.dart';
 
 /// Real HTTP implementation of [DeviceRegistrationServiceInterface]
-/// (`POST/DELETE /me/devices`, self-scoped). Rides the consumer
-/// [RefreshingHttpClient] (silent refresh on a 401). Wired in by DI when
-/// `AppConfig.useApiBackend` is true. Design: docs/design/push-notifications-app.md.
+/// (`POST/DELETE /me/devices`, self-scoped). Rides a [RefreshingHttpClient]
+/// (silent refresh on a 401). Wired in by DI when `AppConfig.useApiBackend` is
+/// true. Design: docs/design/push-notifications-app.md.
+///
+/// The PRO app runs it on the provider session, and then [refreshPath] MUST be
+/// `/auth/provider/refresh`: a provider refresh token sent to the consumer
+/// `/auth/refresh` is refused, and a refused refresh ends the session — which
+/// signed salon owners out on every cold start after the 15-minute access
+/// token expired (production, 2026-10-11; docs/design/session-refresh.md).
 class ApiDeviceRegistrationService
     implements DeviceRegistrationServiceInterface {
   ApiDeviceRegistrationService({
     http.Client? client,
     String? baseUrl,
     SessionStore? sessionStore,
+    this.refreshPath = '/auth/refresh',
   }) : _client = client ?? http.Client(),
        _baseUrl = baseUrl ?? AppConfig.apiBaseUrl,
        _sessionStore = sessionStore ?? InMemorySessionStore();
@@ -26,10 +33,14 @@ class ApiDeviceRegistrationService
   final String _baseUrl;
   final SessionStore _sessionStore;
 
+  /// The refresh endpoint of [sessionStore]'s principal (see the class doc).
+  final String refreshPath;
+
   late final RefreshingHttpClient _authed = RefreshingHttpClient(
     client: _client,
     baseUrl: _baseUrl,
     store: _sessionStore,
+    refreshPath: refreshPath,
   );
 
   @override

@@ -37,6 +37,16 @@ import '../../screens/provider/team/pro_invitations_screen.dart';
 import '../../screens/provider/team/team_screen.dart';
 
 class ProRouter {
+  /// The screens that hand over with a `go` — the splash, and sign-in /
+  /// sign-up after a login. A page pushed above one of them is replaced by
+  /// that `go`, so a buffered notification tap waits until the router has
+  /// left them (`landedPushHandler`, docs/design/pro-open-animation.md §2.6).
+  static const Set<String> launchPaths = {
+    '/pro/splash',
+    '/pro/login',
+    '/pro/register',
+  };
+
   static final GoRouter router = GoRouter(
     initialLocation: '/pro/splash',
     routes: [

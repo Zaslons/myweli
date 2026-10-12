@@ -10,6 +10,7 @@ import 'core/config/build_config_guard.dart';
 import 'core/di/dependency_injection.dart';
 import 'core/observability/error_reporting.dart';
 import 'core/push/firebase_bootstrap.dart';
+import 'core/push/landed_push_handler.dart';
 import 'core/push/push_message_handler.dart';
 import 'core/router/pro_router.dart';
 import 'core/theme/app_theme.dart';
@@ -122,18 +123,21 @@ void main() {
 /// is signed in on ANOTHER salon switches first — `switchSalon` also resets
 /// every salon-scoped provider (R6). A refused switch (revoked, unknown)
 /// lands on the dashboard rather than a booking the active scope can't load.
+///
+/// A tap that launched the app replays once signed in AND past the splash /
+/// sign-in screens — replayed any earlier, their `go` replaced it
+/// (`landedPushHandler`, docs/design/pro-open-animation.md §2.6).
 Future<void> _startPush(ProAuthProvider auth) async {
-  final handler = PushMessageHandler(
-    navigate: (route) async => ProRouter.router.push(route),
+  final handler = landedPushHandler(
+    router: ProRouter.router,
+    session: auth,
+    isSignedIn: () => auth.isAuthenticated,
+    launchPaths: ProRouter.launchPaths,
     allowedRoutePrefixes: kProRoutePrefixes,
-    isAuthenticated: () => auth.isAuthenticated,
     ensureSalon:
         auth.switchSalon, // returns true immediately when already there
     salonSwitchFallbackRoute: '/pro/dashboard',
   );
-  auth.addListener(() {
-    if (auth.isAuthenticated) unawaited(handler.flushPending());
-  });
   await FcmMessageBridge(handler).init();
 }
 
