@@ -29,11 +29,12 @@ class SalonLocationPreview extends StatelessWidget {
   final VoidCallback onOpen;
 
   /// The box's height. Constant chrome — no text inside, not even with the
-  /// credits open (they open in a sheet), so 200 % text does not move it. A named constant at the call site and not an `AppTheme`
-  /// token, by SYSTEM.md §5 « What §5 does not govern »: there is no sizing
-  /// scale, and a map box's height is a layout dimension like the cover's
-  /// `_coverHeight`. 160, not the website's 256 (`h-64`): this one is a
-  /// preview whose real map is a tap away.
+  /// credits open (they open in a sheet), so 200 % text does not move it. A
+  /// named constant at the call site and not an `AppTheme` token, by
+  /// SYSTEM.md §5 « What §5 does not govern »: there is no sizing scale, and a
+  /// map box's height is a layout dimension like the cover's `_coverHeight`.
+  /// 160, not the website's 256 (`h-64`): this one is a preview whose real map
+  /// is a tap away.
   static const double height = 160;
 
   /// The website's `zoom: 15` (`SalonLocationMap.tsx`) — a few streets.
@@ -57,8 +58,8 @@ class SalonLocationPreview extends StatelessWidget {
     return Semantics(
       button: true,
       label: 'Voir $salonName sur la carte',
-      // Not tiles, a pin and an « Attributions » button one by one: one
-      // control, one name (SYSTEM.md §13.4).
+      // Not tiles, a pin and a « Crédits de la carte » button one by one:
+      // one control, one name (SYSTEM.md §13.4).
       excludeSemantics: true,
       onTap: onOpen,
       child: ClipRRect(
