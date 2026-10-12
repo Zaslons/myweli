@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <rect x="0" y="0" width="1024" height="1024" fill="#96402A"/>
+  <circle cx="512" cy="512" r="392" fill="none" stroke="#F5E9DA" stroke-width="18"/>
+  <text x="512" y="306" text-anchor="middle" font-family="Avenir Next" font-weight="bold"
+        font-size="66" letter-spacing="25" fill="#F5E9DA" stroke="#F5E9DA" stroke-width="4"
+        stroke-linejoin="round">MAISON</text>
+  <text x="512" y="768" text-anchor="middle" font-family="Didot" font-weight="bold"
+        font-size="580" fill="#F5E9DA" stroke="#F5E9DA" stroke-width="6" stroke-linejoin="miter">N</text>
+</svg>
