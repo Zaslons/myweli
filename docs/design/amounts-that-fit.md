@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Draft — awaiting owner sign-off** (2026-10-13). Direction approved the same day: « measure, then lay out »; no smaller font, no shorthand; fix the guard; plus the review count, the map sheet and the two web gaps. §11 holds what is still open |
+| **Status** | **Approved** (owner, 2026-10-13: the direction — « measure, then lay out », no smaller font, no shorthand — then « yes to all » on the six questions of §11) — building |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-10-13 |
 | **PRD ref / phase** | Pro app — clients, home · consumer app — reviews · web Pro dashboard · V1 |
@@ -219,7 +219,8 @@ build is asked for when the PRs are in.
 
 ## 11. Open questions
 
-For the owner — each with the recommendation the plan assumes:
+None open. The six below were put to the owner on 2026-10-13 and answered
+**« yes to all »** — each recommendation is now the decision:
 
 1. **One space before « FCFA » in every price, and the unit once in a range**
    (« 15 000 – 25 000 FCFA »)? *Recommended: yes.* It moves every golden that
