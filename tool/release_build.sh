@@ -124,7 +124,7 @@ ENTRY="lib/main.dart"
 
 # **The build number is the identity of a release here, and it was frozen at 1.**
 #
-# `pubspec.yaml` says `version: 1.0.0+1` and nothing overrode it, so every
+# `pubspec.yaml`'s build number is `+1` and nothing overrode it, so every
 # artifact this script has ever produced claimed to be build 1. Both stores
 # reject a second upload with a build number already used — but the store is the
 # least of it. `client-version-gate.md` establishes "build numbers, not semver"
