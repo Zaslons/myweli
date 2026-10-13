@@ -15,6 +15,7 @@ import '../../providers/appointment_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/provider_provider.dart';
 import '../../widgets/booking/appointment_card.dart';
+import '../../widgets/booking/visit_summary.dart';
 import '../../widgets/common/app_button.dart';
 import '../../widgets/common/app_snack_bar.dart';
 import '../../widgets/common/consumer_bottom_nav.dart';
@@ -178,31 +179,12 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
     final spent = totalSpent(visits);
 
     final children = <Widget>[
-      Row(
-        children: [
-          Expanded(
-            child: _summaryMetric(
-              '${visits.length}',
-              // A13 — `== 1` printed « 0 visites »; French puts zero in
-              // the singular. The number renders separately here, so this is
-              // the noun-only helper.
-              Formatters.plural(visits.length, 'visite', 'visites'),
-            ),
-          ),
-          const SizedBox(width: AppTheme.spacingM),
-          Expanded(
-            child: _summaryMetric(
-              // MVP: a mixed-currency history sums nominally and reads the
-              // first visit's currency (per-currency grouping is post-MP2).
-              Formatters.formatCurrency(
-                spent,
-                currency:
-                    visits.first.currency ?? visits.first.providerCurrency,
-              ),
-              'dépensés',
-            ),
-          ),
-        ],
+      VisitSummary(
+        visits: visits.length,
+        spent: spent,
+        // MVP: a mixed-currency history sums nominally and reads the first
+        // visit's currency (per-currency grouping is post-MP2).
+        currency: visits.first.currency ?? visits.first.providerCurrency,
       ),
       const SizedBox(height: AppTheme.spacingM),
     ];
@@ -290,28 +272,5 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
       },
     );
     context.push(uri.toString());
-  }
-
-  Widget _summaryMetric(String value, String label) {
-    return Container(
-      padding: const EdgeInsets.all(AppTheme.spacingM),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(value, style: AppTextStyles.titleLarge),
-          const SizedBox(height: AppTheme.spacingXS),
-          Text(
-            label,
-            style: AppTextStyles.bodySmall.copyWith(
-              color: AppColors.textSecondary,
-            ),
-          ),
-        ],
-      ),
-    );
   }
 }

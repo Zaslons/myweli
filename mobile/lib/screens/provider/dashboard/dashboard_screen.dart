@@ -11,6 +11,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../core/utils/text_fit.dart';
 import '../../../models/pro_membership.dart';
 import '../../../providers/notifications_provider.dart';
 import '../../../providers/pro_auth_provider.dart';
@@ -254,76 +255,55 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     const SizedBox(height: AppTheme.spacingS),
                   ],
                   const SizedBox(height: AppTheme.spacingM),
-                  // Stats Cards — each row as tall as its tallest card:
-                  // « 114 000 FCFA » wraps in one card and not its neighbour
-                  // (pro-screenshot-shoot-fixes.md §2.4).
-                  IntrinsicHeight(
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Expanded(
-                          child: _StatCard(
-                            title: 'Aujourd’hui',
-                            value: stats.todayAppointments.toString(),
-                            subtitle: 'Rendez-vous',
-                            icon: Icons.calendar_today,
-                            color: AppColors.primary,
+                  // Stats cards — two across, or all of them one per row
+                  // when a value would not fit a half-width card.
+                  // Money figures are field-gated server-side without
+                  // finances.view (R1/R4) — absence is a valid state, and
+                  // then the two counts decide alone.
+                  _StatBlock(
+                    cards: [
+                      _StatCard(
+                        title: 'Aujourd’hui',
+                        value: stats.todayAppointments.toString(),
+                        subtitle: 'Rendez-vous',
+                        icon: Icons.calendar_today,
+                        color: AppColors.primary,
+                      ),
+                      _StatCard(
+                        title: 'En attente',
+                        value: stats.pendingRequests.toString(),
+                        subtitle: 'Demandes',
+                        icon: Icons.pending,
+                        color: AppColors.warning,
+                      ),
+                      if (stats.hasRevenue) ...[
+                        _StatCard(
+                          title: 'Aujourd’hui',
+                          value: Formatters.formatCurrency(
+                            stats.todayRevenue!,
+                            currency: context
+                                .read<ProAuthProvider>()
+                                .salonCurrency,
                           ),
+                          subtitle: 'Revenus',
+                          icon: Icons.attach_money,
+                          color: AppColors.success,
                         ),
-                        const SizedBox(width: AppTheme.spacingSM),
-                        Expanded(
-                          child: _StatCard(
-                            title: 'En attente',
-                            value: stats.pendingRequests.toString(),
-                            subtitle: 'Demandes',
-                            icon: Icons.pending,
-                            color: AppColors.warning,
+                        _StatCard(
+                          title: 'Ce mois',
+                          value: Formatters.formatCurrency(
+                            stats.monthRevenue!,
+                            currency: context
+                                .read<ProAuthProvider>()
+                                .salonCurrency,
                           ),
+                          subtitle: 'Revenus',
+                          icon: Icons.trending_up,
+                          color: AppColors.info,
                         ),
                       ],
-                    ),
+                    ],
                   ),
-                  // Money figures are field-gated server-side without
-                  // finances.view (R1/R4) — absence is a valid state.
-                  if (stats.hasRevenue) ...[
-                    const SizedBox(height: AppTheme.spacingSM),
-                    IntrinsicHeight(
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Expanded(
-                            child: _StatCard(
-                              title: 'Aujourd’hui',
-                              value: Formatters.formatCurrency(
-                                stats.todayRevenue!,
-                                currency: context
-                                    .read<ProAuthProvider>()
-                                    .salonCurrency,
-                              ),
-                              subtitle: 'Revenus',
-                              icon: Icons.attach_money,
-                              color: AppColors.success,
-                            ),
-                          ),
-                          const SizedBox(width: AppTheme.spacingSM),
-                          Expanded(
-                            child: _StatCard(
-                              title: 'Ce mois',
-                              value: Formatters.formatCurrency(
-                                stats.monthRevenue!,
-                                currency: context
-                                    .read<ProAuthProvider>()
-                                    .salonCurrency,
-                              ),
-                              subtitle: 'Revenus',
-                              icon: Icons.trending_up,
-                              color: AppColors.info,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
                   const SizedBox(height: AppTheme.spacingL),
                   // Role-gated sections (access R4b): UI hiding is
                   // convenience — the routes 403 server-side regardless.
@@ -477,6 +457,58 @@ List<Widget> _actionRows(BuildContext context, List<Widget> cards) {
   return rows;
 }
 
+/// The stat cards, two across — or one per row, ALL of them, when a value
+/// would not fit a half-width card (docs/design/amounts-that-fit.md §2).
+///
+/// **Measured, not a text-size constant.** At 360dp a half card has 126dp:
+/// « 114 000 » at 2× needs 171 and was broken inside the number, while the
+/// same amount at 430dp, or a smaller one at 360dp, fits. The shape depends on
+/// the width, the text size AND the amount, so all three are asked. One
+/// decision for every card: a two-across row above a stacked one would read as
+/// two different screens.
+///
+/// A row's cards are as tall as its tallest (« 114 000 FCFA » wraps its unit
+/// in one card and not its neighbour — pro-screenshot-shoot-fixes.md §2.4).
+class _StatBlock extends StatelessWidget {
+  const _StatBlock({required this.cards});
+
+  final List<_StatCard> cards;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, box) {
+        final columns = TextFit.of(context).columns(
+          candidates: const [2, 1],
+          cellWidth: (n) =>
+              (box.maxWidth - (n - 1) * AppTheme.spacingSM) / n -
+              2 * _StatCard.padding,
+          texts: [for (final card in cards) ...card.texts],
+        );
+        return Column(
+          children: [
+            for (var i = 0; i < cards.length; i += columns) ...[
+              if (i > 0) const SizedBox(height: AppTheme.spacingSM),
+              IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    for (final (k, card)
+                        in cards.skip(i).take(columns).indexed) ...[
+                      if (k > 0) const SizedBox(width: AppTheme.spacingSM),
+                      Expanded(child: card),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ],
+        );
+      },
+    );
+  }
+}
+
 class _StatCard extends StatelessWidget {
   final String title;
   final String value;
@@ -492,10 +524,22 @@ class _StatCard extends StatelessWidget {
     required this.color,
   });
 
+  static const double padding = AppTheme.spacingM;
+  static const TextStyle _labelStyle = AppTextStyles.bodySmall;
+  static const TextStyle _valueStyle = AppTextStyles.headlineSmall;
+
+  /// What this card draws, with the styles it draws them in — for
+  /// [_StatBlock]'s measure. Colour does not change a width.
+  List<FitText> get texts => [
+    (text: title, style: _labelStyle),
+    (text: value, style: _valueStyle),
+    (text: subtitle, style: _labelStyle),
+  ];
+
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(AppTheme.spacingM),
+      padding: const EdgeInsets.all(padding),
       decoration: BoxDecoration(
         color: AppColors.secondary,
         borderRadius: BorderRadius.circular(AppTheme.radiusXL),
@@ -531,9 +575,7 @@ class _StatCard extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: AppTextStyles.bodySmall.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
+                  style: _labelStyle.copyWith(color: AppColors.textSecondary),
                 ),
                 Icon(icon, color: color, size: AppTheme.iconS),
               ],
@@ -542,15 +584,11 @@ class _StatCard extends StatelessWidget {
           const SizedBox(height: AppTheme.spacingS),
           Text(
             value,
-            style: AppTextStyles.headlineSmall.copyWith(
-              color: AppColors.textPrimary,
-            ),
+            style: _valueStyle.copyWith(color: AppColors.textPrimary),
           ),
           Text(
             subtitle,
-            style: AppTextStyles.bodySmall.copyWith(
-              color: AppColors.textTertiary,
-            ),
+            style: _labelStyle.copyWith(color: AppColors.textTertiary),
           ),
         ],
       ),

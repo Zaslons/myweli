@@ -208,13 +208,21 @@ class Formatters {
 
   /// Relative time in French: « À l’instant », « il y a 5 min », « il y a 2 h »,
   /// "Hier", "il y a 3 j", otherwise a short date. Pass [now] for testing.
-  static String formatRelative(DateTime time, {DateTime? now}) {
+  ///
+  /// Two of those phrases stand alone with a capital. Set [midSentence] when
+  /// the result follows other words — the clients list wrote « dernière À
+  /// l’instant » and « dernière Hier ».
+  static String formatRelative(
+    DateTime time, {
+    DateTime? now,
+    bool midSentence = false,
+  }) {
     final ref = now ?? AppClock.now();
     final diff = ref.difference(time);
-    if (diff.inMinutes < 1) return 'À l’instant';
+    if (diff.inMinutes < 1) return midSentence ? 'à l’instant' : 'À l’instant';
     if (diff.inMinutes < 60) return 'il y a ${diff.inMinutes} min';
     if (diff.inHours < 24) return 'il y a ${diff.inHours} h';
-    if (diff.inDays == 1) return 'Hier';
+    if (diff.inDays == 1) return midSentence ? 'hier' : 'Hier';
     if (diff.inDays < 7) return 'il y a ${diff.inDays} j';
     return formatDateShort(time);
   }
