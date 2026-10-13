@@ -691,6 +691,10 @@ class _VisitsSection extends StatelessWidget {
                         ),
                       ),
                     ),
+                    // The date takes all the width that is left; without
+                    // this, a date that fits its line exactly ends ON the
+                    // amount (« 08:007 000 FCFA », seen on the simulator).
+                    const SizedBox(width: AppTheme.spacingS),
                     Text(
                       Formatters.formatCurrency(
                         v.totalPrice,

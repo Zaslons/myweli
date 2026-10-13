@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/core/theme/app_theme.dart';
+import 'package:myweli/core/theme/text_styles.dart';
 import 'package:myweli/core/utils/app_clock.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/salon_client.dart';
@@ -739,6 +740,43 @@ void main() {
         );
       });
     }
+
+    // Seen on the iPhone simulator at the default size once the price lost
+    // its doubled gap (2026-10-13): « mardi 13 octobre 2026 à 08:00 » then
+    // fits its line exactly and ran into the amount — « 08:007 000 FCFA ».
+    // The date is an Expanded with nothing between it and the amount.
+    testWidgets('in the visit history, a date and its amount do not touch', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(402, 3200);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(
+        app(initial: '/pro/clients/sc1', realFonts: true),
+      );
+      await settle(tester);
+      expect(find.text('Historique des visites'), findsOneWidget);
+
+      final amounts = find.byWidgetPredicate(
+        (w) =>
+            w is Text &&
+            (w.data ?? '').endsWith('FCFA') &&
+            w.style?.fontSize == AppTextStyles.bodySmall.fontSize,
+      );
+      expect(amounts, findsWidgets, reason: 'the mock client has visits');
+      for (final e in amounts.evaluate()) {
+        final amount = find.byElementPredicate((x) => x == e);
+        final row = find.ancestor(of: amount, matching: find.byType(Row)).first;
+        final date = find
+            .descendant(of: row, matching: find.byType(Expanded))
+            .first;
+        expect(
+          tester.getRect(amount).left - tester.getRect(date).right,
+          greaterThanOrEqualTo(AppTheme.spacingS - 0.5),
+          reason: 'the date column ends where the amount begins',
+        );
+      }
+    });
 
     testWidgets('adding a note prepends it', (tester) async {
       await tester.pumpWidget(app(initial: '/pro/clients/sc1'));
