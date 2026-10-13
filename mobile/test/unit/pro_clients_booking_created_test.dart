@@ -25,6 +25,9 @@ class _Service extends MockProClientsService {
   /// While set, card answers wait for it.
   Completer<void>? gate;
 
+  /// While set, visit answers wait for it.
+  Completer<void>? visitsGate;
+
   SalonClientCard _card(String clientId) => SalonClientCard(
     client: SalonClient(
       id: clientId,
@@ -66,7 +69,10 @@ class _Service extends MockProClientsService {
     int page = 1,
   }) async {
     visitCalls++;
-    return ApiResponse.success(List.of(visits));
+    final answer = List.of(visits); // decided on arrival
+    final gate = visitsGate;
+    if (gate != null) await gate.future;
+    return ApiResponse.success(answer);
   }
 }
 
@@ -84,7 +90,8 @@ void main() {
       ..cardCalls.clear()
       ..visitCalls = 0
       ..failure = null
-      ..gate = null;
+      ..gate = null
+      ..visitsGate = null;
   });
 
   Appointment booking({
@@ -206,9 +213,37 @@ void main() {
     service.gate = null;
     await p.loadCard('p1', 'sc2');
     expect(p.card!.client.displayName, 'Aminata');
+    final visitCallsBefore = service.visitCalls;
 
     held.complete();
     await pumpEventQueue();
     expect(p.card!.client.displayName, 'Aminata', reason: 'not Koffi’s card');
+    expect(
+      service.visitCalls,
+      visitCallsBefore,
+      reason: 'an outdated reload does not go on to ask for the visits',
+    );
+  });
+
+  test('another card is opened while the VISITS are in flight: dropped '
+      'too', () async {
+    final p = await opened();
+    serverHasTheBooking();
+    final held = Completer<void>();
+    service.visitsGate = held;
+    p.bookingCreated(booking()); // Koffi's card answered, his visits held
+    await pumpEventQueue();
+    expect(service.cardCalls, ['sc1', 'sc1']);
+
+    service.visitsGate = null;
+    service.visits = [];
+    await p.loadCard('p1', 'sc2');
+    expect(p.card!.client.displayName, 'Aminata');
+    expect(p.visits, isEmpty);
+
+    held.complete();
+    await pumpEventQueue();
+    expect(p.card!.client.displayName, 'Aminata', reason: 'not Koffi’s card');
+    expect(p.visits, isEmpty, reason: 'not Koffi’s visits');
   });
 }

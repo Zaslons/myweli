@@ -19,6 +19,14 @@ class _Service extends MockProService {
   int calls = 0;
 
   @override
+  Future<ApiResponse<List<Appointment>>> getProviderAppointments(
+    String providerId, {
+    AppointmentStatus? status,
+    DateTime? startDate,
+    DateTime? endDate,
+  }) async => ApiResponse.success(<Appointment>[]);
+
+  @override
   Future<ApiResponse<Appointment>> createManualBooking({
     required String providerId,
     required List<String> serviceIds,
@@ -186,6 +194,20 @@ void main() {
       var heardWhenDone = -1;
       await create(p).then((_) => heardWhenDone = store.heard.length);
       expect(heardWhenDone, 1);
+    });
+
+    test('a booking the agenda’s own list does not take is announced all '
+        'the same — « Ma journée » does not depend on which tab the agenda '
+        'was left on', () async {
+      final store = ProSalonScope.track(_Shows());
+      final p = ProAppointmentProvider();
+      // The agenda was left on « En attente »; the booking is « Confirmé ».
+      await p.loadAppointments('p1', status: AppointmentStatus.pending);
+
+      expect(await create(p), isTrue);
+
+      expect(p.appointments, isEmpty, reason: 'not under « En attente »');
+      expect(store.heard.single.id, 'm1');
     });
 
     test('a refused creation announces nothing', () async {
