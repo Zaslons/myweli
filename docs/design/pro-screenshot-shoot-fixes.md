@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Approved** (owner, 2026-10-13) — building |
+| **Status** | **Approved** (owner, 2026-10-13) — **built** for build 566 |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-10-13 |
 | **PRD ref / phase** | Pro app — clients, photos, home, manual booking · V1 |
@@ -72,12 +72,35 @@ flag is off), so nothing server-side moves.
 - `formatDateCompact` unit test; client card: « 13 oct. 2026 », formatted
   phone, equal tile heights, 2 × 2 above 1.1× (checked at 1, 1.1, 1.15,
   1.2, 1.3, 1.5 and 2×, real fonts), no mid-word break at any of them.
-- `TimedCachedImage` timeout: icon-only with tooltip in a narrow box, label
-  in a wide one, the loader not visible, a late image replaces the cover.
-- Dashboard: both cards in a row share one height.
+- `TimedCachedImage` timeout: icon-only with tooltip in a narrow box and in a
+  wide-but-short strip (320 × 60), the label in a roomy one, whole at 2× in
+  the smallest roomy box (200 × 72), and the cover **on** the loader — a hit
+  test at the loader's centre reaches the cover first, so a cover painted
+  under it fails. *Not guarded:* a late image replacing the cover (under the
+  test clock a network image never completes).
+- Dashboard: both cards in a row share one height — on the shoot's figures
+  (« 0 FCFA » beside « 114 000 FCFA »), in real fonts, at 1×, 1.3× and 2×.
 - Manual booking: « Client sans numéro », no SMS switch, `sendSmsInvite`
   false. Avant/Après: no « — ».
 - Each new guard watched red; goldens regenerated on Linux and reviewed.
+
+**Mutations (2026-10-13, on committed code): 22 run, 19 red.** M1–M3 date
+format and phone; M4b the client tiles back to a plain `Row`; M5–M6 the 2 × 2
+threshold (1.3, never); M7–M11 the retry label's width and height floors, a
+translucent cover, a cover painted under the loader; M12b–M13b each dashboard
+row back to a plain `Row`; M14–M17 « (walk-in) », the switch shown, the flag
+ignored, the flag on; M18–M19 « — » back, the caption dropped. **The three
+survivors are equivalent:** dropping only `stretch` (M4, M12, M13) changes
+nothing, because `IntrinsicHeight` fixes the row's height and each card's
+`Column` (`mainAxisSize.max`) fills it. `stretch` stays as the action grid's
+idiom, so a card that later shrinks its `Column` still lines up.
+
+**Two guards were vacuous until their mutations survived.** The dashboard test
+measured a freshly registered salon, every figure « 0 », so both cards held
+the same text. The client test compared only tiles whose tops matched, but
+unequal tiles in a plain `Row` are centred, so their tops differ as well (60
+vs 84 dp, tops 236 vs 224): every wrong pair was skipped. Both are fixed — the
+shoot's figures; rows by vertical overlap with their membership asserted.
 
 ## 9. Rollout
 
@@ -85,10 +108,11 @@ With PR #573 in **build 566**.
 
 ## 10. Definition of done
 
-- [ ] Tests green, `flutter analyze` 0, guards watched red.
-- [ ] Goldens regenerated and reviewed.
-- [ ] SYSTEM.md §21 row added for the timeout overlay (literal colours, a
-      control drawn over a live animation).
+- [x] Tests green, `flutter analyze` 0, guards watched red (§8).
+- [x] Goldens regenerated on Linux (`goldens.yml` run 38332107792) and
+      reviewed: only `pro_dashboard_w360_x2` moved; 50 byte-identical.
+- [x] SYSTEM.md §21 row 92 for the timeout overlay.
+- [ ] On device, build 566: the client card, a slow photo, the home.
 
 ## 11. Open questions
 
