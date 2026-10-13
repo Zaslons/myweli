@@ -107,6 +107,15 @@ class VerifyRefuses(unittest.TestCase):
     def test_30_1_seconds(self):
         self.assertEqual(failed(film_clip("long", frames=903)), {"frame count", "duration"})
 
+    def test_a_length_apple_takes_but_the_storyboard_does_not_say(self):
+        self.assertEqual(failed(film_clip("sixteen-seconds", frames=480)), {"frame count", "duration"})
+
+    def test_a_length_the_storyboard_says_but_apple_does_not_take(self):
+        """The film is exactly as long as its storyboard — and 0.1 s short of
+        the App Store's minimum."""
+        sb = {**SB, "film": {**SB["film"], "duration_s": 14.9}}
+        self.assertEqual(failed(film_clip("short", frames=447), sb=sb), {"duration"})
+
     def test_a_size_off_by_one_pixel(self):
         """Asked for 885 wide, AVFoundation writes 884 without a word (H.264
         4:2:0 has no odd sizes); a header can still claim 887."""

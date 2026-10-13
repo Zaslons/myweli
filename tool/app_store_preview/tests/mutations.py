@@ -209,12 +209,17 @@ MANUAL = [
      V + "test_the_wrong_level"),
     ("verify", "verify.py", "psnr >= POSTER_MIN_PSNR and block <= POSTER_MAX_BLOCK", "psnr >= POSTER_MIN_PSNR",
      V + "test_a_touch_point_left_on_the_poster"),
-    ("verify", "verify.py", '            "tkhd": (v.get("tkhd_width"), v.get("tkhd_height")),\n', "",
-     V + "test_a_header_that_claims_another_size"),
-    ("verify", "verify.py", '            "stsd": (entry.get("width"), entry.get("height")),\n', "",
-     V + "test_a_header_that_claims_another_size"),
+    # Not here, on purpose: dropping the box reader's own `tkhd` or `stsd`
+    # size from the `size` check. Both were tried and both survive — a header
+    # that claims 887 is read by AVFoundation and avmediainfo from the same
+    # bytes, so they refuse it too. The three readings cannot be made to
+    # disagree on a header field; the check as a whole is watched above.
     ("verify", "verify.py", "MIN_S <= seconds <= MAX_S and seconds == film[\"duration_s\"] and plain",
-     "MIN_S <= seconds <= MAX_S and plain", V + "test_14_9_seconds"),
+     "MIN_S <= seconds <= MAX_S and plain", V + "test_a_length_apple_takes_but_the_storyboard_does_not_say"),
+    ("verify", "verify.py", "MIN_S <= seconds <= MAX_S and seconds == film[\"duration_s\"] and plain",
+     "seconds == film[\"duration_s\"] and plain", V + "test_a_length_the_storyboard_says_but_apple_does_not_take"),
+    ("verify", "verify.py", "MIN_S <= seconds <= MAX_S and seconds == film[\"duration_s\"] and plain",
+     "MIN_S <= seconds <= MAX_S and seconds == film[\"duration_s\"]", V + "test_reordered_frames"),
     ("verify", "verify.py", "and decoded.get(\"frames\") == round(seconds * AUDIO_RATE),", ",",
      V + "test_sound_at_44_1_khz"),
     ("verify", "verify.py", 'out: dict = {"ok": r.returncode == 0 and "Movie analyzed with 0 error" in text, "tracks": []}',
