@@ -10,6 +10,7 @@ import '../../../core/theme/text_styles.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/utils/salon_time.dart';
 import '../../../core/utils/status_labels.dart';
+import '../../../core/utils/text_fit.dart';
 import '../../../core/utils/validators.dart';
 import '../../../models/appointment.dart';
 import '../../../models/salon_client.dart';
@@ -254,51 +255,26 @@ class _StatsStrip extends StatelessWidget {
   final SalonClientStats stats;
   final DateTime? lastVisitAt;
 
+  static const TextStyle _valueStyle = AppTextStyles.titleMedium;
+  static const TextStyle _labelStyle = AppTextStyles.labelSmall;
+
   @override
   Widget build(BuildContext context) {
-    Widget tile(String label, String value, {bool alert = false}) => Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(AppTheme.spacingS),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-        ),
-        child: Column(
-          children: [
-            Text(
-              value,
-              style: AppTextStyles.titleMedium.copyWith(
-                color: alert ? AppColors.error : AppColors.textPrimary,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: AppTheme.spacingXS),
-            Text(
-              label,
-              style: AppTextStyles.labelSmall.copyWith(
-                color: AppColors.textSecondary,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
-    );
-
     final auth = context.read<ProAuthProvider>();
-    final tiles = [
-      tile('Visites', '${stats.visits}'),
-      tile(
-        'Dépensé',
-        Formatters.formatCurrency(
+    final tiles = <({String label, String value, bool alert})>[
+      (label: 'Visites', value: '${stats.visits}', alert: false),
+      (
+        label: 'Dépensé',
+        value: Formatters.formatCurrency(
           stats.spentFcfa.toDouble(),
           currency: auth.salonCurrency,
         ),
+        alert: false,
       ),
-      tile('Absences', '${stats.noShows}', alert: stats.noShows >= 2),
-      tile(
-        'Dernière',
-        lastVisitAt == null
+      (label: 'Absences', value: '${stats.noShows}', alert: stats.noShows >= 2),
+      (
+        label: 'Dernière',
+        value: lastVisitAt == null
             ? '—'
             // Compact: « 13 oct. 2026 » breaks between words. The long
             // « mardi 13 octobre 2026 » broke as « dimanch / e » in this
@@ -306,46 +282,85 @@ class _StatsStrip extends StatelessWidget {
             : Formatters.formatDateCompact(
                 toSalonTime(lastVisitAt!, tz: auth.salonTimezone),
               ),
+        alert: false,
       ),
     ];
 
-    // Equal heights — the dashboard action grid's idiom: divide the row, do
-    // not dimension the boxes. Above [_kStatsTwoByTwoAbove] the strip is a
-    // 2×2 grid: « 17 000 » (narrow no-break space) and « Absences » are single
-    // tokens that cannot wrap their way out of a 70dp tile at large text.
-    Widget row(List<Widget> cells) => IntrinsicHeight(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          for (final (i, c) in cells.indexed) ...[
-            if (i > 0) const SizedBox(width: AppTheme.spacingS),
-            c,
+    // **The widest shape in which every value stays whole** — four across,
+    // then 2 × 2, then one per row (docs/design/amounts-that-fit.md §2).
+    //
+    // This was a text-SIZE rule (« 2 × 2 above 1.1× »), measured on the label
+    // « Absences » alone. It could not know the amount or the phone: at 360dp
+    // « 180 000 » needs 64.7dp of the tile's 60 at 1.1×, and « 1 250 000 »
+    // does not fit at the default size. So the widths are measured, with the
+    // same strings and styles the tiles draw. The LayoutBuilder sits OUTSIDE
+    // the IntrinsicHeight rows (it cannot answer an intrinsic query), and is
+    // what makes the shape re-decide when the width, the text size or the
+    // amount changes.
+    return LayoutBuilder(
+      builder: (context, box) {
+        final columns = TextFit.of(context).columns(
+          candidates: const [4, 2, 1],
+          cellWidth: (n) =>
+              (box.maxWidth - (n - 1) * AppTheme.spacingS) / n -
+              2 * AppTheme.spacingS,
+          texts: [
+            for (final t in tiles) ...[
+              (text: t.value, style: _valueStyle),
+              (text: t.label, style: _labelStyle),
+            ],
           ],
-        ],
-      ),
-    );
-    final twoByTwo =
-        MediaQuery.textScalerOf(context).scale(1) > _kStatsTwoByTwoAbove;
-    if (!twoByTwo) return row(tiles);
-    return Column(
-      children: [
-        row(tiles.sublist(0, 2)),
-        const SizedBox(height: AppTheme.spacingS),
-        row(tiles.sublist(2)),
-      ],
+        );
+        return Column(
+          children: [
+            for (var i = 0; i < tiles.length; i += columns) ...[
+              if (i > 0) const SizedBox(height: AppTheme.spacingS),
+              // Equal heights within a row — the dashboard action grid's
+              // idiom: divide the row, do not dimension the boxes.
+              IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    for (final (k, t)
+                        in tiles.skip(i).take(columns).indexed) ...[
+                      if (k > 0) const SizedBox(width: AppTheme.spacingS),
+                      Expanded(child: _tile(t.label, t.value, t.alert)),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ],
+        );
+      },
     );
   }
-}
 
-/// Above this OS text scale the four stat tiles become a 2×2 grid — the
-/// dashboard's `_kActionGridSingleColumnAbove` reasoning (the fix for a
-/// one-word label is more width, never a smaller font), but **measured for
-/// four columns**, not borrowed: at the 360dp floor a tile has 60dp inside, and
-/// « Absences » (labelSmall) needs ~51.6dp at 1× — it breaks just past 1.16×.
-/// The dashboard's 1.3 broke it (« Absences » 67.1 in 60, caught by
-/// client_screens_test). 1.1 keeps the ~5 % margin A15 found real rendering
-/// needs over a bare TextPainter.
-const double _kStatsTwoByTwoAbove = 1.1;
+  Widget _tile(String label, String value, bool alert) => Container(
+    padding: const EdgeInsets.all(AppTheme.spacingS),
+    decoration: BoxDecoration(
+      color: AppColors.surface,
+      borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+    ),
+    child: Column(
+      children: [
+        Text(
+          value,
+          style: _valueStyle.copyWith(
+            color: alert ? AppColors.error : AppColors.textPrimary,
+          ),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: AppTheme.spacingXS),
+        Text(
+          label,
+          style: _labelStyle.copyWith(color: AppColors.textSecondary),
+          textAlign: TextAlign.center,
+        ),
+      ],
+    ),
+  );
+}
 
 class _UpcomingCard extends StatelessWidget {
   const _UpcomingCard({required this.upcoming});

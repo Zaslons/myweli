@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -67,14 +68,6 @@ class _SwitchableClients extends MockProClientsService {
     return super.listClients(providerId, query: query, tag: tag, page: page);
   }
 }
-
-/// The guard's own failure — not « the text is not on screen », which is a
-/// TestFailure too and would let a pin pass for the wrong reason.
-final _midWordBreak = isA<TestFailure>().having(
-  (e) => e.message,
-  'message',
-  contains('broken mid-word'),
-);
 
 /// Module `clients` C1c (docs/design/clients-c1.md §5): the « Clients » list
 /// (states, search, badges) and the client card (stats, notes).
@@ -423,13 +416,146 @@ void main() {
       );
     });
 
-    // Both sides of the 2×2 threshold (1.1), and the old one (1.3) that broke
-    // « Absences ».
-    for (final scale in [1.0, 1.1, 1.15, 1.2, 1.3, 1.5, 2.0]) {
-      testWidgets('stat tiles at $scale×: equal heights, no word broken', (
-        tester,
-      ) async {
-        tester.view.physicalSize = const Size(360, 1600);
+    // docs/design/amounts-that-fit.md §2 and §8.3 — the strip takes the widest
+    // shape in which every value stays whole: 4 across → 2 × 2 → one per row.
+    // Decided by measuring, so it is asserted by measuring: the guard reads
+    // the rendered paragraphs (never the layout's own helper), and « widest »
+    // is checked against the next shape up, token by token.
+    group('the stats strip fits its amount', () {
+      const labels = ['Visites', 'Dépensé', 'Absences', 'Dernière'];
+
+      /// The tile's inner width when [n] tiles share a [width]dp screen:
+      /// 16dp page padding each side, 8dp gaps, 8dp tile padding each side.
+      double inner(double width, int n) => (width - 32 - (n - 1) * 8) / n - 16;
+
+      for (final (name, spent) in [
+        ('nothing', 0),
+        ('4 digits', 5000),
+        ('6 digits', 180000),
+        ('7 digits', 1250000),
+        ('9 digits', 123456789),
+      ]) {
+        for (final width in [360.0, 393.0, 430.0]) {
+          // 1.1 is where the old constant sat: « 180 000 » needs 64.7dp of
+          // a 60dp tile there, and the strip stayed four across.
+          for (final scale in [1.0, 1.1, 1.3, 2.0]) {
+            testWidgets('$name at ${width.toInt()}dp × $scale×', (
+              tester,
+            ) async {
+              clients.spent = spent;
+              tester.view.physicalSize = Size(width, 2400);
+              tester.view.devicePixelRatio = 1;
+              addTearDown(tester.view.reset);
+              await tester.pumpWidget(
+                app(initial: '/pro/clients/sc1', scale: scale, realFonts: true),
+              );
+              await settle(tester);
+              expect(tester.takeException(), isNull);
+              final at = '${width.toInt()}dp × $scale×';
+
+              // 1. Every value and label is whole.
+              for (final l in labels) {
+                expectNoMidWordBreak(tester, l, 'the « $l » label at $at');
+                expectNoMidWordBreak(
+                  tester,
+                  valueAbove(tester, l).data!,
+                  'the « $l » value at $at',
+                );
+              }
+
+              // 2. The shape, read off the screen.
+              Rect tileOf(String label) => tester.getRect(
+                find
+                    .ancestor(
+                      of: find.text(label),
+                      matching: find.byType(Container),
+                    )
+                    .first,
+              );
+              final rects = {for (final l in labels) l: tileOf(l)};
+              bool sameRow(String a, String b) =>
+                  rects[a]!.top < rects[b]!.bottom &&
+                  rects[b]!.top < rects[a]!.bottom;
+              final columns = labels
+                  .where((l) => sameRow(labels.first, l))
+                  .length;
+              expect([4, 2, 1], contains(columns));
+              expect(
+                rects[labels.first]!.width,
+                closeTo(inner(width, columns) + 16, 0.5),
+                reason: 'the tile is as wide as $columns per row allows',
+              );
+
+              // 3. Tiles sharing a row share a height and a top.
+              for (var i = 0; i < labels.length; i += columns) {
+                for (final l in labels.skip(i).take(columns).skip(1)) {
+                  expect(
+                    rects[l]!.height,
+                    closeTo(rects[labels[i]]!.height, 0.5),
+                    reason: '$l and ${labels[i]} share a row at $at',
+                  );
+                  expect(rects[l]!.top, closeTo(rects[labels[i]]!.top, 0.5));
+                }
+              }
+
+              // 4. It is the WIDEST shape that fits: one more column per row
+              // would break a token. (Nine digits in one column at 2× is the
+              // stated limit of §2 — it holds; beyond it nothing is promised.)
+              if (columns < 4) {
+                final wider = columns == 1 ? 2 : 4;
+                var widest = 0.0;
+                for (final l in labels) {
+                  for (final text in [l, valueAbove(tester, l).data!]) {
+                    final p = tester
+                        .renderObjectList<RenderParagraph>(
+                          find.descendant(
+                            of: find.text(text),
+                            matching: find.byType(RichText),
+                          ),
+                        )
+                        .first;
+                    for (final token in unbreakableTokens(text)) {
+                      final tp = TextPainter(
+                        text: TextSpan(text: token, style: p.text.style),
+                        textDirection: TextDirection.ltr,
+                        textScaler: p.textScaler,
+                      )..layout();
+                      if (tp.width > widest) widest = tp.width;
+                      tp.dispose();
+                    }
+                  }
+                }
+                expect(
+                  widest,
+                  greaterThan(inner(width, wider)),
+                  reason:
+                      '$columns per row at $at, yet the widest token '
+                      '(${widest.toStringAsFixed(1)}dp) would fit $wider per '
+                      'row (${inner(width, wider).toStringAsFixed(1)}dp)',
+                );
+              }
+            });
+          }
+        }
+      }
+    });
+
+    // The two cases the guard pinned as known violations until the strip
+    // measured (2b7301ea), now plain — and named, because the matrix above
+    // says « the widest shape that fits » and a reader wants the shapes.
+    for (final (what, spent, scale, expected) in [
+      ('six digits at 1× stay four across', 180000, 1.0, 4),
+      ('six digits at 1.1× go 2 × 2', 180000, 1.1, 2),
+      ('seven digits go 2 × 2 at the default size', 1250000, 1.0, 2),
+      ('nine digits at 2× go one per row', 123456789, 2.0, 1),
+      ('a new client is four across at the default size', 0, 1.0, 4),
+      // Not the amount this time: « Absences » itself outgrows a quarter
+      // tile — what the old 1.1 constant was measured on.
+      ('at 1.3× the label « Absences » alone forces 2 × 2', 0, 1.3, 2),
+    ]) {
+      testWidgets('360dp: $what', (tester) async {
+        clients.spent = spent;
+        tester.view.physicalSize = const Size(360, 2400);
         tester.view.devicePixelRatio = 1;
         addTearDown(tester.view.reset);
         await tester.pumpWidget(
@@ -437,98 +563,31 @@ void main() {
         );
         await settle(tester);
         expect(tester.takeException(), isNull);
-
-        Rect tileOf(String label) => tester.getRect(
-          find
-              .ancestor(of: find.text(label), matching: find.byType(Container))
-              .first,
+        double top(String label) => tester
+            .getRect(
+              find
+                  .ancestor(
+                    of: find.text(label),
+                    matching: find.byType(Container),
+                  )
+                  .first,
+            )
+            .top;
+        final first = top('Visites');
+        final perRow = [
+          'Visites',
+          'Dépensé',
+          'Absences',
+          'Dernière',
+        ].where((l) => (top(l) - first).abs() < 0.5).length;
+        expect(perRow, expected);
+        expectNoMidWordBreak(
+          tester,
+          valueAbove(tester, 'Dépensé').data!,
+          '« Dépensé » — $what',
         );
-        final labels = ['Visites', 'Dépensé', 'Absences', 'Dernière'];
-        final rects = {for (final l in labels) l: tileOf(l)};
-        // A row is vertical OVERLAP, not equal tops: unequal tiles in a plain
-        // Row are centred, so their tops differ too — comparing only tiles
-        // whose tops matched skipped exactly the pairs that were wrong.
-        bool sameRow(String a, String b) =>
-            rects[a]!.top < rects[b]!.bottom &&
-            rects[b]!.top < rects[a]!.bottom;
-        final twoByTwo = scale > 1.1;
-        expect(sameRow('Visites', 'Dépensé'), isTrue);
-        expect(sameRow('Absences', 'Dernière'), isTrue);
-        expect(
-          sameRow('Visites', 'Absences'),
-          !twoByTwo,
-          reason: twoByTwo
-              ? 'above 1.1× the strip is a 2×2 grid'
-              : 'up to 1.1× the four tiles share one row',
-        );
-        final rows = twoByTwo
-            ? [
-                ['Visites', 'Dépensé'],
-                ['Absences', 'Dernière'],
-              ]
-            : [labels];
-        for (final row in rows) {
-          for (final l in row.skip(1)) {
-            expect(
-              rects[l]!.height,
-              closeTo(rects[row.first]!.height, 0.5),
-              reason: '$l and ${row.first} share a row at $scale×',
-            );
-            expect(rects[l]!.top, closeTo(rects[row.first]!.top, 0.5));
-          }
-        }
-        for (final l in labels) {
-          expectNoMidWordBreak(tester, l, 'client card at $scale×');
-          void value() => expectNoMidWordBreak(
-            tester,
-            valueAbove(tester, l).data!,
-            'the « $l » value at $scale×',
-          );
-          // KNOWN VIOLATION, pinned (docs/design/amounts-that-fit.md §1.1):
-          // at 1.1× the strip is still four across and « 180 000 » needs
-          // 64.7dp of the tile's 60. Invisible until the guard stopped
-          // treating U+202F as a word boundary; the measured layout fixes it.
-          if (l == 'Dépensé' && scale == 1.1) {
-            expect(
-              value,
-              throwsA(_midWordBreak),
-              reason:
-                  'if this stops breaking, the strip no longer squeezes a '
-                  'six-digit amount at 1.1× — delete this pin',
-            );
-          } else {
-            value();
-          }
-        }
       });
     }
-
-    // KNOWN VIOLATION, pinned (docs/design/amounts-that-fit.md §1.1): a
-    // seven-digit amount (« 1 000 000 », 71.5dp) cannot fit a quarter-width
-    // tile (60dp) at the DEFAULT text size, on the most common Android width.
-    // No fixture reached seven digits, so nothing ever rendered it.
-    testWidgets('a seven-digit « Dépensé » breaks mid-number at 1× (pinned)', (
-      tester,
-    ) async {
-      clients.spent = 1250000;
-      tester.view.physicalSize = const Size(360, 1600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(tester.view.reset);
-      await tester.pumpWidget(
-        app(initial: '/pro/clients/sc1', realFonts: true),
-      );
-      await settle(tester);
-      expect(tester.takeException(), isNull);
-      final value = valueAbove(tester, 'Dépensé').data!;
-      expect(value, contains('250'), reason: 'the override reached the card');
-      expect(
-        () => expectNoMidWordBreak(tester, value, 'the 7-digit amount at 1×'),
-        throwsA(_midWordBreak),
-        reason:
-            'if this stops breaking, the strip gives a long amount the width '
-            'it needs — turn this pin into the plain assertion',
-      );
-    });
 
     testWidgets('adding a note prepends it', (tester) async {
       await tester.pumpWidget(app(initial: '/pro/clients/sc1'));
