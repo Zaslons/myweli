@@ -1413,7 +1413,13 @@ posées :
 
 **Restent aussi au propriétaire** : les réponses à confirmer pour l'étiquette
 de confidentialité ; les notes du §8 (telles quelles — ce sont celles sous
-lesquelles la revue bêta a approuvé le 569 — ou amendées) ; la boîte
+lesquelles la revue bêta a approuvé le 569 — ou amendées) — *2026-10-13 : le
+§8 porte désormais deux blocs. « Les notes en vigueur » sont celles-là, et
+ce sont elles qu'App Store Connect contient ; « les notes amendées » disent
+que le compte démo ne peut pas être supprimé, et ne se collent **qu'une fois
+la ligne « Verrou de suppression du compte démo — vérifié en production »
+du §8 datée**, c'est-à-dire après le déploiement du backend et l'essai de
+[demo-account-deletion-lock.md](demo-account-deletion-lock.md) §10.1* ; la boîte
 `support@myweli.com`, seul contact de la page d'assistance, à confirmer
 comme lue ; la politique de confidentialité, qui ne nomme Cloudflare que
 pour le stockage alors que l'API passe par lui depuis le 2026-10-07 ; les
