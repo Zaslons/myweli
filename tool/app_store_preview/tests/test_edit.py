@@ -571,6 +571,38 @@ class Refusals(unittest.TestCase):
                       self.refused("E_POSTER", e, scan, log, sb))
         sb["film"]["poster_s"] = 7.4
         edit.check(edit.propose(scan, log, sb), scan, log, sb)
+        sb["film"]["poster_s"] = 15.0                      # frame 450: the film's frames are 0 to 449
+        self.refused("E_POSTER", edit.propose(scan, log, sb), scan, log, sb)
+
+    def test_the_poster_frame_waits_for_the_last_caption(self):
+        """In the final hold is not enough: a caption still cross-fading
+        would be frozen half-way on the App Store."""
+        scan, log, sb = fixture()
+        sb["shots"][2]["caption_after"]["delay_s"] = 1.0   # the last caption starts at frame 227, in the hold
+        sb["film"]["poster_s"] = 7.6                       # frame 228: the hold began at 222, the fade ends at 233
+        e = edit.propose(scan, log, sb)
+        self.assertEqual((e["final_hold_from"], e["captions"][-1]["frame"], e["poster_frame"]), (222, 227, 228))
+        self.assertIn("have settled (7.77 s)", self.refused("E_POSTER", e, scan, log, sb))
+        sb["film"]["poster_s"] = 7.8                       # frame 234
+        edit.check(edit.propose(scan, log, sb), scan, log, sb)
+
+    def test_the_poster_frame_waits_for_the_last_touch_point(self):
+        """A last tap answered in one frame, no rest after it: the final hold
+        begins while its touch point is still fading out."""
+        scan = scan_of([(1800, CHANGE)])
+        _, log, sb = fixture()
+        del log["gestures"][1]
+        sb["shots"] = [
+            {"id": "A", "caption": "one", "gestures": [{"id": "tap-a", "kind": "tap", "rest_after_s": 0}]},
+            {"id": "C", "caption": "three", "caption_after": {"gesture": "tap-a", "delay_s": 0}, "gestures": []},
+        ]
+        sb["film"]["poster_s"] = 44 / 30
+        e = edit.propose(scan, log, sb)
+        # the hold begins at frame 43; the point lifts at frame 39 and is gone 0.2 s later, at 45
+        self.assertEqual((e["final_hold_from"], e["touches"][0]["up"] // STEP, e["poster_frame"]), (43, 39, 44))
+        self.assertIn("have settled (1.50 s)", self.refused("E_POSTER", e, scan, log, sb))
+        sb["film"]["poster_s"] = 1.5
+        edit.check(edit.propose(scan, log, sb), scan, log, sb)
 
 
 class Describe(unittest.TestCase):
