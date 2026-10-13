@@ -5,6 +5,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/core/push/push_registration.dart';
 import 'package:myweli/core/theme/app_theme.dart';
+import 'package:myweli/core/utils/formatters.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/provider_user.dart';
 import 'package:myweli/providers/notifications_provider.dart';
@@ -21,6 +22,7 @@ import 'package:myweli/services/mock/mock_push_notification_service.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../a11y/_a11y.dart';
 import '../support/fonts.dart';
 import '../support/pump_app.dart';
 
@@ -184,63 +186,141 @@ void main() {
     expect(find.text('Services'), findsOneWidget);
   });
 
-  /// docs/design/pro-screenshot-shoot-fixes.md §2.4 — the two cards of a
-  /// stat row are one height. They were plain `Expanded`s: on the demo salon
-  /// « 114 000 FCFA » wrapped in « Ce mois » and not in « Aujourd’hui ».
-  /// The shoot's figures, in real fonts — with every figure at « 0 » the two
-  /// cards hold the same text and are one height with or without the fix.
-  for (final scale in [1.0, 1.3, 2.0]) {
-    testWidgets('OWNER: each stat row\'s cards share one height (360dp, '
-        '$scale×, the shoot\'s figures)', (tester) async {
-      _ShootFigures.on = true;
-      addTearDown(() => _ShootFigures.on = false);
-      tester.view.physicalSize = const Size(360, 2400);
+  /// The stat cards (docs/design/amounts-that-fit.md §2, and
+  /// pro-screenshot-shoot-fixes.md §2.4 before it): two across, or ALL of
+  /// them one per row when a value would not fit a half-width card; within a
+  /// row the cards are one height; no amount is ever broken inside its number.
+  ///
+  /// Real figures, in real fonts — with every figure at « 0 » the cards hold
+  /// the same text and are one height, and « fits », with or without the fix.
+  for (final (what, figures, login, scale, cards, perRow) in [
+    // The shoot's figures: « 0 FCFA » beside « 114 000 FCFA ».
+    ('the shoot at 1×', _shoot, _owner, 1.0, 4, 2),
+    ('the shoot at 1.3×', _shoot, _owner, 1.3, 4, 2),
+    // 126dp per half card; « 114 000 » at 48sp needs 171. Was broken inside
+    // the number, and pinned as a known violation until the block measured.
+    ('the shoot at 2×', _shoot, _owner, 2.0, 4, 1),
+    // §2's stated target: nine digits whole at 200 % on 360dp.
+    ('nine digits at 2×', _nineDigits, _owner, 2.0, 4, 1),
+    // Seven digits do not fit a half card even at the default size.
+    ('seven digits at 1×', _sevenDigits, _owner, 1.0, 4, 2),
+    ('seven digits at 1.3×', _sevenDigits, _owner, 1.3, 4, 1),
+    // No finances.view: no money row, the two counts decide alone.
+    ('reception (no money) at 2×', _shoot, _reception, 2.0, 2, 2),
+  ]) {
+    testWidgets('stat cards — $what: $perRow per row, whole, level', (
+      tester,
+    ) async {
+      _ShootFigures.figures = figures;
+      addTearDown(() => _ShootFigures.figures = null);
+      tester.view.physicalSize = const Size(360, 3200);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
-      await loginAs(tester, 'jean@salon-excellence.test');
+      await loginAs(tester, login);
       await tester.pumpWidget(
         app(await readyAuth(tester), scale: scale, realFonts: true),
       );
       await settle(tester);
       expect(tester.takeException(), isNull);
 
-      Rect card(Finder title) => tester.getRect(
-        find.ancestor(of: title, matching: find.byType(Container)).first,
+      // The cards, by their subtitle — unique per card where titles repeat.
+      Rect cardOf(Finder inside) => tester.getRect(
+        find.ancestor(of: inside, matching: find.byType(Container)).first,
       );
-      final today = find.text('Aujourd’hui');
-      expect(today, findsNWidgets(2), reason: 'rendez-vous + revenus rows');
-      final pending = card(find.text('En attente'));
-      final todayAppts = card(today.first);
-      expect(todayAppts.height, closeTo(pending.height, 0.5));
-      final month = card(find.text('Ce mois'));
-      final todayMoney = card(today.last);
-      expect(
-        todayMoney.height,
-        closeTo(month.height, 0.5),
-        reason: '« 0 FCFA » beside « 114 000 FCFA » at $scale×',
-      );
+      final revenus = find.text('Revenus');
+      final rects = [
+        cardOf(find.text('Rendez-vous')),
+        cardOf(find.text('Demandes')),
+        // « Revenus » is also a section title lower down; the stat cards are
+        // the first two renderings.
+        if (cards == 4) ...[cardOf(revenus.at(0)), cardOf(revenus.at(1))],
+      ];
+      expect(rects, hasLength(cards));
+      if (cards == 2) {
+        expect(find.text('Ce mois'), findsNothing, reason: 'no money row');
+      }
+
+      // One shape for every card.
+      bool sameRow(Rect a, Rect b) => a.top < b.bottom && b.top < a.bottom;
+      for (var i = 0; i < rects.length; i++) {
+        final inRow = rects.where((r) => sameRow(rects[i], r)).length;
+        expect(inRow, perRow, reason: 'card $i at $scale×');
+      }
+      // Cards sharing a row share a height and a top.
+      for (var i = 0; i + 1 < rects.length; i += 2) {
+        if (perRow != 2) break;
+        expect(rects[i + 1].height, closeTo(rects[i].height, 0.5));
+        expect(rects[i + 1].top, closeTo(rects[i].top, 0.5));
+      }
+
+      // Every amount is whole — heights say nothing about that.
+      if (cards == 4) {
+        for (final amount in {
+          Formatters.formatCurrency(figures.todayRevenue!),
+          Formatters.formatCurrency(figures.monthRevenue!),
+        }) {
+          expectNoMidWordBreak(tester, amount, '« $amount » — $what');
+        }
+      }
+      for (final label in ['En attente', 'Demandes']) {
+        expectNoMidWordBreak(tester, label, '« $label » — $what');
+      }
     });
   }
 }
 
-/// The mock, except — while [on] — the demo salon's figures on the day of the
-/// shoot: an empty « Aujourd’hui » beside a month whose amount wraps.
+const _owner = 'jean@salon-excellence.test';
+const _reception = 'fatou.reception@myweli.test';
+
+const _shoot = DashboardStats(
+  todayAppointments: 0,
+  pendingRequests: 3,
+  totalAppointments: 41,
+  todayRevenue: 0,
+  weekRevenue: 32000,
+  monthRevenue: 114000,
+);
+const _sevenDigits = DashboardStats(
+  todayAppointments: 4,
+  pendingRequests: 1,
+  totalAppointments: 320,
+  todayRevenue: 85000,
+  weekRevenue: 410000,
+  monthRevenue: 1250000,
+);
+const _nineDigits = DashboardStats(
+  todayAppointments: 12,
+  pendingRequests: 0,
+  totalAppointments: 9000,
+  todayRevenue: 2400000,
+  weekRevenue: 31000000,
+  monthRevenue: 123456789,
+);
+
+/// The mock, except — while [figures] is set — those figures: the demo
+/// salon's on the day of the shoot, or an amount long enough to need the
+/// width. Money is still withheld from a role that may not see it, as the
+/// mock does (the server field-gates it).
 class _ShootFigures extends MockProService {
-  static bool on = false;
+  static DashboardStats? figures;
 
   @override
   Future<ApiResponse<DashboardStats>> getDashboardStats(
     String providerId,
-  ) async => !on
-      ? super.getDashboardStats(providerId)
-      : ApiResponse.success(
-          const DashboardStats(
-            todayAppointments: 0,
-            pendingRequests: 3,
-            totalAppointments: 41,
-            todayRevenue: 0,
-            weekRevenue: 32000,
-            monthRevenue: 114000,
-          ),
-        );
+  ) async {
+    final base = await super.getDashboardStats(providerId);
+    final f = figures;
+    if (f == null || base.data == null) return base;
+    final money = base.data!.hasRevenue;
+    return ApiResponse.success(
+      DashboardStats(
+        todayAppointments: f.todayAppointments,
+        pendingRequests: f.pendingRequests,
+        totalAppointments: f.totalAppointments,
+        todayRevenue: money ? f.todayRevenue : null,
+        weekRevenue: money ? f.weekRevenue : null,
+        monthRevenue: money ? f.monthRevenue : null,
+      ),
+    );
+  }
 }

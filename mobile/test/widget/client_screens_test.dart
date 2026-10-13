@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/core/theme/app_theme.dart';
+import 'package:myweli/core/theme/text_styles.dart';
+import 'package:myweli/core/utils/app_clock.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/salon_client.dart';
 import 'package:myweli/providers/pro_auth_provider.dart';
@@ -24,6 +27,34 @@ import '../support/pump_app.dart';
 class _SwitchableClients extends MockProClientsService {
   bool empty = false;
 
+  /// When set, the card's « Dépensé » — the mock's own is visits × 15 000,
+  /// six digits at most, and the tile's failure mode starts at seven.
+  num? spent;
+
+  @override
+  Future<ApiResponse<SalonClientCard>> getCard(
+    String providerId,
+    String clientId,
+  ) async {
+    final res = await super.getCard(providerId, clientId);
+    final card = res.data;
+    final override = spent;
+    if (card == null || override == null) return res;
+    return ApiResponse.success(
+      SalonClientCard(
+        client: card.client,
+        stats: SalonClientStats(
+          visits: card.stats.visits,
+          spentFcfa: override,
+          noShows: card.stats.noShows,
+          cancellations: card.stats.cancellations,
+        ),
+        notes: card.notes,
+        upcoming: card.upcoming,
+      ),
+    );
+  }
+
   @override
   Future<ApiResponse<SalonClientsPage>> listClients(
     String providerId, {
@@ -36,8 +67,18 @@ class _SwitchableClients extends MockProClientsService {
         const SalonClientsPage(items: [], page: 1, total: 0),
       );
     }
+    final only = justVisited;
+    if (only != null) {
+      return ApiResponse.success(
+        SalonClientsPage(items: only, page: 1, total: only.length),
+      );
+    }
     return super.listClients(providerId, query: query, tag: tag, page: page);
   }
+
+  /// When set, the whole list — clients whose last visit is a moment or a
+  /// day ago (the mock's are days back, and those read as dates).
+  List<SalonClient>? justVisited;
 }
 
 /// Module `clients` C1c (docs/design/clients-c1.md §5): the « Clients » list
@@ -54,7 +95,11 @@ void main() {
     serviceLocator.proClientsService = clients;
   });
 
-  setUp(() => clients.empty = false);
+  setUp(() {
+    clients.empty = false;
+    clients.spent = null;
+    clients.justVisited = null;
+  });
 
   Widget app({
     String initial = '/pro/clients',
@@ -110,6 +155,39 @@ void main() {
   }
 
   group('ClientListScreen', () {
+    // docs/design/amounts-that-fit.md §1 — the row writes the relative time
+    // after « dernière », mid-sentence, and `formatRelative` hands back two
+    // phrases with a capital: « dernière À l’instant », « dernière Hier ».
+    testWidgets('« dernière … » reads as one phrase, without a capital', (
+      tester,
+    ) async {
+      final now = AppClock.now();
+      clients.justVisited = [
+        SalonClient(
+          id: 'j1',
+          displayName: 'Aïcha D.',
+          tags: const [],
+          linked: false,
+          visits: 1,
+          lastVisitAt: now.subtract(const Duration(seconds: 20)),
+        ),
+        SalonClient(
+          id: 'j2',
+          displayName: 'Fatou B.',
+          tags: const [],
+          linked: false,
+          visits: 2,
+          lastVisitAt: now.subtract(const Duration(hours: 30)),
+        ),
+      ];
+      await tester.pumpWidget(app());
+      await settle(tester);
+      expect(find.textContaining('dernière à l’instant'), findsOneWidget);
+      expect(find.textContaining('dernière hier'), findsOneWidget);
+      expect(find.textContaining('dernière À'), findsNothing);
+      expect(find.textContaining('dernière Hier'), findsNothing);
+    });
+
     testWidgets('success: seeded clients render with badges', (tester) async {
       await tester.pumpWidget(app());
       await settle(tester);
@@ -363,6 +441,112 @@ void main() {
       expect(find.text('+2250700000001'), findsNothing);
     });
 
+    // docs/design/amounts-that-fit.md §11 Q3 (owner: yes) — a phone number
+    // never wraps: when it does not fit beside « Appeler » and « WhatsApp »,
+    // they drop below it. It wrapped between its pairs from 1.1× on 360dp
+    // (145.0dp in 136: « +225 07 00 00 » / « 00 01 »), which SYSTEM.md §13.3
+    // forbids. At the default size it fits (132.2dp) and nothing moves.
+    for (final width in [360.0, 393.0, 430.0]) {
+      for (final scale in [1.0, 1.1, 1.3, 1.5, 2.0]) {
+        testWidgets(
+          'the number is on one line at ${width.toInt()}dp × $scale×',
+          (tester) async {
+            tester.view.physicalSize = Size(width, 2400);
+            tester.view.devicePixelRatio = 1;
+            addTearDown(tester.view.reset);
+            await tester.pumpWidget(
+              app(initial: '/pro/clients/sc1', scale: scale, realFonts: true),
+            );
+            await settle(tester);
+            expect(tester.takeException(), isNull);
+
+            const phone = '+225 07 00 00 00 01';
+            final p = tester.renderObject<RenderParagraph>(
+              find.descendant(
+                of: find.text(phone),
+                matching: find.byType(RichText),
+              ),
+            );
+            final oneLine = TextPainter(
+              text: TextSpan(text: phone, style: p.text.style),
+              textDirection: TextDirection.ltr,
+              textScaler: p.textScaler,
+            )..layout();
+            addTearDown(oneLine.dispose);
+            expect(
+              p.size.height,
+              closeTo(oneLine.height, 0.5),
+              reason:
+                  'the number needs ${oneLine.width.toStringAsFixed(1)}dp and '
+                  'has ${p.size.width.toStringAsFixed(1)} — it wrapped',
+            );
+
+            // The actions stay whole and reachable, beside the number or under
+            // it — never on top of it, never off the card.
+            final number = tester.getRect(find.text(phone));
+            for (final tip in ['Appeler', 'WhatsApp']) {
+              // The IconButton, not its Tooltip: the tooltip's box is the 40dp
+              // visual, the button's is the padded tap target.
+              final action = tester.getRect(
+                find.ancestor(
+                  of: find.byTooltip(tip),
+                  matching: find.byType(IconButton),
+                ),
+              );
+              expect(action.width, greaterThanOrEqualTo(48));
+              expect(action.height, greaterThanOrEqualTo(48));
+              expect(
+                action.left >= number.right - 0.5 ||
+                    action.top >= number.bottom - 0.5,
+                isTrue,
+                reason: '« $tip » overlaps the number',
+              );
+              expect(action.right, lessThanOrEqualTo(width - 32 + 0.5));
+            }
+          },
+        );
+      }
+    }
+
+    // Where the actions are, in words: beside the name while the number
+    // fits, under it when it does not.
+    for (final (scale, beside) in [(1.0, true), (1.3, false)]) {
+      testWidgets(
+        '360dp × $scale×: the actions are ${beside ? 'beside' : 'under'} '
+        'the number',
+        (tester) async {
+          tester.view.physicalSize = const Size(360, 2400);
+          tester.view.devicePixelRatio = 1;
+          addTearDown(tester.view.reset);
+          await tester.pumpWidget(
+            app(initial: '/pro/clients/sc1', scale: scale, realFonts: true),
+          );
+          await settle(tester);
+          final number = tester.getRect(find.text('+225 07 00 00 00 01'));
+          final call = tester.getRect(find.byTooltip('Appeler'));
+          expect(call.top >= number.bottom - 0.5, !beside);
+        },
+      );
+    }
+
+    // At 2× on 360dp the number (264dp) does not fit beside the avatar
+    // either (232): it takes the card's full width, under the name.
+    testWidgets('360dp × 2×: the number has the full width of the card', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(360, 2400);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(
+        app(initial: '/pro/clients/sc1', scale: 2, realFonts: true),
+      );
+      await settle(tester);
+      final number = tester.getRect(find.text('+225 07 00 00 00 01'));
+      final avatar = tester.getRect(find.byType(CircleAvatar).first);
+      expect(number.left, closeTo(avatar.left, 0.5), reason: 'not indented');
+      expect(number.top, greaterThanOrEqualTo(avatar.bottom - 0.5));
+    });
+
     testWidgets('« Dernière » is the compact date, never the long form', (
       tester,
     ) async {
@@ -384,13 +568,146 @@ void main() {
       );
     });
 
-    // Both sides of the 2×2 threshold (1.1), and the old one (1.3) that broke
-    // « Absences ».
-    for (final scale in [1.0, 1.1, 1.15, 1.2, 1.3, 1.5, 2.0]) {
-      testWidgets('stat tiles at $scale×: equal heights, no word broken', (
-        tester,
-      ) async {
-        tester.view.physicalSize = const Size(360, 1600);
+    // docs/design/amounts-that-fit.md §2 and §8.3 — the strip takes the widest
+    // shape in which every value stays whole: 4 across → 2 × 2 → one per row.
+    // Decided by measuring, so it is asserted by measuring: the guard reads
+    // the rendered paragraphs (never the layout's own helper), and « widest »
+    // is checked against the next shape up, token by token.
+    group('the stats strip fits its amount', () {
+      const labels = ['Visites', 'Dépensé', 'Absences', 'Dernière'];
+
+      /// The tile's inner width when [n] tiles share a [width]dp screen:
+      /// 16dp page padding each side, 8dp gaps, 8dp tile padding each side.
+      double inner(double width, int n) => (width - 32 - (n - 1) * 8) / n - 16;
+
+      for (final (name, spent) in [
+        ('nothing', 0),
+        ('4 digits', 5000),
+        ('6 digits', 180000),
+        ('7 digits', 1250000),
+        ('9 digits', 123456789),
+      ]) {
+        for (final width in [360.0, 393.0, 430.0]) {
+          // 1.1 is where the old constant sat: « 180 000 » needs 64.7dp of
+          // a 60dp tile there, and the strip stayed four across.
+          for (final scale in [1.0, 1.1, 1.3, 2.0]) {
+            testWidgets('$name at ${width.toInt()}dp × $scale×', (
+              tester,
+            ) async {
+              clients.spent = spent;
+              tester.view.physicalSize = Size(width, 2400);
+              tester.view.devicePixelRatio = 1;
+              addTearDown(tester.view.reset);
+              await tester.pumpWidget(
+                app(initial: '/pro/clients/sc1', scale: scale, realFonts: true),
+              );
+              await settle(tester);
+              expect(tester.takeException(), isNull);
+              final at = '${width.toInt()}dp × $scale×';
+
+              // 1. Every value and label is whole.
+              for (final l in labels) {
+                expectNoMidWordBreak(tester, l, 'the « $l » label at $at');
+                expectNoMidWordBreak(
+                  tester,
+                  valueAbove(tester, l).data!,
+                  'the « $l » value at $at',
+                );
+              }
+
+              // 2. The shape, read off the screen.
+              Rect tileOf(String label) => tester.getRect(
+                find
+                    .ancestor(
+                      of: find.text(label),
+                      matching: find.byType(Container),
+                    )
+                    .first,
+              );
+              final rects = {for (final l in labels) l: tileOf(l)};
+              bool sameRow(String a, String b) =>
+                  rects[a]!.top < rects[b]!.bottom &&
+                  rects[b]!.top < rects[a]!.bottom;
+              final columns = labels
+                  .where((l) => sameRow(labels.first, l))
+                  .length;
+              expect([4, 2, 1], contains(columns));
+              expect(
+                rects[labels.first]!.width,
+                closeTo(inner(width, columns) + 16, 0.5),
+                reason: 'the tile is as wide as $columns per row allows',
+              );
+
+              // 3. Tiles sharing a row share a height and a top.
+              for (var i = 0; i < labels.length; i += columns) {
+                for (final l in labels.skip(i).take(columns).skip(1)) {
+                  expect(
+                    rects[l]!.height,
+                    closeTo(rects[labels[i]]!.height, 0.5),
+                    reason: '$l and ${labels[i]} share a row at $at',
+                  );
+                  expect(rects[l]!.top, closeTo(rects[labels[i]]!.top, 0.5));
+                }
+              }
+
+              // 4. It is the WIDEST shape that fits: one more column per row
+              // would break a token. (Nine digits in one column at 2× is the
+              // stated limit of §2 — it holds; beyond it nothing is promised.)
+              if (columns < 4) {
+                final wider = columns == 1 ? 2 : 4;
+                var widest = 0.0;
+                for (final l in labels) {
+                  for (final text in [l, valueAbove(tester, l).data!]) {
+                    final p = tester
+                        .renderObjectList<RenderParagraph>(
+                          find.descendant(
+                            of: find.text(text),
+                            matching: find.byType(RichText),
+                          ),
+                        )
+                        .first;
+                    for (final token in unbreakableTokens(text)) {
+                      final tp = TextPainter(
+                        text: TextSpan(text: token, style: p.text.style),
+                        textDirection: TextDirection.ltr,
+                        textScaler: p.textScaler,
+                      )..layout();
+                      if (tp.width > widest) widest = tp.width;
+                      tp.dispose();
+                    }
+                  }
+                }
+                expect(
+                  widest,
+                  greaterThan(inner(width, wider)),
+                  reason:
+                      '$columns per row at $at, yet the widest token '
+                      '(${widest.toStringAsFixed(1)}dp) would fit $wider per '
+                      'row (${inner(width, wider).toStringAsFixed(1)}dp)',
+                );
+              }
+            });
+          }
+        }
+      }
+    });
+
+    // The two cases the guard pinned as known violations until the strip
+    // measured (2b7301ea), now plain — and named, because the matrix above
+    // says « the widest shape that fits » and a reader wants the shapes.
+    for (final (what, spent, scale, expected) in [
+      ('six digits at 1× stay four across', 180000, 1.0, 4),
+      ('six digits at 1.1× go 2 × 2', 180000, 1.1, 2),
+      ('seven digits go 2 × 2 at the default size', 1250000, 1.0, 2),
+      ('nine digits at 2× go one per row', 123456789, 2.0, 1),
+      ('a new client is four across at the default size', 0, 1.0, 4),
+      // Not the amount this time: « Absences » itself outgrows a quarter
+      // tile — what the old 1.1 constant was measured on.
+      ('at 1.3× the label « Absences » alone forces 2 × 2', 0, 1.3, 2),
+    ]) {
+      testWidgets('360dp: $what', (tester) async {
+        clients.spent = spent;
+        tester.view.physicalSize = const Size(360, 2400);
         tester.view.devicePixelRatio = 1;
         addTearDown(tester.view.reset);
         await tester.pumpWidget(
@@ -398,56 +715,68 @@ void main() {
         );
         await settle(tester);
         expect(tester.takeException(), isNull);
-
-        Rect tileOf(String label) => tester.getRect(
-          find
-              .ancestor(of: find.text(label), matching: find.byType(Container))
-              .first,
+        double top(String label) => tester
+            .getRect(
+              find
+                  .ancestor(
+                    of: find.text(label),
+                    matching: find.byType(Container),
+                  )
+                  .first,
+            )
+            .top;
+        final first = top('Visites');
+        final perRow = [
+          'Visites',
+          'Dépensé',
+          'Absences',
+          'Dernière',
+        ].where((l) => (top(l) - first).abs() < 0.5).length;
+        expect(perRow, expected);
+        expectNoMidWordBreak(
+          tester,
+          valueAbove(tester, 'Dépensé').data!,
+          '« Dépensé » — $what',
         );
-        final labels = ['Visites', 'Dépensé', 'Absences', 'Dernière'];
-        final rects = {for (final l in labels) l: tileOf(l)};
-        // A row is vertical OVERLAP, not equal tops: unequal tiles in a plain
-        // Row are centred, so their tops differ too — comparing only tiles
-        // whose tops matched skipped exactly the pairs that were wrong.
-        bool sameRow(String a, String b) =>
-            rects[a]!.top < rects[b]!.bottom &&
-            rects[b]!.top < rects[a]!.bottom;
-        final twoByTwo = scale > 1.1;
-        expect(sameRow('Visites', 'Dépensé'), isTrue);
-        expect(sameRow('Absences', 'Dernière'), isTrue);
-        expect(
-          sameRow('Visites', 'Absences'),
-          !twoByTwo,
-          reason: twoByTwo
-              ? 'above 1.1× the strip is a 2×2 grid'
-              : 'up to 1.1× the four tiles share one row',
-        );
-        final rows = twoByTwo
-            ? [
-                ['Visites', 'Dépensé'],
-                ['Absences', 'Dernière'],
-              ]
-            : [labels];
-        for (final row in rows) {
-          for (final l in row.skip(1)) {
-            expect(
-              rects[l]!.height,
-              closeTo(rects[row.first]!.height, 0.5),
-              reason: '$l and ${row.first} share a row at $scale×',
-            );
-            expect(rects[l]!.top, closeTo(rects[row.first]!.top, 0.5));
-          }
-        }
-        for (final l in labels) {
-          expectNoMidWordBreak(tester, l, 'client card at $scale×');
-          expectNoMidWordBreak(
-            tester,
-            valueAbove(tester, l).data!,
-            'the « $l » value at $scale×',
-          );
-        }
       });
     }
+
+    // Seen on the iPhone simulator at the default size once the price lost
+    // its doubled gap (2026-10-13): « mardi 13 octobre 2026 à 08:00 » then
+    // fits its line exactly and ran into the amount — « 08:007 000 FCFA ».
+    // The date is an Expanded with nothing between it and the amount.
+    testWidgets('in the visit history, a date and its amount do not touch', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(402, 3200);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(
+        app(initial: '/pro/clients/sc1', realFonts: true),
+      );
+      await settle(tester);
+      expect(find.text('Historique des visites'), findsOneWidget);
+
+      final amounts = find.byWidgetPredicate(
+        (w) =>
+            w is Text &&
+            (w.data ?? '').endsWith('FCFA') &&
+            w.style?.fontSize == AppTextStyles.bodySmall.fontSize,
+      );
+      expect(amounts, findsWidgets, reason: 'the mock client has visits');
+      for (final e in amounts.evaluate()) {
+        final amount = find.byElementPredicate((x) => x == e);
+        final row = find.ancestor(of: amount, matching: find.byType(Row)).first;
+        final date = find
+            .descendant(of: row, matching: find.byType(Expanded))
+            .first;
+        expect(
+          tester.getRect(amount).left - tester.getRect(date).right,
+          greaterThanOrEqualTo(AppTheme.spacingS - 0.5),
+          reason: 'the date column ends where the amount begins',
+        );
+      }
+    });
 
     testWidgets('adding a note prepends it', (tester) async {
       await tester.pumpWidget(app(initial: '/pro/clients/sc1'));

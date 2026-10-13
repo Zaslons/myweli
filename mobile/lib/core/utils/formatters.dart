@@ -61,15 +61,25 @@ class Formatters {
   /// (docs/modules/multi-pays.md §4); any other ISO code renders as itself.
   /// Null (unthreaded/pre-MP1 payloads) falls back to XOF HERE — the one
   /// designated seam — so call sites pass carriers straight through.
-  static String formatCurrency(double amount, {String? currency}) {
-    final formatter = NumberFormat.currency(
-      symbol: '',
-      decimalDigits: 0,
-      locale: 'fr_FR',
-    );
+  ///
+  /// **Exactly one separator before the unit, and a plain one.** This used
+  /// `NumberFormat.currency(symbol: '')`, whose French pattern (`#,##0.00 ¤`)
+  /// leaves a U+00A0 where the symbol would be; the code then added its own
+  /// space, so every price in both apps read « 180 000  FCFA », two
+  /// separators wide (docs/design/amounts-that-fit.md §1.3). The plain space
+  /// is deliberate too: the thousands separator is glue (U+202F), so that
+  /// space is the only place a narrow tile may break an amount —
+  /// « 180 000 » / « FCFA ».
+  static String formatCurrency(double amount, {String? currency}) =>
+      '${_wholeAmount(amount)} ${_unit(currency)}';
+
+  /// « 180 000 »: whole francs, French grouping, no unit.
+  static String _wholeAmount(double amount) =>
+      NumberFormat('#,##0', 'fr_FR').format(amount);
+
+  static String _unit(String? currency) {
     final code = currency ?? 'XOF';
-    final suffix = (code == 'XOF' || code == 'XAF') ? 'FCFA' : code;
-    return '${formatter.format(amount)} $suffix';
+    return (code == 'XOF' || code == 'XAF') ? 'FCFA' : code;
   }
 
   /// A salon rating for display: « 4,8 » — French decimal COMMA, one decimal
@@ -85,8 +95,9 @@ class Formatters {
     if (max == null || max <= min) {
       return formatCurrency(min, currency: currency);
     }
-    return '${formatCurrency(min, currency: currency)} – '
-        '${formatCurrency(max, currency: currency)}';
+    // The unit once, as the line above and the web's `priceRange` always
+    // said; this printed « 15 000 FCFA – 25 000 FCFA ».
+    return '${_wholeAmount(min)} – ${formatCurrency(max, currency: currency)}';
   }
 
   /// Format date: « lundi 15 janvier 2024 ».
@@ -197,13 +208,21 @@ class Formatters {
 
   /// Relative time in French: « À l’instant », « il y a 5 min », « il y a 2 h »,
   /// "Hier", "il y a 3 j", otherwise a short date. Pass [now] for testing.
-  static String formatRelative(DateTime time, {DateTime? now}) {
+  ///
+  /// Two of those phrases stand alone with a capital. Set [midSentence] when
+  /// the result follows other words — the clients list wrote « dernière À
+  /// l’instant » and « dernière Hier ».
+  static String formatRelative(
+    DateTime time, {
+    DateTime? now,
+    bool midSentence = false,
+  }) {
     final ref = now ?? AppClock.now();
     final diff = ref.difference(time);
-    if (diff.inMinutes < 1) return 'À l’instant';
+    if (diff.inMinutes < 1) return midSentence ? 'à l’instant' : 'À l’instant';
     if (diff.inMinutes < 60) return 'il y a ${diff.inMinutes} min';
     if (diff.inHours < 24) return 'il y a ${diff.inHours} h';
-    if (diff.inDays == 1) return 'Hier';
+    if (diff.inDays == 1) return midSentence ? 'hier' : 'Hier';
     if (diff.inDays < 7) return 'il y a ${diff.inDays} j';
     return formatDateShort(time);
   }
