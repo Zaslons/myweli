@@ -339,6 +339,26 @@ class Build(unittest.TestCase):
         # (what the take was read as stays: scan.json, track.json — neither is a result)
         self.assertEqual(sorted(p.name for p in (WORK / "refused").iterdir()), ["scan.json", "track.json"])
 
+    def test_an_edit_list_given_from_the_build_s_own_folder_is_read_not_cleared(self):
+        """edit.json, proposed by one build, corrected by hand where it lies
+        and given back with --edit: it is this run's input. Refused, it is
+        still there — a person's work — and nothing else of the earlier
+        build is."""
+        folder = WORK / "in-place"
+        folder.mkdir(exist_ok=True)
+        e = read("edit.json")
+        e["segments"][1:2] = [{"kind": "live", "src_in": 1740, "src_out": 2040},
+                              {"kind": "live", "src_in": 3540, "src_out": 3860}]
+        mine = json.dumps(e)
+        (folder / "edit.json").write_text(mine)
+        for earlier in ("preview.mp4", "verify.txt", "build.json", "cuts.txt"):
+            shutil.copyfile(FILM / earlier, folder / earlier)
+        r = self.build("in-place", "--edit", str(folder / "edit.json"))
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("edit list refused [E_PROTECTED] gesture `tap-a`", r.stderr)
+        self.assertEqual(sorted(p.name for p in folder.iterdir()), ["edit.json", "scan.json", "track.json"])
+        self.assertEqual((folder / "edit.json").read_text(), mine)
+
     def build(self, name: str, *args: str, gestures: Path | None = None) -> subprocess.CompletedProcess:
         return subprocess.run(
             ["python3", str(TOOL / "preview.py"), "build", "--storyboard", str(WORK / "storyboard.json"),

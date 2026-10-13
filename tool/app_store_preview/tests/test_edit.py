@@ -729,6 +729,13 @@ class Phase(unittest.TestCase):
         self.assertEqual(edit.sampling([0, 1000, 1010], 955, 13, STEP, REST), (0, 1))
         self.assertEqual(edit.sampling([0, 1000, 1010], 949, 14, STEP, REST), (0, 2))
         self.assertEqual(edit.phase([0, 1000, 1010], 955, 1190, 180, math.inf, STEP, REST), 6)
+        # a frame that does not move costs more than a picture not shown: two answers in one range, the first
+        # with two pictures 10 ticks apart, the second with a picture that lasts 30 — on the touch-down the film
+        # shows all five and one of them twice; a tick earlier, four and none twice
+        twice = [0, 1000, 1010, 2000, 2030, 2050]
+        self.assertEqual(edit.sampling(twice, 940, edit.frames_for(940, 2230, STEP), STEP, REST), (1, 5))
+        self.assertEqual(edit.sampling(twice, 939, edit.frames_for(939, 2230, STEP), STEP, REST), (0, 4))
+        self.assertEqual(edit.phase(twice, 940, 2230, 180, math.inf, STEP, REST), 1)
 
     def test_it_never_reaches_into_what_is_around_it(self):
         uneven = [0, 1000, 1030, 1050]

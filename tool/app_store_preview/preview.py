@@ -150,11 +150,15 @@ def checked(edit: dict, scan: dict, log: dict, sb: dict, take: Path | None, work
     return diffs
 
 
-def clear(folder: Path, patterns: tuple[str, ...]) -> None:
+def clear(folder: Path, patterns: tuple[str, ...], keep: Path | None = None) -> None:
+    """Remove what matches — except `keep`: a file this run was given to
+    read is not an earlier run's result, whatever its name."""
     folder.mkdir(parents=True, exist_ok=True)
+    kept = keep.resolve() if keep else None
     for pattern in patterns:
         for f in folder.glob(pattern):
-            f.unlink()
+            if f.resolve() != kept:
+                f.unlink()
 
 
 def contact_sheet(movie: Path, out: Path, sb: dict, work: Path) -> None:
@@ -192,9 +196,11 @@ def cmd_build(a: argparse.Namespace) -> None:
     out: Path = a.out
     # An earlier build's results go first — before the storyboard, the log or
     # the take are even read: however this build is refused, there is no
-    # film, sheet or report left in the folder to mistake for its own.
+    # film, sheet or report left in the folder to mistake for its own. (An
+    # edit list given with --edit stays, even one named edit.json in this
+    # folder: it is someone's work, and this run has yet to read it.)
     if out.is_dir():
-        clear(out, RESULTS)
+        clear(out, RESULTS, a.edit)
     sb, log = load_storyboard(a), load(a.gestures)
     given = load(a.edit) if a.edit else None
     if not a.take.exists():

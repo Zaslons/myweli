@@ -335,9 +335,11 @@ def compose(storyboard: dict, edit: dict, sources: list[int], source_dir: Path, 
                 landed = "dark" if tones[gid] == "light" else "light"
                 grounds[gid] = {"at": [at_x, at_y], "ground": landed, "under": round(under, 3),
                                 "around": round(around, 3)}
-                if landed != expected.get(gid, "light"):
+                if gid not in expected:
+                    die(f"the edit list has a touch for `{gid}`, which is not a gesture of the storyboard")
+                if landed != expected[gid]:
                     die(f"the touch of `{gid}` lands on a {landed} ground at ({at_x:g}, {at_y:g}) pt — luminance "
-                        f"{under:.2f} under the finger — and the storyboard says {expected.get(gid, 'light')}: "
+                        f"{under:.2f} under the finger — and the storyboard says {expected[gid]}: "
                         f"it missed what it was aimed at, or the screen is not the storyboard's")
             active.append((round(x, 3), round(y, 3), round(alpha, 4), tones[touch["gesture"]]))
         if k <= 0:

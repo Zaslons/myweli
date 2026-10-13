@@ -182,13 +182,13 @@ class Guards(unittest.TestCase):
         with dies(self, "the card overflows the canvas at 886x1700"):
             frames.Layout((886, 1700), RAW)
 
-    def composed(self, ground: str | None, picture: tuple[int, int, int]) -> dict:
+    def composed(self, ground: str | None, picture: tuple[int, int, int], touched: str = "tap-x") -> dict:
         """compose() on three frames of one flat picture, a tap at (200, 400) pt."""
         sb = copy.deepcopy(FIX)
         gesture = {"id": "tap-x", "kind": "tap"} | ({"ground": ground} if ground else {})
         sb["shots"] = [{"id": "S", "caption": "plain", "gestures": [gesture]}]
         edit = {"timescale": 600, "captions": [{"frame": 0, "caption": "plain"}],
-                "touches": [{"gesture": "tap-x", "kind": "tap", "down": 0, "up": 20, "path": [[0, 200.0, 400.0]]}]}
+                "touches": [{"gesture": touched, "kind": "tap", "down": 0, "up": 20, "path": [[0, 200.0, 400.0]]}]}
         with tempfile.TemporaryDirectory() as tmp:
             src = Path(tmp)
             Image.new("RGB", RAW, picture).save(src / "src_000000.png")
@@ -221,6 +221,8 @@ class Guards(unittest.TestCase):
             self.composed(None, (0x2D, 0x50, 0x16))
         with dies(self, "gesture `tap-x`: `ground` is `green`; it is light or dark"):
             self.composed("green", (0x2D, 0x50, 0x16))
+        with dies(self, "the edit list has a touch for `tap-y`, which is not a gesture of the storyboard"):
+            self.composed(None, (255, 255, 255), touched="tap-y")
 
     def test_compose_stops_when_the_two_frame_hold_lists_differ(self):
         import json
@@ -378,7 +380,8 @@ class Touch(unittest.TestCase):
         pane 71 pt tall a 48 pt disc always covers some of the light screen
         around it, and the pane's own glyph and label are white."""
         card, limit = self.pane(), FIX["touch"]["light_below_luminance"]
-        for x, y in ((71, 410), (75, 390), (40, 394), (104, 426), (28, 386), (115, 434)):
+        # …down to 8 pt inside the pane's corner, where three fifths of the disc are over the light screen
+        for x, y in ((71, 410), (75, 390), (40, 394), (104, 426), (28, 386), (115, 434), (24, 382)):
             under, around = self.composer.ground(card, x, y)
             self.assertAlmostEqual(under, 0.268, delta=0.005, msg=(x, y))   # the green, wherever the finger is on it
             self.assertEqual(self.composer.tone(card, x, y), "light", (x, y))
