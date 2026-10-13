@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Approved** (owner, 2026-10-13: the direction — « measure, then lay out », no smaller font, no shorthand — then « yes to all » on the six questions of §11) — building |
+| **Status** | **Built** (2026-10-13) — approved by the owner the same day (the direction, then « yes to all » on the six questions of §11); merged as #577–#582; in **build 577** (TestFlight) |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-10-13 |
 | **PRD ref / phase** | Pro app — clients, home · consumer app — reviews · web Pro dashboard · V1 |
@@ -252,7 +252,8 @@ build is asked for when the PRs are in.
 
 - [x] Steps 1–3 (the guard, the price string, the measured layouts): each
       guard watched red on the old code, then green — the record is §8.1.
-- [ ] Steps 4–5 (review figures, web gaps): the same, in their own PRs.
+- [x] Steps 4–5 (review figures #582, web gaps #581): the same, in their own
+      PRs — each built and reviewed by workflow agents, then verified here.
 - [x] `flutter analyze` 0 and the full mobile suite green on steps 1–3.
 - [x] Goldens regenerated on Linux and reviewed: six moved with the price
       string (run 38388637917), none with the layouts (run 38390654129).
@@ -270,7 +271,8 @@ build is asked for when the PRs are in.
 - [ ] Store frames: the home (3) is unchanged; the client card (5) differs
       by the single space before « FCFA » in its history rows — not worth a
       reshoot on its own (§11 Q1). Reshoot with the next build if wanted.
-- [ ] Roadmap entry; this spec's status and §11 closed.
+- [x] Roadmap entries (one per step group, and build 577); this spec's
+      status and §11 closed.
 
 ## 11. Open questions
 
