@@ -21,7 +21,6 @@ import 'package:myweli/screens/provider/journal/pro_journal_screen.dart';
 import 'package:myweli/services/mock/mock_auth_service.dart';
 import 'package:myweli/services/mock/mock_data.dart';
 import 'package:myweli/services/mock/mock_pro_service.dart';
-import 'package:myweli/widgets/common/loading_indicator.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -379,10 +378,12 @@ void main() {
     // The slot it filled is gone; what is left of the gap starts at its end.
     expect(gap('12:00'), findsNothing);
     expect(gap('12:30'), findsOneWidget);
-    // The rows that were on screen stayed on screen; nothing spins.
+    // The rows that were on screen stayed on screen. That is also « no
+    // loader »: the screen draws its loader INSTEAD of the list
+    // (`_body`), so a card on screen and a loader cannot both be there —
+    // a separate « finds no loader » line could never be the one to fail.
     expect(card('a1'), findsOneWidget);
     expect(card('a2'), findsOneWidget);
-    expect(inJournal(find.byType(LoadingIndicator)), findsNothing);
     // The day was asked for again, exactly once, and has not answered.
     expect(salon.journalCalls, callsBefore + 1);
 
@@ -582,7 +583,6 @@ void main() {
       expect(find.text('Réessayer'), findsNothing);
       expect(find.textContaining('Erreur réseau'), findsNothing);
       expect(find.textContaining('SocketException'), findsNothing);
-      expect(inJournal(find.byType(LoadingIndicator)), findsNothing);
     });
   }
 
@@ -672,8 +672,8 @@ void main() {
     expect(salon.journalCalls, callsBefore);
   });
 
-  testWidgets('a scrolled day keeps its place: same offset, no loader, the '
-      'booking where the free slot was', (tester) async {
+  testWidgets('a scrolled day keeps its place: same offset, the booking '
+      'where the free slot was', (tester) async {
     // Ten bookings on a phone-high screen: the day scrolls. One gap, low in
     // the list — « Libre — 17:00 », between 16:00–17:00 and 18:00.
     salon.bookings
@@ -710,7 +710,6 @@ void main() {
     await create(tester);
 
     expect(card('m1'), findsOneWidget);
-    expect(inJournal(find.byType(LoadingIndicator)), findsNothing);
     await formHasLeft(tester);
     expect(day().pixels, offset);
     // Nothing above the slot moved, and the card took the slot's place:
