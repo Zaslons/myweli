@@ -58,6 +58,60 @@ void main() {
     });
   });
 
+  // docs/design/amounts-that-fit.md §1.3. The group below asserts only
+  // starts/ends/contains — « rather than exact whitespace » — and exact
+  // whitespace is where the defect lived: the French currency pattern leaves
+  // U+00A0 before the (empty) symbol, the code then added its own space, and
+  // every price in both apps read « 180 000  FCFA », two separators wide.
+  group('the exact price string', () {
+    const nnbsp = '\u202F'; // the French thousands separator: glue
+    test('one plain space before the unit, and nothing else', () {
+      expect(Formatters.formatCurrency(0), '0 FCFA');
+      expect(Formatters.formatCurrency(5000), '5${nnbsp}000 FCFA');
+      expect(Formatters.formatCurrency(180000), '180${nnbsp}000 FCFA');
+      expect(
+        Formatters.formatCurrency(1250000),
+        '1${nnbsp}250${nnbsp}000 FCFA',
+      );
+      expect(
+        Formatters.formatCurrency(1500, currency: 'GHS'),
+        '1${nnbsp}500 GHS',
+      );
+    });
+
+    // The space before the unit must stay a PLAIN one: it is the only place
+    // a narrow tile may break an amount (« 180 000 » / « FCFA »).
+    test('the unit is separated by U+0020, never by a no-break space', () {
+      final price = Formatters.formatCurrency(180000);
+      expect(price.codeUnitAt(price.length - 5), 0x20);
+      expect(price.contains('\u00A0'), isFalse);
+    });
+
+    test('whole francs, rounded as before', () {
+      expect(Formatters.formatCurrency(1234.4), '1${nnbsp}234 FCFA');
+      expect(Formatters.formatCurrency(1234.6), '1${nnbsp}235 FCFA');
+      expect(Formatters.formatCurrency(-5000), '-5${nnbsp}000 FCFA');
+    });
+
+    // Its own doc comment, and the web's `priceRange`, always said so.
+    test('a range prints the unit once', () {
+      expect(
+        Formatters.formatPriceRange(15000, 25000),
+        '15${nnbsp}000 – 25${nnbsp}000 FCFA',
+      );
+      expect(
+        Formatters.formatPriceRange(15000, 25000, currency: 'GHS'),
+        '15${nnbsp}000 – 25${nnbsp}000 GHS',
+      );
+    });
+
+    test('a single price when there is no higher bound', () {
+      expect(Formatters.formatPriceRange(15000, null), '15${nnbsp}000 FCFA');
+      expect(Formatters.formatPriceRange(15000, 15000), '15${nnbsp}000 FCFA');
+      expect(Formatters.formatPriceRange(15000, 9000), '15${nnbsp}000 FCFA');
+    });
+  });
+
   group('Formatters.formatCurrency', () {
     // fr_FR formatting uses a non-breaking thousands separator, so assert on
     // the stable parts (the value digits and the FCFA suffix) rather than
