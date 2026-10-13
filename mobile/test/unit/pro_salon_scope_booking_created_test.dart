@@ -90,6 +90,19 @@ class _Throws implements ShowsSalonBookings {
   void resetForSalonSwitch() {}
 }
 
+/// A store that shows bookings and, on hearing of one, brings another store
+/// to life — which registers itself, as every per-salon store does.
+class _Spawns implements ShowsSalonBookings {
+  final spawned = <_Shows>[];
+
+  @override
+  void bookingCreated(Appointment booking) =>
+      spawned.add(ProSalonScope.track(_Shows()));
+
+  @override
+  void resetForSalonSwitch() {}
+}
+
 /// A per-salon store that shows no booking (services, photos…).
 class _Other implements SalonScoped {
   int resets = 0;
@@ -161,6 +174,28 @@ void main() {
       expect(broken.calls, 1);
       expect(before.heard, [booking]);
       expect(after.heard, [booking], reason: 'the store AFTER the broken one');
+    });
+
+    test('a store that registers ANOTHER store while being told does not '
+        'break the round: nothing escapes, the stores after it are told', () {
+      // The registry is a growable list, and growing a list while it is being
+      // walked throws — from the loop itself, outside any store's `try`. It
+      // would reach `createManualBooking` as a failed creation of a booking
+      // that exists.
+      final before = ProSalonScope.track(_Shows());
+      final spawner = ProSalonScope.track(_Spawns());
+      final after = ProSalonScope.track(_Shows());
+
+      expect(() => ProSalonScope.bookingCreated(booking), returnsNormally);
+
+      expect(before.heard, [booking]);
+      expect(spawner.spawned, hasLength(1));
+      expect(after.heard, [booking], reason: 'the store AFTER the spawner');
+      expect(
+        spawner.spawned.single.heard,
+        isEmpty,
+        reason: 'born after the announcement began: it reads the server',
+      );
     });
 
     test('a salon switch still resets every tracked store', () {

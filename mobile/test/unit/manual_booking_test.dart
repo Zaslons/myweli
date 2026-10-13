@@ -209,15 +209,26 @@ void main() {
       expect(atStart.appointments.single.id, 'm1');
     });
 
-    test('a salon switch forgets the filter', () async {
-      final p = await loadedThenCreated(status: AppointmentStatus.pending);
-      p.resetForSalonSwitch();
-      await p.createManualBooking(
-        providerId: 'p1',
-        serviceIds: const ['s1'],
-        appointmentDateTime: at,
-      );
-      expect(p.appointments.single.id, 'm1');
-    });
+    // Each of the three is forgotten on its own: a list loaded with one of
+    // them only, each of which keeps the booking out (asserted first).
+    for (final (name, status, from, to)
+        in <(String, AppointmentStatus?, DateTime?, DateTime?)>[
+          ('the status', AppointmentStatus.pending, null, null),
+          ('the start date', null, DateTime.utc(2026, 7, 2), null),
+          ('the end date', null, null, DateTime.utc(2026, 6, 30)),
+        ]) {
+      test('a salon switch forgets the filter — $name', () async {
+        final p = await loadedThenCreated(status: status, from: from, to: to);
+        expect(p.appointments, isEmpty, reason: 'the filter keeps it out');
+
+        p.resetForSalonSwitch();
+        await p.createManualBooking(
+          providerId: 'p1',
+          serviceIds: const ['s1'],
+          appointmentDateTime: at,
+        );
+        expect(p.appointments.single.id, 'm1');
+      });
+    }
   });
 }

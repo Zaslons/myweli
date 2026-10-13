@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:myweli/core/access/pro_access_guard.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/appointment.dart';
@@ -19,7 +20,7 @@ class _Service extends MockProClientsService {
   final cardCalls = <String>[];
   int visitCalls = 0;
 
-  /// null = the card, else 'error' or 'throw'.
+  /// null = the card, else 'error', 'forbidden' or 'throw'.
   String? failure;
 
   /// While set, card answers wait for it.
@@ -59,6 +60,9 @@ class _Service extends MockProClientsService {
     if (gate != null) await gate.future;
     if (failure == 'throw') throw Exception('SocketException');
     if (failure == 'error') return ApiResponse.error('Erreur réseau.');
+    if (failure == 'forbidden') {
+      return ApiResponse.error('Accès refusé', code: 'forbidden');
+    }
     return ApiResponse.success(card);
   }
 
@@ -200,6 +204,48 @@ void main() {
       },
     );
   }
+
+  test('a refused reload still reports `forbidden` to the access seam — '
+      'quiet for the salon, not for a revoked member', () async {
+    final p = await opened();
+    var probes = 0;
+    final previous = ProAccessGuard.onForbidden;
+    ProAccessGuard.onForbidden = () async => probes++;
+    addTearDown(() => ProAccessGuard.onForbidden = previous);
+
+    service.failure = 'forbidden';
+    p.bookingCreated(booking());
+    await pumpEventQueue();
+
+    expect(service.cardCalls, ['sc1', 'sc1']);
+    expect(probes, 1);
+    expect(p.cardError, isNull);
+    expect(p.card!.client.displayName, 'Koffi', reason: 'the card stays');
+  });
+
+  test('a salon switch drops the reload in flight: the previous salon’s '
+      'answer changes nothing, and tells nobody', () async {
+    final p = await opened();
+    serverHasTheBooking();
+    final held = Completer<void>();
+    service.gate = held;
+    p.bookingCreated(booking()); // Koffi's card, in flight
+    await pumpEventQueue();
+    expect(service.cardCalls, ['sc1', 'sc1']);
+
+    p.resetForSalonSwitch();
+    final cardAtSwitch = p.card;
+    final visitCallsBefore = service.visitCalls;
+    var notified = 0;
+    p.addListener(() => notified++);
+
+    held.complete();
+    await pumpEventQueue();
+    expect(p.card, same(cardAtSwitch), reason: 'asked for the salon left');
+    expect(p.card!.upcoming, isNull);
+    expect(service.visitCalls, visitCallsBefore);
+    expect(notified, 0);
+  });
 
   test('another card is opened meanwhile: the reload’s answer is '
       'dropped', () async {

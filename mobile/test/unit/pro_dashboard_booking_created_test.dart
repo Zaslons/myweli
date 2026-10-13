@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:myweli/core/access/pro_access_guard.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/appointment.dart';
@@ -16,7 +17,7 @@ class _Service extends MockProService {
   int today = 2;
   int calls = 0;
 
-  /// null = the figures, else 'error' or 'throw'.
+  /// null = the figures, else 'error', 'forbidden' or 'throw'.
   String? failure;
 
   /// While set, answers wait for it.
@@ -39,6 +40,9 @@ class _Service extends MockProService {
     if (gate != null) await gate.future;
     if (failure == 'throw') throw Exception('SocketException');
     if (failure == 'error') return ApiResponse.error('Erreur réseau.');
+    if (failure == 'forbidden') {
+      return ApiResponse.error('Accès refusé', code: 'forbidden');
+    }
     return ApiResponse.success(stats);
   }
 }
@@ -77,11 +81,15 @@ void main() {
     return p;
   }
 
-  test('the figures are fetched once per salon: a second load — the '
+  test('KNOWN DEFECT, recorded and not endorsed (spec §1.2 « Left », §11.2): '
+      'the figures are fetched once per salon, so a second load — the '
       'pull-to-refresh — asks for nothing', () async {
     // Not this slice's doing, and not fixed by it: recorded because §2.5's
     // « the next pull-to-refresh asks again » only holds when the figures are
-    // known to be stale (below).
+    // known to be stale (below). The day « Accueil »'s pull-to-refresh is
+    // repaired, THIS case goes red — and so does the last step of « the quiet
+    // refetch fails », which reads « no longer stale » off the same cache.
+    // That red is the repair, not a regression: rewrite both then.
     final p = await loaded();
     service.today = 3;
     await p.loadDashboardStats('p1');
@@ -147,12 +155,54 @@ void main() {
       expect(service.calls, 4);
       expect(p.stats!.todayAppointments, 3);
 
-      // Confirmed by the server: no longer stale, the cache is back.
+      // Confirmed by the server: no longer stale. The only way to read that
+      // is the cache this slice did not write — see the KNOWN DEFECT case.
       await p.loadDashboardStats('p1');
       expect(service.calls, 4);
       expect(loadingSeen, everyElement(isFalse));
     });
   }
+
+  test('a refused refetch still reports `forbidden` to the access seam — '
+      'quiet for the salon, not for a revoked member', () async {
+    final p = await loaded();
+    var probes = 0;
+    final previous = ProAccessGuard.onForbidden;
+    ProAccessGuard.onForbidden = () async => probes++;
+    addTearDown(() => ProAccessGuard.onForbidden = previous);
+
+    service.failure = 'forbidden';
+    p.bookingCreated(booking());
+    await pumpEventQueue();
+
+    expect(service.calls, 2);
+    expect(probes, 1);
+    expect(p.error, isNull);
+    expect(p.stats!.todayAppointments, 2, reason: 'the figures stay');
+  });
+
+  test('the figures had FAILED to load — nothing is on screen to keep '
+      'right: a booking asks for nothing', () async {
+    // What « Accueil » shows then is a sentence with no way out (§11.2).
+    // Using a created booking as its retry would be that screen's decision,
+    // not this slice's: the quiet refetch only ever replaces figures that
+    // are on screen.
+    final p = ProDashboardProvider();
+    addTearDown(p.dispose);
+    service.failure = 'error';
+    await p.loadDashboardStats('p1');
+    expect(p.stats, isNull);
+    expect(p.error, isNotNull);
+    expect(service.calls, 1);
+
+    service.failure = null;
+    p.bookingCreated(booking());
+    await pumpEventQueue();
+
+    expect(service.calls, 1);
+    expect(p.stats, isNull);
+    expect(p.error, isNotNull);
+  });
 
   test('another salon’s booking is ignored', () async {
     final p = await loaded();
@@ -214,16 +264,66 @@ void main() {
     expect(p.stats!.todayAppointments, 4);
   });
 
-  test('a salon switch drops a refetch in flight', () async {
-    final p = await loaded();
-    service.today = 3;
+  test('a booking lands while the first load is in flight, and that load '
+      'FAILS: the retry is a fresh load — asked after the booking existed, '
+      'it leaves nothing to confirm', () async {
+    final p = ProDashboardProvider();
+    addTearDown(p.dispose);
     service.gate = Completer<void>();
-    p.bookingCreated(booking());
+    service.failure = 'error';
+    final load = p.loadDashboardStats('p1'); // decided: a failure
+    await pumpEventQueue();
+    p.bookingCreated(booking()); // remembered: the load may predate it
+    service.gate!.complete();
+    service.gate = null;
+    await load;
+    await pumpEventQueue();
+    expect(p.stats, isNull);
+    expect(service.calls, 1, reason: 'no figures to refetch behind');
+
+    service.failure = null;
+    service.today = 3;
+    await p.loadDashboardStats('p1'); // « Accueil » reopened
+    await pumpEventQueue();
+    expect(p.stats!.todayAppointments, 3);
+    expect(service.calls, 2, reason: 'one request, not one and its double');
+  });
+
+  test('the store is asked for ANOTHER salon while a refetch is in flight: '
+      'the first salon’s figures do not land on the second', () async {
+    final p = await loaded(); // p1: 2
+    service.today = 3;
+    final held = Completer<void>();
+    service.gate = held;
+    p.bookingCreated(booking()); // p1's refetch, decided: 3
     await pumpEventQueue();
 
-    p.resetForSalonSwitch();
-    service.gate!.complete();
+    service.today = 9;
+    service.gate = null;
+    await p.loadDashboardStats('p2'); // decided: 9, answered at once
+    expect(p.stats!.todayAppointments, 9);
+
+    held.complete(); // p1's answer lands last
     await pumpEventQueue();
-    expect(p.stats, isNull, reason: 'the previous salon’s figures');
+    expect(p.stats!.todayAppointments, 9, reason: 'p1’s figures under p2');
   });
+
+  for (final (name, forget) in <(String, void Function(ProDashboardProvider))>[
+    ('a salon switch', (p) => p.resetForSalonSwitch()),
+    ('clearStats', (p) => p.clearStats()),
+  ]) {
+    test('$name drops a refetch in flight', () async {
+      final p = await loaded();
+      service.today = 3;
+      service.gate = Completer<void>();
+      p.bookingCreated(booking());
+      await pumpEventQueue();
+      expect(service.calls, 2);
+
+      forget(p);
+      service.gate!.complete();
+      await pumpEventQueue();
+      expect(p.stats, isNull, reason: 'the previous salon’s figures');
+    });
+  }
 }
