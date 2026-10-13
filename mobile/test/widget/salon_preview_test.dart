@@ -126,10 +126,6 @@ void main() {
     expect(find.text('0 avis'), findsNothing);
   });
 
-  /// The owner's complaint, held where it happened: « Aperçu » showed no
-  /// cover where the website does (docs/design/salon-cover-photo.md §1). The
-  /// photo must come from the payload the preview was SEEDED with — the
-  /// forbidden public service above fails the test if anything fetches.
   /// §2.2 — the first review of a new salon flips the page at once: no
   /// « Nouveau » and no « Pas encore d’avis. » above the review just left.
   testWidgets('the first review replaces « Nouveau » without a reload', (
@@ -170,6 +166,10 @@ void main() {
     expect(find.text('5,0'), findsNWidgets(2));
   });
 
+  /// The owner's complaint, held where it happened: « Aperçu » showed no
+  /// cover where the website does (docs/design/salon-cover-photo.md §1). The
+  /// photo must come from the payload the preview was SEEDED with — the
+  /// forbidden public service above fails the test if anything fetches.
   testWidgets('preview renders the cover from the /me/provider payload', (
     tester,
   ) async {

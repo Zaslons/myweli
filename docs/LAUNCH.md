@@ -1093,10 +1093,23 @@ checking rather than assuming:
 > that opens the map-app picker, and the Pro profile map's credits in a
 > sheet. IPA re-read, validated, uploaded, `VALID`; the only build in
 > « Équipe MyWeli », with its French « What to Test »; symbols in Sentry, read
-> back from the server's listing. **565 is the build to submit.** Still open:
-> the device checks of app-store-forms.md §11.6 on 565, the push test (the
-> owner postponed it), screenshots on Maison Nala, the App Store Connect
-> version page.
+> back from the server's listing. ~~565 is the build to submit~~ — replaced
+> by 569 below.
+>
+> **2026-10-13 — build 569 replaces 565, and the version is now 0.0.1.** From
+> `main` at `79bfcf1f` (#573, #574, #575): « Nouveau » instead of « ★ 0.0 ·
+> 0 avis », the four display defects the App Store shoot found (« Dernière »,
+> the raw phone, « Réessayer », the home stat cards), « Client sans numéro »
+> without the SMS switch, and the version 1.0.0 → 0.0.1 (owner). An
+> adversarial review of everything since 565 found no blocker. IPA re-read,
+> validated (Apple accepts 0.0.1 after the 1.0.0 builds — nothing was ever
+> published), uploaded, `VALID`; the only build in « Équipe MyWeli »; added to
+> « Testeurs externes » and **submitted for beta review**; symbols in Sentry,
+> read back. **569 is the build to submit**, once the App Store Connect
+> version page is renamed « 1.0 » → « 0.0.1 » (owner's go). Still open: the
+> device checks of app-store-forms.md §11.6 on 569, the push test (postponed
+> by the owner), screenshot 7 reshot (and possibly 3 and 4), the version
+> page.
 
 - [ ] Everything in [mobile-store-submission.md](design/mobile-store-submission.md) §5.
       Two of its claims are **stale as of 2026-08-18** and must be corrected

@@ -125,8 +125,9 @@ class AppRating extends StatelessWidget {
 }
 
 /// « Nouveau » — the journal's badge idiom (label colour at 10 % fill) in a
-/// pill, like the web's neutral `Chip`. It describes the salon; it is not a
-/// status, so it takes the ink, not a semantic colour.
+/// pill, like the web's `ink` `Chip` (`web/components/Rating.tsx`). It
+/// describes the salon; it is not a status, so it takes the ink, not a
+/// semantic colour.
 class _NewPill extends StatelessWidget {
   const _NewPill();
 
