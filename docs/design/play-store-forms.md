@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Prêt à saisir (owner) — rédigé 2026-08-28 ; **corrigé 2026-09-24** (libellés de connexion du §2, adresse + numéro Mobile Money dans la table Pro du §4.2 — audit App Store, [app-store-forms.md](app-store-forms.md)) ; **2026-10-05** : l'app Pro Android ne propose plus de choix d'offre non plus (§3) ; **2026-10-13** : trois actions désactivées sur le compte démo au lieu de deux — la suppression du compte s'y ajoute (§2, vrai une fois le verrou en production) |
+| **Status** | Prêt à saisir (owner) — rédigé 2026-08-28 ; **corrigé 2026-09-24** (libellés de connexion du §2, adresse + numéro Mobile Money dans la table Pro du §4.2 — audit App Store, [app-store-forms.md](app-store-forms.md)) ; **2026-10-05** : l'app Pro Android ne propose plus de choix d'offre non plus (§3) ; **2026-10-13** : texte amendé prêt au §2 — trois actions désactivées sur le compte démo au lieu de deux, la suppression du compte s'y ajoute ; **à ne coller qu'une fois le verrou vérifié en production**, le texte en vigueur reste d'ici là |
 | **Portée** | Les DEUX fiches Play : MyWeli (`com.myweli.app`) et MyWeli Pro (`com.myweli.pro`) |
 | **Source de vérité** | La politique de confidentialité publiée (`/politique-confidentialite`) et le binaire — un formulaire qui les contredit est un rejet ET une exposition légale (LAUNCH.md §6.3) |
 | **Règle** | Chaque réponse ci-dessous est dérivée du code ou de la politique, jamais inventée. En cas de doute en saisissant : STOP, on vérifie. |
@@ -105,7 +105,24 @@ Choisir « **Tout ou partie des fonctionnalités sont restreintes** » puis
   gcloud secrets versions access latest --secret=DEMO_PROVIDER_CODE --project=myweli
   ```
 
-- **Instructions supplémentaires** (coller tel quel) :
+- **Instructions supplémentaires** (coller tel quel — le texte en vigueur) :
+
+> Sur l'écran « Espace Pro », saisir revue@myweli.test dans le champ
+> « Votre e-mail », toucher « Continuer avec e-mail », puis saisir le code à
+> 6 chiffres fourni ci-dessus dans « Code à 6 chiffres » et toucher « Se
+> connecter » (l'e-mail n'existe pas : aucun message n'est envoyé, le code
+> fourni remplace celui normalement envoyé). Vous
+> arrivez sur un salon de démonstration complet : agenda rempli,
+> réservations manuelles, clients, catalogue, photos, disponibilités,
+> exports — tout fonctionne. Deux actions sont volontairement désactivées
+> sur ce compte de démonstration (mise en ligne publique du salon et
+> invitations d'équipe) et l'affichent clairement : « Compte de
+> démonstration — cette action est désactivée. »
+
+- **Instructions amendées** (2026-10-13 — **à ne coller qu'une fois datée la
+  ligne « Verrou de suppression du compte démo — vérifié en production »
+  d'[app-store-forms.md](app-store-forms.md) §8**, à la place des
+  précédentes) :
 
 > Sur l'écran « Espace Pro », saisir revue@myweli.test dans le champ
 > « Votre e-mail », toucher « Continuer avec e-mail », puis saisir le code à
@@ -122,16 +139,15 @@ Choisir « **Tout ou partie des fonctionnalités sont restreintes** » puis
 *Amendé le 2026-10-13
 ([demo-account-deletion-lock.md](demo-account-deletion-lock.md)) : « Deux
 actions … (mise en ligne publique du salon et invitations d'équipe) » devient
-« Trois actions … », avec la suppression du compte. **Ce texte n'est vrai
-qu'une fois le verrou déployé en production** — `api.myweli.com` répond alors
-403 `demo_account_locked` à `DELETE /me/provider` ; le déploiement demande
-l'accord explicite du propriétaire (spec §10). **D'ici là, la Play Console
-garde le texte précédent**, et un relecteur qui supprime le compte démo le
-détruit encore. Le texte précédent est celui-ci avec, à la place de sa
-dernière phrase : « Deux actions sont volontairement désactivées sur ce
-compte de démonstration (mise en ligne publique du salon et invitations
-d'équipe) et l'affichent clairement : « Compte de démonstration — cette
-action est désactivée. » ».*
+« Trois actions … », avec la suppression du compte ; le reste est identique.
+**Le texte amendé n'est vrai qu'une fois le verrou déployé en production** —
+`api.myweli.com` répond alors 403 `demo_account_locked` à
+`DELETE /me/provider` ; le déploiement demande l'accord explicite du
+propriétaire (spec §10). **D'ici là, c'est le texte en vigueur qui va dans la
+Play Console** : le texte amendé inviterait le relecteur à essayer une
+suppression que la production exécute encore. Un test tient les deux textes
+à la phrase de l'app et lit la ligne du §8
+(`mobile/test/infra/app_review_notes_test.dart`).*
 
 *Corrigé le 2026-09-24 (audit App Store,
 [app-store-forms.md](app-store-forms.md) §8) : ce texte disait « Ouvrir « Se
