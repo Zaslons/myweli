@@ -477,11 +477,26 @@ paths:
         account row, its KYC documents (rows AND the private storage
         objects), OTP state and every refresh token are erased — all
         sessions die. Threat T53.
+
+
+        The store-review demo account cannot delete itself — 403
+        `demo_account_locked` (T69): its credential is public, and nothing
+        recreates the identity. The refusal is evaluated right after the
+        account is loaded and before the future-bookings gate, so the answer
+        is the same whether or not the demo salon has upcoming bookings, and
+        nothing is read or written past it.
       security: [{ bearerAuth: [] }]
       responses:
         '204': { description: Account deleted; salon unpublished. }
         '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
+        '403':
+          description: >-
+            Not a provider, or the account no longer exists (`forbidden`);
+            or the store-review demo account (`demo_account_locked`, T69 —
+            nothing is deleted, the session stays valid).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
         '409':
           description: Future pending/confirmed bookings exist (`future_bookings`).
           content:

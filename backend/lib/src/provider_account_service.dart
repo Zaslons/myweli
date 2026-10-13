@@ -2,6 +2,7 @@ import 'package:http/http.dart' as http;
 
 import 'access/membership_repository.dart';
 import 'appointments/appointment_repository.dart';
+import 'auth/demo_seam.dart';
 import 'auth/provider_auth_repository.dart';
 import 'notifications/notifications_repository.dart';
 import 'providers_repository.dart';
@@ -10,9 +11,11 @@ import 'site/site_rebuild_notifier.dart';
 import 'storage/storage_service.dart';
 
 /// Provider ACCOUNT lifecycle (audit 11.5 — threat T53): the deletion flow
-/// that the `/me/provider` route delegates to. Orchestrates the
-/// future-bookings gate, the salon unpublish, the KYC storage erasure and
-/// the identity delete. Design: docs/design/pro-account-deletion-export.md.
+/// that the `/me/provider` route delegates to. Orchestrates the demo lock
+/// (T69), the future-bookings gate, the salon unpublish, the KYC storage
+/// erasure and the identity delete. Design:
+/// docs/design/pro-account-deletion-export.md; the demo lock:
+/// docs/design/demo-account-deletion-lock.md.
 class ProviderAccountService {
   ProviderAccountService(
     this._auth,
@@ -43,10 +46,31 @@ class ProviderAccountService {
   final SiteRebuildNotifier _rebuild;
 
   /// Delete the account behind [accountId]. Error codes: `forbidden`
-  /// (unknown account), `future_bookings` (settle the agenda first).
+  /// (unknown account), `demo_account_locked` (the store-review demo
+  /// identity, T69 — answered first, nothing is written), `future_bookings`
+  /// (settle the agenda first).
   Future<({bool ok, String? error})> deleteAccount(String accountId) async {
     final account = await _auth.accountById(accountId);
     if (account == null) return (ok: false, error: 'forbidden');
+
+    // The demo review account (T69) may not delete itself. Its credential is
+    // PUBLIC (printed in both stores' review notes), the Pro app offers
+    // account deletion, and nothing recreates the identity: one reviewer
+    // trying the feature on the shared account would end every later review.
+    //
+    // FIRST, before the agenda gate below. That gate holds only while the
+    // weekly reset's two upcoming bookings exist, and the account can clear
+    // them itself — the answer must not depend on the day. Nothing past this
+    // line runs: no unpublish, no KYC erasure, no device, notification or
+    // membership write, no identity delete.
+    //
+    // Keyed on the CALLER's own e-mail (the caller is the subject, as for
+    // salon creation) against the compile-time demo constant, and in the
+    // service, not the route, so no future caller can route around it.
+    // Design: docs/design/demo-account-deletion-lock.md.
+    if (isDemoIdentity(account.email ?? '')) {
+      return (ok: false, error: 'demo_account_locked');
+    }
 
     // R6 (T53): every salon the account OWNS — the scalar link plus active
     // owner membership rows. Member-only salons are never touched.
