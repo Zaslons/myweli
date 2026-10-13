@@ -197,6 +197,12 @@ test('pro routes are axe-clean', async ({ page }) => {
     ['/pro/rendez-vous', 'Rendez-vous'],
     ['/pro/equipe', 'Équipe'],
     ['/pro/clients', 'Clients'],
+    // The client CARD (docs/design/amounts-that-fit.md §8.5) — the page behind
+    // every row of the list above, never scanned until now. Its `<h1>` is the
+    // client's NAME, which only the loaded card renders: the error state
+    // titles itself « Fiche client » and « Client introuvable. » has no
+    // heading, so this anchor cannot pass on either. `sc1` is the stub's Koffi.
+    ['/pro/clients/sc1', /Koffi/],
     // **Not the h1.** `/pro/apercu` renders three different `<main>`s — loading,
     // error and loaded (`SalonPreviewClient.tsx:46,:54,:69`) — and `pro.spec.ts`
     // renames the shared stub salon from another worker, so its heading is not

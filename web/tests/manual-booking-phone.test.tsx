@@ -53,13 +53,14 @@ function mockFetch({ createStatus = 200, createBody = '{}' } = {}) {
   );
 }
 
-function renderDialog() {
+function renderDialog(initialClient?: { name: string; phone?: string }) {
   const onCreated = vi.fn();
   render(
     <ManualBookingDialog
       providerId="p1"
       profile={PROFILE}
       dateTimeIso="2027-01-15T14:30:00.000Z"
+      initialClient={initialClient}
       onClose={() => {}}
       onCreated={onCreated}
     />,
@@ -135,5 +136,90 @@ describe('ManualBookingDialog — the phone crosses as E.164', () => {
       'Numéro invalide (format international, ex. +2250700000000).',
     );
     expect(screen.queryByText(/Création impossible/)).toBeNull();
+  });
+});
+
+/// The SMS promise is gone (docs/design/amounts-that-fit.md §2 « Web »; the
+/// app's twin guard is `mobile/test/widget/manual_booking_phone_test.dart`).
+///
+/// The dialog used to offer « Envoyer la confirmation par SMS », ticked by
+/// default, under « Le client reçoit un lien vers l’app (bientôt disponible) »,
+/// and posted `sendSmsInvite: true` whenever a phone was present — a message
+/// nothing sends: the backend never reads the field, and messaging waits for
+/// company registration. The app hid its switch in build 569 and sends `false`;
+/// the web has no flag mechanism, so the control is removed outright and the
+/// field is sent `false`, explicitly.
+///
+/// `toBe(false)` and not `not.toBe(true)`: an omitted field is `undefined`, and
+/// « the form sends false » is what the app does and what is asserted here.
+describe('ManualBookingDialog — no SMS promise, and sendSmsInvite is false', () => {
+  /// The three things a person could read or tick. Each is asserted on its own
+  /// line so a regression names what came back.
+  function expectNoSmsControl() {
+    expect(screen.queryByText('Envoyer la confirmation par SMS')).toBeNull();
+    expect(screen.queryByText(/bientôt disponible/)).toBeNull();
+    expect(screen.queryByText(/SMS/)).toBeNull();
+    // The only checkboxes left are the service rows (one service here).
+    expect(screen.getAllByRole('checkbox')).toHaveLength(1);
+  }
+
+  it('shows no SMS control and no « bientôt disponible » — no phone yet', () => {
+    // Without a phone the old control was rendered dimmed and disabled.
+    mockFetch();
+    renderDialog();
+    expectNoSmsControl();
+  });
+
+  it('shows no SMS control — a pre-picked client who has a phone', () => {
+    // With a phone the old control was ENABLED and ticked: the state a
+    // receptionist opening the dialog from a client card saw every time.
+    mockFetch();
+    renderDialog({ name: 'Koffi', phone: '+2250700000001' });
+    expectNoSmsControl();
+  });
+
+  it('a phone typed for a new client sends sendSmsInvite false', async () => {
+    mockFetch();
+    const onCreated = renderDialog();
+    fillBasics();
+    fireEvent.change(
+      screen.getByLabelText('Téléphone (pour retrouver ce client)'),
+      { target: { value: '+2250708091011' } },
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Créer' }));
+
+    await waitFor(() => expect(posted).toHaveLength(1));
+    expect(posted[0].clientPhone).toBe('+2250708091011');
+    expect(posted[0].sendSmsInvite).toBe(false);
+    await waitFor(() => expect(onCreated).toHaveBeenCalled());
+  });
+
+  it('a pre-picked client who has a phone sends sendSmsInvite false', async () => {
+    // The client-card entry point (`ClientCardClient` → `initialClient`): the
+    // phone is known from the first render, so this is the path on which every
+    // booking carried `true`.
+    mockFetch();
+    const onCreated = renderDialog({ name: 'Koffi', phone: '+2250700000001' });
+    fireEvent.click(screen.getByRole('checkbox', { name: /Tresses/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Créer' }));
+
+    await waitFor(() => expect(posted).toHaveLength(1));
+    // The stored number still crosses raw — it is how the server finds the
+    // client again.
+    expect(posted[0].clientName).toBe('Koffi');
+    expect(posted[0].clientPhone).toBe('+2250700000001');
+    expect(posted[0].sendSmsInvite).toBe(false);
+    await waitFor(() => expect(onCreated).toHaveBeenCalled());
+  });
+
+  it('a client with no phone sends sendSmsInvite false too — never omitted', async () => {
+    mockFetch();
+    renderDialog();
+    fillBasics();
+    fireEvent.click(screen.getByRole('button', { name: 'Créer' }));
+
+    await waitFor(() => expect(posted).toHaveLength(1));
+    expect(posted[0].clientPhone).toBeUndefined();
+    expect(posted[0].sendSmsInvite).toBe(false);
   });
 });

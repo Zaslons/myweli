@@ -43,6 +43,44 @@ export function priceRange(
   return formatFcfa(price, currency);
 }
 
+/// « +225 07 00 00 01 01 » — a stored number, for reading.
+///
+/// The hand-written twin of `Formatters.formatPhoneNumber` (mobile
+/// `core/utils/formatters.dart`), same rule line for line: a Côte d'Ivoire
+/// number — `+225` followed by exactly 10 national digits (today's plan) or 8
+/// (the legacy one) — is grouped in pairs; **every other input is returned
+/// unchanged**, as the very string that came in. Another country (« +241… »,
+/// Gabon, is a live market), a wrong length, a number without its prefix: all
+/// stay as stored. That is why this is not `formatPhoneNumberIntl` from
+/// `react-phone-number-input` — a library that formats every country is a
+/// different rule from the app's.
+///
+/// - **For display only.** `tel:` and `wa.me` links, and anything sent to the
+///   API, keep the stored number (`telHref` / `waHref` in `lib/pro/clients.ts`).
+/// - **The gaps are plain spaces (U+0020)**, as in the app, so a copied number
+///   pastes with ordinary spaces. A phone number may not break across lines
+///   (SYSTEM.md §13.3); that is the caller's job, with `whitespace-nowrap` —
+///   never a no-break space in the string.
+/// - The cleaning expression is the app's, `[^\d+]` and not `\D`: it keeps a
+///   `+` wherever it sits, exactly as the Dart does.
+///
+/// Nothing but the shared test vectors (`tests/format.test.ts` ↔
+/// `mobile/test/unit/formatters_test.dart`) holds the two copies together.
+export function formatPhoneNumber(phone: string): string {
+  const cleaned = phone.replace(/[^\d+]/g, '');
+  if (cleaned.startsWith('+225')) {
+    const digits = cleaned.slice(4); // strip +225
+    if (digits.length === 10 || digits.length === 8) {
+      const groups: string[] = [];
+      for (let i = 0; i < digits.length; i += 2) {
+        groups.push(digits.slice(i, i + 2));
+      }
+      return `+225 ${groups.join(' ')}`;
+    }
+  }
+  return phone; // other country / unexpected length → as-is
+}
+
 /// "1 h 30" · "2 h" · "45 min".
 export function formatDuration(minutes: number): string {
   const h = Math.floor(minutes / 60);
