@@ -61,7 +61,10 @@ const String publishOfferInactiveMessage =
 
 /// The demo account's 403 (`demo_account_locked`) — the sentence the App
 /// Review notes promise. Its credential is public, so the server refuses the
-/// actions that would outlive the weekly reset.
+/// actions that would outlive the weekly reset; the list — account deletion
+/// included — is in `backend/lib/src/auth/demo_seam.dart`. The review notes
+/// quote this sentence word for word (docs/design/app-store-forms.md §8),
+/// and `test/infra/app_review_notes_test.dart` holds them to it.
 const String demoAccountLockedMessage =
     'Compte de démonstration — cette action est désactivée.';
 

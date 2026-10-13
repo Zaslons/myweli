@@ -3,6 +3,7 @@ import 'package:http/testing.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:myweli_backend/src/access/membership_repository.dart';
 import 'package:myweli_backend/src/appointments/appointment_repository.dart';
+import 'package:myweli_backend/src/auth/demo_seam.dart';
 import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
 import 'package:myweli_backend/src/auth/tokens.dart';
 import 'package:myweli_backend/src/notifications/notifications_repository.dart';
@@ -16,6 +17,11 @@ import 'package:test/test.dart';
 class _MockProviders extends Mock implements ProvidersRepository {}
 
 class _MockAppointments extends Mock implements AppointmentRepository {}
+
+/// For the rows the in-memory repository cannot hold: it normalises every
+/// address at registration, so a stored variant (or no address at all) has
+/// to be handed to the service directly.
+class _MockAuth extends Mock implements ProviderAuthRepository {}
 
 /// Records what it was asked to do, so a call site can be observed.
 class _RecordingNotifier implements SiteRebuildNotifier {
@@ -309,6 +315,243 @@ void main() {
       verify(() => providers.setStatus('p1', 'draft')).called(1);
       verify(() => providers.setStatus('p2', 'draft')).called(1);
       verifyNever(() => providers.setStatus('p_managed', any()));
+    });
+  });
+
+  // The store-review demo account cannot delete itself (T69). Its credential
+  // is printed in both stores' review notes, the Pro app offers account
+  // deletion, and nothing recreates the identity.
+  // Design: docs/design/demo-account-deletion-lock.md.
+  group('T69 — the demo identity cannot delete itself', () {
+    late InMemoryMembershipRepository memberships;
+    late InMemoryDeviceTokenRepository devices;
+    late InMemoryNotificationsRepository notifications;
+    late _RecordingNotifier rebuild;
+    late List<String> storageCalls;
+
+    ProviderAccountService serviceOver(ProviderAuthRepository repository) =>
+        ProviderAccountService(
+          repository,
+          providers,
+          appointments,
+          FakeStorageService(),
+          memberships,
+          devices: devices,
+          notifications: notifications,
+          client: MockClient((req) async {
+            storageCalls.add('${req.method} ${req.url.path}');
+            return http.Response('', 204);
+          }),
+          rebuild: rebuild,
+        );
+
+    setUp(() {
+      memberships = InMemoryMembershipRepository();
+      devices = InMemoryDeviceTokenRepository();
+      notifications = InMemoryNotificationsRepository();
+      rebuild = _RecordingNotifier();
+      storageCalls = [];
+    });
+
+    /// One row in every place a deletion writes to, for the account behind
+    /// [email] — registered through the real path. The demo test and its
+    /// control call this with nothing else changed, so the address is the
+    /// only difference between a refusal and an erasure.
+    Future<({String id, String refreshToken})> populated(String email) async {
+      final reg = await auth.register(
+        businessName: 'Maison Nala',
+        businessType: 'salon',
+        phoneNumber: '+2250700000069',
+        email: email,
+        authProvider: 'google',
+        googleSub: 'sub-of-$email',
+        providerId: 'p1',
+      );
+      final id = reg.provider!.id;
+      await auth.submitKyc(id, [
+        {'key': 'kyc/$id/id.jpg', 'type': 'id_front'},
+      ]);
+      await memberships.ensureOwner(
+        providerId: 'p1',
+        accountId: id,
+        email: email,
+      );
+      await devices.upsert(
+        token: 'tok-$id',
+        userId: id,
+        role: 'provider',
+        platform: 'ios',
+      );
+      await notifications.add(
+        userId: id,
+        type: 'booking_new',
+        title: 'Nouvelle réservation',
+        body: 'Awa, 14:00',
+      );
+      return (id: id, refreshToken: reg.tokens!.refreshToken);
+    }
+
+    Future<void> expectNothingMutated(String id, String refreshToken) async {
+      final account = await auth.accountById(id);
+      expect(account, isNotNull, reason: 'the account still exists');
+      expect(account!.kycDocs, hasLength(1), reason: 'the KYC rows');
+      expect(storageCalls, isEmpty, reason: 'no KYC object was erased');
+      verifyNever(() => providers.setStatus(any(), any()));
+      expect(rebuild.reasons, isEmpty, reason: 'no rebuild was asked for');
+      final rows = await memberships.listForAccount(id);
+      expect(rows.single.role, 'owner');
+      expect(rows.single.status, 'active', reason: 'the membership');
+      expect(await devices.tokensForUser(id), hasLength(1));
+      expect(await notifications.listForUser(id, limit: 10), hasLength(1));
+      expect(
+        (await auth.refresh(refreshToken)).ok,
+        isTrue,
+        reason: 'the session is alive — the reviewer stays signed in',
+      );
+    }
+
+    void upcomingBookingIn(String providerId) {
+      final future = DateTime.now()
+          .toUtc()
+          .add(const Duration(days: 2))
+          .toIso8601String();
+      when(() => appointments.listForProvider(providerId)).thenAnswer(
+        (_) async => [
+          {'status': 'confirmed', 'appointmentDate': future},
+        ],
+      );
+    }
+
+    test('refused with demo_account_locked, and nothing is mutated', () async {
+      final demo = await populated(kDemoProviderEmail);
+
+      final r = await serviceOver(auth).deleteAccount(demo.id);
+
+      expect(r.ok, isFalse);
+      expect(r.error, 'demo_account_locked');
+      await expectNothingMutated(demo.id, demo.refreshToken);
+    });
+
+    test('CONTROL: the same rows under another address are erased, exactly '
+        'as before', () async {
+      // The oracle has to discriminate: everything `expectNothingMutated`
+      // reads must come back DIFFERENT here, or the refusal test above
+      // proves nothing about the demo identity.
+      final owner = await populated('owner@salon.test');
+
+      final r = await serviceOver(auth).deleteAccount(owner.id);
+
+      expect(r.ok, isTrue);
+      expect(r.error, isNull);
+      expect(await auth.accountById(owner.id), isNull);
+      expect(storageCalls.single, startsWith('DELETE '));
+      expect(storageCalls.single, endsWith('kyc/${owner.id}/id.jpg'));
+      verify(() => providers.setStatus('p1', 'draft')).called(1);
+      expect(rebuild.reasons, ['account.erased']);
+      final rows = await memberships.listForAccount(owner.id);
+      expect(rows.single.status, 'revoked');
+      expect(await devices.tokensForUser(owner.id), isEmpty);
+      expect(await notifications.listForUser(owner.id, limit: 10), isEmpty);
+      expect((await auth.refresh(owner.refreshToken)).ok, isFalse);
+    });
+
+    test('the same refusal WITH upcoming bookings — the lock answers before '
+        'the agenda gate', () async {
+      // The weekly reset gives the demo salon upcoming bookings for about
+      // two days out of seven. The answer must not depend on the day.
+      final demo = await populated(kDemoProviderEmail);
+      upcomingBookingIn('p1');
+
+      final r = await serviceOver(auth).deleteAccount(demo.id);
+
+      expect(r.error, 'demo_account_locked');
+      await expectNothingMutated(demo.id, demo.refreshToken);
+    });
+
+    test('CONTROL: another account with upcoming bookings is still asked to '
+        'settle them', () async {
+      final owner = await populated('owner@salon.test');
+      upcomingBookingIn('p1');
+
+      final r = await serviceOver(auth).deleteAccount(owner.id);
+
+      expect(r.error, 'future_bookings');
+      await expectNothingMutated(owner.id, owner.refreshToken);
+    });
+
+    ProviderAccount stored(String? email) => ProviderAccount(
+      id: 'acc',
+      phoneNumber: '+2250700000068',
+      businessName: 'Salon',
+      businessType: 'salon',
+      createdAt: DateTime.utc(2026),
+      email: email,
+      providerId: 'p1',
+    );
+
+    _MockAuth authHolding(ProviderAccount account) {
+      final repository = _MockAuth();
+      when(
+        () => repository.accountById('acc'),
+      ).thenAnswer((_) async => account);
+      when(() => repository.deleteAccount('acc')).thenAnswer((_) async => true);
+      return repository;
+    }
+
+    for (final (label, variant) in const [
+      ('mixed case', 'Revue@MyWeli.Test'),
+      ('upper case', 'REVUE@MYWELI.TEST'),
+      ('spaces around it', ' revue@myweli.test '),
+      ('a tab before and a newline after', '\trevue@myweli.test\n'),
+    ]) {
+      test('a stored address in $label is the demo identity too', () async {
+        final repository = authHolding(stored(variant));
+
+        final r = await serviceOver(repository).deleteAccount('acc');
+
+        expect(r.error, 'demo_account_locked');
+        verifyNever(() => repository.deleteAccount(any()));
+        verifyNever(() => providers.setStatus(any(), any()));
+      });
+    }
+
+    for (final other in const [
+      'revue@myweli.test.fr',
+      'xrevue@myweli.test',
+      'revue+1@myweli.test',
+      'revue@myweli.tes',
+      'demo@myweli.test',
+    ]) {
+      test('CONTROL: $other is NOT the demo identity — an exact match, never '
+          'a prefix or a suffix', () async {
+        final repository = authHolding(stored(other));
+
+        final r = await serviceOver(repository).deleteAccount('acc');
+
+        expect(r.ok, isTrue);
+        verify(() => repository.deleteAccount('acc')).called(1);
+      });
+    }
+
+    test('an account with NO e-mail still deletes', () async {
+      // A row without an address (the nullable column) is nobody's demo
+      // account: the lock must not read « no address » as a match.
+      final repository = authHolding(stored(null));
+
+      final r = await serviceOver(repository).deleteAccount('acc');
+
+      expect(r.ok, isTrue);
+      verify(() => repository.deleteAccount('acc')).called(1);
+    });
+
+    test('an unknown account is still `forbidden`', () async {
+      final repository = _MockAuth();
+      when(() => repository.accountById('gone')).thenAnswer((_) async => null);
+
+      final r = await serviceOver(repository).deleteAccount('gone');
+
+      expect(r.ok, isFalse);
+      expect(r.error, 'forbidden');
     });
   });
 }

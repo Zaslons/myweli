@@ -1,5 +1,9 @@
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import {
+  DEMO_ACCOUNT_LOCKED_MESSAGE,
   ROLE_LABELS,
   ROLE_SUMMARIES,
   type TeamMember,
@@ -47,6 +51,8 @@ describe('teamErrorMessage', () => {
       // R6 multi-salons.
       reseau_required: /offre Réseau est requise/,
       salon_limit: /Limite de salons atteinte/,
+      // The store-review demo account's refusals (T69).
+      demo_account_locked: /^Compte de démonstration — cette action est désactivée\.$/,
     };
     for (const [code, re] of Object.entries(codes)) {
       expect(teamErrorMessage(code)).toMatch(re);
@@ -67,6 +73,34 @@ describe('teamErrorMessage', () => {
     expect(teamErrorMessage('nonsense')).toBe(
       'Une erreur est survenue. Réessayez.',
     );
+  });
+});
+
+describe('the demo account sentence — app/web parity', () => {
+  /// The store review notes quote ONE sentence, and the app owns it
+  /// (`demoAccountLockedMessage`). The web cannot import a Dart constant, so
+  /// it carries a copy — and a copy drifts unless something reads both. Same
+  /// posture as availability-parity.test.ts: read the mobile source.
+  const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
+  const dart = readFileSync(
+    join(REPO_ROOT, 'mobile/lib/core/utils/team_error_messages.dart'),
+    'utf-8',
+  );
+
+  it('is, character for character, the app\u2019s demoAccountLockedMessage', () => {
+    const m = /const String demoAccountLockedMessage =\s*'([^']+)';/.exec(dart);
+    expect(m, 'the Dart constant was not found — did it move?').not.toBeNull();
+    expect(DEMO_ACCOUNT_LOCKED_MESSAGE).toBe(m![1]);
+  });
+
+  it('is what the shared table answers for the code — and has no CTA', () => {
+    expect(teamErrorMessage('demo_account_locked')).toBe(
+      DEMO_ACCOUNT_LOCKED_MESSAGE,
+    );
+    expect(teamErrorMessage('demo_account_locked', 'invite')).toBe(
+      DEMO_ACCOUNT_LOCKED_MESSAGE,
+    );
+    expect(teamErrorCta('demo_account_locked')).toBeNull();
   });
 });
 

@@ -23,11 +23,13 @@ import 'package:myweli_backend/src/salon_provisioning_service.dart';
 /// a per-salon denial must never sign a user out of their other salons).
 ///
 /// `DELETE /me/provider` — erase the ACCOUNT identity (audit 11.5, AUTH-004
-/// for pros; threat T53): future pending/confirmed bookings → 409
-/// `future_bookings`; the salon is UNPUBLISHED (`status → draft`, hidden by
-/// T51 while history keeps resolving); the account row + OTP state + every
-/// refresh token are deleted. Design:
-/// docs/design/pro-account-deletion-export.md.
+/// for pros; threat T53): the store-review demo account → 403
+/// `demo_account_locked` (T69 — answered before anything else, nothing is
+/// written; docs/design/demo-account-deletion-lock.md); future
+/// pending/confirmed bookings → 409 `future_bookings`; the salon is
+/// UNPUBLISHED (`status → draft`, hidden by T51 while history keeps
+/// resolving); the account row + OTP state + every refresh token are
+/// deleted. Design: docs/design/pro-account-deletion-export.md.
 Future<Response> onRequest(RequestContext context) async {
   if (context.request.method != HttpMethod.get &&
       context.request.method != HttpMethod.delete) {
@@ -136,9 +138,16 @@ Future<Response> _delete(RequestContext context, String accountId) async {
     accountId,
   );
   if (!r.ok) {
-    return r.error == 'future_bookings'
-        ? jsonError(HttpStatus.conflict, 'future_bookings')
-        : jsonError(HttpStatus.forbidden, 'forbidden');
+    return switch (r.error) {
+      'future_bookings' => jsonError(HttpStatus.conflict, 'future_bookings'),
+      // T69. Its own arm, not the `forbidden` default below: the app and the
+      // web show the demo sentence only when they can tell the two apart.
+      'demo_account_locked' => jsonError(
+        HttpStatus.forbidden,
+        'demo_account_locked',
+      ),
+      _ => jsonError(HttpStatus.forbidden, 'forbidden'),
+    };
   }
   return Response(statusCode: HttpStatus.noContent);
 }

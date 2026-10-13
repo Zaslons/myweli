@@ -3,11 +3,33 @@
 /// **The credential is public by design** — it is printed into both stores'
 /// review notes, read by Apple and Google staff. So this file is not a lock;
 /// the security is the ROOM the credential opens: an ordinary provider
-/// account owning one permanently-draft salon, with exactly two capabilities
-/// subtracted (publish, team invitations) and everything else bounded by the
-/// same ownership checks and rate limits as any account.
+/// account owning one permanently-draft salon, with exactly five capabilities
+/// subtracted and everything else bounded by the same ownership checks and
+/// rate limits as any account.
 ///
-/// Design + threat model (T69): docs/design/backend-demo-review-account.md.
+/// The five, each refused in its SERVICE with 403 `demo_account_locked`:
+///
+/// - publishing the salon — `POST /providers/{id}/publish`
+///   (`SalonProvisioningService.publish`);
+/// - inviting a team member — `POST /me/provider/members`
+///   (`TeamService.invite`);
+/// - choosing or switching the offer — `PUT /providers/{id}/subscription`
+///   (`SalonSubscriptionService.chooseOffer`);
+/// - creating a salon — `POST /me/salons`
+///   (`SalonDirectoryService.addSalon`);
+/// - deleting the account itself — `DELETE /me/provider`
+///   (`ProviderAccountService.deleteAccount`).
+///
+/// `test/demo/demo_locks_inventory_test.dart` reads the lock sites under
+/// `lib/src` — the record `error: 'demo_account_locked'` — and the method
+/// each one sits in. It fails when a site is not in this list (a new file,
+/// or a second site inside a service already listed), when a method named
+/// here no longer holds its lock, and when a new file reads the demo
+/// identity. Add the lock here, in BACKEND.md T69 and in the store review
+/// notes together.
+///
+/// Design + threat model (T69): docs/design/backend-demo-review-account.md;
+/// the deletion lock: docs/design/demo-account-deletion-lock.md.
 library;
 
 import 'smoke_seam.dart' show constantTimeEquals;

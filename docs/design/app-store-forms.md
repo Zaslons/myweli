@@ -529,14 +529,37 @@ n'y a pas d'autre source connue du code — UNVERIFIED qu'une copie existe
 ailleurs ; si le secret a été perdu avec le projet, il faut en frapper un
 nouveau et redéployer.
 
-**Notes** (coller tel quel). Poids : **3 483 octets** (3 430 caractères) —
-sous la limite de 4 000. Recompté le 2026-10-05 par script sur le texte exact
-du bloc, sans le saut de ligne final (`printf '%s' "$(cat notes.txt)" | wc -c` ;
-la même méthode redonne bien les 3 005 octets de la version du 2026-09-24).
+**Verrou de suppression du compte démo — vérifié en production : pas encore.**
+Cette ligne décide lequel des deux blocs ci-dessous se colle. Les notes
+amendées disent au relecteur que le compte démo ne peut pas être supprimé ;
+ce n'est vrai que lorsque `api.myweli.com` répond 403 `demo_account_locked`
+à `DELETE /me/provider`
+([demo-account-deletion-lock.md](demo-account-deletion-lock.md) §10 : la
+fusion, puis le déploiement en production avec l'accord explicite du
+propriétaire, puis le contrôle du §10.1). **Tant qu'elle dit « pas encore »,
+un relecteur qui supprime le compte démo le détruit encore, et ce sont les
+notes en vigueur qui vont dans App Store Connect** — c'est aussi ce que
+veulent dire le §13 et le §13.1 quand ils écrivent « les notes du §8 telles
+quelles ». Une fois le contrôle du §10.1 passé : remplacer « pas encore »
+par `le AAAA-MM-JJ`, puis coller les notes amendées à la place des
+précédentes. `mobile/test/infra/app_review_notes_test.dart` lit cette ligne
+et échoue si le bloc « coller tel quel » promet le verrou alors qu'elle dit
+« pas encore ». *Le test ne voit pas la production : il lit la ligne. La
+dater sans avoir fait le contrôle le rendrait vert à tort.*
+
+**Notes** (coller tel quel — les notes en vigueur). Poids : **3 476 octets**
+(3 424 caractères) — sous la limite de 4 000. Recompté le 2026-10-13 par
+script sur le texte exact du bloc, sans le saut de ligne final
+(`printf '%s' "$(cat notes.txt)" | wc -c` ; la même méthode redonne bien les
+3 483 octets de la version du 2026-10-05). Un test le recompte désormais à
+chaque CI et échoue si ce paragraphe ment
+(`mobile/test/infra/app_review_notes_test.dart`).
 *Historique : 3 005 octets avec la ligne réservée, 3 181 avec la seule phrase
 (a) ; le 2026-10-05, la ligne réservée est remplacée par la phrase (a) suivie
 d'une phrase sur l'essai (§2.4), et les deux dernières rubriques sont
-corrigées (ci-dessous).*
+corrigées (ci-dessous) — 3 483 octets ; le 2026-10-11, « Salon Démo MyWeli »
+devient « Maison Nala » dans le bloc — 3 476 octets (3 424 caractères), alors
+que ce paragraphe a continué d'afficher 3 483 jusqu'au 2026-10-13.*
 
 ```text
 MyWeli Pro is the business app for beauty salons in Côte d'Ivoire (French UI). Salon owners and their staff manage their agenda, clients, services, photos and opening hours; their customers book through the separate MyWeli app and myweli.com.
@@ -571,6 +594,59 @@ Profil > « Supprimer mon compte », then type SUPPRIMER to confirm. Please do n
 Sign in with Apple and Google only sign in to an existing salon account. A new identity is offered « Créer un compte », which opens the « Inscription Pro » form: fill in the salon's name, type, phone and address, then tap « S’inscrire avec Apple » to create a new, empty salon. Please use the demo account above to see a populated salon.
 ```
 
+**Notes amendées** (2026-10-13 — **à ne coller qu'une fois la ligne
+ci-dessus datée**, à la place des précédentes). Poids : **3 648 octets**
+(3 589 caractères) — sous la limite de 4 000 ; même méthode, même test. Deux
+passages seulement diffèrent des notes en vigueur, le reste est identique mot
+pour mot (le test le vérifie) : « Two actions… » devient « Three
+actions… », avec la suppression du compte ; et la rubrique ACCOUNT DELETION
+dit que le compte démo ne peut pas être supprimé, ce que l'app répond alors,
+et que la suppression se teste de bout en bout sur un compte neuf.
+
+> **2026-10-13 — ces notes ne sont vraies qu'une fois le verrou déployé en
+> production.** Avant, elles sont fausses, et dangereuses : elles invitent
+> le relecteur à essayer une suppression que la production exécute encore.
+> D'ici là, App Store Connect garde — ou reçoit, s'il n'en contient pas
+> encore (§13.1) — les notes en vigueur. Celles-ci restent sans danger après le
+> déploiement : elles demandent de ne pas supprimer le compte démo, et deux
+> de leurs phrases deviennent seulement inexactes pour ce compte (« Two
+> actions » : il y en aura trois ; les rendez-vous à venir : le serveur
+> répondra la phrase démo, pas celle des rendez-vous) — une raison de les
+> remplacer, pas une urgence.
+
+```text
+MyWeli Pro is the business app for beauty salons in Côte d'Ivoire (French UI). Salon owners and their staff manage their agenda, clients, services, photos and opening hours; their customers book through the separate MyWeli app and myweli.com.
+
+HOW TO SIGN IN (demo account)
+The app signs in with an e-mail address and a 6-digit code, not a password. The demo account uses a FIXED code that does not expire, so the Password field above contains that 6-digit code.
+1. On the « Espace Pro » screen, type revue@myweli.test in the « Votre e-mail » field.
+2. Tap « Continuer avec e-mail ». No e-mail is sent: the .test domain cannot receive mail, and the fixed code replaces the one normally e-mailed.
+3. Type the code from the Password field in « Code à 6 chiffres », then tap « Se connecter ».
+You land on « Maison Nala », a complete demo salon: agenda with bookings, manual bookings, clients, services, photos, availability, journal and data export all work. The « Profil » icon at the top right of the « Accueil » screen opens the account menu.
+
+Three actions are deliberately disabled for this shared demo account and say so on screen (« Compte de démonstration — cette action est désactivée. »): publishing the salon publicly, inviting team members by e-mail (it would send e-mail to third parties), and deleting the account (later reviews use it).
+
+PAYMENTS
+No payment of any kind happens in the app. A salon may ask its customers for a booking deposit; the customer pays it directly to the salon's own Mobile Money account, outside the app, for an in-person beauty service, and the salon confirms it in the app. MyWeli never holds or moves money.
+
+SUBSCRIPTION
+MyWeli Pro is a free companion app to the MyWeli service for salons (guideline 3.1.3(f)). There is no purchasing in the app and no link to, or instruction about, purchasing elsewhere: Profil > « Mon abonnement » only shows the salon's current plan and its status. A new salon's free trial starts automatically when the salon goes live; nothing is chosen or bought in the app.
+
+IDENTITY DOCUMENTS (Profil > « Vérification »)
+Uploading identity documents is optional. It is needed only to switch on customer deposits, so that deposits go only to verified salons. The documents are stored privately, never published, and read only by a MyWeli administrator.
+
+USER CONTENT
+Customer reviews shown under « Avis » are moderated by MyWeli: customers report reviews from the MyWeli app, administrators can hide a review or suspend a salon, and a salon reaches support from Profil > « Aide & Support ».
+
+LOCATION
+Location is requested only when the owner taps « Utiliser ma position » (Profil > « Profil du salon ») or « Près de moi » in the commune list, to place the salon's pin on the map or find its commune. The pin is the salon's public business address.
+
+ACCOUNT DELETION
+Profil > « Supprimer mon compte », then type SUPPRIMER to confirm. The shared demo account cannot be deleted: after the SUPPRIMER confirmation, the app answers « Compte de démonstration — cette action est désactivée. » and you stay signed in. To test deletion end to end, please create a fresh account (below) and delete that one. If that account has upcoming appointments, the app first asks to finish or cancel them.
+
+Sign in with Apple and Google only sign in to an existing salon account. A new identity is offered « Créer un compte », which opens the « Inscription Pro » form: fill in the salon's name, type, phone and address, then tap « S’inscrire avec Apple » to create a new, empty salon. Please use the demo account above to see a populated salon.
+```
+
 Libellés relus dans le code le 2026-09-24 : `pro_login_screen.dart`
 (« Espace Pro », « Votre e-mail », « Continuer avec e-mail », « Code à 6
 chiffres », « Se connecter »), `dashboard_screen.dart` (« Accueil », icône
@@ -578,7 +654,10 @@ chiffres », « Se connecter »), `dashboard_screen.dart` (« Accueil », icône
 « Mon abonnement », « Aide & Support », « Supprimer mon compte », mot
 `SUPPRIMER`), `pro_salon_profile_screen.dart` (« Utiliser ma position »),
 `commune_picker_sheet.dart` (« Près de moi »), `reviews_screen.dart` (« Avis »).
-**Si un libellé change, ces notes changent dans la même PR.**
+**Si un libellé change, ces notes changent dans la même PR.** *2026-10-13 :
+la phrase « Compte de démonstration — cette action est désactivée. » est la
+constante `demoAccountLockedMessage` (`team_error_messages.dart`) ; le test
+cité plus haut tient les deux blocs à cette constante.*
 
 **Corrigé le 2026-10-05** (critique d'exhaustivité de l'audit de la voie
 compagnon, puis relu dans le code) :
@@ -600,12 +679,27 @@ compagnon, puis relu dans le code) :
   §2.2) ; la voir à l'écran sur le build TestFlight avant de soumettre
   (§11.6).
 
-Pourquoi la rubrique ACCOUNT DELETION est écrite ainsi : la suppression n'est
-pas verrouillée pour l'identité démo, et la remise à zéro hebdomadaire ne crée
-des rendez-vous à venir qu'à J+1 et J+2
-(`backend/lib/src/demo/demo_reset_service.dart`) — cinq jours sur sept, rien
-n'arrête une suppression du compte démo. D'où la demande explicite, et le
-compte Apple neuf pour tester la suppression de bout en bout (§14).
+Pourquoi la rubrique ACCOUNT DELETION est écrite ainsi (2026-10-13) — celle
+des **notes amendées**, vraie une fois le verrou en production : **le
+serveur refuse la suppression à l'identité démo** — 403 `demo_account_locked`
+sur `DELETE /me/provider`, évalué avant le contrôle des rendez-vous à venir,
+donc la même réponse sept jours sur sept
+([demo-account-deletion-lock.md](demo-account-deletion-lock.md)). L'entrée
+« Supprimer mon compte » reste visible pour le compte démo : le relecteur
+doit voir que la suppression existe (5.1.1(v)). Le refus arrive après la
+confirmation `SUPPRIMER`, avec la phrase que la note cite, et le relecteur
+reste connecté. La suppression de bout en bout se teste sur un compte neuf —
+le paragraphe qui suit dit comment en créer un — et la dernière phrase vaut
+pour ce compte-là : un compte ordinaire qui a des rendez-vous à venir doit
+d'abord les terminer ou les annuler.
+
+*Avant ce verrou, et tant qu'il n'est pas en production* : la suppression
+n'est pas verrouillée pour l'identité démo, et la remise à zéro hebdomadaire
+ne crée des rendez-vous à venir qu'à J+1 et J+2
+(`backend/lib/src/demo/demo_reset_service.dart`) — environ cinq jours sur
+sept rien n'arrête une suppression du compte démo, et les autres jours le
+compte peut annuler ces deux rendez-vous lui-même. C'est pourquoi les notes
+en vigueur se bornent à demander de ne pas le supprimer.
 
 Pourquoi la rubrique IDENTITY DOCUMENTS : 5.1.1(ix) veut que les apps qui
 demandent des données sensibles soient soumises par une personne morale ;
@@ -1375,7 +1469,13 @@ posées :
 
 **Restent aussi au propriétaire** : les réponses à confirmer pour l'étiquette
 de confidentialité ; les notes du §8 (telles quelles — ce sont celles sous
-lesquelles la revue bêta a approuvé le 569 — ou amendées) ; la boîte
+lesquelles la revue bêta a approuvé le 569 — ou amendées) — *2026-10-13 : le
+§8 porte désormais deux blocs. « Les notes en vigueur » sont celles-là, et
+ce sont elles qu'App Store Connect contient ; « les notes amendées » disent
+que le compte démo ne peut pas être supprimé, et ne se collent **qu'une fois
+la ligne « Verrou de suppression du compte démo — vérifié en production »
+du §8 datée**, c'est-à-dire après le déploiement du backend et l'essai de
+[demo-account-deletion-lock.md](demo-account-deletion-lock.md) §10.1* ; la boîte
 `support@myweli.com`, seul contact de la page d'assistance, à confirmer
 comme lue ; la politique de confidentialité, qui ne nomme Cloudflare que
 pour le stockage alors que l'API passe par lui depuis le 2026-10-07 ; les
@@ -1393,7 +1493,7 @@ vérifications sur l'iPhone du §11.6 sur le build retenu.
 | **Politique de confidentialité** : pas la phrase « nos sous-traitants offrent une protection équivalente » (5.1.1(i)) ; dit « Profil → Exporter mes données » là où l'app Pro dit « Mes données ». | web (texte légal) | Une phrase + aligner le libellé (`web/app/politique-confidentialite/page.tsx`). |
 | **Mode d'arrière-plan `remote-notification` inutilisé** (`UIBackgroundModes`) : le backend n'envoie jamais `content-available`. | code, optionnel | Rarement rejeté. Le retirer puis revérifier sur appareil qu'une notification arrive app tuée/en arrière-plan et que le tap route. |
 | ~~**Paysage non verrouillé sur iPhone** (`UISupportedInterfaceOrientations`, aucun `setPreferredOrientations`).~~ | ~~décision~~ | **Tranché et construit le 2026-10-13** : portrait seul sur iPhone, pour les deux apps (un seul `Info.plist`) ; l'iPad garde ses quatre orientations ([ios-language-and-orientation.md](ios-language-and-orientation.md)). Reste ouvert : **Android**, dont le manifeste ne fixe aucune orientation. |
-| **Identité démo non recréée si supprimée** ; la suppression n'est pas verrouillée ; les rendez-vous à venir de la remise à zéro n'existent qu'à J+1/J+2. | code/décision | Les notes l'évitent (§8). Sinon : recréer par l'app + recapturer, ou faire recréer l'identité par la remise à zéro. |
+| **Identité démo non recréée si elle est perdue.** ~~La suppression n'est pas verrouillée ; les rendez-vous à venir de la remise à zéro n'existent qu'à J+1/J+2.~~ **Suppression verrouillée côté serveur, construit le 2026-10-13** — 403 `demo_account_locked` sur `DELETE /me/provider` ([demo-account-deletion-lock.md](demo-account-deletion-lock.md)) — **pas encore déployé en production** : tant qu'il ne l'est pas, un relecteur peut encore détruire le compte, et ce sont les notes en vigueur du §8 qui se collent, pas les notes amendées (la ligne datée du §8 en décide). | code + déploiement (accord du propriétaire) | Une fois déployé et vérifié (spec §10.1), il ne reste que la perte hors produit — une opération en base, une restauration. Dans ce cas : recréer par l'app + recapturer. Faire recréer l'identité par la remise à zéro n'est pas construit ; observé le 2026-10-13 sur les dépôts en mémoire : elle continue de restaurer le salon orphelin et ne recrée rien. |
 | **`tool/release_build.sh` exige Secret Manager** (`MOBILE_SENTRY_DSN`). | owner | Aucun build tant que la facturation est fermée. Prendre le DSN dans la console Sentry et construire à la main enfreindrait la règle « personne ne manipule le DSN » : décision, pas défaut. |
 | **L'archive Xcode n'est pas rangée par saveur** : `build/ios/archive/Runner.xcarchive` est écrasée par le build suivant (celle du 2026-08-29 est aujourd'hui l'archive **consommateur**). | code | Contourné à la main au §11.2. Suite : que le script la renomme en `Runner-$FLAVOUR.xcarchive` et imprime les dSYM dans la commande Sentry. |
 | **5.1.1(ix) — KYC et compte développeur individuel.** Pièce d'identité + photo du visage, vendeur = personne physique, société non immatriculée (`infra/legal/registration-manifest.json`). | décision | Majeur maintenu par l'audit, appliqué de façon inégale par Apple. Atténué par la rubrique IDENTITY DOCUMENTS. Si rejet : masquer le KYC et les acomptes sur iOS jusqu'au compte Organisation. Type d'adhésion à confirmer (developer.apple.com → Membership). |

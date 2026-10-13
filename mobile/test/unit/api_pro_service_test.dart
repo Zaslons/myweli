@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:myweli/core/utils/team_error_messages.dart';
+import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/appointment.dart';
 import 'package:myweli/models/availability.dart';
 import 'package:myweli/models/provider_user.dart';
@@ -700,6 +702,47 @@ void main() {
         await addSalonError(403, 'demo_account_locked'),
         'Compte de démonstration — cette action est désactivée.',
       );
+    });
+  });
+
+  // Design: docs/design/demo-account-deletion-lock.md §7.1.
+  group('account deletion (DELETE /me/provider)', () {
+    Future<ApiResponse<void>> delete(int status, [Object? body]) {
+      final client = MockClient((req) async {
+        expect(req.method, 'DELETE');
+        expect(req.url.path, '/me/provider');
+        expect(req.headers['Authorization'], 'Bearer tok');
+        return http.Response(body == null ? '' : jsonEncode(body), status);
+      });
+      return _linked(client).deleteProviderAccount();
+    }
+
+    test('204 → success', () async {
+      final res = await delete(204);
+      expect(res.success, isTrue);
+    });
+
+    test('403 demo_account_locked: the code, and the demo sentence — the '
+        'shared App Review account cannot delete itself', () async {
+      final res = await delete(403, {'error': 'demo_account_locked'});
+      expect(res.success, isFalse);
+      expect(res.code, 'demo_account_locked');
+      expect(res.error, demoAccountLockedMessage);
+    });
+
+    test('CONTROL: 403 forbidden is not the demo lock', () async {
+      final res = await delete(403, {'error': 'forbidden'});
+      expect(res.success, isFalse);
+      expect(res.code, 'forbidden');
+      expect(res.error, isNot(demoAccountLockedMessage));
+    });
+
+    test('CONTROL: 409 future_bookings keeps its code (the screen owns the '
+        'sentence)', () async {
+      final res = await delete(409, {'error': 'future_bookings'});
+      expect(res.success, isFalse);
+      expect(res.code, 'future_bookings');
+      expect(res.error, isNot(demoAccountLockedMessage));
     });
   });
 }

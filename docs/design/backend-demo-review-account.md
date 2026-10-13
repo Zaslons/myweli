@@ -4,7 +4,7 @@
 |---|---|
 | **Status** | **Built** (2026-08-26) — the account-provisioning and console steps (§9) are owner-side |
 | **Owner** | Sadreddine |
-| **Last updated** | 2026-10-05 — the companion path ([pro-companion-path.md](pro-companion-path.md)): two more demo locks (offer change, salon creation — §3, §6), the capture and every reset create and pin a live Pro offer row (§6.2), §9 step 3 needs no offer choice, and the on-screen refusal sentence of §2 — missing from the app until now — is built · 2026-09-24 — reviewer labels corrected (§2); demo-salon environment unrecorded + deletion not demo-locked (§9 notes) · 2026-08-26 — §10's questions decided (owner), reset designed |
+| **Last updated** | 2026-10-13 — a fifth demo lock: the account cannot delete itself ([demo-account-deletion-lock.md](demo-account-deletion-lock.md); §2, §3, §6, §8, §9 — built, not deployed) · 2026-10-05 — the companion path ([pro-companion-path.md](pro-companion-path.md)): two more demo locks (offer change, salon creation — §3, §6), the capture and every reset create and pin a live Pro offer row (§6.2), §9 step 3 needs no offer choice, and the on-screen refusal sentence of §2 — missing from the app until now — is built · 2026-09-24 — reviewer labels corrected (§2); demo-salon environment unrecorded + deletion not demo-locked (§9 notes) · 2026-08-26 — §10's questions decided (owner), reset designed |
 | **PRD ref / phase** | store submission (mobile-external-testing.md §5.2) · V1 |
 | **Related** | [backend-q1b-smoke-seam.md](backend-q1b-smoke-seam.md) (prior art) · [pro-salon-lifecycle.md](pro-salon-lifecycle.md) · [mobile-external-testing.md](mobile-external-testing.md) · BACKEND.md §7 **T69 (new)** |
 | **Skills checked** | myweli-backend-guardrails · myweli-verification-guardrails |
@@ -64,6 +64,15 @@ catalogue edits, availability, journal, exports. The two things that do not
 (publish, team invitations) fail with a clear French message (§6), and the
 review notes say so up front.
 
+*2026-10-13 — three things, for a reviewer in the app: deleting the account
+is refused too* ([demo-account-deletion-lock.md](demo-account-deletion-lock.md)).
+« Supprimer mon compte » stays visible — the reviewer has to see that
+deletion exists (App Review 5.1.1(v)) — and the refusal comes after the
+`SUPPRIMER` confirmation, with the same sentence; the reviewer stays signed
+in. The two other locks (offer change, salon creation — §3) are not offered
+by the app to this account: the app has no offer choice, and `canAddSalon`
+is false for it.
+
 **Copy** for the refusals:
 « Compte de démonstration — cette action est désactivée. » (403,
 `demo_account_locked`).
@@ -98,6 +107,12 @@ additions are the only contract diff.
 `demo_account_locked`* ([pro-companion-path.md](pro-companion-path.md) §3.2):
 `PUT /providers/{id}/subscription` (an offer change — its credential is public
 and the web dashboard accepts it) and `POST /me/salons` (creating salons).
+
+*2026-10-13 — and a fifth:* `DELETE /me/provider`
+([demo-account-deletion-lock.md](demo-account-deletion-lock.md) §3). The
+complete list, with the service that answers each, is the header of
+`backend/lib/src/auth/demo_seam.dart`; a test derives it from the code
+(`backend/test/demo/demo_locks_inventory_test.dart`).
 
 ## 4. Data model
 
@@ -186,6 +201,7 @@ What a holder of the code can do — and the mechanism that bounds each:
 | junk / defacement inside the demo salon | the **7-day automatic reset** (§6.3) — restore from snapshot, wipe + regenerate |
 | **offer change** *(2026-10-05)* | **refused** — a tier switched by a reviewer survived the weekly reset (the reset only extended `paidUntil`, and the subscription update leaves `tier` alone when none is given), and a switch to Réseau would have opened « Ajouter un salon » on the demo account |
 | **salon creation** *(2026-10-05)* | **refused** — `POST /me/salons` had no demo lock, so the public credential could create real draft salons once the demo salon was on a live Réseau offer |
+| **deleting the account** *(2026-10-13)* | **refused** — `DELETE /me/provider` had no demo lock: only the 409 `future_bookings` stood in the way, about two and a half days out of seven, and the account could cancel those bookings itself. Nothing recreates the identity automatically, so one deletion would have ended every later review until the demo was rebuilt by hand ([demo-account-deletion-lock.md](demo-account-deletion-lock.md)) |
 
 ### 6.1 The publish refusal
 
@@ -196,7 +212,9 @@ In the service, not the route, for the reason the rebuild fires live in
 services: no future caller can route around it. The same check, same error,
 in `TeamService.invite`. *2026-10-05: and on the two routes added in §3 — the
 offer change and salon creation ([pro-companion-path.md](pro-companion-path.md)
-§3.2).*
+§3.2).* *2026-10-13: and on the account's own deletion — keyed there on the
+calling account's e-mail, the caller being the subject
+([demo-account-deletion-lock.md](demo-account-deletion-lock.md) §5).*
 
 Draft is not a degraded state for review purposes — the dashboard is fully
 functional on drafts by design (T51), which is precisely why the sandbox
@@ -273,7 +291,8 @@ Elevation: bounded by ownership + the two refusals; the account is an
 ordinary provider account with two capabilities subtracted, never a special
 path with capabilities added. *(2026-10-05: four — offer change and salon
 creation joined publish and invite, [pro-companion-path.md](pro-companion-path.md)
-§6.)* Disclosure of others' data: none reachable.
+§6.)* *(2026-10-13: five — the account can no longer delete itself,
+[demo-account-deletion-lock.md](demo-account-deletion-lock.md) §6.)* Disclosure of others' data: none reachable.
 DoS/abuse: per-identity rate limits; the off switch is unsetting
 `DEMO_PROVIDER_CODE`; junk data accumulates only inside the demo salon (§10
 resets). Residual, stated: someone who signs in can deface the demo salon's
@@ -325,6 +344,12 @@ mutation list recorded in the PR.
 `PUT /providers/{id}/subscription` and `POST /me/salons` → 403
 `demo_account_locked` for the demo identity; the reset **creates** the row
 when none exists and **pins** `tier = 'pro'` over a switched one.
+
+*2026-10-13 additions* ([demo-account-deletion-lock.md](demo-account-deletion-lock.md)
+§9): `DELETE /me/provider` → 403 `demo_account_locked` for the demo identity,
+with and without upcoming bookings, nothing mutated, and the same rows erased
+under any other address as the control; the inventory of the locks, derived
+from the code.
 
 ## 9. Rollout
 
@@ -404,6 +429,22 @@ recapture.
 > the salon (services, photos, agenda, the 403 on publish and invite), upload
 > the logo, recapture the snapshot, and write the date and the environment
 > here. Owner checklist: [app-store-forms.md](app-store-forms.md) §13.
+>
+> **2026-10-13 — closed in code, not yet in production.** The paragraph below
+> is the finding as written on 2026-09-24. `DELETE /me/provider` now refuses
+> the demo identity with 403 `demo_account_locked`, before the agenda gate
+> ([demo-account-deletion-lock.md](demo-account-deletion-lock.md)) — built on
+> `fix/demo-account-deletion-lock`, **not deployed**: until production serves
+> it, everything below is still the real state, and the review notes to
+> paste stay the ones in force ([app-store-forms.md](app-store-forms.md) §8:
+> one dated line decides). Its « probably keeps restoring an
+> orphaned salon (INFERRED) » is now observed, on the in-memory repositories:
+> the reset does keep running on the orphaned salon and never recreates the
+> identity. What remains after the deploy: an identity lost out of band (a
+> database operation) is still not recreated automatically — re-register,
+> re-curate, recapture, as below; and since the code is public, someone
+> else can register the address first
+> ([demo-account-deletion-lock.md](demo-account-deletion-lock.md) §2).
 >
 > **The demo identity is not protected from deletion** (found by the same
 > audit). Publish and invite are demo-locked; `DELETE /me/provider` is not.

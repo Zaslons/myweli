@@ -103,7 +103,8 @@ Future<Response> onRequest(RequestContext context) async {
         principal.userId,
       );
       if (!res.ok) {
-        // Same mapping as `/me/provider` (`me/provider/index.dart:139-141`):
+        // Same mapping as `/me/provider` (`_delete` in
+        // `me/provider/index.dart`):
         // an unsettled agenda is a CONFLICT the caller can resolve, not a
         // missing resource. Anything else here is a vanished user.
         return res.error == 'future_bookings'
