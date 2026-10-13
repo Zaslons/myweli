@@ -16,13 +16,17 @@
 /// - choosing or switching the offer — `PUT /providers/{id}/subscription`
 ///   (`SalonSubscriptionService.chooseOffer`);
 /// - creating a salon — `POST /me/salons`
-///   (`SalonDirectoryService.createSalon`);
+///   (`SalonDirectoryService.addSalon`);
 /// - deleting the account itself — `DELETE /me/provider`
 ///   (`ProviderAccountService.deleteAccount`).
 ///
-/// `test/demo/demo_locks_inventory_test.dart` fails when a service answers
-/// that code and is not in this list — add the lock here, in BACKEND.md T69
-/// and in the store review notes together.
+/// `test/demo/demo_locks_inventory_test.dart` reads the lock sites under
+/// `lib/src` — the record `error: 'demo_account_locked'` — and the method
+/// each one sits in. It fails when a site is not in this list (a new file,
+/// or a second site inside a service already listed), when a method named
+/// here no longer holds its lock, and when a new file reads the demo
+/// identity. Add the lock here, in BACKEND.md T69 and in the store review
+/// notes together.
 ///
 /// Design + threat model (T69): docs/design/backend-demo-review-account.md;
 /// the deletion lock: docs/design/demo-account-deletion-lock.md.

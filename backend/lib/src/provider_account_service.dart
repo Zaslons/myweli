@@ -55,8 +55,10 @@ class ProviderAccountService {
 
     // The demo review account (T69) may not delete itself. Its credential is
     // PUBLIC (printed in both stores' review notes), the Pro app offers
-    // account deletion, and nothing recreates the identity: one reviewer
-    // trying the feature on the shared account would end every later review.
+    // account deletion, and nothing recreates the identity automatically
+    // (it can only be registered again by hand, into a new EMPTY salon): one
+    // reviewer trying the feature on the shared account would end every
+    // later review.
     //
     // FIRST, before the agenda gate below. That gate holds only while the
     // weekly reset's two upcoming bookings exist, and the account can clear
