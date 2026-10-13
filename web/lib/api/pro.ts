@@ -435,7 +435,9 @@ export async function getDashboard(
 // --- compte (audit 11.5) --------------------------------------------------------
 
 /// Delete the provider account (AUTH-004 for pros). 409 `future_bookings`
-/// when the agenda isn't settled; success ends the pro session.
+/// when the agenda isn't settled; 403 `demo_account_locked` for the shared
+/// store-review demo account (nothing is deleted, the session stays —
+/// docs/design/demo-account-deletion-lock.md); success ends the pro session.
 export async function deleteProAccount(): Promise<{
   ok: boolean;
   status: number;
