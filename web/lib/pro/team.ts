@@ -31,6 +31,15 @@ export const ROLE_SUMMARIES: Record<TeamRoleInput, string> = {
   staff: 'Voit uniquement son propre planning.',
 };
 
+/// The demo account's 403 (`demo_account_locked`) — the store-review demo
+/// account is refused the actions a weekly reset cannot undo, account
+/// deletion included (docs/design/demo-account-deletion-lock.md). The SAME
+/// sentence as the app's `demoAccountLockedMessage`
+/// (mobile/lib/core/utils/team_error_messages.dart), which the store review
+/// notes quote word for word; tests/pro-team.test.ts compares the two.
+export const DEMO_ACCOUNT_LOCKED_MESSAGE =
+  'Compte de démonstration — cette action est désactivée.';
+
 /// Machine code → French copy. `ctx: 'resend'` swaps the shared
 /// invite_rate_limited code for the per-invitation budget message.
 export function teamErrorMessage(
@@ -71,6 +80,8 @@ export function teamErrorMessage(
       return 'Limite de salons atteinte. Contactez-nous pour aller plus loin.';
     case 'forbidden':
       return 'Action réservée au propriétaire du salon.';
+    case 'demo_account_locked':
+      return DEMO_ACCOUNT_LOCKED_MESSAGE;
     default:
       return 'Une erreur est survenue. Réessayez.';
   }

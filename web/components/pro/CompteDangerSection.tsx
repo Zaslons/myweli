@@ -10,8 +10,22 @@ import {
   listProAppointments,
 } from '../../lib/api/pro';
 import { buildProviderDataExport } from '../../lib/pro/export';
+import { DEMO_ACCOUNT_LOCKED_MESSAGE } from '../../lib/pro/team';
 import { Button } from '../Button';
 import { TextField } from '../TextField';
+
+/// A refused deletion, by machine code. The two refusals a user can be told
+/// about each get their sentence; anything else is the generic failure.
+function deleteErrorMessage(code: string | undefined): string {
+  switch (code) {
+    case 'future_bookings':
+      return 'Terminez ou annulez vos rendez-vous à venir avant de supprimer votre compte.';
+    case 'demo_account_locked':
+      return DEMO_ACCOUNT_LOCKED_MESSAGE;
+    default:
+      return 'La suppression a échoué. Réessayez.';
+  }
+}
 
 /// « Compte » danger zone on /pro/profil (audit 11.5 — AUTH-004/005 for
 /// pros): the data export (client-side assembly, like the consumer page) and
@@ -20,6 +34,11 @@ import { TextField } from '../TextField';
 /// Team access R5b: `exportEnabled=false` = the MEMBER variant — deletion
 /// parity for everyone, but the salon-data export stays with profile.manage
 /// (a member deletes their own account, not the salon).
+///
+/// The shared store-review demo account cannot delete itself: the entry
+/// stays visible for it, the server answers 403 `demo_account_locked` after
+/// the SUPPRIMER confirmation, and the page and the session stay. Design:
+/// docs/design/demo-account-deletion-lock.md §7.2.
 export function CompteDangerSection({
   profile,
   exportEnabled = true,
@@ -82,11 +101,7 @@ export function CompteDangerSection({
     const r = await deleteProAccount();
     setBusy(false);
     if (!r.ok) {
-      setError(
-        r.error === 'future_bookings'
-          ? 'Terminez ou annulez vos rendez-vous à venir avant de supprimer votre compte.'
-          : 'La suppression a échoué. Réessayez.',
-      );
+      setError(deleteErrorMessage(r.error));
       return;
     }
     router.replace('/pro/connexion');

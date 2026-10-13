@@ -8,6 +8,7 @@ import {
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { InviteMemberDialog } from '../components/pro/InviteMemberDialog';
+import { DEMO_ACCOUNT_LOCKED_MESSAGE } from '../lib/pro/team';
 
 /// Team access R5a — the 3-step invite dialog. The role summaries are the
 /// spec-locked copy; errors run through the shared machine-code table.
@@ -113,6 +114,26 @@ describe('InviteMemberDialog', () => {
     expect(
       await screen.findByText('Cette personne est déjà dans l’équipe.'),
     ).toBeTruthy();
+  });
+
+  it('demo_account_locked → the demo sentence, and no CTA (the store-review demo account)', async () => {
+    // The shared table learned the code with the deletion lock
+    // (docs/design/demo-account-deletion-lock.md §7.2); this dialog renders
+    // through it, so it stopped saying « Une erreur est survenue. Réessayez. ».
+    mockInvite(403, { error: 'demo_account_locked' });
+    renderDialog();
+    fireEvent.change(screen.getByPlaceholderText('collaborateur@exemple.com'), {
+      target: { value: 'x@salon.test' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /^Manager/ }));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Envoyer l’invitation' }),
+    );
+    // The constant, not a retyped copy: tests/pro-team.test.ts holds it to
+    // the app's sentence, character for character.
+    expect(await screen.findByText(DEMO_ACCOUNT_LOCKED_MESSAGE)).toBeTruthy();
+    expect(screen.queryByText('Une erreur est survenue. Réessayez.')).toBeNull();
+    expect(screen.queryByRole('link', { name: /offre/i })).toBeNull();
   });
 
   it('offer_required → copy + the picker CTA', async () => {

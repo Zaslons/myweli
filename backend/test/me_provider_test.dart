@@ -7,6 +7,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:myweli_backend/src/access/membership_repository.dart';
 import 'package:myweli_backend/src/access/membership_service.dart';
 import 'package:myweli_backend/src/appointments/appointment_repository.dart';
+import 'package:myweli_backend/src/auth/demo_seam.dart';
 import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
 import 'package:myweli_backend/src/auth/tokens.dart';
 import 'package:myweli_backend/src/provider_account_service.dart';
@@ -25,13 +26,15 @@ class _MockProviders extends Mock implements ProvidersRepository {}
 
 class _MockAppointments extends Mock implements AppointmentRepository {}
 
-ProviderAccount _account({String? providerId}) => ProviderAccount(
-  id: 'acc1',
-  phoneNumber: '+2250700000009',
-  businessName: 'Salon Awa',
-  businessType: 'salon',
-  createdAt: DateTime.utc(2026),
-)..providerId = providerId;
+ProviderAccount _account({String? providerId, String? email}) =>
+    ProviderAccount(
+      id: 'acc1',
+      phoneNumber: '+2250700000009',
+      businessName: 'Salon Awa',
+      businessType: 'salon',
+      createdAt: DateTime.utc(2026),
+      email: email,
+    )..providerId = providerId;
 
 void main() {
   group('GET /me/provider', () {
@@ -495,5 +498,118 @@ void main() {
       );
       expect(res.statusCode, HttpStatus.noContent);
     });
+
+    // ---- T69: the store-review demo account cannot delete itself ---------
+    // Design: docs/design/demo-account-deletion-lock.md.
+
+    /// Everything a deletion needs to SUCCEED for `acc1`, so that a missing
+    /// lock shows as a clean 204 — not as an unstubbed-mock error that would
+    /// turn the test red for the wrong reason.
+    void deletableAccount({required String? email, bool upcoming = false}) {
+      when(
+        () => auth.accountById('acc1'),
+      ).thenAnswer((_) async => _account(providerId: 'p1', email: email));
+      final future = DateTime.now()
+          .toUtc()
+          .add(const Duration(days: 2))
+          .toIso8601String();
+      when(() => appointments.listForProvider('p1')).thenAnswer(
+        (_) async => [
+          if (upcoming) {'status': 'confirmed', 'appointmentDate': future},
+        ],
+      );
+      when(
+        () => providers.byId('p1'),
+      ).thenAnswer((_) async => {'id': 'p1', 'status': 'draft'});
+      when(
+        () => providers.setStatus('p1', 'draft'),
+      ).thenAnswer((_) async => {'id': 'p1', 'status': 'draft'});
+      when(() => auth.deleteAccount('acc1')).thenAnswer((_) async => true);
+    }
+
+    Future<Response> delete() => me_provider.onRequest(
+      ctx(req('DELETE', token: tok('acc1', 'provider'))),
+    );
+
+    test('DELETE as the DEMO identity → 403 demo_account_locked, the exact '
+        'envelope, nothing erased', () async {
+      deletableAccount(email: kDemoProviderEmail);
+
+      final res = await delete();
+
+      expect(res.statusCode, HttpStatus.forbidden);
+      expect(await res.json(), {'error': 'demo_account_locked'});
+      verifyNever(() => providers.setStatus(any(), any()));
+      verifyNever(() => auth.deleteAccount(any()));
+    });
+
+    test('DELETE as the demo identity WITH upcoming bookings → the same 403, '
+        'not the 409', () async {
+      deletableAccount(email: kDemoProviderEmail, upcoming: true);
+
+      final res = await delete();
+
+      expect(res.statusCode, HttpStatus.forbidden);
+      expect(await res.json(), {'error': 'demo_account_locked'});
+      verifyNever(() => auth.deleteAccount(any()));
+    });
+
+    test('CONTROL: DELETE as any other identity → 204, as before', () async {
+      deletableAccount(email: 'owner@salon.test');
+
+      final res = await delete();
+
+      expect(res.statusCode, HttpStatus.noContent);
+      verify(() => providers.setStatus('p1', 'draft')).called(1);
+      verify(() => auth.deleteAccount('acc1')).called(1);
+    });
+
+    test('CONTROL: another identity with upcoming bookings → 409 '
+        'future_bookings, the exact envelope', () async {
+      deletableAccount(email: 'owner@salon.test', upcoming: true);
+
+      final res = await delete();
+
+      expect(res.statusCode, HttpStatus.conflict);
+      expect(await res.json(), {'error': 'future_bookings'});
+      verifyNever(() => auth.deleteAccount(any()));
+    });
+
+    test('DELETE: no token → 401 `unauthorized`; a consumer token → 403 '
+        '`forbidden` — never the demo code', () async {
+      final anon = await me_provider.onRequest(ctx(req('DELETE')));
+      expect(anon.statusCode, HttpStatus.unauthorized);
+      expect(await anon.json(), {'error': 'unauthorized'});
+
+      final asUser = await me_provider.onRequest(
+        ctx(req('DELETE', token: tok('u1', 'user'))),
+      );
+      expect(asUser.statusCode, HttpStatus.forbidden);
+      expect(await asUser.json(), {'error': 'forbidden'});
+    });
+
+    test('DELETE for an account that no longer exists → 403 `forbidden`, '
+        'as before', () async {
+      when(() => auth.accountById('acc1')).thenAnswer((_) async => null);
+
+      final res = await delete();
+
+      expect(res.statusCode, HttpStatus.forbidden);
+      expect(await res.json(), {'error': 'forbidden'});
+    });
+
+    for (final verb in const ['POST', 'PUT', 'PATCH']) {
+      test('$verb /me/provider → 405, demo identity or not', () async {
+        deletableAccount(email: kDemoProviderEmail);
+
+        final res = await me_provider.onRequest(
+          ctx(req(verb, token: tok('acc1', 'provider'))),
+        );
+
+        expect(res.statusCode, HttpStatus.methodNotAllowed);
+        expect(await res.json(), {'error': 'method_not_allowed'});
+        verifyNever(() => auth.deleteAccount(any()));
+      });
+    }
   });
 }

@@ -13,6 +13,7 @@ const routerMock = { replace };
 vi.mock('next/navigation', () => ({ useRouter: () => routerMock }));
 
 import { AddSalonClient } from '../components/pro/AddSalonClient';
+import { DEMO_ACCOUNT_LOCKED_MESSAGE } from '../lib/pro/team';
 import { resetLocalitiesClientCache } from '../lib/use-localities';
 import { fixtureTree } from './localities.test';
 
@@ -89,6 +90,24 @@ describe('AddSalonClient', () => {
     ).toBeTruthy();
     const cta = screen.getByRole('link', { name: 'Passer à l’offre Réseau' });
     expect(cta.getAttribute('href')).toBe('/pro/abonnement');
+    expect(replace).not.toHaveBeenCalled();
+  });
+
+  it('demo_account_locked → the demo sentence, and no offer CTA', async () => {
+    // Same table, same code (docs/design/demo-account-deletion-lock.md §7.2).
+    mockFetch({ addStatus: 403, addBody: { error: 'demo_account_locked' } });
+    render(<AddSalonClient />);
+    await screen.findByText('Ajouter un salon');
+
+    fireEvent.change(screen.getByPlaceholderText('Ex : Salon Excellence Yopougon'), {
+      target: { value: 'Salon Trois' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Créer le salon' }));
+
+    // The constant, not a retyped copy: tests/pro-team.test.ts holds it to
+    // the app's sentence, character for character.
+    expect(await screen.findByText(DEMO_ACCOUNT_LOCKED_MESSAGE)).toBeTruthy();
+    expect(screen.queryByRole('link', { name: 'Passer à l’offre Réseau' })).toBeNull();
     expect(replace).not.toHaveBeenCalled();
   });
 
