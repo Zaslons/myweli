@@ -10,6 +10,7 @@ import '../../core/theme/text_styles.dart';
 import '../../core/utils/app_clock.dart';
 import '../../models/review.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/favorites_provider.dart';
 import '../../providers/provider_provider.dart';
 import '../../widgets/common/app_snack_bar.dart';
 import '../common/app_button.dart';
@@ -134,11 +135,20 @@ class _SubmitReviewSheetState extends State<SubmitReviewSheet> {
       createdAt: AppClock.now(),
     );
 
+    // The favourites hold their own copy of the salon, in a notifier
+    // ProviderProvider cannot reach — this sheet has both in hand. Read
+    // before the await (the re-read that follows « Publier » outlives the
+    // sheet), and nullable: the sheet asks for nothing a tree may not have.
+    final favorites = context.read<FavoritesProvider?>();
+
     setState(() {
       _submitting = true;
       _error = null;
     });
-    final ok = await providerProvider.submitReview(review);
+    final ok = await providerProvider.submitReview(
+      review,
+      alsoPatch: favorites?.patchSalonFigures,
+    );
     if (!mounted) return;
     setState(() => _submitting = false);
 

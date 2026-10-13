@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import '../core/di/dependency_injection.dart';
+import '../core/utils/salon_figures.dart';
 import '../models/api_response.dart';
 import '../models/provider.dart';
 import '../services/interfaces/favorites_service_interface.dart';
@@ -127,6 +128,33 @@ class FavoritesProvider extends ChangeNotifier {
     return allProviders
         .where((provider) => _favoriteProviderIds.contains(provider.id))
         .toList();
+  }
+
+  /// A salon's rating and review count just changed — a review of it was
+  /// published (docs/design/amounts-that-fit.md §5 « Reviews »): carry them
+  /// onto its hydrated copy, if it is a favourite.
+  ///
+  /// These copies are loaded once per user per session ([loadFavorites]
+  /// returns early afterwards, and the home's pull-to-refresh does not reload
+  /// them), so without this the « Mes favoris » cards kept the old figures —
+  /// « Nouveau », for a salon's first review — until the app restarted.
+  ///
+  /// The signature is `SalonFiguresSink`'s (provider_provider.dart): the
+  /// review sheet hands this method to `ProviderProvider.submitReview`.
+  void patchSalonFigures(
+    String providerId, {
+    required double rating,
+    required int reviewCount,
+  }) {
+    final patched = withSalonFigures(
+      _favoriteProviders,
+      providerId,
+      rating: rating,
+      reviewCount: reviewCount,
+    );
+    if (identical(patched, _favoriteProviders)) return;
+    _favoriteProviders = patched;
+    notifyListeners();
   }
 
   /// Clear favorites (e.g., on logout)

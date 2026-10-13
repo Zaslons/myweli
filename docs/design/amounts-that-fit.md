@@ -137,7 +137,8 @@ None.
   featured list and — through a small patch method — the favourites. A new,
   non-destructive, time-limited re-read then overwrites on success only (the
   existing `loadProviderById` blanks the page on failure, so it is not
-  reused), with the same stale-answer guard.
+  reused). The open page takes the answer only while it shows that salon; the
+  lists and the favourites always do.
 - **Web:** no flag mechanism exists on the web, so the SMS control is removed
   rather than hidden. `formatPhoneNumber` is a hand-written twin of the app's
   in `web/lib/format.ts`, same rule and same test vectors: +225 with 10 or 8
@@ -182,7 +183,11 @@ Every guard is watched failing on today's code before the fix lands
 4. **Reviews.** Unit: a resubmit keeps the count and replaces the tile; a
    first review flips « Nouveau » everywhere; the review is first in the
    list; the list, featured and favourites copies agree; a failed or late
-   re-read changes nothing; an answer for another salon is ignored.
+   re-read changes nothing. While ANOTHER salon's page is open the answer
+   still reaches the lists and the favourites — rows keyed by salon — and
+   never that page (decided while building, 2026-10-13: the page slot is
+   never released, so dropping the whole answer would have lost it whenever
+   any other salon had been opened in the session).
 5. **Web.** RTL: no SMS text, `sendSmsInvite` false, with and without a
    pre-picked client. Unit: the phone twin, exact strings, including a Gabon
    and a French number left unchanged. The client page joins the reflow and
