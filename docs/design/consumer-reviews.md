@@ -51,14 +51,16 @@ figures out, then asks:
 
 **The page slot is not « the open salon page ».** It is one, shared, and it
 outlives the page that took it: the last salon page, booking hub or booking
-confirmation opened holds it for the rest of the session. So a review
-published from « Mes rendez-vous » is usually of another salon than the
-slot's. The answer never lands in a slot that holds another salon, nor in one
-whose own read failed or is still out; the lists and the favourites take it
-all the same. (As first built, such an answer was dropped whole — which lost
-the server's figures for every review published after another salon had been
-opened, and left « Nouveau » on a favourite held in no list until the app
-restarted. Fixed 2026-10-13.)
+confirmation opened holds it for the rest of the session. A review published
+from « Mes rendez-vous » of another salon than the slot's is therefore an
+ordinary case, not a race. The slot takes the answer only while it actually
+holds this salon — not when it holds another, and not when it is empty
+because this salon's own read failed or has not answered yet; the lists and
+the favourites take it all the same. (As first built, an answer arriving
+while another salon held the slot was dropped whole — which lost the server's
+figures for every review published after another salon had been opened, and
+left « Nouveau » on a favourite held in no list until the app restarted.
+Fixed 2026-10-13.)
 
 What step 1 cannot know, and step 2 corrects when its answer is taken: the
 average is rebuilt from the stored one-decimal figure, so it can sit 0,1 from
