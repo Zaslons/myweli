@@ -102,7 +102,10 @@ en test, puis sur l'IPA (la seule chose qui voit un `$(SETTING)` résolu).
    localisation, l'interface système dans l'app (boutons des alertes de
    permission, sélecteur de documents) retombe en anglais à côté de textes
    français. *Vérifié* : « the app declares French ». `CFBundleDevelopmentRegion`
-   reste `en` (non traité — §14).
+   reste `en` (non traité — §14). *2026-10-13 : traité — c'est ce `en` que
+   lisait l'App Store ; la langue de développement du projet devient le
+   français et le paquet reçoit un `fr.lproj`
+   ([ios-language-and-orientation.md](ios-language-and-orientation.md)).*
 5. **Sentry : sessions de santé de version OFF, suivi des blocages (app hangs)
    ON, les deux épinglés.** *Pourquoi* : le SDK envoyait une session à
    **chaque lancement** (défaut `enableAutoSessionTracking = true`) alors que
@@ -797,7 +800,8 @@ Profiles », puis relancer le script.
 cd "/Users/sadreddinedaher/beauty app/mobile"
 IPA=build/ios/ipa/MyWeli-pro.ipa
 unzip -p "$IPA" Payload/Runner.app/Info.plist | plutil -p - | grep -E -A3 \
-  'CFBundleIdentifier|CFBundleName|CFBundleShortVersionString|CFBundleVersion|CFBundleLocalizations|UIDeviceFamily|NSLocationWhenInUse|NSCameraUsage|NSPhotoLibraryUsage|ITSAppUsesNonExempt'
+  'CFBundleIdentifier|CFBundleName|CFBundleShortVersionString|CFBundleVersion|CFBundleLocalizations|CFBundleDevelopmentRegion|UISupportedInterfaceOrientations"|UIDeviceFamily|NSLocationWhenInUse|NSCameraUsage|NSPhotoLibraryUsage|ITSAppUsesNonExempt'
+unzip -l "$IPA" | grep -oE 'Payload/Runner\.app/[^/]+\.lproj/' | sort -u               # Base.lproj et fr.lproj, rien d'autre
 unzip -l "$IPA" | grep -c PrivacyInfo.xcprivacy
 unzip -l "$IPA" | grep -cE 'DKImagePickerController|DKPhotoGallery'     # doit afficher 0
 unzip -l "$IPA" | grep -i 'file_picker' | grep PrivacyInfo               # le manifeste de file_picker est là
@@ -840,6 +844,9 @@ témoins manquent.
 | `CFBundleShortVersionString` / `CFBundleVersion` | **`0.0.1`** (depuis le build 569 ; `1.0.0` jusqu'au 565) / **≥ 577** |
 | `UIDeviceFamily` | **`[1]`** |
 | `CFBundleLocalizations` | **`[fr]`** |
+| `CFBundleDevelopmentRegion` | **`fr`** (à partir du build qui suit le 577 ; `en` jusque-là) |
+| dossiers de langue à la racine de `Runner.app` | **`Base.lproj` et `fr.lproj`**, aucun autre |
+| `UISupportedInterfaceOrientations` (la clé iPhone, sans `~ipad`) | **`[UIInterfaceOrientationPortrait]`** |
 | `NSLocationWhenInUseUsageDescription` | « MyWeli Pro utilise votre position pour placer votre salon sur la carte et trouver votre commune. » |
 | caméra / photos | les deux textes Pro du §1.3 |
 | `ITSAppUsesNonExemptEncryption` | `false` |
@@ -882,6 +889,13 @@ xcrun altool --upload-package build/ios/ipa/MyWeli-pro.ipa --api-key <KEY_ID> --
 xcrun altool --build-status --delivery-id <DELIVERY_UUID_IMPRIMÉ_PAR_L_ENVOI> \
   --api-key <KEY_ID> --api-issuer <ISSUER_ID>
 ```
+
+**Une fois le build traité, lire la langue qu'Apple y a vue** — c'est la
+ligne « Langues » de la fiche, et rien de local ne la montre :
+`GET /v1/builds/<id>?include=buildBundles`, attribut `locales`. Attendu :
+**`["fr"]`**. Les builds 569 et 577 donnent `["en"]`
+([ios-language-and-orientation.md](ios-language-and-orientation.md) §8.3). Une
+autre valeur : on ne soumet pas ce build.
 
 *Corrigé le 2026-10-09 :* `--build-status` exige `--delivery-id` (ou
 `--bundle-short-version-string` avec `--apple-id`/`--bundle-version`) ; la
@@ -1100,8 +1114,11 @@ reprennent ce qui est propre au 565.
       ici — Connectez-vous… ».
 - [ ] **Réservation au comptoir** (569, #574) : « Client sans numéro », et
       aucun interrupteur SMS.
-- [ ] Faire pivoter le téléphone : le paysage est encore permis (§14) —
-      noter ce qui casse.
+- [ ] Faire pivoter le téléphone : **à partir du build qui suit le 577,
+      l'app reste en portrait**
+      ([ios-language-and-orientation.md](ios-language-and-orientation.md)) —
+      non observé sur le simulateur, à voir ici. Sur le 577 et avant, le
+      paysage est encore permis : noter ce qui casse.
 
 Si un point échoue : on corrige, on reconstruit (le numéro monte tout seul),
 on renvoie. Rien n'est soumis sur un build non vérifié.
@@ -1279,7 +1296,11 @@ propriétaire. « Site » : seulement dans le site App Store Connect.
 | « Soumettre pour la revue » | — | — | propriétaire |
 
 **Trois décisions touchent le binaire ou le serveur, donc le build à
-soumettre** (aucune n'est prise) :
+soumettre** — *prises par le propriétaire le 2026-10-13 : les trois, comme
+recommandé. La langue et le portrait sont construits
+([ios-language-and-orientation.md](ios-language-and-orientation.md)) ; le
+refus de suppression du compte démo a sa propre PR.* Telles qu'elles étaient
+posées :
 
 1. **La langue.** App Store Connect lit les builds 569 et 577 comme
    *anglais* : `CFBundleDevelopmentRegion` vaut `en` et le paquet ne contient
@@ -1315,13 +1336,13 @@ vérifications sur l'iPhone du §11.6 sur le build retenu.
 | **Suppression du propriétaire : le salon garde ses coordonnées** (téléphone, WhatsApp, numéro Mobile Money, adresse) en brouillon (`provider_account_service.dart`). | décision | Divulgué par la politique et `/suppression-compte`. Suite : effacer ces champs à la suppression, garder l'historique. |
 | **Politique de confidentialité** : pas la phrase « nos sous-traitants offrent une protection équivalente » (5.1.1(i)) ; dit « Profil → Exporter mes données » là où l'app Pro dit « Mes données ». | web (texte légal) | Une phrase + aligner le libellé (`web/app/politique-confidentialite/page.tsx`). |
 | **Mode d'arrière-plan `remote-notification` inutilisé** (`UIBackgroundModes`) : le backend n'envoie jamais `content-available`. | code, optionnel | Rarement rejeté. Le retirer puis revérifier sur appareil qu'une notification arrive app tuée/en arrière-plan et que le tap route. |
-| **Paysage non verrouillé sur iPhone** (`UISupportedInterfaceOrientations`, aucun `setPreferredOrientations`). | décision | Qualité, pas une règle : écrans écrasés si le relecteur pivote. Portrait seul sur iPhone, ou une passe en paysage. |
+| ~~**Paysage non verrouillé sur iPhone** (`UISupportedInterfaceOrientations`, aucun `setPreferredOrientations`).~~ | ~~décision~~ | **Tranché et construit le 2026-10-13** : portrait seul sur iPhone, pour les deux apps (un seul `Info.plist`) ; l'iPad garde ses quatre orientations ([ios-language-and-orientation.md](ios-language-and-orientation.md)). Reste ouvert : **Android**, dont le manifeste ne fixe aucune orientation. |
 | **Identité démo non recréée si supprimée** ; la suppression n'est pas verrouillée ; les rendez-vous à venir de la remise à zéro n'existent qu'à J+1/J+2. | code/décision | Les notes l'évitent (§8). Sinon : recréer par l'app + recapturer, ou faire recréer l'identité par la remise à zéro. |
 | **`tool/release_build.sh` exige Secret Manager** (`MOBILE_SENTRY_DSN`). | owner | Aucun build tant que la facturation est fermée. Prendre le DSN dans la console Sentry et construire à la main enfreindrait la règle « personne ne manipule le DSN » : décision, pas défaut. |
 | **L'archive Xcode n'est pas rangée par saveur** : `build/ios/archive/Runner.xcarchive` est écrasée par le build suivant (celle du 2026-08-29 est aujourd'hui l'archive **consommateur**). | code | Contourné à la main au §11.2. Suite : que le script la renomme en `Runner-$FLAVOUR.xcarchive` et imprime les dSYM dans la commande Sentry. |
 | **5.1.1(ix) — KYC et compte développeur individuel.** Pièce d'identité + photo du visage, vendeur = personne physique, société non immatriculée (`infra/legal/registration-manifest.json`). | décision | Majeur maintenu par l'audit, appliqué de façon inégale par Apple. Atténué par la rubrique IDENTITY DOCUMENTS. Si rejet : masquer le KYC et les acomptes sur iOS jusqu'au compte Organisation. Type d'adhésion à confirmer (developer.apple.com → Membership). |
 | Numéro de build = nombre de commits de **n'importe quelle** `HEAD` : un build de branche peut griller un numéro. | code, optionnel | Construire depuis `main` (§11.2). |
-| `CFBundleDevelopmentRegion` reste `en`. | code, optionnel | Sans effet visible attendu une fois `CFBundleLocalizations = [fr]` ; à vérifier sur l'alerte de permission (§11.6). |
+| ~~`CFBundleDevelopmentRegion` reste `en`.~~ | ~~code, optionnel~~ | **L'attente était fausse** : App Store Connect lisait les builds 569 et 577 comme anglais (`buildBundles.locales = ["en"]`). **Corrigé le 2026-10-13** — langue de développement `fr` et un `fr.lproj` dans le paquet ([ios-language-and-orientation.md](ios-language-and-orientation.md)) ; l'effet se lit sur le prochain build envoyé (§11.5). |
 | Le dialogue de suppression dit « Votre salon sera retiré de MyWeli » même à un membre d'équipe. | code | Texte à ajuster pour le personnel. |
 | Taux de sessions sans plantage perdu (sessions Sentry coupées). | assumé | L'alerte « crash-free sessions » de l'observabilité doit être revue (plantages et blocages restent signalés). |
 

@@ -175,3 +175,16 @@ the entitlement is baked into the signed binary.*
   **purpose strings** (location, camera, photos) as build settings read by
   `Info.plist`, pinned by `mobile/test/infra/ios_store_readiness_test.dart` —
   [app-store-forms.md](app-store-forms.md) §1.
+- *Added 2026-10-13:* the script also sets the project's **development
+  language to French** and wires a key-less `fr.lproj/InfoPlist.strings` into
+  the Runner target's Resources — the App Store read the apps as English
+  ([ios-language-and-orientation.md](ios-language-and-orientation.md)).
+  **Found doing it: the script is no longer the no-op its header promises.**
+  Run on an untouched project it (1) deletes and recreates the « Copy Firebase
+  config » phase under a new UUID each time, and (2) regenerates the two
+  schemes without what Flutter's own migration added to them since (the
+  « Run Prepare Flutter Framework Script » pre-action and
+  `customLLDBInitFile`). So the language section was applied **alone**, lifted
+  verbatim from the script, and the full script was not re-run. Not fixed
+  here: until it is, do not commit the output of a full run without reading
+  the diff.
