@@ -186,7 +186,8 @@ void main() {
     // What « Accueil » shows then is a sentence with no way out (§11.2).
     // Using a created booking as its retry would be that screen's decision,
     // not this slice's: the quiet refetch only ever replaces figures that
-    // are on screen.
+    // are on screen. This case records that boundary, not a wish — the day
+    // the decision is taken it goes red, and is rewritten with it.
     final p = ProDashboardProvider();
     addTearDown(p.dispose);
     service.failure = 'error';

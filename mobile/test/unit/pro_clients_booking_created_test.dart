@@ -241,8 +241,10 @@ void main() {
 
     held.complete();
     await pumpEventQueue();
+    // Whatever the switch leaves of the card — today it leaves it; the day it
+    // clears it, this still reads right — the late answer does not change.
     expect(p.card, same(cardAtSwitch), reason: 'asked for the salon left');
-    expect(p.card!.upcoming, isNull);
+    expect(p.card?.upcoming, isNull);
     expect(service.visitCalls, visitCallsBefore);
     expect(notified, 0);
   });
