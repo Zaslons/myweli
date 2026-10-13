@@ -247,7 +247,7 @@ on the iPhone 17 Pro), times are seconds of the take.
 | `timing.caption_lead_s` | A shot's caption is in place this long before its first touch-down. |
 | `timing.sync_tolerance_s` | How far `near_s` may be from where a burst starts. |
 | `timing.rehearsal_*` | Rehearsals only: the hold given to a shot with no footage. |
-| `captions` | Two hand-set headline lines; zero to two hand-set sub-lines. ` ` is the narrow no-break space French sets before « ? ». |
+| `captions` | Two hand-set headline lines; zero to two hand-set sub-lines. `\u202f` is the narrow no-break space French sets before « ? ». |
 | `shots[].gestures[].rest_after_s` | The hold after a gesture's response, on top of `tail_s`. |
 | `shots[].caption_after` | For a shot with no gesture: the caption changes this long after the named gesture's own burst ends. |
 
@@ -325,21 +325,23 @@ the chain; it is written to `preview-rehearsal.mp4` and says so in
 
 ```
 python3 tool/app_store_preview/preview.py selftest          # about two minutes
-python3 tool/app_store_preview/tests/mutations.py           # on a clean, committed tree
+python3 tool/app_store_preview/tests/mutations.py           # about ten; on a clean, committed tree
 ```
 
 `selftest` needs no simulator. It covers the tokens and curves, the frame
 against the stills', caption layout, every refusal of the editing rule on
 takes whose answer is known, the bit-level parsers on bytes copied from real
 files, and an end-to-end run on a synthetic take with the recorder's shape.
-It then writes some twenty films that are wrong on purpose — no sound,
+It then writes some thirty files that are wrong on purpose — no sound,
 14.9 s, 884 wide, a header that claims 887, 25 frames per second, a variable
 frame rate, reordered frames, a tone, 44.1 kHz, mono, a disabled track, a
 rotated picture… — and requires the checker to name exactly that fault.
 
-`mutations.py` removes each check from the code in turn and requires a named
-test to fail. A mutation whose anchor is no longer in the source is an error,
-not a pass.
+`mutations.py` breaks each check in the code in turn — every refusal
+silenced, every verification made to pass, numbers and comparisons bent, the
+Swift helpers too — and requires a named test to fail each time. A mutation
+whose anchor is no longer in the source is an error, not a pass, and so is a
+refusal added to the code without being watched.
 
 ## Known limits
 

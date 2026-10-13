@@ -69,7 +69,7 @@ def _drawn(font, ch: str) -> tuple[bytes, float]:
 def check_glyphs(text: str, font, what: str) -> None:
     """A character the font does not have is drawn as the font's « missing »
     box — the picture U+FFFF, which no font has, comes out as."""
-    missing = _drawn(font, "￿")
+    missing = _drawn(font, chr(0xFFFF))
     for ch in text:
         if _drawn(font, ch) == missing:
             die(f"{what}: the font has no glyph for {ch!r} (U+{ord(ch):04X}) in « {text} »")

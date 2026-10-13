@@ -120,7 +120,7 @@ def verify(path: Path, storyboard: dict, poster_png: Path | None = None) -> list
     # ---- three readings ------------------------------------------------------
     try:
         box = mp4.read(path)
-    except (mp4.Mp4Error, OSError, IndexError, ValueError) as e:
+    except (mp4.Mp4Error, OSError) as e:
         add("readable (boxes)", False, str(e))
         return checks
     with tempfile.TemporaryDirectory() as tmp:

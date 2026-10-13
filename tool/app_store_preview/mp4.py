@@ -314,8 +314,16 @@ def _sample_table(data: bytes, a: int, b: int, t: dict) -> None:
 
 
 def read(path: Path) -> dict:
-    """The file's structure: {ftyp, movie, tracks, order, file_bytes}."""
+    """The file's structure: {ftyp, movie, tracks, order, file_bytes}. A file
+    that is cut short or malformed is an Mp4Error, wherever the parse trips."""
     data = Path(path).read_bytes()
+    try:
+        return _read(data, path)
+    except (struct.error, IndexError, ValueError) as e:
+        raise Mp4Error(f"{path}: cut short or malformed ({e})") from e
+
+
+def _read(data: bytes, path: Path) -> dict:
     out: dict = {"file_bytes": len(data), "ftyp": None, "movie": {}, "tracks": [], "order": []}
     for kind, a, b in _boxes(data, 0, len(data)):
         out["order"].append(kind.decode("latin-1"))

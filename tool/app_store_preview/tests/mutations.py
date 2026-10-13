@@ -10,7 +10,16 @@ always pass, bends a number — and requires a named test to fail each time.
     python3 tool/app_store_preview/tests/mutations.py e2e --match=Writer.swift
     python3 tool/app_store_preview/tests/mutations.py --list
 
-Groups: edit, frames, brand, mp4, verify, swift, e2e.
+Groups: edit, frames, brand, mp4, verify, cli, swift, e2e.
+
+What this cannot see. The refusals of edit.py, frames.py and brand.py are
+counted, and verify.py's checks are matched by name, so one added there
+without a watch is an error. The Swift helpers and preview.py are not
+counted: a new guard there is watched only if someone adds a line to MANUAL.
+Known to be unwatched today, because no file was found that makes them
+fire: conform's « frames out of order », « frame size changed inside the
+take », « two samples share the presentation time », the exact-tick
+conversion, and the compile failure in swifttools.py.
 
 It only runs on a clean, committed tree: every mutation is undone by
 writing the file's committed text back, which would erase uncommitted work.
@@ -86,6 +95,7 @@ F = "tests.test_frames."
 B = "tests.test_brand."
 P = "tests.test_mp4."
 X = "tests.test_verify.EncoderRefuses."
+C = "tests.test_cli."
 E2E = "tests.test_e2e"
 MANUAL = [
     # group, file, exactly this text (once), becomes, the test that must fail
@@ -151,6 +161,8 @@ MANUAL = [
      E + "Refusals.test_the_poster_frame_waits_for_the_last_touch_point"),
     ("edit", "edit.py", "            if set(seg) != LIVE_KEYS:", "            if not LIVE_KEYS <= set(seg):",
      E + "Refusals.test_a_speed_cannot_be_written"),
+    ("edit", "edit.py", "list(zip(frames, tm.kinds))[1:] if k", "list(zip(frames, tm.kinds)) if k",
+     E + "Describe.test_every_cut_is_logged_with_what_it_removes_and_where_it_lands"),
 
     ("frames", "frames.py", "self.s = s = self.W / STILLS_WIDTH", "self.s = s = self.W / (STILLS_WIDTH + 1)",
      F + "Frame.test_the_layout_is_the_stills_table_times_886_over_1320"),
@@ -207,6 +219,31 @@ MANUAL = [
      P + "Sps.test_interlaced_is_read_as_interlaced"),
     ("mp4", "mp4.py", 'out["audio_object_type"] = aot', 'out["audio_object_type"] = 2',
      P + "Esds.test_other_configurations_are_told_apart"),
+    ("mp4", "mp4.py", "    except (struct.error, IndexError, ValueError) as e:", "    except (ValueError,) as e:",
+     V + "test_a_file_whose_headers_are_cut_or_hollow"),
+    ("mp4", "mp4.py", "        if size < head or pos + size > end:", "        if size < head:",
+     V + "test_a_file_cut_short"),
+    ("mp4", "mp4.py", "    if nal[0] & 0x1F != 7:", "    if False:", P + "Sps.test_something_that_is_not_an_sps_is_refused"),
+    ("mp4", "mp4.py", "    if tag != 0x04:", "    if False:", P + "Esds.test_a_payload_without_the_descriptors_is_refused"),
+
+    ("frames", "storyboard.json", "Une cliente arrive" + chr(92) + "u202f?", "Une cliente arrive" + chr(0x202F) + "?",
+     F + "Storyboard.test_the_file_has_no_invisible_character"),
+    ("frames", "frames.py", "        if abs(raw_size[0] * device_points[1] - raw_size[1] * device_points[0]) > 0.001 * raw_size[1] * device_points[0]:",
+     "        if False:", F + "Guards.test_a_capture_that_is_not_the_logged_screen_stops_the_tool"),
+
+    ("cli", "swifttools.py", '["xcrun", "swiftc", "-O", "-parse-as-library", *map(str, sources), "-o", str(out)],',
+     '["ffmpeg", "swiftc", "-O", "-parse-as-library", *map(str, sources), "-o", str(out)],',
+     C + "WhatTheToolDoesNotDo.test_only_what_is_already_on_the_mac_is_started"),
+    ("cli", "swifttools.py", '["xcrun", "swiftc", "-O", "-parse-as-library", *map(str, sources), "-o", str(out)],',
+     '["ffmpeg", "swiftc", "-O", "-parse-as-library", *map(str, sources), "-o", str(out)],',
+     C + "WhatTheToolDoesNotDo.test_no_installer_and_no_ffmpeg_in_the_sources"),
+    ("cli", "preview.py", "sys.exit(0 if result.wasSuccessful() and result.testsRun else 1)",
+     "sys.exit(0 if result.wasSuccessful() else 1)", C + "Command.test_a_self_test_that_runs_no_test_is_a_failure"),
+    ("cli", "preview.py", '    if not a.take.exists():\n        die(f"no such take: {a.take}")\n', "",
+     C + "Command.test_a_take_that_is_not_there_stops_the_build"),
+    ("cli", "preview.py", '    except (OSError, ValueError) as e:\n        die(f"cannot read {path}: {e}")',
+     '    except OSError as e:\n        die(f"cannot read {path}: {e}")',
+     C + "Command.test_a_gesture_log_that_cannot_be_read_stops_the_build"),
 
     ("verify", "verify.py", "PROFILE_HIGH, LEVEL_4_0 = 100, 40", "PROFILE_HIGH, LEVEL_4_0 = 100, 41",
      V + "test_the_wrong_level"),
@@ -242,6 +279,24 @@ MANUAL = [
      X + "test_a_test_clip_that_fails_leaves_nothing_either"),
     ("swift", "swift/Inspect.swift", "for v in data where abs(Int(v)) > peak { peak = abs(Int(v)) }", "_ = data",
      V + "test_sound_that_is_not_silence"),
+    ("swift", "swift/Encode.swift", 'guard outPath.hasSuffix(".mp4") else { die("the output must be a .mp4") }', "",
+     X + "test_an_output_that_is_not_an_mp4_is_refused_and_left_alone"),
+    ("swift", "swift/Common.swift", '    for k in flags.keys where !used.contains(k) { die("unknown flag --\\(k)") }', "",
+     X + "test_there_is_nothing_to_configure"),
+    ("swift", "swift/Conform.swift", "      guard ((b - a) * Int64(fps)) % scale == 0 else {", "      guard true else {",
+     C + "Conform.test_a_range_that_is_not_whole_frames"),
+    ("swift", "swift/Conform.swift", '      guard b > a else { die("segment \\(n): src_out is not after src_in") }', "",
+     C + "Conform.test_a_range_that_ends_before_it_starts"),
+    ("swift", "swift/Conform.swift", '      guard count > 0 else { die("segment \\(n): a hold needs at least one frame") }', "",
+     C + "Conform.test_a_hold_of_no_frames_and_a_kind_it_does_not_know"),
+    ("swift", "swift/Conform.swift", "  guard 0 <= soft, soft < strong, strong <= 254 else {", "  guard true else {",
+     C + "Conform.test_levels_the_wrong_way_round"),
+    ("swift", "swift/Conform.swift", "  for p in raw where p.count != 2 || p[0] < 0 || p[1] < p[0] {", "  for p in raw where p.count != 2 {",
+     C + "Conform.test_a_pair_of_frames_the_take_does_not_have_or_in_the_wrong_order"),
+    ("swift", "swift/Conform.swift", "          if d > soft {", "          if d > soft + 400 {",
+     C + "Conform.test_what_it_does_do_on_the_same_take"),
+    ("swift", "swift/Conform.swift", "    if pts[mid] * den <= num * timescale {", "    if pts[mid] * den < num * timescale {",
+     C + "Conform.test_what_it_does_do_on_the_same_take"),
 
     # the slow ones: each recompiles a helper and runs the end-to-end build
     ("e2e", "preview.py", "    diffs = checked(edit, scan, log, sb, a.take, out)\n", "    diffs = {}\n",

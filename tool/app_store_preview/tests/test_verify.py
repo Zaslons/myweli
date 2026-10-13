@@ -288,6 +288,26 @@ class VerifyRefuses(unittest.TestCase):
         cut.write_bytes(data[: len(data) * 2 // 3])
         self.assertEqual(failed(cut), {"readable (boxes)"})
 
+    def test_a_file_whose_headers_are_cut_or_hollow(self):
+        """Wherever the parse trips, the answer is a failed check — never a
+        crash that someone could read as "the checker did not complain"."""
+        data = self.good.read_bytes()
+        cut = WORK / "cut-in-the-headers.mp4"
+        cut.write_bytes(data[: data.find(b"moov") + 200])
+        self.assertEqual(failed(cut), {"readable (boxes)"})
+
+        def box(kind: bytes, payload: bytes) -> bytes:
+            return struct.pack(">I4s", 8 + len(payload), kind) + payload
+        # a movie whose last box is a track header with nothing in it: its
+        # fields would be read past the end of the file
+        mvhd = box(b"mvhd", struct.pack(">IIIII", 0, 0, 0, 600, 9000) + bytes(80))
+        hollow = WORK / "hollow.mp4"
+        hollow.write_bytes(box(b"ftyp", b"mp42\0\0\0\0mp42") + box(b"moov", mvhd + box(b"trak", box(b"tkhd", b""))))
+        with self.assertRaises(mp4.Mp4Error) as cm:
+            mp4.read(hollow)
+        self.assertIn("cut short or malformed", str(cm.exception))
+        self.assertEqual(failed(hollow), {"readable (boxes)"})
+
     def test_a_film_whose_pictures_are_not_where_the_headers_say(self):
         """The headers promise 450 samples; AVFoundation finds none of them
         and says nothing. The two readers' counts no longer agree."""
@@ -346,6 +366,29 @@ class EncoderRefuses(unittest.TestCase):
         # written file, not the earlier one
         self.assertEqual(sorted(p.name for p in folder.glob("out.mp4*")), [])
         return r.stderr
+
+    def test_there_is_nothing_to_configure(self):
+        folder = WORK / "encode-flags"
+        folder.mkdir(exist_ok=True)
+        Image.new("RGB", (886, 1920)).save(folder / "f.png")
+        (folder / "frames.json").write_text(json.dumps(
+            {"fps": 30, "width": 886, "height": 1920, "frames": ["f.png"] * 450}))
+        r = swifttools.run("encode", folder, "--out", folder / "out.mp4", "--bitrate", 5_000_000, check=False)
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("unknown flag --bitrate", r.stderr)
+        self.assertFalse((folder / "out.mp4").exists())
+
+    def test_an_output_that_is_not_an_mp4_is_refused_and_left_alone(self):
+        folder = WORK / "encode-mov"
+        folder.mkdir(exist_ok=True)
+        Image.new("RGB", (886, 1920)).save(folder / "f.png")
+        (folder / "frames.json").write_text(json.dumps(
+            {"fps": 30, "width": 886, "height": 1920, "frames": ["f.png"] * 450}))
+        (folder / "out.mov").write_bytes(b"someone's file")
+        r = swifttools.run("encode", folder, "--out", folder / "out.mov", check=False)
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("the output must be a .mp4", r.stderr)
+        self.assertEqual((folder / "out.mov").read_bytes(), b"someone's file")
 
     def test_a_film_under_15_s_or_over_30_s(self):
         base = {"fps": 30, "width": 886, "height": 1920}

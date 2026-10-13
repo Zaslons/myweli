@@ -363,10 +363,20 @@ class Propose(unittest.TestCase):
         scan = scan_of(rows, end=round((t + 3) * T))
         e = edit.propose(scan, log, STORYBOARD)
         edit.check(e, scan, log, STORYBOARD)
-        self.assertEqual(sum(s.frames for s in edit.spans(e, T, 30)), 600)
-        self.assertEqual([c["caption"] for c in e["captions"]], ["arrivee", "creneau", "comptoir", "agenda"])
-        self.assertEqual(len(e["touches"]), 8)   # nine gestures, one of them typed
-        self.assertEqual(e["poster_frame"], 540)
+        # read from the storyboard, not pinned: rewording or retiming the film
+        # must not turn this red — only a storyboard that cannot make a film
+        film, fps = STORYBOARD["film"], STORYBOARD["film"]["fps"]
+        self.assertEqual(sum(s.frames for s in edit.spans(e, T, fps)), round(film["duration_s"] * fps))
+        told = []
+        for shot in STORYBOARD["shots"]:
+            if not told or told[-1] != shot["caption"]:
+                told.append(shot["caption"])
+        self.assertEqual([c["caption"] for c in e["captions"]], told)
+        drawn = [g["id"] for shot in STORYBOARD["shots"] for g in shot["gestures"] if g["kind"] != "type"]
+        self.assertEqual([t["gesture"] for t in e["touches"]], drawn)
+        self.assertEqual(e["poster_frame"], round(film["poster_s"] * fps))
+        self.assertGreaterEqual(e["poster_frame"], e["final_hold_from"])
+        self.assertTrue(15 <= film["duration_s"] <= 30)
 
 
 class Refusals(unittest.TestCase):
@@ -612,6 +622,10 @@ class Describe(unittest.TestCase):
         text = edit.describe(e, scan, log, sb, {pairs[0]: dict(CARET)})
         for line in (
             "frames 79 change, 2 quiet, 3 caret-only (a change: >= 4 strong or >= 2000 soft pixels)",
+            # how near the take comes to the thresholds — the first picture, a
+            # change by nature and not by measure, is not the "faintest"
+            "       loudest quiet frame:     0.500 s  soft 500, strong 1",
+            "       faintest change frame:   3.000 s  soft 50000, strong 40000",
             "    0.000 s –   0.000 s     1 frames  (no gesture: the app on its own, or outside the film)",
             "    3.000 s –   3.167 s    11 frames  <- tap-a",
             "    6.000 s –   6.083 s     6 frames  (no gesture: the app on its own, or outside the film)",

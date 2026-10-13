@@ -681,13 +681,18 @@ def describe(edit: dict, scan: dict, log: dict, sb: dict,
     counts = {k: tm.kinds.count(k) for k in ("change", "quiet", "caret")}
     w(f"frames {counts['change']} change, {counts['quiet']} quiet, {counts['caret']} caret-only "
       f"(a change: >= {STRONG_MIN} strong or >= {SOFT_MIN} soft pixels)")
+    # How close the take comes to the thresholds, from both sides. The first
+    # picture is a change by what the recorder is, not by measure: left out.
+    def loudness(f: dict) -> float:
+        return max(f.get("strong", 0) / STRONG_MIN, f.get("soft", 0) / SOFT_MIN)
+
     quiet = [f for f, k in zip(frames, tm.kinds) if k == "quiet"]
-    moving = [f for f, k in zip(frames, tm.kinds) if k == "change"]
+    moving = [f for f, k in list(zip(frames, tm.kinds))[1:] if k == "change"]
     if quiet:
-        q = max(quiet, key=lambda f: (f.get("strong", 0), f.get("soft", 0)))
+        q = max(quiet, key=loudness)
         w(f"       loudest quiet frame:   {s(q['pts'])}  soft {q.get('soft', 0)}, strong {q.get('strong', 0)}")
     if moving:
-        m = min(moving, key=lambda f: (f.get("strong", 0), f.get("soft", 0)))
+        m = min(moving, key=loudness)
         w(f"       faintest change frame: {s(m['pts'])}  soft {m.get('soft', 0)}, strong {m.get('strong', 0)}")
     if edit.get("rehearsal"):
         w("REHEARSAL — shots without footage are holds; this is not the film.")

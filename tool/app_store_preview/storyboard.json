@@ -33,15 +33,15 @@
   },
   "captions": {
     "arrivee": {
-      "headline": ["Une cliente arrive ?", "Un geste suffit."],
+      "headline": ["Une cliente arrive\u202f?", "Un geste suffit."],
       "subline": []
     },
     "creneau": {
-      "headline": ["Un créneau libre ?", "Ajoutez un rendez-vous."],
+      "headline": ["Un créneau libre\u202f?", "Ajoutez un rendez-vous."],
       "subline": []
     },
     "comptoir": {
-      "headline": ["Un créneau libre ?", "Ajoutez un rendez-vous."],
+      "headline": ["Un créneau libre\u202f?", "Ajoutez un rendez-vous."],
       "subline": ["Pris au téléphone ou au comptoir,", "même pour un client sans numéro."]
     },
     "agenda": {
