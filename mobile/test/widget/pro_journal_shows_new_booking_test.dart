@@ -42,10 +42,13 @@ import '../support/surface.dart';
 ///
 /// **Three shapes this file refuses**, each of which passes on the broken app:
 ///
-///  * a test that pulls the list down, or calls `refresh()` — no test here
-///    drags anything or calls a provider method; the only gestures are taps
-///    and typing (the scroll case moves the list with `ensureVisible`, which
-///    is not a gesture and cannot trigger a refresh);
+///  * a test that pulls the list down, or calls `refresh()`, once the booking
+///    exists — no test here calls a provider method, and after the form is
+///    opened the only gestures are taps and typing (the scroll case moves the
+///    list with `jumpTo` and `ensureVisible`, which are not gestures and
+///    cannot trigger a refresh). ONE case drags, on purpose and BEFORE the
+///    form is opened: « a pull-to-refresh is still in flight ». Its request
+///    is held unanswered while the booking is asserted, and then fails;
 ///  * a stub that already holds the booking — every test asserts the server
 ///    list has no salon-entered booking before the form is opened;
 ///  * `find.text('Yao K.')` — the name is also in the form's own text field,
@@ -580,6 +583,63 @@ void main() {
       expect(find.textContaining('Erreur réseau'), findsNothing);
       expect(find.textContaining('SocketException'), findsNothing);
       expect(inJournal(find.byType(LoadingIndicator)), findsNothing);
+    });
+  }
+
+  // The one case that pulls the list down — BEFORE the form is opened, and
+  // with every journal answer held. That pull is the situation, not the cure:
+  // its request is still unanswered when the booking is asserted, and when it
+  // does answer it fails.
+  for (final failure in ['error', 'throw']) {
+    testWidgets('a pull-to-refresh is still in flight when the booking is '
+        'created, and the network then fails ($failure): the booking is '
+        'there at once, and the day is not lost', (tester) async {
+      await openJournal(tester);
+      final callsBefore = salon.journalCalls;
+      salon.journalGate = Completer<void>();
+
+      await tester.drag(listOf(ProJournalScreen), const Offset(0, 300));
+      await settleMocks(tester, rounds: 2);
+      expect(
+        salon.journalCalls,
+        callsBefore + 1,
+        reason: 'the pull asked for the day, and has no answer',
+      );
+      expect(card('a1'), findsOneWidget, reason: 'the rows stay meanwhile');
+
+      await tester.tap(gap('12:00'));
+      await formIsOpen(tester);
+      await fillForm(tester);
+      await create(tester);
+
+      expect(salon.createCalls, 1);
+      // One frame after the `201`, the pull still unanswered.
+      expect(find.byType(ProManualBookingScreen), findsOneWidget);
+      expect(card('m1'), findsOneWidget);
+      expect(inCard('m1', 'Confirmé'), findsOneWidget);
+      expect(gap('12:00'), findsNothing);
+      expect(card('a1'), findsOneWidget);
+      expect(card('a2'), findsOneWidget);
+      expect(salon.journalCalls, callsBefore + 2, reason: 'the quiet reload');
+
+      await formHasLeft(tester);
+      expect(find.text('Rendez-vous créé'), findsOneWidget);
+      expect(card('m1'), findsOneWidget);
+
+      // Both requests now get their answer: a failure.
+      salon.journalFailure = failure;
+      salon.journalGate!.complete();
+      salon.journalGate = null;
+      await settleMocks(tester, rounds: 2);
+
+      expect(card('m1'), findsOneWidget);
+      expect(card('a1'), findsOneWidget);
+      expect(card('a2'), findsOneWidget);
+      expect(find.text('Une erreur est survenue'), findsNothing);
+      expect(find.text('Réessayer'), findsNothing);
+      expect(find.textContaining('Erreur réseau'), findsNothing);
+      expect(find.textContaining('SocketException'), findsNothing);
+      expect(salon.journalCalls, callsBefore + 2, reason: 'nothing retried');
     });
   }
 

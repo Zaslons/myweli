@@ -210,6 +210,39 @@ void main() {
       expect(p.weekCounts['2026-07-13'], 3, reason: 'the server’s count');
     });
 
+    test('the server’s day reaches the screen when IT lands — not after the '
+        'six requests of the week prefetch behind it', () async {
+      server.of('p1').add(appt(id: 'a1', time: '09:00'));
+      final p = await opened();
+      server
+          .of('p1')
+          .add(appt(id: 'm1', time: '11:00', displayName: 'Yao Kouamé'));
+      server.hold = true;
+      p.bookingCreated(appt(id: 'm1', time: '11:00')); // the `201` body
+      final quiet = server.requests.last;
+      var notified = 0;
+      p.addListener(() => notified++);
+
+      // Only the day's own answer is delivered.
+      quiet.release();
+      await pumpEventQueue();
+
+      final prefetch = server.requests.last;
+      expect(prefetch, isNot(same(quiet)), reason: 'the prefetch has started');
+      expect(prefetch.done.isCompleted, isFalse, reason: '…and is held');
+      expect(notified, 1, reason: 'the listeners were told already');
+      expect(
+        p.visibleAppointments.firstWhere((a) => a.id == 'm1').clientDisplayName,
+        'Yao Kouamé',
+      );
+
+      server.hold = false;
+      for (final r in server.requests) {
+        r.release();
+      }
+      await settled();
+    });
+
     test('a reload that comes back WITHOUT the booking removes it — it was '
         'asked after the booking existed, so the server means it', () async {
       server.of('p1').add(appt(id: 'a1', time: '09:00'));
@@ -450,33 +483,47 @@ void main() {
       expect(shown(p), ['m1']);
     });
 
-    test('a pull-to-refresh was in flight, rows on screen: no row is added '
-        'to them, the day is asked for again — and `isLoading` is not left '
-        'raised by the answer that gets dropped', () async {
-      server.of('p1').add(appt(id: 'a1', time: '09:00'));
-      final p = await opened();
+    test('a day CHANGE is in flight — the rows on screen are another date’s: '
+        'no row is added to them, even for a booking on the date being '
+        'loaded; that date is asked for again the ordinary way', () async {
+      server.of('p1').add(appt(id: 'mon', time: '09:00'));
+      final p = await opened(); // Monday the 13th
       server.hold = true;
-      unawaited(p.refresh()); // decided: a1 only
+      final tuesday = DateTime.utc(2026, 7, 14);
+      p.setDate(tuesday); // decided: an empty Tuesday
+      final change = server.requests.last;
+      expect(p.selectedDate, tuesday);
+      expect(shown(p), ['mon'], reason: 'Monday’s rows, until Tuesday lands');
       expect(p.isLoading, isTrue);
-      expect(p.day, isNotNull);
       final requestsBefore = server.requests.length;
 
-      final created = appt(id: 'm1', time: '11:00');
+      // The booking is for Tuesday — the SELECTED date, not the rows’ date.
+      final created = appt(id: 'm1', time: '11:00', day: 14);
       server.of('p1').add(created);
       p.bookingCreated(created);
-      expect(shown(p), [
-        'a1',
-      ], reason: 'not added to rows about to be replaced');
+
+      expect(shown(p), ['mon'], reason: 'not put among Monday’s rows');
+      expect(p.isLoading, isTrue);
+      expect(p.weekCounts['2026-07-14'], 1);
       expect(server.requests.length, requestsBefore + 1);
+      expect(server.requests.last.day, '2026-07-14');
+
+      // The day change’s own answer — Tuesday without the booking — is late.
+      server.requests.last.release();
+      await pumpEventQueue();
+      expect(shown(p), ['m1']);
+      expect(p.isLoading, isFalse);
+      change.release();
+      await pumpEventQueue();
+      expect(shown(p), ['m1'], reason: 'an outdated answer is ignored');
 
       server.hold = false;
       for (final r in server.requests) {
         r.release();
       }
       await settled();
-      expect(p.isLoading, isFalse);
-      expect(shown(p), ['a1', 'm1']);
-      expect(p.error, isNull);
+      expect(p.selectedDate, tuesday);
+      expect(shown(p), ['m1']);
     });
 
     test('the day had failed: it is loaded again the ordinary way', () async {
@@ -502,14 +549,126 @@ void main() {
         'one — there is no day to keep', () async {
       final p = ProJournalProvider();
       addTearDown(p.dispose);
-      server.failure = 'error';
+      server.failure = 'throw';
       await p.load('p1', date: monday);
+      await settled(); // the week prefetch behind the failed load
+      expect(p.error, contains('SocketException'));
+      final requestsBefore = server.requests.length;
 
+      // It DID try: one more request for the day, a loader meanwhile, and the
+      // error shown afterwards is the new attempt's — not the one left over.
+      server.failure = 'error';
       p.bookingCreated(appt(id: 'm1', time: '11:00'));
+      expect(p.isLoading, isTrue);
+      expect(server.requests.length, requestsBefore + 1);
+      expect(server.requests.last.day, '2026-07-13');
       await settled();
       expect(p.day, isNull);
-      expect(p.error, isNotNull);
+      expect(p.error, 'Erreur réseau. Réessayez.');
       expect(p.isLoading, isFalse);
+    });
+  });
+
+  group('bookingCreated — a refresh of the displayed day is in flight', () {
+    // A pull-to-refresh, the refetch behind a swipe action, « Ma journée »
+    // reopened: `isLoading` is raised, and the rows on screen ARE the selected
+    // date's. The booking joins them at once, as on a settled day — the form
+    // took longer to fill than the request has to answer only on a network
+    // that is already failing, which is when a loud reload would cost the day.
+    test(
+      'the booking joins the rows at once; the flag the refresh raised is '
+      'lowered; its answer, decided before the booking, is dropped',
+      () async {
+        server.of('p1').add(appt(id: 'a1', time: '09:00'));
+        final p = await opened();
+        server.hold = true;
+        unawaited(p.refresh()); // decided: a1 only
+        final refresh = server.requests.last;
+        expect(p.isLoading, isTrue);
+        expect(p.day, isNotNull);
+        final requestsBefore = server.requests.length;
+        final loadingSeen = <bool>[];
+        p.addListener(() => loadingSeen.add(p.isLoading));
+
+        final created = appt(id: 'm1', time: '11:00');
+        server.of('p1').add(created);
+        p.bookingCreated(created);
+
+        // Synchronously — nothing has answered.
+        expect(shown(p), ['a1', 'm1']);
+        expect(p.isLoading, isFalse, reason: 'nobody else would lower it');
+        expect(loadingSeen, [false]);
+        expect(p.error, isNull);
+        expect(p.weekCounts['2026-07-13'], 2);
+        expect(server.requests.length, requestsBefore + 1);
+        final quiet = server.requests.last;
+        expect(quiet.day, '2026-07-13');
+
+        // The refresh answers first, with the day as it was before the booking.
+        refresh.release();
+        await pumpEventQueue();
+        expect(shown(p), ['a1', 'm1'], reason: 'an outdated answer is ignored');
+        expect(p.isLoading, isFalse);
+
+        server.hold = false;
+        for (final r in server.requests) {
+          r.release();
+        }
+        await settled();
+        expect(shown(p), ['a1', 'm1']);
+        expect(p.isLoading, isFalse);
+        expect(p.error, isNull);
+        expect(loadingSeen, everyElement(isFalse), reason: 'never a loader');
+      },
+    );
+
+    for (final failure in ['error', 'throw']) {
+      test('…and both fail ($failure) — the refresh in flight and the reload '
+          'behind the booking: the day and the booking stay, nothing is '
+          'said', () async {
+        server.of('p1').add(appt(id: 'a1', time: '09:00'));
+        final p = await opened();
+        server.hold = true;
+        server.failure = failure; // the network is going
+        unawaited(p.refresh()); // decided: a failure
+        final refresh = server.requests.last;
+
+        p.bookingCreated(appt(id: 'm1', time: '11:00'));
+        final quiet = server.requests.last; // decided: a failure
+        expect(quiet, isNot(same(refresh)));
+        expect(shown(p), ['a1', 'm1']);
+
+        // The reload behind the booking fails first, the older refresh last.
+        quiet.release();
+        await pumpEventQueue();
+        refresh.release();
+        await pumpEventQueue();
+
+        expect(p.day, isNotNull, reason: 'the day is not dropped');
+        expect(shown(p), ['a1', 'm1']);
+        expect(p.error, isNull, reason: 'no « Une erreur est survenue »');
+        expect(p.isLoading, isFalse);
+        expect(p.weekCounts['2026-07-13'], 2);
+      });
+    }
+
+    test('« Ma journée » reopened (a load with no date): the same', () async {
+      server.of('p1').add(appt(id: 'a1', time: '09:00'));
+      final p = await opened();
+      server.hold = true;
+      unawaited(p.load('p1')); // the screen's own `initState` load
+      expect(p.selectedDate, monday);
+      expect(p.isLoading, isTrue);
+
+      p.bookingCreated(appt(id: 'm1', time: '11:00'));
+      expect(shown(p), ['a1', 'm1']);
+      expect(p.isLoading, isFalse);
+
+      server.hold = false;
+      for (final r in server.requests) {
+        r.release();
+      }
+      await settled();
     });
   });
 
@@ -568,6 +727,39 @@ void main() {
       await pumpEventQueue();
       expect(p.selectedDate, DateTime.utc(2026, 7, 14));
       expect(shown(p), ['tue'], reason: 'Monday’s rows under Tuesday’s date');
+      expect(p.isLoading, isFalse);
+
+      server.hold = false;
+      for (final r in server.requests) {
+        r.release();
+      }
+      await settled();
+    });
+
+    test('an older load that THROWS late — a socket that gives up after the '
+        'newer answer is on screen — does not drop the day', () async {
+      server.of('p1').add(appt(id: 'a1', time: '09:00'));
+      final p = await opened();
+      server.hold = true;
+      server.failure = 'throw';
+      unawaited(p.refresh()); // decided: it will throw
+      final older = server.requests.last;
+      server.failure = null;
+      server.of('p1').add(appt(id: 'a2', time: '14:00'));
+      unawaited(p.refresh()); // decided: a1, a2
+      final newer = server.requests.last;
+      expect(newer, isNot(same(older)));
+
+      newer.release();
+      await pumpEventQueue();
+      expect(shown(p), ['a1', 'a2']);
+      expect(p.isLoading, isFalse);
+
+      older.release();
+      await pumpEventQueue();
+      expect(p.day, isNotNull, reason: 'an outdated failure erased the day');
+      expect(shown(p), ['a1', 'a2']);
+      expect(p.error, isNull);
       expect(p.isLoading, isFalse);
 
       server.hold = false;

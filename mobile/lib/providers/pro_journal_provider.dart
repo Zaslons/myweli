@@ -32,6 +32,14 @@ class ProJournalProvider extends ChangeNotifier implements ShowsSalonBookings {
   JournalDay? _day;
   JournalDay? get day => _day;
 
+  /// The salon day [_day] was loaded FOR — [keyOf] the selected date when its
+  /// answer was applied. It differs from the selected date only while a day
+  /// CHANGE is in flight: the date has moved and the rows on screen are still
+  /// the previous day's. Held here rather than read from `JournalDay.date`, so
+  /// that where a created booking goes never depends on how a server spells
+  /// a date. Read only while [_day] is non-null, and written with it.
+  String? _dayKey;
+
   // Abidjan seed; re-derived with the real salon tz on the first [load].
   DateTime _selectedDate = salonToday();
   DateTime get selectedDate => _selectedDate;
@@ -133,6 +141,7 @@ class ProJournalProvider extends ChangeNotifier implements ShowsSalonBookings {
       if (request != _request) return;
       if (r.success && r.data != null) {
         _day = r.data;
+        _dayKey = keyOf(_selectedDate);
       } else {
         _error = r.error ?? 'Erreur lors du chargement.';
         ProAccessGuard.report(r.code);
@@ -216,17 +225,20 @@ class ProJournalProvider extends ChangeNotifier implements ShowsSalonBookings {
     // server's count.
     _weekCounts[key] = (_weekCounts[key] ?? 0) + 1;
 
-    if (day == null || _isLoading) {
-      // No settled day to add a row to: it is still loading, it failed, or a
-      // day change is in flight and the rows on screen belong to another
-      // date. Ask again the ordinary way — a request sent now is answered
-      // after the booking exists, and it outdates the one in flight.
+    final selected = keyOf(_selectedDate);
+    if (day == null || _dayKey != selected) {
+      // No rows of the selected date to add one to: its first load is still
+      // in flight, it failed, or a day CHANGE is in flight and the rows on
+      // screen are another date's. Ask again the ordinary way — a request
+      // sent now is answered after the booking exists, and it outdates the
+      // one in flight. When it fails, the error state is the ordinary one:
+      // there is no day of that date to keep.
       notifyListeners();
       unawaited(load(_providerId, date: _selectedDate));
       return;
     }
 
-    if (key == keyOf(_selectedDate)) {
+    if (key == selected) {
       _day = JournalDay(
         date: day.date,
         hours: day.hours,
@@ -234,6 +246,12 @@ class ProJournalProvider extends ChangeNotifier implements ShowsSalonBookings {
         appointments: [...day.appointments, booking],
       );
     }
+    // A refresh of this same day may be in flight — a pull-to-refresh, the
+    // refetch behind a swipe action, « Ma journée » reopened. Its answer may
+    // have been computed before the booking existed, and its FAILURE would
+    // drop the day: the quiet reload below outdates it. Nobody else will
+    // lower the flag it raised.
+    _isLoading = false;
     notifyListeners();
     unawaited(_reloadQuietly());
   }
