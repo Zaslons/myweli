@@ -281,7 +281,7 @@ dossier proposait :
 | Sous-titre | vide | `Agenda, clients, réservations` (§4) | à remplir |
 | Droits sur le contenu | non renseignés | « Oui … et j'ai les droits nécessaires » (§9) | à remplir |
 | Version | iOS **0.0.1**, « Prepare for Submission » (renommée de « 1.0 » le 2026-10-13, relue par l'API) | **0.0.1** (le binaire, §11.3 — la version de l'app passe de 1.0.0 à 0.0.1, décision du propriétaire le 2026-10-13, à partir du build 569) | la page s'appelait « 1.0 » : App Store Connect ne propose pour une version que les builds de même numéro, et 0.0.1 ≠ 1.0 quelle que soit sa normalisation. **Renommée « 0.0.1 » le 2026-10-13** avec l'accord du propriétaire ; reste à y choisir le build 569 (§13). Les builds 1.0.0 (≤ 565) restent dans TestFlight sous leur version |
-| TestFlight | aucun build | — | §11.5 — *2026-10-13 : build **569** (**0.0.1**) envoyé, traité `VALID` ; le groupe interne ne reçoit que le **569** (il remplace le 565) ; ajouté au groupe externe « Testeurs externes » et **soumis à la revue bêta** (`WAITING_FOR_REVIEW`) — le 565, encore en attente de revue, y reste*. *2026-10-12, soir : build **565** envoyé, traité `VALID` ; le groupe interne ne reçoit que le **565** (il remplace le 560)*. *2026-10-12 : builds 551, 555 et **560** envoyés, traités `VALID` ; le groupe interne ne reçoit que le **560** (il remplace le 555)*. *2026-10-10 : builds 551 et 555 envoyés, traités `VALID` ; le groupe interne ne reçoit que le 555 (§11.6)* |
+| TestFlight | aucun build | — | §11.5 — *2026-10-13, après-midi : build **577** (0.0.1) envoyé, traité `VALID` ; le groupe interne ne reçoit que le **577** (il remplace le 569) ; ajouté à « Testeurs externes », où il est disponible aussitôt (la revue bêta de la 0.0.1 avait approuvé le 569 dans la journée ; le 569 y reste)*. *2026-10-13 : build **569** (**0.0.1**) envoyé, traité `VALID` ; le groupe interne ne reçoit que le **569** (il remplace le 565) ; ajouté au groupe externe « Testeurs externes » et **soumis à la revue bêta** (`WAITING_FOR_REVIEW`) — le 565, encore en attente de revue, y reste*. *2026-10-12, soir : build **565** envoyé, traité `VALID` ; le groupe interne ne reçoit que le **565** (il remplace le 560)*. *2026-10-12 : builds 551, 555 et **560** envoyés, traités `VALID` ; le groupe interne ne reçoit que le **560** (il remplace le 555)*. *2026-10-10 : builds 551 et 555 envoyés, traités `VALID` ; le groupe interne ne reçoit que le 555 (§11.6)* |
 
 L'app consommateur « MyWeli » a aussi sa fiche (iOS 1.0, « Prepare for
 Submission ») ; elle aura son propre dossier.
@@ -837,7 +837,7 @@ témoins manquent.
 |---|---|
 | `CFBundleIdentifier` | `com.myweli.pro` |
 | `CFBundleName` | `MyWeli Pro` |
-| `CFBundleShortVersionString` / `CFBundleVersion` | **`0.0.1`** (depuis le build 569 ; `1.0.0` jusqu'au 565) / **> 565** |
+| `CFBundleShortVersionString` / `CFBundleVersion` | **`0.0.1`** (depuis le build 569 ; `1.0.0` jusqu'au 565) / **≥ 577** |
 | `UIDeviceFamily` | **`[1]`** |
 | `CFBundleLocalizations` | **`[fr]`** |
 | `NSLocationWhenInUseUsageDescription` | « MyWeli Pro utilise votre position pour placer votre salon sur la carte et trouver votre commune. » |
@@ -951,8 +951,29 @@ comparée sans l'afficher), la clé web absente, un témoin inventé absent ;
 n'ayant été publié —, envoyé, traité `VALID` (build
 `cc4f9bf5-471f-4ced-8a77-ad7a02ccb56d`) ; « What to Test » fr-FR repris du
 565 ; symboles Dart et natifs relus dans la liste du serveur Sentry ;
-archive rangée en `Runner-pro-569.xcarchive`. **C'est le build à soumettre**
-— après avoir renommé la page « 1.0 » en « 0.0.1 » (§3).
+archive rangée en `Runner-pro-569.xcarchive`. ~~C'est le build à soumettre~~
+— remplacé par le 577 (ci-dessous) ; la page est renommée « 0.0.1 » (§3).
+
+**Build 577** (2026-10-13, depuis `main` à `d2fb12c6`, après #577 à #582) :
+les correctifs de [amounts-that-fit.md](amounts-that-fit.md) — un montant ne
+se coupe plus au milieu de son nombre (fiche client, accueil, résumé des
+visites choisissent leur forme en mesurant), une seule espace avant « FCFA »,
+le numéro d'un client sur une ligne, « dernière à l’instant », et côté
+client le compte d'avis après un renvoi. Six PR fusionnées une à une, chacune
+à jour de `main` et verte ; l'arbre de `main` est identique, à l'octet, à
+celui que la CI a testé. IPA relue au §11.3 : **0.0.1 (577)**,
+`com.myweli.pro`, iPhone seul, `fr`, textes de position et d'appareil photo,
+`ITSAppUsesNonExemptEncryption` faux, entitlements de production, 35
+manifestes de confidentialité, voie compagnon `OK : 22 phrases à 0, 9 témoins
+présents`, clé d'app CARTO une fois (comparée sans l'afficher), clé web et
+témoin inventé absents, « à l’instant » présent, « (walk-in) » absent.
+`altool --validate-app` réussi, envoyé, traité `VALID` (build
+`c2c7ff22-448f-48a5-9d35-17db8f7e4c82`) ; « What to Test » fr-FR repris du
+569 ; symboles Dart et natifs relus dans la liste du serveur Sentry ; archive
+rangée en `Runner-pro-577.xcarchive`. **C'est le build le plus récent — pas
+encore « le build à soumettre »** : trois décisions du §13.1 touchent le
+binaire ou le serveur (la langue lue par App Store Connect, le paysage, la
+suppression du compte démo) et se prennent avant de choisir le build.
 
 Syntaxe relue dans l'aide de l'`altool` local (version 27.0.5) :
 `--upload-package` est la forme de ses exemples ; `--upload-app -f` existe
@@ -1060,7 +1081,7 @@ reprennent ce qui est propre au 565.
 - [ ] **Rester connecté** : fermer l'app plus de 15 min, la rouvrir → toujours
       connecté ; le journal de production montre alors un
       `auth_refresh … outcome=rotated` (ou `grace`), pas de `reused`.
-- [ ] **Version** (569) : Profil → « À propos » affiche « Version 0.0.1 (569) ».
+- [ ] **Version** : Profil → « À propos » affiche « Version 0.0.1 (577) » — ou le numéro du build installé.
 - [ ] **Fiche client** (569, #574) : Clients → un client → la tuile
       « Dernière » lit « 13 oct. 2026 » (jamais un mot coupé), le numéro est
       groupé (« +225 07 … »), les quatre tuiles ont la même hauteur ; avec un
@@ -1194,11 +1215,11 @@ numéros).*
        l'archive ; **vérifier l'IPA** (§11.3). *Build 555, 2026-10-10 ;
        archive rangée en `Runner-pro-555.xcarchive`. Puis 560 et **565**
        (2026-10-12), archive `Runner-pro-565.xcarchive`.*
-12. [x] **Valider, envoyer**, attendre le traitement (§11.5). *555 `VALID` ; 560 `VALID` ; 565 `VALID` (2026-10-12) ; **569 `VALID`** (2026-10-13, 0.0.1), le build à soumettre.*
+12. [x] **Valider, envoyer**, attendre le traitement (§11.5). *555 `VALID` ; 560 `VALID` ; 565 `VALID` (2026-10-12) ; 569 `VALID` (2026-10-13, 0.0.1) ; **577 `VALID`** (2026-10-13), le plus récent.*
 13. [ ] **TestFlight interne** et toutes les cases du §11.6. *Groupe et
        invitation faits le 2026-10-10 ; les vérifications sur l'appareil
        restent au propriétaire.*
-14. [x] **Symboles Sentry** (§12.2). *Dart et natifs, builds 555, 560, 565 et 569.*
+14. [x] **Symboles Sentry** (§12.2). *Dart et natifs, builds 555, 560, 565, 569 et 577.*
 15. [x] **Captures** sur le salon démo — *8 captures légendées, 1206 × 2622 (obligatoire) et 1320 × 2868, faites le 2026-10-13 ([pro-app-store-screenshots.md](pro-app-store-screenshots.md)) ; reste à les téléverser dans App Store Connect.*
 16. [ ] **Remplir App Store Connect** : informations sur l'app (§3, §5, §6,
        §9), tarifs et disponibilité — Côte d'Ivoire seule, Mac et Vision Pro
@@ -1227,6 +1248,61 @@ numéros).*
 21. [ ] Après approbation : **ne pas publier** avant que [LAUNCH.md](../LAUNCH.md)
        §3 le permette (production rétablie et stable) — la publication est
        manuelle (§9).
+
+### 13.1 Ce qu'App Store Connect contient au 2026-10-13 — et ce qu'il reste à y écrire
+
+Lu par l'API, **en lecture seule**, le 2026-10-13 (aucune écriture ; aucun
+secret ni coordonnée affiché). La fiche est une coquille : le nom, la
+classification d'âge, le prix et la disponibilité sont posés, presque tout le
+reste est vide. « API » : l'assistant peut l'écrire, avec l'accord du
+propriétaire. « Site » : seulement dans le site App Store Connect.
+« Propriétaire » : un secret, une déclaration ou un geste que lui seul fait.
+
+| Champ | Aujourd'hui | Cible | Par |
+|---|---|---|---|
+| Nom | « MyWeli Pro » | à décider : le garder, ou « MyWeli Pro — Gestion de salon » (§3) | décision |
+| Sous-titre | vide | `Agenda, clients, réservations` (§4) | API |
+| URL de la politique de confidentialité | vide | `https://myweli.com/politique-confidentialite` (en ligne, 200) | API |
+| Catégories | vides | Business, puis Productivity (§5) | API |
+| Droits sur le contenu | vide | « Oui… et j'ai les droits » (§9) | propriétaire (c'est une déclaration), puis API |
+| Classification d'âge | remplie, 4+, conforme au §6 | — | fait |
+| Prix, disponibilité | gratuit, Côte d'Ivoire seule | — | fait — à relire dans le site : l'API affiche `CANNOT_SELL` sur les 175 pays, sens inconnu avant une première sortie |
+| Confidentialité de l'app (l'étiquette) | illisible par l'API | les réponses du §7, puis « Publier » | propriétaire, site |
+| Captures 1206 × 2622 et 1320 × 2868 | aucun jeu | les 8 de `build/app-store/pro/` | API, après la validation du propriétaire |
+| Texte promotionnel, description, mots-clés | vides | §4 | API |
+| URL d'assistance | vide | `https://myweli.com/support` (en ligne) | API |
+| URL marketing (facultative) | vide | `https://myweli.com` — ou vide | décision |
+| Copyright | vide | §3 | API |
+| Publication de la version | **après approbation** | **manuelle** (§9) | API — **à corriger avant de soumettre** : telle quelle, une approbation publierait l'app aussitôt |
+| Informations pour la revue | n'existent pas | connexion requise, identifiant démo, notes du §8 | API pour l'identifiant et les notes ; **mot de passe démo et coordonnées de contact : propriétaire** |
+| Build rattaché | aucun | le build retenu (0.0.1) | API |
+| « Soumettre pour la revue » | — | — | propriétaire |
+
+**Trois décisions touchent le binaire ou le serveur, donc le build à
+soumettre** (aucune n'est prise) :
+
+1. **La langue.** App Store Connect lit les builds 569 et 577 comme
+   *anglais* : `CFBundleDevelopmentRegion` vaut `en` et le paquet ne contient
+   que `Base.lproj`, bien que `CFBundleLocalizations` dise `fr`. La fiche
+   afficherait « Langues : anglais » pour une app en français. Le corriger
+   demande un changement du projet Xcode et un nouveau build ; l'effet ne se
+   lit qu'après l'envoi (§14 le croyait « sans effet visible »).
+2. **Le paysage.** `Info.plist` autorise les deux orientations paysage sur
+   iPhone ; rien n'y a jamais été essayé. Verrouiller en portrait, ou
+   accepter des écrans serrés si le relecteur tourne le téléphone.
+3. **La suppression du compte démo.** L'app propose la suppression de compte
+   (exigée par 5.1.1(v)) ; seuls des rendez-vous à venir la bloquent. Un
+   relecteur qui l'essaie sur le compte partagé le détruit. Un refus côté
+   serveur pour l'identité démo est un changement backend et un déploiement
+   en production.
+
+**Restent aussi au propriétaire** : les réponses à confirmer pour l'étiquette
+de confidentialité ; les notes du §8 (telles quelles — ce sont celles sous
+lesquelles la revue bêta a approuvé le 569 — ou amendées) ; la boîte
+`support@myweli.com`, seul contact de la page d'assistance, à confirmer
+comme lue ; la politique de confidentialité, qui ne nomme Cloudflare que
+pour le stockage alors que l'API passe par lui depuis le 2026-10-07 ; les
+vérifications sur l'iPhone du §11.6 sur le build retenu.
 
 ---
 

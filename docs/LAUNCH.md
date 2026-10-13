@@ -1105,13 +1105,27 @@ checking rather than assuming:
 > validated (Apple accepts 0.0.1 after the 1.0.0 builds — nothing was ever
 > published), uploaded, `VALID`; the only build in « Équipe MyWeli »; added to
 > « Testeurs externes » and **submitted for beta review**; symbols in Sentry,
-> read back. **569 is the build to submit.** The App Store Connect version
+> read back. ~~569 is the build to submit~~ — see 577 below. The App Store Connect version
 > page was renamed « 1.0 » → « 0.0.1 » the same day (owner's go; read back
 > through the API, no build attached yet). The screenshot set was redone on
 > 569: the Aperçu on the salon header at position 2, the booking form and the
 > client card reshot. Still open: the device checks of app-store-forms.md
 > §11.6 on 569, the push test (postponed by the owner), the owner's sign-off
 > on the screenshots and their upload, the rest of the version page.
+>
+> **2026-10-13 (afternoon) — build 577 replaces 569.** From `main` at
+> `d2fb12c6` (#577–#582): an amount no longer breaks inside its number (the
+> Pro client card, the Pro home and the consumer visit summary choose their
+> shape by measuring), one space before « FCFA », a client's number on one
+> line, and on the consumer side the review count after a resend. IPA
+> re-read, validated, uploaded, `VALID`; the only build in « Équipe MyWeli »;
+> in « Testeurs externes » and available there at once (Apple had approved
+> the 0.0.1 beta review on 569 the same day); symbols in Sentry, read back.
+> **577 is the newest build, not yet « the build to submit »**: App Store
+> Connect was read field by field (app-store-forms.md §13.1) — the listing is
+> a shell, release is still set to « after approval », and three decisions
+> touch the binary or the server (the language App Store Connect reads, as
+> English today; landscape; deletion of the shared demo account).
 
 - [ ] Everything in [mobile-store-submission.md](design/mobile-store-submission.md) §5.
       Two of its claims are **stale as of 2026-08-18** and must be corrected
