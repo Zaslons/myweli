@@ -16,6 +16,7 @@ import '../../models/provider.dart' as models;
 import '../../providers/auth_provider.dart';
 import '../../providers/favorites_provider.dart';
 import '../../providers/provider_provider.dart';
+import '../../widgets/common/app_rating.dart';
 import '../../widgets/common/app_snack_bar.dart';
 import '../../widgets/common/carto_basemap_layer.dart';
 import '../../widgets/common/consumer_bottom_nav.dart';
@@ -243,28 +244,10 @@ class _MapScreenState extends State<MapScreen> {
                               overflow: TextOverflow.ellipsis,
                             ),
                             const SizedBox(height: AppTheme.spacingXS),
-                            Row(
-                              children: [
-                                const Icon(
-                                  Icons.star,
-                                  size: AppTheme.iconXS,
-                                  color: AppColors.starRating,
-                                ),
-                                const SizedBox(width: AppTheme.spacingXS),
-                                Text(
-                                  p.rating.toStringAsFixed(1),
-                                  style: AppTextStyles.bodySmall.copyWith(
-                                    color: AppColors.textSecondary,
-                                  ),
-                                ),
-                                const SizedBox(width: AppTheme.spacingS),
-                                Text(
-                                  '(${p.reviewCount})',
-                                  style: AppTextStyles.bodySmall.copyWith(
-                                    color: AppColors.textTertiary,
-                                  ),
-                                ),
-                              ],
+                            AppRating(
+                              rating: p.rating,
+                              reviewCount: p.reviewCount,
+                              size: AppRatingSize.compact,
                             ),
                             const SizedBox(height: AppTheme.spacingXS),
                             Text(

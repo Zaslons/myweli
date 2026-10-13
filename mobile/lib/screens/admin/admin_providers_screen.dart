@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
+import '../../core/utils/formatters.dart';
 import '../../providers/admin/admin_providers_provider.dart';
 import '../../widgets/common/app_button.dart';
 import '../../widgets/common/app_snack_bar.dart';
@@ -131,7 +132,11 @@ class _AdminProvidersScreenState extends State<AdminProvidersScreen> {
                         ),
                       ),
                       Text(
-                        (r['rating'] as num?)?.toStringAsFixed(1) ?? '—',
+                        r['rating'] is num
+                            ? Formatters.formatRating(
+                                (r['rating'] as num).toDouble(),
+                              )
+                            : '—',
                         style: AppTextStyles.bodyMedium.copyWith(
                           color: AppColors.textSecondary,
                         ),

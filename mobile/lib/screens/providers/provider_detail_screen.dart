@@ -20,6 +20,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/favorites_provider.dart';
 import '../../providers/provider_provider.dart';
 import '../../widgets/booking/compact_appointment_tile.dart';
+import '../../widgets/common/app_rating.dart';
 import '../../widgets/common/app_snack_bar.dart';
 import '../../widgets/common/confirm_dialog.dart';
 import '../../widgets/common/loading_indicator.dart';
@@ -501,161 +502,130 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Section: Vos rendez-vous ici
-                      _SectionCard(
-                        title: 'Vos rendez-vous ici',
-                        trailing: widget.preview
-                            ? null
-                            : TextButton(
+                      // Section: Vos rendez-vous ici — rendered ONLY for a
+                      // signed-in client with visits at this salon, the web's
+                      // `SalonVisitsCard` rule (parity 2.7). It used to show a
+                      // sign-in prompt to everyone, and the owner « Aperçu »
+                      // copied it (docs/design/salon-rating-new-and-visits-card.md
+                      // §2.3). No spinner: an optional card waits for its data.
+                      if (!widget.preview)
+                        Consumer2<AuthProvider, AppointmentProvider>(
+                          builder: (context, authProvider, appointmentProvider, _) {
+                            if (!authProvider.isAuthenticated) {
+                              return const SizedBox.shrink();
+                            }
+                            final atThisSalon =
+                                appointmentProvider.appointments
+                                    .where(
+                                      (a) => a.providerId == widget.providerId,
+                                    )
+                                    .toList()
+                                  ..sort(
+                                    (a, b) => b.appointmentDate.compareTo(
+                                      a.appointmentDate,
+                                    ),
+                                  );
+                            if (atThisSalon.isEmpty) {
+                              return const SizedBox.shrink();
+                            }
+                            final top = atThisSalon.take(5).toList();
+                            // At most 5 tiles — nothing to virtualise. The
+                            // bound was the constant 100, and the tile with
+                            // a hint measures 120 at 1× and 216 at 200%: it
+                            // was clipping ALREADY, at the default scale.
+                            // Growth is super-linear (the title wraps), so
+                            // no computed bound is safe — an intrinsic strip
+                            // needs none (§13.3).
+                            return _SectionCard(
+                              title: 'Vos rendez-vous ici',
+                              trailing: TextButton(
                                 onPressed: () => context.push('/bookings'),
                                 child: const Text('Voir tout'),
                               ),
-                        child: widget.preview
-                            // The logged-out client rendering, verbatim — no
-                            // consumer providers exist in the pro app.
-                            ? Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: AppTheme.spacingS,
-                                ),
-                                child: Text(
-                                  'Connectez-vous pour voir vos rendez-vous.',
-                                  style: AppTextStyles.bodySmall.copyWith(
-                                    color: AppColors.textTertiary,
+                              child: SingleChildScrollView(
+                                scrollDirection: Axis.horizontal,
+                                child: IntrinsicHeight(
+                                  child: Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.stretch,
+                                    children: [
+                                      for (final (i, a) in top.indexed) ...[
+                                        if (i > 0)
+                                          const SizedBox(
+                                            width: AppTheme.spacingS,
+                                          ),
+                                        Builder(
+                                          builder: (context) {
+                                            final w = MediaQuery.of(
+                                              context,
+                                            ).size.width;
+                                            final cardWidth = (w * 0.75).clamp(
+                                              260.0,
+                                              340.0,
+                                            );
+                                            final isPast =
+                                                a.status ==
+                                                    AppointmentStatus
+                                                        .completed ||
+                                                a.status ==
+                                                    AppointmentStatus
+                                                        .cancelled ||
+                                                a.appointmentDate.isBefore(
+                                                  AppClock.now(),
+                                                );
+                                            return SizedBox(
+                                              width: cardWidth,
+                                              child: CompactAppointmentTile(
+                                                appointment: a,
+                                                providerName: p.name,
+                                                providerImageUrl:
+                                                    p.imageUrls.isNotEmpty
+                                                    ? p.imageUrls.first
+                                                    : null,
+                                                hint: isPast
+                                                    ? 'Réserver à nouveau'
+                                                    : null,
+                                                onTap: () {
+                                                  if (isPast) {
+                                                    // Past appointment → rebook the same
+                                                    // services/stylist.
+                                                    final uri = Uri(
+                                                      path: '/booking',
+                                                      queryParameters: {
+                                                        'providerId':
+                                                            widget.providerId,
+                                                        if (a
+                                                            .serviceIds
+                                                            .isNotEmpty)
+                                                          'serviceIds': a
+                                                              .serviceIds
+                                                              .join(','),
+                                                        if (a.artistId != null)
+                                                          'artistId':
+                                                              a.artistId!,
+                                                      },
+                                                    );
+                                                    context.push(
+                                                      uri.toString(),
+                                                    );
+                                                  } else {
+                                                    context.push(
+                                                      '/appointment/${a.id}',
+                                                    );
+                                                  }
+                                                },
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                      ],
+                                    ],
                                   ),
                                 ),
-                              )
-                            : Consumer2<AuthProvider, AppointmentProvider>(
-                                builder: (context, authProvider, appointmentProvider, _) {
-                                  if (!authProvider.isAuthenticated) {
-                                    return Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: AppTheme.spacingS,
-                                      ),
-                                      child: Text(
-                                        'Connectez-vous pour voir vos rendez-vous.',
-                                        style: AppTextStyles.bodySmall.copyWith(
-                                          color: AppColors.textTertiary,
-                                        ),
-                                      ),
-                                    );
-                                  }
-                                  final atThisSalon =
-                                      appointmentProvider.appointments
-                                          .where(
-                                            (a) =>
-                                                a.providerId ==
-                                                widget.providerId,
-                                          )
-                                          .toList()
-                                        ..sort(
-                                          (a, b) => b.appointmentDate.compareTo(
-                                            a.appointmentDate,
-                                          ),
-                                        );
-                                  if (atThisSalon.isEmpty) {
-                                    return Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: AppTheme.spacingS,
-                                      ),
-                                      child: Text(
-                                        'Aucun rendez-vous dans ce salon.',
-                                        style: AppTextStyles.bodySmall.copyWith(
-                                          color: AppColors.textTertiary,
-                                        ),
-                                      ),
-                                    );
-                                  }
-                                  final top = atThisSalon.take(5).toList();
-                                  // At most 5 tiles — nothing to virtualise. The
-                                  // bound was the constant 100, and the tile with
-                                  // a hint measures 120 at 1× and 216 at 200%: it
-                                  // was clipping ALREADY, at the default scale.
-                                  // Growth is super-linear (the title wraps), so
-                                  // no computed bound is safe — an intrinsic strip
-                                  // needs none (§13.3).
-                                  return SingleChildScrollView(
-                                    scrollDirection: Axis.horizontal,
-                                    child: IntrinsicHeight(
-                                      child: Row(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.stretch,
-                                        children: [
-                                          for (final (i, a) in top.indexed) ...[
-                                            if (i > 0)
-                                              const SizedBox(
-                                                width: AppTheme.spacingS,
-                                              ),
-                                            Builder(
-                                              builder: (context) {
-                                                final w = MediaQuery.of(
-                                                  context,
-                                                ).size.width;
-                                                final cardWidth = (w * 0.75)
-                                                    .clamp(260.0, 340.0);
-                                                final isPast =
-                                                    a.status ==
-                                                        AppointmentStatus
-                                                            .completed ||
-                                                    a.status ==
-                                                        AppointmentStatus
-                                                            .cancelled ||
-                                                    a.appointmentDate.isBefore(
-                                                      AppClock.now(),
-                                                    );
-                                                return SizedBox(
-                                                  width: cardWidth,
-                                                  child: CompactAppointmentTile(
-                                                    appointment: a,
-                                                    providerName: p.name,
-                                                    providerImageUrl:
-                                                        p.imageUrls.isNotEmpty
-                                                        ? p.imageUrls.first
-                                                        : null,
-                                                    hint: isPast
-                                                        ? 'Réserver à nouveau'
-                                                        : null,
-                                                    onTap: () {
-                                                      if (isPast) {
-                                                        // Past appointment → rebook the same
-                                                        // services/stylist.
-                                                        final uri = Uri(
-                                                          path: '/booking',
-                                                          queryParameters: {
-                                                            'providerId': widget
-                                                                .providerId,
-                                                            if (a
-                                                                .serviceIds
-                                                                .isNotEmpty)
-                                                              'serviceIds': a
-                                                                  .serviceIds
-                                                                  .join(','),
-                                                            if (a.artistId !=
-                                                                null)
-                                                              'artistId':
-                                                                  a.artistId!,
-                                                          },
-                                                        );
-                                                        context.push(
-                                                          uri.toString(),
-                                                        );
-                                                      } else {
-                                                        context.push(
-                                                          '/appointment/${a.id}',
-                                                        );
-                                                      }
-                                                    },
-                                                  ),
-                                                );
-                                              },
-                                            ),
-                                          ],
-                                        ],
-                                      ),
-                                    ),
-                                  );
-                                },
                               ),
-                      ),
+                            );
+                          },
+                        ),
 
                       // Section: Services (expandable)
                       _SectionCard(
@@ -1039,33 +1009,22 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Row(
-                              children: [
-                                const Icon(
-                                  Icons.star,
-                                  size: AppTheme.iconL,
-                                  color: AppColors.starRating,
-                                ),
-                                const SizedBox(width: AppTheme.spacingSM),
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      p.rating.toStringAsFixed(1),
-                                      style: AppTextStyles.titleLarge.copyWith(
-                                        color: AppColors.textPrimary,
-                                      ),
-                                    ),
-                                    Text(
-                                      '${p.reviewCount} avis',
-                                      style: AppTextStyles.bodySmall.copyWith(
-                                        color: AppColors.textTertiary,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
+                            AppRating(
+                              rating: p.rating,
+                              reviewCount: p.reviewCount,
+                              size: AppRatingSize.large,
                             ),
+                            // §2.2: at 0 reviews the pill alone says « new »;
+                            // this line says what the section would hold.
+                            if (p.reviewCount == 0) ...[
+                              const SizedBox(height: AppTheme.spacingS),
+                              Text(
+                                'Pas encore d’avis.',
+                                style: AppTextStyles.bodySmall.copyWith(
+                                  color: AppColors.textTertiary,
+                                ),
+                              ),
+                            ],
                             if (p.reviews.isNotEmpty) ...[
                               const SizedBox(height: AppTheme.spacingM),
                               ...p.reviews
@@ -1866,28 +1825,14 @@ class _SalonIdentity extends StatelessWidget {
           ],
         ),
         const SizedBox(height: AppTheme.spacingXS),
-        Row(
-          children: [
-            const Icon(
-              Icons.star,
-              size: AppTheme.iconXS,
-              color: AppColors.starRating,
-            ),
-            const SizedBox(width: AppTheme.spacingXS),
-            Text(
-              salon.rating.toStringAsFixed(1),
-              style: AppTextStyles.bodySmall.copyWith(
-                color: AppColors.textSecondary,
-              ),
-            ),
-            const SizedBox(width: AppTheme.spacingS),
-            Text(
-              '${salon.reviewCount} avis',
-              style: AppTextStyles.bodySmall.copyWith(
-                color: AppColors.textTertiary,
-              ),
-            ),
-          ],
+        // « Nouveau » at 0 reviews, never « ★ 0.0 · 0 avis »
+        // (docs/design/salon-rating-new-and-visits-card.md §2.1).
+        Align(
+          alignment: AlignmentDirectional.centerStart,
+          child: AppRating(
+            rating: salon.rating,
+            reviewCount: salon.reviewCount,
+          ),
         ),
       ],
     );

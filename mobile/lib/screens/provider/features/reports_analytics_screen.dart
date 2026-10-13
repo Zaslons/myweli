@@ -4,6 +4,7 @@ import '../../../core/config/feature_flags.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
+import '../../../core/utils/formatters.dart';
 import '../../../widgets/common/coming_soon_scaffold.dart';
 
 class ReportsAnalyticsScreen extends StatelessWidget {
@@ -329,7 +330,7 @@ class _EmployeeStatCard extends StatelessWidget {
                     const Icon(Icons.star, size: 14, color: Colors.amber),
                     const SizedBox(width: 4),
                     Text(
-                      rating.toStringAsFixed(1),
+                      Formatters.formatRating(rating),
                       style: AppTextStyles.bodySmall.copyWith(
                         color: AppColors.textSecondary,
                       ),

@@ -92,15 +92,36 @@ void main() {
       );
       expect(btn.onPressed, isNull);
 
-      // Consumer-session UI is absent: no favorite heart, and the
-      // rendez-vous section shows the logged-out copy.
+      // Consumer-session UI is absent: no favorite heart, and no
+      // « Vos rendez-vous ici » at all — a signed-out client sees none, so
+      // neither does the owner's preview. It used to show the sign-in
+      // prompt (docs/design/salon-rating-new-and-visits-card.md §2.3).
       expect(find.byIcon(Icons.favorite_border), findsNothing);
+      expect(find.text('Vos rendez-vous ici'), findsNothing);
       expect(
         find.text('Connectez-vous pour voir vos rendez-vous.'),
-        findsOneWidget,
+        findsNothing,
       );
     },
   );
+
+  /// The App Store screenshot that could not be taken (2026-10-12): a new
+  /// salon's page read « ★ 0.0 · 0 avis » under its name.
+  testWidgets('a salon with no review reads « Nouveau », never « 0.0 »', (
+    tester,
+  ) async {
+    final fresh = MockData.providers
+        .firstWhere((p) => p.id == 'provider1')
+        .copyWith(rating: 0, reviewCount: 0, reviews: const []);
+    await tester.pumpWidget(wrap(salon: fresh));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Nouveau'), findsWidgets);
+    expect(find.text('Pas encore d’avis.'), findsOneWidget);
+    expect(find.textContaining('0.0'), findsNothing);
+    expect(find.textContaining('0,0'), findsNothing);
+    expect(find.text('0 avis'), findsNothing);
+  });
 
   /// The owner's complaint, held where it happened: « Aperçu » showed no
   /// cover where the website does (docs/design/salon-cover-photo.md §1). The
