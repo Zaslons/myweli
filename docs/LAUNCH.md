@@ -1141,10 +1141,11 @@ checking rather than assuming:
 > demo username, the notes in force) and the **16 approved screenshots**
 > (app-store-forms.md §13.1). **Left to the owner, on the site**: the App
 > Privacy label, the content-rights declaration, the demo password and
-> contact details. **Open**: the demo account's deletion lock is built and
-> reviewed, not merged and not deployed (Zaslons/myweli#585 — production
-> still deletes that account today); the App Preview video is a proposal
-> awaiting sign-off (design/pro-app-preview.md); the device checks on 579.
+> contact details. **Open**: the demo account's deletion lock is merged
+> (#585) and **not deployed** — production still deletes that account today;
+> the App Preview video is approved by the owner and not yet produced
+> (design/pro-app-preview.md) — its second decision, fixing « Ma journée »
+> first, means one more build after 579; the device checks.
 
 - [ ] Everything in [mobile-store-submission.md](design/mobile-store-submission.md) §5.
       Two of its claims are **stale as of 2026-08-18** and must be corrected

@@ -763,8 +763,8 @@ d'Apple ; une demande de pièce complémentaire arriverait par e-mail.
 > **2026-10-13, soir : validées par le propriétaire et téléversées** (§13.1).
 > Et la dernière phrase de cet ancien plan — « aperçus vidéo : facultatifs,
 > non prévus » — ne tient plus : le propriétaire en veut un, placé avant les
-> captures. La proposition, à valider avant toute production :
-> [pro-app-preview.md](pro-app-preview.md).
+> captures. Le film recommandé est **validé par le propriétaire le
+> 2026-10-13** : [pro-app-preview.md](pro-app-preview.md).
 
 ~~L'app est iPhone uniquement (§1.2) : **aucun jeu iPad**. Un seul jeu, **6,9
 pouces**, portrait, **1320 × 2868** (ou 1290 × 2796 ; 1260 × 2736 est aussi
@@ -1116,8 +1116,9 @@ restent à faire sur ce build, et une décision ouverte peut demander un build
 de plus (le rafraîchissement de « Ma journée » après une réservation au
 comptoir, [pro-app-preview.md](pro-app-preview.md) §9). Le refus de
 suppression du compte démo, lui, n'en demande pas : l'app affiche déjà la
-phrase, il ne manque que le serveur (Zaslons/myweli#585 — construit et
-relu, ni fusionné ni déployé : **la production supprime encore ce compte
+phrase, il ne manque que le serveur
+([demo-account-deletion-lock.md](demo-account-deletion-lock.md) — fusionné le
+2026-10-13 (#585), **pas déployé : la production supprime encore ce compte
 aujourd'hui**).
 
 Syntaxe relue dans l'aide de l'`altool` local (version 27.0.5) :
@@ -1431,7 +1432,7 @@ fait ; « site » : seulement dans le site App Store Connect.
 | Publication de la version | **après approbation** | **manuelle** (`MANUAL`) | — |
 | Informations pour la revue | n'existaient pas | créées : connexion requise, identifiant `revue@myweli.test`, **les notes en vigueur du §8** (3 476 octets) | **propriétaire** : le mot de passe démo et les coordonnées de contact — vides, et l'assistant ne les écrit pas |
 | Build rattaché | aucun | **579** (0.0.1), lu comme français (§11.5) | les vérifications sur l'iPhone (§11.6) |
-| Aperçu vidéo (facultatif) | aucun | aucun | **décision** — une proposition attend la validation du propriétaire ([pro-app-preview.md](pro-app-preview.md)) ; pour une première version, il part dans la même soumission |
+| Aperçu vidéo (facultatif) | aucun | aucun | **validé par le propriétaire le 2026-10-13** (le film recommandé et ses quatre décisions — [pro-app-preview.md](pro-app-preview.md)) ; à produire, puis à lui montrer avant tout envoi ; pour une première version, il part dans la même soumission |
 | « Soumettre pour la revue » | — | — | propriétaire |
 
 **Les captures, vues par les deux API.** Elles ont été envoyées par les

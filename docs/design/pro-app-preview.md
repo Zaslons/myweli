@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Proposal — awaiting the owner's sign-off (2026-10-13).** Nothing is recorded, composed or uploaded. Four decisions are open (§9). |
+| **Status** | **Approved by the owner on 2026-10-13** — the recommended film « in a style that follows MyWeli's », and the four decisions of §9: yes to all, as recommended. **Nothing is recorded, composed or uploaded yet.** Order of work: fix « Ma journée » (decision 2), build, then film that build; the owner watches the film before any upload. |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-10-13 |
 | **PRD ref / phase** | Launch — store submission · V1 |
@@ -171,7 +171,7 @@ d'Ivoire storefront.
 **On the day**: an iOS keyboard rising over the form, the 30-minute service in
 an exactly 30-minute gap, the date of the shoot visible in the form.
 
-## 9. Decisions for the owner
+## 9. Decisions for the owner — all four taken on 2026-10-13: yes, as recommended
 
 1. **Stage the day and write to « Maison Nala » in production?** Five staged
    bookings; per take, one « Arrivé » and one booking.
