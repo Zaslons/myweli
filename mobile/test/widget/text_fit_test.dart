@@ -106,8 +106,11 @@ void main() {
       final r = await drawAndMeasure(tester, amount, AppTextStyles.titleMedium);
       expect(r.measured, closeTo(r.drawn, 0.01));
       // …and it is the real face, not the test placeholder (every glyph a
-      // square of the font size would make this 112dp).
-      expect(r.drawn, closeTo(58.9, 0.5));
+      // square of the font size would make this 112dp). A RANGE, not the
+      // number: Roboto has no glyph for U+202F, so each platform draws the
+      // grouping space at its own fallback width — « 180 000 » is 58.9dp on
+      // macOS and 57.6 on the Linux runner, where an exact figure failed CI.
+      expect(r.drawn, inExclusiveRange(50, 70));
     });
 
     testWidgets('at a larger text size', (tester) async {

@@ -193,7 +193,8 @@ Every guard is watched failing on today's code before the fix lands
 
 ### 8.1 What was observed, steps 1–3 (2026-10-13)
 
-- **The engine, read rather than computed** (titleMedium, real fonts):
+- **The engine, read rather than computed** (titleMedium, real fonts, on
+  macOS — see the last point of this list for Linux):
   « 180 000 » is 58.9 dp and « 1 250 000 » 71.5; in a 60 dp box the first is
   drawn whole with its unit on the next line, in 56 dp it is « 180 00 » /
   « 0 FCFA ». A no-break space left at the end of a token hangs past the edge
@@ -218,6 +219,14 @@ Every guard is watched failing on today's code before the fix lands
   outgrows a quarter tile there, which is what the old constant had measured.
 - **Goldens:** six moved with the price string, each compared old against
   new (only the gap narrows); none moved with the layouts — 51 byte-identical.
+- **The same string is not the same width everywhere — CI said so.** The
+  first full CI run of the layouts failed one test of mine, and only one
+  (1961 passed): it expected « 180 000 » at 58.9 dp, and the Linux runner
+  draws it at 57.6. The test font has no glyph for U+202F, so each platform
+  substitutes its own width for the grouping space. The assertion is now a
+  range (it only ever meant « the real face, not the placeholder »). It is
+  also the plainest argument for this slice: a width written down on one
+  machine is wrong on the next, so the layout asks at run time.
 
 **What tests cannot show:** they run as Android with Roboto at 360–430 dp;
 the store frames are shot on an iPhone 17 Pro simulator at 402 pt in SF Pro.
