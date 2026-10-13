@@ -478,6 +478,9 @@ class Keys(unittest.TestCase):
         diffs = {pairs[0]: BLINK(300), pairs[1]: BLINK(334)}
         edit.check(e, scan, log, sb, diffs)
         self.assertEqual(edit.pair_kind(BLINK(300), tm, pairs[0][1]), "caret")
+        # …a corner of it too: in its column, it needs no other proof
+        corner = {"soft": 464, "strong": 4, "max": 200, "box": [334, 769, 337, 772]}
+        edit.check(e, scan, log, sb, {pairs[0]: corner, pairs[1]: BLINK(334)})
         # …but the two sides of a cut may not differ by a letter
         with self.assertRaises(Refusal) as cm:
             edit.check(e, scan, log, sb, {pairs[0]: KEY(334), pairs[1]: BLINK(334)})
@@ -651,10 +654,12 @@ class Follow(unittest.TestCase):
 
     def test_a_logged_touch_down_wins_over_the_picture(self):
         scan, log, sb = fixture()
-        log["gestures"][1]["down_s"] = 9.9
-        frames = [[6000, 20.0], [6010, 30.0]]
-        drag = edit.locate(scan, log, sb, tracks={"drag-b": self.track(frames)}).gestures[1]
-        self.assertEqual((drag.down, drag.how), (5940, "timed by the log's own `down_s`"))
+        track = {"axis": "y", "sign": -1, "frames": [[6000, 20.0], [6010, 30.0]], "turn": None}
+        followed = edit.locate(scan, log, sb, tracks={"drag-b": track}).gestures[1]
+        self.assertEqual((followed.down, followed.step), (5940, [6000, 6010]))      # the picture can be followed…
+        log["gestures"][1]["down_s"] = 9.95
+        drag = edit.locate(scan, log, sb, tracks={"drag-b": track}).gestures[1]
+        self.assertEqual((drag.down, drag.step, drag.how), (5970, None, "timed by the log's own `down_s`"))
 
 
 class Variants(unittest.TestCase):
