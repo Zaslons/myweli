@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/core/theme/app_theme.dart';
+import 'package:myweli/core/utils/app_clock.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/salon_client.dart';
 import 'package:myweli/providers/pro_auth_provider.dart';
@@ -65,8 +66,18 @@ class _SwitchableClients extends MockProClientsService {
         const SalonClientsPage(items: [], page: 1, total: 0),
       );
     }
+    final only = justVisited;
+    if (only != null) {
+      return ApiResponse.success(
+        SalonClientsPage(items: only, page: 1, total: only.length),
+      );
+    }
     return super.listClients(providerId, query: query, tag: tag, page: page);
   }
+
+  /// When set, the whole list — clients whose last visit is a moment or a
+  /// day ago (the mock's are days back, and those read as dates).
+  List<SalonClient>? justVisited;
 }
 
 /// Module `clients` C1c (docs/design/clients-c1.md §5): the « Clients » list
@@ -86,6 +97,7 @@ void main() {
   setUp(() {
     clients.empty = false;
     clients.spent = null;
+    clients.justVisited = null;
   });
 
   Widget app({
@@ -142,6 +154,39 @@ void main() {
   }
 
   group('ClientListScreen', () {
+    // docs/design/amounts-that-fit.md §1 — the row writes the relative time
+    // after « dernière », mid-sentence, and `formatRelative` hands back two
+    // phrases with a capital: « dernière À l’instant », « dernière Hier ».
+    testWidgets('« dernière … » reads as one phrase, without a capital', (
+      tester,
+    ) async {
+      final now = AppClock.now();
+      clients.justVisited = [
+        SalonClient(
+          id: 'j1',
+          displayName: 'Aïcha D.',
+          tags: const [],
+          linked: false,
+          visits: 1,
+          lastVisitAt: now.subtract(const Duration(seconds: 20)),
+        ),
+        SalonClient(
+          id: 'j2',
+          displayName: 'Fatou B.',
+          tags: const [],
+          linked: false,
+          visits: 2,
+          lastVisitAt: now.subtract(const Duration(hours: 30)),
+        ),
+      ];
+      await tester.pumpWidget(app());
+      await settle(tester);
+      expect(find.textContaining('dernière à l’instant'), findsOneWidget);
+      expect(find.textContaining('dernière hier'), findsOneWidget);
+      expect(find.textContaining('dernière À'), findsNothing);
+      expect(find.textContaining('dernière Hier'), findsNothing);
+    });
+
     testWidgets('success: seeded clients render with badges', (tester) async {
       await tester.pumpWidget(app());
       await settle(tester);
@@ -393,6 +438,112 @@ void main() {
       await settle(tester);
       expect(find.text('+225 07 00 00 00 01'), findsOneWidget);
       expect(find.text('+2250700000001'), findsNothing);
+    });
+
+    // docs/design/amounts-that-fit.md §11 Q3 (owner: yes) — a phone number
+    // never wraps: when it does not fit beside « Appeler » and « WhatsApp »,
+    // they drop below it. It wrapped between its pairs from 1.1× on 360dp
+    // (145.0dp in 136: « +225 07 00 00 » / « 00 01 »), which SYSTEM.md §13.3
+    // forbids. At the default size it fits (132.2dp) and nothing moves.
+    for (final width in [360.0, 393.0, 430.0]) {
+      for (final scale in [1.0, 1.1, 1.3, 1.5, 2.0]) {
+        testWidgets(
+          'the number is on one line at ${width.toInt()}dp × $scale×',
+          (tester) async {
+            tester.view.physicalSize = Size(width, 2400);
+            tester.view.devicePixelRatio = 1;
+            addTearDown(tester.view.reset);
+            await tester.pumpWidget(
+              app(initial: '/pro/clients/sc1', scale: scale, realFonts: true),
+            );
+            await settle(tester);
+            expect(tester.takeException(), isNull);
+
+            const phone = '+225 07 00 00 00 01';
+            final p = tester.renderObject<RenderParagraph>(
+              find.descendant(
+                of: find.text(phone),
+                matching: find.byType(RichText),
+              ),
+            );
+            final oneLine = TextPainter(
+              text: TextSpan(text: phone, style: p.text.style),
+              textDirection: TextDirection.ltr,
+              textScaler: p.textScaler,
+            )..layout();
+            addTearDown(oneLine.dispose);
+            expect(
+              p.size.height,
+              closeTo(oneLine.height, 0.5),
+              reason:
+                  'the number needs ${oneLine.width.toStringAsFixed(1)}dp and '
+                  'has ${p.size.width.toStringAsFixed(1)} — it wrapped',
+            );
+
+            // The actions stay whole and reachable, beside the number or under
+            // it — never on top of it, never off the card.
+            final number = tester.getRect(find.text(phone));
+            for (final tip in ['Appeler', 'WhatsApp']) {
+              // The IconButton, not its Tooltip: the tooltip's box is the 40dp
+              // visual, the button's is the padded tap target.
+              final action = tester.getRect(
+                find.ancestor(
+                  of: find.byTooltip(tip),
+                  matching: find.byType(IconButton),
+                ),
+              );
+              expect(action.width, greaterThanOrEqualTo(48));
+              expect(action.height, greaterThanOrEqualTo(48));
+              expect(
+                action.left >= number.right - 0.5 ||
+                    action.top >= number.bottom - 0.5,
+                isTrue,
+                reason: '« $tip » overlaps the number',
+              );
+              expect(action.right, lessThanOrEqualTo(width - 32 + 0.5));
+            }
+          },
+        );
+      }
+    }
+
+    // Where the actions are, in words: beside the name while the number
+    // fits, under it when it does not.
+    for (final (scale, beside) in [(1.0, true), (1.3, false)]) {
+      testWidgets(
+        '360dp × $scale×: the actions are ${beside ? 'beside' : 'under'} '
+        'the number',
+        (tester) async {
+          tester.view.physicalSize = const Size(360, 2400);
+          tester.view.devicePixelRatio = 1;
+          addTearDown(tester.view.reset);
+          await tester.pumpWidget(
+            app(initial: '/pro/clients/sc1', scale: scale, realFonts: true),
+          );
+          await settle(tester);
+          final number = tester.getRect(find.text('+225 07 00 00 00 01'));
+          final call = tester.getRect(find.byTooltip('Appeler'));
+          expect(call.top >= number.bottom - 0.5, !beside);
+        },
+      );
+    }
+
+    // At 2× on 360dp the number (264dp) does not fit beside the avatar
+    // either (232): it takes the card's full width, under the name.
+    testWidgets('360dp × 2×: the number has the full width of the card', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(360, 2400);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(
+        app(initial: '/pro/clients/sc1', scale: 2, realFonts: true),
+      );
+      await settle(tester);
+      final number = tester.getRect(find.text('+225 07 00 00 00 01'));
+      final avatar = tester.getRect(find.byType(CircleAvatar).first);
+      expect(number.left, closeTo(avatar.left, 0.5), reason: 'not indented');
+      expect(number.top, greaterThanOrEqualTo(avatar.bottom - 0.5));
     });
 
     testWidgets('« Dernière » is the compact date, never the long form', (

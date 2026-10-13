@@ -131,6 +131,15 @@ class _Header extends StatelessWidget {
   final SalonClient client;
   final VoidCallback onEditTags;
 
+  static const TextStyle _phoneStyle = AppTextStyles.bodyMedium;
+  static const double _avatarRadius = 24;
+
+  /// What the avatar and its gap take from the name-and-number column.
+  static const double _identityIndent = 2 * _avatarRadius + AppTheme.spacingM;
+
+  /// « Appeler » and « WhatsApp »: two minimum tap targets.
+  static const double _actionsWidth = 2 * kMinInteractiveDimension;
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -142,90 +151,132 @@ class _Header extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              CircleAvatar(
-                radius: 24,
-                backgroundColor: AppColors.surfaceVariant,
-                child: Text(
-                  client.displayName.isEmpty
-                      ? '?'
-                      : client.displayName[0].toUpperCase(),
-                  style: AppTextStyles.titleLarge.copyWith(
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-              ),
-              const SizedBox(width: AppTheme.spacingM),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Flexible(
-                          child: Text(
-                            client.displayName,
-                            overflow: TextOverflow.ellipsis,
-                            style: AppTextStyles.titleLarge.copyWith(
-                              color: AppColors.textPrimary,
-                            ),
-                          ),
-                        ),
-                        if (client.linked) ...[
-                          const SizedBox(width: AppTheme.spacingXS),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: AppTheme.spacingS,
-                              vertical: AppTheme.spacingXS,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppColors.surfaceVariant,
-                              borderRadius: BorderRadius.circular(
-                                AppTheme.radiusSmall,
-                              ),
-                            ),
-                            child: Text(
-                              'MyWeli',
-                              style: AppTextStyles.labelSmall.copyWith(
-                                color: AppColors.textTertiary,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                    // In full — the card is where the number lives
-                    // (`maskClientPhone`) — but grouped like every other
-                    // number in the app: « +225 07 00 00 01 01 ».
-                    if (client.phone != null)
-                      Text(
-                        Formatters.formatPhoneNumber(client.phone!),
-                        style: AppTextStyles.bodyMedium.copyWith(
-                          color: AppColors.textSecondary,
-                        ),
+          // **The number never wraps** (docs/design/amounts-that-fit.md §11
+          // Q3, SYSTEM.md §13.3): « Appeler » and « WhatsApp » sit beside it
+          // while it fits on one line there, drop under it when it does not,
+          // and at very large text the number takes the card's full width.
+          // Measured, like the stats strip: it wrapped between its pairs from
+          // 1.1× on 360dp (145dp in 136) under a fixed layout.
+          LayoutBuilder(
+            builder: (context, box) {
+              final phone = client.phone == null
+                  ? null
+                  : Formatters.formatPhoneNumber(client.phone!);
+              final fit = TextFit.of(context);
+              final needs = phone == null
+                  ? 0.0
+                  : fit.lineWidth(phone, _phoneStyle) + TextFit.slack;
+              final beside = box.maxWidth - _identityIndent - _actionsWidth;
+              final alone = box.maxWidth - _identityIndent;
+
+              final number = phone == null
+                  ? null
+                  // In full — the card is where the number lives
+                  // (`maskClientPhone`) — but grouped like every other number
+                  // in the app: « +225 07 00 00 01 01 ».
+                  : Text(
+                      phone,
+                      style: _phoneStyle.copyWith(
+                        color: AppColors.textSecondary,
                       ),
-                  ],
-                ),
-              ),
-              if (client.phone != null) ...[
-                IconButton(
-                  icon: const Icon(Icons.phone),
-                  tooltip: 'Appeler',
-                  onPressed: () => launchUrl(Uri.parse('tel:${client.phone}')),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.chat),
-                  tooltip: 'WhatsApp',
-                  onPressed: () => launchUrl(
-                    Uri.parse(
-                      'https://wa.me/${client.phone!.replaceAll(RegExp(r'[^0-9]'), '')}',
+                    );
+              final actions = [
+                if (client.phone != null) ...[
+                  IconButton(
+                    icon: const Icon(Icons.phone),
+                    tooltip: 'Appeler',
+                    onPressed: () =>
+                        launchUrl(Uri.parse('tel:${client.phone}')),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.chat),
+                    tooltip: 'WhatsApp',
+                    onPressed: () => launchUrl(
+                      Uri.parse(
+                        'https://wa.me/${client.phone!.replaceAll(RegExp(r'[^0-9]'), '')}',
+                      ),
+                      mode: LaunchMode.externalApplication,
                     ),
-                    mode: LaunchMode.externalApplication,
+                  ),
+                ],
+              ];
+              final numberInColumn = needs <= alone;
+              final identity = <Widget>[
+                CircleAvatar(
+                  radius: _avatarRadius,
+                  backgroundColor: AppColors.surfaceVariant,
+                  child: Text(
+                    client.displayName.isEmpty
+                        ? '?'
+                        : client.displayName[0].toUpperCase(),
+                    style: AppTextStyles.titleLarge.copyWith(
+                      color: AppColors.textPrimary,
+                    ),
                   ),
                 ),
-              ],
-            ],
+                const SizedBox(width: AppTheme.spacingM),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              client.displayName,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppTextStyles.titleLarge.copyWith(
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                          ),
+                          if (client.linked) ...[
+                            const SizedBox(width: AppTheme.spacingXS),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: AppTheme.spacingS,
+                                vertical: AppTheme.spacingXS,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppColors.surfaceVariant,
+                                borderRadius: BorderRadius.circular(
+                                  AppTheme.radiusSmall,
+                                ),
+                              ),
+                              child: Text(
+                                'MyWeli',
+                                style: AppTextStyles.labelSmall.copyWith(
+                                  color: AppColors.textTertiary,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                      if (number != null && numberInColumn) number,
+                    ],
+                  ),
+                ),
+              ];
+
+              if (needs <= beside) {
+                return Row(children: [...identity, ...actions]);
+              }
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(children: identity),
+                  if (number != null && !numberInColumn) ...[
+                    const SizedBox(height: AppTheme.spacingXS),
+                    number,
+                  ],
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: actions,
+                  ),
+                ],
+              );
+            },
           ),
           const SizedBox(height: AppTheme.spacingS),
           Wrap(

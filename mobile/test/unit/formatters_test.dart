@@ -156,6 +156,25 @@ void main() {
   });
 
   group('Formatters.formatRelative', () {
+    // Two phrases stand alone with a capital; after other words they do not
+    // (the clients list: « dernière à l’instant », « dernière hier »).
+    test('mid-sentence, « à l’instant » and « hier » lose their capital', () {
+      final now = DateTime(2026, 10, 13, 12);
+      String at(Duration ago, {required bool mid}) => Formatters.formatRelative(
+        now.subtract(ago),
+        now: now,
+        midSentence: mid,
+      );
+      expect(at(const Duration(seconds: 20), mid: true), 'à l’instant');
+      expect(at(const Duration(seconds: 20), mid: false), 'À l’instant');
+      expect(at(const Duration(hours: 30), mid: true), 'hier');
+      expect(at(const Duration(hours: 30), mid: false), 'Hier');
+      // The others never had one.
+      expect(at(const Duration(minutes: 5), mid: true), 'il y a 5 min');
+      expect(at(const Duration(hours: 2), mid: true), 'il y a 2 h');
+      expect(at(const Duration(days: 3), mid: true), 'il y a 3 j');
+    });
+
     final now = DateTime(2024, 6, 24, 12, 0);
 
     test('shows minutes for recent times', () {
