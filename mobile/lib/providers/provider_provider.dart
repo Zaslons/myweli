@@ -1,12 +1,31 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../core/constants/app_constants.dart';
 import '../core/di/dependency_injection.dart';
+import '../core/utils/salon_figures.dart';
 import '../models/provider.dart';
 import '../models/review.dart';
 import '../services/interfaces/image_upload_service_interface.dart';
 import '../services/interfaces/provider_service_interface.dart';
 import '../services/interfaces/review_service_interface.dart';
+
+/// Where else copies of a salon are held, told its new figures.
+///
+/// [ProviderProvider] keeps three copies of a salon — the page's, the list's
+/// and the featured list's — and moves them itself. The favourites are a
+/// FOURTH, in another notifier it cannot reach and must not read: the Pro
+/// app's « Aperçu » runs the salon page with [ProviderProvider] alone. So the
+/// caller that has both in hand — the review sheet — passes
+/// `FavoritesProvider.patchSalonFigures` here.
+typedef SalonFiguresSink =
+    void Function(
+      String providerId, {
+      required double rating,
+      required int reviewCount,
+    });
 
 class ProviderProvider extends ChangeNotifier {
   final ProviderServiceInterface _providerService =
@@ -44,6 +63,16 @@ class ProviderProvider extends ChangeNotifier {
   String? _selectedCommune;
   ProviderSort _sort = ProviderSort.relevance;
   bool _availableToday = false;
+
+  /// The stars each visit was last given from this device, by appointment id
+  /// — what [addReviewLocally] falls back on to tell a visit reviewed AGAIN
+  /// from a first review when no copy at hand lists the earlier one: the list
+  /// rows carry no reviews, and the page embeds the ten newest only.
+  final Map<String, int> _starsByVisit = {};
+
+  /// How many reviews of each salon [addReviewLocally] has applied — the
+  /// stale-answer guard of [rereadSalonAfterReview].
+  final Map<String, int> _reviewsApplied = {};
 
   static const _communeKey = 'myweli_selected_commune_v1';
 
@@ -264,24 +293,141 @@ class ProviderProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Shows a just-submitted review without a reload — and moves the
-  /// denormalized `rating`/`reviewCount` with it, as the backend's
-  /// `recomputeRatings` does on the same write. It used to append the review
-  /// alone, so a salon's FIRST reviewer saw « Nouveau » and « Pas encore
-  /// d’avis. » directly above their own review until the page reloaded
-  /// (docs/design/salon-rating-new-and-visits-card.md §2.2). The average is
-  /// rounded to one decimal like the backend's `_round1`; the next load
-  /// replaces it with the server's figure either way.
-  void addReviewLocally(Review review) {
-    final salon = _selectedProvider;
-    if (salon == null || salon.id != review.providerId) return;
-    final count = salon.reviewCount + 1;
-    final average = (salon.rating * salon.reviewCount + review.rating) / count;
-    _selectedProvider = salon.copyWith(
-      reviews: [...salon.reviews, review],
-      reviewCount: count,
-      rating: (average * 10).round() / 10,
+  /// Shows a just-published review without a reload, on EVERY copy of its
+  /// salon held here — docs/design/amounts-that-fit.md §5 « Reviews ».
+  ///
+  /// **It replaces or adds, keyed on the appointment.** The server keeps one
+  /// review per visit; a visit reviewed again used to count twice here and
+  /// show both tiles. The review `id` cannot be the key: the 201 of a resubmit
+  /// carries a freshly minted one while the stored row keeps its own. An
+  /// EMPTY `appointmentId` (seed data, old payloads) is not a key either —
+  /// such reviews only ever add.
+  ///
+  /// **Newest first**, as the server sends them: the page renders
+  /// `reviews.take(5)`, so a review appended last was invisible on a salon
+  /// that already showed five.
+  ///
+  /// **The same figures on every copy**: the page's when the slot is this
+  /// salon's, and — whoever holds the slot, or nobody — the list's, the
+  /// featured list's and, through [alsoPatch], the favourites'. Only the open
+  /// page used to move, so the map sheet, the home cards and the favourites
+  /// kept « Nouveau » until a reload.
+  ///
+  /// The figures are [figuresAfterReview]'s estimate; it reads nothing.
+  /// [rereadSalonAfterReview] is what fetches the server's.
+  void addReviewLocally(Review review, {SalonFiguresSink? alsoPatch}) {
+    final id = review.providerId;
+    final visit = review.appointmentId;
+    _reviewsApplied[id] = (_reviewsApplied[id] ?? 0) + 1;
+
+    final open = _selectedProvider;
+    final page = open != null && open.id == id ? open : null;
+    // What to count from: the page's copy — the only one that lists reviews
+    // — else the list's, else the featured list's.
+    final base =
+        page ??
+        _providers.where((p) => p.id == id).firstOrNull ??
+        _featuredProviders.where((p) => p.id == id).firstOrNull;
+
+    final int? replacedStars = visit.isEmpty
+        ? null
+        : base?.reviews
+                  .where((r) => r.appointmentId == visit)
+                  .firstOrNull
+                  ?.rating ??
+              _starsByVisit[visit];
+    if (visit.isNotEmpty) _starsByVisit[visit] = review.rating;
+    // No copy of this salon here: nothing to show it on.
+    if (base == null) return;
+
+    final figures = figuresAfterReview(
+      rating: base.rating,
+      reviewCount: base.reviewCount,
+      stars: review.rating,
+      replacedStars: replacedStars,
     );
+    if (page != null) {
+      _selectedProvider = page.copyWith(
+        reviews: [
+          review,
+          for (final r in page.reviews)
+            if (visit.isEmpty || r.appointmentId != visit) r,
+        ],
+        rating: figures.rating,
+        reviewCount: figures.reviewCount,
+      );
+    }
+    _patchFigures(id, figures.rating, figures.reviewCount, alsoPatch);
+    notifyListeners();
+  }
+
+  /// [rating] and [reviewCount] onto the copies of salon [id] outside the
+  /// slot: the list (the map's markers and [providerForMap] read it first),
+  /// the featured list, and whatever [alsoPatch] holds.
+  void _patchFigures(
+    String id,
+    double rating,
+    int reviewCount,
+    SalonFiguresSink? alsoPatch,
+  ) {
+    _providers = withSalonFigures(
+      _providers,
+      id,
+      rating: rating,
+      reviewCount: reviewCount,
+    );
+    _featuredProviders = withSalonFigures(
+      _featuredProviders,
+      id,
+      rating: rating,
+      reviewCount: reviewCount,
+    );
+    alsoPatch?.call(id, rating: rating, reviewCount: reviewCount);
+  }
+
+  /// One read of the salon after a review of it was published, for the
+  /// SERVER's figures: [addReviewLocally] can only estimate them, cannot see
+  /// a review older than the ten the page embeds, and holds the 201's id
+  /// where « Signaler » needs the stored one.
+  ///
+  /// **It only ever improves what is shown.** Not [loadProviderById], which
+  /// blanks the page when its read fails — and this one fails for ordinary
+  /// reasons: offline right after the POST, or a salon that stopped (the
+  /// appointment screen keeps « Donner mon avis » for it, and the public
+  /// route answers 404). So, on anything but an answer inside
+  /// [AppConstants.reviewRereadTimeout]: no change, no error, no loader.
+  ///
+  /// Two answers are stale, and dropped whole:
+  ///  * another salon holds the slot now — [loadProviderById]'s own guard. A
+  ///    page of THIS salon may be covered beneath it, holding the figures of
+  ///    [addReviewLocally]; moving the lists alone would make them disagree.
+  ///  * a later review of this salon was applied while the read was out:
+  ///    this answer is older than what is shown, and that review's own
+  ///    re-read is the one that knows both.
+  ///
+  /// With the slot free (no salon page was opened), the lists and
+  /// [alsoPatch] take the figures and the slot stays free.
+  Future<void> rereadSalonAfterReview(
+    String providerId, {
+    SalonFiguresSink? alsoPatch,
+  }) async {
+    final applied = _reviewsApplied[providerId];
+    Provider? salon;
+    try {
+      final response = await _providerService
+          .getProviderById(providerId)
+          .timeout(AppConstants.reviewRereadTimeout);
+      if (response.success) salon = response.data;
+    } catch (_) {
+      // No connection, a 5xx, the time limit: one and the same « no answer ».
+    }
+    if (salon == null) return;
+    if (_reviewsApplied[providerId] != applied) return;
+    final holder = _selectedProviderId;
+    if (holder != null && holder != providerId) return;
+
+    if (_selectedProvider?.id == providerId) _selectedProvider = salon;
+    _patchFigures(providerId, salon.rating, salon.reviewCount, alsoPatch);
     notifyListeners();
   }
 
@@ -297,15 +443,26 @@ class ProviderProvider extends ChangeNotifier {
     return res.success;
   }
 
-  /// Submits a review through the service, then reflects it locally.
-  Future<bool> submitReview(Review review) async {
+  /// Submits a review through the service, then shows it
+  /// ([addReviewLocally]) and STARTS the re-read of its salon
+  /// ([rereadSalonAfterReview]) — started, not awaited: « Publier » ends on
+  /// the 201, not on a second round trip nothing bounds but that read's own
+  /// time limit. [alsoPatch] goes to both.
+  Future<bool> submitReview(
+    Review review, {
+    SalonFiguresSink? alsoPatch,
+  }) async {
     _isSubmittingReview = true;
     _error = null;
     notifyListeners();
     try {
       final res = await _reviewService.submitReview(review);
-      if (res.success && res.data != null) {
-        addReviewLocally(res.data!);
+      final posted = res.data;
+      if (res.success && posted != null) {
+        addReviewLocally(posted, alsoPatch: alsoPatch);
+        unawaited(
+          rereadSalonAfterReview(posted.providerId, alsoPatch: alsoPatch),
+        );
         return true;
       }
       _error = res.error ?? 'Erreur lors de la publication';

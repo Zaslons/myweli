@@ -32,6 +32,15 @@ class AppConstants {
   static const Duration apiTimeout = Duration(seconds: 30);
   static const Duration mockDelay = Duration(milliseconds: 300);
 
+  /// How long the re-read of a salon that follows a published review may
+  /// take (`ProviderProvider.rereadSalonAfterReview`). Past it the answer is
+  /// dropped and the figures the app worked out stay: nothing waits for this
+  /// read, but an answer landing long after « Publier » would move a page the
+  /// user has been reading since. Ten seconds is a slow 3G round trip with
+  /// room to spare — and its own constant, because [apiTimeout] is read by
+  /// nothing.
+  static const Duration reviewRereadTimeout = Duration(seconds: 10);
+
   // Image Placeholders
   static const String placeholderProviderImage =
       'https://via.placeholder.com/400x300?text=Provider';
