@@ -162,8 +162,10 @@ abstract class ProServiceInterface {
 
   /// Delete the signed-in provider ACCOUNT (audit 11.5 — AUTH-004 for pros).
   /// Self-scoped server-side; future pending/confirmed bookings → the
-  /// `future_bookings` error code (settle the agenda first). The salon is
-  /// unpublished, every session dies.
+  /// `future_bookings` error code (settle the agenda first); the shared App
+  /// Review demo account → `demo_account_locked` (nothing is deleted, the
+  /// session stays valid — docs/design/demo-account-deletion-lock.md). On
+  /// success the salon is unpublished and every session dies.
   Future<ApiResponse<void>> deleteProviderAccount();
 
   /// Take the salon live (docs/design/pro-salon-lifecycle.md): flips the

@@ -10,6 +10,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../core/utils/external_link.dart';
+import '../../../core/utils/team_error_messages.dart';
 import '../../../models/pro_membership.dart';
 import '../../../models/provider_user.dart';
 import '../../../models/team_member.dart';
@@ -419,7 +420,14 @@ class _ProProfileScreenState extends State<ProProfileScreen> {
   }
 
   /// Double-confirm deletion (audit 11.5): warn, call the self-scoped
-  /// DELETE, map `future_bookings`, then sign out.
+  /// DELETE, map the two refusals the user can be told about
+  /// (`future_bookings`, `demo_account_locked`), then sign out.
+  ///
+  /// The entry is offered to EVERY account, the shared App Review demo
+  /// account included: the reviewer has to see that deletion exists. The
+  /// server refuses that one account after the confirmation, and the user
+  /// stays signed in — nothing local is cleared on a refusal.
+  /// Design: docs/design/demo-account-deletion-lock.md §7.1.
   Future<void> _deleteAccount(
     BuildContext context,
     ProAuthProvider authProvider,
@@ -446,10 +454,15 @@ class _ProProfileScreenState extends State<ProProfileScreen> {
     if (!res.success) {
       AppSnackBar.showOn(
         messenger,
-        res.code == 'future_bookings'
-            ? 'Terminez ou annulez vos rendez-vous à venir avant de '
-                  'supprimer votre compte.'
-            : res.error ?? 'La suppression a échoué.',
+        // Keyed on the CODE, never on the service's message: the sentence
+        // must be the same whichever backend answered.
+        switch (res.code) {
+          'future_bookings' =>
+            'Terminez ou annulez vos rendez-vous à venir avant de '
+                'supprimer votre compte.',
+          'demo_account_locked' => demoAccountLockedMessage,
+          _ => res.error ?? 'La suppression a échoué.',
+        },
         kind: SnackKind.error,
       );
       return;
