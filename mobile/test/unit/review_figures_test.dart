@@ -556,6 +556,29 @@ void main() {
       expect(p.selectedProviderId, isNull);
     });
 
+    test('a salon held only as a favourite — no page, in no list — gets no '
+        'estimate: the answer alone moves it', () async {
+      final gate = Completer<ApiResponse<Provider>>();
+      salons.onById = (_) => gate.future;
+      hearts.salons = [before];
+      final favorites = FavoritesProvider();
+      await favorites.loadFavorites('user1');
+      final p = ProviderProvider();
+
+      expect(
+        await p.submitReview(mine, alsoPatch: favorites.patchSalonFigures),
+        isTrue,
+      );
+      // No copy to count from here, so nothing was worked out.
+      expect(favorites.favoriteProviders.single, same(before));
+
+      gate.complete(ApiResponse.success(server));
+      await pumpEventQueue();
+
+      expect(_figures(favorites.favoriteProviders.single), (4.3, 4));
+      expect(p.selectedProvider, isNull);
+    });
+
     test('a second review sent while the first re-read is out: the first '
         'answer, older than what is shown, is dropped', () async {
       final first = Completer<ApiResponse<Provider>>();

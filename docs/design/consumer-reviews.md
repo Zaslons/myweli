@@ -47,11 +47,13 @@ figures out, then asks:
    so does an answer that arrives while **another salon holds the page slot**,
    or after a later review of the same salon was applied.
 
-What step 1 cannot know, and step 2 corrects: the average is rebuilt from the
-stored one-decimal figure, so it can sit 0,1 from the server's; and an earlier
-review of the visit that is neither among the ten embedded reviews nor posted
-in this session is counted as new. The web form does no arithmetic and is
-unchanged.
+What step 1 cannot know, and step 2 corrects when its answer is taken: the
+average is rebuilt from the stored one-decimal figure, so it can sit 0,1 from
+the server's; and an earlier review of the visit that is neither among the ten
+embedded reviews nor posted in this session is counted as new. Step 1 also
+needs a copy to count from — the page's, the list's or the featured list's: a
+salon held only as a favourite moves with step 2 alone. The web form does no
+arithmetic and is unchanged.
 
 ## 3. API & contract
 - **`POST /appointments/{appointmentId}/review`** — **consumer** token. The appointment must belong to the caller (`userId == sub`) and be **`completed`** (→ 403 `forbidden` / `not_completed`). Body: `{ rating:1..5, text, photoUrls? }`. The server derives `providerId`, `artistId`/`artistName`, `serviceName` (from the appointment + the provider's services), `userName` (profile), `verified=true`, `id`, `createdAt`. **One review per appointment** — resubmitting replaces it (upsert on `appointment_id`). → **201** the stored `Review`; recomputes provider + artist ratings.

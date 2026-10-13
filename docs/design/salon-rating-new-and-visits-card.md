@@ -85,7 +85,8 @@ reload, and now moves `rating`/`reviewCount` with it (as the backend's
 `recomputeRatings` does), so the first reviewer never sees « Nouveau » above
 their own review — found by the adversarial review of this slice. The « Donner votre
 avis » invitation for a client with a reviewable visit is unchanged, so the
-first review can still be left from here.
+first review can still be left from here. (The web hides its whole review
+list at 0 and invites from `SalonVisitsCard`; same outcome, different home.)
 
 *Amended 2026-10-13 ([amounts-that-fit.md](amounts-that-fit.md) §5,
 [consumer-reviews.md](consumer-reviews.md) §2).* That local step is an
@@ -94,8 +95,7 @@ visit reviewed again replaces its tile and keeps the count, the review goes
 first in the list, and the same figures are carried onto the list, the
 featured list and the favourites — so the home cards, and the sheet the map
 opens next, leave « Nouveau » with the page. A background re-read of the
-salon then puts the server's figures in their place. (The web hides its whole review
-list at 0 and invites from `SalonVisitsCard`; same outcome, different home.)
+salon then puts the server's figures in their place.
 
 ### 2.3 « Vos rendez-vous ici »
 
