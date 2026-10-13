@@ -11,6 +11,14 @@ class FeatureFlags {
 
   static const bool futureProviderFeatures = false;
 
+  /// The manual-booking « Envoyer la confirmation par SMS » switch — **OFF**.
+  /// The server never reads `sendSmsInvite` and messaging is switched off until
+  /// the company is registered (SMS/WhatsApp are post-launch), so the switch
+  /// promised something that could not happen. While false the form hides it
+  /// and sends `false`; flip it when a MessagingProvider sends the invite
+  /// (docs/design/pro-screenshot-shoot-fixes.md §1.6).
+  static const bool smsInvite = false;
+
   /// Sign in with Apple — **ON**. It shipped dark while there was no Apple
   /// Developer account; there is one now, the Services ID and APNs key are
   /// configured, and the flow is verified end to end on iOS, Android and web.

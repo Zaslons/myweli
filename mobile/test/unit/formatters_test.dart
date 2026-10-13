@@ -206,6 +206,22 @@ void main() {
     });
   });
 
+  // docs/design/pro-screenshot-shoot-fixes.md §2.1 — the client card's
+  // « Dernière » tile: every break BETWEEN words.
+  group('Formatters.formatDateCompact', () {
+    test('« 13 oct. 2026 » — abbreviated month, no weekday', () {
+      expect(
+        Formatters.formatDateCompact(DateTime(2026, 10, 13)),
+        '13 oct. 2026',
+      );
+      expect(Formatters.formatDateCompact(DateTime(2026, 5, 4)), '4 mai 2026');
+      expect(
+        Formatters.formatDateCompact(DateTime(2026, 10, 4)),
+        isNot(contains('dimanche')),
+      );
+    });
+  });
+
   group('Formatters.formatDateShort', () {
     test('« 11/03/2026 » — day first, zero-padded', () {
       // Day-first is the whole point: `03/11/2026` is a different date to a
