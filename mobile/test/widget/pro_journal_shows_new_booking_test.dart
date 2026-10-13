@@ -633,11 +633,15 @@ void main() {
       day().jumpTo(day().pixels + 150);
       await tester.pump();
     }
-    await tester.ensureVisible(gap('17:00'));
+    // Mid-screen, so the booking above the slot is on screen too.
+    await Scrollable.ensureVisible(
+      tester.element(gap('17:00')),
+      alignment: 0.5,
+    );
     await tester.pump();
     final offset = day().pixels;
     expect(offset, greaterThan(0), reason: 'the day really is scrolled');
-    final slotTop = tester.getTopLeft(gap('17:00')).dy;
+    final above = tester.getTopLeft(card('b16')).dy;
     salon.journalGate = Completer<void>();
 
     await tester.tap(gap('17:00'));
@@ -649,12 +653,19 @@ void main() {
     expect(inJournal(find.byType(LoadingIndicator)), findsNothing);
     await formHasLeft(tester);
     expect(day().pixels, offset);
-    // The card sits where the « Libre » row was — nothing above it moved.
-    expect(tester.getTopLeft(card('m1')).dy, closeTo(slotTop, 8));
+    // Nothing above the slot moved, and the card took the slot's place:
+    // right under the 16:00 booking.
+    expect(tester.getTopLeft(card('b16')).dy, above);
+    expect(
+      tester.getTopLeft(card('m1')).dy,
+      greaterThan(tester.getBottomLeft(card('b16')).dy),
+    );
+    expect(gap('17:00'), findsNothing);
 
     salon.journalGate!.complete();
     await settleMocks(tester);
     expect(day().pixels, offset, reason: 'the reload does not move the list');
+    expect(tester.getTopLeft(card('b16')).dy, above);
     expect(card('m1'), findsOneWidget);
   });
 

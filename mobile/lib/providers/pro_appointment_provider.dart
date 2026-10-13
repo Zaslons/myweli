@@ -245,10 +245,19 @@ class ProAppointmentProvider extends ChangeNotifier implements SalonScoped {
         sendSmsInvite: sendSmsInvite,
       );
       if (response.success && response.data != null) {
-        _appointments = [..._appointments, response.data!]
+        final created = response.data!;
+        _appointments = [..._appointments, created]
           ..sort((a, b) => a.appointmentDate.compareTo(b.appointmentDate));
         _error = null;
         _errorCode = null;
+        // The ONE announcement of « a booking was created »: « Ma journée »,
+        // the home figures and the client card each keep their own copy of
+        // the salon's bookings and are still on screen, or still cached, under
+        // the form. Made here, before the form closes, so the day is already
+        // right when the form slides away — and so that no opener of the form
+        // has to remember whom to refresh
+        // (docs/design/pro-journal-shows-new-booking.md §5).
+        ProSalonScope.bookingCreated(created);
         return true;
       }
       _error = response.error ?? 'Erreur lors de la création';
