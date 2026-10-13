@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Approved** (owner, 2026-10-13 — decision 2 of `pro-app-preview.md` §9: « fix it, build once more, and film that build ») — **built 2026-10-13** on `fix/journal-shows-new-booking`. **Not merged, not in a build, not seen on a device.** What was run and what was not: §8.4. |
+| **Status** | **Approved** (owner, 2026-10-13 — decision 2 of `pro-app-preview.md` §9: « fix it, build once more, and film that build ») — **built 2026-10-13** on `fix/journal-shows-new-booking`, **reviewed the same day and corrected** (§8.5). **Not merged, not in a build, not seen on a device.** What was run and what was not: §8.4, §8.5. |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-10-13 |
 | **PRD ref / phase** | Pro app — module `journal` (J1b) + manual booking · V1 · store submission |
@@ -15,9 +15,10 @@
 
 **Goal.** A salon that adds a booking from « Ma journée » is back on « Ma
 journée » with that booking in it — at once, with no gesture. Today it is not
-there until the list is pulled down. The build that goes to App Review carries
-the fix, and the App Preview film is shot on it: a free slot becomes a booking,
-in one take, with no pull-to-refresh.
+there until the list is pulled down. The build that goes to App Review is to
+carry the fix, and the App Preview film is to be shot on it: a free slot
+becomes a booking, in one take, with no pull-to-refresh. Neither is true yet —
+see the Status row.
 
 **In scope**: the Pro app (`mobile/`, entry `lib/main_pro.dart`) — every screen
 that shows the salon's bookings and is still mounted, or still cached, when a
@@ -161,8 +162,10 @@ added to the day, not to the list.
 | **Slow network, after the creation** | « Ma journée » with the new booking, exactly as in §2.1 step 4. No indicator: the booking shown is the server's own `201` body, not a guess. |
 | **The quiet reload fails** (offline, 5xx, a thrown error) | Nothing changes and nothing is said: the booking stays, no error state, no snackbar, no loader. The next pull-to-refresh or visit reconciles. A `forbidden` / `not_a_member` code is still reported to `ProAccessGuard` — a revoked member is signed out as everywhere else. |
 | **The quiet reload returns a list without the booking** | The server wins: the booking leaves the list. This request was sent **after** the `201`, so its answer cannot predate the booking — the only way it is missing is that it was cancelled or moved meanwhile. |
-| **An older request answers late** (a pull-to-refresh or a day change sent before the `201`) | Ignored. Every day request carries a sequence number and only the newest is applied — otherwise an answer computed before the booking existed would erase it. This also closes a race that was already there: two quick day changes, the slower answer winning. |
-| **The day was still loading, or had failed, when the booking was created** (« Nouveau » is reachable in both states) | There is no settled day to add a row to. The day is loaded again, the ordinary way: loader, then the day — or its error state with « Réessayer », where the booking cannot be shown because no day is. |
+| **An older request answers late** (a pull-to-refresh or a day change sent before the `201`) | Ignored — its answer, and its **failure** too (a request that errors out long after a newer one has answered). Every day request carries a sequence number and only the newest is applied — otherwise an answer computed before the booking existed would erase it, and a late failure would drop the day. This also closes a race that was already there: two quick day changes, the slower answer winning. |
+| **A refresh of the displayed day was in flight when the booking was created** — a pull-to-refresh still unanswered, the refetch behind a swipe action, « Ma journée » reopened (its first load keeps the rows of the last visit). It takes a request slower than filling the form: a network that is already failing | Exactly §2.1 step 4: the rows on screen are that day's, so the booking joins them **at once**. The quiet reload outdates the refresh in flight — its late answer is ignored, and when both fail the day and the booking stay and nothing is said. The pull's own indicator, if it is still showing, stays until its request ends (read in `BrandRefresh`, not looked at). *Before the review this state took the loud path of the last row: the booking was withheld until the server answered, and a failure replaced the whole day with « Une erreur est survenue » (§8.5).* |
+| **A day change was in flight when the booking was created** (the date was changed, « Nouveau » tapped before the new day landed) | The rows on screen are the **previous** date's: no row is added to them, also when the booking is for the date being loaded. That date is asked for again, the ordinary way; its dot is there at once. If that load fails it is the error state of a failed day change, with « Réessayer » — there is no day of that date to keep. |
+| **The day's first load was still in flight, or had failed, when the booking was created** (« Nouveau » is reachable in both states) | There is no day to add a row to. It is loaded again, the ordinary way: the loader, then the day — or its error state with « Réessayer », where the booking cannot be shown because no day is. |
 | **Double submit** | The button is disabled from the first frame after the tap (unchanged). Two taps inside one frame — reproduced only by a test — used to send two requests and pop twice; `_submit` now returns when a creation is already in flight. |
 | **The same booking announced twice** | Added once (matched by id). |
 | **Empty day** (entry 2) | « Aucun rendez-vous ce jour » is replaced by the booking's card. |
@@ -235,7 +238,7 @@ abstract class ShowsSalonBookings implements SalonScoped {
 
 | Store | On `bookingCreated` |
 |---|---|
-| `ProJournalProvider` | adds the booking to the displayed day when it is that day's; bumps that day's dot; reloads the day quietly |
+| `ProJournalProvider` | adds the booking to the displayed day when it is that day's; bumps that day's dot; reloads the day quietly. It keeps which salon day its rows were loaded for (`_dayKey`, written with `_day` — not read from the server's `JournalDay.date`): a refresh of that day in flight is treated like a settled day, and only a day *change* in flight, or no day at all, takes the ordinary loud load |
 | `ProDashboardProvider` | marks its figures stale; refetches them quietly |
 | `ProClientsProvider` | reloads the open card quietly when the booking is that client's |
 
@@ -291,6 +294,15 @@ waiting: the row is added synchronously, the rest is off-screen work. The week
 prefetch stops as soon as a newer request starts, so two loops never write the
 same dots.
 
+**The journal store pays this also when « Ma journée » is not on the stack** —
+a booking made from the client card, reached from « Accueil »: the day and the
+six prefetch requests are sent for a screen that loads again, loudly, at its
+next visit (`pro_journal_screen.dart:49`). About ten light requests after one
+creation on that path. **Read, not measured; left on purpose**: the way to skip
+them is to ask `hasListeners`, and a store whose behaviour depends on whether
+someone listens turns every provider test that forgot a listener into a test of
+another path.
+
 ## 8. Testing plan
 
 ### 8.1 Widget — the real flow (`test/widget/pro_journal_shows_new_booking_test.dart`)
@@ -298,19 +310,25 @@ same dots.
 The journal screen, the form, `ProRouter`'s own two `GoRoute`s (so the « Libre »
 prefill travels through the real `extra`), the real providers registered with
 `ProSalonScope.track`; one fake salon whose journal and whose `POST` answer
-from the same list. No test drags the journal, calls `refresh()`, or starts
-with the booking already in the stub; every assertion about the day is scoped
-to the card keyed by the booking's id — the client's name is also in the form's
-text field while the form slides away.
+from the same list. No test calls `refresh()`, drags the journal once the form
+is open, or starts with the booking already in the stub; every assertion about
+the day is scoped to the card keyed by the booking's id — the client's name is
+also in the form's text field while the form slides away. One case does drag:
+a pull, *before* the form is opened and with every answer held. That pull is
+the situation under test, and it ends in a failure — it cannot be what shows
+the booking.
+
+Twelve cases.
 
 | Case | What it holds |
 |---|---|
-| A « Libre » row → form → create | one frame after the answer, **form still on screen**, reload **held**: the card exists, at 12:00–12:30, « Confirmé », between its neighbours; « Libre — 12:00 » gone, « Libre — 12:30 » there; the old rows still there; no loader; the day was asked for exactly once more. Then the server answers and wins (its name, another device's booking). |
+| A « Libre » row → form → create | one frame after the answer, **form still on screen**, reload **held**: the card exists, at 12:00–12:30, « Confirmé », between its neighbours; « Libre — 12:00 » gone, « Libre — 12:30 » there; the old rows still there — which is also « no loader », since the screen draws its loader *instead of* the list; the day was asked for exactly once more. Then the server answers and wins (its name, another device's booking). |
 | « Nouveau » → pick a date and an hour → create | the card is first in the day |
 | The date is changed in the form | still « Aujourd'hui », no card, « Libre — 12:00 » still there, the 13th gets its dot while the reload is held |
 | Filter « Awa » + « Nouveau » | no card under « Awa »; « Sans artiste » appears and shows it; a cancelled row stays hidden |
 | Filter « Awa » + a « Libre » row | the card is shown (the artist travelled) |
-| The reload fails — refusal, then thrown | the card stays, the old rows stay, no error state, no « Réessayer », no error text, no loader |
+| The reload fails — refusal, then thrown | the card stays, the old rows stay, no error state, no « Réessayer », no error text |
+| **A pull-to-refresh is still in flight** — refusal, then thrown (added after the review, §8.5) | the list is pulled down, its request held; then the form. One frame after the answer the card is there, « Libre — 12:00 » gone, the day asked for once more. Then both requests fail: the card and the old rows stay, no error state, no « Réessayer », nothing retried |
 | **Control**: the creation is refused | the form keeps the refusal, no snackbar, the day is not asked for again, nothing changed after going back |
 | The scroll position | a scrolled day keeps its offset through the whole flow |
 | Two taps in one frame | one request, one booking, one pop |
@@ -319,11 +337,11 @@ text field while the form slides away.
 
 | File | Cases | What it holds |
 |---|---|---|
-| `pro_salon_scope_booking_created_test.dart` | 13 | only tracked `ShowsSalonBookings` stores are told, once; a throwing store does not stop the others and nothing escapes; `createManualBooking` announces on success, once, **before it returns**, with the server's answer — also when the agenda's own list does not take the booking — and never on a refusal or a thrown error; a throwing store does not turn a success into a failure; every provider naming `ShowsSalonBookings` is `ProSalonScope.track`ed in `main_pro.dart`, and the announcement has one caller (comments stripped) |
-| `pro_journal_booking_created_test.dart` | 23 | same day (at once, in order, no loader, one request) · the server wins · a reload without the booking removes it · refused / thrown reload keeps everything · `forbidden` still reaches `ProAccessGuard` · twice · empty day · both filters · another day and its dot · the salon timezone decides the day · a count asked before the booking cannot overwrite its dot · never opened / another salon / after a switch · still loading, a refresh in flight, the error state · a late older answer is dropped (three orders) |
-| `pro_dashboard_booking_created_test.dart` | 9 | refetched and replaced with no loader and never blank · refused / thrown keeps the figures and the next pull asks again, quietly, until confirmed · another salon · never loaded · a load in flight is followed by one refetch · the older of two refetches cannot win · a salon switch |
-| `pro_clients_booking_created_test.dart` | 7 | reloaded for the card's client, no loader, never blank, visits too · someone else, no number, another salon: untouched · no card open · refused / thrown keeps the card · another card opened meanwhile, during the card request and during the visits request |
-| `manual_booking_test.dart` (+6) | | the agenda's loaded filter: status, both date bounds, inclusive, forgotten on a salon switch |
+| `pro_salon_scope_booking_created_test.dart` | 14 | only tracked `ShowsSalonBookings` stores are told, once; a throwing store does not stop the others and nothing escapes; neither does a store that registers another store while being told; `createManualBooking` announces on success, once, **before it returns**, with the server's answer — also when the agenda's own list does not take the booking — and never on a refusal or a thrown error; a throwing store does not turn a success into a failure; every provider naming `ShowsSalonBookings` is `ProSalonScope.track`ed in `main_pro.dart`, and the announcement has one caller (comments stripped) |
+| `pro_journal_booking_created_test.dart` | 29 | same day (at once, in order, no loader, one request) · the server wins, and its day reaches the listeners when it lands, not after the week prefetch · a reload without the booking removes it · refused / thrown reload keeps everything · `forbidden` still reaches `ProAccessGuard` · twice · empty day · both filters · another day and its dot · the salon timezone decides the day · a count asked before the booking cannot overwrite its dot · never opened / another salon / after a switch · the first load still in flight, a day change in flight, the error state (the retry counted, its own failure read) · a refresh of the displayed day in flight: the booking joins at once, the flag is lowered, both requests failing keeps the day, « Ma journée » reopened · a late older answer is dropped (three orders), and a late older **failure** too |
+| `pro_dashboard_booking_created_test.dart` | 14 | refetched and replaced with no loader and never blank · refused / thrown keeps the figures and the next pull asks again, quietly, until confirmed · `forbidden` still reaches `ProAccessGuard` · the figures had failed to load: nothing is asked · another salon · never loaded · a load in flight is followed by one refetch — and when that load fails, the retry is one request · the older of two refetches cannot win · asked for another salon while a refetch is in flight · a salon switch, and `clearStats`. Its first case is a **known defect, recorded and not endorsed** (« Accueil »'s pull-to-refresh, §1.2): the repair turns it red |
+| `pro_clients_booking_created_test.dart` | 9 | reloaded for the card's client, no loader, never blank, visits too · someone else, no number, another salon: untouched · no card open · refused / thrown keeps the card · `forbidden` still reaches `ProAccessGuard` · a salon switch drops the reload in flight · another card opened meanwhile, during the card request and during the visits request |
+| `manual_booking_test.dart` (+8) | | the agenda's loaded filter: status, both date bounds, inclusive, each of the three forgotten on a salon switch |
 | `mock_pro_service_test.dart` (+2) | | the mock answers with the booking's length |
 
 The fakes answer like a server: **what they say is decided when the request
@@ -332,6 +350,10 @@ before the booking existed » a test and not a comment.
 
 ### 8.3 Mutations
 
+*This section is the first round, on the code as it stood at `84c81a66`. The
+review then ran its own, found lines these had missed, and one of the rows
+below pinned a behaviour that has since been changed — §8.5.*
+
 56, and one control, each on committed code, each with an exact-anchor assert
 (a mutation that does not apply is no result), the targeted test files run,
 then `git checkout --` and a clean-tree check.
@@ -339,7 +361,7 @@ then `git checkout --` and a clean-tree check.
 | Area | What was broken on purpose | Result |
 |---|---|---|
 | The announcement and the wiring (7) | removed (the defect itself — 9 of the 10 flow cases red, the control green); made after the method returned; a throwing store not caught; only the first store told; the journal, then the home store, no longer tracked in `main_pro.dart`; not made when the agenda's list does not take the booking | 7 red |
-| `ProJournalProvider` (20) | not added to the day; added whatever its day; no dot; no reload; the loud reload; a refused / thrown reload drops the day or raises the error; `forbidden` not reported; the answer merged instead of applied; the filter reset; « Voir les annulés » switched on; each of the three sequence checks removed; the switch not outdating; whose booking not checked; added twice; the fallback ignoring a load in flight; the fallback asking for nothing | 20 red |
+| `ProJournalProvider` (20) | not added to the day; added whatever its day; no dot; no reload; the loud reload; a refused / thrown reload drops the day or raises the error; `forbidden` not reported; the answer merged instead of applied; the filter reset; « Voir les annulés » switched on; three sequence checks removed, one at a time — **the provider has four**, and the one in `load`'s `catch` was not among them (§8.5); the switch not outdating; whose booking not checked; added twice; the fallback ignoring a load in flight (*the behaviour this one held — a refresh in flight withholds the booking — is the one the review had changed*, §8.5); the fallback asking for nothing | 20 red |
 | `ProDashboardProvider` (9) | nothing done; the loud reload; a refusal drops the figures; stale figures not asked for again; never un-staled; whose booking not checked; a load in flight not followed; an older refetch winning; the switch not outdating | 9 red |
 | `ProClientsProvider` (9) | nothing done; the loud reload; any booking reloads the card; the salon not checked; a refusal drops the card; each of the two sequence checks removed; another card not outdating; the visits not replaced | 9 red |
 | The agenda's filter (5) | each of the three tests removed; an exclusive bound; kept across a salon switch | 5 red |
@@ -358,6 +380,9 @@ closed by a test, then run again red:
   still dropped by the second check, after one request too many.
 
 ### 8.4 What was run, and what was not
+
+*The table is the first round, at `84c81a66`; the run on the corrected code is
+in §8.5. The « not run » list under it still holds, word for word.*
 
 **Run** (macOS, Flutter 3.44.9, targeted files only — the Mac is shared):
 
@@ -393,16 +418,79 @@ Yao K. · Confirmé » sits between its neighbours in the second one already,
 - **A screen reader**: the snackbar is the announcement, as before; not
   listened to.
 
+### 8.5 After the review
+
+Two reviewers read the branch at `84c81a66` the same day, each with mutations
+and throwaway probes of their own. Eleven distinct findings, none above
+« minor ». Each was first reproduced or re-read here; what it came to:
+
+| Finding | Real? | What was done |
+|---|---|---|
+| **A refresh of the day in flight when the booking is created**: the booking is withheld and the slot still offered as « Libre »; if that refresh fails, the whole day is replaced by « Une erreur est survenue » | **Yes — observed** at the provider before the change: at once `shown=[a1] isLoading=true`; after the failure `day=null error=Erreur réseau. Réessayez.` | **Fixed** (§2.4, §5): the loud path is kept for « no day » and « a day change in flight » only |
+| The sequence check in `load`'s `catch` — the fourth of four — is held by no test | Yes | A case: an older request that throws after a newer answer is on screen. Red without the line |
+| Nothing fails if the server's day reaches the listeners only after the week prefetch | Yes | A case that delivers the day's answer alone and counts the notification while the prefetch is held |
+| « `forbidden` still reaches `ProAccessGuard` » is held for the journal only | Yes | One case for the home figures, one for the client card |
+| Six more lines no test fails without (the registry's copy, the agenda's two dates on a switch, the card's switch, three in the home store) | Yes | Eight of the nine lines are now held by a case each. The ninth cannot be: `_stale = false` in `clearStats` — like its twin in `resetForSalonSwitch`, which the review did not name. Nothing can act on that flag before the next load, which after either reset is a loud one and lowers it itself. Both kept: a reset that leaves one field as it was would need a paragraph to justify, and these need none |
+| « …and when that load fails too » cannot tell « tried and failed » from « never tried » | Yes | It counts the request, sees the loader, and reads the new failure's own sentence |
+| The flow test's three « no loader » lines cannot be the line that fails | Yes — the screen draws its loader *instead of* the list | Removed; §8.1 says what holds the property |
+| A dashboard case pins as expected what §1.2 lists as a defect | Yes | The case is named a known defect, recorded and not endorsed, and says which two assertions the repair will turn red |
+| Two sentences stated as fact what only a merge and a build make true (§1, §9) | Yes | Stated as intent |
+| Web: « Calendrier » and « Liste » keep the old list after a creation from a grid cell, a drag or a panel action | Yes — **read, not run** (`setItems` at `RendezVousClient.tsx:79` and `:349` only; the grid is given `loadJournal`) | **Left** (§1.3, §11.3): the day view is right; the repair covers three triggers, wants a request-order guard of its own, and the page has no component test to add a case to — its own change, with its own spec'd tests |
+| The journal store reloads the day and the week also when « Ma journée » is not on the stack | Yes — read | **Left** (§7), with the reason |
+
+**Mutations, this round — 34**, on committed code, with the same harness rules
+as §8.3 (exact-anchor assert, targeted files, `git checkout --`, clean tree
+before and after):
+
+| Area | What was broken on purpose | Result |
+|---|---|---|
+| The fix itself (4) | the old condition put back (loud whenever `isLoading`) — the four new unit cases and the two new flow cases red, the flow ones at « Found 0 widgets with key 'm1' »; the flag the refresh raised not lowered; `_dayKey` never written (23 red: every creation falls to the loud path); a day change not told apart from a refresh (the booking lands among another date's rows) | 4 red |
+| The guards the review asked for, journal (3) | the `catch`'s sequence check removed (3 red, the flow's « thrown » case among them); no notification when the quiet day lands; the fallback asking for nothing (4 red — « when that load fails too » now among them) | 3 red |
+| The lines around the rewritten block, run again (11) | not added to the day; added whatever its day; no quiet reload; a loud reload in its place; no notification after the row; the quiet reload not outdating what is in flight; no dot; added twice; whose booking not checked; a refused quiet reload dropping the day; the success-path sequence check removed | 11 red |
+| The other stores (14) | `forbidden` not reported — home, then card; the registry walked without a copy (`ConcurrentModificationError`); a switch keeping the agenda's start date, its end date, its status; the card's switch not outdating; a refetch behind a failed home load; a loud home load keeping the stale flag; not outdating the refetch in flight; both; `clearStats` not outdating; `clearStats` without either of its two lines; the switch not outdating (a control: red before too) | 14 red |
+| The two that cannot be held (2) | `_stale = false` removed from `clearStats`; from `resetForSalonSwitch` | **2 survived — equivalent**, as said above |
+
+Two of the new cases were then asked which change turns them red — a defect or
+a repair (`352982e8`): the card's switch case no longer breaks the day a switch
+clears the card, and the failed-home-load case says it records a boundary.
+Their two mutations were run once more on the adjusted cases: red both times.
+
+**Run on the corrected code** (macOS, Flutter 3.44.9, targeted files only):
+
+| Command | Result |
+|---|---|
+| The seven new or changed test files | **+93** — 12 flow, 29 + 14 + 14 + 9 unit, `manual_booking_test` 11, `mock_pro_service_test` 4 (88 of the 93 are this branch's) |
+| 24 files — those seven and every other test file that names a changed provider, the registry, the form or the journal screen, `test/a11y/layout_test.dart` and the Pro goldens among them | **+407 ~14**, all passed (the 14 skipped are the Pro goldens, Linux only). *Not the same 24 as §8.4's, whose list was not kept: the seven files alone went from 75 to 93, so the equal total is a coincidence, not a sign that nothing was added* |
+| 13 source-pin files that scan `lib/` (design system, French, route literals, motion, content width, titles, status labels, contrast…) | +215 |
+| `flutter analyze` (the package) | No issues found |
+| `dart format --set-exit-if-changed` on the 15 Dart files the branch touches | 0 changed |
+
+**Still not run, not seen**: everything §8.4 lists — no device, no simulator, no
+build, not the real API, not the full suite, not the goldens, not the web. The
+pull-to-refresh case is a drag in a widget test that reports `android`; the
+indicator of a real pull, held open by a request that never answers, was not
+looked at on a phone.
+
+**Found while probing, not this slice** (§11.4): the home store's *loud* load
+has no request order at all. A probe held salon 1's first load, switched,
+loaded salon 2, then released salon 1: `today=2`, then `today=1` — salon 1's
+figures under salon 2. Read, not run: they stay, because the next load finds
+figures for that salon and returns early. The same lines are on `main` at
+`3d88d0e1`. It takes a salon switch while « Accueil » is still loading.
+
 ## 9. Rollout & scope discipline
 
-No flag: it is a correction. V1 only. It ships in the next Pro build — the one
-submitted to App Review and filmed. No backend deploy, no migration.
+No flag: it is a correction. V1 only. It is meant to ship in the next Pro
+build — the one to be submitted to App Review and filmed; until the branch is
+merged and that build exists, it ships nowhere (Status row). No backend
+deploy, no migration.
 
 ## 10. Definition of done
 
 - [x] `flutter analyze` 0 · `dart format` clean on the touched files · the
       targeted tests green (§8.4).
-- [x] Every new guard watched red (§8.1 before the fix; §8.3 by mutation).
+- [x] Every new guard watched red (§8.1 before the fix; §8.3 and §8.5 by
+      mutation — two lines of §8.5 cannot be held, and it says which).
 - [x] Spec indexed and cross-linked from the code; roadmap entry written.
 - [x] Branch pushed; no PR, no merge, no build from this session.
 - [ ] The full suite and the goldens, on CI, once a pull request exists.
@@ -414,4 +502,11 @@ submitted to App Review and filmed. No backend deploy, no migration.
 1. The detail screen's status changes (§1.2) — the same signal could carry
    them; it wants a decision on what the card shows meanwhile.
 2. « Accueil »'s pull-to-refresh and its error state with no way out (§1.2).
+   Whether a created booking should also be the retry of a home load that
+   failed belongs here: today it asks for nothing, and a test says so.
 3. The web's « Calendrier » / « Liste » after a creation from the grid (§1.3).
+4. The home store's loud load has no request order: a salon switch while
+   « Accueil » is still loading can leave the previous salon's figures under
+   the new one (§8.5 — observed at the provider on this branch; the same
+   lines are on `main`). The quiet refetch added here is ordered; the load it
+   sits beside is not.
