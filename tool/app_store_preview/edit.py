@@ -886,6 +886,9 @@ def propose(scan: dict, log: dict, sb: dict, rehearsal: bool = False, tracks: di
 #   last_change  the end of everything the app does in answer (that snackbar
 #                has left too).
 CAPTION_FROM = ("first_rest", "last_change")
+# What to change when a caption does not find the card at rest.
+AT_REST = ("lengthen the `rest_after_s` before it — or, for a shot that has no gesture, move its "
+           "`caption_after.delay_s` to where cuts.txt shows the screen still")
 
 
 def place_captions(tm: TakeMap, sp: list[Span], sb: dict, rehearsal: bool = False,
@@ -1073,12 +1076,12 @@ def check(edit: dict, scan: dict, log: dict, sb: dict,
         if busy:
             raise Refusal("E_CAPTION", f"caption `{c['caption']}` changes at {c['frame'] / fps:.3f} s while the "
                                        f"picture in the card is still changing ({busy[0] / fps:.3f} s) — a caption "
-                                       f"changes at rest: lengthen the rest before it")
+                                       f"changes at rest: {AT_REST}")
         for t in mine:
             if any(t["down"] < n * step < t["up"] + out_ticks for n in fading):
                 raise Refusal("E_CAPTION", f"caption `{c['caption']}` changes at {c['frame'] / fps:.3f} s while "
                                            f"the touch point of `{t['gesture']}` is on screen — a caption changes "
-                                           f"at rest: lengthen the rest before it")
+                                           f"at rest: {AT_REST}")
     # …and what it brings stays long enough to be read.
     for r in caption_reading(caps, sb, fade, total):
         if r["frames"] * READING_CPS < r["characters"] * fps:

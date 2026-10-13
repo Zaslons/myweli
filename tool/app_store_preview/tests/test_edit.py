@@ -1418,7 +1418,9 @@ class Refusals(unittest.TestCase):
         self.assertEqual(e["captions"][1], {"frame": 118, "caption": "two"})   # frames 118–123; the bar moves on 123–126
         self.assertEqual(self.refused("E_CAPTION", e, scan, log, sb),
                          "caption `two` changes at 3.933 s while the picture in the card is still changing "
-                         "(4.100 s) — a caption changes at rest: lengthen the rest before it")
+                         "(4.100 s) — a caption changes at rest: lengthen the `rest_after_s` before it — or, for a "
+                         "shot that has no gesture, move its `caption_after.delay_s` to where cuts.txt shows the "
+                         "screen still")
         sb["shots"][0]["gestures"][0]["rest_after_s"] = 0.5                    # frames 127–132: the bar is in
         e = edit.propose(scan, log, sb)
         self.assertEqual(e["captions"][1]["frame"], 127)
@@ -1436,7 +1438,8 @@ class Refusals(unittest.TestCase):
         self.assertEqual((e["captions"][1]["frame"], e["touches"][0]["up"] // STEP), (41, 39))
         self.assertEqual(self.refused("E_CAPTION", e, scan, log, sb),
                          "caption `three` changes at 1.367 s while the touch point of `tap-a` is on screen — a "
-                         "caption changes at rest: lengthen the rest before it")
+                         "caption changes at rest: lengthen the `rest_after_s` before it — or, for a shot that has "
+                         "no gesture, move its `caption_after.delay_s` to where cuts.txt shows the screen still")
         after["delay_s"] = 0.2                              # frame 44: its last frame
         self.assertIn("while the touch point", self.refused("E_CAPTION", edit.propose(scan, log, sb), scan, log, sb))
         after["delay_s"] = 0.3                              # frame 47

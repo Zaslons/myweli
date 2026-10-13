@@ -52,7 +52,9 @@ AUDIO_MAX_BPS = 256_000
 # 2.4 levels (53.0 dB and 3.9 on the tests' clips, written without the film's
 # quantiser ceiling) — and the frame ONE STEP short of the last caption's
 # cross-fade, 6 % of the old words still in it, 44.1 dB and 10.8. The limits
-# sit between the two, so that frame is not the poster.
+# sit between the two, so that frame is not the poster. 48 dB is also one
+# level of error, root mean square (48.13 dB exactly): a picture one level
+# off everywhere fails, whatever the encode.
 POSTER_MIN_PSNR = 48.0
 POSTER_MAX_BLOCK = 8.0    # the largest mean difference of any 16 x 16 block
 

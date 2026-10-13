@@ -316,16 +316,20 @@ class VerifyRefuses(unittest.TestCase):
             return right, np.asarray(im.convert("RGB")).astype(int)
 
     def test_a_poster_a_shade_off_everywhere(self):
-        """Two levels lighter all over — a colour conversion gone wrong: no
-        block stands out, and it is not the composed picture."""
+        """One level lighter all over, or two — a colour conversion gone
+        wrong: no block stands out, and it is not the composed picture. 48 dB
+        is one level of error, root mean square: a picture a level off
+        everywhere cannot measure better, however good the encode."""
         right, a = self.poster()
-        lighter = self.good.parent / "lighter.png"
-        Image.fromarray(np.clip(a + 2, 0, 255).astype(np.uint8), "RGB").save(lighter)
-        self.assertEqual(failed(self.good, lighter), {"poster frame"})
-        seen = {c.name: c.seen for c in verify.verify(self.good, SB, lighter)}["poster frame"]
-        psnr, block = float(re.search(r"([\d.]+) dB", seen).group(1)), float(re.search(r"by ([\d.]+) levels", seen).group(1))
-        self.assertLess(psnr, verify.POSTER_MIN_PSNR, seen)
-        self.assertLessEqual(block, verify.POSTER_MAX_BLOCK, seen)     # the whole picture gives it away, not a block
+        for shade in (1, 2):
+            lighter = self.good.parent / f"lighter-{shade}.png"
+            Image.fromarray(np.clip(a + shade, 0, 255).astype(np.uint8), "RGB").save(lighter)
+            self.assertEqual(failed(self.good, lighter), {"poster frame"}, shade)
+            seen = {c.name: c.seen for c in verify.verify(self.good, SB, lighter)}["poster frame"]
+            psnr = float(re.search(r"([\d.]+) dB", seen).group(1))
+            block = float(re.search(r"by ([\d.]+) levels", seen).group(1))
+            self.assertLess(psnr, verify.POSTER_MIN_PSNR, seen)
+            self.assertLessEqual(block, verify.POSTER_MAX_BLOCK, seen)   # the whole picture gives it away, not a block
 
     def test_a_patch_the_size_of_one_block_is_enough(self):
         right, a = self.poster()
