@@ -277,7 +277,7 @@ class _PairCard extends StatelessWidget {
               children: [
                 // No caption, no line — « — » read as a placeholder nobody
                 // chose (pro-screenshot-shoot-fixes.md §1.7). The Expanded
-                // stays so « Retirer » keeps its place on the right.
+                // stays so « Supprimer » keeps its place on the right.
                 Expanded(
                   child: caption == null || caption!.isEmpty
                       ? const SizedBox.shrink()

@@ -95,11 +95,19 @@ void main() {
       ),
     );
     expect(cover, findsOneWidget);
-    final coverBox = tester.getRect(cover);
-    for (final loader in tester.widgetList(find.byType(BrandLoader))) {
-      final r = tester.getRect(find.byWidget(loader));
-      expect(coverBox.contains(r.center), isTrue);
-    }
+    expect(AppColors.surface.a, 1.0, reason: 'the cover must be opaque');
+    // The loader is really there — else the next check is vacuous …
+    final loader = find.byType(BrandLoader);
+    expect(loader, findsOneWidget);
+    // … and the cover is ON it: a touch at the loader's centre reaches the
+    // cover first (a Stack hit-tests its children in paint order, top down),
+    // so a cover painted under the loader cannot pass.
+    final hits = tester.hitTestOnBinding(tester.getCenter(loader)).path;
+    expect(
+      hits.any((e) => e.target == tester.renderObject(cover)),
+      isTrue,
+      reason: 'the cover is above the loader',
+    );
     // No scrim of literal black.
     expect(
       find.byWidgetPredicate(
