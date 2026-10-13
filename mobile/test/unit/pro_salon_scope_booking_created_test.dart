@@ -248,14 +248,25 @@ void main() {
   });
 
   group('the wiring is the app’s own (main_pro.dart)', () {
-    final mainPro = File('lib/main_pro.dart').readAsStringSync();
+    /// Source with its `//` comments removed: a sentence ABOUT the wiring must
+    /// not be able to stand in for the wiring.
+    String code(String path) => File(path)
+        .readAsLinesSync()
+        .map((line) {
+          final at = line.indexOf('//');
+          return at < 0 ? line : line.substring(0, at);
+        })
+        .join('\n');
 
-    /// Every provider class that declares `implements ShowsSalonBookings`.
+    final mainPro = code('lib/main_pro.dart');
+
+    /// Every provider whose class header names `ShowsSalonBookings`, however
+    /// the header is written (`implements A, B`, a mixin in between…).
     final stores = [
       for (final f in Directory('lib/providers').listSync().whereType<File>())
         for (final m in RegExp(
-          r'class (\w+) extends ChangeNotifier\s+implements ShowsSalonBookings',
-        ).allMatches(f.readAsStringSync()))
+          r'class\s+(\w+)\b[^{;]*\bShowsSalonBookings\b[^{;]*\{',
+        ).allMatches(code(f.path)))
           m.group(1)!,
     ]..sort();
 
@@ -276,6 +287,27 @@ void main() {
           reason: '$store is not tracked in main_pro.dart',
         );
       }
+    });
+
+    test('the announcer is tracked too, and there is one announcement in '
+        'the app', () {
+      // Not needed to announce — it is what makes this file's harness the
+      // app's own, and the day it is un-tracked a salon switch stops
+      // resetting the agenda.
+      expect(
+        'ProSalonScope.track(ProAppointmentProvider())'.allMatches(mainPro),
+        hasLength(1),
+      );
+      final callers = [
+        for (final f in Directory(
+          'lib',
+        ).listSync(recursive: true).whereType<File>())
+          if (f.path.endsWith('.dart') &&
+              !f.path.endsWith('pro_salon_scope.dart') &&
+              code(f.path).contains('ProSalonScope.bookingCreated('))
+            f.path,
+      ];
+      expect(callers, ['lib/providers/pro_appointment_provider.dart']);
     });
   });
 }
