@@ -1,4 +1,11 @@
-import { cleanup, render, screen } from '@testing-library/react';
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 const replace = vi.fn();
@@ -19,12 +26,17 @@ import type { SalonClientCard } from '../lib/pro/clients';
 ///
 /// Two values travel side by side and must not be confused:
 /// - what is **read** — grouped, by `formatPhoneNumber` (the app's twin);
-/// - what is **dialled** — the stored number, untouched, in `tel:` and `wa.me`.
+/// - what is **used** — the stored number, untouched, in the three places that
+///   act on it: `tel:`, `wa.me`, and the client handed to the manual-booking
+///   dialog, where it becomes `clientPhone` in the POST. The third is the one
+///   the server refuses when it is wrong (`invalid_phone`, a 400), and it was
+///   the one with no guard: the review mutated it and every test stayed green.
 ///
 /// **What this file cannot show:** jsdom has no layout, so « the number stays
-/// on one line and the actions drop below it » is pinned here by its two
-/// classes only. The measurement is the reflow gate's
-/// (`tests/e2e/type-overflow.spec.ts`, the client-card row).
+/// on one line and the actions drop below it » is pinned here by its classes
+/// only. The measurements — one rendered line, the dropped actions clear of
+/// the number above and of the button below — are the reflow gate's
+/// (`tests/e2e/type-overflow.spec.ts`, the client-card row's `setup`).
 
 const CARD: SalonClientCard = {
   id: 'sc1',
@@ -38,11 +50,32 @@ const CARD: SalonClientCard = {
   notes: [],
 };
 
-function mockFetch(card: SalonClientCard) {
+/// One bookable service — only the dialog case needs it (« Créer » stays
+/// disabled until a service is ticked). The shape is
+/// `manual-booking-phone.test.tsx`'s.
+const SERVICE = {
+  id: 's1',
+  name: 'Tresses',
+  description: '',
+  price: 15000,
+  durationMinutes: 120,
+  providerId: 'p1',
+  active: true,
+};
+
+/// Every POST /api/pro/appointments body, in order.
+const posted: Record<string, unknown>[] = [];
+
+function mockFetch(card: SalonClientCard, services: unknown[] = []) {
+  posted.length = 0;
   vi.stubGlobal(
     'fetch',
-    vi.fn(async (url: string) => {
+    vi.fn(async (url: string, init?: RequestInit) => {
       const u = String(url);
+      if (u === '/api/pro/appointments') {
+        posted.push(JSON.parse(String(init?.body ?? '{}')));
+        return new Response('{}', { status: 200 });
+      }
       if (u === '/api/pro/me') {
         return new Response(
           JSON.stringify({
@@ -53,7 +86,7 @@ function mockFetch(card: SalonClientCard) {
               status: 'active',
               timezone: 'Africa/Abidjan',
               currency: 'XOF',
-              services: [],
+              services,
             },
           }),
           { status: 200 },
@@ -75,8 +108,8 @@ function mockFetch(card: SalonClientCard) {
 /// Renders the card and waits for the loaded state — the `<h1>` exists in no
 /// other state (loading is a skeleton, the error state titles itself « Fiche
 /// client »), so every assertion below is about the real card.
-async function renderCard(card: SalonClientCard) {
-  mockFetch(card);
+async function renderCard(card: SalonClientCard, services: unknown[] = []) {
+  mockFetch(card, services);
   render(<ClientCardClient clientId={card.id} />);
   await screen.findByRole('heading', { level: 1, name: card.displayName });
 }
@@ -106,6 +139,42 @@ describe('ClientCardClient — the phone line', () => {
     expect(
       screen.getByRole('link', { name: 'WhatsApp' }).getAttribute('href'),
     ).toBe('https://wa.me/2250700000101');
+  });
+
+  it('« Nouveau rendez-vous » books with the STORED number — the grouping never reaches the POST', async () => {
+    // The third consumer of the stored number, and the only one a server
+    // refuses: the dialog sends its pre-picked client's phone as `clientPhone`,
+    // and the backend answers 400 `invalid_phone` to anything that is not
+    // E.164 (`^\+[1-9]\d{7,14}$` — « +225 07 00 00 01 01 » is not). Handing the
+    // dialog the text the card SHOWS would fail every booking opened from an
+    // Ivorian client's card, and no test said so: the e2e stub accepts any
+    // phone, and `manual-booking-phone.test.tsx` renders the dialog on its
+    // own, with a number it is given. This crosses the real seam — the card
+    // opens the dialog, and the body that leaves is read.
+    await renderCard(CARD, [SERVICE]);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Nouveau rendez-vous' }));
+    const dialog = within(
+      screen.getByRole('dialog', { name: 'Nouveau rendez-vous' }),
+    );
+    fireEvent.click(dialog.getByRole('checkbox', { name: /Tresses/ }));
+    // A date no clock will reach while this test exists (the dialog refuses a
+    // past one). The salon is in Abidjan, UTC+0: the wall clock IS the instant.
+    fireEvent.change(dialog.getByLabelText('Date du rendez-vous'), {
+      target: { value: '2099-01-15' },
+    });
+    fireEvent.change(dialog.getByLabelText('Heure du rendez-vous'), {
+      target: { value: '14:30' },
+    });
+    fireEvent.click(dialog.getByRole('button', { name: 'Créer' }));
+
+    await waitFor(() => expect(posted).toHaveLength(1));
+    expect(posted[0].clientName).toBe('Koffi');
+    expect(posted[0].appointmentDateTime).toBe('2099-01-15T14:30:00.000Z');
+    expect(posted[0].clientPhone).toBe('+2250700000101');
+    // The card answers a created booking by closing the dialog and saying so.
+    await screen.findByText('Rendez-vous créé');
+    expect(screen.queryByRole('dialog')).toBeNull();
   });
 
   it('the number may not wrap, and the row may — the actions drop below it', async () => {
