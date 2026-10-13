@@ -280,7 +280,7 @@ dossier proposait :
 | Catégorie | non renseignée | Business + Productivity (§5) | à remplir |
 | Sous-titre | vide | `Agenda, clients, réservations` (§4) | à remplir |
 | Droits sur le contenu | non renseignés | « Oui … et j'ai les droits nécessaires » (§9) | à remplir |
-| Version | iOS **1.0**, « Prepare for Submission » | **0.0.1** (le binaire, §11.3 — la version de l'app passe de 1.0.0 à 0.0.1, décision du propriétaire le 2026-10-13, à partir du build 569) | **renommer la page « 1.0 » en « 0.0.1 »** avant de choisir le build : App Store Connect ne propose pour une version que les builds de même numéro, et 0.0.1 ≠ 1.0 quelle que soit sa normalisation. Le renommage est une écriture dans App Store Connect : avec l'accord du propriétaire (§13). Les builds 1.0.0 (≤ 565) restent dans TestFlight sous leur version |
+| Version | iOS **0.0.1**, « Prepare for Submission » (renommée de « 1.0 » le 2026-10-13, relue par l'API) | **0.0.1** (le binaire, §11.3 — la version de l'app passe de 1.0.0 à 0.0.1, décision du propriétaire le 2026-10-13, à partir du build 569) | la page s'appelait « 1.0 » : App Store Connect ne propose pour une version que les builds de même numéro, et 0.0.1 ≠ 1.0 quelle que soit sa normalisation. **Renommée « 0.0.1 » le 2026-10-13** avec l'accord du propriétaire ; reste à y choisir le build 569 (§13). Les builds 1.0.0 (≤ 565) restent dans TestFlight sous leur version |
 | TestFlight | aucun build | — | §11.5 — *2026-10-13 : build **569** (**0.0.1**) envoyé, traité `VALID` ; le groupe interne ne reçoit que le **569** (il remplace le 565) ; ajouté au groupe externe « Testeurs externes » et **soumis à la revue bêta** (`WAITING_FOR_REVIEW`) — le 565, encore en attente de revue, y reste*. *2026-10-12, soir : build **565** envoyé, traité `VALID` ; le groupe interne ne reçoit que le **565** (il remplace le 560)*. *2026-10-12 : builds 551, 555 et **560** envoyés, traités `VALID` ; le groupe interne ne reçoit que le **560** (il remplace le 555)*. *2026-10-10 : builds 551 et 555 envoyés, traités `VALID` ; le groupe interne ne reçoit que le 555 (§11.6)* |
 
 L'app consommateur « MyWeli » a aussi sa fiche (iOS 1.0, « Prepare for
@@ -1208,9 +1208,12 @@ numéros).*
        le code lu à ce moment-là et la **ligne SUBSCRIPTION remplacée** (§8).
        *2026-10-05 : la ligne est remplacée dans le dossier — coller les notes
        du §8 telles quelles ; le nom « MyWeli Pro — Gestion de salon » si le
-       propriétaire le retient (§3) ; **renommer la version « 1.0 » en
-       « 0.0.1 »** (accord du propriétaire) puis vérifier que le build s'y
-       rattache (§3).*
+       propriétaire le retient (§3) ; la version est **renommée « 0.0.1 »**
+       depuis le 2026-10-13 (accord du propriétaire ; relue par l'API :
+       `0.0.1`, « Prepare for Submission », aucun build rattaché) — reste à
+       vérifier que le build 569 s'y rattache (§3). **À corriger en
+       remplissant la page** : la publication y est encore « après
+       approbation », pas manuelle (§9).*
 17. [ ] **`updateUrl` iOS** dans la console admin (§12.1).
 18. [ ] **Porte d'entrée Cloudflare** : ne pas lancer la phase A pendant une
        revue ; si elle a été déployée avant, vérifier qu'un client non

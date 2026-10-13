@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Done** (2026-10-13): 8 frames in both sizes. **Reordered the same day after build 569:** the Aperçu reshot on the top of the salon page (« Nouveau », no « Connectez-vous » card) and moved to position 2. Owner sign-off and upload in App Store Connect pending |
+| **Status** | **Done** (2026-10-13): 8 frames in both sizes. **Reordered the same day after build 569:** the Aperçu reshot on the top of the salon page (« Nouveau », no « Connectez-vous » card) and moved to position 2; the booking form and the client card (screens 4 and 5) reshot on 569 too. Owner sign-off and upload in App Store Connect pending |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-10-13 |
 | **PRD ref / phase** | Launch — store submission · V1 |
@@ -51,8 +51,8 @@ the capture into a card.
 | 1 | Agenda « Ma journée » | Accueil → « Rendez-vous » | « Aujourd'hui », « Tous », top of the list: a « Terminé », an « Arrivé », « Libre » gaps, « Confirmé » bookings |
 | 2 | Aperçu de ma page | Accueil → « Configurer mon profil » → « Aperçu de ma page » | the top of the page: cover photo, logo, name, « Abidjan », **« Nouveau »** (build 569, #573), then « Services » and the start of « Contact »; « Réserver (après la mise en ligne) » at the bottom. No phone in frame, so no mask. Never « Mettre mon profil en ligne » (the button on the screen before) |
 | 3 | Accueil | the start screen | top, non-zero « Aujourd'hui » stats; the push sheet dismissed with « Plus tard » |
-| 4 | Réservation | Accueil → « Clients » → a client → « Nouvelle réservation » | two services ticked, date and time chosen, no picker or keyboard open; never « Créer le rendez-vous » |
-| 5 | Fiche client | Accueil → « Clients » → a client | tags, visits, « Dépensé », next booking, history |
+| 4 | Réservation | Accueil → « Rendez-vous » → « Nouveau » | « Coupe femme » and « Soin Capillaire » ticked, 15/10/2026 at 10:00, « Client sans numéro » ticked, name « Aya T. »; no picker or keyboard open; never « Créer le rendez-vous » (below the fold, untouched). Reshot on 569: no « (walk-in) », no SMS line |
+| 5 | Fiche client | Accueil → « Clients » → Awa K. | tags, visits, « Dépensé », next booking, history. Reshot on 569: the number grouped (masked after « +225 07 »), four equal tiles, « 13 oct. 2026 » |
 | 6 | Services | Accueil → « Configuration » → « Services » | top of the list |
 | 7 | Disponibilité | Accueil → « Disponibilité » | scrolled to the hours and « Modèles »; **no taps** (every chip writes) |
 | 8 | Revenus | Accueil → « Analyses » → « Revenus » | « Aujourd’hui » tab, after that day’s five bookings were marked « Terminé » (the screen counts completed bookings; « Semaine » showed the same five) |
@@ -143,8 +143,10 @@ reason that is checked, not assumed:
   invitations blocked, 0 reviews). The store description carries them.
 
 Owner decisions (screen numbers as they were before the 2026-10-13 reorder):
-screen 4 — now 5 — kept as is on 565 (the « dimanch / e » break, §9); screen
-7's caption — now 2 — changed to the online-booking promise; screen 8 added.
+screen 4 — now 5 — kept as is on 565 (the « dimanch / e » break, §9), **then
+reshot on 569 with the booking form the same day, once the fixes were in a
+build** (owner, 2026-10-13); screen 7's caption — now 2 — changed to the
+online-booking promise; screen 8 added.
 
 **Photos.** The owner says the salon photos were found online. None of the
 frames showed them until the 2026-10-13 reorder. **Screen 2 now shows the
@@ -211,6 +213,12 @@ The salon phone on screen 7 (`+225 07 00 00 01 00`) is masked after
       captured twice 2 s apart and compared identical, moved to position 2;
       the other raw captures renamed to the new ids, captions unchanged; the
       565 set archived locally in `build/app-store/pro-565-set/`.
+- [x] Screens 4 and 5 reshot on 569 (2026-10-13), each captured twice 2 s
+      apart and compared identical. The booking form was filled and left by
+      the back arrow — « Créer le rendez-vous » never touched, the agenda read
+      unchanged afterwards. The client card's mask was re-measured on the new
+      capture (glyph columns, raw pixels): `[466, 543, 246, 42]` covers the
+      digits after « +225 07 ».
 - [ ] Owner sign-off on the overview.
 - [ ] Uploaded in App Store Connect; the required medium-display slot reads
       filled.
@@ -224,9 +232,9 @@ The salon phone on screen 7 (`+225 07 00 00 01 00`) is masked after
 ## 9. Defects seen during the shoot (build 565, follow-up task)
 
 Owner decision: shoot on 565, fix after. **All fixed in build 569** (#573,
-#574). Screen numbers below are the pre-reorder ones. **Frames 4 and 5 (the
-booking and the client card) still show 565's UI** — reshooting them on 569
-is the owner's call.
+#574). Screen numbers below are the pre-reorder ones. Frames 4 and 5 (the
+booking and the client card) were **reshot on 569** on 2026-10-13, so no frame
+of the set shows any of these any more.
 - The owner preview shows the client-only « Vos rendez-vous ici —
   Connectez-vous… » card (screen 7 avoids it by framing).
 - The client card shows a raw `+2250700000101` (masked on screen 4).
