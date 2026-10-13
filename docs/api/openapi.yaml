@@ -484,7 +484,8 @@ paths:
         recreates the identity. The refusal is evaluated right after the
         account is loaded and before the future-bookings gate, so the answer
         is the same whether or not the demo salon has upcoming bookings, and
-        nothing is read or written past it.
+        nothing is read or written past it. Design:
+        docs/design/demo-account-deletion-lock.md.
       security: [{ bearerAuth: [] }]
       responses:
         '204': { description: Account deleted; salon unpublished. }

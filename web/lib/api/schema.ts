@@ -674,7 +674,7 @@ export interface paths {
          * Delete the provider ACCOUNT (audit 11.5 — AUTH-004 for pros)
          * @description Self-scoped and irreversible. Future pending/confirmed bookings in ANY owned salon block the deletion (409 `future_bookings` — settle every agenda first; R6). EVERY salon the account owns is unpublished (`status → draft`, hidden from every public surface by T51) while bookings/reviews/CRM keep resolving; member-only salons are untouched; the account row, its KYC documents (rows AND the private storage objects), OTP state and every refresh token are erased — all sessions die. Threat T53.
          *
-         *     The store-review demo account cannot delete itself — 403 `demo_account_locked` (T69): its credential is public, and nothing recreates the identity. The refusal is evaluated right after the account is loaded and before the future-bookings gate, so the answer is the same whether or not the demo salon has upcoming bookings, and nothing is read or written past it.
+         *     The store-review demo account cannot delete itself — 403 `demo_account_locked` (T69): its credential is public, and nothing recreates the identity. The refusal is evaluated right after the account is loaded and before the future-bookings gate, so the answer is the same whether or not the demo salon has upcoming bookings, and nothing is read or written past it. Design: docs/design/demo-account-deletion-lock.md.
          */
         delete: {
             parameters: {
