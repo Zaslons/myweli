@@ -4,7 +4,7 @@
 |---|---|
 | **Status** | Built |
 | **Owner** | Sadreddine |
-| **Last updated** | 2026-06-26 |
+| **Last updated** | 2026-10-13 (§2 « After Publier », §5 mock — [amounts-that-fit.md](amounts-that-fit.md)) |
 | **PRD ref / phase** | Reviews — post-completion + photos · V1 (PRD §8.2) |
 | **ROADMAP entry** | Phase 3 — Backend build + integration (added on build) |
 | **Skills checked** | myweli-backend-guardrails ✓ + myweli-dev-guardrails (review feed is user-facing) |
@@ -26,6 +26,32 @@ Put consumer **reviews** on the real backend — review a **completed appointmen
 
 ## 2. UX & flows
 The provider detail screen shows `rating` + `reviewCount` + `reviews.take(5)`; the reviews screen lists them; the post-completion "leave a review" flow submits against the completed appointment. Each review **card** renders: reviewer · rating · date · **service** · **"avec [artiste]"** (when an artist did it) · photos. Flat newest-first; a regular's visits appear as separate dated cards. French copy; the four states already exist.
+
+**After « Publier » (app, 2026-10-13 — [amounts-that-fit.md](amounts-that-fit.md) §2, §5).**
+The 201 carries the review and nothing of the salon, so the app works the
+figures out, then asks:
+
+1. **At once, without a read** (`ProviderProvider.addReviewLocally`): the
+   review is the **first** tile; a visit reviewed again **replaces** its tile
+   and keeps the count (matched on a non-empty `appointmentId` — never on the
+   review `id`, which the 201 mints anew on a resubmit), a first review of a
+   visit adds one. The same `rating` and `reviewCount` go onto every copy of
+   the salon in memory — the salon page when it is this salon's, the list, the
+   featured list, and the favourites (`FavoritesProvider.patchSalonFigures`,
+   handed over by the sheet) — whichever salon page is open, or none.
+2. **Then one background read of `GET /providers/{id}`**
+   (`rereadSalonAfterReview`): not awaited by the sheet, limited to
+   `AppConstants.reviewRereadTimeout` (10 s). An answer replaces the estimate
+   with the server's salon — its average, its count, the stored review id.
+   A refusal, a failure or the time limit changes nothing and shows nothing;
+   so does an answer that arrives while **another salon holds the page slot**,
+   or after a later review of the same salon was applied.
+
+What step 1 cannot know, and step 2 corrects: the average is rebuilt from the
+stored one-decimal figure, so it can sit 0,1 from the server's; and an earlier
+review of the visit that is neither among the ten embedded reviews nor posted
+in this session is counted as new. The web form does no arithmetic and is
+unchanged.
 
 ## 3. API & contract
 - **`POST /appointments/{appointmentId}/review`** — **consumer** token. The appointment must belong to the caller (`userId == sub`) and be **`completed`** (→ 403 `forbidden` / `not_completed`). Body: `{ rating:1..5, text, photoUrls? }`. The server derives `providerId`, `artistId`/`artistName`, `serviceName` (from the appointment + the provider's services), `userName` (profile), `verified=true`, `id`, `createdAt`. **One review per appointment** — resubmitting replaces it (upsert on `appointment_id`). → **201** the stored `Review`; recomputes provider + artist ratings.
@@ -83,6 +109,7 @@ CREATE INDEX IF NOT EXISTS reviews_provider_idx ON reviews (provider_id, created
 - **Provider read:** `byId` embeds `recentForProvider(id,10)`; `query` leaves `reviews` empty.
 - **Routes:** `routes/appointments/[id]/review.dart` (POST) + `routes/providers/[id]/reviews/index.dart` (GET). DI + middleware provide the repo + service.
 - **App:** `ApiReviewService` (consumer session + silent refresh): `submitReview` → `POST /appointments/{id}/review`; `getProviderReviews` → `GET /providers/{id}/reviews`. `Review.toJson/fromJson` (+ `appointmentId`, `serviceName`).
+- **App, mock mode (2026-10-13):** `MockReviewService.submitReview` stores the review in `MockData.reviews` — the list the mock salon read answers from — **one per appointment**, and moves the mock salon's `rating`/`reviewCount` with the write (one more for a new visit, none for a visit reviewed again; `core/utils/salon_figures.dart`). It used to append to a list nothing read back, so any read after a submit erased the review. The seeded figures are untouched until a review is posted.
 
 ## 6. Validation & authority
 - `rating` ∈ 1..5; `text` ≤ 1000 chars (trimmed, may be empty); `photoUrls` ≤ 6, each non-empty ≤ 2048 and origin-allowlisted when public delivery is configured (reuse the gallery rule).
@@ -129,6 +156,10 @@ So a user who reviews twice gets a blank form and retypes rating and text
 **because they can see those fields are empty**. Photos are the one field where
 the loss is invisible: the form never showed them, so there is no cue to
 re-attach, and the submit replaces a populated `photo_urls` with `[]`.
+
+What the app shows AFTER such a second submit is no longer wrong (2026-10-13,
+§2): one tile and a steady count, where it used to show both reviews and count
+two. The entry points and the blank form are as described here.
 
 Making that work is a **feature, not a bug fix**, and it needs decisions this
 spec cannot make alone:
