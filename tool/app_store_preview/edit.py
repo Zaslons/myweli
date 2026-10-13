@@ -139,15 +139,19 @@ def read_frames(scan: dict, px_per_pt: float, rest_ticks: int) -> Reading:
 
     def ahead(i: int) -> Box | None:
         """The caret this stretch is going to show, if it shows one: the
-        first caret-shaped box inside `area` before anything bigger changes.
-        A fragment seen before it is the same caret, a moment earlier."""
+        first caret-shaped box inside `area`, with nothing but corners of
+        itself before it. A fragment seen before the whole caret is the same
+        caret, a moment earlier — unless anything else changed in between."""
+        before: list[Box] = []
         for f in frames[i:]:
             if frame_kind(f, px_per_pt) == "quiet":
                 continue
             if not caret_sized(f):
                 return None
             if _caret_shaped(f["box"], px_per_pt) and _inside(f["box"], area, px_per_pt):
-                return f["box"]
+                whole_caret = f["box"]
+                return whole_caret if all(_caret_sized(_union(whole_caret, b), px_per_pt) for b in before) else None
+            before.append(f["box"])
         return None
 
     for i, f in enumerate(frames):

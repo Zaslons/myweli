@@ -221,6 +221,15 @@ class Kinds(unittest.TestCase):
         scan = scan_of(burst(1800, 1900) + [(2400, corner), (2800, dict(CARET))])
         kinds = dict(zip([f["pts"] for f in scan["frames"]], edit.frame_kinds(scan, 3.0, REST)))
         self.assertEqual((kinds[2400], kinds[2800]), ("caret", "caret"))
+        # a small change somewhere else is a change in between, like a big one
+        dot = {"soft": 40, "strong": 30, "max": 200, "box": [611, 773, 616, 774]}
+        scan = scan_of(burst(1800, 1900) + [(2400, corner), (2500, dot), (2800, dict(CARET)), (3100, dict(CARET))])
+        kinds = dict(zip([f["pts"] for f in scan["frames"]], edit.frame_kinds(scan, 3.0, REST)))
+        self.assertEqual([kinds[p] for p in (2400, 2500, 2800, 3100)], ["change", "change", "change", "caret"])
+        # …and two corners of the same caret are both it
+        top = {"soft": 464, "strong": 5, "max": 200, "box": [300, 700, 303, 703]}
+        scan = scan_of(burst(1800, 1900) + [(2400, corner), (2500, top), (2800, dict(CARET))])
+        self.assertEqual(edit.frame_kinds(scan, 3.0, REST)[-3:], ["caret", "caret", "caret"])
 
     def test_the_area_a_caret_may_appear_in_is_the_whole_burst(self):
         """The focus burst ends on a frame that does not cover the caret (the
