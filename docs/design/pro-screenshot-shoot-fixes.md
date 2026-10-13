@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Approved** (owner, 2026-10-13) — **built** for build 566 |
+| **Status** | **Approved** (owner, 2026-10-13) — **built**, in **build 569** (TestFlight, 2026-10-13) |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-10-13 |
 | **PRD ref / phase** | Pro app — clients, photos, home, manual booking · V1 |
@@ -104,7 +104,9 @@ shoot's figures; rows by vertical overlap with their membership asserted.
 
 ## 9. Rollout
 
-With PR #573 in **build 566**.
+With PR #573 in **build 569** (0.0.1). *« Build 566 » here until 2026-10-13 was
+wrong: the build number is the commit count on `main`, and 566 is the docs
+commit before #573 and #574 — it contains neither.*
 
 ## 10. Definition of done
 
@@ -112,7 +114,7 @@ With PR #573 in **build 566**.
 - [x] Goldens regenerated on Linux (`goldens.yml` run 38332107792) and
       reviewed: only `pro_dashboard_w360_x2` moved; 50 byte-identical.
 - [x] SYSTEM.md §21 row 92 for the timeout overlay.
-- [ ] On device, build 566: the client card, a slow photo, the home.
+- [ ] On device, build 569: the client card, a slow photo, the home.
 
 ## 11. Open questions
 

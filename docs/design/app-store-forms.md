@@ -281,7 +281,7 @@ dossier proposait :
 | Sous-titre | vide | `Agenda, clients, réservations` (§4) | à remplir |
 | Droits sur le contenu | non renseignés | « Oui … et j'ai les droits nécessaires » (§9) | à remplir |
 | Version | iOS **1.0**, « Prepare for Submission » | **0.0.1** (le binaire, §11.3 — la version de l'app passe de 1.0.0 à 0.0.1, décision du propriétaire le 2026-10-13, à partir du build 569) | **renommer la page « 1.0 » en « 0.0.1 »** avant de choisir le build : App Store Connect ne propose pour une version que les builds de même numéro, et 0.0.1 ≠ 1.0 quelle que soit sa normalisation. Le renommage est une écriture dans App Store Connect : avec l'accord du propriétaire (§13). Les builds 1.0.0 (≤ 565) restent dans TestFlight sous leur version |
-| TestFlight | aucun build | — | §11.5 — *2026-10-12, soir : build **565** envoyé, traité `VALID` ; le groupe interne ne reçoit que le **565** (il remplace le 560)*. *2026-10-12 : builds 551, 555 et **560** envoyés, traités `VALID` ; le groupe interne ne reçoit que le **560** (il remplace le 555)*. *2026-10-10 : builds 551 et 555 envoyés, traités `VALID` ; le groupe interne ne reçoit que le 555 (§11.6)* |
+| TestFlight | aucun build | — | §11.5 — *2026-10-13 : build **569** (**0.0.1**) envoyé, traité `VALID` ; le groupe interne ne reçoit que le **569** (il remplace le 565) ; ajouté au groupe externe « Testeurs externes » et **soumis à la revue bêta** (`WAITING_FOR_REVIEW`) — le 565, encore en attente de revue, y reste*. *2026-10-12, soir : build **565** envoyé, traité `VALID` ; le groupe interne ne reçoit que le **565** (il remplace le 560)*. *2026-10-12 : builds 551, 555 et **560** envoyés, traités `VALID` ; le groupe interne ne reçoit que le **560** (il remplace le 555)*. *2026-10-10 : builds 551 et 555 envoyés, traités `VALID` ; le groupe interne ne reçoit que le 555 (§11.6)* |
 
 L'app consommateur « MyWeli » a aussi sa fiche (iOS 1.0, « Prepare for
 Submission ») ; elle aura son propre dossier.
@@ -928,7 +928,31 @@ clé d'app CARTO dans le binaire (une occurrence, comparée sans l'afficher), la
 clé web absente, un témoin absent. `altool --validate-app` réussi, envoyé
 (delivery `10b428cf-76e5-4ccd-a805-277e54bb802f`), traité `VALID`, état bêta
 `READY_FOR_BETA_TESTING` ; archive rangée en `Runner-pro-565.xcarchive`.
-**C'est le build à soumettre.**
+~~C'est le build à soumettre~~ — remplacé par le 569 (ci-dessous).
+
+**Build 569** (2026-10-13, depuis `main` à `79bfcf1f`, après #573, #574 et
+#575) — **version 0.0.1** (décision du propriétaire ; 1.0.0 jusqu'au 565) :
+« Nouveau » au lieu de « ★ 0.0 · 0 avis » (#573), les quatre défauts
+d'affichage vus au tournage — la date « Dernière », le numéro brut,
+« Réessayer », les cartes de l'accueil — et « Client sans numéro », sans
+interrupteur SMS (#574). Avant l'envoi, une revue contradictoire de tout ce
+qui a changé depuis le 565 (quatre relecteurs, un sceptique par domaine, un
+critique d'exhaustivité) : **aucun bloquant** ; les défauts confirmés sont
+listés pour le build suivant. IPA relue au §11.3 : **0.0.1 (569)**,
+`com.myweli.pro`, iPhone seul, `fr`, les textes de position dont « Always »,
+`ITSAppUsesNonExemptEncryption` faux, entitlements de production
+(`aps-environment` production, `get-task-allow` faux, `beta-reports-active`
+vrai, Sign in with Apple), l'asset `myweli_loader_mixed_pro.json` présent, 35
+manifestes de confidentialité, la voie compagnon `OK : 22 phrases à 0, 9
+témoins présents` ; la clé d'app CARTO dans le binaire (une occurrence,
+comparée sans l'afficher), la clé web absente, un témoin inventé absent ;
+« Client sans numéro » présent, « (walk-in) » absent. `altool
+--validate-app` réussi — **Apple accepte 0.0.1** après des builds 1.0.0, rien
+n'ayant été publié —, envoyé, traité `VALID` (build
+`cc4f9bf5-471f-4ced-8a77-ad7a02ccb56d`) ; « What to Test » fr-FR repris du
+565 ; symboles Dart et natifs relus dans la liste du serveur Sentry ;
+archive rangée en `Runner-pro-569.xcarchive`. **C'est le build à soumettre**
+— après avoir renommé la page « 1.0 » en « 0.0.1 » (§3).
 
 Syntaxe relue dans l'aide de l'`altool` local (version 27.0.5) :
 `--upload-package` est la forme de ses exemples ; `--upload-app -f` existe
@@ -1036,6 +1060,25 @@ reprennent ce qui est propre au 565.
 - [ ] **Rester connecté** : fermer l'app plus de 15 min, la rouvrir → toujours
       connecté ; le journal de production montre alors un
       `auth_refresh … outcome=rotated` (ou `grace`), pas de `reused`.
+- [ ] **Version** (569) : Profil → « À propos » affiche « Version 0.0.1 (569) ».
+- [ ] **Fiche client** (569, #574) : Clients → un client → la tuile
+      « Dernière » lit « 13 oct. 2026 » (jamais un mot coupé), le numéro est
+      groupé (« +225 07 … »), les quatre tuiles ont la même hauteur ; avec un
+      texte agrandi (Réglages → Accessibilité → Affichage et taille du
+      texte), elles passent en 2 × 2.
+- [ ] **Photo lente** (569, #574) : Réglages → Développeur → Network Link
+      Conditioner → « 100% Loss », activer, puis ouvrir une page avec des
+      photos (Profil → Photos du salon) : après une douzaine de secondes, un
+      fond clair cache le chargeur, avec « Réessayer » (ou l'icône seule dans
+      une petite vignette) ; aucun mot coupé. Désactiver, toucher
+      « Réessayer » : la photo arrive.
+- [ ] **Accueil** (569, #574) : les deux cartes de chaque rangée de chiffres
+      ont la même hauteur, même quand « Ce mois » passe à la ligne.
+- [ ] **« Nouveau »** (569, #573) : l'Aperçu d'un salon sans avis affiche
+      « Nouveau », jamais « 0.0 · 0 avis » ; pas de carte « Vos rendez-vous
+      ici — Connectez-vous… ».
+- [ ] **Réservation au comptoir** (569, #574) : « Client sans numéro », et
+      aucun interrupteur SMS.
 - [ ] Faire pivoter le téléphone : le paysage est encore permis (§14) —
       noter ce qui casse.
 
@@ -1151,11 +1194,11 @@ numéros).*
        l'archive ; **vérifier l'IPA** (§11.3). *Build 555, 2026-10-10 ;
        archive rangée en `Runner-pro-555.xcarchive`. Puis 560 et **565**
        (2026-10-12), archive `Runner-pro-565.xcarchive`.*
-12. [x] **Valider, envoyer**, attendre le traitement (§11.5). *555 `VALID` ; 560 `VALID` ; **565 `VALID`** (2026-10-12), le build à soumettre.*
+12. [x] **Valider, envoyer**, attendre le traitement (§11.5). *555 `VALID` ; 560 `VALID` ; 565 `VALID` (2026-10-12) ; **569 `VALID`** (2026-10-13, 0.0.1), le build à soumettre.*
 13. [ ] **TestFlight interne** et toutes les cases du §11.6. *Groupe et
        invitation faits le 2026-10-10 ; les vérifications sur l'appareil
        restent au propriétaire.*
-14. [x] **Symboles Sentry** (§12.2). *Dart et natifs, builds 555, 560 et 565.*
+14. [x] **Symboles Sentry** (§12.2). *Dart et natifs, builds 555, 560, 565 et 569.*
 15. [x] **Captures** sur le salon démo — *8 captures légendées, 1206 × 2622 (obligatoire) et 1320 × 2868, faites le 2026-10-13 ([pro-app-store-screenshots.md](pro-app-store-screenshots.md)) ; reste à les téléverser dans App Store Connect.*
 16. [ ] **Remplir App Store Connect** : informations sur l'app (§3, §5, §6,
        §9), tarifs et disponibilité — Côte d'Ivoire seule, Mac et Vision Pro
