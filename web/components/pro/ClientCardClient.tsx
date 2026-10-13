@@ -233,7 +233,12 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
               </div>
             </div>
 
-            <div className="mt-m">
+            {/* `mt-l`, not `mt-m`: when the phone row wraps, « Appeler » and
+                « WhatsApp » sit directly above this button, and each 48px box
+                reaches 12px below its own line (`-my-sm`). 24 − 12 leaves 12px
+                between the hit areas; `mt-m` left 4, under the 8px that
+                adjacent targets need (SYSTEM.md §13.2). */}
+            <div className="mt-l">
               <Button onClick={() => setBooking(true)}>
                 Nouveau rendez-vous
               </Button>
