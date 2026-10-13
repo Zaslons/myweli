@@ -210,6 +210,35 @@ class Build(unittest.TestCase):
                       "[1000, 2380, 1006, 2440]; frame 18 against frame 21:", cuts)
         self.assertIn("(caret)", cuts)
         self.assertIn("followed in the picture on 60 frames, from 5.0 to 300.0 pt of the 300 pt logged", cuts)
+        # the take has a picture every 1/60 s: the film shows every other one, none twice
+        self.assertIn("(43 frames, 1:1)  shows 31 of the take's 61 changed pictures, 0 twice while it moved", cuts)
+        self.assertIn("drags, film frame by film frame (points the picture moved under the finger)\n"
+                      "  drag-b           5 10 10 10 10", cuts)
+        self.assertIn("first step 5 pt; 0 film frames did not move", cuts)
+
+    def test_the_log_says_what_each_touch_point_landed_on(self):
+        """Written after the frames are composed: read on the picture each
+        touch lands on."""
+        cuts = (FILM / "cuts.txt").read_text()
+        self.assertIn("touch points on the picture (white on a dark or green fill: luminance under 0.35; else the "
+                      "brand's black)\n"
+                      "  tap-a            black point on a light ground at (100, 260) pt: luminance 1.00 under the "
+                      "finger,", cuts)
+        self.assertIn("  drag-b           black point on a light ground at (200, 600) pt:", cuts)
+
+    def test_the_build_leaves_a_record_of_what_it_made(self):
+        record = read("build.json")
+        movie = FILM / "preview.mp4"
+        self.assertEqual(record, {
+            "file": "preview.mp4", "bytes": movie.stat().st_size,
+            "sha256": hashlib.sha256(movie.read_bytes()).hexdigest(), "rehearsal": False, "variant": None,
+            "poster_sha256": hashlib.sha256((FILM / "poster.png").read_bytes()).hexdigest(),
+            "take": read("scan.json")["take"]})
+        self.assertIn(f"PASS — 24 checks — the film, sha256 {record['sha256'][:16]}…\n", (FILM / "verify.txt").read_text())
+        # and the command, run by hand on that file, says the same
+        r = tool("verify", movie, "--storyboard", WORK / "storyboard.json", "--poster", FILM / "poster.png")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertTrue(r.stdout.endswith(f"PASS — 24 checks — the film, sha256 {record['sha256'][:16]}…\n"))
 
     def test_the_drag_is_followed_in_the_picture(self):
         """track.json: what the pictures say, frame by frame — the list is
@@ -445,23 +474,43 @@ class Variant(unittest.TestCase):
                          [("hold", 1740, 30), ("live", 1740, 3860), ("hold", 3840, 30), ("hold", 3840, 284)])
         self.assertEqual(json.loads((self.out / "track.json").read_text()), {})      # no drag in it to follow
 
-    def test_the_checker_says_rehearsal_when_it_is_told_the_variant_or_reads_the_name(self):
+    def test_the_checker_knows_a_rehearsal_by_its_record_not_by_its_name(self):
+        """The film's own storyboard is the same length here, so a rehearsal
+        passes every one of its checks. It is never called the film: the
+        record the build left names its bytes, wherever they are copied."""
         movie = self.out / "preview-rehearsal.mp4"
-        told = tool("verify", movie, "--storyboard", WORK / "storyboard-variants.json", "--variant", "dry")
-        self.assertEqual(told.returncode, 0, told.stdout)
-        self.assertIn("PASS — 23 checks — REHEARSAL, not the film: the storyboard's variant `dry`", told.stdout)
-        # not told: the film's own storyboard is the same length here, so every
-        # check passes — and the file's name still says what it is
-        untold = tool("verify", movie, "--storyboard", WORK / "storyboard-variants.json")
-        self.assertIn("PASS — 23 checks — REHEARSAL, not the film: the file is named preview-rehearsal.mp4",
-                      untold.stdout)
-        renamed = WORK / "dry" / "film.mp4"
+        record = json.loads((self.out / "build.json").read_text())
+        self.assertEqual((record["file"], record["rehearsal"], record["variant"]), ("preview-rehearsal.mp4", True, "dry"))
+        self.assertEqual(record["sha256"], hashlib.sha256(movie.read_bytes()).hexdigest())
+        base = ["--storyboard", WORK / "storyboard-variants.json", "--poster", self.out / "poster.png"]
+        told = tool("verify", movie, *base, "--variant", "dry")
+        self.assertEqual(told.returncode, 0, told.stdout + told.stderr)
+        self.assertTrue(told.stdout.endswith(
+            "PASS — 24 checks — REHEARSAL, not the film: the storyboard's variant `dry`\n"), told.stdout[-200:])
+        # checked as the film — under its own name, or renamed preview.mp4 where it was built
+        renamed = self.out / "preview.mp4"
         shutil.copyfile(movie, renamed)
         try:
-            bare = tool("verify", renamed, "--storyboard", WORK / "storyboard-variants.json")
-            self.assertIn("PASS — 23 checks\n", bare.stdout)       # what a renamed rehearsal gets: see README
+            for path in (movie, renamed):
+                untold = tool("verify", path, *base)
+                self.assertEqual((untold.returncode, untold.stdout), (1, ""), path.name)
+                self.assertIn(f"{path.name} was built as the storyboard's variant `dry` (build.json beside it names "
+                              f"these bytes) and is being checked as the film: add --variant dry", untold.stderr)
         finally:
             renamed.unlink()
+        # copied out of its folder and renamed: every check passes, and it is not called the film
+        away = WORK / "away"
+        away.mkdir(exist_ok=True)
+        shutil.copyfile(movie, away / "preview.mp4")
+        stray = tool("verify", away / "preview.mp4", *base)
+        self.assertEqual(stray.returncode, 1)
+        self.assertIn("PASS — 24 checks\nNOT IDENTIFIED — no build.json beside preview.mp4 names these bytes",
+                      stray.stdout)
+        # and the film is not a rehearsal either
+        film = tool("verify", FILM / "preview.mp4", *base[:2], "--poster", FILM / "poster.png", "--variant", "dry")
+        self.assertEqual(film.returncode, 1)
+        self.assertIn("preview.mp4 was built as the film (build.json beside it names these bytes) and is being "
+                      "checked as the storyboard's variant `dry`: drop --variant", film.stderr)
 
     def test_a_variant_the_storyboard_does_not_have_stops_the_build(self):
         r = tool("build", "--storyboard", WORK / "storyboard-variants.json", "--variant", "wet", "--take", TAKE,

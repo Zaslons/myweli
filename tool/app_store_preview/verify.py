@@ -47,11 +47,14 @@ VIDEO_BPS = (150_000, 12_000_000)
 # High Profile Level 4.0: MaxBR 20 000 x 1.25 kbit/s (H.264 Table A-1, A.3.3)
 PEAK_BPS = 25_000_000
 AUDIO_MAX_BPS = 256_000
-# The decoded poster frame against the composed PNG. H.264 4:2:0 at this
-# rate measured 54 dB on a still frame; a caption or a touch point that
-# differs is tens of levels over thousands of pixels.
-POSTER_MIN_PSNR = 42.0
-POSTER_MAX_BLOCK = 12.0   # the largest mean difference of any 16 x 16 block
+# The decoded poster frame against the composed PNG. Measured on 2026-10-13:
+# the rehearsal film's own poster 58.8 dB with its worst 16 x 16 block off by
+# 2.4 levels (53.0 dB and 3.9 on the tests' clips, written without the film's
+# quantiser ceiling) — and the frame ONE STEP short of the last caption's
+# cross-fade, 6 % of the old words still in it, 44.1 dB and 10.8. The limits
+# sit between the two, so that frame is not the poster.
+POSTER_MIN_PSNR = 48.0
+POSTER_MAX_BLOCK = 8.0    # the largest mean difference of any 16 x 16 block
 
 
 @dataclass
@@ -59,9 +62,10 @@ class Check:
     name: str
     ok: bool
     seen: str
+    skipped: bool = False     # a check that was not run: it neither passes nor fails, and the report says so
 
     def line(self) -> str:
-        return f"{'ok  ' if self.ok else 'FAIL'}  {self.name:<28} {self.seen}"
+        return f"{'skip' if self.skipped else 'ok  ' if self.ok else 'FAIL'}  {self.name:<28} {self.seen}"
 
 
 def _avmediainfo(path: Path) -> dict:
@@ -250,6 +254,8 @@ def verify(path: Path, storyboard: dict, poster_png: Path | None = None) -> list
                         f"frame {index} ({film['poster_s']:g} s) decoded against {Path(poster_png).name}: "
                         f"{psnr:.1f} dB (at least {POSTER_MIN_PSNR:g}), worst 16 x 16 block off by "
                         f"{block:.1f} levels (at most {POSTER_MAX_BLOCK:g})")
+        else:
+            checks.append(Check("poster frame", True, "NOT compared — no composed poster was given", skipped=True))
 
     # ---- sound ---------------------------------------------------------------
     if len(ba) != 1 or len(av_a) != 1 or len(ia) != 1:
@@ -292,9 +298,15 @@ def verify(path: Path, storyboard: dict, poster_png: Path | None = None) -> list
 
 
 def report(checks: list[Check], path: Path, note: str = "") -> tuple[str, bool]:
-    ok = all(c.ok for c in checks)
+    """The report and whether every check that ran passed. A check that was
+    not run is counted apart and named on the last line: 23 checks that pass
+    are not 24."""
+    ran = [c for c in checks if not c.skipped]
+    ok = all(c.ok for c in ran)
     lines = [f"verify {path}"] + ["  " + c.line() for c in checks]
-    failed = [c.name for c in checks if not c.ok]
-    lines.append(f"PASS — {len(checks)} checks{note}" if ok
-                 else f"FAIL — {len(failed)} of {len(checks)} checks: {', '.join(failed)}")
+    failed = [c.name for c in ran if not c.ok]
+    left_out = [c.name for c in checks if c.skipped]
+    apart = f"; NOT RUN: {', '.join(left_out)}" if left_out else ""
+    lines.append(f"PASS — {len(ran)} checks{apart}{note}" if ok
+                 else f"FAIL — {len(failed)} of {len(ran)} checks: {', '.join(failed)}{apart}")
     return "\n".join(lines) + "\n", ok

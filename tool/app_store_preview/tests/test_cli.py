@@ -41,6 +41,31 @@ class Command(unittest.TestCase):
         self.assertEqual(r.returncode, 1)
         self.assertIn("cannot read", r.stderr)
 
+    def test_a_build_that_is_refused_leaves_no_earlier_result_behind(self):
+        """Refused before the take is even looked at — a variant the
+        storyboard does not have, a log that cannot be read, a take that is
+        not there: the film, the sheet and the PASS report of an earlier
+        build in that folder are gone all the same."""
+        (WORK / "g2.json").write_text(json.dumps({"device_points": [402, 874], "gestures": []}))
+        (WORK / "broken2.json").write_text("{ not json")
+        results = ("preview.mp4", "preview-rehearsal.mp4", "verify.txt", "poster.png", "poster-decoded.png",
+                   "contact-sheet.png", "edit.json", "cuts.txt", "track.json", "build.json")
+        refusals = {
+            "variant": (["--variant", "nope", "--gestures", str(WORK / "g2.json")], "the storyboard has no variant `nope`"),
+            "log": (["--gestures", str(WORK / "broken2.json")], "cannot read"),
+            "take": (["--gestures", str(WORK / "g2.json")], "no such take"),
+        }
+        for name, (args, why) in refusals.items():
+            folder = WORK / f"earlier-{name}"
+            folder.mkdir()
+            for result in results:
+                (folder / result).write_text("an earlier build's")
+            (folder / "notes.txt").write_text("not a result of a build")
+            r = preview("build", "--take", str(WORK / "nothing.mov"), "--out", str(folder), *args)
+            self.assertEqual(r.returncode, 1, name)
+            self.assertIn(why, r.stderr)
+            self.assertEqual(sorted(p.name for p in folder.iterdir()), ["notes.txt"], name)
+
     def test_a_self_test_that_runs_no_test_is_a_failure(self):
         """An empty sweep must not read as a clean one."""
         r = preview("selftest", "--pattern", "there_is_no_such_test_*.py")
@@ -98,6 +123,36 @@ class Conform(unittest.TestCase):
         (WORK / "pairs.json").write_text(json.dumps({"pairs": [[2, 1]]}))
         self.assertIn("a pair is [earlier, later] frame numbers",
                       self.refused("diff", self.take, "--pairs", WORK / "pairs.json", "--out", WORK / "d.json"))
+
+    def test_the_two_levels_a_change_is_measured_by(self):
+        """`soft` counts the pixels that moved by more than 16 levels,
+        `strong` those that moved by more than 64 — what README « What counts
+        as a change » and edit.py's thresholds are stated in. A patch 40
+        levels lighter than its ground is soft and not strong; one 100
+        levels lighter is both. Counted to the pixel."""
+        folder = WORK / "levels"
+        folder.mkdir()
+        ground = Image.new("RGB", (96, 208), (120, 120, 120))
+        faint, clear = ground.copy(), ground.copy()
+        faint.paste((160, 160, 160), (16, 16, 48, 48))
+        clear.paste((220, 220, 220), (48, 112, 80, 144))
+        for name, im in (("ground", ground), ("faint", faint), ("clear", clear)):
+            im.save(folder / f"{name}.png")
+        (folder / "clip.json").write_text(json.dumps({
+            "width": 96, "height": 208, "timescale": 600, "end": 600,
+            "frames": [{"pts": 0, "file": "ground.png"}, {"pts": 100, "file": "faint.png"},
+                       {"pts": 200, "file": "ground.png"}, {"pts": 300, "file": "clear.png"}]}))
+        swifttools.run("testclip", folder / "clip.json", "--out", folder / "take.mov")
+        swifttools.run("conform", "scan", folder / "take.mov", "--out", folder / "scan.json")
+        scan = json.loads((folder / "scan.json").read_text())
+        self.assertEqual(scan["levels"], {"soft": 16, "strong": 64})
+        self.assertEqual([(f["soft"], f["strong"]) for f in scan["frames"]],
+                         [(0, 0), (32 * 32, 0), (32 * 32, 0), (32 * 32, 32 * 32)])
+        self.assertEqual([f.get("box") for f in scan["frames"]], [None, None, None, [48, 112, 80, 144]])
+        # asked for other levels, the same pictures count otherwise
+        swifttools.run("conform", "scan", folder / "take.mov", "--out", folder / "scan2.json", "--soft", 50, "--strong", 150)
+        scan = json.loads((folder / "scan2.json").read_text())
+        self.assertEqual([(f["soft"], f["strong"]) for f in scan["frames"]], [(0, 0), (0, 0), (0, 0), (32 * 32, 0)])
 
     def test_what_it_does_do_on_the_same_take(self):
         """The control: the same take, asked properly, is scanned, compared

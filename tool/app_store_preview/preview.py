@@ -73,9 +73,47 @@ def rehearsal_note(sb: dict, log: dict | None = None) -> str:
     """What a report says of a file that is not the film."""
     if sb.get("variant"):
         return f" — REHEARSAL, not the film: the storyboard's variant `{sb['variant']}`"
-    logged = {t.get("id") for t in (log or {}).get("gestures", [])}
+    if log is None:
+        return " — REHEARSAL, not the film: built with --rehearsal, some shots have no footage"
+    logged = {t.get("id") for t in log.get("gestures", [])}
     empty = [s["id"] for s in sb["shots"][:-1] if not any(g["id"] in logged for g in s["gestures"])]
     return f" — REHEARSAL, not the film: no footage for {', '.join(empty) or 'some gestures'}"
+
+
+# What a build made, written beside it: the file's own sha256, and whether it
+# is the film or a rehearsal. `verify` run by hand reads it back — a file is
+# only called the film when a record names its bytes; a rehearsal that has
+# been renamed, or copied somewhere else, is not.
+RECORD = "build.json"
+
+
+def sha256(path: Path) -> str:
+    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+
+def write_record(out: Path, movie: Path, sb: dict, rehearsal: bool, scan: dict) -> dict:
+    record = {"file": movie.name, "bytes": movie.stat().st_size, "sha256": sha256(movie),
+              "rehearsal": bool(rehearsal), "variant": sb.get("variant"),
+              "poster_sha256": sha256(out / "poster.png"), "take": scan.get("take", {})}
+    save(record, out / RECORD)
+    return record
+
+
+def built_as(movie: Path) -> dict | None:
+    """The record of the build that wrote these bytes, or None: there is no
+    build.json beside the file, it cannot be read, or it names other bytes."""
+    path = Path(movie).parent / RECORD
+    try:
+        record = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    if not isinstance(record, dict) or record.get("sha256") != sha256(movie):
+        return None
+    return record
+
+
+def named(variant: str | None) -> str:
+    return f"the storyboard's variant `{variant}`" if variant else "the film"
 
 
 def scan_take(take: Path, out: Path) -> dict:
@@ -146,19 +184,25 @@ def contact_sheet(movie: Path, out: Path, sb: dict, work: Path) -> None:
     sheet.save(out, "PNG")
 
 
+RESULTS = ("preview*.mp4", "verify.txt", "poster.png", "poster-decoded.png", "contact-sheet.png",
+           "edit.json", "cuts.txt", "track.json", RECORD)
+
+
 def cmd_build(a: argparse.Namespace) -> None:
+    out: Path = a.out
+    # An earlier build's results go first — before the storyboard, the log or
+    # the take are even read: however this build is refused, there is no
+    # film, sheet or report left in the folder to mistake for its own.
+    if out.is_dir():
+        clear(out, RESULTS)
     sb, log = load_storyboard(a), load(a.gestures)
     given = load(a.edit) if a.edit else None
-    out: Path = a.out
     if not a.take.exists():
         die(f"no such take: {a.take}")
     # A variant of the storyboard is a rehearsal, asked for or not.
     rehearsal = bool(a.rehearsal or sb.get("variant"))
     name = "preview-rehearsal.mp4" if rehearsal else "preview.mp4"
-    # An earlier build's results go first: if this one is refused, there is
-    # no film, sheet or report left in the folder to mistake for its own.
-    clear(out, ("preview*.mp4", "verify.txt", "poster.png", "poster-decoded.png", "contact-sheet.png",
-                "edit.json", "cuts.txt", "track.json"))
+    out.mkdir(parents=True, exist_ok=True)
 
     print(f"1/9 scan     {a.take}")
     scan = scan_take(a.take, out / "scan.json")
@@ -195,7 +239,11 @@ def cmd_build(a: argparse.Namespace) -> None:
     print("6/9 compose  the frames")
     clear(out / "frames", ("f_*.png", "frames.json"))
     made = framing.compose(sb, edit, sources, out / "src", out / "frames", tuple(log["device_points"]))
-    print(f"    {made['frames']} frames, {made['pictures']} distinct pictures; touch tones {made['tones']}")
+    print(f"    {made['frames']} frames, {made['pictures']} distinct pictures")
+    landed = framing.describe_grounds(made["grounds"], sb)
+    with (out / "cuts.txt").open("a", encoding="utf-8") as f:
+        f.write(landed)
+    print("    " + landed.replace("\n", "\n    ").rstrip())
 
     print(f"7/9 encode   {name}")
     movie = out / name
@@ -208,7 +256,8 @@ def cmd_build(a: argparse.Namespace) -> None:
     shutil.copyfile(out / "decoded" / f"frame_{edit['poster_frame']:06d}.png", out / "poster-decoded.png")
 
     print("9/9 verify   the written file")
-    note = rehearsal_note(sb, log) if rehearsal else ""
+    record = write_record(out, movie, sb, rehearsal, scan)
+    note = rehearsal_note(sb, log) if rehearsal else f" — the film, sha256 {record['sha256'][:16]}…"
     text, ok = verifying.report(verifying.verify(movie, sb, out / "poster.png"), movie, note)
     (out / "verify.txt").write_text(text, encoding="utf-8")
     print("    " + text.replace("\n", "\n    ").rstrip())
@@ -248,16 +297,28 @@ def cmd_check(a: argparse.Namespace) -> None:
 
 def cmd_verify(a: argparse.Namespace) -> None:
     sb = load_storyboard(a)
+    if a.poster is None and not a.no_poster:
+        die("verify compares the frame at the poster time with the composed poster: give --poster <poster.png> "
+            "— or --no-poster, and the report says that check was not run")
+    if not a.movie.is_file():
+        die(f"no such file: {a.movie}")
+    # What the file is comes from the record of the build that wrote these
+    # bytes, never from its name: a rehearsal renamed preview.mp4 is still
+    # one, and a file no record names is not known to be the film.
+    record = built_as(a.movie)
+    if record is not None and record.get("variant") != sb.get("variant"):
+        die(f"{a.movie.name} was built as {named(record.get('variant'))} ({RECORD} beside it names these bytes) "
+            f"and is being checked as {named(sb.get('variant'))}: "
+            + (f"add --variant {record['variant']}" if record.get("variant") else "drop --variant"))
     note = ""
-    if sb.get("variant"):
-        note = rehearsal_note(sb)
-    elif "rehearsal" in a.movie.name:
-        # a build never writes a rehearsal under the film's name; the file's
-        # own name is the one thing this command can read that says so
-        note = f" — REHEARSAL, not the film: the file is named {a.movie.name}"
+    if record is not None:
+        note = rehearsal_note(sb) if record.get("rehearsal") else f" — the film, sha256 {record['sha256'][:16]}…"
     text, ok = verifying.report(verifying.verify(a.movie, sb, a.poster), a.movie, note)
     print(text, end="")
-    if not ok:
+    if record is None:
+        print(f"NOT IDENTIFIED — no {RECORD} beside {a.movie.name} names these bytes: it may be a rehearsal, a "
+              f"copy or another writer's file, and is not known to be the film")
+    if not ok or record is None:
         sys.exit(1)
 
 
@@ -317,6 +378,8 @@ def main() -> None:
     p = command("verify", cmd_verify, help="check a written file; non-zero exit on any miss")
     p.add_argument("movie", type=Path)
     p.add_argument("--poster", type=Path, help="the composed poster PNG to compare the decoded frame with")
+    p.add_argument("--no-poster", action="store_true",
+                   help="leave the poster frame out: the report says that check was not run")
 
     p = command("sheet", cmd_sheet, help="a contact sheet of a written file, 2 frames per second")
     p.add_argument("movie", type=Path)

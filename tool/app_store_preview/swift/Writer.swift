@@ -34,6 +34,8 @@ struct MovieSpec {
   var frameReordering: Bool
   var maxFrameQP: Int?
   var audio: AudioSpec?
+  /// Tests only: pixels that are not square, [horizontal, vertical] spacing.
+  var pixelAspect: [Int]?
 
   /// App Store App Preview, iPhone portrait (Apple's « App preview
   /// specifications », read on 2026-10-13): H.264 High Profile Level 4.0,
@@ -182,6 +184,12 @@ func writeMovie(_ spec: MovieSpec, frames: [TimedFrame], end: Int64, to outPath:
   if spec.codec == .h264 { compression[AVVideoProfileLevelKey] = spec.profileLevel }
   if let qp = spec.maxFrameQP {
     compression[kVTCompressionPropertyKey_MaxAllowedFrameQP as String] = qp
+  }
+  if let aspect = spec.pixelAspect, aspect.count == 2 {
+    compression[AVVideoPixelAspectRatioKey] = [
+      AVVideoPixelAspectRatioHorizontalSpacingKey: aspect[0],
+      AVVideoPixelAspectRatioVerticalSpacingKey: aspect[1],
+    ]
   }
   let video = AVAssetWriterInput(
     mediaType: .video,
