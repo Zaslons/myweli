@@ -162,6 +162,24 @@ Mirrors the app flow, desktop-adapted (sidebar nav entry « Clients »):
   rendez-vous » CTA **added 2026-07-10** — opens the manual-booking dialog
   pre-picked with the client
   ([web-manual-booking.md](web-manual-booking.md); deferral closed).
+  - **The phone line** (amended 2026-10-13,
+    [amounts-that-fit.md](amounts-that-fit.md) §2 « Web »). The number is
+    **read grouped** — « +225 07 00 00 01 01 » — through `formatPhoneNumber`
+    (`web/lib/format.ts`), the hand-written twin of the app's
+    `Formatters.formatPhoneNumber`, with the app's rule and the app's test
+    vectors: `+225` followed by 10 or 8 national digits is grouped in pairs
+    with plain spaces; **every other number is shown exactly as stored**
+    (another country — « +241… », Gabon — or a wrong length). It is **dialled
+    as stored**: the `tel:` and `wa.me` links, and the client handed to the
+    manual-booking dialog, keep the raw number.
+  - **The number never wraps; the row does.** Grouped, the number has five
+    places a line could break, and a phone number may not break
+    ([SYSTEM.md §13.3](SYSTEM.md#133-text-scaling--up-to-200)). It sits in a
+    `whitespace-nowrap` span (CSS, not no-break spaces — a copied number
+    pastes with ordinary ones) and the row is `flex-wrap`: on a narrow card
+    « Appeler » and « WhatsApp » drop below the number, **together** (they
+    share a wrapper), and the avatar beside them keeps its width
+    (`shrink-0`). On a wide card all three stay on one line, as before.
 - Accept flow on `/pro/rendez-vous/[id]`: same badge chip next to the client
   name.
 - Data via the typed generated client through the existing pro BFF/session
@@ -198,6 +216,14 @@ avatars (no images); web table paginated — CWV budgets hold (no new public JS)
 - **Web:** RTL units (table, search, empty states, badge); Playwright e2e —
   list → search → card → add note → back; add-client modal incl. duplicate;
   accept screen shows the badge (stub data includes a 2-no-show client).
+  **Added 2026-10-13** (the card's phone line, §6): `tests/format.test.ts` —
+  the twin, compared as exact strings (the app's four vectors, a Gabon and a
+  French number unchanged, wrong-length `+225` unchanged, the separators are
+  U+0020); `tests/client-card-phone.test.tsx` — the first test to render the
+  card: the grouped number is shown, the `tel:`/`wa.me` hrefs carry the stored
+  one, a non-Ivorian number is shown as stored, a client without a phone has
+  no phone row, and the wrapping is pinned by its classes (jsdom has no
+  layout).
 
 ## 10. Rollout — three PRs under this spec
 
