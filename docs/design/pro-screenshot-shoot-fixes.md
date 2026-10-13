@@ -118,4 +118,7 @@ commit before #573 and #574 — it contains neither.*
 
 ## 11. Open questions
 
-None.
+None for this spec. **Follow-up:** the review of build 569 confirmed that a
+long amount still breaks mid-number on the client card (and on the home at
+large text), and that the guard could not see it —
+[amounts-that-fit.md](amounts-that-fit.md).
