@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Approved** (owner, 2026-10-13) — building for build 566 |
+| **Status** | **Approved** (owner, 2026-10-13) — **built**, in **build 569** (TestFlight, 2026-10-13) |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-10-13 |
 | **PRD ref / phase** | Discovery + salon page (consumer app, Pro « Aperçu », web) · V1 |
@@ -133,15 +133,17 @@ None measurable: a stateless widget replacing a `Row`.
 ## 9. Rollout
 
 One PR (app + web). Web ships on merge (Vercel). The app ships in **build
-566**, then App Store screenshot 7 is reshot on the top of the salon page
+569** (0.0.1; « 566 » was wrong — that number is the docs commit before
+#573), then App Store screenshot 7 is reshot on the top of the salon page
 (cover, logo, name, « Nouveau ») and moved to position 2.
 
 ## 10. Definition of done
 
-- [ ] Tests above green; `flutter analyze` 0; web typecheck + lint + tests.
-- [ ] Goldens regenerated on Linux and reviewed.
-- [ ] SYSTEM.md §11.3 marks `AppRating` built; §3.5 states the 0-review rule.
-- [ ] Build 566 on TestFlight; owner check; screenshot 7 reshot.
+- [x] Tests above green; `flutter analyze` 0; web typecheck + lint + tests (#573, CI green at 999d5669).
+- [x] Goldens regenerated on Linux (run 38329388727) and reviewed — six moved, each compared old against new (commit 5a703061); 45 byte-identical.
+- [x] SYSTEM.md §11.3 marks `AppRating` built; §3.5 states the 0-review rule.
+- [x] Build 569 on TestFlight (2026-10-13).
+- [ ] Owner check on the device; screenshot 7 reshot.
 
 ## 11. Open questions
 
