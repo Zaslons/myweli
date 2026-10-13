@@ -303,6 +303,33 @@ Future<void> pumpPushedAtWidth(
   }
 }
 
+/// Where the text engine MAY break a line: the breaking white space only.
+///
+/// Deliberately not `\s`. Dart's `\s` follows ECMAScript and also matches
+/// U+00A0 (no-break space), U+2007 (figure space), U+202F (narrow no-break
+/// space) and U+FEFF — the very characters whose job is to forbid a break.
+/// French numbers are grouped with U+202F, so `\s` cut every amount into
+/// three-digit « words ».
+final RegExp _kBreakOpportunity = RegExp(
+  '[\\u0009-\\u000D\\u0020\\u1680\\u2000-\\u2006\\u2008-\\u200A'
+  '\\u2028\\u2029\\u205F\\u3000]+',
+);
+
+/// Glue left at the END of a token. It hangs past the box edge the way a
+/// trailing space does — read off the engine on 2026-10-13: « 180 000 » +
+/// U+00A0 (63.0dp) in a 60dp box is drawn whole, the number being 58.9dp.
+final RegExp _kTrailingGlue = RegExp('[\\u00A0\\u2007\\u202F]+\$');
+
+/// The pieces of [text] the engine may not break inside, in order.
+///
+/// Still an approximation, on the strict side: a hyphen is a legal break for
+/// the engine (« Rendez- » / « vous » ships) and is NOT one here, which is why
+/// hyphenated labels are simply not named to [expectNoMidWordBreak].
+Iterable<String> unbreakableTokens(String text) => text
+    .split(_kBreakOpportunity)
+    .map((t) => t.replaceFirst(_kTrailingGlue, ''))
+    .where((t) => t.isNotEmpty);
+
 /// Fails if [text] is being broken INSIDE a word (§13.3, A11 C8).
 ///
 /// **The gate could not see this, and could not have.**
@@ -335,6 +362,12 @@ Future<void> pumpPushedAtWidth(
 /// have made this helper red on every ellipsised one-line label narrower than
 /// its longest word. Without this, A13's own subject reds on the tile it is not
 /// about.
+///
+/// **A « word » is what the ENGINE may not break — not what `\s` separates.**
+/// See [unbreakableTokens]: until 2026-10-13 this split on `\s+`, which in Dart
+/// matches the no-break spaces, so « 180 000 » (grouped with U+202F) was
+/// measured as « 180 » and « 000 » and a number broken in half passed
+/// (docs/design/amounts-that-fit.md §1.2).
 void expectNoMidWordBreak(WidgetTester tester, String text, String at) {
   final paragraphs = tester
       .renderObjectList<RenderParagraph>(
@@ -356,8 +389,7 @@ void expectNoMidWordBreak(WidgetTester tester, String text, String at) {
     final style = p.text.style;
     var widest = 0.0;
     var widestWord = '';
-    for (final word in text.split(RegExp(r'\s+'))) {
-      if (word.isEmpty) continue;
+    for (final word in unbreakableTokens(text)) {
       final tp = TextPainter(
         text: TextSpan(text: word, style: style),
         textDirection: TextDirection.ltr,
@@ -390,6 +422,72 @@ void expectNoMidWordBreak(WidgetTester tester, String text, String at) {
         'every rendering of « $text » at $at is maxLines:1, so '
         'expectNoMidWordBreak asserted nothing — use expectNoLegibilityCrush',
   );
+}
+
+/// Characters that glue their neighbours together: the engine never breaks a
+/// line at them. A paragraph without one cannot have a broken « glued » token.
+final RegExp _kGlue = RegExp('[\\u00A0\\u2007\\u202F\\u2011]');
+
+/// Every painted, wrapping paragraph on screen that holds a glue character
+/// and one of whose tokens is wider than its box — i.e. a number, a price or a
+/// date the engine has had to break in the middle.
+///
+/// **A sweep, where [expectNoMidWordBreak] is by name** — and narrow enough to
+/// be one: §13.3 lets a heading wrap, and a heading has no no-break space in
+/// it. It walks what is on screen, so it can see an amount nobody thought to
+/// name. Report-only for now (docs/design/amounts-that-fit.md §8.1): the count
+/// it prints is what SYSTEM.md §21 registers.
+List<String> gluedTokenBreaks(WidgetTester tester) =>
+    _sweepGluedTokens(tester).broken;
+
+({int examined, List<String> broken}) _sweepGluedTokens(WidgetTester tester) {
+  final found = <String>[];
+  var examined = 0;
+  // `.toSet()`: `allRenderObjects` yields each render object TWICE (seen
+  // 2026-10-13 — one paragraph, two identical entries), and this returns a
+  // count that is read as a number of defects.
+  for (final p
+      in tester.allRenderObjects.whereType<RenderParagraph>().toSet()) {
+    if (!p.hasSize || p.maxLines == 1 || !p.softWrap) continue;
+    final text = p.text.toPlainText();
+    if (!_kGlue.hasMatch(text)) continue;
+    if (!_isPainted(p)) continue;
+    examined += 1;
+    for (final token in unbreakableTokens(text)) {
+      if (!_kGlue.hasMatch(token)) continue;
+      final tp = TextPainter(
+        text: TextSpan(text: token, style: p.text.style),
+        textDirection: TextDirection.ltr,
+        textScaler: p.textScaler,
+      )..layout();
+      final needs = tp.width;
+      tp.dispose();
+      if (needs > p.size.width + _kWidthEpsilon) {
+        found.add(
+          '« $text » — « $token » needs ${needs.toStringAsFixed(1)}dp of '
+          '${p.size.width.toStringAsFixed(1)}',
+        );
+      }
+    }
+  }
+  return (examined: examined, broken: found);
+}
+
+/// Prints [gluedTokenBreaks] and asserts nothing.
+///
+/// It also prints how many glued paragraphs it LOOKED at: a sweep that
+/// examined none prints no break either, and « nothing found » must not be
+/// read off a walk that saw nothing.
+void reportGluedTokenBreaks(WidgetTester tester, {required String context}) {
+  final sweep = _sweepGluedTokens(tester);
+  if (sweep.examined == 0) return;
+  debugPrint(
+    'GLUED-SWEEP [$context] examined=${sweep.examined} '
+    'broken=${sweep.broken.length}',
+  );
+  for (final line in sweep.broken) {
+    debugPrint('GLUED-BREAK [$context] $line');
+  }
 }
 
 /// How many characters a squeezed label must still show (§13.3, A12).

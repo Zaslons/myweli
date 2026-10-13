@@ -5,6 +5,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/core/push/push_registration.dart';
 import 'package:myweli/core/theme/app_theme.dart';
+import 'package:myweli/core/utils/formatters.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/provider_user.dart';
 import 'package:myweli/providers/notifications_provider.dart';
@@ -21,6 +22,7 @@ import 'package:myweli/services/mock/mock_push_notification_service.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../a11y/_a11y.dart';
 import '../support/fonts.dart';
 import '../support/pump_app.dart';
 
@@ -219,6 +221,32 @@ void main() {
         closeTo(month.height, 0.5),
         reason: '« 0 FCFA » beside « 114 000 FCFA » at $scale×',
       );
+
+      // The number itself stays whole — equal heights say nothing about that.
+      final amount = Formatters.formatCurrency(114000);
+      void whole() =>
+          expectNoMidWordBreak(tester, amount, '« Ce mois » at $scale×');
+      if (scale == 2.0) {
+        // KNOWN VIOLATION, pinned (docs/design/amounts-that-fit.md §1.1): in
+        // a half-width card (126dp at 360) « 114 000 » at 48sp is broken
+        // inside the number. Older than the equal-height fix, and invisible
+        // until the guard stopped treating U+202F as a word boundary.
+        expect(
+          whole,
+          throwsA(
+            isA<TestFailure>().having(
+              (e) => e.message,
+              'message',
+              contains('broken mid-word'),
+            ),
+          ),
+          reason:
+              'if this stops breaking, the stat cards give the amount the '
+              'width it needs at 2× — turn this pin into the plain assertion',
+        );
+      } else {
+        whole();
+      }
     });
   }
 }

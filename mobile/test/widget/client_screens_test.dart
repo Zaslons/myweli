@@ -24,6 +24,34 @@ import '../support/pump_app.dart';
 class _SwitchableClients extends MockProClientsService {
   bool empty = false;
 
+  /// When set, the card's « Dépensé » — the mock's own is visits × 15 000,
+  /// six digits at most, and the tile's failure mode starts at seven.
+  num? spent;
+
+  @override
+  Future<ApiResponse<SalonClientCard>> getCard(
+    String providerId,
+    String clientId,
+  ) async {
+    final res = await super.getCard(providerId, clientId);
+    final card = res.data;
+    final override = spent;
+    if (card == null || override == null) return res;
+    return ApiResponse.success(
+      SalonClientCard(
+        client: card.client,
+        stats: SalonClientStats(
+          visits: card.stats.visits,
+          spentFcfa: override,
+          noShows: card.stats.noShows,
+          cancellations: card.stats.cancellations,
+        ),
+        notes: card.notes,
+        upcoming: card.upcoming,
+      ),
+    );
+  }
+
   @override
   Future<ApiResponse<SalonClientsPage>> listClients(
     String providerId, {
@@ -40,6 +68,14 @@ class _SwitchableClients extends MockProClientsService {
   }
 }
 
+/// The guard's own failure — not « the text is not on screen », which is a
+/// TestFailure too and would let a pin pass for the wrong reason.
+final _midWordBreak = isA<TestFailure>().having(
+  (e) => e.message,
+  'message',
+  contains('broken mid-word'),
+);
+
 /// Module `clients` C1c (docs/design/clients-c1.md §5): the « Clients » list
 /// (states, search, badges) and the client card (stats, notes).
 void main() {
@@ -54,7 +90,10 @@ void main() {
     serviceLocator.proClientsService = clients;
   });
 
-  setUp(() => clients.empty = false);
+  setUp(() {
+    clients.empty = false;
+    clients.spent = null;
+  });
 
   Widget app({
     String initial = '/pro/clients',
@@ -440,14 +479,56 @@ void main() {
         }
         for (final l in labels) {
           expectNoMidWordBreak(tester, l, 'client card at $scale×');
-          expectNoMidWordBreak(
+          void value() => expectNoMidWordBreak(
             tester,
             valueAbove(tester, l).data!,
             'the « $l » value at $scale×',
           );
+          // KNOWN VIOLATION, pinned (docs/design/amounts-that-fit.md §1.1):
+          // at 1.1× the strip is still four across and « 180 000 » needs
+          // 64.7dp of the tile's 60. Invisible until the guard stopped
+          // treating U+202F as a word boundary; the measured layout fixes it.
+          if (l == 'Dépensé' && scale == 1.1) {
+            expect(
+              value,
+              throwsA(_midWordBreak),
+              reason:
+                  'if this stops breaking, the strip no longer squeezes a '
+                  'six-digit amount at 1.1× — delete this pin',
+            );
+          } else {
+            value();
+          }
         }
       });
     }
+
+    // KNOWN VIOLATION, pinned (docs/design/amounts-that-fit.md §1.1): a
+    // seven-digit amount (« 1 000 000 », 71.5dp) cannot fit a quarter-width
+    // tile (60dp) at the DEFAULT text size, on the most common Android width.
+    // No fixture reached seven digits, so nothing ever rendered it.
+    testWidgets('a seven-digit « Dépensé » breaks mid-number at 1× (pinned)', (
+      tester,
+    ) async {
+      clients.spent = 1250000;
+      tester.view.physicalSize = const Size(360, 1600);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(
+        app(initial: '/pro/clients/sc1', realFonts: true),
+      );
+      await settle(tester);
+      expect(tester.takeException(), isNull);
+      final value = valueAbove(tester, 'Dépensé').data!;
+      expect(value, contains('250'), reason: 'the override reached the card');
+      expect(
+        () => expectNoMidWordBreak(tester, value, 'the 7-digit amount at 1×'),
+        throwsA(_midWordBreak),
+        reason:
+            'if this stops breaking, the strip gives a long amount the width '
+            'it needs — turn this pin into the plain assertion',
+      );
+    });
 
     testWidgets('adding a note prepends it', (tester) async {
       await tester.pumpWidget(app(initial: '/pro/clients/sc1'));
