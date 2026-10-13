@@ -4,10 +4,13 @@ above the capture; the cross-fade and the touch point, by the tokens."""
 from __future__ import annotations
 
 import copy
+import json
+import tempfile
 import unittest
+from pathlib import Path
 
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageDraw
 
 import brand
 import frames
@@ -179,6 +182,46 @@ class Guards(unittest.TestCase):
         with dies(self, "the card overflows the canvas at 886x1700"):
             frames.Layout((886, 1700), RAW)
 
+    def composed(self, ground: str | None, picture: tuple[int, int, int]) -> dict:
+        """compose() on three frames of one flat picture, a tap at (200, 400) pt."""
+        sb = copy.deepcopy(FIX)
+        gesture = {"id": "tap-x", "kind": "tap"} | ({"ground": ground} if ground else {})
+        sb["shots"] = [{"id": "S", "caption": "plain", "gestures": [gesture]}]
+        edit = {"timescale": 600, "captions": [{"frame": 0, "caption": "plain"}],
+                "touches": [{"gesture": "tap-x", "kind": "tap", "down": 0, "up": 20, "path": [[0, 200.0, 400.0]]}]}
+        with tempfile.TemporaryDirectory() as tmp:
+            src = Path(tmp)
+            Image.new("RGB", RAW, picture).save(src / "src_000000.png")
+            (src / "manifest.json").write_text(json.dumps(
+                {"film": [0, 0, 0], "width": RAW[0], "height": RAW[1], "sources": {"0": {"pts": 0, "file": "src_000000.png"}}}))
+            return frames.compose(sb, edit, [0, 0, 0], src, src / "out", POINTS)
+
+    def test_a_touch_lands_on_the_ground_the_storyboard_says(self):
+        green, white = (0x2D, 0x50, 0x16), (255, 255, 255)
+        made = self.composed("dark", green)
+        self.assertEqual(made["tones"], {"tap-x": "light"})
+        self.assertEqual(made["grounds"], {"tap-x": {"at": [200.0, 400.0], "ground": "dark", "under": 0.268, "around": 0.268}})
+        self.assertEqual(self.composed(None, white)["grounds"]["tap-x"]["ground"], "light")
+        self.assertEqual(self.composed("light", white)["tones"], {"tap-x": "dark"})
+        self.assertEqual(frames.describe_grounds(made["grounds"], FIX),
+                         "touch points on the picture (white on a dark or green fill: luminance under 0.35; else the "
+                         "brand's black)\n"
+                         "  tap-x            white point on a dark ground at (200, 400) pt: luminance 0.27 under the "
+                         "finger, 0.27 around it\n")
+
+    def test_a_touch_that_misses_its_ground_stops_the_tool(self):
+        """The tap on « Arrivé » that finds a light card under it — the pane
+        was not open — and the tap that finds a dark fill where the
+        storyboard has a light screen."""
+        with dies(self, "the touch of `tap-x` lands on a light ground at (200, 400) pt — luminance 1.00 under the "
+                        "finger — and the storyboard says dark"):
+            self.composed("dark", (255, 255, 255))
+        with dies(self, "the touch of `tap-x` lands on a dark ground at (200, 400) pt — luminance 0.27 under the "
+                        "finger — and the storyboard says light"):
+            self.composed(None, (0x2D, 0x50, 0x16))
+        with dies(self, "gesture `tap-x`: `ground` is `green`; it is light or dark"):
+            self.composed("green", (0x2D, 0x50, 0x16))
+
     def test_compose_stops_when_the_two_frame_hold_lists_differ(self):
         import json
         import tempfile
@@ -316,6 +359,38 @@ class Touch(unittest.TestCase):
         self.composer.draw_touch(green, 200.0, 400.0, 1.0, "light")
         centre = np.asarray(green)[round(400 * self.composer.pt), round(200 * self.composer.pt)]
         self.assertGreater(int(centre[1]), 0x50)          # lighter than the green it sits on
+
+    def pane(self) -> Image.Image:
+        """The open « Arrivé » pane as the rehearsal take showed it: a green
+        block 111 x 71 pt (x 16–127, y 374–446) on a light screen, a white
+        outlined glyph and a line of white text on it."""
+        lay, pt = self.composer.lay, self.composer.pt
+        card = Image.new("RGB", (lay.card_w, lay.card_h), (247, 247, 249))
+        d = ImageDraw.Draw(card)
+        d.rectangle((16 * pt, 374 * pt, 127 * pt, 446 * pt), fill=(0x2D, 0x50, 0x16))
+        d.ellipse((60 * pt, 388 * pt, 82 * pt, 410 * pt), outline=(255, 255, 255), width=round(2 * pt))
+        for k in range(6):                                              # « Arrivé », six letters' worth of ink
+            d.rectangle(((52 + 6.5 * k) * pt, 420 * pt, (55.5 + 6.5 * k) * pt, 429 * pt), fill=(255, 255, 255))
+        return card
+
+    def test_light_on_a_green_pane_smaller_than_the_point(self):
+        """What is under the finger decides, not what surrounds it: on a
+        pane 71 pt tall a 48 pt disc always covers some of the light screen
+        around it, and the pane's own glyph and label are white."""
+        card, limit = self.pane(), FIX["touch"]["light_below_luminance"]
+        for x, y in ((71, 410), (75, 390), (40, 394), (104, 426), (28, 386), (115, 434)):
+            under, around = self.composer.ground(card, x, y)
+            self.assertAlmostEqual(under, 0.268, delta=0.005, msg=(x, y))   # the green, wherever the finger is on it
+            self.assertEqual(self.composer.tone(card, x, y), "light", (x, y))
+        # the mean over the disc's square says "light screen" on most of the pane: it is not what decides
+        self.assertGreater(self.composer.ground(card, 75, 390)[1], limit)
+        self.assertGreater(self.composer.ground(card, 28, 386)[1], limit)
+        # beside the pane, on the card: the brand's black
+        self.assertEqual(self.composer.tone(card, 200, 410), "dark")
+        self.assertAlmostEqual(self.composer.ground(card, 200, 410)[0], 0.969, delta=0.005)
+        # a touch off the card has nothing under it
+        self.assertIsNone(self.composer.ground(card, -40, 410))
+        self.assertEqual(self.composer.tone(card, -40, 410), "dark")
 
     def test_a_faded_out_touch_draws_nothing(self):
         card = Image.new("RGB", (self.composer.lay.card_w, self.composer.lay.card_h), (255, 255, 255))

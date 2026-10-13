@@ -179,17 +179,40 @@ class Composer:
             die(f"a capture is {raw.size[0]}x{raw.size[1]}, expected {self.lay.raw_w}x{self.lay.raw_h}")
         return raw.convert("RGB").resize((self.lay.card_w, self.lay.card_h), Image.LANCZOS)
 
-    def tone(self, card: Image.Image, x_pt: float, y_pt: float) -> str:
-        """`light` where the touch lands on a dark or green fill, else `dark`."""
+    def ground(self, card: Image.Image, x_pt: float, y_pt: float) -> tuple[float, float] | None:
+        """What a touch lands on, as luminance from 0 (black) to 1 (white):
+        `under` — the median of the middle of the disc, half its width: what
+        is under the finger itself — and `around`, the mean over the whole
+        disc's square. None when the touch is off the card.
+
+        The point's colour goes by `under`. It went by `around` at first, and
+        a small dark control on a light screen fooled it: on the rehearsal
+        take's open « Arrivé » pane — a green block 111 x 71 pt, luminance
+        0.27, a white glyph on it — the mean read 0.32 at the very centre and
+        0.40 sixteen points higher, so on two thirds of the pane the point
+        came out black on dark green."""
         r = self.sb["touch"]["diameter_pt"] / 2 * self.pt
         cx, cy = x_pt * self.pt, y_pt * self.pt
-        box = (max(0, round(cx - r)), max(0, round(cy - r)),
-               min(card.width, round(cx + r)), min(card.height, round(cy + r)))
-        if box[2] <= box[0] or box[3] <= box[1]:
+
+        def luminance(half: float) -> np.ndarray | None:
+            box = (max(0, round(cx - half)), max(0, round(cy - half)),
+                   min(card.width, round(cx + half)), min(card.height, round(cy + half)))
+            if box[2] <= box[0] or box[3] <= box[1]:
+                return None
+            patch = np.asarray(card.crop(box), dtype=np.float32) / 255
+            return patch @ np.array([0.2126, 0.7152, 0.0722], dtype=np.float32)
+
+        under, around = luminance(r / 2), luminance(r)
+        if under is None or around is None:
+            return None
+        return float(np.median(under)), float(around.mean())
+
+    def tone(self, card: Image.Image, x_pt: float, y_pt: float) -> str:
+        """`light` where the touch lands on a dark or green fill, else `dark`."""
+        ground = self.ground(card, x_pt, y_pt)
+        if ground is None:
             return "dark"
-        patch = np.asarray(card.crop(box), dtype=np.float32) / 255
-        luminance = float((patch @ np.array([0.2126, 0.7152, 0.0722], dtype=np.float32)).mean())
-        return "light" if luminance < self.sb["touch"]["light_below_luminance"] else "dark"
+        return "light" if ground[0] < self.sb["touch"]["light_below_luminance"] else "dark"
 
     def draw_touch(self, card: Image.Image, x_pt: float, y_pt: float, alpha: float, tone: str) -> None:
         """A soft disc with a thin ring, centred to the sub-pixel so a drag
@@ -276,6 +299,15 @@ def compose(storyboard: dict, edit: dict, sources: list[int], source_dir: Path, 
     T = edit["timescale"]
     cards: dict[int, Image.Image] = {}
     tones: dict[str, str] = {}
+    grounds: dict[str, dict] = {}
+    # What the storyboard says each touch lands on: a light surface, unless
+    # the gesture says `"ground": "dark"` (the green pane, the black button).
+    # A touch found on the other kind has missed what it was aimed at — or
+    # the screen is not the one the storyboard describes.
+    expected = {g["id"]: g.get("ground", "light") for shot in storyboard["shots"] for g in shot.get("gestures", [])}
+    for gid, want in expected.items():
+        if want not in ("light", "dark"):
+            die(f"gesture `{gid}`: `ground` is `{want}`; it is light or dark")
     written: dict[tuple, str] = {}
     names: list[str] = []
 
@@ -297,7 +329,16 @@ def compose(storyboard: dict, edit: dict, sources: list[int], source_dir: Path, 
             x, y, alpha = state
             if touch["gesture"] not in tones:
                 # decided once, where the finger lands, on the picture it lands on
-                tones[touch["gesture"]] = composer.tone(card_for(j), touch["path"][0][1], touch["path"][0][2])
+                gid, (at_x, at_y) = touch["gesture"], touch["path"][0][1:3]
+                tones[gid] = composer.tone(card_for(j), at_x, at_y)
+                under, around = composer.ground(card_for(j), at_x, at_y) or (1.0, 1.0)
+                landed = "dark" if tones[gid] == "light" else "light"
+                grounds[gid] = {"at": [at_x, at_y], "ground": landed, "under": round(under, 3),
+                                "around": round(around, 3)}
+                if landed != expected.get(gid, "light"):
+                    die(f"the touch of `{gid}` lands on a {landed} ground at ({at_x:g}, {at_y:g}) pt — luminance "
+                        f"{under:.2f} under the finger — and the storyboard says {expected.get(gid, 'light')}: "
+                        f"it missed what it was aimed at, or the screen is not the storyboard's")
             active.append((round(x, 3), round(y, 3), round(alpha, 4), tones[touch["gesture"]]))
         if k <= 0:
             after = before          # the change has not begun: the old caption, whole
@@ -318,4 +359,16 @@ def compose(storyboard: dict, edit: dict, sources: list[int], source_dir: Path, 
 
     frames = {"fps": composer.fps, "width": composer.size[0], "height": composer.size[1], "frames": names}
     (out_dir / "frames.json").write_text(json.dumps(frames, indent=1) + "\n", encoding="utf-8")
-    return {"frames": len(names), "pictures": len(written), "tones": tones}
+    return {"frames": len(names), "pictures": len(written), "tones": tones, "grounds": grounds}
+
+
+def describe_grounds(grounds: dict[str, dict], storyboard: dict) -> str:
+    """What each touch point landed on, for the cut log."""
+    limit = storyboard["touch"]["light_below_luminance"]
+    lines = [f"touch points on the picture (white on a dark or green fill: luminance under {limit:g}; else the "
+             f"brand's black)"]
+    for gid, g in grounds.items():
+        point = "white" if g["ground"] == "dark" else "black"
+        lines.append(f"  {gid:<16} {point} point on a {g['ground']} ground at ({g['at'][0]:g}, {g['at'][1]:g}) pt: "
+                     f"luminance {g['under']:.2f} under the finger, {g['around']:.2f} around it")
+    return "\n".join(lines) + "\n"
