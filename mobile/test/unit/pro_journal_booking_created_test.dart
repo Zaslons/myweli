@@ -450,6 +450,35 @@ void main() {
       expect(shown(p), ['m1']);
     });
 
+    test('a pull-to-refresh was in flight, rows on screen: no row is added '
+        'to them, the day is asked for again — and `isLoading` is not left '
+        'raised by the answer that gets dropped', () async {
+      server.of('p1').add(appt(id: 'a1', time: '09:00'));
+      final p = await opened();
+      server.hold = true;
+      unawaited(p.refresh()); // decided: a1 only
+      expect(p.isLoading, isTrue);
+      expect(p.day, isNotNull);
+      final requestsBefore = server.requests.length;
+
+      final created = appt(id: 'm1', time: '11:00');
+      server.of('p1').add(created);
+      p.bookingCreated(created);
+      expect(shown(p), [
+        'a1',
+      ], reason: 'not added to rows about to be replaced');
+      expect(server.requests.length, requestsBefore + 1);
+
+      server.hold = false;
+      for (final r in server.requests) {
+        r.release();
+      }
+      await settled();
+      expect(p.isLoading, isFalse);
+      expect(shown(p), ['a1', 'm1']);
+      expect(p.error, isNull);
+    });
+
     test('the day had failed: it is loaded again the ordinary way', () async {
       final p = ProJournalProvider();
       addTearDown(p.dispose);
