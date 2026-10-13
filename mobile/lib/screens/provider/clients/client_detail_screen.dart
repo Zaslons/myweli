@@ -194,9 +194,12 @@ class _Header extends StatelessWidget {
                         ],
                       ],
                     ),
+                    // In full — the card is where the number lives
+                    // (`maskClientPhone`) — but grouped like every other
+                    // number in the app: « +225 07 00 00 01 01 ».
                     if (client.phone != null)
                       Text(
-                        client.phone!,
+                        Formatters.formatPhoneNumber(client.phone!),
                         style: AppTextStyles.bodyMedium.copyWith(
                           color: AppColors.textSecondary,
                         ),
@@ -283,32 +286,66 @@ class _StatsStrip extends StatelessWidget {
     );
 
     final auth = context.read<ProAuthProvider>();
-    return Row(
+    final tiles = [
+      tile('Visites', '${stats.visits}'),
+      tile(
+        'Dépensé',
+        Formatters.formatCurrency(
+          stats.spentFcfa.toDouble(),
+          currency: auth.salonCurrency,
+        ),
+      ),
+      tile('Absences', '${stats.noShows}', alert: stats.noShows >= 2),
+      tile(
+        'Dernière',
+        lastVisitAt == null
+            ? '—'
+            // Compact: « 13 oct. 2026 » breaks between words. The long
+            // « mardi 13 octobre 2026 » broke as « dimanch / e » in this
+            // quarter-width tile (pro-screenshot-shoot-fixes.md §2.1).
+            : Formatters.formatDateCompact(
+                toSalonTime(lastVisitAt!, tz: auth.salonTimezone),
+              ),
+      ),
+    ];
+
+    // Equal heights — the dashboard action grid's idiom: divide the row, do
+    // not dimension the boxes. Above [_kStatsTwoByTwoAbove] the strip is a
+    // 2×2 grid: « 17 000 » (narrow no-break space) and « Absences » are single
+    // tokens that cannot wrap their way out of a 70dp tile at large text.
+    Widget row(List<Widget> cells) => IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (final (i, c) in cells.indexed) ...[
+            if (i > 0) const SizedBox(width: AppTheme.spacingS),
+            c,
+          ],
+        ],
+      ),
+    );
+    final twoByTwo =
+        MediaQuery.textScalerOf(context).scale(1) > _kStatsTwoByTwoAbove;
+    if (!twoByTwo) return row(tiles);
+    return Column(
       children: [
-        tile('Visites', '${stats.visits}'),
-        const SizedBox(width: AppTheme.spacingS),
-        tile(
-          'Dépensé',
-          Formatters.formatCurrency(
-            stats.spentFcfa.toDouble(),
-            currency: auth.salonCurrency,
-          ),
-        ),
-        const SizedBox(width: AppTheme.spacingS),
-        tile('Absences', '${stats.noShows}', alert: stats.noShows >= 2),
-        const SizedBox(width: AppTheme.spacingS),
-        tile(
-          'Dernière',
-          lastVisitAt == null
-              ? '—'
-              : Formatters.formatDate(
-                  toSalonTime(lastVisitAt!, tz: auth.salonTimezone),
-                ),
-        ),
+        row(tiles.sublist(0, 2)),
+        const SizedBox(height: AppTheme.spacingS),
+        row(tiles.sublist(2)),
       ],
     );
   }
 }
+
+/// Above this OS text scale the four stat tiles become a 2×2 grid — the
+/// dashboard's `_kActionGridSingleColumnAbove` reasoning (the fix for a
+/// one-word label is more width, never a smaller font), but **measured for
+/// four columns**, not borrowed: at the 360dp floor a tile has 60dp inside, and
+/// « Absences » (labelSmall) needs ~51.6dp at 1× — it breaks just past 1.16×.
+/// The dashboard's 1.3 broke it (« Absences » 67.1 in 60, caught by
+/// client_screens_test). 1.1 keeps the ~5 % margin A15 found real rendering
+/// needs over a bare TextPainter.
+const double _kStatsTwoByTwoAbove = 1.1;
 
 class _UpcomingCard extends StatelessWidget {
   const _UpcomingCard({required this.upcoming});

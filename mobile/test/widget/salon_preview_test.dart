@@ -4,6 +4,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/provider.dart' as models;
+import 'package:myweli/models/review.dart';
 import 'package:myweli/providers/provider_provider.dart';
 import 'package:myweli/screens/providers/provider_detail_screen.dart';
 import 'package:myweli/services/interfaces/provider_service_interface.dart';
@@ -92,20 +93,83 @@ void main() {
       );
       expect(btn.onPressed, isNull);
 
-      // Consumer-session UI is absent: no favorite heart, and the
-      // rendez-vous section shows the logged-out copy.
+      // Consumer-session UI is absent: no favorite heart, and no
+      // « Vos rendez-vous ici » at all — a signed-out client sees none, so
+      // neither does the owner's preview. It used to show the sign-in
+      // prompt (docs/design/salon-rating-new-and-visits-card.md §2.3).
       expect(find.byIcon(Icons.favorite_border), findsNothing);
+      expect(find.text('Vos rendez-vous ici'), findsNothing);
       expect(
         find.text('Connectez-vous pour voir vos rendez-vous.'),
-        findsOneWidget,
+        findsNothing,
       );
     },
   );
+
+  /// The App Store screenshot that could not be taken (2026-10-12): a new
+  /// salon's page read « ★ 0.0 · 0 avis » under its name.
+  testWidgets('a salon with no review reads « Nouveau », never « 0.0 »', (
+    tester,
+  ) async {
+    final fresh = MockData.providers
+        .firstWhere((p) => p.id == 'provider1')
+        .copyWith(rating: 0, reviewCount: 0, reviews: const []);
+    await tester.pumpWidget(wrap(salon: fresh));
+    await tester.pumpAndSettle();
+
+    // Exactly two: the header under the name (the App Store frame's subject)
+    // and the « Avis » summary — `findsWidgets` let either vanish unnoticed.
+    expect(find.text('Nouveau'), findsNWidgets(2));
+    expect(find.text('Pas encore d’avis.'), findsOneWidget);
+    expect(find.textContaining('0.0'), findsNothing);
+    expect(find.textContaining('0,0'), findsNothing);
+    expect(find.text('0 avis'), findsNothing);
+  });
 
   /// The owner's complaint, held where it happened: « Aperçu » showed no
   /// cover where the website does (docs/design/salon-cover-photo.md §1). The
   /// photo must come from the payload the preview was SEEDED with — the
   /// forbidden public service above fails the test if anything fetches.
+  /// §2.2 — the first review of a new salon flips the page at once: no
+  /// « Nouveau » and no « Pas encore d’avis. » above the review just left.
+  testWidgets('the first review replaces « Nouveau » without a reload', (
+    tester,
+  ) async {
+    final providers = ProviderProvider();
+    providers.showPreloaded(
+      MockData.providers
+          .firstWhere((p) => p.id == 'provider1')
+          .copyWith(rating: 0, reviewCount: 0, reviews: const []),
+    );
+    await tester.pumpWidget(
+      wrapApp(
+        providers: [ChangeNotifierProvider.value(value: providers)],
+        home: const ProviderDetailScreen(
+          providerId: 'provider1',
+          preview: true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Nouveau'), findsNWidgets(2));
+
+    providers.addReviewLocally(
+      Review(
+        id: 'r1',
+        providerId: 'provider1',
+        userId: 'user1',
+        userName: 'Awa K.',
+        rating: 5,
+        text: 'Parfait',
+        createdAt: DateTime(2026, 10, 13),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Nouveau'), findsNothing);
+    expect(find.text('Pas encore d’avis.'), findsNothing);
+    expect(find.text('5,0'), findsNWidgets(2));
+  });
+
   testWidgets('preview renders the cover from the /me/provider payload', (
     tester,
   ) async {

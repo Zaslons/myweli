@@ -246,12 +246,14 @@ void main() {
       // `users.difference(allowed)`, so an entry with no corresponding user is
       // silently ignored — a deleted file leaves dead config that reads like a
       // live exemption. Removed because it is false, not because CI said so.
+      //
+      // The salon header, the « Avis » summary, `ProviderCard` and the map
+      // sheet left this list on 2026-10-13: their stars now come from ONE
+      // place, `AppRating` (salon-rating-new-and-visits-card.md).
       const allowed = {
-        'lib/screens/providers/provider_detail_screen.dart',
+        'lib/widgets/common/app_rating.dart',
         'lib/screens/admin/admin_moderation_screen.dart',
         'lib/screens/provider/reviews/reviews_screen.dart',
-        'lib/screens/map/map_screen.dart',
-        'lib/widgets/provider/provider_card.dart',
         'lib/widgets/review/review_tile.dart',
         'lib/widgets/review/submit_review_sheet.dart',
       };

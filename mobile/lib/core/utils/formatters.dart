@@ -72,6 +72,13 @@ class Formatters {
     return '${formatter.format(amount)} $suffix';
   }
 
+  /// A salon rating for display: « 4,8 » — French decimal COMMA, one decimal
+  /// (docs/design/salon-rating-new-and-visits-card.md). Every site used to
+  /// print `toStringAsFixed(1)`, the anglophone « 4.8 », on a French product;
+  /// the web fixed the same in B6 (`ratingFr`).
+  static String formatRating(double rating) =>
+      NumberFormat('0.0', 'fr_FR').format(rating);
+
   /// Format a price as a single value or a range:
   /// "15 000 FCFA" or "15 000 – 25 000 FCFA".
   static String formatPriceRange(double min, double? max, {String? currency}) {
@@ -98,6 +105,15 @@ class Formatters {
   /// hears.
   static String formatDate(DateTime date) {
     return DateFormat('EEEE d MMMM yyyy', 'fr_FR').format(date);
+  }
+
+  /// A compact date for a narrow slot: « 13 oct. 2026 » — every break falls
+  /// BETWEEN words, so a quarter-width tile wraps it as « 13 oct. / 2026 »
+  /// where [formatDate]'s « mardi 13 octobre 2026 » broke as « dimanch / e »
+  /// and the padded « 13/10/2026 » is one unbreakable token
+  /// (docs/design/pro-screenshot-shoot-fixes.md §2.1).
+  static String formatDateCompact(DateTime date) {
+    return DateFormat('d MMM y', 'fr_FR').format(date);
   }
 
   /// Format date short: « 15/01/2024 » — **day first**, both parts padded.

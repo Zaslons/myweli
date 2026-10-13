@@ -1,6 +1,6 @@
 import Image from 'next/image';
 import { Chip } from '../Chip';
-import { Rating } from '../Rating';
+import { SalonRating } from '../Rating';
 import type { Provider } from '../../lib/api/providers';
 import { categoryLabelFr } from '../../lib/seo/jsonld';
 import { BookingCta } from '../BookingCta';
@@ -48,11 +48,14 @@ export function ProviderHero({ provider }: { provider: Provider }) {
             </Chip>
           ) : null}
         </h1>
-        {provider.reviewCount > 0 ? (
-          <p className="mt-xs text-bodyMedium text-textSecondary">
-            <Rating value={provider.rating} count={provider.reviewCount} />
-          </p>
-        ) : null}
+        <p className="mt-xs text-bodyMedium text-textSecondary">
+          <SalonRating
+            rating={provider.rating}
+            reviewCount={provider.reviewCount}
+            withCount
+            dense={false}
+          />
+        </p>
         <div className="mt-m">
           <BookingCta slug={provider.slug ?? ''} />
         </div>

@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Chip, ChipButton, chipLinkClasses } from '../components/Chip';
-import { Rating, ratingFr } from '../components/Rating';
+import { Rating, SalonRating, ratingFr } from '../components/Rating';
 
 /// B6 — Rating (§3.5) + Chip (§11.3/§16) contracts, pinned.
 
@@ -23,6 +23,28 @@ describe('Rating', () => {
   it('ratingFr always shows one decimal, comma-separated', () => {
     expect(ratingFr(5)).toBe('5,0');
     expect(ratingFr(4.75)).toBe('4,8');
+  });
+});
+
+describe('SalonRating — « Nouveau » at 0 reviews (salon-rating-new-and-visits-card.md §2.1)', () => {
+  it('a reviewed salon renders the Rating, French comma', () => {
+    render(<SalonRating rating={4.8} reviewCount={32} withCount />);
+    expect(screen.getByText(/4,8/)).toHaveTextContent('★ 4,8 (32 avis)');
+    expect(screen.queryByText(/Nouveau/)).toBeNull();
+  });
+
+  it('without the count it is the bare « ★ 4,8 » of cards and popups', () => {
+    render(<SalonRating rating={4.8} reviewCount={32} />);
+    expect(screen.getByText(/4,8/)).toHaveTextContent('★ 4,8');
+    expect(screen.queryByText(/avis/)).toBeNull();
+  });
+
+  it('a salon nobody reviewed reads « Nouveau » — never « 0,0 », never nothing', () => {
+    const { container } = render(<SalonRating rating={0} reviewCount={0} withCount />);
+    expect(container).toHaveTextContent('Nouveau salon, pas encore d’avis');
+    expect(container.textContent).not.toMatch(/0,0|0\.0|★/);
+    // The visible word is « Nouveau »; the rest is for screen readers.
+    expect(container.querySelector('.sr-only')!.textContent).toBe(' salon, pas encore d’avis');
   });
 });
 

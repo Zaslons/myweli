@@ -1,6 +1,6 @@
 import type { Provider } from '../../lib/api/providers';
 import { formatFcfa } from '../../lib/format';
-import { Rating } from '../Rating';
+import { SalonRating } from '../Rating';
 
 /// Compact provider card for lists (landing pages, related, etc.). Client
 /// lists may pass the favorite pair to render a heart (parity 2.15).
@@ -44,11 +44,9 @@ export function ProviderCard({
             </span>
           ) : null}
         </h3>
-        {provider.reviewCount > 0 ? (
-          <span className="whitespace-nowrap text-bodyMedium text-textTertiary">
-            <Rating value={provider.rating} />
-          </span>
-        ) : null}
+        <span className="whitespace-nowrap text-bodyMedium text-textTertiary">
+          <SalonRating rating={provider.rating} reviewCount={provider.reviewCount} />
+        </span>
       </div>
       {provider.commune ? (
         <p className="mt-xs text-bodyMedium text-textSecondary">{provider.commune}</p>

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/config/feature_flags.dart';
 import '../../../core/constants/booking_horizons.dart';
 import '../../../core/forms/field_errors.dart';
 import '../../../core/theme/app_theme.dart';
@@ -227,7 +228,11 @@ class _ProManualBookingScreenState extends State<ProManualBookingScreen> {
       clientPhone: _anonymous ? null : _phone.trim(),
       notes: _note.text.trim().isEmpty ? null : _note.text.trim(),
       artistId: widget.initialArtistId,
-      sendSmsInvite: _sendSms && !_anonymous && _phone.trim().isNotEmpty,
+      sendSmsInvite:
+          FeatureFlags.smsInvite &&
+          _sendSms &&
+          !_anonymous &&
+          _phone.trim().isNotEmpty,
     );
     if (!mounted) return;
     setState(() => _submitting = false);
@@ -342,7 +347,7 @@ class _ProManualBookingScreenState extends State<ProManualBookingScreen> {
               CheckboxListTile(
                 value: _anonymous,
                 onChanged: (v) => setState(() => _anonymous = v ?? false),
-                title: const Text('Client sans numéro (walk-in)'),
+                title: const Text('Client sans numéro'),
                 contentPadding: EdgeInsets.zero,
                 controlAffinity: ListTileControlAffinity.leading,
                 dense: true,
@@ -352,19 +357,19 @@ class _ProManualBookingScreenState extends State<ProManualBookingScreen> {
                 label: 'Nom du client (optionnel)',
                 controller: _name,
               ),
-              const SizedBox(height: AppTheme.spacingS),
-              SwitchListTile(
-                value: _sendSms && !_anonymous && _phone.trim().isNotEmpty,
-                onChanged: (_anonymous || _phone.trim().isEmpty)
-                    ? null
-                    : (v) => setState(() => _sendSms = v),
-                title: const Text('Envoyer la confirmation par SMS'),
-                subtitle: const Text(
-                  'Le client reçoit un lien vers l’app (bientôt disponible)',
+              if (FeatureFlags.smsInvite) ...[
+                const SizedBox(height: AppTheme.spacingS),
+                SwitchListTile(
+                  value: _sendSms && !_anonymous && _phone.trim().isNotEmpty,
+                  onChanged: (_anonymous || _phone.trim().isEmpty)
+                      ? null
+                      : (v) => setState(() => _sendSms = v),
+                  title: const Text('Envoyer la confirmation par SMS'),
+                  subtitle: const Text('Le client reçoit un lien vers l’app'),
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
                 ),
-                contentPadding: EdgeInsets.zero,
-                dense: true,
-              ),
+              ],
               const SizedBox(height: AppTheme.spacingS),
               AppTextField(
                 label: 'Note (optionnel)',

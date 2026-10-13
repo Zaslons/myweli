@@ -1,7 +1,7 @@
 name: myweli
 description: Myweli - Beauty and wellness booking app for Côte d'Ivoire
 publish_to: 'none'
-version: 1.0.0+1
+version: 0.0.1+1
 
 # **`sdk` is not documentation.** Dart derives the package's *language version*
 # from this lower bound, and a lint tied to a language feature simply does not

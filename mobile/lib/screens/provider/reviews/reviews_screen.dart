@@ -124,7 +124,7 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
                               ),
                               const SizedBox(width: AppTheme.spacingS),
                               Text(
-                                averageRating.toStringAsFixed(1),
+                                Formatters.formatRating(averageRating),
                                 style: AppTextStyles.headlineMedium.copyWith(
                                   color: AppColors.textPrimary,
                                 ),

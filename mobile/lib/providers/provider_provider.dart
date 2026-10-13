@@ -264,14 +264,25 @@ class ProviderProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Shows a just-submitted review without a reload — and moves the
+  /// denormalized `rating`/`reviewCount` with it, as the backend's
+  /// `recomputeRatings` does on the same write. It used to append the review
+  /// alone, so a salon's FIRST reviewer saw « Nouveau » and « Pas encore
+  /// d’avis. » directly above their own review until the page reloaded
+  /// (docs/design/salon-rating-new-and-visits-card.md §2.2). The average is
+  /// rounded to one decimal like the backend's `_round1`; the next load
+  /// replaces it with the server's figure either way.
   void addReviewLocally(Review review) {
-    if (_selectedProvider != null &&
-        _selectedProvider!.id == review.providerId) {
-      _selectedProvider = _selectedProvider!.copyWith(
-        reviews: [..._selectedProvider!.reviews, review],
-      );
-      notifyListeners();
-    }
+    final salon = _selectedProvider;
+    if (salon == null || salon.id != review.providerId) return;
+    final count = salon.reviewCount + 1;
+    final average = (salon.rating * salon.reviewCount + review.rating) / count;
+    _selectedProvider = salon.copyWith(
+      reviews: [...salon.reviews, review],
+      reviewCount: count,
+      rating: (average * 10).round() / 10,
+    );
+    notifyListeners();
   }
 
   /// Uploads a review photo through the image pipeline; returns the URL.

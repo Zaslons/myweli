@@ -145,8 +145,9 @@ void main() {
         find.text('Vos rendez-vous ici'),
         findsOneWidget,
         reason:
-            'signed out this card renders the login prompt, and the third '
-            'SectionHeading copy would not be in the picture',
+            'signed out (or without a visit at provider1) this card is not '
+            'rendered at all, and the third SectionHeading copy would not be '
+            'in the picture',
       );
       await expectGolden(tester, 'consumer_provider_detail_w360_x2');
     });

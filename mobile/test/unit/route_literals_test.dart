@@ -262,9 +262,10 @@ const _exempt = <String, Map<String, Map<String, String>>>{
       '/login':
           'the favourite heart — `if (!widget.preview) _favoriteAction()`',
       '/bookings':
-          '« Voir tout » of « Vos rendez-vous ici » — `trailing: widget.preview ? null : …`',
+          '« Voir tout » of « Vos rendez-vous ici » — the whole card is '
+          '`if (!widget.preview)` (salon-rating-new-and-visits-card.md §2.3)',
       '/appointment/{}':
-          'the visit tiles — the preview renders the logged-out text instead',
+          'the visit tiles — same `if (!widget.preview)`; the preview shows no card',
       '/booking':
           '« Réserver » and « Réserver à nouveau » — the preview’s CTA is disabled',
       '/carte':

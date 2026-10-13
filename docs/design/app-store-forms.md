@@ -10,7 +10,7 @@
 
 Ordre conseillé dans App Store Connect : **fiche de l'app (§3) → Informations
 sur l'app : catégorie, droits, classification (§5, §6, §9) → Tarifs et
-disponibilité (§9) → Confidentialité de l'app (§7) → page de la version 1.0.0 :
+disponibilité (§9) → Confidentialité de l'app (§7) → page de la version 0.0.1 :
 captures, textes, build, informations pour la revue (§4, §8, §10)**. Les notes
 de revue sont en anglais pour le relecteur, avec les libellés français de l'app
 recopiés à l'identique.
@@ -280,7 +280,7 @@ dossier proposait :
 | Catégorie | non renseignée | Business + Productivity (§5) | à remplir |
 | Sous-titre | vide | `Agenda, clients, réservations` (§4) | à remplir |
 | Droits sur le contenu | non renseignés | « Oui … et j'ai les droits nécessaires » (§9) | à remplir |
-| Version | iOS **1.0**, « Prepare for Submission » | 1.0.0 (le binaire, §11.3) | qu'App Store Connect rattache un build `1.0.0` à une version nommée « 1.0 » : UNVERIFIED — le vérifier en choisissant le build (§13) |
+| Version | iOS **1.0**, « Prepare for Submission » | **0.0.1** (le binaire, §11.3 — la version de l'app passe de 1.0.0 à 0.0.1, décision du propriétaire le 2026-10-13, à partir du build 569) | **renommer la page « 1.0 » en « 0.0.1 »** avant de choisir le build : App Store Connect ne propose pour une version que les builds de même numéro, et 0.0.1 ≠ 1.0 quelle que soit sa normalisation. Le renommage est une écriture dans App Store Connect : avec l'accord du propriétaire (§13). Les builds 1.0.0 (≤ 565) restent dans TestFlight sous leur version |
 | TestFlight | aucun build | — | §11.5 — *2026-10-12, soir : build **565** envoyé, traité `VALID` ; le groupe interne ne reçoit que le **565** (il remplace le 560)*. *2026-10-12 : builds 551, 555 et **560** envoyés, traités `VALID` ; le groupe interne ne reçoit que le **560** (il remplace le 555)*. *2026-10-10 : builds 551 et 555 envoyés, traités `VALID` ; le groupe interne ne reçoit que le 555 (§11.6)* |
 
 L'app consommateur « MyWeli » a aussi sa fiche (iOS 1.0, « Prepare for
@@ -623,7 +623,7 @@ la note dit au relecteur (risque assumé, §14).
 | **Apps iPhone et iPad sur Mac (Apple silicon)** | **décoché le 2026-10-06** | jamais testé ; le profil rend l'app éligible par défaut |
 | **Apple Vision Pro** | **décoché le 2026-10-06** | idem (le profil liste iOS, xrOS, visionOS) |
 | **Publication de la version** | **« Publier manuellement cette version »** | l'approbation ne doit pas publier : la sortie publique attend la production rétablie et stable (§0) |
-| Publication progressive | sans objet pour la 1.0.0 | elle s'applique aux **mises à jour** (utilisateurs en mise à jour automatique) ; à activer dès la 1.0.1 ([LAUNCH.md](../LAUNCH.md) §6.2) |
+| Publication progressive | sans objet pour la première version (0.0.1) | elle s'applique aux **mises à jour** (utilisateurs en mise à jour automatique) ; à activer dès la version suivante ([LAUNCH.md](../LAUNCH.md) §6.2) |
 
 ### 9.1 Statut de professionnel UE (DSA) — décision du propriétaire
 
@@ -837,7 +837,7 @@ témoins manquent.
 |---|---|
 | `CFBundleIdentifier` | `com.myweli.pro` |
 | `CFBundleName` | `MyWeli Pro` |
-| `CFBundleShortVersionString` / `CFBundleVersion` | `1.0.0` / **> 536** |
+| `CFBundleShortVersionString` / `CFBundleVersion` | **`0.0.1`** (depuis le build 569 ; `1.0.0` jusqu'au 565) / **> 565** |
 | `UIDeviceFamily` | **`[1]`** |
 | `CFBundleLocalizations` | **`[fr]`** |
 | `NSLocationWhenInUseUsageDescription` | « MyWeli Pro utilise votre position pour placer votre salon sur la carte et trouver votre commune. » |
@@ -1159,14 +1159,15 @@ numéros).*
 15. [x] **Captures** sur le salon démo — *8 captures légendées, 1206 × 2622 (obligatoire) et 1320 × 2868, faites le 2026-10-13 ([pro-app-store-screenshots.md](pro-app-store-screenshots.md)) ; reste à les téléverser dans App Store Connect.*
 16. [ ] **Remplir App Store Connect** : informations sur l'app (§3, §5, §6,
        §9), tarifs et disponibilité — Côte d'Ivoire seule, Mac et Vision Pro
-       décochés (§9), confidentialité (§7), page 1.0.0 — captures, texte
+       décochés (§9), confidentialité (§7), page 0.0.1 — captures, texte
        promotionnel, description, mots-clés, URL, copyright, **build**,
        publication **manuelle** (§4, §9, §10), informations pour la revue avec
        le code lu à ce moment-là et la **ligne SUBSCRIPTION remplacée** (§8).
        *2026-10-05 : la ligne est remplacée dans le dossier — coller les notes
        du §8 telles quelles ; le nom « MyWeli Pro — Gestion de salon » si le
-       propriétaire le retient (§3) ; vérifier que le build 1.0.0 se rattache
-       à la version « 1.0 » (§3, UNVERIFIED).*
+       propriétaire le retient (§3) ; **renommer la version « 1.0 » en
+       « 0.0.1 »** (accord du propriétaire) puis vérifier que le build s'y
+       rattache (§3).*
 17. [ ] **`updateUrl` iOS** dans la console admin (§12.1).
 18. [ ] **Porte d'entrée Cloudflare** : ne pas lancer la phase A pendant une
        revue ; si elle a été déployée avant, vérifier qu'un client non

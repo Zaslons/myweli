@@ -8,6 +8,7 @@ import '../../core/theme/text_styles.dart';
 import '../../models/provider.dart' as models;
 import '../../providers/auth_provider.dart';
 import '../../providers/favorites_provider.dart';
+import '../../widgets/common/app_rating.dart';
 import '../../widgets/common/app_snack_bar.dart';
 import '../common/timed_cached_image.dart';
 
@@ -315,28 +316,10 @@ class ProviderCard extends StatelessWidget {
                             ],
                           ),
                           const SizedBox(height: AppTheme.spacingXS),
-                          Row(
-                            children: [
-                              const Icon(
-                                Icons.star,
-                                size: AppTheme.iconXS,
-                                color: AppColors.starRating,
-                              ),
-                              const SizedBox(width: AppTheme.spacingXS),
-                              Text(
-                                provider.rating.toStringAsFixed(1),
-                                style: AppTextStyles.bodySmall.copyWith(
-                                  color: AppColors.textSecondary,
-                                ),
-                              ),
-                              const SizedBox(width: AppTheme.spacingS),
-                              Text(
-                                '(${provider.reviewCount})',
-                                style: AppTextStyles.bodySmall.copyWith(
-                                  color: AppColors.textTertiary,
-                                ),
-                              ),
-                            ],
+                          AppRating(
+                            rating: provider.rating,
+                            reviewCount: provider.reviewCount,
+                            size: AppRatingSize.compact,
                           ),
                           const SizedBox(height: AppTheme.spacingXS),
                           Row(
@@ -507,28 +490,10 @@ class ProviderCard extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                         ),
                         const SizedBox(height: AppTheme.spacingXS),
-                        Row(
-                          children: [
-                            const Icon(
-                              Icons.star,
-                              size: AppTheme.iconXS,
-                              color: AppColors.starRating,
-                            ),
-                            const SizedBox(width: AppTheme.spacingXS),
-                            Text(
-                              provider.rating.toStringAsFixed(1),
-                              style: AppTextStyles.bodySmall.copyWith(
-                                color: AppColors.textSecondary,
-                              ),
-                            ),
-                            const SizedBox(width: AppTheme.spacingS),
-                            Text(
-                              '(${provider.reviewCount})',
-                              style: AppTextStyles.bodySmall.copyWith(
-                                color: AppColors.textTertiary,
-                              ),
-                            ),
-                          ],
+                        AppRating(
+                          rating: provider.rating,
+                          reviewCount: provider.reviewCount,
+                          size: AppRatingSize.compact,
                         ),
                         const SizedBox(height: AppTheme.spacingXS),
                         Row(
