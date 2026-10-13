@@ -244,8 +244,18 @@ build is asked for when the PRs are in.
       string (run 38388637917), none with the layouts (run 38390654129).
 - [x] SYSTEM.md §13.3 states the rule (shape by measured fit; what a token
       is); §21 rows 93–95 for what is fixed, row 96 for what is registered.
-- [ ] The simulator check at 402 pt; the screenshots spec updated if a frame
-      moved.
+- [x] The simulator check at 402 pt (iPhone 17 Pro, SF Pro, the demo salon,
+      2026-10-13). At the default size the home and the client card take the
+      same shapes as store frames 3 and 5 — two across, four across, the
+      actions beside the number. At the largest accessibility size (≈3×) both
+      go one per row with every amount whole; the client's number, which
+      cannot fit even the card's full width there, wraps between two pairs,
+      never inside one. **Found there, fixed:** with the narrower price, a
+      visit-history date that fits its line exactly ran into the amount
+      (« 08:007 000 FCFA ») — the row had no gap after the date.
+- [ ] Store frames: the home (3) is unchanged; the client card (5) differs
+      by the single space before « FCFA » in its history rows — not worth a
+      reshoot on its own (§11 Q1). Reshoot with the next build if wanted.
 - [ ] Roadmap entry; this spec's status and §11 closed.
 
 ## 11. Open questions
