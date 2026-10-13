@@ -431,24 +431,31 @@ Each step says where it comes from: **observed** on the rehearsal take of
 
 Measured on the rehearsal cut, with the storyboard's rests: the lead-in, the
 swipe, the tap on the free slot, the form filled key by key and the scroll
-take the film to **13.8 s** before the last tap (the rehearsal's closing
-swipe standing in for the tap on « Arrivé », which is about as long).
+take the film to **13.8 s** before the last tap. (The rehearsal's closing
+swipe stands in for the tap on « Arrivé »; the two are about as long.)
 
 Then the tap on « Créer le rendez-vous » opens one window that cannot be
 cut: the loader, the form closing, the snackbar staying, the snackbar
-leaving. If the snackbar stays its usual four seconds (**UNVERIFIED** — it
-was never filmed), the screen is not at rest before about **19.5 s**. The
-storyboard puts the poster frame at 18.0 s in a 20 s film, on a screen with
-no snackbar: that does not fit, and the tool will refuse (`E_POSTER`,
-`E_FINAL_HOLD`) rather than squeeze.
+leaving. « Rendez-vous créé » is a `SnackKind.success` — three seconds, read
+in `mobile/lib/widgets/common/app_snack_bar.dart`; it has **not been
+filmed**. With the « under about a second » the driver who staged the day
+reported between the tap and the form having closed, that window is about
+4.5 s, and the screen is not at rest before about **18.5 s**. The storyboard puts the poster frame at 18.0 s, on a screen
+with no snackbar, in a 20 s film that ends on a hold of at least 3 s: that
+does not fit, and the tool will refuse (`E_POSTER`, `E_FINAL_HOLD`) rather
+than squeeze.
 
 What gives, in the storyboard and nowhere else:
 
-- about 2 s can be taken from rests before the last tap (the lead-in, the
-  rests after « Arrivé », after the free slot and after the scroll, and the
-  scroll's overshoot) — at the price of a film that breathes less; or
-- the poster frame moves later (about 21 s in a 23 s film). The poster was
-  approved at 18.0 s: that is the owner's decision.
+- 1.5 to 2 s taken from before the last tap — the lead-in, the rests after
+  « Arrivé », after the free slot and after the scroll, and the scroll's
+  overshoot (runbook, step 6) — at the price of a film that breathes less;
+  or
+- the poster frame a little later (about 19.5 s in a 22 s film). The poster
+  was approved at 18.0 s: moving it is the owner's decision.
+
+(The tap on « Arrivé » shows no snackbar when it succeeds — read in
+`pro_journal_screen.dart`, not filmed.)
 
 A **rehearsal** (`--rehearsal`) accepts a take that does not have every
 gesture of the film: shots without footage become holds with their captions.
