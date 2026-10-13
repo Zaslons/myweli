@@ -397,16 +397,25 @@ class ProviderProvider extends ChangeNotifier {
   /// route answers 404). So, on anything but an answer inside
   /// [AppConstants.reviewRereadTimeout]: no change, no error, no loader.
   ///
-  /// Two answers are stale, and dropped whole:
-  ///  * another salon holds the slot now — [loadProviderById]'s own guard. A
-  ///    page of THIS salon may be covered beneath it, holding the figures of
-  ///    [addReviewLocally]; moving the lists alone would make them disagree.
-  ///  * a later review of this salon was applied while the read was out:
-  ///    this answer is older than what is shown, and that review's own
-  ///    re-read is the one that knows both.
+  /// One answer is stale, and dropped whole: a later review of this salon
+  /// was applied while the read was out. It is older than what is shown, and
+  /// that review's own re-read is the one that knows both.
   ///
-  /// With the slot free (no salon page was opened), the lists and
-  /// [alsoPatch] take the figures and the slot stays free.
+  /// **The slot takes the answer only while it HOLDS this salon** — never on
+  /// the slot's id alone, which also names a salon whose read is out or
+  /// failed. **The lists and [alsoPatch] take it whoever holds the slot**:
+  /// their rows of this salon are nobody else's. They used to be skipped
+  /// whenever another salon held the slot — and nothing in the app releases
+  /// it: the last salon page, booking hub or booking confirmation opened
+  /// holds it for the rest of the session. So a review published from « Mes
+  /// rendez-vous » after any of them lost its answer, and a favourite held
+  /// in no list kept « Nouveau » until the app restarted.
+  ///
+  /// Not reached: a page of this salon COVERED by another salon's page. It
+  /// renders its own copy and hands that back when uncovered
+  /// ([restoreSalon]) — without this answer, and without a review applied
+  /// while it was covered —, so it can disagree with the lists until its
+  /// next read.
   Future<void> rereadSalonAfterReview(
     String providerId, {
     SalonFiguresSink? alsoPatch,
@@ -423,8 +432,6 @@ class ProviderProvider extends ChangeNotifier {
     }
     if (salon == null) return;
     if (_reviewsApplied[providerId] != applied) return;
-    final holder = _selectedProviderId;
-    if (holder != null && holder != providerId) return;
 
     if (_selectedProvider?.id == providerId) _selectedProvider = salon;
     _patchFigures(providerId, salon.rating, salon.reviewCount, alsoPatch);

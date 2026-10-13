@@ -502,7 +502,8 @@ void main() {
       expect(p.errorCode, isNull);
     });
 
-    test('the user moved to another salon: the answer is ignored', () async {
+    test('the user moved to another salon: its page is not touched — the '
+        'lists still take the answer', () async {
       final gate = Completer<ApiResponse<Provider>>();
       final other = _salon('B', rating: 3.9, reviewCount: 7);
       salons
@@ -524,19 +525,94 @@ void main() {
       expect(salons.byIdCalls, 1, reason: 'the re-read is out');
       // The map’s « Voir le salon », or any other salon page: the slot is B’s.
       p.showPreloaded(other);
-      final listed = p.providers.first;
       var notified = 0;
       p.addListener(() => notified++);
 
       gate.complete(ApiResponse.success(server));
       await pumpEventQueue();
 
+      // A's answer never lands in B's slot…
       expect(p.selectedProvider, same(other));
       expect(p.selectedProviderId, 'B');
-      expect(p.providers.first, same(listed));
-      expect(_figures(p.providers.first), (4.2, 4));
-      expect(told, [('A', 4.2, 4)], reason: 'the estimate, and nothing after');
-      expect(notified, 0);
+      expect(p.providers.last, same(other));
+      // …and A's own rows, which are nobody else's, are corrected.
+      expect(_figures(p.providers.first), (4.3, 4));
+      expect(told, [
+        ('A', 4.2, 4),
+        ('A', 4.3, 4),
+      ], reason: 'the estimate, then the server’s');
+      expect(notified, 1, reason: 'the home cards are told to rebuild');
+    });
+
+    // Nothing in the app releases the slot (`clearSelectedProvider` has no
+    // caller): once a salon page, the booking hub or a booking confirmation
+    // was opened, that salon holds it for the rest of the session. A review
+    // then published from « Mes rendez-vous » is of ANOTHER salon than the
+    // slot's — the ordinary case, not a race.
+    test('another salon was opened earlier in the session and still holds '
+        'the slot: the lists and the favourites take the server’s '
+        'figures', () async {
+      final other = _salon('B', rating: 3.9, reviewCount: 7);
+      salons
+        ..list = [before, other]
+        ..featured = [before]
+        ..onById = (_) async => ApiResponse.success(server);
+      hearts.salons = [before];
+      final favorites = FavoritesProvider();
+      await favorites.loadFavorites('user1');
+      final p = ProviderProvider();
+      await p.loadProviders();
+      await p.loadFeaturedProviders();
+      p.showPreloaded(other);
+
+      expect(
+        await p.submitReview(mine, alsoPatch: favorites.patchSalonFigures),
+        isTrue,
+      );
+      expect(_figures(p.providers.first), (4.2, 4), reason: 'the estimate');
+      await pumpEventQueue();
+
+      expect(salons.byIdCalls, 1);
+      expect(_figures(p.providers.first), (4.3, 4));
+      expect(_figures(p.featuredProviders.single), (4.3, 4));
+      expect(_figures(favorites.favoriteProviders.single), (4.3, 4));
+      expect(p.selectedProvider, same(other));
+      expect(p.selectedProviderId, 'B');
+    });
+
+    test('…and a favourite held nowhere else leaves « Nouveau » on its first '
+        'review', () async {
+      // Another commune, past page 1 of the list: no copy to estimate from,
+      // so the answer is the ONLY thing that can move this card — until the
+      // app restarts, the favourites being loaded once per session.
+      final unrated = _salon('A');
+      salons.onById = (_) async => ApiResponse.success(
+        _salon(
+          'A',
+          rating: 5.0,
+          reviewCount: 1,
+          reviews: [_review(5, appointment: 'a1', id: 'stored-id')],
+        ),
+      );
+      hearts.salons = [unrated];
+      final favorites = FavoritesProvider();
+      await favorites.loadFavorites('user1');
+      final p = ProviderProvider()
+        ..showPreloaded(_salon('B', rating: 3.9, reviewCount: 7));
+
+      expect(
+        await p.submitReview(
+          _review(5, appointment: 'a1', id: 'client-uuid'),
+          alsoPatch: favorites.patchSalonFigures,
+        ),
+        isTrue,
+      );
+      expect(favorites.favoriteProviders.single, same(unrated));
+      await pumpEventQueue();
+
+      expect(salons.byIdCalls, 1);
+      expect(_figures(favorites.favoriteProviders.single), (5.0, 1));
+      expect(p.selectedProviderId, 'B');
     });
 
     test('with no salon page open, the answer corrects the lists and takes '
