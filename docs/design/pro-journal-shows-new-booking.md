@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Approved** (owner, 2026-10-13 — decision 2 of `pro-app-preview.md` §9: « fix it, build once more, and film that build ») — **being built** on `fix/journal-shows-new-booking`. Not merged, not in a build, not seen on a device. |
+| **Status** | **Approved** (owner, 2026-10-13 — decision 2 of `pro-app-preview.md` §9: « fix it, build once more, and film that build ») — **built 2026-10-13** on `fix/journal-shows-new-booking`. **Not merged, not in a build, not seen on a device.** What was run and what was not: §8.4. |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-10-13 |
 | **PRD ref / phase** | Pro app — module `journal` (J1b) + manual booking · V1 · store submission |
@@ -28,8 +28,9 @@ new visual; the web (§1.3 — its day view already reloads).
 
 ### 1.1 The defect, as verified
 
-Read in the code at `3d88d0e1`, **then observed** in a widget test that drives
-the real screens (§8.1 — seven of its cases red before the fix):
+Read in the code at `3d88d0e1` — every line number in this file is that
+commit's — **then observed** in a widget test that drives the real screens
+(§8.1: nine of its ten cases red before the fix, the control green):
 
 | What | Where |
 |---|---|
@@ -73,8 +74,9 @@ needed for the film):
   trigger. **Read, not observed.** It needs its own decision (what a card
   shows while the server confirms) and its own tests.
 - **Pull-to-refresh on « Accueil » does not refetch** once figures are loaded:
-  it calls the same `loadDashboardStats`, which returns early. Observed in
-  `pro_dashboard_booking_created_test.dart` (the cache case). Not fixed here,
+  it calls the same `loadDashboardStats`, which returns early. Observed at the
+  provider (`pro_dashboard_booking_created_test.dart`, first case: a second
+  load asks the service for nothing); not observed on the screen. Not fixed here,
   because the loud path it would take ends, on failure, on a text with no way
   out (`dashboard_screen.dart:180–189`) — a stale number is better than a dead
   end, and the right fix is that screen's error state.
@@ -262,8 +264,15 @@ booking that exists must never be reported as failed (the salon would create
 it twice).
 
 **The wiring is the app's own.** The widget test registers its providers with
-`ProSalonScope.track`, as `main_pro.dart` does, and a source pin holds the
-three `track(…)` lines in `main_pro.dart`.
+`ProSalonScope.track`, as `main_pro.dart` does, and a source pin (comments
+stripped) holds that every provider naming `ShowsSalonBookings` is tracked in
+`main_pro.dart`, and that the announcement has exactly one caller.
+
+**What none of this can see.** A future store that shows bookings and does
+*not* implement `ShowsSalonBookings` is not told — which is this defect again,
+one store later — and no test can know that it should have been. The contract
+makes the right thing one line; it does not make the wrong thing fail. The
+pin is on text, too: nothing here pumps `MyweliProApp` itself.
 
 ## 6. Security & authz
 
@@ -308,29 +317,81 @@ text field while the form slides away.
 
 ### 8.2 Unit
 
-- `pro_salon_scope_booking_created_test.dart` — only `ShowsSalonBookings`
-  stores are told; a throwing store does not stop the others;
-  `createManualBooking` announces on success, exactly once, and never on a
-  refusal or a thrown error; a throwing store does not turn a success into a
-  failure; `main_pro.dart` tracks the three stores.
-- `pro_journal_test.dart` — same day / other day / before the first load /
-  another salon / while a load is in flight / in the error state / twice; the
-  reload replaces the day, removes a booking the server no longer has, keeps
-  the day on a refusal and on a throw, never raises `isLoading`; a late older
-  answer is dropped (both orders); a salon switch drops an answer in flight.
-- `pro_dashboard_booking_created_test.dart`, `pro_clients_test.dart`,
-  `manual_booking_test.dart`, `mock_pro_service_test.dart` — the three other
-  stores and the mock.
+| File | Cases | What it holds |
+|---|---|---|
+| `pro_salon_scope_booking_created_test.dart` | 13 | only tracked `ShowsSalonBookings` stores are told, once; a throwing store does not stop the others and nothing escapes; `createManualBooking` announces on success, once, **before it returns**, with the server's answer — also when the agenda's own list does not take the booking — and never on a refusal or a thrown error; a throwing store does not turn a success into a failure; every provider naming `ShowsSalonBookings` is `ProSalonScope.track`ed in `main_pro.dart`, and the announcement has one caller (comments stripped) |
+| `pro_journal_booking_created_test.dart` | 23 | same day (at once, in order, no loader, one request) · the server wins · a reload without the booking removes it · refused / thrown reload keeps everything · `forbidden` still reaches `ProAccessGuard` · twice · empty day · both filters · another day and its dot · the salon timezone decides the day · a count asked before the booking cannot overwrite its dot · never opened / another salon / after a switch · still loading, a refresh in flight, the error state · a late older answer is dropped (three orders) |
+| `pro_dashboard_booking_created_test.dart` | 9 | refetched and replaced with no loader and never blank · refused / thrown keeps the figures and the next pull asks again, quietly, until confirmed · another salon · never loaded · a load in flight is followed by one refetch · the older of two refetches cannot win · a salon switch |
+| `pro_clients_booking_created_test.dart` | 7 | reloaded for the card's client, no loader, never blank, visits too · someone else, no number, another salon: untouched · no card open · refused / thrown keeps the card · another card opened meanwhile, during the card request and during the visits request |
+| `manual_booking_test.dart` (+6) | | the agenda's loaded filter: status, both date bounds, inclusive, forgotten on a salon switch |
+| `mock_pro_service_test.dart` (+2) | | the mock answers with the booking's length |
+
+The fakes answer like a server: **what they say is decided when the request
+arrives** and may be delivered later — that is what makes « an answer computed
+before the booking existed » a test and not a comment.
 
 ### 8.3 Mutations
 
-On committed code, each with an exact-anchor assert, the targeted test watched
-red, then `git checkout --`. The list and the result of each are in the commit
-message and in §8.4.
+56, and one control, each on committed code, each with an exact-anchor assert
+(a mutation that does not apply is no result), the targeted test files run,
+then `git checkout --` and a clean-tree check.
+
+| Area | What was broken on purpose | Result |
+|---|---|---|
+| The announcement and the wiring (7) | removed (the defect itself — 9 of the 10 flow cases red, the control green); made after the method returned; a throwing store not caught; only the first store told; the journal, then the home store, no longer tracked in `main_pro.dart`; not made when the agenda's list does not take the booking | 7 red |
+| `ProJournalProvider` (20) | not added to the day; added whatever its day; no dot; no reload; the loud reload; a refused / thrown reload drops the day or raises the error; `forbidden` not reported; the answer merged instead of applied; the filter reset; « Voir les annulés » switched on; each of the three sequence checks removed; the switch not outdating; whose booking not checked; added twice; the fallback ignoring a load in flight; the fallback asking for nothing | 20 red |
+| `ProDashboardProvider` (9) | nothing done; the loud reload; a refusal drops the figures; stale figures not asked for again; never un-staled; whose booking not checked; a load in flight not followed; an older refetch winning; the switch not outdating | 9 red |
+| `ProClientsProvider` (9) | nothing done; the loud reload; any booking reloads the card; the salon not checked; a refusal drops the card; each of the two sequence checks removed; another card not outdating; the visits not replaced | 9 red |
+| The agenda's filter (5) | each of the three tests removed; an exclusive bound; kept across a salon switch | 5 red |
+| The form (1) | the in-flight guard removed | red |
+| The mock (2) | no duration; no 30-minute floor | 2 red |
+| The wiring pin itself (3 + a control) | the journal store un-tracked **with a comment quoting the line left behind**; a second caller of the announcement (the form announcing too); the announcer un-tracked. **Control**: the journal store's header rewritten `implements SalonScoped, ShowsSalonBookings` — the pin must still list it | 3 red; the control green, as it must be |
+
+**Two of the first 53 survived their first run, and each named a real gap** —
+closed by a test, then run again red:
+
+- *not announced when the agenda's list does not take the booking*: nothing
+  held that the announcement is independent of the tab the agenda was left on.
+  Leave it on « En attente », create a « Confirmé » booking from « Ma journée »
+  — the day would have missed it again.
+- *the client card's first sequence check removed*: the outdated answer was
+  still dropped by the second check, after one request too many.
 
 ### 8.4 What was run, and what was not
 
-Filled in at the end of the build — see the bottom of this file.
+**Run** (macOS, Flutter 3.44.9, targeted files only — the Mac is shared):
+
+| Command | Result |
+|---|---|
+| `flutter test test/widget/pro_journal_shows_new_booking_test.dart` on the code before any fix (commit `e4278fc0`) | **+1 −9** — the control green, the nine others red |
+| the same after the journal fix alone | +9 −1 (« two taps in one frame »: 2 requests for 1) |
+| the same after the form's guard | **+10** |
+| `flutter test test/unit/manual_booking_test.dart` before the agenda's filter | +6 −3 |
+| 24 files, on the final code — the seven new or changed test files, every other test file that touches the changed providers and screens, and `test/a11y/layout_test.dart` (the width and text-scale gate, which covers the journal and the form: 115 of the cases) | **+407 ~14**, all passed (the 14 skipped are the Pro goldens, which only run on Linux) |
+| `flutter analyze` (the package) | 0 issues |
+| `dart format --set-exit-if-changed` on the touched files | clean |
+| 56 mutations and one control | §8.3 |
+
+**Looked at**: three pictures rendered from the flow test on this Mac (real
+fonts, 390 × 844) — the day before; the form leaving, 120 ms into the
+transition, with the reload held; the day after. The card « 12:00 – 12:30 ·
+Yao K. · Confirmé » sits between its neighbours in the second one already,
+« Libre — 12:30 » under it; in the third, « Rendez-vous créé » stands above
+« Nouveau ». Throwaway files: not goldens, not committed.
+
+**Not run, not seen — nothing below is claimed:**
+
+- **No device, no simulator, no build.** That the booking is on screen
+  « before the form starts to leave » is asserted in a widget test, one frame
+  after the answer with the form still in the tree — not watched on a phone.
+- **Not against the real API.** What the `201` carries is read in
+  `booking_service.dart`; the fake salon is written from that reading.
+- **The full suite** was not run (shared Mac); CI runs it on the pull request.
+- **Goldens**: nothing visual changed and no golden test creates a booking, so
+  none should move — **not verified**, they are skipped on macOS.
+- **The web**: read only (§1.3).
+- **A screen reader**: the snackbar is the announcement, as before; not
+  listened to.
 
 ## 9. Rollout & scope discipline
 
@@ -339,11 +400,12 @@ submitted to App Review and filmed. No backend deploy, no migration.
 
 ## 10. Definition of done
 
-- [ ] `flutter analyze` 0 · `dart format` clean on the touched files · the
-      targeted tests green.
-- [ ] Every new guard watched red.
-- [ ] Spec indexed and cross-linked from the code; roadmap entry written.
-- [ ] Branch pushed; no PR, no merge, no build from this session.
+- [x] `flutter analyze` 0 · `dart format` clean on the touched files · the
+      targeted tests green (§8.4).
+- [x] Every new guard watched red (§8.1 before the fix; §8.3 by mutation).
+- [x] Spec indexed and cross-linked from the code; roadmap entry written.
+- [x] Branch pushed; no PR, no merge, no build from this session.
+- [ ] The full suite and the goldens, on CI, once a pull request exists.
 - [ ] **Seen on a device** — a free slot becoming a booking, on the build that
       is filmed. Not done here.
 
