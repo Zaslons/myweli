@@ -146,9 +146,17 @@ class Esds(unittest.TestCase):
         self.assertEqual(variant(bytes.fromhex("1188"))["channel_configuration"], 1)    # mono
         self.assertEqual(variant(bytes.fromhex("2990"))["audio_object_type"], 5)        # SBR (HE-AAC)
 
-    def test_a_payload_without_the_descriptors_is_refused(self):
-        with self.assertRaises(mp4.Mp4Error):
-            mp4.parse_esds(bytes.fromhex("00000000") + bytes.fromhex("0480808000"))
+    def test_a_payload_without_one_of_its_three_descriptors_is_refused(self):
+        """Each descriptor is asked for by its tag; the film's own payload
+        with one tag changed fails on that one."""
+        self.assertEqual((FILM_ESDS[4], FILM_ESDS[12], FILM_ESDS[30]), (0x03, 0x04, 0x05))
+        for at, missing in ((4, "no ES_Descriptor"), (12, "no DecoderConfigDescriptor"),
+                            (30, "no DecoderSpecificInfo")):
+            damaged = bytearray(FILM_ESDS)
+            damaged[at] = 0x7F
+            with self.assertRaises(mp4.Mp4Error) as cm:
+                mp4.parse_esds(bytes(damaged))
+            self.assertEqual(str(cm.exception), f"esds: {missing}")
 
 
 class Boxes(unittest.TestCase):

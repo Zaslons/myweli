@@ -224,7 +224,12 @@ MANUAL = [
     ("mp4", "mp4.py", "        if size < head or pos + size > end:", "        if size < head:",
      V + "test_a_file_cut_short"),
     ("mp4", "mp4.py", "    if nal[0] & 0x1F != 7:", "    if False:", P + "Sps.test_something_that_is_not_an_sps_is_refused"),
-    ("mp4", "mp4.py", "    if tag != 0x04:", "    if False:", P + "Esds.test_a_payload_without_the_descriptors_is_refused"),
+    ("mp4", "mp4.py", "    if tag != 0x03:", "    if False:",
+     P + "Esds.test_a_payload_without_one_of_its_three_descriptors_is_refused"),
+    ("mp4", "mp4.py", "    if tag != 0x04:", "    if False:",
+     P + "Esds.test_a_payload_without_one_of_its_three_descriptors_is_refused"),
+    ("mp4", "mp4.py", "    if tag != 0x05:", "    if False:",
+     P + "Esds.test_a_payload_without_one_of_its_three_descriptors_is_refused"),
 
     ("frames", "storyboard.json", "Une cliente arrive" + chr(92) + "u202f?", "Une cliente arrive" + chr(0x202F) + "?",
      F + "Storyboard.test_the_file_has_no_invisible_character"),
