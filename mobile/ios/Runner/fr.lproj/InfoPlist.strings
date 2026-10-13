@@ -1,0 +1,14 @@
+/* This file defines no key — on purpose.
+
+   It exists so that the app bundle contains an « fr.lproj » folder. The App
+   Store takes an app's « Languages » line from the *.lproj folders in its
+   bundle, and a bundle holding only Base.lproj was read as English: builds
+   569 and 577 came back from App Store Connect as locales = ["en"] for an app
+   that speaks only French.
+
+   Keep it empty. The permission texts live in Info.plist as per-flavour build
+   settings (ios/tool/setup_flavours.rb) — one shared strings file could not
+   say « MyWeli » for one app and « MyWeli Pro » for the other, and a key
+   here would silently override Info.plist.
+
+   Design: docs/design/ios-language-and-orientation.md */

@@ -334,6 +334,46 @@ unless resources.files_references.include?(privacy_ref)
   resources.add_file_reference(privacy_ref)
 end
 
+# --- language -----------------------------------------------------------------
+# The App Store takes an app's « Languages » line from the *.lproj folders in
+# its bundle. This one held only Base.lproj, and Base IS the project's
+# development language — English, from the Flutter template. So App Store
+# Connect read builds 569 and 577 as `locales = ["en"]` for apps that speak only
+# French; `CFBundleLocalizations = [fr]` in Info.plist changes the system UI
+# inside the app and nothing on the store page.
+#
+# Two changes, because either alone is a guess about what Apple reads:
+#   1. French becomes the development language — Base.lproj then IS French
+#      (and Info.plist's `$(DEVELOPMENT_LANGUAGE)` resolves to `fr`).
+#   2. A real fr.lproj is copied into the bundle. It holds an InfoPlist.strings
+#      that defines no key: a key there would override Info.plist, whose
+#      purpose strings are per flavour (above) — one shared file cannot be.
+# With only (1), the result rests on the store filing `Base` under the
+# development language; with only (2), Base would still be English and the page
+# would list two languages.
+#
+# The only oracle is `buildBundles.locales` on an uploaded build.
+# Design: docs/design/ios-language-and-orientation.md
+project.root_object.development_region = 'fr'
+project.root_object.known_regions = %w[fr Base]
+
+lang_group = project.main_group.find_subpath('Runner', true)
+lang_strings = lang_group.children.find do |c|
+  c.isa == 'PBXVariantGroup' && c.name == 'InfoPlist.strings'
+end || lang_group.new_variant_group('InfoPlist.strings')
+lang_fr = lang_strings.files.find { |f| f.path == 'fr.lproj/InfoPlist.strings' } ||
+          lang_strings.new_file('fr.lproj/InfoPlist.strings')
+# The shape Xcode itself writes for a localised file: named by its language,
+# with a group-relative path.
+lang_fr.name = 'fr'
+lang_fr.path = 'fr.lproj/InfoPlist.strings'
+lang_fr.source_tree = '<group>'
+
+lang_resources = runner.resources_build_phase
+unless lang_resources.files_references.include?(lang_strings)
+  lang_resources.add_file_reference(lang_strings)
+end
+
 # --- APNs entitlements per configuration -------------------------------------
 # Runner.entitlements existed for months with ZERO CODE_SIGN_ENTITLEMENTS
 # references, so the built app carried no `aps-environment` and iOS never issued
