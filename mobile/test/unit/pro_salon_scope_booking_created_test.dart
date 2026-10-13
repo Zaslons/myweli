@@ -237,8 +237,12 @@ void main() {
           m.group(1)!,
     ]..sort();
 
-    test('the stores that show bookings are the ones the spec names', () {
-      expect(stores, ['ProJournalProvider']);
+    test('the stores that show bookings are the three the spec names', () {
+      expect(stores, [
+        'ProClientsProvider',
+        'ProDashboardProvider',
+        'ProJournalProvider',
+      ]);
     });
 
     test('each one is registered with ProSalonScope.track — an untracked '
