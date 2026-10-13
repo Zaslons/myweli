@@ -72,6 +72,13 @@ class Formatters {
     return '${formatter.format(amount)} $suffix';
   }
 
+  /// A salon rating for display: « 4,8 » — French decimal COMMA, one decimal
+  /// (docs/design/salon-rating-new-and-visits-card.md). Every site used to
+  /// print `toStringAsFixed(1)`, the anglophone « 4.8 », on a French product;
+  /// the web fixed the same in B6 (`ratingFr`).
+  static String formatRating(double rating) =>
+      NumberFormat('0.0', 'fr_FR').format(rating);
+
   /// Format a price as a single value or a range:
   /// "15 000 FCFA" or "15 000 – 25 000 FCFA".
   static String formatPriceRange(double min, double? max, {String? currency}) {

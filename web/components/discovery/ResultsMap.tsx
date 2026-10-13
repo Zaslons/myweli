@@ -1,7 +1,7 @@
 'use client';
 
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { Rating } from '../Rating';
+import { SalonRating } from '../Rating';
 import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -125,18 +125,14 @@ export function ResultsMap({
   );
 }
 
-function MiniCard({ provider: p }: { provider: MappableProvider }) {
+export function MiniCard({ provider: p }: { provider: MappableProvider }) {
   const active = (p.services ?? []).filter((s) => s.active !== false);
   const min = active.length ? Math.min(...active.map((s) => s.price)) : null;
   return (
     <div className="min-w-44">
       <p className="font-medium text-textPrimary">{p.name}</p>
       <p className="mt-xs text-bodySmall text-textSecondary">
-        {p.reviewCount > 0 ? (
-          <>
-            <Rating value={p.rating} /> ·{' '}
-          </>
-        ) : null}
+        <SalonRating rating={p.rating} reviewCount={p.reviewCount} /> ·{' '}
         {p.commune ?? ''}
       </p>
       {min != null ? (

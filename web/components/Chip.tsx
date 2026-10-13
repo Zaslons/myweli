@@ -22,7 +22,12 @@ import type { ButtonHTMLAttributes, ReactNode } from 'react';
 /// - `neutral` — the quiet single-tint badge (`bg-surface`, textSecondary):
 ///   the appointment-status pills' existing look, kept until B7's
 ///   StatusChip.forStatus maps kinds product-wide.
-type ChipVariant = 'filled' | 'outlined' | 'tinted' | 'gold' | 'neutral';
+/// - `ink` — a DESCRIPTIVE badge that must read as a pill on any surface:
+///   textSecondary at 10 % behind textSecondary — the app's badge idiom
+///   (« Nouveau », docs/design/salon-rating-new-and-visits-card.md). `neutral`
+///   cannot do it: its `bg-surface` IS the page background, so on the salon
+///   page the pill had no shape at all (1:1) and ~1.04:1 on a white card.
+type ChipVariant = 'filled' | 'outlined' | 'tinted' | 'gold' | 'neutral' | 'ink';
 
 const TINTS: Record<string, string> = {
   error: 'bg-error/10 text-error',
@@ -43,6 +48,8 @@ function chipClasses(variant: ChipVariant, tint?: string): string {
       return 'border border-gold/40 bg-gold/15 text-textPrimary';
     case 'neutral':
       return 'bg-surface text-textSecondary';
+    case 'ink':
+      return 'bg-textSecondary/10 text-textSecondary';
   }
 }
 
