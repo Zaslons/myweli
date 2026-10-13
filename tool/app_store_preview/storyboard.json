@@ -1,0 +1,98 @@
+{
+  "_spec": "docs/design/pro-app-preview.md §4 — « Geste après geste », approved by the owner on 2026-10-13. The build that is filmed shows a created booking at once, so there is no refresh shot. This file is the one source for the film's words and timings; README.md says what each value does.",
+  "film": {
+    "title": "Geste après geste",
+    "fps": 30,
+    "width": 886,
+    "height": 1920,
+    "duration_s": 20.0,
+    "poster_s": 18.0,
+    "final_hold_min_s": 3.0
+  },
+  "motion": {
+    "caption": "base",
+    "touch_in": "fast",
+    "touch_out": "base"
+  },
+  "touch": {
+    "diameter_pt": 48,
+    "ring_pt": 1.5,
+    "fill_opacity": 0.12,
+    "ring_opacity": 0.45,
+    "tap_dwell": "base",
+    "light_below_luminance": 0.35
+  },
+  "timing": {
+    "rest_s": 0.5,
+    "tail_s": 0.3,
+    "sync_tolerance_s": 0.5,
+    "lead_in_s": 1.0,
+    "caption_lead_s": 0.8,
+    "rehearsal_hold_s": 2.4,
+    "rehearsal_caption_delay_s": 0.3
+  },
+  "captions": {
+    "arrivee": {
+      "headline": ["Une cliente arrive ?", "Un geste suffit."],
+      "subline": []
+    },
+    "creneau": {
+      "headline": ["Un créneau libre ?", "Ajoutez un rendez-vous."],
+      "subline": []
+    },
+    "comptoir": {
+      "headline": ["Un créneau libre ?", "Ajoutez un rendez-vous."],
+      "subline": ["Pris au téléphone ou au comptoir,", "même pour un client sans numéro."]
+    },
+    "agenda": {
+      "headline": ["Votre agenda à jour,", "geste après geste."],
+      "subline": ["Un compte MyWeli Pro est nécessaire."]
+    }
+  },
+  "shots": [
+    {
+      "id": "S1",
+      "screen": "Ma journée, 09:41, a full day",
+      "caption": "arrivee",
+      "gestures": [
+        {"id": "swipe-arrive", "kind": "drag", "what": "a right swipe on a confirmed booking: the green « Arrivé » pane opens", "rest_after_s": 0.4},
+        {"id": "tap-arrive", "kind": "tap", "what": "a tap on « Arrivé »: the card turns to « Arrivé »", "rest_after_s": 1.0}
+      ]
+    },
+    {
+      "id": "S2",
+      "screen": "Ma journée → Réservation",
+      "caption": "creneau",
+      "gestures": [
+        {"id": "tap-libre", "kind": "tap", "what": "a tap on « Libre — 10:45 »: the app pushes « Réservation », date and hour already set", "rest_after_s": 0.9}
+      ]
+    },
+    {
+      "id": "S3",
+      "screen": "Réservation",
+      "caption": "comptoir",
+      "gestures": [
+        {"id": "tap-coupe", "kind": "tap", "what": "tick « Coupe homme »", "rest_after_s": 0.2},
+        {"id": "tap-sans-numero", "kind": "tap", "what": "tick « Client sans numéro »", "rest_after_s": 0.2},
+        {"id": "tap-nom", "kind": "tap", "optional": true, "what": "a tap in the name field, if the app does not focus it by itself", "rest_after_s": 0.1},
+        {"id": "type-nom", "kind": "type", "what": "the name « Yao K. » is typed", "rest_after_s": 0.4},
+        {"id": "scroll-total", "kind": "drag", "what": "scroll to the total", "rest_after_s": 0.6}
+      ]
+    },
+    {
+      "id": "S4",
+      "screen": "Réservation → Ma journée",
+      "caption": "comptoir",
+      "gestures": [
+        {"id": "tap-creer", "kind": "tap", "what": "a tap on « Créer le rendez-vous »: the app's loader, the form closes, « Rendez-vous créé », the booking is in the day", "rest_after_s": 0}
+      ]
+    },
+    {
+      "id": "S5",
+      "screen": "Ma journée, at rest",
+      "caption": "agenda",
+      "caption_after": {"gesture": "tap-creer", "delay_s": 0.6},
+      "gestures": []
+    }
+  ]
+}
