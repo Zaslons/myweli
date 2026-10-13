@@ -405,11 +405,12 @@ class ProviderProvider extends ChangeNotifier {
   /// the slot's id alone, which also names a salon whose read is out or
   /// failed. **The lists and [alsoPatch] take it whoever holds the slot**:
   /// their rows of this salon are nobody else's. They used to be skipped
-  /// whenever another salon held the slot — and nothing in the app releases
-  /// it: the last salon page, booking hub or booking confirmation opened
-  /// holds it for the rest of the session. So a review published from « Mes
-  /// rendez-vous » after any of them lost its answer, and a favourite held
-  /// in no list kept « Nouveau » until the app restarted.
+  /// whenever another salon held the slot — and the slot outlives its page:
+  /// no screen calls [clearSelectedProvider], so the last salon page,
+  /// booking hub or booking confirmation opened holds it for the rest of
+  /// the session. A review published from « Mes rendez-vous » after any of
+  /// them lost its answer, and a favourite held in no list kept « Nouveau »
+  /// until the app restarted.
   ///
   /// Not reached: a page of this salon COVERED by another salon's page. It
   /// renders its own copy and hands that back when uncovered

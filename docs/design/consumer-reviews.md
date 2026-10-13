@@ -4,7 +4,7 @@
 |---|---|
 | **Status** | Built |
 | **Owner** | Sadreddine |
-| **Last updated** | 2026-10-13 (§2 « After Publier », §5 mock — [amounts-that-fit.md](amounts-that-fit.md)) |
+| **Last updated** | 2026-10-13 (§2 « After Publier » — incl. who takes the re-read's answer, and the two copies it does not reach —, §5 mock — [amounts-that-fit.md](amounts-that-fit.md)) |
 | **PRD ref / phase** | Reviews — post-completion + photos · V1 (PRD §8.2) |
 | **ROADMAP entry** | Phase 3 — Backend build + integration (added on build) |
 | **Skills checked** | myweli-backend-guardrails ✓ + myweli-dev-guardrails (review feed is user-facing) |
@@ -41,19 +41,47 @@ figures out, then asks:
    handed over by the sheet) — whichever salon page is open, or none.
 2. **Then one background read of `GET /providers/{id}`**
    (`rereadSalonAfterReview`): not awaited by the sheet, limited to
-   `AppConstants.reviewRereadTimeout` (10 s). An answer replaces the estimate
-   with the server's salon — its average, its count, the stored review id.
+   `AppConstants.reviewRereadTimeout` (10 s). An answer puts the server's
+   average and count on the list, the featured list and the favourites —
+   **whichever salon holds the page slot, or none** — and, when the slot
+   holds this salon, replaces it whole: the stored review id comes with it.
    A refusal, a failure or the time limit changes nothing and shows nothing;
-   so does an answer that arrives while **another salon holds the page slot**,
-   or after a later review of the same salon was applied.
+   so does an answer that arrives after a later review of the same salon was
+   applied.
+
+**The page slot is not « the open salon page ».** It is one, shared, and it
+outlives the page that took it: the last salon page, booking hub or booking
+confirmation opened holds it for the rest of the session. So a review
+published from « Mes rendez-vous » is usually of another salon than the
+slot's. The answer never lands in a slot that holds another salon, nor in one
+whose own read failed or is still out; the lists and the favourites take it
+all the same. (As first built, such an answer was dropped whole — which lost
+the server's figures for every review published after another salon had been
+opened, and left « Nouveau » on a favourite held in no list until the app
+restarted. Fixed 2026-10-13.)
 
 What step 1 cannot know, and step 2 corrects when its answer is taken: the
 average is rebuilt from the stored one-decimal figure, so it can sit 0,1 from
 the server's; and an earlier review of the visit that is neither among the ten
-embedded reviews nor posted in this session is counted as new. Step 1 also
-needs a copy to count from — the page's, the list's or the featured list's: a
-salon held only as a favourite moves with step 2 alone. The web form does no
-arithmetic and is unchanged.
+embedded reviews nor posted in this session is counted as new. Step 1 counts
+from the page's copy first — the only one that embeds reviews —, else the
+list's, else the featured list's; it needs one of them: a salon held only as a
+favourite moves with step 2 alone. The web form does no arithmetic and is
+unchanged.
+
+**Two copies neither step reaches** — each belongs to a screen, not to a
+notifier:
+
+- **A salon page covered by another salon's page** (the map's « Voir le
+  salon »). It renders its own copy and takes the slot back with it
+  ([salon-location-map.md](salon-location-map.md) §2.7): a review applied, or
+  an answer taken, while it was covered shows on the lists and not on that
+  page until its next read.
+- **The map's copy of a centred salon the loaded list does not hold**
+  (`MapScreen._focused`). The markers are built from the list rows, which are
+  patched, and a sheet opened from one shows that row; `_focused`, used only
+  when the list has no row, keeps the figures it was opened with — and a
+  sheet already open is not rebuilt.
 
 ## 3. API & contract
 - **`POST /appointments/{appointmentId}/review`** — **consumer** token. The appointment must belong to the caller (`userId == sub`) and be **`completed`** (→ 403 `forbidden` / `not_completed`). Body: `{ rating:1..5, text, photoUrls? }`. The server derives `providerId`, `artistId`/`artistName`, `serviceName` (from the appointment + the provider's services), `userName` (profile), `verified=true`, `id`, `createdAt`. **One review per appointment** — resubmitting replaces it (upsert on `appointment_id`). → **201** the stored `Review`; recomputes provider + artist ratings.
