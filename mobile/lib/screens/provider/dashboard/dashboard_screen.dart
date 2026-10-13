@@ -254,66 +254,74 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     const SizedBox(height: AppTheme.spacingS),
                   ],
                   const SizedBox(height: AppTheme.spacingM),
-                  // Stats Cards
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _StatCard(
-                          title: 'Aujourd’hui',
-                          value: stats.todayAppointments.toString(),
-                          subtitle: 'Rendez-vous',
-                          icon: Icons.calendar_today,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                      const SizedBox(width: AppTheme.spacingSM),
-                      Expanded(
-                        child: _StatCard(
-                          title: 'En attente',
-                          value: stats.pendingRequests.toString(),
-                          subtitle: 'Demandes',
-                          icon: Icons.pending,
-                          color: AppColors.warning,
-                        ),
-                      ),
-                    ],
-                  ),
-                  // Money figures are field-gated server-side without
-                  // finances.view (R1/R4) — absence is a valid state.
-                  if (stats.hasRevenue) ...[
-                    const SizedBox(height: AppTheme.spacingSM),
-                    Row(
+                  // Stats Cards — each row as tall as its tallest card:
+                  // « 114 000 FCFA » wraps in one card and not its neighbour
+                  // (pro-screenshot-shoot-fixes.md §2.4).
+                  IntrinsicHeight(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         Expanded(
                           child: _StatCard(
                             title: 'Aujourd’hui',
-                            value: Formatters.formatCurrency(
-                              stats.todayRevenue!,
-                              currency: context
-                                  .read<ProAuthProvider>()
-                                  .salonCurrency,
-                            ),
-                            subtitle: 'Revenus',
-                            icon: Icons.attach_money,
-                            color: AppColors.success,
+                            value: stats.todayAppointments.toString(),
+                            subtitle: 'Rendez-vous',
+                            icon: Icons.calendar_today,
+                            color: AppColors.primary,
                           ),
                         ),
                         const SizedBox(width: AppTheme.spacingSM),
                         Expanded(
                           child: _StatCard(
-                            title: 'Ce mois',
-                            value: Formatters.formatCurrency(
-                              stats.monthRevenue!,
-                              currency: context
-                                  .read<ProAuthProvider>()
-                                  .salonCurrency,
-                            ),
-                            subtitle: 'Revenus',
-                            icon: Icons.trending_up,
-                            color: AppColors.info,
+                            title: 'En attente',
+                            value: stats.pendingRequests.toString(),
+                            subtitle: 'Demandes',
+                            icon: Icons.pending,
+                            color: AppColors.warning,
                           ),
                         ),
                       ],
+                    ),
+                  ),
+                  // Money figures are field-gated server-side without
+                  // finances.view (R1/R4) — absence is a valid state.
+                  if (stats.hasRevenue) ...[
+                    const SizedBox(height: AppTheme.spacingSM),
+                    IntrinsicHeight(
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Expanded(
+                            child: _StatCard(
+                              title: 'Aujourd’hui',
+                              value: Formatters.formatCurrency(
+                                stats.todayRevenue!,
+                                currency: context
+                                    .read<ProAuthProvider>()
+                                    .salonCurrency,
+                              ),
+                              subtitle: 'Revenus',
+                              icon: Icons.attach_money,
+                              color: AppColors.success,
+                            ),
+                          ),
+                          const SizedBox(width: AppTheme.spacingSM),
+                          Expanded(
+                            child: _StatCard(
+                              title: 'Ce mois',
+                              value: Formatters.formatCurrency(
+                                stats.monthRevenue!,
+                                currency: context
+                                    .read<ProAuthProvider>()
+                                    .salonCurrency,
+                              ),
+                              subtitle: 'Revenus',
+                              icon: Icons.trending_up,
+                              color: AppColors.info,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                   const SizedBox(height: AppTheme.spacingL),

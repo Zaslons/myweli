@@ -4,11 +4,14 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/core/push/push_registration.dart';
+import 'package:myweli/core/theme/app_theme.dart';
+import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/provider_user.dart';
 import 'package:myweli/providers/notifications_provider.dart';
 import 'package:myweli/providers/pro_auth_provider.dart';
 import 'package:myweli/providers/pro_dashboard_provider.dart';
 import 'package:myweli/screens/provider/dashboard/dashboard_screen.dart';
+import 'package:myweli/services/interfaces/pro_service_interface.dart';
 import 'package:myweli/services/mock/mock_auth_service.dart';
 import 'package:myweli/services/mock/mock_data.dart';
 import 'package:myweli/services/mock/mock_device_registration_service.dart';
@@ -18,6 +21,7 @@ import 'package:myweli/services/mock/mock_push_notification_service.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../support/fonts.dart';
 import '../support/pump_app.dart';
 
 /// Team access R4b §5.3 — the role-shaped dashboard: owner full, manager
@@ -28,10 +32,13 @@ void main() {
   final auth = MockAuthService();
 
   setUpAll(() async {
+    await loadRealFonts();
     await initializeDateFormatting('fr_FR', null);
     SharedPreferences.setMockInitialValues({});
     serviceLocator.authService = auth;
-    serviceLocator.proService = MockProService();
+    // `late final`: one service for the file; the shoot test switches on
+    // the shoot's figures (below) and off again.
+    serviceLocator.proService = _ShootFigures();
     serviceLocator.proPushRegistration = PushRegistration(
       push: MockPushNotificationService(),
       devices: MockDeviceRegistrationService(),
@@ -56,7 +63,11 @@ void main() {
     });
   }
 
-  Widget app(ProAuthProvider authProvider) {
+  Widget app(
+    ProAuthProvider authProvider, {
+    double scale = 1,
+    bool realFonts = false,
+  }) {
     final router = GoRouter(
       initialLocation: '/pro/dashboard',
       routes: [
@@ -78,6 +89,15 @@ void main() {
         ),
       ],
       routerConfig: router,
+      theme: realFonts ? AppTheme.themeData(fontFamily: kRealFont) : null,
+      builder: scale == 1
+          ? null
+          : (context, child) => MediaQuery(
+              data: MediaQuery.of(
+                context,
+              ).copyWith(textScaler: TextScaler.linear(scale)),
+              child: child!,
+            ),
     );
   }
 
@@ -163,4 +183,64 @@ void main() {
     expect(find.text('Revenus'), findsWidgets); // stat cards + Analyses card
     expect(find.text('Services'), findsOneWidget);
   });
+
+  /// docs/design/pro-screenshot-shoot-fixes.md §2.4 — the two cards of a
+  /// stat row are one height. They were plain `Expanded`s: on the demo salon
+  /// « 114 000 FCFA » wrapped in « Ce mois » and not in « Aujourd’hui ».
+  /// The shoot's figures, in real fonts — with every figure at « 0 » the two
+  /// cards hold the same text and are one height with or without the fix.
+  for (final scale in [1.0, 1.3, 2.0]) {
+    testWidgets('OWNER: each stat row\'s cards share one height (360dp, '
+        '$scale×, the shoot\'s figures)', (tester) async {
+      _ShootFigures.on = true;
+      addTearDown(() => _ShootFigures.on = false);
+      tester.view.physicalSize = const Size(360, 2400);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await loginAs(tester, 'jean@salon-excellence.test');
+      await tester.pumpWidget(
+        app(await readyAuth(tester), scale: scale, realFonts: true),
+      );
+      await settle(tester);
+      expect(tester.takeException(), isNull);
+
+      Rect card(Finder title) => tester.getRect(
+        find.ancestor(of: title, matching: find.byType(Container)).first,
+      );
+      final today = find.text('Aujourd’hui');
+      expect(today, findsNWidgets(2), reason: 'rendez-vous + revenus rows');
+      final pending = card(find.text('En attente'));
+      final todayAppts = card(today.first);
+      expect(todayAppts.height, closeTo(pending.height, 0.5));
+      final month = card(find.text('Ce mois'));
+      final todayMoney = card(today.last);
+      expect(
+        todayMoney.height,
+        closeTo(month.height, 0.5),
+        reason: '« 0 FCFA » beside « 114 000 FCFA » at $scale×',
+      );
+    });
+  }
+}
+
+/// The mock, except — while [on] — the demo salon's figures on the day of the
+/// shoot: an empty « Aujourd’hui » beside a month whose amount wraps.
+class _ShootFigures extends MockProService {
+  static bool on = false;
+
+  @override
+  Future<ApiResponse<DashboardStats>> getDashboardStats(
+    String providerId,
+  ) async => !on
+      ? super.getDashboardStats(providerId)
+      : ApiResponse.success(
+          const DashboardStats(
+            todayAppointments: 0,
+            pendingRequests: 3,
+            totalAppointments: 41,
+            todayRevenue: 0,
+            weekRevenue: 32000,
+            monthRevenue: 114000,
+          ),
+        );
 }
