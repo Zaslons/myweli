@@ -14,9 +14,10 @@ Review _review({
   required String providerId,
   int rating = 5,
   String appointmentId = '',
+  String? id,
   DateTime? createdAt,
 }) => Review(
-  id: 'r_${DateTime.now().microsecondsSinceEpoch}',
+  id: id ?? 'r_${DateTime.now().microsecondsSinceEpoch}',
   appointmentId: appointmentId,
   providerId: providerId,
   userId: 'u1',
@@ -98,6 +99,41 @@ void main() {
       final stored = MockData.reviews.where((r) => r.appointmentId == 'twice');
       expect(stored, hasLength(1));
       expect(stored.single.rating, 1);
+    });
+
+    test('reviews that name no appointment are stored side by side: an '
+        'empty id is no key — every seeded review carries one', () async {
+      final i = MockData.providers.indexWhere((p) => p.id == 'provider4');
+      final seeded = MockData.providers[i];
+      addTearDown(() {
+        MockData.providers[i] = seeded;
+        MockData.reviews.removeWhere((r) => r.id.startsWith('unkeyed'));
+      });
+      final held = [for (final r in MockData.reviews) r.id];
+      expect(
+        [
+          for (final r in MockData.reviews)
+            if (r.appointmentId.isEmpty) r.id,
+        ],
+        containsAll(seededReviews),
+        reason: 'what this guard stands on: no seeded review names a visit',
+      );
+      final service = MockReviewService();
+
+      await service.submitReview(
+        _review(providerId: 'provider4', id: 'unkeyed1'),
+      );
+      await service.submitReview(
+        _review(providerId: 'provider4', id: 'unkeyed2'),
+      );
+
+      // Matched on '', the first would have taken `review1`'s place and the
+      // second `review2`'s — and the salon's count would not have moved.
+      expect(
+        [for (final r in MockData.reviews) r.id],
+        [...held, 'unkeyed1', 'unkeyed2'],
+      );
+      expect(MockData.providers[i].reviewCount, seeded.reviewCount + 2);
     });
 
     test('the salon’s figures move with the write: one more for a new '

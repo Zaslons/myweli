@@ -38,7 +38,9 @@ void main() {
       ..featured = const []
       ..onById = null
       ..byIdCalls = 0;
-    reviews.refuse = false;
+    reviews
+      ..refuse = false
+      ..stored = null;
     hearts.salons = const [];
   });
 
@@ -276,6 +278,79 @@ void main() {
       p.addReviewLocally(_review(1, appointment: 'a1'));
       expect(_figures(p.providers.single), (1.0, 1));
     });
+
+    // The state the app is normally in: the salon open on its page is ALSO a
+    // row of the home list and a card of the carousel. Only the page's copy
+    // embeds reviews, so it is the one to count from — whatever else holds
+    // the salon. Counted from a list row, the earlier review is not found
+    // and the visit counts twice: 2 reviews at 3,0, on every copy.
+    test('sent again from the salon page while the salon is also in the '
+        'list and the featured list: the earlier review is found on the '
+        'page, and every copy still counts one', () async {
+      final row = _salon('A', rating: 4.0, reviewCount: 1);
+      salons
+        ..list = [row]
+        ..featured = [row];
+      final p = ProviderProvider();
+      await p.loadProviders();
+      await p.loadFeaturedProviders();
+      p.showPreloaded(
+        row.copyWith(
+          reviews: [_review(4, appointment: 'a1', id: 'stored')],
+        ),
+      );
+
+      p.addReviewLocally(_review(2, appointment: 'a1', id: 'minted-again'));
+
+      expect(_figures(p.selectedProvider!), (2.0, 1));
+      expect(_figures(p.providers.single), (2.0, 1));
+      expect(_figures(p.featuredProviders.single), (2.0, 1));
+      expect(p.selectedProvider!.reviews.single.id, 'minted-again');
+    });
+
+    // Shown in the home carousel, absent from the loaded list (another
+    // commune, a category list, past page 1) and with no page open: the
+    // featured copy is the only one to count from.
+    test('held in the featured list alone, the carousel card still '
+        'moves', () async {
+      final b = _salon('B', rating: 3.9, reviewCount: 7);
+      salons
+        ..list = [b]
+        ..featured = [_salon('A', rating: 4.5, reviewCount: 2), b];
+      final p = ProviderProvider();
+      await p.loadProviders();
+      await p.loadFeaturedProviders();
+      var notified = 0;
+      p.addListener(() => notified++);
+
+      p.addReviewLocally(_review(5, appointment: 'a1'));
+
+      expect(_figures(p.featuredProviders.first), (4.7, 3));
+      expect(p.featuredProviders.last, same(b));
+      expect(p.providers.single, same(b));
+      expect(notified, 1, reason: 'the carousel is told to rebuild');
+    });
+
+    test('a first review takes « Nouveau » off the carousel card and the '
+        'favourite at once', () async {
+      final unrated = _salon('A');
+      salons.featured = [unrated];
+      hearts.salons = [unrated];
+      final favorites = FavoritesProvider();
+      await favorites.loadFavorites('user1');
+      final p = ProviderProvider();
+      await p.loadFeaturedProviders();
+
+      p.addReviewLocally(
+        _review(5, appointment: 'a1'),
+        alsoPatch: favorites.patchSalonFigures,
+      );
+
+      // `AppRating` prints « Nouveau » at `reviewCount == 0`.
+      expect(_figures(p.featuredProviders.single), (5.0, 1));
+      expect(_figures(favorites.favoriteProviders.single), (5.0, 1));
+      expect(salons.byIdCalls, 0, reason: 'a local update reads nothing');
+    });
   });
 
   group('the favourites', () {
@@ -448,6 +523,69 @@ void main() {
         expect(_figures(p.selectedProvider!), (4.3, 4));
       },
     );
+
+    test('what is shown is the review the 201 carries, not the draft that '
+        'was sent', () async {
+      // The server takes the artist, the service and the reviewer's name
+      // from the appointment, stores the photos at their promoted urls, and
+      // ignores whatever the client put there (consumer-reviews.md §6).
+      final stored = Review(
+        id: 'server-id',
+        appointmentId: 'a1',
+        providerId: 'A',
+        userId: 'user1',
+        userName: 'Awa Koné',
+        rating: 4,
+        text: 'Très bien',
+        artistName: 'Fatou',
+        serviceName: 'Tresses',
+        photoUrls: const ['https://cdn.myweli.test/reviews/a1/1.jpg'],
+        createdAt: DateTime(2026, 10, 13),
+      );
+      reviews.stored = stored;
+      // The re-read is held back: what is looked at is the 201's own doing.
+      final gate = Completer<ApiResponse<Provider>>();
+      salons.onById = (_) => gate.future;
+      final p = ProviderProvider()..showPreloaded(before);
+
+      expect(await p.submitReview(mine), isTrue);
+
+      final shown = p.selectedProvider!.reviews;
+      expect(shown.first, same(stored));
+      expect(shown.map((r) => r.id), isNot(contains(mine.id)));
+      expect(shown, hasLength(before.reviews.length + 1));
+
+      gate.complete(ApiResponse.error('non scripté', code: 'network'));
+      await pumpEventQueue();
+    });
+
+    test('the slot is this salon’s but its own read failed — « salon '
+        'indisponible »: the answer corrects the lists and settles nothing '
+        'in the slot', () async {
+      salons.list = [before];
+      final p = ProviderProvider();
+      await p.loadProviders();
+      // The salon page's own read, offline (`onById` unset).
+      await p.loadProviderById('A');
+      expect(p.selectedProvider, isNull);
+      expect(p.selectedProviderId, 'A');
+      expect(p.errorCode, 'network');
+
+      // Back online; the visit is reviewed from « Mes rendez-vous ».
+      salons.onById = (_) async => ApiResponse.success(server);
+      expect(await p.submitReview(mine), isTrue);
+      await pumpEventQueue();
+
+      expect(salons.byIdCalls, 2, reason: 'the page’s read, then the re-read');
+      expect(_figures(p.providers.single), (4.3, 4));
+      // The slot's id names a salon it does not hold. Only its own read —
+      // « Réessayer » — settles it: written here, the salon would sit under
+      // an error code nobody cleared.
+      expect(p.selectedProvider, isNull);
+      expect(p.selectedProviderId, 'A');
+      expect(p.errorCode, 'network');
+      expect(p.isLoading, isFalse);
+    });
 
     test('a refused read changes nothing and says nothing', () async {
       // A salon that stopped since: the public route answers 404.
@@ -855,10 +993,14 @@ class _Favorites implements FavoritesServiceInterface {
 class _Reviews implements ReviewServiceInterface {
   bool refuse = false;
 
+  /// The review as the server stored it. Unset: the draft comes back as it
+  /// was sent — which no test may then tell from the draft itself.
+  Review? stored;
+
   @override
   Future<ApiResponse<Review>> submitReview(Review review) async => refuse
       ? ApiResponse.error('Ce rendez-vous n’est pas terminé.')
-      : ApiResponse.success(review);
+      : ApiResponse.success(stored ?? review);
 
   @override
   Future<ApiResponse<List<Review>>> getProviderReviews(
