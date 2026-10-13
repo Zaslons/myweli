@@ -69,7 +69,7 @@ class Follow(unittest.TestCase):
         that edit.followed_path can tell the finger has let go."""
         ref = texture()
         reach = 30
-        past = int(track.BEYOND_PT * PX)
+        past = 40                                     # points, and pixels here: not read from the code under test
         shifts, why = track.follow(ref, [moved(ref, dx=reach + past)], (150, 150), "x", 1, reach, PX)
         self.assertEqual(([s for s, _ in shifts], why), ([float(reach + past)], ""))
         shifts, why = track.follow(ref, [moved(ref, dx=reach + past + 1)], (150, 150), "x", 1, reach, PX)
