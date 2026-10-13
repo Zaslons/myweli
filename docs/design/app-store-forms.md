@@ -653,11 +653,19 @@ d'Apple ; une demande de pièce complémentaire arriverait par e-mail.
 
 ---
 
-## 10 · Captures d'écran — iPhone 6,9 pouces seulement
+## 10 · Captures d'écran
 
-L'app est iPhone uniquement (§1.2) : **aucun jeu iPad**. Un seul jeu, **6,9
+> **Remplacé le 2026-10-13 par [pro-app-store-screenshots.md](pro-app-store-screenshots.md).**
+> Apple exige désormais le jeu **« iPhone with Dynamic Island (medium
+> display) » — 1206 × 2622** (page de spécifications relue le 2026-10-12) ; un
+> jeu 6,9 pouces seul ne remplit plus la case obligatoire. Les 8 captures
+> légendées sont faites, dans les deux tailles (1206 × 2622 et 1320 × 2868),
+> par `tool/app_store_screenshots/compose.py`. Le texte ci-dessous est
+> l'ancien plan, gardé pour l'historique.
+
+~~L'app est iPhone uniquement (§1.2) : **aucun jeu iPad**. Un seul jeu, **6,9
 pouces**, portrait, **1320 × 2868** (ou 1290 × 2796 ; 1260 × 2736 est aussi
-accepté) ; Apple en dérive les tailles plus petites. **1 à 10** images, JPEG ou
+accepté) ; Apple en dérive les tailles plus petites.~~ **1 à 10** images, JPEG ou
 PNG, **sans canal alpha ni transparence**.
 
 **Sur le salon démo « Maison Nala »** (logo réel et snapshot recapturé le 2026-10-11, §0 #4),
@@ -1148,7 +1156,7 @@ numéros).*
        invitation faits le 2026-10-10 ; les vérifications sur l'appareil
        restent au propriétaire.*
 14. [x] **Symboles Sentry** (§12.2). *Dart et natifs, builds 555, 560 et 565.*
-15. [ ] **Captures** 6,9 pouces sur le salon démo (§10).
+15. [x] **Captures** sur le salon démo — *8 captures légendées, 1206 × 2622 (obligatoire) et 1320 × 2868, faites le 2026-10-13 ([pro-app-store-screenshots.md](pro-app-store-screenshots.md)) ; reste à les téléverser dans App Store Connect.*
 16. [ ] **Remplir App Store Connect** : informations sur l'app (§3, §5, §6,
        §9), tarifs et disponibilité — Côte d'Ivoire seule, Mac et Vision Pro
        décochés (§9), confidentialité (§7), page 1.0.0 — captures, texte

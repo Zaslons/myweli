@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **In progress**: frame and tool built, content tidied, agenda filled, 4 of 8 captured (2026-10-12); screens 1, 2, 4 on the morning of 2026-10-13, 8 that evening |
+| **Status** | **Done** (2026-10-13): 8 frames in both sizes; owner sign-off and upload in App Store Connect pending |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-10-12 |
 | **PRD ref / phase** | Launch — store submission · V1 |
@@ -55,7 +55,7 @@ the capture into a card.
 | 5 | Services | Accueil → « Configuration » → « Services » | top of the list |
 | 6 | Disponibilité | Accueil → « Disponibilité » | scrolled to the hours and « Modèles »; **no taps** (every chip writes) |
 | 7 | Aperçu de ma page | Accueil → « Configurer mon profil » → « Aperçu de ma page » | « Services » card on top, then « Contact »: whole map, address, phone (masked), WhatsApp, hours; never « Mettre mon profil en ligne » |
-| 8 | Revenus | Accueil → « Analyses » → « Revenus » | « Semaine » tab, on the evening of 13 Oct after that day's bookings are marked « Terminé » (the screen counts completed bookings) |
+| 8 | Revenus | Accueil → « Analyses » → « Revenus » | « Aujourd’hui » tab, after that day’s five bookings were marked « Terminé » (the screen counts completed bookings; « Semaine » showed the same five) |
 
 **Avant / Après was dropped** (owner, 2026-10-12): the demo pairs looked weak
 live. The Aperçu sits on « Contact » rather than the header, which would show
@@ -197,9 +197,10 @@ The salon phone on screen 7 (`+225 07 00 00 01 00`) is masked after
 
 ## 8. Definition of done
 
-- [ ] Eight (or six) captures, each inspected.
-- [ ] Both sizes composed; the script's checks pass; masks cover every client
-      number.
+- [x] Eight captures, each inspected (two captures 1.5–2 s apart compared
+      pixel-identical before keeping each one, so nothing was mid-scroll).
+- [x] Both sizes composed; the script's checks pass; masks cover the
+      client and salon numbers (screens 4 and 7).
 - [ ] Owner sign-off on the overview.
 - [ ] Uploaded in App Store Connect; the required medium-display slot reads
       filled.

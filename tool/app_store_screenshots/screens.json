@@ -52,7 +52,14 @@
         "Historique, notes et étiquettes,",
         "à chaque réservation."
       ],
-      "masks": []
+      "masks": [
+        [
+          443,
+          543,
+          204,
+          41
+        ]
+      ]
     },
     {
       "id": "05",
