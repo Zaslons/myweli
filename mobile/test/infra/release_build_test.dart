@@ -128,7 +128,7 @@ void main() {
   group('every artifact gets its own build number', () {
     /// **Every build this script ever produced claimed to be build 1.**
     ///
-    /// `pubspec.yaml` is `version: 1.0.0+1` and nothing overrode it, so the
+    /// `pubspec.yaml`'s build number is `+1` and nothing overrode it, so the
     /// number was frozen. Both stores reject a second upload reusing a build
     /// number — but that is the least of it. `client-version-gate.md` makes the
     /// build number the identity of a release, and three things already key on
