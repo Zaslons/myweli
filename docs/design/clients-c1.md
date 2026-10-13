@@ -180,6 +180,10 @@ Mirrors the app flow, desktop-adapted (sidebar nav entry « Clients »):
     « Appeler » and « WhatsApp » drop below the number, **together** (they
     share a wrapper), and the avatar beside them keeps its width
     (`shrink-0`). On a wide card all three stay on one line, as before.
+    Before this the row could not wrap at all, and **the card page scrolled
+    sideways on a phone**: the reflow gate, run against the old card once the
+    page joined its matrix, reported the document 379px wide at 375px and at
+    320px.
 - Accept flow on `/pro/rendez-vous/[id]`: same badge chip next to the client
   name.
 - Data via the typed generated client through the existing pro BFF/session
@@ -223,7 +227,9 @@ avatars (no images); web table paginated — CWV budgets hold (no new public JS)
   card: the grouped number is shown, the `tel:`/`wa.me` hrefs carry the stored
   one, a non-Ivorian number is shown as stored, a client without a phone has
   no phone row, and the wrapping is pinned by its classes (jsdom has no
-  layout).
+  layout). `/pro/clients/sc1` joins the reflow matrix
+  (`tests/e2e/type-overflow.spec.ts`, 375 · 320×512 · 320×256) and the axe
+  matrix (`tests/e2e/axe.spec.ts`).
 
 ## 10. Rollout — three PRs under this spec
 

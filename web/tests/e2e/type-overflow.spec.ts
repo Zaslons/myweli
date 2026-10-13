@@ -528,6 +528,36 @@ const AUTHED_ROUTES: Route[] = [
     anchor: 'Avis',
     auth: 'pro',
   },
+  // ---- amounts-that-fit (docs/design/amounts-that-fit.md §8.5) -------------
+  {
+    // The client CARD — the page behind every row of « the pro client list »
+    // above, and until this entry in no matrix at all. **It was scrolling
+    // sideways at all three viewports**, and this entry is what said so, run
+    // against the card as it was: `<div class=""> right 379 > 375 (width
+    // 355)`, and `379 > 320`. Its header row — the stored number, « Appeler »,
+    // « WhatsApp » — was a `nowrap` flex row of three unbreakable items, so the
+    // card could not be narrower than 355px. The row now wraps: the number
+    // keeps its line and the two actions drop below it.
+    //
+    // `ready` is the phone row itself, not the `<h1>`: a card that rendered
+    // without its phone row would be measured clean about the one thing this
+    // entry is here for. « Appeler » exists only on the LOADED card of a client
+    // who has a number (`sc1`, the stub's Koffi) — the error state and
+    // « Client introuvable. » carry neither it nor the name.
+    //
+    // **What a green row does NOT say** (measured while this was written, on
+    // this component's markup): with BOTH `flex-wrap` and `whitespace-nowrap`
+    // removed, the number breaks over six lines at 320 — « +225 / 07 / 00 / 00
+    // / 00 / 01 » — and all five checks below stay empty, because wrapping is
+    // how a layout succeeds. That a number may not break is pinned by its
+    // classes in `tests/client-card-phone.test.tsx`; this row only sees the
+    // overflow that losing `flex-wrap` alone brings back.
+    name: 'the pro client card — the grouped number and its two actions',
+    url: '/pro/clients/sc1',
+    anchor: /Koffi/,
+    auth: 'pro',
+    ready: (page) => page.getByRole('link', { name: 'Appeler' }),
+  },
 ];
 
 for (const vp of VIEWPORTS) {
