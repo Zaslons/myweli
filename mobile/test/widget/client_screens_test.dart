@@ -406,26 +406,38 @@ void main() {
         );
         final labels = ['Visites', 'Dépensé', 'Absences', 'Dernière'];
         final rects = {for (final l in labels) l: tileOf(l)};
-        // Tiles sharing a row share a height.
-        for (final a in labels) {
-          for (final b in labels) {
-            if ((rects[a]!.top - rects[b]!.top).abs() < 1) {
-              expect(
-                rects[a]!.height,
-                closeTo(rects[b]!.height, 0.5),
-                reason: '$a and $b sit in one row at $scale×',
-              );
-            }
-          }
-        }
+        // A row is vertical OVERLAP, not equal tops: unequal tiles in a plain
+        // Row are centred, so their tops differ too — comparing only tiles
+        // whose tops matched skipped exactly the pairs that were wrong.
+        bool sameRow(String a, String b) =>
+            rects[a]!.top < rects[b]!.bottom &&
+            rects[b]!.top < rects[a]!.bottom;
         final twoByTwo = scale > 1.1;
+        expect(sameRow('Visites', 'Dépensé'), isTrue);
+        expect(sameRow('Absences', 'Dernière'), isTrue);
         expect(
-          (rects['Visites']!.top - rects['Absences']!.top).abs() > 1,
-          twoByTwo,
+          sameRow('Visites', 'Absences'),
+          !twoByTwo,
           reason: twoByTwo
               ? 'above 1.1× the strip is a 2×2 grid'
               : 'up to 1.1× the four tiles share one row',
         );
+        final rows = twoByTwo
+            ? [
+                ['Visites', 'Dépensé'],
+                ['Absences', 'Dernière'],
+              ]
+            : [labels];
+        for (final row in rows) {
+          for (final l in row.skip(1)) {
+            expect(
+              rects[l]!.height,
+              closeTo(rects[row.first]!.height, 0.5),
+              reason: '$l and ${row.first} share a row at $scale×',
+            );
+            expect(rects[l]!.top, closeTo(rects[row.first]!.top, 0.5));
+          }
+        }
         for (final l in labels) {
           expectNoMidWordBreak(tester, l, 'client card at $scale×');
           expectNoMidWordBreak(
