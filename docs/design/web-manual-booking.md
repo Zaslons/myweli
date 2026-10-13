@@ -94,6 +94,12 @@ spinner on submit; empty-services salons see the app's guidance line.
   the POSTed body carries `sendSmsInvite === false` on all three paths (a
   typed phone, a pre-picked client with a phone, no phone). The twin of the
   app's guard in `mobile/test/widget/manual_booking_phone_test.dart`.
+- RTL (`tests/client-card-phone.test.tsx`, 2026-10-13): entry point 3
+  end to end in jsdom — the card opens the dialog, a booking is made, and the
+  POSTed `clientPhone` is the client's **stored** number, not the grouped
+  text the card shows ([clients-c1.md](clients-c1.md) §6). The e2e journey
+  for this entry point cannot see the difference: the stub accepts any phone,
+  where the backend answers 400 `invalid_phone` to one that is not E.164.
 
 ## 5. Rollout
 

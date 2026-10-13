@@ -36,7 +36,7 @@ import type { SalonClientCard } from '../lib/pro/clients';
 /// on one line and the actions drop below it » is pinned here by its classes
 /// only. The measurements — one rendered line, the dropped actions clear of
 /// the number above and of the button below — are the reflow gate's
-/// (`tests/e2e/type-overflow.spec.ts`, the client-card row's `setup`).
+/// (`tests/e2e/type-overflow.spec.ts`, the client-card row's `measure`).
 
 const CARD: SalonClientCard = {
   id: 'sc1',

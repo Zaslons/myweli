@@ -169,21 +169,55 @@ Mirrors the app flow, desktop-adapted (sidebar nav entry « Clients »):
     `Formatters.formatPhoneNumber`, with the app's rule and the app's test
     vectors: `+225` followed by 10 or 8 national digits is grouped in pairs
     with plain spaces; **every other number is shown exactly as stored**
-    (another country — « +241… », Gabon — or a wrong length). It is **dialled
-    as stored**: the `tel:` and `wa.me` links, and the client handed to the
-    manual-booking dialog, keep the raw number.
+    (another country — « +241… », Gabon — or a wrong length). It is **used
+    as stored** in the three places that act on it: the `tel:` link, the
+    `wa.me` link, and the client handed to the manual-booking dialog, where it
+    becomes `clientPhone` in the POST. The last is the one the server refuses
+    when it is wrong — a grouped number is not E.164, and the backend answers
+    400 `invalid_phone` — so it is pinned by reading the body that leaves (§9).
   - **The number never wraps; the row does.** Grouped, the number has five
     places a line could break, and a phone number may not break
     ([SYSTEM.md §13.3](SYSTEM.md#133-text-scaling--up-to-200)). It sits in a
     `whitespace-nowrap` span (CSS, not no-break spaces — a copied number
-    pastes with ordinary ones) and the row is `flex-wrap`: on a narrow card
-    « Appeler » and « WhatsApp » drop below the number, **together** (they
-    share a wrapper), and the avatar beside them keeps its width
-    (`shrink-0`). On a wide card all three stay on one line, as before.
+    pastes with ordinary ones) and the row is `flex-wrap`: when the row does
+    not fit, « Appeler » and « WhatsApp » drop below the number, **together**
+    (they share a wrapper), and the avatar beside them keeps its width
+    (`shrink-0`).
     Before this the row could not wrap at all, and **the card page scrolled
     sideways on a phone**: the reflow gate, run against the old card once the
     page joined its matrix, reported the document 379px wide at 375px and at
     320px.
+  - **Where it is one line and where it is two** (measured on the built app,
+    Chromium with macOS fonts — the pixel edges move with the font, the shape
+    does not). The row needs **277.8px** (140.7 number + 8 + 52.1 « Appeler »
+    + 8 + 69 « WhatsApp ») of the column beside the avatar:
+
+    | window | layout | column | the phone row |
+    |---|---|---|---|
+    | up to 423px | one column | up to 277px | number, actions below |
+    | 424–1023px | one column | 278px and more | one line |
+    | **1024–1063px** | two columns + sidebar | 258–277.5px | **number, actions below** |
+    | 1064px and wider | two columns + sidebar | 278px and more | one line |
+
+    So this is **not** « the desktop card is unchanged »: at the `lg`
+    breakpoint the sidebar and the second column arrive together, the column
+    falls back to 258px, and a window from 1024px to about 1063px reads the
+    card on two lines. The stored number is 20.4px narrower
+    than the grouped one (120.3 against 140.7), so the old row needed 257.4px
+    and fitted that 258px column — computed from the measured widths, the old
+    card was not rebuilt to look. The drop is the decided behaviour for a row
+    that is too narrow ([amounts-that-fit.md](amounts-that-fit.md) §11 Q3);
+    what changed is where « too narrow » begins.
+  - **The dropped actions keep 12px from « Nouveau rendez-vous ».** Dropped,
+    they sit directly above the button and inside its width. Each is a 48px
+    box on a 24px line (`-my-sm`), so it reaches 12px beyond its line on both
+    sides: the row's `gap-y-sm` absorbs the 12px above (a dropped action
+    starts where the number's line ends), and the button's block is `mt-l` —
+    24 − 12 = **12px** between the hit areas, over the 8px that adjacent
+    targets need ([SYSTEM.md §13.2](SYSTEM.md#132-touch-targets--4848)). It
+    was `mt-m` when the row first wrapped: **4px**, at every phone width and
+    again at 1024. `mt-l` applies to every card, so a client without a phone
+    has 24px above the button where there were 16.
 - Accept flow on `/pro/rendez-vous/[id]`: same badge chip next to the client
   name.
 - Data via the typed generated client through the existing pro BFF/session
@@ -225,11 +259,24 @@ avatars (no images); web table paginated — CWV budgets hold (no new public JS)
   French number unchanged, wrong-length `+225` unchanged, the separators are
   U+0020); `tests/client-card-phone.test.tsx` — the first test to render the
   card: the grouped number is shown, the `tel:`/`wa.me` hrefs carry the stored
-  one, a non-Ivorian number is shown as stored, a client without a phone has
-  no phone row, and the wrapping is pinned by its classes (jsdom has no
-  layout). `/pro/clients/sc1` joins the reflow matrix
+  one, **« Nouveau rendez-vous » books with the stored one** (the card opens
+  the dialog, a booking is made, and the POSTed `clientPhone` is read — the
+  e2e stub accepts any phone, so no journey could see a grouped one), a
+  non-Ivorian number is shown as stored, a client without a phone has no
+  phone row, and the wrapping is pinned by its classes (jsdom has no layout).
+  `/pro/clients/sc1` joins the reflow matrix
   (`tests/e2e/type-overflow.spec.ts`, 375 · 320×512 · 320×256) and the axe
-  matrix (`tests/e2e/axe.spec.ts`).
+  matrix (`tests/e2e/axe.spec.ts`). **The reflow row also measures the phone
+  line itself** (`clientCardPhoneRow`, the route's `measure` hook) — the five
+  generic checks see what spills or is cut off, never a line count or a
+  distance, and stayed green with the number on six lines: the number
+  occupies **one rendered line**; a dropped action does not start inside the
+  number's line; « Appeler », « WhatsApp » and « Nouveau rendez-vous » are
+  **at least 8px apart**, pairwise. Each was seen red: 2 and 6 lines with the
+  two wrap classes removed, 4px inside the number's line with `gap-y-sm`
+  folded into `gap-s`, 4px from the button under `mt-m`. **Not measured by any
+  gate:** the 1024–1063px two-line window of §6 (the matrix stops at 375), and
+  whether the pixel edges of that table hold under CI's Linux fonts.
 
 ## 10. Rollout — three PRs under this spec
 
