@@ -8,6 +8,7 @@ import {
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { InviteMemberDialog } from '../components/pro/InviteMemberDialog';
+import { DEMO_ACCOUNT_LOCKED_MESSAGE } from '../lib/pro/team';
 
 /// Team access R5a — the 3-step invite dialog. The role summaries are the
 /// spec-locked copy; errors run through the shared machine-code table.
@@ -128,11 +129,9 @@ describe('InviteMemberDialog', () => {
     fireEvent.click(
       screen.getByRole('button', { name: 'Envoyer l’invitation' }),
     );
-    expect(
-      await screen.findByText(
-        'Compte de démonstration — cette action est désactivée.',
-      ),
-    ).toBeTruthy();
+    // The constant, not a retyped copy: tests/pro-team.test.ts holds it to
+    // the app's sentence, character for character.
+    expect(await screen.findByText(DEMO_ACCOUNT_LOCKED_MESSAGE)).toBeTruthy();
     expect(screen.queryByText('Une erreur est survenue. Réessayez.')).toBeNull();
     expect(screen.queryByRole('link', { name: /offre/i })).toBeNull();
   });

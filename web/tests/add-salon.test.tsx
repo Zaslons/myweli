@@ -13,6 +13,7 @@ const routerMock = { replace };
 vi.mock('next/navigation', () => ({ useRouter: () => routerMock }));
 
 import { AddSalonClient } from '../components/pro/AddSalonClient';
+import { DEMO_ACCOUNT_LOCKED_MESSAGE } from '../lib/pro/team';
 import { resetLocalitiesClientCache } from '../lib/use-localities';
 import { fixtureTree } from './localities.test';
 
@@ -103,11 +104,9 @@ describe('AddSalonClient', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: 'Créer le salon' }));
 
-    expect(
-      await screen.findByText(
-        'Compte de démonstration — cette action est désactivée.',
-      ),
-    ).toBeTruthy();
+    // The constant, not a retyped copy: tests/pro-team.test.ts holds it to
+    // the app's sentence, character for character.
+    expect(await screen.findByText(DEMO_ACCOUNT_LOCKED_MESSAGE)).toBeTruthy();
     expect(screen.queryByRole('link', { name: 'Passer à l’offre Réseau' })).toBeNull();
     expect(replace).not.toHaveBeenCalled();
   });
