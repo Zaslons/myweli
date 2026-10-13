@@ -1105,11 +1105,13 @@ checking rather than assuming:
 > validated (Apple accepts 0.0.1 after the 1.0.0 builds — nothing was ever
 > published), uploaded, `VALID`; the only build in « Équipe MyWeli »; added to
 > « Testeurs externes » and **submitted for beta review**; symbols in Sentry,
-> read back. **569 is the build to submit**, once the App Store Connect
-> version page is renamed « 1.0 » → « 0.0.1 » (owner's go). Still open: the
-> device checks of app-store-forms.md §11.6 on 569, the push test (postponed
-> by the owner), screenshot 7 reshot (and possibly 3 and 4), the version
-> page.
+> read back. **569 is the build to submit.** The App Store Connect version
+> page was renamed « 1.0 » → « 0.0.1 » the same day (owner's go; read back
+> through the API, no build attached yet). The screenshot set was redone on
+> 569: the Aperçu on the salon header at position 2, the booking form and the
+> client card reshot. Still open: the device checks of app-store-forms.md
+> §11.6 on 569, the push test (postponed by the owner), the owner's sign-off
+> on the screenshots and their upload, the rest of the version page.
 
 - [ ] Everything in [mobile-store-submission.md](design/mobile-store-submission.md) §5.
       Two of its claims are **stale as of 2026-08-18** and must be corrected

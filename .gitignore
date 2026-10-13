@@ -53,3 +53,7 @@
 # above: it appeared in `git status` the first time the Preview/Production env
 # split was configured from here.
 .vercel/
+
+# Python bytecode (tool/ scripts)
+__pycache__/
+*.pyc

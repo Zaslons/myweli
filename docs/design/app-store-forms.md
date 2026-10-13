@@ -280,7 +280,7 @@ dossier proposait :
 | Catégorie | non renseignée | Business + Productivity (§5) | à remplir |
 | Sous-titre | vide | `Agenda, clients, réservations` (§4) | à remplir |
 | Droits sur le contenu | non renseignés | « Oui … et j'ai les droits nécessaires » (§9) | à remplir |
-| Version | iOS **1.0**, « Prepare for Submission » | **0.0.1** (le binaire, §11.3 — la version de l'app passe de 1.0.0 à 0.0.1, décision du propriétaire le 2026-10-13, à partir du build 569) | **renommer la page « 1.0 » en « 0.0.1 »** avant de choisir le build : App Store Connect ne propose pour une version que les builds de même numéro, et 0.0.1 ≠ 1.0 quelle que soit sa normalisation. Le renommage est une écriture dans App Store Connect : avec l'accord du propriétaire (§13). Les builds 1.0.0 (≤ 565) restent dans TestFlight sous leur version |
+| Version | iOS **0.0.1**, « Prepare for Submission » (renommée de « 1.0 » le 2026-10-13, relue par l'API) | **0.0.1** (le binaire, §11.3 — la version de l'app passe de 1.0.0 à 0.0.1, décision du propriétaire le 2026-10-13, à partir du build 569) | la page s'appelait « 1.0 » : App Store Connect ne propose pour une version que les builds de même numéro, et 0.0.1 ≠ 1.0 quelle que soit sa normalisation. **Renommée « 0.0.1 » le 2026-10-13** avec l'accord du propriétaire ; reste à y choisir le build 569 (§13). Les builds 1.0.0 (≤ 565) restent dans TestFlight sous leur version |
 | TestFlight | aucun build | — | §11.5 — *2026-10-13 : build **569** (**0.0.1**) envoyé, traité `VALID` ; le groupe interne ne reçoit que le **569** (il remplace le 565) ; ajouté au groupe externe « Testeurs externes » et **soumis à la revue bêta** (`WAITING_FOR_REVIEW`) — le 565, encore en attente de revue, y reste*. *2026-10-12, soir : build **565** envoyé, traité `VALID` ; le groupe interne ne reçoit que le **565** (il remplace le 560)*. *2026-10-12 : builds 551, 555 et **560** envoyés, traités `VALID` ; le groupe interne ne reçoit que le **560** (il remplace le 555)*. *2026-10-10 : builds 551 et 555 envoyés, traités `VALID` ; le groupe interne ne reçoit que le 555 (§11.6)* |
 
 L'app consommateur « MyWeli » a aussi sa fiche (iOS 1.0, « Prepare for
@@ -653,11 +653,19 @@ d'Apple ; une demande de pièce complémentaire arriverait par e-mail.
 
 ---
 
-## 10 · Captures d'écran — iPhone 6,9 pouces seulement
+## 10 · Captures d'écran
 
-L'app est iPhone uniquement (§1.2) : **aucun jeu iPad**. Un seul jeu, **6,9
+> **Remplacé le 2026-10-13 par [pro-app-store-screenshots.md](pro-app-store-screenshots.md).**
+> Apple exige désormais le jeu **« iPhone with Dynamic Island (medium
+> display) » — 1206 × 2622** (page de spécifications relue le 2026-10-12) ; un
+> jeu 6,9 pouces seul ne remplit plus la case obligatoire. Les 8 captures
+> légendées sont faites, dans les deux tailles (1206 × 2622 et 1320 × 2868),
+> par `tool/app_store_screenshots/compose.py`. Le texte ci-dessous est
+> l'ancien plan, gardé pour l'historique.
+
+~~L'app est iPhone uniquement (§1.2) : **aucun jeu iPad**. Un seul jeu, **6,9
 pouces**, portrait, **1320 × 2868** (ou 1290 × 2796 ; 1260 × 2736 est aussi
-accepté) ; Apple en dérive les tailles plus petites. **1 à 10** images, JPEG ou
+accepté) ; Apple en dérive les tailles plus petites.~~ **1 à 10** images, JPEG ou
 PNG, **sans canal alpha ni transparence**.
 
 **Sur le salon démo « Maison Nala »** (logo réel et snapshot recapturé le 2026-10-11, §0 #4),
@@ -1191,7 +1199,7 @@ numéros).*
        invitation faits le 2026-10-10 ; les vérifications sur l'appareil
        restent au propriétaire.*
 14. [x] **Symboles Sentry** (§12.2). *Dart et natifs, builds 555, 560, 565 et 569.*
-15. [ ] **Captures** 6,9 pouces sur le salon démo (§10).
+15. [x] **Captures** sur le salon démo — *8 captures légendées, 1206 × 2622 (obligatoire) et 1320 × 2868, faites le 2026-10-13 ([pro-app-store-screenshots.md](pro-app-store-screenshots.md)) ; reste à les téléverser dans App Store Connect.*
 16. [ ] **Remplir App Store Connect** : informations sur l'app (§3, §5, §6,
        §9), tarifs et disponibilité — Côte d'Ivoire seule, Mac et Vision Pro
        décochés (§9), confidentialité (§7), page 0.0.1 — captures, texte
@@ -1200,9 +1208,12 @@ numéros).*
        le code lu à ce moment-là et la **ligne SUBSCRIPTION remplacée** (§8).
        *2026-10-05 : la ligne est remplacée dans le dossier — coller les notes
        du §8 telles quelles ; le nom « MyWeli Pro — Gestion de salon » si le
-       propriétaire le retient (§3) ; **renommer la version « 1.0 » en
-       « 0.0.1 »** (accord du propriétaire) puis vérifier que le build s'y
-       rattache (§3).*
+       propriétaire le retient (§3) ; la version est **renommée « 0.0.1 »**
+       depuis le 2026-10-13 (accord du propriétaire ; relue par l'API :
+       `0.0.1`, « Prepare for Submission », aucun build rattaché) — reste à
+       vérifier que le build 569 s'y rattache (§3). **À corriger en
+       remplissant la page** : la publication y est encore « après
+       approbation », pas manuelle (§9).*
 17. [ ] **`updateUrl` iOS** dans la console admin (§12.1).
 18. [ ] **Porte d'entrée Cloudflare** : ne pas lancer la phase A pendant une
        revue ; si elle a été déployée avant, vérifier qu'un client non
