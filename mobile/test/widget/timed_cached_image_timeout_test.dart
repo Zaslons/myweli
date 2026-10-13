@@ -65,6 +65,15 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('a wide but short strip: the icon, not a squeezed label', (
+    tester,
+  ) async {
+    await pumpTimedOut(tester, width: 320, height: 60);
+    expect(find.byTooltip('Réessayer'), findsOneWidget);
+    expect(find.text('Réessayer'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('a roomy box: « Réessayer » spelled out', (tester) async {
     await pumpTimedOut(tester, width: 320, height: 180);
     expect(find.text('Réessayer'), findsOneWidget);
