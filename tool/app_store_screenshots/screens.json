@@ -16,8 +16,21 @@
     },
     {
       "id": "02",
+      "name": "apercu",
+      "raw": "pro-02-apercu.png",
+      "headline": [
+        "Votre page MyWeli,",
+        "prête pour vos clients."
+      ],
+      "subline": [
+        "Prestations, horaires, plan d’accès :",
+        "ils réservent dès la mise en ligne."
+      ]
+    },
+    {
+      "id": "03",
       "name": "accueil",
-      "raw": "pro-02-accueil.png",
+      "raw": "pro-03-accueil.png",
       "headline": [
         "L’essentiel du salon,",
         "dès l’ouverture."
@@ -28,9 +41,9 @@
       ]
     },
     {
-      "id": "03",
+      "id": "04",
       "name": "reservation",
-      "raw": "pro-03-reservation.png",
+      "raw": "pro-04-reservation.png",
       "headline": [
         "Ajoutez un rendez-vous",
         "en quelques gestes."
@@ -41,9 +54,9 @@
       ]
     },
     {
-      "id": "04",
+      "id": "05",
       "name": "client",
-      "raw": "pro-04-client.png",
+      "raw": "pro-05-client.png",
       "headline": [
         "Vos clients, connus",
         "visite après visite."
@@ -62,9 +75,9 @@
       ]
     },
     {
-      "id": "05",
+      "id": "06",
       "name": "prestations",
-      "raw": "pro-05-prestations.png",
+      "raw": "pro-06-prestations.png",
       "headline": [
         "Vos prestations,",
         "vos prix en FCFA."
@@ -75,9 +88,9 @@
       ]
     },
     {
-      "id": "06",
+      "id": "07",
       "name": "disponibilite",
-      "raw": "pro-06-disponibilite.png",
+      "raw": "pro-07-disponibilite.png",
       "headline": [
         "Fixez vos horaires,",
         "les créneaux suivent."
@@ -85,27 +98,6 @@
       "subline": [
         "Pauses, jours bloqués et modèles",
         "d’horaires prêts à l’emploi."
-      ]
-    },
-    {
-      "id": "07",
-      "name": "apercu",
-      "raw": "pro-07-apercu.png",
-      "headline": [
-        "Votre page MyWeli,",
-        "prête pour vos clients."
-      ],
-      "subline": [
-        "Prestations, horaires, plan d’accès :",
-        "ils réservent dès la mise en ligne."
-      ],
-      "masks": [
-        [
-          395,
-          1736,
-          256,
-          46
-        ]
       ]
     },
     {

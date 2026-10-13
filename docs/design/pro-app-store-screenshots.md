@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| **Status** | **Done** (2026-10-13): 8 frames in both sizes; owner sign-off and upload in App Store Connect pending |
+| **Status** | **Done** (2026-10-13): 8 frames in both sizes. **Reordered the same day after build 569:** the Aperçu reshot on the top of the salon page (« Nouveau », no « Connectez-vous » card) and moved to position 2. Owner sign-off and upload in App Store Connect pending |
 | **Owner** | Sadreddine Daher |
-| **Last updated** | 2026-10-12 |
+| **Last updated** | 2026-10-13 |
 | **PRD ref / phase** | Launch — store submission · V1 |
 | **Skills checked** | myweli-dev-guardrails · myweli-verification-guardrails |
 | **Governs** | `tool/app_store_screenshots/compose.py` · `screens.json` · `fonts/` · [app-store-forms.md](app-store-forms.md) §10 |
@@ -49,17 +49,20 @@ the capture into a card.
 | # | Screen | Path from launch (signed in) | State to capture |
 |---|---|---|---|
 | 1 | Agenda « Ma journée » | Accueil → « Rendez-vous » | « Aujourd'hui », « Tous », top of the list: a « Terminé », an « Arrivé », « Libre » gaps, « Confirmé » bookings |
-| 2 | Accueil | the start screen | top, non-zero « Aujourd'hui » stats; the push sheet dismissed with « Plus tard » |
-| 3 | Réservation | Accueil → « Clients » → a client → « Nouvelle réservation » | two services ticked, date and time chosen, no picker or keyboard open; never « Créer le rendez-vous » |
-| 4 | Fiche client | Accueil → « Clients » → a client | tags, visits, « Dépensé », next booking, history |
-| 5 | Services | Accueil → « Configuration » → « Services » | top of the list |
-| 6 | Disponibilité | Accueil → « Disponibilité » | scrolled to the hours and « Modèles »; **no taps** (every chip writes) |
-| 7 | Aperçu de ma page | Accueil → « Configurer mon profil » → « Aperçu de ma page » | « Services » card on top, then « Contact »: whole map, address, phone (masked), WhatsApp, hours; never « Mettre mon profil en ligne » |
+| 2 | Aperçu de ma page | Accueil → « Configurer mon profil » → « Aperçu de ma page » | the top of the page: cover photo, logo, name, « Abidjan », **« Nouveau »** (build 569, #573), then « Services » and the start of « Contact »; « Réserver (après la mise en ligne) » at the bottom. No phone in frame, so no mask. Never « Mettre mon profil en ligne » (the button on the screen before) |
+| 3 | Accueil | the start screen | top, non-zero « Aujourd'hui » stats; the push sheet dismissed with « Plus tard » |
+| 4 | Réservation | Accueil → « Clients » → a client → « Nouvelle réservation » | two services ticked, date and time chosen, no picker or keyboard open; never « Créer le rendez-vous » |
+| 5 | Fiche client | Accueil → « Clients » → a client | tags, visits, « Dépensé », next booking, history |
+| 6 | Services | Accueil → « Configuration » → « Services » | top of the list |
+| 7 | Disponibilité | Accueil → « Disponibilité » | scrolled to the hours and « Modèles »; **no taps** (every chip writes) |
 | 8 | Revenus | Accueil → « Analyses » → « Revenus » | « Aujourd’hui » tab, after that day’s five bookings were marked « Terminé » (the screen counts completed bookings; « Semaine » showed the same five) |
 
 **Avant / Après was dropped** (owner, 2026-10-12): the demo pairs looked weak
-live. The Aperçu sits on « Contact » rather than the header, which would show
-« 0.0 · 0 avis » and a client-only « Connectez-vous… » card (a defect, §9). Never shown: « Mon
+live. Until build 569 the Aperçu was framed on « Contact », because the header
+showed « 0.0 · 0 avis » and a client-only « Connectez-vous… » card (§9). Build
+569 fixed both (#573), so on 2026-10-13 it was reshot on the header — the
+salon's best first impression — and moved to position 2, right after the
+agenda. Never shown: « Mon
 abonnement » or any offer, the KYC screen, « Compte de démonstration — … »
 (appears only after a blocked action), a system alert, a ComingSoon screen.
 
@@ -116,12 +119,12 @@ Every claim was checked against the code by the research pass; « SMS »,
 | # | Headline | Subline |
 |---|---|---|
 | 1 | Votre journée, / heure par heure. | Acceptez, reprogrammez ou marquez / l’arrivée d’un geste. |
-| 2 | L’essentiel du salon, / dès l’ouverture. | Rendez-vous du jour, demandes / en attente et revenus. |
-| 3 | Ajoutez un rendez-vous / en quelques gestes. | Pris au téléphone ou au comptoir, / même pour un client sans numéro. |
-| 4 | Vos clients, connus / visite après visite. | Historique, notes et étiquettes, / à chaque réservation. |
-| 5 | Vos prestations, / vos prix en FCFA. | Chaque prestation, son prix / et sa durée, en un coup d’œil. (The list shows the minimum price only — a range would not be visible, §9.) |
-| 6 | Fixez vos horaires, / les créneaux suivent. | Pauses, jours bloqués et modèles / d’horaires prêts à l’emploi. |
-| 7 | Votre page MyWeli, / prête pour vos clients. | Prestations, horaires, plan d’accès : / ils réservent dès la mise en ligne. |
+| 2 | Votre page MyWeli, / prête pour vos clients. | Prestations, horaires, plan d’accès : / ils réservent dès la mise en ligne. |
+| 3 | L’essentiel du salon, / dès l’ouverture. | Rendez-vous du jour, demandes / en attente et revenus. |
+| 4 | Ajoutez un rendez-vous / en quelques gestes. | Pris au téléphone ou au comptoir, / même pour un client sans numéro. |
+| 5 | Vos clients, connus / visite après visite. | Historique, notes et étiquettes, / à chaque réservation. |
+| 6 | Vos prestations, / vos prix en FCFA. | Chaque prestation, son prix / et sa durée, en un coup d’œil. (The list shows the minimum price only — a range would not be visible, §9.) |
+| 7 | Fixez vos horaires, / les créneaux suivent. | Pauses, jours bloqués et modèles / d’horaires prêts à l’emploi. |
 | 8 | Suivez vos revenus, / jour après jour. | Chaque rendez-vous terminé est compté, / par jour, semaine ou mois. |
 
 ### 6.1 What the set does not show, and why (owner review, 2026-10-13)
@@ -131,7 +134,7 @@ services, hours, public page, revenue). Three things are not shown, each for a
 reason that is checked, not assumed:
 - **Online bookings from clients** (the « En attente » requests): the demo
   salon cannot be published, so it never receives one; « En attente » is
-  always 0. Screen 7's caption carries the promise instead, worded to match
+  always 0. Screen 2's caption (the Aperçu) carries the promise instead, worded to match
   the « Réserver (après la mise en ligne) » button in the frame.
 - **Deposits (« Acompte & annulation »)**: on the demo the screen shows « Les
   acomptes sont disponibles après la vérification de votre compte » and the
@@ -139,14 +142,16 @@ reason that is checked, not assumed:
 - **Team, reviews, notifications**: empty on the demo (no employees,
   invitations blocked, 0 reviews). The store description carries them.
 
-Owner decisions: screen 4 kept as is on 565 (the « dimanch / e » break, §9);
-screen 7's caption changed to the online-booking promise; screen 8 added.
+Owner decisions (screen numbers as they were before the 2026-10-13 reorder):
+screen 4 — now 5 — kept as is on 565 (the « dimanch / e » break, §9); screen
+7's caption — now 2 — changed to the online-booking promise; screen 8 added.
 
 **Photos.** The owner says the salon photos were found online. None of the
-eight frames shows them (screen 7 is framed on « Contact »), so the listing
-carries no copyright exposure; the demo salon still shows them to App Review.
-Before launch: replace them with free-licence images (Unsplash, Pexels) or
-the owner's own.
+frames showed them until the 2026-10-13 reorder. **Screen 2 now shows the
+cover photo**: on 2026-10-13 the owner stated the photos are free-licence and
+approved reshooting the Aperçu on the header. That licence is the owner's
+statement — not checked from here; keep the source of each image with the
+salon's files, so it can be shown if ever asked.
 
 ## 6a. The shoot, 2026-10-12 (owner-approved production writes)
 
@@ -171,7 +176,8 @@ Captured: 3 (a walk-in « Aya T. » on Thu 15 10:00, form never submitted),
 « Semaine »).
 
 The salon phone on screen 7 (`+225 07 00 00 01 00`) is masked after
-« +225 07 », like the clients'.
+« +225 07 », like the clients'. *(That was the « Contact » framing; the header frame that replaced it on
+2026-10-13 — now screen 2 — shows no phone.)*
 
 ## 7. Procedure
 
@@ -199,8 +205,12 @@ The salon phone on screen 7 (`+225 07 00 00 01 00`) is masked after
 
 - [x] Eight captures, each inspected (two captures 1.5–2 s apart compared
       pixel-identical before keeping each one, so nothing was mid-scroll).
-- [x] Both sizes composed; the script's checks pass; masks cover the
-      client and salon numbers (screens 4 and 7).
+- [x] Both sizes composed; the script's checks pass; the mask covers the
+      client number (screen 5; the reshot Aperçu shows no number).
+- [x] Reordered after build 569 (2026-10-13): the Aperçu reshot on the header,
+      captured twice 2 s apart and compared identical, moved to position 2;
+      the other raw captures renamed to the new ids, captions unchanged; the
+      565 set archived locally in `build/app-store/pro-565-set/`.
 - [ ] Owner sign-off on the overview.
 - [ ] Uploaded in App Store Connect; the required medium-display slot reads
       filled.
@@ -213,8 +223,10 @@ The salon phone on screen 7 (`+225 07 00 00 01 00`) is masked after
 
 ## 9. Defects seen during the shoot (build 565, follow-up task)
 
-Owner decision: shoot on 565, fix after. None is in the chosen frames except
-where noted.
+Owner decision: shoot on 565, fix after. **All fixed in build 569** (#573,
+#574). Screen numbers below are the pre-reorder ones. **Frames 4 and 5 (the
+booking and the client card) still show 565's UI** — reshooting them on 569
+is the owner's call.
 - The owner preview shows the client-only « Vos rendez-vous ici —
   Connectez-vous… » card (screen 7 avoids it by framing).
 - The client card shows a raw `+2250700000101` (masked on screen 4).
