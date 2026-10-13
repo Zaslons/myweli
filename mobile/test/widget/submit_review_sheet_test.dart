@@ -175,6 +175,7 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.text('Merci pour votre avis'), findsOneWidget);
     expect(providers.selectedProvider!.reviewCount, 3);
+    expect(salons.asked, isNotNull, reason: 'the re-read was sent');
 
     salons.asked!.complete(ApiResponse.success(stored));
     await tester.pump();

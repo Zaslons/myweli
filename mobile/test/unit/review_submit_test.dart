@@ -142,13 +142,16 @@ void main() {
       expect(provider.selectedProvider, isNotNull);
       final before = provider.selectedProvider!.reviews.length;
 
-      final ok = await provider.submitReview(_review(providerId: 'provider1'));
+      final mine = _review(providerId: 'provider1');
+      final ok = await provider.submitReview(mine);
 
       expect(ok, isTrue);
       expect(provider.isSubmittingReview, isFalse);
       expect(provider.selectedProvider!.reviews.length, before + 1);
-      // First, not last: the page shows the five newest (this line read
-      // `.last`, which pinned the append that hid a sixth review).
+      // First, not last: the page shows the five newest (this read
+      // `reviews.last.photoUrls`, which pinned the append that hid a sixth
+      // review).
+      expect(provider.selectedProvider!.reviews.first, same(mine));
       expect(provider.selectedProvider!.reviews.first.photoUrls, isNotEmpty);
     });
 
