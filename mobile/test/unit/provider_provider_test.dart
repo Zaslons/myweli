@@ -4,9 +4,9 @@ import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/provider.dart';
 import 'package:myweli/models/review.dart';
-import 'package:myweli/services/mock/mock_data.dart';
 import 'package:myweli/providers/provider_provider.dart';
 import 'package:myweli/services/interfaces/provider_service_interface.dart';
+import 'package:myweli/services/mock/mock_data.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class _MockProviderService extends Mock implements ProviderServiceInterface {}
