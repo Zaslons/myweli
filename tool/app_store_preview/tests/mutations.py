@@ -5,9 +5,12 @@ A check that has never been seen to fail is not a check. This script breaks
 the tool one check at a time — silences a refusal, makes a verification
 always pass, bends a number — and requires a named test to fail each time.
 
-    python3 tool/app_store_preview/tests/mutations.py            # all, ~20 min
+    python3 tool/app_store_preview/tests/mutations.py            # all, ~12 min
     python3 tool/app_store_preview/tests/mutations.py edit       # one group
+    python3 tool/app_store_preview/tests/mutations.py e2e --match=Writer.swift
     python3 tool/app_store_preview/tests/mutations.py --list
+
+Groups: edit, frames, brand, mp4, verify, swift, e2e.
 
 It only runs on a clean, committed tree: every mutation is undone by
 writing the file's committed text back, which would erase uncommitted work.
@@ -282,8 +285,10 @@ def clean() -> bool:
 def red(tests: list[str]) -> tuple[bool, str]:
     """True when the tests fail (or cannot even run): the mutation was seen."""
     r = subprocess.run([sys.executable, "-m", "unittest", *tests], cwd=TOOL, capture_output=True, text=True)
-    tail = (r.stderr.strip().splitlines() or [""])[-1]
-    return r.returncode != 0, tail
+    lines = [line.strip() for line in r.stderr.strip().splitlines()] or [""]
+    # when the end-to-end build itself stops, its own last word says why
+    why = next((line for line in reversed(lines) if line.startswith(("FAIL —", "preview:"))), lines[-1])
+    return r.returncode != 0, why
 
 
 def plan(groups: set[str]) -> list[dict]:
@@ -348,7 +353,8 @@ def main() -> None:
     args = sys.argv[1:]
     listing = "--list" in args
     groups = {a for a in args if not a.startswith("--")}
-    steps = plan(groups)
+    match = [a.split("=", 1)[1] for a in args if a.startswith("--match=")]
+    steps = [s for s in plan(groups) if "error" in s or all(m in s["what"] for m in match)]
     if listing:
         for s in steps:
             print(s.get("what") or "ERROR " + s["error"])
@@ -371,7 +377,7 @@ def main() -> None:
             failed, tail = red(s["tests"])
         finally:
             path.write_text(original, encoding="utf-8")
-        print(f"{n:3d} {'red     ' if failed else 'SURVIVED'} {s['what']}  [{', '.join(s['tests'])}]  {tail[:60]}",
+        print(f"{n:3d} {'red     ' if failed else 'SURVIVED'} {s['what']}  [{', '.join(s['tests'])}]  {tail[:90]}",
               flush=True)
         if not failed:
             survived.append(s["what"])

@@ -16,6 +16,7 @@ import io
 import json
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -120,10 +121,16 @@ def setUpModule():
     (WORK / "storyboard.json").write_text(json.dumps(SB))
     (WORK / "gestures.json").write_text(json.dumps(E2E_LOG))
     FILM = WORK / "film"
-    with contextlib.redirect_stdout(io.StringIO()):
-        preview.cmd_build(preview.argparse.Namespace(
-            storyboard=WORK / "storyboard.json", gestures=WORK / "gestures.json", take=TAKE, out=FILM,
-            edit=None, rehearsal=False))
+    said = io.StringIO()
+    try:
+        with contextlib.redirect_stdout(said):
+            preview.cmd_build(preview.argparse.Namespace(
+                storyboard=WORK / "storyboard.json", gestures=WORK / "gestures.json", take=TAKE, out=FILM,
+                edit=None, rehearsal=False))
+    except SystemExit:
+        # the build stopped: say why, the last line is what failed
+        print(said.getvalue().rstrip()[-1500:], file=sys.stderr)
+        raise
 
 
 def tearDownModule():
