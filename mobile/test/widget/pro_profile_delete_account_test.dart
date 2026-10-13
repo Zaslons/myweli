@@ -20,6 +20,7 @@ import 'package:myweli/services/mock/mock_device_registration_service.dart';
 import 'package:myweli/services/mock/mock_pro_service.dart';
 import 'package:myweli/services/mock/mock_pro_team_service.dart';
 import 'package:myweli/services/mock/mock_push_notification_service.dart';
+import 'package:myweli/widgets/common/app_snack_bar.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -150,6 +151,30 @@ void main() {
     });
   }
 
+  /// A refusal is feedback ON THE SCREEN, in the error tone.
+  ///
+  /// - The dialog is gone. A snackbar raised under an open dialog is painted
+  ///   under the scrim and pruned from the semantics tree (SYSTEM.md §15):
+  ///   `find.text` would still find its sentence, and nobody could read it.
+  /// - The bar is the ERROR kind — its colour and its six seconds. The
+  ///   sentence alone does not say that: an `info` bar carries the same
+  ///   words for three seconds, in the neutral tone.
+  void expectErrorSnackOnTheScreen(WidgetTester tester, String sentence) {
+    expect(
+      find.text('Supprimer votre compte ?'),
+      findsNothing,
+      reason: 'the confirmation dialog is closed when the refusal shows',
+    );
+    final bar = tester.widget<SnackBar>(find.byType(SnackBar));
+    expect(bar.backgroundColor, SnackKind.error.color);
+    expect(bar.duration, SnackKind.error.duration);
+    expect(
+      find.descendant(of: find.byType(SnackBar), matching: find.text(sentence)),
+      findsOneWidget,
+      reason: 'the sentence is IN the snackbar',
+    );
+  }
+
   testWidgets('the entry is offered and ENABLED before anything is asked of '
       'the server', (tester) async {
     await pumpProfile(tester);
@@ -174,6 +199,7 @@ void main() {
 
     expect(pro.deletionCalls, 1, reason: 'the request was really sent');
     expect(find.text(demoAccountLockedMessage), findsOneWidget);
+    expectErrorSnackOnTheScreen(tester, demoAccountLockedMessage);
     expect(find.text('Une autre phrase du service.'), findsNothing);
     expect(find.text(_futureBookingsSentence), findsNothing);
     await expectStillSignedInOnProfil(tester, auth);
@@ -207,6 +233,7 @@ void main() {
 
     expect(requests, ['DELETE /me/provider']);
     expect(find.text(demoAccountLockedMessage), findsOneWidget);
+    expectErrorSnackOnTheScreen(tester, demoAccountLockedMessage);
     await expectStillSignedInOnProfil(tester, auth);
   }, variant: bothPlatforms);
 
@@ -222,6 +249,7 @@ void main() {
     await confirmDeletion(tester);
 
     expect(find.text(_futureBookingsSentence), findsOneWidget);
+    expectErrorSnackOnTheScreen(tester, _futureBookingsSentence);
     expect(find.text(demoAccountLockedMessage), findsNothing);
     await expectStillSignedInOnProfil(tester, auth);
   }, variant: bothPlatforms);
@@ -235,6 +263,7 @@ void main() {
     await confirmDeletion(tester);
 
     expect(find.text('Connexion au serveur impossible'), findsOneWidget);
+    expectErrorSnackOnTheScreen(tester, 'Connexion au serveur impossible');
     expect(find.text(demoAccountLockedMessage), findsNothing);
     expect(find.text(_futureBookingsSentence), findsNothing);
     await expectStillSignedInOnProfil(tester, auth);
