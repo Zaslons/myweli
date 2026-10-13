@@ -24,3 +24,16 @@ it('shows the « Vérifié » badge only for verified salons (T52/15.1)', () => 
   rerender(<ProviderCard provider={{ ...providerFixture, verified: false }} />);
   expect(screen.queryByLabelText('Salon vérifié')).toBeNull();
 });
+
+it('a salon with no review shows « Nouveau », a reviewed one its rating (salon-rating-new-and-visits-card.md)', () => {
+  const { container, rerender } = render(
+    <ProviderCard provider={{ ...providerFixture, rating: 0, reviewCount: 0 }} />,
+  );
+  expect(screen.getByText('Nouveau')).toBeInTheDocument();
+  expect(container.textContent).not.toMatch(/0,0/);
+  rerender(
+    <ProviderCard provider={{ ...providerFixture, rating: 4.8, reviewCount: 32 }} />,
+  );
+  expect(screen.queryByText('Nouveau')).toBeNull();
+  expect(container.textContent).toMatch(/★ 4,8/);
+});

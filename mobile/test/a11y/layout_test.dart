@@ -619,9 +619,9 @@ void main() {
           find.text('Vos rendez-vous ici'),
           findsOneWidget,
           reason:
-              'C: the heading with an action beside it — signed out this '
-              'screen renders « Connectez-vous pour voir vos rendez-vous. » '
-              'instead, and the subject would be missing',
+              'C: the heading with an action beside it — signed out (or '
+              'without a visit here) the card is not rendered at all, and the '
+              'subject would be missing',
         );
         _expectHeadingIsWhole(tester, 'Vos rendez-vous ici', at);
         // §13.3, A11 C8: « Appeler » is one word and a 1:2 split left it 81dp

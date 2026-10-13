@@ -190,7 +190,8 @@ never *the* signal:
 
 - **Ratings always pair the glyph with the number.** The shared `AppRating`
   renders `★ 4,8 (32 avis)` — the star is decoration, the numeral is the
-  information. An interactive star input encodes its state by **glyph**
+  information. **No review, no numeral:** a salon nobody has reviewed reads
+  « Nouveau » (a quiet pill), never « 0,0 ». An interactive star input encodes its state by **glyph**
   (`star_border` → `star`), not by color, so it still reads in grayscale.
 - **Gold-as-state** (the owner chip, the unseen-story ring) uses `gold`, which
   clears the 3:1 non-text floor — and is *also* accompanied by a label or a
@@ -549,7 +550,7 @@ when the burn-down reaches them, there is nothing left to decide.
 *(`AppSnackBar` and `ConfirmDialog` were on this list until **A6** built them;
 `FieldErrors` + `Validators` joined §11.1's roster in **A7**.)*
 
-- **`AppRating`** — `★ 4,8 (32 avis)`. Glyph + numeral, always (§3.5).
+- **`AppRating`** — `★ 4,8 (32 avis)`. Glyph + numeral, always (§3.5). **Built 2026-10-13** (`widgets/common/app_rating.dart`; sizes compact / regular / large); a salon with **no review reads « Nouveau »**, never « ★ 0.0 · 0 avis » — same rule as the web's `SalonRating` ([salon-rating-new-and-visits-card.md](salon-rating-new-and-visits-card.md)). The numeral goes through `Formatters.formatRating` (« 4,8 »); `rating_format_pin_test.dart` forbids formatting a rating by hand.
 - **`AppCard`** — `secondary` on `background`, `radiusXL`, elevation 0, `spacingM` padding.
 - **`AppChip`** — filled (selected) / outlined (`borderStrong`) / tinted (status). `radiusPill`.
 - **`AppAsyncView<T>`** — takes `isLoading`/`error`/`data` and renders the four states, so a screen cannot forget one.

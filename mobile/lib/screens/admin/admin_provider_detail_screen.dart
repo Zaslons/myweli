@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/formatters.dart';
 import '../../providers/admin/admin_disputes_provider.dart';
 import '../../providers/admin/admin_provider_detail_provider.dart';
 import '../../providers/admin/admin_providers_provider.dart';
@@ -180,7 +181,12 @@ class _AdminProviderDetailScreenState extends State<AdminProviderDetailScreen> {
         if ((s['address'] ?? '').toString().isNotEmpty)
           ('Adresse', '${s['address']}'),
         ('Téléphone', '${s['phoneNumber'] ?? s['phone'] ?? '—'}'),
-        ('Note', rating == null ? '—' : '${rating.toStringAsFixed(1)} / 5'),
+        (
+          'Note',
+          rating == null
+              ? '—'
+              : '${Formatters.formatRating(rating.toDouble())} / 5',
+        ),
         ('En avant', featured ? 'Oui' : 'Non'),
       ],
     );

@@ -327,6 +327,65 @@ void main() {
     });
   }
 
+  // The « Nouveau » pill replaces the rating row inside the same 16dp budget
+  // (`_textBlockHeight`) — the grid sweep again, for a salon with no review
+  // (docs/design/salon-rating-new-and-visits-card.md §2.1).
+  for (final scale in [1.0, 1.5, 1.74, 2.0]) {
+    testWidgets('a « Nouveau » card fits gridHeight at $scale×', (
+      tester,
+    ) async {
+      await pumpApp(
+        tester,
+        providers: favProviders(),
+        home: Builder(
+          builder: (context) => MediaQuery(
+            data: MediaQuery.of(
+              context,
+            ).copyWith(textScaler: TextScaler.linear(scale)),
+            child: Scaffold(
+              body: Builder(
+                builder: (context) => SizedBox(
+                  height: ProviderCard.gridHeight(context),
+                  width: (360 - 16 * 2 - 16) / 2,
+                  child: ProviderCard(
+                    provider: MockData.providers.first.copyWith(
+                      rating: 0,
+                      reviewCount: 0,
+                    ),
+                    isGrid: true,
+                    onTap: () {},
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Nouveau'), findsOneWidget);
+      expect(find.textContaining('0,0'), findsNothing);
+      expect(find.text('(0)'), findsNothing);
+      expect(tester.takeException(), isNull);
+      expectNoVerticalClip(tester, context: '« Nouveau » grid card at $scale×');
+    });
+  }
+
+  testWidgets('ProviderCard (list), a salon with no review: « Nouveau »', (
+    tester,
+  ) async {
+    await pumpAtTextScale(
+      tester,
+      ProviderCard(
+        provider: MockData.providers.first.copyWith(rating: 0, reviewCount: 0),
+        onTap: () {},
+      ),
+      providers: favProviders(),
+    );
+    expect(find.text('Nouveau'), findsOneWidget);
+    expect(find.textContaining('0,0'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('ProviderCard (list)', (tester) async {
     await pumpAtTextScale(
       tester,
