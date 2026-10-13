@@ -4,6 +4,7 @@ refusal — each on a take whose answer is known in advance."""
 from __future__ import annotations
 
 import copy
+import math
 import unittest
 
 import edit
@@ -527,6 +528,21 @@ class Keys(unittest.TestCase):
         self.assertEqual(cm.exception.code, "E_PROTECTED")
         self.assertIn("gesture `type-b[2]`", cm.exception.message)
 
+    def test_a_key_has_its_own_tail(self):
+        """`timing.key_tail_s`: a key answers in one frame and the next key
+        follows — 0.1 s before the letter, 0.1 s after it, 7 frames; the tap
+        keeps the 0.3 s every other answer has."""
+        scan, log, sb = self.fixture()
+        sb["timing"]["key_tail_s"] = 0.1
+        e = edit.propose(scan, log, sb)
+        self.assertEqual([s for s in e["segments"] if s["kind"] == "live"], [
+            {"kind": "live", "src_in": 1740, "src_out": 2100},
+            {"kind": "live", "src_in": 2940, "src_out": 3080},
+            {"kind": "live", "src_in": 4740, "src_out": 4880},
+            {"kind": "live", "src_in": 6540, "src_out": 6680}])
+        self.assertEqual(e["segments"][-2], {"kind": "hold", "src_at": 6660, "frames": 15, "why": "rest after type-b"})
+        edit.check(e, scan, log, sb)
+
     def test_text_typed_in_one_go_is_one_piece(self):
         scan, log, sb = self.fixture()
         log["gestures"][1] = {"id": "type-b", "kind": "type", "near_s": 5.0}
@@ -636,7 +652,16 @@ class Follow(unittest.TestCase):
         self.assertEqual((touch["down"], touch["up"], touch["step"]), (3320, 3541, [3380, 3440]))
         self.assertEqual(touch["path"][3], [3380.0, 200.0, 580.0])
         edit.check(e, scan, log, sb, tracks=tracks)
-        self.assertIn("followed in the picture on 5 frames", edit.describe(e, scan, log, sb, tracks=tracks))
+        said = edit.describe(e, scan, log, sb, tracks=tracks)
+        self.assertIn("followed in the picture on 5 frames", said)
+        # the film's frames are on ticks 5940, 5960, …: at 6000 the picture is 20 pt along, at 6020 it shows the
+        # frame of 6010 (30 pt), at 6040 50 pt, at 6060 60 pt
+        self.assertIn("drags, film frame by film frame (points the picture moved under the finger)\n"
+                      "  drag-b           20 10 20 10\n"
+                      "                   first step 20 pt; 0 film frames did not move\n", said)
+        self.assertEqual(edit.drag_steps(edit.locate(scan, log, sb, tracks=tracks).gestures[1], tracks["drag-b"],
+                                         edit.spans(e, T, 30), STEP), [20.0, 10.0, 20.0, 10.0])
+        self.assertNotIn("drags, film frame by film frame", edit.describe(edit.propose(scan, log, sb), scan, log, sb))
         # the same edit list without the reading of the picture: the points are not where the data puts them
         with self.assertRaises(Refusal) as cm:
             edit.check(e, scan, log, sb)
@@ -669,6 +694,138 @@ class Follow(unittest.TestCase):
         log["gestures"][1]["down_s"] = 9.95
         drag = edit.locate(scan, log, sb, tracks={"drag-b": track}).gestures[1]
         self.assertEqual((drag.down, drag.step, drag.how), (5970, None, "timed by the log's own `down_s`"))
+
+
+# The rehearsal take's opening swipe, as conform scan timed its eleven changed
+# pictures (ticks of 1/600 s) — the take's first picture before them. The
+# driver's samples reached the app unevenly: the pictures are 2 to 29 ticks
+# apart, and the touch-down was read at 3203.
+SWIPE = [0, 3271, 3273, 3283, 3312, 3333, 3343, 3353, 3374, 3383, 3404, 3414]
+
+
+class Phase(unittest.TestCase):
+    """Where a kept range sits on the film's thirty frames a second."""
+
+    def test_what_the_film_shows_of_a_take_with_more_pictures_than_frames(self):
+        # started on the touch-down: the film's instants are 3263, 3283, 3303, 3323, 3343, 3363, 3383, 3403, 3423
+        # — the picture of 3283 is still there at 3303, the picture of 3383 at 3403: two frames that do not move
+        self.assertEqual(edit.sampling(SWIPE, 3203, 21, STEP, REST), (2, 6))
+        # one tick earlier: 3282, 3302, 3322, 3342, 3362, 3382, 3402, 3422 — eight pictures, none twice
+        self.assertEqual(edit.sampling(SWIPE, 3202, 21, STEP, REST), (0, 8))
+        # a picture that stays because the take is at rest is not a repeat…
+        self.assertEqual(edit.sampling([0, 1000], 940, 20, STEP, REST), (0, 1))
+        # …nor is the one the range starts on, however long before its first change
+        self.assertEqual(edit.sampling([0, 900, 1000], 940, 20, STEP, 300), (0, 1))
+        # two pictures further apart than a rest are two bursts: the wait between them is the app's
+        self.assertEqual(edit.sampling([0, 1000, 1300], 940, 30, STEP, 300), (0, 2))
+        self.assertEqual(edit.sampling([0, 1000, 1299], 940, 30, STEP, 300), (14, 2))
+
+    def test_a_range_starts_where_the_film_repeats_least_then_shows_most_then_latest(self):
+        self.assertEqual(edit.phase(SWIPE, 3203, 3414 + 180, 180, math.inf, STEP, REST), 1)
+        # a picture every film frame: nothing to gain, the range starts on its touch-down
+        even = [0] + list(range(1000, 1201, 20))
+        self.assertEqual(edit.phase(even, 940, 1380, 180, math.inf, STEP, REST), 0)
+        # no repeat either way, but 6 ticks earlier the film shows both pictures instead of one
+        self.assertEqual(edit.sampling([0, 1000, 1010], 955, 13, STEP, REST), (0, 1))
+        self.assertEqual(edit.sampling([0, 1000, 1010], 949, 14, STEP, REST), (0, 2))
+        self.assertEqual(edit.phase([0, 1000, 1010], 955, 1190, 180, math.inf, STEP, REST), 6)
+
+    def test_it_never_reaches_into_what_is_around_it(self):
+        uneven = [0, 1000, 1030, 1050]
+        self.assertEqual(edit.sampling(uneven, 940, 16, STEP, REST), (1, 3))
+        self.assertEqual(edit.phase(uneven, 940, 1230, 180, math.inf, STEP, REST), 1)
+        self.assertEqual(edit.phase(uneven, 940, 1230, 939, math.inf, STEP, REST), 1)
+        self.assertEqual(edit.phase(uneven, 940, 1230, 940, math.inf, STEP, REST), 0)   # the screen was not still before
+        # the next range starts at 1255: one to four ticks earlier this one would run to 1259…1256
+        self.assertEqual(edit.phase(uneven, 940, 1230, 180, 1255, STEP, REST), 5)
+        self.assertEqual(edit.frames_for(935, 1230, STEP) * STEP + 935, 1255)
+
+    def swipe(self):
+        scan = scan_of([(p, CHANGE) for p in SWIPE[1:]], end=6000)
+        _, log, sb = fixture()
+        log["gestures"].pop(0)
+        log["gestures"][0].update(near_s=3271 / T, tolerance_s=0.01, down_s=3203 / T)
+        sb["shots"] = sb["shots"][1:]                       # the drag, then the last caption
+        return scan, log, sb
+
+    def test_propose_sets_each_range_on_the_films_frames(self):
+        scan, log, sb = self.swipe()
+        e = edit.propose(scan, log, sb)
+        self.assertEqual(e["segments"][:2], [
+            {"kind": "hold", "src_at": 3202, "frames": 30, "why": "lead-in: the screen at rest before the first touch"},
+            {"kind": "live", "src_in": 3202, "src_out": 3202 + 21 * STEP}])     # one tick before the touch-down
+        pts = [f["pts"] for f in scan["frames"]]
+        shown = [pts[j] for j in edit.film_sources(e, scan, 30)[30:51]]
+        self.assertEqual(sorted(set(shown) - {0}), [3273, 3283, 3312, 3333, 3353, 3374, 3383, 3414])
+        self.assertEqual([b for a, b in zip(shown, shown[1:]) if a == b and 3271 <= a < 3414], [])   # none twice
+        # the touch-down is where it was in the take: one tick into the range
+        self.assertEqual(e["touches"][0]["down"], 30 * STEP + 1)
+        tm = edit.check(e, scan, log, sb)
+        self.assertEqual(tm.gestures[0].down, 3203)
+        self.assertIn("(21 frames, 1:1)  shows 8 of the take's 11 changed pictures, 0 twice while it moved",
+                      edit.describe(e, scan, log, sb))
+
+    def test_the_film_does_not_start_into_the_takes_first_picture(self):
+        """The first range's start is the film's: 0.3 s after the take's
+        first picture and no earlier, whatever a tick would gain."""
+        def take(down: int):
+            # the swipe's pictures, as far from the film's frames as they were in the take (68 ticks, + 3 frames)
+            first = down + 68 + 3 * STEP
+            scan = scan_of([(p - 3271 + first, CHANGE) for p in SWIPE[1:]], end=6000)
+            _, log, sb = self.swipe()
+            log["gestures"][0].update(near_s=first / T, down_s=down / T)
+            return scan, log, sb
+
+        scan, log, sb = take(180)
+        e = edit.propose(scan, log, sb)
+        self.assertEqual(e["segments"][1]["src_in"], 180)
+        self.assertEqual(edit.sampling([f["pts"] for f in scan["frames"]], 180, 24, STEP, REST)[0], 2)   # at a price
+        edit.check(e, scan, log, sb)
+        scan, log, sb = take(181)                            # one tick later: there is one to take
+        self.assertEqual(edit.propose(scan, log, sb)["segments"][1]["src_in"], 180)
+
+    def test_a_range_does_not_run_into_the_one_after_it(self):
+        """Starting earlier can cost a range one more film frame at its end.
+        Here the swipe's pictures answer a tap that lands at 3211, the range
+        ends at 3631, and the next touch lands at 3635: nine ticks earlier —
+        the first start with no repeat — it would run to 3642, into the next
+        range. Sixteen ticks earlier it ends on 3635."""
+        scan = scan_of([(p, CHANGE) for p in SWIPE[1:]] + burst(3760, 3800), end=6000)
+        _, log, sb = fixture()
+        sb["timing"].update(tail_s=197 / T, caption_lead_s=0.0)
+        sb["shots"][1]["caption"] = "one"
+        log["gestures"][0].update(near_s=3271 / T, tolerance_s=0.01)
+        log["gestures"][1].update(near_s=3760 / T, tolerance_s=0.01, down_s=3635 / T)
+        self.assertEqual(edit.locate(scan, log, sb).gestures[0].down, 3211)
+        self.assertEqual(edit.phase(SWIPE + list(range(3760, 3801, 10)), 3211, 3414 + 197, 180, math.inf, STEP, REST), 9)
+        self.assertEqual(edit.frames_for(3202, 3414 + 197, STEP) * STEP + 3202, 3642)
+        e = edit.propose(scan, log, sb)
+        self.assertEqual([(s["src_in"], s["src_out"]) for s in e["segments"] if s["kind"] == "live"][0], (3195, 3635))
+        self.assertEqual([s["src_in"] for s in e["segments"] if s["kind"] == "live"][1], 3635)
+        edit.check(e, scan, log, sb)
+
+    def test_a_range_is_not_moved_into_the_one_before_it(self):
+        """Two answers close together: the second range cannot start earlier
+        than the first one ends, whatever it would gain."""
+        def take(down: int):
+            scan = scan_of(burst(1800, 1900) + [(p + down - 3203, CHANGE) for p in SWIPE[1:]], end=6000)
+            _, log, sb = fixture()
+            sb["timing"].update(tail_s=0.5, caption_lead_s=0.0)
+            sb["shots"][1]["caption"] = "one"
+            log["gestures"][1].update(near_s=(3271 + down - 3203) / T, tolerance_s=0.01, down_s=down / T)
+            return scan, log, sb
+
+        self.assertEqual(edit.frames_for(1740, 1900 + 300, STEP) * STEP + 1740, 2220)   # where the first range ends
+        scan, log, sb = take(2800)
+        e = edit.propose(scan, log, sb)
+        self.assertEqual([s["src_in"] for s in e["segments"] if s["kind"] == "live"], [1740, 2799])
+        scan, log, sb = take(2220)                           # the second touch lands as the first range ends
+        e = edit.propose(scan, log, sb)
+        self.assertEqual([s["src_in"] for s in e["segments"] if s["kind"] == "live"], [1740, 2220])
+        edit.check(e, scan, log, sb)
+        scan, log, sb = take(2221)                           # one tick later: there is one tick to take
+        e = edit.propose(scan, log, sb)
+        self.assertEqual([s["src_in"] for s in e["segments"] if s["kind"] == "live"], [1740, 2220])
 
 
 class Variants(unittest.TestCase):
@@ -816,6 +973,34 @@ class Propose(unittest.TestCase):
             {"frame": 212, "caption": "three"},   # 0.5 s after drag-b's own burst ends
         ])
 
+    def after_the_tap(self, **caption_after):
+        """tap-a alone: its own burst ends at 1900 ticks, the app goes on
+        until 3650 (a snackbar leaving)."""
+        scan = scan_of([(300, NOISE)] + burst(1800, 1900) + burst(3600, 3650))
+        _, log, sb = fixture()
+        log["gestures"].pop()
+        sb["shots"] = [sb["shots"][0], {"id": "C", "caption": "three", "gestures": [],
+                                        "caption_after": {"gesture": "tap-a", "delay_s": 0.5, **caption_after}}]
+        return scan, log, sb
+
+    def test_a_caption_that_follows_a_gesture_counts_from_its_first_rest_or_from_its_last_change(self):
+        scan, log, sb = self.after_the_tap()
+        tap = edit.locate(scan, log, sb).gestures[0]
+        self.assertEqual((tap.burst_end, tap.last_change), (1900, 3650))
+        # the range starts at film frame 30 on tick 1740: tick 1900 is frame 38, tick 3650 is in frame 126
+        self.assertEqual(edit.propose(scan, log, sb)["captions"][1], {"frame": 38 + 15, "caption": "three"})
+        scan, log, sb = self.after_the_tap(**{"from": "first_rest"})
+        self.assertEqual(edit.propose(scan, log, sb)["captions"][1]["frame"], 38 + 15)
+        scan, log, sb = self.after_the_tap(**{"from": "last_change"})
+        e = edit.propose(scan, log, sb)
+        self.assertEqual(e["captions"][1]["frame"], 126 + 15)
+        edit.check(e, scan, log, sb)
+        scan, log, sb = self.after_the_tap(**{"from": "the end"})
+        with self.assertRaises(Refusal) as cm:
+            edit.propose(scan, log, sb)
+        self.assertEqual((cm.exception.code, cm.exception.message),
+                         ("E_STORYBOARD", "shot C: caption_after.from is `the end`; it is one of first_rest, last_change"))
+
     def test_touch_points_are_in_film_time(self):
         e, *_ = proposed()
         self.assertEqual(e["touches"], [
@@ -842,6 +1027,10 @@ class Propose(unittest.TestCase):
         scan = scan_of(burst(1800, 1900) + burst(2200, 2600))
         _, log, sb = fixture()
         sb["timing"]["tail_s"] = 0.5
+        # the second touch follows the first answer by 0.4 s: its caption can
+        # only be in place 0.2 s before it — after the first touch point has
+        # gone, before the second lands
+        sb["timing"]["caption_lead_s"] = 0.2
         log["gestures"][1].update(near_s=3.67, tolerance_s=0.1)
         e = edit.propose(scan, log, sb)
         live = [s for s in e["segments"] if s["kind"] == "live"]
@@ -922,6 +1111,75 @@ class Propose(unittest.TestCase):
         self.assertEqual(e["poster_frame"], round(film["poster_s"] * fps))
         self.assertGreaterEqual(e["poster_frame"], e["final_hold_from"])
         self.assertTrue(15 <= film["duration_s"] <= 30)
+
+    def film_take(self, sb: dict, creation_s: float, snackbar_s: float = 3.0):
+        """A take of the film's own gestures, each answered for as long as
+        the rehearsal take of 2026-10-13 measured it. Not measured, ASSUMED:
+        the tap on « Arrivé » (0.4 s), and the last tap — the loader and the
+        form closing (`creation_s`), then « Rendez-vous créé » staying its
+        three seconds (SnackKind.success, app_snack_bar.dart) and leaving in
+        0.3 s."""
+        measured = {"swipe-arrive": 0.238, "tap-arrive": 0.4, "tap-libre": 0.352, "tap-coupe": 0.110,
+                    "tap-sans-numero": 0.160, "tap-nom": 0.085, "scroll-total": 1.550}
+
+        def answer(start_s: float, length_s: float) -> list[tuple[int, dict]]:
+            return burst(round(start_s * T), round((start_s + length_s) * T))
+
+        rows, log, t = [], {"device_points": [402, 874], "gestures": []}, 5.0
+        for shot in sb["shots"]:
+            for g in shot["gestures"]:
+                entry = {"id": g["id"], "kind": g["kind"]}
+                if g["kind"] == "type":
+                    entry["keys"] = [{"near_s": t + 3.0 * k} for k in range(len("Yao K."))]
+                    rows += [(round(k["near_s"] * T), CHANGE) for k in entry["keys"]]
+                    t += 3.0 * len(entry["keys"])
+                else:
+                    entry["near_s"] = t
+                    if g["kind"] == "tap":
+                        entry["at"] = [200, 400]
+                    else:
+                        entry["path"] = [[110, 410, 0], [250, 410, 448]]
+                    if g["id"] == "tap-creer":
+                        rows += answer(t, creation_s) + answer(t + creation_s + snackbar_s, 0.3)
+                        t += creation_s + snackbar_s
+                    else:
+                        rows += answer(t, measured[g["id"]])
+                    t += 4.0
+                log["gestures"].append(entry)
+        return scan_of(rows, end=round((t + 5) * T)), log
+
+    def test_the_film_has_room_for_the_creation_and_its_snackbar(self):
+        """The last tap opens one window that cannot be cut: the loader, the
+        form closing, the snackbar staying, the snackbar leaving — and the
+        poster frame, frozen at approval, must find the screen at rest after
+        it. The storyboard as it stands leaves that room; a retiming that
+        takes it away turns this red."""
+        sb = edit.storyboard(copy.deepcopy(STORYBOARD))
+        fps = sb["film"]["fps"]
+        for creation in (0.6, 1.0, 1.4):
+            scan, log = self.film_take(sb, creation)
+            e = edit.propose(scan, log, sb)
+            edit.check(e, scan, log, sb)
+            sp = edit.spans(e, T, fps)
+            window = [s for s in sp if s.kind == "live"][-1]
+            self.assertGreaterEqual(window.frames, round((creation + 3.0 + 0.3) * fps), creation)   # whole, in one piece
+            self.assertLessEqual(sp[-1].film_in, e["poster_frame"], creation)       # the snackbar has left by then
+            self.assertGreaterEqual(sp[-1].frames, round(sb["film"]["final_hold_min_s"] * fps), creation)
+        # a creation that takes three seconds does not fit — refused, not squeezed
+        scan, log = self.film_take(sb, 3.0)
+        with self.assertRaises(Refusal) as cm:
+            edit.check(edit.propose(scan, log, sb), scan, log, sb)
+        self.assertIn(cm.exception.code, ("E_FINAL_HOLD", "E_POSTER", "E_LENGTH"))
+
+    def test_the_name_is_typed_at_a_typing_pace(self):
+        """Six keys, each on film from 0.1 s before its letter to 0.1 s after
+        it: seven frames a key, with the storyboard's own numbers."""
+        sb = edit.storyboard(copy.deepcopy(STORYBOARD))
+        scan, log = self.film_take(sb, 0.6)
+        e = edit.propose(scan, log, sb)
+        keys = [g for g in edit.locate(scan, log, sb).gestures if g.kind == "type"]
+        ranges = [s for s in e["segments"] if s["kind"] == "live" and any(s["src_in"] <= k.down < s["src_out"] for k in keys)]
+        self.assertEqual([(s["src_out"] - s["src_in"]) // STEP for s in ranges], [7] * 6)
 
 
 class Refusals(unittest.TestCase):
@@ -1017,6 +1275,9 @@ class Refusals(unittest.TestCase):
         e, scan, log, sb = proposed()
         e["segments"][2]["kind"] = "dissolve"
         self.refused("E_SHAPE", e, scan, log, sb)
+        e, scan, log, sb = proposed()
+        e["segments"][2]["speed"] = 0.5                     # a hold has nothing else to say either
+        self.assertIn("a hold is kind, src_at, frames (and why) — got", self.refused("E_SHAPE", e, scan, log, sb))
 
     def test_a_range_that_is_not_whole_frames_is_refused(self):
         e, scan, log, sb = proposed()
@@ -1099,16 +1360,112 @@ class Refusals(unittest.TestCase):
         self.assertIn("starts before `one` has finished changing", self.refused("E_CAPTION", e, scan, log, sb))
         e, scan, log, sb = proposed()
         e["captions"][1], e["captions"][2] = e["captions"][2], e["captions"][1]
-        self.refused("E_CAPTION", e, scan, log, sb)
+        order = "the captions must be ['one', 'two', 'three'], the first from frame 0"
+        self.assertEqual(self.refused("E_CAPTION", e, scan, log, sb), order)
         e, scan, log, sb = proposed()
         del e["captions"][2]
-        self.refused("E_CAPTION", e, scan, log, sb)
+        self.assertEqual(self.refused("E_CAPTION", e, scan, log, sb), order)
         e, scan, log, sb = proposed()
         e["captions"][0]["frame"] = 1
-        self.refused("E_CAPTION", e, scan, log, sb)
+        self.assertEqual(self.refused("E_CAPTION", e, scan, log, sb), order)
         e, scan, log, sb = proposed()
         e["captions"][2]["frame"] = 447
         self.assertIn("runs past the end", self.refused("E_CAPTION", e, scan, log, sb))
+
+    def test_a_caption_moved_by_hand_is_refused(self):
+        """Well spaced, in order, on a still screen — and not where the
+        storyboard puts it: the storyboard is the one source for timings."""
+        e, scan, log, sb = proposed()
+        self.assertEqual(e["captions"][1], {"frame": 142, "caption": "two"})
+        e["captions"][1]["frame"] = 150
+        self.assertEqual(self.refused("E_CAPTION", e, scan, log, sb),
+                         "caption `two` changes at frame 150; the storyboard and the take put it at frame 142")
+        e, scan, log, sb = proposed()
+        e["captions"][2]["frame"] -= 1
+        self.assertIn("caption `three` changes at frame 211;", self.refused("E_CAPTION", e, scan, log, sb))
+
+    def test_a_rehearsals_shot_with_no_footage_places_its_own_caption(self):
+        """What `check` cannot work out again, and says so: a shot that is a
+        hold has no gesture to count from. Its caption is held to the order
+        and the spacing, nothing more — a rehearsal is never the film."""
+        scan = scan_of(burst(1800, 1900))
+        _, log, sb = fixture()
+        log["gestures"].pop()
+        e = edit.propose(scan, log, sb, rehearsal=True)
+        self.assertEqual([c["frame"] for c in e["captions"]], [0, 87, 159])
+        tm = edit.check(e, scan, log, sb)
+        placed = edit.place_captions(tm, edit.spans(e, T, 30), sb, True)
+        self.assertEqual([c["frame"] for c in placed], [0, None, None])
+        e["captions"][1]["frame"] = 100
+        edit.check(e, scan, log, sb)
+        e["captions"][1]["frame"] = 2
+        self.assertIn("starts before `one` has finished changing", self.refused("E_CAPTION", e, scan, log, sb))
+
+    def test_a_caption_that_changes_while_the_card_moves_is_refused(self):
+        """A caption changes at rest. With 0.2 s of rest after the tap, the
+        next caption — 0.8 s before the next touch — starts cross-fading as
+        the app's own bar comes in."""
+        scan, log, sb = fixture()
+        sb["shots"][0]["gestures"][0]["rest_after_s"] = 0.2
+        e = edit.propose(scan, log, sb)
+        self.assertEqual(e["captions"][1], {"frame": 118, "caption": "two"})   # frames 118–123; the bar moves on 123–126
+        self.assertEqual(self.refused("E_CAPTION", e, scan, log, sb),
+                         "caption `two` changes at 3.933 s while the picture in the card is still changing "
+                         "(4.100 s) — a caption changes at rest: lengthen the rest before it")
+        sb["shots"][0]["gestures"][0]["rest_after_s"] = 0.5                    # frames 127–132: the bar is in
+        e = edit.propose(scan, log, sb)
+        self.assertEqual(e["captions"][1]["frame"], 127)
+        edit.check(e, scan, log, sb)
+
+    def test_a_caption_that_changes_under_a_touch_point_is_refused(self):
+        scan = scan_of(burst(1800, 1900))
+        _, log, sb = fixture()
+        log["gestures"].pop()
+        after = {"gesture": "tap-a", "delay_s": 0.1}
+        sb["shots"] = [{"id": "A", "caption": "one", "gestures": [{"id": "tap-a", "kind": "tap", "rest_after_s": 0}]},
+                       {"id": "C", "caption": "three", "caption_after": after, "gestures": []}]
+        e = edit.propose(scan, log, sb)
+        # the answer ends on frame 38; the point lifts at 39 and is gone 0.2 s later, at 45
+        self.assertEqual((e["captions"][1]["frame"], e["touches"][0]["up"] // STEP), (41, 39))
+        self.assertEqual(self.refused("E_CAPTION", e, scan, log, sb),
+                         "caption `three` changes at 1.367 s while the touch point of `tap-a` is on screen — a "
+                         "caption changes at rest: lengthen the rest before it")
+        after["delay_s"] = 0.2                              # frame 44: its last frame
+        self.assertIn("while the touch point", self.refused("E_CAPTION", edit.propose(scan, log, sb), scan, log, sb))
+        after["delay_s"] = 0.3                              # frame 47
+        edit.check(edit.propose(scan, log, sb), scan, log, sb)
+
+    def test_a_caption_too_long_for_its_time_on_screen_is_refused(self):
+        """`three` is whole from frame 218 to the end, 7.73 s: 131 characters
+        at 17 a second, not one more."""
+        scan, log, sb = fixture()
+        sb["captions"]["three"] = {"headline": ["x" * 65, "y" * 65], "subline": []}
+        e = edit.propose(scan, log, sb)
+        self.assertEqual(e["captions"][2]["frame"] + 6, 218)
+        edit.check(e, scan, log, sb)
+        sb["captions"]["three"]["headline"][1] += "y"
+        self.assertEqual(self.refused("E_CAPTION", e, scan, log, sb),
+                         "caption `three` brings 132 characters and they are whole on screen for 7.73 s: at 17 "
+                         "characters a second they need 7.76 s")
+
+    def test_what_a_caption_brings_and_for_how_long(self):
+        sb = {"captions": {
+            "a": {"headline": ["Un titre", "sur deux lignes."], "subline": []},
+            "b": {"headline": ["Un titre", "sur deux lignes."], "subline": ["Une ligne dessous."]},
+            "c": {"headline": ["Autre", "titre."], "subline": ["Une ligne dessous."]},
+            "d": {"headline": ["Tout", "change."], "subline": ["Et la ligne aussi."]},
+            "e": {"headline": ["Tout", "change."], "subline": []}}}
+        caps = [{"frame": f, "caption": c} for f, c in ((0, "a"), (90, "b"), (300, "c"), (400, "d"), (500, "e"))]
+        self.assertEqual(edit.caption_reading(caps, sb, 6, 600), [
+            # the first caption is whole from frame 0; its headline stays until `c` replaces it
+            {"caption": "a", "characters": len("Un titre sur deux lignes."), "frames": 300},
+            # `b` brings a sub-line under the same headline: only the sub-line is to be read, and it outlives `c`
+            {"caption": "b", "characters": len("Une ligne dessous."), "frames": 400 - 96},
+            {"caption": "c", "characters": len("Autre titre."), "frames": 400 - 306},
+            # both parts new: read together, until the first of them goes
+            {"caption": "d", "characters": len("Tout change. Et la ligne aussi."), "frames": 500 - 406},
+            # `e` only takes a line away: nothing to read
+        ])
 
     def test_a_touch_point_moved_by_hand_is_refused(self):
         e, scan, log, sb = proposed()
@@ -1150,9 +1507,9 @@ class Refusals(unittest.TestCase):
         scan = scan_of([(1800, CHANGE)])
         _, log, sb = fixture()
         del log["gestures"][1]
-        sb["shots"] = [
+        sb["shots"] = [                                    # one caption all along: only the point is in the way
             {"id": "A", "caption": "one", "gestures": [{"id": "tap-a", "kind": "tap", "rest_after_s": 0}]},
-            {"id": "C", "caption": "three", "caption_after": {"gesture": "tap-a", "delay_s": 0}, "gestures": []},
+            {"id": "C", "caption": "one", "gestures": []},
         ]
         sb["film"]["poster_s"] = 44 / 30
         e = edit.propose(scan, log, sb)
@@ -1177,7 +1534,11 @@ class Describe(unittest.TestCase):
             "    0.000 s –   0.000 s     1 frames  (no gesture: the app on its own, or outside the film)",
             "    3.000 s –   3.167 s    11 frames  <- tap-a",
             "    6.000 s –   6.083 s     6 frames  (no gesture: the app on its own, or outside the film)",
-            "  film  1.000 –  4.533 s  LIVE  take   2.900 s –   6.433 s  (106 frames, 1:1)",
+            "  film  1.000 –  4.533 s  LIVE  take   2.900 s –   6.433 s  (106 frames, 1:1)  shows 10 of the take's "
+            "17 changed pictures, 0 twice while it moved",
+            # the fixture's three captions say the same two words: read once, on screen to the end
+            "  film  0.000 s  one  — 3 characters, whole for 15.00 s (0.2 a second; at most 17)\n",
+            "  film  4.733 s  two\n",
             "  film  4.533 –  5.533 s  HOLD  the picture at take   6.400 s  (30 frames)  rest after tap-a",
             "  1. take   0.000 s –   2.900 s removed: before the film starts (1 change frame in it",
             "  2. take   6.400 s –   9.977 s removed, lands on film  5.533 s: 0 quiet frames, 3 caret-only "

@@ -12,13 +12,18 @@ waiting. This module removes the waiting and nothing else:
   * Only the still stretch that ends at a touch-down — the app waiting for the
     finger — may be shortened, or lengthened by holding its picture. A typed
     key is a touch-down like any other.
+  * A kept range starts on its touch-down or up to one film frame before it,
+    on the same still picture: wherever the film's thirty frames a second
+    then show most of the pictures the take has (`phase`).
   * A cut may only jump between two pictures that are the same picture.
   * A text caret blinking, alone, is nothing changing.
 
 `propose` builds an edit list that obeys this from the scan of the take
 (conform scan), the gesture log and the storyboard. `check` re-derives the
-windows from the same data and refuses an edit list that breaks any of it —
-whoever wrote it. Times in the take are integer ticks of its own timescale;
+windows, the touch points and the captions from the same data and refuses an
+edit list that breaks any of it — whoever wrote it. It also holds the
+captions to two rules of their own: one changes only while the card is at
+rest, and what it brings stays long enough to be read. Times in the take are integer ticks of its own timescale;
 times in the film are whole frames.
 """
 
@@ -64,6 +69,13 @@ CARET_SLACK_PT = 1.0
 # flutter/lib/src/gestures/constants.dart): the first frame that moves is that
 # late after the touch-down.
 DRAG_SLOP_PT = 18.0
+
+# What a caption brings must be whole on screen long enough to be read: this
+# many characters a second at most, spaces counted — the ceiling subtitlers
+# work to for adult readers. The film's last sub-line is the sign-in
+# disclosure Apple asks for; a final hold of three seconds alone would let it
+# pass at 25 characters a second.
+READING_CPS = 17.0
 
 
 class Refusal(Exception):
@@ -230,6 +242,59 @@ def held(pts: list[int], instant: int) -> int | None:
     """Frame-hold: the last frame presented at or before `instant`."""
     j = bisect.bisect_right(pts, instant) - 1
     return j if j >= 0 else None
+
+
+# ---- where a kept range sits on the film's frames ---------------------------
+#
+# The recorder writes a frame whenever the screen changes: up to 60 a second,
+# and unevenly (on the rehearsal take of 2026-10-13 the eleven frames of a
+# swipe were 2 to 29 ticks apart). The film shows, 30 times a second, the last
+# one presented before each of its instants. WHICH instants is free: a kept
+# range may start anywhere in the still stretch before its touch-down, and one
+# film frame holds 20 ticks of it. Started on the touch-down itself, that
+# swipe showed 5 of its 11 pictures, two of them twice — 54 pt in its first
+# frame, then a frame that did not move; started 9 ticks earlier it shows 8,
+# none twice. Nothing of the take is retimed by this: every picture is still
+# shown at its own instant, to within one film frame, in order.
+
+def sampling(changes: list[int], a: int, n: int, step: int, rest: int) -> tuple[int, int]:
+    """How a kept range lands on the film's frames a, a + step, … (n of them).
+    Returns (repeats, shown): film frames that show the picture of the frame
+    before while the take was still changing — the next change less than
+    `rest` after that picture: a stutter — and how many of the take's changed
+    pictures the film shows at all."""
+    repeats, shown, before = 0, set(), None
+    for k in range(n):
+        i = bisect.bisect_right(changes, a + k * step) - 1
+        if i >= 0 and changes[i] >= a:
+            shown.add(i)
+            if i == before and i + 1 < len(changes) and changes[i + 1] - changes[i] < rest:
+                repeats += 1
+        before = i
+    return repeats, len(shown)
+
+
+def frames_for(a: int, need: int, step: int) -> int:
+    """Film frames of a kept range that starts at `a` and must show `need`:
+    the frame that holds `need`, and one more."""
+    return math.ceil((need - a) / step) + 1
+
+
+def phase(changes: list[int], a: int, need: int, floor: float, ceiling: float, step: int, rest: int) -> int:
+    """How many ticks before its touch-down `a` a kept range starts — less
+    than one film frame, inside the still stretch that ends there (not before
+    `floor`), and without reaching the next range (`ceiling`): the start with
+    the fewest repeated film frames, then the most pictures shown, then the
+    latest."""
+    best: tuple[int, int, int] | None = None
+    for d in range(step):
+        n = frames_for(a - d, need, step)
+        if d and (a - d < floor or a - d + n * step > ceiling):
+            continue
+        repeats, shown = sampling(changes, a - d, n, step, rest)
+        if best is None or (repeats, -shown) < best[:2]:
+            best = (repeats, -shown, d)
+    return best[2]
 
 
 # ---- the storyboard, in frames ----------------------------------------------
@@ -721,26 +786,37 @@ def propose(scan: dict, log: dict, sb: dict, rehearsal: bool = False, tracks: di
     timing = sb["timing"]
     total = whole_frames(sb["film"]["duration_s"], fps, "film.duration_s")
     tail = round(timing["tail_s"] * T)
+    # A typed key answers in one frame and the next key follows: it has its
+    # own, shorter tail, or a six-letter name takes 2.6 s of film to appear.
+    key_tail = round(timing.get("key_tail_s", timing["tail_s"]) * T)
+    rest = round(timing["rest_s"] * T)
     lead_in = whole_frames(timing["lead_in_s"], fps, "timing.lead_in_s")
-    caption_lead = whole_frames(timing["caption_lead_s"], fps, "timing.caption_lead_s")
     r_hold = whole_frames(timing["rehearsal_hold_s"], fps, "timing.rehearsal_hold_s")
-    r_delay = whole_frames(timing["rehearsal_caption_delay_s"], fps, "timing.rehearsal_caption_delay_s")
     rest_after = {g["id"]: whole_frames(g.get("rest_after_s", 0), fps, f"{g['id']}.rest_after_s")
                   for _, g in catalogue(sb)}
 
-    # 1. One kept range per gesture — from its touch-down to `tail` after its
-    #    last change — merged when two of them touch.
+    # 1. One kept range per gesture — from its touch-down to its tail after
+    #    its last change — merged when two of them touch.
     ranges: list[dict] = []
     for g in tm.gestures:
         a = g.down
-        n = math.ceil((g.last_change + tail - a) / step) + 1
+        need = g.last_change + (key_tail if g.kind == "type" else tail)
         if ranges and a < ranges[-1]["out"]:
             r = ranges[-1]
-            n = math.ceil((g.last_change + tail - r["in"]) / step) + 1
-            r["out"] = max(r["out"], r["in"] + n * step)
+            r["need"] = max(r["need"], need)
+            r["out"] = r["in"] + frames_for(r["in"], r["need"], step) * step
             r["gestures"].append(g)
         else:
-            ranges.append({"in": a, "out": a + n * step, "gestures": [g]})
+            ranges.append({"in": a, "need": need, "out": a + frames_for(a, need, step) * step, "gestures": [g]})
+    #    …then each is set on the film's frames (`phase`): it may start up to
+    #    one film frame earlier, on the same still picture — never before the
+    #    screen has been still for `tail`, never into the range before it.
+    for k, r in enumerate(ranges):
+        before = [p for p in tm.changes if p < r["in"]]
+        floor = max(before[-1] + tail if before else r["in"], ranges[k - 1]["out"] if k else 0)
+        ceiling = ranges[k + 1]["in"] if k + 1 < len(ranges) else math.inf
+        r["in"] -= phase(tm.changes, r["in"], r["need"], floor, ceiling, step, rest)
+        r["out"] = r["in"] + frames_for(r["in"], r["need"], step) * step
     range_of = {g.id: r for r in ranges for g in r["gestures"]}
 
     # 2. The film, shot by shot.
@@ -791,36 +867,87 @@ def propose(scan: dict, log: dict, sb: dict, rehearsal: bool = False, tracks: di
     edit = {"segments": segments}
     sp = spans(edit, T, fps)
 
-    # 3. Captions: a shot's caption is in place `caption_lead` before its first
-    #    touch; a shot without a gesture names the gesture it follows.
-    captions = [{"frame": 0, "caption": shots[0]["caption"]}]
+    # 3. Captions and touch points, in film time.
+    edit.update({
+        "fps": fps, "timescale": T, "rehearsal": bool(rehearsal),
+        "variant": sb.get("variant"),
+        "take": dict(scan.get("take", {})),
+        "captions": place_captions(tm, sp, sb, rehearsal, slots), "touches": propose_touches(tm, sp, fps),
+        "poster_frame": whole_frames(sb["film"]["poster_s"], fps, "film.poster_s"),
+        "final_hold_from": final_start,
+    })
+    return edit
+
+
+# Where a caption that follows a gesture counts from (`caption_after.from`):
+#   first_rest   the first time the screen rests after the touch — the end of
+#                the burst of changes the touch started (a form has closed, a
+#                snackbar has come in and stays);
+#   last_change  the end of everything the app does in answer (that snackbar
+#                has left too).
+CAPTION_FROM = ("first_rest", "last_change")
+
+
+def place_captions(tm: TakeMap, sp: list[Span], sb: dict, rehearsal: bool = False,
+                   slots: dict[str, int] | None = None) -> list[dict]:
+    """Where the storyboard and the take put each caption change: a shot's
+    caption is in place `caption_lead` before its first touch; a shot without
+    a gesture names the gesture it follows. `propose` writes this and `check`
+    works it out again. A rehearsal's shot with no footage is a hold the edit
+    list places (`slots`); without them its frame is None — not known here."""
+    T, fps = tm.timescale, sb["film"]["fps"]
+    step = T // fps
+    timing, shots = sb["timing"], sb["shots"]
+    caption_lead = whole_frames(timing["caption_lead_s"], fps, "timing.caption_lead_s")
+    r_delay = whole_frames(timing["rehearsal_caption_delay_s"], fps, "timing.rehearsal_caption_delay_s")
+    by_shot = {s["id"]: [g for g in tm.gestures if g.shot == s["id"]] for s in shots}
+    captions: list[dict] = [{"frame": 0, "caption": shots[0]["caption"]}]
     for shot in shots[1:]:
         if shot["caption"] == captions[-1]["caption"]:
             continue
         mine = by_shot[shot["id"]]
         after = shot.get("caption_after")
+        at: int | None
         if mine:
             at = math.floor(film_tick(sp, mine[0].down, T, fps) / step) - caption_lead
         elif after and any(x.gesture == after["gesture"] for x in tm.gestures):
             g = [x for x in tm.gestures if x.gesture == after["gesture"]][-1]
-            at = math.ceil(film_tick(sp, g.burst_end, T, fps) / step) + whole_frames(
+            origin = after.get("from", CAPTION_FROM[0])
+            if origin not in CAPTION_FROM:
+                raise Refusal("E_STORYBOARD", f"shot {shot['id']}: caption_after.from is `{origin}`; it is one of "
+                                              f"{', '.join(CAPTION_FROM)}")
+            since = g.burst_end if origin == CAPTION_FROM[0] else g.last_change
+            at = math.ceil(film_tick(sp, since, T, fps) / step) + whole_frames(
                 after["delay_s"], fps, f"{shot['id']}.caption_after.delay_s")
         elif rehearsal:
-            at = slots[shot["id"]] + r_delay
+            at = slots[shot["id"]] + r_delay if slots is not None else None
         else:
             raise Refusal("E_STORYBOARD", f"shot {shot['id']} has no gesture: it needs `caption_after`")
         captions.append({"frame": at, "caption": shot["caption"]})
+    return captions
 
-    # 4. Touch points, in film time.
-    edit.update({
-        "fps": fps, "timescale": T, "rehearsal": bool(rehearsal),
-        "variant": sb.get("variant"),
-        "take": dict(scan.get("take", {})),
-        "captions": captions, "touches": propose_touches(tm, sp, fps),
-        "poster_frame": whole_frames(sb["film"]["poster_s"], fps, "film.poster_s"),
-        "final_hold_from": final_start,
-    })
-    return edit
+
+def caption_reading(caps: list[dict], sb: dict, fade: int, total: int) -> list[dict]:
+    """For each caption that brings words: how many characters (spaces
+    counted, lines joined by one), and for how many frames all of them are
+    whole on screen — from the end of the cross-fade that brings them to the
+    start of the first that takes one of them away. A headline two captions
+    share is read once, when it arrives."""
+    def words(c: dict) -> dict[str, str]:
+        caption = sb["captions"][c["caption"]]
+        return {part: " ".join(caption.get(part) or []) for part in ("headline", "subline")}
+
+    texts = [words(c) for c in caps]
+    out = []
+    for i, c in enumerate(caps):
+        new = [part for part, text in texts[i].items() if text and (i == 0 or texts[i - 1][part] != text)]
+        if not new:
+            continue
+        gone = [next((caps[j]["frame"] for j in range(i + 1, len(caps)) if texts[j][part] != texts[i][part]), total)
+                for part in new]
+        out.append({"caption": c["caption"], "characters": len(" ".join(texts[i][part] for part in new)),
+                    "frames": min(gone) - (c["frame"] + fade if i else 0)})
+    return out
 
 
 # ---- checking ----------------------------------------------------------------
@@ -907,13 +1034,11 @@ def check(edit: dict, scan: dict, log: dict, sb: dict,
         raise Refusal("E_FINAL_HOLD", f"the final hold is {final.frames / fps:.2f} s; the storyboard asks for at "
                                       f"least {minimum / fps:g} s")
 
-    # Captions: the storyboard's, in its order, one cross-fade at a time.
+    # Captions: the storyboard's, in its order, one cross-fade at a time…
     fade = motion(sb["motion"]["caption"]).frames(fps)
     caps = edit.get("captions") or []
-    expected = []
-    for shot in sb["shots"]:
-        if not expected or expected[-1] != shot["caption"]:
-            expected.append(shot["caption"])
+    placed = place_captions(tm, sp, sb, rehearsal)
+    expected = [c["caption"] for c in placed]
     if [c.get("caption") for c in caps] != expected or caps[0].get("frame") != 0:
         raise Refusal("E_CAPTION", f"the captions must be {expected}, the first from frame 0")
     for a, b in zip(caps, caps[1:]):
@@ -922,12 +1047,45 @@ def check(edit: dict, scan: dict, log: dict, sb: dict,
                                        f"`{a['caption']}` has finished changing")
     if caps[-1]["frame"] + fade > total:
         raise Refusal("E_CAPTION", "the last caption change runs past the end of the film")
-
     # Touch points sit where the data puts them.
     mine = edit.get("touches") or []
     theirs = propose_touches(tm, sp, fps)
     if mine != theirs:
         raise Refusal("E_TOUCH", "the touch points are not where the take and the gesture log put them")
+
+    # Each caption changes where the storyboard and the take put it, not
+    # where a hand did. (A rehearsal's shot with no footage is a hold the
+    # edit list itself places: its caption is only held to the order and the
+    # spacing above.)
+    for c, want in zip(caps, placed):
+        if want["frame"] is not None and c["frame"] != want["frame"]:
+            raise Refusal("E_CAPTION", f"caption `{c['caption']}` changes at frame {c['frame']}; the storyboard and "
+                                       f"the take put it at frame {want['frame']}")
+
+    # It changes at rest: while it cross-fades, nothing changes in the card
+    # and no touch point is on it.
+    out_ticks = motion(sb["motion"]["touch_out"]).frames(fps) * step
+    moving = sorted({s.film_in + math.ceil((p - s.src_in) / step)
+                     for s in live for p in tm.changes if s.src_in < p <= s.last})
+    for c in caps[1:]:
+        fading = range(c["frame"], c["frame"] + fade)
+        busy = [n for n in moving if n in fading]
+        if busy:
+            raise Refusal("E_CAPTION", f"caption `{c['caption']}` changes at {c['frame'] / fps:.3f} s while the "
+                                       f"picture in the card is still changing ({busy[0] / fps:.3f} s) — a caption "
+                                       f"changes at rest: lengthen the rest before it")
+        for t in mine:
+            if any(t["down"] < n * step < t["up"] + out_ticks for n in fading):
+                raise Refusal("E_CAPTION", f"caption `{c['caption']}` changes at {c['frame'] / fps:.3f} s while "
+                                           f"the touch point of `{t['gesture']}` is on screen — a caption changes "
+                                           f"at rest: lengthen the rest before it")
+    # …and what it brings stays long enough to be read.
+    for r in caption_reading(caps, sb, fade, total):
+        if r["frames"] * READING_CPS < r["characters"] * fps:
+            raise Refusal("E_CAPTION", f"caption `{r['caption']}` brings {r['characters']} characters and they are "
+                                       f"whole on screen for {max(r['frames'], 0) / fps:.2f} s: at "
+                                       f"{READING_CPS:g} characters a second they need "
+                                       f"{r['characters'] / READING_CPS:.2f} s")
 
     # The poster frame: the final hold, nothing in motion.
     poster = edit.get("poster_frame")
@@ -970,6 +1128,31 @@ def propose_touches(tm: TakeMap, sp: list[Span], fps: int) -> list[dict]:
             touch["step"] = [down + (t - g.down) for t in g.step]
         out.append(touch)
     return out
+
+
+def drag_steps(g: Located, track: dict | None, sp: list[Span], step: int) -> list[float]:
+    """What a followed drag looks like in the film: how far the picture under
+    the finger moves from each film frame to the next, in points, from the
+    frame before it first moves to the one that shows the last picture that
+    followed. A 0 is a film frame that shows the picture of the frame before
+    while the finger was moving; a first value much larger than the others is
+    a drag whose first samples reached the app in one lump."""
+    if not track or not g.step:
+        return []
+    live = next((s for s in sp if s.kind == "live" and s.src_in <= g.step[0] <= s.last), None)
+    if live is None:
+        return []
+    followed = [(pts, pt) for pts, pt in track["frames"] if pts <= g.step[1]]
+    times = [pts for pts, _ in followed]
+
+    def along(instant: int) -> float:
+        j = bisect.bisect_right(times, instant) - 1
+        return followed[j][1] if j >= 0 else 0.0
+
+    first = math.ceil((g.step[0] - live.src_in) / step)
+    last = math.ceil((g.step[1] - live.src_in) / step)
+    seen = [along(live.src_in + k * step) for k in range(first - 1, last + 1)]
+    return [round(b - a, 1) for a, b in zip(seen, seen[1:])]
 
 
 # ---- the log a person reads --------------------------------------------------
@@ -1027,11 +1210,18 @@ def describe(edit: dict, scan: dict, log: dict, sb: dict,
             w(f"  {'':<16} {g.how}")
     w("")
     w("film (what is kept, and where it lands)")
+    step = T // fps
+    rest = round(sb["timing"]["rest_s"] * T)
     for seg, x in zip(edit["segments"], sp):
         t0, t1 = x.film_in / fps, (x.film_in + x.frames) / fps
         if x.kind == "live":
+            # the take has a picture whenever the screen changed, up to 60 a
+            # second; the film shows the last one before each of its frames
+            repeats, shown = sampling(tm.changes, x.src_in, x.frames, step, rest)
+            had = sum(1 for p in tm.changes if x.src_in <= p <= x.last)
             w(f"  film {t0:6.3f} – {t1:6.3f} s  LIVE  take {s(x.src_in)} – {s(x.src_out)}  "
-              f"({x.frames} frames, 1:1)")
+              f"({x.frames} frames, 1:1)  shows {shown} of the take's {had} changed pictures, "
+              f"{repeats} twice while it moved")
         else:
             w(f"  film {t0:6.3f} – {t1:6.3f} s  HOLD  the picture at take {s(x.first)}  "
               f"({x.frames} frames)  {seg.get('why', '')}")
@@ -1078,13 +1268,26 @@ def describe(edit: dict, scan: dict, log: dict, sb: dict,
           f"({len(after)} change frame{'' if len(after) == 1 else 's'} in it)")
     w("")
     w("captions")
+    fade = _token_ticks(sb, sb["motion"]["caption"], T) // step
+    read = {r["caption"]: r for r in caption_reading(edit["captions"], sb, fade, sum(x.frames for x in sp))}
     for c in edit["captions"]:
-        w(f"  film {c['frame'] / fps:6.3f} s  {c['caption']}")
+        r = read.get(c["caption"])
+        w(f"  film {c['frame'] / fps:6.3f} s  {c['caption']}"
+          + (f"  — {r['characters']} characters, whole for {r['frames'] / fps:.2f} s "
+             f"({r['characters'] * fps / max(r['frames'], 1):.1f} a second; at most {READING_CPS:g})" if r else ""))
     w("touch points")
     for t in edit["touches"]:
         w(f"  film {t['down'] / T:6.3f} – {t['up'] / T:6.3f} s  {t['kind']:<5} {t['gesture']}  "
           f"from ({t['path'][0][1]:g}, {t['path'][0][2]:g}) pt"
           + (f" to ({t['path'][-1][1]:g}, {t['path'][-1][2]:g}) pt" if t["kind"] == "drag" else ""))
+    moved = [(g, drag_steps(g, (tracks or {}).get(g.gesture), sp, step)) for g in tm.gestures if g.kind == "drag"]
+    if any(steps for _, steps in moved):
+        w("drags, film frame by film frame (points the picture moved under the finger)")
+        for g, steps in moved:
+            if steps:
+                w(f"  {g.id:<16} " + " ".join(f"{v:g}" for v in steps))
+                w(f"  {'':<16} first step {steps[0]:g} pt; {sum(1 for v in steps if v == 0)} "
+                  f"film frame{'' if sum(1 for v in steps if v == 0) == 1 else 's'} did not move")
     w(f"poster frame: film {edit['poster_frame'] / fps:g} s (frame {edit['poster_frame']}); "
       f"final hold from {edit['final_hold_from'] / fps:.3f} s; {sum(x.frames for x in sp)} frames, "
       f"{sum(x.frames for x in sp) / fps:.3f} s")
