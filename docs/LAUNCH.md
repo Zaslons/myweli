@@ -1121,11 +1121,30 @@ checking rather than assuming:
 > re-read, validated, uploaded, `VALID`; the only build in « Équipe MyWeli »;
 > in « Testeurs externes » and available there at once (Apple had approved
 > the 0.0.1 beta review on 569 the same day); symbols in Sentry, read back.
-> **577 is the newest build, not yet « the build to submit »**: App Store
+> ~~577 is the newest build~~ (579 below), not yet « the build to submit »: App Store
 > Connect was read field by field (app-store-forms.md §13.1) — the listing is
 > a shell, release is still set to « after approval », and three decisions
 > touch the binary or the server (the language App Store Connect reads, as
 > English today; landscape; deletion of the shared demo account).
+>
+> **2026-10-13 (evening) — build 579 replaces 577; the listing is filled.**
+> From `main` at `6850fabe` (#584): French is the iOS project's development
+> language, the bundle carries an `fr.lproj`, iPhone is portrait-only. IPA
+> re-read, validated, uploaded, `VALID`. **App Store Connect now reads the
+> build as French** (`buildBundles.locales = ["fr"]`; 577, re-read at the
+> same moment, still `["en"]`). The only build in « Équipe MyWeli »; in
+> « Testeurs externes » and available at once; symbols in Sentry, read back;
+> **attached to version 0.0.1**. The same evening, with the owner's go, the
+> listing was written through the API and every value read back: subtitle,
+> categories, privacy and support URLs, description, keywords, promotional
+> text, copyright, **manual release**, review information (sign-in required,
+> demo username, the notes in force) and the **16 approved screenshots**
+> (app-store-forms.md §13.1). **Left to the owner, on the site**: the App
+> Privacy label, the content-rights declaration, the demo password and
+> contact details. **Open**: the demo account's deletion lock is built and
+> reviewed, not merged and not deployed (Zaslons/myweli#585 — production
+> still deletes that account today); the App Preview video is a proposal
+> awaiting sign-off (design/pro-app-preview.md); the device checks on 579.
 
 - [ ] Everything in [mobile-store-submission.md](design/mobile-store-submission.md) §5.
       Two of its claims are **stale as of 2026-08-18** and must be corrected
