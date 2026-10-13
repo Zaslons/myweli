@@ -92,6 +92,26 @@ describe('AddSalonClient', () => {
     expect(replace).not.toHaveBeenCalled();
   });
 
+  it('demo_account_locked → the demo sentence, and no offer CTA', async () => {
+    // Same table, same code (docs/design/demo-account-deletion-lock.md §7.2).
+    mockFetch({ addStatus: 403, addBody: { error: 'demo_account_locked' } });
+    render(<AddSalonClient />);
+    await screen.findByText('Ajouter un salon');
+
+    fireEvent.change(screen.getByPlaceholderText('Ex : Salon Excellence Yopougon'), {
+      target: { value: 'Salon Trois' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Créer le salon' }));
+
+    expect(
+      await screen.findByText(
+        'Compte de démonstration — cette action est désactivée.',
+      ),
+    ).toBeTruthy();
+    expect(screen.queryByRole('link', { name: 'Passer à l’offre Réseau' })).toBeNull();
+    expect(replace).not.toHaveBeenCalled();
+  });
+
   it('success → create, SELECT the new salon, land on /pro', async () => {
     const calls = mockFetch({
       addStatus: 201,

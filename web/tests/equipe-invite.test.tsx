@@ -115,6 +115,28 @@ describe('InviteMemberDialog', () => {
     ).toBeTruthy();
   });
 
+  it('demo_account_locked → the demo sentence, and no CTA (the store-review demo account)', async () => {
+    // The shared table learned the code with the deletion lock
+    // (docs/design/demo-account-deletion-lock.md §7.2); this dialog renders
+    // through it, so it stopped saying « Une erreur est survenue. Réessayez. ».
+    mockInvite(403, { error: 'demo_account_locked' });
+    renderDialog();
+    fireEvent.change(screen.getByPlaceholderText('collaborateur@exemple.com'), {
+      target: { value: 'x@salon.test' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /^Manager/ }));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Envoyer l’invitation' }),
+    );
+    expect(
+      await screen.findByText(
+        'Compte de démonstration — cette action est désactivée.',
+      ),
+    ).toBeTruthy();
+    expect(screen.queryByText('Une erreur est survenue. Réessayez.')).toBeNull();
+    expect(screen.queryByRole('link', { name: /offre/i })).toBeNull();
+  });
+
   it('offer_required → copy + the picker CTA', async () => {
     mockInvite(409, { error: 'offer_required' });
     renderDialog();
