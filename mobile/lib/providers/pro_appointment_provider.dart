@@ -23,12 +23,37 @@ class ProAppointmentProvider extends ChangeNotifier implements SalonScoped {
   String? get error => _error;
   String? get errorCode => _errorCode;
 
+  /// What [_appointments] was last asked for — « En attente » asks for one
+  /// status, « Aujourd’hui » for one day, « À venir » for everything from now.
+  ///
+  /// Kept so that a booking created afterwards joins the list only when the
+  /// list would have contained it. It used to be appended whatever the list
+  /// was, and a « Confirmé » booking appeared under « En attente »
+  /// (docs/design/pro-journal-shows-new-booking.md §2.6).
+  AppointmentStatus? _loadedStatus;
+  DateTime? _loadedFrom;
+  DateTime? _loadedTo;
+
+  /// The same test `getProviderAppointments` applies: both bounds inclusive.
+  bool _belongsToLoadedList(Appointment a) {
+    final status = _loadedStatus;
+    final from = _loadedFrom;
+    final to = _loadedTo;
+    if (status != null && a.status != status) return false;
+    if (from != null && a.appointmentDate.isBefore(from)) return false;
+    if (to != null && a.appointmentDate.isAfter(to)) return false;
+    return true;
+  }
+
   Future<void> loadAppointments(
     String providerId, {
     AppointmentStatus? status,
     DateTime? startDate,
     DateTime? endDate,
   }) async {
+    _loadedStatus = status;
+    _loadedFrom = startDate;
+    _loadedTo = endDate;
     _isLoading = true;
     _error = null;
     notifyListeners();
@@ -246,8 +271,10 @@ class ProAppointmentProvider extends ChangeNotifier implements SalonScoped {
       );
       if (response.success && response.data != null) {
         final created = response.data!;
-        _appointments = [..._appointments, created]
-          ..sort((a, b) => a.appointmentDate.compareTo(b.appointmentDate));
+        if (_belongsToLoadedList(created)) {
+          _appointments = [..._appointments, created]
+            ..sort((a, b) => a.appointmentDate.compareTo(b.appointmentDate));
+        }
         _error = null;
         _errorCode = null;
         // The ONE announcement of « a booking was created »: « Ma journée »,
@@ -276,6 +303,9 @@ class ProAppointmentProvider extends ChangeNotifier implements SalonScoped {
   @override
   void resetForSalonSwitch() {
     _appointments = [];
+    _loadedStatus = null;
+    _loadedFrom = null;
+    _loadedTo = null;
     _isLoading = false;
     _error = null;
     notifyListeners();
