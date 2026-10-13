@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Approved** (owner, 2026-10-13: the recommendation of [app-store-forms.md](app-store-forms.md) §13.1 point 3 — a server-side refusal for the demo identity) — **built 2026-10-13** on `fix/demo-account-deletion-lock`. **Not merged, not deployed.** What was run and what was not: §9.1. The amended review notes are valid only once production serves the lock (§10). |
+| **Status** | **Approved** (owner, 2026-10-13: the recommendation of [app-store-forms.md](app-store-forms.md) §13.1 point 3 — a server-side refusal for the demo identity) — **built 2026-10-13** on `fix/demo-account-deletion-lock`, then reviewed and corrected the same day (§9.2). **Not merged, not deployed.** What was run and what was not: §9.1. The amended review notes are valid only once production serves the lock (§10); until a dated line says so, the notes in force stay the paste-ready block ([app-store-forms.md](app-store-forms.md) §8). |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-10-13 |
 | **PRD ref / phase** | Store submission (App Review 5.1.1(v) — account deletion; guideline 2.1 — a working demo account) · V1 |
@@ -18,10 +18,11 @@ and Play review notes. The Pro app offers account deletion (Profil >
 A reviewer who tries that feature on the shared account must get a clear
 refusal, on every day of the week, and the account must survive.
 
-**Why it matters.** Nothing recreates the identity (§2). One deletion ends
-every later review: the next sign-in with the credentials in the notes
-answers `provider_not_found`, which App Review reads as guideline 2.1 (« we
-were unable to sign in with the demo account »).
+**Why it matters.** Nothing recreates the identity automatically (§2). One
+deletion ends every later review until someone rebuilds the demo by hand:
+the next sign-in with the credentials in the notes answers
+`provider_not_found`, which App Review reads as guideline 2.1 (« we were
+unable to sign in with the demo account »).
 
 **In scope.**
 
@@ -84,9 +85,9 @@ test/me_provider_test.dart`, the new tests on the unchanged service):
 | handler — `DELETE /me/provider` as the demo identity | 403 | **204** |
 | handler — same, with an upcoming booking | 403 | 409 |
 
-**Nothing recreates the identity.** Observed with a throw-away probe on the
-in-memory repositories (not committed): after the three writes a deletion
-makes, the salon's owner row reads `role=owner status=revoked
+**Nothing recreates the identity automatically.** Observed with a throw-away
+probe on the in-memory repositories (not committed): after the three writes
+a deletion makes, the salon's owner row reads `role=owner status=revoked
 email=revue@myweli.test`; the reset at +7 days **runs** (`ran=true`, four
 bookings regenerated on a salon nobody can open); `accountByEmail` answers
 null; a new capture answers `demo_account_missing`. The reset's safety check
@@ -99,6 +100,17 @@ same. *The Postgres half is read in the SQL, not run.*
 This also corrects [backend-demo-review-account.md](backend-demo-review-account.md)
 §9, which said the reset « probably keeps restoring an orphaned salon
 (INFERRED) »: it does.
+
+**By hand, whoever holds the code can register it again.**
+`backend/routes/auth/provider/register.dart` applies the same
+mint-and-consume seam to registration — the one-time provisioning path —
+and the registration refuses an address only while a row carries it
+(`provider_exists`). Once the row is gone, `revue@myweli.test` registers
+like a new account: a new EMPTY salon, with the business name, type, phone
+and address the registrant types. That does not bring « Maison Nala » back:
+the reset targets the salon its snapshot names, not the account's. The code
+is public, so after a loss the first person to register owns the identity
+until the owner re-curates and recaptures. *Read in the code, not run.*
 
 ## 3. API & contract
 
@@ -144,7 +156,7 @@ real account.
   delete); a test pins that (§9).
 - **Keyed on the calling account's own e-mail** — `isDemoIdentity(account.email
   ?? '')`. The caller is the subject here, as for salon creation
-  (`SalonDirectoryService.createSalon`). Publish, invitations and the offer
+  (`SalonDirectoryService.addSalon`). Publish, invitations and the offer
   change key on the *salon's* owner row instead, because their subject is a
   salon.
 - **The same helper as every other lock**: trimmed, case-insensitive, exact
@@ -152,6 +164,13 @@ real account.
 - **Independent of the sign-in seam.** The lock reads a constant, not
   `DEMO_PROVIDER_CODE`. With the seam switched off nobody can sign in as the
   demo account, and a session that already exists still gets the 403.
+
+### 5.1 Performance
+
+No added query and no added write. The lock is one string comparison on the
+account row `deleteAccount` already loads; for the demo identity the method
+returns after that single read, before the membership and appointment reads
+the agenda gate makes. No list, no pagination, no cache, no payload change.
 
 ## 6. Security & authz
 
@@ -167,14 +186,19 @@ token, never from the client). Deny by default.
   deleting itself. The four others, read in the code on 2026-10-13: publish
   (`SalonProvisioningService.publish`), team invitation (`TeamService.invite`),
   offer choice or switch (`SalonSubscriptionService.chooseOffer`), salon
-  creation (`SalonDirectoryService.createSalon`). All five answer 403
+  creation (`SalonDirectoryService.addSalon`). All five answer 403
   `demo_account_locked` from the service.
 - **T53** (provider account deletion). One more refusal, evaluated first.
   Everything else about the deletion is unchanged.
 
 Residual, stated: the lock protects the identity from the product. It does
 not protect it from an operator working in the database, and the reset still
-does not recreate it (§12 Q1).
+does not recreate it (§12 Q1). After such a loss the register route still
+honours the public code, so the first person to register
+`revue@myweli.test` owns the identity — an empty salon, the business fields
+they chose — until the owner re-curates and recaptures (§2). That account
+carries the demo address again, so the five locks apply to it: what is lost
+is the curated salon, not the room.
 
 ### 6.3 Bypasses checked (2026-10-13, by reading the code)
 
@@ -188,6 +212,7 @@ does not recreate it (§12 Q1).
 | Data-export or erasure endpoints? | The Pro export is assembled client-side from scoped reads; there is no server erasure endpoint other than the two above. |
 | Can the demo owner drop its own owner membership? | No — 403 `owner_protected` (`TeamService`). |
 | What does the weekly reset do if the identity is missing? | It keeps resetting the orphaned salon and never recreates the identity (§2). A capture answers `demo_account_missing`. |
+| Once the identity is lost, can someone else take it? | **Yes, by registering it** — the register route honours the demo code and the address is free again (§2). Not a way around the lock: it needs the identity to be gone first, and the new account is locked the same way. Recorded in T69 as a residual. |
 
 Nothing in this class was found that needed a fix beyond the lock itself.
 
@@ -288,8 +313,8 @@ No surface changes (§6.4).
 
 ## 9. Testing plan
 
-Each new guard is watched red by a mutation on committed work; the list is
-in the commit messages and in the roadmap entry.
+Each new guard is watched red by a mutation on committed work; the lists are
+in the commit messages, the counts in the roadmap entry.
 
 - **Service** (`backend/test/provider_account_service_test.dart`): the demo
   identity is refused and nothing is mutated — the account, its KYC rows and
@@ -306,16 +331,23 @@ in the commit messages and in the roadmap entry.
   `POST`, `PUT`, `PATCH`.
 - **Contract** (`backend/test/contract/demo_account_deletion_lock_contract_test.dart`):
   the document names `demo_account_locked` on the operation and on its 403.
-- **Inventory** (`backend/test/demo/demo_locks_inventory_test.dart`): the
-  services that answer `demo_account_locked` are exactly the five listed in
-  the header of `demo_seam.dart`, and the identity delete has no caller
-  outside `ProviderAccountService`.
+- **Inventory** (`backend/test/demo/demo_locks_inventory_test.dart`): each
+  lock SITE under `lib/src` is read with the `Class.method` that holds it —
+  one per service, the five the header of `demo_seam.dart` names, route and
+  method; the files that read the demo identity at all are pinned (the guard
+  on a lock written in another shape); the identity delete has one caller
+  of `deleteAccount(` and one `DELETE FROM provider_users` across `lib/`,
+  `routes/`, `tool/` and `main.dart`. It cannot see a lock answered under
+  another code, an action that has no lock, or a delete that is neither
+  that call nor that statement.
 - **App** (`mobile/test/widget/pro_profile_delete_account_test.dart`, on both
   platforms): the sentence on that code even when the service sends another
   message; still signed in, still on Profil, the entry still there; the
   `future_bookings` sentence, a generic failure and a success (sign-out, the
   login screen) as controls; and the unchanged screen through the real
-  `ApiProService` over HTTP 403. `mobile/test/unit/api_pro_service_test.dart`:
+  `ApiProService` over HTTP 403. Every refusal is also held to its form: the
+  confirmation dialog is closed, and the sentence sits in a snackbar of the
+  ERROR kind (its colour, its six seconds). `mobile/test/unit/api_pro_service_test.dart`:
   the service maps the code.
 - **Web** (`web/tests/compte-danger-section.test.tsx`): the sentence on that
   code, announced, owner and member variants; controls for `future_bookings`,
@@ -325,9 +357,14 @@ in the commit messages and in the roadmap entry.
   with the app's constant. `web/tests/equipe-invite.test.tsx` and
   `web/tests/add-salon.test.tsx`: the two surfaces that render through the
   table now say the demo sentence.
-- **Review notes** (`mobile/test/infra/app_review_notes_test.dart`): the
-  block pasted into App Store Connect stays under 4,000 bytes, its stated
-  counts are the real ones, and it quotes the sentence the app shows.
+- **Review notes** (`mobile/test/infra/app_review_notes_test.dart`), over
+  both stores' texts: each App Store block stays under 4,000 bytes and its
+  stated counts are the real ones; every quote of the refusal — two App
+  Store blocks, two Play texts — is the app's constant; and **the text under
+  « coller tel quel » promises the lock only once the line of
+  [app-store-forms.md](app-store-forms.md) §8 carries the date of the
+  production check** (§10). The test reads that line; it cannot see
+  production, and says so.
 
 ### 9.1 What was run on 2026-10-13, and what was not
 
@@ -368,6 +405,27 @@ only their text differs for one code). CI runs them on the pull request.
 server (nothing is deployed); the reset's behaviour on Postgres once the
 identity is gone (read in the SQL, run on the in-memory repositories only).
 
+### 9.2 After the review (2026-10-13)
+
+Two reviewers read the branch. What they found, and what changed:
+
+| finding | what was done |
+|---|---|
+| The only paste-ready block of §8 had become the amended notes, false until the deploy — and §13 / §13.1 of the same file say « les notes du §8 telles quelles » | §8 holds both blocks: the notes in force under « coller tel quel » (main's block, byte for byte), the amended ones under their own label, and one dated line that decides. The Play text got the same shape. The test reads the line. §13 / §13.1 are not edited on this branch (§12 Q5). |
+| The inventory compared FILES: a sixth lock inside a listed service left it green; so did a second identity delete in SQL, and a caller under `tool/` | It reads sites and the method holding each, the SQL statement, and `tool/` + `main.dart`. |
+| The seam header named `SalonDirectoryService.createSalon`; the method is `addSalon` | Corrected here and in the header; the test now requires each named method to hold its lock. |
+| No test held the refusal to an ERROR snackbar shown after the dialog closes | Asserted on the four refusals. No change to the screen. |
+| The Play text's quote of the refusal was not held to the app's constant | It is, with the App Store blocks. A mutation then showed the quote regex was keyed on the sentence's first words; it is keyed on its words now. |
+| « Nothing recreates the identity » was unqualified | « automatically », and the first-registrant residual is in T69 (§2, §6.2). |
+| §10.1 quoted a label the app does not have | The real path, reread in the code (§10.1). |
+| No « Performance » section | §5.1. |
+
+Watched red in that round, each on committed work with an exact-anchor
+assert, then restored: inventory 12 (and one control); Profil 3; web 3;
+review notes 25 (and three controls, one known survivor — another label of
+the notes altered identically in both blocks, which that test does not
+check). The lists are in the commit messages.
+
 ## 10. Rollout
 
 1. **Merge** the pull request once CI is green (the owner merges).
@@ -379,11 +437,15 @@ identity is gone (read in the SQL, run on the in-memory repositories only).
    with the typed confirmation. It needs the owner's explicit go; a green CI
    is not one.
 4. **Verify production without risking the account** (§10.1).
-5. **Only then** do the amended review notes go to App Store Connect and the
-   Play Console ([app-store-forms.md](app-store-forms.md) §8,
-   [play-store-forms.md](play-store-forms.md) §2). Until production serves
-   the guard, the previous notes stay: the amended ones tell the reviewer the
-   demo account cannot be deleted, which is false until step 3.
+5. **Only then**: write the date of that check on the line « Verrou de
+   suppression du compte démo — vérifié en production » of
+   [app-store-forms.md](app-store-forms.md) §8, and put the amended notes in
+   App Store Connect and the Play Console (§8 there,
+   [play-store-forms.md](play-store-forms.md) §2). Until then the notes in
+   force are the ones to paste — they are the block under « coller tel
+   quel », and a test fails if that block promises the lock while the line
+   says « pas encore ». The amended ones tell the reviewer the demo account
+   cannot be deleted, which is false until step 3.
 
 No app release is required (§7.1). No flag, no configuration, no migration,
 nothing to roll back but the image.
@@ -403,9 +465,12 @@ they differ:
    commit.
 2. The owner signs in as the demo account on the TestFlight build. Nobody
    else signs in as the demo account for this check.
-3. In the agenda, create a manual booking for **tomorrow** (« Nouveau
-   rendez-vous »). A manual booking is `confirmed`. Check that it is on the
-   agenda.
+3. Create a manual booking for **tomorrow**: « Accueil » > « Rendez-vous »
+   (the screen « Ma journée ») > « Nouveau »; on « Réservation », pick a
+   service, set « Date » to tomorrow and an « Heure », tick « Client sans
+   numéro », then « Créer le rendez-vous ». A manual booking is
+   `confirmed`. Check that it is there: back on « Ma journée », « Jour
+   suivant » shows it.
 4. Within the same minute: Profil > « Supprimer mon compte » > `SUPPRIMER` >
    « Supprimer définitivement ».
    - « Compte de démonstration — cette action est désactivée. » → **the
@@ -438,8 +503,9 @@ failed. Hence « within the same minute », and step 1 first.
 - [ ] Pull request opened and merged — **the owner**.
 - [ ] Deployed to production with the owner's go, verified per §10.1 — **not
       done from this branch**.
-- [ ] Amended review notes in App Store Connect and the Play Console —
-      **owner, after the deploy**.
+- [ ] The line of app-store-forms.md §8 dated, then the amended review
+      notes in App Store Connect and the Play Console — **owner, after the
+      deploy and the check of §10.1**.
 
 ## 12. Open questions
 
@@ -447,7 +513,8 @@ failed. Hence « within the same minute », and step 1 first.
    path. An out-of-band loss (a database operation, a restore) still leaves
    a salon the reset keeps restoring and nobody can open. Recovery is manual:
    register again with the fixed code, curate, recapture
-   ([backend-demo-review-account.md](backend-demo-review-account.md) §9).
+   ([backend-demo-review-account.md](backend-demo-review-account.md) §9) —
+   and since the code is public, someone else can register first (§2).
    Should the reset re-provision the identity? Not built; not needed for the
    submission.
 2. **The reset does not restore the account row.** KYC documents a reviewer
@@ -460,3 +527,12 @@ failed. Hence « within the same minute », and step 1 first.
    shows the demo sentence on both. Small, and outside this slice.
 4. **A recurring production check of the lock** would need the demo code in
    CI. Not proposed: the code would have to live in a second place.
+5. **§13 and §13.1 of app-store-forms.md still say « les notes du §8 telles
+   quelles »** (item 16, the « Informations pour la revue » row, « Restent
+   aussi au propriétaire »). This branch may not edit them. They are true
+   again as written — §8's « coller tel quel » block is the notes in force —
+   but the precondition for the amended notes is stated only in §8. The
+   change that owns those sections should name it where the owner acts.
+6. **The Play Console's length limit** for « Instructions supplémentaires »
+   is not known here; the amended text is 736 characters once joined (712
+   in force). Nothing counts it, unlike the App Store blocks.

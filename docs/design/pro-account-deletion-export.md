@@ -25,7 +25,8 @@ token, never the client):
    (`revue@myweli.test`, threat T69) → **403 `demo_account_locked`**, right
    after the account is loaded. Nothing below runs for it: its credential is
    public, the app offers this very flow, and nothing recreates the identity
-   ([demo-account-deletion-lock.md](demo-account-deletion-lock.md)).
+   automatically ([demo-account-deletion-lock.md](demo-account-deletion-lock.md)
+   §2).
 1. **Future-bookings gate** — pending/confirmed bookings in the future →
    **409 `future_bookings`**: the salon settles its agenda first (reject or
    complete from the journal). No surprise mass-cancellations of consumers'

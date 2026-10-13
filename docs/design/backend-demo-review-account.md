@@ -201,7 +201,7 @@ What a holder of the code can do — and the mechanism that bounds each:
 | junk / defacement inside the demo salon | the **7-day automatic reset** (§6.3) — restore from snapshot, wipe + regenerate |
 | **offer change** *(2026-10-05)* | **refused** — a tier switched by a reviewer survived the weekly reset (the reset only extended `paidUntil`, and the subscription update leaves `tier` alone when none is given), and a switch to Réseau would have opened « Ajouter un salon » on the demo account |
 | **salon creation** *(2026-10-05)* | **refused** — `POST /me/salons` had no demo lock, so the public credential could create real draft salons once the demo salon was on a live Réseau offer |
-| **deleting the account** *(2026-10-13)* | **refused** — `DELETE /me/provider` had no demo lock: only the 409 `future_bookings` stood in the way, about two and a half days out of seven, and the account could cancel those bookings itself. Nothing recreates the identity, so one deletion would have ended every later review ([demo-account-deletion-lock.md](demo-account-deletion-lock.md)) |
+| **deleting the account** *(2026-10-13)* | **refused** — `DELETE /me/provider` had no demo lock: only the 409 `future_bookings` stood in the way, about two and a half days out of seven, and the account could cancel those bookings itself. Nothing recreates the identity automatically, so one deletion would have ended every later review until the demo was rebuilt by hand ([demo-account-deletion-lock.md](demo-account-deletion-lock.md)) |
 
 ### 6.1 The publish refusal
 
@@ -435,13 +435,16 @@ recapture.
 > the demo identity with 403 `demo_account_locked`, before the agenda gate
 > ([demo-account-deletion-lock.md](demo-account-deletion-lock.md)) — built on
 > `fix/demo-account-deletion-lock`, **not deployed**: until production serves
-> it, everything below is still the real state, and the review notes in App
-> Store Connect stay the previous ones. Its « probably keeps restoring an
+> it, everything below is still the real state, and the review notes to
+> paste stay the ones in force ([app-store-forms.md](app-store-forms.md) §8:
+> one dated line decides). Its « probably keeps restoring an
 > orphaned salon (INFERRED) » is now observed, on the in-memory repositories:
 > the reset does keep running on the orphaned salon and never recreates the
 > identity. What remains after the deploy: an identity lost out of band (a
-> database operation) is still not recreated — re-register, re-curate,
-> recapture, as below.
+> database operation) is still not recreated automatically — re-register,
+> re-curate, recapture, as below; and since the code is public, someone
+> else can register the address first
+> ([demo-account-deletion-lock.md](demo-account-deletion-lock.md) §2).
 >
 > **The demo identity is not protected from deletion** (found by the same
 > audit). Publish and invite are demo-locked; `DELETE /me/provider` is not.
