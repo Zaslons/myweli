@@ -252,6 +252,8 @@ void main() {
       final p = ProviderProvider();
       await p.loadProviders();
       await p.loadFeaturedProviders();
+      var notified = 0;
+      p.addListener(() => notified++);
 
       p.addReviewLocally(_review(5, appointment: 'a1'));
 
@@ -259,6 +261,7 @@ void main() {
       expect(_figures(p.featuredProviders.single), (4.7, 3));
       expect(p.selectedProvider, isNull);
       expect(p.selectedProviderId, isNull);
+      expect(notified, 1, reason: 'the home cards are told to rebuild');
     });
 
     test('sent again with no salon page open — the list rows carry no '
@@ -385,10 +388,11 @@ void main() {
 
     test('the server’s figures replace the estimate, on the page and in the '
         'lists — one read', () async {
+      final gate = Completer<ApiResponse<Provider>>();
       salons
         ..list = [before]
         ..featured = [before]
-        ..onById = (_) async => ApiResponse.success(server);
+        ..onById = (_) => gate.future;
       hearts.salons = [before];
       final favorites = FavoritesProvider();
       await favorites.loadFavorites('user1');
@@ -402,9 +406,13 @@ void main() {
         isTrue,
       );
       expect(_figures(favorites.favoriteProviders.single), (4.2, 4));
+      var notified = 0;
+      p.addListener(() => notified++);
+      gate.complete(ApiResponse.success(server));
       await pumpEventQueue();
 
       expect(salons.byIdCalls, 1);
+      expect(notified, 1, reason: 'the page and the cards are told once');
       expect(p.selectedProvider, same(server));
       expect(_figures(p.providers.single), (4.3, 4));
       expect(_figures(p.featuredProviders.single), (4.3, 4));
