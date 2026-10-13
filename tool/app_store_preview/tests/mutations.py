@@ -342,6 +342,10 @@ MANUAL = [
     ("track", "track.py", "BEYOND_PT = 40.0 ", "BEYOND_PT = 0.0 ",
      K + "Follow.test_it_is_looked_for_a_little_past_the_end_of_the_logged_path"),
     ("track", "track.py", "TURN_PT = 1.0 ", "TURN_PT = 0.0 ", K + "Turned.test_the_first_frame_clearly_behind_the_furthest"),
+    ("track", "track.py", "MAX_SECONDS = 3.0 ", "MAX_SECONDS = 300.0 ",
+     K + "ReadDrags.test_a_drag_is_looked_at_for_three_seconds_and_no_longer"),
+    ("track", "track.py", 'f["pts"] <= min(burst.end, burst.start + MAX_SECONDS * T)]', 'f["pts"] <= burst.start + MAX_SECONDS * T]',
+     K + "ReadDrags.test_each_drag_is_read_on_the_frames_of_its_own_burst"),
     ("track", "track.py", '            dx, dy = (sign * s, 0) if axis == "x" else (0, sign * s)',
      '            dx, dy = (s, 0) if axis == "x" else (0, s)', K + "Follow.test_the_other_way_and_the_other_axis"),
     ("track", "track.py", '            dx, dy = (sign * s, 0) if axis == "x" else (0, sign * s)',
@@ -505,8 +509,11 @@ MANUAL = [
     ("e2e", "preview.py", "        return editlist.storyboard(load(a.storyboard), getattr(a, \"variant\", None))",
      "        return editlist.storyboard(load(a.storyboard), None)",
      E2E + ".Variant.test_a_variant_the_storyboard_does_not_have_stops_the_build"),
-    ("e2e", "frames.py", "                if held_from <= ta and tb <= held_to:", "                if False:",
-     E2E + ".Build.test_the_touch_point_rides_on_what_it_drags"),
+    # Not here, on purpose: the `step` of frames.py (a followed drag's point
+    # holds with each frame). It was tried and survives the end-to-end test:
+    # the synthetic take has a frame every 1/60 s, so every film frame falls
+    # exactly on one, where holding and moving agree. tests.test_frames sees
+    # it (two rows above, group `frames`), on a path whose frames are uneven.
     ("e2e", "track.py", "        ref = editlist.held(tm.pts, burst.start - 1)", "        ref = editlist.held(tm.pts, burst.start)",
      E2E + ".Build.test_the_drag_is_followed_in_the_picture"),
     ("e2e", "swift/Writer.swift", "profileLevel: AVVideoProfileLevelH264High40, averageBitRate: 11_000_000,",

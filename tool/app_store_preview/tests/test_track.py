@@ -130,9 +130,9 @@ class ReadDrags(unittest.TestCase):
         rest = np.random.default_rng(4).integers(0, 256, self.SCREEN).astype(np.float32)
         # the take: at rest; a drag upwards answered in six frames (the list
         # 10, 30, 50, 70, 80, 80 pt up), a still frame, then the list 20 pt
-        # back down; five seconds later something else entirely
+        # back down; two seconds after the drag began, something else entirely
         ups = [10, 30, 50, 70, 80, 80]
-        rows = [(1800 + 10 * k, CHANGE) for k in range(6)] + [(1900, NOISE), (1950, CHANGE), (4800, CHANGE)]
+        rows = [(1800 + 10 * k, CHANGE) for k in range(6)] + [(1900, NOISE), (1950, CHANGE), (3000, CHANGE)]
         self.scan = scan_of(rows)
         self.scan["video"].update(width=self.SCREEN[1], height=self.SCREEN[0])
         other = np.random.default_rng(5).integers(0, 256, self.SCREEN).astype(np.float32)
@@ -143,7 +143,7 @@ class ReadDrags(unittest.TestCase):
             {"id": "C", "caption": "three", "caption_after": {"gesture": "drag-b", "delay_s": 0.5}, "gestures": []}]
         self.log = {"device_points": [402, 874], "gestures": [
             {"id": "drag-b", "kind": "drag", "near_s": 3.0, "path": [[200, 600, 0], [200, 500, 160]]},
-            {"kind": "tap", "near_s": 8.0, "film": False}]}
+            {"kind": "tap", "near_s": 5.0, "film": False}]}
         self.asked: list[int] = []
 
     def export(self, name, command, take, *args):
@@ -169,13 +169,27 @@ class ReadDrags(unittest.TestCase):
         got = self.read()
         self.assertEqual(list(got), ["drag-b"])
         # the picture before the drag, then every frame that changed in its
-        # burst — not the still one in the middle, not what came five seconds later
+        # burst — not the still one in the middle, not what came after it had ended
         self.assertEqual(self.asked, [0, 1, 2, 3, 4, 5, 6, 8])
         self.assertEqual(got["drag-b"], {
             "axis": "y", "sign": -1, "ref": 0, "error": 0.0, "turn": 1950,
             "frames": [[1800, 10.0], [1810, 30.0], [1820, 50.0], [1830, 70.0], [1840, 80.0], [1850, 80.0],
                        [1950, 60.0]]})
         self.assertEqual(list(self.work.iterdir()), [])          # the pictures were only needed to measure
+
+    def test_a_drag_is_looked_at_for_three_seconds_and_no_longer(self):
+        """A burst can run on long after the finger has gone (a list that
+        loads, a snackbar): the finger is not in those frames."""
+        rest = self.pictures[0]
+        rows = [(1800 + 250 * k, CHANGE) for k in range(10)] + [(9000, CHANGE)]     # one burst, 1800 … 4050
+        self.scan = scan_of(rows, end=12000)
+        self.scan["video"].update(width=self.SCREEN[1], height=self.SCREEN[0])
+        self.pictures = [rest] + [moved(rest, dy=-min(10 * (k + 1), 80)) for k in range(10)] + [rest]
+        self.log["gestures"][1]["near_s"] = 15.0
+        got = self.read()["drag-b"]
+        # 3 s after the first change is tick 3600: the frames at 1800 … 3550, not 3800 or 4050
+        self.assertEqual(self.asked, [0, 1, 2, 3, 4, 5, 6, 7, 8])
+        self.assertEqual([p for p, _ in got["frames"]], [1800 + 250 * k for k in range(8)])
 
     def test_the_axis_and_the_way_come_from_the_logged_path(self):
         self.log["gestures"][0]["path"] = [[200, 600, 0], [205, 700, 160]]       # downwards, a little askew

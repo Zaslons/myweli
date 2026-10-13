@@ -252,7 +252,7 @@ film has no sound.
 
 **11 Mbps is the encoder's target, not the file's rate.** A film that is a
 still screen most of the time cannot spend it: the rehearsal cut of
-2026-10-13 came out at 2.4 Mbps on average, 7.4 Mbps in its busiest second,
+2026-10-13 came out at 2.4 Mbps on average, 7.2 Mbps in its busiest second,
 and the silent track at 2 kbit/s. What the picture needed instead was a
 ceiling on the quantiser — without one each key frame was softer than the
 frames after it (44 dB against 51 dB on a still frame); with it, every frame

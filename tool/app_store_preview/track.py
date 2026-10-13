@@ -110,12 +110,12 @@ def read_drags(take: Path, scan: dict, log: dict, sb: dict, work: Path, rehearsa
         entry: dict = {"axis": axis, "sign": sign, "frames": [], "turn": None}
         out[g.id] = entry
         burst = tm.bursts[g.burst]
+        # The picture at rest: the last one before the drag's first change.
+        # There is one — `locate` refuses a take that begins on a gesture's
+        # answer (E_NO_REST) — and the burst has at least its first frame.
         ref = editlist.held(tm.pts, burst.start - 1)
         wanted = [f["i"] for f, k in zip(frames, tm.kinds)
                   if k == "change" and burst.start <= f["pts"] <= min(burst.end, burst.start + MAX_SECONDS * T)]
-        if ref is None or not wanted:
-            entry["why"] = "the take has no picture of the screen before the drag"
-            continue
         reach = abs(dx if axis == "x" else dy)
         # The pictures are only needed to measure: they are gone when this
         # returns, however it returns.
