@@ -233,7 +233,7 @@ class _ClientRow extends StatelessWidget {
       if (client.visits > 0)
         '${client.visits} visite${client.visits > 1 ? 's' : ''}',
       if (client.lastVisitAt != null)
-        'dernière ${Formatters.formatRelative(client.lastVisitAt!)}',
+        'dernière ${Formatters.formatRelative(client.lastVisitAt!, midSentence: true)}',
     ];
     return ListTile(
       contentPadding: EdgeInsets.zero,

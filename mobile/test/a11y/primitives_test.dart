@@ -342,6 +342,164 @@ void main() {
         throwsA(isA<TestFailure>()),
       );
     });
+
+    // docs/design/amounts-that-fit.md §1.2 — the instrument had never been
+    // shown a NUMBER. French groups thousands with U+202F (narrow no-break
+    // space), the helper split its text on `\s`, and Dart's `\s` matches
+    // U+202F and U+00A0: « 180 000 » was measured as « 180 » and « 000 », so a
+    // box narrower than the number and wider than each group passed. The
+    // engine does the opposite — no-break spaces are glue — and what it draws
+    // in that box was read off it, not assumed (2026-10-13, titleMedium, real
+    // fonts): « 180 000 » is 58.9dp; in 60dp it stays whole and the unit
+    // wraps; in 56dp it is « 180 00 » / « 0 FCFA ».
+    group('a number grouped with no-break spaces is ONE token', () {
+      Future<void> pumpAmount(WidgetTester tester, String amount, double box) =>
+          pumpAtWidth(
+            tester,
+            width: 360,
+            scale: 1,
+            home: Scaffold(
+              body: SizedBox(
+                width: box,
+                child: Text(amount, style: AppTextStyles.titleMedium),
+              ),
+            ),
+          );
+
+      // The falsifier. Red on the `\s` helper: its widest « word » was
+      // « FCFA » (37.8dp), which fits 56.
+      testWidgets('fails when the box is narrower than the number', (
+        tester,
+      ) async {
+        const amount = '180\u202F000 FCFA';
+        await pumpAmount(tester, amount, 56);
+        expect(
+          () => expectNoMidWordBreak(tester, amount, '56dp'),
+          throwsA(isA<TestFailure>()),
+        );
+      });
+
+      // The mirror: the number fits, the unit goes to the next line. That
+      // break is at a plain space and is what every narrow tile relies on.
+      testWidgets('passes when only the unit wraps', (tester) async {
+        const amount = '180\u202F000 FCFA';
+        await pumpAmount(tester, amount, 60);
+        expectNoMidWordBreak(tester, amount, '60dp');
+      });
+
+      // Ordinary spaces ARE break opportunities: the same digits in a box far
+      // narrower than « 180 000 » may legally wrap between the groups.
+      testWidgets('ordinary spaces still separate words', (tester) async {
+        const amount = '180 000 FCFA';
+        await pumpAmount(tester, amount, 40);
+        expectNoMidWordBreak(tester, amount, '40dp');
+      });
+
+      // A no-break space left at the END of a token (the currency pattern
+      // leaves one before the unit) hangs past the box edge like any trailing
+      // space: in 60dp the engine still draws « 180 000 » whole. Counting it
+      // (63.0dp) would red on text that renders correctly.
+      testWidgets('a trailing no-break space is not part of the width', (
+        tester,
+      ) async {
+        const amount = '180\u202F000\u00A0 FCFA';
+        await pumpAmount(tester, amount, 60);
+        expectNoMidWordBreak(tester, amount, '60dp');
+      });
+
+      testWidgets('…and it does not hide a number that really breaks', (
+        tester,
+      ) async {
+        const amount = '180\u202F000\u00A0 FCFA';
+        await pumpAmount(tester, amount, 56);
+        expect(
+          () => expectNoMidWordBreak(tester, amount, '56dp'),
+          throwsA(isA<TestFailure>()),
+        );
+      });
+    });
+  });
+
+  // The sweep twin of the group above (docs/design/amounts-that-fit.md §8.1).
+  group('gluedTokenBreaks', () {
+    Future<void> pump(WidgetTester tester, Widget child) =>
+        pumpAtWidth(tester, width: 360, scale: 1, home: Scaffold(body: child));
+
+    testWidgets('finds an amount nobody named', (tester) async {
+      await pump(
+        tester,
+        const SizedBox(
+          width: 56,
+          child: Text('180\u202F000 FCFA', style: AppTextStyles.titleMedium),
+        ),
+      );
+      final found = gluedTokenBreaks(tester);
+      expect(found, hasLength(1));
+      expect(found.single, contains('« 180\u202F000 » needs'));
+    });
+
+    testWidgets('is silent when the number fits and only the unit wraps', (
+      tester,
+    ) async {
+      await pump(
+        tester,
+        const SizedBox(
+          width: 60,
+          child: Text('180\u202F000 FCFA', style: AppTextStyles.titleMedium),
+        ),
+      );
+      expect(gluedTokenBreaks(tester), isEmpty);
+    });
+
+    // §13.3 lets a heading wrap, even inside a word it cannot fit: that is
+    // why this is a sweep over GLUED tokens and not over every word.
+    testWidgets('ignores a broken word that has no glue in it', (tester) async {
+      await pump(
+        tester,
+        const SizedBox(
+          width: 60,
+          child: Text('Salon Excellence', style: AppTextStyles.headlineMedium),
+        ),
+      );
+      expect(gluedTokenBreaks(tester), isEmpty);
+    });
+
+    // The glue filter is per TOKEN: a paragraph that holds an amount AND a
+    // long plain word reports the amount only if the amount is what broke.
+    testWidgets('reports the glued token, not its plain neighbour', (
+      tester,
+    ) async {
+      await pump(
+        tester,
+        const SizedBox(
+          width: 100,
+          child: Text(
+            'Excellence 5\u202F000 FCFA',
+            style: AppTextStyles.headlineMedium,
+          ),
+        ),
+      );
+      // « Excellence » at 28sp is wider than 100dp and breaks; « 5 000 » fits.
+      expect(gluedTokenBreaks(tester), isEmpty);
+    });
+
+    testWidgets('ignores a one-line paragraph, which truncates', (
+      tester,
+    ) async {
+      await pump(
+        tester,
+        const SizedBox(
+          width: 56,
+          child: Text(
+            '180\u202F000 FCFA',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppTextStyles.titleMedium,
+          ),
+        ),
+      );
+      expect(gluedTokenBreaks(tester), isEmpty);
+    });
   });
 
   group('expectTokensWhole', () {

@@ -196,6 +196,43 @@ Every guard is watched failing on today's code before the fix lands
    Linux and each changed PNG looked at; `flutter analyze` 0; full suites one
    after another.
 
+### 8.1 What was observed, steps 1–3 (2026-10-13)
+
+- **The engine, read rather than computed** (titleMedium, real fonts, on
+  macOS — see the last point of this list for Linux):
+  « 180 000 » is 58.9 dp and « 1 250 000 » 71.5; in a 60 dp box the first is
+  drawn whole with its unit on the next line, in 56 dp it is « 180 00 » /
+  « 0 FCFA ». A no-break space left at the end of a token hangs past the edge
+  (63.0 dp in 60, drawn whole) — so the guard and the helper do not count it.
+- **The guard.** Two falsifiers red on the old helper (« returned `<null>` »
+  where a failure was expected). Of its 23 call sites exactly one changed
+  verdict — the client card at 1.1×, « 180 000 » needing 64.7 dp of 60 —
+  pinned with a seven-digit amount at 1× and the home's « 114 000 » at 2×; all
+  three pins failed, as designed, the moment the layouts measured.
+- **The sweep** (`gluedTokenBreaks`, report-only, 19 gate subjects): glued text
+  examined on 8, **0 broken** — with the gate's fixtures nothing else breaks.
+- **The layouts, red first:** 12 of 45 client-card cases and most
+  visit-summary cases failed on the old layouts; the phone line failed at
+  360 dp from 1.1× and at 393 dp from 1.3×.
+- **Mutations on committed code: 39, all red** — 6 on the guard and the sweep,
+  7 on the formatter, 26 on the helper and the three layouts (the helper
+  ignoring the theme's style, bold text, the scaler or the spacing overrides;
+  each candidate list truncated; each cell width without its padding; each
+  row un-levelled; the phone's three shapes).
+- **A wrong expectation of mine, kept as a test:** I expected a new client to
+  stay four across at 1.3× on 360 dp. It goes 2 × 2 — « Absences » itself
+  outgrows a quarter tile there, which is what the old constant had measured.
+- **Goldens:** six moved with the price string, each compared old against
+  new (only the gap narrows); none moved with the layouts — 51 byte-identical.
+- **The same string is not the same width everywhere — CI said so.** The
+  first full CI run of the layouts failed one test of mine, and only one
+  (1961 passed): it expected « 180 000 » at 58.9 dp, and the Linux runner
+  draws it at 57.6. The test font has no glyph for U+202F, so each platform
+  substitutes its own width for the grouping space. The assertion is now a
+  range (it only ever meant « the real face, not the placeholder »). It is
+  also the plainest argument for this slice: a width written down on one
+  machine is wrong on the next, so the layout asks at run time.
+
 **What tests cannot show:** they run as Android with Roboto at 360–430 dp;
 the store frames are shot on an iPhone 17 Pro simulator at 402 pt in SF Pro.
 The shape the iPhone takes is checked there (step 6), not asserted.
@@ -213,13 +250,26 @@ build is asked for when the PRs are in.
 
 ## 10. Definition of done
 
-- [ ] Each guard watched red on today's code, then green; mutations recorded.
-- [ ] `flutter analyze` 0; web typecheck, lint, tests; full suites green.
-- [ ] Goldens regenerated on Linux and reviewed, the price commit on its own.
-- [ ] SYSTEM.md §13.3 states the rule (shape by measured fit; what a token
-      is); §21 gains the rows for what is fixed and what is registered.
-- [ ] The simulator check at 402 pt; the screenshots spec updated if a frame
-      moved.
+- [x] Steps 1–3 (the guard, the price string, the measured layouts): each
+      guard watched red on the old code, then green — the record is §8.1.
+- [ ] Steps 4–5 (review figures, web gaps): the same, in their own PRs.
+- [x] `flutter analyze` 0 and the full mobile suite green on steps 1–3.
+- [x] Goldens regenerated on Linux and reviewed: six moved with the price
+      string (run 38388637917), none with the layouts (run 38390654129).
+- [x] SYSTEM.md §13.3 states the rule (shape by measured fit; what a token
+      is); §21 rows 93–95 for what is fixed, row 96 for what is registered.
+- [x] The simulator check at 402 pt (iPhone 17 Pro, SF Pro, the demo salon,
+      2026-10-13). At the default size the home and the client card take the
+      same shapes as store frames 3 and 5 — two across, four across, the
+      actions beside the number. At the largest accessibility size (≈3×) both
+      go one per row with every amount whole; the client's number, which
+      cannot fit even the card's full width there, wraps between two pairs,
+      never inside one. **Found there, fixed:** with the narrower price, a
+      visit-history date that fits its line exactly ran into the amount
+      (« 08:007 000 FCFA ») — the row had no gap after the date.
+- [ ] Store frames: the home (3) is unchanged; the client card (5) differs
+      by the single space before « FCFA » in its history rows — not worth a
+      reshoot on its own (§11 Q1). Reshoot with the next build if wanted.
 - [ ] Roadmap entry; this spec's status and §11 closed.
 
 ## 11. Open questions

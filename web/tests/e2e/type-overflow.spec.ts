@@ -53,6 +53,12 @@ type Route = {
   /// `RendezVousClient`'s default view is `journal`, so a test that merely
   /// loads the page never renders the tabs it is there to measure.
   setup?: (page: Page) => Promise<void>;
+  /// What the five generic checks cannot see on this route, asserted before
+  /// them. They find what spills, what is cut off and what is truncated — never
+  /// how many lines a string took, and never how far apart two controls ended
+  /// up — because a layout that wraps is, to them, a layout that succeeded. A
+  /// route whose risk is one of those two measures it here.
+  measure?: (page: Page) => Promise<void>;
 };
 
 const PUBLIC_ROUTES: [name: string, url: string, anchor: string | RegExp][] = [
@@ -349,6 +355,129 @@ async function overflowingFlexRows(page: import('@playwright/test').Page) {
   });
 }
 
+type Box = { left: number; top: number; right: number; bottom: number };
+
+/// How far apart two boxes are: the widest clear band between them on either
+/// axis. Negative when they overlap.
+function apart(a: Box, b: Box): number {
+  return Math.max(
+    a.left - b.right,
+    b.left - a.right,
+    a.top - b.bottom,
+    b.top - a.bottom,
+  );
+}
+
+/// SYSTEM.md §13.2: « Targets that are adjacent need ≥8px between them ».
+const ADJACENT = 8;
+
+/// Layout positions are multiples of 1/64px and no spacing token is under 4px,
+/// so a tenth of a pixel absorbs rounding without excusing anything real.
+const HAIR = 0.1;
+
+/// The stub's Koffi (`sc1`, stored as `+2250700000001`) as the card prints it.
+const CARD_NUMBER = '+225 07 00 00 00 01';
+
+/// The Pro client card's phone row, **measured**
+/// (docs/design/amounts-that-fit.md §11 Q3: « a phone number never wraps — the
+/// actions drop below it instead »).
+///
+/// Three things, and each was a class name with nothing looking at the result:
+///
+/// 1. **The number is on one line.** With `flex-wrap` and `whitespace-nowrap`
+///    both gone it broke over six lines at 320 — « +225 / 07 / 00 / 00 / 00 /
+///    01 » — and every generic check below stayed empty.
+/// 2. **A dropped action does not lie over the number.** « Appeler » and
+///    « WhatsApp » are 48px boxes on a 24px line (`-my-sm`): each reaches 12px
+///    above its own line, which is what the row's `gap-y-sm` is there to
+///    absorb. Folded back into `gap-s`, the boxes start 4px inside the
+///    number's line.
+/// 3. **The dropped actions keep §13.2's 8px from « Nouveau rendez-vous »**,
+///    which they now sit directly above. They reach 12px below their line as
+///    well, and the button's block was `mt-m` (16px): 4px between the hit
+///    areas at every phone width. It is `mt-l` now — 24 − 12 = 12px.
+///
+/// The number is found by **what it says**, as a text node, so this holds
+/// whether or not it has an element of its own; if the stub's Koffi changes,
+/// the first assertion says so rather than the rest passing about nothing.
+async function clientCardPhoneRow(page: Page) {
+  const at = `${page.viewportSize()?.width}px`;
+
+  const number = await page.evaluate((shown) => {
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    let text: Node | null = null;
+    while ((text = walker.nextNode())) {
+      if ((text.nodeValue ?? '').trim() === shown) break;
+    }
+    if (!text) return null;
+    const range = document.createRange();
+    range.selectNodeContents(text);
+    // One client rect per line box the text occupies.
+    const lineTops = Array.from(
+      new Set(Array.from(range.getClientRects(), (r) => Math.round(r.top))),
+    );
+    // The number's LINE is the box of the element that holds it and nothing
+    // else (a flex item: its box is its line). A bare text node has no box of
+    // its own, so its glyphs' box stands in.
+    const holder = text.parentElement!;
+    const b =
+      holder.childNodes.length === 1
+        ? holder.getBoundingClientRect()
+        : range.getBoundingClientRect();
+    return { lineTops, left: b.left, top: b.top, right: b.right, bottom: b.bottom };
+  }, CARD_NUMBER);
+  expect(
+    number,
+    `« ${CARD_NUMBER} » is not on the card — nothing below would be measured`,
+  ).not.toBeNull();
+
+  expect(
+    number!.lineTops,
+    `the phone number is broken over ${number!.lineTops.length} lines at ${at} — a number may not break (SYSTEM.md §13.3)`,
+  ).toHaveLength(1);
+
+  const targets: [name: string, box: Box][] = [];
+  for (const [name, locator] of [
+    ['Appeler', page.getByRole('link', { name: 'Appeler' })],
+    ['WhatsApp', page.getByRole('link', { name: 'WhatsApp' })],
+    ['Nouveau rendez-vous', page.getByRole('button', { name: 'Nouveau rendez-vous' })],
+  ] as const) {
+    const b = await locator.boundingBox();
+    expect(b, `« ${name} » has no box at ${at}`).not.toBeNull();
+    targets.push([
+      name,
+      { left: b!.x, top: b!.y, right: b!.x + b!.width, bottom: b!.y + b!.height },
+    ]);
+  }
+
+  for (const [name, box] of targets.slice(0, 2)) {
+    // Every viewport this file measures is too narrow for one line: the row
+    // needs about 278px and the widest column here is 229px. An action still
+    // beside the number means the two checks after this one measure nothing —
+    // and « WhatsApp » dropping alone is how the row first broke at 375.
+    expect(
+      box.left < number!.right,
+      `« ${name} » did not drop below the number at ${at} — the row is no longer the wrapped one this measures`,
+    ).toBe(true);
+    expect(
+      box.top,
+      `« ${name} » starts ${(number!.bottom - box.top).toFixed(1)}px inside the number's line at ${at}`,
+    ).toBeGreaterThanOrEqual(number!.bottom - HAIR);
+  }
+
+  for (let i = 0; i < targets.length; i += 1) {
+    for (let j = i + 1; j < targets.length; j += 1) {
+      const [a, boxA] = targets[i];
+      const [b, boxB] = targets[j];
+      const gap = apart(boxA, boxB);
+      expect(
+        gap,
+        `« ${a} » and « ${b} » are ${gap.toFixed(1)}px apart at ${at} — adjacent targets need ${ADJACENT}px (SYSTEM.md §13.2)`,
+      ).toBeGreaterThanOrEqual(ADJACENT - HAIR);
+    }
+  }
+}
+
 /// One `describe` per viewport, and it is not a stylistic choice: `test.use` is
 /// a **declaration**, legal at file scope or inside a `describe` callback and
 /// nowhere else. Called from a bare `for` at file scope it re-declares the
@@ -528,6 +657,38 @@ const AUTHED_ROUTES: Route[] = [
     anchor: 'Avis',
     auth: 'pro',
   },
+  // ---- amounts-that-fit (docs/design/amounts-that-fit.md §8.5) -------------
+  {
+    // The client CARD — the page behind every row of « the pro client list »
+    // above, and until this entry in no matrix at all. **It was scrolling
+    // sideways at all three viewports**, and this entry is what said so, run
+    // against the card as it was: `<div class=""> right 379 > 375 (width
+    // 355)`, and `379 > 320`. Its header row — the stored number, « Appeler »,
+    // « WhatsApp » — was a `nowrap` flex row of three unbreakable items, so the
+    // card could not be narrower than 355px. The row now wraps: the number
+    // keeps its line and the two actions drop below it.
+    //
+    // `ready` is the phone row itself, not the `<h1>`: a card that rendered
+    // without its phone row would be measured clean about the one thing this
+    // entry is here for. « Appeler » exists only on the LOADED card of a client
+    // who has a number (`sc1`, the stub's Koffi) — the error state and
+    // « Client introuvable. » carry neither it nor the name.
+    //
+    // **What the five checks do NOT say, and `measure` does.** With BOTH
+    // `flex-wrap` and `whitespace-nowrap` removed the number breaks over six
+    // lines at 320 — « +225 / 07 / 00 / 00 / 00 / 01 » — and all five stay
+    // empty, because wrapping is how a layout succeeds; they only see the
+    // overflow that losing `flex-wrap` alone brings back. Before `measure` this
+    // row would have stayed green about a number in six pieces: the rule was
+    // held by two class assertions in jsdom. `clientCardPhoneRow` looks at the
+    // rendered line, and at where the dropped actions landed.
+    name: 'the pro client card — the grouped number and its two actions',
+    url: '/pro/clients/sc1',
+    anchor: /Koffi/,
+    auth: 'pro',
+    ready: (page) => page.getByRole('link', { name: 'Appeler' }),
+    measure: clientCardPhoneRow,
+  },
 ];
 
 for (const vp of VIEWPORTS) {
@@ -577,6 +738,8 @@ for (const vp of VIEWPORTS) {
             .filter(Boolean),
           `${route.url} rendered an error state — every assertion below would be vacuous`,
         ).toEqual([]);
+
+        await route.measure?.(page);
 
         expect(
           await horizontalOverflow(page),

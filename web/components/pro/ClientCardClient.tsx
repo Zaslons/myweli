@@ -19,7 +19,12 @@ import {
   getMyProvider,
   updateClientTags,
 } from '../../lib/api/pro';
-import { formatDateFr, formatDateTimeFr, formatFcfa } from '../../lib/format';
+import {
+  formatDateFr,
+  formatDateTimeFr,
+  formatFcfa,
+  formatPhoneNumber,
+} from '../../lib/format';
 import type { ProAppointment } from '../../lib/pro/today';
 import {
   MAX_NOTE_LENGTH,
@@ -166,7 +171,10 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
         <div>
           <Card>
             <div className="flex items-center gap-m">
-              <span className="flex h-12 w-12 items-center justify-center rounded-pill bg-surface text-titleLarge font-medium text-textPrimary">
+              {/* `shrink-0`: the phone row beside it may wrap, which makes
+                  that column shrinkable — and without this the avatar gave up
+                  width with it (32.7 × 48 at 320px, an oval). */}
+              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-pill bg-surface text-titleLarge font-medium text-textPrimary">
                 {card.displayName.slice(0, 1).toUpperCase()}
               </span>
               <div className="min-w-0">
@@ -185,30 +193,52 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
                   ) : null}
                 </h1>
                 {card.phone ? (
-                  <p className="mt-xs flex items-center gap-s text-bodyMedium text-textSecondary">
-                    {card.phone}
-                    <a
-                      href={telHref(card.phone)}
-                      className="-my-sm inline-flex min-h-12 items-center underline"
-                      aria-label="Appeler"
-                    >
-                      Appeler
-                    </a>
-                    <a
-                      href={waHref(card.phone)}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="-my-sm inline-flex min-h-12 items-center underline"
-                      aria-label="WhatsApp"
-                    >
-                      WhatsApp
-                    </a>
+                  // The number is READ grouped (« +225 07 00 00 01 01 », the
+                  // app's rule — `formatPhoneNumber`) and DIALLED as stored:
+                  // both links take `card.phone`, never the grouped text.
+                  //
+                  // Grouped, it has five places a line could break, and a
+                  // phone number may not break (SYSTEM.md §13.3). So the
+                  // number is `whitespace-nowrap` and it is the ROW that wraps
+                  // (WEB-SYSTEM §9 rule 1): on a narrow card the two actions
+                  // drop below the number — together, which is why they share
+                  // a wrapper; as three loose items « WhatsApp » dropped alone
+                  // at 375px. `gap-y-sm` is the 12px each 48px link reaches
+                  // above its own line (`-my-sm`), so a dropped action starts
+                  // where the number's line ends instead of lying over it.
+                  <p className="mt-xs flex flex-wrap items-center gap-x-s gap-y-sm text-bodyMedium text-textSecondary">
+                    <span className="whitespace-nowrap">
+                      {formatPhoneNumber(card.phone)}
+                    </span>
+                    <span className="flex gap-s">
+                      <a
+                        href={telHref(card.phone)}
+                        className="-my-sm inline-flex min-h-12 items-center underline"
+                        aria-label="Appeler"
+                      >
+                        Appeler
+                      </a>
+                      <a
+                        href={waHref(card.phone)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="-my-sm inline-flex min-h-12 items-center underline"
+                        aria-label="WhatsApp"
+                      >
+                        WhatsApp
+                      </a>
+                    </span>
                   </p>
                 ) : null}
               </div>
             </div>
 
-            <div className="mt-m">
+            {/* `mt-l`, not `mt-m`: when the phone row wraps, « Appeler » and
+                « WhatsApp » sit directly above this button, and each 48px box
+                reaches 12px below its own line (`-my-sm`). 24 − 12 leaves 12px
+                between the hit areas; `mt-m` left 4, under the 8px that
+                adjacent targets need (SYSTEM.md §13.2). */}
+            <div className="mt-l">
               <Button onClick={() => setBooking(true)}>
                 Nouveau rendez-vous
               </Button>
