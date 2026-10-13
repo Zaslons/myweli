@@ -217,6 +217,136 @@ void main() {
     );
   });
 
+  // docs/design/ios-language-and-orientation.md. App Store Connect read builds
+  // 569 and 577 as `locales = ["en"]`: the bundle held only Base.lproj, and
+  // Base is the project's development language — English by default. The
+  // « Languages » line comes from the *.lproj folders, so `CFBundleLocalizations`
+  // above was never enough. What Apple reads is only visible on an uploaded
+  // build (`buildBundles.locales`); these pin the two causes.
+  group('the App Store reads the app as French', () {
+    test('French is the development language, and the only known one', () {
+      expect(
+        RegExp(r'\bdevelopmentRegion = (\w+);').firstMatch(pbxproj)?.group(1),
+        'fr',
+      );
+      final regions = RegExp(r'knownRegions = \((.*?)\);', dotAll: true)
+          .firstMatch(pbxproj)!
+          .group(1)!
+          .split(',')
+          .map((r) => r.trim())
+          .where((r) => r.isNotEmpty);
+      expect(regions, unorderedEquals(['fr', 'Base']));
+    });
+
+    test('Info.plist takes its development region from the project', () {
+      // A literal here would hide a wrong `developmentRegion`: the built
+      // Info.plist would say one thing and Base.lproj mean another.
+      expect(
+        plist,
+        contains(
+          '<key>CFBundleDevelopmentRegion</key>\n'
+          '\t<string>\$(DEVELOPMENT_LANGUAGE)</string>',
+        ),
+      );
+    });
+
+    test('fr.lproj exists AND the Runner target copies it', () {
+      // A folder on disk that no target copies is not in the bundle — the
+      // PrivacyInfo.xcprivacy lesson. Followed link by link: file reference
+      // → variant group → build file → the Runner target's Resources phase.
+      expect(
+        File('ios/Runner/fr.lproj/InfoPlist.strings').existsSync(),
+        isTrue,
+      );
+
+      final ref = RegExp(
+        r'(\w{24}) /\* fr \*/ = \{isa = PBXFileReference;[^}]*'
+        r'path = fr\.lproj/InfoPlist\.strings;',
+      ).firstMatch(pbxproj);
+      expect(ref, isNotNull, reason: 'no file reference to fr.lproj');
+
+      final variants = RegExp(
+        r'(\w{24}) /\* InfoPlist\.strings \*/ = \{\s*'
+        r'isa = PBXVariantGroup;\s*children = \((.*?)\);',
+        dotAll: true,
+      ).firstMatch(pbxproj);
+      expect(variants, isNotNull, reason: 'no InfoPlist.strings variant group');
+      expect(variants!.group(2), contains(ref!.group(1)));
+
+      final buildFile = RegExp(
+        r'(\w{24}) /\* InfoPlist\.strings in Resources \*/ = '
+        '\\{isa = PBXBuildFile; fileRef = ${variants.group(1)} ',
+      ).firstMatch(pbxproj);
+      expect(buildFile, isNotNull, reason: 'the variant group is not built');
+
+      // The Runner target's phase is the one that holds the storyboards;
+      // RunnerTests has a Resources phase too, and it is empty.
+      final phases = RegExp(
+        r'isa = PBXResourcesBuildPhase;.*?files = \((.*?)\);',
+        dotAll: true,
+      ).allMatches(pbxproj).map((m) => m.group(1)!);
+      final runnerPhase = phases.singleWhere(
+        (files) => files.contains('Main.storyboard in Resources'),
+      );
+      expect(runnerPhase, contains(buildFile!.group(1)));
+    });
+
+    test('the strings file defines no key', () {
+      // A key here would silently override Info.plist — whose purpose strings
+      // are per flavour, which one shared file cannot be.
+      final strings = File(
+        'ios/Runner/fr.lproj/InfoPlist.strings',
+      ).readAsStringSync().replaceAll(RegExp(r'/\*.*?\*/', dotAll: true), '');
+      expect(strings.trim(), isEmpty);
+    });
+
+    test('Runner holds no language folder but Base and fr', () {
+      // An en.lproj would put English back on the store page.
+      final folders = Directory('ios/Runner')
+          .listSync()
+          .whereType<Directory>()
+          .map((d) => d.uri.pathSegments.lastWhere((s) => s.isNotEmpty))
+          .where((name) => name.endsWith('.lproj'));
+      expect(folders, unorderedEquals(['Base.lproj', 'fr.lproj']));
+    });
+  });
+
+  group('iPhone is portrait-only', () {
+    // No screen of either app was ever tried in landscape; a reviewer who
+    // turns the phone must not be the first. docs/design/
+    // ios-language-and-orientation.md §1.
+    List<String> orientations(String key) {
+      final array = RegExp(
+        '<key>${RegExp.escape(key)}</key>\\s*<array>(.*?)</array>',
+        dotAll: true,
+      ).firstMatch(plist)!.group(1)!;
+      return RegExp(
+        r'<string>(.*?)</string>',
+      ).allMatches(array).map((m) => m.group(1)!).toList();
+    }
+
+    test('the iPhone list is portrait and nothing else', () {
+      expect(orientations('UISupportedInterfaceOrientations'), [
+        'UIInterfaceOrientationPortrait',
+      ]);
+    });
+
+    test('the iPad list keeps all four', () {
+      // The control: the two keys are read apart. iPad multitasking requires
+      // every orientation unless the app declares UIRequiresFullScreen —
+      // and only the consumer app runs on iPad.
+      expect(
+        orientations('UISupportedInterfaceOrientations~ipad'),
+        unorderedEquals([
+          'UIInterfaceOrientationPortrait',
+          'UIInterfaceOrientationPortraitUpsideDown',
+          'UIInterfaceOrientationLandscapeLeft',
+          'UIInterfaceOrientationLandscapeRight',
+        ]),
+      );
+    });
+  });
+
   test('the SwiftPM lockfiles no longer pin the DK chain', () {
     // Removing file_picker <12 took DKImagePickerController (and its DKCamera,
     // DKPhotoGallery, SwiftyGif, TOCropViewController) out of the graph, but

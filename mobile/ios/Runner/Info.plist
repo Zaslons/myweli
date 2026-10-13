@@ -105,11 +105,13 @@
 	     `mobile/test/infra/ios_status_bar_test.dart` pins both keys. -->
 	<key>UIStatusBarHidden</key>
 	<false/>
+	<!-- iPhone: portrait only. No screen of either app was ever tried in
+	     landscape. The iPad list below keeps all four — multitasking requires
+	     them — and only the consumer app runs on iPad.
+	     docs/design/ios-language-and-orientation.md -->
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
-		<string>UIInterfaceOrientationLandscapeLeft</string>
-		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	<key>UISupportedInterfaceOrientations~ipad</key>
 	<array>
