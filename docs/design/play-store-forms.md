@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Prêt à saisir (owner) — rédigé 2026-08-28 ; **corrigé 2026-09-24** (libellés de connexion du §2, adresse + numéro Mobile Money dans la table Pro du §4.2 — audit App Store, [app-store-forms.md](app-store-forms.md)) ; **2026-10-05** : l'app Pro Android ne propose plus de choix d'offre non plus (§3) |
+| **Status** | Prêt à saisir (owner) — rédigé 2026-08-28 ; **corrigé 2026-09-24** (libellés de connexion du §2, adresse + numéro Mobile Money dans la table Pro du §4.2 — audit App Store, [app-store-forms.md](app-store-forms.md)) ; **2026-10-05** : l'app Pro Android ne propose plus de choix d'offre non plus (§3) ; **2026-10-13** : trois actions désactivées sur le compte démo au lieu de deux — la suppression du compte s'y ajoute (§2, vrai une fois le verrou en production) |
 | **Portée** | Les DEUX fiches Play : MyWeli (`com.myweli.app`) et MyWeli Pro (`com.myweli.pro`) |
 | **Source de vérité** | La politique de confidentialité publiée (`/politique-confidentialite`) et le binaire — un formulaire qui les contredit est un rejet ET une exposition légale (LAUNCH.md §6.3) |
 | **Règle** | Chaque réponse ci-dessous est dérivée du code ou de la politique, jamais inventée. En cas de doute en saisissant : STOP, on vérifie. |
@@ -114,10 +114,24 @@ Choisir « **Tout ou partie des fonctionnalités sont restreintes** » puis
 > fourni remplace celui normalement envoyé). Vous
 > arrivez sur un salon de démonstration complet : agenda rempli,
 > réservations manuelles, clients, catalogue, photos, disponibilités,
-> exports — tout fonctionne. Deux actions sont volontairement désactivées
-> sur ce compte de démonstration (mise en ligne publique du salon et
-> invitations d'équipe) et l'affichent clairement : « Compte de
-> démonstration — cette action est désactivée. »
+> exports — tout fonctionne. Trois actions sont volontairement désactivées
+> sur ce compte de démonstration (mise en ligne publique du salon,
+> invitations d'équipe et suppression du compte) et l'affichent clairement :
+> « Compte de démonstration — cette action est désactivée. »
+
+*Amendé le 2026-10-13
+([demo-account-deletion-lock.md](demo-account-deletion-lock.md)) : « Deux
+actions … (mise en ligne publique du salon et invitations d'équipe) » devient
+« Trois actions … », avec la suppression du compte. **Ce texte n'est vrai
+qu'une fois le verrou déployé en production** — `api.myweli.com` répond alors
+403 `demo_account_locked` à `DELETE /me/provider` ; le déploiement demande
+l'accord explicite du propriétaire (spec §10). **D'ici là, la Play Console
+garde le texte précédent**, et un relecteur qui supprime le compte démo le
+détruit encore. Le texte précédent est celui-ci avec, à la place de sa
+dernière phrase : « Deux actions sont volontairement désactivées sur ce
+compte de démonstration (mise en ligne publique du salon et invitations
+d'équipe) et l'affichent clairement : « Compte de démonstration — cette
+action est désactivée. » ».*
 
 *Corrigé le 2026-09-24 (audit App Store,
 [app-store-forms.md](app-store-forms.md) §8) : ce texte disait « Ouvrir « Se

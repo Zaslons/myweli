@@ -5,6 +5,11 @@
 **Contract:** `DELETE /me/provider` added (204/401/403/409) ·
 **Threat model:** new row (self-scoped destructive endpoint).
 
+*2026-10-13 — one more refusal: the shared store-review demo account cannot
+delete itself (403 `demo_account_locked`, evaluated before the future-bookings
+gate). Design: [demo-account-deletion-lock.md](demo-account-deletion-lock.md).
+Built, not deployed.*
+
 ## Goal & scope
 
 The last open audit item: salon accounts can delete themselves and export
@@ -16,6 +21,11 @@ review). Mirrors the consumer flows adapted to salon semantics.
 Provider-authenticated, self-scoped (the account and its salon come from the
 token, never the client):
 
+0. **The demo lock** *(2026-10-13)* — the store-review demo identity
+   (`revue@myweli.test`, threat T69) → **403 `demo_account_locked`**, right
+   after the account is loaded. Nothing below runs for it: its credential is
+   public, the app offers this very flow, and nothing recreates the identity
+   ([demo-account-deletion-lock.md](demo-account-deletion-lock.md)).
 1. **Future-bookings gate** — pending/confirmed bookings in the future →
    **409 `future_bookings`**: the salon settles its agenda first (reject or
    complete from the journal). No surprise mass-cancellations of consumers'
@@ -34,7 +44,8 @@ token, never the client):
    all sessions die. `StorageService.presignDelete` (SigV4 query signing,
    shared with `presignGet`) is the new erasure half of the lifecycle.
 
-Errors: anon → 401 · non-provider/unlinked → 403 · future bookings → 409.
+Errors: anon → 401 · non-provider/unlinked → 403 `forbidden` · the demo
+identity → 403 `demo_account_locked` · future bookings → 409.
 
 ## Export — client-side assembly (both surfaces, no new endpoint)
 
@@ -51,10 +62,14 @@ web: `/pro/profil` gains « Exporter mes données (JSON) » (download + copier).
   (« Cette action est définitive. Votre salon sera retiré de MyWeli. Pensez
   à exporter vos données avant. ») → 409 → « Terminez ou annulez vos
   rendez-vous à venir avant de supprimer votre compte. » → success → logout
-  → login screen.
+  → login screen. *2026-10-13:* 403 `demo_account_locked` → « Compte de
+  démonstration — cette action est désactivée. », same snackbar; the user
+  stays signed in. The entry is not hidden for the demo account.
 - **Web** (`/pro/profil`): a « Compte » danger section — export buttons +
   the type-SUPPRIMER confirmation (the consumer AccountClient pattern);
-  BFF `DELETE /api/pro/account` clears the pro session cookies.
+  BFF `DELETE /api/pro/account` clears the pro session cookies — on a 204
+  only. *2026-10-13:* the demo refusal reads the same sentence as in the
+  app, in the section's `role="alert"`.
 
 ## Tests
 
