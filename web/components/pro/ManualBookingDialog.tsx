@@ -70,7 +70,6 @@ export function ManualBookingDialog({
   );
   const [newPhone, setNewPhone] = useState("");
   const [note, setNote] = useState("");
-  const [sendSms, setSendSms] = useState(true);
   const [busy, setBusy] = useState(false);
 
   // Grid-cell entry: the tapped cell IS the date/time choice.
@@ -141,7 +140,11 @@ export function ManualBookingDialog({
       clientName: name || undefined,
       clientPhone: phone,
       notes: note.trim() || undefined,
-      sendSmsInvite: sendSms && Boolean(phone),
+      // Always `false`, and sent rather than omitted — the same payload as the
+      // app (`FeatureFlags.smsInvite` is off there). No SMS is sent by
+      // anything today, so the dialog offers no control for one
+      // (docs/design/web-manual-booking.md §2).
+      sendSmsInvite: false,
     });
     setBusy(false);
     if (r.ok) onCreated();
@@ -291,28 +294,6 @@ export function ManualBookingDialog({
           ) : null}
         </div>
       )}
-
-      {/* SMS switch (backend no-op until the notifications slice) */}
-      <label
-        className={`mt-m flex items-start gap-s text-bodyMedium ${
-          phone ? "" : "opacity-45"
-        }`}
-      >
-        <input
-          type="checkbox"
-          disabled={!phone}
-          checked={sendSms && Boolean(phone)}
-          onChange={(e) => setSendSms(e.target.checked)}
-        />
-        <span>
-          <span className="text-textPrimary">
-            Envoyer la confirmation par SMS
-          </span>
-          <span className="block text-bodySmall text-textTertiary">
-            Le client reçoit un lien vers l’app (bientôt disponible)
-          </span>
-        </span>
-      </label>
 
       {/* Note */}
       <textarea
