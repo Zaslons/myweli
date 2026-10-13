@@ -125,7 +125,7 @@ export function ResultsMap({
   );
 }
 
-function MiniCard({ provider: p }: { provider: MappableProvider }) {
+export function MiniCard({ provider: p }: { provider: MappableProvider }) {
   const active = (p.services ?? []).filter((s) => s.active !== false);
   const min = active.length ? Math.min(...active.map((s) => s.price)) : null;
   return (

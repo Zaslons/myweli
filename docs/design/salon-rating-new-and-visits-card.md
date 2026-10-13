@@ -55,9 +55,17 @@ One component per surface — app `AppRating`, web `Rating` — one rule:
 
 - French comma always (`4,8`), one decimal.
 - The star stays decoration (§3.5); the numeral is the information.
-- « Nouveau » is a neutral pill — `surfaceVariant` fill, `textSecondary`,
-  `labelSmall`, `radiusPill` — not a status colour: it describes the salon,
-  it does not warn. Web: `<Chip variant="neutral">` (dense on cards/map).
+- « Nouveau » is a quiet pill — **`textSecondary` at 10 % behind
+  `textSecondary`** (the journal's badge idiom), `labelSmall`, `radiusPill`,
+  no vertical padding so it is exactly the 16 px of the rating row it
+  replaces — not a status colour: it describes the salon, it does not warn.
+  *(Built that way after review: a `surfaceVariant` fill is ~1.04:1 on white
+  and draws no shape.)* Web: the new `<Chip variant="ink">` — same tint;
+  the existing `neutral` variant's `bg-surface` IS the page background, so it
+  drew no pill on the salon page (1:1).
+- Web accessible text: « Note 4,8 (32 avis) » (an sr-only « Note » before the
+  visible text; the star stays aria-hidden) and « Nouveau salon, pas encore
+  d’avis » (an sr-only tail after « Nouveau »).
 - « 1 avis » singular is not needed: the count is a number in brackets
   (`(1 avis)` reads correctly in French for one as well — « avis » is
   invariable).
@@ -70,7 +78,12 @@ hiding and show « Nouveau ».
 ### 2.2 The « Avis » section at 0 reviews (app)
 
 The large `★ 0.0 / 0 avis` summary becomes the « Nouveau » pill and the line
-« Pas encore d’avis. » (`bodySmall`, `textTertiary`). The « Donner votre
+« Pas encore d’avis. » (`bodySmall`, `textTertiary`; excluded from semantics,
+since the pill's label already says it). The line needs **no review in the
+list either**: `addReviewLocally` shows a just-submitted review before any
+reload, and now moves `rating`/`reviewCount` with it (as the backend's
+`recomputeRatings` does), so the first reviewer never sees « Nouveau » above
+their own review — found by the adversarial review of this slice. The « Donner votre
 avis » invitation for a client with a reviewable visit is unchanged, so the
 first review can still be left from here. (The web hides its whole review
 list at 0 and invites from `SalonVisitsCard`; same outcome, different home.)

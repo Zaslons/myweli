@@ -64,16 +64,17 @@ export function SalonRating({
   className?: string;
 }) {
   if (reviewCount > 0) {
+    // « Note » for screen readers — the star is aria-hidden, so the numeral
+    // alone would be read as a bare « 4,8 ».
     return (
-      <Rating
-        value={rating}
-        count={withCount ? reviewCount : undefined}
-        className={className}
-      />
+      <span className={className}>
+        <span className="sr-only">Note </span>
+        <Rating value={rating} count={withCount ? reviewCount : undefined} />
+      </span>
     );
   }
   return (
-    <Chip dense={dense} className={className}>
+    <Chip variant="ink" dense={dense} className={className}>
       Nouveau<span className="sr-only"> salon, pas encore d’avis</span>
     </Chip>
   );
