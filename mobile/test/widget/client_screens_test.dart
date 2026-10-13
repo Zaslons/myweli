@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
+import 'package:myweli/core/theme/app_theme.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/salon_client.dart';
 import 'package:myweli/providers/pro_auth_provider.dart';
@@ -14,6 +15,8 @@ import 'package:myweli/services/mock/mock_pro_clients_service.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../a11y/_a11y.dart';
+import '../support/fonts.dart';
 import '../support/pump_app.dart';
 
 /// Toggleable mock: the educational empty state needs a salon with no
@@ -45,6 +48,7 @@ void main() {
 
   setUpAll(() async {
     await initializeDateFormatting('fr_FR', null);
+    await loadRealFonts();
     SharedPreferences.setMockInitialValues({});
     serviceLocator.authService = MockAuthService();
     serviceLocator.proClientsService = clients;
@@ -52,7 +56,11 @@ void main() {
 
   setUp(() => clients.empty = false);
 
-  Widget app({String initial = '/pro/clients'}) {
+  Widget app({
+    String initial = '/pro/clients',
+    double scale = 1,
+    bool realFonts = false,
+  }) {
     final router = GoRouter(
       initialLocation: initial,
       routes: [
@@ -77,6 +85,17 @@ void main() {
         ChangeNotifierProvider(create: (_) => ProClientsProvider()),
       ],
       routerConfig: router,
+      // Real glyph widths for the layout cases only (the test font draws
+      // squares); the other tests keep the default theme they were written in.
+      theme: realFonts ? AppTheme.themeData(fontFamily: kRealFont) : null,
+      builder: scale == 1
+          ? null
+          : (context, child) => MediaQuery(
+              data: MediaQuery.of(
+                context,
+              ).copyWith(textScaler: TextScaler.linear(scale)),
+              child: child!,
+            ),
     );
   }
 
@@ -322,6 +341,102 @@ void main() {
       // scroll-and-tap test covers it.
     });
 
+    // docs/design/pro-screenshot-shoot-fixes.md §2.1–§2.2 — found in App
+    // Store screenshot 4: « dimanch / e » in the « Dernière » tile, uneven
+    // tiles, and the number printed raw.
+    Text valueAbove(WidgetTester tester, String label) {
+      final tile = find.ancestor(
+        of: find.text(label),
+        matching: find.byType(Column),
+      );
+      return tester
+          .widgetList<Text>(
+            find.descendant(of: tile.first, matching: find.byType(Text)),
+          )
+          .first;
+    }
+
+    testWidgets('the number is grouped, in full', (tester) async {
+      await tester.pumpWidget(app(initial: '/pro/clients/sc1'));
+      await settle(tester);
+      expect(find.text('+225 07 00 00 00 01'), findsOneWidget);
+      expect(find.text('+2250700000001'), findsNothing);
+    });
+
+    testWidgets('« Dernière » is the compact date, never the long form', (
+      tester,
+    ) async {
+      await tester.pumpWidget(app(initial: '/pro/clients/sc1'));
+      await settle(tester);
+      final value = valueAbove(tester, 'Dernière').data!;
+      expect(
+        value,
+        matches(RegExp(r'^\d{1,2} \S+ \d{4}$')),
+        reason: '« 13 oct. 2026 », not « mardi 13 octobre 2026 »',
+      );
+      expect(
+        value,
+        isNot(
+          matches(
+            RegExp('lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche'),
+          ),
+        ),
+      );
+    });
+
+    // Both sides of the 2×2 threshold (1.1), and the old one (1.3) that broke
+    // « Absences ».
+    for (final scale in [1.0, 1.1, 1.15, 1.2, 1.3, 1.5, 2.0]) {
+      testWidgets('stat tiles at $scale×: equal heights, no word broken', (
+        tester,
+      ) async {
+        tester.view.physicalSize = const Size(360, 1600);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+        await tester.pumpWidget(
+          app(initial: '/pro/clients/sc1', scale: scale, realFonts: true),
+        );
+        await settle(tester);
+        expect(tester.takeException(), isNull);
+
+        Rect tileOf(String label) => tester.getRect(
+          find
+              .ancestor(of: find.text(label), matching: find.byType(Container))
+              .first,
+        );
+        final labels = ['Visites', 'Dépensé', 'Absences', 'Dernière'];
+        final rects = {for (final l in labels) l: tileOf(l)};
+        // Tiles sharing a row share a height.
+        for (final a in labels) {
+          for (final b in labels) {
+            if ((rects[a]!.top - rects[b]!.top).abs() < 1) {
+              expect(
+                rects[a]!.height,
+                closeTo(rects[b]!.height, 0.5),
+                reason: '$a and $b sit in one row at $scale×',
+              );
+            }
+          }
+        }
+        final twoByTwo = scale > 1.1;
+        expect(
+          (rects['Visites']!.top - rects['Absences']!.top).abs() > 1,
+          twoByTwo,
+          reason: twoByTwo
+              ? 'above 1.1× the strip is a 2×2 grid'
+              : 'up to 1.1× the four tiles share one row',
+        );
+        for (final l in labels) {
+          expectNoMidWordBreak(tester, l, 'client card at $scale×');
+          expectNoMidWordBreak(
+            tester,
+            valueAbove(tester, l).data!,
+            'the « $l » value at $scale×',
+          );
+        }
+      });
+    }
+
     testWidgets('adding a note prepends it', (tester) async {
       await tester.pumpWidget(app(initial: '/pro/clients/sc1'));
       await settle(tester);
@@ -355,6 +470,11 @@ void main() {
         200,
         scrollable: find.byType(Scrollable).first,
       );
+      // `scrollUntilVisible` stops once ANY of the button is on screen; with
+      // real glyph widths (this file loads Roboto) the page is shorter and it
+      // stopped with the button at y 602 on a 600 viewport — the tap missed.
+      await tester.ensureVisible(find.text('Nouvelle réservation'));
+      await tester.pump();
       await tester.tap(find.text('Nouvelle réservation'));
       await settle(tester);
 

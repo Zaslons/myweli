@@ -9,6 +9,13 @@ import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/utils/timeout_cache_manager.dart';
 
+/// The smallest box that gets « Réessayer » spelled out on a timed-out image;
+/// below it, the icon alone with the tooltip. 200 must hold icon + label at
+/// 2× text — `timed_cached_image_timeout_test.dart` renders it there and
+/// fails on an overflow or a mid-word break; 72 is a 48 dp control + padding.
+const double _kRetryLabelMinWidth = 200;
+const double _kRetryLabelMinHeight = 72;
+
 class TimedCachedImage extends StatefulWidget {
   final String imageUrl;
   final BoxFit fit;
@@ -196,19 +203,43 @@ class _TimedCachedImageState extends State<TimedCachedImage> {
 
     if (!_timedOut) return wrapped;
 
+    // Timed out. The request keeps running underneath (`wrapped` stays in the
+    // tree), so a late image still replaces this — but the cover is OPAQUE:
+    // it used to be a 25 % black scrim with a white label (literal colours)
+    // over the still-spinning loader, and in a third-width photo tile the
+    // label broke as « Réessay / er » (docs/design/pro-screenshot-shoot-fixes.md
+    // §2.3). A box too small for the label gets the icon and its tooltip.
     return Stack(
       children: [
         wrapped,
         Positioned.fill(
-          child: Container(
-            color: Colors.black.withValues(alpha: 0.25),
-            alignment: Alignment.center,
-            child: TextButton.icon(
-              onPressed: _retry,
-              icon: const Icon(Icons.refresh, color: Colors.white),
-              label: const Text(
-                'Réessayer',
-                style: TextStyle(color: Colors.white),
+          child: ClipRRect(
+            borderRadius: widget.borderRadius ?? BorderRadius.zero,
+            child: ColoredBox(
+              color: AppColors.surface,
+              child: LayoutBuilder(
+                builder: (context, box) {
+                  final roomy =
+                      box.maxWidth >= _kRetryLabelMinWidth &&
+                      box.maxHeight >= _kRetryLabelMinHeight;
+                  return Center(
+                    child: roomy
+                        ? TextButton.icon(
+                            onPressed: _retry,
+                            style: TextButton.styleFrom(
+                              foregroundColor: AppColors.textPrimary,
+                            ),
+                            icon: const Icon(Icons.refresh),
+                            label: const Text('Réessayer'),
+                          )
+                        : IconButton(
+                            onPressed: _retry,
+                            tooltip: 'Réessayer',
+                            color: AppColors.textPrimary,
+                            icon: const Icon(Icons.refresh),
+                          ),
+                  );
+                },
               ),
             ),
           ),

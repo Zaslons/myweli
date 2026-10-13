@@ -56,7 +56,7 @@ void main() {
     });
   }
 
-  Widget app(ProAuthProvider authProvider) {
+  Widget app(ProAuthProvider authProvider, {double scale = 1}) {
     final router = GoRouter(
       initialLocation: '/pro/dashboard',
       routes: [
@@ -78,6 +78,14 @@ void main() {
         ),
       ],
       routerConfig: router,
+      builder: scale == 1
+          ? null
+          : (context, child) => MediaQuery(
+              data: MediaQuery.of(
+                context,
+              ).copyWith(textScaler: TextScaler.linear(scale)),
+              child: child!,
+            ),
     );
   }
 
@@ -162,5 +170,42 @@ void main() {
     expect(find.text('Configurer mon profil'), findsOneWidget);
     expect(find.text('Revenus'), findsWidgets); // stat cards + Analyses card
     expect(find.text('Services'), findsOneWidget);
+  });
+
+  /// docs/design/pro-screenshot-shoot-fixes.md §2.4 — the two cards of a
+  /// stat row are one height. They were plain `Expanded`s: on the demo salon
+  /// « 114 000 FCFA » wrapped in « Ce mois » and not in « Aujourd’hui », and at
+  /// large text the titles wrap unevenly too.
+  testWidgets('OWNER: each stat row\'s cards share one height (360dp, 2×)', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(360, 2400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.runAsync(() async {
+      await auth.requestProviderEmailOtp('eq@dash.test');
+      await auth.registerProviderWithEmail(
+        email: 'eq@dash.test',
+        code: MockAuthService.demoOtp,
+        phoneNumber: '+2250700000096',
+        businessName: 'Salon Égal',
+        businessType: BusinessType.salon,
+      );
+    });
+    await tester.pumpWidget(app(await readyAuth(tester), scale: 2));
+    await settle(tester);
+    expect(tester.takeException(), isNull);
+
+    Rect card(Finder title) => tester.getRect(
+      find.ancestor(of: title, matching: find.byType(Container)).first,
+    );
+    final today = find.text('Aujourd’hui');
+    expect(today, findsNWidgets(2), reason: 'rendez-vous + revenus rows');
+    final pending = card(find.text('En attente'));
+    final todayAppts = card(today.first);
+    expect(todayAppts.height, closeTo(pending.height, 0.5));
+    final month = card(find.text('Ce mois'));
+    final todayMoney = card(today.last);
+    expect(todayMoney.height, closeTo(month.height, 0.5));
   });
 }

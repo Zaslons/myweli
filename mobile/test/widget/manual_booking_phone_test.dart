@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:myweli/core/config/feature_flags.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/appointment.dart';
@@ -212,12 +213,45 @@ void main() {
     await pump(tester);
     await tester.tap(find.text('Tresses'));
     await tester.pump();
-    final walkIn = find.text('Client sans numéro (walk-in)');
+    final walkIn = find.text('Client sans numéro');
     await tester.ensureVisible(walkIn);
     await tester.tap(walkIn);
     await tester.pump();
     await submit(tester);
 
     expect(capturedPhone(), isNull);
+  });
+
+  /// docs/design/pro-screenshot-shoot-fixes.md §1.5–§1.6: no English
+  /// « (walk-in) », and no SMS switch while `FeatureFlags.smsInvite` is off —
+  /// the server never reads `sendSmsInvite`, so the form sends `false`.
+  testWidgets('no SMS switch, no « walk-in », and sendSmsInvite is false', (
+    tester,
+  ) async {
+    expect(FeatureFlags.smsInvite, isFalse, reason: 'the state this pins');
+    await pump(tester);
+    expect(find.textContaining('walk-in'), findsNothing);
+    expect(find.text('Envoyer la confirmation par SMS'), findsNothing);
+    expect(find.byType(SwitchListTile), findsNothing);
+    expect(find.textContaining('bientôt disponible'), findsNothing);
+
+    await tester.tap(find.text('Tresses'));
+    await tester.pump();
+    await tester.enterText(phoneInput(), '0708091011');
+    await tester.pump();
+    await submit(tester);
+    final sent = verify(
+      () => service.createManualBooking(
+        providerId: any(named: 'providerId'),
+        serviceIds: any(named: 'serviceIds'),
+        appointmentDateTime: any(named: 'appointmentDateTime'),
+        clientName: any(named: 'clientName'),
+        clientPhone: any(named: 'clientPhone'),
+        notes: any(named: 'notes'),
+        artistId: any(named: 'artistId'),
+        sendSmsInvite: captureAny(named: 'sendSmsInvite'),
+      ),
+    ).captured.single;
+    expect(sent, isFalse);
   });
 }

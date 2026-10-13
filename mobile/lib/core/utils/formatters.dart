@@ -100,6 +100,15 @@ class Formatters {
     return DateFormat('EEEE d MMMM yyyy', 'fr_FR').format(date);
   }
 
+  /// A compact date for a narrow slot: « 13 oct. 2026 » — every break falls
+  /// BETWEEN words, so a quarter-width tile wraps it as « 13 oct. / 2026 »
+  /// where [formatDate]'s « mardi 13 octobre 2026 » broke as « dimanch / e »
+  /// and the padded « 13/10/2026 » is one unbreakable token
+  /// (docs/design/pro-screenshot-shoot-fixes.md §2.1).
+  static String formatDateCompact(DateTime date) {
+    return DateFormat('d MMM y', 'fr_FR').format(date);
+  }
+
   /// Format date short: « 15/01/2024 » — **day first**, both parts padded.
   ///
   /// Day-first is not cosmetic: `03/11/2026` is a different date to a French

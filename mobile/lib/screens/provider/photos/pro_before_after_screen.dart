@@ -275,15 +275,18 @@ class _PairCard extends StatelessWidget {
             ),
             child: Row(
               children: [
+                // No caption, no line — « — » read as a placeholder nobody
+                // chose (pro-screenshot-shoot-fixes.md §1.7). The Expanded
+                // stays so « Retirer » keeps its place on the right.
                 Expanded(
-                  child: Text(
-                    caption ?? '—',
-                    style: AppTextStyles.bodySmall.copyWith(
-                      color: caption == null
-                          ? AppColors.textTertiary
-                          : AppColors.textSecondary,
-                    ),
-                  ),
+                  child: caption == null || caption!.isEmpty
+                      ? const SizedBox.shrink()
+                      : Text(
+                          caption!,
+                          style: AppTextStyles.bodySmall.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
                 ),
                 TextButton.icon(
                   onPressed: onRemove,
