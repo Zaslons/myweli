@@ -19,7 +19,8 @@
     "ring_pt": 1.5,
     "fill_opacity": 0.12,
     "ring_opacity": 0.45,
-    "tap_dwell": "base",
+    "tap_lead": "base",
+    "tap_dwell": "fast",
     "light_below_luminance": 0.35
   },
   "timing": {
@@ -94,5 +95,57 @@
       "caption_after": {"gesture": "tap-creer", "delay_s": 0.6},
       "gestures": []
     }
-  ]
+  ],
+  "variants": {
+    "dry-run": {
+      "_what": "A take that writes nothing to the salon: the swipe opens the « Arrivé » pane and a second swipe closes it, the form is filled and left by the back arrow. The film's frame, captions, motion and rules; other gestures. A variant is a rehearsal and only that: `preview.py build --variant dry-run` writes preview-rehearsal.mp4 and every report says REHEARSAL. First shot on 2026-10-13.",
+      "film": {"duration_s": 20.0, "poster_s": 18.0},
+      "shots": [
+        {
+          "id": "R1",
+          "screen": "Ma journée, 09:41, a full day",
+          "caption": "arrivee",
+          "gestures": [
+            {"id": "swipe-arrive", "kind": "drag", "what": "a right swipe on a confirmed booking: the green « Arrivé » pane opens — and is not tapped", "rest_after_s": 0.6},
+            {"id": "swipe-close", "kind": "drag", "what": "a left swipe on the same card: the pane closes", "rest_after_s": 0.4}
+          ]
+        },
+        {
+          "id": "R2",
+          "screen": "Ma journée → Réservation",
+          "caption": "creneau",
+          "gestures": [
+            {"id": "tap-libre", "kind": "tap", "what": "a tap on « Libre — 10:45 »: the app pushes « Réservation », date and hour already set", "rest_after_s": 0.9}
+          ]
+        },
+        {
+          "id": "R3",
+          "screen": "Réservation",
+          "caption": "comptoir",
+          "gestures": [
+            {"id": "tap-coupe", "kind": "tap", "what": "tick « Coupe homme »", "rest_after_s": 0.2},
+            {"id": "tap-sans-numero", "kind": "tap", "what": "tick « Client sans numéro »", "rest_after_s": 0.2},
+            {"id": "tap-nom", "kind": "tap", "optional": true, "what": "a tap in the name field, if the app does not focus it by itself", "rest_after_s": 0.1},
+            {"id": "type-nom", "kind": "type", "what": "the name « Yao K. » is typed", "rest_after_s": 0.4},
+            {"id": "scroll-total", "kind": "drag", "what": "scroll to the total", "rest_after_s": 0.6}
+          ]
+        },
+        {
+          "id": "R4",
+          "screen": "Réservation → Ma journée",
+          "caption": "comptoir",
+          "gestures": [
+            {"id": "tap-retour", "kind": "tap", "what": "a tap on the back arrow: the form is left, nothing is created", "rest_after_s": 0}
+          ]
+        },
+        {
+          "id": "R5",
+          "screen": "Ma journée, at rest",
+          "caption": "agenda",
+          "caption_after": {"gesture": "tap-retour", "delay_s": 0.6},
+          "gestures": []
+        }
+      ]
+    }
+  }
 }

@@ -248,10 +248,16 @@ class Composer:
         if alpha <= 0:
             return None
         path = touch["path"]
+        # Where the drag was followed in the picture, each point of the path
+        # is a frame of the take: the point holds until the next one, exactly
+        # as the picture under it does. Elsewhere it moves as the finger did.
+        held_from, held_to = touch.get("step") or (1, 0)
         x, y = path[-1][1], path[-1][2]
         for (ta, xa, ya), (tb, xb, yb) in zip(path, path[1:]):
             if t < tb:
                 u = max(0.0, (t - ta) / (tb - ta))
+                if held_from <= ta and tb <= held_to:
+                    u = 0.0
                 x, y = xa + (xb - xa) * u, ya + (yb - ya) * u
                 break
         return x, y, alpha

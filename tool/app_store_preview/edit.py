@@ -10,8 +10,10 @@ waiting. This module removes the waiting and nothing else:
     (a loader, a snackbar that leaves after four seconds) is inside the window
     and stays.
   * Only the still stretch that ends at a touch-down — the app waiting for the
-    finger — may be shortened, or lengthened by holding its picture.
+    finger — may be shortened, or lengthened by holding its picture. A typed
+    key is a touch-down like any other.
   * A cut may only jump between two pictures that are the same picture.
+  * A text caret blinking, alone, is nothing changing.
 
 `propose` builds an edit list that obeys this from the scan of the take
 (conform scan), the gesture log and the storyboard. `check` re-derives the
@@ -36,15 +38,27 @@ from dataclasses import dataclass, field
 # real change — the refresh spinner's first dot — was 5 strong pixels. So:
 STRONG_MIN = 4      # this many strong pixels, or
 SOFT_MIN = 2000     # this many soft ones, is a change.
-# A text caret blinking is a change of a few hundred strong pixels in a box a
-# caret's shape — thin, and one text line tall — and nothing else on screen.
-# It is treated as nothing changing (README, « The editing rule »). The box,
-# in device points: at most CARET_MAX_PT wide and tall, at least
-# CARET_MIN_HEIGHT_PT tall. The minimum height matters: on the probe the
-# refresh spinner's arrow grew by boxes 5 x 1 to 17 x 15 pixels — small, and
-# real; none is 10 points tall.
-CARET_MAX_PT = (6.0, 34.0)
+# A text caret blinking is treated as nothing changing (README, « The editing
+# rule »). What a caret is was read on the rehearsal take of 2026-10-13, the
+# app's own: 2 points wide, 23 to 26 tall, and it FADES in and out. Most of
+# its frames stay under the thresholds above; the ones that pass them show
+# the whole caret, or a fragment of it (its last row of pixels, 1 x 1 point),
+# always at the same place. So a caret is told by where it is, not only by
+# its size:
+#   * it is no bigger than CARET_MAX_PT — a typed « . » moves the caret and
+#     changes a box 5 points wide: a change;
+#   * it is first seen, at least CARET_MIN_HEIGHT_PT tall, INSIDE the last
+#     burst of changes — the field that took focus, the character just typed,
+#     the form that scrolled. A caret-shaped box anywhere else is the caret
+#     arriving somewhere new (a typed space moves nothing else): a change;
+#   * from then on, whatever stays within that one column is the caret —
+#     fragments included — until the next change.
+# The minimum height keeps small real changes out: on the probe clip the
+# refresh spinner's arrow grew by boxes 5 x 1 to 17 x 15 pixels inside the
+# list that had just moved; none is 10 points tall and none blinks in place.
+CARET_MAX_PT = (3.0, 34.0)
 CARET_MIN_HEIGHT_PT = 10.0
+CARET_SLACK_PT = 1.0
 
 # Flutter starts a drag once the finger has travelled this far (kTouchSlop,
 # flutter/lib/src/gestures/constants.dart): the first frame that moves is that
@@ -60,27 +74,121 @@ class Refusal(Exception):
         self.code, self.message = code, message
 
 
-def frame_kind(row: dict, px_per_pt: float) -> str:
-    """`change`, `caret` or `quiet` for one scan row (or one pair diff)."""
+Box = list  # [x0, y0, x1, y1] in pixels of the take, x1 and y1 excluded
+
+
+def _union(a: Box, b: Box) -> Box:
+    return [min(a[0], b[0]), min(a[1], b[1]), max(a[2], b[2]), max(a[3], b[3])]
+
+
+def _caret_sized(box: Box, px_per_pt: float) -> bool:
+    return ((box[2] - box[0]) / px_per_pt <= CARET_MAX_PT[0]
+            and (box[3] - box[1]) / px_per_pt <= CARET_MAX_PT[1])
+
+
+def _caret_shaped(box: Box, px_per_pt: float) -> bool:
+    return _caret_sized(box, px_per_pt) and (box[3] - box[1]) / px_per_pt >= CARET_MIN_HEIGHT_PT
+
+
+def _inside(box: Box, area: Box, px_per_pt: float) -> bool:
+    slack = CARET_SLACK_PT * px_per_pt
+    return (box[0] >= area[0] - slack and box[1] >= area[1] - slack
+            and box[2] <= area[2] + slack and box[3] <= area[3] + slack)
+
+
+def frame_kind(row: dict, px_per_pt: float, column: Box | None = None, area: Box | None = None) -> str:
+    """`change`, `caret` or `quiet` for one scan row, or for the comparison of
+    the two sides of a cut. `column` is where a caret is known to blink;
+    `area` is where one may first be seen (the box of the last burst of
+    changes). Without either, nothing is a caret."""
     soft, strong = row.get("soft", 0), row.get("strong", 0)
     if strong < STRONG_MIN and soft < SOFT_MIN:
         return "quiet"
     box = row.get("box")
-    if box and soft < SOFT_MIN:
-        w, h = (box[2] - box[0]) / px_per_pt, (box[3] - box[1]) / px_per_pt
-        if w <= CARET_MAX_PT[0] and CARET_MIN_HEIGHT_PT <= h <= CARET_MAX_PT[1]:
+    if box and soft < SOFT_MIN and _caret_sized(box, px_per_pt):
+        if column is not None:
+            if _caret_sized(_union(column, box), px_per_pt):
+                return "caret"
+        elif area is not None and _caret_shaped(box, px_per_pt) and _inside(box, area, px_per_pt):
             return "caret"
     return "change"
 
 
-def frame_kinds(scan: dict, px_per_pt: float) -> list[str]:
-    kinds = [frame_kind(f, px_per_pt) for f in scan["frames"]]
-    # The recorder writes a frame when the screen changes, and only then. So a
-    # take's first picture is itself a change — the first frame of whatever
-    # woke the recorder — though there is nothing before it to measure it by.
-    if kinds:
-        kinds[0] = "change"
-    return kinds
+@dataclass
+class Reading:
+    """Every frame of a take, told apart. A « stretch » runs from one change
+    to the frame before the next: the screen is still, a caret may blink."""
+    kinds: list[str]
+    columns: list[Box | None]   # per frame: the column the caret blinks in during its stretch
+    areas: list[Box | None]     # per frame: the box of the burst of changes its stretch follows
+
+
+def read_frames(scan: dict, px_per_pt: float, rest_ticks: int) -> Reading:
+    frames = scan["frames"]
+    kinds: list[str] = ["quiet"] * len(frames)
+    whole = [0, 0, scan["video"]["width"], scan["video"]["height"]]
+    column: Box | None = None    # where the caret blinks in this stretch, once it has been seen
+    area: Box | None = None      # where it may first be seen: the box of the last burst of changes
+    burst: Box | None = None     # the box of the burst of changes this stretch follows
+    since, last_change = 0, 0    # the change that began this stretch: its frame, its time
+    found: dict[int, Box] = {}   # stretch (by the frame that began it) -> its column
+    after: dict[int, Box | None] = {}
+
+    def caret_sized(f: dict) -> bool:
+        return bool(f.get("box")) and f.get("soft", 0) < SOFT_MIN and _caret_sized(f["box"], px_per_pt)
+
+    def ahead(i: int) -> Box | None:
+        """The caret this stretch is going to show, if it shows one: the
+        first caret-shaped box inside `area` before anything bigger changes.
+        A fragment seen before it is the same caret, a moment earlier."""
+        for f in frames[i:]:
+            if frame_kind(f, px_per_pt) == "quiet":
+                continue
+            if not caret_sized(f):
+                return None
+            if _caret_shaped(f["box"], px_per_pt) and _inside(f["box"], area, px_per_pt):
+                return f["box"]
+        return None
+
+    for i, f in enumerate(frames):
+        if i == 0:
+            # The take's first picture counts as a change: it is the first
+            # thing the recorder wrote, and there is nothing before it to
+            # measure it by.
+            kinds[0], last_change = "change", f["pts"]
+            after[0] = None
+            continue
+        if frame_kind(f, px_per_pt) == "quiet":
+            continue
+        if column is None and area is not None and caret_sized(f):
+            column = ahead(i)
+        if column is not None and frame_kind(f, px_per_pt, column) == "caret":
+            kinds[i] = "caret"
+            # seen: from here to the next change, a caret-shaped box anywhere
+            # else is a caret that moved — a change — whatever `area` says
+            column = found[since] = _union(column, f["box"])
+            continue
+        kinds[i] = "change"
+        box = f.get("box") or whole    # a faint, wide change has no box: it may be anywhere
+        joins = burst is not None and f["pts"] - last_change < rest_ticks
+        burst = _union(burst, box) if joins else box
+        column, area = None, burst
+        since, last_change = i, f["pts"]
+        after[i] = burst
+
+    columns: list[Box | None] = []
+    areas: list[Box | None] = []
+    stretch = 0
+    for i, kind in enumerate(kinds):
+        if kind == "change":
+            stretch = i
+        columns.append(found.get(stretch))
+        areas.append(after[stretch])
+    return Reading(kinds, columns, areas)
+
+
+def frame_kinds(scan: dict, px_per_pt: float, rest_ticks: int) -> list[str]:
+    return read_frames(scan, px_per_pt, rest_ticks).kinds
 
 
 @dataclass
@@ -134,11 +242,42 @@ def catalogue(sb: dict) -> list[tuple[dict, dict]]:
     return [(shot, g) for shot in sb["shots"] for g in shot.get("gestures", [])]
 
 
+VARIANT_KEYS = {"film", "timing", "shots"}
+
+
+def storyboard(doc: dict, variant: str | None = None) -> dict:
+    """The storyboard a build works from: the film's own, or one of the file's
+    `variants` laid over it. A variant is a rehearsal — other gestures on the
+    same frame, with the same captions and the same rules — and is never the
+    film: the result carries its name, and everything made from it says so.
+    A variant may give `shots` (taken whole), and values of `film` and
+    `timing` (laid over the film's); it cannot touch the words, the motion or
+    the touch point."""
+    sb = {k: v for k, v in doc.items() if k != "variants"}
+    if variant is None:
+        return sb
+    variants = doc.get("variants") or {}
+    if variant not in variants:
+        raise Refusal("E_STORYBOARD", f"the storyboard has no variant `{variant}` "
+                                      f"(it has: {', '.join(sorted(variants)) or 'none'})")
+    over = {k: v for k, v in variants[variant].items() if not k.startswith("_")}
+    if not set(over) <= VARIANT_KEYS:
+        raise Refusal("E_STORYBOARD", f"variant `{variant}` may only give {', '.join(sorted(VARIANT_KEYS))} — "
+                                      f"it gives {', '.join(sorted(set(over) - VARIANT_KEYS))}")
+    for key in ("film", "timing"):
+        sb[key] = {**doc[key], **over.get(key, {})}
+    if "shots" in over:
+        sb["shots"] = over["shots"]
+    sb["variant"] = variant
+    return sb
+
+
 # ---- finding each gesture in the take ---------------------------------------
 
 @dataclass
 class Located:
-    id: str
+    id: str                # the storyboard's gesture id; a typed key is `id[n]`
+    gesture: str           # the storyboard's gesture id
     shot: str
     kind: str
     burst: int
@@ -149,6 +288,9 @@ class Located:
     path: list[list[float]] = field(default_factory=list)  # [ticks, x pt, y pt]
     up: int = 0            # ticks: the finger leaves
     distance_pt: float | None = None  # touch point to the first change's box
+    step: list[int] | None = None     # ticks: between these the path holds from one point to the next
+    how: str = ""          # how the touch point was timed, for the log
+    last: bool = True      # the last piece of its storyboard gesture (a typed key is one of several)
 
 
 @dataclass
@@ -160,6 +302,7 @@ class TakeMap:
     changes: list[int]     # ticks of every change frame
     bursts: list[Burst]
     gestures: list[Located]
+    reading: Reading | None = None
 
 
 def _slop_time_ms(path: list[list[float]]) -> float:
@@ -181,10 +324,122 @@ def _box_distance_pt(box: list[int] | None, x: float, y: float, px_per_pt: float
     return math.hypot(dx, dy) / px_per_pt
 
 
-def locate(scan: dict, log: dict, sb: dict, rehearsal: bool = False) -> TakeMap:
+# A drag's logged path says where the finger went; its times are the ones the
+# driver ASKED for. On the rehearsal take of 2026-10-13 drags logged at 16 ms
+# a sample were delivered at 25 to 29 ms a sample, and the first frame of one
+# came late — while every frame showed the picture as far along as one of the
+# logged samples. So a drag is timed by the picture (track.py measures how
+# far the content under the finger has moved in each frame); the log's own
+# times are only used before the picture starts to follow and after it stops.
+FOLLOW_MIN_PT = 0.5        # the picture has begun to follow
+FOLLOW_OVER_PT = 2.0       # further than the finger went: the picture moves on its own
+
+
+def followed_path(path: list[list[float]], track: dict, T: int) -> dict | None:
+    """A logged drag, re-timed by what the picture did. `path` is the log's
+    [[x, y, ms], …]; `track` is track.py's reading: along which axis, and for
+    each frame how far the content under the finger has moved. Returns the
+    touch-down, the lift, the points [ticks, x, y] and the span in which
+    every point is a frame of the take — or None when the picture gives
+    nothing to go by."""
+    axis = 0 if track.get("axis") == "x" else 1
+    sign = track.get("sign", 1)
+    dist = [sign * (p[axis] - path[0][axis]) for p in path]
+    if any(b < a - 0.01 for a, b in zip(dist, dist[1:])):
+        return None                       # the finger turns back: one axis cannot say where it is
+    reach = max(dist)
+    moving = [(pts, s) for pts, s in track.get("frames", []) if s >= FOLLOW_MIN_PT]
+    if not moving:
+        return None
+    top = max(s for _, s in moving)
+    seen: list[tuple[int, float]] = []
+    for pts, s in moving:
+        if s > reach + FOLLOW_OVER_PT or (seen and s < seen[-1][1]):
+            break
+        seen.append((pts, min(s, reach)))
+        if s >= top:
+            break
+    if len(seen) < 2 or seen[-1][1] <= seen[0][1]:
+        return None
+
+    def when(s: float) -> float:
+        """Logged time (ms) at which the finger is `s` along."""
+        for (pa, da), (pb, db) in zip(zip(path, dist), zip(path[1:], dist[1:])):
+            if db > da and da <= s <= db:
+                return pa[2] + (pb[2] - pa[2]) * (s - da) / (db - da)
+        return next(p[2] for p, d in zip(path, dist) if d >= reach - 1e-9)
+
+    def where(ms: float) -> tuple[float, float]:
+        for pa, pb in zip(path, path[1:]):
+            if ms <= pb[2]:
+                u = max(0.0, (ms - pa[2]) / (pb[2] - pa[2]))
+                return pa[0] + (pb[0] - pa[0]) * u, pa[1] + (pb[1] - pa[1]) * u
+        return path[-1][0], path[-1][1]
+
+    first, last = when(seen[0][1]), when(seen[-1][1])
+    tick = T / 1000
+    # before the picture follows: the log's own times, counted back from the first frame that moved
+    points: list[list[float]] = [[seen[0][0] - (first - p[2]) * tick, p[0], p[1]] for p in path if p[2] < first]
+    # while it follows: one point a frame, where the log has the finger when it is that far along
+    points += [[float(pts), *where(when(s))] for pts, s in seen]
+    # after it stops (a pane fully open, a list at its end): the log's own times again
+    turn = track.get("turn")
+    for p in path:
+        if p[2] <= last:
+            continue
+        t = seen[-1][0] + (p[2] - last) * tick
+        if turn is not None and t > turn:
+            # the picture has turned back: the finger has left by then, from where it was
+            points.append([float(turn), *where(last + (turn - seen[-1][0]) / tick)])
+            break
+        points.append([t, p[0], p[1]])
+    clean: list[list[float]] = []
+    for p in points:
+        if not clean or p[0] > clean[-1][0]:
+            clean.append([round(p[0], 3), round(p[1], 3), round(p[2], 3)])
+    return {"down": clean[0][0], "up": clean[-1][0], "points": clean,
+            "step": [seen[0][0], seen[-1][0]], "frames": len(seen),
+            "reach": (seen[0][1], seen[-1][1], reach)}
+
+
+def _burst_for(g: dict, what: str, bursts: list[Burst], used: int, T: int, timing: dict) -> Burst:
+    """The burst of changes a logged gesture started. The log says when in one
+    of two ways: `near_s` (read off the take by a person: the burst that
+    starts within the tolerance), or `after_s` and `before_s` (written by the
+    driver: when it asked for the gesture and when the call came back — the
+    first burst that starts in between)."""
+    where = ", ".join(f"{b.start / T:.3f}" for b in bursts) or "none"
+    if "after_s" in g:
+        if "before_s" not in g or not g["after_s"] < g["before_s"]:
+            raise Refusal("E_LOG", f"gesture `{what}`: `after_s` needs a later `before_s` — when the driver "
+                                   f"asked for the gesture, and when its call came back")
+        lo, hi = round(g["after_s"] * T), round(g["before_s"] * T)
+        cands = [b for b in bursts if lo <= b.start <= hi and b.index > used]
+        if not cands:
+            raise Refusal("E_MATCH", f"gesture `{what}`: nothing starts changing between {g['after_s']} s and "
+                                     f"{g['before_s']} s (changes start at: {where})")
+        return cands[0]      # what follows it in the window is the app's answer going on
+    if "near_s" not in g:
+        raise Refusal("E_LOG", f"gesture `{what}` needs `near_s`: roughly when, in seconds of the take "
+                               f"(or `after_s` and `before_s`)")
+    near = round(g["near_s"] * T)
+    tol = round(g.get("tolerance_s", timing["sync_tolerance_s"]) * T)
+    cands = [b for b in bursts if abs(b.start - near) <= tol and b.index > used]
+    if not cands:
+        raise Refusal("E_MATCH", f"gesture `{what}`: nothing starts changing within ±{tol / T:g} s of "
+                                 f"{g['near_s']} s (changes start at: {where})")
+    if len(cands) > 1:
+        raise Refusal("E_MATCH", f"gesture `{what}`: {len(cands)} changes start within ±{tol / T:g} s of "
+                                 f"{g['near_s']} s ({', '.join(f'{b.start / T:.3f}' for b in cands)}) — "
+                                 f"set `near_s` on the one meant and a smaller `tolerance_s`")
+    return cands[0]
+
+
+def locate(scan: dict, log: dict, sb: dict, rehearsal: bool = False, tracks: dict | None = None) -> TakeMap:
     """Where each logged gesture is in the take: its touch-down and how long
     the app goes on answering it. Found from the data; the log only says
-    roughly when (`near_s`) and exactly where."""
+    roughly when and exactly where. `tracks` is track.py's reading of each
+    drag, when the pictures have been looked at."""
     v = scan["video"]
     T, fps = v["timescale"], sb["film"]["fps"]
     if T % fps:
@@ -198,9 +453,10 @@ def locate(scan: dict, log: dict, sb: dict, rehearsal: bool = False) -> TakeMap:
 
     timing = sb["timing"]
     rest = round(timing["rest_s"] * T)
-    lead = _touch_lead_ticks(sb, T)
+    lead, tap_lead, tap_dwell = _touch_leads(sb, T)
     pts = [f["pts"] for f in scan["frames"]]
-    kinds = frame_kinds(scan, px_per_pt)
+    reading = read_frames(scan, px_per_pt, rest)
+    kinds = reading.kinds
     changes = [p for p, k in zip(pts, kinds) if k == "change"]
     bursts = find_bursts(scan, kinds, rest)
 
@@ -232,80 +488,91 @@ def locate(scan: dict, log: dict, sb: dict, rehearsal: bool = False) -> TakeMap:
 
     out: list[Located] = []
     used = -1
-    first_tail_change = None
-    for g in filmed + tail[:1]:
-        gid = g.get("id", "(after the film)")
-        is_filmed = g.get("film", True)
-        if "near_s" not in g:
-            raise Refusal("E_LOG", f"gesture `{gid}` needs `near_s`: roughly when, in seconds of the take")
-        near = round(g["near_s"] * T)
-        tol = round(g.get("tolerance_s", timing["sync_tolerance_s"]) * T)
-        cands = [b for b in bursts if abs(b.start - near) <= tol and b.index > used]
-        if not cands:
-            where = ", ".join(f"{b.start / T:.3f}" for b in bursts) or "none"
-            raise Refusal("E_MATCH", f"gesture `{gid}`: nothing starts changing within ±{tol / T:g} s of "
-                                     f"{g['near_s']} s (changes start at: {where})")
-        if len(cands) > 1:
-            raise Refusal("E_MATCH", f"gesture `{gid}`: {len(cands)} changes start within ±{tol / T:g} s of "
-                                     f"{g['near_s']} s ({', '.join(f'{b.start / T:.3f}' for b in cands)}) — "
-                                     f"set `near_s` on the one meant and a smaller `tolerance_s`")
-        b = cands[0]
-        used = b.index
-        if not is_filmed:
-            first_tail_change = b.start
-            break
-
+    for g in filmed:
+        gid = g["id"]
         kind = g.get("kind")
         if kind != kind_of[gid]:
             raise Refusal("E_LOG", f"gesture `{gid}` is a {kind_of[gid]} in the storyboard, a {kind} in the log")
-        loc = Located(gid, shot_of[gid], kind, b.index, b.start, b.start, b.start, b.end)
-        if kind == "tap":
-            at = g.get("at")
-            if not (isinstance(at, list) and len(at) == 2):
-                raise Refusal("E_LOG", f"tap `{gid}` needs `at`: [x, y] in points")
-            loc.down = b.start - lead
-            dwell = _token_ticks(sb, sb["touch"]["tap_dwell"], T)
-            loc.up = b.start + dwell
-            loc.path = [[loc.down, at[0], at[1]]]
-            loc.distance_pt = _box_distance_pt(scan["frames"][b.first].get("box"), at[0], at[1], px_per_pt)
-        elif kind == "drag":
-            path = g.get("path")
-            if not (isinstance(path, list) and len(path) >= 2 and all(len(p) == 3 for p in path)):
-                raise Refusal("E_LOG", f"drag `{gid}` needs `path`: [[x, y, ms since touch-down], …]")
-            if any(pb[2] <= pa[2] for pa, pb in zip(path, path[1:])) or path[0][2] != 0:
-                raise Refusal("E_LOG", f"drag `{gid}`: path times start at 0 and increase")
-            if "down_s" in g:
-                loc.down = round(g["down_s"] * T)
-            else:
-                loc.down = b.start - round(_slop_time_ms(path) * T / 1000)
-            loc.path = [[loc.down + p[2] * T / 1000, p[0], p[1]] for p in path]
-            loc.up = loc.down + round(path[-1][2] * T / 1000)
-            loc.distance_pt = _box_distance_pt(scan["frames"][b.first].get("box"), path[0][0], path[0][1], px_per_pt)
-        elif kind == "type":
-            pass  # no touch point: the text appears, that is all
-        else:
+        if kind not in ("tap", "drag", "type"):
             raise Refusal("E_LOG", f"gesture `{gid}`: unknown kind `{kind}`")
+        # Typed text is one gesture in the storyboard and one key at a time on
+        # the screen: each key is found on its own, and the wait before it —
+        # a caret blinking, nothing else — may be cut like any other.
+        keys = g.get("keys") if kind == "type" else None
+        if keys is not None and not (isinstance(keys, list) and keys and all(isinstance(k, dict) for k in keys)):
+            raise Refusal("E_LOG", f"typed text `{gid}`: `keys` is a list of when each key was pressed")
+        pieces = keys if keys is not None else [g]
+        for n, piece in enumerate(pieces, 1):
+            pid = gid if len(pieces) == 1 else f"{gid}[{n}]"
+            b = _burst_for(piece, pid, bursts, used, T, timing)
+            used = b.index
+            loc = Located(pid, gid, shot_of[gid], kind, b.index, b.start, b.start - lead, b.start, b.end,
+                          last=n == len(pieces))
+            first_box = scan["frames"][b.first].get("box")
+            if kind == "tap":
+                at = g.get("at")
+                if not (isinstance(at, list) and len(at) == 2):
+                    raise Refusal("E_LOG", f"tap `{gid}` needs `at`: [x, y] in points")
+                loc.down = b.start - tap_lead
+                loc.up = b.start + tap_dwell
+                loc.path = [[loc.down, at[0], at[1]]]
+                loc.distance_pt = _box_distance_pt(first_box, at[0], at[1], px_per_pt)
+            elif kind == "drag":
+                path = g.get("path")
+                if not (isinstance(path, list) and len(path) >= 2 and all(len(p) == 3 for p in path)):
+                    raise Refusal("E_LOG", f"drag `{gid}` needs `path`: [[x, y, ms since touch-down], …]")
+                if any(pb[2] <= pa[2] for pa, pb in zip(path, path[1:])) or path[0][2] != 0:
+                    raise Refusal("E_LOG", f"drag `{gid}`: path times start at 0 and increase")
+                loc.distance_pt = _box_distance_pt(first_box, path[0][0], path[0][1], px_per_pt)
+                track = (tracks or {}).get(gid)
+                seen_path = followed_path(path, track, T) if track and "down_s" not in g else None
+                if seen_path:
+                    # the point is there, whole, by the time the picture moves
+                    loc.down = min(math.floor(seen_path["down"]), b.start - lead)
+                    loc.path = [p for p in seen_path["points"] if p[0] > loc.down]
+                    loc.path.insert(0, [float(loc.down), path[0][0], path[0][1]])
+                    loc.up = math.ceil(seen_path["up"])
+                    loc.step = list(seen_path["step"])
+                    a, z, reach = seen_path["reach"]
+                    loc.how = (f"followed in the picture on {seen_path['frames']} frames, from {a:.1f} to {z:.1f} pt "
+                               f"of the {reach:.0f} pt logged")
+                else:
+                    if "down_s" in g:
+                        loc.down = round(g["down_s"] * T)
+                        loc.how = "timed by the log's own `down_s`"
+                    else:
+                        loc.down = b.start - round(_slop_time_ms(path) * T / 1000)
+                        why = (track or {}).get("why") or ("the picture gave nothing to go by" if track
+                                                           else "the pictures were not looked at")
+                        loc.how = f"NOT followed in the picture ({why}): timed by the logged path, 1:1"
+                    loc.path = [[loc.down + p[2] * T / 1000, p[0], p[1]] for p in path]
+                    loc.up = loc.down + round(path[-1][2] * T / 1000)
+            # typed text: no touch point — the key is not on the screen; the
+            # text appears, that is all
 
-        if loc.down > loc.first_change:
-            raise Refusal("E_MATCH", f"gesture `{gid}`: the touch-down ({loc.down / T:.3f} s) is after the app "
-                                     f"already changed ({loc.first_change / T:.3f} s)")
-        before = [p for p in changes if p < loc.first_change]
-        if before and before[-1] >= loc.down:
-            raise Refusal("E_MATCH", f"gesture `{gid}`: the screen is still changing at {before[-1] / T:.3f} s, "
-                                     f"after its touch-down at {loc.down / T:.3f} s — the gestures are too close")
-        if held(pts, loc.down) is None:
-            raise Refusal("E_NO_REST", f"gesture `{gid}`: the take has no picture at its touch-down "
-                                       f"({loc.down / T:.3f} s). The recorder writes nothing until the screen "
-                                       f"first changes, so the take begins ON the first gesture's answer "
-                                       f"(README, runbook step 4).")
-        out.append(loc)
+            if loc.down > loc.first_change:
+                raise Refusal("E_MATCH", f"gesture `{pid}`: the touch-down ({loc.down / T:.3f} s) is after the app "
+                                         f"already changed ({loc.first_change / T:.3f} s)")
+            before = [p for p in changes if p < loc.first_change]
+            if before and before[-1] >= loc.down:
+                raise Refusal("E_MATCH", f"gesture `{pid}`: the screen is still changing at {before[-1] / T:.3f} s, "
+                                         f"after its touch-down at {loc.down / T:.3f} s — the gestures are too close")
+            if held(pts, loc.down) is None:
+                raise Refusal("E_NO_REST", f"gesture `{pid}`: the take has no picture at its touch-down "
+                                           f"({loc.down / T:.3f} s): it begins ON the first gesture's answer. "
+                                           f"Let the screen rest before the first gesture (README, runbook).")
+            out.append(loc)
+
+    first_tail_change = None
+    if tail:
+        first_tail_change = _burst_for(tail[0], "(after the film)", bursts, used, T, timing).start
 
     for i, loc in enumerate(out):
         limit = out[i + 1].first_change if i + 1 < len(out) else (
             first_tail_change if first_tail_change is not None else math.inf)
         loc.last_change = max(p for p in changes if loc.first_change <= p < limit)
 
-    return TakeMap(T, px_per_pt, pts, kinds, changes, bursts, out)
+    return TakeMap(T, px_per_pt, pts, kinds, changes, bursts, out, reading)
 
 
 def _token_ticks(sb: dict, token: str, T: int) -> int:
@@ -313,10 +580,24 @@ def _token_ticks(sb: dict, token: str, T: int) -> int:
     return motion(token).ms * T // 1000
 
 
-def _touch_lead_ticks(sb: dict, T: int) -> int:
-    """A tap's point starts to appear this long before the app answers: the
-    length of its own fade-in, so it is fully there when the answer starts."""
-    return _token_ticks(sb, sb["motion"]["touch_in"], T)
+def _touch_leads(sb: dict, T: int) -> tuple[int, int, int]:
+    """Ticks, from motion tokens the storyboard names. The instant a finger
+    lands is not on the screen; the earliest evidence is the first frame the
+    app changes, and these count back and forward from it.
+
+      lead       a kept range starts this long before a drag moves or a typed
+                 key shows: the touch point's own fade-in (`motion.touch_in`);
+      tap lead   a tap's point appears this long before the app answers
+                 (`touch.tap_lead`) — long enough to be seen ON the control
+                 before the control reacts, never shorter than its fade-in;
+      tap dwell  …and starts to leave this long after (`touch.tap_dwell`)."""
+    lead = _token_ticks(sb, sb["motion"]["touch_in"], T)
+    tap_lead = _token_ticks(sb, sb["touch"]["tap_lead"], T)
+    if tap_lead < lead:
+        raise Refusal("E_STORYBOARD", f"touch.tap_lead (`{sb['touch']['tap_lead']}`) is shorter than the touch "
+                                      f"point's fade-in (`{sb['motion']['touch_in']}`): the point would not be "
+                                      f"whole when the app answers")
+    return lead, tap_lead, _token_ticks(sb, sb["touch"]["tap_dwell"], T)
 
 
 # ---- walking an edit list ----------------------------------------------------
@@ -428,9 +709,9 @@ def cut_pairs(edit: dict, scan: dict, fps: int) -> list[tuple[int, int]]:
 
 # ---- proposing ---------------------------------------------------------------
 
-def propose(scan: dict, log: dict, sb: dict, rehearsal: bool = False) -> dict:
+def propose(scan: dict, log: dict, sb: dict, rehearsal: bool = False, tracks: dict | None = None) -> dict:
     """An edit list that obeys the rule, with the storyboard's rests."""
-    tm = locate(scan, log, sb, rehearsal)
+    tm = locate(scan, log, sb, rehearsal, tracks)
     T, fps = tm.timescale, sb["film"]["fps"]
     step = T // fps
     timing = sb["timing"]
@@ -492,8 +773,10 @@ def propose(scan: dict, log: dict, sb: dict, rehearsal: bool = False) -> dict:
                 segments.append({"kind": "live", "src_in": r["in"], "src_out": r["out"]})
                 film += (r["out"] - r["in"]) // step
                 cursor = r["out"] - step
-            if g is r["gestures"][-1]:
-                hold(rest_after[g.id], f"rest after {g.id}")
+            # a typed key is followed by the next key: the storyboard's rest
+            # comes after the last one
+            if g is r["gestures"][-1] and g.last:
+                hold(rest_after[g.gesture], f"rest after {g.gesture}")
     final_start = film
     if total - film <= 0:
         raise Refusal("E_LENGTH", f"the film is already {film / fps:.2f} s before its final hold; the storyboard "
@@ -514,8 +797,8 @@ def propose(scan: dict, log: dict, sb: dict, rehearsal: bool = False) -> dict:
         after = shot.get("caption_after")
         if mine:
             at = math.floor(film_tick(sp, mine[0].down, T, fps) / step) - caption_lead
-        elif after and after["gesture"] in range_of:
-            g = next(x for x in tm.gestures if x.id == after["gesture"])
+        elif after and any(x.gesture == after["gesture"] for x in tm.gestures):
+            g = [x for x in tm.gestures if x.gesture == after["gesture"]][-1]
             at = math.ceil(film_tick(sp, g.burst_end, T, fps) / step) + whole_frames(
                 after["delay_s"], fps, f"{shot['id']}.caption_after.delay_s")
         elif rehearsal:
@@ -527,6 +810,7 @@ def propose(scan: dict, log: dict, sb: dict, rehearsal: bool = False) -> dict:
     # 4. Touch points, in film time.
     edit.update({
         "fps": fps, "timescale": T, "rehearsal": bool(rehearsal),
+        "variant": sb.get("variant"),
         "take": dict(scan.get("take", {})),
         "captions": captions, "touches": propose_touches(tm, sp, fps),
         "poster_frame": whole_frames(sb["film"]["poster_s"], fps, "film.poster_s"),
@@ -538,7 +822,7 @@ def propose(scan: dict, log: dict, sb: dict, rehearsal: bool = False) -> dict:
 # ---- checking ----------------------------------------------------------------
 
 def check(edit: dict, scan: dict, log: dict, sb: dict,
-          pair_diffs: dict[tuple[int, int], dict] | None = None) -> TakeMap:
+          pair_diffs: dict[tuple[int, int], dict] | None = None, tracks: dict | None = None) -> TakeMap:
     """Refuse (raise Refusal) an edit list that breaks the editing rule, does
     not belong to this take, or does not make the storyboard's film. The
     windows are re-derived here from the scan and the gesture log; nothing the
@@ -546,7 +830,17 @@ def check(edit: dict, scan: dict, log: dict, sb: dict,
     from brand import motion
 
     rehearsal = bool(edit.get("rehearsal"))
-    tm = locate(scan, log, sb, rehearsal)
+    # A variant of the storyboard is a rehearsal, whatever the edit list says
+    # of itself; and an edit list made from one cannot pass for the film's.
+    def named(variant: str | None) -> str:
+        return f"the variant `{variant}`" if variant else "the film itself"
+
+    if edit.get("variant") != sb.get("variant"):
+        raise Refusal("E_VARIANT", f"the edit list was made for {named(edit.get('variant'))}, this storyboard is "
+                                   f"{named(sb.get('variant'))}")
+    if sb.get("variant") and not rehearsal:
+        raise Refusal("E_VARIANT", f"{named(sb['variant'])} is a rehearsal: its edit list cannot say it is the film")
+    tm = locate(scan, log, sb, rehearsal, tracks)
     T, fps = tm.timescale, sb["film"]["fps"]
     step = T // fps
     take = scan.get("take", {})
@@ -590,9 +884,10 @@ def check(edit: dict, scan: dict, log: dict, sb: dict,
             d = pair_diffs.get((a, b))
             if d is None:
                 raise Refusal("E_ENDPOINT", f"no comparison of frames {a} and {b} across a cut")
-            if frame_kind(d, tm.px_per_pt) == "change":
+            if pair_kind(d, tm, b) == "change":
                 raise Refusal("E_ENDPOINT", f"a cut jumps from frame {a} to frame {b} and they are not the same "
-                                            f"picture (soft {d.get('soft')}, strong {d.get('strong')})")
+                                            f"picture (soft {d.get('soft')}, strong {d.get('strong')}, "
+                                            f"box {d.get('box')})")
 
     # The storyboard's film.
     total = sum(s.frames for s in sp)
@@ -643,28 +938,42 @@ def check(edit: dict, scan: dict, log: dict, sb: dict,
     return tm
 
 
+def pair_kind(d: dict, tm: TakeMap, frame: int) -> str:
+    """What the two sides of a cut differ by, read as a frame of the still
+    stretch the cut is in: the caret of that stretch, where it blinks, is
+    nothing changing; anything else is a change."""
+    r = tm.reading
+    return frame_kind(d, tm.px_per_pt, r.columns[frame], r.areas[frame]) if r else frame_kind(d, tm.px_per_pt)
+
+
 def propose_touches(tm: TakeMap, sp: list[Span], fps: int) -> list[dict]:
     """Touch points in film time (take ticks from the film's start): where the
-    finger lands, the path it follows, when it leaves."""
+    finger lands, the path it follows, when it leaves. `step`, on a drag
+    followed in the picture, is the span in which every point of the path is
+    a frame of the take: there the point holds until the next frame, as the
+    picture does."""
     T = tm.timescale
     out = []
     for g in tm.gestures:
         if g.kind == "type":
             continue
         down = round(film_tick(sp, g.down, T, fps))
-        out.append({
+        touch = {
             "gesture": g.id, "kind": g.kind, "down": down, "up": down + (g.up - g.down),
             "path": [[round(film_tick(sp, g.down, T, fps) + (p[0] - g.down), 3), p[1], p[2]] for p in g.path],
-        })
+        }
+        if g.step:
+            touch["step"] = [down + (t - g.down) for t in g.step]
+        out.append(touch)
     return out
 
 
 # ---- the log a person reads --------------------------------------------------
 
 def describe(edit: dict, scan: dict, log: dict, sb: dict,
-             pair_diffs: dict[tuple[int, int], dict] | None = None) -> str:
+             pair_diffs: dict[tuple[int, int], dict] | None = None, tracks: dict | None = None) -> str:
     """Every kept range, every hold and every cut, in plain lines."""
-    tm = locate(scan, log, sb, bool(edit.get("rehearsal")))
+    tm = locate(scan, log, sb, bool(edit.get("rehearsal")), tracks)
     T, fps = tm.timescale, sb["film"]["fps"]
     sp = spans(edit, T, fps)
     frames = scan["frames"]
@@ -694,7 +1003,9 @@ def describe(edit: dict, scan: dict, log: dict, sb: dict,
     if moving:
         m = min(moving, key=loudness)
         w(f"       faintest change frame: {s(m['pts'])}  soft {m.get('soft', 0)}, strong {m.get('strong', 0)}")
-    if edit.get("rehearsal"):
+    if sb.get("variant"):
+        w(f"REHEARSAL — the storyboard's variant `{sb['variant']}`; this is not the film.")
+    elif edit.get("rehearsal"):
         w("REHEARSAL — shots without footage are holds; this is not the film.")
     w("")
     w("changes in the take (bursts)")
@@ -708,6 +1019,8 @@ def describe(edit: dict, scan: dict, log: dict, sb: dict,
         d = "" if g.distance_pt is None else f"  first change {g.distance_pt:.0f} pt from the touch"
         w(f"  {g.id:<16} {g.kind:<5} touch-down {s(g.down)}  first change {s(g.first_change)}  "
           f"last change {s(g.last_change)}{d}")
+        if g.how:
+            w(f"  {'':<16} {g.how}")
     w("")
     w("film (what is kept, and where it lands)")
     for seg, x in zip(edit["segments"], sp):
@@ -751,7 +1064,7 @@ def describe(edit: dict, scan: dict, log: dict, sb: dict,
         elif pair_diffs and (ja, jb) in pair_diffs:
             d = pair_diffs[(ja, jb)]
             line += (f"; frame {ja} against frame {jb}: soft {d.get('soft', 0)}, strong {d.get('strong', 0)} "
-                     f"({frame_kind(d, tm.px_per_pt)})")
+                     f"({pair_kind(d, tm, jb)})")
         w(line)
     end = scan["video"]["duration_ticks"]
     if last < end:
@@ -766,7 +1079,8 @@ def describe(edit: dict, scan: dict, log: dict, sb: dict,
     w("touch points")
     for t in edit["touches"]:
         w(f"  film {t['down'] / T:6.3f} – {t['up'] / T:6.3f} s  {t['kind']:<5} {t['gesture']}  "
-          f"from ({t['path'][0][1]:g}, {t['path'][0][2]:g}) pt")
+          f"from ({t['path'][0][1]:g}, {t['path'][0][2]:g}) pt"
+          + (f" to ({t['path'][-1][1]:g}, {t['path'][-1][2]:g}) pt" if t["kind"] == "drag" else ""))
     w(f"poster frame: film {edit['poster_frame'] / fps:g} s (frame {edit['poster_frame']}); "
       f"final hold from {edit['final_hold_from'] / fps:.3f} s; {sum(x.frames for x in sp)} frames, "
       f"{sum(x.frames for x in sp) / fps:.3f} s")

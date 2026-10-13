@@ -15,7 +15,8 @@ STEP = 20        # ticks per film frame at 30 fps
 
 CHANGE = {"soft": 50_000, "strong": 40_000, "max": 255, "box": [100, 600, 1100, 900]}
 NOISE = {"soft": 500, "strong": 1, "max": 65, "box": [1092, 2402, 1093, 2403]}   # the probe's loudest still frame
-CARET = {"soft": 360, "strong": 360, "max": 250, "box": [300, 1500, 306, 1560]}  # 2 x 20 pt
+CARET = {"soft": 360, "strong": 360, "max": 250, "box": [300, 700, 306, 760]}    # 2 x 20 pt, where CHANGE was
+REST = 300       # ticks without a change that end a burst (timing.rest_s)
 
 
 def scan_of(rows: list[tuple[int, dict]], end: int = 9000) -> dict:
@@ -39,7 +40,7 @@ SB = {
     "film": {"fps": 30, "width": 886, "height": 1920, "duration_s": 15.0, "poster_s": 13.0,
              "final_hold_min_s": 3.0},
     "motion": {"caption": "base", "touch_in": "fast", "touch_out": "base"},
-    "touch": dict(STORYBOARD["touch"]),
+    "touch": {**STORYBOARD["touch"], "tap_lead": "fast", "tap_dwell": "base"},
     "timing": {"rest_s": 0.5, "tail_s": 0.3, "sync_tolerance_s": 0.5, "lead_in_s": 1.0,
                "caption_lead_s": 0.8, "rehearsal_hold_s": 2.4, "rehearsal_caption_delay_s": 0.3},
     "captions": {k: {"headline": ["a", "b"], "subline": []} for k in ("one", "two", "three")},
@@ -63,7 +64,7 @@ LOG = {
 #   0.5 s   a still frame the encoder touched up            (noise)
 #   3.0 s   tap-a's answer, 3.000–3.167 s
 #   6.0 s   the app, on its own (a snackbar leaving), 6.000–6.083 s
-#   7–8 s   a caret blinks three times
+#   7–8 s   a caret blinks three times, where the app last changed
 #  10.0 s   drag-b's answer, 10.000–11.000 s
 #  11.7 s   a still frame the encoder touched up
 TAKE = ([(300, NOISE)] + burst(1800, 1900) + burst(3600, 3650)
@@ -91,18 +92,154 @@ class Kinds(unittest.TestCase):
         self.assertEqual(kind(soft=2000, strong=0), "change")                      # faint, but wide
 
     def test_what_is_a_caret(self):
-        kind = lambda box, soft=360, strong=360: edit.frame_kind({"soft": soft, "strong": strong, "box": box}, 3.0)  # noqa: E731
-        self.assertEqual(kind([300, 1500, 306, 1560]), "caret")     # 2 x 20 pt
-        self.assertEqual(kind([300, 1500, 318, 1602]), "caret")     # 6 x 34 pt, the limit
-        self.assertEqual(kind([300, 1500, 319, 1560]), "change")    # too wide
-        self.assertEqual(kind([300, 1500, 306, 1603]), "change")    # too tall
-        self.assertEqual(kind([300, 1500, 306, 1529]), "change")    # shorter than a line of text: not a caret
-        self.assertEqual(kind([611, 887, 616, 900], strong=61), "change")  # the probe's spinner arrow
-        self.assertEqual(kind([300, 1500, 306, 1560], soft=2000), "change")  # something else moved too
+        """Told by where it is: in the column it blinks in, or — the first
+        time — inside the last burst of changes."""
+        column, area = [300, 700, 306, 760], [100, 600, 1100, 900]
+
+        def kind(box, soft=360, strong=360, column=None, area=None):
+            return edit.frame_kind({"soft": soft, "strong": strong, "box": box}, 3.0, column, area)
+
+        # with nothing known about a caret, nothing is one
+        self.assertEqual(kind([300, 700, 306, 760]), "change")
+        # in its column: the whole caret, a fragment of it, a slightly wider reading of it
+        self.assertEqual(kind([300, 700, 306, 760], column=column), "caret")
+        self.assertEqual(kind([300, 757, 303, 760], strong=4, column=column), "caret")     # its last row of pixels
+        self.assertEqual(kind([299, 694, 308, 772], column=column), "caret")               # 3 x 26 pt together
+        self.assertEqual(kind([299, 694, 309, 772], column=column), "change")              # wider than a caret
+        self.assertEqual(kind([300, 694, 306, 797], column=column), "change")              # taller than a line of text
+        self.assertEqual(kind([315, 700, 321, 760], column=column), "change")              # a caret, 5 pt further: text moved it
+        self.assertEqual(kind([300, 694, 316, 772], column=column), "change")              # a typed « . »: 5.3 pt wide
+        self.assertEqual(kind([300, 700, 306, 760], soft=2000, column=column), "change")   # something else moved too
+        self.assertEqual(kind([300, 700, 306, 760], column=column, area=[900, 900, 1000, 1000]), "caret")
+        # seen for the first time: caret-shaped, inside the last burst of changes
+        self.assertEqual(kind([300, 700, 306, 760], area=area), "caret")
+        self.assertEqual(kind([97, 597, 103, 657], area=area), "caret")                    # 1 pt outside: slack
+        self.assertEqual(kind([96, 597, 102, 657], area=area), "change")                   # further out: somewhere new
+        self.assertEqual(kind([300, 871, 306, 904], area=area), "change")                  # below it by more than 1 pt
+        self.assertEqual(kind([300, 700, 309, 802], area=area), "caret")                   # 3 x 34 pt, the limit
+        self.assertEqual(kind([300, 700, 310, 760], area=area), "change")                  # too wide
+        self.assertEqual(kind([300, 700, 306, 803], area=area), "change")                  # too tall
+        self.assertEqual(kind([300, 700, 306, 730], area=area), "caret")                   # 10 pt tall, the least
+        self.assertEqual(kind([300, 700, 306, 729], area=area), "change")                  # a fragment proves nothing
+        self.assertEqual(kind([611, 887, 616, 900], strong=61, area=area), "change")       # the probe's spinner arrow
+        self.assertEqual(kind([300, 700, 306, 760], soft=2000, area=area), "change")
+        self.assertEqual(kind([300, 700, 306, 760], strong=2, area=area), "quiet")
+
+    def test_the_apps_own_caret(self):
+        """Rows of the rehearsal take of 2026-10-13, as conform scan gave
+        them: the name field takes focus, « Yao K. » is typed. The caret
+        fades; what passes the thresholds is the caret, or a corner of it."""
+        rows = [
+            (24782, 21396, 19862, [48, 2172, 1158, 2340]),   # 41.3 s  the field takes focus: its label floats up
+            (24803, 6576, 5493, [53, 2169, 1153, 2335]),
+            (24812, 6086, 3912, [53, 2166, 1153, 2335]),
+            (24823, 3314, 2341, [55, 2165, 1152, 2333]),
+            (24833, 2256, 1257, [64, 2164, 479, 2190]),
+            (25083, 464, 4, [109, 2292, 112, 2295]),         # the caret's last row of pixels, 1 x 1 pt
+            (25315, 464, 1, [109, 2223, 110, 2224]),         # under the thresholds
+            (25344, 464, 72, [110, 2224, 114, 2292]),        # the caret
+            (25703, 464, 4, [109, 2292, 112, 2295]),
+            (26914, 600, 48, [113, 2240, 114, 2288]),
+            (30073, 1190, 710, [111, 2217, 146, 2295]),      # 50.1 s  « Y »
+            (30373, 464, 75, [140, 2223, 146, 2295]),        # the caret, after it
+            (30413, 611, 9, [140, 2240, 144, 2256]),
+            (31963, 1179, 1093, [140, 2217, 170, 2295]),     # « a »
+            (32564, 465, 49, [169, 2239, 170, 2288]),
+            (33534, 464, 12, [165, 2288, 170, 2295]),
+            (33874, 1222, 1176, [164, 2217, 200, 2295]),     # « o » — no caret frame passes before the space
+            (35802, 928, 928, [194, 2217, 215, 2295]),       # the space: the caret moves, nothing else
+            (36154, 464, 144, [209, 2217, 215, 2288]),
+            (37354, 612, 7, [209, 2219, 211, 2223]),
+            (37804, 1322, 1266, [209, 2217, 248, 2295]),     # « K »
+            (38974, 464, 65, [243, 2223, 247, 2288]),
+            (40116, 498, 494, [248, 2217, 264, 2295]),       # « . » — 5.3 x 26 pt: a caret, by size alone
+            (41293, 464, 68, [259, 2223, 263, 2288]),
+            (47823, 601, 4, [258, 2292, 261, 2295]),
+        ]
+        scan = scan_of([(pts, {"soft": soft, "strong": strong, "max": 200, "box": box})
+                        for pts, soft, strong, box in rows], end=60000)
+        reading = edit.read_frames(scan, 3.0, REST)
+        pts = [f["pts"] for f in scan["frames"]]
+        typed = [24782, 24803, 24812, 24823, 24833, 30073, 31963, 33874, 35802, 37804, 40116]
+        self.assertEqual([p for p, k in zip(pts, reading.kinds) if k == "change"], [0] + typed)
+        self.assertEqual([p for p, k in zip(pts, reading.kinds) if k == "quiet"], [25315])
+        self.assertEqual(reading.kinds.count("caret"), 13)
+        # every frame of a still stretch knows the column its caret blinks in,
+        # the frames before the caret was first seen included
+        at = dict(zip(pts, reading.columns))
+        self.assertEqual(at[24833], [109, 2224, 114, 2295])           # after the focus
+        self.assertEqual(at[25083], [109, 2224, 114, 2295])
+        self.assertEqual(at[30073], [140, 2223, 146, 2295])           # after « Y »
+        self.assertEqual(at[33874], None)                             # after « o »: none was seen
+        self.assertEqual(at[40116], [258, 2223, 263, 2295])           # after « . »
+        self.assertEqual(dict(zip(pts, reading.areas))[33874], [164, 2217, 200, 2295])
+
+    def test_a_caret_that_turns_up_somewhere_new_is_a_change(self):
+        """A typed space moves the caret and nothing else. If the caret was
+        dark at that instant, all the screen shows is a caret appearing a few
+        points further: a change — and from then on, its new column."""
+        blink = lambda x: {"soft": 464, "strong": 70, "max": 200, "box": [x, 700, x + 6, 772]}  # noqa: E731
+        scan = scan_of(burst(1800, 1900) + [(2400, blink(300)), (2700, blink(300)),
+                                             (3000, blink(315)), (3300, blink(315)), (3600, blink(300))])
+        kinds = dict(zip([f["pts"] for f in scan["frames"]], edit.frame_kinds(scan, 3.0, REST)))
+        self.assertEqual([kinds[p] for p in (2400, 2700, 3000, 3300, 3600)],
+                         ["caret", "caret", "change", "caret", "change"])
+
+    def test_a_caret_shape_where_nothing_changed_is_a_change_the_first_time(self):
+        """Nothing changed there: it is not the caret of anything the app
+        just did. Seen again in the same place, it is one."""
+        blink = {"soft": 464, "strong": 70, "max": 200, "box": [300, 1500, 306, 1572]}
+        scan = scan_of(burst(1800, 1900) + [(2400, blink), (2700, blink), (3000, blink)])
+        kinds = dict(zip([f["pts"] for f in scan["frames"]], edit.frame_kinds(scan, 3.0, REST)))
+        self.assertEqual([kinds[p] for p in (2400, 2700, 3000)], ["change", "caret", "caret"])
+        # and with no change at all before it — a take that opens on a focused field
+        scan = scan_of([(2400, blink), (2700, blink)])
+        self.assertEqual(edit.frame_kinds(scan, 3.0, REST), ["change", "change", "caret"])
+
+    def test_small_changes_inside_the_last_burst_are_not_a_caret(self):
+        """The probe clip's refresh spinner: an arrow that grows by a few
+        pixels a frame, inside the list that has just moved."""
+        dots = [[611, 773, 616, 774], [611, 773, 620, 779], [611, 773, 628, 788], [611, 887, 616, 900]]
+        scan = scan_of(burst(1800, 1900) + [(2000 + 10 * n, {"soft": 40, "strong": 30, "max": 200, "box": b})
+                                             for n, b in enumerate(dots)])
+        self.assertEqual(edit.frame_kinds(scan, 3.0, REST).count("caret"), 0)
+        # …and a fragment that comes before a caret elsewhere is not that caret
+        scan = scan_of(burst(1800, 1900) + [(2400, {"soft": 40, "strong": 30, "max": 200, "box": dots[0]}),
+                                             (2700, dict(CARET))])
+        kinds = dict(zip([f["pts"] for f in scan["frames"]], edit.frame_kinds(scan, 3.0, REST)))
+        self.assertEqual((kinds[2400], kinds[2700]), ("change", "change"))
+
+    def test_a_fragment_is_only_the_caret_of_its_own_stretch(self):
+        """A corner of a caret, then a change, then a caret in that place:
+        the corner came before the change — it is not that caret's."""
+        corner = {"soft": 464, "strong": 4, "max": 200, "box": [300, 757, 303, 760]}
+        typed = {"soft": 1200, "strong": 1100, "max": 250, "box": [280, 694, 320, 772]}
+        scan = scan_of(burst(1800, 1900) + [(2400, corner), (2500, typed), (2800, dict(CARET)), (3100, corner)])
+        kinds = dict(zip([f["pts"] for f in scan["frames"]], edit.frame_kinds(scan, 3.0, REST)))
+        self.assertEqual([kinds[p] for p in (2400, 2500, 2800, 3100)], ["change", "change", "caret", "caret"])
+        # with nothing between them, it is: the caret, a moment earlier
+        scan = scan_of(burst(1800, 1900) + [(2400, corner), (2800, dict(CARET))])
+        kinds = dict(zip([f["pts"] for f in scan["frames"]], edit.frame_kinds(scan, 3.0, REST)))
+        self.assertEqual((kinds[2400], kinds[2800]), ("caret", "caret"))
+
+    def test_the_area_a_caret_may_appear_in_is_the_whole_burst(self):
+        """The focus burst ends on a frame that does not cover the caret (the
+        label still floating): the burst as a whole does."""
+        wide = lambda box: {"soft": 9000, "strong": 8000, "max": 250, "box": box}  # noqa: E731
+        rows = [(1800, wide([100, 600, 1100, 900])), (1810, wide([100, 600, 400, 640])), (2400, dict(CARET))]
+        self.assertEqual(edit.frame_kinds(scan_of(rows), 3.0, REST)[-1], "caret")
+        # a frame a rest later begins another burst: the first one no longer counts
+        rows = [(1800, wide([100, 600, 1100, 900])), (2100, wide([100, 600, 400, 640])), (2700, dict(CARET))]
+        self.assertEqual(edit.frame_kinds(scan_of(rows), 3.0, REST)[-1], "change")
+        rows = [(1800, wide([100, 600, 1100, 900])), (2099, wide([100, 600, 400, 640])), (2700, dict(CARET))]
+        self.assertEqual(edit.frame_kinds(scan_of(rows), 3.0, REST)[-1], "caret")
+        # a faint change with no box may be anywhere
+        rows = [(1800, {"soft": 2500, "strong": 0, "max": 40}), (2400, dict(CARET))]
+        self.assertEqual(edit.frame_kinds(scan_of(rows), 3.0, REST)[-1], "caret")
 
     def test_bursts_are_split_by_a_rest(self):
         scan = scan_of(TAKE)
-        kinds = edit.frame_kinds(scan, 3.0)
+        kinds = edit.frame_kinds(scan, 3.0, REST)
         # the take's first picture counts as a change: the recorder only
         # writes a frame when the screen changes
         self.assertEqual(kinds[0], "change")
@@ -113,9 +250,9 @@ class Kinds(unittest.TestCase):
         self.assertEqual(bursts[1].box, [100, 600, 1100, 900])
         # a rest of exactly `rest` splits; one tick less does not
         close = scan_of(burst(1000, 1100) + burst(1399, 1500))
-        self.assertEqual([b.start for b in edit.find_bursts(close, edit.frame_kinds(close, 3.0), 300)], [0, 1000])
+        self.assertEqual([b.start for b in edit.find_bursts(close, edit.frame_kinds(close, 3.0, REST), 300)], [0, 1000])
         apart = scan_of(burst(1000, 1100) + burst(1400, 1500))
-        self.assertEqual([b.start for b in edit.find_bursts(apart, edit.frame_kinds(apart, 3.0), 300)],
+        self.assertEqual([b.start for b in edit.find_bursts(apart, edit.frame_kinds(apart, 3.0, REST), 300)],
                          [0, 1000, 1400])
 
     def test_frame_hold(self):
@@ -166,6 +303,38 @@ class Locate(unittest.TestCase):
         self.assertIn("2 changes start within", self.refused("E_MATCH", scan=scan, log=log))
         log["gestures"][0].update(near_s=3.0, tolerance_s=0.1)
         self.assertEqual(edit.locate(scan, log, copy.deepcopy(SB)).gestures[0].first_change, 1800)
+
+    def test_the_drivers_own_times_find_the_first_change_in_between(self):
+        """`after_s` and `before_s`: when the driver asked for the gesture and
+        when its call came back. The touch-down is in between — found from
+        the first frame that changes there."""
+        _, log, _ = fixture()
+        log["gestures"][0] = {"id": "tap-a", "kind": "tap", "after_s": 1.2, "before_s": 7.5, "at": [100, 300]}
+        self.assertEqual(edit.locate(scan_of(TAKE), log, copy.deepcopy(SB)).gestures[0].first_change, 1800)
+        log["gestures"][0].update(after_s=3.0, before_s=3.0001)        # the very instant counts
+        self.assertEqual(edit.locate(scan_of(TAKE), log, copy.deepcopy(SB)).gestures[0].first_change, 1800)
+        log["gestures"][0].update(after_s=3.01, before_s=7.5)          # asked for after 3.0 s: the next one
+        self.assertEqual(edit.locate(scan_of(TAKE), log, copy.deepcopy(SB)).gestures[0].first_change, 3600)
+        log["gestures"][0].update(after_s=3.01, before_s=5.9)
+        self.assertIn("nothing starts changing between 3.01 s and 5.9 s", self.refused("E_MATCH", log=log))
+        del log["gestures"][0]["before_s"]
+        self.assertIn("`after_s` needs a later `before_s`", self.refused("E_LOG", log=log))
+        log["gestures"][0].update(after_s=3.0, before_s=3.0)
+        self.assertIn("`after_s` needs a later `before_s`", self.refused("E_LOG", log=log))
+        # a burst already taken by the gesture before is not taken again
+        _, log, _ = fixture()
+        log["gestures"][1] = {"id": "drag-b", "kind": "drag", "after_s": 2.0, "before_s": 12.0,
+                              "path": [[200, 600, 0], [200, 300, 400]]}
+        self.assertEqual(edit.locate(scan_of(TAKE), log, copy.deepcopy(SB)).gestures[1].first_change, 3600)
+
+    def test_a_tap_point_appears_before_the_answer_and_leaves_after_it(self):
+        """`touch.tap_lead` and `touch.tap_dwell`, motion tokens both."""
+        scan, log, sb = fixture()
+        sb["touch"].update(tap_lead="base", tap_dwell="fast")          # 200 ms before, 100 ms after
+        tap = edit.locate(scan, log, sb).gestures[0]
+        self.assertEqual((tap.down, tap.first_change, tap.up), (1680, 1800, 1860))
+        sb["motion"]["touch_in"] = "slow"                              # a fade-in longer than the lead
+        self.assertIn("the point would not be whole when the app answers", self.refused("E_STORYBOARD", sb=sb))
 
     def test_a_take_that_begins_on_the_first_answer_is_refused(self):
         _, log, _ = fixture()
@@ -244,6 +413,367 @@ class Locate(unittest.TestCase):
             sb["shots"][0]["gestures"][0]["kind"] = "pinch"
             log["gestures"][0]["kind"] = "pinch"
         self.assertIn("unknown kind `pinch`", broken(pinch))
+
+
+# Typed text: one gesture in the storyboard, one key at a time on the screen.
+#   3.0 s   tap-a's answer
+#   5.0 s   a key: a letter and the caret after it; 5.5 s the caret blinks
+#   8.0 s   a key; 8.5 s the caret blinks
+#  11.0 s   a key
+KEY = lambda x: {"soft": 1200, "strong": 1100, "max": 250, "box": [x, 694, x + 40, 772]}        # noqa: E731
+BLINK = lambda x: {"soft": 464, "strong": 70, "max": 200, "box": [x + 34, 700, x + 40, 772]}    # noqa: E731
+KEYS_TAKE = burst(1800, 1900) + [(3000, KEY(300)), (3300, BLINK(300)), (4800, KEY(334)), (5100, BLINK(334)),
+                                 (6600, KEY(368))]
+KEYS_SB = copy.deepcopy(SB)
+KEYS_SB["shots"] = [
+    {"id": "A", "caption": "one", "gestures": [{"id": "tap-a", "kind": "tap", "rest_after_s": 0.2},
+                                                {"id": "type-b", "kind": "type", "rest_after_s": 0.5}]},
+    {"id": "C", "caption": "three", "caption_after": {"gesture": "type-b", "delay_s": 0.5}, "gestures": []},
+]
+KEYS_LOG = {"device_points": [402, 874], "gestures": [
+    {"id": "tap-a", "kind": "tap", "near_s": 3.0, "at": [100, 300]},
+    {"id": "type-b", "kind": "type", "keys": [{"near_s": 5.0}, {"after_s": 7.0, "before_s": 9.0}, {"near_s": 11.0}]},
+]}
+
+
+class Keys(unittest.TestCase):
+    def fixture(self):
+        return scan_of(KEYS_TAKE), copy.deepcopy(KEYS_LOG), copy.deepcopy(KEYS_SB)
+
+    def test_each_key_is_found_on_its_own(self):
+        scan, log, sb = self.fixture()
+        tap, *keys = edit.locate(scan, log, sb).gestures
+        self.assertEqual([k.id for k in keys], ["type-b[1]", "type-b[2]", "type-b[3]"])
+        self.assertEqual({k.gesture for k in keys}, {"type-b"})
+        self.assertEqual([k.last for k in keys], [False, False, True])
+        # a key is not on the screen: its range starts the touch point's
+        # fade-in before the letter shows, on a picture that is still
+        self.assertEqual([(k.down, k.first_change, k.last_change) for k in keys],
+                         [(2940, 3000, 3000), (4740, 4800, 4800), (6540, 6600, 6600)])
+        self.assertEqual([k.path for k in keys], [[], [], []])           # and no touch point
+        self.assertEqual(tap.last_change, 1900)                          # the caret after the tap's answer is not a change
+
+    def test_the_waits_between_keys_are_cut_and_nothing_else(self):
+        scan, log, sb = self.fixture()
+        e = edit.propose(scan, log, sb)
+        self.assertEqual(e["segments"], [
+            {"kind": "hold", "src_at": 1740, "frames": 30, "why": "lead-in: the screen at rest before the first touch"},
+            {"kind": "live", "src_in": 1740, "src_out": 2100},
+            {"kind": "hold", "src_at": 2080, "frames": 6, "why": "rest after tap-a"},
+            {"kind": "live", "src_in": 2940, "src_out": 3200},       # a key and 0.3 s after it…
+            {"kind": "live", "src_in": 4740, "src_out": 5000},       # …then the next, with no hold between
+            {"kind": "live", "src_in": 6540, "src_out": 6800},
+            {"kind": "hold", "src_at": 6780, "frames": 15, "why": "rest after type-b"},
+            {"kind": "hold", "src_at": 6780, "frames": 342, "why": "final hold"},
+        ])
+        self.assertEqual(e["touches"], [{"gesture": "tap-a", "kind": "tap", "down": 600, "up": 780,
+                                         "path": [[600.0, 100, 300]]}])
+        # the last caption follows the LAST key
+        self.assertEqual(e["captions"][-1], {"frame": 54 + 26 + 3 + 15, "caption": "three"})
+        tm = edit.check(e, scan, log, sb)
+        # the caret between two keys may be cut: it blinks in its column
+        pairs = edit.cut_pairs(e, scan, 30)
+        pts = [f["pts"] for f in scan["frames"]]
+        self.assertEqual([(pts[a], pts[b]) for a, b in pairs], [(3000, 3300), (4800, 5100)])
+        diffs = {pairs[0]: BLINK(300), pairs[1]: BLINK(334)}
+        edit.check(e, scan, log, sb, diffs)
+        self.assertEqual(edit.pair_kind(BLINK(300), tm, pairs[0][1]), "caret")
+        # …but the two sides of a cut may not differ by a letter
+        with self.assertRaises(Refusal) as cm:
+            edit.check(e, scan, log, sb, {pairs[0]: KEY(334), pairs[1]: BLINK(334)})
+        self.assertEqual(cm.exception.code, "E_ENDPOINT")
+        # …nor by a caret that is not this stretch's
+        with self.assertRaises(Refusal) as cm:
+            edit.check(e, scan, log, sb, {pairs[0]: BLINK(334), pairs[1]: BLINK(334)})
+        self.assertEqual(cm.exception.code, "E_ENDPOINT")
+        self.assertIn("box [368, 700, 374, 772]", cm.exception.message)
+
+    def test_a_cut_may_skip_a_caret_that_never_passed_the_thresholds(self):
+        """Between « o » and the space of the rehearsal take no frame of the
+        caret was loud enough to be seen — and the two sides of the cut still
+        differed by it. It is where the last key left it: nothing changing."""
+        # the take with its blinks under the thresholds: frames, but quiet ones
+        scan = scan_of([(pts, dict(NOISE) if row["strong"] == 70 else row) for pts, row in KEYS_TAKE])
+        _, log, sb = self.fixture()
+        e = edit.propose(scan, log, sb)
+        tm = edit.check(e, scan, log, sb)
+        pairs = edit.cut_pairs(e, scan, 30)
+        self.assertEqual((tm.reading.columns[pairs[0][1]], tm.reading.areas[pairs[0][1]]),
+                         (None, [300, 694, 340, 772]))
+        edit.check(e, scan, log, sb, {pairs[0]: BLINK(300), pairs[1]: BLINK(334)})
+        with self.assertRaises(Refusal) as cm:                               # a caret outside what the key changed
+            edit.check(e, scan, log, sb, {pairs[0]: BLINK(310), pairs[1]: BLINK(334)})
+        self.assertEqual(cm.exception.code, "E_ENDPOINT")
+
+    def test_a_cut_inside_a_keys_answer_is_refused(self):
+        scan, log, sb = self.fixture()
+        e = edit.propose(scan, log, sb)
+        e["segments"][4]["src_in"] = 4820            # the second letter is already there when the film resumes
+        e["segments"][4]["src_out"] = 5000
+        with self.assertRaises(Refusal) as cm:
+            edit.check(e, scan, log, sb)
+        self.assertEqual(cm.exception.code, "E_PROTECTED")
+        self.assertIn("gesture `type-b[2]`", cm.exception.message)
+
+    def test_text_typed_in_one_go_is_one_piece(self):
+        scan, log, sb = self.fixture()
+        log["gestures"][1] = {"id": "type-b", "kind": "type", "near_s": 5.0}
+        typed = edit.locate(scan, log, sb).gestures[1]
+        # everything up to the end of the take is its answer: the other letters too
+        self.assertEqual((typed.id, typed.down, typed.last_change, typed.last), ("type-b", 2940, 6600, True))
+
+    def test_keys_that_are_not_a_list_of_times_are_refused(self):
+        for keys in ([], "Yao", [5.0, 8.0]):
+            scan, log, sb = self.fixture()
+            log["gestures"][1]["keys"] = keys
+            with self.assertRaises(Refusal) as cm:
+                edit.locate(scan, log, sb)
+            self.assertEqual(cm.exception.code, "E_LOG")
+            self.assertIn("`keys` is a list of when each key was pressed", cm.exception.message)
+        scan, log, sb = self.fixture()
+        log["gestures"][1]["keys"][1] = {}
+        with self.assertRaises(Refusal) as cm:
+            edit.locate(scan, log, sb)
+        self.assertIn("gesture `type-b[2]` needs `near_s`", cm.exception.message)
+
+
+# A drag, as the log has it: 10 pt every 16 ms from x = 100 to 190, then the
+# finger rests 120 ms before it leaves.
+DRAG = [[100 + 10 * n, 300, 16 * n] for n in range(10)] + [[190, 300, 264]]
+
+
+class Follow(unittest.TestCase):
+    """`followed_path`: the logged path, placed on what the picture did."""
+
+    def track(self, frames, **more):
+        return {"axis": "x", "sign": 1, "frames": frames, "turn": None, **more}
+
+    def test_the_point_is_where_the_log_has_the_finger_when_the_picture_is_that_far(self):
+        # the picture: late to start (20 pt already at its first frame), then
+        # 10 pt a frame at uneven times, and it stops at 60 pt — a pane fully open
+        seen = [[6000, 20.0], [6010, 30.0], [6030, 40.0], [6040, 50.0], [6060, 60.0], [6070, 60.0], [6080, 60.0]]
+        got = edit.followed_path(DRAG, self.track(seen), T)
+        self.assertEqual(got["points"], [
+            [5980.8, 100, 300], [5990.4, 110, 300],             # before: the log's own times, back from 6000
+            [6000.0, 120.0, 300.0], [6010.0, 130.0, 300.0], [6030.0, 140.0, 300.0], [6040.0, 150.0, 300.0],
+            [6060.0, 160.0, 300.0],                             # one point a frame, as far as the picture
+            [6069.6, 170, 300], [6079.2, 180, 300], [6088.8, 190, 300], [6160.8, 190, 300],   # after: the log's
+        ])
+        self.assertEqual((got["down"], got["up"], got["step"]), (5980.8, 6160.8, [6000, 6060]))
+        self.assertEqual((got["frames"], got["reach"]), (5, (20.0, 60.0, 90)))
+
+    def test_between_two_logged_samples_the_point_is_between_them(self):
+        got = edit.followed_path(DRAG, self.track([[6000, 25.0], [6020, 47.5]]), T)
+        self.assertEqual(got["points"][3:5], [[6000.0, 125.0, 300.0], [6020.0, 147.5, 300.0]])
+        self.assertEqual(got["points"][2], [5995.2, 120, 300])     # the sample at 32 ms, 8 ms before 40 ms
+
+    def test_the_finger_has_left_when_the_picture_turns_back(self):
+        seen = [[6000, 20.0], [6010, 30.0], [6030, 40.0], [6040, 50.0], [6060, 60.0], [6075, 55.0]]
+        got = edit.followed_path(DRAG, self.track(seen, turn=6075), T)
+        # 15 ticks after the last frame that followed = 25 ms of the log: 9/16 of the way from 170 to 180
+        self.assertEqual(got["points"][-2:], [[6069.6, 170, 300], [6075.0, 175.625, 300.0]])
+        self.assertEqual(got["up"], 6075.0)
+
+    def test_a_picture_that_goes_further_than_the_finger_is_on_its_own(self):
+        """A pane that snaps shut after the finger lets go."""
+        seen = [[6000, 20.0], [6010, 60.0], [6020, 90.0], [6030, 92.5], [6040, 110.0]]
+        got = edit.followed_path(DRAG, self.track(seen), T)
+        self.assertEqual(got["step"], [6000, 6020])
+        self.assertEqual(got["points"][-2:], [[6020.0, 190.0, 300.0], [6092.0, 190, 300]])   # then the log's 120 ms rest
+        seen[3][1] = 91.9                                          # within 2 pt of the end: still the finger,
+        got = edit.followed_path(DRAG, self.track(seen), T)        # at the end of its path
+        self.assertEqual((got["step"], got["reach"]), ([6000, 6030], (20.0, 90, 90)))
+
+    def test_a_picture_that_dips_is_followed_no_further(self):
+        seen = [[6000, 20.0], [6010, 30.0], [6020, 25.0], [6030, 40.0]]
+        self.assertEqual(edit.followed_path(DRAG, self.track(seen), T)["step"], [6000, 6010])
+
+    def test_an_upward_drag(self):
+        path = [[330, 600 - 10 * n, 16 * n] for n in range(6)]
+        got = edit.followed_path(path, {"axis": "y", "sign": -1, "frames": [[900, 10.0], [915, 30.0]], "turn": None}, T)
+        self.assertEqual(got["points"], [[890.4, 330, 600], [900.0, 330.0, 590.0], [915.0, 330.0, 570.0],
+                                         [924.6, 330, 560], [934.2, 330, 550]])
+
+    def test_a_picture_that_gives_nothing_to_go_by(self):
+        none = lambda frames, path=DRAG: edit.followed_path(path, self.track(frames), T)  # noqa: E731
+        self.assertIsNone(none([]))
+        self.assertIsNone(none([[6000, 0.0], [6010, 0.4]]))                  # it never moved
+        self.assertIsNone(none([[6000, 20.0]]))                              # one frame is not a path
+        self.assertIsNone(none([[6000, 20.0], [6010, 20.0]]))                # it moved once and stopped
+        self.assertIsNone(none([[6000, 20.0], [6010, 10.0]]))                # it went the other way
+        self.assertIsNone(none([[6000, 20.0], [6010, 30.0]], [[100, 300, 0], [150, 300, 50], [120, 300, 90]]))
+        self.assertIsNotNone(none([[6000, 0.5], [6010, 30.0]]))              # half a point: it has begun
+
+    def located(self, track):
+        scan, log, sb = fixture()
+        log["gestures"][1]["path"] = [[200, 600 - p[0] + 100, p[2]] for p in DRAG]   # the same drag, upwards
+        tracks = {"drag-b": track} if track else None
+        return edit.locate(scan, log, sb, tracks=tracks).gestures[1], scan, log, sb, tracks
+
+    def test_a_followed_drag_is_placed_by_its_frames(self):
+        frames = [[6000, 20.0], [6010, 30.0], [6030, 40.0], [6040, 50.0], [6060, 60.0]]
+        drag, scan, log, sb, tracks = self.located({"axis": "y", "sign": -1, "frames": frames, "turn": None})
+        # the point is whole by the time the picture moves: `fast` before the
+        # first change, earlier than the log's own start
+        self.assertEqual((drag.down, drag.first_change, drag.up, drag.step), (5940, 6000, 6161, [6000, 6060]))
+        self.assertEqual(drag.path[:4], [[5940.0, 200, 600], [5980.8, 200, 600], [5990.4, 200, 590],
+                                         [6000.0, 200.0, 580.0]])
+        self.assertEqual(drag.how, "followed in the picture on 5 frames, from 20.0 to 60.0 pt of the 90 pt logged")
+        e = edit.propose(scan, log, sb, tracks=tracks)
+        touch = e["touches"][1]
+        self.assertEqual((touch["down"], touch["up"], touch["step"]), (3320, 3541, [3380, 3440]))
+        self.assertEqual(touch["path"][3], [3380.0, 200.0, 580.0])
+        edit.check(e, scan, log, sb, tracks=tracks)
+        self.assertIn("followed in the picture on 5 frames", edit.describe(e, scan, log, sb, tracks=tracks))
+        # the same edit list without the reading of the picture: the points are not where the data puts them
+        with self.assertRaises(Refusal) as cm:
+            edit.check(e, scan, log, sb)
+        self.assertEqual(cm.exception.code, "E_TOUCH")
+
+    def test_a_log_that_starts_before_the_fade_in_keeps_its_own_start(self):
+        frames = [[6000, 80.0], [6010, 85.0], [6020, 90.0]]          # the first frame is 128 ms into the log
+        drag, *_ = self.located({"axis": "y", "sign": -1, "frames": frames, "turn": None})
+        self.assertEqual((drag.down, drag.path[0], drag.path[1]), (5923, [5923.0, 200, 600], [5923.2, 200, 600]))
+
+    def test_a_drag_that_cannot_be_followed_says_so_and_keeps_the_logs_times(self):
+        drag, scan, log, sb, tracks = self.located({"axis": "y", "sign": -1, "frames": [], "turn": None,
+                                                    "why": "nothing to recognise under the finger"})
+        self.assertEqual(drag.how, "NOT followed in the picture (nothing to recognise under the finger): timed by "
+                                   "the logged path, 1:1")
+        self.assertIsNone(drag.step)
+        self.assertEqual(drag.down, 6000 - round(28.8 * 0.6))         # 18 pt along the log: 28.8 ms
+        self.assertIn("NOT followed in the picture", edit.describe(edit.propose(scan, log, sb, tracks=tracks),
+                                                                   scan, log, sb, tracks=tracks))
+        drag, *_ = self.located({"axis": "y", "sign": -1, "frames": [[6000, 0.2]], "turn": None})
+        self.assertIn("the picture gave nothing to go by", drag.how)
+        drag, *_ = self.located(None)
+        self.assertIn("the pictures were not looked at", drag.how)
+
+    def test_a_logged_touch_down_wins_over_the_picture(self):
+        scan, log, sb = fixture()
+        log["gestures"][1]["down_s"] = 9.9
+        frames = [[6000, 20.0], [6010, 30.0]]
+        drag = edit.locate(scan, log, sb, tracks={"drag-b": self.track(frames)}).gestures[1]
+        self.assertEqual((drag.down, drag.how), (5940, "timed by the log's own `down_s`"))
+
+
+class Variants(unittest.TestCase):
+    """A rehearsal on other gestures: the same film, never the film."""
+
+    DOC = {**copy.deepcopy(SB), "variants": {"dry": {
+        "_what": "a take that writes nothing",
+        "film": {"duration_s": 16.0},
+        "timing": {"lead_in_s": 0.5},
+        "shots": [{"id": "A", "caption": "one", "gestures": [{"id": "tap-a", "kind": "tap", "rest_after_s": 1.0}]},
+                  {"id": "C", "caption": "three", "caption_after": {"gesture": "tap-a", "delay_s": 0.5},
+                   "gestures": []}],
+    }}}
+
+    def test_the_film_itself_carries_no_variant(self):
+        sb = edit.storyboard(copy.deepcopy(self.DOC))
+        self.assertNotIn("variants", sb)
+        self.assertNotIn("variant", sb)
+        self.assertEqual(sb, SB)
+
+    def test_a_variant_gives_its_shots_and_lays_its_numbers_over_the_films(self):
+        sb = edit.storyboard(copy.deepcopy(self.DOC), "dry")
+        self.assertEqual(sb["variant"], "dry")
+        self.assertEqual([s["id"] for s in sb["shots"]], ["A", "C"])
+        self.assertEqual(sb["film"], {**SB["film"], "duration_s": 16.0})
+        self.assertEqual(sb["timing"], {**SB["timing"], "lead_in_s": 0.5})
+        self.assertEqual((sb["captions"], sb["motion"], sb["touch"]), (SB["captions"], SB["motion"], SB["touch"]))
+        self.assertNotIn("variants", sb)
+        self.assertEqual(self.DOC["film"]["duration_s"], 15.0)        # the film's own is untouched
+
+    def test_a_variant_cannot_touch_the_words_or_the_motion(self):
+        for key in ("captions", "motion", "touch"):
+            doc = copy.deepcopy(self.DOC)
+            doc["variants"]["dry"][key] = {}
+            with self.assertRaises(Refusal) as cm:
+                edit.storyboard(doc, "dry")
+            self.assertEqual(cm.exception.code, "E_STORYBOARD")
+            self.assertIn(f"may only give film, shots, timing — it gives {key}", cm.exception.message)
+
+    def test_a_variant_the_file_does_not_have_is_refused(self):
+        with self.assertRaises(Refusal) as cm:
+            edit.storyboard(copy.deepcopy(self.DOC), "wet")
+        self.assertEqual((cm.exception.code, cm.exception.message),
+                         ("E_STORYBOARD", "the storyboard has no variant `wet` (it has: dry)"))
+        with self.assertRaises(Refusal) as cm:
+            edit.storyboard(copy.deepcopy(SB), "dry")
+        self.assertIn("(it has: none)", cm.exception.message)
+
+    def take(self):
+        scan = scan_of(TAKE)
+        log = {"device_points": [402, 874], "gestures": [dict(LOG["gestures"][0])]}
+        return scan, log
+
+    def test_an_edit_list_cannot_cross_between_the_film_and_a_variant(self):
+        scan, log = self.take()
+        dry = edit.storyboard(copy.deepcopy(self.DOC), "dry")
+        e = edit.propose(scan, log, dry, rehearsal=True)
+        self.assertEqual(e["variant"], "dry")
+        edit.check(e, scan, log, dry)
+        # the variant's edit list, offered to the film
+        film = edit.storyboard(copy.deepcopy(self.DOC))
+        film["shots"], film["film"], film["timing"] = dry["shots"], dry["film"], dry["timing"]
+        with self.assertRaises(Refusal) as cm:
+            edit.check(e, scan, log, film)
+        self.assertEqual((cm.exception.code, cm.exception.message),
+                         ("E_VARIANT", "the edit list was made for the variant `dry`, this storyboard is the film itself"))
+        # the film's edit list, offered to the variant
+        mine = edit.propose(scan, log, film)
+        self.assertIsNone(mine["variant"])
+        with self.assertRaises(Refusal) as cm:
+            edit.check(mine, scan, log, dry)
+        self.assertIn("was made for the film itself, this storyboard is the variant `dry`", cm.exception.message)
+
+    def test_a_variants_edit_list_cannot_say_it_is_the_film(self):
+        scan, log = self.take()
+        dry = edit.storyboard(copy.deepcopy(self.DOC), "dry")
+        e = edit.propose(scan, log, dry, rehearsal=True)
+        e["rehearsal"] = False
+        with self.assertRaises(Refusal) as cm:
+            edit.check(e, scan, log, dry)
+        self.assertEqual((cm.exception.code, cm.exception.message),
+                         ("E_VARIANT", "the variant `dry` is a rehearsal: its edit list cannot say it is the film"))
+
+    def test_the_log_says_which_variant(self):
+        scan, log = self.take()
+        dry = edit.storyboard(copy.deepcopy(self.DOC), "dry")
+        e = edit.propose(scan, log, dry, rehearsal=True)
+        self.assertIn("REHEARSAL — the storyboard's variant `dry`; this is not the film.",
+                      edit.describe(e, scan, log, dry))
+
+    def test_every_variant_of_the_real_storyboard_makes_a_film(self):
+        """As for the film itself: one burst per gesture, typed text as three keys."""
+        self.assertGreater(len(STORYBOARD.get("variants", {})), 0)
+        for name in STORYBOARD["variants"]:
+            sb = edit.storyboard(copy.deepcopy(STORYBOARD), name)
+            for shot in sb["shots"]:
+                self.assertIn(shot["caption"], sb["captions"], f"{name}: {shot['id']}")
+            log = {"device_points": [402, 874], "gestures": []}
+            rows, t = [], 3.0
+            for shot in sb["shots"]:
+                for g in shot["gestures"]:
+                    entry = {"id": g["id"], "kind": g["kind"], "near_s": t}
+                    if g["kind"] == "tap":
+                        entry["at"] = [200, 400]
+                    elif g["kind"] == "drag":
+                        entry["path"] = [[100, 400, 0], [300, 400, 300]]
+                    elif g["kind"] == "type":
+                        del entry["near_s"]
+                        entry["keys"] = [{"near_s": t + 3.0 * k} for k in range(3)]
+                    for _ in entry.get("keys", [0]):
+                        rows += burst(round(t * T), round(t * T) + 240)
+                        t += 3.0
+                    log["gestures"].append(entry)
+            scan = scan_of(rows, end=round((t + 3) * T))
+            e = edit.propose(scan, log, sb, rehearsal=True)
+            edit.check(e, scan, log, sb)
+            self.assertEqual(sum(s.frames for s in edit.spans(e, T, 30)), round(sb["film"]["duration_s"] * 30), name)
+            self.assertTrue(e["rehearsal"])
+            self.assertEqual(e["variant"], name)
 
 
 class Propose(unittest.TestCase):
@@ -361,6 +891,7 @@ class Propose(unittest.TestCase):
                 rows += burst(round(t * T), round(t * T) + 240)
                 t += 3.0
         scan = scan_of(rows, end=round((t + 3) * T))
+        self.assertIsNone(edit.propose(scan, log, edit.storyboard(STORYBOARD))["variant"])
         e = edit.propose(scan, log, STORYBOARD)
         edit.check(e, scan, log, STORYBOARD)
         # read from the storyboard, not pinned: rewording or retiming the film
@@ -524,6 +1055,9 @@ class Refusals(unittest.TestCase):
         same = {pairs[0]: dict(NOISE)}
         edit.check(e, scan, log, sb, same)
         edit.check(e, scan, log, sb, {pairs[0]: dict(CARET)})   # only the caret differs: the same picture
+        elsewhere = {**CARET, "box": [600, 700, 606, 760]}       # caret-shaped, but not where this one blinks
+        self.assertIn("they are not the same picture (soft 360, strong 360, box [600, 700, 606, 760])",
+                      self.refused("E_ENDPOINT", e, scan, log, sb, {pairs[0]: elsewhere}))
         self.assertIn("they are not the same picture",
                       self.refused("E_ENDPOINT", e, scan, log, sb, {pairs[0]: dict(CHANGE)}))
         self.assertIn("no comparison of frames", self.refused("E_ENDPOINT", e, scan, log, sb, {}))
@@ -633,7 +1167,7 @@ class Describe(unittest.TestCase):
             "  film  4.533 –  5.533 s  HOLD  the picture at take   6.400 s  (30 frames)  rest after tap-a",
             "  1. take   0.000 s –   2.900 s removed: before the film starts (1 change frame in it",
             "  2. take   6.400 s –   9.977 s removed, lands on film  5.533 s: 0 quiet frames, 3 caret-only "
-            "frames in the box [300, 1500, 306, 1560]; frame 18 against frame 21: soft 360, strong 360 (caret)",
+            "frames in the box [300, 700, 306, 760]; frame 18 against frame 21: soft 360, strong 360 (caret)",
             "  3. take  11.310 s –  15.000 s removed: after the film ends (0 change frames in it)",
             "poster frame: film 13 s (frame 390); final hold from 7.400 s; 450 frames, 15.000 s",
         ):

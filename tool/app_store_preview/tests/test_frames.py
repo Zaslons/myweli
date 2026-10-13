@@ -269,6 +269,25 @@ class Touch(unittest.TestCase):
         self.assertLess(state(86)[2], 1.0)                # lifted at frame 84
         self.assertIsNone(state(90))
 
+    def test_a_drag_followed_in_the_picture_holds_with_each_frame(self):
+        """Inside `step` every point of the path is a frame of the take: the
+        point stays where that frame has the finger until the next frame is
+        on screen — the picture under it does the same. Outside it, the
+        point moves as the finger did."""
+        drag = {"gesture": "d", "kind": "drag", "down": 1200, "up": 1500, "step": [1240, 1300],
+                "path": [[1200, 40.0, 300.0], [1240, 60.0, 300.0], [1270, 90.0, 300.0], [1300, 100.0, 300.0],
+                         [1360, 160.0, 300.0]]}
+        x = lambda n: self.composer.touch_state(drag, n, self.T)[0]  # noqa: E731
+        self.assertEqual(x(61), 50.0)        # tick 1220, before the picture follows: half-way, as the finger
+        self.assertEqual(x(62), 60.0)        # tick 1240: the first frame that moved
+        self.assertEqual(x(63), 60.0)        # tick 1260: that frame is still on screen — not 80
+        self.assertEqual(x(64), 90.0)        # tick 1280: the frame of tick 1270
+        self.assertEqual(x(65), 100.0)       # tick 1300: the last frame that followed
+        self.assertEqual(x(66), 120.0)       # tick 1320: after it, the finger goes on by the log
+        self.assertEqual(x(68), 160.0)
+        del drag["step"]
+        self.assertEqual(x(63), 80.0)        # without it: straight between the points
+
     def test_the_disc_is_the_brand_black_at_low_opacity_with_a_ring(self):
         c, t = self.composer.c, FIX["touch"]
         card = Image.new("RGB", (self.composer.lay.card_w, self.composer.lay.card_h), (255, 255, 255))

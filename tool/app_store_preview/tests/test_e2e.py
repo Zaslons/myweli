@@ -34,6 +34,7 @@ from tests.test_edit import LOG, SB
 
 RAW = (1206, 2622)
 PX = 3            # raw pixels per point
+SCROLL_PX = 15    # the synthetic drag moves the list this far a frame: 5 pt
 T = 600
 WORK: Path
 TAKE: Path
@@ -67,8 +68,9 @@ def synthetic_take(folder: Path) -> tuple[Path, list[int]]:
        0.0 s   the screen at rest; 0.5 s the same picture again
        3.0 s   the tapped row turns green, in 11 frames (3.000–3.167 s)
        6.0 s   a bar appears at the bottom on its own (6.000–6.083 s)
-       7–8 s   a caret blinks on, off, on
-      10.0 s   a row follows the finger up for a second (10.000–11.000 s)
+       7–8 s   a caret blinks on, off, on — on the bar that has just appeared
+      10.0 s   the list follows the finger up, 5 pt a frame for a second (10.000–11.000 s):
+               300 pt in all, the length of the logged drag, and one frame more on its own
       11.7 s   the last picture again, and again at 15.48 s"""
     folder.mkdir(parents=True, exist_ok=True)
     frames: list[dict] = []
@@ -94,14 +96,15 @@ def synthetic_take(folder: Path) -> tuple[Path, list[int]]:
         put(3600 + 10 * k, cur, f"bar{k}")
     barred = cur
     caret = barred.copy()
-    ImageDraw.Draw(caret).rectangle((1000, 1500, 1005, 1559), fill=(0, 0, 0))   # 2 x 20 pt, on clear white
+    ImageDraw.Draw(caret).rectangle((1000, 2380, 1005, 2439), fill=(255, 255, 255))   # 2 x 20 pt, on the bar
     put(4200, caret, "caret")
     put(4500, barred, "bar5")
     put(4800, caret, "caret")
-    for k in range(61):                                  # the drag: a row slides up 300 pt in a second
-        cur = caret.copy()
-        ImageDraw.Draw(cur).rounded_rectangle((60, 1670 - 15 * k, RAW[0] - 60, 1870 - 15 * k), radius=24,
-                                              fill=(228, 228, 230), outline=(26, 26, 26), width=6)
+    for k in range(61):                                  # the drag: everything under the title bar moves up
+        cur = Image.new("RGB", RAW, (246, 247, 249))
+        cur.paste(caret.crop((0, 0, RAW[0], 330)), (0, 0))
+        up = SCROLL_PX * (k + 1)
+        cur.paste(caret.crop((0, 330 + up, RAW[0], RAW[1])), (0, 330))
         put(6000 + 10 * k, cur, f"drag{k}")
     put(7000, cur, "drag60")
     put(9290, cur, "drag60")
@@ -141,6 +144,11 @@ def read(name: str) -> dict:
     return json.loads((FILM / name).read_text())
 
 
+def tool(*args) -> subprocess.CompletedProcess:
+    """The command line, as a person runs it."""
+    return subprocess.run(["python3", str(TOOL / "preview.py"), *map(str, args)], capture_output=True, text=True)
+
+
 class Scan(unittest.TestCase):
     def test_the_take_has_the_recorders_shape(self):
         box = mp4.read(TAKE)
@@ -160,7 +168,7 @@ class Scan(unittest.TestCase):
 
     def test_changes_stills_and_the_caret_are_told_apart(self):
         scan = read("scan.json")
-        kinds = dict(zip(TAKE_PTS, edit.frame_kinds(scan, PX)))
+        kinds = dict(zip(TAKE_PTS, edit.frame_kinds(scan, PX, 300)))
         self.assertEqual(kinds[300], "quiet")                       # the same picture, sent again
         self.assertEqual(kinds[7000], "quiet")
         self.assertEqual([kinds[p] for p in (4200, 4500, 4800)], ["caret"] * 3)
@@ -169,14 +177,14 @@ class Scan(unittest.TestCase):
                          + list(range(6000, 6601, 10)))
         caret = next(f for f in scan["frames"] if f["pts"] == 4200)
         self.assertEqual(caret["strong"], 360)                      # 6 x 60 pixels: exactly the caret drawn
-        self.assertEqual(caret["box"], [1000, 1500, 1006, 1560])
+        self.assertEqual(caret["box"], [1000, 2380, 1006, 2440])
         still = next(f for f in scan["frames"] if f["pts"] == 300)
         self.assertLess(still["strong"], edit.STRONG_MIN)
         self.assertLess(still["soft"], edit.SOFT_MIN)
 
     def test_bursts_start_and_end_where_the_pictures_changed(self):
         scan = read("scan.json")
-        bursts = edit.find_bursts(scan, edit.frame_kinds(scan, PX), 300)
+        bursts = edit.find_bursts(scan, edit.frame_kinds(scan, PX, 300), 300)
         self.assertEqual([(b.start, b.end) for b in bursts], [(0, 0), (1800, 1900), (3600, 3650), (6000, 6600)])
 
 
@@ -194,11 +202,53 @@ class Build(unittest.TestCase):
         self.assertEqual([(s["kind"], s.get("src_in", s.get("src_at")), s.get("src_out", s.get("frames")))
                           for s in e["segments"]],
                          [("hold", 1740, 30), ("live", 1740, 3860), ("hold", 3840, 30),
-                          ("live", 5986, 6806), ("hold", 6786, 15), ("hold", 6786, 228)])
+                          # the drag: from `fast` (60 ticks) before the list first moves — the touch point
+                          # whole by then — to 0.3 s after its last frame: 5940 + 43 frames
+                          ("live", 5940, 6800), ("hold", 6780, 15), ("hold", 6780, 226)])
         cuts = (FILM / "cuts.txt").read_text()
         self.assertIn("removed, lands on film  5.533 s: 0 quiet frames, 3 caret-only frames in the box "
-                      "[1000, 1500, 1006, 1560]; frame 18 against frame 21:", cuts)
+                      "[1000, 2380, 1006, 2440]; frame 18 against frame 21:", cuts)
         self.assertIn("(caret)", cuts)
+        self.assertIn("followed in the picture on 60 frames, from 5.0 to 300.0 pt of the 300 pt logged", cuts)
+
+    def test_the_drag_is_followed_in_the_picture(self):
+        """track.json: what the pictures say, frame by frame — the list is
+        5 pt further up in each, and the 61st frame goes past the finger."""
+        track = read("track.json")["drag-b"]
+        self.assertEqual((track["axis"], track["sign"], track["turn"]), ("y", -1, None))
+        self.assertEqual(track["frames"], [[6000 + 10 * k, 5.0 * (k + 1)] for k in range(61)])
+        self.assertLess(track["error"], 3.0)
+        self.assertNotIn("why", track)
+        touch = read("edit.json")["touches"][1]
+        # film tick 3380 is take tick 6000: the live range starts at 5940, film frame 166
+        self.assertEqual(touch["down"], 166 * 20)
+        self.assertEqual(touch["step"], [3380, 3380 + 590])            # frames 6000 … 6590: 300 pt, the whole log
+        self.assertEqual(touch["path"][:3], [[3320.0, 200, 600], [3376.0, 200, 600], [3380.0, 200.0, 595.0]])
+        self.assertEqual(touch["path"][-1], [3970.0, 200.0, 300.0])
+        self.assertEqual(touch["up"], 3970)
+
+    def test_the_touch_point_rides_on_what_it_drags(self):
+        """In the composed frames: the disc stays on the piece of the list
+        the finger took — the same pixel of content under its centre all the
+        way up, 12 % darker for the disc on it."""
+        names = read("frames/frames.json")["frames"]
+        pt = 644 / 402
+
+        def at(n: int, y_pt: float) -> int:
+            with Image.open(FILM / "frames" / names[n]) as im:
+                return int(np.asarray(im)[440 + round(y_pt * pt), 121 + round(200 * pt)].astype(int).sum())
+
+        bare = at(165, 600)                    # the frame before the touch-down: what the finger lands on
+        self.assertGreater(bare, 300)          # light enough for a 12 % disc to show
+        veiled = bare * (1 - SB["touch"]["fill_opacity"])
+        # film frame 169 + 3k shows take tick 6000 + 60k: the list is 5 + 30k pt up, and so is the finger
+        for k in (0, 3, 6, 9):
+            n, y = 169 + 3 * k, 600 - (5 + 30 * k)
+            self.assertLess(abs(at(n, y) - veiled), 0.04 * bare, (n, y, at(n, y), bare))
+
+    def test_the_log_says_how_each_drag_was_timed(self):
+        self.assertEqual(read("edit.json")["variant"], None)
+        self.assertNotIn("NOT followed", (FILM / "cuts.txt").read_text())
 
     def test_the_two_frame_hold_computations_agree(self):
         manifest = json.loads((FILM / "src" / "manifest.json").read_text())
@@ -221,7 +271,7 @@ class Build(unittest.TestCase):
         names = read("frames/frames.json")["frames"]
         self.assertEqual(len(names), 450)
         self.assertEqual(len(set(names[:30])), 1)                               # the lead-in is one picture
-        self.assertEqual(len(set(names[230:])), 1)                              # and so is the final hold
+        self.assertEqual(len(set(names[235:])), 1)                              # and so is the final hold
 
         def pixel(n: int) -> np.ndarray:
             pt = 644 / 402
@@ -257,13 +307,36 @@ class Build(unittest.TestCase):
         self.assertEqual(r.returncode, 1)
         self.assertIn("edit list refused [E_PROTECTED] gesture `tap-a`", r.stderr)
         # nothing is left that could pass for this run's result
-        self.assertEqual(sorted(p.name for p in (WORK / "refused").iterdir()), ["scan.json"])
+        # (what the take was read as stays: scan.json, track.json — neither is a result)
+        self.assertEqual(sorted(p.name for p in (WORK / "refused").iterdir()), ["scan.json", "track.json"])
 
     def build(self, name: str, *args: str, gestures: Path | None = None) -> subprocess.CompletedProcess:
         return subprocess.run(
             ["python3", str(TOOL / "preview.py"), "build", "--storyboard", str(WORK / "storyboard.json"),
              "--take", str(TAKE), "--gestures", str(gestures or WORK / "gestures.json"),
              "--out", str(WORK / name), *args], capture_output=True, text=True)
+
+    def test_the_bursts_command_lists_where_the_screen_changes(self):
+        """What a person reads `near_s` from."""
+        r = tool("bursts", FILM / "scan.json", "--storyboard", WORK / "storyboard.json")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        lines = r.stdout.splitlines()
+        self.assertEqual(lines[0], "85 frames: 79 change, 3 quiet, 3 caret-only; first picture at 0.000 s")
+        self.assertEqual([line.split()[:3] for line in lines[2:]],
+                         [["0.000", "0.000", "1"], ["3.000", "3.167", "11"], ["6.000", "6.083", "6"],
+                          ["10.000", "11.000", "61"]])
+        self.assertIn("20, 223 – 387, 290", lines[3])          # the tapped row, in points
+
+    def test_the_check_command_needs_the_reading_of_the_picture_the_edit_list_was_made_with(self):
+        base = ["check", "--storyboard", WORK / "storyboard.json", "--scan", FILM / "scan.json",
+                "--gestures", WORK / "gestures.json", "--edit", FILM / "edit.json", "--take", TAKE]
+        with_tracks = tool(*base, "--tracks", FILM / "track.json")
+        self.assertEqual(with_tracks.returncode, 0, with_tracks.stderr)
+        self.assertTrue(with_tracks.stdout.endswith("edit list accepted\n"))
+        self.assertIn("followed in the picture on 60 frames", with_tracks.stdout)
+        without = tool(*base)
+        self.assertEqual(without.returncode, 1)
+        self.assertIn("edit list refused [E_TOUCH]", without.stderr)
 
     def test_a_film_that_fails_a_check_fails_the_build(self):
         from unittest import mock
@@ -287,7 +360,7 @@ class Build(unittest.TestCase):
         r = self.build("mislabelled", "--edit", str(WORK / "rehearsal-edit.json"))
         self.assertEqual(r.returncode, 1)
         self.assertIn("the edit list and --rehearsal disagree", r.stderr)
-        self.assertEqual(sorted(p.name for p in (WORK / "mislabelled").iterdir()), ["scan.json"])
+        self.assertEqual(sorted(p.name for p in (WORK / "mislabelled").iterdir()), ["scan.json", "track.json"])
 
     def test_a_gesture_the_take_does_not_show_stops_the_build(self):
         log = copy.deepcopy(E2E_LOG)
@@ -295,24 +368,122 @@ class Build(unittest.TestCase):
         (WORK / "wrong-gestures.json").write_text(json.dumps(log))
         r = self.build("unmatched", gestures=WORK / "wrong-gestures.json")
         self.assertEqual(r.returncode, 1)
-        self.assertIn("cannot propose an edit list [E_MATCH] gesture `drag-b`: nothing starts changing within "
-                      "±0.5 s of 13.0 s", r.stderr)
+        self.assertIn("cannot find the gestures in the take [E_MATCH] gesture `drag-b`: nothing starts changing "
+                      "within ±0.5 s of 13.0 s", r.stderr)
         self.assertEqual(sorted(p.name for p in (WORK / "unmatched").iterdir()), ["scan.json"])
+
+    def test_a_take_longer_than_the_storyboard_allows_stops_the_build(self):
+        """Nothing is squeezed to fit: the gestures are found, the drag is
+        followed, and no edit list can be proposed."""
+        short = copy.deepcopy(SB)
+        short["film"].update(duration_s=7.0, poster_s=6.9)
+        (WORK / "storyboard-short.json").write_text(json.dumps(short))
+        r = tool("build", "--storyboard", WORK / "storyboard-short.json", "--take", TAKE,
+                 "--gestures", WORK / "gestures.json", "--out", WORK / "too-long")
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("cannot propose an edit list [E_LENGTH] the film is already 7.47 s before its final hold",
+                      r.stderr)
+        self.assertEqual(sorted(p.name for p in (WORK / "too-long").iterdir()), ["scan.json", "track.json"])
 
     def test_the_two_sides_of_a_cut_are_compared_on_the_decoded_frames(self):
         e, scan, log = read("edit.json"), read("scan.json"), json.loads((WORK / "gestures.json").read_text())
+        tracks = read("track.json")
         pairs = edit.cut_pairs(e, scan, 30)
         self.assertEqual(pairs, [(18, 21)])                    # the bar's last frame, the caret's last blink
         diffs = preview.pair_diffs(TAKE, pairs, WORK)
-        self.assertEqual(diffs[(18, 21)]["box"], [1000, 1500, 1006, 1560])
-        self.assertEqual(edit.frame_kind(diffs[(18, 21)], PX), "caret")
-        edit.check(e, scan, log, SB, diffs)
+        self.assertEqual(diffs[(18, 21)]["box"], [1000, 2380, 1006, 2440])
+        tm = edit.check(e, scan, log, SB, diffs, tracks)
+        self.assertEqual(edit.pair_kind(diffs[(18, 21)], tm, 21), "caret")
         # had the film resumed on a picture from the middle of the drag:
         moved = preview.pair_diffs(TAKE, [(18, 30)], WORK)[(18, 30)]
-        self.assertEqual(edit.frame_kind(moved, PX), "change")
+        self.assertEqual(edit.pair_kind(moved, tm, 21), "change")
         with self.assertRaises(edit.Refusal) as cm:
-            edit.check(e, scan, log, SB, {(18, 21): moved})
+            edit.check(e, scan, log, SB, {(18, 21): moved}, tracks)
         self.assertEqual(cm.exception.code, "E_ENDPOINT")
+
+
+class Variant(unittest.TestCase):
+    """A variant of the storyboard — a rehearsal on other gestures — built
+    from the same take: the tap, and nothing of the drag."""
+
+    @classmethod
+    def setUpClass(cls):
+        doc = copy.deepcopy(SB)
+        doc["variants"] = {"dry": {
+            "_what": "the tap alone",
+            "shots": [{"id": "A", "caption": "one", "gestures": [{"id": "tap-a", "kind": "tap", "rest_after_s": 1.0}]},
+                      {"id": "C", "caption": "three", "caption_after": {"gesture": "tap-a", "delay_s": 0.5},
+                       "gestures": []}]}}
+        (WORK / "storyboard-variants.json").write_text(json.dumps(doc))
+        log = copy.deepcopy(E2E_LOG)
+        log["gestures"][1] = {"kind": "drag", "near_s": 10.0, "film": False}     # done, and not in this film
+        (WORK / "gestures-dry.json").write_text(json.dumps(log))
+        cls.out = WORK / "dry"
+        cls.built = tool("build", "--storyboard", WORK / "storyboard-variants.json", "--variant", "dry",
+                         "--take", TAKE, "--gestures", WORK / "gestures-dry.json", "--out", cls.out)
+
+    def test_it_is_built_as_a_rehearsal_and_says_so_everywhere(self):
+        self.assertEqual(self.built.returncode, 0, self.built.stderr)
+        # never under the film's name
+        self.assertEqual(sorted(p.name for p in self.out.glob("*.mp4")), ["preview-rehearsal.mp4"])
+        report = (self.out / "verify.txt").read_text()
+        self.assertIn("PASS — 24 checks — REHEARSAL, not the film: the storyboard's variant `dry`", report)
+        self.assertIn("REHEARSAL — the storyboard's variant `dry`; this is not the film.",
+                      (self.out / "cuts.txt").read_text())
+        e = json.loads((self.out / "edit.json").read_text())
+        self.assertEqual((e["rehearsal"], e["variant"]), (True, "dry"))
+
+    def test_it_is_the_variants_film(self):
+        e = json.loads((self.out / "edit.json").read_text())
+        self.assertEqual([c["caption"] for c in e["captions"]], ["one", "three"])
+        self.assertEqual([t["gesture"] for t in e["touches"]], ["tap-a"])
+        # the tap's answer ends on the last change before the drag that is not
+        # filmed (the bar, at 3650 — the caret after it is no change), and the
+        # film ends there: 30 + 106 + 30 frames, then the final hold
+        self.assertEqual([(s["kind"], s.get("src_in", s.get("src_at")), s.get("src_out", s.get("frames")))
+                          for s in e["segments"]],
+                         [("hold", 1740, 30), ("live", 1740, 3860), ("hold", 3840, 30), ("hold", 3840, 284)])
+        self.assertEqual(json.loads((self.out / "track.json").read_text()), {})      # no drag in it to follow
+
+    def test_the_checker_says_rehearsal_when_it_is_told_the_variant_or_reads_the_name(self):
+        movie = self.out / "preview-rehearsal.mp4"
+        told = tool("verify", movie, "--storyboard", WORK / "storyboard-variants.json", "--variant", "dry")
+        self.assertEqual(told.returncode, 0, told.stdout)
+        self.assertIn("PASS — 23 checks — REHEARSAL, not the film: the storyboard's variant `dry`", told.stdout)
+        # not told: the film's own storyboard is the same length here, so every
+        # check passes — and the file's name still says what it is
+        untold = tool("verify", movie, "--storyboard", WORK / "storyboard-variants.json")
+        self.assertIn("PASS — 23 checks — REHEARSAL, not the film: the file is named preview-rehearsal.mp4",
+                      untold.stdout)
+        renamed = WORK / "dry" / "film.mp4"
+        shutil.copyfile(movie, renamed)
+        try:
+            bare = tool("verify", renamed, "--storyboard", WORK / "storyboard-variants.json")
+            self.assertIn("PASS — 23 checks\n", bare.stdout)       # what a renamed rehearsal gets: see README
+        finally:
+            renamed.unlink()
+
+    def test_a_variant_the_storyboard_does_not_have_stops_the_build(self):
+        r = tool("build", "--storyboard", WORK / "storyboard-variants.json", "--variant", "wet", "--take", TAKE,
+                 "--gestures", WORK / "gestures-dry.json", "--out", WORK / "wet")
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("[E_STORYBOARD] the storyboard has no variant `wet` (it has: dry)", r.stderr)
+        self.assertFalse((WORK / "wet").exists())
+
+    def test_the_films_edit_list_cannot_be_built_as_the_variant(self):
+        crossed = ["build", "--storyboard", WORK / "storyboard-variants.json", "--variant", "dry", "--take", TAKE,
+                   "--gestures", WORK / "gestures-dry.json", "--out", WORK / "crossed"]
+        r = tool(*crossed, "--edit", FILM / "edit.json", "--rehearsal")
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("the edit list and --rehearsal disagree", r.stderr)
+        e = read("edit.json")
+        e["rehearsal"] = True
+        (WORK / "crossed-edit.json").write_text(json.dumps(e))
+        r = tool(*crossed, "--edit", WORK / "crossed-edit.json")
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("edit list refused [E_VARIANT] the edit list was made for the film itself, this storyboard "
+                      "is the variant `dry`", r.stderr)
+        self.assertEqual(sorted(p.name for p in (WORK / "crossed").iterdir()), ["scan.json", "track.json"])
 
 
 if __name__ == "__main__":

@@ -10,6 +10,7 @@ runbook for the final take.
       --take take.mov --gestures gestures.json --out build/app-store/pro/preview/final
 
     scan      every frame of the take: its time, how much of the screen changed
+    follow    each drag in the picture: where the finger is in every frame
     propose   the edit list (edit.json) and the log of every cut (cuts.txt)
     check     the edit list against the editing rule — refused if it cuts,
               holds or retimes anything between a touch-down and the end of
@@ -42,6 +43,7 @@ from PIL import Image, ImageDraw  # noqa: E402
 import edit as editlist  # noqa: E402
 import frames as framing  # noqa: E402
 import swifttools  # noqa: E402
+import track as tracking  # noqa: E402
 import verify as verifying  # noqa: E402
 from brand import colours, die, stills  # noqa: E402
 
@@ -57,6 +59,23 @@ def load(path: Path) -> dict:
 
 def save(obj: dict, path: Path) -> None:
     path.write_text(json.dumps(obj, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
+
+
+def load_storyboard(a: argparse.Namespace) -> dict:
+    """The film's storyboard, or — with --variant — one of its rehearsals."""
+    try:
+        return editlist.storyboard(load(a.storyboard), getattr(a, "variant", None))
+    except editlist.Refusal as e:
+        die(str(e))
+
+
+def rehearsal_note(sb: dict, log: dict | None = None) -> str:
+    """What a report says of a file that is not the film."""
+    if sb.get("variant"):
+        return f" — REHEARSAL, not the film: the storyboard's variant `{sb['variant']}`"
+    logged = {t.get("id") for t in (log or {}).get("gestures", [])}
+    empty = [s["id"] for s in sb["shots"][:-1] if not any(g["id"] in logged for g in s["gestures"])]
+    return f" — REHEARSAL, not the film: no footage for {', '.join(empty) or 'some gestures'}"
 
 
 def scan_take(take: Path, out: Path) -> dict:
@@ -78,15 +97,16 @@ def pair_diffs(take: Path, pairs: list[tuple[int, int]], work: Path) -> dict[tup
     return {(d["a"], d["b"]): d for d in load(work / "pairs-diff.json")["pairs"]}
 
 
-def checked(edit: dict, scan: dict, log: dict, sb: dict, take: Path | None, work: Path) -> dict:
+def checked(edit: dict, scan: dict, log: dict, sb: dict, take: Path | None, work: Path,
+            tracks: dict | None = None) -> dict:
     """Run the editing rule; stop with its refusal. Returns the pair diffs."""
     try:
-        editlist.check(edit, scan, log, sb)        # every rule the scan alone can settle
+        editlist.check(edit, scan, log, sb, None, tracks)    # every rule the scan alone can settle
         if not take:
             return {}
         # …then the one that needs the pictures: both sides of every cut
         diffs = pair_diffs(take, editlist.cut_pairs(edit, scan, sb["film"]["fps"]), work)
-        editlist.check(edit, scan, log, sb, diffs)
+        editlist.check(edit, scan, log, sb, diffs, tracks)
     except editlist.Refusal as e:
         die(f"edit list refused {e}")
     return diffs
@@ -127,63 +147,68 @@ def contact_sheet(movie: Path, out: Path, sb: dict, work: Path) -> None:
 
 
 def cmd_build(a: argparse.Namespace) -> None:
-    sb, log = load(a.storyboard), load(a.gestures)
+    sb, log = load_storyboard(a), load(a.gestures)
     given = load(a.edit) if a.edit else None
     out: Path = a.out
     if not a.take.exists():
         die(f"no such take: {a.take}")
-    name = "preview-rehearsal.mp4" if a.rehearsal else "preview.mp4"
+    # A variant of the storyboard is a rehearsal, asked for or not.
+    rehearsal = bool(a.rehearsal or sb.get("variant"))
+    name = "preview-rehearsal.mp4" if rehearsal else "preview.mp4"
     # An earlier build's results go first: if this one is refused, there is
     # no film, sheet or report left in the folder to mistake for its own.
     clear(out, ("preview*.mp4", "verify.txt", "poster.png", "poster-decoded.png", "contact-sheet.png",
-                "edit.json", "cuts.txt"))
+                "edit.json", "cuts.txt", "track.json"))
 
-    print(f"1/8 scan     {a.take}")
+    print(f"1/9 scan     {a.take}")
     scan = scan_take(a.take, out / "scan.json")
 
-    print("2/8 propose  the edit list")
+    print("2/9 follow   each drag in the picture")
     try:
-        edit = given if given is not None else editlist.propose(scan, log, sb, rehearsal=a.rehearsal)
+        tracks = tracking.read_drags(a.take, scan, log, sb, out, rehearsal)
+    except editlist.Refusal as e:
+        die(f"cannot find the gestures in the take {e}")
+    save(tracks, out / "track.json")
+
+    print("3/9 propose  the edit list")
+    try:
+        edit = given if given is not None else editlist.propose(scan, log, sb, rehearsal, tracks)
     except editlist.Refusal as e:
         die(f"cannot propose an edit list {e}")
-    if bool(edit.get("rehearsal")) != bool(a.rehearsal):
+    if bool(edit.get("rehearsal")) != rehearsal:
         die("the edit list and --rehearsal disagree")
 
-    print("3/8 check    the editing rule")
-    diffs = checked(edit, scan, log, sb, a.take, out)
+    print("4/9 check    the editing rule")
+    diffs = checked(edit, scan, log, sb, a.take, out, tracks)
     save(edit, out / "edit.json")
-    text = editlist.describe(edit, scan, log, sb, diffs)
+    text = editlist.describe(edit, scan, log, sb, diffs, tracks)
     (out / "cuts.txt").write_text(text, encoding="utf-8")
     print("    " + text.replace("\n", "\n    ").rstrip())
 
-    print("4/8 export   the kept ranges at 30 fps, by frame-hold")
+    print("5/9 export   the kept ranges at 30 fps, by frame-hold")
     clear(out / "src", ("src_*.png", "manifest.json"))
     save({"fps": sb["film"]["fps"], "segments": [
         {k: v for k, v in s.items() if k != "why"} for s in edit["segments"]]}, out / "segments.json")
     swifttools.run("conform", "export", a.take, "--segments", out / "segments.json", "--out", out / "src")
     sources = editlist.film_sources(edit, scan, sb["film"]["fps"])
 
-    print("5/8 compose  the frames")
+    print("6/9 compose  the frames")
     clear(out / "frames", ("f_*.png", "frames.json"))
     made = framing.compose(sb, edit, sources, out / "src", out / "frames", tuple(log["device_points"]))
     print(f"    {made['frames']} frames, {made['pictures']} distinct pictures; touch tones {made['tones']}")
 
-    print(f"6/8 encode   {name}")
+    print(f"7/9 encode   {name}")
     movie = out / name
     print("    " + swifttools.run("encode", out / "frames", "--out", movie).stdout.strip())
 
-    print("7/8 sheet    poster.png, contact-sheet.png")
+    print("8/9 sheet    poster.png, contact-sheet.png")
     names = load(out / "frames" / "frames.json")["frames"]
     shutil.copyfile(out / "frames" / names[edit["poster_frame"]], out / "poster.png")
     contact_sheet(movie, out / "contact-sheet.png", sb, out / "decoded")
     shutil.copyfile(out / "decoded" / f"frame_{edit['poster_frame']:06d}.png", out / "poster-decoded.png")
 
-    print("8/8 verify   the written file")
-    note = ""
-    if a.rehearsal:
-        empty = [s["id"] for s in sb["shots"][:-1]
-                 if not any(g["id"] in {t.get("id") for t in log["gestures"]} for g in s["gestures"])]
-        note = f" — REHEARSAL, not the film: no footage for {', '.join(empty) or 'some gestures'}"
+    print("9/9 verify   the written file")
+    note = rehearsal_note(sb, log) if rehearsal else ""
     text, ok = verifying.report(verifying.verify(movie, sb, out / "poster.png"), movie, note)
     (out / "verify.txt").write_text(text, encoding="utf-8")
     print("    " + text.replace("\n", "\n    ").rstrip())
@@ -198,11 +223,12 @@ def cmd_scan(a: argparse.Namespace) -> None:
 
 def cmd_bursts(a: argparse.Namespace) -> None:
     """Where the screen changes in a take — what `near_s` is read from."""
-    sb, scan = load(a.storyboard), load(a.scan)
+    sb, scan = load_storyboard(a), load(a.scan)
     T = scan["video"]["timescale"]
     px_per_pt = scan["video"]["width"] / a.device_points[0]
-    kinds = editlist.frame_kinds(scan, px_per_pt)
-    bursts = editlist.find_bursts(scan, kinds, round(sb["timing"]["rest_s"] * T))
+    rest = round(sb["timing"]["rest_s"] * T)
+    kinds = editlist.frame_kinds(scan, px_per_pt, rest)
+    bursts = editlist.find_bursts(scan, kinds, rest)
     print(f"{len(scan['frames'])} frames: {kinds.count('change')} change, {kinds.count('quiet')} quiet, "
           f"{kinds.count('caret')} caret-only; first picture at {scan['frames'][0]['pts'] / T:.3f} s")
     print(" start s    end s  frames  where (points: x0, y0 – x1, y1)")
@@ -212,22 +238,31 @@ def cmd_bursts(a: argparse.Namespace) -> None:
 
 
 def cmd_check(a: argparse.Namespace) -> None:
-    sb, scan, log, edit = load(a.storyboard), load(a.scan), load(a.gestures), load(a.edit)
+    sb, scan, log, edit = load_storyboard(a), load(a.scan), load(a.gestures), load(a.edit)
     work = Path(a.edit).resolve().parent
-    diffs = checked(edit, scan, log, sb, a.take, work)
-    print(editlist.describe(edit, scan, log, sb, diffs), end="")
+    tracks = load(a.tracks) if a.tracks else None
+    diffs = checked(edit, scan, log, sb, a.take, work, tracks)
+    print(editlist.describe(edit, scan, log, sb, diffs, tracks), end="")
     print("edit list accepted" + ("" if a.take else " (cut endpoints not compared: no --take)"))
 
 
 def cmd_verify(a: argparse.Namespace) -> None:
-    text, ok = verifying.report(verifying.verify(a.movie, load(a.storyboard), a.poster), a.movie)
+    sb = load_storyboard(a)
+    note = ""
+    if sb.get("variant"):
+        note = rehearsal_note(sb)
+    elif "rehearsal" in a.movie.name:
+        # a build never writes a rehearsal under the film's name; the file's
+        # own name is the one thing this command can read that says so
+        note = f" — REHEARSAL, not the film: the file is named {a.movie.name}"
+    text, ok = verifying.report(verifying.verify(a.movie, sb, a.poster), a.movie, note)
     print(text, end="")
     if not ok:
         sys.exit(1)
 
 
 def cmd_sheet(a: argparse.Namespace) -> None:
-    contact_sheet(a.movie, a.out, load(a.storyboard), a.out.parent / "decoded")
+    contact_sheet(a.movie, a.out, load_storyboard(a), a.out.parent / "decoded")
     print(f"sheet: {a.out}")
 
 
@@ -250,6 +285,9 @@ def main() -> None:
         p = sub.add_parser(name, **kw)
         p.set_defaults(fn=fn)
         p.add_argument("--storyboard", type=Path, default=STORYBOARD)
+        if name != "selftest":
+            p.add_argument("--variant", help="one of the storyboard's `variants`: a rehearsal on other gestures, "
+                                             "never the film")
         return p
 
     p = command("build", cmd_build, help="take + gesture log -> preview.mp4, verified")
@@ -274,6 +312,7 @@ def main() -> None:
     p.add_argument("--gestures", type=Path, required=True)
     p.add_argument("--edit", type=Path, required=True)
     p.add_argument("--take", type=Path, help="the take, to compare the pictures on both sides of each cut")
+    p.add_argument("--tracks", type=Path, help="track.json of the build, when its drags were followed in the picture")
 
     p = command("verify", cmd_verify, help="check a written file; non-zero exit on any miss")
     p.add_argument("movie", type=Path)
