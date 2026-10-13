@@ -4,6 +4,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/provider.dart' as models;
+import 'package:myweli/models/review.dart';
 import 'package:myweli/providers/provider_provider.dart';
 import 'package:myweli/screens/providers/provider_detail_screen.dart';
 import 'package:myweli/services/interfaces/provider_service_interface.dart';
@@ -116,7 +117,9 @@ void main() {
     await tester.pumpWidget(wrap(salon: fresh));
     await tester.pumpAndSettle();
 
-    expect(find.text('Nouveau'), findsWidgets);
+    // Exactly two: the header under the name (the App Store frame's subject)
+    // and the « Avis » summary — `findsWidgets` let either vanish unnoticed.
+    expect(find.text('Nouveau'), findsNWidgets(2));
     expect(find.text('Pas encore d’avis.'), findsOneWidget);
     expect(find.textContaining('0.0'), findsNothing);
     expect(find.textContaining('0,0'), findsNothing);
@@ -127,6 +130,46 @@ void main() {
   /// cover where the website does (docs/design/salon-cover-photo.md §1). The
   /// photo must come from the payload the preview was SEEDED with — the
   /// forbidden public service above fails the test if anything fetches.
+  /// §2.2 — the first review of a new salon flips the page at once: no
+  /// « Nouveau » and no « Pas encore d’avis. » above the review just left.
+  testWidgets('the first review replaces « Nouveau » without a reload', (
+    tester,
+  ) async {
+    final providers = ProviderProvider();
+    providers.showPreloaded(
+      MockData.providers
+          .firstWhere((p) => p.id == 'provider1')
+          .copyWith(rating: 0, reviewCount: 0, reviews: const []),
+    );
+    await tester.pumpWidget(
+      wrapApp(
+        providers: [ChangeNotifierProvider.value(value: providers)],
+        home: const ProviderDetailScreen(
+          providerId: 'provider1',
+          preview: true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Nouveau'), findsNWidgets(2));
+
+    providers.addReviewLocally(
+      Review(
+        id: 'r1',
+        providerId: 'provider1',
+        userId: 'user1',
+        userName: 'Awa K.',
+        rating: 5,
+        text: 'Parfait',
+        createdAt: DateTime(2026, 10, 13),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Nouveau'), findsNothing);
+    expect(find.text('Pas encore d’avis.'), findsNothing);
+    expect(find.text('5,0'), findsNWidgets(2));
+  });
+
   testWidgets('preview renders the cover from the /me/provider payload', (
     tester,
   ) async {

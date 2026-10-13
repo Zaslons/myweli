@@ -589,6 +589,37 @@ void main() {
         )
         .length;
 
+    // docs/design/salon-rating-new-and-visits-card.md §2.1 — the sheet's
+    // rating is `AppRating` too: « Nouveau » for a salon nobody reviewed.
+    for (final reviewed in [false, true]) {
+      testWidgets(
+        'the sheet\'s rating: ${reviewed ? '« ★ 4,x »' : '« Nouveau »'}',
+        (tester) async {
+          final asked = <String>[];
+          locationGranted(tester, asked);
+          service
+            ..list = [divine]
+            ..salon = reviewed
+                ? excellence.copyWith(rating: 4.6, reviewCount: 12)
+                : excellence.copyWith(rating: 0, reviewCount: 0);
+          await pumpMap(tester, 'provider1');
+          final inSheet = find.byType(BottomSheet);
+          expect(find.text('Voir le salon'), findsOneWidget);
+          Finder sheetText(String t) =>
+              find.descendant(of: inSheet, matching: find.text(t));
+          if (reviewed) {
+            expect(sheetText('4,6'), findsOneWidget);
+            expect(sheetText('Nouveau'), findsNothing);
+          } else {
+            expect(sheetText('Nouveau'), findsOneWidget);
+            expect(sheetText('0,0'), findsNothing);
+            expect(sheetText('0.0'), findsNothing);
+            expect(sheetText('(0)'), findsNothing);
+          }
+        },
+      );
+    }
+
     testWidgets('a salon outside the loaded list is found, centred, opened — '
         'and the user’s position does not take the camera', (tester) async {
       final asked = <String>[];

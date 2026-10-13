@@ -1016,12 +1016,18 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                             ),
                             // §2.2: at 0 reviews the pill alone says « new »;
                             // this line says what the section would hold.
-                            if (p.reviewCount == 0) ...[
+                            // Both conditions: a review just submitted is in
+                            // `reviews` before any reload (provider_provider's
+                            // `addReviewLocally`). ExcludeSemantics: the pill's
+                            // label already says « pas encore d’avis ».
+                            if (p.reviewCount == 0 && p.reviews.isEmpty) ...[
                               const SizedBox(height: AppTheme.spacingS),
-                              Text(
-                                'Pas encore d’avis.',
-                                style: AppTextStyles.bodySmall.copyWith(
-                                  color: AppColors.textTertiary,
+                              ExcludeSemantics(
+                                child: Text(
+                                  'Pas encore d’avis.',
+                                  style: AppTextStyles.bodySmall.copyWith(
+                                    color: AppColors.textTertiary,
+                                  ),
                                 ),
                               ),
                             ],
