@@ -111,6 +111,7 @@ S = "tests.test_scenes."
 M = "tests.test_masks."
 Q = "tests.test_scene_frames."
 R = "tests.test_verify.MaskedRegions."
+G = "tests.test_verify.MaskedGhost."
 FILM = "tests.test_film_e2e."
 MANUAL = [
     # group, file, exactly this text (once), becomes, the test that must fail
@@ -595,6 +596,22 @@ MANUAL = [
     ("verify", "verify.py", "        if masks is not None:", "        if False:", R + "test_a_masked_region_that_shows_the_original_fails"),
     ("verify", "verify.py", '        return True, "the film has no masked region"', '        return False, "the film has no masked region"',
      R + "test_a_film_with_no_masked_region_says_so"),
+    # a faint original under the mask, read on its ink (review, 2026-10-14: a 15 % ghost passed the box's mean)
+    ("verify", "verify.py", "MASK_GHOST = 0.01", "MASK_GHOST = 0.2", G + "test_a_ghost_of_fifteen_percent_fails_where_the_mean_does_not_see_it"),
+    ("verify", "verify.py", "MASK_GHOST = 0.01", "MASK_GHOST = 0.02", G + "test_a_ghost_of_three_percent_fails_too"),
+    ("verify", "verify.py", "MASK_INK = 32.0", "MASK_INK = 300.0", G + "test_a_ghost_of_fifteen_percent_fails_where_the_mean_does_not_see_it"),
+    ("verify", "verify.py", "MASK_INK_MIN = 20", "MASK_INK_MIN = 100000",
+     G + "test_a_ghost_of_fifteen_percent_fails_where_the_mean_does_not_see_it"),
+    ("verify", "verify.py", "                if share_of_ink > MASK_GHOST:", "                if False:",
+     G + "test_a_ghost_of_fifteen_percent_fails_where_the_mean_does_not_see_it"),
+    ("verify", "verify.py", "    return n, float((d * e).sum() / (e * e).sum())", "    return n, 0.0",
+     G + "test_a_ghost_of_fifteen_percent_fails_where_the_mean_does_not_see_it"),
+    ("verify", "verify.py", "    ink = np.abs(o - m) > MASK_INK\n", "    ink = np.abs(o - m) < MASK_INK\n",
+     G + "test_a_ghost_of_fifteen_percent_fails_where_the_mean_does_not_see_it"),
+    # Level 4.0's busiest second, on its own (review, 2026-10-14: no test saw it fail)
+    ("verify", "verify.py", "PEAK_BPS = 25_000_000", "PEAK_BPS = 250_000_000", V + "test_a_busiest_second_past_level_4_0"),
+    ("verify", "verify.py", "VIDEO_BPS[0] <= bps <= VIDEO_BPS[1] and peak <= PEAK_BPS,",
+     "VIDEO_BPS[0] <= bps <= VIDEO_BPS[1],", V + "test_a_busiest_second_past_level_4_0"),
 
     # the slow ones: each builds the film of scenes twice
     ("film", "film.py", '    checks = verifying.verify(movie, fsb, out / "poster.png", {"regions": regions, "base": out})',
@@ -728,8 +745,14 @@ MANUAL = [
      XL + "test_a_second_over_the_level_is_written_again_with_a_higher_ceiling"),
     ("swift", "swift/Encode.swift", "let qpCeilingLast = 20", "let qpCeilingLast = 10",
      XL + "test_a_second_over_the_level_is_written_again_with_a_higher_ceiling"),
-    ("swift", "swift/Encode.swift", "Array(stride(from: first, through: qpCeilingLast, by: 2))", "[first]",
+    ("swift", "swift/Encode.swift", "Array(stride(from: first, to: qpCeilingLast, by: 2)) + [qpCeilingLast]", "[first]",
      XL + "test_a_second_over_the_level_is_written_again_with_a_higher_ceiling"),
+    # an odd first ceiling must still end on the last one (review, 2026-10-14)
+    ("swift", "swift/Encode.swift", "Array(stride(from: first, to: qpCeilingLast, by: 2)) + [qpCeilingLast]",
+     "Array(stride(from: first, through: qpCeilingLast, by: 2))",
+     XL + "test_the_ladder_of_ceilings_always_ends_on_the_last"),
+    ("swift", "swift/Encode.swift", "  guard first < qpCeilingLast else { return [first] }\n", "",
+     XL + "test_the_ladder_of_ceilings_always_ends_on_the_last"),
     ("swift", "swift/Encode.swift", "    if i >= frames { window -= sizes[i - frames] }\n", "",
      XL + "test_a_second_over_the_level_is_written_again_with_a_higher_ceiling"),
     ("swift", "swift/Encode.swift", "      guard ceiling < qpCeilingLast else {", "      guard true else {",
@@ -737,7 +760,7 @@ MANUAL = [
     ("swift", "swift/Encode.swift",
      "      // written whole, but not yet accepted: a refusal below removes it\n      unfinished += [outPath]\n", "",
      XL + "test_a_picture_too_busy_for_the_level_is_refused_and_leaves_nothing"),
-    ("swift", "swift/Encode.swift", "    for ceiling in qpCeilings(from: spec.maxFrameQP ?? qpCeilingLast) {",
+    ("swift", "swift/Encode.swift", "    for ceiling in qpCeilings(from: firstCeiling) {",
      "    for ceiling in qpCeilings(from: 12) {", XL + "test_a_still_film_is_written_once_at_the_spec_s_ceiling"),
     ("swift", "swift/Common.swift", '    for k in flags.keys where !used.contains(k) { die("unknown flag --\\(k)") }', "",
      X + "test_there_is_nothing_to_configure"),

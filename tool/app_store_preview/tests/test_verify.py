@@ -190,6 +190,27 @@ class VerifyRefuses(unittest.TestCase):
         self.assertGreater(rate, 12.0, seen)
         self.assertLessEqual(peak, 25.0, seen)             # so it is the average this file fails on
 
+    def test_a_busiest_second_past_level_4_0(self):
+        """A still film with one second of fine texture scrolling, written at
+        the film's own quantiser ceiling (10) by another writer than `encode`
+        — which would write it again: its average is well inside Apple's
+        0.15–12 Mbps, its busiest second past the 25 Mbit Level 4.0 allows.
+        The level's half of the check, on its own (found unwatched by review
+        on 2026-10-14)."""
+        folder = busy_second("busy-peak", 0.6)
+        names = json.loads((folder / "frames.json").read_text())["frames"]
+        clip = {"width": 886, "height": 1920, "timescale": T, "end": 20 * len(names), "audio": True,
+                "bitrate": 11_000_000, "max_qp": 10,
+                "frames": [{"pts": 20 * i, "file": name} for i, name in enumerate(names)]}
+        (folder / "clip.json").write_text(json.dumps(clip))
+        movie = folder / "peak.mp4"
+        swifttools.run("testclip", folder / "clip.json", "--out", movie)
+        self.assertEqual(failed(movie), {"video bit rate"})
+        seen = {c.name: c.seen for c in verify.verify(movie, SB)}["video bit rate"]
+        rate, peak = (float(x) for x in re.findall(r"([\d.]+) Mbps", seen))
+        self.assertLess(rate, 12.0, seen)                  # so it is the busiest second this file fails on
+        self.assertGreater(peak, 25.0, seen)
+
     def test_pixels_that_are_not_square(self):
         """The right 886 x 1920 samples, to be shown twice as wide."""
         wide = film_clip("wide-pixels", pasp=[2, 1])
@@ -634,6 +655,65 @@ class MaskedRegions(unittest.TestCase):
         self.assertIn("cannot decode the masked frames", seen)
 
 
+class MaskedGhost(unittest.TestCase):
+    """A faint original laid over the mask. Found by review on 2026-10-14:
+    the film rebuilt with every masked region at 85 % masked + 15 % original
+    passed the box's mean (at most 3.9 levels off), and the phone number
+    could be read on the decoded frame. Here a number in black on the card,
+    the mask a plain fill with other words beside it (as a join blends
+    another screen in), and films that carry 0, 3 and 15 % of the number —
+    each written and decoded."""
+
+    BOX = (120, 600, 760, 680)
+
+    @classmethod
+    def setUpClass(cls):
+        from brand import stills
+        cls.folder = WORK / "ghost"
+        cls.folder.mkdir(exist_ok=True)
+        masked = Image.new("RGB", (886, 1920), (250, 250, 250))
+        d = ImageDraw.Draw(masked)
+        d.text((140, 615), "Historique", font=stills.inter(30), fill=(120, 120, 120))
+        original = masked.copy()
+        ImageDraw.Draw(original).text((400, 612), "+225 07 00 00 01 01", font=stills.inter(40), fill=(26, 26, 26))
+        m = np.asarray(masked, dtype=np.float32)
+        o = np.asarray(original, dtype=np.float32)
+        cls.films = {}
+        for share in (0.0, 0.03, 0.15):
+            name = f"ghost-{round(share * 100):02d}"
+            Image.fromarray(np.rint(m + share * (o - m)).astype(np.uint8), "RGB").save(cls.folder / f"{name}.png")
+            clip = {"width": 886, "height": 1920, "timescale": T, "end": 600, "audio": True, "bitrate": 6_000_000,
+                    "frames": [{"pts": 20 * i, "file": f"{name}.png"} for i in range(30)]}
+            (cls.folder / f"{name}.json").write_text(json.dumps(clip))
+            swifttools.run("testclip", cls.folder / f"{name}.json", "--out", cls.folder / f"{name}.mp4")
+            cls.films[share] = cls.folder / f"{name}.mp4"
+        masked.crop(cls.BOX).save(cls.folder / "masked.png")
+        original.crop(cls.BOX).save(cls.folder / "original.png")
+
+    def check(self, share: float) -> tuple[bool, str]:
+        regions = [{"frame": 3, "box": list(self.BOX), "masked": "masked.png", "original": "original.png"}]
+        return verify.masked_regions(self.films[share], regions, self.folder)
+
+    def test_the_mask_alone_passes(self):
+        ok, seen = self.check(0.0)
+        self.assertTrue(ok, seen)
+        self.assertRegex(seen, r"where the original has ink \(1\), at most 0\.\d% of it carried")
+
+    def test_a_ghost_of_fifteen_percent_fails_where_the_mean_does_not_see_it(self):
+        ok, seen = self.check(0.15)
+        self.assertFalse(ok, seen)
+        self.assertIn("THE ORIGINAL SHOWS in frame(s) 3", seen)
+        self.assertRegex(seen, r"at most 1[45]\.\d% of it carried")
+        # the two older conditions, on their own, pass this film
+        self.assertRegex(seen, r"at most [0-3]\.\d levels from the masked composition")
+        self.assertRegex(seen, r"at least [89]\d% as far from the original as the mask is")
+
+    def test_a_ghost_of_three_percent_fails_too(self):
+        ok, seen = self.check(0.03)
+        self.assertFalse(ok, seen)
+        self.assertRegex(seen, r"at most [12]\.\d% of it carried \(at most 1%\)")
+
+
 class EncoderRefuses(unittest.TestCase):
     """`encode` has nothing to configure, and will not write anything else."""
 
@@ -758,6 +838,21 @@ class EncoderLevel(unittest.TestCase):
         r = swifttools.run("encode", folder, "--out", folder / "out.mp4", check=False)
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertEqual(re.findall(r"QP ceiling (\d+)", r.stdout), ["10"])
+
+    def test_the_ladder_of_ceilings_always_ends_on_the_last(self):
+        """From the spec's 10: 10, 12 … 20. From an odd first ceiling the
+        ladder used to stop at 19, where the refusal could not fire and an
+        over-level file was kept (found by review, 2026-10-14)."""
+        def ladder(first: int) -> list[str]:
+            return swifttools.run("encode", "ladder", first).stdout.split()
+        self.assertEqual(ladder(10), ["10", "12", "14", "16", "18", "20"])
+        self.assertEqual(ladder(11), ["11", "13", "15", "17", "19", "20"])
+        self.assertEqual(ladder(19), ["19", "20"])
+        self.assertEqual(ladder(20), ["20"])
+        self.assertEqual(ladder(25), ["25"])
+        r = swifttools.run("encode", "ladder", 11, "--out", WORK / "x.mp4", check=False)
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("unknown flag --out", r.stderr)
 
     def test_a_picture_too_busy_for_the_level_is_refused_and_leaves_nothing(self):
         folder = busy_second("busy-noise", 0.0)         # measured here: 25.76 Mbit even at 20

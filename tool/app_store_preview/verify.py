@@ -68,6 +68,26 @@ POSTER_MAX_BLOCK = 8.0    # the largest mean difference of any 16 x 16 block
 MASK_MAX_OFF = 4.0
 MASK_SHOWN = 0.5
 MASK_HIDES = 2.0
+# A mean over the region cannot see a faint original laid over the mask: a
+# phone number's ink is a small share of its box. Found by review on
+# 2026-10-14: each region of the film rebuilt as 85 % masked + 15 % original
+# moved the box's mean by at most 3.9 levels and passed both conditions above,
+# while the whole number could be read on the decoded frame. So the region is
+# also read where the original HAS ink — the pixels where the original and
+# the masked composition differ by more than MASK_INK grey levels — and what
+# share of that difference the decoded region carries is measured: the slope
+# of (decoded − masked) against (original − masked) over those pixels. An
+# encode's own error does not follow the hidden ink: on the 53 inked regions
+# of that film the slope was at most 0.01 % either way. A ghost of g % has a
+# slope of about g % (tests.test_verify.MaskedGhost, written and decoded:
+# 15 % read 14.3 %, 3 % read 1.8 % — an encode keeps less of a faint ghost
+# than is laid in). MASK_GHOST is where a ghost fails: 1 %, two grey levels
+# at the number's darkest ink; the mask alone read 0.0 %. A frame where
+# fewer than MASK_INK_MIN pixels differ that much (a mask fading out in a
+# join) has no ink to carry.
+MASK_INK = 32.0
+MASK_INK_MIN = 20
+MASK_GHOST = 0.01
 
 
 @dataclass
@@ -130,6 +150,21 @@ def _crop_diff(a: Image.Image, b: Image.Image) -> float:
     return float(np.abs(x - y).mean()) if x.shape == y.shape else 255.0
 
 
+def ghost(got: Image.Image, masked: Image.Image, original: Image.Image) -> tuple[int, float]:
+    """(how many pixels of the original's ink the region has, the share of
+    the original's difference from the mask the decoded region carries
+    there). 0 is the mask; 1 is the original."""
+    g, m, o = (np.asarray(x.convert("L"), dtype=np.float32) for x in (got, masked, original))
+    if not g.shape == m.shape == o.shape:
+        return 0, 1.0
+    ink = np.abs(o - m) > MASK_INK
+    n = int(ink.sum())
+    if n < MASK_INK_MIN:
+        return n, 0.0
+    d, e = (g - m)[ink], (o - m)[ink]
+    return n, float((d * e).sum() / (e * e).sum())
+
+
 def masked_regions(path: Path, regions: list[dict], base: Path) -> tuple[bool, str]:
     """Each masked region, decoded from the written file, against the
     masked and the original composition the build kept of it."""
@@ -142,6 +177,7 @@ def masked_regions(path: Path, regions: list[dict], base: Path) -> tuple[bool, s
         if r.returncode != 0:
             return False, f"cannot decode the masked frames: {r.stderr.strip()}"
         worst_off, closest, leaks, hidden = 0.0, None, [], 0
+        inked, worst_ghost = 0, 0.0
         for reg in regions:
             decoded = Path(tmp) / f"frame_{reg['frame']:06d}.png"
             if not decoded.exists():
@@ -150,6 +186,7 @@ def masked_regions(path: Path, regions: list[dict], base: Path) -> tuple[bool, s
                 got = im.convert("RGB").crop(tuple(reg["box"]))
             with Image.open(base / reg["masked"]) as m, Image.open(base / reg["original"]) as o:
                 off, from_original, apart = _crop_diff(got, m), _crop_diff(got, o), _crop_diff(m, o)
+                ink, share_of_ink = ghost(got, m, o)
             worst_off = max(worst_off, off)
             if apart >= MASK_HIDES:
                 hidden += 1
@@ -159,11 +196,17 @@ def masked_regions(path: Path, regions: list[dict], base: Path) -> tuple[bool, s
                     leaks.append(reg["frame"])
             if off > MASK_MAX_OFF:
                 leaks.append(reg["frame"])
+            if ink >= MASK_INK_MIN:
+                inked += 1
+                worst_ghost = max(worst_ghost, share_of_ink)
+                if share_of_ink > MASK_GHOST:
+                    leaks.append(reg["frame"])
     ok = not leaks
     seen = (f"{len(regions)} region(s) in {len(frames_needed)} frame(s): at most {worst_off:.1f} levels from the "
             f"masked composition (at most {MASK_MAX_OFF:g}); where the mask hides something ({hidden}), at least "
             f"{0 if closest is None else closest:.0%} as far from the original as the mask is (at least "
-            f"{MASK_SHOWN:.0%})")
+            f"{MASK_SHOWN:.0%}); where the original has ink ({inked}), at most {worst_ghost:.1%} of it carried "
+            f"(at most {MASK_GHOST:.0%})")
     if leaks:
         seen += f" — THE ORIGINAL SHOWS in frame(s) {', '.join(map(str, sorted(set(leaks))[:8]))}"
     return ok, seen

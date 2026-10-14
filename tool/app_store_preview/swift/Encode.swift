@@ -18,6 +18,14 @@ import Foundation
 enum Encode {
   static func main() async {
     var args = Args(Array(CommandLine.arguments.dropFirst()))
+    if args.words.first == "ladder" {
+      // Tests only: the ceilings an encode would try, from a first one. It
+      // writes nothing and configures nothing.
+      guard args.words.count == 2, let first = Int(args.words[1]) else { die("usage: encode ladder <first ceiling>") }
+      args.finish()
+      print(qpCeilings(from: first).map(String.init).joined(separator: " "))
+      return
+    }
     guard args.words.count == 1 else { die("usage: encode <frames-dir> --out preview.mp4") }
     let dir = args.words[0]
     let outPath = args.req("out")
@@ -48,9 +56,12 @@ enum Encode {
     // Written at the spec's quantiser ceiling; measured; written again with
     // the ceiling raised a step at a time while its busiest second is over
     // what the level allows (`levelPeakBits`, below).
+    guard let firstCeiling = spec.maxFrameQP else {
+      die("MovieSpec.appPreview has no quantiser ceiling — refusing to pick one")
+    }
     var written = spec
     var peak = (bits: 0, first: 0)
-    for ceiling in qpCeilings(from: spec.maxFrameQP ?? qpCeilingLast) {
+    for ceiling in qpCeilings(from: firstCeiling) {
       written.maxFrameQP = ceiling
       await writeMovie(written, frames: frames, end: Int64(names.count) * step, to: outPath)
       // written whole, but not yet accepted: a refusal below removes it
@@ -87,8 +98,13 @@ enum Encode {
 let levelPeakBits = 25_000_000
 let qpCeilingLast = 20
 
+/// The ceilings tried, from the spec's: two steps at a time, and always
+/// `qpCeilingLast` at the end. Striding *through* it from an odd first
+/// ceiling stopped at 19: the refusal below never fired and an over-level
+/// file was kept (found by review, 2026-10-14; `encode ladder 11`).
 func qpCeilings(from first: Int) -> [Int] {
-  first >= qpCeilingLast ? [first] : Array(stride(from: first, through: qpCeilingLast, by: 2))
+  guard first < qpCeilingLast else { return [first] }
+  return Array(stride(from: first, to: qpCeilingLast, by: 2)) + [qpCeilingLast]
 }
 
 func mbit(_ bits: Int) -> String { String(format: "%.2f", Double(bits) / 1_000_000) }
