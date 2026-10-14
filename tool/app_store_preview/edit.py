@@ -785,38 +785,13 @@ def propose(scan: dict, log: dict, sb: dict, rehearsal: bool = False, tracks: di
     step = T // fps
     timing = sb["timing"]
     total = whole_frames(sb["film"]["duration_s"], fps, "film.duration_s")
-    tail = round(timing["tail_s"] * T)
-    # A typed key answers in one frame and the next key follows: it has its
-    # own, shorter tail, or a six-letter name takes 2.6 s of film to appear.
-    key_tail = round(timing.get("key_tail_s", timing["tail_s"]) * T)
-    rest = round(timing["rest_s"] * T)
     lead_in = whole_frames(timing["lead_in_s"], fps, "timing.lead_in_s")
     r_hold = whole_frames(timing["rehearsal_hold_s"], fps, "timing.rehearsal_hold_s")
     rest_after = {g["id"]: whole_frames(g.get("rest_after_s", 0), fps, f"{g['id']}.rest_after_s")
                   for _, g in catalogue(sb)}
 
-    # 1. One kept range per gesture — from its touch-down to its tail after
-    #    its last change — merged when two of them touch.
-    ranges: list[dict] = []
-    for g in tm.gestures:
-        a = g.down
-        need = g.last_change + (key_tail if g.kind == "type" else tail)
-        if ranges and a < ranges[-1]["out"]:
-            r = ranges[-1]
-            r["need"] = max(r["need"], need)
-            r["out"] = r["in"] + frames_for(r["in"], r["need"], step) * step
-            r["gestures"].append(g)
-        else:
-            ranges.append({"in": a, "need": need, "out": a + frames_for(a, need, step) * step, "gestures": [g]})
-    #    …then each is set on the film's frames (`phase`): it may start up to
-    #    one film frame earlier, on the same still picture — never before the
-    #    screen has been still for `tail`, never into the range before it.
-    for k, r in enumerate(ranges):
-        before = [p for p in tm.changes if p < r["in"]]
-        floor = max(before[-1] + tail if before else r["in"], ranges[k - 1]["out"] if k else 0)
-        ceiling = ranges[k + 1]["in"] if k + 1 < len(ranges) else math.inf
-        r["in"] -= phase(tm.changes, r["in"], r["need"], floor, ceiling, step, rest)
-        r["out"] = r["in"] + frames_for(r["in"], r["need"], step) * step
+    # 1. One kept range per gesture (`kept_ranges`).
+    ranges = kept_ranges(tm, tm.gestures, sb)
     range_of = {g.id: r for r in ranges for g in r["gestures"]}
 
     # 2. The film, shot by shot.
@@ -877,6 +852,46 @@ def propose(scan: dict, log: dict, sb: dict, rehearsal: bool = False, tracks: di
         "final_hold_from": final_start,
     })
     return edit
+
+
+def kept_ranges(tm: TakeMap, gestures: list[Located], sb: dict) -> list[dict]:
+    """One kept range per gesture — from its touch-down to its tail after its
+    last change — merged when two of them touch, each set on the film's
+    frames (`phase`). `gestures` are some of `tm.gestures`, in order (a film:
+    all of them; a scene: its own — a scene that runs into the answer of a
+    gesture it does not name is refused by scenes.check)."""
+    T, fps = tm.timescale, sb["film"]["fps"]
+    step = T // fps
+    timing = sb["timing"]
+    tail = round(timing["tail_s"] * T)
+    # A typed key answers in one frame and the next key follows: it has its
+    # own, shorter tail, or a six-letter name takes 2.6 s of film to appear.
+    key_tail = round(timing.get("key_tail_s", timing["tail_s"]) * T)
+    rest = round(timing["rest_s"] * T)
+
+    # 1. One kept range per gesture — from its touch-down to its tail after
+    #    its last change — merged when two of them touch.
+    ranges: list[dict] = []
+    for g in gestures:
+        a = g.down
+        need = g.last_change + (key_tail if g.kind == "type" else tail)
+        if ranges and a < ranges[-1]["out"]:
+            r = ranges[-1]
+            r["need"] = max(r["need"], need)
+            r["out"] = r["in"] + frames_for(r["in"], r["need"], step) * step
+            r["gestures"].append(g)
+        else:
+            ranges.append({"in": a, "need": need, "out": a + frames_for(a, need, step) * step, "gestures": [g]})
+    #    …then each is set on the film's frames (`phase`): it may start up to
+    #    one film frame earlier, on the same still picture — never before the
+    #    screen has been still for `tail`, never into the range before it.
+    for k, r in enumerate(ranges):
+        before = [p for p in tm.changes if p < r["in"]]
+        floor = max(before[-1] + tail if before else r["in"], ranges[k - 1]["out"] if k else 0)
+        ceiling = ranges[k + 1]["in"] if k + 1 < len(ranges) else math.inf
+        r["in"] -= phase(tm.changes, r["in"], r["need"], floor, ceiling, step, rest)
+        r["out"] = r["in"] + frames_for(r["in"], r["need"], step) * step
+    return ranges
 
 
 # Where a caption that follows a gesture counts from (`caption_after.from`):
@@ -975,6 +990,28 @@ def check(edit: dict, scan: dict, log: dict, sb: dict,
     if sb.get("variant") and not rehearsal:
         raise Refusal("E_VARIANT", f"{named(sb['variant'])} is a rehearsal: its edit list cannot say it is the film")
     tm = locate(scan, log, sb, rehearsal, tracks)
+    fps = sb["film"]["fps"]
+    sp, live = check_take(edit, scan, tm, sb, pair_diffs)
+
+    # The storyboard's film.
+    total = sum(s.frames for s in sp)
+    want = whole_frames(sb["film"]["duration_s"], fps, "film.duration_s")
+    if total != want or not 15 * fps <= total <= 30 * fps:
+        raise Refusal("E_LENGTH", f"the film is {total} frames ({total / fps:.3f} s); the storyboard says "
+                                  f"{want / fps:g} s and Apple takes 15 to 30 s")
+    return _check_film(edit, sb, tm, sp, live, rehearsal, total, motion)
+
+
+def check_take(edit: dict, scan: dict, tm: TakeMap, sb: dict,
+               pair_diffs: dict[tuple[int, int], dict] | None = None,
+               gestures: set[str] | None = None) -> tuple[list[Span], list[Span]]:
+    """THE EDITING RULE on one continuous stretch of one take — the whole
+    film of `check`, or one run of a scene (scenes.py). Refuses an edit list
+    made for another take, that goes back in the take, starts while the
+    screen still changes, cuts or holds inside a response, removes a change,
+    or cuts between two different pictures. `gestures` names the storyboard
+    gestures that must play whole (a scene's own); None: every gesture of the
+    take. Returns the segments in film order and the live ones."""
     T, fps = tm.timescale, sb["film"]["fps"]
     step = T // fps
     take = scan.get("take", {})
@@ -994,7 +1031,7 @@ def check(edit: dict, scan: dict, log: dict, sb: dict,
     # THE RULE. From a touch-down to the last change before the next one, the
     # take is inside one live segment: not cut, not held, not retimed.
     live = [s for s in sp if s.kind == "live"]
-    for g in tm.gestures:
+    for g in [g for g in tm.gestures if gestures is None or g.gesture in gestures]:
         if not any(s.src_in <= g.down and g.last_change <= s.last for s in live):
             raise Refusal("E_PROTECTED",
                           f"gesture `{g.id}`: the take from its touch-down ({g.down / T:.3f} s) to the end of the "
@@ -1022,13 +1059,15 @@ def check(edit: dict, scan: dict, log: dict, sb: dict,
                 raise Refusal("E_ENDPOINT", f"a cut jumps from frame {a} to frame {b} and they are not the same "
                                             f"picture (soft {d.get('soft')}, strong {d.get('strong')}, "
                                             f"box {d.get('box')})")
+    return sp, live
 
-    # The storyboard's film.
-    total = sum(s.frames for s in sp)
-    want = whole_frames(sb["film"]["duration_s"], fps, "film.duration_s")
-    if total != want or not 15 * fps <= total <= 30 * fps:
-        raise Refusal("E_LENGTH", f"the film is {total} frames ({total / fps:.3f} s); the storyboard says "
-                                  f"{want / fps:g} s and Apple takes 15 to 30 s")
+
+def _check_film(edit: dict, sb: dict, tm: TakeMap, sp: list[Span], live: list[Span], rehearsal: bool,
+                total: int, motion) -> TakeMap:
+    """The rest of `check`: the storyboard's own film — its final hold, its
+    captions, its touch points and its poster frame."""
+    T, fps = tm.timescale, sb["film"]["fps"]
+    step = T // fps
     final = sp[-1]
     if final.kind != "hold" or edit.get("final_hold_from") != final.film_in:
         raise Refusal("E_FINAL_HOLD", "the film does not end on a hold of the resting screen")

@@ -76,12 +76,14 @@ def check_glyphs(text: str, font, what: str) -> None:
 
 
 class Composer:
-    def __init__(self, storyboard: dict, raw_size: tuple[int, int], device_points: tuple[float, float]):
+    def __init__(self, storyboard: dict, raw_size: tuple[int, int], device_points: tuple[float, float],
+                 layout: Layout | None = None):
         film = storyboard["film"]
         self.sb = storyboard
         self.size = (film["width"], film["height"])
         self.fps = film["fps"]
-        self.lay = Layout(self.size, raw_size)
+        # the stills' layout; a film of scenes gives its own, with a larger card (scene_frames.py)
+        self.lay = layout or Layout(self.size, raw_size)
         self.c = colours()
         self.pt = self.lay.card_w / device_points[0]  # card px per device point
         # the capture and the screen in points must be the same shape
