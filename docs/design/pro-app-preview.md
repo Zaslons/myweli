@@ -2,12 +2,103 @@
 
 | | |
 |---|---|
-| **Status** | **Approved by the owner on 2026-10-13** — the recommended film « in a style that follows MyWeli's », and the four decisions of §9: yes to all. **State on 2026-10-14**: the tool is built and reviewed (`tool/app_store_preview/`, #588); a **rehearsal** was cut and sent to the owner (a style proof — it makes no booking); the day of 14 October is staged on the demo salon; « Ma journée » is fixed and in build 581 (decision 2). **The real take is not shot**: it can only be recorded in daytime (§5). Nothing is uploaded. Three small choices came up in production (§9.1). |
+| **Status** | **Version 2 chosen by the owner on 2026-10-14 — a multi-scene film (§0).** Version 1 (§1–§11: one 21-second flow) was approved on 2026-10-13, built as a rehearsal, then **set aside the next day** after a benchmark of real App Store pages showed it to be a demonstration of one flow rather than a preview of the app. §1–§11 stay as the record of version 1 and of what its production taught; §0 governs. |
 | **Owner** | Sadreddine Daher |
-| **Last updated** | 2026-10-13 |
+| **Last updated** | 2026-10-14 |
 | **PRD ref / phase** | Launch — store submission · V1 |
 | **Skills checked** | myweli-dev-guardrails · myweli-verification-guardrails |
 | **Governs** | `tool/app_store_preview/` (its README carries the editing rule in full and the runbook for the take) · [app-store-forms.md](app-store-forms.md) §10, §13.1 · sits next to [pro-app-store-screenshots.md](pro-app-store-screenshots.md) |
+
+## 0. Version 2 — the multi-scene film (owner's choice, 2026-10-14)
+
+### 0.1 Why version 1 was set aside — the benchmark
+
+The owner asked whether the film was « the best », whether it was motion
+design or a screen recording, whether it previewed the app or a small part of
+it, and how big apps and competitors do it. A research pass read the actual
+App Store pages (page data parsed, images looked at, previews watched as
+frames sampled every two seconds, 2026-10-14; an adversarial pass re-counted):
+
+| Group | With an App Preview |
+|---|---|
+| Salon business apps — Fresha, Booksy Biz, Planity Pro, Treatwell, Square Appointments, Vagaro Pro, GlossGenius, Mindbody Business, Timely, Altegio, YCLIENTS, Setmore, Phorest | **0 of 15** listings; 0 of 50 in the wider booking field |
+| Africa-focused salon and booking apps (BarberConnect CI, Shynea Pro, Zalya Partner, Buk for Business…) | **0 of 13** |
+| Everyday Ivorian apps (Wave, Max it, MoMo, Djamo, Yango, Glovo, Jumia…) | **0 of 11** |
+| Meta's business apps (WhatsApp Business, Meta Business Suite, Ads Manager) and other merchant tools | **0** |
+| Consumer giants | **Facebook, Instagram, TikTok, YouTube** — not WhatsApp, Messenger, Snapchat, Uber, Airbnb, Spotify |
+| Design-led tools (Things 3, Fantastical, Todoist, Darkroom, Procreate Pocket and six others) | **5 of 11** |
+
+The previews that exist (nine studied): all **24–30 s**; **8 of 9 cut between
+several features**; **8 of 9 end on a logo card** of 1–4 s; 8 of 9 show the
+capture full-bleed, one (Todoist) keeps a brand background with a headline
+above the capture, as the stills do. Facebook's runs 28 s, in English even on
+the French and Ivorian storefronts, shows no app for its first 3 s and is
+about half brand graphics; Instagram's runs 30 s, app on screen from the
+first frame, about ten scene changes. Measured against that, version 1 had
+something moving for about 4 of its 21 s, an 8.7 s form, a 7 s still ending,
+and its capture at about 53 % of the frame.
+
+**What is known about effect**: nothing that settles it. The only
+with-and-without test Apple has published (one app, Simply Piano) favoured the
+page *without* the video, by 3.3 %; uplift figures from vendors come without a
+method; a test at our traffic could not detect a change (Apple's own example
+needs about 174 000 impressions for 5 %). The owner chose a store film anyway,
+in the form the apps that have one actually use — option 3 of four
+(no video; version 1; **a multi-scene store film**; a real motion-design film
+for Facebook, WhatsApp and the website, which stays a later decision).
+
+### 0.2 The film
+
+About 24–28 s, French, silent track, 886 × 1920, scenes joined by short
+dissolves, ending on a brand card. The budgets are targets; the real takes
+set the final timings.
+
+| # | Scene | What happens | Headline |
+|---|---|---|---|
+| 1 | « Ma journée » | a swipe on a confirmed booking, « Arrivé », the card turns | « Une cliente arrive ? / Un geste suffit. » |
+| 2 | « Libre » → « Réservation » → « Ma journée » | the form opens with date and hour set; a dissolve to the filled form; « Créer le rendez-vous »; the new booking is in the day | « Un créneau libre ? / Ajoutez un rendez-vous. » |
+| 3 | « Fiche client » | tags, tiles, a scroll to the visit history — the phone number masked on every frame | « Vos clients, connus / visite après visite. » |
+| 4 | « Revenus » | « Aujourd'hui » → « Semaine » → « Mois », the figures follow | « Suivez vos revenus, / jour après jour. » |
+| 5 | « Disponibilité » *(first to drop)* | one scroll through the week, no tap | « Fixez vos horaires, / les créneaux suivent. » |
+| 6 | « Aperçu de ma page » | the public page from its cover photo, a short scroll that stops before « Contact » | « Votre page MyWeli, / prête pour vos clients. » |
+| — | End card | the mark, « MyWeli Pro », « Un compte MyWeli Pro est nécessaire. » | — |
+
+The headlines are the stills' approved wording, so the film makes no new
+claim; the cost is that it repeats them — new lines remain possible.
+
+### 0.3 What changes from version 1
+
+- **Editing rule, amended**: inside a scene nothing between a touch-down and
+  the end of the app's response is cut or retimed, as before; scenes now join
+  by a cross-dissolve, only between two pictures at rest; scene 2 has one
+  declared dissolve, from the opened form at rest to the filled form at rest.
+- **Two frame variants are cut, and the owner chooses by watching**: *framed*
+  (the stills' frame, with a larger capture than version 1) and *full-bleed*
+  (the capture fills the frame, the headline in a brand-black pill laid over
+  it, never on the control being used). Version 1's brand frame had only one
+  precedent among the films studied (Todoist); full-bleed is what 8 of 9 do.
+- **An end card**, as 8 of 9 do, carrying the sign-in disclosure.
+- **Masks**: the client's phone number tracked through the scroll of
+  scene 3; the public page stops before its « Contact » block.
+- **The poster** may be any frame at rest; it must not repeat still 1.
+
+### 0.4 Recording — on 14 October
+
+Scenes 1 and 2 write to the demo salon (one « Arrivé », one booking — the
+owner's approval for the film) and can only be shot on the staged day, before
+the slot's hour: the 10:45 slot had passed when production started, so the
+booking is made in **« Libre — 13:15 »** (14:45 spare). Scenes 3–6 write
+nothing (no tap in « Disponibilité », where every chip writes). Before
+take 1, the 08:00 booking is marked « Terminé ».
+
+### 0.5 Not settled
+
+Which frame variant; the poster frame; whether scene 5 stays; whether the
+headlines stay the stills' wording; and — as for version 1 — how App Review
+treats the brand frame, the silent track and the amounts on screen, which
+only processing and review will say. Nothing is uploaded before the owner has
+watched the film and said go. For a first version the preview has to go in the
+same submission as the app; the owner decides whether 0.0.1 waits for it.
 
 ## 1. Goal & scope
 
