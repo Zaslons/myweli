@@ -4,7 +4,7 @@
 |---|---|
 | **Status** | Built |
 | **Owner** | Sadreddine |
-| **Last updated** | 2026-06-26 |
+| **Last updated** | 2026-10-14 (§12 — the words over the money figures) |
 | **PRD ref / phase** | Pro dashboard · V1 |
 | **ROADMAP entry** | Phase 3 — Backend build + integration (added on build) |
 | **Skills checked** | myweli-backend-guardrails ✓ (myweli-dev-guardrails for the app swap) |
@@ -77,3 +77,47 @@ Windows: **today** = the UTC calendar day; **week** = Monday-based (Mon 00:00 �
 1. **Revenue basis = `confirmed` + `completed`** in each window. ✓
 2. **`todayAppointments` excludes `cancelled`.** ✓
 3. **Build = one PR** (backend endpoint + app swap). ✓
+
+## 12. The words over the money figures (2026-10-14)
+
+**Owner: « fix the wording for revenus figures ».** No number and no
+definition changed — §6 stands. The word over them did.
+
+**What was wrong.** The Accueil's two money cards were captioned « Revenus »
+and count `confirmed` + `completed` (§6). The « Revenus » screen behind
+Accueil → « Analyses » → « Revenus » counts `completed` only
+([provider-earnings.md](provider-earnings.md) §6, §12). One word, two
+numbers: on the demo salon on 2026-10-14, 62 000 FCFA on the Accueil against
+15 000 on « Revenus », for the same day (reported by the session that filed
+the fix; not re-measured by it).
+
+**The words.** « prévus » because the figure includes confirmed bookings not
+yet done: it is what the period brings if they all happen. It is never
+« encaissé » — MyWeli does not see a payment (PRD OQ-1, no custody).
+
+| Field | Counts | App — Accueil card | Web — `/pro` |
+|---|---|---|---|
+| `todayRevenue` | confirmed + completed, today | « Aujourd’hui » · figure · « Revenus prévus » | « Revenus prévus aujourd’hui » |
+| `weekRevenue` | confirmed + completed, this week | *(not shown)* | « Revenus prévus cette semaine » |
+| `monthRevenue` | confirmed + completed, this month | « Ce mois » · figure · « Revenus prévus » | « Revenus prévus ce mois » |
+
+« Revenus » alone stays the name of the screen and of its « Analyses » card,
+which is where the completed-only total lives, now labelled « Total réalisé ».
+
+**Fit.** « Revenus prévus » is the longest caption the stat block measures,
+and `_StatBlock` already measures every token of every card; « prévus » is
+shorter than « Aujourd’hui », so no shape changed. Pinned at 360dp × 1×,
+1.3×, 2× (`dashboard_role_test`: no mid-word break in « Revenus prévus »,
+cards level per row) and at 360/375/390 × 1×/2× (`layout_test`). On the web
+the label wraps between words inside its tile; nothing truncates.
+
+**Tests that read the words.** `dashboard_role_test` (owner: « Revenus
+prévus » twice, « Revenus » once; manager and reception: neither),
+`web/tests/pro-aujourdhui-roles.test.tsx` (owner: each label over its
+figure; manager and staff: no label starting « Revenus »), and the e2e
+`pro.spec` / `roles.spec`. The old negatives were keyed on « Revenus » and
+« Revenus ce mois » — after a rename they would have passed with the money
+on screen, which is why each now has a positive twin.
+
+**Not changed.** App Store screenshot 3 (Accueil) still shows « Revenus »
+under the two cards — the owner's call: not reshot.

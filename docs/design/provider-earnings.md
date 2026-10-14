@@ -4,7 +4,7 @@
 |---|---|
 | **Status** | Built |
 | **Owner** | Sadreddine |
-| **Last updated** | 2026-06-26 |
+| **Last updated** | 2026-10-14 (§12 — the words over the total) |
 | **PRD ref / phase** | Pro earnings · V1 |
 | **ROADMAP entry** | Phase 3 — Backend build + integration (added on build) |
 | **Skills checked** | myweli-backend-guardrails ✓ (myweli-dev-guardrails for the app swap) |
@@ -76,3 +76,37 @@ From `listForProvider`, keep appointments with **`status == completed`** whose `
 ## 11. Decisions (signed off)
 1. **Earnings = `completed` only** (realized money) — intentionally narrower than the dashboard's revenue (`confirmed`+`completed`). ✓
 2. **Date filtering** — inclusive `[startDate, endDate]` on `appointmentDate`, both optional (all-time if omitted). Pagination deferred (the range bounds the result for V1; the `EarningsData` shape would change if needed later). ✓
+
+## 12. The words over the total (2026-10-14)
+
+**Owner: « fix the wording for revenus figures ».** The definition (§6,
+`completed` only) did not change. The screen's total was labelled « Total »
+next to an Accueil that said « Revenus » over a bigger, confirmed + completed
+figure for the same day ([provider-dashboard-stats.md](provider-dashboard-stats.md)
+§12). The label now says what it counts.
+
+| | App — `earnings_screen` | Web — `/pro/revenus` |
+|---|---|---|
+| Total card | « Total réalisé » · figure · « Rendez-vous terminés » | the same three lines |
+| Empty state, was | « Les paiements encaissés sur cette période apparaîtront ici. » | « Les encaissements de la période choisie apparaîtront ici. » |
+| Empty state, now | « Les rendez-vous terminés sur cette période apparaîtront ici. » | « Les rendez-vous terminés de la période choisie apparaîtront ici. » |
+
+- **Label, figure, then what it counts** — the Accueil card's own shape
+  (title · value · caption, `bodySmall` / `textTertiary`), so the two
+  screens read the same way.
+- **Never « encaissé »**: MyWeli does not see a payment (PRD OQ-1, no
+  custody); the total is the price of bookings marked « Terminé ». The empty
+  state said the opposite under a label that now says « Rendez-vous
+  terminés », so it changed with it.
+- **Unchanged:** the screen's name « Revenus », the « Analyses » card, the
+  tabs, « Aucune transaction », the web page's lead « Vos revenus réalisés
+  (rendez-vous terminés). ».
+- **Fit:** one more `bodySmall` line in the card. `layout_test` (360/375/390 ×
+  1×/2×) and `vertical_fit_test` (the empty « Aujourd’hui » tab on a 780pt
+  phone with its safe area, 1× and 2×) stay green.
+- **Tests that read the words:** `mobile/test/widget/pro_earnings_wording_test.dart`
+  and `web/tests/pro-revenus-wording.test.tsx` read the card's rendered lines
+  in order (the app's also checks the caption sits under the figure) and
+  that no « encaiss » is on screen; e2e `pro.spec` asserts both lines.
+- **Not changed:** App Store screenshot 8 (Revenus) still shows « Total » —
+  the owner's call: not reshot.
