@@ -225,8 +225,24 @@ class PostgresMembershipRepository implements MembershipRepository {
 
   @override
   Future<void> decline(String memberId) async {
+    // A row that never belonged to an account goes. A former member's row
+    // invited again (account_id kept) goes back to revoked instead: deleted,
+    // it would leave the account with no row at all, and GET /me/provider
+    // would create a salon for it. The two predicates are exclusive, so the
+    // order cannot matter; an accept landing in between flips the status and
+    // neither statement matches. docs/design/backend-team-reinvite.md
     await _pool.execute(
-      Sql.named('DELETE FROM provider_members WHERE id = @id'),
+      Sql.named(
+        "UPDATE provider_members SET status = 'revoked', revoked_at = now() "
+        "WHERE id = @id AND status = 'invited' AND account_id IS NOT NULL",
+      ),
+      parameters: {'id': memberId},
+    );
+    await _pool.execute(
+      Sql.named(
+        'DELETE FROM provider_members '
+        "WHERE id = @id AND status = 'invited' AND account_id IS NULL",
+      ),
       parameters: {'id': memberId},
     );
   }

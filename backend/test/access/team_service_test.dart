@@ -438,6 +438,41 @@ void main() {
       },
     );
 
+    test('a REVOKED member takes a seat again: a full salon refuses to '
+        're-invite them (seat_limit), and the row stays revoked', () async {
+      final ownerId = await owner(); // Pro: 5 seats, the owner holds one
+      final first = await team().invite(
+        ownerId,
+        'p1',
+        email: 'back@b.com',
+        role: 'manager',
+      );
+      final id = (first.data! as Map)['id'] as String;
+      await team().revoke(ownerId, 'p1', id);
+      for (var i = 0; i < 4; i++) {
+        expect(
+          (await team().invite(
+            ownerId,
+            'p1',
+            email: 'm$i@b.com',
+            role: 'reception',
+          )).ok,
+          isTrue,
+        );
+      }
+
+      final again = await team().invite(
+        ownerId,
+        'p1',
+        email: 'back@b.com',
+        role: 'manager',
+      );
+
+      expect(again.error, 'seat_limit');
+      expect((await memberships.byId(id))!.status, 'revoked');
+      expect(email.sent.where((e) => e.to == 'back@b.com'), hasLength(1));
+    });
+
     test("an owner's address is never re-invited, even when its row is "
         'revoked → member_exists, the row untouched', () async {
       final ownerId = await owner();

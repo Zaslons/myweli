@@ -201,6 +201,49 @@ void inviteContract({
     expect(rows.single.status, 'invited');
   });
 
+  test('declining a fresh invitation removes it', () async {
+    final r = repo();
+    final inv = await r.invite(
+      providerId: p,
+      email: 'no@contract.pro',
+      role: 'manager',
+      expiresAt: inDays(7),
+    );
+    await r.decline(inv!.id);
+    expect(await rowsFor(r, 'no@contract.pro'), isEmpty);
+  });
+
+  test('declining the re-invitation of a FORMER member puts the row back to '
+      'revoked — it never disappears', () async {
+    // Deleting it would leave the former member's account with no row at
+    // all, and GET /me/provider would then create a salon for it.
+    final r = repo();
+    final acc = await account('former@contract.pro');
+    final inv = await r.invite(
+      providerId: p,
+      email: 'former@contract.pro',
+      role: 'manager',
+      expiresAt: inDays(7),
+    );
+    await r.activate(inv!.id, acc);
+    await r.revoke(inv.id);
+    final again = await r.invite(
+      providerId: p,
+      email: 'former@contract.pro',
+      role: 'reception',
+      expiresAt: inDays(7),
+    );
+
+    await r.decline(again!.id);
+
+    final rows = await rowsFor(r, 'former@contract.pro');
+    expect(rows, hasLength(1));
+    expect(rows.single.id, inv.id);
+    expect(rows.single.status, 'revoked');
+    expect(rows.single.accountId, acc);
+    expect(await r.listForAccount(acc), hasLength(1));
+  });
+
   test("the OWNER's row is never revived, whatever its state", () async {
     final r = repo();
     final acc = await account('own@contract.pro');

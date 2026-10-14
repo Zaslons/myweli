@@ -167,7 +167,12 @@ abstract interface class MembershipRepository {
   /// Invitation accepted: link the account, flip to active.
   Future<Member?> activate(String memberId, String accountId);
 
-  /// Invitation declined: the row disappears (the owner can re-invite).
+  /// Invitation declined: the row disappears (the owner can re-invite) —
+  /// unless it once belonged to an account (a former member's row, invited
+  /// again: [Member.accountId] is set). That one goes back to `revoked`:
+  /// deleting it would leave the account with no row at all, and
+  /// GET /me/provider would then create a salon for it.
+  /// docs/design/backend-team-reinvite.md
   Future<void> decline(String memberId);
 }
 
@@ -382,7 +387,19 @@ class InMemoryMembershipRepository implements MembershipRepository {
 
   @override
   Future<void> decline(String memberId) async {
-    _rows.removeWhere((m) => m.id == memberId);
+    final i = _rows.indexWhere(
+      (m) => m.id == memberId && m.status == 'invited',
+    );
+    if (i < 0) return;
+    final m = _rows[i];
+    if (m.accountId == null) {
+      _rows.removeAt(i);
+    } else {
+      _rows[i] = m.copyWith(
+        status: 'revoked',
+        revokedAt: DateTime.now().toUtc(),
+      );
+    }
   }
 }
 

@@ -332,6 +332,8 @@ class TeamService {
   }
 
   /// Decline (email-proof): the row disappears; the owner can re-invite.
+  /// A former member's re-invitation goes back to revoked instead (see
+  /// [MembershipRepository.decline]).
   Future<TeamResult> declineById(
     String invitationId, {
     required String email,
