@@ -1133,7 +1133,10 @@ paths:
         `phoneNumber` is REQUIRED. Returns a live ProviderSession (201).
         Also provisions the account's linked DRAFT salon (publicly invisible
         until `POST /providers/{id}/publish` — pro-salon-lifecycle; legacy
-        salon-less accounts self-heal on `GET /me/provider`).
+        salon-less accounts self-heal on `GET /me/provider`). The salon is
+        ALWAYS a new one: no field links an existing salon (T72 — a
+        `providerId` here used to make the caller that salon's owner;
+        docs/design/backend-register-salon-link.md).
         Design: docs/design/pro-auth-social.md.
       requestBody:
         required: true
@@ -1156,7 +1159,6 @@ paths:
                     — the salon's commune/city/timezone/currency DERIVE from
                     it server-side (multi-pays MP1; unknown → 400
                     `invalid_area`).
-                providerId: { type: string }
                 idToken: { type: string, description: Google ID token (identity proof). }
                 identityToken: { type: string, description: Apple identity token. }
                 nonce: { type: string }
