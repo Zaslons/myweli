@@ -568,6 +568,72 @@ class VerifyRefuses(unittest.TestCase):
                       "bytes) and is being checked as the film: add --variant dry", r.stderr)
 
 
+class MaskedRegions(unittest.TestCase):
+    """A film of scenes hides part of a capture. The checker decodes each
+    masked region and holds it to the masked composition — and away from
+    the original. Here the « film » is the good clip, its frame 0 the
+    picture p0 (decoded 0.14 levels from it on this box): what the region
+    is supposed to be is varied, the file is not."""
+
+    BOX = (100, 100, 400, 300)
+
+    @classmethod
+    def setUpClass(cls):
+        cls.good = film_clip("good")
+        cls.folder = WORK / "regions"
+        cls.folder.mkdir(exist_ok=True)
+        with Image.open(cls.good.parent / "p0.png") as im:
+            shown = np.asarray(im.convert("RGB").crop(cls.BOX)).astype(int)
+        for name, a in (("shown", shown), ("plain", np.full_like(shown, 250)),
+                        ("three-off", np.clip(shown + 3, 0, 255)), ("ten-off", np.clip(shown + 10, 0, 255))):
+            Image.fromarray(a.astype(np.uint8), "RGB").save(cls.folder / f"{name}.png")
+
+    def check(self, masked: str, original: str) -> tuple[bool, str]:
+        regions = [{"frame": 0, "box": list(self.BOX), "masked": f"{masked}.png", "original": f"{original}.png"}]
+        return verify.masked_regions(self.good, regions, self.folder)
+
+    def test_the_masked_picture_in_the_file_passes(self):
+        ok, seen = self.check("shown", "plain")
+        self.assertTrue(ok, seen)
+        self.assertIn("1 region(s) in 1 frame(s): at most 0.1 levels from the masked composition", seen)
+
+    def test_a_masked_region_that_shows_the_original_fails(self):
+        """What the build meant to hide is what the file shows: the film
+        fails, on this check alone."""
+        ok, seen = self.check("plain", "shown")
+        self.assertFalse(ok)
+        self.assertIn("THE ORIGINAL SHOWS in frame(s) 0", seen)
+        regions = [{"frame": 0, "box": list(self.BOX), "masked": "plain.png", "original": "shown.png"}]
+        checks = verify.verify(self.good, SB, None, {"regions": regions, "base": self.folder})
+        self.assertEqual({c.name for c in checks if not c.ok}, {"masked regions"})
+        self.assertEqual(len([c for c in checks if not c.skipped]), 24)        # 23, and this one
+
+    def test_a_region_ten_levels_off_the_masked_picture_fails(self):
+        self.assertFalse(self.check("ten-off", "plain")[0])
+
+    def test_a_region_closer_to_the_original_than_to_the_mask_fails(self):
+        """Three levels from the masked picture — an encode could do that —
+        but a twentieth as far from the original as the mask is: the
+        original is what shows."""
+        ok, seen = self.check("three-off", "shown")
+        self.assertFalse(ok, seen)
+        self.assertIn("at least 5% as far from the original", seen)
+
+    def test_where_the_mask_hides_nothing_only_the_masked_picture_counts(self):
+        ok, seen = self.check("shown", "shown")
+        self.assertTrue(ok, seen)
+        self.assertIn("where the mask hides something (0)", seen)
+
+    def test_a_film_with_no_masked_region_says_so(self):
+        self.assertEqual(verify.masked_regions(self.good, [], self.folder), (True, "the film has no masked region"))
+
+    def test_a_frame_that_cannot_be_decoded_fails(self):
+        regions = [{"frame": 9999, "box": list(self.BOX), "masked": "shown.png", "original": "plain.png"}]
+        ok, seen = verify.masked_regions(self.good, regions, self.folder)
+        self.assertFalse(ok)
+        self.assertIn("cannot decode the masked frames", seen)
+
+
 class EncoderRefuses(unittest.TestCase):
     """`encode` has nothing to configure, and will not write anything else."""
 
