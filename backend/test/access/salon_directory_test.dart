@@ -150,7 +150,7 @@ void main() {
         expiresAt: DateTime.now().add(const Duration(days: 7)),
       );
       await memberships.activate(inv2.id, bareId);
-      await memberships.revokeAllForAccount(bareId);
+      await memberships.revoke(inv2.id);
       expect(await directory.listForAccount(bareId), isEmpty);
     });
   });

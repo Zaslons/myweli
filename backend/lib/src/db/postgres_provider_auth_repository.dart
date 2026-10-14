@@ -617,30 +617,38 @@ class PostgresProviderAuthRepository implements ProviderAuthRepository {
   Future<bool> deleteAccount(String accountId) async {
     final account = await accountById(accountId);
     if (account == null) return false;
-    // Sessions first: every refresh token of the account dies.
-    await _pool.execute(
-      Sql.named('DELETE FROM provider_refresh_tokens WHERE account_id = @a'),
-      parameters: {'a': accountId},
-    );
-    final email = account.email?.toLowerCase();
-    if (email != null) {
-      await _pool.execute(
-        Sql.named('DELETE FROM provider_email_otp_codes WHERE email = @e'),
-        parameters: {'e': email},
+    // ONE transaction. These four statements used to run one by one, so when
+    // the identity delete failed (a member row still referencing it — the
+    // 2026-10-14 production 500) the sessions and codes were already gone:
+    // the account survived, signed out, with no way back to the button.
+    // docs/design/backend-provider-deletion-member-fk.md
+    return _pool.runTx((tx) async {
+      // Sessions first: every refresh token of the account dies.
+      await tx.execute(
+        Sql.named('DELETE FROM provider_refresh_tokens WHERE account_id = @a'),
+        parameters: {'a': accountId},
       );
-    }
-    if (account.phoneNumber.isNotEmpty) {
-      await _pool.execute(
-        Sql.named('DELETE FROM provider_otp_codes WHERE phone_number = @p'),
-        parameters: {'p': account.phoneNumber},
+      final email = account.email?.toLowerCase();
+      if (email != null) {
+        await tx.execute(
+          Sql.named('DELETE FROM provider_email_otp_codes WHERE email = @e'),
+          parameters: {'e': email},
+        );
+      }
+      if (account.phoneNumber.isNotEmpty) {
+        await tx.execute(
+          Sql.named('DELETE FROM provider_otp_codes WHERE phone_number = @p'),
+          parameters: {'p': account.phoneNumber},
+        );
+      }
+      // The row carries the KYC docs (kyc_docs jsonb) — they go with it, and
+      // its `provider_members` rows by ON DELETE CASCADE (0038).
+      final res = await tx.execute(
+        Sql.named('DELETE FROM provider_users WHERE id = @id'),
+        parameters: {'id': accountId},
       );
-    }
-    // The row carries the KYC docs (kyc_docs jsonb) — they go with it.
-    final res = await _pool.execute(
-      Sql.named('DELETE FROM provider_users WHERE id = @id'),
-      parameters: {'id': accountId},
-    );
-    return res.affectedRows > 0;
+      return res.affectedRows > 0;
+    });
   }
 
   String _newId(String prefix) =>

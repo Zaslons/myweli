@@ -136,8 +136,12 @@ class ProviderAccountService {
     await _notifications?.deleteForUser(accountId);
 
     // Module `access` (drift §2.3-2): the identity's memberships die with it
-    // — a member row must never outlive its account.
-    await _memberships.revokeAllForAccount(accountId);
+    // — a member row must never outlive its account. DELETED, not revoked:
+    // a revoked row keeps `account_id`, a foreign key to the identity, and
+    // until 0038 that key had no ON DELETE action — so the identity delete
+    // below answered 500 to every salon owner in production (2026-10-14).
+    // docs/design/backend-provider-deletion-member-fk.md
+    await _memberships.deleteAllForAccount(accountId);
 
     final ok = await _auth.deleteAccount(accountId);
     return ok ? (ok: true, error: null) : (ok: false, error: 'forbidden');

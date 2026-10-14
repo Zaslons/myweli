@@ -213,12 +213,9 @@ class PostgresMembershipRepository implements MembershipRepository {
   }
 
   @override
-  Future<void> revokeAllForAccount(String accountId) async {
+  Future<void> deleteAllForAccount(String accountId) async {
     await _pool.execute(
-      Sql.named(
-        "UPDATE provider_members SET status = 'revoked', revoked_at = now() "
-        "WHERE account_id = @a AND status != 'revoked'",
-      ),
+      Sql.named('DELETE FROM provider_members WHERE account_id = @a'),
       parameters: {'a': accountId},
     );
   }

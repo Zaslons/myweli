@@ -119,8 +119,13 @@ abstract interface class MembershipRepository {
     required String email,
   });
 
-  /// Mark every membership of the account revoked (account deletion, T53).
-  Future<void> revokeAllForAccount(String accountId);
+  /// Delete every membership row of the account — the identity is being
+  /// erased (T53) and a member row never outlives its account. Deleted, not
+  /// revoked: a revoked row keeps `account_id`, which references the identity
+  /// (docs/design/backend-provider-deletion-member-fk.md). The schema says the
+  /// same since 0038 (ON DELETE CASCADE); this keeps the in-memory twin, which
+  /// has no foreign keys, telling the same story.
+  Future<void> deleteAllForAccount(String accountId);
 
   // ---- Invitations (R2b — docs/design/team-access-r2b-invitations.md) ----
 
@@ -235,13 +240,8 @@ class InMemoryMembershipRepository implements MembershipRepository {
   }
 
   @override
-  Future<void> revokeAllForAccount(String accountId) async {
-    final now = DateTime.now().toUtc();
-    for (var i = 0; i < _rows.length; i++) {
-      if (_rows[i].accountId == accountId && _rows[i].status != 'revoked') {
-        _rows[i] = _rows[i].copyWith(status: 'revoked', revokedAt: now);
-      }
-    }
+  Future<void> deleteAllForAccount(String accountId) async {
+    _rows.removeWhere((m) => m.accountId == accountId);
   }
 
   @override
