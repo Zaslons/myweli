@@ -648,10 +648,19 @@ class MockProService implements ProServiceInterface {
       orElse: () => MockData.providers.first,
     );
     var total = 0.0;
+    // The server answers with the booking's length — the sum of its services,
+    // 30 when it comes to nothing (`BookingService.bookManual`) — and « Ma
+    // journée » draws the new card's end from it before any reload
+    // (docs/design/pro-journal-shows-new-booking.md §3).
+    var durationMinutes = 0;
     for (final id in serviceIds) {
       final match = provider.services.where((s) => s.id == id);
-      if (match.isNotEmpty) total += match.first.price;
+      if (match.isNotEmpty) {
+        total += match.first.price;
+        durationMinutes += match.first.durationMinutes;
+      }
     }
+    if (durationMinutes <= 0) durationMinutes = 30;
 
     final appointment = Appointment(
       id: 'manual_${AppClock.now().millisecondsSinceEpoch}',
@@ -659,6 +668,7 @@ class MockProService implements ProServiceInterface {
       providerId: providerId,
       serviceIds: serviceIds,
       appointmentDate: appointmentDateTime,
+      durationMinutes: durationMinutes,
       status: AppointmentStatus.confirmed,
       totalPrice: total,
       // Walk-in / phone booking: no online deposit, paid in person.

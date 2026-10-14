@@ -23,12 +23,37 @@ class ProAppointmentProvider extends ChangeNotifier implements SalonScoped {
   String? get error => _error;
   String? get errorCode => _errorCode;
 
+  /// What [_appointments] was last asked for — « En attente » asks for one
+  /// status, « Aujourd’hui » for one day, « À venir » for everything from now.
+  ///
+  /// Kept so that a booking created afterwards joins the list only when the
+  /// list would have contained it. It used to be appended whatever the list
+  /// was, and a « Confirmé » booking appeared under « En attente »
+  /// (docs/design/pro-journal-shows-new-booking.md §2.6).
+  AppointmentStatus? _loadedStatus;
+  DateTime? _loadedFrom;
+  DateTime? _loadedTo;
+
+  /// The same test `getProviderAppointments` applies: both bounds inclusive.
+  bool _belongsToLoadedList(Appointment a) {
+    final status = _loadedStatus;
+    final from = _loadedFrom;
+    final to = _loadedTo;
+    if (status != null && a.status != status) return false;
+    if (from != null && a.appointmentDate.isBefore(from)) return false;
+    if (to != null && a.appointmentDate.isAfter(to)) return false;
+    return true;
+  }
+
   Future<void> loadAppointments(
     String providerId, {
     AppointmentStatus? status,
     DateTime? startDate,
     DateTime? endDate,
   }) async {
+    _loadedStatus = status;
+    _loadedFrom = startDate;
+    _loadedTo = endDate;
     _isLoading = true;
     _error = null;
     notifyListeners();
@@ -245,10 +270,21 @@ class ProAppointmentProvider extends ChangeNotifier implements SalonScoped {
         sendSmsInvite: sendSmsInvite,
       );
       if (response.success && response.data != null) {
-        _appointments = [..._appointments, response.data!]
-          ..sort((a, b) => a.appointmentDate.compareTo(b.appointmentDate));
+        final created = response.data!;
+        if (_belongsToLoadedList(created)) {
+          _appointments = [..._appointments, created]
+            ..sort((a, b) => a.appointmentDate.compareTo(b.appointmentDate));
+        }
         _error = null;
         _errorCode = null;
+        // The ONE announcement of « a booking was created »: « Ma journée »,
+        // the home figures and the client card each keep their own copy of
+        // the salon's bookings and are still on screen, or still cached, under
+        // the form. Made here, before the form closes, so the day is already
+        // right when the form slides away — and so that no opener of the form
+        // has to remember whom to refresh
+        // (docs/design/pro-journal-shows-new-booking.md §5).
+        ProSalonScope.bookingCreated(created);
         return true;
       }
       _error = response.error ?? 'Erreur lors de la création';
@@ -267,6 +303,9 @@ class ProAppointmentProvider extends ChangeNotifier implements SalonScoped {
   @override
   void resetForSalonSwitch() {
     _appointments = [];
+    _loadedStatus = null;
+    _loadedFrom = null;
+    _loadedTo = null;
     _isLoading = false;
     _error = null;
     notifyListeners();

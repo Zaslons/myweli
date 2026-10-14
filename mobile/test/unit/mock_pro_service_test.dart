@@ -41,4 +41,33 @@ void main() {
       expect(res.data!.durationVariants.isEmpty, isTrue);
     },
   );
+
+  // docs/design/pro-journal-shows-new-booking.md §3 — the server's `201`
+  // carries the booking's length, and « Ma journée » draws the new card's end
+  // from it before any reload. The mock returned none, so the card would have
+  // ended 30 minutes after its start whatever was booked.
+  test('createManualBooking answers with the length of what was booked — '
+      'the sum of its services', () async {
+    final res = await service.createManualBooking(
+      providerId: 'provider1',
+      serviceIds: const ['service1', 'service3'], // 30 + 45 minutes
+      appointmentDateTime: DateTime.utc(2027, 1, 15, 14, 30),
+      clientName: 'Yao K.',
+    );
+
+    expect(res.success, isTrue);
+    expect(res.data!.durationMinutes, 75);
+    expect(res.data!.totalPrice, 12000);
+    expect(res.data!.status.name, 'confirmed');
+  });
+
+  test('…and with 30 minutes when the services come to nothing, like the '
+      'server', () async {
+    final res = await service.createManualBooking(
+      providerId: 'provider1',
+      serviceIds: const ['unknown'],
+      appointmentDateTime: DateTime.utc(2027, 1, 15, 16),
+    );
+    expect(res.data!.durationMinutes, 30);
+  });
 }
