@@ -179,10 +179,15 @@ class _EarningsScreenState extends State<EarningsScreen>
                   borderRadius: BorderRadius.circular(AppTheme.radiusXL),
                   boxShadow: AppTheme.elevation1,
                 ),
+                // The label says what the total counts — completed bookings
+                // only, where the Accueil's « Revenus prévus » cards also
+                // count confirmed ones (provider-earnings.md §12). Label,
+                // figure, then what it counts: the Accueil card's shape.
+                // Never « encaissé »: MyWeli does not see a payment.
                 child: Column(
                   children: [
                     Text(
-                      'Total',
+                      'Total réalisé',
                       style: AppTextStyles.bodyMedium.copyWith(
                         color: AppColors.textSecondary,
                       ),
@@ -196,6 +201,13 @@ class _EarningsScreenState extends State<EarningsScreen>
                       ),
                       style: AppTextStyles.headlineLarge.copyWith(
                         color: AppColors.primary,
+                      ),
+                    ),
+                    Text(
+                      'Rendez-vous terminés',
+                      textAlign: TextAlign.center,
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: AppColors.textTertiary,
                       ),
                     ),
                   ],
@@ -212,8 +224,11 @@ class _EarningsScreenState extends State<EarningsScreen>
                     ? const EmptyState(
                         icon: Icons.receipt_long_outlined,
                         title: 'Aucune transaction',
+                        // Was « Les paiements encaissés … » — a payment
+                        // MyWeli never sees, under a total that counts
+                        // completed bookings.
                         description:
-                            'Les paiements encaissés sur cette période '
+                            'Les rendez-vous terminés sur cette période '
                             'apparaîtront ici.',
                       )
                     : ListView.builder(

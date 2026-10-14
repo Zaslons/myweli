@@ -242,7 +242,7 @@ void main() {
         );
 
         await openEarningsAll(tester);
-        expect(find.text('Total'), findsOneWidget, reason: 'C');
+        expect(find.text('Total réalisé'), findsOneWidget, reason: 'C');
         expectNoUndeclaredTruncation(tester, context: 'pro earnings at $at');
         expectNoLegibilityCrush(tester, context: 'pro earnings at $at');
         expectNoVerticalClip(tester, context: 'pro earnings at $at');

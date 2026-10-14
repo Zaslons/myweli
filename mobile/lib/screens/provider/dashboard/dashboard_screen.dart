@@ -260,6 +260,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   // Money figures are field-gated server-side without
                   // finances.view (R1/R4) — absence is a valid state, and
                   // then the two counts decide alone.
+                  //
+                  // « Revenus prévus », not « Revenus »: these count
+                  // confirmed + completed bookings, while the « Revenus »
+                  // screen (« Analyses ») counts completed only — one word
+                  // over two numbers for the same day
+                  // (provider-dashboard-stats.md §12).
                   _StatBlock(
                     cards: [
                       _StatCard(
@@ -285,7 +291,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 .read<ProAuthProvider>()
                                 .salonCurrency,
                           ),
-                          subtitle: 'Revenus',
+                          subtitle: 'Revenus prévus',
                           icon: Icons.attach_money,
                           color: AppColors.success,
                         ),
@@ -297,7 +303,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 .read<ProAuthProvider>()
                                 .salonCurrency,
                           ),
-                          subtitle: 'Revenus',
+                          subtitle: 'Revenus prévus',
                           icon: Icons.trending_up,
                           color: AppColors.info,
                         ),
