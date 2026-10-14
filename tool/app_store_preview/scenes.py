@@ -412,6 +412,26 @@ def at_rest(tm: TakeMap, instant: int, tail: int) -> int | None:
     return near[-1] if near else None
 
 
+def shows_a_rested_picture(tm: TakeMap, plan_scene: dict, local: int, tail: int) -> bool:
+    """True when scene-local frame `local` shows the very picture of the take
+    (by frame-hold) that the frames after it go on showing, unbroken, until
+    one of them is at rest. The picture is then a picture at rest — the same
+    picture of the take in the card — and only the frame that names it is
+    earlier (the poster frame's own touch points are checked apart). The
+    film's poster sits on a whole second this way, for App Store Connect's
+    time code (2026-10-14): 25.000 s shows the take's picture at 17.925 s,
+    which the frame after it, at rest, shows too."""
+    here = picture_at(plan_scene, local)
+    j = held(tm.pts, here[2])
+    for n in range(local + 1, scene_frames(plan_scene)):
+        there = picture_at(plan_scene, n)
+        if there is None or held(tm.pts, there[2]) != j:
+            return False
+        if at_rest(tm, there[2], tail) is None:
+            return True
+    return False
+
+
 def poster_of(sb: dict) -> dict:
     """The poster of the film's frame: `film.poster`, or its own entry for
     that frame (`film.poster["full-bleed"]`) — the band at the bottom of a
@@ -526,7 +546,8 @@ def check(plan: dict, sb: dict, takes: dict[str, Take], diffs: dict | None = Non
                                                    f"of `{t['gesture']}` at ({x:g}, {y:g}) pt — move the band "
                                                    f"(`band`: {', '.join(b for b in BANDS if b != scene['band'])})")
 
-    # The poster: a picture at rest, in a scene, no touch on it.
+    # The poster: a picture at rest, in a scene, no touch on it. The frame
+    # may be one that shows, already, the picture a later frame shows at rest.
     poster = plan.get("poster_frame")
     if poster != poster_frame(sb, plan):
         raise Refusal("E_POSTER", "the poster frame is not the storyboard's")
@@ -543,7 +564,10 @@ def check(plan: dict, sb: dict, takes: dict[str, Take], diffs: dict | None = Non
     pic = picture_at(ps, local)
     if pic is None:
         raise Refusal("E_POSTER", f"the poster frame falls in scene {home.id}'s dissolve")
-    moving = at_rest(take.tm, pic[2], round(sb["timing"]["tail_s"] * take.tm.timescale))
+    tail = round(sb["timing"]["tail_s"] * take.tm.timescale)
+    moving = at_rest(take.tm, pic[2], tail)
+    if moving is not None and shows_a_rested_picture(take.tm, ps, local, tail):
+        moving = None
     on = touch_visible(ps["touches"], local, step, out_ticks_token.frames(fps) * step)
     if moving is not None or on:
         raise Refusal("E_POSTER", f"the poster frame ({poster / fps:.3f} s, scene {home.id}) is not a picture at "
@@ -678,8 +702,22 @@ def describe(plan: dict, sb: dict, takes: dict[str, Take], diffs: dict | None = 
     w("  the end card's title, « " + sb["end_card"]["title"] + " », is the name beside the mark: not counted")
     pf = plan["poster_frame"]
     w(f"poster frame: film {pf / fps:.3f} s (frame {pf}), scene {poster_of(sb)['scene']}, "
-      f"{poster_of(sb)['at_s']:g} s into it")
+      f"{round(poster_of(sb)['at_s'], 3):g} s into it")
+    w("  " + time_code(pf, fps))
     return "\n".join(lines) + "\n"
+
+
+def time_code(frame: int, fps: int) -> str:
+    """The poster as App Store Connect sets it: HH:MM:SS:FF, whose last field
+    — as the brief of 2026-10-14 put it — Apple does not define: frames or
+    hundredths. On a whole second both readings are the same instant;
+    anywhere else the log says what each would show."""
+    s, f = divmod(frame, fps)
+    hms = f"{s // 3600:02d}:{s // 60 % 60:02d}:{s % 60:02d}"
+    if not f:
+        return f"App Store Connect previewFrameTimeCode {hms}:00"
+    return (f"not on a whole second: App Store Connect's time code cannot name it — read as frames {hms}:{f:02d} "
+            f"is {frame / fps:.3f} s, read as hundredths {s + f / 100:.3f} s")
 
 
 def _describe_scene(scene: dict, ps: dict, p: Place, take: Take, sb: dict, diffs: dict, fps: int) -> list[str]:

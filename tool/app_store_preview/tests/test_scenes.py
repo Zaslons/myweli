@@ -8,6 +8,7 @@ from __future__ import annotations
 import copy
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 
 import scenes
 from edit import Refusal
@@ -153,12 +154,28 @@ class Storyboard(unittest.TestCase):
     def test_the_films_own_storyboard_of_scenes_is_well_formed(self):
         import json
         from tests.support import TOOL
-        for name in ("storyboard-scenes.json", "storyboard-scenes-demo.json", "storyboard-scenes-alt-s6.json"):
+        for name in ("storyboard-scenes.json", "storyboard-scenes-demo.json", "storyboard-scenes-alt-s5.json"):
             doc = json.loads((TOOL / name).read_text(encoding="utf-8"))
             sb = scenes.load(doc, TOOL)
             self.assertEqual(sb["end_card"]["line"], "Un compte MyWeli Pro est nécessaire.", name)
             lo, hi = scenes.END_CARD_S
             self.assertTrue(lo <= sb["end_card"]["duration_s"] <= hi, name)
+
+    def test_the_film_is_storyboard_scenes_and_every_other_storyboard_of_scenes_a_rehearsal(self):
+        """The owner chose the film on 2026-10-14 (cut 1: S6 back, S5 out).
+        It is `storyboard-scenes.json`, built as the film: `preview.mp4`,
+        « the film, sha256 … ». Every other storyboard of scenes is an
+        alternative or a demonstration, so it must be marked rehearsal — one
+        that is not would write a `preview.mp4` and a record saying « the
+        film »."""
+        import json
+        from tests.support import TOOL
+        names = sorted(p.name for p in TOOL.glob("storyboard-scenes*.json"))
+        self.assertIn("storyboard-scenes.json", names)
+        self.assertGreaterEqual(len(names), 3, names)                       # the film, the alternative, the demo
+        for name in names:
+            sb = scenes.load(json.loads((TOOL / name).read_text(encoding="utf-8")), TOOL)
+            self.assertEqual(sb["rehearsal"], name != "storyboard-scenes.json", name)
 
 
 class Propose(unittest.TestCase):
@@ -515,6 +532,22 @@ class Refusals(unittest.TestCase):
         plan, sb, takes = planned(doc)
         refused(self, "E_POSTER", plan, sb, takes, "falls in scene S1's dissolve")
 
+    def test_a_poster_may_name_a_rested_picture_on_an_earlier_frame(self):
+        """The app's own change ends at 6.083 s of the take. S1's frame 126
+        (4.2 s in) samples the take at 6.100 s — 17 ms after that change,
+        not at rest by itself — and shows the picture of 6.083 s, which its
+        frames go on showing until frame 135, at rest: the same picture, so
+        it may be the poster (the film's sits on a whole second this way,
+        2026-10-14). Frame 125 shows the picture of 6.067 s, and the frame
+        after it another one: refused, as before."""
+        plan, sb, takes = planned(doc_with(film__poster={"scene": "S1", "at_s": 4.2}))
+        self.assertEqual(plan["poster_frame"], 126)
+        tm, ps = TAKE_OF(takes).tm, plan["scenes"][0]
+        self.assertEqual(scenes.at_rest(tm, scenes.picture_at(ps, 126)[2], 180), 3650)  # 6.083 s: not at rest by itself
+        scenes.check(plan, sb, takes)
+        plan, sb, takes = planned(doc_with(film__poster={"scene": "S1", "at_s": 125 / 30}))
+        refused(self, "E_POSTER", plan, sb, takes, "is not a picture at rest: the screen changed at 6.067 s")
+
     def test_the_cut_endpoints_are_compared_when_given(self):
         """S2 keeps the caret's stretch by times, then the drag: the cut
         between them jumps from the picture at 7.500 s to the one at
@@ -526,7 +559,52 @@ class Refusals(unittest.TestCase):
         scenes.check(plan, sb, takes)
 
 
+class RestedPicture(unittest.TestCase):
+    """`shows_a_rested_picture` on plans and takes written by hand, at 600
+    ticks a second (20 a film frame): a change at 100 ticks, then nothing —
+    the frames from 100 to 260 are not at rest by themselves, 280 is."""
+
+    @staticmethod
+    def scene(*runs, dissolve=5):
+        return {"timescale": 600, "fps": 30, "runs": [{"segments": list(r)} for r in runs],
+                "dissolves": [{"frames": dissolve}] * (len(runs) - 1)}
+
+    STILL = SimpleNamespace(pts=[0, 100, 1000], changes=[0, 100])
+
+    def test_a_picture_that_stays_until_a_frame_at_rest_is_at_rest(self):
+        ps = self.scene([{"kind": "live", "src_in": 100, "src_out": 600}])
+        self.assertTrue(scenes.shows_a_rested_picture(self.STILL, ps, 0, 180))
+
+    def test_a_picture_that_changes_before_any_frame_at_rest_is_not(self):
+        tm = SimpleNamespace(pts=[0, 100, 200, 1000], changes=[0, 100, 200])
+        ps = self.scene([{"kind": "live", "src_in": 100, "src_out": 600}])
+        self.assertFalse(scenes.shows_a_rested_picture(tm, ps, 0, 180))
+
+    def test_the_walk_stops_at_the_scenes_dissolve(self):
+        ps = self.scene([{"kind": "live", "src_in": 100, "src_out": 200}],
+                        [{"kind": "hold", "src_at": 900, "frames": 10}])
+        self.assertFalse(scenes.shows_a_rested_picture(self.STILL, ps, 0, 180))
+
+    def test_the_walk_stops_at_the_scenes_end(self):
+        ps = self.scene([{"kind": "live", "src_in": 100, "src_out": 200}])
+        self.assertFalse(scenes.shows_a_rested_picture(self.STILL, ps, 0, 180))
+
+
 class Describe(unittest.TestCase):
+    def test_the_log_gives_app_store_connects_time_code_for_a_poster_on_a_whole_second(self):
+        """App Store Connect sets an App Preview's poster by a time code
+        whose last field it does not define (frames or hundredths): on a
+        whole second both readings are the same frame."""
+        plan, sb, takes = planned()                                          # S1, 4.0 s in: film frame 120
+        self.assertIn("poster frame: film 4.000 s (frame 120), scene S1, 4 s into it\n"
+                      "  App Store Connect previewFrameTimeCode 00:00:04:00", scenes.describe(plan, sb, takes))
+        plan, sb, takes = planned(doc_with(film__poster={"scene": "S1", "at_s": 4.2}))
+        self.assertIn("poster frame: film 4.200 s (frame 126), scene S1, 4.2 s into it\n"
+                      "  not on a whole second: App Store Connect's time code cannot name it — read as frames "
+                      "00:00:04:06 is 4.200 s, read as hundredths 4.060 s", scenes.describe(plan, sb, takes))
+        self.assertEqual(scenes.time_code(750, 30), "App Store Connect previewFrameTimeCode 00:00:25:00")
+        self.assertEqual(scenes.time_code(30 * 3725, 30), "App Store Connect previewFrameTimeCode 01:02:05:00")
+
     def test_the_log_says_where_each_scene_lands_against_its_budget(self):
         plan, sb, takes = planned()
         log = scenes.describe(plan, sb, takes)

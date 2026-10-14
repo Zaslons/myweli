@@ -1,22 +1,31 @@
 {
-  "_spec": "The film of scenes — « option 3 », chosen by the owner on 2026-10-14 after the benchmark; it replaces the single 21-s flow of storyboard.json (docs/design/pro-app-preview.md, version 1). Cut from the takes recorded on 2026-10-14 (README.md « Version 2 — the takes of 2026-10-14 »), revised after two reviews the same day (« … after review »). Nothing here is final until the owner signs it off. Takes are relative to --takes (build/app-store/pro/preview/v2/takes): one folder a take, its take.mov and the gestures.json reformatted from the recorder's gestures.jsonl. README.md « Version 2 — scenes » says what every value does.",
+  "_spec": "THE FILM — the App Preview of MyWeli Pro, version 2 (README.md « Version 2 — the film »). S1, S2, S3, S6, S4 and the end card, cut from the takes of 2026-10-14, framed: 862 frames, 28.733 s. Until 2026-10-14 this was storyboard-scenes-alt-s6.json, « an alternative for the owner », marked rehearsal: S6 brought back from take5b, the keyed take, on the reading that S6's rule protects the salon's phone rather than the « Contact » block — the scroll is 290 pt, not short; it shows the map, the address, « WhatsApp » and the hours; the phone row is masked. S5 is out (with it the cut is 32.633 s). The five-scene cut it was offered against is storyboard-scenes-alt-s5.json, kept as the alternative, marked rehearsal. Takes are relative to --takes (build/app-store/pro/preview/v2/takes).",
+  "_chosen": "The owner, 2026-10-14, after watching three cuts: « cut 1, and it is good as it is » — this storyboard, framed, as built under build/app-store/pro/preview/v2/alt-s6-take5b/framed/. Its content is that cut's, unchanged: no retiming, no re-cut, no new take, no new effect. The one change since: the poster's time (`_poster`).",
+  "_poster": "25.000 s of the film (frame 750), not 25.367 s (frame 761): App Store Connect sets the poster by a time code HH:MM:SS:FF whose last field, as the brief of 2026-10-14 put it, Apple does not define (frames or hundredths; not read in Apple's documentation here), and only a whole second reads the same both ways — 00:00:25:00. The full-bleed frame's poster is unchanged (it is not the film). S4 starts at 21.867 s (frame 656), so `at_s` is 94 frames, 3.1333… s. The picture is the one the approved poster showed: « Mois » at rest, 77 000 FCFA, its rows drawn — the take's picture at 17.925 s, the same composed frame (f_000744.png serves frames 744 to 775 of the approved cut, the rest of S4). 24.000 s is « Semaine »; 26.000 s is in the join to the end card.",
   "_never_shown": "sign-in; « Mon abonnement » or an offer; KYC (« Vérification »); a « Compte de démonstration — … » message; a system alert; a legible phone number; the « Prestations » price list as a scene. Checked by eye on the frames and by OCR of every decoded frame; the tool reads none of it.",
-  "_dropped": {
-    "S6": {
-      "what": "« Aperçu de ma page »: the salon's public page from its cover photo, a short scroll — « Votre page MyWeli, / prête pour vos clients. », budget 4 s; take5/take.mov, scroll-page, lead_in_s 1.0, rest_after_s 0.8",
-      "why": "Out of this cut until it has a take this storyboard allows. take5 was filmed on a build without CARTO_BASEMAPS_KEY: its map is CARTO's « API KEY REQUIRED » tile in every picture, which a store build cannot show (mobile/lib/core/config/app_config.dart; tool/release_build.sh refuses to build without the key). take5b, on a keyed build, scrolls 290 pt: through the « Contact » block and onto the salon's phone, where this scene asks for a short scroll that never reaches « Contact ». At rest on its cover the page already shows the « Contact » title and the top of the map (y 566–740 pt), so no take of this page from its cover avoids the block's title. To bring S6 back: a short scroll filmed on a keyed build — or the owner rules that the rule is about the phone, and take5b is cut with the phone masked."
-    }
-  },
   "version": 2,
   "film": {
-    "title": "MyWeli Pro — cinq gestes",
+    "title": "MyWeli Pro — cinq gestes, la page du salon",
     "fps": 30,
     "width": 886,
     "height": 1920,
     "frame": "framed",
-    "poster": {"scene": "S4", "at_s": 3.5, "full-bleed": {"scene": "S3", "at_s": 0.5}}
+    "poster": {
+      "scene": "S4",
+      "at_s": 3.1333333333333333,
+      "full-bleed": {
+        "scene": "S3",
+        "at_s": 0.5
+      }
+    }
   },
-  "motion": {"join": "slow", "dissolve": "base", "end_card": "slow", "touch_in": "fast", "touch_out": "base"},
+  "motion": {
+    "join": "slow",
+    "dissolve": "base",
+    "end_card": "slow",
+    "touch_in": "fast",
+    "touch_out": "base"
+  },
   "touch": {
     "diameter_pt": 48,
     "ring_pt": 1.5,
@@ -26,9 +35,22 @@
     "tap_dwell": "fast",
     "light_below_luminance": 0.35
   },
-  "timing": {"rest_s": 0.5, "tail_s": 0.3, "key_tail_s": 0.1, "sync_tolerance_s": 0.5, "lead_in_s": 0.6},
-  "band": {"top_pt": 62, "bottom_pt": 34},
-  "end_card": {"title": "MyWeli Pro", "line": "Un compte MyWeli Pro est nécessaire.", "duration_s": 2.5},
+  "timing": {
+    "rest_s": 0.5,
+    "tail_s": 0.3,
+    "key_tail_s": 0.1,
+    "sync_tolerance_s": 0.5,
+    "lead_in_s": 0.6
+  },
+  "band": {
+    "top_pt": 62,
+    "bottom_pt": 34
+  },
+  "end_card": {
+    "title": "MyWeli Pro",
+    "line": "Un compte MyWeli Pro est nécessaire.",
+    "duration_s": 2.5
+  },
   "scenes": [
     {
       "id": "S1",
@@ -36,10 +58,20 @@
       "budget_s": 3.5,
       "take": "take1b/take.mov",
       "gestures": "take1b/gestures.json",
-      "headline": ["Une cliente arrive ?", "Un geste suffit."],
+      "headline": [
+        "Une cliente arrive ?",
+        "Un geste suffit."
+      ],
       "keep": [
-        {"gesture": "swipe-arrive", "rest_after_s": 0.2},
-        {"gesture": "tap-arrive", "ground": "dark", "rest_after_s": 0.6}
+        {
+          "gesture": "swipe-arrive",
+          "rest_after_s": 0.2
+        },
+        {
+          "gesture": "tap-arrive",
+          "ground": "dark",
+          "rest_after_s": 0.6
+        }
       ]
     },
     {
@@ -48,11 +80,25 @@
       "budget_s": 5.5,
       "take": "take1b/take.mov",
       "gestures": "take1b/gestures.json",
-      "headline": ["Un créneau libre ?", "Ajoutez un rendez-vous."],
+      "headline": [
+        "Un créneau libre ?",
+        "Ajoutez un rendez-vous."
+      ],
       "keep": [
-        {"gesture": "tap-libre", "rest_after_s": 0.6},
-        {"dissolve": "base", "lead_in_s": 0.4, "why": "the form, opened → the form, filled"},
-        {"gesture": "tap-creer", "ground": "dark", "rest_after_s": 0.4}
+        {
+          "gesture": "tap-libre",
+          "rest_after_s": 0.6
+        },
+        {
+          "dissolve": "base",
+          "lead_in_s": 0.4,
+          "why": "the form, opened → the form, filled"
+        },
+        {
+          "gesture": "tap-creer",
+          "ground": "dark",
+          "rest_after_s": 0.4
+        }
       ]
     },
     {
@@ -61,26 +107,72 @@
       "budget_s": 4.0,
       "take": "take2b/take.mov",
       "gestures": "take2b/gestures.json",
-      "headline": ["Vos clients, connus", "visite après visite."],
+      "headline": [
+        "Vos clients, connus",
+        "visite après visite."
+      ],
       "lead_in_s": 1.0,
       "keep": [
-        {"gesture": "scroll-fiche", "rest_after_s": 0.8}
+        {
+          "gesture": "scroll-fiche",
+          "rest_after_s": 0.8
+        }
       ],
       "masks": [
-        {"what": "the client's phone number « +225 07 … » (ink x 290–712, y 545–583 px at rest, read on the take), tracking the card's scroll under the app bar (its bottom edge at 118 pt)",
-         "rect_px": [282, 538, 440, 52], "style": "fill",
-         "track": {"scroll_px": [354, 2622]}}
+        {
+          "what": "the client's phone number « +225 07 … » (ink x 290–712, y 545–583 px at rest, read on the take), tracking the card's scroll under the app bar (its bottom edge at 118 pt)",
+          "rect_px": [
+            282,
+            538,
+            440,
+            52
+          ],
+          "style": "fill",
+          "track": {
+            "scroll_px": [
+              354,
+              2622
+            ]
+          }
+        }
       ]
     },
     {
-      "id": "S5",
-      "what": "« Disponibilité »: one scroll through « Horaires de travail », Lundi to Dimanche — the first scene to drop if the film is over 30 s; before S4 so that the film ends on its liveliest figures, not on a still list",
-      "budget_s": 3.0,
-      "take": "take4/take.mov",
-      "gestures": "take4/gestures.json",
-      "headline": ["Fixez vos horaires,", "les créneaux suivent."],
+      "id": "S6",
+      "what": "« Aperçu de ma page » on the keyed build (take5b): the salon's public page from its cover photo, real map tiles, a 290-pt scroll through « Contact »; the salon's phone row hidden on every picture",
+      "budget_s": 4.0,
+      "take": "take5b/take.mov",
+      "gestures": "take5b/gestures.json",
+      "headline": [
+        "Votre page MyWeli,",
+        "prête pour vos clients."
+      ],
+      "lead_in_s": 1.0,
+      "band": "bottom",
       "keep": [
-        {"gesture": "scroll-semaine", "rest_after_s": 0.6}
+        {
+          "gesture": "scroll-page",
+          "rest_after_s": 0.8
+        }
+      ],
+      "masks": [
+        {
+          "what": "the salon's phone row, icon and number (ink x 128–643, y 1765–1809 px at the end rest, read on the take), tracking the page's scroll above the bottom bar (its top edge at 740 pt)",
+          "rect_px": [
+            114,
+            1758,
+            546,
+            57
+          ],
+          "ref_s": 30.0,
+          "style": "fill",
+          "track": {
+            "scroll_px": [
+              354,
+              2220
+            ]
+          }
+        }
       ]
     },
     {
@@ -89,11 +181,20 @@
       "budget_s": 4.0,
       "take": "take3/take.mov",
       "gestures": "take3/gestures.json",
-      "headline": ["Suivez vos revenus,", "jour après jour."],
+      "headline": [
+        "Suivez vos revenus,",
+        "jour après jour."
+      ],
       "band": "bottom",
       "keep": [
-        {"gesture": "tap-semaine", "rest_after_s": 0.5},
-        {"gesture": "tap-mois", "rest_after_s": 0.8}
+        {
+          "gesture": "tap-semaine",
+          "rest_after_s": 0.5
+        },
+        {
+          "gesture": "tap-mois",
+          "rest_after_s": 0.8
+        }
       ]
     }
   ]

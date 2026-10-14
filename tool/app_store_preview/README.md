@@ -42,8 +42,8 @@ the same command with `--variant dry-run` writes `preview-rehearsal.mp4`.
 | `swift/Inspect.swift` | AVFoundation's reading of a written file; decodes frames and sound for `verify`. |
 | `swift/TestClip.swift` | Tests only: writes synthetic takes and films that are wrong on purpose. |
 | `tests/` | The self-tests, and `mutations.py`, which breaks each check in turn and watches a test go red. |
-| `storyboard-scenes.json` | **Version 2**, the film of scenes (« option 3 »): S1, S2, S3, S5, S4 and the end card, cut from the takes of 2026-10-14; S6 is out until it has a take it allows (« Version 2 — 2026-10-14, after review »). Not final until the owner signs it off. |
-| `storyboard-scenes-alt-s6.json` | An alternative for the owner, marked rehearsal: S6 back from the keyed take5b, its phone row masked, S5 out. Not the film. |
+| `storyboard-scenes.json` | **The film** — version 2, the film of scenes (« option 3 »): S1, S2, S3, S6, S4 and the end card, framed, cut from the takes of 2026-10-14; S6 from the keyed take5b with the salon's phone masked. Chosen by the owner on 2026-10-14 (« Version 2 — the film », below). Until then it was `storyboard-scenes-alt-s6.json`, an alternative. |
+| `storyboard-scenes-alt-s5.json` | The alternative, marked rehearsal: the five-scene cut (S5 in, S6 out) that was `storyboard-scenes.json` until the owner chose. Not the film. |
 | `storyboard-scenes-demo.json` | A demonstration of version 2 on the rehearsal take: two scenes and the end card. Marked rehearsal. |
 | `scenes.py` | Version 2's plan: the scenes, their runs, the declared dissolve, the joins, the end card, the poster — and every refusal. Inside a scene it runs version 1's own rule (`edit.check_take`). |
 | `masks.py` | A rectangle of the capture hidden on every picture: fixed, or following the vertical scroll under it. |
@@ -657,6 +657,10 @@ of the frame. Version 2 builds a film of **scenes**, each cut from its
 own take, joined by a short cross-dissolve and closed by an end card.
 Version 1 (`build`, `storyboard.json`) is unchanged and still works.
 
+**The film is `storyboard-scenes.json`** in the framed frame, chosen by the
+owner on 2026-10-14 (« Version 2 — the film », below). Every other
+storyboard of scenes is marked rehearsal, and a test holds it so.
+
 ```
 python3 tool/app_store_preview/preview.py film \
     --storyboard tool/app_store_preview/storyboard-scenes.json \
@@ -727,10 +731,23 @@ storyboard marked `"rehearsal": true`), `poster.png`, `contact-sheet.png`,
   (`E_CAPTION`); `"band": "bottom"` moves it above the home indicator.
 - **The poster** may be any frame at rest of any scene (`film.poster`: a
   scene and seconds into it): not in a dissolve, a join or the end card, no
-  touch point on it, the take unchanged for `tail_s` before the picture it
-  shows (`E_POSTER`). A frame may have its own (`film.poster["full-bleed"]`,
-  same shape): the full-bleed frame's bottom band cuts through S4's rows,
-  which are the framed film's poster.
+  touch point on it, the take unchanged for `tail_s` up to the instant the
+  frame samples (`E_POSTER`) — **or** the frame shows the very picture of
+  the take that the frames after it go on showing, unbroken, until one of
+  them is at rest (`scenes.shows_a_rested_picture`). That picture is at
+  rest; only the frame that names it is earlier (the same capture in the
+  card; in the film, one composed frame serves both). It is what puts the
+  film's poster on a whole second (« Version 2 — the film », below). A frame that shows a picture
+  the next frame replaces is refused as before. A frame may have its own
+  (`film.poster["full-bleed"]`, same shape): the full-bleed frame's bottom
+  band cuts through S4's rows, which are the framed film's poster.
+- **The poster's time code**: App Store Connect sets an App Preview's
+  poster by a time code, `HH:MM:SS:FF`, and Apple does not say whether the
+  last field counts frames or hundredths (as the brief of 2026-10-14 put it;
+  not read in Apple's documentation from here). On a whole second both
+  readings are the same instant. `cuts.txt` gives the time code under the
+  poster's line — « App Store Connect previewFrameTimeCode 00:00:25:00 » —
+  or, off a whole second, what each reading would show.
 - **The length**: 15–30 s (`E_LENGTH`). Each scene's `budget_s` is a
   target; `cuts.txt` says where each scene lands and how far from its
   budget.
@@ -865,7 +882,8 @@ What the takes decided:
 
 ### Version 2 — 2026-10-14, after review
 
-Two reviews of the first cut. What changed, and what did not:
+Two reviews of the first cut. What changed, and what did not (the owner
+then chose the alternative below: « Version 2 — the film »):
 
 - **S6 is out of the film.** take5 was filmed on a build without
   `CARTO_BASEMAPS_KEY`: its map is CARTO's « API KEY REQUIRED » tile in
@@ -890,7 +908,8 @@ Two reviews of the first cut. What changed, and what did not:
   was); its busiest second is 24.69 Mbit, written at a quantiser ceiling of
   12 (29.80 at 10); and its drag starts on a flat white header, so the
   touch point is timed by the logged path, which ran 1.89 s where the page
-  took 2.3 s — the point runs ahead of the page.
+  took 2.3 s — the point runs ahead of the page. **The owner chose it**: it
+  is now `storyboard-scenes.json`, the film (below).
 - **Joins and the end card on `slow`**, the end card **2.5 s** (« The
   rules », above).
 - **The full-bleed band** is its line boxes (88 pt) and hugs its words
@@ -909,7 +928,8 @@ Two reviews of the first cut. What changed, and what did not:
   10 s and on both posters (S4's total and rows; S3's « 17 000 FCFA
   Dépensé »).
 
-The cut, both frames:
+The five-scene cut, both frames (now `storyboard-scenes-alt-s5.json`, the
+alternative, marked rehearsal):
 
 | Scene | Take | Kept | In the film |
 |---|---|---|---|
@@ -925,6 +945,70 @@ The cut, both frames:
 S3 0.5 s in (13.233 s, frame 397): the card at rest, its number masked.
 Both: PASS — 25 checks; busiest second 10.61 Mbit (framed) and 12.67
 (full-bleed), written once at the ceiling of 10.
+
+### Version 2 — the film (2026-10-14)
+
+The owner watched three cuts on 2026-10-14 and chose the framed
+alternative with the salon's public page: « cut 1, and it is good as it
+is ». It is now **`storyboard-scenes.json`, the film** (its `_chosen` note
+says the same); the five-scene cut it was offered against is
+`storyboard-scenes-alt-s5.json`, marked rehearsal. A test requires the film
+not to be a rehearsal and every other storyboard of scenes to be one.
+
+| Scene | Take | Kept | In the film |
+|---|---|---|---|
+| S1 | `take1b` | `swipe-arrive`, `tap-arrive` | 0.000–4.533 s |
+| S2 | `take1b` | `tap-libre`, the dissolve, `tap-creer` | 4.900–12.367 s |
+| S3 | `take2b` | `scroll-fiche`, the client's phone masked | 12.733–16.367 s |
+| S6 | `take5b` | `scroll-page`, the salon's phone masked | 16.733–21.500 s |
+| S4 | `take3` | `tap-semaine`, `tap-mois` | 21.867–25.867 s |
+| end card | | | 26.233–28.733 s |
+
+**Its content is the approved cut's, unchanged** — no retiming, no re-cut,
+no new take, no new effect. Built again from the same takes and the same
+code, the plan (`film.json`) differs from the approved cut's in two keys
+only, `rehearsal` and `poster_frame`; all 348 distinct composed frames,
+`frames.json`, the 170 mask crops and `masks.json` are byte-identical; and
+the written file differs in 22 bytes of 15,848,266 — the creation and
+modification times of `mvhd`, both `tkhd` and both `mdhd`, and two bytes in
+the first key frame's user-data SEI (Apple's encoder UUID
+`47564adc…`; not picture data). Every one of the 862 frames decodes
+(AVFoundation, BGRA) to the very bytes of the approved cut's.
+
+**The one change: the poster's time**, 25.367 s (frame 761) → **25.000 s
+(frame 750)**, so that App Store Connect's time code reads the same whether
+its last field counts frames or hundredths (« The poster's time code »,
+above): `00:00:25:00`. The picture is the same — « Mois » at rest,
+77 000 FCFA, every row drawn: the take's picture at 17.925 s, which frames
+744 to 775 — the rest of S4 — all show, composed once (`f_000744.png`); `poster.png` is
+byte-identical to the approved cut's. 24.000 s is « Semaine », 26.000 s is
+in the join to the end card: 25.000 s is the only whole second of « Mois ».
+
+Before this, the rule refused 25.000 s by one tick: that frame samples the
+take at 18.138 s, and the take's last change — the last 1 × 6 px of the
+« Mois » underline settling, at 17.840 s — is 179 ticks before it, where
+the rule asks 180 (`tail_s`). The frame after it (25.033 s) is at rest and
+shows the same picture. So the rule now accepts a frame that shows, already,
+the picture a later frame shows at rest (« The rules », above): on this
+film it accepts frames 744 to 775 — exactly the frames composed as
+`f_000744.png` (every frame from 738 to 776 checked) — and still refuses
+739 to 743, which show earlier pictures of the underline. Nothing about
+what a poster may show has changed.
+
+Built under `build/app-store/pro/preview/v2/final/`: `preview.mp4`, 862
+frames, 28.733 s, 15,848,266 bytes, sha256
+`4d945614d0f62d67c7b3704a3f6623d8a458bc11bef0af8b1dca90b04e2c6412`
+(storyboard sha256 `989ec5e9…`); « PASS — 25 checks — the film, sha256
+4d945614d0f62d67… »; busiest second
+24.69 Mbit at a quantiser ceiling of 12 (29.80 at 10), as the approved cut;
+the poster frame decoded against `poster.png` at 58.4 dB, worst block 1.5
+levels.
+
+The builds of the five-scene storyboard from before the choice,
+`v2/framed/` and `v2/full-bleed/`, were made when it was
+`storyboard-scenes.json`: their `build.json` still says « the film »
+(sha256 `0765290f…` and `ee3fe363…`, 27.5 s). They are not the film; do
+not upload them.
 
 ### Known limits of version 2
 
@@ -981,7 +1065,15 @@ put back under the mask, which verify must fail. After review
 `…EncoderLevel.test_the_ladder_of_ceilings_always_ends_on_the_last`): films
 carrying 0, 3 and 15 % of a hidden number, written and decoded; a film whose
 only fault is a second past Level 4.0; the ceiling ladder from an odd start.
-About two and a half minutes more.
+About two and a half minutes more. For the film (2026-10-14:
+`test_scenes.Storyboard.test_the_film_is_storyboard_scenes_…`,
+`…Refusals.test_a_poster_may_name_a_rested_picture_on_an_earlier_frame`,
+`…RestedPicture`, `…Describe.test_the_log_gives_app_store_connects_time_code_…`):
+the film's storyboard is not a rehearsal and every other one is; a poster
+frame 17 ms after the app's last change is accepted when the next frames
+show its picture until one is at rest, refused when the next frame shows
+another; the walk stops at a dissolve and at the scene's end; the time code
+on a whole second and off it.
 
 `mutations.py` breaks each check in the code in turn — every refusal
 silenced, every verification made to pass, numbers and comparisons bent, the
