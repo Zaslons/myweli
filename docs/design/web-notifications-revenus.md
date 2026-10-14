@@ -52,6 +52,13 @@ Empty: « Aucune transaction ». Sidebar gains « Revenus » (before Profil).
 9.2: the pro home's revenue grid gains « Revenus cette semaine »
 (`weekRevenue` was already in the DTO — web simply dropped it).
 
+**Since 2026-10-14 the words differ:** the home's three labels read « Revenus
+prévus aujourd’hui / cette semaine / ce mois » (they count confirmed +
+completed — [provider-dashboard-stats.md](provider-dashboard-stats.md) §12),
+and the total card reads « Total réalisé » · figure · « Rendez-vous
+terminés », with the empty state's description on « rendez-vous terminés »
+([provider-earnings.md](provider-earnings.md) §12).
+
 ## BFF slice (all new routes, session-cookie → bearer)
 
 | Route | Method | Backend |

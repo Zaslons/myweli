@@ -110,3 +110,15 @@ figure for the same day ([provider-dashboard-stats.md](provider-dashboard-stats.
   that no « encaiss » is on screen; e2e `pro.spec` asserts both lines.
 - **Not changed:** App Store screenshot 8 (Revenus) still shows « Total » —
   the owner's call: not reshot.
+- **Not changed either: the App Preview film.** The film the owner chose on
+  2026-10-14 (« cut 1, and it is good as it is »; PR #590,
+  `tool/app_store_preview/README.md` « Version 2 — the film ») was cut from
+  takes recorded before this change: its scene S4 (21.867–25.867 s) and its
+  poster frame (25.000 s, frame 750) show this card as « Total » ·
+  77 000 FCFA, with no line under the figure (seen on the film's built
+  `poster.png` and contact sheet, film sha256 `4d945614…`). A build that
+  carries this section says « Total réalisé » and adds « Rendez-vous
+  terminés » — the « mismatch with the binary » of
+  [pro-app-preview.md](pro-app-preview.md) §8. The owner's call: the film is
+  not re-cut. Per the same spec's §2, a preview is replaced only with a new
+  app version, and its poster frame cannot be changed once approved.
