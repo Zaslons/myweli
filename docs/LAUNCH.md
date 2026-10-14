@@ -1146,6 +1146,19 @@ checking rather than assuming:
 > the App Preview video is approved by the owner and not yet produced
 > (design/pro-app-preview.md) — its second decision, fixing « Ma journée »
 > first, means one more build after 579; the device checks.
+>
+> **2026-10-14 (night) — build 581 replaces 579.** From `main` at `322bd799`
+> (#587): « Ma journée » shows a booking the moment it is created. IPA
+> re-read, validated, `VALID`, read as French; the only build in « Équipe
+> MyWeli », available in « Testeurs externes »; symbols in Sentry, read back;
+> **attached to version 0.0.1 in place of 579**. The fix was seen working on
+> the simulator (a debug build of the same commit, against production): the
+> booking is in the list about 1.25 s after the tap, with no gesture.
+> **Still open**: the deletion lock's production deploy (#585 is merged,
+> nothing serves it); the App Preview's real take — the tool is built
+> (#588), a rehearsal was cut, the day of 14 October is staged on the demo
+> salon, and the take itself can only be shot in daytime; the owner's steps
+> on the App Store Connect site; the device checks on 581.
 
 - [ ] Everything in [mobile-store-submission.md](design/mobile-store-submission.md) §5.
       Two of its claims are **stale as of 2026-08-18** and must be corrected

@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Approved** (owner, 2026-10-13 — decision 2 of `pro-app-preview.md` §9: « fix it, build once more, and film that build ») — **built 2026-10-13** on `fix/journal-shows-new-booking`, **reviewed the same day and corrected** (§8.5). **Not merged, not in a build, not seen on a device.** What was run and what was not: §8.4, §8.5. |
+| **Status** | **Approved** (owner, 2026-10-13 — decision 2 of `pro-app-preview.md` §9: « fix it, build once more, and film that build ») — **built 2026-10-13** on `fix/journal-shows-new-booking`, **reviewed the same day and corrected** (§8.5). ~~Not merged, not in a build, not seen on a device.~~ **Merged 2026-10-14 (#587), in build 581 (TestFlight). Seen working on the simulator** — a debug build of the same commit against production: a booking created on an empty day is in « Ma journée » about 1.25 s after the tap, with its dot, with no gesture and no full-screen loader. **Not yet seen on an iPhone.** What was run and what was not: §8.4, §8.5. |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-10-13 |
 | **PRD ref / phase** | Pro app — module `journal` (J1b) + manual booking · V1 · store submission |
