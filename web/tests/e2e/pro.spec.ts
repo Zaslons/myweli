@@ -191,8 +191,9 @@ test('abonnement shows trial status + revenue on the home', async ({ page }) => 
   await page.getByRole('button', { name: 'Se connecter' }).click();
   await expect(page).toHaveURL(/\/pro(\/)?$/);
 
-  // G3: revenue card on the home (stub monthRevenue = 45 000).
-  await expect(page.getByText('Revenus ce mois')).toBeVisible();
+  // G3: revenue card on the home (stub monthRevenue = 45 000) — « prévus »:
+  // confirmed + completed (provider-dashboard-stats.md §12).
+  await expect(page.getByText('Revenus prévus ce mois')).toBeVisible();
 
   // Abonnement view — the R5a offer picker (default = live trial).
   await page.getByRole('link', { name: 'Abonnement' }).click();
@@ -686,7 +687,13 @@ test('revenus: total + ledger + period tabs (parity 9.1)', async ({ page }) => {
   await page.getByRole('link', { name: 'Revenus' }).click();
   await expect(page).toHaveURL(/\/pro\/revenus/);
 
-  // « Tout » (default): the three stub transactions → 37 000 FCFA.
+  // « Tout » (default): the three stub transactions → 37 000 FCFA, under a
+  // label that says what it counts (provider-earnings.md §12).
+  // `exact`: the page's lead line also contains « rendez-vous terminés ».
+  await expect(page.getByText('Total réalisé', { exact: true })).toBeVisible();
+  await expect(
+    page.getByText('Rendez-vous terminés', { exact: true }),
+  ).toBeVisible();
   await expect(page.getByText(/37\s000\sFCFA/)).toBeVisible();
 
   // « Aujourd'hui » narrows to today's two transactions (15 000 + the 23:30

@@ -196,19 +196,22 @@ export function AujourdhuiClient() {
           </div>
 
           {/* The money row needs finances.view — the server drops the revenue
-              fields for other roles, so rendering it would show a lying 0 F. */}
+              fields for other roles, so rendering it would show a lying 0 F.
+              « prévus »: these count confirmed + completed bookings, while
+              « Revenus » (/pro/revenus) counts completed only — the app's
+              words (provider-dashboard-stats.md §12). */}
           {hasCap(m, 'finances.view') ? (
             <div className="mt-m grid grid-cols-1 gap-m sm:grid-cols-3 xl:grid-cols-1">
               <Stat
-                label="Revenus aujourd’hui"
+                label="Revenus prévus aujourd’hui"
                 value={stats ? formatFcfa(stats.todayRevenue ?? 0, currency) : '—'}
               />
               <Stat
-                label="Revenus cette semaine"
+                label="Revenus prévus cette semaine"
                 value={stats ? formatFcfa(stats.weekRevenue ?? 0, currency) : '—'}
               />
               <Stat
-                label="Revenus ce mois"
+                label="Revenus prévus ce mois"
                 value={stats ? formatFcfa(stats.monthRevenue ?? 0, currency) : '—'}
               />
             </div>
