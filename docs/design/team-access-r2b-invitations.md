@@ -22,7 +22,7 @@ audited; seat/offer gates ride R2a.
 invite (owner, membersManage)
   → invited (expires 7 j, resends 3)
       → accept (identity-proof or session; email must match) → active
-      → decline → row deleted
+      → decline → row deleted (a former member's re-invitation → revoked, 2026-10-14)
       → revoke (owner) → revoked
       → expire → invisible to the bridge; resend resets the clock
       → invite again once expired → invited, SAME row (2026-10-14)

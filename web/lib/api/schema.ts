@@ -1120,7 +1120,7 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                /** @description Declined (the invitation row is deleted) */
+                /** @description Declined — the invitation row is deleted, or, for a former member invited again, goes back to revoked (docs/design/backend-team-reinvite.md) */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -2173,7 +2173,7 @@ export interface paths {
                 };
             };
             responses: {
-                /** @description Declined (the invitation row is deleted) */
+                /** @description Declined — the invitation row is deleted, or, for a former member invited again, goes back to revoked (docs/design/backend-team-reinvite.md) */
                 200: {
                     headers: {
                         [name: string]: unknown;

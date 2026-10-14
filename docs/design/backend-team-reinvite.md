@@ -117,6 +117,20 @@ la **remplace par une ligne neuve sous le même identifiant** si elle est morte
 est vivante, et n'ajoute une ligne qu'en l'absence de toute ligne. Les deux
 jumeaux passent **le même contrat de tests** (§8).
 
+### 5.1 bis Refuser une réinvitation
+
+`decline` supprimait la ligne sans condition. Une ligne ranimée garde
+l'`account_id` de l'ancien membre : la supprimer lui retirait sa dernière
+ligne, `hasAnyMembership` passait à faux, et `GET /me/provider` lui créait un
+salon — le danger même que garder `account_id` devait écarter (relevé par la
+revue adverse). Désormais `decline` (les deux jumeaux) **supprime une ligne
+qui n'a jamais appartenu à un compte**, et **remet en « révoquée »** celle d'un
+ancien membre. Le propriétaire peut toujours le réinviter ; la ligne reste
+morte. Les deux énoncés Postgres ont des prédicats exclusifs
+(`account_id IS NULL` / `IS NOT NULL`, et `status = 'invited'`) : leur ordre
+est sans effet, et une acceptation qui s'intercale change le statut — aucun
+des deux ne s'applique. Le contrat d'API le dit (`/…/decline`).
+
 ### 5.2 Le service
 
 - **Clé** : `email.trim().toLowerCase()`. `isValidEmail` acceptait « ` a@b.co` »
@@ -147,8 +161,10 @@ jumeaux passent **le même contrat de tests** (§8).
   même règle que le serveur — une ligne par adresse, ranimée sur place.
 - **Web** : aucun changement de code — `EquipeClient` remplace déjà par
   identifiant. Le stub des tests e2e suit le serveur (ranime au lieu
-  d'ajouter), et le parcours complet de l'équipe se prolonge : révoquer, puis
-  réinviter la même adresse → une seule ligne, « Invitation envoyée ».
+  d'ajouter ; un refus d'ancien membre remet la ligne en « révoquée »), et le
+  parcours complet de l'équipe se prolonge : révoquer, puis réinviter la même
+  adresse → une seule ligne, « Invitation envoyée ».
+- Le mock de l'app suit aussi la règle du refus.
 
 ## 6. Sécurité
 
@@ -183,6 +199,17 @@ Une lecture de la liste du salon (déjà faite) ; une instruction d'écriture.
   `provider_members_provider_id_email_key` sur Postgres, une seconde ligne en
   mémoire ; « adresse neuve » sert de témoin. Les deux cas simultanés, vus
   rouges par mutation (les dépôts de `main` remis en place, puis restaurés).
+- **Refus** (contrat partagé + route) : refuser une invitation neuve la
+  supprime (témoin) ; refuser la réinvitation d'un ancien membre laisse la
+  ligne, « révoquée », même identifiant, même compte ; et `GET /me/provider`
+  répond toujours 403 `not_a_member` sans créer de salon. **Vu rouge** sur le
+  commit précédent : la route entrait dans `ensureSalon → createSalon` ; le
+  contrat (les deux jumeaux) ne trouvait plus de ligne. Le mock de l'app : vu
+  rouge (ligne supprimée).
+- **Places d'une ligne révoquée** (`team_service_test.dart`) : un salon plein
+  refuse de réinviter un membre révoqué (`seat_limit`), la ligne reste
+  révoquée, aucun e-mail. Ajouté sur relevé de la revue (aucun test ne tenait
+  la règle) ; **vu rouge par mutation** (`revived == null &&`).
 - **Service** (`team_service_test.dart`) : réinviter après révocation → 201,
   même identifiant, une ligne ; après expiration **avec le salon plein** → 201
   (pas de `seat_limit`) ; propriétaire révoqué → `member_exists` ; adresse
@@ -205,10 +232,24 @@ Une lecture de la liste du salon (déjà faite) ; une instruction d'écriture.
 ## 9. Mise en service
 
 PR → CI → fusion sur le mot du propriétaire → déploiement en production sur
-son « go ». Indépendant de #594 et #595 ; s'ils fusionnent d'abord, cette
-branche se remet à jour sur `main` (mêmes fichiers, lignes voisines). Retour
-arrière sans risque : aucune migration ; une image plus ancienne ne fait que
-retrouver le 500.
+son « go ». Retour arrière sans risque : aucune migration ; une image plus
+ancienne ne fait que retrouver le 500.
+
+**Avec #594, pas seulement une remise à jour** (relevé par la revue, la fusion
+simulée) : `invite` devient nullable ici, et #594 ajoute un test qui lit
+`.id` sur son résultat. Quelle que soit la PR fusionnée en second, elle doit :
+
+1. dans `backend/test/db/postgres_repositories_test.dart`, test « a salon
+   owner with a team is erased » de #594 : `mateInvite!.id` et
+   `staffInvite!.id` (la fusion passe sans conflit, puis ne compile pas) ;
+2. résoudre `salon_directory_test.dart` et `me_provider_test.dart` en
+   gardant les deux intentions — `activate(inv2!.id, …)` d'ici,
+   `revoke(inv2.id)` de #594 (de même pour `invited`) ;
+3. garder les deux imports en tête de `postgres_repositories_test.dart`.
+
+Sémantique : avec #594, supprimer le compte d'un ancien membre supprime aussi
+son invitation ranimée (`ON DELETE CASCADE` sur `account_id`) — voulu, la
+personne a effacé son compte. #595 ne touche pas à l'équipe.
 
 ## 10. Définition de « fait »
 

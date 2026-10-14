@@ -105,6 +105,25 @@ void main() {
       );
     });
 
+    test('a former member who DECLINES the re-invitation stays a revoked '
+        'row — it never disappears (as on the server)', () async {
+      final svc = MockProTeamService(subscriptions: liveOffer());
+      await svc.revokeMember('mem_manager1'); // seeded with an account
+      final again = await svc.inviteMember(
+        email: 'awa.manager@myweli.test',
+        role: TeamRole.reception,
+      );
+      svc.invitationEmail = 'awa.manager@myweli.test';
+
+      final declined = await svc.declineInvitation(again.data!.id);
+
+      expect(declined.success, isTrue);
+      final row = MockData.teamMembers.singleWhere(
+        (m) => m.id == 'mem_manager1',
+      );
+      expect(row.status, TeamMemberStatus.revoked);
+    });
+
     test('a REVOKED member is invited again on the same row, with the new '
         'role', () async {
       final svc = MockProTeamService(subscriptions: liveOffer());

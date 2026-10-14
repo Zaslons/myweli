@@ -1261,6 +1261,11 @@ createServer(async (req, res) => {
       member.status = 'active';
       member.acceptedAt = todayAt9;
       member.expiresAt = null;
+    } else if (member.accountId) {
+      // As on the server: a former member's re-invitation goes back to
+      // revoked instead of disappearing (docs/design/backend-team-reinvite.md).
+      member.status = 'revoked';
+      member.revokedAt = todayAt9;
     } else {
       teamMembers = teamMembers.filter((m) => m.id !== invitationId);
     }

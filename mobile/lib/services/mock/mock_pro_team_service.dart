@@ -292,7 +292,21 @@ class MockProTeamService implements ProTeamServiceInterface {
     final exists = cards?.any((c) => c.id == invitationId) ?? false;
     if (!exists) return _fail('not_found');
     cards!.removeWhere((c) => c.id == invitationId);
-    MockData.teamMembers.removeWhere((m) => m.id == invitationId);
+    // As on the server: a fresh invitation disappears; a former member's
+    // re-invitation (accountId kept) goes back to revoked — deleting it
+    // would leave that account with no row (backend-team-reinvite.md).
+    final i = MockData.teamMembers.indexWhere((m) => m.id == invitationId);
+    if (i != -1) {
+      final m = MockData.teamMembers[i];
+      if (m.accountId == null) {
+        MockData.teamMembers.removeAt(i);
+      } else {
+        MockData.teamMembers[i] = m.copyWith(
+          status: TeamMemberStatus.revoked,
+          revokedAt: AppClock.now(),
+        );
+      }
+    }
     return ApiResponse.success(true);
   }
 
