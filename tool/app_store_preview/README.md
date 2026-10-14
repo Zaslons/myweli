@@ -903,10 +903,11 @@ Two reviews of the first cut. What changed, and what did not:
   approved with; ending S2 once the snackbar has settled would make it
   about 4.5 s instead of 7.47 (estimated from the take's times, not built).
   The two « Yao K. » rows, the new one under « Nouveau », « Awa K. » done
-  at 08:00 today but « Dernière 13 oct. » on her card, and an « Arrivé »
-  already on Mariam T. before the swipe are in the takes: a retake fixes
-  them, the edit cannot. FCFA amounts are on screen for about 10 s and on
-  the framed poster.
+  at 08:00 today but « Dernière 13 oct. » on the client's card, and an
+  « Arrivé » already on Mariam T. before the swipe are in the takes: a
+  retake fixes them, the edit cannot. FCFA amounts are on screen for about
+  10 s and on both posters (S4's total and rows; S3's « 17 000 FCFA
+  Dépensé »).
 
 The cut, both frames:
 
