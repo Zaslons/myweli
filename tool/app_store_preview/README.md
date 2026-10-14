@@ -702,8 +702,10 @@ storyboard marked `"rehearsal": true`), `poster.png`, `contact-sheet.png`,
   and its end card are on `slow` (400 ms, `easeInOutCubic`, 11 frames): a
   dissolve of the whole frame is a full-screen transition, and SYSTEM.md §9
   picks by the Use column. On `base` (as built first) three of the five
-  frames of every join overprinted both captions — a cut that stutters
-  more than a dissolve. S2's declared dissolve stays on `base`: it
+  frames of every join overprinted both captions; on `slow` it is three of
+  eleven — the same 100 ms, inside a dissolve that reads as one (measured
+  on the decoded films: every join frame a blend of its two rested sides,
+  on the curve within 0.003). S2's declared dissolve stays on `base`: it
   cross-fades the app's content under one caption. Joins and dissolves are
   logged with their film times.
 - **The end card**: the mark, « MyWeli Pro » and the disclosure « Un compte
@@ -881,7 +883,7 @@ Two reviews of the first cut. What changed, and what did not:
   take5b on the reading that its rule protects the phone, not the block:
   the phone row is a tracking `fill` mask (`[114, 1758, 546, 57]` px, read
   on the take's last picture, the scroll band 354–2220 px above the bottom
-  bar), S5 is out by the storyboard's own rule (with it, 32.4 s). Built
+  bar), S5 is out by the storyboard's own rule (with it, 32.633 s). Built
   under `build/app-store/pro/preview/v2/alt-s6-take5b/framed/`: 862 frames,
   28.733 s, PASS — 25 checks. Its costs: the scroll ends on the « Contact »
   card (map, address, « WhatsApp », hours, a blank row where the phone
