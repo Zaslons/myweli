@@ -141,7 +141,11 @@ void main() {
 
     expect(find.text('Bienvenue, Salon Excellence'), findsOneWidget);
     expect(find.text('Configurer mon profil'), findsNothing);
-    expect(find.text('Revenus'), findsNothing); // stat cards AND grid card
+    // Two strings, because the money cards no longer say « Revenus »
+    // (provider-dashboard-stats.md §12): this line alone would stay green
+    // with the money cards on screen.
+    expect(find.text('Revenus prévus'), findsNothing); // the money cards
+    expect(find.text('Revenus'), findsNothing); // the « Analyses » card
     expect(find.text('Services'), findsOneWidget);
     expect(find.text('Employés'), findsOneWidget);
     expect(find.text('Disponibilité'), findsOneWidget);
@@ -159,6 +163,7 @@ void main() {
     expect(find.text('Clients'), findsOneWidget);
     expect(find.text('Services'), findsNothing);
     expect(find.text('Disponibilité'), findsNothing);
+    expect(find.text('Revenus prévus'), findsNothing);
     expect(find.text('Revenus'), findsNothing);
     expect(find.text('Avis'), findsNothing);
     // Whole sections are omitted when empty.
@@ -182,7 +187,13 @@ void main() {
 
     expect(find.text('Bienvenue, Salon Dash'), findsOneWidget);
     expect(find.text('Configurer mon profil'), findsOneWidget);
-    expect(find.text('Revenus'), findsWidgets); // stat cards + Analyses card
+    // The two money cards count confirmed + completed bookings, so they are
+    // « Revenus prévus »; « Revenus » alone is the « Analyses » card, whose
+    // screen counts completed bookings only (provider-dashboard-stats.md §12).
+    // Under one word the demo salon read 62 000 here and 15 000 there, for
+    // the same day.
+    expect(find.text('Revenus prévus'), findsNWidgets(2));
+    expect(find.text('Revenus'), findsOneWidget);
     expect(find.text('Services'), findsOneWidget);
   });
 
@@ -227,12 +238,11 @@ void main() {
       Rect cardOf(Finder inside) => tester.getRect(
         find.ancestor(of: inside, matching: find.byType(Container)).first,
       );
-      final revenus = find.text('Revenus');
+      final revenus = find.text('Revenus prévus');
       final rects = [
         cardOf(find.text('Rendez-vous')),
         cardOf(find.text('Demandes')),
-        // « Revenus » is also a section title lower down; the stat cards are
-        // the first two renderings.
+        // The two money cards share their subtitle; in order, today's first.
         if (cards == 4) ...[cardOf(revenus.at(0)), cardOf(revenus.at(1))],
       ];
       expect(rects, hasLength(cards));
@@ -262,7 +272,14 @@ void main() {
           expectNoMidWordBreak(tester, amount, '« $amount » — $what');
         }
       }
-      for (final label in ['En attente', 'Demandes']) {
+      // « Revenus prévus » is the longest subtitle the block measures — one
+      // word longer than the « Revenus » it replaced; it may wrap between its
+      // two words, never inside one.
+      for (final label in [
+        'En attente',
+        'Demandes',
+        if (cards == 4) 'Revenus prévus',
+      ]) {
         expectNoMidWordBreak(tester, label, '« $label » — $what');
       }
     });

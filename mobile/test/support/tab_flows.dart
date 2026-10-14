@@ -42,8 +42,9 @@ Future<void> openEarningsAll(WidgetTester tester) async {
   // so `pro_earnings_all.png` could have been baselined from an ERROR SCREEN
   // with nothing objecting.
   //
-  // « Total » is not a sufficient replacement either: the summary card renders
-  // it whether or not the transaction list has anything in it. Assert the rows.
+  // « Total réalisé » is not a sufficient replacement either: the summary
+  // card renders it whether or not the transaction list has anything in it.
+  // Assert the rows.
   expect(
     find.text('Aucune transaction'),
     findsNothing,

@@ -120,11 +120,16 @@ export function RevenusClient() {
         </div>
       ) : earnings ? (
         <>
+          {/* The label says what the total counts — completed bookings only,
+              where the home's « Revenus prévus … » also count confirmed ones
+              (provider-earnings.md §12). Never « encaissé »: MyWeli does not
+              see a payment. Same three lines as the app. */}
           <Card className="mt-l text-center">
-            <p className="text-bodyMedium text-textSecondary">Total</p>
+            <p className="text-bodyMedium text-textSecondary">Total réalisé</p>
             <p className="mt-xs text-headlineMedium font-semibold text-textPrimary">
               {formatFcfa(earnings.totalEarnings, currency)}
             </p>
+            <p className="text-bodySmall text-textTertiary">Rendez-vous terminés</p>
           </Card>
 
           {/* B7: the ledger as a DataTable — Date · Montant (right-aligned).
@@ -137,7 +142,7 @@ export function RevenusClient() {
               ]}
               emptyTitle="Aucune transaction"
               emptyIcon="depositReceived"
-              emptyDescription="Les encaissements de la période choisie apparaîtront ici."
+              emptyDescription="Les rendez-vous terminés de la période choisie apparaîtront ici."
               minWidthClassName="min-w-0"
               rows={earnings.transactions.map((t) => ({
                 key: t.id,

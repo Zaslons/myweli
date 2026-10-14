@@ -32,6 +32,16 @@ const STAFF: Membership = {
   artistId: 'a1',
   artistName: 'Awa',
 };
+const OWNER: Membership = {
+  role: 'owner',
+  capabilities: [...MANAGER.capabilities, 'finances.view', 'salon.publish'],
+};
+
+/// Any money label on the home. Rename-proof on purpose: the negative checks
+/// below were keyed on « Revenus ce mois », and the day the label became
+/// « Revenus prévus ce mois » they would have gone on passing with the money
+/// row on screen. The owner test proves this matches what the row renders.
+const MONEY_LABEL = /^Revenus/;
 
 function mockFetch(membership: Membership) {
   const calls: string[] = [];
@@ -53,9 +63,16 @@ function mockFetch(membership: Membership) {
         return new Response(JSON.stringify({ items: [] }), { status: 200 });
       }
       if (url.startsWith('/api/pro/dashboard')) {
-        // Field-gated: counts only (no revenue keys) for a manager.
+        // Field-gated server-side: the revenue keys only with finances.view.
+        const money = membership.capabilities.includes('finances.view');
         return new Response(
-          JSON.stringify({ todayAppointments: 1, pendingRequests: 1 }),
+          JSON.stringify({
+            todayAppointments: 1,
+            pendingRequests: 1,
+            ...(money
+              ? { todayRevenue: 62000, weekRevenue: 98000, monthRevenue: 410000 }
+              : {}),
+          }),
           { status: 200 },
         );
       }
@@ -89,8 +106,7 @@ describe('AujourdhuiClient — role shapes', () => {
     await waitFor(() =>
       expect(pending.previousElementSibling?.textContent).toBe('1'),
     );
-    expect(screen.queryByText('Revenus ce mois')).toBeNull();
-    expect(screen.queryByText('Revenus aujourd’hui')).toBeNull();
+    expect(screen.queryAllByText(MONEY_LABEL)).toHaveLength(0);
     // The dashboard call still runs (journal.view.all) …
     await waitFor(() =>
       expect(calls.some((u) => u.startsWith('/api/pro/dashboard'))).toBe(true),
@@ -111,9 +127,34 @@ describe('AujourdhuiClient — role shapes', () => {
       }),
     ).toBeTruthy();
     expect(screen.queryByText('Demandes en attente')).toBeNull();
-    expect(screen.queryByText('Revenus ce mois')).toBeNull();
+    expect(screen.queryAllByText(MONEY_LABEL)).toHaveLength(0);
     expect(screen.queryByText('Configurer mon profil')).toBeNull();
     expect(screen.getByText('Rendez-vous du jour')).toBeTruthy();
     expect(calls.some((u) => u.startsWith('/api/pro/dashboard'))).toBe(false);
+  });
+
+  /// provider-dashboard-stats.md §12: the home's money figures count
+  /// confirmed + completed bookings, while « Revenus » (/pro/revenus) counts
+  /// completed only — so the home says « prévus ». Same words as the app.
+  it('owner: the money row is « Revenus prévus … », each over its figure', async () => {
+    mockFetch(OWNER);
+    render(<AujourdhuiClient />);
+
+    const labels = [
+      ['Revenus prévus aujourd’hui', /62\s000/],
+      ['Revenus prévus cette semaine', /98\s000/],
+      ['Revenus prévus ce mois', /410\s000/],
+    ] as const;
+    for (const [label, figure] of labels) {
+      const el = await screen.findByText(label);
+      // The figure renders once the best-effort stats call lands ('—' before).
+      await waitFor(() =>
+        expect(el.previousElementSibling?.textContent).toMatch(figure),
+      );
+    }
+    // Exactly those three — no bare « Revenus … » left beside them.
+    expect(
+      screen.queryAllByText(MONEY_LABEL).map((e) => e.textContent),
+    ).toEqual(labels.map(([l]) => l));
   });
 });
