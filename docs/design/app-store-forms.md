@@ -529,7 +529,36 @@ n'y a pas d'autre source connue du code — UNVERIFIED qu'une copie existe
 ailleurs ; si le secret a été perdu avec le projet, il faut en frapper un
 nouveau et redéployer.
 
-**Verrou de suppression du compte démo — vérifié en production : pas encore.**
+**Verrou de suppression du compte démo — vérifié en production : le 2026-10-14.**
+
+*Le contrôle, tel qu'il a été fait.* Déploiement en production avec l'accord
+explicite du propriétaire, le 2026-10-14 à 01:06 UTC (run `38493842296`,
+image `3d88d0e` construite par la fusion de #585) ; la révision qui sert
+100 % du trafic, `myweli-api-00037-zzq`, porte l'empreinte
+`sha256:8f185f6b…` de cette image — la veille c'était `df5a1213…` ;
+`api.myweli.com/health` répond 200. Puis, à 01:09 UTC, **l'essai dans l'app**,
+sur le compte démo, dans le simulateur (build de débogage contre la
+production) : cinq rendez-vous confirmés à venir étaient en place — avec
+eux, même l'ancien code aurait refusé sans rien supprimer —, « Supprimer mon
+compte » → `SUPPRIMER` → « Supprimer définitivement », une fois. **L'app a
+répondu « Compte de démonstration — cette action est désactivée. »** ; le
+compte est resté connecté, « Accueil » et les cinq rendez-vous du jour sont
+inchangés. *Non vérifié en production* : qu'un compte ordinaire se supprime
+toujours (seuls les tests le montrent ; l'essai demande un compte neuf, donc
+le propriétaire — §10.1, point 6, de la spec).
+
+**Ce sont donc les notes amendées qu'il faut désormais coller.** App Store
+Connect contient encore les notes en vigueur : l'API a refusé de les
+remplacer (409 — elle exige le prénom, le nom, l'e-mail et le téléphone de
+contact dans la même requête, et ces coordonnées sont celles du
+propriétaire). Elles y entreront quand le propriétaire remplira ses
+coordonnées et le code démo dans le site — en collant le bloc amendé, ou en
+laissant l'assistant le faire par l'API juste après. D'ici là les notes en
+vigueur restent sans danger et inexactes sur deux phrases (« Two actions »,
+il y en a trois ; les rendez-vous à venir : le serveur répond la phrase
+démo). La Play Console est à mettre à jour de la même façon
+([play-store-forms.md](play-store-forms.md) §2).
+
 Cette ligne décide lequel des deux blocs ci-dessous se colle. Les notes
 amendées disent au relecteur que le compte démo ne peut pas être supprimé ;
 ce n'est vrai que lorsque `api.myweli.com` répond 403 `demo_account_locked`
@@ -1117,8 +1146,8 @@ corriger d'abord le rafraîchissement de « Ma journée »
 suppression du compte démo, lui, ne demande pas de build : l'app affiche déjà
 la phrase, il ne manque que le serveur
 ([demo-account-deletion-lock.md](demo-account-deletion-lock.md) — fusionné le
-2026-10-13 (#585), **pas déployé : la production supprime encore ce compte
-aujourd'hui**).
+2026-10-13 (#585), **déployé en production le 2026-10-14 et vu répondre dans
+l'app** — §8).
 
 **Build 581** (2026-10-14, nuit, depuis `main` à `322bd799`, après #587) :
 « Ma journée » affiche un rendez-vous dès qu'il est créé, sans geste
@@ -1462,7 +1491,7 @@ fait ; « site » : seulement dans le site App Store Connect.
 | URL marketing (facultative) | vide | **vide** — décision du propriétaire | — |
 | Copyright | vide | `2026 Sadr Eddine Daher` (§3) | — |
 | Publication de la version | **après approbation** | **manuelle** (`MANUAL`) | — |
-| Informations pour la revue | n'existaient pas | créées : connexion requise, identifiant `revue@myweli.test`, **les notes en vigueur du §8** (3 476 octets) | **propriétaire** : le mot de passe démo et les coordonnées de contact — vides, et l'assistant ne les écrit pas |
+| Informations pour la revue | n'existaient pas | créées : connexion requise, identifiant `revue@myweli.test`, **les notes en vigueur du §8** (3 476 octets) | **propriétaire** : le mot de passe démo et les coordonnées de contact — vides, et l'assistant ne les écrit pas — *2026-10-14 : le verrou du compte démo est vérifié en production ; ce sont **les notes amendées** du §8 qui doivent remplacer celles-ci, et l'API refuse de le faire sans les coordonnées de contact (§8)* |
 | Build rattaché | aucun | **581** (0.0.1), lu comme français (§11.5) — il remplace le 579 depuis le 2026-10-14 | les vérifications sur l'iPhone (§11.6) |
 | Aperçu vidéo (facultatif) | aucun | aucun | **validé par le propriétaire le 2026-10-13** ; l'outil est construit, une répétition a été montée et envoyée au propriétaire, la journée du 14 est préparée sur le salon démo — **la prise réelle ne peut se tourner que de jour** ([pro-app-preview.md](pro-app-preview.md) §5) ; à lui montrer avant tout envoi ; pour une première version, il part dans la même soumission |
 | « Soumettre pour la revue » | — | — | propriétaire |
@@ -1526,7 +1555,7 @@ vérifications sur l'iPhone du §11.6 sur le build retenu.
 | **Politique de confidentialité** : pas la phrase « nos sous-traitants offrent une protection équivalente » (5.1.1(i)) ; dit « Profil → Exporter mes données » là où l'app Pro dit « Mes données ». | web (texte légal) | Une phrase + aligner le libellé (`web/app/politique-confidentialite/page.tsx`). |
 | **Mode d'arrière-plan `remote-notification` inutilisé** (`UIBackgroundModes`) : le backend n'envoie jamais `content-available`. | code, optionnel | Rarement rejeté. Le retirer puis revérifier sur appareil qu'une notification arrive app tuée/en arrière-plan et que le tap route. |
 | ~~**Paysage non verrouillé sur iPhone** (`UISupportedInterfaceOrientations`, aucun `setPreferredOrientations`).~~ | ~~décision~~ | **Tranché et construit le 2026-10-13** : portrait seul sur iPhone, pour les deux apps (un seul `Info.plist`) ; l'iPad garde ses quatre orientations ([ios-language-and-orientation.md](ios-language-and-orientation.md)). Reste ouvert : **Android**, dont le manifeste ne fixe aucune orientation. |
-| **Identité démo non recréée si elle est perdue.** ~~La suppression n'est pas verrouillée ; les rendez-vous à venir de la remise à zéro n'existent qu'à J+1/J+2.~~ **Suppression verrouillée côté serveur, construit le 2026-10-13** — 403 `demo_account_locked` sur `DELETE /me/provider` ([demo-account-deletion-lock.md](demo-account-deletion-lock.md)) — **pas encore déployé en production** : tant qu'il ne l'est pas, un relecteur peut encore détruire le compte, et ce sont les notes en vigueur du §8 qui se collent, pas les notes amendées (la ligne datée du §8 en décide). | code + déploiement (accord du propriétaire) | Une fois déployé et vérifié (spec §10.1), il ne reste que la perte hors produit — une opération en base, une restauration. Dans ce cas : recréer par l'app + recapturer. Faire recréer l'identité par la remise à zéro n'est pas construit ; observé le 2026-10-13 sur les dépôts en mémoire : elle continue de restaurer le salon orphelin et ne recrée rien. |
+| **Identité démo non recréée si elle est perdue.** ~~La suppression n'est pas verrouillée ; les rendez-vous à venir de la remise à zéro n'existent qu'à J+1/J+2.~~ **Suppression verrouillée côté serveur, construit le 2026-10-13** — 403 `demo_account_locked` sur `DELETE /me/provider` ([demo-account-deletion-lock.md](demo-account-deletion-lock.md)) — **pas encore déployé en production** : tant qu'il ne l'est pas, un relecteur peut encore détruire le compte, et ce sont les notes en vigueur du §8 qui se collent, pas les notes amendées (la ligne datée du §8 en décide). | code + déploiement (accord du propriétaire) | Une fois déployé et vérifié (spec §10.1), il ne reste que la perte hors produit — une opération en base, une restauration. Dans ce cas : recréer par l'app + recapturer. Faire recréer l'identité par la remise à zéro n'est pas construit ; observé le 2026-10-13 sur les dépôts en mémoire : elle continue de restaurer le salon orphelin et ne recrée rien. **Déployé en production et vu répondre dans l'app le 2026-10-14** (§8). |
 | **`tool/release_build.sh` exige Secret Manager** (`MOBILE_SENTRY_DSN`). | owner | Aucun build tant que la facturation est fermée. Prendre le DSN dans la console Sentry et construire à la main enfreindrait la règle « personne ne manipule le DSN » : décision, pas défaut. |
 | **L'archive Xcode n'est pas rangée par saveur** : `build/ios/archive/Runner.xcarchive` est écrasée par le build suivant (celle du 2026-08-29 est aujourd'hui l'archive **consommateur**). | code | Contourné à la main au §11.2. Suite : que le script la renomme en `Runner-$FLAVOUR.xcarchive` et imprime les dSYM dans la commande Sentry. |
 | **5.1.1(ix) — KYC et compte développeur individuel.** Pièce d'identité + photo du visage, vendeur = personne physique, société non immatriculée (`infra/legal/registration-manifest.json`). | décision | Majeur maintenu par l'audit, appliqué de façon inégale par Apple. Atténué par la rubrique IDENTITY DOCUMENTS. Si rejet : masquer le KYC et les acomptes sur iOS jusqu'au compte Organisation. Type d'adhésion à confirmer (developer.apple.com → Membership). |

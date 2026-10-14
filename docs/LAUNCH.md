@@ -1154,8 +1154,14 @@ checking rather than assuming:
 > **attached to version 0.0.1 in place of 579**. The fix was seen working on
 > the simulator (a debug build of the same commit, against production): the
 > booking is in the list about 1.25 s after the tap, with no gesture.
-> **Still open**: the deletion lock's production deploy (#585 is merged,
-> nothing serves it); the App Preview's real take — the tool is built
+> **2026-10-14, 01:06 UTC — the deletion lock is in production**, deployed
+> with the owner's explicit go (image `3d88d0e`, revision
+> `myweli-api-00037-zzq` at 100 %), and seen answering in the app three
+> minutes later: « Compte de démonstration — cette action est désactivée. »
+> on the demo account, nothing deleted (app-store-forms.md §8). The amended
+> review notes are not in App Store Connect yet — the API wants the owner's
+> contact details in the same request.
+> **Still open**: the App Preview's real take — the tool is built
 > (#588), a rehearsal was cut, the day of 14 October is staged on the demo
 > salon, and the take itself can only be shot in daytime; the owner's steps
 > on the App Store Connect site; the device checks on 581.
