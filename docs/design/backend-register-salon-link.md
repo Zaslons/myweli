@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Construit le 2026-10-14** sur `fix/provider-register-salon-link` — **non fusionné, non déployé**. La fusion et le déploiement attendent chacun le mot du propriétaire. |
+| **Statut** | **Construit, fusionné (#595, `94875708`) et déployé en production le 2026-10-14** — révision `myweli-api-00039-mgq`, image `sha256:9497b203…` (= l'étiquette `9c0540a`), sur le « go » du propriétaire. **Non exercé en production** : le vérifier là-bas demanderait de créer un compte ; la preuve est le test de route vu rouge, et l'empreinte de l'image servie. La vérification en lecture seule d'une exploitation passée (§8) attend un outil d'accès à la base (non installé). |
 | **Module** | auth Pro · `access` (lignes d'équipe) |
 | **Origine** | La revue adverse du correctif de suppression ([backend-provider-deletion-member-fk.md](backend-provider-deletion-member-fk.md)), le 2026-10-14 : constat « bloquant », confirmé par un sceptique, puis relu ici avant d'écrire. |
 | **Régit** | `backend/routes/auth/provider/register.dart` · `docs/api/openapi.yaml` (`POST /auth/provider/register`) · `web/lib/api/schema.ts` (régénéré) |

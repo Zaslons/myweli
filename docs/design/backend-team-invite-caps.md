@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Construit le 2026-10-14** sur `fix/team-invite-caps` — non fusionné, non déployé. |
+| **Statut** | **Construit, fusionné (#597, `9c0540a0`) et déployé en production le 2026-10-14** — révision `myweli-api-00039-mgq`, image `sha256:9497b203…` (= l'étiquette `9c0540a`) ; `LIMIT_INVITE_SALON=20` et `LIMIT_INVITE_ADDRESS=3` lus sur la révision servie. Textes des alertes 92 et 94 réappliqués par `93-sync-runbooks.sh` (2 politiques modifiées, condition et canaux inchangés ; relecture : 11/11 conformes). |
 | **Module** | `access` (équipe, R2b) · sécurité (T37, T69) |
 | **Origine** | [backend-team-reinvite.md](backend-team-reinvite.md) §11 (questions 2 et 3), et deux constats de la cartographie qui a suivi (l'adresse démo, la course acceptation/révocation). Décision du propriétaire, le 2026-10-14 : « do as you think is better ». |
 | **Régit** | `backend/lib/src/security/identity_limits.dart` (politique) · `backend/lib/src/access/team_service.dart` (`invite`, `accept`) · `backend/lib/src/access/membership_repository.dart` + `backend/lib/src/db/postgres_membership_repository.dart` (`activate`) · `backend/lib/src/dependencies.dart` · `infra/gcp/service.yaml`, `service-staging.yaml` · `infra/gcp/92-identity-limit-alert.sh` (texte du runbook) |
