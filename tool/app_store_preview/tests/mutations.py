@@ -579,6 +579,8 @@ MANUAL = [
     ("scene_frames", "scene_frames.py", 'Image.new("RGBA", shape.size, c["primary"] + (255,))',
      'Image.new("RGBA", shape.size, c["textPrimary"] + (255,))',
      Q + "FullBleed.test_the_band_is_brand_black_with_white_text_under_the_status_bar"),
+    ("scene_frames", "scene_frames.py", "int(np.floor((y0 - self.y0) * f)),", "int(np.floor(y0 * f)),",
+     Q + "FullBleed.test_a_box_of_the_capture_maps_to_where_the_frame_shows_it"),
     ("scene_frames", "scene_frames.py", "                raw = masking.cover(raw, m.box, m.style, m.colour)",
      "                raw = raw", Q + "Compose.test_the_mask_covers_its_box_on_every_frame_of_its_picture"),
 

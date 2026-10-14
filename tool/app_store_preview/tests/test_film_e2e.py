@@ -13,10 +13,9 @@ builds left, and break the written film on purpose."""
 
 from __future__ import annotations
 
-import contextlib
 import copy
-import io
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -28,7 +27,6 @@ import numpy as np
 from PIL import Image
 
 import film
-import preview
 import scenes
 import swifttools
 import verify
@@ -142,16 +140,32 @@ class Built(unittest.TestCase):
         pictures masked — the region the build checked is white, the card
         under the words, and the original there has the words. (The join
         into S2 blends S1's masked picture with S2's, which has no mask:
-        verify holds those frames to its own rule.)"""
-        regions = read("framed", "masks.json")["regions"]
-        self.assertGreater(len(regions), 60)
-        inside = [reg for reg in regions if reg["frame"] < 238]
-        self.assertEqual({142, 143, 144, 145, 146} - {reg["frame"] for reg in inside}, set())   # the dissolve
-        for reg in inside[::5]:
-            with Image.open(BUILT["framed"] / reg["masked"]) as m, Image.open(BUILT["framed"] / reg["original"]) as o:
-                masked, original = np.asarray(m).astype(int), np.asarray(o).astype(int)
-            self.assertLess(np.abs(masked - 255).mean(), 12, reg)       # white, but for a touch point passing over
-            self.assertGreater(np.abs(original - masked).max(), 150, reg)
+        verify holds those frames to its own rule.) In both frames: the box
+        the build maps the mask to is where the words are — what verify's
+        check relies on and cannot see for itself."""
+        # in the full-bleed frame the caption band is over the top of the list: a line scrolled up
+        # under it is hidden by the band, in both compositions — only the rows below the band count
+        band_bottom = {"framed": 0, "full-bleed": int(re.search(r"S1 \(\d+, \d+, \d+, (\d+)\)",
+                                                                 (BUILT["full-bleed"] / "cuts.txt").read_text())[1])}
+        for frame in BUILT:
+            regions = read(frame, "masks.json")["regions"]
+            self.assertGreater(len(regions), 60, frame)
+            inside = [reg for reg in regions if reg["frame"] < 238]
+            self.assertEqual({142, 143, 144, 145, 146} - {reg["frame"] for reg in inside}, set())   # the dissolve
+            seen = 0
+            for reg in inside[::5]:
+                below = max(0, band_bottom[frame] + 1 - reg["box"][1])
+                if reg["box"][3] - reg["box"][1] - below < 8:
+                    continue
+                seen += 1
+                with Image.open(BUILT[frame] / reg["masked"]) as m, Image.open(BUILT[frame] / reg["original"]) as o:
+                    masked, original = np.asarray(m).astype(int)[below:], np.asarray(o).astype(int)[below:]
+                self.assertLess(np.abs(masked - 255).mean(), 12, (frame, reg))   # white, but for a passing touch point
+                self.assertGreater(np.abs(original - masked).max(), 150, (frame, reg))
+                # and the words are inside the box, not cut by it: the box's own rows of ink
+                ink = (original.mean(axis=2) < 100).any(axis=1)
+                self.assertGreater(int(ink.sum()), 3, (frame, reg))
+            self.assertGreater(seen, 5, frame)
 
     def test_the_frames_are_the_plan(self):
         names = read("framed", "frames/frames.json")["frames"]

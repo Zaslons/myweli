@@ -142,6 +142,17 @@ class FullBleed(unittest.TestCase):
         bright = np.nonzero(out[:, 20].mean(axis=1) > 192)[0]
         self.assertTrue(959 <= bright.mean() <= 960.5, bright)            # the middle row, in the middle
 
+    def test_a_box_of_the_capture_maps_to_where_the_frame_shows_it(self):
+        """What verify's masked-region check is told: the frame's box of a
+        mask must be where the frame shows what the mask covers."""
+        raw = Image.new("RGB", RAW, (255, 255, 255))
+        ImageDraw.Draw(raw).rectangle((300, 1000, 699, 1099), fill=(0, 0, 0))
+        out = np.asarray(self.fb.card(raw)).mean(axis=2)
+        rows, cols = np.nonzero(out < 128)
+        box = self.fb.capture_box((300, 1000, 700, 1100))
+        for got, want in zip((cols.min(), rows.min(), cols.max() + 1, rows.max() + 1), box):
+            self.assertLessEqual(abs(int(got) - want), 1, (box, got))
+
     def test_a_touch_point_lands_where_the_finger_did(self):
         """A point at (201, 437) pt — the screen's centre — darkens the
         frame's centre."""
