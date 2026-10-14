@@ -236,6 +236,8 @@ class Propose(unittest.TestCase):
         with self.assertRaises(Refusal) as cm:
             scenes.propose(sb, takes)
         self.assertEqual(cm.exception.code, "E_GRID")
+        # said in the storyboard's own terms, before any segment is made of it
+        self.assertIn("scene S1: 2.5–6.51 s is not a whole number of film frames", cm.exception.message)
         sb, takes = setup(doc_with(scenes__0__keep=[{"from_s": 2.5001, "to_s": 6.5}]))
         with self.assertRaises(Refusal) as cm:
             scenes.propose(sb, takes)
