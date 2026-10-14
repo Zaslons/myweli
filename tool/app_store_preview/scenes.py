@@ -119,6 +119,11 @@ def load(doc: dict, base: Path) -> dict:
     poster = film.get("poster") or {}
     _need(poster.get("scene") in ids and isinstance(poster.get("at_s"), (int, float)),
           "film.poster: the scene it is in and `at_s`, seconds into that scene")
+    for frame in FRAMES:
+        if frame in poster:
+            own = poster[frame]
+            _need(isinstance(own, dict) and own.get("scene") in ids and isinstance(own.get("at_s"), (int, float)),
+                  f"film.poster.{frame}: the poster of the {frame} frame — the scene it is in and `at_s`")
     sb["rehearsal"] = bool(sb.get("rehearsal"))
     return sb
 
@@ -407,8 +412,17 @@ def at_rest(tm: TakeMap, instant: int, tail: int) -> int | None:
     return near[-1] if near else None
 
 
-def poster_frame(sb: dict, plan: dict) -> int:
+def poster_of(sb: dict) -> dict:
+    """The poster of the film's frame: `film.poster`, or its own entry for
+    that frame (`film.poster["full-bleed"]`) — the band at the bottom of a
+    full-bleed scene cuts through the very picture that is the framed
+    film's poster (review, 2026-10-14)."""
     poster = sb["film"]["poster"]
+    return poster.get(sb["film"]["frame"], poster)
+
+
+def poster_frame(sb: dict, plan: dict) -> int:
+    poster = poster_of(sb)
     where = next(p for p in places(plan)[0] if p.id == poster["scene"])
     return where.first + whole_frames(poster["at_s"], sb["film"]["fps"], "film.poster.at_s")
 
@@ -517,9 +531,9 @@ def check(plan: dict, sb: dict, takes: dict[str, Take], diffs: dict | None = Non
     if poster != poster_frame(sb, plan):
         raise Refusal("E_POSTER", "the poster frame is not the storyboard's")
     home = next((p for p in placed if p.first <= poster < p.first + p.frames), None)
-    if home is None or home.id != sb["film"]["poster"]["scene"]:
+    if home is None or home.id != poster_of(sb)["scene"]:
         raise Refusal("E_POSTER", f"the poster frame ({poster / fps:.3f} s) is not in scene "
-                                  f"{sb['film']['poster']['scene']} — `at_s` is past its end, and a join or the end "
+                                  f"{poster_of(sb)['scene']} — `at_s` is past its end, and a join or the end "
                                   f"card is not a picture of the app")
     ps = next(s for s in plan["scenes"] if s["id"] == home.id)
     scene = next(s for s in sb["scenes"] if s["id"] == home.id)
@@ -663,8 +677,8 @@ def describe(plan: dict, sb: dict, takes: dict[str, Take], diffs: dict | None = 
           f"({c['characters'] * fps / max(c['frames'], 1):.1f} a second)")
     w("  the end card's title, « " + sb["end_card"]["title"] + " », is the name beside the mark: not counted")
     pf = plan["poster_frame"]
-    w(f"poster frame: film {pf / fps:.3f} s (frame {pf}), scene {sb['film']['poster']['scene']}, "
-      f"{sb['film']['poster']['at_s']:g} s into it")
+    w(f"poster frame: film {pf / fps:.3f} s (frame {pf}), scene {poster_of(sb)['scene']}, "
+      f"{poster_of(sb)['at_s']:g} s into it")
     return "\n".join(lines) + "\n"
 
 

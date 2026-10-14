@@ -16,11 +16,13 @@ cross-dissolves, the end card.
               frame's shape has no room for cropped equally top and bottom.
               The caption sits in a band of the brand black (`primary`), white
               text, over the capture — under the status bar, or above the home
-              indicator where a scene's touch is near the top. Its sizes are
-              the app's tokens: Poppins at `headlineSmall`, Inter at
-              `bodyLarge`, padding `spacingM`/`spacingSM`, margins
-              `spacingM`, corners `radiusXXL` (app_theme.dart,
-              text_styles.dart — read, not typed).
+              indicator where a scene's touch is near the top. The band is its
+              line boxes and padding (88 pt for two headline lines) and hugs
+              its longest line, centred. Its sizes are the app's tokens:
+              Poppins at `headlineSmall`, Inter at `bodyLarge`, padding
+              `spacingM`/`spacingSM`, at most `spacingM` from the edges,
+              corners `radiusXXL` (app_theme.dart, text_styles.dart — read,
+              not typed).
 
 Both share the end card (the mark, « MyWeli Pro », the sign-in disclosure,
 in the stills' type) and the dissolves: every pixel of the frame goes from
@@ -163,8 +165,8 @@ class FullBleed(frames.Composer):
         head_pt, head_lh = text_style("headlineSmall")
         floor_pt, _ = text_style("titleLarge")
         sub_pt, sub_lh = text_style("bodyLarge")
-        width = self.size[0] - 2 * margin * pt
-        column = width - 2 * pad_h * pt
+        widest = self.size[0] - 2 * margin * pt
+        column = widest - 2 * pad_h * pt
         size = head_pt
         while True:
             font = ImageFont.truetype(str(stills.POPPINS), round(size * pt))
@@ -181,17 +183,17 @@ class FullBleed(frames.Composer):
             frames.check_glyphs(t, font, f"scene {sid}'s headline")
         for t in scene["subline"]:
             frames.check_glyphs(t, sub, f"scene {sid}'s sub-line")
-        lines = [(t, font, head_lh * pt) for t in scene["headline"]] + [(t, sub, sub_lh * pt) for t in scene["subline"]]
-        probe = ImageDraw.Draw(Image.new("L", (8, 8)))
-        y, ink_top, ink_bottom, placed = 0.0, None, None, []
-        for t, f, lh in lines:
-            bbox = probe.textbbox((0, y), t, font=f, anchor="ma")
-            ink_top = bbox[1] if ink_top is None else min(ink_top, bbox[1])
-            ink_bottom = bbox[3] if ink_bottom is None else max(ink_bottom, bbox[3])
-            placed.append((t, f, y))
-            y += lh
-        height = (ink_bottom - ink_top) + 2 * pad_v * pt
-        x0 = margin * pt
+        # The band is the text's line boxes and its padding, as the app lays
+        # text out — not the ink of these particular words: every two-line
+        # headline gives the same band (2 x 32 + 2 x 12 = 88 pt), descenders
+        # or not. It hugs its longest line, centred: a caption, not a second
+        # full-width primary button (review, 2026-10-14). A headline set
+        # smaller keeps headlineSmall's proportion of line to size.
+        lines = ([(t, font, size * head_lh / head_pt * pt) for t in scene["headline"]]
+                 + [(t, sub, sub_lh * pt) for t in scene["subline"]])
+        height = sum(lh for _, _, lh in lines) + 2 * pad_v * pt
+        width = max(f.getlength(t) for t, f, _ in lines) + 2 * pad_h * pt
+        x0 = (self.size[0] - width) / 2
         if scene["band"] == "top":
             top = (self.sb2["band"]["top_pt"] - self.dy_pt) * pt
         else:
@@ -205,9 +207,14 @@ class FullBleed(frames.Composer):
         shape = shape.resize((box[2] - box[0], box[3] - box[1]), Image.LANCZOS)
         layer.paste(Image.new("RGBA", shape.size, c["primary"] + (255,)), box[:2], shape)
         d = ImageDraw.Draw(layer)
-        shift = top + pad_v * pt - ink_top
-        for t, f, yy in placed:
-            d.text((self.size[0] / 2, yy + shift), t, font=f, fill=c["secondary"] + (255,), anchor="ma")
+        y = top + pad_v * pt
+        for t, f, lh in lines:
+            # the baseline where Flutter's proportional leading puts it: the
+            # font's ascent and descent scaled to fill the line box
+            ascent, descent = f.getmetrics()
+            d.text((self.size[0] / 2, y + lh * ascent / (ascent + descent)), t, font=f,
+                   fill=c["secondary"] + (255,), anchor="ms")
+            y += lh
         self._bands[sid] = (layer, box)
         return layer, box
 

@@ -171,14 +171,43 @@ class FullBleed(unittest.TestCase):
         layer, box = self.fb.band(self.sb["scenes"][0])
         x0, y0, x1, y1 = self.fb.band_points(self.sb["scenes"][0])
         self.assertAlmostEqual(y0, 62, delta=0.5)                           # band.top_pt
-        self.assertAlmostEqual(x0, 16, delta=0.5)                           # spacingM
-        self.assertAlmostEqual(x1, 402 - 16, delta=0.5)
+        self.assertAlmostEqual(y1 - y0, 2 * 32 + 2 * 12, delta=0.5)         # two line boxes and spacingSM twice
+        self.assertAlmostEqual((x0 + x1) / 2, 201, delta=0.5)               # centred
         a = np.asarray(layer)
         self.assertEqual(tuple(a[box[1] + 5, (box[0] + box[2]) // 2]), (0, 0, 0, 255))   # primary, opaque
         inside = a[box[1]:box[3], box[0]:box[2]]
         self.assertGreater(int(((inside[..., :3] == 255).all(axis=2)).sum()), 300)       # secondary: the words
         self.assertEqual(int(a[:box[1] - 1, :, 3].max()), 0)                # nothing above it
         self.assertEqual(int(a[box[3] + 1:, :, 3].max()), 0)                # nor under it
+
+    def test_the_band_is_its_line_boxes_and_hugs_its_longest_line(self):
+        """Every two-line headline gives the same band, descenders or not
+        (review, 2026-10-14: sized by its ink, S5's « Fixez vos horaires, /
+        les créneaux suivent. » made a band 6 pt shorter than the others).
+        The band hugs its longest line with `spacingM` either side — not the
+        width of the app's primary button — and the words sit in it."""
+        heights, widths = [], []
+        for words in (["Une cliente arrive ?", "Un geste suffit."], ["Fixez vos horaires,", "les créneaux suivent."],
+                      ["Une", "deux"]):
+            sb = load(dict(SB2, scenes=[dict(SB2["scenes"][0], headline=words), SB2["scenes"][1]]))
+            fb = scene_frames.FullBleed(sb, RAW, POINTS)
+            layer, box = fb.band(sb["scenes"][0])
+            x0, y0, x1, y1 = fb.band_points(sb["scenes"][0])
+            heights.append(round(y1 - y0, 1))
+            widths.append(x1 - x0)
+            a = np.asarray(layer)
+            words_px = np.nonzero((a[..., :3] == 255).all(axis=2) & (a[..., 3] == 255))
+            ink = (words_px[1].min(), words_px[0].min(), words_px[1].max() + 1, words_px[0].max() + 1)
+            pad = 16 * fb.pt                                                # spacingM
+            # spacingM either side, give or take the glyphs' own side bearings
+            self.assertLessEqual(abs((ink[0] - box[0]) - pad), 8, (words, ink, box))
+            self.assertLessEqual(abs((box[2] - ink[2]) - pad), 8, (words, ink, box))
+            self.assertGreater(ink[1], box[1] + 12 * fb.pt * 0.9)           # under the top padding
+            self.assertLess(ink[3], box[3] - 4 * fb.pt)                     # inside the bottom line box
+        self.assertEqual(len(set(heights)), 1, heights)
+        self.assertAlmostEqual(heights[0], 88, delta=0.5)
+        self.assertLess(max(widths), 402 - 2 * 16 - 20)                      # well inside the button's width
+        self.assertLess(widths[2], widths[0] - 100)                         # short words, a short band
 
     def test_a_band_at_the_bottom_sits_above_the_home_indicator(self):
         sb = load(dict(SB2, scenes=[dict(SB2["scenes"][0], band="bottom"), SB2["scenes"][1]]))

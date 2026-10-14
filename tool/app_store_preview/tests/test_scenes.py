@@ -108,6 +108,8 @@ class Storyboard(unittest.TestCase):
             "times": (doc_with(scenes__0__keep=[{"from_s": 3.0, "to_s": 2.0}]), "a later `to_s`"),
             "ground": (doc_with(scenes__0__keep=[{"gesture": "tap-a", "ground": "grey"}]), "ground is light or dark"),
             "poster": (doc_with(film__poster={"scene": "S9", "at_s": 1.0}), "film.poster"),
+            "frame's poster": (doc_with(film__poster={"scene": "S1", "at_s": 1.0, "full-bleed": {"scene": "S9"}}),
+                               "film.poster.full-bleed: the poster of the full-bleed frame"),
             "paths": (doc_with(scenes__0__take=None), "`take` and `gestures` are paths"),
         }
         for name, (doc, words) in cases.items():
@@ -487,6 +489,25 @@ class Refusals(unittest.TestCase):
         p = copy.deepcopy(self.plan)
         p["poster_frame"] += 1
         refused(self, "E_POSTER", p, self.sb, self.takes, "not the storyboard's")
+
+    def test_a_frame_may_have_its_own_poster(self):
+        """The full-bleed frame's band can cut the framed film's poster: the
+        storyboard may give that frame its own. The framed film keeps
+        `film.poster`; each is held to every rule of a poster."""
+        doc = doc_with(film__poster={"scene": "S1", "at_s": 4.0, "full-bleed": {"scene": "S2", "at_s": 0.5}})
+        plan, sb, takes = planned(doc)
+        self.assertEqual(plan["poster_frame"], 120)                        # framed: S1, 4.0 s in
+        scenes.check(plan, sb, takes)
+        sb, takes = setup(doc)
+        sb["film"]["frame"] = "full-bleed"
+        plan = scenes.propose(sb, takes)
+        self.assertEqual(plan["poster_frame"], 231 + 15)                   # S2 starts on 231
+        bands = {"S1": [16, 62, 386, 150], "S2": [16, 62, 386, 150]}
+        scenes.check(plan, sb, takes, bands=bands)
+        self.assertIn("poster frame: film 8.200 s (frame 246), scene S2, 0.5 s into it", scenes.describe(plan, sb, takes))
+        sb["film"]["poster"]["full-bleed"]["at_s"] = 1.7                    # on the drag's touch point
+        plan = scenes.propose(sb, takes)
+        refused(self, "E_POSTER", plan, sb, takes, "scene S2) is not a picture at rest", bands=bands)
 
     def test_the_poster_is_not_in_a_dissolve(self):
         doc = copy.deepcopy(DISSOLVING)
