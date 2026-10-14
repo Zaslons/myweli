@@ -2,12 +2,12 @@
 
 | | |
 |---|---|
-| **Status** | **Approved by the owner on 2026-10-13** — the recommended film « in a style that follows MyWeli's », and the four decisions of §9: yes to all, as recommended. **Nothing is recorded, composed or uploaded yet.** Order of work: fix « Ma journée » (decision 2), build, then film that build; the owner watches the film before any upload. |
+| **Status** | **Approved by the owner on 2026-10-13** — the recommended film « in a style that follows MyWeli's », and the four decisions of §9: yes to all. **State on 2026-10-14**: the tool is built and reviewed (`tool/app_store_preview/`, #588); a **rehearsal** was cut and sent to the owner (a style proof — it makes no booking); the day of 14 October is staged on the demo salon; « Ma journée » is fixed and in build 581 (decision 2). **The real take is not shot**: it can only be recorded in daytime (§5). Nothing is uploaded. Three small choices came up in production (§9.1). |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-10-13 |
 | **PRD ref / phase** | Launch — store submission · V1 |
 | **Skills checked** | myweli-dev-guardrails · myweli-verification-guardrails |
-| **Will govern** | `tool/app_store_preview/` (to be written) · [app-store-forms.md](app-store-forms.md) §10, §13.1 · sits next to [pro-app-store-screenshots.md](pro-app-store-screenshots.md) |
+| **Governs** | `tool/app_store_preview/` (its README carries the editing rule in full and the runbook for the take) · [app-store-forms.md](app-store-forms.md) §10, §13.1 · sits next to [pro-app-store-screenshots.md](pro-app-store-screenshots.md) |
 
 ## 1. Goal & scope
 
@@ -75,9 +75,17 @@ app.
 | 0.0 – 3.6 s | « Ma journée », 09:41, a full day | a swipe on a confirmed booking, « Arrivé » — the card turns green | **« Une cliente arrive ? / Un geste suffit. »** |
 | 3.6 – 5.4 s | « Ma journée » → « Réservation » | a tap on « Libre — 10:45 »; the form opens with the date and the hour already set | **« Un créneau libre ? / Ajoutez un rendez-vous. »** |
 | 5.4 – 10.4 s | « Réservation » | « Coupe homme », « Client sans numéro », the name « Yao K. », scroll to the total | same headline · *« Pris au téléphone ou au comptoir, / même pour un client sans numéro. »* (still 4's sub-line, word for word) |
-| 10.4 – 12.0 s | « Réservation » → « Ma journée » | « Créer le rendez-vous »; the app's own loader, the form closes, « Rendez-vous créé » | unchanged |
-| 12.0 – 14.6 s | « Ma journée » | *only while the app behaves as today (§9, decision 2)*: a pull to refresh, and the free slot becomes « 10:45 Yao K. » | unchanged — never « Tirez pour actualiser » |
-| 14.6 – 21.0 s | « Ma journée », at rest | nothing moves: the arrival is green, the slot is taken | **« Votre agenda à jour, / geste après geste. »** · *« Un compte MyWeli Pro est nécessaire. »* |
+| about 12.6 – 14 s | « Réservation » → « Ma journée » | « Créer le rendez-vous »; the button's own loader, the form closes, **« 10:45 Yao K. » is in the day** and « Rendez-vous créé » shows | unchanged |
+| about 14 – 21.0 s | « Ma journée », at rest | nothing moves: the arrival is green, the slot is taken | **« Votre agenda à jour, / geste après geste. »** · *« Un compte MyWeli Pro est nécessaire. »* |
+
+*Amended 2026-10-14.* The pull-to-refresh shot is gone: decision 2 was
+taken and built, and on the fixed app the booking is in the day about 1.25 s
+after the tap (seen on the simulator). The film stays **21.0 s, 630 frames** —
+not the « about 19 seconds » first expected — because « Rendez-vous créé »
+stays its own three seconds inside a stretch that may not be cut, and the
+typing was found too slow to shorten further without cutting what the app
+does. The times above are the tool's, from the rehearsal; the real take sets
+the final ones. The poster stays at 18.0 s.
 
 - **Motion** uses the design system's tokens only (`motion.dart`): captions
   cross-fade in place; a touch point marks each tap and follows each drag.
@@ -106,6 +114,42 @@ the exact run to be read before staging): shoot before it, or stage again
 after it. Same kind of writes as the
 screenshot shoot of 12 October — and they need the owner's go again (§9).
 
+### 5.1 Staged on 2026-10-13 for Wednesday 14 October — and why the take needs daylight
+
+Five bookings were created that evening on « Maison Nala », each as « Client
+sans numéro » with a name and no phone number:
+
+| Time | Client | Service |
+|---|---|---|
+| 08:00 – 09:30 | Awa K. | Brushing + Soin Capillaire |
+| 09:45 – 10:45 | Mariam T. | Coupe femme — the card that is swiped to « Arrivé » |
+| 11:15 – 13:15 | Fatou B. | Tresses |
+| 14:00 – 14:45 | Aïcha D. | Brushing |
+| 15:30 – 16:00 | Koffi A. | Coupe homme |
+
+So « Ma journée » on the 14th shows « Libre — 10:45 » (30 minutes — exactly a
+« Coupe homme »), « Libre — 13:15 » and « Libre — 14:45 ». A free row exists
+only between two bookings at least 30 minutes apart.
+
+**The real take can only be shot on the day itself, while the slot is still
+ahead of the clock** — three rules of the app and the server, read in the code
+and seen on the live agenda:
+
+- the booking form refuses a time that is already past
+  (`pro_manual_booking_screen.dart`), so « Libre — 10:45 » must be booked
+  before 10:45 GMT — after that the 13:15 slot, then the 14:45 one, still work;
+- « Arrivé » is accepted only on the booking's own day in the salon's time
+  zone (`pro_appointment_service.dart`), and only on a confirmed booking;
+- on the evening of the 13th every booking of that day was already
+  « Terminé »: nothing to swipe.
+
+Before the take: mark the 08:00 booking « Terminé », and nothing else. If
+14 October is missed, another day is staged the evening before.
+
+Also left on the demo salon: one test booking, « Essai Fix », Saturday 17 at
+10:00 — created to see the fix of decision 2 work. Its dot shows in the week
+strip. The weekly reset removes it.
+
 ## 6. Security & privacy
 
 No secret is involved. The assistant never types the demo account's code; if
@@ -123,13 +167,19 @@ The upload goes to App Store Connect only on an explicit go.
    the clock). The assistant drives the simulator gesture by gesture; the
    fallback is the owner performing the 20 seconds by hand.
 4. **Conform**: decode with Swift/AVFoundation, resample to a constant
-   30 fps, scale the capture to the card. Idle time is removed **only between
-   pixel-identical frames**; nothing between a touch and the end of the app's
-   response is cut or retimed.
+   30 fps, scale the capture to the card. Idle time is removed **only where
+   nothing on screen changes — a blinking text caret alone counts as nothing
+   changing**, under measured thresholds; nothing between a touch and the end
+   of the app's response is cut or retimed, and the tool refuses an edit list
+   that does (*amended 2026-10-14: the first wording, « pixel-identical »,
+   was not achievable with a caret on screen*).
 5. **Compose** with Python and Pillow, reusing the tokens, the fonts, the mark,
    the mask and the shadow of `tool/app_store_screenshots/compose.py`.
 6. **Encode** with a Swift `AVAssetWriter`: H.264 High Level 4.0, exactly
    886 × 1920, 30 fps constant, about 11 Mbps, plus the silent AAC track.
+   *Measured on the rehearsal: 11 Mbps is the encoder's target; a mostly
+   still interface compresses to 2.3 Mbps on average (7.2 Mbps in its busiest
+   second). Whether Apple minds is unknown until processing.*
 7. **Verify the written file** — size, 630 frames of exactly 1/30 s, 21.000 s,
    profile and level, one enabled stereo track — and **watch the checker fail**
    on the raw take (wrong size, no audio). Decode the 18 s frame and compare it
@@ -171,6 +221,26 @@ d'Ivoire storefront.
 **On the day**: an iOS keyboard rising over the form, the 30-minute service in
 an exactly 30-minute gap, the date of the shoot visible in the form.
 
+**Learned from the rehearsal (2026-10-13/14)**:
+
+- **What the recorder gives**: H.264, 1206 × 2622, no audio, and a *variable*
+  frame rate — a frame only when the screen changes. The tool is built on
+  that.
+- **No software keyboard rose** in the simulator, so the name appears letter
+  by letter with nothing covering the form. That state is not guaranteed: it
+  is checked, without writing, just before the take.
+- **A screenshot taken during a recording makes the Dynamic Island blink out
+  for about 0.15 s** in the footage. No screenshot while recording.
+- **The creation took about 1.2 s** on the simulator; the tool accepts up to
+  about 1.5 s before the final hold becomes too short, and refuses the take
+  beyond.
+- **The status bar must be set as for the stills** — battery « discharging »,
+  which draws it black; « charged » draws it green.
+- Ticking « Client sans numéro » moves its row up about 20 points under the
+  finger; the runbook's coordinates allow for it.
+- The film was looked at frame by frame and measured, **not yet watched
+  playing by anyone but the owner**.
+
 ## 9. Decisions for the owner — all four taken on 2026-10-13: yes, as recommended
 
 1. **Stage the day and write to « Maison Nala » in production?** Five staged
@@ -192,6 +262,19 @@ an exactly 30-minute gap, the date of the shoot visible in the form.
    frozen once approved. *Recommended: as written.* Optional: move the agenda
    still from position 1 to 3, so the store does not open on two agendas in a
    row.
+
+### 9.1 Three choices that came up in production — the owner's, each with what is built today
+
+1. **The Dynamic Island.** The simulator's recording draws the black pill on
+   every frame; none of the eight stills has it (their captures happened to
+   come without). *As built: kept — the footage is not retouched.* Painting it
+   out would match the stills, and would be retouching captured footage.
+2. **When the last headline arrives.** *As built: about 0.6 s after the day
+   is back*, while « Rendez-vous créé » is still on screen — which keeps the
+   film at 21 s. Waiting for the snackbar to leave needs a 23-second film.
+3. **The prices in the stills.** Stills 3, 4, 5, 6 and 8 were shot before the
+   one-space price change (#579); the film shows prices as the app prints
+   them now. *As decided on 2026-10-13: the stills are not reshot.*
 
 ## 10. Definition of done
 
