@@ -1,16 +1,22 @@
 {
-  "_spec": "The film of scenes — « option 3 », chosen by the owner on 2026-10-14 after the benchmark; it replaces the single 21-s flow of storyboard.json (docs/design/pro-app-preview.md, version 1). Cut from the takes recorded on 2026-10-14 (README.md « Version 2 — the takes of 2026-10-14 »). Nothing here is final until the owner signs it off. Takes are relative to --takes (build/app-store/pro/preview/v2/takes): one folder a take, its take.mov and the gestures.json reformatted from the recorder's gestures.jsonl. README.md « Version 2 — scenes » says what every value does.",
-  "_never_shown": "sign-in; « Mon abonnement » or an offer; KYC (« Vérification »); a « Compte de démonstration — … » message; a system alert; a legible phone number; the « Prestations » price list as a scene. S6 never shows the salon's phone (it stays under the bottom bar: the scroll is 102 pt, the phone would need 138) — checked by eye on the frames, the tool cannot read it.",
+  "_spec": "The film of scenes — « option 3 », chosen by the owner on 2026-10-14 after the benchmark; it replaces the single 21-s flow of storyboard.json (docs/design/pro-app-preview.md, version 1). Cut from the takes recorded on 2026-10-14 (README.md « Version 2 — the takes of 2026-10-14 »), revised after two reviews the same day (« … after review »). Nothing here is final until the owner signs it off. Takes are relative to --takes (build/app-store/pro/preview/v2/takes): one folder a take, its take.mov and the gestures.json reformatted from the recorder's gestures.jsonl. README.md « Version 2 — scenes » says what every value does.",
+  "_never_shown": "sign-in; « Mon abonnement » or an offer; KYC (« Vérification »); a « Compte de démonstration — … » message; a system alert; a legible phone number; the « Prestations » price list as a scene. Checked by eye on the frames and by OCR of every decoded frame; the tool reads none of it.",
+  "_dropped": {
+    "S6": {
+      "what": "« Aperçu de ma page »: the salon's public page from its cover photo, a short scroll — « Votre page MyWeli, / prête pour vos clients. », budget 4 s; take5/take.mov, scroll-page, lead_in_s 1.0, rest_after_s 0.8",
+      "why": "Out of this cut until it has a take this storyboard allows. take5 was filmed on a build without CARTO_BASEMAPS_KEY: its map is CARTO's « API KEY REQUIRED » tile in every picture, which a store build cannot show (mobile/lib/core/config/app_config.dart; tool/release_build.sh refuses to build without the key). take5b, on a keyed build, scrolls 290 pt: through the « Contact » block and onto the salon's phone, where this scene asks for a short scroll that never reaches « Contact ». At rest on its cover the page already shows the « Contact » title and the top of the map (y 566–740 pt), so no take of this page from its cover avoids the block's title. To bring S6 back: a short scroll filmed on a keyed build — or the owner rules that the rule is about the phone, and take5b is cut with the phone masked."
+    }
+  },
   "version": 2,
   "film": {
-    "title": "MyWeli Pro — six gestes",
+    "title": "MyWeli Pro — cinq gestes",
     "fps": 30,
     "width": 886,
     "height": 1920,
     "frame": "framed",
-    "poster": {"scene": "S4", "at_s": 3.5}
+    "poster": {"scene": "S4", "at_s": 3.5, "full-bleed": {"scene": "S3", "at_s": 0.5}}
   },
-  "motion": {"join": "base", "dissolve": "base", "end_card": "base", "touch_in": "fast", "touch_out": "base"},
+  "motion": {"join": "slow", "dissolve": "base", "end_card": "slow", "touch_in": "fast", "touch_out": "base"},
   "touch": {
     "diameter_pt": 48,
     "ring_pt": 1.5,
@@ -22,7 +28,7 @@
   },
   "timing": {"rest_s": 0.5, "tail_s": 0.3, "key_tail_s": 0.1, "sync_tolerance_s": 0.5, "lead_in_s": 0.6},
   "band": {"top_pt": 62, "bottom_pt": 34},
-  "end_card": {"title": "MyWeli Pro", "line": "Un compte MyWeli Pro est nécessaire.", "duration_s": 2.2},
+  "end_card": {"title": "MyWeli Pro", "line": "Un compte MyWeli Pro est nécessaire.", "duration_s": 2.5},
   "scenes": [
     {
       "id": "S1",
@@ -67,21 +73,8 @@
       ]
     },
     {
-      "id": "S4",
-      "what": "« Revenus »: « Aujourd'hui » (15 000 FCFA) → « Semaine » (67 000) → « Mois » (77 000), the figures following",
-      "budget_s": 4.0,
-      "take": "take3/take.mov",
-      "gestures": "take3/gestures.json",
-      "headline": ["Suivez vos revenus,", "jour après jour."],
-      "band": "bottom",
-      "keep": [
-        {"gesture": "tap-semaine", "rest_after_s": 0.5},
-        {"gesture": "tap-mois", "rest_after_s": 0.8}
-      ]
-    },
-    {
       "id": "S5",
-      "what": "« Disponibilité »: one scroll through « Horaires de travail », Lundi to Dimanche — the first scene to drop if the film is over 30 s",
+      "what": "« Disponibilité »: one scroll through « Horaires de travail », Lundi to Dimanche — the first scene to drop if the film is over 30 s; before S4 so that the film ends on its liveliest figures, not on a still list",
       "budget_s": 3.0,
       "take": "take4/take.mov",
       "gestures": "take4/gestures.json",
@@ -91,15 +84,16 @@
       ]
     },
     {
-      "id": "S6",
-      "what": "« Aperçu de ma page »: the salon's public page from its cover photo, a 102-pt scroll — the salon's phone never comes out from under the bottom bar",
+      "id": "S4",
+      "what": "« Revenus »: « Aujourd'hui » (15 000 FCFA) → « Semaine » (67 000) → « Mois » (77 000), the figures following — the last scene, its « Mois » at rest the framed film's poster",
       "budget_s": 4.0,
-      "take": "take5/take.mov",
-      "gestures": "take5/gestures.json",
-      "headline": ["Votre page MyWeli,", "prête pour vos clients."],
-      "lead_in_s": 1.0,
+      "take": "take3/take.mov",
+      "gestures": "take3/gestures.json",
+      "headline": ["Suivez vos revenus,", "jour après jour."],
+      "band": "bottom",
       "keep": [
-        {"gesture": "scroll-page", "rest_after_s": 0.8}
+        {"gesture": "tap-semaine", "rest_after_s": 0.5},
+        {"gesture": "tap-mois", "rest_after_s": 0.8}
       ]
     }
   ]
