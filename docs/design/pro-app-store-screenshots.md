@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Done** (2026-10-13): 8 frames in both sizes. **Reordered the same day after build 569:** the Aperçu reshot on the top of the salon page (« Nouveau », no « Connectez-vous » card) and moved to position 2; the booking form and the client card (screens 4 and 5) reshot on 569 too. Owner sign-off and upload in App Store Connect pending |
+| **Status** | **Approved by the owner and uploaded to App Store Connect (2026-10-13, evening)** — 16 images, all processed, in order, checksums matching ([app-store-forms.md](app-store-forms.md) §13.1). **Done** (2026-10-13): 8 frames in both sizes. **Reordered the same day after build 569:** the Aperçu reshot on the top of the salon page (« Nouveau », no « Connectez-vous » card) and moved to position 2; the booking form and the client card (screens 4 and 5) reshot on 569 too. Owner sign-off and upload in App Store Connect pending |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-10-13 |
 | **PRD ref / phase** | Launch — store submission · V1 |
@@ -17,6 +17,7 @@ brand's type, for the App Store listing. Build 565's code is what is shown:
 `main` has had no `mobile/` commit since `75503243`, the commit 565 was built
 from.
 
+*(2026-10-13: the owner now wants an App Preview shown before these frames — proposed in [pro-app-preview.md](pro-app-preview.md), awaiting sign-off.)*
 Out of scope: an App Preview video, an iPad set, other locales (the app is
 French only and sold in Côte d'Ivoire only).
 

@@ -26,6 +26,12 @@ import '../../../widgets/common/myweli_date_time_picker.dart';
 /// docs/design/journal-j1b-app.md). Mobile-first equivalent of the web grid:
 /// a vertical day with artist filter, week strip, gap slots, and swipe /
 /// long-press quick actions. The salon's default appointment view.
+///
+/// **« Nouveau » and the « Libre » rows push the form and do not wait for
+/// it, on purpose.** A booking created there — or anywhere else — reaches this
+/// screen through its provider: `ProJournalProvider.bookingCreated`, told by
+/// `ProSalonScope` before the form closes
+/// (docs/design/pro-journal-shows-new-booking.md). Nothing here reloads.
 class ProJournalScreen extends StatefulWidget {
   const ProJournalScreen({super.key});
 

@@ -183,6 +183,11 @@ class _ProManualBookingScreenState extends State<ProManualBookingScreen> {
   }
 
   Future<void> _submit(double total) async {
+    // A creation is already in flight. `_canSubmit` disables the button from
+    // the next FRAME — which leaves one frame in which a second tap still
+    // reaches this method, sends a second request and pops twice
+    // (docs/design/pro-journal-shows-new-booking.md §2.4).
+    if (_submitting) return;
     if (_selected.isEmpty) {
       setState(() => _selectionError = 'Choisissez au moins un service.');
       return;

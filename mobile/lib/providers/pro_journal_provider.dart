@@ -15,7 +15,11 @@ import '../services/interfaces/pro_service_interface.dart';
 /// State for « Ma journée » — the pro-app day timeline (module `journal` J1b,
 /// docs/design/journal-j1b-app.md). One journal fetch per day; the artist
 /// filter, cancelled toggle and week-count dots are in-memory.
-class ProJournalProvider extends ChangeNotifier implements SalonScoped {
+///
+/// It is told when the salon creates a booking ([bookingCreated],
+/// docs/design/pro-journal-shows-new-booking.md): the day shows it at once,
+/// then reloads quietly, and the server's answer wins.
+class ProJournalProvider extends ChangeNotifier implements ShowsSalonBookings {
   final ProServiceInterface _service = serviceLocator.proService;
 
   String _providerId = '';
@@ -27,6 +31,14 @@ class ProJournalProvider extends ChangeNotifier implements SalonScoped {
 
   JournalDay? _day;
   JournalDay? get day => _day;
+
+  /// The salon day [_day] was loaded FOR — [keyOf] the selected date when its
+  /// answer was applied. It differs from the selected date only while a day
+  /// CHANGE is in flight: the date has moved and the rows on screen are still
+  /// the previous day's. Held here rather than read from `JournalDay.date`, so
+  /// that where a created booking goes never depends on how a server spells
+  /// a date. Read only while [_day] is non-null, and written with it.
+  String? _dayKey;
 
   // Abidjan seed; re-derived with the real salon tz on the first [load].
   DateTime _selectedDate = salonToday();
@@ -64,6 +76,18 @@ class ProJournalProvider extends ChangeNotifier implements SalonScoped {
   bool get isLoading => _isLoading;
   String? _error;
   String? get error => _error;
+
+  /// The sequence number of the newest day request — a loud [load], the quiet
+  /// reload after [bookingCreated], or a salon switch, which asks for nothing
+  /// but must outdate whatever is in flight.
+  ///
+  /// **Only the newest request's answer is applied** (the booking hub's
+  /// `slotsRequestId` idea). Without it an answer computed BEFORE a booking
+  /// existed — a pull-to-refresh still in flight, say — could land after the
+  /// booking was shown and erase it; and two quick day changes could leave
+  /// the slower day's rows under the faster day's date, which was already
+  /// possible before this field existed.
+  int _request = 0;
 
   /// Booking counts per 'YYYY-MM-DD' for the week strip's load dots.
   final Map<String, int> _weekCounts = {};
@@ -107,26 +131,30 @@ class ProJournalProvider extends ChangeNotifier implements SalonScoped {
       _selectedDate = _todayUtc();
     }
     _loadedOnce = true;
+    final request = ++_request;
     _isLoading = true;
     _error = null;
     notifyListeners();
     try {
       final r = await _service.getJournalDay(providerId, _selectedDate);
+      // Outdated: a newer request owns the state, `isLoading` included.
+      if (request != _request) return;
       if (r.success && r.data != null) {
         _day = r.data;
+        _dayKey = keyOf(_selectedDate);
       } else {
         _error = r.error ?? 'Erreur lors du chargement.';
         ProAccessGuard.report(r.code);
         _day = null;
       }
     } catch (e) {
+      if (request != _request) return;
       _error = e.toString();
       _day = null;
-    } finally {
-      _isLoading = false;
-      notifyListeners();
     }
-    unawaited(_prefetchWeekCounts());
+    _isLoading = false;
+    notifyListeners();
+    unawaited(_prefetchWeekCounts(request));
   }
 
   Future<void> refresh() => load(_providerId, date: _selectedDate);
@@ -174,9 +202,93 @@ class ProJournalProvider extends ChangeNotifier implements SalonScoped {
     }
   }
 
+  // ---- A booking was created (ShowsSalonBookings) --------------------------
+
+  /// The salon just created [booking] — from « Ma journée » or from anywhere
+  /// else in the app (docs/design/pro-journal-shows-new-booking.md §2).
+  ///
+  /// The booking is added to the DAY, not to the visible list: the artist
+  /// filter and « Voir les annulés » apply to it like to any other row, so a
+  /// booking the filter excludes is not shown.
+  @override
+  void bookingCreated(Appointment booking) {
+    // Never opened, or another salon's: there is no day here to keep right.
+    if (_providerId.isEmpty || booking.providerId != _providerId) return;
+
+    final key = keyOf(booking.appointmentDate);
+    final day = _day;
+    if (day != null && day.appointments.any((a) => a.id == booking.id)) {
+      return; // announced twice — it is already there, and already counted
+    }
+    // Its day's dot, at once — also when that day is not the displayed one.
+    // The week prefetch that follows the reload replaces it with the
+    // server's count.
+    _weekCounts[key] = (_weekCounts[key] ?? 0) + 1;
+
+    final selected = keyOf(_selectedDate);
+    if (day == null || _dayKey != selected) {
+      // No rows of the selected date to add one to: its first load is still
+      // in flight, it failed, or a day CHANGE is in flight and the rows on
+      // screen are another date's. Ask again the ordinary way — a request
+      // sent now is answered after the booking exists, and it outdates the
+      // one in flight. When it fails, the error state is the ordinary one:
+      // there is no day of that date to keep.
+      notifyListeners();
+      unawaited(load(_providerId, date: _selectedDate));
+      return;
+    }
+
+    if (key == selected) {
+      _day = JournalDay(
+        date: day.date,
+        hours: day.hours,
+        artists: day.artists,
+        appointments: [...day.appointments, booking],
+      );
+    }
+    // A refresh of this same day may be in flight — a pull-to-refresh, the
+    // refetch behind a swipe action, « Ma journée » reopened. Its answer may
+    // have been computed before the booking existed, and its FAILURE would
+    // drop the day: the quiet reload below outdates it. Nobody else will
+    // lower the flag it raised.
+    _isLoading = false;
+    notifyListeners();
+    unawaited(_reloadQuietly());
+  }
+
+  /// The reload behind a booking that is already on screen: no loader, no
+  /// error state, and the rows stay where they are while it runs.
+  ///
+  /// It never touches [_isLoading] or [_error], so the screen cannot fall back
+  /// to its loader or to « Une erreur est survenue » because of it. On success
+  /// the server's day REPLACES the local one — including when the booking is
+  /// no longer in it. On failure nothing changes.
+  Future<void> _reloadQuietly() async {
+    final request = ++_request;
+    try {
+      final r = await _service.getJournalDay(_providerId, _selectedDate);
+      if (request != _request) return;
+      if (!r.success || r.data == null) {
+        // Quiet for the salon, not for the access seam: a member revoked
+        // meanwhile is still signed out.
+        ProAccessGuard.report(r.code);
+        return;
+      }
+      _day = r.data;
+      notifyListeners();
+    } catch (_) {
+      return; // offline — the booking stays; the next visit reconciles
+    }
+    unawaited(_prefetchWeekCounts(request));
+  }
+
   /// One light 7-day prefetch (module decision §8.2) — fills the week-strip
   /// dots. Best-effort; never blocks the timeline.
-  Future<void> _prefetchWeekCounts() async {
+  ///
+  /// It belongs to the day request numbered [request] and stops as soon as a
+  /// newer one starts: otherwise a count asked for before a booking existed
+  /// could be written over the dot that booking just received.
+  Future<void> _prefetchWeekCounts(int request) async {
     try {
       final monday = _selectedDate.subtract(
         Duration(days: (_selectedDate.weekday - 1)),
@@ -189,6 +301,7 @@ class ProJournalProvider extends ChangeNotifier implements SalonScoped {
           continue;
         }
         final r = await _service.getJournalDay(_providerId, d);
+        if (request != _request) return;
         if (r.success && r.data != null) {
           _weekCounts[key] = r.data!.appointments.length;
         }
@@ -202,6 +315,7 @@ class ProJournalProvider extends ChangeNotifier implements SalonScoped {
   /// R6 multi-salons: drop the previous salon's data on a switch.
   @override
   void resetForSalonSwitch() {
+    _request++; // whatever is in flight was asked for the previous salon
     _providerId = '';
     _tz = null; // the next salon's tz arrives with its first load
     _loadedOnce = false;

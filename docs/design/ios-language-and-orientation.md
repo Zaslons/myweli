@@ -1,7 +1,9 @@
 # iOS — la langue que lit l'App Store, et le portrait sur iPhone — spec
 
-- **Statut** : construit le 2026-10-13 ; l'effet sur la fiche ne se lit
-  qu'après l'envoi d'un build (§8.3).
+- **Statut** : construit le 2026-10-13, **vérifié le même jour sur le build
+  579** : `buildBundles.locales = ["fr"]` (le 577, relu au même moment, dit
+  toujours `["en"]`) — §8.3. Reste à voir sur l'iPhone que l'app ne tourne
+  plus.
 - **Module** : mise en production (release) — projet iOS partagé par les deux
   apps.
 - **Décision** : le propriétaire, le 2026-10-13 (« tout comme recommandé ») —
