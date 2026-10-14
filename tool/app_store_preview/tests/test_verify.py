@@ -703,5 +703,71 @@ class EncoderRefuses(unittest.TestCase):
                                    picture=(884, 1920)))
 
 
+def busy_second(name: str, sigma: float) -> Path:
+    """A 15 s film's frames: a still screen, then one second of a fine
+    texture scrolling 8 px a frame — new detail in every frame, like the
+    cover photograph of the film of scenes' S6 (2026-10-14) — then still
+    again. `sigma`: how soft the texture is (0: pure noise)."""
+    folder = WORK / name
+    folder.mkdir(exist_ok=True)
+    rng = np.random.default_rng(7)
+    noise = rng.integers(0, 256, (1920 + 30 * 8 + 10, 886, 3), dtype=np.uint8)
+    texture = Image.fromarray(noise)
+    if sigma:
+        from PIL import ImageFilter
+        texture = texture.filter(ImageFilter.GaussianBlur(sigma))
+    Image.new("RGB", (886, 1920), (250, 250, 250)).save(folder / "plain.png")
+    for k in range(30):
+        texture.crop((0, 8 * k, 886, 8 * k + 1920)).save(folder / f"t{k:02d}.png")
+    names = ["plain.png"] * 210 + [f"t{k:02d}.png" for k in range(30)] + ["plain.png"] * 210
+    (folder / "frames.json").write_text(json.dumps({"fps": 30, "width": 886, "height": 1920, "frames": names}))
+    return folder
+
+
+def peak_bits(movie: Path) -> int:
+    """verify.py's own measure: the bits of the busiest 30 frames, from the
+    sample table it parses."""
+    sizes = next(t for t in mp4.read(movie)["tracks"] if t.get("handler") == "vide")["sizes"]
+    return max(sum(sizes[i:i + 30]) * 8 for i in range(len(sizes) - 29))
+
+
+class EncoderLevel(unittest.TestCase):
+    """High Profile Level 4.0 allows 25 Mbit a second. The quantiser ceiling
+    that keeps still text sharp spent 25.31 Mbit on one second of the film
+    of scenes (S6's photograph scrolling): `encode` measures what it wrote
+    and writes it again with the ceiling raised until it fits — or refuses."""
+
+    def test_a_second_over_the_level_is_written_again_with_a_higher_ceiling(self):
+        folder = busy_second("busy-soft", 0.6)          # measured here: 26.78 Mbit at 10, 21.67 at 12
+        r = swifttools.run("encode", folder, "--out", folder / "out.mp4", check=False)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertRegex(r.stdout, r"QP ceiling 10: busiest second 2[5-9]\.\d\d Mbit \(frames 2\d\d–2\d\d\), over "
+                                   r"Level 4\.0's 25\.00 — written again")
+        self.assertRegex(r.stdout, r"QP ceiling 1[2-8]: busiest second \d+\.\d\d Mbit \(frames \d+–\d+\), within")
+        self.assertLessEqual(peak_bits(folder / "out.mp4"), verify.PEAK_BPS)
+        checks = {c.name: c for c in verify.verify(folder / "out.mp4", SB, None)}
+        self.assertTrue(checks["video bit rate"].ok, checks["video bit rate"].seen)
+        self.assertEqual(sorted(p.name for p in folder.glob("out.mp4*")), ["out.mp4"])
+
+    def test_a_still_film_is_written_once_at_the_spec_s_ceiling(self):
+        folder = WORK / "still-once"
+        folder.mkdir(exist_ok=True)
+        Image.new("RGB", (886, 1920), (250, 250, 250)).save(folder / "f.png")
+        (folder / "frames.json").write_text(json.dumps(
+            {"fps": 30, "width": 886, "height": 1920, "frames": ["f.png"] * 450}))
+        r = swifttools.run("encode", folder, "--out", folder / "out.mp4", check=False)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(re.findall(r"QP ceiling (\d+)", r.stdout), ["10"])
+
+    def test_a_picture_too_busy_for_the_level_is_refused_and_leaves_nothing(self):
+        folder = busy_second("busy-noise", 0.0)         # measured here: 25.76 Mbit even at 20
+        (folder / "out.mp4").write_bytes(b"an earlier film")
+        r = swifttools.run("encode", folder, "--out", folder / "out.mp4", check=False)
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("QP ceiling 20: busiest second", r.stderr)
+        self.assertIn("over Level 4.0's 25.00 Mbit even at the last ceiling", r.stderr)
+        self.assertEqual(sorted(p.name for p in folder.glob("out.mp4*")), [])
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -188,7 +188,7 @@ def build(a: argparse.Namespace) -> None:
 
     print(f"7/9 encode   {name}")
     movie = out / name
-    print("    " + swifttools.run("encode", frames_dir, "--out", movie).stdout.strip())
+    print("    " + swifttools.run("encode", frames_dir, "--out", movie).stdout.strip().replace("\n", "\n    "))
 
     print("8/9 sheet    poster.png, contact-sheet.png")
     fsb = film_storyboard(plan)

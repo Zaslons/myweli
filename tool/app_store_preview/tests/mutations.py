@@ -103,6 +103,7 @@ F = "tests.test_frames."
 B = "tests.test_brand."
 P = "tests.test_mp4."
 X = "tests.test_verify.EncoderRefuses."
+XL = "tests.test_verify.EncoderLevel."
 C = "tests.test_cli."
 K = "tests.test_track."
 E2E = "tests.test_e2e"
@@ -719,6 +720,25 @@ MANUAL = [
      V + "test_sound_that_is_not_silence"),
     ("swift", "swift/Encode.swift", 'guard outPath.hasSuffix(".mp4") else { die("the output must be a .mp4") }', "",
      X + "test_an_output_that_is_not_an_mp4_is_refused_and_left_alone"),
+    # Level 4.0's 25 Mbit a second: what was written is measured, and written again with a higher
+    # quantiser ceiling while it is over (2026-10-14: the film of scenes' S6 spent 25.31 Mbit)
+    ("swift", "swift/Encode.swift", "      if peak.bits <= levelPeakBits {\n", "      if true {\n",
+     XL + "test_a_second_over_the_level_is_written_again_with_a_higher_ceiling"),
+    ("swift", "swift/Encode.swift", "let levelPeakBits = 25_000_000", "let levelPeakBits = 30_000_000",
+     XL + "test_a_second_over_the_level_is_written_again_with_a_higher_ceiling"),
+    ("swift", "swift/Encode.swift", "let qpCeilingLast = 20", "let qpCeilingLast = 10",
+     XL + "test_a_second_over_the_level_is_written_again_with_a_higher_ceiling"),
+    ("swift", "swift/Encode.swift", "Array(stride(from: first, through: qpCeilingLast, by: 2))", "[first]",
+     XL + "test_a_second_over_the_level_is_written_again_with_a_higher_ceiling"),
+    ("swift", "swift/Encode.swift", "    if i >= frames { window -= sizes[i - frames] }\n", "",
+     XL + "test_a_second_over_the_level_is_written_again_with_a_higher_ceiling"),
+    ("swift", "swift/Encode.swift", "      guard ceiling < qpCeilingLast else {", "      guard true else {",
+     XL + "test_a_picture_too_busy_for_the_level_is_refused_and_leaves_nothing"),
+    ("swift", "swift/Encode.swift",
+     "      // written whole, but not yet accepted: a refusal below removes it\n      unfinished += [outPath]\n", "",
+     XL + "test_a_picture_too_busy_for_the_level_is_refused_and_leaves_nothing"),
+    ("swift", "swift/Encode.swift", "    for ceiling in qpCeilings(from: spec.maxFrameQP ?? qpCeilingLast) {",
+     "    for ceiling in qpCeilings(from: 12) {", XL + "test_a_still_film_is_written_once_at_the_spec_s_ceiling"),
     ("swift", "swift/Common.swift", '    for k in flags.keys where !used.contains(k) { die("unknown flag --\\(k)") }', "",
      X + "test_there_is_nothing_to_configure"),
     ("swift", "swift/Conform.swift", "      guard ((b - a) * Int64(fps)) % scale == 0 else {", "      guard true else {",

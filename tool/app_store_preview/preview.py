@@ -253,7 +253,7 @@ def cmd_build(a: argparse.Namespace) -> None:
 
     print(f"7/9 encode   {name}")
     movie = out / name
-    print("    " + swifttools.run("encode", out / "frames", "--out", movie).stdout.strip())
+    print("    " + swifttools.run("encode", out / "frames", "--out", movie).stdout.strip().replace("\n", "\n    "))
 
     print("8/9 sheet    poster.png, contact-sheet.png")
     names = load(out / "frames" / "frames.json")["frames"]
