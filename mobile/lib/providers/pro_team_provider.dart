@@ -75,8 +75,16 @@ class ProTeamProvider extends ChangeNotifier implements SalonScoped {
         artistId: artistId,
       );
       if (res.success && res.data != null) {
-        _members = _sorted([..._members, res.data!]);
-        return res.data;
+        // Replace by id: inviting a revoked or expired address again returns
+        // the SAME row (docs/design/backend-team-reinvite.md), which an
+        // append would show twice until the next reload.
+        final row = res.data!;
+        _members = _sorted([
+          for (final m in _members)
+            if (m.id != row.id) m,
+          row,
+        ]);
+        return row;
       }
       _inviteError = res.error ?? 'Invitation impossible.';
       _inviteErrorCode = res.code;

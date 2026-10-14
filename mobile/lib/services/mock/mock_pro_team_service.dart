@@ -89,13 +89,20 @@ class MockProTeamService implements ProTeamServiceInterface {
     }
 
     final providerId = await _providerId();
-    final duplicate = MockData.teamMembers.any(
-      (m) =>
-          m.providerId == providerId &&
-          m.email == key &&
-          (m.status == TeamMemberStatus.active || (m.isPending && !m.expired)),
+    // One row per (salon, address), as on the server (UNIQUE (provider_id,
+    // email)): an owner's row, an active member or a still-valid invitation
+    // holds the address; a revoked row or an expired invitation is invited
+    // again ON THE SAME ROW (docs/design/backend-team-reinvite.md).
+    final at = MockData.teamMembers.indexWhere(
+      (m) => m.providerId == providerId && m.email == key,
     );
-    if (duplicate) return _fail('member_exists');
+    final current = at == -1 ? null : MockData.teamMembers[at];
+    if (current != null &&
+        (current.isOwner ||
+            current.status == TeamMemberStatus.active ||
+            (current.isPending && !current.expired))) {
+      return _fail('member_exists');
+    }
 
     // The R2a gates: a live offer + a free seat (per salon — R6).
     final subs = _subscriptions;
@@ -115,18 +122,24 @@ class MockProTeamService implements ProTeamServiceInterface {
         MockData.providers.where((p) => p.id == providerId).firstOrNull?.name ??
         'Salon Excellence';
     final member = TeamMember(
-      id: 'mem_${AppClock.now().millisecondsSinceEpoch}',
+      id: current?.id ?? 'mem_${AppClock.now().millisecondsSinceEpoch}',
       providerId: providerId,
       email: key,
       role: role,
       status: TeamMemberStatus.invited,
       invitedAt: AppClock.now(),
+      accountId: current?.accountId,
       artistId: role == TeamRole.staff ? artistId : null,
       artistName: artistName,
       expiresAt: AppClock.now().add(const Duration(days: 7)),
       resendsLeft: 3,
     );
-    MockData.teamMembers.add(member);
+    if (current != null) {
+      MockData.teamMembers[at] = member;
+      _removeInvitationCard(current);
+    } else {
+      MockData.teamMembers.add(member);
+    }
     (MockData.teamInvitations[key] ??= []).add(
       TeamInvitation(
         id: member.id,
@@ -279,7 +292,21 @@ class MockProTeamService implements ProTeamServiceInterface {
     final exists = cards?.any((c) => c.id == invitationId) ?? false;
     if (!exists) return _fail('not_found');
     cards!.removeWhere((c) => c.id == invitationId);
-    MockData.teamMembers.removeWhere((m) => m.id == invitationId);
+    // As on the server: a fresh invitation disappears; a former member's
+    // re-invitation (accountId kept) goes back to revoked — deleting it
+    // would leave that account with no row (backend-team-reinvite.md).
+    final i = MockData.teamMembers.indexWhere((m) => m.id == invitationId);
+    if (i != -1) {
+      final m = MockData.teamMembers[i];
+      if (m.accountId == null) {
+        MockData.teamMembers.removeAt(i);
+      } else {
+        MockData.teamMembers[i] = m.copyWith(
+          status: TeamMemberStatus.revoked,
+          revokedAt: AppClock.now(),
+        );
+      }
+    }
     return ApiResponse.success(true);
   }
 

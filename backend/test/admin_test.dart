@@ -211,7 +211,7 @@ void main() {
         role: 'manager',
         expiresAt: DateTime.now().add(const Duration(days: 7)),
       );
-      await members.activate(inv.id, accountId);
+      await members.activate(inv!.id, accountId);
 
       await svc.approve('admin_1', accountId);
       final linked = (await providers.accountById(accountId))!.providerId!;

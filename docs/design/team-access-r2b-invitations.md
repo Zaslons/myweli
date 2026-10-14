@@ -22,11 +22,22 @@ audited; seat/offer gates ride R2a.
 invite (owner, membersManage)
   → invited (expires 7 j, resends 3)
       → accept (identity-proof or session; email must match) → active
-      → decline → row deleted
+      → decline → row deleted (a former member's re-invitation → revoked, 2026-10-14)
       → revoke (owner) → revoked
       → expire → invisible to the bridge; resend resets the clock
+      → invite again once expired → invited, SAME row (2026-10-14)
 active → revoke → revoked (immediate — per-request resolution)
+revoked → invite again (owner) → invited, SAME row (2026-10-14)
 ```
+
+*2026-10-14 — one row per (salon, email), as the schema says
+(`UNIQUE (provider_id, email)`): a revoked row or an expired invitation is
+invited again **in place** — same id; role, employee link, window and resend
+budget start over; `account_id` is kept until `activate` rewrites it. Until
+then the code let those rows through to a plain `INSERT`, which answered 500.
+An owner's row, in any state, is never re-invited (`member_exists`); an
+expired invitation is re-invited even in a full salon (it already holds its
+seat). [backend-team-reinvite.md](backend-team-reinvite.md).*
 
 Gates on invite: role ∈ {manager, reception, staff} (`invalid_role`) · staff ⇒
 salon-owned artist (`artist_required`/`artist_not_found`) · duplicate → 409

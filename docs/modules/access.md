@@ -158,14 +158,14 @@ stored as **sparse deltas**, never a materialized full list.
 CREATE TABLE provider_members (
   id            TEXT PRIMARY KEY,
   provider_id   TEXT NOT NULL REFERENCES providers(id),
-  account_id    TEXT REFERENCES provider_accounts(id), -- NULL while invited
+  account_id    TEXT REFERENCES provider_accounts(id), -- NULL until first accepted; kept when a revoked row is invited again (backend-team-reinvite.md)
   email         TEXT NOT NULL,                -- invitation key, lowercased
   role          TEXT NOT NULL,                -- 'owner' | 'manager' | 'staff'
   artist_id     TEXT REFERENCES artists(id),  -- REQUIRED when role='staff'
   status        TEXT NOT NULL,                -- 'invited' | 'active' | 'revoked'
   grants        JSONB NOT NULL DEFAULT '[]',  -- V3 overrides (sparse)
   denies        JSONB NOT NULL DEFAULT '[]',
-  invited_by    TEXT,                         -- member id of the inviter
+  invited_by    TEXT,                         -- ACCOUNT id of the inviter (as built)
   invited_at    TIMESTAMPTZ NOT NULL,
   accepted_at   TIMESTAMPTZ,
   revoked_at    TIMESTAMPTZ,
