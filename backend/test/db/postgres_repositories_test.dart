@@ -2004,5 +2004,45 @@ WHERE c.contype = 'f'
         await pool.execute('DROP TABLE IF EXISTS deletion_blocker_probe');
       }
     });
+
+    test('a deletion that fails at the identity keeps the team rows — nothing '
+        'of the account is lost before the last step', () async {
+      // The rows go WITH the identity (0038's cascade, inside its
+      // transaction), never before it: deleted first, a failed identity
+      // delete lost them for good, and in between an account with no
+      // membership at all let GET /me/provider auto-create a salon for a
+      // staff account (adversarial review of 959c9634).
+      final o = await owner('del-order@test.pro', '+2250500001005');
+      Future<int> rows() => count(
+        'SELECT count(*)::int FROM provider_members WHERE account_id = @a',
+        {'a': o.id},
+      );
+      expect(await rows(), 1, reason: 'the control: the owner row exists');
+
+      await pool.execute(
+        'CREATE TABLE deletion_blocker_probe '
+        '(account_id text REFERENCES provider_users(id))',
+      );
+      try {
+        await pool.execute(
+          Sql.named('INSERT INTO deletion_blocker_probe VALUES (@a)'),
+          parameters: {'a': o.id},
+        );
+
+        await expectLater(
+          service().deleteAccount(o.id),
+          throwsA(isA<ServerException>()),
+        );
+
+        expect(await authRepo().accountById(o.id), isNotNull);
+        expect(
+          await rows(),
+          1,
+          reason: 'the team row was deleted before the identity delete failed',
+        );
+      } finally {
+        await pool.execute('DROP TABLE IF EXISTS deletion_blocker_probe');
+      }
+    });
   });
 }

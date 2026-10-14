@@ -135,15 +135,23 @@ class ProviderAccountService {
     await _devices?.deleteForUser(accountId);
     await _notifications?.deleteForUser(accountId);
 
+    final ok = await _auth.deleteAccount(accountId);
+    if (!ok) return (ok: false, error: 'forbidden');
+
     // Module `access` (drift §2.3-2): the identity's memberships die with it
     // — a member row must never outlive its account. DELETED, not revoked:
     // a revoked row keeps `account_id`, a foreign key to the identity, and
     // until 0038 that key had no ON DELETE action — so the identity delete
-    // below answered 500 to every salon owner in production (2026-10-14).
+    // answered 500 to every salon owner in production (2026-10-14).
+    //
+    // AFTER the identity, never before. In Postgres 0038's cascade has
+    // already removed the rows inside the identity's transaction, and this
+    // finds none; it is what the in-memory twin, which has no foreign keys,
+    // needs. Deleted first, a failed identity delete lost them for good, and
+    // in between an account with no membership let GET /me/provider
+    // auto-create a salon for a staff account.
     // docs/design/backend-provider-deletion-member-fk.md
     await _memberships.deleteAllForAccount(accountId);
-
-    final ok = await _auth.deleteAccount(accountId);
-    return ok ? (ok: true, error: null) : (ok: false, error: 'forbidden');
+    return (ok: true, error: null);
   }
 }

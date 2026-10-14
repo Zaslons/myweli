@@ -71,7 +71,7 @@ Inchangé : `DELETE /me/provider` → 204 · 403 `demo_account_locked` /
 | # | Où | Avant | Après |
 |---|---|---|---|
 | a | Migration **0038** `0038_provider_members_account_cascade` | `account_id text REFERENCES provider_users(id)` (aucune action) | même clé, **`ON DELETE CASCADE`** — comme `provider_refresh_tokens` depuis toujours |
-| b | `ProviderAccountService` + `MembershipRepository` | `revokeAllForAccount` (UPDATE, la ligne reste) | **`deleteAllForAccount`** (DELETE ; `removeWhere` dans le jumeau en mémoire) |
+| b | `ProviderAccountService` + `MembershipRepository` | `revokeAllForAccount` (UPDATE, la ligne reste) | **`deleteAllForAccount`** (DELETE ; `removeWhere` dans le jumeau en mémoire), appelé **après** la suppression de l'identité |
 | c | `PostgresProviderAuthRepository.deleteAccount` | quatre `DELETE` l'un après l'autre | les mêmes quatre **dans une transaction** |
 
 **Pourquoi (a) et (b) ensemble.** (a) est la cause : le schéma dit enfin ce
@@ -82,14 +82,24 @@ mémoire les garderait révoquées — deux vérités, et des tests qui affirmen
 mauvaise. Supprimer plutôt que révoquer, c'est aussi ne pas garder l'adresse
 d'une personne qui a demandé l'effacement.
 
+**Après l'identité, jamais avant** (relevé par la revue adverse du premier
+commit, `959c9634`). En Postgres, la cascade de (a) supprime les lignes **dans
+la transaction de l'identité** ; (b) vient ensuite et n'en trouve plus — il
+sert au jumeau en mémoire. Appelé avant, (b) ouvrait deux défauts : une
+suppression de l'identité qui échoue perdait les lignes pour de bon (le lien
+scalaire ne recrée que la ligne « owner » du salon lié — pas celle d'un second
+salon possédé, pas une place de « staff ») ; et dans l'intervalle, un compte
+encore vivant sans aucune ligne d'équipe faisait créer un salon par
+`GET /me/provider` (l'auto-provisionnement ne se retient que si le compte a au
+moins une ligne) — un salon orphelin pour un compte de « staff ».
+
 **Pourquoi (c).** Une suppression qui échoue ne doit rien laisser à moitié.
-(c) couvre ce que le dépôt fait lui-même ; les étapes du service qui précèdent
-(dépublier, KYC, appareils, notifications, lignes d'équipe) restent hors
-transaction — elles traversent plusieurs dépôts et le stockage. Ce qui rend ce
-reste acceptable : chacune est idempotente et voulue par l'utilisateur, et un
-compte resté sans ligne d'équipe **se répare** à la lecture suivante
-(`memberOf` → `ensureOwner` recrée une ligne « owner » active pour le salon
-lié) ; l'utilisateur peut alors relancer la suppression.
+(c) couvre l'identité, ses sessions, ses codes et — par la cascade — ses
+lignes d'équipe. Restent hors transaction les étapes du service qui précèdent
+(dépublier, KYC, appareils, notifications) : elles traversent plusieurs dépôts
+et le stockage. Ce qui rend ce reste acceptable : chacune est idempotente et
+voulue par l'utilisateur, et un échec laisse un compte entier — identité,
+sessions, équipe — qui peut relancer la suppression.
 
 **La migration.** `DROP CONSTRAINT IF EXISTS provider_members_account_id_fkey`
 puis `ADD CONSTRAINT … ON DELETE CASCADE`, dans la transaction unique de la
@@ -136,6 +146,10 @@ Dans `backend/test/db/postgres_repositories_test.dart` (le fichier qui vide
    supprimée dans le test) retient l'identité ; le `DELETE` lève, et les
    sessions sont toujours là. Rouge avant : 0 session sur 1 — supprimées avant
    l'instruction qui échoue.
+4. **Les lignes d'équipe partent avec l'identité, jamais avant** — le service
+   entier, la même table-sonde : la suppression lève, et la ligne « owner » est
+   toujours là. Rouge sur le premier commit du correctif (`959c9634`, où
+   `deleteAllForAccount` passait avant l'identité) : 0 ligne sur 1.
 
 Les tests en mémoire disent la même chose : les lignes d'équipe d'un compte
 supprimé sont **vides**, pas révoquées (`provider_account_service_test.dart`,
@@ -143,10 +157,19 @@ supprimé sont **vides**, pas révoquées (`provider_account_service_test.dart`,
 `revokeAllForAccount` pour fabriquer un membre révoqué révoquent désormais la
 ligne elle-même (`revoke(id)`) — c'est ce qu'ils testent.
 
-Suite complète sur une base neuve (les 38 migrations) : 1 740 réussis, 2
+Suite complète sur une base neuve (les 38 migrations), après la correction de l'ordre : 1 741 réussis, 2
 ignorés, 0 échec. La migration a aussi été appliquée à une base portant
 l'ancienne clé, comme le fera la production : une seule clé sur
 `account_id`, désormais `c`.
+
+**Revue adverse** (trois angles — la migration en production, la justesse et
+les jumeaux, la sécurité et le verrou démo —, chaque constat repris par un
+sceptique) : rien sur la migration (nom de la clé, verrous, retour arrière,
+validation) ; l'ordre ci-dessus, corrigé ; deux défauts **antérieurs** à ce
+correctif, hors de son périmètre et suivis à part — une réinvitation après
+révocation ou expiration répond 500 en Postgres (`UNIQUE (provider_id,
+email)`), et `POST /auth/provider/register` accepte un `providerId` venu du
+client.
 
 ## 8. Mise en service
 
@@ -159,8 +182,8 @@ oracle qui compte, parce qu'il passe par le même bouton qu'Apple.
 ## 9. Le compte de test laissé à moitié en production
 
 La migration ne touche pas à sa ligne « owner » révoquée, et n'en a pas
-besoin : une fois le correctif en production, `deleteAllForAccount` supprime
-cette ligne, et l'identité part ensuite. D'après le code (§1), le compte se
+besoin : une fois le correctif en production, la suppression de l'identité
+l'emporte par la cascade. D'après le code (§1), le compte se
 reconnecte en propriétaire avec **la même adresse** : c'est **le meilleur essai
 possible** — le compte même qui a échoué, par le même bouton. Si la reconnexion
 n'atteignait pas « Supprimer » (ce que §1 prédit sans l'avoir vu), deux voies :
@@ -171,7 +194,7 @@ base de production.
 
 ## 10. Définition de « fait »
 
-Les trois tests vus rouges puis verts ; la suite complète verte ; `dart
+Les quatre tests vus rouges puis verts ; la suite complète verte ; `dart
 analyze` à 0 ; CI verte ; fusion ; déploiement ; **un compte Pro neuf supprimé
 avec succès depuis l'iPhone**. Ensuite seulement, « Submit for Review ».
 
@@ -179,8 +202,8 @@ avec succès depuis l'iPhone**. Ensuite seulement, « Submit for Review ».
 
 1. **Le reste du service hors transaction.** Atteindre l'atomicité de bout en
    bout demanderait une transaction partagée entre dépôts (et le stockage n'y
-   entrera jamais). Non fait ici : avec (a) et (b), il ne reste aucune cause
-   connue d'échec du dernier `DELETE`, et l'état laissé par un échec se répare.
+   entrera jamais). Non fait ici : avec (a), il ne reste aucune cause connue
+   d'échec du dernier `DELETE`, et un échec laisse un compte entier.
 2. **La suppression côté client** (`DELETE /me`) n'a pas non plus de test
    Postgres. Le test 2 couvre sa seule clé étrangère (`refresh_tokens.user_id`,
    en cascade) ; un test de bout en bout reste à écrire.
