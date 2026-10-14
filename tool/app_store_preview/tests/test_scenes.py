@@ -153,7 +153,7 @@ class Storyboard(unittest.TestCase):
     def test_the_films_own_storyboard_of_scenes_is_well_formed(self):
         import json
         from tests.support import TOOL
-        for name in ("storyboard-scenes.json", "storyboard-scenes-demo.json"):
+        for name in ("storyboard-scenes.json", "storyboard-scenes-demo.json", "storyboard-scenes-alt-s6.json"):
             doc = json.loads((TOOL / name).read_text(encoding="utf-8"))
             sb = scenes.load(doc, TOOL)
             self.assertEqual(sb["end_card"]["line"], "Un compte MyWeli Pro est nécessaire.", name)

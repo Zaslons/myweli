@@ -42,7 +42,8 @@ the same command with `--variant dry-run` writes `preview-rehearsal.mp4`.
 | `swift/Inspect.swift` | AVFoundation's reading of a written file; decodes frames and sound for `verify`. |
 | `swift/TestClip.swift` | Tests only: writes synthetic takes and films that are wrong on purpose. |
 | `tests/` | The self-tests, and `mutations.py`, which breaks each check in turn and watches a test go red. |
-| `storyboard-scenes.json` | **Version 2**, the film of scenes (« option 3 »): S1–S6 and the end card, cut from the takes of 2026-10-14 (« Version 2 — the takes of 2026-10-14 »). Not final until the owner signs it off. |
+| `storyboard-scenes.json` | **Version 2**, the film of scenes (« option 3 »): S1, S2, S3, S5, S4 and the end card, cut from the takes of 2026-10-14; S6 is out until it has a take it allows (« Version 2 — 2026-10-14, after review »). Not final until the owner signs it off. |
+| `storyboard-scenes-alt-s6.json` | An alternative for the owner, marked rehearsal: S6 back from the keyed take5b, its phone row masked, S5 out. Not the film. |
 | `storyboard-scenes-demo.json` | A demonstration of version 2 on the rehearsal take: two scenes and the end card. Marked rehearsal. |
 | `scenes.py` | Version 2's plan: the scenes, their runs, the declared dissolve, the joins, the end card, the poster — and every refusal. Inside a scene it runs version 1's own rule (`edit.check_take`). |
 | `masks.py` | A rectangle of the capture hidden on every picture: fixed, or following the vertical scroll under it. |
@@ -347,7 +348,12 @@ wrote and, over the level, writes it again with the ceiling two steps higher
 — the least loss of sharpness that fits — up to 20, past which it refuses
 and leaves no file. Every attempt is printed: that film went 25.31 → 20.97
 Mbit at 12 (framed), 26.62 → 22.05 (full-bleed). A film that fits at 10 is
-written once, as before (`tests.test_verify.EncoderLevel`).
+written once, as before (`tests.test_verify.EncoderLevel`). The ladder ends
+on 20 from any first ceiling: striding two at a time from an odd one used
+to stop at 19, where the refusal could not fire and an over-level file was
+kept (`encode ladder 11` prints it; found by review, 2026-10-14). Level
+4.0's half of verify's `video bit rate` check is watched on its own: a test
+film whose average is 2 Mbps and whose busiest second is past 25 Mbit.
 
 `verify` checks the written file (24 checks): container, codec, profile and
 level, exactly 886 × 1920 in the bitstream and in every header, upright,
@@ -692,8 +698,14 @@ storyboard marked `"rehearsal": true`), `poster.png`, `contact-sheet.png`,
   at rest (no change in the take for `tail_s` before them) and with no touch
   point on either (`E_JOIN`). A dissolve on a token of N frames has N − 1
   blended frames between its two pictures: `base` (200 ms, `easeInOut`) is
-  5, so one picture becomes the other in exactly 200 ms. Joins and dissolves
-  are logged with their film times.
+  5, so one picture becomes the other in exactly 200 ms. The film's joins
+  and its end card are on `slow` (400 ms, `easeInOutCubic`, 11 frames): a
+  dissolve of the whole frame is a full-screen transition, and SYSTEM.md §9
+  picks by the Use column. On `base` (as built first) three of the five
+  frames of every join overprinted both captions — a cut that stutters
+  more than a dissolve. S2's declared dissolve stays on `base`: it
+  cross-fades the app's content under one caption. Joins and dissolves are
+  logged with their film times.
 - **The end card**: the mark, « MyWeli Pro » and the disclosure « Un compte
   MyWeli Pro est nécessaire. », 1.5–2.5 s (`E_END_CARD`), identical in both
   frames.
@@ -703,16 +715,20 @@ storyboard marked `"rehearsal": true`), `poster.png`, `contact-sheet.png`,
   title, « MyWeli Pro », is not counted**: it is the product's name set
   beside the mark. Counted, the end card's 47 characters would need 2.8 s
   of card, past the 2.5 s it may have; the line alone (36 characters)
-  needs 2.12 s, so **the end card cannot be shorter than 2.2 s** (66 frames)
-  — the storyboard's « ~2 s » is 2.2. That reading of the rule is the
-  owner's to confirm.
+  needs 2.12 s, so **the end card cannot be shorter than 2.2 s** (66
+  frames). The film's is **2.5 s**, the most the rule allows: the line at
+  14.4 characters a second, the whole card at 18.8 (a reviewer asked for
+  3.0 s, which the 1.5–2.5 s rule does not allow). That reading of the
+  rule is the owner's to confirm.
 - **In the full-bleed frame the band never covers a touch**: every point of
   every touch of the scene (its disc included) is kept out of the band's box
   (`E_CAPTION`); `"band": "bottom"` moves it above the home indicator.
 - **The poster** may be any frame at rest of any scene (`film.poster`: a
   scene and seconds into it): not in a dissolve, a join or the end card, no
   touch point on it, the take unchanged for `tail_s` before the picture it
-  shows (`E_POSTER`).
+  shows (`E_POSTER`). A frame may have its own (`film.poster["full-bleed"]`,
+  same shape): the full-bleed frame's bottom band cuts through S4's rows,
+  which are the framed film's poster.
 - **The length**: 15–30 s (`E_LENGTH`). Each scene's `budget_s` is a
   target; `cuts.txt` says where each scene lands and how far from its
   budget.
@@ -744,8 +760,16 @@ stretch by times that is not whole frames); `E_TAKE`, `E_TOUCH`,
   home indicator (`band.bottom_pt`, 34 pt). Its sizes are the app's tokens,
   read from `app_theme.dart` and `text_styles.dart`: Poppins at
   `headlineSmall` (24/32 pt, set smaller down to `titleLarge` if a line is
-  too long), Inter at `bodyLarge`, padding `spacingM`/`spacingSM`, margins
-  `spacingM`, corners `radiusXXL`. The band hides the app bar's title.
+  too long), Inter at `bodyLarge`, padding `spacingM`/`spacingSM`, at least
+  `spacingM` from the edges, corners `radiusXXL`. The band is its **line
+  boxes** and padding, not the ink of its words: two headline lines are
+  88 pt whatever the words (sized by ink, S5's band was 6 pt shorter than
+  the others), each baseline where Flutter's proportional leading puts it.
+  It **hugs its longest line**, centred — at the frame's width less its
+  margins it had the very width of the app's black « Créer le rendez-vous »
+  button and read as a second one. The band hides the app bar's title.
+  Poppins is drawn Medium, the stills' headline face — the only Poppins in
+  the repository; `headlineSmall` says SemiBold, and nothing is installed.
 
 ### Masks
 
@@ -777,8 +801,16 @@ scrolls.
   reference the scene does not show.
 - **verify's 25th check, `masked regions`**: every frame with a masked
   region is decoded from the written file and the region compared with the
-  masked composition (at most 4 levels off) and with the original (at least
-  half as far from it as the mask is). A film whose rectangle shows the
+  masked composition (at most 4 levels off), with the original (at least
+  half as far from it as the mask is) — and **on the original's ink**: over
+  the pixels where the original and the mask differ by more than 32 grey
+  levels, the slope of (decoded − masked) against (original − masked) must
+  stay under 1 %. Means over the box could not see a faint original: a
+  reviewer rebuilt the film with each region at 85 % mask + 15 % original,
+  verify passed it, and the number could be read (2026-10-14). Written and
+  decoded, a 15 % ghost now reads 14.3 % and a 3 % ghost 1.8 %, both
+  failing; the mask alone reads 0.0 %, the film's own regions at most
+  0.01 % (`tests.test_verify.MaskedGhost`). A film whose rectangle shows the
   original pixels fails — tested by putting them back into the built frames
   and encoding again.
 
@@ -804,18 +836,9 @@ nothing inferred. The takes and logs are build products under
 `build/app-store/pro/preview/v2/takes/`, never committed; `--takes` points
 there.
 
-| Scene | Take | Kept | In the film |
-|---|---|---|---|
-| S1 | `take1b` | `swipe-arrive`, `tap-arrive` | 0.000–4.533 s (4.53; budget 3.5) |
-| S2 | `take1b` | `tap-libre`, the dissolve, `tap-creer` | 4.700–12.167 s (7.47; budget 5.5) |
-| S3 | `take2b` | `scroll-fiche`, from the card at rest | 12.333–15.967 s (3.63; budget 4) |
-| S4 | `take3` | `tap-semaine`, `tap-mois` | 16.133–20.133 s (4.00; budget 4) |
-| S5 | `take4` | `scroll-semaine` | 20.300–23.833 s (3.53; budget 3) |
-| S6 | `take5` | `scroll-page` | 24.000–27.433 s (3.43; budget 4) |
-| end card | | | 27.600–29.800 s (2.20) |
-
-894 frames, 29.800 s; joins of 5 frames; the poster is S4, 3.5 s in
-(19.633 s): « Mois » at rest, 77 000 FCFA. Both frames: PASS — 25 checks.
+The first cut (superseded the same day, « … after review » below): S1–S6
+in the storyboard's order, joins on `base`, a 2.2-s end card — 894 frames,
+29.800 s, PASS — 25 checks in both frames.
 
 What the takes decided:
 
@@ -829,41 +852,95 @@ What the takes decided:
   mask is `[282, 538, 440, 52]` px, read on the take (the number's ink at x
   290–712, y 545–583), a `fill` of the card's own 250, tracking the scroll
   under the app bar (its edge at 354 px, 118 pt). The number is in the
-  pictures of the scene's first 49 frames (film frames 370–418) and masked
-  on each; after that the app bar covers it (in the full-bleed frame the
-  caption band does from frame 416). Checked a second way on the written
-  films — the number found in each picture by its own ink, the decoded
-  frame read there, the joins proved to be blends of masked pictures — with
-  a control that composes the same frames unmasked and finds the number on
-  every one of them (49 framed, 46 full-bleed).
-  Put back into the built frames and encoded, the film fails verify's
-  `masked regions`, and only that.
+  pictures of the scene's first 49 frames and masked on each; after that the
+  app bar covers it (in the full-bleed frame the caption band covers its
+  last ones). Checked a second way on the written films — the number found
+  in each picture by its own ink, the decoded frame read there, the joins
+  proved to be blends of masked pictures — with a control that composes the
+  same frames unmasked and finds the number on them.
 - **S4's band is at the bottom** in the full-bleed frame: the tabs, at
   141 pt, are where the top band would be (`E_CAPTION` otherwise).
-- **S6 cannot avoid « Contact »**: its title and map are on screen at rest
-  from the top. The salon's phone stays under the bottom bar (the scroll is
-  102 pt; it would show after 138). The map is CARTO's « API KEY REQUIRED »
-  tile in every frame of the take (a debug build against production).
+
+### Version 2 — 2026-10-14, after review
+
+Two reviews of the first cut. What changed, and what did not:
+
+- **S6 is out of the film.** take5 was filmed on a build without
+  `CARTO_BASEMAPS_KEY`: its map is CARTO's « API KEY REQUIRED » tile in
+  every picture — legible in the film — and a store build cannot show it
+  (`app_config.dart`; `tool/release_build.sh` refuses to build without the
+  key). take5b, filmed on a keyed build, scrolls 290 pt through « Contact »
+  onto the salon's phone, where S6 asks for a short scroll that never
+  reaches « Contact »; and at rest on its cover the page already shows the
+  « Contact » title and the top of the map. The storyboard keeps S6 under
+  `_dropped` with what would bring it back. **S5 now comes before S4**, so
+  that the film ends on « Revenus » — its poster — rather than on a still
+  list.
+- **An alternative for the owner, not the film**:
+  `storyboard-scenes-alt-s6.json` (marked rehearsal) brings S6 back from
+  take5b on the reading that its rule protects the phone, not the block:
+  the phone row is a tracking `fill` mask (`[114, 1758, 546, 57]` px, read
+  on the take's last picture, the scroll band 354–2220 px above the bottom
+  bar), S5 is out by the storyboard's own rule (with it, 32.4 s). Built
+  under `build/app-store/pro/preview/v2/alt-s6-take5b/framed/`: 862 frames,
+  28.733 s, PASS — 25 checks. Its costs: the scroll ends on the « Contact »
+  card (map, address, « WhatsApp », hours, a blank row where the phone
+  was); its busiest second is 24.69 Mbit, written at a quantiser ceiling of
+  12 (29.80 at 10); and its drag starts on a flat white header, so the
+  touch point is timed by the logged path, which ran 1.89 s where the page
+  took 2.3 s — the point runs ahead of the page.
+- **Joins and the end card on `slow`**, the end card **2.5 s** (« The
+  rules », above).
+- **The full-bleed band** is its line boxes (88 pt) and hugs its words
+  (« The two frames »); **its poster is S3 at rest**, under the top band,
+  because S4's bottom band cuts through its rows.
+- **verify reads a masked region on the original's ink** (« Masks »).
+- **Not changed, the owner's to decide**: S2's 2.87 s of a still
+  « Rendez-vous créé » snackbar (131.448–134.315 s of the take) are inside
+  the protected window of « Créer » under the editing rule version 1 was
+  approved with; ending S2 once the snackbar has settled would make it
+  about 4.5 s instead of 7.47 (estimated from the take's times, not built).
+  The two « Yao K. » rows, the new one under « Nouveau », « Awa K. » done
+  at 08:00 today but « Dernière 13 oct. » on her card, and an « Arrivé »
+  already on Mariam T. before the swipe are in the takes: a retake fixes
+  them, the edit cannot. FCFA amounts are on screen for about 10 s and on
+  the framed poster.
+
+The cut, both frames:
+
+| Scene | Take | Kept | In the film |
+|---|---|---|---|
+| S1 | `take1b` | `swipe-arrive`, `tap-arrive` | 0.000–4.533 s (4.53; budget 3.5) |
+| S2 | `take1b` | `tap-libre`, the dissolve, `tap-creer` | 4.900–12.367 s (7.47; budget 5.5) |
+| S3 | `take2b` | `scroll-fiche`, from the card at rest | 12.733–16.367 s (3.63; budget 4) |
+| S5 | `take4` | `scroll-semaine` | 16.733–20.267 s (3.53; budget 3) |
+| S4 | `take3` | `tap-semaine`, `tap-mois` | 20.633–24.633 s (4.00; budget 4) |
+| end card | | | 25.000–27.500 s (2.50) |
+
+825 frames, 27.500 s; joins of 11 frames (`slow`). Posters: framed, S4
+3.5 s in (24.133 s, frame 724): « Mois » at rest, 77 000 FCFA; full-bleed,
+S3 0.5 s in (13.233 s, frame 397): the card at rest, its number masked.
+Both: PASS — 25 checks; busiest second 10.61 Mbit (framed) and 12.67
+(full-bleed), written once at the ceiling of 10.
 
 ### Known limits of version 2
 
 - A dissolve or a join between two takes blends two pictures that may not
   line up (an app bar in the same place, a list a few points off): it reads
-  as a cut that breathes, which is what it is. Seen on the demo; whether it
-  is pleasant on the six real scenes is for the owner to judge.
-- What a scene must never show (sign-in, an offer, « Contact » in S6, a
-  system alert…) is not read by the tool: it is a matter of the take and of
-  looking at `contact-sheet.png`.
-- What is in the footage is the takes' to fix, not the tool's: S6's
-  « API KEY REQUIRED » map; two « Yao K. » bookings in S2's day (13:15
-  from an earlier take, 14:45 from this one), the new one under the
-  « Nouveau » button; S6's « Aperçu » bar and its « Réserver (après la mise
-  en ligne) ».
+  as a cut that breathes, which is what it is.
+- What a scene must never show (sign-in, an offer, a system alert…) is not
+  read by the tool: it is a matter of the take, of looking at
+  `contact-sheet.png`, and of reading every decoded frame.
+- What is in the footage is the takes' to fix, not the tool's: two « Yao K. »
+  bookings in S2's day (13:15 from an earlier take, 14:45 from this one),
+  the new one under the « Nouveau » button; the « Revenus » page empty
+  under its loader for 0.43 s and 0.22 s while each period loads.
 - In the full-bleed frame the band (two lines of `headlineSmall` and its
-  padding, about 80 pt) is taller than an app bar (56 pt): it hides each
-  screen's title and cuts through the row under it. Its height follows the
-  ink of its words, so a headline without descenders (S5's) gives a band
-  about 6 pt shorter than the others.
+  padding, 88 pt) is taller than an app bar (56 pt): it hides each screen's
+  title and cuts through the row under it — on S2's filled form, the
+  ticked « Coupe homme ». That is the frame's nature with these takes, not
+  a setting: S2's taps at 772 and 832 pt rule out a bottom band there, and
+  S4's tabs at 141 pt a top one.
 
 ## Tests
 
@@ -896,8 +973,12 @@ stills' rows above it; the full-bleed scale (a disc stays round) and band;
 the end card; the dissolve on the token's curve; and an end-to-end film of
 two scenes — the declared dissolve, a stretch kept by times, a tracking
 mask — built in both frames, then encoded again with the original pixels
-put back under the mask, which verify must fail. About two and a half
-minutes more.
+put back under the mask, which verify must fail. After review
+(`test_verify.MaskedGhost`, `…VerifyRefuses.test_a_busiest_second_past_level_4_0`,
+`…EncoderLevel.test_the_ladder_of_ceilings_always_ends_on_the_last`): films
+carrying 0, 3 and 15 % of a hidden number, written and decoded; a film whose
+only fault is a second past Level 4.0; the ceiling ladder from an odd start.
+About two and a half minutes more.
 
 `mutations.py` breaks each check in the code in turn — every refusal
 silenced, every verification made to pass, numbers and comparisons bent, the
