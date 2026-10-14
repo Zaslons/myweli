@@ -804,8 +804,10 @@ class MockData {
   /// in « Mes salons » (the Provider model carries no status client-side).
   static final Set<String> draftSalonIds = {};
 
-  /// Seats in use — owner + active + unexpired pending (mirrors the
-  /// backend), PER SALON (R6 multi-salons).
+  /// Seats in use — owner + active + unexpired pending, PER SALON (R6
+  /// multi-salons). NOT quite the backend's rule: the server counts expired
+  /// invitations too (they hold their seat until revoked or invited again —
+  /// docs/design/backend-team-reinvite.md §11).
   static int teamSeatsUsed({String providerId = 'provider1'}) => teamMembers
       .where(
         (m) =>

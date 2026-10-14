@@ -1141,10 +1141,15 @@ createServer(async (req, res) => {
       if (seatsUsed() >= p1Offer.seats.cap) {
         return json(res, 409, { error: 'seat_limit' });
       }
+      // One row per (salon, email), as on the server: a revoked row (or an
+      // expired invitation) is invited again ON THE SAME ROW — same id — and
+      // any other row holds the address (docs/design/backend-team-reinvite.md).
+      const current = teamMembers.find((m) => m.email === email);
       if (
-        teamMembers.some(
-          (m) => m.email === email && m.status !== 'revoked',
-        )
+        current &&
+        (current.role === 'owner' ||
+          current.status === 'active' ||
+          (current.status === 'invited' && !current.expired))
       ) {
         return json(res, 409, { error: 'member_exists' });
       }
@@ -1158,9 +1163,9 @@ createServer(async (req, res) => {
           ? (proProvider.artists ?? []).find((x) => x.id === b.artistId)
           : null;
       const member = {
-        id: `member-${++memberSeq}`,
+        id: current ? current.id : `member-${++memberSeq}`,
         providerId: 'p1',
-        accountId: null,
+        accountId: current ? current.accountId : null,
         email,
         role,
         artistId: artist ? artist.id : null,
@@ -1173,7 +1178,11 @@ createServer(async (req, res) => {
         resendsLeft: 3,
         expired: false,
       };
-      teamMembers.push(member);
+      if (current) {
+        teamMembers[teamMembers.indexOf(current)] = member;
+      } else {
+        teamMembers.push(member);
+      }
       syncSeats();
       return json(res, 201, member);
     }

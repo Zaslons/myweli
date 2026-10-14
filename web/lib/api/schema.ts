@@ -812,7 +812,7 @@ export interface paths {
         put?: never;
         /**
          * Invite a team member by email (access R2b)
-         * @description Owner-only. Role ∈ manager/reception/staff (`invalid_role`); staff requires a salon-owned `artistId` (`artist_required` / `artist_not_found`). 409 `member_exists` (already active or pending), `offer_required` (no live offer — R2a pricing pivot), `seat_limit` (offer seats full). 403 `demo_account_locked` when the salon is the store-review demo account's (T69 — a public credential must not email arbitrary third parties). 429 `invite_rate_limited` (per-salon daily cap, threat T37). Sends the branded invitation email (7-day validity). R6: `?salonId=` selects the salon.
+         * @description Owner-only. Role ∈ manager/reception/staff (`invalid_role`); staff requires a salon-owned `artistId` (`artist_required` / `artist_not_found`). 409 `member_exists` (an active member, a still-valid invitation, or an owner's row in any state), `offer_required` (no live offer — R2a pricing pivot), `seat_limit` (offer seats full). One row per (salon, email): an address whose row is REVOKED, or whose invitation has EXPIRED, is invited again ON THE SAME ROW — same `id`; role, employee link, 7-day window and the 3-resend budget start over. An expired invitation already holds its seat, so re-inviting it is not refused by `seat_limit`. 403 `demo_account_locked` when the salon is the store-review demo account's (T69 — a public credential must not email arbitrary third parties). 429 `invite_rate_limited` (per-salon daily cap, threat T37). Sends the branded invitation email (7-day validity). The 201 has the shape of a `GET` roster row (`artistName`, `expired`). R6: `?salonId=` selects the salon. Design: docs/design/backend-team-reinvite.md.
          */
         post: {
             parameters: {
@@ -837,7 +837,7 @@ export interface paths {
                 };
             };
             responses: {
-                /** @description Invitation created (the pending member row) */
+                /** @description Invitation created, or a revoked/expired row invited again (the pending member row) */
                 201: {
                     headers: {
                         [name: string]: unknown;
@@ -973,7 +973,7 @@ export interface paths {
         put?: never;
         /**
          * Re-send a pending invitation (access R2b)
-         * @description Owner-only; resets the 7-day window. Budget of 3 resends per invitation → 429 `invite_rate_limited` when exhausted (threat T37).
+         * @description Owner-only; resets the 7-day window. Budget of 3 resends per invitation → 429 `invite_rate_limited` when exhausted (threat T37). 409 `invalid_state` when the row is not a pending invitation.
          */
         post: {
             parameters: {
@@ -1001,6 +1001,7 @@ export interface paths {
                 401: components["responses"]["Unauthorized"];
                 403: components["responses"]["Forbidden"];
                 404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
                 429: components["responses"]["RateLimited"];
             };
         };
