@@ -8,6 +8,10 @@
 /// Design: docs/design/backend-identity-rate-limits.md §5
 library;
 
+import 'dart:convert';
+
+import 'package:crypto/crypto.dart';
+
 import 'rate_limiter.dart';
 
 /// Per-identity ceilings, per hour.
@@ -71,6 +75,51 @@ const IdentityLimits kDefaultIdentityLimits = (
 /// open question rather than a gap.
 const Duration kIdentityWindow = Duration(hours: 1);
 
+/// How long the daily prune keeps a window (`routes/internal/cron/subscriptions.dart`).
+///
+/// **Load-bearing since the invite buckets.** A window survives the prune only
+/// while its START is newer than `now - kRateLimitRetention`; the hourly
+/// buckets clear that by 23 hours, the daily invite buckets by nothing — a
+/// one-day window starts at most one day ago, so it survives exactly. A test
+/// pins every window to this ceiling, so a longer window cannot be added
+/// without the prune deleting it mid-day.
+const Duration kRateLimitRetention = Duration(days: 1);
+
+/// Team invitations, per DAY (threat T37): per salon, and per salon and
+/// address. docs/design/backend-team-invite-caps.md
+typedef InviteLimits = ({int perSalon, int perAddress});
+
+/// - `perSalon` 20 — the number the process-local counter carried since R2b,
+///   now shared by every instance instead of granted to each of them.
+/// - `perAddress` 3 — an honest owner re-invites one person after a mistake
+///   (wrong role, revoked by accident), not three times in a day; with the
+///   three resends each invitation carries, one address receives at most
+///   twelve invitation emails a day from one salon.
+const InviteLimits kDefaultInviteLimits = (perSalon: 20, perAddress: 3);
+
+/// One day, floored to the epoch — midnight UTC, which is midnight in Abidjan.
+const Duration kInviteWindow = Duration(days: 1);
+
+/// The salon's daily invitation bucket. [providerId] comes from the server's
+/// own salon resolution, never from the request body — a closed set.
+String inviteSalonBucket(String providerId) => 'invite:salon:$providerId';
+
+/// The (salon, address) daily bucket.
+///
+/// **The address never appears in clear** — not in `identity_rate_limits`, and
+/// not in the `rate_limited bucket=…` line logged on every refusal. The salon
+/// id is inside the hashed input as well as in front of it, so one address
+/// invited by two salons gives two unrelated digests: a log reader cannot
+/// follow a person across tenants. [emailKey] must already be the normalised
+/// (trimmed, lowercased) address.
+///
+/// An OPEN set — any address — which is why the service hits
+/// [inviteSalonBucket] first: a salon refused there writes no address row.
+String inviteAddressBucket(String providerId, String emailKey) {
+  final digest = sha256.convert(utf8.encode('$providerId\n$emailKey'));
+  return 'invite:addr:$providerId:${digest.toString().substring(0, 32)}';
+}
+
 /// The bucket for a booking attempt.
 ///
 /// **Deliberately omits the role.** Including it could only ever SPLIT a budget,
@@ -128,14 +177,21 @@ int warnAt(int limit) => limit * 4 ~/ 5;
 /// A null [limiter] means no limit — the shape that lets every existing
 /// construction site keep compiling, and the reason `dependencies.dart` has a
 /// source-level test proving it supplies one.
+///
+/// [window] defaults to the hourly [kIdentityWindow]; the invite buckets pass
+/// [kInviteWindow]. [warn] turns the 80% line off for a ceiling so small that
+/// 80% is an honest everyday count (`warnAt(3) == 2`: the per-address invite
+/// bucket would page on every second invitation of one person).
 Future<bool> allowUnderLimit(
   RateLimiter? limiter,
   String bucket,
   int limit, {
   void Function(String)? log,
+  Duration window = kIdentityWindow,
+  bool warn = true,
 }) async {
   if (limiter == null) return true;
-  final v = await limiter.hit(bucket, limit: limit, window: kIdentityWindow);
+  final v = await limiter.hit(bucket, limit: limit, window: window);
   final emit = log ?? print;
   if (!v.ok) {
     // **The refusal, and it is not symmetric with the warning above.**
@@ -161,7 +217,7 @@ Future<bool> allowUnderLimit(
   // `warnAt` == 0, and every failed hit during a database outage would then
   // announce a threshold nobody crossed. The ceilings are settable from the
   // environment, so that is a configuration away rather than a code change.
-  if (v.hits > 0 && v.hits == warnAt(v.limit)) {
+  if (warn && v.hits > 0 && v.hits == warnAt(v.limit)) {
     // The bucket carries a pseudonymous id, not contact data — unlike the send
     // budget's recipient, which its own test forbids logging. It is also the
     // only actionable field: without it the line says a threshold is close and

@@ -109,6 +109,18 @@ turns a Postgres blip into nobody being able to book.
 | `POST /appointments` | `book:<sub>` |
 | `POST /appointments/{id}/review` | `review:<sub>` |
 | `POST /uploads/sign` | `sign:<purpose>:<sub>` |
+| `POST /me/provider/members` (per DAY) | `invite:salon:<providerId>`, then `invite:addr:<providerId>:<digest>` |
+
+*2026-10-14 — the invite buckets* ([backend-team-invite-caps.md](backend-team-invite-caps.md)).
+Daily, not hourly (`kInviteWindow`), and the address bucket is the one key
+here built from an **open** set — any address. It is admissible for the
+reason the closed-set rule exists: the service hits it only AFTER the salon
+bucket, whose key comes from the server's own salon resolution (a closed set,
+reachable only by an owner with a live offer), so one salon writes at most
+`LIMIT_INVITE_SALON` address rows a day. The address is hashed with the salon
+id (`sha256(providerId + "\n" + address)`, 32 hex) — never in clear in the
+table or the refusal line, and not linkable across salons. No 80 % warning on
+it: `warnAt(3) == 2`.
 
 **The booking bucket omits the role.** Including it could only ever *split* a
 budget, never merge one, and splitting is a weakening. Consumer ids are minted

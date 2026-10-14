@@ -414,6 +414,75 @@ void main() {
     });
   });
 
+  group('windows and warnings per bucket (the invite caps)', () {
+    // docs/design/backend-team-invite-caps.md §5.4
+    test('a daily bucket does not roll at the hour', () async {
+      var now = DateTime.utc(2026, 10, 15, 10);
+      final limiter = InMemoryRateLimiter(clock: () => now);
+      expect(
+        await allowUnderLimit(
+          limiter,
+          'd',
+          1,
+          window: kInviteWindow,
+          log: (_) {},
+        ),
+        isTrue,
+      );
+      now = DateTime.utc(2026, 10, 15, 11, 30);
+      expect(
+        await allowUnderLimit(
+          limiter,
+          'd',
+          1,
+          window: kInviteWindow,
+          log: (_) {},
+        ),
+        isFalse,
+        reason: 'the hourly default window would have rolled here',
+      );
+    });
+
+    test(
+      'warn: false keeps the 80% line silent; the default still warns',
+      () async {
+        final lines = <String>[];
+        final limiter = InMemoryRateLimiter();
+        for (var i = 0; i < 2; i++) {
+          await allowUnderLimit(
+            limiter,
+            'quiet',
+            3,
+            warn: false,
+            log: lines.add,
+          );
+        }
+        expect(lines, isEmpty);
+        for (var i = 0; i < 2; i++) {
+          await allowUnderLimit(limiter, 'loud', 3, log: lines.add);
+        }
+        expect(lines.single, startsWith('rate_limit_warning bucket=loud'));
+      },
+    );
+
+    test('no window outlives the prune: every window <= kRateLimitRetention, '
+        'and the cron prunes with that constant', () {
+      expect(kIdentityWindow <= kRateLimitRetention, isTrue);
+      expect(kInviteWindow <= kRateLimitRetention, isTrue);
+      final cron = File(
+        'routes/internal/cron/subscriptions.dart',
+      ).readAsStringSync();
+      expect(cron, contains('pruneRateLimitWindows(kRateLimitRetention)'));
+    });
+
+    test('the address bucket never shows the address', () {
+      final b = inviteAddressBucket('p1', 'ama@b.com');
+      expect(b, startsWith('invite:addr:p1:'));
+      expect(b, isNot(contains('@')));
+      expect(b, isNot(equals(inviteAddressBucket('p2', 'ama@b.com'))));
+    });
+  });
+
   group('the policy', () {
     test('buckets are namespaced per surface', () {
       expect(bookingBucket('u1'), 'book:u1');

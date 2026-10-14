@@ -47,6 +47,10 @@ void main() {
       'BookingService',
       'ReviewsService',
       'UploadSigningService',
+      // The daily invitation caps (T37) — docs/design/backend-team-invite-caps.md.
+      // Without the shared limiter TeamService falls back to a per-process
+      // one: the per-instance counter this replaced, silently back.
+      'TeamService',
     ]) {
       test('$name is constructed WITH one', () {
         final call = construction(name);

@@ -4,6 +4,8 @@ import '../email/email_provider.dart';
 import '../email/invitation_emails.dart';
 import '../email/send_budget.dart';
 import '../providers_repository.dart';
+import '../security/identity_limits.dart';
+import '../security/rate_limiter.dart';
 import '../subscription/salon_subscription_service.dart';
 import '../validators.dart';
 import 'capabilities.dart';
@@ -25,9 +27,17 @@ class TeamService {
     this._email,
     this._audit, {
     DateTime Function()? clock,
-    int maxInvitesPerDay = 20,
+    RateLimiter? limiter,
+    InviteLimits limits = kDefaultInviteLimits,
+    void Function(String)? log,
   }) : _now = clock ?? (() => DateTime.now().toUtc()),
-       _maxInvitesPerDay = maxInvitesPerDay;
+       _limits = limits,
+       _log = log ?? print {
+    // Never "no limit": without a shared limiter (tests, dev) the caps still
+    // hold, per process — the composition root supplies the shared one, and
+    // a source-level test proves it does.
+    _limiter = limiter ?? InMemoryRateLimiter(clock: _now);
+  }
 
   final MembershipRepository _members;
   final MembershipService _resolver;
@@ -36,7 +46,9 @@ class TeamService {
   final EmailProvider _email;
   final ProviderAuditLogRepository _audit;
   final DateTime Function() _now;
-  final int _maxInvitesPerDay;
+  late final RateLimiter _limiter;
+  final InviteLimits _limits;
+  final void Function(String) _log;
 
   static const invitationValidity = Duration(days: 7);
   static const _invitableRoles = {
@@ -44,10 +56,6 @@ class TeamService {
     MemberRole.reception,
     MemberRole.staff,
   };
-
-  /// Per-(salon, day) invite counter (T37). Process-local, like
-  /// LoginThrottle — move to a shared store if the API is ever scaled out.
-  final Map<String, int> _inviteCounts = {};
 
   // ---- Équipe management (owner: members.manage) ---------------------------
 
@@ -101,6 +109,16 @@ class TeamService {
     // « a@b.co » with a space passed it — and then slipped past the duplicate
     // check and the unique key with the space still in.
     final emailKey = email.trim().toLowerCase();
+    // T69: the store-review account's address. Any salon could otherwise put
+    // a card — with a salon name of its choosing — into the PUBLIC demo
+    // account's « Invitations », and a reviewer could accept it. No email
+    // would leave (`.test` is dropped at send); the card would show.
+    // `invalid_input`, not `demo_account_locked`: the INVITING salon is not
+    // the demo account, and that sentence would tell its owner it is.
+    // docs/design/backend-team-invite-caps.md §5.2
+    if (isDemoIdentity(emailKey)) {
+      return (ok: false, error: 'invalid_input', data: null);
+    }
     if (role is! String || !_invitableRoles.contains(role)) {
       return (ok: false, error: 'invalid_role', data: null);
     }
@@ -156,13 +174,32 @@ class TeamService {
       return (ok: false, error: 'seat_limit', data: null);
     }
 
-    // T37: per-salon/day budget.
-    final dayKey = '$providerId/${_now().toIso8601String().substring(0, 10)}';
-    final count = _inviteCounts[dayKey] ?? 0;
-    if (count >= _maxInvitesPerDay) {
+    // T37: the daily caps, on the SHARED limiter — every instance counts into
+    // the same buckets (the process-local counter they replace granted 20
+    // per instance and per cold start). After every gate above, so an honest
+    // refusal costs nothing; the salon's bucket (a closed set) before the
+    // address's (an open one), so a salon refused here writes no address
+    // row. Attempts are counted, a lost race included.
+    // docs/design/backend-team-invite-caps.md §5.1
+    if (!await allowUnderLimit(
+          _limiter,
+          inviteSalonBucket(providerId),
+          _limits.perSalon,
+          log: _log,
+          window: kInviteWindow,
+        ) ||
+        !await allowUnderLimit(
+          _limiter,
+          inviteAddressBucket(providerId, emailKey),
+          _limits.perAddress,
+          log: _log,
+          window: kInviteWindow,
+          // warnAt(3) == 2: the 80% line would fire on every second
+          // invitation of one person, and alert 94 pages on it.
+          warn: false,
+        )) {
       return (ok: false, error: 'invite_rate_limited', data: null);
     }
-    _inviteCounts[dayKey] = count + 1;
 
     final member = await _members.invite(
       providerId: providerId,
@@ -174,9 +211,8 @@ class TeamService {
     );
     if (member == null) {
       // A concurrent invitation took the address between the read above and
-      // this write. The same answer the duplicate check gives — and the
-      // day's invite is given back, since nothing was sent.
-      _inviteCounts[dayKey] = (_inviteCounts[dayKey] ?? 1) - 1;
+      // this write: the same answer the duplicate check gives. Still
+      // counted — the limiter counts attempts, and the winner sent one.
       return (ok: false, error: 'member_exists', data: null);
     }
     await _sendInvitationEmail(providerId, emailKey, role);
@@ -321,6 +357,12 @@ class TeamService {
       return (ok: false, error: 'invitation_expired', data: null);
     }
     final activated = await _members.activate(invitationId, accountId);
+    if (activated == null) {
+      // The row stopped being a valid invitation between the read above and
+      // the write — a revocation (or the window closing) overtook the
+      // accept. The repository refused to activate it; the revocation holds.
+      return (ok: false, error: 'not_found', data: null);
+    }
     await _audit.log(
       providerId: member.providerId,
       actorAccountId: accountId,
@@ -328,7 +370,7 @@ class TeamService {
       targetId: invitationId,
       meta: {'role': member.role},
     );
-    return (ok: true, error: null, data: activated?.toJson());
+    return (ok: true, error: null, data: activated.toJson());
   }
 
   /// Decline (email-proof): the row disappears; the owner can re-invite.

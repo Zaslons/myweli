@@ -269,9 +269,11 @@ Les tests vus rouges puis verts ; suites backend, app (fichiers touchés) et web
    correctif est côté clients — regarder les invitations en attente avant de
    déconnecter. **Parcours utilisateur à valider par le propriétaire avant
    d'être construit.**
-2. **Une limite de réinvitations par adresse** (§6) — à décider.
-3. `activate` ne revérifie pas le statut (`UPDATE … WHERE id`) : une
-   révocation entre la lecture d'`accept` et l'écriture serait annulée.
-   Antérieur, étroit ; une tranche à part.
+2. ~~**Une limite de réinvitations par adresse** (§6) — à décider.~~
+   **Décidée et construite le 2026-10-14** : 3 par jour et par (salon,
+   adresse), sur le limiteur partagé —
+   [backend-team-invite-caps.md](backend-team-invite-caps.md).
+3. ~~`activate` ne revérifie pas le statut~~ — **fermé le 2026-10-14**
+   ([backend-team-invite-caps.md](backend-team-invite-caps.md) §5.3).
 4. L'app propose « Changer le rôle » sur une ligne révoquée (le serveur
    l'accepte) ; le web n'offre aucune action. Écart d'interface, antérieur.
