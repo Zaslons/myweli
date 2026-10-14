@@ -253,7 +253,7 @@ def cmd_build(a: argparse.Namespace) -> None:
 
     print(f"7/9 encode   {name}")
     movie = out / name
-    print("    " + swifttools.run("encode", out / "frames", "--out", movie).stdout.strip())
+    print("    " + swifttools.run("encode", out / "frames", "--out", movie).stdout.strip().replace("\n", "\n    "))
 
     print("8/9 sheet    poster.png, contact-sheet.png")
     names = load(out / "frames" / "frames.json")["frames"]
@@ -333,6 +333,16 @@ def cmd_sheet(a: argparse.Namespace) -> None:
     print(f"sheet: {a.out}")
 
 
+def cmd_film(a: argparse.Namespace) -> None:
+    import film
+    film.build(a)
+
+
+def cmd_film_verify(a: argparse.Namespace) -> None:
+    import film
+    film.verify_built(a)
+
+
 def cmd_selftest(a: argparse.Namespace) -> None:
     suite = unittest.defaultTestLoader.discover(str(HERE / "tests"), pattern=a.pattern, top_level_dir=str(HERE))
     result = unittest.TextTestRunner(verbosity=2 if a.verbose else 1).run(suite)
@@ -390,6 +400,20 @@ def main() -> None:
     p = command("sheet", cmd_sheet, help="a contact sheet of a written file, 2 frames per second")
     p.add_argument("movie", type=Path)
     p.add_argument("--out", type=Path, required=True)
+
+    # version 2: a film made of scenes (README « Version 2 — scenes »)
+    p = sub.add_parser("film", help="a film of scenes: storyboard of scenes + their takes -> preview.mp4, verified")
+    p.set_defaults(fn=cmd_film)
+    p.add_argument("--storyboard", type=Path, required=True, help="a storyboard of scenes (\"version\": 2)")
+    p.add_argument("--takes", type=Path, help="the folder the storyboard's take and gesture paths are relative to "
+                                              "(default: the storyboard's own folder)")
+    p.add_argument("--out", type=Path, required=True)
+    p.add_argument("--frame", choices=("framed", "full-bleed"), help="build in this frame instead of the storyboard's")
+    p.add_argument("--plan", type=Path, help="use this plan (film.json) instead of proposing one (it is checked)")
+
+    p = sub.add_parser("film-verify", help="check a film of scenes where it was built; non-zero exit on any miss")
+    p.set_defaults(fn=cmd_film_verify)
+    p.add_argument("movie", type=Path)
 
     p = command("selftest", cmd_selftest, help="the tests, without the simulator")
     p.add_argument("--pattern", default="test_*.py")

@@ -17,6 +17,8 @@
 //   "bitrate"     bits per second
 //   "reordering"  true: let the encoder reorder frames
 //   "pasp"        [2, 1]: pixels twice as wide as they are tall
+//   "max_qp"      a quantiser ceiling, as the film's own spec sets one: a
+//                 busy second written past Level 4.0, for the checker
 //
 // Two uses: a synthetic take with the recorder's shape (.mov, variable frame
 // times, no sound) whose change times are known in advance, and films that are
@@ -84,7 +86,7 @@ enum TestClip {
       timescale: Int32(int("timescale")), profileLevel: profile,
       averageBitRate: clip["bitrate"] as? Int ?? 4_000_000, keyFrameInterval: 30,
       expectedFrameRate: 30, frameReordering: clip["reordering"] as? Bool ?? false,
-      maxFrameQP: nil, audio: audio, pixelAspect: clip["pasp"] as? [Int])
+      maxFrameQP: clip["max_qp"] as? Int, audio: audio, pixelAspect: clip["pasp"] as? [Int])
 
     guard let rows = clip["frames"] as? [[String: Any]] else { die("\(jsonPath): missing `frames`") }
     let dir = (jsonPath as NSString).deletingLastPathComponent
