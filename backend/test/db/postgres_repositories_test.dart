@@ -4,6 +4,8 @@ library;
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:myweli_backend/src/auth/auth_repository.dart'
     show RefreshOutcome, RefreshResult, TokenPair, kRefreshReuseGrace;
 import 'package:myweli_backend/src/auth/tokens.dart';
@@ -17,12 +19,15 @@ import 'package:myweli_backend/src/db/postgres_clients_repository.dart';
 import 'package:myweli_backend/src/db/postgres_device_token_repository.dart';
 import 'package:myweli_backend/src/db/postgres_favorites_repository.dart';
 import 'package:myweli_backend/src/db/postgres_membership_repository.dart';
+import 'package:myweli_backend/src/db/postgres_notifications_repository.dart';
 import 'package:myweli_backend/src/db/postgres_provider_audit_repository.dart';
 import 'package:myweli_backend/src/db/postgres_provider_auth_repository.dart';
 import 'package:myweli_backend/src/db/postgres_providers_repository.dart';
 import 'package:myweli_backend/src/db/postgres_reviews_repository.dart';
 import 'package:myweli_backend/src/db/postgres_salon_subscription_repository.dart';
+import 'package:myweli_backend/src/provider_account_service.dart';
 import 'package:myweli_backend/src/salon_time.dart';
+import 'package:myweli_backend/src/storage/storage_service.dart';
 import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 
@@ -1803,6 +1808,272 @@ void main() {
       );
       expect(chosen.tier, 'business');
       expect(chosen.trialEndsAt.toUtc(), t1);
+    });
+  });
+
+  // ---- Provider account deletion on the REAL schema (T53) -----------------
+  // Production answered 500 `ForeignKeyViolationException` to every
+  // `DELETE /me/provider` from a salon owner (2026-10-14, revision
+  // myweli-api-00037-zzq): the service REVOKED the account's
+  // `provider_members` rows — an UPDATE that keeps `account_id` — and the
+  // identity delete then met `provider_members.account_id`, a foreign key
+  // with no ON DELETE action. Every deletion test ran on the in-memory twins,
+  // which have no foreign keys at all. These run the production wiring
+  // (`dependencies.dart`) over the real schema.
+  // docs/design/backend-provider-deletion-member-fk.md
+  group('provider account deletion — on the real schema (T53)', () {
+    PostgresProviderAuthRepository authRepo() =>
+        PostgresProviderAuthRepository(pool, tokens: tokens, echoDevCode: true);
+
+    ProviderAccountService service() => ProviderAccountService(
+      authRepo(),
+      PostgresProvidersRepository(pool),
+      PostgresAppointmentRepository(pool),
+      FakeStorageService(),
+      PostgresMembershipRepository(pool),
+      devices: PostgresDeviceTokenRepository(pool),
+      notifications: PostgresNotificationsRepository(pool),
+      client: MockClient((_) async => http.Response('', 204)),
+    );
+
+    Future<int> count(String sql, Map<String, Object?> parameters) async {
+      final r = await pool.execute(Sql.named(sql), parameters: parameters);
+      return r.first.first! as int;
+    }
+
+    /// An owner exactly as production makes one: a draft salon, the account
+    /// linked to it, and the owner membership row
+    /// (`SalonProvisioningService.ensureSalon`).
+    Future<({String id, String salonId})> owner(
+      String email,
+      String phone,
+    ) async {
+      final salon = await PostgresProvidersRepository(pool).createSalon(
+        name: 'Salon $email',
+        category: 'salon',
+        phoneNumber: phone,
+      );
+      final salonId = salon['id'] as String;
+      final reg = await authRepo().register(
+        email: email,
+        authProvider: 'google',
+        googleSub: 'sub-$email',
+        phoneNumber: phone,
+        businessName: 'Salon',
+        businessType: 'salon',
+        providerId: salonId,
+      );
+      final id = reg.provider!.id;
+      await PostgresMembershipRepository(
+        pool,
+      ).ensureOwner(providerId: salonId, accountId: id, email: email);
+      return (id: id, salonId: salonId);
+    }
+
+    test('a salon owner with a team is erased — the production path, end to '
+        'end', () async {
+      final members = PostgresMembershipRepository(pool);
+      final providers = PostgresProvidersRepository(pool);
+      final devices = PostgresDeviceTokenRepository(pool);
+      final notifications = PostgresNotificationsRepository(pool);
+
+      final o = await owner('del-owner@test.pro', '+2250500001001');
+      await providers.setStatus(o.salonId, 'active');
+
+      // A teammate in the owner's salon — their row must survive.
+      final mate = (await authRepo().register(
+        email: 'del-mate@test.pro',
+        authProvider: 'google',
+        googleSub: 'sub-del-mate',
+        phoneNumber: '+2250500001002',
+        businessName: 'Mate',
+        businessType: 'salon',
+      )).provider!.id;
+      final mateInvite = await members.invite(
+        providerId: o.salonId,
+        email: 'del-mate@test.pro',
+        role: 'staff',
+        artistId: 'a1',
+        expiresAt: DateTime.now().add(const Duration(days: 7)),
+      );
+      await members.activate(mateInvite!.id, mate);
+
+      // A second salon where the owner is only STAFF: the row goes with the
+      // identity, the salon itself is untouched (R6 — member-only salons).
+      final other = await owner('del-other@test.pro', '+2250500001003');
+      await providers.setStatus(other.salonId, 'active');
+      final staffInvite = await members.invite(
+        providerId: other.salonId,
+        email: 'del-owner@test.pro',
+        role: 'staff',
+        artistId: 'a1',
+        expiresAt: DateTime.now().add(const Duration(days: 7)),
+      );
+      await members.activate(staffInvite!.id, o.id);
+
+      await devices.upsert(
+        token: 'tok-del-owner',
+        userId: o.id,
+        role: 'provider',
+        platform: 'ios',
+      );
+      await notifications.add(
+        userId: o.id,
+        type: 'system',
+        title: 'Bienvenue',
+        body: 'Votre salon est prêt.',
+      );
+      expect(
+        await count(
+          'SELECT count(*)::int FROM provider_members WHERE account_id = @a',
+          {'a': o.id},
+        ),
+        2,
+        reason: 'the control: the owner row and the staff row exist',
+      );
+
+      final r = await service().deleteAccount(o.id);
+
+      expect(r.ok, isTrue);
+      expect(r.error, isNull);
+      expect(await authRepo().accountById(o.id), isNull);
+      expect(
+        await count(
+          'SELECT count(*)::int FROM provider_members WHERE account_id = @a',
+          {'a': o.id},
+        ),
+        0,
+        reason: 'a member row never outlives its account',
+      );
+      expect(
+        await count(
+          'SELECT count(*)::int FROM provider_refresh_tokens '
+          'WHERE account_id = @a',
+          {'a': o.id},
+        ),
+        0,
+      );
+      expect((await providers.byId(o.salonId))!['status'], 'draft');
+      // Scoped: the teammate keeps their seat, the other salon its owner and
+      // its listing.
+      expect(await members.activeMember(mate, o.salonId), isNotNull);
+      expect(await members.activeMember(other.id, other.salonId), isNotNull);
+      expect((await providers.byId(other.salonId))!['status'], 'active');
+      expect(await devices.tokensForUser(o.id), isEmpty);
+      expect(await notifications.listForUser(o.id, limit: 10), isEmpty);
+    });
+
+    test('no foreign key into an identity table can block its delete', () async {
+      // The class of the defect, not just its instance: a table added later
+      // that references an identity without ON DELETE would re-open the same
+      // 500 on the same button. Each row is (table.column → identity, action);
+      // `a`/`r` (no action / restrict) block the delete.
+      final rows = await pool.execute('''
+SELECT c.conrelid::regclass::text, a.attname::text,
+       c.confrelid::regclass::text, c.confdeltype::text
+FROM pg_constraint c
+JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = ANY (c.conkey)
+WHERE c.contype = 'f'
+  AND c.confrelid IN ('users'::regclass, 'provider_users'::regclass,
+                      'admins'::regclass)''');
+      final all = [for (final r in rows) '${r[0]}.${r[1]} → ${r[2]}: ${r[3]}'];
+      // Not vacuous: the refresh-token tables of all three identities and the
+      // member table are found.
+      expect(all.length, greaterThanOrEqualTo(4), reason: all.join('\n'));
+      expect(
+        all.where((r) => !r.endsWith(': c') && !r.endsWith(': n')),
+        isEmpty,
+        reason: all.join('\n'),
+      );
+    });
+
+    test('a failed identity delete changes nothing — the sessions survive '
+        '(one transaction)', () async {
+      final reg = await authRepo().register(
+        email: 'del-atomic@test.pro',
+        authProvider: 'google',
+        googleSub: 'sub-del-atomic',
+        phoneNumber: '+2250500001004',
+        businessName: 'Atomic',
+        businessType: 'salon',
+      );
+      final id = reg.provider!.id;
+      Future<int> sessions() => count(
+        'SELECT count(*)::int FROM provider_refresh_tokens '
+        'WHERE account_id = @a',
+        {'a': id},
+      );
+      final before = await sessions();
+      expect(before, greaterThan(0));
+
+      // A dependent row the delete cannot pass: a probe table, created and
+      // dropped here (a TEMP table cannot reference a permanent one).
+      await pool.execute(
+        'CREATE TABLE deletion_blocker_probe '
+        '(account_id text REFERENCES provider_users(id))',
+      );
+      try {
+        await pool.execute(
+          Sql.named('INSERT INTO deletion_blocker_probe VALUES (@a)'),
+          parameters: {'a': id},
+        );
+
+        await expectLater(
+          authRepo().deleteAccount(id),
+          throwsA(isA<ServerException>()),
+        );
+
+        expect(await authRepo().accountById(id), isNotNull);
+        expect(
+          await sessions(),
+          before,
+          reason:
+              'the sessions were deleted before the failing statement — the '
+              'account is left signed out and undeletable',
+        );
+      } finally {
+        await pool.execute('DROP TABLE IF EXISTS deletion_blocker_probe');
+      }
+    });
+
+    test('a deletion that fails at the identity keeps the team rows — nothing '
+        'of the account is lost before the last step', () async {
+      // The rows go WITH the identity (0038's cascade, inside its
+      // transaction), never before it: deleted first, a failed identity
+      // delete lost them for good, and in between an account with no
+      // membership at all let GET /me/provider auto-create a salon for a
+      // staff account (adversarial review of 959c9634).
+      final o = await owner('del-order@test.pro', '+2250500001005');
+      Future<int> rows() => count(
+        'SELECT count(*)::int FROM provider_members WHERE account_id = @a',
+        {'a': o.id},
+      );
+      expect(await rows(), 1, reason: 'the control: the owner row exists');
+
+      await pool.execute(
+        'CREATE TABLE deletion_blocker_probe '
+        '(account_id text REFERENCES provider_users(id))',
+      );
+      try {
+        await pool.execute(
+          Sql.named('INSERT INTO deletion_blocker_probe VALUES (@a)'),
+          parameters: {'a': o.id},
+        );
+
+        await expectLater(
+          service().deleteAccount(o.id),
+          throwsA(isA<ServerException>()),
+        );
+
+        expect(await authRepo().accountById(o.id), isNotNull);
+        expect(
+          await rows(),
+          1,
+          reason: 'the team row was deleted before the identity delete failed',
+        );
+      } finally {
+        await pool.execute('DROP TABLE IF EXISTS deletion_blocker_probe');
+      }
     });
   });
 }

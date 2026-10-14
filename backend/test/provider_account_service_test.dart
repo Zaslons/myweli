@@ -114,8 +114,10 @@ void main() {
     expect(deleted[1], contains('kyc/$id/b.pdf'));
     expect(await auth.accountById(id), isNull);
     verify(() => providers.setStatus('p1', 'draft')).called(1);
-    final rows = await memberships.listForAccount(id);
-    expect(rows.single.status, 'revoked');
+    // Deleted, not revoked — in Postgres a revoked row still references the
+    // identity (docs/design/backend-provider-deletion-member-fk.md).
+    expect(await memberships.listForAccount(id), isEmpty);
+    expect(await memberships.listForProvider('p1'), isEmpty);
   });
 
   test('a deleted SALON stops receiving push too', () async {
@@ -448,8 +450,7 @@ void main() {
       expect(storageCalls.single, endsWith('kyc/${owner.id}/id.jpg'));
       verify(() => providers.setStatus('p1', 'draft')).called(1);
       expect(rebuild.reasons, ['account.erased']);
-      final rows = await memberships.listForAccount(owner.id);
-      expect(rows.single.status, 'revoked');
+      expect(await memberships.listForAccount(owner.id), isEmpty);
       expect(await devices.tokensForUser(owner.id), isEmpty);
       expect(await notifications.listForUser(owner.id, limit: 10), isEmpty);
       expect((await auth.refresh(owner.refreshToken)).ok, isFalse);

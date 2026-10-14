@@ -100,6 +100,9 @@ Errors: 401 · 403 `forbidden` (non-provider) · 403 **`reseau_required`** ·
 - **Deletion (T53)**: `deleteAccount` gates `future_bookings` across ALL
   owned salons and unpublishes (status → draft) each. Membership rows still
   revoked via `revokeAllForAccount`; member salons untouched.
+  *2026-10-14: the rows are now DELETED (`deleteAllForAccount`; 0038 cascades
+  the key) — the revoke left a row referencing the identity and the delete
+  failed with a 500 ([backend-provider-deletion-member-fk.md](backend-provider-deletion-member-fk.md)).*
 
 ## 5. Security / threat model
 
