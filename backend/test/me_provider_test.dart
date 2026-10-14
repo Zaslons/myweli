@@ -503,7 +503,7 @@ void main() {
         expiresAt: DateTime.now().add(const Duration(days: 7)),
       );
       await memberships.activate(invited!.id, 'acc1');
-      await memberships.revokeAllForAccount('acc1');
+      await memberships.revoke(invited.id);
 
       final res = await me_provider.onRequest(
         ctx(reqSalon('p4', token: tok('acc1', 'provider'))),

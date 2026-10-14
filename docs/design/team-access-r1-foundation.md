@@ -38,6 +38,11 @@ Out of scope (R2+): invitations, the login bridge, seat caps, any UI.
    (R2) must never get a salon auto-created.
 7. **Deletion semantics** (drift §2.3-2) — `ProviderAccountService` revokes
    every membership of the account being deleted (owner or member).
+   *2026-10-14: **deletes** them instead (`deleteAllForAccount`), and 0038
+   makes `provider_members.account_id` cascade — a revoked row kept
+   `account_id`, which references the identity, so every salon owner's
+   deletion answered 500 in production
+   ([backend-provider-deletion-member-fk.md](backend-provider-deletion-member-fk.md)).*
 8. **The ownership swap** — the `_owns(account.providerId == id)` idiom in
    catalog / dashboard / earnings / journal / clients services and the
    route-level `account.providerId` resolutions move onto
