@@ -343,6 +343,69 @@ void main() {
       if (code != null) 'code': code,
     };
 
+    // T72 (docs/design/backend-register-salon-link.md): the register body
+    // carried an optional `providerId`, stored as the account's salon link
+    // and then turned into an ACTIVE owner row by the provisioning step — so
+    // anyone who could prove ANY identity could claim ANY salon by its public
+    // id. No client sends it; the route no longer reads it.
+    group('a salon is never claimed by id at registration (T72)', () {
+      test('a client-supplied providerId is ignored: the account gets its own '
+          'new salon and nothing in the other one', () async {
+        final members = InMemoryMembershipRepository();
+        final victim = await salons.createSalon(
+          name: 'Salon Victime',
+          category: 'salon',
+          phoneNumber: '+2250700000099',
+        );
+        final victimId = victim['id'] as String;
+
+        final c = ctx(
+          post('/auth/provider/register', {
+            ...regBody(),
+            'idToken': 'tok',
+            'providerId': victimId,
+          }),
+        );
+        when(
+          () => c.read<SalonProvisioningService>(),
+        ).thenReturn(SalonProvisioningService(salons, repo, members));
+        final res = await p_register.onRequest(c);
+
+        expect(res.statusCode, HttpStatus.created);
+        final provider = (await jsonOf(res))['provider'] as Map;
+        final accountId = provider['id'] as String;
+        final salonId = provider['providerId'] as String?;
+        expect(
+          salonId,
+          isNotNull,
+          reason: 'a fresh draft salon is provisioned',
+        );
+        expect(salonId, isNot(victimId), reason: 'linked to the victim salon');
+        expect((await repo.accountById(accountId))!.providerId, salonId);
+        expect(
+          await members.listForProvider(victimId),
+          isEmpty,
+          reason: 'an owner row was written in the victim salon',
+        );
+        expect(await members.activeMember(accountId, salonId!), isNotNull);
+      });
+
+      test('the route never reads providerId from the body — on every identity '
+          'branch', () {
+        // The behavioural test above drives the Google branch; this holds
+        // all three (Google, Apple, email + code), which share one read.
+        final source = File(
+          'routes/auth/provider/register.dart',
+        ).readAsStringSync();
+        final code = source
+            .replaceAll(RegExp(r'/\*.*?\*/', dotAll: true), '')
+            .replaceAll(RegExp(r'//[^\n]*'), '');
+        expect(code, contains("body['phoneNumber']"), reason: 'not vacuous');
+        expect(code, isNot(contains("body['providerId']")));
+        expect(code, isNot(contains('providerId:')));
+      });
+    });
+
     group('the demo review sign-in (T69)', () {
       test(
         'request for the demo identity: 202, and NO mail attempted',

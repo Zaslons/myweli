@@ -53,7 +53,8 @@ void main() {
       expect((await members.listForProvider('p1')), hasLength(1));
     });
 
-    test('revokeAllForAccount flips every row and stamps revoked_at', () async {
+    test('deleteAllForAccount removes every row of the account and no other '
+        '(account deletion, T53)', () async {
       await members.ensureOwner(
         providerId: 'p1',
         accountId: 'acc1',
@@ -64,13 +65,20 @@ void main() {
         accountId: 'acc1',
         email: 'a@x.pro',
       );
-      await members.revokeAllForAccount('acc1');
-      final rows = await members.listForAccount('acc1');
-      expect(rows, hasLength(2));
-      expect(rows.every((m) => m.status == 'revoked'), isTrue);
-      expect(rows.every((m) => m.revokedAt != null), isTrue);
+      await members.ensureOwner(
+        providerId: 'p3',
+        accountId: 'acc2',
+        email: 'b@x.pro',
+      );
+      await members.deleteAllForAccount('acc1');
+      // Gone, not revoked: a revoked row keeps `account_id`, and in Postgres
+      // that column references the identity being deleted
+      // (docs/design/backend-provider-deletion-member-fk.md).
+      expect(await members.listForAccount('acc1'), isEmpty);
+      expect(await members.listForProvider('p1'), isEmpty);
       expect(await members.activeMember('acc1', 'p1'), isNull);
       expect(await members.firstActiveForAccount('acc1'), isNull);
+      expect(await members.activeMember('acc2', 'p3'), isNotNull);
     });
   });
 
@@ -121,13 +129,13 @@ void main() {
       'revoked members are outsiders on their very NEXT request (T38)',
       () async {
         final id = await register(providerId: 'p1');
-        await members.ensureOwner(
+        final ownerRow = await members.ensureOwner(
           providerId: 'p1',
           accountId: id,
           email: 'owner@test.pro',
         );
         // Sever the legacy link too so only the membership row answers.
-        await members.revokeAllForAccount(id);
+        await members.revoke(ownerRow.id);
         // (The account keeps providerId='p1', so the self-heal would restore
         // an owner — that is CORRECT for owners. Assert the pure-membership
         // path with an unlinked account instead.)
@@ -140,13 +148,13 @@ void main() {
           googleSub: 'sub-staff',
         );
         final staffId = stray.provider!.id;
-        await members.ensureOwner(
+        final staffRow = await members.ensureOwner(
           providerId: 'p1',
           accountId: staffId,
           email: 'staff@test.pro',
         );
         expect(await service.can(staffId, 'p1', Cap.journalViewAll), isTrue);
-        await members.revokeAllForAccount(staffId);
+        await members.revoke(staffRow.id);
         expect(await service.can(staffId, 'p1', Cap.journalViewAll), isFalse);
       },
     );
@@ -202,12 +210,12 @@ void main() {
 
     test('explicit id: revoked-there → null (uniform denial, T55)', () async {
       final memberId = await register(email: 'rev@test.pro');
-      await members.ensureOwner(
+      final row = await members.ensureOwner(
         providerId: 'p9',
         accountId: memberId,
         email: 'rev@test.pro',
       );
-      await members.revokeAllForAccount(memberId);
+      await members.revoke(row.id);
       expect(await service.salonForRequest(memberId, salonId: 'p9'), isNull);
     });
 

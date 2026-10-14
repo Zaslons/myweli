@@ -1055,6 +1055,31 @@ CREATE TABLE IF NOT EXISTS momo_operators (
           'ADD COLUMN IF NOT EXISTS rotated_at timestamptz',
     ],
   ),
+  (
+    id: '0038_provider_members_account_cascade',
+    statements: [
+      // A member row never outlives its account (module `access`, drift
+      // §2.3-2) — now a fact of the schema, as it already was for
+      // `provider_refresh_tokens`. 0027 declared `account_id` with NO ON
+      // DELETE action, and the deletion flow only REVOKED the account's rows
+      // (an UPDATE that keeps `account_id`), so every `DELETE /me/provider`
+      // from a salon owner answered 500 in production (2026-10-14):
+      // docs/design/backend-provider-deletion-member-fk.md.
+      //
+      // The name is the one 0027's inline REFERENCES produced
+      // (`<table>_<column>_fkey`), read from the 23503 the same DDL raises in
+      // the test database. Both statements run in this migration's single
+      // transaction, so there is no instant without the key. Widening, not
+      // narrowing: the rows it accepts are unchanged, and an older image's
+      // revoke-then-delete now succeeds instead of failing.
+      'ALTER TABLE provider_members '
+          'DROP CONSTRAINT IF EXISTS provider_members_account_id_fkey',
+      'ALTER TABLE provider_members '
+          'ADD CONSTRAINT provider_members_account_id_fkey '
+          'FOREIGN KEY (account_id) REFERENCES provider_users(id) '
+          'ON DELETE CASCADE',
+    ],
+  ),
 ];
 
 /// How long a schema-setup statement may **wait for a lock** before giving up.
