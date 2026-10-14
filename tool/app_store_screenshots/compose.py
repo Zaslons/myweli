@@ -61,12 +61,16 @@ def die(msg: str) -> None:
     sys.exit(1)
 
 
-def tokens() -> dict[str, tuple[int, int, int]]:
+TOKENS = ("surface", "textPrimary", "textSecondary", "border", "divider")
+
+
+def tokens(names: tuple[str, ...] = TOKENS) -> dict[str, tuple[int, int, int]]:
     """Read the colour tokens by name from colors.dart, so a token change
-    cannot drift away from the frames silently."""
+    cannot drift away from the frames silently. The App Preview film
+    (tool/app_store_preview) reads its two extra tokens through here too."""
     src = COLORS_DART.read_text(encoding="utf-8")
     out = {}
-    for name in ("surface", "textPrimary", "textSecondary", "border", "divider"):
+    for name in names:
         m = re.search(
             rf"static const Color {name} = Color\(\s*0x([0-9A-Fa-f]{{8}})", src
         )
@@ -216,9 +220,9 @@ def frame(screen: dict, raw: Image.Image, size: tuple[int, int], c: dict) -> Ima
 def save_checked(im: Image.Image, path: Path, size: tuple[int, int]) -> str:
     path.parent.mkdir(parents=True, exist_ok=True)
     im.save(path, "PNG")
-    back = Image.open(path)
-    if back.size != size or back.mode != "RGB" or "transparency" in back.info:
-        die(f"{path} came back {back.size} {back.mode} {back.info} — refusing it")
+    with Image.open(path) as back:
+        if back.size != size or back.mode != "RGB" or "transparency" in back.info:
+            die(f"{path} came back {back.size} {back.mode} {back.info} — refusing it")
     return hashlib.sha256(path.read_bytes()).hexdigest()[:12]
 
 
