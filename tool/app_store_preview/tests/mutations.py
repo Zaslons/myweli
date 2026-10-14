@@ -10,13 +10,15 @@ always pass, bends a number — and requires a named test to fail each time.
     python3 tool/app_store_preview/tests/mutations.py e2e --match=Writer.swift
     python3 tool/app_store_preview/tests/mutations.py --list
 
-Groups: edit, frames, track, brand, mp4, verify, cli, swift, e2e.
+Groups: edit, frames, track, brand, mp4, verify, cli, swift, e2e — and for
+the film of scenes (version 2): scenes, masks, scene_frames, film (the
+slow ones: each builds the film of scenes twice).
 
-What this cannot see. The refusals of edit.py, frames.py and brand.py are
-counted, and verify.py's checks are matched by name, so one added there
-without a watch is an error. The Swift helpers, track.py and preview.py are
-not counted: a new guard there is watched only if someone adds a line to
-MANUAL.
+What this cannot see. The refusals of edit.py, frames.py, brand.py,
+scenes.py, masks.py and scene_frames.py are counted, and verify.py's checks
+are matched by name, so one added there without a watch is an error. The
+Swift helpers, track.py, preview.py and film.py are not counted: a new
+guard there is watched only if someone adds a line to MANUAL.
 Known to be unwatched today, because no file was found that makes them
 fire: conform's « frames out of order », « frame size changed inside the
 take », « two samples share the presentation time », the exact-tick
@@ -54,6 +56,10 @@ SILENCED = [
     ("edit.py", r"raise Refusal\(", "Refusal(", 64, ["tests.test_edit"]),
     ("frames.py", r"(?m)^( +)die\(", r"\1str(", 11, ["tests.test_frames"]),
     ("brand.py", r"(?m)^( +)die\(", r"\1str(", 5, ["tests.test_brand"]),
+    # version 2: a film made of scenes
+    ("scenes.py", r"raise Refusal\(", "Refusal(", 32, ["tests.test_scenes"]),
+    ("masks.py", r"raise Refusal\(", "Refusal(", 8, ["tests.test_masks"]),
+    ("scene_frames.py", r"(?m)^( +)die\(", r"\1str(", 10, ["tests.test_scene_frames"]),
 ]
 
 # ---- every check of verify.py, made to pass -----------------------------------
@@ -88,6 +94,7 @@ VERIFY_CHECKS = {
     "sound runs the whole film": V + "test_sound_that_stops_early",
     "sound is digital silence": V + "test_sound_that_is_not_silence",
     "sound bit rate": V + "test_sound_declared_at_128_kbps",
+    "masked regions": "tests.test_verify.MaskedRegions.test_a_masked_region_that_shows_the_original_fails",
 }
 
 # ---- numbers, comparisons, and the Swift helpers ------------------------------
@@ -96,9 +103,16 @@ F = "tests.test_frames."
 B = "tests.test_brand."
 P = "tests.test_mp4."
 X = "tests.test_verify.EncoderRefuses."
+XL = "tests.test_verify.EncoderLevel."
 C = "tests.test_cli."
 K = "tests.test_track."
 E2E = "tests.test_e2e"
+S = "tests.test_scenes."
+M = "tests.test_masks."
+Q = "tests.test_scene_frames."
+R = "tests.test_verify.MaskedRegions."
+G = "tests.test_verify.MaskedGhost."
+FILM = "tests.test_film_e2e."
 MANUAL = [
     # group, file, exactly this text (once), becomes, the test that must fail
     ("edit", "edit.py", "STRONG_MIN = 4 ", "STRONG_MIN = 6 ", E + "Kinds.test_what_is_a_change"),
@@ -496,6 +510,162 @@ MANUAL = [
     ("mp4", "mp4.py", "    if tag != 0x05:", "    if False:",
      P + "Esds.test_a_payload_without_one_of_its_three_descriptors_is_refused"),
 
+    # ---- version 2: a film made of scenes -------------------------------------
+    ("scenes", "scenes.py", "FILM_S = (15, 30) ", "FILM_S = (15, 31) ", S + "Refusals.test_the_film_is_15_to_30_seconds"),
+    ("scenes", "scenes.py", "FILM_S = (15, 30) ", "FILM_S = (13, 30) ", S + "Refusals.test_the_film_is_15_to_30_seconds"),
+    ("scenes", "scenes.py", "END_CARD_S = (1.5, 2.5) ", "END_CARD_S = (1.4, 2.5) ",
+     S + "Refusals.test_the_end_card_is_one_and_a_half_to_two_and_a_half_seconds"),
+    ("scenes", "scenes.py", "END_CARD_S = (1.5, 2.5) ", "END_CARD_S = (1.5, 2.6) ",
+     S + "Refusals.test_the_end_card_is_one_and_a_half_to_two_and_a_half_seconds"),
+    ("scenes", "scenes.py", '        j["frames"] = motion(j["token"]).frames(fps) - 1',
+     '        j["frames"] = motion(j["token"]).frames(fps)', S + "Propose.test_joins_end_card_and_where_each_scene_lands"),
+    ("scenes", "scenes.py", '"frames": motion(d.get("dissolve") or sb["motion"]["dissolve"]).frames(fps) - 1}',
+     '"frames": motion(d.get("dissolve") or sb["motion"]["dissolve"]).frames(fps)}',
+     S + "Propose.test_a_dissolve_inside_a_scene_skips_forward_between_two_rests"),
+    ("scenes", "scenes.py", '"frames": p.frames})', '"frames": p.frames + 30})',
+     S + "Refusals.test_what_each_caption_brings_and_for_how_long"),
+    ("scenes", "scenes.py", '"frames": total - end_at})', '"frames": total - end_at + 30})',
+     S + "Refusals.test_the_end_cards_line_must_be_read_in_its_time"),
+    ("scenes", "scenes.py", "if box[0] - radius < x < box[2] + radius and box[1] - radius < y < box[3] + radius:",
+     "if box[0] < x < box[2] and box[1] < y < box[3]:",
+     S + "Refusals.test_in_the_full_bleed_frame_a_band_never_covers_a_touch"),
+    ("scenes", "scenes.py", 'if x["down"] <= t < x["up"] + out_ticks]', 'if x["down"] <= t < x["up"]]',
+     S + "Refusals.test_a_join_while_a_touch_point_is_on_screen_is_refused"),
+    ("scenes", "scenes.py", "if instant - tail < p <= instant]", "if instant < p <= instant]",
+     S + "Refusals.test_a_join_from_a_picture_that_is_still_changing_is_refused"),
+    ("scenes", "scenes.py", "ids |= {g.gesture for g in tm.gestures if g.down < b and g.last_change >= a}",
+     "ids |= set()", S + "Propose.test_a_stretch_kept_by_times_brings_the_gestures_it_holds"),
+    ("scenes", "scenes.py", "            moved = start * step\n", "            moved = 0\n",
+     S + "Propose.test_a_dissolve_inside_a_scene_skips_forward_between_two_rests"),
+    ("scenes", "scenes.py", "        if k:\n            ends.append(", "        if False:\n            ends.append(",
+     S + "Refusals.test_a_join_from_footage_that_plays_is_refused"),
+    ("scenes", "scenes.py", "            for local in (at - 1, at + n):", "            for local in (at + n,):",
+     S + "Refusals.test_a_touch_point_on_a_picture_of_the_dissolve_is_refused"),
+    # a frame's own poster (review, 2026-10-14: the full-bleed band cut the framed film's)
+    ("scenes", "scenes.py", '    return poster.get(sb["film"]["frame"], poster)', "    return poster",
+     S + "Refusals.test_a_frame_may_have_its_own_poster"),
+    ("scenes", "scenes.py", "    if home is None or home.id != poster_of(sb)[\"scene\"]:",
+     "    if home is None or home.id != sb[\"film\"][\"poster\"][\"scene\"]:",
+     S + "Refusals.test_a_frame_may_have_its_own_poster"),
+    # the poster on a whole second: a frame that shows, already, the picture a later frame shows at rest (2026-10-14)
+    ("scenes", "scenes.py", "    if moving is not None and shows_a_rested_picture(take.tm, ps, local, tail):",
+     "    if False:", S + "Refusals.test_a_poster_may_name_a_rested_picture_on_an_earlier_frame"),
+    ("scenes", "scenes.py", "        if there is None or held(tm.pts, there[2]) != j:",
+     "        if there is None:", S + "Refusals.test_a_poster_may_name_a_rested_picture_on_an_earlier_frame"),
+    ("scenes", "scenes.py", "        if there is None or held(tm.pts, there[2]) != j:",
+     "        if held(tm.pts, there[2]) != j:", S + "RestedPicture.test_the_walk_stops_at_the_scenes_dissolve"),
+    ("scenes", "scenes.py", "        if at_rest(tm, there[2], tail) is None:\n            return True",
+     "        if True:\n            return True",
+     S + "RestedPicture.test_a_picture_that_changes_before_any_frame_at_rest_is_not"),
+    ("scenes", "scenes.py", "            return True\n    return False\n",
+     "            return True\n    return True\n", S + "RestedPicture.test_the_walk_stops_at_the_scenes_end"),
+    ("scenes", "scenes.py", "    if not f:\n        return f\"App Store Connect previewFrameTimeCode {hms}:00\"",
+     "    if True:\n        return f\"App Store Connect previewFrameTimeCode {hms}:00\"",
+     S + "Describe.test_the_log_gives_app_store_connects_time_code_for_a_poster_on_a_whole_second"),
+    ("scenes", "scenes.py", "    hms = f\"{s // 3600:02d}:{s // 60 % 60:02d}:{s % 60:02d}\"",
+     "    hms = f\"00:{s // 60:02d}:{s % 60:02d}\"",
+     S + "Describe.test_the_log_gives_app_store_connects_time_code_for_a_poster_on_a_whole_second"),
+    # the film is storyboard-scenes.json; every other storyboard of scenes is a rehearsal (the owner's choice, 2026-10-14)
+    ("scenes", "storyboard-scenes.json", '  "version": 2,\n', '  "rehearsal": true,\n  "version": 2,\n',
+     S + "Storyboard.test_the_film_is_storyboard_scenes_and_every_other_storyboard_of_scenes_a_rehearsal"),
+    ("scenes", "storyboard-scenes-alt-s5.json", '  "rehearsal": true,\n', '',
+     S + "Storyboard.test_the_film_is_storyboard_scenes_and_every_other_storyboard_of_scenes_a_rehearsal"),
+    ("scenes", "storyboard-scenes-demo.json", '"rehearsal": true', '"rehearsal": false',
+     S + "Storyboard.test_the_film_is_storyboard_scenes_and_every_other_storyboard_of_scenes_a_rehearsal"),
+    ("scenes", "edit.py", "    for g in [g for g in tm.gestures if gestures is None or g.gesture in gestures]:",
+     "    for g in tm.gestures:", S + "Refusals.test_the_proposal_is_accepted"),
+
+    ("masks", "masks.py", "MAX_TRACK_ERROR = 6.0 ", "MAX_TRACK_ERROR = 12.0 ",
+     M + "Place.test_content_that_does_not_scroll_stops_the_mask"),
+    ("masks", "masks.py", "LEGIBLE = 0.15 ", "LEGIBLE = 0.6 ", M + "Place.test_a_blur_that_leaves_the_content_legible_is_refused"),
+    ("masks", "masks.py", "FLAT = 12.0 ", "FLAT = 0.0 ", M + "Place.test_a_rectangle_on_nothing_is_refused"),
+    ("masks", "masks.py", "WINDOW = 4 ", "WINDOW = 400 ", M + "Place.test_a_change_elsewhere_on_the_screen_does_not_lose_the_mask"),
+    ("masks", "masks.py", "REANCHOR = 0.5 ", "REANCHOR = 50.0 ",
+     M + "Place.test_a_tracking_mask_follows_a_scroll_whose_every_step_is_known"),
+    ("masks", "masks.py", "SEARCH_PT = 40.0 ", "SEARCH_PT = 4.0 ",
+     M + "Place.test_a_tracking_mask_follows_a_scroll_whose_every_step_is_known"),
+    ("masks", "masks.py", "RING_PX = 3 ", "RING_PX = 0 ", M + "Cover.test_fill_takes_the_colour_around_the_rectangle"),
+    ("masks", "masks.py", "        radius = y1 - y0\n", "        radius = 1\n",
+     M + "Cover.test_a_blur_as_wide_as_the_rectangle_is_tall_leaves_words_unreadable"),
+    ("masks", "masks.py", "        lo = min(max(top - WINDOW * h, band[0]), band[1] - height)",
+     "        lo = top - WINDOW * h", M + "Place.test_a_tracking_mask_follows_a_scroll_whose_every_step_is_known"),
+    ("masks", "masks.py", "        box = (x, max(y + s, band[0]), x + w, min(y + h + s, band[1]))",
+     "        box = (x, y + s, x + w, y + h + s)", M + "Place.test_a_tracking_mask_follows_a_scroll_whose_every_step_is_known"),
+
+    ("scene_frames", "scene_frames.py", "self.scale = W / raw_size[0] ", "self.scale = H / raw_size[1] ",
+     Q + "FullBleed.test_the_capture_fills_the_frame_scaled_alike_both_ways"),
+    ("scene_frames", "scene_frames.py", "self.y0 = (raw_size[1] - self.rows) / 2 ", "self.y0 = 0.0 ",
+     Q + "FullBleed.test_the_capture_fills_the_frame_scaled_alike_both_ways"),
+    ("scene_frames", "scene_frames.py", "self.dy_pt = self.y0 / (raw_size[0] / points[0])", "self.dy_pt = 0.0",
+     Q + "FullBleed.test_a_touch_point_lands_where_the_finger_did"),
+    ("scene_frames", "scene_frames.py", "        top = self.head_top + 2 * self.head_lh + gap\n",
+     "        top = self.head_top + 2 * self.head_lh\n",
+     Q + "Framed.test_the_card_takes_the_sub_lines_place_and_grows_to_the_stills_margin"),
+    ("scene_frames", "scene_frames.py", "self.card_w = int((self.H - bottom - self.card_y) * self.raw_w / self.raw_h)",
+     "self.card_w = int((self.H - self.card_y) * self.raw_w / self.raw_h)",
+     Q + "Framed.test_the_card_takes_the_sub_lines_place_and_grows_to_the_stills_margin"),
+    ("scene_frames", "scene_frames.py", "        k = round(token.at((i + 1) / fps), 6)", "        k = round(token.at(i / fps), 6)",
+     Q + "Compose.test_a_join_is_every_pixel_on_the_tokens_curve"),
+    ("scene_frames", "scene_frames.py", '            top = (self.sb2["band"]["top_pt"] - self.dy_pt) * pt',
+     '            top = self.sb2["band"]["top_pt"] * pt',
+     Q + "FullBleed.test_the_band_is_brand_black_with_white_text_under_the_status_bar"),
+    ("scene_frames", "scene_frames.py", 'Image.new("RGBA", shape.size, c["primary"] + (255,))',
+     'Image.new("RGBA", shape.size, c["textPrimary"] + (255,))',
+     Q + "FullBleed.test_the_band_is_brand_black_with_white_text_under_the_status_bar"),
+    # the band is its line boxes, and hugs its longest line (review, 2026-10-14)
+    ("scene_frames", "scene_frames.py", "        height = sum(lh for _, _, lh in lines) + 2 * pad_v * pt\n",
+     "        height = sum(lh for _, _, lh in lines[:1]) + 2 * pad_v * pt\n",
+     Q + "FullBleed.test_the_band_is_its_line_boxes_and_hugs_its_longest_line"),
+    ("scene_frames", "scene_frames.py", "        width = max(f.getlength(t) for t, f, _ in lines) + 2 * pad_h * pt\n",
+     "        width = widest\n", Q + "FullBleed.test_the_band_is_its_line_boxes_and_hugs_its_longest_line"),
+    ("scene_frames", "scene_frames.py", "        x0 = (self.size[0] - width) / 2\n", "        x0 = margin * pt\n",
+     Q + "FullBleed.test_the_band_is_brand_black_with_white_text_under_the_status_bar"),
+    ("scene_frames", "scene_frames.py", "            d.text((self.size[0] / 2, y + lh * ascent / (ascent + descent)), t, font=f,",
+     "            d.text((self.size[0] / 2, y), t, font=f,",
+     Q + "FullBleed.test_the_band_is_its_line_boxes_and_hugs_its_longest_line"),
+    ("scene_frames", "scene_frames.py", "int(np.floor((y0 - self.y0) * f)),", "int(np.floor(y0 * f)),",
+     Q + "FullBleed.test_a_box_of_the_capture_maps_to_where_the_frame_shows_it"),
+    ("scene_frames", "scene_frames.py", "                raw = masking.cover(raw, m.box, m.style, m.colour)",
+     "                raw = raw", Q + "Compose.test_the_mask_covers_its_box_on_every_frame_of_its_picture"),
+
+    ("verify", "verify.py", "MASK_MAX_OFF = 4.0", "MASK_MAX_OFF = 40.0", R + "test_a_region_ten_levels_off_the_masked_picture_fails"),
+    ("verify", "verify.py", "MASK_SHOWN = 0.5", "MASK_SHOWN = 0.0", R + "test_a_region_closer_to_the_original_than_to_the_mask_fails"),
+    ("verify", "verify.py", "MASK_HIDES = 2.0", "MASK_HIDES = 1000.0", R + "test_a_region_closer_to_the_original_than_to_the_mask_fails"),
+    ("verify", "verify.py", "            if off > MASK_MAX_OFF:", "            if False:",
+     R + "test_a_region_ten_levels_off_the_masked_picture_fails"),
+    ("verify", "verify.py", "                if share < MASK_SHOWN:", "                if False:",
+     R + "test_a_region_closer_to_the_original_than_to_the_mask_fails"),
+    ("verify", "verify.py", "        if masks is not None:", "        if False:", R + "test_a_masked_region_that_shows_the_original_fails"),
+    ("verify", "verify.py", '        return True, "the film has no masked region"', '        return False, "the film has no masked region"',
+     R + "test_a_film_with_no_masked_region_says_so"),
+    # a faint original under the mask, read on its ink (review, 2026-10-14: a 15 % ghost passed the box's mean)
+    ("verify", "verify.py", "MASK_GHOST = 0.01", "MASK_GHOST = 0.2", G + "test_a_ghost_of_fifteen_percent_fails_where_the_mean_does_not_see_it"),
+    ("verify", "verify.py", "MASK_GHOST = 0.01", "MASK_GHOST = 0.02", G + "test_a_ghost_of_three_percent_fails_too"),
+    ("verify", "verify.py", "MASK_INK = 32.0", "MASK_INK = 300.0", G + "test_a_ghost_of_fifteen_percent_fails_where_the_mean_does_not_see_it"),
+    ("verify", "verify.py", "MASK_INK_MIN = 20", "MASK_INK_MIN = 100000",
+     G + "test_a_ghost_of_fifteen_percent_fails_where_the_mean_does_not_see_it"),
+    ("verify", "verify.py", "                if share_of_ink > MASK_GHOST:", "                if False:",
+     G + "test_a_ghost_of_fifteen_percent_fails_where_the_mean_does_not_see_it"),
+    ("verify", "verify.py", "    return n, float((d * e).sum() / (e * e).sum())", "    return n, 0.0",
+     G + "test_a_ghost_of_fifteen_percent_fails_where_the_mean_does_not_see_it"),
+    ("verify", "verify.py", "    ink = np.abs(o - m) > MASK_INK\n", "    ink = np.abs(o - m) < MASK_INK\n",
+     G + "test_a_ghost_of_fifteen_percent_fails_where_the_mean_does_not_see_it"),
+    # Level 4.0's busiest second, on its own (review, 2026-10-14: no test saw it fail)
+    ("verify", "verify.py", "PEAK_BPS = 25_000_000", "PEAK_BPS = 250_000_000", V + "test_a_busiest_second_past_level_4_0"),
+    ("verify", "verify.py", "VIDEO_BPS[0] <= bps <= VIDEO_BPS[1] and peak <= PEAK_BPS,",
+     "VIDEO_BPS[0] <= bps <= VIDEO_BPS[1],", V + "test_a_busiest_second_past_level_4_0"),
+
+    # the slow ones: each builds the film of scenes twice
+    ("film", "film.py", '    checks = verifying.verify(movie, fsb, out / "poster.png", {"regions": regions, "base": out})',
+     '    checks = verifying.verify(movie, fsb, out / "poster.png", None)',
+     FILM + "Built.test_both_frames_pass_every_check_masked_regions_included"),
+    ("film", "film.py", "    if a.frame:\n        sb[\"film\"][\"frame\"] = a.frame\n", "",
+     FILM + "Built.test_both_frames_pass_every_check_masked_regions_included"),
+    ("film", "film.py", "    if not ok or record is None:\n        sys.exit(1)\n", "    if not ok:\n        sys.exit(1)\n",
+     FILM + "Built.test_the_command_checks_a_built_film_again_and_knows_it_by_its_record"),
+    ("film", "film.py", "    if out.is_dir():\n        preview.clear(out, RESULTS, a.plan)\n", "",
+     FILM + "Refused.test_a_refused_plan_stops_the_build_and_leaves_no_earlier_result"),
+
     ("frames", "storyboard.json", "Une cliente arrive" + chr(92) + "u202f?", "Une cliente arrive" + chr(0x202F) + "?",
      F + "Storyboard.test_the_file_has_no_invisible_character"),
     ("frames", "frames.py", "        if abs(raw_size[0] * device_points[1] - raw_size[1] * device_points[0]) > 0.001 * raw_size[1] * device_points[0]:",
@@ -609,6 +779,31 @@ MANUAL = [
      V + "test_sound_that_is_not_silence"),
     ("swift", "swift/Encode.swift", 'guard outPath.hasSuffix(".mp4") else { die("the output must be a .mp4") }', "",
      X + "test_an_output_that_is_not_an_mp4_is_refused_and_left_alone"),
+    # Level 4.0's 25 Mbit a second: what was written is measured, and written again with a higher
+    # quantiser ceiling while it is over (2026-10-14: the film of scenes' S6 spent 25.31 Mbit)
+    ("swift", "swift/Encode.swift", "      if peak.bits <= levelPeakBits {\n", "      if true {\n",
+     XL + "test_a_second_over_the_level_is_written_again_with_a_higher_ceiling"),
+    ("swift", "swift/Encode.swift", "let levelPeakBits = 25_000_000", "let levelPeakBits = 30_000_000",
+     XL + "test_a_second_over_the_level_is_written_again_with_a_higher_ceiling"),
+    ("swift", "swift/Encode.swift", "let qpCeilingLast = 20", "let qpCeilingLast = 10",
+     XL + "test_a_second_over_the_level_is_written_again_with_a_higher_ceiling"),
+    ("swift", "swift/Encode.swift", "Array(stride(from: first, to: qpCeilingLast, by: 2)) + [qpCeilingLast]", "[first]",
+     XL + "test_a_second_over_the_level_is_written_again_with_a_higher_ceiling"),
+    # an odd first ceiling must still end on the last one (review, 2026-10-14)
+    ("swift", "swift/Encode.swift", "Array(stride(from: first, to: qpCeilingLast, by: 2)) + [qpCeilingLast]",
+     "Array(stride(from: first, through: qpCeilingLast, by: 2))",
+     XL + "test_the_ladder_of_ceilings_always_ends_on_the_last"),
+    ("swift", "swift/Encode.swift", "  guard first < qpCeilingLast else { return [first] }\n", "",
+     XL + "test_the_ladder_of_ceilings_always_ends_on_the_last"),
+    ("swift", "swift/Encode.swift", "    if i >= frames { window -= sizes[i - frames] }\n", "",
+     XL + "test_a_second_over_the_level_is_written_again_with_a_higher_ceiling"),
+    ("swift", "swift/Encode.swift", "      guard ceiling < qpCeilingLast else {", "      guard true else {",
+     XL + "test_a_picture_too_busy_for_the_level_is_refused_and_leaves_nothing"),
+    ("swift", "swift/Encode.swift",
+     "      // written whole, but not yet accepted: a refusal below removes it\n      unfinished += [outPath]\n", "",
+     XL + "test_a_picture_too_busy_for_the_level_is_refused_and_leaves_nothing"),
+    ("swift", "swift/Encode.swift", "    for ceiling in qpCeilings(from: firstCeiling) {",
+     "    for ceiling in qpCeilings(from: 12) {", XL + "test_a_still_film_is_written_once_at_the_spec_s_ceiling"),
     ("swift", "swift/Common.swift", '    for k in flags.keys where !used.contains(k) { die("unknown flag --\\(k)") }', "",
      X + "test_there_is_nothing_to_configure"),
     ("swift", "swift/Conform.swift", "      guard ((b - a) * Int64(fps)) % scale == 0 else {", "      guard true else {",

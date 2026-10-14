@@ -190,6 +190,27 @@ class VerifyRefuses(unittest.TestCase):
         self.assertGreater(rate, 12.0, seen)
         self.assertLessEqual(peak, 25.0, seen)             # so it is the average this file fails on
 
+    def test_a_busiest_second_past_level_4_0(self):
+        """A still film with one second of fine texture scrolling, written at
+        the film's own quantiser ceiling (10) by another writer than `encode`
+        — which would write it again: its average is well inside Apple's
+        0.15–12 Mbps, its busiest second past the 25 Mbit Level 4.0 allows.
+        The level's half of the check, on its own (found unwatched by review
+        on 2026-10-14)."""
+        folder = busy_second("busy-peak", 0.6)
+        names = json.loads((folder / "frames.json").read_text())["frames"]
+        clip = {"width": 886, "height": 1920, "timescale": T, "end": 20 * len(names), "audio": True,
+                "bitrate": 11_000_000, "max_qp": 10,
+                "frames": [{"pts": 20 * i, "file": name} for i, name in enumerate(names)]}
+        (folder / "clip.json").write_text(json.dumps(clip))
+        movie = folder / "peak.mp4"
+        swifttools.run("testclip", folder / "clip.json", "--out", movie)
+        self.assertEqual(failed(movie), {"video bit rate"})
+        seen = {c.name: c.seen for c in verify.verify(movie, SB)}["video bit rate"]
+        rate, peak = (float(x) for x in re.findall(r"([\d.]+) Mbps", seen))
+        self.assertLess(rate, 12.0, seen)                  # so it is the busiest second this file fails on
+        self.assertGreater(peak, 25.0, seen)
+
     def test_pixels_that_are_not_square(self):
         """The right 886 x 1920 samples, to be shown twice as wide."""
         wide = film_clip("wide-pixels", pasp=[2, 1])
@@ -568,6 +589,131 @@ class VerifyRefuses(unittest.TestCase):
                       "bytes) and is being checked as the film: add --variant dry", r.stderr)
 
 
+class MaskedRegions(unittest.TestCase):
+    """A film of scenes hides part of a capture. The checker decodes each
+    masked region and holds it to the masked composition — and away from
+    the original. Here the « film » is the good clip, its frame 0 the
+    picture p0 (decoded 0.14 levels from it on this box): what the region
+    is supposed to be is varied, the file is not."""
+
+    BOX = (100, 100, 400, 300)
+
+    @classmethod
+    def setUpClass(cls):
+        cls.good = film_clip("good")
+        cls.folder = WORK / "regions"
+        cls.folder.mkdir(exist_ok=True)
+        with Image.open(cls.good.parent / "p0.png") as im:
+            shown = np.asarray(im.convert("RGB").crop(cls.BOX)).astype(int)
+        for name, a in (("shown", shown), ("plain", np.full_like(shown, 250)),
+                        ("three-off", np.clip(shown + 3, 0, 255)), ("ten-off", np.clip(shown + 10, 0, 255))):
+            Image.fromarray(a.astype(np.uint8), "RGB").save(cls.folder / f"{name}.png")
+
+    def check(self, masked: str, original: str) -> tuple[bool, str]:
+        regions = [{"frame": 0, "box": list(self.BOX), "masked": f"{masked}.png", "original": f"{original}.png"}]
+        return verify.masked_regions(self.good, regions, self.folder)
+
+    def test_the_masked_picture_in_the_file_passes(self):
+        ok, seen = self.check("shown", "plain")
+        self.assertTrue(ok, seen)
+        self.assertIn("1 region(s) in 1 frame(s): at most 0.1 levels from the masked composition", seen)
+
+    def test_a_masked_region_that_shows_the_original_fails(self):
+        """What the build meant to hide is what the file shows: the film
+        fails, on this check alone."""
+        ok, seen = self.check("plain", "shown")
+        self.assertFalse(ok)
+        self.assertIn("THE ORIGINAL SHOWS in frame(s) 0", seen)
+        regions = [{"frame": 0, "box": list(self.BOX), "masked": "plain.png", "original": "shown.png"}]
+        checks = verify.verify(self.good, SB, None, {"regions": regions, "base": self.folder})
+        self.assertEqual({c.name for c in checks if not c.ok}, {"masked regions"})
+        self.assertEqual(len([c for c in checks if not c.skipped]), 24)        # 23, and this one
+
+    def test_a_region_ten_levels_off_the_masked_picture_fails(self):
+        self.assertFalse(self.check("ten-off", "plain")[0])
+
+    def test_a_region_closer_to_the_original_than_to_the_mask_fails(self):
+        """Three levels from the masked picture — an encode could do that —
+        but a twentieth as far from the original as the mask is: the
+        original is what shows."""
+        ok, seen = self.check("three-off", "shown")
+        self.assertFalse(ok, seen)
+        self.assertIn("at least 5% as far from the original", seen)
+
+    def test_where_the_mask_hides_nothing_only_the_masked_picture_counts(self):
+        ok, seen = self.check("shown", "shown")
+        self.assertTrue(ok, seen)
+        self.assertIn("where the mask hides something (0)", seen)
+
+    def test_a_film_with_no_masked_region_says_so(self):
+        self.assertEqual(verify.masked_regions(self.good, [], self.folder), (True, "the film has no masked region"))
+
+    def test_a_frame_that_cannot_be_decoded_fails(self):
+        regions = [{"frame": 9999, "box": list(self.BOX), "masked": "shown.png", "original": "plain.png"}]
+        ok, seen = verify.masked_regions(self.good, regions, self.folder)
+        self.assertFalse(ok)
+        self.assertIn("cannot decode the masked frames", seen)
+
+
+class MaskedGhost(unittest.TestCase):
+    """A faint original laid over the mask. Found by review on 2026-10-14:
+    the film rebuilt with every masked region at 85 % masked + 15 % original
+    passed the box's mean (at most 3.9 levels off), and the phone number
+    could be read on the decoded frame. Here a number in black on the card,
+    the mask a plain fill with other words beside it (as a join blends
+    another screen in), and films that carry 0, 3 and 15 % of the number —
+    each written and decoded."""
+
+    BOX = (120, 600, 760, 680)
+
+    @classmethod
+    def setUpClass(cls):
+        from brand import stills
+        cls.folder = WORK / "ghost"
+        cls.folder.mkdir(exist_ok=True)
+        masked = Image.new("RGB", (886, 1920), (250, 250, 250))
+        d = ImageDraw.Draw(masked)
+        d.text((140, 615), "Historique", font=stills.inter(30), fill=(120, 120, 120))
+        original = masked.copy()
+        ImageDraw.Draw(original).text((400, 612), "+225 07 00 00 01 01", font=stills.inter(40), fill=(26, 26, 26))
+        m = np.asarray(masked, dtype=np.float32)
+        o = np.asarray(original, dtype=np.float32)
+        cls.films = {}
+        for share in (0.0, 0.03, 0.15):
+            name = f"ghost-{round(share * 100):02d}"
+            Image.fromarray(np.rint(m + share * (o - m)).astype(np.uint8), "RGB").save(cls.folder / f"{name}.png")
+            clip = {"width": 886, "height": 1920, "timescale": T, "end": 600, "audio": True, "bitrate": 6_000_000,
+                    "frames": [{"pts": 20 * i, "file": f"{name}.png"} for i in range(30)]}
+            (cls.folder / f"{name}.json").write_text(json.dumps(clip))
+            swifttools.run("testclip", cls.folder / f"{name}.json", "--out", cls.folder / f"{name}.mp4")
+            cls.films[share] = cls.folder / f"{name}.mp4"
+        masked.crop(cls.BOX).save(cls.folder / "masked.png")
+        original.crop(cls.BOX).save(cls.folder / "original.png")
+
+    def check(self, share: float) -> tuple[bool, str]:
+        regions = [{"frame": 3, "box": list(self.BOX), "masked": "masked.png", "original": "original.png"}]
+        return verify.masked_regions(self.films[share], regions, self.folder)
+
+    def test_the_mask_alone_passes(self):
+        ok, seen = self.check(0.0)
+        self.assertTrue(ok, seen)
+        self.assertRegex(seen, r"where the original has ink \(1\), at most 0\.\d% of it carried")
+
+    def test_a_ghost_of_fifteen_percent_fails_where_the_mean_does_not_see_it(self):
+        ok, seen = self.check(0.15)
+        self.assertFalse(ok, seen)
+        self.assertIn("THE ORIGINAL SHOWS in frame(s) 3", seen)
+        self.assertRegex(seen, r"at most 1[45]\.\d% of it carried")
+        # the two older conditions, on their own, pass this film
+        self.assertRegex(seen, r"at most [0-3]\.\d levels from the masked composition")
+        self.assertRegex(seen, r"at least [89]\d% as far from the original as the mask is")
+
+    def test_a_ghost_of_three_percent_fails_too(self):
+        ok, seen = self.check(0.03)
+        self.assertFalse(ok, seen)
+        self.assertRegex(seen, r"at most [12]\.\d% of it carried \(at most 1%\)")
+
+
 class EncoderRefuses(unittest.TestCase):
     """`encode` has nothing to configure, and will not write anything else."""
 
@@ -635,6 +781,87 @@ class EncoderRefuses(unittest.TestCase):
         self.assertIn("is 884x1920, the movie is 886x1920",
                       self.refused({"fps": 30, "width": 886, "height": 1920, "frames": ["f.png"] * 450},
                                    picture=(884, 1920)))
+
+
+def busy_second(name: str, sigma: float) -> Path:
+    """A 15 s film's frames: a still screen, then one second of a fine
+    texture scrolling 8 px a frame — new detail in every frame, like the
+    cover photograph of the film of scenes' S6 (2026-10-14) — then still
+    again. `sigma`: how soft the texture is (0: pure noise)."""
+    folder = WORK / name
+    folder.mkdir(exist_ok=True)
+    rng = np.random.default_rng(7)
+    noise = rng.integers(0, 256, (1920 + 30 * 8 + 10, 886, 3), dtype=np.uint8)
+    texture = Image.fromarray(noise)
+    if sigma:
+        from PIL import ImageFilter
+        texture = texture.filter(ImageFilter.GaussianBlur(sigma))
+    Image.new("RGB", (886, 1920), (250, 250, 250)).save(folder / "plain.png")
+    for k in range(30):
+        texture.crop((0, 8 * k, 886, 8 * k + 1920)).save(folder / f"t{k:02d}.png")
+    names = ["plain.png"] * 210 + [f"t{k:02d}.png" for k in range(30)] + ["plain.png"] * 210
+    (folder / "frames.json").write_text(json.dumps({"fps": 30, "width": 886, "height": 1920, "frames": names}))
+    return folder
+
+
+def peak_bits(movie: Path) -> int:
+    """verify.py's own measure: the bits of the busiest 30 frames, from the
+    sample table it parses."""
+    sizes = next(t for t in mp4.read(movie)["tracks"] if t.get("handler") == "vide")["sizes"]
+    return max(sum(sizes[i:i + 30]) * 8 for i in range(len(sizes) - 29))
+
+
+class EncoderLevel(unittest.TestCase):
+    """High Profile Level 4.0 allows 25 Mbit a second. The quantiser ceiling
+    that keeps still text sharp spent 25.31 Mbit on one second of the film
+    of scenes (S6's photograph scrolling): `encode` measures what it wrote
+    and writes it again with the ceiling raised until it fits — or refuses."""
+
+    def test_a_second_over_the_level_is_written_again_with_a_higher_ceiling(self):
+        folder = busy_second("busy-soft", 0.6)          # measured here: 26.78 Mbit at 10, 21.67 at 12
+        r = swifttools.run("encode", folder, "--out", folder / "out.mp4", check=False)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertRegex(r.stdout, r"QP ceiling 10: busiest second 2[5-9]\.\d\d Mbit \(frames 2\d\d–2\d\d\), over "
+                                   r"Level 4\.0's 25\.00 — written again")
+        self.assertRegex(r.stdout, r"QP ceiling 1[2-8]: busiest second \d+\.\d\d Mbit \(frames \d+–\d+\), within")
+        self.assertLessEqual(peak_bits(folder / "out.mp4"), verify.PEAK_BPS)
+        checks = {c.name: c for c in verify.verify(folder / "out.mp4", SB, None)}
+        self.assertTrue(checks["video bit rate"].ok, checks["video bit rate"].seen)
+        self.assertEqual(sorted(p.name for p in folder.glob("out.mp4*")), ["out.mp4"])
+
+    def test_a_still_film_is_written_once_at_the_spec_s_ceiling(self):
+        folder = WORK / "still-once"
+        folder.mkdir(exist_ok=True)
+        Image.new("RGB", (886, 1920), (250, 250, 250)).save(folder / "f.png")
+        (folder / "frames.json").write_text(json.dumps(
+            {"fps": 30, "width": 886, "height": 1920, "frames": ["f.png"] * 450}))
+        r = swifttools.run("encode", folder, "--out", folder / "out.mp4", check=False)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(re.findall(r"QP ceiling (\d+)", r.stdout), ["10"])
+
+    def test_the_ladder_of_ceilings_always_ends_on_the_last(self):
+        """From the spec's 10: 10, 12 … 20. From an odd first ceiling the
+        ladder used to stop at 19, where the refusal could not fire and an
+        over-level file was kept (found by review, 2026-10-14)."""
+        def ladder(first: int) -> list[str]:
+            return swifttools.run("encode", "ladder", first).stdout.split()
+        self.assertEqual(ladder(10), ["10", "12", "14", "16", "18", "20"])
+        self.assertEqual(ladder(11), ["11", "13", "15", "17", "19", "20"])
+        self.assertEqual(ladder(19), ["19", "20"])
+        self.assertEqual(ladder(20), ["20"])
+        self.assertEqual(ladder(25), ["25"])
+        r = swifttools.run("encode", "ladder", 11, "--out", WORK / "x.mp4", check=False)
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("unknown flag --out", r.stderr)
+
+    def test_a_picture_too_busy_for_the_level_is_refused_and_leaves_nothing(self):
+        folder = busy_second("busy-noise", 0.0)         # measured here: 25.76 Mbit even at 20
+        (folder / "out.mp4").write_bytes(b"an earlier film")
+        r = swifttools.run("encode", folder, "--out", folder / "out.mp4", check=False)
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("QP ceiling 20: busiest second", r.stderr)
+        self.assertIn("over Level 4.0's 25.00 Mbit even at the last ceiling", r.stderr)
+        self.assertEqual(sorted(p.name for p in folder.glob("out.mp4*")), [])
 
 
 if __name__ == "__main__":
