@@ -1782,7 +1782,7 @@ export interface paths {
         put?: never;
         /**
          * Register a salon — identity proof INLINE (auth overhaul P4)
-         * @description One submit registers AND signs in. Provide EXACTLY ONE identity proof: `idToken` (Google) · `identityToken` (+`nonce`) (Apple) · `email`+`code` (email OTP via /auth/provider/email/otp/request). The contact `phoneNumber` is REQUIRED. Returns a live ProviderSession (201). Also provisions the account's linked DRAFT salon (publicly invisible until `POST /providers/{id}/publish` — pro-salon-lifecycle; legacy salon-less accounts self-heal on `GET /me/provider`). Design: docs/design/pro-auth-social.md.
+         * @description One submit registers AND signs in. Provide EXACTLY ONE identity proof: `idToken` (Google) · `identityToken` (+`nonce`) (Apple) · `email`+`code` (email OTP via /auth/provider/email/otp/request). The contact `phoneNumber` is REQUIRED. Returns a live ProviderSession (201). Also provisions the account's linked DRAFT salon (publicly invisible until `POST /providers/{id}/publish` — pro-salon-lifecycle; legacy salon-less accounts self-heal on `GET /me/provider`). The salon is ALWAYS a new one: no field links an existing salon (T72 — a `providerId` here used to make the caller that salon's owner; docs/design/backend-register-salon-link.md). Design: docs/design/pro-auth-social.md.
          */
         post: {
             parameters: {
@@ -1802,7 +1802,6 @@ export interface paths {
                         address?: string;
                         /** @description Optional locality pick (an `Area.id` from GET /localities) — the salon's commune/city/timezone/currency DERIVE from it server-side (multi-pays MP1; unknown → 400 `invalid_area`). */
                         areaId?: string;
-                        providerId?: string;
                         /** @description Google ID token (identity proof). */
                         idToken?: string;
                         /** @description Apple identity token. */
