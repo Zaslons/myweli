@@ -726,7 +726,7 @@ void main() {
         role: 'manager',
         expiresAt: now.add(const Duration(days: 7)),
       );
-      await memberships.activate(inv.id, owner);
+      await memberships.activate(inv!.id, owner);
       final mine = await ownedSalon(owner);
 
       await provisioning().publish(mine);

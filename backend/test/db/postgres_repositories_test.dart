@@ -16,6 +16,7 @@ import 'package:myweli_backend/src/db/postgres_client_version_repository.dart';
 import 'package:myweli_backend/src/db/postgres_clients_repository.dart';
 import 'package:myweli_backend/src/db/postgres_device_token_repository.dart';
 import 'package:myweli_backend/src/db/postgres_favorites_repository.dart';
+import 'package:myweli_backend/src/db/postgres_membership_repository.dart';
 import 'package:myweli_backend/src/db/postgres_provider_audit_repository.dart';
 import 'package:myweli_backend/src/db/postgres_provider_auth_repository.dart';
 import 'package:myweli_backend/src/db/postgres_providers_repository.dart';
@@ -24,6 +25,8 @@ import 'package:myweli_backend/src/db/postgres_salon_subscription_repository.dar
 import 'package:myweli_backend/src/salon_time.dart';
 import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
+
+import '../access/invite_contract.dart';
 
 void main() {
   final url = Platform.environment['DATABASE_URL'];
@@ -1623,6 +1626,35 @@ void main() {
   /// unnoticed. `remove` is deliberately not user-scoped — the provider reports
   /// a dead token, not a user — so the test pins that, and pins that the
   /// user-scoped variant refuses to cross accounts.
+  // The invitation contract on the REAL schema — `UNIQUE (provider_id,
+  // email)` is what the in-memory twin never had: re-inviting a revoked or
+  // expired address raised 23505 here and answered 500 in production.
+  // docs/design/backend-team-reinvite.md
+  group('PostgresMembershipRepository — invite, the twin contract', () {
+    var n = 0;
+    inviteContract(
+      repo: () => PostgresMembershipRepository(pool),
+      providerId: 'provider1', // seeded
+      account: (email) async {
+        n++;
+        final reg =
+            await PostgresProviderAuthRepository(
+              pool,
+              tokens: tokens,
+              echoDevCode: true,
+            ).register(
+              email: email,
+              authProvider: 'google',
+              googleSub: 'sub-contract-$n',
+              phoneNumber: '+22505000020${n.toString().padLeft(2, '0')}',
+              businessName: 'Contract',
+              businessType: 'salon',
+            );
+        return reg.provider!.id;
+      },
+    );
+  });
+
   group('PostgresDeviceTokenRepository (module push)', () {
     test(
       'remove deletes exactly one token; removeForUser is owner-scoped',

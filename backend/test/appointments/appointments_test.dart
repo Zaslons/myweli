@@ -666,7 +666,7 @@ void main() {
         artistId: 'artist1',
         expiresAt: DateTime.now().add(const Duration(days: 7)),
       );
-      await memberships.activate(row.id, created.provider!.id);
+      await memberships.activate(row!.id, created.provider!.id);
 
       final today = DateTime.now().toUtc();
       Future<void> seedRow(String id, String? artistId, DateTime when) =>

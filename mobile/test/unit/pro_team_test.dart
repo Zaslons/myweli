@@ -89,12 +89,60 @@ void main() {
         )).code,
         'member_exists',
       );
-      // The seeded EXPIRED réception row does not block a fresh invite.
+      // The seeded EXPIRED réception row does not block a fresh invite —
+      // and it comes back ON THE SAME ROW, as on the server (one row per
+      // salon and address: docs/design/backend-team-reinvite.md).
       final again = await svc.inviteMember(
         email: 'retard@myweli.test',
         role: TeamRole.reception,
       );
       expect(again.success, isTrue);
+      expect(again.data!.id, 'mem_reception1');
+      expect(again.data!.expired, isFalse);
+      expect(
+        MockData.teamMembers.where((m) => m.email == 'retard@myweli.test'),
+        hasLength(1),
+      );
+    });
+
+    test('a former member who DECLINES the re-invitation stays a revoked '
+        'row — it never disappears (as on the server)', () async {
+      final svc = MockProTeamService(subscriptions: liveOffer());
+      await svc.revokeMember('mem_manager1'); // seeded with an account
+      final again = await svc.inviteMember(
+        email: 'awa.manager@myweli.test',
+        role: TeamRole.reception,
+      );
+      svc.invitationEmail = 'awa.manager@myweli.test';
+
+      final declined = await svc.declineInvitation(again.data!.id);
+
+      expect(declined.success, isTrue);
+      final row = MockData.teamMembers.singleWhere(
+        (m) => m.id == 'mem_manager1',
+      );
+      expect(row.status, TeamMemberStatus.revoked);
+    });
+
+    test('a REVOKED member is invited again on the same row, with the new '
+        'role', () async {
+      final svc = MockProTeamService(subscriptions: liveOffer());
+      final revoked = await svc.revokeMember('mem_manager1');
+      expect(revoked.success, isTrue);
+
+      final again = await svc.inviteMember(
+        email: 'awa.manager@myweli.test',
+        role: TeamRole.reception,
+      );
+
+      expect(again.success, isTrue, reason: again.code);
+      expect(again.data!.id, 'mem_manager1');
+      expect(again.data!.status, TeamMemberStatus.invited);
+      expect(again.data!.role, TeamRole.reception);
+      expect(
+        MockData.teamMembers.where((m) => m.email == 'awa.manager@myweli.test'),
+        hasLength(1),
+      );
     });
 
     test('no live offer → offer_required; full seats → seat_limit', () async {
@@ -216,28 +264,37 @@ void main() {
       serviceLocator.proTeamService = MockProTeamService();
     });
 
-    test(
-      'load sorts owner first; invite appends; revoke updates in place',
-      () async {
-        final p = ProTeamProvider();
-        await p.load();
-        expect(p.members.first.isOwner, isTrue);
-        final before = p.members.length;
+    test('load sorts owner first; invite appends, or replaces its own row; '
+        'revoke updates in place', () async {
+      final p = ProTeamProvider();
+      await p.load();
+      expect(p.members.first.isOwner, isTrue);
+      final before = p.members.length;
 
-        final invited = await p.invite(
-          email: 'new@b.com',
-          role: TeamRole.reception,
-        );
-        expect(invited, isNotNull);
-        expect(p.members.length, before + 1);
+      final invited = await p.invite(
+        email: 'new@b.com',
+        role: TeamRole.reception,
+      );
+      expect(invited, isNotNull);
+      expect(p.members.length, before + 1);
 
-        expect(await p.revoke(invited!.id), isTrue);
-        expect(
-          p.members.singleWhere((m) => m.id == invited.id).status,
-          TeamMemberStatus.revoked,
-        );
-      },
-    );
+      expect(await p.revoke(invited!.id), isTrue);
+      expect(
+        p.members.singleWhere((m) => m.id == invited.id).status,
+        TeamMemberStatus.revoked,
+      );
+
+      // Re-inviting the revoked address returns the SAME row: it replaces
+      // the revoked one instead of sitting next to it.
+      final again = await p.invite(email: 'new@b.com', role: TeamRole.manager);
+      expect(again?.id, invited.id);
+      expect(p.members.where((m) => m.id == invited.id), hasLength(1));
+      expect(p.members.length, before + 1);
+      expect(
+        p.members.singleWhere((m) => m.id == invited.id).status,
+        TeamMemberStatus.invited,
+      );
+    });
 
     test('invite failure surfaces the paired error + code', () async {
       final p = ProTeamProvider();

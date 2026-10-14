@@ -279,7 +279,7 @@ void main() {
           role: 'reception',
           expiresAt: DateTime.now().toUtc().add(const Duration(days: 1)),
         );
-        await memberships.activate(inv.id, receptionId);
+        await memberships.activate(inv!.id, receptionId);
 
         final r = await service.sign(
           receptionId,
