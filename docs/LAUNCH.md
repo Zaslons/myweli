@@ -1161,7 +1161,18 @@ checking rather than assuming:
 > on the demo account, nothing deleted (app-store-forms.md §8). The amended
 > review notes are not in App Store Connect yet — the API wants the owner's
 > contact details in the same request.
-> **Still open**: the App Preview's real take — the tool is built
+> **2026-10-14 (evening) — build 587 replaces 581; the App Preview is on the page.**
+> Build 587 (`main` at `e105aabd`, #592: « Revenus prévus » on the home,
+> « Total réalisé » on « Revenus »): `VALID`, read as French, the only build of
+> the internal group, in the external one, symbols on Sentry, **attached to
+> version 0.0.1**. The film the owner chose (version 2, cut 1, 28.7 s) is
+> uploaded in both iPhone slots, processed, ahead of the screenshots. The demo
+> salon's description typo is fixed and the demo snapshot re-saved
+> (`POST /admin/demo/snapshot` 200), so the weekly reset keeps the fix.
+> **Left to the owner on the App Store Connect site**: the App Privacy label,
+> the content-rights declaration, the demo code, contact details and the
+> amended review notes, the iPhone checks on 587, « Submit for Review ».
+> **Still open (superseded above)**: the App Preview's real take — the tool is built
 > (#588), a rehearsal was cut, the day of 14 October is staged on the demo
 > salon, and the take itself can only be shot in daytime; the owner's steps
 > on the App Store Connect site; the device checks on 581.

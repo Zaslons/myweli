@@ -284,7 +284,7 @@ dossier proposait :
 | Sous-titre | vide | `Agenda, clients, réservations` (§4) | à remplir |
 | Droits sur le contenu | non renseignés | « Oui … et j'ai les droits nécessaires » (§9) | à remplir |
 | Version | iOS **0.0.1**, « Prepare for Submission » (renommée de « 1.0 » le 2026-10-13, relue par l'API) | **0.0.1** (le binaire, §11.3 — la version de l'app passe de 1.0.0 à 0.0.1, décision du propriétaire le 2026-10-13, à partir du build 569) | la page s'appelait « 1.0 » : App Store Connect ne propose pour une version que les builds de même numéro, et 0.0.1 ≠ 1.0 quelle que soit sa normalisation. **Renommée « 0.0.1 » le 2026-10-13** avec l'accord du propriétaire ; reste à y choisir le build 569 (§13). Les builds 1.0.0 (≤ 565) restent dans TestFlight sous leur version |
-| TestFlight | aucun build | — | §11.5 — *2026-10-14, nuit : build **581** (0.0.1) envoyé, traité `VALID`, lu comme français ; le groupe interne ne reçoit que le **581** ; ajouté à « Testeurs externes » (disponible aussitôt ; les 569, 577 et 579 y restent) ; **rattaché à la version 0.0.1 à la place du 579***. *2026-10-13, soir : build **579** (0.0.1) envoyé, traité `VALID`, lu comme **français** par App Store Connect ; le groupe interne ne reçoit que le **579** ; ajouté à « Testeurs externes » (disponible aussitôt ; le 569 et le 577 y restent) ; **rattaché à la version 0.0.1***. *2026-10-13, après-midi : build **577** (0.0.1) envoyé, traité `VALID` ; le groupe interne ne reçoit que le **577** (il remplace le 569) ; ajouté à « Testeurs externes », où il est disponible aussitôt (la revue bêta de la 0.0.1 avait approuvé le 569 dans la journée ; le 569 y reste)*. *2026-10-13 : build **569** (**0.0.1**) envoyé, traité `VALID` ; le groupe interne ne reçoit que le **569** (il remplace le 565) ; ajouté au groupe externe « Testeurs externes » et **soumis à la revue bêta** (`WAITING_FOR_REVIEW`) — le 565, encore en attente de revue, y reste*. *2026-10-12, soir : build **565** envoyé, traité `VALID` ; le groupe interne ne reçoit que le **565** (il remplace le 560)*. *2026-10-12 : builds 551, 555 et **560** envoyés, traités `VALID` ; le groupe interne ne reçoit que le **560** (il remplace le 555)*. *2026-10-10 : builds 551 et 555 envoyés, traités `VALID` ; le groupe interne ne reçoit que le 555 (§11.6)* |
+| TestFlight | aucun build | — | §11.5 — *2026-10-14, soir : build **587** (0.0.1) envoyé, traité `VALID`, lu comme français ; le groupe interne ne reçoit que le **587** ; ajouté à « Testeurs externes » ; **rattaché à la version 0.0.1 à la place du 581***. *2026-10-14, nuit : build **581** (0.0.1) envoyé, traité `VALID`, lu comme français ; le groupe interne ne reçoit que le **581** ; ajouté à « Testeurs externes » (disponible aussitôt ; les 569, 577 et 579 y restent) ; **rattaché à la version 0.0.1 à la place du 579***. *2026-10-13, soir : build **579** (0.0.1) envoyé, traité `VALID`, lu comme **français** par App Store Connect ; le groupe interne ne reçoit que le **579** ; ajouté à « Testeurs externes » (disponible aussitôt ; le 569 et le 577 y restent) ; **rattaché à la version 0.0.1***. *2026-10-13, après-midi : build **577** (0.0.1) envoyé, traité `VALID` ; le groupe interne ne reçoit que le **577** (il remplace le 569) ; ajouté à « Testeurs externes », où il est disponible aussitôt (la revue bêta de la 0.0.1 avait approuvé le 569 dans la journée ; le 569 y reste)*. *2026-10-13 : build **569** (**0.0.1**) envoyé, traité `VALID` ; le groupe interne ne reçoit que le **569** (il remplace le 565) ; ajouté au groupe externe « Testeurs externes » et **soumis à la revue bêta** (`WAITING_FOR_REVIEW`) — le 565, encore en attente de revue, y reste*. *2026-10-12, soir : build **565** envoyé, traité `VALID` ; le groupe interne ne reçoit que le **565** (il remplace le 560)*. *2026-10-12 : builds 551, 555 et **560** envoyés, traités `VALID` ; le groupe interne ne reçoit que le **560** (il remplace le 555)*. *2026-10-10 : builds 551 et 555 envoyés, traités `VALID` ; le groupe interne ne reçoit que le 555 (§11.6)* |
 
 L'app consommateur « MyWeli » a aussi sa fiche (iOS 1.0, « Prepare for
 Submission ») ; elle aura son propre dossier.
@@ -1178,8 +1178,25 @@ même geste laissait la liste inchangée jusqu'au « tirer pour actualiser »
 « Essai Fix », le 17 à 10:00 sur le salon démo — la remise à zéro
 hebdomadaire l'effacera.
 
-**C'est le candidat à la soumission**, sous réserve des vérifications sur
-l'iPhone (§11.6), qui restent à faire sur ce build.
+~~C'est le candidat à la soumission~~ — remplacé par le 587 (ci-dessous).
+
+**Build 587** (2026-10-14, soir, depuis `main` à `e105aabd`, après #592) :
+les chiffres de l'accueil disent « Revenus prévus » et l'écran « Revenus »
+dit « Total réalisé » sur « Rendez-vous terminés »
+([provider-dashboard-stats.md](provider-dashboard-stats.md),
+[provider-earnings.md](provider-earnings.md)). IPA relue au §11.3 : **0.0.1
+(587)**, français, portrait seul, entitlements de production, 35 manifestes,
+voie compagnon `OK`, les trois nouvelles formules présentes dans le binaire
+et « encaissés » absent, clé d'app CARTO une fois (comparée sans l'afficher),
+clé web absente. *L'étape séparée `altool --validate-app` n'a pas tourné* :
+une substitution de processus mal lue a cassé la chaîne de commandes ; l'envoi
+a validé lui-même et le traitement a rendu **`VALID`** (build
+`0535c30e-33a1-4f3b-9902-e0a9c38ee328`), **`buildBundles.locales = ["fr"]`**.
+« What to Test » repris du 581 ; « Équipe MyWeli » ne contient plus que le
+587 ; « Testeurs externes » le reçoit (`IN_BETA_TESTING`) ; symboles relus
+sur le serveur Sentry ; archive `Runner-pro-587.xcarchive`. **Rattaché à la
+version 0.0.1 à la place du 581** (relu par l'API). **C'est le candidat à la
+soumission**, sous réserve des vérifications sur l'iPhone (§11.6).
 
 Syntaxe relue dans l'aide de l'`altool` local (version 27.0.5) :
 `--upload-package` est la forme de ses exemples ; `--upload-app -f` existe
@@ -1287,7 +1304,8 @@ reprennent ce qui est propre au 565.
 - [ ] **Rester connecté** : fermer l'app plus de 15 min, la rouvrir → toujours
       connecté ; le journal de production montre alors un
       `auth_refresh … outcome=rotated` (ou `grace`), pas de `reused`.
-- [ ] **Version** : Profil → « À propos » affiche « Version 0.0.1 (581) » — ou le numéro du build installé.
+- [ ] **Version** : Profil → « À propos » affiche « Version 0.0.1 (587) » — ou le numéro du build installé.
+- [ ] **Chiffres** (587, #592) : l'accueil dit « Revenus prévus » ; Analyses → « Revenus » dit « Total réalisé » et « Rendez-vous terminés ».
 - [ ] **« Ma journée »** (581, #587) : Rendez-vous → « Nouveau » ou une ligne « Libre » → créer un rendez-vous → il est dans la liste au retour, sans tirer pour actualiser ; l'accueil compte un rendez-vous de plus.
 - [ ] **Fiche client** (569, #574) : Clients → un client → la tuile
       « Dernière » lit « 13 oct. 2026 » (jamais un mot coupé), le numéro est
@@ -1425,11 +1443,11 @@ numéros).*
        l'archive ; **vérifier l'IPA** (§11.3). *Build 555, 2026-10-10 ;
        archive rangée en `Runner-pro-555.xcarchive`. Puis 560 et **565**
        (2026-10-12), archive `Runner-pro-565.xcarchive`.*
-12. [x] **Valider, envoyer**, attendre le traitement (§11.5). *555 `VALID` ; 560 `VALID` ; 565 `VALID` (2026-10-12) ; 569 `VALID` (2026-10-13, 0.0.1) ; 577 `VALID` (2026-10-13) ; 579 `VALID` (2026-10-13, soir) ; **581 `VALID`** (2026-10-14), le plus récent — lu comme français.*
+12. [x] **Valider, envoyer**, attendre le traitement (§11.5). *555 `VALID` ; 560 `VALID` ; 565 `VALID` (2026-10-12) ; 569 `VALID` (2026-10-13, 0.0.1) ; 577 `VALID` (2026-10-13) ; 579 `VALID` (2026-10-13, soir) ; 581 `VALID` (2026-10-14) ; **587 `VALID`** (2026-10-14, soir), le plus récent — lu comme français.*
 13. [ ] **TestFlight interne** et toutes les cases du §11.6. *Groupe et
        invitation faits le 2026-10-10 ; les vérifications sur l'appareil
        restent au propriétaire.*
-14. [x] **Symboles Sentry** (§12.2). *Dart et natifs, builds 555, 560, 565, 569, 577, 579 et 581.*
+14. [x] **Symboles Sentry** (§12.2). *Dart et natifs, builds 555, 560, 565, 569, 577, 579, 581 et 587.*
 15. [x] **Captures** sur le salon démo — *8 captures légendées, 1206 × 2622 (obligatoire) et 1320 × 2868, faites le 2026-10-13 ([pro-app-store-screenshots.md](pro-app-store-screenshots.md)) ; **validées par le propriétaire et téléversées le 2026-10-13** — 16 images, traitées, dans l'ordre (§13.1).*
 16. [ ] **Remplir App Store Connect** : informations sur l'app (§3, §5, §6,
        §9), tarifs et disponibilité — Côte d'Ivoire seule, Mac et Vision Pro
@@ -1492,8 +1510,8 @@ fait ; « site » : seulement dans le site App Store Connect.
 | Copyright | vide | `2026 Sadr Eddine Daher` (§3) | — |
 | Publication de la version | **après approbation** | **manuelle** (`MANUAL`) | — |
 | Informations pour la revue | n'existaient pas | créées : connexion requise, identifiant `revue@myweli.test`, **les notes en vigueur du §8** (3 476 octets) | **propriétaire** : le mot de passe démo et les coordonnées de contact — vides, et l'assistant ne les écrit pas — *2026-10-14 : le verrou du compte démo est vérifié en production ; ce sont **les notes amendées** du §8 qui doivent remplacer celles-ci, et l'API refuse de le faire sans les coordonnées de contact (§8)* |
-| Build rattaché | aucun | **581** (0.0.1), lu comme français (§11.5) — il remplace le 579 depuis le 2026-10-14 | les vérifications sur l'iPhone (§11.6) |
-| Aperçu vidéo (facultatif) | aucun | aucun | **validé par le propriétaire le 2026-10-13** ; l'outil est construit, une répétition a été montée et envoyée au propriétaire, la journée du 14 est préparée sur le salon démo — **la prise réelle ne peut se tourner que de jour** ([pro-app-preview.md](pro-app-preview.md) §5) ; à lui montrer avant tout envoi ; pour une première version, il part dans la même soumission |
+| Build rattaché | aucun | **587** (0.0.1), lu comme français (§11.5) — il remplace le 581 depuis le 2026-10-14 au soir | les vérifications sur l'iPhone (§11.6) |
+| Aperçu vidéo (facultatif) | aucun | **le film choisi par le propriétaire** (version 2, coupe 1, 28,7 s — [pro-app-preview.md](pro-app-preview.md) §0), **téléversé le 2026-10-14** dans les deux emplacements iPhone, traité par Apple, placé avant les captures (`APP_PREVIEW`, `ACTIVE`, lu par la nouvelle API) ; l'image d'affiche demandée à 25 s (`00:00:25:00`) — Apple avait d'abord ignoré le temps envoyé au téléversement et pris son défaut de 5 s ; corrigé, l'image était encore en cours de génération au dernier relevé | regarder l'affiche dans le site ; sinon « Edit Poster Frame » à 25 s |
 | « Soumettre pour la revue » | — | — | propriétaire |
 
 **Les captures, vues par les deux API.** Elles ont été envoyées par les

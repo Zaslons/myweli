@@ -389,6 +389,17 @@ branch cannot fire on a never-published salon.)
 snapshot — `POST /admin/demo/snapshot` — before pasting credentials into the
 consoles.
 
+**Recorded 2026-10-14 — the snapshot re-saved after a description fix.** The
+salon's public description read « …de  beauté… dans un cadre chakereux »; the
+owner asked for the typo to be fixed. Done through the Pro app on the demo
+account (« Profil du salon » → « Description » → « Enregistrer »: « de
+beauté », « chaleureux »; the owner preview, which re-reads the server, shows
+it), then `POST /admin/demo/snapshot` **200** (`provider_1787778426683705`)
+with the admin credentials read from Secret Manager at run time and never
+shown, one login attempt. Without the re-save the weekly reset would have
+restored the typo. The re-save restarts the reset clock. Not changed, noted:
+the description has no final full stop; the address reads « marcory ».
+
 **Recorded 2026-10-11 — the demo salon lives in PRODUCTION** (`provider_1787778426683705`;
 the weekly reset ran there on 2026-10-07, staging held no demo activity and has
 since been deleted). The owner, signed in as the demo identity on the TestFlight
