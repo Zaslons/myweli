@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import '../core/access/pro_access_guard.dart';
@@ -10,7 +12,10 @@ import '../services/interfaces/pro_clients_service_interface.dart';
 /// State for the salon client base (module `clients` C1 —
 /// docs/design/clients-c1.md §5): the list (search / tag filter / infinite
 /// scroll) and the open card (stats, notes, visits).
-class ProClientsProvider extends ChangeNotifier implements SalonScoped {
+///
+/// The open card is told when the salon creates a booking for its client
+/// ([bookingCreated], docs/design/pro-journal-shows-new-booking.md §2.5).
+class ProClientsProvider extends ChangeNotifier implements ShowsSalonBookings {
   final ProClientsServiceInterface _service = serviceLocator.proClientsService;
 
   // ---- List ------------------------------------------------------------
@@ -147,7 +152,17 @@ class ProClientsProvider extends ChangeNotifier implements SalonScoped {
   bool get cardNotFound => _cardError != null && _cardErrorCode == 'not_found';
   String? _cardErrorCode;
 
+  /// Which card [_card] is, and the newest request for it — so that the quiet
+  /// reload after a booking knows what to ask for, and its answer is dropped
+  /// if another card was opened meanwhile.
+  String? _cardProviderId;
+  String? _cardClientId;
+  int _cardRequest = 0;
+
   Future<void> loadCard(String providerId, String clientId) async {
+    _cardProviderId = providerId;
+    _cardClientId = clientId;
+    _cardRequest++;
     _cardLoading = true;
     _cardError = null;
     _card = null;
@@ -168,6 +183,47 @@ class ProClientsProvider extends ChangeNotifier implements SalonScoped {
     } finally {
       _cardLoading = false;
       notifyListeners();
+    }
+  }
+
+  /// The salon just created [booking]. When it is the open card's client's,
+  /// « Prochain rendez-vous » and the visit history are out of date.
+  ///
+  /// « Its client's » is the server's own rule for a salon-entered booking:
+  /// the same phone number (`ClientsService._visitsOf`). The card's « Nouvelle
+  /// réservation » prefills that number, so the booking made from the card
+  /// matches; a booking for anyone else leaves the card alone.
+  @override
+  void bookingCreated(Appointment booking) {
+    final card = _card;
+    final phone = booking.clientPhone;
+    if (card == null || _cardLoading) return;
+    if (booking.providerId != _cardProviderId) return;
+    if (phone == null || phone.isEmpty || phone != card.client.phone) return;
+    unawaited(_reloadCardQuietly());
+  }
+
+  /// The card and its visits again, with no loader: the card stays on screen
+  /// and is replaced when both answers are in. A failure changes nothing.
+  Future<void> _reloadCardQuietly() async {
+    final providerId = _cardProviderId;
+    final clientId = _cardClientId;
+    if (providerId == null || clientId == null) return;
+    final request = ++_cardRequest;
+    try {
+      final r = await _service.getCard(providerId, clientId);
+      if (request != _cardRequest) return;
+      if (!r.success || r.data == null) {
+        ProAccessGuard.report(r.code);
+        return;
+      }
+      final v = await _service.getVisits(providerId, clientId);
+      if (request != _cardRequest) return;
+      _card = r.data;
+      if (v.success && v.data != null) _visits = v.data!;
+      notifyListeners();
+    } catch (_) {
+      /* offline — the card stays as it is; reopening it reloads it */
     }
   }
 
@@ -214,6 +270,7 @@ class ProClientsProvider extends ChangeNotifier implements SalonScoped {
   /// R6 multi-salons: drop the previous salon's data on a switch.
   @override
   void resetForSalonSwitch() {
+    _cardRequest++; // a card reload in flight was for the previous salon
     _clients.clear();
     _total = 0;
     _availableTags = List.of(salonClientPresetTags);

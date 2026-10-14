@@ -96,4 +96,139 @@ void main() {
       expect(p.error, 'boom');
     });
   });
+
+  /// docs/design/pro-journal-shows-new-booking.md §2.6 — « Rendez-vous »
+  /// keeps one list and reloads it per tab. The created booking used to be
+  /// appended whatever the list had been loaded with.
+  group('a created booking joins the agenda only where it belongs', () {
+    late _MockProService service;
+
+    setUpAll(() {
+      // `serviceLocator.proService` is late final: the group above owns the
+      // assignment, and this is the same mock.
+      service = serviceLocator.proService as _MockProService;
+    });
+
+    setUp(() => reset(service));
+
+    // A confirmed booking on 1 July 2026 at 10:00 (UTC).
+    final at = DateTime.utc(2026, 7, 1, 10);
+    Appointment created() => Appointment(
+      id: 'm1',
+      userId: 'manual',
+      providerId: 'p1',
+      serviceIds: const ['s1'],
+      appointmentDate: at,
+      status: AppointmentStatus.confirmed,
+      totalPrice: 15000,
+      createdAt: DateTime.utc(2026),
+    );
+
+    /// Loads the agenda the way one of its tabs does, then creates.
+    Future<ProAppointmentProvider> loadedThenCreated({
+      AppointmentStatus? status,
+      DateTime? from,
+      DateTime? to,
+    }) async {
+      when(
+        () => service.getProviderAppointments(
+          any(),
+          status: any(named: 'status'),
+          startDate: any(named: 'startDate'),
+          endDate: any(named: 'endDate'),
+        ),
+      ).thenAnswer((_) async => ApiResponse.success(<Appointment>[]));
+      when(
+        () => service.createManualBooking(
+          providerId: any(named: 'providerId'),
+          serviceIds: any(named: 'serviceIds'),
+          appointmentDateTime: any(named: 'appointmentDateTime'),
+          clientName: any(named: 'clientName'),
+          clientPhone: any(named: 'clientPhone'),
+          notes: any(named: 'notes'),
+          artistId: any(named: 'artistId'),
+          sendSmsInvite: any(named: 'sendSmsInvite'),
+        ),
+      ).thenAnswer((_) async => ApiResponse.success(created()));
+
+      final p = ProAppointmentProvider();
+      await p.loadAppointments(
+        'p1',
+        status: status,
+        startDate: from,
+        endDate: to,
+      );
+      final ok = await p.createManualBooking(
+        providerId: 'p1',
+        serviceIds: const ['s1'],
+        appointmentDateTime: at,
+      );
+      expect(ok, isTrue, reason: 'the booking is created either way');
+      return p;
+    }
+
+    test('« Calendrier » / « Tous » (no filter): it joins', () async {
+      final p = await loadedThenCreated();
+      expect(p.appointments.single.id, 'm1');
+    });
+
+    test('« En attente »: a « Confirmé » booking does NOT join', () async {
+      final p = await loadedThenCreated(status: AppointmentStatus.pending);
+      expect(p.appointments, isEmpty);
+    });
+
+    test('« Aujourd’hui »: it joins on its day, not on another', () async {
+      final sameDay = await loadedThenCreated(
+        from: DateTime.utc(2026, 7, 1),
+        to: DateTime.utc(2026, 7, 2),
+      );
+      expect(sameDay.appointments.single.id, 'm1');
+
+      final dayBefore = await loadedThenCreated(
+        from: DateTime.utc(2026, 6, 30),
+        to: DateTime.utc(2026, 7, 1),
+      );
+      expect(dayBefore.appointments, isEmpty);
+
+      final dayAfter = await loadedThenCreated(
+        from: DateTime.utc(2026, 7, 2),
+        to: DateTime.utc(2026, 7, 3),
+      );
+      expect(dayAfter.appointments, isEmpty);
+    });
+
+    test('« À venir » (from now on): it joins when it is ahead', () async {
+      final ahead = await loadedThenCreated(from: DateTime.utc(2026, 6, 30));
+      expect(ahead.appointments.single.id, 'm1');
+      final behind = await loadedThenCreated(from: DateTime.utc(2026, 7, 2));
+      expect(behind.appointments, isEmpty);
+    });
+
+    test('the bounds are inclusive, like the list’s own query', () async {
+      final atStart = await loadedThenCreated(from: at, to: at);
+      expect(atStart.appointments.single.id, 'm1');
+    });
+
+    // Each of the three is forgotten on its own: a list loaded with one of
+    // them only, each of which keeps the booking out (asserted first).
+    for (final (name, status, from, to)
+        in <(String, AppointmentStatus?, DateTime?, DateTime?)>[
+          ('the status', AppointmentStatus.pending, null, null),
+          ('the start date', null, DateTime.utc(2026, 7, 2), null),
+          ('the end date', null, null, DateTime.utc(2026, 6, 30)),
+        ]) {
+      test('a salon switch forgets the filter — $name', () async {
+        final p = await loadedThenCreated(status: status, from: from, to: to);
+        expect(p.appointments, isEmpty, reason: 'the filter keeps it out');
+
+        p.resetForSalonSwitch();
+        await p.createManualBooking(
+          providerId: 'p1',
+          serviceIds: const ['s1'],
+          appointmentDateTime: at,
+        );
+        expect(p.appointments.single.id, 'm1');
+      });
+    }
+  });
 }
