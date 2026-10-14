@@ -1,0 +1,60 @@
+{
+  "_what": "A DEMONSTRATION of the tool's version 2, not the film: two scenes cut from the rehearsal take of 2026-10-13 (variants.dry-run of storyboard.json — it writes nothing to the salon: the « Arrivé » pane is opened and closed, the form is filled and left), then the end card. Scene B shows the declared in-scene dissolve (the form, opened → the form, filled) and a mask that tracks the form's scroll, laid over the typed name. Takes are relative to --takes: rehearsal/take.mov and rehearsal/gestures.json. `rehearsal: true`: everything it writes says REHEARSAL.",
+  "version": 2,
+  "rehearsal": true,
+  "film": {
+    "title": "Démonstration — deux scènes de la répétition",
+    "fps": 30,
+    "width": 886,
+    "height": 1920,
+    "frame": "framed",
+    "poster": {"scene": "B", "at_s": 7.0}
+  },
+  "motion": {"join": "base", "dissolve": "base", "end_card": "base", "touch_in": "fast", "touch_out": "base"},
+  "touch": {
+    "diameter_pt": 48,
+    "ring_pt": 1.5,
+    "fill_opacity": 0.12,
+    "ring_opacity": 0.45,
+    "tap_lead": "base",
+    "tap_dwell": "fast",
+    "light_below_luminance": 0.35
+  },
+  "timing": {"rest_s": 0.5, "tail_s": 0.3, "key_tail_s": 0.1, "sync_tolerance_s": 0.5, "lead_in_s": 0.6},
+  "band": {"top_pt": 62, "bottom_pt": 34},
+  "end_card": {"title": "MyWeli Pro", "line": "Un compte MyWeli Pro est nécessaire.", "duration_s": 2.2},
+  "scenes": [
+    {
+      "id": "A",
+      "what": "Ma journée: the « Arrivé » pane opened by a right swipe, closed by a left one",
+      "budget_s": 4.5,
+      "take": "rehearsal/take.mov",
+      "gestures": "rehearsal/gestures.json",
+      "headline": ["Une cliente arrive ?", "Un geste suffit."],
+      "lead_in_s": 1.2,
+      "keep": [
+        {"gesture": "swipe-arrive", "rest_after_s": 0.6},
+        {"gesture": "swipe-close", "rest_after_s": 1.5}
+      ]
+    },
+    {
+      "id": "B",
+      "what": "« Libre — 10:45 » opens « Réservation »; dissolve to the filled form; the scroll to the total",
+      "budget_s": 7.5,
+      "take": "rehearsal/take.mov",
+      "gestures": "rehearsal/gestures.json",
+      "headline": ["Un créneau libre ?", "Ajoutez un rendez-vous."],
+      "lead_in_s": 1.2,
+      "keep": [
+        {"gesture": "tap-libre", "rest_after_s": 1.2},
+        {"dissolve": "base", "lead_in_s": 0.6, "why": "the form, opened → the form, filled"},
+        {"gesture": "scroll-total", "rest_after_s": 1.5}
+      ],
+      "masks": [
+        {"what": "the typed client name, as a phone number would be: tracking the form's scroll",
+         "rect_px": [100, 2212, 180, 90], "from_s": 80.0, "style": "fill",
+         "track": {"scroll_px": [354, 2622]}}
+      ]
+    }
+  ]
+}

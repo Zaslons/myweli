@@ -1,0 +1,103 @@
+{
+  "_spec": "The film of scenes — « option 3 », chosen by the owner on 2026-10-14 after the benchmark; it replaces the single 21-s flow of storyboard.json (docs/design/pro-app-preview.md, version 1). A WORKING storyboard: the scene budgets are targets, the real takes decide, and nothing here is final until the owner signs it off. Takes are relative to --takes: s1/take.mov and s1/gestures.json, and so on — one take a scene; the gesture ids below are the ones each take's log must use. README.md « Version 2 — scenes » says what every value does.",
+  "_never_shown": "sign-in; « Mon abonnement » or an offer; KYC (« Vérification »); a « Compte de démonstration — … » message; a system alert; a legible phone number; the « Prestations » price list as a scene. S6 never reaches the « Contact » block (the salon's phone): the scroll stops short of it — checked by eye on the take, the tool cannot read it.",
+  "version": 2,
+  "film": {
+    "title": "MyWeli Pro — six gestes",
+    "fps": 30,
+    "width": 886,
+    "height": 1920,
+    "frame": "framed",
+    "poster": {"scene": "S1", "at_s": 3.0}
+  },
+  "motion": {"join": "base", "dissolve": "base", "end_card": "base", "touch_in": "fast", "touch_out": "base"},
+  "touch": {
+    "diameter_pt": 48,
+    "ring_pt": 1.5,
+    "fill_opacity": 0.12,
+    "ring_opacity": 0.45,
+    "tap_lead": "base",
+    "tap_dwell": "fast",
+    "light_below_luminance": 0.35
+  },
+  "timing": {"rest_s": 0.5, "tail_s": 0.3, "key_tail_s": 0.1, "sync_tolerance_s": 0.5, "lead_in_s": 0.6},
+  "band": {"top_pt": 62, "bottom_pt": 34},
+  "end_card": {"title": "MyWeli Pro", "line": "Un compte MyWeli Pro est nécessaire.", "duration_s": 2.2},
+  "scenes": [
+    {
+      "id": "S1",
+      "what": "« Ma journée »: a right swipe on a confirmed booking opens the green « Arrivé » pane; a tap on it; the card turns « Arrivé »",
+      "budget_s": 3.5,
+      "take": "s1/take.mov",
+      "gestures": "s1/gestures.json",
+      "headline": ["Une cliente arrive ?", "Un geste suffit."],
+      "keep": [
+        {"gesture": "swipe-arrive", "rest_after_s": 0.2},
+        {"gesture": "tap-arrive", "ground": "dark", "rest_after_s": 0.6}
+      ]
+    },
+    {
+      "id": "S2",
+      "what": "a tap on « Libre — HH:MM » opens « Réservation » with date and hour set; the declared dissolve to the filled form; a tap on « Créer le rendez-vous »; back on « Ma journée » with the new booking",
+      "budget_s": 5.5,
+      "take": "s2/take.mov",
+      "gestures": "s2/gestures.json",
+      "headline": ["Un créneau libre ?", "Ajoutez un rendez-vous."],
+      "keep": [
+        {"gesture": "tap-libre", "rest_after_s": 0.6},
+        {"dissolve": "base", "lead_in_s": 0.4, "why": "the form, opened → the form, filled"},
+        {"gesture": "tap-creer", "ground": "dark", "rest_after_s": 0.4}
+      ]
+    },
+    {
+      "id": "S3",
+      "what": "« Fiche client » of a regular: tags, tiles, a scroll to the visit history; the phone number masked all along",
+      "budget_s": 4.0,
+      "take": "s3/take.mov",
+      "gestures": "s3/gestures.json",
+      "headline": ["Vos clients, connus", "visite après visite."],
+      "keep": [
+        {"gesture": "scroll-historique", "rest_after_s": 0.8}
+      ],
+      "masks": [
+        {"what": "the client's phone number, « +225 07 … », tracking the scroll. Read on the raw still pro-05-client.png (the number at x 290–712, y 545–583): UNVERIFIED on the S3 take — the build refuses a rectangle that hides nothing, and a scroll band that does not match",
+         "rect_px": [278, 534, 448, 60], "style": "fill",
+         "track": {"scroll_px": [354, 2622]}}
+      ]
+    },
+    {
+      "id": "S4",
+      "what": "« Revenus »: the period goes « Aujourd'hui » → « Semaine » → « Mois », and the figures follow",
+      "budget_s": 4.0,
+      "take": "s4/take.mov",
+      "gestures": "s4/gestures.json",
+      "headline": ["Suivez vos revenus,", "jour après jour."],
+      "keep": [
+        {"gesture": "tap-semaine", "rest_after_s": 0.5},
+        {"gesture": "tap-mois", "rest_after_s": 0.8}
+      ]
+    },
+    {
+      "id": "S5",
+      "what": "« Disponibilité »: one scroll through the week — the first scene to drop if the film is over 30 s",
+      "budget_s": 3.0,
+      "take": "s5/take.mov",
+      "gestures": "s5/gestures.json",
+      "headline": ["Fixez vos horaires,", "les créneaux suivent."],
+      "keep": [
+        {"gesture": "scroll-semaine", "rest_after_s": 0.6}
+      ]
+    },
+    {
+      "id": "S6",
+      "what": "« Aperçu de ma page »: the salon's public page from its cover photo, a short scroll — never as far as « Contact »",
+      "budget_s": 4.0,
+      "take": "s6/take.mov",
+      "gestures": "s6/gestures.json",
+      "headline": ["Votre page MyWeli,", "prête pour vos clients."],
+      "keep": [
+        {"gesture": "scroll-page", "rest_after_s": 0.8}
+      ]
+    }
+  ]
+}
