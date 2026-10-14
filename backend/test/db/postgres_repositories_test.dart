@@ -31,6 +31,8 @@ import 'package:myweli_backend/src/storage/storage_service.dart';
 import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 
+import '../access/invite_contract.dart';
+
 void main() {
   final url = Platform.environment['DATABASE_URL'];
   if (url == null || url.isEmpty) {
@@ -1629,6 +1631,35 @@ void main() {
   /// unnoticed. `remove` is deliberately not user-scoped — the provider reports
   /// a dead token, not a user — so the test pins that, and pins that the
   /// user-scoped variant refuses to cross accounts.
+  // The invitation contract on the REAL schema — `UNIQUE (provider_id,
+  // email)` is what the in-memory twin never had: re-inviting a revoked or
+  // expired address raised 23505 here and answered 500 in production.
+  // docs/design/backend-team-reinvite.md
+  group('PostgresMembershipRepository — invite, the twin contract', () {
+    var n = 0;
+    inviteContract(
+      repo: () => PostgresMembershipRepository(pool),
+      providerId: 'provider1', // seeded
+      account: (email) async {
+        n++;
+        final reg =
+            await PostgresProviderAuthRepository(
+              pool,
+              tokens: tokens,
+              echoDevCode: true,
+            ).register(
+              email: email,
+              authProvider: 'google',
+              googleSub: 'sub-contract-$n',
+              phoneNumber: '+22505000020${n.toString().padLeft(2, '0')}',
+              businessName: 'Contract',
+              businessType: 'salon',
+            );
+        return reg.provider!.id;
+      },
+    );
+  });
+
   group('PostgresDeviceTokenRepository (module push)', () {
     test(
       'remove deletes exactly one token; removeForUser is owner-scoped',
@@ -1865,7 +1896,7 @@ void main() {
         artistId: 'a1',
         expiresAt: DateTime.now().add(const Duration(days: 7)),
       );
-      await members.activate(mateInvite.id, mate);
+      await members.activate(mateInvite!.id, mate);
 
       // A second salon where the owner is only STAFF: the row goes with the
       // identity, the salon itself is untouched (R6 — member-only salons).
@@ -1878,7 +1909,7 @@ void main() {
         artistId: 'a1',
         expiresAt: DateTime.now().add(const Duration(days: 7)),
       );
-      await members.activate(staffInvite.id, o.id);
+      await members.activate(staffInvite!.id, o.id);
 
       await devices.upsert(
         token: 'tok-del-owner',

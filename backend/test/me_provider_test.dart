@@ -184,7 +184,7 @@ void main() {
           role: 'manager',
           expiresAt: DateTime.now().add(const Duration(days: 7)),
         );
-        await memberships.activate(invited.id, 'acc1');
+        await memberships.activate(invited!.id, 'acc1');
         when(
           () => providers.byId('p1'),
         ).thenAnswer((_) async => {'id': 'p1', 'name': 'Salon Awa'});
@@ -214,7 +214,7 @@ void main() {
         artistId: 'a1',
         expiresAt: DateTime.now().add(const Duration(days: 7)),
       );
-      await memberships.activate(invited.id, 'acc1');
+      await memberships.activate(invited!.id, 'acc1');
       when(() => providers.byId('p1')).thenAnswer(
         (_) async => {
           'id': 'p1',
@@ -251,7 +251,7 @@ void main() {
         role: 'manager',
         expiresAt: DateTime.now().add(const Duration(days: 7)),
       );
-      await memberships.activate(invited.id, 'acc1');
+      await memberships.activate(invited!.id, 'acc1');
       await memberships.revoke(invited.id);
 
       final res = await me_provider.onRequest(
@@ -259,6 +259,46 @@ void main() {
       );
       expect(res.statusCode, HttpStatus.forbidden);
       expect((await res.json() as Map)['error'], 'not_a_member');
+    });
+
+    test('a REVOKED bare member who is re-invited and DECLINES stays a '
+        'revoked member: 403 not_a_member, and no salon is created for '
+        'them (backend-team-reinvite.md)', () async {
+      when(
+        () => auth.accountById('acc1'),
+      ).thenAnswer((_) async => _account(providerId: null));
+      final invited = await memberships.invite(
+        providerId: 'p1',
+        email: 'ex@test.pro',
+        role: 'manager',
+        expiresAt: DateTime.now().add(const Duration(days: 7)),
+      );
+      await memberships.activate(invited!.id, 'acc1');
+      await memberships.revoke(invited.id);
+      // The owner invites the address again — the same row comes back —
+      // and the former member declines it.
+      final again = await memberships.invite(
+        providerId: 'p1',
+        email: 'ex@test.pro',
+        role: 'reception',
+        expiresAt: DateTime.now().add(const Duration(days: 7)),
+      );
+      expect(again?.id, invited.id);
+      await memberships.decline(again!.id);
+
+      final res = await me_provider.onRequest(
+        ctx(req('GET', token: tok('acc1', 'provider'))),
+      );
+      expect(res.statusCode, HttpStatus.forbidden);
+      expect((await res.json() as Map)['error'], 'not_a_member');
+      verifyNever(
+        () => providers.createSalon(
+          name: any(named: 'name'),
+          category: any(named: 'category'),
+          phoneNumber: any(named: 'phoneNumber'),
+          address: any(named: 'address'),
+        ),
+      );
     });
 
     test('no linked salon → SELF-HEALS: a draft salon is created + linked '
@@ -412,7 +452,7 @@ void main() {
         role: 'manager',
         expiresAt: DateTime.now().add(const Duration(days: 7)),
       );
-      await memberships.activate(invited.id, 'acc1');
+      await memberships.activate(invited!.id, 'acc1');
       when(
         () => providers.byId('p3'),
       ).thenAnswer((_) async => {'id': 'p3', 'name': 'Salon Trois'});
@@ -462,7 +502,7 @@ void main() {
         artistId: 'a1',
         expiresAt: DateTime.now().add(const Duration(days: 7)),
       );
-      await memberships.activate(invited.id, 'acc1');
+      await memberships.activate(invited!.id, 'acc1');
       await memberships.revoke(invited.id);
 
       final res = await me_provider.onRequest(

@@ -310,7 +310,7 @@ void main() {
         role: 'manager',
         expiresAt: DateTime.now().add(const Duration(days: 7)),
       );
-      await memberships.activate(inv.id, id);
+      await memberships.activate(inv!.id, id);
 
       final r = await service.deleteAccount(id);
       expect(r.ok, isTrue);

@@ -5,6 +5,8 @@ import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
 import 'package:myweli_backend/src/auth/tokens.dart';
 import 'package:test/test.dart';
 
+import 'invite_contract.dart';
+
 /// Module `access` R1: the membership rows + the per-request resolver
 /// (docs/design/team-access-r1-foundation.md).
 void main() {
@@ -78,6 +80,16 @@ void main() {
       expect(await members.firstActiveForAccount('acc1'), isNull);
       expect(await members.activeMember('acc2', 'p3'), isNotNull);
     });
+  });
+
+  // The same body runs on Postgres (db/postgres_repositories_test.dart):
+  // docs/design/backend-team-reinvite.md §8.
+  group('invite — the twin contract (in-memory)', () {
+    inviteContract(
+      repo: InMemoryMembershipRepository.new,
+      providerId: 'p1',
+      account: (email) async => 'acc-$email',
+    );
   });
 
   group('service — per-request resolution (deny by default)', () {

@@ -136,7 +136,7 @@ void main() {
           artistId: role == 'staff' ? 'artist1' : null,
           expiresAt: DateTime.now().add(const Duration(days: 7)),
         );
-        await memberships.activate(row.id, created.provider!.id);
+        await memberships.activate(row!.id, created.provider!.id);
         return created.provider!.id;
       }
 
