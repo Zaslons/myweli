@@ -177,18 +177,30 @@ Une lecture de la liste du salon (déjà faite) ; une instruction d'écriture.
   membre qui avait accepté) → **même identifiant**, `invited`, rôle/fiche
   nouveaux, `resends_left` 3, `accepted_at`/`revoked_at` vides, `account_id`
   gardé, une seule ligne pour l'adresse ; invitation expirée → idem ; ligne
-  « owner » révoquée → `null`, intacte. **Rouge avant** : 23505 sur Postgres ;
-  un second identifiant en mémoire.
+  « owner » révoquée → `null`, intacte ; **deux invitations simultanées** de
+  la même adresse, puis de la même ligne morte → un gagnant, une ligne, aucune
+  erreur. **Vu rouge** : 7 cas sur 8 — 23505
+  `provider_members_provider_id_email_key` sur Postgres, une seconde ligne en
+  mémoire ; « adresse neuve » sert de témoin. Les deux cas simultanés, vus
+  rouges par mutation (les dépôts de `main` remis en place, puis restaurés).
 - **Service** (`team_service_test.dart`) : réinviter après révocation → 201,
   même identifiant, une ligne ; après expiration **avec le salon plein** → 201
   (pas de `seat_limit`) ; propriétaire révoqué → `member_exists` ; adresse
   avec espaces → doublon reconnu ; `null` du dépôt → `member_exists` et
   compteur rendu ; métadonnée `revived` ; réponse avec `artistName` et
   `expired`. Le test « EXPIRED invitation can be re-sent » affirme désormais
-  une seule ligne, même identifiant.
+  une seule ligne, même identifiant. **Vu rouge** : 6 cas. Le cas
+  « propriétaire » passait d'abord pour une mauvaise raison — en mémoire,
+  l'auto-réparation de l'appelant ajoutait une ligne « owner » active, que le
+  contrôle de doublon trouvait ; il porte désormais sur la ligne révoquée d'un
+  **ancien** propriétaire, et il est rouge.
 - **App** : l'invitation retournée remplace la ligne de même identifiant ; le
-  mock ranime au lieu d'ajouter.
-- **Web** (Playwright, sur le stub) : révoquer puis réinviter → une ligne.
+  mock ranime au lieu d'ajouter. **Vu rouge** : 3 cas.
+- **Web** (Playwright, sur le stub) : révoquer puis réinviter → une ligne,
+  « Invitation envoyée ». Vert ; **rouge avec le stub de `main`** (« Accès
+  révoqué » toujours affiché). Lancé sur des ports libres par une copie
+  temporaire de la configuration : le port 3000 était pris par le serveur de
+  développement d'un autre projet.
 
 ## 9. Mise en service
 
