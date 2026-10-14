@@ -61,17 +61,19 @@ class TeamService {
       ok: true,
       error: null,
       data: {
-        'items': [
-          for (final m in rows)
-            {
-              ...m.toJson(),
-              if (m.artistId != null) 'artistName': artistNames[m.artistId],
-              'expired': m.isExpiredInvitation,
-            },
-        ],
+        'items': [for (final m in rows) _rosterRow(m, artistNames)],
       },
     );
   }
+
+  /// One roster row — the shape of `GET` items AND of the invite's 201, so a
+  /// client that puts the 201 in its list shows the same thing a reload would.
+  Map<String, dynamic> _rosterRow(Member m, Map<String, String> artistNames) =>
+      {
+        ...m.toJson(),
+        if (m.artistId != null) 'artistName': artistNames[m.artistId],
+        'expired': m.isExpiredInvitation,
+      };
 
   Future<TeamResult> invite(
     String accountId,
@@ -88,38 +90,55 @@ class TeamService {
     // from an authenticated session (« X vous invite comme Y ») — a public
     // credential must not become a mail cannon. Keyed on the owner
     // membership, same constant, same reasoning as the publish refusal.
-    final owners = await _members.listForProvider(providerId);
-    if (owners.any((m) => m.role == 'owner' && isDemoIdentity(m.email))) {
+    final rows = await _members.listForProvider(providerId);
+    if (rows.any((m) => m.role == 'owner' && isDemoIdentity(m.email))) {
       return (ok: false, error: 'demo_account_locked', data: null);
     }
     if (email is! String || !isValidEmail(email)) {
       return (ok: false, error: 'invalid_input', data: null);
     }
-    final emailKey = email.toLowerCase();
+    // Trimmed as well as lowercased: isValidEmail trims before it tests, so
+    // « a@b.co » with a space passed it — and then slipped past the duplicate
+    // check and the unique key with the space still in.
+    final emailKey = email.trim().toLowerCase();
     if (role is! String || !_invitableRoles.contains(role)) {
       return (ok: false, error: 'invalid_role', data: null);
     }
     String? linkedArtist;
+    var artistNames = const <String, String>{};
     if (role == MemberRole.staff) {
       if (artistId is! String || artistId.isEmpty) {
         return (ok: false, error: 'artist_required', data: null);
       }
-      final names = await _artistNames(providerId);
-      if (!names.containsKey(artistId)) {
+      artistNames = await _artistNames(providerId);
+      if (!artistNames.containsKey(artistId)) {
         return (ok: false, error: 'artist_not_found', data: null);
       }
       linkedArtist = artistId;
     }
 
-    // Duplicate: an active or still-pending row for this (salon, email).
-    final existing = await _members.listForProvider(providerId);
-    for (final m in existing) {
-      if (m.email == emailKey &&
-          (m.status == 'active' ||
-              (m.status == 'invited' && !m.isExpiredInvitation))) {
-        return (ok: false, error: 'member_exists', data: null);
+    // One row per (salon, email) — the database's rule (UNIQUE (provider_id,
+    // email)). An owner's row in any state, an active member or a still-valid
+    // invitation HOLDS the address. A revoked row or an expired invitation is
+    // DEAD: it is invited again on the same row (the repository revives it).
+    // Re-inviting a dead row used to reach a plain INSERT and answer 500.
+    // docs/design/backend-team-reinvite.md
+    Member? current;
+    for (final m in rows) {
+      if (m.email == emailKey) {
+        current = m;
+        break;
       }
     }
+    if (current != null &&
+        (current.role == MemberRole.owner ||
+            current.status == 'active' ||
+            (current.status == 'invited' && !current.isExpiredInvitation))) {
+      return (ok: false, error: 'member_exists', data: null);
+    }
+    final revived = current == null
+        ? null
+        : (current.status == 'revoked' ? 'revoked' : 'expired');
 
     // R2a gates: a live offer + a free seat (used counts active+invited).
     final state = await _subscriptions.stateFor(providerId);
@@ -129,7 +148,11 @@ class TeamService {
       return (ok: false, error: 'offer_required', data: null);
     }
     final seats = state['seats'] as Map<String, dynamic>;
-    if ((seats['used'] as int) >= (seats['cap'] as int)) {
+    // An expired invitation already holds its seat (every invited row
+    // counts): inviting it again takes no new one, so a full salon must not
+    // refuse it. A revoked row holds none — it is checked like a new address.
+    if (revived != 'expired' &&
+        (seats['used'] as int) >= (seats['cap'] as int)) {
       return (ok: false, error: 'seat_limit', data: null);
     }
 
@@ -149,15 +172,24 @@ class TeamService {
       invitedBy: accountId,
       expiresAt: _now().add(invitationValidity),
     );
+    if (member == null) {
+      // A concurrent invitation took the address between the read above and
+      // this write. The same answer the duplicate check gives — and the
+      // day's invite is given back, since nothing was sent.
+      _inviteCounts[dayKey] = (_inviteCounts[dayKey] ?? 1) - 1;
+      return (ok: false, error: 'member_exists', data: null);
+    }
     await _sendInvitationEmail(providerId, emailKey, role);
     await _audit.log(
       providerId: providerId,
       actorAccountId: accountId,
       action: 'members.invite',
       targetId: member.id,
-      meta: {'role': role},
+      // One id carries every cycle of an address; `revived` says which
+      // cycle started on a dead row.
+      meta: {'role': role, 'revived': ?revived},
     );
-    return (ok: true, error: null, data: member.toJson());
+    return (ok: true, error: null, data: _rosterRow(member, artistNames));
   }
 
   Future<TeamResult> changeRole(

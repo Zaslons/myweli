@@ -184,7 +184,7 @@ void main() {
           role: 'manager',
           expiresAt: DateTime.now().add(const Duration(days: 7)),
         );
-        await memberships.activate(invited.id, 'acc1');
+        await memberships.activate(invited!.id, 'acc1');
         when(
           () => providers.byId('p1'),
         ).thenAnswer((_) async => {'id': 'p1', 'name': 'Salon Awa'});
@@ -214,7 +214,7 @@ void main() {
         artistId: 'a1',
         expiresAt: DateTime.now().add(const Duration(days: 7)),
       );
-      await memberships.activate(invited.id, 'acc1');
+      await memberships.activate(invited!.id, 'acc1');
       when(() => providers.byId('p1')).thenAnswer(
         (_) async => {
           'id': 'p1',
@@ -251,7 +251,7 @@ void main() {
         role: 'manager',
         expiresAt: DateTime.now().add(const Duration(days: 7)),
       );
-      await memberships.activate(invited.id, 'acc1');
+      await memberships.activate(invited!.id, 'acc1');
       await memberships.revoke(invited.id);
 
       final res = await me_provider.onRequest(
@@ -412,7 +412,7 @@ void main() {
         role: 'manager',
         expiresAt: DateTime.now().add(const Duration(days: 7)),
       );
-      await memberships.activate(invited.id, 'acc1');
+      await memberships.activate(invited!.id, 'acc1');
       when(
         () => providers.byId('p3'),
       ).thenAnswer((_) async => {'id': 'p3', 'name': 'Salon Trois'});
@@ -462,7 +462,7 @@ void main() {
         artistId: 'a1',
         expiresAt: DateTime.now().add(const Duration(days: 7)),
       );
-      await memberships.activate(invited.id, 'acc1');
+      await memberships.activate(invited!.id, 'acc1');
       await memberships.revokeAllForAccount('acc1');
 
       final res = await me_provider.onRequest(
