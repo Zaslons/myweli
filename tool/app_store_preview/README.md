@@ -42,7 +42,7 @@ the same command with `--variant dry-run` writes `preview-rehearsal.mp4`.
 | `swift/Inspect.swift` | AVFoundation's reading of a written file; decodes frames and sound for `verify`. |
 | `swift/TestClip.swift` | Tests only: writes synthetic takes and films that are wrong on purpose. |
 | `tests/` | The self-tests, and `mutations.py`, which breaks each check in turn and watches a test go red. |
-| `storyboard-scenes.json` | **Version 2**, the film of scenes (« option 3 »): S1–S6 and the end card. A working storyboard: the takes are not filmed yet. |
+| `storyboard-scenes.json` | **Version 2**, the film of scenes (« option 3 »): S1–S6 and the end card, cut from the takes of 2026-10-14 (« Version 2 — the takes of 2026-10-14 »). Not final until the owner signs it off. |
 | `storyboard-scenes-demo.json` | A demonstration of version 2 on the rehearsal take: two scenes and the end card. Marked rehearsal. |
 | `scenes.py` | Version 2's plan: the scenes, their runs, the declared dissolve, the joins, the end card, the poster — and every refusal. Inside a scene it runs version 1's own rule (`edit.check_take`). |
 | `masks.py` | A rectangle of the capture hidden on every picture: fixed, or following the vertical scroll under it. |
@@ -337,6 +337,17 @@ frames after it (44 dB against 51 dB on a still frame); with it, every frame
 measured 54 dB or better. Forcing a constant 11 Mbps pads the file and
 measured worse; it is not used. Whether App Store Connect minds a file below
 its 10–12 Mbps target is **UNVERIFIED** — nothing has been uploaded.
+
+**The ceiling gives way to the level.** High Profile Level 4.0 allows 25 Mbit
+a second, and verify holds the file to it (the bits of the busiest 30
+frames). The ceiling of 10 cost nothing on the rehearsal (7.2 Mbit in its
+busiest second); on the film of scenes of 2026-10-14, S6's cover photograph
+scrolling spent 25.31 Mbit, and verify failed. So `encode` measures what it
+wrote and, over the level, writes it again with the ceiling two steps higher
+— the least loss of sharpness that fits — up to 20, past which it refuses
+and leaves no file. Every attempt is printed: that film went 25.31 → 20.97
+Mbit at 12 (framed), 26.62 → 22.05 (full-bleed). A film that fits at 10 is
+written once, as before (`tests.test_verify.EncoderLevel`).
 
 `verify` checks the written file (24 checks): container, codec, profile and
 level, exactly 886 × 1920 in the bitstream and in every header, upright,
@@ -781,6 +792,59 @@ be); the end card. 460 frames, 15.33 s, PASS — 25 checks in both frames.
 Built under `build/app-store/pro/preview/v2/demo/` — a build product,
 never committed.
 
+### Version 2 — the takes of 2026-10-14
+
+Recorded on the iPhone 17 Pro simulator, signed in to the demo salon,
+status bar at 9:41. The recorder logged each call in its own
+`gestures.jsonl` (the wall clock read before and after the call);
+`gestures.json` beside each take is that log rewritten in this tool's terms
+— `after_s`/`before_s` = clock − t0, a drag's samples at their logged 16 ms,
+the six key presses as one `type` gesture with `keys` — the same facts,
+nothing inferred. The takes and logs are build products under
+`build/app-store/pro/preview/v2/takes/`, never committed; `--takes` points
+there.
+
+| Scene | Take | Kept | In the film |
+|---|---|---|---|
+| S1 | `take1b` | `swipe-arrive`, `tap-arrive` | 0.000–4.533 s (4.53; budget 3.5) |
+| S2 | `take1b` | `tap-libre`, the dissolve, `tap-creer` | 4.700–12.167 s (7.47; budget 5.5) |
+| S3 | `take2b` | `scroll-fiche`, from the card at rest | 12.333–15.967 s (3.63; budget 4) |
+| S4 | `take3` | `tap-semaine`, `tap-mois` | 16.133–20.133 s (4.00; budget 4) |
+| S5 | `take4` | `scroll-semaine` | 20.300–23.833 s (3.53; budget 3) |
+| S6 | `take5` | `scroll-page` | 24.000–27.433 s (3.43; budget 4) |
+| end card | | | 27.600–29.800 s (2.20) |
+
+894 frames, 29.800 s; joins of 5 frames; the poster is S4, 3.5 s in
+(19.633 s): « Mois » at rest, 77 000 FCFA. Both frames: PASS — 25 checks.
+
+What the takes decided:
+
+- **S2 is 7.47 s, not 5.5.** « Créer » is answered by the form closing, the
+  day coming back with « 14:45 Yao K. » and the « Rendez-vous créé »
+  snackbar for three seconds: one protected window, 130.265–134.338 s of
+  the take. S1 likewise: the pane closes at once, and the card reads
+  « Arrivé » 1.3 s later — the network, protected too.
+- **S3 starts on the card at rest**, not on « Clients »: that list shows
+  every client's number half-masked by the app (« +225 07 •• •• •0N »). The
+  mask is `[282, 538, 440, 52]` px, read on the take (the number's ink at x
+  290–712, y 545–583), a `fill` of the card's own 250, tracking the scroll
+  under the app bar (its edge at 354 px, 118 pt). The number is in the
+  pictures of the scene's first 49 frames (film frames 370–418) and masked
+  on each; after that the app bar covers it (in the full-bleed frame the
+  caption band does from frame 416). Checked a second way on the written
+  films — the number found in each picture by its own ink, the decoded
+  frame read there, the joins proved to be blends of masked pictures — with
+  a control that composes the same frames unmasked and finds the number on
+  every one of them (49 framed, 46 full-bleed).
+  Put back into the built frames and encoded, the film fails verify's
+  `masked regions`, and only that.
+- **S4's band is at the bottom** in the full-bleed frame: the tabs, at
+  141 pt, are where the top band would be (`E_CAPTION` otherwise).
+- **S6 cannot avoid « Contact »**: its title and map are on screen at rest
+  from the top. The salon's phone stays under the bottom bar (the scroll is
+  102 pt; it would show after 138). The map is CARTO's « API KEY REQUIRED »
+  tile in every frame of the take (a debug build against production).
+
 ### Known limits of version 2
 
 - A dissolve or a join between two takes blends two pictures that may not
@@ -790,12 +854,16 @@ never committed.
 - What a scene must never show (sign-in, an offer, « Contact » in S6, a
   system alert…) is not read by the tool: it is a matter of the take and of
   looking at `contact-sheet.png`.
-- The real S1–S6 takes do not exist yet: every number in
-  `storyboard-scenes.json` other than the captions is **UNVERIFIED** —
-  S3's mask rectangle was read on the still `pro-05-client.png`, not on a
-  take; S2's tap on « Créer » brings a three-second snackbar that is part of
-  its answer and cannot be cut, so S2 will run past its 5.5-s budget unless
-  the take ends that answer sooner.
+- What is in the footage is the takes' to fix, not the tool's: S6's
+  « API KEY REQUIRED » map; two « Yao K. » bookings in S2's day (13:15
+  from an earlier take, 14:45 from this one), the new one under the
+  « Nouveau » button; S6's « Aperçu » bar and its « Réserver (après la mise
+  en ligne) ».
+- In the full-bleed frame the band (two lines of `headlineSmall` and its
+  padding, about 80 pt) is taller than an app bar (56 pt): it hides each
+  screen's title and cuts through the row under it. Its height follows the
+  ink of its words, so a headline without descenders (S5's) gives a band
+  about 6 pt shorter than the others.
 
 ## Tests
 
