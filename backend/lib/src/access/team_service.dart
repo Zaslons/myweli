@@ -297,7 +297,9 @@ class TeamService {
     final guard = await _guardMember(accountId, providerId, memberId);
     if (guard.error != null) return (ok: false, error: guard.error, data: null);
     final member = guard.member!;
-    if (member.status != 'invited') {
+    // T69: an invitation to the demo address from before the invite refusal
+    // is not re-mailed nor reopened — it stays inert.
+    if (member.status != 'invited' || isDemoIdentity(member.email)) {
       return (ok: false, error: 'invalid_state', data: null);
     }
     final updated = await _members.resendInvite(
@@ -323,6 +325,9 @@ class TeamService {
   /// Invitation cards for a verified email (the login bridge + the authed
   /// list). Never reveals whether the email has an account (T37).
   Future<List<Map<String, dynamic>>> pendingInvitationsFor(String email) async {
+    // T69: the public review account never sees an invitation card, even
+    // one written before the invite refusal existed.
+    if (isDemoIdentity(email.trim().toLowerCase())) return const [];
     final rows = await _members.pendingByEmail(email);
     final cards = <Map<String, dynamic>>[];
     for (final m in rows) {
@@ -353,6 +358,11 @@ class TeamService {
     if (member.email != accountEmail.toLowerCase()) {
       return (ok: false, error: 'forbidden', data: null);
     }
+    // T69: the public review credential joins no salon — an invitation to its
+    // address from before the invite refusal answers as if it were gone.
+    if (isDemoIdentity(member.email)) {
+      return (ok: false, error: 'not_found', data: null);
+    }
     if (member.isExpiredInvitation) {
       return (ok: false, error: 'invitation_expired', data: null);
     }
@@ -368,7 +378,9 @@ class TeamService {
       actorAccountId: accountId,
       action: 'members.accept',
       targetId: invitationId,
-      meta: {'role': member.role},
+      // The role WRITTEN, not the one read: an owner's role change can land
+      // between the two.
+      meta: {'role': activated.role},
     );
     return (ok: true, error: null, data: activated.toJson());
   }

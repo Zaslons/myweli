@@ -79,8 +79,18 @@ la table du limiteur partagé, déjà purgée chaque jour.
   d'envoi, et journalisé.
 - **L'adresse n'apparaît jamais en clair** dans la table ni dans les journaux
   (`rate_limited bucket=…` est journalisé à chaque refus). Le salon est dans
-  l'entrée du hachage : la même adresse invitée par deux salons donne deux
-  empreintes sans lien.
+  l'entrée du hachage : la même adresse donne une empreinte différente dans
+  chaque salon. **Pseudonyme, pas secret** : le hachage n'a pas de clé, et
+  qui tient une adresse *candidate* peut la confirmer pour un salon donné.
+  Le but tenu est « aucune coordonnée dans les journaux », pas l'anonymat
+  (précisé après la revue).
+- **Une boîte, un seau** (`canonicalInviteAddress`, ajouté après la revue) :
+  le compteur — seulement lui — retire un `+étiquette` quel que soit le
+  domaine, et chez Gmail les points et `googlemail.com`. Sans cela,
+  `victime+1@gmail.com`, `v.ictime@gmail.com`… étaient chacun un seau neuf et
+  le plafond par adresse ne bornait rien. L'adresse stockée et envoyée reste
+  celle saisie. Les domaines « attrape-tout » restent hors de portée : le
+  plafond du salon les borne.
 - **Pas d'avertissement sur le seau d'adresse** : `warnAt(3) = 2`, l'alerte 94
   sonnerait à chaque deuxième invitation honnête d'une même adresse.
 - **L'ordre** : toutes les vérifications existantes d'abord (verrou démo,
@@ -90,10 +100,17 @@ la table du limiteur partagé, déjà purgée chaque jour.
   d'adresse par jour. Puis l'écriture.
 - **On compte les tentatives** (le principe du limiteur) : une course perdue
   (le dépôt retourne `null` → `member_exists`) est comptée. Le
-  « remboursement » de #596 disparaît avec le compteur du processus.
+  « remboursement » de #596 disparaît avec le compteur du processus. Une
+  tentative refusée par le seau adresse a déjà consommé une unité du seau
+  salon — voulu (une tentative est une tentative) : un propriétaire qui
+  s'acharne sur une adresse refusée finit par épuiser la journée du salon et
+  par déclencher l'avertissement à 80 % ; le runbook de l'alerte 94 le dit.
 - **Les renvois ne sont pas comptés** : ils ont leur budget par ligne (3, remis
-  à neuf par une réinvitation). Bilan par (salon, adresse) et par jour : au
-  plus 3 invitations + 9 renvois = 12 e-mails, au lieu de ~80 par instance.
+  à neuf par une réinvitation). Bilan par (salon, boîte) et par jour UTC :
+  3 invitations × (1 + 3 renvois) = 12 e-mails, **plus** jusqu'à 3 renvois
+  d'une invitation partie la veille — **15 au plus**, au lieu de ~80 par
+  instance (le chiffre 12 de la première version était faux, relevé en
+  revue).
 
 ### 5.2 L'adresse démo
 
@@ -101,12 +118,21 @@ la table du limiteur partagé, déjà purgée chaque jour.
 avant tout compteur. `demo_account_locked` serait faux : le salon qui invite
 n'est pas le compte démo, et ce texte le lui dirait.
 
+**Et côté invité** (après la revue) : une invitation à cette adresse écrite
+**avant** ce refus resterait renvoyable et acceptable avec l'identifiant
+public. Donc `pendingInvitationsFor` ne montre aucune carte au compte démo,
+`accept` répond `not_found` à une invitation adressée au compte démo, et
+`resend` répond `invalid_state` — la ligne reste inerte, quel que soit ce que
+contient la base.
+
 ### 5.3 L'acceptation qui revérifie
 
 `activate` n'écrit plus que si la ligne est **encore** une invitation valide :
 `… WHERE id = @id AND status = 'invited' AND (expires_at IS NULL OR
 expires_at > now()) RETURNING *` (les deux jumeaux). Sinon `null`, et
-`accept` répond `not_found`. Une révocation qui s'intercale tient.
+`accept` répond `not_found`. Une révocation qui s'intercale tient. L'audit
+`members.accept` note le rôle **écrit** (`activated.role`), plus celui lu
+avant : un changement de rôle peut tomber entre les deux.
 
 ### 5.4 Configuration et rétention
 
@@ -119,9 +145,11 @@ expires_at > now()) RETURNING *` (les deux jumeaux). Sinon `null`, et
   **à la limite** (elle survit, parce que son début est toujours postérieur à
   « maintenant − 1 jour »). La durée devient une constante nommée,
   `kRateLimitRetention`, et un test exige `kInviteWindow <= kRateLimitRetention`.
-- Le runbook de l'alerte 92 (dans `92-identity-limit-alert.sh`) nomme les
-  seaux `invite:` et les deux variables. **Le réappliquer** est une écriture
-  sur le projet GCP : à faire avec le mot du propriétaire.
+- Les runbooks des alertes 92 (refus) et 94 (avertissement à 80 %) — dans
+  `92-identity-limit-alert.sh` et `94-identity-warning-alert.sh` — nomment
+  les seaux `invite:`, les deux variables, et la fenêtre d'un jour (le 94
+  disait « une fois par heure »). **Les réappliquer** est une écriture sur le
+  projet GCP : à faire avec le mot du propriétaire.
 
 ## 6. Sécurité
 
@@ -158,11 +186,18 @@ Deux `UPSERT` d'une ligne chacun par invitation, sur la table du limiteur
   `kInviteWindow <= kRateLimitRetention` ; `allowUnderLimit` honore `window`
   et `warn`.
 - **Route** : `POST /me/provider/members` → 429 `invite_rate_limited`.
+- **Ajoutés après la revue adverse, chacun vu rouge** : les alias d'une boîte
+  partagent le seau (`+étiquette`, points Gmail, `googlemail.com`) ; une
+  invitation démo antérieure est inerte (ni carte, ni acceptation, ni renvoi) ;
+  l'audit d'acceptation note le rôle écrit ; le test de câblage ignore les
+  commentaires et exige `limiter: rateLimiter` (un commentaire contenant
+  « limiter: » le satisfaisait) ; un test d'abonnement creusé par la garde
+  d'`activate` (date fixe en juillet) vérifie à nouveau sa mise en place.
 
 ## 9. Mise en service
 
 PR → CI → fusion → déploiement (mot du propriétaire pour chacun) →
-réappliquer le texte de l'alerte 92 (mot du propriétaire). Retour arrière sans
+réappliquer le texte des alertes 92 et 94 (mot du propriétaire). Retour arrière sans
 risque : aucune migration ; les lignes `invite:` d'une image plus récente sont
 ignorées par une plus ancienne et purgées le lendemain.
 

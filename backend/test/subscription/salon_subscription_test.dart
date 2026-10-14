@@ -724,9 +724,17 @@ void main() {
         providerId: theirs,
         email: 'owner@x.pro',
         role: 'manager',
-        expiresAt: now.add(const Duration(days: 7)),
+        // The WALL clock: activate refuses an invitation whose window has
+        // closed, and it reads real time — this file's `now` is in July.
+        expiresAt: DateTime.now().toUtc().add(const Duration(days: 7)),
       );
-      await memberships.activate(inv!.id, owner);
+      expect(
+        await memberships.activate(inv!.id, owner),
+        isNotNull,
+        reason:
+            'setup: the owner must be an ACTIVE manager of the Réseau '
+            'salon, or this test passes whatever _defaultTierFor does',
+      );
       final mine = await ownedSalon(owner);
 
       await provisioning().publish(mine);

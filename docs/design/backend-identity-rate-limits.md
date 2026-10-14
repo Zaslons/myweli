@@ -118,8 +118,11 @@ reason the closed-set rule exists: the service hits it only AFTER the salon
 bucket, whose key comes from the server's own salon resolution (a closed set,
 reachable only by an owner with a live offer), so one salon writes at most
 `LIMIT_INVITE_SALON` address rows a day. The address is hashed with the salon
-id (`sha256(providerId + "\n" + address)`, 32 hex) — never in clear in the
-table or the refusal line, and not linkable across salons. No 80 % warning on
+id (`sha256(providerId + "\n" + canonical address)`, 32 hex) — never in
+clear in the table or the refusal line, and a different digest per salon.
+Pseudonymous, not secret: the hash is unkeyed, so a candidate address can be
+confirmed for a given salon. The canonical address folds the aliases of one
+mailbox (`+tag`, Gmail dots) so they share the cap. No 80 % warning on
 it: `warnAt(3) == 2`.
 
 **The booking bucket omits the role.** Including it could only ever *split* a

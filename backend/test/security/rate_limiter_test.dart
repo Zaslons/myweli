@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:myweli_backend/src/db/postgres_rate_limiter.dart';
 import 'package:myweli_backend/src/security/identity_limits.dart';
+import 'package:myweli_backend/src/security/origin_front_door.dart'
+    show kIpAuthWindow;
 import 'package:myweli_backend/src/security/rate_limiter.dart';
 import 'package:test/test.dart';
 
@@ -469,10 +471,37 @@ void main() {
         'and the cron prunes with that constant', () {
       expect(kIdentityWindow <= kRateLimitRetention, isTrue);
       expect(kInviteWindow <= kRateLimitRetention, isTrue);
+      expect(kIpAuthWindow <= kRateLimitRetention, isTrue);
       final cron = File(
         'routes/internal/cron/subscriptions.dart',
       ).readAsStringSync();
       expect(cron, contains('pruneRateLimitWindows(kRateLimitRetention)'));
+    });
+
+    test('the canonical mailbox: +tags dropped everywhere, Gmail dots and '
+        'googlemail folded; other addresses stay apart', () {
+      for (final alias in [
+        'victim@gmail.com',
+        'victim+1@gmail.com',
+        'v.ic.tim@gmail.com',
+        'victim+x@googlemail.com',
+      ]) {
+        expect(
+          canonicalInviteAddress(alias),
+          'victim@gmail.com',
+          reason: alias,
+        );
+      }
+      expect(canonicalInviteAddress('ama+salon@orange.ci'), 'ama@orange.ci');
+      expect(canonicalInviteAddress('a.ma@orange.ci'), 'a.ma@orange.ci');
+      expect(
+        inviteAddressBucket('p1', 'victim+1@gmail.com'),
+        inviteAddressBucket('p1', 'victim@gmail.com'),
+      );
+      expect(
+        inviteAddressBucket('p1', 'other@gmail.com'),
+        isNot(inviteAddressBucket('p1', 'victim@gmail.com')),
+      );
     });
 
     test('the address bucket never shows the address', () {

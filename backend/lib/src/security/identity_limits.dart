@@ -80,9 +80,10 @@ const Duration kIdentityWindow = Duration(hours: 1);
 /// **Load-bearing since the invite buckets.** A window survives the prune only
 /// while its START is newer than `now - kRateLimitRetention`; the hourly
 /// buckets clear that by 23 hours, the daily invite buckets by nothing — a
-/// one-day window starts at most one day ago, so it survives exactly. A test
-/// pins every window to this ceiling, so a longer window cannot be added
-/// without the prune deleting it mid-day.
+/// one-day window starts at most one day ago, so it survives exactly.
+/// `rate_limiter_test` pins kIdentityWindow, kInviteWindow and kIpAuthWindow
+/// to this ceiling; a NEW window longer than a day must join that test, or
+/// the prune deletes it mid-window.
 const Duration kRateLimitRetention = Duration(days: 1);
 
 /// Team invitations, per DAY (threat T37): per salon, and per salon and
@@ -92,9 +93,10 @@ typedef InviteLimits = ({int perSalon, int perAddress});
 /// - `perSalon` 20 — the number the process-local counter carried since R2b,
 ///   now shared by every instance instead of granted to each of them.
 /// - `perAddress` 3 — an honest owner re-invites one person after a mistake
-///   (wrong role, revoked by accident), not three times in a day; with the
-///   three resends each invitation carries, one address receives at most
-///   twelve invitation emails a day from one salon.
+///   (wrong role, revoked by accident), not three times in a day. Each
+///   invitation carries at most four emails (itself and three resends), so
+///   one mailbox receives at most 3 × 4 = 12 a UTC day from one salon, plus up
+///   to 3 resends of an invitation sent the day before — 15.
 const InviteLimits kDefaultInviteLimits = (perSalon: 20, perAddress: 3);
 
 /// One day, floored to the epoch — midnight UTC, which is midnight in Abidjan.
@@ -106,18 +108,47 @@ String inviteSalonBucket(String providerId) => 'invite:salon:$providerId';
 
 /// The (salon, address) daily bucket.
 ///
-/// **The address never appears in clear** — not in `identity_rate_limits`, and
-/// not in the `rate_limited bucket=…` line logged on every refusal. The salon
-/// id is inside the hashed input as well as in front of it, so one address
-/// invited by two salons gives two unrelated digests: a log reader cannot
-/// follow a person across tenants. [emailKey] must already be the normalised
-/// (trimmed, lowercased) address.
+/// **Pseudonymous, not secret.** The address never appears in clear — not in
+/// `identity_rate_limits`, and not in the `rate_limited bucket=…` line logged
+/// on every refusal — and the salon id is inside the hashed input, so one
+/// address gives a different digest in each salon. But the hash is unkeyed:
+/// someone holding a CANDIDATE address can confirm it for a given salon. That
+/// is the stated goal (no contact data in the logs), not anonymity.
+///
+/// Keyed on [canonicalInviteAddress], so the aliases of one mailbox share a
+/// bucket. [emailKey] must already be trimmed and lowercased.
 ///
 /// An OPEN set — any address — which is why the service hits
 /// [inviteSalonBucket] first: a salon refused there writes no address row.
 String inviteAddressBucket(String providerId, String emailKey) {
-  final digest = sha256.convert(utf8.encode('$providerId\n$emailKey'));
+  final canonical = canonicalInviteAddress(emailKey);
+  final digest = sha256.convert(utf8.encode('$providerId\n$canonical'));
   return 'invite:addr:$providerId:${digest.toString().substring(0, 32)}';
+}
+
+/// The mailbox behind an address, for COUNTING only — what is stored and
+/// sent stays exactly what the owner typed.
+///
+/// A `+tag` is dropped for every domain (most providers deliver
+/// `ama+x@…` to `ama@…`; where one does not, two addresses differing only by
+/// a tag share a bucket — a tighter cap, never a looser one), and Gmail
+/// ignores dots in the local part and answers to `googlemail.com` too.
+/// Without this, `victim+1@gmail.com`, `v.ictim@gmail.com`, … were each a
+/// fresh bucket, and the per-address cap bounded nothing (found in review).
+/// Catch-all or custom-alias domains remain out of reach; the salon cap
+/// bounds them. docs/design/backend-team-invite-caps.md §5.1
+String canonicalInviteAddress(String emailKey) {
+  final at = emailKey.lastIndexOf('@');
+  if (at <= 0) return emailKey;
+  var local = emailKey.substring(0, at);
+  var domain = emailKey.substring(at + 1);
+  final plus = local.indexOf('+');
+  if (plus > 0) local = local.substring(0, plus);
+  if (domain == 'gmail.com' || domain == 'googlemail.com') {
+    local = local.replaceAll('.', '');
+    domain = 'gmail.com';
+  }
+  return '$local@$domain';
 }
 
 /// The bucket for a booking attempt.

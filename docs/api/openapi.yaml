@@ -593,7 +593,11 @@ paths:
         `invite_rate_limited`: two DAILY caps on the shared limiter (threat
         T37) — per salon (`LIMIT_INVITE_SALON`, 20) and per salon and
         address (`LIMIT_INVITE_ADDRESS`, 3), counted across every instance;
-        an honest refusal (400/403/409) consumes neither. Sends the branded
+        a refusal by the checks before the caps (400/403/409) consumes
+        neither; a concurrent invitation that loses the race (409
+        `member_exists` after the caps) IS counted — the limiter counts
+        attempts. Aliases of one mailbox (`+tag`, Gmail dots) count as one
+        address. Sends the branded
         invitation email (7-day validity). The 201
         has the shape of a `GET` roster row (`artistName`, `expired`).
         R6: `?salonId=` selects the salon.

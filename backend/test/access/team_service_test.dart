@@ -68,6 +68,16 @@ class _RevokedMidAccept extends InMemoryMembershipRepository {
   }
 }
 
+/// The owner changes the invitation's role between `accept`'s read and its
+/// write (« Changer le rôle » while the invitee presses « Rejoindre »).
+class _RoleChangedMidAccept extends InMemoryMembershipRepository {
+  @override
+  Future<Member?> activate(String memberId, String accountId) async {
+    await updateMember(memberId, role: 'manager');
+    return super.activate(memberId, accountId);
+  }
+}
+
 /// R2b — the invitation state machine (team-access-r2b-invitations.md §4):
 /// invite → accept/decline/revoke/expire/resend, every gate (role, artist,
 /// duplicate, offer, seats, rate limit), owner protection (T36), immediate
@@ -867,6 +877,97 @@ void main() {
       final warnings = logs.where((l) => l.contains('rate_limit_warning'));
       expect(warnings, hasLength(1));
       expect(warnings.single, contains('bucket=invite:salon:p1'));
+    });
+
+    test('aliases of one mailbox share the address bucket: +tags anywhere, '
+        'dots at Gmail', () async {
+      final ownerId = await owner();
+      for (final alias in [
+        'victim+1@gmail.com',
+        'v.ictim@gmail.com',
+        'Victim@GoogleMail.com',
+      ]) {
+        final r = await team().invite(
+          ownerId,
+          'p1',
+          email: alias,
+          role: 'reception',
+        );
+        expect(r.ok, isTrue, reason: '$alias: ${r.error}');
+        await team().revoke(ownerId, 'p1', (r.data! as Map)['id'] as String);
+      }
+      final fourth = await team().invite(
+        ownerId,
+        'p1',
+        email: 'victim+2@gmail.com',
+        role: 'reception',
+      );
+      expect(fourth.error, 'invite_rate_limited');
+      // What is stored and sent stays exactly what the owner typed.
+      final stored = {
+        for (final m in await memberships.listForProvider('p1')) m.email,
+      };
+      expect(stored, containsAll(['victim+1@gmail.com', 'v.ictim@gmail.com']));
+    });
+
+    test('a demo-address invitation from before the refusal is inert: no '
+        'card, no accept, no resend (T69)', () async {
+      final ownerId = await owner();
+      final legacy = (await memberships.invite(
+        providerId: 'p1',
+        email: 'revue@myweli.test',
+        role: 'reception',
+        expiresAt: now.add(const Duration(days: 7)),
+      ))!;
+
+      expect(await team().pendingInvitationsFor('revue@myweli.test'), isEmpty);
+      expect(
+        (await team().accept(
+          legacy.id,
+          accountId: 'acc-demo',
+          accountEmail: 'revue@myweli.test',
+        )).error,
+        'not_found',
+      );
+      expect((await memberships.byId(legacy.id))!.status, 'invited');
+      expect(
+        (await team().resend(ownerId, 'p1', legacy.id)).error,
+        'invalid_state',
+      );
+    });
+
+    test('the accept audit records the role actually activated, not the '
+        'one read before a concurrent role change', () async {
+      final racing = _RoleChangedMidAccept();
+      final t = TeamService(
+        racing,
+        MembershipService(racing, auth),
+        providers,
+        subscriptions,
+        email,
+        audit,
+        clock: () => now,
+        limiter: limiter,
+      );
+      final inv = (await racing.invite(
+        providerId: 'p1',
+        email: 'acc@b.com',
+        role: 'reception',
+        expiresAt: now.add(const Duration(days: 7)),
+      ))!;
+
+      final accepted = await t.accept(
+        inv.id,
+        accountId: 'acc-1',
+        accountEmail: 'acc@b.com',
+      );
+
+      expect(accepted.ok, isTrue);
+      expect((accepted.data! as Map)['role'], 'manager');
+      final entry = (await audit.entriesFor(
+        'p1',
+      )).firstWhere((e) => e['action'] == 'members.accept');
+      expect((entry['meta'] as Map)['role'], 'manager');
     });
 
     test('the demo address cannot be invited (T69): invalid_input, no row, '
