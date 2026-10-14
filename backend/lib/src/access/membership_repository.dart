@@ -169,7 +169,11 @@ abstract interface class MembershipRepository {
   /// is exhausted.
   Future<Member?> resendInvite(String memberId, DateTime newExpiresAt);
 
-  /// Invitation accepted: link the account, flip to active.
+  /// Invitation accepted: link the account, flip to active — ONLY if the row
+  /// is still a valid invitation (`invited`, window open). Null otherwise: a
+  /// revocation, or the window closing, that lands between the caller's read
+  /// and this write must hold rather than be overwritten.
+  /// docs/design/backend-team-invite-caps.md §5.3
   Future<Member?> activate(String memberId, String accountId);
 
   /// Invitation declined: the row disappears (the owner can re-invite) —
@@ -376,14 +380,22 @@ class InMemoryMembershipRepository implements MembershipRepository {
   }
 
   @override
-  Future<Member?> activate(String memberId, String accountId) => _mutate(
-    memberId,
-    (m) => m.copyWith(
+  Future<Member?> activate(String memberId, String accountId) async {
+    final i = _rows.indexWhere((m) => m.id == memberId);
+    if (i < 0) return null;
+    final m = _rows[i];
+    // The Postgres WHERE, word for word: still invited, window not closed
+    // (`expires_at IS NULL OR expires_at > now()`).
+    final open =
+        m.status == 'invited' &&
+        (m.expiresAt == null || m.expiresAt!.isAfter(DateTime.now().toUtc()));
+    if (!open) return null;
+    return _rows[i] = m.copyWith(
       accountId: accountId,
       status: 'active',
       acceptedAt: DateTime.now().toUtc(),
-    ),
-  );
+    );
+  }
 
   @override
   Future<void> decline(String memberId) async {

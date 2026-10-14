@@ -215,7 +215,12 @@ class PostgresMembershipRepository implements MembershipRepository {
     final r = await _pool.execute(
       Sql.named(
         "UPDATE provider_members SET status = 'active', account_id = @a, "
-        'accepted_at = now() WHERE id = @id RETURNING *',
+        'accepted_at = now() '
+        // Only a row that is STILL a valid invitation: a revocation (or the
+        // window closing) between the caller's read and this write holds.
+        // docs/design/backend-team-invite-caps.md §5.3
+        "WHERE id = @id AND status = 'invited' "
+        'AND (expires_at IS NULL OR expires_at > now()) RETURNING *',
       ),
       parameters: {'id': memberId, 'a': accountId},
     );

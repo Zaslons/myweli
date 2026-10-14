@@ -812,7 +812,7 @@ export interface paths {
         put?: never;
         /**
          * Invite a team member by email (access R2b)
-         * @description Owner-only. Role ∈ manager/reception/staff (`invalid_role`); staff requires a salon-owned `artistId` (`artist_required` / `artist_not_found`). 409 `member_exists` (an active member, a still-valid invitation, or an owner's row in any state), `offer_required` (no live offer — R2a pricing pivot), `seat_limit` (offer seats full). One row per (salon, email): an address whose row is REVOKED, or whose invitation has EXPIRED, is invited again ON THE SAME ROW — same `id`; role, employee link, 7-day window and the 3-resend budget start over. An expired invitation already holds its seat, so re-inviting it is not refused by `seat_limit`. 403 `demo_account_locked` when the salon is the store-review demo account's (T69 — a public credential must not email arbitrary third parties). 429 `invite_rate_limited` (per-salon daily cap, threat T37). Sends the branded invitation email (7-day validity). The 201 has the shape of a `GET` roster row (`artistName`, `expired`). R6: `?salonId=` selects the salon. Design: docs/design/backend-team-reinvite.md.
+         * @description Owner-only. Role ∈ manager/reception/staff (`invalid_role`); staff requires a salon-owned `artistId` (`artist_required` / `artist_not_found`). 409 `member_exists` (an active member, a still-valid invitation, or an owner's row in any state), `offer_required` (no live offer — R2a pricing pivot), `seat_limit` (offer seats full). One row per (salon, email): an address whose row is REVOKED, or whose invitation has EXPIRED, is invited again ON THE SAME ROW — same `id`; role, employee link, 7-day window and the 3-resend budget start over. An expired invitation already holds its seat, so re-inviting it is not refused by `seat_limit`. 403 `demo_account_locked` when the salon is the store-review demo account's (T69 — a public credential must not email arbitrary third parties). 400 `invalid_input` for the demo address itself (T69 — no salon may put a card into the public review account). 429 `invite_rate_limited`: two DAILY caps on the shared limiter (threat T37) — per salon (`LIMIT_INVITE_SALON`, 20) and per salon and address (`LIMIT_INVITE_ADDRESS`, 3), counted across every instance; a refusal by the checks before the caps (400/403/409) consumes neither; a concurrent invitation that loses the race (409 `member_exists` after the caps) IS counted — the limiter counts attempts. Aliases of one mailbox (`+tag`, Gmail dots) count as one address. Sends the branded invitation email (7-day validity). The 201 has the shape of a `GET` roster row (`artistName`, `expired`). R6: `?salonId=` selects the salon. Design: docs/design/backend-team-reinvite.md, docs/design/backend-team-invite-caps.md.
          */
         post: {
             parameters: {
@@ -1065,7 +1065,7 @@ export interface paths {
         put?: never;
         /**
          * Accept an invitation under the current session (access R2b)
-         * @description The session is the identity proof; the invitation must target the account's own verified email (403). Expired → 409 `invitation_expired`.
+         * @description The session is the identity proof; the invitation must target the account's own verified email (403). Expired → 409 `invitation_expired`. 404 `not_found` also when a revocation (or the window closing) overtakes the accept between its read and its write — the revocation holds (docs/design/backend-team-invite-caps.md).
          */
         post: {
             parameters: {
@@ -2074,7 +2074,7 @@ export interface paths {
         put?: never;
         /**
          * Accept a team invitation, creating the member account if needed (access R2b)
-         * @description Unauthenticated but identity-PROVEN — `{invitationId, idToken}` (Google, verified email) or `{invitationId, email, code}` (the email OTP from the login attempt, still unconsumed). An existing account is signed in and joined (200); otherwise a bare member account (no salon) is created and joined (201). The invitation must target the proven email (403) and be unexpired (409 `invitation_expired`).
+         * @description Unauthenticated but identity-PROVEN — `{invitationId, idToken}` (Google, verified email) or `{invitationId, email, code}` (the email OTP from the login attempt, still unconsumed). An existing account is signed in and joined (200); otherwise a bare member account (no salon) is created and joined (201). The invitation must target the proven email (403) and be unexpired (409 `invitation_expired`); a revocation that overtakes the accept answers 404 `not_found`.
          */
         post: {
             parameters: {

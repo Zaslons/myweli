@@ -275,6 +275,34 @@ void main() {
       expect(items.last['status'], 'invited');
     });
 
+    test('POST past the daily cap → 429 invite_rate_limited (T37, the '
+        'shared limiter — backend-team-invite-caps.md)', () async {
+      team = TeamService(
+        memberships,
+        resolver,
+        providers,
+        subscriptions,
+        _NullEmail(),
+        InMemoryProviderAuditLogRepository(),
+        clock: () => now,
+        limits: (perSalon: 1, perAddress: 3),
+      );
+      Future<Response> invite(String email) => members.onRequest(
+        ctx(
+          req(
+            'POST',
+            '/me/provider/members',
+            token: tok(ownerId),
+            body: {'email': email, 'role': 'reception'},
+          ),
+        ),
+      );
+      expect((await invite('one@b.com')).statusCode, HttpStatus.created);
+      final refused = await invite('two@b.com');
+      expect(refused.statusCode, HttpStatus.tooManyRequests);
+      expect((await refused.json() as Map)['error'], 'invite_rate_limited');
+    });
+
     test('POST invites (201); duplicate → 409; bad role → 400; bad body '
         '→ 400; DELETE → 405', () async {
       final created = await members.onRequest(
