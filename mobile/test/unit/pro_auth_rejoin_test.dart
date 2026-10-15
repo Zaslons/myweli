@@ -549,6 +549,17 @@ void main() {
       expect(auth.isAuthenticated, isFalse);
     });
 
+    test('completeRejoin off the gate asks the server nothing and goes '
+        'nowhere', () async {
+      final auth = await signIn(kFatou); // a member, never gated
+      pro.reset();
+
+      await auth.completeRejoin(joinedRole: TeamRole.reception);
+
+      expect(pro.calls, 0, reason: 'no GET /me/provider for nothing');
+      expect(location(), '/pro/splash');
+    });
+
     test('acceptRejoin off the gate does nothing', () async {
       final auth = await signIn(kFatou);
       var called = false;
