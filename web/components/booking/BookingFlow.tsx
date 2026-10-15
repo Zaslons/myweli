@@ -356,11 +356,14 @@ export function BookingFlow({
   }
 
   async function confirm() {
+    // The last submit's outcome — its line and its way out — goes first: a
+    // submit stopped at the field below must not keep it under the new fault.
+    setError(null);
+    setErrorCode(undefined);
     if (!contact.validate({ phone })) return;
     // What is checked is what crosses.
     const contactPhone = normalizePhone(phone);
     setBusy(true);
-    setError(null);
     // Contact phone is REQUIRED (decision 2026-07-02); persist it when changed.
     if (contactPhone !== (me?.phoneNumber ?? "")) {
       const saved = await updateContactPhone(contactPhone);

@@ -113,11 +113,13 @@ export function AccountClient() {
   }
 
   async function savePhone() {
+    // The last save's failure line goes first: a save stopped at the field
+    // below must not keep it under the new fault.
+    setPhoneError(false);
     if (!phoneFields.validate({ phone: phoneDraft })) return;
     // What is checked is what crosses.
     const phone = normalizePhone(phoneDraft);
     setPhoneBusy(true);
-    setPhoneError(false);
     const r = await updateContactPhone(phone);
     setPhoneBusy(false);
     if (!r.ok) {

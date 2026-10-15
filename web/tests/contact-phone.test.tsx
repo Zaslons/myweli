@@ -37,9 +37,14 @@ const SLOT = '2099-01-15T14:30:00.000Z';
 const sent: { url: string; method: string; body: Record<string, unknown> }[] =
   [];
 
+/// `phoneRefusal`: the code PATCH /api/me answers with (400). `bookingRefusal`:
+/// the code POST /api/bookings answers with (409); none → 201.
 function mockFetch(
   me: Me,
-  { phoneRefusal }: { phoneRefusal?: string } = {},
+  {
+    phoneRefusal,
+    bookingRefusal,
+  }: { phoneRefusal?: string; bookingRefusal?: string } = {},
 ) {
   sent.length = 0;
   vi.stubGlobal(
@@ -59,6 +64,11 @@ function mockFetch(
           });
         }
         if (u === '/api/bookings') {
+          if (bookingRefusal) {
+            return new Response(JSON.stringify({ error: bookingRefusal }), {
+              status: 409,
+            });
+          }
           return new Response(JSON.stringify({ id: 'a1', depositAmount: 0 }), {
             status: 201,
           });
@@ -101,7 +111,10 @@ const ME: Me = { id: 'u1', name: 'Awa', phoneNumber: '+2250707123456' };
 describe('« Réserver » — the contact phone at the confirm step', () => {
   /// Pick the hub's time (the service is prefilled), open « Confirmation »,
   /// and wait for the signed-in form.
-  async function openConfirm(me: Me, opts?: { phoneRefusal?: string }) {
+  async function openConfirm(
+    me: Me,
+    opts?: { phoneRefusal?: string; bookingRefusal?: string },
+  ) {
     mockFetch(me, opts);
     render(<BookingFlow provider={providerFixture} prefillServiceIds={['s1']} />);
     fireEvent.click(
@@ -212,6 +225,44 @@ describe('« Réserver » — the contact phone at the confirm step', () => {
     expect(screen.queryByText(/Numéro invalide/)).toBeNull();
     expect(sent.map((s) => s.url)).toEqual(['/api/me']);
   });
+
+  it('a new field fault does not keep the last failure’s line under it', async () => {
+    // The line said what happened to the LAST submit; this one never left.
+    const FAILED = 'Votre numéro n’a pas pu être enregistré. Réessayez.';
+    const { field, submit } = await openConfirm(
+      { ...ME, phoneNumber: null },
+      { phoneRefusal: 'internal_error' },
+    );
+    fireEvent.change(field, { target: { value: '+2250707123499' } });
+    fireEvent.click(submit);
+    await screen.findByText(FAILED);
+
+    fireEvent.change(field, { target: { value: '+2250700000' } });
+    fireEvent.click(submit);
+    await screen.findByText(TEN);
+    expectFieldFault(field, TEN);
+    expect(screen.queryByText(FAILED)).toBeNull();
+    expect(sent).toHaveLength(1);
+  });
+
+  it('a new field fault drops the last refusal’s way out too', async () => {
+    // A refused booking carries a way out (« Découvrir des salons »); a submit
+    // that never left is not about that salon any more.
+    const { field, submit } = await openConfirm(ME, {
+      bookingRefusal: 'provider_suspended',
+    });
+    fireEvent.click(submit);
+    const refusal = (await screen.findByRole('alert')).textContent!;
+    expect(
+      screen.getByRole('link', { name: 'Découvrir des salons' }),
+    ).toBeTruthy();
+
+    fireEvent.change(field, { target: { value: '+2250700000' } });
+    fireEvent.click(submit);
+    await screen.findByText(TEN);
+    expect(screen.queryByText(refusal)).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Découvrir des salons' })).toBeNull();
+  });
 });
 
 describe('« Mon compte » — editing the contact phone', () => {
@@ -280,6 +331,21 @@ describe('« Mon compte » — editing the contact phone', () => {
     ).toBeTruthy();
     expect(field).not.toHaveAttribute('aria-invalid', 'true');
     expect(screen.queryByText(/Numéro invalide/)).toBeNull();
+  });
+
+  it('a new field fault does not keep the last failure’s line under it', async () => {
+    const FAILED = 'L’enregistrement a échoué. Réessayez.';
+    const { field, save } = await openEdit(ME, { phoneRefusal: 'internal_error' });
+    fireEvent.change(field, { target: { value: '+2250707123499' } });
+    fireEvent.click(save);
+    await screen.findByText(FAILED);
+
+    fireEvent.change(field, { target: { value: '+2250700000' } });
+    fireEvent.click(save);
+    await screen.findByText(TEN);
+    expectFieldFault(field, TEN);
+    expect(screen.queryByText(FAILED)).toBeNull();
+    expect(sent).toHaveLength(1);
   });
 
   it('a fault does not outlive « Annuler »: reopened, the field is clean', async () => {
