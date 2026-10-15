@@ -17,13 +17,13 @@ class MockData {
   static final List<User> users = [
     User(
       id: 'user1',
-      phoneNumber: '+225 07 12 34 56',
+      phoneNumber: '+2250707123456',
       name: 'Jean Kouassi',
       createdAt: DateTime(2024, 1, 1),
     ),
     User(
       id: 'user2',
-      phoneNumber: '+225 05 98 76 54',
+      phoneNumber: '+2250505987654',
       name: 'Marie Diallo',
       createdAt: DateTime(2024, 1, 15),
     ),
@@ -33,7 +33,7 @@ class MockData {
   static final List<ProviderUser> providerUsers = [
     ProviderUser(
       id: 'provider_user1',
-      phoneNumber: '+225 07 11 22 33 44',
+      phoneNumber: '+2250711223344',
       name: 'Jean Kouassi',
       businessName: 'Salon Excellence',
       // R6: the demo owner signs in by email (matches the owner roster rows
@@ -47,7 +47,7 @@ class MockData {
     ),
     ProviderUser(
       id: 'provider_user2',
-      phoneNumber: '+225 05 44 55 66 77',
+      phoneNumber: '+2250544556677',
       name: 'Marie Diallo',
       businessName: 'Beauté Divine',
       businessType: BusinessType.salon,
@@ -349,8 +349,8 @@ class MockData {
           days: const [1, 2, 3, 4, 5],
         ),
       ),
-      phoneNumber: '+225 07 11 22 33 44',
-      whatsapp: '+225 07 11 22 33 44',
+      phoneNumber: '+2250711223344',
+      whatsapp: '+2250711223344',
       category: 'barber',
     ),
     Provider(
@@ -362,7 +362,7 @@ class MockData {
       depositRequired: true,
       depositPercentage: 0.50,
       depositMobileMoneyOperator: 'wave',
-      depositMobileMoneyNumber: '+225 05 44 55 66 77',
+      depositMobileMoneyNumber: '+2250544556677',
       city: 'Abidjan',
       // Multi-pays market facts (mirrors the MP1 backend seed).
       areaId: 'marcory',
@@ -392,8 +392,8 @@ class MockData {
         },
         blockedDates: const [],
       ),
-      phoneNumber: '+225 05 44 55 66 77',
-      whatsapp: '+225 05 44 55 66 77',
+      phoneNumber: '+2250544556677',
+      whatsapp: '+2250544556677',
       category: 'salon',
     ),
     Provider(
@@ -430,8 +430,8 @@ class MockData {
         },
         blockedDates: const [],
       ),
-      phoneNumber: '+225 01 22 33 44 55',
-      whatsapp: '+225 01 22 33 44 55',
+      phoneNumber: '+2250122334455',
+      whatsapp: '+2250122334455',
       category: 'spa',
     ),
     Provider(
@@ -488,7 +488,7 @@ class MockData {
         },
         blockedDates: const [],
       ),
-      phoneNumber: '+225 07 88 99 00 11',
+      phoneNumber: '+2250788990011',
       category: 'barber',
     ),
   ];

@@ -3,12 +3,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
+import 'package:myweli/models/api_response.dart';
+import 'package:myweli/models/user.dart';
 import 'package:myweli/providers/auth_provider.dart';
 import 'package:myweli/screens/auth/login_screen.dart';
 import 'package:myweli/services/mock/mock_auth_service.dart';
 import 'package:myweli/widgets/common/app_button.dart';
 import 'package:myweli/widgets/common/apple_logo.dart';
 import 'package:myweli/widgets/common/google_g_logo.dart';
+import 'package:myweli/widgets/common/phone_number_field.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -19,9 +22,13 @@ import '../support/pump_app.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  // `authService` is a `late final` — one instance for the file. The spy IS
+  // the mock unless a test arms it (see the 10-digit group below).
+  final spy = _SpyAuthService();
+
   setUpAll(() {
     SharedPreferences.setMockInitialValues({});
-    serviceLocator.authService = MockAuthService();
+    serviceLocator.authService = spy;
   });
 
   Widget app() {
@@ -209,4 +216,109 @@ void main() {
 
     expect(find.text('Votre numéro de téléphone'), findsOneWidget);
   });
+
+  /// docs/design/phone-national-length.md — **seen on the simulator on
+  /// 2026-10-15**: this step accepted `+2250700000`, seven digits after +225,
+  /// and saved it as the contact number every salon would dial.
+  group('a +225 number has exactly 10 digits', () {
+    // Armed to refuse for the whole group: a number that leaks through is
+    // recorded but never STORED, so the Google account still has no phone in
+    // the next test, and each test fails for its own reason only.
+    setUp(() {
+      spy.phonesSent.clear();
+      spy.rejectPhoneWith = 'invalid_phone';
+    });
+    tearDown(() => spy.rejectPhoneWith = null);
+
+    /// Sign in through Google and stop at the phone step.
+    Future<void> toPhoneStep(WidgetTester tester) async {
+      await tester.pumpWidget(app());
+      await settle(tester);
+      await tester.tap(find.text('Continuer avec Google'));
+      await settle(tester);
+      expect(find.text('Votre numéro de téléphone'), findsOneWidget);
+    }
+
+    Finder underThePhone(String message) => find.descendant(
+      of: find.byType(PhoneNumberField),
+      matching: find.text(message),
+    );
+
+    testWidgets('seven digits answer under the field — and nothing is sent', (
+      tester,
+    ) async {
+      await toPhoneStep(tester);
+
+      await tester.enterText(find.byType(TextField).first, '0700000');
+      await tester.pump();
+      await tester.tap(find.text('Continuer'));
+      await settle(tester);
+      await settle(tester);
+
+      expect(
+        underThePhone('Le numéro doit comporter 10 chiffres après +225.'),
+        findsOneWidget,
+        reason: '§14 rule 1 + rule 4: under the field, saying what to do',
+      );
+      expect(
+        spy.phonesSent,
+        isEmpty,
+        reason: 'no PATCH /me — the short number never leaves the phone',
+      );
+      expect(find.text('HOME'), findsNothing);
+    });
+
+    testWidgets('a server `invalid_phone` lands under the field, not as '
+        '« Numéro ou code invalide. »', (tester) async {
+      // The server is the authority (BACKEND.md §3.4): a number the client
+      // let through can still be refused. That refusal used to render in the
+      // form-level slot as « Numéro ou code invalide. » — on a screen with no
+      // code on it.
+      await toPhoneStep(tester);
+
+      await tester.enterText(find.byType(TextField).first, '0700000001');
+      await tester.pump();
+      await tester.tap(find.text('Continuer'));
+      await settle(tester);
+      await settle(tester);
+
+      expect(spy.phonesSent, ['+2250700000001']);
+      expect(
+        underThePhone('Saisissez un numéro de téléphone valide.'),
+        findsOneWidget,
+        reason: 'the server\'s verdict on the number belongs to the number',
+      );
+      expect(find.text('Numéro ou code invalide.'), findsNothing);
+      expect(find.text('HOME'), findsNothing);
+    });
+  });
+}
+
+/// The mock, recording every `updateUser` phone — and optionally refusing it
+/// the way `PATCH /me` does (400 `invalid_phone`, mapped by `ApiAuthService`).
+class _SpyAuthService extends MockAuthService {
+  String? rejectPhoneWith;
+  final phonesSent = <String?>[];
+
+  @override
+  Future<ApiResponse<User>> updateUser({
+    String? name,
+    String? email,
+    String? avatarUrl,
+    String? phone,
+  }) async {
+    phonesSent.add(phone);
+    if (rejectPhoneWith != null) {
+      return ApiResponse.error(
+        'Numéro ou code invalide.',
+        code: rejectPhoneWith,
+      );
+    }
+    return super.updateUser(
+      name: name,
+      email: email,
+      avatarUrl: avatarUrl,
+      phone: phone,
+    );
+  }
 }

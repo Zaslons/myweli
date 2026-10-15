@@ -189,8 +189,10 @@ void main() {
     await tester.pump();
     await submit(tester);
 
+    // Under +225 the fault is the length, and the message says so
+    // (phone-national-length.md §2.1) — not the generic « valide ».
     expect(
-      find.text('Saisissez un numéro de téléphone valide.'),
+      find.text('Le numéro doit comporter 10 chiffres après +225.'),
       findsOneWidget,
     );
     verifyNever(
@@ -205,6 +207,49 @@ void main() {
         sendSmsInvite: any(named: 'sendSmsInvite'),
       ),
     );
+  });
+
+  /// phone-national-length.md §2.3: a number stored on a client card before
+  /// the rule existed is prefilled as it is — and refused UNDER the field, where
+  /// the receptionist can correct it, instead of reaching the server.
+  testWidgets('a short prefilled number is flagged under the field, and can '
+      'be corrected', (tester) async {
+    await pump(tester, initialClientPhone: '+2250708091');
+    await tester.tap(find.text('Tresses'));
+    await tester.pump();
+    await submit(tester);
+
+    const tenDigits = 'Le numéro doit comporter 10 chiffres après +225.';
+    expect(
+      find.descendant(
+        of: find.byType(IntlPhoneField),
+        matching: find.text(tenDigits),
+      ),
+      findsOneWidget,
+    );
+    verifyNever(
+      () => service.createManualBooking(
+        providerId: any(named: 'providerId'),
+        serviceIds: any(named: 'serviceIds'),
+        appointmentDateTime: any(named: 'appointmentDateTime'),
+        clientName: any(named: 'clientName'),
+        clientPhone: any(named: 'clientPhone'),
+        notes: any(named: 'notes'),
+        artistId: any(named: 'artistId'),
+        sendSmsInvite: any(named: 'sendSmsInvite'),
+      ),
+    );
+
+    await tester.scrollUntilVisible(
+      phoneInput(),
+      -300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.enterText(phoneInput(), '0708091011');
+    await tester.pump();
+    expect(find.text(tenDigits), findsNothing, reason: '§14 rule 2');
+    await submit(tester);
+    expect(capturedPhone(), '+2250708091011');
   });
 
   testWidgets('walk-in stays phoneless — the checkbox bypasses the field', (

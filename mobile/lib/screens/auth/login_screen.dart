@@ -164,7 +164,19 @@ class _LoginScreenState extends State<LoginScreen> {
     final auth = context.read<AuthProvider>();
     final ok = await auth.updateUser(phone: _phoneNumber);
     if (!mounted) return;
-    if (ok) _finish();
+    if (ok) {
+      _finish();
+      return;
+    }
+    // The server is still the authority on the number (BACKEND.md §3.4). Its
+    // `invalid_phone` used to land in the form-level slot as « Numéro ou code
+    // invalide. » — on a screen with no code on it. It is the field's fault,
+    // so it goes under the field (§14 rule 1).
+    if (auth.updateErrorCode == 'invalid_phone') {
+      setState(
+        () => _errors.set('phone', 'Saisissez un numéro de téléphone valide.'),
+      );
+    }
   }
 
   @override
@@ -353,6 +365,8 @@ class _LoginScreenState extends State<LoginScreen> {
       // from the first keystroke and overwriting our message. It is
       // silenced at the widget now; FieldErrors is the only rule.
       errorText: _errors['phone'],
+      // Normalized by the field: '' when nothing is typed, else E.164 with
+      // no separator — what is checked here is what `PATCH /me` receives.
       onChanged: (e164) => setState(() {
         _phoneNumber = e164;
         _errors.revalidate('phone', e164);
@@ -366,7 +380,8 @@ class _LoginScreenState extends State<LoginScreen> {
     ),
     // §14 rule 3 + §15: a server OUTCOME is form-level, not a field fault
     // — and `InlineFeedback` is a live region, which a hand-rolled red Text
-    // never was.
-    InlineFeedback(auth.error),
+    // never was. A refused NUMBER is a field fault: it is under the field
+    // (`_savePhone`), not here as well.
+    InlineFeedback(auth.updateErrorCode == 'invalid_phone' ? null : auth.error),
   ];
 }

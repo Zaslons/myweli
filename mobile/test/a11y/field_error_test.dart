@@ -20,8 +20,10 @@ import '_a11y.dart';
 void main() {
   setUpAll(loadRealFonts);
 
-  // The real message, from the real validator — not a fixture. It is the
-  // longest one the product can produce, which is the case that clips.
+  // A real message — `Validators.localPhoneNumber`'s, the longest the product
+  // produced, which is the case that clips. That validator was deleted with
+  // phone-national-length.md (no caller, a market fact outside its seam); the
+  // sentence stays as the two-clause worst case this file measures.
   const longest = 'Le numéro doit comporter 10 chiffres (ex : 07 07 12 34 56).';
 
   Widget field({String? error = longest}) => Padding(

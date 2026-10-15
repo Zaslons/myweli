@@ -10,19 +10,26 @@ import {
   getMyProvider,
   saveDepositPolicy,
 } from '../../lib/api/pro';
+import { useFieldErrors } from '../../lib/forms/useFieldErrors';
 import { operatorsFor } from '../../lib/localities';
 import {
   type DepositForm,
   buildDepositPayload,
   depositToForm,
   validateDeposit,
+  validateDepositNumber,
 } from '../../lib/pro/deposit';
 import { useLocalities } from '../../lib/use-localities';
 import { Button } from '../Button';
 import { Loading } from '../Loading';
+import { PhoneField } from '../PhoneField';
 
 const input =
   'block w-full min-h-12 rounded-lg border border-borderStrong bg-surface p-m text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus disabled:border-border disabled:text-textDisabled';
+
+// The Mobile Money number's check (a module constant: useFieldErrors keys
+// its callbacks on this object's identity).
+const NUMBER_CHECK = { number: validateDepositNumber };
 
 export function AcompteClient() {
   const router = useRouter();
@@ -39,6 +46,9 @@ export function AcompteClient() {
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [verified, setVerified] = useState(false);
+  // « Numéro Mobile Money » answers UNDER its field (§14 rules 1/2 —
+  // docs/design/phone-national-length.md); the rest stays form-level.
+  const fields = useFieldErrors(NUMBER_CHECK);
 
   useEffect(() => {
     let active = true;
@@ -80,11 +90,16 @@ export function AcompteClient() {
   }
 
   async function save() {
-    const v = validateDeposit(form as DepositForm);
-    if (v) {
-      setError(v);
-      return;
-    }
+    const f = form as DepositForm;
+    // The number is checked where it is sent: a required deposit (a hidden
+    // field keeps no stale fault). Both checks run, so every fault shows at
+    // once.
+    let numberOk = true;
+    if (f.required) numberOk = fields.validate({ number: f.number });
+    else fields.clear();
+    const v = validateDeposit(f);
+    setError(v);
+    if (v || !numberOk) return;
     setBusy(true);
     setError(null);
     const r = await saveDepositPolicy(
@@ -175,14 +190,18 @@ export function AcompteClient() {
                 </select>
               )}
             </label>
-            <label className="block text-bodyMedium text-textTertiary">
-              Numéro Mobile Money
-              <input
-                className={input}
-                value={form.number}
-                onChange={(e) => set('number', e.target.value)}
-              />
-            </label>
+            {/* The shared PhoneField (+225 on screen — parity with the app).
+                It mounts with the switch, after the policy has loaded, so its
+                initialValue is the stored number. */}
+            <PhoneField
+              label="Numéro Mobile Money"
+              initialValue={form.number}
+              onChange={(v) => {
+                set('number', v);
+                fields.revalidate('number', v);
+              }}
+              error={fields.errors.number}
+            />
           </>
         ) : null}
 

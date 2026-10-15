@@ -17,6 +17,7 @@ import 'package:myweli/services/mock/mock_auth_service.dart';
 import 'package:myweli/services/mock/mock_data.dart';
 import 'package:myweli/services/mock/mock_provider_service.dart';
 import 'package:myweli/widgets/common/carto_basemap_layer.dart';
+import 'package:myweli/widgets/common/phone_number_field.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -52,7 +53,8 @@ models.Provider seededSalon() =>
 ///    could never match the data the app had just loaded, so pressing
 ///    « Enregistrer » on an untouched form failed on a field the salon had
 ///    never typed in: the profile could not be saved again, at all. It now uses
-///    `Validators.phoneNumber` (E.164).
+///    `Validators.phoneNumber` (E.164; exactly 10 digits after +225 since
+///    phone-national-length.md), in a `PhoneNumberField` each.
 ///
 /// The shape asserted is §14's: the press **answers under the field it belongs
 /// to** (rule 1) · **no `SnackBar`** (rule 3) · nothing is saved and the flow
@@ -70,7 +72,7 @@ void main() {
     serviceLocator.authService = MockAuthService();
     // The LOAD side still yields the SEEDED salon: the lockout test is only
     // meaningful if the form is prefilled exactly as production fills it
-    // (E.164 « +225 07 11 22 33 44 »). What changed is the door — the screen
+    // (E.164 « +2250711223344 »). What changed is the door — the screen
     // reads its own salon by account now (`GET /me/provider`), not through the
     // public `getProviderById`, so the seed arrives through `getMyProvider`.
     serviceLocator.providerService = MockProviderService();
@@ -216,18 +218,47 @@ void main() {
     );
   });
 
+  // « Téléphone » and « WhatsApp » are [PhoneNumberField]s since
+  // phone-national-length.md: the free-text fields showed a hint (« Ex : 07 07
+  // 12 34 56 ») the rule refused, and checked a separator-free value while
+  // sending the raw one — which the server refuses.
+  Finder phoneInput(int i) => find.descendant(
+    of: find.byType(PhoneNumberField).at(i),
+    matching: find.byType(TextField),
+  );
+  Finder phone() => phoneInput(0);
+  Finder whatsapp() => phoneInput(1);
+
+  Finder under(int i, String message) => find.descendant(
+    of: find.byType(PhoneNumberField).at(i),
+    matching: find.text(message),
+  );
+
+  const tenDigits = 'Le numéro doit comporter 10 chiffres après +225.';
+
+  /// The body of the one `updateSalonProfile` call.
+  Map<String, dynamic> sentBody() =>
+      verify(
+            () => pro.updateSalonProfile('provider1', captureAny()),
+          ).captured.single
+          as Map<String, dynamic>;
+
   testWidgets('THE LOCKOUT: an untouched form saves — the stored E.164 numbers '
       'pass their own rule', (tester) async {
     await openForm(tester);
 
     // The precondition that made the 10-local-digit rule unsatisfiable: the
-    // phone AND the WhatsApp field are prefilled in E.164 (openapi.yaml), by
-    // the app itself, before the salon touches anything.
-    expect(
-      find.text('+225 07 11 22 33 44'),
-      findsNWidgets(2),
-      reason: 'téléphone + WhatsApp both prefilled from the stored listing',
-    );
+    // phone AND the WhatsApp field are prefilled from E.164 (openapi.yaml), by
+    // the app itself, before the salon touches anything — each shown as its
+    // national part under +225.
+    expect(find.byType(PhoneNumberField), findsNWidgets(2));
+    for (final i in [0, 1]) {
+      expect(
+        tester.widget<TextField>(phoneInput(i)).controller?.text,
+        '0711223344',
+        reason: 'téléphone + WhatsApp both prefilled from the stored listing',
+      );
+    }
 
     // Press save having changed NOTHING. This is the whole regression: a
     // salon opening its profile and pressing « Enregistrer ».
@@ -253,7 +284,12 @@ void main() {
       reason: 'nothing on an untouched, server-filled form may fail',
     );
 
-    verify(() => pro.updateSalonProfile('provider1', any())).called(1);
+    final body = sentBody();
+    expect(
+      [body['phoneNumber'], body['whatsapp']],
+      ['+2250711223344', '+2250711223344'],
+      reason: 'what was checked is what is sent — E.164, no separator',
+    );
     expect(
       find.text('PROFIL'),
       findsOneWidget,
@@ -263,22 +299,20 @@ void main() {
     );
   });
 
-  testWidgets('a phone typed as local digits answers under ITS field', (
-    tester,
-  ) async {
+  testWidgets('a short phone answers under ITS field', (tester) async {
     await openForm(tester);
 
-    // The other side of the same rule: E.164 is what the backend stores, so a
-    // bare local number must be refused — under the phone field, not in a bar.
-    await tester.enterText(find.byType(TextField).at(3), '0711223344');
+    // Seven national digits — the number the consumer sign-in saved on
+    // 2026-10-15 — refused under the phone field, not in a bar.
+    await tester.enterText(phone(), '0711223');
     await tester.pump();
     await tester.tap(find.text('Enregistrer'));
     await settle(tester);
 
     expect(
-      find.text('Saisissez un numéro de téléphone valide.'),
+      under(0, tenDigits),
       findsOneWidget,
-      reason: 'E.164 (§ openapi.yaml) — the message sits under téléphone',
+      reason: 'the message sits under téléphone, saying what to do',
     );
     expect(
       find.byType(SnackBar),
@@ -287,10 +321,10 @@ void main() {
     );
     verifyNever(() => pro.updateSalonProfile(any(), any()));
 
-    await tester.enterText(find.byType(TextField).at(3), '+225 07 11 22 33 44');
+    await tester.enterText(phone(), '0711223344');
     await tester.pump();
     expect(
-      find.text('Saisissez un numéro de téléphone valide.'),
+      find.text(tenDigits),
       findsNothing,
       reason: '§14 rule 2 — cleared on change, without a second submit',
     );
@@ -303,7 +337,7 @@ void main() {
 
     // The optional field's own trap: reusing the required phone rule here
     // would refuse every salon without a WhatsApp number.
-    await tester.enterText(find.byType(TextField).at(4), '');
+    await tester.enterText(whatsapp(), '');
     await tester.pump();
     await tester.tap(find.text('Enregistrer'));
     await settle(tester);
@@ -316,7 +350,26 @@ void main() {
           'blank WhatsApp passes — only a typed one must be a real '
           'number',
     );
-    verify(() => pro.updateSalonProfile('provider1', any())).called(1);
+    expect(
+      sentBody()['whatsapp'],
+      '',
+      reason: 'emptied, it is sent empty — the server clears it',
+    );
+  });
+
+  testWidgets('a typed WhatsApp is judged like the phone — under ITS field', (
+    tester,
+  ) async {
+    await openForm(tester);
+
+    await tester.enterText(whatsapp(), '0711223');
+    await tester.pump();
+    await tester.tap(find.text('Enregistrer'));
+    await settle(tester);
+
+    expect(under(1, tenDigits), findsOneWidget);
+    expect(under(0, tenDigits), findsNothing, reason: 'not under téléphone');
+    verifyNever(() => pro.updateSalonProfile(any(), any()));
   });
 
   // The position map is a fixed 240dp box. flutter_map's own credits popup
