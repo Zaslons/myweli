@@ -621,6 +621,19 @@ test('client card: a guest’s number is edited, its history follows; a duplicat
   await expect(page.getByText('Numéro mis à jour')).toBeVisible();
   await expect(edit).toHaveCount(0);
   await expect(page.getByText(grouped(second))).toBeVisible();
+  // Not on the screen the save left: the post-save reload shows the new
+  // number BEFORE it reads the visits, so the old list (the booking on the
+  // first number) is still there and would pass any check here. A full read
+  // renders the card only once its visits have arrived — the history that
+  // shows then is the one on the NEW number.
+  await page.reload();
+  await expect(page.getByText(grouped(second))).toBeVisible();
+  // The booking made above, by its row: its date and its status.
+  const visit = page
+    .getByRole('listitem')
+    .filter({ hasText: '15 janvier 2099 à 16:00' });
+  await expect(visit).toHaveCount(1);
+  await expect(visit.getByText('Confirmé')).toBeVisible();
   await expect(page.getByText('Aucune visite enregistrée.')).toHaveCount(0);
 
   // Koffi's card is linked to an account: its number is the account's.
