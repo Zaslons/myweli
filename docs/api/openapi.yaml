@@ -2500,7 +2500,9 @@ paths:
         number already on another card of this salon → 409 `client_exists`
         with that card's `clientId` (the `POST …/clients` shape; no merge) —
         a race lost to it answers the same. A change is audited
-        `client.phone_changed` with ids only, never a number.
+        `client.phone_changed` with ids only, never a number. The card's
+        `phoneEditable` says in advance which cards take a number (no
+        account AND a number) — the clients offer the edit only on `true`.
       security: [{ bearerAuth: [] }]
       requestBody:
         required: true
@@ -4628,8 +4630,21 @@ components:
       allOf:
         - { $ref: '#/components/schemas/SalonClient' }
         - type: object
-          required: [stats, notes]
+          required: [stats, notes, phoneEditable]
           properties:
+            phoneEditable:
+              type: boolean
+              description: >-
+                True exactly for the cards whose number `PATCH
+                …/clients/{clientId}` accepts: not linked to an account
+                (`linked: false`) AND holding a number — false for a linked
+                card (409 `client_linked`) and for an erased account's
+                anonymised card (no number, 409 `client_anonymized`). Clients
+                offer « Modifier » only when it is `true`, and read an ABSENT
+                field as false: an older server, whose `PATCH` refuses
+                `{phone}` with `invalid_tags`, sends none
+                (docs/design/phone-leftovers.md §8/§11). On the card only,
+                not on the list rows.
             stats: { $ref: '#/components/schemas/SalonClientStats' }
             upcoming:
               { $ref: '#/components/schemas/Appointment' }

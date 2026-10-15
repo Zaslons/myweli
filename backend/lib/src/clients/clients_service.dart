@@ -184,6 +184,12 @@ class ClientsService {
 
     return {
       ..._shape(client),
+      // Exactly the cards whose number [updateClient] takes: no account
+      // (`client_linked`) AND a number (`client_anonymized`). The clients
+      // offer « Modifier » only on `true`, and read an absent field — an
+      // older server, whose PATCH refuses `{phone}` — as false
+      // (docs/design/phone-leftovers.md §8/§11).
+      'phoneEditable': client['userId'] == null && client['phone'] != null,
       'stats': {
         'visits': completed,
         'spentFcfa': spent,

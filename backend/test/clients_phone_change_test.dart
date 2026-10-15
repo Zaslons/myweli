@@ -452,6 +452,56 @@ void main() {
       expect(body['stats'], isA<Map<String, dynamic>>());
     });
 
+    /// `phoneEditable` = exactly the cards whose number this PATCH accepts:
+    /// not linked to an account AND holding a number. The clients show
+    /// « Modifier » only on `true`, so a web build that reaches production
+    /// before this server (Vercel ships on merge; the backend by dispatch)
+    /// reads no field — false — and never offers an edit the old PATCH
+    /// refuses with `invalid_tags`.
+    test(
+      'the card says phoneEditable — a guest true; a linked card and an '
+      'erased client\'s card false — through GET and the PATCH answer',
+      () async {
+        Future<Map<String, dynamic>> getCard(String id) async {
+          final res = await send(id, method: 'GET');
+          expect(res.statusCode, HttpStatus.ok, reason: id);
+          return bodyOf(res);
+        }
+
+        final guest = await guestCard(oldPhone);
+        expect((await getCard(guest))['phoneEditable'], isTrue);
+
+        final linked = await linkedCard('+2250100000303');
+        expect((await getCard(linked))['phoneEditable'], isFalse);
+
+        const erasedPhone = '+2250100000404';
+        final otp = await users.requestOtp(erasedPhone);
+        final uid = (await users.verifyOtp(erasedPhone, otp.devCode!)).user!.id;
+        await service.recordBooking({'providerId': 'provider1', 'userId': uid});
+        final erased =
+            (await clientsRepo.byUserId('provider1', uid))!['id'] as String;
+        await service.anonymizeUser(uid);
+        expect((await getCard(erased))['phoneEditable'], isFalse);
+
+        // The PATCH answer is the same card: a re-numbered guest stays
+        // editable; a linked card's tags-only edit answers false.
+        final changed = await send(
+          guest,
+          json: jsonEncode({'phone': newPhone}),
+        );
+        expect(changed.statusCode, HttpStatus.ok);
+        expect((await bodyOf(changed))['phoneEditable'], isTrue);
+        final tagged = await send(
+          linked,
+          json: jsonEncode({
+            'tags': ['VIP'],
+          }),
+        );
+        expect(tagged.statusCode, HttpStatus.ok);
+        expect((await bodyOf(tagged))['phoneEditable'], isFalse);
+      },
+    );
+
     test('a race lost to another card answers 409 client_exists with its id, '
         'never 500 — and moves nothing', () async {
       final id = await guestCard(oldPhone);
@@ -562,7 +612,11 @@ void main() {
         phone: newPhone,
       );
       expect(r.ok, isTrue);
-      expect(r.data!.keys, containsAll(['id', 'phone', 'stats', 'notes']));
+      expect(
+        r.data!.keys,
+        containsAll(['id', 'phone', 'stats', 'notes', 'phoneEditable']),
+      );
+      expect(r.data!['phoneEditable'], isTrue);
       final actions = [
         for (final e in await audit.entriesFor('provider1')) e['action'],
       ];
@@ -572,6 +626,54 @@ void main() {
         'provider1',
       )).singleWhere((e) => e['action'] == 'client.phone_changed');
       expect(change['meta'], isEmpty, reason: 'ids only — no number');
+    });
+  });
+
+  group('ClientsService.card — phoneEditable', () {
+    test('true exactly when updateClient would take a number: no account '
+        'AND a number', () async {
+      final guest = await guestCard(oldPhone);
+      final linked = await linkedCard('+2250100000303');
+      // An erased account's card, as `anonymizeUser` leaves it (T48).
+      await clientsRepo.create({
+        'id': 'client_erased',
+        'providerId': 'provider1',
+        'userId': null,
+        'displayName': 'Client',
+        'phone': null,
+        'tags': const <String>[],
+        'lastVisitAt': null,
+        'createdAt': DateTime.utc(2026).toIso8601String(),
+      });
+
+      Future<Object?> editable(String id) async => (await service.card(
+        accountId,
+        'provider1',
+        id,
+      )).data!['phoneEditable'];
+
+      expect(await editable(guest), isTrue);
+      expect(await editable(linked), isFalse);
+      expect(await editable('client_erased'), isFalse);
+
+      // And the flag agrees with what the PATCH does on each.
+      Future<String?> errorOf(String id) async => (await service.updateClient(
+        accountId,
+        'provider1',
+        id,
+        phone: newPhone,
+      )).error;
+      expect(await errorOf(linked), 'client_linked');
+      expect(await errorOf('client_erased'), 'client_anonymized');
+      expect(await errorOf(guest), isNull);
+    });
+
+    test('the list rows do not carry it — the card does', () async {
+      await guestCard(oldPhone);
+      final items =
+          ((await service.list(accountId, 'provider1')).data!['items'] as List)
+              .cast<Map<String, dynamic>>();
+      expect(items.single.containsKey('phoneEditable'), isFalse);
     });
   });
 
