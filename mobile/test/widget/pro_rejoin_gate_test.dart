@@ -311,6 +311,10 @@ void main() {
         routerConfig: router,
       ),
     );
+    // S1: the cards are there on the FIRST frame — the list the decision
+    // fetched, not a load of its own (no spinner, no empty frame).
+    expect(find.text('Rejoindre'), findsOneWidget);
+    expect(find.text('Aucune invitation en attente'), findsNothing);
     await settle(tester, steps: 1);
 
     expect(
