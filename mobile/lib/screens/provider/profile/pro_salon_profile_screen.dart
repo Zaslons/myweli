@@ -9,6 +9,7 @@ import '../../../core/forms/field_errors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
+import '../../../core/utils/phone_numbering.dart';
 import '../../../core/utils/validators.dart';
 import '../../../models/provider.dart' as models;
 import '../../../providers/pro_auth_provider.dart';
@@ -20,6 +21,7 @@ import '../../../widgets/common/carto_basemap_layer.dart';
 import '../../../widgets/common/commune_picker_sheet.dart';
 import '../../../widgets/common/empty_state.dart';
 import '../../../widgets/common/loading_indicator.dart';
+import '../../../widgets/common/phone_number_field.dart';
 import '../../../widgets/common/timed_cached_image.dart';
 import '../../../widgets/provider/image_picker_sheet.dart';
 import '../../../widgets/provider/mock_image_picker_sheet.dart';
@@ -59,10 +61,15 @@ class _ProSalonProfileScreenState extends State<ProSalonProfileScreen> {
   // specifies as E.164 (`+225 …`). A 10-digit rule can never match it, so the
   // salon could not save its profile again — the rule would have failed on data
   // the app itself had just loaded.
+  //
+  // Both are [PhoneNumberField]s since phone-national-length.md: as free-text
+  // fields they checked the separator-free value and sent the raw one, which
+  // the server refuses. WhatsApp stays optional — blank passes, anything typed
+  // must be a real number.
   late final _errors = FieldErrors({
     'name': Validators.requiredField('le nom du salon'),
     'phone': Validators.phoneNumber,
-    'whatsapp': _optionalPhone,
+    'whatsapp': Validators.optionalPhoneNumber,
   });
   final _nameFocus = FocusNode();
   final _phoneFocus = FocusNode();
@@ -73,13 +80,14 @@ class _ProSalonProfileScreenState extends State<ProSalonProfileScreen> {
     'whatsapp': _whatsappFocus,
   };
 
-  /// WhatsApp is optional — blank passes, anything typed must be a real number.
-  static String? _optionalPhone(String value) =>
-      value.trim().isEmpty ? null : Validators.phoneNumber(value);
   final _description = TextEditingController();
   final _address = TextEditingController();
-  final _phone = TextEditingController();
-  final _whatsapp = TextEditingController();
+
+  /// The two numbers as their fields last emitted them — normalized: E.164
+  /// without a separator, `''` once cleared. Also what each field is rebuilt
+  /// from when the lazy list culls it.
+  String _phone = '';
+  String _whatsapp = '';
 
   /// Multi-pays MP2: the commune is a LOCALITY pick (areaId) — the server
   /// derives city/timezone/currency from it (T57). The display name shows
@@ -109,7 +117,7 @@ class _ProSalonProfileScreenState extends State<ProSalonProfileScreen> {
 
   @override
   void dispose() {
-    for (final c in [_name, _description, _address, _phone, _whatsapp]) {
+    for (final c in [_name, _description, _address]) {
       c.dispose();
     }
     for (final f in [_nameFocus, _phoneFocus, _whatsappFocus]) {
@@ -126,8 +134,8 @@ class _ProSalonProfileScreenState extends State<ProSalonProfileScreen> {
     _address.text = p.address;
     _areaId = p.areaId;
     _communeName = p.commune ?? '';
-    _phone.text = p.phoneNumber;
-    _whatsapp.text = p.whatsapp ?? '';
+    _phone = PhoneNumbering.normalize(p.phoneNumber);
+    _whatsapp = PhoneNumbering.normalize(p.whatsapp ?? '');
     if (salonCategories.any((c) => c.$1 == p.category)) {
       _category = p.category;
     }
@@ -196,8 +204,8 @@ class _ProSalonProfileScreenState extends State<ProSalonProfileScreen> {
     // scrolling to it. The phone and WhatsApp numbers had no rule at all.
     final valid = _errors.validate({
       'name': _name.text,
-      'phone': _phone.text,
-      'whatsapp': _whatsapp.text,
+      'phone': _phone,
+      'whatsapp': _whatsapp,
     });
     setState(() {});
     if (!valid) {
@@ -214,8 +222,8 @@ class _ProSalonProfileScreenState extends State<ProSalonProfileScreen> {
       // first pick (the server self-heals matching names).
       if (_areaId != null) 'areaId': _areaId,
       if (_areaId == null) 'commune': _communeName.trim(),
-      'phoneNumber': _phone.text.trim(),
-      'whatsapp': _whatsapp.text.trim(),
+      'phoneNumber': _phone,
+      'whatsapp': _whatsapp,
       'category': _category,
       if (_pin != null) 'latitude': _pin!.latitude,
       if (_pin != null) 'longitude': _pin!.longitude,
@@ -344,24 +352,26 @@ class _ProSalonProfileScreenState extends State<ProSalonProfileScreen> {
                 ),
               ),
               const SizedBox(height: AppTheme.spacingS),
-              AppTextField(
+              PhoneNumberField(
                 label: 'Téléphone',
-                controller: _phone,
+                initialValue: _phone,
                 focusNode: _phoneFocus,
                 errorText: _errors['phone'],
-                onChanged: (v) =>
-                    setState(() => _errors.revalidate('phone', v)),
-                keyboardType: TextInputType.phone,
+                onChanged: (v) => setState(() {
+                  _phone = v;
+                  _errors.revalidate('phone', v);
+                }),
               ),
               const SizedBox(height: AppTheme.spacingS),
-              AppTextField(
+              PhoneNumberField(
                 label: 'WhatsApp (optionnel)',
-                controller: _whatsapp,
+                initialValue: _whatsapp,
                 focusNode: _whatsappFocus,
                 errorText: _errors['whatsapp'],
-                onChanged: (v) =>
-                    setState(() => _errors.revalidate('whatsapp', v)),
-                keyboardType: TextInputType.phone,
+                onChanged: (v) => setState(() {
+                  _whatsapp = v;
+                  _errors.revalidate('whatsapp', v);
+                }),
               ),
               const SizedBox(height: AppTheme.spacingM),
               Text(

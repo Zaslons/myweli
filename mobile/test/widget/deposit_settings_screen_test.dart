@@ -4,6 +4,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/payment.dart';
+import 'package:myweli/models/provider_user.dart';
 import 'package:myweli/providers/locality_provider.dart';
 import 'package:myweli/providers/pro_auth_provider.dart';
 import 'package:myweli/providers/pro_deposit_settings_provider.dart';
@@ -11,6 +12,7 @@ import 'package:myweli/screens/provider/settings/deposit_settings_screen.dart';
 import 'package:myweli/services/interfaces/pro_service_interface.dart';
 import 'package:myweli/services/mock/mock_auth_service.dart';
 import 'package:myweli/services/mock/mock_locality_service.dart';
+import 'package:myweli/widgets/common/phone_number_field.dart';
 import 'package:provider/provider.dart';
 
 import '../support/pump_app.dart';
@@ -107,8 +109,10 @@ void main() {
   // `PUT /deposit-policy` requires **E.164** (openapi.yaml:1758). The two rules
   // have an EMPTY intersection, so with deposits on, NO salon could have saved a
   // deposit policy at all — on the one field that decides where a client's
-  // deposit money lands. The screen now uses [Validators.phoneNumber] (E.164);
-  // §20 claimed a per-funnel widget test held that, and no such test existed.
+  // deposit money lands. The screen now uses [Validators.phoneNumber] (E.164;
+  // since phone-national-length.md, exactly 10 digits after +225) through a
+  // [PhoneNumberField]; §20 claimed a per-funnel widget test held that, and no
+  // such test existed.
   //
   // The shape below is the one §14 actually specifies, and the one every funnel
   // test in this repo should hold: **the press answers, under the field (rule 1)
@@ -177,6 +181,31 @@ void main() {
     ),
   );
 
+  /// The field's own text input — inside [PhoneNumberField], which shows the
+  /// NATIONAL part under the country's flag (+225 · « 0707123456 »).
+  Finder numberInput() => find.descendant(
+    of: find.byType(PhoneNumberField),
+    matching: find.byType(TextField),
+  );
+
+  Finder underTheNumber(String message) => find.descendant(
+    of: find.byType(PhoneNumberField),
+    matching: find.text(message),
+  );
+
+  const tenDigits = 'Le numéro doit comporter 10 chiffres après +225.';
+
+  VerificationResult noSave() => verifyNever(
+    () => service.updateDepositPolicy(
+      any(),
+      depositRequired: any(named: 'depositRequired'),
+      depositPercentage: any(named: 'depositPercentage'),
+      cancellationWindowHours: any(named: 'cancellationWindowHours'),
+      mobileMoneyOperator: any(named: 'mobileMoneyOperator'),
+      mobileMoneyNumber: any(named: 'mobileMoneyNumber'),
+    ),
+  );
+
   testWidgets('A7 LOCKOUT: « Enregistrer » accepts the stored E.164 number the '
       'screen just loaded', (tester) async {
     when(
@@ -186,8 +215,7 @@ void main() {
 
     // Open on a provider that already holds the stored policy, so the field is
     // prefilled from it — the app's own round trip: what the API returned goes
-    // back to the API untouched. (Cold-start prefill is broken for an unrelated
-    // reason; see the note at the end of this file.)
+    // back to the API untouched. (The cold-start twin is the next test.)
     final settings = ProDepositSettingsProvider();
     await settings.load('p1');
     await tester.pumpWidget(hostWith(settings));
@@ -196,9 +224,11 @@ void main() {
 
     await scrollTo(tester, numberLabel);
     expect(
-      tester.widget<TextField>(find.byType(TextField).first).controller?.text,
-      storedNumber,
-      reason: 'the field carries the stored handle — this is what gets judged',
+      tester.widget<TextField>(numberInput()).controller?.text,
+      '0707123456',
+      reason:
+          'the field carries the stored handle — its national part, under '
+          '+225 — and this is what gets judged',
     );
 
     await scrollTo(tester, saveButton);
@@ -230,6 +260,39 @@ void main() {
     );
   });
 
+  /// **Cold-start prefill** — reported here as broken by the A7-fix slice and
+  /// left uncovered: `_buildForm` burned a `_numberPrefilled` flag on the very
+  /// first build, BEFORE `load()` had even been called, so the stored handle
+  /// never reached the controller. A first visit after launch pressed
+  /// « Enregistrer » into « Saisissez un numéro de téléphone. » — and before
+  /// A7's validator existed, the same press sent `null` and WIPED the stored
+  /// handle. The number is now the stored one until the salon edits it, and
+  /// the field is built from it when the form first shows it.
+  testWidgets('cold start: the stored number is in the field, and it is what '
+      'saves', (tester) async {
+    when(
+      () => service.getDepositPolicy(any()),
+    ).thenAnswer((_) async => ApiResponse.success(loadedPolicy));
+    stubSaveOk();
+
+    await tester.pumpWidget(host());
+    await settle(tester);
+    await settle(tester);
+
+    await scrollTo(tester, numberLabel);
+    expect(
+      tester.widget<TextField>(numberInput()).controller?.text,
+      '0707123456',
+    );
+
+    await scrollTo(tester, saveButton);
+    await tester.tap(saveButton);
+    await settle(tester);
+    await settle(tester);
+
+    expect(saveCalls().captured.single, storedNumber);
+  });
+
   testWidgets(
     'an invalid Mobile Money number answers UNDER THE FIELD, with no bar, '
     'and saves nothing',
@@ -247,7 +310,7 @@ void main() {
       // verbatim in the client's deposit sheet and going into the Wave deep
       // link — the whole path's only transformation was `.trim()`.
       await scrollTo(tester, numberLabel);
-      await tester.enterText(find.byType(TextField).first, 'abc');
+      await tester.enterText(numberInput(), 'abc');
       await tester.pump();
 
       // Rule 5 keeps the button live, so the press MUST answer rather than
@@ -271,31 +334,22 @@ void main() {
         findsNothing,
         reason: '§14 rule 3 — a field fault is never a bar',
       );
-      verifyNever(
-        () => service.updateDepositPolicy(
-          any(),
-          depositRequired: any(named: 'depositRequired'),
-          depositPercentage: any(named: 'depositPercentage'),
-          cancellationWindowHours: any(named: 'cancellationWindowHours'),
-          mobileMoneyOperator: any(named: 'mobileMoneyOperator'),
-          mobileMoneyNumber: any(named: 'mobileMoneyNumber'),
-        ),
-      );
+      noSave();
 
       // The message lives in the field's own decoration, so it is built exactly
-      // when the field is.
+      // when the field is. Under +225, what to do is « 10 chiffres ».
       await scrollTo(tester, numberLabel, delta: -200);
       expect(
-        find.text('Saisissez un numéro de téléphone valide.'),
+        underTheNumber(tenDigits),
         findsOneWidget,
         reason: 'the fault renders under the field it belongs to (§14 rule 1)',
       );
 
       // Rule 2: fixing it clears the message without another submit.
-      await tester.enterText(find.byType(TextField).first, storedNumber);
+      await tester.enterText(numberInput(), '0707123456');
       await tester.pump();
       expect(
-        find.text('Saisissez un numéro de téléphone valide.'),
+        find.text(tenDigits),
         findsNothing,
         reason: '§14 rule 2 — a fixed field clears itself, no second press',
       );
@@ -303,8 +357,8 @@ void main() {
   );
 
   testWidgets(
-    'deposits OFF: the number is not judged at all — a salon that takes '
-    'no deposit still saves',
+    'deposits OFF and no number: nothing to judge — a salon that takes no '
+    'deposit still saves',
     (tester) async {
       when(() => service.getDepositPolicy(any())).thenAnswer(
         (_) async => ApiResponse.success(
@@ -320,7 +374,7 @@ void main() {
       expect(
         numberLabel,
         findsNothing,
-        reason: 'the field only exists when a deposit is actually collected',
+        reason: 'the field only shows when a deposit is actually collected',
       );
 
       await scrollTo(tester, saveButton);
@@ -328,9 +382,8 @@ void main() {
       await settle(tester);
       await settle(tester);
 
-      // `_save` guards the rule with `if (provider.depositRequired)`: with
-      // deposits off there is no number to require, so an empty one must not
-      // stop the press.
+      // With deposits off the number is OPTIONAL: an empty one must not stop
+      // the press.
       expect(
         find.text('Saisissez un numéro de téléphone.'),
         findsNothing,
@@ -350,18 +403,120 @@ void main() {
     },
   );
 
-  // NOT COVERED, because it is currently broken — reported, not asserted:
-  // **cold-start prefill.** `_buildForm` guards the prefill with
-  // `_numberPrefilled`, but the very first build runs BEFORE `load()` is even
-  // called (`_isLoading` starts `false`, and the load is scheduled in a
-  // post-frame callback), so the flag burns on an empty provider and the stored
-  // handle never reaches the controller. Probed on this screen: a policy loaded
-  // with `mobileMoneyNumber: '+2250707123456'` leaves the field at `''`. On a
-  // first visit after launch a salon therefore presses « Enregistrer » and is
-  // told « Saisissez un numéro de téléphone. » — the same lockout A7 shipped,
-  // by a different route — and before A7's validator existed the same press
-  // sent `mobileMoneyNumber: null` and WIPED the stored handle. Fixing it is
-  // outside this test slice; the test above opens on an already-loaded provider
-  // (the warm path, i.e. every visit after the first) so that it pins the E.164
-  // contract rather than this bug.
+  /// phone-national-length.md §2.3 — **deposits OFF does not mean unchecked.**
+  /// The number is sent whatever the switch says (PUT replaces the whole
+  /// policy), and the server checks any non-null one; the app skipped its own
+  /// check when deposits were off, so a stored short number came back from
+  /// the server as the form-level « Informations invalides. », with nothing
+  /// under any field — on a screen where that field was not even shown.
+  testWidgets('deposits OFF + a short stored number: the field shows, with '
+      'the message under it, and nothing is saved', (tester) async {
+    when(() => service.getDepositPolicy(any())).thenAnswer(
+      (_) async => ApiResponse.success(
+        const DepositPolicy(
+          depositRequired: false,
+          depositPercentage: 0.30,
+          mobileMoneyOperator: 'wave',
+          mobileMoneyNumber: '+2250707123',
+        ),
+      ),
+    );
+    stubSaveOk();
+
+    await tester.pumpWidget(host());
+    await settle(tester);
+    await settle(tester);
+
+    await scrollTo(tester, saveButton);
+    await tester.tap(saveButton);
+    await settle(tester);
+    await settle(tester);
+
+    noSave();
+    expect(find.byType(SnackBar), findsNothing);
+    await scrollTo(tester, numberLabel, delta: -200);
+    expect(
+      underTheNumber(tenDigits),
+      findsOneWidget,
+      reason: 'judged whenever it is not empty — and shown, so it can be fixed',
+    );
+
+    // Fixed in place, the message goes (rule 2) and the field STAYS — it does
+    // not vanish under the salon's thumb the moment the number turns valid.
+    await tester.enterText(numberInput(), '0707123456');
+    await tester.pump();
+    expect(find.text(tenDigits), findsNothing);
+    expect(numberLabel, findsOneWidget);
+
+    await scrollTo(tester, saveButton);
+    await tester.tap(saveButton);
+    await settle(tester);
+    await settle(tester);
+    expect(saveCalls().captured.single, storedNumber);
+
+    // The card did its job. Deposits are still OFF, so once the fix is saved
+    // it goes — one saved policy, one layout (the review of this branch: it
+    // stayed, saying clients pay to this number while no deposit is asked).
+    expect(numberLabel, findsNothing);
+    expect(find.text('Recevoir l’acompte', skipOffstage: false), findsNothing);
+  });
+
+  testWidgets('deposits OFF: switching deposits on then off again hides the '
+      'revealed card', (tester) async {
+    when(() => service.getDepositPolicy(any())).thenAnswer(
+      (_) async => ApiResponse.success(
+        const DepositPolicy(
+          depositRequired: false,
+          depositPercentage: 0.30,
+          mobileMoneyOperator: 'wave',
+          mobileMoneyNumber: '+2250707123',
+        ),
+      ),
+    );
+    stubSaveOk();
+
+    // A verified session — the switch is locked otherwise (T52).
+    await tester.pumpWidget(
+      wrapApp(
+        providers: [
+          ChangeNotifierProvider(create: (_) => ProDepositSettingsProvider()),
+          ChangeNotifierProvider<ProAuthProvider>(
+            create: (_) => _VerifiedPro(),
+          ),
+          ChangeNotifierProvider(create: (_) => LocalityProvider()),
+        ],
+        home: const DepositSettingsScreen(providerId: 'p1'),
+      ),
+    );
+    await settle(tester);
+    await settle(tester);
+
+    await scrollTo(tester, saveButton);
+    await tester.tap(saveButton);
+    await settle(tester);
+    noSave();
+    expect(numberLabel, findsOneWidget, reason: 'revealed by the refused save');
+
+    final toggle = find.byType(SwitchListTile, skipOffstage: false);
+    await scrollTo(tester, toggle, delta: -200);
+    await tester.tap(toggle); // on: the card is the deposit's own
+    await settle(tester);
+    expect(numberLabel, findsOneWidget);
+    await tester.tap(toggle); // off again: hidden, as on any visit
+    await settle(tester);
+    expect(numberLabel, findsNothing);
+  });
+}
+
+/// A session whose salon is verified, so « Exiger un acompte » can be toggled.
+class _VerifiedPro extends ProAuthProvider {
+  @override
+  ProviderUser? get provider => ProviderUser(
+    id: 'p1',
+    phoneNumber: '+2250707123456',
+    businessName: 'Salon',
+    businessType: BusinessType.salon,
+    verificationStatus: VerificationStatus.verified,
+    createdAt: DateTime(2026),
+  );
 }

@@ -278,6 +278,22 @@ void main() {
       );
       expect(localPhone.statusCode, HttpStatus.badRequest);
       expect(jsonDecode(await localPhone.body())['error'], 'invalid_phone');
+
+      // E.164 in shape, but 7 digits after +225 — a CI number has 10
+      // (docs/design/phone-national-length.md): the SMS channel could never
+      // reach it either.
+      final shortPhone = await manual.onRequest(
+        ctx(
+          post(
+            '/providers/provider1/appointments',
+            bearer: token,
+            body: {...validBody(), 'clientPhone': '+2250700000'},
+          ),
+        ),
+        'provider1',
+      );
+      expect(shortPhone.statusCode, HttpStatus.badRequest);
+      expect(jsonDecode(await shortPhone.body())['error'], 'invalid_phone');
     });
   });
 }

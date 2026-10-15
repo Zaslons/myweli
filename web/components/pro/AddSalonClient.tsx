@@ -3,8 +3,12 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { isPossiblePhoneNumber } from 'react-phone-number-input';
 import { useFieldErrors } from '../../lib/forms/useFieldErrors';
+import {
+  PHONE_INVALID,
+  normalizePhone,
+  phoneFieldError,
+} from '../../lib/phone';
 import { PhoneField } from '../PhoneField';
 import { TextField } from '../TextField';
 import {
@@ -37,6 +41,11 @@ export function AddSalonClient() {
   const [businessName, setBusinessName] = useState('');
   const [businessType, setBusinessType] = useState('salon');
   const [phone, setPhone] = useState<string | undefined>(undefined);
+  // PhoneField reads `initialValue` once, at mount, and the account phone
+  // answers later — the field used to show a bare « +225 » while the submit
+  // carried the account number. It now waits, disabled, for that answer and
+  // mounts once with it: what it SHOWS is what is sent.
+  const [phoneReady, setPhoneReady] = useState(false);
   const [address, setAddress] = useState('');
   // Multi-pays MP3: the locality area — optional here, the publish gate
   // enforces it (T57).
@@ -48,22 +57,28 @@ export function AddSalonClient() {
   const fields = useFieldErrors({
     businessName: (v: string) =>
       v.trim() !== '' ? null : 'Saisissez le nom du salon.',
-    phone: (v: string) =>
-      !v || isPossiblePhoneNumber(v) ? null : 'Saisissez un numéro de téléphone valide.',
+    // Optional: empty falls back to the account phone server-side
+    // (docs/design/phone-national-length.md §2.4).
+    phone: (v: string) => phoneFieldError(v, { required: false }),
   });
 
   useEffect(() => {
     let active = true;
     (async () => {
-      const me = await getMyProvider();
-      if (me.status === 401) {
-        router.replace('/pro/connexion');
-        return;
-      }
-      // The account's contact number is the sensible default (editable —
-      // a second salon often has its own line).
-      if (active && me.status === 200 && me.profile?.account.phoneNumber) {
-        setPhone((current) => current ?? me.profile!.account.phoneNumber);
+      try {
+        const me = await getMyProvider();
+        if (me.status === 401) {
+          router.replace('/pro/connexion');
+          return;
+        }
+        // The account's contact number is the sensible default (editable —
+        // a second salon often has its own line).
+        if (active && me.status === 200 && me.profile?.account.phoneNumber) {
+          setPhone((current) => current ?? me.profile!.account.phoneNumber);
+        }
+      } finally {
+        // Whatever the answer — a failed read leaves an empty, usable field.
+        if (active) setPhoneReady(true);
       }
     })();
     return () => {
@@ -78,12 +93,18 @@ export function AddSalonClient() {
     const r = await addSalon({
       businessName: businessName.trim(),
       businessType,
-      phoneNumber: phone || undefined,
+      phoneNumber: normalizePhone(phone) || undefined,
       address: address.trim() === '' ? undefined : address.trim(),
       areaId: areaId ?? undefined,
     });
     if (!r.ok || !r.salon) {
       setBusy(false);
+      // The server refusing the number is the field's fault (§14 rule 1) —
+      // not a generic « Réessayez » that cannot succeed.
+      if (r.error === 'invalid_phone') {
+        fields.set('phone', PHONE_INVALID);
+        return;
+      }
       setErrorCode(r.error ?? 'unknown');
       return;
     }
@@ -133,8 +154,11 @@ export function AddSalonClient() {
       </label>
       <div className="mt-m">
         <PhoneField
+          // One remount, when the account phone has answered (phoneReady).
+          key={phoneReady ? 'ready' : 'loading'}
           label="Téléphone du salon"
           initialValue={phone}
+          disabled={!phoneReady}
           onChange={(v) => {
             setPhone(v);
             fields.revalidate('phone', v);

@@ -1,4 +1,5 @@
 import '../forms/field_errors.dart';
+import 'phone_numbering.dart';
 
 /// Design: docs/design/mobile-a7-forms.md · SYSTEM.md §14.
 ///
@@ -63,26 +64,45 @@ class Validators {
 
   // ---- Phone ----------------------------------------------------------------
 
-  /// **E.164** (`+` then 8–15 digits) — what `PhoneNumberField` emits, and what
-  /// the backend stores.
+  /// A required phone number — one rule, the server's too
+  /// (docs/design/phone-national-length.md §2.1):
+  ///
+  /// * separators are dropped first, and nothing but a calling code (`+225`,
+  ///   what a cleared `PhoneNumberField` used to emit) is EMPTY;
+  /// * a calling code in the national-length table (`phone_numbering.dart`,
+  ///   the §18 seam) needs exactly that many digits after it, and the message
+  ///   says how many — checked BEFORE the generic rule, so `+2250700` is told
+  ///   « 10 chiffres », not « valide »;
+  /// * any other calling code: **E.164**, `+` then 8–15 digits.
   static String? phoneNumber(String? value) {
-    final cleaned = (value ?? '').replaceAll(RegExp(r'[\s\-()]'), '');
-    if (cleaned.isEmpty) return 'Saisissez un numéro de téléphone.';
-    return RegExp(r'^\+[1-9]\d{7,14}$').hasMatch(cleaned)
-        ? null
-        : 'Saisissez un numéro de téléphone valide.';
+    final number = PhoneNumbering.normalize(value ?? '');
+    if (number.isEmpty) return 'Saisissez un numéro de téléphone.';
+    return _phoneFault(number);
   }
 
-  /// A number typed as an Ivorian **local** 10-digit one — the Mobile Money
-  /// field and anywhere else the user types digits rather than picking a
-  /// country. (CI moved to 10 digits in 2021; the hint « Ex : 07 07 12 34 56 »
-  /// was already showing ten.)
-  static String? localPhoneNumber(String? value) {
-    final digits = (value ?? '').replaceAll(RegExp(r'[^\d]'), '');
-    if (digits.isEmpty) return 'Saisissez un numéro de téléphone.';
-    return digits.length == 10
+  /// The same rule for a phone the user may leave blank — WhatsApp, the
+  /// consumer profile, a Mobile Money number with deposits off. Three screens
+  /// hand-rolled it as `value.trim().isEmpty ? null : phoneNumber(value)`, which
+  /// read a cleared field's `+225` as a number: an optional phone that could
+  /// not be cleared.
+  static String? optionalPhoneNumber(String? value) {
+    final number = PhoneNumbering.normalize(value ?? '');
+    return number.isEmpty ? null : _phoneFault(number);
+  }
+
+  static String? _phoneFault(String number) {
+    final rule = PhoneNumbering.nationalLengthFor(number);
+    if (rule != null) {
+      final national = number.substring(rule.callingCode.length + 1);
+      return RegExp(r'^\d+$').hasMatch(national) &&
+              national.length == rule.length
+          ? null
+          : 'Le numéro doit comporter ${rule.length} chiffres après '
+                '+${rule.callingCode}.';
+    }
+    return RegExp(r'^\+[1-9]\d{7,14}$').hasMatch(number)
         ? null
-        : 'Le numéro doit comporter 10 chiffres (ex : 07 07 12 34 56).';
+        : 'Saisissez un numéro de téléphone valide.';
   }
 
   // ---- Generic factories ----------------------------------------------------

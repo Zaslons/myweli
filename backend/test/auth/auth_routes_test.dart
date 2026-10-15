@@ -137,6 +137,14 @@ void main() {
     expect(bad.statusCode, HttpStatus.badRequest);
     expect((await jsonOf(bad))['error'], 'invalid_phone');
 
+    // A well-formed E.164 with 7 digits after +225 — a CI number has 10
+    // (docs/design/phone-national-length.md).
+    final short = await otp_request.onRequest(
+      ctx(post('/auth/otp/request', {'phoneNumber': '+2250700000'})),
+    );
+    expect(short.statusCode, HttpStatus.badRequest);
+    expect((await jsonOf(short))['error'], 'invalid_phone');
+
     final wrongVerb = await otp_request.onRequest(
       ctx(Request.get(_u('/auth/otp/request'))),
     );
@@ -218,6 +226,35 @@ void main() {
     );
     expect(deleted.statusCode, HttpStatus.noContent);
     expect(await repo.userById(session.user!.id), isNull);
+  });
+
+  test('/me PATCH phone: a short +225 → 400 invalid_phone and nothing '
+      'stored; 10 digits → 200; empty clears', () async {
+    final session = await repo.verifyOtp(
+      _phone,
+      (await repo.requestOtp(_phone)).devCode!,
+    );
+    final headers = {'Authorization': 'Bearer ${session.tokens!.accessToken}'};
+    Future<Response> patch(Object body) => me_route.onRequest(
+      ctx(
+        Request('PATCH', _u('/me'), headers: headers, body: jsonEncode(body)),
+      ),
+    );
+
+    // 7 digits after +225 — the shape the sign-in phone step once saved.
+    final short = await patch({'phone': '+2250700000'});
+    expect(short.statusCode, HttpStatus.badRequest);
+    expect((await jsonOf(short))['error'], 'invalid_phone');
+    expect((await repo.userById(session.user!.id))!.phoneNumber, _phone);
+
+    final ok = await patch({'phone': '+2250505123456'});
+    expect(ok.statusCode, HttpStatus.ok);
+    expect((await jsonOf(ok))['phoneNumber'], '+2250505123456');
+
+    // '' is the optional field emptied: it clears, it is not a short number.
+    final cleared = await patch({'phone': ''});
+    expect(cleared.statusCode, HttpStatus.ok);
+    expect((await jsonOf(cleared))['phoneNumber'], isNull);
   });
 
   test(

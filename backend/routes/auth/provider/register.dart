@@ -32,7 +32,7 @@ Future<Response> onRequest(RequestContext context) async {
   final businessName = (body['businessName'] as String?)?.trim() ?? '';
   final businessType = (body['businessType'] as String?) ?? '';
   final rawAddress = (body['address'] as String?)?.trim();
-  if (!isValidE164(phone) ||
+  if (!isValidPhoneNumber(phone) ||
       businessName.isEmpty ||
       businessName.runes.length >
           SalonProvisioningService.maxBusinessNameChars ||

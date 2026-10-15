@@ -48,12 +48,15 @@ class _ProRegisterScreenState extends State<ProRegisterScreen> {
   final _addressFocus = FocusNode();
   final _emailFocus = FocusNode();
   final _codeFocus = FocusNode();
-  // `businessType` and `phone` have no text field of their own to focus, so
-  // they are absent by design — `focusFirstError` no-ops for them and the
-  // message still renders in place. Named here so the gap is a decision, not
-  // an oversight (the review flagged it as one).
+  final _phoneFocus = FocusNode();
+  // `businessType` has no text field of its own to focus, so it is absent by
+  // design — `focusFirstError` no-ops for it and the message still renders in
+  // place. Named here so the gap is a decision, not an oversight (the review
+  // flagged it as one). `phone` was absent for the same reason until
+  // `PhoneNumberField` took a focus node (phone-national-length.md).
   late final _focusNodes = {
     'businessName': _businessNameFocus,
+    'phone': _phoneFocus,
     'address': _addressFocus,
     'email': _emailFocus,
     'code': _codeFocus,
@@ -98,6 +101,7 @@ class _ProRegisterScreenState extends State<ProRegisterScreen> {
     _addressFocus.dispose();
     _emailFocus.dispose();
     _codeFocus.dispose();
+    _phoneFocus.dispose();
     super.dispose();
   }
 
@@ -299,7 +303,10 @@ class _ProRegisterScreenState extends State<ProRegisterScreen> {
               const SizedBox(height: AppTheme.spacingM),
               PhoneNumberField(
                 label: 'Téléphone du salon',
+                focusNode: _phoneFocus,
                 errorText: _errors['phone'],
+                // Normalized by the field ('' when empty, E.164 without a
+                // separator) — the value sent to registration as it is.
                 onChanged: (e164) {
                   _phoneNumber = e164;
                   setState(() => _errors.revalidate('phone', e164));

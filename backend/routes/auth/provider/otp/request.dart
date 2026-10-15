@@ -22,7 +22,7 @@ Future<Response> onRequest(RequestContext context) async {
   }
 
   final phone = (body['phoneNumber'] as String?)?.trim() ?? '';
-  if (!isValidE164(phone)) {
+  if (!isValidPhoneNumber(phone)) {
     return jsonError(HttpStatus.badRequest, 'invalid_phone');
   }
 

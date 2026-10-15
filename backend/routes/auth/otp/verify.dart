@@ -23,7 +23,7 @@ Future<Response> onRequest(RequestContext context) async {
 
   final phone = (body['phoneNumber'] as String?)?.trim() ?? '';
   final code = (body['code'] as String?)?.trim() ?? '';
-  if (!isValidE164(phone) || !isValidOtpCode(code)) {
+  if (!isValidPhoneNumber(phone) || !isValidOtpCode(code)) {
     return jsonError(HttpStatus.badRequest, 'invalid_input');
   }
 
