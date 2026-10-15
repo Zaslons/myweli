@@ -403,6 +403,26 @@ const salonClients = [
 ];
 const clientNotes = { sc1: [], sc2: [] };
 let clientSeq = 3;
+
+// The salon's MANUAL appointments that carry a number — what a guest card's
+// history is made of (the backend's `_visitsOf`: `userId == 'manual'` and
+// `clientPhone` = the card's). Filled by the manual-booking POST; re-keyed by
+// a guest card's phone change (docs/design/phone-leftovers.md §8).
+const manualAppts = [];
+let manualSeq = 1;
+
+// The API's phone rule (backend/lib/src/validators.dart `isValidPhoneNumber`):
+// the E.164 floor, and a market's exact national length after its calling code
+// (backend/lib/src/localities/phone_numbering.dart — Côte d'Ivoire: 10).
+const NATIONAL_LENGTHS = { 225: 10 };
+function isValidPhoneNumber(value) {
+  const v = String(value).trim();
+  if (!/^\+[1-9]\d{7,14}$/.test(v)) return false;
+  for (const [code, length] of Object.entries(NATIONAL_LENGTHS)) {
+    if (v.startsWith(`+${code}`)) return v.length - 1 - code.length === length;
+  }
+  return true;
+}
 const isPro = (req) => (req.headers.authorization || '').includes('pro');
 
 // --- team access R5b: per-role sessions -----------------------------------
@@ -989,6 +1009,17 @@ createServer(async (req, res) => {
     if ((b.appointmentDateTime || '').includes('T10:00')) {
       return json(res, 409, { error: 'slot_unavailable' });
     }
+    // Kept only when it names a number — a journal-only guest has no card.
+    if (b.clientPhone) {
+      manualAppts.push({
+        id: `pmanual${manualSeq++}`,
+        providerId: provApptM[1],
+        userId: 'manual',
+        clientName: b.clientName || 'Client',
+        clientPhone: b.clientPhone,
+        appointmentDate: b.appointmentDateTime,
+      });
+    }
     return json(res, 201, {
       ...proAppt('pnew'),
       status: 'confirmed',
@@ -1049,21 +1080,55 @@ createServer(async (req, res) => {
   if (clientCard) {
     const c = salonClients.find((x) => x.id === clientCard[2]);
     if (!c) return json(res, 404, { error: 'not_found' });
-    if (req.method === 'PATCH') {
-      const b = await readBody(req);
-      c.tags = b.tags || [];
-      return json(res, 200, c);
-    }
-    return json(res, 200, {
-      ...c,
+    const cardOf = (x) => ({
+      ...x,
       stats: {
-        visits: c.visits,
-        spentFcfa: c.visits * 15000,
-        noShows: c.noShows,
+        visits: x.visits,
+        spentFcfa: x.visits * 15000,
+        noShows: x.noShows,
         cancellations: 0,
       },
-      notes: clientNotes[c.id] || [],
+      notes: clientNotes[x.id] || [],
     });
+    if (req.method === 'PATCH') {
+      // `{ tags?, phone? }`, at least one (docs/design/phone-leftovers.md §8)
+      // — the backend's order of refusals, and nothing changes on a refusal.
+      if (!(ROLE_CAPS[roleOf(req)] || []).includes('clients.view')) {
+        return json(res, 403, { error: 'forbidden' });
+      }
+      const b = await readBody(req);
+      if (b.tags == null && b.phone == null) {
+        return json(res, 400, { error: 'invalid_body' });
+      }
+      if (b.phone != null) {
+        if (c.linked) return json(res, 409, { error: 'client_linked' });
+        if (typeof b.phone !== 'string' || !isValidPhoneNumber(b.phone)) {
+          return json(res, 400, { error: 'invalid_phone' });
+        }
+        const next = b.phone.trim();
+        if (next !== c.phone) {
+          const other = salonClients.find((x) => x.id !== c.id && x.phone === next);
+          if (other) {
+            return json(res, 409, { error: 'client_exists', clientId: other.id });
+          }
+          // The history follows the number: THIS salon's manual appointments
+          // on the old one — never another salon's (T45).
+          for (const a of manualAppts) {
+            if (
+              a.providerId === clientCard[1] &&
+              a.userId === 'manual' &&
+              a.clientPhone === c.phone
+            ) {
+              a.clientPhone = next;
+            }
+          }
+          c.phone = next;
+        }
+      }
+      if (b.tags != null) c.tags = b.tags;
+      return json(res, 200, cardOf(c));
+    }
+    return json(res, 200, cardOf(c));
   }
   const clientVisits = url.pathname.match(
     /^\/providers\/([^/]+)\/clients\/([^/]+)\/visits$/,
@@ -1071,7 +1136,23 @@ createServer(async (req, res) => {
   if (clientVisits) {
     const c = salonClients.find((x) => x.id === clientVisits[2]);
     if (!c) return json(res, 404, { error: 'not_found' });
-    const items = c.id === 'sc1' ? [proAppt('pappt1')] : [];
+    // A linked card's history is its account's (seeded: Koffi's one booking);
+    // a guest's is the salon's manual appointments on its number.
+    const items = c.linked
+      ? c.id === 'sc1'
+        ? [proAppt('pappt1')]
+        : []
+      : manualAppts
+          .filter(
+            (a) => a.providerId === clientVisits[1] && a.clientPhone === c.phone,
+          )
+          .map((a) => ({
+            ...proAppt(a.id),
+            ...a,
+            status: 'confirmed',
+            salonClientId: c.id,
+            clientNoShowCount: 0,
+          }));
     return json(res, 200, { items, page: 1, pageSize: 20, total: items.length });
   }
   const clientNotesM = url.pathname.match(

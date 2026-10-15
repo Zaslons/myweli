@@ -17,8 +17,15 @@ import {
   getClientCard,
   getClientVisits,
   getMyProvider,
+  updateClientPhone,
   updateClientTags,
 } from '../../lib/api/pro';
+import { useFieldErrors } from '../../lib/forms/useFieldErrors';
+import {
+  PHONE_INVALID,
+  normalizePhone,
+  phoneFieldError,
+} from '../../lib/phone';
 import {
   formatDateFr,
   formatDateTimeFr,
@@ -35,6 +42,8 @@ import {
   waHref,
 } from '../../lib/pro/clients';
 import { Button } from '../Button';
+import { Modal } from '../Modal';
+import { PhoneField } from '../PhoneField';
 import { SkeletonRows } from '../Skeleton';
 import { TextField } from '../TextField';
 import { ManualBookingDialog } from './ManualBookingDialog';
@@ -43,12 +52,16 @@ import { ManualBookingDialog } from './ManualBookingDialog';
 /// (docs/design/clients-c1.md §6): identity + notes on the left, stats +
 /// salon-scoped history on the right. « Nouveau rendez-vous » opens the
 /// manual-booking dialog pre-picked with this client
-/// (docs/design/web-manual-booking.md — the C1b deferral closed).
+/// (docs/design/web-manual-booking.md — the C1b deferral closed). A GUEST
+/// card's number is edited under it, « Modifier »; a card linked to an account
+/// keeps the account's number, read-only (docs/design/phone-leftovers.md §8).
 export function ClientCardClient({ clientId }: { clientId: string }) {
   const router = useRouter();
   const [providerId, setProviderId] = useState<string | null>(null);
   const [profile, setProfile] = useState<ProProfile | null>(null);
   const [booking, setBooking] = useState(false);
+  // §8 of docs/design/phone-leftovers.md: a guest card's number, in a Modal.
+  const [editingPhone, setEditingPhone] = useState(false);
   const { toast, show } = useToast();
   const [card, setCard] = useState<SalonClientCard | null>(null);
   const [visits, setVisits] = useState<ProAppointment[]>([]);
@@ -230,12 +243,44 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
                     </span>
                   </p>
                 ) : null}
+                {/* §8: what the number below the row says — editable on a
+                    guest card, the account's own on a linked one. Its own
+                    line, never a third item in the row: at 320px the column
+                    is ~174px, and « Modifier » dropped alone under « Appeler ·
+                    WhatsApp » with the two 48px boxes overlapping across the
+                    row's 12px gap. `mt-xl` − the 12px each box reaches
+                    (`-my-sm`, theirs and its own) leaves 8px between them
+                    (SYSTEM.md §13.2); the caption is no target, so `mt-sm`
+                    only has to clear theirs. A guest card always has a
+                    number (no phone → no row, clients_service.dart). */}
+                {card.phone && !card.linked ? (
+                  // `flex`, as the row is: the box's 24px of negative margin
+                  // then sizes the line, not an inline baseline.
+                  <div className="mt-xl flex text-bodyMedium text-textSecondary">
+                    <button
+                      type="button"
+                      onClick={() => setEditingPhone(true)}
+                      // Label in name (WCAG 2.5.3) — and not « Modifier les
+                      // tags » further down.
+                      aria-label="Modifier le numéro"
+                      className="-my-sm inline-flex min-h-12 items-center underline"
+                    >
+                      Modifier
+                    </button>
+                  </div>
+                ) : null}
+                {card.phone && card.linked ? (
+                  <p className="mt-sm text-bodySmall text-textTertiary">
+                    Numéro du compte client
+                  </p>
+                ) : null}
               </div>
             </div>
 
-            {/* `mt-l`, not `mt-m`: when the phone row wraps, « Appeler » and
-                « WhatsApp » sit directly above this button, and each 48px box
-                reaches 12px below its own line (`-my-sm`). 24 − 12 leaves 12px
+            {/* `mt-l`, not `mt-m`: the target directly above this button —
+                « Modifier » under a guest's number, else « Appeler » and
+                « WhatsApp » when the phone row wraps — is a 48px box reaching
+                12px below its own line (`-my-sm`). 24 − 12 leaves 12px
                 between the hit areas; `mt-m` left 4, under the 8px that
                 adjacent targets need (SYSTEM.md §13.2). */}
             <div className="mt-l">
@@ -451,8 +496,152 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
           }}
         />
       ) : null}
+      {editingPhone && card.phone && !card.linked ? (
+        <EditPhoneModal
+          providerId={providerId}
+          clientId={clientId}
+          phone={card.phone}
+          onClose={() => setEditingPhone(false)}
+          // The salon's manual appointments followed the number server-side:
+          // the whole card is read again — stats and visits included.
+          onSaved={() => {
+            setEditingPhone(false);
+            show('Numéro mis à jour', 'success');
+            load();
+          }}
+          // Linked since the card was read: reloaded, it shows the read-only
+          // state (no « Modifier », « Numéro du compte client »).
+          onLinked={() => {
+            setEditingPhone(false);
+            show('Ce client a un compte MyWeli : son numéro est celui du compte.', 'error');
+            load();
+          }}
+        />
+      ) : null}
       <Toast toast={toast} />
     </div>
+  );
+}
+
+// A module constant: useFieldErrors keys its callbacks on this object. A guest
+// card exists only by its number, so the field is required.
+const PHONE_CHECK = {
+  phone: (v: string) => phoneFieldError(v, { required: true }),
+};
+
+/// « Modifier le numéro » of a GUEST card (docs/design/phone-leftovers.md §8).
+/// The fault of the number sits UNDER the field (SYSTEM.md §14) — the shared
+/// rule on submit, a server `invalid_phone` alike; a refused save's outcome
+/// stays INSIDE the dialog (§15). The button is disabled only while saving.
+function EditPhoneModal({
+  providerId,
+  clientId,
+  phone: current,
+  onClose,
+  onSaved,
+  onLinked,
+}: {
+  providerId: string;
+  clientId: string;
+  /** The card's stored number — prefilled, and what « nothing changed » means. */
+  phone: string;
+  onClose: () => void;
+  onSaved: () => void;
+  onLinked: () => void;
+}) {
+  const [phone, setPhone] = useState(current);
+  const [busy, setBusy] = useState(false);
+  // `cardId`: the card that already holds the number — the way out rides with
+  // its sentence, so neither can outlive the other.
+  const [outcome, setOutcome] = useState<{ text: string; cardId?: string } | null>(
+    null,
+  );
+  const fields = useFieldErrors(PHONE_CHECK);
+
+  async function save() {
+    if (!fields.validate({ phone })) return;
+    // What is checked is what crosses: separators stripped.
+    const next = normalizePhone(phone);
+    // The number the card already has: nothing to do, nothing to say.
+    if (next === current) {
+      onClose();
+      return;
+    }
+    setBusy(true);
+    setOutcome(null);
+    const r = await updateClientPhone(providerId, clientId, next);
+    if (r.ok) {
+      onSaved();
+      return;
+    }
+    if (r.error === 'client_linked') {
+      onLinked();
+      return;
+    }
+    if (r.error === 'invalid_phone') {
+      setBusy(false);
+      fields.set('phone', PHONE_INVALID);
+      return;
+    }
+    if (r.error === 'client_exists' && r.clientId) {
+      // The 409 names the other card by id only (the shape of POST
+      // …/clients). Its name costs ONE read of that card, by id — audited
+      // server-side as a view of it, which is true: its name is shown here.
+      // Not the list searched by the number: that matches loosely and would
+      // write the number into the audit trail's query.
+      const other = await getClientCard(providerId, r.clientId);
+      setBusy(false);
+      setOutcome({
+        text: other.card
+          ? `Ce numéro est déjà sur la fiche de ${other.card.displayName}.`
+          : 'Ce numéro est déjà sur une autre fiche.',
+        cardId: r.clientId,
+      });
+      return;
+    }
+    setBusy(false);
+    setOutcome({ text: 'L’enregistrement a échoué. Réessayez.' });
+  }
+
+  return (
+    <Modal title="Modifier le numéro" onClose={onClose}>
+      <div className="mt-m">
+        <PhoneField
+          initialValue={current}
+          onChange={(v) => {
+            setPhone(v);
+            fields.revalidate('phone', v);
+            // A sentence about another number would be stale.
+            setOutcome(null);
+          }}
+          error={fields.errors.phone}
+        />
+      </div>
+      {outcome ? (
+        <p role="alert" className="mt-s text-bodyMedium text-error">
+          {outcome.text}
+        </p>
+      ) : null}
+      {/* Closing first: the other card replaces this one under the dialog. */}
+      {outcome?.cardId ? (
+        <Link
+          href={`/pro/clients/${outcome.cardId}`}
+          onClick={onClose}
+          className="mt-xs inline-flex min-h-12 items-center text-bodyMedium text-textPrimary underline"
+        >
+          Ouvrir la fiche
+        </Link>
+      ) : null}
+      <div className="mt-l flex justify-end gap-s">
+        <Button variant="secondary" onClick={onClose} disabled={busy}>
+          Annuler
+        </Button>
+        {/* No number gate: a wrong one answers under its field (§14 rule 5). */}
+        <Button onClick={save} disabled={busy}>
+          Enregistrer
+        </Button>
+      </div>
+    </Modal>
   );
 }
 
