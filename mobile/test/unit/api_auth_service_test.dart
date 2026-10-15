@@ -5,8 +5,10 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:myweli/models/api_response.dart';
+import 'package:myweli/models/pro_membership.dart';
 import 'package:myweli/models/provider_login_result.dart';
 import 'package:myweli/models/provider_user.dart';
+import 'package:myweli/models/team_member.dart';
 import 'package:myweli/services/api/api_auth_service.dart';
 import 'package:myweli/services/interfaces/session_store.dart';
 
@@ -315,6 +317,44 @@ void main() {
 
     expect(await store.read(), isNull);
     expect(await service.getCurrentProvider(), isNull);
+  });
+
+  // docs/design/pro-rejoin-gate.md §2.2: the rejoin gate drops the lost
+  // salon's cached shape. `null` used to be read as « keep what is there »,
+  // so the stored session went on shaping the next cold start as a member of
+  // a salon the account had lost — while the mock, which tests run on,
+  // cleared it.
+  test('cacheProviderMembership(null) CLEARS the cached membership — the '
+      'salon selection kept', () async {
+    final store = InMemorySessionStore();
+    final client = MockClient(
+      (req) async => http.Response(
+        jsonEncode({'provider': _providerJson(), 'accessToken': 'prov-123'}),
+        200,
+      ),
+    );
+    final service = ApiAuthService(
+      client: client,
+      baseUrl: 'http://x',
+      providerSessionStore: store,
+    );
+    await service.verifyOtpForProvider(_phone, '123456');
+    await service.cacheProviderMembership(
+      const ProMembership(
+        role: TeamRole.reception,
+        capabilities: {},
+        salonId: 'salon_1',
+        salonName: 'Salon Excellence',
+      ),
+    );
+    await service.setSelectedProviderSalon('salon_1');
+    expect((await service.getCachedProviderMembership())?.salonId, 'salon_1');
+
+    await service.cacheProviderMembership(null);
+
+    expect(await service.getCachedProviderMembership(), isNull);
+    expect(await service.getSelectedProviderSalon(), 'salon_1');
+    expect(await service.getCurrentProvider(), isNotNull);
   });
 
   _googleTests();

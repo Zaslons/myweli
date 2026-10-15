@@ -33,13 +33,14 @@ class ProviderSession {
 
   ProviderSession copyWith({
     ProMembership? membership,
+    bool clearMembership = false,
     String? selectedSalonId,
     bool clearSelectedSalon = false,
   }) => ProviderSession(
     token: token,
     refreshToken: refreshToken,
     provider: provider,
-    membership: membership ?? this.membership,
+    membership: clearMembership ? null : (membership ?? this.membership),
     selectedSalonId: clearSelectedSalon
         ? null
         : (selectedSalonId ?? this.selectedSalonId),
