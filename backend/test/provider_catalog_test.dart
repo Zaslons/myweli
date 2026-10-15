@@ -391,6 +391,14 @@ void main() {
       expect(await err(validBody(hours: 1000)), 'invalid_input');
       expect(await err(validBody(op: 'paypal')), 'invalid_input');
       expect(await err(validBody(number: '0700')), 'invalid_input');
+      // E.164 in shape, 7 digits after +225 — a CI number has 10
+      // (docs/design/phone-national-length.md). Refused deposits on or off:
+      // a stored number is a number a client may be sent to pay.
+      expect(await err(validBody(number: '+2250700000')), 'invalid_input');
+      expect(
+        await err(validBody(required: false, number: '+2250700000')),
+        'invalid_input',
+      );
       // Required deposit without a Mobile Money handle → invalid_input.
       expect(await err(validBody(op: null, number: null)), 'invalid_input');
       // Not required → handle optional; 0% allowed.
@@ -1115,6 +1123,24 @@ void main() {
           'phoneNumber': 'abc',
         })).error,
         'invalid_input',
+      );
+      // E.164 in shape, 7 digits after +225 — a CI number has 10
+      // (docs/design/phone-national-length.md); same for WhatsApp.
+      expect(
+        (await catalog.updateProfile(accountId, 'provider1', {
+          'phoneNumber': '+2250700000',
+        })).error,
+        'invalid_input',
+      );
+      expect(
+        (await catalog.updateProfile(accountId, 'provider1', {
+          'whatsapp': '+2250700000',
+        })).error,
+        'invalid_input',
+      );
+      expect(
+        (await providers.byId('provider1'))!['phoneNumber'],
+        '+2250700000099',
       );
       expect(
         (await catalog.updateProfile(accountId, 'provider1', {

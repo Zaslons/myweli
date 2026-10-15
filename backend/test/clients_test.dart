@@ -604,6 +604,14 @@ void main() {
         )).statusCode,
         HttpStatus.badRequest,
       );
+      // Well-formed E.164, but 7 digits after +225 — a CI number has 10
+      // (docs/design/phone-national-length.md).
+      final short = await clients_route.onRequest(
+        ctx(post({'name': 'X', 'phone': '+2250700000'})),
+        'provider1',
+      );
+      expect(short.statusCode, HttpStatus.badRequest);
+      expect((await short.json() as Map)['error'], 'invalid_phone');
       expect(
         (await clients_route.onRequest(
           ctx(post({'name': 'X', 'phone': '+2250700000090'})),
