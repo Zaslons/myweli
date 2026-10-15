@@ -66,7 +66,12 @@ const SERVICE = {
 /// Every POST /api/pro/appointments body, in order.
 const posted: Record<string, unknown>[] = [];
 
-function mockFetch(card: SalonClientCard, services: unknown[] = []) {
+/// `createError`: the code a refused booking answers with (400); none → 200.
+function mockFetch(
+  card: SalonClientCard,
+  services: unknown[] = [],
+  createError?: string,
+) {
   posted.length = 0;
   vi.stubGlobal(
     'fetch',
@@ -74,7 +79,9 @@ function mockFetch(card: SalonClientCard, services: unknown[] = []) {
       const u = String(url);
       if (u === '/api/pro/appointments') {
         posted.push(JSON.parse(String(init?.body ?? '{}')));
-        return new Response('{}', { status: 200 });
+        return createError
+          ? new Response(JSON.stringify({ error: createError }), { status: 400 })
+          : new Response('{}', { status: 200 });
       }
       if (u === '/api/pro/me') {
         return new Response(
@@ -108,8 +115,12 @@ function mockFetch(card: SalonClientCard, services: unknown[] = []) {
 /// Renders the card and waits for the loaded state — the `<h1>` exists in no
 /// other state (loading is a skeleton, the error state titles itself « Fiche
 /// client »), so every assertion below is about the real card.
-async function renderCard(card: SalonClientCard, services: unknown[] = []) {
-  mockFetch(card, services);
+async function renderCard(
+  card: SalonClientCard,
+  services: unknown[] = [],
+  createError?: string,
+) {
+  mockFetch(card, services, createError);
   render(<ClientCardClient clientId={card.id} />);
   await screen.findByRole('heading', { level: 1, name: card.displayName });
 }
@@ -175,6 +186,34 @@ describe('ClientCardClient — the phone line', () => {
     // The card answers a created booking by closing the dialog and saying so.
     await screen.findByText('Rendez-vous créé');
     expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('a refused stored number names THIS card — the dialog is handed its id', async () => {
+    // docs/design/phone-leftovers.md §7: the dialog's « Ouvrir la fiche » is
+    // built from the id the card hands it. A short number stored before the
+    // national-length rule is exactly this card's case.
+    await renderCard({ ...CARD, phone: '+22507000001' }, [SERVICE], 'invalid_phone');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Nouveau rendez-vous' }));
+    const dialog = within(
+      screen.getByRole('dialog', { name: 'Nouveau rendez-vous' }),
+    );
+    fireEvent.click(dialog.getByRole('checkbox', { name: /Tresses/ }));
+    fireEvent.change(dialog.getByLabelText('Date du rendez-vous'), {
+      target: { value: '2099-01-15' },
+    });
+    fireEvent.change(dialog.getByLabelText('Heure du rendez-vous'), {
+      target: { value: '14:30' },
+    });
+    fireEvent.click(dialog.getByRole('button', { name: 'Créer' }));
+
+    await dialog.findByText(
+      'Le numéro enregistré sur la fiche de ce client est invalide.',
+    );
+    expect(dialog.getByRole('link', { name: 'Ouvrir la fiche' })).toHaveAttribute(
+      'href',
+      `/pro/clients/${CARD.id}`,
+    );
   });
 
   it('the number may not wrap, and the row may — the actions drop below it', async () => {

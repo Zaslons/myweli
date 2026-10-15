@@ -5,7 +5,6 @@ import { useEffect, useRef, useState } from "react";
 import { chipLinkClasses } from "../Chip";
 import { Loading } from "../Loading";
 import { SkeletonRows } from "../Skeleton";
-import { isPossiblePhoneNumber } from "react-phone-number-input";
 import { type Me, getMe } from "../../lib/api/account";
 import type { Provider } from "../../lib/api/providers";
 import { updateContactPhone } from "../../lib/auth/client";
@@ -56,6 +55,8 @@ import {
   lastBookableDay,
 } from "../../lib/booking/window";
 import { salonDayKey, salonFormatter } from "../../lib/time";
+import { useFieldErrors } from "../../lib/forms/useFieldErrors";
+import { PHONE_INVALID, normalizePhone, phoneFieldError } from "../../lib/phone";
 import { Button } from "../Button";
 import { SalonTimeHint } from "../SalonTimeHint";
 import { SlotsEmpty } from "./SlotsEmpty";
@@ -64,6 +65,13 @@ import { OpenInAppButton } from "../OpenInAppButton";
 import { PhoneField } from "../PhoneField";
 import { TextField } from "../TextField";
 import { DepositProof } from "./DepositProof";
+
+/// The contact phone's check — required (decision 2026-07-02), the shared rule
+/// (docs/design/phone-national-length.md). A module constant: useFieldErrors
+/// keys its callbacks on this object's identity.
+const CONTACT_PHONE_CHECK = {
+  phone: (v: string) => phoneFieldError(v, { required: true }),
+};
 
 const slotTime = (iso: string, tz?: string) =>
   salonFormatter({ hour: "2-digit", minute: "2-digit" }, tz).format(
@@ -154,6 +162,11 @@ export function BookingFlow({
   // contact phone. undefined = probing the session; null = signed out.
   const [me, setMe] = useState<Me | null | undefined>(undefined);
   const [phone, setPhone] = useState("");
+  // Its fault answers UNDER the field, on submit (§14 rules 1/2/5 —
+  // docs/design/phone-leftovers.md §4); « Confirmer la réservation » used to
+  // grey out on bare `isPossiblePhoneNumber`, with no word — a prefilled
+  // number stored before the rule was a dead end.
+  const contact = useFieldErrors(CONTACT_PHONE_CHECK);
   // Parity 2.10 — the app's « Notes (optionnel) » on the confirm step.
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
@@ -343,13 +356,20 @@ export function BookingFlow({
   }
 
   async function confirm() {
+    if (!contact.validate({ phone })) return;
+    // What is checked is what crosses.
+    const contactPhone = normalizePhone(phone);
     setBusy(true);
     setError(null);
     // Contact phone is REQUIRED (decision 2026-07-02); persist it when changed.
-    if (phone !== (me?.phoneNumber ?? "")) {
-      const saved = await updateContactPhone(phone);
+    if (contactPhone !== (me?.phoneNumber ?? "")) {
+      const saved = await updateContactPhone(contactPhone);
       if (!saved.ok) {
         setBusy(false);
+        // The server's own verdict on the number belongs to the field too.
+        if (saved.error === "invalid_phone") {
+          return contact.set("phone", PHONE_INVALID);
+        }
         return setError("Numéro invalide. Vérifiez et réessayez.");
       }
     }
@@ -479,9 +499,16 @@ export function BookingFlow({
             <p className="text-bodyMedium text-textSecondary">
               Numéro pour que le salon vous contacte :
             </p>
+            {/* initialValue is the CURRENT number, not the stored one: the
+                field remounts after « Retour », and must show what will be
+                checked and sent (the probe sets both at once on first open). */}
             <PhoneField
-              onChange={setPhone}
-              initialValue={me.phoneNumber ?? undefined}
+              onChange={(v) => {
+                setPhone(v);
+                contact.revalidate("phone", v);
+              }}
+              initialValue={phone || undefined}
+              error={contact.errors.phone}
             />
             <TextField
               className="mt-s"
@@ -493,10 +520,7 @@ export function BookingFlow({
               onChange={(e) => setNotes(e.target.value)}
               hint="Précisions pour le salon (allergies, préférences…)"
             />
-            <Button
-              disabled={busy || !phone || !isPossiblePhoneNumber(phone)}
-              onClick={confirm}
-            >
+            <Button disabled={busy} onClick={confirm}>
               Confirmer la réservation
             </Button>
           </div>

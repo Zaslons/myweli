@@ -439,6 +439,7 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
           providerId={providerId}
           profile={profile}
           initialClient={{
+            id: clientId,
             name: card.displayName,
             phone: card.phone ?? undefined,
           }}
