@@ -1125,14 +1125,32 @@ void main() {
         reason: 'the history is read again — it follows the number',
       );
       expect(
-        find.text('Aucune visite enregistrée.'),
-        findsNothing,
-        reason: 'and the visit is still there, under the new number',
-      );
-      expect(
         find.widgetWithText(SnackBar, 'Numéro mis à jour'),
         findsOneWidget,
       );
+      // The count and the visit followed the number. (The history is below
+      // the fold: unscrolled, « Aucune visite » is simply not built, and an
+      // absence proves nothing — a mutation that left the visits behind
+      // passed that way.)
+      final visitsTile = find
+          .ancestor(of: find.text('Visites'), matching: find.byType(Column))
+          .first;
+      expect(
+        tester
+            .widgetList<Text>(
+              find.descendant(of: visitsTile, matching: find.byType(Text)),
+            )
+            .first
+            .data,
+        '1',
+      );
+      await tester.scrollUntilVisible(
+        find.text('Historique des visites'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.text('Historique des visites'), findsOneWidget);
+      expect(find.text('Aucune visite enregistrée.'), findsNothing);
     });
 
     testWidgets('a number already on another card: said under the field with '
