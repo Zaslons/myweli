@@ -4,6 +4,7 @@ import 'react-phone-number-input/style.css';
 import { useId, useState } from 'react';
 import PhoneInput from 'react-phone-number-input';
 import fr from 'react-phone-number-input/locale/fr.json';
+import { PHONE_MARKETS } from '../lib/phone';
 
 /// Phone entry with a country picker — the React parity of the mobile
 /// `PhoneNumberField`. Defaults to Côte d'Ivoire (🇨🇮 +225) but any country can
@@ -61,7 +62,8 @@ export function PhoneField({
       </label>
       <PhoneInput
         international
-        defaultCountry="CI"
+        // The home market (lib/phone.ts) — one home for the fact.
+        defaultCountry={PHONE_MARKETS[0]}
         // **Ours, not GitHub's.** The library defaults `flagUrl` to
         // `https://purecatamphetamine.github.io/country-flag-icons/3x2/{XX}.svg`,
         // so simply opening a page with a phone field disclosed the visitor's

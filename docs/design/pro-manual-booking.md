@@ -53,7 +53,7 @@ None. Reuses `appointments` (`user_id` is `text NOT NULL`, **no FK** — so the 
 
 ## 6. Security & authz
 - Deny by default; provider token + ownership (403 cross-salon/unlinked). The salon may only create bookings for **its own** Provider.
-- **Server authority:** price/total/deposit/status/id/userId are server-set; client values ignored. Validate: `serviceIds` non-empty + each exists & active; `appointmentDateTime` parseable; `clientPhone` (if provided) E.164 (`isValidE164`) → else 400. `clientName`/`notes` trimmed; empty → null.
+- **Server authority:** price/total/deposit/status/id/userId are server-set; client values ignored. Validate: `serviceIds` non-empty + each exists & active; `appointmentDateTime` parseable; `clientPhone` (if provided) E.164 with the national-length rule (`isValidPhoneNumber` — +225 → exactly 10 digits, [phone-national-length.md](phone-national-length.md)) → else 400. `clientName`/`notes` trimmed; empty → null.
 - No new secrets; nothing sensitive logged (a walk-in phone is PII — not logged).
 - **Threat model:** extend **T5** — manual booking is a provider write scoped to its own salon (ownership 403).
 

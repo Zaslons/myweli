@@ -5,26 +5,97 @@ import 'package:myweli/core/utils/validators.dart';
 /// only `phoneNumber` was covered — and it was the static with **zero callers**,
 /// while the rules the screens actually ran carried divergent inline copies.
 void main() {
-  group('Validators.phoneNumber (E.164)', () {
+  /// docs/design/phone-national-length.md §2.1 — one rule, three surfaces.
+  /// Seen on the simulator on 2026-10-15: the sign-in phone step saved
+  /// `+2250700000`, 7 digits after +225, because the only check was the
+  /// generic E.164 one (`+` then 8–15 digits).
+  group('Validators.phoneNumber — a +225 number has exactly 10 digits', () {
+    const tenDigits = 'Le numéro doit comporter 10 chiffres après +225.';
+
     test('accepts a current Côte d’Ivoire 10-digit number', () {
       // The old validator wrongly rejected this (it required 8 digits).
       expect(Validators.phoneNumber('+2250712345678'), isNull);
     });
 
-    test('accepts a foreign number (e.g. France)', () {
-      expect(Validators.phoneNumber('+33612345678'), isNull);
+    test('7, 9, 11, 12 and 4 national digits each say what to do', () {
+      // 7 — the number the simulator saved.
+      expect(Validators.phoneNumber('+2250700000'), tenDigits);
+      // 9 and 11 — the boundaries: one short, one over. A ±1 tolerance in
+      // the rule would pass every other vector here.
+      expect(Validators.phoneNumber('+225070712345'), tenDigits);
+      expect(Validators.phoneNumber('+22507071234567'), tenDigits);
+      // 12 — the generic rule had no CI upper bound either.
+      expect(Validators.phoneNumber('+225070000000011'), tenDigits);
+      // 4 — short enough that the generic rule would have said « valide »:
+      // the +225 rule runs first, so the message is the precise one.
+      expect(Validators.phoneNumber('+2250700'), tenDigits);
     });
 
-    test('rejects empty', () {
-      expect(Validators.phoneNumber(''), isNotNull);
+    test('separators are stripped before counting — what is checked is what '
+        'is sent', () {
+      expect(Validators.phoneNumber('+225 07 07 12 34 56'), isNull);
+      expect(Validators.phoneNumber('+225-07.07(12)34 56'), isNull);
+    });
+
+    test('empty, or the calling code alone, is EMPTY — not « invalide »', () {
+      // A cleared PhoneNumberField used to emit `+225`, which read as
+      // « Saisissez un numéro de téléphone valide. » on a field holding nothing.
+      expect(Validators.phoneNumber(''), 'Saisissez un numéro de téléphone.');
+      expect(
+        Validators.phoneNumber('+225'),
+        'Saisissez un numéro de téléphone.',
+      );
+      expect(
+        Validators.phoneNumber(' + 225 '),
+        'Saisissez un numéro de téléphone.',
+      );
+    });
+
+    test('any other calling code keeps the generic E.164 rule', () {
+      expect(Validators.phoneNumber('+33612345678'), isNull);
+      expect(
+        Validators.phoneNumber('+12345'),
+        'Saisissez un numéro de téléphone valide.',
+      );
     });
 
     test('rejects a number without the + country code', () {
-      expect(Validators.phoneNumber('0712345678'), isNotNull);
+      expect(
+        Validators.phoneNumber('0712345678'),
+        'Saisissez un numéro de téléphone valide.',
+      );
+    });
+  });
+
+  /// The optional twin — WhatsApp, the consumer profile, a Mobile Money number
+  /// on a salon that takes no deposit. Three screens hand-rolled it as
+  /// `value.trim().isEmpty ? null : phoneNumber(value)`, and a cleared field's
+  /// `+225` was not "empty" to that test, so an optional phone could not be
+  /// cleared.
+  group('Validators.optionalPhoneNumber — empty passes, typed is judged', () {
+    test('empty and the lone calling code pass', () {
+      expect(Validators.optionalPhoneNumber(''), isNull);
+      expect(Validators.optionalPhoneNumber(null), isNull);
+      expect(Validators.optionalPhoneNumber('+225'), isNull);
     });
 
-    test('rejects a too-short number', () {
-      expect(Validators.phoneNumber('+12345'), isNotNull);
+    test('anything typed meets the same rule as the required field', () {
+      expect(
+        Validators.optionalPhoneNumber('+2250700000'),
+        'Le numéro doit comporter 10 chiffres après +225.',
+      );
+      expect(Validators.optionalPhoneNumber('+2250707123456'), isNull);
+      for (final boundary in ['+225070712345', '+22507071234567']) {
+        expect(
+          Validators.optionalPhoneNumber(boundary),
+          'Le numéro doit comporter 10 chiffres après +225.',
+          reason: '9 and 11 digits — the boundaries',
+        );
+      }
+      expect(
+        Validators.optionalPhoneNumber('abc'),
+        'Saisissez un numéro de téléphone valide.',
+      );
     });
   });
 
@@ -79,28 +150,6 @@ void main() {
     test('the message is the one the golden baseline photographs', () {
       // components_inputs_golden_test.dart:82 — the spec image for row 19.
       expect(Validators.otp('1'), 'Le code doit comporter 6 chiffres.');
-    });
-  });
-
-  group('Validators.localPhoneNumber — what the Mobile Money field takes', () {
-    test('ten digits, however they are spaced', () {
-      // deposit_settings_screen.dart:321 had NO validation at all — the field
-      // that decides where a salon's deposits land.
-      expect(Validators.localPhoneNumber('07 07 12 34 56'), isNull);
-      expect(Validators.localPhoneNumber('0707123456'), isNull);
-    });
-
-    test('nine or eleven digits fail', () {
-      expect(
-        Validators.localPhoneNumber('070712345'),
-        isNotNull,
-        reason: 'CI moved to 10 digits in 2021',
-      );
-      expect(Validators.localPhoneNumber('07071234567'), isNotNull);
-      expect(
-        Validators.localPhoneNumber(''),
-        'Saisissez un numéro de téléphone.',
-      );
     });
   });
 

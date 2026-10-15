@@ -60,7 +60,7 @@ Future<Response> _create(
   final name = (body['name'] as String?)?.trim() ?? '';
   final phone = (body['phone'] as String?)?.trim() ?? '';
   if (name.isEmpty) return jsonError(HttpStatus.badRequest, 'invalid_input');
-  if (!isValidE164(phone)) {
+  if (!isValidPhoneNumber(phone)) {
     return jsonError(HttpStatus.badRequest, 'invalid_phone');
   }
 

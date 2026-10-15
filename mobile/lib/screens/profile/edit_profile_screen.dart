@@ -8,6 +8,7 @@ import '../../core/forms/field_errors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
+import '../../core/utils/phone_numbering.dart';
 import '../../core/utils/validators.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/common/app_button.dart';
@@ -34,18 +35,24 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     // Optional, as it always was here — A7's first pass made it required by
     // accident, which would have blocked a consumer with no number on file
     // from saving an unrelated edit.
-    'phone': _optionalPhone,
+    'phone': Validators.optionalPhoneNumber,
   });
-  static String? _optionalPhone(String value) =>
-      value.trim().isEmpty ? null : Validators.phoneNumber(value);
 
   final _nameFocus = FocusNode();
   final _emailFocus = FocusNode();
-  late final _focusNodes = {'name': _nameFocus, 'email': _emailFocus};
+  final _phoneFocus = FocusNode();
+  late final _focusNodes = {
+    'name': _nameFocus,
+    'email': _emailFocus,
+    'phone': _phoneFocus,
+  };
 
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
-  // Contact phone (auth overhaul: unverified contact data, not the login).
+  // Contact phone (auth overhaul: unverified contact data, not the login),
+  // normalized: '' once cleared — which `PATCH /me` reads as « clear it ».
+  // The field used to emit `+225` for a cleared number, so it could not be
+  // cleared at all (phone-national-length.md §2.3).
   String _phone = '';
   bool _prefilled = false;
 
@@ -57,7 +64,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       _prefilled = true;
       _nameController.text = user.name ?? '';
       _emailController.text = user.email ?? '';
-      _phone = user.phoneNumber ?? '';
+      _phone = PhoneNumbering.normalize(user.phoneNumber ?? '');
     }
   }
 
@@ -67,6 +74,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _emailController.dispose();
     _nameFocus.dispose();
     _emailFocus.dispose();
+    _phoneFocus.dispose();
     super.dispose();
   }
 
@@ -120,6 +128,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     if (success) {
       context.pop();
       AppSnackBar.show(context, 'Profil mis à jour', kind: SnackKind.success);
+    } else if (authProvider.updateErrorCode == 'invalid_phone') {
+      // The server's verdict on the NUMBER is the field's fault (§14 rules 1
+      // and 3) — it used to be a bar reading « Numéro ou code invalide. », on
+      // a screen with no code.
+      setState(
+        () => _errors.set('phone', 'Saisissez un numéro de téléphone valide.'),
+      );
+      focusFirstError(_errors, _focusNodes);
     } else {
       AppSnackBar.show(
         context,
@@ -256,7 +272,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 // Contact phone — editable since the auth overhaul (the
                 // salon uses it to reach the client; verified later via SMS).
                 PhoneNumberField(
-                  initialValue: user.phoneNumber,
+                  initialValue: _phone,
+                  focusNode: _phoneFocus,
                   errorText: _errors['phone'],
                   onChanged: (e164) {
                     _phone = e164;

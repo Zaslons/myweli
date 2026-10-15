@@ -1,6 +1,6 @@
 /// Pure helpers for the pro Profil edit form. Unit-tested.
 
-const E164 = /^\+[1-9]\d{7,14}$/; // mirrors backend isValidE164
+import { normalizePhone, phoneFieldError } from '../phone';
 
 export const PROFILE_CATEGORIES = [
   { key: 'salon', label: 'Salon de coiffure' },
@@ -67,16 +67,21 @@ export function profileToForm(p?: ProviderProfile): ProfileForm {
   };
 }
 
+/// The form-level faults. The two phone numbers are not here: their faults
+/// render UNDER their fields (§14 rule 1) — see [profilePhoneChecks].
 export function validateProfile(f: ProfileForm): string | null {
   if (!f.name.trim()) return 'Le nom est requis.';
-  if (!E164.test(f.phoneNumber.trim())) {
-    return 'Téléphone invalide (format international, ex. +2250700000000).';
-  }
-  if (f.whatsapp.trim() && !E164.test(f.whatsapp.trim())) {
-    return 'WhatsApp invalide (format international).';
-  }
   return null;
 }
+
+/// The phone fields' checks, for `useFieldErrors` in ProfilClient — the
+/// shared rule (docs/design/phone-national-length.md): « Téléphone » is
+/// required, « WhatsApp » optional, and a market's number has its national
+/// length.
+export const profilePhoneChecks = {
+  phoneNumber: (v: string) => phoneFieldError(v, { required: true }),
+  whatsapp: (v: string) => phoneFieldError(v, { required: false }),
+};
 
 /// Allowlisted editable fields; empty optionals → null. The pin rides along
 /// only once placed (the backend requires the pair). An areaId REPLACES the
@@ -93,8 +98,9 @@ export function buildProfilePayload(f: ProfileForm): Record<string, unknown> {
           commune: f.commune.trim() || null,
           city: f.city.trim() || null,
         }),
-    phoneNumber: f.phoneNumber.trim(),
-    whatsapp: f.whatsapp.trim() || null,
+    // Sent as checked: separators stripped, a lone calling code is empty.
+    phoneNumber: normalizePhone(f.phoneNumber),
+    whatsapp: normalizePhone(f.whatsapp) || null,
     category: f.category,
     ...(f.latitude != null && f.longitude != null
       ? { latitude: f.latitude, longitude: f.longitude }

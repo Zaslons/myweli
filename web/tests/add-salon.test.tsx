@@ -144,6 +144,102 @@ describe('AddSalonClient', () => {
     expect(select?.body).toEqual({ salonId: 'p4' });
   });
 
+  it('a server invalid_phone answers UNDER « Téléphone du salon », not « Réessayez »', async () => {
+    // POST /me/salons gained its 400 invalid_phone on this branch
+    // (docs/design/phone-national-length.md §2.4). Defence in depth: the
+    // client rule matches the server's, so only drift or a bypass reaches it —
+    // and then the fault is the field's (§14 rule 1), never a retry that
+    // cannot succeed.
+    mockFetch({ addStatus: 400, addBody: { error: 'invalid_phone' } });
+    render(<AddSalonClient />);
+    await screen.findByText('Ajouter un salon');
+    const phone = await waitFor(() => {
+      const el = screen.getByLabelText('Téléphone du salon') as HTMLInputElement;
+      expect(el).not.toBeDisabled();
+      return el;
+    });
+
+    fireEvent.change(screen.getByPlaceholderText('Ex : Salon Excellence Yopougon'), {
+      target: { value: 'Salon Trois' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Créer le salon' }));
+
+    const fault = await screen.findByText('Saisissez un numéro de téléphone valide.');
+    expect(phone).toHaveAttribute('aria-invalid', 'true');
+    expect(phone.getAttribute('aria-describedby')).toContain(fault.id);
+    expect(screen.queryByText('Une erreur est survenue. Réessayez.')).toBeNull();
+    expect(replace).not.toHaveBeenCalled();
+  });
+
+  it('the account phone prefill is what the field SHOWS — and what is sent', async () => {
+    // PhoneField reads `initialValue` once, at mount; the account phone
+    // arrives later. The field used to show a bare « +225 » while the submit
+    // carried the account number — a value the owner never saw.
+    const calls = mockFetch({
+      addStatus: 201,
+      addBody: {
+        salon: {
+          salonId: 'p4',
+          salonName: 'Salon Trois',
+          role: 'owner',
+          salonStatus: 'draft',
+          verified: true,
+        },
+      },
+    });
+    render(<AddSalonClient />);
+    await waitFor(() =>
+      expect(
+        (screen.getByLabelText('Téléphone du salon') as HTMLInputElement).value.replace(
+          /\D/g,
+          '',
+        ),
+      ).toBe('2250700000000'),
+    );
+
+    fireEvent.change(screen.getByPlaceholderText('Ex : Salon Excellence Yopougon'), {
+      target: { value: 'Salon Trois' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Créer le salon' }));
+
+    await waitFor(() => expect(replace).toHaveBeenCalledWith('/pro'));
+    const add = calls.find(
+      (c) => c.url === '/api/pro/salons' && c.body !== undefined,
+    );
+    expect(add?.body).toMatchObject({ phoneNumber: '+2250700000000' });
+  });
+
+  it('a short prefilled account phone is flagged under the field that SHOWS it', async () => {
+    // docs/design/phone-national-length.md §1.5: no such number is stored
+    // today, but one would be named — not hidden behind an empty-looking field.
+    ME.account.phoneNumber = '+2250700000';
+    try {
+      const calls = mockFetch({ addStatus: 201, addBody: {} });
+      render(<AddSalonClient />);
+      await waitFor(() =>
+        expect(
+          (screen.getByLabelText('Téléphone du salon') as HTMLInputElement).value.replace(
+            /\D/g,
+            '',
+          ),
+        ).toBe('2250700000'),
+      );
+      fireEvent.change(screen.getByPlaceholderText('Ex : Salon Excellence Yopougon'), {
+        target: { value: 'Salon Trois' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: 'Créer le salon' }));
+
+      await screen.findByText('Le numéro doit comporter 10 chiffres après +225.');
+      expect(screen.getByLabelText('Téléphone du salon')).toHaveAttribute(
+        'aria-invalid',
+        'true',
+      );
+      expect(calls.some((c) => c.url === '/api/pro/salons' && c.body)).toBe(false);
+    } finally {
+      ME.account.phoneNumber = '+2250700000000';
+    }
+  });
+
   it('a picked area rides the create as areaId (multi-pays MP3)', async () => {
     const calls = mockFetch({
       addStatus: 201,

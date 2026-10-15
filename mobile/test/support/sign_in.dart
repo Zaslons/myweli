@@ -70,7 +70,11 @@ Future<ProAuthProvider> signInPro(
 /// (`mock_data.dart:571-600`) — so « À venir » AND « Passés » both render rows.
 /// `user2` has one completed booking and nothing upcoming, which would leave a
 /// screen test measuring an `EmptyState` and calling it "my bookings".
-const kConsumerPhone = '+225 07 12 34 56';
+///
+/// Canonical — `+225` then 10 digits, no separator — like every number the
+/// app now takes (phone-national-length.md); it was the pre-2021 8-digit
+/// `+225 07 12 34 56`, which no field would accept today.
+const kConsumerPhone = '+2250707123456';
 
 /// Signing a consumer in, before a screen mounts (A11).
 ///

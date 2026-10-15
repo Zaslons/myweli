@@ -3,9 +3,9 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
-import { isPossiblePhoneNumber } from 'react-phone-number-input';
 import { registerPro, requestEmailOtpPro } from '../../lib/api/pro';
 import { useFieldErrors } from '../../lib/forms/useFieldErrors';
+import { normalizePhone, phoneFieldError } from '../../lib/phone';
 import { Button } from '../Button';
 import { PhoneField } from '../PhoneField';
 import { TextField } from '../TextField';
@@ -52,10 +52,11 @@ export function ProRegisterClient() {
   const fields = useFieldErrors({
     businessName: (v: string) =>
       v.trim().length > 0 ? null : 'Saisissez le nom de l’entreprise.',
-    phone: (v: string) =>
-      v && isPossiblePhoneNumber(v)
-        ? null
-        : 'Saisissez le numéro de téléphone du salon.',
+    // The shared rule and its sentences (docs/design/phone-national-length.md):
+    // « Saisissez un numéro… » when empty, « Le numéro doit comporter N
+    // chiffres… » when short — the old single sentence asked for a number the
+    // owner had already typed.
+    phone: (v: string) => phoneFieldError(v, { required: true }),
     email: (v: string) =>
       /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v)
         ? null
@@ -80,7 +81,7 @@ export function ProRegisterClient() {
     const r = await registerPro(identity, {
       businessName: businessName.trim(),
       businessType,
-      phoneNumber: phone!,
+      phoneNumber: normalizePhone(phone),
       address: address.trim() || undefined,
       areaId: areaId ?? undefined,
     });

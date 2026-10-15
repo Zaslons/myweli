@@ -356,8 +356,10 @@ paths:
                 phone:
                   type: string
                   description: >
-                    Contact phone (E.164). Empty string clears it. Setting a
-                    new value resets phoneVerified (verified later via SMS).
+                    Contact phone (E.164, no separators; a +225 number has
+                    exactly 10 digits after the code — anything else → 400
+                    `invalid_phone`). Empty string clears it. Setting a new
+                    value resets phoneVerified (verified later via SMS).
       responses:
         '200':
           description: The updated user
@@ -989,7 +991,8 @@ paths:
         is still live then, else on Pro) plus the owner membership row; the
         account's default salon link is untouched. The « Vérifié » badge is
         inherited when the account's KYC is approved (T52). `phoneNumber`
-        defaults to the account's.
+        defaults to the account's (copied as is, not re-validated); a sent one
+        must be a valid number → else 400 `invalid_phone`.
       security: [{ bearerAuth: [] }]
       requestBody:
         required: true
@@ -1003,7 +1006,12 @@ paths:
                 businessType:
                   type: string
                   enum: [salon, barber, spa, nailSalon, massage, other]
-                phoneNumber: { type: string }
+                phoneNumber:
+                  type: string
+                  description: >-
+                    E.164, no separators; a +225 number has exactly 10 digits
+                    after the code. Optional — absent or blank → the
+                    account's phone.
                 address: { type: string }
                 areaId:
                   type: string
@@ -1021,7 +1029,16 @@ paths:
                 required: [salon]
                 properties:
                   salon: { $ref: '#/components/schemas/SalonMembership' }
-        '400': { $ref: '#/components/responses/BadRequest' }
+        '400':
+          description: >
+            `invalid_body`, `invalid_input` (blank or too-long
+            `businessName`, unknown `businessType`), `invalid_area` (unknown
+            `areaId`), or `invalid_phone` (a sent `phoneNumber` that is not
+            a string, not E.164, or a +225 number without exactly 10 digits
+            after the code). Nothing is created.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403':
           description: >-
@@ -1172,7 +1189,12 @@ paths:
                 businessType:
                   type: string
                   enum: [salon, barber, spa, nailSalon, massage, other]
-                phoneNumber: { type: string, description: E.164 — required salon contact. }
+                phoneNumber:
+                  type: string
+                  description: >-
+                    E.164 — required salon contact. No separators; a +225
+                    number has exactly 10 digits after the code (else 400
+                    `invalid_input`).
                 address: { type: string }
                 areaId:
                   type: string
@@ -1557,7 +1579,9 @@ paths:
         Provider role + ownership (account.providerId == {id} → else 403). Only
         the editable public fields below are accepted; protected fields (slug,
         rating, reviewCount, status, services, artists, availability, imageUrls)
-        have their own endpoints and are ignored. `phoneNumber`/`whatsapp` E.164.
+        have their own endpoints and are ignored. `phoneNumber`/`whatsapp` E.164
+        (no separators; a +225 number has exactly 10 digits after the code —
+        else 400 `invalid_input`).
       security: [{ bearerAuth: [] }]
       parameters:
         - { in: path, name: id, required: true, schema: { type: string } }
@@ -1573,8 +1597,15 @@ paths:
                 address: { type: string }
                 city: { type: string, nullable: true }
                 commune: { type: string, nullable: true }
-                phoneNumber: { type: string, description: E.164. }
-                whatsapp: { type: string, nullable: true, description: E.164. }
+                phoneNumber:
+                  type: string
+                  description: E.164; a +225 number has exactly 10 digits after the code.
+                whatsapp:
+                  type: string
+                  nullable: true
+                  description: >-
+                    E.164; a +225 number has exactly 10 digits after the code.
+                    Empty string or null clears it.
                 latitude:
                   type: number
                   description: Map pin (pro-salon-lifecycle L1); PAIRED with longitude, −90..90.
@@ -2062,8 +2093,10 @@ paths:
         403 `verification_required` otherwise.
         Validated: `depositPercentage` 0..1 (and > 0 when required);
         `cancellationWindowHours` 0..720; `mobileMoneyOperator` in the enum;
-        `mobileMoneyNumber` E.164. **When `depositRequired` is true, the Mobile
-        Money operator + number are required.**
+        `mobileMoneyNumber` E.164 (a +225 number has exactly 10 digits after
+        the code; checked whenever present, deposits on or off). **When
+        `depositRequired` is true, the Mobile Money operator + number are
+        required.**
       security: [{ bearerAuth: [] }]
       requestBody:
         required: true
@@ -2228,7 +2261,12 @@ paths:
                 appointmentDateTime: { type: string, format: date-time }
                 artistId: { type: string }
                 clientName: { type: string }
-                clientPhone: { type: string, description: E.164 if provided. }
+                clientPhone:
+                  type: string
+                  description: >-
+                    E.164 if provided (no separators; a +225 number has
+                    exactly 10 digits after the code — else 400
+                    `invalid_phone`).
                 notes: { type: string }
                 sendSmsInvite: { type: boolean }
       responses:
@@ -2353,7 +2391,11 @@ paths:
               required: [name, phone]
               properties:
                 name: { type: string }
-                phone: { type: string, description: E.164 }
+                phone:
+                  type: string
+                  description: >-
+                    E.164, no separators; a +225 number has exactly 10 digits
+                    after the code (else 400 `invalid_phone`).
                 note: { type: string, description: Optional first note (≤500). }
       responses:
         '201':
@@ -4031,14 +4073,21 @@ components:
       properties:
         phoneNumber:
           type: string
-          description: E.164, defaulting to +225 (Côte d'Ivoire).
+          description: >-
+            E.164, defaulting to +225 (Côte d'Ivoire); no separators, and a
+            +225 number has exactly 10 digits after the code.
           example: '+2250707123456'
 
     OtpVerify:
       type: object
       required: [phoneNumber, code]
       properties:
-        phoneNumber: { type: string, example: '+2250707123456' }
+        phoneNumber:
+          type: string
+          description: >-
+            E.164, no separators; a +225 number has exactly 10 digits after
+            the code.
+          example: '+2250707123456'
         code: { type: string, example: '123456' }
 
     TokenPair:
@@ -4746,7 +4795,9 @@ components:
         mobileMoneyNumber:
           type: string
           nullable: true
-          description: E.164. Required (with operator) when depositRequired.
+          description: >-
+            E.164; a +225 number has exactly 10 digits after the code.
+            Required (with operator) when depositRequired.
 
     Gallery:
       type: object

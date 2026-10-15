@@ -347,7 +347,8 @@ Future<({String salonId, String accountId, String access})> registerSalon(
       'businessName': 'Smoke $label $nonce',
       'businessType': 'salon',
       // Digits, never [nonce] — that is base36 and produced `+22507hl18e6la`,
-      // which `isValidE164` rejects (`validators.dart:7`). The first two runs
+      // which `isValidPhoneNumber` rejects (`validators.dart`) — and exactly
+      // 10 after +225 ([phoneNonce]), the CI length. The first two runs
       // of this harness died on it, behind a cascade of 33
       // `LateInitializationError`s: one real failure, thirty-three symptoms.
       'phoneNumber': label == 'main'

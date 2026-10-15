@@ -21,6 +21,7 @@ class AuthProvider extends ChangeNotifier {
   double _avatarProgress = 0;
   String? _error;
   String? _otpErrorCode;
+  String? _updateErrorCode;
 
   User? get user => _user;
   bool get isLoading => _isLoading;
@@ -31,6 +32,11 @@ class AuthProvider extends ChangeNotifier {
   /// Machine-readable code for the last OTP failure (e.g. `otp_locked`,
   /// `otp_expired`), so the OTP screen can render the right state.
   String? get otpErrorCode => _otpErrorCode;
+
+  /// Machine-readable code for the last failed [updateUser] (e.g.
+  /// `invalid_phone`), so a form can put a field's fault under the field
+  /// (SYSTEM.md §14 rule 1) rather than in the form-level slot.
+  String? get updateErrorCode => _updateErrorCode;
   bool get isAuthenticated => _user != null;
 
   AuthProvider() {
@@ -266,6 +272,7 @@ class AuthProvider extends ChangeNotifier {
   }) async {
     _isLoading = true;
     _error = null;
+    _updateErrorCode = null;
     notifyListeners();
 
     try {
@@ -281,6 +288,7 @@ class AuthProvider extends ChangeNotifier {
         return true;
       } else {
         _error = response.error ?? 'Erreur lors de la mise à jour';
+        _updateErrorCode = response.code;
         return false;
       }
     } catch (e) {
