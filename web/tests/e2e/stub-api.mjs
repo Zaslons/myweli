@@ -404,6 +404,19 @@ const salonClients = [
 const clientNotes = { sc1: [], sc2: [] };
 let clientSeq = 3;
 
+// A card's tag set as the backend keeps it (ClientsService._cleanTags):
+// trimmed, de-duplicated; null when one is empty or longer than 24, or when
+// there are more than 10.
+function cleanClientTags(tags) {
+  const cleaned = [];
+  for (const raw of tags) {
+    const t = raw.trim();
+    if (t.length === 0 || t.length > 24) return null;
+    if (!cleaned.includes(t)) cleaned.push(t);
+  }
+  return cleaned.length > 10 ? null : cleaned;
+}
+
 // The salon's MANUAL appointments that carry a number — what a guest card's
 // history is made of (the backend's `_visitsOf`: `userId == 'manual'` and
 // `clientPhone` = the card's). Filled by the manual-booking POST; re-keyed by
@@ -423,6 +436,8 @@ function isValidPhoneNumber(value) {
   }
   return true;
 }
+// The salon kinds the backend registers (SalonProvisioningService.businessTypes).
+const BUSINESS_TYPES = new Set(['salon', 'barber', 'spa', 'nailSalon', 'massage', 'other']);
 const isPro = (req) => (req.headers.authorization || '').includes('pro');
 
 // --- team access R5b: per-role sessions -----------------------------------
@@ -715,6 +730,25 @@ function readBody(req) {
   });
 }
 
+/// The body as the backend's routes read it: a JSON OBJECT, else `null` (the
+/// route's 400 `invalid_body`) — where `readBody` would read nothing as `{}`.
+function readJsonObject(req) {
+  return new Promise((resolve) => {
+    let data = '';
+    req.on('data', (c) => {
+      data += c;
+    });
+    req.on('end', () => {
+      try {
+        const v = JSON.parse(data);
+        resolve(v !== null && typeof v === 'object' && !Array.isArray(v) ? v : null);
+      } catch {
+        resolve(null);
+      }
+    });
+  });
+}
+
 createServer(async (req, res) => {
   const url = new URL(req.url, `http://localhost:${port}`);
   if (url.pathname === '/sitemap/providers') {
@@ -878,7 +912,25 @@ createServer(async (req, res) => {
   }
   if (url.pathname === '/auth/provider/register') {
     const b = await readBody(req);
-    if (!b.businessName || !b.phoneNumber || (!b.idToken && !(b.email && b.code))) {
+    // The backend's order (routes/auth/provider/register.dart): the business
+    // name and type → `invalid_input`; then the contact number, missing or
+    // refused by the shared rule → `invalid_phone` (its own code, so the fault
+    // sits under its field — docs/design/phone-leftovers.md §2); then the
+    // identity proof → `invalid_input`. Pinned against the running stub by
+    // tests/stub-client-patch.test.ts.
+    const businessName =
+      typeof b.businessName === 'string' ? b.businessName.trim() : '';
+    if (
+      !businessName ||
+      [...businessName].length > 120 ||
+      !BUSINESS_TYPES.has(b.businessType)
+    ) {
+      return json(res, 400, { error: 'invalid_input' });
+    }
+    if (!isValidPhoneNumber(typeof b.phoneNumber === 'string' ? b.phoneNumber : '')) {
+      return json(res, 400, { error: 'invalid_phone' });
+    }
+    if (!b.idToken && !(b.email && b.code)) {
       return json(res, 400, { error: 'invalid_input' });
     }
     if (b.email === 'existe@salon.test') {
@@ -1079,7 +1131,6 @@ createServer(async (req, res) => {
   );
   if (clientCard) {
     const c = salonClients.find((x) => x.id === clientCard[2]);
-    if (!c) return json(res, 404, { error: 'not_found' });
     const cardOf = (x) => ({
       ...x,
       // The backend's `phoneEditable` (docs/design/phone-leftovers.md §11):
@@ -1095,21 +1146,54 @@ createServer(async (req, res) => {
       notes: clientNotes[x.id] || [],
     });
     if (req.method === 'PATCH') {
-      // `{ tags?, phone? }`, at least one (docs/design/phone-leftovers.md §8)
-      // — the backend's order of refusals, and nothing changes on a refusal.
+      // `{ tags?, phone? }`, at least one (docs/design/phone-leftovers.md §8).
+      // The backend's refusals in the backend's order — the route
+      // (routes/providers/[id]/clients/[clientId]/index.dart), then
+      // `ClientsService.updateClient` — and nothing changes on a refusal.
+      // Pinned against the running stub by tests/stub-client-patch.test.ts.
+      const b = await readJsonObject(req);
+      // 1. Not a JSON object, or a field of the wrong JSON type: the route's
+      //    readers (`optionalList` / `optionalString`) — before any rule.
+      if (
+        b == null ||
+        (b.tags != null && !Array.isArray(b.tags)) ||
+        (b.phone != null && typeof b.phone !== 'string')
+      ) {
+        return json(res, 400, { error: 'invalid_body' });
+      }
+      // 2. Neither field: the route's code for a body without tags, kept.
+      if (b.tags == null && b.phone == null) {
+        return json(res, 400, { error: 'invalid_tags' });
+      }
+      // 3. The capability, before the card is looked up (no 404 to probe with).
       if (!(ROLE_CAPS[roleOf(req)] || []).includes('clients.view')) {
         return json(res, 403, { error: 'forbidden' });
       }
-      const b = await readBody(req);
-      if (b.tags == null && b.phone == null) {
-        return json(res, 400, { error: 'invalid_body' });
+      // 4. A tag set the service would not keep (non-text elements are
+      //    dropped by the route, as `whereType<String>()` does).
+      const tags =
+        b.tags == null
+          ? null
+          : cleanClientTags(b.tags.filter((t) => typeof t === 'string'));
+      if (b.tags != null && tags == null) {
+        return json(res, 400, { error: 'invalid_tags' });
       }
+      // 5. Not this salon's card.
+      if (!c) return json(res, 404, { error: 'not_found' });
       if (b.phone != null) {
+        // 6. A linked card keeps its account's number — whatever was sent.
         if (c.linked) return json(res, 409, { error: 'client_linked' });
-        if (typeof b.phone !== 'string' || !isValidPhoneNumber(b.phone)) {
+        // 7. Neither account nor number: an erased account's card (T48).
+        if (c.phone == null) {
+          return json(res, 409, { error: 'client_anonymized' });
+        }
+        // 8. The shared rule — empty included.
+        const next = b.phone.trim();
+        if (!isValidPhoneNumber(next)) {
           return json(res, 400, { error: 'invalid_phone' });
         }
-        const next = b.phone.trim();
+        // 9. The card's own number is nothing to do; another card's is
+        //    `client_exists` with its id.
         if (next !== c.phone) {
           const other = salonClients.find((x) => x.id !== c.id && x.phone === next);
           if (other) {
@@ -1129,9 +1213,10 @@ createServer(async (req, res) => {
           c.phone = next;
         }
       }
-      if (b.tags != null) c.tags = b.tags;
+      if (tags != null) c.tags = tags;
       return json(res, 200, cardOf(c));
     }
+    if (!c) return json(res, 404, { error: 'not_found' });
     return json(res, 200, cardOf(c));
   }
   const clientVisits = url.pathname.match(
