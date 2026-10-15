@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:dart_frog/dart_frog.dart';
 import 'package:myweli_backend/src/auth/principal.dart';
 import 'package:myweli_backend/src/clients/clients_service.dart';
+import 'package:myweli_backend/src/http/body_fields.dart';
 import 'package:myweli_backend/src/responses.dart';
 
 /// `/providers/{id}/clients/{clientId}` — the client card. `GET` returns the
@@ -33,7 +34,7 @@ Future<Response> onRequest(
       } catch (_) {
         return jsonError(HttpStatus.badRequest, 'invalid_body');
       }
-      final tags = (body['tags'] as List?)?.whereType<String>().toList();
+      final tags = optionalList(body, 'tags')?.whereType<String>().toList();
       if (tags == null) return jsonError(HttpStatus.badRequest, 'invalid_tags');
       final r = await service.updateTags(principal.userId, id, clientId, tags);
       if (!r.ok && r.error == 'invalid_tags') {

@@ -14,6 +14,7 @@ import 'package:test/test.dart';
 import '../../routes/admin/auth/refresh.dart' as admin_refresh;
 import '../../routes/auth/provider/refresh.dart' as provider_refresh;
 import '../../routes/auth/refresh.dart' as consumer_refresh;
+import '../http/observed.dart';
 
 class _MockRequestContext extends Mock implements RequestContext {}
 
@@ -353,6 +354,23 @@ void main() {
             expect(line, isNot(contains(s)));
           }
         }
+      }
+    });
+
+    test('all three: a non-text refreshToken → 400 invalid_body, not 500 '
+        '(docs/design/phone-leftovers.md §3)', () async {
+      for (final (route, path) in <(Handler, String)>[
+        (consumer_refresh.onRequest, '/auth/refresh'),
+        (provider_refresh.onRequest, '/auth/provider/refresh'),
+        (admin_refresh.onRequest, '/admin/auth/refresh'),
+      ]) {
+        // No repository: the body is refused before any is read.
+        final res = await observed(
+          route,
+          ctx(post(path, {'refreshToken': 12345}), Object()),
+        );
+        expect(res.statusCode, HttpStatus.badRequest, reason: path);
+        expect((jsonDecode(await res.body()) as Map)['error'], 'invalid_body');
       }
     });
 

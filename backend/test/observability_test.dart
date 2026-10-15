@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:dart_frog/dart_frog.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:myweli_backend/src/boot_config.dart';
+import 'package:myweli_backend/src/http/body_fields.dart';
 import 'package:myweli_backend/src/observability/error_reporter.dart';
 import 'package:myweli_backend/src/observability/request_middleware.dart';
 import 'package:sentry/sentry.dart';
@@ -283,6 +284,39 @@ void main() {
         expect(res.headers[kRequestIdHeader], 'lb-generated-id-123');
       },
     );
+
+    test('a body field of the wrong JSON type is the CALLER\'s fault: 400 '
+        'invalid_body with the request id, and nothing is reported', () async {
+      // docs/design/phone-leftovers.md §3. `body['x'] as String?` used to
+      // throw a TypeError on `{"x": 5}`, which landed below as a 500 and a
+      // Sentry event — a server alarm for a malformed request.
+      final reporter = _RecordingReporter();
+      final res = await run(
+        (_) => throw const BodyFieldTypeError('phoneNumber'),
+        ctx('/me', method: 'PATCH', incomingId: 'req-42'),
+        reporter: () => reporter,
+      );
+      expect(res.statusCode, HttpStatus.badRequest);
+      expect(jsonDecode(await res.body()), {'error': 'invalid_body'});
+      expect(res.headers[kRequestIdHeader], 'req-42');
+      expect(reporter.reported, isEmpty);
+    });
+
+    test('a plain TypeError is still OURS: 500 internal_error, reported — a '
+        'real bug must not pass for a bad request', () async {
+      final reporter = _RecordingReporter();
+      final res = await run(
+        // A cast of our own data gone wrong — the same exception type the
+        // body readers exist to keep away from client input.
+        (_) => Response(body: <String, Object?>{'x': 5}['x']! as String),
+        ctx('/providers'),
+        reporter: () => reporter,
+      );
+      expect(res.statusCode, HttpStatus.internalServerError);
+      expect(jsonDecode(await res.body()), {'error': 'internal_error'});
+      expect(res.headers[kRequestIdHeader], isNotEmpty);
+      expect(reporter.reported.single.error, isA<TypeError>());
+    });
 
     test('a blank incoming id is treated as absent', () async {
       final res = await run(

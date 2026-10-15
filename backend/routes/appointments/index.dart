@@ -9,6 +9,7 @@ import 'package:myweli_backend/src/appointments/booking_service.dart';
 import 'package:myweli_backend/src/auth/auth_repository.dart';
 import 'package:myweli_backend/src/auth/principal.dart';
 import 'package:myweli_backend/src/clients/clients_service.dart';
+import 'package:myweli_backend/src/http/body_fields.dart';
 import 'package:myweli_backend/src/messaging/salon_notifier.dart';
 import 'package:myweli_backend/src/providers_repository.dart';
 import 'package:myweli_backend/src/responses.dart';
@@ -122,30 +123,20 @@ Future<Response> _book(RequestContext context, String userId) async {
     return jsonError(HttpStatus.badRequest, 'invalid_body');
   }
 
-  // **Shape before cast.** Every `as String?` below sits OUTSIDE the try above,
-  // which only wraps `request.json()` — so `{"notes": 5}` threw a TypeError
-  // into the observability middleware and came back as a 500 plus a Sentry
-  // event, for what is plainly a bad request. Checked as a set rather than
-  // per-field so a future field cannot be added without one.
-  for (final k in const [
-    'providerId',
-    'appointmentDateTime',
-    'artistId',
-    'notes',
-    'depositScreenshotUrl',
-  ]) {
-    if (body[k] != null && body[k] is! String) {
-      return jsonError(HttpStatus.badRequest, 'invalid_input');
-    }
-  }
-  if (body['serviceIds'] != null && body['serviceIds'] is! List) {
-    return jsonError(HttpStatus.badRequest, 'invalid_input');
-  }
-
-  final providerId = (body['providerId'] as String?)?.trim() ?? '';
+  // **Every field is read by type, before any rule runs.** `{"notes": 5}` used
+  // to throw a TypeError past the try above into the observability middleware
+  // — a 500 and a Sentry event for a bad request — and then a hand-kept list
+  // of string keys answered it `invalid_input`. The readers make it the
+  // API-wide `400 invalid_body`, for every field read through them, with no
+  // list to keep in step (docs/design/phone-leftovers.md §3).
+  final providerId = optionalString(body, 'providerId')?.trim() ?? '';
   final serviceIds =
-      (body['serviceIds'] as List?)?.whereType<String>().toList() ?? const [];
-  final dateRaw = body['appointmentDateTime'] as String?;
+      optionalList(body, 'serviceIds')?.whereType<String>().toList() ??
+      const [];
+  final dateRaw = optionalString(body, 'appointmentDateTime');
+  final artistId = optionalString(body, 'artistId')?.trim();
+  final notes = optionalString(body, 'notes');
+  final depositScreenshotUrl = optionalString(body, 'depositScreenshotUrl');
   final dateTime = dateRaw == null ? null : DateTime.tryParse(dateRaw);
   if (providerId.isEmpty || serviceIds.isEmpty || dateTime == null) {
     return jsonError(HttpStatus.badRequest, 'invalid_input');
@@ -156,9 +147,9 @@ Future<Response> _book(RequestContext context, String userId) async {
     providerId: providerId,
     serviceIds: serviceIds,
     appointmentDateTime: dateTime,
-    artistId: (body['artistId'] as String?)?.trim(),
-    notes: body['notes'] as String?,
-    depositScreenshotUrl: body['depositScreenshotUrl'] as String?,
+    artistId: artistId,
+    notes: notes,
+    depositScreenshotUrl: depositScreenshotUrl,
   );
   if (!result.ok) {
     // **Written FIRST this time.** Not reachable on this branch — it becomes so

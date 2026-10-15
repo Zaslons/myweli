@@ -20,6 +20,7 @@ import '../routes/providers/[id]/gallery.dart' as gallery_route;
 import '../routes/providers/[id]/index.dart' as provider_route;
 import '../routes/providers/[id]/services/[serviceId].dart' as service_detail;
 import '../routes/providers/[id]/services/index.dart' as services;
+import 'http/observed.dart';
 
 class _MockRequestContext extends Mock implements RequestContext {}
 
@@ -384,20 +385,26 @@ void main() {
 
       Future<String?> err(Map<String, dynamic> b) async =>
           (await catalog.updateDepositPolicy(accountId, 'provider1', b)).error;
-      // Out-of-range percentage, required-with-0%, bad window, bad operator,
-      // bad phone all → invalid_input.
+      // Out-of-range percentage, required-with-0%, bad window, bad operator
+      // → invalid_input.
       expect(await err(validBody(pct: 1.5)), 'invalid_input');
       expect(await err(validBody(pct: 0)), 'invalid_input');
       expect(await err(validBody(hours: 1000)), 'invalid_input');
       expect(await err(validBody(op: 'paypal')), 'invalid_input');
-      expect(await err(validBody(number: '0700')), 'invalid_input');
+      // A bad Mobile Money number → invalid_phone, so a client can put the
+      // fault under that field (docs/design/phone-leftovers.md §2).
+      expect(await err(validBody(number: '0700')), 'invalid_phone');
+      expect(
+        await err({...validBody(), 'mobileMoneyNumber': 2250700000000}),
+        'invalid_phone',
+      );
       // E.164 in shape, 7 digits after +225 — a CI number has 10
       // (docs/design/phone-national-length.md). Refused deposits on or off:
       // a stored number is a number a client may be sent to pay.
-      expect(await err(validBody(number: '+2250700000')), 'invalid_input');
+      expect(await err(validBody(number: '+2250700000')), 'invalid_phone');
       expect(
         await err(validBody(required: false, number: '+2250700000')),
-        'invalid_input',
+        'invalid_phone',
       );
       // Required deposit without a Mobile Money handle → invalid_input.
       expect(await err(validBody(op: null, number: null)), 'invalid_input');
@@ -552,6 +559,92 @@ void main() {
         expect(badVerb.statusCode, HttpStatus.methodNotAllowed);
       },
     );
+
+    test('a text field sent as a number → 400 invalid_body, not 500, and '
+        'nothing stored (docs/design/phone-leftovers.md §3)', () async {
+      // The service cast `description` / `specialization` with no check in
+      // front, so a create answered 500 — and the edit path stored the number
+      // as sent, for every client that renders the salon to trip over.
+      Future<void> expectInvalidBody(Handler route, Request request) async {
+        final res = await observed(route, ctx(request));
+        expect(res.statusCode, HttpStatus.badRequest, reason: request.url.path);
+        expect((await jsonOf(res))['error'], 'invalid_body');
+      }
+
+      final before = (await catalog.listServices(accountId, 'provider1')).data;
+      await expectInvalidBody(
+        (c) => services.onRequest(c, 'provider1'),
+        req(
+          'POST',
+          '/providers/provider1/services',
+          bearer: token,
+          body: {
+            'name': 'Coupe',
+            'price': 5000,
+            'durationMinutes': 30,
+            'description': 5,
+          },
+        ),
+      );
+      expect(
+        (await catalog.listServices(accountId, 'provider1')).data,
+        hasLength((before! as List).length),
+      );
+
+      final svc =
+          (await catalog.createService(accountId, 'provider1', {
+                'name': 'Coupe',
+                'price': 5000,
+                'durationMinutes': 30,
+              })).data!
+              as Map<String, dynamic>;
+      final sid = svc['id'] as String;
+      await expectInvalidBody(
+        (c) => service_detail.onRequest(c, 'provider1', sid),
+        req(
+          'PATCH',
+          '/providers/provider1/services/$sid',
+          bearer: token,
+          body: {'description': 5},
+        ),
+      );
+
+      await expectInvalidBody(
+        (c) => artists_route.onRequest(c, 'provider1'),
+        req(
+          'POST',
+          '/providers/provider1/artists',
+          bearer: token,
+          body: {'name': 'Awa', 'specialization': 5},
+        ),
+      );
+      final artist =
+          (await catalog.createArtist(accountId, 'provider1', {
+                'name': 'Awa',
+                'specialization': 'Tresses',
+              })).data!
+              as Map<String, dynamic>;
+      final aid = artist['id'] as String;
+      await expectInvalidBody(
+        (c) => artist_detail.onRequest(c, 'provider1', aid),
+        req(
+          'PATCH',
+          '/providers/provider1/artists/$aid',
+          bearer: token,
+          body: {'specialization': 5},
+        ),
+      );
+
+      final stored = (await providers.byId('provider1'))!;
+      final storedService = (stored['services'] as List).firstWhere(
+        (s) => (s as Map)['id'] == sid,
+      );
+      expect((storedService as Map)['description'], '');
+      final storedArtist = (stored['artists'] as List).firstWhere(
+        (a) => (a as Map)['id'] == aid,
+      );
+      expect((storedArtist as Map)['specialization'], 'Tresses');
+    });
 
     test('cross-salon POST → 403', () async {
       final res = await services.onRequest(
@@ -986,6 +1079,28 @@ void main() {
         'provider1',
       );
       expect(bad.statusCode, HttpStatus.badRequest);
+      // A required deposit with no handle stays the shared code…
+      expect((await jsonOf(bad))['error'], 'invalid_input');
+
+      // …while a bad number names its field (phone-leftovers.md §2).
+      final badNumber = await deposit_route.onRequest(
+        ctx(
+          req(
+            'PUT',
+            '/providers/provider1/deposit-policy',
+            bearer: token,
+            body: {
+              'depositRequired': false,
+              'depositPercentage': 0,
+              'cancellationWindowHours': 24,
+              'mobileMoneyNumber': '+2250700000',
+            },
+          ),
+        ),
+        'provider1',
+      );
+      expect(badNumber.statusCode, HttpStatus.badRequest);
+      expect((await jsonOf(badNumber))['error'], 'invalid_phone');
 
       final cross = await deposit_route.onRequest(
         ctx(req('GET', '/providers/provider2/deposit-policy', bearer: token)),
@@ -1118,25 +1233,26 @@ void main() {
         })).error,
         'invalid_input',
       );
-      expect(
-        (await catalog.updateProfile(accountId, 'provider1', {
-          'phoneNumber': 'abc',
-        })).error,
-        'invalid_input',
-      );
+      // A phone fault names its field (docs/design/phone-leftovers.md §2):
+      // two phone fields on one form, so `invalid_phone` for the salon's
+      // number and `invalid_whatsapp` for WhatsApp — never the shared
+      // `invalid_input` the name uses.
+      Future<String?> err(Map<String, dynamic> b) async =>
+          (await catalog.updateProfile(accountId, 'provider1', b)).error;
+      expect(await err({'phoneNumber': 'abc'}), 'invalid_phone');
       // E.164 in shape, 7 digits after +225 — a CI number has 10
       // (docs/design/phone-national-length.md); same for WhatsApp.
+      expect(await err({'phoneNumber': '+2250700000'}), 'invalid_phone');
+      // Sent but not text, or null: still a fault of that one field.
+      expect(await err({'phoneNumber': 2250700000099}), 'invalid_phone');
+      expect(await err({'phoneNumber': null}), 'invalid_phone');
+      expect(await err({'whatsapp': '+2250700000'}), 'invalid_whatsapp');
+      expect(await err({'whatsapp': 'abc'}), 'invalid_whatsapp');
+      expect(await err({'whatsapp': 2250700000099}), 'invalid_whatsapp');
+      // A valid name beside a bad WhatsApp: the code still points at WhatsApp.
       expect(
-        (await catalog.updateProfile(accountId, 'provider1', {
-          'phoneNumber': '+2250700000',
-        })).error,
-        'invalid_input',
-      );
-      expect(
-        (await catalog.updateProfile(accountId, 'provider1', {
-          'whatsapp': '+2250700000',
-        })).error,
-        'invalid_input',
+        await err({'name': 'Salon Web', 'whatsapp': '+2250700000'}),
+        'invalid_whatsapp',
       );
       expect(
         (await providers.byId('provider1'))!['phoneNumber'],
@@ -1198,6 +1314,19 @@ void main() {
         'provider1',
       );
       expect(ok.statusCode, HttpStatus.ok);
+
+      // The field codes reach the wire as 400s (resultResponse's default arm).
+      for (final (field, code) in const [
+        ('phoneNumber', 'invalid_phone'),
+        ('whatsapp', 'invalid_whatsapp'),
+      ]) {
+        final res = await provider_route.onRequest(
+          ctx(req('PATCH', bearer: token, body: {field: '+2250700000'})),
+          'provider1',
+        );
+        expect(res.statusCode, HttpStatus.badRequest, reason: field);
+        expect((await res.json() as Map)['error'], code, reason: field);
+      }
 
       final anon = await provider_route.onRequest(
         ctx(req('PATCH', body: {'name': 'Y'})),

@@ -47,6 +47,20 @@ Rules:
 - **Status codes** — 200/201/202/204 success; 400 validation; 401 unauthenticated;
   403 authenticated-but-forbidden; 404 missing; 409 conflict; 422 semantic;
   429 rate-limited; 5xx only for genuine server faults.
+- **A body field of the wrong JSON type is `400 invalid_body`, never a 500.**
+  Routes read body fields through `optionalString` / `optionalList`
+  (`lib/src/http/body_fields.dart`), never `body['x'] as String?`: a cast
+  throws a `TypeError` on `{"x": 5}`, which the middleware rightly treats as
+  ours. A reader throws `BodyFieldTypeError` instead, which
+  `observabilityMiddleware` answers `400 invalid_body` — the code a non-object
+  body already gets — **without reporting it**, request id kept; any other
+  `TypeError` is still a reported 500, so a real bug never passes for a bad
+  request. Read every field before acting on any (a promotion, a verifier, a
+  write), so the refusal is whole. Where a service checks a field's type
+  together with its value, the wrong type is that field's own code
+  (`invalid_input`, `invalid_phone`, …). `test/http/no_body_cast_in_routes_test.dart`
+  fails on a `body[…] as` in `routes/`.
+  [design/phone-leftovers.md](design/phone-leftovers.md) §3.
 - **Never leak internals** — no stack traces, SQL, or framework errors in a
   response body. `observabilityMiddleware` (`lib/src/observability/`) is that
   edge: it catches anything a handler throws, returns `{"error":"internal_error"}`,
@@ -240,8 +254,13 @@ storage off cannot silently switch the origin check off with it.
   (multi-pays §9): `+225` → exactly **10** digits after the code (ARTCI,
   2021). Other calling codes keep the generic rule. Opening a market adds its
   row there; `test/localities/phone_numbering_test.dart` fails while a seeded
-  country has none. Each route keeps its own error code (`invalid_phone` or
-  `invalid_input`). Design:
+  country has none. **A phone fault says `invalid_phone`** — on every phone
+  input, so a client can put it under the field — and **`invalid_whatsapp`**
+  for `PATCH /providers/{id}`'s `whatsapp`, the second phone field on that
+  form. Never the shared `invalid_input` (registration, the salon profile,
+  the deposit number and the OTP verify routes used it until
+  [phone-leftovers.md](design/phone-leftovers.md) §2; on OTP verify a bad
+  *code* stays `invalid_input`). Design:
   [phone-national-length.md](design/phone-national-length.md).
 - **Control characters in the query string are rejected by
   `querySanityMiddleware`** (400 `invalid_input`), before any handler sees them.

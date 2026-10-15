@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:dart_frog/dart_frog.dart';
 import 'package:myweli_backend/src/auth/principal.dart';
+import 'package:myweli_backend/src/http/body_fields.dart';
 import 'package:myweli_backend/src/push/push_service.dart';
 import 'package:myweli_backend/src/responses.dart';
 
@@ -26,7 +27,7 @@ Future<Response> onRequest(RequestContext context) async {
   } catch (_) {
     return jsonError(HttpStatus.badRequest, 'invalid_body');
   }
-  final token = (body['token'] as String?)?.trim() ?? '';
+  final token = optionalString(body, 'token')?.trim() ?? '';
   if (token.isEmpty || token.length > 4096) {
     return jsonError(HttpStatus.badRequest, 'invalid_input');
   }
@@ -37,7 +38,7 @@ Future<Response> onRequest(RequestContext context) async {
     return Response.json(body: {'status': 'unregistered'});
   }
 
-  final platform = (body['platform'] as String?)?.trim() ?? '';
+  final platform = optionalString(body, 'platform')?.trim() ?? '';
   if (!_platforms.contains(platform)) {
     return jsonError(HttpStatus.badRequest, 'invalid_input');
   }

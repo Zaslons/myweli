@@ -26,8 +26,10 @@ import '../../routes/auth/provider/email/otp/request.dart' as pe_request;
 import '../../routes/auth/provider/email/otp/verify.dart' as pe_verify;
 import '../../routes/auth/provider/google.dart' as p_google;
 import '../../routes/auth/provider/otp/request.dart' as p_request;
+import '../../routes/auth/provider/otp/verify.dart' as p_verify;
 import '../../routes/auth/provider/refresh.dart' as p_refresh;
 import '../../routes/auth/provider/register.dart' as p_register;
+import '../http/observed.dart';
 
 class _MockRequestContext extends Mock implements RequestContext {}
 
@@ -400,8 +402,16 @@ void main() {
         final code = source
             .replaceAll(RegExp(r'/\*.*?\*/', dotAll: true), '')
             .replaceAll(RegExp(r'//[^\n]*'), '');
-        expect(code, contains("body['phoneNumber']"), reason: 'not vacuous');
-        expect(code, isNot(contains("body['providerId']")));
+        expect(
+          code,
+          contains("optionalString(body, 'phoneNumber')"),
+          reason: 'not vacuous',
+        );
+        // The KEY, in any spelling: a cast (`body['providerId']`) or a reader
+        // (`optionalString(body, 'providerId')`) — every body read moved to
+        // the readers (docs/design/phone-leftovers.md §3), and a pin on the
+        // old spelling alone would have gone blind with them.
+        expect(code, isNot(contains("'providerId'")));
         expect(code, isNot(contains('providerId:')));
       });
     });
@@ -574,11 +584,13 @@ void main() {
       },
     );
 
-    test('register rejects a short +225 phone with 400 invalid_input — '
+    test('register rejects a short +225 phone with 400 invalid_phone — '
         'before any account exists', () async {
       // 7 digits after +225; a CI number has 10
       // (docs/design/phone-national-length.md). The identity is valid, so
-      // the phone is the only reason to refuse.
+      // the phone is the only reason to refuse — and the code says so
+      // (`invalid_phone`, not the shared `invalid_input`:
+      // docs/design/phone-leftovers.md §2).
       final res = await p_register.onRequest(
         ctx(
           post('/auth/provider/register', {
@@ -589,7 +601,19 @@ void main() {
         ),
       );
       expect(res.statusCode, HttpStatus.badRequest);
-      expect((await jsonOf(res))['error'], 'invalid_input');
+      expect((await jsonOf(res))['error'], 'invalid_phone');
+
+      // Missing altogether is the same fault on the same field.
+      final missing = await p_register.onRequest(
+        ctx(
+          post('/auth/provider/register', {
+            'businessName': 'Élégance',
+            'businessType': 'salon',
+            'idToken': 'tok',
+          }),
+        ),
+      );
+      expect((await jsonOf(missing))['error'], 'invalid_phone');
 
       // Nothing was created: the same identity with 10 digits registers
       // (201), not a 409 duplicate.
@@ -611,6 +635,100 @@ void main() {
         ),
       );
       expect(res.statusCode, HttpStatus.badRequest);
+      // Name and type keep the shared code — only the phone got its own.
+      expect((await jsonOf(res))['error'], 'invalid_input');
+
+      final blankName = await p_register.onRequest(
+        ctx(
+          post('/auth/provider/register', {
+            ...regBody(),
+            'businessName': '  ',
+            'idToken': 'tok',
+          }),
+        ),
+      );
+      expect((await jsonOf(blankName))['error'], 'invalid_input');
+    });
+
+    test('provider otp/verify: a bad phone → 400 invalid_phone, a bad code → '
+        '400 invalid_input (dormant route, same rule)', () async {
+      Future<String?> verify(Map<String, Object?> body) async {
+        final res = await p_verify.onRequest(
+          ctx(post('/auth/provider/otp/verify', body)),
+        );
+        expect(res.statusCode, HttpStatus.badRequest, reason: '$body');
+        return (await jsonOf(res))['error'] as String?;
+      }
+
+      expect(
+        await verify({'phoneNumber': '+2250700000', 'code': '123456'}),
+        'invalid_phone',
+      );
+      expect(await verify({'code': '123456'}), 'invalid_phone');
+      expect(
+        await verify({'phoneNumber': _phone, 'code': 'abc'}),
+        'invalid_input',
+      );
+    });
+
+    group('a body field of the wrong JSON type → 400 invalid_body, '
+        'not 500', () {
+      // docs/design/phone-leftovers.md §3 — through the middleware, the edge
+      // that answers a reader's throw.
+      Future<void> expectInvalidBody(
+        Handler route,
+        String path,
+        Map<String, Object?> body,
+      ) async {
+        final res = await observed(route, ctx(post(path, body)));
+        expect(res.statusCode, HttpStatus.badRequest, reason: '$path $body');
+        expect((await jsonOf(res))['error'], 'invalid_body', reason: path);
+      }
+
+      test('register: businessName / phoneNumber as numbers; nothing is '
+          'created', () async {
+        await expectInvalidBody(
+          p_register.onRequest,
+          '/auth/provider/register',
+          {...regBody(), 'businessName': 42, 'idToken': 'tok'},
+        );
+        await expectInvalidBody(
+          p_register.onRequest,
+          '/auth/provider/register',
+          {...regBody(), 'phoneNumber': 2250544556677, 'idToken': 'tok'},
+        );
+        // The identity is unspent: the same one, well-typed, registers.
+        final ok = await p_register.onRequest(
+          ctx(
+            post('/auth/provider/register', {...regBody(), 'idToken': 'tok'}),
+          ),
+        );
+        expect(ok.statusCode, HttpStatus.created);
+      });
+
+      test('the email OTP routes, otp/verify, google and refresh', () async {
+        await expectInvalidBody(
+          pe_request.onRequest,
+          '/auth/provider/email/otp/request',
+          {'email': 7},
+        );
+        await expectInvalidBody(
+          pe_verify.onRequest,
+          '/auth/provider/email/otp/verify',
+          {'email': 'a@salon.ci', 'code': 123456},
+        );
+        await expectInvalidBody(
+          p_verify.onRequest,
+          '/auth/provider/otp/verify',
+          {'phoneNumber': _phone, 'code': 123456},
+        );
+        await expectInvalidBody(p_google.onRequest, '/auth/provider/google', {
+          'idToken': true,
+        });
+        await expectInvalidBody(p_refresh.onRequest, '/auth/provider/refresh', {
+          'refreshToken': const ['x'],
+        });
+      });
     });
 
     test(
