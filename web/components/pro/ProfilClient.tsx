@@ -7,10 +7,12 @@ import { useRouter } from 'next/navigation';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 import type { ProProfile } from '../../lib/api/pro';
 import { getMyProvider, updateProviderProfile } from '../../lib/api/pro';
+import { useFieldErrors } from '../../lib/forms/useFieldErrors';
 import {
   PROFILE_CATEGORIES,
   type ProfileForm,
   buildProfilePayload,
+  profilePhoneChecks,
   profileToForm,
   validateProfile,
 } from '../../lib/pro/profile';
@@ -24,6 +26,7 @@ import { Button } from '../Button';
 import { Loading } from '../Loading';
 import { CompteDangerSection } from './CompteDangerSection';
 import { LocalityPicker } from './LocalityPicker';
+import { PhoneField } from '../PhoneField';
 import { TeamRoleChip } from './TeamRoleChip';
 
 // MapLibre is browser-only; the pin picker loads with the page (authed, not
@@ -66,6 +69,9 @@ export function ProfilClient() {
   const logoRef = useRef<HTMLInputElement>(null);
   const [logoUploading, setLogoUploading] = useState(false);
   const [logoError, setLogoError] = useState<string | null>(null);
+  // The two phone numbers answer UNDER their fields (§14 rules 1/2 —
+  // docs/design/phone-national-length.md); the rest stays form-level.
+  const phones = useFieldErrors(profilePhoneChecks);
 
   useEffect(() => {
     let active = true;
@@ -127,11 +133,15 @@ export function ProfilClient() {
   }
 
   async function save() {
-    const v = validateProfile(form as ProfileForm);
-    if (v) {
-      setError(v);
-      return;
-    }
+    const f = form as ProfileForm;
+    // Both checks run, so every fault shows at once.
+    const phonesOk = phones.validate({
+      phoneNumber: f.phoneNumber,
+      whatsapp: f.whatsapp,
+    });
+    const v = validateProfile(f);
+    setError(v);
+    if (v || !phonesOk) return;
     setBusy(true);
     setError(null);
     const r = await updateProviderProfile(
@@ -255,20 +265,29 @@ export function ProfilClient() {
           fallbackValue={form.commune}
           onFallbackChange={(v) => set('commune', v)}
         />
-        <Field label="Téléphone">
-          <input
-            className={input}
-            value={form.phoneNumber}
-            onChange={(e) => set('phoneNumber', e.target.value)}
-          />
-        </Field>
-        <Field label="WhatsApp (optionnel)">
-          <input
-            className={input}
-            value={form.whatsapp}
-            onChange={(e) => set('whatsapp', e.target.value)}
-          />
-        </Field>
+        {/* The shared PhoneField: the +225 prefix is on screen, so a number
+            typed the local way (« 07 07 12 34 56 ») is the right number —
+            parity with the app (docs/design/phone-national-length.md §12).
+            It reads initialValue once, at mount: this form renders only
+            once the profile has loaded, so that value is the stored one. */}
+        <PhoneField
+          label="Téléphone"
+          initialValue={form.phoneNumber}
+          onChange={(v) => {
+            set('phoneNumber', v);
+            phones.revalidate('phoneNumber', v);
+          }}
+          error={phones.errors.phoneNumber}
+        />
+        <PhoneField
+          label="WhatsApp (optionnel)"
+          initialValue={form.whatsapp}
+          onChange={(v) => {
+            set('whatsapp', v);
+            phones.revalidate('whatsapp', v);
+          }}
+          error={phones.errors.whatsapp}
+        />
         <Field label="Catégorie">
           <select
             className={input}

@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   type ProfileForm,
   buildProfilePayload,
+  profilePhoneChecks,
   profileToForm,
   validateProfile,
 } from '../lib/pro/profile';
@@ -11,7 +12,13 @@ import {
   buildDepositPayload,
   depositToForm,
   validateDeposit,
+  validateDepositNumber,
 } from '../lib/pro/deposit';
+
+/// The phone rule's sentences (docs/design/phone-national-length.md §2.1).
+const TEN = 'Le numéro doit comporter 10 chiffres après +225.';
+const REQUIRED = 'Saisissez un numéro de téléphone.';
+const INVALID = 'Saisissez un numéro de téléphone valide.';
 
 const profile: ProfileForm = {
   name: 'Beauté Divine',
@@ -29,11 +36,36 @@ const profile: ProfileForm = {
 };
 
 describe('pro profile form', () => {
-  it('requires a name + valid E.164 phone', () => {
+  it('requires a name (the phones are checked under their own fields)', () => {
     expect(validateProfile(profile)).toBeNull();
     expect(validateProfile({ ...profile, name: ' ' })).toMatch(/nom/i);
-    expect(validateProfile({ ...profile, phoneNumber: '0700' })).toMatch(/téléphone/i);
-    expect(validateProfile({ ...profile, whatsapp: 'abc' })).toMatch(/whatsapp/i);
+  });
+
+  it('Téléphone is required, WhatsApp optional — and a +225 number has 10 digits', () => {
+    const { phoneNumber, whatsapp } = profilePhoneChecks;
+    expect(phoneNumber('+2250700000000')).toBeNull();
+    // The old regex let 7 digits after +225 through (10 digits after the +).
+    expect(phoneNumber('+2250700000')).toBe(TEN);
+    expect(phoneNumber('')).toBe(REQUIRED);
+    expect(phoneNumber('+225')).toBe(REQUIRED);
+    expect(phoneNumber('0700')).toBe(INVALID);
+    expect(whatsapp('')).toBeNull();
+    expect(whatsapp('+225')).toBeNull();
+    expect(whatsapp('+2250700000')).toBe(TEN);
+    expect(whatsapp('abc')).toBe(INVALID);
+  });
+
+  it('sends the numbers bare: separators stripped, a lone +225 WhatsApp cleared', () => {
+    const payload = buildProfilePayload({
+      ...profile,
+      phoneNumber: ' +225 07 07 12 34 56 ',
+      whatsapp: '+225',
+    });
+    expect(payload.phoneNumber).toBe('+2250707123456');
+    expect(payload.whatsapp).toBeNull();
+    expect(
+      buildProfilePayload({ ...profile, whatsapp: '+225 05 05 05 05 05' }).whatsapp,
+    ).toBe('+2250505050505');
   });
 
   it('builds an allowlisted payload, nulls empty optionals', () => {
@@ -116,10 +148,24 @@ describe('pro deposit form', () => {
     expect(validateDeposit(on)).toBeNull();
   });
 
-  it('requires %, operator, number when required', () => {
+  it('requires %, operator when required', () => {
     expect(validateDeposit({ ...on, percent: '0' })).toMatch(/pourcentage/i);
     expect(validateDeposit({ ...on, operator: '' })).toMatch(/opérateur/i);
-    expect(validateDeposit({ ...on, number: '07' })).toMatch(/numéro/i);
+  });
+
+  it('the Mobile Money number (checked under its field): required, +225 = 10 digits', () => {
+    expect(validateDepositNumber('+2250700000000')).toBeNull();
+    expect(validateDepositNumber('+225 07 00 00 00 00')).toBeNull();
+    expect(validateDepositNumber('+2250700000')).toBe(TEN);
+    expect(validateDepositNumber('07')).toBe(INVALID);
+    expect(validateDepositNumber('')).toBe(REQUIRED);
+    expect(validateDepositNumber('+225')).toBe(REQUIRED);
+  });
+
+  it('sends the Mobile Money number bare', () => {
+    expect(
+      buildDepositPayload({ ...on, number: '+225 07 07 12 34 56' }).mobileMoneyNumber,
+    ).toBe('+2250707123456');
   });
 
   it('window must be 0..720', () => {

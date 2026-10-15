@@ -6,6 +6,7 @@ import '../../../core/forms/field_errors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
+import '../../../core/utils/phone_numbering.dart';
 import '../../../core/utils/validators.dart';
 import '../../../models/provider_user.dart';
 import '../../../providers/pro_auth_provider.dart';
@@ -13,6 +14,7 @@ import '../../../widgets/common/app_button.dart';
 import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/app_text_field.dart';
 import '../../../widgets/common/commune_picker_sheet.dart';
+import '../../../widgets/common/phone_number_field.dart';
 
 /// « Ajouter un salon » (module `access` R6 — docs/design/
 /// team-access-r6-multi-salons.md §6): the second-salon form, reached from
@@ -42,8 +44,12 @@ class _AddSalonScreenState extends State<AddSalonScreen> {
   final _phoneFocus = FocusNode();
   late final _focusNodes = {'name': _nameFocus, 'phone': _phoneFocus};
   final _nameController = TextEditingController();
-  final _phoneController = TextEditingController();
   final _addressController = TextEditingController();
+
+  /// The salon's number as the field last emitted it — normalized: E.164
+  /// without a separator, `''` once cleared. What is checked is what
+  /// `POST /me/salons` receives (phone-national-length.md §2.3).
+  String _phone = '';
   BusinessType? _businessType = BusinessType.salon;
   bool _submitting = false;
 
@@ -57,14 +63,14 @@ class _AddSalonScreenState extends State<AddSalonScreen> {
     super.initState();
     // The account's contact number is the sensible default (editable —
     // a second salon often has its own line).
-    _phoneController.text =
-        context.read<ProAuthProvider>().provider?.phoneNumber ?? '';
+    _phone = PhoneNumbering.normalize(
+      context.read<ProAuthProvider>().provider?.phoneNumber ?? '',
+    );
   }
 
   @override
   void dispose() {
     _nameController.dispose();
-    _phoneController.dispose();
     _addressController.dispose();
     _nameFocus.dispose();
     _phoneFocus.dispose();
@@ -89,7 +95,7 @@ class _AddSalonScreenState extends State<AddSalonScreen> {
     final ok = _errors.validate({
       'name': _nameController.text,
       'type': _businessType?.name ?? '',
-      'phone': _phoneController.text,
+      'phone': _phone,
     });
     setState(() {});
     if (!ok) {
@@ -101,7 +107,7 @@ class _AddSalonScreenState extends State<AddSalonScreen> {
     final created = await auth.addSalon(
       businessName: _nameController.text.trim(),
       businessType: _businessType ?? BusinessType.salon,
-      phoneNumber: _phoneController.text.trim(),
+      phoneNumber: _phone,
       address: _addressController.text.trim().isEmpty
           ? null
           : _addressController.text.trim(),
@@ -195,18 +201,20 @@ class _AddSalonScreenState extends State<AddSalonScreen> {
                 }),
               ),
               const SizedBox(height: AppTheme.spacingM),
-              AppTextField(
+              // A7: this was a bare "required" — the hint has always shown a
+              // full number and nothing ever checked the shape. Then a
+              // free-text field under « +225 XX XX XX XX XX », which took
+              // spaces and sent them to the one route that stored a phone
+              // unchecked (phone-national-length.md §1.4).
+              PhoneNumberField(
                 label: 'Téléphone du salon',
-                hint: '+225 XX XX XX XX XX',
-                controller: _phoneController,
-                keyboardType: TextInputType.phone,
+                initialValue: _phone,
                 focusNode: _phoneFocus,
-                prefixIcon: const Icon(Icons.phone),
-                // A7: this was a bare "required" — the hint has always shown
-                // a full number and nothing ever checked the shape.
                 errorText: _errors['phone'],
-                onChanged: (v) =>
-                    setState(() => _errors.revalidate('phone', v)),
+                onChanged: (v) => setState(() {
+                  _phone = v;
+                  _errors.revalidate('phone', v);
+                }),
               ),
               const SizedBox(height: AppTheme.spacingM),
               AppTextField(

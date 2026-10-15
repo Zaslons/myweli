@@ -16,9 +16,16 @@ import {
   noShowLabel,
 } from '../../lib/pro/clients';
 import { formatDateFr } from '../../lib/format';
+import { useFieldErrors } from '../../lib/forms/useFieldErrors';
+import {
+  PHONE_INVALID,
+  normalizePhone,
+  phoneFieldError,
+} from '../../lib/phone';
 import { Button } from '../Button';
 import { SkeletonRows } from '../Skeleton';
 import { Modal } from '../Modal';
+import { PhoneField } from '../PhoneField';
 import { TextField } from '../TextField';
 
 /// Module `clients` C1b — the salon client base at /pro/clients
@@ -278,6 +285,11 @@ export function ClientsClient() {
   );
 }
 
+// A module constant: useFieldErrors keys its callbacks on this object.
+const PHONE_CHECK = {
+  phone: (v: string) => phoneFieldError(v, { required: true }),
+};
+
 function AddClientModal({
   providerId,
   onClose,
@@ -292,13 +304,18 @@ function AddClientModal({
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  // The phone is checked UNDER its field (§14 rules 1/2) by the shared rule
+  // (docs/design/phone-national-length.md) — it used to cross unchecked. The
+  // shared PhoneField puts +225 on screen and sends the normalized E.164.
+  const fields = useFieldErrors(PHONE_CHECK);
 
   async function submit() {
+    if (!fields.validate({ phone })) return;
     setBusy(true);
     setMessage(null);
     const r = await addClient(providerId, {
       name: name.trim(),
-      phone: phone.trim(),
+      phone: normalizePhone(phone),
       note: note.trim() || undefined,
     });
     setBusy(false);
@@ -312,11 +329,12 @@ function AddClientModal({
       onCreated(r.clientId);
       return;
     }
-    setMessage(
-      r.error === 'invalid_phone'
-        ? 'Numéro invalide (format international, ex. +2250700000000).'
-        : 'Une erreur est survenue. Réessayez.',
-    );
+    // A server refusal of the number is the field's fault too (§14 rule 1).
+    if (r.error === 'invalid_phone') {
+      fields.set('phone', PHONE_INVALID);
+      return;
+    }
+    setMessage('Une erreur est survenue. Réessayez.');
   }
 
   return (
@@ -327,16 +345,16 @@ function AddClientModal({
           value={name}
           onChange={(e) => setName(e.target.value)}
         />
-        <TextField
-          className="mt-m"
-          label="Téléphone"
-          type="tel"
-          inputMode="tel"
-          autoComplete="tel"
-          value={phone}
-          onChange={(e) => setPhone(e.target.value)}
-          placeholder="+225 07 00 00 00 00"
-        />
+        <div className="mt-m">
+          <PhoneField
+            label="Téléphone"
+            onChange={(v) => {
+              setPhone(v);
+              fields.revalidate('phone', v);
+            }}
+            error={fields.errors.phone}
+          />
+        </div>
         <TextField
           className="mt-m"
           label="Note (optionnelle)"
@@ -351,10 +369,9 @@ function AddClientModal({
           <Button variant="secondary" onClick={onClose} disabled={busy}>
             Annuler
           </Button>
-          <Button
-            onClick={submit}
-            disabled={busy || !name.trim() || !phone.trim()}
-          >
+          {/* No phone gate here: an empty or wrong number answers under its
+              field (§14 rule 5 — disabled is not a message). */}
+          <Button onClick={submit} disabled={busy || !name.trim()}>
             Ajouter
           </Button>
         </div>

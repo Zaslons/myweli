@@ -9,6 +9,7 @@ import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../core/utils/app_clock.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../core/utils/phone_numbering.dart';
 import '../../../core/utils/salon_time.dart';
 import '../../../core/utils/validators.dart';
 import '../../../providers/pro_appointment_provider.dart';
@@ -53,8 +54,11 @@ class _ProManualBookingScreenState extends State<ProManualBookingScreen> {
   DateTime? _date;
   TimeOfDay? _time;
   // E.164 from [PhoneNumberField] — a String, not a controller: the widget
-  // owns its text and hands the full number out.
-  late String _phone = widget.initialClientPhone ?? '';
+  // owns its text and hands the full number out, normalized ('' when empty,
+  // no separator). The client card's stored number seeds it the same way.
+  late String _phone = PhoneNumbering.normalize(
+    widget.initialClientPhone ?? '',
+  );
   late final _name = TextEditingController(
     text: widget.initialClientName ?? '',
   );
@@ -230,14 +234,14 @@ class _ProManualBookingScreenState extends State<ProManualBookingScreen> {
       serviceIds: _selected.toList(),
       appointmentDateTime: dt,
       clientName: _name.text.trim().isEmpty ? null : _name.text.trim(),
-      clientPhone: _anonymous ? null : _phone.trim(),
+      clientPhone: _anonymous ? null : _phone,
       notes: _note.text.trim().isEmpty ? null : _note.text.trim(),
       artistId: widget.initialArtistId,
       sendSmsInvite:
           FeatureFlags.smsInvite &&
           _sendSms &&
           !_anonymous &&
-          _phone.trim().isNotEmpty,
+          _phone.isNotEmpty,
     );
     if (!mounted) return;
     setState(() => _submitting = false);
@@ -341,7 +345,9 @@ class _ProManualBookingScreenState extends State<ProManualBookingScreen> {
               _label('CLIENT'),
               PhoneNumberField(
                 label: 'Téléphone du client',
-                initialValue: widget.initialClientPhone,
+                // The current value, not the card's: the ListView culls this
+                // field off-screen, and it must come back as it was left.
+                initialValue: _phone,
                 enabled: !_anonymous,
                 errorText: _errors['phone'],
                 onChanged: (e164) => setState(() {
@@ -365,8 +371,8 @@ class _ProManualBookingScreenState extends State<ProManualBookingScreen> {
               if (FeatureFlags.smsInvite) ...[
                 const SizedBox(height: AppTheme.spacingS),
                 SwitchListTile(
-                  value: _sendSms && !_anonymous && _phone.trim().isNotEmpty,
-                  onChanged: (_anonymous || _phone.trim().isEmpty)
+                  value: _sendSms && !_anonymous && _phone.isNotEmpty,
+                  onChanged: (_anonymous || _phone.isEmpty)
                       ? null
                       : (v) => setState(() => _sendSms = v),
                   title: const Text('Envoyer la confirmation par SMS'),

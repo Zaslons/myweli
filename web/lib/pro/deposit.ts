@@ -3,7 +3,7 @@
 /// `operators` from GET /localities (lib/api/localities.ts `operatorsFor`) —
 /// never a hardcoded list; the backend validates against the same catalog.
 
-const E164 = /^\+[1-9]\d{7,14}$/;
+import { normalizePhone, phoneFieldError } from '../phone';
 
 export type DepositPolicy = {
   depositRequired: boolean;
@@ -48,10 +48,16 @@ export function validateDeposit(f: DepositForm): string | null {
     return 'Pourcentage invalide (1–100 %).';
   }
   if (!f.operator) return 'Choisissez un opérateur Mobile Money.';
-  if (!E164.test(f.number.trim())) {
-    return 'Numéro Mobile Money invalide (format international).';
-  }
   return null;
+}
+
+/// « Numéro Mobile Money » — its fault renders UNDER the field (§14 rule 1,
+/// `useFieldErrors` in AcompteClient), so [validateDeposit] does not carry it.
+/// The field shows, and the payload sends it, only for a REQUIRED deposit —
+/// hence required whenever it is checked. The shared rule:
+/// docs/design/phone-national-length.md.
+export function validateDepositNumber(v: string): string | null {
+  return phoneFieldError(v, { required: true });
 }
 
 export function buildDepositPayload(f: DepositForm): DepositPolicy {
@@ -60,6 +66,8 @@ export function buildDepositPayload(f: DepositForm): DepositPolicy {
     depositPercentage: f.required ? Number(f.percent) / 100 : 0,
     cancellationWindowHours: Number(f.windowHours),
     mobileMoneyOperator: f.required && f.operator ? f.operator : null,
-    mobileMoneyNumber: f.required && f.number.trim() ? f.number.trim() : null,
+    // Sent as checked: separators stripped (the server takes E.164 only).
+    mobileMoneyNumber:
+      f.required && normalizePhone(f.number) ? normalizePhone(f.number) : null,
   };
 }

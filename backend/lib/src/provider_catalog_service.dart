@@ -274,12 +274,12 @@ class ProviderCatalogService {
     }
     if (body.containsKey('phoneNumber')) {
       final p = body['phoneNumber'];
-      if (p is! String || !isValidE164(p.trim())) return 'invalid_input';
+      if (p is! String || !isValidPhoneNumber(p.trim())) return 'invalid_input';
     }
     final wa = body['whatsapp'];
     if (body.containsKey('whatsapp') && wa != null) {
       if (wa is! String) return 'invalid_input';
-      if (wa.trim().isNotEmpty && !isValidE164(wa.trim())) {
+      if (wa.trim().isNotEmpty && !isValidPhoneNumber(wa.trim())) {
         return 'invalid_input';
       }
     }
@@ -778,7 +778,8 @@ class ProviderCatalogService {
       return 'invalid_input';
     }
     final number = body['mobileMoneyNumber'];
-    if (number != null && (number is! String || !isValidE164(number.trim()))) {
+    if (number != null &&
+        (number is! String || !isValidPhoneNumber(number.trim()))) {
       return 'invalid_input';
     }
 

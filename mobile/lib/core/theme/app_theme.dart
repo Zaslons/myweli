@@ -318,8 +318,8 @@ class AppTheme {
           AppTextStyles.bodyMedium.copyWith(color: AppColors.textTertiary),
         ),
         // A7 — §13.3. `errorMaxLines` defaults to **1**, so a §17-compliant
-        // French sentence (« Le numéro doit comporter 10 chiffres (ex : 07 07
-        // 12 34 56). ») was ellipsised on a narrow field and amputated at
+        // French sentence (« Le numéro doit comporter 10 chiffres après
+        // +225. ») was ellipsised on a narrow field and amputated at
         // 200 %: the message telling the user how to fix the form was the one
         // message they could not finish reading.
         //
