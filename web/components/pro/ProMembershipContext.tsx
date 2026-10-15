@@ -346,6 +346,33 @@ export function ProMembershipProvider({ children }: { children: ReactNode }) {
     await runProbe();
   }, [runProbe]);
 
+  /// The provider outlives nothing it schedules: a heal loop stops with it.
+  const alive = useRef(true);
+  useEffect(() => {
+    alive.current = true;
+    return () => {
+      alive.current = false;
+    };
+  }, []);
+
+  /// After a join whose /me failed: keep asking, with a growing pause (1, 2,
+  /// 4, 8, 16 s, then every 30 s), until a profile commits — the sidebar's
+  /// skeleton then fills with the member's OWN nav. One follow-up probe was
+  /// not enough: if it failed too, the sidebar stayed a skeleton with no
+  /// retry anywhere unless the page's own /me failed (found by the review of
+  /// the fixes). Stops on a commit, a sign-out, the gate reopening, or unmount.
+  const healProfile = useCallback(async () => {
+    const pauses = [1000, 2000, 4000, 8000, 16000];
+    for (let i = 0; ; i += 1) {
+      if (!alive.current || signedOut.current || !awaitingProfile.current) return;
+      const outcome = await runProbe();
+      if (outcome === 'member' || outcome === 'entered' || outcome === 'revoked') return;
+      if (!awaitingProfile.current) return;
+      const pause = i < pauses.length ? pauses[i] : 30000;
+      await new Promise((resolve) => setTimeout(resolve, pause));
+    }
+  }, [runProbe]);
+
   useEffect(() => {
     probe();
   }, [probe, pathname]);
@@ -377,12 +404,12 @@ export function ProMembershipProvider({ children }: { children: ReactNode }) {
       // is the honest place to land. (`entered`: the check already did.)
       if (outcome !== 'entered') enterSalon();
       // No profile committed (the forced /me failed): the sidebar waits in
-      // its skeleton, and one more probe goes — at /pro no navigation will
-      // run one. The page's « Réessayer » re-probes too.
-      if (outcome === 'other' || outcome === 'skipped') void runProbe();
+      // its skeleton while the provider keeps asking (healProfile) — at /pro
+      // no navigation will run a probe. The page's « Réessayer » re-probes too.
+      if (outcome === 'other' || outcome === 'skipped') void healProfile();
       show(joinedSalonMessage(inv.salonName), 'success');
     },
-    [runProbe, enterSalon, show, dropLateJoin],
+    [runProbe, enterSalon, show, dropLateJoin, healProfile],
   );
 
   /// S3/S6: the last card went (declined, or gone on the server's word — the

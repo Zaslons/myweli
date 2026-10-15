@@ -588,6 +588,40 @@ describe('ProMembershipProvider — the rejoin gate, review fixes', () => {
     expect(screen.queryByRole('link', { name: 'Aujourd’hui' })).toBeNull();
   });
 
+  it('…and when /me fails twice after the join, the provider keeps asking '
+    + 'with a growing pause — the sidebar heals on its own, no dead end', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      mockFetch({
+        '/api/pro/me': (n) =>
+          n === 1
+            ? notAMember()
+            : n <= 3
+              ? json(503, { error: 'unavailable' })
+              : json(200, STAFF_P1),
+        '/api/pro/invitations': () => json(200, { invitations: [INV] }),
+        '/api/pro/invitations/inv-1/accept': () =>
+          json(200, { id: 'inv-1', status: 'active' }),
+        '/api/pro/salons': () => json(200, { items: [], canAddSalon: false }),
+      });
+
+      render(
+        <ProMembershipProvider>
+          <ProSidebar />
+        </ProMembershipProvider>,
+      );
+      fireEvent.click(await screen.findByRole('button', { name: 'Rejoindre' }));
+      await vi.advanceTimersByTimeAsync(5000);
+
+      // The member's own nav, once a later /me answered — not the owner's.
+      expect(await screen.findByText('ancien@equipe.test')).toBeTruthy();
+      expect(screen.getByRole('link', { name: 'Rendez-vous' })).toBeTruthy();
+      expect(screen.queryByRole('link', { name: 'Équipe' })).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('…and « Réessayer » on « Aujourd’hui » re-probes the membership too, so '
     + 'the sidebar heals with the page', async () => {
     // The page fetches /me too, so the answers follow the story, not a count.
