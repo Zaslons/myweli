@@ -8,6 +8,25 @@ updates:
     open-pull-requests-limit: 5
     labels:
       - "dependencies"
+    # The FlutterFire plugins each pin the SAME exact firebase-ios-sdk version
+    # in their Package.swift. Bumped one at a time, Swift Package Manager cannot
+    # resolve and the iOS build fails (#388 → #391, again #541: core 4.14.0
+    # wanted 12.18.0, messaging 16.5.0 still 12.17.0). So they move together —
+    # and a major bump of the set gets its own PR, never mixed with a minor one.
+    groups:
+      firebase:
+        patterns:
+          - "firebase_*"
+          - "_flutterfire_internals"
+        update-types:
+          - "minor"
+          - "patch"
+      firebase-major:
+        patterns:
+          - "firebase_*"
+          - "_flutterfire_internals"
+        update-types:
+          - "major"
 
   # GitHub Actions used in CI
   - package-ecosystem: "github-actions"

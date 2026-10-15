@@ -47,8 +47,10 @@ jobs:
           channel: stable
           cache: true
 
+      # --enforce-lockfile: build exactly what pubspec.lock says, or fail
+      # (why: ci.yml, « Install dependencies » of Analyze & Test).
       - name: Install dependencies
-        run: flutter pub get
+        run: flutter pub get --enforce-lockfile
 
       - name: Regenerate the baseline
         run: flutter test test/golden --update-goldens

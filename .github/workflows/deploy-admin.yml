@@ -75,7 +75,7 @@ jobs:
       - name: Build admin web bundle
         working-directory: mobile
         run: |
-          flutter pub get
+          flutter pub get --enforce-lockfile
           flutter build web --release \
             --target lib/main_admin.dart \
             --dart-define=USE_API_BACKEND=true \
