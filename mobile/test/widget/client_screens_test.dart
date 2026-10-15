@@ -1280,6 +1280,13 @@ void main() {
       );
       expect(find.byType(SnackBar), findsNothing, reason: 'never a bar');
       expect(find.text(sheetTitle), findsOneWidget, reason: 'it stays open');
+      // The field was disabled for the save — and a disabled field takes no
+      // focus until it is built enabled again.
+      expect(
+        tester.widget<TextField>(field()).focusNode!.hasFocus,
+        isTrue,
+        reason: 'focused on its fault (§14), once enabled again',
+      );
     });
 
     testWidgets('a card linked to an account meanwhile (client_linked): the '
@@ -1461,6 +1468,27 @@ void main() {
         expect(find.text(sheetTitle), findsOneWidget, reason: 'the drag');
 
         await expectClosedOnTheCard(tester);
+      });
+
+      // The drag taken while saving is not an action: a screen reader is not
+      // offered a « scroll » on a sheet that does not scroll.
+      testWidgets('while saving, the sheet offers a screen reader no scroll', (
+        tester,
+      ) async {
+        final semantics = tester.ensureSemantics();
+        await openFromList(tester);
+        expect(find.semantics.byAction(SemanticsAction.scrollUp), findsNothing);
+
+        await saveAndHold(tester, '0700000033');
+
+        expect(find.semantics.byAction(SemanticsAction.scrollUp), findsNothing);
+        expect(
+          find.semantics.byAction(SemanticsAction.scrollDown),
+          findsNothing,
+        );
+        await settle(tester);
+        await settle(tester);
+        semantics.dispose();
       });
 
       testWidgets('idle, a drag down still closes the sheet', (tester) async {

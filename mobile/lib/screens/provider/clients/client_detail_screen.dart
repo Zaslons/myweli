@@ -544,7 +544,11 @@ class _PhoneSheetState extends State<_PhoneSheet> {
           () =>
               _errors.set('phone', 'Saisissez un numéro de téléphone valide.'),
         );
-        focusFirstError(_errors, {'phone': _focus});
+        // Once the field is built enabled again: disabled for the save, it
+        // takes no focus until then.
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) focusFirstError(_errors, {'phone': _focus});
+        });
       case 'client_exists':
         final name = refusal.takenByName;
         setState(() {
@@ -571,6 +575,8 @@ class _PhoneSheetState extends State<_PhoneSheet> {
       canPop: !_busy,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
+        // Not an action: no « scroll » for a screen reader.
+        excludeFromSemantics: true,
         onVerticalDragStart: _busy ? (_) {} : null,
         child: _content(context, takenBy),
       ),
