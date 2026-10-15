@@ -22,6 +22,7 @@ import '../../../widgets/common/auth_switch_prompt.dart';
 import '../../../widgets/common/google_g_logo.dart';
 import '../../../widgets/common/inline_feedback.dart';
 import '../../../widgets/team/invitation_card.dart';
+import '../../../widgets/team/revoked_access_banner.dart';
 
 /// Salon sign-in — Google + Apple (flag-hidden) + email OTP, replacing the
 /// phone-OTP login (pro auth overhaul P4). LOGIN-ONLY: `provider_not_found`
@@ -85,28 +86,56 @@ class _ProLoginScreenState extends State<ProLoginScreen> {
   }
 
   void _finish() {
+    final auth = context.read<ProAuthProvider>();
+    // A former member re-invited: signed in, no salon — the session waits on
+    // its invitations (docs/design/pro-rejoin-gate.md §2). Checked FIRST: the
+    // session is live, so everything below would open a salon it has lost.
+    if (auth.rejoinPending) {
+      context.go('/pro/invitations');
+      return;
+    }
     // A Collaborateur lands on their shell; returnTo may point at owner
     // surfaces they can't use (access R4b).
-    final auth = context.read<ProAuthProvider>();
     context.go(
       auth.isStaff ? '/pro/staff' : (widget.returnTo ?? '/pro/dashboard'),
     );
   }
 
-  Future<void> _handleGoogle() async {
+  /// Where a sign-in lands. Signed in → [_finish]; the 202 bridge → the
+  /// « Invitations » step; otherwise, a revocation that ended the session
+  /// with nothing pending (S11) left its one-shot notice — shown HERE, in
+  /// place. This State outlives the sign-out's `go('/pro/login')` (the same
+  /// page), so its initState never reads that notice; the screen used to
+  /// route the signed-out user on to the dashboard's « Veuillez vous
+  /// connecter » instead.
+  void _land(bool ok) {
     final auth = context.read<ProAuthProvider>();
-    final ok = await auth.signInWithGoogle();
-    if (!mounted) return;
     if (ok) {
       _finish();
     } else if (auth.hasPendingInvitations) {
       setState(() => _step = _Step.invitations);
+    } else {
+      final notice = auth.consumeRevokedNotice();
+      if (notice != null) {
+        // Back on the options: an e-mail code was spent by the sign-in.
+        setState(() {
+          _revokedSalon = notice;
+          _step = _Step.options;
+        });
+      }
     }
+  }
+
+  Future<void> _handleGoogle() async {
+    final auth = context.read<ProAuthProvider>();
+    final ok = await auth.signInWithGoogle();
+    if (mounted) _land(ok);
   }
 
   Future<void> _handleApple() async {
     final auth = context.read<ProAuthProvider>();
-    if (await auth.signInWithApple() && mounted) _finish();
+    final ok = await auth.signInWithApple();
+    if (mounted) _land(ok);
   }
 
   /// « Rejoindre » — accepts under the login-proven identity; the account
@@ -123,6 +152,8 @@ class _ProLoginScreenState extends State<ProLoginScreen> {
         kind: SnackKind.success,
       );
       _finish();
+    } else {
+      _land(false);
     }
   }
 
@@ -187,12 +218,7 @@ class _ProLoginScreenState extends State<ProLoginScreen> {
       _emailController.text.trim(),
       _codeController.text.trim(),
     );
-    if (!mounted) return;
-    if (ok) {
-      _finish();
-    } else if (auth.hasPendingInvitations) {
-      setState(() => _step = _Step.invitations);
-    }
+    if (mounted) _land(ok);
   }
 
   @override
@@ -210,36 +236,7 @@ class _ProLoginScreenState extends State<ProLoginScreen> {
             children: [
               if (_revokedSalon != null) ...[
                 const SizedBox(height: AppTheme.spacingM),
-                Container(
-                  padding: const EdgeInsets.all(AppTheme.spacingM),
-                  decoration: BoxDecoration(
-                    color: AppColors.error.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-                    border: Border.all(
-                      color: AppColors.error.withValues(alpha: 0.4),
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(
-                        Icons.person_off_outlined,
-                        color: AppColors.error,
-                      ),
-                      const SizedBox(width: AppTheme.spacingS),
-                      Expanded(
-                        child: Text(
-                          _revokedSalon == 'votre salon'
-                              ? 'Votre accès à ce salon a été retiré.'
-                              : 'Votre accès à $_revokedSalon a été '
-                                    'retiré.',
-                          style: AppTextStyles.bodyMedium.copyWith(
-                            color: AppColors.error,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                RevokedAccessBanner(salonName: _revokedSalon!),
               ],
               const SizedBox(height: AppTheme.spacingL),
               SvgPicture.asset(

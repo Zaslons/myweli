@@ -10,6 +10,7 @@ import 'package:myweli/services/mock/mock_auth_service.dart';
 import 'package:myweli/services/mock/mock_data.dart';
 import 'package:myweli/services/mock/mock_device_registration_service.dart';
 import 'package:myweli/services/mock/mock_pro_service.dart';
+import 'package:myweli/services/mock/mock_pro_team_service.dart';
 import 'package:myweli/services/mock/mock_push_notification_service.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -28,6 +29,9 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     serviceLocator.authService = auth;
     serviceLocator.proService = MockProService();
+    // Asked before the sign-out (docs/design/pro-rejoin-gate.md §2); Fatou
+    // has no pending invitation, so this is the sign-out path.
+    serviceLocator.proTeamService = MockProTeamService();
     serviceLocator.proPushRegistration = PushRegistration(
       push: MockPushNotificationService(),
       devices: MockDeviceRegistrationService(),
@@ -73,8 +77,12 @@ void main() {
         status: TeamMemberStatus.revoked,
         revokedAt: DateTime.now(),
       );
+      // The probe, the invitations (none), the re-check, the sign-out —
+      // polled, a bound rather than a wait.
       ProAccessGuard.report('forbidden');
-      await Future<void>.delayed(const Duration(milliseconds: 600));
+      for (var i = 0; i < 60 && authProvider.isAuthenticated; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+      }
       expect(authProvider.isAuthenticated, isFalse);
     });
 

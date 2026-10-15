@@ -799,8 +799,18 @@ class ApiAuthService implements AuthServiceInterface {
         jsonDecode(raw) as Map<String, dynamic>,
       );
       // copyWith keeps the R6 salon selection alongside the membership.
+      // `null` CLEARS it — the rejoin gate dropping a lost salon's shape
+      // (docs/design/pro-rejoin-gate.md §2.2); read as « keep », the next
+      // cold start opened as a member of that salon. The mock always did.
       await _providerSessionStore.save(
-        jsonEncode(session.copyWith(membership: membership).toJson()),
+        jsonEncode(
+          session
+              .copyWith(
+                membership: membership,
+                clearMembership: membership == null,
+              )
+              .toJson(),
+        ),
       );
     } catch (_) {
       /* a broken blob is repaired on the next login */

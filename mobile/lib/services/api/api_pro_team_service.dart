@@ -41,7 +41,7 @@ class ApiProTeamService implements ProTeamServiceInterface {
   @override
   Future<ApiResponse<List<TeamMember>>> getMembers() async {
     if (await _authed.accessToken() == null) {
-      return ApiResponse.error('Non connecté');
+      return _signedOut();
     }
     final res = await _authed.send(
       (t) async => _client.get(
@@ -66,7 +66,7 @@ class ApiProTeamService implements ProTeamServiceInterface {
     String? artistId,
   }) async {
     if (await _authed.accessToken() == null) {
-      return ApiResponse.error('Non connecté');
+      return _signedOut();
     }
     final res = await _authed.send(
       (t) async => _client.post(
@@ -89,7 +89,7 @@ class ApiProTeamService implements ProTeamServiceInterface {
     String? artistId,
   }) async {
     if (await _authed.accessToken() == null) {
-      return ApiResponse.error('Non connecté');
+      return _signedOut();
     }
     final res = await _authed.send(
       (t) async => _client.patch(
@@ -118,7 +118,7 @@ class ApiProTeamService implements ProTeamServiceInterface {
   @override
   Future<ApiResponse<List<TeamInvitation>>> getMyInvitations() async {
     if (await _authed.accessToken() == null) {
-      return ApiResponse.error('Non connecté');
+      return _signedOut();
     }
     final res = await _authed.send(
       (t) => _client.get(_uri('/me/provider/invitations'), headers: _bearer(t)),
@@ -140,7 +140,7 @@ class ApiProTeamService implements ProTeamServiceInterface {
   @override
   Future<ApiResponse<bool>> declineInvitation(String invitationId) async {
     if (await _authed.accessToken() == null) {
-      return ApiResponse.error('Non connecté');
+      return _signedOut();
     }
     final res = await _authed.send(
       (t) => _client.post(
@@ -158,7 +158,7 @@ class ApiProTeamService implements ProTeamServiceInterface {
     bool resendBudgetCopy = false,
   }) async {
     if (await _authed.accessToken() == null) {
-      return ApiResponse.error('Non connecté');
+      return _signedOut();
     }
     final res = await _authed.send(
       (t) async => _client.post(await _membersUri(path), headers: _bearer(t)),
@@ -207,6 +207,14 @@ class ApiProTeamService implements ProTeamServiceInterface {
   };
   ApiResponse<T> _networkError<T>() =>
       ApiResponse.error('Pas de connexion. Réessayez.');
+
+  /// No stored session — most often one a refused refresh just cleared
+  /// ([RefreshingHttpClient]). Coded as the server codes the same case, so a
+  /// caller can tell it from « offline »: a retry cannot succeed, while the
+  /// rejoin gate would otherwise answer every tap with it
+  /// (docs/design/pro-rejoin-gate.md §10).
+  ApiResponse<T> _signedOut<T>() =>
+      ApiResponse.error('Non connecté', code: 'unauthorized');
 
   ApiResponse<T> _errorFrom<T>(
     http.Response res, {

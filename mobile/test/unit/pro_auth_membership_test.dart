@@ -10,6 +10,7 @@ import 'package:myweli/services/mock/mock_auth_service.dart';
 import 'package:myweli/services/mock/mock_data.dart';
 import 'package:myweli/services/mock/mock_device_registration_service.dart';
 import 'package:myweli/services/mock/mock_pro_service.dart';
+import 'package:myweli/services/mock/mock_pro_team_service.dart';
 import 'package:myweli/services/mock/mock_push_notification_service.dart';
 
 /// Team access R4b — ProAuthProvider's membership plumbing: refresh after
@@ -20,6 +21,10 @@ void main() {
   setUpAll(() {
     serviceLocator.authService = MockAuthService();
     serviceLocator.proService = MockProService();
+    // A revocation asks for the account's pending invitations before the
+    // sign-out (docs/design/pro-rejoin-gate.md §2) — the seeded members have
+    // none, so the revoked flow below still ends signed out.
+    serviceLocator.proTeamService = MockProTeamService();
     serviceLocator.proPushRegistration = PushRegistration(
       push: MockPushNotificationService(),
       devices: MockDeviceRegistrationService(),
@@ -94,9 +99,13 @@ void main() {
       revokedAt: DateTime.now(),
     );
 
-    // Any pro surface reports the next 403 — the guard probes once.
+    // Any pro surface reports the next 403 — the guard probes once, asks for
+    // the account's invitations (none), re-checks, then signs out. Polled:
+    // four mock round-trips, a bound rather than a wait.
     ProAccessGuard.report('forbidden');
-    await Future<void>.delayed(const Duration(milliseconds: 600));
+    for (var i = 0; i < 60 && auth.isAuthenticated; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+    }
 
     expect(auth.isAuthenticated, isFalse);
     final notice = auth.consumeRevokedNotice();

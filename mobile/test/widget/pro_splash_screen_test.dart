@@ -91,6 +91,23 @@ void main() {
         expect(find.text('route:$route'), findsOneWidget);
       });
     }
+
+    // docs/design/pro-rejoin-gate.md S9: a former member re-invited, opening
+    // the app. The session is signed in, so the branch above would send them
+    // to a dashboard they no longer have.
+    for (final staff in [false, true]) {
+      testWidgets('the rejoin gate holding the session → /pro/invitations '
+          '(staff: $staff)', (tester) async {
+        final session = FakeProSession(signedIn: true, staff: staff)
+          ..rejoin = true
+          ..load.complete();
+        await pumpSplash(tester, session);
+        await throughTheGate(tester);
+        await land(tester);
+        expect(find.text('route:invitations'), findsOneWidget);
+        expect(routed(staff ? 'staff' : 'dashboard'), findsNothing);
+      });
+    }
   });
 
   testWidgets('starts no session load of its own — it awaits the one running', (

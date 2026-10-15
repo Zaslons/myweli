@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Approuvé par le propriétaire le 2026-10-14** (« yes » aux trois choix du §9 : la règle et l'échec fermé, l'écran « Invitations » réutilisé, le refus de la dernière invitation qui déconnecte) — construction en cours. |
+| **Statut** | **Approuvé par le propriétaire le 2026-10-14** (« yes » aux trois choix du §9) — **construit le 2026-10-15** sur `feat/pro-rejoin-gate` (app Pro + web Pro), non fusionné. Côté app : part avec le prochain build (0.0.2), pas avec le 587 en revue. Côté web : au prochain déploiement Vercel après fusion. Ce qui a été construit, et où cela s'écarte du texte ci-dessus : §10. |
 | **Module** | `access` (équipe) — app Pro et web Pro |
 | **Origine** | [backend-team-reinvite.md](backend-team-reinvite.md) §11.1 ; le propriétaire, le 2026-10-14 : « do as you think is better ». |
 | **Backend** | **Aucun changement.** `GET /me/provider/invitations` et `POST /me/provider/invitations/{id}/accept|decline` marchent déjà pour une session sans adhésion active. |
@@ -147,3 +147,126 @@ L'acceptation exige toujours la bonne adresse e-mail.
 2. L'écran du §3 : réutiliser « Invitations » plutôt qu'un écran nouveau.
 3. S6 : refuser la dernière invitation **déconnecte** (on ne garde pas une
    session qui ne mène à aucun salon).
+
+## 10. Ce qui a été construit (2026-10-15)
+
+**App** (`mobile/`) — un seul point de décision pour `not_a_member`
+(`_onNotAMember`, partagé par `refreshMembership` et `checkMembershipAlive`,
+qui ne s'exécute qu'une fois même si deux réponses arrivent ensemble) ;
+l'état « réadmission » (`rejoinPending`, ses invitations, le salon perdu) ;
+l'entrée vide le salon perdu (adhésion, cache, sélection, liste des salons,
+données par salon) ; la sortie (`completeRejoin`) ne lève la réadmission
+qu'**une fois** le routeur dans le salon rejoint, pour qu'une notification
+retenue ne se rejoue pas par-dessus l'écran ; démarrage, connexion et
+notifications y conduisent. `ProInvitationsScreen` a son mode « réadmission »
+(décidé à l'ouverture), et le bandeau de la connexion devient un composant
+partagé (`RevokedAccessBanner`). Le défaut S11 (connexion révoquée → écran
+verrouillé) est corrigé : le bandeau s'affiche sur place.
+
+**Web** (`web/`) — la même règle dans `ProMembershipContext` ; une page
+intermédiaire `ProRevokedInvitations` ; `ProInvitationsCard` retire une carte
+expirée ou retirée, ne reste plus bloqué hors ligne, et « Refuser » devient un
+vrai bouton de 48px ; après « Rejoindre » depuis une page profonde, la page
+attend `/pro` pour ne pas monter un instant une page de l'ancien rôle.
+
+**Écarts au texte, assumés** :
+- « Déconnexion » est une **icône** avec cette info-bulle (app) : §13.3 et le
+  registre §21 ligne 79 demandent une icône dans une barre d'app à 200 %.
+- La **revérification** de `GET /me/provider` précède aussi une déconnexion
+  décidée sur un **échec** de la liste, pas seulement sur une liste vide : elle
+  ne peut garder qu'une session que le serveur rattache à un salon ;
+  l'échec fermé tient.
+- Le bandeau « Votre accès à {salon} a été retiré. » n'apparaît sur l'écran que
+  quand le salon perdu est connu (en cours de session, au démarrage) ; après
+  une connexion, il est omis, comme le prévoit §3.
+- Web : le message de succès reprend celui de l'app, sans point final.
+- `ApiAuthService.cacheProviderMembership(null)` ne vidait rien (l'app réelle
+  aurait gardé l'ancienne adhésion en cache) : corrigé, dans son propre commit.
+
+**Trouvé en regardant l'image** (règle §20.1) : la première image Linux de
+l'écran montrait « **Rejoind/re** » à 360dp × 2 — la carte d'invitation
+partagée (`InvitationCard`, aussi dans Profil → Invitations et à l'étape
+« invitations » de la connexion) gardait ses deux actions côte à côte.
+Elle les **empile** maintenant, chacune pleine largeur, quand « Rejoindre » ne
+tient pas entier à côté de « Refuser » — mesuré avec le style et les marges des
+boutons ; à 1×, rien ne change (les 51 autres images sont identiques à
+l'octet).
+
+**Tests, chacun vu rouge d'abord** — app : 22 unitaires
+(`pro_auth_rejoin_test.dart`), 12 d'écran (`pro_rejoin_gate_test.dart`), le
+démarrage, la notification retenue, le cache ; 20 mutations sur du code
+commité, toutes rouges. Web : 16 Vitest du contexte, 11 de la carte, 6 de
+parité des textes, 2 e2e Playwright (un ancien membre rejoint ; un autre
+refuse — avec axe, cibles de 48px et un passage à 320px) ; 9 mutations, toutes
+rouges. L'image de référence `pro_rejoin_gate_w360_x2.png`, générée sous Linux.
+
+### 10.1 Après la revue adverse (2026-10-15)
+
+Une revue en quatre angles (états et courses de l'app, web, UX et parité,
+session) a trouvé 17 défauts, tous confirmés par un sceptique ; deux
+correcteurs les ont fermés (chacun vu rouge d'abord, 20 mutations par surface),
+un vérificateur a relu chaque correction, et ses deux nouvelles remarques sont
+fermées aussi. Ce que cela change à la spec :
+
+**Les deux surfaces**
+- **Plus aucune sortie sans revérification** : « Refuser » la dernière carte,
+  ou une dernière carte refusée comme expirée ou introuvable, revérifie
+  `GET /me/provider` avant de déconnecter (§2.4). Si la personne a déjà
+  rejoint ailleurs (autre appareil, réponse perdue), elle entre dans le salon,
+  sans message. Le motif (« Cette invitation a expiré. … » / « Introuvable. … »)
+  n'est montré que si l'on déconnecte — sur la page de connexion.
+- **Une réponse à la fois, la sortie comprise** : « Déconnexion » /
+  « Se déconnecter » attend pendant un « Rejoindre » ou un « Refuser » ; une
+  acceptation qui répond après une déconnexion ne mène nulle part (et le web
+  relance la déconnexion, au cas où la réponse aurait remis des cookies).
+- **Une session morte** (le serveur refuse le renouvellement) quitte l'écran
+  pour la connexion. App : sans le bandeau « accès retiré » (aucun accès n'a été
+  retiré), avec « Veuillez vous reconnecter. » (texte existant). Web : avec le
+  motif, comme les autres sorties de l'écran. **Un renouvellement qui échoue
+  faute de réseau n'est pas une session morte** : l'app la garde et dit
+  « Pas de connexion. Réessayez. » (trouvé par la vérification).
+- Les textes d'échec sont ceux de S5/S7 sur les deux surfaces : « Invitation
+  impossible à accepter. » / « Refus impossible. » pour un refus ou une erreur
+  serveur, la phrase hors ligne sinon.
+
+**Web**
+- **Une déconnexion ratée n'est jamais montrée comme faite** : le bouton reste,
+  se réactive et dit « Pas de connexion. Réessayez. » ou « Une erreur est
+  survenue. Réessayez. ». La déconnexion automatique (S6, S8, 401) qui échoue
+  s'arrête sur une page verrouillée (« Espace Pro », le bandeau, l'erreur,
+  « Se déconnecter »).
+- La revérification précède aussi une déconnexion décidée sur une liste en
+  **échec**, comme l'app.
+- Après un « Rejoindre » dont le `/me` échoue, la barre latérale garde son
+  squelette — jamais un menu tiré d'une adhésion absente — et le fournisseur
+  **redemande** avec une pause croissante (1, 2, 4, 8, 16 s, puis 30 s) jusqu'à
+  ce qu'un profil arrive (trouvé par la vérification).
+- Le focus suit : la carte suivante prend le focus sur son « Rejoindre » quand
+  une carte part ; chaque attente place le focus sur le titre de la page.
+- Le motif d'une dernière carte expirée ou introuvable voyage jusqu'à la page
+  de connexion (`&raison=invitation-expiree|invitation-introuvable`, lu
+  seulement avec `motif=acces-retire`, deux valeurs fermées).
+- Refuser la dernière carte affiche l'attente pendant la déconnexion.
+
+**App**
+- Au démarrage, l'entrée dans l'écran vide les données du salon perdu **avant**
+  de lever l'état « réadmission » : l'écran ne peut plus s'ouvrir sur des
+  cartes effacées.
+- `ApiProTeamService` répond `unauthorized` quand aucune session n'est
+  stockée (au lieu d'un « Non connecté » sans code).
+
+**Écart assumé — web, après un rechargement** : la ligne « Votre accès à
+{salon} a été retiré. » n'apparaît que pour une révocation vue dans le même
+onglet. Après une connexion, un rechargement ou un nouvel onglet, le web ne
+connaît pas le salon perdu : le 403 ne porte pas de nom, `/me/salons` ne liste
+que les adhésions actives, le cookie de sélection ne garde qu'un identifiant —
+et aucun stockage côté client n'a été ajouté pour cela. L'app, elle, garde le
+nom en cache et l'affiche aussi au démarrage.
+
+**Restes, antérieurs, non traités ici** : une erreur serveur dont le corps
+n'est pas du JSON (une page HTML d'erreur de la porte d'entrée) s'affiche
+« Erreur » dans l'app ; la carte « Invitations » de la page « Aujourd'hui »
+(hors écran de réadmission) ne quitte pas la page sur un 401 ; un `/me` en
+échec au tout premier affichage (sans écran de réadmission) garde le menu
+d'avant.
+

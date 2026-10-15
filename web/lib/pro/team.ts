@@ -40,11 +40,19 @@ export const ROLE_SUMMARIES: Record<TeamRoleInput, string> = {
 export const DEMO_ACCOUNT_LOCKED_MESSAGE =
   'Compte de démonstration — cette action est désactivée.';
 
+/// The shared table's sentence for an unknown or absent code — the app's
+/// `teamErrorMessage` fallback (team_error_messages.dart) and the web's
+/// ErrorState default.
+export const GENERIC_ERROR_MESSAGE = 'Une erreur est survenue. Réessayez.';
+
 /// Machine code → French copy. `ctx: 'resend'` swaps the shared
 /// invite_rate_limited code for the per-invitation budget message.
+/// `fallback` replaces the generic sentence for an unknown or absent code —
+/// the app's `teamErrorMessage(code, fallback:)`.
 export function teamErrorMessage(
   code: string | undefined,
   ctx?: 'invite' | 'resend',
+  fallback?: string,
 ): string {
   switch (code) {
     case 'member_exists':
@@ -83,8 +91,85 @@ export function teamErrorMessage(
     case 'demo_account_locked':
       return DEMO_ACCOUNT_LOCKED_MESSAGE;
     default:
-      return 'Une erreur est survenue. Réessayez.';
+      return fallback ?? GENERIC_ERROR_MESSAGE;
   }
+}
+
+// --- the invitee's side (team access R5a; the rejoin gate) -----------------
+// docs/design/pro-rejoin-gate.md §4: every sentence below is the APP's, copied
+// — none is invented here. tests/pro-team.test.ts reads the app source to keep
+// it that way.
+
+/// The app's accept refusal (pro_invitations_screen.dart).
+export const INVITATION_ACCEPT_FAILED_MESSAGE =
+  'Invitation impossible à accepter.';
+/// The app's decline refusal (pro_invitations_screen.dart).
+export const INVITATION_DECLINE_FAILED_MESSAGE = 'Refus impossible.';
+/// The app's no-network sentence (every api_*_service.dart).
+export const NO_CONNECTION_MESSAGE = 'Pas de connexion. Réessayez.';
+
+/// A logout whose response did not come back OK, in the person's words: the
+/// app's no-network sentence, or the shared generic one.
+export function logoutErrorMessage(outcome: 'offline' | 'failed'): string {
+  return outcome === 'offline' ? NO_CONNECTION_MESSAGE : GENERIC_ERROR_MESSAGE;
+}
+
+/// The revoked landing (team access R5b): the login with the generic banner —
+/// no salon name ever travels in a URL.
+export const REVOKED_LANDING = '/pro/connexion?motif=acces-retire';
+
+/// Why the gate's LAST card went when the server said so (S3 → S6). The
+/// sign-out carries it to the login as a fixed code — never text — so the
+/// person reads there what the app's root snack tells them on its sign-in.
+export type GateExitReason = 'invitation_expired' | 'not_found';
+
+const GATE_EXIT_PARAM: Record<GateExitReason, string> = {
+  invitation_expired: 'invitation-expiree',
+  not_found: 'invitation-introuvable',
+};
+
+export function revokedLanding(reason?: GateExitReason): string {
+  return reason
+    ? `${REVOKED_LANDING}&raison=${GATE_EXIT_PARAM[reason]}`
+    : REVOKED_LANDING;
+}
+
+/// The login's reading of `?raison=`: one of the two codes → its sentence
+/// (the shared table's), anything else → nothing.
+export function gateExitMessage(raison: string | null): string | null {
+  const code = (Object.keys(GATE_EXIT_PARAM) as GateExitReason[]).find(
+    (c) => GATE_EXIT_PARAM[c] === raison,
+  );
+  return code ? teamErrorMessage(code) : null;
+}
+
+/// The app's accept success line.
+export function joinedSalonMessage(salonName: string): string {
+  return `Vous avez rejoint ${salonName}`;
+}
+
+/// The app's login banner when it knows which salon was lost. The web's
+/// `?motif=acces-retire` banner stays generic (`not_a_member`): a salon name
+/// never travels in a URL.
+export function revokedAccessMessage(salonName: string): string {
+  return `Votre accès à ${salonName} a été retiré.`;
+}
+
+/// An invitee's refused accept/decline → copy. `forbidden` is the roster's
+/// owner sentence (« Action réservée au propriétaire du salon. »); to an
+/// invitee it means the invitation is not theirs to act on (T37), so they read
+/// the action's own failure line instead. Codes that tell them something true
+/// (expired, gone, demo) keep the shared table.
+export function invitationActionError(
+  code: string | undefined,
+  action: 'accept' | 'decline',
+): string {
+  const failed =
+    action === 'accept'
+      ? INVITATION_ACCEPT_FAILED_MESSAGE
+      : INVITATION_DECLINE_FAILED_MESSAGE;
+  if (code === 'forbidden') return failed;
+  return teamErrorMessage(code, undefined, failed);
 }
 
 /// The offer gates carry a CTA to the picker.

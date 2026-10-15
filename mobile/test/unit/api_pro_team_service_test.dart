@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/team_member.dart';
 import 'package:myweli/services/api/api_pro_team_service.dart';
 import 'package:myweli/services/interfaces/session_store.dart';
@@ -167,4 +168,56 @@ void main() {
       expect((await offline.getMembers()).success, isFalse);
     },
   );
+
+  // pro-rejoin-gate review finding 5: a refresh the server refuses clears the
+  // stored session. The rejoin gate must tell that apart from « offline »
+  // (S4, retry) — by the same machine code the server sends for it, not an
+  // uncoded « Non connecté » on every later tap.
+  test('no stored session → code `unauthorized` (the server\'s code for the '
+      'same case), the sentence unchanged', () async {
+    var requests = 0;
+    final svc = ApiProTeamService(
+      client: MockClient((_) async {
+        requests++;
+        return http.Response('{}', 200);
+      }),
+      baseUrl: 'http://x',
+      providerSessionStore: InMemorySessionStore(),
+    );
+
+    for (final res in <ApiResponse<Object?>>[
+      await svc.getMyInvitations(),
+      await svc.acceptInvitation('mem_9'),
+      await svc.declineInvitation('mem_9'),
+      await svc.getMembers(),
+      await svc.inviteMember(email: 'a@b.com', role: TeamRole.manager),
+      await svc.changeRole('mem_1', role: TeamRole.reception),
+    ]) {
+      expect(res.success, isFalse);
+      expect(res.code, 'unauthorized');
+      expect(res.error, 'Non connecté');
+    }
+    expect(requests, 0, reason: 'nothing is sent without a session');
+  });
+
+  test('a 401 the refresh cannot fix (refused → the session is cleared) '
+      'carries `unauthorized`, and so does every tap after it', () async {
+    final store = await connectedStore();
+    final svc = ApiProTeamService(
+      client: MockClient((req) async {
+        if (req.url.path == '/auth/provider/refresh') {
+          return http.Response(jsonEncode({'error': 'refresh_reused'}), 401);
+        }
+        return http.Response(jsonEncode({'error': 'unauthorized'}), 401);
+      }),
+      baseUrl: 'http://x',
+      providerSessionStore: store,
+    );
+
+    final res = await svc.acceptInvitation('mem_9');
+
+    expect(res.code, 'unauthorized');
+    expect(await store.read(), isNull, reason: 'the refusal ended it');
+    expect((await svc.acceptInvitation('mem_9')).code, 'unauthorized');
+  });
 }

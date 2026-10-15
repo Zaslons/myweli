@@ -30,6 +30,7 @@ import 'package:myweli/screens/provider/earnings/earnings_screen.dart';
 import 'package:myweli/screens/provider/journal/pro_journal_screen.dart';
 import 'package:myweli/screens/provider/reviews/reviews_screen.dart';
 import 'package:myweli/screens/provider/settings/deposit_settings_screen.dart';
+import 'package:myweli/screens/provider/team/pro_invitations_screen.dart';
 import 'package:myweli/screens/provider/team/team_screen.dart';
 import 'package:myweli/services/mock/mock_auth_service.dart';
 import 'package:myweli/services/mock/mock_device_registration_service.dart';
@@ -47,6 +48,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../support/frozen_clock.dart';
 import '../support/golden.dart';
+import '../support/rejoin.dart';
 import '../support/tab_flows.dart';
 
 /// The pro app, under the real theme (docs/design/SYSTEM.md §20).
@@ -546,6 +548,61 @@ void main() {
       expect(find.text('S\u2019inscrire'), findsOneWidget);
 
       await expectGolden(tester, 'pro_login_w360_x2');
+    });
+
+    // ---- The rejoin gate (docs/design/pro-rejoin-gate.md §3) ------------
+    //
+    // « Invitations » in its locked mode: no back, the « Déconnexion » icon,
+    // the banner naming the salon that was lost, « Vous êtes invité(e) », the
+    // card. Taken at the floor and at 200% because that is where a bar's
+    // action and a card's two buttons run out of room first — and with the
+    // banner, which only a session that HAD a salon shows (mid-session or a
+    // cold start), so every element of the screen is in the picture.
+    testWidgets('the rejoin gate at the floor, at 200% text', (tester) async {
+      goldenSurface(tester, size: const Size(360, 1400), scale: 2);
+
+      // Fatou, signed in at Salon Excellence, revoked and invited again: the
+      // guard's probe holds her on the gate. Real async — the mock delays.
+      late final ProAuthProvider auth;
+      await tester.runAsync(() async {
+        final mockAuth = serviceLocator.authService as MockAuthService;
+        await mockAuth.logoutProvider();
+        await mockAuth.requestProviderEmailOtp(kFatou);
+        await mockAuth.verifyProviderEmailOtp(kFatou, MockAuthService.demoOtp);
+        auth = ProAuthProvider();
+        await auth.ready;
+        revokeMember(kFatouRow);
+        await reinvite(serviceLocator.proTeamService);
+        await auth.checkMembershipAlive();
+      });
+      expect(auth.rejoinPending, isTrue, reason: 'the gate, or no picture');
+
+      await tester.pumpWidget(
+        MultiProvider(
+          providers: [
+            ChangeNotifierProvider<ProAuthProvider>.value(value: auth),
+            ChangeNotifierProvider(create: (_) => ProTeamProvider()),
+          ],
+          child: MaterialApp(
+            debugShowCheckedModeBanner: false,
+            theme: goldenTheme(),
+            localizationsDelegates: GlobalMaterialLocalizations.delegates,
+            supportedLocales: const [Locale('fr', 'FR')],
+            locale: const Locale('fr', 'FR'),
+            home: const ProInvitationsScreen(),
+          ),
+        ),
+      );
+      await settleMocks(tester, rounds: 2);
+
+      expect(
+        find.text('Votre accès à Salon Excellence a été retiré.'),
+        findsOneWidget,
+      );
+      expect(find.text('Vous êtes invité(e)'), findsOneWidget);
+      expect(find.byTooltip('Déconnexion'), findsOneWidget);
+
+      await expectGolden(tester, 'pro_rejoin_gate_w360_x2');
     });
   }, skip: kGoldensSkip);
 }

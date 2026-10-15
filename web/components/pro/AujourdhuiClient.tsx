@@ -16,7 +16,11 @@ import {
   listProAppointments,
 } from '../../lib/api/pro';
 import { formatFcfa } from '../../lib/format';
-import { hasCap } from '../../lib/pro/team';
+import {
+  type TeamInvitation,
+  hasCap,
+  joinedSalonMessage,
+} from '../../lib/pro/team';
 import {
   type ProAppointment,
   todayCounts,
@@ -25,9 +29,11 @@ import {
 import { GoLiveCard } from './GoLiveCard';
 import { ProAppointmentRow } from './ProAppointmentRow';
 import { ProInvitationsCard } from './ProInvitationsCard';
+import { useOptionalProMembership } from './ProMembershipContext';
 
 export function AujourdhuiClient() {
   const router = useRouter();
+  const membershipCtx = useOptionalProMembership();
   const [profile, setProfile] = useState<ProProfile | null>(null);
   const [live, setLive] = useState(false);
   const [items, setItems] = useState<ProAppointment[]>([]);
@@ -84,9 +90,31 @@ export function AujourdhuiClient() {
     };
   }, [router, reloadKey]);
 
+  // An already-active member accepted another salon's invitation: the new
+  // salon joins « Mes salons » (the switcher), and the app's success line
+  // says so. The provider owns the toast (a remount must not swallow it).
+  function onInvitationAccepted(inv: TeamInvitation) {
+    void membershipCtx?.refreshSalons();
+    membershipCtx?.notify(joinedSalonMessage(inv.salonName), 'success');
+  }
+
   if (loading) return <SkeletonRows count={4} className="mt-l" />;
   if (error) {
-    return <ErrorState title="Aujourd’hui" onRetry={() => { setError(false); setLoading(true); setReloadKey((k) => k + 1); }} />;
+    // The retry re-probes the membership too: after a join whose /me
+    // failed, the sidebar waits in its skeleton (never a nav drawn from an
+    // absent membership) — and this page, where the join lands, is the one
+    // place a retry is offered (docs/design/pro-rejoin-gate.md §10).
+    return (
+      <ErrorState
+        title="Aujourd’hui"
+        onRetry={() => {
+          void membershipCtx?.refresh();
+          setError(false);
+          setLoading(true);
+          setReloadKey((k) => k + 1);
+        }}
+      />
+    );
   }
 
   // The ACTIVE salon's market (multi-pays MP3) — day boundary + money label.
@@ -111,7 +139,7 @@ export function AujourdhuiClient() {
         </h1>
 
         {/* Pending invitations for THIS account (if any). */}
-        <ProInvitationsCard />
+        <ProInvitationsCard onAccepted={onInvitationAccepted} />
 
         <h2 className="mt-l text-titleLarge font-semibold text-textPrimary">
           Rendez-vous du jour
@@ -148,7 +176,7 @@ export function AujourdhuiClient() {
       <div className="xl:grid xl:grid-cols-desk xl:items-start xl:gap-xl">
         <div className="xl:col-start-2 xl:row-start-1">
           {/* Team access R5a: pending invitations for THIS account (if any). */}
-          <ProInvitationsCard />
+          <ProInvitationsCard onAccepted={onInvitationAccepted} />
 
           {/* Draft salons: the go-live checklist (pro-salon-lifecycle.md B2) —
               publishing is the owner's act (salon.publish). */}
