@@ -93,6 +93,11 @@ web/
   `lib/service-landing.ts` / `lib/discovery.ts` / `lib/taxonomy.ts`) stay
   pure and take geography as parameters; Mobile-Money labels/deep links go
   through `lib/mobile-money.ts` (closed `deepLinkKind` vocabulary — T56).
+  Phone numbers go through `lib/phone.ts` (`phoneFieldError` /
+  `normalizePhone`): the national length of a market (+225 → 10) is **read
+  from libphonenumber's metadata**, and the markets are `PHONE_MARKETS` —
+  pinned equal to the backend's table by `tests/phone-numbering-pin.test.ts`
+  ([design/phone-national-length.md](design/phone-national-length.md)).
   Displayed times and day boundaries are **salon time** — thread the salon's
   `timezone`/`currency` (provider payload, appointment carriers,
   `getMyProvider`) into the already-parameterized `lib/time.ts` /

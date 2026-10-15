@@ -597,7 +597,7 @@ export interface paths {
                         email?: string;
                         /** @description Either a URL just returned by `POST /uploads/sign` (still under `pending/`) — which the server PROMOTES, storing and returning the promoted URL — or **exactly** the avatar currently stored, which passes through unchanged so an edit that only renames still works. Anything else → 400 `invalid_input`. Uploads that are never promoted are deleted by the `pending/` lifecycle rule (T61). */
                         avatarUrl?: string;
-                        /** @description Contact phone (E.164). Empty string clears it. Setting a new value resets phoneVerified (verified later via SMS). */
+                        /** @description Contact phone (E.164, no separators; a +225 number has exactly 10 digits after the code — anything else → 400 `invalid_phone`). Empty string clears it. Setting a new value resets phoneVerified (verified later via SMS). */
                         phone?: string;
                     };
                 };
@@ -1506,7 +1506,7 @@ export interface paths {
         put?: never;
         /**
          * « Ajouter un salon » — an additional draft salon (access R6, Réseau-gated)
-         * @description Provider-only (threat T55). Requires ≥1 OWNED salon with a live (trial/paid/grace) Réseau offer → else 403 `reseau_required`; capped at 20 owned salons → 409 `salon_limit`. The store-review demo account → 403 `demo_account_locked` (T69 — its credential is public; checked in the service before any salon field is read — a malformed body or `areaId` still answers 400 first — and `GET`'s `canAddSalon` is false for it). Creates a DRAFT salon (own setup state — its own offer, its own trial, its own publish gate; no subscription row — its trial starts at its first publish: on Réseau while the owner's other Réseau offer is still live then, else on Pro) plus the owner membership row; the account's default salon link is untouched. The « Vérifié » badge is inherited when the account's KYC is approved (T52). `phoneNumber` defaults to the account's.
+         * @description Provider-only (threat T55). Requires ≥1 OWNED salon with a live (trial/paid/grace) Réseau offer → else 403 `reseau_required`; capped at 20 owned salons → 409 `salon_limit`. The store-review demo account → 403 `demo_account_locked` (T69 — its credential is public; checked in the service before any salon field is read — a malformed body or `areaId` still answers 400 first — and `GET`'s `canAddSalon` is false for it). Creates a DRAFT salon (own setup state — its own offer, its own trial, its own publish gate; no subscription row — its trial starts at its first publish: on Réseau while the owner's other Réseau offer is still live then, else on Pro) plus the owner membership row; the account's default salon link is untouched. The « Vérifié » badge is inherited when the account's KYC is approved (T52). `phoneNumber` defaults to the account's (copied as is, not re-validated); a sent one must be a valid number → else 400 `invalid_phone`.
          */
         post: {
             parameters: {
@@ -1521,6 +1521,7 @@ export interface paths {
                         businessName: string;
                         /** @enum {string} */
                         businessType: "salon" | "barber" | "spa" | "nailSalon" | "massage" | "other";
+                        /** @description E.164, no separators; a +225 number has exactly 10 digits after the code. Optional — absent or blank → the account's phone. */
                         phoneNumber?: string;
                         address?: string;
                         /** @description Optional locality pick (an `Area.id` from GET /localities) — market facts derive from it (400 `invalid_area` when unknown). */
@@ -1540,7 +1541,15 @@ export interface paths {
                         };
                     };
                 };
-                400: components["responses"]["BadRequest"];
+                /** @description `invalid_body`, `invalid_input` (blank or too-long `businessName`, unknown `businessType`), `invalid_area` (unknown `areaId`), or `invalid_phone` (a sent `phoneNumber` that is not E.164, or a +225 number without exactly 10 digits after the code). Nothing is created. */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
                 401: components["responses"]["Unauthorized"];
                 /** @description Not a provider (`forbidden`), no live Réseau offer on any owned salon (`reseau_required`), or the store-review demo account (`demo_account_locked`, T69). */
                 403: {
@@ -1797,7 +1806,7 @@ export interface paths {
                         businessName: string;
                         /** @enum {string} */
                         businessType: "salon" | "barber" | "spa" | "nailSalon" | "massage" | "other";
-                        /** @description E.164 — required salon contact. */
+                        /** @description E.164 — required salon contact. No separators; a +225 number has exactly 10 digits after the code (else 400 `invalid_input`). */
                         phoneNumber: string;
                         address?: string;
                         /** @description Optional locality pick (an `Area.id` from GET /localities) — the salon's commune/city/timezone/currency DERIVE from it server-side (multi-pays MP1; unknown → 400 `invalid_area`). */
@@ -2428,7 +2437,7 @@ export interface paths {
         head?: never;
         /**
          * Update the salon's editable public profile (web M7.3e, owner-only)
-         * @description Provider role + ownership (account.providerId == {id} → else 403). Only the editable public fields below are accepted; protected fields (slug, rating, reviewCount, status, services, artists, availability, imageUrls) have their own endpoints and are ignored. `phoneNumber`/`whatsapp` E.164.
+         * @description Provider role + ownership (account.providerId == {id} → else 403). Only the editable public fields below are accepted; protected fields (slug, rating, reviewCount, status, services, artists, availability, imageUrls) have their own endpoints and are ignored. `phoneNumber`/`whatsapp` E.164 (no separators; a +225 number has exactly 10 digits after the code — else 400 `invalid_input`).
          */
         patch: {
             parameters: {
@@ -2447,9 +2456,9 @@ export interface paths {
                         address?: string;
                         city?: string | null;
                         commune?: string | null;
-                        /** @description E.164. */
+                        /** @description E.164; a +225 number has exactly 10 digits after the code. */
                         phoneNumber?: string;
-                        /** @description E.164. */
+                        /** @description E.164; a +225 number has exactly 10 digits after the code. Empty string or null clears it. */
                         whatsapp?: string | null;
                         /** @description Map pin (pro-salon-lifecycle L1); PAIRED with longitude, −90..90. */
                         latitude?: number;
@@ -3264,7 +3273,7 @@ export interface paths {
         };
         /**
          * Replace a salon's deposit policy wholesale (B-deposit)
-         * @description Server-authoritative (booking derives each deposit from this). **Enabling deposits requires a KYC-VERIFIED account** (T52) → 403 `verification_required` otherwise. Validated: `depositPercentage` 0..1 (and > 0 when required); `cancellationWindowHours` 0..720; `mobileMoneyOperator` in the enum; `mobileMoneyNumber` E.164. **When `depositRequired` is true, the Mobile Money operator + number are required.**
+         * @description Server-authoritative (booking derives each deposit from this). **Enabling deposits requires a KYC-VERIFIED account** (T52) → 403 `verification_required` otherwise. Validated: `depositPercentage` 0..1 (and > 0 when required); `cancellationWindowHours` 0..720; `mobileMoneyOperator` in the enum; `mobileMoneyNumber` E.164 (a +225 number has exactly 10 digits after the code; checked whenever present, deposits on or off). **When `depositRequired` is true, the Mobile Money operator + number are required.**
          */
         put: {
             parameters: {
@@ -3535,7 +3544,7 @@ export interface paths {
                         appointmentDateTime: string;
                         artistId?: string;
                         clientName?: string;
-                        /** @description E.164 if provided. */
+                        /** @description E.164 if provided (no separators; a +225 number has exactly 10 digits after the code — else 400 `invalid_phone`). */
                         clientPhone?: string;
                         notes?: string;
                         sendSmsInvite?: boolean;
@@ -3685,7 +3694,7 @@ export interface paths {
                 content: {
                     "application/json": {
                         name: string;
-                        /** @description E.164 */
+                        /** @description E.164, no separators; a +225 number has exactly 10 digits after the code (else 400 `invalid_phone`). */
                         phone: string;
                         /** @description Optional first note (≤500). */
                         note?: string;
@@ -6441,13 +6450,16 @@ export interface components {
         };
         OtpRequest: {
             /**
-             * @description E.164, defaulting to +225 (Côte d'Ivoire).
+             * @description E.164, defaulting to +225 (Côte d'Ivoire); no separators, and a +225 number has exactly 10 digits after the code.
              * @example +2250707123456
              */
             phoneNumber: string;
         };
         OtpVerify: {
-            /** @example +2250707123456 */
+            /**
+             * @description E.164, no separators; a +225 number has exactly 10 digits after the code.
+             * @example +2250707123456
+             */
             phoneNumber: string;
             /** @example 123456 */
             code: string;
@@ -6882,7 +6894,7 @@ export interface components {
             cancellationWindowHours: number;
             /** @description An operator id from the salon COUNTRY's catalog (GET /localities → country.operators — multi-pays MP1). */
             mobileMoneyOperator?: string | null;
-            /** @description E.164. Required (with operator) when depositRequired. */
+            /** @description E.164; a +225 number has exactly 10 digits after the code. Required (with operator) when depositRequired. */
             mobileMoneyNumber?: string | null;
         };
         Gallery: {

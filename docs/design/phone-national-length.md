@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Approuvé le 2026-10-15** (propriétaire : « Do this task here: Reject short Ivorian numbers at the phone step ») — en construction sur `fix/phone-national-length` |
+| **Statut** | **Approuvé le 2026-10-15** (propriétaire : « Do this task here: Reject short Ivorian numbers at the phone step ») — **construit le même jour** sur `fix/phone-national-length` (trois surfaces, chacune vue rouge d'abord ; §12 dit ce qui a été construit autrement qu'écrit) |
 | **Module** | transverse — formulaires (SYSTEM.md §14) · données de marché (SYSTEM.md §18, [multi-pays.md](../modules/multi-pays.md) §6/§9) · identité (T34) |
 | **Origine** | Vu sur le simulateur le 2026-10-15 (essai de #601) : l'étape « Votre numéro de téléphone » de l'app client a accepté `+2250700000` — 7 chiffres après +225 — et l'a enregistré. |
 | **Régit** | `mobile/lib/core/utils/phone_numbering.dart` (nouveau seam §18) · `mobile/lib/core/utils/validators.dart` (`phoneNumber`) · `mobile/lib/widgets/common/phone_number_field.dart` · les 9 écrans de saisie (§2) · `backend/lib/src/localities/phone_numbering.dart` (nouveau, dans le seam existant) · `backend/lib/src/validators.dart` · les 11 sites `isValidE164` + `POST /me/salons` · `web/lib/phone.ts` (nouveau) et les 9 formulaires web (§2) · `docs/api/openapi.yaml` |
@@ -79,9 +79,9 @@ sans `+` : `'225'`.
 
 | Surface | Seam | Forme |
 |---|---|---|
-| Mobile | `core/utils/phone_numbering.dart` (**nouveau, ajouté à la liste fermée de §18 dans ce PR**) | `const Map<String, int> kNationalNumberLength = {'225': 10};` + `PhoneNumbering.normalize`, `.nationalLengthFor` |
-| Backend | `lib/src/localities/phone_numbering.dart` (dans le seam existant) | `const Map<String, int> nationalNumberLengths = {'225': 10};` + `hasValidNationalLength` |
-| Web | la métadonnée libphonenumber (déjà là) via `lib/phone.ts` | aucun littéral : la longueur est lue de la métadonnée |
+| Mobile | `core/utils/phone_numbering.dart` (**nouveau, ajouté à la liste fermée de §18 dans ce PR**) | `const Map<String, int> kNationalNumberLength = {'225': 10};` + `PhoneNumbering.normalize`, `.compose`, `.nationalLengthFor` |
+| Backend | `lib/src/localities/phone_numbering.dart` (dans le seam existant) | `const Map<String, int> nationalNumberLengths = {'225': 10};` + `nationalLengthRule` (et `isValidPhoneNumber` dans `validators.dart`) |
+| Web | la métadonnée libphonenumber (déjà là) via `lib/phone.ts` | aucun littéral de longueur : elle est lue de la métadonnée ; les marchés sont `PHONE_MARKETS = ['CI']` (un code pays, gardé égal aux clés de la table backend) |
 
 Gardes croisées (§8) : chaque pays semé dans `localities` a sa ligne ; la table
 mobile, la table backend et la métadonnée web disent la même chose pour `225`.
@@ -170,8 +170,8 @@ Négligeable : une table d'une ligne, des regex.
 
 ## 8. Tests — chacun vu rouge d'abord
 
-- **Mobile** — `validators_test` : `+2250700000` (7), `+225070000000011` (11),
-  `+2250700` (4) → « 10 chiffres après +225 » ; `+225 07 07 12 34 56` → accepté ;
+- **Mobile** — `validators_test` : `+2250700000` (7), `+225070712345` (9),
+  `+22507071234567` (11), `+2250700` (4) → « 10 chiffres après +225 » ; `+225 07 07 12 34 56` → accepté ;
   `+225` et `''` → « Saisissez un numéro » ; `+33612345678` accepté.
   `phone_number_field_test` : aucun message pendant la frappe (étendu au nouveau
   texte) ; vidé → `''` ; changement de pays réémis ; `+33…` prérempli → France.
@@ -214,3 +214,35 @@ est sans risque : chaque client refuse déjà ce que le serveur refusera.
    aujourd'hui (§1.5), à prévoir avant d'ouvrir de nouveaux marchés.
 4. `Helpers.maskPhoneNumber` ne masque que les anciens numéros à 8 chiffres
    (écrans OTP en sommeil).
+5. Acompte, dépôts désactivés : l'app **garde** le numéro Mobile Money, le web
+   l'envoie à `null` (donc l'efface). Écart de parité antérieur à ce travail.
+6. Un numéro de fiche client choisi dans la réservation manuelle web est envoyé
+   tel quel (affiché, pas éditable) : un numéro court stocké recevrait le 400
+   du serveur. Aucun en production (§1.5).
+
+## 12. Construit — ce qui diffère de ce qui était écrit
+
+- **Le vecteur « 11 chiffres » de §8 en avait 12** (`+225070000000011`) : relevé
+  par la surface backend ; les vrais bords 9 et 11 ont été ajoutés partout.
+- **Mobile.** `PhoneNumbering.compose` (troisième aide : le champ compose
+  `+indicatif` + chiffres sans dupliquer la regex) ; `PhoneNumberField` prend un
+  `focusNode` (le focus suit enfin la première erreur sur les écrans qui en ont
+  une) ; `AuthProvider.updateErrorCode` permet de placer un `invalid_phone` du
+  serveur **sous le champ**, avec « Saisissez un numéro de téléphone valide. »
+  (la spec ne donnait pas de texte pour ce cas). **Acompte, dépôts désactivés** :
+  la carte « Recevoir l'acompte » est cachée ; un enregistrement refusé pour un
+  numéro court la **révèle** pour que le message ait un champ où se poser. Le
+  préremplissage perdu au démarrage à froid (signalé « NOT COVERED » par
+  l'ancien test) est corrigé et couvert.
+- **Web.** `libphonenumber-js` devient une dépendance directe, épinglée à la
+  version déjà verrouillée (1.13.7) : `react-phone-number-input` ne réexporte pas
+  `Metadata`. Profil et Acompte affichent leurs fautes de téléphone **sous le
+  champ** (`aria-invalid`/`aria-describedby`) au lieu du haut du formulaire.
+  « Ajouter un client » ne désactive plus son bouton sur un téléphone vide (§14
+  règle 5) et place un `invalid_phone` du serveur sous le champ. **Ajouter un
+  salon** : le défaut de préremplissage était réel (vu rouge — le champ montrait
+  `+225` pendant que l'état envoyait le numéro du compte) ; le champ attend la
+  réponse puis se monte avec la valeur. L'Acompte web ne vérifie le numéro que
+  lorsque le dépôt est requis — c'est aussi le seul cas où il l'envoie.
+- **Backend.** Un `phoneNumber` envoyé à `POST /me/salons` est vérifié après le
+  nom et le type, avant la porte Réseau (même ordre que la validation du nom).
