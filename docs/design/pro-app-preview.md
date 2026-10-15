@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Version 2 chosen by the owner on 2026-10-14 — a multi-scene film (§0).** Version 1 (§1–§11: one 21-second flow) was approved on 2026-10-13, built as a rehearsal, then **set aside the next day** after a benchmark of real App Store pages showed it to be a demonstration of one flow rather than a preview of the app. §1–§11 stay as the record of version 1 and of what its production taught; §0 governs. |
+| **Status** | **Version 2 — built, chosen and uploaded (2026-10-14).** The owner watched three cuts and chose cut 1 « as it is »: framed, with the public page, 28.733 s, five scenes and the end card (`tool/app_store_preview/storyboard-scenes.json`, #590; film sha256 `4d945614…`, passes all 25 checks). **Uploaded to version 0.0.1** in both iPhone slots, processed by Apple, placed ahead of the screenshots; poster asked at 25.000 s (`00:00:25:00`) — Apple first ignored the time sent with the upload and used its 5-s default; corrected. Version 1 (§1–§11) stays as the record. |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-10-14 |
 | **PRD ref / phase** | Launch — store submission · V1 |
