@@ -11,22 +11,16 @@ updates:
     # The FlutterFire plugins each pin the SAME exact firebase-ios-sdk version
     # in their Package.swift. Bumped one at a time, Swift Package Manager cannot
     # resolve and the iOS build fails (#388 → #391, again #541: core 4.14.0
-    # wanted 12.18.0, messaging 16.5.0 still 12.17.0). So they move together —
-    # and a major bump of the set gets its own PR, never mixed with a minor one.
+    # wanted 12.18.0, messaging 16.5.0 still 12.17.0). So they move together,
+    # in ONE group with no update-types: Dependabot sorts each package by its
+    # own jump, so a minor/major split would part them again on a release that
+    # ships a core minor with a messaging major (it happened four times, e.g.
+    # core 1.21.1 + messaging 13.0.0 on 2022-08-25).
     groups:
       firebase:
         patterns:
           - "firebase_*"
           - "_flutterfire_internals"
-        update-types:
-          - "minor"
-          - "patch"
-      firebase-major:
-        patterns:
-          - "firebase_*"
-          - "_flutterfire_internals"
-        update-types:
-          - "major"
 
   # GitHub Actions used in CI
   - package-ecosystem: "github-actions"
