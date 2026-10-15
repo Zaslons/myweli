@@ -69,6 +69,24 @@ test('Équipe: roster, invite, gates, resend & revoke (full arc)', async ({
   ).toBeVisible();
   await page.getByRole('button', { name: 'Révoquer', exact: true }).click();
   await expect(page.getByText('Accès révoqué')).toBeVisible();
+
+  // Re-invite the revoked address: the server answers with the SAME row
+  // (one row per salon and address — docs/design/backend-team-reinvite.md),
+  // so the revoked line becomes the pending invitation in place: one line.
+  await page.getByRole('button', { name: '+ Inviter un membre' }).click();
+  await page
+    .getByPlaceholder('collaborateur@exemple.com')
+    .fill('awa.manager@equipe.test');
+  await page.getByRole('button', { name: /^Réception/ }).click();
+  await page.getByRole('button', { name: 'Envoyer l’invitation' }).click();
+  await expect(
+    page.getByText('Invitation envoyée à awa.manager@equipe.test.'),
+  ).toBeVisible();
+  await expect(page.getByText('Accès révoqué')).toHaveCount(0);
+  await expect(
+    page.getByText('awa.manager@equipe.test', { exact: true }),
+  ).toHaveCount(1);
+  await expect(page.getByText(/Invitation envoyée · expire le/)).toBeVisible();
 });
 
 // The « Abonnement » arc lived here until B10 and now lives in

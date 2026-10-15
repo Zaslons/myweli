@@ -1,3 +1,6 @@
+import 'dart:convert';
+
+import 'package:crypto/crypto.dart';
 import 'package:myweli_backend/src/access/membership_repository.dart';
 import 'package:myweli_backend/src/access/membership_service.dart';
 import 'package:myweli_backend/src/access/team_service.dart';
@@ -7,6 +10,8 @@ import 'package:myweli_backend/src/clients/provider_audit_log.dart';
 import 'package:myweli_backend/src/email/email_provider.dart';
 import 'package:myweli_backend/src/email/send_budget.dart';
 import 'package:myweli_backend/src/providers_repository.dart';
+import 'package:myweli_backend/src/security/identity_limits.dart';
+import 'package:myweli_backend/src/security/rate_limiter.dart';
 import 'package:myweli_backend/src/subscription/salon_subscription_repository.dart';
 import 'package:myweli_backend/src/subscription/salon_subscription_service.dart';
 import 'package:test/test.dart';
@@ -27,6 +32,52 @@ class _RecordingEmail implements EmailProvider {
   }
 }
 
+/// Answers its first invite as if a concurrent invitation had won the
+/// address (what the Postgres upsert returns: no row), then behaves.
+class _LosesFirstRace extends InMemoryMembershipRepository {
+  var _calls = 0;
+
+  @override
+  Future<Member?> invite({
+    required String providerId,
+    required String email,
+    required String role,
+    required DateTime expiresAt,
+    String? artistId,
+    String? invitedBy,
+  }) async {
+    if (_calls++ == 0) return null;
+    return super.invite(
+      providerId: providerId,
+      email: email,
+      role: role,
+      expiresAt: expiresAt,
+      artistId: artistId,
+      invitedBy: invitedBy,
+    );
+  }
+}
+
+/// A revocation that lands between `accept`'s read and its write: the
+/// owner revokes while the invitee is pressing « Rejoindre ».
+class _RevokedMidAccept extends InMemoryMembershipRepository {
+  @override
+  Future<Member?> activate(String memberId, String accountId) async {
+    await revoke(memberId);
+    return super.activate(memberId, accountId);
+  }
+}
+
+/// The owner changes the invitation's role between `accept`'s read and its
+/// write (« Changer le rôle » while the invitee presses « Rejoindre »).
+class _RoleChangedMidAccept extends InMemoryMembershipRepository {
+  @override
+  Future<Member?> activate(String memberId, String accountId) async {
+    await updateMember(memberId, role: 'manager');
+    return super.activate(memberId, accountId);
+  }
+}
+
 /// R2b — the invitation state machine (team-access-r2b-invitations.md §4):
 /// invite → accept/decline/revoke/expire/resend, every gate (role, artist,
 /// duplicate, offer, seats, rate limit), owner protection (T36), immediate
@@ -42,8 +93,13 @@ void main() {
   late _RecordingEmail email;
   late InMemoryProviderAuditLogRepository audit;
   late DateTime now;
+  // ONE limiter for the whole test, on the test's clock — `team()` builds a
+  // fresh service on every call, exactly as Cloud Run runs several
+  // instances: the budget must live in the limiter, not in the service.
+  late InMemoryRateLimiter limiter;
+  late List<String> logs;
 
-  TeamService team({int maxInvitesPerDay = 20}) => TeamService(
+  TeamService team({InviteLimits limits = kDefaultInviteLimits}) => TeamService(
     memberships,
     resolver,
     providers,
@@ -51,11 +107,15 @@ void main() {
     email,
     audit,
     clock: () => now,
-    maxInvitesPerDay: maxInvitesPerDay,
+    limiter: limiter,
+    limits: limits,
+    log: logs.add,
   );
 
   setUp(() {
     now = DateTime.now().toUtc();
+    limiter = InMemoryRateLimiter(clock: () => now);
+    logs = [];
     auth = InMemoryProviderAuthRepository(tokens: tokens, echoDevCode: true);
     memberships = InMemoryMembershipRepository();
     subs = InMemorySalonSubscriptionRepository();
@@ -226,9 +286,16 @@ void main() {
       );
 
       // Backdate the clock so the next invite lands already expired, then
-      // verify a fresh invite for that email is allowed again.
+      // verify a fresh invite for that email is allowed again — ON THE SAME
+      // ROW: one row per (salon, email) is the database's rule, and a second
+      // row is what made Postgres answer 500 (backend-team-reinvite.md).
       now = DateTime.now().toUtc().subtract(const Duration(days: 8));
-      await team().invite(ownerId, 'p1', email: 'late@b.com', role: 'manager');
+      final first = await team().invite(
+        ownerId,
+        'p1',
+        email: 'late@b.com',
+        role: 'manager',
+      );
       now = DateTime.now().toUtc();
       final again = await team().invite(
         ownerId,
@@ -237,6 +304,9 @@ void main() {
         role: 'reception',
       );
       expect(again.ok, isTrue);
+      expect((again.data! as Map)['id'], (first.data! as Map)['id']);
+      final rows = await memberships.listForProvider('p1');
+      expect(rows.where((m) => m.email == 'late@b.com'), hasLength(1));
     });
 
     test('no live offer → offer_required (the R2a pricing pivot)', () async {
@@ -275,7 +345,7 @@ void main() {
     test('per-salon/day budget → invite_rate_limited; next day resets '
         '(T37)', () async {
       final ownerId = await owner();
-      final t = team(maxInvitesPerDay: 2);
+      final t = team(limits: (perSalon: 2, perAddress: 3));
       await t.invite(ownerId, 'p1', email: 'a@b.com', role: 'manager');
       await t.invite(ownerId, 'p1', email: 'b@b.com', role: 'manager');
       expect(
@@ -303,6 +373,646 @@ void main() {
         role: 'manager',
       );
       expect(r.error, 'forbidden');
+    });
+  });
+
+  // Re-inviting an address whose row is dead — revoked, or an invitation
+  // past its window. Postgres answered 500 (UNIQUE (provider_id, email));
+  // docs/design/backend-team-reinvite.md.
+  group('re-invite — the dead row comes back', () {
+    test('a REVOKED member is invited again: 201, the same row, one row for '
+        'the address, a fresh email, audited as revived', () async {
+      final ownerId = await owner();
+      final first = await team().invite(
+        ownerId,
+        'p1',
+        email: 'back@b.com',
+        role: 'staff',
+        artistId: 'a1',
+      );
+      final id = (first.data! as Map)['id'] as String;
+      expect((await team().revoke(ownerId, 'p1', id)).ok, isTrue);
+
+      final again = await team().invite(
+        ownerId,
+        'p1',
+        email: 'back@b.com',
+        role: 'manager',
+      );
+
+      expect(again.ok, isTrue, reason: '${again.error}');
+      final row = again.data! as Map<String, dynamic>;
+      expect(row['id'], id);
+      expect(row['status'], 'invited');
+      expect(row['role'], 'manager');
+      expect(row['artistId'], isNull);
+      expect(row['resendsLeft'], 3);
+      final rows = await memberships.listForProvider('p1');
+      expect(rows.where((m) => m.email == 'back@b.com'), hasLength(1));
+      expect(email.sent.where((e) => e.to == 'back@b.com'), hasLength(2));
+      final invites = [
+        for (final e in await audit.entriesFor('p1'))
+          if (e['action'] == 'members.invite' && e['targetId'] == id) e,
+      ];
+      expect(invites, hasLength(2));
+      expect(
+        invites.where((e) => (e['meta'] as Map)['revived'] == 'revoked'),
+        hasLength(1),
+      );
+    });
+
+    test(
+      'an EXPIRED invitation is invited again even when every seat is '
+      'taken — it already holds one; a new address is still refused',
+      () async {
+        final ownerId = await owner(); // Pro: 5 seats, the owner holds one
+        now = DateTime.now().toUtc().subtract(const Duration(days: 8));
+        await team().invite(
+          ownerId,
+          'p1',
+          email: 'late@b.com',
+          role: 'manager',
+        );
+        now = DateTime.now().toUtc();
+        for (var i = 0; i < 3; i++) {
+          expect(
+            (await team().invite(
+              ownerId,
+              'p1',
+              email: 'm$i@b.com',
+              role: 'reception',
+            )).ok,
+            isTrue,
+          );
+        }
+        // The control: the salon is full.
+        expect(
+          (await team().invite(
+            ownerId,
+            'p1',
+            email: 'new@b.com',
+            role: 'reception',
+          )).error,
+          'seat_limit',
+        );
+
+        final again = await team().invite(
+          ownerId,
+          'p1',
+          email: 'late@b.com',
+          role: 'manager',
+        );
+
+        expect(again.ok, isTrue, reason: '${again.error}');
+        expect((again.data! as Map)['expired'], isFalse);
+        final entry = (await audit.entriesFor(
+          'p1',
+        )).firstWhere((e) => e['targetId'] == (again.data! as Map)['id']);
+        expect((entry['meta'] as Map)['revived'], 'expired');
+      },
+    );
+
+    test('a REVOKED member takes a seat again: a full salon refuses to '
+        're-invite them (seat_limit), and the row stays revoked', () async {
+      final ownerId = await owner(); // Pro: 5 seats, the owner holds one
+      final first = await team().invite(
+        ownerId,
+        'p1',
+        email: 'back@b.com',
+        role: 'manager',
+      );
+      final id = (first.data! as Map)['id'] as String;
+      await team().revoke(ownerId, 'p1', id);
+      for (var i = 0; i < 4; i++) {
+        expect(
+          (await team().invite(
+            ownerId,
+            'p1',
+            email: 'm$i@b.com',
+            role: 'reception',
+          )).ok,
+          isTrue,
+        );
+      }
+
+      final again = await team().invite(
+        ownerId,
+        'p1',
+        email: 'back@b.com',
+        role: 'manager',
+      );
+
+      expect(again.error, 'seat_limit');
+      expect((await memberships.byId(id))!.status, 'revoked');
+      expect(email.sent.where((e) => e.to == 'back@b.com'), hasLength(1));
+    });
+
+    test("an owner's address is never re-invited, even when its row is "
+        'revoked → member_exists, the row untouched', () async {
+      final ownerId = await owner();
+      // A revoked OWNER row under another address (production holds one: a
+      // failed deletion, backend-provider-deletion-member-fk.md §9). Not the
+      // caller's own row: the caller's permission check self-heals its own
+      // owner row in memory, and the test would pass on that instead.
+      final former = await memberships.ensureOwner(
+        providerId: 'p1',
+        accountId: 'acc-former',
+        email: 'former@x.pro',
+      );
+      await memberships.revoke(former.id);
+
+      final r = await team().invite(
+        ownerId,
+        'p1',
+        email: 'former@x.pro',
+        role: 'manager',
+      );
+
+      expect(r.error, 'member_exists');
+      final row = (await memberships.byId(former.id))!;
+      expect(row.role, 'owner');
+      expect(row.status, 'revoked');
+    });
+
+    test('an address with surrounding spaces is the same address', () async {
+      final ownerId = await owner();
+      await team().invite(ownerId, 'p1', email: 'a@b.com', role: 'manager');
+
+      final dup = await team().invite(
+        ownerId,
+        'p1',
+        email: '  A@b.com ',
+        role: 'reception',
+      );
+      expect(dup.error, 'member_exists');
+
+      final spaced = await team().invite(
+        ownerId,
+        'p1',
+        email: ' c@d.com ',
+        role: 'reception',
+      );
+      expect((spaced.data! as Map)['email'], 'c@d.com');
+    });
+
+    test('a lost race answers member_exists, sends nothing — and IS counted: '
+        'the limiter counts attempts', () async {
+      final ownerId = await owner();
+      final racing = _LosesFirstRace();
+      // The owner row lives in the racing store, which the resolver reads.
+      await racing.ensureOwner(
+        providerId: 'p1',
+        accountId: ownerId,
+        email: 'owner@x.pro',
+      );
+      final racingResolver = MembershipService(racing, auth);
+      final t = TeamService(
+        racing,
+        racingResolver,
+        providers,
+        SalonSubscriptionService(subs, racingResolver, racing, providers, auth),
+        email,
+        audit,
+        clock: () => now,
+        limiter: limiter,
+        limits: (perSalon: 1, perAddress: 3),
+      );
+
+      final lost = await t.invite(
+        ownerId,
+        'p1',
+        email: 'a@b.com',
+        role: 'manager',
+      );
+      expect(lost.error, 'member_exists');
+      expect(email.sent, isEmpty);
+
+      final next = await t.invite(
+        ownerId,
+        'p1',
+        email: 'b@b.com',
+        role: 'manager',
+      );
+      expect(next.error, 'invite_rate_limited');
+    });
+
+    test(
+      'the 201 is a roster row: artistName and expired, as GET has them',
+      () async {
+        final ownerId = await owner();
+        final r = await team().invite(
+          ownerId,
+          'p1',
+          email: 'staff@b.com',
+          role: 'staff',
+          artistId: 'a1',
+        );
+        final row = r.data! as Map<String, dynamic>;
+        expect(row['artistName'], 'Awa');
+        expect(row['expired'], isFalse);
+      },
+    );
+  });
+
+  // The daily caps on the SHARED limiter (T37) — docs/design/
+  // backend-team-invite-caps.md. Per salon (20) and per salon and address
+  // (3); every instance counts into the same buckets.
+  group('daily caps — the shared limiter (T37)', () {
+    Future<String> inviteId(String ownerId, String address) async {
+      final r = await team().invite(
+        ownerId,
+        'p1',
+        email: address,
+        role: 'manager',
+      );
+      expect(r.ok, isTrue, reason: '${r.error}');
+      return (r.data! as Map)['id'] as String;
+    }
+
+    Future<int> addressHits(String providerId, String address) => limiter.used(
+      inviteAddressBucket(providerId, address),
+      window: kInviteWindow,
+    );
+
+    Future<int> salonHits(String providerId) =>
+        limiter.used(inviteSalonBucket(providerId), window: kInviteWindow);
+
+    test('revoke → re-invite on one address stops at the third invitation; '
+        'spacing and case are the same address', () async {
+      final ownerId = await owner();
+      final id = await inviteId(ownerId, 'loop@b.com');
+      await team().revoke(ownerId, 'p1', id);
+      expect(await inviteId(ownerId, ' LOOP@b.com '), id);
+      await team().revoke(ownerId, 'p1', id);
+      expect(await inviteId(ownerId, 'Loop@B.com'), id);
+      await team().revoke(ownerId, 'p1', id);
+
+      final fourth = await team().invite(
+        ownerId,
+        'p1',
+        email: 'loop@b.com',
+        role: 'manager',
+      );
+
+      expect(fourth.error, 'invite_rate_limited');
+      expect(email.sent.where((e) => e.to == 'loop@b.com'), hasLength(3));
+      expect((await memberships.byId(id))!.status, 'revoked');
+      final audits = [
+        for (final e in await audit.entriesFor('p1'))
+          if (e['action'] == 'members.invite' && e['targetId'] == id) e,
+      ];
+      expect(audits, hasLength(3));
+    });
+
+    test('another address in the salon, and the same address in another '
+        'salon, are untouched', () async {
+      final ownerId = await owner();
+      final id = await inviteId(ownerId, 'loop@b.com');
+      for (var i = 0; i < 2; i++) {
+        await team().revoke(ownerId, 'p1', id);
+        await inviteId(ownerId, 'loop@b.com');
+      }
+      await team().revoke(ownerId, 'p1', id);
+      expect(
+        (await team().invite(
+          ownerId,
+          'p1',
+          email: 'loop@b.com',
+          role: 'manager',
+        )).error,
+        'invite_rate_limited',
+        reason: 'the control: this address is spent in p1',
+      );
+
+      expect(
+        (await team().invite(
+          ownerId,
+          'p1',
+          email: 'other@b.com',
+          role: 'manager',
+        )).ok,
+        isTrue,
+      );
+      final owner2 = await owner(
+        providerId: 'p2',
+        emailAddr: 'owner2@x.pro',
+        sub: 'sub-own2',
+      );
+      expect(
+        (await team().invite(
+          owner2,
+          'p2',
+          email: 'loop@b.com',
+          role: 'manager',
+        )).ok,
+        isTrue,
+        reason: 'no lockout across tenants',
+      );
+    });
+
+    test('the window is the UTC day: 23:59:59 still refuses, 00:00 the next '
+        'day allows', () async {
+      final ownerId = await owner();
+      now = DateTime.utc(2026, 10, 15, 9);
+      final id = await inviteId(ownerId, 'day@b.com');
+      for (var i = 0; i < 2; i++) {
+        await team().revoke(ownerId, 'p1', id);
+        await inviteId(ownerId, 'day@b.com');
+      }
+      await team().revoke(ownerId, 'p1', id);
+
+      now = DateTime.utc(2026, 10, 15, 23, 59, 59);
+      expect(
+        (await team().invite(
+          ownerId,
+          'p1',
+          email: 'day@b.com',
+          role: 'manager',
+        )).error,
+        'invite_rate_limited',
+      );
+      now = DateTime.utc(2026, 10, 16);
+      expect(
+        (await team().invite(
+          ownerId,
+          'p1',
+          email: 'day@b.com',
+          role: 'manager',
+        )).ok,
+        isTrue,
+      );
+    });
+
+    test('resends are not counted', () async {
+      final ownerId = await owner();
+      final id = await inviteId(ownerId, 'resend@b.com');
+      for (var i = 0; i < 3; i++) {
+        expect((await team().resend(ownerId, 'p1', id)).ok, isTrue);
+      }
+      expect(await addressHits('p1', 'resend@b.com'), 1);
+      expect(await salonHits('p1'), 1);
+    });
+
+    test('two service instances share both budgets — the per-instance '
+        'counter is gone', () async {
+      final ownerId = await owner();
+      const limits = (perSalon: 2, perAddress: 3);
+      final a = team(limits: limits);
+      final b = team(limits: limits);
+      expect(
+        (await a.invite(ownerId, 'p1', email: 'a@b.com', role: 'manager')).ok,
+        isTrue,
+      );
+      expect(
+        (await b.invite(ownerId, 'p1', email: 'b@b.com', role: 'manager')).ok,
+        isTrue,
+      );
+      expect(
+        (await a.invite(
+          ownerId,
+          'p1',
+          email: 'c@b.com',
+          role: 'manager',
+        )).error,
+        'invite_rate_limited',
+      );
+    });
+
+    test('a refusal at the salon bucket writes nothing in the address '
+        'bucket (closed set first)', () async {
+      final ownerId = await owner();
+      final t = team(limits: (perSalon: 1, perAddress: 3));
+      await t.invite(ownerId, 'p1', email: 'a@b.com', role: 'manager');
+      expect(
+        (await t.invite(
+          ownerId,
+          'p1',
+          email: 'b@b.com',
+          role: 'manager',
+        )).error,
+        'invite_rate_limited',
+      );
+      expect(await addressHits('p1', 'b@b.com'), 0);
+    });
+
+    test(
+      'member_exists, seat_limit and offer_required consume nothing',
+      () async {
+        final ownerId = await owner(); // Pro: 5 seats, the owner holds one
+        await inviteId(ownerId, 'dup@b.com');
+        expect(
+          (await team().invite(
+            ownerId,
+            'p1',
+            email: 'dup@b.com',
+            role: 'manager',
+          )).error,
+          'member_exists',
+        );
+        for (var i = 0; i < 3; i++) {
+          await inviteId(ownerId, 'seat$i@b.com');
+        }
+        expect(
+          (await team().invite(
+            ownerId,
+            'p1',
+            email: 'full@b.com',
+            role: 'manager',
+          )).error,
+          'seat_limit',
+        );
+        expect(await salonHits('p1'), 4, reason: 'four invitations went out');
+        expect(await addressHits('p1', 'dup@b.com'), 1);
+        expect(await addressHits('p1', 'full@b.com'), 0);
+
+        final noOffer = await owner(
+          providerId: 'p2',
+          emailAddr: 'owner2@x.pro',
+          sub: 'sub-own2',
+          withOffer: false,
+        );
+        expect(
+          (await team().invite(
+            noOffer,
+            'p2',
+            email: 'x@b.com',
+            role: 'manager',
+          )).error,
+          'offer_required',
+        );
+        expect(await salonHits('p2'), 0);
+      },
+    );
+
+    test('a refusal is logged with the bucket — never the address, never '
+        'its bare digest — and the address bucket never warns', () async {
+      final ownerId = await owner();
+      final id = await inviteId(ownerId, 'quiet@b.com');
+      for (var i = 0; i < 2; i++) {
+        await team().revoke(ownerId, 'p1', id);
+        await inviteId(ownerId, 'quiet@b.com');
+      }
+      await team().revoke(ownerId, 'p1', id);
+      await team().invite(ownerId, 'p1', email: 'quiet@b.com', role: 'manager');
+
+      final refused = logs.where((l) => l.startsWith('rate_limited ')).toList();
+      expect(refused, hasLength(1));
+      expect(refused.single, contains('bucket=invite:addr:p1:'));
+      expect(refused.single, isNot(contains('@')));
+      final bare = sha256.convert(utf8.encode('quiet@b.com')).toString();
+      expect(refused.single, isNot(contains(bare.substring(0, 16))));
+      expect(
+        logs.where((l) => l.contains('rate_limit_warning')),
+        isEmpty,
+        reason: 'warnAt(3) == 2 would warn on every second invitation',
+      );
+    });
+
+    test('the salon bucket warns once, at 80%', () async {
+      final ownerId = await owner();
+      final t = team(limits: (perSalon: 5, perAddress: 3));
+      for (var i = 0; i < 4; i++) {
+        await t.invite(ownerId, 'p1', email: 'w$i@b.com', role: 'reception');
+      }
+      final warnings = logs.where((l) => l.contains('rate_limit_warning'));
+      expect(warnings, hasLength(1));
+      expect(warnings.single, contains('bucket=invite:salon:p1'));
+    });
+
+    test('aliases of one mailbox share the address bucket: +tags anywhere, '
+        'dots at Gmail', () async {
+      final ownerId = await owner();
+      for (final alias in [
+        'victim+1@gmail.com',
+        'v.ictim@gmail.com',
+        'Victim@GoogleMail.com',
+      ]) {
+        final r = await team().invite(
+          ownerId,
+          'p1',
+          email: alias,
+          role: 'reception',
+        );
+        expect(r.ok, isTrue, reason: '$alias: ${r.error}');
+        await team().revoke(ownerId, 'p1', (r.data! as Map)['id'] as String);
+      }
+      final fourth = await team().invite(
+        ownerId,
+        'p1',
+        email: 'victim+2@gmail.com',
+        role: 'reception',
+      );
+      expect(fourth.error, 'invite_rate_limited');
+      // What is stored and sent stays exactly what the owner typed.
+      final stored = {
+        for (final m in await memberships.listForProvider('p1')) m.email,
+      };
+      expect(stored, containsAll(['victim+1@gmail.com', 'v.ictim@gmail.com']));
+    });
+
+    test('a demo-address invitation from before the refusal is inert: no '
+        'card, no accept, no resend (T69)', () async {
+      final ownerId = await owner();
+      final legacy = (await memberships.invite(
+        providerId: 'p1',
+        email: 'revue@myweli.test',
+        role: 'reception',
+        expiresAt: now.add(const Duration(days: 7)),
+      ))!;
+
+      expect(await team().pendingInvitationsFor('revue@myweli.test'), isEmpty);
+      expect(
+        (await team().accept(
+          legacy.id,
+          accountId: 'acc-demo',
+          accountEmail: 'revue@myweli.test',
+        )).error,
+        'not_found',
+      );
+      expect((await memberships.byId(legacy.id))!.status, 'invited');
+      expect(
+        (await team().resend(ownerId, 'p1', legacy.id)).error,
+        'invalid_state',
+      );
+    });
+
+    test('the accept audit records the role actually activated, not the '
+        'one read before a concurrent role change', () async {
+      final racing = _RoleChangedMidAccept();
+      final t = TeamService(
+        racing,
+        MembershipService(racing, auth),
+        providers,
+        subscriptions,
+        email,
+        audit,
+        clock: () => now,
+        limiter: limiter,
+      );
+      final inv = (await racing.invite(
+        providerId: 'p1',
+        email: 'acc@b.com',
+        role: 'reception',
+        expiresAt: now.add(const Duration(days: 7)),
+      ))!;
+
+      final accepted = await t.accept(
+        inv.id,
+        accountId: 'acc-1',
+        accountEmail: 'acc@b.com',
+      );
+
+      expect(accepted.ok, isTrue);
+      expect((accepted.data! as Map)['role'], 'manager');
+      final entry = (await audit.entriesFor(
+        'p1',
+      )).firstWhere((e) => e['action'] == 'members.accept');
+      expect((entry['meta'] as Map)['role'], 'manager');
+    });
+
+    test('the demo address cannot be invited (T69): invalid_input, no row, '
+        'nothing counted', () async {
+      final ownerId = await owner();
+      final r = await team().invite(
+        ownerId,
+        'p1',
+        email: 'Revue@MyWeli.test',
+        role: 'manager',
+      );
+      expect(r.error, 'invalid_input');
+      final rows = await memberships.listForProvider('p1');
+      expect(rows.where((m) => m.email == 'revue@myweli.test'), isEmpty);
+      expect(await salonHits('p1'), 0);
+    });
+
+    test('an accept that a revocation overtakes answers not_found — the '
+        'revocation holds', () async {
+      final racing = _RevokedMidAccept();
+      final t = TeamService(
+        racing,
+        MembershipService(racing, auth),
+        providers,
+        subscriptions,
+        email,
+        audit,
+        clock: () => now,
+        limiter: limiter,
+      );
+      final inv = (await racing.invite(
+        providerId: 'p1',
+        email: 'late@b.com',
+        role: 'manager',
+        expiresAt: now.add(const Duration(days: 7)),
+      ))!;
+
+      final r = await t.accept(
+        inv.id,
+        accountId: 'acc-late',
+        accountEmail: 'late@b.com',
+      );
+
+      expect(r.error, 'not_found');
+      expect((await racing.byId(inv.id))!.status, 'revoked');
     });
   });
 

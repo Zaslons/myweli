@@ -248,7 +248,7 @@ void main() {
         artistId: artistId,
         expiresAt: DateTime.now().add(const Duration(days: 7)),
       );
-      await memberships.activate(row.id, created.provider!.id);
+      await memberships.activate(row!.id, created.provider!.id);
       return created.provider!.id;
     }
 
@@ -351,7 +351,7 @@ void main() {
         role: 'reception',
         expiresAt: DateTime.now().add(const Duration(days: 7)),
       );
-      await memberships.activate(row.id, created.provider!.id);
+      await memberships.activate(row!.id, created.provider!.id);
 
       final res = await journal.dayFor(
         created.provider!.id,

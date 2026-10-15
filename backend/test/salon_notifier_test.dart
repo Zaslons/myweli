@@ -95,13 +95,13 @@ void main() {
       if (status == 'revoked') await members.revoke(m.id);
       return m;
     }
-    var m = await members.invite(
+    var m = (await members.invite(
       providerId: 'p1',
       email: email,
       role: role,
       expiresAt: DateTime.now().toUtc().add(const Duration(days: 7)),
       artistId: artistId,
-    );
+    ))!;
     if (status == 'invited') return m; // pending — no account link
     m = (await members.activate(m.id, accountId!))!;
     await registerDevice(accountId);

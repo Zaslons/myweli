@@ -578,13 +578,31 @@ paths:
       description: >
         Owner-only. Role ∈ manager/reception/staff (`invalid_role`); staff
         requires a salon-owned `artistId` (`artist_required` /
-        `artist_not_found`). 409 `member_exists` (already active or
-        pending), `offer_required` (no live offer — R2a pricing pivot),
-        `seat_limit` (offer seats full). 403 `demo_account_locked` when the
-        salon is the store-review demo account's (T69 — a public credential
-        must not email arbitrary third parties). 429 `invite_rate_limited`
-        (per-salon daily cap, threat T37). Sends the branded invitation
-        email (7-day validity). R6: `?salonId=` selects the salon.
+        `artist_not_found`). 409 `member_exists` (an active member, a
+        still-valid invitation, or an owner's row in any state),
+        `offer_required` (no live offer — R2a pricing pivot), `seat_limit`
+        (offer seats full). One row per (salon, email): an address whose row
+        is REVOKED, or whose invitation has EXPIRED, is invited again ON THE
+        SAME ROW — same `id`; role, employee link, 7-day window and the
+        3-resend budget start over. An expired invitation already holds its
+        seat, so re-inviting it is not refused by `seat_limit`. 403
+        `demo_account_locked` when the salon is the store-review demo
+        account's (T69 — a public credential must not email arbitrary third
+        parties). 400 `invalid_input` for the demo address itself (T69 —
+        no salon may put a card into the public review account). 429
+        `invite_rate_limited`: two DAILY caps on the shared limiter (threat
+        T37) — per salon (`LIMIT_INVITE_SALON`, 20) and per salon and
+        address (`LIMIT_INVITE_ADDRESS`, 3), counted across every instance;
+        a refusal by the checks before the caps (400/403/409) consumes
+        neither; a concurrent invitation that loses the race (409
+        `member_exists` after the caps) IS counted — the limiter counts
+        attempts. Aliases of one mailbox (`+tag`, Gmail dots) count as one
+        address. Sends the branded
+        invitation email (7-day validity). The 201
+        has the shape of a `GET` roster row (`artistName`, `expired`).
+        R6: `?salonId=` selects the salon.
+        Design: docs/design/backend-team-reinvite.md,
+        docs/design/backend-team-invite-caps.md.
       security: [{ bearerAuth: [] }]
       parameters:
         - { $ref: '#/components/parameters/SalonSelector' }
@@ -601,7 +619,7 @@ paths:
                 artistId: { type: string, description: Required when role=staff. }
       responses:
         '201':
-          description: Invitation created (the pending member row)
+          description: Invitation created, or a revoked/expired row invited again (the pending member row)
           content:
             application/json:
               schema: { $ref: '#/components/schemas/TeamMember' }
@@ -672,6 +690,7 @@ paths:
       description: >
         Owner-only; resets the 7-day window. Budget of 3 resends per
         invitation → 429 `invite_rate_limited` when exhausted (threat T37).
+        409 `invalid_state` when the row is not a pending invitation.
       security: [{ bearerAuth: [] }]
       parameters:
         - { name: memberId, in: path, required: true, schema: { type: string } }
@@ -685,6 +704,7 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
         '429': { $ref: '#/components/responses/RateLimited' }
 
   /me/provider/invitations:
@@ -718,7 +738,9 @@ paths:
       description: >
         The session is the identity proof; the invitation must target the
         account's own verified email (403). Expired → 409
-        `invitation_expired`.
+        `invitation_expired`. 404 `not_found` also when a revocation (or the
+        window closing) overtakes the accept between its read and its write
+        — the revocation holds (docs/design/backend-team-invite-caps.md).
       security: [{ bearerAuth: [] }]
       parameters:
         - name: invitationId
@@ -748,7 +770,7 @@ paths:
           schema: { type: string }
       responses:
         '200':
-          description: Declined (the invitation row is deleted)
+          description: Declined — the invitation row is deleted, or, for a former member invited again, goes back to revoked (docs/design/backend-team-reinvite.md)
           content:
             application/json:
               schema:
@@ -1133,7 +1155,10 @@ paths:
         `phoneNumber` is REQUIRED. Returns a live ProviderSession (201).
         Also provisions the account's linked DRAFT salon (publicly invisible
         until `POST /providers/{id}/publish` — pro-salon-lifecycle; legacy
-        salon-less accounts self-heal on `GET /me/provider`).
+        salon-less accounts self-heal on `GET /me/provider`). The salon is
+        ALWAYS a new one: no field links an existing salon (T72 — a
+        `providerId` here used to make the caller that salon's owner;
+        docs/design/backend-register-salon-link.md).
         Design: docs/design/pro-auth-social.md.
       requestBody:
         required: true
@@ -1156,7 +1181,6 @@ paths:
                     — the salon's commune/city/timezone/currency DERIVE from
                     it server-side (multi-pays MP1; unknown → 400
                     `invalid_area`).
-                providerId: { type: string }
                 idToken: { type: string, description: Google ID token (identity proof). }
                 identityToken: { type: string, description: Apple identity token. }
                 nonce: { type: string }
@@ -1326,7 +1350,8 @@ paths:
         OTP from the login attempt, still unconsumed). An existing account is
         signed in and joined (200); otherwise a bare member account (no
         salon) is created and joined (201). The invitation must target the
-        proven email (403) and be unexpired (409 `invitation_expired`).
+        proven email (403) and be unexpired (409 `invitation_expired`); a
+        revocation that overtakes the accept answers 404 `not_found`.
       requestBody:
         required: true
         content:
@@ -1383,7 +1408,7 @@ paths:
                 code: { type: string }
       responses:
         '200':
-          description: Declined (the invitation row is deleted)
+          description: Declined — the invitation row is deleted, or, for a former member invited again, goes back to revoked (docs/design/backend-team-reinvite.md)
           content:
             application/json:
               schema:

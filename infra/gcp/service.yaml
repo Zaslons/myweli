@@ -329,6 +329,12 @@ spec:
               value: "10"
             - name: LIMIT_SIGN_LOGO
               value: "10"
+            # The daily team-invitation caps (T37): per salon, and per salon
+            # and address. docs/design/backend-team-invite-caps.md.
+            - name: LIMIT_INVITE_SALON
+              value: "20"
+            - name: LIMIT_INVITE_ADDRESS
+              value: "3"
             # R2 — all seven together or storageService throws (dependencies.dart:308).
             # R2_ENDPOINT is deliberately NOT set: it is derived from the
             # account id (:141-146), and supplying both invites drift.

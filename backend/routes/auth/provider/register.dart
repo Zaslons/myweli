@@ -52,10 +52,12 @@ Future<Response> onRequest(RequestContext context) async {
       return jsonError(HttpStatus.badRequest, 'invalid_area');
     }
   }
-  final providerIdRaw = (body['providerId'] as String?)?.trim();
-  final providerId = (providerIdRaw == null || providerIdRaw.isEmpty)
-      ? null
-      : providerIdRaw;
+  // T72: NO salon link from the client. The body used to carry an optional
+  // `providerId`, stored as the account's salon and then made an ACTIVE owner
+  // row by the provisioning step — anyone who could prove any identity could
+  // claim any salon by its public id. No client ever sent it; a new account
+  // always gets its own draft salon from `ensureSalon`.
+  // docs/design/backend-register-salon-link.md
 
   final methods = context.read<AuthMethods>();
   final repo = context.read<ProviderAuthRepository>();
@@ -80,7 +82,6 @@ Future<Response> onRequest(RequestContext context) async {
           authProvider: 'google',
           googleSub: claims.sub,
           address: address,
-          providerId: providerId,
         ),
       ),
       successStatus: HttpStatus.created,
@@ -114,7 +115,6 @@ Future<Response> onRequest(RequestContext context) async {
           authProvider: 'apple',
           appleSub: claims.sub,
           address: address,
-          providerId: providerId,
         ),
       ),
       successStatus: HttpStatus.created,
@@ -153,7 +153,6 @@ Future<Response> onRequest(RequestContext context) async {
           authProvider: 'email',
           emailCode: emailCode,
           address: address,
-          providerId: providerId,
         ),
       ),
       successStatus: HttpStatus.created,

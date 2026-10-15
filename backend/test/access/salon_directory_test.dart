@@ -113,7 +113,7 @@ void main() {
         role: 'manager',
         expiresAt: DateTime.now().add(const Duration(days: 7)),
       );
-      await memberships.activate(inv.id, ownerId);
+      await memberships.activate(inv!.id, ownerId);
 
       final items = await directory.listForAccount(ownerId);
       expect(items.map((e) => e['salonId']).toList(), ['p1', 'p2']);
@@ -149,8 +149,8 @@ void main() {
         artistId: 'a1',
         expiresAt: DateTime.now().add(const Duration(days: 7)),
       );
-      await memberships.activate(inv2.id, bareId);
-      await memberships.revokeAllForAccount(bareId);
+      await memberships.activate(inv2!.id, bareId);
+      await memberships.revoke(inv2.id);
       expect(await directory.listForAccount(bareId), isEmpty);
     });
   });
@@ -209,7 +209,7 @@ void main() {
         role: 'manager',
         expiresAt: DateTime.now().add(const Duration(days: 7)),
       );
-      await memberships.activate(inv.id, mgrId);
+      await memberships.activate(inv!.id, mgrId);
       expect(await directory.canAddSalon(mgrId), isFalse);
     });
   });

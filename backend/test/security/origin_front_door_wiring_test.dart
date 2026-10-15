@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import 'package:myweli_backend/src/security/identity_limits.dart'
+    show kRateLimitRetention;
 import 'package:test/test.dart';
 
 /// The origin gate is WIRED — source-level pins in the
@@ -171,10 +173,10 @@ void main() {
     ).readAsStringSync();
 
     test('calls pruneRateLimitWindows daily, and returns the count', () {
-      expect(
-        src,
-        contains('await pruneRateLimitWindows(const Duration(days: 1))'),
-      );
+      // The retention is a named constant since the daily invite buckets
+      // (docs/design/backend-team-invite-caps.md §5.4) — still one day.
+      expect(src, contains('await pruneRateLimitWindows(kRateLimitRetention)'));
+      expect(kRateLimitRetention, const Duration(days: 1));
       expect(
         src,
         contains("'rateLimitWindowsPruned':"),

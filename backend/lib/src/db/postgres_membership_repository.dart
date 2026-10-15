@@ -83,7 +83,7 @@ class PostgresMembershipRepository implements MembershipRepository {
   }
 
   @override
-  Future<Member> invite({
+  Future<Member?> invite({
     required String providerId,
     required String email,
     required String role,
@@ -91,13 +91,32 @@ class PostgresMembershipRepository implements MembershipRepository {
     String? artistId,
     String? invitedBy,
   }) async {
+    // ONE statement: a new address inserts; a dead row (revoked, or an
+    // invitation past its window — never the owner's) is invited again in
+    // place; a live row makes the WHERE false and returns no row. A
+    // concurrent invite of the same address waits for this one, finds a live
+    // row and gets none — no 23505 on this key any more. `resends_left` is
+    // reset by hand: its DEFAULT only applies to an INSERT. `account_id` is
+    // kept: clearing it could leave a former member with no row at all, and
+    // GET /me/provider would then create a salon for them.
+    // docs/design/backend-team-reinvite.md
     final r = await _pool.execute(
       Sql.named(
         'INSERT INTO provider_members '
         '(id, provider_id, email, role, artist_id, status, invited_by, '
         'invited_at, expires_at) '
         "VALUES ('mem_' || gen_random_uuid(), @p, lower(@e), @r, @a, "
-        "'invited', @b, now(), @x) RETURNING *",
+        "'invited', @b, now(), @x) "
+        'ON CONFLICT (provider_id, email) DO UPDATE SET '
+        'role = EXCLUDED.role, artist_id = EXCLUDED.artist_id, '
+        "status = 'invited', invited_by = EXCLUDED.invited_by, "
+        'invited_at = now(), expires_at = EXCLUDED.expires_at, '
+        'resends_left = 3, accepted_at = NULL, revoked_at = NULL '
+        "WHERE provider_members.role <> 'owner' AND "
+        "(provider_members.status = 'revoked' OR "
+        "(provider_members.status = 'invited' AND "
+        'provider_members.expires_at <= now())) '
+        'RETURNING *',
       ),
       parameters: {
         'p': providerId,
@@ -108,7 +127,7 @@ class PostgresMembershipRepository implements MembershipRepository {
         'x': expiresAt,
       },
     );
-    return _fromRow(r.first.toColumnMap());
+    return r.isEmpty ? null : _fromRow(r.first.toColumnMap());
   }
 
   @override
@@ -196,7 +215,12 @@ class PostgresMembershipRepository implements MembershipRepository {
     final r = await _pool.execute(
       Sql.named(
         "UPDATE provider_members SET status = 'active', account_id = @a, "
-        'accepted_at = now() WHERE id = @id RETURNING *',
+        'accepted_at = now() '
+        // Only a row that is STILL a valid invitation: a revocation (or the
+        // window closing) between the caller's read and this write holds.
+        // docs/design/backend-team-invite-caps.md §5.3
+        "WHERE id = @id AND status = 'invited' "
+        'AND (expires_at IS NULL OR expires_at > now()) RETURNING *',
       ),
       parameters: {'id': memberId, 'a': accountId},
     );
@@ -206,19 +230,32 @@ class PostgresMembershipRepository implements MembershipRepository {
 
   @override
   Future<void> decline(String memberId) async {
+    // A row that never belonged to an account goes. A former member's row
+    // invited again (account_id kept) goes back to revoked instead: deleted,
+    // it would leave the account with no row at all, and GET /me/provider
+    // would create a salon for it. The two predicates are exclusive, so the
+    // order cannot matter; an accept landing in between flips the status and
+    // neither statement matches. docs/design/backend-team-reinvite.md
     await _pool.execute(
-      Sql.named('DELETE FROM provider_members WHERE id = @id'),
+      Sql.named(
+        "UPDATE provider_members SET status = 'revoked', revoked_at = now() "
+        "WHERE id = @id AND status = 'invited' AND account_id IS NOT NULL",
+      ),
+      parameters: {'id': memberId},
+    );
+    await _pool.execute(
+      Sql.named(
+        'DELETE FROM provider_members '
+        "WHERE id = @id AND status = 'invited' AND account_id IS NULL",
+      ),
       parameters: {'id': memberId},
     );
   }
 
   @override
-  Future<void> revokeAllForAccount(String accountId) async {
+  Future<void> deleteAllForAccount(String accountId) async {
     await _pool.execute(
-      Sql.named(
-        "UPDATE provider_members SET status = 'revoked', revoked_at = now() "
-        "WHERE account_id = @a AND status != 'revoked'",
-      ),
+      Sql.named('DELETE FROM provider_members WHERE account_id = @a'),
       parameters: {'a': accountId},
     );
   }
