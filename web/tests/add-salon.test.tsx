@@ -144,6 +144,75 @@ describe('AddSalonClient', () => {
     expect(select?.body).toEqual({ salonId: 'p4' });
   });
 
+  it('the account phone prefill is what the field SHOWS — and what is sent', async () => {
+    // PhoneField reads `initialValue` once, at mount; the account phone
+    // arrives later. The field used to show a bare « +225 » while the submit
+    // carried the account number — a value the owner never saw.
+    const calls = mockFetch({
+      addStatus: 201,
+      addBody: {
+        salon: {
+          salonId: 'p4',
+          salonName: 'Salon Trois',
+          role: 'owner',
+          salonStatus: 'draft',
+          verified: true,
+        },
+      },
+    });
+    render(<AddSalonClient />);
+    await waitFor(() =>
+      expect(
+        (screen.getByLabelText('Téléphone du salon') as HTMLInputElement).value.replace(
+          /\D/g,
+          '',
+        ),
+      ).toBe('2250700000000'),
+    );
+
+    fireEvent.change(screen.getByPlaceholderText('Ex : Salon Excellence Yopougon'), {
+      target: { value: 'Salon Trois' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Créer le salon' }));
+
+    await waitFor(() => expect(replace).toHaveBeenCalledWith('/pro'));
+    const add = calls.find(
+      (c) => c.url === '/api/pro/salons' && c.body !== undefined,
+    );
+    expect(add?.body).toMatchObject({ phoneNumber: '+2250700000000' });
+  });
+
+  it('a short prefilled account phone is flagged under the field that SHOWS it', async () => {
+    // docs/design/phone-national-length.md §1.5: no such number is stored
+    // today, but one would be named — not hidden behind an empty-looking field.
+    ME.account.phoneNumber = '+2250700000';
+    try {
+      const calls = mockFetch({ addStatus: 201, addBody: {} });
+      render(<AddSalonClient />);
+      await waitFor(() =>
+        expect(
+          (screen.getByLabelText('Téléphone du salon') as HTMLInputElement).value.replace(
+            /\D/g,
+            '',
+          ),
+        ).toBe('2250700000'),
+      );
+      fireEvent.change(screen.getByPlaceholderText('Ex : Salon Excellence Yopougon'), {
+        target: { value: 'Salon Trois' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: 'Créer le salon' }));
+
+      await screen.findByText('Le numéro doit comporter 10 chiffres après +225.');
+      expect(screen.getByLabelText('Téléphone du salon')).toHaveAttribute(
+        'aria-invalid',
+        'true',
+      );
+      expect(calls.some((c) => c.url === '/api/pro/salons' && c.body)).toBe(false);
+    } finally {
+      ME.account.phoneNumber = '+2250700000000';
+    }
+  });
+
   it('a picked area rides the create as areaId (multi-pays MP3)', async () => {
     const calls = mockFetch({
       addStatus: 201,

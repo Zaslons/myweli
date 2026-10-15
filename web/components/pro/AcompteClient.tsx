@@ -10,12 +10,14 @@ import {
   getMyProvider,
   saveDepositPolicy,
 } from '../../lib/api/pro';
+import { useFieldErrors } from '../../lib/forms/useFieldErrors';
 import { operatorsFor } from '../../lib/localities';
 import {
   type DepositForm,
   buildDepositPayload,
   depositToForm,
   validateDeposit,
+  validateDepositNumber,
 } from '../../lib/pro/deposit';
 import { useLocalities } from '../../lib/use-localities';
 import { Button } from '../Button';
@@ -23,6 +25,13 @@ import { Loading } from '../Loading';
 
 const input =
   'block w-full min-h-12 rounded-lg border border-borderStrong bg-surface p-m text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus disabled:border-border disabled:text-textDisabled';
+// The errored state — TextField's (§14): `error` border, `error` focus ring.
+const inputInvalid =
+  'block w-full min-h-12 rounded-lg border border-error bg-surface p-m text-bodyLarge text-textPrimary focus:border-error focus:ring-1 focus:ring-error';
+
+// The Mobile Money number's check (a module constant: useFieldErrors keys
+// its callbacks on this object's identity).
+const NUMBER_CHECK = { number: validateDepositNumber };
 
 export function AcompteClient() {
   const router = useRouter();
@@ -39,6 +48,9 @@ export function AcompteClient() {
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [verified, setVerified] = useState(false);
+  // « Numéro Mobile Money » answers UNDER its field (§14 rules 1/2 —
+  // docs/design/phone-national-length.md); the rest stays form-level.
+  const fields = useFieldErrors(NUMBER_CHECK);
 
   useEffect(() => {
     let active = true;
@@ -80,11 +92,16 @@ export function AcompteClient() {
   }
 
   async function save() {
-    const v = validateDeposit(form as DepositForm);
-    if (v) {
-      setError(v);
-      return;
-    }
+    const f = form as DepositForm;
+    // The number is checked where it is sent: a required deposit (a hidden
+    // field keeps no stale fault). Both checks run, so every fault shows at
+    // once.
+    let numberOk = true;
+    if (f.required) numberOk = fields.validate({ number: f.number });
+    else fields.clear();
+    const v = validateDeposit(f);
+    setError(v);
+    if (v || !numberOk) return;
     setBusy(true);
     setError(null);
     const r = await saveDepositPolicy(
@@ -175,14 +192,36 @@ export function AcompteClient() {
                 </select>
               )}
             </label>
-            <label className="block text-bodyMedium text-textTertiary">
-              Numéro Mobile Money
-              <input
-                className={input}
-                value={form.number}
-                onChange={(e) => set('number', e.target.value)}
-              />
-            </label>
+            {/* The fault sits OUTSIDE the wrapping <label>: inside it, its
+                text would join the field's name. */}
+            <div>
+              <label className="block text-bodyMedium text-textTertiary">
+                Numéro Mobile Money
+                <input
+                  className={fields.errors.number ? inputInvalid : input}
+                  type="tel"
+                  inputMode="tel"
+                  value={form.number}
+                  onChange={(e) => {
+                    set('number', e.target.value);
+                    fields.revalidate('number', e.target.value);
+                  }}
+                  aria-invalid={fields.errors.number ? true : undefined}
+                  aria-describedby={
+                    fields.errors.number ? 'momo-number-error' : undefined
+                  }
+                />
+              </label>
+              {fields.errors.number ? (
+                <p
+                  id="momo-number-error"
+                  role="alert"
+                  className="mt-xs text-bodySmall text-error"
+                >
+                  {fields.errors.number}
+                </p>
+              ) : null}
+            </div>
           </>
         ) : null}
 

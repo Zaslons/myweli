@@ -7,10 +7,12 @@ import { useRouter } from 'next/navigation';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 import type { ProProfile } from '../../lib/api/pro';
 import { getMyProvider, updateProviderProfile } from '../../lib/api/pro';
+import { useFieldErrors } from '../../lib/forms/useFieldErrors';
 import {
   PROFILE_CATEGORIES,
   type ProfileForm,
   buildProfilePayload,
+  profilePhoneChecks,
   profileToForm,
   validateProfile,
 } from '../../lib/pro/profile';
@@ -42,6 +44,9 @@ const LocationPicker = dynamic(
 
 const input =
   'block w-full min-h-12 rounded-lg border border-borderStrong bg-surface p-m text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus disabled:border-border disabled:text-textDisabled';
+// The errored state — TextField's (§14): `error` border, `error` focus ring.
+const inputInvalid =
+  'block w-full min-h-12 rounded-lg border border-error bg-surface p-m text-bodyLarge text-textPrimary focus:border-error focus:ring-1 focus:ring-error';
 
 export function ProfilClient() {
   const router = useRouter();
@@ -66,6 +71,9 @@ export function ProfilClient() {
   const logoRef = useRef<HTMLInputElement>(null);
   const [logoUploading, setLogoUploading] = useState(false);
   const [logoError, setLogoError] = useState<string | null>(null);
+  // The two phone numbers answer UNDER their fields (§14 rules 1/2 —
+  // docs/design/phone-national-length.md); the rest stays form-level.
+  const phones = useFieldErrors(profilePhoneChecks);
 
   useEffect(() => {
     let active = true;
@@ -127,11 +135,15 @@ export function ProfilClient() {
   }
 
   async function save() {
-    const v = validateProfile(form as ProfileForm);
-    if (v) {
-      setError(v);
-      return;
-    }
+    const f = form as ProfileForm;
+    // Both checks run, so every fault shows at once.
+    const phonesOk = phones.validate({
+      phoneNumber: f.phoneNumber,
+      whatsapp: f.whatsapp,
+    });
+    const v = validateProfile(f);
+    setError(v);
+    if (v || !phonesOk) return;
     setBusy(true);
     setError(null);
     const r = await updateProviderProfile(
@@ -255,20 +267,46 @@ export function ProfilClient() {
           fallbackValue={form.commune}
           onFallbackChange={(v) => set('commune', v)}
         />
-        <Field label="Téléphone">
-          <input
-            className={input}
-            value={form.phoneNumber}
-            onChange={(e) => set('phoneNumber', e.target.value)}
-          />
-        </Field>
-        <Field label="WhatsApp (optionnel)">
-          <input
-            className={input}
-            value={form.whatsapp}
-            onChange={(e) => set('whatsapp', e.target.value)}
-          />
-        </Field>
+        {/* The faults sit OUTSIDE the wrapping <label>, like the address
+            hint above: inside it, their text would join the field's name. */}
+        <div>
+          <Field label="Téléphone">
+            <input
+              className={phones.errors.phoneNumber ? inputInvalid : input}
+              type="tel"
+              inputMode="tel"
+              value={form.phoneNumber}
+              onChange={(e) => {
+                set('phoneNumber', e.target.value);
+                phones.revalidate('phoneNumber', e.target.value);
+              }}
+              aria-invalid={phones.errors.phoneNumber ? true : undefined}
+              aria-describedby={
+                phones.errors.phoneNumber ? 'telephone-error' : undefined
+              }
+            />
+          </Field>
+          <FieldError id="telephone-error" error={phones.errors.phoneNumber} />
+        </div>
+        <div>
+          <Field label="WhatsApp (optionnel)">
+            <input
+              className={phones.errors.whatsapp ? inputInvalid : input}
+              type="tel"
+              inputMode="tel"
+              value={form.whatsapp}
+              onChange={(e) => {
+                set('whatsapp', e.target.value);
+                phones.revalidate('whatsapp', e.target.value);
+              }}
+              aria-invalid={phones.errors.whatsapp ? true : undefined}
+              aria-describedby={
+                phones.errors.whatsapp ? 'whatsapp-error' : undefined
+              }
+            />
+          </Field>
+          <FieldError id="whatsapp-error" error={phones.errors.whatsapp} />
+        </div>
         <Field label="Catégorie">
           <select
             className={input}
@@ -352,6 +390,16 @@ function Field({
       {children}
     </label>
   );
+}
+
+/// A field's fault, under it (§14 rule 1) — TextField's error line; the input
+/// points at it with `aria-describedby` (WEB-SYSTEM §6).
+function FieldError({ id, error }: { id: string; error?: string }) {
+  return error ? (
+    <p id={id} role="alert" className="mt-xs text-bodySmall text-error">
+      {error}
+    </p>
+  ) : null;
 }
 
 function SectionLink({
