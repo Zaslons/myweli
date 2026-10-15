@@ -1,12 +1,16 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:myweli/core/access/pro_access_guard.dart';
+import 'package:myweli/core/access/pro_salon_scope.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/core/push/push_registration.dart';
 import 'package:myweli/core/utils/team_error_messages.dart';
 import 'package:myweli/models/api_response.dart';
+import 'package:myweli/models/pro_membership.dart';
 import 'package:myweli/models/team_member.dart';
 import 'package:myweli/providers/pro_auth_provider.dart';
 import 'package:myweli/providers/pro_team_provider.dart';
@@ -34,12 +38,13 @@ import '../support/rejoin.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   final team = _GateTeam();
+  final storage = _HeldAuth();
 
   setUpAll(() async {
     await initializeDateFormatting('fr_FR', null);
     await loadRealFonts(); // the 200% check measures text
     SharedPreferences.setMockInitialValues({});
-    serviceLocator.authService = MockAuthService();
+    serviceLocator.authService = storage;
     serviceLocator.proService = MockProService();
     serviceLocator.proTeamService = team;
     serviceLocator.proPushRegistration = PushRegistration(
@@ -51,6 +56,11 @@ void main() {
   setUp(() async {
     MockData.resetTeam();
     team.acceptAnswer = null;
+    team.declineAnswer = null;
+    team.holdAccept = null;
+    storage.holdMembershipClear = null;
+    // The stores of earlier tests are disposed; a reset must not reach them.
+    ProSalonScope.clear();
     await serviceLocator.authService.logoutProvider();
   });
 
@@ -82,7 +92,11 @@ void main() {
     return wrapApp(
       providers: [
         ChangeNotifierProvider(create: (_) => ProAuthProvider(router: router)),
-        ChangeNotifierProvider(create: (_) => ProTeamProvider()),
+        // Tracked, as main_pro.dart tracks it: the session's resets reach the
+        // gate's cards here as they do in the app.
+        ChangeNotifierProvider(
+          create: (_) => ProSalonScope.track(ProTeamProvider()),
+        ),
       ],
       routerConfig: router,
     );
@@ -272,6 +286,252 @@ void main() {
     expect(find.text('Vous êtes invité(e)'), findsOneWidget);
   });
 
+  ProAuthProvider sessionOf(WidgetTester tester, Finder on) =>
+      tester.element(on).read<ProAuthProvider>();
+
+  Finder signOutButton() => find.widgetWithIcon(IconButton, Icons.logout);
+
+  // ---- Review finding 1: the « no card left » exit re-checks first (§2.4) --
+
+  testWidgets('S3 on the last card, already joined elsewhere — « Rejoindre » '
+      'answers not_found because the row is ACTIVE: the joined salon, not a '
+      'sign-out (§2.4)', (tester) async {
+    await reachGate(tester, role: TeamRole.staff, artistId: 'artist2');
+    // Accepted meanwhile — on the web, another device, or by a first
+    // « Rejoindre » whose answer was lost: the row is active, the card gone.
+    activateMember(kFatouRow);
+
+    await tester.tap(find.text('Rejoindre'));
+    await settle(tester, steps: 5);
+
+    expect(find.text('STAFF_SHELL'), findsOneWidget);
+    expect(find.textContaining('a été retiré'), findsNothing);
+    expect(
+      find.text(teamErrorMessage('not_found')),
+      findsNothing,
+      reason: '« Introuvable » over the salon she is in would contradict it',
+    );
+    final auth = sessionOf(tester, find.text('STAFF_SHELL'));
+    expect(auth.isAuthenticated, isTrue, reason: 'not signed out');
+    expect(auth.rejoinPending, isFalse);
+    expect(auth.isStaff, isTrue);
+  });
+
+  testWidgets('S6 after joining another salon elsewhere — « Refuser » on the '
+      'last card enters that salon, not a sign-out (§2.4)', (tester) async {
+    await reachGate(tester);
+    // Meanwhile Beauté Divine invited her, and she accepted on the web.
+    inviteFromBeauteDivine();
+    activateMember('mem_p2_second');
+
+    await tester.tap(find.text('Refuser'));
+    await settle(tester, steps: 5);
+
+    expect(find.text('DASHBOARD'), findsOneWidget, reason: 'a Manager');
+    expect(find.textContaining('a été retiré'), findsNothing);
+    final auth = sessionOf(tester, find.text('DASHBOARD'));
+    expect(auth.isAuthenticated, isTrue);
+    expect(auth.salonName, 'Beauté Divine');
+  });
+
+  // ---- Review findings 2/15/9: « Déconnexion » and an accept in flight ------
+
+  testWidgets('« Déconnexion » waits while « Rejoindre » is out — one answer '
+      'at a time, the way out included', (tester) async {
+    await reachGate(tester);
+    final held = Completer<void>();
+    team.holdAccept = held;
+
+    await tester.tap(find.text('Rejoindre'));
+    await settle(tester, steps: 2);
+
+    expect(find.text('Vous êtes invité(e)'), findsOneWidget);
+    expect(
+      tester.widget<IconButton>(signOutButton()).onPressed,
+      isNull,
+      reason: 'a sign-out now is undone by the accept landing after it',
+    );
+    expect(find.byTooltip('Déconnexion'), findsOneWidget, reason: 'labelled');
+
+    held.complete();
+    await settle(tester, steps: 3);
+    expect(find.text('DASHBOARD'), findsOneWidget);
+  });
+
+  testWidgets('« Déconnexion » waits while « Refuser » is out too', (
+    tester,
+  ) async {
+    await reachGate(tester);
+
+    await tester.tap(find.text('Refuser'));
+    await tester.pump();
+
+    expect(tester.widget<IconButton>(signOutButton()).onPressed, isNull);
+    await settle(tester);
+  });
+
+  testWidgets('a sign-out that crosses an accept in flight stays signed out: '
+      'the late answer neither enters the salon nor says « Vous avez '
+      'rejoint »', (tester) async {
+    await reachGate(tester);
+    final held = Completer<void>();
+    team.holdAccept = held;
+    await tester.tap(find.text('Rejoindre'));
+    await settle(tester, steps: 2);
+
+    // Any way out while the answer is on its way (the button is held, but
+    // the session can end by other paths).
+    final auth = sessionOf(tester, find.byType(ProInvitationsScreen));
+    // Not awaited here: its mock delays run on the test's fake clock.
+    unawaited(auth.signOutRevoked());
+    await settle(tester, steps: 3);
+    expect(find.text(banner), findsOneWidget);
+
+    held.complete();
+    await settle(tester, steps: 3);
+
+    expect(find.text('DASHBOARD'), findsNothing);
+    expect(find.text('STAFF_SHELL'), findsNothing);
+    expect(find.text('Vous avez rejoint Salon Excellence'), findsNothing);
+    expect(find.text(banner), findsOneWidget, reason: 'still the sign-in');
+    expect(auth.isAuthenticated, isFalse);
+  });
+
+  // ---- Review finding 5: a session that died under the gate ----------------
+
+  for (final (label, script) in <(String, void Function(_GateTeam))>[
+    (
+      '« Rejoindre »',
+      (t) => t.acceptAnswer = ApiResponse.error(
+        'Non connecté',
+        code: 'unauthorized',
+      ),
+    ),
+    (
+      '« Refuser »',
+      (t) => t.declineAnswer = ApiResponse.error(
+        'Non connecté',
+        code: 'unauthorized',
+      ),
+    ),
+  ]) {
+    testWidgets('$label on a session the server no longer accepts (a refused '
+        'refresh cleared it): the sign-in, « Veuillez vous reconnecter. », '
+        'never the same error forever', (tester) async {
+      await reachGate(tester);
+      script(team);
+
+      await tester.tap(find.text(label.substring(2, label.length - 2)));
+      await settle(tester, steps: 4);
+
+      expect(find.text('Vous êtes invité(e)'), findsNothing);
+      expect(find.text('Continuer avec Google'), findsOneWidget);
+      expect(find.text('Veuillez vous reconnecter.'), findsOneWidget);
+      expect(
+        find.textContaining('a été retiré'),
+        findsNothing,
+        reason: 'the session expired; no access was withdrawn',
+      );
+      expect(
+        sessionOf(tester, find.byType(ProLoginScreen)).isAuthenticated,
+        isFalse,
+      );
+    });
+  }
+
+  // ---- Review finding 8: the failure lines are the web's and S5/S7's -------
+
+  for (final (label, code, action, expected) in [
+    ('decline 403', 'forbidden', 'Refuser', 'Refus impossible.'),
+    ('decline 500', 'internal_error', 'Refuser', 'Refus impossible.'),
+    (
+      'accept 500',
+      'internal_error',
+      'Rejoindre',
+      'Invitation impossible à accepter.',
+    ),
+  ]) {
+    testWidgets('$label ($code): « $expected », the line the web shows', (
+      tester,
+    ) async {
+      await reachGate(tester);
+      if (action == 'Refuser') {
+        team.declineAnswer = ApiResponse.error(
+          teamErrorMessage(code),
+          code: code,
+        );
+      } else {
+        team.acceptAnswer = ApiResponse.error(
+          teamErrorMessage(code),
+          code: code,
+        );
+      }
+
+      await tester.tap(find.text(action));
+      await settle(tester, steps: 2);
+
+      expect(find.text(expected), findsOneWidget);
+      expect(find.text(teamErrorMessage(code)), findsNothing);
+      expect(find.text('Vous êtes invité(e)'), findsOneWidget);
+    });
+  }
+
+  // ---- Review finding 17: the splash opens the gate mid-entry (S9) ---------
+
+  testWidgets('S9 — the splash opens the gate while the entry is still '
+      'writing the session: the cards stay, never a spinner', (tester) async {
+    final router = routerAt('/pro/dashboard');
+    final held = Completer<void>();
+    late ProAuthProvider auth;
+    await tester.runAsync(() async {
+      final mock = serviceLocator.authService as MockAuthService;
+      await mock.requestProviderEmailOtp(kFatou);
+      await mock.verifyProviderEmailOtp(kFatou, MockAuthService.demoOtp);
+      auth = ProAuthProvider(router: router);
+      await auth.ready;
+      revokeMember(kFatouRow);
+      await reinvite(team);
+      // The entry's storage writes are slow — platform channels on a phone.
+      storage.holdMembershipClear = held;
+      ProAccessGuard.report('forbidden');
+      for (var i = 0; i < 60 && !auth.rejoinPending; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+      }
+    });
+    expect(auth.rejoinPending, isTrue, reason: 'the premise: mid-entry');
+    final store = ProSalonScope.track(ProTeamProvider());
+    await tester.pumpWidget(
+      wrapApp(
+        providers: [
+          ChangeNotifierProvider<ProAuthProvider>.value(value: auth),
+          ChangeNotifierProvider<ProTeamProvider>.value(value: store),
+        ],
+        routerConfig: router,
+      ),
+    );
+
+    // The splash's spin ends inside the write: it reads rejoinPending and
+    // goes to the gate (pro_splash_screen.dart), which seeds its cards.
+    router.go('/pro/invitations');
+    await tester.pump();
+    await tester.pump();
+    expect(find.text('Rejoindre'), findsOneWidget, reason: 'seeded');
+
+    // The entry resumes.
+    await tester.runAsync(() async {
+      held.complete();
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await tester.pump();
+
+    expect(
+      find.text('Rejoindre'),
+      findsOneWidget,
+      reason: 'the reset of the lost salon must not empty the seeded cards',
+    );
+    expect(store.myInvitations.map((c) => c.id), [kFatouRow]);
+  });
+
   /// Fatou, signed in and working, revoked and invited again — the guard's
   /// probe holds her on the gate. Built in real async (the mock delays),
   /// then mounted where the session already sent its router.
@@ -355,15 +615,54 @@ void main() {
   });
 }
 
-/// The mock, with an accept a test can script (offline, refused).
+/// The mock, with an accept and a decline a test can script (offline,
+/// refused, a dead session) — and an accept a test can hold.
 class _GateTeam extends MockProTeamService {
+  // Every test here re-invites once; the daily cap is not what they test.
+  _GateTeam() : super(maxInvitesPerDay: 1000);
+
   ApiResponse<TeamMember>? acceptAnswer;
+  ApiResponse<bool>? declineAnswer;
+
+  /// Holds the accept's answer AFTER the mock served it: the server already
+  /// joined the row (with the token the request was sent under), the answer
+  /// is on its way.
+  Completer<void>? holdAccept;
 
   @override
   Future<ApiResponse<TeamMember>> acceptInvitation(String invitationId) async {
     final scripted = acceptAnswer;
-    if (scripted == null) return super.acceptInvitation(invitationId);
+    if (scripted == null) {
+      final served = await super.acceptInvitation(invitationId);
+      final hold = holdAccept;
+      if (hold != null) await hold.future;
+      return served;
+    }
     await Future<void>.delayed(const Duration(milliseconds: 300));
     return scripted;
+  }
+
+  @override
+  Future<ApiResponse<bool>> declineInvitation(String invitationId) async {
+    final scripted = declineAnswer;
+    if (scripted == null) return super.declineInvitation(invitationId);
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    return scripted;
+  }
+}
+
+/// The mock session store, with its « no salon cached » write held — the
+/// secure-storage round trips the gate's entry awaits on a phone.
+class _HeldAuth extends MockAuthService {
+  Completer<void>? holdMembershipClear;
+
+  @override
+  Future<void> cacheProviderMembership(ProMembership? membership) async {
+    final hold = holdMembershipClear;
+    if (membership == null && hold != null) {
+      holdMembershipClear = null;
+      await hold.future;
+    }
+    return super.cacheProviderMembership(membership);
   }
 }

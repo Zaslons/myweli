@@ -394,6 +394,12 @@ class ProAuthProvider extends ChangeNotifier {
   /// Gate entry (§2.2): the session is kept, the lost salon is not — its
   /// membership, its cached shape, its selection and every per-salon store
   /// go now, BEFORE the gate seeds its cards (the reset empties them too).
+  ///
+  /// The stores are reset in the same synchronous block that raises
+  /// [rejoinPending], before the first await: the storage writes below are
+  /// platform-channel round trips on a phone, and a splash whose spin ends
+  /// inside them reads [rejoinPending] and opens the gate (S9) — whose seed
+  /// a reset arriving after it would empty, leaving a spinner.
   Future<void> _enterRejoin(
     List<TeamInvitation> cards, {
     required String notice,
@@ -407,20 +413,55 @@ class ProAuthProvider extends ChangeNotifier {
     _activeSalon = null;
     _salons = const [];
     _canAddSalon = false;
+    // No store's reset reloads anything, so the selection cleared just
+    // below (after an await) is not read in between.
+    ProSalonScope.resetAll();
     try {
       await _authService.cacheProviderMembership(null);
     } catch (_) {
       /* best-effort — the next refresh overwrites it */
     }
     await _clearSalonSelection();
-    ProSalonScope.resetAll();
     notifyListeners();
     _router.go('/pro/invitations');
   }
 
-  /// « Déconnexion » on the gate, or its last card gone (§4 S3, S6, S8):
-  /// today's sign-out, the banner naming the lost salon.
+  /// « Déconnexion » on the gate (§4 S8): today's sign-out, the banner naming
+  /// the lost salon. Plain — no re-check: the person asked to leave.
   Future<void> signOutRevoked() => _signOutRevoked(_rejoinNotice ?? salonName);
+
+  /// The gate's last card is gone — declined (S6), or refused as expired or
+  /// withdrawn (S3). The sign-out this calls for is decided on an EMPTY
+  /// list, so GET /me/provider is asked once first (§2.4): a card can be
+  /// gone because it was accepted — on the web, on another device, or by a
+  /// first « Rejoindre » whose answer was lost — and then the person enters
+  /// that salon instead of being told her access was withdrawn. True =
+  /// entered a salon; false = signed out with the banner (or the session had
+  /// already ended).
+  Future<bool> leaveEmptiedRejoin() async {
+    if (_provider == null || !_rejoinPending) return false;
+    // Taken before anything is nulled (C1).
+    final notice = _rejoinNotice ?? salonName;
+    final cameBack = await _membershipCameBack();
+    if (_provider == null || !_rejoinPending) return false;
+    if (cameBack) {
+      _landInJoinedSalon(staff: isStaff);
+      return true;
+    }
+    await _signOutRevoked(notice);
+    return false;
+  }
+
+  /// The gate's session died under it: a refresh the server refused clears
+  /// the stored session, and every answer on the gate then fails the same
+  /// way (`unauthorized`). It ends as an expired session ends — the
+  /// sign-in, WITHOUT the « accès retiré » banner: no access was withdrawn
+  /// this time, and signing in again brings the gate back if it still holds.
+  Future<void> endExpiredRejoin() async {
+    if (_provider == null || !_rejoinPending) return;
+    await logout();
+    _router.go('/pro/login');
+  }
 
   /// « Rejoindre » on the gate (S2). [accept] is the accept call (the team
   /// store's, which drops the card on a refusal); while it runs and while the
@@ -428,6 +469,13 @@ class ProAuthProvider extends ChangeNotifier {
   /// a not_a_member answered before the accept must not sign out the person
   /// who just joined (C2). [onAccepted] fires between the two: the screen's
   /// full-screen loader. Null = refused; the gate stays.
+  ///
+  /// The session can end while the accept is out — the server answers with
+  /// the token the request was sent under, so the join still stands. Then
+  /// the member comes back but nothing navigates: a signed-out session is
+  /// never routed into a salon (review findings 2, 9, 15). Not null in that
+  /// case: null reads as a refusal, and a gate with no card left would start
+  /// a second sign-out.
   Future<TeamMember?> acceptRejoin(
     Future<TeamMember?> Function() accept, {
     VoidCallback? onAccepted,
@@ -437,6 +485,7 @@ class ProAuthProvider extends ChangeNotifier {
     try {
       final joined = await accept();
       if (joined == null) return null;
+      if (_provider == null || !_rejoinPending) return joined;
       onAccepted?.call();
       await completeRejoin(joinedRole: joined.role);
       return joined;
@@ -453,11 +502,23 @@ class ProAuthProvider extends ChangeNotifier {
   /// meanwhile replays above the new shell rather than above the gate, whose
   /// `go` would drop it (S10). No per-salon reset here: the entry did it, and
   /// a reset now would empty the cards under a gate still on screen (C2).
+  ///
+  /// Only from a live gate, and again once the answers are back: a session
+  /// that ended meanwhile (a sign-out) stays where its sign-out sent it.
   Future<void> completeRejoin({TeamRole? joinedRole}) async {
+    if (_provider == null || !_rejoinPending) return;
     final inFlight = _membershipRefresh;
     if (inFlight != null) await inFlight;
     await refreshMembership();
+    if (_provider == null || !_rejoinPending) return;
     final staff = _membership == null ? joinedRole == TeamRole.staff : isStaff;
+    _landInJoinedSalon(staff: staff);
+  }
+
+  /// Off the gate into the salon the session now belongs to: lifted first
+  /// without a notify, the router in the salon's shell, THEN the notify — a
+  /// held notification tap replays above the shell, not above the gate (S10).
+  void _landInJoinedSalon({required bool staff}) {
     _clearRejoin();
     unawaited(loadMySalons());
     _router.go(staff ? '/pro/staff' : '/pro/dashboard');

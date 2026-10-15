@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
+import '../../../core/utils/team_error_messages.dart';
 import '../../../models/team_invitation.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_team_provider.dart';
@@ -66,14 +67,21 @@ class _ProInvitationsScreenState extends State<ProInvitationsScreen> {
     }
   }
 
-  /// A refused accept, in the INVITEE's words. `forbidden` here is the
-  /// server's address check (T37): `teamErrorMessage` would tell an invitee
-  /// the action is reserved to the salon's owner (G12).
-  String _acceptError(ProTeamProvider team) {
-    final message = team.actionError;
-    return team.actionErrorCode == 'forbidden' || message == null
-        ? 'Invitation impossible à accepter.'
-        : message;
+  static const _acceptFailed = 'Invitation impossible à accepter.';
+  static const _declineFailed = 'Refus impossible.';
+
+  /// A refused accept or decline, in the INVITEE's words — the web's
+  /// `invitationActionError`, code for code (S5, S7). `forbidden` here is
+  /// the server's address check (T37), where `teamErrorMessage` would tell an
+  /// invitee the action is reserved to the salon's owner (G12); a code the
+  /// table does not know (a 5xx's `internal_error`) is the action's own line,
+  /// not the generic sentence. With no code the service's own sentence
+  /// stands — « Pas de connexion. Réessayez. » offline (S4).
+  String _actionError(ProTeamProvider team, String failed) {
+    final code = team.actionErrorCode;
+    if (code == null) return team.actionError ?? failed;
+    if (code == 'forbidden') return failed;
+    return teamErrorMessage(code, fallback: failed);
   }
 
   Future<void> _accept(TeamInvitation invitation) async {
@@ -90,7 +98,7 @@ class _ProInvitationsScreenState extends State<ProInvitationsScreen> {
       messenger,
       ok: member != null,
       success: 'Vous avez rejoint ${invitation.salonName}',
-      error: _acceptError(team),
+      error: _actionError(team, _acceptFailed),
     );
   }
 
@@ -99,53 +107,93 @@ class _ProInvitationsScreenState extends State<ProInvitationsScreen> {
     ProTeamProvider team,
     ScaffoldMessengerState messenger,
   ) async {
-    final joined = await context.read<ProAuthProvider>().acceptRejoin(
+    final auth = context.read<ProAuthProvider>();
+    final joined = await auth.acceptRejoin(
       () => team.acceptMyInvitation(invitation.id),
       onAccepted: () {
         if (mounted) setState(() => _leaving = true);
       },
     );
     if (joined != null) {
-      // Already in the joined salon — `completeRejoin` went there. The root
+      // In the joined salon — `completeRejoin` went there — unless the
+      // session ended while the answer travelled: then the sign-in is on
+      // screen, and « Vous avez rejoint » would contradict it. The root
       // messenger outlives this page, so the message lands on the new one.
-      AppSnackBar.showOn(
-        messenger,
-        'Vous avez rejoint ${invitation.salonName}',
-        kind: SnackKind.success,
-      );
+      if (auth.isAuthenticated && !auth.rejoinPending) {
+        AppSnackBar.showOn(
+          messenger,
+          'Vous avez rejoint ${invitation.salonName}',
+          kind: SnackKind.success,
+        );
+      }
       return;
     }
     if (!mounted) return;
-    setState(() => _busyId = null);
-    AppSnackBar.showOn(messenger, _acceptError(team), kind: SnackKind.error);
-    // Expired or withdrawn meanwhile: the store dropped the card (S3). With
-    // none left there is nothing to join (S6) — the message rides the root
-    // messenger onto the sign-in screen.
-    if (team.myInvitations.isEmpty) await _signOut();
+    if (await _leaveIfSignedOut(team, auth, messenger)) return;
+    final error = _actionError(team, _acceptFailed);
+    if (team.myInvitations.isNotEmpty) {
+      setState(() => _busyId = null);
+      AppSnackBar.showOn(messenger, error, kind: SnackKind.error);
+      return;
+    }
+    // Expired or withdrawn meanwhile: the store dropped the card (S3), and
+    // none is left (S6). The reason is told only on the sign-out — it rides
+    // the root messenger onto the sign-in screen; a card gone because it was
+    // accepted elsewhere enters that salon, where « Introuvable » would lie.
+    setState(() => _leaving = true);
+    if (!await auth.leaveEmptiedRejoin()) {
+      AppSnackBar.showOn(messenger, error, kind: SnackKind.error);
+    }
   }
 
   Future<void> _decline(String invitationId) async {
     if (_busyId != null) return;
     final team = context.read<ProTeamProvider>();
+    // Nullable: this screen's own tests mount it without a session.
+    final auth = context.read<ProAuthProvider?>();
     final messenger = ScaffoldMessenger.of(context);
     setState(() => _busyId = invitationId);
     final ok = await team.declineMyInvitation(invitationId);
     if (!mounted) return;
-    setState(() => _busyId = null);
     if (!ok) {
+      if (_gate && await _leaveIfSignedOut(team, auth!, messenger)) return;
+      setState(() => _busyId = null);
       AppSnackBar.showOn(
         messenger,
-        team.actionError ?? 'Refus impossible.',
+        _actionError(team, _declineFailed),
         kind: SnackKind.error,
       );
     } else if (_gate && team.myInvitations.isEmpty) {
       // The last card declined (S6): the row is « revoked » again
-      // server-side, and a session with no salon is not kept.
-      await _signOut();
+      // server-side, and a session with no salon is not kept — unless the
+      // re-check finds one (§2.4).
+      setState(() => _leaving = true);
+      await auth!.leaveEmptiedRejoin();
+    } else {
+      setState(() => _busyId = null);
     }
   }
 
-  /// The gate's way out — « Déconnexion », or no card left (S6, S8).
+  /// A refusal that says the session itself is gone (`unauthorized` — a
+  /// refresh the server refused cleared it): every retry would fail the same
+  /// way, so the gate goes to the sign-in and says why. True = left.
+  Future<bool> _leaveIfSignedOut(
+    ProTeamProvider team,
+    ProAuthProvider auth,
+    ScaffoldMessengerState messenger,
+  ) async {
+    if (team.actionErrorCode != 'unauthorized') return false;
+    setState(() => _leaving = true);
+    await auth.endExpiredRejoin();
+    AppSnackBar.showOn(
+      messenger,
+      'Veuillez vous reconnecter.',
+      kind: SnackKind.error,
+    );
+    return true;
+  }
+
+  /// « Déconnexion » (S8) — the plain sign-out the person asked for.
   Future<void> _signOut() async {
     setState(() => _leaving = true);
     await context.read<ProAuthProvider>().signOutRevoked();
@@ -165,8 +213,12 @@ class _ProInvitationsScreenState extends State<ProInvitationsScreen> {
             // full system scaler while the title is clamped, so a
             // « Déconnexion » TextButton crowds the bar at 200% (SYSTEM.md
             // §13.3, §21 row 79). The tooltip is the label.
+            //
+            // Held while an answer is out (one answer at a time, the way out
+            // included): a sign-out now would be undone by an accept landing
+            // after it.
             IconButton(
-              onPressed: _leaving ? null : _signOut,
+              onPressed: (_leaving || _busyId != null) ? null : _signOut,
               icon: const Icon(Icons.logout),
               tooltip: 'Déconnexion',
             ),

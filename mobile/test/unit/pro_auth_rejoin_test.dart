@@ -446,6 +446,109 @@ void main() {
       expect(auth.rejoinInvitations, isEmpty);
     });
 
+    // Review findings 2/15/9: the session can end while an accept is out
+    // (the server keeps the token the request was sent under, so the answer
+    // is still a 200). Nothing after that may navigate a signed-out session.
+    test('a sign-out while the accept is out: the late 200 neither enters '
+        'the salon nor leaves the sign-in', () async {
+      final auth = await gated();
+      var leaving = false;
+
+      final joined = await auth.acceptRejoin(() async {
+        final served = await team.acceptInvitation(kFatouRow);
+        await auth.signOutRevoked(); // she leaves while the answer travels
+        return served.data;
+      }, onAccepted: () => leaving = true);
+
+      expect(joined?.status, TeamMemberStatus.active, reason: 'joined');
+      expect(leaving, isFalse, reason: 'no « entering the salon » loader');
+      expect(location(), '/pro/login');
+      expect(auth.isAuthenticated, isFalse);
+      expect(auth.rejoinPending, isFalse);
+      expect(auth.consumeRevokedNotice(), 'Salon Excellence');
+    });
+
+    test('a session that ends while the rejoin asks for the new shape is not '
+        'routed into the salon', () async {
+      final auth = await gated();
+      // The accept landed; logout finishes while GET /me/provider is out.
+      pro.during = auth.logout;
+
+      await auth.acceptRejoin(
+        () async => (await team.acceptInvitation(kFatouRow)).data,
+      );
+
+      expect(auth.isAuthenticated, isFalse);
+      expect(location(), isNot('/pro/dashboard'));
+      expect(location(), isNot('/pro/staff'));
+    });
+
+    // Review finding 1: the gate's « no card left » exit (S3, S6) is a
+    // sign-out decided on an empty list — §2.4 asks GET /me/provider first.
+    test(
+      'no card left, the row active again (accepted elsewhere): the '
+      'salon, and the gate lifts only once the router is there (S10)',
+      () async {
+        final auth = await gated(role: TeamRole.staff, artistId: 'artist2');
+        activateMember(kFatouRow);
+        final seen = <(bool, String)>[];
+        void record() => seen.add((auth.rejoinPending, location()));
+        auth.addListener(record);
+        addTearDown(() => auth.removeListener(record));
+
+        final entered = await auth.leaveEmptiedRejoin();
+
+        expect(entered, isTrue);
+        expect(pro.calls, 1, reason: 'asked once');
+        expect(auth.isAuthenticated, isTrue);
+        expect(auth.isStaff, isTrue);
+        expect(auth.consumeRevokedNotice(), isNull);
+        expect(location(), '/pro/staff');
+        expect(
+          seen.where((s) => !s.$1 && s.$2 == '/pro/invitations'),
+          isEmpty,
+          reason: 'lifted above the gate, a held tap replays there: $seen',
+        );
+        expect(seen.last, (false, '/pro/staff'));
+      },
+    );
+
+    test('no card left and no membership: signed out, the lost salon named, '
+        'after asking once', () async {
+      final auth = await gated();
+
+      final entered = await auth.leaveEmptiedRejoin();
+
+      expect(entered, isFalse);
+      expect(pro.calls, 1);
+      expect(auth.isAuthenticated, isFalse);
+      expect(auth.rejoinPending, isFalse);
+      expect(auth.consumeRevokedNotice(), 'Salon Excellence');
+      expect(location(), '/pro/login');
+    });
+
+    test('the dead-session exit: signed out to the sign-in, no « accès '
+        'retiré » banner', () async {
+      final auth = await gated();
+
+      await auth.endExpiredRejoin();
+
+      expect(auth.isAuthenticated, isFalse);
+      expect(auth.rejoinPending, isFalse);
+      expect(auth.consumeRevokedNotice(), isNull);
+      expect(location(), '/pro/login');
+    });
+
+    test('completeRejoin off a live gate does nothing', () async {
+      final auth = await gated();
+      await auth.logout();
+
+      await auth.completeRejoin(joinedRole: TeamRole.reception);
+
+      expect(location(), isNot('/pro/dashboard'));
+      expect(auth.isAuthenticated, isFalse);
+    });
+
     test('acceptRejoin off the gate does nothing', () async {
       final auth = await signIn(kFatou);
       var called = false;
@@ -464,6 +567,9 @@ void main() {
 /// The invitations the gate check asks for — the mock's own answer unless a
 /// test scripts another, counted.
 class _ScriptedTeam extends MockProTeamService {
+  // Most tests here re-invite once; the daily cap is not what they test.
+  _ScriptedTeam() : super(maxInvitesPerDay: 1000);
+
   int listCalls = 0;
   ApiResponse<List<TeamInvitation>>? answer;
   bool throws = false;
@@ -495,14 +601,21 @@ class _ScriptedPro extends MockProService {
   /// not_a_member — but only once this completes: a stale answer, late.
   Completer<void>? holdNext;
 
+  /// Runs once while the next call is out — before it answers.
+  Future<void> Function()? during;
+
   void reset() {
     calls = 0;
     holdNext = null;
+    during = null;
   }
 
   @override
   Future<ApiResponse<MyProviderInfo>> getMyProvider({String? salonId}) async {
     calls++;
+    final meanwhile = during;
+    during = null;
+    await meanwhile?.call();
     final hold = holdNext;
     if (hold == null) return super.getMyProvider(salonId: salonId);
     holdNext = null;
