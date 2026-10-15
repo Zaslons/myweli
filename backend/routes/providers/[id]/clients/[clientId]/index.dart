@@ -52,6 +52,8 @@ Future<Response> onRequest(
       switch (r.error) {
         case 'client_linked':
           return jsonError(HttpStatus.conflict, 'client_linked');
+        case 'client_anonymized':
+          return jsonError(HttpStatus.conflict, 'client_anonymized');
         case 'client_exists':
           return Response.json(
             statusCode: HttpStatus.conflict,

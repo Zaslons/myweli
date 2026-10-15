@@ -2494,7 +2494,9 @@ paths:
         take the new one in ONE transaction — never another salon's bookings
         (T45), never a consumer's own. A card linked to an account
         (`linked: true`) keeps the account's number: 409 `client_linked`,
-        whatever was sent. The card's own number → 200, nothing to do. A
+        whatever was sent. An erased account's anonymised card (no account,
+        no number — T48) takes no number: 409 `client_anonymized`. The card's
+        own number → 200, nothing to do. A
         number already on another card of this salon → 409 `client_exists`
         with that card's `clientId` (the `POST …/clients` shape; no merge) —
         a race lost to it answers the same. A change is audited
@@ -2537,8 +2539,10 @@ paths:
         '409':
           description: >-
             `client_linked` — the card belongs to an account, whose number it
-            keeps (nothing changed). `client_exists` + `clientId` — another
-            card of this salon has that number (nothing changed).
+            keeps (nothing changed). `client_anonymized` — an erased account's
+            card, which no number may re-identify (nothing changed).
+            `client_exists` + `clientId` — another card of this salon has that
+            number (nothing changed).
           content:
             application/json:
               schema:
@@ -2547,7 +2551,7 @@ paths:
                 properties:
                   error:
                     type: string
-                    enum: [client_linked, client_exists]
+                    enum: [client_linked, client_anonymized, client_exists]
                   clientId:
                     type: string
                     description: '`client_exists` only — the card holding the number.'

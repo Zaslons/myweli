@@ -206,6 +206,8 @@ est sans risque : chaque client refuse déjà ce que le serveur refusera.
 
 ## 11. Questions ouvertes (hors périmètre, consignées)
 
+> **Toutes traitées le 2026-10-15** — [phone-leftovers.md](phone-leftovers.md) (§2 codes, §3 champs du mauvais type, §4 « Réserver »/« Mon compte », §5 masque, §6 Acompte web, §7 client choisi, §8 numéro d'une fiche client). L'écart opérateur/pourcentage de l'Acompte web (§5 ci-dessous) reste ouvert.
+
 1. Codes d'erreur : `invalid_input` (inscription, profil, acompte, OTP verify)
    contre `invalid_phone` (le reste) — un client ne peut pas toujours placer la
    faute sous le bon champ. À unifier dans une tranche contrat.

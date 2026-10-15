@@ -518,7 +518,7 @@ class _PhoneSheetState extends State<_PhoneSheet> {
             'phone',
             name == null
                 ? 'Ce numéro est déjà sur la fiche d’un autre client.'
-                : 'Ce numéro est déjà sur la fiche de $name.',
+                : 'Ce numéro est déjà sur la fiche ${Formatters.de(name)}.',
           );
         });
       case 'client_linked':

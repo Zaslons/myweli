@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Approuvé le 2026-10-15** (propriétaire : « finish the leftovers from the phone work ») — §2 à §7 en construction sur `fix/phone-leftovers` ; **§8 tranché le même jour** (les trois options recommandées), construit après §2–§7 (il touche les mêmes routes) |
+| **Statut** | **Construit le 2026-10-15** sur `fix/phone-leftovers` — §2–§7 (approuvés par le propriétaire : « finish the leftovers from the phone work ») et §8 (tranché le même jour : les trois options recommandées) ; §11 dit ce qui a été construit autrement qu'écrit |
 | **Module** | transverse — contrat d'erreurs (BACKEND.md §2) · formulaires (SYSTEM.md §14) · clients (C1) |
 | **Origine** | [phone-national-length.md](phone-national-length.md) §11 (questions ouvertes) et §12 (constat écarté de la revue : les champs non textuels → 500) |
 | **Régit** | `backend/lib/src/http/body_fields.dart` (nouveau) · `backend/lib/src/observability/request_middleware.dart` · les 27 routes qui lisent un corps · `provider_catalog_service.dart`, `routes/auth/provider/register.dart`, OTP verify · `docs/api/openapi.yaml` · app : inscription Pro, profil du salon, acompte, `Helpers.maskPhoneNumber` · web : `BookingFlow`, `AccountClient`, `ProRegisterClient`, `ProfilClient`, `AcompteClient`, `ManualBookingDialog`, `lib/pro/deposit.ts` |
@@ -153,3 +153,58 @@ champ (inscription, profil ×2, acompte) ; le masque. Web : les mêmes, plus
 Le backend change des codes d'erreur : les nouveaux clients les comprennent,
 les anciens retombent sur leur message générique (§2). Déploiement en
 production sur feu vert du propriétaire.
+
+## 11. Construit — ce qui diffère de ce qui était écrit
+
+**Serveur.**
+- Inscription Pro : le nom et le type sont vérifiés **avant** le téléphone (le
+  même ordre que `POST /me/salons`).
+- `POST /appointments` : un champ du mauvais type répond désormais
+  `invalid_body` (il répondait `invalid_input` par une liste de clés tenue à
+  la main, remplacée par les lecteurs).
+- Trois lectures de service qu'une valeur client atteignait sans contrôle de
+  type passent par les lecteurs (description d'une prestation, spécialité d'un
+  artiste, texte d'un avis) : un nombre y répond 400, il était **enregistré**
+  sur les chemins de mise à jour.
+- Quand un service vérifie le type ET la valeur d'un champ, il garde le code
+  du champ (un `whatsapp` numérique → `invalid_whatsapp`) ; le composant
+  `BadRequest` du contrat le dit.
+- `PATCH …/clients/{clientId}` répond la fiche (forme du `GET`) pour toute
+  modification, tags seuls compris ; cette relecture est une consultation
+  auditée (T46).
+- **Une fiche anonymisée ne prend pas de numéro** (décision prise en
+  construction, au nom de T48) : une fiche sans compte ET sans numéro n'existe
+  qu'après l'effacement d'un compte ; lui attacher un numéro réidentifierait
+  ses tags et ses notes. → 409 `client_anonymized` ; l'app et le web ne
+  proposent pas « Modifier » sur une fiche sans numéro.
+- La ligne d'audit `client.phone_changed` est écrite après la transaction,
+  comme toute écriture d'audit du service.
+
+**App et web.**
+- La phrase du doublon élide : « la fiche d'Aïcha », pas « de Aïcha »
+  (`Formatters.de` / `deName`, mêmes vecteurs) ; l'étiquette « Ouvrir la fiche
+  de … » de la liste web aussi.
+- Le nom de l'autre fiche (le 409 ne porte que son id) est lu par un `GET` de
+  cette fiche — une consultation auditée, exacte puisque son nom est affiché ;
+  s'il est illisible : « … la fiche d'un autre client. » (app) / « … sur une
+  autre fiche. » (web), le lien gardé.
+- Textes ajoutés : la ligne « Les visites de ce client suivent le nouveau
+  numéro. » (app) ; un `client_linked` (fiche devenue liée entre-temps) ferme,
+  recharge en lecture seule et l'explique.
+- Le même numéro : rien n'est envoyé, la feuille se ferme, sans annonce.
+- Web Acompte, dépôts désactivés : seul le champ « Numéro Mobile Money » se
+  révèle sur un refus (le web n'a pas de carte « Recevoir l'acompte ») ;
+  l'opérateur et le pourcentage partent encore vides / à 0 — écart de parité
+  restant, hors périmètre.
+- « Réserver », « Mon compte » et l'étape téléphone de la connexion (web) ne
+  disent plus « Numéro invalide » pour un échec qui n'est pas le numéro
+  (réseau, 5xx).
+- App : la fiche se recharge quand go_router lui donne un autre client
+  (« Ouvrir la fiche » depuis une fiche ouverte par lien) ; `maskClientPhone`
+  lit l'indicatif par la même recherche que le reste (un +33 ne lit plus
+  « +336 … »).
+
+**Ordre de déploiement : le serveur d'abord.** L'app parle au `PATCH` qui
+accepte `phone` ; un build sorti avant le serveur afficherait le refus de
+l'ancienne route.
+

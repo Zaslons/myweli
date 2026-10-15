@@ -3800,7 +3800,12 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        /** Update the tag set (≤10 tags, each ≤24 chars) */
+        /**
+         * Update the tag set and/or a guest card's number
+         * @description Same capability as the card (`clients.view`). At least one of `phone` and `tags`; neither → 400 `invalid_tags`. Everything is checked before anything is written: a refusal changes nothing. Answers with the card, exactly as `GET` does (that read-back is audited `clients.view`, like every card read — T46).
+         *
+         *     **The number** (docs/design/phone-leftovers.md §8): the history follows it. A guest's visits resolve by phone, so the card and this salon's manual bookings (`userId` = `manual`) carrying the old number take the new one in ONE transaction — never another salon's bookings (T45), never a consumer's own. A card linked to an account (`linked: true`) keeps the account's number: 409 `client_linked`, whatever was sent. An erased account's anonymised card (no account, no number — T48) takes no number: 409 `client_anonymized`. The card's own number → 200, nothing to do. A number already on another card of this salon → 409 `client_exists` with that card's `clientId` (the `POST …/clients` shape; no merge) — a race lost to it answers the same. A change is audited `client.phone_changed` with ids only, never a number.
+         */
         patch: {
             parameters: {
                 query?: never;
@@ -3814,24 +3819,41 @@ export interface paths {
             requestBody: {
                 content: {
                     "application/json": {
-                        tags: string[];
+                        /** @description The guest card's new number. E.164, no separators; a +225 number has exactly 10 digits after the code. Surrounding blanks are trimmed; anything else invalid — empty included, a guest card exists only by its number → 400 `invalid_phone`. Not a string → 400 `invalid_body`. */
+                        phone?: string;
+                        /** @description The whole tag set (≤10 tags, each 1–24 chars after trimming, duplicates dropped; non-string items ignored); else 400 `invalid_tags`. Not an array → 400 `invalid_body`. */
+                        tags?: string[];
                     };
                 };
             };
             responses: {
-                /** @description Updated */
+                /** @description The card, as `GET` returns it. */
                 200: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["SalonClient"];
+                        "application/json": components["schemas"]["SalonClientCard"];
                     };
                 };
                 400: components["responses"]["BadRequest"];
                 401: components["responses"]["Unauthorized"];
                 403: components["responses"]["Forbidden"];
                 404: components["responses"]["NotFound"];
+                /** @description `client_linked` — the card belongs to an account, whose number it keeps (nothing changed). `client_anonymized` — an erased account's card, which no number may re-identify (nothing changed). `client_exists` + `clientId` — another card of this salon has that number (nothing changed). */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {string} */
+                            error: "client_linked" | "client_anonymized" | "client_exists";
+                            /** @description `client_exists` only — the card holding the number. */
+                            clientId?: string;
+                        };
+                    };
+                };
             };
         };
         trace?: never;

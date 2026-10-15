@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  deName,
   formatDateFr,
   formatDateTimeFr,
   formatDuration,
@@ -24,6 +25,22 @@ const norm = (s: string) => s.replace(/\s/g, ' ');
 /// (`mobile/test/unit/formatters_test.dart` — « Formatters.formatPhoneNumber »).
 /// Nothing ties the two files together but these shared lines: a change to the
 /// rule on one side must be made on the other.
+describe('deName — « de » elides before a vowel (twin of Formatters.de)', () => {
+  it.each([
+    ['Koffi Yao', 'de Koffi Yao'],
+    ['Aïcha Koné', 'd’Aïcha Koné'],
+    ['Ibrahim', 'd’Ibrahim'],
+    ['Ousmane', 'd’Ousmane'],
+    ['Émile', 'd’Émile'],
+    ['awa', 'd’awa'],
+    ['  Awa  ', 'd’Awa'],
+    ['Henri', 'de Henri'],
+    ['Yasmine', 'de Yasmine'],
+  ])('%s → %s', (name, expected) => {
+    expect(deName(name)).toBe(expected);
+  });
+});
+
 describe('formatPhoneNumber — the twin of the app’s formatter', () => {
   it('groups a current 10-digit Côte d’Ivoire number in pairs', () => {
     expect(formatPhoneNumber('+2250712345678')).toBe('+225 07 12 34 56 78');

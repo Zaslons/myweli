@@ -236,7 +236,7 @@ describe('ClientCardClient — « Modifier » the number of a GUEST card', () =>
     fireEvent.click(within(dialog).getByRole('button', { name: 'Enregistrer' }));
 
     const sentence = await within(dialog).findByText(
-      'Ce numéro est déjà sur la fiche de Awa.',
+      'Ce numéro est déjà sur la fiche d’Awa.',
     );
     expect(sentence).toHaveAttribute('role', 'alert');
     expect(within(dialog).getByRole('link', { name: 'Ouvrir la fiche' })).toHaveAttribute(
@@ -249,7 +249,7 @@ describe('ClientCardClient — « Modifier » the number of a GUEST card', () =>
 
     // A different number makes the sentence stale — it goes with its link.
     fireEvent.change(phone, { target: { value: '+2250505123456' } });
-    expect(within(dialog).queryByText('Ce numéro est déjà sur la fiche de Awa.')).toBeNull();
+    expect(within(dialog).queryByText('Ce numéro est déjà sur la fiche d’Awa.')).toBeNull();
     expect(within(dialog).queryByRole('link', { name: 'Ouvrir la fiche' })).toBeNull();
   });
 

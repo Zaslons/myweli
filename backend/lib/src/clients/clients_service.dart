@@ -331,6 +331,13 @@ class ClientsService {
       if (client['userId'] != null) {
         return (ok: false, error: 'client_linked', data: null);
       }
+      // Neither an account nor a number: an erased account's card (T48 —
+      // `anonymizeUser` clears both). A guest card is created WITH a number
+      // and keeps one, so this is the only such card. Attaching a number would
+      // re-identify the erased person's tags and notes: refused.
+      if (client['phone'] == null) {
+        return (ok: false, error: 'client_anonymized', data: null);
+      }
       final next = phone.trim();
       if (!isValidPhoneNumber(next)) {
         return (ok: false, error: 'invalid_phone', data: null);

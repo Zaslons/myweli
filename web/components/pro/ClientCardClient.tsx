@@ -27,6 +27,7 @@ import {
   phoneFieldError,
 } from '../../lib/phone';
 import {
+  deName,
   formatDateFr,
   formatDateTimeFr,
   formatFcfa,
@@ -593,7 +594,7 @@ function EditPhoneModal({
       setBusy(false);
       setOutcome({
         text: other.card
-          ? `Ce numéro est déjà sur la fiche de ${other.card.displayName}.`
+          ? `Ce numéro est déjà sur la fiche ${deName(other.card.displayName)}.`
           : 'Ce numéro est déjà sur une autre fiche.',
         cardId: r.clientId,
       });

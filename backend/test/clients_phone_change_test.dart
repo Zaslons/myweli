@@ -275,6 +275,32 @@ void main() {
       expect((await stored(id))['tags'], ['VIP']);
     });
 
+    /// An erased account's card (T48: `anonymizeUser` clears its userId and
+    /// phone, its name becomes « Client »). Not linked, no number — the
+    /// linked rule alone would let a salon attach a number to it again, and
+    /// with it re-identify the erased person's tags and notes. Refused.
+    test('an erased client\'s anonymised card takes no number → 409 '
+        'client_anonymized, nothing changes', () async {
+      const accountPhone = '+2250100000404';
+      final otp = await users.requestOtp(accountPhone);
+      final uid = (await users.verifyOtp(accountPhone, otp.devCode!)).user!.id;
+      await service.recordBooking({'providerId': 'provider1', 'userId': uid});
+      final id =
+          (await clientsRepo.byUserId('provider1', uid))!['id'] as String;
+      await service.anonymizeUser(uid);
+      expect((await stored(id))['userId'], isNull);
+      expect((await stored(id))['phone'], isNull);
+
+      final res = await send(id, json: jsonEncode({'phone': newPhone}));
+      expect(res.statusCode, HttpStatus.conflict);
+      expect(await bodyOf(res), {'error': 'client_anonymized'});
+      expect((await stored(id))['phone'], isNull);
+      final actions = [
+        for (final e in await audit.entriesFor('provider1')) e['action'],
+      ];
+      expect(actions, isNot(contains('client.phone_changed')));
+    });
+
     test('an invalid number → 400 invalid_phone, empty included; nothing '
         'changes', () async {
       final id = await guestCard(oldPhone);
