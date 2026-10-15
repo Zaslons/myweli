@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Construit le 2026-10-14** sur `fix/provider-deletion-member-fk` — **non fusionné, non déployé**. La fusion et le déploiement en production attendent chacun le mot du propriétaire. |
+| **Statut** | **Construit, fusionné (#594, `a51918cc`) et déployé en production le 2026-10-14** — révision `myweli-api-00038-mbs`, image `sha256:19c9f4e4…` (= l'étiquette `a51918c`), sur le « go » du propriétaire. **Vérifié en production, par le bouton d'Apple** : le compte de test resté à moitié supprimé s'est reconnecté en propriétaire (`GET /me/provider` 200, 23:00:06 et 23:00:08 UTC — ce que §1 prédisait par lecture du code) puis `DELETE /me/provider` → **204** à 23:00:15 UTC. Toujours en service à la révision `myweli-api-00039-mgq` (`9c0540a`). |
 | **Module** | `access` (les lignes d'équipe) · compte Pro (la suppression, menace T53) |
 | **Origine** | Le propriétaire, le 2026-10-14, pendant les vérifications du build 587 avant « Submit for Review » : un compte Pro tout neuf, « Supprimer » → « Une erreur est survenue ». |
 | **Bloque** | La soumission de MyWeli Pro : Apple essaie la suppression de compte (règle 5.1.1(v)) sur un compte qu'il crée lui-même. |

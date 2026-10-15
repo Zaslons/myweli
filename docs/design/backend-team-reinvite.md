@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Construit le 2026-10-14** sur `fix/team-reinvite-unique` — non fusionné, non déployé. Fusion et déploiement : sur le mot du propriétaire. |
+| **Statut** | **Construit, fusionné (#596, `7176db7d`) et déployé en production le 2026-10-14** — d'abord avec #594 (révision `myweli-api-00038-mbs`), toujours en service à `myweli-api-00039-mgq` (`9c0540a`). Côté app, les changements (fournisseur, mock) partiront avec le prochain build ; le build 587 en revue n'en dépend pas. |
 | **Module** | `access` (équipe, R2b) |
 | **Origine** | La revue adverse du correctif de suppression ([backend-provider-deletion-member-fk.md](backend-provider-deletion-member-fk.md) §7) ; le propriétaire : « Do this task here ». |
 | **Régit** | `backend/lib/src/access/team_service.dart` (`invite`) · `backend/lib/src/access/membership_repository.dart` + `backend/lib/src/db/postgres_membership_repository.dart` (`invite`) · `docs/api/openapi.yaml` (`POST /me/provider/members`, `…/resend`) · `mobile/lib/providers/pro_team_provider.dart` · `mobile/lib/services/mock/mock_pro_team_service.dart` · `web/tests/e2e/stub-api.mjs` |
