@@ -162,6 +162,21 @@ describe('« Réserver » — the contact phone at the confirm step', () => {
     await screen.findByText('Réservation envoyée ✓');
   });
 
+  it('« Retour » then back: the field shows the number that will be checked, not the stored one', async () => {
+    // The field remounts with the confirm step. Prefilled from the STORED
+    // number, it showed one value while another was checked and sent — and,
+    // now that the fault is under the field, blamed a number not on screen.
+    const { field } = await openConfirm({ ...ME, phoneNumber: '+2250700000' });
+    fireEvent.change(field, { target: { value: '+2250707123499' } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Retour' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Confirmer' })[0]);
+    const again = (await screen.findByLabelText(
+      'Numéro de téléphone',
+    )) as HTMLInputElement;
+    expect(again.value.replace(/\s/g, '')).toBe('+2250707123499');
+  });
+
   it('an unchanged valid number books without a profile write', async () => {
     const { submit } = await openConfirm(ME);
     fireEvent.click(submit);
