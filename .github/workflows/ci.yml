@@ -118,29 +118,15 @@ jobs:
     defaults:
       run:
         working-directory: backend
-    # Postgres service so the DB-backed repository tests (B3c) run against a real
-    # database; without DATABASE_URL those tests skip (e.g. local dev).
-    services:
-      postgres:
-        # The official postgres image via its ECR Public mirror, not Docker
-        # Hub: Hub's unauthenticated pull limit is shared by GitHub's runners
-        # and failed both backend jobs on #558 and #559 (2026-10-09,
-        # "toomanyrequests"). Same Docker Official Image, no pull limit.
-        image: public.ecr.aws/docker/library/postgres:16
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: myweli_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
+    # A real Postgres so the DB-backed repository tests (B3c) run against a
+    # database; without DATABASE_URL those tests skip (e.g. local dev). The
+    # runner's own PostgreSQL 16, not a pulled image: see the script.
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+
+      - name: Start PostgreSQL (the runner's own — no image pull)
+        run: ${{ github.workspace }}/.github/scripts/start-postgres.sh myweli_test
 
       - name: Set up Dart
         uses: dart-lang/setup-dart@v1
@@ -177,24 +163,6 @@ jobs:
     # migrations + provider seed against Postgres, then the server actually
     # serves. Catches route-tree code-gen breaks and startup/migration faults
     # before they reach a deploy.
-    services:
-      postgres:
-        # The official postgres image via its ECR Public mirror, not Docker
-        # Hub: Hub's unauthenticated pull limit is shared by GitHub's runners
-        # and failed both backend jobs on #558 and #559 (2026-10-09,
-        # "toomanyrequests"). Same Docker Official Image, no pull limit.
-        image: public.ecr.aws/docker/library/postgres:16
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: myweli_smoke
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
     env:
       DATABASE_URL: postgres://postgres:postgres@localhost:5432/myweli_smoke
       JWT_SECRET: ci-boot-smoke-secret
@@ -217,6 +185,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+
+      - name: Start PostgreSQL (the runner's own — no image pull)
+        run: ${{ github.workspace }}/.github/scripts/start-postgres.sh myweli_smoke
 
       - name: Set up Dart
         uses: dart-lang/setup-dart@v1
@@ -307,8 +278,8 @@ jobs:
           # no coverage anywhere else.
           ENV: prod
           # DATABASE_URL is inherited from the job (myweli_smoke). Restating it
-          # here is what failed the first run — it named myweli_test, which the
-          # Postgres service container never creates, so the server died at boot
+          # here is what failed the first run — it named myweli_test, which this
+          # job's Postgres never creates, so the server died at boot
           # with 3D000 and every curl hit a closed port.
           JWT_SECRET: ci-prod-mode-secret
           AUTH_METHODS: google,apple,email
