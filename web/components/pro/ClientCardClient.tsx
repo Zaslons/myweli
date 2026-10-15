@@ -54,8 +54,9 @@ import { ManualBookingDialog } from './ManualBookingDialog';
 /// salon-scoped history on the right. « Nouveau rendez-vous » opens the
 /// manual-booking dialog pre-picked with this client
 /// (docs/design/web-manual-booking.md — the C1b deferral closed). A GUEST
-/// card's number is edited under it, « Modifier »; a card linked to an account
-/// keeps the account's number, read-only (docs/design/phone-leftovers.md §8).
+/// card's number is edited under it, « Modifier », when the server says so
+/// (`phoneEditable`); a card linked to an account keeps the account's number,
+/// read-only (docs/design/phone-leftovers.md §8, §11).
 export function ClientCardClient({ clientId }: { clientId: string }) {
   const router = useRouter();
   const [providerId, setProviderId] = useState<string | null>(null);
@@ -174,6 +175,13 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
     ...card.tags.filter((t) => !PRESET_TAGS.includes(t)),
   ];
 
+  // « Modifier » only on the server's word (docs/design/phone-leftovers.md
+  // §11): `phoneEditable` is exactly the cards whose number its PATCH takes —
+  // a guest card with a number. ABSENT means no: the web ships on merge, the
+  // backend by a manual dispatch, and the older server refuses `{ phone }`
+  // (`invalid_tags`) — a « Modifier » there would fail on every try.
+  const editablePhone = card.phoneEditable === true ? card.phone : null;
+
   return (
     <div>
       <Link href="/pro/clients" className="text-bodyMedium text-textTertiary">
@@ -252,9 +260,10 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
                     row's 12px gap. `mt-xl` − the 12px each box reaches
                     (`-my-sm`, theirs and its own) leaves 8px between them
                     (SYSTEM.md §13.2); the caption is no target, so `mt-sm`
-                    only has to clear theirs. A guest card always has a
-                    number (no phone → no row, clients_service.dart). */}
-                {card.phone && !card.linked ? (
+                    only has to clear theirs. Shown on `phoneEditable` alone
+                    (above): a guest card with a number, on a server whose
+                    PATCH takes one. */}
+                {editablePhone ? (
                   // `flex`, as the row is: the box's 24px of negative margin
                   // then sizes the line, not an inline baseline.
                   <div className="mt-xl flex text-bodyMedium text-textSecondary">
@@ -497,11 +506,11 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
           }}
         />
       ) : null}
-      {editingPhone && card.phone && !card.linked ? (
+      {editingPhone && editablePhone ? (
         <EditPhoneModal
           providerId={providerId}
           clientId={clientId}
-          phone={card.phone}
+          phone={editablePhone}
           onClose={() => setEditingPhone(false)}
           // The salon's manual appointments followed the number server-side:
           // the whole card is read again — stats and visits included.

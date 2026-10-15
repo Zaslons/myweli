@@ -33,10 +33,18 @@ const GUEST: SalonClientCard = {
   tags: ['VIP'],
   lastVisitAt: null,
   linked: false,
+  // The server's word that its PATCH takes a number for this card: not
+  // linked, and a number to change (docs/design/phone-leftovers.md §11).
+  phoneEditable: true,
   createdAt: '2026-10-01T09:00:00.000Z',
   stats: { visits: 3, spentFcfa: 45000, noShows: 0, cancellations: 0 },
   notes: [],
 };
+
+/// The same guest card read from a server older than the number edit: it
+/// says nothing of `phoneEditable`, and its PATCH answers `invalid_tags` to a
+/// body that is only `{ phone }` — a « Modifier » there could never succeed.
+const { phoneEditable: _absent, ...OLD_SERVER_GUEST } = GUEST;
 
 /// The card that already holds a number — the 409 `client_exists` points here.
 const OTHER: SalonClientCard = { ...GUEST, id: 'sc7', displayName: 'Awa', phone: '+2250707123456' };
@@ -281,9 +289,35 @@ describe('ClientCardClient — « Modifier » the number of a GUEST card', () =>
   });
 });
 
+describe('ClientCardClient — « Modifier » only where the server says the number is editable', () => {
+  it('a guest card from a server that does not say phoneEditable: no « Modifier »', async () => {
+    // The web ships on merge, the backend by a manual dispatch: until the new
+    // server runs, the old PATCH refuses `{ phone }` with `invalid_tags`, and
+    // a « Modifier » would fail on every try. An absent flag means « no ».
+    await renderCard(OLD_SERVER_GUEST);
+
+    // The card itself is whole — only the edit is withheld.
+    expect(screen.getByText('+225 07 00 00 01 01')).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Appeler' })).toHaveAttribute(
+      'href',
+      'tel:+2250700000101',
+    );
+    expect(screen.queryByRole('button', { name: 'Modifier le numéro' })).toBeNull();
+    // Not a linked card: no « account number » caption either.
+    expect(screen.queryByText('Numéro du compte client')).toBeNull();
+  });
+
+  it('a guest card the server marks phoneEditable: false — no « Modifier »', async () => {
+    await renderCard({ ...GUEST, phoneEditable: false });
+
+    expect(screen.getByText('+225 07 00 00 01 01')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Modifier le numéro' })).toBeNull();
+  });
+});
+
 describe('ClientCardClient — a LINKED card keeps the account number', () => {
   it('no « Modifier »; the number says whose it is', async () => {
-    await renderCard({ ...GUEST, linked: true });
+    await renderCard({ ...GUEST, linked: true, phoneEditable: false });
 
     expect(screen.queryByRole('button', { name: 'Modifier le numéro' })).toBeNull();
     expect(screen.queryByRole('button', { name: /^Modifier$/ })).toBeNull();

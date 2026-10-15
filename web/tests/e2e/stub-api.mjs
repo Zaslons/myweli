@@ -1082,6 +1082,10 @@ createServer(async (req, res) => {
     if (!c) return json(res, 404, { error: 'not_found' });
     const cardOf = (x) => ({
       ...x,
+      // The backend's `phoneEditable` (docs/design/phone-leftovers.md §11):
+      // exactly the cards whose number the PATCH takes — not linked, and a
+      // number to change.
+      phoneEditable: !x.linked && x.phone != null,
       stats: {
         visits: x.visits,
         spentFcfa: x.visits * 15000,
