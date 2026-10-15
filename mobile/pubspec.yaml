@@ -57,7 +57,7 @@ dependencies:
   flutter_cache_manager: ^3.4.1
 
   # HTTP Client
-  dio: ^5.9.2
+  dio: ^5.11.1
   http: ^1.2.0
 
   # Local Storage
