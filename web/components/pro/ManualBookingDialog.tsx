@@ -31,7 +31,10 @@ import { conflictMessage } from "../../lib/booking/window";
 const todayYmd = (tz?: string) => salonToday(new Date(), tz);
 
 /// An existing salon client — from the search, or handed in by its card.
-type PickedClient = { id: string; name: string; phone?: string };
+/// `linked`: the card is linked to a MyWeli account, whose number it carries
+/// read-only (docs/design/phone-leftovers.md §8) — only the client can
+/// correct it.
+type PickedClient = { id: string; name: string; phone?: string; linked?: boolean };
 
 /// The web salon-entered booking (docs/design/web-manual-booking.md) — the
 /// app's `ProManualBookingScreen`, web-adapted, with the J1 §3.4 C1 client
@@ -108,10 +111,13 @@ export function ManualBookingDialog({
   }
 
   // `cardId`: the client card a refusal points to (§7 below) — the way out
-  // rides with its sentence, so neither can outlive the other.
-  const [error, setError] = useState<{ text: string; cardId?: string } | null>(
-    null,
-  );
+  // rides with its sentence, so neither can outlive the other. `aboutPicked`:
+  // the sentence is about the picked client, and goes with them (« Changer »).
+  const [error, setError] = useState<{
+    text: string;
+    cardId?: string;
+    aboutPicked?: boolean;
+  } | null>(null);
   // The phone-field fault sits UNDER the field (§14) — the E.164 lesson: the
   // backend refuses non-E.164 with `invalid_phone`, and this dialog used to
   // send raw text and label the refusal « Création impossible. Réessayez. ».
@@ -163,11 +169,21 @@ export function ManualBookingDialog({
       // docs/design/phone-leftovers.md §7: the refused number is the one on
       // the client's card, and this dialog has no field for it — the generic
       // « format international » sentence sent the salon looking for one.
-      // Say where the fault is, and lead there.
-      setError({
-        text: "Le numéro enregistré sur la fiche de ce client est invalide.",
-        cardId: picked.id,
-      });
+      // Say where the fault is, and lead there — unless the card is LINKED:
+      // its number is the client's MyWeli account's, read-only on the card
+      // (§8), so the way to it would lead nowhere; the client corrects it.
+      setError(
+        picked.linked
+          ? {
+              text: "Le numéro de ce client est celui de son compte MyWeli : il doit le corriger dans son application.",
+              aboutPicked: true,
+            }
+          : {
+              text: "Le numéro enregistré sur la fiche de ce client est invalide.",
+              cardId: picked.id,
+              aboutPicked: true,
+            },
+      );
     else
       setError({
         text: conflictMessage(r.error, {
@@ -267,8 +283,8 @@ export function ManualBookingDialog({
             className="-my-sm inline-flex min-h-12 items-center text-textTertiary underline"
             onClick={() => {
               setPicked(null);
-              // A refusal about THIS client's card goes with them.
-              setError((e) => (e?.cardId ? null : e));
+              // A refusal about THIS client's number goes with them.
+              setError((e) => (e?.aboutPicked ? null : e));
             }}
           >
             Changer
@@ -296,6 +312,7 @@ export function ManualBookingDialog({
                         id: c.id,
                         name: c.displayName,
                         phone: c.phone ?? undefined,
+                        linked: c.linked,
                       })
                     }
                   >

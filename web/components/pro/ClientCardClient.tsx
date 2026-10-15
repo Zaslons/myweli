@@ -505,6 +505,9 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
             id: clientId,
             name: card.displayName,
             phone: card.phone ?? undefined,
+            // A refused number on a linked card is the account's: the dialog
+            // offers no way back to a card that cannot change it.
+            linked: card.linked,
           }}
           onClose={() => setBooking(false)}
           onCreated={() => {

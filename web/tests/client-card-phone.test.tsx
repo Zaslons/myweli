@@ -122,7 +122,11 @@ async function renderCard(
 ) {
   mockFetch(card, services, createError);
   render(<ClientCardClient clientId={card.id} />);
-  await screen.findByRole('heading', { level: 1, name: card.displayName });
+  // A prefix: a linked card's `<h1>` also holds the « MyWeli » chip.
+  await screen.findByRole('heading', {
+    level: 1,
+    name: new RegExp(`^${card.displayName}`),
+  });
 }
 
 afterEach(() => {
@@ -214,6 +218,35 @@ describe('ClientCardClient — the phone line', () => {
       'href',
       `/pro/clients/${CARD.id}`,
     );
+  });
+
+  it('a LINKED card’s refused number is the account’s — the dialog is told, and offers no way to a card that cannot fix it', async () => {
+    // The card hands the dialog `linked` with the id: on a linked card the
+    // number is read-only (phone-leftovers.md §8), so « Ouvrir la fiche »
+    // would lead the salon back to a number it cannot change.
+    await renderCard(
+      { ...CARD, phone: '+22507000001', linked: true },
+      [SERVICE],
+      'invalid_phone',
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Nouveau rendez-vous' }));
+    const dialog = within(
+      screen.getByRole('dialog', { name: 'Nouveau rendez-vous' }),
+    );
+    fireEvent.click(dialog.getByRole('checkbox', { name: /Tresses/ }));
+    fireEvent.change(dialog.getByLabelText('Date du rendez-vous'), {
+      target: { value: '2099-01-15' },
+    });
+    fireEvent.change(dialog.getByLabelText('Heure du rendez-vous'), {
+      target: { value: '14:30' },
+    });
+    fireEvent.click(dialog.getByRole('button', { name: 'Créer' }));
+
+    await dialog.findByText(
+      'Le numéro de ce client est celui de son compte MyWeli : il doit le corriger dans son application.',
+    );
+    expect(dialog.queryByRole('link', { name: 'Ouvrir la fiche' })).toBeNull();
   });
 
   it('the number may not wrap, and the row may — the actions drop below it', async () => {

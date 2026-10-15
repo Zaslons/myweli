@@ -61,6 +61,7 @@ function renderDialog(initialClient?: {
   id: string;
   name: string;
   phone?: string;
+  linked?: boolean;
 }) {
   const onCreated = vi.fn();
   render(
@@ -233,6 +234,63 @@ describe('ManualBookingDialog — a picked client whose stored number is refused
     fireEvent.click(screen.getByRole('button', { name: 'Changer' }));
     expect(screen.queryByText(STALE)).toBeNull();
     expect(screen.queryByRole('link', { name: 'Ouvrir la fiche' })).toBeNull();
+  });
+
+  /// A client LINKED to an account: the number on their card is their MyWeli
+  /// account's, read-only on the card (§8). « Ouvrir la fiche » would lead to
+  /// a card the salon cannot correct — the client corrects it, in the app.
+  const ACCOUNT =
+    'Le numéro de ce client est celui de son compte MyWeli : il doit le corriger dans son application.';
+
+  it('pre-picked LINKED client: the number is the account’s — no « Ouvrir la fiche »', async () => {
+    mockFetch(REFUSED);
+    renderDialog({ id: 'sc1', name: 'Koffi', phone: '+22507000001', linked: true });
+    fireEvent.click(screen.getByRole('checkbox', { name: /Tresses/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Créer' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      /^Le numéro de ce client est celui de son compte MyWeli : il doit le corriger dans son application\.$/,
+    );
+    expect(screen.queryByRole('link', { name: 'Ouvrir la fiche' })).toBeNull();
+    expect(screen.queryByText(STALE)).toBeNull();
+  });
+
+  it('picked from the search, LINKED: the same sentence — no link', async () => {
+    mockFetch({
+      ...REFUSED,
+      clients: [
+        {
+          id: 'sc7',
+          displayName: 'Awa Koné',
+          phone: '+22507000007',
+          tags: [],
+          linked: true,
+          visits: 1,
+          noShows: 0,
+        },
+      ],
+    });
+    renderDialog();
+    fireEvent.change(screen.getByLabelText('Rechercher ou nommer le client'), {
+      target: { value: 'Awa' },
+    });
+    fireEvent.click(await screen.findByRole('button', { name: /Awa Koné/ }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /Tresses/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Créer' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(ACCOUNT);
+    expect(screen.queryByRole('link', { name: 'Ouvrir la fiche' })).toBeNull();
+  });
+
+  it('« Changer » drops the account sentence with the client it was about', async () => {
+    mockFetch(REFUSED);
+    renderDialog({ id: 'sc1', name: 'Koffi', phone: '+22507000001', linked: true });
+    fireEvent.click(screen.getByRole('checkbox', { name: /Tresses/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Créer' }));
+    await screen.findByText(ACCOUNT);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Changer' }));
+    expect(screen.queryByText(ACCOUNT)).toBeNull();
   });
 
   it('another refusal for a picked client keeps its own sentence — no link', async () => {
