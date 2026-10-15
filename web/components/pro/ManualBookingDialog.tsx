@@ -20,8 +20,8 @@ import {
   manualBookingTotal,
 } from "../../lib/pro/manual-booking";
 import { salonToday } from "../../lib/time";
-import { isPossiblePhoneNumber } from "react-phone-number-input";
 import { useFieldErrors } from "../../lib/forms/useFieldErrors";
+import { normalizePhone, phoneFieldError } from "../../lib/phone";
 import { Button } from "../Button";
 import { Modal } from "../Modal";
 import { PhoneField } from "../PhoneField";
@@ -79,7 +79,7 @@ export function ManualBookingDialog({
     : time
       ? combineDateTime(date, time, tz)
       : null;
-  const phone = picked?.phone ?? (newPhone.trim() || undefined);
+  const phone = picked?.phone ?? (normalizePhone(newPhone) || undefined);
   const total = manualBookingTotal(services, selected);
 
   // Debounced client search (C1 endpoint).
@@ -105,12 +105,11 @@ export function ManualBookingDialog({
   // The phone-field fault sits UNDER the field (§14) — the E.164 lesson: the
   // backend refuses non-E.164 with `invalid_phone`, and this dialog used to
   // send raw text and label the refusal « Création impossible. Réessayez. ».
-  // PhoneField emits E.164 (or ''), so a possible number here IS sendable.
+  // PhoneField emits E.164 (or ''), so a passing number here IS sendable —
+  // the shared rule (docs/design/phone-national-length.md) also holds a
+  // market's number to its national length.
   const fields = useFieldErrors({
-    phone: (v: string) =>
-      !v || isPossiblePhoneNumber(v)
-        ? null
-        : "Saisissez un numéro de téléphone valide.",
+    phone: (v: string) => phoneFieldError(v, { required: false }),
   });
 
   const canSubmit = canSubmitManualBooking({

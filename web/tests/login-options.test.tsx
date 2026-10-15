@@ -89,6 +89,43 @@ describe('LoginOptions', () => {
     expect(patch?.body.phone).toBe('+2250700000001');
   });
 
+  it('a +225 number short of 10 digits is refused UNDER the field — nothing is saved', async () => {
+    // The defect seen on the app's twin step on 2026-10-15
+    // (docs/design/phone-national-length.md): 7 digits after +225 were saved.
+    const { calls } = mockFetch({ verifyUserPhone: null });
+    const onSuccess = vi.fn();
+    render(<LoginOptions onSuccess={onSuccess} />);
+    await loginByEmail();
+    await screen.findByText('Votre numéro de téléphone');
+
+    const phone = screen.getByLabelText('Votre numéro de téléphone');
+    fireEvent.change(phone, { target: { value: '+2250700000' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Continuer' }));
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent(
+      'Le numéro doit comporter 10 chiffres après +225.',
+    );
+    expect(phone).toHaveAttribute('aria-invalid', 'true');
+    expect(phone.getAttribute('aria-describedby')).toContain(alert.id);
+    expect(calls.some((c) => c.url === '/api/me')).toBe(false);
+    expect(onSuccess).not.toHaveBeenCalled();
+  });
+
+  it('an empty phone step asks for a number — it does not call it invalid', async () => {
+    const { calls } = mockFetch({ verifyUserPhone: null });
+    render(<LoginOptions onSuccess={vi.fn()} />);
+    await loginByEmail();
+    await screen.findByText('Votre numéro de téléphone');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Continuer' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      /^Saisissez un numéro de téléphone\.$/,
+    );
+    expect(calls.some((c) => c.url === '/api/me')).toBe(false);
+  });
+
   it('wrong code shows the French error', async () => {
     mockFetch({ verifyUserPhone: '+2250700000000', verifyOk: false });
     render(<LoginOptions onSuccess={vi.fn()} />);

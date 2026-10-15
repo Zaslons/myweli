@@ -574,6 +574,31 @@ void main() {
       },
     );
 
+    test('register rejects a short +225 phone with 400 invalid_input — '
+        'before any account exists', () async {
+      // 7 digits after +225; a CI number has 10
+      // (docs/design/phone-national-length.md). The identity is valid, so
+      // the phone is the only reason to refuse.
+      final res = await p_register.onRequest(
+        ctx(
+          post('/auth/provider/register', {
+            ...regBody(),
+            'phoneNumber': '+2250700000',
+            'idToken': 'tok',
+          }),
+        ),
+      );
+      expect(res.statusCode, HttpStatus.badRequest);
+      expect((await jsonOf(res))['error'], 'invalid_input');
+
+      // Nothing was created: the same identity with 10 digits registers
+      // (201), not a 409 duplicate.
+      final ok = await p_register.onRequest(
+        ctx(post('/auth/provider/register', {...regBody(), 'idToken': 'tok'})),
+      );
+      expect(ok.statusCode, HttpStatus.created);
+    });
+
     test('register rejects an unknown business type with 400', () async {
       final res = await p_register.onRequest(
         ctx(

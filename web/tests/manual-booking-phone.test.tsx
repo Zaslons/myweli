@@ -117,6 +117,22 @@ describe('ManualBookingDialog — the phone crosses as E.164', () => {
     expect(posted).toHaveLength(0);
   });
 
+  it('a +225 number short of 10 digits says how many — nothing is sent', async () => {
+    // docs/design/phone-national-length.md: 7 digits after +225 is the number
+    // the app accepted on 2026-10-15. The message says what to do (§14 rule 4).
+    mockFetch();
+    renderDialog();
+    fillBasics();
+
+    const field = screen.getByLabelText('Téléphone (pour retrouver ce client)');
+    fireEvent.change(field, { target: { value: '+2250700000' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Créer' }));
+
+    await screen.findByText('Le numéro doit comporter 10 chiffres après +225.');
+    expect(field).toHaveAttribute('aria-invalid', 'true');
+    expect(posted).toHaveLength(0);
+  });
+
   it("a server invalid_phone names the fault — never « Création impossible »", async () => {
     // Defence in depth: if a bypass ever reaches the server, the 400 must
     // name the field, not invite a retry that cannot succeed.

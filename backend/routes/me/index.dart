@@ -43,7 +43,7 @@ Future<Response> onRequest(RequestContext context) async {
       // Contact phone (auth overhaul: phone is a contact attribute, not the
       // identity — unverified until proven via SMS later). '' clears it.
       final phone = body['phone'] as String?;
-      if (phone != null && phone.isNotEmpty && !isValidE164(phone)) {
+      if (phone != null && phone.isNotEmpty && !isValidPhoneNumber(phone)) {
         return jsonError(HttpStatus.badRequest, 'invalid_phone');
       }
       // **The avatar was stored exactly as sent — no origin check, no

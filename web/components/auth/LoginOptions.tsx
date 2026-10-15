@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { isPossiblePhoneNumber } from 'react-phone-number-input';
 import type { Me } from '../../lib/api/account';
 import {
   loginWithApple,
@@ -11,6 +10,7 @@ import {
   verifyEmailOtp,
 } from '../../lib/auth/client';
 import { useFieldErrors } from '../../lib/forms/useFieldErrors';
+import { normalizePhone, phoneFieldError } from '../../lib/phone';
 import { Button } from '../Button';
 import { PhoneField } from '../PhoneField';
 import { TextField } from '../TextField';
@@ -81,10 +81,9 @@ export function LoginOptions({ onSuccess }: { onSuccess: () => void }) {
         ? null
         : 'Saisissez une adresse e-mail valide.',
     code: (v: string) => (v.length >= 4 ? null : 'Saisissez le code reçu par e-mail.'),
-    phone: (v: string) =>
-      v && isPossiblePhoneNumber(v)
-        ? null
-        : 'Saisissez un numéro de téléphone valide.',
+    // The shared rule (docs/design/phone-national-length.md): a market's
+    // number has exactly its national length, and the message says how many.
+    phone: (v: string) => phoneFieldError(v, { required: true }),
   });
 
   /// Post-login: the contact phone is MANDATORY — block until the profile has
@@ -168,7 +167,7 @@ export function LoginOptions({ onSuccess }: { onSuccess: () => void }) {
     if (!fields.validate({ phone })) return;
     setBusy(true);
     setError(null);
-    const r = await updateContactPhone(phone);
+    const r = await updateContactPhone(normalizePhone(phone));
     setBusy(false);
     if (!r.ok) return fields.set('phone', 'Numéro invalide. Réessayez.');
     onSuccess();

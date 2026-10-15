@@ -17,7 +17,9 @@ import 'package:myweli_backend/src/responses.dart';
 /// — « Ajouter un salon » (Réseau-gated, T55): 201 the new draft salon's
 /// directory entry · 403 `reseau_required` · 403 `demo_account_locked`
 /// (the store-review demo account, T69) · 409 `salon_limit` · 400
-/// `invalid_input`/`invalid_body`.
+/// `invalid_input`/`invalid_body` · 400 `invalid_phone` (a sent
+/// `phoneNumber` that is not a valid number — docs/design/
+/// phone-national-length.md §2.4).
 Future<Response> onRequest(RequestContext context) async {
   final principal = principalOf(context);
   if (principal == null) {
@@ -76,6 +78,7 @@ Future<Response> onRequest(RequestContext context) async {
           ),
           'salon_limit' => jsonError(HttpStatus.conflict, 'salon_limit'),
           'invalid_input' => jsonError(HttpStatus.badRequest, 'invalid_input'),
+          'invalid_phone' => jsonError(HttpStatus.badRequest, 'invalid_phone'),
           _ => jsonError(HttpStatus.forbidden, 'forbidden'),
         };
       }

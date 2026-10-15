@@ -318,6 +318,99 @@ void main() {
       );
     });
 
+    test('phone: a sent number must be a valid one (short +225 → '
+        'invalid_phone, nothing created); 10 digits lands', () async {
+      await makeReseau('p1');
+      // 7 digits after +225 — a CI number has 10
+      // (docs/design/phone-national-length.md §2.4). It used to be stored
+      // with no check at all.
+      final short = await directory.addSalon(
+        ownerId,
+        businessName: 'Deux',
+        businessType: 'salon',
+        phoneNumber: '+2250700000',
+      );
+      expect(short.ok, isFalse);
+      expect(short.error, 'invalid_phone');
+      expect(
+        (await memberships.listForAccount(ownerId)).map((m) => m.providerId),
+        ['p1'],
+      );
+      // Not E.164 at all is the same refusal.
+      expect(
+        (await directory.addSalon(
+          ownerId,
+          businessName: 'Deux',
+          businessType: 'salon',
+          phoneNumber: 'pas un numéro',
+        )).error,
+        'invalid_phone',
+      );
+      // Sent, but not text (a client bug sending a JSON number): refused too —
+      // never silently replaced by the account's own number. Only absent
+      // (null) or blank falls back.
+      expect(
+        (await directory.addSalon(
+          ownerId,
+          businessName: 'Deux',
+          businessType: 'salon',
+          phoneNumber: 2250707123456,
+        )).error,
+        'invalid_phone',
+      );
+      expect(
+        (await memberships.listForAccount(ownerId)).map((m) => m.providerId),
+        ['p1'],
+      );
+
+      final ok = await directory.addSalon(
+        ownerId,
+        businessName: 'Deux',
+        businessType: 'salon',
+        phoneNumber: ' +2250707123456 ',
+      );
+      expect(ok.ok, isTrue, reason: '${ok.error}');
+      final id = (ok.data! as Map)['salonId'] as String;
+      expect((await providers.byId(id))!['phoneNumber'], '+2250707123456');
+    });
+
+    test('phone: none sent → the account phone, NOT re-validated '
+        '(proven at registration, not user-editable — §2.4)', () async {
+      await makeReseau('p1');
+      // A blank string is "none sent", exactly like an absent key.
+      final r = await directory.addSalon(
+        ownerId,
+        businessName: 'Deux',
+        businessType: 'salon',
+        phoneNumber: '  ',
+      );
+      expect(r.ok, isTrue, reason: '${r.error}');
+      final id = (r.data! as Map)['salonId'] as String;
+      expect((await providers.byId(id))!['phoneNumber'], '+2250500000081');
+
+      // A bare invited account has phoneNumber '' (no registration step):
+      // the fallback is copied as is, never turned into an invalid_phone.
+      final bare = await auth.createMemberAccount(
+        email: 'bare-phone@dir.pro',
+        authProvider: 'google',
+        googleSub: 'sub-bare-phone',
+      );
+      final bareId = bare.provider!.id;
+      await memberships.ensureOwner(
+        providerId: 'p2',
+        accountId: bareId,
+        email: 'bare-phone@dir.pro',
+      );
+      final chosen = await subscriptions.chooseOffer(bareId, 'p2', 'reseau');
+      expect(chosen.ok, isTrue, reason: '${chosen.error}');
+      final r2 = await directory.addSalon(
+        bareId,
+        businessName: 'Trois',
+        businessType: 'salon',
+      );
+      expect(r2.ok, isTrue, reason: '${r2.error}');
+    });
+
     test('a fresh trial starts on salon 2 even when salon 1 chose long '
         'ago (per-salon clocks)', () async {
       await makeReseau('p1');
@@ -420,6 +513,31 @@ void main() {
         ctx(req('POST', token: tok(ownerId), body: {'businessName': ''})),
       );
       expect(bad.statusCode, HttpStatus.badRequest);
+    });
+
+    test('POST phoneNumber: short +225 → 400 invalid_phone; 10 digits → '
+        '201', () async {
+      await makeReseau('p1');
+      Future<Response> post(String phone) => me_salons.onRequest(
+        ctx(
+          req(
+            'POST',
+            token: tok(ownerId),
+            body: {
+              'businessName': 'Deux',
+              'businessType': 'salon',
+              'phoneNumber': phone,
+            },
+          ),
+        ),
+      );
+
+      final short = await post('+2250700000');
+      expect(short.statusCode, HttpStatus.badRequest);
+      expect((await short.json() as Map)['error'], 'invalid_phone');
+
+      final ok = await post('+2250707123456');
+      expect(ok.statusCode, HttpStatus.created);
     });
   });
 
