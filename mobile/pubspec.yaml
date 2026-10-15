@@ -61,7 +61,7 @@ dependencies:
   http: ^1.2.0
 
   # Local Storage
-  flutter_secure_storage: ^10.3.1
+  flutter_secure_storage: ^11.2.0
   shared_preferences: ^2.2.2
 
   # Auth overhaul: native Google Sign-In (+ Apple seam, flag-gated) and the
