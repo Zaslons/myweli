@@ -54,13 +54,23 @@ type Patch = { status: number; body: Record<string, unknown> };
 const patched: Record<string, unknown>[] = [];
 const cardReads: string[] = [];
 const visitReads: string[] = [];
+/// The audited reads of the OTHER card (the one a `client_exists` names).
+const otherReads: string[] = [];
 
 /// `patch`: what PATCH /api/pro/clients/sc1 answers. On a 200 the card the
-/// server holds takes the sent number — so a reload shows it.
-function mockFetch(initial: SalonClientCard, patch: Patch = { status: 200, body: {} }) {
+/// server holds takes the sent number — so a reload shows it. On a 409
+/// `client_linked` the card IS linked now (an account claimed it between the
+/// read and the save) — so a reload shows it read-only. `hold`: the PATCH
+/// answers only once it settles (a save still in flight).
+function mockFetch(
+  initial: SalonClientCard,
+  patch: Patch = { status: 200, body: {} },
+  hold?: Promise<unknown>,
+) {
   patched.length = 0;
   cardReads.length = 0;
   visitReads.length = 0;
+  otherReads.length = 0;
   let card = initial;
   vi.stubGlobal(
     'fetch',
@@ -84,7 +94,11 @@ function mockFetch(initial: SalonClientCard, patch: Patch = { status: 200, body:
       if (u === `/api/pro/clients/${card.id}` && init?.method === 'PATCH') {
         const b = JSON.parse(String(init.body ?? '{}'));
         patched.push(b);
+        if (hold) await hold;
         if (patch.status === 200) card = { ...card, phone: b.phone };
+        if (patch.body.error === 'client_linked') {
+          card = { ...card, linked: true, phoneEditable: false };
+        }
         return new Response(
           JSON.stringify(patch.status === 200 ? card : patch.body),
           { status: patch.status },
@@ -99,6 +113,7 @@ function mockFetch(initial: SalonClientCard, patch: Patch = { status: 200, body:
         return new Response(JSON.stringify(card), { status: 200 });
       }
       if (u.startsWith(`/api/pro/clients/${OTHER.id}?`)) {
+        otherReads.push(u);
         return new Response(JSON.stringify(OTHER), { status: 200 });
       }
       return new Response('{}', { status: 404 });
@@ -106,14 +121,28 @@ function mockFetch(initial: SalonClientCard, patch: Patch = { status: 200, body:
   );
 }
 
-async function renderCard(card: SalonClientCard, patch?: Patch) {
-  mockFetch(card, patch);
-  render(<ClientCardClient clientId={card.id} />);
+async function renderCard(
+  card: SalonClientCard,
+  patch?: Patch,
+  hold?: Promise<unknown>,
+) {
+  mockFetch(card, patch, hold);
+  const view = render(<ClientCardClient clientId={card.id} />);
   // A prefix: a linked card's `<h1>` also holds the « MyWeli » chip.
   await screen.findByRole('heading', {
     level: 1,
     name: new RegExp(`^${card.displayName}`),
   });
+  return view;
+}
+
+/// A save kept in flight until `release()`.
+function inFlight() {
+  let release!: () => void;
+  const hold = new Promise<void>((r) => {
+    release = r;
+  });
+  return { hold, release };
 }
 
 /// Opens « Modifier le numéro » and returns the dialog + its phone input.
@@ -273,6 +302,7 @@ describe('ClientCardClient — « Modifier » the number of a GUEST card', () =>
   });
 
   it('a card linked meanwhile (409 client_linked) closes and reloads into its read-only state', async () => {
+    // The mock's card IS linked after this 409, as the server's would be.
     await renderCard(GUEST, { status: 409, body: { error: 'client_linked' } });
     const { dialog, phone } = openEdit();
 
@@ -285,7 +315,83 @@ describe('ClientCardClient — « Modifier » the number of a GUEST card', () =>
         'Ce client a un compte MyWeli : son numéro est celui du compte.',
       ),
     ).toBeTruthy();
-    await waitFor(() => expect(cardReads).toHaveLength(2));
+    // Read again — and what came back is the read-only card: the account's
+    // number, said so, and no way to edit it.
+    expect(await screen.findByText('Numéro du compte client')).toBeTruthy();
+    expect(cardReads).toHaveLength(2);
+    expect(screen.queryByRole('button', { name: 'Modifier le numéro' })).toBeNull();
+    expect(screen.getByText('+225 07 00 00 01 01')).toBeTruthy();
+  });
+
+  it('after a client_linked, focus is on the card’s heading — not lost on <body> with « Modifier »', async () => {
+    // The dialog hands focus back to its opener, « Modifier » — which the
+    // reloaded, linked card no longer has. Focus must land somewhere a
+    // keyboard or screen-reader user can carry on from.
+    await renderCard(GUEST, { status: 409, body: { error: 'client_linked' } });
+    const { dialog, phone } = openEdit();
+
+    fireEvent.change(phone, { target: { value: '+2250505123456' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Enregistrer' }));
+
+    await screen.findByText('Numéro du compte client');
+    const heading = screen.getByRole('heading', { level: 1, name: /^Koffi/ });
+    await waitFor(() => expect(document.activeElement).toBe(heading));
+    // Focusable by script only: not a new tab stop.
+    expect(heading).toHaveAttribute('tabindex', '-1');
+  });
+
+  it('while saving, Escape and the scrim do not close the dialog — the refusal is still shown', async () => {
+    // « Annuler » is disabled while saving; Escape and the scrim were not, and
+    // a refusal then landed in a dialog that was gone.
+    const { hold, release } = inFlight();
+    await renderCard(
+      GUEST,
+      { status: 409, body: { error: 'client_exists', clientId: OTHER.id } },
+      hold,
+    );
+    const { dialog, phone } = openEdit();
+
+    fireEvent.change(phone, { target: { value: '+2250707123456' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Enregistrer' }));
+    await waitFor(() => expect(patched).toHaveLength(1));
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.getByRole('dialog', { name: 'Modifier le numéro' })).toBeTruthy();
+    // The scrim: the dialog's aria-hidden first child carries the dismiss.
+    const scrim = dialog.firstElementChild as HTMLElement;
+    expect(scrim).toHaveAttribute('aria-hidden', 'true');
+    fireEvent.click(scrim);
+    expect(screen.getByRole('dialog', { name: 'Modifier le numéro' })).toBeTruthy();
+
+    release();
+    expect(
+      await within(dialog).findByText('Ce numéro est déjà sur la fiche d’Awa.'),
+    ).toBeTruthy();
+    // Done saving: Escape closes again.
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('a dialog gone mid-save does not read the other card', async () => {
+    // Naming the other card costs an AUDITED read of it — true only when its
+    // name is shown. Nothing is shown once the page is gone.
+    const { hold, release } = inFlight();
+    const view = await renderCard(
+      GUEST,
+      { status: 409, body: { error: 'client_exists', clientId: OTHER.id } },
+      hold,
+    );
+    const { dialog, phone } = openEdit();
+
+    fireEvent.change(phone, { target: { value: '+2250707123456' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Enregistrer' }));
+    await waitFor(() => expect(patched).toHaveLength(1));
+
+    view.unmount();
+    release();
+    // Long enough for the 409 to be read and acted on.
+    await new Promise((r) => setTimeout(r, 50));
+    expect(otherReads).toHaveLength(0);
   });
 });
 

@@ -6,7 +6,7 @@ import { Chip, chipLinkClasses } from '../Chip';
 import { StatusChip } from '../StatusChip';
 import { ErrorState } from '../ErrorState';
 import { useRouter } from 'next/navigation';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Toast } from '../Toast';
 import { useToast } from '../../lib/useToast';
 import { statusLabelFr } from '../../lib/account/appointments';
@@ -76,6 +76,10 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
   const [busy, setBusy] = useState(false);
   const [editingTags, setEditingTags] = useState(false);
   const [customTag, setCustomTag] = useState('');
+  // Where focus goes when the element that held it is gone (a client_linked:
+  // the dialog hands focus back to « Modifier », which the reloaded card no
+  // longer has) — the card's own heading, not <body>.
+  const headingRef = useRef<HTMLHeadingElement>(null);
 
   const load = useCallback(async () => {
     const me = await getMyProvider();
@@ -200,7 +204,11 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
                 {card.displayName.slice(0, 1).toUpperCase()}
               </span>
               <div className="min-w-0">
-                <h1 className="flex items-center gap-xs text-titleLarge font-semibold text-textPrimary">
+                <h1
+                  ref={headingRef}
+                  tabIndex={-1}
+                  className="flex items-center gap-xs text-titleLarge font-semibold text-textPrimary"
+                >
                   {/* clip-ok: this is the page's own `<h1>`, so the bar is
                       higher — and it clears it because the record identifies
                       itself again immediately below, by phone number and visit
@@ -520,11 +528,13 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
             load();
           }}
           // Linked since the card was read: reloaded, it shows the read-only
-          // state (no « Modifier », « Numéro du compte client »).
+          // state (no « Modifier », « Numéro du compte client »). « Modifier »
+          // — where the dialog hands focus back — goes with that reload, so
+          // focus is put on the card's heading once the card is read.
           onLinked={() => {
             setEditingPhone(false);
             show('Ce client a un compte MyWeli : son numéro est celui du compte.', 'error');
-            load();
+            void load().then(() => headingRef.current?.focus());
           }}
         />
       ) : null}
@@ -538,6 +548,9 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
 const PHONE_CHECK = {
   phone: (v: string) => phoneFieldError(v, { required: true }),
 };
+
+/// The dialog's dismissal while a save is in flight: nothing.
+const ignoreClose = () => {};
 
 /// « Modifier le numéro » of a GUEST card (docs/design/phone-leftovers.md §8).
 /// The fault of the number sits UNDER the field (SYSTEM.md §14) — the shared
@@ -567,6 +580,15 @@ function EditPhoneModal({
     null,
   );
   const fields = useFieldErrors(PHONE_CHECK);
+  // Gone mid-save (the page left): the other card's name has nowhere to show,
+  // and reading it is an AUDITED view of that card — so it is not read.
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
 
   async function save() {
     if (!fields.validate({ phone })) return;
@@ -599,6 +621,7 @@ function EditPhoneModal({
       // server-side as a view of it, which is true: its name is shown here.
       // Not the list searched by the number: that matches loosely and would
       // write the number into the audit trail's query.
+      if (!mounted.current) return;
       const other = await getClientCard(providerId, r.clientId);
       setBusy(false);
       setOutcome({
@@ -614,7 +637,9 @@ function EditPhoneModal({
   }
 
   return (
-    <Modal title="Modifier le numéro" onClose={onClose}>
+    // Not closable while saving — Escape and the scrim, as « Annuler » is
+    // disabled: the answer (a refusal especially) must land in this dialog.
+    <Modal title="Modifier le numéro" onClose={busy ? ignoreClose : onClose}>
       <div className="mt-m">
         <PhoneField
           initialValue={current}
