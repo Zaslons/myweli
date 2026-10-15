@@ -84,6 +84,12 @@ class MockProClientsService implements ProClientsServiceInterface {
           .toList()
         ..sort((a, b) => b.appointmentDate.compareTo(a.appointmentDate));
 
+  /// A client as a CARD is sent (`GET`, every `PATCH` answer): with
+  /// `phoneEditable`, the server's rule — a guest card that has a number
+  /// (phone-leftovers.md §8). List rows go without it, as the server's do.
+  SalonClient _asCard(SalonClient client) =>
+      client.copyWith(phoneEditable: !client.linked && client.phone != null);
+
   /// The card as `GET …/clients/{id}` (and the number change) answers it. A
   /// guest's stats are counted from its history, so they follow the number.
   SalonClientCard _cardOf(String providerId, SalonClient client) {
@@ -112,7 +118,7 @@ class MockProClientsService implements ProClientsServiceInterface {
       );
     }
     return SalonClientCard(
-      client: client,
+      client: _asCard(client),
       stats: stats,
       notes: List.of(_notes[client.id] ?? const []),
     );
@@ -276,7 +282,7 @@ class MockProClientsService implements ProClientsServiceInterface {
       return ApiResponse.error('Tags invalides.', code: 'invalid_tags');
     }
     _clients[i] = _clients[i].copyWith(tags: tags);
-    return ApiResponse.success(_clients[i]);
+    return ApiResponse.success(_asCard(_clients[i]));
   }
 
   @override

@@ -15,6 +15,7 @@ class SalonClient extends Equatable {
     this.lastVisitAt,
     this.visits = 0,
     this.noShows = 0,
+    this.phoneEditable = false,
   });
 
   final String id;
@@ -28,6 +29,13 @@ class SalonClient extends Equatable {
   final int visits;
   final int noShows;
 
+  /// Whether this card's number can be changed (`PATCH …/clients/{id}` with
+  /// `phone`) — the SERVER's answer, sent on the card (its `GET` and every
+  /// `PATCH` answer): a guest card that has a number. Only a `true` says yes:
+  /// absent is a server from before the change, whose PATCH refuses a number,
+  /// or a list row, which never offers it (phone-leftovers.md §8).
+  final bool phoneEditable;
+
   factory SalonClient.fromJson(Map<String, dynamic> json) => SalonClient(
     id: json['id'] as String,
     displayName: json['displayName'] as String? ?? 'Client',
@@ -39,9 +47,14 @@ class SalonClient extends Equatable {
     linked: json['linked'] as bool? ?? false,
     visits: (json['visits'] as num?)?.toInt() ?? 0,
     noShows: (json['noShows'] as num?)?.toInt() ?? 0,
+    phoneEditable: json['phoneEditable'] == true,
   );
 
-  SalonClient copyWith({List<String>? tags, String? phone}) => SalonClient(
+  SalonClient copyWith({
+    List<String>? tags,
+    String? phone,
+    bool? phoneEditable,
+  }) => SalonClient(
     id: id,
     displayName: displayName,
     phone: phone ?? this.phone,
@@ -50,6 +63,7 @@ class SalonClient extends Equatable {
     linked: linked,
     visits: visits,
     noShows: noShows,
+    phoneEditable: phoneEditable ?? this.phoneEditable,
   );
 
   @override
@@ -62,6 +76,7 @@ class SalonClient extends Equatable {
     linked,
     visits,
     noShows,
+    phoneEditable,
   ];
 }
 

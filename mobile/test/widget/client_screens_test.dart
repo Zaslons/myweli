@@ -44,6 +44,7 @@ class _SwitchableClients implements ProClientsServiceInterface {
     linkedNow.clear();
     phoneAnswer = null;
     visitReads = 0;
+    serverFields = null;
   }
 
   bool empty = false;
@@ -59,6 +60,27 @@ class _SwitchableClients implements ProClientsServiceInterface {
   ) async {
     final res = await _base.getCard(providerId, clientId);
     final card = res.data;
+    final fields = serverFields;
+    if (card != null && fields != null) {
+      final c = card.client;
+      return ApiResponse.success(
+        SalonClientCard.fromJson({
+          'id': c.id,
+          'displayName': c.displayName,
+          'phone': c.phone,
+          'tags': c.tags,
+          'linked': c.linked,
+          'stats': {
+            'visits': card.stats.visits,
+            'spentFcfa': card.stats.spentFcfa,
+            'noShows': card.stats.noShows,
+            'cancellations': card.stats.cancellations,
+          },
+          'notes': const <Object>[],
+          ...fields,
+        }),
+      );
+    }
     if (card != null && linkedNow.contains(clientId)) {
       final c = card.client;
       return ApiResponse.success(
@@ -92,6 +114,11 @@ class _SwitchableClients implements ProClientsServiceInterface {
       ),
     );
   }
+
+  /// When set, the card is read from the JSON a server sends — with these
+  /// fields on top: `{}` is a server from before `phoneEditable`, whose PATCH
+  /// refuses a number (phone-leftovers.md §8).
+  Map<String, Object?>? serverFields;
 
   /// Cards that were linked to an account since the screen read them — the
   /// race behind a `client_linked` answer (phone-leftovers.md §8).
@@ -1290,6 +1317,42 @@ void main() {
       final number = tester.getRect(find.text('+225 07 00 00 00 01'));
       final caption = tester.getRect(find.text('Numéro du compte client'));
       expect(caption.top, greaterThanOrEqualTo(number.bottom - 0.5));
+    });
+
+    // Which numbers the PATCH takes is the SERVER's to say (`phoneEditable` on
+    // the card), not the app's to guess from `linked` and `phone`: a server
+    // from before the change refuses any number (`invalid_tags` to `{phone}`),
+    // and an app that guessed would offer « Modifier » to fail on every try.
+    for (final (what, fields) in <(String, Map<String, Object?>)>[
+      ('a server from before the flag (absent)', {}),
+      ('a server that says no', {'phoneEditable': false}),
+    ]) {
+      testWidgets('a guest card with a number, $what: no « Modifier »', (
+        tester,
+      ) async {
+        clients.serverFields = fields;
+        await tester.pumpWidget(app(initial: '/pro/clients/sc3'));
+        await settle(tester);
+
+        expect(find.text('Tante Marie'), findsOneWidget);
+        expect(find.text('+225 07 00 00 00 03'), findsOneWidget);
+        expect(editButton(), findsNothing, reason: 'its PATCH takes no number');
+        expect(
+          find.text('Numéro du compte client'),
+          findsNothing,
+          reason: 'not an account\'s number either: nothing is said',
+        );
+      });
+    }
+
+    testWidgets('a guest card the server says is editable: « Modifier »', (
+      tester,
+    ) async {
+      clients.serverFields = {'phoneEditable': true};
+      await tester.pumpWidget(app(initial: '/pro/clients/sc3'));
+      await settle(tester);
+
+      expect(editButton(), findsOneWidget);
     });
 
     testWidgets(

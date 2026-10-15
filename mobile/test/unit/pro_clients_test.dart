@@ -46,7 +46,84 @@ void main() {
     });
   });
 
+  // phone-leftovers.md §8 — the card says whether its number can be changed
+  // (`phoneEditable`: the PATCH takes a number for a guest card that has one).
+  // Only a true says yes: absent is a server from before the change, whose
+  // PATCH refuses a number.
+  group('SalonClient.phoneEditable', () {
+    Map<String, dynamic> card([Map<String, dynamic> extra = const {}]) => {
+      'id': 'sc3',
+      'displayName': 'Tante Marie',
+      'phone': '+2250700000003',
+      'tags': <String>[],
+      'linked': false,
+      'stats': {'visits': 1, 'spentFcfa': 15000},
+      'notes': <Object>[],
+      ...extra,
+    };
+
+    test('true when the card says so', () {
+      final c = SalonClientCard.fromJson(card({'phoneEditable': true}));
+      expect(c.client.phoneEditable, isTrue);
+    });
+
+    test('false when absent — a server from before the flag', () {
+      expect(SalonClientCard.fromJson(card()).client.phoneEditable, isFalse);
+      expect(SalonClient.fromJson(card()).phoneEditable, isFalse);
+    });
+
+    test('false when false, or anything that is not true', () {
+      for (final v in [false, null, 'true', 1]) {
+        final c = SalonClientCard.fromJson(card({'phoneEditable': v}));
+        expect(c.client.phoneEditable, isFalse, reason: '« $v »');
+      }
+    });
+
+    test('kept by copyWith, and part of equality', () {
+      final c = SalonClient.fromJson(card({'phoneEditable': true}));
+      expect(c.copyWith(tags: ['VIP']).phoneEditable, isTrue);
+      expect(c.copyWith(phone: '+2250700000033').phoneEditable, isTrue);
+      expect(c, isNot(SalonClient.fromJson(card())));
+    });
+  });
+
   group('MockProClientsService', () {
+    // The mock sends the flag the way the server does: on the card (`GET`
+    // and every `PATCH` answer) — true for a guest card with a number only.
+    test('phoneEditable: a guest card yes, a linked card no — on every '
+        'answer that is a card', () async {
+      final service = MockProClientsService();
+      expect(
+        (await service.getCard('p1', 'sc3')).data!.client.phoneEditable,
+        isTrue,
+      );
+      expect(
+        (await service.getCard('p1', 'sc1')).data!.client.phoneEditable,
+        isFalse,
+        reason: 'linked: the account\'s number',
+      );
+      expect(
+        (await service.updateTags('p1', 'sc3', ['VIP'])).data!.phoneEditable,
+        isTrue,
+        reason: 'the tags PATCH answers the card too — « Modifier » stays',
+      );
+      expect(
+        (await service.updateTags('p1', 'sc1', ['VIP'])).data!.phoneEditable,
+        isFalse,
+      );
+      final changed = await service.updatePhone('p1', 'sc3', '+2250700000033');
+      expect(changed.data!.card!.client.phoneEditable, isTrue);
+      final added = await service.addClient(
+        'p1',
+        name: 'Nouvelle',
+        phone: '+2250700000099',
+      );
+      expect(
+        (await service.getCard('p1', added.data!)).data!.client.phoneEditable,
+        isTrue,
+      );
+    });
+
     test('lists sorted by last visit; search by name and digits', () async {
       final service = MockProClientsService();
       final all = await service.listClients('p1');
@@ -494,6 +571,7 @@ void main() {
             ...clientJson(),
             'phone': '+2250700000033',
             'linked': false,
+            'phoneEditable': true,
             'stats': {
               'visits': 4,
               'spentFcfa': 60000,
@@ -511,6 +589,7 @@ void main() {
       ).updatePhone('provider1', 'sc1', '+2250700000033');
       expect(res.success, isTrue);
       expect(res.data!.card!.client.phone, '+2250700000033');
+      expect(res.data!.card!.client.phoneEditable, isTrue);
       expect(res.data!.card!.stats.visits, 4);
     });
 

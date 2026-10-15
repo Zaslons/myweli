@@ -102,11 +102,14 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
         _Header(
           client: client,
           onEditTags: () => _openTagSheet(client),
-          // A guest card's number can change; a card linked to an account
-          // keeps the account's (phone-leftovers.md §8).
-          onEditPhone: client.linked || client.phone == null
-              ? null
-              : () => _openPhoneSheet(client),
+          // Only a number the server's PATCH takes: the card says so
+          // (`phoneEditable` — a guest card that has a number; a card linked to
+          // an account keeps the account's). Not guessed from `linked` and
+          // `phone`: a server from before the change refuses any number, and
+          // « Modifier » would fail on every try (phone-leftovers.md §8).
+          onEditPhone: client.phoneEditable
+              ? () => _openPhoneSheet(client)
+              : null,
         ),
         const SizedBox(height: AppTheme.spacingM),
         _StatsStrip(stats: card.stats, lastVisitAt: client.lastVisitAt),
@@ -224,7 +227,8 @@ class _Header extends StatelessWidget {
   final SalonClient client;
   final VoidCallback onEditTags;
 
-  /// « Modifier » under the number — a guest card's only (null when linked).
+  /// « Modifier » under the number — null unless the card says its number
+  /// can be changed ([SalonClient.phoneEditable]).
   final VoidCallback? onEditPhone;
 
   static const TextStyle _phoneStyle = AppTextStyles.bodyMedium;
