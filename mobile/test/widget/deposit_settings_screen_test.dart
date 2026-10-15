@@ -4,6 +4,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/payment.dart';
+import 'package:myweli/models/provider_user.dart';
 import 'package:myweli/providers/locality_provider.dart';
 import 'package:myweli/providers/pro_auth_provider.dart';
 import 'package:myweli/providers/pro_deposit_settings_provider.dart';
@@ -452,5 +453,70 @@ void main() {
     await settle(tester);
     await settle(tester);
     expect(saveCalls().captured.single, storedNumber);
+
+    // The card did its job. Deposits are still OFF, so once the fix is saved
+    // it goes — one saved policy, one layout (the review of this branch: it
+    // stayed, saying clients pay to this number while no deposit is asked).
+    expect(numberLabel, findsNothing);
+    expect(find.text('Recevoir l’acompte', skipOffstage: false), findsNothing);
   });
+
+  testWidgets('deposits OFF: switching deposits on then off again hides the '
+      'revealed card', (tester) async {
+    when(() => service.getDepositPolicy(any())).thenAnswer(
+      (_) async => ApiResponse.success(
+        const DepositPolicy(
+          depositRequired: false,
+          depositPercentage: 0.30,
+          mobileMoneyOperator: 'wave',
+          mobileMoneyNumber: '+2250707123',
+        ),
+      ),
+    );
+    stubSaveOk();
+
+    // A verified session — the switch is locked otherwise (T52).
+    await tester.pumpWidget(
+      wrapApp(
+        providers: [
+          ChangeNotifierProvider(create: (_) => ProDepositSettingsProvider()),
+          ChangeNotifierProvider<ProAuthProvider>(
+            create: (_) => _VerifiedPro(),
+          ),
+          ChangeNotifierProvider(create: (_) => LocalityProvider()),
+        ],
+        home: const DepositSettingsScreen(providerId: 'p1'),
+      ),
+    );
+    await settle(tester);
+    await settle(tester);
+
+    await scrollTo(tester, saveButton);
+    await tester.tap(saveButton);
+    await settle(tester);
+    noSave();
+    expect(numberLabel, findsOneWidget, reason: 'revealed by the refused save');
+
+    final toggle = find.byType(SwitchListTile, skipOffstage: false);
+    await scrollTo(tester, toggle, delta: -200);
+    await tester.tap(toggle); // on: the card is the deposit's own
+    await settle(tester);
+    expect(numberLabel, findsOneWidget);
+    await tester.tap(toggle); // off again: hidden, as on any visit
+    await settle(tester);
+    expect(numberLabel, findsNothing);
+  });
+}
+
+/// A session whose salon is verified, so « Exiger un acompte » can be toggled.
+class _VerifiedPro extends ProAuthProvider {
+  @override
+  ProviderUser? get provider => ProviderUser(
+    id: 'p1',
+    phoneNumber: '+2250707123456',
+    businessName: 'Salon',
+    businessType: BusinessType.salon,
+    verificationStatus: VerificationStatus.verified,
+    createdAt: DateTime(2026),
+  );
 }

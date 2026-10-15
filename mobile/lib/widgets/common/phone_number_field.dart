@@ -134,9 +134,28 @@ class _PhoneNumberFieldState extends State<PhoneNumberField> {
     return (country, national);
   }
 
-  void _emit() => widget.onChanged(
-    PhoneNumbering.compose(_country.fullCountryCode, _controller.text),
-  );
+  void _emit() {
+    widget.onChanged(
+      PhoneNumbering.compose(_country.fullCountryCode, _controller.text),
+    );
+    setState(() {}); // the digit counter below
+  }
+
+  /// « 7/10 » — the national DIGITS typed against the market's length, for a
+  /// country the table knows; separators do not count (the package's own
+  /// counter counted characters). None for any other country.
+  String? get _counter {
+    final length = kNationalNumberLength[_country.fullCountryCode];
+    if (length == null) return null;
+    final value = PhoneNumbering.compose(
+      _country.fullCountryCode,
+      _controller.text,
+    );
+    final digits = value.isEmpty
+        ? 0
+        : value.length - 1 - _country.fullCountryCode.length;
+    return '$digits/$length';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -151,9 +170,16 @@ class _PhoneNumberFieldState extends State<PhoneNumberField> {
       // kept for the day someone re-enables it deliberately.
       autovalidateMode: AutovalidateMode.disabled,
       invalidNumberMessage: 'Saisissez un numéro de téléphone valide.',
+      // No cap. The package truncated to its maxLength (10 for CI) BEFORE
+      // normalization, separators counted: a spaced number could not be
+      // completed, and « 2250707123456 » (a code without its '+') was cut
+      // into an accepted WRONG number. The whole input reaches the rule
+      // (Validators.phoneNumber, on submit), which says what to do.
+      disableLengthCheck: true,
       decoration: InputDecoration(
         labelText: widget.label,
         errorText: widget.errorText,
+        counterText: _counter,
       ),
       onChanged: (_) => _emit(),
       onCountryChanged: (country) {

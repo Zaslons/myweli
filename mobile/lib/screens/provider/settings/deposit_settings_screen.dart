@@ -67,8 +67,10 @@ class _DepositSettingsScreenState extends State<DepositSettingsScreen> {
 
   /// Deposits off hide the « Recevoir l'acompte » card — and with it the one
   /// place a refused number can be shown and fixed. Set by a refused save;
-  /// it stays, so the field does not vanish under the salon's thumb the moment
-  /// the number turns valid.
+  /// it stays while the salon fixes the number (the field must not vanish
+  /// under its thumb the moment the number turns valid), and goes once that
+  /// is done: a successful save, or the switch moved — then the card is the
+  /// switch's again, one saved policy, one layout.
   bool _showNumberWhileOff = false;
 
   @override
@@ -109,6 +111,7 @@ class _DepositSettingsScreenState extends State<DepositSettingsScreen> {
     provider.setMobileMoneyNumber(number);
     final ok = await provider.save(widget.providerId);
     if (!mounted) return;
+    if (ok && _showNumberWhileOff) setState(() => _showNumberWhileOff = false);
     AppSnackBar.outcome(
       context,
       ok: ok,
@@ -207,7 +210,12 @@ class _DepositSettingsScreenState extends State<DepositSettingsScreen> {
             type: MaterialType.transparency,
             child: SwitchListTile(
               value: provider.depositRequired,
-              onChanged: verified ? provider.setDepositRequired : null,
+              onChanged: verified
+                  ? (on) {
+                      setState(() => _showNumberWhileOff = false);
+                      provider.setDepositRequired(on);
+                    }
+                  : null,
               title: const Text('Exiger un acompte'),
               subtitle: Text(
                 'Limite les rendez-vous manqués',

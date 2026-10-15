@@ -11,10 +11,13 @@ import 'package:myweli/core/utils/phone_numbering.dart';
 /// 1. the app's table equals the backend's, read from disk — a market opened
 ///    on one side only would let the app accept what the server refuses, or
 ///    refuse what it accepts;
-/// 2. no other file under `lib/` counts the digits of a phone number itself —
-///    `Validators.localPhoneNumber` was exactly that (a « 10 chiffres » rule in
-///    `validators.dart`, outside every seam, with no caller), and nothing could
-///    see it.
+/// 2. no other file under `lib/` writes the CURRENT length (10) as a rule —
+///    `{10}`, `.length ==/!= 10`, « 10 chiffres » or a `'225': 10` row.
+///    `Validators.localPhoneNumber` was exactly that (outside every seam, no
+///    caller), and nothing could see it. What this grep does NOT see: a length
+///    written any other way (`length != 13`, `\d{8,10}`). One such holdover is
+///    known — `Helpers.maskPhoneNumber`, the pre-2021 8-digit form, used only
+///    by the dormant OTP screens (phone-national-length.md §11.4).
 void main() {
   /// Same stripper as `salon_time_pin_test.dart`: prose about a rule is not
   /// the rule, and a pin that reddens on its own documentation gets routed

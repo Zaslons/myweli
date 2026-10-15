@@ -17,10 +17,14 @@ void main() {
       expect(Validators.phoneNumber('+2250712345678'), isNull);
     });
 
-    test('7, 11 and 4 national digits each say what to do', () {
+    test('7, 9, 11, 12 and 4 national digits each say what to do', () {
       // 7 — the number the simulator saved.
       expect(Validators.phoneNumber('+2250700000'), tenDigits);
-      // 11 — the generic rule had no CI upper bound either.
+      // 9 and 11 — the boundaries: one short, one over. A ±1 tolerance in
+      // the rule would pass every other vector here.
+      expect(Validators.phoneNumber('+225070712345'), tenDigits);
+      expect(Validators.phoneNumber('+22507071234567'), tenDigits);
+      // 12 — the generic rule had no CI upper bound either.
       expect(Validators.phoneNumber('+225070000000011'), tenDigits);
       // 4 — short enough that the generic rule would have said « valide »:
       // the +225 rule runs first, so the message is the precise one.
@@ -81,6 +85,13 @@ void main() {
         'Le numéro doit comporter 10 chiffres après +225.',
       );
       expect(Validators.optionalPhoneNumber('+2250707123456'), isNull);
+      for (final boundary in ['+225070712345', '+22507071234567']) {
+        expect(
+          Validators.optionalPhoneNumber(boundary),
+          'Le numéro doit comporter 10 chiffres après +225.',
+          reason: '9 and 11 digits — the boundaries',
+        );
+      }
       expect(
         Validators.optionalPhoneNumber('abc'),
         'Saisissez un numéro de téléphone valide.',

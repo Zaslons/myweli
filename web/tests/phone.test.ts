@@ -13,7 +13,8 @@ const INVALID = 'Saisissez un numéro de téléphone valide.';
 describe('phoneFieldError — a +225 number has exactly 10 digits', () => {
   it.each([
     ['+2250700000', '7 digits: the number the app accepted on 2026-10-15'],
-    ['+225070000000011', '11 digits'],
+    ['+22507071234567', '11 digits'],
+    ['+225070000000011', '12 digits'],
     ['+2250700', '4 digits'],
     ['+225 07 07 12 34 5', '9 digits, spaced'],
   ])('%s (%s) says how many digits are needed', (value) => {

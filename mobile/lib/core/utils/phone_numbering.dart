@@ -37,9 +37,17 @@ class PhoneNumbering {
 
   /// The value a phone field emits for [national] typed under [callingCode]:
   /// `''` while nothing is typed, else `+<callingCode><national>` without a
-  /// separator — what is checked is what is sent.
+  /// separator — what is checked is what is sent. A full number pasted or
+  /// autofilled into the national part (« +225 07 07 12 34 56 », « 00225 … »)
+  /// carries the field's own code, not more digits: it is dropped once.
   static String compose(String callingCode, String national) {
-    final digits = national.trim().replaceAll(_separators, '');
+    var digits = national.trim().replaceAll(_separators, '');
+    for (final prefix in ['+$callingCode', '00$callingCode']) {
+      if (digits.startsWith(prefix)) {
+        digits = digits.substring(prefix.length);
+        break;
+      }
+    }
     return digits.isEmpty ? '' : '+$callingCode$digits';
   }
 

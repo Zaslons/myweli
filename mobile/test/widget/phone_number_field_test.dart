@@ -54,7 +54,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Ten characters is the CI cap, separators included — 7 digits here.
+      // 7 digits, separators between them.
       await tester.enterText(input(), '07 12 34 5');
       await tester.pump();
       expect(last, '+2250712345');
@@ -70,6 +70,49 @@ void main() {
             'téléphone. » and an optional one can be cleared',
       );
     });
+
+    /// The review of this branch: the package capped the field at the
+    /// country's maxLength (10 for CI) BEFORE normalization, separators
+    /// counted. A spaced CI number could not be completed; and a number typed
+    /// with its code but no `+` (« 2250707123456 » — how a Wave number is
+    /// often written) was cut to « 2250707123 », a 10-digit WRONG number the
+    /// rule accepted and the Mobile Money field saved. Now the whole input
+    /// reaches the rule; a pasted calling code is the field's own.
+    testWidgets(
+      'no cap: a spaced number completes, a pasted +225 / 00225 is the field\'s own code',
+      (tester) async {
+        String? last;
+        await tester.pumpWidget(
+          wrapApp(
+            home: Scaffold(body: PhoneNumberField(onChanged: (v) => last = v)),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.enterText(input(), '07 07 12 34 56');
+        await tester.pump();
+        expect(last, '+2250707123456');
+        expect(Validators.phoneNumber(last), isNull);
+        // The counter counts DIGITS against the market's length.
+        expect(find.text('10/10'), findsOneWidget);
+
+        await tester.enterText(input(), '+225 07 07 12 34 56');
+        await tester.pump();
+        expect(last, '+2250707123456');
+
+        await tester.enterText(input(), '00225 07 07 12 34 56');
+        await tester.pump();
+        expect(last, '+2250707123456');
+
+        // Code without its '+': not silently cut into an accepted number — the
+        // rule sees all 13 digits and says what to do.
+        await tester.enterText(input(), '2250707123456');
+        await tester.pump();
+        expect(last, '+2252250707123456');
+        expect(Validators.phoneNumber(last), _tenDigits);
+        expect(find.text('13/10'), findsOneWidget);
+      },
+    );
 
     testWidgets('picking another country re-emits the number under it', (
       tester,

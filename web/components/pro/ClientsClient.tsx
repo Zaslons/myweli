@@ -305,8 +305,8 @@ function AddClientModal({
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   // The phone is checked UNDER its field (§14 rules 1/2) by the shared rule
-  // (docs/design/phone-national-length.md) — it used to cross unchecked, and
-  // the placeholder's own spaced format was refused by the server.
+  // (docs/design/phone-national-length.md) — it used to cross unchecked. The
+  // shared PhoneField puts +225 on screen and sends the normalized E.164.
   const fields = useFieldErrors(PHONE_CHECK);
 
   async function submit() {

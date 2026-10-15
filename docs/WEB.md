@@ -94,7 +94,9 @@ web/
   pure and take geography as parameters; Mobile-Money labels/deep links go
   through `lib/mobile-money.ts` (closed `deepLinkKind` vocabulary — T56).
   Phone numbers go through `lib/phone.ts` (`phoneFieldError` /
-  `normalizePhone`): the national length of a market (+225 → 10) is **read
+  `normalizePhone`) — except « Réserver » (`BookingFlow`) and « Mon compte »
+  (`AccountClient`), which still gate on bare `isPossiblePhoneNumber`
+  (out of scope, phone-national-length.md §11.2): the national length of a market (+225 → 10) is **read
   from libphonenumber's metadata**, and the markets are `PHONE_MARKETS` —
   pinned equal to the backend's table by `tests/phone-numbering-pin.test.ts`
   ([design/phone-national-length.md](design/phone-national-length.md)).

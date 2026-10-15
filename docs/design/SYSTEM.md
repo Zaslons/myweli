@@ -1122,11 +1122,14 @@ the calling code without `+` — the same key and value as the server's
 `phone_numbering_pin_test.dart` reads that file and holds the two equal.
 `Validators.phoneNumber` reads the table (and builds its « Le numéro doit
 comporter 10 chiffres après +225. » from it); a calling code with no row gets
-the generic E.164 rule. The same test greps `lib/` for a digit count next to a
-phone outside this seam and `formatters.dart` (whose display grouping still
-knows the pre-2021 8-digit form, for numbers already stored) — the pin that
+the generic E.164 rule. The same test greps `lib/`, outside this seam and
+`formatters.dart` (whose display grouping still knows the pre-2021 8-digit
+form, for numbers already stored), for the current length written as a rule —
+`{10}`, `.length ==/!= 10`, « 10 chiffres », a `'225': 10` row — the pin that
 `Validators.localPhoneNumber`, a « 10 chiffres » rule in `validators.dart`
-with no caller, would have failed.
+with no caller, would have failed. It does not see a length written another
+way; `Helpers.maskPhoneNumber` (8-digit, dormant OTP screens) is the known
+holdover.
 
 ---
 

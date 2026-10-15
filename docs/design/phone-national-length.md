@@ -131,8 +131,10 @@ aux 10 chiffres ; commentaire faux de `PhoneNumberField` corrigé.
 - `lib/phone.ts` : `phoneFieldError(value, { required })` et `normalizePhone(value)`
   sur libphonenumber (métadonnée *min*, déjà chargée). Le message « 10 chiffres
   après +225 » lit la longueur dans la métadonnée.
-- Les six sites `isPossiblePhoneNumber` passent par `phoneFieldError` (même
-  verdict, message précis).
+- Quatre des six sites `isPossiblePhoneNumber` passent par `phoneFieldError`
+  (même verdict, message précis) : connexion, réservation manuelle, inscription
+  Pro, ajouter un salon. Les deux autres — « Réserver » et « Mon compte » —
+  restent hors périmètre (puce ci-dessous, §11.2).
 - Pro « Profil » et « Acompte » : la regex générique est remplacée ; Pro « Ajouter
   un client » gagne un contrôle sous le champ ; les valeurs envoyées sont
   normalisées.
@@ -246,3 +248,38 @@ est sans risque : chaque client refuse déjà ce que le serveur refusera.
   lorsque le dépôt est requis — c'est aussi le seul cas où il l'envoie.
 - **Backend.** Un `phoneNumber` envoyé à `POST /me/salons` est vérifié après le
   nom et le type, avant la porte Réseau (même ordre que la validation du nom).
+
+**Après la revue adverse** (deux passes, chaque constat vérifié par un
+contradicteur) :
+
+- **App — le plafond du paquet est levé.** `intl_phone_field` tronquait la
+  saisie à son `maxLength` (10 pour la CI) **avant** la normalisation, espaces
+  compris (§1.1 le décrivait comme un garde-fou ; il ne l'était pas) : un
+  numéro tapé avec ses espaces ne pouvait pas être complété, et
+  « 2250707123456 » (l'indicatif sans `+`, une façon courante d'écrire un
+  numéro Wave) devenait « 2250707123 » — un numéro FAUX de 10 chiffres que la
+  règle acceptait et que l'Acompte enregistrait. `disableLengthCheck: true` :
+  toute la saisie atteint la règle ; un `+225` ou `00225` collé dans le champ
+  est le code du champ (`PhoneNumbering.compose`), pas des chiffres de plus ;
+  le compteur compte les **chiffres** (« 7/10 »), plus les caractères.
+- **App — Acompte.** La carte révélée par un refus, dépôts désactivés,
+  disparaît une fois le numéro corrigé et enregistré, ou dès que l'interrupteur
+  bouge — une politique enregistrée, une présentation.
+- **Web — Profil (Téléphone, WhatsApp), Acompte et Ajouter un client** passent
+  au `PhoneField` partagé : `+225` est à l'écran, donc « 07 07 12 34 56 » tapé
+  à la façon locale complète le bon numéro (ces champs texte nus le refusaient
+  avec un « valide » sans indication, là où l'app l'acceptait). **Ajouter un
+  salon** place un `invalid_phone` du serveur sous le champ.
+- **Backend — un `phoneNumber` non textuel** (un nombre JSON) envoyé à
+  `POST /me/salons` était remplacé en silence par le numéro du compte : il est
+  refusé (`400 invalid_phone`) ; seuls absent et vide retombent sur le compte.
+  Constat voisin écarté, consigné : les autres routes répondent 500 à un champ
+  texte qui n'en est pas un — pour **tous** les champs texte de l'API, pas
+  seulement le téléphone ; à traiter d'un seul tenant, ailleurs.
+- **Tests.** Bords 9 et 11 ajoutés aussi côté app (une tolérance de ±1 dans
+  la règle passait tous les vecteurs ; vue rouge sur 2 tests désormais) ; la
+  garde web lit les deux styles de guillemets et échoue si une ligne de la
+  table n'a pas pu être lue ; la garde « aucune longueur hors seam » de l'app
+  ne voit que le littéral 10 — sa portée est dite telle quelle, et
+  `Helpers.maskPhoneNumber` (règle à 8 chiffres d'avant 2021, écrans OTP en
+  sommeil, §11.4) nommé comme reliquat connu.
