@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import {
   DEMO_ACCOUNT_LOCKED_MESSAGE,
+  GENERIC_ERROR_MESSAGE,
   INVITATION_ACCEPT_FAILED_MESSAGE,
   INVITATION_DECLINE_FAILED_MESSAGE,
   NO_CONNECTION_MESSAGE,
@@ -219,6 +220,7 @@ describe('the invitee’s sentences — the app’s, never invented (rejoin gate
     INVITATION_ACCEPT_FAILED_MESSAGE,
     INVITATION_DECLINE_FAILED_MESSAGE,
     NO_CONNECTION_MESSAGE,
+    GENERIC_ERROR_MESSAGE,
   ])('« %s » is a string literal in the app', (sentence) => {
     expect(typeof sentence).toBe('string');
     expect(appSource).toContain(`'${sentence}'`);

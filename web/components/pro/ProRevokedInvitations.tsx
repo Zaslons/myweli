@@ -1,8 +1,13 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Loading } from '../Loading';
-import { type TeamInvitation, revokedAccessMessage } from '../../lib/pro/team';
+import {
+  type GateExitReason,
+  REVOKED_LANDING,
+  type TeamInvitation,
+  revokedAccessMessage,
+} from '../../lib/pro/team';
 import { ProInvitationsCard } from './ProInvitationsCard';
 import { ProLogoutButton } from './ProLogoutButton';
 
@@ -11,35 +16,48 @@ import { ProLogoutButton } from './ProLogoutButton';
 /// dashboard. ProMembershipProvider renders it in place of its children, and
 /// ProShell lives in those children — so no sidebar, no drawer, no bell, no
 /// profil: nothing of the lost salon is reachable from here. The only ways on
-/// are « Rejoindre », « Refuser » and « Se déconnecter ».
+/// are « Rejoindre », « Refuser » and « Se déconnecter » — one answer at a
+/// time, the way out included: while a card's answer is out the logout waits,
+/// and while the logout is out the cards wait (a late « Rejoindre » must never
+/// land after a sign-out).
 ///
 /// It wears the /pro/connexion look (one column, `max-w-md`) and brings its
 /// own `<main>`, since ProShell's is gone with the children. The list arrives
-/// already loaded (S1: no spinner); `joining` is S2's wait between a
-/// successful accept and the joined salon's dashboard.
+/// already loaded (S1: no spinner); `waiting` is the full-page wait between an
+/// outcome and where it leads — S2's join on its way to the salon, S6's
+/// sign-out on its way to the login — during which nothing is actionable.
 export function ProRevokedInvitations({
   invitations,
   lostSalon,
-  joining,
+  waiting,
   onJoined,
   onEmptied,
+  onUnauthenticated,
+  onSignedOut,
 }: {
   invitations: TeamInvitation[];
-  /// The salon whose access was withdrawn, when this session knew it (a
-  /// revocation mid-session). Empty after a fresh login: the line is then
-  /// left out rather than put « ce salon » above another salon's card.
+  /// The salon whose access was withdrawn, when this tab knew it (a
+  /// revocation seen mid-session). Empty after a login or a page load — the
+  /// web keeps no membership cache — and the line is then left out rather
+  /// than put « ce salon » above another salon's card.
   lostSalon: string;
-  joining: boolean;
+  waiting: boolean;
   onJoined: (inv: TeamInvitation) => void;
-  onEmptied: () => void;
+  onEmptied: (reason?: GateExitReason) => void;
+  onUnauthenticated: () => void;
+  onSignedOut: () => void;
 }) {
-  // The whole page was swapped without a navigation: move focus to its
-  // heading so a screen reader says where the person now is, instead of
-  // leaving focus on an element that no longer exists.
+  const [cardBusy, setCardBusy] = useState(false);
+  const [logoutBusy, setLogoutBusy] = useState(false);
+
+  // The whole page was swapped without a navigation — and each wait swaps
+  // its content again: focus goes to the heading, so a screen reader says
+  // where the person now is instead of losing them on <body> with the
+  // element that just went.
   const headingRef = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
     headingRef.current?.focus();
-  }, []);
+  }, [waiting]);
 
   return (
     <main className="mx-auto max-w-md px-m py-l">
@@ -51,12 +69,17 @@ export function ProRevokedInvitations({
         >
           Invitations
         </h1>
-        {joining ? null : (
-          <ProLogoutButton redirectTo="/pro/connexion?motif=acces-retire" />
+        {waiting ? null : (
+          <ProLogoutButton
+            redirectTo={REVOKED_LANDING}
+            disabled={cardBusy}
+            onBusyChange={setLogoutBusy}
+            onSignedOut={onSignedOut}
+          />
         )}
       </div>
 
-      {joining ? (
+      {waiting ? (
         <Loading className="mt-l" />
       ) : (
         <>
@@ -75,6 +98,9 @@ export function ProRevokedInvitations({
             initial={invitations}
             onAccepted={onJoined}
             onEmptied={onEmptied}
+            onUnauthenticated={onUnauthenticated}
+            onBusyChange={setCardBusy}
+            disabled={logoutBusy}
           />
         </>
       )}

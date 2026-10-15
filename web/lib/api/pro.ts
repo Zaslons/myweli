@@ -510,8 +510,19 @@ export function saveBeforeAfters(
   });
 }
 
-export async function logoutPro(): Promise<void> {
-  await fetch('/api/pro/auth/logout', { method: 'POST' });
+/// What a logout call came to. The session is two httpOnly cookies that only
+/// the BFF's RESPONSE can clear, so a caller treats the session as ended on
+/// `'ok'` alone: `'offline'` (the request never got an answer) and `'failed'`
+/// (an error status) both leave the cookies — and the 30-day session — alive.
+export type LogoutOutcome = 'ok' | 'offline' | 'failed';
+
+export async function logoutPro(): Promise<LogoutOutcome> {
+  try {
+    const res = await fetch('/api/pro/auth/logout', { method: 'POST' });
+    return res.ok ? 'ok' : 'failed';
+  } catch {
+    return 'offline';
+  }
 }
 
 // --- Auth overhaul P4 (docs/design/pro-auth-social.md) -----------------------
