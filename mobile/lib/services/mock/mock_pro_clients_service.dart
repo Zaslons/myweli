@@ -13,7 +13,18 @@ import '../interfaces/pro_clients_service_interface.dart';
 class MockProClientsService implements ProClientsServiceInterface {
   static const int pageSize = 20;
 
-  final List<SalonClient> _clients = [
+  /// Each salon's cards. The server's are per salon — `(provider_id, phone)`
+  /// is unique, never `phone` alone — so a number change, a tag or a new card
+  /// at one salon is never another salon's card (T45). Seeded per salon on its
+  /// first read, like [_walkIns], with the same three clients. (One base
+  /// shared by every salon made a change at one salon empty the card at all
+  /// the others: their walk-ins stayed under the old number.)
+  final Map<String, List<SalonClient>> _clientsBy = {};
+
+  List<SalonClient> _clientsOf(String providerId) =>
+      _clientsBy.putIfAbsent(providerId, _seedClients);
+
+  static List<SalonClient> _seedClients() => [
     SalonClient(
       id: 'sc1',
       displayName: 'Aïcha Koné',
@@ -146,10 +157,11 @@ class MockProClientsService implements ProClientsServiceInterface {
     int page = 1,
   }) async {
     await Future.delayed(AppConstants.mockDelay);
+    final clients = _clientsOf(providerId);
     final q = (query ?? '').trim().toLowerCase();
     final qDigits = _digits(q);
     final filtered =
-        _clients
+        clients
             .where((c) => tag == null || tag.isEmpty || c.tags.contains(tag))
             .where((c) {
               if (q.isEmpty) return true;
@@ -177,7 +189,7 @@ class MockProClientsService implements ProClientsServiceInterface {
         availableTags: page == 1
             ? {
                 ...salonClientPresetTags,
-                for (final c in _clients) ...c.tags,
+                for (final c in clients) ...c.tags,
               }.toList()
             : const [],
       ),
@@ -190,7 +202,7 @@ class MockProClientsService implements ProClientsServiceInterface {
     String clientId,
   ) async {
     await Future.delayed(AppConstants.mockDelay);
-    final client = _byId(clientId);
+    final client = _byId(providerId, clientId);
     if (client == null) {
       return ApiResponse.error('Client introuvable.', code: 'not_found');
     }
@@ -204,7 +216,7 @@ class MockProClientsService implements ProClientsServiceInterface {
     int page = 1,
   }) async {
     await Future.delayed(AppConstants.mockDelay);
-    final client = _byId(clientId);
+    final client = _byId(providerId, clientId);
     if (client == null) {
       return ApiResponse.error('Client introuvable.', code: 'not_found');
     }
@@ -237,7 +249,8 @@ class MockProClientsService implements ProClientsServiceInterface {
     String? note,
   }) async {
     await Future.delayed(AppConstants.mockDelay);
-    for (final c in _clients) {
+    final clients = _clientsOf(providerId);
+    for (final c in clients) {
       if (c.phone == phone) {
         return ApiResponse(
           success: false,
@@ -254,7 +267,7 @@ class MockProClientsService implements ProClientsServiceInterface {
       tags: const [],
       linked: false,
     );
-    _clients.add(client);
+    clients.add(client);
     if (note != null && note.trim().isNotEmpty) {
       (_notes[client.id] ??= []).insert(
         0,
@@ -276,13 +289,14 @@ class MockProClientsService implements ProClientsServiceInterface {
     List<String> tags,
   ) async {
     await Future.delayed(AppConstants.mockDelay);
-    final i = _clients.indexWhere((c) => c.id == clientId);
+    final clients = _clientsOf(providerId);
+    final i = clients.indexWhere((c) => c.id == clientId);
     if (i < 0) return ApiResponse.error('Client introuvable.');
     if (tags.length > 10 || tags.any((t) => t.isEmpty || t.length > 24)) {
       return ApiResponse.error('Tags invalides.', code: 'invalid_tags');
     }
-    _clients[i] = _clients[i].copyWith(tags: tags);
-    return ApiResponse.success(_asCard(_clients[i]));
+    clients[i] = clients[i].copyWith(tags: tags);
+    return ApiResponse.success(_asCard(clients[i]));
   }
 
   @override
@@ -292,11 +306,12 @@ class MockProClientsService implements ProClientsServiceInterface {
     String phone,
   ) async {
     await Future.delayed(AppConstants.mockDelay);
-    final i = _clients.indexWhere((c) => c.id == clientId);
+    final clients = _clientsOf(providerId);
+    final i = clients.indexWhere((c) => c.id == clientId);
     if (i < 0) {
       return ApiResponse.error('Client introuvable.', code: 'not_found');
     }
-    final client = _clients[i];
+    final client = clients[i];
     // A card linked to an account keeps the account's number.
     if (client.linked) {
       return ApiResponse.error(
@@ -316,7 +331,8 @@ class MockProClientsService implements ProClientsServiceInterface {
         SalonClientPhoneChange.changed(_cardOf(providerId, client)),
       );
     }
-    for (final other in _clients) {
+    // On THIS salon's cards: another salon's card with the number is its own.
+    for (final other in clients) {
       if (other.id != clientId && other.phone == number) {
         return ApiResponse(
           success: false,
@@ -335,9 +351,9 @@ class MockProClientsService implements ProClientsServiceInterface {
         walkIns[j] = a.copyWith(clientPhone: number);
       }
     }
-    _clients[i] = client.copyWith(phone: number);
+    clients[i] = client.copyWith(phone: number);
     return ApiResponse.success(
-      SalonClientPhoneChange.changed(_cardOf(providerId, _clients[i])),
+      SalonClientPhoneChange.changed(_cardOf(providerId, clients[i])),
       message: 'Numéro mis à jour',
     );
   }
@@ -374,8 +390,8 @@ class MockProClientsService implements ProClientsServiceInterface {
     return ApiResponse.success(true);
   }
 
-  SalonClient? _byId(String id) {
-    for (final c in _clients) {
+  SalonClient? _byId(String providerId, String id) {
+    for (final c in _clientsOf(providerId)) {
       if (c.id == id) return c;
     }
     return null;

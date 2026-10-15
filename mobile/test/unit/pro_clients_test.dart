@@ -215,24 +215,56 @@ void main() {
       },
     );
 
-    test('another salon\'s walk-ins under the old number stay where they '
-        'are (T45)', () async {
+    // Each salon has its own cards — the server's `(provider_id, phone)`: a
+    // change at one salon is that salon's card and that salon's walk-ins.
+    // Another salon's card keeps its number AND its history (T45). The mock
+    // used to share one card base across salons, so the change emptied the
+    // other salon's card.
+    test('another salon\'s card keeps its number and its history '
+        '(T45)', () async {
       final service = MockProClientsService();
       // Salon p2 has its own walk-in under the same old number.
       expect((await service.getVisits('p2', 'sc3')).data, hasLength(1));
 
       await service.updatePhone('p1', 'sc3', fresh);
 
+      final card = await service.getCard('p2', 'sc3');
+      expect(card.data!.client.phone, old, reason: 'p2\'s card is p2\'s');
+      expect(card.data!.stats.visits, 1, reason: 'its count stays');
       expect(
-        (await service.getVisits('p2', 'sc3')).data,
-        isEmpty,
+        (await service.getVisits('p2', 'sc3')).data!.single.clientPhone,
+        old,
         reason: 'p2\'s booking did not move to the new number',
       );
-      // The old number is free on the cards now; a card for it at p2 finds
-      // p2's booking still there, under the old number.
-      final added = await service.addClient('p2', name: 'Autre', phone: old);
-      final p2 = await service.getVisits('p2', added.data!);
-      expect(p2.data!.single.clientPhone, old);
+      final byOld = await service.listClients('p2', query: '00 03');
+      expect(byOld.data!.items.single.id, 'sc3');
+      final byNew = await service.listClients('p2', query: '00 33');
+      expect(byNew.data!.items, isEmpty);
+      // The old number is still on a card there: a new one for it is that
+      // card.
+      final dup = await service.addClient('p2', name: 'Autre', phone: old);
+      expect(dup.code, 'client_exists');
+      expect(dup.data, 'sc3');
+    });
+
+    test('a card added, or tagged, at one salon is not another\'s', () async {
+      final service = MockProClientsService();
+      const number = '+2250700000099';
+      final added = await service.addClient(
+        'p1',
+        name: 'Nouvelle',
+        phone: number,
+      );
+      final p2 = await service.listClients('p2');
+      expect(p2.data!.items.map((c) => c.id), isNot(contains(added.data)));
+      expect((await service.getCard('p2', added.data!)).code, 'not_found');
+      final there = await service.addClient('p2', name: 'Autre', phone: number);
+      expect(there.success, isTrue, reason: 'the number is free at p2');
+
+      await service.updateTags('p1', 'sc3', ['VIP']);
+      expect((await service.getCard('p2', 'sc3')).data!.client.tags, [
+        'Fidèle',
+      ]);
     });
 
     test('a card linked to an account keeps the account\'s number: '

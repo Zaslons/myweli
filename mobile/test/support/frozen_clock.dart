@@ -48,9 +48,10 @@ void freezeClock(DateTime instant) {
 /// is before any `setUp`, and the locator's fields are `late final`, so this
 /// helper cannot replace them:
 ///
-///   * `MockProClientsService._clients` / `._notes` — `lastVisitAt` and note
-///     `createdAt` at offsets from now (its `_walkIns` are seeded at a salon's
-///     FIRST read instead, so a freeze before that read does cover them);
+///   * `MockProClientsService._notes` — note `createdAt` at offsets from now
+///     (its cards, with their `lastVisitAt`, and its `_walkIns` are seeded at
+///     a salon's FIRST read instead, so a freeze before that read does cover
+///     them);
 ///   * `MockNotificationService._items` — `createdAt` at offsets from now.
 ///
 /// A test that photographs either surface must freeze **before** the service is
