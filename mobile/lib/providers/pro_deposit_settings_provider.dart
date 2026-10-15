@@ -13,6 +13,7 @@ class ProDepositSettingsProvider extends ChangeNotifier implements SalonScoped {
   bool _isSaving = false;
   bool _loadFailed = false;
   String? _error;
+  String? _errorCode;
   bool _depositRequired = false;
   double _depositPercentage = 0.30;
   int _cancellationWindowHours = 24;
@@ -23,6 +24,12 @@ class ProDepositSettingsProvider extends ChangeNotifier implements SalonScoped {
   bool get isSaving => _isSaving;
   bool get loadFailed => _loadFailed;
   String? get error => _error;
+
+  /// Machine code of the last failed [save] (`invalid_phone`), so the form
+  /// can put a number the server refused under the field (SYSTEM.md §14
+  /// rule 1, phone-leftovers.md §2).
+  String? get errorCode => _errorCode;
+
   bool get depositRequired => _depositRequired;
   double get depositPercentage => _depositPercentage;
   int get cancellationWindowHours => _cancellationWindowHours;
@@ -84,6 +91,7 @@ class ProDepositSettingsProvider extends ChangeNotifier implements SalonScoped {
   Future<bool> save(String providerId) async {
     _isSaving = true;
     _error = null;
+    _errorCode = null;
     notifyListeners();
 
     try {
@@ -101,6 +109,7 @@ class ProDepositSettingsProvider extends ChangeNotifier implements SalonScoped {
         return true;
       }
       _error = response.error ?? 'Erreur lors de l’enregistrement';
+      _errorCode = response.code;
       return false;
     } catch (e) {
       _error = e.toString();
@@ -118,6 +127,7 @@ class ProDepositSettingsProvider extends ChangeNotifier implements SalonScoped {
     _isSaving = false;
     _loadFailed = false;
     _error = null;
+    _errorCode = null;
     _depositRequired = false;
     _depositPercentage = 0.30;
     _cancellationWindowHours = 24;
