@@ -55,6 +55,13 @@ class FakeProSession extends ProAuthProvider {
   @override
   bool get isStaff => staff;
 
+  /// The rejoin gate holds the session — signed in, no salon
+  /// (docs/design/pro-rejoin-gate.md).
+  bool rejoin = false;
+
+  @override
+  bool get rejoinPending => rejoin;
+
   @override
   Future<bool> switchSalon(String salonId) async {
     switchedTo.add(salonId);
@@ -66,16 +73,23 @@ class FakeProSession extends ProAuthProvider {
     signedIn = true;
     notifyListeners();
   }
+
+  /// The gate is left into a salon and says so — what `completeRejoin`
+  /// does once the joined salon's membership has landed.
+  void leaveRejoin() {
+    rejoin = false;
+    notifyListeners();
+  }
 }
 
-/// `/pro/splash` plus the three places it can send the user, each a plain
+/// `/pro/splash` plus the four places it can send the user, each a plain
 /// « route:… » text so a test can tell them apart — and the booking page a
 /// notification opens (« route:appointment `id` »).
 GoRouter proSplashRouter() => GoRouter(
   initialLocation: '/pro/splash',
   routes: [
     GoRoute(path: '/pro/splash', builder: (_, _) => const ProSplashScreen()),
-    for (final name in ['login', 'dashboard', 'staff'])
+    for (final name in ['login', 'dashboard', 'staff', 'invitations'])
       GoRoute(
         path: '/pro/$name',
         builder: (_, _) => Scaffold(body: Text('route:$name')),

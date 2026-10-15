@@ -171,6 +171,19 @@ class ProTeamProvider extends ChangeNotifier implements SalonScoped {
     }
   }
 
+  /// The rejoin gate's cards (docs/design/pro-rejoin-gate.md §4 S1): the list
+  /// `ProAuthProvider` fetched to decide on the gate, so the screen opens on
+  /// it — no entry spinner, and no empty first frame to misread as « no
+  /// invitation left ». Called from the gate's `initState`, which is why it
+  /// does not notify: a notify inside a build is an error, and the build that
+  /// follows reads the list anyway.
+  void seedMyInvitations(List<TeamInvitation> cards) {
+    _myInvitations = List.unmodifiable(cards);
+    _invitationsLoading = false;
+    _actionError = null;
+    _actionErrorCode = null;
+  }
+
   /// Accept under the current session; the card disappears on success.
   Future<TeamMember?> acceptMyInvitation(String invitationId) async {
     _actionError = null;

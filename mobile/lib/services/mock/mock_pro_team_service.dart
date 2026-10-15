@@ -14,8 +14,9 @@ import 'mock_data.dart';
 /// account's linked salon (default `provider1`, the seeded owner), so the
 /// roster/gates follow the « Mes salons » switcher. Enforces EVERY server
 /// gate with the SAME machine codes so screens are built against the real
-/// contract. The invitee side is keyed by [invitationEmail] — the mock's
-/// stand-in for the session's account email.
+/// contract. The invitee side is keyed, as on the server, by the SIGNED-IN
+/// account's email — [invitationEmail] stands in when there is no session
+/// (isolated tests, signed-out demos).
 class MockProTeamService implements ProTeamServiceInterface {
   MockProTeamService({
     this._subscriptions,
@@ -27,8 +28,23 @@ class MockProTeamService implements ProTeamServiceInterface {
   /// seat_limit) exactly like the backend; absent → gates pass.
   final SubscriptionServiceInterface? _subscriptions;
 
-  /// The email the invitee methods act for (mock session identity).
+  /// The email the invitee methods act for when no account is signed in.
   String invitationEmail;
+
+  /// The invitee: the session's account — what GET /me/provider/invitations
+  /// keys on (docs/design/pro-rejoin-gate.md §5) — else [invitationEmail].
+  Future<({String email, String? accountId})> _invitee() async {
+    try {
+      final account = await serviceLocator.authService.getCurrentProvider();
+      final email = account?.email;
+      if (email != null && email.isNotEmpty) {
+        return (email: email.trim().toLowerCase(), accountId: account!.id);
+      }
+    } catch (_) {
+      /* locator not wired (isolated tests) → the stand-in */
+    }
+    return (email: invitationEmail.toLowerCase(), accountId: null);
+  }
 
   final int maxInvitesPerDay;
   int _invitesToday = 0;
@@ -236,9 +252,9 @@ class MockProTeamService implements ProTeamServiceInterface {
   @override
   Future<ApiResponse<List<TeamInvitation>>> getMyInvitations() async {
     await Future.delayed(AppConstants.mockDelay);
+    final invitee = await _invitee();
     final cards =
-        MockData.teamInvitations[invitationEmail.toLowerCase()] ??
-        const <TeamInvitation>[];
+        MockData.teamInvitations[invitee.email] ?? const <TeamInvitation>[];
     final unexpired = cards
         .where(
           (c) => c.expiresAt == null || c.expiresAt!.isAfter(AppClock.now()),
@@ -250,7 +266,8 @@ class MockProTeamService implements ProTeamServiceInterface {
   @override
   Future<ApiResponse<TeamMember>> acceptInvitation(String invitationId) async {
     await Future.delayed(AppConstants.mockDelay);
-    final key = invitationEmail.toLowerCase();
+    final invitee = await _invitee();
+    final key = invitee.email;
     final cards = MockData.teamInvitations[key] ?? const <TeamInvitation>[];
     final card = cards.where((c) => c.id == invitationId).firstOrNull;
     if (card == null) return _fail('not_found');
@@ -259,11 +276,14 @@ class MockProTeamService implements ProTeamServiceInterface {
     }
     MockData.teamInvitations[key]?.removeWhere((c) => c.id == invitationId);
 
+    // The accepting account becomes the row's — a former member's row
+    // already carries it (re-invitations keep account_id).
+    final accountId = invitee.accountId ?? 'member_$key';
     final i = MockData.teamMembers.indexWhere((m) => m.id == invitationId);
     if (i != -1) {
       final activated = MockData.teamMembers[i].copyWith(
         status: TeamMemberStatus.active,
-        accountId: 'member_$key',
+        accountId: MockData.teamMembers[i].accountId ?? accountId,
         acceptedAt: AppClock.now(),
       );
       MockData.teamMembers[i] = activated;
@@ -278,7 +298,7 @@ class MockProTeamService implements ProTeamServiceInterface {
         role: card.role,
         status: TeamMemberStatus.active,
         invitedAt: AppClock.now(),
-        accountId: 'member_$key',
+        accountId: accountId,
         acceptedAt: AppClock.now(),
       ),
     );
@@ -287,7 +307,7 @@ class MockProTeamService implements ProTeamServiceInterface {
   @override
   Future<ApiResponse<bool>> declineInvitation(String invitationId) async {
     await Future.delayed(AppConstants.mockDelay);
-    final key = invitationEmail.toLowerCase();
+    final key = (await _invitee()).email;
     final cards = MockData.teamInvitations[key];
     final exists = cards?.any((c) => c.id == invitationId) ?? false;
     if (!exists) return _fail('not_found');

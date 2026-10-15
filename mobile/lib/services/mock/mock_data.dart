@@ -86,6 +86,18 @@ class MockData {
       email: 'sonia.staff@myweli.test',
       createdAt: DateTime(2026, 6, 15),
     ),
+    // A FORMER member, re-invited (docs/design/pro-rejoin-gate.md): her
+    // Beauté Divine row was revoked, then invited again on the same row.
+    // Signing in lands on « Invitations » instead of a sign-out.
+    ProviderUser(
+      id: 'member_ancien',
+      phoneNumber: '',
+      name: 'Mariam Ouattara',
+      businessName: '',
+      businessType: BusinessType.other,
+      email: 'ancien.membre@myweli.test',
+      createdAt: DateTime(2026, 5, 20),
+    ),
   ];
 
   // Build a simple per-day working-hours map (one range per listed weekday).
@@ -758,6 +770,23 @@ class MockData {
       accountId: 'provider_user1',
       acceptedAt: DateTime(2024, 1, 1),
     ),
+    // The former member's revived row (pro-rejoin-gate.md): revoked, then
+    // invited again — `invited`, her account kept, as the server does it
+    // (backend-team-reinvite.md). Accepting re-activates THIS row; declining
+    // returns it to `revoked`. In provider2, so provider1's roster and seats
+    // (and their goldens) are untouched.
+    TeamMember(
+      id: 'mem_ancien',
+      providerId: 'provider2',
+      email: 'ancien.membre@myweli.test',
+      role: TeamRole.reception,
+      status: TeamMemberStatus.invited,
+      invitedAt: AppClock.now().subtract(const Duration(days: 1)),
+      accountId: 'member_ancien',
+      acceptedAt: DateTime(2026, 5, 21),
+      expiresAt: AppClock.now().add(const Duration(days: 6)),
+      resendsLeft: 3,
+    ),
   ];
 
   static Map<String, List<TeamInvitation>> _seedTeamInvitations() => {
@@ -778,6 +807,17 @@ class MockData {
         salonName: 'Beauté Divine',
         role: TeamRole.manager,
         roleLabel: 'Manager',
+        expiresAt: AppClock.now().add(const Duration(days: 6)),
+      ),
+    ],
+    // The former member's re-invitation — what the rejoin gate shows.
+    'ancien.membre@myweli.test': [
+      TeamInvitation(
+        id: 'mem_ancien',
+        providerId: 'provider2',
+        salonName: 'Beauté Divine',
+        role: TeamRole.reception,
+        roleLabel: 'Réception',
         expiresAt: AppClock.now().add(const Duration(days: 6)),
       ),
     ],
@@ -818,7 +858,8 @@ class MockData {
       .length;
 
   /// Restore the seeded roster/cards (tests: call in setUp). Also re-seeds
-  /// the three member ACCOUNTS (R4b role demos) if a test stripped them.
+  /// the member ACCOUNTS (the R4b role demos and the former member) if a
+  /// test stripped them.
   static void resetTeam() {
     draftSalonIds.clear();
     teamMembers
@@ -831,6 +872,7 @@ class MockData {
       'awa.manager@myweli.test',
       'fatou.reception@myweli.test',
       'sonia.staff@myweli.test',
+      'ancien.membre@myweli.test',
     ]) {
       if (!providerUsers.any((p) => p.email == email)) {
         final id = 'member_${email.split('.').first}';

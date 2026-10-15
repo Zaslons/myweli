@@ -127,11 +127,15 @@ void main() {
 /// A tap that launched the app replays once signed in AND past the splash /
 /// sign-in screens — replayed any earlier, their `go` replaced it
 /// (`landedPushHandler`, docs/design/pro-open-animation.md §2.6).
+///
+/// « Signed in » excludes the rejoin gate: it keeps a session with no salon
+/// behind it, where the tap's salon switch is refused. A tap held there
+/// replays once the person has joined a salon (pro-rejoin-gate.md S10).
 Future<void> _startPush(ProAuthProvider auth) async {
   final handler = landedPushHandler(
     router: ProRouter.router,
     session: auth,
-    isSignedIn: () => auth.isAuthenticated,
+    isSignedIn: () => auth.isAuthenticated && !auth.rejoinPending,
     launchPaths: ProRouter.launchPaths,
     allowedRoutePrefixes: kProRoutePrefixes,
     ensureSalon:

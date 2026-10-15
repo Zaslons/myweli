@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -32,12 +33,13 @@ void main() {
 
   setUpAll(() => serviceLocator.authService = MockAuthService());
 
-  /// The handler exactly as `_startPush` wires it, on the test router.
+  /// The handler exactly as `_startPush` wires it, on the test router — the
+  /// predicate included, which the last test below pins to main_pro.dart.
   PushMessageHandler wire(GoRouter router, FakeProSession session) =>
       landedPushHandler(
         router: router,
         session: session,
-        isSignedIn: () => session.isAuthenticated,
+        isSignedIn: () => session.isAuthenticated && !session.rejoinPending,
         launchPaths: ProRouter.launchPaths,
         allowedRoutePrefixes: kProRoutePrefixes,
         ensureSalon: session.switchSalon,
@@ -192,5 +194,46 @@ void main() {
     router.pop();
     await settle(tester);
     expect(find.text('route:dashboard'), findsOneWidget);
+  });
+
+  // docs/design/pro-rejoin-gate.md S10. The gate keeps the session SIGNED IN
+  // with no salon behind it, and « Invitations » is not a launch path — so
+  // « signed in » alone replayed the tap on top of the gate, where the switch
+  // to its salon is refused (the account is no longer a member there).
+  testWidgets('a tap held while the rejoin gate holds the session opens '
+      'after the rejoin, above the joined salon', (tester) async {
+    final session = FakeProSession(signedIn: true)
+      ..rejoin = true
+      ..load.complete();
+    final router = proSplashRouter();
+    final handler = wire(router, session);
+
+    await handler.handleData(tap);
+    await launch(tester, router, session);
+    await throughTheGate(tester);
+    await settle(tester);
+    expect(find.text('route:invitations'), findsOneWidget);
+    expect(appointment, findsNothing, reason: 'held while on the gate');
+    expect(session.switchedTo, isEmpty, reason: 'no salon to switch to yet');
+
+    // « Rejoindre »: the joined salon's shell, then the session says so —
+    // the order `completeRejoin` keeps.
+    router.go('/pro/staff');
+    session.leaveRejoin();
+    await settle(tester);
+    expect(find.text('route:appointment a1'), findsOneWidget);
+    expect(session.switchedTo, ['s1']);
+    router.pop();
+    await settle(tester);
+    expect(find.text('route:staff'), findsOneWidget);
+  });
+
+  test('main_pro.dart holds a tapped notification while the rejoin gate '
+      'holds the session — the predicate `wire` above copies', () {
+    final mainPro = File('lib/main_pro.dart').readAsStringSync();
+    expect(
+      mainPro,
+      contains('isSignedIn: () => auth.isAuthenticated && !auth.rejoinPending'),
+    );
   });
 }

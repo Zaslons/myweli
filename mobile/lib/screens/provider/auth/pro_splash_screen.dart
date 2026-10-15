@@ -157,8 +157,12 @@ class _ProSplashScreenState extends State<ProSplashScreen>
 
     // Past the deadline these answer from the stored session and the cached
     // membership; a later refresh reshapes the app in place, and a revoked
-    // member is still signed out by it (`_signOutRevoked`).
-    if (auth.isAuthenticated) {
+    // member is still routed by it — to « Invitations » or signed out
+    // (docs/design/pro-rejoin-gate.md S9).
+    if (auth.rejoinPending) {
+      // Before the signed-in branch: the gate keeps the session live.
+      context.go('/pro/invitations');
+    } else if (auth.isAuthenticated) {
       context.go(auth.isStaff ? '/pro/staff' : '/pro/dashboard');
     } else {
       context.go('/pro/login');
