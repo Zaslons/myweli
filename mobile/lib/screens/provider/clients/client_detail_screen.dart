@@ -449,6 +449,10 @@ class _EditNumberButton extends StatelessWidget {
 /// the field (§14 rule 1) — the rule's on submit, the server's
 /// `invalid_phone`, and a number already on another card, which also offers
 /// that card. It closes on a change (or none to make) and on `client_linked`.
+///
+/// While the number is being saved the sheet stays — neither « retour », the
+/// scrim nor a drag closes it — and the field is disabled: the answer is about
+/// the number shown, and is said in the sheet or on the card it closes onto.
 class _PhoneSheet extends StatefulWidget {
   const _PhoneSheet({required this.initial, required this.onSave});
 
@@ -464,6 +468,12 @@ class _PhoneSheetState extends State<_PhoneSheet> {
   /// What the field holds, normalized — it emits on edits only, so it starts
   /// as the card's number.
   late String _phone = PhoneNumbering.normalize(widget.initial);
+
+  /// The card's number, as far as the sheet knows — what « nothing to
+  /// change » compares with. It starts as the one the sheet opened on (read
+  /// from [widget], not [_phone]: a `late` initializer runs at the first read,
+  /// after the edits).
+  late String _onCard = PhoneNumbering.normalize(widget.initial);
   late final _errors = FieldErrors({'phone': Validators.phoneNumber});
   final _focus = FocusNode();
   bool _busy = false;
@@ -482,6 +492,12 @@ class _PhoneSheetState extends State<_PhoneSheet> {
     super.dispose();
   }
 
+  /// Whether the sheet is still on the navigator. Closed under a save by a way
+  /// its [PopScope] does not see (a pop from code, the router), it stays
+  /// mounted while it animates out — and a pop then would close the next
+  /// route: the client card.
+  bool get _open => ModalRoute.of(context)?.isActive ?? false;
+
   Future<void> _save() async {
     setState(() {
       _failure = null;
@@ -494,14 +510,29 @@ class _PhoneSheetState extends State<_PhoneSheet> {
       focusFirstError(_errors, {'phone': _focus});
       return;
     }
-    if (_phone == PhoneNumbering.normalize(widget.initial)) {
+    if (_phone == _onCard) {
       Navigator.of(context).pop(); // nothing to change
       return;
     }
+    final sent = _phone;
     setState(() => _busy = true);
-    final refusal = await widget.onSave(_phone);
+    final refusal = await widget.onSave(sent);
     if (!mounted) return;
     setState(() => _busy = false);
+    if (!_open) return;
+    if (refusal?.code == 'client_linked') {
+      // Linked since it was opened: nothing in the field can be saved now,
+      // whichever number it holds.
+      Navigator.of(context).pop(const _PhoneLinked());
+      return;
+    }
+    if (_phone != sent) {
+      // The answer is about a number the field no longer holds: it is not
+      // said about the one it does. A change was made all the same — the
+      // card holds [sent] now.
+      if (refusal == null) _onCard = sent;
+      return;
+    }
     if (refusal == null) {
       Navigator.of(context).pop(const _PhoneUpdated());
       return;
@@ -525,8 +556,6 @@ class _PhoneSheetState extends State<_PhoneSheet> {
                 : 'Ce numéro est déjà sur la fiche ${Formatters.de(name)}.',
           );
         });
-      case 'client_linked':
-        Navigator.of(context).pop(const _PhoneLinked());
       default:
         setState(() => _failure = refusal.message);
     }
@@ -535,6 +564,20 @@ class _PhoneSheetState extends State<_PhoneSheet> {
   @override
   Widget build(BuildContext context) {
     final takenBy = _takenBy;
+    // « retour » and the scrim ask before closing; the sheet's own drag does
+    // not ask [PopScope] — while saving, a vertical drag on the sheet is taken
+    // here, and goes nowhere. Idle, both close it as any sheet.
+    return PopScope(
+      canPop: !_busy,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onVerticalDragStart: _busy ? (_) {} : null,
+        child: _content(context, takenBy),
+      ),
+    );
+  }
+
+  Widget _content(BuildContext context, String? takenBy) {
     return Padding(
       padding: EdgeInsets.only(
         left: AppTheme.spacingL,
@@ -566,6 +609,8 @@ class _PhoneSheetState extends State<_PhoneSheet> {
             PhoneNumberField(
               initialValue: widget.initial,
               focusNode: _focus,
+              // The number being saved is the one shown.
+              enabled: !_busy,
               errorText: _errors['phone'],
               onChanged: (e164) => setState(() {
                 _phone = e164;

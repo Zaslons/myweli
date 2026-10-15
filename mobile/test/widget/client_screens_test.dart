@@ -1383,6 +1383,206 @@ void main() {
       },
     );
 
+    // While the number is being saved, the sheet stays — its answer is said in
+    // it, or on the card it closes onto. A sheet closed under a save left the
+    // late answer to pop the next route: the CARD (review, phone-leftovers).
+    group('during a save', () {
+      /// From the list, the way a card is usually reached: a card popped by
+      /// mistake shows as the list coming back.
+      Future<void> openFromList(WidgetTester tester) async {
+        await tester.pumpWidget(app());
+        await settle(tester);
+        await tester.tap(find.text('Tante Marie'));
+        await settle(tester);
+        await tester.tap(editButton());
+        await settle(tester);
+        expect(find.text(sheetTitle), findsOneWidget);
+      }
+
+      /// Presses « Enregistrer » with [national] and stops [after] it — the
+      /// mock answers the PATCH at 300 ms, the history read at 600 ms.
+      Future<void> saveAndHold(
+        WidgetTester tester,
+        String national, {
+        Duration after = const Duration(milliseconds: 100),
+      }) async {
+        await tester.enterText(field(), national);
+        await tester.pump();
+        await tester.ensureVisible(save());
+        await tester.pump();
+        await tester.tap(save());
+        await tester.pump();
+        await tester.pump(after);
+      }
+
+      /// The sheet's exit animation is 200 ms: past it, a closed sheet is
+      /// gone from the tree.
+      const pastExit = Duration(milliseconds: 250);
+
+      Future<void> expectClosedOnTheCard(WidgetTester tester) async {
+        await settle(tester);
+        await settle(tester);
+        expect(find.text(sheetTitle), findsNothing, reason: 'the answer');
+        expect(find.text('Fiche client'), findsOneWidget, reason: 'the card');
+        expect(find.text('+225 07 00 00 00 33'), findsOneWidget);
+        expect(
+          find.widgetWithText(SnackBar, 'Numéro mis à jour'),
+          findsOneWidget,
+        );
+      }
+
+      testWidgets('« retour » and the scrim do not close the sheet; the answer '
+          'does, onto the card', (tester) async {
+        await openFromList(tester);
+        await saveAndHold(tester, '0700000033');
+
+        await tester.binding.handlePopRoute(); // « retour » (Android)
+        await tester.pump();
+        await tester.pump(pastExit);
+        expect(find.text(sheetTitle), findsOneWidget, reason: '« retour »');
+
+        await tester.tapAt(const Offset(20, 20)); // the scrim
+        await tester.pump();
+        await tester.pump(pastExit);
+        expect(find.text(sheetTitle), findsOneWidget, reason: 'the scrim');
+
+        await expectClosedOnTheCard(tester);
+      });
+
+      testWidgets('a drag down does not close the sheet; the answer does', (
+        tester,
+      ) async {
+        await openFromList(tester);
+        await saveAndHold(tester, '0700000033');
+
+        await tester.drag(find.text(sheetTitle), const Offset(0, 400));
+        await tester.pump();
+        await tester.pump(pastExit);
+        expect(find.text(sheetTitle), findsOneWidget, reason: 'the drag');
+
+        await expectClosedOnTheCard(tester);
+      });
+
+      testWidgets('idle, a drag down still closes the sheet', (tester) async {
+        await openFromList(tester);
+
+        await tester.drag(find.text(sheetTitle), const Offset(0, 400));
+        await tester.pump();
+        await tester.pump(pastExit);
+
+        expect(find.text(sheetTitle), findsNothing);
+        expect(find.text('Fiche client'), findsOneWidget);
+      });
+
+      // Any way past the sheet's own guard (a pop from code, the router):
+      // the answer lands while the closed sheet is still animating out —
+      // mounted — and its pop would take the next route, the card.
+      testWidgets('the sheet removed under a save: its late answer leaves the '
+          'card where it is', (tester) async {
+        await openFromList(tester);
+        await saveAndHold(
+          tester,
+          '0700000033',
+          after: const Duration(milliseconds: 450),
+        );
+
+        Navigator.of(tester.element(find.text(sheetTitle))).pop();
+        // 610 ms: the answer (600) lands inside the exit animation (to 650).
+        await tester.pump(const Duration(milliseconds: 160));
+        await settle(tester);
+
+        expect(find.text(sheetTitle), findsNothing);
+        expect(
+          find.text('Fiche client'),
+          findsOneWidget,
+          reason: 'the card was not popped by the sheet\'s late answer',
+        );
+        expect(
+          find.text('+225 07 00 00 00 33'),
+          findsOneWidget,
+          reason: 'the change was made all the same',
+        );
+      });
+
+      testWidgets('the field is disabled while saving, and editable again '
+          'with the answer', (tester) async {
+        await openSheet(tester);
+        await saveAndHold(tester, '0700000002'); // Koffi Yao's
+
+        expect(
+          tester.widget<TextField>(field()).enabled,
+          isFalse,
+          reason: 'the number being sent is the one shown',
+        );
+
+        await settle(tester);
+        await settle(tester);
+        expect(
+          find.text('Ce numéro est déjà sur la fiche de Koffi Yao.'),
+          findsOneWidget,
+        );
+        expect(tester.widget<TextField>(field()).enabled, isTrue);
+      });
+
+      /// An edit that reaches the sheet while the answer is out, whatever its
+      /// way (the field itself is disabled then).
+      void editMeanwhile(WidgetTester tester, String e164) => tester
+          .widget<PhoneNumberField>(find.byType(PhoneNumberField))
+          .onChanged(e164);
+
+      testWidgets('a refusal of a number no longer in the field is not said '
+          'about the one that is', (tester) async {
+        await openSheet(tester);
+        await saveAndHold(tester, '0700000002'); // Koffi Yao's
+
+        editMeanwhile(tester, '+2250700000044');
+        await tester.pump();
+        await settle(tester);
+        await settle(tester);
+
+        expect(
+          find.text('Ce numéro est déjà sur la fiche de Koffi Yao.'),
+          findsNothing,
+          reason: 'about 02, and the field holds 44',
+        );
+        expect(find.text('Ouvrir la fiche'), findsNothing);
+        expect(find.text(sheetTitle), findsOneWidget);
+      });
+
+      testWidgets('a change made for a number no longer in the field does not '
+          'close the sheet; the card holds it, so the field\'s is a change', (
+        tester,
+      ) async {
+        await openSheet(tester); // the card: 03
+        await saveAndHold(tester, '0700000033');
+
+        editMeanwhile(tester, '+2250700000003'); // back to the card's
+        await tester.pump();
+        await settle(tester);
+        await settle(tester);
+
+        expect(find.text(sheetTitle), findsOneWidget, reason: 'stays open');
+        expect(find.byType(SnackBar), findsNothing);
+        expect(
+          find.text('+225 07 00 00 00 33'),
+          findsOneWidget,
+          reason: 'the card below holds what was saved',
+        );
+
+        // 03 is no longer the card's number: saving it is a change, not
+        // « nothing to change ».
+        await tester.ensureVisible(save());
+        await tester.pump();
+        await tester.tap(save());
+        await settle(tester);
+        await settle(tester);
+
+        expect(find.text(sheetTitle), findsNothing);
+        expect(find.text('+225 07 00 00 00 03'), findsOneWidget);
+        expect(find.text('+225 07 00 00 00 33'), findsNothing);
+      });
+    });
+
     testWidgets('the open sheet: every target ≥48dp and labelled (§13.2)', (
       tester,
     ) async {
