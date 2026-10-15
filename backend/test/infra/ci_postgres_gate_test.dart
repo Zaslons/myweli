@@ -9,7 +9,7 @@ import 'package:yaml/yaml.dart';
 /// `postgres_admin_auth_test.dart` opens with a guard that turns the whole file
 /// into one skipped test when the variable is missing, so a developer without a
 /// database sees green. That is right for a laptop and dangerous for CI: drop
-/// the `services: postgres` block or the `env: DATABASE_URL`, and every
+/// the step that starts Postgres or the `env: DATABASE_URL`, and every
 /// integration test — including the only coverage of the `DELETE FROM
 /// admin_refresh_tokens` that runs in production — stops executing while the
 /// job stays green and the run reports MORE passing tests than before, not
@@ -54,29 +54,94 @@ void main() {
     expect(backendTestJob().key, isNotEmpty);
   });
 
-  test('IT HAS A POSTGRES SERVICE — or the db tests skip themselves', () {
-    final services = backendTestJob().value['services'] as YamlMap?;
-    expect(
-      services,
-      isNotNull,
-      reason: 'no services block: every db-backed test would skip, green',
-    );
-    final images = [
-      for (final v in services!.values) (v as YamlMap)['image'].toString(),
+  /// The db the suite's `DATABASE_URL` names (`postgres://…/<db>`).
+  String suiteDatabase() {
+    final steps = backendTestJob().value['steps'] as YamlList;
+    for (final s in steps) {
+      final step = s as YamlMap;
+      final run = step['run'];
+      if (run is String && stripComments(run).trim() == 'dart test') {
+        final url = (step['env'] as YamlMap?)?['DATABASE_URL']?.toString();
+        if (url != null) return Uri.parse(url).pathSegments.last;
+      }
+    }
+    fail('no `dart test` step carries DATABASE_URL');
+  }
+
+  test('IT STARTS A POSTGRES — or the db tests skip themselves', () {
+    final job = backendTestJob().value;
+    // Either a postgres service container (the old way: an image pull,
+    // rate-limited — "toomanyrequests" failed CI on 2026-10-09 and seven
+    // times on 2026-10-15)…
+    final services = job['services'] as YamlMap?;
+    final serviceImages = [
+      for (final v in services?.values ?? const <Object?>[])
+        (v as YamlMap)['image'].toString(),
     ];
-    expect(
-      // The official image, from Docker Hub or from its ECR Public mirror
-      // (Hub's anonymous pull limit failed CI on 2026-10-09, #560) — and
-      // nothing else that merely contains the word.
-      images.any(
-        (i) => RegExp(
-          r'^(public\.ecr\.aws/docker/library/)?postgres(:|$)',
-        ).hasMatch(i),
-      ),
-      isTrue,
-      reason: 'services exist but none is postgres: $images',
+    final hasService = serviceImages.any(
+      (i) => RegExp(
+        r'^(public\.ecr\.aws/docker/library/)?postgres(:|$)',
+      ).hasMatch(i),
     );
+    // …or the runner's own PostgreSQL, started by the script BEFORE the
+    // suite runs, creating the very database DATABASE_URL names.
+    final steps = [for (final s in job['steps'] as YamlList) s as YamlMap];
+    final startAt = steps.indexWhere(
+      (s) =>
+          s['run'] is String &&
+          stripComments(s['run'] as String).contains('start-postgres.sh'),
+    );
+    final testAt = steps.indexWhere(
+      (s) =>
+          s['run'] is String &&
+          stripComments(s['run'] as String).trim() == 'dart test',
+    );
+    expect(
+      hasService || startAt >= 0,
+      isTrue,
+      reason:
+          'no postgres service and no start-postgres.sh step: every '
+          'db-backed test would skip, green',
+    );
+    if (!hasService) {
+      expect(
+        startAt,
+        lessThan(testAt),
+        reason: 'postgres is started after the suite ran',
+      );
+      final run = stripComments(steps[startAt]['run'] as String).trim();
+      expect(
+        run.split(RegExp(r'\s+')).last,
+        suiteDatabase(),
+        reason:
+            'the script creates a database the suite does not use — the '
+            'suite would fail to connect (or, worse, find another one)',
+      );
+    }
   });
+
+  test(
+    'the start script exists, starts PostgreSQL and creates the database',
+    () {
+      final script = File('../.github/scripts/start-postgres.sh');
+      expect(script.existsSync(), isTrue, reason: script.absolute.path);
+      final body = script
+          .readAsStringSync()
+          .split('\n')
+          .where((l) => !l.trimLeft().startsWith('#'))
+          .join('\n');
+      expect(body, contains('systemctl start postgresql'));
+      expect(body, contains('CREATE DATABASE'));
+      // Production is PostgreSQL 16: the script refuses another major.
+      expect(body, contains('WANT_MAJOR=16'));
+      // Executable, or the step fails with "Permission denied" — on CI only.
+      expect(
+        script.statSync().mode & 0x49, // any of u/g/o execute bits (0o111)
+        isNonZero,
+        reason: 'start-postgres.sh is not executable',
+      );
+    },
+  );
 
   test('AND DATABASE_URL REACHES `dart test`', () {
     final steps = backendTestJob().value['steps'] as YamlList;
