@@ -42,9 +42,12 @@ export const DEMO_ACCOUNT_LOCKED_MESSAGE =
 
 /// Machine code → French copy. `ctx: 'resend'` swaps the shared
 /// invite_rate_limited code for the per-invitation budget message.
+/// `fallback` replaces the generic sentence for an unknown or absent code —
+/// the app's `teamErrorMessage(code, fallback:)`.
 export function teamErrorMessage(
   code: string | undefined,
   ctx?: 'invite' | 'resend',
+  fallback?: string,
 ): string {
   switch (code) {
     case 'member_exists':
@@ -83,8 +86,50 @@ export function teamErrorMessage(
     case 'demo_account_locked':
       return DEMO_ACCOUNT_LOCKED_MESSAGE;
     default:
-      return 'Une erreur est survenue. Réessayez.';
+      return fallback ?? 'Une erreur est survenue. Réessayez.';
   }
+}
+
+// --- the invitee's side (team access R5a; the rejoin gate) -----------------
+// docs/design/pro-rejoin-gate.md §4: every sentence below is the APP's, copied
+// — none is invented here. tests/pro-team.test.ts reads the app source to keep
+// it that way.
+
+/// The app's accept refusal (pro_invitations_screen.dart).
+export const INVITATION_ACCEPT_FAILED_MESSAGE =
+  'Invitation impossible à accepter.';
+/// The app's decline refusal (pro_invitations_screen.dart).
+export const INVITATION_DECLINE_FAILED_MESSAGE = 'Refus impossible.';
+/// The app's no-network sentence (every api_*_service.dart).
+export const NO_CONNECTION_MESSAGE = 'Pas de connexion. Réessayez.';
+
+/// The app's accept success line.
+export function joinedSalonMessage(salonName: string): string {
+  return `Vous avez rejoint ${salonName}`;
+}
+
+/// The app's login banner when it knows which salon was lost. The web's
+/// `?motif=acces-retire` banner stays generic (`not_a_member`): a salon name
+/// never travels in a URL.
+export function revokedAccessMessage(salonName: string): string {
+  return `Votre accès à ${salonName} a été retiré.`;
+}
+
+/// An invitee's refused accept/decline → copy. `forbidden` is the roster's
+/// owner sentence (« Action réservée au propriétaire du salon. »); to an
+/// invitee it means the invitation is not theirs to act on (T37), so they read
+/// the action's own failure line instead. Codes that tell them something true
+/// (expired, gone, demo) keep the shared table.
+export function invitationActionError(
+  code: string | undefined,
+  action: 'accept' | 'decline',
+): string {
+  const failed =
+    action === 'accept'
+      ? INVITATION_ACCEPT_FAILED_MESSAGE
+      : INVITATION_DECLINE_FAILED_MESSAGE;
+  if (code === 'forbidden') return failed;
+  return teamErrorMessage(code, undefined, failed);
 }
 
 /// The offer gates carry a CTA to the picker.

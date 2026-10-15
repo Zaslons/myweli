@@ -1,14 +1,20 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import {
   DEMO_ACCOUNT_LOCKED_MESSAGE,
+  INVITATION_ACCEPT_FAILED_MESSAGE,
+  INVITATION_DECLINE_FAILED_MESSAGE,
+  NO_CONNECTION_MESSAGE,
   ROLE_LABELS,
   ROLE_SUMMARIES,
   type TeamMember,
   hasCap,
+  invitationActionError,
+  joinedSalonMessage,
   memberStatusBadge,
+  revokedAccessMessage,
   seatsLabel,
   teamErrorCta,
   teamErrorMessage,
@@ -193,5 +199,64 @@ describe('seatsLabel & hasCap', () => {
     };
     expect(hasCap(membership, 'catalogue.manage')).toBe(true);
     expect(hasCap(membership, 'finances.view')).toBe(false);
+  });
+});
+
+describe('the invitee’s sentences — the app’s, never invented (rejoin gate)', () => {
+  /// docs/design/pro-rejoin-gate.md §4: every sentence the gate shows already
+  /// exists in the app or on the web. The web cannot import a Dart string, so
+  /// it carries copies — and these read the whole app source so a copy can
+  /// neither drift nor be made up. Scanned rather than pinned to one file: the
+  /// app is free to move a string between files without breaking this.
+  const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
+  const LIB = join(REPO_ROOT, 'mobile/lib');
+  const appSource = (readdirSync(LIB, { recursive: true }) as string[])
+    .filter((f) => f.endsWith('.dart'))
+    .map((f) => readFileSync(join(LIB, f), 'utf-8'))
+    .join('\n');
+
+  it.each([
+    INVITATION_ACCEPT_FAILED_MESSAGE,
+    INVITATION_DECLINE_FAILED_MESSAGE,
+    NO_CONNECTION_MESSAGE,
+  ])('« %s » is a string literal in the app', (sentence) => {
+    expect(typeof sentence).toBe('string');
+    expect(appSource).toContain(`'${sentence}'`);
+  });
+
+  it('« Vous avez rejoint {salon} » is the app’s success line', () => {
+    expect(appSource).toContain("'Vous avez rejoint $");
+    expect(joinedSalonMessage('Beauté Divine')).toBe(
+      'Vous avez rejoint Beauté Divine',
+    );
+  });
+
+  it('the lost salon’s line names it, as the app’s login banner does', () => {
+    expect(revokedAccessMessage('Beauté Divine')).toBe(
+      'Votre accès à Beauté Divine a été retiré.',
+    );
+  });
+
+  it('an invitee never reads the owner’s « forbidden » sentence', () => {
+    expect(invitationActionError('forbidden', 'accept')).toBe(
+      'Invitation impossible à accepter.',
+    );
+    expect(invitationActionError('forbidden', 'decline')).toBe(
+      'Refus impossible.',
+    );
+    // The codes that tell the invitee something true keep the shared table.
+    expect(invitationActionError('invitation_expired', 'accept')).toBe(
+      teamErrorMessage('invitation_expired'),
+    );
+    expect(invitationActionError('not_found', 'decline')).toBe(
+      teamErrorMessage('not_found'),
+    );
+    // No code (a bare 5xx) → the action's own failure line.
+    expect(invitationActionError(undefined, 'accept')).toBe(
+      'Invitation impossible à accepter.',
+    );
+    expect(invitationActionError(undefined, 'decline')).toBe(
+      'Refus impossible.',
+    );
   });
 });
