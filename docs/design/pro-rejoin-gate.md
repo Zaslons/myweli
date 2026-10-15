@@ -200,3 +200,73 @@ parité des textes, 2 e2e Playwright (un ancien membre rejoint ; un autre
 refuse — avec axe, cibles de 48px et un passage à 320px) ; 9 mutations, toutes
 rouges. L'image de référence `pro_rejoin_gate_w360_x2.png`, générée sous Linux.
 
+### 10.1 Après la revue adverse (2026-10-15)
+
+Une revue en quatre angles (états et courses de l'app, web, UX et parité,
+session) a trouvé 17 défauts, tous confirmés par un sceptique ; deux
+correcteurs les ont fermés (chacun vu rouge d'abord, 20 mutations par surface),
+un vérificateur a relu chaque correction, et ses deux nouvelles remarques sont
+fermées aussi. Ce que cela change à la spec :
+
+**Les deux surfaces**
+- **Plus aucune sortie sans revérification** : « Refuser » la dernière carte,
+  ou une dernière carte refusée comme expirée ou introuvable, revérifie
+  `GET /me/provider` avant de déconnecter (§2.4). Si la personne a déjà
+  rejoint ailleurs (autre appareil, réponse perdue), elle entre dans le salon,
+  sans message. Le motif (« Cette invitation a expiré. … » / « Introuvable. … »)
+  n'est montré que si l'on déconnecte — sur la page de connexion.
+- **Une réponse à la fois, la sortie comprise** : « Déconnexion » /
+  « Se déconnecter » attend pendant un « Rejoindre » ou un « Refuser » ; une
+  acceptation qui répond après une déconnexion ne mène nulle part (et le web
+  relance la déconnexion, au cas où la réponse aurait remis des cookies).
+- **Une session morte** (le serveur refuse le renouvellement) quitte l'écran
+  pour la connexion. App : sans le bandeau « accès retiré » (aucun accès n'a été
+  retiré), avec « Veuillez vous reconnecter. » (texte existant). Web : avec le
+  motif, comme les autres sorties de l'écran. **Un renouvellement qui échoue
+  faute de réseau n'est pas une session morte** : l'app la garde et dit
+  « Pas de connexion. Réessayez. » (trouvé par la vérification).
+- Les textes d'échec sont ceux de S5/S7 sur les deux surfaces : « Invitation
+  impossible à accepter. » / « Refus impossible. » pour un refus ou une erreur
+  serveur, la phrase hors ligne sinon.
+
+**Web**
+- **Une déconnexion ratée n'est jamais montrée comme faite** : le bouton reste,
+  se réactive et dit « Pas de connexion. Réessayez. » ou « Une erreur est
+  survenue. Réessayez. ». La déconnexion automatique (S6, S8, 401) qui échoue
+  s'arrête sur une page verrouillée (« Espace Pro », le bandeau, l'erreur,
+  « Se déconnecter »).
+- La revérification précède aussi une déconnexion décidée sur une liste en
+  **échec**, comme l'app.
+- Après un « Rejoindre » dont le `/me` échoue, la barre latérale garde son
+  squelette — jamais un menu tiré d'une adhésion absente — et le fournisseur
+  **redemande** avec une pause croissante (1, 2, 4, 8, 16 s, puis 30 s) jusqu'à
+  ce qu'un profil arrive (trouvé par la vérification).
+- Le focus suit : la carte suivante prend le focus sur son « Rejoindre » quand
+  une carte part ; chaque attente place le focus sur le titre de la page.
+- Le motif d'une dernière carte expirée ou introuvable voyage jusqu'à la page
+  de connexion (`&raison=invitation-expiree|invitation-introuvable`, lu
+  seulement avec `motif=acces-retire`, deux valeurs fermées).
+- Refuser la dernière carte affiche l'attente pendant la déconnexion.
+
+**App**
+- Au démarrage, l'entrée dans l'écran vide les données du salon perdu **avant**
+  de lever l'état « réadmission » : l'écran ne peut plus s'ouvrir sur des
+  cartes effacées.
+- `ApiProTeamService` répond `unauthorized` quand aucune session n'est
+  stockée (au lieu d'un « Non connecté » sans code).
+
+**Écart assumé — web, après un rechargement** : la ligne « Votre accès à
+{salon} a été retiré. » n'apparaît que pour une révocation vue dans le même
+onglet. Après une connexion, un rechargement ou un nouvel onglet, le web ne
+connaît pas le salon perdu : le 403 ne porte pas de nom, `/me/salons` ne liste
+que les adhésions actives, le cookie de sélection ne garde qu'un identifiant —
+et aucun stockage côté client n'a été ajouté pour cela. L'app, elle, garde le
+nom en cache et l'affiche aussi au démarrage.
+
+**Restes, antérieurs, non traités ici** : une erreur serveur dont le corps
+n'est pas du JSON (une page HTML d'erreur de la porte d'entrée) s'affiche
+« Erreur » dans l'app ; la carte « Invitations » de la page « Aujourd'hui »
+(hors écran de réadmission) ne quitte pas la page sur un 401 ; un `/me` en
+échec au tout premier affichage (sans écran de réadmission) garde le menu
+d'avant.
+
