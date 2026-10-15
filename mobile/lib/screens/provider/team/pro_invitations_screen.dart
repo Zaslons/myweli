@@ -184,7 +184,21 @@ class _ProInvitationsScreenState extends State<ProInvitationsScreen> {
   ) async {
     if (team.actionErrorCode != 'unauthorized') return false;
     setState(() => _leaving = true);
-    await auth.endExpiredRejoin();
+    if (!await auth.endExpiredRejoin()) {
+      // The refresh got no answer and the session still stands: offline,
+      // not signed out (S4) — the card stays and answers again.
+      if (!mounted) return true;
+      setState(() {
+        _leaving = false;
+        _busyId = null;
+      });
+      AppSnackBar.showOn(
+        messenger,
+        'Pas de connexion. Réessayez.',
+        kind: SnackKind.error,
+      );
+      return true;
+    }
     AppSnackBar.showOn(
       messenger,
       'Veuillez vous reconnecter.',

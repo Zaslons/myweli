@@ -420,6 +420,9 @@ void main() {
         'never the same error forever', (tester) async {
       await reachGate(tester);
       script(team);
+      // What a refused refresh does: RefreshingHttpClient clears the STORED
+      // session, while the provider still holds the account in memory.
+      await tester.runAsync(serviceLocator.authService.logoutProvider);
 
       await tester.tap(find.text(label.substring(2, label.length - 2)));
       await settle(tester, steps: 4);
@@ -435,6 +438,54 @@ void main() {
       expect(
         sessionOf(tester, find.byType(ProLoginScreen)).isAuthenticated,
         isFalse,
+      );
+    });
+  }
+
+  // ---- The same 401 when the refresh failed in TRANSPORT ------------------
+  // RefreshingHttpClient answers the original 401 both when the server
+  // refuses the refresh (it clears the stored session) and when the refresh
+  // POST never got an answer (it KEEPS the session). Only the first is a dead
+  // session; the second is a bad network, and signing out would throw away a
+  // valid session (found by the review of the fixes).
+  for (final (label, script) in <(String, void Function(_GateTeam))>[
+    (
+      '« Rejoindre »',
+      (t) => t.acceptAnswer = ApiResponse.error(
+        'Non connecté',
+        code: 'unauthorized',
+      ),
+    ),
+    (
+      '« Refuser »',
+      (t) => t.declineAnswer = ApiResponse.error(
+        'Non connecté',
+        code: 'unauthorized',
+      ),
+    ),
+  ]) {
+    testWidgets('$label: a 401 whose refresh failed in transport keeps the '
+        'session — « Pas de connexion. Réessayez. », the card stays', (
+      tester,
+    ) async {
+      await reachGate(tester);
+      script(team); // the stored session is NOT cleared
+
+      final action = label.substring(2, label.length - 2);
+      await tester.tap(find.text(action));
+      await settle(tester, steps: 4);
+
+      expect(find.text('Vous êtes invité(e)'), findsOneWidget);
+      expect(find.text('Pas de connexion. Réessayez.'), findsOneWidget);
+      expect(find.text('Veuillez vous reconnecter.'), findsNothing);
+      expect(
+        find.text(action),
+        findsOneWidget,
+        reason: 'the card answers again',
+      );
+      expect(
+        sessionOf(tester, find.byType(ProInvitationsScreen)).isAuthenticated,
+        isTrue,
       );
     });
   }

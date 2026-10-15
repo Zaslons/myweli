@@ -530,13 +530,28 @@ void main() {
     test('the dead-session exit: signed out to the sign-in, no « accès '
         'retiré » banner', () async {
       final auth = await gated();
+      // A refused refresh clears the STORED session.
+      await serviceLocator.authService.logoutProvider();
 
-      await auth.endExpiredRejoin();
+      final ended = await auth.endExpiredRejoin();
 
+      expect(ended, isTrue);
       expect(auth.isAuthenticated, isFalse);
       expect(auth.rejoinPending, isFalse);
       expect(auth.consumeRevokedNotice(), isNull);
       expect(location(), '/pro/login');
+    });
+
+    test('a 401 whose refresh failed in TRANSPORT is not a dead session: the '
+        'stored session stands, so nothing is signed out', () async {
+      final auth = await gated(); // the stored session is NOT cleared
+
+      final ended = await auth.endExpiredRejoin();
+
+      expect(ended, isFalse);
+      expect(auth.isAuthenticated, isTrue);
+      expect(auth.rejoinPending, isTrue);
+      expect(location(), isNot('/pro/login'));
     });
 
     test('completeRejoin off a live gate does nothing', () async {

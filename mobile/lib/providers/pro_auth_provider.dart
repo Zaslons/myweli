@@ -457,10 +457,19 @@ class ProAuthProvider extends ChangeNotifier {
   /// way (`unauthorized`). It ends as an expired session ends — the
   /// sign-in, WITHOUT the « accès retiré » banner: no access was withdrawn
   /// this time, and signing in again brings the gate back if it still holds.
-  Future<void> endExpiredRejoin() async {
-    if (_provider == null || !_rejoinPending) return;
+  ///
+  /// Only when the STORED session is really gone. RefreshingHttpClient
+  /// answers the original 401 too when the refresh POST got no answer, and
+  /// then it keeps the session on purpose: that is a bad network, not a dead
+  /// session, and signing out would throw a valid session away. True = signed
+  /// out; false = the session still stands (the screen says « Pas de
+  /// connexion. Réessayez. »).
+  Future<bool> endExpiredRejoin() async {
+    if (_provider == null || !_rejoinPending) return true;
+    if (await _authService.getCurrentProvider() != null) return false;
     await logout();
     _router.go('/pro/login');
+    return true;
   }
 
   /// « Rejoindre » on the gate (S2). [accept] is the accept call (the team
