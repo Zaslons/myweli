@@ -54,8 +54,14 @@ jobs:
           channel: stable
           cache: true
 
+      # --enforce-lockfile: install exactly what pubspec.lock says, or fail.
+      # Without it, a lockfile this Flutter (3.44.9) cannot honour is silently
+      # re-resolved and every later step tests a lockfile that is not in git —
+      # Dependabot resolves with a newer SDK and asked for intl 0.20.3, meta
+      # 1.19.0, … which 3.44.9 pins lower (#540, #601). Red here means: run
+      # `flutter pub get` locally on 3.44.9 and commit the lockfile it writes.
       - name: Install dependencies
-        run: flutter pub get
+        run: flutter pub get --enforce-lockfile
 
       - name: Verify formatting
         run: dart format --output=none --set-exit-if-changed .
@@ -804,7 +810,7 @@ jobs:
           cache: true
 
       - name: Install dependencies
-        run: flutter pub get
+        run: flutter pub get --enforce-lockfile
 
       # The same defines deploy-admin.yml uses, so this compiles the artifact
       # that would actually ship. They are also REQUIRED now: a release build
@@ -843,7 +849,7 @@ jobs:
           cache: true
 
       - name: Install dependencies
-        run: flutter pub get
+        run: flutter pub get --enforce-lockfile
 
       # arm64 only: it is what the reference low-end Android actually runs, and
       # a universal APK's number is not the one a user downloads.

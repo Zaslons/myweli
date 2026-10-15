@@ -71,8 +71,10 @@ jobs:
           channel: stable
           cache: true
 
+      # --enforce-lockfile: build exactly what pubspec.lock says, or fail
+      # (why: ci.yml, « Install dependencies » of Analyze & Test).
       - name: Install dependencies
-        run: flutter pub get
+        run: flutter pub get --enforce-lockfile
 
       # `--simulator` on purpose: it needs no signing certificate, no
       # provisioning profile and no Apple credentials in CI, while still doing
