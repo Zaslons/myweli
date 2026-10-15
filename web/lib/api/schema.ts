@@ -3804,7 +3804,7 @@ export interface paths {
          * Update the tag set and/or a guest card's number
          * @description Same capability as the card (`clients.view`). At least one of `phone` and `tags`; neither → 400 `invalid_tags`. Everything is checked before anything is written: a refusal changes nothing. Answers with the card, exactly as `GET` does (that read-back is audited `clients.view`, like every card read — T46).
          *
-         *     **The number** (docs/design/phone-leftovers.md §8): the history follows it. A guest's visits resolve by phone, so the card and this salon's manual bookings (`userId` = `manual`) carrying the old number take the new one in ONE transaction — never another salon's bookings (T45), never a consumer's own. A card linked to an account (`linked: true`) keeps the account's number: 409 `client_linked`, whatever was sent. An erased account's anonymised card (no account, no number — T48) takes no number: 409 `client_anonymized`. The card's own number → 200, nothing to do. A number already on another card of this salon → 409 `client_exists` with that card's `clientId` (the `POST …/clients` shape; no merge) — a race lost to it answers the same. A change is audited `client.phone_changed` with ids only, never a number.
+         *     **The number** (docs/design/phone-leftovers.md §8): the history follows it. A guest's visits resolve by phone, so the card and this salon's manual bookings (`userId` = `manual`) carrying the old number take the new one in ONE transaction — never another salon's bookings (T45), never a consumer's own. A card linked to an account (`linked: true`) keeps the account's number: 409 `client_linked`, whatever was sent. An erased account's anonymised card (no account, no number — T48) takes no number: 409 `client_anonymized`. The card's own number → 200, nothing to do. A number already on another card of this salon → 409 `client_exists` with that card's `clientId` (the `POST …/clients` shape; no merge) — a race lost to it answers the same. A change is audited `client.phone_changed` with ids only, never a number. The card's `phoneEditable` says in advance which cards take a number (no account AND a number) — the clients offer the edit only on `true`.
          */
         patch: {
             parameters: {
@@ -6762,6 +6762,8 @@ export interface components {
             createdAt: string;
         };
         SalonClientCard: components["schemas"]["SalonClient"] & {
+            /** @description True exactly for the cards whose number `PATCH …/clients/{clientId}` accepts: not linked to an account (`linked: false`) AND holding a number — false for a linked card (409 `client_linked`) and for an erased account's anonymised card (no number, 409 `client_anonymized`). Clients offer « Modifier » only when it is `true`, and read an ABSENT field as false: an older server, whose `PATCH` refuses `{phone}` with `invalid_tags`, sends none (docs/design/phone-leftovers.md §8/§11). On the card only, not on the list rows. */
+            phoneEditable: boolean;
             stats: components["schemas"]["SalonClientStats"];
             upcoming?: components["schemas"]["Appointment"];
             notes: components["schemas"]["SalonClientNote"][];

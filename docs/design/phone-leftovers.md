@@ -204,7 +204,26 @@ production sur feu vert du propriétaire.
   lit l'indicatif par la même recherche que le reste (un +33 ne lit plus
   « +336 … »).
 
-**Ordre de déploiement : le serveur d'abord.** L'app parle au `PATCH` qui
-accepte `phone` ; un build sorti avant le serveur afficherait le refus de
-l'ancienne route.
+**`phoneEditable` — pas de fenêtre au déploiement** (revue adverse). Le web
+part en production au merge, le serveur sur déclenchement manuel : entre les
+deux, « Modifier » aurait parlé à l'ancienne route (`invalid_tags` à
+`{phone}`) et échoué à chaque essai. La fiche (`GET` et réponse du `PATCH`)
+porte donc `phoneEditable` = pas de compte ET un numéro — exactement les
+fiches dont le `PATCH` prend un numéro — et l'app comme le web n'affichent
+« Modifier » que si le serveur dit `true` ; un champ absent (ancien serveur)
+vaut `false`. La règle vit à un seul endroit, le serveur.
+
+**Revue adverse, autres corrections** : `POST …/artists` lit tous ses champs
+avant de promouvoir la photo (un refus laissait une photo orpheline) ; la
+feuille de l'app ne se ferme pas pendant l'enregistrement et ignore une
+réponse pour un numéro qui n'est plus dans le champ ; le dialogue web ne se
+ferme pas pendant l'enregistrement et rend le focus au titre après un
+`client_linked` ; un client choisi lié à un compte n'a pas de lien « Ouvrir la
+fiche » (son numéro est celui de son compte) ; le bouchon e2e répond dans
+l'ordre et avec les codes du serveur ; le mock de l'app tient ses fiches par
+salon.
+
+**Ordre de déploiement** : le serveur d'abord reste le bon ordre (l'app parle
+au `PATCH` qui accepte `phone`), mais aucune surface ne casse s'il ne l'est
+pas : sans `phoneEditable`, pas de « Modifier ».
 
