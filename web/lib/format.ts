@@ -43,6 +43,14 @@ export function priceRange(
   return formatFcfa(price, currency);
 }
 
+/** « de Koffi » / « d’Aïcha » — French elides « de » before a vowel (the
+ *  twin of the app's `Formatters.de`). Names starting with « h » or « y »
+ *  keep « de »: whether they elide depends on the name. */
+export function deName(name: string): string {
+  const n = name.trim();
+  return /^[aeiouàâäéèêëîïôöùûü]/i.test(n) ? `d’${n}` : `de ${n}`;
+}
+
 /// « +225 07 00 00 01 01 » — a stored number, for reading.
 ///
 /// The hand-written twin of `Formatters.formatPhoneNumber` (mobile
@@ -66,14 +74,6 @@ export function priceRange(
 ///
 /// Nothing but the shared test vectors (`tests/format.test.ts` ↔
 /// `mobile/test/unit/formatters_test.dart`) holds the two copies together.
-/** « de Koffi » / « d’Aïcha » — French elides « de » before a vowel (the
- *  twin of the app's `Formatters.de`). Names starting with « h » or « y »
- *  keep « de »: whether they elide depends on the name. */
-export function deName(name: string): string {
-  const n = name.trim();
-  return /^[aeiouàâäéèêëîïôöùûü]/i.test(n) ? `d’${n}` : `de ${n}`;
-}
-
 export function formatPhoneNumber(phone: string): string {
   const cleaned = phone.replace(/[^\d+]/g, '');
   if (cleaned.startsWith('+225')) {

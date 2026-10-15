@@ -11,20 +11,6 @@ import {
 
 const norm = (s: string) => s.replace(/\s/g, ' ');
 
-/// The web twin of the app's `Formatters.formatPhoneNumber`
-/// (docs/design/amounts-that-fit.md §5 « Web »).
-///
-/// **Compared exactly — `norm` is NOT used here, on purpose.** `norm` turns
-/// every whitespace character into a plain space, which is right for `Intl`
-/// output and would make these tests blind to the one thing they must pin: the
-/// groups are separated by U+0020, so a copied number pastes with ordinary
-/// spaces. Keeping the number on one line is the layout's job
-/// (`whitespace-nowrap` on the card), never a no-break space in the string.
-///
-/// The first four vectors are the app's own, verbatim
-/// (`mobile/test/unit/formatters_test.dart` — « Formatters.formatPhoneNumber »).
-/// Nothing ties the two files together but these shared lines: a change to the
-/// rule on one side must be made on the other.
 describe('deName — « de » elides before a vowel (twin of Formatters.de)', () => {
   it.each([
     ['Koffi Yao', 'de Koffi Yao'],
@@ -41,6 +27,20 @@ describe('deName — « de » elides before a vowel (twin of Formatters.de)', ()
   });
 });
 
+/// The web twin of the app's `Formatters.formatPhoneNumber`
+/// (docs/design/amounts-that-fit.md §5 « Web »).
+///
+/// **Compared exactly — `norm` is NOT used here, on purpose.** `norm` turns
+/// every whitespace character into a plain space, which is right for `Intl`
+/// output and would make these tests blind to the one thing they must pin: the
+/// groups are separated by U+0020, so a copied number pastes with ordinary
+/// spaces. Keeping the number on one line is the layout's job
+/// (`whitespace-nowrap` on the card), never a no-break space in the string.
+///
+/// The first four vectors are the app's own, verbatim
+/// (`mobile/test/unit/formatters_test.dart` — « Formatters.formatPhoneNumber »).
+/// Nothing ties the two files together but these shared lines: a change to the
+/// rule on one side must be made on the other.
 describe('formatPhoneNumber — the twin of the app’s formatter', () => {
   it('groups a current 10-digit Côte d’Ivoire number in pairs', () => {
     expect(formatPhoneNumber('+2250712345678')).toBe('+225 07 12 34 56 78');
