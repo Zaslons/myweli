@@ -108,7 +108,8 @@ DateTime windowStart(DateTime now, Duration window) =>
 ///
 /// **Not for a deployed service.** Per-instance counters on a `maxScale: 4`
 /// service mean N times the budget and a reset on every cold start — the defect
-/// `LoginThrottle` and `TeamService._inviteCounts` still carry, recorded at
+/// `LoginThrottle` still carries (`TeamService._inviteCounts` did, until the
+/// invite caps moved onto this limiter), recorded at
 /// `dependencies.dart`'s `sendBudget` block. It is here so the whole path is
 /// exercised without a database, and it is the same shape the Postgres one
 /// implements.

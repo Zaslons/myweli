@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:myweli_backend/src/db/postgres_rate_limiter.dart';
 import 'package:myweli_backend/src/security/identity_limits.dart';
+import 'package:myweli_backend/src/security/origin_front_door.dart'
+    show kIpAuthWindow;
 import 'package:myweli_backend/src/security/rate_limiter.dart';
 import 'package:test/test.dart';
 
@@ -411,6 +413,102 @@ void main() {
         isEmpty,
         reason: 'nothing was counted, so no threshold was crossed',
       );
+    });
+  });
+
+  group('windows and warnings per bucket (the invite caps)', () {
+    // docs/design/backend-team-invite-caps.md §5.4
+    test('a daily bucket does not roll at the hour', () async {
+      var now = DateTime.utc(2026, 10, 15, 10);
+      final limiter = InMemoryRateLimiter(clock: () => now);
+      expect(
+        await allowUnderLimit(
+          limiter,
+          'd',
+          1,
+          window: kInviteWindow,
+          log: (_) {},
+        ),
+        isTrue,
+      );
+      now = DateTime.utc(2026, 10, 15, 11, 30);
+      expect(
+        await allowUnderLimit(
+          limiter,
+          'd',
+          1,
+          window: kInviteWindow,
+          log: (_) {},
+        ),
+        isFalse,
+        reason: 'the hourly default window would have rolled here',
+      );
+    });
+
+    test(
+      'warn: false keeps the 80% line silent; the default still warns',
+      () async {
+        final lines = <String>[];
+        final limiter = InMemoryRateLimiter();
+        for (var i = 0; i < 2; i++) {
+          await allowUnderLimit(
+            limiter,
+            'quiet',
+            3,
+            warn: false,
+            log: lines.add,
+          );
+        }
+        expect(lines, isEmpty);
+        for (var i = 0; i < 2; i++) {
+          await allowUnderLimit(limiter, 'loud', 3, log: lines.add);
+        }
+        expect(lines.single, startsWith('rate_limit_warning bucket=loud'));
+      },
+    );
+
+    test('no window outlives the prune: every window <= kRateLimitRetention, '
+        'and the cron prunes with that constant', () {
+      expect(kIdentityWindow <= kRateLimitRetention, isTrue);
+      expect(kInviteWindow <= kRateLimitRetention, isTrue);
+      expect(kIpAuthWindow <= kRateLimitRetention, isTrue);
+      final cron = File(
+        'routes/internal/cron/subscriptions.dart',
+      ).readAsStringSync();
+      expect(cron, contains('pruneRateLimitWindows(kRateLimitRetention)'));
+    });
+
+    test('the canonical mailbox: +tags dropped everywhere, Gmail dots and '
+        'googlemail folded; other addresses stay apart', () {
+      for (final alias in [
+        'victim@gmail.com',
+        'victim+1@gmail.com',
+        'v.ic.tim@gmail.com',
+        'victim+x@googlemail.com',
+      ]) {
+        expect(
+          canonicalInviteAddress(alias),
+          'victim@gmail.com',
+          reason: alias,
+        );
+      }
+      expect(canonicalInviteAddress('ama+salon@orange.ci'), 'ama@orange.ci');
+      expect(canonicalInviteAddress('a.ma@orange.ci'), 'a.ma@orange.ci');
+      expect(
+        inviteAddressBucket('p1', 'victim+1@gmail.com'),
+        inviteAddressBucket('p1', 'victim@gmail.com'),
+      );
+      expect(
+        inviteAddressBucket('p1', 'other@gmail.com'),
+        isNot(inviteAddressBucket('p1', 'victim@gmail.com')),
+      );
+    });
+
+    test('the address bucket never shows the address', () {
+      final b = inviteAddressBucket('p1', 'ama@b.com');
+      expect(b, startsWith('invite:addr:p1:'));
+      expect(b, isNot(contains('@')));
+      expect(b, isNot(equals(inviteAddressBucket('p2', 'ama@b.com'))));
     });
   });
 

@@ -378,6 +378,18 @@ IdentityLimits get identityLimits => (
       kDefaultIdentityLimits.signLogo,
 );
 
+/// The daily team-invitation caps (T37): per salon, and per salon and
+/// address. Configurable like [identityLimits], declared in both manifests.
+/// docs/design/backend-team-invite-caps.md
+InviteLimits get inviteLimits => (
+  perSalon:
+      int.tryParse(_envOrNull('LIMIT_INVITE_SALON') ?? '') ??
+      kDefaultInviteLimits.perSalon,
+  perAddress:
+      int.tryParse(_envOrNull('LIMIT_INVITE_ADDRESS') ?? '') ??
+      kDefaultInviteLimits.perAddress,
+);
+
 /// **Wrapped, so nothing can route around it.** Every present and future send
 /// goes through the budget — including ones nobody remembers to budget —
 /// because the wrapping happens here rather than at each call site.
@@ -741,6 +753,9 @@ final TeamService teamService = TeamService(
   salonSubscriptionService,
   emailProvider,
   providerAuditLogRepository,
+  // The SHARED limiter: every instance counts into the same daily buckets.
+  limiter: rateLimiter,
+  limits: inviteLimits,
 );
 
 final SalonProvisioningService salonProvisioningService =

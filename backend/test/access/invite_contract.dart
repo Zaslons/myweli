@@ -244,6 +244,32 @@ void inviteContract({
     expect(await r.listForAccount(acc), hasLength(1));
   });
 
+  test('activate takes only a still-valid invitation: a revoked or an expired '
+      'row is left as it is (an accept that a revocation overtook)', () async {
+    final r = repo();
+    final acc = await account('act@contract.pro');
+    final inv = await r.invite(
+      providerId: p,
+      email: 'act@contract.pro',
+      role: 'manager',
+      expiresAt: inDays(7),
+    );
+    await r.revoke(inv!.id);
+    expect(await r.activate(inv.id, acc), isNull);
+    expect((await r.byId(inv.id))!.status, 'revoked');
+
+    final late = await r.invite(
+      providerId: p,
+      email: 'act-late@contract.pro',
+      role: 'manager',
+      expiresAt: inDays(-1),
+    );
+    expect(await r.activate(late!.id, acc), isNull);
+    final row = (await r.byId(late.id))!;
+    expect(row.status, 'invited');
+    expect(row.accountId, isNull);
+  });
+
   test("the OWNER's row is never revived, whatever its state", () async {
     final r = repo();
     final acc = await account('own@contract.pro');

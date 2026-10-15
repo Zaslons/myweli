@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Construit le 2026-10-14** sur `fix/team-reinvite-unique` — non fusionné, non déployé. Fusion et déploiement : sur le mot du propriétaire. |
+| **Statut** | **Construit, fusionné (#596, `7176db7d`) et déployé en production le 2026-10-14** — d'abord avec #594 (révision `myweli-api-00038-mbs`), toujours en service à `myweli-api-00039-mgq` (`9c0540a`). Côté app, les changements (fournisseur, mock) partiront avec le prochain build ; le build 587 en revue n'en dépend pas. |
 | **Module** | `access` (équipe, R2b) |
 | **Origine** | La revue adverse du correctif de suppression ([backend-provider-deletion-member-fk.md](backend-provider-deletion-member-fk.md) §7) ; le propriétaire : « Do this task here ». |
 | **Régit** | `backend/lib/src/access/team_service.dart` (`invite`) · `backend/lib/src/access/membership_repository.dart` + `backend/lib/src/db/postgres_membership_repository.dart` (`invite`) · `docs/api/openapi.yaml` (`POST /me/provider/members`, `…/resend`) · `mobile/lib/providers/pro_team_provider.dart` · `mobile/lib/services/mock/mock_pro_team_service.dart` · `web/tests/e2e/stub-api.mjs` |
@@ -269,9 +269,11 @@ Les tests vus rouges puis verts ; suites backend, app (fichiers touchés) et web
    correctif est côté clients — regarder les invitations en attente avant de
    déconnecter. **Parcours utilisateur à valider par le propriétaire avant
    d'être construit.**
-2. **Une limite de réinvitations par adresse** (§6) — à décider.
-3. `activate` ne revérifie pas le statut (`UPDATE … WHERE id`) : une
-   révocation entre la lecture d'`accept` et l'écriture serait annulée.
-   Antérieur, étroit ; une tranche à part.
+2. ~~**Une limite de réinvitations par adresse** (§6) — à décider.~~
+   **Décidée et construite le 2026-10-14** : 3 par jour et par (salon,
+   adresse), sur le limiteur partagé —
+   [backend-team-invite-caps.md](backend-team-invite-caps.md).
+3. ~~`activate` ne revérifie pas le statut~~ — **fermé le 2026-10-14**
+   ([backend-team-invite-caps.md](backend-team-invite-caps.md) §5.3).
 4. L'app propose « Changer le rôle » sur une ligne révoquée (le serveur
    l'accepte) ; le web n'offre aucune action. Écart d'interface, antérieur.

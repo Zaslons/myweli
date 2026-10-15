@@ -40,19 +40,30 @@ void main() {
       );
       final end = src.indexOf(');', start);
       expect(end, isNonNegative, reason: '$name construction is terminated');
-      return src.substring(start, end);
+      // Comments stripped: a comment that says « limiter: » would otherwise
+      // satisfy the check with the argument gone (found in review — the one
+      // above TeamService's said exactly that).
+      return src
+          .substring(start, end)
+          .split('\n')
+          .where((l) => !l.trimLeft().startsWith('//'))
+          .join('\n');
     }
 
     for (final name in const [
       'BookingService',
       'ReviewsService',
       'UploadSigningService',
+      // The daily invitation caps (T37) — docs/design/backend-team-invite-caps.md.
+      // Without the shared limiter TeamService falls back to a per-process
+      // one: the per-instance counter this replaced, silently back.
+      'TeamService',
     ]) {
       test('$name is constructed WITH one', () {
         final call = construction(name);
         expect(
           call,
-          contains('limiter:'),
+          contains('limiter: rateLimiter'),
           reason:
               '$name takes an optional limiter, so omitting it here disables '
               'the limit in production while every test stays green. Nothing '

@@ -393,6 +393,12 @@ spec:
               value: "10"
             - name: LIMIT_SIGN_LOGO
               value: "10"
+            # The daily team-invitation caps (T37): per salon, and per salon
+            # and address. docs/design/backend-team-invite-caps.md.
+            - name: LIMIT_INVITE_SALON
+              value: "20"
+            - name: LIMIT_INVITE_ADDRESS
+              value: "3"
             # R2 — the whole set together or `storageService` throws. Real
             # staging buckets rather than STORAGE_PROVIDER=disabled: uploads are
             # the riskiest surface here (presigned PUTs, private KYC and deposit

@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Proposition, à valider par le propriétaire avant construction** (UX d'abord). Rien n'est construit. |
+| **Statut** | **Approuvé par le propriétaire le 2026-10-14** (« yes » aux trois choix du §9 : la règle et l'échec fermé, l'écran « Invitations » réutilisé, le refus de la dernière invitation qui déconnecte) — construction en cours. |
 | **Module** | `access` (équipe) — app Pro et web Pro |
 | **Origine** | [backend-team-reinvite.md](backend-team-reinvite.md) §11.1 ; le propriétaire, le 2026-10-14 : « do as you think is better ». |
 | **Backend** | **Aucun changement.** `GET /me/provider/invitations` et `POST /me/provider/invitations/{id}/accept|decline` marchent déjà pour une session sans adhésion active. |

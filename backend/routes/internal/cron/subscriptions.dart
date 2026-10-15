@@ -5,6 +5,8 @@ import 'package:myweli_backend/src/demo/demo_reset_service.dart';
 import 'package:myweli_backend/src/dependencies.dart'
     show cronAuth, pruneAdminLoginThrottle, pruneRateLimitWindows;
 import 'package:myweli_backend/src/responses.dart';
+import 'package:myweli_backend/src/security/identity_limits.dart'
+    show kRateLimitRetention;
 import 'package:myweli_backend/src/subscription/subscription_scheduler.dart';
 
 /// `POST /internal/cron/subscriptions` — the daily offer walk: trial warnings
@@ -59,11 +61,14 @@ Future<Response> onRequest(RequestContext context) async {
   // identity buckets were bounded by the user set, but every new client
   // address writes a row, so without this the table only grows. Unlike the
   // throttle's window this one is housekeeping — no bucket reads a window
-  // older than its own length — so 1 day is generous, not load-bearing.
+  // older than its own length. **Load-bearing since the daily invite buckets**
+  // (docs/design/backend-team-invite-caps.md): a one-day window survives a
+  // one-day retention exactly, so the number is a named constant and a test
+  // holds every window at or under it.
   // `null` here means the prune failed and logged `rate_limit_prune_failed`;
   // the cron still runs the rest and reports it, rather than 500ing every
   // day on a table that only grows (found in review).
-  final windowsPruned = await pruneRateLimitWindows(const Duration(days: 1));
+  final windowsPruned = await pruneRateLimitWindows(kRateLimitRetention);
 
   // The demo-salon reset (T69): due-gated to every 7 days inside the
   // service, so this is a no-op six days out of seven. Same observability

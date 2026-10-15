@@ -119,8 +119,13 @@ abstract interface class MembershipRepository {
     required String email,
   });
 
-  /// Mark every membership of the account revoked (account deletion, T53).
-  Future<void> revokeAllForAccount(String accountId);
+  /// Delete every membership row of the account — the identity is being
+  /// erased (T53) and a member row never outlives its account. Deleted, not
+  /// revoked: a revoked row keeps `account_id`, which references the identity
+  /// (docs/design/backend-provider-deletion-member-fk.md). The schema says the
+  /// same since 0038 (ON DELETE CASCADE); this keeps the in-memory twin, which
+  /// has no foreign keys, telling the same story.
+  Future<void> deleteAllForAccount(String accountId);
 
   // ---- Invitations (R2b — docs/design/team-access-r2b-invitations.md) ----
 
@@ -164,7 +169,11 @@ abstract interface class MembershipRepository {
   /// is exhausted.
   Future<Member?> resendInvite(String memberId, DateTime newExpiresAt);
 
-  /// Invitation accepted: link the account, flip to active.
+  /// Invitation accepted: link the account, flip to active — ONLY if the row
+  /// is still a valid invitation (`invited`, window open). Null otherwise: a
+  /// revocation, or the window closing, that lands between the caller's read
+  /// and this write must hold rather than be overwritten.
+  /// docs/design/backend-team-invite-caps.md §5.3
   Future<Member?> activate(String memberId, String accountId);
 
   /// Invitation declined: the row disappears (the owner can re-invite) —
@@ -250,13 +259,8 @@ class InMemoryMembershipRepository implements MembershipRepository {
   }
 
   @override
-  Future<void> revokeAllForAccount(String accountId) async {
-    final now = DateTime.now().toUtc();
-    for (var i = 0; i < _rows.length; i++) {
-      if (_rows[i].accountId == accountId && _rows[i].status != 'revoked') {
-        _rows[i] = _rows[i].copyWith(status: 'revoked', revokedAt: now);
-      }
-    }
+  Future<void> deleteAllForAccount(String accountId) async {
+    _rows.removeWhere((m) => m.accountId == accountId);
   }
 
   @override
@@ -376,14 +380,22 @@ class InMemoryMembershipRepository implements MembershipRepository {
   }
 
   @override
-  Future<Member?> activate(String memberId, String accountId) => _mutate(
-    memberId,
-    (m) => m.copyWith(
+  Future<Member?> activate(String memberId, String accountId) async {
+    final i = _rows.indexWhere((m) => m.id == memberId);
+    if (i < 0) return null;
+    final m = _rows[i];
+    // The Postgres WHERE, word for word: still invited, window not closed
+    // (`expires_at IS NULL OR expires_at > now()`).
+    final open =
+        m.status == 'invited' &&
+        (m.expiresAt == null || m.expiresAt!.isAfter(DateTime.now().toUtc()));
+    if (!open) return null;
+    return _rows[i] = m.copyWith(
       accountId: accountId,
       status: 'active',
       acceptedAt: DateTime.now().toUtc(),
-    ),
-  );
+    );
+  }
 
   @override
   Future<void> decline(String memberId) async {

@@ -215,7 +215,12 @@ class PostgresMembershipRepository implements MembershipRepository {
     final r = await _pool.execute(
       Sql.named(
         "UPDATE provider_members SET status = 'active', account_id = @a, "
-        'accepted_at = now() WHERE id = @id RETURNING *',
+        'accepted_at = now() '
+        // Only a row that is STILL a valid invitation: a revocation (or the
+        // window closing) between the caller's read and this write holds.
+        // docs/design/backend-team-invite-caps.md §5.3
+        "WHERE id = @id AND status = 'invited' "
+        'AND (expires_at IS NULL OR expires_at > now()) RETURNING *',
       ),
       parameters: {'id': memberId, 'a': accountId},
     );
@@ -248,12 +253,9 @@ class PostgresMembershipRepository implements MembershipRepository {
   }
 
   @override
-  Future<void> revokeAllForAccount(String accountId) async {
+  Future<void> deleteAllForAccount(String accountId) async {
     await _pool.execute(
-      Sql.named(
-        "UPDATE provider_members SET status = 'revoked', revoked_at = now() "
-        "WHERE account_id = @a AND status != 'revoked'",
-      ),
+      Sql.named('DELETE FROM provider_members WHERE account_id = @a'),
       parameters: {'a': accountId},
     );
   }
