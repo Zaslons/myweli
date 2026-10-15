@@ -370,7 +370,8 @@ export function BookingFlow({
         if (saved.error === "invalid_phone") {
           return contact.set("phone", PHONE_INVALID);
         }
-        return setError("Numéro invalide. Vérifiez et réessayez.");
+        // Not the number's fault (network, 5xx): say what happened.
+        return setError("Votre numéro n’a pas pu être enregistré. Réessayez.");
       }
     }
     const b = await createBooking({

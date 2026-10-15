@@ -10,7 +10,11 @@ import {
   verifyEmailOtp,
 } from '../../lib/auth/client';
 import { useFieldErrors } from '../../lib/forms/useFieldErrors';
-import { normalizePhone, phoneFieldError } from '../../lib/phone';
+import {
+  PHONE_INVALID,
+  normalizePhone,
+  phoneFieldError,
+} from '../../lib/phone';
 import { Button } from '../Button';
 import { PhoneField } from '../PhoneField';
 import { TextField } from '../TextField';
@@ -169,7 +173,12 @@ export function LoginOptions({ onSuccess }: { onSuccess: () => void }) {
     setError(null);
     const r = await updateContactPhone(normalizePhone(phone));
     setBusy(false);
-    if (!r.ok) return fields.set('phone', 'Numéro invalide. Réessayez.');
+    if (!r.ok) {
+      // The server's verdict on the number is the field's; anything else
+      // (network, 5xx) is not the number's fault — the form says so.
+      if (r.error === 'invalid_phone') return fields.set('phone', PHONE_INVALID);
+      return setError('L’enregistrement a échoué. Réessayez.');
+    }
     onSuccess();
   }
 

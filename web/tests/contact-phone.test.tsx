@@ -197,6 +197,21 @@ describe('« Réserver » — the contact phone at the confirm step', () => {
     expectFieldFault(field, INVALID);
     expect(sent.map((s) => s.url)).toEqual(['/api/me']);
   });
+  it('a failure that is not the number does not blame it — no booking', async () => {
+    const { field, submit } = await openConfirm(
+      { ...ME, phoneNumber: null },
+      { phoneRefusal: 'internal_error' },
+    );
+    fireEvent.change(field, { target: { value: '+2250707123499' } });
+    fireEvent.click(submit);
+
+    expect(
+      await screen.findByText('Votre numéro n’a pas pu être enregistré. Réessayez.'),
+    ).toBeTruthy();
+    expect(field).not.toHaveAttribute('aria-invalid', 'true');
+    expect(screen.queryByText(/Numéro invalide/)).toBeNull();
+    expect(sent.map((s) => s.url)).toEqual(['/api/me']);
+  });
 });
 
 describe('« Mon compte » — editing the contact phone', () => {
@@ -253,6 +268,18 @@ describe('« Mon compte » — editing the contact phone', () => {
     expectFieldFault(field, INVALID);
     // One fault, one place — not also the old form-level line.
     expect(screen.queryByText('Numéro invalide. Réessayez.')).toBeNull();
+  });
+
+  it('a failure that is not the number does not blame it', async () => {
+    const { field, save } = await openEdit(ME, { phoneRefusal: 'internal_error' });
+    fireEvent.change(field, { target: { value: '+2250707123499' } });
+    fireEvent.click(save);
+
+    expect(
+      await screen.findByText('L’enregistrement a échoué. Réessayez.'),
+    ).toBeTruthy();
+    expect(field).not.toHaveAttribute('aria-invalid', 'true');
+    expect(screen.queryByText(/Numéro invalide/)).toBeNull();
   });
 
   it('a fault does not outlive « Annuler »: reopened, the field is clean', async () => {

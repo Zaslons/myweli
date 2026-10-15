@@ -258,7 +258,7 @@ export function AccountClient() {
               </div>
               {phoneError ? (
                 <p role="alert" className="text-bodyMedium text-error">
-                  Numéro invalide. Réessayez.
+                  L’enregistrement a échoué. Réessayez.
                 </p>
               ) : null}
             </div>
