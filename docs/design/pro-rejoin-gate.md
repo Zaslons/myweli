@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Approuvé par le propriétaire le 2026-10-14** (« yes » aux trois choix du §9 : la règle et l'échec fermé, l'écran « Invitations » réutilisé, le refus de la dernière invitation qui déconnecte) — construction en cours. |
+| **Statut** | **Approuvé par le propriétaire le 2026-10-14** (« yes » aux trois choix du §9) — **construit le 2026-10-15** sur `feat/pro-rejoin-gate` (app Pro + web Pro), non fusionné. Côté app : part avec le prochain build (0.0.2), pas avec le 587 en revue. Côté web : au prochain déploiement Vercel après fusion. Ce qui a été construit, et où cela s'écarte du texte ci-dessus : §10. |
 | **Module** | `access` (équipe) — app Pro et web Pro |
 | **Origine** | [backend-team-reinvite.md](backend-team-reinvite.md) §11.1 ; le propriétaire, le 2026-10-14 : « do as you think is better ». |
 | **Backend** | **Aucun changement.** `GET /me/provider/invitations` et `POST /me/provider/invitations/{id}/accept|decline` marchent déjà pour une session sans adhésion active. |
@@ -147,3 +147,56 @@ L'acceptation exige toujours la bonne adresse e-mail.
 2. L'écran du §3 : réutiliser « Invitations » plutôt qu'un écran nouveau.
 3. S6 : refuser la dernière invitation **déconnecte** (on ne garde pas une
    session qui ne mène à aucun salon).
+
+## 10. Ce qui a été construit (2026-10-15)
+
+**App** (`mobile/`) — un seul point de décision pour `not_a_member`
+(`_onNotAMember`, partagé par `refreshMembership` et `checkMembershipAlive`,
+qui ne s'exécute qu'une fois même si deux réponses arrivent ensemble) ;
+l'état « réadmission » (`rejoinPending`, ses invitations, le salon perdu) ;
+l'entrée vide le salon perdu (adhésion, cache, sélection, liste des salons,
+données par salon) ; la sortie (`completeRejoin`) ne lève la réadmission
+qu'**une fois** le routeur dans le salon rejoint, pour qu'une notification
+retenue ne se rejoue pas par-dessus l'écran ; démarrage, connexion et
+notifications y conduisent. `ProInvitationsScreen` a son mode « réadmission »
+(décidé à l'ouverture), et le bandeau de la connexion devient un composant
+partagé (`RevokedAccessBanner`). Le défaut S11 (connexion révoquée → écran
+verrouillé) est corrigé : le bandeau s'affiche sur place.
+
+**Web** (`web/`) — la même règle dans `ProMembershipContext` ; une page
+intermédiaire `ProRevokedInvitations` ; `ProInvitationsCard` retire une carte
+expirée ou retirée, ne reste plus bloqué hors ligne, et « Refuser » devient un
+vrai bouton de 48px ; après « Rejoindre » depuis une page profonde, la page
+attend `/pro` pour ne pas monter un instant une page de l'ancien rôle.
+
+**Écarts au texte, assumés** :
+- « Déconnexion » est une **icône** avec cette info-bulle (app) : §13.3 et le
+  registre §21 ligne 79 demandent une icône dans une barre d'app à 200 %.
+- La **revérification** de `GET /me/provider` précède aussi une déconnexion
+  décidée sur un **échec** de la liste, pas seulement sur une liste vide : elle
+  ne peut garder qu'une session que le serveur rattache à un salon ;
+  l'échec fermé tient.
+- Le bandeau « Votre accès à {salon} a été retiré. » n'apparaît sur l'écran que
+  quand le salon perdu est connu (en cours de session, au démarrage) ; après
+  une connexion, il est omis, comme le prévoit §3.
+- Web : le message de succès reprend celui de l'app, sans point final.
+- `ApiAuthService.cacheProviderMembership(null)` ne vidait rien (l'app réelle
+  aurait gardé l'ancienne adhésion en cache) : corrigé, dans son propre commit.
+
+**Trouvé en regardant l'image** (règle §20.1) : la première image Linux de
+l'écran montrait « **Rejoind/re** » à 360dp × 2 — la carte d'invitation
+partagée (`InvitationCard`, aussi dans Profil → Invitations et à l'étape
+« invitations » de la connexion) gardait ses deux actions côte à côte.
+Elle les **empile** maintenant, chacune pleine largeur, quand « Rejoindre » ne
+tient pas entier à côté de « Refuser » — mesuré avec le style et les marges des
+boutons ; à 1×, rien ne change (les 51 autres images sont identiques à
+l'octet).
+
+**Tests, chacun vu rouge d'abord** — app : 22 unitaires
+(`pro_auth_rejoin_test.dart`), 12 d'écran (`pro_rejoin_gate_test.dart`), le
+démarrage, la notification retenue, le cache ; 20 mutations sur du code
+commité, toutes rouges. Web : 16 Vitest du contexte, 11 de la carte, 6 de
+parité des textes, 2 e2e Playwright (un ancien membre rejoint ; un autre
+refuse — avec axe, cibles de 48px et un passage à 320px) ; 9 mutations, toutes
+rouges. L'image de référence `pro_rejoin_gate_w360_x2.png`, générée sous Linux.
+
