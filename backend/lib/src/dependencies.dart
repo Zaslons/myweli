@@ -470,8 +470,13 @@ final SlotService slotService = SlotService(
   appointmentRepository,
 );
 
+/// The in-memory twin moves a guest's history in the in-memory appointments
+/// (docs/design/phone-leftovers.md §8) — the same `_pool == null` branch made
+/// [appointmentRepository] one, so the cast cannot miss.
 final ClientsRepository clientsRepository = _pool == null
-    ? InMemoryClientsRepository()
+    ? InMemoryClientsRepository(
+        appointments: appointmentRepository as InMemoryAppointmentRepository,
+      )
     : PostgresClientsRepository(_pool!);
 
 final ProviderAuditLogRepository providerAuditLogRepository = _pool == null

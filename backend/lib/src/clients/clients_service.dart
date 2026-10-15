@@ -6,6 +6,7 @@ import '../appointments/appointment_repository.dart';
 import '../auth/auth_repository.dart';
 import '../auth/provider_auth_repository.dart';
 import '../salon_time.dart';
+import '../validators.dart';
 import 'clients_repository.dart';
 import 'provider_audit_log.dart';
 
@@ -132,7 +133,21 @@ class ClientsService {
     }
     final client = await _clients.byId(providerId, clientId);
     if (client == null) return (ok: false, error: 'not_found', data: null);
+    return (
+      ok: true,
+      error: null,
+      data: await _readCard(accountId, providerId, client),
+    );
+  }
 
+  /// The card as `GET` returns it — and, like every card read, audited
+  /// (`clients.view`, T46): `PATCH` answers with it too.
+  Future<Map<String, dynamic>> _readCard(
+    String accountId,
+    String providerId,
+    Map<String, dynamic> client,
+  ) async {
+    final clientId = client['id'] as String;
     final visits = await _visitsOf(providerId, client);
     var completed = 0;
     var noShows = 0;
@@ -167,21 +182,17 @@ class ClientsService {
       targetId: clientId,
     );
 
-    return (
-      ok: true,
-      error: null,
-      data: {
-        ..._shape(client),
-        'stats': {
-          'visits': completed,
-          'spentFcfa': spent,
-          'noShows': noShows,
-          'cancellations': cancellations,
-        },
-        if (upcoming != null) 'upcoming': upcoming,
-        'notes': [for (final n in notes) await _shapeNote(n)],
+    return {
+      ..._shape(client),
+      'stats': {
+        'visits': completed,
+        'spentFcfa': spent,
+        'noShows': noShows,
+        'cancellations': cancellations,
       },
-    );
+      if (upcoming != null) 'upcoming': upcoming,
+      'notes': [for (final n in notes) await _shapeNote(n)],
+    };
   }
 
   Future<ClientsResult> visits(
@@ -263,20 +274,113 @@ class ClientsService {
     if (await _authorized(accountId, providerId) == null) {
       return (ok: false, error: 'forbidden', data: null);
     }
-    final cleaned = <String>[];
-    for (final raw in tags) {
-      final t = raw.trim();
-      if (t.isEmpty || t.length > maxTagLength) {
-        return (ok: false, error: 'invalid_tags', data: null);
-      }
-      if (!cleaned.contains(t)) cleaned.add(t);
-    }
-    if (cleaned.length > maxTags) {
-      return (ok: false, error: 'invalid_tags', data: null);
-    }
+    final cleaned = _cleanTags(tags);
+    if (cleaned == null) return (ok: false, error: 'invalid_tags', data: null);
     final updated = await _clients.updateTags(providerId, clientId, cleaned);
     if (updated == null) return (ok: false, error: 'not_found', data: null);
     return (ok: true, error: null, data: _shape(updated));
+  }
+
+  /// Trimmed, de-duplicated; null when one is empty or too long, or when
+  /// there are too many.
+  static List<String>? _cleanTags(List<String> tags) {
+    final cleaned = <String>[];
+    for (final raw in tags) {
+      final t = raw.trim();
+      if (t.isEmpty || t.length > maxTagLength) return null;
+      if (!cleaned.contains(t)) cleaned.add(t);
+    }
+    return cleaned.length > maxTags ? null : cleaned;
+  }
+
+  // ---- Edit the card: number and/or tags (PATCH) ---------------------------
+
+  /// `PATCH …/clients/{clientId}` — [phone] and/or [tags]; the caller sends
+  /// at least one. Everything is checked before anything is written, so a
+  /// refusal changes nothing. Answers with the card, as `GET` does.
+  ///
+  /// The number (docs/design/phone-leftovers.md §8, decided 2026-10-15):
+  /// - a card linked to an account keeps the account's number →
+  ///   `client_linked` (whatever was sent — it is not even read);
+  /// - not a valid number, empty included → `invalid_phone` (a guest card
+  ///   exists only by its number — [addClient] requires one);
+  /// - the card's own number → nothing to do;
+  /// - another card of this salon has it → `client_exists` + its `clientId`
+  ///   (the [addClient] shape; no merge), a race lost to it included;
+  /// - else the history follows the number: the card and this salon's
+  ///   manual bookings move together ([ClientsRepository.changeGuestPhone]),
+  ///   audited `client.phone_changed` with ids only — never a number (PII).
+  Future<ClientsResult> updateClient(
+    String accountId,
+    String providerId,
+    String clientId, {
+    String? phone,
+    List<String>? tags,
+  }) async {
+    if (await _authorized(accountId, providerId) == null) {
+      return (ok: false, error: 'forbidden', data: null);
+    }
+    final cleanedTags = tags == null ? null : _cleanTags(tags);
+    if (tags != null && cleanedTags == null) {
+      return (ok: false, error: 'invalid_tags', data: null);
+    }
+    final client = await _clients.byId(providerId, clientId);
+    if (client == null) return (ok: false, error: 'not_found', data: null);
+
+    if (phone != null) {
+      if (client['userId'] != null) {
+        return (ok: false, error: 'client_linked', data: null);
+      }
+      final next = phone.trim();
+      if (!isValidPhoneNumber(next)) {
+        return (ok: false, error: 'invalid_phone', data: null);
+      }
+      if (next != client['phone']) {
+        final change = await _clients.changeGuestPhone(
+          providerId,
+          clientId,
+          next,
+        );
+        switch (change.outcome) {
+          case GuestPhoneOutcome.notFound:
+            return (ok: false, error: 'not_found', data: null);
+          case GuestPhoneOutcome.linked:
+            return (ok: false, error: 'client_linked', data: null);
+          case GuestPhoneOutcome.taken:
+            return (
+              ok: false,
+              error: 'client_exists',
+              data: {'clientId': ?change.takenBy},
+            );
+          case GuestPhoneOutcome.changed:
+            await _audit.log(
+              providerId: providerId,
+              actorAccountId: accountId,
+              action: 'client.phone_changed',
+              targetId: clientId,
+            );
+          case GuestPhoneOutcome.unchanged:
+            break;
+        }
+      }
+    }
+
+    if (cleanedTags != null) {
+      final updated = await _clients.updateTags(
+        providerId,
+        clientId,
+        cleanedTags,
+      );
+      if (updated == null) return (ok: false, error: 'not_found', data: null);
+    }
+
+    final fresh = await _clients.byId(providerId, clientId);
+    if (fresh == null) return (ok: false, error: 'not_found', data: null);
+    return (
+      ok: true,
+      error: null,
+      data: await _readCard(accountId, providerId, fresh),
+    );
   }
 
   // ---- Notes -----------------------------------------------------------------

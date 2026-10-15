@@ -2479,7 +2479,26 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
     patch:
       tags: [clients]
-      summary: Update the tag set (≤10 tags, each ≤24 chars)
+      summary: Update the tag set and/or a guest card's number
+      description: >
+        Same capability as the card (`clients.view`). At least one of `phone`
+        and `tags`; neither → 400 `invalid_tags`. Everything is checked
+        before anything is written: a refusal changes nothing. Answers with
+        the card, exactly as `GET` does (that read-back is audited
+        `clients.view`, like every card read — T46).
+
+
+        **The number** (docs/design/phone-leftovers.md §8): the history
+        follows it. A guest's visits resolve by phone, so the card and this
+        salon's manual bookings (`userId` = `manual`) carrying the old number
+        take the new one in ONE transaction — never another salon's bookings
+        (T45), never a consumer's own. A card linked to an account
+        (`linked: true`) keeps the account's number: 409 `client_linked`,
+        whatever was sent. The card's own number → 200, nothing to do. A
+        number already on another card of this salon → 409 `client_exists`
+        with that card's `clientId` (the `POST …/clients` shape; no merge) —
+        a race lost to it answers the same. A change is audited
+        `client.phone_changed` with ids only, never a number.
       security: [{ bearerAuth: [] }]
       requestBody:
         required: true
@@ -2487,21 +2506,51 @@ paths:
           application/json:
             schema:
               type: object
-              required: [tags]
               properties:
+                phone:
+                  type: string
+                  description: >-
+                    The guest card's new number. E.164, no separators; a +225
+                    number has exactly 10 digits after the code. Surrounding
+                    blanks are trimmed; anything else invalid — empty
+                    included, a guest card exists only by its number → 400
+                    `invalid_phone`. Not a string → 400 `invalid_body`.
                 tags:
                   type: array
                   items: { type: string }
+                  description: >-
+                    The whole tag set (≤10 tags, each 1–24 chars after
+                    trimming, duplicates dropped; non-string items ignored);
+                    else 400 `invalid_tags`. Not an array → 400
+                    `invalid_body`.
       responses:
         '200':
-          description: Updated
+          description: The card, as `GET` returns it.
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/SalonClient' }
-        '400': { $ref: '#/components/responses/BadRequest' }
+              schema: { $ref: '#/components/schemas/SalonClientCard' }
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: >-
+            `client_linked` — the card belongs to an account, whose number it
+            keeps (nothing changed). `client_exists` + `clientId` — another
+            card of this salon has that number (nothing changed).
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [error]
+                properties:
+                  error:
+                    type: string
+                    enum: [client_linked, client_exists]
+                  clientId:
+                    type: string
+                    description: '`client_exists` only — the card holding the number.'
 
   /providers/{id}/clients/{clientId}/visits:
     parameters:
