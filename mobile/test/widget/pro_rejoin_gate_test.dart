@@ -342,6 +342,11 @@ void main() {
     );
 
     expect(find.text('Rejoindre'), findsOneWidget, reason: 'the gate is up');
+    // §13.3: a control's label may wrap between words, never inside one. The
+    // first Linux golden of this screen showed « Rejoind/re » — the card's
+    // two actions side by side leave « Rejoindre » too little width at 2×.
+    expectNoMidWordBreak(tester, 'Rejoindre', 'the gate at 360 × 2');
+    expectNoMidWordBreak(tester, 'Refuser', 'the gate at 360 × 2');
     expectNoUndeclaredTruncation(tester, context: 'the gate at 360 × 2');
     expectAppBarTitleWhole(tester, at: 'the gate at 360 × 2');
     await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
