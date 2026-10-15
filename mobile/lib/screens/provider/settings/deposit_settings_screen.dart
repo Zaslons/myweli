@@ -8,6 +8,7 @@ import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../core/utils/deposit.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../core/utils/phone_numbering.dart';
 import '../../../core/utils/validators.dart';
 import '../../../models/provider_user.dart';
 import '../../../providers/locality_provider.dart';
@@ -15,10 +16,10 @@ import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_deposit_settings_provider.dart';
 import '../../../widgets/common/app_button.dart';
 import '../../../widgets/common/app_snack_bar.dart';
-import '../../../widgets/common/app_text_field.dart';
 import '../../../widgets/common/empty_state.dart';
 import '../../../widgets/common/label_value_row.dart';
 import '../../../widgets/common/loading_indicator.dart';
+import '../../../widgets/common/phone_number_field.dart';
 
 class DepositSettingsScreen extends StatefulWidget {
   final String providerId;
@@ -33,7 +34,6 @@ class _DepositSettingsScreenState extends State<DepositSettingsScreen> {
   /// A representative service price used only to preview the split.
   static const double _sampleTotal = 20000;
 
-  final _numberController = TextEditingController();
   final _numberFocus = FocusNode();
 
   // A7/§14 — the field that decides where a salon's deposits land.
@@ -43,8 +43,33 @@ class _DepositSettingsScreenState extends State<DepositSettingsScreen> {
   // review caught the first version as a LOCKOUT with an *empty intersection*:
   // a 10-digit local rule and an E.164 server contract can never both pass, so
   // no salon could have saved a deposit policy at all.
-  late final _errors = FieldErrors({'number': Validators.phoneNumber});
-  bool _numberPrefilled = false;
+  //
+  // **Judged whenever it is not empty** (phone-national-length.md §2.3): the
+  // number is sent whatever the switch says — the PUT replaces the whole
+  // policy — and the server checks any non-null one. Required only while a
+  // deposit is collected.
+  late final _errors = FieldErrors({'number': _numberRule});
+
+  String? _numberRule(String value) =>
+      context.read<ProDepositSettingsProvider>().depositRequired
+      ? Validators.phoneNumber(value)
+      : Validators.optionalPhoneNumber(value);
+
+  /// The number as the field last emitted it (normalized — `''` once
+  /// cleared), or null while the salon has not touched it: the stored value
+  /// stands. Read from the provider rather than copied into a controller on
+  /// the first build, which ran BEFORE `load()` and so never saw the stored
+  /// value on a cold start (the A7-fix test file reported it).
+  String? _editedNumber;
+
+  String _number(ProDepositSettingsProvider provider) =>
+      _editedNumber ?? PhoneNumbering.normalize(provider.mobileMoneyNumber);
+
+  /// Deposits off hide the « Recevoir l'acompte » card — and with it the one
+  /// place a refused number can be shown and fixed. Set by a refused save;
+  /// it stays, so the field does not vanish under the salon's thumb the moment
+  /// the number turns valid.
+  bool _showNumberWhileOff = false;
 
   @override
   void initState() {
@@ -58,7 +83,6 @@ class _DepositSettingsScreenState extends State<DepositSettingsScreen> {
 
   @override
   void dispose() {
-    _numberController.dispose();
     _numberFocus.dispose();
     super.dispose();
   }
@@ -70,16 +94,19 @@ class _DepositSettingsScreenState extends State<DepositSettingsScreen> {
     // sheet, and went into the Wave deep link. The only transformation on the
     // whole path was `.trim()`.
     //
-    // Only checked when a deposit is actually being collected — a salon that
-    // turns deposits off does not need a number.
-    if (provider.depositRequired &&
-        !_errors.validate({'number': _numberController.text})) {
-      setState(() {});
+    // Required only when a deposit is actually being collected — a salon that
+    // turns deposits off does not need a number; but one it keeps is still
+    // judged (`_numberRule`).
+    final number = _number(provider);
+    if (!_errors.validate({'number': number})) {
+      setState(() {
+        if (!provider.depositRequired) _showNumberWhileOff = true;
+      });
       _numberFocus.requestFocus();
       return;
     }
     setState(() {});
-    provider.setMobileMoneyNumber(_numberController.text);
+    provider.setMobileMoneyNumber(number);
     final ok = await provider.save(widget.providerId);
     if (!mounted) return;
     AppSnackBar.outcome(
@@ -116,10 +143,6 @@ class _DepositSettingsScreenState extends State<DepositSettingsScreen> {
   }
 
   Widget _buildForm(ProDepositSettingsProvider provider) {
-    if (!_numberPrefilled) {
-      _numberController.text = provider.mobileMoneyNumber;
-      _numberPrefilled = true;
-    }
     final pct = (provider.depositPercentage * 100).round();
     final deposit = computeDeposit(
       total: _sampleTotal,
@@ -264,6 +287,8 @@ class _DepositSettingsScreenState extends State<DepositSettingsScreen> {
               ],
             ),
           ),
+        ],
+        if (provider.depositRequired || _showNumberWhileOff) ...[
           const SizedBox(height: AppTheme.spacingM),
           Container(
             padding: const EdgeInsets.all(AppTheme.spacingM),
@@ -339,15 +364,22 @@ class _DepositSettingsScreenState extends State<DepositSettingsScreen> {
                   },
                 ),
                 const SizedBox(height: AppTheme.spacingM),
-                AppTextField(
+                // A free-text field until phone-national-length.md: its hint
+                // (« Ex: 07 07 12 34 56 ») showed a form the rule refused, and
+                // it checked the separator-free value while sending the raw
+                // one. The shared field takes the country from its picker and
+                // emits what is checked.
+                PhoneNumberField(
                   label: 'Numéro Mobile Money',
-                  hint: 'Ex: 07 07 12 34 56',
-                  controller: _numberController,
+                  // The current value: the lazy list may cull this card, and
+                  // the field must come back as it was left.
+                  initialValue: _number(provider),
                   focusNode: _numberFocus,
-                  keyboardType: TextInputType.phone,
                   errorText: _errors['number'],
-                  onChanged: (v) =>
-                      setState(() => _errors.revalidate('number', v)),
+                  onChanged: (v) => setState(() {
+                    _editedNumber = v;
+                    _errors.revalidate('number', v);
+                  }),
                 ),
               ],
             ),

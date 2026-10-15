@@ -157,8 +157,13 @@ constant. The helpers don't change.
 
 ## 6. Cross-cutting seams (already in place — named so they stay honest)
 
-- **Phone:** E.164 validation is country-agnostic ✓; only the input's default
-  country flag is per-market UI seed.
+- **Phone:** E.164 validation is generic for every calling code **except** the
+  ones in the per-market national-length table — `+225` has exactly 10 digits
+  after the calling code ([phone-national-length.md](../design/phone-national-length.md)).
+  The table is market data and lives in the seams (§9), one row per market,
+  same key on every surface (the calling code without `+`); opening a market
+  adds its row, and the backend's guard (spec §8) fails while a seeded country
+  has none. The input's default country flag is per-market UI seed.
 - **Messaging:** SMS/WhatsApp routing already sits behind the
   `MessagingProvider` seam — per-country routes + sender IDs slot in there
   (aggregator coverage per market is a checklist item, §8).
@@ -212,15 +217,15 @@ reason timezone machinery was built before any expansion.
 ## 9. The guardrail — market data lives ONLY in its seams
 
 **Rule (enforced in review):** market-specific facts — localities/communes,
-Mobile Money operators, currency, timezone, phone prefixes — live **only** in
-their designated seams. Hardcoding one anywhere else fails review, even when
-it "works" for Côte d'Ivoire.
+Mobile Money operators, currency, timezone, phone prefixes and national number
+lengths — live **only** in their designated seams. Hardcoding one anywhere
+else fails review, even when it "works" for Côte d'Ivoire.
 
 | Surface | The seams |
 |---|---|
-| Mobile (MP2) | **the live tree: `providers/locality_provider.dart` + the `LocalityService` seam** (fed by `GET /localities`) · `core/constants/communes.dart` (**mock seed only**) · `core/utils/mobile_money.dart` · `core/utils/formatters.dart` · `core/utils/salon_time.dart` (`package:timezone`, per-salon `tz`) |
-| Web (MP3) | **the live tree: `lib/api/localities.ts` + `/api/localities` + `lib/use-localities.ts`** (fed by `GET /localities`) · `lib/landing.ts` / `lib/discovery.ts` / `lib/service-landing.ts` / `lib/taxonomy.ts` (taxonomy — geography enters as parameters) · `lib/mobile-money.ts` · `lib/format.ts` · `lib/time.ts` (per-salon `tz`) |
-| Backend (MP1) | `lib/src/localities/` (the seeded tree + `GET /localities`) · `lib/src/salon_time.dart` (`package:timezone`) · UTC storage ([BACKEND.md §2](../BACKEND.md)) |
+| Mobile (MP2) | **the live tree: `providers/locality_provider.dart` + the `LocalityService` seam** (fed by `GET /localities`) · `core/constants/communes.dart` (**mock seed only**) · `core/utils/mobile_money.dart` · `core/utils/formatters.dart` · `core/utils/salon_time.dart` (`package:timezone`, per-salon `tz`) · `core/utils/phone_numbering.dart` (`kNationalNumberLength` — the national-length table, pinned equal to the backend's by `phone_numbering_pin_test.dart`) |
+| Web (MP3) | **the live tree: `lib/api/localities.ts` + `/api/localities` + `lib/use-localities.ts`** (fed by `GET /localities`) · `lib/landing.ts` / `lib/discovery.ts` / `lib/service-landing.ts` / `lib/taxonomy.ts` (taxonomy — geography enters as parameters) · `lib/mobile-money.ts` · `lib/format.ts` · `lib/time.ts` (per-salon `tz`) · `lib/phone.ts` (the national length is **read from libphonenumber's metadata** — no literal) |
+| Backend (MP1) | `lib/src/localities/` (the seeded tree + `GET /localities`; `phone_numbering.dart` holds `nationalNumberLengths`, the server's national-length table) · `lib/src/salon_time.dart` (`package:timezone`) · UTC storage ([BACKEND.md §2](../BACKEND.md)) |
 
 Mirrored as one rule line in [DESIGN-STANDARDS §4](../design/DESIGN-STANDARDS.md),
 [WEB-DESIGN-STANDARDS §5](../design/WEB-DESIGN-STANDARDS.md),

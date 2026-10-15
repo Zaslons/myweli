@@ -519,7 +519,7 @@ widget; a third inline copy is a review failure.
 | `AppButton` | `text, onPressed, type: {primary,secondary,text}, isLoading, isFullWidth, icon, leading` | `onPressed: null` = disabled. `isLoading` swaps the label for a `BrandLoader` **without changing the button's size** (no layout jump). |
 | `AppTextField` | `label, hint, errorText, controller, focusNode, onChanged, keyboardType, obscureText, maxLines, maxLength, inputFormatters, enabled, prefixIcon, suffixIcon` | **`errorText` is the contract for validation** — see §14. A7 **removed `validator`**: it cannot express rule 2, and its result silently overwrites `errorText`. |
 | `InlineFeedback` | `message, kind` | The form / in-modal outcome slot (§14, §15). `null` renders nothing. |
-| `PhoneNumberField` | — | E.164 + Ivorian formatting. The only way to take a phone number. |
+| `PhoneNumberField` | `onChanged, label, initialValue, initialCountryCode, errorText, enabled, focusNode` | Country picker (default CI, any country) + national digits. **The only way to take a phone number** — true on every screen since phone-national-length.md converted the last three free-text ones (Acompte, Profil du salon ×2, Ajouter un salon). Emits the **normalized** value: `''` while no national digit is typed, else `+<indicatif><chiffres>` without a separator, and re-emits on a country switch — what a screen checks is what it sends. A prefilled `+…` shows under **its** country (longest calling code). `autovalidateMode` stays `disabled`: the rule is `Validators.phoneNumber` / `optionalPhoneNumber` through `FieldErrors` (§14 rule 2). |
 | `LoadingIndicator` | `size, color` | The brand loader. The **only** spinner. |
 | `EmptyState` | `icon, title, description, actionText, onAction` | Icon at `iconXL`. |
 | `TimedCachedImage` | network + `asset:` + caching | The **only** way to show a remote image. |
@@ -1079,16 +1079,20 @@ taken as one.
 it.)*
 
 Market-specific facts — communes/localities, Mobile Money operators, currency,
-timezone, phone prefixes — live **only** in their seams
-(`core/constants/communes.dart`, `core/utils/mobile_money.dart`,
-`core/utils/formatters.dart`, `core/utils/salon_time.dart`). Displayed times and
-day boundaries are **salon time**, never the device's
+timezone, phone prefixes and national number lengths — live **only** in their
+seams (`core/constants/communes.dart`, `core/utils/mobile_money.dart`,
+`core/utils/formatters.dart`, `core/utils/salon_time.dart`,
+`core/utils/phone_numbering.dart`). Displayed times and day boundaries are
+**salon time**, never the device's
 ([modules/multi-pays.md](../modules/multi-pays.md) §3/§9). Hardcoding a market
 fact in a widget fails review **even when it works for Côte d'Ivoire** — it is
-grep-pinned by `salon_time_pin_test.dart`.
+grep-pinned by `salon_time_pin_test.dart` (time, localities) and
+`phone_numbering_pin_test.dart` (phone lengths).
 
 **The seam list above is closed and enumerated: an unlisted seam is itself a §18
-violation.** A10 added the eighth, and the gap it filled is worth naming, because
+violation.** Two were added after the rule was written, each in its own slice:
+`core/utils/app_clock.dart` (A10, below) and `core/utils/phone_numbering.dart`
+(phone-national-length, after it). A10's gap is worth naming, because
 the rule read for two years as though it were already covered. §18 governs which
 **zone** a time renders in. It never owned which **instant** "now" is — and an
 unfreezable "now" on a render path is a screen that cannot be photographed
@@ -1109,6 +1113,20 @@ unfreezable "now" on a render path is a screen that cannot be photographed
   agree, and the symptom is a wrong *number* — « 12 jours » where the trial says
   14 — not a crash. Pinned; `test/support/frozen_clock.dart` is the entry point,
   and it re-seeds `MockData` so a freeze cannot be half-applied.
+
+**`core/utils/phone_numbering.dart` is the only home of a national number
+length** ([phone-national-length.md](phone-national-length.md)). « +225 → 10
+chiffres » is a market fact like a commune: `kNationalNumberLength`, keyed by
+the calling code without `+` — the same key and value as the server's
+`backend/lib/src/localities/phone_numbering.dart`, and
+`phone_numbering_pin_test.dart` reads that file and holds the two equal.
+`Validators.phoneNumber` reads the table (and builds its « Le numéro doit
+comporter 10 chiffres après +225. » from it); a calling code with no row gets
+the generic E.164 rule. The same test greps `lib/` for a digit count next to a
+phone outside this seam and `formatters.dart` (whose display grouping still
+knows the pre-2021 8-digit form, for numbers already stored) — the pin that
+`Validators.localPhoneNumber`, a « 10 chiffres » rule in `validators.dart`
+with no caller, would have failed.
 
 ---
 

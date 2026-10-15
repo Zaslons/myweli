@@ -284,9 +284,13 @@ Both lockouts came from one bad assumption: I read the hint « Ex : 07 07 12 34
 56 » and wrote a local-digits rule, without checking that
 `openapi.yaml:1334-5,1758` specifies **E.164** for all three fields and that the
 controllers are prefilled from exactly that stored value. The rule would have
-failed on data the app itself had just loaded. `localPhoneNumber` survives with
-one honest caller — manual booking's client phone, whose formatter is
-`digitsOnly` so a `+` cannot be typed.
+failed on data the app itself had just loaded. `localPhoneNumber` survived
+with one honest caller — manual booking's client phone, whose formatter was
+`digitsOnly` so a `+` could not be typed — until manual booking moved to
+`PhoneNumberField` and left it with **no caller**; it was deleted by
+[phone-national-length.md](phone-national-length.md), a « 10 chiffres » market
+fact outside the §18 seams. The Ivorian length now lives in
+`core/utils/phone_numbering.dart` and `Validators.phoneNumber` reads it there.
 
 Also fixed: `edit_profile` had silently made the consumer phone **mandatory**
 (it has always been optional there) · selection faults never cleared when the

@@ -343,6 +343,7 @@ class _AddClientSheetState extends State<_AddClientSheet> {
     'phone': Validators.phoneNumber,
   });
   final _nameFocus = FocusNode();
+  final _phoneFocus = FocusNode();
 
   /// Set when the phone belongs to a client that already exists. The sheet
   /// STAYS OPEN and offers the existing card, instead of popping and firing a
@@ -354,6 +355,7 @@ class _AddClientSheetState extends State<_AddClientSheet> {
     _nameController.dispose();
     _noteController.dispose();
     _nameFocus.dispose();
+    _phoneFocus.dispose();
     super.dispose();
   }
 
@@ -368,7 +370,7 @@ class _AddClientSheetState extends State<_AddClientSheet> {
     });
     setState(() => _duplicateId = null);
     if (!ok) {
-      focusFirstError(_errors, {'name': _nameFocus});
+      focusFirstError(_errors, {'name': _nameFocus, 'phone': _phoneFocus});
       return;
     }
 
@@ -432,6 +434,7 @@ class _AddClientSheetState extends State<_AddClientSheet> {
             ),
             const SizedBox(height: AppTheme.spacingM),
             PhoneNumberField(
+              focusNode: _phoneFocus,
               errorText: _errors['phone'],
               // It also never called setState, so the submit gate read a stale
               // phone: typing a number alone did not re-enable the button until
