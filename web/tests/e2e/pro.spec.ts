@@ -330,7 +330,11 @@ test('clients: add-client modal — duplicate phone opens the existing card', as
   await page.getByRole('button', { name: '+ Ajouter un client' }).click();
   const dialog = page.getByRole('dialog', { name: 'Ajouter un client' });
   await dialog.getByLabel('Nom').fill('Koffi Bis');
-  await dialog.getByLabel('Téléphone').fill('+2250700000001'); // Koffi's number
+  // Exact: the shared PhoneField's country picker is labelled « Numéro de
+  // téléphone pays », which a substring match on « Téléphone » also finds.
+  await dialog
+    .getByLabel('Téléphone', { exact: true })
+    .fill('+2250700000001'); // Koffi's number
   await dialog.getByRole('button', { name: 'Ajouter' }).click();
   // Dedupe: straight to the existing card.
   await expect(page).toHaveURL(/\/pro\/clients\/sc1/);
