@@ -615,17 +615,24 @@ class ProviderCatalogService {
     if (name is! String || name.trim().isEmpty) {
       return (ok: false, error: 'invalid_input', data: null);
     }
+    // Every field is read BEFORE the photo is promoted (BACKEND.md §2), as
+    // [updateArtist] does: the promotion copies the upload out of `pending/`
+    // and deletes the source, so a refusal after it would leave the promoted
+    // object orphaned and the upload gone. A non-string `specialization`
+    // throws `BodyFieldTypeError` → 400 `invalid_body` here, before it.
+    final specialization = optionalString(body, 'specialization')?.trim();
+    final workingHours = body['workingHours'] ?? const <String, dynamic>{};
     final img = await _artistImage(body['imageUrl']);
     if (!img.ok) return (ok: false, error: img.error, data: null);
     final artist = {
       'id': _newId('artist'),
       'name': name.trim(),
-      'specialization': optionalString(body, 'specialization')?.trim(),
+      'specialization': specialization,
       'imageUrl': img.url,
       'providerId': providerId,
       'rating': null, // server-owned; recomputed from reviews
       'reviewCount': null,
-      'workingHours': body['workingHours'] ?? const <String, dynamic>{},
+      'workingHours': workingHours,
     };
     final created = await _providers.addArtist(providerId, artist);
     if (created == null) return _notFound;

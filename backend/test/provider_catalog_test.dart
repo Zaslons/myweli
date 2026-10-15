@@ -9,6 +9,8 @@ import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
 import 'package:myweli_backend/src/auth/tokens.dart';
 import 'package:myweli_backend/src/provider_catalog_service.dart';
 import 'package:myweli_backend/src/providers_repository.dart';
+import 'package:myweli_backend/src/storage/storage_service.dart';
+import 'package:myweli_backend/src/upload_verification_service.dart';
 import 'package:test/test.dart';
 
 import '../routes/providers/[id]/artists/[artistId].dart' as artist_detail;
@@ -644,6 +646,65 @@ void main() {
         (a) => (a as Map)['id'] == aid,
       );
       expect((storedArtist as Map)['specialization'], 'Tresses');
+    });
+
+    test('POST …/artists: a wrong-typed field is refused BEFORE the photo is '
+        'promoted — no HEAD, no copy, no delete (BACKEND.md §2: read every '
+        'field before acting on any)', () async {
+      // The promotion copies the upload out of `pending/` and deletes the
+      // source. Refused after it, the promoted object is a permanent billing
+      // orphan (outside the lifecycle rule) and the upload is gone: the
+      // corrected retry names a pending key that no longer exists.
+      const base = 'https://cdn.myweli.com';
+      final store = _PublicStorage(base);
+      final verifier = _CountingVerifier(storage: store);
+      catalog = ProviderCatalogService(
+        providers,
+        providerAuth,
+        MembershipService(InMemoryMembershipRepository(), providerAuth),
+        allowedImageOrigins: const [base],
+        verifier: verifier,
+        publicBaseUrl: base,
+      );
+      final before =
+          ((await catalog.listArtists(accountId, 'provider1')).data! as List)
+              .length;
+
+      Future<Response> post(Object specialization) => observed(
+        (c) => artists_route.onRequest(c, 'provider1'),
+        ctx(
+          req(
+            'POST',
+            '/providers/provider1/artists',
+            bearer: token,
+            body: {
+              'name': 'Awa',
+              'imageUrl': '$base/pending/staff/p1/awa.jpg',
+              'specialization': specialization,
+            },
+          ),
+        ),
+      );
+
+      final refused = await post(7);
+      expect(refused.statusCode, HttpStatus.badRequest);
+      expect((await jsonOf(refused))['error'], 'invalid_body');
+      expect(verifier.promotions, 0, reason: 'the promotion never started');
+      expect(store.headed, isEmpty);
+      expect(store.copied, isEmpty);
+      expect(store.deleted, isEmpty, reason: 'the upload is still there');
+      expect(
+        (await catalog.listArtists(accountId, 'provider1')).data! as List,
+        hasLength(before),
+      );
+
+      // The control: the same upload, a text specialization — promoted, so
+      // the zeros above are the refusal's, not a setup that never promotes.
+      final created = await post('Tresses');
+      expect(created.statusCode, HttpStatus.created);
+      expect((await jsonOf(created))['imageUrl'], '$base/staff/p1/awa.jpg');
+      expect(verifier.promotions, 1);
+      expect(store.copied, ['pending/staff/p1/awa.jpg -> staff/p1/awa.jpg']);
     });
 
     test('cross-salon POST → 403', () async {
@@ -1341,4 +1402,49 @@ void main() {
       expect(bad.statusCode, HttpStatus.methodNotAllowed);
     });
   });
+}
+
+/// A fake with a real delivery origin — [FakeStorageService] reports none on
+/// purpose (dev), which is the switch every promotion path uses to no-op —
+/// that also records each HEAD, the promotion's first step.
+class _PublicStorage extends FakeStorageService {
+  _PublicStorage(this._base) : super(defaultSize: 10);
+
+  final String _base;
+  final List<String> headed = [];
+
+  @override
+  String? get publicBaseUrl => _base;
+
+  @override
+  Future<int?> objectSize({
+    required String key,
+    required StorageBucket bucket,
+  }) {
+    headed.add(key);
+    return super.objectSize(key: key, bucket: bucket);
+  }
+}
+
+/// Counts the promotions the service starts.
+class _CountingVerifier extends UploadVerificationService {
+  _CountingVerifier({required super.storage});
+
+  int promotions = 0;
+
+  @override
+  Future<({bool ok, String? error, List<String> urls})> promoteNewUrls(
+    List<String> urls, {
+    required String publicBaseUrl,
+    required Set<String> alreadyStored,
+    required StorageBucket bucket,
+  }) {
+    promotions++;
+    return super.promoteNewUrls(
+      urls,
+      publicBaseUrl: publicBaseUrl,
+      alreadyStored: alreadyStored,
+      bucket: bucket,
+    );
+  }
 }
