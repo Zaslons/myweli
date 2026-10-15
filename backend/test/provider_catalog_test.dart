@@ -410,6 +410,11 @@ void main() {
       );
       // Required deposit without a Mobile Money handle → invalid_input.
       expect(await err(validBody(op: null, number: null)), 'invalid_input');
+      // The number alone ABSENT is not a phone fault: it stays invalid_input
+      // (BACKEND.md §3.4, the contract's PUT …/deposit-policy). A number SENT
+      // and wrong — empty included — is invalid_phone.
+      expect(await err(validBody(number: null)), 'invalid_input');
+      expect(await err(validBody(number: '')), 'invalid_phone');
       // Not required → handle optional; 0% allowed.
       expect(
         (await catalog.updateDepositPolicy(accountId, 'provider1', {
