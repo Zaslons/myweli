@@ -1,10 +1,18 @@
 import 'package:dart_frog/dart_frog.dart';
 
+import 'observability/request_middleware.dart' show kRequestIdHeader;
+
 /// CORS for the browser web app(s). Allowlisted by exact `Origin` (never `*`
 /// alongside credentials). Preflight `OPTIONS` short-circuits to 204; a
 /// disallowed origin gets **no** CORS headers (the browser then blocks the read).
 /// CORS is a browser convenience, not authz — endpoints keep their own checks.
 /// Design: docs/design/web-m1-backend-glue.md.
+///
+/// **It is the OUTERMOST middleware** (routes/_middleware.dart), so every
+/// response — an error answered by observability or query sanity included —
+/// reaches an allowed browser origin with these headers. Answered outside it,
+/// an error is an opaque network failure in the browser
+/// (docs/design/backend-cors-error-responses.md).
 ///
 /// **Takes a callback, not a list**, for the same reason `observabilityMiddleware`
 /// does: dart_frog builds the whole middleware chain in `buildRootHandler()`,
@@ -45,5 +53,9 @@ Map<String, String> _headers(String origin) => {
   'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
   'Access-Control-Allow-Headers': 'Authorization, Content-Type',
   'Access-Control-Allow-Credentials': 'true',
+  // The request id every response carries (observabilityMiddleware) — the id
+  // a user quotes from an error screen. Without this a browser client cannot
+  // read it: CORS hides every non-safelisted response header.
+  'Access-Control-Expose-Headers': kRequestIdHeader,
   'Vary': 'Origin',
 };
