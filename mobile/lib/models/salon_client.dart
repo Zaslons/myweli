@@ -1,5 +1,7 @@
 import 'package:equatable/equatable.dart';
 
+import '../core/utils/phone_numbering.dart';
+
 /// A salon's client (module `clients` C1 — docs/design/clients-c1.md).
 /// DERIVED from bookings: platform users (`linked`) + walk-in guests keyed by
 /// phone. Mirrors the `SalonClient` / `SalonClientListItem` DTOs.
@@ -39,10 +41,10 @@ class SalonClient extends Equatable {
     noShows: (json['noShows'] as num?)?.toInt() ?? 0,
   );
 
-  SalonClient copyWith({List<String>? tags}) => SalonClient(
+  SalonClient copyWith({List<String>? tags, String? phone}) => SalonClient(
     id: id,
     displayName: displayName,
-    phone: phone,
+    phone: phone ?? this.phone,
     tags: tags ?? this.tags,
     lastVisitAt: lastVisitAt,
     linked: linked,
@@ -160,6 +162,26 @@ class SalonClientCard extends Equatable {
   List<Object?> get props => [client, stats, notes, upcoming];
 }
 
+/// The answer to a number change on a guest card (`PATCH …/clients/{id}`
+/// with `phone` — docs/design/phone-leftovers.md §8): the card as it now is,
+/// or — refused because the number is already on another card of the salon
+/// (`client_exists`) — that card's id, the shape `POST …/clients` answers a
+/// duplicate with.
+class SalonClientPhoneChange extends Equatable {
+  /// Changed (or it already was this number): the card, history re-read.
+  const SalonClientPhoneChange.changed(SalonClientCard this.card)
+    : takenBy = null;
+
+  /// Refused: [takenBy] is the card that already has the number.
+  const SalonClientPhoneChange.taken(String this.takenBy) : card = null;
+
+  final SalonClientCard? card;
+  final String? takenBy;
+
+  @override
+  List<Object?> get props => [card, takenBy];
+}
+
 /// One page of the client list.
 class SalonClientsPage extends Equatable {
   const SalonClientsPage({
@@ -195,11 +217,24 @@ class SalonClientsPage extends Equatable {
 const salonClientPresetTags = ['VIP', 'Fidèle', 'À risque'];
 
 /// « +225 07 •• •• •89 » — the full number stays on the card only.
+///
+/// The calling code is the longest one the number starts with
+/// (`PhoneNumbering.callingCodeOf`, the reading `PhoneNumberField` gives a
+/// stored number). It used to be the first three digits whatever the country,
+/// so a French client's row read « +336 12 … » (phone-leftovers.md §8).
 String maskClientPhone(String? phone) {
   if (phone == null || phone.isEmpty) return '';
   final digits = phone.replaceAll(RegExp(r'[^0-9]'), '');
   if (digits.length < 6) return phone;
-  final cc = phone.startsWith('+') ? '+${digits.substring(0, 3)} ' : '';
-  final head = cc.isEmpty ? digits.substring(0, 2) : digits.substring(3, 5);
-  return '$cc$head •• •• •${digits.substring(digits.length - 2)}';
+  final international = phone.startsWith('+');
+  final code = international ? PhoneNumbering.callingCodeOf(digits) : '';
+  final national = digits.substring(code.length);
+  if (national.length < 4) return phone;
+  final cc = !international
+      ? ''
+      : code.isEmpty
+      ? '+'
+      : '+$code ';
+  return '$cc${national.substring(0, 2)} •• •• '
+      '•${national.substring(national.length - 2)}';
 }

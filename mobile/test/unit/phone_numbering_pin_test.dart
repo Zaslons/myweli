@@ -51,6 +51,25 @@ void main() {
       },
     );
 
+    // phone-leftovers.md §8: one reading of a stored number's calling code —
+    // `PhoneNumberField`'s prefill, `Helpers.maskPhoneNumber` and
+    // `maskClientPhone` all take it from here.
+    test('callingCodeOf reads the LONGEST calling code the digits start '
+        'with', () {
+      expect(PhoneNumbering.callingCodeOf('2250707123456'), '225');
+      expect(
+        PhoneNumbering.callingCodeOf('33612345678'),
+        '33',
+        reason: 'France, not « 336 »',
+      );
+      expect(PhoneNumbering.callingCodeOf('14155550123'), '1');
+      expect(
+        PhoneNumbering.callingCodeOf('0707123456'),
+        '',
+        reason: 'no calling code starts with 0',
+      );
+    });
+
     test('nationalLengthFor finds the row by calling code, or says none', () {
       expect(PhoneNumbering.nationalLengthFor('+2250700000'), (
         callingCode: '225',

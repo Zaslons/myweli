@@ -49,7 +49,8 @@ void freezeClock(DateTime instant) {
 /// helper cannot replace them:
 ///
 ///   * `MockProClientsService._clients` / `._notes` — `lastVisitAt` and note
-///     `createdAt` at offsets from now;
+///     `createdAt` at offsets from now (its `_walkIns` are seeded at a salon's
+///     FIRST read instead, so a freeze before that read does cover them);
 ///   * `MockNotificationService._items` — `createdAt` at offsets from now.
 ///
 /// A test that photographs either surface must freeze **before** the service is

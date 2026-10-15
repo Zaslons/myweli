@@ -8,6 +8,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../core/utils/phone_numbering.dart';
 import '../../../core/utils/salon_time.dart';
 import '../../../core/utils/status_labels.dart';
 import '../../../core/utils/text_fit.dart';
@@ -17,9 +18,12 @@ import '../../../models/salon_client.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_clients_provider.dart';
 import '../../../widgets/common/app_button.dart';
+import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/app_text_field.dart';
 import '../../../widgets/common/empty_state.dart';
+import '../../../widgets/common/inline_feedback.dart';
 import '../../../widgets/common/loading_indicator.dart';
+import '../../../widgets/common/phone_number_field.dart';
 
 /// The client card (module `clients` C1c, docs/design/clients-c1.md §5):
 /// identity + call/WhatsApp actions, tags, salon-scoped stats, upcoming
@@ -44,6 +48,21 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<ProClientsProvider>().loadCard(_providerId, widget.clientId);
+    });
+  }
+
+  /// Another client on the same route. go_router keys a page by its route
+  /// pattern, so a card that was not pushed (opened by `go` or a deep link)
+  /// keeps this State when « Ouvrir la fiche » replaces it with another
+  /// client's — and `initState` does not run again. Seen in the test of that
+  /// action: the replaced card went on showing the first client.
+  @override
+  void didUpdateWidget(ClientDetailScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.clientId == widget.clientId) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       context.read<ProClientsProvider>().loadCard(_providerId, widget.clientId);
     });
   }
@@ -80,7 +99,15 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
     return ListView(
       padding: const EdgeInsets.all(AppTheme.spacingM),
       children: [
-        _Header(client: client, onEditTags: () => _openTagSheet(client)),
+        _Header(
+          client: client,
+          onEditTags: () => _openTagSheet(client),
+          // A guest card's number can change; a card linked to an account
+          // keeps the account's (phone-leftovers.md §8).
+          onEditPhone: client.linked || client.phone == null
+              ? null
+              : () => _openPhoneSheet(client),
+        ),
         const SizedBox(height: AppTheme.spacingM),
         _StatsStrip(stats: card.stats, lastVisitAt: client.lastVisitAt),
         if (card.upcoming != null) ...[
@@ -123,13 +150,82 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
       ),
     );
   }
+
+  /// « Modifier » under a guest card's number (phone-leftovers.md §8). The
+  /// sheet keeps every fault about the number under its field; what it closes
+  /// on is said here, on the card.
+  Future<void> _openPhoneSheet(SalonClient client) async {
+    final clients = context.read<ProClientsProvider>();
+    final messenger = ScaffoldMessenger.of(context);
+    final exit = await showModalBottomSheet<_PhoneSheetExit>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => _PhoneSheet(
+        initial: client.phone ?? '',
+        onSave: (phone) =>
+            clients.updatePhone(_providerId, widget.clientId, phone),
+      ),
+    );
+    if (!mounted) return;
+    switch (exit) {
+      case _PhoneUpdated():
+        AppSnackBar.showOn(
+          messenger,
+          'Numéro mis à jour',
+          kind: SnackKind.success,
+        );
+      case _PhoneLinked():
+        // Linked to an account since the card was opened: it has been read
+        // again and now shows « Numéro du compte client », with no « Modifier ».
+        AppSnackBar.showOn(
+          messenger,
+          'Cette fiche est liée à un compte client : son numéro est celui '
+          'du compte.',
+        );
+      case _OpenCard(:final clientId):
+        // In place of this card, not on top of it: the provider holds one open
+        // card, and the one below would come back showing the other's.
+        context.pushReplacement('/pro/clients/$clientId');
+      case null:
+        break;
+    }
+  }
+}
+
+/// How the number sheet closed — besides a plain dismissal (`null`).
+sealed class _PhoneSheetExit {
+  const _PhoneSheetExit();
+}
+
+/// The number changed; the card was read again.
+class _PhoneUpdated extends _PhoneSheetExit {
+  const _PhoneUpdated();
+}
+
+/// `client_linked`: the card is linked to an account now — read-only.
+class _PhoneLinked extends _PhoneSheetExit {
+  const _PhoneLinked();
+}
+
+/// « Ouvrir la fiche »: the card that already has the number.
+class _OpenCard extends _PhoneSheetExit {
+  const _OpenCard(this.clientId);
+
+  final String clientId;
 }
 
 class _Header extends StatelessWidget {
-  const _Header({required this.client, required this.onEditTags});
+  const _Header({
+    required this.client,
+    required this.onEditTags,
+    this.onEditPhone,
+  });
 
   final SalonClient client;
   final VoidCallback onEditTags;
+
+  /// « Modifier » under the number — a guest card's only (null when linked).
+  final VoidCallback? onEditPhone;
 
   static const TextStyle _phoneStyle = AppTextStyles.bodyMedium;
   static const double _avatarRadius = 24;
@@ -174,11 +270,29 @@ class _Header extends StatelessWidget {
                   // In full — the card is where the number lives
                   // (`maskClientPhone`) — but grouped like every other number
                   // in the app: « +225 07 00 00 01 01 ».
-                  : Text(
-                      phone,
-                      style: _phoneStyle.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          phone,
+                          style: _phoneStyle.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                        // Under the number, what can be done with it
+                        // (phone-leftovers.md §8): a guest card's can be
+                        // changed; a linked card's is the account's.
+                        if (client.linked)
+                          Text(
+                            'Numéro du compte client',
+                            style: AppTextStyles.bodySmall.copyWith(
+                              color: AppColors.textTertiary,
+                            ),
+                          )
+                        else if (onEditPhone != null)
+                          _EditNumberButton(onPressed: onEditPhone!),
+                      ],
                     );
               final actions = [
                 if (client.phone != null) ...[
@@ -295,6 +409,184 @@ class _Header extends StatelessWidget {
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// « Modifier » under a guest card's number (phone-leftovers.md §8): a text
+/// action aligned with the number it edits, at the 48dp floor (§13.2). Its
+/// label names what it edits — the tags' chip on the same card reads
+/// « Modifier » too.
+class _EditNumberButton extends StatelessWidget {
+  const _EditNumberButton({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextButton(
+      onPressed: onPressed,
+      style: TextButton.styleFrom(
+        padding: EdgeInsets.zero,
+        minimumSize: const Size(
+          kMinInteractiveDimension,
+          kMinInteractiveDimension,
+        ),
+        alignment: Alignment.centerLeft,
+      ),
+      child: const Text('Modifier', semanticsLabel: 'Modifier le numéro'),
+    );
+  }
+}
+
+/// The number sheet (phone-leftovers.md §8): `PhoneNumberField` prefilled with
+/// the card's number, « Enregistrer ». Every fault about the number sits under
+/// the field (§14 rule 1) — the rule's on submit, the server's
+/// `invalid_phone`, and a number already on another card, which also offers
+/// that card. It closes on a change (or none to make) and on `client_linked`.
+class _PhoneSheet extends StatefulWidget {
+  const _PhoneSheet({required this.initial, required this.onSave});
+
+  /// The card's number (E.164).
+  final String initial;
+  final Future<ClientPhoneRefusal?> Function(String phone) onSave;
+
+  @override
+  State<_PhoneSheet> createState() => _PhoneSheetState();
+}
+
+class _PhoneSheetState extends State<_PhoneSheet> {
+  /// What the field holds, normalized — it emits on edits only, so it starts
+  /// as the card's number.
+  late String _phone = PhoneNumbering.normalize(widget.initial);
+  late final _errors = FieldErrors({'phone': Validators.phoneNumber});
+  final _focus = FocusNode();
+  bool _busy = false;
+
+  /// A refusal the field has no words for (offline, forbidden…) — in the
+  /// sheet, where a snackbar would sit under the scrim (§15).
+  String? _failure;
+
+  /// `client_exists`: the card that already has the number, offered as
+  /// « Ouvrir la fiche ». Goes as soon as the number is edited.
+  String? _takenBy;
+
+  @override
+  void dispose() {
+    _focus.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    setState(() {
+      _failure = null;
+      _takenBy = null;
+    });
+    // §14 rule 5: the button is live whatever the field holds, so the press
+    // answers — under the field.
+    if (!_errors.validate({'phone': _phone})) {
+      setState(() {});
+      focusFirstError(_errors, {'phone': _focus});
+      return;
+    }
+    if (_phone == PhoneNumbering.normalize(widget.initial)) {
+      Navigator.of(context).pop(); // nothing to change
+      return;
+    }
+    setState(() => _busy = true);
+    final refusal = await widget.onSave(_phone);
+    if (!mounted) return;
+    setState(() => _busy = false);
+    if (refusal == null) {
+      Navigator.of(context).pop(const _PhoneUpdated());
+      return;
+    }
+    switch (refusal.code) {
+      case 'invalid_phone':
+        // The server is the authority on the number (BACKEND.md §3.4).
+        setState(
+          () =>
+              _errors.set('phone', 'Saisissez un numéro de téléphone valide.'),
+        );
+        focusFirstError(_errors, {'phone': _focus});
+      case 'client_exists':
+        final name = refusal.takenByName;
+        setState(() {
+          _takenBy = refusal.takenById;
+          _errors.set(
+            'phone',
+            name == null
+                ? 'Ce numéro est déjà sur la fiche d’un autre client.'
+                : 'Ce numéro est déjà sur la fiche de $name.',
+          );
+        });
+      case 'client_linked':
+        Navigator.of(context).pop(const _PhoneLinked());
+      default:
+        setState(() => _failure = refusal.message);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final takenBy = _takenBy;
+    return Padding(
+      padding: EdgeInsets.only(
+        left: AppTheme.spacingL,
+        right: AppTheme.spacingL,
+        top: AppTheme.spacingL,
+        bottom: MediaQuery.of(context).viewInsets.bottom + AppTheme.spacingL,
+      ),
+      // §13.3 — a fault under the field plus « Ouvrir la fiche » at 200 % text
+      // is taller than a phone: the sheet scrolls.
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Modifier le numéro',
+              style: AppTextStyles.titleLarge.copyWith(
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: AppTheme.spacingXS),
+            Text(
+              'Les visites de ce client suivent le nouveau numéro.',
+              style: AppTextStyles.bodySmall.copyWith(
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: AppTheme.spacingM),
+            PhoneNumberField(
+              initialValue: widget.initial,
+              focusNode: _focus,
+              errorText: _errors['phone'],
+              onChanged: (e164) => setState(() {
+                _phone = e164;
+                _takenBy = null;
+                _failure = null;
+                _errors.revalidate('phone', e164);
+              }),
+            ),
+            InlineFeedback(_failure),
+            if (takenBy != null) ...[
+              const SizedBox(height: AppTheme.spacingS),
+              AppButton(
+                text: 'Ouvrir la fiche',
+                type: AppButtonType.secondary,
+                onPressed: () => Navigator.of(context).pop(_OpenCard(takenBy)),
+              ),
+            ],
+            const SizedBox(height: AppTheme.spacingM),
+            AppButton(
+              text: 'Enregistrer',
+              isLoading: _busy,
+              onPressed: _busy ? null : _save,
+            ),
+          ],
+        ),
       ),
     );
   }

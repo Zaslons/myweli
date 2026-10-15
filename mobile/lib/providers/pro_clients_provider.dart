@@ -241,6 +241,91 @@ class ProClientsProvider extends ChangeNotifier implements ShowsSalonBookings {
     return false;
   }
 
+  /// Changes a GUEST card's number (docs/design/phone-leftovers.md §8); one
+  /// linked to an account keeps the account's. The server moves the salon's
+  /// walk-ins under the old number with it, so on success the card comes from
+  /// its answer and the visits are read again before this returns — the sheet
+  /// closes on a card that is already right — and the list row, if loaded,
+  /// stops showing the old number.
+  ///
+  /// Returns null when it is done; otherwise why not ([ClientPhoneRefusal]):
+  /// `invalid_phone` (the field's fault), `client_exists` (the other card's id
+  /// and, read from that card, its name — null when it could not be read),
+  /// `client_linked` (linked since it was opened: the card is read again, so
+  /// it shows read-only), or any other refusal with its message.
+  Future<ClientPhoneRefusal?> updatePhone(
+    String providerId,
+    String clientId,
+    String phone,
+  ) async {
+    try {
+      final r = await _service.updatePhone(providerId, clientId, phone);
+      final card = r.data?.card;
+      if (r.success && card != null) {
+        // The number HAS changed: a history that cannot be read now leaves
+        // the visits as they were (the same bookings, moved) — never a
+        // failure on a change that was made.
+        List<Appointment>? visits;
+        try {
+          final v = await _service.getVisits(providerId, clientId);
+          if (v.success) visits = v.data;
+        } catch (_) {
+          visits = null;
+        }
+        if (_cardProviderId == providerId && _cardClientId == clientId) {
+          _cardRequest++; // an older quiet reload must not land over this
+          _card = card;
+          if (visits != null) _visits = visits;
+        }
+        final i = _clients.indexWhere((c) => c.id == clientId);
+        if (i >= 0) {
+          _clients[i] = _clients[i].copyWith(phone: card.client.phone);
+        }
+        notifyListeners();
+        return null;
+      }
+      switch (r.code) {
+        case 'client_exists':
+          final takenBy = r.data?.takenBy;
+          return ClientPhoneRefusal(
+            code: r.code,
+            message: r.error ?? 'Ce numéro est déjà sur une autre fiche.',
+            takenById: takenBy,
+            takenByName: takenBy == null
+                ? null
+                : await _nameOf(providerId, takenBy),
+          );
+        case 'client_linked':
+          await _reloadCardQuietly();
+        default:
+          ProAccessGuard.report(r.code);
+      }
+      return ClientPhoneRefusal(
+        code: r.code,
+        message: r.error ?? 'Une erreur est survenue.',
+      );
+    } catch (_) {
+      return const ClientPhoneRefusal(
+        code: null,
+        message: 'Une erreur est survenue.',
+      );
+    }
+  }
+
+  /// The name on another card of the salon — for « Ce numéro est déjà sur la
+  /// fiche de {nom}. ». The 409 carries the card's id only; its `GET` (a read
+  /// of that card, audited like any other) has the name. Null when it cannot
+  /// be read: the sheet then says « d’un autre client ».
+  Future<String?> _nameOf(String providerId, String clientId) async {
+    try {
+      final r = await _service.getCard(providerId, clientId);
+      final name = r.data?.client.displayName.trim();
+      return r.success && name != null && name.isNotEmpty ? name : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<bool> addNote(String providerId, String clientId, String body) async {
     final r = await _service.addNote(providerId, clientId, body);
     if (r.success && r.data != null && _card != null) {
@@ -282,4 +367,27 @@ class ProClientsProvider extends ChangeNotifier implements ShowsSalonBookings {
     _error = null;
     notifyListeners();
   }
+}
+
+/// Why [ProClientsProvider.updatePhone] did not change the number.
+class ClientPhoneRefusal {
+  const ClientPhoneRefusal({
+    required this.code,
+    required this.message,
+    this.takenById,
+    this.takenByName,
+  });
+
+  /// The server's code (`invalid_phone`, `client_exists`, `client_linked`,
+  /// …), null for a failure that has none (offline).
+  final String? code;
+
+  /// The service's message, for a refusal the sheet has no words of its own
+  /// for.
+  final String message;
+
+  /// `client_exists`: the card that already has the number, and its name
+  /// when that card could be read.
+  final String? takenById;
+  final String? takenByName;
 }

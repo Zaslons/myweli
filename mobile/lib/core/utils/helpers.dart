@@ -3,7 +3,6 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
-import 'package:intl_phone_field/countries.dart';
 import 'package:myweli/widgets/common/loading_indicator.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -221,15 +220,17 @@ class Helpers {
   /// digits, a rule written here, outside the §18 seam — so every number of
   /// today, Ivorian or not, went through whole and printed in clear. The
   /// calling code is the longest one the number starts with, the reading
-  /// `PhoneNumberField` gives a stored number (`+33…` is France, not `+336`).
-  /// A value with nothing to hide between its four shown digits comes back as
+  /// `PhoneNumberField` gives a stored number (`+33…` is France, not `+336`) —
+  /// `PhoneNumbering.callingCodeOf`. A value with nothing to hide between its four shown digits comes back as
   /// it was.
   static String maskPhoneNumber(String phone) {
     final cleaned = PhoneNumbering.normalize(phone);
     final international = cleaned.startsWith('+');
     final digits = international ? cleaned.substring(1) : cleaned;
     if (!RegExp(r'^\d+$').hasMatch(digits)) return phone;
-    final callingCode = international ? _callingCodeOf(digits) : '';
+    final callingCode = international
+        ? PhoneNumbering.callingCodeOf(digits)
+        : '';
     final national = digits.substring(callingCode.length);
     if (national.length <= 4) return phone;
     final masked =
@@ -238,18 +239,5 @@ class Helpers {
         '${national.substring(national.length - 2)}';
     if (!international) return masked;
     return callingCode.isEmpty ? '+$masked' : '+$callingCode $masked';
-  }
-
-  /// The longest calling code in the picker's country list that [digits] (an
-  /// E.164 number without its `+`) starts with, or `''`.
-  static String _callingCodeOf(String digits) {
-    var longest = '';
-    for (final country in countries) {
-      final code = country.fullCountryCode;
-      if (digits.startsWith(code) && code.length > longest.length) {
-        longest = code;
-      }
-    }
-    return longest;
   }
 }
