@@ -139,6 +139,29 @@ describe('ProfilClient — Téléphone and WhatsApp', () => {
   });
 });
 
+describe('the +225 prefix is on screen — a local number is the right one', () => {
+  // The review's case: a pro types « 07 07 12 34 56 » the usual way. In a
+  // bare text input that was refused as « valide » with no hint; the shared
+  // PhoneField shows +225, so the local digits complete a correct number
+  // (parity with the app — docs/design/phone-national-length.md §12).
+  it('an empty WhatsApp opens on +225, and the local digits typed after it are sent as +225…', async () => {
+    mockFetch();
+    render(<ProfilClient />);
+    const whatsapp = (await screen.findByLabelText(
+      'WhatsApp (optionnel)',
+    )) as HTMLInputElement;
+    expect(whatsapp.value.replace(/\s/g, '')).toBe('+225');
+
+    fireEvent.change(whatsapp, {
+      target: { value: `${whatsapp.value} 07 07 12 34 56` },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }));
+
+    await waitFor(() => expect(sent).toHaveLength(1));
+    expect(sent[0].body.profile).toMatchObject({ whatsapp: '+2250707123456' });
+  });
+});
+
 describe('AcompteClient — Numéro Mobile Money', () => {
   it('7 digits after +225 are refused under the field — nothing is saved', async () => {
     mockFetch();

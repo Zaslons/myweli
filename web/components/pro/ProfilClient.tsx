@@ -26,6 +26,7 @@ import { Button } from '../Button';
 import { Loading } from '../Loading';
 import { CompteDangerSection } from './CompteDangerSection';
 import { LocalityPicker } from './LocalityPicker';
+import { PhoneField } from '../PhoneField';
 import { TeamRoleChip } from './TeamRoleChip';
 
 // MapLibre is browser-only; the pin picker loads with the page (authed, not
@@ -44,9 +45,6 @@ const LocationPicker = dynamic(
 
 const input =
   'block w-full min-h-12 rounded-lg border border-borderStrong bg-surface p-m text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus disabled:border-border disabled:text-textDisabled';
-// The errored state — TextField's (§14): `error` border, `error` focus ring.
-const inputInvalid =
-  'block w-full min-h-12 rounded-lg border border-error bg-surface p-m text-bodyLarge text-textPrimary focus:border-error focus:ring-1 focus:ring-error';
 
 export function ProfilClient() {
   const router = useRouter();
@@ -267,46 +265,29 @@ export function ProfilClient() {
           fallbackValue={form.commune}
           onFallbackChange={(v) => set('commune', v)}
         />
-        {/* The faults sit OUTSIDE the wrapping <label>, like the address
-            hint above: inside it, their text would join the field's name. */}
-        <div>
-          <Field label="Téléphone">
-            <input
-              className={phones.errors.phoneNumber ? inputInvalid : input}
-              type="tel"
-              inputMode="tel"
-              value={form.phoneNumber}
-              onChange={(e) => {
-                set('phoneNumber', e.target.value);
-                phones.revalidate('phoneNumber', e.target.value);
-              }}
-              aria-invalid={phones.errors.phoneNumber ? true : undefined}
-              aria-describedby={
-                phones.errors.phoneNumber ? 'telephone-error' : undefined
-              }
-            />
-          </Field>
-          <FieldError id="telephone-error" error={phones.errors.phoneNumber} />
-        </div>
-        <div>
-          <Field label="WhatsApp (optionnel)">
-            <input
-              className={phones.errors.whatsapp ? inputInvalid : input}
-              type="tel"
-              inputMode="tel"
-              value={form.whatsapp}
-              onChange={(e) => {
-                set('whatsapp', e.target.value);
-                phones.revalidate('whatsapp', e.target.value);
-              }}
-              aria-invalid={phones.errors.whatsapp ? true : undefined}
-              aria-describedby={
-                phones.errors.whatsapp ? 'whatsapp-error' : undefined
-              }
-            />
-          </Field>
-          <FieldError id="whatsapp-error" error={phones.errors.whatsapp} />
-        </div>
+        {/* The shared PhoneField: the +225 prefix is on screen, so a number
+            typed the local way (« 07 07 12 34 56 ») is the right number —
+            parity with the app (docs/design/phone-national-length.md §12).
+            It reads initialValue once, at mount: this form renders only
+            once the profile has loaded, so that value is the stored one. */}
+        <PhoneField
+          label="Téléphone"
+          initialValue={form.phoneNumber}
+          onChange={(v) => {
+            set('phoneNumber', v);
+            phones.revalidate('phoneNumber', v);
+          }}
+          error={phones.errors.phoneNumber}
+        />
+        <PhoneField
+          label="WhatsApp (optionnel)"
+          initialValue={form.whatsapp}
+          onChange={(v) => {
+            set('whatsapp', v);
+            phones.revalidate('whatsapp', v);
+          }}
+          error={phones.errors.whatsapp}
+        />
         <Field label="Catégorie">
           <select
             className={input}
@@ -390,16 +371,6 @@ function Field({
       {children}
     </label>
   );
-}
-
-/// A field's fault, under it (§14 rule 1) — TextField's error line; the input
-/// points at it with `aria-describedby` (WEB-SYSTEM §6).
-function FieldError({ id, error }: { id: string; error?: string }) {
-  return error ? (
-    <p id={id} role="alert" className="mt-xs text-bodySmall text-error">
-      {error}
-    </p>
-  ) : null;
 }
 
 function SectionLink({

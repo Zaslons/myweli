@@ -346,6 +346,22 @@ void main() {
         )).error,
         'invalid_phone',
       );
+      // Sent, but not text (a client bug sending a JSON number): refused too —
+      // never silently replaced by the account's own number. Only absent
+      // (null) or blank falls back.
+      expect(
+        (await directory.addSalon(
+          ownerId,
+          businessName: 'Deux',
+          businessType: 'salon',
+          phoneNumber: 2250707123456,
+        )).error,
+        'invalid_phone',
+      );
+      expect(
+        (await memberships.listForAccount(ownerId)).map((m) => m.providerId),
+        ['p1'],
+      );
 
       final ok = await directory.addSalon(
         ownerId,

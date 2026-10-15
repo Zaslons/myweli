@@ -17,10 +17,15 @@ import {
 } from '../../lib/pro/clients';
 import { formatDateFr } from '../../lib/format';
 import { useFieldErrors } from '../../lib/forms/useFieldErrors';
-import { normalizePhone, phoneFieldError } from '../../lib/phone';
+import {
+  PHONE_INVALID,
+  normalizePhone,
+  phoneFieldError,
+} from '../../lib/phone';
 import { Button } from '../Button';
 import { SkeletonRows } from '../Skeleton';
 import { Modal } from '../Modal';
+import { PhoneField } from '../PhoneField';
 import { TextField } from '../TextField';
 
 /// Module `clients` C1b — the salon client base at /pro/clients
@@ -326,10 +331,7 @@ function AddClientModal({
     }
     // A server refusal of the number is the field's fault too (§14 rule 1).
     if (r.error === 'invalid_phone') {
-      fields.set(
-        'phone',
-        'Numéro invalide (format international, ex. +2250700000000).',
-      );
+      fields.set('phone', PHONE_INVALID);
       return;
     }
     setMessage('Une erreur est survenue. Réessayez.');
@@ -343,20 +345,16 @@ function AddClientModal({
           value={name}
           onChange={(e) => setName(e.target.value)}
         />
-        <TextField
-          className="mt-m"
-          label="Téléphone"
-          type="tel"
-          inputMode="tel"
-          autoComplete="tel"
-          value={phone}
-          onChange={(e) => {
-            setPhone(e.target.value);
-            fields.revalidate('phone', e.target.value);
-          }}
-          placeholder="+225 07 00 00 00 00"
-          error={fields.errors.phone}
-        />
+        <div className="mt-m">
+          <PhoneField
+            label="Téléphone"
+            onChange={(v) => {
+              setPhone(v);
+              fields.revalidate('phone', v);
+            }}
+            error={fields.errors.phone}
+          />
+        </div>
         <TextField
           className="mt-m"
           label="Note (optionnelle)"

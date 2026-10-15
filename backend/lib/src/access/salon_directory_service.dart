@@ -124,7 +124,12 @@ class SalonDirectoryService {
     // A sent number is checked like every other phone input (it used to be
     // stored with no check at all); the fallback is the account's own,
     // proven at registration and not user-editable — not re-checked.
-    // Design: docs/design/phone-national-length.md §2.4.
+    // Design: docs/design/phone-national-length.md §2.4. Only absent (null)
+    // or blank falls back; a value sent as anything but text is refused,
+    // never silently swapped for the account's number.
+    if (phoneNumber != null && phoneNumber is! String) {
+      return (ok: false, error: 'invalid_phone', data: null);
+    }
     final sent = phoneNumber is String ? phoneNumber.trim() : '';
     if (sent.isNotEmpty && !isValidPhoneNumber(sent)) {
       return (ok: false, error: 'invalid_phone', data: null);

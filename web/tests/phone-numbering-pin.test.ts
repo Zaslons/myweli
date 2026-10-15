@@ -24,21 +24,25 @@ const DART = readFileSync(
 );
 
 /// `const Map<String, int> nationalNumberLengths = {'225': 10};`
-/// → [['225', 10]].
-function backendTable(): [string, number][] {
-  const literal = /nationalNumberLengths\s*=\s*\{([^}]*)\}/.exec(DART);
-  if (!literal) return [];
-  return [...literal[1].matchAll(/'(\d+)'\s*:\s*(\d+)/g)].map((m) => [
-    m[1],
-    Number(m[2]),
-  ]);
-}
-
-const TABLE = backendTable();
+/// → [['225', 10]]. Comments are stripped first (a row in a comment is not a
+/// row), and both quote styles are read — Dart allows `"229": 10` too, and a
+/// row this parser skipped would be a market the web never enforces.
+const BODY = (() => {
+  const code = DART.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+  return /nationalNumberLengths\s*=\s*\{([^}]*)\}/.exec(code)?.[1] ?? '';
+})();
+const TABLE: [string, number][] = [
+  ...BODY.matchAll(/['"](\d+)['"]\s*:\s*(\d+)/g),
+].map((m) => [m[1], Number(m[2])]);
 
 describe('national number lengths — backend table = libphonenumber metadata', () => {
   it('the backend table parses (a reformat must not empty this guard)', () => {
     expect(TABLE.length).toBeGreaterThan(0);
+  });
+
+  it('every row of the backend table parsed — none silently skipped', () => {
+    const rows = BODY.split(',').filter((r) => r.trim() !== '');
+    expect(TABLE.length).toBe(rows.length);
   });
 
   it.each(TABLE)(

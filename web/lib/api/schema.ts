@@ -1541,7 +1541,7 @@ export interface paths {
                         };
                     };
                 };
-                /** @description `invalid_body`, `invalid_input` (blank or too-long `businessName`, unknown `businessType`), `invalid_area` (unknown `areaId`), or `invalid_phone` (a sent `phoneNumber` that is not E.164, or a +225 number without exactly 10 digits after the code). Nothing is created. */
+                /** @description `invalid_body`, `invalid_input` (blank or too-long `businessName`, unknown `businessType`), `invalid_area` (unknown `areaId`), or `invalid_phone` (a sent `phoneNumber` that is not a string, not E.164, or a +225 number without exactly 10 digits after the code). Nothing is created. */
                 400: {
                     headers: {
                         [name: string]: unknown;

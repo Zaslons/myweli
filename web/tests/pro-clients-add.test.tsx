@@ -126,10 +126,10 @@ describe('ClientsClient — « Ajouter un client » checks the phone', () => {
     fireEvent.change(phone, { target: { value: '+2250707123456' } });
     fireEvent.click(within(dialog).getByRole('button', { name: 'Ajouter' }));
 
-    const alert = await within(dialog).findByRole('alert');
-    expect(alert).toHaveTextContent(
-      'Numéro invalide (format international, ex. +2250700000000).',
+    const alert = await within(dialog).findByText(
+      'Saisissez un numéro de téléphone valide.',
     );
+    expect(alert).toHaveAttribute('role', 'alert');
     expect(phone).toHaveAttribute('aria-invalid', 'true');
     expect(phone.getAttribute('aria-describedby')).toContain(alert.id);
     expect(push).not.toHaveBeenCalled();

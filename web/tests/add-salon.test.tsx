@@ -144,6 +144,33 @@ describe('AddSalonClient', () => {
     expect(select?.body).toEqual({ salonId: 'p4' });
   });
 
+  it('a server invalid_phone answers UNDER « Téléphone du salon », not « Réessayez »', async () => {
+    // POST /me/salons gained its 400 invalid_phone on this branch
+    // (docs/design/phone-national-length.md §2.4). Defence in depth: the
+    // client rule matches the server's, so only drift or a bypass reaches it —
+    // and then the fault is the field's (§14 rule 1), never a retry that
+    // cannot succeed.
+    mockFetch({ addStatus: 400, addBody: { error: 'invalid_phone' } });
+    render(<AddSalonClient />);
+    await screen.findByText('Ajouter un salon');
+    const phone = await waitFor(() => {
+      const el = screen.getByLabelText('Téléphone du salon') as HTMLInputElement;
+      expect(el).not.toBeDisabled();
+      return el;
+    });
+
+    fireEvent.change(screen.getByPlaceholderText('Ex : Salon Excellence Yopougon'), {
+      target: { value: 'Salon Trois' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Créer le salon' }));
+
+    const fault = await screen.findByText('Saisissez un numéro de téléphone valide.');
+    expect(phone).toHaveAttribute('aria-invalid', 'true');
+    expect(phone.getAttribute('aria-describedby')).toContain(fault.id);
+    expect(screen.queryByText('Une erreur est survenue. Réessayez.')).toBeNull();
+    expect(replace).not.toHaveBeenCalled();
+  });
+
   it('the account phone prefill is what the field SHOWS — and what is sent', async () => {
     // PhoneField reads `initialValue` once, at mount; the account phone
     // arrives later. The field used to show a bare « +225 » while the submit

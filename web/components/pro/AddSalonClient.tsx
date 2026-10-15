@@ -4,7 +4,11 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useFieldErrors } from '../../lib/forms/useFieldErrors';
-import { normalizePhone, phoneFieldError } from '../../lib/phone';
+import {
+  PHONE_INVALID,
+  normalizePhone,
+  phoneFieldError,
+} from '../../lib/phone';
 import { PhoneField } from '../PhoneField';
 import { TextField } from '../TextField';
 import {
@@ -95,6 +99,12 @@ export function AddSalonClient() {
     });
     if (!r.ok || !r.salon) {
       setBusy(false);
+      // The server refusing the number is the field's fault (§14 rule 1) —
+      // not a generic « Réessayez » that cannot succeed.
+      if (r.error === 'invalid_phone') {
+        fields.set('phone', PHONE_INVALID);
+        return;
+      }
       setErrorCode(r.error ?? 'unknown');
       return;
     }

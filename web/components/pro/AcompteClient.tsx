@@ -22,12 +22,10 @@ import {
 import { useLocalities } from '../../lib/use-localities';
 import { Button } from '../Button';
 import { Loading } from '../Loading';
+import { PhoneField } from '../PhoneField';
 
 const input =
   'block w-full min-h-12 rounded-lg border border-borderStrong bg-surface p-m text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus disabled:border-border disabled:text-textDisabled';
-// The errored state — TextField's (§14): `error` border, `error` focus ring.
-const inputInvalid =
-  'block w-full min-h-12 rounded-lg border border-error bg-surface p-m text-bodyLarge text-textPrimary focus:border-error focus:ring-1 focus:ring-error';
 
 // The Mobile Money number's check (a module constant: useFieldErrors keys
 // its callbacks on this object's identity).
@@ -192,36 +190,18 @@ export function AcompteClient() {
                 </select>
               )}
             </label>
-            {/* The fault sits OUTSIDE the wrapping <label>: inside it, its
-                text would join the field's name. */}
-            <div>
-              <label className="block text-bodyMedium text-textTertiary">
-                Numéro Mobile Money
-                <input
-                  className={fields.errors.number ? inputInvalid : input}
-                  type="tel"
-                  inputMode="tel"
-                  value={form.number}
-                  onChange={(e) => {
-                    set('number', e.target.value);
-                    fields.revalidate('number', e.target.value);
-                  }}
-                  aria-invalid={fields.errors.number ? true : undefined}
-                  aria-describedby={
-                    fields.errors.number ? 'momo-number-error' : undefined
-                  }
-                />
-              </label>
-              {fields.errors.number ? (
-                <p
-                  id="momo-number-error"
-                  role="alert"
-                  className="mt-xs text-bodySmall text-error"
-                >
-                  {fields.errors.number}
-                </p>
-              ) : null}
-            </div>
+            {/* The shared PhoneField (+225 on screen — parity with the app).
+                It mounts with the switch, after the policy has loaded, so its
+                initialValue is the stored number. */}
+            <PhoneField
+              label="Numéro Mobile Money"
+              initialValue={form.number}
+              onChange={(v) => {
+                set('number', v);
+                fields.revalidate('number', v);
+              }}
+              error={fields.errors.number}
+            />
           </>
         ) : null}
 
