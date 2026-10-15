@@ -412,6 +412,10 @@ const isPro = (req) => (req.headers.authorization || '').includes('pro');
 // here because a 403 never triggers the BFF refresh (401 only).
 function roleOf(req) {
   const auth = req.headers.authorization || '';
+  // The rejoin gate's former members: revoked until their invitation is
+  // accepted, then the role it carried.
+  const former = formerOf(req);
+  if (former) return former.status === 'active' ? former.role : 'revoked';
   if (auth.includes('pro-manager-access')) return 'manager';
   if (auth.includes('pro-reception-access')) return 'reception';
   if (auth.includes('pro-staff-access')) return 'staff';
@@ -467,7 +471,39 @@ const MEMBER_EMAILS = {
   manager: 'awa.manager@equipe.test',
   reception: 'fatou.reception@equipe.test',
   staff: 'sonia.staff@equipe.test',
+  revoked: 'revoked.staff@equipe.test',
 };
+
+// --- the rejoin gate (docs/design/pro-rejoin-gate.md) ----------------------
+// Two FORMER members of p1: revoked, then re-invited (#596), so their session
+// is live but every /me/provider answers not_a_member until they accept.
+// They are kept OUT of `teamMembers` on purpose: team.spec owns that roster,
+// and an accept or a decline here must not move its seat count. Each login
+// RE-ARMS its fixture (revoked + one pending invitation) — the same arc from
+// the same state on every run, whatever ran before.
+const FORMER_MEMBERS = new Map(
+  [
+    // Joins: re-invited as Collaborateur → lands on « votre planning ».
+    { key: 'rejoint', email: 'ancien.rejoint@equipe.test', role: 'staff' },
+    // Declines the only invitation → signed out onto the banner.
+    { key: 'refus', email: 'ancien.refus@equipe.test', role: 'reception' },
+  ].map((f) => [
+    f.key,
+    { ...f, status: 'revoked', invitationId: `inv-former-${f.key}` },
+  ]),
+);
+function formerByEmail(email) {
+  return [...FORMER_MEMBERS.values()].find((f) => f.email === email) ?? null;
+}
+function formerOf(req) {
+  const m = /pro-former-([a-z]+)-access/.exec(req.headers.authorization || '');
+  return m ? (FORMER_MEMBERS.get(m[1]) ?? null) : null;
+}
+/// The signed-in identity's address — what the server keys an invitee's own
+/// invitations (and the T37 accept check) on.
+function callerEmailOf(req) {
+  return formerOf(req)?.email ?? MEMBER_EMAILS[roleOf(req)];
+}
 
 // Pro-side mutable salon (catalogue 7.3a) — its own copy so consumer reads of
 // `provider` stay stable. /me/provider returns this.
@@ -607,17 +643,40 @@ const ROLE_LABELS = {
   staff: 'Collaborateur',
 };
 // The invitee's view of their own pending rows (module `access` R2b DTO).
-function myInvitations() {
-  return teamMembers
-    .filter((m) => m.status === 'invited')
-    .map((m) => ({
-      id: m.id,
-      providerId: m.providerId,
-      salonName: 'Beauté Divine',
-      role: m.role,
-      roleLabel: ROLE_LABELS[m.role],
-      expiresAt: m.expiresAt,
-    }));
+// As on the server (postgres_membership_repository.dart): only the CALLER's
+// address, and never an expired row. Before the rejoin gate this listed every
+// pending row to every session — harmless while nothing acted on the list,
+// wrong the moment a revoked session's answer decides gate vs sign-out.
+function isLive(m) {
+  return !m.expired && (!m.expiresAt || Date.parse(m.expiresAt) > Date.now());
+}
+function myInvitations(email) {
+  if (!email) return [];
+  const former = formerByEmail(email);
+  const formerRows =
+    former && former.status === 'invited'
+      ? [
+          {
+            id: former.invitationId,
+            providerId: 'p1',
+            role: former.role,
+            expiresAt: '2099-01-01T00:00:00.000Z',
+          },
+        ]
+      : [];
+  return [
+    ...teamMembers.filter(
+      (m) => m.status === 'invited' && m.email === email && isLive(m),
+    ),
+    ...formerRows,
+  ].map((m) => ({
+    id: m.id,
+    providerId: m.providerId,
+    salonName: proProvider.name,
+    role: m.role,
+    roleLabel: ROLE_LABELS[m.role],
+    expiresAt: m.expiresAt,
+  }));
 }
 
 function readBody(req) {
@@ -832,6 +891,22 @@ createServer(async (req, res) => {
       bridgeInvitationLive;
     if (invited) {
       return json(res, 202, { invitations: [seededInvitationFor()] });
+    }
+    // The rejoin gate: a former member's login re-arms the fixture and
+    // carries its own token (roleOf resolves it per request).
+    const former = formerByEmail(b.email);
+    if (former) {
+      former.status = 'invited';
+      return json(res, 200, {
+        provider: {
+          id: `acc-former-${former.key}`,
+          businessName: 'Beauté Divine',
+          providerId: 'p1',
+        },
+        accessToken: `pro-former-${former.key}-access`,
+        refreshToken: `pro-former-${former.key}-refresh`,
+        expiresAt: '2099-01-01T00:00:00.000Z',
+      });
     }
     // Team access R5b: member logins carry ROLE tokens.
     const memberRole = MEMBER_LOGINS[b.email];
@@ -1068,7 +1143,7 @@ createServer(async (req, res) => {
         businessName: 'Beauté Divine',
         businessType: 'other',
         phoneNumber: '+2250700000000',
-        email: MEMBER_EMAILS[role],
+        email: callerEmailOf(req),
         // The salon session is VERIFIED (T52 flows: acompte editor enabled);
         // the /me/kyc page reads kycState separately (its own e2e).
         verificationStatus: 'verified',
@@ -1088,7 +1163,12 @@ createServer(async (req, res) => {
   // --- team access R6c: « Mes salons » -----------------------------------
   if (url.pathname === '/me/salons') {
     const role = roleOf(req);
-    if (role === 'revoked') return json(res, 403, { error: 'not_a_member' });
+    // As the backend does (routes/me/salons/index.dart): an account with no
+    // active membership lists nothing — a 200, not a not_a_member. The rejoin
+    // gate keeps such a session alive, and « Mes salons » loads at mount.
+    if (role === 'revoked' && req.method !== 'POST') {
+      return json(res, 200, { items: [], canAddSalon: false });
+    }
     if (req.method === 'POST') {
       if (role !== 'owner') return json(res, 403, { error: 'forbidden' });
       const b = await readBody(req);
@@ -1246,17 +1326,49 @@ createServer(async (req, res) => {
   }
   // The signed-in provider's OWN pending invitations + authed accept/decline.
   if (url.pathname === '/me/provider/invitations') {
-    return json(res, 200, { invitations: myInvitations() });
+    return json(res, 200, { invitations: myInvitations(callerEmailOf(req)) });
   }
   const myInvActionM = url.pathname.match(
     /^\/me\/provider\/invitations\/([^/]+)\/(accept|decline)$/,
   );
   if (myInvActionM && req.method === 'POST') {
     const [, invitationId, action] = myInvActionM;
+    // A former member's re-invitation (the rejoin gate fixtures).
+    const former = [...FORMER_MEMBERS.values()].find(
+      (f) => f.invitationId === invitationId && f.status === 'invited',
+    );
+    if (former) {
+      if (former.email !== callerEmailOf(req)) {
+        return json(res, 403, { error: 'forbidden' });
+      }
+      // Accept → the row is active again; decline → back to revoked, as on
+      // the server for a former member (backend-team-reinvite.md).
+      former.status = action === 'accept' ? 'active' : 'revoked';
+      return json(
+        res,
+        200,
+        action === 'accept'
+          ? {
+              id: former.invitationId,
+              providerId: 'p1',
+              email: former.email,
+              role: former.role,
+              status: 'active',
+            }
+          : { declined: true },
+      );
+    }
     const member = teamMembers.find(
       (m) => m.id === invitationId && m.status === 'invited',
     );
     if (!member) return json(res, 404, { error: 'not_found' });
+    // T37: the invitation must target the session's own address.
+    if (member.email !== callerEmailOf(req)) {
+      return json(res, 403, { error: 'forbidden' });
+    }
+    if (!isLive(member)) {
+      return json(res, 409, { error: 'invitation_expired' });
+    }
     if (action === 'accept') {
       member.status = 'active';
       member.acceptedAt = todayAt9;

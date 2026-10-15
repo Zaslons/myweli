@@ -1,3 +1,4 @@
+import AxeBuilder from '@axe-core/playwright';
 import { type Page, expect, test } from '@playwright/test';
 
 /// Team access R5b — the role-shaped web (docs/design/web-team-access-r5.md
@@ -135,6 +136,80 @@ test('revoked mid-session: probed out to the connexion banner', async ({
 
   // The login succeeds, but the very first membership probe 403s
   // not_a_member → sign-out → the generic banner (no salon name in the URL).
+  await expect(page).toHaveURL(/\/pro\/connexion\?motif=acces-retire/);
+  await expect(
+    page.getByText('Votre accès à ce salon a été retiré.'),
+  ).toBeVisible();
+});
+
+// --- the rejoin gate (docs/design/pro-rejoin-gate.md) ----------------------
+// A former member — revoked, then re-invited — logs in. The session is live
+// but every probe answers not_a_member, so before signing out the web asks
+// for the account's own invitations: one is pending, so the « Invitations »
+// page replaces the dashboard instead of the banner. The stub's two
+// former-member fixtures re-arm at each login and sit outside the Équipe
+// roster (team.spec's seat counts never move).
+
+test('a re-invited former member joins from « Invitations » and lands on '
+  + 'their planning', async ({ page }) => {
+  await loginAs(page, 'ancien.rejoint@equipe.test');
+
+  await expect(
+    page.getByRole('heading', { level: 1, name: 'Invitations' }),
+  ).toBeVisible();
+  await expect(page.getByText(/vous\s+invite comme Collaborateur/)).toBeVisible();
+  // Nothing of a salon is reachable from here: no sidebar, no drawer.
+  await expect(page.getByRole('link', { name: 'Rendez-vous' })).toHaveCount(0);
+  await expect(
+    page.getByRole('button', { name: 'Ouvrir le menu' }),
+  ).toHaveCount(0);
+  await expect(page).not.toHaveURL(/motif=acces-retire/);
+
+  await page.getByRole('button', { name: 'Rejoindre' }).click();
+
+  await expect(page).toHaveURL(/\/pro(\/)?$/);
+  await expect(
+    // Rename-tolerant: pro.spec's profil journey renames the shared stub
+    // salon to « Beauté Divine Web » — worker scheduling decides the order.
+    page.getByRole('heading', { name: /Beauté Divine( Web)? — votre planning/ }),
+  ).toBeVisible();
+  await expect(
+    page.getByText(/^Vous avez rejoint Beauté Divine( Web)?$/),
+  ).toBeVisible();
+  // The identity block: the member's own address, in the joined salon.
+  await expect(page.getByText('ancien.rejoint@equipe.test')).toBeVisible();
+});
+
+test('a re-invited former member who declines is signed out onto the banner', async ({
+  page,
+}) => {
+  // The narrowest phone the system designs for: the gate must reflow there.
+  await page.setViewportSize({ width: 320, height: 640 });
+  await loginAs(page, 'ancien.refus@equipe.test');
+
+  await expect(
+    page.getByRole('heading', { level: 1, name: 'Invitations' }),
+  ).toBeVisible();
+  await expect(page.getByText(/vous\s+invite comme Réception/)).toBeVisible();
+
+  // Accessibility is part of the page (WEB-SYSTEM §4–§8, SYSTEM §13.2): axe
+  // clean as rendered, and every control a full 48px target.
+  const axe = await new AxeBuilder({ page }).analyze();
+  expect(
+    axe.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target).join(', ')}`),
+    'the rejoin gate: axe violations',
+  ).toEqual([]);
+  for (const name of ['Rejoindre', 'Refuser', 'Se déconnecter']) {
+    const box = await page.getByRole('button', { name }).boundingBox();
+    expect(box?.height, `${name}: tap target height`).toBeGreaterThanOrEqual(48);
+  }
+  const overflow = await page.evaluate(
+    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+  );
+  expect(overflow, 'horizontal scroll at 320px').toBeLessThanOrEqual(0);
+
+  await page.getByRole('button', { name: 'Refuser' }).click();
+
   await expect(page).toHaveURL(/\/pro\/connexion\?motif=acces-retire/);
   await expect(
     page.getByText('Votre accès à ce salon a été retiré.'),
