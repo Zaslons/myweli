@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Approuvé le 2026-10-15** (propriétaire : « finish the leftovers from the phone work ») — §2 à §7 en construction sur `fix/phone-leftovers` ; **§8 (modifier le numéro d'une fiche client) attend une décision** |
+| **Statut** | **Approuvé le 2026-10-15** (propriétaire : « finish the leftovers from the phone work ») — §2 à §7 en construction sur `fix/phone-leftovers` ; **§8 tranché le même jour** (les trois options recommandées), construit après §2–§7 (il touche les mêmes routes) |
 | **Module** | transverse — contrat d'erreurs (BACKEND.md §2) · formulaires (SYSTEM.md §14) · clients (C1) |
 | **Origine** | [phone-national-length.md](phone-national-length.md) §11 (questions ouvertes) et §12 (constat écarté de la revue : les champs non textuels → 500) |
 | **Régit** | `backend/lib/src/http/body_fields.dart` (nouveau) · `backend/lib/src/observability/request_middleware.dart` · les 27 routes qui lisent un corps · `provider_catalog_service.dart`, `routes/auth/provider/register.dart`, OTP verify · `docs/api/openapi.yaml` · app : inscription Pro, profil du salon, acompte, `Helpers.maskPhoneNumber` · web : `BookingFlow`, `AccountClient`, `ProRegisterClient`, `ProfilClient`, `AcompteClient`, `ManualBookingDialog`, `lib/pro/deposit.ts` |
@@ -95,26 +95,49 @@ pas éditable ici) dit : « Le numéro enregistré sur la fiche de ce client est
 invalide. » avec un lien vers sa fiche. (L'app préremplit un champ
 modifiable : déjà corrigeable.)
 
-## 8. Modifier le numéro d'une fiche client — proposition, **décision attendue**
+## 8. Modifier le numéro d'une fiche client — **tranché le 2026-10-15**
 
-Aujourd'hui le `PATCH /providers/{id}/clients/{clientId}` ne prend que les
-tags. Ce qui rend la chose délicate, vérifié : la fiche d'un client **invité**
-(sans compte) retrouve ses visites **par son numéro** (`_visitsOf` : rendez-vous
-manuels dont `clientPhone` = celui de la fiche). Changer le numéro de la fiche
-seule viderait son historique.
+Décisions du propriétaire (les trois recommandations) : **l'historique suit
+le numéro** ; une fiche **liée à un compte** garde le numéro du compte, en
+lecture seule ; un numéro **déjà sur une autre fiche** est refusé, avec un
+lien vers cette fiche (pas de fusion).
 
-Proposition :
-- **Fiche invitée** : numéro modifiable (app et web, sur la fiche) ; même règle
-  que partout. Le changement **emporte l'historique** : dans la même
-  transaction, les rendez-vous manuels de CE salon portant l'ancien numéro
-  prennent le nouveau. Journal d'audit.
-- **Numéro déjà sur une autre fiche** → 409 `client_exists` avec l'id de
-  l'autre fiche : « Ce numéro est déjà sur la fiche de {nom}. » + « Ouvrir la
-  fiche ». Pas de fusion (hors périmètre).
-- **Fiche liée à un compte client** : numéro en lecture seule — il appartient
-  au compte (vérifié, T49) ; « Numéro du compte client » sous le champ.
+Ce qui rend la chose délicate, vérifié : la fiche d'un client **invité** (sans
+compte) retrouve ses visites **par son numéro** (`_visitsOf`,
+`_statsByClient` : rendez-vous `userId == 'manual'` dont `clientPhone` = celui
+de la fiche). Changer le numéro de la fiche seule la viderait.
 
-À construire une fois tranché ; spec à compléter alors.
+**Contrat.** `PATCH /providers/{id}/clients/{clientId}` accepte `phone`
+(texte, optionnel) à côté de `tags` (optionnel) — au moins l'un des deux.
+- Même capacité que le reste de la fiche (`clientsView`) ; sinon 403.
+- Fiche liée à un compte (`userId` non nul) → **409 `client_linked`** ; rien
+  ne change.
+- Numéro : `isValidPhoneNumber` → sinon 400 `invalid_phone` ; vide refusé
+  (une fiche invitée n'existe que par son numéro — `addClient` l'exige).
+- Même numéro que la fiche : rien à faire, 200.
+- Numéro déjà sur une autre fiche de CE salon → **409 `client_exists`** avec
+  `clientId` de l'autre fiche (la forme de `POST …/clients`) ; une course
+  perdue sur l'index unique `(provider_id, phone)` répond pareil, jamais 500.
+- Sinon, **dans une transaction** : la fiche prend le nouveau numéro, et les
+  rendez-vous manuels de CE salon (`user_id = 'manual'`) portant l'ancien
+  `client_phone` prennent le nouveau — jamais ceux d'un autre salon (T45).
+  Jumeau en mémoire identique. Audit `client.phone_changed` (identifiants
+  seulement, aucun numéro — donnée personnelle).
+
+**App Pro (fiche client)** — sous le numéro, « Modifier » ouvre une feuille :
+`PhoneNumberField` prérempli, « Enregistrer » ; la faute sous le champ ; un
+409 `client_exists` : « Ce numéro est déjà sur la fiche de {nom}. » +
+« Ouvrir la fiche » ; succès : la fiche se recharge (visites comprises),
+« Numéro mis à jour ». Fiche liée : pas de « Modifier » ; « Numéro du compte
+client » sous le numéro.
+
+**Web Pro (fiche client)** — la même chose dans un `Modal` : `PhoneField`,
+message sous le champ, lien vers l'autre fiche, rechargement.
+
+**Tests (rouges d'abord)** : backend — chaque branche ci-dessus, dont
+l'historique déplacé (les visites et le compteur suivent ; un autre salon
+n'est pas touché ; Postgres ET mémoire) ; app et web — modifier, le doublon,
+la fiche liée en lecture seule.
 
 ## 9. Tests — chacun vu rouge d'abord
 
