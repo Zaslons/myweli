@@ -34,11 +34,20 @@
   réponse porte (et qu'un utilisateur cite depuis un écran d'erreur) devient
   lisible par le navigateur ; CORS masque sinon tout en-tête non standard.
   L'identifiant n'est pas une donnée sensible.
-- Sans risque nouveau : la liste des origines (`webOrigins`) est résolue et
-  vérifiée au démarrage — un serveur dont `WEB_ORIGINS` manque ne finit pas de
-  démarrer, la lecture ne peut donc pas lever à la requête. Un pré-vol `OPTIONS`
-  est désormais répondu par CORS avant l'observabilité (sans identifiant ni
-  journal) : il ne touche à rien.
+- **Ce qui pouvait lever, désormais hors de toute prise** — trouvé par la
+  revue adverse : CORS lit `request.method` pour reconnaître un pré-vol, et le
+  getter de dart_frog **lève** pour un verbe hors de son énumération (PROPFIND,
+  TRACE…). Dehors, rien ne l'attrapait : la réponse de dernier recours de shelf
+  (500 en texte brut, sans identifiant) et un journal contenant la chaîne de
+  requête. La lecture est gardée comme dans l'observabilité et la porte
+  d'origine : un verbe inconnu n'est pas un pré-vol, il passe à l'intérieur, où
+  le routeur répond 405. Vu sur un vrai serveur : `PROPFIND
+  /providers?token=…` → 405 avec identifiant et en-têtes CORS, le secret absent
+  du journal. La liste des origines (`webOrigins`), elle, est résolue et
+  vérifiée au démarrage : elle ne peut pas lever à la requête.
+- Un pré-vol `OPTIONS` est désormais répondu par CORS avant l'observabilité
+  (sans identifiant ni journal) : il ne touche à rien — et il l'était déjà
+  avant la porte d'origine.
 
 ## 3. Tests
 
@@ -46,7 +55,9 @@
   → un 500 levé (et prouvé être le nôtre : le rapporteur reçoit le
   `StateError`) et le 400 de contrôle portent les en-têtes pour l'origine
   autorisée, et l'identifiant est exposé ; une origine hostile n'a rien ; une
-  épingle de l'ordre dans `routes/_middleware.dart` (CORS = dernier `.use`).
+  épingle de l'ordre dans `routes/_middleware.dart` (CORS = dernier `.use`) ;
+  PROPFIND et TRACE ne sortent pas de la chaîne (vus rouges : levés hors de
+  CORS).
   **Vu rouge** contre l'ancien ordre (3 échecs : ordre ×2, identifiant non
   exposé).
 - **CI, sur le serveur compilé** (« Backend — boot smoke ») : la même requête

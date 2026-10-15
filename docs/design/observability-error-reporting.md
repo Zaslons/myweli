@@ -65,9 +65,13 @@ report from it."
 
 ### 4.1 The middleware that should already exist — **shipped as ONE, not two**
 
-`observabilityMiddleware`, outermost in the chain (outside CORS — a 500 without
-CORS headers reaches the browser as an opaque network failure, which is how a
-server error gets misdiagnosed as a client one). It:
+`observabilityMiddleware`, just **inside CORS** in the chain. CORS is the
+outermost layer since 2026-10-15, so the envelope 500 it returns still reaches
+an allowed browser origin with the CORS headers — a 500 without them is an
+opaque network failure in the browser, which is how a server error gets
+misdiagnosed as a client one. This paragraph used to say "outermost, outside
+CORS", and that order was the defect
+([backend-cors-error-responses.md](backend-cors-error-responses.md)). It:
 
 - takes `X-Request-Id` from the caller when present (a proxy in front may set
   one — the load balancer did until 2026-09; minting a second makes one request

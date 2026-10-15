@@ -22,10 +22,10 @@ void main() {
   const allowed = 'https://admin.myweli.com';
   const hostile = 'https://evil.example';
 
-  RequestContext ctx(String uri, {String? origin, HttpMethod? method}) {
+  RequestContext ctx(String uri, {String? origin, String method = 'GET'}) {
     final c = _MockRequestContext();
     final request = Request(
-      (method ?? HttpMethod.get).value,
+      method,
       Uri.parse('http://localhost$uri'),
       headers: {if (origin != null) 'Origin': origin},
     );
@@ -98,6 +98,25 @@ void main() {
         );
       },
     );
+  });
+
+  /// The review of this change: CORS reads `request.method` to spot a
+  /// preflight, and dart_frog's getter THROWS for a verb outside its enum
+  /// (PROPFIND, TRACE, a made-up one). Outermost, nothing catches it: shelf's
+  /// last-resort handler answers a bare text/plain 500 and logs the method,
+  /// the path AND the query string with a stack trace — no request id, no
+  /// envelope, no report. Inside observability it was a JSON 500.
+  group('an unsupported verb does not escape the chain', () {
+    for (final verb in ['PROPFIND', 'TRACE']) {
+      test('$verb passes inward — never a throw out of CORS', () async {
+        final res = await edge((_) async => Response(body: 'ok'))(
+          ctx('/providers?token=secret', origin: allowed, method: verb),
+        );
+        expect(res.statusCode, isNot(HttpStatus.internalServerError));
+        expect(res.headers['X-Request-Id'], isNotEmpty);
+        expect(res.headers['Access-Control-Allow-Origin'], allowed);
+      });
+    }
   });
 
   group('routes/_middleware.dart — the order this test assumes', () {

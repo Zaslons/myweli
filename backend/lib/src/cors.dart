@@ -32,7 +32,20 @@ Middleware corsMiddleware(List<String> Function() allowedOrigins) {
           ? origin
           : null;
 
-      if (context.request.method == HttpMethod.options) {
+      // An unsupported verb (PROPFIND, TRACE…) makes `request.method` throw —
+      // dart_frog's UnsupportedHttpMethodException, not exported. CORS is
+      // outermost: a throw here escapes every catch as shelf's bare text/plain
+      // 500, which logs the query string with a stack trace and has no request
+      // id. It is not a preflight — pass it inward, where observability and
+      // the router answer it (the same guard as request_middleware.dart and
+      // origin_front_door.dart).
+      bool preflight;
+      try {
+        preflight = context.request.method == HttpMethod.options;
+      } on Exception {
+        preflight = false;
+      }
+      if (preflight) {
         return Response(
           statusCode: 204,
           headers: allowOrigin == null ? const {} : _headers(allowOrigin),
