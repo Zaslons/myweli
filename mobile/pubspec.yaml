@@ -51,7 +51,7 @@ dependencies:
   # Maps & Location
   flutter_map: ^8.3.1
   latlong2: ^0.9.1
-  geolocator: ^14.0.2
+  geolocator: ^14.1.1
 
   # Image caching (direct dep; used by TimedCachedImage)
   flutter_cache_manager: ^3.4.1
