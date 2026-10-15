@@ -100,7 +100,21 @@ export function AujourdhuiClient() {
 
   if (loading) return <SkeletonRows count={4} className="mt-l" />;
   if (error) {
-    return <ErrorState title="Aujourd’hui" onRetry={() => { setError(false); setLoading(true); setReloadKey((k) => k + 1); }} />;
+    // The retry re-probes the membership too: after a join whose /me
+    // failed, the sidebar waits in its skeleton (never a nav drawn from an
+    // absent membership) — and this page, where the join lands, is the one
+    // place a retry is offered (docs/design/pro-rejoin-gate.md §10).
+    return (
+      <ErrorState
+        title="Aujourd’hui"
+        onRetry={() => {
+          void membershipCtx?.refresh();
+          setError(false);
+          setLoading(true);
+          setReloadKey((k) => k + 1);
+        }}
+      />
+    );
   }
 
   // The ACTIVE salon's market (multi-pays MP3) — day boundary + money label.

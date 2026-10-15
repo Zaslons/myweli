@@ -21,6 +21,7 @@ import {
   ProMembershipProvider,
   useProMembership,
 } from '../components/pro/ProMembershipContext';
+import { ProSidebar } from '../components/pro/ProSidebar';
 
 /// The rejoin gate on the web (docs/design/pro-rejoin-gate.md §2–§4): a
 /// `403 not_a_member` from a still-live session asks for the account's own
@@ -165,7 +166,8 @@ describe('ProMembershipProvider — the rejoin gate', () => {
     expect(replace).not.toHaveBeenCalledWith(MOTIF);
   });
 
-  it('the invitations check FAILS (500) → logout + motif, fail closed', async () => {
+  it('the invitations check FAILS (500) → re-checks /me once, then logout + '
+    + 'motif: fail closed', async () => {
     const { calls, count } = mockFetch({
       '/api/pro/me': notAMember,
       '/api/pro/invitations': () => json(500, { error: 'internal' }),
@@ -175,9 +177,38 @@ describe('ProMembershipProvider — the rejoin gate', () => {
 
     await waitFor(() => expect(replace).toHaveBeenCalledWith(MOTIF));
     expect(calls).toContain('POST /api/pro/auth/logout');
-    // A failure is not an empty list: no « an accept raced us » re-check.
-    expect(count('GET /api/pro/me')).toBe(1);
+    // Spec §10: the re-check precedes a sign-out decided on a FAILED list
+    // too (the app's _decideOnRevoked) — it can only keep a session the
+    // server ties to a salon.
+    expect(count('GET /api/pro/me')).toBe(2);
     expect(screen.queryByRole('heading', { name: 'Invitations' })).toBeNull();
+  });
+
+  it('a FAILED list whose re-check answers 200 (an accept elsewhere just '
+    + 'landed) enters the app instead of signing out', async () => {
+    const { calls } = mockFetch({
+      '/api/pro/me': (n) => (n === 1 ? notAMember() : json(200, STAFF_P1)),
+      '/api/pro/invitations': () => json(502, { error: 'bad_gateway' }),
+    });
+
+    renderProvider();
+
+    expect(await screen.findByText(/role:staff/)).toBeTruthy();
+    expect(calls).not.toContain('POST /api/pro/auth/logout');
+    expect(replace).not.toHaveBeenCalledWith(MOTIF);
+  });
+
+  it('the invitations check answers 401 (the session is gone) → logout + '
+    + 'motif', async () => {
+    const { calls } = mockFetch({
+      '/api/pro/me': notAMember,
+      '/api/pro/invitations': () => json(401, { error: 'not_authenticated' }),
+    });
+
+    renderProvider();
+
+    await waitFor(() => expect(replace).toHaveBeenCalledWith(MOTIF));
+    expect(calls).toContain('POST /api/pro/auth/logout');
   });
 
   it('the invitations fetch REJECTS (no network) → logout + motif', async () => {
@@ -298,7 +329,8 @@ describe('ProMembershipProvider — the rejoin gate', () => {
     expect(calls).not.toContain('POST /api/pro/auth/logout');
   });
 
-  it('accept 409 invitation_expired on the LAST card → logout + motif', async () => {
+  it('accept 409 invitation_expired on the LAST card → logout + motif, and '
+    + 'the expiry travels to the login (S3 → S6, as the app)', async () => {
     const { calls } = mockFetch({
       '/api/pro/me': notAMember,
       '/api/pro/invitations': () => json(200, { invitations: [INV] }),
@@ -309,8 +341,29 @@ describe('ProMembershipProvider — the rejoin gate', () => {
     renderProvider();
     fireEvent.click(await screen.findByRole('button', { name: 'Rejoindre' }));
 
-    await waitFor(() => expect(replace).toHaveBeenCalledWith(MOTIF));
+    await waitFor(() =>
+      expect(replace).toHaveBeenCalledWith(`${MOTIF}&raison=invitation-expiree`),
+    );
     expect(calls).toContain('POST /api/pro/auth/logout');
+  });
+
+  it('accept 404 not_found on the LAST card → the « introuvable » reason '
+    + 'travels too', async () => {
+    mockFetch({
+      '/api/pro/me': notAMember,
+      '/api/pro/invitations': () => json(200, { invitations: [INV] }),
+      '/api/pro/invitations/inv-1/accept': () =>
+        json(404, { error: 'not_found' }),
+    });
+
+    renderProvider();
+    fireEvent.click(await screen.findByRole('button', { name: 'Rejoindre' }));
+
+    await waitFor(() =>
+      expect(replace).toHaveBeenCalledWith(
+        `${MOTIF}&raison=invitation-introuvable`,
+      ),
+    );
   });
 
   it('« Se déconnecter » on the gate → logout + motif', async () => {
@@ -403,8 +456,9 @@ describe('ProMembershipProvider — the rejoin gate', () => {
     expect(replace).not.toHaveBeenCalled();
   });
 
-  it('a fresh login (no salon known) shows no « accès retiré » line above '
-    + 'another salon’s card', async () => {
+  it('a fresh login OR a page load (no salon known: the web keeps no '
+    + 'membership cache) shows no « accès retiré » line above another '
+    + 'salon’s card', async () => {
     mockFetch({
       '/api/pro/me': notAMember,
       '/api/pro/invitations': () =>
@@ -415,6 +469,304 @@ describe('ProMembershipProvider — the rejoin gate', () => {
     await screen.findByRole('heading', { name: 'Invitations' });
 
     expect(screen.queryByText(/a été retiré/)).toBeNull();
+  });
+});
+
+describe('ProMembershipProvider — the rejoin gate, review fixes', () => {
+  // [3]/[16] A sign-out is real or it is not shown.
+  it('the sign-out’s logout call FAILS (no network) → never the signed-out '
+    + 'login over a live session: a locked page that says so, and a retry '
+    + 'that lands', async () => {
+    let logoutDown = true;
+    mockFetch({
+      '/api/pro/me': notAMember,
+      '/api/pro/invitations': () => json(200, { invitations: [] }),
+      '/api/pro/auth/logout': () => {
+        if (logoutDown) throw new TypeError('Failed to fetch');
+        return json(200, { ok: true });
+      },
+    });
+
+    renderProvider();
+
+    expect(await screen.findByText('Pas de connexion. Réessayez.')).toBeTruthy();
+    expect(replace).not.toHaveBeenCalled();
+    // Locked: nothing of the dashboard, the revoked banner, the way out.
+    expect(screen.queryByText(/tableau de bord/)).toBeNull();
+    expect(
+      screen.getByText('Votre accès à ce salon a été retiré.'),
+    ).toBeTruthy();
+
+    logoutDown = false;
+    fireEvent.click(screen.getByRole('button', { name: 'Se déconnecter' }));
+    await waitFor(() => expect(replace).toHaveBeenCalledWith(MOTIF));
+  });
+
+  it('« Se déconnecter » on the gate with NO network → stays on the gate, '
+    + 'says so, the button comes back', async () => {
+    mockFetch({
+      '/api/pro/me': notAMember,
+      '/api/pro/invitations': () => json(200, { invitations: [INV] }),
+      '/api/pro/auth/logout': () => {
+        throw new TypeError('Failed to fetch');
+      },
+    });
+
+    renderProvider();
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Se déconnecter' }),
+    );
+
+    expect(await screen.findByText('Pas de connexion. Réessayez.')).toBeTruthy();
+    expect(replace).not.toHaveBeenCalled();
+    expect(screen.getByRole('heading', { name: 'Invitations' })).toBeTruthy();
+    await waitFor(() =>
+      expect(
+        (screen.getByRole('button', { name: 'Se déconnecter' }) as HTMLButtonElement)
+          .disabled,
+      ).toBe(false),
+    );
+  });
+
+  // [4] Never a nav drawn from an absent membership after a join.
+  it('joining from /pro when the post-accept /me FAILS once: no owner nav for '
+    + 'the new member — the sidebar waits, and the next probe brings the '
+    + 'member’s own', async () => {
+    mockFetch({
+      '/api/pro/me': (n) =>
+        n === 1
+          ? notAMember()
+          : n === 2
+            ? json(503, { error: 'unavailable' })
+            : json(200, STAFF_P1),
+      '/api/pro/invitations': () => json(200, { invitations: [INV] }),
+      '/api/pro/invitations/inv-1/accept': () =>
+        json(200, { id: 'inv-1', status: 'active' }),
+      '/api/pro/salons': () => json(200, { items: [], canAddSalon: false }),
+    });
+
+    render(
+      <ProMembershipProvider>
+        <ProSidebar />
+      </ProMembershipProvider>,
+    );
+    fireEvent.click(await screen.findByRole('button', { name: 'Rejoindre' }));
+
+    // The member's identity block: the profile committed.
+    expect(await screen.findByText('ancien@equipe.test')).toBeTruthy();
+    expect(screen.queryByRole('link', { name: 'Équipe' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Revenus' })).toBeNull();
+    expect(screen.getByRole('link', { name: 'Rendez-vous' })).toBeTruthy();
+  });
+
+  it('…and while /me stays down, the sidebar keeps its skeleton — never the '
+    + 'owner-shaped fallback', async () => {
+    const { count } = mockFetch({
+      '/api/pro/me': (n) =>
+        n === 1 ? notAMember() : json(503, { error: 'unavailable' }),
+      '/api/pro/invitations': () => json(200, { invitations: [INV] }),
+      '/api/pro/invitations/inv-1/accept': () =>
+        json(200, { id: 'inv-1', status: 'active' }),
+      '/api/pro/salons': () => json(200, { items: [], canAddSalon: false }),
+    });
+
+    render(
+      <ProMembershipProvider>
+        <ProSidebar />
+      </ProMembershipProvider>,
+    );
+    fireEvent.click(await screen.findByRole('button', { name: 'Rejoindre' }));
+
+    await waitFor(() =>
+      expect(screen.queryByRole('heading', { name: 'Invitations' })).toBeNull(),
+    );
+    await waitFor(() => expect(count('GET /api/pro/me')).toBeGreaterThanOrEqual(2));
+    // Let every probe the join starts settle before looking.
+    for (let i = 0; i < 5; i += 1) await new Promise((r) => setTimeout(r, 0));
+    expect(screen.queryByRole('link', { name: 'Équipe' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Revenus' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Aujourd’hui' })).toBeNull();
+  });
+
+  it('…and « Réessayer » on « Aujourd’hui » re-probes the membership too, so '
+    + 'the sidebar heals with the page', async () => {
+    // The page fetches /me too, so the answers follow the story, not a count.
+    let accepted = false;
+    let meDown = true;
+    mockFetch({
+      '/api/pro/me': () =>
+        !accepted
+          ? notAMember()
+          : meDown
+            ? json(503, { error: 'unavailable' })
+            : json(200, STAFF_P1),
+      '/api/pro/invitations': () =>
+        json(200, { invitations: accepted ? [] : [INV] }),
+      '/api/pro/invitations/inv-1/accept': () => {
+        accepted = true;
+        return json(200, { id: 'inv-1', status: 'active' });
+      },
+      '/api/pro/appointments': () => json(200, { items: [] }),
+      '/api/pro/salons': () => json(200, { items: [], canAddSalon: false }),
+    });
+
+    render(
+      <ProMembershipProvider>
+        <ProSidebar />
+        <AujourdhuiClient />
+      </ProMembershipProvider>,
+    );
+    fireEvent.click(await screen.findByRole('button', { name: 'Rejoindre' }));
+    const retry = await screen.findByRole('button', { name: 'Réessayer' });
+
+    meDown = false;
+    fireEvent.click(retry);
+
+    expect(await screen.findByText('ancien@equipe.test')).toBeTruthy();
+    expect(screen.queryByRole('link', { name: 'Équipe' })).toBeNull();
+  });
+
+  // [5] A dead session on the gate goes to the login.
+  it('« Rejoindre » answers 401 (the session is gone) → logout + motif, never '
+    + '« Invitation impossible à accepter. »', async () => {
+    const { calls } = mockFetch({
+      '/api/pro/me': notAMember,
+      '/api/pro/invitations': () => json(200, { invitations: [INV] }),
+      '/api/pro/invitations/inv-1/accept': () =>
+        json(401, { error: 'not_authenticated' }),
+    });
+
+    renderProvider();
+    fireEvent.click(await screen.findByRole('button', { name: 'Rejoindre' }));
+
+    await waitFor(() => expect(replace).toHaveBeenCalledWith(MOTIF));
+    expect(calls).toContain('POST /api/pro/auth/logout');
+    expect(screen.queryByText('Invitation impossible à accepter.')).toBeNull();
+  });
+
+  it('« Refuser » answers 401 → logout + motif, never « Refus impossible. »',
+    async () => {
+      const { calls } = mockFetch({
+        '/api/pro/me': notAMember,
+        '/api/pro/invitations': () =>
+          json(200, { invitations: [INV, INV_OTHER] }),
+        '/api/pro/invitations/inv-1/decline': () =>
+          json(401, { error: 'session_expired' }),
+      });
+
+      renderProvider();
+      await screen.findByText(/invite comme Collaborateur/);
+      fireEvent.click(screen.getAllByRole('button', { name: 'Refuser' })[0]);
+
+      await waitFor(() => expect(replace).toHaveBeenCalledWith(MOTIF));
+      expect(calls).toContain('POST /api/pro/auth/logout');
+      expect(screen.queryByText('Refus impossible.')).toBeNull();
+    });
+
+  // [9]/[14] One answer at a time — the way out included.
+  it('while « Rejoindre » is out, « Se déconnecter » waits too', async () => {
+    let releaseAccept: () => void = () => {};
+    mockFetch({
+      '/api/pro/me': (n) => (n === 1 ? notAMember() : json(200, STAFF_P1)),
+      '/api/pro/invitations': () => json(200, { invitations: [INV] }),
+      '/api/pro/invitations/inv-1/accept': () =>
+        new Promise((resolve) => {
+          releaseAccept = () =>
+            resolve(json(200, { id: 'inv-1', status: 'active' }));
+        }),
+    });
+
+    renderProvider();
+    fireEvent.click(await screen.findByRole('button', { name: 'Rejoindre' }));
+
+    await waitFor(() =>
+      expect(
+        (screen.getByRole('button', { name: 'Se déconnecter' }) as HTMLButtonElement)
+          .disabled,
+      ).toBe(true),
+    );
+    releaseAccept();
+    expect(await screen.findByText(/role:staff/)).toBeTruthy();
+  });
+
+  it('while « Se déconnecter » is out, the cards wait', async () => {
+    let releaseLogout: () => void = () => {};
+    mockFetch({
+      '/api/pro/me': notAMember,
+      '/api/pro/invitations': () => json(200, { invitations: [INV] }),
+      '/api/pro/auth/logout': () =>
+        new Promise((resolve) => {
+          releaseLogout = () => resolve(json(200, { ok: true }));
+        }),
+    });
+
+    renderProvider();
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Se déconnecter' }),
+    );
+
+    await waitFor(() =>
+      expect(
+        (screen.getByRole('button', { name: 'Rejoindre' }) as HTMLButtonElement)
+          .disabled,
+      ).toBe(true),
+    );
+    expect(
+      (screen.getByRole('button', { name: 'Refuser' }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(true);
+    releaseLogout();
+    await waitFor(() => expect(replace).toHaveBeenCalledWith(MOTIF));
+  });
+
+  // [11] The sign-out after the last « Refuser » is a wait, not an empty page.
+  it('« Refuser » on the LAST card: the loading state while the sign-out runs '
+    + '— no empty invitations page, no live « Se déconnecter »', async () => {
+    let releaseLogout: () => void = () => {};
+    mockFetch({
+      '/api/pro/me': notAMember,
+      '/api/pro/invitations': () => json(200, { invitations: [INV] }),
+      '/api/pro/invitations/inv-1/decline': () =>
+        json(200, { declined: true }),
+      '/api/pro/auth/logout': () =>
+        new Promise((resolve) => {
+          releaseLogout = () => resolve(json(200, { ok: true }));
+        }),
+    });
+
+    renderProvider();
+    fireEvent.click(await screen.findByRole('button', { name: 'Refuser' }));
+
+    expect(await screen.findByText('Chargement…')).toBeTruthy();
+    expect(
+      screen.queryByText('Un salon vous a invité à rejoindre son équipe.'),
+    ).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Se déconnecter' })).toBeNull();
+    releaseLogout();
+    await waitFor(() => expect(replace).toHaveBeenCalledWith(MOTIF));
+  });
+
+  // [7] Focus never falls to <body> when the gate's content is swapped.
+  it('the gate’s wait (S2: joining from a deeper page) puts focus on the page '
+    + 'heading, not on <body>', async () => {
+    pathname = '/pro/clients';
+    mockFetch({
+      '/api/pro/me': (n) => (n === 1 ? notAMember() : json(200, STAFF_P1)),
+      '/api/pro/invitations': () => json(200, { invitations: [INV] }),
+      '/api/pro/invitations/inv-1/accept': () =>
+        json(200, { id: 'inv-1', status: 'active' }),
+    });
+
+    renderProvider();
+    const join = await screen.findByRole('button', { name: 'Rejoindre' });
+    join.focus();
+    fireEvent.click(join);
+
+    await waitFor(() => expect(replace).toHaveBeenCalledWith('/pro'));
+    expect(screen.getByText('Chargement…')).toBeTruthy();
+    expect(document.activeElement).toBe(
+      screen.getByRole('heading', { level: 1, name: 'Invitations' }),
+    );
   });
 });
 

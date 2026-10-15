@@ -20,15 +20,19 @@ import {
   selectSalon,
 } from '../../lib/api/pro';
 import {
+  type GateExitReason,
   type Membership,
   type SalonMembership,
   type TeamInvitation,
   type TeamRole,
   hasCap,
   joinedSalonMessage,
+  logoutErrorMessage,
+  revokedLanding,
 } from '../../lib/pro/team';
 import { type ToastKind, useToast } from '../../lib/useToast';
 import { ProRevokedInvitations } from './ProRevokedInvitations';
+import { ProSignOutRetry } from './ProSignOutRetry';
 
 /// The membership context over the pro dashboard (team access R5b —
 /// docs/design/web-team-access-r5.md §2.4). Fetches /api/pro/me on mount and
@@ -40,8 +44,15 @@ import { ProRevokedInvitations } from './ProRevokedInvitations';
 /// account's OWN pending invitations. One or more → the « Invitations » page
 /// replaces the dashboard and the session is kept; none, or any failure → the
 /// sign-out onto /pro/connexion?motif=acces-retire (no PII in the URL), as
-/// before — it fails CLOSED. An empty list is re-checked against /me once
-/// first: an accept that just activated the row empties the list too.
+/// before — it fails CLOSED. Before that sign-out, /me is re-checked once —
+/// after an empty list AND after a failed one (§10, as the app): an accept
+/// that just activated the row empties the list too, and the re-check can
+/// only keep a session the server ties to a salon.
+///
+/// A sign-out is real or it is not shown: the session is two httpOnly cookies
+/// only the logout RESPONSE clears, so when that call fails the context does
+/// not land on the (signed-out-looking) login — it locks on ProSignOutRetry,
+/// which says why and retries.
 ///
 /// R6 multi-salons: the context also carries « Mes salons » + the switcher.
 /// The selection lives in an httpOnly cookie the BFF threads as `?salonId=`;
@@ -99,7 +110,9 @@ export function useOptionalProMembership(): ProMembershipValue | null {
   return useContext(ProMembershipContext);
 }
 
-const REVOKED_LANDING = '/pro/connexion?motif=acces-retire';
+/// A revoked sign-out whose logout call failed: what the locked page says,
+/// and where its retry lands.
+type SignOutLock = { error: string; landing: string };
 
 export function ProMembershipProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
@@ -124,23 +137,37 @@ export function ProMembershipProvider({ children }: { children: ReactNode }) {
   /// Bumped at each gate entry so the page remounts on a fresh list.
   const [gateEpoch, setGateEpoch] = useState(0);
   const [lostSalon, setLostSalon] = useState('');
-  const [joining, setJoining] = useState(false);
+  /// The gate's full-page wait: S2's join on its way to the salon, S6's
+  /// sign-out on its way to the login. Nothing is actionable meanwhile.
+  const [waiting, setWaiting] = useState(false);
   /// Leaving the gate for /pro: the gate (in its loading state) stays until
   /// the navigation lands, so no page of the OLD path mounts under the new
   /// role (a member revoked on /pro/clients may rejoin as Collaborateur).
   const [leaving, setLeaving] = useState(false);
+  /// Non-null when a revoked sign-out's logout call failed: the locked page.
+  const [signOutLock, setSignOutLock] = useState<SignOutLock | null>(null);
   const pathRef = useRef(pathname);
   pathRef.current = pathname;
   /// While the gate is up — accepts included — no navigation probe runs: only
   /// the gate's own events (a join, an emptied list) re-check, with `force`.
-  /// The app's checkMembershipAlive does the same (`_rejoinPending`).
+  /// The app's checkMembershipAlive does the same (`_rejoinPending`). The
+  /// locked sign-out page holds it too.
   const gated = useRef(false);
   /// Single-flight: concurrent not_a_member answers share ONE check.
   const revokedCheck = useRef<Promise<ProbeOutcome> | null>(null);
   /// The last salon this session acted in — the gate names it.
   const lastSalon = useRef('');
+  /// The gate wiped the membership and no profile has committed since: the
+  /// sidebar keeps its skeleton rather than draw a nav from an ABSENT
+  /// membership (hasCap's owner-shaped fallback would hand a new
+  /// Collaborateur the owner's entries).
+  const awaitingProfile = useRef(false);
+  /// The cookies were cleared (a sign-out landed): a late « Rejoindre »
+  /// answer is dropped, never walked into a salon.
+  const signedOut = useRef(false);
 
   const commitProfile = useCallback((profile: ProProfile) => {
+    awaitingProfile.current = false;
     setMembership(profile.membership ?? null);
     setSalonName(profile.provider.name || '');
     setProviderId(profile.provider.id);
@@ -156,16 +183,10 @@ export function ProMembershipProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  /// Today's sign-out, unchanged in effect: drop the cookies, land on the
-  /// login with the generic banner. A failed logout call still lands there.
-  const signOutRevoked = useCallback(async () => {
-    await logoutPro().catch(() => undefined);
-    router.replace(REVOKED_LANDING);
-  }, [router]);
-
-  /// The gate opens: the session stays, the lost salon's context goes.
-  const enterGate = useCallback((invitations: TeamInvitation[]) => {
-    gated.current = true;
+  /// The lost salon's context goes (its agenda, its clients do not stay in
+  /// memory): the gate and the locked page both stand on this.
+  const dropSalon = useCallback(() => {
+    awaitingProfile.current = true;
     setLostSalon(lastSalon.current);
     setMembership(null);
     setSalonName('');
@@ -173,26 +194,64 @@ export function ProMembershipProvider({ children }: { children: ReactNode }) {
     setEmail(null);
     setSalons([]);
     setCanAdd(false);
-    setJoining(false);
-    setRejoinInvites(invitations);
-    setGateEpoch((e) => e + 1);
-    setLoading(false);
   }, []);
+
+  const markSignedOut = useCallback(() => {
+    signedOut.current = true;
+  }, []);
+
+  /// Today's sign-out: drop the cookies, land on the login with the generic
+  /// banner (and, when the gate's last card went on the server's word, why).
+  /// Only once the logout RESPONSE came back OK — otherwise the session still
+  /// lives, and the context locks on a page that says so and retries.
+  const signOutRevoked = useCallback(
+    async (reason?: GateExitReason) => {
+      const landing = revokedLanding(reason);
+      const outcome = await logoutPro();
+      if (outcome === 'ok') {
+        signedOut.current = true;
+        router.replace(landing);
+        return;
+      }
+      gated.current = true;
+      dropSalon();
+      setRejoinInvites(null);
+      setWaiting(false);
+      setLoading(false);
+      setSignOutLock({ error: logoutErrorMessage(outcome), landing });
+    },
+    [router, dropSalon],
+  );
+
+  /// The gate opens: the session stays, the lost salon's context goes.
+  const enterGate = useCallback(
+    (invitations: TeamInvitation[]) => {
+      gated.current = true;
+      dropSalon();
+      setSignOutLock(null);
+      setWaiting(false);
+      setRejoinInvites(invitations);
+      setGateEpoch((e) => e + 1);
+      setLoading(false);
+    },
+    [dropSalon],
+  );
 
   /// Into a salon after the gate (or after a check that found the account a
   /// member again): its dashboard at /pro — the role may differ from the one
-  /// whose page was showing — with every page remounted for it.
+  /// whose page was showing — with every page remounted for it. With no
+  /// profile committed yet the sidebar stays a skeleton (`loading`).
   const enterSalon = useCallback(() => {
     gated.current = false;
-    setLoading(false);
+    setLoading(awaitingProfile.current);
     setSwitchEpoch((e) => e + 1);
     router.replace('/pro');
     void refreshSalons();
     if (pathRef.current === '/pro') {
       setRejoinInvites(null);
-      setJoining(false);
+      setWaiting(false);
     } else {
-      setJoining(true);
+      setWaiting(true);
       setLeaving(true);
     }
   }, [router, refreshSalons]);
@@ -201,23 +260,27 @@ export function ProMembershipProvider({ children }: { children: ReactNode }) {
     if (leaving && pathname === '/pro') {
       setLeaving(false);
       setRejoinInvites(null);
-      setJoining(false);
+      setWaiting(false);
     }
   }, [leaving, pathname]);
 
-  /// Before a sign-out decided from an EMPTY list: one more look at /me. A
-  /// 200 means an accept activated the row (that is why the list is empty) —
-  /// enter instead. Anything else signs out.
-  const confirmOrSignOut = useCallback(async (): Promise<ProbeOutcome> => {
-    const me = await getMyProvider().catch(() => null);
-    if (me?.status === 200 && me.profile) {
-      commitProfile(me.profile);
-      enterSalon();
-      return 'entered';
-    }
-    await signOutRevoked();
-    return 'revoked';
-  }, [commitProfile, enterSalon, signOutRevoked]);
+  /// Before a sign-out decided on an empty OR failed list (or on the gate's
+  /// last card going): one more look at /me. A 200 means an accept activated
+  /// the row (that is why the list is empty) — enter instead. Anything else
+  /// signs out: the look can only keep a session the server ties to a salon.
+  const confirmOrSignOut = useCallback(
+    async (reason?: GateExitReason): Promise<ProbeOutcome> => {
+      const me = await getMyProvider().catch(() => null);
+      if (me?.status === 200 && me.profile) {
+        commitProfile(me.profile);
+        enterSalon();
+        return 'entered';
+      }
+      await signOutRevoked(reason);
+      return 'revoked';
+    },
+    [commitProfile, enterSalon, signOutRevoked],
+  );
 
   const checkRevoked = useCallback((): Promise<ProbeOutcome> => {
     if (revokedCheck.current) return revokedCheck.current;
@@ -233,16 +296,15 @@ export function ProMembershipProvider({ children }: { children: ReactNode }) {
         enterGate(inv.invitations);
         return 'revoked';
       }
-      if (inv.status === 200) return confirmOrSignOut();
-      // 401, non-200, no network: fail closed.
-      await signOutRevoked();
-      return 'revoked';
+      // None — or the list failed (401, 5xx, no network): the re-check, then
+      // the sign-out. Fail closed.
+      return confirmOrSignOut();
     })().finally(() => {
       revokedCheck.current = null;
     });
     revokedCheck.current = run;
     return run;
-  }, [enterGate, confirmOrSignOut, signOutRevoked]);
+  }, [enterGate, confirmOrSignOut]);
 
   const runProbe = useCallback(
     async (force = false): Promise<ProbeOutcome> => {
@@ -272,8 +334,9 @@ export function ProMembershipProvider({ children }: { children: ReactNode }) {
       }
       // 401 → the page-level guards own the plain redirect (avoid racing two
       // router.replace calls); other errors keep the last known state so a
-      // transient failure never locks the UI.
-      setLoading(false);
+      // transient failure never locks the UI — except when there IS no known
+      // state since the gate wiped it: then the sidebar keeps waiting.
+      if (!awaitingProfile.current) setLoading(false);
       return 'other';
     },
     [commitProfile, refreshSalons, checkRevoked],
@@ -292,27 +355,52 @@ export function ProMembershipProvider({ children }: { children: ReactNode }) {
     refreshSalons();
   }, [refreshSalons]);
 
+  /// An accept that answered after a sign-out landed: never walked into a
+  /// salon. Its response may have carried a refreshed session (the BFF sets
+  /// the cookies again on a refresh), so the logout runs once more.
+  const dropLateJoin = useCallback(() => {
+    void logoutPro();
+  }, []);
+
   /// S2: « Rejoindre » succeeded. Wait for /me to say so, then the joined
   /// salon's dashboard and « Vous avez rejoint {salon} ».
   const onJoined = useCallback(
     async (inv: TeamInvitation) => {
-      setJoining(true);
+      if (signedOut.current) return dropLateJoin();
+      setWaiting(true);
       const outcome = await runProbe(true);
+      if (signedOut.current) return dropLateJoin();
       // Still not a member (the gate reopened on what is left, or signed out).
       if (outcome === 'revoked') return;
       // A 200 — or a transient failure after an accept the server confirmed:
       // the membership is active, so the dashboard (and its own error state)
       // is the honest place to land. (`entered`: the check already did.)
       if (outcome !== 'entered') enterSalon();
+      // No profile committed (the forced /me failed): the sidebar waits in
+      // its skeleton, and one more probe goes — at /pro no navigation will
+      // run one. The page's « Réessayer » re-probes too.
+      if (outcome === 'other' || outcome === 'skipped') void runProbe();
       show(joinedSalonMessage(inv.salonName), 'success');
     },
-    [runProbe, enterSalon, show],
+    [runProbe, enterSalon, show, dropLateJoin],
   );
 
-  /// S3/S6: the last card went (declined, expired, withdrawn).
-  const onEmptied = useCallback(() => {
-    void confirmOrSignOut();
-  }, [confirmOrSignOut]);
+  /// S3/S6: the last card went (declined, or gone on the server's word — the
+  /// reason then travels to the login). The wait shows while it is decided.
+  const onEmptied = useCallback(
+    (reason?: GateExitReason) => {
+      setWaiting(true);
+      void confirmOrSignOut(reason);
+    },
+    [confirmOrSignOut],
+  );
+
+  /// A card's answer was 401: the session died under the gate (signed out in
+  /// another tab, refresh token expired). Out to the login, as today.
+  const onUnauthenticated = useCallback(() => {
+    setWaiting(true);
+    void signOutRevoked();
+  }, [signOutRevoked]);
 
   const switchSalon = useCallback(
     async (salonId: string) => {
@@ -357,14 +445,23 @@ export function ProMembershipProvider({ children }: { children: ReactNode }) {
         notify: show,
       }}
     >
-      {rejoinInvites ? (
+      {signOutLock ? (
+        <ProSignOutRetry
+          lostSalon={lostSalon}
+          error={signOutLock.error}
+          redirectTo={signOutLock.landing}
+          onSignedOut={markSignedOut}
+        />
+      ) : rejoinInvites ? (
         <ProRevokedInvitations
           key={gateEpoch}
           invitations={rejoinInvites}
           lostSalon={lostSalon}
-          joining={joining}
+          waiting={waiting}
           onJoined={(inv) => void onJoined(inv)}
           onEmptied={onEmptied}
+          onUnauthenticated={onUnauthenticated}
+          onSignedOut={markSignedOut}
         />
       ) : (
         <div key={switchEpoch} className="contents">
