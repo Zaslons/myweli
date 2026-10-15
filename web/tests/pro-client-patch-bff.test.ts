@@ -71,6 +71,9 @@ describe('PATCH /api/pro/clients/[clientId] — phone beside tags', () => {
   });
 
   it('refuses a body with nothing to change, no salon, or a wrong type — without calling the API', async () => {
+    // An API that would accept anything: a body that slips through answers
+    // 200, and the assertion names it.
+    callApiPro.mockResolvedValue({ status: 200, body: {} });
     for (const body of [
       { providerId: 'p1' },
       { phone: '+2250505123456' },
