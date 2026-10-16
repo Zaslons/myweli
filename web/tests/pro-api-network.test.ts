@@ -50,6 +50,8 @@ const ROWS: Row[] = [
   { name: 'getTeamMembers', kind: 'read', call: () => pro.getTeamMembers() },
   { name: 'getMyInvitations', kind: 'read', call: () => pro.getMyInvitations() },
   { name: 'listClients', kind: 'read', call: () => pro.listClients('p1') },
+  // #618's walk over every page — built on listClients, so it never throws either.
+  { name: 'listAllClients', kind: 'read', call: () => pro.listAllClients('p1') },
   { name: 'getClientCard', kind: 'read', call: () => pro.getClientCard('p1', 'c1') },
   { name: 'getClientVisits', kind: 'read', call: () => pro.getClientVisits('p1', 'c1') },
   { name: 'getJournalDay', kind: 'read', call: () => pro.getJournalDay('p1', '2026-10-16') },

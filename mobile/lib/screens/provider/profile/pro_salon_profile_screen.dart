@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
@@ -5,6 +7,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/config/app_config.dart';
+import '../../../core/constants/salon_categories.dart';
 import '../../../core/forms/field_errors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
@@ -25,16 +28,6 @@ import '../../../widgets/common/phone_number_field.dart';
 import '../../../widgets/common/timed_cached_image.dart';
 import '../../../widgets/provider/image_picker_sheet.dart';
 import '../../../widgets/provider/mock_image_picker_sheet.dart';
-
-/// The listing categories a salon can choose (the canonical taxonomy —
-/// mirrors the server's PATCH validation, pro-salon-lifecycle L1/L2).
-const salonCategories = [
-  ('salon', 'Salon de coiffure'),
-  ('barber', 'Barbier'),
-  ('spa', 'Spa'),
-  ('nails', 'Onglerie'),
-  ('massage', 'Massage & bien-être'),
-];
 
 /// « Profil du salon » (docs/design/pro-salon-lifecycle.md L2): the app's
 /// editor for the public listing — the fields a client sees, the category,
@@ -230,6 +223,13 @@ class _ProSalonProfileScreenState extends State<ProSalonProfileScreen> {
     });
     if (!mounted) return;
     if (ok) {
+      // The acting salon's facts live in the session too — « Profil »,
+      // « Mes salons », the dashboard header. Without this a rename showed
+      // the old name until the next cold start
+      // (docs/design/r6-salon-fact-reads.md §2.4).
+      final auth = context.read<ProAuthProvider>();
+      unawaited(auth.refreshMembership());
+      unawaited(auth.loadMySalons());
       AppSnackBar.show(context, 'Profil enregistré', kind: SnackKind.success);
       Navigator.of(context).pop();
       return;

@@ -5,6 +5,7 @@ import type { Availability } from '../pro/availability';
 import type {
   SalonClientCard,
   SalonClientList,
+  SalonClientListItem,
   SalonClientNote,
 } from '../pro/clients';
 import type { Artist, ArtistInput, Service, ServiceInput } from '../pro/catalogue';
@@ -21,6 +22,7 @@ import type {
 import type { JournalDay } from '../pro/journal';
 import type { ProAppointment } from '../pro/today';
 import type { EarningsData } from '../pro/earnings';
+import { wholeClientBase } from '../pro/export';
 
 export type DashboardStats = {
   todayAppointments?: number;
@@ -754,16 +756,48 @@ export async function declineMyInvitation(
 
 export async function listClients(
   providerId: string,
-  opts: { query?: string; tag?: string; page?: number } = {},
+  opts: { query?: string; tag?: string; page?: number; pageSize?: number } = {},
 ): Promise<{ status: number; list?: SalonClientList }> {
   const qs = new URLSearchParams({ providerId });
   if (opts.query) qs.set('query', opts.query);
   if (opts.tag) qs.set('tag', opts.tag);
   if (opts.page) qs.set('page', String(opts.page));
+  if (opts.pageSize) qs.set('pageSize', String(opts.pageSize));
   const res = await send(`/api/pro/clients?${qs}`);
   if (!res.ok) return { status: res.status };
   const list = await readJson<SalonClientList>(res);
   return list ? { status: 200, list } : { status: 0 };
+}
+
+/// The server's largest page (`ClientsService.list` clamps to 50).
+const CLIENT_WALK_PAGE_SIZE = 50;
+
+/// EVERY client of the salon, for the data export
+/// (docs/design/web-pro-export-completeness.md §5) — not the first page,
+/// which is all `listClients` returns. Pages are read one after another.
+/// `items` is set only when the walk is whole (`wholeClientBase`). A failed
+/// page returns its status; a walk that does not add up returns 200 without
+/// `items`.
+export async function listAllClients(
+  providerId: string,
+): Promise<{ status: number; items?: SalonClientListItem[] }> {
+  const first = await listClients(providerId, {
+    page: 1,
+    pageSize: CLIENT_WALK_PAGE_SIZE,
+  });
+  if (!first.list) return { status: first.status };
+  const pages = [first.list];
+  // The server's page size, not ours: it is the one the offsets used.
+  const size = first.list.pageSize;
+  if (!(size > 0)) return { status: 200 };
+  const count = Math.ceil(first.list.total / size);
+  for (let page = 2; page <= count; page++) {
+    const next = await listClients(providerId, { page, pageSize: size });
+    if (!next.list) return { status: next.status };
+    pages.push(next.list);
+  }
+  const items = wholeClientBase(pages);
+  return items ? { status: 200, items } : { status: 200 };
 }
 
 export async function addClient(
