@@ -193,6 +193,10 @@ void main() {
     expect(find.text('Nom du salon'), findsOneWidget);
     expect(find.text('Configurer mon profil'), findsOneWidget);
     expect(find.text('Équipe'), findsOneWidget);
+    // The salon-data export is the owner's (`salon.publish`, T39) — the
+    // Manager case pins that it is gone; this pins that it is still here
+    // (app-pro-export-completeness.md §5).
+    expect(find.text('Mes données'), findsOneWidget);
     await scrollDown(tester);
     expect(find.text('Mon abonnement'), findsOneWidget);
     expect(find.text('Paramètres d’acompte'), findsOneWidget);

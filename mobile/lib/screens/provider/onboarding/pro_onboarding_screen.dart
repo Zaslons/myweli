@@ -27,9 +27,13 @@ class _ProOnboardingScreenState extends State<ProOnboardingScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final pro = context.read<ProAuthProvider>().provider;
+      final auth = context.read<ProAuthProvider>();
+      final pro = auth.provider;
       if (pro != null) {
-        context.read<ProOnboardingProvider>().load(pro);
+        context.read<ProOnboardingProvider>().load(
+          pro,
+          salonId: auth.activeSalonId,
+        );
       }
     });
   }
@@ -83,7 +87,7 @@ class _ProOnboardingScreenState extends State<ProOnboardingScreen> {
               title: 'Chargement impossible',
               description: 'Vérifiez votre connexion et réessayez.',
               actionText: 'Réessayer',
-              onAction: () => onboarding.load(pro),
+              onAction: () => onboarding.load(pro, salonId: auth.activeSalonId),
             );
           }
           return _buildList(onboarding);
