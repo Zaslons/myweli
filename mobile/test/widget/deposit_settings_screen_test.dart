@@ -783,8 +783,15 @@ void main() {
     );
     noSave();
     // The press brought the Pro back to the chips (§14's focus amendment):
-    // the message is on screen, not merely in the tree.
+    // the message is on screen, not merely in the tree — and so are the
+    // chips it asks about (without the scroll, the message alone peeks in at
+    // the top edge while every chip stays above it).
     expect(find.text(operatorMissing).hitTestable(), findsOneWidget);
+    expect(
+      find.text('Wave').hitTestable(),
+      findsOneWidget,
+      reason: 'the chips to choose from are on screen after the press',
+    );
 
     // Rule 2: choosing an operator clears it, without a second press.
     await tester.tap(find.widgetWithText(ChoiceChip, 'Wave'));
