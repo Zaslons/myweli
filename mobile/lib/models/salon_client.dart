@@ -221,12 +221,12 @@ class SalonClientsPage extends Equatable {
   final List<String> availableTags;
 
   /// Throws a [FormatException] when `items` is not a list or `total` not a
-  /// number. The server always sends both, so a page without them is an
-  /// answer that did not arrive whole — read as « no clients, total 0 » it
-  /// passed the export's walk as an empty base, complete
-  /// (docs/design/export-unreadable-200.md §1). Every caller of the read
-  /// turns a throw into its error (the export walk's `_read`,
-  /// `ProClientsProvider.load` and `loadMore`). `pageSize` stays tolerant.
+  /// number. The server always sends both, so a readable page without them
+  /// means a changed contract or something other than the API answering —
+  /// read as « no clients, total 0 », it passed the export's walk as an empty
+  /// base, complete (docs/design/export-unreadable-200.md §1).
+  /// `ApiProClientsService.listClients` turns the throw into its « Erreur »,
+  /// so every screen gets an error answer. `pageSize` stays tolerant.
   factory SalonClientsPage.fromJson(Map<String, dynamic> json) {
     final items = json['items'];
     final total = json['total'];

@@ -50,6 +50,16 @@ export function badGateway(tokens?: { at: string; rt: string }): ApiResult {
   return { status: 502, body: { error: 'bad_gateway' }, tokens };
 }
 
+/// Whether a lost 2xx body makes [badGateway]: only for a READ. A write's
+/// server ACTED — telling the browser it failed would have a saved booking
+/// retried into a 409 on the client's own slot — so its 2xx stays, `{}`
+/// as its body: « a write stays ok (the server acted) without its payload »
+/// (#620, lib/api/network.ts; docs/design/export-unreadable-200.md §2.1).
+export function lostBodyIsBadGateway(res: Response, init: RequestInit): boolean {
+  const read = (init.method ?? 'GET').toUpperCase() === 'GET';
+  return read && res.ok && res.status !== 204;
+}
+
 export async function callApi(
   req: NextRequest,
   path: string,
@@ -74,13 +84,14 @@ export async function callApi(
   try {
     body = await res.json();
   } catch {
-    // A 2xx whose body is lost between the server and here (cut off, or a
-    // proxy's HTML page) is no success: passed on as a 200 `{}`, it read as
-    // « the server said nothing » — an empty list in « Mes données ». The
-    // server sends a body with every 2xx but a 204, which has none and
-    // stays a 204 (docs/design/export-unreadable-200.md §2.1). An error
-    // keeps its status; its unreadable body stays `{}`.
-    if (res.ok && res.status !== 204) return badGateway(tokens);
+    // A READ whose 2xx body is lost between the server and here (cut off,
+    // or a proxy's HTML page) is no success: passed on as a 200 `{}`, it
+    // read as « the server said nothing » — an empty list in « Mes
+    // données ». The server sends a body with every 2xx but a 204, which has
+    // none and stays a 204; a write keeps its 2xx; an error keeps its
+    // status. Their unreadable bodies stay `{}`
+    // (docs/design/export-unreadable-200.md §2.1).
+    if (lostBodyIsBadGateway(res, init)) return badGateway(tokens);
     body = {};
   }
   return { status: res.status, body, tokens };

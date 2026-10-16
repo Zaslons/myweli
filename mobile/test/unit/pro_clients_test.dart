@@ -415,7 +415,10 @@ void main() {
         final provider = ProClientsProvider();
         await provider.load('p1');
 
-        expect(provider.error, isNotNull);
+        // The service's own word for an answer it cannot read — never
+        // « FormatException: A clients page without its items », which the
+        // list's error state would show as its description.
+        expect(provider.error, 'Erreur');
         expect(provider.clients, isEmpty);
       });
 
@@ -440,6 +443,22 @@ void main() {
           expect(provider.total, 2);
           expect(provider.hasMore, isTrue);
           expect(provider.isLoadingMore, isFalse);
+          // The loaded list stays on screen: no error swaps it for
+          // « Une erreur est survenue ».
+          expect(provider.error, isNull);
+
+          // The next scroll asks for the SAME page — no hole in the list.
+          service.wireOf = (page) => {
+            'items': [row('sc$page')],
+            'page': page,
+            'pageSize': 1,
+            'total': 2,
+          };
+          await provider.loadMore('p1');
+
+          expect(provider.clients.map((c) => c.id), ['sc1', 'sc2']);
+          expect(service.pagesAsked, [1, 2, 2]);
+          expect(provider.hasMore, isFalse);
         },
       );
     });
@@ -651,6 +670,25 @@ void main() {
         'items: null': {'items': null, 'total': 0, 'pageSize': 50},
         'items: "x"': {'items': 'x', 'total': 0, 'pageSize': 50},
         'no total': {'items': <Object>[], 'pageSize': 50},
+        // Not only an empty one: two clients and no total must not read as a
+        // base of two, complete.
+        'items, no total': {
+          'items': [
+            {
+              'id': 'sc1',
+              'displayName': 'A',
+              'tags': <String>[],
+              'linked': false,
+            },
+            {
+              'id': 'sc2',
+              'displayName': 'B',
+              'tags': <String>[],
+              'linked': false,
+            },
+          ],
+          'pageSize': 50,
+        },
         'total: null': {'items': <Object>[], 'total': null, 'pageSize': 50},
         'total: "x"': {'items': <Object>[], 'total': 'x', 'pageSize': 50},
       };
@@ -673,19 +711,23 @@ void main() {
       expect(page.pageSize, 50);
     });
 
-    test('listClients: a 200 without its list throws — never an empty '
-        'page', () async {
-      final client = MockClient(
-        (req) async => http.Response(
-          jsonEncode({'pageSize': 50}),
-          200,
-          headers: {'content-type': 'application/json'},
-        ),
-      );
-      await expectLater(
-        linked(client).listClients('provider1', pageSize: 50),
-        throwsFormatException,
-      );
+    test('listClients: a 200 without its list, or cut off, is an error — '
+        'never an empty page, never a throw', () async {
+      for (final body in [
+        jsonEncode({'pageSize': 50}),
+        '{"items":[{"id"',
+      ]) {
+        final client = MockClient(
+          (req) async => http.Response(
+            body,
+            200,
+            headers: {'content-type': 'application/json'},
+          ),
+        );
+        final res = await linked(client).listClients('provider1', pageSize: 50);
+        expect(res.success, isFalse, reason: body);
+        expect(res.error, 'Erreur', reason: body);
+      }
     });
 
     test('addClient 409 carries the existing card id', () async {
@@ -838,8 +880,12 @@ class _CountingClients implements ProClientsServiceInterface {
   bool visitsThrow = false;
 
   /// The 200 body a list page answers, parsed as `ApiProClientsService`
-  /// does (`SalonClientsPage.fromJson`); null = the seeded mock answers.
+  /// does (`SalonClientsPage.fromJson`, an unreadable page → « Erreur »);
+  /// null = the seeded mock answers.
   Map<String, dynamic>? Function(int page)? wireOf;
+
+  /// Every page `listClients` was asked for, in order.
+  final pagesAsked = <int>[];
 
   void reset() {
     _base = MockProClientsService();
@@ -848,6 +894,7 @@ class _CountingClients implements ProClientsServiceInterface {
     failCardOf = null;
     visitsThrow = false;
     wireOf = null;
+    pagesAsked.clear();
   }
 
   @override
@@ -858,8 +905,13 @@ class _CountingClients implements ProClientsServiceInterface {
     int page = 1,
     int? pageSize,
   }) async {
+    pagesAsked.add(page);
     if (wireOf?.call(page) case final wire?) {
-      return ApiResponse.success(SalonClientsPage.fromJson(wire));
+      try {
+        return ApiResponse.success(SalonClientsPage.fromJson(wire));
+      } on FormatException {
+        return ApiResponse.error('Erreur');
+      }
     }
     return _base.listClients(
       providerId,

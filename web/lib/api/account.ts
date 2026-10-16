@@ -25,8 +25,9 @@ export type Me = {
 };
 
 /// The reads « Mes données » is made of require their shape
-/// (docs/design/export-unreadable-200.md §2.2): the server always sends the
-/// user with its `id`, `items`, `providers`. A 200 without them is a failed
+/// (docs/design/export-unreadable-200.md §2.2): the BFF always sends the
+/// user with its `id`, `items`, and `favorites` (its name for the server's
+/// `providers`). A 200 without them is a failed
 /// read (status 0) — never a profile of nothing or an empty list nobody sent.
 /// For the user, the string `id` is the whole test: `{}`, `[]` or `"x"` has
 /// none.

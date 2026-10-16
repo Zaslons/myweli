@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from 'next/server';
+import { badGateway, lostBodyIsBadGateway } from './bff';
 import { apiBase } from './server-api';
 import {
   PRO_AT_COOKIE,
@@ -88,14 +89,12 @@ export async function callApiPro(
   try {
     body = await res.json();
   } catch {
-    // A 2xx whose body was lost on the way is a 502, never a 200 `{}` read
-    // as « nothing » (an empty export section); a 204 has no body and stays
-    // a 204, an error keeps its status — as `callApi` does
-    // (docs/design/export-unreadable-200.md §2.1). The rotated tokens ride
-    // along: the refresh happened.
-    if (res.ok && res.status !== 204) {
-      return { status: 502, body: { error: 'bad_gateway' }, tokens };
-    }
+    // A read whose 2xx body was lost on the way is a 502, never a 200 `{}`
+    // read as « nothing » (an empty export section); a 204 stays a 204, a
+    // write keeps its 2xx, an error keeps its status — the same rule as
+    // `callApi` (docs/design/export-unreadable-200.md §2.1). The rotated
+    // tokens ride along: the refresh happened.
+    if (lostBodyIsBadGateway(res, init)) return badGateway(tokens);
     body = {};
   }
   return { status: res.status, body, tokens };

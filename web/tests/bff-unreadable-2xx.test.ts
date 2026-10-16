@@ -59,19 +59,19 @@ afterEach(() => vi.unstubAllGlobals());
 
 const TWINS: {
   name: string;
-  call: (path: string) => Promise<ApiResult>;
+  call: (path: string, init?: RequestInit) => Promise<ApiResult>;
   respond: (r: ApiResult) => NextResponse;
   atCookie: string;
 }[] = [
   {
     name: 'callApi (lib/bff.ts)',
-    call: (path) => callApi(consumer, path),
+    call: (path, init) => callApi(consumer, path, init),
     respond,
     atCookie: 'myweli_web_at',
   },
   {
     name: 'callApiPro (lib/bff-pro.ts)',
-    call: (path) => callApiPro(pro, path),
+    call: (path, init) => callApiPro(pro, path, init),
     respond: respondPro,
     atCookie: 'myweli_pro_at',
   },
@@ -100,6 +100,22 @@ for (const twin of TWINS) {
         status: 502,
         body: BAD_GATEWAY,
       });
+    });
+
+    // A WRITE is different: the server acted, and the browser must not be
+    // told otherwise — « a write stays ok (the server acted) without its
+    // payload » (#620, lib/api/network.ts). A booking saved but reported as
+    // failed would be retried into a 409 on the client's own slot. Only a
+    // read's lost body is a 502 (docs/design/export-unreadable-200.md §2.1).
+    it.each([
+      ['POST', 201],
+      ['PATCH', 200],
+      ['PUT', 200],
+      ['DELETE', 200],
+    ])('a %s whose body is lost keeps its %i, with `{}` — the server acted', async (method, status) => {
+      server(() => new Response('', { status }));
+
+      expect(await twin.call('/appointments', { method })).toEqual({ status, body: {} });
     });
 
     it('a 204 has no body and stays a 204', async () => {

@@ -74,6 +74,20 @@ void main() {
       expect(res.data!.single.name, 'Salon p1');
     });
 
+    // FavoritesService.list drops a favourite whose salon no longer EXISTS
+    // (spec §5): `providerIds` then runs longer than `providers`. That is a
+    // real answer — a guard that compared the two would refuse it for ever,
+    // here and in « Mes données ».
+    test('CONTROL: a favourite whose salon is gone — more ids than salons, '
+        'still the salons the server sent', () async {
+      final res = await answering({
+        'providerIds': ['p1', 'gone'],
+        'providers': [_salonJson('p1')],
+      }).getFavoriteProviders('u1');
+      expect(res.success, isTrue);
+      expect(res.data!.single.id, 'p1');
+    });
+
     test('CONTROL: an empty list the server sent is no favourites', () async {
       final res = await answering({
         'providerIds': <String>[],
