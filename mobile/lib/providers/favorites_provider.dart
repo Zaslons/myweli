@@ -24,9 +24,14 @@ class FavoritesProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get error => _error;
 
-  /// Load favorites for a user
-  Future<void> loadFavorites(String userId) async {
-    if (_currentUserId == userId && _favoriteProviderIds.isNotEmpty) {
+  /// Load favorites for a user.
+  ///
+  /// [force] reads even when this user's list is already in memory — the data
+  /// export needs the account as it is now, not as it was when the session
+  /// first read it (docs/design/consumer-export-completeness.md §1 point 7).
+  /// It also resets [error], which the early return below leaves as it was.
+  Future<void> loadFavorites(String userId, {bool force = false}) async {
+    if (!force && _currentUserId == userId && _favoriteProviderIds.isNotEmpty) {
       // Already loaded for this user
       return;
     }

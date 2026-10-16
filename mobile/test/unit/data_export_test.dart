@@ -115,4 +115,37 @@ void main() {
     expect((clients.first as Map)['visits'], 4);
     expect(export['generatedAt'], '2026-07-11T00:00:00.000Z');
   });
+
+  // The refusal (docs/design/consumer-export-completeness.md §4) — the web's
+  // `exportFailureMessage` says the same sentence.
+  group('dataExportFailureMessage', () {
+    const tail =
+        'Vos données ne sont proposées que complètes : vérifiez votre '
+        'connexion et réessayez.';
+
+    test('names one section', () {
+      expect(
+        dataExportFailureMessage([DataExportSection.appointments]),
+        'Impossible de charger vos rendez-vous. $tail',
+      );
+    });
+
+    test('joins two with « et », in the file order', () {
+      expect(
+        dataExportFailureMessage([
+          DataExportSection.favorites,
+          DataExportSection.appointments,
+        ]),
+        'Impossible de charger vos rendez-vous et vos favoris. $tail',
+      );
+    });
+
+    test('joins three with « , » then « et »', () {
+      expect(
+        dataExportFailureMessage(DataExportSection.values.reversed),
+        'Impossible de charger votre profil, vos rendez-vous et vos favoris. '
+        '$tail',
+      );
+    });
+  });
 }
