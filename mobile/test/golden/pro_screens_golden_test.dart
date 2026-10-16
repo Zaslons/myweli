@@ -42,6 +42,7 @@ import 'package:myweli/services/mock/mock_pro_team_service.dart';
 import 'package:myweli/services/mock/mock_push_notification_service.dart';
 import 'package:myweli/services/mock/mock_review_service.dart';
 import 'package:myweli/services/mock/mock_subscription_service.dart';
+import 'package:myweli/widgets/provider/pro_salon_gate.dart';
 import 'package:provider/provider.dart';
 import 'package:provider/single_child_widget.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -604,6 +605,47 @@ void main() {
 
       await expectGolden(tester, 'pro_rejoin_gate_w360_x2');
     });
+
+    // « Impossible de charger votre salon » — what stands in for every Pro
+    // page while the salon is unknown (docs/design/pro-app-salon-not-loaded.md
+    // §4). The screen reads one thing from the session, whether an answer is
+    // out: a settled session draws the message. At the phone size, and at
+    // the floor at 200% where the bar's icon and the two lines run out first.
+    for (final (name, size, scale) in [
+      ('pro_salon_not_loaded', kGoldenPhone, 1.0),
+      ('pro_salon_not_loaded_w360_x2', const Size(360, 1400), 2.0),
+    ]) {
+      testWidgets('the salon-not-loaded screen ($name)', (tester) async {
+        goldenSurface(tester, size: size, scale: scale);
+        late final ProAuthProvider auth;
+        await tester.runAsync(() async {
+          auth = ProAuthProvider();
+          await auth.ready;
+        });
+        expect(auth.salonLoading, isFalse, reason: 'the message, not the wait');
+
+        await tester.pumpWidget(
+          ChangeNotifierProvider<ProAuthProvider>.value(
+            value: auth,
+            child: MaterialApp(
+              debugShowCheckedModeBanner: false,
+              theme: goldenTheme(),
+              localizationsDelegates: GlobalMaterialLocalizations.delegates,
+              supportedLocales: const [Locale('fr', 'FR')],
+              locale: const Locale('fr', 'FR'),
+              home: ProSalonUnavailableScreen(onSignOut: () async {}),
+            ),
+          ),
+        );
+        await settleMocks(tester);
+
+        expect(find.text('Impossible de charger votre salon'), findsOneWidget);
+        expect(find.text('Réessayer'), findsOneWidget);
+        expect(find.byTooltip('Déconnexion'), findsOneWidget);
+
+        await expectGolden(tester, name);
+      });
+    }
   }, skip: kGoldensSkip);
 }
 
