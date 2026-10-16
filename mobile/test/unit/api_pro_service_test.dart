@@ -33,8 +33,15 @@ Map<String, dynamic> _availJson() => {
 };
 
 /// An ApiProService whose persisted provider session is linked to [providerId]
-/// (so the serviceId-only methods can resolve the salon path).
-ApiProService _linked(MockClient client, {String providerId = 'provider1'}) {
+/// (so the serviceId-only methods can resolve the salon path). A null
+/// [providerId] is a bare member account; [selected] is the R6 selection and
+/// [membershipSalon] the cached membership's salon.
+ApiProService _linked(
+  MockClient client, {
+  String? providerId = 'provider1',
+  String? selected,
+  String? membershipSalon,
+}) {
   final store = InMemorySessionStore();
   store.save(
     jsonEncode({
@@ -48,8 +55,16 @@ ApiProService _linked(MockClient client, {String providerId = 'provider1'}) {
         'verificationStatus': 'pending',
         'kycDocs': <Map<String, dynamic>>[],
         'createdAt': '2026-01-01T00:00:00.000Z',
-        'providerId': providerId,
+        'providerId': ?providerId,
       },
+      if (membershipSalon != null)
+        'membership': {
+          'role': 'manager',
+          'capabilities': ['catalogue.manage'],
+          'salonId': membershipSalon,
+          'salonName': 'Beauté Divine',
+        },
+      'selectedSalonId': ?selected,
     }),
   );
   return ApiProService(
@@ -404,6 +419,63 @@ void main() {
       expect((await _service(client).deleteService('svc1')).success, isFalse);
     },
   );
+
+  // The serviceId-only edits pick their salon from the session the same way
+  // ProAuthProvider.activeSalonId does — selection → the account's own
+  // salon → the membership's (docs/design/services-acting-salon.md).
+  group('the serviceId-only edits act in the session\'s acting salon', () {
+    Future<void> editToggleDelete(ApiProService service) async {
+      final updated = await service.updateService('svc1', {'price': 6000});
+      expect(updated.success, isTrue, reason: updated.error);
+      final toggled = await service.setServiceActive('svc1', false);
+      expect(toggled.success, isTrue, reason: toggled.error);
+      final deleted = await service.deleteService('svc1');
+      expect(deleted.success, isTrue, reason: deleted.error);
+    }
+
+    MockClient recorder(List<String> calls) => MockClient((req) async {
+      calls.add('${req.method} ${req.url.path}');
+      return req.method == 'DELETE'
+          ? http.Response('', 204)
+          : http.Response(jsonEncode(_svcJson()), 200);
+    });
+
+    // Already held before the shared rule (this resolver read the
+    // selection); kept so it cannot regress.
+    test('an owner switched to their second salon edits THAT salon\'s '
+        'catalogue', () async {
+      final calls = <String>[];
+      await editToggleDelete(
+        _linked(
+          recorder(calls),
+          providerId: 'provider1',
+          selected: 'provider2',
+        ),
+      );
+      expect(calls, [
+        'PATCH /providers/provider2/services/svc1',
+        'PATCH /providers/provider2/services/svc1',
+        'DELETE /providers/provider2/services/svc1',
+      ]);
+    });
+
+    test('a bare member account (no salon of its own) acts in its '
+        'membership\'s salon instead of being refused client-side', () async {
+      final calls = <String>[];
+      await editToggleDelete(
+        _linked(
+          recorder(calls),
+          providerId: null,
+          membershipSalon: 'provider2',
+        ),
+      );
+      expect(calls, [
+        'PATCH /providers/provider2/services/svc1',
+        'PATCH /providers/provider2/services/svc1',
+        'DELETE /providers/provider2/services/svc1',
+      ]);
+    });
+  });
 
   test('availability GET + PUT round-trip', () async {
     final client = MockClient((req) async {

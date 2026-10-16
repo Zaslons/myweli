@@ -1,6 +1,25 @@
 import 'pro_membership.dart';
 import 'provider_user.dart';
 
+/// The salon a provider session ACTS IN (team access R6) — the one rule:
+/// the switched-to salon ([selected]), else the account's own salon
+/// ([linked], an owner's default), else its membership's salon
+/// ([membership], a member account with no salon of its own). An empty id
+/// names no salon. ProAuthProvider.activeSalonId and the services that read
+/// the salon from the persisted session ([ProviderSession.actingSalonId])
+/// both resolve through it, so a screen and the request it sends cannot
+/// pick different salons. Design: docs/design/services-acting-salon.md.
+String? resolveActingSalonId({
+  required String? selected,
+  required String? linked,
+  required String? membership,
+}) {
+  for (final id in [selected, linked, membership]) {
+    if (id != null && id.isNotEmpty) return id;
+  }
+  return null;
+}
+
 /// A persisted **provider** auth session: the access token (role `provider`),
 /// the rotating [refreshToken] used to silently renew it, and the account it
 /// belongs to. Kept separate from the consumer [Session] (different
@@ -30,6 +49,15 @@ class ProviderSession {
     this.membership,
     this.selectedSalonId,
   });
+
+  /// The salon this session acts in — [resolveActingSalonId] over the
+  /// persisted selection, the account's own salon and the cached membership.
+  /// Null = no salon anywhere (signed in, not linked).
+  String? get actingSalonId => resolveActingSalonId(
+    selected: selectedSalonId,
+    linked: provider.providerId,
+    membership: membership?.salonId,
+  );
 
   ProviderSession copyWith({
     ProMembership? membership,
