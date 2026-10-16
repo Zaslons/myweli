@@ -732,6 +732,13 @@ void main() {
       'chips, with no bar, and saves nothing — choosing one clears it', (
     tester,
   ) async {
+    // A floor phone: « Enregistrer » and the chips are never on screen
+    // together, so the press must bring the salon back to them (§14's focus
+    // amendment) — on the default 800×600 surface both fit, and a screen
+    // that never scrolled would pass.
+    tester.view.physicalSize = const Size(360 * 3, 640 * 3);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
     when(() => service.getDepositPolicy(any())).thenAnswer(
       (_) async => ApiResponse.success(
         const DepositPolicy(
@@ -758,7 +765,16 @@ void main() {
     await settle(tester);
     await settle(tester);
 
-    await pressSave(tester);
+    await scrollTo(tester, saveButton);
+    await tester.pump();
+    expect(
+      find.text('Wave').hitTestable(),
+      findsNothing,
+      reason: 'the precondition: at the button, the chips are off screen',
+    );
+    await tester.tap(saveButton);
+    await settle(tester);
+    await settle(tester);
 
     expect(
       find.byType(SnackBar),
