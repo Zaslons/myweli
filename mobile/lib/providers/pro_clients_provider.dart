@@ -89,6 +89,12 @@ class ProClientsProvider extends ChangeNotifier implements ShowsSalonBookings {
         _total = r.data!.total;
         _page += 1;
       }
+    } catch (_) {
+      // A page that does not read (cut off on the way, or without its list:
+      // SalonClientsPage.fromJson throws) is an error answer like any other:
+      // nothing appended, the list still has more, the next scroll asks
+      // again — not an uncaught error, and not a list that ends early
+      // (docs/design/export-unreadable-200.md §2).
     } finally {
       _isLoadingMore = false;
       notifyListeners();

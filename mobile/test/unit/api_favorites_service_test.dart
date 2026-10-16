@@ -6,6 +6,25 @@ import 'package:http/testing.dart';
 import 'package:myweli/services/api/api_favorites_service.dart';
 import 'package:myweli/services/interfaces/session_store.dart';
 
+/// A salon as `GET /me/favorites` hydrates it (the fields the parse needs).
+Map<String, dynamic> _salonJson(String id) => {
+  'id': id,
+  'name': 'Salon $id',
+  'description': 'desc',
+  'address': 'addr',
+  'imageUrls': <String>[],
+  'rating': 4.5,
+  'reviewCount': 1,
+  'services': <Map<String, dynamic>>[],
+  'availability': {
+    'providerId': id,
+    'weeklySchedule': <String, dynamic>{},
+    'blockedDates': <String>[],
+  },
+  'phoneNumber': '+22500',
+  'category': 'salon',
+};
+
 /// A favorites service backed by a (consumer) session.
 ApiFavoritesService _service(MockClient client, {String? token = 'tok'}) {
   final store = InMemorySessionStore();
@@ -35,6 +54,53 @@ void main() {
     final res = await _service(client).getFavoriteProviderIds('u1');
     expect(res.success, isTrue);
     expect(res.data, ['p1', 'p2']);
+  });
+
+  group('getFavoriteProviders', () {
+    /// A favorites service whose `GET /me/favorites` answers [body] with a 200.
+    ApiFavoritesService answering(Object body) => _service(
+      MockClient((req) async {
+        expect(req.url.path, '/me/favorites');
+        return http.Response(jsonEncode(body), 200);
+      }),
+    );
+
+    test('CONTROL: the hydrated salons the server sent', () async {
+      final res = await answering({
+        'providerIds': ['p1'],
+        'providers': [_salonJson('p1')],
+      }).getFavoriteProviders('u1');
+      expect(res.success, isTrue);
+      expect(res.data!.single.name, 'Salon p1');
+    });
+
+    test('CONTROL: an empty list the server sent is no favourites', () async {
+      final res = await answering({
+        'providerIds': <String>[],
+        'providers': <Object>[],
+      }).getFavoriteProviders('u1');
+      expect(res.success, isTrue);
+      expect(res.data, isEmpty);
+    });
+
+    // The server always sends `providers`: a 200 without it is a body that
+    // did not arrive whole, never « no favourites » — « Mes données » would
+    // copy it as complete (docs/design/export-unreadable-200.md §2).
+    final withoutTheList = <String, Map<String, Object?>>{
+      '{}': {},
+      'providers: null': {'providers': null},
+      'providers: "x"': {'providers': 'x'},
+      'the ids without the salons': {
+        'providerIds': ['p1'],
+      },
+    };
+    for (final MapEntry(key: name, value: body) in withoutTheList.entries) {
+      test('a 200 without its list ($name) is an error, not []', () async {
+        final res = await answering(body).getFavoriteProviders('u1');
+        expect(res.success, isFalse);
+        expect(res.data, isNull);
+      });
+    }
   });
 
   test(

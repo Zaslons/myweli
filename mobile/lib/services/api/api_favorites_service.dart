@@ -68,7 +68,13 @@ class ApiFavoritesService implements FavoritesServiceInterface {
     if (res == null) return _networkError();
     if (res.statusCode != 200) return _errorFrom(res);
     final body = jsonDecode(res.body) as Map<String, dynamic>;
-    final items = ((body['providers'] as List?) ?? const [])
+    // The server always sends `providers` (an empty list when there are
+    // none): a 200 without it is an answer that did not arrive whole, never
+    // « no favourites » — « Mes données » would copy it as complete
+    // (docs/design/export-unreadable-200.md §2).
+    final providers = body['providers'];
+    if (providers is! List) return ApiResponse.error('Erreur');
+    final items = providers
         .map((e) => Provider.fromJson(e as Map<String, dynamic>))
         .toList();
     return ApiResponse.success(items);

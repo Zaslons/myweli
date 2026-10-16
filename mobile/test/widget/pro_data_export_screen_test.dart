@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/core/push/push_registration.dart';
 import 'package:myweli/core/theme/app_theme.dart';
@@ -13,7 +15,10 @@ import 'package:myweli/models/salon_client.dart';
 import 'package:myweli/models/service.dart';
 import 'package:myweli/providers/pro_auth_provider.dart';
 import 'package:myweli/screens/provider/profile/pro_data_export_screen.dart';
+import 'package:myweli/services/api/api_pro_artist_service.dart';
+import 'package:myweli/services/api/api_pro_clients_service.dart';
 import 'package:myweli/services/interfaces/pro_service_interface.dart';
+import 'package:myweli/services/interfaces/session_store.dart';
 import 'package:myweli/services/mock/mock_auth_service.dart';
 import 'package:myweli/services/mock/mock_data.dart';
 import 'package:myweli/services/mock/mock_device_registration_service.dart';
@@ -31,6 +36,16 @@ import '../support/pump_app.dart';
 import '../support/settle.dart';
 import '../support/sign_in.dart';
 import '../support/surface.dart';
+
+/// A pro session for the REAL services below — they only need its token.
+InMemorySessionStore _proSession() =>
+    InMemorySessionStore()
+      ..save(jsonEncode({'token': 'tok', 'refreshToken': 'r1'}));
+
+/// An HTTP client whose every request answers [body] with a 200 — so the
+/// REAL service parses it, which the canned answers skip.
+MockClient _answering(Object body) =>
+    MockClient((_) async => http.Response(jsonEncode(body), 200));
 
 /// The salon read and the two catalogue reads, each able to fail. Canned
 /// answers (one service, one booking) so a section that fails can never be
@@ -97,10 +112,15 @@ class _Pro extends MockProService {
 
 class _Artists extends MockProArtistService {
   bool fail = false;
+
+  /// The 200 body the team read answers, through the REAL
+  /// `ApiProArtistService` parse; null = the canned team.
+  Map<String, dynamic>? wire;
   final asked = <String>[];
 
   void reset() {
     fail = false;
+    wire = null;
     asked.clear();
   }
 
@@ -108,6 +128,13 @@ class _Artists extends MockProArtistService {
   Future<ApiResponse<List<Artist>>> getArtists(String providerId) async {
     asked.add(providerId);
     if (fail) return ApiResponse.error('Erreur');
+    if (wire case final body?) {
+      return ApiProArtistService(
+        client: _answering(body),
+        baseUrl: 'http://x',
+        providerSessionStore: _proSession(),
+      ).getArtists(providerId);
+    }
     return ApiResponse.success([
       Artist(id: 'art-$providerId', name: 'Awa', providerId: providerId),
     ]);
@@ -134,6 +161,10 @@ class _Clients extends MockProClientsService {
   /// Whether a page echoes its size (the real server always does).
   bool echoPageSize = true;
 
+  /// The 200 body page 1 answers, through the REAL `ApiProClientsService`
+  /// parse; null = the canned page.
+  Map<String, dynamic>? wirePage1;
+
   final asked = <({String salon, int page, int? pageSize})>[];
 
   void reset() {
@@ -143,6 +174,7 @@ class _Clients extends MockProClientsService {
     totalOf = null;
     maxPageSize = 50;
     echoPageSize = true;
+    wirePage1 = null;
     asked.clear();
   }
 
@@ -158,6 +190,13 @@ class _Clients extends MockProClientsService {
     if (page == failPage) {
       if (throwOnFail) throw const FormatException('not JSON');
       return ApiResponse.error('Erreur');
+    }
+    if (page == 1 && wirePage1 != null) {
+      return ApiProClientsService(
+        client: _answering(wirePage1!),
+        baseUrl: 'http://x',
+        providerSessionStore: _proSession(),
+      ).listClients(providerId, page: page, pageSize: pageSize);
     }
     final echo = (pageSize ?? 20).clamp(1, maxPageSize);
     final start = (page - 1) * echo;
@@ -318,6 +357,65 @@ void main() {
         expect(copied, isNull);
       }, variant: bothPlatforms);
     }
+  });
+
+  // docs/design/export-unreadable-200.md §2: through the REAL parse, a 200
+  // that came back without its list is a failed read — never « Équipe 0 » or
+  // « Clients 0 » copied as complete. The server always sends the list.
+  group('a 200 without its list refuses the export', () {
+    testWidgets('the team answers {} → « l’équipe »', (tester) async {
+      await pumpExport(tester, arrange: () => artists.wire = {});
+      expectRefused('l’équipe');
+      expect(copied, isNull);
+    });
+
+    final clientPages = <String, Map<String, dynamic>>{
+      'only its size': {'pageSize': 50},
+      'items null, total 0': {'items': null, 'total': 0, 'pageSize': 50},
+      'no total': {'items': <Object>[], 'pageSize': 50},
+    };
+    for (final MapEntry(key: name, value: body) in clientPages.entries) {
+      testWidgets('the client page 1 has $name → « le fichier clients »', (
+        tester,
+      ) async {
+        await pumpExport(tester, arrange: () => clients.wirePage1 = body);
+        expectRefused('le fichier clients');
+        expect(copied, isNull);
+      });
+    }
+
+    testWidgets('CONTROL: the same reads WITH their lists → the copy', (
+      tester,
+    ) async {
+      await pumpExport(
+        tester,
+        arrange: () {
+          artists.wire = {
+            'items': [
+              {
+                'id': 'art-wire',
+                'name': 'Awa',
+                'providerId': 'provider1',
+                'workingHours': <String, Object>{},
+              },
+            ],
+            'page': 1,
+            'total': 1,
+          };
+          clients.wirePage1 = {
+            'items': <Object>[],
+            'page': 1,
+            'pageSize': 50,
+            'total': 0,
+          };
+        },
+      );
+
+      expect(find.text('Chargement impossible'), findsNothing);
+      final export = await copyExport(tester);
+      expect(export['artists'], hasLength(1));
+      expect(export['clients'], isEmpty);
+    });
   });
 
   testWidgets('a read that THROWS is one failed section, not a crash', (
