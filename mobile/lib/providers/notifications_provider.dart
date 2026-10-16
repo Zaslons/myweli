@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import '../core/di/dependency_injection.dart';
+import '../models/api_response.dart';
 import '../models/app_notification.dart';
 import '../services/interfaces/notification_service_interface.dart';
 
@@ -52,20 +53,65 @@ class NotificationsProvider extends ChangeNotifier {
     }
   }
 
-  /// Optimistically mark one notification read, then persist.
-  Future<void> markRead(String id) async {
+  /// What a refused write says when the service has nothing better — the
+  /// app's fallback on the favourite heart. The server's own sentence is never
+  /// shown: these routes send none, and `_errorFrom` turns that into « Erreur ».
+  static const writeFailedMessage = 'Une erreur est survenue. Réessayez.';
+
+  /// Mark one notification read at once, then persist.
+  ///
+  /// Returns `null` when the server took it (or there was nothing to do);
+  /// otherwise THIS notification is unread again — only it, in the current
+  /// list — and the result is the sentence to show.
+  /// Design: docs/design/app-notifications-read-revert.md §3.
+  Future<String?> markRead(String id) async {
     final index = _items.indexWhere((n) => n.id == id);
-    if (index == -1 || _items[index].read) return;
-    _items[index] = _items[index].copyWith(read: true);
-    notifyListeners();
-    await _service.markRead(id);
+    if (index == -1 || _items[index].read) return null;
+    final marked = {id};
+    _setRead(marked, true);
+    final failure = await _persist(() => _service.markRead(id));
+    if (failure != null) _setRead(marked, false);
+    return failure;
   }
 
-  /// Optimistically mark everything read, then persist.
-  Future<void> markAllRead() async {
-    if (unreadCount == 0) return;
-    _items = _items.map((n) => n.copyWith(read: true)).toList();
+  /// Mark everything read at once, then persist.
+  ///
+  /// On a failure only the notifications that were unread when the gesture
+  /// started go back to unread: one read before stays read, one tapped
+  /// meanwhile keeps its own outcome, one a reload brought in is left alone
+  /// (SYSTEM.md §15 — undo undoes ONE action, never a snapshot).
+  Future<String?> markAllRead() async {
+    final marked = {
+      for (final n in _items)
+        if (!n.read) n.id,
+    };
+    if (marked.isEmpty) return null;
+    _setRead(marked, true);
+    final failure = await _persist(_service.markAllRead);
+    if (failure != null) _setRead(marked, false);
+    return failure;
+  }
+
+  void _setRead(Set<String> ids, bool read) {
+    _items = [
+      for (final n in _items) ids.contains(n.id) ? n.copyWith(read: read) : n,
+    ];
     notifyListeners();
-    await _service.markAllRead();
+  }
+
+  /// `null` when [write] went through, else the sentence: the service's own
+  /// when there was no answer (« Pas de connexion. Réessayez. »), the generic
+  /// one for anything else — a refusal, no session, an exception.
+  Future<String?> _persist(Future<ApiResponse<bool>> Function() write) async {
+    try {
+      final response = await write();
+      if (response.success) return null;
+      if (response.code == 'network') {
+        return response.error ?? writeFailedMessage;
+      }
+      return writeFailedMessage;
+    } catch (_) {
+      return writeFailedMessage;
+    }
   }
 }
