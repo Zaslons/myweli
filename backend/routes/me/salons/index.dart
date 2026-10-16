@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:dart_frog/dart_frog.dart';
 import 'package:myweli_backend/src/access/salon_directory_service.dart';
 import 'package:myweli_backend/src/auth/principal.dart';
+import 'package:myweli_backend/src/http/body_fields.dart';
 import 'package:myweli_backend/src/localities/localities_service.dart';
 import 'package:myweli_backend/src/responses.dart';
 
@@ -17,9 +18,9 @@ import 'package:myweli_backend/src/responses.dart';
 /// — « Ajouter un salon » (Réseau-gated, T55): 201 the new draft salon's
 /// directory entry · 403 `reseau_required` · 403 `demo_account_locked`
 /// (the store-review demo account, T69) · 409 `salon_limit` · 400
-/// `invalid_input`/`invalid_body` · 400 `invalid_phone` (a sent
-/// `phoneNumber` that is not a valid number — docs/design/
-/// phone-national-length.md §2.4).
+/// `invalid_input` · 400 `invalid_body` (not an object, or a field of the
+/// wrong JSON type) · 400 `invalid_phone` (a sent `phoneNumber` that is not
+/// a valid number — docs/design/phone-national-length.md §2.4).
 Future<Response> onRequest(RequestContext context) async {
   final principal = principalOf(context);
   if (principal == null) {
@@ -46,9 +47,14 @@ Future<Response> onRequest(RequestContext context) async {
       } catch (_) {
         return jsonError(HttpStatus.badRequest, 'invalid_body');
       }
+      // A sent `phoneNumber` must be text: anything else is the API-wide
+      // `400 invalid_body` from the reader (docs/design/phone-leftovers.md
+      // §3) — #611 refused it as `invalid_phone` inside the service. Never
+      // silently swapped for the account's number either way.
+      final phoneNumber = optionalString(body, 'phoneNumber');
       // Multi-pays MP1: an optional locality pick — validated against the
       // tree; the salon's market facts derive from it (threat T57).
-      final areaId = (body['areaId'] as String?)?.trim();
+      final areaId = optionalString(body, 'areaId')?.trim();
       SalonMarket? market;
       if (areaId != null && areaId.isNotEmpty) {
         market = await context.read<LocalitiesService>().resolveArea(areaId);
@@ -60,7 +66,7 @@ Future<Response> onRequest(RequestContext context) async {
         principal.userId,
         businessName: body['businessName'],
         businessType: body['businessType'],
-        phoneNumber: body['phoneNumber'],
+        phoneNumber: phoneNumber,
         address: body['address'],
         market: market,
       );

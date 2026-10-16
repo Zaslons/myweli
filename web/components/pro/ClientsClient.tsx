@@ -15,7 +15,7 @@ import {
   noShowBadge,
   noShowLabel,
 } from '../../lib/pro/clients';
-import { formatDateFr } from '../../lib/format';
+import { deName, formatDateFr } from '../../lib/format';
 import { useFieldErrors } from '../../lib/forms/useFieldErrors';
 import {
   PHONE_INVALID,
@@ -209,7 +209,7 @@ export function ClientsClient() {
               rows={items.map((c) => ({
                 key: c.id,
                 href: `/pro/clients/${c.id}`,
-                rowLabel: `Ouvrir la fiche de ${c.displayName}`,
+                rowLabel: `Ouvrir la fiche ${deName(c.displayName)}`,
                 cells: [
                   <span key="who" className="flex min-w-0 items-center gap-s">
                     <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-pill bg-surface text-labelMedium font-medium text-textPrimary">

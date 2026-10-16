@@ -22,6 +22,7 @@ import '../routes/providers/[id]/clients/[clientId]/notes/index.dart'
 import '../routes/providers/[id]/clients/[clientId]/visits.dart'
     as visits_route;
 import '../routes/providers/[id]/clients/index.dart' as clients_route;
+import 'http/observed.dart';
 
 class _MockRequestContext extends Mock implements RequestContext {}
 
@@ -625,6 +626,54 @@ void main() {
       );
       expect(dup.statusCode, HttpStatus.conflict);
       expect((await dup.json() as Map)['error'], 'client_exists');
+    });
+
+    test('a field of the wrong JSON type → 400 invalid_body, not 500 — create '
+        'phone, tags, note body (docs/design/phone-leftovers.md §3)', () async {
+      Request raw(String method, String path, String json) => Request(
+        method,
+        Uri.parse('http://localhost$path'),
+        headers: {
+          'Authorization': 'Bearer ${proTok(accountId)}',
+          'content-type': 'application/json',
+        },
+        body: json,
+      );
+      Future<void> expectInvalidBody(Handler route, Request request) async {
+        final res = await observed(route, ctx(request));
+        expect(res.statusCode, HttpStatus.badRequest, reason: request.url.path);
+        expect((await res.json() as Map)['error'], 'invalid_body');
+      }
+
+      // The phone as a JSON number — what a client that "cleaned" it into
+      // digits would send.
+      await expectInvalidBody(
+        (c) => clients_route.onRequest(c, 'provider1'),
+        raw(
+          'POST',
+          '/providers/provider1/clients',
+          '{"name": "X", "phone": 2250700000090}',
+        ),
+      );
+      final list = await service.list(accountId, 'provider1');
+      expect(list.data!['total'], 0, reason: 'nothing created');
+
+      final id =
+          (await service.addClient(
+                accountId,
+                'provider1',
+                name: 'T',
+                phone: '+2250700000092',
+              )).data!['id']
+              as String;
+      await expectInvalidBody(
+        (c) => card_route.onRequest(c, 'provider1', id),
+        raw('PATCH', '/providers/provider1/clients/$id', '{"tags": "vip"}'),
+      );
+      await expectInvalidBody(
+        (c) => notes_route.onRequest(c, 'provider1', id),
+        raw('POST', '/providers/provider1/clients/$id/notes', '{"body": 1}'),
+      );
     });
 
     test('card 200 / foreign id 404; visits 200; note routes', () async {

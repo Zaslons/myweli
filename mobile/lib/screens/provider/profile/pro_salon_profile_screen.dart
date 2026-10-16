@@ -232,13 +232,30 @@ class _ProSalonProfileScreenState extends State<ProSalonProfileScreen> {
     if (ok) {
       AppSnackBar.show(context, 'Profil enregistré', kind: SnackKind.success);
       Navigator.of(context).pop();
-    } else {
-      AppSnackBar.show(
-        context,
-        profile.error ?? 'Enregistrement impossible',
-        kind: SnackKind.error,
-      );
+      return;
     }
+    // The server is still the authority on both numbers (BACKEND.md §3.4).
+    // It refused either one as `invalid_input`, every other field's code too,
+    // and the salon read « Informations invalides. » in a bar that named no
+    // field. Two numbers on one form: the code now says which
+    // (phone-leftovers.md §2), and the fault goes under it (§14 rule 1).
+    final refused = switch (profile.errorCode) {
+      'invalid_phone' => 'phone',
+      'invalid_whatsapp' => 'whatsapp',
+      _ => null,
+    };
+    if (refused != null) {
+      setState(
+        () => _errors.set(refused, 'Saisissez un numéro de téléphone valide.'),
+      );
+      focusFirstError(_errors, _focusNodes);
+      return;
+    }
+    AppSnackBar.show(
+      context,
+      profile.error ?? 'Enregistrement impossible',
+      kind: SnackKind.error,
+    );
   }
 
   Future<void> _pickLogo(ProSalonProfileProvider profile) async {

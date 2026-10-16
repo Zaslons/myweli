@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:dart_frog/dart_frog.dart';
 import 'package:myweli_backend/src/auth/principal.dart';
+import 'package:myweli_backend/src/http/body_fields.dart';
 import 'package:myweli_backend/src/responses.dart';
 import 'package:myweli_backend/src/reviews_service.dart';
 
@@ -31,7 +32,10 @@ Future<Response> onRequest(RequestContext context, String id) async {
     principal.userId,
     id,
     rating: body['rating'],
-    text: body['text'],
+    // Read by type here — the service cast it, so `{"text": 5}` was a 500
+    // (docs/design/phone-leftovers.md §3). Rating and photos stay `Object?`:
+    // the service checks their type with their value (`invalid_input`).
+    text: optionalString(body, 'text'),
     photoUrls: body['photoUrls'],
   );
   if (r.ok) {

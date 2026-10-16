@@ -38,6 +38,16 @@ class Formatters {
   static String plural(int n, String one, String other) =>
       Intl.plural(n, one: one, other: other, locale: kAppLocale);
 
+  /// « de Koffi » / « d’Aïcha » — French elides « de » before a vowel (a
+  /// literal « de Aïcha » reads as a mistake). Names starting with « h » or
+  /// « y » keep « de »: whether they elide depends on the name.
+  static String de(String name) {
+    final n = name.trim();
+    return RegExp(r'^[aeiouàâäéèêëîïôöùûü]', caseSensitive: false).hasMatch(n)
+        ? 'd’$n'
+        : 'de $n';
+  }
+
   /// Format a phone number for display. Côte d'Ivoire (+225) numbers are grouped
   /// in pairs — both the current 10-digit and legacy 8-digit formats; any other
   /// country (or unexpected length) is returned as-is.

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:dart_frog/dart_frog.dart';
 import 'package:myweli_backend/src/auth/auth_repository.dart';
 import 'package:myweli_backend/src/auth/principal.dart';
+import 'package:myweli_backend/src/http/body_fields.dart';
 import 'package:myweli_backend/src/privacy/user_erasure_service.dart';
 import 'package:myweli_backend/src/responses.dart';
 import 'package:myweli_backend/src/storage/storage_service.dart';
@@ -40,9 +41,16 @@ Future<Response> onRequest(RequestContext context) async {
       } catch (_) {
         return jsonError(HttpStatus.badRequest, 'invalid_body');
       }
+      // Every field read by type FIRST: the avatar promotion below moves an
+      // object out of `pending/`, and a wrong-typed `name` read after it used
+      // to fail the request (a 500, then) with the move already made
+      // (docs/design/phone-leftovers.md §3).
+      final name = optionalString(body, 'name');
+      final email = optionalString(body, 'email');
       // Contact phone (auth overhaul: phone is a contact attribute, not the
       // identity — unverified until proven via SMS later). '' clears it.
-      final phone = body['phone'] as String?;
+      final phone = optionalString(body, 'phone');
+      var avatarUrl = optionalString(body, 'avatarUrl');
       if (phone != null && phone.isNotEmpty && !isValidPhoneNumber(phone)) {
         return jsonError(HttpStatus.badRequest, 'invalid_phone');
       }
@@ -58,7 +66,6 @@ Future<Response> onRequest(RequestContext context) async {
       // A null base means dev/Fake storage: no delivery origin exists to
       // validate against, and rejecting here would break the local loop. Same
       // posture as the gallery, which also skips promotion under a Fake.
-      var avatarUrl = body['avatarUrl'] as String?;
       final verifier = context.read<UploadVerificationService>();
       final base = verifier.publicBaseUrl;
       if (avatarUrl != null && avatarUrl.isNotEmpty && base != null) {
@@ -76,8 +83,8 @@ Future<Response> onRequest(RequestContext context) async {
       }
       final updated = await repo.updateUser(
         principal.userId,
-        name: body['name'] as String?,
-        email: body['email'] as String?,
+        name: name,
+        email: email,
         avatarUrl: avatarUrl,
         phone: phone,
       );

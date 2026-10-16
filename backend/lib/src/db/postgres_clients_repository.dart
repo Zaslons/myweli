@@ -168,6 +168,99 @@ LIMIT @limit OFFSET @offset
   }
 
   @override
+  Future<GuestPhoneChange> changeGuestPhone(
+    String providerId,
+    String clientId,
+    String phone,
+  ) async {
+    try {
+      return await _pool.runTx<GuestPhoneChange>((tx) async {
+        // Lock the card: a concurrent change of the same card waits here
+        // instead of moving the bookings from a number it no longer has.
+        final rows = await tx.execute(
+          Sql.named(
+            'SELECT * FROM salon_clients '
+            'WHERE provider_id = @pid AND id = @id FOR UPDATE',
+          ),
+          parameters: {'pid': providerId, 'id': clientId},
+        );
+        if (rows.isEmpty) {
+          return (
+            outcome: GuestPhoneOutcome.notFound,
+            client: null,
+            takenBy: null,
+          );
+        }
+        final card = _toDto(rows.first.toColumnMap());
+        if (card['userId'] != null) {
+          return (
+            outcome: GuestPhoneOutcome.linked,
+            client: null,
+            takenBy: null,
+          );
+        }
+        final oldPhone = card['phone'] as String?;
+        if (oldPhone == phone) {
+          return (
+            outcome: GuestPhoneOutcome.unchanged,
+            client: card,
+            takenBy: null,
+          );
+        }
+        final holder = await tx.execute(
+          Sql.named(
+            'SELECT id FROM salon_clients '
+            'WHERE provider_id = @pid AND phone = @phone AND id <> @id',
+          ),
+          parameters: {'pid': providerId, 'phone': phone, 'id': clientId},
+        );
+        if (holder.isNotEmpty) {
+          return (
+            outcome: GuestPhoneOutcome.taken,
+            client: null,
+            takenBy: holder.first.toColumnMap()['id'] as String,
+          );
+        }
+        final updated = await tx.execute(
+          Sql.named(
+            'UPDATE salon_clients SET phone = @phone, updated_at = now() '
+            'WHERE provider_id = @pid AND id = @id RETURNING *',
+          ),
+          parameters: {'phone': phone, 'pid': providerId, 'id': clientId},
+        );
+        if (oldPhone != null) {
+          // This salon's walk-ins only (T45): a consumer's own booking keys
+          // by user_id, and another salon's history is never ours to move.
+          await tx.execute(
+            Sql.named(
+              'UPDATE appointments SET client_phone = @new '
+              "WHERE provider_id = @pid AND user_id = 'manual' "
+              'AND client_phone = @old',
+            ),
+            parameters: {'new': phone, 'pid': providerId, 'old': oldPhone},
+          );
+        }
+        return (
+          outcome: GuestPhoneOutcome.changed,
+          client: _toDto(updated.first.toColumnMap()),
+          takenBy: null,
+        );
+      });
+    } on ServerException catch (e) {
+      // 23505 on salon_clients_phone_key: another card took the number after
+      // the look-up above (its insert was not yet committed). The whole
+      // transaction rolled back — nothing moved; answer as if seen in time.
+      if (e.code != '23505') rethrow;
+      final holder = await byPhone(providerId, phone);
+      return (
+        outcome: GuestPhoneOutcome.taken,
+        client: null,
+        takenBy: holder?['id'] as String?,
+      );
+    }
+  }
+
+  @override
   Future<void> touchLastVisit(
     String providerId,
     String clientId,

@@ -20,6 +20,7 @@ import 'package:myweli_backend/src/push/push_service.dart';
 import 'package:test/test.dart';
 
 import '../routes/providers/[id]/appointments.dart' as manual;
+import 'http/observed.dart';
 
 class _MockRequestContext extends Mock implements RequestContext {}
 
@@ -294,6 +295,32 @@ void main() {
       );
       expect(shortPhone.statusCode, HttpStatus.badRequest);
       expect(jsonDecode(await shortPhone.body())['error'], 'invalid_phone');
+    });
+
+    test('a field of the wrong JSON type → 400 invalid_body, not 500, and no '
+        'booking (docs/design/phone-leftovers.md §3)', () async {
+      for (final wrong in <Map<String, Object?>>[
+        // The phone "cleaned" into a JSON number.
+        {'clientPhone': 2250700000000},
+        {'clientName': 7},
+        {'serviceIds': 'service1'},
+        {'appointmentDateTime': 1760000000},
+        {'notes': false},
+      ]) {
+        final res = await observed(
+          (c) => manual.onRequest(c, 'provider1'),
+          ctx(
+            post(
+              '/providers/provider1/appointments',
+              bearer: token,
+              body: {...validBody(), ...wrong},
+            ),
+          ),
+        );
+        expect(res.statusCode, HttpStatus.badRequest, reason: '$wrong');
+        expect((await jsonOf(res))['error'], 'invalid_body', reason: '$wrong');
+      }
+      expect(await appts.listForProvider('provider1'), isEmpty);
     });
   });
 }

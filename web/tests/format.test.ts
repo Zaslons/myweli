@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  deName,
   formatDateFr,
   formatDateTimeFr,
   formatDuration,
@@ -9,6 +10,22 @@ import {
 } from '../lib/format';
 
 const norm = (s: string) => s.replace(/\s/g, ' ');
+
+describe('deName — « de » elides before a vowel (twin of Formatters.de)', () => {
+  it.each([
+    ['Koffi Yao', 'de Koffi Yao'],
+    ['Aïcha Koné', 'd’Aïcha Koné'],
+    ['Ibrahim', 'd’Ibrahim'],
+    ['Ousmane', 'd’Ousmane'],
+    ['Émile', 'd’Émile'],
+    ['awa', 'd’awa'],
+    ['  Awa  ', 'd’Awa'],
+    ['Henri', 'de Henri'],
+    ['Yasmine', 'de Yasmine'],
+  ])('%s → %s', (name, expected) => {
+    expect(deName(name)).toBe(expected);
+  });
+});
 
 /// The web twin of the app's `Formatters.formatPhoneNumber`
 /// (docs/design/amounts-that-fit.md §5 « Web »).

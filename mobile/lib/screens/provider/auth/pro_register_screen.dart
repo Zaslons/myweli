@@ -146,6 +146,26 @@ class _ProRegisterScreenState extends State<ProRegisterScreen> {
 
   void _finish() => context.go('/pro/dashboard');
 
+  /// After a registration: the dashboard, or — when the server refused the
+  /// NUMBER — the fault under « Téléphone du salon » (§14 rule 1). The server
+  /// is still the authority on it (BACKEND.md §3.4); its refusal was
+  /// `invalid_input`, shared with the name and the type, and read « Numéro ou
+  /// code invalide. » under the buttons. It is `invalid_phone` now
+  /// (phone-leftovers.md §2).
+  void _afterRegister(bool ok, ProAuthProvider auth) {
+    if (!mounted) return;
+    if (ok) {
+      _finish();
+      return;
+    }
+    if (auth.errorCode == 'invalid_phone') {
+      setState(
+        () => _errors.set('phone', 'Saisissez un numéro de téléphone valide.'),
+      );
+      focusFirstError(_errors, _focusNodes);
+    }
+  }
+
   Future<void> _handleGoogle() async {
     if (!_validateBusinessFields()) return;
     final auth = context.read<ProAuthProvider>();
@@ -156,7 +176,7 @@ class _ProRegisterScreenState extends State<ProRegisterScreen> {
       address: _addressController.text.trim(),
       areaId: _areaId,
     );
-    if (ok && mounted) _finish();
+    _afterRegister(ok, auth);
   }
 
   /// The Apple twin of [_handleGoogle]. This button was `onPressed: () {}` —
@@ -173,7 +193,7 @@ class _ProRegisterScreenState extends State<ProRegisterScreen> {
       address: _addressController.text.trim(),
       areaId: _areaId,
     );
-    if (ok && mounted) _finish();
+    _afterRegister(ok, auth);
   }
 
   Future<void> _sendCode() async {
@@ -201,7 +221,7 @@ class _ProRegisterScreenState extends State<ProRegisterScreen> {
       address: _addressController.text.trim(),
       areaId: _areaId,
     );
-    if (ok && mounted) _finish();
+    _afterRegister(ok, auth);
   }
 
   @override
@@ -472,7 +492,9 @@ class _ProRegisterScreenState extends State<ProRegisterScreen> {
                   onPressed: auth.isLoading ? null : _sendCodeChecked,
                 ),
               ],
-              if (auth.error != null) ...[
+              // A refused NUMBER is under its field (`_afterRegister`), not
+              // here as well.
+              if (auth.error != null && auth.errorCode != 'invalid_phone') ...[
                 const SizedBox(height: AppTheme.spacingSM),
                 Text(
                   auth.error!,

@@ -4,6 +4,7 @@ import 'package:dart_frog/dart_frog.dart';
 import 'package:myweli_backend/src/auth/auth_methods.dart';
 import 'package:myweli_backend/src/auth/auth_repository.dart';
 import 'package:myweli_backend/src/auth/id_token_verifier.dart';
+import 'package:myweli_backend/src/http/body_fields.dart';
 import 'package:myweli_backend/src/responses.dart';
 
 /// `POST /auth/google` — sign in with a Google ID token. The token is verified
@@ -24,7 +25,7 @@ Future<Response> onRequest(RequestContext context) async {
     return jsonError(HttpStatus.badRequest, 'invalid_body');
   }
 
-  final idToken = (body['idToken'] as String?)?.trim() ?? '';
+  final idToken = optionalString(body, 'idToken')?.trim() ?? '';
   if (idToken.isEmpty) return jsonError(HttpStatus.badRequest, 'invalid_token');
 
   final claims = await context.read<GoogleIdTokenVerifier>().verify(idToken);

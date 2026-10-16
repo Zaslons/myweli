@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:dart_frog/dart_frog.dart';
 import 'package:myweli_backend/src/auth/auth_methods.dart';
 import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
+import 'package:myweli_backend/src/http/body_fields.dart';
 import 'package:myweli_backend/src/responses.dart';
 import 'package:myweli_backend/src/validators.dart';
 
@@ -25,9 +26,14 @@ Future<Response> onRequest(RequestContext context) async {
     return jsonError(HttpStatus.badRequest, 'invalid_body');
   }
 
-  final phone = (body['phoneNumber'] as String?)?.trim() ?? '';
-  final code = (body['code'] as String?)?.trim() ?? '';
-  if (!isValidPhoneNumber(phone) || !isValidOtpCode(code)) {
+  final phone = optionalString(body, 'phoneNumber')?.trim() ?? '';
+  final code = optionalString(body, 'code')?.trim() ?? '';
+  // Each field its own code, so a client can tell the number from the code
+  // (docs/design/phone-leftovers.md §2) — they used to share `invalid_input`.
+  if (!isValidPhoneNumber(phone)) {
+    return jsonError(HttpStatus.badRequest, 'invalid_phone');
+  }
+  if (!isValidOtpCode(code)) {
     return jsonError(HttpStatus.badRequest, 'invalid_input');
   }
 

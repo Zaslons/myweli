@@ -15,6 +15,7 @@ import 'package:myweli_backend/src/subscription/salon_subscription_service.dart'
 import 'package:test/test.dart';
 
 import '../../routes/me/salons/index.dart' as me_salons;
+import '../http/observed.dart';
 
 class _MockRequestContext extends Mock implements RequestContext {}
 
@@ -346,18 +347,9 @@ void main() {
         )).error,
         'invalid_phone',
       );
-      // Sent, but not text (a client bug sending a JSON number): refused too —
-      // never silently replaced by the account's own number. Only absent
-      // (null) or blank falls back.
-      expect(
-        (await directory.addSalon(
-          ownerId,
-          businessName: 'Deux',
-          businessType: 'salon',
-          phoneNumber: 2250707123456,
-        )).error,
-        'invalid_phone',
-      );
+      // Sent but not text (a JSON number) no longer reaches the service: the
+      // route's reader refuses it as `invalid_body` — see the route group
+      // below (docs/design/phone-leftovers.md §3).
       expect(
         (await memberships.listForAccount(ownerId)).map((m) => m.providerId),
         ['p1'],
@@ -538,6 +530,36 @@ void main() {
 
       final ok = await post('+2250707123456');
       expect(ok.statusCode, HttpStatus.created);
+    });
+
+    test('POST phoneNumber as a JSON number → 400 invalid_body (the '
+        'API-wide wrong-type rule), never the account\'s number in its '
+        'place; nothing created', () async {
+      // #611 refused it as `invalid_phone` from inside the service; the
+      // shared reader now refuses it at the route like any other field sent
+      // as the wrong JSON type (docs/design/phone-leftovers.md §3).
+      await makeReseau('p1');
+      for (final wrong in <Map<String, Object?>>[
+        {'phoneNumber': 2250707123456},
+        {'areaId': 5},
+      ]) {
+        final res = await observed(
+          me_salons.onRequest,
+          ctx(
+            req(
+              'POST',
+              token: tok(ownerId),
+              body: {'businessName': 'Deux', 'businessType': 'salon', ...wrong},
+            ),
+          ),
+        );
+        expect(res.statusCode, HttpStatus.badRequest, reason: '$wrong');
+        expect((await res.json() as Map)['error'], 'invalid_body');
+      }
+      expect(
+        (await memberships.listForAccount(ownerId)).map((m) => m.providerId),
+        ['p1'],
+      );
     });
   });
 

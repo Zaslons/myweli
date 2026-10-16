@@ -7,6 +7,7 @@ import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
 import 'package:myweli_backend/src/auth/smoke_seam.dart';
 import 'package:myweli_backend/src/email/email_provider.dart';
 import 'package:myweli_backend/src/email/send_budget.dart';
+import 'package:myweli_backend/src/http/body_fields.dart';
 import 'package:myweli_backend/src/responses.dart';
 import 'package:myweli_backend/src/validators.dart';
 
@@ -27,7 +28,7 @@ Future<Response> onRequest(RequestContext context) async {
     return jsonError(HttpStatus.badRequest, 'invalid_body');
   }
 
-  final email = (body['email'] as String?)?.trim() ?? '';
+  final email = optionalString(body, 'email')?.trim() ?? '';
   if (!isValidEmail(email)) {
     return jsonError(HttpStatus.badRequest, 'invalid_email');
   }

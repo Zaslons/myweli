@@ -53,11 +53,15 @@ export function validateDeposit(f: DepositForm): string | null {
 
 /// « Numéro Mobile Money » — its fault renders UNDER the field (§14 rule 1,
 /// `useFieldErrors` in AcompteClient), so [validateDeposit] does not carry it.
-/// The field shows, and the payload sends it, only for a REQUIRED deposit —
-/// hence required whenever it is checked. The shared rule:
+/// The number is KEPT whatever the switch says (docs/design/phone-leftovers.md
+/// §6 — parity with the app), so it is judged whenever it is not empty, and
+/// required only while a deposit is collected. The shared rule:
 /// docs/design/phone-national-length.md.
-export function validateDepositNumber(v: string): string | null {
-  return phoneFieldError(v, { required: true });
+export function validateDepositNumber(
+  v: string,
+  { required }: { required: boolean },
+): string | null {
+  return phoneFieldError(v, { required });
 }
 
 export function buildDepositPayload(f: DepositForm): DepositPolicy {
@@ -66,8 +70,9 @@ export function buildDepositPayload(f: DepositForm): DepositPolicy {
     depositPercentage: f.required ? Number(f.percent) / 100 : 0,
     cancellationWindowHours: Number(f.windowHours),
     mobileMoneyOperator: f.required && f.operator ? f.operator : null,
-    // Sent as checked: separators stripped (the server takes E.164 only).
-    mobileMoneyNumber:
-      f.required && normalizePhone(f.number) ? normalizePhone(f.number) : null,
+    // Sent as checked, switch on or off — the PUT replaces the whole policy,
+    // and `null` here used to ERASE the salon's number whenever deposits were
+    // off. Separators stripped (the server takes E.164 only); empty → null.
+    mobileMoneyNumber: normalizePhone(f.number) || null,
   };
 }
