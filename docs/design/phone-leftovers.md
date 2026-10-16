@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Construit (#614) et déployé en production le 2026-10-16** — révision `myweli-api-00040-8tw` (image `cd21d03`) ; le web au merge (« Modifier » n'apparaît que si le serveur dit `phoneEditable`) ; l'app au prochain build. §11 dit ce qui a été construit autrement qu'écrit |
+| **Statut** | **Construit le 2026-10-15** sur `fix/phone-leftovers` — §2–§7 (approuvés par le propriétaire : « finish the leftovers from the phone work ») et §8 (tranché le même jour : les trois options recommandées) ; §11 dit ce qui a été construit autrement qu'écrit · **Mergé (#614) et déployé en production le 2026-10-16** — révision `myweli-api-00040-8tw` (image `cd21d03`) ; le web au merge (« Modifier » n'apparaît que si le serveur dit `phoneEditable`) ; l'app au prochain build |
 | **Module** | transverse — contrat d'erreurs (BACKEND.md §2) · formulaires (SYSTEM.md §14) · clients (C1) |
 | **Origine** | [phone-national-length.md](phone-national-length.md) §11 (questions ouvertes) et §12 (constat écarté de la revue : les champs non textuels → 500) |
 | **Régit** | `backend/lib/src/http/body_fields.dart` (nouveau) · `backend/lib/src/observability/request_middleware.dart` · les 27 routes qui lisent un corps · `provider_catalog_service.dart`, `routes/auth/provider/register.dart`, OTP verify · `docs/api/openapi.yaml` · app : inscription Pro, profil du salon, acompte, `Helpers.maskPhoneNumber` · web : `BookingFlow`, `AccountClient`, `ProRegisterClient`, `ProfilClient`, `AcompteClient`, `ManualBookingDialog`, `lib/pro/deposit.ts` |
