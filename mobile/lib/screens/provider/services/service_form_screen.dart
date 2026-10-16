@@ -18,6 +18,12 @@ import '../../../widgets/common/confirm_dialog.dart';
 
 const _durationPresets = [15, 30, 45, 60];
 
+/// The session knows no salon yet (a member whose membership read failed at
+/// start, nothing cached): nothing is saved, and the form keeps its input.
+const _salonNotLoadedMessage =
+    'Votre salon n’a pas pu être chargé. Vérifiez votre connexion et '
+    'réessayez.';
+
 class ServiceFormScreen extends StatefulWidget {
   final String? serviceId;
 
@@ -171,6 +177,13 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
       context,
       listen: false,
     );
+    // The acting salon, or nothing: an account id is not a salon id, and
+    // this used to fall back to one (docs/design/r6-salon-id-pin.md).
+    final salonId = authProvider.activeSalonId;
+    if (salonId == null || salonId.isEmpty) {
+      AppSnackBar.show(context, _salonNotLoadedMessage, kind: SnackKind.error);
+      return;
+    }
 
     final priceMaxText = _priceMaxController.text.trim();
     final durationVariants = _hasVariants
@@ -192,15 +205,12 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
       'durationMinutes': int.parse(_durationController.text.trim()),
       'durationVariants': durationVariants,
       'artistIds': _artistIds.toList(),
-      'providerId': authProvider.activeSalonId ?? '',
+      'providerId': salonId,
     };
 
     final success = widget.serviceId != null
         ? await serviceProvider.updateService(widget.serviceId!, serviceData)
-        : await serviceProvider.createService(
-            authProvider.activeSalonId ?? authProvider.provider!.id,
-            serviceData,
-          );
+        : await serviceProvider.createService(salonId, serviceData);
 
     if (!mounted) return;
 

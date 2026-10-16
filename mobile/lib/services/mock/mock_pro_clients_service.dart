@@ -155,8 +155,11 @@ class MockProClientsService implements ProClientsServiceInterface {
     String? query,
     String? tag,
     int page = 1,
+    int? pageSize,
   }) async {
     await Future.delayed(AppConstants.mockDelay);
+    // The server's clamp (`ClientsService.list`): default 20, 1–50.
+    final size = (pageSize ?? MockProClientsService.pageSize).clamp(1, 50);
     final clients = _clientsOf(providerId);
     final q = (query ?? '').trim().toLowerCase();
     final qDigits = _digits(q);
@@ -177,15 +180,16 @@ class MockProClientsService implements ProClientsServiceInterface {
             if (b.lastVisitAt == null) return -1;
             return b.lastVisitAt!.compareTo(a.lastVisitAt!);
           });
-    final start = (page - 1) * pageSize;
+    final start = (page - 1) * size;
     final items = start >= filtered.length
         ? <SalonClient>[]
-        : filtered.sublist(start, (start + pageSize).clamp(0, filtered.length));
+        : filtered.sublist(start, (start + size).clamp(0, filtered.length));
     return ApiResponse.success(
       SalonClientsPage(
         items: items,
         page: page,
         total: filtered.length,
+        pageSize: size,
         availableTags: page == 1
             ? {
                 ...salonClientPresetTags,

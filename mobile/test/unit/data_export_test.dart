@@ -116,6 +116,102 @@ void main() {
     expect(export['generatedAt'], '2026-07-11T00:00:00.000Z');
   });
 
+  // docs/design/app-pro-export-completeness.md §4 — the web's
+  // `wholeClientBase` (web/lib/pro/export.ts), the same five cases.
+  group('wholeClientBase', () {
+    SalonClient client(String id) =>
+        SalonClient(id: id, displayName: id, tags: const [], linked: false);
+    SalonClientsPage page(int n, int total, List<String> ids) =>
+        SalonClientsPage(
+          items: [for (final id in ids) client(id)],
+          page: n,
+          total: total,
+          pageSize: 2,
+        );
+
+    test('a whole walk → every client, once, in walk order', () {
+      final base = wholeClientBase([
+        page(1, 5, ['a', 'b']),
+        page(2, 5, ['c', 'd']),
+        page(3, 5, ['e']),
+      ]);
+      expect(base?.map((c) => c.id), ['a', 'b', 'c', 'd', 'e']);
+    });
+
+    test('an empty base → an empty list, not a refusal', () {
+      expect(wholeClientBase([page(1, 0, [])]), isEmpty);
+    });
+
+    test('a total that moves → refused, even when the ids add up', () {
+      // 4 distinct ids against the first page's total of 4: only the
+      // moved total gives the walk away.
+      expect(
+        wholeClientBase([
+          page(1, 4, ['a', 'b']),
+          page(2, 5, ['c', 'd']),
+        ]),
+        isNull,
+      );
+    });
+
+    test('a repeated row (an offset that slid) → refused', () {
+      expect(
+        wholeClientBase([
+          page(1, 4, ['a', 'b']),
+          page(2, 4, ['b', 'c']),
+        ]),
+        isNull,
+      );
+    });
+
+    test('a walk that falls short → refused', () {
+      expect(
+        wholeClientBase([
+          page(1, 3, ['a', 'b']),
+        ]),
+        isNull,
+      );
+    });
+
+    test('no pages → refused', () {
+      expect(wholeClientBase(const []), isNull);
+    });
+  });
+
+  group('proExportFailureMessage', () {
+    const tail = 'Vérifiez votre connexion et réessayez.';
+
+    test('one section', () {
+      expect(
+        proExportFailureMessage({ProExportSection.clients}),
+        'Export interrompu : impossible de charger le fichier clients. $tail',
+      );
+    });
+
+    test('two sections, in the file’s order, joined with « et »', () {
+      expect(
+        proExportFailureMessage({
+          ProExportSection.clients,
+          ProExportSection.salon,
+        }),
+        'Export interrompu : impossible de charger la fiche du salon et '
+        'le fichier clients. $tail',
+      );
+    });
+
+    test('three or more: commas, then « et »', () {
+      expect(
+        proExportFailureMessage({
+          ProExportSection.appointments,
+          ProExportSection.artists,
+          ProExportSection.services,
+        }),
+        'Export interrompu : impossible de charger les services, l’équipe '
+        'et les rendez-vous. $tail',
+      );
+    });
+  });
+
   // The refusal (docs/design/consumer-export-completeness.md §4) — the web's
   // `exportFailureMessage` says the same sentence.
   group('dataExportFailureMessage', () {

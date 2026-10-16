@@ -143,6 +143,330 @@ describe('CompteDangerSection — a refused deletion', () => {
   });
 });
 
+/// The data export (docs/design/web-pro-export-completeness.md). The file is
+/// the salon's copy of its own data, and a salon owner reads `[]` as « no
+/// clients », not « the read failed ». So a section that could not be
+/// loaded makes NO file: the row says which data is missing, and the
+/// buttons are the retry (§3–§4). The client file is walked page by page,
+/// and a walk that does not add up is refused too (§5).
+
+const CLIENTS_FAILED =
+  "Export interrompu : impossible de charger le fichier clients. Aucun fichier n'a été créé. Réessayez.";
+const APPOINTMENTS_FAILED =
+  "Export interrompu : impossible de charger les rendez-vous. Aucun fichier n'a été créé. Réessayez.";
+const EARNINGS_FAILED =
+  "Export interrompu : impossible de charger les revenus. Aucun fichier n'a été créé. Réessayez.";
+const COPY_FAILED =
+  'La copie a échoué. Téléchargez le fichier avec « Exporter (JSON) ».';
+
+type Answer = { status: number; body?: unknown } | 'throw';
+
+function client(i: number) {
+  return {
+    id: `sc${i}`,
+    displayName: `Cliente ${i}`,
+    phone: null,
+    tags: [],
+    linked: false,
+    createdAt: '2026-01-01T00:00:00.000Z',
+    visits: 1,
+    noShows: 0,
+  };
+}
+
+/// One page of `total` clients, `size` per page, ids numbered from 1.
+function clientPage(page: number, total: number, size = 50) {
+  const from = (page - 1) * size;
+  const items = [];
+  for (let i = from + 1; i <= Math.min(from + size, total); i++) {
+    items.push(client(i));
+  }
+  return { status: 200, body: { items, page, pageSize: size, total } };
+}
+
+const OK_APPOINTMENTS: Answer = {
+  status: 200,
+  body: {
+    items: [
+      {
+        id: 'b1',
+        appointmentDate: '2026-10-01T09:00:00.000Z',
+        status: 'completed',
+        totalPrice: 15000,
+      },
+    ],
+  },
+};
+const OK_EARNINGS: Answer = {
+  status: 200,
+  body: {
+    totalEarnings: 15000,
+    transactions: [
+      {
+        id: 't1',
+        appointmentId: 'b1',
+        amount: 15000,
+        date: '2026-10-01T09:00:00.000Z',
+        status: 'completed',
+      },
+    ],
+  },
+};
+
+/// The three reads the export makes, each answered on its own.
+function exportReads(
+  opts: {
+    appointments?: Answer;
+    clients?: Answer | ((page: number) => Answer);
+    earnings?: Answer;
+  } = {},
+) {
+  const urls: string[] = [];
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (url: string) => {
+      urls.push(url);
+      const u = new URL(url, 'http://web.test');
+      let answer: Answer;
+      if (u.pathname === '/api/pro/appointments') {
+        answer = opts.appointments ?? OK_APPOINTMENTS;
+      } else if (u.pathname === '/api/pro/clients') {
+        const page = Number(u.searchParams.get('page') ?? '1');
+        const c = opts.clients ?? ((p: number) => clientPage(p, 1));
+        answer = typeof c === 'function' ? c(page) : c;
+      } else if (u.pathname === '/api/pro/earnings') {
+        answer = opts.earnings ?? OK_EARNINGS;
+      } else {
+        answer = { status: 404, body: {} };
+      }
+      if (answer === 'throw') throw new TypeError('Failed to fetch');
+      return new Response(
+        answer.body === undefined ? null : JSON.stringify(answer.body),
+        { status: answer.status },
+      );
+    }),
+  );
+  return urls;
+}
+
+/// What a download would hand the browser, and what a copy would write.
+function watchOutputs(opts: { clipboardRejects?: boolean } = {}) {
+  const createObjectURL = vi.fn(() => 'blob:export');
+  const revokeObjectURL = vi.fn();
+  Object.assign(URL, { createObjectURL, revokeObjectURL });
+  const anchorClick = vi
+    .spyOn(HTMLAnchorElement.prototype, 'click')
+    .mockImplementation(() => {});
+  const writeText = vi.fn(async (_text: string) => {
+    if (opts.clipboardRejects) throw new DOMException('denied', 'NotAllowedError');
+  });
+  Object.defineProperty(navigator, 'clipboard', {
+    value: { writeText },
+    configurable: true,
+  });
+  return { createObjectURL, anchorClick, writeText };
+}
+
+function exportButton() {
+  return screen.getByRole('button', { name: /Exporter \(JSON\)|Préparation…/ });
+}
+
+describe('CompteDangerSection — the export refuses instead of shipping holes', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    // jsdom has neither; the stubs must not leak into the next file.
+    delete (URL as unknown as Record<string, unknown>).createObjectURL;
+    delete (URL as unknown as Record<string, unknown>).revokeObjectURL;
+    delete (navigator as unknown as Record<string, unknown>).clipboard;
+  });
+
+  it('a clients read that fails makes no file, says which data, and the buttons come back', async () => {
+    exportReads({ clients: { status: 500, body: {} } });
+    const out = watchOutputs();
+    render(<CompteDangerSection profile={profile} />);
+
+    fireEvent.click(exportButton());
+
+    expect((await screen.findByRole('alert')).textContent).toBe(CLIENTS_FAILED);
+    expect(out.createObjectURL).not.toHaveBeenCalled();
+    expect(out.anchorClick).not.toHaveBeenCalled();
+    expect(exportButton().textContent).toBe('Exporter (JSON)');
+    expect((exportButton() as HTMLButtonElement).disabled).toBe(false);
+    expect(
+      (screen.getByRole('button', { name: 'Copier' }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(false);
+  });
+
+  it('a read that THROWS is refused too — the button is not left on « Préparation… »', async () => {
+    exportReads({ appointments: 'throw' });
+    const out = watchOutputs();
+    render(<CompteDangerSection profile={profile} />);
+
+    fireEvent.click(exportButton());
+
+    expect((await screen.findByRole('alert')).textContent).toBe(
+      APPOINTMENTS_FAILED,
+    );
+    expect(out.createObjectURL).not.toHaveBeenCalled();
+    expect(exportButton().textContent).toBe('Exporter (JSON)');
+    expect((exportButton() as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it('an appointments read answering 500 is refused — its empty list is not « no bookings »', async () => {
+    exportReads({ appointments: { status: 500, body: {} } });
+    const out = watchOutputs();
+    render(<CompteDangerSection profile={profile} />);
+
+    fireEvent.click(exportButton());
+
+    expect((await screen.findByRole('alert')).textContent).toBe(
+      APPOINTMENTS_FAILED,
+    );
+    expect(out.createObjectURL).not.toHaveBeenCalled();
+  });
+
+  it('copy: a failed earnings read writes nothing to the clipboard', async () => {
+    exportReads({ earnings: { status: 503 } });
+    const out = watchOutputs();
+    render(<CompteDangerSection profile={profile} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Copier' }));
+
+    expect((await screen.findByRole('alert')).textContent).toBe(EARNINGS_FAILED);
+    expect(out.writeText).not.toHaveBeenCalled();
+    expect(screen.queryByText('Copié ✓')).toBeNull();
+  });
+
+  it('two failed reads are both named, in the section order', async () => {
+    exportReads({ earnings: { status: 500 }, clients: { status: 502 } });
+    watchOutputs();
+    render(<CompteDangerSection profile={profile} />);
+
+    fireEvent.click(exportButton());
+
+    expect((await screen.findByRole('alert')).textContent).toBe(
+      "Export interrompu : impossible de charger le fichier clients et les revenus. Aucun fichier n'a été créé. Réessayez.",
+    );
+  });
+
+  it('a session that ended (401) goes to sign-in, with no file and no alert', async () => {
+    exportReads({ clients: { status: 401, body: { error: 'unauthorized' } } });
+    const out = watchOutputs();
+    render(<CompteDangerSection profile={profile} />);
+
+    fireEvent.click(exportButton());
+
+    await waitFor(() => expect(replace).toHaveBeenCalledWith('/pro/connexion'));
+    expect(out.createObjectURL).not.toHaveBeenCalled();
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('the retry works: the alert clears and the file is made once the reads answer', async () => {
+    let clientsUp = false;
+    exportReads({
+      clients: (p) => (clientsUp ? clientPage(p, 1) : { status: 500, body: {} }),
+    });
+    const out = watchOutputs();
+    render(<CompteDangerSection profile={profile} />);
+
+    fireEvent.click(exportButton());
+    expect((await screen.findByRole('alert')).textContent).toBe(CLIENTS_FAILED);
+
+    clientsUp = true;
+    fireEvent.click(exportButton());
+
+    await waitFor(() => expect(out.createObjectURL).toHaveBeenCalledTimes(1));
+    expect(out.anchorClick).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('the client file is walked to its end: 120 clients over three pages, all exported', async () => {
+    const urls = exportReads({ clients: (p) => clientPage(p, 120) });
+    const out = watchOutputs();
+    render(<CompteDangerSection profile={profile} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Copier' }));
+
+    await waitFor(() => expect(out.writeText).toHaveBeenCalledTimes(1));
+    const doc = JSON.parse(out.writeText.mock.calls[0][0]);
+    expect(doc.clients).toHaveLength(120);
+    expect(new Set(doc.clients.map((c: { name: string }) => c.name)).size).toBe(120);
+    const pages = urls
+      .filter((u) => u.startsWith('/api/pro/clients'))
+      .map((u) => new URL(u, 'http://web.test').searchParams);
+    expect(pages.map((q) => [q.get('page'), q.get('pageSize')])).toEqual([
+      ['1', '50'],
+      ['2', '50'],
+      ['3', '50'],
+    ]);
+  });
+
+  it('a base that changed during the walk (total moved) is refused, not half-exported', async () => {
+    exportReads({
+      clients: (p) => (p === 1 ? clientPage(1, 60) : clientPage(2, 61)),
+    });
+    const out = watchOutputs();
+    render(<CompteDangerSection profile={profile} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Copier' }));
+
+    expect((await screen.findByRole('alert')).textContent).toBe(CLIENTS_FAILED);
+    expect(out.writeText).not.toHaveBeenCalled();
+  });
+
+  it('a walk that repeats a client (and so misses one) is refused', async () => {
+    exportReads({
+      clients: (p) => {
+        const page = clientPage(p, 60);
+        // Page 2 starts with page 1's last row: a row slid across the
+        // boundary, so another one slid out of reach.
+        if (p === 2) {
+          (page.body.items as unknown[])[0] = client(50);
+        }
+        return page;
+      },
+    });
+    const out = watchOutputs();
+    render(<CompteDangerSection profile={profile} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Copier' }));
+
+    expect((await screen.findByRole('alert')).textContent).toBe(CLIENTS_FAILED);
+    expect(out.writeText).not.toHaveBeenCalled();
+  });
+
+  it('a clipboard the browser refuses says so, and points at the download', async () => {
+    exportReads();
+    watchOutputs({ clipboardRejects: true });
+    render(<CompteDangerSection profile={profile} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Copier' }));
+
+    expect((await screen.findByRole('alert')).textContent).toBe(COPY_FAILED);
+    expect(screen.queryByText('Copié ✓')).toBeNull();
+  });
+
+  it('CONTROL — every read answers: one file, every section filled, no alert', async () => {
+    exportReads();
+    const out = watchOutputs();
+    render(<CompteDangerSection profile={profile} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Copier' }));
+
+    await waitFor(() => expect(out.writeText).toHaveBeenCalledTimes(1));
+    const doc = JSON.parse(out.writeText.mock.calls[0][0]);
+    expect(doc.appointments).toHaveLength(1);
+    expect(doc.clients).toHaveLength(1);
+    expect(doc.earnings).toEqual({ totalEarnings: 15000, transactions: 1 });
+    expect(screen.queryByRole('alert')).toBeNull();
+
+    fireEvent.click(exportButton());
+    await waitFor(() => expect(out.createObjectURL).toHaveBeenCalledTimes(1));
+    expect(out.anchorClick).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe('DELETE /api/pro/account (the BFF)', () => {
   function proRequest(): NextRequest {
     const cookies: Record<string, string> = {

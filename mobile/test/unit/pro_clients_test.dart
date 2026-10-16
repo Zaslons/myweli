@@ -140,6 +140,33 @@ void main() {
       expect(byTag.data!.items.single.displayName, 'Aïcha Koné');
     });
 
+    // The export walks the base page by page with the size the server
+    // echoes (app-pro-export-completeness.md §4) — the mock clamps and
+    // echoes like `ClientsService.list`, or the walk is never exercised.
+    test('honours pageSize with the server clamp, and echoes it', () async {
+      final service = MockProClientsService();
+      final byDefault = await service.listClients('p1');
+      expect(byDefault.data!.pageSize, 20);
+      expect(byDefault.data!.items, hasLength(3));
+
+      final first = await service.listClients('p1', pageSize: 2);
+      expect(first.data!.pageSize, 2);
+      expect(first.data!.items, hasLength(2));
+      expect(first.data!.total, 3);
+      final second = await service.listClients('p1', page: 2, pageSize: 2);
+      expect(second.data!.items, hasLength(1));
+      expect(
+        {...first.data!.items, ...second.data!.items}.map((c) => c.id),
+        hasLength(3),
+      );
+
+      expect((await service.listClients('p1', pageSize: 0)).data!.pageSize, 1);
+      expect(
+        (await service.listClients('p1', pageSize: 500)).data!.pageSize,
+        50,
+      );
+    });
+
     test(
       'addClient dedupes by phone → client_exists + the EXISTING id',
       () async {
@@ -529,6 +556,40 @@ void main() {
       expect(res.success, isTrue);
       expect(res.data!.items.single.visits, 4);
       expect(res.data!.total, 21);
+      expect(res.data!.pageSize, 20);
+    });
+
+    test('listClients sends pageSize only when asked', () async {
+      final sent = <Map<String, String>>[];
+      final client = MockClient((req) async {
+        sent.add(req.url.queryParameters);
+        return http.Response(
+          jsonEncode({
+            'items': <Object>[],
+            'page': 1,
+            'pageSize': 50,
+            'total': 0,
+          }),
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      });
+      final service = linked(client);
+      await service.listClients('provider1');
+      await service.listClients('provider1', page: 3, pageSize: 50);
+      expect(sent[0].containsKey('pageSize'), isFalse);
+      expect(sent[1], {'page': '3', 'pageSize': '50'});
+    });
+
+    test('a page without a pageSize echo parses it as null', () {
+      expect(
+        SalonClientsPage.fromJson({
+          'items': <Object>[],
+          'page': 1,
+          'total': 0,
+        }).pageSize,
+        isNull,
+      );
     });
 
     test('addClient 409 carries the existing card id', () async {
@@ -694,7 +755,14 @@ class _CountingClients implements ProClientsServiceInterface {
     String? query,
     String? tag,
     int page = 1,
-  }) => _base.listClients(providerId, query: query, tag: tag, page: page);
+    int? pageSize,
+  }) => _base.listClients(
+    providerId,
+    query: query,
+    tag: tag,
+    page: page,
+    pageSize: pageSize,
+  );
 
   @override
   Future<ApiResponse<SalonClientCard>> getCard(

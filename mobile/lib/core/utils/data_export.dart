@@ -139,3 +139,53 @@ Map<String, dynamic> buildProviderDataExport({
         .toList(),
   };
 }
+
+/// The salon export's five reads, in the order the file holds them — and the
+/// order a refusal names them (docs/design/app-pro-export-completeness.md §3).
+enum ProExportSection {
+  salon('la fiche du salon'),
+  services('les services'),
+  artists('l’équipe'),
+  appointments('les rendez-vous'),
+  clients('le fichier clients');
+
+  const ProExportSection(this.label);
+
+  /// How the refusal names the section.
+  final String label;
+}
+
+/// The refusal when a read fails: nothing is exported, and the salon is told
+/// which data could not be loaded. The web's wording
+/// (`exportFailureMessage`, web/lib/pro/export.ts), ending on the app's
+/// connection hint; « Réessayer » sits under it.
+String proExportFailureMessage(Iterable<ProExportSection> failed) {
+  final names = [
+    for (final section in ProExportSection.values)
+      if (failed.contains(section)) section.label,
+  ];
+  final list = names.length > 1
+      ? '${names.sublist(0, names.length - 1).join(', ')} et ${names.last}'
+      : names.join();
+  return 'Export interrompu : impossible de charger $list. '
+      'Vérifiez votre connexion et réessayez.';
+}
+
+/// The client base, from every page of one walk — or null when the walk does
+/// not add up (§4). An offset walk over a list that moves (a client added, a
+/// visit re-sorting the list) can repeat one row and skip another; a skipped
+/// row is exactly the hole the export must not ship. So every page has to
+/// report the same `total`, and the distinct ids have to reach it. The twin
+/// of the web's `wholeClientBase`.
+List<SalonClient>? wholeClientBase(List<SalonClientsPage> pages) {
+  if (pages.isEmpty) return null;
+  final total = pages.first.total;
+  if (pages.any((p) => p.total != total)) return null;
+  final byId = <String, SalonClient>{};
+  for (final page in pages) {
+    for (final client in page.items) {
+      byId.putIfAbsent(client.id, () => client);
+    }
+  }
+  return byId.length == total ? byId.values.toList() : null;
+}

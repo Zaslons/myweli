@@ -19,7 +19,17 @@ Map<String, dynamic> _artistJson({String id = 'artist1'}) => {
 };
 
 /// Provider-session-backed artist service linked to provider1.
-ApiProArtistService _linked(MockClient client) {
+ApiProArtistService _linked(MockClient client) => _withSession(client);
+
+/// An artist service over a persisted provider session: the account's own
+/// salon ([linked], null = a bare member account), the R6 [selected] salon,
+/// and the cached membership's salon ([membershipSalon]).
+ApiProArtistService _withSession(
+  MockClient client, {
+  String? linked = 'provider1',
+  String? selected,
+  String? membershipSalon,
+}) {
   final store = InMemorySessionStore();
   store.save(
     jsonEncode({
@@ -33,8 +43,16 @@ ApiProArtistService _linked(MockClient client) {
         'verificationStatus': 'pending',
         'kycDocs': <Map<String, dynamic>>[],
         'createdAt': '2026-01-01T00:00:00.000Z',
-        'providerId': 'provider1',
+        'providerId': ?linked,
       },
+      if (membershipSalon != null)
+        'membership': {
+          'role': 'manager',
+          'capabilities': ['catalogue.manage'],
+          'salonId': membershipSalon,
+          'salonName': 'Beauté Divine',
+        },
+      'selectedSalonId': ?selected,
     }),
   );
   return ApiProArtistService(
@@ -118,6 +136,65 @@ void main() {
       ]);
     },
   );
+
+  // The artistId-only edits pick their salon from the session the same way
+  // ProAuthProvider.activeSalonId does — selection → the account's own
+  // salon → the membership's (docs/design/services-acting-salon.md).
+  group('the artistId-only edits act in the session\'s acting salon', () {
+    Future<List<String>> editAndDelete(
+      ApiProArtistService Function(MockClient) build,
+    ) async {
+      final calls = <String>[];
+      final client = MockClient((req) async {
+        calls.add('${req.method} ${req.url.path}');
+        return req.method == 'DELETE'
+            ? http.Response('', 204)
+            : http.Response(jsonEncode(_artistJson()), 200);
+      });
+      final service = build(client);
+      final updated = await service.updateArtist('artist1', {'name': 'A'});
+      expect(updated.success, isTrue, reason: updated.error);
+      final deleted = await service.deleteArtist('artist1');
+      expect(deleted.success, isTrue, reason: deleted.error);
+      return calls;
+    }
+
+    test('an owner switched to their second salon edits THAT salon\'s '
+        'staff, not the default salon\'s', () async {
+      final calls = await editAndDelete(
+        (c) => _withSession(c, linked: 'provider1', selected: 'provider2'),
+      );
+      expect(calls, [
+        'PATCH /providers/provider2/artists/artist1',
+        'DELETE /providers/provider2/artists/artist1',
+      ]);
+    });
+
+    test('a bare member account (no salon of its own) acts in its '
+        'membership\'s salon instead of being refused client-side', () async {
+      final calls = await editAndDelete(
+        (c) => _withSession(c, linked: null, membershipSalon: 'provider2'),
+      );
+      expect(calls, [
+        'PATCH /providers/provider2/artists/artist1',
+        'DELETE /providers/provider2/artists/artist1',
+      ]);
+    });
+
+    test(
+      'no salon anywhere in the session → refused before any request',
+      () async {
+        final client = MockClient(
+          (req) async => throw StateError('no request should go out'),
+        );
+        final service = _withSession(client, linked: null);
+        final updated = await service.updateArtist('artist1', {'name': 'A'});
+        expect(updated.success, isFalse);
+        expect(updated.error, 'Compte non lié à un salon');
+        expect((await service.deleteArtist('artist1')).success, isFalse);
+      },
+    );
+  });
 
   test('cross-salon error surfaces its code', () async {
     final client = MockClient(

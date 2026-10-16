@@ -6,6 +6,7 @@ import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/utils/team_error_messages.dart';
+import '../../../models/pro_membership.dart';
 import '../../../models/team_member.dart';
 import '../../../providers/pro_artist_provider.dart';
 import '../../../providers/pro_auth_provider.dart';
@@ -80,8 +81,9 @@ class _TeamScreenState extends State<TeamScreen> {
   }
 
   Future<void> _openActionsSheet(TeamMember member) async {
-    final salonName =
-        context.read<ProAuthProvider>().provider?.businessName ?? 'votre salon';
+    // The ACTING salon (R6) — the account's `businessName` is a sign-up copy
+    // of its default salon (docs/design/r6-salon-fact-reads.md §2.2).
+    final salonName = context.read<ProAuthProvider>().salonName;
     await showModalBottomSheet<void>(
       context: context,
       builder: (_) => ChangeNotifierProvider.value(
@@ -93,8 +95,12 @@ class _TeamScreenState extends State<TeamScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final account = context.watch<ProAuthProvider>().provider;
-    if (account?.providerId == null) {
+    final auth = context.watch<ProAuthProvider>();
+    // R6: the gate is the ACTING salon's capability. The account's default
+    // `providerId` says whether it owns A salon, not this one — an owner
+    // switched to a salon they only manage passed it
+    // (docs/design/r6-salon-id-pin.md).
+    if (auth.activeSalonId == null || !auth.can(ProCap.membersManage)) {
       return Scaffold(
         appBar: AppBar(title: const Text('Équipe')),
         body: const EmptyState(
