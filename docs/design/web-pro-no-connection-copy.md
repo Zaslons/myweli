@@ -292,6 +292,13 @@ des stores (le sélecteur seul). Rien côté serveur.
   réseau, ou toujours. `flutter analyze` : 0.
 - **Suite complète, web** : 1282 tests sur 1282 avant le sélecteur, 1286 avec ;
   rebasé sur la tête de #619 après #620 (`4467e7d2`) : 1404 sur 1404 ;
+  **rebasé sur `main` après #619 et #617** : #617 a ajouté au détail d'un
+  rendez-vous un garde « pas de salon, pas de page » (`/me` raté → l'état
+  d'erreur) — il garde maintenant la raison (`loadFailure(me.status)`) comme
+  les autres pages ; et son test « un `/me` 200 au corps `null` » attend « Pas
+  de connexion. Réessayez. » : un corps `null` est le statut 0 depuis #619
+  (`readJson`). Deux mutations de plus, rattrapées (le garde remis à
+  `'failed'`, l'état d'erreur sans `message`) ;
   `tsc` et le lint propres ; `next build` passe contre l'API bouchon de la CI.
   **App** : `flutter test --exclude-tags golden` — 2261 sur 2261, 52 sautés
   (les goldens, faits sur Linux : la CI les lance ; aucun ne montre la feuille

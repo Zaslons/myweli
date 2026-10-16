@@ -7,6 +7,7 @@ const routerMock = { replace };
 vi.mock('next/navigation', () => ({ useRouter: () => routerMock }));
 
 import { ProAppointmentDetailClient } from '../components/pro/ProAppointmentDetailClient';
+import { NO_CONNECTION_MESSAGE } from '../lib/api/network';
 import type { ProAppointment } from '../lib/pro/today';
 
 /// « Détails du rendez-vous » waits for its salon
@@ -81,13 +82,16 @@ afterEach(() => {
 });
 
 /// The page settled into its error state — and nothing salon-shaped leaked.
-async function expectErrorState() {
+/// No usable answer (status 0) names the network
+/// (docs/design/web-pro-no-connection-copy.md §3); a server's failure keeps
+/// the default.
+async function expectErrorState(
+  sentence: string = 'Une erreur est survenue. Réessayez.',
+) {
   expect(
     await screen.findByRole('button', { name: 'Réessayer' }),
   ).toBeInTheDocument();
-  expect(screen.getByRole('alert')).toHaveTextContent(
-    'Une erreur est survenue. Réessayez.',
-  );
+  expect(screen.getByRole('alert')).toHaveTextContent(sentence);
   // The page title survives the error (§4: one h1 per page, every state).
   expect(screen.getByRole('heading', { level: 1, name: 'Rendez-vous' })).toBeInTheDocument();
   // Nothing rendered from a salon the page does not have: no clock, no role
@@ -121,10 +125,12 @@ describe('ProAppointmentDetailClient — no salon, no page', () => {
 
   it('a /me 200 without a profile body is no salon either', async () => {
     // getMyProvider casts the body: a 200 is only a salon if it holds one.
+    // A `null` body is no usable answer — status 0 since #619 (readJson),
+    // so the page says the network, as for a cut connection.
     mockFetch([{ status: 200, body: null }]);
     render(<ProAppointmentDetailClient id={APPT.id} />);
 
-    await expectErrorState();
+    await expectErrorState(NO_CONNECTION_MESSAGE);
   });
 
   it('« Réessayer » loads the detail once /me answers', async () => {
