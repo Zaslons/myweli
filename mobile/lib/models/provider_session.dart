@@ -1,5 +1,6 @@
 import 'pro_membership.dart';
 import 'provider_user.dart';
+import 'salon_market.dart';
 
 /// The salon a provider session ACTS IN (team access R6) — the one rule:
 /// the switched-to salon ([selected]), else the account's own salon
@@ -42,12 +43,19 @@ class ProviderSession {
   /// `GET /me/provider?salonId=` — a 403 silently falls back to default.
   final String? selectedSalonId;
 
+  /// The acting salon's market facts from the last GET /me/provider — its
+  /// clock and currency when a cold start's refresh fails
+  /// (docs/design/pro-app-salon-not-loaded.md §3.1). Like [membership],
+  /// shaping only; they count for [SalonMarket.salonId] alone.
+  final SalonMarket? salonMarket;
+
   const ProviderSession({
     required this.token,
     required this.provider,
     this.refreshToken,
     this.membership,
     this.selectedSalonId,
+    this.salonMarket,
   });
 
   /// The salon this session acts in — [resolveActingSalonId] over the
@@ -64,6 +72,8 @@ class ProviderSession {
     bool clearMembership = false,
     String? selectedSalonId,
     bool clearSelectedSalon = false,
+    SalonMarket? salonMarket,
+    bool clearSalonMarket = false,
   }) => ProviderSession(
     token: token,
     refreshToken: refreshToken,
@@ -72,6 +82,7 @@ class ProviderSession {
     selectedSalonId: clearSelectedSalon
         ? null
         : (selectedSalonId ?? this.selectedSalonId),
+    salonMarket: clearSalonMarket ? null : (salonMarket ?? this.salonMarket),
   );
 
   Map<String, dynamic> toJson() => {
@@ -80,6 +91,7 @@ class ProviderSession {
     'provider': provider.toJson(),
     if (membership != null) 'membership': membership!.toJson(),
     if (selectedSalonId != null) 'selectedSalonId': selectedSalonId,
+    if (salonMarket != null) 'salonMarket': salonMarket!.toJson(),
   };
 
   factory ProviderSession.fromJson(
@@ -94,5 +106,10 @@ class ProviderSession {
         : ProMembership.fromJson(json['membership'] as Map<String, dynamic>),
     // Legacy sessions (pre-R6) simply have no selection.
     selectedSalonId: json['selectedSalonId'] as String?,
+    // Sessions stored before the facts were kept have none: the salon is
+    // unknown until GET /me/provider answers.
+    salonMarket: json['salonMarket'] == null
+        ? null
+        : SalonMarket.fromJson(json['salonMarket'] as Map<String, dynamic>),
   );
 }
