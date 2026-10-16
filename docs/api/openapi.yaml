@@ -2141,6 +2141,13 @@ paths:
         `depositRequired` is true, the Mobile Money operator + number are
         required** (400 `invalid_input` when either is absent). Every other
         fault: 400 `invalid_input`.
+        **The policy is replaced whole**: what a client leaves out or sends
+        as null is erased. A client that hides the operator or the percentage
+        while deposits are off must still send them as held, or it erases
+        them — and the appointment read serves the salon's CURRENT operator
+        to a client still owing a deposit. A new salon starts at
+        `depositPercentage` 0, which clients read as not chosen yet and
+        answer by proposing 30% (docs/design/acompte-off-parity.md).
       security: [{ bearerAuth: [] }]
       requestBody:
         required: true
