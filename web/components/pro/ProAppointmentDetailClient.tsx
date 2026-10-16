@@ -58,12 +58,22 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
       router.replace("/pro/connexion");
       return;
     }
+    // No salon, no page (docs/design/pro-appointment-detail-profile-gate.md):
+    // every time here is the salon's clock, the role shape is its membership,
+    // and « Reprogrammer » writes in its timezone — without /me the page fell
+    // back to Abidjan and an owner's shape, and moved a UTC+1 salon's booking
+    // an hour off. A 403 lands here too; the shell's probe owns the sign-out.
+    if (me.status !== 200 || !me.profile) {
+      setLoadError(true);
+      setLoading(false);
+      return;
+    }
+    setProfile(me.profile);
     const r = await getProAppointment(id);
     if (r.status === 401) {
       router.replace("/pro/connexion");
       return;
     }
-    setProfile(me.profile ?? null);
     if (r.status !== 200 || !r.appt) {
       // The API wrapper DISTINGUISHES: 404 = a loaded list without this id
       // (terminal); anything else is a transient failure — the review proved
@@ -89,7 +99,10 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
   const [reprogError, setReprogError] = useState<string | null>(null);
 
   async function reschedule() {
-    if (!reprogDate || !reprogTime) return;
+    // Never without the salon: an UNLOADED salon is not one with no
+    // timezone. A loaded one with a null timezone is the server's own
+    // Abidjan default (salon_time.dart `locationOf`), so the seam agrees.
+    if (!profile || !reprogDate || !reprogTime) return;
     setBusy(true);
     setReprogError(null);
     // The picked wall-clock IS salon time — offset-aware build through the
@@ -99,7 +112,7 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
       combineDateTime(
         reprogDate,
         reprogTime,
-        profile?.provider.timezone ?? undefined,
+        profile.provider.timezone ?? undefined,
       ) ?? "",
     );
     setBusy(false);
@@ -138,7 +151,7 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
   }
 
   if (loading) return <Loading className="mt-l" />;
-  if (loadError) {
+  if (loadError || !profile) {
     return <ErrorState title="Rendez-vous" onRetry={load} />;
   }
   if (notFound || !appt) {
@@ -160,15 +173,15 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
   }
 
   // The ACTIVE salon's market (multi-pays MP3).
-  const tz = profile?.provider.timezone ?? undefined;
-  const currency = profile?.provider.currency ?? undefined;
+  const tz = profile.provider.timezone ?? undefined;
+  const currency = profile.provider.currency ?? undefined;
   const serviceName = (sid: string) =>
-    profile?.provider.services?.find((s) => s.id === sid)?.name;
+    profile.provider.services?.find((s) => s.id === sid)?.name;
   const services =
     (appt.serviceIds ?? []).map(serviceName).filter(Boolean).join(", ") || "—";
   // Team access R5b: the role-shaped action set (staff = Terminé/Absent on
   // their own confirmed bookings; the server enforces T40 regardless).
-  const membership = profile?.membership;
+  const membership = profile.membership;
   const actions = actionsForMembership(appt.status, membership);
   const canManageAll = hasCap(membership, "journal.manage.all");
   const canViewClients = hasCap(membership, "clients.view");

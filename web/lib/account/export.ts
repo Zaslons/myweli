@@ -35,3 +35,33 @@ export function buildUserDataExport({
     favorites: favoriteProviderNames,
   };
 }
+
+/// The export's own reads, in the order the file and the copy name them.
+export type ExportSection = 'profile' | 'appointments' | 'favorites';
+
+const SECTION_ORDER: ExportSection[] = ['profile', 'appointments', 'favorites'];
+
+const SECTION_NAME: Record<ExportSection, string> = {
+  profile: 'votre profil',
+  appointments: 'vos rendez-vous',
+  favorites: 'vos favoris',
+};
+
+/// The refusal when a read fails (docs/design/consumer-export-completeness.md
+/// §4): nothing is offered, and the user is told which data is missing. The
+/// app says the same sentence (`dataExportFailureMessage`).
+export function exportFailureMessage(failed: ExportSection[]): string {
+  const names = SECTION_ORDER.filter((s) => failed.includes(s)).map(
+    (s) => SECTION_NAME[s],
+  );
+  const list =
+    names.length > 1
+      ? `${names.slice(0, -1).join(', ')} et ${names[names.length - 1]}`
+      : names.join('');
+  return `Impossible de charger ${list}. Vos données ne sont proposées que complètes : vérifiez votre connexion et réessayez.`;
+}
+
+/// The browser refused the clipboard. The download needs no permission, so
+/// that is the way out.
+export const EXPORT_COPY_FAILED =
+  'La copie a échoué. Téléchargez le fichier avec « Télécharger (JSON) ».';
