@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Construit le 2026-10-15** (propriétaire : « Do this task here: Add CORS headers to the API's error responses ») sur `fix/cors-error-responses` |
+| **Statut** | **Construit le 2026-10-15** (propriétaire : « Do this task here: Add CORS headers to the API's error responses ») sur `fix/cors-error-responses` · **Mergé (#613) et déployé en production le 2026-10-16** — révision `myweli-api-00040-8tw` (image `cd21d03`) ; vu en service sur `api.myweli.com` |
 | **Module** | backend — bord de la chaîne (CORS, observabilité, contrôle des requêtes) · T27 |
 | **Origine** | Une sonde de la tranche [phone-leftovers.md](phone-leftovers.md) : `400=400 acao=null · 500=500 acao=null · 200 acao=https://myweli.com` |
 | **Régit** | `backend/routes/_middleware.dart` (ordre) · `backend/lib/src/cors.dart` (en-têtes) · CI « Backend — boot smoke » (sonde) · `docs/BACKEND.md` §2 |

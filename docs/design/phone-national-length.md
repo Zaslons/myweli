@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Approuvé le 2026-10-15** (propriétaire : « Do this task here: Reject short Ivorian numbers at the phone step ») — **construit le même jour** sur `fix/phone-national-length` (trois surfaces, chacune vue rouge d'abord ; §12 dit ce qui a été construit autrement qu'écrit) |
+| **Statut** | **Approuvé le 2026-10-15** (propriétaire : « Do this task here: Reject short Ivorian numbers at the phone step ») — **construit le même jour** sur `fix/phone-national-length` (trois surfaces, chacune vue rouge d'abord ; §12 dit ce qui a été construit autrement qu'écrit) · **Mergé (#611) et déployé en production le 2026-10-16** — révision `myweli-api-00040-8tw` (image `cd21d03`) ; le web au merge ; l'app au prochain build |
 | **Module** | transverse — formulaires (SYSTEM.md §14) · données de marché (SYSTEM.md §18, [multi-pays.md](../modules/multi-pays.md) §6/§9) · identité (T34) |
 | **Origine** | Vu sur le simulateur le 2026-10-15 (essai de #601) : l'étape « Votre numéro de téléphone » de l'app client a accepté `+2250700000` — 7 chiffres après +225 — et l'a enregistré. |
 | **Régit** | `mobile/lib/core/utils/phone_numbering.dart` (nouveau seam §18) · `mobile/lib/core/utils/validators.dart` (`phoneNumber`) · `mobile/lib/widgets/common/phone_number_field.dart` · les 9 écrans de saisie (§2) · `backend/lib/src/localities/phone_numbering.dart` (nouveau, dans le seam existant) · `backend/lib/src/validators.dart` · les 11 sites `isValidE164` + `POST /me/salons` · `web/lib/phone.ts` (nouveau) et les 9 formulaires web (§2) · `docs/api/openapi.yaml` |
