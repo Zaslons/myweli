@@ -52,7 +52,13 @@ class ApiProArtistService implements ProArtistServiceInterface {
     );
     if (res == null) return _networkError();
     if (res.statusCode != 200) return _errorFrom(res);
-    final items = ((_decode(res.body)['items'] as List?) ?? const [])
+    // The server always sends `items` (an empty list for a salon with no
+    // staff): a 200 without it is an answer that did not arrive whole, never
+    // « no team » — the salon export would ship it as complete
+    // (docs/design/export-unreadable-200.md §2).
+    final list = _decode(res.body)['items'];
+    if (list is! List) return ApiResponse.error('Erreur');
+    final items = list
         .map((e) => Artist.fromJson(e as Map<String, dynamic>))
         .toList();
     return ApiResponse.success(items);

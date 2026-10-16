@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { lostBodyIsBadGateway } from '../../../lib/bff';
 import { apiBase } from '../../../lib/server-api';
 
 // A same-origin proxy, never build-time content (a parameterless GET would
@@ -11,7 +12,14 @@ export const dynamic = 'force-dynamic';
 /// lib/use-localities.ts; the backend's Cache-Control rides through.
 export async function GET() {
   const r = await fetch(`${apiBase}/localities`);
-  const body = await r.json().catch(() => ({ countries: [] }));
+  const parsed: unknown = await r.json().catch(() => undefined);
+  // A lost 2xx body is a 502, never an empty tree the client would cache
+  // for the visit (docs/design/export-unreadable-200.md §7); an error keeps
+  // its status and its empty tree, as before.
+  if (parsed == null && lostBodyIsBadGateway(r, {})) {
+    return NextResponse.json({ error: 'bad_gateway' }, { status: 502 });
+  }
+  const body = parsed ?? { countries: [] };
   const res = NextResponse.json(body, { status: r.status });
   const cache = r.headers.get('cache-control');
   if (cache) res.headers.set('cache-control', cache);

@@ -72,7 +72,7 @@ export function buildProviderDataExport({
 /// The export's own reads, in the order the file and the copy name them.
 export type ExportSection = 'appointments' | 'clients' | 'earnings';
 
-const SECTION_ORDER: ExportSection[] = ['appointments', 'clients', 'earnings'];
+export const SECTION_ORDER: ExportSection[] = ['appointments', 'clients', 'earnings'];
 
 const SECTION_NAME: Record<ExportSection, string> = {
   appointments: 'les rendez-vous',

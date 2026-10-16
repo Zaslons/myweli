@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
@@ -14,10 +16,12 @@ import 'package:myweli/providers/auth_provider.dart';
 import 'package:myweli/providers/favorites_provider.dart';
 import 'package:myweli/providers/provider_provider.dart';
 import 'package:myweli/screens/profile/data_export_screen.dart';
+import 'package:myweli/services/api/api_favorites_service.dart';
 import 'package:myweli/services/interfaces/appointment_service_interface.dart';
 import 'package:myweli/services/interfaces/auth_service_interface.dart';
 import 'package:myweli/services/interfaces/favorites_service_interface.dart';
 import 'package:myweli/services/interfaces/provider_service_interface.dart';
+import 'package:myweli/services/interfaces/session_store.dart';
 import 'package:myweli/services/mock/mock_data.dart';
 import 'package:provider/provider.dart';
 
@@ -40,6 +44,18 @@ class _SignedIn extends AuthProvider {
 
   @override
   User? get user => _signedIn;
+}
+
+/// The REAL favourites read, over a `GET /me/favorites` that answers [body]
+/// with a 200 — the parse the interface stubs skip.
+ApiFavoritesService _favoritesOverWire(Object body) {
+  final store = InMemorySessionStore()
+    ..save(jsonEncode({'token': 'tok', 'refreshToken': 'r1'}));
+  return ApiFavoritesService(
+    client: MockClient((_) async => http.Response(jsonEncode(body), 200)),
+    baseUrl: 'http://x',
+    sessionStore: store,
+  );
 }
 
 /// « Mes données » refuses instead of offering a copy with holes: a read that
@@ -212,6 +228,59 @@ void main() {
       await pump(tester);
 
       expectRefusal(favoritesFailed);
+    });
+
+    // docs/design/export-unreadable-200.md §2: the server always sends
+    // `providers`, so a 200 without it is a body that did not arrive whole —
+    // « vos favoris », never « 0 Favoris » copied as complete.
+    for (final MapEntry(key: name, value: body) in {
+      '{}': <String, Object?>{},
+      'the ids without the salons': <String, Object?>{
+        'providerIds': ['provider1'],
+      },
+    }.entries) {
+      testWidgets('the favourites answer a 200 without their list ($name) → '
+          '« vos favoris »', (tester) async {
+        favoritesAnswer(
+          () => _favoritesOverWire(body).getFavoriteProviders('u1'),
+        );
+        await pump(tester);
+
+        expectRefusal(favoritesFailed);
+      });
+    }
+
+    testWidgets('CONTROL: the same read WITH its list → the copy', (
+      tester,
+    ) async {
+      favoritesAnswer(
+        () => _favoritesOverWire({
+          'providerIds': ['p1'],
+          'providers': [
+            {
+              'id': 'p1',
+              'name': 'Salon Awa',
+              'description': '',
+              'address': 'Cocody',
+              'imageUrls': <String>[],
+              'rating': 4.5,
+              'reviewCount': 1,
+              'services': <Object>[],
+              'availability': {
+                'providerId': 'p1',
+                'weeklySchedule': <String, Object>{},
+                'blockedDates': <String>[],
+              },
+              'phoneNumber': '+2250700000001',
+              'category': 'salon',
+            },
+          ],
+        }).getFavoriteProviders('u1'),
+      );
+      await pump(tester);
+      final doc = await copyAndRead(tester);
+
+      expect(doc['favorites'], ['Salon Awa']);
     });
 
     testWidgets('the appointments read THROWS → the refusal', (tester) async {

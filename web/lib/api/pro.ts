@@ -200,8 +200,14 @@ export async function listProAppointments(): Promise<{
 }> {
   const res = await send('/api/pro/appointments');
   if (!res.ok) return { status: res.status, items: [] };
-  const body = await readJson<{ items?: ProAppointment[] }>(res);
-  return body ? { status: 200, items: body.items ?? [] } : { status: 0, items: [] };
+  // The server always sends `items`: a 200 without the list is a failed read
+  // (status 0) — the salon export refuses, « Aujourd'hui » and
+  // « Rendez-vous » show their error — never « aucun rendez-vous » nobody sent
+  // (docs/design/export-unreadable-200.md §2.2).
+  const items = (await readJson<{ items?: unknown }>(res))?.items;
+  return Array.isArray(items)
+    ? { status: 200, items: items as ProAppointment[] }
+    : { status: 0, items: [] };
 }
 
 /// Take the salon live (docs/design/pro-salon-lifecycle.md). 409 returns the
@@ -481,8 +487,15 @@ export async function getEarnings(
   }
   const res = await send(`/api/pro/earnings?${qs.toString()}`);
   if (!res.ok) return { status: res.status };
-  const earnings = await readJson<EarningsData>(res);
-  return earnings ? { status: 200, earnings } : { status: 0 };
+  // The server always sends `totalEarnings` and the `transactions` list. A
+  // 200 without them is a failed read (status 0), not « earnings »: `{}`
+  // crashed the Revenus page and the export, `transactions: "x"` was
+  // exported as one (docs/design/export-unreadable-200.md §2.2).
+  const earnings = await readJson<Partial<EarningsData>>(res);
+  return Array.isArray(earnings?.transactions) &&
+    typeof earnings.totalEarnings === 'number'
+    ? { status: 200, earnings: earnings as EarningsData }
+    : { status: 0 };
 }
 
 // --- profil + acompte (7.3e-i) ----------------------------------------------

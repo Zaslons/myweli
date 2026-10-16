@@ -89,6 +89,10 @@ class ProClientsProvider extends ChangeNotifier implements ShowsSalonBookings {
         _total = r.data!.total;
         _page += 1;
       }
+      // A failed page (an error answer, or one that does not read — the
+      // service says « Erreur », docs/design/export-unreadable-200.md §2.2):
+      // nothing appended, the loaded list stays, and the next scroll asks
+      // for the same page again.
     } finally {
       _isLoadingMore = false;
       notifyListeners();

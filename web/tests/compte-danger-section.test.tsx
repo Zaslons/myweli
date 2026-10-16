@@ -156,6 +156,8 @@ const APPOINTMENTS_FAILED =
   "Export interrompu : impossible de charger les rendez-vous. Aucun fichier n'a été créé. Réessayez.";
 const EARNINGS_FAILED =
   "Export interrompu : impossible de charger les revenus. Aucun fichier n'a été créé. Réessayez.";
+const ALL_FAILED =
+  "Export interrompu : impossible de charger les rendez-vous, le fichier clients et les revenus. Aucun fichier n'a été créé. Réessayez.";
 const COPY_FAILED =
   'La copie a échoué. Téléchargez le fichier avec « Exporter (JSON) ».';
 
@@ -444,6 +446,70 @@ describe('CompteDangerSection — the export refuses instead of shipping holes',
     fireEvent.click(screen.getByRole('button', { name: 'Copier' }));
 
     expect((await screen.findByRole('alert')).textContent).toBe(COPY_FAILED);
+    expect(screen.queryByText('Copié ✓')).toBeNull();
+  });
+
+  // docs/design/export-unreadable-200.md §4: a 200 without its list lost it
+  // on the way (the server always sends it). Before, an appointments `{}`
+  // shipped `"appointments": []` with no alert, and an earnings `{}` broke the
+  // assembly with nothing said — the button just came back.
+  it.each([
+    ['appointments', APPOINTMENTS_FAILED],
+    ['earnings', EARNINGS_FAILED],
+  ] as const)('the %s answering 200 `{}` is refused: no file, the message', async (read, message) => {
+    exportReads({ [read]: { status: 200, body: {} } });
+    const out = watchOutputs();
+    render(<CompteDangerSection profile={profile} />);
+
+    fireEvent.click(exportButton());
+
+    expect((await screen.findByRole('alert')).textContent).toBe(message);
+    expect(out.createObjectURL).not.toHaveBeenCalled();
+    expect(out.anchorClick).not.toHaveBeenCalled();
+    expect(exportButton().textContent).toBe('Exporter (JSON)');
+  });
+
+  it('CONTROL — the clients answering 200 `{}` is refused (the walk already needs its `pageSize`)', async () => {
+    exportReads({ clients: { status: 200, body: {} } });
+    const out = watchOutputs();
+    render(<CompteDangerSection profile={profile} />);
+
+    fireEvent.click(exportButton());
+
+    expect((await screen.findByRole('alert')).textContent).toBe(CLIENTS_FAILED);
+    expect(out.createObjectURL).not.toHaveBeenCalled();
+  });
+
+  // §2.3: whatever still breaks while the file is assembled is a refusal
+  // with the export's message — it cannot say which data was wrong, so it
+  // names them all — never a silent no-file.
+  it('a file that cannot be assembled is refused with the message, and the buttons come back', async () => {
+    exportReads();
+    const out = watchOutputs();
+    const broken = {
+      ...profile,
+      provider: { ...profile.provider, services: 'x' },
+    } as unknown as ProProfile;
+    render(<CompteDangerSection profile={broken} />);
+
+    fireEvent.click(exportButton());
+
+    expect((await screen.findByRole('alert')).textContent).toBe(ALL_FAILED);
+    expect(out.createObjectURL).not.toHaveBeenCalled();
+    expect(out.anchorClick).not.toHaveBeenCalled();
+    expect(exportButton().textContent).toBe('Exporter (JSON)');
+    expect((exportButton() as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it('the same through « Copier »: a booking the file cannot hold writes nothing', async () => {
+    exportReads({ appointments: { status: 200, body: { items: [null] } } });
+    const out = watchOutputs();
+    render(<CompteDangerSection profile={profile} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Copier' }));
+
+    expect((await screen.findByRole('alert')).textContent).toBe(ALL_FAILED);
+    expect(out.writeText).not.toHaveBeenCalled();
     expect(screen.queryByText('Copié ✓')).toBeNull();
   });
 

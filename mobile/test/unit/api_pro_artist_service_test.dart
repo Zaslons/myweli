@@ -79,6 +79,39 @@ void main() {
     expect(res.data!.single.name, 'Awa');
   });
 
+  test('getArtists: an empty team the server sent is an empty list', () async {
+    final client = MockClient(
+      (req) async => http.Response(
+        jsonEncode({'items': <Object>[], 'page': 1, 'total': 0}),
+        200,
+      ),
+    );
+    final res = await _linked(client).getArtists('provider1');
+    expect(res.success, isTrue);
+    expect(res.data, isEmpty);
+  });
+
+  // The server always sends `items`: a 200 without it is a body that did not
+  // arrive whole, never « no team » — the salon export would ship it as
+  // complete (docs/design/export-unreadable-200.md §2).
+  group('getArtists: a 200 without its list is an error, not []', () {
+    final bodies = <String, Map<String, Object?>>{
+      '{}': {},
+      'items: null': {'items': null, 'total': 0},
+      'items: "x"': {'items': 'x', 'total': 0},
+    };
+    for (final MapEntry(key: name, value: body) in bodies.entries) {
+      test(name, () async {
+        final client = MockClient(
+          (req) async => http.Response(jsonEncode(body), 200),
+        );
+        final res = await _linked(client).getArtists('provider1');
+        expect(res.success, isFalse);
+        expect(res.data, isNull);
+      });
+    }
+  });
+
   test(
     'createArtist POSTs; serializes workingHours; omits server fields',
     () async {

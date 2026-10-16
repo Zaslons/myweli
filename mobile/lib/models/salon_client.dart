@@ -220,17 +220,33 @@ class SalonClientsPage extends Equatable {
   /// Page 1 only: presets + the salon's custom tags (filter chips).
   final List<String> availableTags;
 
-  factory SalonClientsPage.fromJson(Map<String, dynamic> json) =>
-      SalonClientsPage(
-        items: ((json['items'] as List?) ?? const [])
-            .map((e) => SalonClient.fromJson(e as Map<String, dynamic>))
-            .toList(),
-        page: (json['page'] as num?)?.toInt() ?? 1,
-        total: (json['total'] as num?)?.toInt() ?? 0,
-        pageSize: (json['pageSize'] as num?)?.toInt(),
-        availableTags: ((json['availableTags'] as List?) ?? const [])
-            .cast<String>(),
-      );
+  /// Throws a [FormatException] when `items` is not a list or `total` not a
+  /// number. The server always sends both, so a readable page without them
+  /// means a changed contract or something other than the API answering —
+  /// read as « no clients, total 0 », it passed the export's walk as an empty
+  /// base, complete (docs/design/export-unreadable-200.md §1).
+  /// `ApiProClientsService.listClients` turns the throw into its « Erreur »,
+  /// so every screen gets an error answer. `pageSize` stays tolerant.
+  factory SalonClientsPage.fromJson(Map<String, dynamic> json) {
+    final items = json['items'];
+    final total = json['total'];
+    if (items is! List) {
+      throw const FormatException('A clients page without its items');
+    }
+    if (total is! num) {
+      throw const FormatException('A clients page without its total');
+    }
+    return SalonClientsPage(
+      items: items
+          .map((e) => SalonClient.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      page: (json['page'] as num?)?.toInt() ?? 1,
+      total: total.toInt(),
+      pageSize: (json['pageSize'] as num?)?.toInt(),
+      availableTags: ((json['availableTags'] as List?) ?? const [])
+          .cast<String>(),
+    );
+  }
 
   @override
   List<Object?> get props => [items, page, total, pageSize, availableTags];

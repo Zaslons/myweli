@@ -59,7 +59,16 @@ class ApiProClientsService implements ProClientsServiceInterface {
     );
     if (res == null) return _networkError();
     if (res.statusCode != 200) return _errorFrom(res);
-    return ApiResponse.success(SalonClientsPage.fromJson(_decode(res.body)));
+    // A page that does not read — cut off, or without its `items` / `total`
+    // (SalonClientsPage.fromJson) — is a failed read, worded as `_errorFrom`
+    // words an unreadable body: never an empty page, and never a throw whose
+    // English text the list would show (docs/design/export-unreadable-200.md
+    // §2.2).
+    try {
+      return ApiResponse.success(SalonClientsPage.fromJson(_decode(res.body)));
+    } on FormatException {
+      return ApiResponse.error('Erreur');
+    }
   }
 
   @override
