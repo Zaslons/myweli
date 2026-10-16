@@ -64,13 +64,11 @@ class ApiProService implements ProServiceInterface {
   late final RefreshingHttpClient _authed;
 
   /// The salon id this account ACTS IN, read from the persisted provider
-  /// session — the R6 selection first, else the account's linked salon.
+  /// session by the same rule as ProAuthProvider.activeSalonId (the R6
+  /// selection, else the account's own salon, else the membership's).
   /// Used for the `serviceId`-only edit/delete/active paths. Null if not
-  /// signed in or the account isn't linked to a Provider.
-  Future<String?> _providerId() async {
-    final session = await _session();
-    return session?.selectedSalonId ?? session?.provider.providerId;
-  }
+  /// signed in or no salon is known (docs/design/services-acting-salon.md).
+  Future<String?> _providerId() async => (await _session())?.actingSalonId;
 
   /// R6 multi-salons: the persisted salon SELECTION (null = default). The
   /// session-resolved endpoints append it as `?salonId=`; the server
