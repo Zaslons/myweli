@@ -11,50 +11,60 @@ import {
   listAppointments,
 } from '../../lib/api/account';
 import type { Appointment } from '../../lib/account/appointments';
-import { buildUserDataExport } from '../../lib/account/export';
+import {
+  EXPORT_COPY_FAILED,
+  type ExportSection,
+  buildUserDataExport,
+  exportFailureMessage,
+} from '../../lib/account/export';
 import { Button } from '../Button';
 import { Loading } from '../Loading';
 
 /// « Mes données » (parity 11.2 — the app's data-export screen, web-adapted):
 /// profile + rendez-vous + favoris assembled client-side into one JSON,
 /// downloadable and copyable.
+///
+/// The copy is whole or it is not offered: a read that fails names the
+/// missing data and the page offers « Réessayer », never a section emptied
+/// by its failure (docs/design/consumer-export-completeness.md).
 export function DataExportClient() {
   const router = useRouter();
   const [me, setMe] = useState<Me | null>(null);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [favoriteNames, setFavoriteNames] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
+  const [failed, setFailed] = useState<ExportSection[]>([]);
   const [copied, setCopied] = useState(false);
+  const [copyFailed, setCopyFailed] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
-    setError(false);
-    const meRes = await getMe();
-    if (meRes.status === 401) {
-      router.replace('/connexion?returnTo=/mon-compte/donnees');
-      return;
-    }
-    if (meRes.status !== 200 || !meRes.user) {
-      setError(true);
-      setLoading(false);
-      return;
-    }
-    const [appts, favs] = await Promise.all([
+    setFailed([]);
+    // None of the three throws: a request with no usable answer — no network,
+    // or a body cut off on the way — is status 0 (lib/api/network.ts,
+    // docs/design/web-consumer-network-failure.md §2), one more failed section.
+    const [m, a, f] = await Promise.all([
+      getMe(),
       listAppointments(),
       getFavorites(),
     ]);
-    // The document a person downloads as « my data » is all of it or nothing:
-    // a failed list used to export as « 0 rendez-vous », without a word
-    // (docs/design/web-consumer-network-failure.md §3.2).
-    if (appts.status !== 200 || favs.status !== 200) {
-      setError(true);
+    if ([m, a, f].some((r) => r.status === 401)) {
+      router.replace('/connexion?returnTo=/mon-compte/donnees');
+      return;
+    }
+    const user = m.status === 200 ? m.user ?? null : null;
+    const missing: ExportSection[] = [];
+    if (!user) missing.push('profile');
+    if (a.status !== 200) missing.push('appointments');
+    if (f.status !== 200) missing.push('favorites');
+    if (!user || missing.length > 0) {
+      setFailed(missing);
       setLoading(false);
       return;
     }
-    setMe(meRes.user);
-    setAppointments(appts.items);
-    setFavoriteNames(favs.favorites.map((p) => p.name));
+    setMe(user);
+    setAppointments(a.items);
+    setFavoriteNames(f.favorites.map((p) => p.name));
     setLoading(false);
   }, [router]);
 
@@ -69,10 +79,14 @@ export function DataExportClient() {
   }, [copied]);
 
   if (loading) return <Loading className="mt-l" />;
-  if (error || !me) {
+  if (failed.length > 0 || !me) {
     return (
       <div>
-        <ErrorState title="Mes données" message="Chargement impossible." onRetry={load} />
+        <ErrorState
+          title="Mes données"
+          message={exportFailureMessage(failed)}
+          onRetry={load}
+        />
       </div>
     );
   }
@@ -85,6 +99,7 @@ export function DataExportClient() {
   const json = JSON.stringify(doc, null, 2);
 
   function download() {
+    setCopyFailed(false);
     const blob = new Blob([json], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -95,7 +110,15 @@ export function DataExportClient() {
   }
 
   async function copy() {
-    await navigator.clipboard.writeText(json);
+    setCopyFailed(false);
+    try {
+      await navigator.clipboard.writeText(json);
+    } catch {
+      // Permission, an unfocused page, or no clipboard at all (an insecure
+      // origin) — the download needs none of them.
+      setCopyFailed(true);
+      return;
+    }
     setCopied(true);
   }
 
@@ -135,6 +158,11 @@ export function DataExportClient() {
             {copied ? 'Données copiées.' : ''}
           </span>
         </div>
+        {copyFailed ? (
+          <p role="alert" className="mt-s text-bodyMedium text-error">
+            {EXPORT_COPY_FAILED}
+          </p>
+        ) : null}
       </section>
     </div>
   );

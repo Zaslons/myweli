@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { buildUserDataExport } from '../lib/account/export';
+import {
+  buildUserDataExport,
+  exportFailureMessage,
+} from '../lib/account/export';
 
 /// Parity 11.2 — the web export mirrors the app's data_export.dart shape.
 describe('buildUserDataExport', () => {
@@ -49,5 +52,32 @@ describe('buildUserDataExport', () => {
     const appt = (doc.appointments as Record<string, unknown>[])[0];
     expect(appt.totalPrice).toBeNull();
     expect(appt.serviceIds).toEqual([]);
+  });
+});
+
+/// The refusal when a read fails (docs/design/consumer-export-completeness.md
+/// §4) — the app's `dataExportFailureMessage` says the same sentence.
+describe('exportFailureMessage', () => {
+  const TAIL =
+    'Vos données ne sont proposées que complètes : vérifiez votre connexion et réessayez.';
+
+  it('names one section', () => {
+    expect(exportFailureMessage(['favorites'])).toBe(
+      `Impossible de charger vos favoris. ${TAIL}`,
+    );
+  });
+
+  it('joins two with « et », in the file order whatever order they failed in', () => {
+    expect(exportFailureMessage(['favorites', 'appointments'])).toBe(
+      `Impossible de charger vos rendez-vous et vos favoris. ${TAIL}`,
+    );
+  });
+
+  it('joins three with « , » then « et »', () => {
+    expect(
+      exportFailureMessage(['favorites', 'profile', 'appointments']),
+    ).toBe(
+      `Impossible de charger votre profil, vos rendez-vous et vos favoris. ${TAIL}`,
+    );
   });
 });
