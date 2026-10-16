@@ -43,7 +43,8 @@ salon —, `api_auth_service`, `api_appointment_service`) disent « Connexion
 au serveur impossible ». Le web n'en prend **qu'une** : « Pas de connexion.
 Réessayez. », celle qu'il dit déjà à deux endroits par le statut 0 — la carte
 d'invitations et la connexion Pro (#619 §3) — `NO_CONNECTION_MESSAGE`
-(`lib/pro/team.ts`). Ce qui compte pour la parité est que les deux nomment
+(`lib/api/network.ts` depuis #620, réexportée par `lib/pro/team.ts`). Ce qui
+compte pour la parité est que les deux nomment
 le réseau ; aligner l'app sur une seule phrase est consigné (§9).
 
 **Ce que le statut 0 veut dire ici** : le lien navigateur → BFF n'a rien
@@ -94,8 +95,9 @@ export function loadFailureMessage(f: LoadFailure, message?: string): string | u
   `if (error)` le lirait comme « pas d'erreur » et la page s'afficherait
   vide. Chaque `setError(false)` changerait aussi.
 - *Une prop `offline` sur `ErrorState`* — le composant partagé (web client
-  compris) apprendrait le vocabulaire Pro (`lib/pro/team.ts`) ; la consigne
-  est de ne pas toucher sa valeur par défaut pour les autres échecs.
+  compris) apprendrait une décision que chaque page prend déjà (le web client,
+  #620, choisit sa phrase dans la page) ; la consigne est de ne pas toucher sa
+  valeur par défaut pour les autres échecs.
 
 ## 3. Les sites — les 16 pages et la Journée
 
@@ -235,9 +237,11 @@ des stores (le sélecteur seul). Rien côté serveur.
   échoué. Réessayez. », …) restent génériques ; elles sont vraies sur une
   coupure (#619 §3). Les faire dire « Pas de connexion » est une autre tâche,
   écran par écran.
-- **Le web client** (`lib/api/account.ts`) : sa propre tâche (en cours dans
-  une autre session) ; il pourra reprendre `loadFailure` si la même question
-  s'y pose.
+- **Le web client** : fait par #620 ([web-consumer-network-failure.md](web-consumer-network-failure.md)),
+  qui a sorti `send()` / `readJson()` et `NO_CONNECTION_MESSAGE` dans
+  `lib/api/network.ts` ; ses pages choisissent la phrase dans la page. Faire
+  passer ses états d'erreur de chargement par `loadFailure` serait une autre
+  tâche.
 - **Les lectures secondaires silencieuses** (#619 §3) : silencieuses sur une
   coupure comme sur un 5xx.
 - **Les deux phrases de l'app** (§1) : « Connexion au serveur impossible »
@@ -287,6 +291,7 @@ des stores (le sélecteur seul). Rien côté serveur.
   changement (la garde « reste faux ») ; la feuille qui ne nomme jamais le
   réseau, ou toujours. `flutter analyze` : 0.
 - **Suite complète, web** : 1282 tests sur 1282 avant le sélecteur, 1286 avec ;
+  rebasé sur la tête de #619 après #620 (`4467e7d2`) : 1404 sur 1404 ;
   `tsc` et le lint propres ; `next build` passe contre l'API bouchon de la CI.
   **App** : `flutter test --exclude-tags golden` — 2261 sur 2261, 52 sautés
   (les goldens, faits sur Linux : la CI les lance ; aucun ne montre la feuille

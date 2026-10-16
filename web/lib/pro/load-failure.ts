@@ -1,4 +1,4 @@
-import { NO_CONNECTION_MESSAGE } from './team';
+import { NO_CONNECTION_MESSAGE } from '../api/network';
 
 /// Why a Pro page's read failed, as its error state needs it — design:
 /// docs/design/web-pro-no-connection-copy.md §2.
