@@ -133,8 +133,12 @@ class ApiNotificationService implements NotificationServiceInterface {
   Map<String, String> _bearer(String token) => {
     'Authorization': 'Bearer $token',
   };
+
+  /// No answer at all. The CODE is what lets a caller tell this from a
+  /// refusal without comparing sentences
+  /// (docs/design/app-notifications-read-revert.md §3.4).
   ApiResponse<T> _networkError<T>() =>
-      ApiResponse.error('Pas de connexion. Réessayez.');
+      ApiResponse.error('Pas de connexion. Réessayez.', code: 'network');
 
   ApiResponse<T> _errorFrom<T>(http.Response res) {
     try {
