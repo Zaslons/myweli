@@ -22,7 +22,7 @@ import {
   updateName,
   removeFavorite,
 } from '../../lib/api/account';
-import { NO_CONNECTION_MESSAGE } from '../../lib/api/network';
+import { NO_CONNECTION_MESSAGE, writeFailureMessage } from '../../lib/api/network';
 import type { Provider } from '../../lib/api/providers';
 import { updateContactPhone } from '../../lib/auth/client';
 import { useFieldErrors } from '../../lib/forms/useFieldErrors';
@@ -59,6 +59,14 @@ export function AccountClient() {
   // The favorites read failed: the section says so — never « Aucun favori »
   // to someone who has some (docs/design/web-consumer-network-failure.md §3.2).
   const [favoritesFailed, setFavoritesFailed] = useState(false);
+  // « Retirer des favoris » in flight: those cards are HIDDEN, not dropped —
+  // `favorites` loses one only on a success, so a failure brings back that
+  // card at its place (docs/design/web-consumer-optimistic-revert.md §3.2 ①).
+  const [removing, setRemoving] = useState<ReadonlySet<string>>(new Set());
+  // A failed removal's sentence, under its card.
+  const [favErrors, setFavErrors] = useState<Record<string, string | undefined>>({});
+  const [favRefocus, setFavRefocus] = useState<{ id: string } | null>(null);
+  const removeButtons = useRef(new Map<string, HTMLButtonElement>());
   const [tab, setTab] = useState<Tab>('upcoming');
   const [loading, setLoading] = useState(true);
   const [reloadKey, setReloadKey] = useState(0);
@@ -71,6 +79,8 @@ export function AccountClient() {
   const [editingName, setEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState('');
   const [nameBusy, setNameBusy] = useState(false);
+  const [nameError, setNameError] = useState<string | null>(null);
+  const nameOkRef = useRef<HTMLButtonElement>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleteText, setDeleteText] = useState('');
   const [deleteBusy, setDeleteBusy] = useState(false);
@@ -110,10 +120,44 @@ export function AccountClient() {
     };
   }, [router, reloadKey]);
 
+  /// Optimistic, and undone on a failure (§3.2 ①): the card hides at once and
+  /// leaves `favorites` only once the server agreed. Undo is this ONE card at
+  /// its own place — never a snapshot laid over another removal that worked
+  /// (SYSTEM §15).
   async function removeFav(id: string) {
-    setFavorites((f) => f.filter((x) => x.id !== id));
-    await removeFavorite(id);
+    setRemoving((cur) => new Set(cur).add(id));
+    const r = await removeFavorite(id);
+    setRemoving((cur) => {
+      const next = new Set(cur);
+      next.delete(id);
+      return next;
+    });
+    if (r.ok) {
+      setFavorites((f) => f.filter((x) => x.id !== id));
+      return;
+    }
+    setFavErrors((e) => ({ ...e, [id]: writeFailureMessage(r.status) }));
+    setFavRefocus({ id });
   }
+
+  // The card was unmounted while its removal was out, and focus went with
+  // it: back on that card's « Retirer des favoris » — never stolen from
+  // elsewhere.
+  useEffect(() => {
+    if (!favRefocus) return;
+    const active = document.activeElement;
+    if (!active || active === document.body) {
+      removeButtons.current.get(favRefocus.id)?.focus();
+    }
+  }, [favRefocus]);
+
+  // « OK » was disabled while the name was out, which can drop focus to
+  // <body>: back on it with the failure, never stolen from elsewhere.
+  useEffect(() => {
+    if (!nameError) return;
+    const active = document.activeElement;
+    if (!active || active === document.body) nameOkRef.current?.focus();
+  }, [nameError]);
 
   // The button was disabled while the call was out, which can drop focus to
   // <body>: put it back on the retry, never steal it from elsewhere.
@@ -174,10 +218,17 @@ export function AccountClient() {
   }
 
   async function saveName() {
+    setNameError(null);
     setNameBusy(true);
     const r = await updateName(nameDraft.trim());
     setNameBusy(false);
-    if (!r.ok) return;
+    if (!r.ok) {
+      // The phone row's sentence, in the same card (§3.1).
+      setNameError(
+        writeFailureMessage(r.status, 'L’enregistrement a échoué. Réessayez.'),
+      );
+      return;
+    }
     setMe((m) => (m ? { ...m, name: nameDraft.trim() } : m));
     setEditingName(false);
   }
@@ -201,6 +252,7 @@ export function AccountClient() {
   }
 
   const shown = filterByTab(items, tab);
+  const shownFavorites = favorites.filter((f) => !removing.has(f.id));
 
   return (
     <div>
@@ -215,27 +267,35 @@ export function AccountClient() {
         <div className="flex flex-wrap items-center justify-between gap-s">
           <div>
             {editingName ? (
-              <div className="flex flex-wrap items-center gap-s">
-                <TextField
-                  label="Nom"
-                  hideLabel
-                  value={nameDraft}
-                  onChange={(e) => setNameDraft(e.target.value)}
-                />
-                <Button
-                  disabled={nameBusy || !nameDraft.trim()}
-                  onClick={saveName}
-                >
-                  OK
-                </Button>
-                <button
-                  type="button"
-                  className="text-bodyMedium text-textTertiary underline"
-                  onClick={() => setEditingName(false)}
-                >
-                  Annuler
-                </button>
-              </div>
+              <>
+                <div className="flex flex-wrap items-center gap-s">
+                  <TextField
+                    label="Nom"
+                    hideLabel
+                    value={nameDraft}
+                    onChange={(e) => setNameDraft(e.target.value)}
+                  />
+                  <Button
+                    ref={nameOkRef}
+                    disabled={nameBusy || !nameDraft.trim()}
+                    onClick={saveName}
+                  >
+                    OK
+                  </Button>
+                  <button
+                    type="button"
+                    className="text-bodyMedium text-textTertiary underline"
+                    onClick={() => setEditingName(false)}
+                  >
+                    Annuler
+                  </button>
+                </div>
+                {nameError ? (
+                  <p role="alert" className="mt-xs text-bodyMedium text-error">
+                    {nameError}
+                  </p>
+                ) : null}
+              </>
             ) : (
               <p className="flex items-center gap-s font-medium text-textPrimary">
                 {me?.name ?? 'Mon compte'}
@@ -245,6 +305,7 @@ export function AccountClient() {
                   className="text-bodyMedium font-normal text-textTertiary underline"
                   onClick={() => {
                     setNameDraft(me?.name ?? '');
+                    setNameError(null);
                     setEditingName(true);
                   }}
                 >
@@ -369,7 +430,7 @@ export function AccountClient() {
             message="Favoris indisponibles."
             onRetry={() => { setLoading(true); setReloadKey((k) => k + 1); }}
           />
-        ) : favorites.length === 0 ? (
+        ) : shownFavorites.length === 0 ? (
           <EmptyState
             className="mt-s"
             icon="search"
@@ -383,7 +444,7 @@ export function AccountClient() {
           />
         ) : (
           <div className="mt-m grid grid-cols-1 gap-m sm:grid-cols-2 lg:grid-cols-3">
-            {favorites.map((f) => {
+            {shownFavorites.map((f) => {
               // A salon that stopped is MARKED, not dropped. This list used to
               // be hydrated by fetching each favorite from the PUBLIC route
               // and filtering the failures away, so a stopped salon silently
@@ -400,12 +461,21 @@ export function AccountClient() {
                     </p>
                   ) : null}
                   <button
+                    ref={(el) => {
+                      if (el) removeButtons.current.set(f.id, el);
+                      else removeButtons.current.delete(f.id);
+                    }}
                     type="button"
                     onClick={() => removeFav(f.id)}
                     className="mt-xs text-bodyMedium text-textTertiary underline"
                   >
                     Retirer des favoris
                   </button>
+                  {favErrors[f.id] ? (
+                    <p role="alert" className="mt-xs text-bodyMedium text-error">
+                      {favErrors[f.id]}
+                    </p>
+                  ) : null}
                 </div>
               );
             })}
