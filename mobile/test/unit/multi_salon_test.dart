@@ -341,29 +341,282 @@ void main() {
     },
   );
 
+  // The R6 sweep pin (docs/design/r6-salon-id-pin.md). It used to grep
+  // lib/screens for the strings `provider?.providerId` / `provider!.providerId`,
+  // and the salon export read `account?.providerId ?? account?.id` through a
+  // local named `account` — two salons' data in one file after a switch. So
+  // it no longer looks for a NAME: every `.providerId` read above the
+  // service layer is counted, file by file and receiver by receiver, against
+  // the reviewed list at the bottom of this file.
   group('the sweep pin', () {
-    test(
-      'no screen reads provider?.providerId anymore (activeSalonId only)',
-      () {
-        final offenders = <String>[];
-        for (final entity in Directory(
-          'lib/screens',
-        ).listSync(recursive: true)) {
-          if (entity is! File || !entity.path.endsWith('.dart')) continue;
-          final content = entity.readAsStringSync();
-          if (content.contains('provider?.providerId') ||
-              content.contains('provider!.providerId')) {
-            offenders.add(entity.path);
-          }
-        }
-        expect(
-          offenders,
-          isEmpty,
-          reason:
-              'screens must resolve the salon via activeSalonId (R6): '
-              '$offenders',
-        );
-      },
-    );
+    test('every `.providerId` read above the service layer has been '
+        'reviewed — whatever its variable is called', () {
+      final reads = providerIdReads(_appSources());
+      expect(
+        reads.entries
+            .where((e) => !_alwaysParameter(e.key))
+            .map((e) => '${e.key} ×${e.value.length}'),
+        unorderedEquals(
+          _reviewedProviderIdReads.entries.map(
+            (e) => '${e.key} ×${e.value.reads}',
+          ),
+        ),
+        reason:
+            'A `.providerId` read changed. If it reads the SIGNED-IN '
+            'ACCOUNT (a ProviderUser), it is the default salon, not the one '
+            'the session acts in: use ProAuthProvider.activeSalonId. If it '
+            'is another model\'s (a booking, a review), add or bump its line '
+            'in _reviewedProviderIdReads with the reason. Reads now:\n'
+            '${_describe(reads)}',
+      );
+    });
+
+    test('no salon id is ever an `.id` (an account id is not a salon id)', () {
+      final found = salonIdFromId(_appSources());
+      expect(
+        found.entries.map((e) => '${e.key} ×${e.value.length}'),
+        unorderedEquals(
+          _reviewedSalonIdFromId.entries.map(
+            (e) => '${e.key} ×${e.value.reads}',
+          ),
+        ),
+        reason:
+            'A salon-id slot (`activeSalonId ?? …`, `providerId: …`, '
+            '`salonId: …`) is fed by an `.id`. The signed-in account\'s id is '
+            'never a salon id: use ProAuthProvider.activeSalonId, or guard '
+            'its null. Found:\n${_describe(found)}',
+      );
+    });
+
+    test('the pin sees through names — planted aliases go red', () {
+      // Each shape below is one that got past, or would get past, a grep
+      // for a variable name. Comments are not reads.
+      const planted = '''
+        final account = auth.provider;
+        final a = account?.providerId ?? account?.id; // the export's shape
+        final b = context.read<ProAuthProvider>().provider!.providerId;
+        final c = me
+            .provider
+            ?.providerId;
+        final d = (auth.provider as ProviderUser).providerId;
+        // provider?.providerId — quoted in a comment, not read
+        /* provider!.providerId */
+        service.create(salonId: owner.id);
+        final e = auth.activeSalonId ?? auth.provider!.id;
+        const f = {'providerId': pro.id};
+        DepositSettingsScreen(providerId: widget.providerId);
+      ''';
+      final sources = {'lib/screens/planted.dart': planted};
+
+      expect(providerIdReads(sources).map((k, v) => MapEntry(k, v.length)), {
+        'lib/screens/planted.dart · account': 1,
+        'lib/screens/planted.dart · …provider': 1,
+        'lib/screens/planted.dart · me.provider': 1,
+        'lib/screens/planted.dart · …': 1,
+        'lib/screens/planted.dart · widget': 1,
+      });
+      expect(salonIdFromId(sources).map((k, v) => MapEntry(k, v.length)), {
+        'lib/screens/planted.dart · account': 1,
+        'lib/screens/planted.dart · owner': 1,
+        'lib/screens/planted.dart · auth.provider': 1,
+        'lib/screens/planted.dart · pro': 1,
+      });
+    });
+
+    test('the scan covers the layers a salon id is chosen in', () {
+      final paths = _appSources().keys;
+      for (final layer in const [
+        'lib/screens/',
+        'lib/providers/',
+        'lib/widgets/',
+        'lib/core/',
+      ]) {
+        expect(paths.any((p) => p.startsWith(layer)), isTrue, reason: layer);
+      }
+      // The DTO layer is where `providerId` is declared and (de)serialized.
+      expect(paths.where((p) => p.startsWith('lib/models/')), isEmpty);
+      expect(paths.where((p) => p.startsWith('lib/services/')), isEmpty);
+      // And the export screen, the read that slipped past the old pin.
+      expect(
+        paths,
+        contains('lib/screens/provider/profile/pro_data_export_screen.dart'),
+      );
+    });
   });
 }
+
+// ---- The sweep pin's scanner (docs/design/r6-salon-id-pin.md §3) -----------
+
+/// Every Dart file a salon id is CHOSEN in: lib/ minus the DTO layer
+/// (lib/models declares and (de)serializes `providerId`) and the service
+/// layer (lib/services maps it to and from the wire).
+Map<String, String> _appSources() {
+  final sources = <String, String>{};
+  for (final entity in Directory('lib').listSync(recursive: true)) {
+    if (entity is! File || !entity.path.endsWith('.dart')) continue;
+    final path = entity.path.replaceAll(r'\', '/');
+    if (path.startsWith('lib/models/') || path.startsWith('lib/services/')) {
+      continue;
+    }
+    sources[path] = entity.readAsStringSync();
+  }
+  return sources;
+}
+
+/// The source with its comments blanked (newlines kept, so line numbers
+/// hold): a doc line that quotes `provider?.providerId` is not a read.
+String _code(String source) => source
+    .replaceAllMapped(
+      RegExp(r'/\*[\s\S]*?\*/'),
+      (m) => '\n' * '\n'.allMatches(m[0]!).length,
+    )
+    .replaceAll(RegExp(r'//[^\n]*'), '');
+
+const _ident = r'[A-Za-z_$][\w$]*';
+
+/// A dotted chain ending right where the read starts — `account?`,
+/// `widget.appointment`, `me\n    .provider\n    ?` — null-aware and bang
+/// tokens and line breaks included.
+final _chainAtEnd = RegExp(
+  '($_ident(?:\\s*[?!]?\\s*\\.\\s*$_ident)*)\\s*[?!]?\\s*\$',
+);
+
+/// What the read is ON, normalized: `account?` → `account`,
+/// `widget.appointment` stays, a member of an expression the scan cannot
+/// name (`context.read<X>().provider`) keeps a leading `…`, and an
+/// expression with no name at all (a cast, a call) is `…`.
+String _receiverOf(String code, int dot) {
+  final before = code.substring(dot < 200 ? 0 : dot - 200, dot);
+  final m = _chainAtEnd.firstMatch(before);
+  if (m == null) return '…';
+  final chain = m[1]!.replaceAll(RegExp(r'[\s?!]'), '');
+  final lead = before.substring(0, m.start).trimRight();
+  return lead.endsWith('.') ? '…$chain' : chain;
+}
+
+int _lineOf(String code, int offset) =>
+    '\n'.allMatches(code.substring(0, offset)).length + 1;
+
+/// Every `.providerId` read, keyed `path · receiver`, with its lines.
+Map<String, List<int>> providerIdReads(Map<String, String> sources) {
+  final reads = <String, List<int>>{};
+  for (final MapEntry(key: path, value: source) in sources.entries) {
+    final code = _code(source);
+    for (final m in RegExp(r'\.\s*providerId\b').allMatches(code)) {
+      final key = '$path · ${_receiverOf(code, m.start)}';
+      (reads[key] ??= []).add(_lineOf(code, m.start));
+    }
+  }
+  return reads;
+}
+
+/// Every salon-id slot fed by an `.id`, keyed `path · receiver of the .id`:
+/// a fallback (`activeSalonId ?? x.id`, `providerId ?? x.id`), a named
+/// argument or a map entry (`providerId: x.id`, `'salonId': x.id`).
+Map<String, List<int>> salonIdFromId(Map<String, String> sources) {
+  final slot = RegExp(
+    r"(?:\b(?:activeSalonId|providerId|salonId)\s*\?\?"
+    r"|\b(?:providerId|salonId)'?\s*:)"
+    '\\s*($_ident(?:\\s*[?!]?\\s*\\.\\s*$_ident)*)\\s*[?!]?\\s*\\.\\s*id\\b',
+  );
+  final found = <String, List<int>>{};
+  for (final MapEntry(key: path, value: source) in sources.entries) {
+    final code = _code(source);
+    for (final m in slot.allMatches(code)) {
+      final chain = m[1]!.replaceAll(RegExp(r'[\s?!]'), '');
+      final lead = code.substring(0, m.start + m[0]!.indexOf(m[1]!));
+      final key = '$path · ${lead.trimRight().endsWith('.') ? '…' : ''}$chain';
+      (found[key] ??= []).add(_lineOf(code, m.start));
+    }
+  }
+  return found;
+}
+
+/// `this.providerId` declares a widget's parameter and `widget.providerId`
+/// reads it back: the salon question moves to where the widget is BUILT,
+/// and that site is itself a `.providerId` read (counted) or an `.id` in a
+/// `providerId:` slot (refused).
+bool _alwaysParameter(String key) =>
+    key.endsWith(' · this') || key.endsWith(' · widget');
+
+String _describe(Map<String, List<int>> reads) =>
+    (reads.entries.toList()..sort((a, b) => a.key.compareTo(b.key)))
+        .map((e) => '  ${e.key} ×${e.value.length} (lines ${e.value})')
+        .join('\n');
+
+/// The reviewed `.providerId` reads that are NOT the signed-in account's:
+/// each is another model's salon id (a booking, a review), or the resolver
+/// itself. A new read anywhere — any variable name — is a new key or a new
+/// count, and stays red until it is reviewed here.
+const _reviewedProviderIdReads = <String, ({int reads, String why})>{
+  // ProAuthProvider IS the resolver: `activeSalonId` (selection → the
+  // account's default → the membership's salon), and `can`'s fallback for a
+  // linked owner before any membership has loaded.
+  'lib/providers/pro_auth_provider.dart · _provider': (
+    reads: 2,
+    why: 'the activeSalonId resolver and the pre-membership owner fallback',
+  ),
+  // A booking's salon (Appointment.providerId).
+  'lib/screens/home/home_screen.dart · a': (
+    reads: 1,
+    why: 'the salon of an upcoming booking (consumer home)',
+  ),
+  'lib/screens/appointments/reschedule_screen.dart · widget.appointment': (
+    reads: 1,
+    why: 'the slots of the salon the booking is at',
+  ),
+  'lib/screens/appointments/my_bookings_screen.dart · appointment': (
+    reads: 1,
+    why: '« Réserver à nouveau » at the booking’s salon',
+  ),
+  'lib/screens/appointments/appointment_detail_screen.dart · appointment': (
+    reads: 1,
+    why: 'the review sheet for the booking’s salon',
+  ),
+  'lib/screens/providers/provider_detail_screen.dart · a': (
+    reads: 1,
+    why: 'the consumer’s bookings at this salon',
+  ),
+  'lib/widgets/booking/appointment_card.dart · appointment': (
+    reads: 1,
+    why: 'the salon card of a booking',
+  ),
+  'lib/providers/appointment_provider.dart · a': (
+    reads: 1,
+    why: 'a duplicate-booking check on the booking’s salon',
+  ),
+  'lib/providers/pro_journal_provider.dart · booking': (
+    reads: 1,
+    why: 'a created booking is kept only for the day’s salon',
+  ),
+  'lib/providers/pro_clients_provider.dart · booking': (
+    reads: 1,
+    why: 'a created booking reaches the client card of its salon only',
+  ),
+  'lib/providers/pro_dashboard_provider.dart · booking': (
+    reads: 1,
+    why: 'a created booking refreshes the dashboard of its salon only',
+  ),
+  'lib/core/utils/data_export.dart · a': (
+    reads: 1,
+    why: 'a booking’s salon, written into the export',
+  ),
+  // A review's salon (Review.providerId).
+  'lib/providers/provider_provider.dart · review': (
+    reads: 1,
+    why: 'the salon a posted review is for',
+  ),
+  'lib/providers/provider_provider.dart · posted': (
+    reads: 1,
+    why: 'the salon to re-read after a posted review',
+  ),
+};
+
+/// The reviewed salon-id slots fed by an `.id` — each the id of a SALON
+/// model, never of an account.
+const _reviewedSalonIdFromId = <String, ({int reads, String why})>{
+  'lib/widgets/booking/appointment_card.dart · provider': (
+    reads: 1,
+    why: 'a salon (models.Provider) — its id IS the salon id',
+  ),
+};
