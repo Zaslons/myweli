@@ -5,11 +5,13 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/config/app_config.dart';
+import '../../../core/constants/salon_categories.dart';
 import '../../../core/di/dependency_injection.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../core/utils/external_link.dart';
+import '../../../core/utils/formatters.dart';
 import '../../../core/utils/team_error_messages.dart';
 import '../../../models/pro_membership.dart';
 import '../../../models/provider_user.dart';
@@ -124,73 +126,7 @@ class _ProProfileScreenState extends State<ProProfileScreen> {
                     ),
                   )
                 else
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(AppTheme.spacingM),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Nom de l’entreprise',
-                            style: AppTextStyles.titleMedium.copyWith(
-                              color: AppColors.textPrimary,
-                            ),
-                          ),
-                          const SizedBox(height: AppTheme.spacingS),
-                          Text(
-                            provider.businessName,
-                            style: AppTextStyles.bodyLarge.copyWith(
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                          const SizedBox(height: AppTheme.spacingM),
-                          Text(
-                            'Type d’entreprise',
-                            style: AppTextStyles.titleMedium.copyWith(
-                              color: AppColors.textPrimary,
-                            ),
-                          ),
-                          const SizedBox(height: AppTheme.spacingS),
-                          Text(
-                            _getBusinessTypeLabel(provider.businessType),
-                            style: AppTextStyles.bodyLarge.copyWith(
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                          if (provider.address != null) ...[
-                            const SizedBox(height: AppTheme.spacingM),
-                            Text(
-                              'Adresse',
-                              style: AppTextStyles.titleMedium.copyWith(
-                                color: AppColors.textPrimary,
-                              ),
-                            ),
-                            const SizedBox(height: AppTheme.spacingS),
-                            Text(
-                              provider.address!,
-                              style: AppTextStyles.bodyLarge.copyWith(
-                                color: AppColors.textSecondary,
-                              ),
-                            ),
-                          ],
-                          const SizedBox(height: AppTheme.spacingM),
-                          Text(
-                            'Téléphone',
-                            style: AppTextStyles.titleMedium.copyWith(
-                              color: AppColors.textPrimary,
-                            ),
-                          ),
-                          const SizedBox(height: AppTheme.spacingS),
-                          Text(
-                            provider.phoneNumber,
-                            style: AppTextStyles.bodyLarge.copyWith(
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
+                  const _SalonCard(),
                 const SizedBox(height: AppTheme.spacingM),
                 // « Mes salons » (R6): every membership + the switcher — for
                 // ALL roles (a member can belong to several salons too).
@@ -471,23 +407,6 @@ class _ProProfileScreenState extends State<ProProfileScreen> {
     router.go('/pro/login');
   }
 
-  String _getBusinessTypeLabel(BusinessType type) {
-    switch (type) {
-      case BusinessType.salon:
-        return 'Salon de beauté';
-      case BusinessType.barber:
-        return 'Barbier';
-      case BusinessType.spa:
-        return 'Spa';
-      case BusinessType.nailSalon:
-        return 'Institut de manucure';
-      case BusinessType.massage:
-        return 'Massage';
-      case BusinessType.other:
-        return 'Autre';
-    }
-  }
-
   String _verificationLabel(VerificationStatus status) {
     switch (status) {
       case VerificationStatus.pending:
@@ -509,4 +428,137 @@ class _ProProfileScreenState extends State<ProProfileScreen> {
         return AppColors.error;
     }
   }
+}
+
+/// The owner's card — the ACTING salon (R6), read from `activeSalon`, the
+/// `GET /me/provider` salon payload. Never the account's `businessName` & co.:
+/// those are a copy made at sign-up, of the default salon, and never updated
+/// (docs/design/r6-salon-fact-reads.md §2.1).
+class _SalonCard extends StatefulWidget {
+  const _SalonCard();
+
+  @override
+  State<_SalonCard> createState() => _SalonCardState();
+}
+
+class _SalonCardState extends State<_SalonCard> {
+  /// A skeleton bar: one line of the card, no text in it.
+  static const double _skeletonBarHeight = 16;
+
+  /// « Réessayer » in flight — `refreshMembership` raises no `isLoading`
+  /// (only the cold start and a switch do), so the card keeps its own.
+  bool _retrying = false;
+
+  Future<void> _retry() async {
+    setState(() => _retrying = true);
+    await context.read<ProAuthProvider>().refreshMembership();
+    if (mounted) setState(() => _retrying = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final auth = context.watch<ProAuthProvider>();
+    final salon = auth.activeSalon;
+    final category = salon == null ? null : salonCategoryLabel(salon.category);
+    final rows = <Widget>[
+      // The membership's name is cached in the session: known before the
+      // salon payload lands, and offline.
+      _fact(
+        'Nom du salon',
+        salon != null && salon.name.isNotEmpty ? salon.name : auth.salonName,
+      ),
+      if (salon != null) ...[
+        if (category != null) _fact('Catégorie', category),
+        if (salon.address.trim().isNotEmpty) _fact('Adresse', salon.address),
+        if (salon.phoneNumber.trim().isNotEmpty)
+          _fact('Téléphone', Formatters.formatPhoneNumber(salon.phoneNumber)),
+      ] else if (auth.isLoading || _retrying)
+        _skeleton()
+      else
+        _unavailable(),
+    ];
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(AppTheme.spacingM),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            for (final (i, row) in rows.indexed) ...[
+              if (i > 0) const SizedBox(height: AppTheme.spacingM),
+              row,
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _fact(String label, String value) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        label,
+        style: AppTextStyles.titleMedium.copyWith(color: AppColors.textPrimary),
+      ),
+      const SizedBox(height: AppTheme.spacingS),
+      Text(
+        value,
+        style: AppTextStyles.bodyLarge.copyWith(color: AppColors.textSecondary),
+      ),
+    ],
+  );
+
+  /// The rows' shape while the salon payload is on its way (§12: the shape is
+  /// known, so a skeleton, not a spinner). One label for screen readers.
+  Widget _skeleton() => Semantics(
+    container: true,
+    label: 'Chargement des informations du salon',
+    child: ExcludeSemantics(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (final (i, width) in const [0.45, 0.7, 0.5].indexed) ...[
+            if (i > 0) const SizedBox(height: AppTheme.spacingM),
+            _bar(0.3),
+            const SizedBox(height: AppTheme.spacingS),
+            _bar(width),
+          ],
+        ],
+      ),
+    ),
+  );
+
+  Widget _bar(double widthFactor) => FractionallySizedBox(
+    widthFactor: widthFactor,
+    alignment: AlignmentDirectional.centerStart,
+    child: Container(
+      height: _skeletonBarHeight,
+      decoration: BoxDecoration(
+        color: AppColors.surfaceVariant,
+        borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+      ),
+    ),
+  );
+
+  /// Offline cold start, or the probe failed: say so, and offer the retry —
+  /// one that can succeed once the network is back (§12).
+  Widget _unavailable() => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        'Les informations du salon n’ont pas pu être chargées. '
+        'Vérifiez votre connexion.',
+        style: AppTextStyles.bodyMedium.copyWith(
+          color: AppColors.textSecondary,
+        ),
+      ),
+      const SizedBox(height: AppTheme.spacingS),
+      AppButton(
+        text: 'Réessayer',
+        type: AppButtonType.text,
+        isFullWidth: false,
+        onPressed: _retry,
+      ),
+    ],
+  );
 }

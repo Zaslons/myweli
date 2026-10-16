@@ -131,7 +131,7 @@ void main() {
     expect(find.text('Salon Excellence'), findsNWidgets(2));
     expect(find.text('Mes salons'), findsOneWidget);
     expect(find.text('Manager'), findsOneWidget);
-    expect(find.text('Nom de l’entreprise'), findsNothing);
+    expect(find.text('Nom du salon'), findsNothing);
 
     expect(find.text('Profil du salon'), findsOneWidget);
     expect(find.text('Configurer mon profil'), findsNothing);
@@ -190,7 +190,7 @@ void main() {
     await tester.pumpWidget(app(await readyAuth(tester)));
     await settle(tester);
 
-    expect(find.text('Nom de l’entreprise'), findsOneWidget);
+    expect(find.text('Nom du salon'), findsOneWidget);
     expect(find.text('Configurer mon profil'), findsOneWidget);
     expect(find.text('Équipe'), findsOneWidget);
     // The salon-data export is the owner's (`salon.publish`, T39) — the
