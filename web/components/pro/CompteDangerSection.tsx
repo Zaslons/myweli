@@ -6,10 +6,15 @@ import type { ProProfile } from '../../lib/api/pro';
 import {
   deleteProAccount,
   getEarnings,
-  listClients,
+  listAllClients,
   listProAppointments,
 } from '../../lib/api/pro';
-import { buildProviderDataExport } from '../../lib/pro/export';
+import {
+  EXPORT_COPY_FAILED,
+  type ExportSection,
+  buildProviderDataExport,
+  exportFailureMessage,
+} from '../../lib/pro/export';
 import { DEMO_ACCOUNT_LOCKED_MESSAGE } from '../../lib/pro/team';
 import { Button } from '../Button';
 import { TextField } from '../TextField';
@@ -27,13 +32,21 @@ function deleteErrorMessage(code: string | undefined): string {
   }
 }
 
+function settledValue<T>(r: PromiseSettledResult<T>): T | null {
+  return r.status === 'fulfilled' ? r.value : null;
+}
+
 /// « Compte » danger zone on /pro/profil (audit 11.5 — AUTH-004/005 for
 /// pros): the data export (client-side assembly, like the consumer page) and
 /// the type-SUPPRIMER deletion. Design:
 /// docs/design/pro-account-deletion-export.md.
-/// Team access R5b: `exportEnabled=false` = the MEMBER variant — deletion
-/// parity for everyone, but the salon-data export stays with profile.manage
-/// (a member deletes their own account, not the salon).
+/// Team access R5b: `exportEnabled=false` = every member who is not the
+/// owner — deletion parity for everyone, but the salon-data export is the
+/// owner's (`salon.publish`, the app's gate; T39). A member deletes their
+/// own account, not the salon.
+///
+/// The export is whole or it is not made: a read that fails names the
+/// missing data and makes no file (docs/design/web-pro-export-completeness.md).
 ///
 /// The shared store-review demo account cannot delete itself: the entry
 /// stays visible for it, the server answers 403 `demo_account_locked` after
@@ -48,35 +61,66 @@ export function CompteDangerSection({
 }) {
   const router = useRouter();
   const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleteText, setDeleteText] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function assembleJson(): Promise<string> {
+  /// The export document, or null when it cannot be made whole — the alert
+  /// or the sign-in redirect is already under way then. A section is never
+  /// filled with « nothing » because its read failed: a salon owner reads
+  /// `[]` as « no clients », not as « the read failed » (spec §3).
+  async function assembleJson(): Promise<string | null> {
     const providerId = profile.provider.id;
-    const [appts, clients, earnings] = await Promise.all([
+    // allSettled, not all: a fetch that throws is one failed section, not a
+    // rejection that leaves the buttons disabled.
+    const [ra, rc, re] = await Promise.allSettled([
       listProAppointments(),
-      listClients(providerId),
+      listAllClients(providerId),
       getEarnings(providerId, null),
     ]);
+    const a = settledValue(ra);
+    const c = settledValue(rc);
+    const e = settledValue(re);
+    if ([a, c, e].some((r) => r?.status === 401)) {
+      router.replace('/pro/connexion');
+      return null;
+    }
+    const appointments = a?.status === 200 ? a.items : null;
+    const clients = c?.items ?? null;
+    const earnings = e?.earnings ?? null;
+    if (!appointments || !clients || !earnings) {
+      const failed: ExportSection[] = [];
+      if (!appointments) failed.push('appointments');
+      if (!clients) failed.push('clients');
+      if (!earnings) failed.push('earnings');
+      setExportError(exportFailureMessage(failed));
+      return null;
+    }
     return JSON.stringify(
-      buildProviderDataExport({
-        profile,
-        appointments: appts.items,
-        clients: clients.list?.items ?? [],
-        earnings: earnings.earnings ?? null,
-      }),
+      buildProviderDataExport({ profile, appointments, clients, earnings }),
       null,
       2,
     );
   }
 
-  async function download() {
+  /// One attempt: the alert from the last one clears, and the buttons come
+  /// back whatever happens — they are the retry.
+  async function prepare(): Promise<string | null> {
     setExporting(true);
-    const json = await assembleJson();
-    setExporting(false);
+    setExportError(null);
+    try {
+      return await assembleJson();
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  async function download() {
+    const json = await prepare();
+    if (json === null) return;
     const blob = new Blob([json], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -87,10 +131,16 @@ export function CompteDangerSection({
   }
 
   async function copy() {
-    setExporting(true);
-    const json = await assembleJson();
-    setExporting(false);
-    await navigator.clipboard.writeText(json);
+    const json = await prepare();
+    if (json === null) return;
+    try {
+      await navigator.clipboard.writeText(json);
+    } catch {
+      // Permission, an unfocused page, or no clipboard at all (an insecure
+      // origin) — the download needs none of them.
+      setExportError(EXPORT_COPY_FAILED);
+      return;
+    }
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }
@@ -112,22 +162,29 @@ export function CompteDangerSection({
       <h2 className="text-titleLarge font-semibold text-textPrimary">Compte</h2>
 
       {exportEnabled ? (
-        <div className="mt-s flex items-center justify-between gap-m">
-          <p className="text-bodyLarge text-textSecondary">
-            Recevoir une copie des données de votre salon (compte, fiche,
-            catalogue, rendez-vous, fichier clients, revenus).
-          </p>
-          <div className="flex shrink-0 gap-s">
-            <Button variant="secondary" disabled={exporting} onClick={download}>
-              {exporting ? 'Préparation…' : 'Exporter (JSON)'}
-            </Button>
-            <Button variant="secondary" disabled={exporting} onClick={copy}>
-              {copied ? 'Copié ✓' : 'Copier'}
-            </Button>
-            <span role="status" className="sr-only">
-              {copied ? 'Données copiées.' : ''}
-            </span>
+        <div className="mt-s">
+          <div className="flex items-center justify-between gap-m">
+            <p className="text-bodyLarge text-textSecondary">
+              Recevoir une copie des données de votre salon (compte, fiche,
+              catalogue, rendez-vous, fichier clients, revenus).
+            </p>
+            <div className="flex shrink-0 gap-s">
+              <Button variant="secondary" disabled={exporting} onClick={download}>
+                {exporting ? 'Préparation…' : 'Exporter (JSON)'}
+              </Button>
+              <Button variant="secondary" disabled={exporting} onClick={copy}>
+                {copied ? 'Copié ✓' : 'Copier'}
+              </Button>
+              <span role="status" className="sr-only">
+                {copied ? 'Données copiées.' : ''}
+              </span>
+            </div>
           </div>
+          {exportError ? (
+            <p role="alert" className="mt-s text-bodyMedium text-error">
+              {exportError}
+            </p>
+          ) : null}
         </div>
       ) : null}
 
