@@ -1,6 +1,8 @@
 /// Browser → BFF (`/api/*`) wrappers for the booking funnel. Same-origin; the
-/// session lives in httpOnly cookies set by the BFF (no tokens here).
+/// session lives in httpOnly cookies set by the BFF (no tokens here). None of
+/// them throws (docs/design/web-consumer-network-failure.md §2).
 
+import { readJson, send } from '../api/network';
 import {
   DEFAULT_HORIZON_DAYS,
   DEFAULT_NOTICE_MINUTES,
@@ -9,7 +11,7 @@ import {
 export async function requestOtp(
   phoneNumber: string,
 ): Promise<{ ok: boolean; devCode?: string; error?: string }> {
-  const res = await fetch('/api/auth/request-otp', {
+  const res = await send('/api/auth/request-otp', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ phoneNumber }),
@@ -22,7 +24,7 @@ export async function verifyOtp(
   phoneNumber: string,
   code: string,
 ): Promise<{ ok: boolean; error?: string }> {
-  const res = await fetch('/api/auth/verify', {
+  const res = await send('/api/auth/verify', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ phoneNumber, code }),
@@ -46,15 +48,19 @@ export async function createBooking(payload: {
   artistId: string | null;
   notes?: string;
 }): Promise<{ ok: boolean; appointment?: CreatedBooking; error?: string }> {
-  const res = await fetch('/api/bookings', {
+  const res = await send('/api/bookings', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(payload),
   });
-  const body = await res.json().catch(() => ({}));
-  return res.ok
-    ? { ok: true, appointment: body.appointment }
-    : { ok: false, error: body.error };
+  if (!res.ok) {
+    const body = (await res.json().catch(() => ({}))) as { error?: string };
+    return { ok: false, error: body.error };
+  }
+  // A lost body: the booking exists (the server answered 2xx) — « Réservation
+  // envoyée », without the deposit block, which the detail page offers (K2).
+  const body = await readJson<{ appointment?: CreatedBooking }>(res);
+  return { ok: true, appointment: body?.appointment };
 }
 
 /// The outcome of a slot query — `ok: false` means WE COULD NOT ASK, which is
@@ -91,17 +97,16 @@ export async function fetchSlots(params: {
     durationMinutes: String(params.durationMinutes),
   });
   if (params.artistId) qs.set('artistId', params.artistId);
-  try {
-    const res = await fetch(`/api/availability?${qs.toString()}`);
-    // The BFF preserves the upstream status, so the information was always
-    // here — only this function threw it away.
-    if (!res.ok) return { ok: false, slots: [], gone: res.status === 404 };
-    const body = await res.json().catch(() => ({}));
-    return { ok: true, slots: (body.slots as string[] | undefined) ?? [] };
-  } catch {
-    // A network-layer failure never reaches the `res.ok` branch at all.
-    return { ok: false, slots: [] };
-  }
+  const res = await send(`/api/availability?${qs.toString()}`);
+  // A network-layer failure is status 0 — `ok: false`, never `gone`.
+  if (res.status === 0) return { ok: false, slots: [] };
+  // The BFF preserves the upstream status, so the information was always
+  // here — only this function threw it away.
+  if (!res.ok) return { ok: false, slots: [], gone: res.status === 404 };
+  // A lost body is « we could not ask », not « no opening that day ».
+  const body = await readJson<{ slots?: string[] }>(res);
+  if (!body) return { ok: false, slots: [] };
+  return { ok: true, slots: body.slots ?? [] };
 }
 
 

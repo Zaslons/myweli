@@ -73,7 +73,10 @@ describe('uploadDepositProof + attachDepositProof', () => {
       .mockResolvedValueOnce(new Response(null, { status: 200 }));
     vi.stubGlobal('fetch', fetchMock);
 
-    expect(await uploadDepositProof(file)).toBe('deposit/u1/1.jpg');
+    expect(await uploadDepositProof(file)).toEqual({
+      ok: true,
+      key: 'deposit/u1/1.jpg',
+    });
     expect(fetchMock.mock.calls[0][0]).toBe('/api/uploads/sign');
     expect(fetchMock.mock.calls[1][0]).toBe('https://r2/upload');
 
@@ -86,12 +89,12 @@ describe('uploadDepositProof + attachDepositProof', () => {
     expect(init?.headers).toEqual({ 'content-type': 'image/jpeg' });
   });
 
-  it('failed presign or storage POST → null (no attach attempted)', async () => {
+  it('failed presign or storage POST → failed, not offline (no attach attempted)', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue(new Response(null, { status: 401 })),
     );
-    expect(await uploadDepositProof(file)).toBeNull();
+    expect(await uploadDepositProof(file)).toEqual({ ok: false, offline: false });
   });
 
   it('attach POSTs the key to the appointment; surfaces the error code', async () => {
@@ -107,10 +110,12 @@ describe('uploadDepositProof + attachDepositProof', () => {
 
     expect(await attachDepositProof('appt1', 'deposit/u1/1.jpg')).toEqual({
       ok: true,
+      status: 200,
     });
     expect(fetchMock.mock.calls[0][0]).toBe('/api/appointments/appt1/deposit');
     expect(await attachDepositProof('appt1', 'deposit/u1/1.jpg')).toEqual({
       ok: false,
+      status: 409,
       error: 'invalid_state',
     });
   });

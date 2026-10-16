@@ -105,13 +105,13 @@ describe('Mon compte (/mon-compte)', () => {
   it('« Réessayer » with the network back: the account', async () => {
     mockFetch({ '*': 'throw' });
     render(<AccountClient />);
-    fireEvent.click(await screen.findByRole('button', { name: 'Réessayer' }));
+    const retry = await screen.findByRole('button', { name: 'Réessayer' });
     mockFetch({
       '/api/me': { status: 200, body: ME },
       '/api/appointments': { status: 200, body: { items: [APPT] } },
       '/api/me/favorites': { status: 200, body: { favorites: [FAV] } },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Réessayer' }));
+    fireEvent.click(retry);
     expect(await screen.findByRole('button', { name: 'Se déconnecter' })).toBeInTheDocument();
     expect(screen.queryByRole('alert')).toBeNull();
   });

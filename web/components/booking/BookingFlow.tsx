@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { chipLinkClasses } from "../Chip";
+import { ErrorState } from "../ErrorState";
 import { Loading } from "../Loading";
 import { SkeletonRows } from "../Skeleton";
 import { type Me, getMe } from "../../lib/api/account";
@@ -161,6 +162,10 @@ export function BookingFlow({
   // Auth overhaul P2: confirming requires a signed-in account + a REQUIRED
   // contact phone. undefined = probing the session; null = signed out.
   const [me, setMe] = useState<Me | null | undefined>(undefined);
+  // The probe got no usable answer (no network, a 5xx) — which is not « signed
+  // out »: only a 401 is. `probeKey` re-runs it from « Réessayer ».
+  const [probeFailed, setProbeFailed] = useState(false);
+  const [probeKey, setProbeKey] = useState(0);
   const [phone, setPhone] = useState("");
   // Its fault answers UNDER the field, on submit (§14 rules 1/2/5 —
   // docs/design/phone-leftovers.md §4); « Confirmer la réservation » used to
@@ -185,20 +190,29 @@ export function BookingFlow({
   const selection = selectedServices(provider, s.serviceIds);
   const duration = totalDuration(provider, s.serviceIds, s.lengthVariant);
 
-  // Probe the session when the confirm phase opens (re-run after inline login).
+  // Probe the session when the confirm phase opens (re-run after inline login,
+  // and from « Réessayer » when the probe got no usable answer).
   useEffect(() => {
     if (s.phase !== "confirm" || me !== undefined) return;
     let active = true;
+    setProbeFailed(false);
     (async () => {
       const r = await getMe();
       if (!active) return;
+      // Any other failure used to read as signed out, and showed the login
+      // form to someone signed in (docs/design/web-consumer-network-failure.md
+      // §3.2).
+      if (r.status !== 200 && r.status !== 401) {
+        setProbeFailed(true);
+        return;
+      }
       setMe(r.status === 200 ? (r.user ?? null) : null);
       setPhone(r.user?.phoneNumber ?? "");
     })();
     return () => {
       active = false;
     };
-  }, [s.phase, me]);
+  }, [s.phase, me, probeKey]);
 
   function fetchSlotsFor(state: HubState, date: string) {
     return fetchSlots({
@@ -485,7 +499,12 @@ export function BookingFlow({
           ) : null}
         </dl>
 
-        {me === undefined ? (
+        {me === undefined && probeFailed ? (
+          <ErrorState
+            className="mt-m"
+            onRetry={() => setProbeKey((k) => k + 1)}
+          />
+        ) : me === undefined ? (
           <Loading className="mt-m" />
         ) : me === null ? (
           <div className="mt-m">
