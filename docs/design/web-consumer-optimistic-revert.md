@@ -173,7 +173,9 @@ Aucune phrase nouvelle. Toutes existent déjà dans le web ou l'app :
 - **L'app** : `NotificationsProvider.markRead` / `markAllRead` sont
   optimistes et ne reviennent pas en arrière. `notifications_list.dart`
   appelle `markRead` sans attendre. Le même correctif côté Flutter est une
-  tâche à part.
+  tâche à part, **faite par #626** : [app-notifications-read-revert.md](app-notifications-read-revert.md)
+  (mêmes phrases, même règle « seulement ce geste », une snackbar d'erreur au
+  lieu d'une phrase en ligne).
 - **Le numéro de contact** (même carte que le nom) dit « L’enregistrement a
   échoué. Réessayez. » même hors ligne. Ce n'est pas faux, juste moins précis
   que le nom désormais. À aligner avec la même fonction.

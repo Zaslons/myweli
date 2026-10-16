@@ -99,6 +99,30 @@ void main() {
     expect(sent, {'reminders': false});
   });
 
+  // docs/design/app-notifications-read-revert.md §3.4 — « no answer » is a
+  // CODE, so the provider can say « Pas de connexion » without comparing
+  // sentences; a refusal keeps the server's code.
+  test('markRead / markAllRead with no answer → code network and the '
+      'no-connection sentence', () async {
+    final s = svc(MockClient((req) async => throw Exception('down')));
+    for (final res in [await s.markRead('n1'), await s.markAllRead()]) {
+      expect(res.success, isFalse);
+      expect(res.code, 'network');
+      expect(res.error, 'Pas de connexion. Réessayez.');
+    }
+  });
+
+  test('a refused markRead keeps the server code, not network', () async {
+    final s = svc(
+      MockClient(
+        (req) async => http.Response(jsonEncode({'error': 'not_found'}), 404),
+      ),
+    );
+    final res = await s.markRead('n1');
+    expect(res.success, isFalse);
+    expect(res.code, 'not_found');
+  });
+
   test('not connected → error (no token)', () async {
     final s = ApiNotificationService(
       client: MockClient((_) async => http.Response('{}', 200)),

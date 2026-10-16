@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 
 import '../../../core/di/dependency_injection.dart';
 import '../../../core/push/system_settings.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
-import '../../../providers/notifications_provider.dart';
 import '../../../services/interfaces/push_notification_service_interface.dart';
+import '../../../widgets/notifications/mark_all_read_button.dart';
 import '../../../widgets/notifications/notifications_list.dart';
 import '../../../widgets/push/push_blocked_banner.dart';
 
@@ -18,7 +17,8 @@ import '../../../widgets/push/push_blocked_banner.dart';
 /// `?salon=`, so tapping one from a multi-salon account switches to the right
 /// salon before opening the booking.
 ///
-/// The list itself is the shared [NotificationsList]; only the chrome differs
+/// The list itself is the shared [NotificationsList] (and « Tout marquer comme
+/// lu » the shared [MarkAllReadButton]); only the chrome differs
 /// from the consumer centre (no bottom nav). The pro app has no preferences
 /// screen, so this is also where a salon learns that its phone is blocking
 /// notifications — and how to fix it.
@@ -74,25 +74,7 @@ class _ProNotificationsScreenState extends State<ProNotificationsScreen>
       backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text('Notifications'),
-        actions: [
-          Consumer<NotificationsProvider>(
-            builder: (context, provider, _) {
-              if (provider.unreadCount == 0) return const SizedBox.shrink();
-              // A15 (§21 row 79) — an icon, not a label. An action's text is
-              // scaled by the FULL system scaler while the title is clamped to
-              // 1.34× (`app_bar.dart:1092`), so a `TextButton` here costs
-              // ~137dp at 2× and leaves the title under 176. Measured in
-              // `primitives_test.dart`: with a text action, « Avis » — four
-              // characters — cannot fit. The tooltip is also free to be
-              // CLEARER than the label was, because it has the whole screen.
-              return IconButton(
-                onPressed: provider.markAllRead,
-                icon: const Icon(Icons.done_all),
-                tooltip: 'Tout marquer comme lu',
-              );
-            },
-          ),
-        ],
+        actions: const [MarkAllReadButton()],
       ),
       body: Column(
         children: [
