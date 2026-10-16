@@ -108,6 +108,24 @@ test('staff: own planning, read-only journal, Terminé/Absent only', async ({
   );
 });
 
+test('manager: the full profil editor, without the export (the owner\'s, as in the app)', async ({
+  page,
+}) => {
+  // docs/design/web-pro-export-completeness.md §6 — the export gate is
+  // salon.publish, the app's; profile.manage alone (the Manager) edits the
+  // salon but does not take its data out.
+  await loginAs(page, 'awa.manager@equipe.test');
+  await expect(page).toHaveURL(/\/pro(\/)?$/);
+
+  await page.getByRole('link', { name: 'Profil', exact: true }).click();
+  await expect(page).toHaveURL(/\/pro\/profil/);
+  await expect(page.getByLabel('Nom du salon')).toBeVisible();
+  await expect(page.getByText('Exporter (JSON)')).toHaveCount(0);
+  await expect(
+    page.getByRole('button', { name: 'Supprimer mon compte' }),
+  ).toBeVisible();
+});
+
 test('staff: the slim personal profil (deletion parity, no export)', async ({
   page,
 }) => {

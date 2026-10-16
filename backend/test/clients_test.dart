@@ -282,6 +282,56 @@ void main() {
     });
   });
 
+  /// The list's order is total (docs/design/web-pro-export-completeness.md
+  /// §5): last visit, then newest created, then id. Without the last key,
+  /// rows tied on the first two (the 0024 backfill made many) had no defined
+  /// order, so a page walk could repeat one and skip another.
+  group('list order', () {
+    Future<void> seedClient(String id, {String? lastVisitAt, String? at}) =>
+        clientsRepo.create({
+          'id': id,
+          'providerId': 'provider1',
+          'userId': null,
+          'displayName': id,
+          'phone': null,
+          'tags': <String>[],
+          'lastVisitAt': lastVisitAt,
+          'createdAt': at ?? '2026-07-01T00:00:00.000Z',
+        });
+
+    Future<List<String>> walk(int pageSize) async {
+      final ids = <String>[];
+      for (var page = 1; ; page++) {
+        final r = await clientsRepo.list(
+          'provider1',
+          page: page,
+          pageSize: pageSize,
+        );
+        if (r.items.isEmpty) return ids;
+        ids.addAll(r.items.map((c) => c['id'] as String));
+      }
+    }
+
+    test(
+      'rows tied on last visit and creation come back in id order',
+      () async {
+        for (final id in ['t5', 't3', 't1', 't4', 't2']) {
+          await seedClient(id);
+        }
+        expect(await walk(2), ['t1', 't2', 't3', 't4', 't5']);
+      },
+    );
+
+    test('like Postgres: last visit first, then newest created', () async {
+      // The ids sort the OTHER way (a < z), so only created_at can put
+      // z-new first.
+      await seedClient('a-old', at: '2026-01-01T00:00:00.000Z');
+      await seedClient('z-new', at: '2026-06-01T00:00:00.000Z');
+      await seedClient('visited', lastVisitAt: '2026-07-02T00:00:00.000Z');
+      expect(await walk(50), ['visited', 'z-new', 'a-old']);
+    });
+  });
+
   group('card + visits', () {
     late String clientId;
     late String uid;
