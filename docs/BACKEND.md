@@ -64,10 +64,14 @@ Rules:
 - **Never leak internals** — no stack traces, SQL, or framework errors in a
   response body. `observabilityMiddleware` (`lib/src/observability/`) is that
   edge: it catches anything a handler throws, returns `{"error":"internal_error"}`,
-  logs it structurally with the request id, and reports it. It sits **outermost**
-  in `routes/_middleware.dart`, outside CORS — a 500 without CORS headers reaches
-  the browser as an opaque network failure, which is how a server error gets
-  misdiagnosed as a client one.
+  logs it structurally with the request id, and reports it. It sits just
+  **inside CORS** in `routes/_middleware.dart`: `corsMiddleware` is the
+  outermost layer, so every response to an allowed origin — an error included —
+  carries the CORS headers, and exposes `X-Request-Id` (the id a user quotes).
+  Answered outside CORS, an error reaches the browser as an opaque network
+  failure, which is how a server error gets misdiagnosed as a client one. Pinned
+  by `test/security/cors_error_responses_test.dart` and probed on the compiled
+  server in CI's boot smoke ([design/backend-cors-error-responses.md](design/backend-cors-error-responses.md)).
 - **Migrations are forward-only, and additive by default.** `migrations.dart`
   is a list of `(id, statements)` records with **no down statements**, so a
   backend rollback rolls the schema back by nothing. That is workable only while

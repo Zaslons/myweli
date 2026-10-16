@@ -239,6 +239,26 @@ jobs:
           curl -fsS "http://localhost:${PORT}/localities" | tee /tmp/localities.json; echo
           grep -q '"code":"CI"' /tmp/localities.json
           grep -q '"id":"cocody"' /tmp/localities.json
+          # An ERROR reaches an allowed browser origin WITH the CORS headers
+          # (docs/design/backend-cors-error-responses.md) — on the real chain,
+          # the compiled server. Query sanity's 400 for a NUL byte is answered
+          # at the edge: while CORS sat inside observability it went out bare,
+          # and the admin console saw an opaque network failure. ENV=dev with no
+          # WEB_ORIGINS allows http://localhost:3000.
+          curl -s -o /dev/null -D /tmp/cors.h \
+            -H 'Origin: http://localhost:3000' \
+            "http://localhost:${PORT}/providers?q=%00"
+          cat /tmp/cors.h
+          grep -qiE '^HTTP/[0-9.]+ 400' /tmp/cors.h
+          grep -qi '^access-control-allow-origin: http://localhost:3000' /tmp/cors.h
+          grep -qi '^access-control-expose-headers: x-request-id' /tmp/cors.h
+          # A disallowed origin still gets nothing — error or not.
+          curl -s -o /dev/null -D /tmp/cors-hostile.h \
+            -H 'Origin: https://evil.example' \
+            "http://localhost:${PORT}/providers?q=%00"
+          if grep -qi '^access-control-allow-origin' /tmp/cors-hostile.h; then
+            echo 'a disallowed origin got CORS headers'; exit 1
+          fi
           # **The phone-OTP round-trip that used to live here is GONE, and its
           # removal is the point.** It posted to `/auth/otp/request`, which
           # `AUTH_METHODS=google,apple,email` now answers 404
