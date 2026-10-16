@@ -13,7 +13,13 @@ const user = (phone: string | null) => ({
 });
 
 /// Route the BFF calls the component makes. Returns the fetch mock.
-function mockFetch(opts: { verifyUserPhone: string | null; verifyOk?: boolean }) {
+function mockFetch(opts: {
+  verifyUserPhone: string | null;
+  verifyOk?: boolean;
+  /** How PATCH /api/me answers the phone step (default: 200). */
+  saveStatus?: number;
+  saveError?: string;
+}) {
   const calls: { url: string; body: Record<string, unknown> }[] = [];
   const fn = vi.fn(async (url: string, init?: RequestInit) => {
     const body = init?.body ? JSON.parse(init.body as string) : {};
@@ -33,6 +39,12 @@ function mockFetch(opts: { verifyUserPhone: string | null; verifyOk?: boolean })
           );
     }
     if (url === '/api/me') {
+      if (opts.saveStatus && opts.saveStatus >= 400) {
+        return new Response(
+          JSON.stringify({ error: opts.saveError ?? 'internal_error' }),
+          { status: opts.saveStatus },
+        );
+      }
       return new Response(JSON.stringify(user('+2250700000000')), {
         status: 200,
       });
@@ -124,6 +136,44 @@ describe('LoginOptions', () => {
       /^Saisissez un numéro de téléphone\.$/,
     );
     expect(calls.some((c) => c.url === '/api/me')).toBe(false);
+  });
+
+  /// docs/design/phone-leftovers.md §4: a save that fails for a reason that
+  /// is not the number (network, 5xx) used to say « Numéro invalide. » UNDER
+  /// the field — blaming a correct number. The server's verdict on the number
+  /// is the field's; anything else is the form's, and says what happened.
+  it('the server refusing the number answers under the field', async () => {
+    mockFetch({ verifyUserPhone: null, saveStatus: 400, saveError: 'invalid_phone' });
+    const onSuccess = vi.fn();
+    render(<LoginOptions onSuccess={onSuccess} />);
+    await loginByEmail();
+    await screen.findByText('Votre numéro de téléphone');
+    const phone = screen.getByLabelText('Votre numéro de téléphone');
+    fireEvent.change(phone, { target: { value: '+2250707123456' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Continuer' }));
+
+    const fault = await screen.findByText('Saisissez un numéro de téléphone valide.');
+    expect(phone).toHaveAttribute('aria-invalid', 'true');
+    expect(phone.getAttribute('aria-describedby')).toContain(fault.id);
+    expect(onSuccess).not.toHaveBeenCalled();
+  });
+
+  it('a failure that is not the number does not blame the number', async () => {
+    mockFetch({ verifyUserPhone: null, saveStatus: 500 });
+    const onSuccess = vi.fn();
+    render(<LoginOptions onSuccess={onSuccess} />);
+    await loginByEmail();
+    await screen.findByText('Votre numéro de téléphone');
+    const phone = screen.getByLabelText('Votre numéro de téléphone');
+    fireEvent.change(phone, { target: { value: '+2250707123456' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Continuer' }));
+
+    expect(
+      await screen.findByText('L’enregistrement a échoué. Réessayez.'),
+    ).toBeTruthy();
+    expect(phone).not.toHaveAttribute('aria-invalid', 'true');
+    expect(screen.queryByText(/Numéro invalide/)).toBeNull();
+    expect(onSuccess).not.toHaveBeenCalled();
   });
 
   it('wrong code shows the French error', async () => {

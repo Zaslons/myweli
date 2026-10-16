@@ -39,15 +39,37 @@ const PROVIDER = {
 /// Every mutation the page sends, in order.
 const sent: { url: string; method: string; body: Record<string, unknown> }[] = [];
 
-function mockFetch() {
+const POLICY_ON = {
+  depositRequired: true,
+  depositPercentage: 0.3,
+  cancellationWindowHours: 24,
+  mobileMoneyOperator: 'wave',
+  mobileMoneyNumber: '+2250700000000',
+};
+
+/// `refusals`: the server's answer to each mutation, in order — `null` (or
+/// running out) is a 200. `policy`: what the Acompte GET returns.
+function mockFetch({
+  refusals = [],
+  policy = POLICY_ON,
+}: {
+  refusals?: ({ status: number; error: string } | null)[];
+  policy?: Record<string, unknown>;
+} = {}) {
   sent.length = 0;
+  const answers = [...refusals];
   vi.stubGlobal(
     'fetch',
     vi.fn(async (url: string, init?: RequestInit) => {
       const method = init?.method ?? 'GET';
       if (method !== 'GET') {
         sent.push({ url, method, body: JSON.parse(String(init?.body ?? '{}')) });
-        return new Response('{}', { status: 200 });
+        const refusal = answers.shift();
+        return refusal
+          ? new Response(JSON.stringify({ error: refusal.error }), {
+              status: refusal.status,
+            })
+          : new Response('{}', { status: 200 });
       }
       if (url === '/api/pro/me') {
         return new Response(
@@ -59,16 +81,7 @@ function mockFetch() {
         );
       }
       if (String(url).startsWith('/api/pro/acompte')) {
-        return new Response(
-          JSON.stringify({
-            depositRequired: true,
-            depositPercentage: 0.3,
-            cancellationWindowHours: 24,
-            mobileMoneyOperator: 'wave',
-            mobileMoneyNumber: '+2250700000000',
-          }),
-          { status: 200 },
-        );
+        return new Response(JSON.stringify(policy), { status: 200 });
       }
       if (url === '/api/localities') {
         return new Response(JSON.stringify(fixtureTree), { status: 200 });
@@ -187,5 +200,154 @@ describe('AcompteClient — Numéro Mobile Money', () => {
     expect(sent[0].body.policy).toMatchObject({
       mobileMoneyNumber: '+2250707123456',
     });
+  });
+});
+
+/// docs/design/phone-leftovers.md §2 — the server now says WHICH number it
+/// refused: `invalid_phone` (Téléphone, Numéro Mobile Money) and
+/// `invalid_whatsapp` (the profile's second phone field). Both used to be
+/// `invalid_input`, which the pages could only answer with « L’enregistrement
+/// a échoué. Réessayez. » — a retry that cannot succeed, nowhere near the field.
+const INVALID = 'Saisissez un numéro de téléphone valide.';
+const FAILED = 'L’enregistrement a échoué. Réessayez.';
+
+describe('the server’s phone codes land under their fields', () => {
+  it('Profil — invalid_phone sits under « Téléphone », WhatsApp untouched', async () => {
+    mockFetch({ refusals: [{ status: 400, error: 'invalid_phone' }] });
+    render(<ProfilClient />);
+    const phone = await screen.findByLabelText('Téléphone');
+    fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }));
+
+    await screen.findByText(INVALID);
+    expectFieldFault(phone, INVALID);
+    expect(screen.getByLabelText('WhatsApp (optionnel)')).not.toHaveAttribute(
+      'aria-invalid',
+    );
+    expect(screen.queryByText(FAILED)).toBeNull();
+    expect(sent).toHaveLength(1);
+  });
+
+  it('Profil — invalid_whatsapp sits under « WhatsApp », Téléphone untouched', async () => {
+    mockFetch({ refusals: [{ status: 400, error: 'invalid_whatsapp' }] });
+    render(<ProfilClient />);
+    const whatsapp = await screen.findByLabelText('WhatsApp (optionnel)');
+    fireEvent.change(whatsapp, { target: { value: '+2250505123456' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }));
+
+    await screen.findByText(INVALID);
+    expectFieldFault(whatsapp, INVALID);
+    expect(screen.getByLabelText('Téléphone')).not.toHaveAttribute('aria-invalid');
+    expect(screen.queryByText(FAILED)).toBeNull();
+  });
+
+  it('Profil — any other refusal keeps its form-level line', async () => {
+    mockFetch({ refusals: [{ status: 400, error: 'invalid_input' }] });
+    render(<ProfilClient />);
+    const phone = await screen.findByLabelText('Téléphone');
+    fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }));
+
+    await screen.findByText(FAILED);
+    expect(phone).not.toHaveAttribute('aria-invalid');
+  });
+
+  it('Acompte — invalid_phone sits under « Numéro Mobile Money »', async () => {
+    mockFetch({ refusals: [{ status: 400, error: 'invalid_phone' }] });
+    render(<AcompteClient />);
+    const number = await screen.findByLabelText('Numéro Mobile Money');
+    fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }));
+
+    await screen.findByText(INVALID);
+    expectFieldFault(number, INVALID);
+    expect(screen.queryByText(FAILED)).toBeNull();
+  });
+});
+
+/// docs/design/phone-leftovers.md §6 — deposits OFF. The web sent
+/// `mobileMoneyNumber: null` whenever the switch was off: saving the window
+/// hours ERASED the salon's number; the app keeps it (parity gap §1.5). The
+/// number is now checked when not empty and sent whatever the switch says.
+/// The card is hidden while off — so a refusal reveals the field, to give the
+/// message a place (the app's `_showNumberWhileOff`), and it goes again once
+/// fixed and saved, or as soon as the switch moves.
+describe('AcompteClient — deposits off keep the Mobile Money number', () => {
+  const OFF = {
+    ...POLICY_ON,
+    depositRequired: false,
+    depositPercentage: 0,
+    mobileMoneyNumber: '+2250707123456',
+  };
+
+  async function renderOff(
+    policy: Record<string, unknown> = OFF,
+    refusals: { status: number; error: string }[] = [],
+  ) {
+    mockFetch({ policy, refusals });
+    render(<AcompteClient />);
+    await screen.findByLabelText('Exiger un acompte');
+    // The switch's card is hidden: no number field while off.
+    expect(screen.queryByLabelText('Numéro Mobile Money')).toBeNull();
+  }
+
+  it('the stored number is sent, not erased — the field stays hidden', async () => {
+    await renderOff();
+    fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }));
+
+    await waitFor(() => expect(sent).toHaveLength(1));
+    expect(sent[0].body.policy).toMatchObject({
+      depositRequired: false,
+      mobileMoneyNumber: '+2250707123456',
+    });
+    await screen.findByText('Acompte enregistré.');
+    expect(screen.queryByLabelText('Numéro Mobile Money')).toBeNull();
+  });
+
+  it('no stored number is sent as null', async () => {
+    await renderOff({ ...OFF, mobileMoneyNumber: null });
+    fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }));
+
+    await waitFor(() => expect(sent).toHaveLength(1));
+    expect(sent[0].body.policy).toMatchObject({ mobileMoneyNumber: null });
+  });
+
+  it('a server invalid_phone reveals the field with the message; a successful save hides it', async () => {
+    await renderOff(OFF, [{ status: 400, error: 'invalid_phone' }]);
+    fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }));
+
+    const number = await screen.findByLabelText('Numéro Mobile Money');
+    expectFieldFault(number, INVALID);
+    expect(screen.queryByText(FAILED)).toBeNull();
+
+    // Fixed and saved: the policy is off, so is the card again.
+    fireEvent.change(number, { target: { value: '+2250707123457' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }));
+    await waitFor(() => expect(sent).toHaveLength(2));
+    expect(sent[1].body.policy).toMatchObject({
+      depositRequired: false,
+      mobileMoneyNumber: '+2250707123457',
+    });
+    await waitFor(() =>
+      expect(screen.queryByLabelText('Numéro Mobile Money')).toBeNull(),
+    );
+  });
+
+  it('the revealed field goes as soon as the switch moves', async () => {
+    await renderOff(OFF, [{ status: 400, error: 'invalid_phone' }]);
+    fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }));
+    await screen.findByLabelText('Numéro Mobile Money');
+
+    const toggle = screen.getByLabelText('Exiger un acompte');
+    fireEvent.click(toggle); // on — the switch's own card
+    expect(screen.getByLabelText('Numéro Mobile Money')).toBeInTheDocument();
+    fireEvent.click(toggle); // off again — one saved policy, one layout
+    expect(screen.queryByLabelText('Numéro Mobile Money')).toBeNull();
+  });
+
+  it('a stored number the rule refuses is revealed with its fault — nothing is sent', async () => {
+    await renderOff({ ...OFF, mobileMoneyNumber: '+2250700000' });
+    fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }));
+
+    const number = await screen.findByLabelText('Numéro Mobile Money');
+    expectFieldFault(number, TEN);
+    expect(sent).toHaveLength(0);
   });
 });

@@ -31,6 +31,7 @@ import '../../routes/auth/otp/request.dart' as otp_request;
 import '../../routes/auth/otp/verify.dart' as otp_verify;
 import '../../routes/auth/refresh.dart' as refresh_route;
 import '../../routes/me/index.dart' as me_route;
+import '../http/observed.dart';
 
 class _MockRequestContext extends Mock implements RequestContext {}
 
@@ -170,6 +171,76 @@ void main() {
     );
     expect(res.statusCode, HttpStatus.badRequest);
     expect((await jsonOf(res))['error'], 'otp_invalid');
+  });
+
+  test('otp/verify: a bad phone → 400 invalid_phone, a bad code → 400 '
+      'invalid_input — the code says which field', () async {
+    // docs/design/phone-leftovers.md §2: both used to answer invalid_input,
+    // so no client could put the fault under the right field.
+    Future<Map<String, dynamic>> verify(Map<String, Object?> body) async {
+      final res = await otp_verify.onRequest(
+        ctx(post('/auth/otp/verify', body)),
+      );
+      expect(res.statusCode, HttpStatus.badRequest, reason: '$body');
+      return jsonOf(res);
+    }
+
+    // 7 digits after +225 — a CI number has 10.
+    expect(
+      (await verify({'phoneNumber': '+2250700000', 'code': '123456'}))['error'],
+      'invalid_phone',
+    );
+    expect(
+      (await verify({'phoneNumber': '123', 'code': '123456'}))['error'],
+      'invalid_phone',
+    );
+    expect(
+      (await verify({'phoneNumber': _phone, 'code': '12'}))['error'],
+      'invalid_input',
+    );
+    expect((await verify({'phoneNumber': _phone}))['error'], 'invalid_input');
+  });
+
+  group('a body field of the wrong JSON type → 400 invalid_body, not 500', () {
+    // docs/design/phone-leftovers.md §3 — through the middleware, because the
+    // reader THROWS and only the middleware answers.
+    test('otp/request and otp/verify', () async {
+      for (final r in [
+        (otp_request.onRequest, '/auth/otp/request', {'phoneNumber': 2250707}),
+        (
+          otp_verify.onRequest,
+          '/auth/otp/verify',
+          {'phoneNumber': _phone, 'code': 123456},
+        ),
+      ]) {
+        final res = await observed(r.$1, ctx(post(r.$2, r.$3)));
+        expect(res.statusCode, HttpStatus.badRequest, reason: r.$2);
+        expect((await jsonOf(res))['error'], 'invalid_body', reason: r.$2);
+      }
+    });
+
+    test('PATCH /me name: a number is refused and nothing is stored', () async {
+      final session = await repo.verifyOtp(
+        _phone,
+        (await repo.requestOtp(_phone)).devCode!,
+      );
+      final res = await observed(
+        me_route.onRequest,
+        ctx(
+          Request(
+            'PATCH',
+            _u('/me'),
+            headers: {'Authorization': 'Bearer ${session.tokens!.accessToken}'},
+            // A valid phone beside it: the refusal is whole, not partial.
+            body: jsonEncode({'name': 42, 'phone': '+2250505123456'}),
+          ),
+        ),
+      );
+      expect(res.statusCode, HttpStatus.badRequest);
+      expect((await jsonOf(res))['error'], 'invalid_body');
+      final user = (await repo.userById(session.user!.id))!;
+      expect(user.phoneNumber, _phone);
+    });
   });
 
   test('refresh: replaying a rotated token → 401 refresh_reused', () async {

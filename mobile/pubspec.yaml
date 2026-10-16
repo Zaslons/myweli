@@ -54,14 +54,14 @@ dependencies:
   geolocator: ^14.0.2
 
   # Image caching (direct dep; used by TimedCachedImage)
-  flutter_cache_manager: ^3.4.1
+  flutter_cache_manager: ^3.4.5
 
   # HTTP Client
   http: ^1.2.0
 
   # Local Storage
   flutter_secure_storage: ^11.2.0
-  shared_preferences: ^2.2.2
+  shared_preferences: ^2.5.6
 
   # Auth overhaul: native Google Sign-In (+ Apple seam, flag-gated) and the
   # SHA-256 for Apple's nonce. Design: docs/design/app-auth-social.md.

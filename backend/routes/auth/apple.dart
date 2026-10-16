@@ -4,6 +4,7 @@ import 'package:dart_frog/dart_frog.dart';
 import 'package:myweli_backend/src/auth/auth_methods.dart';
 import 'package:myweli_backend/src/auth/auth_repository.dart';
 import 'package:myweli_backend/src/auth/id_token_verifier.dart';
+import 'package:myweli_backend/src/http/body_fields.dart';
 import 'package:myweli_backend/src/responses.dart';
 
 /// `POST /auth/apple` — Sign in with Apple. The identity token is verified
@@ -25,12 +26,12 @@ Future<Response> onRequest(RequestContext context) async {
     return jsonError(HttpStatus.badRequest, 'invalid_body');
   }
 
-  final identityToken = (body['identityToken'] as String?)?.trim() ?? '';
+  final identityToken = optionalString(body, 'identityToken')?.trim() ?? '';
   if (identityToken.isEmpty) {
     return jsonError(HttpStatus.badRequest, 'invalid_token');
   }
-  final nonce = (body['nonce'] as String?)?.trim();
-  final fullName = (body['fullName'] as String?)?.trim();
+  final nonce = optionalString(body, 'nonce')?.trim();
+  final fullName = optionalString(body, 'fullName')?.trim();
 
   final claims = await context.read<AppleIdTokenVerifier>().verify(
     identityToken,

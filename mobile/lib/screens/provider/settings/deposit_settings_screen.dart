@@ -66,7 +66,8 @@ class _DepositSettingsScreenState extends State<DepositSettingsScreen> {
       _editedNumber ?? PhoneNumbering.normalize(provider.mobileMoneyNumber);
 
   /// Deposits off hide the « Recevoir l'acompte » card — and with it the one
-  /// place a refused number can be shown and fixed. Set by a refused save;
+  /// place a refused number can be shown and fixed. Set by a refused save
+  /// (the client rule's, or the server's `invalid_phone`);
   /// it stays while the salon fixes the number (the field must not vanish
   /// under its thumb the moment the number turns valid), and goes once that
   /// is done: a successful save, or the switch moved — then the card is the
@@ -111,6 +112,19 @@ class _DepositSettingsScreenState extends State<DepositSettingsScreen> {
     provider.setMobileMoneyNumber(number);
     final ok = await provider.save(widget.providerId);
     if (!mounted) return;
+    // The server is still the authority on the number (BACKEND.md §3.4). It
+    // refused it as `invalid_input`, every other field's code too, and the
+    // salon read « Informations invalides. » in a bar. It is `invalid_phone`
+    // now (phone-leftovers.md §2): the field's fault, under the field — and,
+    // deposits off, the hidden card shows so the message has somewhere to sit.
+    if (!ok && provider.errorCode == 'invalid_phone') {
+      setState(() {
+        _errors.set('number', 'Saisissez un numéro de téléphone valide.');
+        if (!provider.depositRequired) _showNumberWhileOff = true;
+      });
+      _numberFocus.requestFocus();
+      return;
+    }
     if (ok && _showNumberWhileOff) setState(() => _showNumberWhileOff = false);
     AppSnackBar.outcome(
       context,

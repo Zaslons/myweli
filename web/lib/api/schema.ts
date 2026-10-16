@@ -228,7 +228,15 @@ export interface paths {
                         "application/json": components["schemas"]["AuthSession"];
                     };
                 };
-                400: components["responses"]["BadRequest"];
+                /** @description `invalid_phone` — `phoneNumber` missing or not a valid number (E.164; +225 → exactly 10 digits after the code). `invalid_input` — `code` missing or not a 6-digit code. The two used to share `invalid_input` (docs/design/phone-leftovers.md §2). `invalid_body` — not a JSON object, or a field of the wrong JSON type. `otp_*` — the code itself was refused. */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
                 429: components["responses"]["RateLimited"];
             };
         };
@@ -1506,7 +1514,7 @@ export interface paths {
         put?: never;
         /**
          * « Ajouter un salon » — an additional draft salon (access R6, Réseau-gated)
-         * @description Provider-only (threat T55). Requires ≥1 OWNED salon with a live (trial/paid/grace) Réseau offer → else 403 `reseau_required`; capped at 20 owned salons → 409 `salon_limit`. The store-review demo account → 403 `demo_account_locked` (T69 — its credential is public; checked in the service before any salon field is read — a malformed body or `areaId` still answers 400 first — and `GET`'s `canAddSalon` is false for it). Creates a DRAFT salon (own setup state — its own offer, its own trial, its own publish gate; no subscription row — its trial starts at its first publish: on Réseau while the owner's other Réseau offer is still live then, else on Pro) plus the owner membership row; the account's default salon link is untouched. The « Vérifié » badge is inherited when the account's KYC is approved (T52). `phoneNumber` defaults to the account's (copied as is, not re-validated); a sent one must be a valid number → else 400 `invalid_phone`.
+         * @description Provider-only (threat T55). Requires ≥1 OWNED salon with a live (trial/paid/grace) Réseau offer → else 403 `reseau_required`; capped at 20 owned salons → 409 `salon_limit`. The store-review demo account → 403 `demo_account_locked` (T69 — its credential is public; checked in the service before any salon field is read — a malformed body, a `phoneNumber` or `areaId` of the wrong JSON type, or an unknown `areaId` still answers 400 first — and `GET`'s `canAddSalon` is false for it). Creates a DRAFT salon (own setup state — its own offer, its own trial, its own publish gate; no subscription row — its trial starts at its first publish: on Réseau while the owner's other Réseau offer is still live then, else on Pro) plus the owner membership row; the account's default salon link is untouched. The « Vérifié » badge is inherited when the account's KYC is approved (T52). `phoneNumber` defaults to the account's (copied as is, not re-validated); a sent one must be a valid number → else 400 `invalid_phone` — and text: a JSON number is 400 `invalid_body`, never replaced by the account's.
          */
         post: {
             parameters: {
@@ -1541,7 +1549,7 @@ export interface paths {
                         };
                     };
                 };
-                /** @description `invalid_body`, `invalid_input` (blank or too-long `businessName`, unknown `businessType`), `invalid_area` (unknown `areaId`), or `invalid_phone` (a sent `phoneNumber` that is not a string, not E.164, or a +225 number without exactly 10 digits after the code). Nothing is created. */
+                /** @description `invalid_body` (not a JSON object, or `phoneNumber` / `areaId` of the wrong JSON type — a `phoneNumber` sent as a number was `invalid_phone` until docs/design/phone-leftovers.md §3), `invalid_input` (blank or too-long `businessName`, unknown `businessType`), `invalid_area` (unknown `areaId`), or `invalid_phone` (a sent `phoneNumber` that is not E.164, or a +225 number without exactly 10 digits after the code). Nothing is created. */
                 400: {
                     headers: {
                         [name: string]: unknown;
@@ -1806,7 +1814,7 @@ export interface paths {
                         businessName: string;
                         /** @enum {string} */
                         businessType: "salon" | "barber" | "spa" | "nailSalon" | "massage" | "other";
-                        /** @description E.164 — required salon contact. No separators; a +225 number has exactly 10 digits after the code (else 400 `invalid_input`). */
+                        /** @description E.164 — required salon contact. No separators; a +225 number has exactly 10 digits after the code (else 400 `invalid_phone` — its own code, so a client can put the fault under the field). */
                         phoneNumber: string;
                         address?: string;
                         /** @description Optional locality pick (an `Area.id` from GET /localities) — the salon's commune/city/timezone/currency DERIVE from it server-side (multi-pays MP1; unknown → 400 `invalid_area`). */
@@ -1833,7 +1841,15 @@ export interface paths {
                         "application/json": components["schemas"]["ProviderSession"];
                     };
                 };
-                400: components["responses"]["BadRequest"];
+                /** @description `invalid_input` — blank or too-long `businessName`, unknown `businessType`, or no usable identity proof. `invalid_phone` — `phoneNumber` missing or not a valid number (checked after the name and the type; it used to be `invalid_input` — docs/design/phone-leftovers.md §2). `invalid_area` — unknown `areaId`. `invalid_body` — not a JSON object, or a field of the wrong JSON type. `otp_*` — the email code was refused. Nothing is created. */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
                 401: components["responses"]["Unauthorized"];
                 404: components["responses"]["NotFound"];
                 /** @description An account already exists for this identity (provider_exists) */
@@ -2248,7 +2264,15 @@ export interface paths {
                         };
                     };
                 };
-                400: components["responses"]["BadRequest"];
+                /** @description `invalid_phone` — `phoneNumber` missing or not a valid number. `invalid_input` — `code` missing or not a 6-digit code (the two used to share `invalid_input` — docs/design/phone-leftovers.md §2). `invalid_body` — not a JSON object, or a field of the wrong JSON type. `otp_*` — the code itself was refused. */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
                 404: components["responses"]["NotFound"];
                 429: components["responses"]["RateLimited"];
             };
@@ -2437,7 +2461,7 @@ export interface paths {
         head?: never;
         /**
          * Update the salon's editable public profile (web M7.3e, owner-only)
-         * @description Provider role + ownership (account.providerId == {id} → else 403). Only the editable public fields below are accepted; protected fields (slug, rating, reviewCount, status, services, artists, availability, imageUrls) have their own endpoints and are ignored. `phoneNumber`/`whatsapp` E.164 (no separators; a +225 number has exactly 10 digits after the code — else 400 `invalid_input`).
+         * @description Provider role + ownership (account.providerId == {id} → else 403). Only the editable public fields below are accepted; protected fields (slug, rating, reviewCount, status, services, artists, availability, imageUrls) have their own endpoints and are ignored. `phoneNumber`/`whatsapp` E.164 (no separators; a +225 number has exactly 10 digits after the code). A phone fault names its field — two phone fields on one form: 400 `invalid_phone` for `phoneNumber`, `invalid_whatsapp` for `whatsapp` (a value that is not text included); the other fields keep theirs (`invalid_input`; `invalid_area` for `areaId`) (docs/design/phone-leftovers.md §2).
          */
         patch: {
             parameters: {
@@ -3273,7 +3297,7 @@ export interface paths {
         };
         /**
          * Replace a salon's deposit policy wholesale (B-deposit)
-         * @description Server-authoritative (booking derives each deposit from this). **Enabling deposits requires a KYC-VERIFIED account** (T52) → 403 `verification_required` otherwise. Validated: `depositPercentage` 0..1 (and > 0 when required); `cancellationWindowHours` 0..720; `mobileMoneyOperator` in the enum; `mobileMoneyNumber` E.164 (a +225 number has exactly 10 digits after the code; checked whenever present, deposits on or off). **When `depositRequired` is true, the Mobile Money operator + number are required.**
+         * @description Server-authoritative (booking derives each deposit from this). **Enabling deposits requires a KYC-VERIFIED account** (T52) → 403 `verification_required` otherwise. Validated: `depositPercentage` 0..1 (and > 0 when required); `cancellationWindowHours` 0..720; `mobileMoneyOperator` in the enum; `mobileMoneyNumber` E.164 (a +225 number has exactly 10 digits after the code; checked whenever present, deposits on or off) — a bad one is 400 `invalid_phone`, its own code so a client can put the fault under that field (docs/design/phone-leftovers.md §2). **When `depositRequired` is true, the Mobile Money operator + number are required** (400 `invalid_input` when either is absent). Every other fault: 400 `invalid_input`.
          */
         put: {
             parameters: {
@@ -3776,7 +3800,12 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        /** Update the tag set (≤10 tags, each ≤24 chars) */
+        /**
+         * Update the tag set and/or a guest card's number
+         * @description Same capability as the card (`clients.view`). At least one of `phone` and `tags`; neither → 400 `invalid_tags`. Everything is checked before anything is written: a refusal changes nothing. Answers with the card, exactly as `GET` does (that read-back is audited `clients.view`, like every card read — T46).
+         *
+         *     **The number** (docs/design/phone-leftovers.md §8): the history follows it. A guest's visits resolve by phone, so the card and this salon's manual bookings (`userId` = `manual`) carrying the old number take the new one in ONE transaction — never another salon's bookings (T45), never a consumer's own. A card linked to an account (`linked: true`) keeps the account's number: 409 `client_linked`, whatever was sent. An erased account's anonymised card (no account, no number — T48) takes no number: 409 `client_anonymized`. The card's own number → 200, nothing to do. A number already on another card of this salon → 409 `client_exists` with that card's `clientId` (the `POST …/clients` shape; no merge) — a race lost to it answers the same. A change is audited `client.phone_changed` with ids only, never a number. The card's `phoneEditable` says in advance which cards take a number (no account AND a number) — the clients offer the edit only on `true`.
+         */
         patch: {
             parameters: {
                 query?: never;
@@ -3790,24 +3819,41 @@ export interface paths {
             requestBody: {
                 content: {
                     "application/json": {
-                        tags: string[];
+                        /** @description The guest card's new number. E.164, no separators; a +225 number has exactly 10 digits after the code. Surrounding blanks are trimmed; anything else invalid — empty included, a guest card exists only by its number → 400 `invalid_phone`. Not a string → 400 `invalid_body`. */
+                        phone?: string;
+                        /** @description The whole tag set (≤10 tags, each 1–24 chars after trimming, duplicates dropped; non-string items ignored); else 400 `invalid_tags`. Not an array → 400 `invalid_body`. */
+                        tags?: string[];
                     };
                 };
             };
             responses: {
-                /** @description Updated */
+                /** @description The card, as `GET` returns it. */
                 200: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["SalonClient"];
+                        "application/json": components["schemas"]["SalonClientCard"];
                     };
                 };
                 400: components["responses"]["BadRequest"];
                 401: components["responses"]["Unauthorized"];
                 403: components["responses"]["Forbidden"];
                 404: components["responses"]["NotFound"];
+                /** @description `client_linked` — the card belongs to an account, whose number it keeps (nothing changed). `client_anonymized` — an erased account's card, which no number may re-identify (nothing changed). `client_exists` + `clientId` — another card of this salon has that number (nothing changed). */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {string} */
+                            error: "client_linked" | "client_anonymized" | "client_exists";
+                            /** @description `client_exists` only — the card holding the number. */
+                            clientId?: string;
+                        };
+                    };
+                };
             };
         };
         trace?: never;
@@ -4136,7 +4182,7 @@ export interface paths {
                         "application/json": components["schemas"]["Appointment"];
                     };
                 };
-                /** @description `invalid_input` — a missing/blank required field, a wrong-typed body value, or a `depositScreenshotUrl` that is not a freshly-signed key under the caller's own deposit prefix. `upload_too_large` / `upload_not_found` / `storage_unavailable` — the attached proof failed claim-time verification (T61); the booking is not created. */
+                /** @description `invalid_body` — not a JSON object, or a field of the wrong JSON type (it was `invalid_input` — docs/design/phone-leftovers.md §3). `invalid_input` — a missing/blank required field, or a `depositScreenshotUrl` that is not a freshly-signed key under the caller's own deposit prefix. `upload_too_large` / `upload_not_found` / `storage_unavailable` — the attached proof failed claim-time verification (T61); the booking is not created. */
                 400: {
                     headers: {
                         [name: string]: unknown;
@@ -6716,6 +6762,8 @@ export interface components {
             createdAt: string;
         };
         SalonClientCard: components["schemas"]["SalonClient"] & {
+            /** @description True exactly for the cards whose number `PATCH …/clients/{clientId}` accepts: not linked to an account (`linked: false`) AND holding a number — false for a linked card (409 `client_linked`) and for an erased account's anonymised card (no number, 409 `client_anonymized`). Clients offer « Modifier » only when it is `true`, and read an ABSENT field as false: an older server, whose `PATCH` refuses `{phone}` with `invalid_tags`, sends none (docs/design/phone-leftovers.md §8/§11). On the card only, not on the list rows. */
+            phoneEditable: boolean;
             stats: components["schemas"]["SalonClientStats"];
             upcoming?: components["schemas"]["Appointment"];
             notes: components["schemas"]["SalonClientNote"][];
@@ -7086,7 +7134,7 @@ export interface components {
         };
     };
     responses: {
-        /** @description Invalid input */
+        /** @description Invalid input. `invalid_body` — the body is not a JSON object, or a field the endpoint reads arrived as the wrong JSON type (a number where this contract says string, a string where it says array); never a 500 (docs/design/phone-leftovers.md §3). Where the server checks a field's type together with its value, the wrong type is that field's own code instead: `invalid_input` for most (a service's `price`, a profile's `latitude`, a review's `rating`, …), `invalid_phone` / `invalid_whatsapp` for a phone field the endpoint says so for. A valid type with an invalid value: `invalid_input`, or the code the endpoint documents. */
         BadRequest: {
             headers: {
                 [name: string]: unknown;

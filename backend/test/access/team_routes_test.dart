@@ -32,6 +32,7 @@ import '../../routes/me/provider/members/[memberId]/index.dart' as member_item;
 import '../../routes/me/provider/members/[memberId]/resend.dart' as resend;
 import '../../routes/me/provider/members/[memberId]/revoke.dart' as revoke;
 import '../../routes/me/provider/members/index.dart' as members;
+import '../http/observed.dart';
 
 class _MockRequestContext extends Mock implements RequestContext {}
 
@@ -743,6 +744,40 @@ void main() {
         expect(await memberships.byId(invId), isNotNull);
       },
     );
+  });
+
+  group('public invitation routes: a field of the wrong JSON type → 400 '
+      'invalid_body, not 500 (docs/design/phone-leftovers.md §3)', () {
+    test('accept and decline — email, code, invitationId, idToken', () async {
+      final invId = await invited('ama@b.com');
+      for (final route in [
+        (public_accept.onRequest, '/auth/provider/invitations/accept'),
+        (public_decline.onRequest, '/auth/provider/invitations/decline'),
+      ]) {
+        for (final body in <Map<String, Object?>>[
+          {'invitationId': invId, 'email': 42, 'code': '123456'},
+          {'invitationId': invId, 'email': 'ama@b.com', 'code': 123456},
+          {'invitationId': 7, 'email': 'ama@b.com', 'code': '123456'},
+          {
+            'invitationId': invId,
+            'idToken': const ['t'],
+          },
+        ]) {
+          final res = await observed(
+            route.$1,
+            ctx(req('POST', route.$2, body: body)),
+          );
+          expect(
+            res.statusCode,
+            HttpStatus.badRequest,
+            reason: '${route.$2} $body',
+          );
+          expect((await res.json() as Map)['error'], 'invalid_body');
+        }
+      }
+      // Neither route touched the invitation.
+      expect(await memberships.byId(invId), isNotNull);
+    });
   });
 
   group('authed invitation routes (/me/provider/invitations*)', () {

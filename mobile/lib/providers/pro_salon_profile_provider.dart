@@ -12,11 +12,17 @@ class ProSalonProfileProvider extends ChangeNotifier implements SalonScoped {
   bool _isLoading = false;
   bool _isSaving = false;
   String? _error;
+  String? _errorCode;
 
   Provider? get provider => _provider;
   bool get isLoading => _isLoading;
   bool get isSaving => _isSaving;
   String? get error => _error;
+
+  /// Machine code of the last failed [save] (`invalid_phone`,
+  /// `invalid_whatsapp`), so the form can put a number the server refused
+  /// under ITS field (SYSTEM.md §14 rule 1, phone-leftovers.md §2).
+  String? get errorCode => _errorCode;
 
   Future<void> load(String providerId) async {
     _isLoading = true;
@@ -45,6 +51,7 @@ class ProSalonProfileProvider extends ChangeNotifier implements SalonScoped {
   Future<bool> save(String providerId, Map<String, dynamic> changes) async {
     _isSaving = true;
     _error = null;
+    _errorCode = null;
     notifyListeners();
     final res = await serviceLocator.proService.updateSalonProfile(
       providerId,
@@ -55,6 +62,7 @@ class ProSalonProfileProvider extends ChangeNotifier implements SalonScoped {
       _provider = res.data;
     } else {
       _error = res.error ?? 'Enregistrement impossible';
+      _errorCode = res.code;
     }
     notifyListeners();
     return res.success;
@@ -101,6 +109,7 @@ class ProSalonProfileProvider extends ChangeNotifier implements SalonScoped {
     _isLoading = false;
     _isSaving = false;
     _error = null;
+    _errorCode = null;
     notifyListeners();
   }
 }

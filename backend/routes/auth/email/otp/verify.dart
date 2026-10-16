@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:dart_frog/dart_frog.dart';
 import 'package:myweli_backend/src/auth/auth_methods.dart';
 import 'package:myweli_backend/src/auth/auth_repository.dart';
+import 'package:myweli_backend/src/http/body_fields.dart';
 import 'package:myweli_backend/src/responses.dart';
 import 'package:myweli_backend/src/validators.dart';
 
@@ -22,8 +23,8 @@ Future<Response> onRequest(RequestContext context) async {
     return jsonError(HttpStatus.badRequest, 'invalid_body');
   }
 
-  final email = (body['email'] as String?)?.trim() ?? '';
-  final code = (body['code'] as String?)?.trim() ?? '';
+  final email = optionalString(body, 'email')?.trim() ?? '';
+  final code = optionalString(body, 'code')?.trim() ?? '';
   if (!isValidEmail(email) || !isValidOtpCode(code)) {
     return jsonError(HttpStatus.badRequest, 'invalid_input');
   }

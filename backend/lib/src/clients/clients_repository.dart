@@ -1,4 +1,34 @@
+import '../appointments/appointment_repository.dart';
 import '../privacy/anonymized_identity.dart';
+
+/// What [ClientsRepository.changeGuestPhone] found — and, for [changed]
+/// alone, did (docs/design/phone-leftovers.md §8).
+enum GuestPhoneOutcome {
+  /// The card took the number, and this salon's manual bookings with it.
+  changed,
+
+  /// The card already had that number: nothing written.
+  unchanged,
+
+  /// No such card in this salon — a foreign id never resolves (T45).
+  notFound,
+
+  /// The card belongs to an account; its number is the account's.
+  linked,
+
+  /// Another card of this salon holds the number ([GuestPhoneChange.takenBy]).
+  taken,
+}
+
+/// [client] is the card after the call ([GuestPhoneOutcome.changed] /
+/// [GuestPhoneOutcome.unchanged]); [takenBy] the id of the card holding the
+/// number ([GuestPhoneOutcome.taken] — null only if that card vanished in the
+/// meantime).
+typedef GuestPhoneChange = ({
+  GuestPhoneOutcome outcome,
+  Map<String, dynamic>? client,
+  String? takenBy,
+});
 
 /// The salon client base (module `clients`, slice C1 —
 /// docs/design/clients-c1.md). Each client is a `Map` in the `SalonClient`
@@ -39,6 +69,22 @@ abstract interface class ClientsRepository {
     List<String> tags,
   );
 
+  /// Give a GUEST card (no account) the number [phone], and move this
+  /// salon's manual bookings (`userId == 'manual'`) carrying its old number
+  /// to the new one — in ONE transaction. A guest's history resolves by phone
+  /// (`ClientsService._visitsOf`), so a card that moved alone would come out
+  /// empty (docs/design/phone-leftovers.md §8). Never another salon's
+  /// bookings, never a consumer's own (T45); a phone-less card adopts none.
+  ///
+  /// [phone] is already validated by the caller. A number another card of
+  /// the salon holds is [GuestPhoneOutcome.taken] — a race lost on the
+  /// `(provider_id, phone)` unique index included: it never throws.
+  Future<GuestPhoneChange> changeGuestPhone(
+    String providerId,
+    String clientId,
+    String phone,
+  );
+
   /// Bump `lastVisitAt` if [visitAt] is later than the stored value.
   Future<void> touchLastVisit(
     String providerId,
@@ -70,6 +116,14 @@ abstract interface class ClientsRepository {
 }
 
 class InMemoryClientsRepository implements ClientsRepository {
+  /// [appointments] is the twin [changeGuestPhone] moves a guest's history
+  /// in — the Postgres twin reaches the `appointments` table in its own
+  /// transaction. Typed as the in-memory twin on purpose: its `update`
+  /// merges any field, where the Postgres one ignores `clientPhone`.
+  InMemoryClientsRepository({InMemoryAppointmentRepository? appointments})
+    : _appointments = appointments;
+
+  final InMemoryAppointmentRepository? _appointments;
   final List<Map<String, dynamic>> _clients = [];
   final List<Map<String, dynamic>> _notes = [];
 
@@ -187,6 +241,70 @@ class InMemoryClientsRepository implements ClientsRepository {
       }
     }
     return null;
+  }
+
+  @override
+  Future<GuestPhoneChange> changeGuestPhone(
+    String providerId,
+    String clientId,
+    String phone,
+  ) async {
+    final appointments = _appointments;
+    if (appointments == null) {
+      // Moving the card without its bookings would strand the history.
+      throw StateError(
+        'InMemoryClientsRepository needs its appointments twin to change a '
+        "guest's phone",
+      );
+    }
+    // Read first: from the checks to the last write nothing yields, so no
+    // other request lands in between — the twin of the row lock.
+    final bookings = await appointments.listForProvider(providerId);
+    Map<String, dynamic>? card;
+    for (final c in _clients) {
+      if (c['id'] == clientId && c['providerId'] == providerId) card = c;
+    }
+    if (card == null) {
+      return (outcome: GuestPhoneOutcome.notFound, client: null, takenBy: null);
+    }
+    if (card['userId'] != null) {
+      return (outcome: GuestPhoneOutcome.linked, client: null, takenBy: null);
+    }
+    final oldPhone = card['phone'] as String?;
+    if (oldPhone == phone) {
+      return (
+        outcome: GuestPhoneOutcome.unchanged,
+        client: Map.of(card),
+        takenBy: null,
+      );
+    }
+    for (final c in _clients) {
+      if (c['providerId'] == providerId &&
+          c['phone'] == phone &&
+          c['id'] != clientId) {
+        return (
+          outcome: GuestPhoneOutcome.taken,
+          client: null,
+          takenBy: c['id'] as String,
+        );
+      }
+    }
+    card['phone'] = phone;
+    // `update` has no await inside: each call writes before it returns its
+    // future, so the bookings move in the same synchronous stretch as the
+    // card. A phone-less card adopts no one (`null == null` would sweep up
+    // every phone-less walk-in).
+    await Future.wait([
+      if (oldPhone != null)
+        for (final a in bookings)
+          if (a['userId'] == 'manual' && a['clientPhone'] == oldPhone)
+            appointments.update(a['id'] as String, {'clientPhone': phone}),
+    ]);
+    return (
+      outcome: GuestPhoneOutcome.changed,
+      client: Map.of(card),
+      takenBy: null,
+    );
   }
 
   @override

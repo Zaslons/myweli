@@ -6,6 +6,7 @@ import 'package:myweli_backend/src/access/capabilities.dart';
 import 'package:myweli_backend/src/access/membership_service.dart';
 import 'package:myweli_backend/src/appointments/appointment_lifecycle_service.dart';
 import 'package:myweli_backend/src/auth/principal.dart';
+import 'package:myweli_backend/src/http/body_fields.dart';
 import 'package:myweli_backend/src/messaging/booking_notifier.dart';
 import 'package:myweli_backend/src/messaging/messaging_models.dart';
 import 'package:myweli_backend/src/responses.dart';
@@ -28,7 +29,11 @@ Future<Response> onRequest(RequestContext context, String id) async {
   } catch (_) {
     return jsonError(HttpStatus.badRequest, 'invalid_body');
   }
-  final raw = body['newDateTime'] as String?;
+  final raw = optionalString(body, 'newDateTime');
+  // Drag across the journal grid's columns (J1); validated in the service.
+  // Read with the date — before any rule or lookup — so a wrong JSON type is
+  // refused the same way whoever sends it (docs/design/phone-leftovers.md §3).
+  final artistId = optionalString(body, 'artistId')?.trim();
   final newDateTime = raw == null ? null : DateTime.tryParse(raw);
   if (newDateTime == null) {
     return jsonError(HttpStatus.badRequest, 'invalid_input');
@@ -58,8 +63,7 @@ Future<Response> onRequest(RequestContext context, String id) async {
       id,
       managedProviderId,
       newDateTime,
-      // Drag across the journal grid's columns (J1); validated in the service.
-      artistId: (body['artistId'] as String?)?.trim(),
+      artistId: artistId,
     );
   } else {
     result = await lifecycle.reschedule(id, principal.userId, newDateTime);

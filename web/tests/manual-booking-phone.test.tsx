@@ -36,13 +36,17 @@ const PROFILE = {
 /// Every POST /api/pro/appointments body, in order.
 const posted: Record<string, unknown>[] = [];
 
-function mockFetch({ createStatus = 200, createBody = '{}' } = {}) {
+function mockFetch({
+  createStatus = 200,
+  createBody = '{}',
+  clients = [] as Record<string, unknown>[],
+} = {}) {
   posted.length = 0;
   vi.stubGlobal(
     'fetch',
     vi.fn(async (url: string, init?: RequestInit) => {
       if (String(url).startsWith('/api/pro/clients')) {
-        return new Response(JSON.stringify({ items: [] }), { status: 200 });
+        return new Response(JSON.stringify({ items: clients }), { status: 200 });
       }
       if (url === '/api/pro/appointments') {
         posted.push(JSON.parse(String(init?.body ?? '{}')));
@@ -53,7 +57,12 @@ function mockFetch({ createStatus = 200, createBody = '{}' } = {}) {
   );
 }
 
-function renderDialog(initialClient?: { name: string; phone?: string }) {
+function renderDialog(initialClient?: {
+  id: string;
+  name: string;
+  phone?: string;
+  linked?: boolean;
+}) {
   const onCreated = vi.fn();
   render(
     <ManualBookingDialog
@@ -155,6 +164,149 @@ describe('ManualBookingDialog — the phone crosses as E.164', () => {
   });
 });
 
+/// docs/design/phone-leftovers.md §7 — a PICKED client's number is shown, not
+/// editable here, and crosses as stored. A short number stored before the
+/// national-length rule earns the server's `invalid_phone`, and the sentence
+/// above (« format international ») sends the salon looking for a field this
+/// dialog does not have. The fault is on the client's card: say so, lead there.
+describe('ManualBookingDialog — a picked client whose stored number is refused', () => {
+  const STALE = 'Le numéro enregistré sur la fiche de ce client est invalide.';
+  const REFUSED = {
+    createStatus: 400,
+    createBody: JSON.stringify({ error: 'invalid_phone' }),
+  };
+
+  it('pre-picked (the client card entry): names the card and links to it', async () => {
+    mockFetch(REFUSED);
+    renderDialog({ id: 'sc1', name: 'Koffi', phone: '+22507000001' });
+    fireEvent.click(screen.getByRole('checkbox', { name: /Tresses/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Créer' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      /^Le numéro enregistré sur la fiche de ce client est invalide\.$/,
+    );
+    expect(screen.getByRole('link', { name: 'Ouvrir la fiche' })).toHaveAttribute(
+      'href',
+      '/pro/clients/sc1',
+    );
+    // Not the new-client sentence: there is no field here to fix.
+    expect(screen.queryByText(/format international/)).toBeNull();
+    // The stored number crossed as stored — it is how the server finds them.
+    expect(posted[0].clientPhone).toBe('+22507000001');
+  });
+
+  it('picked from the search: the same sentence, the link to THAT client', async () => {
+    mockFetch({
+      ...REFUSED,
+      clients: [
+        {
+          id: 'sc7',
+          displayName: 'Awa Koné',
+          phone: '+22507000007',
+          tags: [],
+          visits: 1,
+          noShows: 0,
+        },
+      ],
+    });
+    renderDialog();
+    fireEvent.change(screen.getByLabelText('Rechercher ou nommer le client'), {
+      target: { value: 'Awa' },
+    });
+    fireEvent.click(await screen.findByRole('button', { name: /Awa Koné/ }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /Tresses/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Créer' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(STALE);
+    expect(screen.getByRole('link', { name: 'Ouvrir la fiche' })).toHaveAttribute(
+      'href',
+      '/pro/clients/sc7',
+    );
+  });
+
+  it('« Changer » drops the sentence with the client it was about', async () => {
+    mockFetch(REFUSED);
+    renderDialog({ id: 'sc1', name: 'Koffi', phone: '+22507000001' });
+    fireEvent.click(screen.getByRole('checkbox', { name: /Tresses/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Créer' }));
+    await screen.findByText(STALE);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Changer' }));
+    expect(screen.queryByText(STALE)).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Ouvrir la fiche' })).toBeNull();
+  });
+
+  /// A client LINKED to an account: the number on their card is their MyWeli
+  /// account's, read-only on the card (§8). « Ouvrir la fiche » would lead to
+  /// a card the salon cannot correct — the client corrects it, in the app.
+  const ACCOUNT =
+    'Le numéro de ce client est celui de son compte MyWeli : il doit le corriger dans son application.';
+
+  it('pre-picked LINKED client: the number is the account’s — no « Ouvrir la fiche »', async () => {
+    mockFetch(REFUSED);
+    renderDialog({ id: 'sc1', name: 'Koffi', phone: '+22507000001', linked: true });
+    fireEvent.click(screen.getByRole('checkbox', { name: /Tresses/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Créer' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      /^Le numéro de ce client est celui de son compte MyWeli : il doit le corriger dans son application\.$/,
+    );
+    expect(screen.queryByRole('link', { name: 'Ouvrir la fiche' })).toBeNull();
+    expect(screen.queryByText(STALE)).toBeNull();
+  });
+
+  it('picked from the search, LINKED: the same sentence — no link', async () => {
+    mockFetch({
+      ...REFUSED,
+      clients: [
+        {
+          id: 'sc7',
+          displayName: 'Awa Koné',
+          phone: '+22507000007',
+          tags: [],
+          linked: true,
+          visits: 1,
+          noShows: 0,
+        },
+      ],
+    });
+    renderDialog();
+    fireEvent.change(screen.getByLabelText('Rechercher ou nommer le client'), {
+      target: { value: 'Awa' },
+    });
+    fireEvent.click(await screen.findByRole('button', { name: /Awa Koné/ }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /Tresses/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Créer' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(ACCOUNT);
+    expect(screen.queryByRole('link', { name: 'Ouvrir la fiche' })).toBeNull();
+  });
+
+  it('« Changer » drops the account sentence with the client it was about', async () => {
+    mockFetch(REFUSED);
+    renderDialog({ id: 'sc1', name: 'Koffi', phone: '+22507000001', linked: true });
+    fireEvent.click(screen.getByRole('checkbox', { name: /Tresses/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Créer' }));
+    await screen.findByText(ACCOUNT);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Changer' }));
+    expect(screen.queryByText(ACCOUNT)).toBeNull();
+  });
+
+  it('another refusal for a picked client keeps its own sentence — no link', async () => {
+    mockFetch({
+      createStatus: 409,
+      createBody: JSON.stringify({ error: 'slot_unavailable' }),
+    });
+    renderDialog({ id: 'sc1', name: 'Koffi', phone: '+2250700000001' });
+    fireEvent.click(screen.getByRole('checkbox', { name: /Tresses/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Créer' }));
+
+    await screen.findByText('Ce créneau est déjà pris.');
+    expect(screen.queryByRole('link', { name: 'Ouvrir la fiche' })).toBeNull();
+  });
+});
+
 /// The SMS promise is gone (docs/design/amounts-that-fit.md §2 « Web »; the
 /// app's twin guard is `mobile/test/widget/manual_booking_phone_test.dart`).
 ///
@@ -190,7 +342,7 @@ describe('ManualBookingDialog — no SMS promise, and sendSmsInvite is false', (
     // With a phone the old control was ENABLED and ticked: the state a
     // receptionist opening the dialog from a client card saw every time.
     mockFetch();
-    renderDialog({ name: 'Koffi', phone: '+2250700000001' });
+    renderDialog({ id: 'sc1', name: 'Koffi', phone: '+2250700000001' });
     expectNoSmsControl();
   });
 
@@ -215,7 +367,11 @@ describe('ManualBookingDialog — no SMS promise, and sendSmsInvite is false', (
     // phone is known from the first render, so this is the path on which every
     // booking carried `true`.
     mockFetch();
-    const onCreated = renderDialog({ name: 'Koffi', phone: '+2250700000001' });
+    const onCreated = renderDialog({
+      id: 'sc1',
+      name: 'Koffi',
+      phone: '+2250700000001',
+    });
     fireEvent.click(screen.getByRole('checkbox', { name: /Tresses/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Créer' }));
 

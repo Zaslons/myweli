@@ -8,6 +8,7 @@ import { type ReactNode, useEffect, useRef, useState } from 'react';
 import type { ProProfile } from '../../lib/api/pro';
 import { getMyProvider, updateProviderProfile } from '../../lib/api/pro';
 import { useFieldErrors } from '../../lib/forms/useFieldErrors';
+import { PHONE_INVALID } from '../../lib/phone';
 import {
   PROFILE_CATEGORIES,
   type ProfileForm,
@@ -150,7 +151,11 @@ export function ProfilClient() {
     );
     setBusy(false);
     if (!r.ok) {
-      setError('L’enregistrement a échoué. Réessayez.');
+      // The server names WHICH number it refused (docs/design/phone-leftovers.md
+      // §2: two phone fields on one form, so two codes) — under that field.
+      if (r.error === 'invalid_phone') phones.set('phoneNumber', PHONE_INVALID);
+      else if (r.error === 'invalid_whatsapp') phones.set('whatsapp', PHONE_INVALID);
+      else setError('L’enregistrement a échoué. Réessayez.');
       return;
     }
     setSaved(true);

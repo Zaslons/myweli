@@ -110,13 +110,7 @@ class _PhoneNumberFieldState extends State<PhoneNumberField> {
     );
     if (!value.startsWith('+')) return (fallback, value);
     final digits = value.substring(1);
-    var longest = 0;
-    for (final c in countries) {
-      final code = c.fullCountryCode;
-      if (digits.startsWith(code) && code.length > longest) {
-        longest = code.length;
-      }
-    }
+    final longest = PhoneNumbering.callingCodeOf(digits).length;
     if (longest == 0) return (fallback, value);
     final national = digits.substring(longest);
     final matches = [

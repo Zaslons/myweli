@@ -153,13 +153,25 @@ describe('pro deposit form', () => {
     expect(validateDeposit({ ...on, operator: '' })).toMatch(/opérateur/i);
   });
 
-  it('the Mobile Money number (checked under its field): required, +225 = 10 digits', () => {
-    expect(validateDepositNumber('+2250700000000')).toBeNull();
-    expect(validateDepositNumber('+225 07 00 00 00 00')).toBeNull();
-    expect(validateDepositNumber('+2250700000')).toBe(TEN);
-    expect(validateDepositNumber('07')).toBe(INVALID);
-    expect(validateDepositNumber('')).toBe(REQUIRED);
-    expect(validateDepositNumber('+225')).toBe(REQUIRED);
+  it('the Mobile Money number (checked under its field): required with a deposit, +225 = 10 digits', () => {
+    const required = { required: true };
+    expect(validateDepositNumber('+2250700000000', required)).toBeNull();
+    expect(validateDepositNumber('+225 07 00 00 00 00', required)).toBeNull();
+    expect(validateDepositNumber('+2250700000', required)).toBe(TEN);
+    expect(validateDepositNumber('07', required)).toBe(INVALID);
+    expect(validateDepositNumber('', required)).toBe(REQUIRED);
+    expect(validateDepositNumber('+225', required)).toBe(REQUIRED);
+  });
+
+  it('deposits off: the number is optional — but one that is kept is still judged', () => {
+    // docs/design/phone-leftovers.md §6: kept and sent whatever the switch
+    // says, so the same rule holds it; only emptiness is allowed.
+    const optional = { required: false };
+    expect(validateDepositNumber('', optional)).toBeNull();
+    expect(validateDepositNumber('+225', optional)).toBeNull();
+    expect(validateDepositNumber('+2250700000000', optional)).toBeNull();
+    expect(validateDepositNumber('+2250700000', optional)).toBe(TEN);
+    expect(validateDepositNumber('07', optional)).toBe(INVALID);
   });
 
   it('sends the Mobile Money number bare', () => {
@@ -173,7 +185,7 @@ describe('pro deposit form', () => {
     expect(validateDeposit({ required: false, percent: '', windowHours: '24', operator: '', number: '' })).toBeNull();
   });
 
-  it('builds fraction payload; clears MoMo when not required', () => {
+  it('builds fraction payload; KEEPS the MoMo number when not required', () => {
     expect(buildDepositPayload(on)).toEqual({
       depositRequired: true,
       depositPercentage: 0.3,
@@ -181,12 +193,20 @@ describe('pro deposit form', () => {
       mobileMoneyOperator: 'wave',
       mobileMoneyNumber: '+2250700000000',
     });
+    // docs/design/phone-leftovers.md §6 — the app keeps it; the web erased it.
     expect(buildDepositPayload({ ...on, required: false })).toMatchObject({
       depositRequired: false,
       depositPercentage: 0,
       mobileMoneyOperator: null,
-      mobileMoneyNumber: null,
+      mobileMoneyNumber: '+2250700000000',
     });
+    // Empty (or a lone calling code) is no number: null, switch on or off.
+    expect(
+      buildDepositPayload({ ...on, required: false, number: '' }).mobileMoneyNumber,
+    ).toBeNull();
+    expect(
+      buildDepositPayload({ ...on, required: false, number: '+225' }).mobileMoneyNumber,
+    ).toBeNull();
   });
 
   it('depositToForm converts fraction → percent', () => {

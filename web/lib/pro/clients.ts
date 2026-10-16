@@ -45,6 +45,13 @@ export type SalonClientCard = SalonClient & {
   stats: SalonClientStats;
   upcoming?: { id: string; appointmentDate: string; status: string };
   notes: SalonClientNote[];
+  /** The server's word that `PATCH …/clients/{id}` takes a `phone` for this
+   *  card: NOT linked to an account AND it has a number (an erased account's
+   *  card has neither) — docs/design/phone-leftovers.md §11. ABSENT from a
+   *  server older than the number edit, whose PATCH refuses `{ phone }`
+   *  (`invalid_tags`): absent means false, so « Modifier » shows only on
+   *  `=== true`. */
+  phoneEditable?: boolean;
 };
 
 /// The starter presets (module decision §11.1) — always offered first.

@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:dart_frog/dart_frog.dart';
 import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
+import 'package:myweli_backend/src/http/body_fields.dart';
 import 'package:myweli_backend/src/observability/refresh_log.dart';
 import 'package:myweli_backend/src/responses.dart';
 
@@ -20,7 +21,7 @@ Future<Response> onRequest(RequestContext context) async {
     return jsonError(HttpStatus.badRequest, 'invalid_body');
   }
 
-  final token = (body['refreshToken'] as String?)?.trim() ?? '';
+  final token = optionalString(body, 'refreshToken')?.trim() ?? '';
   if (token.isEmpty) {
     return jsonError(HttpStatus.badRequest, 'invalid_body');
   }

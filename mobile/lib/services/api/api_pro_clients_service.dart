@@ -154,6 +154,50 @@ class ApiProClientsService implements ProClientsServiceInterface {
   }
 
   @override
+  Future<ApiResponse<SalonClientPhoneChange>> updatePhone(
+    String providerId,
+    String clientId,
+    String phone,
+  ) async {
+    final res = await _authed.send(
+      (t) => _client.patch(
+        _uri('/providers/$providerId/clients/$clientId'),
+        headers: _bearer(t),
+        body: jsonEncode({'phone': phone}),
+      ),
+    );
+    if (res == null) return _networkError();
+    if (res.statusCode == 200) {
+      return ApiResponse.success(
+        SalonClientPhoneChange.changed(
+          SalonClientCard.fromJson(_decode(res.body)),
+        ),
+        message: 'Numéro mis à jour',
+      );
+    }
+    if (res.statusCode == 409) {
+      Map<String, dynamic>? body;
+      try {
+        body = _decode(res.body);
+      } catch (_) {
+        body = null; // not JSON: `_errorFrom` answers it below
+      }
+      if (body?['error'] == 'client_exists') {
+        // The card that already has the number — the sheet offers it.
+        final id = body!['clientId'];
+        final takenBy = id is String ? id : null;
+        return ApiResponse(
+          success: false,
+          data: takenBy == null ? null : SalonClientPhoneChange.taken(takenBy),
+          error: _messageFor('client_exists'),
+          code: 'client_exists',
+        );
+      }
+    }
+    return _errorFrom(res);
+  }
+
+  @override
   Future<ApiResponse<SalonClientNote>> addNote(
     String providerId,
     String clientId,
@@ -209,6 +253,8 @@ class ApiProClientsService implements ProClientsServiceInterface {
 
   String _messageFor(String? code) => switch (code) {
     'invalid_phone' => 'Numéro invalide.',
+    'client_exists' => 'Ce numéro est déjà sur une autre fiche.',
+    'client_linked' => 'Numéro du compte client.',
     'invalid_tags' => 'Tags invalides (10 max, 24 caractères max).',
     'note_too_long' => 'Note trop longue (500 caractères max).',
     'not_found' => 'Client introuvable.',
