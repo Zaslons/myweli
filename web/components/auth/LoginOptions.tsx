@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import type { Me } from '../../lib/api/account';
+import { NO_CONNECTION_MESSAGE } from '../../lib/api/network';
 import {
   loginWithApple,
   loginWithGoogle,
@@ -146,6 +147,9 @@ export function LoginOptions({ onSuccess }: { onSuccess: () => void }) {
     setError(null);
     const r = await requestEmailOtp(email.trim());
     setBusy(false);
+    // Status 0 = no answer: the e-mail was never judged — not its fault
+    // (docs/design/web-consumer-network-failure.md §3.2).
+    if (r.status === 0) return setError(NO_CONNECTION_MESSAGE);
     if (!r.ok) return setError('E-mail invalide ou envoi impossible.');
     setDevCode(r.devCode);
     setStep('code');
@@ -159,6 +163,9 @@ export function LoginOptions({ onSuccess }: { onSuccess: () => void }) {
     const r = await verifyEmailOtp(email.trim(), code.trim());
     setBusy(false);
     if (!r.ok) {
+      // No answer is nobody's fault but the network's → form-level, and the
+      // code is not accused of a verdict no server gave.
+      if (r.status === 0) return setError(NO_CONNECTION_MESSAGE);
       // « Compte suspendu » is an ACCOUNT state → form-level. A bad code is the
       // code field's fault → under the field (§14 rule 1).
       if (r.error === 'account_suspended') return setError('Compte suspendu.');

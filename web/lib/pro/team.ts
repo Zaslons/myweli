@@ -4,6 +4,7 @@
 /// team_error_messages.dart so copy can never drift between surfaces),
 /// invite validation and roster presentation helpers.
 
+import { NO_CONNECTION_MESSAGE } from '../api/network';
 import type { components } from '../api/schema';
 
 export type Membership = components['schemas']['Membership'];
@@ -105,8 +106,9 @@ export const INVITATION_ACCEPT_FAILED_MESSAGE =
   'Invitation impossible à accepter.';
 /// The app's decline refusal (pro_invitations_screen.dart).
 export const INVITATION_DECLINE_FAILED_MESSAGE = 'Refus impossible.';
-/// The app's no-network sentence (every api_*_service.dart).
-export const NO_CONNECTION_MESSAGE = 'Pas de connexion. Réessayez.';
+/// The app's no-network sentence (every api_*_service.dart) — one copy for
+/// the whole web, in the network layer (web-consumer-network-failure.md §2).
+export { NO_CONNECTION_MESSAGE };
 
 /// A logout whose response did not come back OK, in the person's words: the
 /// app's no-network sentence, or the shared generic one.
