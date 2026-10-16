@@ -84,6 +84,28 @@ web/
 - Reads for public pages run server-side (RSC/route handlers); writes
   (booking/auth) call the existing hardened API endpoints — reuse their
   validation/authz/notifications; never reimplement business logic on web.
+- **A browser → BFF wrapper never throws — consumer side too**
+  (`lib/api/account.ts`, `lib/auth/client.ts`, `lib/booking/client.ts`,
+  `lib/booking/deposit.ts`, `lib/account/review-photos.ts`). They call
+  `send()` / `readJson()` from **`lib/api/network.ts`**, never a bare
+  `fetch`: a request that got no usable answer — no network, a connection
+  cut mid-body, a 2xx whose body is not JSON — is **status 0** (`ok: false`
+  for a write; a write whose 2xx body is lost stays `ok`, without its
+  payload), so the « not 200 » branch every page already has is its error
+  state with « Réessayer ». A read never turns an unreadable body into an
+  empty list. **A caller that branches on « not 200 » must name the statuses
+  that mean something** (404/403 = « introuvable », 401 = « not signed in »)
+  and send every other one, 0 included, to its error state — the detail page
+  told a client offline that their booking did not exist, the booking funnel
+  showed them the login form, « Mes données » exported « 0 rendez-vous ».
+  Copy that judges the person's input (« Code incorrect », « Vérifiez
+  l'image ») is never shown for status 0: say `NO_CONNECTION_MESSAGE`
+  (« Pas de connexion. Réessayez. », the app's sentence). A logout leaves the
+  page on `'ok'` alone — its httpOnly cookies are cleared only by the BFF's
+  response. Every export is held by `tests/consumer-api-network.test.ts` (a
+  new wrapper must join its table). The Pro twin is `lib/api/pro.ts`
+  ([design/web-pro-network-failure.md](design/web-pro-network-failure.md)).
+  Design: [design/web-consumer-network-failure.md](design/web-consumer-network-failure.md).
 - Lists use the API's `{items,page,pageSize,total}` pagination.
 - **Market data & salon time (multi-pays MP3 — live)** — geography, operator
   catalogs, currency and timezone are **DATA from `GET /localities`**:
