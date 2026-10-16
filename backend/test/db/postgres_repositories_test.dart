@@ -1509,6 +1509,36 @@ void main() {
       },
     );
 
+    test(
+      'list: rows tied on both sort keys come back in id order, so a page '
+      'walk sees each exactly once (web-pro-export-completeness.md §5)',
+      () async {
+        // One statement, one now(): the 0024 backfill's shape — the same
+        // created_at, and no completed visit (NULL last_visit_at). Inserted
+        // out of id order, so the heap order is not the answer by luck.
+        await pool.execute(
+          'INSERT INTO salon_clients '
+          '(id, provider_id, user_id, display_name, phone) VALUES '
+          "('t5', 'provider1', NULL, 'E', NULL), "
+          "('t3', 'provider1', NULL, 'C', NULL), "
+          "('t1', 'provider1', NULL, 'A', NULL), "
+          "('t4', 'provider1', NULL, 'D', NULL), "
+          "('t2', 'provider1', NULL, 'B', NULL)",
+        );
+
+        final walked = <String>[];
+        for (var page = 1; page <= 3; page++) {
+          final r = await clients.list('provider1', page: page, pageSize: 2);
+          expect(r.total, 5);
+          walked.addAll(r.items.map((c) => c['id'] as String));
+        }
+        expect(walked, ['t1', 't2', 't3', 't4', 't5']);
+
+        final whole = await clients.list('provider1', page: 1, pageSize: 50);
+        expect(whole.items.map((c) => c['id']), walked);
+      },
+    );
+
     test('tags update, notes CRUD, anonymize (T48)', () async {
       await clients.create(
         clientMap(id: 'n1', userId: 'uX', phone: '+2250700000002'),

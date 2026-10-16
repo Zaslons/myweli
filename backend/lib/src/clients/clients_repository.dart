@@ -38,7 +38,12 @@ typedef GuestPhoneChange = ({
 /// (docs/modules/clients.md — "derived, not entered"): [upsertFromBooking]
 /// keeps the base fresh; the 0024 migration backfills history.
 abstract interface class ClientsRepository {
-  /// Paginated salon-scoped list, `last_visit_at DESC NULLS LAST`.
+  /// Paginated salon-scoped list, `last_visit_at DESC NULLS LAST`, then
+  /// `created_at DESC`, then `id`. The last key makes the order TOTAL: rows
+  /// tied on the first two (the 0024 backfill created many in one
+  /// transaction) otherwise come back in any order on each page, so a walk
+  /// repeats one and skips another (docs/design/web-pro-export-completeness.md
+  /// §5).
   /// [query] matches the display name (case-insensitive substring) or the
   /// phone (digit-suffix); [tag] filters exact.
   Future<({List<Map<String, dynamic>> items, int total})> list(
@@ -166,10 +171,16 @@ class InMemoryClientsRepository implements ClientsRepository {
         }).toList()..sort((a, b) {
           final la = a['lastVisitAt'] as String?;
           final lb = b['lastVisitAt'] as String?;
-          if (la == null && lb == null) return 0;
-          if (la == null) return 1; // NULLS LAST
-          if (lb == null) return -1;
-          return lb.compareTo(la);
+          if (la != lb) {
+            if (la == null) return 1; // NULLS LAST
+            if (lb == null) return -1;
+            return lb.compareTo(la);
+          }
+          final byCreated = (b['createdAt'] as String? ?? '').compareTo(
+            a['createdAt'] as String? ?? '',
+          );
+          if (byCreated != 0) return byCreated;
+          return (a['id'] as String).compareTo(b['id'] as String);
         });
     final start = (page - 1) * pageSize;
     final items = start >= filtered.length
