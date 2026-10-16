@@ -158,20 +158,26 @@ export async function getNotifications(): Promise<{
   return body ? { status: 200, items: body.items ?? [] } : { status: 0, items: [] };
 }
 
+/// Both carry their status: the caller puts the notification back to unread
+/// and tells « no network » from a refusal
+/// (docs/design/web-consumer-optimistic-revert.md §3.3).
 export async function markNotificationRead(
   id: string,
-): Promise<{ ok: boolean }> {
+): Promise<{ ok: boolean; status: number }> {
   const res = await send(`/api/me/notifications/${id}/read`, {
     method: 'POST',
   });
-  return { ok: res.ok };
+  return { ok: res.ok, status: res.status };
 }
 
-export async function markAllNotificationsRead(): Promise<{ ok: boolean }> {
+export async function markAllNotificationsRead(): Promise<{
+  ok: boolean;
+  status: number;
+}> {
   const res = await send('/api/me/notifications/read-all', {
     method: 'POST',
   });
-  return { ok: res.ok };
+  return { ok: res.ok, status: res.status };
 }
 
 export async function getNotificationPrefs(): Promise<{

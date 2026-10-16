@@ -16,6 +16,7 @@ import {
   removeFavorite,
 } from '../../lib/api/account';
 import { HomeSearch } from '../home/HomeSearch';
+import { writeFailureMessage } from '../../lib/api/network';
 import { ProviderCard } from '../provider/ProviderCard';
 
 // Leaflet is browser-only → client-side dynamic import; the chunk loads only
@@ -75,6 +76,9 @@ export function RechercheClient({
   // The window is small locally and real on a slow connection; it is also what
   // made `account.spec.ts`'s heart assertion flaky in CI.
   const [favLoaded, setFavLoaded] = useState(false);
+  // A heart the server refused: the sentence under that card only
+  // (docs/design/web-consumer-optimistic-revert.md §3.2 ⑤).
+  const [favErrors, setFavErrors] = useState<Record<string, string | undefined>>({});
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [mobileView, setMobileView] = useState<'list' | 'map'>('list');
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
@@ -106,17 +110,32 @@ export function RechercheClient({
     };
   }, []);
 
+  function toLogin() {
+    const back = `${window.location.pathname}${window.location.search}`;
+    window.location.assign(`/connexion?returnTo=${encodeURIComponent(back)}`);
+  }
+
+  /// Like the app's heart, it waits for the server. A refusal keeps the heart
+  /// and says why under the card; a 401 (the session ended after the probe)
+  /// is the anonymous visitor's way out.
   async function toggleFavorite(id: string) {
     // Unknown is not the same as anonymous.
     if (!favLoaded) return;
     if (favIds === null) {
-      const back = `${window.location.pathname}${window.location.search}`;
-      window.location.assign(`/connexion?returnTo=${encodeURIComponent(back)}`);
+      toLogin();
       return;
     }
     const isFav = favIds.has(id);
+    setFavErrors((e) => ({ ...e, [id]: undefined }));
     const r = isFav ? await removeFavorite(id) : await addFavorite(id);
-    if (!r.ok) return;
+    if (r.status === 401) {
+      toLogin();
+      return;
+    }
+    if (!r.ok) {
+      setFavErrors((e) => ({ ...e, [id]: writeFailureMessage(r.status) }));
+      return;
+    }
     setFavIds((cur) => {
       const next = new Set(cur);
       if (isFav) next.delete(id);
@@ -254,6 +273,11 @@ export function RechercheClient({
                   onToggleFavorite={() => toggleFavorite(p.id)}
                   favoriteBusy={!favLoaded}
                 />
+                {favErrors[p.id] ? (
+                  <p role="alert" className="mt-xs text-bodyMedium text-error">
+                    {favErrors[p.id]}
+                  </p>
+                ) : null}
               </div>
             ))
           )}
