@@ -280,6 +280,7 @@ void main() {
 
   testWidgets('offline: the card says the salon could not be loaded, and '
       '« Réessayer » brings it once the network is back', (tester) async {
+    final semantics = tester.ensureSemantics();
     tallSurface(tester);
     await ownerSwitchedTo(tester, 'provider2');
     pro.myProviderAnswer = ApiResponse.error(
@@ -309,11 +310,18 @@ void main() {
 
     pro.myProviderAnswer = null; // the network is back
     await tester.tap(find.text('Réessayer'));
+    await tester.pump();
+    // The retry is in flight: the loading shape, not the same sentence.
+    expect(
+      find.bySemanticsLabel('Chargement des informations du salon'),
+      findsOneWidget,
+    );
     await settleMocks(tester, rounds: 2);
 
     expect(find.text('Marcory, Zone 4'), findsOneWidget);
     expect(find.text('Réessayer'), findsNothing);
     expectNoAccountFacts();
+    semantics.dispose();
   });
 
   testWidgets('« Équipe » after a switch: the revoke confirmation names the '
