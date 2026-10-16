@@ -8,6 +8,7 @@ import '../../models/appointment.dart';
 import '../../models/pro_membership.dart';
 import '../../models/provider_login_result.dart';
 import '../../models/provider_user.dart';
+import '../../models/salon_market.dart';
 import '../../models/session.dart';
 import '../../models/team_invitation.dart';
 import '../../models/team_member.dart';
@@ -721,6 +722,18 @@ class MockAuthService implements AuthServiceInterface {
   Future<ProMembership?> getCachedProviderMembership() async =>
       _cachedMembership;
 
+  SalonMarket? _cachedSalonMarket;
+
+  @override
+  Future<void> cacheProviderSalonMarket(SalonMarket? market) async {
+    if (_currentProvider == null) return;
+    _cachedSalonMarket = market;
+  }
+
+  @override
+  Future<SalonMarket?> getCachedProviderSalonMarket() async =>
+      _cachedSalonMarket;
+
   /// R6: the mock's in-memory salon selection (persistence-parity with the
   /// API session store for the life of the process).
   String? _selectedSalonId;
@@ -743,6 +756,7 @@ class MockAuthService implements AuthServiceInterface {
   @override
   Future<void> logoutProvider() async {
     _cachedMembership = null;
+    _cachedSalonMarket = null;
     _selectedSalonId = null;
     await Future.delayed(const Duration(milliseconds: 100));
     _currentProvider = null;

@@ -43,6 +43,7 @@ import 'screens/update/update_required_app.dart';
 import 'services/push/fcm_message_bridge.dart';
 import 'widgets/common/content_width_cap.dart';
 import 'widgets/common/default_status_bar_style.dart';
+import 'widgets/provider/pro_salon_gate.dart';
 
 void main() {
   // Run inside a guarded zone so framework errors and uncaught async errors
@@ -249,8 +250,17 @@ class MyweliProApp extends StatelessWidget {
           // Outside it, the status bar's default for screens without an
           // AppBar — or a cover's light icons outlive the cover after back
           // (DefaultStatusBarStyle; salon-cover-photo.md §2.1).
+          //
+          // Inside both, no Pro page renders on a salon the app does not know
+          // (ProSalonGate; docs/design/pro-app-salon-not-loaded.md) — above
+          // the Router, so a tapped notification's page waits like the rest.
           builder: (context, child) => DefaultStatusBarStyle(
-            child: ContentWidthCap(child: child ?? const SizedBox.shrink()),
+            child: ContentWidthCap(
+              child: ProSalonGate(
+                router: ProRouter.router,
+                child: child ?? const SizedBox.shrink(),
+              ),
+            ),
           ),
           routerConfig: ProRouter.router,
         ),

@@ -13,10 +13,12 @@ import '../models/provider.dart';
 import '../models/provider_login_result.dart';
 import '../models/provider_session.dart';
 import '../models/provider_user.dart';
+import '../models/salon_market.dart';
 import '../models/salon_membership_info.dart';
 import '../models/team_invitation.dart';
 import '../models/team_member.dart';
 import '../services/interfaces/auth_service_interface.dart';
+import '../services/interfaces/pro_service_interface.dart';
 
 class ProAuthProvider extends ChangeNotifier {
   final AuthServiceInterface _authService = serviceLocator.authService;
@@ -45,19 +47,84 @@ class ProAuthProvider extends ChangeNotifier {
 
   /// The acting salon's payload from GET /me/provider — the carrier of its
   /// server-derived market facts (multi-pays-end-version.md §3–5). Refreshed
-  /// with the membership on every probe AND on every salon switch.
+  /// with the membership on every probe AND on every salon switch. Live only:
+  /// null after a cold start whose refresh failed.
   Provider? _activeSalon;
   Provider? get activeSalon => _activeSalon;
 
+  /// The salon's market facts — from the live payload, or restored from the
+  /// session at cold start (docs/design/pro-app-salon-not-loaded.md §3.1).
+  SalonMarket? _market;
+
+  /// [_market] while it is the facts of the salon the session ACTS in — never
+  /// another's: after an R6 fallback whose refetch failed, the facts are
+  /// still the lost selection's, and its clock is not this salon's.
+  SalonMarket? get _actingMarket {
+    final market = _market;
+    return market != null && market.salonId == activeSalonId ? market : null;
+  }
+
+  /// The acting salon's market facts are known. A known salon whose
+  /// [salonTimezone] is null IS on Abidjan — the server's own default; an
+  /// unknown one is never guessed (pro-app-salon-not-loaded.md §2).
+  bool get salonKnown => _actingMarket != null;
+
+  /// Signed in, off the rejoin gate (which holds a session with no salon on
+  /// purpose and shows no hour), and the salon unknown: no Pro page may
+  /// render — `ProSalonGate` stands in for them (§3.2).
+  bool get needsSalon => isAuthenticated && !_rejoinPending && !salonKnown;
+
+  /// The stored session is not read yet, or the membership refresh is out
+  /// (the cold start's, a sign-in's, « Réessayer »): the gate waits rather
+  /// than says it failed. A guard probe is not counted — with the gate up no
+  /// page is built, so nothing can start one.
+  bool get salonLoading => !sessionRestored || _membershipRefresh != null;
+
   /// IANA timezone every pro time-display/day-boundary call site passes into
-  /// the salon_time helpers (null → the Abidjan fallback).
-  String? get salonTimezone => _activeSalon?.timezone;
+  /// the salon_time helpers. Null → the Abidjan fallback, which is right only
+  /// for a KNOWN salon ([salonKnown]); `ProSalonGate` keeps every page off
+  /// screen otherwise.
+  String? get salonTimezone => _actingMarket?.timezone;
 
   /// ISO-4217 currency every pro money call site passes into the formatters.
-  String? get salonCurrency => _activeSalon?.currency;
+  String? get salonCurrency => _actingMarket?.currency;
 
-  String? get salonCountryCode => _activeSalon?.countryCode;
-  String? get salonAreaId => _activeSalon?.areaId;
+  String? get salonCountryCode => _actingMarket?.countryCode;
+  String? get salonAreaId => _actingMarket?.areaId;
+
+  /// Takes the shape GET /me/provider answered — the membership, the salon,
+  /// its market facts — then caches it for the next cold start. The ONE
+  /// place a /me answer lands, so no path can take the salon and forget its
+  /// facts.
+  Future<void> _takeShape(MyProviderInfo info) async {
+    _applyShape(info);
+    await _cacheShape();
+  }
+
+  /// The fields alone, with no await: no frame sees the membership of one
+  /// salon with the facts of another.
+  void _applyShape(MyProviderInfo info) {
+    _membership = info.membership;
+    _activeSalon = info.salon;
+    _market = SalonMarket.of(info.salon);
+  }
+
+  /// One write after the other: each read-modify-writes the same session
+  /// blob, and two in flight at once would lose one of them.
+  Future<void> _cacheShape() async {
+    await _authService.cacheProviderMembership(_membership);
+    await _authService.cacheProviderSalonMarket(_market);
+  }
+
+  /// « Réessayer » on the gate: one more GET /me/provider. Notifies at the
+  /// start (the gate shows the wait) and at the end — a failed refresh
+  /// notifies nothing on its own.
+  Future<void> retrySalon() async {
+    final refresh = refreshMembership();
+    notifyListeners();
+    await refresh;
+    notifyListeners();
+  }
 
   // ---- Multi-salons (team access R6) ----------------------------------------
 
@@ -112,11 +179,13 @@ class ProAuthProvider extends ChangeNotifier {
         salonId: salonId,
       );
       if (res.success && res.data != null) {
+        // The selection and the salon's shape move together, before any
+        // await — a frame between them would see the new salon with the old
+        // salon's clock.
         _selectedSalonId = salonId;
+        _applyShape(res.data!);
         await _authService.setSelectedProviderSalon(salonId);
-        _membership = res.data!.membership;
-        _activeSalon = res.data!.salon;
-        await _authService.cacheProviderMembership(_membership);
+        await _cacheShape();
         ProSalonScope.resetAll();
         return true;
       }
@@ -242,9 +311,7 @@ class ProAuthProvider extends ChangeNotifier {
         res = await serviceLocator.proService.getMyProvider();
       }
       if (res.success && res.data != null) {
-        _membership = res.data!.membership;
-        _activeSalon = res.data!.salon;
-        await _authService.cacheProviderMembership(_membership);
+        await _takeShape(res.data!);
         notifyListeners();
       } else if (res.code == 'not_a_member') {
         await _onNotAMember();
@@ -266,12 +333,14 @@ class ProAuthProvider extends ChangeNotifier {
   Future<void> checkMembershipAlive() async {
     if (_provider == null || _probing || _rejoinPending || _accepting) return;
     _probing = true;
+    var fellBack = false;
     try {
       var res = await serviceLocator.proService.getMyProvider();
       if (!res.success && res.code == 'forbidden' && _selectedSalonId != null) {
         // R6: revoked from the SELECTED salon only — fall back to the
         // default salon and reshape; the session survives.
         await _clearSalonSelection();
+        fellBack = true;
         res = await serviceLocator.proService.getMyProvider();
         if (res.success && res.data != null) {
           ProSalonScope.resetAll();
@@ -281,15 +350,18 @@ class ProAuthProvider extends ChangeNotifier {
       if (res.code == 'not_a_member') {
         await _onNotAMember();
       } else if (res.success && res.data != null) {
-        _membership = res.data!.membership;
-        _activeSalon = res.data!.salon;
-        await _authService.cacheProviderMembership(_membership);
+        await _takeShape(res.data!);
         notifyListeners();
+        fellBack = false; // notified
       }
     } catch (_) {
       /* transient — the next action retries */
     } finally {
       _probing = false;
+      // The selection fell back and the default salon did not answer: the
+      // session now acts in a salon it does not know — the gate must learn
+      // it, though nothing else changed on screen.
+      if (fellBack) notifyListeners();
     }
   }
 
@@ -392,9 +464,7 @@ class ProAuthProvider extends ChangeNotifier {
     try {
       final res = await serviceLocator.proService.getMyProvider();
       if (!res.success || res.data == null || _provider == null) return false;
-      _membership = res.data!.membership;
-      _activeSalon = res.data!.salon;
-      await _authService.cacheProviderMembership(_membership);
+      await _takeShape(res.data!);
       ProSalonScope.resetAll();
       unawaited(loadMySalons());
       notifyListeners();
@@ -424,6 +494,7 @@ class ProAuthProvider extends ChangeNotifier {
     _rejoinLostSalon = (lostSalon?.isNotEmpty ?? false) ? lostSalon : null;
     _membership = null;
     _activeSalon = null;
+    _market = null;
     _salons = const [];
     _canAddSalon = false;
     // No store's reset reloads anything, so the selection cleared just
@@ -431,6 +502,7 @@ class ProAuthProvider extends ChangeNotifier {
     ProSalonScope.resetAll();
     try {
       await _authService.cacheProviderMembership(null);
+      await _authService.cacheProviderSalonMarket(null);
     } catch (_) {
       /* best-effort — the next refresh overwrites it */
     }
@@ -585,6 +657,10 @@ class ProAuthProvider extends ChangeNotifier {
   /// for (pro-open-animation.md §2.3). Once, for the constructor's load.
   Future<void> get restored => _restored.future;
 
+  /// [restored], synchronously: before it, « signed out » only means « not
+  /// read yet », and `ProSalonGate` waits rather than let a page build.
+  bool get sessionRestored => _restored.isCompleted;
+
   void _markRestored() {
     if (!_restored.isCompleted) _restored.complete();
   }
@@ -613,8 +689,14 @@ class ProAuthProvider extends ChangeNotifier {
         // then a live refresh (which also catches an offline revocation —
         // R4b — and validates the selection, falling back on a 403).
         _membership = await _authService.getCachedProviderMembership();
+        // The salon's clock with it — so a refresh that fails below still
+        // leaves the salon known (pro-app-salon-not-loaded.md §3.1).
+        _market = await _authService.getCachedProviderSalonMarket();
         _selectedSalonId = await _authService.getSelectedProviderSalon();
         _markRestored();
+        // The stored shape is read: the first frame may take it now, before
+        // the refresh below — the salon's clock included.
+        notifyListeners();
         _syncPush();
         await refreshMembership();
         unawaited(loadMySalons());
@@ -970,6 +1052,7 @@ class ProAuthProvider extends ChangeNotifier {
       _provider = null;
       _membership = null;
       _activeSalon = null;
+      _market = null;
       _selectedSalonId = null;
       _salons = const [];
       _canAddSalon = false;
