@@ -3,6 +3,7 @@ import '../../core/di/dependency_injection.dart';
 import '../../core/utils/app_clock.dart';
 import '../../core/utils/team_error_messages.dart';
 import '../../models/api_response.dart';
+import '../../models/provider_session.dart';
 import '../../models/team_invitation.dart';
 import '../../models/team_member.dart';
 import '../interfaces/pro_team_service_interface.dart';
@@ -49,14 +50,18 @@ class MockProTeamService implements ProTeamServiceInterface {
   final int maxInvitesPerDay;
   int _invitesToday = 0;
 
-  /// The acting salon (R6): selection → linked salon → 'provider1'.
+  /// The acting salon — the same rule as ProAuthProvider.activeSalonId
+  /// (selection → the account's own salon → the membership's), else the
+  /// seeded salon (docs/design/services-acting-salon.md).
   Future<String> _providerId() async {
     try {
       final auth = serviceLocator.authService;
-      final selected = await auth.getSelectedProviderSalon();
-      if (selected != null && selected.isNotEmpty) return selected;
-      final account = await auth.getCurrentProvider();
-      if (account?.providerId != null) return account!.providerId!;
+      final acting = resolveActingSalonId(
+        selected: await auth.getSelectedProviderSalon(),
+        linked: (await auth.getCurrentProvider())?.providerId,
+        membership: (await auth.getCachedProviderMembership())?.salonId,
+      );
+      if (acting != null) return acting;
     } catch (_) {
       /* locator not wired (isolated tests) → the seeded salon */
     }

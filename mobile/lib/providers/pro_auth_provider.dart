@@ -11,6 +11,7 @@ import '../models/api_response.dart';
 import '../models/pro_membership.dart';
 import '../models/provider.dart';
 import '../models/provider_login_result.dart';
+import '../models/provider_session.dart';
 import '../models/provider_user.dart';
 import '../models/salon_membership_info.dart';
 import '../models/team_invitation.dart';
@@ -185,9 +186,14 @@ class ProAuthProvider extends ChangeNotifier {
 
   /// The salon the session acts in: the switched-to salon first (R6), then
   /// the owner's linked salon, else the membership's. Screens use THIS
-  /// (never `provider.id` — an account id is not a salon id).
-  String? get activeSalonId =>
-      _selectedSalonId ?? _provider?.providerId ?? _membership?.salonId;
+  /// (never `provider.id` — an account id is not a salon id). The services
+  /// that read the salon from the session resolve it by the same function
+  /// (docs/design/services-acting-salon.md).
+  String? get activeSalonId => resolveActingSalonId(
+    selected: _selectedSalonId,
+    linked: _provider?.providerId,
+    membership: _membership?.salonId,
+  );
 
   /// The acting salon's name: the membership's (cached in the session, so
   /// known at cold start; the salon payload arrives in the same response, so
