@@ -426,4 +426,16 @@ void main() {
     final retry = tester.getRect(find.text('Réessayer'));
     expect(retry.bottom, lessThanOrEqualTo(780));
   });
+
+  testWidgets('after a switch, every read is for the switched-to salon (R6)', (
+    tester,
+  ) async {
+    await pumpExport(tester, switchTo: 'provider2');
+
+    final export = await copyExport(tester);
+    expect((export['salon'] as Map)['id'], 'provider2');
+    expect(pro.servicesAsked, ['provider2']);
+    expect(artists.asked, ['provider2']);
+    expect(clients.asked.map((a) => a.salon).toSet(), {'provider2'});
+  });
 }

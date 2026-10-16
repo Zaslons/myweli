@@ -58,7 +58,10 @@ class _ProDataExportScreenState extends State<ProDataExportScreen> {
     });
     final auth = context.read<ProAuthProvider>();
     final account = auth.provider;
-    final salonId = account?.providerId ?? account?.id;
+    // The acting salon (R6), as on every pro screen: after a switch the
+    // catalogue, team and clients are the switched-to salon's — like the
+    // salon and bookings reads, which follow the session's selection.
+    final salonId = auth.activeSalonId;
     if (account == null || salonId == null) {
       setState(() {
         _loading = false;
