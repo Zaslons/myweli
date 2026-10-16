@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Approuvé le 2026-10-16** (propriétaire : « merge 615, then fix the web Acompte gap » ; sur le 0 % de l'app : « Fix both, propose 30% ») |
+| **Statut** | **Approuvé le 2026-10-16** (propriétaire : « merge 615, then fix the web Acompte gap » ; sur le 0 % de l'app : « Fix both, propose 30% ») — **construit le même jour** sur `fix/acompte-parity` ; §8 dit ce qui a été construit autrement ou en plus |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-16 |
 | **PRD ref / phase** | Protection anti-no-show (acompte Pro) · V1 — partie [pro-deposit-policy.md](pro-deposit-policy.md) |
@@ -141,3 +141,51 @@ acomptes. Un pourcentage effacé devient sans effet avec la décision 2.
 - **Opérateur retiré du catalogue du pays** : le serveur refuse tout
   l'enregistrement (`invalid_input`), acomptes activés ou non, sur les deux
   surfaces.
+- **Un pourcentage sous 1 % écrit par un autre client** (le serveur accepte
+  tout ce qui est > 0) : le web l'affiche tel quel (« 0.4 ») et le refuse
+  acomptes activés ; l'app le garde, son libellé dit « 0 % » et le curseur
+  est dessiné à 5 %. Aucun des deux formulaires ne peut plus l'écrire.
+- **L'étape « Acompte » de l'accueil Pro** (`pro_onboarding_provider.dart`) se
+  coche dès que `GET deposit-policy` répond — donc pour tout salon, même
+  neuf, à 0 % et acomptes désactivés.
+- **Le mock de l'app ne sert jamais un 0 stocké** (le modèle `Provider` met
+  0.30 par défaut) : le mode mock et la golden ne montrent pas D2.
+- **Le même défaut que D3, ailleurs** : un relevé en lecture seule a trouvé
+  14 autres écrans web Pro qui restent en chargement pour toujours sur une
+  coupure réseau (les lectures de `lib/api/pro.ts` appellent `fetch` sans
+  l'attraper) — aucun n'écrase de données ; et deux défauts voisins (le
+  détail d'un rendez-vous Pro reprogramme au fuseau d'Abidjan quand
+  `/api/pro/me` échoue ; l'export du compte livre une section vide, sans le
+  dire, quand une lecture échoue). Proposés comme tâches à part.
+
+## 8. Construit — ce qui diffère de ce qui était écrit
+
+La revue adverse de chaque moitié a trouvé, sur le même écran :
+
+- **Le plancher de 1 %** : la règle du champ acceptait tout ce qui est > 0
+  alors que son message dit « 1–100 % ». « 0.4 » était enregistré (0.004),
+  relu « 0 » et refusé : le web ne pouvait plus réenregistrer une politique
+  qu'il avait écrite. La règle exige maintenant ≥ 1, comme le message.
+- **Un pourcentage choisi est relu au centième, pas arrondi** : avec la
+  décision 1, un enregistrement acomptes désactivés renvoie le champ, et
+  l'arrondi réécrivait une politique que personne n'avait touchée (0.125 relu
+  « 13 », renvoyé 0.13). 0.6499999999999999 (ce qu'écrit le curseur de
+  l'app) se lit « 65 ».
+- **D4 — un enregistrement sans réseau** : `save()` n'attrapait pas le `fetch`
+  qui lève ; « Enregistrer » restait désactivé pour toujours. C'est
+  maintenant un échec comme un autre : « L’enregistrement a échoué.
+  Réessayez. » et le bouton revient.
+- **Le repli** est le dernier pourcentage chargé ou **accepté** par le serveur
+  — jamais une valeur refusée, jamais le 30 proposé (un salon qui n'a jamais
+  choisi renvoie son 0).
+- **App** : aucun changement de code au-delà de la décision 2 ; un test
+  épingle ce que D3 prend pour référence (une lecture qui lève →
+  `loadFailed`). Le test de chargement d'un 0 part d'une valeur qui n'est pas
+  30 — sinon « laissé tel quel » et « propose 30 % » se confondaient.
+
+**Vu rouge** : chaque test nouveau ou modifié contre le code d'avant (ou,
+pour ceux qui épinglent un comportement déjà là, sous une mutation ciblée) ;
+mutations de la passe finale : 9 sur 9 rattrapées (6 web, 3 app). L'e2e
+« acompte : désactivé, enregistré, rechargé, réactivé » : vert sur la branche
+(`pro.spec.ts` 28/28), rouge quand on remet le D1 d'origine (« 45 » attendu,
+« 30 » reçu — le 0 effacé, relu comme « pas encore choisi »).
