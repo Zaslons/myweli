@@ -298,9 +298,10 @@ des stores (le sélecteur seul). Rien côté serveur.
   les autres pages ; et son test « un `/me` 200 au corps `null` » attend « Pas
   de connexion. Réessayez. » : un corps `null` est le statut 0 depuis #619
   (`readJson`). Deux mutations de plus, rattrapées (le garde remis à
-  `'failed'`, l'état d'erreur sans `message`) ;
+  `'failed'`, l'état d'erreur sans `message`) ; sur `main` : 1436 sur 1436 ;
   `tsc` et le lint propres ; `next build` passe contre l'API bouchon de la CI.
-  **App** : `flutter test --exclude-tags golden` — 2261 sur 2261, 52 sautés
+  **App** : `flutter test --exclude-tags golden` — 2261 sur 2261 (2320 sur 2320
+  rebasé sur `main`), 52 sautés
   (les goldens, faits sur Linux : la CI les lance ; aucun ne montre la feuille
   en échec) ; `flutter analyze` : 0.
   Non lancés en local : l'e2e Playwright, Lighthouse, les goldens (la CI).
