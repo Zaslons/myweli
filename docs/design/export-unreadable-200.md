@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Approuvé le 2026-10-16** (propriétaire : « first fix the minor gap » — l'écart noté au landing de #621 : un 200 sans sa liste lu comme une liste vide) |
+| **Statut** | **Approuvé le 2026-10-16** (propriétaire : « first fix the minor gap » — l'écart noté au landing de #621 : un 200 sans sa liste lu comme une liste vide) — **construit le même jour** sur `fix/export-unreadable-200` ; §7 dit ce qui a été construit autrement qu'écrit (la décision 1 ne vaut que pour une **lecture**) |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-16 |
 | **PRD ref / phase** | FR-AUTH-005 « Mes données » · export du salon (R5 §6, T39) · V1 |
@@ -48,9 +48,13 @@ erreur) ; le parcours clients du web (garde `pageSize` + `wholeClientBase`).
 
 ## 2. Décisions
 
-1. **Les BFF ne fabriquent plus un 200.** Une réponse 2xx du serveur dont le
-   corps ne se lit pas (hors 204, qui n'a pas de corps et reste un 204)
-   devient **502 `{ "error": "bad_gateway" }`**. Le navigateur reçoit un
+1. **Les BFF ne fabriquent plus un 200 pour une lecture.** Une réponse 2xx
+   du serveur à une **lecture** (GET) dont le corps ne se lit pas (hors 204,
+   qui n'a pas de corps et reste un 204) devient **502
+   `{ "error": "bad_gateway" }`**. Une **écriture** garde son 2xx, avec `{}` :
+   le serveur a agi, et la règle de #620 tient — « une écriture reste ok sans
+   son contenu » ; la lui faire perdre ferait réessayer une réservation
+   enregistrée jusqu'au 409 sur le propre créneau du client (§7). Le navigateur reçoit un
    échec, que tous les écrans traitent déjà comme tel (#619/#620 : tout sauf
    200 est une erreur). Les réponses d'erreur gardent leur statut (leur corps
    illisible reste `{}`, comme aujourd'hui). Les routes BFF qui remodèlent un
@@ -104,8 +108,51 @@ partagent ces lectures montrent leur état d'erreur avec « Réessayer ».
   [pro-account-deletion-export.md](pro-account-deletion-export.md) les liste
   pour les deux surfaces — un écart de parité, pas ce défaut.
 - Un favori dont le salon n'existe plus disparaît de l'export (choix de
-  `FavoritesService.list`).
+  `FavoritesService.list`) ; un test garde que ce cas (plus d'ids que de
+  salons) reste une réponse lue.
+- Le refus de l'export web du salon après une erreur d'assemblage nomme les
+  trois lectures, alors qu'elles ont réussi — un texte dédié (« le fichier
+  n'a pas pu être assemblé ») demanderait une phrase nouvelle.
+- « Mes données » (web) construit son document au rendu : une liste dont un
+  élément est malformé (`items: [null]`) ferait tomber la page sur sa
+  frontière d'erreur au lieu du refus — les gardes ferment la liste absente,
+  pas un élément cassé.
 
 ## 6. Déploiement
 
 Web au merge (Vercel). App au prochain build. Serveur : rien.
+
+## 7. Construit — ce qui diffère de ce qui était écrit
+
+- **Une lecture seulement** (décision 1 amendée) : écrite telle quelle, la
+  règle valait pour toute réponse 2xx, écritures comprises. La revue l'a
+  vu : un `POST /appointments` 201 enregistré mais dont le corps se perd
+  serait annoncé comme un échec, et le client réessaierait jusqu'au 409 sur
+  son propre créneau — l'inverse de la règle de #620 pour les écritures.
+  `lostBodyIsBadGateway` (une seule règle pour les deux BFF) ne rend un 502
+  que pour un GET ; un POST, PATCH, PUT ou DELETE garde son statut, `{}`
+  pour corps.
+- **La lecture des clients de l'app répond « Erreur »** au lieu de laisser
+  passer l'exception : `SalonClientsPage.fromJson` refuse une page sans
+  `items` ou sans `total`, et `ApiProClientsService.listClients` en fait —
+  comme d'un corps coupé — l'erreur que les deux autres lectures donnent.
+  La liste « Clients » n'affiche plus « FormatException: … », et le
+  chargement des pages suivantes n'a pas besoin d'un `catch` qui avalait
+  aussi les erreurs de programmation : une page ratée n'ajoute rien, garde
+  la liste, et le défilement suivant redemande la même page.
+- **L'export web du salon** : une erreur pendant l'assemblage du fichier est
+  le refus de l'export ; son message nomme les trois lectures, faute d'un
+  texte dédié (aucun texte nouveau, §3) — consigné au §5.
+- **Ce qui reste comme avant, exprès** : `getNotifications` et l'équipe Pro
+  (`getTeamMembers`) lisent encore un 200 sans `items` comme une liste
+  vide ; le test de #620 a été séparé pour le dire (§5).
+
+**Vu rouge** : chaque test nouveau d'abord contre le code d'avant — web :
+19 tests BFF, 15 + 12 lectures, 3 + 4 exports ; app : 4 + 3 + 10 parses,
+3 écrans ; puis les 8 cas d'écriture et la lecture des clients ajoutés à
+l'intégration. **Mutations** sur le code commité, l'arbre vérifié propre
+après chacune : 15 + 8 côté web (constructeur et revue), 8 + 3 côté app,
+puis 7 à l'intégration — dont les 5 que la revue avait vues survivre (le
+`total` repris des lignes, une page sautée, une page ratée qui remplace la
+liste par l'erreur, un garde des favoris trop strict, le GET seul) : toutes
+rattrapées.
