@@ -10,6 +10,8 @@ import 'package:myweli_backend/src/auth/auth_repository.dart'
     show RefreshOutcome, RefreshResult, TokenPair, kRefreshReuseGrace;
 import 'package:myweli_backend/src/auth/tokens.dart';
 import 'package:myweli_backend/src/boot_config.dart';
+import 'package:myweli_backend/src/clients/clients_repository.dart'
+    show GuestPhoneChange, GuestPhoneOutcome;
 import 'package:myweli_backend/src/db/database.dart';
 import 'package:myweli_backend/src/db/migrations.dart';
 import 'package:myweli_backend/src/db/postgres_appointment_repository.dart';
@@ -1557,6 +1559,139 @@ void main() {
       await clients.touchLastVisit('provider1', 'b1', DateTime.utc(2026, 6, 1));
       final row = await clients.byId('provider1', 'b1');
       expect(row?['lastVisitAt'], DateTime.utc(2026, 7, 2).toIso8601String());
+    });
+
+    // docs/design/phone-leftovers.md §8 — a guest's history resolves by
+    // phone, so the card and its manual bookings move in ONE transaction.
+    group('changeGuestPhone', () {
+      const oldPhone = '+2250700000101';
+      const newPhone = '+2250500000202';
+      late PostgresAppointmentRepository appts;
+
+      setUp(() => appts = PostgresAppointmentRepository(pool));
+
+      Future<void> booking(
+        String id, {
+        String providerId = 'provider1',
+        String userId = 'manual',
+        String? phone = oldPhone,
+        required int day,
+      }) => appts.create({
+        ...apptMap(
+          id: id,
+          userId: userId,
+          providerId: providerId,
+          status: 'completed',
+          when: DateTime.utc(2030, 7, day, 9),
+        ),
+        'clientPhone': phone,
+      });
+
+      Future<String?> phoneOf(String appointmentId) async =>
+          (await appts.byId(appointmentId))?['clientPhone'] as String?;
+
+      test('the card and THIS salon\'s manual bookings with the old number '
+          'move — never another salon\'s (T45), never a consumer\'s own, '
+          'never a phone-less walk-in', () async {
+        await clients.create(clientMap(id: 'pc1', phone: oldPhone));
+        await booking('pm1', day: 1);
+        await booking('pm2', day: 2);
+        await booking('px1', providerId: 'provider2', day: 3);
+        await booking('pu1', userId: 'u1', day: 4);
+        await booking('pw1', phone: null, day: 5);
+
+        final r = await clients.changeGuestPhone('provider1', 'pc1', newPhone);
+        expect(r.outcome, GuestPhoneOutcome.changed);
+        expect(r.client?['phone'], newPhone);
+        expect((await clients.byId('provider1', 'pc1'))?['phone'], newPhone);
+        expect(await phoneOf('pm1'), newPhone);
+        expect(await phoneOf('pm2'), newPhone);
+        expect(await phoneOf('px1'), oldPhone);
+        expect(await phoneOf('pu1'), oldPhone);
+        expect(await phoneOf('pw1'), isNull);
+      });
+
+      test('notFound across salons; linked; unchanged; taken — each writes '
+          'nothing', () async {
+        await clients.create(clientMap(id: 'pc1', phone: oldPhone));
+        await clients.create(
+          clientMap(id: 'pl1', userId: 'uL', phone: '+2250100000303'),
+        );
+        await clients.create(clientMap(id: 'pc2', phone: newPhone));
+        await booking('pm1', day: 1);
+
+        expect(
+          (await clients.changeGuestPhone(
+            'provider2',
+            'pc1',
+            '+2250500000404',
+          )).outcome,
+          GuestPhoneOutcome.notFound,
+        );
+        expect(
+          (await clients.changeGuestPhone(
+            'provider1',
+            'pl1',
+            '+2250500000404',
+          )).outcome,
+          GuestPhoneOutcome.linked,
+        );
+        expect(
+          (await clients.changeGuestPhone(
+            'provider1',
+            'pc1',
+            oldPhone,
+          )).outcome,
+          GuestPhoneOutcome.unchanged,
+        );
+        final taken = await clients.changeGuestPhone(
+          'provider1',
+          'pc1',
+          newPhone,
+        );
+        expect(taken.outcome, GuestPhoneOutcome.taken);
+        expect(taken.takenBy, 'pc2');
+
+        expect((await clients.byId('provider1', 'pc1'))?['phone'], oldPhone);
+        expect(
+          (await clients.byId('provider1', 'pl1'))?['phone'],
+          '+2250100000303',
+        );
+        expect(await phoneOf('pm1'), oldPhone);
+      });
+
+      test('a race lost on salon_clients_phone_key is `taken` — never a '
+          'throw — and the loser moves nothing', () async {
+        await clients.create(clientMap(id: 'rc1', phone: oldPhone));
+        await booking('rm1', day: 1);
+
+        late Future<Object> loser;
+        await pool.runTx((tx) async {
+          // Another request files the number and has not committed: the
+          // loser's own look-up cannot see it, so its UPDATE waits on the
+          // index entry — then fails 23505 when this commits.
+          await tx.execute(
+            Sql.named(
+              'INSERT INTO salon_clients '
+              '(id, provider_id, user_id, display_name, phone) '
+              "VALUES ('rc2', 'provider1', NULL, 'Arrivée', @p)",
+            ),
+            parameters: {'p': newPhone},
+          );
+          loser = clients
+              .changeGuestPhone('provider1', 'rc1', newPhone)
+              .then<Object>((r) => r, onError: (Object e) => e);
+          await Future<void>.delayed(const Duration(milliseconds: 500));
+        });
+
+        final outcome = await loser;
+        expect(outcome, isA<GuestPhoneChange>(), reason: '$outcome');
+        final r = outcome as GuestPhoneChange;
+        expect(r.outcome, GuestPhoneOutcome.taken);
+        expect(r.takenBy, 'rc2');
+        expect((await clients.byId('provider1', 'rc1'))?['phone'], oldPhone);
+        expect(await phoneOf('rm1'), oldPhone);
+      });
     });
   });
 

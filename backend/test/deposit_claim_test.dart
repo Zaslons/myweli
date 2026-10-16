@@ -23,6 +23,7 @@ import 'package:myweli_backend/src/upload_verification_service.dart';
 import 'package:test/test.dart';
 
 import '../routes/appointments/index.dart' as appointments_route;
+import 'http/observed.dart';
 
 /// **The deposit proof, claimed.**
 ///
@@ -312,13 +313,18 @@ void main() {
           providers,
         ),
       );
-      return appointments_route.onRequest(c);
+      // Through the middleware, as production runs it: a wrong JSON type is
+      // a `BodyFieldTypeError` from the reader, and only the middleware
+      // answers it (docs/design/phone-leftovers.md §3).
+      return observed(appointments_route.onRequest, c);
     }
 
-    test('every string field checks its shape before it is cast', () async {
-      // These casts sit OUTSIDE the try that wraps `request.json()`, so a
+    test('every string field is read by type, never cast', () async {
+      // The casts used to sit OUTSIDE the try that wraps `request.json()`, so a
       // wrong-typed value threw a TypeError into the observability middleware
       // and came back as `internal_error` — plus a Sentry event per request.
+      // A hand-kept shape check answered `invalid_input` until the readers
+      // made it the API-wide `invalid_body`.
       for (final field in const [
         'providerId',
         'appointmentDateTime',
@@ -339,7 +345,7 @@ void main() {
         );
         expect(
           jsonDecode(await res.body())['error'],
-          'invalid_input',
+          'invalid_body',
           reason: 'and it must use the standard envelope',
         );
       }
@@ -352,7 +358,7 @@ void main() {
         'appointmentDateTime': slot().toIso8601String(),
       });
       expect(res.statusCode, HttpStatus.badRequest);
-      expect(jsonDecode(await res.body())['error'], 'invalid_input');
+      expect(jsonDecode(await res.body())['error'], 'invalid_body');
     });
 
     test('a null optional field is still allowed through', () async {

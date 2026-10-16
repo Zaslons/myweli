@@ -82,7 +82,7 @@ until `access`). **List and card reads write `provider_audit_log`** (T46/T39).
 | `POST /providers/{id}/clients` | `{name, phone, note?}` — phone REQUIRED E.164 (§11.4), name non-empty; duplicate phone → **409 `client_exists` + `{clientId}`**; 201 SalonClient |
 | `GET /providers/{id}/clients/{clientId}` | SalonClient + `stats{visits,spentFcfa,noShows,cancellations}` + `upcoming?` (next non-terminal booking summary); audited |
 | `GET /providers/{id}/clients/{clientId}/visits?page=` | Salon-scoped appointment history (paginated, newest first) |
-| `PATCH /providers/{id}/clients/{clientId}` | `{tags}` — ≤10 tags, each 1–24 chars, trimmed, deduped → 400 `invalid_tags` |
+| `PATCH /providers/{id}/clients/{clientId}` | `{tags?, phone?}` (at least one) — tags: ≤10, each 1–24 chars, trimmed, deduped → 400 `invalid_tags`. **phone** (a guest card only — [phone-leftovers.md](phone-leftovers.md) §8): the card and this salon's manual bookings on the old number move to the new one in one transaction (its history follows); linked card → 409 `client_linked`; erased account's anonymised card → 409 `client_anonymized`; on another card → 409 `client_exists` + `clientId`; invalid → 400 `invalid_phone`. Answers the card (GET shape). |
 | `POST /providers/{id}/clients/{clientId}/notes` | `{body}` ≤500 chars → 400 `note_too_long`; author = principal (server-resolved); 201 |
 | `DELETE /providers/{id}/clients/{clientId}/notes/{noteId}` | Author or owner; else 403 |
 

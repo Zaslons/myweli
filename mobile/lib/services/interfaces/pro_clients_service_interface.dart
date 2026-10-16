@@ -42,6 +42,21 @@ abstract class ProClientsServiceInterface {
     List<String> tags,
   );
 
+  /// Changes a GUEST card's number (docs/design/phone-leftovers.md §8) —
+  /// `PATCH` with `phone`. Its history follows: the server moves THIS salon's
+  /// walk-in bookings under the old number to the new one, in the same
+  /// transaction (never another salon's — T45). Success carries the updated
+  /// card (the same number is a success with nothing done). Refusals, by
+  /// [ApiResponse.code]: `client_linked` (a card linked to an account keeps
+  /// the account's number), `invalid_phone`, `client_exists` (data carries
+  /// the card that already has the number — [SalonClientPhoneChange.taken]),
+  /// `not_found`, `forbidden`.
+  Future<ApiResponse<SalonClientPhoneChange>> updatePhone(
+    String providerId,
+    String clientId,
+    String phone,
+  );
+
   Future<ApiResponse<SalonClientNote>> addNote(
     String providerId,
     String clientId,

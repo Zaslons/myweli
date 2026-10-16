@@ -461,6 +461,154 @@ void main() {
     expect(find.text('Recevoir l’acompte', skipOffstage: false), findsNothing);
   });
 
+  // ---- phone-leftovers.md §2: the server's verdict, under the field -------
+  //
+  // `PUT /deposit-policy` refused the number as `invalid_input`, the code of
+  // every other field too, and the screen printed « Informations invalides. »
+  // in a bar. It answers `invalid_phone` now — the number's own fault.
+
+  const refusedNumber = 'Saisissez un numéro de téléphone valide.';
+
+  /// The save refused by the server under `invalid_phone`, with the message
+  /// `ApiProService._messageFor` gives it.
+  void refuseNumber() {
+    when(
+      () => service.updateDepositPolicy(
+        any(),
+        depositRequired: any(named: 'depositRequired'),
+        depositPercentage: any(named: 'depositPercentage'),
+        cancellationWindowHours: any(named: 'cancellationWindowHours'),
+        mobileMoneyOperator: any(named: 'mobileMoneyOperator'),
+        mobileMoneyNumber: any(named: 'mobileMoneyNumber'),
+      ),
+    ).thenAnswer(
+      (_) async => ApiResponse.error(
+        'Numéro invalide (format international, ex. +2250700000000).',
+        code: 'invalid_phone',
+      ),
+    );
+  }
+
+  /// « Enregistrer », pressed for real. `scrollUntilVisible` ends on a jump
+  /// that is laid out only at the next frame, so on the long form (deposits
+  /// on) a tap straight after it lands where the button WAS — off screen, and
+  /// nothing is sent. The pump in between is what makes the press reach the
+  /// save, and the tests below check that it did.
+  Future<void> pressSave(WidgetTester tester) async {
+    await scrollTo(tester, saveButton);
+    await tester.pump();
+    await tester.tap(saveButton);
+    await settle(tester);
+    await settle(tester);
+  }
+
+  testWidgets('the server\'s `invalid_phone` lands UNDER the Mobile Money '
+      'field, not in a bar', (tester) async {
+    when(
+      () => service.getDepositPolicy(any()),
+    ).thenAnswer((_) async => ApiResponse.success(loadedPolicy));
+    refuseNumber();
+
+    await tester.pumpWidget(host());
+    await settle(tester);
+    await settle(tester);
+
+    await pressSave(tester);
+
+    expect(
+      saveCalls().captured.single,
+      storedNumber,
+      reason: 'the client rule passed it: the SERVER refused it',
+    );
+    expect(
+      find.byType(SnackBar),
+      findsNothing,
+      reason: '§14 rule 3 — the refused number is a field fault, not a bar',
+    );
+    await scrollTo(tester, numberLabel, delta: -200);
+    expect(
+      underTheNumber(refusedNumber),
+      findsOneWidget,
+      reason: '§14 rule 1 — under the field the server refused',
+    );
+
+    // Rule 2: a changed number that passes the client rule clears it.
+    await tester.enterText(numberInput(), '0707123457');
+    await tester.pump();
+    expect(find.text(refusedNumber), findsNothing);
+  });
+
+  testWidgets('deposits OFF: a number the server refuses reveals the hidden '
+      'card, with the message under the field', (tester) async {
+    when(() => service.getDepositPolicy(any())).thenAnswer(
+      (_) async => ApiResponse.success(
+        const DepositPolicy(
+          depositRequired: false,
+          depositPercentage: 0.30,
+          mobileMoneyOperator: 'wave',
+          mobileMoneyNumber: storedNumber,
+        ),
+      ),
+    );
+    refuseNumber();
+
+    await tester.pumpWidget(host());
+    await settle(tester);
+    await settle(tester);
+    expect(
+      numberLabel,
+      findsNothing,
+      reason: 'deposits off: the card is hidden',
+    );
+
+    await pressSave(tester);
+
+    expect(saveCalls().captured.single, storedNumber);
+    expect(find.byType(SnackBar), findsNothing);
+    expect(
+      numberLabel,
+      findsOneWidget,
+      reason: 'the message needs a field to sit under — the card shows',
+    );
+    await scrollTo(tester, numberLabel, delta: -200);
+    expect(underTheNumber(refusedNumber), findsOneWidget);
+  });
+
+  testWidgets('any other refusal is still the bar it was', (tester) async {
+    when(
+      () => service.getDepositPolicy(any()),
+    ).thenAnswer((_) async => ApiResponse.success(loadedPolicy));
+    when(
+      () => service.updateDepositPolicy(
+        any(),
+        depositRequired: any(named: 'depositRequired'),
+        depositPercentage: any(named: 'depositPercentage'),
+        cancellationWindowHours: any(named: 'cancellationWindowHours'),
+        mobileMoneyOperator: any(named: 'mobileMoneyOperator'),
+        mobileMoneyNumber: any(named: 'mobileMoneyNumber'),
+      ),
+    ).thenAnswer(
+      (_) async => ApiResponse.error(
+        'Action non autorisée pour ce salon.',
+        code: 'forbidden',
+      ),
+    );
+
+    await tester.pumpWidget(host());
+    await settle(tester);
+    await settle(tester);
+
+    await pressSave(tester);
+
+    expect(saveCalls().captured.single, storedNumber);
+    expect(
+      find.widgetWithText(SnackBar, 'Action non autorisée pour ce salon.'),
+      findsOneWidget,
+    );
+    await scrollTo(tester, numberLabel, delta: -200);
+    expect(find.text(refusedNumber), findsNothing);
+  });
+
   testWidgets('deposits OFF: switching deposits on then off again hides the '
       'revealed card', (tester) async {
     when(() => service.getDepositPolicy(any())).thenAnswer(

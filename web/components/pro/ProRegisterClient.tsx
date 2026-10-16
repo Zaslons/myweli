@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { registerPro, requestEmailOtpPro } from '../../lib/api/pro';
 import { useFieldErrors } from '../../lib/forms/useFieldErrors';
-import { normalizePhone, phoneFieldError } from '../../lib/phone';
+import { PHONE_INVALID, normalizePhone, phoneFieldError } from '../../lib/phone';
 import { Button } from '../Button';
 import { PhoneField } from '../PhoneField';
 import { TextField } from '../TextField';
@@ -90,14 +90,19 @@ export function ProRegisterClient() {
       router.replace('/pro');
       return;
     }
+    // The server names the phone (docs/design/phone-leftovers.md §2 — it said
+    // `invalid_input` until then, so this branch was dead): its fault goes
+    // UNDER the field (§14 rule 1), like the client check's.
+    if (r.error === 'invalid_phone') {
+      fields.set('phone', PHONE_INVALID);
+      return;
+    }
     setError(
       r.error === 'provider_exists'
         ? 'Un compte existe déjà pour cette identité. Connectez-vous.'
         : r.error === 'otp_invalid'
           ? 'Code incorrect ou expiré.'
-          : r.error === 'invalid_phone'
-            ? 'Numéro de téléphone invalide.'
-            : 'Une erreur est survenue. Réessayez.',
+          : 'Une erreur est survenue. Réessayez.',
     );
   }
 

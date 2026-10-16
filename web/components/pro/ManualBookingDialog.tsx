@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
   type ProProfile,
@@ -29,6 +30,12 @@ import { conflictMessage } from "../../lib/booking/window";
 
 const todayYmd = (tz?: string) => salonToday(new Date(), tz);
 
+/// An existing salon client — from the search, or handed in by its card.
+/// `linked`: the card is linked to a MyWeli account, whose number it carries
+/// read-only (docs/design/phone-leftovers.md §8) — only the client can
+/// correct it.
+type PickedClient = { id: string; name: string; phone?: string; linked?: boolean };
+
 /// The web salon-entered booking (docs/design/web-manual-booking.md) — the
 /// app's `ProManualBookingScreen`, web-adapted, with the J1 §3.4 C1 client
 /// search-or-create kept. Three entry points: a journal grid cell (fixed
@@ -49,7 +56,9 @@ export function ManualBookingDialog({
   artistId?: string;
   dateTimeIso?: string;
   initialDate?: string;
-  initialClient?: { name: string; phone?: string };
+  /** The client card's own client — its id names the card a refusal of its
+   *  stored number points to. */
+  initialClient?: PickedClient;
   onClose: () => void;
   onCreated: () => void;
 }) {
@@ -65,7 +74,7 @@ export function ManualBookingDialog({
   const [time, setTime] = useState("");
   const [query, setQuery] = useState("");
   const [matches, setMatches] = useState<SalonClientListItem[]>([]);
-  const [picked, setPicked] = useState<{ name: string; phone?: string } | null>(
+  const [picked, setPicked] = useState<PickedClient | null>(
     initialClient ?? null,
   );
   const [newPhone, setNewPhone] = useState("");
@@ -101,7 +110,14 @@ export function ManualBookingDialog({
     );
   }
 
-  const [error, setError] = useState<string | null>(null);
+  // `cardId`: the client card a refusal points to (§7 below) — the way out
+  // rides with its sentence, so neither can outlive the other. `aboutPicked`:
+  // the sentence is about the picked client, and goes with them (« Changer »).
+  const [error, setError] = useState<{
+    text: string;
+    cardId?: string;
+    aboutPicked?: boolean;
+  } | null>(null);
   // The phone-field fault sits UNDER the field (§14) — the E.164 lesson: the
   // backend refuses non-E.164 with `invalid_phone`, and this dialog used to
   // send raw text and label the refusal « Création impossible. Réessayez. ».
@@ -120,13 +136,15 @@ export function ManualBookingDialog({
 
   async function create() {
     if (!canSubmit || !dt) return;
-    // Only the NEW-client phone needs the gate — a picked client's stored
-    // phone is already E.164 (the clients module refuses anything else).
+    // Only the NEW-client phone has a field to gate. A picked client's stored
+    // phone is shown, not editable here, and crosses as stored — the server
+    // judges it (a number stored before the national-length rule is refused:
+    // see the `invalid_phone` arm below).
     if (!picked && !fields.validate({ phone: newPhone })) return;
     // The app's future-only guard — on the standalone path (a grid cell is
     // the salon's own calendar choice).
     if (!fixed && !isFutureIso(dt)) {
-      setError("Choisissez une date et une heure à venir");
+      setError({ text: "Choisissez une date et une heure à venir" });
       return;
     }
     setError(null);
@@ -147,14 +165,33 @@ export function ManualBookingDialog({
     });
     setBusy(false);
     if (r.ok) onCreated();
-    else
+    else if (r.error === "invalid_phone" && picked?.phone)
+      // docs/design/phone-leftovers.md §7: the refused number is the one on
+      // the client's card, and this dialog has no field for it — the generic
+      // « format international » sentence sent the salon looking for one.
+      // Say where the fault is, and lead there — unless the card is LINKED:
+      // its number is the client's MyWeli account's, read-only on the card
+      // (§8), so the way to it would lead nowhere; the client corrects it.
       setError(
-        conflictMessage(r.error, {
+        picked.linked
+          ? {
+              text: "Le numéro de ce client est celui de son compte MyWeli : il doit le corriger dans son application.",
+              aboutPicked: true,
+            }
+          : {
+              text: "Le numéro enregistré sur la fiche de ce client est invalide.",
+              cardId: picked.id,
+              aboutPicked: true,
+            },
+      );
+    else
+      setError({
+        text: conflictMessage(r.error, {
           audience: "salon",
           taken: "Ce créneau est déjà pris.",
           fallback: "Création impossible. Réessayez.",
         }),
-      );
+      });
   }
 
   // ds-ignore: viewport-relative dialog scroll box.
@@ -244,7 +281,11 @@ export function ManualBookingDialog({
           <button
             type="button"
             className="-my-sm inline-flex min-h-12 items-center text-textTertiary underline"
-            onClick={() => setPicked(null)}
+            onClick={() => {
+              setPicked(null);
+              // A refusal about THIS client's number goes with them.
+              setError((e) => (e?.aboutPicked ? null : e));
+            }}
           >
             Changer
           </button>
@@ -268,8 +309,10 @@ export function ManualBookingDialog({
                     className="flex min-h-12 w-full items-center justify-between px-s text-left text-bodyMedium hover:bg-surface"
                     onClick={() =>
                       setPicked({
+                        id: c.id,
                         name: c.displayName,
                         phone: c.phone ?? undefined,
+                        linked: c.linked,
                       })
                     }
                   >
@@ -315,8 +358,20 @@ export function ManualBookingDialog({
 
       {error ? (
         <p role="alert" className="mt-s text-bodyMedium text-error">
-          {error}
+          {error.text}
         </p>
+      ) : null}
+      {/* The way out (§12) for a refused stored number: the card, where the
+          number lives. Closing first — from the card itself the link is the
+          page under this dialog. */}
+      {error?.cardId ? (
+        <Link
+          href={`/pro/clients/${error.cardId}`}
+          onClick={onClose}
+          className="mt-xs inline-flex min-h-12 items-center text-bodyMedium text-textPrimary underline"
+        >
+          Ouvrir la fiche
+        </Link>
       ) : null}
       <div className="mt-l flex justify-end gap-s">
         <Button variant="secondary" onClick={onClose} disabled={busy}>

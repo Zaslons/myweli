@@ -10,6 +10,7 @@ import '../../widgets/common/app_snack_bar.dart';
 import '../theme/app_theme.dart';
 import '../theme/colors.dart';
 import '../theme/text_styles.dart';
+import 'phone_numbering.dart';
 
 class _NavApp {
   final String name;
@@ -211,14 +212,32 @@ class Helpers {
     Navigator.of(context).pop();
   }
 
-  /// Format phone number for display (mask middle digits)
+  /// [phone] for display with its middle hidden — « +225 07••••••56 »: the
+  /// calling code, the first two and the last two national digits, a `•` for
+  /// each digit between (docs/design/phone-leftovers.md §5).
+  ///
+  /// It knows no length. It used to mask only `+225` plus the pre-2021 8
+  /// digits, a rule written here, outside the §18 seam — so every number of
+  /// today, Ivorian or not, went through whole and printed in clear. The
+  /// calling code is the longest one the number starts with, the reading
+  /// `PhoneNumberField` gives a stored number (`+33…` is France, not `+336`) —
+  /// `PhoneNumbering.callingCodeOf`. A value with nothing to hide between its four shown digits comes back as
+  /// it was.
   static String maskPhoneNumber(String phone) {
-    if (phone.length < 8) return phone;
-    final cleaned = phone.replaceAll(RegExp(r'[\s\-\(\)]'), '');
-    if (cleaned.startsWith('+225') && cleaned.length == 12) {
-      final digits = cleaned.substring(4);
-      return '+225 XX XX ${digits.substring(6)}';
-    }
-    return phone;
+    final cleaned = PhoneNumbering.normalize(phone);
+    final international = cleaned.startsWith('+');
+    final digits = international ? cleaned.substring(1) : cleaned;
+    if (!RegExp(r'^\d+$').hasMatch(digits)) return phone;
+    final callingCode = international
+        ? PhoneNumbering.callingCodeOf(digits)
+        : '';
+    final national = digits.substring(callingCode.length);
+    if (national.length <= 4) return phone;
+    final masked =
+        '${national.substring(0, 2)}'
+        '${'•' * (national.length - 4)}'
+        '${national.substring(national.length - 2)}';
+    if (!international) return masked;
+    return callingCode.isEmpty ? '+$masked' : '+$callingCode $masked';
   }
 }

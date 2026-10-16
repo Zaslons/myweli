@@ -5,6 +5,7 @@ import 'package:myweli_backend/src/access/team_service.dart';
 import 'package:myweli_backend/src/auth/auth_methods.dart';
 import 'package:myweli_backend/src/auth/id_token_verifier.dart';
 import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
+import 'package:myweli_backend/src/http/body_fields.dart';
 import 'package:myweli_backend/src/responses.dart';
 import 'package:myweli_backend/src/validators.dart';
 
@@ -22,13 +23,18 @@ Future<Response> onRequest(RequestContext context) async {
   } catch (_) {
     return jsonError(HttpStatus.badRequest, 'invalid_body');
   }
-  final invitationId = (body['invitationId'] as String?)?.trim() ?? '';
+  // Every field read by type up front — before the identity verifier — so a
+  // wrong JSON type is one `400 invalid_body` whichever proof is sent
+  // (docs/design/phone-leftovers.md §3).
+  final invitationId = optionalString(body, 'invitationId')?.trim() ?? '';
+  final idToken = optionalString(body, 'idToken')?.trim() ?? '';
+  final email = optionalString(body, 'email')?.trim() ?? '';
+  final code = optionalString(body, 'code')?.trim() ?? '';
   if (invitationId.isEmpty) {
     return jsonError(HttpStatus.badRequest, 'invalid_input');
   }
 
   String verifiedEmail;
-  final idToken = (body['idToken'] as String?)?.trim() ?? '';
   if (idToken.isNotEmpty) {
     if (!context.read<AuthMethods>().contains('google')) {
       return jsonError(HttpStatus.notFound, 'auth_method_disabled');
@@ -43,8 +49,6 @@ Future<Response> onRequest(RequestContext context) async {
     if (!context.read<AuthMethods>().contains('email')) {
       return jsonError(HttpStatus.notFound, 'auth_method_disabled');
     }
-    final email = (body['email'] as String?)?.trim() ?? '';
-    final code = (body['code'] as String?)?.trim() ?? '';
     if (!isValidEmail(email) || !isValidOtpCode(code)) {
       return jsonError(HttpStatus.badRequest, 'invalid_input');
     }

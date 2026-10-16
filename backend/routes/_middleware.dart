@@ -129,30 +129,38 @@ Handler middleware(Handler handler) {
       .use(provider<TokenService>((_) => tokenService))
       .use(provider<ProvidersRepository>((_) => providersRepository))
       .use(provider<LocalitiesService>((_) => localitiesService))
-      // The origin gate + the per-IP auth limit (T70, T71). INSIDE CORS — the
-      // one middleware that may run before it — so that a 429 from the limiter
-      // reaches the admin console's browser WITH the CORS headers (outside
-      // CORS it is an opaque network error, the very defect the observability
-      // note below describes), and so that a browser preflight is answered by
-      // CORS before it can count as a hit. OUTSIDE every provider, so nothing
-      // that touches a database runs for a request that did not come through
-      // api.myweli.com. Two callbacks, for the reason `corsMiddleware` gives
-      // below (lib/src/security/origin_front_door.dart ·
+      // The origin gate + the per-IP auth limit (T70, T71). INSIDE CORS, so
+      // that a 429 from the limiter reaches the admin console's browser WITH
+      // the CORS headers (outside CORS it is an opaque network error), and so
+      // that a browser preflight is answered by CORS before it can count as a
+      // hit. OUTSIDE every provider, so nothing that touches a database runs
+      // for a request that did not come through api.myweli.com. Two callbacks,
+      // for the reason `corsMiddleware` gives below
+      // (lib/src/security/origin_front_door.dart ·
       // docs/design/infra-cloudflare-front-door.md §5.2).
       .use(originFrontDoorMiddleware(() => originAuth, () => rateLimiter))
-      // Browser CORS for the Next.js web app(s). A callback, not the list: this
-      // chain is built before the custom entrypoint runs, so passing the value
-      // resolves `webOrigins` here and pre-empts the aggregated boot check.
-      .use(corsMiddleware(() => webOrigins))
       // Boundary input check, INSIDE observability so a rejection still gets a
       // request id, and outside everything else so no handler ever sees a
       // control character (lib/src/query_sanity.dart).
       .use(querySanityMiddleware())
-      // **Outermost** (the LAST `.use` wraps everything above it): request id,
-      // error→envelope, structured log, report.
+      // Request id, error→envelope, structured log, report: it catches what
+      // every handler throws.
+      .use(observabilityMiddleware(() => errorReporter))
+      // **Outermost** (the LAST `.use` wraps everything above it): browser
+      // CORS for the web app(s) and the admin console.
       //
-      // Outside CORS on purpose — a 500 that lacks the CORS headers reaches the
-      // browser as an opaque network failure, which is how a server error gets
-      // misdiagnosed as a client one.
-      .use(observabilityMiddleware(() => errorReporter));
+      // Outermost on purpose — every response gets the CORS headers for an
+      // allowed origin, an ERROR included. It used to sit inside observability:
+      // when a handler threw, CORS never got a response to decorate, and the
+      // 500 (and query sanity's 400) reached the browser as an opaque network
+      // failure — a server error misdiagnosed as a client one. A comment here
+      // gave that very reason for the order it did not implement
+      // (docs/design/backend-cors-error-responses.md).
+      //
+      // A callback, not the list: this chain is built before the custom
+      // entrypoint runs, so passing the value resolves `webOrigins` here and
+      // pre-empts the aggregated boot check — which also means the lookup
+      // cannot throw at request time: a server whose WEB_ORIGINS failed never
+      // finished booting.
+      .use(corsMiddleware(() => webOrigins));
 }

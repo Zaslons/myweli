@@ -69,7 +69,7 @@ class ReviewsService {
     String userId,
     String appointmentId, {
     required Object? rating,
-    required Object? text,
+    required String? text,
     Object? photoUrls,
   }) async {
     // Validate client-supplied fields.
@@ -79,7 +79,7 @@ class ReviewsService {
         rating != rating.toInt()) {
       return (ok: false, error: 'invalid_input', review: null);
     }
-    final body = (text as String?)?.trim() ?? '';
+    final body = text?.trim() ?? '';
     if (body.length > _maxText) {
       return (ok: false, error: 'invalid_input', review: null);
     }

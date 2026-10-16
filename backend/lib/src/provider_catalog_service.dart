@@ -2,6 +2,7 @@ import 'access/capabilities.dart';
 import 'access/membership_service.dart';
 import 'appointments/booking_window.dart';
 import 'auth/provider_auth_repository.dart';
+import 'http/body_fields.dart';
 import 'localities/localities_repository.dart';
 import 'localities/localities_service.dart';
 import 'providers_repository.dart';
@@ -82,7 +83,7 @@ class ProviderCatalogService {
     final service = {
       'id': _newId('service'),
       'name': (body['name'] as String).trim(),
-      'description': (body['description'] as String?)?.trim() ?? '',
+      'description': optionalString(body, 'description')?.trim() ?? '',
       'price': (body['price'] as num).toDouble(),
       'priceMax': (body['priceMax'] as num?)?.toDouble(),
       'durationMinutes': (body['durationMinutes'] as num).toInt(),
@@ -272,15 +273,19 @@ class ProviderCatalogService {
         return 'invalid_input';
       }
     }
+    // A phone fault names its field — two phone fields on one form, so the
+    // code says which (docs/design/phone-leftovers.md §2). Not text at all
+    // is the same fault of the same field: this validator checks type and
+    // value together, as it does for every other field here.
     if (body.containsKey('phoneNumber')) {
       final p = body['phoneNumber'];
-      if (p is! String || !isValidPhoneNumber(p.trim())) return 'invalid_input';
+      if (p is! String || !isValidPhoneNumber(p.trim())) return 'invalid_phone';
     }
     final wa = body['whatsapp'];
     if (body.containsKey('whatsapp') && wa != null) {
-      if (wa is! String) return 'invalid_input';
+      if (wa is! String) return 'invalid_whatsapp';
       if (wa.trim().isNotEmpty && !isValidPhoneNumber(wa.trim())) {
-        return 'invalid_input';
+        return 'invalid_whatsapp';
       }
     }
     // The map pin comes as a PAIR of sane coordinates (L1).
@@ -610,17 +615,24 @@ class ProviderCatalogService {
     if (name is! String || name.trim().isEmpty) {
       return (ok: false, error: 'invalid_input', data: null);
     }
+    // Every field is read BEFORE the photo is promoted (BACKEND.md §2), as
+    // [updateArtist] does: the promotion copies the upload out of `pending/`
+    // and deletes the source, so a refusal after it would leave the promoted
+    // object orphaned and the upload gone. A non-string `specialization`
+    // throws `BodyFieldTypeError` → 400 `invalid_body` here, before it.
+    final specialization = optionalString(body, 'specialization')?.trim();
+    final workingHours = body['workingHours'] ?? const <String, dynamic>{};
     final img = await _artistImage(body['imageUrl']);
     if (!img.ok) return (ok: false, error: img.error, data: null);
     final artist = {
       'id': _newId('artist'),
       'name': name.trim(),
-      'specialization': (body['specialization'] as String?)?.trim(),
+      'specialization': specialization,
       'imageUrl': img.url,
       'providerId': providerId,
       'rating': null, // server-owned; recomputed from reviews
       'reviewCount': null,
-      'workingHours': body['workingHours'] ?? const <String, dynamic>{},
+      'workingHours': workingHours,
     };
     final created = await _providers.addArtist(providerId, artist);
     if (created == null) return _notFound;
@@ -642,6 +654,10 @@ class ProviderCatalogService {
         return (ok: false, error: 'invalid_input', data: null);
       }
     }
+    // Text by type, as on create (which cast it — a 500); this path stored a
+    // number as sent. Throws `BodyFieldTypeError` → 400 `invalid_body`
+    // (docs/design/phone-leftovers.md §3).
+    optionalString(body, 'specialization');
     // `rating`/`reviewCount`/`id`/`providerId` are server-owned — not editable.
     const editable = ['name', 'specialization', 'imageUrl', 'workingHours'];
     final changes = {
@@ -777,10 +793,13 @@ class ProviderCatalogService {
     if (op != null && (op is! String || !allowedOperators.contains(op))) {
       return 'invalid_input';
     }
+    // Its own code, so a client can put the fault under the number field —
+    // and, deposits off, reveal the hidden card to do so
+    // (docs/design/phone-leftovers.md §2, §6).
     final number = body['mobileMoneyNumber'];
     if (number != null &&
         (number is! String || !isValidPhoneNumber(number.trim()))) {
-      return 'invalid_input';
+      return 'invalid_phone';
     }
 
     // A required deposit needs a Mobile Money destination.
@@ -797,10 +816,17 @@ class ProviderCatalogService {
   Future<bool> _can(String accountId, String providerId, String capability) =>
       _members.can(accountId, providerId, capability);
 
-  /// Returns an error code (`invalid_input`) or null. On create everything
+  /// Returns an error code (`invalid_input`) or null — or throws
+  /// `BodyFieldTypeError` for a non-text `description`. On create everything
   /// required is checked; on a partial update only the provided fields are.
   String? _validateService(Map<String, dynamic> body, {required bool partial}) {
     bool has(String k) => body.containsKey(k);
+
+    // Text by type, on create AND update: create cast it (a 500 on
+    // `{"description": 5}`), update stored it as sent. Throws
+    // `BodyFieldTypeError` → 400 `invalid_body` (docs/design/
+    // phone-leftovers.md §3).
+    optionalString(body, 'description');
 
     if (!partial || has('name')) {
       final name = body['name'];

@@ -5,7 +5,6 @@ import { EmptyState } from '../EmptyState';
 import { ErrorState } from '../ErrorState';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { isPossiblePhoneNumber } from 'react-phone-number-input';
 import {
   type Appointment,
   type Tab,
@@ -25,6 +24,8 @@ import {
 } from '../../lib/api/account';
 import type { Provider } from '../../lib/api/providers';
 import { updateContactPhone } from '../../lib/auth/client';
+import { useFieldErrors } from '../../lib/forms/useFieldErrors';
+import { PHONE_INVALID, normalizePhone, phoneFieldError } from '../../lib/phone';
 import { SUPPORT } from '../../lib/support';
 import { Button } from '../Button';
 import { SkeletonRows } from '../Skeleton';
@@ -40,6 +41,13 @@ const PROVIDER_LABELS: Record<string, string> = {
   apple: 'Connecté via Apple',
   email: 'Connecté via e-mail',
   phone: 'Connecté via téléphone',
+};
+
+/// The contact phone's check — the shared rule, required (an empty number is
+/// not a contact). A module constant: useFieldErrors keys its callbacks on
+/// this object's identity.
+const CONTACT_PHONE_CHECK = {
+  phone: (v: string) => phoneFieldError(v, { required: true }),
 };
 
 export function AccountClient() {
@@ -63,6 +71,10 @@ export function AccountClient() {
   const [phoneDraft, setPhoneDraft] = useState('');
   const [phoneBusy, setPhoneBusy] = useState(false);
   const [phoneError, setPhoneError] = useState(false);
+  // The draft's fault answers UNDER the field, on submit (§14 rules 1/2/5 —
+  // docs/design/phone-leftovers.md §4); « Enregistrer » used to grey out on
+  // bare `isPossiblePhoneNumber`, with no word.
+  const phoneFields = useFieldErrors(CONTACT_PHONE_CHECK);
 
   useEffect(() => {
     let active = true;
@@ -101,17 +113,22 @@ export function AccountClient() {
   }
 
   async function savePhone() {
-    setPhoneBusy(true);
+    // The last save's failure line goes first: a save stopped at the field
+    // below must not keep it under the new fault.
     setPhoneError(false);
-    const r = await updateContactPhone(phoneDraft);
+    if (!phoneFields.validate({ phone: phoneDraft })) return;
+    // What is checked is what crosses.
+    const phone = normalizePhone(phoneDraft);
+    setPhoneBusy(true);
+    const r = await updateContactPhone(phone);
     setPhoneBusy(false);
     if (!r.ok) {
-      setPhoneError(true);
+      // The server's own verdict on the number belongs to the field too.
+      if (r.error === 'invalid_phone') phoneFields.set('phone', PHONE_INVALID);
+      else setPhoneError(true);
       return;
     }
-    setMe((m) =>
-      m ? { ...m, phoneNumber: phoneDraft, phoneVerified: false } : m,
-    );
+    setMe((m) => (m ? { ...m, phoneNumber: phone, phoneVerified: false } : m));
     setEditingPhone(false);
   }
 
@@ -223,18 +240,15 @@ export function AccountClient() {
                 Numéro pour que le salon vous contacte :
               </p>
               <PhoneField
-                onChange={setPhoneDraft}
+                onChange={(v) => {
+                  setPhoneDraft(v);
+                  phoneFields.revalidate('phone', v);
+                }}
                 initialValue={me?.phoneNumber ?? undefined}
+                error={phoneFields.errors.phone}
               />
               <div className="flex gap-s">
-                <Button
-                  disabled={
-                    phoneBusy ||
-                    !phoneDraft ||
-                    !isPossiblePhoneNumber(phoneDraft)
-                  }
-                  onClick={savePhone}
-                >
+                <Button disabled={phoneBusy} onClick={savePhone}>
                   Enregistrer
                 </Button>
                 <Button
@@ -246,7 +260,7 @@ export function AccountClient() {
               </div>
               {phoneError ? (
                 <p role="alert" className="text-bodyMedium text-error">
-                  Numéro invalide. Réessayez.
+                  L’enregistrement a échoué. Réessayez.
                 </p>
               ) : null}
             </div>
@@ -264,6 +278,9 @@ export function AccountClient() {
                 type="button"
                 onClick={() => {
                   setPhoneDraft(me?.phoneNumber ?? '');
+                  // A fault from an abandoned edit is about a draft that is gone.
+                  phoneFields.clear();
+                  setPhoneError(false);
                   setEditingPhone(true);
                 }}
                 className="text-bodyMedium text-textPrimary underline"
