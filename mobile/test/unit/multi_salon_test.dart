@@ -382,9 +382,11 @@ void main() {
         ),
         reason:
             'A salon-id slot (`activeSalonId ?? …`, `providerId: …`, '
-            '`salonId: …`) is fed by an `.id`. The signed-in account\'s id is '
-            'never a salon id: use ProAuthProvider.activeSalonId, or guard '
-            'its null. Found:\n${_describe(found)}',
+            '`final salonId = …`) is fed by an `.id`. The signed-in '
+            'account\'s id is never a salon id: use '
+            'ProAuthProvider.activeSalonId, or guard its null. If the `.id` '
+            'is a SALON model\'s, add its line to _reviewedSalonIdFromId. '
+            'Found:\n${_describe(found)}',
       );
     });
 
@@ -405,6 +407,10 @@ void main() {
         final e = auth.activeSalonId ?? auth.provider!.id;
         const f = {'providerId': pro.id};
         DepositSettingsScreen(providerId: widget.providerId);
+        DepositSettingsScreen(
+          providerId: context.read<ProAuthProvider>().provider!.id,
+        );
+        final salonId = me.id;
       ''';
       final sources = {'lib/screens/planted.dart': planted};
 
@@ -420,6 +426,8 @@ void main() {
         'lib/screens/planted.dart · owner': 1,
         'lib/screens/planted.dart · auth.provider': 1,
         'lib/screens/planted.dart · pro': 1,
+        'lib/screens/planted.dart · …provider': 1,
+        'lib/screens/planted.dart · me': 1,
       });
     });
 
@@ -510,23 +518,53 @@ Map<String, List<int>> providerIdReads(Map<String, String> sources) {
   return reads;
 }
 
-/// Every salon-id slot fed by an `.id`, keyed `path · receiver of the .id`:
-/// a fallback (`activeSalonId ?? x.id`, `providerId ?? x.id`), a named
-/// argument or a map entry (`providerId: x.id`, `'salonId': x.id`).
+/// Where a salon id is PUT: a fallback (`activeSalonId ?? …`,
+/// `providerId ?? …`), a named argument or a map entry (`providerId: …`,
+/// `'salonId': …`), an assignment (`final salonId = …`, `_providerId = …`).
+final _salonSlot = RegExp(
+  r"\b(?:activeSalonId|providerId|salonId)\s*\?\?"
+  r"|\b(?:providerId|salonId)'?\s*:"
+  r'|\b[\w$]*(?:providerId|salonId|ProviderId|SalonId)\s*=(?![=>])',
+);
+
+/// The expression that starts at [from], up to the first `,` or `;` or
+/// closing bracket outside any bracket — so a value with calls and generics
+/// (`context.read<ProAuthProvider>().provider!.id`) is read whole.
+String _expressionAt(String code, int from) {
+  var depth = 0;
+  for (var i = from; i < code.length; i++) {
+    final c = code[i];
+    if (c == '(' || c == '[' || c == '{') {
+      depth++;
+    } else if (c == ')' || c == ']' || c == '}') {
+      if (depth == 0) return code.substring(from, i);
+      depth--;
+    } else if ((c == ',' || c == ';') && depth == 0) {
+      return code.substring(from, i);
+    }
+  }
+  return code.substring(from);
+}
+
+/// Every salon-id slot whose value is (or falls back to) an `.id`, keyed
+/// `path · receiver of the .id`, with its lines.
 Map<String, List<int>> salonIdFromId(Map<String, String> sources) {
-  final slot = RegExp(
-    r"(?:\b(?:activeSalonId|providerId|salonId)\s*\?\?"
-    r"|\b(?:providerId|salonId)'?\s*:)"
-    '\\s*($_ident(?:\\s*[?!]?\\s*\\.\\s*$_ident)*)\\s*[?!]?\\s*\\.\\s*id\\b',
-  );
   final found = <String, List<int>>{};
   for (final MapEntry(key: path, value: source) in sources.entries) {
     final code = _code(source);
-    for (final m in slot.allMatches(code)) {
-      final chain = m[1]!.replaceAll(RegExp(r'[\s?!]'), '');
-      final lead = code.substring(0, m.start + m[0]!.indexOf(m[1]!));
-      final key = '$path · ${lead.trimRight().endsWith('.') ? '…' : ''}$chain';
-      (found[key] ??= []).add(_lineOf(code, m.start));
+    for (final slot in _salonSlot.allMatches(code)) {
+      for (final operand in _expressionAt(code, slot.end).split('??')) {
+        final value = operand.replaceAll(RegExp(r'[\s?!]'), '');
+        if (!value.endsWith('.id')) continue;
+        final head = value.substring(0, value.length - 3);
+        final m = _chainAtEnd.firstMatch(head);
+        final receiver = m == null
+            ? '…'
+            : head.substring(0, m.start).endsWith('.')
+            ? '…${m[1]}'
+            : m[1]!;
+        (found['$path · $receiver'] ??= []).add(_lineOf(code, slot.start));
+      }
     }
   }
   return found;
@@ -618,5 +656,13 @@ const _reviewedSalonIdFromId = <String, ({int reads, String why})>{
   'lib/widgets/booking/appointment_card.dart · provider': (
     reads: 1,
     why: 'a salon (models.Provider) — its id IS the salon id',
+  ),
+  'lib/providers/provider_provider.dart · salon': (
+    reads: 1,
+    why: 'the salon just shown (models.Provider), remembered as selected',
+  ),
+  'lib/screens/provider/salon_preview_screen.dart · salon': (
+    reads: 1,
+    why: 'the acting salon as GET /me/provider returned it',
   ),
 };
