@@ -186,11 +186,14 @@ rendez-vous et vos favoris. Vos données… ».
 - Both fail → « vos rendez-vous et vos favoris ».
 - The appointments fetch **throws** → the refusal, not the spinner.
 - The profile fetch **throws** → « votre profil », not the spinner.
-- The appointments read is a 200 whose body breaks mid-stream → the refusal.
+- The appointments read is a 200 whose body breaks mid-stream → the refusal;
+  the same for the favourites read.
 - The favourites read answers 401 → `/connexion?returnTo=/mon-compte/donnees`.
 - « Réessayer » after a failure reads again; with every read at 200 the
   summary and the buttons appear.
-- The clipboard rejects → the copy sentence, announced; no « Copié ✓ ».
+- The clipboard rejects → the copy sentence, announced; no « Copié ✓ »; the
+  download still works and clears the line.
+- CONTROL: a clipboard that accepts → « Copié ✓ », no alert.
 - CONTROL: every read 200 → the counts, and the downloaded file carries every
   appointment and every favourite.
 
@@ -216,6 +219,34 @@ three sections, in the fixed order whatever order they failed in.
 
 `mobile/test/unit/data_export_test.dart`: the sentence for one, two and
 three sections, in the fixed order.
+
+e2e (Playwright, the stub API): `account.spec.ts` already opens the page
+through the real BFF routes and checks « Télécharger (JSON) » is offered. It
+is the CONTROL for the stricter body check in `lib/api/account.ts`: the BFF's
+real answers still parse as a whole read. 9/9 green.
+
+**Watched red against `main` (2026-10-16).** Web: 10 of the 12 component
+tests red (no refusal, the spinner left up by a thrown read, the summary
+offered after a lost body, no redirect on a favourites 401, no clipboard
+line), the 2 CONTROLs green. App: 8 of the 9 widget tests red (the refusal
+never shown, `['Salon Excellence']` from memory instead of two salons,
+`stopped-salon` copied instead of « Salon Fermé », the `_TypeError` for a
+phoneless account, the unhandled `PlatformException`), the CONTROL green.
+The wording tests fail to compile against `main` (the helpers are new).
+
+**Mutations (2026-10-16, on committed code): 20 run, 20 red.** Each was
+applied to the committed fix, its targeted tests run, and the file restored
+from git. Web: the appointments status ignored; the favourites status
+ignored; a 401 redirect only on the profile read; `Promise.all` back; the
+profile not named; a silent clipboard failure; the download not clearing the
+copy line; a lost appointments body read as an empty list, and the same for
+the favourites; sections not reordered; « et » for every join. App: the
+appointments `error` ignored; the favourites `error` ignored; the favourites
+from memory (`force` dropped at the call, and ignored in the provider);
+favourites copied by id; a silent clipboard failure; the `as String` back;
+sections not reordered; « et » for every join. The first run had **one
+survivor**: no test sent the favourites read a lost body. That test was
+added, watched red against `main`, and the mutation re-run red.
 
 ## 7. Follow-ups (not in this change)
 
