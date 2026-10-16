@@ -55,7 +55,7 @@ WHERE provider_id = @pid
     OR display_name ILIKE '%' || @q || '%'
     OR (length(@digits::text) >= 2 AND phone LIKE '%' || @digits || '%')
   )
-ORDER BY last_visit_at DESC NULLS LAST, created_at DESC
+ORDER BY last_visit_at DESC NULLS LAST, created_at DESC, id
 LIMIT @limit OFFSET @offset
 '''),
       parameters: {
