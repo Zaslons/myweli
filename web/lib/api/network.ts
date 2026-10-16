@@ -5,8 +5,8 @@
 /// through the wrapper into a load that never caught it — an async rejection
 /// no error boundary sees — and the page stayed on its skeleton for ever.
 ///
-/// `lib/api/pro.ts` carries its own copy of `send` / `readJson` (the Pro
-/// change, docs/design/web-pro-network-failure.md, landed separately).
+/// The Pro wrappers (`lib/api/pro.ts`, docs/design/web-pro-network-failure.md)
+/// go through the same two functions.
 
 /// The app's no-network sentence (`_networkError` in every `api_*_service.dart`).
 export const NO_CONNECTION_MESSAGE = 'Pas de connexion. Réessayez.';
