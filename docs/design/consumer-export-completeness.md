@@ -246,19 +246,24 @@ never shown, `['Salon Excellence']` from memory instead of two salons,
 phoneless account, the unhandled `PlatformException`), the CONTROL green.
 The wording tests fail to compile against `main` (the helpers are new).
 
-**Mutations (2026-10-16, on committed code): 20 run, 20 red.** Each was
-applied to the committed fix, its targeted tests run, and the file restored
-from git. Web: the appointments status ignored; the favourites status
-ignored; a 401 redirect only on the profile read; `Promise.all` back; the
-profile not named; a silent clipboard failure; the download not clearing the
-copy line; a lost appointments body read as an empty list, and the same for
-the favourites; sections not reordered; « et » for every join. App: the
-appointments `error` ignored; the favourites `error` ignored; the favourites
-from memory (`force` dropped at the call, and ignored in the provider);
-favourites copied by id; a silent clipboard failure; the `as String` back;
-sections not reordered; « et » for every join. The first run had **one
-survivor**: no test sent the favourites read a lost body. That test was
-added, watched red against `main`, and the mutation re-run red.
+**Mutations (2026-10-16, on committed code).** Each was applied to the
+committed fix, its targeted tests run, and the file restored from git.
+
+- *First pass, before #620: 20 run, 20 red*, after one survivor was closed:
+  no test sent the favourites read a lost body; that test was added, watched
+  red against `main`, and the mutation re-run red.
+- *After the rebase onto #620: web 9 run, 9 red.* The appointments status
+  ignored; the favourites status ignored; a 401 redirect only on the profile
+  read; the profile not named; a silent clipboard failure; the download not
+  clearing the copy line; #620's `readJson` turning a lost body into `{}`;
+  sections not reordered; « et » for every join. (The first pass's
+  `Promise.all`-back and the two 502 mutations no longer apply: that code is
+  gone.)
+- *App, 9 run, 9 red* (the rebase changed no app file): the appointments
+  `error` ignored; the favourites `error` ignored; the favourites from memory
+  (`force` dropped at the call, and ignored in the provider); favourites
+  copied by id; a silent clipboard failure; the `as String` back; sections
+  not reordered; « et » for every join.
 
 ## 7. Follow-ups (not in this change)
 
