@@ -73,9 +73,11 @@ class ProAuthProvider extends ChangeNotifier {
   /// render — `ProSalonGate` stands in for them (§3.2).
   bool get needsSalon => isAuthenticated && !_rejoinPending && !salonKnown;
 
-  /// A load, sign-in, refresh or probe is out — the gate waits rather than
-  /// says it failed.
-  bool get salonLoading => _isLoading || _membershipRefresh != null || _probing;
+  /// The stored session is not read yet, or the membership refresh is out
+  /// (the cold start's, a sign-in's, « Réessayer »): the gate waits rather
+  /// than says it failed. A guard probe is not counted — with the gate up no
+  /// page is built, so nothing can start one.
+  bool get salonLoading => !sessionRestored || _membershipRefresh != null;
 
   /// IANA timezone every pro time-display/day-boundary call site passes into
   /// the salon_time helpers. Null → the Abidjan fallback, which is right only

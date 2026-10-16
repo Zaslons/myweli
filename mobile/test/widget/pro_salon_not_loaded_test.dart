@@ -350,6 +350,22 @@ void main() {
       expect(find.byType(LoadingIndicator), findsNothing);
     });
 
+    testWidgets('the first frame, before the session is read, is the wait', (
+      tester,
+    ) async {
+      await storedSession(tester, withFacts: false);
+      pro.meFails = true;
+
+      await pumpGated(tester);
+      await tester.pump(); // the mock's session read takes 50 ms
+
+      expect(authOf(tester).sessionRestored, isFalse);
+      expect(find.byType(LoadingIndicator), findsOneWidget);
+      expect(find.text('Impossible de charger votre salon'), findsNothing);
+      expect(_ClockPage.mounts, isEmpty);
+      await settleMocks(tester, rounds: 3); // let the load end
+    });
+
     testWidgets('a cold start still loading shows the wait, not the message', (
       tester,
     ) async {

@@ -46,8 +46,6 @@ class ProSalonGate extends StatefulWidget {
   State<ProSalonGate> createState() => _ProSalonGateState();
 }
 
-enum _Gate { open, waiting, failed }
-
 class _ProSalonGateState extends State<ProSalonGate> {
   @override
   void initState() {
@@ -90,15 +88,14 @@ class _ProSalonGateState extends State<ProSalonGate> {
 
   @override
   Widget build(BuildContext context) {
-    final gate = context.select<ProAuthProvider, _Gate>((auth) {
-      // Not read yet is not signed out: a page built now would read no
-      // salon and a signed-out clock.
-      if (!auth.sessionRestored) return _Gate.waiting;
-      if (!auth.needsSalon) return _Gate.open;
-      return auth.salonLoading ? _Gate.waiting : _Gate.failed;
-    });
+    // Not read yet is not signed out: a page built now would read no salon
+    // and a signed-out clock. Whether the screen shows the wait or the
+    // message is its own business ([ProAuthProvider.salonLoading]).
+    final closed = context.select<ProAuthProvider, bool>(
+      (auth) => !auth.sessionRestored || auth.needsSalon,
+    );
     final path = widget.router.routeInformationProvider.value.uri.path;
-    if (gate == _Gate.open || ProSalonGate.exemptPaths.contains(path)) {
+    if (!closed || ProSalonGate.exemptPaths.contains(path)) {
       return widget.child;
     }
     // Its own Navigator: the router's is off the tree, and the bar's tooltip
