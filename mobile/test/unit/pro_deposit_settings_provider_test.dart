@@ -76,6 +76,20 @@ void main() {
     expect(provider.depositPercentage, 0.5);
   });
 
+  test('the form starts from 30 % — before any load, and after a salon '
+      'switch', () async {
+    final provider = ProDepositSettingsProvider();
+    expect(provider.depositPercentage, 0.30);
+
+    stubLoad(
+      const DepositPolicy(depositRequired: true, depositPercentage: 0.5),
+    );
+    await provider.load('p1');
+    provider.resetForSalonSwitch();
+
+    expect(provider.depositPercentage, 0.30);
+  });
+
   test('load marks loadFailed on error', () async {
     when(
       () => service.getDepositPolicy(any()),
