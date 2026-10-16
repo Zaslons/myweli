@@ -25,6 +25,7 @@ import { NotificationsClient } from '../components/account/NotificationsClient';
 import { SalonVisitsCard } from '../components/account/SalonVisitsCard';
 import { BookingFlow } from '../components/booking/BookingFlow';
 import { FavoriteButton } from '../components/provider/FavoriteButton';
+import { exportFailureMessage } from '../lib/account/export';
 import { resetLocalitiesClientCache } from '../lib/use-localities';
 import { providerFixture } from './fixtures';
 
@@ -243,22 +244,28 @@ describe('Mes données (/mon-compte/donnees)', () => {
     const { container } = render(<DataExportClient />);
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Mes données' })).toBeInTheDocument();
-    expect(screen.getByRole('alert')).toHaveTextContent('Chargement impossible.');
+    // Every read failed, and the sentence names all three
+    // (docs/design/consumer-export-completeness.md §4).
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      exportFailureMessage(['profile', 'appointments', 'favorites']),
+    );
     expect(screen.getByRole('button', { name: 'Réessayer' })).toBeInTheDocument();
     expectNotLoading(container);
   });
 
-  for (const [label, answers] of [
-    ['the bookings fail (no network)', { '/api/appointments': 'throw', '/api/me/favorites': { status: 200, body: { favorites: [FAV] } } }],
-    ['the bookings fail (500)', { '/api/appointments': { status: 500 }, '/api/me/favorites': { status: 200, body: { favorites: [FAV] } } }],
-    ['the favorites fail (no network)', { '/api/appointments': { status: 200, body: { items: [APPT] } }, '/api/me/favorites': 'throw' }],
-    ['the favorites fail (500)', { '/api/appointments': { status: 200, body: { items: [APPT] } }, '/api/me/favorites': { status: 500 } }],
+  for (const [label, answers, missing] of [
+    ['the bookings fail (no network)', { '/api/appointments': 'throw', '/api/me/favorites': { status: 200, body: { favorites: [FAV] } } }, 'appointments'],
+    ['the bookings fail (500)', { '/api/appointments': { status: 500 }, '/api/me/favorites': { status: 200, body: { favorites: [FAV] } } }, 'appointments'],
+    ['the favorites fail (no network)', { '/api/appointments': { status: 200, body: { items: [APPT] } }, '/api/me/favorites': 'throw' }, 'favorites'],
+    ['the favorites fail (500)', { '/api/appointments': { status: 200, body: { items: [APPT] } }, '/api/me/favorites': { status: 500 } }, 'favorites'],
   ] as const) {
     it(`${label}: the error — never an export that says 0`, async () => {
       mockFetch({ '/api/me': { status: 200, body: ME }, ...answers });
       render(<DataExportClient />);
 
-      expect(await screen.findByRole('alert')).toHaveTextContent('Chargement impossible.');
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        exportFailureMessage([missing]),
+      );
       // The document a person downloads as « my data » must not be missing
       // half of it without a word.
       expect(screen.queryByRole('button', { name: 'Télécharger (JSON)' })).toBeNull();
