@@ -1,3 +1,4 @@
+import { readJson, send } from './network';
 import type { Review } from './providers';
 import type { KycStatus } from '../pro/kyc';
 import type { Availability } from '../pro/availability';
@@ -33,6 +34,14 @@ export type DashboardStats = {
 
 /// Browser → pro BFF (`/api/pro/*`) wrappers. Pro session lives in the pro
 /// httpOnly cookies; a 401 means "not signed in" → redirect to /pro/connexion.
+///
+/// **None of them throws** (docs/design/web-pro-network-failure.md §2). A call
+/// that never got a usable answer is **status 0** (`ok: false` for a write) —
+/// and every page's « not 200 » branch is already its error state. Before,
+/// a dropped connection rejected through the wrapper into a load that never
+/// caught it, and the page stayed on its skeleton for ever. Every call goes
+/// through the shared `send()` / `readJson()` of `./network`, as the consumer
+/// wrappers do.
 
 export type ProProfile = {
   account: {
@@ -80,7 +89,7 @@ export type ProProfile = {
 export async function requestOtpPro(
   phoneNumber: string,
 ): Promise<{ ok: boolean; devCode?: string; error?: string }> {
-  const res = await fetch('/api/pro/auth/request-otp', {
+  const res = await send('/api/pro/auth/request-otp', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ phoneNumber }),
@@ -93,7 +102,7 @@ export async function verifyOtpPro(
   phoneNumber: string,
   code: string,
 ): Promise<{ ok: boolean; error?: string }> {
-  const res = await fetch('/api/pro/auth/verify', {
+  const res = await send('/api/pro/auth/verify', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ phoneNumber, code }),
@@ -109,12 +118,13 @@ export async function getMyProvider(): Promise<{
   /// is the revoked-mid-session signal the membership probe acts on).
   error?: string;
 }> {
-  const res = await fetch('/api/pro/me');
+  const res = await send('/api/pro/me');
   if (!res.ok) {
     const body = (await res.json().catch(() => ({}))) as { error?: string };
     return { status: res.status, error: body.error };
   }
-  return { status: 200, profile: (await res.json()) as ProProfile };
+  const profile = await readJson<ProProfile>(res);
+  return profile ? { status: 200, profile } : { status: 0 };
 }
 
 // --- « Mes salons » (module `access` R6) -----------------------------------
@@ -124,12 +134,13 @@ export async function getMySalons(): Promise<{
   items: SalonMembership[];
   canAddSalon: boolean;
 }> {
-  const res = await fetch('/api/pro/salons');
+  const res = await send('/api/pro/salons');
   if (!res.ok) return { status: res.status, items: [], canAddSalon: false };
-  const body = (await res.json().catch(() => ({}))) as {
+  const body = await readJson<{
     items?: SalonMembership[];
     canAddSalon?: boolean;
-  };
+  }>(res);
+  if (!body) return { status: 0, items: [], canAddSalon: false };
   return {
     status: 200,
     items: body.items ?? [],
@@ -147,7 +158,7 @@ export async function addSalon(fields: {
   /// Multi-pays MP3 — optional; the publish gate enforces (T57).
   areaId?: string | null;
 }): Promise<{ ok: boolean; status: number; salon?: SalonMembership; error?: string }> {
-  const res = await fetch('/api/pro/salons', {
+  const res = await send('/api/pro/salons', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(fields),
@@ -167,19 +178,19 @@ export async function selectSalon(salonId: string | null): Promise<{
   profile?: ProProfile;
   error?: string;
 }> {
-  const res = await fetch('/api/pro/salons/select', {
+  const res = await send('/api/pro/salons/select', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ salonId }),
   });
-  const body = await res.json().catch(() => ({}));
   if (!res.ok) {
+    const body = (await res.json().catch(() => ({}))) as { error?: string };
     return { ok: false, status: res.status, error: body.error };
   }
   return {
     ok: true,
     status: res.status,
-    profile: salonId === null ? undefined : (body as ProProfile),
+    profile: salonId === null ? undefined : await readJson<ProProfile>(res),
   };
 }
 
@@ -187,10 +198,10 @@ export async function listProAppointments(): Promise<{
   status: number;
   items: ProAppointment[];
 }> {
-  const res = await fetch('/api/pro/appointments');
+  const res = await send('/api/pro/appointments');
   if (!res.ok) return { status: res.status, items: [] };
-  const body = (await res.json().catch(() => ({}))) as { items?: ProAppointment[] };
-  return { status: 200, items: body.items ?? [] };
+  const body = await readJson<{ items?: ProAppointment[] }>(res);
+  return body ? { status: 200, items: body.items ?? [] } : { status: 0, items: [] };
 }
 
 /// Take the salon live (docs/design/pro-salon-lifecycle.md). 409 returns the
@@ -200,7 +211,7 @@ export async function publishSalon(providerId: string): Promise<{
   status: number;
   missing?: string[];
 }> {
-  const res = await fetch('/api/pro/publish', {
+  const res = await send('/api/pro/publish', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ providerId }),
@@ -215,21 +226,22 @@ export async function getKycStatus(): Promise<{
   status: number;
   kyc?: KycStatus;
 }> {
-  const res = await fetch('/api/pro/kyc');
+  const res = await send('/api/pro/kyc');
   if (!res.ok) return { status: res.status };
-  return { status: 200, kyc: (await res.json()) as KycStatus };
+  const kyc = await readJson<KycStatus>(res);
+  return kyc ? { status: 200, kyc } : { status: 0 };
 }
 
 export async function submitKyc(
   documents: { type: string; fileName?: string; key: string }[],
 ): Promise<{ status: number; kyc?: KycStatus }> {
-  const res = await fetch('/api/pro/kyc', {
+  const res = await send('/api/pro/kyc', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ documents }),
   });
   if (!res.ok) return { status: res.status };
-  return { status: 200, kyc: (await res.json()) as KycStatus };
+  return { status: 200, kyc: await readJson<KycStatus>(res) };
 }
 
 /// The salon's reviews page (« Avis » — docs/design/web-pro-reviews.md).
@@ -245,15 +257,16 @@ export async function listProviderReviews(
   // `providerId` is the R6 SELECTOR, not the authority: upstream resolves the
   // salon from the token and refuses a selection the caller is not a member of
   // (T55). It used to be the only thing naming the salon, on a public route.
-  const res = await fetch(
+  const res = await send(
     `/api/pro/reviews?salonId=${encodeURIComponent(providerId)}&page=${page}`,
   );
   if (!res.ok) return { status: res.status, items: [], total: 0, pageSize: 0 };
-  const body = (await res.json().catch(() => ({}))) as {
+  const body = await readJson<{
     items?: Review[];
     total?: number;
     pageSize?: number;
-  };
+  }>(res);
+  if (!body) return { status: 0, items: [], total: 0, pageSize: 0 };
   return {
     status: 200,
     items: body.items ?? [],
@@ -277,7 +290,7 @@ export async function proAction(
   id: string,
   action: string,
 ): Promise<{ ok: boolean; status: number; error?: string }> {
-  const res = await fetch(`/api/pro/appointments/${id}/${action}`, {
+  const res = await send(`/api/pro/appointments/${id}/${action}`, {
     method: 'POST',
   });
   if (res.ok) return { ok: true, status: res.status };
@@ -286,10 +299,10 @@ export async function proAction(
 }
 
 export async function proDepositScreenshotUrl(id: string): Promise<string | null> {
-  const res = await fetch(`/api/pro/appointments/${id}/deposit-screenshot`);
+  const res = await send(`/api/pro/appointments/${id}/deposit-screenshot`);
   if (!res.ok) return null;
-  const b = (await res.json().catch(() => ({}))) as { url?: string };
-  return b.url ?? null;
+  const b = await readJson<{ url?: string }>(res);
+  return b?.url ?? null;
 }
 
 // --- catalogue: services (7.3a) ---------------------------------------------
@@ -298,7 +311,7 @@ export async function proDepositScreenshotUrl(id: string): Promise<string | null
 type MutationResult = { ok: boolean; status: number; error?: string };
 
 async function mutate(url: string, method: string, body?: unknown): Promise<MutationResult> {
-  const res = await fetch(url, {
+  const res = await send(url, {
     method,
     headers: body ? { 'content-type': 'application/json' } : undefined,
     body: body ? JSON.stringify(body) : undefined,
@@ -351,15 +364,16 @@ export async function createArtistReturning(
   providerId: string,
   input: ArtistInput,
 ): Promise<{ ok: boolean; status: number; artist?: Artist; error?: string }> {
-  const res = await fetch('/api/pro/catalogue/artists', {
+  const res = await send('/api/pro/catalogue/artists', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ providerId, artist: input }),
   });
-  const body = await res.json().catch(() => ({}));
-  return res.ok
-    ? { ok: true, status: res.status, artist: body as Artist }
-    : { ok: false, status: res.status, error: (body as { error?: string }).error };
+  if (!res.ok) {
+    const body = (await res.json().catch(() => ({}))) as { error?: string };
+    return { ok: false, status: res.status, error: body.error };
+  }
+  return { ok: true, status: res.status, artist: await readJson<Artist>(res) };
 }
 
 export function updateArtist(
@@ -400,11 +414,12 @@ export async function getSalonSubscription(providerId: string): Promise<{
   status: number;
   offer?: SalonOffer;
 }> {
-  const res = await fetch(
+  const res = await send(
     `/api/pro/salon-subscription?providerId=${encodeURIComponent(providerId)}`,
   );
   if (!res.ok) return { status: res.status };
-  return { status: 200, offer: (await res.json()) as SalonOffer };
+  const offer = await readJson<SalonOffer>(res);
+  return offer ? { status: 200, offer } : { status: 0 };
 }
 
 /// Pick/switch the offer (first choice starts the ONE 3-month trial;
@@ -413,25 +428,27 @@ export async function chooseOffer(
   providerId: string,
   tier: 'pro' | 'business' | 'reseau',
 ): Promise<{ ok: boolean; status: number; offer?: SalonOffer; error?: string }> {
-  const res = await fetch('/api/pro/salon-subscription', {
+  const res = await send('/api/pro/salon-subscription', {
     method: 'PUT',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ providerId, tier }),
   });
-  const body = await res.json().catch(() => ({}));
-  return res.ok
-    ? { ok: true, status: res.status, offer: body as SalonOffer }
-    : { ok: false, status: res.status, error: body.error };
+  if (!res.ok) {
+    const body = (await res.json().catch(() => ({}))) as { error?: string };
+    return { ok: false, status: res.status, error: body.error };
+  }
+  return { ok: true, status: res.status, offer: await readJson<SalonOffer>(res) };
 }
 
 export async function getDashboard(
   providerId: string,
 ): Promise<{ status: number; stats?: DashboardStats }> {
-  const res = await fetch(
+  const res = await send(
     `/api/pro/dashboard?providerId=${encodeURIComponent(providerId)}`,
   );
   if (!res.ok) return { status: res.status };
-  return { status: 200, stats: (await res.json()) as DashboardStats };
+  const stats = await readJson<DashboardStats>(res);
+  return stats ? { status: 200, stats } : { status: 0 };
 }
 
 // --- compte (audit 11.5) --------------------------------------------------------
@@ -445,7 +462,7 @@ export async function deleteProAccount(): Promise<{
   status: number;
   error?: string;
 }> {
-  const res = await fetch('/api/pro/account', { method: 'DELETE' });
+  const res = await send('/api/pro/account', { method: 'DELETE' });
   if (res.ok) return { ok: true, status: res.status };
   const body = (await res.json().catch(() => ({}))) as { error?: string };
   return { ok: false, status: res.status, error: body.error };
@@ -462,9 +479,10 @@ export async function getEarnings(
     qs.set('startDate', range.startDate);
     qs.set('endDate', range.endDate);
   }
-  const res = await fetch(`/api/pro/earnings?${qs.toString()}`);
+  const res = await send(`/api/pro/earnings?${qs.toString()}`);
   if (!res.ok) return { status: res.status };
-  return { status: 200, earnings: (await res.json()) as EarningsData };
+  const earnings = await readJson<EarningsData>(res);
+  return earnings ? { status: 200, earnings } : { status: 0 };
 }
 
 // --- profil + acompte (7.3e-i) ----------------------------------------------
@@ -479,11 +497,12 @@ export function updateProviderProfile(
 export async function getDepositPolicy(
   providerId: string,
 ): Promise<{ status: number; policy?: DepositPolicy }> {
-  const res = await fetch(
+  const res = await send(
     `/api/pro/acompte?providerId=${encodeURIComponent(providerId)}`,
   );
   if (!res.ok) return { status: res.status };
-  return { status: 200, policy: (await res.json()) as DepositPolicy };
+  const policy = await readJson<DepositPolicy>(res);
+  return policy ? { status: 200, policy } : { status: 0 };
 }
 
 export function saveDepositPolicy(
@@ -535,7 +554,7 @@ export async function loginProWithGoogle(idToken: string): Promise<{
   /// Team access R5a: the 202 bridge — pending invitations, no session yet.
   invitations?: TeamInvitation[];
 }> {
-  const res = await fetch('/api/pro/auth/google', {
+  const res = await send('/api/pro/auth/google', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ idToken }),
@@ -547,25 +566,32 @@ export async function loginProWithGoogle(idToken: string): Promise<{
   return res.ok ? { ok: true } : { ok: false, error: body.error };
 }
 
+/// `status` 0 = no answer: the login says « Pas de connexion », never a
+/// wrong e-mail or code it did not get to judge.
 export async function requestEmailOtpPro(
   email: string,
-): Promise<{ ok: boolean; devCode?: string; error?: string }> {
-  const res = await fetch('/api/pro/auth/email/request', {
+): Promise<{ ok: boolean; status: number; devCode?: string; error?: string }> {
+  const res = await send('/api/pro/auth/email/request', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ email }),
   });
   const body = await res.json().catch(() => ({}));
   return res.ok
-    ? { ok: true, devCode: body.devCode }
-    : { ok: false, error: body.error };
+    ? { ok: true, status: res.status, devCode: body.devCode }
+    : { ok: false, status: res.status, error: body.error };
 }
 
 export async function verifyEmailOtpPro(
   email: string,
   code: string,
-): Promise<{ ok: boolean; error?: string; invitations?: TeamInvitation[] }> {
-  const res = await fetch('/api/pro/auth/email/verify', {
+): Promise<{
+  ok: boolean;
+  status: number;
+  error?: string;
+  invitations?: TeamInvitation[];
+}> {
+  const res = await send('/api/pro/auth/email/verify', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ email, code }),
@@ -573,9 +599,15 @@ export async function verifyEmailOtpPro(
   const body = await res.json().catch(() => ({}));
   if (res.status === 202 && Array.isArray(body.invitations)) {
     // The code stays UNCONSUMED server-side — the accept call reuses it.
-    return { ok: false, invitations: body.invitations as TeamInvitation[] };
+    return {
+      ok: false,
+      status: res.status,
+      invitations: body.invitations as TeamInvitation[],
+    };
   }
-  return res.ok ? { ok: true } : { ok: false, error: body.error };
+  return res.ok
+    ? { ok: true, status: res.status }
+    : { ok: false, status: res.status, error: body.error };
 }
 
 // --- Team access R5a: the public (login-proof) invitation accept/decline ----
@@ -586,7 +618,7 @@ export async function acceptInvitationPublic(input: {
   email?: string;
   code?: string;
 }): Promise<{ ok: boolean; status: number; error?: string }> {
-  const res = await fetch('/api/pro/auth/invitations/accept', {
+  const res = await send('/api/pro/auth/invitations/accept', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(input),
@@ -603,7 +635,7 @@ export async function declineInvitationPublic(input: {
   email?: string;
   code?: string;
 }): Promise<{ ok: boolean; status: number; error?: string }> {
-  const res = await fetch('/api/pro/auth/invitations/decline', {
+  const res = await send('/api/pro/auth/invitations/decline', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(input),
@@ -620,87 +652,82 @@ export async function getTeamMembers(): Promise<{
   status: number;
   items: TeamMember[];
 }> {
-  const res = await fetch('/api/pro/members');
+  const res = await send('/api/pro/members');
   if (!res.ok) return { status: res.status, items: [] };
-  const body = (await res.json().catch(() => ({}))) as {
-    items?: TeamMember[];
-  };
-  return { status: 200, items: body.items ?? [] };
+  const body = await readJson<{ items?: TeamMember[] }>(res);
+  return body ? { status: 200, items: body.items ?? [] } : { status: 0, items: [] };
+}
+
+type MemberResult = { ok: boolean; status: number; member?: TeamMember; error?: string };
+
+/// A roster write's answer: the member row it returns, or the refusal's code.
+async function memberResult(res: Response): Promise<MemberResult> {
+  if (!res.ok) {
+    const body = (await res.json().catch(() => ({}))) as { error?: string };
+    return { ok: false, status: res.status, error: body.error };
+  }
+  return { ok: true, status: res.status, member: await readJson<TeamMember>(res) };
 }
 
 export async function inviteMember(input: {
   email: string;
   role: TeamRoleInput;
   artistId?: string;
-}): Promise<{ ok: boolean; status: number; member?: TeamMember; error?: string }> {
-  const res = await fetch('/api/pro/members', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(input),
-  });
-  const body = await res.json().catch(() => ({}));
-  return res.ok
-    ? { ok: true, status: res.status, member: body as TeamMember }
-    : { ok: false, status: res.status, error: body.error };
+}): Promise<MemberResult> {
+  return memberResult(
+    await send('/api/pro/members', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(input),
+    }),
+  );
 }
 
 export async function changeMemberRole(
   memberId: string,
   input: { role: TeamRoleInput; artistId?: string },
-): Promise<{ ok: boolean; status: number; member?: TeamMember; error?: string }> {
-  const res = await fetch(`/api/pro/members/${encodeURIComponent(memberId)}`, {
-    method: 'PATCH',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(input),
-  });
-  const body = await res.json().catch(() => ({}));
-  return res.ok
-    ? { ok: true, status: res.status, member: body as TeamMember }
-    : { ok: false, status: res.status, error: body.error };
+): Promise<MemberResult> {
+  return memberResult(
+    await send(`/api/pro/members/${encodeURIComponent(memberId)}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(input),
+    }),
+  );
 }
 
-export async function revokeMember(
-  memberId: string,
-): Promise<{ ok: boolean; status: number; member?: TeamMember; error?: string }> {
-  const res = await fetch(
-    `/api/pro/members/${encodeURIComponent(memberId)}/revoke`,
-    { method: 'POST' },
+export async function revokeMember(memberId: string): Promise<MemberResult> {
+  return memberResult(
+    await send(`/api/pro/members/${encodeURIComponent(memberId)}/revoke`, {
+      method: 'POST',
+    }),
   );
-  const body = await res.json().catch(() => ({}));
-  return res.ok
-    ? { ok: true, status: res.status, member: body as TeamMember }
-    : { ok: false, status: res.status, error: body.error };
 }
 
-export async function resendInvitation(
-  memberId: string,
-): Promise<{ ok: boolean; status: number; member?: TeamMember; error?: string }> {
-  const res = await fetch(
-    `/api/pro/members/${encodeURIComponent(memberId)}/resend`,
-    { method: 'POST' },
+export async function resendInvitation(memberId: string): Promise<MemberResult> {
+  return memberResult(
+    await send(`/api/pro/members/${encodeURIComponent(memberId)}/resend`, {
+      method: 'POST',
+    }),
   );
-  const body = await res.json().catch(() => ({}));
-  return res.ok
-    ? { ok: true, status: res.status, member: body as TeamMember }
-    : { ok: false, status: res.status, error: body.error };
 }
 
 export async function getMyInvitations(): Promise<{
   status: number;
   invitations: TeamInvitation[];
 }> {
-  const res = await fetch('/api/pro/invitations');
+  const res = await send('/api/pro/invitations');
   if (!res.ok) return { status: res.status, invitations: [] };
-  const body = (await res.json().catch(() => ({}))) as {
-    invitations?: TeamInvitation[];
-  };
-  return { status: 200, invitations: body.invitations ?? [] };
+  const body = await readJson<{ invitations?: TeamInvitation[] }>(res);
+  return body
+    ? { status: 200, invitations: body.invitations ?? [] }
+    : { status: 0, invitations: [] };
 }
 
 export async function acceptMyInvitation(
   invitationId: string,
 ): Promise<{ ok: boolean; status: number; error?: string }> {
-  const res = await fetch(
+  const res = await send(
     `/api/pro/invitations/${encodeURIComponent(invitationId)}/accept`,
     { method: 'POST' },
   );
@@ -713,7 +740,7 @@ export async function acceptMyInvitation(
 export async function declineMyInvitation(
   invitationId: string,
 ): Promise<{ ok: boolean; status: number; error?: string }> {
-  const res = await fetch(
+  const res = await send(
     `/api/pro/invitations/${encodeURIComponent(invitationId)}/decline`,
     { method: 'POST' },
   );
@@ -736,9 +763,10 @@ export async function listClients(
   if (opts.tag) qs.set('tag', opts.tag);
   if (opts.page) qs.set('page', String(opts.page));
   if (opts.pageSize) qs.set('pageSize', String(opts.pageSize));
-  const res = await fetch(`/api/pro/clients?${qs}`);
+  const res = await send(`/api/pro/clients?${qs}`);
   if (!res.ok) return { status: res.status };
-  return { status: 200, list: (await res.json()) as SalonClientList };
+  const list = await readJson<SalonClientList>(res);
+  return list ? { status: 200, list } : { status: 0 };
 }
 
 /// The server's largest page (`ClientsService.list` clamps to 50).
@@ -781,7 +809,7 @@ export async function addClient(
   clientId?: string;
   error?: string;
 }> {
-  const res = await fetch('/api/pro/clients', {
+  const res = await send('/api/pro/clients', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ providerId, ...input }),
@@ -800,11 +828,12 @@ export async function getClientCard(
   providerId: string,
   clientId: string,
 ): Promise<{ status: number; card?: SalonClientCard }> {
-  const res = await fetch(
+  const res = await send(
     `/api/pro/clients/${clientId}?providerId=${encodeURIComponent(providerId)}`,
   );
   if (!res.ok) return { status: res.status };
-  return { status: 200, card: (await res.json()) as SalonClientCard };
+  const card = await readJson<SalonClientCard>(res);
+  return card ? { status: 200, card } : { status: 0 };
 }
 
 export async function getClientVisits(
@@ -812,14 +841,12 @@ export async function getClientVisits(
   clientId: string,
   page = 1,
 ): Promise<{ status: number; items: ProAppointment[]; total: number }> {
-  const res = await fetch(
+  const res = await send(
     `/api/pro/clients/${clientId}/visits?providerId=${encodeURIComponent(providerId)}&page=${page}`,
   );
   if (!res.ok) return { status: res.status, items: [], total: 0 };
-  const b = (await res.json().catch(() => ({}))) as {
-    items?: ProAppointment[];
-    total?: number;
-  };
+  const b = await readJson<{ items?: ProAppointment[]; total?: number }>(res);
+  if (!b) return { status: 0, items: [], total: 0 };
   return { status: 200, items: b.items ?? [], total: b.total ?? 0 };
 }
 
@@ -841,7 +868,7 @@ export async function updateClientPhone(
   clientId: string,
   phone: string,
 ): Promise<MutationResult & { clientId?: string }> {
-  const res = await fetch(`/api/pro/clients/${clientId}`, {
+  const res = await send(`/api/pro/clients/${clientId}`, {
     method: 'PATCH',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ providerId, phone }),
@@ -859,17 +886,13 @@ export async function addClientNote(
   clientId: string,
   body: string,
 ): Promise<{ ok: boolean; status: number; note?: SalonClientNote }> {
-  const res = await fetch(`/api/pro/clients/${clientId}/notes`, {
+  const res = await send(`/api/pro/clients/${clientId}/notes`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ providerId, body }),
   });
   if (!res.ok) return { ok: false, status: res.status };
-  return {
-    ok: true,
-    status: res.status,
-    note: (await res.json()) as SalonClientNote,
-  };
+  return { ok: true, status: res.status, note: await readJson<SalonClientNote>(res) };
 }
 
 export async function deleteClientNote(
@@ -890,11 +913,12 @@ export async function getJournalDay(
   providerId: string,
   date: string,
 ): Promise<{ status: number; day?: JournalDay }> {
-  const res = await fetch(
+  const res = await send(
     `/api/pro/journal?providerId=${encodeURIComponent(providerId)}&date=${date}`,
   );
   if (!res.ok) return { status: res.status };
-  return { status: 200, day: (await res.json()) as JournalDay };
+  const day = await readJson<JournalDay>(res);
+  return day ? { status: 200, day } : { status: 0 };
 }
 
 /// Drag-reschedule (+ optional column change). 409 = slot taken.
@@ -903,7 +927,7 @@ export async function rescheduleAppointment(
   newDateTime: string,
   artistId?: string,
 ): Promise<{ ok: boolean; status: number; error?: string }> {
-  const res = await fetch(`/api/pro/appointments/${id}/reschedule`, {
+  const res = await send(`/api/pro/appointments/${id}/reschedule`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ newDateTime, ...(artistId ? { artistId } : {}) }),
@@ -932,13 +956,13 @@ export async function createManualBooking(
     sendSmsInvite?: boolean;
   },
 ): Promise<{ ok: boolean; status: number; appt?: ProAppointment; error?: string }> {
-  const res = await fetch('/api/pro/appointments', {
+  const res = await send('/api/pro/appointments', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ providerId, ...input }),
   });
   if (res.ok) {
-    return { ok: true, status: res.status, appt: (await res.json()) as ProAppointment };
+    return { ok: true, status: res.status, appt: await readJson<ProAppointment>(res) };
   }
   const b = (await res.json().catch(() => ({}))) as { error?: string };
   return { ok: false, status: res.status, error: b.error };
@@ -963,7 +987,7 @@ export async function registerPro(
   identity: { idToken?: string; email?: string; code?: string },
   fields: ProRegisterFields,
 ): Promise<{ ok: boolean; status: number; error?: string }> {
-  const res = await fetch('/api/pro/auth/register', {
+  const res = await send('/api/pro/auth/register', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ ...identity, ...fields }),

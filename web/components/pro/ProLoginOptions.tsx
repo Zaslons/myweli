@@ -10,7 +10,11 @@ import {
   verifyEmailOtpPro,
 } from '../../lib/api/pro';
 import { formatDateFr } from '../../lib/format';
-import { teamErrorMessage, type TeamInvitation } from '../../lib/pro/team';
+import {
+  NO_CONNECTION_MESSAGE,
+  teamErrorMessage,
+  type TeamInvitation,
+} from '../../lib/pro/team';
 import { useFieldErrors } from '../../lib/forms/useFieldErrors';
 import { Button } from '../Button';
 import { TextField } from '../TextField';
@@ -66,6 +70,9 @@ export function ProLoginOptions({ onSuccess }: { onSuccess: () => void }) {
     setError(null);
     const r = await requestEmailOtpPro(email.trim());
     setBusy(false);
+    // Status 0 = no answer: the e-mail was never judged
+    // (docs/design/web-pro-network-failure.md §3).
+    if (r.status === 0) return setError(NO_CONNECTION_MESSAGE);
     if (!r.ok) return setError('E-mail invalide ou envoi impossible.');
     setDevCode(r.devCode);
     setStep('code');
@@ -84,6 +91,8 @@ export function ProLoginOptions({ onSuccess }: { onSuccess: () => void }) {
       setInvitations(r.invitations);
       return setStep('invitations');
     }
+    // No answer: the code was never judged — not « Code incorrect ».
+    if (r.status === 0) return setError(NO_CONNECTION_MESSAGE);
     if (!r.ok) {
       // « Compte introuvable » is an ACCOUNT state and drives the signup link →
       // form-level. A bad code is the code field's fault (§14 rule 1).
