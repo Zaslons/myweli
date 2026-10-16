@@ -24,10 +24,13 @@ const artistFor = (date: string) => `Awa ${date}`;
 const asked: string[] = [];
 /// How the journal answers, per call — running out serves the day.
 let answers: Answer[] = [];
+/// When set, a journal request answers only once it settles.
+let hold: Promise<void> | null = null;
 
 function mockFetch(journal: Answer[]) {
   asked.length = 0;
   answers = [...journal];
+  hold = null;
   vi.stubGlobal(
     'fetch',
     vi.fn(async (url: string) => {
@@ -56,6 +59,7 @@ function mockFetch(journal: Answer[]) {
         const date = new URL(u, 'http://x').searchParams.get('date') ?? '';
         asked.push(date);
         const a = answers.shift();
+        if (hold) await hold;
         if (a === 'throw') throw new TypeError('Failed to fetch');
         if (a) return new Response('{"error":"internal"}', { status: a.status });
         return new Response(
@@ -122,9 +126,18 @@ describe('Rendez-vous — Journée: a day that fails to load is an error, never 
     expect(screen.getByLabelText('Date')).toHaveValue(day2);
     expect(screen.queryByRole('button', { name: cellOf(day1) })).toBeNull();
 
-    // « Réessayer » asks for the day ON SCREEN, not today.
+    // « Réessayer » asks for the day ON SCREEN, not today — and while it
+    // loads, the skeleton: never the previous day's grid back for a moment.
+    let release!: () => void;
+    hold = new Promise<void>((r) => {
+      release = r;
+    });
     fireEvent.click(screen.getByRole('button', { name: 'Réessayer' }));
-    expect(await screen.findByRole('button', { name: cellOf(day2) })).toBeInTheDocument();
     await waitFor(() => expect(asked).toEqual([day1, day2, day2]));
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(screen.queryByRole('button', { name: cellOf(day1) })).toBeNull();
+
+    release();
+    expect(await screen.findByRole('button', { name: cellOf(day2) })).toBeInTheDocument();
   });
 });
