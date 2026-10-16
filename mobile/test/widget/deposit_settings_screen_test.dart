@@ -654,6 +654,70 @@ void main() {
     await settle(tester);
     expect(numberLabel, findsNothing);
   });
+
+  // ---- acompte-off-parity.md §2: 0 % is « not chosen yet » ----------------
+  //
+  // Every new salon is stored with 0 %. The form copied it: « 0 % » under a
+  // slider drawn at 5 %, and switching deposits on then saving without
+  // touching the slider was refused by the server — « Informations
+  // invalides. » in a bar, with nothing to say what was wrong.
+
+  testWidgets('a stored 0 % reads « 30 % », and switching deposits on then '
+      'saving without the slider sends 0.30', (tester) async {
+    when(() => service.getDepositPolicy(any())).thenAnswer(
+      (_) async => ApiResponse.success(
+        const DepositPolicy(
+          depositRequired: false,
+          depositPercentage: 0,
+          mobileMoneyOperator: 'wave',
+          mobileMoneyNumber: storedNumber,
+        ),
+      ),
+    );
+    stubSaveOk();
+
+    // A verified session — the switch is locked otherwise (T52).
+    await tester.pumpWidget(
+      wrapApp(
+        providers: [
+          ChangeNotifierProvider(create: (_) => ProDepositSettingsProvider()),
+          ChangeNotifierProvider<ProAuthProvider>(
+            create: (_) => _VerifiedPro(),
+          ),
+          ChangeNotifierProvider(create: (_) => LocalityProvider()),
+        ],
+        home: const DepositSettingsScreen(providerId: 'p1'),
+      ),
+    );
+    await settle(tester);
+    await settle(tester);
+
+    await tester.tap(find.byType(SwitchListTile));
+    await settle(tester);
+
+    expect(find.text('30 %'), findsOneWidget);
+    expect(find.text('0 %'), findsNothing);
+    expect(
+      tester.widget<Slider>(find.byType(Slider)).value,
+      0.30,
+      reason: 'the slider sits where the label says',
+    );
+
+    await pressSave(tester);
+
+    final sent = verify(
+      () => service.updateDepositPolicy(
+        'p1',
+        depositRequired: true,
+        depositPercentage: captureAny(named: 'depositPercentage'),
+        cancellationWindowHours: any(named: 'cancellationWindowHours'),
+        mobileMoneyOperator: 'wave',
+        mobileMoneyNumber: storedNumber,
+      ),
+    ).captured.single;
+    expect(sent, 0.30, reason: 'what the salon saw is what is saved');
+    expect(find.text('Paramètres enregistrés'), findsOneWidget);
+  });
 }
 
 /// A session whose salon is verified, so « Exiger un acompte » can be toggled.
