@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Built** on `fix/consumer-export-completeness` (2026-10-16). Applies the owner's decision for the salon export ([web-pro-export-completeness.md](web-pro-export-completeness.md) §3, PR Zaslons/myweli#618: refuse, don't mark) to the consumer export. The French copy in §4 is new and is the part to review. Not merged, not deployed. |
+| **Status** | **Built** on `fix/consumer-export-completeness` (2026-10-16), rebased onto Zaslons/myweli#620 ([web-consumer-network-failure.md](web-consumer-network-failure.md), merged 2026-10-16). Applies the owner's decision for the salon export ([web-pro-export-completeness.md](web-pro-export-completeness.md) §3, PR Zaslons/myweli#618: refuse, don't mark) to the consumer export. The French copy in §4 is new and is the part to review. Not merged, not deployed. |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-10-16 |
 | **PRD ref / phase** | FR-AUTH-005 (data export) · V1 · parity 11.2 |
@@ -44,6 +44,16 @@ result as the user's data.
 5. **A refused clipboard is unhandled.** `navigator.clipboard.writeText` can
    reject (permission, an unfocused document, no clipboard on an insecure
    origin). Nothing catches it and nothing tells the user.
+
+**Since then, #620** ([web-consumer-network-failure.md](web-consumer-network-failure.md),
+merged the same day, built in parallel) fixed points 2 and 3 at the root:
+no consumer wrapper throws, and a request with no usable answer (no network,
+a body cut off on the way) is **status 0** (`send` / `readJson`,
+`lib/api/network.ts`). It also made this page refuse when either list is not
+a 200, with the generic « Chargement impossible. ». This change was rebased
+onto it and keeps its wrappers as they are; what it adds on the web is
+points 1, 4 and 5 done fully: the sentence names what is missing, a 401 on
+any read goes to sign-in, and the clipboard is handled.
 
 ### App: `mobile/lib/screens/profile/data_export_screen.dart`
 
@@ -147,17 +157,16 @@ rendez-vous et vos favoris. Vos données… ».
 - `lib/account/export.ts` gains `exportFailureMessage(failed)` and
   `EXPORT_COPY_FAILED`, pure and unit-tested, the consumer twins of the
   salon export's helpers.
-- `lib/api/account.ts`: `listAppointments()` and `getFavorites()` answer
-  `status: 502` when a 200's body does not parse or carries no array (§1
-  point 2). Every other caller already checks `status === 200`
-  (`AccountClient`, `SalonVisitsCard`, `RechercheClient`, `FavoriteButton`),
-  so for them a lost body now reads as the failure it is, rather than as an
-  empty list.
-- `DataExportClient.load()` runs the three reads with
-  `Promise.allSettled` (a fetch that throws is one failed section, not a
-  rejection that leaves the spinner up), redirects on any 401, and otherwise
-  either renders the summary or the refusal naming each failed section.
-  `copy()` catches a refused clipboard.
+- `lib/api/account.ts` is #620's, unchanged: a thrown fetch or a body that
+  does not parse is status 0. (A first version of this change answered 502
+  for a lost body; #620's status 0 replaced it at the rebase. #620 also
+  decided that a parsed 200 without its list key is an empty list, « the
+  server said so »; the BFF always sends the key, so this change does not
+  reopen that.)
+- `DataExportClient.load()` runs the three reads with `Promise.all` (none
+  throws), redirects on a 401 from any of them, and otherwise renders either
+  the summary or the refusal naming each failed section. `copy()` catches a
+  refused clipboard.
 
 ### App
 
@@ -197,6 +206,10 @@ rendez-vous et vos favoris. Vos données… ».
 - CONTROL: every read 200 → the counts, and the downloaded file carries every
   appointment and every favourite.
 
+`web/tests/consumer-network-pages.test.tsx` (#620's): its five « Mes données »
+cases asserted the old « Chargement impossible. »; they now assert the
+sentence naming the failed section (all three when nothing answers).
+
 `web/tests/account-export.test.ts`: the refusal's wording for one, two and
 three sections, in the fixed order whatever order they failed in.
 
@@ -221,11 +234,10 @@ three sections, in the fixed order whatever order they failed in.
 three sections, in the fixed order.
 
 e2e (Playwright, the stub API): `account.spec.ts` already opens the page
-through the real BFF routes and checks « Télécharger (JSON) » is offered. It
-is the CONTROL for the stricter body check in `lib/api/account.ts`: the BFF's
-real answers still parse as a whole read. 9/9 green.
+through the real BFF routes and checks « Télécharger (JSON) » is offered: the
+CONTROL for the happy path. 9/9 green (before the rebase).
 
-**Watched red against `main` (2026-10-16).** Web: 10 of the 12 component
+**Watched red against `main` before #620 (2026-10-16, `84ee583b`).** Web: 10 of the 12 component
 tests red (no refusal, the spinner left up by a thrown read, the summary
 offered after a lost body, no redirect on a favourites 401, no clipboard
 line), the 2 CONTROLs green. App: 8 of the 9 widget tests red (the refusal
@@ -250,10 +262,8 @@ added, watched red against `main`, and the mutation re-run red.
 
 ## 7. Follow-ups (not in this change)
 
-- **Web « Mon compte »** (`AccountClient`) reads the favourites without
-  checking the status (`setFavorites(f.favorites)`): a failed favourites read
-  shows « Aucun favori » to a user who has some. Same defect class, on a
-  screen that is not the export.
+- ~~**Web « Mon compte »** (`AccountClient`) reads the favourites without
+  checking the status.~~ Fixed by #620 (`favoritesFailed`).
 - **App salon export** (`ProDataExportScreen`) — already listed in
   [web-pro-export-completeness.md](web-pro-export-completeness.md) §8.
 
