@@ -323,10 +323,12 @@ void main() {
     );
 
     test('like Postgres: last visit first, then newest created', () async {
-      await seedClient('never-old', at: '2026-01-01T00:00:00.000Z');
-      await seedClient('never-new', at: '2026-06-01T00:00:00.000Z');
+      // The ids sort the OTHER way (a < z), so only created_at can put
+      // z-new first.
+      await seedClient('a-old', at: '2026-01-01T00:00:00.000Z');
+      await seedClient('z-new', at: '2026-06-01T00:00:00.000Z');
       await seedClient('visited', lastVisitAt: '2026-07-02T00:00:00.000Z');
-      expect(await walk(50), ['visited', 'never-new', 'never-old']);
+      expect(await walk(50), ['visited', 'z-new', 'a-old']);
     });
   });
 
