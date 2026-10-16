@@ -245,4 +245,19 @@ void main() {
       await drain(tester);
     });
   }
+
+  // The other callers (the push's `ensureSalon`, the appointment detail,
+  // « Ajouter un salon ») keep the bool: only a switch that happened is true.
+  testWidgets('switchSalon stays false when there is no answer', (
+    tester,
+  ) async {
+    final auth = await signInOwner(tester);
+    pro.fault = _Fault.network;
+    await tester.runAsync(() async {
+      expect(await auth.switchSalon('provider2'), isFalse);
+      pro.fault = _Fault.unreadable;
+      expect(await auth.switchSalon('provider2'), isFalse);
+    });
+    expect(auth.activeSalonId, 'provider1');
+  });
 }
