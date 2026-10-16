@@ -522,7 +522,7 @@ Map<String, List<int>> providerIdReads(Map<String, String> sources) {
 /// `providerId ?? …`), a named argument or a map entry (`providerId: …`,
 /// `'salonId': …`), an assignment (`final salonId = …`, `_providerId = …`).
 final _salonSlot = RegExp(
-  r"\b(?:activeSalonId|providerId|salonId)\s*\?\?"
+  r'\b(?:activeSalonId|providerId|salonId)\s*\?\?'
   r"|\b(?:providerId|salonId)'?\s*:"
   r'|\b[\w$]*(?:providerId|salonId|ProviderId|SalonId)\s*=(?![=>])',
 );
@@ -597,7 +597,7 @@ const _reviewedProviderIdReads = <String, ({int reads, String why})>{
   // A booking's salon (Appointment.providerId).
   'lib/screens/home/home_screen.dart · a': (
     reads: 1,
-    why: 'the salon of an upcoming booking (consumer home)',
+    why: 'the salon of a recent booking (consumer home)',
   ),
   'lib/screens/appointments/reschedule_screen.dart · widget.appointment': (
     reads: 1,
@@ -621,7 +621,7 @@ const _reviewedProviderIdReads = <String, ({int reads, String why})>{
   ),
   'lib/providers/appointment_provider.dart · a': (
     reads: 1,
-    why: 'a duplicate-booking check on the booking’s salon',
+    why: 'the latest completed visit at a salon (the review prompt)',
   ),
   'lib/providers/pro_journal_provider.dart · booking': (
     reads: 1,
@@ -637,7 +637,7 @@ const _reviewedProviderIdReads = <String, ({int reads, String why})>{
   ),
   'lib/core/utils/data_export.dart · a': (
     reads: 1,
-    why: 'a booking’s salon, written into the export',
+    why: 'a booking’s salon in the consumer « Mes données » export',
   ),
   // A review's salon (Review.providerId).
   'lib/providers/provider_provider.dart · review': (
