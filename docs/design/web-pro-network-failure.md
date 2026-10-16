@@ -9,7 +9,7 @@
 | **Module** | web Pro — `web/lib/api/pro.ts` (les appels navigateur → BFF Pro) et ses appelants |
 | **ROADMAP entry** | [2026-10-16-pro-network-failure.md](../roadmap/entries/2026-10-16-pro-network-failure.md) |
 | **Skills checked** | myweli-web-guardrails ✓ · myweli-dev-guardrails ✓ (aucun changement serveur, aucun contrat) · myweli-verification-guardrails (avant de dire « fait ») |
-| **Dépend de** | [#616](https://github.com/Zaslons/myweli/pull/616) ([acompte-off-parity.md](acompte-off-parity.md) D3) — **à fusionner d'abord**, voir §8 |
+| **Après** | [#616](https://github.com/Zaslons/myweli/pull/616) ([acompte-off-parity.md](acompte-off-parity.md) D3) — fusionné d'abord, le 2026-10-16 (`84ee583b`), comme §8 le demande ; cette branche est rebasée dessus |
 
 ## 1. Le défaut, vu dans le code
 
@@ -213,6 +213,9 @@ avec ce changement seul elle afficherait le formulaire vierge qu'un
 (§10) contient l'Acompte : la branche ne passe au vert que sur un `main` qui
 contient #616.
 
+**Fait** : #616 est fusionné (`84ee583b`) avant cette branche, rebasée
+dessus.
+
 ## 9. Hors périmètre, consigné
 
 - **Le mot de l'app** : sur une lecture ratée, le web dit « Une erreur est
@@ -291,7 +294,8 @@ contient #616.
   Acompte « `/me` répond, la politique est coupée », attendue sans #616 (le
   formulaire vierge de D3). Sur une fusion locale avec #616 : 1241 sur 1241,
   `tsc` propre. Le seul conflit de la fusion est la ligne de tête de
-  l'index des specs (les deux branches en ajoutent une).
+  l'index des specs (les deux branches en ajoutent une). **Après la fusion
+  de #616 et le rebase** : 1241 sur 1241, la ligne Acompte comprise.
 - `next build` passe contre l'API bouchon de la CI ; `tsc` et le lint sont
   propres. Non lancés en local : l'e2e Playwright et Lighthouse (la CI les
   lance).
