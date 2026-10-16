@@ -9,7 +9,7 @@
 | **Module** | app — `providers/notifications_provider.dart` (deux retours), `widgets/notifications/notifications_list.dart` (toucher une ligne), `widgets/notifications/mark_all_read_button.dart` (nouveau : « Tout lire », partagé par les deux écrans), `services/api/api_notification_service.dart` (un code) |
 | **ROADMAP entry** | [2026-10-16-app-notifications-read-revert.md](../roadmap/entries/2026-10-16-app-notifications-read-revert.md) |
 | **Skills checked** | myweli-dev-guardrails ✓ (aucun changement serveur, aucun contrat) · myweli-verification-guardrails (avant de dire « fait ») |
-| **Dépend de** | Rien dans le code. La parité vise [#624](https://github.com/Zaslons/myweli/pull/624) (`fix/consumer-optimistic-revert`, pas encore fusionné) : ce changement ne lit aucun de ses fichiers. Les liens vers sa spec ne mènent nulle part tant qu'il n'est pas fusionné. Seul conflit de texte attendu : la ligne de tête de [README.md](README.md) (garder les deux lignes). |
+| **Dépend de** | Rien dans le code. La parité vise [#624](https://github.com/Zaslons/myweli/pull/624) (le web, fusionné le 2026-10-16, après l'ouverture de cette branche) : ce changement ne lit aucun de ses fichiers. Le seul conflit, la ligne de tête de [README.md](README.md), s'est résolu en gardant les deux lignes. |
 
 ## 1. Le défaut, vu dans le code
 
