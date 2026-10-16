@@ -14,7 +14,8 @@ import 'refreshing_http_client.dart';
 /// Real HTTP implementation of [ProArtistServiceInterface] (backend
 /// B-artists). The salon's staff CRUD, on the **provider** session (silent
 /// refresh). The `artistId`-only edits resolve the salon from the persisted
-/// session (like the catalogue's serviceId-only edits). `workingHours` is
+/// session (like the catalogue's serviceId-only edits, by the same
+/// [ProviderSession.actingSalonId] rule). `workingHours` is
 /// JSON-normalized for the wire; `rating`/`reviewCount` are server-owned.
 /// Design: docs/design/pro-artists.md.
 class ApiProArtistService implements ProArtistServiceInterface {
@@ -130,13 +131,18 @@ class ApiProArtistService implements ProArtistServiceInterface {
     return out;
   }
 
+  /// The salon the session ACTS IN — the same rule as
+  /// ProAuthProvider.activeSalonId (the R6 selection, else the account's own
+  /// salon, else the membership's), so an edit lands in the salon the screen
+  /// shows. Null if not signed in or no salon is known
+  /// (docs/design/services-acting-salon.md).
   Future<String?> _providerId() async {
     final raw = await _providerSessionStore.read();
     if (raw == null) return null;
     try {
       return ProviderSession.fromJson(
         jsonDecode(raw) as Map<String, dynamic>,
-      ).provider.providerId;
+      ).actingSalonId;
     } catch (_) {
       return null;
     }
