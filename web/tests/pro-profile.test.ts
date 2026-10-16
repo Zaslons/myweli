@@ -257,13 +257,6 @@ describe('pro deposit form', () => {
         cancellationWindowHours: 48,
       }).percent,
     ).toBe('25');
-    expect(
-      depositToForm({
-        depositRequired: false,
-        depositPercentage: 0.4,
-        cancellationWindowHours: 24,
-      }).percent,
-    ).toBe('40');
   });
 
   it('depositToForm: a stored 0 (or none) is « not chosen yet » — the form proposes 30', () => {
@@ -280,6 +273,8 @@ describe('pro deposit form', () => {
     expect(at(undefined)).toBe('30');
     expect(depositToForm(undefined).percent).toBe('30');
     expect(String(DEFAULT_DEPOSIT_PERCENT)).toBe('30');
+    // A chosen percentage is the salon's, off or on.
+    expect(at(0.4)).toBe('40');
   });
 });
 
