@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Draft — awaiting sign-off (§11) |
+| **Status** | **Built** 2026-10-16 on `fix/r6-salon-facts` — approved by the owner the same day (§11) |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-16 |
 | **PRD ref / phase** | Team access R6 (multi-salons) · V1 |
@@ -115,7 +115,7 @@ A category outside the five (a legacy seed) hides its row rather than print a ke
 |---|---|---|
 | **Success** | `activeSalon != null` | the four rows above, for the acting salon |
 | **Loading** | `activeSalon == null && auth.isLoading` (cold start before `GET /me/provider` lands) | the name (from `salonName`) + three **skeleton** bars for the rows (`surfaceVariant`, `radiusSmall`, no text — the card's shape is known, §12). One `Semantics` label on the group: « Chargement des informations du salon ». |
-| **Unavailable** | `activeSalon == null && !auth.isLoading` (offline cold start, or the probe failed) | the name + `textSecondary` line « Les informations du salon n’ont pas pu être chargées. Vérifiez votre connexion. » + a text button **« Réessayer »** (≥48dp) → `auth.refreshMembership()`; while it runs, the loading state. A retry *can* succeed here (the network comes back), so §12's rule allows it. |
+| **Unavailable** | `activeSalon == null && !auth.isLoading` (offline cold start, or the probe failed) | the name + `textSecondary` line « Les informations du salon n’ont pas pu être chargées. Vérifiez votre connexion. » + a text button **« Réessayer »** (≥48dp) → `auth.refreshMembership()`; while it runs, the loading state — the card keeps its own `_retrying` flag, because `refreshMembership` raises no `isLoading` (only the cold start and a switch do). A retry *can* succeed here (the network comes back), so §12's rule allows it. |
 | **Switching** | `switchSalon` in flight | unchanged: the previous salon stays shown until the switch succeeds; `membership` and `activeSalon` are replaced in the same `notifyListeners`, so the card never mixes two salons. A refused switch leaves the previous salon. |
 
 Empty is not a state here: an owner always has an acting salon.
@@ -133,10 +133,16 @@ provider2. (`salonName` already falls back to « votre salon ».)
 
 ### 2.3 `ProAuthProvider.salonName` — the fallback chain
 
-`membership.salonName` → `activeSalon.name` → the account's `businessName`
-**only when no salon is selected** (`selectedSalonId == null`: the default
-salon, the one the copy was made for) → « votre salon ». After a switch the
-account's name is never the answer.
+`membership.salonName` → the account's `businessName` **only while the
+default salon is the acting one** (`selectedSalonId == null` and a salon
+resolved: the salon the copy was made from) → « votre salon ». After a switch
+the account's name is never the answer.
+
+*Built without the `activeSalon.name` step first written here:* the salon
+payload and the membership come from the same `GET /me/provider` response
+(`MyProviderInfo.membership` is required) and are assigned together on every
+path, so the step could never answer — mutation M11 survived because it was
+dead code, and the code went rather than a contrived test.
 
 ### 2.4 Saving « Profil du salon » refreshes the acting salon
 
@@ -210,11 +216,45 @@ the same pair a switch already costs. No new work on the « Profil » build.
    Goldens: no golden covers the « Profil » header; `pro_team` does not open
    the sheet — CI runs them anyway.
 
-**Mutations** on the committed fix, each alone: header back to
-`provider.businessName`; category back to `businessType`; sheet back to
-`businessName`; `salonName` fallback without the selection check; no refresh
-after save; the verification row switched to `activeSalon.verified`. Each must
-turn a named test red.
+### 8.1 What was run
+
+**Red first** (commit `69d1db32`, against `main`'s code): 6 red, 2 green.
+Every red failed on the account's name — « Salon Excellence » found where
+« Beauté Divine » (or « Excellence Prestige ») belonged — except « Équipe »,
+whose confirmation did not contain « l’accès à Beauté Divine. ». The two
+greens are the ones meant to be green before and after: `salonName` for the
+default salon, and the verification pin (§1.3 — a kept decision, not a fix).
+
+**Mutations** on the committed fix, each alone, then `git checkout`:
+
+| # | Mutation | Red in |
+|---|---|---|
+| M1 | name ← the account's `businessName` | switch · rename · cold start · offline |
+| M2 | category ← the account's `businessType` | switch · cold start · offline |
+| M3 | address ← the account's | switch · cold start · offline |
+| M4 | phone ← the account's | switch · cold start · offline |
+| M5 | name while loading ← `businessName`, not `salonName` | cold start · offline |
+| M6 | loading shows the account's address instead of the skeleton | cold start · offline |
+| M7 | unavailable shows the skeleton forever (no way out) | offline |
+| M8 | « Réessayer » raises no loading shape | offline |
+| M9 | the sheet ← `businessName` | « Équipe » |
+| M10 | `salonName` ← the account's name even after a switch | `salonName`, switched |
+| M11 | `salonName` without the `activeSalon.name` step | **survived** — dead code, removed (§2.3) |
+| M12 | no refresh after a salon-profile save | rename |
+| M13 | « Vérification » ← `activeSalon.verified` | the verification pin |
+| M14 | the Acompte lock ← `activeSalon.verified` | the verification pin |
+
+**13 of 13 red** once M11's code was gone; M6 is from the second pass (the
+first one's mutation text did not compile — a harness slip, not a result).
+
+**Suites** (local, final code): `salon_fact_reads_test` + 21 neighbouring files
+(R6/auth units, Profil role + deletion, Équipe, Acompte, salon profile form,
+onboarding, dashboard, rejoin, revoked session, staff shell, picker, add
+salon) — 212 passing. `pro_profile_role_test` changed for the new label
+(« Nom du salon », both the owner's presence and the member's absence).
+`flutter analyze` 0, `dart format` clean. Not run locally: the full suite and
+the goldens (CI runs both; no golden renders the Profil card). Not seen on a
+device.
 
 ## 9. Rollout & scope discipline
 
@@ -222,15 +262,13 @@ Ships with the app; no flag. V1; R6 is built.
 
 ## 10. Definition of done
 
-- [ ] `flutter analyze` = 0 · `dart format` clean · the suites above green.
-- [ ] Red-first record + mutation record in the PR.
-- [ ] Roadmap entry file; this spec → Built; README index row.
+- [x] `flutter analyze` = 0 · `dart format` clean · the suites above green (§8.1).
+- [x] Red-first record + mutation record (§8.1, and the PR).
+- [x] Roadmap entry file; this spec → Built; README index row.
 - [ ] Feature branch + PR; CI green; commits authored by the user, no Claude attribution.
 
-## 11. Open questions — for sign-off
+## 11. Decisions (owner, 2026-10-16)
 
-1. **Labels**: « Nom du salon » / « Catégorie » (the editor's words) instead of
-   « Nom de l’entreprise » / « Type d’entreprise »? *(Proposed: yes.)*
-2. **Unavailable state**: name + sentence + « Réessayer » (proposed), or hide
-   the rows silently?
-3. **Verification & Acompte stay account-level** (§1.3) — confirm.
+1. **Labels**: « Nom du salon » / « Catégorie » — the editor's words.
+2. **Unavailable state**: the name + the sentence + « Réessayer ».
+3. **Verification & Acompte stay account-level** (§1.3), pinned by a test.
