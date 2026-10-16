@@ -13,15 +13,33 @@ type SignResponse = {
   key?: string;
 };
 
+/// The presign request, to the pro BFF (same origin). No answer — no network
+/// — is `null`, the failed upload every caller already shows, never a throw
+/// that leaves the photo button spinning. Not reported: a same-origin request
+/// that never answers is the person's network, not storage refusing us nor a
+/// CORS rule, which is what the telemetry exists to find
+/// (docs/design/web-pro-network-failure.md §5).
+async function requestSign(
+  contentType: string,
+  purpose: 'logo' | 'gallery' | 'kyc',
+): Promise<Response | null> {
+  try {
+    return await fetch('/api/pro/uploads/sign', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ contentType, purpose }),
+    });
+  } catch {
+    return null;
+  }
+}
+
 /// The salon's brand mark — the gallery helper's shape with its OWN purpose
 /// (the purpose string is the storage namespace; salon-logo.md §5) and its
 /// own telemetry surface, so a CORS or signature failure names the feature.
 export async function uploadLogoImage(file: File): Promise<string | null> {
-  const signRes = await fetch('/api/pro/uploads/sign', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ contentType: file.type, purpose: 'logo' }),
-  });
+  const signRes = await requestSign(file.type, 'logo');
+  if (!signRes) return null;
   if (!signRes.ok) {
     reportUploadFailure('sign', 'logo', { status: signRes.status });
     return null;
@@ -41,11 +59,8 @@ export async function uploadLogoImage(file: File): Promise<string | null> {
 }
 
 export async function uploadGalleryImage(file: File): Promise<string | null> {
-  const signRes = await fetch('/api/pro/uploads/sign', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ contentType: file.type, purpose: 'gallery' }),
-  });
+  const signRes = await requestSign(file.type, 'gallery');
+  if (!signRes) return null;
   if (!signRes.ok) {
     reportUploadFailure('sign', 'gallery', { status: signRes.status });
     return null;
@@ -76,11 +91,8 @@ export async function uploadGalleryImage(file: File): Promise<string | null> {
 export async function uploadKycDocument(
   file: File,
 ): Promise<{ key: string; fileName: string } | null> {
-  const signRes = await fetch('/api/pro/uploads/sign', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ contentType: file.type, purpose: 'kyc' }),
-  });
+  const signRes = await requestSign(file.type, 'kyc');
+  if (!signRes) return null;
   if (!signRes.ok) {
     reportUploadFailure('sign', 'kyc', { status: signRes.status });
     return null;

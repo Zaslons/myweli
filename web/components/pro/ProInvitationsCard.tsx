@@ -124,16 +124,15 @@ export function ProInvitationsCard({
 
   async function accept(inv: TeamInvitation) {
     start({ id: inv.id, action: 'accept' });
-    let r: Awaited<ReturnType<typeof acceptMyInvitation>>;
-    try {
-      r = await acceptMyInvitation(inv.id);
-    } catch {
-      setError(NO_CONNECTION_MESSAGE);
-      return;
-    } finally {
-      done();
-    }
+    const r = await acceptMyInvitation(inv.id);
+    done();
     if (!r.ok) {
+      // Status 0 = no answer (the wrapper never throws —
+      // docs/design/web-pro-network-failure.md §3).
+      if (r.status === 0) {
+        setError(NO_CONNECTION_MESSAGE);
+        return;
+      }
       if (r.status === 401 && onUnauthenticated) {
         onUnauthenticated();
         return;
@@ -150,16 +149,13 @@ export function ProInvitationsCard({
 
   async function decline(inv: TeamInvitation) {
     start({ id: inv.id, action: 'decline' });
-    let r: Awaited<ReturnType<typeof declineMyInvitation>>;
-    try {
-      r = await declineMyInvitation(inv.id);
-    } catch {
-      setError(NO_CONNECTION_MESSAGE);
-      return;
-    } finally {
-      done();
-    }
+    const r = await declineMyInvitation(inv.id);
+    done();
     if (!r.ok) {
+      if (r.status === 0) {
+        setError(NO_CONNECTION_MESSAGE);
+        return;
+      }
       if (r.status === 401 && onUnauthenticated) {
         onUnauthenticated();
         return;
