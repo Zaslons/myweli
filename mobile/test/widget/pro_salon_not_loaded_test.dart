@@ -384,16 +384,23 @@ void main() {
       expect(find.text('LOGIN'), findsOneWidget);
     });
 
-    testWidgets('the session\'s own salon facts open the page at once', (
-      tester,
-    ) async {
+    testWidgets('the session\'s own salon facts open the page at once — '
+        'before the refresh answers, and when it fails', (tester) async {
       await storedSession(tester);
-      pro.meFails = true;
+      pro
+        ..meFails = true
+        ..holdNext = Completer<void>();
+      final hold = pro.holdNext!;
 
       await pumpGated(tester);
       await settleMocks(tester, rounds: 3);
 
-      expect(find.text('PAGE 10:00'), findsOneWidget);
+      expect(find.text('PAGE 10:00'), findsOneWidget, reason: '/me still out');
+      expect(find.byType(LoadingIndicator), findsNothing);
+
+      hold.complete();
+      await settleMocks(tester, rounds: 2);
+      expect(find.text('PAGE 10:00'), findsOneWidget, reason: '/me failed');
       expect(find.text('Impossible de charger votre salon'), findsNothing);
     });
 
