@@ -203,12 +203,19 @@ class SalonClientsPage extends Equatable {
     required this.items,
     required this.page,
     required this.total,
+    this.pageSize,
     this.availableTags = const [],
   });
 
   final List<SalonClient> items;
   final int page;
   final int total;
+
+  /// The page size the SERVER used (its echo, after its 1–50 clamp) — the
+  /// one its offsets were computed with, so a walk over every page counts
+  /// pages with it. Null when the answer carried none: such a page is never
+  /// walked (docs/design/app-pro-export-completeness.md §4).
+  final int? pageSize;
 
   /// Page 1 only: presets + the salon's custom tags (filter chips).
   final List<String> availableTags;
@@ -220,12 +227,13 @@ class SalonClientsPage extends Equatable {
             .toList(),
         page: (json['page'] as num?)?.toInt() ?? 1,
         total: (json['total'] as num?)?.toInt() ?? 0,
+        pageSize: (json['pageSize'] as num?)?.toInt(),
         availableTags: ((json['availableTags'] as List?) ?? const [])
             .cast<String>(),
       );
 
   @override
-  List<Object?> get props => [items, page, total, availableTags];
+  List<Object?> get props => [items, page, total, pageSize, availableTags];
 }
 
 /// The starter tag presets (module decision clients §11.1).
