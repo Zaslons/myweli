@@ -137,6 +137,14 @@ describe('wholeClientBase', () => {
     ).toBeNull();
   });
 
+  it('a total that moved is refused even when the ids happen to add up', () => {
+    // A row was deleted mid-walk: the later rows slid back by one, so the
+    // walk can no longer vouch for what it skipped.
+    expect(
+      wholeClientBase([page(1, 3, ['a', 'b']), page(2, 2, ['c'])]),
+    ).toBeNull();
+  });
+
   it('a repeated row (so another was skipped) → null', () => {
     expect(
       wholeClientBase([page(1, 3, ['a', 'b']), page(2, 3, ['b'])]),

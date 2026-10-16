@@ -313,6 +313,19 @@ describe('CompteDangerSection — the export refuses instead of shipping holes',
     expect((exportButton() as HTMLButtonElement).disabled).toBe(false);
   });
 
+  it('an appointments read answering 500 is refused — its empty list is not « no bookings »', async () => {
+    exportReads({ appointments: { status: 500, body: {} } });
+    const out = watchOutputs();
+    render(<CompteDangerSection profile={profile} />);
+
+    fireEvent.click(exportButton());
+
+    expect((await screen.findByRole('alert')).textContent).toBe(
+      APPOINTMENTS_FAILED,
+    );
+    expect(out.createObjectURL).not.toHaveBeenCalled();
+  });
+
   it('copy: a failed earnings read writes nothing to the clipboard', async () => {
     exportReads({ earnings: { status: 503 } });
     const out = watchOutputs();
