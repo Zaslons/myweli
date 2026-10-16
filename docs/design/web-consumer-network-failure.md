@@ -232,4 +232,36 @@ règles sont voisines). Après les deux : `lib/api/pro.ts` peut importer
 
 ## 11. Construit — vu rouge
 
-_À remplir à la construction._
+- **Vu rouge contre le code d'avant** : la table des wrappers 42 cas sur 72
+  (chaque wrapper rejetait ; `listAppointments` et `getFavorites` inventaient
+  une liste vide d'un corps illisible, `fetchSlots` « aucun créneau » ; les
+  cinq gardes de couverture passent déjà, comme elles le doivent) ; les pages
+  et les îlots 19 sur 25 (chacune sur son squelette ou « Chargement… », trois
+  îlots qui laissaient un rejet non géré ; les six verts sont les cas
+  inchangés épinglés : 404, 403, 401, « Aucun favori » envoyé par le serveur,
+  l'export complet, la connexion sur un 401) ; les enregistrements 18 sur 21
+  (les trois verts : la déconnexion réussie, le code faux, l'image refusée).
+- **Le test existant** `tests/booking-deposit.test.ts` suit les nouvelles
+  formes (`uploadDepositProof` → `{ ok, key }` / `{ ok: false, offline }`,
+  `attachDepositProof` rend son `status`).
+- **Mutations** : 22 sur 22 rattrapées — le `catch` de `send()` (30 cas
+  rouges) et de `readJson()` (14) ; `listAppointments` remis à
+  `.catch(() => ({}))` ; `getMe` qui prend un 200 illisible pour un 200 ;
+  `logout()` qui lit le statut 0 comme `failed`, puis toute réponse comme
+  `ok` ; `postLogin` sans son statut ; `fetchSlots` qui reprend un corps
+  perdu pour « aucun créneau » ; les deux signatures sans réponse remises au
+  rapport Sentry ; le détail qui redit « introuvable » sur tout échec, puis
+  qui ne remet jamais son erreur à faux ; « Mes données » qui ignore les
+  listes ; les favoris dont l'échec est ignoré ; la déconnexion qui navigue
+  sans regarder, puis qui dit la phrase générique hors ligne ; la sonde de
+  « Confirmation » lue comme « déconnecté », puis « Réessayer » qui ne la
+  relance pas ; la connexion (« Continuer », « Se connecter ») sans branche
+  statut 0 ; l'acompte qui redit « Vérifiez l'image » sur la signature, puis
+  sur l'attache. Et la garde de couverture : un wrapper ajouté à
+  `account.ts` sans ligne dans la table la fait tomber.
+- **Suite complète** : 1195 tests sur 1195, `tsc` et le lint propres ;
+  `next build` passe contre l'API bouchon de la CI. Non lancés en local :
+  l'e2e Playwright et Lighthouse (la CI les lance).
+- **Non couvert par un test de composant** : le ♥ de la recherche
+  (`RechercheClient`, carte et recherche à monter) — son comportement visible
+  ne change pas (`.finally`), la table tient `getFavorites`.
