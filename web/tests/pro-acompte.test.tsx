@@ -44,14 +44,17 @@ type Answer = { status: number; body?: unknown } | 'throw';
 const sent: { url: string; method: string; body: Record<string, unknown> }[] = [];
 
 /// `me` / `policy`: the answers to GET /api/pro/me and the Acompte GET, in
-/// order — running out serves the salon and [POLICY].
+/// order — running out serves the salon and [POLICY]. `put`: the answers to
+/// the saves, in order — running out is a 200.
 function mockFetch({
   me = [],
   policy = [],
-}: { me?: Answer[]; policy?: Answer[] } = {}) {
+  put = [],
+}: { me?: Answer[]; policy?: Answer[]; put?: Answer[] } = {}) {
   sent.length = 0;
   const meAnswers = [...me];
   const policyAnswers = [...policy];
+  const putAnswers = [...put];
   const answer = (a: Answer | undefined, fallback: unknown) => {
     if (a === 'throw') throw new TypeError('Failed to fetch');
     if (!a) return new Response(JSON.stringify(fallback), { status: 200 });
@@ -65,7 +68,7 @@ function mockFetch({
       const method = init?.method ?? 'GET';
       if (method !== 'GET') {
         sent.push({ url, method, body: JSON.parse(String(init?.body ?? '{}')) });
-        return new Response('{}', { status: 200 });
+        return answer(putAnswers.shift(), {});
       }
       if (url === '/api/pro/me') {
         return answer(meAnswers.shift(), {
@@ -194,5 +197,60 @@ describe('AcompteClient — deposits off keep the operator and the percentage', 
       depositPercentage: 0.6,
       mobileMoneyOperator: 'wave',
     });
+  });
+});
+
+describe('AcompteClient — the fallback is what was loaded or SAVED, nothing else', () => {
+  const OFF = { ...POLICY, depositRequired: false };
+
+  it('a refused save leaves it where it was', async () => {
+    mockFetch({ policy: [{ status: 200, body: OFF }], put: [{ status: 500 }] });
+    render(<AcompteClient />);
+    const toggle = await screen.findByLabelText('Exiger un acompte');
+    fireEvent.click(toggle); // on
+    const percent = screen.getByLabelText('Pourcentage de l’acompte (%)');
+    fireEvent.change(percent, { target: { value: '60' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'L’enregistrement a échoué. Réessayez.',
+    );
+
+    fireEvent.change(percent, { target: { value: 'abc' } });
+    fireEvent.click(toggle); // off
+    fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }));
+    await waitFor(() => expect(sent).toHaveLength(2));
+    // 60 was never stored: the server refused it.
+    expect(sent[1].body.policy).toMatchObject({ depositPercentage: 0.45 });
+  });
+
+  it('never chosen (a stored 0): the 30 on screen is a proposal, not the fallback', async () => {
+    mockFetch({ policy: [{ status: 200, body: { ...OFF, depositPercentage: 0 } }] });
+    render(<AcompteClient />);
+    const toggle = await screen.findByLabelText('Exiger un acompte');
+    fireEvent.click(toggle); // on
+    const percent = screen.getByLabelText('Pourcentage de l’acompte (%)');
+    expect(percent).toHaveValue('30');
+    fireEvent.change(percent, { target: { value: 'abc' } });
+    fireEvent.click(toggle); // off
+    fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }));
+    await waitFor(() => expect(sent).toHaveLength(1));
+    expect(sent[0].body.policy).toMatchObject({ depositPercentage: 0 });
+  });
+});
+
+describe('AcompteClient — a save with no network', () => {
+  it('says it failed and gives « Enregistrer » back — never a button disabled for ever', async () => {
+    mockFetch({ put: ['throw'] });
+    render(<AcompteClient />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Enregistrer' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'L’enregistrement a échoué. Réessayez.',
+    );
+    const save = screen.getByRole('button', { name: 'Enregistrer' });
+    expect(save).toBeEnabled();
+
+    fireEvent.click(save); // the network is back
+    expect(await screen.findByText('Acompte enregistré.')).toBeInTheDocument();
+    expect(sent).toHaveLength(2);
   });
 });

@@ -102,7 +102,7 @@ export function AcompteClient() {
         setCountryCode(me.profile.provider.countryCode ?? null);
         setVerified(me.profile.account.verificationStatus === 'verified');
         setForm(depositToForm(dp.policy));
-        setLastPercentage(dp.policy.depositPercentage);
+        setLastPercentage(dp.policy.depositPercentage ?? 0);
         setLoading(false);
       } catch {
         fail();
@@ -136,7 +136,11 @@ export function AcompteClient() {
     setBusy(true);
     setError(null);
     const payload = buildDepositPayload(f, lastPercentage);
-    const r = await saveDepositPolicy(providerId, payload);
+    // No network is a failed save like any other — never « Enregistrer » left
+    // disabled for ever (docs/design/acompte-off-parity.md §8).
+    const r = await saveDepositPolicy(providerId, payload).catch(
+      (): { ok: false; status: number; error?: string } => ({ ok: false, status: 0 }),
+    );
     setBusy(false);
     if (!r.ok) {
       // The server names the number (phone-leftovers §2): under its field —

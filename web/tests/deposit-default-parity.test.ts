@@ -14,7 +14,9 @@ const DART_DEPOSIT = readFileSync(
   join(REPO_ROOT, 'mobile/lib/core/utils/deposit.dart'),
   'utf-8',
 )
-  // Comments out: a constant quoted in a doc comment is not the constant.
+  // Comments out: a constant quoted in a comment is not the constant —
+  // block comments first, then line comments.
+  .replace(/\/\*[\s\S]*?\*\//g, '')
   .replace(/\/\/.*$/gm, '');
 
 describe('the proposed deposit percentage — app/web parity', () => {

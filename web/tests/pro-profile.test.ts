@@ -240,7 +240,10 @@ describe('pro deposit form', () => {
         ).toBe(Number(percent) / 100);
       }
     }
-    for (const percent of ['', 'abc', '0', '101']) {
+    // Below 1 is refused as its message says (« 1–100 % »): '0.4' passed the
+    // old `> 0` check, was stored as 0.004, read back as « 0 » and refused —
+    // a policy the web wrote and could not save again.
+    for (const percent of ['', 'abc', '0', '0.4', '0.99', '101']) {
       expect(validateDeposit({ ...on, percent }), percent).toMatch(/pourcentage/i);
       expect(
         buildDepositPayload({ ...on, required: false, percent }, 0.45).depositPercentage,
@@ -275,6 +278,24 @@ describe('pro deposit form', () => {
     expect(String(DEFAULT_DEPOSIT_PERCENT)).toBe('30');
     // A chosen percentage is the salon's, off or on.
     expect(at(0.4)).toBe('40');
+  });
+
+  it('depositToForm keeps a stored percentage to the hundredth — an untouched save writes back what it read', () => {
+    // Deposits off now send the field back (decision 1), so a rounded read
+    // would rewrite a policy nobody touched: 0.125 read as « 13 » saved 0.13.
+    const at = (depositPercentage: number) =>
+      depositToForm({ depositRequired: false, depositPercentage, cancellationWindowHours: 24 })
+        .percent;
+    expect(at(0.125)).toBe('12.5');
+    expect(at(0.29)).toBe('29');
+    expect(at(0.57)).toBe('57');
+    // What the app's slider writes (0.05 + 12 × 0.05 in floating point).
+    expect(at(0.6499999999999999)).toBe('65');
+    expect(at(1)).toBe('100');
+    // Written by another client below the web's floor: shown as it is, not
+    // as a « 0 » — and refused by the switch-on check, like any value < 1.
+    expect(at(0.004)).toBe('0.4');
+    expect(validateDeposit({ ...on, percent: at(0.004) })).toMatch(/pourcentage/i);
   });
 });
 

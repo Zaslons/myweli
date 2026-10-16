@@ -32,8 +32,13 @@ export function depositToForm(p?: DepositPolicy): DepositForm {
   return {
     required: p?.depositRequired ?? false,
     // A stored 0 (or none) reads « not chosen yet »: the form proposes the
-    // default, as the app does — never a « 0 » the switch would refuse.
-    percent: String(stored > 0 ? Math.round(stored * 100) : DEFAULT_DEPOSIT_PERCENT),
+    // default, as the app does — never a « 0 » the switch would refuse. A
+    // chosen one is read to the hundredth, not rounded: deposits off send the
+    // field back, and an untouched save must write what it read (0.125 is
+    // « 12.5 », never « 13 »; the app's 0.6499999999999999 is « 65 »).
+    percent: String(
+      stored > 0 ? Number((stored * 100).toFixed(2)) : DEFAULT_DEPOSIT_PERCENT,
+    ),
     windowHours:
       p?.cancellationWindowHours != null ? String(p.cancellationWindowHours) : '24',
     operator: p?.mobileMoneyOperator ?? '',
@@ -41,12 +46,14 @@ export function depositToForm(p?: DepositPolicy): DepositForm {
   };
 }
 
-/// The percentage field's rule (1–100). [validateDeposit] holds the salon to
-/// it while a deposit is collected; [buildDepositPayload] sends the field only
-/// when it passes.
+/// The percentage field's rule (1–100, as its message says). [validateDeposit]
+/// holds the salon to it while a deposit is collected; [buildDepositPayload]
+/// sends the field only when it passes. Below 1 is refused: '0.4' passed the
+/// old `> 0`, was stored as 0.004, came back as « 0 » and could not be saved
+/// again.
 function percentOk(percent: string): boolean {
   const pct = Number(percent);
-  return percent.trim() !== '' && !Number.isNaN(pct) && pct > 0 && pct <= 100;
+  return percent.trim() !== '' && !Number.isNaN(pct) && pct >= 1 && pct <= 100;
 }
 
 export function validateDeposit(f: DepositForm): string | null {

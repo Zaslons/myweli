@@ -102,8 +102,8 @@ class ProDepositSettingsProvider extends ChangeNotifier implements SalonScoped {
     try {
       final trimmed = _mobileMoneyNumber.trim();
       // The PUT replaces the whole policy: the operator and the percentage go
-      // out as held whatever the switch says — not sending them erases them
-      // (acompte-off-parity.md §1, D1).
+      // out as held whatever the switch says — a `null` or a 0 in their place
+      // erases them (acompte-off-parity.md §1, D1).
       final response = await _proService.updateDepositPolicy(
         providerId,
         depositRequired: _depositRequired,

@@ -54,16 +54,33 @@ void main() {
   test(
     'load reads a stored 0 % as not chosen yet: the form proposes 30 %',
     () async {
+      final provider = ProDepositSettingsProvider();
+      // The provider lives as long as the app and the screen loads on every
+      // visit: start from a value that is NOT the default, or « left as it
+      // was » and « proposes 30 % » would look the same.
+      provider.setDepositPercentage(0.60);
       stubLoad(
         const DepositPolicy(depositRequired: false, depositPercentage: 0),
       );
-
-      final provider = ProDepositSettingsProvider();
       await provider.load('p1');
 
       expect(provider.depositPercentage, 0.30);
     },
   );
+
+  test('load keeps any chosen percentage, however small — only 0 is '
+      '« not chosen »', () async {
+    // The web takes 1–100 %, below the app slider's 5 %: a 1 % deposit is
+    // the salon's, not a gap for the default to fill.
+    stubLoad(
+      const DepositPolicy(depositRequired: true, depositPercentage: 0.01),
+    );
+
+    final provider = ProDepositSettingsProvider();
+    await provider.load('p1');
+
+    expect(provider.depositPercentage, 0.01);
+  });
 
   test('load keeps a chosen percentage, deposits off too', () async {
     stubLoad(
@@ -100,6 +117,21 @@ void main() {
 
     expect(provider.loadFailed, isTrue);
     expect(provider.error, 'boom');
+  });
+
+  test('load marks loadFailed when the read throws — the screen shows its '
+      'error state, never a form to save over the policy', () async {
+    // The web showed a blank form here (acompte-off-parity.md D3); the app is
+    // the reference it now follows — pinned.
+    when(
+      () => service.getDepositPolicy(any()),
+    ).thenThrow(const FormatException('malformed body'));
+
+    final provider = ProDepositSettingsProvider();
+    await provider.load('p1');
+
+    expect(provider.loadFailed, isTrue);
+    expect(provider.isLoading, isFalse);
   });
 
   test('save sends the edited policy and returns true', () async {
