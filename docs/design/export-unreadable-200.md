@@ -102,8 +102,16 @@ partagent ces lectures montrent leur état d'erreur avec « Réessayer ».
 
 - Les autres lectures de listes qui lisent encore `?? []` (notifications,
   invitations, équipe Pro, avis, visites d'un client, pages publiques) :
-  la cause réseau est fermée par la décision 1 ; il ne reste que le cas d'un
-  serveur qui changerait son contrat.
+  la cause réseau est fermée par la décision 1 — pour les BFF `callApi` /
+  `callApiPro` et pour les deux proxys publics `/api/availability` et
+  `/api/localities` (§7) ; il ne reste que le cas d'un serveur qui
+  changerait son contrat.
+- App, inchangé : une réponse 200 qui n'est pas un objet (`[]`, `null`) ou
+  dont un élément est cassé (`items: [null]`) lève encore une `TypeError` ;
+  la liste « Clients » l'affiche par `e.toString()` (le motif des 67 sites
+  `_error = e.toString()` de l'app), l'export la refuse. Et les lectures des
+  favoris et de l'équipe disent encore « FormatException » pour un corps
+  coupé — seule la lecture des clients dit « Erreur » dans ce cas.
 - L'export de l'app salon n'a pas de section revenus alors que
   [pro-account-deletion-export.md](pro-account-deletion-export.md) les liste
   pour les deux surfaces — un écart de parité, pas ce défaut.
@@ -143,6 +151,12 @@ Web au merge (Vercel). App au prochain build. Serveur : rien.
 - **L'export web du salon** : une erreur pendant l'assemblage du fichier est
   le refus de l'export ; son message nomme les trois lectures, faute d'un
   texte dédié (aucun texte nouveau, §3) — consigné au §5.
+- **Les deux proxys publics** (revue finale) : `/api/availability` et
+  `/api/localities` ne passent pas par `callApi` et faisaient le même 200
+  `{}` d'un corps perdu — « aucun créneau ce jour-là », et un arbre des
+  localités vide que `lib/use-localities.ts` garde pour la visite. Ce sont
+  des lectures : un 502 aussi, par la même règle ; une erreur garde son
+  statut (404 = « disparu » pour la réservation).
 - **Ce qui reste comme avant, exprès** : `getNotifications` et l'équipe Pro
   (`getTeamMembers`) lisent encore un 200 sans `items` comme une liste
   vide ; le test de #620 a été séparé pour le dire (§5).
@@ -154,5 +168,7 @@ l'intégration. **Mutations** sur le code commité, l'arbre vérifié propre
 après chacune : 15 + 8 côté web (constructeur et revue), 8 + 3 côté app,
 puis 7 à l'intégration — dont les 5 que la revue avait vues survivre (le
 `total` repris des lignes, une page sautée, une page ratée qui remplace la
-liste par l'erreur, un garde des favoris trop strict, le GET seul) : toutes
-rattrapées.
+liste par l'erreur, un garde des favoris trop strict, le GET seul) — et 4
+sur les proxys publics et la casse de la méthode : toutes rattrapées. La
+revue finale a refait 8 mutations (7 rattrapées ; la casse, non épinglée
+alors, l'est depuis).
