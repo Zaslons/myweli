@@ -12,12 +12,17 @@ import '../../core/utils/formatters.dart';
 import '../../providers/appointment_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/favorites_provider.dart';
-import '../../providers/provider_provider.dart';
 import '../../widgets/common/app_button.dart';
 import '../../widgets/common/app_snack_bar.dart';
 import '../../widgets/common/empty_state.dart';
 import '../../widgets/common/loading_indicator.dart';
 
+/// « Mes données » (FR-AUTH-005): the profile, the appointments and the
+/// favourites, assembled on the device into one JSON the client can copy.
+///
+/// The copy is whole or it is not offered: a read that fails names the
+/// missing data and the screen offers « Réessayer », never a section emptied
+/// by its failure (docs/design/consumer-export-completeness.md).
 class DataExportScreen extends StatefulWidget {
   const DataExportScreen({super.key});
 
@@ -27,7 +32,11 @@ class DataExportScreen extends StatefulWidget {
 
 class _DataExportScreenState extends State<DataExportScreen> {
   bool _loading = true;
-  bool _failed = false;
+
+  /// The reads that failed on the last attempt. Not empty → the refusal, and
+  /// nothing to copy: a section emptied by its failure reads as « you have
+  /// none » (docs/design/consumer-export-completeness.md §3).
+  List<DataExportSection> _failed = const [];
   Map<String, dynamic>? _export;
   int _appointmentCount = 0;
   int _favoriteCount = 0;
@@ -41,7 +50,7 @@ class _DataExportScreenState extends State<DataExportScreen> {
   Future<void> _load() async {
     setState(() {
       _loading = true;
-      _failed = false;
+      _failed = const [];
     });
 
     try {
@@ -49,27 +58,39 @@ class _DataExportScreenState extends State<DataExportScreen> {
       if (user == null) {
         setState(() {
           _loading = false;
-          _failed = true;
+          _failed = const [DataExportSection.profile];
         });
         return;
       }
 
       final appointments = context.read<AppointmentProvider>();
       final favorites = context.read<FavoritesProvider>();
-      final providers = context.read<ProviderProvider>();
 
+      // `force`: the account as it is now, not the list this session read
+      // first. Neither load throws — each sets its list and its `error`
+      // together, so `error == null` means the list is a real answer.
       await Future.wait([
         appointments.loadAppointments(),
-        favorites.loadFavorites(user.id),
-        if (providers.providers.isEmpty) providers.loadProviders(),
+        favorites.loadFavorites(user.id, force: true),
       ]);
 
       if (!mounted) return;
 
-      final names = favorites.favoriteProviderIds.map((id) {
-        final match = providers.providers.where((p) => p.id == id);
-        return match.isEmpty ? id : match.first.name;
-      }).toList();
+      final failed = [
+        if (appointments.error != null) DataExportSection.appointments,
+        if (favorites.error != null) DataExportSection.favorites,
+      ];
+      if (failed.isNotEmpty) {
+        setState(() {
+          _loading = false;
+          _failed = failed;
+        });
+        return;
+      }
+
+      // The salons as the favourites read hydrated them — a stopped one
+      // included, which the discovery list leaves out.
+      final names = [for (final p in favorites.favoriteProviders) p.name];
 
       setState(() {
         _appointmentCount = appointments.appointments.length;
@@ -85,7 +106,10 @@ class _DataExportScreenState extends State<DataExportScreen> {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _failed = true;
+        _failed = const [
+          DataExportSection.appointments,
+          DataExportSection.favorites,
+        ];
       });
     }
   }
@@ -94,7 +118,13 @@ class _DataExportScreenState extends State<DataExportScreen> {
     final export = _export;
     if (export == null) return;
     final json = const JsonEncoder.withIndent('  ').convert(export);
-    await Clipboard.setData(ClipboardData(text: json));
+    try {
+      await Clipboard.setData(ClipboardData(text: json));
+    } on PlatformException {
+      if (!mounted) return;
+      AppSnackBar.show(context, kDataExportCopyFailed, kind: SnackKind.error);
+      return;
+    }
     if (!mounted) return;
     AppSnackBar.show(
       context,
@@ -116,11 +146,11 @@ class _DataExportScreenState extends State<DataExportScreen> {
     if (_loading) {
       return const LoadingIndicator();
     }
-    if (_failed || _export == null) {
+    if (_failed.isNotEmpty || _export == null) {
       return EmptyState(
         icon: Icons.wifi_off,
         title: 'Chargement impossible',
-        description: 'Vérifiez votre connexion et réessayez.',
+        description: dataExportFailureMessage(_failed),
         actionText: 'Réessayer',
         onAction: _load,
       );
@@ -144,7 +174,11 @@ class _DataExportScreenState extends State<DataExportScreen> {
           child: Text(
             [
               (profile['name'] as String?) ?? 'Utilisateur',
-              profile['phoneNumber'] as String,
+              // The web's « Profil » line. The phone is optional since the
+              // auth overhaul: an `as String` here threw for every account
+              // signed in by email that had not saved one yet.
+              ?((profile['email'] as String?) ??
+                  (profile['phoneNumber'] as String?)),
               if (user != null)
                 'membre depuis ${Formatters.formatDate(user.createdAt)}',
             ].join(' · '),
