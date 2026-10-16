@@ -104,13 +104,19 @@ export function RendezVousClient() {
       setJournalDay(r.day);
       return;
     }
-    // Any failure — a 5xx, no network (status 0) — is the section's error
+    // The session is gone (the BFF's refresh failed): the login, as this
+    // page's other reads — « Réessayer » could only fail again.
+    if (r.status === 401) {
+      router.replace('/pro/connexion');
+      return;
+    }
+    // Any other failure — a 5xx, no network (status 0) — is the section's error
     // state, as the app (`_day = null` + « Réessayer »). It used to do
     // nothing: the skeleton for ever, or the PREVIOUS day's grid under the
     // new date (docs/design/web-pro-network-failure.md §4).
     setJournalDay(null);
     setJournalError(true);
-  }, [profile, journalDate]);
+  }, [profile, journalDate, router]);
 
   useEffect(() => {
     if (view === 'journal') loadJournal();

@@ -111,6 +111,13 @@ describe('Rendez-vous — Journée: a day that fails to load is an error, never 
     });
   }
 
+  it('a 401 (the session is gone) goes to the login, as the page’s other reads — not « Réessayer » for ever', async () => {
+    mockFetch([{ status: 401 }]);
+    render(<RendezVousClient />);
+    await waitFor(() => expect(replace).toHaveBeenCalledWith('/pro/connexion'));
+    expect(screen.queryByRole('button', { name: 'Réessayer' })).toBeNull();
+  });
+
   it('a failed change of day does not leave the previous day’s grid under the new date', async () => {
     mockFetch([]);
     render(<RendezVousClient />);
