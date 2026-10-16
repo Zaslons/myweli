@@ -3672,7 +3672,7 @@ export interface paths {
         };
         /**
          * The salon's client base (module clients C1)
-         * @description Provider-authenticated + ownership-scoped (capability `clients.view` — owner-only until the access module). Paginated, sorted by last visit; `query` matches name substring or phone digits (≥2); `tag` filters. Every read is AUDITED (threat T46). Page 1 carries `availableTags` (presets VIP/Fidèle/À risque + the salon's custom tags).
+         * @description Provider-authenticated + ownership-scoped (capability `clients.view` — owner-only until the access module). Paginated, sorted by last visit, then newest created, then `id` — a total order, so walking the pages returns each client exactly once (docs/design/web-pro-export-completeness.md §5); `query` matches name substring or phone digits (≥2); `tag` filters. Every read is AUDITED (threat T46). Page 1 carries `availableTags` (presets VIP/Fidèle/À risque + the salon's custom tags).
          */
         get: {
             parameters: {

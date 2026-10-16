@@ -1,3 +1,5 @@
+import { readFile } from 'node:fs/promises';
+
 import { type Page, expect, test } from '@playwright/test';
 
 import { signInPro } from './_auth';
@@ -800,6 +802,18 @@ test('compte: export buttons + type-SUPPRIMER deletion (audit 11.5)', async ({
     page.getByRole('button', { name: 'Exporter (JSON)' }),
   ).toBeVisible();
   await expect(page.getByRole('button', { name: 'Copier' })).toBeVisible();
+
+  // …and it makes a file, through the real BFF routes: every section read,
+  // the client file walked (docs/design/web-pro-export-completeness.md).
+  const downloading = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Exporter (JSON)' }).click();
+  const file = await downloading;
+  expect(file.suggestedFilename()).toBe('myweli-salon-donnees.json');
+  const doc = JSON.parse(await readFile(await file.path(), 'utf8'));
+  expect(doc.appointments.length).toBeGreaterThan(0);
+  expect(doc.clients.map((c: { name: string }) => c.name)).toContain('Koffi');
+  expect(doc.earnings).not.toBeNull();
+  await expect(page.getByText(/Export interrompu/)).toHaveCount(0);
 
   // The deletion half (AUTH-004): gated on the typed confirmation.
   await page.getByRole('button', { name: 'Supprimer mon compte' }).click();
