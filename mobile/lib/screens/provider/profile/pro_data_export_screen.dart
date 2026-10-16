@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -9,6 +10,8 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../core/utils/data_export.dart';
+import '../../../models/api_response.dart';
+import '../../../models/salon_client.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../widgets/common/app_button.dart';
 import '../../../widgets/common/app_snack_bar.dart';
@@ -20,6 +23,11 @@ import '../../../widgets/common/loading_indicator.dart';
 /// account, the listing, the catalogue and the salon's own records into one
 /// JSON, copyable. Mirrors the consumer export screen. Design:
 /// docs/design/pro-account-deletion-export.md.
+///
+/// The export is whole or it is not offered: a read that fails, or a client
+/// walk that does not add up, names the missing data and leaves nothing to
+/// copy (docs/design/app-pro-export-completeness.md). A salon owner reads
+/// `[]` as « no clients », not as « the read failed ».
 class ProDataExportScreen extends StatefulWidget {
   const ProDataExportScreen({super.key});
 
@@ -30,6 +38,10 @@ class ProDataExportScreen extends StatefulWidget {
 class _ProDataExportScreenState extends State<ProDataExportScreen> {
   bool _loading = true;
   bool _failed = false;
+
+  /// The sections whose read failed on the last attempt, named in the
+  /// refusal. Empty while [_failed] = no session to read with.
+  Set<ProExportSection> _failedSections = const {};
   Map<String, dynamic>? _export;
 
   @override
@@ -42,64 +54,65 @@ class _ProDataExportScreenState extends State<ProDataExportScreen> {
     setState(() {
       _loading = true;
       _failed = false;
+      _failedSections = const {};
     });
-    try {
-      final auth = context.read<ProAuthProvider>();
-      final account = auth.provider;
-      final providerId = account?.providerId ?? account?.id;
-      if (account == null || providerId == null) {
-        setState(() {
-          _loading = false;
-          _failed = true;
-        });
-        return;
-      }
-
-      // By account, not by public id (T51). This is the only one of the five
-      // reads below that HARD-FAILS the export, so a public 404 on a draft
-      // salon aborted the whole RGPD download — the other four soft-fail to
-      // an empty list.
-      final salonRes = await serviceLocator.proService.getMyProvider();
-      final services = await serviceLocator.proService.getProviderServices(
-        providerId,
-      );
-      final artists = await serviceLocator.proArtistService.getArtists(
-        providerId,
-      );
-      final appointments = await serviceLocator.proService
-          .getProviderAppointments(providerId);
-      final clients = await serviceLocator.proClientsService.listClients(
-        providerId,
-      );
-
-      final salon = salonRes.data?.salon;
-      if (!mounted) return;
-      if (salon == null) {
-        setState(() {
-          _loading = false;
-          _failed = true;
-        });
-        return;
-      }
-
-      setState(() {
-        _export = buildProviderDataExport(
-          account: account,
-          salon: salon,
-          services: services.data ?? const [],
-          artists: artists.data ?? const [],
-          appointments: appointments.data ?? const [],
-          clients: clients.data?.items ?? const [],
-        );
-        _loading = false;
-      });
-    } catch (_) {
-      if (!mounted) return;
+    final auth = context.read<ProAuthProvider>();
+    final account = auth.provider;
+    final salonId = account?.providerId ?? account?.id;
+    if (account == null || salonId == null) {
       setState(() {
         _loading = false;
         _failed = true;
       });
+      return;
     }
+
+    // In parallel, each settled on its own: a failed read (an error answer
+    // or a throw) is one missing section, never a rejected load. Concurrent
+    // 401s share one refresh across the services (session-refresh.md). The
+    // salon is read by account, not by public id (T51), so a draft salon
+    // exports like a published one.
+    final pro = serviceLocator.proService;
+    final (info, services, artists, appointments, clients) = await (
+      _read(() => pro.getMyProvider()),
+      _read(() => pro.getProviderServices(salonId)),
+      _read(() => serviceLocator.proArtistService.getArtists(salonId)),
+      _read(() => pro.getProviderAppointments(salonId)),
+      _walkClientBase(salonId),
+    ).wait;
+    if (!mounted) return;
+
+    final salon = info?.salon;
+    if (salon == null ||
+        services == null ||
+        artists == null ||
+        appointments == null ||
+        clients == null) {
+      setState(() {
+        _loading = false;
+        _failed = true;
+        _failedSections = {
+          if (salon == null) ProExportSection.salon,
+          if (services == null) ProExportSection.services,
+          if (artists == null) ProExportSection.artists,
+          if (appointments == null) ProExportSection.appointments,
+          if (clients == null) ProExportSection.clients,
+        };
+      });
+      return;
+    }
+
+    setState(() {
+      _export = buildProviderDataExport(
+        account: account,
+        salon: salon,
+        services: services,
+        artists: artists,
+        appointments: appointments,
+        clients: clients,
+      );
+      _loading = false;
+    });
   }
 
   Future<void> _copy() async {
@@ -126,7 +139,9 @@ class _ProDataExportScreenState extends State<ProDataExportScreen> {
           ? EmptyState(
               icon: Icons.wifi_off,
               title: 'Chargement impossible',
-              description: 'Vérifiez votre connexion et réessayez.',
+              description: _failedSections.isEmpty
+                  ? 'Vérifiez votre connexion et réessayez.'
+                  : proExportFailureMessage(_failedSections),
               actionText: 'Réessayer',
               onAction: _load,
             )
@@ -188,4 +203,42 @@ class _CountRow extends StatelessWidget {
       ),
     );
   }
+}
+
+/// The page size of the export's client walk: the server's maximum
+/// (`ClientsService.list` clamps to 50).
+const int _clientWalkPageSize = 50;
+
+/// One read's data, or null when it failed — an error answer or a throw.
+Future<T?> _read<T>(Future<ApiResponse<T>> Function() read) async {
+  try {
+    final res = await read();
+    return res.success ? res.data : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+/// Every client of the salon, page by page — or null when a page fails or
+/// the walk does not add up ([wholeClientBase]). The pages go one after
+/// another: page 1's `total` and `pageSize` decide how many there are.
+Future<List<SalonClient>?> _walkClientBase(String salonId) async {
+  final service = serviceLocator.proClientsService;
+  final first = await _read(
+    () => service.listClients(salonId, pageSize: _clientWalkPageSize),
+  );
+  if (first == null) return null;
+  // The server's page size, not ours: it is the one its offsets used.
+  final size = first.pageSize;
+  if (size == null || size <= 0) return null;
+  final pages = [first];
+  final count = (first.total / size).ceil();
+  for (var page = 2; page <= count; page++) {
+    final next = await _read(
+      () => service.listClients(salonId, page: page, pageSize: size),
+    );
+    if (next == null) return null;
+    pages.add(next);
+  }
+  return wholeClientBase(pages);
 }
