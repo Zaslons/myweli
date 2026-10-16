@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import type { ReactElement } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -28,6 +28,7 @@ import { RendezVousClient } from '../components/pro/RendezVousClient';
 import { RevenusClient } from '../components/pro/RevenusClient';
 import { SalonPreviewClient } from '../components/pro/SalonPreviewClient';
 import { VerificationClient } from '../components/pro/VerificationClient';
+import { NO_CONNECTION_MESSAGE } from '../lib/pro/team';
 import { resetLocalitiesClientCache } from '../lib/use-localities';
 
 /// docs/design/web-pro-network-failure.md §1/§10 — every Pro page that loads
@@ -35,6 +36,10 @@ import { resetLocalitiesClientCache } from '../lib/use-localities';
 /// that never caught it, `setLoading(false)` never ran, and the page stayed on
 /// its skeleton for ever — no message, no « Réessayer ». Now: the page's own
 /// error state, under its own h1.
+///
+/// docs/design/web-pro-no-connection-copy.md §3/§7 — and it says WHY, as the
+/// app does: no answer at all (status 0) is « Pas de connexion. Réessayez. »;
+/// a 5xx keeps the page's sentence (or ErrorState's default), unchanged.
 
 type Answer = 'throw' | { status: number; body?: unknown };
 
@@ -86,7 +91,7 @@ type Page = {
   /// The page's h1 — in every state (§4: one h1 per page).
   h1: string;
   el: () => ReactElement;
-  /// The sentence of its error state.
+  /// The sentence of its error state on a 5xx (absent: ErrorState's default).
   message?: string;
   /// The reads after `/me` whose failure is the page's error state.
   reads: string[];
@@ -137,42 +142,147 @@ const PAGES: Page[] = [
   { h1: 'Acompte', el: () => <AcompteClient />, reads: ['/api/pro/acompte'] },
 ];
 
-/// The page's error state: its h1, the alert, « Réessayer » — and no
-/// skeleton left spinning.
-async function expectErrorState(page: Page) {
+/// The page's error state: its h1, the alert with `sentence`, « Réessayer »
+/// — and no skeleton left spinning.
+async function expectErrorState(page: Page, sentence: string) {
   expect(
     await screen.findByRole('button', { name: 'Réessayer' }),
   ).toBeInTheDocument();
   expect(
     screen.getByRole('heading', { level: 1, name: page.h1 }),
   ).toBeInTheDocument();
-  expect(screen.getByRole('alert')).toHaveTextContent(
-    page.message ?? 'Une erreur est survenue. Réessayez.',
-  );
+  expect(screen.getByRole('alert')).toHaveTextContent(sentence);
   expect(replace).not.toHaveBeenCalled();
 }
 
-describe('Pro pages — no network at all: the error state, never a skeleton for ever', () => {
+/// The page's sentence when the server answered with a failure.
+const serverSentence = (page: Page) =>
+  page.message ?? 'Une erreur est survenue. Réessayez.';
+
+const nameOf = (page: Page) => (page.el().type as { name: string }).name;
+
+describe('Pro pages — no network at all: the error state says « Pas de connexion », never a skeleton for ever', () => {
   for (const page of PAGES) {
-    it(`${page.h1} (${(page.el().type as { name: string }).name})`, async () => {
+    it(`${page.h1} (${nameOf(page)})`, async () => {
       mockFetch({ '*': 'throw' });
       render(page.el());
-      await expectErrorState(page);
+      await expectErrorState(page, NO_CONNECTION_MESSAGE);
     });
   }
 });
 
-describe('Pro pages — the salon loads, then the page’s own read is cut', () => {
+describe('Pro pages — the salon loads, then the page’s own read is cut: « Pas de connexion »', () => {
   for (const page of PAGES) {
     for (const read of page.reads) {
-      it(`${page.h1} (${(page.el().type as { name: string }).name}) — ${read}`, async () => {
+      it(`${page.h1} (${nameOf(page)}) — ${read}`, async () => {
         mockFetch({
           '/api/pro/me': { status: 200, body: PROFILE },
           [read]: 'throw',
         });
         render(page.el());
-        await expectErrorState(page);
+        await expectErrorState(page, NO_CONNECTION_MESSAGE);
       });
     }
   }
+});
+
+/// The server answered — a failure, not the network: the sentence of today,
+/// never « Pas de connexion » (web-pro-no-connection-copy.md §2: the shared
+/// default is untouched).
+describe('Pro pages — a 5xx keeps the page’s sentence', () => {
+  for (const page of PAGES) {
+    it(`${page.h1} (${nameOf(page)}) — everything 500`, async () => {
+      mockFetch({ '*': { status: 500, body: { error: 'internal' } } });
+      render(page.el());
+      await expectErrorState(page, serverSentence(page));
+      expect(screen.getByRole('alert')).not.toHaveTextContent('connexion');
+    });
+    for (const read of page.reads) {
+      it(`${page.h1} (${nameOf(page)}) — ${read} 500`, async () => {
+        mockFetch({
+          '/api/pro/me': { status: 200, body: PROFILE },
+          [read]: { status: 500, body: { error: 'internal' } },
+        });
+        render(page.el());
+        await expectErrorState(page, serverSentence(page));
+        expect(screen.getByRole('alert')).not.toHaveTextContent('connexion');
+      });
+    }
+  }
+});
+
+/// The same state is reached AFTER a good arrival — a later read of the page
+/// that is cut says « Pas de connexion » too (§7).
+describe('Pro pages — a later read is cut, after the page loaded', () => {
+  it('Clients — « Charger plus » cut', async () => {
+    let calls = 0;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) => {
+        const path = String(url).split('?')[0];
+        if (path === '/api/pro/me') {
+          return new Response(JSON.stringify(PROFILE), { status: 200 });
+        }
+        if (path === '/api/pro/clients') {
+          calls += 1;
+          if (calls > 1) throw new TypeError('Failed to fetch');
+          return new Response(
+            JSON.stringify({
+              items: [
+                {
+                  id: 'c1',
+                  displayName: 'Awa Koné',
+                  phone: '+2250700000001',
+                  tags: [],
+                  linked: false,
+                  createdAt: '2026-10-01T10:00:00.000Z',
+                  visits: 1,
+                  noShows: 0,
+                },
+              ],
+              page: 1,
+              pageSize: 1,
+              total: 2,
+            }),
+            { status: 200 },
+          );
+        }
+        return new Response('{}', { status: 404 });
+      }),
+    );
+    render(<ClientsClient />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Charger plus' }));
+    await expectErrorState(
+      { h1: 'Clients', el: () => <ClientsClient />, reads: [] },
+      NO_CONNECTION_MESSAGE,
+    );
+  });
+
+  it('Revenus — a period picked, cut', async () => {
+    let calls = 0;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) => {
+        const path = String(url).split('?')[0];
+        if (path === '/api/pro/me') {
+          return new Response(JSON.stringify(PROFILE), { status: 200 });
+        }
+        if (path === '/api/pro/earnings') {
+          calls += 1;
+          if (calls > 1) throw new TypeError('Failed to fetch');
+          return new Response(
+            JSON.stringify({ totalEarnings: 0, currency: 'XOF', transactions: [] }),
+            { status: 200 },
+          );
+        }
+        return new Response('{}', { status: 404 });
+      }),
+    );
+    render(<RevenusClient />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Semaine' }));
+    await expectErrorState(
+      { h1: 'Revenus', el: () => <RevenusClient />, reads: [] },
+      NO_CONNECTION_MESSAGE,
+    );
+  });
 });
