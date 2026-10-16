@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Décidé le 2026-10-16** — la même décision que [web-pro-network-failure.md](web-pro-network-failure.md) (§2 : à la racine), appliquée côté client ; construit le même jour sur `fix/consumer-network-failure` ; §11 dit ce qui a été vu rouge |
+| **Statut** | **Décidé le 2026-10-16** — la même décision que [web-pro-network-failure.md](web-pro-network-failure.md) (§2 : à la racine), appliquée côté client ; construit le même jour sur `fix/consumer-network-failure` ; §11 dit ce qui a été vu rouge · **Mergé (#620) le 2026-10-16** — web en production au merge (Vercel) ; rien côté serveur |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-16 |
 | **PRD ref / phase** | Les quatre états de chaque page (SYSTEM.md §12, WEB-SYSTEM §12) · V1 — web client (Mon compte, rendez-vous, favoris, notifications, avis, réservation, connexion) |

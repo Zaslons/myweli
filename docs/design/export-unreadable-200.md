@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Approuvé le 2026-10-16** (propriétaire : « first fix the minor gap » — l'écart noté au landing de #621 : un 200 sans sa liste lu comme une liste vide) — **construit le même jour** sur `fix/export-unreadable-200` ; §7 dit ce qui a été construit autrement qu'écrit (la décision 1 ne vaut que pour une **lecture**) |
+| **Statut** | **Approuvé le 2026-10-16** (propriétaire : « first fix the minor gap » — l'écart noté au landing de #621 : un 200 sans sa liste lu comme une liste vide) — **construit le même jour** sur `fix/export-unreadable-200` ; §7 dit ce qui a été construit autrement qu'écrit (la décision 1 ne vaut que pour une **lecture**) · **Mergé (#630) le 2026-10-16** — web en production au merge (Vercel) ; app au prochain build (après la revue Apple de 0.0.1) ; rien côté serveur |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-16 |
 | **PRD ref / phase** | FR-AUTH-005 « Mes données » · export du salon (R5 §6, T39) · V1 |

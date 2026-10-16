@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Décidé le 2026-10-16** (le propriétaire a délégué le choix « racine ou composant par composant » à ce spec) — construit le même jour sur `fix/pro-network-failure` ; §11 dit ce qui a été vu rouge et ce que la revue a ajouté |
+| **Statut** | **Décidé le 2026-10-16** (le propriétaire a délégué le choix « racine ou composant par composant » à ce spec) — construit le même jour sur `fix/pro-network-failure` ; §11 dit ce qui a été vu rouge et ce que la revue a ajouté · **Mergé (#619) le 2026-10-16** — web en production au merge (Vercel) ; rien côté serveur |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-16 |
 | **PRD ref / phase** | Les quatre états de chaque page (SYSTEM.md §12, WEB-SYSTEM §12) · V1 — tableau de bord Pro web |

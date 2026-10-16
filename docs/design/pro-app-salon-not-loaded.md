@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Approuvé par le propriétaire le 2026-10-16** (« Build both layers: save the salon's details on the phone, and add the « Impossible de charger votre salon » screen as described in §4 of the spec. ») — **construit le 2026-10-16** sur `fix/pro-app-salon-not-loaded`, non fusionné ; part avec le prochain build de l'app Pro. Écarts au texte, trouvés en construisant : §12. |
+| **Statut** | **Approuvé par le propriétaire le 2026-10-16** (« Build both layers: save the salon's details on the phone, and add the « Impossible de charger votre salon » screen as described in §4 of the spec. ») — **construit le 2026-10-16** sur `fix/pro-app-salon-not-loaded`, non fusionné ; part avec le prochain build de l'app Pro. Écarts au texte, trouvés en construisant : §12. · **Mergé (#623) le 2026-10-16** — app au prochain build (après la revue Apple de 0.0.1) ; rien côté serveur |
 | **Module** | `multi-pays` (heure du salon, MP2) × `access` (le chargement de la session Pro) |
 | **Origine** | La même classe de défaut que le web Pro, corrigée par Zaslons/myweli#617 ([pro-appointment-detail-profile-gate.md](pro-appointment-detail-profile-gate.md) §6, qui la signalait pour l'app). |
 | **Gouverne** | `mobile/lib/providers/pro_auth_provider.dart`, `mobile/lib/models/salon_market.dart` (nouveau), `mobile/lib/models/provider_session.dart`, les deux `AuthService` (cache), `mobile/lib/widgets/provider/pro_salon_gate.dart` (nouveau), `mobile/lib/main_pro.dart` (le `builder`). |

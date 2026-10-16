@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Built** 2026-10-16 on `fix/r6-salon-facts` — approved by the owner the same day (§11) |
+| **Status** | **Built** 2026-10-16 on `fix/r6-salon-facts` — approved by the owner the same day (§11) · **Mergé (#628) le 2026-10-16** — app au prochain build (après la revue Apple de 0.0.1) ; rien côté serveur |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-16 |
 | **PRD ref / phase** | Team access R6 (multi-salons) · V1 |

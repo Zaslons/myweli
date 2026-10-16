@@ -1,6 +1,6 @@
 # The Pro appointment detail waits for its salon — design spec
 
-**Status:** fix, web Pro dashboard (2026-10-16). Governs
+**Status:** fix, web Pro dashboard (2026-10-16) — **merged (#617) the same day**, web in production at merge (Vercel); the app's twin is [pro-app-salon-not-loaded.md](pro-app-salon-not-loaded.md) (#623). Governs
 `web/components/pro/ProAppointmentDetailClient.tsx`. Sits under the salon-time
 seam ([timezone-salon-time.md](timezone-salon-time.md), multi-pays MP3) and the
 shared error state (WEB-SYSTEM §12, `ErrorState`).

@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Built** 2026-10-16 on `fix/services-acting-salon`. Not merged, not released. |
+| **Status** | **Built** 2026-10-16 on `fix/services-acting-salon`. · **Mergé (#627) le 2026-10-16** — app au prochain build (après la revue Apple de 0.0.1) ; rien côté serveur |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-10-16 |
 | **PRD ref / phase** | Team access R6 (multi-salons) · V1 |

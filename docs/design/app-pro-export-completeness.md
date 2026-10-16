@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Built** 2026-10-16 on `fix/app-pro-export-completeness`. Not merged, not released. The decisions are the owner's, taken for the web on 2026-10-16 ([web-pro-export-completeness.md](web-pro-export-completeness.md) §3, §5, §6); this is the app half §8 there names. |
+| **Status** | **Built** 2026-10-16 on `fix/app-pro-export-completeness`. The decisions are the owner's, taken for the web on 2026-10-16 ([web-pro-export-completeness.md](web-pro-export-completeness.md) §3, §5, §6); this is the app half §8 there names. · **Mergé (#622) le 2026-10-16** — app au prochain build (après la revue Apple de 0.0.1) ; le serveur dont il dépend (#618) est déployé en production le 2026-10-16 |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-10-16 |
 | **PRD ref / phase** | AUTH-005 for pros (data export) · V1 |

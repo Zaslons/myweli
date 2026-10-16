@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Décidé le 2026-10-16** — la tâche consignée au §9 de [web-consumer-optimistic-revert.md](web-consumer-optimistic-revert.md) (« l'app : `markRead` / `markAllRead` optimistes, sans retour en arrière ») ; construit le même jour sur `fix/app-notifications-read-revert` ; §11 dit ce qui a été vu rouge |
+| **Statut** | **Décidé le 2026-10-16** — la tâche consignée au §9 de [web-consumer-optimistic-revert.md](web-consumer-optimistic-revert.md) (« l'app : `markRead` / `markAllRead` optimistes, sans retour en arrière ») ; construit le même jour sur `fix/app-notifications-read-revert` ; §11 dit ce qui a été vu rouge · **Mergé (#626) le 2026-10-16** — app au prochain build (après la revue Apple de 0.0.1) ; rien côté web ni serveur |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-16 |
 | **PRD ref / phase** | Le retour d'une action (SYSTEM.md §15) · V1 — centre de notifications, app client **et** app Pro (un seul fil partagé) |
