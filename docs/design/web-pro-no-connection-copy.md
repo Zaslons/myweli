@@ -243,7 +243,11 @@ des stores (le sélecteur seul). Rien côté serveur.
   qui a sorti `send()` / `readJson()` et `NO_CONNECTION_MESSAGE` dans
   `lib/api/network.ts` ; ses pages choisissent la phrase dans la page. Faire
   passer ses états d'erreur de chargement par `loadFailure` serait une autre
-  tâche.
+  tâche. Son pendant pour les **écritures**, `writeFailureMessage(status)`
+  ([web-consumer-optimistic-revert.md](web-consumer-optimistic-revert.md)),
+  vit à côté dans `network.ts` : il prend le statut d'une écriture qui vient
+  d'échouer, là où une page garde, entre deux rendus, la *raison* de sa
+  lecture ratée (§2 : un statut 0 serait faux en JS).
 - **Les lectures secondaires silencieuses** (#619 §3) : silencieuses sur une
   coupure comme sur un 5xx.
 - **Les deux phrases de l'app** (§1) : « Connexion au serveur impossible »
