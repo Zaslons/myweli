@@ -28,15 +28,23 @@ et la branche « pas 200 » de la page affiche son `ErrorState` avec
   peut-être été retiré. » — sur une coupure, la phrase soupçonne un accès
   retiré qui n'y est pour rien.
 
-**L'app** nomme le réseau : chaque `api_*_service.dart` rend
-`ApiResponse.error('Pas de connexion. Réessayez.')` quand la requête n'a pas
-de réponse, et l'écran montre ce texte dans son état d'erreur
+**L'app** nomme le réseau : quand la requête n'a pas de réponse, le service
+rend une erreur qui le dit, et l'écran montre ce texte dans son état d'erreur
 (`client_list_screen.dart` `description: clients.error`,
 `pro_journal_screen.dart` `description: journal.error`, les avis et les
 revenus par `res.error`). Sur un 5xx, elle dit autre chose (le message du
-code d'erreur, ou « Erreur… »). Le web dit déjà la phrase de l'app à deux
-endroits, par le statut 0 : la carte d'invitations et la connexion Pro (#619
-§3) — `NO_CONNECTION_MESSAGE` (`lib/pro/team.ts`).
+code d'erreur, ou « Erreur… »).
+
+**Vu en relisant : l'app a deux phrases pour ce même cas.** La plupart des
+services (`api_pro_clients_service`, `_team_`, `_kyc_`, `_subscription_`,
+`_artist_`, `api_review_service`, …) disent « Pas de connexion. Réessayez. » ;
+les plus anciens (`api_pro_service` — `/me`, la Journée, le changement de
+salon —, `api_auth_service`, `api_appointment_service`) disent « Connexion
+au serveur impossible ». Le web n'en prend **qu'une** : « Pas de connexion.
+Réessayez. », celle qu'il dit déjà à deux endroits par le statut 0 — la carte
+d'invitations et la connexion Pro (#619 §3) — `NO_CONNECTION_MESSAGE`
+(`lib/pro/team.ts`). Ce qui compte pour la parité est que les deux nomment
+le réseau ; aligner l'app sur une seule phrase est consigné (§9).
 
 **Ce que le statut 0 veut dire ici** : le lien navigateur → BFF n'a rien
 rendu d'utilisable — pas de réseau, une connexion coupée au milieu du corps,
@@ -200,3 +208,7 @@ aucune page n'atteint son état d'erreur). Rien côté serveur.
   s'y pose.
 - **Les lectures secondaires silencieuses** (#619 §3) : silencieuses sur une
   coupure comme sur un 5xx.
+- **Les deux phrases de l'app** (§1) : « Connexion au serveur impossible »
+  (`api_pro_service`, `api_auth_service`, `api_appointment_service`,
+  `api_provider_service`) et « Pas de connexion. Réessayez. » (les autres).
+  Les aligner sur une seule est une tâche de l'app.
