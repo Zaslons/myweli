@@ -17,6 +17,7 @@ import '../../../providers/pro_deposit_settings_provider.dart';
 import '../../../widgets/common/app_button.dart';
 import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/empty_state.dart';
+import '../../../widgets/common/inline_feedback.dart';
 import '../../../widgets/common/label_value_row.dart';
 import '../../../widgets/common/loading_indicator.dart';
 import '../../../widgets/common/phone_number_field.dart';
@@ -36,6 +37,10 @@ class _DepositSettingsScreenState extends State<DepositSettingsScreen> {
 
   final _numberFocus = FocusNode();
 
+  /// The operator chips' — so a refused press can take the salon to them
+  /// (§14's focus amendment, [focusFirstError]).
+  final _operatorFocus = FocusNode(skipTraversal: true);
+
   // A7/§14 — the field that decides where a salon's deposits land.
   //
   // **E.164.** `PUT /deposit-policy` validates `mobileMoneyNumber` as E.164
@@ -48,7 +53,22 @@ class _DepositSettingsScreenState extends State<DepositSettingsScreen> {
   // number is sent whatever the switch says — the PUT replaces the whole
   // policy — and the server checks any non-null one. Required only while a
   // deposit is collected.
-  late final _errors = FieldErrors({'number': _numberRule});
+  //
+  // **The operator** (acompte-off-parity.md §8): required while a deposit is
+  // collected, as on the web. Unchecked here, the server refused the save
+  // (`invalid_input`) and the salon read « Informations invalides. » in a bar.
+  // Declared first: it sits above the number, and [focusFirstError] follows
+  // declaration order.
+  late final _errors = FieldErrors({
+    'operator': _operatorRule,
+    'number': _numberRule,
+  });
+
+  String? _operatorRule(String value) =>
+      context.read<ProDepositSettingsProvider>().depositRequired &&
+          value.isEmpty
+      ? 'Choisissez un opérateur Mobile Money.'
+      : null;
 
   String? _numberRule(String value) =>
       context.read<ProDepositSettingsProvider>().depositRequired
@@ -87,6 +107,7 @@ class _DepositSettingsScreenState extends State<DepositSettingsScreen> {
   @override
   void dispose() {
     _numberFocus.dispose();
+    _operatorFocus.dispose();
     super.dispose();
   }
 
@@ -101,11 +122,21 @@ class _DepositSettingsScreenState extends State<DepositSettingsScreen> {
     // turns deposits off does not need a number; but one it keeps is still
     // judged (`_numberRule`).
     final number = _number(provider);
-    if (!_errors.validate({'number': number})) {
+    if (!_errors.validate({
+      'operator': provider.mobileMoneyOperator ?? '',
+      'number': number,
+    })) {
       setState(() {
-        if (!provider.depositRequired) _showNumberWhileOff = true;
+        // Only the number can fail with deposits off (the operator is not
+        // required then) — and only it needs the hidden card back.
+        if (!provider.depositRequired && _errors['number'] != null) {
+          _showNumberWhileOff = true;
+        }
       });
-      _numberFocus.requestFocus();
+      focusFirstError(_errors, {
+        'operator': _operatorFocus,
+        'number': _numberFocus,
+      });
       return;
     }
     setState(() {});
@@ -226,8 +257,16 @@ class _DepositSettingsScreenState extends State<DepositSettingsScreen> {
               value: provider.depositRequired,
               onChanged: verified
                   ? (on) {
-                      setState(() => _showNumberWhileOff = false);
                       provider.setDepositRequired(on);
+                      setState(() {
+                        _showNumberWhileOff = false;
+                        // The operator is required only while a deposit is
+                        // collected: a message left from « on » goes.
+                        _errors.revalidate(
+                          'operator',
+                          provider.mobileMoneyOperator ?? '',
+                        );
+                      });
                     }
                   : null,
               title: const Text('Exiger un acompte'),
@@ -368,23 +407,33 @@ class _DepositSettingsScreenState extends State<DepositSettingsScreen> {
                         ),
                       );
                     }
-                    return Wrap(
-                      spacing: AppTheme.spacingS,
-                      runSpacing: AppTheme.spacingS,
-                      children: operators.map((op) {
-                        return ChoiceChip(
-                          label: Text(op.label),
-                          selected: provider.mobileMoneyOperator == op.id,
-                          showCheckmark: false,
-                          selectedColor: AppColors.primary,
-                          backgroundColor: AppColors.surface,
-                          onSelected: (_) =>
-                              provider.setMobileMoneyOperator(op.id),
-                        );
-                      }).toList(),
+                    return Focus(
+                      focusNode: _operatorFocus,
+                      child: Wrap(
+                        spacing: AppTheme.spacingS,
+                        runSpacing: AppTheme.spacingS,
+                        children: operators.map((op) {
+                          return ChoiceChip(
+                            label: Text(op.label),
+                            selected: provider.mobileMoneyOperator == op.id,
+                            showCheckmark: false,
+                            selectedColor: AppColors.primary,
+                            backgroundColor: AppColors.surface,
+                            onSelected: (_) {
+                              provider.setMobileMoneyOperator(op.id);
+                              setState(
+                                () => _errors.revalidate('operator', op.id),
+                              );
+                            },
+                          );
+                        }).toList(),
+                      ),
                     );
                   },
                 ),
+                // A selection has no decoration to carry its fault: it sits
+                // right under the chips, as `invite_member_sheet`'s role does.
+                InlineFeedback(_errors['operator']),
                 const SizedBox(height: AppTheme.spacingM),
                 // A free-text field until phone-national-length.md: its hint
                 // (« Ex: 07 07 12 34 56 ») showed a form the rule refused, and

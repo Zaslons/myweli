@@ -1,3 +1,8 @@
+/// The deposit percentage a form proposes when none has been chosen yet — a
+/// stored 0 (docs/design/acompte-off-parity.md §2). Pinned to the web's
+/// DEFAULT_DEPOSIT_PERCENT by web/tests.
+const double kDefaultDepositPercentage = 0.30;
+
 /// Computes the acompte (deposit) due for a booking, honoring the provider's
 /// policy. Returns 0 when the provider doesn't require a deposit. FCFA has no
 /// minor unit, so the result is rounded to a whole franc.

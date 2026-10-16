@@ -194,8 +194,9 @@ production sur feu vert du propriétaire.
 - Le même numéro : rien n'est envoyé, la feuille se ferme, sans annonce.
 - Web Acompte, dépôts désactivés : seul le champ « Numéro Mobile Money » se
   révèle sur un refus (le web n'a pas de carte « Recevoir l'acompte ») ;
-  l'opérateur et le pourcentage partent encore vides / à 0 — écart de parité
-  restant, hors périmètre.
+  l'opérateur et le pourcentage partaient encore vides / à 0 — écart de
+  parité **comblé le 2026-10-16** par
+  [acompte-off-parity.md](acompte-off-parity.md).
 - « Réserver », « Mon compte » et l'étape téléphone de la connexion (web) ne
   disent plus « Numéro invalide » pour un échec qui n'est pas le numéro
   (réseau, 5xx).

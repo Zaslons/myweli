@@ -47,6 +47,10 @@ export function AcompteClient() {
   const [countryCode, setCountryCode] = useState<string | null>(null);
   const [providerId, setProviderId] = useState('');
   const [form, setForm] = useState<DepositForm | null>(null);
+  // The percentage (a fraction) last loaded or saved — sent when the field,
+  // hidden while deposits are off, fails its rule
+  // (docs/design/acompte-off-parity.md decision 1).
+  const [lastPercentage, setLastPercentage] = useState(0);
   const [loading, setLoading] = useState(true);
   const [reloadKey, setReloadKey] = useState(0);
   const [loadError, setLoadError] = useState(false);
@@ -68,27 +72,41 @@ export function AcompteClient() {
 
   useEffect(() => {
     let active = true;
-    (async () => {
-      const me = await getMyProvider();
-      if (me.status === 401) {
-        router.replace('/pro/connexion');
-        return;
-      }
-      if (me.status !== 200 || !me.profile) {
-        if (active) {
-          setLoadError(true);
-          setLoading(false);
-        }
-        return;
-      }
-      const pid = me.profile.provider.id;
-      const dp = await getDepositPolicy(pid);
+    // Any failed load — a refusal, a 5xx, no network — is the ErrorState and
+    // its « Réessayer », never a blank form: saving one would overwrite the
+    // real policy (docs/design/acompte-off-parity.md D3).
+    function fail() {
       if (!active) return;
-      setProviderId(pid);
-      setCountryCode(me.profile.provider.countryCode ?? null);
-      setVerified(me.profile.account.verificationStatus === 'verified');
-      setForm(depositToForm(dp.status === 200 ? dp.policy : undefined));
+      setLoadError(true);
       setLoading(false);
+    }
+    (async () => {
+      try {
+        const me = await getMyProvider();
+        if (me.status === 401) {
+          router.replace('/pro/connexion');
+          return;
+        }
+        if (me.status !== 200 || !me.profile) {
+          fail();
+          return;
+        }
+        const pid = me.profile.provider.id;
+        const dp = await getDepositPolicy(pid);
+        if (dp.status !== 200 || !dp.policy) {
+          fail();
+          return;
+        }
+        if (!active) return;
+        setProviderId(pid);
+        setCountryCode(me.profile.provider.countryCode ?? null);
+        setVerified(me.profile.account.verificationStatus === 'verified');
+        setForm(depositToForm(dp.policy));
+        setLastPercentage(dp.policy.depositPercentage ?? 0);
+        setLoading(false);
+      } catch {
+        fail();
+      }
     })();
     return () => {
       active = false;
@@ -117,9 +135,14 @@ export function AcompteClient() {
     if (v || !numberOk) return;
     setBusy(true);
     setError(null);
-    const r = await saveDepositPolicy(
-      providerId,
-      buildDepositPayload(form as DepositForm),
+    // A new answer replaces the last one: « Acompte enregistré. » must not
+    // stay on screen beside the failure of the next save.
+    setSaved(false);
+    const payload = buildDepositPayload(f, lastPercentage);
+    // No network is a failed save like any other — never « Enregistrer » left
+    // disabled for ever (docs/design/acompte-off-parity.md §8).
+    const r = await saveDepositPolicy(providerId, payload).catch(
+      (): { ok: false; status: number; error?: string } => ({ ok: false, status: 0 }),
     );
     setBusy(false);
     if (!r.ok) {
@@ -137,6 +160,7 @@ export function AcompteClient() {
       );
       return;
     }
+    setLastPercentage(payload.depositPercentage);
     setShowNumberWhileOff(false);
     setSaved(true);
   }
