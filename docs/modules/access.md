@@ -281,7 +281,10 @@ same V2 slice (web parity rule).
 > **Built (R5a+R5b, 2026-07-12 — docs/design/web-team-access-r5.md).** Notes
 > locked at build: the web member Profil is the SLIM personal view (identity +
 > role chip + salon + « Supprimer mon compte » — deletion parity for all;
-> the salon-data export stays `profile.manage`); the web `not_a_member`
+> the salon-data export stays `profile.manage` — *2026-10-16: corrected to
+> `salon.publish`, the app's gate since R4b and what R5 §6 and T39 say;
+> `profile.manage` also let a Manager export, whose revenue read is 403,
+> docs/design/web-pro-export-completeness.md §6*); the web `not_a_member`
 > probe cadence = every navigation (the membership context re-fetches
 > `/api/pro/me` per pathname change).
 
