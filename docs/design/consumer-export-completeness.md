@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Built** on `fix/consumer-export-completeness` (2026-10-16), rebased onto Zaslons/myweli#620 ([web-consumer-network-failure.md](web-consumer-network-failure.md), merged 2026-10-16). Applies the owner's decision for the salon export ([web-pro-export-completeness.md](web-pro-export-completeness.md) §3, PR Zaslons/myweli#618: refuse, don't mark) to the consumer export. The French copy in §4 is new and is the part to review. Not merged, not deployed. |
+| **Status** | **Built** on `fix/consumer-export-completeness` (2026-10-16), rebased onto Zaslons/myweli#620 ([web-consumer-network-failure.md](web-consumer-network-failure.md), merged 2026-10-16). Applies the owner's decision for the salon export ([web-pro-export-completeness.md](web-pro-export-completeness.md) §3, PR Zaslons/myweli#618: refuse, don't mark) to the consumer export. The French copy in §4 is new and is the part to review. · **Mergé (#621) le 2026-10-16** — web en production au merge (Vercel) ; app au prochain build (après la revue Apple de 0.0.1) ; rien côté serveur |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-10-16 |
 | **PRD ref / phase** | FR-AUTH-005 (data export) · V1 · parity 11.2 |

@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Approved** (owner, 2026-10-16): refuse rather than mark (§3), owner-only like the app (§6), and the backend sort tiebreaker in the same change (§5). Built on `fix/pro-export-completeness`. Not merged, not deployed. |
+| **Status** | **Approved** (owner, 2026-10-16): refuse rather than mark (§3), owner-only like the app (§6), and the backend sort tiebreaker in the same change (§5). Built on `fix/pro-export-completeness`. · **Mergé (#618) le 2026-10-16** — web en production au merge (Vercel) ; **Serveur déployé en production le 2026-10-16** — révision `myweli-api-00041-k44`, image `1ca8177` (le tri des clients départagé par `id`) |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-10-16 |
 | **PRD ref / phase** | AUTH-005 for pros (data export) · V1 |
@@ -189,7 +189,7 @@ sorted the same way as the dates.
 - **No contract change.** The list's shape is the same; only the order of
   tied rows becomes defined.
 - **Web:** Vercel deploys it at merge.
-- **Backend:** the next production deploy, with the owner's go. Until then,
+- **Backend:** the next production deploy, with the owner's go — **done 2026-10-16** (revision `myweli-api-00041-k44`, image `1ca8177`). Until then,
   a salon with tied clients may see the export refused for « le fichier
   clients ». The web change ships the refusal; the backend change removes
   its cause. Deploying the server first avoids that window.

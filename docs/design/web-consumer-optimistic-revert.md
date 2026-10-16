@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Décidé le 2026-10-16** — la suite du §9 de [web-consumer-network-failure.md](web-consumer-network-failure.md) (« les écritures optimistes qui ne reviennent pas en arrière ») ; construit le même jour sur `fix/consumer-optimistic-revert` ; §11 dit ce qui a été vu rouge |
+| **Statut** | **Décidé le 2026-10-16** — la suite du §9 de [web-consumer-network-failure.md](web-consumer-network-failure.md) (« les écritures optimistes qui ne reviennent pas en arrière ») ; construit le même jour sur `fix/consumer-optimistic-revert` ; §11 dit ce qui a été vu rouge · **Mergé (#624) le 2026-10-16** — web en production au merge (Vercel) ; rien côté serveur |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-16 |
 | **PRD ref / phase** | Le retour d'une action (SYSTEM.md §15, WEB-SYSTEM §7) · V1 — web client (Mon compte, favoris, notifications, recherche, page salon) |

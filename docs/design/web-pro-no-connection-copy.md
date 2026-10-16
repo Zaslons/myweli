@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Construit le 2026-10-16** — la suite de [web-pro-network-failure.md](web-pro-network-failure.md) §9 (« le mot de l'app ») ; le sélecteur sur les deux plateformes, **décision A du propriétaire** (§5) ; §10 dit ce qui a été vu rouge |
+| **Statut** | **Construit le 2026-10-16** — la suite de [web-pro-network-failure.md](web-pro-network-failure.md) §9 (« le mot de l'app ») ; le sélecteur sur les deux plateformes, **décision A du propriétaire** (§5) ; §10 dit ce qui a été vu rouge · **Mergé (#629) le 2026-10-16** — web en production au merge (Vercel) ; le sélecteur de l'app au prochain build (après la revue Apple de 0.0.1) ; rien côté serveur |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-16 |
 | **PRD ref / phase** | Les quatre états de chaque page (SYSTEM.md §12, WEB-SYSTEM §12) · la parité web ↔ app · V1 — tableau de bord Pro web |
