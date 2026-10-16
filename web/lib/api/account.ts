@@ -3,11 +3,17 @@ import type {
   AppNotification,
   NotificationPrefs,
 } from '../account/notifications';
+import { readJson, send } from './network';
 import type { Provider } from './providers';
 
 /// Browser → BFF (`/api/*`) wrappers for the consumer account. Session lives in
 /// httpOnly cookies (no tokens here). A 401 means "not signed in" → the caller
 /// redirects to /connexion.
+///
+/// **None of them throws** (docs/design/web-consumer-network-failure.md §2): a
+/// call that never got a usable answer is **status 0** (`ok: false` for a
+/// write), through `send()` / `readJson()` (`./network`). Every export is held
+/// by `tests/consumer-api-network.test.ts` — a new wrapper joins its table.
 
 export type Me = {
   id: string;
@@ -19,33 +25,35 @@ export type Me = {
 };
 
 export async function getMe(): Promise<{ status: number; user?: Me }> {
-  const res = await fetch('/api/me');
+  const res = await send('/api/me');
   if (!res.ok) return { status: res.status };
-  return { status: 200, user: (await res.json()) as Me };
+  const user = await readJson<Me>(res);
+  return user ? { status: 200, user } : { status: 0 };
 }
 
 export async function listAppointments(): Promise<{
   status: number;
   items: Appointment[];
 }> {
-  const res = await fetch('/api/appointments');
+  const res = await send('/api/appointments');
   if (!res.ok) return { status: res.status, items: [] };
-  const body = (await res.json().catch(() => ({}))) as { items?: Appointment[] };
-  return { status: 200, items: body.items ?? [] };
+  const body = await readJson<{ items?: Appointment[] }>(res);
+  return body ? { status: 200, items: body.items ?? [] } : { status: 0, items: [] };
 }
 
 export async function getAppointment(
   id: string,
 ): Promise<{ status: number; appt?: Appointment }> {
-  const res = await fetch(`/api/appointments/${id}`);
+  const res = await send(`/api/appointments/${id}`);
   if (!res.ok) return { status: res.status };
-  return { status: 200, appt: (await res.json()) as Appointment };
+  const appt = await readJson<Appointment>(res);
+  return appt ? { status: 200, appt } : { status: 0 };
 }
 
 export async function cancelAppointment(
   id: string,
 ): Promise<{ ok: boolean; status: number; error?: string }> {
-  const res = await fetch(`/api/appointments/${id}/cancel`, { method: 'POST' });
+  const res = await send(`/api/appointments/${id}/cancel`, { method: 'POST' });
   if (res.ok) return { ok: true, status: res.status };
   const body = (await res.json().catch(() => ({}))) as { error?: string };
   return { ok: false, status: res.status, error: body.error };
@@ -56,7 +64,7 @@ export async function rescheduleAppointment(
   id: string,
   newDateTime: string,
 ): Promise<{ ok: boolean; status: number; error?: string }> {
-  const res = await fetch(`/api/appointments/${id}/reschedule`, {
+  const res = await send(`/api/appointments/${id}/reschedule`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ newDateTime }),
@@ -72,7 +80,7 @@ export async function submitReview(
   appointmentId: string,
   input: { rating: number; text?: string; photoUrls?: string[] },
 ): Promise<{ ok: boolean; status: number; error?: string }> {
-  const res = await fetch(`/api/appointments/${appointmentId}/review`, {
+  const res = await send(`/api/appointments/${appointmentId}/review`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(input),
@@ -86,23 +94,23 @@ export async function getFavorites(): Promise<{
   status: number;
   favorites: Provider[];
 }> {
-  const res = await fetch('/api/me/favorites');
+  const res = await send('/api/me/favorites');
   if (!res.ok) return { status: res.status, favorites: [] };
-  const b = (await res.json().catch(() => ({}))) as { favorites?: Provider[] };
-  return { status: 200, favorites: b.favorites ?? [] };
+  const b = await readJson<{ favorites?: Provider[] }>(res);
+  return b ? { status: 200, favorites: b.favorites ?? [] } : { status: 0, favorites: [] };
 }
 
 export async function addFavorite(
   providerId: string,
 ): Promise<{ ok: boolean; status: number }> {
-  const res = await fetch(`/api/me/favorites/${providerId}`, { method: 'POST' });
+  const res = await send(`/api/me/favorites/${providerId}`, { method: 'POST' });
   return { ok: res.ok, status: res.status };
 }
 
 export async function removeFavorite(
   providerId: string,
 ): Promise<{ ok: boolean; status: number }> {
-  const res = await fetch(`/api/me/favorites/${providerId}`, {
+  const res = await send(`/api/me/favorites/${providerId}`, {
     method: 'DELETE',
   });
   return { ok: res.ok, status: res.status };
@@ -112,7 +120,7 @@ export async function removeFavorite(
 export async function updateName(
   name: string,
 ): Promise<{ ok: boolean; status: number }> {
-  const res = await fetch('/api/me', {
+  const res = await send('/api/me', {
     method: 'PATCH',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ name }),
@@ -126,7 +134,7 @@ export async function deleteAccount(): Promise<{
   status: number;
   error?: string;
 }> {
-  const res = await fetch('/api/me', { method: 'DELETE' });
+  const res = await send('/api/me', { method: 'DELETE' });
   if (res.ok) return { ok: true, status: res.status };
   // L2: 409 `future_bookings` is the one failure here a user can resolve, so
   // the code has to reach the UI. The pro twin (`lib/pro/account.ts`) has read
@@ -144,23 +152,23 @@ export async function getNotifications(): Promise<{
   status: number;
   items: AppNotification[];
 }> {
-  const res = await fetch('/api/me/notifications');
+  const res = await send('/api/me/notifications');
   if (!res.ok) return { status: res.status, items: [] };
-  const body = (await res.json()) as { items?: AppNotification[] };
-  return { status: 200, items: body.items ?? [] };
+  const body = await readJson<{ items?: AppNotification[] }>(res);
+  return body ? { status: 200, items: body.items ?? [] } : { status: 0, items: [] };
 }
 
 export async function markNotificationRead(
   id: string,
 ): Promise<{ ok: boolean }> {
-  const res = await fetch(`/api/me/notifications/${id}/read`, {
+  const res = await send(`/api/me/notifications/${id}/read`, {
     method: 'POST',
   });
   return { ok: res.ok };
 }
 
 export async function markAllNotificationsRead(): Promise<{ ok: boolean }> {
-  const res = await fetch('/api/me/notifications/read-all', {
+  const res = await send('/api/me/notifications/read-all', {
     method: 'POST',
   });
   return { ok: res.ok };
@@ -170,23 +178,36 @@ export async function getNotificationPrefs(): Promise<{
   status: number;
   prefs?: NotificationPrefs;
 }> {
-  const res = await fetch('/api/me/notification-preferences');
+  const res = await send('/api/me/notification-preferences');
   if (!res.ok) return { status: res.status };
-  return { status: 200, prefs: (await res.json()) as NotificationPrefs };
+  const prefs = await readJson<NotificationPrefs>(res);
+  return prefs ? { status: 200, prefs } : { status: 0 };
 }
 
 export async function updateNotificationPrefs(
   patch: Partial<NotificationPrefs>,
 ): Promise<{ ok: boolean; prefs?: NotificationPrefs }> {
-  const res = await fetch('/api/me/notification-preferences', {
+  const res = await send('/api/me/notification-preferences', {
     method: 'PUT',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(patch),
   });
   if (!res.ok) return { ok: false };
-  return { ok: true, prefs: (await res.json()) as NotificationPrefs };
+  // A lost body keeps the toggle the person chose; the server has it.
+  return { ok: true, prefs: await readJson<NotificationPrefs>(res) };
 }
 
-export async function logout(): Promise<void> {
-  await fetch('/api/auth/logout', { method: 'POST' });
+/// What a logout call came to — the pro `LogoutOutcome`. The session is
+/// httpOnly cookies that only the BFF's RESPONSE can clear, so a caller treats
+/// the session as ended on `'ok'` alone: `'offline'` (no answer) and
+/// `'failed'` (an error status) both leave the cookies — and the session —
+/// alive. It used to return nothing, and « Se déconnecter » went home without
+/// looking: a signed-out-looking page over a live session, on a shared phone
+/// or a cybercafé computer.
+export type LogoutOutcome = 'ok' | 'offline' | 'failed';
+
+export async function logout(): Promise<LogoutOutcome> {
+  const res = await send('/api/auth/logout', { method: 'POST' });
+  if (res.ok) return 'ok';
+  return res.status === 0 ? 'offline' : 'failed';
 }
