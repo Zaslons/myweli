@@ -6,12 +6,16 @@ import '../../models/salon_client.dart';
 /// Reads are audited server-side; everything is salon-scoped (T45).
 abstract class ProClientsServiceInterface {
   /// Paginated, sorted by last visit. [query] matches name or phone digits;
-  /// [tag] filters exact. Page 1 carries `availableTags`.
+  /// [tag] filters exact. Page 1 carries `availableTags`. [pageSize] absent =
+  /// the server's default (20); the server clamps it to 1–50 and echoes the
+  /// size it used in [SalonClientsPage.pageSize] — the data export walks the
+  /// whole base with it (docs/design/app-pro-export-completeness.md §4).
   Future<ApiResponse<SalonClientsPage>> listClients(
     String providerId, {
     String? query,
     String? tag,
     int page = 1,
+    int? pageSize,
   });
 
   Future<ApiResponse<SalonClientCard>> getCard(

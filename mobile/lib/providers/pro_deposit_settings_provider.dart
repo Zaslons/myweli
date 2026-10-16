@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import '../core/access/pro_salon_scope.dart';
 import '../core/di/dependency_injection.dart';
+import '../core/utils/deposit.dart';
 import '../services/interfaces/pro_service_interface.dart';
 
 /// Holds the editable deposit policy for the signed-in provider and persists it
@@ -15,7 +16,7 @@ class ProDepositSettingsProvider extends ChangeNotifier implements SalonScoped {
   String? _error;
   String? _errorCode;
   bool _depositRequired = false;
-  double _depositPercentage = 0.30;
+  double _depositPercentage = kDefaultDepositPercentage;
   int _cancellationWindowHours = 24;
   String? _mobileMoneyOperator;
   String _mobileMoneyNumber = '';
@@ -69,7 +70,11 @@ class ProDepositSettingsProvider extends ChangeNotifier implements SalonScoped {
       final response = await _proService.getDepositPolicy(providerId);
       if (response.success && response.data != null) {
         _depositRequired = response.data!.depositRequired;
-        _depositPercentage = response.data!.depositPercentage;
+        // 0 % is « not chosen yet »: every new salon is stored with it, and
+        // the server refuses it once deposits are on — the form proposes the
+        // default instead (acompte-off-parity.md §2).
+        final stored = response.data!.depositPercentage;
+        _depositPercentage = stored > 0 ? stored : kDefaultDepositPercentage;
         _cancellationWindowHours = response.data!.cancellationWindowHours;
         _mobileMoneyOperator = response.data!.mobileMoneyOperator;
         _mobileMoneyNumber = response.data!.mobileMoneyNumber ?? '';
@@ -96,6 +101,9 @@ class ProDepositSettingsProvider extends ChangeNotifier implements SalonScoped {
 
     try {
       final trimmed = _mobileMoneyNumber.trim();
+      // The PUT replaces the whole policy: the operator and the percentage go
+      // out as held whatever the switch says — a `null` or a 0 in their place
+      // erases them (acompte-off-parity.md §1, D1).
       final response = await _proService.updateDepositPolicy(
         providerId,
         depositRequired: _depositRequired,
@@ -129,7 +137,7 @@ class ProDepositSettingsProvider extends ChangeNotifier implements SalonScoped {
     _error = null;
     _errorCode = null;
     _depositRequired = false;
-    _depositPercentage = 0.30;
+    _depositPercentage = kDefaultDepositPercentage;
     _cancellationWindowHours = 24;
     _mobileMoneyOperator = null;
     _mobileMoneyNumber = '';

@@ -8,6 +8,7 @@ import {
 } from '../lib/pro/profile';
 import { uploadLogoImage } from '../lib/pro/upload';
 import {
+  DEFAULT_DEPOSIT_PERCENT,
   type DepositForm,
   buildDepositPayload,
   depositToForm,
@@ -176,7 +177,7 @@ describe('pro deposit form', () => {
 
   it('sends the Mobile Money number bare', () => {
     expect(
-      buildDepositPayload({ ...on, number: '+225 07 07 12 34 56' }).mobileMoneyNumber,
+      buildDepositPayload({ ...on, number: '+225 07 07 12 34 56' }, 0.3).mobileMoneyNumber,
     ).toBe('+2250707123456');
   });
 
@@ -185,28 +186,73 @@ describe('pro deposit form', () => {
     expect(validateDeposit({ required: false, percent: '', windowHours: '24', operator: '', number: '' })).toBeNull();
   });
 
-  it('builds fraction payload; KEEPS the MoMo number when not required', () => {
-    expect(buildDepositPayload(on)).toEqual({
+  it('builds fraction payload; deposits off KEEP the operator, the percentage and the number', () => {
+    expect(buildDepositPayload(on, 0.5)).toEqual({
       depositRequired: true,
       depositPercentage: 0.3,
       cancellationWindowHours: 24,
       mobileMoneyOperator: 'wave',
       mobileMoneyNumber: '+2250700000000',
     });
-    // docs/design/phone-leftovers.md §6 — the app keeps it; the web erased it.
-    expect(buildDepositPayload({ ...on, required: false })).toMatchObject({
+    // docs/design/acompte-off-parity.md D1 — the PUT replaces the whole
+    // policy: off sent `null` / `0` and erased the operator a client still
+    // owing a deposit is shown. The app sends what it holds; so does the web.
+    // (The number: phone-leftovers.md §6.)
+    expect(buildDepositPayload({ ...on, required: false }, 0.5)).toEqual({
       depositRequired: false,
-      depositPercentage: 0,
-      mobileMoneyOperator: null,
+      depositPercentage: 0.3,
+      cancellationWindowHours: 24,
+      mobileMoneyOperator: 'wave',
       mobileMoneyNumber: '+2250700000000',
     });
+    // No operator chosen is null, switch on or off.
+    expect(
+      buildDepositPayload({ ...on, required: false, operator: '' }, 0.5).mobileMoneyOperator,
+    ).toBeNull();
     // Empty (or a lone calling code) is no number: null, switch on or off.
     expect(
-      buildDepositPayload({ ...on, required: false, number: '' }).mobileMoneyNumber,
+      buildDepositPayload({ ...on, required: false, number: '' }, 0.5).mobileMoneyNumber,
     ).toBeNull();
     expect(
-      buildDepositPayload({ ...on, required: false, number: '+225' }).mobileMoneyNumber,
+      buildDepositPayload({ ...on, required: false, number: '+225' }, 0.5).mobileMoneyNumber,
     ).toBeNull();
+  });
+
+  it('deposits off, a hidden percentage that fails its rule: the last loaded or saved one is sent', () => {
+    // Decision 1: the field is hidden while off — a fault the salon cannot
+    // see must neither block the save nor change the stored percentage.
+    for (const percent of ['', '  ', 'abc', '0', '-5', '101', '150']) {
+      const off = { ...on, required: false, percent };
+      expect(validateDeposit(off), percent).toBeNull();
+      expect(buildDepositPayload(off, 0.45).depositPercentage, percent).toBe(0.45);
+    }
+  });
+
+  it('the percentage is sent from the field exactly when it passes the rule validateDeposit applies (1–100)', () => {
+    // One rule, two readers: what the switch-on check accepts is what the
+    // payload takes from the field — on or off.
+    for (const percent of ['1', '30', '55', '100', '12.5', '12.34', ' 30 ']) {
+      expect(validateDeposit({ ...on, percent }), percent).toBeNull();
+      for (const required of [true, false]) {
+        expect(
+          buildDepositPayload({ ...on, required, percent }, 0.45).depositPercentage,
+          `${percent} ${required}`,
+        ).toBe(Number(percent) / 100);
+      }
+    }
+    // Below 1 is refused as its message says (« 1–100 % »): '0.4' passed the
+    // old `> 0` check, was stored as 0.004, read back as « 0 » and refused —
+    // a policy the web wrote and could not save again.
+    // Two decimals at most — what the form reads back exactly
+    // (depositToForm reads to the hundredth): '12.345' would be stored as
+    // 0.12345, read as « 12.35 » and rewritten by an untouched save.
+    for (const percent of ['', 'abc', '0', '0.4', '0.99', '101', '12.345', '1e2', '+30']) {
+      expect(validateDeposit({ ...on, percent }), percent).toMatch(/pourcentage/i);
+      expect(
+        buildDepositPayload({ ...on, required: false, percent }, 0.45).depositPercentage,
+        percent,
+      ).toBe(0.45);
+    }
   });
 
   it('depositToForm converts fraction → percent', () => {
@@ -217,6 +263,50 @@ describe('pro deposit form', () => {
         cancellationWindowHours: 48,
       }).percent,
     ).toBe('25');
+  });
+
+  it('depositToForm: a stored 0 (or none) is « not chosen yet » — the form proposes 30', () => {
+    // docs/design/acompte-off-parity.md decision 2: every new salon is
+    // created at 0, which the switch-on check refuses.
+    const at = (depositPercentage: number | null | undefined) =>
+      depositToForm({
+        depositRequired: false,
+        depositPercentage: depositPercentage as number,
+        cancellationWindowHours: 24,
+      }).percent;
+    expect(at(0)).toBe('30');
+    expect(at(null)).toBe('30');
+    expect(at(undefined)).toBe('30');
+    expect(depositToForm(undefined).percent).toBe('30');
+    expect(String(DEFAULT_DEPOSIT_PERCENT)).toBe('30');
+    // A chosen percentage is the salon's, off or on.
+    expect(at(0.4)).toBe('40');
+  });
+
+  it('depositToForm keeps a stored percentage to the hundredth — an untouched save writes back what it read', () => {
+    // Deposits off now send the field back (decision 1), so a rounded read
+    // would rewrite a policy nobody touched: 0.125 read as « 13 » saved 0.13.
+    const at = (depositPercentage: number) =>
+      depositToForm({ depositRequired: false, depositPercentage, cancellationWindowHours: 24 })
+        .percent;
+    expect(at(0.125)).toBe('12.5');
+    expect(at(0.29)).toBe('29');
+    expect(at(0.57)).toBe('57');
+    // Everything the app's slider writes — Flutter's own arithmetic, min 0.05,
+    // max 0.80, 15 divisions: k / 15 × 0.75 + 0.05, so 0.15000000000000002,
+    // 0.6500000000000001, 0.39999999999999997… — reads back as the whole
+    // percent the salon chose, and passes the field's rule.
+    for (let k = 0; k <= 15; k++) {
+      const written = (k / 15) * (0.8 - 0.05) + 0.05;
+      expect(at(written), String(written)).toBe(String(5 + 5 * k));
+      expect(validateDeposit({ ...on, percent: at(written) }), String(written)).toBeNull();
+    }
+    expect(at(1)).toBe('100');
+    // Written by another client below the web's floor: shown to the
+    // hundredth (« 0.4 »; under 0.005 % that is « 0 ») — and refused by the
+    // switch-on check, like any value < 1.
+    expect(at(0.004)).toBe('0.4');
+    expect(validateDeposit({ ...on, percent: at(0.004) })).toMatch(/pourcentage/i);
   });
 });
 

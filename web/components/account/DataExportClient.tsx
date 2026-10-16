@@ -44,6 +44,14 @@ export function DataExportClient() {
       listAppointments(),
       getFavorites(),
     ]);
+    // The document a person downloads as « my data » is all of it or nothing:
+    // a failed list used to export as « 0 rendez-vous », without a word
+    // (docs/design/web-consumer-network-failure.md §3.2).
+    if (appts.status !== 200 || favs.status !== 200) {
+      setError(true);
+      setLoading(false);
+      return;
+    }
     setMe(meRes.user);
     setAppointments(appts.items);
     setFavoriteNames(favs.favorites.map((p) => p.name));

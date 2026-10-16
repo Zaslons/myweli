@@ -5,6 +5,12 @@
 **Contract:** `DELETE /me/provider` added (204/401/403/409) ·
 **Threat model:** new row (self-scoped destructive endpoint).
 
+*2026-10-16 — the web export is whole or it is not made: a failed read no
+longer becomes an empty section, the client file is walked past its first
+page, and the export is the owner's (`salon.publish`), as in the app. Design:
+[web-pro-export-completeness.md](web-pro-export-completeness.md). Built, not
+deployed.*
+
 *2026-10-13 — one more refusal: the shared store-review demo account cannot
 delete itself (403 `demo_account_locked`, evaluated before the future-bookings
 gate). Design: [demo-account-deletion-lock.md](demo-account-deletion-lock.md).

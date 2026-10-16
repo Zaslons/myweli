@@ -35,6 +35,7 @@ import { formatDateTimeFr, formatFcfa } from "../../lib/format";
 import { salonDayKey, salonFormatter, salonToday } from "../../lib/time";
 import { useLocalities } from "../../lib/use-localities";
 import { Button } from "../Button";
+import { ErrorState } from "../ErrorState";
 import { Loading } from "../Loading";
 import { TextField } from "../TextField";
 import { SalonTimeHint } from "../SalonTimeHint";
@@ -49,6 +50,9 @@ export function AppointmentDetailClient({ id }: { id: string }) {
   const [appt, setAppt] = useState<Appointment | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  // Any other failed read (no network, a 5xx): « Réessayer », never
+  // « introuvable » (docs/design/web-consumer-network-failure.md §3.2).
+  const [loadFailed, setLoadFailed] = useState(false);
   const [cancelError, setCancelError] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -74,13 +78,22 @@ export function AppointmentDetailClient({ id }: { id: string }) {
 
   const load = useCallback(async () => {
     setLoading(true);
+    setLoadFailed(false);
     const r = await getAppointment(id);
     if (r.status === 401) {
       router.replace(`/connexion?returnTo=/mon-compte/${id}`);
       return;
     }
-    if (r.status !== 200 || !r.appt) {
+    // 404 = absent, 403 = someone else's (BACKEND §3.3): « introuvable » —
+    // and only those. A dropped connection used to land here too, and told
+    // the client their booking did not exist.
+    if (r.status === 404 || r.status === 403) {
       setNotFound(true);
+      setLoading(false);
+      return;
+    }
+    if (r.status !== 200 || !r.appt) {
+      setLoadFailed(true);
       setLoading(false);
       return;
     }
@@ -156,6 +169,19 @@ export function AppointmentDetailClient({ id }: { id: string }) {
   }
 
   if (loading) return <Loading className="mt-l" />;
+  if (loadFailed) {
+    // The page's h1 survives the error (§4), and a way back (§12).
+    return (
+      <div>
+        <ErrorState title="Rendez-vous" onRetry={() => void load()} />
+        <p className="mt-m">
+          <Link href="/mon-compte" className="text-bodyMedium underline">
+            ← Mes rendez-vous
+          </Link>
+        </p>
+      </div>
+    );
+  }
   if (notFound || !appt) {
     // A persistent state is a page: it needs the h1 and a way out
     // (SYSTEM §12 — an error state without one is a dead end).

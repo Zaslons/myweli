@@ -654,6 +654,234 @@ void main() {
     await settle(tester);
     expect(numberLabel, findsNothing);
   });
+
+  // ---- acompte-off-parity.md §2: 0 % is « not chosen yet » ----------------
+  //
+  // Every new salon is stored with 0 %. The form copied it: « 0 % » under a
+  // slider drawn at 5 %, and switching deposits on then saving without
+  // touching the slider was refused by the server — « Informations
+  // invalides. » in a bar, with nothing to say what was wrong.
+
+  testWidgets('a stored 0 % reads « 30 % », and switching deposits on then '
+      'saving without the slider sends 0.30', (tester) async {
+    when(() => service.getDepositPolicy(any())).thenAnswer(
+      (_) async => ApiResponse.success(
+        const DepositPolicy(
+          depositRequired: false,
+          depositPercentage: 0,
+          mobileMoneyOperator: 'wave',
+          mobileMoneyNumber: storedNumber,
+        ),
+      ),
+    );
+    stubSaveOk();
+
+    // A verified session — the switch is locked otherwise (T52).
+    await tester.pumpWidget(
+      wrapApp(
+        providers: [
+          ChangeNotifierProvider(create: (_) => ProDepositSettingsProvider()),
+          ChangeNotifierProvider<ProAuthProvider>(
+            create: (_) => _VerifiedPro(),
+          ),
+          ChangeNotifierProvider(create: (_) => LocalityProvider()),
+        ],
+        home: const DepositSettingsScreen(providerId: 'p1'),
+      ),
+    );
+    await settle(tester);
+    await settle(tester);
+
+    await tester.tap(find.byType(SwitchListTile));
+    await settle(tester);
+
+    expect(find.text('30 %'), findsOneWidget);
+    expect(find.text('0 %'), findsNothing);
+    expect(
+      tester.widget<Slider>(find.byType(Slider)).value,
+      0.30,
+      reason: 'the slider sits where the label says',
+    );
+
+    await pressSave(tester);
+
+    final sent = verify(
+      () => service.updateDepositPolicy(
+        'p1',
+        depositRequired: true,
+        depositPercentage: captureAny(named: 'depositPercentage'),
+        cancellationWindowHours: any(named: 'cancellationWindowHours'),
+        mobileMoneyOperator: 'wave',
+        mobileMoneyNumber: storedNumber,
+      ),
+    ).captured.single;
+    expect(sent, 0.30, reason: 'what the salon saw is what is saved');
+    expect(find.text('Paramètres enregistrés'), findsOneWidget);
+  });
+
+  // ---- acompte-off-parity.md §8: the operator answers under its chips ----
+  //
+  // The web says « Choisissez un opérateur Mobile Money. »; the app checked
+  // only the number, so deposits on without an operator went to the server
+  // and came back as « Informations invalides. » in a bar — the same opaque
+  // refusal as the 0 %.
+
+  const operatorMissing = 'Choisissez un opérateur Mobile Money.';
+
+  testWidgets('deposits ON and no operator: the press answers under the '
+      'chips, with no bar, and saves nothing — choosing one clears it', (
+    tester,
+  ) async {
+    // A floor phone: « Enregistrer » and the chips are never on screen
+    // together, so the press must bring the salon back to them (§14's focus
+    // amendment) — on the default 800×600 surface both fit, and a screen
+    // that never scrolled would pass.
+    tester.view.physicalSize = const Size(360 * 3, 640 * 3);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+    when(() => service.getDepositPolicy(any())).thenAnswer(
+      (_) async => ApiResponse.success(
+        const DepositPolicy(
+          depositRequired: true,
+          depositPercentage: 0.30,
+          mobileMoneyNumber: storedNumber,
+        ),
+      ),
+    );
+    stubSaveOk();
+
+    await tester.pumpWidget(
+      wrapApp(
+        providers: [
+          ChangeNotifierProvider(create: (_) => ProDepositSettingsProvider()),
+          ChangeNotifierProvider<ProAuthProvider>(
+            create: (_) => _VerifiedPro(),
+          ),
+          ChangeNotifierProvider(create: (_) => LocalityProvider()),
+        ],
+        home: const DepositSettingsScreen(providerId: 'p1'),
+      ),
+    );
+    await settle(tester);
+    await settle(tester);
+
+    await scrollTo(tester, saveButton);
+    await tester.pump();
+    expect(
+      find.text('Wave').hitTestable(),
+      findsNothing,
+      reason: 'the precondition: at the button, the chips are off screen',
+    );
+    await tester.tap(saveButton);
+    await settle(tester);
+    await settle(tester);
+
+    expect(
+      find.byType(SnackBar),
+      findsNothing,
+      reason: '§14 rule 3 — a field fault is never a bar',
+    );
+    noSave();
+    // The press brought the Pro back to the chips (§14's focus amendment):
+    // the message is on screen, not merely in the tree — and so are the
+    // chips it asks about (without the scroll, the message alone peeks in at
+    // the top edge while every chip stays above it).
+    expect(find.text(operatorMissing).hitTestable(), findsOneWidget);
+    expect(
+      find.text('Wave').hitTestable(),
+      findsOneWidget,
+      reason: 'the chips to choose from are on screen after the press',
+    );
+
+    // Rule 2: choosing an operator clears it, without a second press.
+    await tester.tap(find.widgetWithText(ChoiceChip, 'Wave'));
+    await tester.pump();
+    expect(find.text(operatorMissing), findsNothing);
+
+    await pressSave(tester);
+    verify(
+      () => service.updateDepositPolicy(
+        'p1',
+        depositRequired: true,
+        depositPercentage: any(named: 'depositPercentage'),
+        cancellationWindowHours: any(named: 'cancellationWindowHours'),
+        mobileMoneyOperator: 'wave',
+        mobileMoneyNumber: storedNumber,
+      ),
+    ).called(1);
+  });
+
+  testWidgets('deposits OFF and no operator: nothing to choose — the save '
+      'goes through, and a message left from « on » goes with the switch', (
+    tester,
+  ) async {
+    when(() => service.getDepositPolicy(any())).thenAnswer(
+      (_) async => ApiResponse.success(
+        const DepositPolicy(
+          depositRequired: true,
+          depositPercentage: 0.30,
+          mobileMoneyNumber: storedNumber,
+        ),
+      ),
+    );
+    stubSaveOk();
+
+    await tester.pumpWidget(
+      wrapApp(
+        providers: [
+          ChangeNotifierProvider(create: (_) => ProDepositSettingsProvider()),
+          ChangeNotifierProvider<ProAuthProvider>(
+            create: (_) => _VerifiedPro(),
+          ),
+          ChangeNotifierProvider(create: (_) => LocalityProvider()),
+        ],
+        home: const DepositSettingsScreen(providerId: 'p1'),
+      ),
+    );
+    await settle(tester);
+    await settle(tester);
+
+    await pressSave(tester); // on, no operator: refused under the chips
+    noSave();
+
+    // Scroll with an ON-STAGE finder: the refused press scrolled the list,
+    // and a `skipOffstage: false` finder is « found » while still above the
+    // screen — the tap then misses (measured: Offset(400, -211)).
+    final toggle = find.byType(SwitchListTile);
+    await scrollTo(tester, toggle, delta: -200);
+    bool isOn() => tester.widget<SwitchListTile>(toggle).value;
+    await tester.tap(toggle); // off
+    await settle(tester);
+    expect(isOn(), isFalse);
+    await tester.tap(toggle); // on again: no stale message
+    await settle(tester);
+    expect(isOn(), isTrue);
+    expect(
+      find.text(operatorMissing, skipOffstage: false),
+      findsNothing,
+      reason: 'the card is back, and the message left from « on » is not',
+    );
+    expect(
+      find.text('Numéro Mobile Money', skipOffstage: false),
+      findsOneWidget,
+      reason: 'the card the message would sit in IS built — not a vacuous pass',
+    );
+    await tester.tap(toggle); // off
+    await settle(tester);
+    expect(isOn(), isFalse);
+
+    await pressSave(tester);
+    verify(
+      () => service.updateDepositPolicy(
+        'p1',
+        depositRequired: false,
+        depositPercentage: any(named: 'depositPercentage'),
+        cancellationWindowHours: any(named: 'cancellationWindowHours'),
+        mobileMoneyOperator: null,
+        mobileMoneyNumber: storedNumber,
+      ),
+    ).called(1);
+  });
 }
 
 /// A session whose salon is verified, so « Exiger un acompte » can be toggled.

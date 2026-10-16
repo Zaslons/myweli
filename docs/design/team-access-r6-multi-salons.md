@@ -135,7 +135,9 @@ Errors: 401 · 403 `forbidden` (non-provider) · 403 **`reseau_required`** ·
   when `canAddSalon`). Add-salon: the Réseau card CTA + `AddSalonScreen`
   (name/type/phone prefilled/address) → create → auto-switch → the
   onboarding checklist. The 15 `provider?.providerId` bypass reads swept to
-  `activeSalonId` (pinned by a grep-assertion test); the subscription
+  `activeSalonId` (pinned by a grep-assertion test — a string match that an
+  aliased read slipped past; replaced 2026-10-16 by a name-agnostic pin, and
+  three more reads fixed: [r6-salon-id-pin.md](r6-salon-id-pin.md)); the subscription
   screen's owner gate now keys on `subscription.manage`. Mock world: the
   demo owner owns provider1 AND provider2 (email login
   `jean@salon-excellence.test`), per-salon offers/trials/seats/rosters,

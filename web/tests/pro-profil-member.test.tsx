@@ -26,6 +26,49 @@ import { ProfilClient } from '../components/pro/ProfilClient';
 /// + salon + « Supprimer mon compte » (deletion parity); no salon editor, no
 /// export (profile.manage only).
 
+/// A full-view member: the owner, or a Manager (`profile.manage` without the
+/// owner-only `salon.publish`).
+const MANAGER_CAPS = [
+  'journal.view.all',
+  'journal.manage.all',
+  'journal.view.own',
+  'journal.manage.own',
+  'clients.view',
+  'catalogue.manage',
+  'availability.manage',
+  'profile.manage',
+];
+const OWNER_CAPS = [
+  ...MANAGER_CAPS,
+  'finances.view',
+  'deposit.manage',
+  'members.manage',
+  'subscription.manage',
+  'salon.publish',
+];
+
+function mockFullView(role: 'owner' | 'manager') {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (url: string) => {
+      if (url === '/api/pro/me') {
+        return new Response(
+          JSON.stringify({
+            account: { id: 'acc-m', email: `${role}@equipe.test` },
+            provider: { id: 'p1', name: 'Beauté Divine', status: 'active' },
+            membership: {
+              role,
+              capabilities: role === 'owner' ? OWNER_CAPS : MANAGER_CAPS,
+            },
+          }),
+          { status: 200 },
+        );
+      }
+      return new Response('{}', { status: 404 });
+    }),
+  );
+}
+
 function mockFetch(opts: { deleteStatus?: number } = {}) {
   const calls: { url: string; method: string }[] = [];
   vi.stubGlobal(
@@ -98,5 +141,30 @@ describe('ProfilClient — slim member view', () => {
     await waitFor(() =>
       expect(replace).toHaveBeenCalledWith('/pro/connexion'),
     );
+  });
+});
+
+/// Who may take the salon's data out (docs/design/web-pro-export-completeness.md
+/// §6): the owner, as in the app (`salon.publish`, R4b) and as T39 requires.
+/// A Manager edits the profile and can delete their own account, but the
+/// export is not theirs — and their revenue read answers 403 every time.
+describe('ProfilClient — the export is the owner\'s', () => {
+  it('manager: the full editor and deletion, but no export', async () => {
+    mockFullView('manager');
+    render(<ProfilClient />);
+
+    expect(await screen.findByLabelText('Nom du salon')).toBeTruthy();
+    expect(screen.getByText('Supprimer mon compte')).toBeTruthy();
+    expect(screen.queryByText('Exporter (JSON)')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Copier' })).toBeNull();
+  });
+
+  it('CONTROL — owner: the export is offered', async () => {
+    mockFullView('owner');
+    render(<ProfilClient />);
+
+    expect(await screen.findByLabelText('Nom du salon')).toBeTruthy();
+    expect(screen.getByText('Exporter (JSON)')).toBeTruthy();
+    expect(screen.getByText('Supprimer mon compte')).toBeTruthy();
   });
 });
