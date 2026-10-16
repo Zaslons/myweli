@@ -266,7 +266,8 @@ void main() {
         await Future<void>.delayed(const Duration(milliseconds: 50));
       }
     });
-    await tester.pump();
+    // Also drains the screen's own invitations read.
+    await settleMocks(tester);
 
     expect(find.text('Marcory, Zone 4'), findsOneWidget);
     expect(
