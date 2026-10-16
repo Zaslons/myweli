@@ -8,6 +8,7 @@ import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/pro_membership.dart';
 import 'package:myweli/models/provider_login_result.dart';
 import 'package:myweli/models/provider_user.dart';
+import 'package:myweli/models/salon_market.dart';
 import 'package:myweli/models/team_member.dart';
 import 'package:myweli/services/api/api_auth_service.dart';
 import 'package:myweli/services/interfaces/session_store.dart';
@@ -355,6 +356,102 @@ void main() {
     expect(await service.getCachedProviderMembership(), isNull);
     expect(await service.getSelectedProviderSalon(), 'salon_1');
     expect(await service.getCurrentProvider(), isNotNull);
+  });
+
+  // docs/design/pro-app-salon-not-loaded.md §3.1: the salon's market facts
+  // ride the session next to the membership, so a cold start whose
+  // GET /me/provider fails still knows the salon's clock.
+  group('the salon market facts', () {
+    const lbv = SalonMarket(
+      salonId: 'salon_1',
+      timezone: 'Africa/Libreville',
+      currency: 'XAF',
+      countryCode: 'GA',
+      areaId: 'ga-libreville',
+    );
+
+    ApiAuthService serviceOn(SessionStore store) => ApiAuthService(
+      client: MockClient(
+        (req) async => http.Response(
+          jsonEncode({'provider': _providerJson(), 'accessToken': 'prov-123'}),
+          200,
+        ),
+      ),
+      baseUrl: 'http://x',
+      providerSessionStore: store,
+    );
+
+    test('survive a restart, and the membership written after them', () async {
+      final store = InMemorySessionStore();
+      final service = serviceOn(store);
+      await service.verifyOtpForProvider(_phone, '123456');
+      await service.cacheProviderSalonMarket(lbv);
+      await service.cacheProviderMembership(
+        const ProMembership(
+          role: TeamRole.owner,
+          capabilities: {},
+          salonId: 'salon_1',
+          salonName: 'Salon Excellence',
+        ),
+      );
+
+      // A new service on the same store = the app starting again.
+      final restarted = serviceOn(store);
+      expect(await restarted.getCachedProviderSalonMarket(), lbv);
+      expect(
+        (await restarted.getCachedProviderMembership())?.salonId,
+        'salon_1',
+      );
+    });
+
+    test('null CLEARS them — the membership kept', () async {
+      final store = InMemorySessionStore();
+      final service = serviceOn(store);
+      await service.verifyOtpForProvider(_phone, '123456');
+      await service.cacheProviderMembership(
+        const ProMembership(
+          role: TeamRole.owner,
+          capabilities: {},
+          salonId: 'salon_1',
+          salonName: 'Salon Excellence',
+        ),
+      );
+      await service.cacheProviderSalonMarket(lbv);
+
+      await service.cacheProviderSalonMarket(null);
+
+      expect(await service.getCachedProviderSalonMarket(), isNull);
+      expect(await service.getCachedProviderMembership(), isNotNull);
+    });
+
+    test('signed out: nothing to cache into, nothing to read', () async {
+      final store = InMemorySessionStore();
+      final service = serviceOn(store);
+      await service.cacheProviderSalonMarket(lbv);
+      expect(await store.read(), isNull);
+      expect(await service.getCachedProviderSalonMarket(), isNull);
+    });
+
+    test('a session stored before they existed reads with none', () async {
+      final store = InMemorySessionStore();
+      await store.save(
+        jsonEncode({
+          'token': 'prov-123',
+          'refreshToken': 'r',
+          'provider': _providerJson(),
+          'membership': {
+            'role': 'owner',
+            'capabilities': <String>[],
+            'salonId': 'salon_1',
+            'salonName': 'Salon Excellence',
+          },
+        }),
+      );
+      final service = serviceOn(store);
+
+      expect(await service.getCachedProviderSalonMarket(), isNull);
+      expect((await service.getCachedProviderMembership())?.salonId, 'salon_1');
+    });
   });
 
   _googleTests();

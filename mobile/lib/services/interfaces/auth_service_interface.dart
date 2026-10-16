@@ -2,6 +2,7 @@ import '../../models/api_response.dart';
 import '../../models/pro_membership.dart';
 import '../../models/provider_login_result.dart';
 import '../../models/provider_user.dart';
+import '../../models/salon_market.dart';
 import '../../models/user.dart';
 
 abstract class AuthServiceInterface {
@@ -101,6 +102,14 @@ abstract class AuthServiceInterface {
   /// GET /me/provider each start). No-op when signed out.
   Future<void> cacheProviderMembership(ProMembership? membership);
   Future<ProMembership?> getCachedProviderMembership();
+
+  /// The acting salon's market facts (timezone, currency, country, area),
+  /// cached INSIDE the persisted provider session next to the membership —
+  /// a cold start whose GET /me/provider fails still knows the salon's clock
+  /// (docs/design/pro-app-salon-not-loaded.md §3.1). `null` CLEARS them.
+  /// No-op when signed out.
+  Future<void> cacheProviderSalonMarket(SalonMarket? market);
+  Future<SalonMarket?> getCachedProviderSalonMarket();
 
   /// R6 multi-salons: persist/restore the switched-to salon INSIDE the
   /// provider session (cold-start continuity; `null` = the default salon).
