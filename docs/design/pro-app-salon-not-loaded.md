@@ -242,6 +242,33 @@ nouveau : la restauration lit le même blob.
   lieu de remplacer.
 - **Image de référence** de l'écran (générée sous Linux, regardée).
 
+**Vu, pas supposé :**
+
+- Sur le code d'avant : démarrage `/me` en échec → `salonTimezone` `null`
+  (attendu Libreville) ; repli R6 raté → `'Africa/Libreville'` pour le salon
+  par défaut (attendu `null`) ; journal → carte `09:00` et `11:00Z` envoyé.
+  Le contrôle `/me` OK, vert avant et après.
+- 32 tests nouveaux (14 fournisseur, 4 cache, 14 widget dont l'épingle).
+- **23 mutations sur le travail commité, toutes rouges** : la vérification
+  d'identifiant, la restauration, l'écriture du cache, le gate retiré du
+  `builder`, `needsSalon` sans la porte de réadmission, le gate qui recouvre,
+  l'ordre de `switchSalon`, la notification du repli raté, l'attente de la
+  lecture de session (dans le gate et dans `salonLoading`), le rafraîchissement
+  en cours, la première notification de « Réessayer », les chemins exemptés,
+  le cache vidé à la réadmission et à la déconnexion (mémoire, mock, API),
+  `toJson` / `copyWith` de la session, `SalonMarket.of` sans fuseau,
+  l'écoute du routeur, `salonTimezone` revenu à la charge vivante, la
+  notification après lecture de session.
+- **Au premier passage, deux ont survécu**, sur des lignes dont rien ne
+  dépendait : le gate distinguait lui-même attente et échec (l'écran le fait
+  déjà), et `salonLoading` lisait `_isLoading`, dont le seul rôle réel était
+  l'image avant la lecture de la session. Le gate est devenu ouvert/fermé,
+  `salonLoading` dit « pas encore lu » en clair, un test tient cette première
+  image, et le terme « sonde » (inobservable : sous le gate aucune page n'est
+  construite) est retiré.
+- Les deux images : seules elles ont bougé sous Linux (workflow « Goldens —
+  regenerate »), les 52 autres identiques à l'octet.
+
 ## 9. Déploiement
 
 App Pro seulement, avec le prochain build. Pas de drapeau : le premier
