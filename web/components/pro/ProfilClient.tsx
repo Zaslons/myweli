@@ -355,8 +355,16 @@ export function ProfilClient() {
         <SectionLink href="/pro/medias" label="Photos & Avant/Après" />
       </section>
 
-      {/* Audit 11.5 — export + deletion (AUTH-004/005 for pros). */}
-      {profile ? <CompteDangerSection profile={profile} /> : null}
+      {/* Audit 11.5 — export + deletion (AUTH-004/005 for pros). The export
+          is the owner's, as in the app (salon.publish; T39): a Manager edits
+          the profile but does not take the salon's data out
+          (docs/design/web-pro-export-completeness.md §6). */}
+      {profile ? (
+        <CompteDangerSection
+          profile={profile}
+          exportEnabled={hasCap(membership, 'salon.publish')}
+        />
+      ) : null}
     </div>
   );
 }
