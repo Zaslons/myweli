@@ -190,7 +190,8 @@ class ProAuthProvider extends ChangeNotifier {
       _selectedSalonId ?? _provider?.providerId ?? _membership?.salonId;
 
   /// The acting salon's name: the membership's (cached in the session, so
-  /// known at cold start), then the salon payload's. The account's
+  /// known at cold start; the salon payload arrives in the same response, so
+  /// it never knows a name the membership doesn't). The account's
   /// `businessName` is a sign-up copy of its DEFAULT salon, so it answers
   /// only while that salon is the acting one — never after a switch
   /// (docs/design/r6-salon-fact-reads.md §2.3).
@@ -199,8 +200,6 @@ class ProAuthProvider extends ChangeNotifier {
     if (fromMembership != null && fromMembership.isNotEmpty) {
       return fromMembership;
     }
-    final fromSalon = _activeSalon?.name;
-    if (fromSalon != null && fromSalon.isNotEmpty) return fromSalon;
     final actingInDefault = _selectedSalonId == null && activeSalonId != null;
     final business = actingInDefault ? _provider?.businessName : null;
     return (business == null || business.isEmpty) ? 'votre salon' : business;
