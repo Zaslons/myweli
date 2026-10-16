@@ -13,6 +13,7 @@ const routerMock = { replace };
 vi.mock('next/navigation', () => ({ useRouter: () => routerMock }));
 
 import { AcompteClient } from '../components/pro/AcompteClient';
+import { NO_CONNECTION_MESSAGE } from '../lib/pro/team';
 import { resetLocalitiesClientCache } from '../lib/use-localities';
 import { fixtureTree } from './localities.test';
 
@@ -95,13 +96,14 @@ afterEach(() => {
 });
 
 /// The ErrorState, under the page's own h1 — and nothing a save could
-/// overwrite the policy from.
-async function expectLoadError() {
+/// overwrite the policy from. No answer names the network
+/// (web-pro-no-connection-copy.md §3); a server's answer keeps the default.
+async function expectLoadError(
+  sentence: string = 'Une erreur est survenue. Réessayez.',
+) {
   await screen.findByRole('button', { name: 'Réessayer' });
   expect(screen.getByRole('heading', { level: 1, name: 'Acompte' })).toBeInTheDocument();
-  expect(screen.getByRole('alert')).toHaveTextContent(
-    'Une erreur est survenue. Réessayez.',
-  );
+  expect(screen.getByRole('alert')).toHaveTextContent(sentence);
   expect(screen.queryByLabelText('Exiger un acompte')).toBeNull();
   expect(screen.queryByRole('button', { name: 'Enregistrer' })).toBeNull();
 }
@@ -119,13 +121,13 @@ describe('AcompteClient — a failed load is an error, never a blank form', () =
   it('the policy fetch throws (no network) → ErrorState, not a spinner for ever', async () => {
     mockFetch({ policy: ['throw'] });
     render(<AcompteClient />);
-    await expectLoadError();
+    await expectLoadError(NO_CONNECTION_MESSAGE);
   });
 
   it('the salon fetch throws → ErrorState', async () => {
     mockFetch({ me: ['throw'] });
     render(<AcompteClient />);
-    await expectLoadError();
+    await expectLoadError(NO_CONNECTION_MESSAGE);
   });
 
   it('« Réessayer » loads again — and the policy it gets is the one shown', async () => {
