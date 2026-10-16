@@ -231,7 +231,7 @@ describe('pro deposit form', () => {
   it('the percentage is sent from the field exactly when it passes the rule validateDeposit applies (1–100)', () => {
     // One rule, two readers: what the switch-on check accepts is what the
     // payload takes from the field — on or off.
-    for (const percent of ['1', '30', '55', '100']) {
+    for (const percent of ['1', '30', '55', '100', '12.5', '12.34', ' 30 ']) {
       expect(validateDeposit({ ...on, percent }), percent).toBeNull();
       for (const required of [true, false]) {
         expect(
@@ -243,7 +243,10 @@ describe('pro deposit form', () => {
     // Below 1 is refused as its message says (« 1–100 % »): '0.4' passed the
     // old `> 0` check, was stored as 0.004, read back as « 0 » and refused —
     // a policy the web wrote and could not save again.
-    for (const percent of ['', 'abc', '0', '0.4', '0.99', '101']) {
+    // Two decimals at most — what the form reads back exactly
+    // (depositToForm reads to the hundredth): '12.345' would be stored as
+    // 0.12345, read as « 12.35 » and rewritten by an untouched save.
+    for (const percent of ['', 'abc', '0', '0.4', '0.99', '101', '12.345', '1e2', '+30']) {
       expect(validateDeposit({ ...on, percent }), percent).toMatch(/pourcentage/i);
       expect(
         buildDepositPayload({ ...on, required: false, percent }, 0.45).depositPercentage,
@@ -289,11 +292,19 @@ describe('pro deposit form', () => {
     expect(at(0.125)).toBe('12.5');
     expect(at(0.29)).toBe('29');
     expect(at(0.57)).toBe('57');
-    // What the app's slider writes (0.05 + 12 × 0.05 in floating point).
-    expect(at(0.6499999999999999)).toBe('65');
+    // Everything the app's slider writes — Flutter's own arithmetic, min 0.05,
+    // max 0.80, 15 divisions: k / 15 × 0.75 + 0.05, so 0.15000000000000002,
+    // 0.6500000000000001, 0.39999999999999997… — reads back as the whole
+    // percent the salon chose, and passes the field's rule.
+    for (let k = 0; k <= 15; k++) {
+      const written = (k / 15) * (0.8 - 0.05) + 0.05;
+      expect(at(written), String(written)).toBe(String(5 + 5 * k));
+      expect(validateDeposit({ ...on, percent: at(written) }), String(written)).toBeNull();
+    }
     expect(at(1)).toBe('100');
-    // Written by another client below the web's floor: shown as it is, not
-    // as a « 0 » — and refused by the switch-on check, like any value < 1.
+    // Written by another client below the web's floor: shown to the
+    // hundredth (« 0.4 »; under 0.005 % that is « 0 ») — and refused by the
+    // switch-on check, like any value < 1.
     expect(at(0.004)).toBe('0.4');
     expect(validateDeposit({ ...on, percent: at(0.004) })).toMatch(/pourcentage/i);
   });

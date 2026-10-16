@@ -135,6 +135,9 @@ export function AcompteClient() {
     if (v || !numberOk) return;
     setBusy(true);
     setError(null);
+    // A new answer replaces the last one: « Acompte enregistré. » must not
+    // stay on screen beside the failure of the next save.
+    setSaved(false);
     const payload = buildDepositPayload(f, lastPercentage);
     // No network is a failed save like any other — never « Enregistrer » left
     // disabled for ever (docs/design/acompte-off-parity.md §8).

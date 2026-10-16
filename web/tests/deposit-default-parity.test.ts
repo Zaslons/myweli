@@ -21,6 +21,13 @@ const DART_DEPOSIT = readFileSync(
 
 describe('the proposed deposit percentage — app/web parity', () => {
   it('kDefaultDepositPercentage is DEFAULT_DEPOSIT_PERCENT as a fraction', () => {
+    // Exactly ONE definition left once comments are out: Dart block comments
+    // NEST, which a regex strip cannot follow — a leftover inside one, next
+    // to a changed real constant, would otherwise be the one matched.
+    expect(
+      [...DART_DEPOSIT.matchAll(/kDefaultDepositPercentage\s*=/g)],
+      'one definition of kDefaultDepositPercentage',
+    ).toHaveLength(1);
     const m = /const\s+double\s+kDefaultDepositPercentage\s*=\s*([0-9.]+)\s*;/.exec(
       DART_DEPOSIT,
     );

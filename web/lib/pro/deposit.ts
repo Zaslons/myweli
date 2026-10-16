@@ -33,9 +33,11 @@ export function depositToForm(p?: DepositPolicy): DepositForm {
     required: p?.depositRequired ?? false,
     // A stored 0 (or none) reads « not chosen yet »: the form proposes the
     // default, as the app does — never a « 0 » the switch would refuse. A
-    // chosen one is read to the hundredth, not rounded: deposits off send the
-    // field back, and an untouched save must write what it read (0.125 is
-    // « 12.5 », never « 13 »; the app's 0.6499999999999999 is « 65 »).
+    // chosen one is read to the hundredth of a percent, not rounded to a
+    // whole one: deposits off send the field back, so an untouched save
+    // writes what it read — exactly for anything the web writes (two
+    // decimals at most, [percentOk]): 0.125 is « 12.5 », never « 13 »; the
+    // app slider's 0.6500000000000001 is « 65 ».
     percent: String(
       stored > 0 ? Number((stored * 100).toFixed(2)) : DEFAULT_DEPOSIT_PERCENT,
     ),
@@ -50,10 +52,13 @@ export function depositToForm(p?: DepositPolicy): DepositForm {
 /// holds the salon to it while a deposit is collected; [buildDepositPayload]
 /// sends the field only when it passes. Below 1 is refused: '0.4' passed the
 /// old `> 0`, was stored as 0.004, came back as « 0 » and could not be saved
-/// again.
+/// again. Two decimals at most — what [depositToForm] reads back exactly
+/// ('12.345' would come back « 12.35 » and be rewritten by an untouched save).
 function percentOk(percent: string): boolean {
-  const pct = Number(percent);
-  return percent.trim() !== '' && !Number.isNaN(pct) && pct >= 1 && pct <= 100;
+  const text = percent.trim();
+  if (!/^\d+(\.\d{1,2})?$/.test(text)) return false;
+  const pct = Number(text);
+  return pct >= 1 && pct <= 100;
 }
 
 export function validateDeposit(f: DepositForm): string | null {

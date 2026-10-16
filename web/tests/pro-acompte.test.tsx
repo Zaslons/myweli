@@ -253,4 +253,18 @@ describe('AcompteClient — a save with no network', () => {
     expect(await screen.findByText('Acompte enregistré.')).toBeInTheDocument();
     expect(sent).toHaveLength(2);
   });
+
+  it('a failed save after a successful one: only the failure is said', async () => {
+    mockFetch({ put: [{ status: 200, body: {} }, 'throw'] });
+    render(<AcompteClient />);
+    const save = await screen.findByRole('button', { name: 'Enregistrer' });
+    fireEvent.click(save);
+    expect(await screen.findByText('Acompte enregistré.')).toBeInTheDocument();
+
+    fireEvent.click(save); // the network drops
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'L’enregistrement a échoué. Réessayez.',
+    );
+    expect(screen.queryByText('Acompte enregistré.')).toBeNull();
+  });
 });
