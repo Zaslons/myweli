@@ -2,10 +2,10 @@
 
 | | |
 |---|---|
-| **Statut** | **Brouillon, en attente d'accord** (2026-10-16). Le §4 (l'écran « salon non chargé ») est la partie visible ; le reste ne change rien à l'écran. |
+| **Statut** | **Approuvé par le propriétaire le 2026-10-16** (« Build both layers: save the salon's details on the phone, and add the « Impossible de charger votre salon » screen as described in §4 of the spec. ») — **construit le 2026-10-16** sur `fix/pro-app-salon-not-loaded`, non fusionné ; part avec le prochain build de l'app Pro. Écarts au texte, trouvés en construisant : §12. |
 | **Module** | `multi-pays` (heure du salon, MP2) × `access` (le chargement de la session Pro) |
 | **Origine** | La même classe de défaut que le web Pro, corrigée par Zaslons/myweli#617 ([pro-appointment-detail-profile-gate.md](pro-appointment-detail-profile-gate.md) §6, qui la signalait pour l'app). |
-| **Gouverne** | `mobile/lib/providers/pro_auth_provider.dart`, `mobile/lib/models/salon_market.dart` (nouveau), `mobile/lib/models/provider_session.dart`, les deux `AuthService` (cache), `mobile/lib/widgets/pro/pro_salon_gate.dart` (nouveau), `mobile/lib/main_pro.dart` (le `builder`). |
+| **Gouverne** | `mobile/lib/providers/pro_auth_provider.dart`, `mobile/lib/models/salon_market.dart` (nouveau), `mobile/lib/models/provider_session.dart`, les deux `AuthService` (cache), `mobile/lib/widgets/provider/pro_salon_gate.dart` (nouveau), `mobile/lib/main_pro.dart` (le `builder`). |
 | **Backend** | **Aucun changement.** Pas de contrat, pas de migration. |
 
 ## 1. Le défaut, vu sur le vrai chemin (pas supposé)
@@ -136,7 +136,7 @@ du salon.
 
 ```
 ┌──────────────────────────────────────┐
-│ Salon Excellence          Déconnexion │   ← le nom vient de l'adhésion en cache
+│                                   ⎋  │   ← « Déconnexion » (icône + infobulle)
 ├──────────────────────────────────────┤
 │                                      │
 │              (icône wifi_off)        │
@@ -153,18 +153,20 @@ du salon.
 ```
 
 - **Réutilise** `EmptyState` (icône, titre, description, une action) dans un
-  `Scaffold` ; « Déconnexion » en action de la barre, comme la porte de
-  réadmission ([pro-rejoin-gate.md](pro-rejoin-gate.md) §3). Pas de retour,
-  pas d'onglets.
+  `Scaffold` ; « Déconnexion » en icône de la barre (infobulle
+  « Déconnexion »), comme la porte de réadmission
+  ([pro-rejoin-gate.md](pro-rejoin-gate.md) §3). Pas de retour, pas
+  d'onglets, **pas de titre** (§12).
 - **Les quatre états** (SYSTEM §12) :
-  - **chargement** : un rafraîchissement est en cours (démarrage passé le
-    délai du splash, connexion, « Réessayer ») → `LoadingIndicator` plein
-    écran, pas d'erreur qui clignote ;
+  - **chargement** : la session stockée n'est pas encore lue, ou un
+    rafraîchissement est en cours (démarrage passé le délai du splash,
+    connexion, « Réessayer ») → `LoadingIndicator` plein écran, pas d'erreur
+    qui clignote ; « Déconnexion » est grisée pendant ce temps ;
   - **erreur** : l'écran ci-dessus ;
   - **succès** : l'écran disparaît et la page demandée s'affiche ;
   - **vide** : sans objet.
-- **« Réessayer »** relance `refreshMembership()` (un `/me`), le bouton en
-  chargement. Un `not_a_member` passe par la règle de réadmission comme
+- **« Réessayer »** relance `refreshMembership()` (un `/me`) ; l'écran passe
+  en chargement. Un `not_a_member` passe par la règle de réadmission comme
   partout ailleurs (Invitations ou « accès retiré ») ; un `forbidden` sur une
   sélection retombe sur le salon par défaut (R6).
 - **« Déconnexion »** est la sortie quand réessayer ne peut pas réussir
@@ -197,7 +199,7 @@ pas.
 `models → services (interface + mock + api) → providers → widgets`, rien de
 sauté. `SalonMarket` est un modèle immuable (`equatable`, `fromJson` /
 `toJson`). Le mock garde ses faits en mémoire comme son adhésion. Le gate est
-un widget (`widgets/pro/pro_salon_gate.dart`) qui lit `ProAuthProvider` et
+un widget (`widgets/provider/pro_salon_gate.dart`) qui lit `ProAuthProvider` et
 l'emplacement de `GoRouter` ; aucune route nouvelle, aucun `redirect`.
 
 ## 6. Sécurité
@@ -256,4 +258,27 @@ démarrage après la mise à jour remplit le cache au premier `/me` réussi.
 
 ## 11. Question ouverte
 
-- **L'écran du §4** (texte, place, « Déconnexion ») : d'accord ?
+- ~~L'écran du §4 : d'accord ?~~ Oui, le 2026-10-16 (statut).
+
+## 12. Ce qui a été construit, et où cela s'écarte du texte
+
+- **Pas de nom de salon dans la barre.** La maquette du §4 le mettait en
+  titre ; SYSTEM §13.3 l'interdit (une donnée réelle n'a pas de budget de
+  largeur dans une barre : « Institut de Beauté Cocody Riviera » finirait en
+  ellipse). Le message dit « votre salon ».
+- **Le gate attend aussi la lecture de la session** (`sessionRestored`).
+  Avant elle, « déconnecté » veut dire « pas encore lu » : un test a montré
+  une page construite avec un fuseau `null` dans ce premier instant. Dans
+  l'app le splash couvre ce moment ; le gate ne compte plus dessus. Le
+  fournisseur notifie maintenant dès la session lue, pour que le premier
+  écran prenne la forme en cache sans attendre `/me`.
+- **`switchSalon` écrit la sélection, puis la forme, l'une après l'autre.**
+  Les deux font lire-modifier-écrire sur le même blob de session ; lancées
+  ensemble, l'une effaçait l'autre. Les champs, eux, changent ensemble avant
+  toute attente.
+- **Un repli R6 raté notifie** : rien d'autre ne changeait à l'écran, et le
+  gate n'aurait rien su.
+- **Le gate remplace le `Router`, vérifié** : une sonde a démonté puis
+  remonté le `Router` de go_router avec une pile poussée (`/a → /b/1`, puis
+  `/b/2` poussé pendant le démontage) ; la pile revient entière, et les pages
+  sont reconstruites.

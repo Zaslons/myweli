@@ -13,6 +13,7 @@ import '../../models/pro_membership.dart';
 import '../../models/provider_login_result.dart';
 import '../../models/provider_session.dart';
 import '../../models/provider_user.dart';
+import '../../models/salon_market.dart';
 import '../../models/session.dart';
 import '../../models/team_invitation.dart';
 import '../../models/user.dart';
@@ -861,6 +862,39 @@ class ApiAuthService implements AuthServiceInterface {
       return ProviderSession.fromJson(
         jsonDecode(raw) as Map<String, dynamic>,
       ).membership;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  @override
+  Future<void> cacheProviderSalonMarket(SalonMarket? market) async {
+    final raw = await _providerSessionStore.read();
+    if (raw == null) return; // signed out — nothing to cache into
+    try {
+      final session = ProviderSession.fromJson(
+        jsonDecode(raw) as Map<String, dynamic>,
+      );
+      await _providerSessionStore.save(
+        jsonEncode(
+          session
+              .copyWith(salonMarket: market, clearSalonMarket: market == null)
+              .toJson(),
+        ),
+      );
+    } catch (_) {
+      /* a broken blob is repaired on the next login */
+    }
+  }
+
+  @override
+  Future<SalonMarket?> getCachedProviderSalonMarket() async {
+    final raw = await _providerSessionStore.read();
+    if (raw == null) return null;
+    try {
+      return ProviderSession.fromJson(
+        jsonDecode(raw) as Map<String, dynamic>,
+      ).salonMarket;
     } catch (_) {
       return null;
     }
