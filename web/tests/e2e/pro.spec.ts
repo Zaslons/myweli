@@ -240,6 +240,40 @@ test('profil: edit + save; acompte: enable + save', async ({ page }) => {
   await expect(page.getByText('Acompte enregistré.')).toBeVisible();
 });
 
+/// docs/design/acompte-off-parity.md D1 — the PUT replaces the whole policy
+/// (the stub stores its body wholesale, as the server does). Deposits off
+/// sent `null` / `0`: coming back to deposits found « — Choisir — » and 0,
+/// and a client still owing a deposit lost the operator to pay with.
+test('acompte: off, saved, reloaded, back on — the operator and the percentage are still there', async ({
+  page,
+}) => {
+  await signInPro(page);
+  await page.goto('/pro/acompte');
+  const toggle = page.getByLabel('Exiger un acompte');
+  const percent = page.getByLabel('Pourcentage de l’acompte (%)');
+  const operator = page.getByLabel('Opérateur Mobile Money');
+  const save = page.getByRole('button', { name: 'Enregistrer' });
+  const saved = page.getByText('Acompte enregistré.');
+
+  // The stub keeps its state across tests: set the switch, never flip it.
+  await toggle.check();
+  await percent.fill('45');
+  await operator.selectOption('orangeMoney');
+  await page.getByLabel('Numéro Mobile Money').fill('+2250700000000');
+  await save.click();
+  await expect(saved).toBeVisible();
+
+  await toggle.uncheck();
+  await save.click();
+  await expect(saved).toBeVisible();
+
+  await page.reload();
+  await expect(toggle).not.toBeChecked();
+  await toggle.check();
+  await expect(percent).toHaveValue('45');
+  await expect(operator).toHaveValue('orangeMoney');
+});
+
 test('médias: manage photos (remove + save) + upload a new one', async ({
   page,
 }) => {
