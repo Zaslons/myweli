@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { EmptyState } from '../EmptyState';
 import { ErrorState } from '../ErrorState';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   type Appointment,
   type Tab,
@@ -22,6 +22,7 @@ import {
   updateName,
   removeFavorite,
 } from '../../lib/api/account';
+import { NO_CONNECTION_MESSAGE } from '../../lib/api/network';
 import type { Provider } from '../../lib/api/providers';
 import { updateContactPhone } from '../../lib/auth/client';
 import { useFieldErrors } from '../../lib/forms/useFieldErrors';
@@ -55,10 +56,16 @@ export function AccountClient() {
   const [me, setMe] = useState<Me | null>(null);
   const [items, setItems] = useState<Appointment[]>([]);
   const [favorites, setFavorites] = useState<Provider[]>([]);
+  // The favorites read failed: the section says so — never « Aucun favori »
+  // to someone who has some (docs/design/web-consumer-network-failure.md §3.2).
+  const [favoritesFailed, setFavoritesFailed] = useState(false);
   const [tab, setTab] = useState<Tab>('upcoming');
   const [loading, setLoading] = useState(true);
   const [reloadKey, setReloadKey] = useState(0);
   const [error, setError] = useState(false);
+  const [logoutBusy, setLogoutBusy] = useState(false);
+  const [logoutError, setLogoutError] = useState<string | null>(null);
+  const logoutRef = useRef<HTMLButtonElement>(null);
   // Contact-phone edit (auth overhaul: phone is contact data, not the login).
   const [editingPhone, setEditingPhone] = useState(false);
   const [editingName, setEditingName] = useState(false);
@@ -95,6 +102,7 @@ export function AccountClient() {
       setMe(m.user ?? null);
       setItems(a.items);
       setFavorites(f.favorites);
+      setFavoritesFailed(f.status !== 200);
       setLoading(false);
     })();
     return () => {
@@ -107,9 +115,33 @@ export function AccountClient() {
     await removeFavorite(id);
   }
 
+  // The button was disabled while the call was out, which can drop focus to
+  // <body>: put it back on the retry, never steal it from elsewhere.
+  useEffect(() => {
+    if (!logoutError) return;
+    const active = document.activeElement;
+    if (!active || active === document.body) logoutRef.current?.focus();
+  }, [logoutError]);
+
+  /// The session is httpOnly cookies only the logout RESPONSE can clear: the
+  /// page goes only once it came back OK (`ProLogoutButton`'s rule). A failed
+  /// call stays, says so and gives the button back — a signed-out-looking
+  /// home over a live session is the next person's way into this account.
   async function onLogout() {
-    await logout();
-    router.replace('/');
+    setLogoutBusy(true);
+    setLogoutError(null);
+    const outcome = await logout();
+    if (outcome === 'ok') {
+      // Busy until the page goes: home replaces this one.
+      router.replace('/');
+      return;
+    }
+    setLogoutError(
+      outcome === 'offline'
+        ? NO_CONNECTION_MESSAGE
+        : 'Une erreur est survenue. Réessayez.',
+    );
+    setLogoutBusy(false);
   }
 
   async function savePhone() {
@@ -229,9 +261,21 @@ export function AccountClient() {
               </p>
             ) : null}
           </div>
-          <Button variant="secondary" onClick={onLogout}>
-            Se déconnecter
-          </Button>
+          <div>
+            <Button
+              ref={logoutRef}
+              variant="secondary"
+              isLoading={logoutBusy}
+              onClick={onLogout}
+            >
+              Se déconnecter
+            </Button>
+            {logoutError ? (
+              <p role="alert" className="mt-xs text-bodySmall text-error">
+                {logoutError}
+              </p>
+            ) : null}
+          </div>
         </div>
         <div className="mt-m border-t border-divider pt-m">
           {editingPhone ? (
@@ -319,7 +363,13 @@ export function AccountClient() {
 
       <section className="mt-l">
         <h2 className="text-titleLarge font-semibold text-textPrimary">Favoris</h2>
-        {favorites.length === 0 ? (
+        {favoritesFailed ? (
+          <ErrorState
+            className="mt-s"
+            message="Favoris indisponibles."
+            onRetry={() => { setLoading(true); setReloadKey((k) => k + 1); }}
+          />
+        ) : favorites.length === 0 ? (
           <EmptyState
             className="mt-s"
             icon="search"

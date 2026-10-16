@@ -2,6 +2,7 @@
 
 import { useRef, useState } from 'react';
 import { focusOnMount } from '../../lib/focusOnMount';
+import { NO_CONNECTION_MESSAGE } from '../../lib/api/network';
 import { attachDepositProof, uploadDepositProof } from '../../lib/booking/deposit';
 import { formatFcfa } from '../../lib/format';
 import {
@@ -38,19 +39,28 @@ export function DepositProof({
   // payload URL. Legacy label values render as-is.
   const { tree } = useLocalities();
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
 
   async function send() {
     const file = fileRef.current?.files?.[0];
     if (!file) return;
     setBusy(true);
-    setError(false);
-    const key = await uploadDepositProof(file);
-    const attached = key ? await attachDepositProof(appointmentId, key) : { ok: false };
+    setError(null);
+    const upload = await uploadDepositProof(file);
+    const attached = upload.ok
+      ? await attachDepositProof(appointmentId, upload.key)
+      : null;
     setBusy(false);
-    if (!attached.ok) {
-      setError(true);
+    if (!attached?.ok) {
+      // No answer is the network, not the image (§3.2): « Vérifiez l'image »
+      // is for a file the sign or storage refused.
+      const offline = upload.ok ? attached?.status === 0 : upload.offline;
+      setError(
+        offline
+          ? NO_CONNECTION_MESSAGE
+          : 'L’envoi a échoué. Vérifiez l’image et réessayez.',
+      );
       return;
     }
     setSent(true);
@@ -110,7 +120,7 @@ export function DepositProof({
       </div>
       {error ? (
         <p role="alert" className="mt-s text-bodyMedium text-error">
-          L’envoi a échoué. Vérifiez l’image et réessayez.
+          {error}
         </p>
       ) : null}
       <p className="mt-s text-bodySmall text-textTertiary">

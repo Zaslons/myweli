@@ -1,3 +1,4 @@
+import { readJson, send } from '../api/network';
 import { putToStorage, reportUploadFailure } from '../upload-telemetry';
 /// Consumer review-photo upload + the form's photo-list rules (parity 2.13).
 /// Mirrors the app's submit sheet: ≤3 photos, direct-to-storage upload.
@@ -26,19 +27,22 @@ type SignResponse = {
 };
 
 /// Sign (`purpose=review`) → POST the bytes straight to storage → the public
-/// URL the review will carry. Null on any failure.
+/// URL the review will carry. Null on any failure — never a throw that leaves
+/// « Ajouter une photo » spinning (docs/design/web-consumer-network-failure.md).
 export async function uploadReviewPhoto(file: File): Promise<string | null> {
-  const signRes = await fetch('/api/uploads/sign', {
+  const signRes = await send('/api/uploads/sign', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ contentType: file.type, purpose: 'review' }),
   });
+  // No answer from our own BFF is the person's network: not reported (§5).
+  if (signRes.status === 0) return null;
   if (!signRes.ok) {
     reportUploadFailure('sign', 'review', { status: signRes.status });
     return null;
   }
-  const sign = (await signRes.json().catch(() => ({}))) as SignResponse;
-  if (!sign.uploadUrl || !sign.publicUrl) {
+  const sign = await readJson<SignResponse>(signRes);
+  if (!sign?.uploadUrl || !sign.publicUrl) {
     reportUploadFailure('response', 'review');
     return null;
   }
@@ -59,7 +63,7 @@ export async function reportReview(
   reviewId: string,
   reason?: string,
 ): Promise<{ ok: boolean; status: number }> {
-  const res = await fetch(`/api/reviews/${reviewId}/report`, {
+  const res = await send(`/api/reviews/${reviewId}/report`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(reason?.trim() ? { reason: reason.trim() } : {}),
