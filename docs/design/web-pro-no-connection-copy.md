@@ -1,14 +1,14 @@
-# Pro web — sur une coupure, l'erreur dit « Pas de connexion » — spec
+# Pro — sur une coupure, l'erreur dit « Pas de connexion » (web, et le sélecteur de salon de l'app) — spec
 
 | | |
 |---|---|
-| **Statut** | **Construit le 2026-10-16** — la suite de [web-pro-network-failure.md](web-pro-network-failure.md) §9 (« le mot de l'app ») ; §10 dit ce qui a été vu rouge. Le sélecteur côté app : §5, question posée |
+| **Statut** | **Construit le 2026-10-16** — la suite de [web-pro-network-failure.md](web-pro-network-failure.md) §9 (« le mot de l'app ») ; le sélecteur sur les deux plateformes, **décision A du propriétaire** (§5) ; §10 dit ce qui a été vu rouge |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-16 |
 | **PRD ref / phase** | Les quatre états de chaque page (SYSTEM.md §12, WEB-SYSTEM §12) · la parité web ↔ app · V1 — tableau de bord Pro web |
-| **Module** | web Pro — l'état d'erreur de chargement des 16 pages, la section Journée, le sélecteur de salon |
+| **Module** | web Pro — l'état d'erreur de chargement des 16 pages, la section Journée, le sélecteur de salon ; app Pro — le sélecteur de salon (`salon_picker_sheet.dart`, `ProAuthProvider`) |
 | **ROADMAP entry** | [2026-10-16-pro-no-connection-copy.md](../roadmap/entries/2026-10-16-pro-no-connection-copy.md) |
-| **Skills checked** | myweli-web-guardrails ✓ · myweli-dev-guardrails ✓ (aucun changement serveur, aucun contrat) · myweli-verification-guardrails (avant de dire « fait ») |
+| **Skills checked** | myweli-web-guardrails ✓ · myweli-dev-guardrails ✓ (la partie app ; aucun changement serveur, aucun contrat) · myweli-verification-guardrails (avant de dire « fait ») |
 | **Dépend de** | [#619](https://github.com/Zaslons/myweli/pull/619) (les wrappers de `lib/api/pro.ts` rendent le statut 0 quand rien ne répond), lui-même après [#616](https://github.com/Zaslons/myweli/pull/616) |
 
 ## 1. Le constat
@@ -152,15 +152,39 @@ la phrase d'aujourd'hui. Le sélecteur garde la raison
 (`useState<LoadFailure | false>`) et dit `loadFailureMessage(raison,
 'Changement impossible — …')`. Seul appelant du résultat : `ProSidebar`.
 
-**Constat en lisant l'app** : `ProAuthProvider.switchSalon` rend aussi un
-booléen (`catch (_) → false`), et `salon_picker_sheet.dart` dit **la même
-phrase** pour tout échec, réseau compris. Ici, pas d'écart de parité au
-départ : la consigne de la tâche demandait le sélecteur web, le web le dit
-maintenant mieux que l'app. **Question posée** à la session qui a ouvert la
-tâche : faire aussi l'app dans cette PR (A, recommandé : `switchSalon` rend
-la raison, la feuille choisit la phrase, un test de widget), la consigner
-comme suite (B), ou retirer le sélecteur de cette PR (C — les deux commits
-`ProSidebar` / `switchSalon` se retirent seuls).
+**Constat en lisant l'app** : `ProAuthProvider.switchSalon` rendait aussi un
+booléen (`catch (_) → false`), et `salon_picker_sheet.dart` disait **la même
+phrase** pour tout échec, réseau compris : pas d'écart de parité au départ —
+le corriger d'un seul côté aurait mis le web en avance sur l'app.
+
+**Décision du propriétaire, 2026-10-16 : A — les deux côtés.** Ses mots :
+« web and app both say « Pas de connexion. Réessayez. » when there is no
+answer (switchSalon reports why; widget test on the app side) ». Écartées : B
+(le web seul, l'app en suite), C (ne rien changer au sélecteur).
+
+**Construit côté app** :
+
+- `api_pro_service.getMyProvider` — la sonde du changement : **pas de
+  réponse** → `code: 'network'`, la convention qu'`api_provider_service`
+  emploie déjà. **Ici seulement** : `_networkError` sert 28 appels dont les
+  appelants lisent leur code (`ProAccessGuard.report`, les tables de
+  messages…) ; aucun appelant de `getMyProvider` ne lit d'autre code que
+  `forbidden` / `not_a_member` (la sonde d'appartenance), vérifié appelant par
+  appelant.
+- `ProAuthProvider.switchSalonOutcome` → `SalonSwitchOutcome` (`switched`,
+  `offline`, `refused`). `offline` : `code == 'network'`, **ou** une réponse
+  illisible (le décodage de la sonde lève — l'équivalent du 2xx illisible du
+  web ; choisir à nouveau est sans danger, la sélection n'est enregistrée
+  qu'après une sonde réussie). `refused` : le reste (403, 5xx, pas de
+  session). Ce que le `catch` couvre aussi, dit plutôt que caché : une
+  écriture du stockage local qui lèverait **après** une sonde réussie
+  (`setSelectedProviderSalon`, `cacheProviderMembership`) — rare, et
+  qu'aucune phrase d'aujourd'hui ne distinguait non plus.
+- `switchSalon` **garde son booléen** (`== switched`) : ses autres appelants
+  — l'`ensureSalon` des notifications, le détail d'un rendez-vous,
+  « Ajouter un salon », la doublure des tests de démarrage — ne changent pas.
+- `salon_picker_sheet.dart` : `offline` → « Pas de connexion. Réessayez. »,
+  sinon la phrase d'aujourd'hui. La feuille reste ouverte (A6), comme avant.
 
 ## 6. Contrat, sécurité, performance
 
@@ -185,9 +209,14 @@ Performance : nulle.
 - **`lib/pro/load-failure.ts`** : la table de `loadFailure` /
   `loadFailureMessage` (0 seul, 0 parmi des 200, 500, 404 ; avec et sans
   phrase propre).
-- **Le sélecteur** (`tests/pro-sidebar-switcher.test.tsx`) : coupure et 2xx
-  au corps perdu → « Pas de connexion. Réessayez. » ; 403 et 500 → la phrase
-  d'aujourd'hui ; le salon courant reste affiché.
+- **Le sélecteur, web** (`tests/pro-sidebar-switcher.test.tsx`) : coupure et
+  2xx au corps perdu → « Pas de connexion. Réessayez. » ; 403 et 500 → la
+  phrase d'aujourd'hui ; le salon courant reste affiché.
+- **Le sélecteur, app** : `test/widget/salon_picker_sheet_test.dart` — pas de
+  réponse, réponse illisible → « Pas de connexion. Réessayez. », la feuille
+  reste ouverte sur le salon courant ; un refus → la phrase d'aujourd'hui ;
+  `switchSalon` reste faux sans réponse. `test/unit/api_pro_service_test.dart`
+  — la sonde sans réponse porte `network`, un 403 garde `not_a_member`.
 
 **Mutations à voir rouges** : `loadFailure` qui ne voit plus le 0 ;
 `loadFailureMessage` qui rend toujours `NO_CONNECTION_MESSAGE` (la table 5xx) ;
@@ -197,7 +226,8 @@ la raison ; une page qui garde sa phrase propre sur une coupure.
 ## 8. Déploiement
 
 Web au merge (Vercel), **après #619** (sans lui, une coupure lève encore et
-aucune page n'atteint son état d'erreur). Rien côté serveur.
+aucune page n'atteint son état d'erreur). L'app Pro : avec le prochain build
+des stores (le sélecteur seul). Rien côté serveur.
 
 ## 9. Hors périmètre, consigné
 
@@ -249,6 +279,16 @@ aucune page n'atteint son état d'erreur). Rien côté serveur.
   verts avant comme après. Mutations 5 sur 5 : `switchSalon` toujours
   `'failed'`, toujours `'offline'`, le corps perdu lu comme un refus ; le
   sélecteur qui oublie la raison, ou qui garde sa phrase fixe.
-- **Suite complète** : 1282 tests sur 1282 avant le sélecteur, 1286 avec ;
+- **Le sélecteur, app** : vu rouge, 3 cas (la sonde sans code, la feuille sur
+  une coupure et sur une réponse illisible — toutes deux disaient « … a
+  peut-être été retiré. ») ; le refus vert avant comme après. Mutations 6 sur
+  6 : la sonde sans `network` ; `switchSalonOutcome` qui lit la coupure ou la
+  réponse illisible comme un refus ; le booléen qui compte `offline` comme un
+  changement (la garde « reste faux ») ; la feuille qui ne nomme jamais le
+  réseau, ou toujours. `flutter analyze` : 0.
+- **Suite complète, web** : 1282 tests sur 1282 avant le sélecteur, 1286 avec ;
   `tsc` et le lint propres ; `next build` passe contre l'API bouchon de la CI.
-  Non lancés en local : l'e2e Playwright et Lighthouse (la CI les lance).
+  **App** : `flutter test --exclude-tags golden` — 2261 sur 2261, 52 sautés
+  (les goldens, faits sur Linux : la CI les lance ; aucun ne montre la feuille
+  en échec) ; `flutter analyze` : 0.
+  Non lancés en local : l'e2e Playwright, Lighthouse, les goldens (la CI).
