@@ -81,6 +81,17 @@ web/
   keys on vector — the shared free tier is not spent on tiles that are free
   keyless; `production-checks.yml` (`basemap`) goes red that day. Design:
   [design/map-basemap-key.md](design/map-basemap-key.md) §5.5, §7, §9.
+- **A browser → BFF wrapper never throws** (`lib/api/pro.ts`). A request that
+  got no usable answer — no network, a connection cut mid-body, a 2xx whose
+  body is not JSON — is **status 0** (`ok: false` for a write; a write whose
+  2xx body is lost stays `ok`, without its payload), so the « not 200 » branch
+  every page already has is its error state with « Réessayer ». A read never
+  turns an unreadable body into an empty list. Before this rule, a dropped
+  connection rejected into a load effect nothing caught — an async rejection
+  that no error boundary sees — and 15 Pro pages stayed on their skeleton for
+  ever. Every export is held by `tests/pro-api-network.test.ts` (a new wrapper
+  must join its table). Design:
+  [design/web-pro-network-failure.md](design/web-pro-network-failure.md).
 - Reads for public pages run server-side (RSC/route handlers); writes
   (booking/auth) call the existing hardened API endpoints — reuse their
   validation/authz/notifications; never reimplement business logic on web.
