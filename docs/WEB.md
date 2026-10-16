@@ -81,7 +81,8 @@ web/
   keys on vector — the shared free tier is not spent on tiles that are free
   keyless; `production-checks.yml` (`basemap`) goes red that day. Design:
   [design/map-basemap-key.md](design/map-basemap-key.md) §5.5, §7, §9.
-- **A browser → BFF wrapper never throws** (`lib/api/pro.ts`). A request that
+- **A browser → BFF wrapper never throws** (`lib/api/pro.ts`, through the
+  shared `send()` / `readJson()` of `lib/api/network.ts`). A request that
   got no usable answer — no network, a connection cut mid-body, a 2xx whose
   body is not JSON — is **status 0** (`ok: false` for a write; a write whose
   2xx body is lost stays `ok`, without its payload), so the « not 200 » branch
