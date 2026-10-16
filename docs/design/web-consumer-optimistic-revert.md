@@ -2,14 +2,14 @@
 
 | | |
 |---|---|
-| **Statut** | **Décidé le 2026-10-16** — la suite du §9 de [web-consumer-network-failure.md](web-consumer-network-failure.md) (« les écritures optimistes qui ne reviennent pas en arrière ») ; construit le même jour sur `fix/consumer-optimistic-revert` ; §10 dit ce qui a été vu rouge |
+| **Statut** | **Décidé le 2026-10-16** — la suite du §9 de [web-consumer-network-failure.md](web-consumer-network-failure.md) (« les écritures optimistes qui ne reviennent pas en arrière ») ; construit le même jour sur `fix/consumer-optimistic-revert` ; §11 dit ce qui a été vu rouge |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-16 |
 | **PRD ref / phase** | Le retour d'une action (SYSTEM.md §15, WEB-SYSTEM §7) · V1 — web client (Mon compte, favoris, notifications, recherche, page salon) |
 | **Module** | web client — `components/account/AccountClient.tsx`, `components/account/NotificationsClient.tsx`, `components/provider/FavoriteButton.tsx`, `components/discovery/RechercheClient.tsx` ; `lib/api/account.ts` (deux formes de retour), `lib/api/network.ts` (une phrase) |
 | **ROADMAP entry** | [2026-10-16-consumer-optimistic-revert.md](../roadmap/entries/2026-10-16-consumer-optimistic-revert.md) |
 | **Skills checked** | myweli-web-guardrails ✓ · myweli-dev-guardrails ✓ (aucun changement serveur, aucun contrat) · myweli-verification-guardrails (avant de dire « fait ») |
-| **Dépend de** | [#620](https://github.com/Zaslons/myweli/pull/620) (`fix/consumer-network-failure`), **pas encore fusionné** : la branche part de sa tête. Il apporte le statut 0 (`send()` / `readJson()`) et `NO_CONNECTION_MESSAGE`, sans quoi un échec réseau lèverait au lieu d'être lu ici. |
+| **Dépend de** | [#620](https://github.com/Zaslons/myweli/pull/620) (`fix/consumer-network-failure`), fusionné le 2026-10-16. La branche est partie de sa tête, puis a été rebasée sur `main` à sa fusion, sans conflit. Il apporte le statut 0 (`send()` / `readJson()`) et `NO_CONNECTION_MESSAGE`, sans quoi un échec réseau lèverait au lieu d'être lu ici. |
 
 ## 1. Le défaut, vu dans le code
 
@@ -79,8 +79,9 @@ et la suppression.
 ### 3.2 Où et comment
 
 Partout, un `<p role="alert">` (WEB-SYSTEM §7 : une erreur insérée est
-annoncée à l'insertion) **sous le geste**, `text-bodySmall text-error` comme
-la phrase de « Se déconnecter » dans la même page. Un toast ne convient pas
+annoncée à l'insertion) **sous le geste**, en `text-bodyMedium text-error`
+comme la phrase du numéro de contact et celle d'une préférence (les erreurs
+`role="alert"` restent à 14 px, registre de WEB-SYSTEM §15, ligne 17). Un toast ne convient pas
 ici. Le client web n'en monte aucun, toutes ses erreurs d'écriture sont des
 `role="alert"` en ligne (le numéro, la suppression, la préférence), et
 l'erreur doit rester lisible tant qu'on ne réessaie pas, pas six secondes.
@@ -93,20 +94,23 @@ l'erreur doit rester lisible tant qu'on ne réessaie pas, pas six secondes.
    instantané ») tenue par construction : deux retraits en vol sont
    indépendants, et l'un qui échoue ne ressuscite pas l'autre. Le focus
    revient sur son « Retirer des favoris » s'il était tombé sur `<body>` (le
-   bouton a été démonté). Un nouvel essai efface la phrase. Le dernier favori
-   en vol montre « Aucun favori » le temps de la réponse, comme aujourd'hui.
+   bouton a été démonté). Un nouvel essai cache la carte avec sa phrase. Un
+   succès l'emporte, un échec remplace la phrase. Le dernier favori en vol
+   montre « Aucun favori » le temps de la réponse, comme aujourd'hui.
 2. **Toucher une notification.** Elle passe lue (inchangé), et la navigation
    n'attend pas l'écriture (inchangé). Si la page est toujours là quand
    l'échec arrive (une notification sans lien, ou une réponse plus rapide que
    la navigation), **cette** notification redevient non lue (gras + pastille)
    et la phrase s'affiche sous elle. Si la page est partie, il n'y a rien à
-   dire : au retour, le fil la montre non lue, ce qui est vrai.
+   dire : au retour, le fil la montre non lue, ce qui est vrai. Un nouvel
+   essai efface la phrase. Il n'y a qu'une phrase à la fois sur la page :
+   le geste suivant remplace la précédente.
 3. **« Tout lire ».** Tout passe lu, le bouton disparaît (inchangé). Sur un
    échec, **seules les notifications que ce geste a marquées** redeviennent
    non lues. Une notification déjà lue avant le geste le reste : on n'annule
    que ce geste. Le bouton revient, la phrase s'affiche sous la ligne
    « Notifications | Tout lire », et le focus revient sur « Tout lire » s'il
-   était tombé sur `<body>`.
+   était tombé sur `<body>`. Un nouvel essai efface la phrase.
 4. **Le ♥ du salon.** Il attend la réponse, comme l'app. Sur un échec, il
    garde son état et la phrase s'affiche dessous. Le focus revient sur lui
    s'il était tombé sur `<body>` : le bouton est désactivé pendant l'appel,
@@ -116,9 +120,10 @@ l'erreur doit rester lisible tant qu'on ne réessaie pas, pas six secondes.
    par carte, effacée au nouvel essai de cette carte). Un 401 mène à la
    connexion avec `returnTo` (la même sortie que le visiteur anonyme).
 6. **Le nom.** L'éditeur reste ouvert avec le brouillon (inchangé), et la
-   phrase s'affiche sous sa ligne. « Annuler » et « Modifier le nom »
-   l'effacent, un nouvel « OK » aussi. Le focus revient sur « OK » s'il était
-   tombé sur `<body>` (le bouton est désactivé pendant l'appel).
+   phrase s'affiche sous sa ligne. « Annuler » la referme avec l'éditeur,
+   « Modifier le nom » rouvre un éditeur propre, et un nouvel « OK » l'efface
+   le temps de l'appel. Le focus revient sur « OK » s'il était tombé sur
+   `<body>` (le bouton est désactivé pendant l'appel).
 
 ### 3.3 Le contrat des wrappers
 
@@ -153,11 +158,9 @@ sur le ♥ de la recherche mène à la connexion au lieu de se taire.
 
 ## 7. Déploiement
 
-Web au merge (Vercel), rien côté serveur. **Après #620** : la branche part de
-sa tête, donc la PR montre ses commits tant qu'il n'est pas fusionné. Il faut
-fusionner #620 d'abord, puis rebaser cette branche sur `main` (aucun conflit
-attendu : #620 ne touche à aucune ligne changée ici hors
-`AccountClient.tsx`, dont cette branche part déjà).
+Web au merge (Vercel), rien côté serveur. La branche partait de la tête de
+#620. #620 fusionné (en un seul commit), elle a été rebasée sur `main`. Le
+résultat est identique, octet pour octet, à l'arbre vérifié au §11.
 
 ## 8. Copie
 
@@ -193,16 +196,18 @@ Aucune phrase nouvelle. Toutes existent déjà dans le web ou l'app :
   cartes est tenu), la phrase est sous elle, le focus revient sur son bouton.
   Un succès la retire sans phrase. Un nouvel essai réussi efface la phrase.
 - **Toucher une notification** : elle redevient non lue, la phrase est sous
-  elle. Un succès la laisse lue.
+  elle. Un succès la laisse lue, et un nouvel essai réussi efface la phrase.
 - **« Tout lire »** : le bouton revient avec le focus, les non lues
-  redeviennent non lues, une notification lue avant le reste. Un succès les
-  laisse lues.
+  redeviennent non lues, une notification lue avant le reste (même lue
+  seule pendant que « Tout lire » était en vol). Un succès les laisse lues,
+  et un nouvel essai réussi efface la phrase.
 - **Le ♥ du salon** : l'état ne bouge pas (ajout et retrait), la phrase. Le
   focus revient si le bouton l'avait perdu.
 - **Le ♥ de la recherche** : le cœur ne bouge pas, la phrase est sous la
   carte. Un 401 mène à la connexion.
 - **Le nom** : l'éditeur reste ouvert avec le brouillon, le nom affiché ne
-  change pas, la phrase. « Annuler » l'efface.
+  change pas, la phrase. « Modifier le nom » rouvre sans elle, et un nouvel
+  « OK » l'efface pendant l'appel.
 - **Wrappers** : la table de `consumer-api-network.test.ts` exige le statut
   0 pour `markNotificationRead` / `markAllNotificationsRead`.
 - **Mutations** à voir rouges, une par garde : chaque retour en arrière
@@ -214,4 +219,35 @@ Aucune phrase nouvelle. Toutes existent déjà dans le web ou l'app :
 
 ## 11. Construit — vu rouge
 
-*(rempli à la construction)*
+- **Vu rouge contre le code d'avant** : 32 cas, soit 30 des 34 du nouveau
+  fichier et les 2 lignes de la table des wrappers (`status` absent). Chacun
+  a échoué pour la bonne raison : aucun `role="alert"` nulle part, la carte
+  retirée qui ne revient pas, le 401 de la recherche muet. Les 4 verts sont
+  les cas inchangés épinglés : un retrait réussi, une notification lue, un
+  « Tout lire » réussi, le 401 du ♥ du salon.
+- **Une erreur du test, trouvée en construisant** : `new Response('{}', {
+  status: 204 })` lève (un 204 n'a pas de corps), et `send()` le lisait
+  comme une coupure. Les cas « réussis » simulaient donc une coupure. Le
+  double répond désormais `null` sur un 204.
+- **Mutations : 32 sur 32 rattrapées.** Pour chaque geste : le retour en
+  arrière retiré, la phrase retirée, la branche statut 0 retirée (la phrase
+  générique hors ligne). Pour chaque nouvel essai : la phrase gardée. Pour
+  chaque retour de focus : retiré. S'y ajoutent le retrait d'un favori
+  réécrit en instantané (remis tel qu'avant le geste, donc ressuscitant une
+  carte retirée entre-temps), « Tout lire » qui remet tout non lu, puis qui
+  marque aussi ce qui était lu, le 401 de la recherche retiré,
+  `markNotificationRead` / `markAllNotificationsRead` sans `status`, et
+  `writeFailureMessage` qui ignore le statut 0.
+- **Deux survivantes au premier passage, et c'était le test** : les retours
+  de focus du ♥ du salon et de « OK » passaient sans le code. `blur()` sur
+  un bouton **désactivé** ne fait rien dans jsdom (ce n'est plus une zone
+  focalisable), donc le focus n'était jamais tombé. L'aide du test le fait
+  maintenant tomber vraiment (un bouton jetable, focalisé puis retiré) et
+  vérifie qu'il est sur `<body>` avant de continuer. Les deux mutations sont
+  rattrapées depuis.
+- **Trois lignes retirées pendant la construction, faute d'effet
+  observable** : effacer la phrase au début d'un retrait (la carte est
+  cachée avec sa phrase), sur « Annuler » (la phrase part avec l'éditeur,
+  et « Modifier le nom » l'efface déjà), et au rechargement de la liste
+  (aucun rechargement possible quand des cartes sont affichées).
+- `npm run typecheck`, `npm run lint` et la suite complète sont verts.
