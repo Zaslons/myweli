@@ -211,4 +211,37 @@ void main() {
       );
     });
   });
+
+  // The refusal (docs/design/consumer-export-completeness.md §4) — the web's
+  // `exportFailureMessage` says the same sentence.
+  group('dataExportFailureMessage', () {
+    const tail =
+        'Vos données ne sont proposées que complètes : vérifiez votre '
+        'connexion et réessayez.';
+
+    test('names one section', () {
+      expect(
+        dataExportFailureMessage([DataExportSection.appointments]),
+        'Impossible de charger vos rendez-vous. $tail',
+      );
+    });
+
+    test('joins two with « et », in the file order', () {
+      expect(
+        dataExportFailureMessage([
+          DataExportSection.favorites,
+          DataExportSection.appointments,
+        ]),
+        'Impossible de charger vos rendez-vous et vos favoris. $tail',
+      );
+    });
+
+    test('joins three with « , » then « et »', () {
+      expect(
+        dataExportFailureMessage(DataExportSection.values.reversed),
+        'Impossible de charger votre profil, vos rendez-vous et vos favoris. '
+        '$tail',
+      );
+    });
+  });
 }

@@ -41,6 +41,38 @@ Map<String, dynamic> buildUserDataExport({
   };
 }
 
+/// The consumer export's own reads, in the order the file and the sentence
+/// name them. The app takes the profile from the session rather than from a
+/// read, so it names it only when the session holds no user; the web reads it
+/// (`GET /me`) and names it when that read fails.
+enum DataExportSection { profile, appointments, favorites }
+
+const Map<DataExportSection, String> _sectionName = {
+  DataExportSection.profile: 'votre profil',
+  DataExportSection.appointments: 'vos rendez-vous',
+  DataExportSection.favorites: 'vos favoris',
+};
+
+/// The refusal when a read fails (docs/design/consumer-export-completeness.md
+/// §4): nothing is offered, and the user is told which data is missing. The
+/// web says the same sentence (`exportFailureMessage`).
+String dataExportFailureMessage(Iterable<DataExportSection> failed) {
+  final names = [
+    for (final s in DataExportSection.values)
+      if (failed.contains(s)) _sectionName[s]!,
+  ];
+  final list = names.length > 1
+      ? '${names.sublist(0, names.length - 1).join(', ')} et ${names.last}'
+      : names.join();
+  return 'Impossible de charger $list. Vos données ne sont proposées que '
+      'complètes : vérifiez votre connexion et réessayez.';
+}
+
+/// The clipboard refused the copy. The app has no download, and a
+/// `PlatformException` from the clipboard is not a lasting state: the button
+/// stays, and it is the retry.
+const String kDataExportCopyFailed = 'La copie a échoué. Réessayez.';
+
 /// Builds the SALON's data-export document (audit 11.5 — AUTH-005 for pros):
 /// the account identity, the public listing, the catalogue and the salon's
 /// own records (bookings + client base). Pure and deterministic.
