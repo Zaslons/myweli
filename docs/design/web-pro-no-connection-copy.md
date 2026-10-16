@@ -180,8 +180,10 @@ answer (switchSalon reports why; widget test on the app side) ». Écartées : B
   qu'après une sonde réussie). `refused` : le reste (403, 5xx, pas de
   session). Ce que le `catch` couvre aussi, dit plutôt que caché : une
   écriture du stockage local qui lèverait **après** une sonde réussie
-  (`setSelectedProviderSalon`, `cacheProviderMembership`) — rare, et
-  qu'aucune phrase d'aujourd'hui ne distinguait non plus.
+  (`setSelectedProviderSalon`, `_cacheShape` — depuis
+  [pro-app-salon-not-loaded.md](pro-app-salon-not-loaded.md), la forme du
+  salon est déjà appliquée en mémoire avant elles) — rare, et qu'aucune
+  phrase d'aujourd'hui ne distinguait non plus.
 - `switchSalon` **garde son booléen** (`== switched`) : ses autres appelants
   — l'`ensureSalon` des notifications, le détail d'un rendez-vous,
   « Ajouter un salon », la doublure des tests de démarrage — ne changent pas.
