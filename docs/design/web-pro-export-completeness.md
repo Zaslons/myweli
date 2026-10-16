@@ -161,6 +161,21 @@ through the real BFF routes, and checks that every section is filled. That
 one is a CONTROL for the happy path: it passes on `main` too, because the
 stub answers every read.
 
+**Mutations (2026-10-16, on committed code): 17 run, 17 red.** Each was
+applied to the committed fix, its targeted tests run, and the file restored
+from git. Web: the gate back to `profile.manage`; the appointments status
+ignored; no 401 redirect; the alert not cleared on retry; a silent clipboard
+failure; a thrown read rejecting the export again; the walk stopping one page
+short; `pageSize` dropped from the first call, and from `listClients`; no
+`total` consistency check; no distinct-count check; sections not reordered;
+« et » used for every join; an empty walk accepted. Backend: Postgres without
+the `id` key; the in-memory twin without the `id` key, and without
+`created_at`. Planning the run found three guards that would have let a
+mutation through, and each was fixed before it ran: no test sent the
+appointments read a non-200; no test had a `total` that moved while the ids
+still added up; and the in-memory « newest created » fixture had ids that
+sorted the same way as the dates.
+
 ## 8. Follow-ups (not in this change)
 
 - **App:** `ProDataExportScreen` refuses on any failed read and walks every
