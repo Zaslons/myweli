@@ -83,18 +83,31 @@ No API, contract, copy or token change. No new component.
 ## 5. Tests (red first — `web/tests/pro-appointment-detail-profile-gate.test.tsx`)
 
 - `/me` 500 with the list 200 → the error state (`role=alert` + « Réessayer »),
-  and **no « Reprogrammer »**, no lifecycle button, no reschedule request.
-- `/me` 403 → the same.
-- « Réessayer » after the failure, `/me` now 200 → the detail renders.
+  and **no « Reprogrammer »**, no lifecycle button, no reschedule request, and
+  the appointment list **not fetched**.
+- `/me` 403, and a `/me` 200 with no profile body → the same.
+- « Réessayer » after the failure, `/me` now 200 → the detail renders, in the
+  salon's clock.
+- `/me` 401 → still the redirect.
 - Control: a **Libreville** salon (UTC+1) loads → « Reprogrammer » 2030-01-15
   10:00 sends `newDateTime = 2030-01-15T09:00:00.000Z` (passes before and
   after — it proves the test can see the timezone, so the red cases above are
   red for the right reason).
 
-Mutations to watch red after the fix: drop the `/me` gate in `load()`; drop
-`|| !profile` in the render guard (with the gate kept, the test must still
-pass — the gate is the load-bearing line; the render guard is the type
-narrowing).
+**Seen, not assumed:**
+
+- Against the unfixed component: 4 red (the page rendered the full detail —
+  owner actions and « Reprogrammer » — with no salon), the 401 and the control
+  green. A throwaway probe on that code, `/me` 500 → « Reprogrammer » 10:00,
+  sent `2030-01-15T10:00:00.000Z` — the control's own salon sends `09:00Z`.
+- Mutations on the committed fix — each line has a guard that fires:
+
+| mutation | caught by |
+|---|---|
+| the `/me` gate in `load()` dropped (render guard kept) | the test — 3 red, on the list being fetched. The render guard alone also hides the page, so without the `listReads` assertion this mutation survived; it was added after watching it survive. |
+| gate and render guard both dropped (the old code) | the test — 4 red |
+| `\|\| !profile` dropped from the render guard | `tsc` (CI `npm run typecheck`) — `profile` is possibly null in the body |
+| `!profile` dropped from `reschedule()` | `tsc` — same |
 
 ## 6. App parity (mobile, read, not run)
 

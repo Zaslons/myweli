@@ -98,6 +98,10 @@ async function expectErrorState() {
   expect(screen.queryByRole('button', { name: 'Marquer comme absent' })).toBeNull();
   expect(rescheduled).toHaveLength(0);
   expect(replace).not.toHaveBeenCalled();
+  // The gate is in load(), not only in the render: a salon the page could
+  // not load has no appointments fetched for it (the ClientCard order). The
+  // render guard alone would hide the page too — this pins which line holds.
+  expect(listReads).toHaveLength(0);
 }
 
 describe('ProAppointmentDetailClient — no salon, no page', () => {
