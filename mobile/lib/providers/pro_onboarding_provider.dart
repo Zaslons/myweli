@@ -47,14 +47,20 @@ class ProOnboardingProvider extends ChangeNotifier implements SalonScoped {
     return res.success;
   }
 
-  Future<void> load(ProviderUser proUser) async {
+  /// [salonId] is the ACTING salon (`ProAuthProvider.activeSalonId`), never
+  /// the account's default `providerId`: R6's « Ajouter un salon » switches
+  /// to the new draft and lands here, and the checklist counted the default
+  /// salon's services, team, hours and deposit under the new salon's name
+  /// (docs/design/r6-salon-id-pin.md). [proUser] stays for what is the
+  /// account's own: its KYC and its business type.
+  Future<void> load(ProviderUser proUser, {required String? salonId}) async {
     _isLoading = true;
     _loadFailed = false;
     _error = null;
     notifyListeners();
 
     try {
-      final providerId = proUser.providerId;
+      final providerId = salonId;
       var serviceCount = 0;
       var staffCount = 0;
       var availabilitySet = false;
