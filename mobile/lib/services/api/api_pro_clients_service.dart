@@ -40,12 +40,14 @@ class ApiProClientsService implements ProClientsServiceInterface {
     String? query,
     String? tag,
     int page = 1,
+    int? pageSize,
   }) async {
     if (await _authed.accessToken() == null) {
       return ApiResponse.error('Non connecté');
     }
     final params = <String, String>{
       'page': '$page',
+      if (pageSize != null) 'pageSize': '$pageSize',
       if (query != null && query.trim().isNotEmpty) 'query': query.trim(),
       if (tag != null && tag.isNotEmpty) 'tag': tag,
     };

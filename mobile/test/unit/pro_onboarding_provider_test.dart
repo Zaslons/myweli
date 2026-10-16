@@ -66,7 +66,7 @@ void main() {
     );
 
     final p = ProOnboardingProvider();
-    await p.load(newPro());
+    await p.load(newPro(), salonId: null);
 
     expect(statusOf(p, OnboardingStepKey.services), OnboardingStepStatus.todo);
     expect(
@@ -93,7 +93,7 @@ void main() {
     );
 
     final p = ProOnboardingProvider();
-    await p.load(newPro());
+    await p.load(newPro(), salonId: null);
 
     expect(
       statusOf(p, OnboardingStepKey.verification),
@@ -154,6 +154,7 @@ void main() {
         createdAt: DateTime(2026),
         providerId: 'p1',
       ),
+      salonId: 'p1',
     );
 
     expect(

@@ -190,6 +190,7 @@ class _SwitchableClients implements ProClientsServiceInterface {
     String? query,
     String? tag,
     int page = 1,
+    int? pageSize,
   }) async {
     if (empty) {
       return ApiResponse.success(
@@ -202,7 +203,13 @@ class _SwitchableClients implements ProClientsServiceInterface {
         SalonClientsPage(items: only, page: 1, total: only.length),
       );
     }
-    return _base.listClients(providerId, query: query, tag: tag, page: page);
+    return _base.listClients(
+      providerId,
+      query: query,
+      tag: tag,
+      page: page,
+      pageSize: pageSize,
+    );
   }
 
   /// When set, the whole list — clients whose last visit is a moment or a
