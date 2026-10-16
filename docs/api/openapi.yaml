@@ -2142,7 +2142,8 @@ paths:
         required** (400 `invalid_input` when either is absent). Every other
         fault: 400 `invalid_input`.
         **The policy is replaced whole**: every field is overwritten by what
-        is sent, and a nullable field (`mobileMoneyOperator`,
+        is sent (the operator and number trimmed, the hours as an integer),
+        and a nullable field (`mobileMoneyOperator`,
         `mobileMoneyNumber`) left out or sent as null is erased. A client
         that hides the operator or the percentage while deposits are off must
         still send them as held — a null operator or a 0 percentage erases

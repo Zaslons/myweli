@@ -13,9 +13,10 @@
 ## 1. Les défauts, vus dans le code
 
 `PUT /providers/{id}/deposit-policy` **remplace la politique entière** :
-le serveur enregistre exactement ce qu'il reçoit
-(`ProviderCatalogService.updateDepositPolicy`). Ce qu'un client n'envoie pas,
-il l'efface.
+le serveur enregistre ce qu'il reçoit — l'opérateur et le numéro sans
+espaces autour, les heures en entier
+(`ProviderCatalogService.updateDepositPolicy`). Un opérateur ou un numéro
+absent ou `null` est effacé ; un pourcentage envoyé à 0 remplace le vrai.
 
 **D1 — le web efface l'opérateur et le pourcentage quand les acomptes sont
 désactivés.** `buildDepositPayload` (`web/lib/pro/deposit.ts`) envoie
@@ -130,8 +131,9 @@ Web au merge (Vercel). App au prochain build. Serveur : rien à déployer.
 **Ce qui existe déjà** : un opérateur effacé par D1 ne peut pas être
 retrouvé (on ne sait pas lequel c'était). Le service n'est pas encore public :
 les seules lignes touchées sont des données de test. Le serveur et les deux
-formulaires exigent de nouveau un opérateur dès qu'un salon réactive les
-acomptes. Un pourcentage effacé devient sans effet avec la décision 2.
+formulaires exigent un opérateur dès qu'un salon réactive les acomptes (l'app
+depuis §8, D5 — avant, elle laissait le serveur refuser). Un pourcentage
+effacé devient sans effet avec la décision 2.
 
 ## 7. Hors périmètre, consigné
 
@@ -142,8 +144,8 @@ acomptes. Un pourcentage effacé devient sans effet avec la décision 2.
   l'enregistrement (`invalid_input`), acomptes activés ou non, sur les deux
   surfaces.
 - **Un pourcentage sous 1 % écrit par un autre client** (le serveur accepte
-  tout ce qui est > 0) : le web l'affiche tel quel (« 0.4 ») et le refuse
-  acomptes activés ; l'app le garde, son libellé dit « 0 % » et le curseur
+  tout ce qui est > 0) : le web l'affiche au centième (« 0.4 » ; sous
+  0,005 %, « 0 ») et le refuse acomptes activés ; l'app le garde, son libellé dit « 0 % » et le curseur
   est dessiné à 5 %. Aucun des deux formulaires ne peut plus l'écrire.
 - **L'étape « Acompte » de l'accueil Pro** (`pro_onboarding_provider.dart`) se
   coche dès que `GET deposit-policy` répond — donc pour tout salon, même
@@ -151,7 +153,8 @@ acomptes. Un pourcentage effacé devient sans effet avec la décision 2.
 - **Le mock de l'app ne sert jamais un 0 stocké** (le modèle `Provider` met
   0.30 par défaut) : le mode mock et la golden ne montrent pas D2.
 - **Le même défaut que D3, ailleurs** : un relevé en lecture seule a trouvé
-  14 autres écrans web Pro qui restent en chargement pour toujours sur une
+  15 autres écrans web Pro (les 14 du tableau de bord, plus `/pro/apercu`)
+  qui restent en chargement pour toujours sur une
   coupure réseau (les lectures de `lib/api/pro.ts` appellent `fetch` sans
   l'attraper) — aucun n'écrase de données ; et deux défauts voisins (le
   détail d'un rendez-vous Pro reprogramme au fuseau d'Abidjan quand
@@ -160,32 +163,62 @@ acomptes. Un pourcentage effacé devient sans effet avec la décision 2.
 
 ## 8. Construit — ce qui diffère de ce qui était écrit
 
-La revue adverse de chaque moitié a trouvé, sur le même écran :
+Trois revues adverses (chaque moitié, puis la branche réunie) ont trouvé, sur
+le même écran :
 
-- **Le plancher de 1 %** : la règle du champ acceptait tout ce qui est > 0
-  alors que son message dit « 1–100 % ». « 0.4 » était enregistré (0.004),
-  relu « 0 » et refusé : le web ne pouvait plus réenregistrer une politique
-  qu'il avait écrite. La règle exige maintenant ≥ 1, comme le message.
-- **Un pourcentage choisi est relu au centième, pas arrondi** : avec la
-  décision 1, un enregistrement acomptes désactivés renvoie le champ, et
-  l'arrondi réécrivait une politique que personne n'avait touchée (0.125 relu
-  « 13 », renvoyé 0.13). 0.6499999999999999 (ce qu'écrit le curseur de
-  l'app) se lit « 65 ».
+- **Le plancher de 1 % et deux décimales au plus** : la règle du champ
+  acceptait tout ce qui est > 0 alors que son message dit « 1–100 % ».
+  « 0.4 » était enregistré (0.004), relu « 0 » et refusé : le web ne pouvait
+  plus réenregistrer une politique qu'il avait écrite. La règle exige ≥ 1, et
+  deux décimales au plus — ce que la relecture rend exactement (« 12.345 »
+  aurait été relu « 12.35 » et réécrit par un enregistrement intouché).
+- **Un pourcentage choisi est relu au centième, pas arrondi à l'unité** :
+  avec la décision 1, un enregistrement acomptes désactivés renvoie le champ,
+  et l'arrondi réécrivait une politique que personne n'avait touchée (0.125
+  relu « 13 », renvoyé 0.13). Les 16 valeurs qu'écrit réellement le curseur
+  de l'app (0.15000000000000002, 0.6500000000000001…) se relisent en
+  pourcentages entiers — un test les parcourt toutes.
 - **D4 — un enregistrement sans réseau** : `save()` n'attrapait pas le `fetch`
   qui lève ; « Enregistrer » restait désactivé pour toujours. C'est
   maintenant un échec comme un autre : « L’enregistrement a échoué.
-  Réessayez. » et le bouton revient.
+  Réessayez. » et le bouton revient. Et une réponse remplace la précédente :
+  « Acompte enregistré. » ne reste plus à côté de l'échec suivant.
 - **Le repli** est le dernier pourcentage chargé ou **accepté** par le serveur
   — jamais une valeur refusée, jamais le 30 proposé (un salon qui n'a jamais
   choisi renvoie son 0).
-- **App** : aucun changement de code au-delà de la décision 2 ; un test
-  épingle ce que D3 prend pour référence (une lecture qui lève →
-  `loadFailed`). Le test de chargement d'un 0 part d'une valeur qui n'est pas
-  30 — sinon « laissé tel quel » et « propose 30 % » se confondaient.
+- **D5 — l'app ne vérifiait pas l'opérateur** : acomptes activés sans
+  opérateur, l'enregistrement partait et revenait en « Informations
+  invalides. » dans une barre — le même refus opaque que le 0 %. Le
+  formulaire tient maintenant une règle `operator` (`FieldErrors`, requise
+  acomptes activés, le texte du web : « Choisissez un opérateur Mobile
+  Money. »), affichée sous les puces avec `InlineFeedback` (le motif de
+  `invite_member_sheet`), effacée en choisissant un opérateur ou en
+  désactivant les acomptes ; l'appui refusé ramène le salon au premier champ
+  en faute (`focusFirstError`), vérifié sur un téléphone 360 × 640 où les
+  puces et le bouton ne tiennent pas ensemble à l'écran.
+- **App, ailleurs** : un test épingle ce que D3 prend pour référence (une
+  lecture qui lève → `loadFailed`). Le test de chargement d'un 0 part d'une
+  valeur qui n'est pas 30 — sinon « laissé tel quel » et « propose 30 % » se
+  confondaient.
 
-**Vu rouge** : chaque test nouveau ou modifié contre le code d'avant (ou,
-pour ceux qui épinglent un comportement déjà là, sous une mutation ciblée) ;
-mutations de la passe finale : 9 sur 9 rattrapées (6 web, 3 app). L'e2e
-« acompte : désactivé, enregistré, rechargé, réactivé » : vert sur la branche
-(`pro.spec.ts` 28/28), rouge quand on remet le D1 d'origine (« 45 » attendu,
-« 30 » reçu — le 0 effacé, relu comme « pas encore choisi »).
+**Vu rouge** : chaque test nouveau ou modifié contre le code d'avant ou,
+pour ceux qui épinglent un comportement déjà là, sous une mutation ciblée.
+Mutations sur le code commité, l'arbre vérifié propre après chacune :
+
+- *passe 2* (9/9) — repli mis à jour avant le refus ; repli pris sur le 30
+  proposé ; `.catch` de l'enregistrement retiré ; plancher remis à > 0 ;
+  relecture remise à `Math.round` ; constante Dart dans un commentaire bloc ;
+  app : chargement d'un 0 laissé tel quel ; seuil remonté à 5 % ; lecture qui
+  lève sans `loadFailed`.
+- *passe 3* (9/9) — limite des décimales retirée ; relecture par
+  `Math.ceil` au centième ; `setSaved(false)` retiré ; constante laissée dans
+  un commentaire bloc **imbriqué** à côté d'une vraie constante changée ;
+  app : règle `operator` qui ne se déclenche jamais ; puce qui ne revalide
+  pas ; interrupteur qui ne retire pas le message ; `InlineFeedback` retiré ;
+  pas de `focusFirstError` (attrapé d'abord par la mauvaise assertion — un
+  appui sur une puce hors écran —, puis par la bonne une fois que le test
+  exige les puces à l'écran).
+
+L'e2e « acompte : désactivé, enregistré, rechargé, réactivé » : vert sur la
+branche (`pro.spec.ts` 28/28), rouge quand on remet le D1 d'origine (« 45 »
+attendu, « 30 » reçu — le 0 effacé, relu comme « pas encore choisi »).
