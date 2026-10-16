@@ -23,6 +23,11 @@ import {
   actionsForMembership,
 } from "../../lib/pro/lifecycle";
 import { hasCap } from "../../lib/pro/team";
+import {
+  loadFailure,
+  loadFailureMessage,
+  type LoadFailure,
+} from "../../lib/pro/load-failure";
 import { rescheduleAppointment } from "../../lib/api/pro";
 import { hhmm, minutesOfDay } from "../../lib/pro/journal";
 import { combineDateTime } from "../../lib/pro/manual-booking";
@@ -43,7 +48,7 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
   const [appt, setAppt] = useState<ProAppointment | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
-  const [loadError, setLoadError] = useState(false);
+  const [loadError, setLoadError] = useState<LoadFailure | false>(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<LifecycleAction | null>(null);
@@ -64,7 +69,7 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
     // back to Abidjan and an owner's shape, and moved a UTC+1 salon's booking
     // an hour off. A 403 lands here too; the shell's probe owns the sign-out.
     if (me.status !== 200 || !me.profile) {
-      setLoadError(true);
+      setLoadError(loadFailure(me.status));
       setLoading(false);
       return;
     }
@@ -79,7 +84,7 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
       // (terminal); anything else is a transient failure — the review proved
       // a stub restart told the pro their appointment "n'existe pas".
       if (r.status === 404) setNotFound(true);
-      else setLoadError(true);
+      else setLoadError(loadFailure(r.status));
       setLoading(false);
       return;
     }
@@ -152,7 +157,13 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
 
   if (loading) return <Loading className="mt-l" />;
   if (loadError || !profile) {
-    return <ErrorState title="Rendez-vous" onRetry={load} />;
+    return (
+      <ErrorState
+        title="Rendez-vous"
+        message={loadFailureMessage(loadError)}
+        onRetry={load}
+      />
+    );
   }
   if (notFound || !appt) {
     return (

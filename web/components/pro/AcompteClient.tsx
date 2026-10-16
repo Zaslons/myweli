@@ -10,6 +10,7 @@ import {
   getMyProvider,
   saveDepositPolicy,
 } from '../../lib/api/pro';
+import { loadFailure, loadFailureMessage, type LoadFailure } from '../../lib/pro/load-failure';
 import { useFieldErrors } from '../../lib/forms/useFieldErrors';
 import { operatorsFor } from '../../lib/localities';
 import { PHONE_INVALID } from '../../lib/phone';
@@ -53,7 +54,7 @@ export function AcompteClient() {
   const [lastPercentage, setLastPercentage] = useState(0);
   const [loading, setLoading] = useState(true);
   const [reloadKey, setReloadKey] = useState(0);
-  const [loadError, setLoadError] = useState(false);
+  const [loadError, setLoadError] = useState<LoadFailure | false>(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -74,10 +75,11 @@ export function AcompteClient() {
     let active = true;
     // Any failed load — a refusal, a 5xx, no network — is the ErrorState and
     // its « Réessayer », never a blank form: saving one would overwrite the
-    // real policy (docs/design/acompte-off-parity.md D3).
-    function fail() {
+    // real policy (docs/design/acompte-off-parity.md D3). It keeps WHY, so
+    // the state can name the network (web-pro-no-connection-copy.md §2).
+    function fail(failure: LoadFailure) {
       if (!active) return;
-      setLoadError(true);
+      setLoadError(failure);
       setLoading(false);
     }
     (async () => {
@@ -88,13 +90,13 @@ export function AcompteClient() {
           return;
         }
         if (me.status !== 200 || !me.profile) {
-          fail();
+          fail(loadFailure(me.status));
           return;
         }
         const pid = me.profile.provider.id;
         const dp = await getDepositPolicy(pid);
         if (dp.status !== 200 || !dp.policy) {
-          fail();
+          fail(loadFailure(dp.status));
           return;
         }
         if (!active) return;
@@ -105,7 +107,9 @@ export function AcompteClient() {
         setLastPercentage(dp.policy.depositPercentage ?? 0);
         setLoading(false);
       } catch {
-        fail();
+        // The wrappers never throw (WEB.md §3): this is the page's own
+        // code, not the network.
+        fail('failed');
       }
     })();
     return () => {
@@ -115,7 +119,7 @@ export function AcompteClient() {
 
   if (loading) return <Loading className="mt-l" />;
   if (loadError || !form) {
-    return <ErrorState title="Acompte" onRetry={() => { setLoadError(false); setLoading(true); setReloadKey((k) => k + 1); }} />;
+    return <ErrorState title="Acompte" message={loadFailureMessage(loadError)} onRetry={() => { setLoadError(false); setLoading(true); setReloadKey((k) => k + 1); }} />;
   }
 
   function set<K extends keyof DepositForm>(k: K, v: DepositForm[K]) {

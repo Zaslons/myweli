@@ -17,6 +17,7 @@ import {
   updateArtist,
   updateService,
 } from '../../lib/api/pro';
+import { loadFailure, loadFailureMessage, type LoadFailure } from '../../lib/pro/load-failure';
 import { formatDuration, priceRange } from '../../lib/format';
 import {
   type DayForm,
@@ -58,7 +59,7 @@ export function CatalogueClient() {
   const router = useRouter();
   const [profile, setProfile] = useState<ProProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<LoadFailure | false>(false);
   const [tab, setTab] = useState<Tab>('services');
   const [open, setOpen] = useState<Open>(null);
 
@@ -69,7 +70,7 @@ export function CatalogueClient() {
       return;
     }
     if (me.status !== 200 || !me.profile) {
-      setError(true);
+      setError(loadFailure(me.status));
       setLoading(false);
       return;
     }
@@ -83,7 +84,7 @@ export function CatalogueClient() {
 
   if (loading) return <SkeletonRows count={5} className="mt-l" />;
   if (error || !profile) {
-    return <ErrorState title="Catalogue" onRetry={() => { setError(false); setLoading(true); void load(); }} />;
+    return <ErrorState title="Catalogue" message={loadFailureMessage(error)} onRetry={() => { setError(false); setLoading(true); void load(); }} />;
   }
 
   const providerId = profile.provider.id;

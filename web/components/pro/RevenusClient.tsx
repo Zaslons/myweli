@@ -9,6 +9,7 @@ import { ErrorState } from '../ErrorState';
 import { SkeletonRows } from '../Skeleton';
 import { useCallback, useEffect, useState } from 'react';
 import { getEarnings, getMyProvider } from '../../lib/api/pro';
+import { loadFailure, loadFailureMessage, type LoadFailure } from '../../lib/pro/load-failure';
 import { formatDateTimeFr, formatFcfa } from '../../lib/format';
 import {
   type EarningsData,
@@ -33,7 +34,7 @@ export function RevenusClient() {
   const [period, setPeriod] = useState<PeriodKey>('all');
   const [earnings, setEarnings] = useState<EarningsData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<LoadFailure | false>(false);
 
   const loadPeriod = useCallback(
     async (pid: string, key: PeriodKey, tz?: string) => {
@@ -41,7 +42,7 @@ export function RevenusClient() {
       setError(false);
       const r = await getEarnings(pid, periodRange(key, new Date(), tz));
       if (r.status !== 200 || !r.earnings) {
-        setError(true);
+        setError(loadFailure(r.status));
         setLoading(false);
         return;
       }
@@ -60,7 +61,7 @@ export function RevenusClient() {
       return;
     }
     if (me.status !== 200 || !me.profile) {
-      setError(true);
+      setError(loadFailure(me.status));
       setLoading(false);
       return;
     }
@@ -109,7 +110,7 @@ export function RevenusClient() {
       ) : error ? (
         <div className="mt-l">
           <ErrorState
-            message="Chargement impossible."
+            message={loadFailureMessage(error, 'Chargement impossible.')}
             // Retry the PERIOD the user picked — init() hard-codes 'all' and
             // the review watched « Semaine » stay selected over all-time
             // figures after a retry.

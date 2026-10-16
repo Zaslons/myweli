@@ -8,6 +8,7 @@ import { ErrorState } from '../ErrorState';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { addClient, getMyProvider, listClients } from '../../lib/api/pro';
+import { loadFailure, loadFailureMessage, type LoadFailure } from '../../lib/pro/load-failure';
 import {
   PRESET_TAGS,
   type SalonClientListItem,
@@ -46,7 +47,7 @@ export function ClientsClient() {
   const [tag, setTag] = useState('');
   const [loading, setLoading] = useState(true);
   const [reloadKey, setReloadKey] = useState(0);
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<LoadFailure | false>(false);
   const [adding, setAdding] = useState(false);
   const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -65,7 +66,7 @@ export function ClientsClient() {
         return;
       }
       if (r.status !== 200 || !r.list) {
-        setError(true);
+        setError(loadFailure(r.status));
         setLoading(false);
         return;
       }
@@ -89,7 +90,7 @@ export function ClientsClient() {
         return;
       }
       if (me.status !== 200 || !me.profile) {
-        setError(true);
+        setError(loadFailure(me.status));
         setLoading(false);
         return;
       }
@@ -117,7 +118,7 @@ export function ClientsClient() {
 
   if (loading) return <SkeletonRows count={6} className="mt-l" />;
   if (error) {
-    return <ErrorState title="Clients" onRetry={() => { setError(false); setQuery(''); setTag(''); setLoading(true); setReloadKey((k) => k + 1); }} />;
+    return <ErrorState title="Clients" message={loadFailureMessage(error)} onRetry={() => { setError(false); setQuery(''); setTag(''); setLoading(true); setReloadKey((k) => k + 1); }} />;
   }
 
   const emptyBase = total === 0 && !query && !tag;

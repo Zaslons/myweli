@@ -20,6 +20,7 @@ import {
   updateClientPhone,
   updateClientTags,
 } from '../../lib/api/pro';
+import { loadFailure, loadFailureMessage, type LoadFailure } from '../../lib/pro/load-failure';
 import { useFieldErrors } from '../../lib/forms/useFieldErrors';
 import {
   PHONE_INVALID,
@@ -71,7 +72,7 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
   const [visitsPage, setVisitsPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<LoadFailure | false>(false);
   const [noteDraft, setNoteDraft] = useState('');
   const [busy, setBusy] = useState(false);
   const [editingTags, setEditingTags] = useState(false);
@@ -88,7 +89,7 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
       return;
     }
     if (me.status !== 200 || !me.profile) {
-      setError(true);
+      setError(loadFailure(me.status));
       setLoading(false);
       return;
     }
@@ -102,7 +103,7 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
       return;
     }
     if (r.status !== 200 || !r.card) {
-      setError(true);
+      setError(loadFailure(r.status));
       setLoading(false);
       return;
     }
@@ -135,7 +136,7 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
     );
   }
   if (error || !card || !providerId) {
-    return <ErrorState title="Fiche client" onRetry={() => { setError(false); setLoading(true); void load(); }} />;
+    return <ErrorState title="Fiche client" message={loadFailureMessage(error)} onRetry={() => { setError(false); setLoading(true); void load(); }} />;
   }
 
   async function saveTags(next: string[]) {
