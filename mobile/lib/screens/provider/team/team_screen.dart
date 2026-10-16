@@ -81,8 +81,9 @@ class _TeamScreenState extends State<TeamScreen> {
   }
 
   Future<void> _openActionsSheet(TeamMember member) async {
-    final salonName =
-        context.read<ProAuthProvider>().provider?.businessName ?? 'votre salon';
+    // The ACTING salon (R6) — the account's `businessName` is a sign-up copy
+    // of its default salon (docs/design/r6-salon-fact-reads.md §2.2).
+    final salonName = context.read<ProAuthProvider>().salonName;
     await showModalBottomSheet<void>(
       context: context,
       builder: (_) => ChangeNotifierProvider.value(
