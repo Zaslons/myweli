@@ -52,6 +52,7 @@ export function RendezVousClient() {
   const [error, setError] = useState(false);
   const [view, setView] = useState<View>('journal');
   const [journalDay, setJournalDay] = useState<JournalDay | null>(null);
+  const [journalError, setJournalError] = useState(false);
   const [journalDate, setJournalDate] = useState<string>(dateKey(new Date()));
   const [showCancelled, setShowCancelled] = useState(false);
   const { toast, show } = useToast();
@@ -96,10 +97,26 @@ export function RendezVousClient() {
   const loadJournal = useCallback(async () => {
     if (!profile) return;
     const req = ++journalReq.current;
+    setJournalError(false);
     const r = await getJournalDay(profile.provider.id, journalDate);
     if (req !== journalReq.current) return;
-    if (r.status === 200 && r.day) setJournalDay(r.day);
-  }, [profile, journalDate]);
+    if (r.status === 200 && r.day) {
+      setJournalDay(r.day);
+      return;
+    }
+    // The session is gone (the BFF's refresh failed): the login, as this
+    // page's other reads — « Réessayer » could only fail again.
+    if (r.status === 401) {
+      router.replace('/pro/connexion');
+      return;
+    }
+    // Any other failure — a 5xx, no network (status 0) — is the section's error
+    // state, as the app (`_day = null` + « Réessayer »). It used to do
+    // nothing: the skeleton for ever, or the PREVIOUS day's grid under the
+    // new date (docs/design/web-pro-network-failure.md §4).
+    setJournalDay(null);
+    setJournalError(true);
+  }, [profile, journalDate, router]);
 
   useEffect(() => {
     if (view === 'journal') loadJournal();
@@ -257,7 +274,10 @@ export function RendezVousClient() {
               Voir les annulés
             </label>
           </div>
-          {profile && journalDay ? (
+          {journalError ? (
+            // A section error: the page's h1 stays above it.
+            <ErrorState className="mt-l" onRetry={() => void loadJournal()} />
+          ) : profile && journalDay ? (
             <div className="mt-m">
               <JournalGrid
                 providerId={profile.provider.id}
