@@ -128,10 +128,20 @@ server's clamp (1–50, default 20) and echoes it. No API change.
 - Retry after a failure → the export.
 - 120 clients over three pages of 50 → all 120 counted and copied, and the
   pages were asked with `pageSize=50`.
+- An empty base → one page, an empty section (a CONTROL).
 - `total` moves between pages → refused, « le fichier clients ».
+- A server that pages smaller than asked (30 for 50) → pages counted with
+  its size; all 70 clients.
+- A page without its size echoed → refused, not guessed.
 - A middle page fails → refused.
+- The longest refusal (all five sections) at 200 % on 360 × 780 → no
+  overflow, « Réessayer » reachable; the test asserts the scale reached the
+  screen.
 - After switching to the second salon → services, team and clients are
   read for the switched-to salon.
+
+`mobile/test/widget/pro_profile_role_test.dart`: the Manager case already
+pinned « Mes données » gone; the owner case now pins it present.
 
 `mobile/test/unit/data_export_test.dart`: `wholeClientBase` (a whole walk,
 an empty base, a moved total, a repeated row, a short walk, no pages) and
@@ -140,6 +150,30 @@ an empty base, a moved total, a repeated row, a short walk, no pages) and
 `mobile/test/unit/pro_clients_test.dart`: `listClients` sends `pageSize`
 when given and omits it otherwise; `SalonClientsPage` parses `pageSize`;
 the mock honours and clamps it.
+
+**Red first.** Against `main`, 17 of the first 20 screen tests failed; the
+3 that passed are CONTROLs (every read healthy, both platforms; an empty
+base). The R6 test was watched red against the commit before its fix.
+
+**Mutations (2026-10-16, on committed code): 28 run, 28 red.** Each was
+applied to the committed fix, its targeted tests run, and the file restored
+from git. Screen: each of the four soft-failing reads put back to `[]`
+(services, team, bookings, clients); the salon section not named; `_read`
+letting a throw escape; page 1 asked without `pageSize`; our 50 used
+instead of the server's echo; a missing echo guessed; the walk one page
+short; the account's default salon (R6); a retry that keeps the failure;
+the generic sentence always. `wholeClientBase`: no `total` check, no
+distinct check, raw rows counted, no pages accepted. Message: sections
+unordered, « et » for every join, two sections not joined. Plumbing: the
+API dropping `pageSize`, the model not parsing it, the mock ignoring it,
+the mock not clamping it. Gate: `profile.manage`, and nobody. Probes of the
+200 % test: run at 1×, and the failure state without its scroll view.
+Three of the screen mutations first failed to *compile* (an untyped
+`const []` in the record); the harness counts that as no verdict, and they
+were re-run typed. Planning the run found three guards missing, each added
+before it ran: nothing made the walk count with the server's size rather
+than its own; nothing refused a page without an echo; and the role test
+never pinned that the owner still sees the export.
 
 ## 7. Rollout
 
