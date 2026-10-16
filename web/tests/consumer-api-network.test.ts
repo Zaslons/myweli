@@ -82,18 +82,10 @@ const MODULES: Module[] = [
       { name: 'removeFavorite', kind: 'write', call: () => account.removeFavorite('p1') },
       { name: 'updateName', kind: 'write', call: () => account.updateName('Awa') },
       { name: 'deleteAccount', kind: 'write', call: () => account.deleteAccount() },
-      {
-        name: 'markNotificationRead',
-        kind: 'write',
-        noStatus: true,
-        call: () => account.markNotificationRead('n1'),
-      },
-      {
-        name: 'markAllNotificationsRead',
-        kind: 'write',
-        noStatus: true,
-        call: () => account.markAllNotificationsRead(),
-      },
+      // Their callers tell « no network » from a refusal (the status), and put
+      // the screen back (docs/design/web-consumer-optimistic-revert.md §3.3).
+      { name: 'markNotificationRead', kind: 'write', call: () => account.markNotificationRead('n1') },
+      { name: 'markAllNotificationsRead', kind: 'write', call: () => account.markAllNotificationsRead() },
       {
         name: 'updateNotificationPrefs',
         kind: 'write',
