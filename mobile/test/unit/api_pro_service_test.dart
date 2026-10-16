@@ -817,4 +817,30 @@ void main() {
       expect(res.error, isNot(demoAccountLockedMessage));
     });
   });
+
+  /// docs/design/web-pro-no-connection-copy.md §5 — the salon switch probe
+  /// says WHY it failed: no answer carries `code: 'network'` (the convention
+  /// `api_provider_service` already uses), so `switchSalonOutcome` can tell
+  /// it from a refusal. Before: no code at all — the picker read a dropped
+  /// connection as « votre accès à ce salon a peut-être été retiré ».
+  group('getMyProvider — no answer vs a refusal', () {
+    test('a transport failure → code network', () async {
+      final client = MockClient(
+        (req) async => throw http.ClientException('Failed host lookup'),
+      );
+      final res = await _service(client).getMyProvider(salonId: 'provider2');
+      expect(res.success, isFalse);
+      expect(res.code, 'network');
+    });
+
+    test('CONTROL: a 403 not_a_member keeps its code', () async {
+      final client = MockClient(
+        (req) async =>
+            http.Response(jsonEncode({'error': 'not_a_member'}), 403),
+      );
+      final res = await _service(client).getMyProvider(salonId: 'provider2');
+      expect(res.success, isFalse);
+      expect(res.code, 'not_a_member');
+    });
+  });
 }
