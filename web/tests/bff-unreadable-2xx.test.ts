@@ -2,6 +2,8 @@
 import type { NextRequest, NextResponse } from 'next/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { GET as getAppointments } from '../app/api/appointments/route';
+import { GET as getAvailability } from '../app/api/availability/route';
+import { GET as getLocalities } from '../app/api/localities/route';
 import { GET as getFavorites } from '../app/api/me/favorites/route';
 import { type ApiResult, callApi, respond } from '../lib/bff';
 import { callApiPro, respondPro } from '../lib/bff-pro';
@@ -93,7 +95,7 @@ for (const twin of TWINS) {
       expect(await res.json()).toEqual(BAD_GATEWAY);
     });
 
-    it('a 201 whose body is lost is a 502 too — not a 2xx the browser cannot use', async () => {
+    it('a GET answered 201 without its body is a 502 too — any 2xx a read cannot use', async () => {
       server(() => new Response('', { status: 201 }));
 
       expect(await twin.call('/appointments')).toEqual({
@@ -116,6 +118,15 @@ for (const twin of TWINS) {
       server(() => new Response('', { status }));
 
       expect(await twin.call('/appointments', { method })).toEqual({ status, body: {} });
+    });
+
+    it('the method is read whatever its case — a `get` is a read', async () => {
+      server(htmlPage);
+
+      expect(await twin.call('/me', { method: 'get' })).toEqual({
+        status: 502,
+        body: BAD_GATEWAY,
+      });
     });
 
     it('a 204 has no body and stays a 204', async () => {
@@ -273,5 +284,85 @@ describe('GET /api/appointments — a 200 without its list', () => {
 
     expect(res.status).toBe(403);
     expect(await res.json()).toEqual({ error: 'forbidden' });
+  });
+});
+
+// The two public same-origin proxies do not go through callApi, and made the
+// same 200 `{}` out of a lost body (the final review of #630): availability
+// then read as « no opening that day », and the locality tree as a country
+// list with nothing in it — cached for the visit by lib/use-localities.ts.
+// Both are reads: a lost 2xx body is a 502 there too
+// (docs/design/export-unreadable-200.md §7).
+const nextReq = (url: string) =>
+  ({ nextUrl: new URL(url) }) as unknown as NextRequest;
+
+describe('GET /api/availability — a lost body', () => {
+  const ask = () =>
+    getAvailability(nextReq('https://myweli.com/api/availability?providerId=p1&date=2026-10-20'));
+
+  it.each([
+    ['an HTML page', htmlPage],
+    ['a body cut off', () => new Response('{"slots":["09:', { status: 200 })],
+  ])('a 200 holding %s → 502, never « no opening that day »', async (_label, answer) => {
+    server(answer);
+
+    const res = await ask();
+
+    expect(res.status).toBe(502);
+    expect(await res.json()).toEqual(BAD_GATEWAY);
+  });
+
+  it('CONTROL — the slots the server sent pass as they came', async () => {
+    server(json(200, { slots: ['09:00'] }));
+
+    const res = await ask();
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ slots: ['09:00'] });
+  });
+
+  it('CONTROL — a refusal keeps its status (404 is « gone » for the booking flow)', async () => {
+    server(() => new Response('<html>Not found</html>', { status: 404 }));
+
+    expect((await ask()).status).toBe(404);
+  });
+});
+
+describe('GET /api/localities — a lost body', () => {
+  it.each([
+    ['cut off', '{"countries":[{"code":"CI"'],
+    ['a JSON null', 'null'],
+  ])('a 200 whose body is %s → 502, never an empty tree', async (_label, text) => {
+    server(() => new Response(text, { status: 200 }));
+
+    const res = await getLocalities();
+
+    expect(res.status).toBe(502);
+    expect(await res.json()).toEqual(BAD_GATEWAY);
+  });
+
+  it('CONTROL — the tree and its Cache-Control pass as they came', async () => {
+    server(
+      () =>
+        new Response(JSON.stringify({ countries: [{ code: 'CI' }] }), {
+          status: 200,
+          headers: { 'cache-control': 'public, max-age=300' },
+        }),
+    );
+
+    const res = await getLocalities();
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ countries: [{ code: 'CI' }] });
+    expect(res.headers.get('cache-control')).toBe('public, max-age=300');
+  });
+
+  it('CONTROL — an error keeps its status, with its empty tree as before', async () => {
+    server(() => new Response('<html>Service unavailable</html>', { status: 503 }));
+
+    const res = await getLocalities();
+
+    expect(res.status).toBe(503);
+    expect(await res.json()).toEqual({ countries: [] });
   });
 });
