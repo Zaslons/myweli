@@ -209,6 +209,13 @@ describe('DataExportClient — a failed read is refused, never an empty section'
     await expectRefusal(APPOINTMENTS_FAILED);
   });
 
+  it('the same for the favourites: a lost body is not « 0 favoris »', async () => {
+    reads({ favorites: 'broken-body' });
+    render(<DataExportClient />);
+
+    await expectRefusal(FAVORITES_FAILED);
+  });
+
   it('a 401 on the favourites read → sign-in, back here after', async () => {
     reads({ favorites: { status: 401, body: { error: 'session_expired' } } });
     const out = watchOutputs();
