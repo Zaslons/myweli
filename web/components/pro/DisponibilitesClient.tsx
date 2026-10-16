@@ -5,6 +5,7 @@ import { Card } from '../Card';
 import { ErrorState } from '../ErrorState';
 import { useEffect, useState } from 'react';
 import { getMyProvider, saveAvailability } from '../../lib/api/pro';
+import { loadFailure, loadFailureMessage, type LoadFailure } from '../../lib/pro/load-failure';
 import { DayHoursEditor } from './DayHoursEditor';
 import {
   type Availability,
@@ -50,7 +51,7 @@ export function DisponibilitesClient() {
   const [newDate, setNewDate] = useState('');
   const [loading, setLoading] = useState(true);
   const [reloadKey, setReloadKey] = useState(0);
-  const [loadError, setLoadError] = useState(false);
+  const [loadError, setLoadError] = useState<LoadFailure | false>(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -65,7 +66,7 @@ export function DisponibilitesClient() {
       }
       if (!active) return;
       if (me.status !== 200 || !me.profile) {
-        setLoadError(true);
+        setLoadError(loadFailure(me.status));
         setLoading(false);
         return;
       }
@@ -136,7 +137,7 @@ export function DisponibilitesClient() {
 
   if (loading) return <SkeletonRows count={5} className="mt-l" />;
   if (loadError) {
-    return <ErrorState title="Disponibilités" onRetry={() => { setLoadError(false); setLoading(true); setReloadKey((k) => k + 1); }} />;
+    return <ErrorState title="Disponibilités" message={loadFailureMessage(loadError)} onRetry={() => { setLoadError(false); setLoading(true); setReloadKey((k) => k + 1); }} />;
   }
 
   const inputCls =

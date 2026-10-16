@@ -5,6 +5,7 @@ import { Chip } from '../Chip';
 import { ErrorState } from '../ErrorState';
 import { type ChangeEvent, useEffect, useState } from 'react';
 import { getMyProvider, saveBeforeAfters, saveGallery } from '../../lib/api/pro';
+import { loadFailure, loadFailureMessage, type LoadFailure } from '../../lib/pro/load-failure';
 import {
   type BeforeAfterPair,
   canAddPair,
@@ -34,7 +35,7 @@ export function MediasClient() {
   const [tab, setTab] = useState<Tab>('photos');
   const [loading, setLoading] = useState(true);
   const [reloadKey, setReloadKey] = useState(0);
-  const [loadError, setLoadError] = useState(false);
+  const [loadError, setLoadError] = useState<LoadFailure | false>(false);
 
   useEffect(() => {
     let active = true;
@@ -46,7 +47,7 @@ export function MediasClient() {
       }
       if (!active) return;
       if (me.status !== 200 || !me.profile) {
-        setLoadError(true);
+        setLoadError(loadFailure(me.status));
         setLoading(false);
         return;
       }
@@ -62,7 +63,7 @@ export function MediasClient() {
 
   if (loading) return <SkeletonGrid count={6} className="mt-l grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4" />;
   if (loadError) {
-    return <ErrorState title="Médias" onRetry={() => { setLoadError(false); setLoading(true); setReloadKey((k) => k + 1); }} />;
+    return <ErrorState title="Médias" message={loadFailureMessage(loadError)} onRetry={() => { setLoadError(false); setLoading(true); setReloadKey((k) => k + 1); }} />;
   }
 
   return (

@@ -6,6 +6,7 @@ import { ErrorState } from '../ErrorState';
 import { useRouter } from 'next/navigation';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 import type { ProProfile } from '../../lib/api/pro';
+import { loadFailure, loadFailureMessage, type LoadFailure } from '../../lib/pro/load-failure';
 import { getMyProvider, updateProviderProfile } from '../../lib/api/pro';
 import { useFieldErrors } from '../../lib/forms/useFieldErrors';
 import { PHONE_INVALID } from '../../lib/phone';
@@ -61,7 +62,7 @@ export function ProfilClient() {
   const [form, setForm] = useState<ProfileForm | null>(null);
   const [loading, setLoading] = useState(true);
   const [reloadKey, setReloadKey] = useState(0);
-  const [loadError, setLoadError] = useState(false);
+  const [loadError, setLoadError] = useState<LoadFailure | false>(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -84,7 +85,7 @@ export function ProfilClient() {
       }
       if (!active) return;
       if (me.status !== 200 || !me.profile) {
-        setLoadError(true);
+        setLoadError(loadFailure(me.status));
         setLoading(false);
         return;
       }
@@ -101,7 +102,7 @@ export function ProfilClient() {
 
   if (loading) return <Loading className="mt-l" />;
   if (loadError || !form) {
-    return <ErrorState title="Profil" onRetry={() => { setLoadError(false); setLoading(true); setReloadKey((k) => k + 1); }} />;
+    return <ErrorState title="Profil" message={loadFailureMessage(loadError)} onRetry={() => { setLoadError(false); setLoading(true); setReloadKey((k) => k + 1); }} />;
   }
 
   // Team access R5b (amended): members WITHOUT profile.manage get a SLIM

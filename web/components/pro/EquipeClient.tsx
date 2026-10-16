@@ -13,6 +13,7 @@ import {
   resendInvitation,
   revokeMember,
 } from '../../lib/api/pro';
+import { loadFailure, loadFailureMessage, type LoadFailure } from '../../lib/pro/load-failure';
 import { Modal } from '../Modal';
 import { Toast } from '../Toast';
 import { useToast } from '../../lib/useToast';
@@ -52,7 +53,7 @@ export function EquipeClient() {
   const [offer, setOffer] = useState<SalonOffer | null>(null);
   const [loading, setLoading] = useState(true);
   const [reloadKey, setReloadKey] = useState(0);
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<LoadFailure | false>(false);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [roleTarget, setRoleTarget] = useState<TeamMember | null>(null);
   const [revokeTarget, setRevokeTarget] = useState<TeamMember | null>(null);
@@ -74,7 +75,7 @@ export function EquipeClient() {
         return;
       }
       if (me.status !== 200 || !me.profile) {
-        setError(true);
+        setError(loadFailure(me.status));
         setLoading(false);
         return;
       }
@@ -91,7 +92,7 @@ export function EquipeClient() {
         return;
       }
       if (roster.status !== 200) {
-        setError(true);
+        setError(loadFailure(roster.status));
         setLoading(false);
         return;
       }
@@ -148,7 +149,7 @@ export function EquipeClient() {
 
   if (loading) return <SkeletonRows count={4} className="mt-l" />;
   if (error) {
-    return <ErrorState title="Équipe" onRetry={() => { setError(false); setLoading(true); setReloadKey((k) => k + 1); }} />;
+    return <ErrorState title="Équipe" message={loadFailureMessage(error)} onRetry={() => { setError(false); setLoading(true); setReloadKey((k) => k + 1); }} />;
   }
 
   const nonOwner = members.filter((m) => m.role !== 'owner');

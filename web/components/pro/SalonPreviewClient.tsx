@@ -8,6 +8,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { salonStoppedMessageFor } from '../../lib/account/appointments';
 import type { Provider } from '../../lib/api/providers';
 import { getMyProvider } from '../../lib/api/pro';
+import { loadFailure, loadFailureMessage, type LoadFailure } from '../../lib/pro/load-failure';
 import { ProviderView } from '../provider/ProviderView';
 
 /// « Aperçu de ma page » (docs/design/pro-salon-lifecycle.md B4): the owner
@@ -18,7 +19,7 @@ export function SalonPreviewClient() {
   const router = useRouter();
   const [provider, setProvider] = useState<Provider | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<LoadFailure | false>(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -29,7 +30,7 @@ export function SalonPreviewClient() {
       return;
     }
     if (me.status !== 200 || !me.profile) {
-      setError(true);
+      setError(loadFailure(me.status));
       setLoading(false);
       return;
     }
@@ -55,7 +56,7 @@ export function SalonPreviewClient() {
       <main className="p-l">
         <ErrorState
           title="Aperçu du salon"
-          message="Impossible de charger l’aperçu."
+          message={loadFailureMessage(error, 'Impossible de charger l’aperçu.')}
           onRetry={load}
         />
       </main>

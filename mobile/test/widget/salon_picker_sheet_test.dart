@@ -3,8 +3,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:myweli/core/access/pro_salon_scope.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/core/push/push_registration.dart';
+import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/salon_subscription.dart';
 import 'package:myweli/providers/pro_auth_provider.dart';
+import 'package:myweli/services/interfaces/pro_service_interface.dart';
 import 'package:myweli/services/mock/mock_auth_service.dart';
 import 'package:myweli/services/mock/mock_data.dart';
 import 'package:myweli/services/mock/mock_device_registration_service.dart';
@@ -17,13 +19,55 @@ import 'package:provider/provider.dart';
 
 import '../support/pump_app.dart';
 
+/// How the switch probe (`getMyProvider(salonId:)`) fails, the way the real
+/// service does (docs/design/web-pro-no-connection-copy.md §5).
+enum _Fault {
+  /// No answer: `api_pro_service` → `code: 'network'`.
+  network,
+
+  /// An answer that could not be read: the decode throws.
+  unreadable,
+
+  /// A per-salon denial (uniform 403).
+  refused,
+}
+
+/// The mock, with a switch probe that fails on demand — `serviceLocator`'s
+/// fields are set once per file, so the fault is a field, not a new service.
+class _FaultyProService extends MockProService {
+  _Fault? fault;
+
+  @override
+  Future<ApiResponse<MyProviderInfo>> getMyProvider({String? salonId}) async {
+    final f = fault;
+    if (salonId == null || f == null) {
+      return super.getMyProvider(salonId: salonId);
+    }
+    switch (f) {
+      case _Fault.network:
+        return ApiResponse.error(
+          'Connexion au serveur impossible',
+          code: 'network',
+        );
+      case _Fault.unreadable:
+        throw const FormatException('Unexpected end of input');
+      case _Fault.refused:
+        return ApiResponse.error(
+          'Votre accès à ce salon a été retiré.',
+          code: 'not_a_member',
+        );
+    }
+  }
+}
+
 /// Team access R6b — the « Mes salons » switcher sheet: both memberships
 /// render with role + state, the active salon carries the check, a tap
 /// switches, and « Ajouter un salon » appears only when the gate is open.
 void main() {
+  final pro = _FaultyProService();
   setUpAll(() {
     serviceLocator.authService = MockAuthService();
-    serviceLocator.proService = MockProService();
+    serviceLocator.proService = pro;
     serviceLocator.subscriptionService = MockSubscriptionService();
     serviceLocator.proPushRegistration = PushRegistration(
       push: MockPushNotificationService(),
@@ -32,6 +76,7 @@ void main() {
   });
 
   setUp(() async {
+    pro.fault = null;
     MockData.resetTeam();
     ProSalonScope.clear();
     (serviceLocator.subscriptionService as MockSubscriptionService)
@@ -162,5 +207,57 @@ void main() {
       findsOneWidget,
     );
     await drain(tester);
+  });
+
+  // docs/design/web-pro-no-connection-copy.md §5 (owner decision A,
+  // 2026-10-16): a switch that did not happen says why. Before, every failure
+  // — a dropped connection included — read « … a peut-être été retiré. »,
+  // suspecting a revoked access that had nothing to do with it.
+  for (final (fault, sentence) in [
+    (_Fault.network, 'Pas de connexion. Réessayez.'),
+    (_Fault.unreadable, 'Pas de connexion. Réessayez.'),
+    (
+      _Fault.refused,
+      'Changement impossible — votre accès à ce salon a peut-être été retiré.',
+    ),
+  ]) {
+    testWidgets('a failed switch (${fault.name}) says « $sentence »; the '
+        'sheet stays open on the current salon', (tester) async {
+      final auth = await signInOwner(tester);
+      await pumpPicker(tester, auth);
+      pro.fault = fault;
+
+      await tester.runAsync(() async {
+        await tester.tap(find.text('Beauté Divine'));
+        // The switch starts, then settles (the list refresh after it too).
+        for (var i = 0; i < 20 && !auth.isLoading; i++) {
+          await Future<void>.delayed(const Duration(milliseconds: 10));
+        }
+        for (var i = 0; i < 100 && auth.isLoading; i++) {
+          await Future<void>.delayed(const Duration(milliseconds: 50));
+        }
+      });
+      await tester.pump();
+
+      expect(find.text(sentence), findsOneWidget);
+      expect(find.text('Mes salons'), findsOneWidget);
+      expect(auth.activeSalonId, 'provider1');
+      await drain(tester);
+    });
+  }
+
+  // The other callers (the push's `ensureSalon`, the appointment detail,
+  // « Ajouter un salon ») keep the bool: only a switch that happened is true.
+  testWidgets('switchSalon stays false when there is no answer', (
+    tester,
+  ) async {
+    final auth = await signInOwner(tester);
+    pro.fault = _Fault.network;
+    await tester.runAsync(() async {
+      expect(await auth.switchSalon('provider2'), isFalse);
+      pro.fault = _Fault.unreadable;
+      expect(await auth.switchSalon('provider2'), isFalse);
+    });
+    expect(auth.activeSalonId, 'provider1');
   });
 }

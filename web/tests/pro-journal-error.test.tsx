@@ -7,12 +7,15 @@ const routerMock = { replace, push: vi.fn(), refresh: vi.fn() };
 vi.mock('next/navigation', () => ({ useRouter: () => routerMock }));
 
 import { RendezVousClient } from '../components/pro/RendezVousClient';
+import { NO_CONNECTION_MESSAGE } from '../lib/pro/team';
 
 /// docs/design/web-pro-network-failure.md §4 — « Journée », the default view
 /// of /pro/rendez-vous. `loadJournal` set the day on a 200 and did NOTHING
 /// otherwise: a 500 or a dropped connection left the skeleton for ever, and a
 /// failed change of day left the PREVIOUS day's grid under the new date. The
 /// app clears the day and shows « Réessayer » (pro_journal_provider.dart).
+/// And it says why (web-pro-no-connection-copy.md §3): no answer is the app's
+/// « Pas de connexion. Réessayez. » (`journal.error`); a 5xx keeps the default.
 
 type Answer = 'throw' | { status: number };
 
@@ -85,22 +88,24 @@ afterEach(() => {
 
 const cellOf = (date: string) => `Créer un rendez-vous — ${artistFor(date)}`;
 
+const SERVER_SENTENCE = 'Une erreur est survenue. Réessayez.';
+
 /// The section's error state — under the page's own h1, which stays.
-async function expectJournalError() {
+async function expectJournalError(sentence: string) {
   expect(await screen.findByRole('button', { name: 'Réessayer' })).toBeInTheDocument();
   expect(screen.getByRole('heading', { level: 1, name: 'Rendez-vous' })).toBeInTheDocument();
-  expect(screen.getByRole('alert')).toHaveTextContent('Une erreur est survenue. Réessayez.');
+  expect(screen.getByRole('alert')).toHaveTextContent(sentence);
 }
 
 describe('Rendez-vous — Journée: a day that fails to load is an error, never a skeleton for ever', () => {
-  for (const [what, answer] of [
-    ['a 500', { status: 500 }],
-    ['a dropped connection', 'throw'],
+  for (const [what, answer, sentence] of [
+    ['a 500', { status: 500 }, SERVER_SENTENCE],
+    ['a dropped connection', 'throw', NO_CONNECTION_MESSAGE],
   ] as const) {
-    it(`${what} → the error state; « Réessayer » loads the day`, async () => {
+    it(`${what} → the error state (« ${sentence} »); « Réessayer » loads the day`, async () => {
       mockFetch([answer]);
       render(<RendezVousClient />);
-      await expectJournalError();
+      await expectJournalError(sentence);
       const day = asked[0];
       expect(screen.queryByRole('button', { name: cellOf(day) })).toBeNull();
 
@@ -127,7 +132,7 @@ describe('Rendez-vous — Journée: a day that fails to load is an error, never 
 
     answers = ['throw'];
     fireEvent.click(screen.getByRole('button', { name: 'Jour suivant' }));
-    await expectJournalError();
+    await expectJournalError(NO_CONNECTION_MESSAGE);
     const day2 = asked[1];
     expect(day2).not.toBe(day1);
     expect(screen.getByLabelText('Date')).toHaveValue(day2);

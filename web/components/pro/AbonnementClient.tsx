@@ -6,6 +6,7 @@ import { ErrorState } from '../ErrorState';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { chooseOffer, getMyProvider, getSalonSubscription } from '../../lib/api/pro';
+import { loadFailure, loadFailureMessage, type LoadFailure } from '../../lib/pro/load-failure';
 import { formatFcfa } from '../../lib/format';
 import {
   type OfferCard,
@@ -34,7 +35,7 @@ export function AbonnementClient() {
   const [offer, setOffer] = useState<SalonOffer | null>(null);
   const [loading, setLoading] = useState(true);
   const [reloadKey, setReloadKey] = useState(0);
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<LoadFailure | false>(false);
   const [choosing, setChoosing] = useState<OfferTier | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -48,7 +49,7 @@ export function AbonnementClient() {
       }
       if (!active) return;
       if (me.status !== 200 || !me.profile) {
-        setError(true);
+        setError(loadFailure(me.status));
         setLoading(false);
         return;
       }
@@ -59,7 +60,7 @@ export function AbonnementClient() {
       if (sub.status === 200 && sub.offer) {
         setOffer(sub.offer);
       } else if (sub.status !== 404) {
-        setError(true);
+        setError(loadFailure(sub.status));
       }
       setLoading(false);
     })();
@@ -88,7 +89,7 @@ export function AbonnementClient() {
 
   if (loading) return <Loading className="mt-l" />;
   if (error) {
-    return <ErrorState title="Mon abonnement" onRetry={() => { setError(false); setLoading(true); setReloadKey((k) => k + 1); }} />;
+    return <ErrorState title="Mon abonnement" message={loadFailureMessage(error)} onRetry={() => { setError(false); setLoading(true); setReloadKey((k) => k + 1); }} />;
   }
 
   const setup = offer === null;

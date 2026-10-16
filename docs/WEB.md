@@ -93,6 +93,12 @@ web/
   ever. Every export is held by `tests/pro-api-network.test.ts` (a new wrapper
   must join its table). Design:
   [design/web-pro-network-failure.md](design/web-pro-network-failure.md).
+  **And the error state says why**: a page keeps its load failure as
+  `LoadFailure | false` (`lib/pro/load-failure.ts`), never a boolean, so
+  status 0 reads « Pas de connexion. Réessayez. » (the app's sentence) while a
+  5xx keeps the page's own sentence or `ErrorState`'s default, which does not
+  change. Design:
+  [design/web-pro-no-connection-copy.md](design/web-pro-no-connection-copy.md).
 - Reads for public pages run server-side (RSC/route handlers); writes
   (booking/auth) call the existing hardened API endpoints — reuse their
   validation/authz/notifications; never reimplement business logic on web.

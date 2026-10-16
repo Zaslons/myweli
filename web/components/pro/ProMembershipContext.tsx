@@ -30,6 +30,7 @@ import {
   logoutErrorMessage,
   revokedLanding,
 } from '../../lib/pro/team';
+import { loadFailure, type LoadFailure } from '../../lib/pro/load-failure';
 import { type ToastKind, useToast } from '../../lib/useToast';
 import { ProRevokedInvitations } from './ProRevokedInvitations';
 import { ProSignOutRetry } from './ProSignOutRetry';
@@ -65,6 +66,10 @@ import { ProSignOutRetry } from './ProSignOutRetry';
 /// the sidebar + the probe only. UI gating stays convenience — the server
 /// 403s regardless.
 
+/// A salon switch: done, or why not — no answer (`'offline'`) or the
+/// server's refusal or failure (`'failed'`).
+export type SwitchOutcome = 'switched' | LoadFailure;
+
 type ProMembershipValue = {
   loading: boolean;
   /// null = legacy owner-shaped payload (no membership block).
@@ -80,7 +85,9 @@ type ProMembershipValue = {
   /// Bumped on each successful switch — the layout re-keys the pages on it.
   switchEpoch: number;
   can: (cap: string) => boolean;
-  switchSalon: (salonId: string) => Promise<boolean>;
+  /// Why a switch did not happen, so the switcher can name the network
+  /// (docs/design/web-pro-no-connection-copy.md §5).
+  switchSalon: (salonId: string) => Promise<SwitchOutcome>;
   refresh: () => Promise<void>;
   refreshSalons: () => Promise<void>;
   /// The provider-level toast — it outlives a page remount (a join re-keys
@@ -438,12 +445,16 @@ export function ProMembershipProvider({ children }: { children: ReactNode }) {
         // for the new salon (zero per-page wiring).
         setSwitchEpoch((e) => e + 1);
         void refreshSalons();
-        return true;
+        return 'switched';
       }
       // Refused (revoked there since the list loaded / unknown) — refresh
       // the list; the current salon stays.
       void refreshSalons();
-      return false;
+      // No usable answer: nothing came back (status 0), or a 2xx whose
+      // profile was lost on the way (a write stays `ok` without its payload,
+      // web-pro-network-failure.md §2). The person's connection — and picking
+      // again is safe, the selection is idempotent.
+      return r.ok ? 'offline' : loadFailure(r.status);
     },
     [commitProfile, refreshSalons],
   );

@@ -243,11 +243,15 @@ class _SalonTile extends StatelessWidget {
           navigator.pop();
           return;
         }
-        final ok = await auth.switchSalon(salon.salonId);
-        if (!ok) {
+        final outcome = await auth.switchSalonOutcome(salon.salonId);
+        if (outcome != SalonSwitchOutcome.switched) {
+          // No answer names the network, as every other screen does; a
+          // refusal keeps its sentence (web-pro-no-connection-copy.md §5).
           onFailed(
-            'Changement impossible — votre accès à ce salon a '
-            'peut-être été retiré.',
+            outcome == SalonSwitchOutcome.offline
+                ? 'Pas de connexion. Réessayez.'
+                : 'Changement impossible — votre accès à ce salon a '
+                      'peut-être été retiré.',
           );
           return;
         }

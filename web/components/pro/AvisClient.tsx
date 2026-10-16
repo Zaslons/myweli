@@ -9,6 +9,7 @@ import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import type { Review } from '../../lib/api/providers';
 import { getMyProvider, listProviderReviews } from '../../lib/api/pro';
+import { loadFailure, loadFailureMessage, type LoadFailure } from '../../lib/pro/load-failure';
 import { formatDateFr } from '../../lib/format';
 import { reviewStats } from '../../lib/pro/reviews';
 import { Button } from '../Button';
@@ -26,7 +27,7 @@ export function AvisClient() {
   // The active salon's timezone (multi-pays MP3) — review dates in SALON time.
   const [salonTz, setSalonTz] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<LoadFailure | false>(false);
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
@@ -38,7 +39,7 @@ export function AvisClient() {
       return;
     }
     if (me.status !== 200 || !me.profile) {
-      setError(true);
+      setError(loadFailure(me.status));
       setLoading(false);
       return;
     }
@@ -47,7 +48,7 @@ export function AvisClient() {
     setSalonTz(me.profile.provider.timezone ?? undefined);
     const r = await listProviderReviews(pid, 1);
     if (r.status !== 200) {
-      setError(true);
+      setError(loadFailure(r.status));
       setLoading(false);
       return;
     }
@@ -75,7 +76,11 @@ export function AvisClient() {
   if (error) {
     return (
       <div>
-        <ErrorState title="Avis" message="Impossible de charger les avis." onRetry={load} />
+        <ErrorState
+          title="Avis"
+          message={loadFailureMessage(error, 'Impossible de charger les avis.')}
+          onRetry={load}
+        />
       </div>
     );
   }

@@ -15,6 +15,7 @@ import {
   getSalonSubscription,
   listProAppointments,
 } from '../../lib/api/pro';
+import { loadFailure, loadFailureMessage, type LoadFailure } from '../../lib/pro/load-failure';
 import { formatFcfa } from '../../lib/format';
 import {
   type TeamInvitation,
@@ -41,7 +42,7 @@ export function AujourdhuiClient() {
   const [offerLive, setOfferLive] = useState(false);
   const [loading, setLoading] = useState(true);
   const [reloadKey, setReloadKey] = useState(0);
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<LoadFailure | false>(false);
 
   useEffect(() => {
     let active = true;
@@ -54,7 +55,7 @@ export function AujourdhuiClient() {
       const appts = await listProAppointments();
       if (!active) return;
       if (me.status !== 200 || appts.status !== 200) {
-        setError(true);
+        setError(loadFailure(me.status, appts.status));
         setLoading(false);
         return;
       }
@@ -107,6 +108,7 @@ export function AujourdhuiClient() {
     return (
       <ErrorState
         title="Aujourd’hui"
+        message={loadFailureMessage(error)}
         onRetry={() => {
           void membershipCtx?.refresh();
           setError(false);

@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { navForMembership } from '../../lib/pro/nav';
+import { loadFailureMessage, type LoadFailure } from '../../lib/pro/load-failure';
 import { ROLE_LABELS, type TeamRole } from '../../lib/pro/team';
 import { useIsDesktop } from '../../lib/pro/use-is-desktop';
 import { Skeleton } from '../Skeleton';
@@ -53,7 +54,7 @@ export function ProSidebar({
   const entries = navForMembership(membership);
   const [menuOpen, setMenuOpen] = useState(false);
   const [switching, setSwitching] = useState<string | null>(null);
-  const [switchError, setSwitchError] = useState(false);
+  const [switchError, setSwitchError] = useState<LoadFailure | false>(false);
 
   const switchable = salons.length > 1 || canAddSalon;
 
@@ -75,10 +76,10 @@ export function ProSidebar({
     }
     setSwitching(salonId);
     setSwitchError(false);
-    const ok = await switchSalon(salonId);
+    const outcome = await switchSalon(salonId);
     setSwitching(null);
-    if (!ok) {
-      setSwitchError(true);
+    if (outcome !== 'switched') {
+      setSwitchError(outcome);
       return;
     }
     setMenuOpen(false);
@@ -216,8 +217,12 @@ export function ProSidebar({
               ) : null}
               {switchError ? (
                 <p role="alert" className="mt-xs text-bodySmall text-error">
-                  Changement impossible — votre accès à ce salon a peut-être
-                  été retiré.
+                  {/* No answer names the network; a refusal keeps the
+                      sentence the app says (salon_picker_sheet.dart). */}
+                  {loadFailureMessage(
+                    switchError,
+                    'Changement impossible — votre accès à ce salon a peut-être été retiré.',
+                  )}
                 </p>
               ) : null}
             </div>

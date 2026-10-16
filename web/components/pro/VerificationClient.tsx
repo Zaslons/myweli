@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { ErrorState } from '../ErrorState';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getKycStatus, getMyProvider, submitKyc } from '../../lib/api/pro';
+import { loadFailure, loadFailureMessage, type LoadFailure } from '../../lib/pro/load-failure';
 import {
   KYC_ACCEPT,
   KYC_DOC_TYPES,
@@ -30,7 +31,7 @@ export function VerificationClient() {
   const [rejectionReason, setRejectionReason] = useState<string | null>(null);
   const [docs, setDocs] = useState<LocalDoc[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<LoadFailure | false>(false);
   const [uploadingType, setUploadingType] = useState<KycDocType | null>(null);
   const [uploadError, setUploadError] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -49,7 +50,7 @@ export function VerificationClient() {
     }
     const kyc = await getKycStatus();
     if (me.status !== 200 || !me.profile || kyc.status !== 200 || !kyc.kyc) {
-      setError(true);
+      setError(loadFailure(me.status, kyc.status));
       setLoading(false);
       return;
     }
@@ -106,7 +107,11 @@ export function VerificationClient() {
   if (error) {
     return (
       <div>
-        <ErrorState title="Vérification" message="Chargement impossible." onRetry={load} />
+        <ErrorState
+          title="Vérification"
+          message={loadFailureMessage(error, 'Chargement impossible.')}
+          onRetry={load}
+        />
       </div>
     );
   }

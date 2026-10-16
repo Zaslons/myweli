@@ -20,6 +20,11 @@ import '../models/team_member.dart';
 import '../services/interfaces/auth_service_interface.dart';
 import '../services/interfaces/pro_service_interface.dart';
 
+/// Why a salon switch did not happen ([ProAuthProvider.switchSalonOutcome]):
+/// no answer — the network, or a body that could not be read — or the
+/// server's refusal (revoked there, salon gone; a 5xx too).
+enum SalonSwitchOutcome { switched, offline, refused }
+
 class ProAuthProvider extends ChangeNotifier {
   final AuthServiceInterface _authService = serviceLocator.authService;
 
@@ -167,11 +172,16 @@ class ProAuthProvider extends ChangeNotifier {
   /// Switch the acting salon: validate against the server (the membership
   /// there becomes the new shape), persist the selection, and RESET every
   /// per-salon provider so no stale cross-salon data lingers. False = the
-  /// selection was refused (revoked there / salon gone) — the caller stays
-  /// on the current salon and the list refreshes.
-  Future<bool> switchSalon(String salonId) async {
-    if (_provider == null) return false;
-    if (salonId == activeSalonId) return true;
+  /// switch did not happen — the caller stays on the current salon and the
+  /// list refreshes; [switchSalonOutcome] says why.
+  Future<bool> switchSalon(String salonId) async =>
+      await switchSalonOutcome(salonId) == SalonSwitchOutcome.switched;
+
+  /// [switchSalon], saying why it did not happen — the picker names the
+  /// network (docs/design/web-pro-no-connection-copy.md §5).
+  Future<SalonSwitchOutcome> switchSalonOutcome(String salonId) async {
+    if (_provider == null) return SalonSwitchOutcome.refused;
+    if (salonId == activeSalonId) return SalonSwitchOutcome.switched;
     _isLoading = true;
     notifyListeners();
     try {
@@ -187,14 +197,20 @@ class ProAuthProvider extends ChangeNotifier {
         await _authService.setSelectedProviderSalon(salonId);
         await _cacheShape();
         ProSalonScope.resetAll();
-        return true;
+        return SalonSwitchOutcome.switched;
       }
       // A per-salon denial (uniform 403) — likely revoked there since the
-      // list loaded. Refresh the list; the session stays intact.
+      // list loaded — or no answer at all. Refresh the list; the session
+      // stays intact.
       await loadMySalons();
-      return false;
+      return res.code == 'network'
+          ? SalonSwitchOutcome.offline
+          : SalonSwitchOutcome.refused;
     } catch (_) {
-      return false;
+      // An answer that could not be read (the probe's decode threw): nothing
+      // usable came back, as the web's unreadable 2xx — and choosing again
+      // is safe, the selection is only persisted once the probe succeeds.
+      return SalonSwitchOutcome.offline;
     } finally {
       _isLoading = false;
       notifyListeners();

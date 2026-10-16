@@ -115,3 +115,65 @@ describe('ProSidebar — the « Mes salons » switcher', () => {
     expect(add.getAttribute('href')).toBe('/pro/salons/nouveau');
   });
 });
+
+/// docs/design/web-pro-no-connection-copy.md §5 — a switch that did not
+/// happen says why. Before: every failure, a dropped connection included,
+/// read « Changement impossible — votre accès à ce salon a peut-être été
+/// retiré. » — suspecting a revoked access that had nothing to do with it.
+describe('ProSidebar — a failed switch says why', () => {
+  const REVOKED =
+    'Changement impossible — votre accès à ce salon a peut-être été retiré.';
+
+  type Select = 'throw' | { status: number; raw?: string };
+
+  function mockSwitch(select: Select) {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) => {
+        if (url === '/api/pro/me') {
+          return new Response(JSON.stringify(OWNER_PROFILE), { status: 200 });
+        }
+        if (url === '/api/pro/salons') {
+          return new Response(
+            JSON.stringify({ items: TWO_SALONS, canAddSalon: false }),
+            { status: 200 },
+          );
+        }
+        if (url === '/api/pro/salons/select') {
+          if (select === 'throw') throw new TypeError('Failed to fetch');
+          return new Response(
+            select.raw ?? JSON.stringify({ error: 'not_a_member' }),
+            { status: select.status },
+          );
+        }
+        return new Response('{}', { status: 404 });
+      }),
+    );
+  }
+
+  async function pickOther() {
+    host();
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Changer de salon' }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: /Institut Belle Vue/ }));
+  }
+
+  for (const [what, select, sentence] of [
+    ['no network', 'throw', 'Pas de connexion. Réessayez.'],
+    // The salon switched on the server, but its profile was lost on the way:
+    // nothing usable came back, and picking again is safe.
+    ['a 2xx whose body is lost', { status: 200, raw: '<html>' }, 'Pas de connexion. Réessayez.'],
+    ['a 403 (revoked there since the list loaded)', { status: 403 }, REVOKED],
+    ['a 500', { status: 500 }, REVOKED],
+  ] as const) {
+    it(`${what} → « ${sentence} »; the current salon stays`, async () => {
+      mockSwitch(select);
+      await pickOther();
+      expect(await screen.findByRole('alert')).toHaveTextContent(sentence);
+      expect(
+        screen.getByRole('button', { name: 'Changer de salon' }),
+      ).toHaveTextContent('Beauté Divine');
+    });
+  }
+});

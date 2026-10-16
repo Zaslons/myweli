@@ -8,6 +8,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Toast } from '../Toast';
 import { useToast } from '../../lib/useToast';
 import { type ProProfile, getMyProvider, listProAppointments } from '../../lib/api/pro';
+import { loadFailure, loadFailureMessage, type LoadFailure } from '../../lib/pro/load-failure';
 import {
   type ListTab,
   LIST_TABS,
@@ -49,10 +50,10 @@ export function RendezVousClient() {
   const [items, setItems] = useState<ProAppointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [reloadKey, setReloadKey] = useState(0);
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<LoadFailure | false>(false);
   const [view, setView] = useState<View>('journal');
   const [journalDay, setJournalDay] = useState<JournalDay | null>(null);
-  const [journalError, setJournalError] = useState(false);
+  const [journalError, setJournalError] = useState<LoadFailure | false>(false);
   const [journalDate, setJournalDate] = useState<string>(dateKey(new Date()));
   const [showCancelled, setShowCancelled] = useState(false);
   const { toast, show } = useToast();
@@ -72,7 +73,7 @@ export function RendezVousClient() {
       const appts = await listProAppointments();
       if (!active) return;
       if (me.status !== 200 || appts.status !== 200) {
-        setError(true);
+        setError(loadFailure(me.status, appts.status));
         setLoading(false);
         return;
       }
@@ -115,7 +116,7 @@ export function RendezVousClient() {
     // nothing: the skeleton for ever, or the PREVIOUS day's grid under the
     // new date (docs/design/web-pro-network-failure.md §4).
     setJournalDay(null);
-    setJournalError(true);
+    setJournalError(loadFailure(r.status));
   }, [profile, journalDate, router]);
 
   useEffect(() => {
@@ -163,7 +164,7 @@ export function RendezVousClient() {
 
   if (loading) return <SkeletonRows count={5} className="mt-l" />;
   if (error) {
-    return <ErrorState title="Rendez-vous" onRetry={() => { setError(false); setLoading(true); setReloadKey((k) => k + 1); }} />;
+    return <ErrorState title="Rendez-vous" message={loadFailureMessage(error)} onRetry={() => { setError(false); setLoading(true); setReloadKey((k) => k + 1); }} />;
   }
 
   const serviceName = (id: string) =>
@@ -276,7 +277,11 @@ export function RendezVousClient() {
           </div>
           {journalError ? (
             // A section error: the page's h1 stays above it.
-            <ErrorState className="mt-l" onRetry={() => void loadJournal()} />
+            <ErrorState
+              className="mt-l"
+              message={loadFailureMessage(journalError)}
+              onRetry={() => void loadJournal()}
+            />
           ) : profile && journalDay ? (
             <div className="mt-m">
               <JournalGrid
