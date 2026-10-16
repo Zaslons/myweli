@@ -127,6 +127,13 @@ class _Clients extends MockProClientsService {
   /// the walk (a client added, a visit re-sorting it).
   int Function(int page)? totalOf;
 
+  /// The server's own page cap — a server whose maximum is below the 50
+  /// asked pages with ITS size, and the walk must count pages with it.
+  int maxPageSize = 50;
+
+  /// Whether a page echoes its size (the real server always does).
+  bool echoPageSize = true;
+
   final asked = <({String salon, int page, int? pageSize})>[];
 
   void reset() {
@@ -134,6 +141,8 @@ class _Clients extends MockProClientsService {
     failPage = null;
     throwOnFail = false;
     totalOf = null;
+    maxPageSize = 50;
+    echoPageSize = true;
     asked.clear();
   }
 
@@ -150,7 +159,7 @@ class _Clients extends MockProClientsService {
       if (throwOnFail) throw const FormatException('not JSON');
       return ApiResponse.error('Erreur');
     }
-    final echo = (pageSize ?? 20).clamp(1, 50);
+    final echo = (pageSize ?? 20).clamp(1, maxPageSize);
     final start = (page - 1) * echo;
     final end = (start + echo).clamp(0, size);
     return ApiResponse.success(
@@ -166,7 +175,7 @@ class _Clients extends MockProClientsService {
         ],
         page: page,
         total: totalOf?.call(page) ?? size,
-        pageSize: echo,
+        pageSize: echoPageSize ? echo : null,
       ),
     );
   }
@@ -380,6 +389,32 @@ void main() {
           ..size = 120
           ..totalOf = (page) => page == 1 ? 120 : 121,
       );
+      expectRefused('le fichier clients');
+    });
+
+    testWidgets('a server that pages smaller than asked → its size counts', (
+      tester,
+    ) async {
+      await pumpExport(
+        tester,
+        arrange: () => clients
+          ..size = 70
+          ..maxPageSize = 30,
+      );
+
+      expect(clients.asked.map((a) => (a.page, a.pageSize)), [
+        (1, 50),
+        (2, 30),
+        (3, 30),
+      ]);
+      final export = await copyExport(tester);
+      expect(export['clients'], hasLength(70));
+    });
+
+    testWidgets('a page without its size echoed → refused, not guessed', (
+      tester,
+    ) async {
+      await pumpExport(tester, arrange: () => clients.echoPageSize = false);
       expectRefused('le fichier clients');
     });
 
