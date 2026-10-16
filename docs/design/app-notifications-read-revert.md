@@ -9,7 +9,7 @@
 | **Module** | app — `providers/notifications_provider.dart` (deux retours), `widgets/notifications/notifications_list.dart` (toucher une ligne), `widgets/notifications/mark_all_read_button.dart` (nouveau : « Tout lire », partagé par les deux écrans), `services/api/api_notification_service.dart` (un code) |
 | **ROADMAP entry** | [2026-10-16-app-notifications-read-revert.md](../roadmap/entries/2026-10-16-app-notifications-read-revert.md) |
 | **Skills checked** | myweli-dev-guardrails ✓ (aucun changement serveur, aucun contrat) · myweli-verification-guardrails (avant de dire « fait ») |
-| **Dépend de** | Rien dans le code. La parité vise [#624](https://github.com/Zaslons/myweli/pull/624) (`fix/consumer-optimistic-revert`, pas encore fusionné) : ce changement ne lit aucun de ses fichiers. Seul conflit de texte attendu : la ligne de tête de [README.md](README.md) (garder les deux lignes). |
+| **Dépend de** | Rien dans le code. La parité vise [#624](https://github.com/Zaslons/myweli/pull/624) (`fix/consumer-optimistic-revert`, pas encore fusionné) : ce changement ne lit aucun de ses fichiers. Les liens vers sa spec ne mènent nulle part tant qu'il n'est pas fusionné. Seul conflit de texte attendu : la ligne de tête de [README.md](README.md) (garder les deux lignes). |
 
 ## 1. Le défaut, vu dans le code
 
@@ -214,4 +214,41 @@ Aucune phrase nouvelle : « Pas de connexion. Réessayez. » (le service) et
 
 ## 11. Construit — vu rouge
 
-*(rempli à la construction)*
+- **Vu rouge contre le code d'avant : 23 des 32 nouveaux tests.** Les tests
+  de widgets (12 rouges sur 15) et du service (1 sur 2) tournaient tels quels
+  contre l'ancien code. Ceux du provider ne compilaient pas (`markRead`
+  rendait `void`). On leur a donc donné l'ancien code avec le nouveau type de
+  retour (`return null`), et rien d'autre : 10 rouges sur 15. Chacun a échoué
+  pour la bonne raison : la ligne encore lue, la phrase `null`, l'exception
+  du service qui remonte, « Tout lire » qui ne revient pas, `code` absent. Les
+  9 verts épinglent ce qui ne change pas : les succès (5), les cas « rien à
+  faire » (2), le code d'un refus (1), et la notification apportée par un
+  rechargement (1). Ce dernier ne peut pas rougir contre l'ancien code, qui ne
+  revient jamais en arrière. C'est une garde contre l'instantané, vue rouge en
+  mutation.
+- **Mutations : 22 sur 22 rattrapées**, sur l'arbre commité (le script refuse
+  un arbre modifié et restaure depuis HEAD). Pour chaque geste : le retour en
+  arrière retiré, la phrase retirée (`return null`). La branche `network`
+  retirée. Le `code` retiré du service. « Tout lire » qui remet **tout** non
+  lu. Chaque retour en arrière réécrit en instantané. Le `catch` retiré.
+  `markRead` qui réécrit une ligne déjà lue, `markAllRead` qui écrit sans
+  rien de non lu. Pour la ligne : la snackbar retirée, la garde du premier
+  plan retirée, la navigation qui attend l'écriture. Pour le bouton : la
+  snackbar retirée, la garde du premier plan retirée, le retour du focus
+  retiré, puis sa garde « il avait le focus », puis sa garde « il est tombé ».
+  Et l'ancienne icône remise dans chaque écran, client et Pro.
+- **Un détail vérifié, pas supposé** : un toucher au doigt ne donne pas le
+  focus à l'`IconButton`. Le test « touchée au doigt » le montre, et la
+  mutation qui retire la garde « il avait le focus » le fait rougir.
+- **Une ligne ajoutée par l'analyseur** : `_open` est devenue `async`, donc
+  `context.push(route)` non attendu y est signalé (`unawaited_futures`). Il
+  est enveloppé dans `unawaited(...)`, sans changement de comportement :
+  `push` se termine quand la réservation est refermée.
+- `flutter analyze` : 0. `dart format` : propre. Les sujets a11y du centre de
+  notifications (`layout_test.dart`, `primitives_test.dart`) et les gardes
+  qui lisent les sources (`design_system_pin_test`, `route_literals_test`,
+  `french_test`, `a15_titles_test`, `feedback_test`, `tap_target_test`…)
+  sont verts. Le rendu de l'icône ne change pas (même `IconButton`, même
+  infobulle) : aucun golden n'est touché.
+- **Suite complète de l'app : 2286 verts, 0 rouge**, 52 sautés (les goldens,
+  qui ne tournent que sous Linux, dans le workflow de la CI).
