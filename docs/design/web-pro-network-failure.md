@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Décidé le 2026-10-16** (le propriétaire a délégué le choix « racine ou composant par composant » à ce spec) — construit sur `fix/pro-network-failure` ; §10 dit ce qui a été construit autrement ou en plus |
+| **Statut** | **Décidé le 2026-10-16** (le propriétaire a délégué le choix « racine ou composant par composant » à ce spec) — construit le même jour sur `fix/pro-network-failure` ; §11 dit ce qui a été vu rouge et ce que la revue a ajouté |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-16 |
 | **PRD ref / phase** | Les quatre états de chaque page (SYSTEM.md §12, WEB-SYSTEM §12) · V1 — tableau de bord Pro web |
@@ -175,6 +175,9 @@ il faut une branche d'erreur.
   (`pro_journal_provider.dart` `load`, `pro_journal_screen.dart` `_body`).
 - Une requête dépassée (un jour plus récent a été demandé) ne touche ni au
   jour ni à l'erreur — la règle existante du dédoublonnage.
+- **Un 401** (la session est morte : le BFF n'a pas pu la rafraîchir) mène à
+  la connexion, comme les autres lectures de la page — « Réessayer » ne
+  pourrait qu'échouer encore (ajouté à la revue, §11).
 
 ## 5. Téléversement
 
@@ -262,3 +265,33 @@ contient #616.
   retirer la branche d'erreur de la Journée ; retirer la branche statut 0 de
   la connexion et de la carte d'invitations ; retirer le `catch` de la
   signature.
+
+## 11. Construit — vu rouge, et ce que la revue a ajouté
+
+- **Vu rouge contre le code d'avant** : la table des wrappers 84 cas sur 125
+  (chaque wrapper rejetait ; les lectures de liste inventaient une liste vide
+  d'un corps illisible) ; les pages 27 sur 27 (chacune sur son squelette,
+  avec 27 rejets non gérés) ; les enregistrements 5 sur 5 ; la Journée 3 sur
+  3 ; la signature 3 sur 3.
+- **Ce que l'audit avait prévu s'est produit** : sous le changement racine
+  seul, les deux tests existants de la carte d'invitations (« Pas de
+  connexion. Réessayez. ») sont tombés rouges — elle attrapait le rejet. La
+  branche statut 0 les remet au vert.
+- **Ajouté à la revue de la Journée** : « Réessayer » montre le squelette
+  pendant qu'il charge (jamais la grille de la veille, un instant, au retour
+  de `journalError` à faux) ; un **401** mène à la connexion (§4).
+- **Mutations** : 14 sur 14 rattrapées — le `catch` de `send()` (63 cas
+  rouges) et de `readJson()` (27) ; une lecture de liste remise à
+  `.catch(() => ({}))` ; `getMyProvider` qui prend un 200 illisible pour un
+  200 ; `selectSalon` qui passe `{}` pour un profil ; la Journée sans branche
+  d'erreur, sans jour vidé, sans erreur remise à faux, sans redirection 401 ;
+  la connexion (« Recevoir le code », « Vérifier ») et la carte d'invitations
+  (accepter, refuser) sans branche statut 0 ; la signature sans `catch`.
+- **Suite complète** sur la branche : 1216 tests, un seul rouge — la ligne
+  Acompte « `/me` répond, la politique est coupée », attendue sans #616 (le
+  formulaire vierge de D3). Sur une fusion locale avec #616 : 1241 sur 1241,
+  `tsc` propre. Le seul conflit de la fusion est la ligne de tête de
+  l'index des specs (les deux branches en ajoutent une).
+- `next build` passe contre l'API bouchon de la CI ; `tsc` et le lint sont
+  propres. Non lancés en local : l'e2e Playwright et Lighthouse (la CI les
+  lance).
