@@ -342,7 +342,10 @@ class ApiProService implements ProServiceInterface {
     final res = await _authed.send(
       (t) => _client.get(uri, headers: _bearer(t)),
     );
-    if (res == null) return _networkError();
+    // No answer carries `network`, so the salon switch can tell it from a
+    // refusal (docs/design/web-pro-no-connection-copy.md §5). Only here: the
+    // other calls' callers read their codes, and none expects this one.
+    if (res == null) return _networkError(code: 'network');
     if (res.statusCode != 200) return _errorFrom(res);
     final body = jsonDecode(res.body) as Map<String, dynamic>;
     final salonMap = body['provider'] as Map<String, dynamic>;
@@ -797,8 +800,8 @@ class ApiProService implements ProServiceInterface {
   Map<String, dynamic> _decode(String body) =>
       jsonDecode(body) as Map<String, dynamic>;
 
-  ApiResponse<T> _networkError<T>() =>
-      ApiResponse.error('Connexion au serveur impossible');
+  ApiResponse<T> _networkError<T>({String? code}) =>
+      ApiResponse.error('Connexion au serveur impossible', code: code);
 
   ApiResponse<T> _errorFrom<T>(http.Response res) {
     String? code;
