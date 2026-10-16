@@ -114,7 +114,14 @@ web/
   l'image ») is never shown for status 0: say `NO_CONNECTION_MESSAGE`
   (« Pas de connexion. Réessayez. », the app's sentence). A logout leaves the
   page on `'ok'` alone — its httpOnly cookies are cleared only by the BFF's
-  response. Every export is held by `tests/consumer-api-network.test.ts` (a
+  response. **A write never fails in silence**: what it changed at once goes
+  back — the one item it touched, never a snapshot (SYSTEM §15) — and a
+  `role="alert"` under the gesture says why, through
+  `writeFailureMessage(status, …)` (`NO_CONNECTION_MESSAGE` for status 0, the
+  screen's own sentence otherwise); a button the call unmounted or disabled
+  gets focus back if it fell to `<body>`
+  ([design/web-consumer-optimistic-revert.md](design/web-consumer-optimistic-revert.md)).
+  Every export is held by `tests/consumer-api-network.test.ts` (a
   new wrapper must join its table). The Pro twin is `lib/api/pro.ts`
   ([design/web-pro-network-failure.md](design/web-pro-network-failure.md)).
   Design: [design/web-consumer-network-failure.md](design/web-consumer-network-failure.md).

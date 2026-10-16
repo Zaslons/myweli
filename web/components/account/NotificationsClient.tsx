@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { EmptyState } from '../EmptyState';
 import { ErrorState } from '../ErrorState';
 import { useRouter } from 'next/navigation';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ICON_PATHS, Icon, type IconName } from '../Icon';
 import {
   type AppNotification,
@@ -19,6 +19,7 @@ import {
   markNotificationRead,
   updateNotificationPrefs,
 } from '../../lib/api/account';
+import { writeFailureMessage } from '../../lib/api/network';
 import { formatDateTimeFr } from '../../lib/format';
 import { Button } from '../Button';
 import { SkeletonRows } from '../Skeleton';
@@ -62,6 +63,14 @@ export function NotificationsClient() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [prefError, setPrefError] = useState(false);
+  // A « marquer comme lu » the server refused: under that notification, or
+  // under the header for « Tout lire » (docs/design/web-consumer-optimistic-revert.md §3.2 ②③).
+  // `at` is the notification's id, or 'all' for « Tout lire ».
+  const [readError, setReadError] = useState<{
+    at: string;
+    message: string;
+  } | null>(null);
+  const readAllRef = useRef<HTMLButtonElement>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -88,20 +97,48 @@ export function NotificationsClient() {
     load();
   }, [load]);
 
-  async function open(n: AppNotification) {
+  // « Tout lire » unmounts itself while it is out, and focus goes with it:
+  // back on the button with the failure — never stolen from elsewhere.
+  useEffect(() => {
+    if (readError?.at !== 'all') return;
+    const active = document.activeElement;
+    if (!active || active === document.body) readAllRef.current?.focus();
+  }, [readError]);
+
+  function setRead(ids: ReadonlySet<string>, read: boolean) {
+    setItems((cur) => cur.map((x) => (ids.has(x.id) ? { ...x, read } : x)));
+  }
+
+  /// Read at once; the navigation never waits for the write. If the page is
+  /// still here when the server refuses, this one notification is unread
+  /// again and says why; if it has gone, the feed shows it unread on return —
+  /// which is true.
+  function open(n: AppNotification) {
     if (!n.read) {
-      setItems((cur) =>
-        cur.map((x) => (x.id === n.id ? { ...x, read: true } : x)),
-      );
-      markNotificationRead(n.id);
+      const one = new Set([n.id]);
+      setReadError(null);
+      setRead(one, true);
+      void markNotificationRead(n.id).then((r) => {
+        if (r.ok) return;
+        setRead(one, false);
+        setReadError({ at: n.id, message: writeFailureMessage(r.status) });
+      });
     }
     const href = webRouteFor(n.route);
     if (href) router.push(href);
   }
 
+  /// On a failure, only what THIS gesture marked goes back to unread — one
+  /// read before it, or on its own meanwhile, stays read (SYSTEM §15: undo
+  /// is never a snapshot).
   async function readAll() {
-    setItems((cur) => cur.map((x) => ({ ...x, read: true })));
-    await markAllNotificationsRead();
+    const marked = new Set(items.filter((x) => !x.read).map((x) => x.id));
+    setReadError(null);
+    setRead(marked, true);
+    const r = await markAllNotificationsRead();
+    if (r.ok) return;
+    setRead(marked, false);
+    setReadError({ at: 'all', message: writeFailureMessage(r.status) });
   }
 
   async function toggle(key: keyof NotificationPrefs) {
@@ -145,11 +182,16 @@ export function NotificationsClient() {
           Notifications
         </h1>
         {unread > 0 ? (
-          <Button variant="secondary" onClick={readAll}>
+          <Button ref={readAllRef} variant="secondary" onClick={readAll}>
             Tout lire
           </Button>
         ) : null}
       </div>
+      {readError?.at === 'all' ? (
+        <p role="alert" className="mt-s text-bodyMedium text-error">
+          {readError.message}
+        </p>
+      ) : null}
 
       {items.length === 0 ? (
         <EmptyState
@@ -194,6 +236,11 @@ export function NotificationsClient() {
                   </span>
                 </span>
               </button>
+              {readError?.at === n.id ? (
+                <p role="alert" className="mt-xs text-bodyMedium text-error">
+                  {readError.message}
+                </p>
+              ) : null}
             </li>
           ))}
         </ul>
