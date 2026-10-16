@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Brouillon, 2026-10-16** — la suite de [web-pro-network-failure.md](web-pro-network-failure.md) §9 (« le mot de l'app »). Le sélecteur de salon : §5, question ouverte |
+| **Statut** | **Construit le 2026-10-16** — la suite de [web-pro-network-failure.md](web-pro-network-failure.md) §9 (« le mot de l'app ») ; §10 dit ce qui a été vu rouge. Le sélecteur côté app : §5, question posée |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-16 |
 | **PRD ref / phase** | Les quatre états de chaque page (SYSTEM.md §12, WEB-SYSTEM §12) · la parité web ↔ app · V1 — tableau de bord Pro web |
@@ -136,30 +136,31 @@ Réessayez. » est celle de l'app, déjà `NO_CONNECTION_MESSAGE`. Même place
 (le `role="alert"` de l'`ErrorState`), même « Réessayer ». Accessibilité
 inchangée : l'alerte est annoncée comme avant, avec un texte plus juste.
 
-## 5. Le sélecteur de salon — question ouverte
+## 5. Le sélecteur de salon
 
 `ProSidebar.pick` → `switchSalon` (`ProMembershipContext`) →
-`selectSalon`. `switchSalon` rend un booléen : tout échec, une coupure
-comprise, affiche « Changement impossible — votre accès à ce salon a
+`selectSalon`. `switchSalon` rendait un booléen : tout échec, une coupure
+comprise, affichait « Changement impossible — votre accès à ce salon a
 peut-être été retiré. ».
+
+**Construit côté web** : `switchSalon` rend `SwitchOutcome` =
+`'switched' | LoadFailure`. `'offline'` sur le statut 0 — **et** sur un 2xx
+dont le profil s'est perdu (#619 §2 : une écriture reste `ok` sans sa charge
+utile ; rien d'utilisable n'est revenu, et choisir à nouveau est sans danger,
+la sélection est idempotente) ; `'failed'` pour le reste (403, 5xx), qui garde
+la phrase d'aujourd'hui. Le sélecteur garde la raison
+(`useState<LoadFailure | false>`) et dit `loadFailureMessage(raison,
+'Changement impossible — …')`. Seul appelant du résultat : `ProSidebar`.
 
 **Constat en lisant l'app** : `ProAuthProvider.switchSalon` rend aussi un
 booléen (`catch (_) → false`), et `salon_picker_sheet.dart` dit **la même
-phrase** pour tout échec, réseau compris. Ici, pas d'écart de parité : le
-changer côté web seul mettrait le web en avance sur l'app.
-
-Options (posée à la session qui a ouvert la tâche) :
-
-- **A (recommandée)** — les deux côtés : `switchSalon` dit pourquoi
-  (`'switched' | LoadFailure`) ; la phrase devient « Pas de connexion.
-  Réessayez. » sur le statut 0 — et sur un 2xx dont le profil s'est perdu
-  (#619 §2 : une écriture reste `ok` sans sa charge utile ; rien d'utilisable
-  n'est revenu, et un nouvel essai est sans danger, la sélection est
-  idempotente) ; le reste garde la phrase d'aujourd'hui. Côté app :
-  `switchSalon` rend la raison, la feuille choisit la phrase, un test de
-  widget.
-- **B** — le web seul, l'app consignée comme suite.
-- **C** — ne rien changer au sélecteur (la parité tient déjà).
+phrase** pour tout échec, réseau compris. Ici, pas d'écart de parité au
+départ : la consigne de la tâche demandait le sélecteur web, le web le dit
+maintenant mieux que l'app. **Question posée** à la session qui a ouvert la
+tâche : faire aussi l'app dans cette PR (A, recommandé : `switchSalon` rend
+la raison, la feuille choisit la phrase, un test de widget), la consigner
+comme suite (B), ou retirer le sélecteur de cette PR (C — les deux commits
+`ProSidebar` / `switchSalon` se retirent seuls).
 
 ## 6. Contrat, sécurité, performance
 
@@ -184,8 +185,9 @@ Performance : nulle.
 - **`lib/pro/load-failure.ts`** : la table de `loadFailure` /
   `loadFailureMessage` (0 seul, 0 parmi des 200, 500, 404 ; avec et sans
   phrase propre).
-- **Le sélecteur** (selon §5) : coupure → « Pas de connexion. Réessayez. » ;
-  403 → la phrase d'aujourd'hui.
+- **Le sélecteur** (`tests/pro-sidebar-switcher.test.tsx`) : coupure et 2xx
+  au corps perdu → « Pas de connexion. Réessayez. » ; 403 et 500 → la phrase
+  d'aujourd'hui ; le salon courant reste affiché.
 
 **Mutations à voir rouges** : `loadFailure` qui ne voit plus le 0 ;
 `loadFailureMessage` qui rend toujours `NO_CONNECTION_MESSAGE` (la table 5xx) ;
@@ -212,3 +214,41 @@ aucune page n'atteint son état d'erreur). Rien côté serveur.
   (`api_pro_service`, `api_auth_service`, `api_appointment_service`,
   `api_provider_service`) et « Pas de connexion. Réessayez. » (les autres).
   Les aligner sur une seule est une tâche de l'app.
+
+## 10. Construit — vu rouge
+
+- **Vu rouge contre le code d'avant** (sur `fix/pro-network-failure`) : 31
+  cas — les 16 pages sans réseau, les 11 lectures propres coupées, « Charger
+  plus » et la période des Revenus, la coupure et le changement de jour de la
+  Journée — plus le module `load-failure` absent. Chacun recevait la phrase
+  d'aujourd'hui (« Une erreur est survenue. Réessayez. », « Chargement
+  impossible. », …) là où il attendait « Pas de connexion. Réessayez. ». Les
+  deux premiers essais de « Charger plus » échouaient pour une autre raison
+  (la fiche de test n'avait pas de `displayName`) : corrigé avant de compter.
+- **La table 5xx** (16 pages × tout en 500, plus chaque lecture propre en 500)
+  est **verte avant comme après** : c'est la garde de « la phrase par défaut
+  ne bouge pas ». La mutation « toujours hors ligne » la fait tomber (28 cas).
+- **Sous #616** (rebasé dessus) : les deux lignes Acompte de la table, rouges
+  sans lui, passent ; et deux tests de #616 (`pro-acompte.test.tsx` : « la
+  politique lève », « le salon lève ») sont tombés rouges sous ce changement —
+  ils épinglaient la phrase générique sur une coupure. Ils attendent
+  maintenant « Pas de connexion. Réessayez. » ; leurs cas 403/500/502 gardent
+  la phrase par défaut.
+- **Mutations des pages : 27 sur 27 rattrapées** — `loadFailure` qui ne voit plus le
+  0 (34 cas rouges) ; `loadFailureMessage` toujours hors ligne (28) ou jamais
+  (31) ; l'Avis et l'Aperçu qui gardent leur phrase propre ; l'Équipe sans
+  `message` ; la Journée sans raison, et sans `message` ; Rendez-vous,
+  Aujourd'hui et Vérification qui ne regardent que `/me` ; chaque site
+  d'échec remis à `'failed'` (la liste des Clients, la période des Revenus,
+  l'abonnement, la fiche client, l'équipe, les avis, le détail d'un
+  rendez-vous, et le `/me` des Disponibilités, du Profil, des Médias, du
+  Catalogue, de l'Aperçu, de l'Acompte) ; l'Acompte dont `fail()` oublie la
+  raison, ou dont la politique est remise à `'failed'`.
+- **Le sélecteur** : vu rouge, 2 cas sur 4 (la coupure, le 2xx au corps
+  perdu — tous deux disaient « … a peut-être été retiré. ») ; le 403 et le 500
+  verts avant comme après. Mutations 5 sur 5 : `switchSalon` toujours
+  `'failed'`, toujours `'offline'`, le corps perdu lu comme un refus ; le
+  sélecteur qui oublie la raison, ou qui garde sa phrase fixe.
+- **Suite complète** : 1282 tests sur 1282 avant le sélecteur, 1286 avec ;
+  `tsc` et le lint propres ; `next build` passe contre l'API bouchon de la CI.
+  Non lancés en local : l'e2e Playwright et Lighthouse (la CI les lance).

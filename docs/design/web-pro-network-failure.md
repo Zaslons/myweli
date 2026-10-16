@@ -222,7 +222,8 @@ dessus.
   survenue. Réessayez. » (le `ErrorState` partagé), l'app « Pas de connexion.
   Réessayez. » quand c'est le réseau ; le sélecteur de salon soupçonne un
   accès retiré. Dire « Pas de connexion » demande à chaque page de garder le
-  statut de son échec — une tâche à part.
+  statut de son échec — une tâche à part :
+  [web-pro-no-connection-copy.md](web-pro-no-connection-copy.md).
 - **Le web client** (`lib/api/account.ts`) : 17 `fetch` nus, même classe de
   défaut côté consommateur — une tâche à part.
 - **Les lectures secondaires silencieuses** (§3) — déjà silencieuses sur un 5xx.
