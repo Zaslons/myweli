@@ -1127,9 +1127,11 @@ the generic E.164 rule. The same test greps `lib/`, outside this seam and
 form, for numbers already stored), for the current length written as a rule —
 `{10}`, `.length ==/!= 10`, « 10 chiffres », a `'225': 10` row — the pin that
 `Validators.localPhoneNumber`, a « 10 chiffres » rule in `validators.dart`
-with no caller, would have failed. It does not see a length written another
-way; `Helpers.maskPhoneNumber` (8-digit, dormant OTP screens) is the known
-holdover.
+with no caller, would have failed — and for any length compared on a line that
+names the calling code (`startsWith('+225') && cleaned.length == 12`, the
+8-digit mask that [phone-leftovers.md](phone-leftovers.md) §5 made generic). It
+does not see a length on a line without `225`, nor a quantifier other than
+`{10}`.
 
 ---
 

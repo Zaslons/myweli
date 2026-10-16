@@ -379,4 +379,23 @@ void main() {
       },
     );
   });
+
+  /// « de » elides before a vowel — « la fiche d’Aïcha », not « de Aïcha »
+  /// (the web's `deName` holds the same vectors).
+  group('Formatters.de', () {
+    const vectors = {
+      'Koffi Yao': 'de Koffi Yao',
+      'Aïcha Koné': 'd’Aïcha Koné',
+      'Ibrahim': 'd’Ibrahim',
+      'Ousmane': 'd’Ousmane',
+      'Émile': 'd’Émile',
+      'awa': 'd’awa',
+      '  Awa  ': 'd’Awa',
+      'Henri': 'de Henri',
+      'Yasmine': 'de Yasmine',
+    };
+    vectors.forEach((name, expected) {
+      test('$name → $expected', () => expect(Formatters.de(name), expected));
+    });
+  });
 }

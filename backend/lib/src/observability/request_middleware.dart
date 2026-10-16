@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:dart_frog/dart_frog.dart';
 import 'package:uuid/uuid.dart';
 
+import '../http/body_fields.dart';
 import '../responses.dart';
 import 'error_reporter.dart';
 
@@ -67,6 +68,17 @@ Middleware observabilityMiddleware(ErrorReporter Function() reporter) {
         return response.copyWith(
           headers: {...response.headers, kRequestIdHeader: id},
         );
+      } on BodyFieldTypeError {
+        // A body field of the wrong JSON type (`{"phoneNumber": 5}`): the
+        // CALLER's fault, so a 400 with the code a non-object body already
+        // gets, and nothing reported or logged as an error — an alarm per
+        // malformed request is how real ones get ignored. Caught by its own
+        // type only: an ordinary TypeError below is still our bug, and must
+        // not pass for a bad request (docs/design/phone-leftovers.md §3).
+        return jsonError(
+          HttpStatus.badRequest,
+          'invalid_body',
+        ).copyWith(headers: {kRequestIdHeader: id});
       } catch (error, stackTrace) {
         // The diagnostic must never be the thing that throws: an unsupported
         // verb makes `request.method` throw, and a throw here would escape the

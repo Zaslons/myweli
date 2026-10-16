@@ -797,6 +797,29 @@ export async function updateClientTags(
   return mutate(`/api/pro/clients/${clientId}`, 'PATCH', { providerId, tags });
 }
 
+/// A GUEST card's number (docs/design/phone-leftovers.md §8) — the salon's
+/// manual appointments on the old number follow it server-side. Send the
+/// NORMALIZED number (`normalizePhone`). Refusals: 400 `invalid_phone`;
+/// 409 `client_exists` + the `clientId` of the card that holds it; 409
+/// `client_linked` (a linked card keeps the account's number).
+export async function updateClientPhone(
+  providerId: string,
+  clientId: string,
+  phone: string,
+): Promise<MutationResult & { clientId?: string }> {
+  const res = await fetch(`/api/pro/clients/${clientId}`, {
+    method: 'PATCH',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ providerId, phone }),
+  });
+  if (res.ok) return { ok: true, status: res.status };
+  const b = (await res.json().catch(() => ({}))) as {
+    error?: string;
+    clientId?: string;
+  };
+  return { ok: false, status: res.status, error: b.error, clientId: b.clientId };
+}
+
 export async function addClientNote(
   providerId: string,
   clientId: string,

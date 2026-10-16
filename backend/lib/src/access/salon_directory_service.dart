@@ -99,7 +99,7 @@ class SalonDirectoryService {
     String accountId, {
     required Object? businessName,
     required Object? businessType,
-    Object? phoneNumber,
+    String? phoneNumber,
     Object? address,
     SalonMarket? market,
   }) async {
@@ -125,12 +125,11 @@ class SalonDirectoryService {
     // stored with no check at all); the fallback is the account's own,
     // proven at registration and not user-editable — not re-checked.
     // Design: docs/design/phone-national-length.md §2.4. Only absent (null)
-    // or blank falls back; a value sent as anything but text is refused,
-    // never silently swapped for the account's number.
-    if (phoneNumber != null && phoneNumber is! String) {
-      return (ok: false, error: 'invalid_phone', data: null);
-    }
-    final sent = phoneNumber is String ? phoneNumber.trim() : '';
+    // or blank falls back. Text by type: the route reads it with
+    // `optionalString`, so a JSON number never gets here — it is a 400
+    // `invalid_body` there, never swapped for the account's number
+    // (docs/design/phone-leftovers.md §3).
+    final sent = phoneNumber?.trim() ?? '';
     if (sent.isNotEmpty && !isValidPhoneNumber(sent)) {
       return (ok: false, error: 'invalid_phone', data: null);
     }

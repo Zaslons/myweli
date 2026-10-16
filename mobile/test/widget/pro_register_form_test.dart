@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
+import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/provider_user.dart';
 import 'package:myweli/providers/pro_auth_provider.dart';
 import 'package:myweli/screens/provider/auth/pro_register_screen.dart';
 import 'package:myweli/services/mock/mock_auth_service.dart';
 import 'package:myweli/services/mock/mock_data.dart';
 import 'package:myweli/services/mock/mock_pro_service.dart';
+import 'package:myweli/widgets/common/phone_number_field.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -42,14 +44,19 @@ import '../support/pump_app.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  // The plain mock, unless a test has the server refuse the registration
+  // (`refusedBy`) — `serviceLocator.authService` is set once per process.
+  final auth = _RefusableRegistration();
+
   setUpAll(() {
     SharedPreferences.setMockInitialValues({});
-    serviceLocator.authService = MockAuthService();
+    serviceLocator.authService = auth;
     // `_login` → `refreshMembership()` → GET /me/provider on the happy path.
     serviceLocator.proService = MockProService();
   });
 
   setUp(() async {
+    auth.refusal = null;
     // `_createProvider` appends to the shared mock list; a leftover account
     // would answer the next register with `provider_exists`.
     MockData.providerUsers.removeWhere((p) => p.email == _email);
@@ -401,6 +408,142 @@ void main() {
     );
     expect(MockData.providerUsers.any((p) => p.email == _email), isTrue);
   });
+
+  // ---- phone-leftovers.md §2: the server's verdict on the number ----------
+
+  /// Registration refused by the server under [code], with the message the
+  /// API service maps it to (`ApiAuthService._messageFor`) — so the test sees
+  /// exactly what the screen used to print.
+  void refusedBy(String code, String message) {
+    auth.refusal = (code: code, message: message);
+    auth.refused = 0;
+  }
+
+  Finder underThePhone(String message) => find.descendant(
+    of: find.byType(PhoneNumberField),
+    matching: find.text(message),
+  );
+
+  const refusedNumber = 'Saisissez un numéro de téléphone valide.';
+
+  testWidgets(
+    'the server\'s `invalid_phone` lands UNDER « Téléphone du salon » — not '
+    'as « Numéro ou code invalide. » at the foot of the form',
+    (tester) async {
+      // `POST /auth/provider/register` answered `invalid_input` for a refused
+      // number — the code it also gives the name and the type — so the screen
+      // could not say which field, and printed « Numéro ou code invalide. »
+      // under the buttons. It answers `invalid_phone` now: the field's fault.
+      refusedBy('invalid_phone', 'Numéro ou code invalide.');
+      await reachCodeStep(tester);
+      await type(tester, 'Code à 6 chiffres', MockAuthService.demoOtp);
+      await tester.tap(find.text('S’inscrire'));
+      await settle(tester);
+
+      expect(auth.refused, 1, reason: 'the server was asked, and refused');
+      expect(
+        underThePhone(refusedNumber),
+        findsOneWidget,
+        reason: '§14 rule 1 — under the field the server refused',
+      );
+      expect(
+        find.text('Numéro ou code invalide.'),
+        findsNothing,
+        reason: 'the form-level slot does not repeat a field fault',
+      );
+      expect(find.byType(SnackBar), findsNothing);
+      expect(find.text('DASHBOARD'), findsNothing);
+
+      // Rule 2: a changed number that passes the client rule clears it.
+      await type(tester, 'Téléphone du salon', '0701020305');
+      expect(find.text(refusedNumber), findsNothing);
+    },
+  );
+
+  testWidgets('the Google path puts it under the same field', (tester) async {
+    refusedBy('invalid_phone', 'Numéro ou code invalide.');
+    await openForm(tester);
+    await fillBusinessBlock(tester);
+    await tester.tap(find.text('S’inscrire avec Google'));
+    await settle(tester);
+
+    expect(auth.refused, 1, reason: 'the server was asked, and refused');
+    expect(underThePhone(refusedNumber), findsOneWidget);
+    expect(find.text('Numéro ou code invalide.'), findsNothing);
+    expect(find.text('DASHBOARD'), findsNothing);
+  });
+
+  testWidgets('any other refusal keeps its form-level message', (tester) async {
+    refusedBy('provider_exists', 'Un compte existe déjà pour ce numéro.');
+    await openForm(tester);
+    await fillBusinessBlock(tester);
+    await tester.tap(find.text('S’inscrire avec Google'));
+    await settle(tester);
+
+    expect(find.text('Un compte existe déjà pour ce numéro.'), findsOneWidget);
+    expect(
+      underThePhone(refusedNumber),
+      findsNothing,
+      reason: 'only `invalid_phone` is the phone field\'s fault',
+    );
+  });
+}
+
+/// The mock — and, while [refusal] is set, every registration refused by the
+/// server under its code.
+class _RefusableRegistration extends MockAuthService {
+  ({String code, String message})? refusal;
+
+  /// How many registrations it refused — proof the press reached it.
+  int refused = 0;
+
+  @override
+  Future<ApiResponse<ProviderUser>> registerProviderWithEmail({
+    required String email,
+    required String code,
+    required String phoneNumber,
+    required String businessName,
+    required BusinessType businessType,
+    String? address,
+    String? areaId,
+  }) async {
+    final refusing = refusal;
+    if (refusing != null) {
+      refused++;
+      return ApiResponse.error(refusing.message, code: refusing.code);
+    }
+    return super.registerProviderWithEmail(
+      email: email,
+      code: code,
+      phoneNumber: phoneNumber,
+      businessName: businessName,
+      businessType: businessType,
+      address: address,
+      areaId: areaId,
+    );
+  }
+
+  @override
+  Future<ApiResponse<ProviderUser>> registerProviderWithGoogle({
+    required String phoneNumber,
+    required String businessName,
+    required BusinessType businessType,
+    String? address,
+    String? areaId,
+  }) async {
+    final refusing = refusal;
+    if (refusing != null) {
+      refused++;
+      return ApiResponse.error(refusing.message, code: refusing.code);
+    }
+    return super.registerProviderWithGoogle(
+      phoneNumber: phoneNumber,
+      businessName: businessName,
+      businessType: businessType,
+      address: address,
+      areaId: areaId,
+    );
+  }
 }
 
 /// The e-mail the funnel registers with — kept out of `MockData`'s seeds.

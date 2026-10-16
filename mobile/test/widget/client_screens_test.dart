@@ -3,18 +3,22 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:myweli/core/constants/app_constants.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/core/theme/app_theme.dart';
 import 'package:myweli/core/theme/text_styles.dart';
 import 'package:myweli/core/utils/app_clock.dart';
 import 'package:myweli/models/api_response.dart';
+import 'package:myweli/models/appointment.dart';
 import 'package:myweli/models/salon_client.dart';
 import 'package:myweli/providers/pro_auth_provider.dart';
 import 'package:myweli/providers/pro_clients_provider.dart';
 import 'package:myweli/screens/provider/clients/client_detail_screen.dart';
 import 'package:myweli/screens/provider/clients/client_list_screen.dart';
+import 'package:myweli/services/interfaces/pro_clients_service_interface.dart';
 import 'package:myweli/services/mock/mock_auth_service.dart';
 import 'package:myweli/services/mock/mock_pro_clients_service.dart';
+import 'package:myweli/widgets/common/phone_number_field.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -24,7 +28,25 @@ import '../support/pump_app.dart';
 
 /// Toggleable mock: the educational empty state needs a salon with no
 /// clients, the rest uses the seeded base.
-class _SwitchableClients extends MockProClientsService {
+///
+/// It delegates to a seeded [MockProClientsService] that [reset] renews: the
+/// number change (phone-leftovers.md §8) writes to the base, a test must not
+/// inherit the previous one's numbers, and the locator slot this file fills is
+/// `late final` — one assignment, so the double stays and its base changes.
+class _SwitchableClients implements ProClientsServiceInterface {
+  MockProClientsService _base = MockProClientsService();
+
+  void reset() {
+    _base = MockProClientsService();
+    empty = false;
+    spent = null;
+    justVisited = null;
+    linkedNow.clear();
+    phoneAnswer = null;
+    visitReads = 0;
+    serverFields = null;
+  }
+
   bool empty = false;
 
   /// When set, the card's « Dépensé » — the mock's own is visits × 15 000,
@@ -36,8 +58,46 @@ class _SwitchableClients extends MockProClientsService {
     String providerId,
     String clientId,
   ) async {
-    final res = await super.getCard(providerId, clientId);
+    final res = await _base.getCard(providerId, clientId);
     final card = res.data;
+    final fields = serverFields;
+    if (card != null && fields != null) {
+      final c = card.client;
+      return ApiResponse.success(
+        SalonClientCard.fromJson({
+          'id': c.id,
+          'displayName': c.displayName,
+          'phone': c.phone,
+          'tags': c.tags,
+          'linked': c.linked,
+          'stats': {
+            'visits': card.stats.visits,
+            'spentFcfa': card.stats.spentFcfa,
+            'noShows': card.stats.noShows,
+            'cancellations': card.stats.cancellations,
+          },
+          'notes': const <Object>[],
+          ...fields,
+        }),
+      );
+    }
+    if (card != null && linkedNow.contains(clientId)) {
+      final c = card.client;
+      return ApiResponse.success(
+        card.copyWith(
+          client: SalonClient(
+            id: c.id,
+            displayName: c.displayName,
+            phone: c.phone,
+            tags: c.tags,
+            lastVisitAt: c.lastVisitAt,
+            linked: true,
+            visits: c.visits,
+            noShows: c.noShows,
+          ),
+        ),
+      );
+    }
     final override = spent;
     if (card == null || override == null) return res;
     return ApiResponse.success(
@@ -54,6 +114,75 @@ class _SwitchableClients extends MockProClientsService {
       ),
     );
   }
+
+  /// When set, the card is read from the JSON a server sends — with these
+  /// fields on top: `{}` is a server from before `phoneEditable`, whose PATCH
+  /// refuses a number (phone-leftovers.md §8).
+  Map<String, Object?>? serverFields;
+
+  /// Cards that were linked to an account since the screen read them — the
+  /// race behind a `client_linked` answer (phone-leftovers.md §8).
+  final Set<String> linkedNow = {};
+
+  /// When set, the number change's answer (a server refusal the mock's own
+  /// rule would not give, e.g. `invalid_phone` for a number the app accepts).
+  ApiResponse<SalonClientPhoneChange>? phoneAnswer;
+
+  /// How many times a card's history was read — the number change re-reads it.
+  int visitReads = 0;
+
+  @override
+  Future<ApiResponse<SalonClientPhoneChange>> updatePhone(
+    String providerId,
+    String clientId,
+    String phone,
+  ) async {
+    final scripted = phoneAnswer;
+    if (scripted == null) {
+      return _base.updatePhone(providerId, clientId, phone);
+    }
+    await Future<void>.delayed(AppConstants.mockDelay);
+    return scripted;
+  }
+
+  @override
+  Future<ApiResponse<List<Appointment>>> getVisits(
+    String providerId,
+    String clientId, {
+    int page = 1,
+  }) {
+    visitReads++;
+    return _base.getVisits(providerId, clientId, page: page);
+  }
+
+  @override
+  Future<ApiResponse<String>> addClient(
+    String providerId, {
+    required String name,
+    required String phone,
+    String? note,
+  }) => _base.addClient(providerId, name: name, phone: phone, note: note);
+
+  @override
+  Future<ApiResponse<SalonClient>> updateTags(
+    String providerId,
+    String clientId,
+    List<String> tags,
+  ) => _base.updateTags(providerId, clientId, tags);
+
+  @override
+  Future<ApiResponse<SalonClientNote>> addNote(
+    String providerId,
+    String clientId,
+    String body,
+  ) => _base.addNote(providerId, clientId, body);
+
+  @override
+  Future<ApiResponse<bool>> deleteNote(
+    String providerId,
+    String clientId,
+    String noteId,
+  ) => _base.deleteNote(providerId, clientId, noteId);
 
   @override
   Future<ApiResponse<SalonClientsPage>> listClients(
@@ -73,7 +202,7 @@ class _SwitchableClients extends MockProClientsService {
         SalonClientsPage(items: only, page: 1, total: only.length),
       );
     }
-    return super.listClients(providerId, query: query, tag: tag, page: page);
+    return _base.listClients(providerId, query: query, tag: tag, page: page);
   }
 
   /// When set, the whole list — clients whose last visit is a moment or a
@@ -95,11 +224,8 @@ void main() {
     serviceLocator.proClientsService = clients;
   });
 
-  setUp(() {
-    clients.empty = false;
-    clients.spent = null;
-    clients.justVisited = null;
-  });
+  // A fresh seeded base per test (see [_SwitchableClients]).
+  setUp(clients.reset);
 
   Widget app({
     String initial = '/pro/clients',
@@ -919,6 +1045,615 @@ void main() {
       );
       await tester.pump();
       expect(find.text('Ce tag est déjà ajouté.'), findsNothing);
+    });
+  });
+
+  // phone-leftovers.md §8 (owner, 2026-10-15) — a GUEST card's number can be
+  // changed, and its history follows it (the server moves the salon's walk-ins
+  // under the old number). A card linked to an account keeps the account's
+  // number, read-only. A number already on another card is refused, with a way
+  // to that card — never merged.
+  group('ClientDetailScreen — the number', () {
+    const sheetTitle = 'Modifier le numéro';
+    // The tag chip reads « Modifier » too (Tante Marie has « Fidèle »): the
+    // number's is the TextButton, and says what it edits to a screen reader.
+    Finder editButton() => find.widgetWithText(TextButton, 'Modifier');
+    Finder field() => find.descendant(
+      of: find.byType(PhoneNumberField),
+      matching: find.byType(TextField),
+    );
+    Finder save() => find.widgetWithText(ElevatedButton, 'Enregistrer');
+
+    /// The seeded guest, « Tante Marie », +225 07 00 00 00 03 (sc3).
+    Future<void> openSheet(WidgetTester tester, {double scale = 1}) async {
+      await tester.pumpWidget(
+        app(initial: '/pro/clients/sc3', scale: scale, realFonts: scale != 1),
+      );
+      await settle(tester);
+      await tester.tap(editButton());
+      await settle(tester);
+      expect(
+        find.text(sheetTitle),
+        findsOneWidget,
+        reason: 'the sheet is open',
+      );
+    }
+
+    Future<void> submit(WidgetTester tester, String national) async {
+      await tester.enterText(field(), national);
+      await tester.pump();
+      await tester.ensureVisible(save());
+      await tester.pump();
+      await tester.tap(save());
+      // The PATCH, then the history (or the other card's name).
+      await settle(tester);
+      await settle(tester);
+    }
+
+    testWidgets('a guest card offers « Modifier » under its number; the sheet '
+        'opens on that number, « Enregistrer » live', (tester) async {
+      await openSheet(tester);
+      expect(
+        tester.widget<TextField>(field()).controller!.text,
+        '0700000003',
+        reason: 'prefilled with the card\'s number, under +225',
+      );
+      expect(
+        tester.widget<ElevatedButton>(save()).onPressed,
+        isNotNull,
+        reason: '§14 rule 5: never disabled to express "invalid"',
+      );
+    });
+
+    testWidgets('a number the rule refuses is said under the field on submit; '
+        'nothing is saved and the sheet stays', (tester) async {
+      await openSheet(tester);
+      await tester.enterText(field(), '');
+      await tester.pump();
+      expect(
+        find.text('Saisissez un numéro de téléphone.'),
+        findsNothing,
+        reason: '§14 rule 2: silent until submitted',
+      );
+      await tester.tap(save());
+      await settle(tester);
+      expect(find.text('Saisissez un numéro de téléphone.'), findsOneWidget);
+      expect(find.byType(SnackBar), findsNothing, reason: 'never a bar');
+      expect(find.text(sheetTitle), findsOneWidget, reason: 'it stays open');
+
+      // Rule 2: once errored, it re-validates on change.
+      await tester.enterText(field(), '07000');
+      await tester.pump();
+      expect(
+        find.text('Le numéro doit comporter 10 chiffres après +225.'),
+        findsOneWidget,
+      );
+      await tester.enterText(field(), '0700000044');
+      await tester.pump();
+      expect(
+        find.text('Le numéro doit comporter 10 chiffres après +225.'),
+        findsNothing,
+      );
+    });
+
+    testWidgets('a new number: the sheet closes, the card shows it, its visits '
+        'are read again, and « Numéro mis à jour »', (tester) async {
+      await openSheet(tester);
+      final reads = clients.visitReads;
+
+      await submit(tester, '0700000033');
+
+      expect(find.text(sheetTitle), findsNothing, reason: 'the sheet closed');
+      expect(find.text('+225 07 00 00 00 33'), findsOneWidget);
+      expect(find.text('+225 07 00 00 00 03'), findsNothing);
+      expect(
+        clients.visitReads,
+        reads + 1,
+        reason: 'the history is read again — it follows the number',
+      );
+      expect(
+        find.widgetWithText(SnackBar, 'Numéro mis à jour'),
+        findsOneWidget,
+      );
+      // The count and the visit followed the number. (The history is below
+      // the fold: unscrolled, « Aucune visite » is simply not built, and an
+      // absence proves nothing — a mutation that left the visits behind
+      // passed that way.)
+      final visitsTile = find
+          .ancestor(of: find.text('Visites'), matching: find.byType(Column))
+          .first;
+      expect(
+        tester
+            .widgetList<Text>(
+              find.descendant(of: visitsTile, matching: find.byType(Text)),
+            )
+            .first
+            .data,
+        '1',
+      );
+      await tester.scrollUntilVisible(
+        find.text('Historique des visites'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.text('Historique des visites'), findsOneWidget);
+      expect(find.text('Aucune visite enregistrée.'), findsNothing);
+    });
+
+    testWidgets('a number already on another card: said under the field with '
+        'that client\'s name; « Ouvrir la fiche » opens that card', (
+      tester,
+    ) async {
+      await openSheet(tester);
+
+      await submit(tester, '0700000002'); // Koffi Yao's
+
+      const taken = 'Ce numéro est déjà sur la fiche de Koffi Yao.';
+      expect(find.text(taken), findsOneWidget, reason: 'under the field');
+      expect(find.byType(SnackBar), findsNothing, reason: 'never a bar');
+      expect(find.text(sheetTitle), findsOneWidget, reason: 'it stays open');
+      expect(find.text('Ouvrir la fiche'), findsOneWidget);
+
+      // Rule 2 covers the server's fault too: a changed number clears it, and
+      // the offer goes with it (it was about the number that was sent).
+      await tester.enterText(field(), '0700000044');
+      await tester.pump();
+      expect(find.text(taken), findsNothing);
+      expect(find.text('Ouvrir la fiche'), findsNothing);
+
+      await submit(tester, '0700000002');
+      await tester.ensureVisible(find.text('Ouvrir la fiche'));
+      await tester.pump();
+      await tester.tap(find.text('Ouvrir la fiche'));
+      // The sheet closes, the card is replaced, then it loads (card, visits).
+      await settle(tester);
+      await settle(tester);
+
+      expect(find.text(sheetTitle), findsNothing);
+      expect(find.text('Koffi Yao'), findsOneWidget, reason: 'his card');
+      expect(find.text('Tante Marie'), findsNothing);
+    });
+
+    // The way a card is usually reached: pushed from the list. « Ouvrir la
+    // fiche » takes the place of the card (the provider holds ONE open card —
+    // a card left underneath would come back showing the other client's), so
+    // « retour » lands on the list.
+    testWidgets(
+      'from the list: « Ouvrir la fiche » replaces the card, and back '
+      'is the list',
+      (tester) async {
+        await tester.pumpWidget(app());
+        await settle(tester);
+        await tester.tap(find.text('Tante Marie'));
+        await settle(tester);
+        await tester.tap(editButton());
+        await settle(tester);
+
+        await submit(tester, '0700000002');
+        await tester.ensureVisible(find.text('Ouvrir la fiche'));
+        await tester.pump();
+        await tester.tap(find.text('Ouvrir la fiche'));
+        await settle(tester);
+        await settle(tester);
+        expect(find.text('Koffi Yao'), findsOneWidget);
+        expect(find.text('Fiche client'), findsOneWidget);
+
+        await tester.tap(find.byType(BackButton)); // « Retour » (fr)
+        await settle(tester);
+        expect(find.text('Fiche client'), findsNothing, reason: 'the list');
+        expect(find.text('Tante Marie'), findsOneWidget);
+      },
+    );
+
+    testWidgets('from the list: after a change, back on the list the row shows '
+        'the new number', (tester) async {
+      await tester.pumpWidget(app());
+      await settle(tester);
+      expect(find.textContaining('+225 07 •• •• •03'), findsOneWidget);
+      await tester.tap(find.text('Tante Marie'));
+      await settle(tester);
+      await tester.tap(editButton());
+      await settle(tester);
+
+      await submit(tester, '0700000033');
+      await tester.tap(find.byType(BackButton)); // « Retour » (fr)
+      await settle(tester);
+
+      expect(find.text('Fiche client'), findsNothing, reason: 'the list');
+      expect(find.textContaining('+225 07 •• •• •33'), findsOneWidget);
+      expect(find.textContaining('+225 07 •• •• •03'), findsNothing);
+    });
+
+    testWidgets('the server refuses the number (invalid_phone): its fault is '
+        'under the field, in the field\'s words', (tester) async {
+      clients.phoneAnswer = ApiResponse.error(
+        'Numéro invalide.',
+        code: 'invalid_phone',
+      );
+      await openSheet(tester);
+
+      await submit(tester, '0700000044');
+
+      expect(
+        find.text('Saisissez un numéro de téléphone valide.'),
+        findsOneWidget,
+      );
+      expect(find.byType(SnackBar), findsNothing, reason: 'never a bar');
+      expect(find.text(sheetTitle), findsOneWidget, reason: 'it stays open');
+      // The field was disabled for the save — and a disabled field takes no
+      // focus until it is built enabled again.
+      expect(
+        tester.widget<TextField>(field()).focusNode!.hasFocus,
+        isTrue,
+        reason: 'focused on its fault (§14), once enabled again',
+      );
+    });
+
+    testWidgets('a card linked to an account meanwhile (client_linked): the '
+        'sheet closes and the card shows the account\'s number, read-only', (
+      tester,
+    ) async {
+      clients.phoneAnswer = ApiResponse.error(
+        'Numéro du compte client.',
+        code: 'client_linked',
+      );
+      await openSheet(tester);
+      clients.linkedNow.add('sc3');
+
+      await submit(tester, '0700000044');
+
+      expect(find.text(sheetTitle), findsNothing, reason: 'the sheet closed');
+      expect(find.text('Numéro du compte client'), findsOneWidget);
+      expect(editButton(), findsNothing, reason: 'nothing left to edit');
+      expect(find.byType(SnackBar), findsOneWidget, reason: 'and why');
+      expect(find.text('+225 07 00 00 00 03'), findsOneWidget);
+    });
+
+    testWidgets('a linked card: no « Modifier » on its number — « Numéro du '
+        'compte client » under it', (tester) async {
+      await tester.pumpWidget(app(initial: '/pro/clients/sc1'));
+      await settle(tester);
+      expect(find.text('+225 07 00 00 00 01'), findsOneWidget);
+      expect(find.text('Numéro du compte client'), findsOneWidget);
+      expect(editButton(), findsNothing);
+      expect(
+        find.text('Modifier'),
+        findsOneWidget,
+        reason: 'the only « Modifier » left is the tags\' chip',
+      );
+      final number = tester.getRect(find.text('+225 07 00 00 00 01'));
+      final caption = tester.getRect(find.text('Numéro du compte client'));
+      expect(caption.top, greaterThanOrEqualTo(number.bottom - 0.5));
+    });
+
+    // Which numbers the PATCH takes is the SERVER's to say (`phoneEditable` on
+    // the card), not the app's to guess from `linked` and `phone`: a server
+    // from before the change refuses any number (`invalid_tags` to `{phone}`),
+    // and an app that guessed would offer « Modifier » to fail on every try.
+    for (final (what, fields) in <(String, Map<String, Object?>)>[
+      ('a server from before the flag (absent)', {}),
+      ('a server that says no', {'phoneEditable': false}),
+    ]) {
+      testWidgets('a guest card with a number, $what: no « Modifier »', (
+        tester,
+      ) async {
+        clients.serverFields = fields;
+        await tester.pumpWidget(app(initial: '/pro/clients/sc3'));
+        await settle(tester);
+
+        expect(find.text('Tante Marie'), findsOneWidget);
+        expect(find.text('+225 07 00 00 00 03'), findsOneWidget);
+        expect(editButton(), findsNothing, reason: 'its PATCH takes no number');
+        expect(
+          find.text('Numéro du compte client'),
+          findsNothing,
+          reason: 'not an account\'s number either: nothing is said',
+        );
+      });
+    }
+
+    testWidgets('a guest card the server says is editable: « Modifier »', (
+      tester,
+    ) async {
+      clients.serverFields = {'phoneEditable': true};
+      await tester.pumpWidget(app(initial: '/pro/clients/sc3'));
+      await settle(tester);
+
+      expect(editButton(), findsOneWidget);
+    });
+
+    testWidgets(
+      '« Modifier » is a 48dp target whose label says what it edits',
+      (tester) async {
+        final semantics = tester.ensureSemantics();
+        await tester.pumpWidget(app(initial: '/pro/clients/sc3'));
+        await settle(tester);
+
+        final target = tester.getRect(editButton());
+        expect(target.width, greaterThanOrEqualTo(48));
+        expect(target.height, greaterThanOrEqualTo(48));
+        expect(
+          tester.getSemantics(editButton()),
+          isSemantics(
+            label: 'Modifier le numéro',
+            isButton: true,
+            hasTapAction: true,
+          ),
+          reason: 'two « Modifier » on one card: the reader hears which',
+        );
+        final number = tester.getRect(find.text('+225 07 00 00 00 03'));
+        expect(target.top, greaterThanOrEqualTo(number.bottom - 0.5));
+        // The card's other targets did not lose their floor around it.
+        await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
+        await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
+        semantics.dispose();
+      },
+    );
+
+    // While the number is being saved, the sheet stays — its answer is said in
+    // it, or on the card it closes onto. A sheet closed under a save left the
+    // late answer to pop the next route: the CARD (review, phone-leftovers).
+    group('during a save', () {
+      /// From the list, the way a card is usually reached: a card popped by
+      /// mistake shows as the list coming back.
+      Future<void> openFromList(WidgetTester tester) async {
+        await tester.pumpWidget(app());
+        await settle(tester);
+        await tester.tap(find.text('Tante Marie'));
+        await settle(tester);
+        await tester.tap(editButton());
+        await settle(tester);
+        expect(find.text(sheetTitle), findsOneWidget);
+      }
+
+      /// Presses « Enregistrer » with [national] and stops [after] it — the
+      /// mock answers the PATCH at 300 ms, the history read at 600 ms.
+      Future<void> saveAndHold(
+        WidgetTester tester,
+        String national, {
+        Duration after = const Duration(milliseconds: 100),
+      }) async {
+        await tester.enterText(field(), national);
+        await tester.pump();
+        await tester.ensureVisible(save());
+        await tester.pump();
+        await tester.tap(save());
+        await tester.pump();
+        await tester.pump(after);
+      }
+
+      /// The sheet's exit animation is 200 ms: past it, a closed sheet is
+      /// gone from the tree.
+      const pastExit = Duration(milliseconds: 250);
+
+      Future<void> expectClosedOnTheCard(WidgetTester tester) async {
+        await settle(tester);
+        await settle(tester);
+        expect(find.text(sheetTitle), findsNothing, reason: 'the answer');
+        expect(find.text('Fiche client'), findsOneWidget, reason: 'the card');
+        expect(find.text('+225 07 00 00 00 33'), findsOneWidget);
+        expect(
+          find.widgetWithText(SnackBar, 'Numéro mis à jour'),
+          findsOneWidget,
+        );
+      }
+
+      testWidgets('« retour » and the scrim do not close the sheet; the answer '
+          'does, onto the card', (tester) async {
+        await openFromList(tester);
+        await saveAndHold(tester, '0700000033');
+
+        await tester.binding.handlePopRoute(); // « retour » (Android)
+        await tester.pump();
+        await tester.pump(pastExit);
+        expect(find.text(sheetTitle), findsOneWidget, reason: '« retour »');
+
+        await tester.tapAt(const Offset(20, 20)); // the scrim
+        await tester.pump();
+        await tester.pump(pastExit);
+        expect(find.text(sheetTitle), findsOneWidget, reason: 'the scrim');
+
+        await expectClosedOnTheCard(tester);
+      });
+
+      testWidgets('a drag down does not close the sheet; the answer does', (
+        tester,
+      ) async {
+        await openFromList(tester);
+        await saveAndHold(tester, '0700000033');
+
+        await tester.drag(find.text(sheetTitle), const Offset(0, 400));
+        await tester.pump();
+        await tester.pump(pastExit);
+        expect(find.text(sheetTitle), findsOneWidget, reason: 'the drag');
+
+        await expectClosedOnTheCard(tester);
+      });
+
+      // The drag taken while saving is not an action: a screen reader is not
+      // offered a « scroll » on a sheet that does not scroll.
+      testWidgets('while saving, the sheet offers a screen reader no scroll', (
+        tester,
+      ) async {
+        final semantics = tester.ensureSemantics();
+        await openFromList(tester);
+        expect(find.semantics.byAction(SemanticsAction.scrollUp), findsNothing);
+
+        await saveAndHold(tester, '0700000033');
+
+        expect(find.semantics.byAction(SemanticsAction.scrollUp), findsNothing);
+        expect(
+          find.semantics.byAction(SemanticsAction.scrollDown),
+          findsNothing,
+        );
+        await settle(tester);
+        await settle(tester);
+        semantics.dispose();
+      });
+
+      testWidgets('idle, a drag down still closes the sheet', (tester) async {
+        await openFromList(tester);
+
+        await tester.drag(find.text(sheetTitle), const Offset(0, 400));
+        await tester.pump();
+        await tester.pump(pastExit);
+
+        expect(find.text(sheetTitle), findsNothing);
+        expect(find.text('Fiche client'), findsOneWidget);
+      });
+
+      // Any way past the sheet's own guard (a pop from code, the router):
+      // the answer lands while the closed sheet is still animating out —
+      // mounted — and its pop would take the next route, the card.
+      testWidgets('the sheet removed under a save: its late answer leaves the '
+          'card where it is', (tester) async {
+        await openFromList(tester);
+        await saveAndHold(
+          tester,
+          '0700000033',
+          after: const Duration(milliseconds: 450),
+        );
+
+        Navigator.of(tester.element(find.text(sheetTitle))).pop();
+        // 610 ms: the answer (600) lands inside the exit animation (to 650).
+        await tester.pump(const Duration(milliseconds: 160));
+        await settle(tester);
+
+        expect(find.text(sheetTitle), findsNothing);
+        expect(
+          find.text('Fiche client'),
+          findsOneWidget,
+          reason: 'the card was not popped by the sheet\'s late answer',
+        );
+        expect(
+          find.text('+225 07 00 00 00 33'),
+          findsOneWidget,
+          reason: 'the change was made all the same',
+        );
+      });
+
+      testWidgets('the field is disabled while saving, and editable again '
+          'with the answer', (tester) async {
+        await openSheet(tester);
+        await saveAndHold(tester, '0700000002'); // Koffi Yao's
+
+        expect(
+          tester.widget<TextField>(field()).enabled,
+          isFalse,
+          reason: 'the number being sent is the one shown',
+        );
+
+        await settle(tester);
+        await settle(tester);
+        expect(
+          find.text('Ce numéro est déjà sur la fiche de Koffi Yao.'),
+          findsOneWidget,
+        );
+        expect(tester.widget<TextField>(field()).enabled, isTrue);
+      });
+
+      /// An edit that reaches the sheet while the answer is out, whatever its
+      /// way (the field itself is disabled then).
+      void editMeanwhile(WidgetTester tester, String e164) => tester
+          .widget<PhoneNumberField>(find.byType(PhoneNumberField))
+          .onChanged(e164);
+
+      testWidgets('a refusal of a number no longer in the field is not said '
+          'about the one that is', (tester) async {
+        await openSheet(tester);
+        await saveAndHold(tester, '0700000002'); // Koffi Yao's
+
+        editMeanwhile(tester, '+2250700000044');
+        await tester.pump();
+        await settle(tester);
+        await settle(tester);
+
+        expect(
+          find.text('Ce numéro est déjà sur la fiche de Koffi Yao.'),
+          findsNothing,
+          reason: 'about 02, and the field holds 44',
+        );
+        expect(find.text('Ouvrir la fiche'), findsNothing);
+        expect(find.text(sheetTitle), findsOneWidget);
+      });
+
+      testWidgets('a change made for a number no longer in the field does not '
+          'close the sheet; the card holds it, so the field\'s is a change', (
+        tester,
+      ) async {
+        await openSheet(tester); // the card: 03
+        await saveAndHold(tester, '0700000033');
+
+        editMeanwhile(tester, '+2250700000003'); // back to the card's
+        await tester.pump();
+        await settle(tester);
+        await settle(tester);
+
+        expect(find.text(sheetTitle), findsOneWidget, reason: 'stays open');
+        expect(find.byType(SnackBar), findsNothing);
+        expect(
+          find.text('+225 07 00 00 00 33'),
+          findsOneWidget,
+          reason: 'the card below holds what was saved',
+        );
+
+        // 03 is no longer the card's number: saving it is a change, not
+        // « nothing to change ».
+        await tester.ensureVisible(save());
+        await tester.pump();
+        await tester.tap(save());
+        await settle(tester);
+        await settle(tester);
+
+        expect(find.text(sheetTitle), findsNothing);
+        expect(find.text('+225 07 00 00 00 03'), findsOneWidget);
+        expect(find.text('+225 07 00 00 00 33'), findsNothing);
+      });
+    });
+
+    testWidgets('the open sheet: every target ≥48dp and labelled (§13.2)', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(360, 780);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final semantics = tester.ensureSemantics();
+      await openSheet(tester);
+      await submit(tester, '0700000002'); // the fault + « Ouvrir la fiche »
+      await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
+      await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
+      semantics.dispose();
+    });
+
+    testWidgets('the sheet at 360dp × 2: whole, its fault and both actions '
+        'reachable', (tester) async {
+      tester.view.physicalSize = const Size(360, 780);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      const at = 'the number sheet at 360 × 2';
+
+      await openSheet(tester, scale: 2);
+      expect(tester.takeException(), isNull);
+
+      await submit(tester, '0700000002');
+      expect(tester.takeException(), isNull);
+
+      const taken = 'Ce numéro est déjà sur la fiche de Koffi Yao.';
+      expectNoMidWordBreak(tester, taken, at);
+      expectNoMidWordBreak(tester, 'Ouvrir la fiche', at);
+      expectNoMidWordBreak(tester, 'Enregistrer', at);
+      expectNoUndeclaredTruncation(tester, context: at);
+
+      // Both actions can be reached and pressed: the sheet scrolls.
+      await tester.ensureVisible(save());
+      await tester.pump();
+      expect(tester.getRect(save()).bottom, lessThanOrEqualTo(780 + 0.5));
+      await tester.ensureVisible(find.text('Ouvrir la fiche'));
+      await tester.pump();
+      await tester.tap(find.text('Ouvrir la fiche'));
+      await settle(tester);
+      await settle(tester);
+      expect(find.text('Koffi Yao'), findsOneWidget);
     });
   });
 }

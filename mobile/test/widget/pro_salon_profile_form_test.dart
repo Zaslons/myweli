@@ -372,6 +372,89 @@ void main() {
     verifyNever(() => pro.updateSalonProfile(any(), any()));
   });
 
+  // ---- phone-leftovers.md §2: the server's verdict, under ITS field -------
+  //
+  // `PATCH /providers/{id}` refused either number as `invalid_input` — the
+  // code of every other field too — so the screen could only print
+  // « Informations invalides. » in a bar that named no field. Two phone fields
+  // on one form: the server now says which, `invalid_phone` (téléphone) or
+  // `invalid_whatsapp`.
+
+  const refusedNumber = 'Saisissez un numéro de téléphone valide.';
+
+  /// The save refused by the server under [code], with the message
+  /// `ApiProService._messageFor` gives it.
+  void refuseSave(String code, String message) => when(
+    () => pro.updateSalonProfile(any(), any()),
+  ).thenAnswer((_) async => ApiResponse.error(message, code: code));
+
+  testWidgets('the server\'s `invalid_phone` lands under « Téléphone », not in '
+      'a bar', (tester) async {
+    refuseSave(
+      'invalid_phone',
+      'Numéro invalide (format international, ex. +2250700000000).',
+    );
+    await openForm(tester);
+
+    await tester.tap(find.text('Enregistrer'));
+    await settle(tester);
+
+    verify(() => pro.updateSalonProfile(any(), any())).called(1);
+    expect(
+      under(0, refusedNumber),
+      findsOneWidget,
+      reason: '§14 rule 1 — under the field the server refused',
+    );
+    expect(under(1, refusedNumber), findsNothing, reason: 'not under WhatsApp');
+    expect(
+      find.byType(SnackBar),
+      findsNothing,
+      reason: '§14 rule 3 — a field fault is never a bar',
+    );
+    expect(
+      find.text('Profil du salon'),
+      findsOneWidget,
+      reason: 'a refused save does not pop',
+    );
+
+    // Rule 2: a changed number that passes the client rule clears it.
+    await tester.enterText(phone(), '0711223355');
+    await tester.pump();
+    expect(find.text(refusedNumber), findsNothing);
+  });
+
+  testWidgets('the server\'s `invalid_whatsapp` lands under « WhatsApp », not '
+      'under « Téléphone »', (tester) async {
+    refuseSave('invalid_whatsapp', 'Une erreur est survenue.');
+    await openForm(tester);
+
+    await tester.tap(find.text('Enregistrer'));
+    await settle(tester);
+
+    verify(() => pro.updateSalonProfile(any(), any())).called(1);
+    expect(under(1, refusedNumber), findsOneWidget);
+    expect(
+      under(0, refusedNumber),
+      findsNothing,
+      reason: 'the code says which of the two numbers',
+    );
+    expect(find.byType(SnackBar), findsNothing);
+  });
+
+  testWidgets('any other refusal is still the bar it was', (tester) async {
+    refuseSave('invalid_input', 'Informations invalides.');
+    await openForm(tester);
+
+    await tester.tap(find.text('Enregistrer'));
+    await settle(tester);
+
+    expect(
+      find.widgetWithText(SnackBar, 'Informations invalides.'),
+      findsOneWidget,
+    );
+    expect(find.text(refusedNumber), findsNothing);
+  });
+
   // The position map is a fixed 240dp box. flutter_map's own credits popup
   // opened INSIDE it and overflowed at 2× text on a phone (140px), and the
   // « Utiliser ma position » row overflowed sideways from 1.5× (134px; 272 at

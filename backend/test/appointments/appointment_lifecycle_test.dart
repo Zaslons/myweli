@@ -18,6 +18,7 @@ import 'package:test/test.dart';
 
 import '../../routes/appointments/[id]/cancel.dart' as cancel_route;
 import '../../routes/appointments/[id]/reschedule.dart' as reschedule_route;
+import '../http/observed.dart';
 
 class _MockRequestContext extends Mock implements RequestContext {}
 
@@ -475,6 +476,21 @@ void main() {
         id,
       );
       expect(bad.statusCode, HttpStatus.badRequest);
+
+      // A field of the wrong JSON type → 400 invalid_body, not 500
+      // (docs/design/phone-leftovers.md §3), and the date does not move.
+      for (final body in <Map<String, Object?>>[
+        {'newDateTime': 1760000000},
+        {'newDateTime': _slotAt(11).toIso8601String(), 'artistId': 5},
+      ]) {
+        final res = await observed(
+          (c) => reschedule_route.onRequest(c, id),
+          ctx(post('/appointments/$id/reschedule', accessA, body)),
+        );
+        expect(res.statusCode, HttpStatus.badRequest, reason: '$body');
+        expect((await res.json() as Map)['error'], 'invalid_body');
+      }
+      expect((await appts.byId(id))!['appointmentDate'], newDate);
     });
 
     test(

@@ -12,6 +12,7 @@ import {
 } from '../../lib/api/pro';
 import { useFieldErrors } from '../../lib/forms/useFieldErrors';
 import { operatorsFor } from '../../lib/localities';
+import { PHONE_INVALID } from '../../lib/phone';
 import {
   type DepositForm,
   buildDepositPayload,
@@ -27,9 +28,16 @@ import { PhoneField } from '../PhoneField';
 const input =
   'block w-full min-h-12 rounded-lg border border-borderStrong bg-surface p-m text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus disabled:border-border disabled:text-textDisabled';
 
-// The Mobile Money number's check (a module constant: useFieldErrors keys
-// its callbacks on this object's identity).
-const NUMBER_CHECK = { number: validateDepositNumber };
+// The Mobile Money number's check, per switch position: required while a
+// deposit is collected, optional otherwise — but judged whenever it is kept
+// (docs/design/phone-leftovers.md §6). Module constants: useFieldErrors keys
+// its callbacks on the object's identity.
+const NUMBER_REQUIRED = {
+  number: (v: string) => validateDepositNumber(v, { required: true }),
+};
+const NUMBER_OPTIONAL = {
+  number: (v: string) => validateDepositNumber(v, { required: false }),
+};
 
 export function AcompteClient() {
   const router = useRouter();
@@ -48,7 +56,15 @@ export function AcompteClient() {
   const [verified, setVerified] = useState(false);
   // « Numéro Mobile Money » answers UNDER its field (§14 rules 1/2 —
   // docs/design/phone-national-length.md); the rest stays form-level.
-  const fields = useFieldErrors(NUMBER_CHECK);
+  const fields = useFieldErrors(
+    form?.required ? NUMBER_REQUIRED : NUMBER_OPTIONAL,
+  );
+  // Deposits off hide the number — and with it the one place a refused number
+  // can be shown and fixed (the app's `_showNumberWhileOff`). Set by a refused
+  // save; it stays while the salon fixes the number (the field must not vanish
+  // the moment it turns valid), and goes once that is done: a successful save,
+  // or the switch moved — then the field is the switch's again.
+  const [showNumberWhileOff, setShowNumberWhileOff] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -91,12 +107,11 @@ export function AcompteClient() {
 
   async function save() {
     const f = form as DepositForm;
-    // The number is checked where it is sent: a required deposit (a hidden
-    // field keeps no stale fault). Both checks run, so every fault shows at
-    // once.
-    let numberOk = true;
-    if (f.required) numberOk = fields.validate({ number: f.number });
-    else fields.clear();
+    // The number is checked where it is sent — and it is sent whatever the
+    // switch says (docs/design/phone-leftovers.md §6). Both checks run, so
+    // every fault shows at once.
+    const numberOk = fields.validate({ number: f.number });
+    if (!numberOk && !f.required) setShowNumberWhileOff(true);
     const v = validateDeposit(f);
     setError(v);
     if (v || !numberOk) return;
@@ -108,6 +123,13 @@ export function AcompteClient() {
     );
     setBusy(false);
     if (!r.ok) {
+      // The server names the number (phone-leftovers §2): under its field —
+      // revealed first when deposits are off.
+      if (r.error === 'invalid_phone') {
+        fields.set('number', PHONE_INVALID);
+        if (!f.required) setShowNumberWhileOff(true);
+        return;
+      }
       setError(
         r.error === 'verification_required'
           ? 'Vérifiez votre compte pour activer les acomptes.'
@@ -115,6 +137,7 @@ export function AcompteClient() {
       );
       return;
     }
+    setShowNumberWhileOff(false);
     setSaved(true);
   }
 
@@ -144,7 +167,10 @@ export function AcompteClient() {
             type="checkbox"
             disabled={!verified}
             checked={form.required}
-            onChange={(e) => set('required', e.target.checked)}
+            onChange={(e) => {
+              set('required', e.target.checked);
+              setShowNumberWhileOff(false);
+            }}
           />
           Exiger un acompte
         </label>
@@ -190,19 +216,22 @@ export function AcompteClient() {
                 </select>
               )}
             </label>
-            {/* The shared PhoneField (+225 on screen — parity with the app).
-                It mounts with the switch, after the policy has loaded, so its
-                initialValue is the stored number. */}
-            <PhoneField
-              label="Numéro Mobile Money"
-              initialValue={form.number}
-              onChange={(v) => {
-                set('number', v);
-                fields.revalidate('number', v);
-              }}
-              error={fields.errors.number}
-            />
           </>
+        ) : null}
+        {/* The shared PhoneField (+225 on screen — parity with the app). It
+            mounts with the switch — or with a refusal while deposits are off —
+            after the policy has loaded, so its initialValue is the current
+            number. */}
+        {form.required || showNumberWhileOff ? (
+          <PhoneField
+            label="Numéro Mobile Money"
+            initialValue={form.number}
+            onChange={(v) => {
+              set('number', v);
+              fields.revalidate('number', v);
+            }}
+            error={fields.errors.number}
+          />
         ) : null}
 
         <label className="block text-bodyMedium text-textTertiary">

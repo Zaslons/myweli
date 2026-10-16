@@ -12,12 +12,14 @@ import 'package:myweli/core/utils/phone_numbering.dart';
 ///    on one side only would let the app accept what the server refuses, or
 ///    refuse what it accepts;
 /// 2. no other file under `lib/` writes the CURRENT length (10) as a rule —
-///    `{10}`, `.length ==/!= 10`, « 10 chiffres » or a `'225': 10` row.
-///    `Validators.localPhoneNumber` was exactly that (outside every seam, no
-///    caller), and nothing could see it. What this grep does NOT see: a length
-///    written any other way (`length != 13`, `\d{8,10}`). One such holdover is
-///    known — `Helpers.maskPhoneNumber`, the pre-2021 8-digit form, used only
-///    by the dormant OTP screens (phone-national-length.md §11.4).
+///    `{10}`, `.length ==/!= 10`, « 10 chiffres » or a `'225': 10` row — nor
+///    ANY length compared on a line that names the calling code
+///    (`startsWith('+225') && cleaned.length == 12`).
+///    `Validators.localPhoneNumber` was the first shape (outside every seam, no
+///    caller); the OTP screens' pre-2021 8-digit mask was the second, until
+///    phone-leftovers.md §5 made it generic. What this grep does NOT see:
+///    another length on a line without `225`, or a quantifier other than
+///    `{10}` (`\d{8,10}`).
 void main() {
   /// Same stripper as `salon_time_pin_test.dart`: prose about a rule is not
   /// the rule, and a pin that reddens on its own documentation gets routed
@@ -48,6 +50,25 @@ void main() {
         );
       },
     );
+
+    // phone-leftovers.md §8: one reading of a stored number's calling code —
+    // `PhoneNumberField`'s prefill, `Helpers.maskPhoneNumber` and
+    // `maskClientPhone` all take it from here.
+    test('callingCodeOf reads the LONGEST calling code the digits start '
+        'with', () {
+      expect(PhoneNumbering.callingCodeOf('2250707123456'), '225');
+      expect(
+        PhoneNumbering.callingCodeOf('33612345678'),
+        '33',
+        reason: 'France, not « 336 »',
+      );
+      expect(PhoneNumbering.callingCodeOf('14155550123'), '1');
+      expect(
+        PhoneNumbering.callingCodeOf('0707123456'),
+        '',
+        reason: 'no calling code starts with 0',
+      );
+    });
 
     test('nationalLengthFor finds the row by calling code, or says none', () {
       expect(PhoneNumbering.nationalLengthFor('+2250700000'), (
@@ -121,9 +142,13 @@ void main() {
     );
 
     /// The ways a digit count gets hard-coded: a `{10}` quantifier, a length
-    /// compared to 10, « 10 chiffres » in a message, or a `'225': 10` row.
+    /// compared to 10, « 10 chiffres » in a message, a `'225': 10` row — or a
+    /// length compared to ANY number on the same line as the calling code,
+    /// which is how `maskPhoneNumber` wrote the pre-2021 one.
     final lengthRule = RegExp(
-      r"""\{10\}|\.length\s*[!=]=\s*10\b|\b10\s+chiffres|['"]\+?225['"]\s*:\s*10\b""",
+      r"""\{10\}|\.length\s*[!=]=\s*10\b|\b10\s+chiffres|['"]\+?225['"]\s*:\s*10\b"""
+      r'|225[^\n;]*\.length\s*(?:[!=]=|[<>]=?)\s*\d+'
+      r'|\.length\s*(?:[!=]=|[<>]=?)\s*\d+[^\n;]*225',
     );
 
     bool holdsRule(String src) {
@@ -163,6 +188,37 @@ void f() {}
         offenders({'lib/screens/x.dart': prose}),
         isEmpty,
         reason: 'a comment is not code',
+      );
+    });
+
+    test('the matcher sees a length of ANY value beside the calling code — '
+        'the pre-2021 mask', () {
+      // `Helpers.maskPhoneNumber` as it stood before phone-leftovers.md §5: a
+      // 12-character `+225` number (8 national digits), written in the helper.
+      // The `{10}`-and-`10 chiffres` half of this pin could not see it.
+      const legacyMask = '''
+static String maskPhoneNumber(String phone) {
+  final cleaned = phone.replaceAll(RegExp(r'[\\s\\-\\(\\)]'), '');
+  if (cleaned.startsWith('+225') && cleaned.length == 12) {
+    return '+225 XX XX \${cleaned.substring(10)}';
+  }
+  return phone;
+}
+''';
+      const reversed = '''
+bool f(String p) => p.length != 13 && p.startsWith('+225');
+''';
+      const unrelated = '''
+bool otp(String code, String phone) => code.length == 6 && phone.isNotEmpty;
+''';
+      expect(offenders({'lib/core/utils/helpers.dart': legacyMask}), [
+        'lib/core/utils/helpers.dart',
+      ]);
+      expect(offenders({'lib/x.dart': reversed}), ['lib/x.dart']);
+      expect(
+        offenders({'lib/x.dart': unrelated}),
+        isEmpty,
+        reason: 'a length on a line that does not name the calling code',
       );
     });
 

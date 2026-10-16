@@ -571,6 +571,78 @@ test('client card: « Nouveau rendez-vous » opens the dialog pre-picked (C1b de
   await expect(page.getByText('Rendez-vous créé')).toBeVisible();
 });
 
+test('client card: a guest’s number is edited, its history follows; a duplicate is refused; a linked card is read-only (phone-leftovers §8)', async ({
+  page,
+}) => {
+  // Numbers of its own: the stub is shared by every spec of the run, and
+  // Koffi's (+2250700000001) is the one this test must collide with.
+  const eight = () => String(Math.floor(Math.random() * 1e8)).padStart(8, '0');
+  const first = `+22507${eight()}`;
+  const second = `+22505${eight()}`;
+  const grouped = (e164: string) =>
+    `+225 ${e164.slice(4).match(/../g)!.join(' ')}`;
+
+  await signInPro(page);
+  await page.goto('/pro/clients');
+  await page.getByRole('button', { name: '+ Ajouter un client' }).click();
+  const add = page.getByRole('dialog', { name: 'Ajouter un client' });
+  await add.getByLabel('Nom').fill('Cliente Numéro');
+  await add.getByLabel('Téléphone', { exact: true }).fill(first);
+  await add.getByRole('button', { name: 'Ajouter' }).click();
+  await expect(page).toHaveURL(/\/pro\/clients\/sc\d+$/);
+  await expect(page.getByRole('heading', { name: 'Cliente Numéro' })).toBeVisible();
+  await expect(page.getByText('Aucune visite enregistrée.')).toBeVisible();
+
+  // A manual booking on the first number: the guest's history.
+  await page.getByRole('button', { name: 'Nouveau rendez-vous' }).click();
+  const booking = page.getByRole('dialog', { name: 'Nouveau rendez-vous' });
+  await booking.getByRole('checkbox').first().check();
+  await booking.getByLabel('Date du rendez-vous').fill('2099-01-15');
+  await booking.getByLabel('Heure du rendez-vous').fill('16:00');
+  await booking.getByRole('button', { name: 'Créer', exact: true }).click();
+  await expect(page.getByText('Rendez-vous créé')).toBeVisible();
+  await expect(page.getByText('Aucune visite enregistrée.')).toHaveCount(0);
+
+  // Koffi's number: refused, named, and the way to his card.
+  await page.getByRole('button', { name: 'Modifier le numéro' }).click();
+  const edit = page.getByRole('dialog', { name: 'Modifier le numéro' });
+  const phone = edit.getByLabel('Numéro de téléphone', { exact: true });
+  await phone.fill('+2250700000001');
+  await edit.getByRole('button', { name: 'Enregistrer' }).click();
+  await expect(edit.getByText('Ce numéro est déjà sur la fiche de Koffi.')).toBeVisible();
+  await expect(edit.getByRole('link', { name: 'Ouvrir la fiche' })).toHaveAttribute(
+    'href',
+    '/pro/clients/sc1',
+  );
+
+  // A free number: saved, said, and the booking is still this card's.
+  await phone.fill(second);
+  await edit.getByRole('button', { name: 'Enregistrer' }).click();
+  await expect(page.getByText('Numéro mis à jour')).toBeVisible();
+  await expect(edit).toHaveCount(0);
+  await expect(page.getByText(grouped(second))).toBeVisible();
+  // Not on the screen the save left: the post-save reload shows the new
+  // number BEFORE it reads the visits, so the old list (the booking on the
+  // first number) is still there and would pass any check here. A full read
+  // renders the card only once its visits have arrived — the history that
+  // shows then is the one on the NEW number.
+  await page.reload();
+  await expect(page.getByText(grouped(second))).toBeVisible();
+  // The booking made above, by its row: its date and its status.
+  const visit = page
+    .getByRole('listitem')
+    .filter({ hasText: '15 janvier 2099 à 16:00' });
+  await expect(visit).toHaveCount(1);
+  await expect(visit.getByText('Confirmé')).toBeVisible();
+  await expect(page.getByText('Aucune visite enregistrée.')).toHaveCount(0);
+
+  // Koffi's card is linked to an account: its number is the account's.
+  await page.goto('/pro/clients/sc1');
+  await expect(page.getByRole('heading', { name: /Koffi/ })).toBeVisible();
+  await expect(page.getByText('Numéro du compte client')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Modifier le numéro' })).toHaveCount(0);
+});
+
 test('« Avis » shows the summary + review cards (web-pro-reviews.md)', async ({
   page,
 }) => {

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:dart_frog/dart_frog.dart';
 import 'package:myweli_backend/src/auth/principal.dart';
 import 'package:myweli_backend/src/clients/clients_service.dart';
+import 'package:myweli_backend/src/http/body_fields.dart';
 import 'package:myweli_backend/src/responses.dart';
 
 /// `POST /providers/{id}/clients/{clientId}/notes` — add an internal note
@@ -33,7 +34,7 @@ Future<Response> onRequest(
     principal.userId,
     id,
     clientId,
-    (body['body'] as String?) ?? '',
+    optionalString(body, 'body') ?? '',
   );
   if (!r.ok && r.error == 'note_too_long') {
     return jsonError(HttpStatus.badRequest, 'note_too_long');

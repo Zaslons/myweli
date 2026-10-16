@@ -12,6 +12,7 @@ import 'package:test/test.dart';
 
 import '../routes/appointments/[id]/review.dart' as review_route;
 import '../routes/providers/[id]/reviews/index.dart' as list_route;
+import 'http/observed.dart';
 
 class _MockRequestContext extends Mock implements RequestContext {}
 
@@ -201,7 +202,7 @@ void main() {
       await seedCompleted('appt1');
       Future<String?> err({
         Object? rating,
-        Object? text,
+        String? text,
         Object? photos,
       }) async => (await service.submitForAppointment(
         'user_A',
@@ -344,6 +345,25 @@ void main() {
         'provider1',
       );
       expect(badVerb.statusCode, HttpStatus.methodNotAllowed);
+    });
+
+    test('a non-text `text` → 400 invalid_body, not 500, and no review '
+        '(docs/design/phone-leftovers.md §3)', () async {
+      // The service cast `text as String?` with nothing checking it first.
+      await seedCompleted('appt1');
+      final res = await observed(
+        (c) => review_route.onRequest(c, 'appt1'),
+        ctx(
+          Request.post(
+            Uri.parse('http://localhost/appointments/appt1/review'),
+            headers: {'Authorization': 'Bearer $accessA'},
+            body: '{"rating":5,"text":42}',
+          ),
+        ),
+      );
+      expect(res.statusCode, HttpStatus.badRequest);
+      expect((await res.json() as Map)['error'], 'invalid_body');
+      expect(await reviewsRepo.reviewByAppointment('appt1'), isNull);
     });
   });
 }

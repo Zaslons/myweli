@@ -9,6 +9,7 @@ import 'package:myweli_backend/src/access/capabilities.dart';
 import 'package:myweli_backend/src/access/membership_service.dart';
 import 'package:myweli_backend/src/appointments/booking_service.dart';
 import 'package:myweli_backend/src/auth/principal.dart';
+import 'package:myweli_backend/src/http/body_fields.dart';
 import 'package:myweli_backend/src/responses.dart';
 import 'package:myweli_backend/src/validators.dart';
 
@@ -48,16 +49,21 @@ Future<Response> onRequest(RequestContext context, String id) async {
     return jsonError(HttpStatus.badRequest, 'invalid_body');
   }
 
+  // Every field read by type before any rule runs: a wrong JSON type is a
+  // 400 invalid_body whichever field it is (docs/design/phone-leftovers.md §3).
   final serviceIds =
-      (body['serviceIds'] as List?)?.whereType<String>().toList() ?? const [];
-  final dateRaw = body['appointmentDateTime'] as String?;
+      optionalList(body, 'serviceIds')?.whereType<String>().toList() ??
+      const [];
+  final dateRaw = optionalString(body, 'appointmentDateTime');
+  final clientName = optionalString(body, 'clientName')?.trim();
+  final clientPhone = optionalString(body, 'clientPhone')?.trim();
+  final artistId = optionalString(body, 'artistId')?.trim();
+  final notes = optionalString(body, 'notes');
   final dateTime = dateRaw == null ? null : DateTime.tryParse(dateRaw);
   if (serviceIds.isEmpty || dateTime == null) {
     return jsonError(HttpStatus.badRequest, 'invalid_input');
   }
 
-  final clientName = (body['clientName'] as String?)?.trim();
-  final clientPhone = (body['clientPhone'] as String?)?.trim();
   if (clientPhone != null &&
       clientPhone.isNotEmpty &&
       !isValidPhoneNumber(clientPhone)) {
@@ -68,12 +74,12 @@ Future<Response> onRequest(RequestContext context, String id) async {
     providerId: id,
     serviceIds: serviceIds,
     appointmentDateTime: dateTime,
-    artistId: (body['artistId'] as String?)?.trim(),
+    artistId: artistId,
     clientName: (clientName == null || clientName.isEmpty) ? null : clientName,
     clientPhone: (clientPhone == null || clientPhone.isEmpty)
         ? null
         : clientPhone,
-    notes: body['notes'] as String?,
+    notes: notes,
   );
   if (!result.ok) {
     // **A strict subset of the client route's switch, on purpose.** Three of

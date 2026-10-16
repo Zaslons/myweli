@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:dart_frog/dart_frog.dart';
 import 'package:myweli_backend/src/auth/principal.dart';
 import 'package:myweli_backend/src/clients/clients_service.dart';
+import 'package:myweli_backend/src/http/body_fields.dart';
 import 'package:myweli_backend/src/responses.dart';
 import 'package:myweli_backend/src/validators.dart';
 
@@ -57,8 +58,9 @@ Future<Response> _create(
   } catch (_) {
     return jsonError(HttpStatus.badRequest, 'invalid_body');
   }
-  final name = (body['name'] as String?)?.trim() ?? '';
-  final phone = (body['phone'] as String?)?.trim() ?? '';
+  final name = optionalString(body, 'name')?.trim() ?? '';
+  final phone = optionalString(body, 'phone')?.trim() ?? '';
+  final note = optionalString(body, 'note');
   if (name.isEmpty) return jsonError(HttpStatus.badRequest, 'invalid_input');
   if (!isValidPhoneNumber(phone)) {
     return jsonError(HttpStatus.badRequest, 'invalid_phone');
@@ -69,7 +71,7 @@ Future<Response> _create(
     providerId,
     name: name,
     phone: phone,
-    note: body['note'] as String?,
+    note: note,
   );
   if (!r.ok) {
     if (r.error == 'client_exists') {

@@ -14,6 +14,8 @@
 /// Design: docs/design/phone-national-length.md
 library;
 
+import 'package:intl_phone_field/countries.dart';
+
 const Map<String, int> kNationalNumberLength = {'225': 10};
 
 /// The phone number as one value, everywhere one is typed.
@@ -49,6 +51,23 @@ class PhoneNumbering {
       }
     }
     return digits.isEmpty ? '' : '+$callingCode$digits';
+  }
+
+  /// The longest calling code in the picker's country list that [digits] (an
+  /// E.164 number without its `+`) starts with, or `''` — `33612345678` is
+  /// France (`33`), not `336`. The one reading of a stored number's calling
+  /// code: `PhoneNumberField`'s prefill, `Helpers.maskPhoneNumber` and the
+  /// client list's `maskClientPhone` (which took the first three digits,
+  /// whatever the country — phone-leftovers.md §8) all ask here.
+  static String callingCodeOf(String digits) {
+    var longest = '';
+    for (final country in countries) {
+      final code = country.fullCountryCode;
+      if (digits.startsWith(code) && code.length > longest.length) {
+        longest = code;
+      }
+    }
+    return longest;
   }
 
   /// The national-length rule for [e164] (`+` then digits, no separator), or

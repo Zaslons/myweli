@@ -5,6 +5,7 @@ import 'package:myweli_backend/src/auth/auth_methods.dart';
 import 'package:myweli_backend/src/auth/demo_seam.dart';
 import 'package:myweli_backend/src/auth/id_token_verifier.dart';
 import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
+import 'package:myweli_backend/src/http/body_fields.dart';
 import 'package:myweli_backend/src/localities/localities_service.dart';
 import 'package:myweli_backend/src/responses.dart';
 import 'package:myweli_backend/src/salon_provisioning_service.dart';
@@ -16,7 +17,10 @@ import 'package:myweli_backend/src/validators.dart';
 ///   - Apple:  `{ identityToken, nonce?, … }` (seam)
 ///   - Email:  `{ email, code, … }` (code from /auth/provider/email/otp/request)
 /// The contact `phoneNumber` is REQUIRED (a salon must be reachable — decision
-/// 2026-07-03). Returns a live ProviderSession (201).
+/// 2026-07-03). Returns a live ProviderSession (201). 400s: `invalid_body`
+/// (not an object, or a field of the wrong JSON type), `invalid_input`
+/// (business name/type, or no usable identity proof), `invalid_phone`,
+/// `invalid_area`.
 /// Design: docs/design/pro-auth-social.md.
 Future<Response> onRequest(RequestContext context) async {
   if (context.request.method != HttpMethod.post) return methodNotAllowed();
@@ -28,23 +32,39 @@ Future<Response> onRequest(RequestContext context) async {
     return jsonError(HttpStatus.badRequest, 'invalid_body');
   }
 
-  final phone = (body['phoneNumber'] as String?)?.trim() ?? '';
-  final businessName = (body['businessName'] as String?)?.trim() ?? '';
-  final businessType = (body['businessType'] as String?) ?? '';
-  final rawAddress = (body['address'] as String?)?.trim();
-  if (!isValidPhoneNumber(phone) ||
-      businessName.isEmpty ||
+  // Every field read by type before any rule runs — and before the identity
+  // verifiers and the account write below — so a wrong JSON type is one
+  // `400 invalid_body` whichever field carries it, and whichever identity
+  // proof is used (docs/design/phone-leftovers.md §3).
+  final phone = optionalString(body, 'phoneNumber')?.trim() ?? '';
+  final businessName = optionalString(body, 'businessName')?.trim() ?? '';
+  final businessType = optionalString(body, 'businessType') ?? '';
+  final rawAddress = optionalString(body, 'address')?.trim();
+  final areaIdRaw = optionalString(body, 'areaId')?.trim();
+  final idToken = optionalString(body, 'idToken')?.trim();
+  final identityToken = optionalString(body, 'identityToken')?.trim();
+  final nonce = optionalString(body, 'nonce')?.trim();
+  final email = optionalString(body, 'email')?.trim() ?? '';
+  final code = optionalString(body, 'code')?.trim() ?? '';
+
+  if (businessName.isEmpty ||
       businessName.runes.length >
           SalonProvisioningService.maxBusinessNameChars ||
       !SalonProvisioningService.businessTypes.contains(businessType)) {
     return jsonError(HttpStatus.badRequest, 'invalid_input');
+  }
+  // The phone has a code of its own, so a client can put the fault under that
+  // field rather than « Informations invalides. » for the whole form
+  // (docs/design/phone-leftovers.md §2). After the name and the type — the
+  // order `POST /me/salons` uses.
+  if (!isValidPhoneNumber(phone)) {
+    return jsonError(HttpStatus.badRequest, 'invalid_phone');
   }
   final address = (rawAddress == null || rawAddress.isEmpty)
       ? null
       : rawAddress;
   // Multi-pays MP1: an optional locality pick — validated against the tree,
   // the salon's market facts derive from it (threat T57).
-  final areaIdRaw = (body['areaId'] as String?)?.trim();
   SalonMarket? market;
   if (areaIdRaw != null && areaIdRaw.isNotEmpty) {
     market = await context.read<LocalitiesService>().resolveArea(areaIdRaw);
@@ -63,7 +83,6 @@ Future<Response> onRequest(RequestContext context) async {
   final repo = context.read<ProviderAuthRepository>();
 
   // --- Identity: Google ------------------------------------------------------
-  final idToken = (body['idToken'] as String?)?.trim();
   if (idToken != null && idToken.isNotEmpty) {
     if (!methods.contains('google')) {
       return jsonError(HttpStatus.notFound, 'auth_method_disabled');
@@ -89,12 +108,10 @@ Future<Response> onRequest(RequestContext context) async {
   }
 
   // --- Identity: Apple (seam) ------------------------------------------------
-  final identityToken = (body['identityToken'] as String?)?.trim();
   if (identityToken != null && identityToken.isNotEmpty) {
     if (!methods.contains('apple')) {
       return jsonError(HttpStatus.notFound, 'auth_method_disabled');
     }
-    final nonce = (body['nonce'] as String?)?.trim();
     final claims = await context.read<AppleIdTokenVerifier>().verify(
       identityToken,
       nonce: (nonce != null && nonce.isNotEmpty) ? nonce : null,
@@ -122,8 +139,6 @@ Future<Response> onRequest(RequestContext context) async {
   }
 
   // --- Identity: email + code ------------------------------------------------
-  final email = (body['email'] as String?)?.trim() ?? '';
-  final code = (body['code'] as String?)?.trim() ?? '';
   if (isValidEmail(email) && isValidOtpCode(code)) {
     if (!methods.contains('email')) {
       return jsonError(HttpStatus.notFound, 'auth_method_disabled');

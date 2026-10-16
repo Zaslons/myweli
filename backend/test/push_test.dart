@@ -14,6 +14,7 @@ import 'package:myweli_backend/src/push/push_service.dart';
 import 'package:test/test.dart';
 
 import '../routes/me/devices/index.dart' as devices_route;
+import 'http/observed.dart';
 
 class _MockRequestContext extends Mock implements RequestContext {}
 
@@ -377,6 +378,23 @@ void main() {
         ctx(post({'token': 'devtok', 'platform': 'nope'}, token: token)),
       );
       expect(res.statusCode, HttpStatus.badRequest);
+    });
+
+    test('a non-text token or platform → 400 invalid_body, not 500, and '
+        'nothing stored (docs/design/phone-leftovers.md §3)', () async {
+      final token = tokens.issueAccessToken(subject: 'u1', role: 'user').token;
+      for (final body in <Map<String, Object?>>[
+        {'token': 12345, 'platform': 'android'},
+        {'token': 'devtok', 'platform': 1},
+      ]) {
+        final res = await observed(
+          devices_route.onRequest,
+          ctx(post(body, token: token)),
+        );
+        expect(res.statusCode, HttpStatus.badRequest, reason: '$body');
+        expect((await res.json() as Map)['error'], 'invalid_body');
+      }
+      expect(await repo.tokensForUser('u1'), isEmpty);
     });
   });
   group('an auth failure must be LOUD (it was silent for months)', () {

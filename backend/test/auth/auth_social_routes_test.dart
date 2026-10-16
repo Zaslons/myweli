@@ -15,6 +15,7 @@ import '../../routes/auth/email/otp/request.dart' as email_request;
 import '../../routes/auth/email/otp/verify.dart' as email_verify;
 import '../../routes/auth/google.dart' as google_route;
 import '../../routes/auth/otp/request.dart' as phone_request;
+import '../http/observed.dart';
 
 class _MockRequestContext extends Mock implements RequestContext {}
 
@@ -192,6 +193,32 @@ void main() {
     );
     expect(wrong.statusCode, HttpStatus.badRequest);
     expect((await jsonOf(wrong))['error'], 'otp_invalid');
+  });
+
+  test('a field of the wrong JSON type → 400 invalid_body, not 500 — email '
+      'otp, google, apple (docs/design/phone-leftovers.md §3)', () async {
+    for (final r in <(Handler, String, Map<String, Object?>)>[
+      (email_request.onRequest, '/auth/email/otp/request', {'email': 42}),
+      (
+        email_verify.onRequest,
+        '/auth/email/otp/verify',
+        {'email': 'ama@x.com', 'code': 123456},
+      ),
+      (google_route.onRequest, '/auth/google', {'idToken': 1}),
+      (apple_route.onRequest, '/auth/apple', {'identityToken': true}),
+      (
+        apple_route.onRequest,
+        '/auth/apple',
+        {
+          'identityToken': 'tok',
+          'fullName': const ['Awa'],
+        },
+      ),
+    ]) {
+      final res = await observed(r.$1, ctx(post(r.$2, r.$3)));
+      expect(res.statusCode, HttpStatus.badRequest, reason: '${r.$2} ${r.$3}');
+      expect((await jsonOf(res))['error'], 'invalid_body', reason: r.$2);
+    }
   });
 
   group('AUTH_METHODS gate (launch: google,apple,email — no phone)', () {
