@@ -24,11 +24,19 @@ export type Me = {
   authProvider?: 'google' | 'apple' | 'email' | 'phone' | null;
 };
 
+/// The reads « Mes données » is made of require their shape
+/// (docs/design/export-unreadable-200.md §2.2): the server always sends the
+/// user with its `id`, `items`, `providers`. A 200 without them is a failed
+/// read (status 0) — never a profile of nothing or an empty list nobody sent.
+/// For the user, the string `id` is the whole test: `{}`, `[]` or `"x"` has
+/// none.
 export async function getMe(): Promise<{ status: number; user?: Me }> {
   const res = await send('/api/me');
   if (!res.ok) return { status: res.status };
-  const user = await readJson<Me>(res);
-  return user ? { status: 200, user } : { status: 0 };
+  const user = await readJson<{ id?: unknown }>(res);
+  return typeof user?.id === 'string'
+    ? { status: 200, user: user as Me }
+    : { status: 0 };
 }
 
 export async function listAppointments(): Promise<{
@@ -37,8 +45,10 @@ export async function listAppointments(): Promise<{
 }> {
   const res = await send('/api/appointments');
   if (!res.ok) return { status: res.status, items: [] };
-  const body = await readJson<{ items?: Appointment[] }>(res);
-  return body ? { status: 200, items: body.items ?? [] } : { status: 0, items: [] };
+  const items = (await readJson<{ items?: unknown }>(res))?.items;
+  return Array.isArray(items)
+    ? { status: 200, items: items as Appointment[] }
+    : { status: 0, items: [] };
 }
 
 export async function getAppointment(
@@ -96,8 +106,12 @@ export async function getFavorites(): Promise<{
 }> {
   const res = await send('/api/me/favorites');
   if (!res.ok) return { status: res.status, favorites: [] };
-  const b = await readJson<{ favorites?: Provider[] }>(res);
-  return b ? { status: 200, favorites: b.favorites ?? [] } : { status: 0, favorites: [] };
+  // The BFF always sends `favorites` (§2.2, as `getMe` above): a 200 without
+  // it is no answer, not « Aucun favori ».
+  const favorites = (await readJson<{ favorites?: unknown }>(res))?.favorites;
+  return Array.isArray(favorites)
+    ? { status: 200, favorites: favorites as Provider[] }
+    : { status: 0, favorites: [] };
 }
 
 export async function addFavorite(

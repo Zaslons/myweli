@@ -216,6 +216,24 @@ describe('DataExportClient — a failed read is refused, never an empty section'
     await expectRefusal(FAVORITES_FAILED);
   });
 
+  // docs/design/export-unreadable-200.md §4: a 200 that holds no user, no
+  // `items` or no `favorites` lost its data on the way — the server always
+  // sends it. Before, `{}` was a profile of nothing, « Rendez-vous 0 » or
+  // « Favoris 0 », and the copy was offered as complete.
+  it.each([
+    ['the profile', 'me', PROFILE_FAILED],
+    ['the appointments', 'appointments', APPOINTMENTS_FAILED],
+    ['the favourites', 'favorites', FAVORITES_FAILED],
+  ] as const)('%s answering 200 `{}` is a failed read, not an empty section', async (_label, read, message) => {
+    reads({ [read]: { status: 200, body: {} } });
+    const out = watchOutputs();
+    render(<DataExportClient />);
+
+    await expectRefusal(message);
+    expect(out.createObjectURL).not.toHaveBeenCalled();
+    expect(out.writeText).not.toHaveBeenCalled();
+  });
+
   it('a 401 on the favourites read → sign-in, back here after', async () => {
     reads({ favorites: { status: 401, body: { error: 'session_expired' } } });
     const out = watchOutputs();

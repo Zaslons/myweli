@@ -42,6 +42,14 @@ async function refresh(
     : null;
 }
 
+/// The answer for a 2xx the BFF cannot hand on as one (502, as
+/// `app/api/auth/verify` already answers an OK it cannot use). The rotated
+/// tokens ride along: the refresh happened, and dropping them would leave the
+/// browser holding a refresh token the server has already spent.
+export function badGateway(tokens?: { at: string; rt: string }): ApiResult {
+  return { status: 502, body: { error: 'bad_gateway' }, tokens };
+}
+
 export async function callApi(
   req: NextRequest,
   path: string,
@@ -62,7 +70,19 @@ export async function callApi(
     tokens = refreshed;
     res = await call(path, init, refreshed.at);
   }
-  const body = await res.json().catch(() => ({}));
+  let body: unknown;
+  try {
+    body = await res.json();
+  } catch {
+    // A 2xx whose body is lost between the server and here (cut off, or a
+    // proxy's HTML page) is no success: passed on as a 200 `{}`, it read as
+    // « the server said nothing » — an empty list in « Mes données ». The
+    // server sends a body with every 2xx but a 204, which has none and
+    // stays a 204 (docs/design/export-unreadable-200.md §2.1). An error
+    // keeps its status; its unreadable body stays `{}`.
+    if (res.ok && res.status !== 204) return badGateway(tokens);
+    body = {};
+  }
   return { status: res.status, body, tokens };
 }
 
@@ -104,10 +124,21 @@ function withSalonEntered(a: RawAppt) {
   return { ...a, salonEntered: a.userId === 'manual' };
 }
 
-/// Enrich a list response (`{ items: [...] }`).
-export async function enrichAppointments(body: unknown): Promise<unknown> {
-  const b = body as { items?: RawAppt[] };
-  return { ...b, items: (b.items ?? []).map(withSalonEntered) };
+/// Enrich a list response (`{ items: [...] }`). The server always sends
+/// `items` (`routes/appointments/index.dart`), so a 200 without a list lost
+/// it on the way: a 502, never `items: []` — « aucun rendez-vous », and an
+/// empty section in « Mes données », for a client who has some
+/// (docs/design/export-unreadable-200.md §2.1). Any other status passes as
+/// it came.
+export function enrichAppointments(result: ApiResult): ApiResult {
+  if (result.status !== 200) return result;
+  const b = result.body as { items?: unknown } | null;
+  const items = b?.items;
+  if (!Array.isArray(items)) return badGateway(result.tokens);
+  return {
+    ...result,
+    body: { ...b, items: (items as RawAppt[]).map(withSalonEntered) },
+  };
 }
 
 /// Enrich a single appointment (detail).

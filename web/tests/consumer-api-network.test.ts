@@ -357,9 +357,11 @@ describe('an answer is still read as before', () => {
     expect(await account.getMe()).toEqual({ status: 200, user: { id: 'u1', name: 'Awa' } });
   });
 
-  it('a 200 list without its key is an empty list — the server said so', async () => {
+  it('the notifications feed still reads a 200 without `items` as empty — it feeds no export', async () => {
+    // Left as it was on purpose (docs/design/export-unreadable-200.md §5):
+    // the BFFs no longer turn a lost body into a 200 `{}`, so only a server
+    // that changed its contract could still reach this.
     stubFetch(() => new Response('{}', { status: 200 }));
-    expect(await account.getFavorites()).toEqual({ status: 200, favorites: [] });
     expect(await account.getNotifications()).toEqual({ status: 200, items: [] });
   });
 
@@ -368,5 +370,49 @@ describe('an answer is still read as before', () => {
     expect(await deposit.uploadDepositProof(file)).toEqual({ ok: false, offline: false });
     expect(await reviewPhotos.uploadReviewPhoto(file)).toBeNull();
     expect(captureMessage).toHaveBeenCalledTimes(2);
+  });
+});
+
+/// docs/design/export-unreadable-200.md §2.2 / §4 — the reads « Mes données »
+/// is made of require their shape. The server always sends the user with its
+/// `id`, and the BFF always sends `items` and `favorites`, so a 200 without
+/// them is a failed read (status 0): « Mes données » refuses, « Mon compte »
+/// shows its error — never a profile of nothing, never an empty list nobody
+/// sent. #620 had pinned the opposite for `getFavorites` (« the server said
+/// so »); the BFF said so only because it manufactured the key.
+describe('a 200 without its shape is a failed read', () => {
+  const ok = (body: string) => () => new Response(body, { status: 200 });
+
+  it.each(['{}', '[]', '"x"', '{"id":7,"name":"Awa"}', '{"name":"Awa"}'])(
+    'getMe on %s → status 0, not a user',
+    async (body) => {
+      stubFetch(ok(body));
+      expect(await account.getMe()).toEqual({ status: 0 });
+    },
+  );
+
+  it.each(['{}', '{"items":null}', '{"items":"x"}', '{"items":{}}', '[]'])(
+    'listAppointments on %s → status 0, not « 0 rendez-vous »',
+    async (body) => {
+      stubFetch(ok(body));
+      expect(await account.listAppointments()).toEqual({ status: 0, items: [] });
+    },
+  );
+
+  it.each(['{}', '{"favorites":null}', '{"favorites":"x"}', '{"favorites":{}}', '[]'])(
+    'getFavorites on %s → status 0, not « Aucun favori »',
+    async (body) => {
+      stubFetch(ok(body));
+      expect(await account.getFavorites()).toEqual({ status: 0, favorites: [] });
+    },
+  );
+
+  it('CONTROL — a real empty list is a 200, and so is a user with its id', async () => {
+    stubFetch(ok('{"items":[],"page":1,"pageSize":0,"total":0}'));
+    expect(await account.listAppointments()).toEqual({ status: 200, items: [] });
+    stubFetch(ok('{"favorites":[]}'));
+    expect(await account.getFavorites()).toEqual({ status: 200, favorites: [] });
+    stubFetch(ok('{"id":"u1"}'));
+    expect(await account.getMe()).toEqual({ status: 200, user: { id: 'u1' } });
   });
 });

@@ -330,3 +330,45 @@ describe('lib/api/pro.ts — an answer is still read as before', () => {
     expect(await pro.getTeamMembers()).toEqual({ status: 200, items: [] });
   });
 });
+
+/// docs/design/export-unreadable-200.md §2.2 / §4 — the salon export's reads
+/// require their shape. The server always sends `items`, `totalEarnings` and
+/// `transactions`, so a 200 without them is a failed read (status 0): the
+/// export refuses and the pages show their error. Before, `{}` was « no
+/// bookings » in the file, and an earnings `{}` broke the assembly with
+/// nothing said. (`getTeamMembers` above keeps its reading: it feeds no
+/// export — §5.)
+describe('lib/api/pro.ts — a 200 without its shape is a failed read', () => {
+  const ok = (body: string) => () => new Response(body, { status: 200 });
+
+  it.each(['{}', '{"items":null}', '{"items":"x"}', '{"items":{}}', '[]'])(
+    'listProAppointments on %s → status 0, not an empty agenda',
+    async (body) => {
+      stubFetch(ok(body));
+      expect(await pro.listProAppointments()).toEqual({ status: 0, items: [] });
+    },
+  );
+
+  it.each([
+    '{}',
+    '[]',
+    '{"totalEarnings":0,"transactions":null}',
+    '{"totalEarnings":0,"transactions":"x"}',
+    '{"totalEarnings":0,"transactions":{}}',
+    '{"transactions":[]}',
+    '{"totalEarnings":"0","transactions":[]}',
+  ])('getEarnings on %s → status 0, not earnings', async (body) => {
+    stubFetch(ok(body));
+    expect(await pro.getEarnings('p1', null)).toEqual({ status: 0 });
+  });
+
+  it('CONTROL — an empty agenda and a salon that earned nothing are 200s', async () => {
+    stubFetch(ok('{"items":[],"page":1,"pageSize":0,"total":0}'));
+    expect(await pro.listProAppointments()).toEqual({ status: 200, items: [] });
+    stubFetch(ok('{"totalEarnings":0,"currency":"XOF","transactions":[]}'));
+    expect(await pro.getEarnings('p1', null)).toEqual({
+      status: 200,
+      earnings: { totalEarnings: 0, currency: 'XOF', transactions: [] },
+    });
+  });
+});

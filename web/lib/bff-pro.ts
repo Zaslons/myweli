@@ -84,7 +84,20 @@ export async function callApiPro(
     tokens = refreshed;
     res = await call(path, init, refreshed.at);
   }
-  const body = await res.json().catch(() => ({}));
+  let body: unknown;
+  try {
+    body = await res.json();
+  } catch {
+    // A 2xx whose body was lost on the way is a 502, never a 200 `{}` read
+    // as « nothing » (an empty export section); a 204 has no body and stays
+    // a 204, an error keeps its status — as `callApi` does
+    // (docs/design/export-unreadable-200.md §2.1). The rotated tokens ride
+    // along: the refresh happened.
+    if (res.ok && res.status !== 204) {
+      return { status: 502, body: { error: 'bad_gateway' }, tokens };
+    }
+    body = {};
+  }
   return { status: res.status, body, tokens };
 }
 

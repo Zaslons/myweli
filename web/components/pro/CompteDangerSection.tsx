@@ -12,6 +12,7 @@ import {
 import {
   EXPORT_COPY_FAILED,
   type ExportSection,
+  SECTION_ORDER,
   buildProviderDataExport,
   exportFailureMessage,
 } from '../../lib/pro/export';
@@ -108,11 +109,20 @@ export function CompteDangerSection({
 
   /// One attempt: the alert from the last one clears, and the buttons come
   /// back whatever happens — they are the retry.
+  ///
+  /// A throw while the file is assembled is a refusal too, never a silent
+  /// no-file (docs/design/export-unreadable-200.md §2.3): the reads are
+  /// checked for their lists, but the file is still built from what crossed
+  /// the network, and the button used to just come back with nothing said.
+  /// The throw does not say which data was wrong, so every section is named.
   async function prepare(): Promise<string | null> {
     setExporting(true);
     setExportError(null);
     try {
       return await assembleJson();
+    } catch {
+      setExportError(exportFailureMessage(SECTION_ORDER));
+      return null;
     } finally {
       setExporting(false);
     }
