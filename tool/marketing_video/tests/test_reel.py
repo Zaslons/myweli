@@ -21,6 +21,7 @@ import numpy as np
 from PIL import Image, ImageDraw
 
 import reel_draw as rd
+import reel_footage as rf
 import reel_plan as plan
 import reel_scenes as rs
 import reel_verify as rv
@@ -171,20 +172,54 @@ class Motion(unittest.TestCase):
         layout[2] = [b for b in layout[2] if b.kind != "photo"] + [narrow]
         self.assertFalse(self.checks(layout)["pictures enlarged only as needed"].ok)
 
-    def test_the_caption_shorter_than_its_beat_fails_the_reading_check(self):
-        """The S7b exception is the whole A1 beat, not a blank cheque."""
-        comp = rs.Composer(P)
-        rows = comp.reading_windows()
-        cap = next(r for r in rows if r["label"] == "S7b caption")
-        self.assertAlmostEqual(cap["floor"], 2.0)
-        self.assertLess(cap["floor"], cap["need"])
+    def reading(self):
+        layout = self.layout((P.cover_frame, P.frames - 1))
+        return next(c for c in rv.plan_checks(P, layout) if c.name == "reading time")
+
+    def test_every_line_meets_the_reading_rule_with_no_exception(self):
+        """R2: S7b's caption has the 2.63 s its 32 characters need — and
+        A1's 2.0-s beat, the second render's, now fails like any short line."""
+        cap = next(r for r in rs.Composer(P).reading_windows() if r["label"] == "S7b caption")
+        self.assertEqual((cap["chars"], round(cap["on"], 2)), (32, 2.63))
+        check = self.reading()
+        self.assertTrue(check.ok, check.seen)
         original = plan.S7B["in"]
         try:
-            plan.S7B["in"] = 25.2
-            short = next(r for r in rs.Composer(P).reading_windows() if r["label"] == "S7b caption")
-            self.assertLess(short["on"] + 1e-9, short["floor"])
+            plan.S7B["in"] = 25.0            # A1's beat, 25.00–27.00
+            check = self.reading()
+            self.assertFalse(check.ok)
+            self.assertIn("S7b caption 2.00 s, needs 2.63", check.seen)
         finally:
             plan.S7B["in"] = original
+
+    def test_a_card_in_s2s_clear_space_fails(self):
+        """R2: the card waits for the lockup to leave; entering at 6.00 s
+        (the second render's timing) it reaches the tagline's line at frame
+        183, while the lockup still shows."""
+        frames = range(178, 196)
+        check = self.checks(self.layout(frames))["S2's clear space kept"]
+        self.assertTrue(check.ok, check.seen)
+        original = plan.S3["enter"]
+        try:
+            plan.S3["enter"] = 6.00
+            check = self.checks(self.layout(frames))["S2's clear space kept"]
+            self.assertFalse(check.ok)
+            self.assertIn("first: frame 183", check.seen)
+        finally:
+            plan.S3["enter"] = original
+
+    def test_an_arriving_bubble_is_never_more_opaque_than_what_shows_of_it(self):
+        """R2: a bubble rising out of the column's edge (y 1152) fades with
+        the share of it above the edge — no half-sliced line at full white."""
+        edge = plan.S4["column_bottom"]
+        sliced = 0
+        for n, boxes in self.layout(range(309, 336)).items():
+            for b in boxes:
+                if b.kind == "shape" and b.label.startswith("S4 bubble") and b.full[3] > edge:
+                    share = (edge - b.full[1]) / (b.full[3] - b.full[1])
+                    self.assertLessEqual(b.alpha, share + 1e-6, (n, b.label))
+                    sliced += 1
+        self.assertGreater(sliced, 0)
 
     def test_every_strike_starts_as_a_short_stroke_never_a_dot(self):
         pts = rd.drawn_line(180, 804, 836, 0.0, plan.STRIKE_MIN * 7)
@@ -194,12 +229,66 @@ class Motion(unittest.TestCase):
         self.assertEqual(rd.drawn_line(65, 1015, 952, 1.0, 32)[-1], (1015, 952))
 
 
+class PhoneRowMask(unittest.TestCase):
+    """A2: take5b's phone row is painted out on every picture of the page's
+    own scroll, at the rest picture's rectangle moved by the take's scroll
+    map and cut at the bar — refused when the map puts it off the row, or
+    puts the page anywhere but where it is."""
+
+    def pictures(self) -> tuple[dict, Path]:
+        folder = WORK / "take5b-masks"
+        folder.mkdir(exist_ok=True)
+        x, y, w, h = plan.S5["mask"]
+        bar = plan.S5["bar_top"]
+        rng = np.random.default_rng(3)
+        page = np.full((3400, 1206), 255, np.uint8)                      # the page, scrolled by each picture
+        page[y + 7:y + h - 7, x + 10:x + w - 10] = rng.integers(0, 120, (h - 14, w - 20))   # the phone row
+        for top in (1400, 1900):                                         # other content, clear of the row's ring
+            page[top:top + 300:6, 80:1120] = rng.integers(0, 200, (50, 1040))
+        sources = {}
+        # the rest picture, one 10 pt (30 px) lower, one with the row under the bar
+        for j, (lower, pts) in enumerate(((0, 17100), (30, 16000), (600, 15000))):
+            a = np.full((2622, 1206), 255, np.uint8)
+            a[lower:] = page[:2622 - lower]
+            a[bar:] = 247                                                # the opaque bar
+            Image.fromarray(a, "L").convert("RGB").save(folder / f"p{j}.png")
+            sources[str(j)] = {"file": f"p{j}.png", "pts": pts}
+        return {"film": [2, 1, 0], "sources": sources}, folder        # the list ends on the rest picture
+
+    MAP = [(15000 / 600, 87.3), (16000 / 600, 277.3), (17100 / 600, 287.3)]
+
+    def test_the_rectangle_follows_the_scroll_and_stops_at_the_bar(self):
+        manifest, folder = self.pictures()
+        x, y, w, h = plan.S5["mask"]
+        self.assertEqual(rf.take5b_masks(manifest, folder, self.MAP), [None, [x, y + 30, w, h], [x, y, w, h]])
+
+    def test_a_rectangle_off_the_row_is_refused(self):
+        """A picture whose row is not where its scroll puts it (moved 30 px
+        on purpose, the page around it left in place)."""
+        manifest, folder = self.pictures()
+        x, y, w, h = plan.S5["mask"]
+        a = np.asarray(Image.open(folder / "p1.png").convert("L")).copy()
+        row = a[y + 30:y + 30 + h].copy()
+        a[y + 30:y + 30 + h] = 255
+        a[y + 60:y + 60 + h] = row
+        Image.fromarray(a, "L").convert("RGB").save(folder / "p1.png")
+        with dies(self, "not where its scroll"):
+            rf.take5b_masks(manifest, folder, self.MAP)
+
+    def test_a_scroll_map_off_where_the_row_is_under_the_bar_is_refused(self):
+        """The map is checked on every picture, not only where the row shows."""
+        manifest, folder = self.pictures()
+        wrong = [(15000 / 600, 85.3), self.MAP[1], self.MAP[2]]       # 2 pt (6 px) off
+        with dies(self, "its page is not where the scroll map"):
+            rf.take5b_masks(manifest, folder, wrong)
+
+
 class Storyboard(unittest.TestCase):
     def test_a_storyboard_that_no_longer_says_a_transcribed_number_is_refused(self):
         sb = json.loads(plan.STORYBOARD.read_text(encoding="utf-8"))
         s1 = next(s for s in sb["scenes"] if s["id"].startswith("S1-"))
-        s1["visual"] = s1["visual"].replace("block top y 316", "block top y 300")
-        with dies(self, "block top y 316"):
+        s1["visual"] = s1["visual"].replace("block top y 280", "block top y 300")
+        with dies(self, "block top y 280"):
             plan.Plan(sb)
 
     def test_the_owners_decisions_stay_out_of_the_tools_copy(self):
@@ -213,7 +302,7 @@ class Storyboard(unittest.TestCase):
     def test_the_words_are_the_storyboards_with_french_spacing(self):
         comp = rs.Composer(P)
         self.assertEqual(comp.words["S1"][1], "encore au carnet ?")
-        self.assertEqual(comp.words["S5"][0], "Tarifs, horaires, plan :")
+        self.assertEqual(comp.words["S5"][0], "Photos, tarifs, horaires :")
         self.assertEqual(comp.words["S4"][3], "22:41")       # no space before a time's colon
 
     def test_every_width_the_storyboard_measured_is_the_fonts(self):
@@ -231,7 +320,7 @@ class Storyboard(unittest.TestCase):
         cases += [(w["S6"][2 + i], rs.I48M, v) for i, v in enumerate(plan.S6["widths"])]
         cases += [(w["S6"][7], rs.I48M, plan.S6["squeezed_width"]), (w["S2"][1], rs.P52, plan.S2["tag_width"]),
                   (w["S8"][1], rs.CTA, plan.S8["cta_width"])]
-        for key, spec in (("S3", rs.P84), ("S5", rs.P84), ("S7", rs.P84), ("S4", rs.P92), ("S6", rs.P92)):
+        for key, spec in (("S3", rs.P84), ("S5", rs.P78), ("S7", rs.P84), ("S4", rs.P92), ("S6", rs.P92)):
             cases += [(w[key][i], spec, v) for i, v in enumerate(plan.__dict__[key]["head_widths"])]
         for s, spec, v in cases:
             self.assertAlmostEqual(width(s, spec), v, delta=1.0, msg=s)

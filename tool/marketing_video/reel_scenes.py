@@ -10,8 +10,16 @@ own timing (the storyboard's, on the Lottie curve) and S5's camera moves
 Amendment A1 (owner, 2026-10-18) puts the owner's pictures in the hook (S1)
 and in a people beat (S7b), through `reel_photo`. The review's fixes (R1):
 every card enters as S3's does — the card as it rests, clipped by the band,
-rises 1320 px; S4's bubbles move as one column; S2's exiting logo is drawn
-over S3's card; every strike starts at a short visible length.
+rises 1320 px; S4's bubbles move as one column; every strike starts at a
+short visible length. Amendment A2 (owner, 2026-10-18): S5's card opens on
+the top of Maison Nala's public page — the cover photo, the logo, the name —
+and the take's own scroll brings Services and the map, a camera move the
+hours. The second review's items (R2): S3's card starts at 6.10 s, when it
+can no longer reach S2's lockup before the lockup is gone (no paper plate
+over the card any more; verify holds the clear space); an arriving bubble
+is no more opaque than the share of it above the column's edge; S1's
+headline sits at the top of the safe zone; S7b starts at frame 731, so its
+caption has its reading time.
 
 One choice the storyboard leaves open, taken the calmer way (README,
 « Deviations »): where S8's pen dot overlaps the start of the draw, the
@@ -25,7 +33,7 @@ import math
 from functools import lru_cache
 
 import numpy as np
-from PIL import Image, ImageFilter
+from PIL import Image
 
 import reel_brand as rb
 import reel_draw as rd
@@ -35,6 +43,7 @@ import reel_plan as plan
 
 P92 = ("poppins", plan.PAIN["head_px"])
 P84 = ("poppins", plan.ANSWER["head_px"])
+P78 = ("poppins", plan.S5["head_px"])            # A2: « Photos, tarifs, horaires : » is 965 px at 84
 P52 = ("poppins", plan.S2["tag_px"])
 I48M = ("inter", plan.NOTEBOOK["entry_px"], plan.NOTEBOOK["entry_wght"])
 I48 = ("inter", plan.S4["text_px"], 400)
@@ -188,12 +197,17 @@ class Composer:
             p = self.at("emphasis", t, t_in + i * self.stagger)
             alphas.append(p * fade)
             dys.append(24 * (1 - p))
-        self.headline(fr, self.words[key], P84, A["head_top"], A["head_lh"], self.c["textPrimary"],
-                      alphas, dys, label=f"{key} headline")
+        self.headline(fr, self.words[key], P78 if key == "S5" else P84, A["head_top"], A["head_lh"],
+                      self.c["textPrimary"], alphas, dys, label=f"{key} headline")
+
+    @staticmethod
+    def pain_top(key: str) -> float:
+        """S1's block sits at the top of the safe zone (R2); S4's and S6's at 316."""
+        return plan.S1["head_top"] if key == "S1" else plan.PAIN["head_top"]
 
     def pain_headline(self, fr: rd.Frame, key: str, t: float, t_in: float) -> None:
         settle = plan.PAIN["settle_from"] - (plan.PAIN["settle_from"] - 1) * self.at("fast", t, t_in)
-        self.headline(fr, self.words[key][:2], P92, plan.PAIN["head_top"], plan.PAIN["head_lh"],
+        self.headline(fr, self.words[key][:2], P92, self.pain_top(key), plan.PAIN["head_lh"],
                       self.c["secondary"], scale=settle, label=f"{key} headline")
 
     def entry(self, fr: rd.Frame, s: str, x: float, baseline: float, t: float, t_pop: float | None,
@@ -332,41 +346,13 @@ class Composer:
             x_pt, y_pt = self.fx.drag.at(t)
             x, y = rf.to_frame(W, x_pt, y_pt)             # where the card rests
             touches.append((x, y, self.c["primary"], a))
-        self.card(fr, "S3", lambda: self.fx.take1b(n), W, offset, touches)
-        # S2's lockup leaves OVER the rising card (R1), on its own clear space
-        # of paper at its own opacity: the card dissolves in under the logo,
-        # never printed across it nor it across the card's words
-        e = self.exit.at(t - plan.S2["exit"]) if t >= plan.S2["exit"] else 0.0
-        if e < 1 and not fr.dry:
-            plate, x0, y0 = self.s2_plate()
-            fr.put(self.c["surface"], plate * (1 - e), x0, round(y0 - plan.S2["exit_rise"] * e))
+        # R2: the card starts at 6.10 s and reaches the lockup's clear space
+        # only once the lockup has left (6.00–6.20) — verify holds it; the
+        # lockup is still drawn over the card for the frames they share
+        if t >= S["enter"]:
+            self.card(fr, "S3", lambda: self.fx.take1b(n), W, offset, touches)
         self.s2_elements(fr, t)
         self.answer_headline(fr, "S3", t, S["head_in"])
-
-    @lru_cache(maxsize=None)
-    def s2_plate(self) -> tuple[np.ndarray, int, int]:
-        """The lockup's clear space — the mark and the « MyWeli Pro » unit
-        with half the mark's height all round, and the tagline's line with a
-        margin — as a soft-edged coverage of paper."""
-        fr = rd.Frame(self.P.size, self.c["surface"], dry=True)
-        self.s2_elements(fr, plan.S2["exit"])
-        logo = [b.ink for b in fr.boxes if b.kind == "logo"]
-        lines = [b.line or b.ink for b in fr.boxes if b.kind == "text"]
-        clear = plan.S2["mark_h"] / 2
-        boxes = [(min(b[0] for b in logo) - clear, min(b[1] for b in logo) - clear,
-                  max(b[2] for b in logo) + clear, max(b[3] for b in logo) + clear)]
-        boxes += [(b[0] - 24, b[1] - 24, b[2] + 24, b[3] + 24) for b in lines]
-        feather = 24
-        x0 = max(0, math.floor(min(b[0] for b in boxes)) - 2 * feather)
-        y0 = max(0, math.floor(min(b[1] for b in boxes)) - 2 * feather)
-        x1 = min(self.P.width, math.ceil(max(b[2] for b in boxes)) + 2 * feather)
-        y1 = min(self.P.height, math.ceil(max(b[3] for b in boxes)) + 2 * feather)
-        cov = np.zeros((y1 - y0, x1 - x0), np.float32)
-        for b in boxes:
-            cov = np.maximum(cov, rd.rrect_coverage(b, feather, (x0, y0, x1, y1)))
-        im = Image.fromarray(np.clip(cov * 255 + 0.5, 0, 255).astype(np.uint8), "L")
-        im = im.filter(ImageFilter.GaussianBlur(feather / 2))
-        return np.asarray(im, np.float32) / 255, x0, y0
 
     def bubble(self, fr: rd.Frame, k: int, top: float, scale: float, alpha: float) -> None:
         B = plan.S4
@@ -410,26 +396,41 @@ class Composer:
             rise = 0.0 if k == 0 else 1 - self.at("base", t, t_k)
             top = B["slots"][-1] + pitch * (rise - lift)
             p = 1.0 if k == 0 else self.at("fast", t, t_k)
-            self.bubble(fr, k, top, 0.96 + 0.04 * p, p)
+            # R2: an arriving bubble is no more opaque than the share of it
+            # above the column's edge — never a half-sliced line at full white
+            scale = 0.96 + 0.04 * p
+            oy = top + B["bubble_h"] / 2
+            y0, y1 = oy + (top - oy) * scale, oy + (top + B["bubble_h"] - oy) * scale
+            shown = min(1.0, max(0.0, (B["column_bottom"] - y0) / (y1 - y0)))
+            self.bubble(fr, k, top, scale, min(p, shown))
         fr.clip_bottom = None
         y, t0, t1 = B["stroke"]
         self.trait(fr, y, t, t0, t1)
 
-    def s5(self, fr: rd.Frame, t: float, dry: bool) -> rd.Frame:
+    def s5(self, fr: rd.Frame, t: float, n: int, dry: bool) -> rd.Frame:
+        """A2: the card opens on the top of the page (W 136: the back
+        button's disc under the solid band), the take's own scroll plays
+        1:1, then the camera moves to the hours."""
         S = plan.S5
         spec = S["thicken"]
         if t < spec[2]:
             fr = self.ground(self.c["primary"], dry)
             self.s4(fr, plan.S4["stroke"][2])
             self.thicken(fr, "S5", t)
-        W = S["W"][0][0]
-        for (w_from, _), (w_to, span) in zip(S["W"], S["W"][1:]):
-            if t >= span[0]:
-                W = w_from + (w_to - w_from) * plan.eased(S["camera_curve"], (t - span[0]) / (span[1] - span[0]))
+        W0, W1 = S["W"]
+        t_move, token = S["move"]
+        W = W0 + (W1 - W0) * self.at(token, t, t_move)
         offset = self.enter_offset(t, S["enter"])
         if t >= S["enter"]:
-            self.card(fr, "S5", lambda: self.fx.take5b(), W, offset)
-        fr.note("mask", "S5 phone row", rf.mask_box_in_frame(W, offset), 1.0 if t >= S["enter"] else 0.0)
+            self.card(fr, "S5", lambda: self.fx.take5b(n), W, offset)
+            # where the row is painted out: per picture with the footage; the
+            # rest picture's rectangle once the page is at rest without it
+            if self.fx is not None:
+                rect = self.fx.mask5(n)
+            else:
+                rect = S["mask"] if rf.take5b_index(n) == rf.TAKE5B_REST else None
+            if rect is not None:
+                fr.note("mask", "S5 phone row", rf.mask_box_in_frame(W, offset, rect), 1.0)
         self.answer_headline(fr, "S5", t, S["head_in"])
         return fr
 
@@ -586,7 +587,7 @@ class Composer:
             fr = self.ground(self.c["primary"], dry)
             self.s4(fr, t)
         elif key == "S5":
-            fr = self.s5(self.ground(self.c["surface"], dry), t, dry)
+            fr = self.s5(self.ground(self.c["surface"], dry), t, n, dry)
         elif key == "S6":
             fr = self.ground(self.c["primary"], dry, self.notebook())
             self.s6(fr, t)
@@ -624,7 +625,7 @@ class Composer:
         th = self.thickens
         rows = [
             ("S1 headline", self.words["S1"][:2], 0.0,
-             covered_at(*th["S2"], block(*pain, self.words["S1"][:2], P92), fps)),
+             covered_at(*th["S2"], block(self.pain_top("S1"), plan.PAIN["head_lh"], self.words["S1"][:2], P92), fps)),
             ("S2 tagline", [self.words["S2"][1]], plan.S2["tag_in"], plan.S2["exit"]),
             ("S3 headline", self.words["S3"], plan.S3["head_in"], P.scenes["S3"].end),
             ("S4 headline", self.words["S4"][:2], P.scenes["S4"].start,
@@ -640,11 +641,6 @@ class Composer:
         for label, lines, a, b in rows:
             chars = len(" ".join(lines))
             need = max(1.5, chars / 15 + 0.5)
-            row = {"label": label, "chars": chars, "in": a, "out": b, "on": b - a, "need": need, "floor": need}
-            if label == "S7b caption":
-                # A1 gives the caption its whole 2.0-s beat, short of the rule:
-                # the storyboard says so, the report shows both, and the beat
-                # itself is the floor (a caption cut shorter still fails)
-                row["floor"] = min(need, plan.S7B["reading_allowance"])
-            out.append(row)
+            # R2: no exception — S7b's caption meets the rule like every line
+            out.append({"label": label, "chars": chars, "in": a, "out": b, "on": b - a, "need": need})
         return out

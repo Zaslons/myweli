@@ -42,7 +42,7 @@ from PIL import Image, ImageDraw   # noqa: E402
 # build/bin like its own helpers, rebuilt when a source changes.
 swifttools.SOURCES.setdefault("reel-encode", ["Common.swift", "Writer.swift", str(HERE / "swift/ReelEncode.swift")])
 
-KEY_TIMES = [0.0, 0.5, 1.5, 2.4, 3.5, 6.2, 9.0, 10.5, 11.0, 14.0, 18.5, 21.0, 22.5, 24.5, 25.5, 26.5, 27.5, 29.5]
+KEY_TIMES = [0.0, 1.5, 3.5, 6.1, 6.2, 10.4, 11.0, 12.9, 13.5, 14.5, 15.5, 17.0, 21.0, 24.0, 24.5, 25.5, 26.9, 27.5, 29.5]
 OUTPUTS = ("reel.mp4", "contact-sheet.png", "poster-hook.png", "poster-end.png", "cover.png", "verify.txt",
            "build.json")
 

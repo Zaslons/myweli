@@ -8,11 +8,16 @@ Design: docs/design/pro-marketing-reel.md §3 and §5.
              Conform.swift): film frame n shows the last picture the take
              presented at or before its instant — frame-hold, never a blend,
              never a change of speed. The one blend is S7's declared
-             dissolve, between two held pictures.
+             dissolve, between two held pictures. take5b (A2): the page at
+             rest on its top, its one drag LIVE 1:1, the page at rest after.
   the mask   take5b's salon phone row is painted (255, 255, 255) in capture
              space, before any scaling or camera move, so it is hidden on
-             every frame by construction. The rectangle must hold the row's
-             ink and sit on pure white all round, or the build stops.
+             every frame by construction — on the rest picture at the
+             storyboard's rectangle, and on each picture of the drag at that
+             rectangle moved by the picture's scroll (the take's own map,
+             phone_rect_per_frame.csv) and cut at the opaque bottom bar.
+             Each rectangle must hold the rest picture's row, pixel for
+             pixel, and sit on pure white all round, or the build stops.
   the drag   S3's touch point follows the App Store film's S1 drag
              (build/app-store/pro/preview/v2/final/film.json): the path
              that film verified frame by frame against the swiped card
@@ -36,6 +41,7 @@ Design: docs/design/pro-marketing-reel.md §3 and §5.
 
 from __future__ import annotations
 
+import csv
 import hashlib
 import json
 import math
@@ -58,7 +64,7 @@ PAD_ROWS = 4                               # rows of edge added above and below 
 def take_paths(assets: Path) -> dict[str, Path]:
     v2 = assets / "preview/v2"
     return {"take1b": v2 / "takes/take1b/take.mov", "take5b": v2 / "takes/take5b/take.mov",
-            "film": v2 / "final/film.json"}
+            "scroll5b": v2 / "takes/take5b/phone_rect_per_frame.csv", "film": v2 / "final/film.json"}
 
 
 def sha256(path: Path) -> str:
@@ -72,9 +78,11 @@ def sha256(path: Path) -> str:
 # ---- which picture of which take each film frame shows ----------------------------------
 
 # take1b, exported once: the S3 ranges, then the S7 ranges. (kind, ticks, …)
+# R2: S7's first live range ends where the take stops changing (32.765 s,
+# the unfilled form at rest), not at 33.032 s.
 TAKE1B_SEGMENTS = [
     ("hold", 6397), ("live", 6397, 6977), ("hold", 6957),            # S3: rest, the swipe, the open pane
-    ("hold", 19299), ("live", 19299, 19819), ("hold", 19799),        # S7: rest, « Libre » → « Réservation »
+    ("hold", 19299), ("live", 19299, 19679), ("hold", 19659),        # S7: rest, « Libre » → « Réservation »
     ("hold", 78157), ("live", 78157, 79317), ("hold", 79297),        # S7: the filled form → « Créer » → the day
 ]
 
@@ -112,7 +120,7 @@ def take1b_index(n: int) -> int | tuple[int, int, float]:
         kind, a, b, what = run[:4]
         if a <= n <= b:
             if kind == "hold":
-                return {19299: st[3], 19799: st[5], 78157: st[6], 79297: st[8]}[what]
+                return {19299: st[3], 19659: st[5], 78157: st[6], 79297: st[8]}[what]
             if kind == "live":
                 return (st[4] if what == 19299 else st[7]) + (n - a)
             # the declared dissolve, on its token: frame a-1 is the clean last
@@ -122,7 +130,23 @@ def take1b_index(n: int) -> int | tuple[int, int, float]:
     plan.die(f"film frame {n} shows no picture of take1b")
 
 
-def check_take_map(manifest: dict) -> list[str]:
+# take5b (A2): the page at rest on its top, its one drag, the page at rest after it
+TAKE5B_SEGMENTS = [("hold", plan.S5["hold_before"]), ("live",) + plan.S5["live"][1:], ("hold", plan.S5["hold_after"])]
+
+
+TAKE5B_REST = 1 + (plan.S5["live"][2] - plan.S5["live"][1]) // FILM_TICKS   # the hold after the drag
+
+
+def take5b_index(n: int) -> int:
+    """The exported take5b picture film frame n shows: the top of the page
+    until the live range, the drag 1:1, then the page at rest."""
+    a = plan.S5["live"][0]
+    if n < a:
+        return 0
+    return min(1 + n - a, TAKE5B_REST)
+
+
+def check_take_map(manifest: dict, segments: list[tuple] = TAKE1B_SEGMENTS) -> list[str]:
     """Each LIVE and HOLD range against the take's own map: a hold before a
     live range shows the picture the range starts on, the hold after it the
     picture it ends on, a live range never goes back, and every picture is
@@ -130,11 +154,11 @@ def check_take_map(manifest: dict) -> list[str]:
     film = manifest["film"]
     pts = {int(k): v["pts"] for k, v in manifest["sources"].items()}
     faults = []
-    st = segment_starts(TAKE1B_SEGMENTS)
+    st = segment_starts(segments)
     if len(film) != st[-1]:
         faults.append(f"{len(film)} exported pictures, the plan needs {st[-1]}")
         return faults
-    for i, s in enumerate(TAKE1B_SEGMENTS):
+    for i, s in enumerate(segments):
         a = st[i]
         if s[0] == "hold":
             if pts[film[a]] > s[1]:
@@ -147,9 +171,9 @@ def check_take_map(manifest: dict) -> list[str]:
                 if pts[j] > s[1] + k * FILM_TICKS:
                     faults.append(f"the live range {s[1]}–{s[2]}: frame {k} shows a later picture")
                     break
-            if i > 0 and TAKE1B_SEGMENTS[i - 1][0] == "hold" and film[a - 1] != run[0]:
+            if i > 0 and segments[i - 1][0] == "hold" and film[a - 1] != run[0]:
                 faults.append(f"the hold before {s[1]}–{s[2]} is not the picture the range starts on")
-            if i + 1 < len(TAKE1B_SEGMENTS) and TAKE1B_SEGMENTS[i + 1][0] == "hold" and film[st[i + 1]] != run[-1]:
+            if i + 1 < len(segments) and segments[i + 1][0] == "hold" and film[st[i + 1]] != run[-1]:
                 faults.append(f"the hold after {s[1]}–{s[2]} is not the picture the range ends on")
     return faults
 
@@ -164,9 +188,9 @@ def conform(take: Path, segments: list[tuple], out: Path) -> dict:
 
 # ---- the mask ---------------------------------------------------------------------------
 
-def mask_take5b(im: Image.Image) -> Image.Image:
-    """S5's salon phone row, filled white in capture space — refused unless
-    the rectangle holds the row's ink and is ringed by pure white."""
+def check_rest_mask(im: Image.Image) -> None:
+    """The storyboard's rectangle on the rest picture — refused unless it
+    holds the row's ink and is ringed by pure white."""
     x, y, w, h = plan.S5["mask"]
     a = np.asarray(im.convert("L"), dtype=np.int16)
     inside = a[y:y + h, x:x + w]
@@ -177,14 +201,101 @@ def mask_take5b(im: Image.Image) -> Image.Image:
     if ring.min() < 250:
         plan.die(f"take5b's mask rectangle {plan.S5['mask']} is not ringed by white (darkest {ring.min()}): "
                  f"the row's ink crosses its edge")
+
+
+ROW_MATCH = 100          # the row, found again: no pixel more than this off the rest picture's
+ROW_MISS = 150           # a rectangle 1–3 px off: some pixel at least this far (the row is found to the pixel)
+BAR_SAME = 48            # the bar, opaque: never more than the encoder's noise off the rest picture's
+BAND_ROWS = 120          # the page just above the bar, against the rest picture moved by the scroll
+BAND_MEAN = 3.0          # … within this mean difference (the map's labels move a little), best within 1 px
+
+
+def scroll_map(csv_path: Path) -> list[tuple[float, float]]:
+    """take5b's own map of its scroll, (seconds, points), measured per picture."""
+    rows = list(csv.DictReader(csv_path.read_text(encoding="utf-8").splitlines()))
+    return [(float(r["seconds"]), float(r["scroll_pt"])) for r in rows]
+
+
+def take5b_masks(manifest: dict, folder: Path, scroll: list[tuple[float, float]]) -> list[list[int] | None]:
+    """The rectangle to paint on each exported picture of take5b: the
+    storyboard's on the rest picture, moved by the picture's scroll on the
+    others and cut at the bar — or None where the row is under the opaque
+    bar. Every rectangle that shows any of the row must hold the rest
+    picture's row pixel for pixel (and no rectangle 1–3 px off may), and be
+    ringed by white; under the bar, the bar must be the rest picture's. On
+    every picture the page just above the bar must be the rest picture's
+    moved by that scroll: the map itself is checked, not only trusted."""
+    x, y, w, h = plan.S5["mask"]
+    bar = plan.S5["bar_top"]
+
+    def grey(j: int) -> np.ndarray:
+        return np.asarray(Image.open(folder / manifest["sources"][str(j)]["file"]).convert("L"), dtype=np.int16)
+
+    def scroll_at(j: int) -> float:
+        t = manifest["sources"][str(j)]["pts"] / TAKE_TIMESCALE
+        seconds, s = min(scroll, key=lambda r: abs(r[0] - t))
+        if abs(seconds - t) > 0.002:
+            plan.die(f"take5b's scroll map has no picture at {t:.3f} s (nearest {seconds:.3f} s)")
+        return s
+
+    film = manifest["film"]
+    j_rest = film[-1]
+    rest = grey(j_rest)
+    check_rest_mask(Image.fromarray(rest.astype(np.uint8), "L"))
+    s_rest = scroll_at(j_rest)
+    out: list[list[int] | None] = []
+    for j in film:
+        a = grey(j)
+        off = round((s_rest - scroll_at(j)) * 3)               # 3 capture px a point
+        # the map itself, checked on every picture: the page just above the
+        # bar is the rest picture's moved by `off` (best within 1 px)
+        band = a[bar - BAND_ROWS:bar, 60:a.shape[1] - 60]
+        diff = {d: float(np.abs(band - rest[bar - BAND_ROWS - off - d:bar - off - d, 60:a.shape[1] - 60]).mean())
+                for d in range(-3, 4)}
+        near = min(diff[-1], diff[0], diff[1])
+        if near > BAND_MEAN or near > min(diff.values()) + 1e-9:
+            plan.die(f"take5b's picture {j}: its page is not where the scroll map ({scroll_at(j)} pt) puts it")
+        y0 = y + off
+        if y0 - 1 >= bar:
+            if np.abs(a[bar:] - rest[bar:]).max() > BAR_SAME:
+                plan.die(f"take5b's picture {j}: the bar is not the rest picture's — something shows through it")
+            out.append(None)
+            continue
+        if y0 >= bar:
+            plan.die(f"take5b's picture {j}: the phone row sits at the bar's edge — not decided to the pixel")
+        y1 = min(y + h + off, bar)
+        vis = y1 - y0
+        tmpl = rest[y:y + vis, x:x + w]
+        if tmpl.min() < 128:                                  # some of the row's ink is above the bar
+            if np.abs(a[y0:y1, x:x + w] - tmpl).max() > ROW_MATCH:
+                plan.die(f"take5b's picture {j}: the phone row is not where its scroll ({scroll_at(j)} pt) puts it")
+            for d in (-3, -2, -1, 1, 2, 3):
+                if y0 + d + vis <= bar and np.abs(a[y0 + d:y0 + d + vis, x:x + w] - tmpl).max() < ROW_MISS:
+                    plan.die(f"take5b's picture {j}: the row matches {d} px off as well — not found to the pixel")
+        ring = [a[y0 - 3:y0, x - 3:x + w + 3], a[y0:y1, x - 3:x], a[y0:y1, x + w:x + w + 3]]
+        if y1 < bar:
+            ring.append(a[y1:y1 + 3, x - 3:x + w + 3])
+        darkest = min(int(r.min()) for r in ring)
+        if darkest < 250:
+            plan.die(f"take5b's picture {j}: the mask rectangle is not ringed by white (darkest {darkest})")
+        out.append([x, y0, w, vis])
+    return out
+
+
+def mask_take5b(im: Image.Image, rect: list[int] | None) -> Image.Image:
+    """The salon phone row, filled white in capture space."""
+    if rect is None:
+        return im
+    x, y, w, h = rect
     out = im.copy()
     ImageDraw.Draw(out).rectangle((x, y, x + w - 1, y + h - 1), fill=plan.S5["mask_fill"])
     return out
 
 
-def mask_box_in_frame(W: float, offset: float = 0.0) -> tuple[float, float, float, float]:
-    """Where S5's mask lands in the frame at camera W."""
-    x, y, w, h = plan.S5["mask"]
+def mask_box_in_frame(W: float, offset: float = 0.0, rect: list[int] | None = None) -> tuple[float, float, float, float]:
+    """Where S5's mask (`rect`, the rest picture's by default) lands in the
+    frame at camera W."""
+    x, y, w, h = rect or plan.S5["mask"]
     k = plan.PX_PER_PT / 3                    # frame px per capture px
     top = card_top(W, offset)
     y0 = top + (y - plan.ANSWER["card_top_pt"] * 3) * k
@@ -354,16 +465,17 @@ class Footage:
         self.photos: dict[str, Image.Image] = {}
         self.m1 = json.loads((work / "take1b/manifest.json").read_text(encoding="utf-8"))
         self.m5 = json.loads((work / "take5b/manifest.json").read_text(encoding="utf-8"))
+        self.masks5 = json.loads((work / "take5b/masks.json").read_text(encoding="utf-8"))
         self.drag = Drag(**json.loads((work / "drag.json").read_text(encoding="utf-8")))
         self._cache: dict[str, Image.Image] = {}
 
-    def _load(self, folder: str, manifest: dict, i: int, masked: bool = False) -> Image.Image:
+    def _load(self, folder: str, manifest: dict, i: int, rect: list[int] | None = None) -> Image.Image:
         name = manifest["sources"][str(manifest["film"][i])]["file"]
-        key = f"{folder}/{name}"
+        key = f"{folder}/{name}/{rect}"
         if key not in self._cache:
             im = Image.open(self.work / folder / name).convert("RGB")
-            if masked:
-                im = mask_take5b(im)
+            if folder == "take5b":
+                im = mask_take5b(im, rect)
             self._cache[key] = padded(im)
         return self._cache[key]
 
@@ -374,8 +486,14 @@ class Footage:
             return Image.blend(self._load("take1b", self.m1, a), self._load("take1b", self.m1, b), k)
         return self._load("take1b", self.m1, i)
 
-    def take5b(self) -> Image.Image:
-        return self._load("take5b", self.m5, 0, masked=True)
+    def mask5(self, n: int) -> list[int] | None:
+        """The capture-space rectangle painted on the take5b picture film
+        frame n shows (None: the row is under the bar)."""
+        return self.masks5[take5b_index(n)]
+
+    def take5b(self, n: int) -> Image.Image:
+        i = take5b_index(n)
+        return self._load("take5b", self.m5, i, self.masks5[i])
 
     def photo(self, key: str) -> Image.Image:
         """One of A1's pictures, decoded by `reel_photo.prepare`."""
@@ -388,21 +506,25 @@ def prepare(assets: Path, work: Path) -> dict:
     """Conform the takes into `work` and record the drag. Returns facts for
     the build record."""
     p = take_paths(assets)
-    for k in ("take1b", "take5b", "film"):
+    for k in ("take1b", "take5b", "scroll5b", "film"):
         if not p[k].exists():
             plan.die(f"missing {p[k]} — --assets is the main checkout's build/app-store/pro")
     m1 = conform(p["take1b"], TAKE1B_SEGMENTS, work / "take1b")
     faults = check_take_map(m1)
     if faults:
         plan.die("take1b's ranges: " + "; ".join(faults))
-    m5 = conform(p["take5b"], [("hold", plan.S5["take_s"])], work / "take5b")
-    if m5["sources"][str(m5["film"][0])]["pts"] > plan.S5["take_s"]:
-        plan.die("take5b's held picture is later than 30.000 s")
+    m5 = conform(p["take5b"], TAKE5B_SEGMENTS, work / "take5b")
+    faults = check_take_map(m5, TAKE5B_SEGMENTS)
+    if faults:
+        plan.die("take5b's ranges: " + "; ".join(faults))
+    masks = take5b_masks(m5, work / "take5b", scroll_map(p["scroll5b"]))
+    (work / "take5b/masks.json").write_text(json.dumps(masks), encoding="utf-8")
     for m, name in ((m1, "take1b"), (m5, "take5b")):
         if (m["width"], m["height"]) != tuple(plan.ANSWER["capture"]):
             plan.die(f"{name} is {m['width']}x{m['height']}, the card is drawn for {plan.ANSWER['capture']}")
     drag = app_store_drag(p["film"], p["take1b"])
     (work / "drag.json").write_text(json.dumps(drag.__dict__), encoding="utf-8")
     return {"take1b": {"sha256": sha256(p["take1b"]), "pictures": len(m1["sources"])},
-            "take5b": {"sha256": sha256(p["take5b"]),
-                       "picture_pts": m5["sources"][str(m5["film"][0])]["pts"]}}
+            "take5b": {"sha256": sha256(p["take5b"]), "pictures": len(m5["sources"]),
+                       "scroll_map_sha256": sha256(p["scroll5b"]),
+                       "masked_pictures": sum(1 for r in masks if r is not None)}}

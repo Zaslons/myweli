@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Approved 2026-10-18; amended 2026-10-18 (A1, owner: people and pictures).** A1: the hook opens on the owner's picture of a salon owner writing in her paper notebook (the drawn notebook leaves S1, S6 keeps it), S7 runs 20.0–25.0 s, a people beat S7b (25.0–27.0 s, « Plus de temps pour votre métier. ») shows a stylist braiding a client, the end card runs 27.0–30.0 s; the fixes from the review of the first render (R1) are in. Approved first by the owner's sign-off on the final storyboard. Owner's decisions: the storyboard is approved as written, « carnet » kept; the « MyWeli Pro » unit is built from the wordmark SVG plus the « Pro » vectors of the Pro app-open Lottie, and on the end card the drawn mark becomes the Pro app icon — both approved; render now with the existing takes (no re-take, nothing written to production); posting is the owner's later decision; Reels 9:16, 1080 × 1920, 30 fps, 30 s, no music (the owner adds Instagram music), CTA « Disponible sur l’App Store »; audience: salon owners. **Built** on `feat/pro-marketing-reel` — see §9 for what the build measured (§9.2 for A1 and R1). |
+| **Status** | **Approved 2026-10-18; amended 2026-10-18 (A1 + A2).** A1 (owner: people and pictures): the hook opens on the owner's picture of a salon owner writing in her paper notebook (the drawn notebook leaves S1, S6 keeps it), a people beat S7b (« Plus de temps pour votre métier. ») shows a stylist braiding a client, the end card runs 27.0–30.0 s — and A1 as built (the hook's black bottom band) was accepted by the owner the same day. A2 (owner: the salon page shows Maison Nala): S5 opens on the top of the public page — its cover photo, its « Maison N » logo, its name — under « Photos, tarifs, horaires : tout sur votre page. ». The fixes from the review of the first render (R1) and the items of the review of the second render (R2: S7 runs 20.0–24.367 s so S7b's caption has its reading time, S3's card waits for S2's lockup, S4's arriving bubbles fade with what shows of them, S1's headline at the top of the safe zone, the AI pictures a posting step) are in. Approved first by the owner's sign-off on the final storyboard. Owner's decisions: the storyboard is approved as written, « carnet » kept; the « MyWeli Pro » unit is built from the wordmark SVG plus the « Pro » vectors of the Pro app-open Lottie, and on the end card the drawn mark becomes the Pro app icon — both approved; render now with the existing takes (no re-take, nothing written to production); posting is the owner's later decision; Reels 9:16, 1080 × 1920, 30 fps, 30 s, no music (the owner adds Instagram music), CTA « Disponible sur l’App Store »; audience: salon owners. **Built** on `feat/pro-marketing-reel` — see §9 for what the build measured (§9.2 for A1 and R1, **§9.3 « As built » for A2 and R2**, the current film). |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-10-18 |
 | **PRD ref / phase** | Launch — marketing · V1 (the « real motion-design film for Facebook, WhatsApp and the website » that [pro-app-preview.md](pro-app-preview.md) §0.1 left as a later owner decision) |
@@ -15,9 +15,10 @@
 the sound off, that MyWeli Pro answers three things that go wrong on a salon
 day — the paper appointment book, the same client questions at night, the
 client who walks in without an appointment — on real footage of the demo
-salon « Maison Nala ». It opens and closes on people (A1): a salon owner at
-her paper notebook, and a stylist braiding a relaxed client under « Plus de
-temps pour votre métier. ».
+salon « Maison Nala », whose public page opens on its own cover photo and
+logo (A2). It opens and closes on people (A1): a salon owner at her paper
+notebook, and a stylist braiding a relaxed client under « Plus de temps
+pour votre métier. ».
 
 **The idea, « Le trait ».** One white stroke, in the single weight and round
 caps of the MyWeli mark, crosses out each pain (black, abrupt, staccato) and
@@ -37,22 +38,24 @@ the owner's two pictures (A1).
 cut-down and the post caption the storyboard suggests (§8), posting, any
 re-take, any change to the app.
 
-## 2. The storyboard (approved 2026-10-18, amended the same day: A1)
+## 2. The storyboard (approved 2026-10-18, amended the same day: A1, A2)
 
 30.000 s, 900 frames at 30 fps. Cuts on a 0.5 s grid (frames 75, 180, 300,
-375, 525, 600, 750, 810) so a 115–130 BPM track locks to them. Pains are black
-(#000); answers are paper (#FAFAFA).
+375, 525, 600, 810) so a 115–130 BPM track locks to them — except the S7 →
+S7b dissolve, which starts at frame 731 (24.37 s, R2) so S7b's caption has
+its reading time; a 200-ms dissolve whose middle is within 2 frames of the
+24.5 s beat. Pains are black (#000); answers are paper (#FAFAFA).
 
 | Scene | Time (frames) | On screen (French) | Picture | Motion |
 |---|---|---|---|---|
-| **S1** hook « carnet » (A1) | 0.00–2.50 (0–74) | « Votre salon, / encore au carnet ? » | The owner's picture (AI-generated, 941×1672): a salon owner writing in her paper notebook, full bleed at 1.1477 (the least that fills the width), its notebook at y ≈ 1170–1480 (the crossing at y 1232, above the caption zone), its bottom edge fading to black at y ≈ 1599; a black gradient 72 % → 0 (y 380–960); Poppins Medium 92/106 white headline at y 316–528 | Push-in 1.00 → 1.04 about the stroke's start (linear, 0–2.50); headline settles from scale 1.02 (`fast`); at 1.45–1.70 a white 8-px stroke leaves the pen tip and crosses the open pages (x 246.8–735, y 1232) over a soft shadow. Cover frame: f54 (1.80 s) |
-| **S2** mark + promise | 2.50–6.00 (75–179) | « MyWeli Pro » (vector unit) · « Plus de clients, moins de gestion. » | Paper; the mark 220 px tall at (540, 580); the « MyWeli Pro » unit 480 px wide at y 756; the tagline Poppins Medium 52 #3D3D3D at y 950–1014 | The S1 stroke thickens to 2560 px about its line (`slow`) and becomes the page; pen dot 2.70; the mark draws 2.80–3.40 in the fast loader's path order on (0.4, 0, 0.2, 1); unit 3.15, tagline 3.20 rise 16 px (`emphasis`); exit 6.00–6.20 (40 px up, easeIn), drawn over S3's rising card on its own clear space of paper |
-| **S3** answer « Ma journée » | 6.00–10.00 (180–299) | « Votre journée, / heure par heure. » | Answer layout (below); take1b « Ma journée » | Card rises 6.00–6.30; camera W 56 → 350 at 7.10 (`slow`); LIVE swipe on Fatou B. 11:15 (take 10.662–11.628 s, 1:1), the green « Arrivé » pane opens; held open to 10.00; black touch disc follows the logged drag |
-| **S4** pain « questions » | 10.00–12.50 (300–374) | « Encore les mêmes / questions ? » — « C’est combien, les tresses ? » 22:41 · « Vous êtes où exactement ? » 22:43 · « Vous fermez à quelle heure ? » 22:47 · « Allô ? » 23:02 | Hard cut to black; neutral received bubbles #1E1E1E, Inter Regular 48 white, timestamps Inter 34 #8A8A8A, stacked y 614–1150 | Bubbles arrive at 10.30/10.60/10.90 as one column: each enters one slot below the bottom slot and rises with the others 140 px (`base`), fading and scaling in on `fast`; nothing below y 1152 is drawn; a full-width stroke through « quelle heure » at 11.90 |
-| **S5** answer « page » | 12.50–17.50 (375–524) | « Tarifs, horaires, plan : / tout sur votre page. » | Answer layout; take5b at 30.000 s (one frame), the salon's phone row masked white | Stroke thickens to paper; card enters to W 122 (« Services · 5 services • Voir les tarifs »; the page's back button under the band); camera W 300 (map, « Zone 4, Marcory ») at 14.00 and W 470 (hours, « Aperçu — voici ce que verront vos clients. ») at 15.50, each 600 ms easeInOutCubic |
+| **S1** hook « carnet » (A1) | 0.00–2.50 (0–74) | « Votre salon, / encore au carnet ? » | The owner's picture (AI-generated, 941×1672): a salon owner writing in her paper notebook, full bleed in width at 1.1477 (the least that fills the width), its notebook at y ≈ 1170–1480 (the crossing at y 1232, above the caption zone), its bottom edge fading to black at y ≈ 1599 (A1 as built, accepted); a black gradient 72 % → 0 (y 380–960); Poppins Medium 92/106 white headline at y 280–492, the top of the safe zone (R2) | Push-in 1.00 → 1.04 about the stroke's start (linear, 0–2.50); headline settles from scale 1.02 (`fast`); at 1.45–1.70 a white 8-px stroke leaves the pen tip and crosses the open pages (x 246.8–735, y 1232) over a soft shadow. Cover frame: f54 (1.80 s) |
+| **S2** mark + promise | 2.50–6.00 (75–179) | « MyWeli Pro » (vector unit) · « Plus de clients, moins de gestion. » | Paper; the mark 220 px tall at (540, 580); the « MyWeli Pro » unit 480 px wide at y 756; the tagline Poppins Medium 52 #3D3D3D at y 950–1014 | The S1 stroke thickens to 2560 px about its line (`slow`) and becomes the page; pen dot 2.70; the mark draws 2.80–3.40 in the fast loader's path order on (0.4, 0, 0.2, 1); unit 3.15, tagline 3.20 rise 16 px (`emphasis`); exit 6.00–6.20 (40 px up, easeIn); S3's card starts only at 6.10 (R2), so it never enters the lockup's clear space while it shows |
+| **S3** answer « Ma journée » | 6.00–10.00 (180–299) | « Votre journée, / heure par heure. » | Answer layout (below); take1b « Ma journée » | Card rises 6.10–6.40 (R2); camera W 56 → 350 at 7.10 (`slow`); LIVE swipe on Fatou B. 11:15 (take 10.662–11.628 s, 1:1), the green « Arrivé » pane opens; held open to 10.00; black touch disc follows the logged drag |
+| **S4** pain « questions » | 10.00–12.50 (300–374) | « Encore les mêmes / questions ? » — « C’est combien, les tresses ? » 22:41 · « Vous êtes où exactement ? » 22:43 · « Vous fermez à quelle heure ? » 22:47 · « Allô ? » 23:02 | Hard cut to black; neutral received bubbles #1E1E1E, Inter Regular 48 white, timestamps Inter 34 #8A8A8A, stacked y 614–1150 | Bubbles arrive at 10.30/10.60/10.90 as one column: each enters one slot below the bottom slot and rises with the others 140 px (`base`), fading and scaling in on `fast` — never more opaque than the share of it above y 1152 (R2); nothing below y 1152 is drawn; a full-width stroke through « quelle heure » at 11.90 |
+| **S5** answer « page » (A2) | 12.50–17.50 (375–524) | « Photos, tarifs, horaires : / tout sur votre page. » (78 px: the first line is 965 px at 84) | Answer layout; take5b: the page at rest on its top (cover photo, « Maison N » logo, « Maison Nala », « Abidjan », « Nouveau »), its one drag LIVE 1:1, the page at rest after it; the status bar and the back button's disc under the solid band (W 136); the salon's phone row masked white on every picture that shows it | Stroke thickens to paper; card enters at W 136 on the top of the page (12.80) and holds it (about 1.4 s); the page's own scroll 14.00–16.33 (take5b 26.167–28.533 s, 71 frames) brings « Services · 5 services • Voir les tarifs » and the map; camera W 136 → 470 (`slow`) at 16.40 to the hours and « Aperçu — voici ce que verront vos clients. » |
 | **S6** pain « sans rendez-vous » | 17.50–20.00 (525–599) | « Un client / sans rendez-vous ? » — « 13h  Mariam — brushing », « 14h  Aïcha — tresses », « 15h30  Koffi — coupe homme », « 16h30  Rokia — soin capillaire », « 17h  Awa — tresses », « + 14h45  coupe homme · n° ? » | Hard cut to black; the S1 notebook, afternoon page; the walk-in squeezed on the minor rule at baseline 804 | Entries 4–5 pop; the squeezed entry pops at 17.95; « n° ? » struck at 18.45; full-width stroke at y 788, 19.60–19.85 |
-| **S7** answer « réservation » | 20.00–25.00 (600–749) | « En quelques gestes, / même sans numéro. » | Answer layout; take1b at W 553, then 682: « Libre — 14:45 » → « Réservation » → the filled form (« Client sans numéro », « Yao K. ») → « Créer le rendez-vous » → « Rendez-vous créé » and the new 14:45 row | Card enters 20.30; tap « Libre » (black disc, gone by 21.10) at 20.90, LIVE 26 frames; 2-frame hold; **declared dissolve** 21.833–22.233 (12 frames on `slow`, skips 97.3 s of real input); hold; white disc on the black button, LIVE 22.90–24.83 with the real server time; the camera pans W 553 → 682 (23.73–24.13) as « Ma journée » comes back, the old 13:15 « Yao K. » sliding under the band; headline fades 24.80–25.00 |
-| **S7b** people (A1) | 25.00–27.00 (750–809) | « Plus de temps / pour votre métier. » | The owner's picture (AI-generated, 941×1672): a stylist braiding a relaxed client, full bleed at 1.1483 (the least that fills the frame); a soft black gradient 62 % → 0 (y 420–1000); the caption Poppins Medium 92/106 white at y 316–528 | The S7 page dissolves into the picture (`base`, 25.00–25.20); push-in 1.00 → 1.03 about the braiding hands (linear); caption lines rise 24 px and fade in at 25.00/25.05 (`emphasis`); the picture dissolves into the end card at 27.00 (`base`) |
+| **S7** answer « réservation » | 20.00–24.367 (600–730) | « En quelques gestes, / même sans numéro. » | Answer layout; take1b at W 553, then 682: « Libre — 14:45 » → « Réservation » → the filled form (« Client sans numéro », « Yao K. ») → « Créer le rendez-vous » → « Rendez-vous créé » and the new 14:45 row | Card enters 20.30; tap « Libre » (black disc, gone by 21.10) at 20.90, LIVE 19 frames (to where the take stops changing, R2); 2-frame hold; **declared dissolve** 21.600–22.000 (12 frames on `slow`, skips 97.5 s of real input); 8-frame hold (R2); white disc on the black button, LIVE 22.267–24.200 with the real server time; the camera pans W 553 → 682 (23.10–23.50) as « Ma journée » comes back, the old 13:15 « Yao K. » sliding under the band; « Rendez-vous créé » 0.9 s; headline fades 24.167–24.367 |
+| **S7b** people (A1, R2) | 24.367–27.00 (731–809) | « Plus de temps / pour votre métier. » | The owner's picture (AI-generated, 941×1672): a stylist braiding a relaxed client, full bleed at 1.1483 (the least that fills the frame); a soft black gradient 62 % → 0 (y 420–1000); the caption Poppins Medium 92/106 white at y 316–528 | The S7 page dissolves into the picture (`base`, from frame 731, off the 0.5 s grid); push-in 1.00 → 1.03 about the braiding hands (linear); caption lines rise 24 px and fade in at 24.367/24.417 (`emphasis`); the picture dissolves into the end card at 27.00 (`base`) |
 | **S8** end card | 27.00–30.00 (810–899) | « MyWeli Pro » (vector unit) · « Disponible sur l’App Store » | Paper with the light brand pattern (#EDEEEF marks, brick grid, clear zone x 140–940 × y 380–1180); the Pro app icon tile 280 px at y 450–730; the unit 560 px at y 826–912; black pill 680 × 110 at y 1000–1110, Inter SemiBold 46 white | Pattern fades in under the dissolving picture and drifts up 12 px/s; pen dot 27.05; the mark draws 27.10–27.70; the tile's hairline and shadow fade in 27.65 (the mark becomes the icon); unit 27.70; CTA 27.75; clean hold to the last frame (the loop point) |
 
 **Shared answer layout (S3, S5, S7).** Paper; the headline Poppins Medium
@@ -68,19 +71,19 @@ p at frame y = 600 + (p − W) × 2.2388.
 
 **Words on screen and reading time.** Every headline, the tagline, S7b's
 caption and the CTA stay from the start of their entrance to the start of
-their exit at least max(1.5 s, characters ÷ 15 + 0.5 s): S1 2.77 s of 2.57
-needed; tagline 2.80 of 2.77; S3 3.80 of 2.57; S4 2.73 of 2.37; S5 4.75 of
-3.50; S6 2.70 of 2.37; S7 4.55 of 2.97; CTA 2.25 of 2.23. **S7b's caption is
-the exception: 2.00 s (its whole A1 beat) against the 2.63 s its 32
-characters need** — flagged for the owner (§7 risk 15). Brand time 6.43 s of
-30 (21.4 %, ≤ 25 %).
+their exit at least max(1.5 s, characters ÷ 15 + 0.5 s), **with no
+exception** (R2): S1 2.77 s of 2.57 needed; tagline 2.80 of 2.77; S3 3.80 of
+2.57; S4 2.73 of 2.37; S5 4.75 of 3.63; S6 2.70 of 2.37; S7 3.92 of 2.97;
+**S7b's caption 2.63 of 2.63** (it was 2.00, A1's beat); CTA 2.25 of 2.23.
+Brand time 6.43 s of 30 (21.4 %, ≤ 25 %).
 
 ## 3. Truth rules — what the film claims, and what it deliberately does not
 
 - **Every answer is the real app, recorded.** S3 and S7 are the production
   recording take1b (2026-10-14, demo salon Maison Nala, invented client
-  names); S5 is take5b's frame at 30.000 s (the keyed build with real CARTO
-  tiles, the cover photo scrolled away). LIVE ranges play 1:1, conformed to
+  names); S5 is take5b (the keyed build with real CARTO tiles): the page at
+  rest on its top with the salon's own cover photo and logo, its one drag
+  LIVE, the page at rest after it (A2). LIVE ranges play 1:1, conformed to
   30 fps by frame-hold (`Conform.swift`), never retimed, never blended
   except the one **declared dissolve** in S7 — the App Store film's own cut —
   which must read as a time skip, never as a speed-up.
@@ -92,23 +95,30 @@ characters need** — flagged for the owner (§7 risk 15). Brand time 6.43 s of
   (« Voir les tarifs » l.678, the « Aperçu » bar l.1192, « Réserver (après la
   mise en ligne) » l.1207).
 - **Headlines are approved store copy or literal on screen**: S3 is
-  screens.json 01 word for word; S5's « Tarifs, horaires, plan » are the
-  page's own words (screens.json 02); S7 joins screens.json 04's headline and
-  sub-line.
+  screens.json 01 word for word; S5's « Photos, tarifs, horaires » is the
+  owner's A2 headline, each word on the page itself (the cover photo,
+  « Voir les tarifs », the hours; screens.json 02 before it); S7 joins
+  screens.json 04's headline and sub-line.
 - **Not claimed, on purpose**: no SMS, WhatsApp or reminder sending (messaging
   is OFF until the company is registered — S4's bubbles are the pain, no
   MyWeli screen answers them with a message); no payment, deposit or
   no-show prevention (no screen exists; the « lapin » beat was removed); no
-  figures, prices or offers; S3 shows the gesture opening « Arrivé », not
+  before/after (A2: only a partner salon's real work may ever be shown as
+  before/after); no figures, prices or offers; S3 shows the gesture opening « Arrivé », not
   that the arrival was saved; « Réserver (après la mise en ligne) » stays
   visible as the page's own caveat.
 - **Never on screen**: a readable phone number (S5's salon phone row is
-  masked white in capture space before the camera moves; S7 shows no
-  digits), the status bar, the Dynamic Island, the unverified cover photo, a
-  real person (A1's people are the owner's AI-generated pictures:
+  masked white in capture space before the camera moves, on every picture
+  of the page's scroll; S7 shows no digits), the status bar, the Dynamic
+  Island, the page's floating back button, a real person (A1's people are
+  the owner's AI-generated pictures:
   illustrative atmosphere, never captioned as real customers, never a
   testimonial), a third-party chat look (no WhatsApp green, no ticks, no
   logo), an Apple logo or badge artwork.
+- **Maison Nala's photos (A2)**: the cover photo and the « Maison N » logo
+  are the demo salon's own, shown as its public page shows them; the owner
+  confirmed they are free-licensed (source links still to be recorded,
+  BACKLOG decision 37).
 - **The logo is vectors only**: the mark from `myweli_mark_black.svg`, the
   draw-on from the fast loader Lottie, the « MyWeli Pro » unit from the
   wordmark SVG plus the « Pro » glyph vectors of
@@ -128,7 +138,7 @@ characters need** — flagged for the owner (§7 risk 15). Brand time 6.43 s of
 | Where | Instagram Reels (the owner adds music there), Facebook Reels, TikTok, WhatsApp Status — the same master |
 | Safe zone | Every word of the film inside x 65–1015, y 269–1248 (clear of the Reels top bar, the caption zone and the right-hand rail, which starts at y 1152 for x > 850); everything of the hook and the end card inside the 4:5 feed crop (y 285–1635) and the 3:4 grid crop (y 240–1680) |
 | Covers | `poster-hook.png` (frame 0), `poster-end.png` (the last frame), `cover.png` (frame 54, 1.80 s, the storyboard's cover) — composed, lossless |
-| Review | `contact-sheet.png` (a frame every 0.5 s, decoded from the written file, labelled), `frame-<t>.png` at 18 key moments, `verify.txt` |
+| Review | `contact-sheet.png` (a frame every 0.5 s, decoded from the written file, labelled), `frame-<t>.png` at 19 key moments, `verify.txt` |
 
 ## 5. Architecture
 
@@ -158,26 +168,32 @@ progressive with square pixels, every frame exactly 1/30 s, 900 frames,
 30.000 s, no reordering, the bit rate, AAC-LC stereo 48 kHz running the whole
 film and decoding to digital silence. Against the plan: every text box of the
 storyboard inside the safe zone on every frame (and none in the rail), no
-missing glyph, the reading times and the brand time; no two of S4's bubbles
-ever overlapping; no card moving more than 410 px between two frames; A1's
-pictures never smaller than their fill nor larger than their push-in. Against the build:
-each LIVE and HOLD range against its take map, S5's phone row white on every
-composed frame and on the decoded file, key frames decoded against the
-composed ones (48 dB; 47 where the ground is a photograph), and the white
-words over A1's pictures at 4.5:1 or more against what lies under them. A self-test runs verify on a deliberately wrong file, on a
-plan with a box outside the zone, on overlapping bubbles, a jumping card, an
-over-enlarged picture and a caption cut shorter than its beat, and watches
-each fail.
+missing glyph, the reading times with no exception (R2) and the brand time;
+no two of S4's bubbles ever overlapping; no card moving more than 410 px
+between two frames; no card box inside S2's lockup's clear space (the mark
+and the unit, half the mark's height all round) or the tagline's line while
+they show (R2); A1's pictures never smaller than their fill nor larger than
+their push-in. Against the build: each LIVE and HOLD range of take1b and
+take5b against its take map, S5's phone row white on every composed frame —
+through the page's own scroll (A2) as at the camera stops — and on the
+decoded file, key frames decoded against the composed ones (48 dB; 47 where
+the ground is a photograph), and the white words over A1's pictures at 4.5:1
+or more against what lies under them. A self-test runs verify on a
+deliberately wrong file, on a plan with a box outside the zone, on
+overlapping bubbles, a jumping card, an over-enlarged picture, S7b's caption
+at A1's 2.0-s beat and S3's card entering at 6.00 s, on a take5b row moved
+off its rectangle and a scroll map 2 pt off, and watches each fail.
 
 ## 7. Risks (from the storyboard, carried as approved; updated for A1)
 
-1. **Footage age.** take1b is from 2026-10-14; since then only #611
-   (2026-10-15, the PhoneNumberField's 10-digit rule) touches a filmed screen.
-   The EMPTY phone field shows for about 0.8 s in S7 (21.43–22.23 s, through
-   the dissolve). The owner chose to render with the existing takes.
+1. **Footage age.** take1b and take5b are from 2026-10-14; since then only
+   #611 (2026-10-15, the PhoneNumberField's 10-digit rule) touches a filmed
+   screen. The EMPTY phone field shows for about 0.55 s in S7 (21.43–21.97
+   s, through the dissolve). The owner chose to render with the existing
+   takes.
 2. **Duplicate « Yao K. ».** take1b already holds a 13:15 « Yao K. ». The
-   camera now pans as « Ma journée » comes back, so both rows are on screen
-   together only for frames 710–718 (23.67–23.97 s, **0.30 s**, while the
+   camera pans as « Ma journée » comes back, so both rows are on screen
+   together only for frames 691–699 (23.03–23.30 s, **0.30 s**, while the
    journal slides back in and the pan runs) — the first render showed both
    for about 2.4 s. Only a re-take under another name removes it.
 3. **« Tarifs »** is the collapsed « 5 services • Voir les tarifs »; the prices
@@ -203,22 +219,35 @@ each fail.
     zone. Check on a real phone with Instagram and TikTok.
 11. **No music** in the file; the 0.5-s grid suits 115–130 BPM.
 12. **Tooling** — built (`tool/marketing_video/`).
-13. **People (A1).** The two pictures are AI-generated by the owner
-    (ChatGPT/Gemini, 2026-10-18; `build/marketing/photos/PROVENANCE.md`),
+13. **People (A1) — a POSTING STEP.** The two pictures are AI-generated by
+    the owner (ChatGPT/Gemini, 2026-10-18; `build/marketing/photos/PROVENANCE.md`),
     used as illustrative atmosphere, never captioned as real customers or a
-    testimonial. Meta (Instagram, Facebook) and TikTok ask creators to label,
-    or label themselves, photorealistic AI-generated content: check each
-    platform's AI-content setting when posting. The pictures are 941 × 1672,
-    enlarged 1.148–1.194× in the film (slightly soft at full size).
-14. **S1's framing (A1).** To bring the notebook's crossing above the caption
-    zone, the picture sits 320 px above its natural place: its bottom edge
-    fades into black (the bottom 17 % of the hook, under the Reels caption),
-    and the headline's second line sits on her hairline.
-15. **S7b's caption reading time.** « Plus de temps pour votre métier. » (32
-    characters) is on screen 2.00 s, A1's whole beat; the film's rule asks
-    2.63 s. More time means about 0.65 s from S7's holds (at their shortest)
-    or from the end card (the CTA has 0.02 s to spare), or a shorter line —
-    the owner's call.
+    testimonial. **When posting: turn on TikTok's « AI-generated content »
+    label, and Meta's « AI info » disclosure on Instagram and Facebook; the
+    post caption must not imply a real salon or a real customer.** The
+    pictures are 941 × 1672, enlarged 1.148–1.194× in the film (slightly
+    soft at full size).
+14. **S1's framing (A1 as built, accepted by the owner 2026-10-18).** To bring
+    the notebook's crossing above the caption zone, the picture sits 320 px
+    above its natural place: its bottom edge fades into black (the bottom
+    17 % of the hook, under the Reels caption, which it helps to read). The
+    headline block now sits at y 280, the top of the safe zone (R2), so its
+    second line ends above her hairline.
+15. **S7b's caption reading time — resolved (R2).** « Plus de temps pour
+    votre métier. » (32 characters) is on screen 2.63 s, what the rule asks:
+    S7b starts at frame 731 (24.37 s, off the 0.5 s grid), with 19 frames
+    taken from S7's still stretches (the unfilled form 13 → 6 still frames,
+    the filled form's hold 20 → 8); the tap, the dissolve and the
+    snackbar's 0.9 s are untouched.
+16. **Maison Nala's photos (A2).** The cover photo and the logo are the demo
+    salon's own; the owner confirmed their free licence, but their source
+    links are still to be recorded (BACKLOG decision 37) — record them
+    before posting.
+17. **S5's pace (A2).** The page's own scroll plays 1:1 (2.37 s) in a 5-s
+    beat: the top of the page holds about 1.4 s, Services and the map read
+    as the scroll settles (about 0.5 s), the hours hold 0.7 s after a 400-ms
+    camera move; v2's map stop (W 300) is left out. More time would mean
+    retiming the take, which the truth rules refuse.
 
 ## 8. How to rebuild
 
@@ -282,7 +311,7 @@ the caption were not built.
 The review of this render (R1, §9.2) replaced two of these readings: the
 cards' entrance and S4's bubbles.
 
-### 9.2 Amendment A1 and the review's fixes (R1) — the current film (2026-10-18)
+### 9.2 Amendment A1 and the review's fixes (R1) — the second render (2026-10-18)
 
 Rendered from the same takes, A1's two pictures (`hook-owner-notebook.webp`
 sha256 `a78c7149…`, `closing-stylist-braiding.webp` `2027a9a0…`, checked by
@@ -356,6 +385,82 @@ hold once their span ends; the encoder's ceiling 12 and the photographs'
 47-dB floor.
 
 
+### 9.3 As built — amendment A2 and the second review's items (R2): the current film (2026-10-18)
+
+Rendered from the same takes (take1b `b0a455b9…`, take5b `59fab94b…` with
+its scroll map `phone_rect_per_frame.csv` `e1fd9c51…`), A1's two pictures
+and the storyboard as amended (sha256 `7b7513e1…`), in a scratch folder — no
+film, take or picture is committed:
+
+- `reel.mp4`: 900 frames, 30.000 s, 41,940,795 bytes, sha256
+  `9aad431cfe94b48f…`; **PASS — 35 checks** (the new one: « S2's clear space
+  kept »); 11.18 Mbit/s on average, 49.72 Mbit in the busiest second (Level
+  4.1 allows 62.5; against the second render's 9.36, S5's live scroll over
+  the cover photo costs 30 Mbit more and S7b's 0.63 s more of a photograph
+  24 Mbit more), the sound decoding to zeros; the worst graphic key
+  frame at 52.2 dB (frame 387, S5's card entering), the worst photograph key
+  frame (frame 0) at 47.8 dB.
+- 594 distinct pictures in 900 frames; 61 s end to end on four processes
+  (conform 19 s, compose 17 s, encode 12 s, covers + sheet + verify 14 s).
+- Reading times all met, **no exception**: S7b's caption 2.63 s of 2.63. Safe
+  zone: the tightest box is S1's first headline line at frame 0 (its line
+  box at the 1.02 settle), 8.9 px inside the zone's top. The white words over
+  the pictures at 9.5:1 (S1, up from 8.4 with the headline higher) and 6.4:1
+  (S7b) or better.
+- S5's phone row: 43 of take5b's 71 pictures carry a mask — each the rest
+  picture's rectangle moved by the picture's scroll, holding the rest
+  picture's row pixel for pixel and ringed by white, and on every picture
+  the page just above the bar matches the rest picture moved by that
+  scroll (the scroll map is checked, not trusted: 2 pt off on a picture
+  whose row is under the bar, it is refused); 72 composed frames show the
+  masked row (39 of them in the page's own scroll), every pixel of it
+  white; 13 decoded frames across the scroll, the stop and the camera move,
+  white to 245 or more.
+
+**A2, as built.** S5's card enters at 12.80 s on the top of Maison Nala's
+page at W 136: the band hides the status bar and the back button's white
+disc (to pt 110.3, frame y 542) — the cover photo of the salon interior
+shows from the band's fade to y 936, the « Maison N » logo at 757–900,
+« Maison Nala », « Abidjan », « Nouveau » below it. The top holds to 14.00;
+the take's own drag then plays LIVE 1:1 (take5b 26.167–28.533 s, 71 frames,
+the cover collapsing into the header as the app draws it) and settles on
+Services, « Voir les tarifs » and the map at 16.33; at 16.40 the camera
+moves W 136 → 470 (`slow`, as S3's) to the hours and « Aperçu — voici ce que
+verront vos clients. », held to 17.50. The headline « Photos, tarifs,
+horaires : tout sur votre page. » is set at 78 px (896 / 769 px): at 84 its
+first line is 965 px, wider than the column and the safe zone, and the
+suggested break is the only one. The take never shows the top of the page
+in motion before the drag: it rests on its top for its first 26.17 s, so the
+top is a held picture of the real page, not a camera move on a still.
+
+**R2 — each item of the second review, and what changed:**
+
+| Item | Change | Checked by |
+|---|---|---|
+| (a) S7b's caption was 2.00 s against the rule's 2.63 | The S7 → S7b dissolve starts at frame 731 (24.367 s): S7's first live range ends where the take stops changing (the unfilled form's still frames 13 → 6) and the filled form holds 8 frames (was 20); the tap, the 12-frame dissolve and « Rendez-vous créé »'s 0.9 s untouched. The storyboard's concept names the one off-grid cut, and the plan refuses any other | « reading time » with no exception (2.63 of 2.63); a self-test puts the caption back at A1's 2.0-s beat and watches it fail by name |
+| (b) S3's card's words under S2's lockup on frames 184–185 | S3's card enters at 6.10 (frames 180–182 are paper and the leaving lockup); the paper plate at the lockup's opacity is gone | « S2's clear space kept »: no card box in the lockup's clear space (mark and unit, half the mark's height all round) or the tagline's line while they show — 211 px below the tagline at its closest (frame 185); a self-test enters the card at 6.00 and watches it fail at frame 183 |
+| (c) An arriving bubble sliced at full white at y 1152 | Its opacity is the lesser of its `fast` fade and the share of it above y 1152 | a self-test over frames 309–335 (and the same test against a column edge moved on purpose: 15 violations) |
+| (d) S1's black band; the second line on her hairline | The band accepted as built (amendment « A1 as built, accepted 2026-10-18 »); the headline block moves to y 280, the top of the safe zone | the safe zone (8.9 px in at the settle); looked at on frame 0 and at grid-thumbnail size (112 and 180 px wide): the second line ends at y ≈ 472, above her hairline (y ≈ 500) |
+| (e) The AI pictures a « check » | A posting step (§7 risk 13): TikTok's « AI-generated content » label and Meta's « AI info » disclosure on; a caption that implies no real salon or customer | — |
+
+**Looked at** (the contact sheet and the 19 key frames decoded from the
+file — 0.0, 1.5, 3.5, 6.1, 6.2, 10.4, 11.0, 12.9, 13.5, 14.5, 15.5, 17.0,
+21.0, 24.0, 24.5, 25.5, 26.9, 27.5, 29.5 s — and frame strips of S2 → S3
+(180–189), S4's arrivals at the column edge, S5's top under the band
+(393–440), S7 (624–668, 690–745) and S7 → S7b): the top of the page reads at
+once — photo, logo, name — with no status bar and no back button; the
+scroll is the app's own; the phone row is never seen; S3's card meets the
+logo only after it has gone; the arriving bubbles are faint where they are
+cut; the caption reads for its whole 2.63 s. At 24.5 s the S7 page is still
+faintly in the dissolve (frame 735, the fifth of six), as a `base` dissolve
+is.
+
+**Deviations, A2 and R2** (the tool's README lists them with their reasons):
+S5's headline at 78 px; S5 at W 136 (not 122) and without v2's W 300 stop;
+S5's rest picture is take5b's 28.500 s (v2 held 28.665 s, the same picture);
+S5's camera move on `slow` 400 ms (v2's were 600 ms); the one cut off the
+0.5 s grid (frame 731); S3's card at 6.10.
+
 **Since the takes**: no commit touches the journal screen or the public
 page; #611 and #614 touched the booking form's phone field, whose empty
 state reads the same (« +225 », « Téléphone du client », a « 0/10 »
@@ -367,7 +472,5 @@ counter — read in code, not filmed).
   release and once salons can go online).
 - A re-take on the current build would remove risks 1–3 (owner chose not to,
   2026-10-18).
-- S7b's caption: keep 2.0 s, lengthen the beat, or shorten the line (§7 risk
-  15) — the owner's call.
-- The AI-content label each platform asks for photorealistic generated
-  pictures (§7 risk 13), at posting.
+- The posting steps (§7 risks 13 and 16): the AI-content labels on TikTok and
+  Meta, and the cover photo's and logo's source links recorded.

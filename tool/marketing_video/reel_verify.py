@@ -18,16 +18,19 @@ AVFoundation (`swift/Inspect.swift`, the only one that decodes) and
               and none reaches into the right-hand rail; the cover frame and
               the end card inside the 4:5 feed crop; no character drawn as
               a missing glyph; every timed line on screen for its reading
-              time; the brand on screen for at most a quarter of the film;
-              no two of S4's bubbles ever overlap; no card moves more than
-              410 px from one frame to the next; A1's pictures enlarged no
-              more than their fill and push-in need.
-  the build   (with the work folder) take1b's exported ranges against the
-              take's map; S5's phone row white on every composed frame
-              where it shows, and on the decoded file at the camera stops
-              and through the moves; key frames decoded against the frames
-              that were composed; the white words over A1's pictures at
-              4.5:1 or more against what lies under them.
+              time, with no exception (R2); the brand on screen for at most
+              a quarter of the film; no two of S4's bubbles ever overlap; no
+              card moves more than 410 px from one frame to the next; no
+              card enters S2's lockup's clear space (or the tagline's line)
+              while the lockup shows (R2); A1's pictures enlarged no more
+              than their fill and push-in need.
+  the build   (with the work folder) take1b's and take5b's exported ranges
+              against each take's map; S5's phone row white on every
+              composed frame where it shows — through the page's own scroll
+              (A2) as at the camera stops — and on the decoded file; key
+              frames decoded against the frames that were composed; the
+              white words over A1's pictures at 4.5:1 or more against what
+              lies under them.
 
 `verify()` returns the checks; `reel.py verify` exits non-zero when any
 fails.
@@ -319,16 +322,11 @@ def plan_checks(P: plan.Plan, layout: dict[int, list] | None = None) -> list[Che
         f"drawn as a missing glyph: {missing}")
 
     rows = comp.reading_windows()
-    short = [r for r in rows if r["on"] + 1e-9 < r["floor"]]
-
-    def reading(r):
-        if r["floor"] < r["need"]:
-            return (f"{r['label']} {r['on']:.2f} s of {r['need']:.2f} — SHORT of the rule: A1's whole "
-                    f"{r['floor']:.1f}-s beat, flagged for the owner")
-        return f"{r['label']} {r['on']:.2f} s of {r['need']:.2f}"
+    short = [r for r in rows if r["on"] + 1e-9 < r["need"]]
     add("reading time", not short,
-        "; ".join(reading(r) for r in rows) if not short else
-        "too short: " + "; ".join(f"{r['label']} {r['on']:.2f} s, needs {r['floor']:.2f}" for r in short))
+        "; ".join(f"{r['label']} {r['on']:.2f} s of {r['need']:.2f}" for r in rows) +
+        " — every line, no exception" if not short else
+        "too short: " + "; ".join(f"{r['label']} {r['on']:.2f} s, needs {r['need']:.2f}" for r in short))
 
     brand_frames = sum(1 for boxes in layout.values() if any(b.kind == "logo" for b in boxes))
     share = brand_frames / P.frames
@@ -343,9 +341,24 @@ def _overlap(a, b) -> bool:
     return min(a[2], b[2]) > max(a[0], b[0]) and min(a[3], b[3]) > max(a[1], b[1])
 
 
+def lockup_clear_space(boxes: list) -> list[tuple[str, tuple]]:
+    """The boxes S2's lockup keeps clear while it shows: the mark and the
+    « MyWeli Pro » unit with half the mark's height all round (the brand's
+    clear space), and the tagline's line."""
+    logo = [b for b in boxes if b.kind == "logo" and b.label.startswith("S2 ") and b.alpha > 0]
+    out = []
+    if logo:
+        clear = plan.S2["mark_h"] / 2
+        out.append(("the lockup's clear space", (min(b.ink[0] for b in logo) - clear, min(b.ink[1] for b in logo) - clear,
+                                                 max(b.ink[2] for b in logo) + clear, max(b.ink[3] for b in logo) + clear)))
+    out += [("the tagline's line", b.line or b.ink) for b in boxes
+            if b.kind == "text" and b.label == "S2 tagline" and b.alpha > 0]
+    return out
+
+
 def motion_checks(P: plan.Plan, layout: dict[int, list]) -> list[Check]:
-    """What R1 and A1 hold the frames to: S4's column, the cards' speed,
-    the pictures' enlargement."""
+    """What R1, A1 and R2 hold the frames to: S4's column, the cards' speed,
+    S2's clear space, the pictures' enlargement."""
     checks: list[Check] = []
 
     def add(name: str, ok: bool, seen: str) -> None:
@@ -386,6 +399,30 @@ def motion_checks(P: plan.Plan, layout: dict[int, list]) -> list[Check]:
         "; ".join(f"{k} {v[0]:.1f} px (frame {v[1]})" for k, v in sorted(worst.items())) +
         f" — the most a card moves between two frames (limit {limit})" if not fast else
         "too fast: " + "; ".join(f"{k} {v[0]:.1f} px at frame {v[1]}" for k, v in sorted(fast.items())))
+
+    # R2: no card box enters S2's lockup's clear space (nor the tagline's
+    # line) on any frame where the lockup still shows
+    shared, entered, nearest = 0, [], None
+    for n, boxes in sorted(layout.items()):
+        zones = lockup_clear_space(boxes)
+        cards = [b for b in boxes if b.kind == "card"]
+        if not zones or not cards:
+            continue
+        shared += 1
+        for c in cards:
+            box = c.full or c.ink
+            for name, z in zones:
+                if _overlap(box, z):
+                    entered.append((n, c.label, name, round(box[1]), round(z[3])))
+                gap = box[1] - z[3]
+                if nearest is None or gap < nearest[0]:
+                    nearest = (gap, n, name)
+    add("S2's clear space kept", shared > 0 and not entered,
+        f"{shared} frames show the lockup and a card together; the card stays below its clear space and the "
+        f"tagline (closest: {nearest[0]:.0f} px below {nearest[2]}, frame {nearest[1]})" if shared and not entered else
+        (f"{len(entered)} frame(s) with a card in it, first: frame {entered[0][0]} {entered[0][1]} top "
+         f"y {entered[0][3]} inside {entered[0][2]} (to y {entered[0][4]})" if entered else
+         "no frame shows the lockup with a card: nothing checked"))
 
     # A1's pictures: never smaller than their fill, never larger than fill x push-in
     seen: dict[str, list[float]] = {}
@@ -436,13 +473,15 @@ def build_checks(path: Path, P: plan.Plan, work: Path, layout: dict[int, list] |
         checks.append(Check(name, bool(ok), seen))
 
     m1 = json.loads((work / "take1b/manifest.json").read_text(encoding="utf-8"))
-    faults = rf.check_take_map(m1)
+    m5 = json.loads((work / "take5b/manifest.json").read_text(encoding="utf-8"))
+    faults = rf.check_take_map(m1) + [f"take5b: {f}" for f in rf.check_take_map(m5, rf.TAKE5B_SEGMENTS)]
     add("take map (LIVE and HOLD)", not faults,
-        f"{len(m1['film'])} exported pictures of take1b in {len(rf.TAKE1B_SEGMENTS)} ranges, each as the "
-        f"take presents it at its instant" if not faults else "; ".join(faults))
+        f"{len(m1['film'])} exported pictures of take1b in {len(rf.TAKE1B_SEGMENTS)} ranges and {len(m5['film'])} "
+        f"of take5b in {len(rf.TAKE5B_SEGMENTS)}, each as its take presents it at its instant"
+        if not faults else "; ".join(faults))
 
     if layout is None:
-        layout = layout_of(rs.Composer(P), P)
+        layout = layout_of(rs.Composer(P, rf.Footage(work)), P)
     manifest = json.loads((work / "frames/frames.json").read_text(encoding="utf-8"))
     names = manifest["frames"]
     shown = {}
@@ -457,8 +496,11 @@ def build_checks(path: Path, P: plan.Plan, work: Path, layout: dict[int, list] |
         a = np.asarray(Image.open(work / "frames" / names[n]).convert("L"))[r[1]:r[3], r[0]:r[2]]
         if a.min() < 250:
             bad.append((n, int(a.min())))
+    live = plan.S5["live"]
+    in_drag = sum(1 for n in shown if live[0] <= n <= live[0] + (live[2] - live[1]) // rf.FILM_TICKS)
     add("S5 phone row hidden (composed)", shown and not bad,
-        f"{len(shown)} composed frames show the masked row; every pixel of it is white (>= 250)" if not bad else
+        f"{len(shown)} composed frames show the masked row ({in_drag} of them in the page's own scroll); "
+        f"every pixel of it is white (>= 250)" if not bad else
         f"{len(bad)} frame(s) with ink in the masked row, first {bad[0]}")
 
     sample = sorted(shown)[::max(1, len(shown) // 12)] + ([max(shown)] if shown else [])
@@ -476,7 +518,7 @@ def build_checks(path: Path, P: plan.Plan, work: Path, layout: dict[int, list] |
             if a.min() < MASK_MIN_LEVEL:
                 dark.append((n, int(a.min())))
         add("S5 phone row hidden (decoded)", sample and not dark,
-            f"{len(sample)} decoded frames across the camera stops and moves: the row is white "
+            f"{len(sample)} decoded frames across the scroll, the stop and the camera move: the row is white "
             f"(darkest {MASK_MIN_LEVEL}+)" if not dark else f"ink in the decoded row: {dark[:3]}")
         worst = {}
         for n in key_frames or []:
@@ -533,7 +575,9 @@ def words_over_pictures(P: plan.Plan, work: Path, layout: dict[int, list]) -> li
 
 def verify(path: Path, P: plan.Plan, work: Path | None = None, key_frames: list[int] | None = None) -> list[Check]:
     checks = file_checks(path, P)
-    comp = rs.Composer(P)
+    # with the work folder, the layout knows where each take5b picture's row
+    # was painted out (the masks move with the page's own scroll)
+    comp = rs.Composer(P, rf.Footage(work)) if work is not None else rs.Composer(P)
     layout = layout_of(comp, P)
     checks += plan_checks(P, layout)
     if work is not None:
