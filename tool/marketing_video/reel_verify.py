@@ -18,12 +18,16 @@ AVFoundation (`swift/Inspect.swift`, the only one that decodes) and
               and none reaches into the right-hand rail; the cover frame and
               the end card inside the 4:5 feed crop; no character drawn as
               a missing glyph; every timed line on screen for its reading
-              time; the brand on screen for at most a quarter of the film.
+              time; the brand on screen for at most a quarter of the film;
+              no two of S4's bubbles ever overlap; no card moves more than
+              410 px from one frame to the next; A1's pictures enlarged no
+              more than their fill and push-in need.
   the build   (with the work folder) take1b's exported ranges against the
               take's map; S5's phone row white on every composed frame
               where it shows, and on the decoded file at the camera stops
               and through the moves; key frames decoded against the frames
-              that were composed.
+              that were composed; the white words over A1's pictures at
+              4.5:1 or more against what lies under them.
 
 `verify()` returns the checks; `reel.py verify` exits non-zero when any
 fails.
@@ -40,7 +44,9 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
+import reel_draw as rd
 import reel_footage as rf
+import reel_photo as rp
 import reel_plan as plan
 import reel_scenes as rs
 import swifttools  # noqa: E402  (tool/app_store_preview)
@@ -72,7 +78,13 @@ MAX_BYTES = 100 * 1000 * 1000           # a 30-s Reel; Instagram takes up to 4 G
 # film (2026-10-18): 54.6 dB at the worst key frame with the master's
 # quantiser ceiling of 10; 48.8 at a ceiling of 20.
 KEY_MIN_PSNR = 48.0
+# A key frame whose ground is one of A1's photographs: their grain is what an
+# encoder never reproduces exactly — 47.8 dB at the master's ceiling of 12,
+# and only a ceiling of 10 reaches 48, at 65 Mbit in a second, over Level
+# 4.1. 47 dB is 1.1 grey levels root mean square: still invisible.
+KEY_MIN_PSNR_PICTURE = 47.0
 MASK_MIN_LEVEL = 245                    # S5's masked row, decoded: white, give or take the encode
+WORDS_MIN_CONTRAST = 4.5                # white words over a picture: WCAG AA for any size
 
 
 # ---- the file -------------------------------------------------------------------------
@@ -252,7 +264,7 @@ def plan_checks(P: plan.Plan, layout: dict[int, list] | None = None) -> list[Che
     margin = None
     for n, boxes in layout.items():
         for b in boxes:
-            if b.kind == "mask":
+            if b.kind in rd.NOT_WORDS:
                 continue
             for which, bb in (("ink", b.ink), ("line", b.line)):
                 if bb is None:
@@ -279,7 +291,7 @@ def plan_checks(P: plan.Plan, layout: dict[int, list] | None = None) -> list[Che
     crop = []
     for n in (P.cover_frame, P.frames - 1):
         for b in layout[n]:
-            if b.kind != "mask" and not inside(b.ink, 0, P.width, P.crop_feed[0], P.crop_feed[1]):
+            if b.kind not in rd.NOT_WORDS and not inside(b.ink, 0, P.width, P.crop_feed[0], P.crop_feed[1]):
                 crop.append((n, b.label))
     add("cover and end card in the 4:5 crop", not crop,
         f"frames {P.cover_frame} and {P.frames - 1}: everything inside y {P.crop_feed[0]}–{P.crop_feed[1]} "
@@ -288,7 +300,6 @@ def plan_checks(P: plan.Plan, layout: dict[int, list] | None = None) -> list[Che
 
     # glyphs: every word with the font it is drawn in
     import frames as app_frames          # tool/app_store_preview/frames.py: check_glyphs
-    import reel_draw as rd
     seen = set()
     missing = []
     for boxes in layout.values():
@@ -308,15 +319,95 @@ def plan_checks(P: plan.Plan, layout: dict[int, list] | None = None) -> list[Che
         f"drawn as a missing glyph: {missing}")
 
     rows = comp.reading_windows()
-    short = [r for r in rows if r["on"] + 1e-9 < r["need"]]
+    short = [r for r in rows if r["on"] + 1e-9 < r["floor"]]
+
+    def reading(r):
+        if r["floor"] < r["need"]:
+            return (f"{r['label']} {r['on']:.2f} s of {r['need']:.2f} — SHORT of the rule: A1's whole "
+                    f"{r['floor']:.1f}-s beat, flagged for the owner")
+        return f"{r['label']} {r['on']:.2f} s of {r['need']:.2f}"
     add("reading time", not short,
-        "; ".join(f"{r['label']} {r['on']:.2f} s of {r['need']:.2f}" for r in rows) if not short else
-        "too short: " + "; ".join(f"{r['label']} {r['on']:.2f} s, needs {r['need']:.2f}" for r in short))
+        "; ".join(reading(r) for r in rows) if not short else
+        "too short: " + "; ".join(f"{r['label']} {r['on']:.2f} s, needs {r['floor']:.2f}" for r in short))
 
     brand_frames = sum(1 for boxes in layout.values() if any(b.kind == "logo" for b in boxes))
     share = brand_frames / P.frames
     add("brand time", share <= 0.25,
         f"the logo is on screen {brand_frames / P.fps:.2f} s of {P.duration:g} ({share:.1%}; at most 25 %)")
+
+    checks += motion_checks(P, layout)
+    return checks
+
+
+def _overlap(a, b) -> bool:
+    return min(a[2], b[2]) > max(a[0], b[0]) and min(a[3], b[3]) > max(a[1], b[1])
+
+
+def motion_checks(P: plan.Plan, layout: dict[int, list]) -> list[Check]:
+    """What R1 and A1 hold the frames to: S4's column, the cards' speed,
+    the pictures' enlargement."""
+    checks: list[Check] = []
+
+    def add(name: str, ok: bool, seen: str) -> None:
+        checks.append(Check(name, bool(ok), seen))
+
+    # no two of S4's bubbles ever overlap — their whole boxes, clipped or not
+    clashes, frames_seen, pairs = [], 0, 0
+    for n, boxes in sorted(layout.items()):
+        bubbles = [b for b in boxes if b.kind == "shape" and b.label.startswith("S4 bubble")]
+        if len(bubbles) > 1:
+            frames_seen += 1
+        for i, a in enumerate(bubbles):
+            for b in bubbles[i + 1:]:
+                pairs += 1
+                if _overlap(a.full or a.ink, b.full or b.ink):
+                    clashes.append((n, a.label, b.label))
+    add("S4 bubbles never overlap", frames_seen > 0 and not clashes,
+        f"{pairs} bubble pairs on {frames_seen} frames, none intersecting (the column moves as one)"
+        if not clashes else f"{len(clashes)} overlapping pair(s), first at frame {clashes[0][0]}: "
+                            f"{clashes[0][1]} and {clashes[0][2]}")
+
+    # a card's content never moves more than ANSWER["max_step"] px between frames
+    limit = plan.ANSWER["max_step"]
+    worst: dict[str, tuple[float, int]] = {}
+    last: dict[str, tuple[int, float]] = {}
+    for n, boxes in sorted(layout.items()):
+        for b in boxes:
+            if b.kind != "card":
+                continue
+            top = (b.full or b.ink)[1]
+            if b.label in last and last[b.label][0] == n - 1:
+                step = abs(top - last[b.label][1])
+                if step > worst.get(b.label, (-1, 0))[0]:
+                    worst[b.label] = (step, n)
+            last[b.label] = (n, top)
+    fast = {k: v for k, v in worst.items() if v[0] > limit}
+    add("cards move at most 410 px a frame", worst and not fast,
+        "; ".join(f"{k} {v[0]:.1f} px (frame {v[1]})" for k, v in sorted(worst.items())) +
+        f" — the most a card moves between two frames (limit {limit})" if not fast else
+        "too fast: " + "; ".join(f"{k} {v[0]:.1f} px at frame {v[1]}" for k, v in sorted(fast.items())))
+
+    # A1's pictures: never smaller than their fill, never larger than fill x push-in
+    seen: dict[str, list[float]] = {}
+    bad = []
+    for n, boxes in sorted(layout.items()):
+        for b in boxes:
+            if b.kind != "photo":
+                continue
+            d = b.data
+            scale, base = d["scale"], d["base"]
+            x0, y0, x1, y1 = b.full or b.ink
+            fills = x0 <= 1e-6 and x1 >= P.width - 1e-6 and (d["fill"] == "width" or (y0 <= 1e-6 and y1 >= P.height - 1e-6))
+            if scale < base - 1e-9 or scale > base * d["push"] + 1e-9 or not fills:
+                bad.append((n, b.label, round(scale, 4)))
+            seen.setdefault(b.label, [base, base * d["push"], 0.0])
+            seen[b.label][2] = max(seen[b.label][2], scale)
+    top_scale = max((v[2] for v in seen.values()), default=0)
+    add("pictures enlarged only as needed", seen and not bad,
+        "; ".join(f"{k}: base {v[0]:.4f} (the least that fills), at most {v[2]:.4f} = {v[2] / v[0]:.3f} x base "
+                  f"(push-in limit {v[1] / v[0]:.2f})" for k, v in sorted(seen.items())) +
+        f"; the largest scale of any picture: {top_scale:.4f}" if not bad else
+        f"{len(bad)} frame(s) off: first {bad[0]}")
     return checks
 
 
@@ -387,17 +478,57 @@ def build_checks(path: Path, P: plan.Plan, work: Path, layout: dict[int, list] |
         add("S5 phone row hidden (decoded)", sample and not dark,
             f"{len(sample)} decoded frames across the camera stops and moves: the row is white "
             f"(darkest {MASK_MIN_LEVEL}+)" if not dark else f"ink in the decoded row: {dark[:3]}")
-        worst = None
+        worst = {}
         for n in key_frames or []:
             psnr, block = asv.compare_images(Path(tmp) / f"frame_{n:06d}.png", work / "frames" / names[n])
-            if worst is None or psnr < worst[1]:
-                worst = (n, psnr, block)
+            kind = "picture" if any(b.kind == "photo" and b.alpha >= 0.5 for b in layout[n]) else "graphic"
+            if kind not in worst or psnr < worst[kind][1]:
+                worst[kind] = (n, psnr, block)
         if key_frames:
-            add("decoded = composed", worst[1] >= KEY_MIN_PSNR,
-                f"{len(key_frames)} key frames decoded from the file against the composed PNGs: worst "
-                f"frame {worst[0]} at {worst[1]:.1f} dB (at least {KEY_MIN_PSNR:g}), its worst 16 x 16 block "
-                f"{worst[2]:.1f} levels off")
+            floors = {"graphic": KEY_MIN_PSNR, "picture": KEY_MIN_PSNR_PICTURE}
+            add("decoded = composed", all(v[1] >= floors[k] for k, v in worst.items()),
+                f"{len(key_frames)} key frames decoded from the file against the composed PNGs: " +
+                "; ".join(f"worst {k} frame {v[0]} at {v[1]:.1f} dB (at least {floors[k]:g}), its worst 16 x 16 "
+                          f"block {v[2]:.1f} levels off" for k, v in sorted(worst.items())))
+    checks += words_over_pictures(P, work, layout)
     return checks
+
+
+def _luminance(rgb: np.ndarray) -> np.ndarray:
+    c = rgb / 255.0
+    lin = np.where(c <= 0.04045, c / 12.92, ((c + 0.055) / 1.055) ** 2.4)
+    return lin @ np.array([0.2126, 0.7152, 0.0722])
+
+
+def words_over_pictures(P: plan.Plan, work: Path, layout: dict[int, list]) -> list[Check]:
+    """The white words over A1's pictures, against the picture and its
+    gradient as they lie under each line's ink box (words left out), at
+    every frame where the words are whole: the 95th percentile of the
+    ground's luminance — the bright 5 % (a bottle, the wall) — must still
+    give 4.5:1."""
+    comp = rs.Composer(P, rf.Footage(work))
+    worst = {}
+    for n, boxes in sorted(layout.items()):
+        lines = [b for b in boxes if b.kind == "text" and b.alpha >= 0.999
+                 and (b.label.startswith("S1 headline") or b.label.startswith("S7b caption"))]
+        if not lines or n % 3:          # every third frame: the ground moves slowly
+            continue
+        key = "S1" if lines[0].label.startswith("S1") else "S7b"
+        spec = plan.S1 if key == "S1" else plan.S7B
+        ground = rp.render(comp.fx.photo(spec["photo"]), rp.placement(spec, n / P.fps, P.size), spec, P.size)
+        for b in lines:
+            x0, y0, x1, y1 = (int(round(v)) for v in b.ink)
+            lum = _luminance(ground[max(0, y0):y1, max(0, x0):x1].reshape(-1, 3))
+            bright = float(np.percentile(lum, 95))
+            ratio = 1.05 / (bright + 0.05)
+            label = b.label.rsplit(" line", 1)[0]
+            if label not in worst or ratio < worst[label][0]:
+                worst[label] = (ratio, n, b.label)
+    low = {k: v for k, v in worst.items() if v[0] < WORDS_MIN_CONTRAST}
+    return [Check("white words over the pictures", bool(worst) and not low,
+                  "; ".join(f"{k}: at least {v[0]:.1f}:1 (worst {v[2]}, frame {v[1]})" for k, v in sorted(worst.items()))
+                  + f" — white against the brightest 5 % of what lies under each line (at least {WORDS_MIN_CONTRAST}:1)"
+                  if not low else "too faint: " + "; ".join(f"{k} {v[0]:.1f}:1 at frame {v[1]}" for k, v in low.items()))]
 
 
 def verify(path: Path, P: plan.Plan, work: Path | None = None, key_frames: list[int] | None = None) -> list[Check]:

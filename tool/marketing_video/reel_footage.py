@@ -27,6 +27,11 @@ Design: docs/design/pro-marketing-reel.md §3 and §5.
              box, so a camera move lands on the sub-pixel. A band of paper
              covers y 0–552 and fades out over 552–600 above the card: the
              card's layer is clipped by it, what lies under the card is not.
+             The card and its shadow are ONE group under the band's fade
+             (R1: laid apart, the shadow showed through the half-faded card
+             as a grey smear). The band clips the card where it RESTS: an
+             entrance moves that clipped layer up from 1320 px lower, so
+             every card rises the same 1320 px, whatever its camera window.
 """
 
 from __future__ import annotations
@@ -41,6 +46,7 @@ import numpy as np
 from PIL import Image, ImageDraw
 
 import reel_draw as rd
+import reel_photo
 import reel_plan as plan
 import swifttools  # tool/app_store_preview/swifttools.py — compiles and runs Conform.swift
 
@@ -102,14 +108,16 @@ def take1b_index(n: int) -> int | tuple[int, int, float]:
         return st[1] + (n - 228)
     if 257 <= n <= 299:
         return st[2]
-    for kind, a, b, what in plan.S7["runs"]:
+    for run in plan.S7["runs"]:
+        kind, a, b, what = run[:4]
         if a <= n <= b:
             if kind == "hold":
                 return {19299: st[3], 19799: st[5], 78157: st[6], 79297: st[8]}[what]
             if kind == "live":
                 return (st[4] if what == 19299 else st[7]) + (n - a)
-            # the declared dissolve: frame a-1 is the last of A, b+1 the first of B
-            k = plan.tokens()["base"].at((n - (a - 1)) / 30)
+            # the declared dissolve, on its token: frame a-1 is the clean last
+            # picture of A; the run ends on B whole (k = 1)
+            k = plan.tokens()[run[4]].at((n - (a - 1)) / 30)
             return (st[5], st[6], k)
     plan.die(f"film frame {n} shows no picture of take1b")
 
@@ -280,49 +288,62 @@ class Card:
 
     def draw(self, fr: rd.Frame, picture: Image.Image, W: float, offset: float = 0.0, opacity: float = 1.0,
              touches: list[tuple[float, float, tuple, float]] = ()) -> None:
-        """`picture`: a padded capture. `touches`: (x, y, colour, opacity)
-        in frame pixels, drawn on the card and clipped by it."""
+        """`picture`: a padded capture. `offset`: how far below its resting
+        place the card is (an entrance). `touches`: (x, y, colour, opacity)
+        where the card rests, drawn on the card and clipped by it.
+
+        The card and its shadow are composed as one group — the card over
+        its shadow — and the group is laid on the frame through the band
+        (taken where the card rests) and `opacity`: under a half-faded band
+        the paper shows through, never the shadow."""
         if fr.dry or opacity <= 0:
             return
         A = plan.ANSWER
-        H = fr.size[1]
+        FW, H = fr.size
         top = card_top(W, offset)
         bottom = top + self.h
         x0 = A["card_x"]
-
-        # the shadow, clipped by the band
-        sy0 = round(top) - self.pad
-        ya, yb = max(sy0, A["band_solid"]), min(H, sy0 + self.shadow.shape[0])
-        if yb > ya:
-            rows = np.arange(ya, yb, dtype=np.float32)
-            a = self.shadow[ya - sy0:yb - sy0] * self.band(rows)[:, None] * opacity
-            fr.put(self.c["primary"], a, x0 - self.pad, ya)
-
-        ya, yb = max(A["band_solid"], math.floor(top)), min(H, math.ceil(bottom))
+        sy0 = round(top) - self.pad                   # the shadow array's first row, in the frame
+        gx0 = x0 - self.pad
+        ya = max(0, sy0, math.floor(A["band_solid"] + offset))
+        yb = min(H, sy0 + self.shadow.shape[0])
         if yb <= ya:
             return
-        cap_top = A["card_top_pt"] * 3 + PAD_ROWS       # capture row of the card's top edge, padded
-        s0 = cap_top + (ya - top) / self.k
-        s1 = cap_top + (yb - top) / self.k
-        region = picture.resize((self.w, yb - ya), Image.LANCZOS, box=(0, s0, picture.width, s1))
-        rgb = np.asarray(region, dtype=np.float32)
-        box = (x0, ya, x0 + self.w, yb)
-        cov = rd.rrect_coverage((x0, top, x0 + self.w, bottom), A["radius"], box)
-        ring = cov - rd.rrect_coverage((x0, top, x0 + self.w, bottom), A["radius"], box, inset=A["ring"])
-        for tx, ty, colour, t_op in touches:
-            if t_op <= 0:
-                continue
-            t = plan.TOUCH
-            r = t["diameter"] / 2
-            outer = rd.disc_coverage(tx, ty, r, box)
-            inner = rd.disc_coverage(tx, ty, r - t["ring"], box)
-            ta = (inner * t["fill"] + (outer - inner) * t["ring_alpha"]) * t_op
-            rgb = rgb * (1 - ta[..., None]) + np.array(colour, np.float32) * ta[..., None]
-        rgb = rgb * (1 - ring[..., None]) + np.array(self.c["border"], np.float32) * ring[..., None]
+        gw = self.shadow.shape[1]
+        shadow = self.shadow[ya - sy0:yb - sy0]
+        cov_g = np.zeros((yb - ya, gw), np.float32)                 # the card's coverage in the group
+        colour = np.zeros((yb - ya, gw, 3), np.float32)             # premultiplied: the shadow is black
+        ca, cb = max(ya, math.floor(top)), min(yb, math.ceil(bottom))
+        if cb > ca:
+            cap_top = A["card_top_pt"] * 3 + PAD_ROWS                # capture row of the card's top edge, padded
+            s0 = cap_top + (ca - top) / self.k
+            s1 = cap_top + (cb - top) / self.k
+            region = picture.resize((self.w, cb - ca), Image.LANCZOS, box=(0, s0, picture.width, s1))
+            rgb = np.asarray(region, dtype=np.float32)
+            box = (x0, ca, x0 + self.w, cb)
+            cov = rd.rrect_coverage((x0, top, x0 + self.w, bottom), A["radius"], box)
+            ring = cov - rd.rrect_coverage((x0, top, x0 + self.w, bottom), A["radius"], box, inset=A["ring"])
+            for tx, ty, tc, t_op in touches:
+                if t_op <= 0:
+                    continue
+                t = plan.TOUCH
+                r = t["diameter"] / 2
+                outer = rd.disc_coverage(tx, ty + offset, r, box)
+                inner = rd.disc_coverage(tx, ty + offset, r - t["ring"], box)
+                ta = (inner * t["fill"] + (outer - inner) * t["ring_alpha"]) * t_op
+                rgb = rgb * (1 - ta[..., None]) + np.array(tc, np.float32) * ta[..., None]
+            rgb = rgb * (1 - ring[..., None]) + np.array(self.c["border"], np.float32) * ring[..., None]
+            cov_g[ca - ya:cb - ya, self.pad:self.pad + self.w] = cov
+            colour[ca - ya:cb - ya, self.pad:self.pad + self.w] = rgb * cov[..., None]
+        group = cov_g + shadow * (1 - cov_g)
         rows = np.arange(ya, yb, dtype=np.float32)
-        alpha = cov * self.band(rows)[:, None] * opacity
-        out = Image.fromarray(np.clip(rgb + 0.5, 0, 255).astype(np.uint8), "RGB")
-        fr.put_image(out, x0, ya, alpha)
+        a = (self.band(rows - offset) * opacity)[:, None]
+        # clip the group to the frame's width
+        cx0, cx1 = max(0, gx0), min(FW, gx0 + gw)
+        sl = slice(cx0 - gx0, cx1 - gx0)
+        under = np.asarray(fr.im.crop((cx0, ya, cx1, yb)), dtype=np.float32)
+        out = under * (1 - (a * group[:, sl])[..., None]) + colour[:, sl] * a[..., None]
+        fr.im.paste(Image.fromarray(np.clip(out + 0.5, 0, 255).astype(np.uint8), "RGB"), (cx0, ya))
 
 
 class Footage:
@@ -330,6 +351,7 @@ class Footage:
 
     def __init__(self, work: Path):
         self.work = work
+        self.photos: dict[str, Image.Image] = {}
         self.m1 = json.loads((work / "take1b/manifest.json").read_text(encoding="utf-8"))
         self.m5 = json.loads((work / "take5b/manifest.json").read_text(encoding="utf-8"))
         self.drag = Drag(**json.loads((work / "drag.json").read_text(encoding="utf-8")))
@@ -354,6 +376,12 @@ class Footage:
 
     def take5b(self) -> Image.Image:
         return self._load("take5b", self.m5, 0, masked=True)
+
+    def photo(self, key: str) -> Image.Image:
+        """One of A1's pictures, decoded by `reel_photo.prepare`."""
+        if key not in self.photos:
+            self.photos[key] = reel_photo.load(self.work, key)
+        return self.photos[key]
 
 
 def prepare(assets: Path, work: Path) -> dict:

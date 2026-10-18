@@ -11,6 +11,10 @@ typed here:
   - the safe zone, the right-hand rail, the feed and grid crops and the
     cover frame (`rationale`, the scenes' prose, `hook`).
 
+The storyboard carries its amendments (`amendments`): A1, the owner's people
+and pictures of 2026-10-18 (the hook on a picture, the people beat S7b, the
+end card at 27.0 s), and R1, the fixes from the review of the first render.
+
 WHERE things sit and HOW they move is prose in the storyboard ("Poppins
 Medium 92 px, line height 106, #FFFFFF, centred, block top y 316"). Those
 numbers are transcribed below, once, and `ANCHORS` holds the storyboard's
@@ -49,6 +53,16 @@ WORDMARK_SVG = ROOT / "mobile/assets/brand/myweli_wordmark_black.svg"
 LOADER_FAST = ROOT / "mobile/assets/lottie/loader/myweli_mark_loader_fast.json"
 PRO_OPEN = ROOT / "mobile/assets/lottie/open/myweli_loader_mixed_pro.json"
 ICON_PRO = ROOT / "mobile/ios/Runner/Assets.xcassets/AppIcon-pro.appiconset/Icon-1024.png"
+
+# A1's two pictures: build products of the main checkout (build/ is ignored by
+# git), read and checked against the sha256 the storyboard quotes — never
+# copied into the repository.
+PHOTOS = {
+    "hook": {"file": "hook-owner-notebook.webp", "size": (941, 1672),
+             "sha256": "a78c71491b3def4877f38c6186b8de1ca7df08ceb02886ee822fb5b10b875a49"},
+    "people": {"file": "closing-stylist-braiding.webp", "size": (941, 1672),
+               "sha256": "2027a9a04f83f3902d37869599beb094665bf47dbfb4150c584d7420996499c6"},
+}
 MOTION_DART = brand.MOTION_DART
 
 
@@ -121,7 +135,7 @@ def eased(curve: str, t: float) -> float:
 
 # ---- the storyboard ---------------------------------------------------------------
 
-SCENE_KEYS = ("S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8")
+SCENE_KEYS = ("S1", "S2", "S3", "S4", "S5", "S6", "S7", "S7b", "S8")
 
 # Phrases the transcribed numbers come from: (scene key or top-level key,
 # field, phrase). Each must still be in the storyboard, verbatim.
@@ -130,27 +144,24 @@ ANCHORS = [
     ("concept", None, "A header band of paper covers y 0–552, then fades to transparent over y 552–600"),
     ("concept", None, "It is 900 px wide at x 90–990: scale 0.7463, which is 2.2388 px per pt. Radius 110, 3 px #D0D0D0 ring, the stills' shadows scaled to 1080 (0.10/blur 37/dy 25 and 0.05/blur 15/dy 10), 2× supersampled"),
     ("concept", None, "A camera window W (in screen points) places a screen point p at frame y = 600 + (p − W) × 2.2388 and x = 90 + pt × 2.2388"),
+    ("concept", None, "the card as it rests, clipped by the band, rises 1320 px from y 1920 on `emphasis` (never more than 410 px in a frame)"),
+    ("concept", None, "Every strike and « trait » starts at a short visible length (four times its width)"),
     ("S1", "visual", "Headline in Poppins Medium 92 px, line height 106, #FFFFFF, centred, block top y 316"),
-    ("S1", "visual", "Notebook field** (y 600–1240, full width, feathered 80 px top and bottom)"),
-    ("S1", "visual", "Major rules: 2 px #262626 every 96 px, on baselines 660 / 756 / 852 / 948 / 1044 / 1140"),
-    ("S1", "visual", "Minor rules: 1 px #141414 every 24 px"),
-    ("S1", "visual", "Margin rule: 2 px #262626 at x 150"),
-    ("S1", "visual", "Inter Medium (Inter-Variable wght 500, opsz 14), 48 px, #FFFFFF at 85%, starting at x 180, on baselines 660–1044"),
-    ("S1", "visual", "« → 11h » (127 px) sits at x 830 on baseline 852. « → 15h » (136 px) sits at x 830 on baseline 900"),
-    ("S1", "visual", "#FAFAFA, 7 px, round caps, drawn through the x-height (baseline − 16)"),
+    ("S1", "visual", "sha256 a78c71491b3def4877f38c6186b8de1ca7df08ceb02886ee822fb5b10b875a49"),
+    ("S1", "visual", "Full bleed in width at scale 1.1477 (1080 / 941, the least that fills the width), placed so the picture's point (215, 1352)"),
+    ("S1", "visual", "sits at frame (246.8, 1232)"),
+    ("S1", "visual", "The picture's bottom edge (y ≈ 1599) fades into Ink Black over its last 160 px"),
+    ("S1", "visual", "**Gradient.** Black over the picture: 72 % from the top to y 380, easing to 0 % at y 960 (mid-frame)"),
+    ("S1", "visual", "#FAFAFA, 8 px, round caps, from x 246.8 to x 735 at y 1232"),
+    ("S1", "visual", "A soft shadow under it (black 40 %, 3 px blur, 2 px down)"),
     ("S1", "motion", "The headline settles from scale 1.02 to 1.00 over `fast` (frames 0–3)"),
-    ("S1", "motion", "| 0.10 / 0.20 / 0.30 | 3 / 6 / 9 | Entries 3–5 pop: opacity 0 → 85% plus a 6 px rise, `fast` 100 ms easeOut |"),
-    ("S1", "motion", "| 0.50–0.66 | 15–20 | Strike through « 10h  Aïcha — coupe femme » (x 180–804, y 836) |"),
-    ("S1", "motion", "| 0.70 | 21 | « → 11h » pops (`fast`) |"),
-    ("S1", "motion", "| 1.00–1.16 | 30–35 | « → 11h » is struck (x 830–957, y 836) |"),
-    ("S1", "motion", "| 1.20 | 36 | « → 15h » pops (`fast`) |"),
-    ("S1", "motion", "| 1.45–1.61 | | Strike through « 11h  Rokia — tresses » (x 180–642, y 932) |"),
-    ("S1", "motion", "| 2.10–2.35 | 63–70 | One full-width #FAFAFA stroke, 8 px, round caps, draws left to right at y 836 from x 65 to x 1015 (250 ms) |"),
+    ("S1", "motion", "| 0.00–2.50 | 0–75 | The picture pushes in 1.00 → 1.04, linear, about the stroke's start (246.8, 1232)"),
+    ("S1", "motion", "| 1.45–1.70 | 43.5–51 | The stroke draws left to right from the pen tip across the notebook (250 ms) |"),
     ("S2", "visual", "220 px tall outside, scale 0.8499: stroke 24.5 px, x 476–604, y 470–690, centre (540, 580)"),
     ("S2", "visual", "The draw starts from the loader's start point, the middle of the right stem, at (591, 580)"),
     ("S2", "visual", "480 px wide and centred, top y 756"),
     ("S2", "visual", "« Plus de clients, moins de gestion. » in Poppins Medium 52 px, #3D3D3D (G700), one line of 862 px (x 109–971), line box at y 950–1014"),
-    ("S2", "motion", "| 2.50–2.90 | 75–87 | The S1 stroke thickens from 8 px to 2400 px about y 836 (`slow` 400 ms easeInOutCubic)"),
+    ("S2", "motion", "| 2.50–2.90 | 75–87 | The S1 stroke thickens from 8 px to 2560 px about its line, x 246.8–735 at y 1232 (`slow` 400 ms easeInOutCubic)"),
     ("S2", "motion", "| 2.70–2.80 | | A pen dot pops at (591, 580): a #000 disc 24.5 px across"),
     ("S2", "motion", "| 2.80–3.40 | 84–102 | The mark draws out of the dot: trim end 0 → 100% over 0.6 s on (0.4, 0, 0.2, 1)"),
     ("S2", "motion", "| 3.15–3.45 | | Wordmark unit rises 16 px and fades in (`emphasis` 300 ms easeOutCubic) |"),
@@ -171,14 +182,16 @@ ANCHORS = [
     ("S4", "visual", "Timestamp on the same baseline at the right of the text: Inter Regular 34 px in #8A8A8A"),
     ("S4", "visual", "| b1 | « C’est combien, les tresses ? » 22:41 | 614–730 |"),
     ("S4", "visual", "| b4 | « Allô ? » 23:02 | 1034–1150 |"),
-    ("S4", "motion", "**10.30 / 10.60 / 10.90 (f309 / 318 / 327).** Bubbles 2, 3 and 4 arrive in the bottom slot: scale 0.96 → 1 plus a fade (`fast` 100 ms easeOut). At the same time the older bubbles move up one slot of 140 px (`base` 200 ms easeInOut)"),
+    ("S4", "motion", "**10.30 / 10.60 / 10.90 (f309 / 318 / 327).** The stack moves as one column"),
+    ("S4", "motion", "each new bubble enters one slot (140 px) below the bottom slot and rises into it with the older bubbles, which move up one slot of 140 px (`base` 200 ms easeInOut); its fade and its scale 0.96 → 1 run on `fast` (100 ms easeOut)"),
+    ("S4", "motion", "The column's bottom edge is y 1152"),
     ("S4", "motion", "**11.90–12.15 (f357–364).** One full-width #FAFAFA 8 px stroke, round caps, draws left to right at y 952 through b3's text (250 ms, (0.4, 0, 0.2, 1))"),
     ("S5", "visual", "MASKED with rect_px [114, 1758, 546, 57] filled (255, 255, 255), applied in capture space before the camera transform"),
     ("S5", "visual", "The single frame at 30.000 s of build/app-store/pro/preview/v2/takes/take5b/take.mov"),
     ("S5", "motion", "| 12.50–12.90 | 375–387 | The S4 stroke thickens to 2400 px about y 952 (`slow`); the page becomes paper |"),
     ("S5", "motion", "| 12.75 / 12.80 | | Headline lines rise 24 px and fade in (`emphasis`, 50 ms `stagger`) |"),
-    ("S5", "motion", "| 12.80–13.10 | 384–393 | Card enters from offset +1320 to rest at W = 100 (`emphasis`) |"),
-    ("S5", "motion", "| 14.00–14.60 | 420–438 | Camera W 100 → 300: a camera move of 600 ms easeInOutCubic, not UI motion |"),
+    ("S5", "motion", "| 12.80–13.10 | 384–393 | Card enters to rest at W = 122 (`emphasis`)"),
+    ("S5", "motion", "| 14.00–14.60 | 420–438 | Camera W 122 → 300: a camera move of 600 ms easeInOutCubic, not UI motion |"),
     ("S5", "motion", "| 15.50–16.10 | 465–483 | Camera W 300 → 470 (600 ms easeInOutCubic) |"),
     ("S6", "visual", "Entries in Inter Medium 48 px, white at 85%, x 180, baselines 660 / 756 / 852 / 948 / 1044"),
     ("S6", "visual", "The squeezed walk-in « + 14h45  coupe homme · n° ? » (663 px) sits at x 200 on the minor rule at baseline 804"),
@@ -188,19 +201,30 @@ ANCHORS = [
     ("S6", "motion", "**19.60–19.85 (f588–595).** One full-width #FAFAFA 8 px stroke draws left to right at y 788 through the squeezed line (250 ms, (0.4, 0, 0.2, 1))"),
     ("S7", "visual", "The « Libre » tap is a black disc (12% fill, 45% ring) at (381, 1093)"),
     ("S7", "visual", "The « Créer » tap is a WHITE disc, because it lands on a black button (the App Store film's dark-ground rule), at (540, 1225)"),
-    ("S7", "visual", "take1b again (Conform.swift frame-hold), with the camera fixed at W = 553 for the whole scene"),
+    ("S7", "visual", "take1b again (Conform.swift frame-hold), with the camera at W = 553 until « Ma journée » comes back, then W = 682"),
     ("S7", "motion", "| 20.00–20.40 | 600–612 | The S6 stroke thickens to 2400 px about y 788 (`slow`) |"),
     ("S7", "motion", "| 20.25 / 20.30 | | Headline lines rise 24 px and fade in (`emphasis`, 50 ms `stagger`) |"),
-    ("S7", "motion", "| 20.30–20.60 | 609–618 | Card enters from offset +1320 to rest at W = 553 (`emphasis`), showing take1b at 32.165 s |"),
-    ("S7", "motion", "| 20.60–21.00 | | Hold. The disc fades in at 20.90 (`fast`) |"),
-    ("S7", "motion", "| 21.000–21.867 | 630–656 | LIVE, take1b 32.165–33.032 s (26 frames, 1:1). Tap on « Libre — 14:45 » at 21.00; « Réservation » pushes in 21.20–21.52; the disc fades out from 21.30 (`base`) |"),
-    ("S7", "motion", "| 21.867–22.200 | 656–666 | HOLD on take 32.998 s (10 frames) |"),
-    ("S7", "motion", "| 22.200–22.367 | 666–671 | DECLARED DISSOLVE (`base`, 5 frames) to take 130.262 s."),
-    ("S7", "motion", "| 22.367–23.300 | 671–699 | HOLD on the filled form (28 frames). The white disc fades in at 23.20 (`fast`) |"),
-    ("S7", "motion", "| 23.300–25.233 | 699–757 | LIVE, take1b 130.262–132.195 s (58 frames, 1:1). Touch-down on « Créer » at 23.30"),
-    ("S7", "motion", "The disc fades out over 23.60–23.80."),
-    ("S7", "motion", "| 25.233–26.300 | 757–789 | HOLD on take 132.162 s (32 frames)"),
-    ("S7", "motion", "| 26.30–26.50 | 789–795 | Exit: the card drops 120 px and fades, and the headline fades (200 ms easeIn) |"),
+    ("S7", "motion", "| 20.30–20.60 | 609–618 | Card enters to rest at W = 553 (`emphasis`), showing take1b at 32.165 s"),
+    ("S7", "motion", "| 20.60–20.90 | 618–627 | Hold. The black disc fades in at 20.80 (`fast`) |"),
+    ("S7", "motion", "| 20.900–21.767 | 627–653 | LIVE, take1b 32.165–33.032 s (26 frames, 1:1). Tap on « Libre — 14:45 » at 20.90; the disc fades out over 20.90–21.10 (`base`)"),
+    ("S7", "motion", "| 21.767–21.833 | 653–655 | HOLD on take 32.998 s (2 frames)"),
+    ("S7", "motion", "| 21.833–22.233 | 655–667 | DECLARED DISSOLVE (`slow`, 12 frames) to take 130.262 s; frame 666 is the clean picture after it."),
+    ("S7", "motion", "| 22.233–22.900 | 667–687 | HOLD on the filled form (20 frames). The white disc fades in at 22.80 (`fast`) |"),
+    ("S7", "motion", "| 22.900–24.833 | 687–745 | LIVE, take1b 130.262–132.195 s (58 frames, 1:1). Touch-down on « Créer » at 22.90"),
+    ("S7", "motion", "The disc fades out over 23.20–23.40."),
+    ("S7", "motion", "| 23.733–24.133 | 712–724 | Camera W 553 → 682 (`slow`)"),
+    ("S7", "motion", "| 24.833–25.000 | 745–750 | HOLD on take 132.162 s (5 frames)"),
+    ("S7", "motion", "| 24.80–25.00 | 744–750 | The headline fades out (200 ms easeIn)"),
+    ("S7b", "visual", "sha256 2027a9a04f83f3902d37869599beb094665bf47dbfb4150c584d7420996499c6"),
+    ("S7b", "visual", "Full bleed at scale 1.1483 (1920 / 1672, the least that fills the frame), centred; the push-in holds still the picture's point (560, 1010)"),
+    ("S7b", "visual", "**Gradient.** A soft black gradient: 62 % from the top to y 420, easing to 0 % at y 1000"),
+    ("S7b", "visual", "Poppins Medium 92 px, line height 106, #FFFFFF, centred, block top y 316"),
+    ("S7b", "visual", "The lines measure 653 px and 827 px"),
+    ("S7b", "motion", "| 25.00–25.20 | 750–756 | The S7 page — paper, card and « Rendez-vous créé » — dissolves into the picture (`base`) |"),
+    ("S7b", "motion", "| 25.00–27.00 | 750–810 | The picture pushes in 1.00 → 1.03, linear"),
+    ("S7b", "motion", "| 25.00 / 25.05 | | Caption lines rise 24 px and fade in (`emphasis`, 50 ms `stagger`) |"),
+    ("S7b", "motion", "| 27.00–27.20 | 810–816 | The picture and the caption dissolve into S8's paper (`base`) |"),
+    ("S7b", "motion", "The caption is on screen for the whole 2.0-s beat (25.00–27.00)"),
     ("S8", "visual", "mark outlines in #EDEEEF, 72 px tall, 120 px column pitch, 132 px row pitch, alternate rows offset 60 px"),
     ("S8", "visual", "The pattern is kept out of a clear zone at x 140–940, y 380–1180, with an 80 px feather"),
     ("S8", "visual", "280×280 at x 400–680, y 450–730: a continuous-corner square (radius about 63 px), fill #FAFAFA, 2 px #D0D0D0 hairline, stills shadow at half strength"),
@@ -208,12 +232,12 @@ ANCHORS = [
     ("S8", "visual", "The same « MyWeli Pro » unit as S2: 560 px wide, centred, y 826–912"),
     ("S8", "visual", "A black #000 full-radius pill, 680×110, at x 200–880, y 1000–1110"),
     ("S8", "visual", "« Disponible sur l’App Store » in Inter SemiBold (wght 600) 46 px, #FFFFFF, 570 px wide"),
-    ("S8", "motion", "**26.50–26.70 (f795–801).** The pattern fades in (`base`), then drifts up 12 px/s, linear, until the end"),
-    ("S8", "motion", "**26.55–26.65.** The pen dot pops at (582, 590) (`fast`)"),
-    ("S8", "motion", "**26.60–27.20 (f798–816).** The mark draws out of the dot"),
-    ("S8", "motion", "**27.15–27.45.** The tile's fill edge, hairline and shadow fade in around the mark (`emphasis`)"),
-    ("S8", "motion", "**27.25–27.55.** The wordmark rises 16 px and fades in (`emphasis`)"),
-    ("S8", "motion", "**27.40–27.70.** The CTA pill rises 24 px and fades in (`emphasis`)"),
+    ("S8", "motion", "**27.00–27.20 (f810–816).** The pattern fades in (`base`) under the dissolving picture, then drifts up 12 px/s, linear, until the end"),
+    ("S8", "motion", "**27.05–27.15.** The pen dot pops at (582, 590) (`fast`)"),
+    ("S8", "motion", "**27.10–27.70 (f813–831).** The mark draws out of the dot"),
+    ("S8", "motion", "**27.65–27.95.** The tile's fill edge, hairline and shadow fade in around the mark (`emphasis`)"),
+    ("S8", "motion", "**27.70–28.00.** The wordmark rises 16 px and fades in (`emphasis`)"),
+    ("S8", "motion", "**27.75–28.05.** The CTA pill rises 24 px and fades in (`emphasis`)"),
 ]
 
 
@@ -323,7 +347,10 @@ ANSWER = {
     "card_x": 90, "card_w": 900, "card_top_pt": 56, "rest_y": 600,
     "radius": 110, "ring": 3, "shadows": [(0.10, 37, 25), (0.05, 15, 10)],
     "screen_pt": (402, 874), "capture": (1206, 2622),
+    "enter_travel": 1320, "max_step": 410,          # « rises 1320 px … never more than 410 px in a frame »
 }
+
+STRIKE_MIN = 4                                     # « a short visible length (four times its width) »
 
 PAIN = {"head_px": 92, "head_lh": 106, "head_top": 316, "settle_from": 1.02}
 
@@ -336,17 +363,16 @@ NOTEBOOK = {
 }
 
 S1 = {
-    "baselines": [660, 756, 852, 948, 1044],
-    "pops": {2: 0.10, 3: 0.20, 4: 0.30},           # entries 3–5 (0-based 2–4)
-    "arrows": [(830, 852, 0.70), (830, 900, 1.20)],
-    "strikes": [((180, 804), 836, 0.50, 0.66), ((830, 957), 836, 1.00, 1.16), ((180, 642), 932, 1.45, 1.61)],
-    "full": (836, 2.10, 2.35),
-    "widths": [424, 510, 624, 462, 614],            # « Widths: 424 / 510 / 624 / 462 / 614 px »
+    # A1: the owner's picture, full bleed in width, the notebook's crossing at
+    # y 1232 (above the caption zone), pushed in about the stroke's start
+    "photo": "hook", "fill": "width", "anchor_src": (215, 1352), "anchor_y": 1232,
+    "push": (1.04, 0.0, 2.50), "fade_bottom": 160, "gradient": (0.72, 380, 960),
+    "stroke": (735, 1232, 1.45, 1.70), "stroke_shadow": (0.40, 3.0, 2.0),   # x from the anchor; y; t0, t1
     "head_widths": [547, 858],                      # « The two lines measure 547 px and 858 px »
 }
 
 S2 = {
-    "thicken": (836, 2.50, 2.90, 8, 2400),
+    "thicken": (1232, 2.50, 2.90, 8, 2560),        # about the S1 stroke (x 246.8–735)
     "mark_centre": (540, 580), "mark_h": 220, "dot": (2.70, 2.80), "draw": 2.80,
     "unit_w": 480, "unit_top": 756, "unit_in": 3.15, "rise": 16,
     "tag_px": 52, "tag_box": (950, 1014), "tag_in": 3.20, "tag_width": 862,
@@ -363,12 +389,13 @@ S3 = {
 S4 = {
     "bubble_x": 90, "bubble_h": 116, "radius": 36, "pad_v": 28, "pad_h": 36, "gap": 24, "ts_gap": 24,
     "text_px": 48, "ts_px": 34, "slots": [614, 754, 894, 1034], "arrive": [10.00, 10.30, 10.60, 10.90],
+    "column_bottom": 1152,                          # « The column's bottom edge is y 1152 »
     "stroke": (952, 11.90, 12.15), "head_widths": [846, 516],
 }
 
 S5 = {
     "thicken": (952, 12.50, 12.90, 8, 2400), "head_in": 12.75, "enter": 12.80,
-    "W": [(100, None), (300, (14.00, 14.60)), (470, (15.50, 16.10))], "camera_curve": "easeInOutCubic",
+    "W": [(122, None), (300, (14.00, 14.60)), (470, (15.50, 16.10))], "camera_curve": "easeInOutCubic",
     "take_s": 18000,                                  # 30.000 s, in the take's ticks (600 a second)
     "mask": [114, 1758, 546, 57], "mask_fill": (255, 255, 255),
     "head_widths": [884, 828],
@@ -383,22 +410,33 @@ S6 = {
 S7 = {
     "thicken": (788, 20.00, 20.40, 8, 2400), "head_in": 20.25, "enter": 20.30, "W": 553,
     "head_widths": [836, 877],
-    # film frame ranges → the take's ticks (600 a second); « take1b … » in S7's motion table
-    "runs": [("hold", 609, 629, 19299), ("live", 630, 655, 19299), ("hold", 656, 665, 19799),
-             ("dissolve", 666, 670, (19799, 78157)), ("hold", 671, 698, 78157),
-             ("live", 699, 756, 78157), ("hold", 757, 794, 79297)],
-    "taps": [((381, 1093), "primary", 20.90, 21.30), ((540, 1225), "secondary", 23.20, 23.60)],
-    "exit": 26.30, "exit_drop": 120,
+    # film frame ranges (inclusive) → the take's ticks (600 a second); « take1b … » in S7's motion table
+    "runs": [("hold", 609, 626, 19299), ("live", 627, 652, 19299), ("hold", 653, 654, 19799),
+             ("dissolve", 655, 666, (19799, 78157), "slow"), ("hold", 667, 686, 78157),
+             ("live", 687, 744, 78157), ("hold", 745, 749, 79297)],
+    # (x, y) at W 553, colour, fade-in start (`fast`, done at touch-down), fade-out start (`base`)
+    "taps": [((381, 1093), "primary", 20.80, 20.90), ((540, 1225), "secondary", 22.80, 23.20)],
+    "pan": (712, 682, "slow"),                      # from film frame 712, to W 682
+    "head_out": 24.80,
+}
+
+S7B = {
+    # A1: the people beat, the owner's second picture, full bleed
+    "photo": "people", "fill": "frame", "anchor_src": (560, 1010), "anchor_y": None,
+    "push": (1.03, 25.0, 27.0), "fade_bottom": 0, "gradient": (0.62, 420, 1000),
+    "in": 25.00, "out": 27.00, "dissolve": "base",
+    "head_px": 92, "head_lh": 106, "head_top": 316, "head_widths": [653, 827],
+    "reading_allowance": 2.0,                       # « on screen for the whole 2.0-s beat (25.00–27.00) »
 }
 
 S8 = {
     "pattern_h": 72, "pattern_pitch": (120, 132), "pattern_shift": 60, "pattern_drift": 12.0,
-    "pattern_in": 26.50, "clear": (140, 940, 380, 1180), "feather": 80,
+    "pattern_in": 27.00, "clear": (140, 940, 380, 1180), "feather": 80,
     "tile": (400, 450, 280), "tile_radius": 63, "tile_hairline": 2, "shadow_strength": 0.5,
     "icon_box_of_1024": ((319, 704), (178, 845)),
-    "dot": (26.55, 26.65), "draw": 26.60, "tile_in": 27.15,
-    "unit_w": 560, "unit_top": 826, "unit_in": 27.25, "rise": 16,
-    "pill": (200, 1000, 880, 1110), "cta_px": 46, "cta_wght": 600, "cta_in": 27.40, "cta_rise": 24, "cta_width": 570,
+    "dot": (27.05, 27.15), "draw": 27.10, "tile_in": 27.65,
+    "unit_w": 560, "unit_top": 826, "unit_in": 27.70, "rise": 16,
+    "pill": (200, 1000, 880, 1110), "cta_px": 46, "cta_wght": 600, "cta_in": 27.75, "cta_rise": 24, "cta_width": 570,
 }
 
 TOUCH = {"diameter": 107, "fill": 0.12, "ring": 3.4, "ring_alpha": 0.45}

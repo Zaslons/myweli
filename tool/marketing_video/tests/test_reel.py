@@ -121,6 +121,79 @@ class SafeZone(unittest.TestCase):
         self.assertEqual(self.zone(layout), (True, False))
 
 
+class Motion(unittest.TestCase):
+    """R1's and A1's checks, watched failing on a layout made wrong on
+    purpose — and passing on the film's own."""
+
+    def layout(self, frames) -> dict[int, list]:
+        comp = rs.Composer(P)
+        return {n: comp.frame(n, dry=True).boxes for n in frames}
+
+    def checks(self, layout) -> dict:
+        return {c.name: c for c in rv.motion_checks(P, layout)}
+
+    def test_the_films_own_motion_passes(self):
+        layout = self.layout(range(0, P.frames))
+        self.assertEqual([c.name for c in self.checks(layout).values() if not c.ok], [])
+
+    def test_two_bubbles_drawn_over_each_other_fail(self):
+        """The first render's fault: a new bubble in the slot the older one
+        was still leaving."""
+        layout = self.layout(range(309, 316))
+        bubbles = [b for b in layout[312] if b.kind == "shape" and b.label.startswith("S4 bubble")]
+        moved = copy.copy(bubbles[1])
+        moved.full = moved.ink = (90.0, bubbles[0].ink[3] - 30, 800.0, bubbles[0].ink[3] + 86)
+        layout[312] = layout[312] + [moved]
+        self.assertFalse(self.checks(layout)["S4 bubbles never overlap"].ok)
+
+    def test_a_card_that_jumps_fails(self):
+        """The first render's S7 entrance: 725 px in one frame."""
+        layout = self.layout(range(608, 620))
+        card = next(b for b in layout[610] if b.kind == "card")
+        jumped = copy.copy(card)
+        jumped.full = jumped.ink = (card.ink[0], card.ink[1] + 500, card.ink[2], card.ink[3] + 500)
+        layout[610] = [b for b in layout[610] if b.kind != "card"] + [jumped]
+        self.assertFalse(self.checks(layout)["cards move at most 410 px a frame"].ok)
+
+    def test_a_picture_enlarged_past_its_push_in_fails(self):
+        layout = self.layout(range(0, 3))
+        photo = next(b for b in layout[1] if b.kind == "photo")
+        big = copy.copy(photo)
+        big.data = dict(photo.data, scale=photo.data["base"] * 1.10)
+        layout[1] = [b for b in layout[1] if b.kind != "photo"] + [big]
+        self.assertFalse(self.checks(layout)["pictures enlarged only as needed"].ok)
+
+    def test_a_picture_that_does_not_fill_the_width_fails(self):
+        layout = self.layout(range(0, 3))
+        photo = next(b for b in layout[2] if b.kind == "photo")
+        narrow = copy.copy(photo)
+        narrow.full = narrow.ink = (20.0, photo.ink[1], photo.ink[2], photo.ink[3])
+        layout[2] = [b for b in layout[2] if b.kind != "photo"] + [narrow]
+        self.assertFalse(self.checks(layout)["pictures enlarged only as needed"].ok)
+
+    def test_the_caption_shorter_than_its_beat_fails_the_reading_check(self):
+        """The S7b exception is the whole A1 beat, not a blank cheque."""
+        comp = rs.Composer(P)
+        rows = comp.reading_windows()
+        cap = next(r for r in rows if r["label"] == "S7b caption")
+        self.assertAlmostEqual(cap["floor"], 2.0)
+        self.assertLess(cap["floor"], cap["need"])
+        original = plan.S7B["in"]
+        try:
+            plan.S7B["in"] = 25.2
+            short = next(r for r in rs.Composer(P).reading_windows() if r["label"] == "S7b caption")
+            self.assertLess(short["on"] + 1e-9, short["floor"])
+        finally:
+            plan.S7B["in"] = original
+
+    def test_every_strike_starts_as_a_short_stroke_never_a_dot(self):
+        pts = rd.drawn_line(180, 804, 836, 0.0, plan.STRIKE_MIN * 7)
+        self.assertAlmostEqual(pts[-1][0] - pts[0][0], 28.0)
+        pts = rd.drawn_line(779, 863, 788, 0.0, plan.STRIKE_MIN * 7)
+        self.assertAlmostEqual(pts[-1][0] - pts[0][0], 28.0)
+        self.assertEqual(rd.drawn_line(65, 1015, 952, 1.0, 32)[-1], (1015, 952))
+
+
 class Storyboard(unittest.TestCase):
     def test_a_storyboard_that_no_longer_says_a_transcribed_number_is_refused(self):
         sb = json.loads(plan.STORYBOARD.read_text(encoding="utf-8"))
@@ -154,7 +227,7 @@ class Storyboard(unittest.TestCase):
             return rd.font_of(spec).getlength(s)
 
         cases = [(w["S1"][i], rs.P92, v) for i, v in enumerate(plan.S1["head_widths"])]
-        cases += [(w["S1"][2 + i], rs.I48M, v) for i, v in enumerate(plan.S1["widths"])]
+        cases += [(w["S7b"][i], rs.P92, v) for i, v in enumerate(plan.S7B["head_widths"])]
         cases += [(w["S6"][2 + i], rs.I48M, v) for i, v in enumerate(plan.S6["widths"])]
         cases += [(w["S6"][7], rs.I48M, plan.S6["squeezed_width"]), (w["S2"][1], rs.P52, plan.S2["tag_width"]),
                   (w["S8"][1], rs.CTA, plan.S8["cta_width"])]

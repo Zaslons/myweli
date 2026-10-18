@@ -2,7 +2,7 @@
 """The MyWeli Pro marketing Reel « Le trait ». Design: docs/design/pro-marketing-reel.md.
 
   python3 tool/marketing_video/reel.py build --assets <main checkout>/build/app-store/pro \\
-      --out <folder> [--work <folder>] [--jobs 4]
+      [--photos <main checkout>/build/marketing/photos] --out <folder> [--work <folder>] [--jobs 4]
   python3 tool/marketing_video/reel.py verify <folder>/reel.mp4 [--work <folder>]
   python3 tool/marketing_video/reel.py sheet <folder>/reel.mp4 --out contact-sheet.png
   python3 tool/marketing_video/reel.py selftest
@@ -31,6 +31,7 @@ if str(HERE) not in sys.path:
 import reel_plan as plan           # noqa: E402  (puts tool/app_store_preview on the path)
 import reel_draw as rd             # noqa: E402
 import reel_footage as rf          # noqa: E402
+import reel_photo as rp            # noqa: E402
 import reel_scenes as rs           # noqa: E402
 import reel_verify as rv           # noqa: E402
 import swifttools                  # noqa: E402  (tool/app_store_preview)
@@ -41,7 +42,7 @@ from PIL import Image, ImageDraw   # noqa: E402
 # build/bin like its own helpers, rebuilt when a source changes.
 swifttools.SOURCES.setdefault("reel-encode", ["Common.swift", "Writer.swift", str(HERE / "swift/ReelEncode.swift")])
 
-KEY_TIMES = [0.0, 1.0, 2.4, 3.5, 5.0, 7.0, 9.0, 11.0, 14.0, 17.0, 18.5, 22.0, 25.0, 27.0, 29.5]
+KEY_TIMES = [0.0, 0.5, 1.5, 2.4, 3.5, 6.2, 9.0, 10.5, 11.0, 14.0, 18.5, 21.0, 22.5, 24.5, 25.5, 26.5, 27.5, 29.5]
 OUTPUTS = ("reel.mp4", "contact-sheet.png", "poster-hook.png", "poster-end.png", "cover.png", "verify.txt",
            "build.json")
 
@@ -140,6 +141,8 @@ def cmd_build(a: argparse.Namespace) -> None:
 
     print("reel: conforming the takes …", flush=True)
     facts = rf.prepare(a.assets, work)
+    photos = a.photos or a.assets.parents[1] / "marketing/photos"
+    facts["photos"] = rp.prepare(photos, work)
     t_prep = time.monotonic()
     print(f"reel: composing {P.frames} frames on {a.jobs} process(es) …", flush=True)
     names = render(P, work, a.jobs)
@@ -168,7 +171,8 @@ def cmd_build(a: argparse.Namespace) -> None:
     done = time.monotonic()
     record = {
         "file": "reel.mp4", "sha256": digest, "bytes": movie.stat().st_size,
-        "storyboard_sha256": sha256(plan.STORYBOARD), "takes": facts,
+        "storyboard_sha256": sha256(plan.STORYBOARD),
+        "takes": {k: v for k, v in facts.items() if k != "photos"}, "photos": facts["photos"],
         "frames": P.frames, "distinct_pictures": len(set(names)),
         "seconds": {"conform": round(t_prep - started, 1), "compose": round(t_render - t_prep, 1),
                     "encode": round(t_encode - t_render, 1), "covers_sheet_verify": round(done - t_encode, 1),
@@ -211,6 +215,8 @@ def main() -> None:
     b = sub.add_parser("build", help="compose, encode, cover, sheet and verify the Reel")
     b.add_argument("--assets", type=Path, required=True,
                    help="the main checkout's build/app-store/pro (holds preview/v2/takes and final)")
+    b.add_argument("--photos", type=Path,
+                   help="A1's pictures (default: build/marketing/photos beside --assets' build/app-store)")
     b.add_argument("--out", type=Path, required=True)
     b.add_argument("--work", type=Path, help="intermediate files (default: <out>/work)")
     b.add_argument("--jobs", type=int, default=4)

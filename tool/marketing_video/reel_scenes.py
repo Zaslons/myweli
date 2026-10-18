@@ -7,15 +7,16 @@ every duration and curve from `motion.dart`'s tokens, except the strokes'
 own timing (the storyboard's, on the Lottie curve) and S5's camera moves
 (« 600 ms easeInOutCubic, not UI motion »).
 
-Two choices the storyboard leaves open, taken the calmer way (README,
-« Deviations »):
-  - a card enters with its TOP EDGE rising from y 1920, as S3 says (« from
-    top y 1920 to 600 »): for S5 (rest W 100) and S7 (rest W 553) a fixed
-    +1320 offset would have started the card already on screen and popped
-    it in, so the travel is 1920 minus the rest top;
-  - where S8's pen dot (26.55–26.65) overlaps the start of the draw
-    (26.60), the stroke's width follows the dot's growth until the dot is
-    whole, so the pen never jumps.
+Amendment A1 (owner, 2026-10-18) puts the owner's pictures in the hook (S1)
+and in a people beat (S7b), through `reel_photo`. The review's fixes (R1):
+every card enters as S3's does — the card as it rests, clipped by the band,
+rises 1320 px; S4's bubbles move as one column; S2's exiting logo is drawn
+over S3's card; every strike starts at a short visible length.
+
+One choice the storyboard leaves open, taken the calmer way (README,
+« Deviations »): where S8's pen dot overlaps the start of the draw, the
+stroke's width follows the dot's growth until the dot is whole, so the pen
+never jumps.
 """
 
 from __future__ import annotations
@@ -24,11 +25,12 @@ import math
 from functools import lru_cache
 
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageFilter
 
 import reel_brand as rb
 import reel_draw as rd
 import reel_footage as rf
+import reel_photo as rp
 import reel_plan as plan
 
 P92 = ("poppins", plan.PAIN["head_px"])
@@ -46,11 +48,22 @@ def capsule_width(t: float, spec: tuple) -> float:
     return w0 + (w1 - w0) * plan.tokens()["slow"].at(t - t0)
 
 
-def covered_at(spec: tuple, box: tuple[float, float, float, float], fps: int) -> float:
-    """The first frame time at which the thickening « trait » `spec` covers
-    `box` whole — when the words under it are gone."""
+def far_from(xs: tuple[float, float], y: float, box: tuple[float, float, float, float]) -> float:
+    """The farthest corner of `box` from the segment xs at y."""
+    x0, x1 = xs
+    far = 0.0
+    for bx in (box[0], box[2]):
+        for by in (box[1], box[3]):
+            dx = max(x0 - bx, 0, bx - x1)
+            far = max(far, math.hypot(dx, by - y))
+    return far
+
+
+def covered_at(spec: tuple, xs: tuple[float, float], box: tuple[float, float, float, float], fps: int) -> float:
+    """The first frame time at which the thickening « trait » `spec` about
+    the segment `xs` covers `box` whole — when the words under it are gone."""
     y, t0, t1, _, _ = spec
-    x0, x1 = plan.NOTEBOOK["stroke_x"]
+    x0, x1 = xs
     far = 0.0
     for bx in (box[0], box[2]):
         for by in (box[1], box[3]):
@@ -72,12 +85,23 @@ class Composer:
         self.exit = plan.exit_motion()
         self.stagger = plan.stagger_s()
         self.fx = footage
-        self.card = rf.Card() if footage is not None else None
+        self.card_art = rf.Card() if footage is not None else None
         self.mark_s2 = rb.mark_points(plan.S2["mark_centre"], plan.S2["mark_h"])
         centre, height = rb.icon_mark()
         self.mark_s8 = rb.mark_points(centre, height)
         self.mark_s8_box = rb.mark_box(centre, height)
         self.draw_s = rb.mark_geometry()["draw_s"]
+        # the S1 stroke runs from the picture's anchor (the pen tip) to the page's edge
+        self.s1_x = (plan.S1["anchor_src"][0] * rp.base_scale(plan.S1, P.size), plan.S1["stroke"][0])
+        if round(self.s1_x[0], 1) != 246.8:
+            plan.die(f"the S1 stroke starts at x {self.s1_x[0]:.2f}, the storyboard says 246.8")
+        self.thickens = {"S2": (plan.S2["thicken"], self.s1_x),
+                         "S5": (plan.S5["thicken"], plan.NOTEBOOK["stroke_x"]),
+                         "S7": (plan.S7["thicken"], plan.NOTEBOOK["stroke_x"])}
+        for key, (spec, xs) in self.thickens.items():     # the « trait » ends as the whole page
+            corners = (0, 0, P.width, P.height)
+            if spec[4] / 2 < far_from(xs, spec[0], corners):
+                plan.die(f"{key}'s trait ends {spec[4]} px wide: it leaves a corner of the frame uncovered")
         S = P.scenes
         self.words = {
             "S1": [S["S1"].text(i) for i in range(len(S["S1"].texts))],
@@ -87,6 +111,7 @@ class Composer:
             "S5": [S["S5"].text(i) for i in range(2)],
             "S6": [S["S6"].text(i) for i in range(len(S["S6"].texts))],
             "S7": [S["S7"].text(i) for i in range(2)],
+            "S7b": [S["S7b"].text(i) for i in range(2)],
             "S8": [S["S8"].text(i) for i in range(2)],
         }
         for key in ("S2", "S8"):
@@ -187,16 +212,45 @@ class Composer:
                width: float) -> None:
         f = self.stroke_progress(t, t0, t1)
         if f is not None:
-            rd.stroke(fr, rd.drawn_line(x[0], x[1], y, f), width, self.c["surface"])
+            rd.stroke(fr, rd.drawn_line(x[0], x[1], y, f, plan.STRIKE_MIN * width), width, self.c["surface"])
 
     def trait(self, fr: rd.Frame, y: float, t: float, t0: float, t1: float) -> None:
         """The full-width « trait »: 8 px, round caps, left to right."""
         self.strike(fr, plan.NOTEBOOK["stroke_x"], y, t, t0, t1, plan.NOTEBOOK["stroke_w"])
 
-    def thicken(self, fr: rd.Frame, spec: tuple, t: float) -> None:
+    def thicken(self, fr: rd.Frame, key: str, t: float, shadow: tuple | None = None) -> None:
+        spec, (x0, x1) = self.thickens[key]
         y = spec[0]
-        x0, x1 = plan.NOTEBOOK["stroke_x"]
-        rd.stroke(fr, [(x0, y), (x1, y)], capsule_width(t, spec), self.c["surface"])
+        pts = [(x0, y), (x1, y)]
+        width = capsule_width(t, spec)
+        if shadow is not None:
+            rd.stroke_shadow(fr, pts, width, shadow)
+        rd.stroke(fr, pts, width, self.c["surface"])
+
+    # ---- the pictures (A1) and the card ------------------------------------------------
+
+    def photo_ground(self, key: str, spec: dict, t: float, dry: bool) -> rd.Frame:
+        """One of A1's pictures as the ground, with its gradient."""
+        fr = rd.Frame(self.P.size, self.c["primary"], dry)
+        pl = rp.placement(spec, t, self.P.size)
+        fr.note("photo", f"{key} picture", pl.box(), 1.0,
+                {"scale": pl.scale, "base": pl.base, "push": spec["push"][0], "fill": spec["fill"]})
+        if not dry and self.fx is not None:
+            arr = rp.render(self.fx.photo(spec["photo"]), pl, spec, self.P.size)
+            fr.im = Image.fromarray(np.clip(arr + 0.5, 0, 255).astype(np.uint8), "RGB")
+        return fr
+
+    def enter_offset(self, t: float, t_in: float) -> float:
+        """How far below its resting place a card is: 1320 px when it starts
+        to enter, 0 at rest (`emphasis`)."""
+        return plan.ANSWER["enter_travel"] * (1 - self.at("emphasis", t, t_in))
+
+    def card(self, fr: rd.Frame, key: str, picture, W: float, offset: float, touches=()) -> None:
+        top = rf.card_top(W, offset)
+        fr.note("card", f"{key} card", (plan.ANSWER["card_x"], top, plan.ANSWER["card_x"] + plan.ANSWER["card_w"],
+                                         top + rf.card_height()), 1.0, {"W": W, "offset": offset})
+        if self.card_art is not None and not fr.dry:
+            self.card_art.draw(fr, picture(), W, offset, 1.0, touches)
 
     def mark(self, fr: rd.Frame, pts_w, t: float, dot: tuple[float, float], draw: float, alpha: float = 1.0,
              dy: float = 0.0, label: str = "mark", box=None) -> None:
@@ -227,17 +281,19 @@ class Composer:
     # ---- the scenes -----------------------------------------------------------------
 
     def s1(self, fr: rd.Frame, t: float) -> None:
-        N, S = plan.NOTEBOOK, plan.S1
-        w = self.words["S1"]
+        """A1: the picture (the ground), the question, and the stroke that
+        leaves her pen and crosses out her page."""
+        S = plan.S1
         self.pain_headline(fr, "S1", t, 0.0)
-        for i, b in enumerate(S["baselines"]):
-            self.entry(fr, w[2 + i], N["entry_x"], b, t, S["pops"].get(i), f"S1 entry {i + 1}")
-        for k, (x, b, t_pop) in enumerate(S["arrows"]):
-            self.entry(fr, w[7 + k], x, b, t, t_pop, f"S1 arrow {k + 1}")
-        for xs, y, t0, t1 in S["strikes"]:
-            self.strike(fr, xs, y, t, t0, t1, N["strike_w"])
-        y, t0, t1 = S["full"]
-        self.trait(fr, y, t, t0, t1)
+        x0, x1 = self.s1_x
+        _, y, t0, t1 = S["stroke"]
+        w = plan.NOTEBOOK["stroke_w"]
+        f = self.stroke_progress(t, t0, t1)
+        if f is not None:
+            pts = rd.drawn_line(x0, x1, y, f, plan.STRIKE_MIN * w)
+            rd.stroke_shadow(fr, pts, w, S["stroke_shadow"])
+            rd.stroke(fr, pts, w, self.c["surface"])
+            fr.note("shape", "S1 stroke", (pts[0][0] - w / 2, y - w / 2, pts[-1][0] + w / 2, y + w / 2), 1.0)
 
     def s2_elements(self, fr: rd.Frame, t: float) -> None:
         S = plan.S2
@@ -258,29 +314,59 @@ class Composer:
     def s2(self, fr: rd.Frame, t: float, dry: bool) -> rd.Frame:
         spec = plan.S2["thicken"]
         if t < spec[2]:
-            fr = self.ground(self.c["primary"], dry, self.notebook())
-            self.s1(fr, plan.S1["full"][2])            # S1 as it ends: every strike drawn
-            self.thicken(fr, spec, t)
+            fr = self.photo_ground("S1", plan.S1, t, dry)
+            self.s1(fr, plan.S1["stroke"][3])           # S1 as it ends: the stroke drawn
+            self.thicken(fr, "S2", t, plan.S1["stroke_shadow"])
         self.s2_elements(fr, t)
         return fr
 
     def s3(self, fr: rd.Frame, t: float, n: int) -> None:
         S = plan.S3
-        self.s2_elements(fr, t)
         W0, W1 = S["W"]
         t_move, token = S["move"]
         W = W0 + (W1 - W0) * self.at(token, t, t_move)
-        start = 1920 - rf.card_top(W0)
-        offset = start * (1 - self.at("emphasis", t, S["enter"]))
+        offset = self.enter_offset(t, S["enter"])
         touches = []
         if t >= S["disc_in"] and self.fx is not None:
             a = self.at("fast", t, S["disc_in"]) * (1 - self.at("base", t, S["disc_out"]))
             x_pt, y_pt = self.fx.drag.at(t)
-            x, y = rf.to_frame(W, x_pt, y_pt, offset)
+            x, y = rf.to_frame(W, x_pt, y_pt)             # where the card rests
             touches.append((x, y, self.c["primary"], a))
-        if self.card is not None and not fr.dry:
-            self.card.draw(fr, self.fx.take1b(n), W, offset, 1.0, touches)
+        self.card(fr, "S3", lambda: self.fx.take1b(n), W, offset, touches)
+        # S2's lockup leaves OVER the rising card (R1), on its own clear space
+        # of paper at its own opacity: the card dissolves in under the logo,
+        # never printed across it nor it across the card's words
+        e = self.exit.at(t - plan.S2["exit"]) if t >= plan.S2["exit"] else 0.0
+        if e < 1 and not fr.dry:
+            plate, x0, y0 = self.s2_plate()
+            fr.put(self.c["surface"], plate * (1 - e), x0, round(y0 - plan.S2["exit_rise"] * e))
+        self.s2_elements(fr, t)
         self.answer_headline(fr, "S3", t, S["head_in"])
+
+    @lru_cache(maxsize=None)
+    def s2_plate(self) -> tuple[np.ndarray, int, int]:
+        """The lockup's clear space — the mark and the « MyWeli Pro » unit
+        with half the mark's height all round, and the tagline's line with a
+        margin — as a soft-edged coverage of paper."""
+        fr = rd.Frame(self.P.size, self.c["surface"], dry=True)
+        self.s2_elements(fr, plan.S2["exit"])
+        logo = [b.ink for b in fr.boxes if b.kind == "logo"]
+        lines = [b.line or b.ink for b in fr.boxes if b.kind == "text"]
+        clear = plan.S2["mark_h"] / 2
+        boxes = [(min(b[0] for b in logo) - clear, min(b[1] for b in logo) - clear,
+                  max(b[2] for b in logo) + clear, max(b[3] for b in logo) + clear)]
+        boxes += [(b[0] - 24, b[1] - 24, b[2] + 24, b[3] + 24) for b in lines]
+        feather = 24
+        x0 = max(0, math.floor(min(b[0] for b in boxes)) - 2 * feather)
+        y0 = max(0, math.floor(min(b[1] for b in boxes)) - 2 * feather)
+        x1 = min(self.P.width, math.ceil(max(b[2] for b in boxes)) + 2 * feather)
+        y1 = min(self.P.height, math.ceil(max(b[3] for b in boxes)) + 2 * feather)
+        cov = np.zeros((y1 - y0, x1 - x0), np.float32)
+        for b in boxes:
+            cov = np.maximum(cov, rd.rrect_coverage(b, feather, (x0, y0, x1, y1)))
+        im = Image.fromarray(np.clip(cov * 255 + 0.5, 0, 255).astype(np.uint8), "L")
+        im = im.filter(ImageFilter.GaussianBlur(feather / 2))
+        return np.asarray(im, np.float32) / 255, x0, y0
 
     def bubble(self, fr: rd.Frame, k: int, top: float, scale: float, alpha: float) -> None:
         B = plan.S4
@@ -308,20 +394,24 @@ class Composer:
         fr.text(ts, rd.scaled(I34, scale), sx, b, self.c["borderStrong"], alpha, f"S4 time {k + 1}")
 
     def s4(self, fr: rd.Frame, t: float) -> None:
+        """The chat column (R1): a new bubble enters one slot below the
+        bottom slot and rises into it WITH the older bubbles — one column,
+        moving together on `base` — while it fades and scales in on `fast`.
+        Nothing below the column's bottom edge (y 1152) is drawn, so it
+        rises into view; no two bubbles ever overlap (verify checks it)."""
         B = plan.S4
         self.pain_headline(fr, "S4", t, B["arrive"][0])
-        # Newest first, so an older bubble still moving up (`base`, 200 ms)
-        # passes OVER the one arriving under it (`fast`, 100 ms): drawn the
-        # other way, the new message's words were printed across the old
-        # one's for two frames (seen at 11.00 s, the first render).
-        for k in reversed(range(len(B["arrive"]))):
-            t_k = B["arrive"][k]
+        pitch = B["bubble_h"] + B["gap"]
+        fr.clip_bottom = B["column_bottom"]
+        for k, t_k in enumerate(B["arrive"]):
             if t < t_k:
                 continue
-            moved = sum(self.at("base", t, t_j) for t_j in B["arrive"][k + 1:])
-            top = B["slots"][-1] - (B["bubble_h"] + B["gap"]) * moved
+            lift = sum(self.at("base", t, t_j) for t_j in B["arrive"][k + 1:])
+            rise = 0.0 if k == 0 else 1 - self.at("base", t, t_k)
+            top = B["slots"][-1] + pitch * (rise - lift)
             p = 1.0 if k == 0 else self.at("fast", t, t_k)
             self.bubble(fr, k, top, 0.96 + 0.04 * p, p)
+        fr.clip_bottom = None
         y, t0, t1 = B["stroke"]
         self.trait(fr, y, t, t0, t1)
 
@@ -331,15 +421,14 @@ class Composer:
         if t < spec[2]:
             fr = self.ground(self.c["primary"], dry)
             self.s4(fr, plan.S4["stroke"][2])
-            self.thicken(fr, spec, t)
+            self.thicken(fr, "S5", t)
         W = S["W"][0][0]
         for (w_from, _), (w_to, span) in zip(S["W"], S["W"][1:]):
             if t >= span[0]:
                 W = w_from + (w_to - w_from) * plan.eased(S["camera_curve"], (t - span[0]) / (span[1] - span[0]))
-        start = 1920 - rf.card_top(S["W"][0][0])
-        offset = start * (1 - self.at("emphasis", t, S["enter"]))
-        if self.card is not None and not fr.dry and t >= S["enter"]:
-            self.card.draw(fr, self.fx.take5b(), W, offset)
+        offset = self.enter_offset(t, S["enter"])
+        if t >= S["enter"]:
+            self.card(fr, "S5", lambda: self.fx.take5b(), W, offset)
         fr.note("mask", "S5 phone row", rf.mask_box_in_frame(W, offset), 1.0 if t >= S["enter"] else 0.0)
         self.answer_headline(fr, "S5", t, S["head_in"])
         return fr
@@ -358,25 +447,49 @@ class Composer:
         y, a, z = S["full"]
         self.trait(fr, y, t, a, z)
 
+    def s7_window(self, t: float) -> float:
+        """W 553, then the pan to 682 as « Ma journée » comes back (R1): the
+        old 13:15 « Yao K. » row slides under the band."""
+        S = plan.S7
+        n0, w1, token = S["pan"]
+        return S["W"] + (w1 - S["W"]) * self.at(token, t, n0 / self.P.fps)
+
     def s7(self, fr: rd.Frame, t: float, n: int, dry: bool) -> rd.Frame:
         S = plan.S7
         spec = S["thicken"]
         if t < spec[2]:
             fr = self.ground(self.c["primary"], dry, self.notebook())
             self.s6(fr, plan.S6["full"][2])
-            self.thicken(fr, spec, t)
-        e = self.exit.at(t - S["exit"]) if t >= S["exit"] else 0.0
-        if t >= S["enter"] and e < 1 and self.card is not None and not fr.dry:
-            start = 1920 - rf.card_top(S["W"])
-            offset = start * (1 - self.at("emphasis", t, S["enter"])) + S["exit_drop"] * e
+            self.thicken(fr, "S7", t)
+        if t >= S["enter"]:
+            W = self.s7_window(t)
             touches = []
             for (x, y), colour, t_in, t_out in S["taps"]:
                 a = self.at("fast", t, t_in) * (1 - self.at("base", t, t_out))
-                if a > 0:
-                    touches.append((x, y, self.c[colour], a))
-            self.card.draw(fr, self.fx.take1b(n), S["W"], offset, 1 - e, touches)
-        self.answer_headline(fr, "S7", t, S["head_in"], fade=1 - e)
+                if a > 0:            # the tap's point moves with the content
+                    touches.append((x, y - (W - S["W"]) * plan.PX_PER_PT, self.c[colour], a))
+            self.card(fr, "S7", lambda: self.fx.take1b(n), W, self.enter_offset(t, S["enter"]), touches)
+        fade = 1 - self.exit.at(t - S["head_out"]) if t >= S["head_out"] else 1.0
+        self.answer_headline(fr, "S7", t, S["head_in"], fade=fade)
         return fr
+
+    def s7b(self, t: float, dry: bool) -> rd.Frame:
+        """A1's people beat: the picture, its gradient and the caption."""
+        S = plan.S7B
+        fr = self.photo_ground("S7b", S, t, dry)
+        alphas, dys = [], []
+        for i in range(2):
+            p = self.at("emphasis", t, S["in"] + i * self.stagger)
+            alphas.append(p)
+            dys.append(24 * (1 - p))
+        self.headline(fr, self.words["S7b"], ("poppins", S["head_px"]), S["head_top"], S["head_lh"],
+                      self.c["secondary"], alphas, dys, label="S7b caption")
+        return fr
+
+    def dissolve_in(self, n: int, cut: int, token: str) -> float:
+        """How far a dissolve that starts on the cut frame has gone: frame
+        cut-1 is the last whole picture of the scene before."""
+        return self.T[token].at((n - (cut - 1)) / self.P.fps)
 
     def pattern(self, t: float) -> np.ndarray:
         """The light brand pattern's coverage: the mark's outline 72 px tall
@@ -462,7 +575,7 @@ class Composer:
         t = n / self.P.fps
         key = self.P.scene_at(n)
         if key == "S1":
-            fr = self.ground(self.c["primary"], dry, self.notebook())
+            fr = self.photo_ground("S1", plan.S1, t, dry)
             self.s1(fr, t)
         elif key == "S2":
             fr = self.s2(self.ground(self.c["surface"], dry), t, dry)
@@ -479,9 +592,19 @@ class Composer:
             self.s6(fr, t)
         elif key == "S7":
             fr = self.s7(self.ground(self.c["surface"], dry), t, n, dry)
+        elif key == "S7b":
+            fr = self.s7b(t, dry)
+            cut = round(plan.S7B["in"] * self.P.fps)
+            k = self.dissolve_in(n, cut, plan.S7B["dissolve"])
+            if k < 1:            # the S7 page, as it ends, dissolves into the picture
+                fr = rd.blend(self.s7(self.ground(self.c["surface"], dry), plan.S7B["in"], cut - 1, dry), fr, k)
         else:
             fr = self.ground(self.c["surface"], dry)
             self.s8(fr, t)
+            cut = round(plan.S7B["out"] * self.P.fps)
+            k = self.dissolve_in(n, cut, plan.S7B["dissolve"])
+            if k < 1:            # the picture and its caption dissolve into the end card
+                fr = rd.blend(self.s7b(t, dry), fr, k)
         return fr
 
     # ---- what the checks need -----------------------------------------------------------
@@ -498,22 +621,30 @@ class Composer:
             return (540 - wmax / 2, top, 540 + wmax / 2, top + lh * len(lines))
 
         pain = (plan.PAIN["head_top"], plan.PAIN["head_lh"])
+        th = self.thickens
         rows = [
             ("S1 headline", self.words["S1"][:2], 0.0,
-             covered_at(plan.S2["thicken"], block(*pain, self.words["S1"][:2], P92), fps)),
+             covered_at(*th["S2"], block(*pain, self.words["S1"][:2], P92), fps)),
             ("S2 tagline", [self.words["S2"][1]], plan.S2["tag_in"], plan.S2["exit"]),
             ("S3 headline", self.words["S3"], plan.S3["head_in"], P.scenes["S3"].end),
             ("S4 headline", self.words["S4"][:2], P.scenes["S4"].start,
-             covered_at(plan.S5["thicken"], block(*pain, self.words["S4"][:2], P92), fps)),
+             covered_at(*th["S5"], block(*pain, self.words["S4"][:2], P92), fps)),
             ("S5 headline", self.words["S5"], plan.S5["head_in"], P.scenes["S5"].end),
             ("S6 headline", self.words["S6"][:2], P.scenes["S6"].start,
-             covered_at(plan.S7["thicken"], block(*pain, self.words["S6"][:2], P92), fps)),
-            ("S7 headline", self.words["S7"], plan.S7["head_in"], plan.S7["exit"]),
+             covered_at(*th["S7"], block(*pain, self.words["S6"][:2], P92), fps)),
+            ("S7 headline", self.words["S7"], plan.S7["head_in"], plan.S7["head_out"]),
+            ("S7b caption", self.words["S7b"], plan.S7B["in"], plan.S7B["out"]),
             ("S8 CTA", [self.words["S8"][1]], plan.S8["cta_in"], P.duration),
         ]
         out = []
         for label, lines, a, b in rows:
             chars = len(" ".join(lines))
             need = max(1.5, chars / 15 + 0.5)
-            out.append({"label": label, "chars": chars, "in": a, "out": b, "on": b - a, "need": need})
+            row = {"label": label, "chars": chars, "in": a, "out": b, "on": b - a, "need": need, "floor": need}
+            if label == "S7b caption":
+                # A1 gives the caption its whole 2.0-s beat, short of the rule:
+                # the storyboard says so, the report shows both, and the beat
+                # itself is the floor (a caption cut shorter still fails)
+                row["floor"] = min(need, plan.S7B["reading_allowance"])
+            out.append(row)
         return out

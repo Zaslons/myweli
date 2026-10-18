@@ -19,7 +19,10 @@ frame:
 A `Frame` also RECORDS every word it places — its ink box and its line box,
 with its opacity — and can run « dry », drawing nothing: the verify step
 lays every frame out that way and holds each box to the storyboard's safe
-zone, so the boxes it checks are the ones the film draws.
+zone, so the boxes it checks are the ones the film draws. A frame may clip
+everything below a line (`clip_bottom`, S4's chat column): what is drawn
+and what is recorded are both clipped, and each box keeps its whole
+geometry in `full` for the checks that need it (no two bubbles overlap).
 """
 
 from __future__ import annotations
@@ -74,13 +77,26 @@ def baseline_in(box_top: float, box_h: float, spec: tuple) -> float:
 
 @dataclass
 class Box:
-    kind: str                      # "text", "logo", "shape"
+    kind: str                      # "text", "logo", "shape"; "mask", "card", "photo" are not words
     label: str
     ink: tuple[float, float, float, float]
     line: tuple[float, float, float, float] | None
     alpha: float
     text: str | None = None
     font: tuple | None = None
+    full: tuple[float, float, float, float] | None = None     # the ink box before any clip
+    data: dict | None = None                                  # facts a check reads (a picture's scale)
+
+
+NOT_WORDS = ("mask", "card", "photo")
+
+
+def _clip_box(box, bottom):
+    if box is None or bottom is None:
+        return box
+    if box[1] >= bottom:
+        return None
+    return (box[0], box[1], box[2], min(box[3], bottom))
 
 
 class Frame:
@@ -89,6 +105,7 @@ class Frame:
         self.dry = dry
         self.boxes: list[Box] = []
         self.im = None if dry else Image.new("RGB", size, ground)
+        self.clip_bottom: float | None = None     # nothing drawn or recorded at or below this y
 
     # -- compositing ---------------------------------------------------------------
 
@@ -106,6 +123,8 @@ class Frame:
         ax0, ay0 = max(0, -x0), max(0, -y0)
         bx0, by0 = max(0, x0), max(0, y0)
         bx1, by1 = min(W, x0 + w), min(H, y0 + h)
+        if self.clip_bottom is not None:
+            by1 = min(by1, math.floor(self.clip_bottom))
         if bx1 <= bx0 or by1 <= by0:
             return
         a = alpha[ay0:ay0 + (by1 - by0), ax0:ax0 + (bx1 - bx0)]
@@ -140,9 +159,11 @@ class Frame:
         line = None
         if line_box is not None:
             line = (x, line_box[0], x + font.getlength(s), line_box[1])
-        if alpha > 0:
-            self.boxes.append(Box(kind, label or s, ink, line, alpha, s, spec))
-        if self.dry or alpha <= 0:
+        shown = _clip_box(ink, self.clip_bottom)
+        if alpha > 0 and shown is not None:
+            self.boxes.append(Box(kind, label or s, shown, _clip_box(line, self.clip_bottom), alpha, s, spec,
+                                  full=ink))
+        if self.dry or alpha <= 0 or shown is None:
             return
         ox, oy = math.floor(ink[0]) - 2, math.floor(ink[1]) - 2
         w, h = math.ceil(ink[2]) - ox + 2, math.ceil(ink[3]) - oy + 2
@@ -156,10 +177,28 @@ class Frame:
         x = cx - font_of(spec).getlength(s) / 2
         self.text(s, spec, x, baseline, colour, alpha, label, line_box)
 
-    def note(self, kind: str, label: str, box: tuple[float, float, float, float], alpha: float) -> None:
-        """Record a box that is not a word (a logo, a bubble, the pill)."""
-        if alpha > 0:
-            self.boxes.append(Box(kind, label, box, None, alpha))
+    def note(self, kind: str, label: str, box: tuple[float, float, float, float], alpha: float,
+             data: dict | None = None) -> None:
+        """Record a box that is not a word (a logo, a bubble, the pill, the
+        card, a picture)."""
+        shown = _clip_box(box, self.clip_bottom)
+        if alpha > 0 and shown is not None:
+            self.boxes.append(Box(kind, label, shown, None, alpha, full=box, data=data))
+
+
+def blend(a: Frame, b: Frame, k: float) -> Frame:
+    """A dissolve: `a` on its way out, `b` on its way in, `k` 0..1. The
+    words of each are recorded at their share of the opacity."""
+    out = Frame(a.size, (0, 0, 0), a.dry)
+    if not a.dry:
+        out.im = Image.blend(a.im, b.im, k)
+    for bx, share in ((x, 1 - k) for x in a.boxes):
+        if bx.alpha * share > 0:
+            out.boxes.append(Box(bx.kind, bx.label, bx.ink, bx.line, bx.alpha * share, bx.text, bx.font, bx.full, bx.data))
+    for bx in b.boxes:
+        if bx.alpha * k > 0:
+            out.boxes.append(Box(bx.kind, bx.label, bx.ink, bx.line, bx.alpha * k, bx.text, bx.font, bx.full, bx.data))
+    return out
 
 
 # ---- signed distances ---------------------------------------------------------------
@@ -245,9 +284,33 @@ def trim(points: list[tuple[float, float]], f: float) -> list[tuple[float, float
     return out
 
 
-def drawn_line(x0: float, x1: float, y: float, progress: float) -> list[tuple[float, float]]:
-    """A strike or a « trait » drawn left to right, `progress` of the way."""
-    return trim([(x0, y), (x1, y)], progress)
+def drawn_line(x0: float, x1: float, y: float, progress: float, start: float = 0.0) -> list[tuple[float, float]]:
+    """A strike or a « trait » drawn left to right, `progress` of the way
+    from a first length of `start` px (a short visible stroke, never a lone
+    dot: R1) to the whole line."""
+    whole = x1 - x0
+    first = min(start, whole)
+    length = first + (whole - first) * min(1.0, max(0.0, progress))
+    return [(x0, y), (x0 + length, y)]
+
+
+def stroke_shadow(fr: Frame, points, width: float, spec: tuple[float, float, float]) -> None:
+    """A soft shadow under a round-capped stroke — (opacity, blur, dy): the
+    stroke's distance field moved down `dy`, its edge softened over `blur`
+    px (a logistic fall-off, close to a Gaussian's). It lets a white stroke
+    read on a white page; on black it disappears."""
+    if fr.dry:
+        return
+    opacity, blur, dy = spec
+    half = width / 2
+    shifted = [(x, y + dy) for x, y in points]
+    box = bounds(shifted, half + 4 * blur + 2, fr.size)
+    if box[2] <= box[0] or box[3] <= box[1]:
+        return
+    px, py = _grid(box[0], box[1], box[2] - box[0], box[3] - box[1], 1)
+    d = polyline_distance(px, py, shifted)
+    a = opacity / (1 + np.exp(np.clip(1.702 * (d - half) / blur, -50, 50)))
+    fr.put((0, 0, 0), a.astype(np.float32), box[0], box[1])
 
 
 def rrect_coverage(rect: tuple[float, float, float, float], radius: float, box: tuple[int, int, int, int],
