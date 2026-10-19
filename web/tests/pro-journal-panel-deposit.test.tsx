@@ -283,6 +283,17 @@ describe('« Non présenté » in the panel', () => {
     expect(posts).toEqual([]);
   });
 
+  it('keyboard: the box opens on « Annuler », and backing out returns to « Non présenté »', () => {
+    // SYSTEM §15 — the safe default is focused; and the box REPLACES the
+    // button, so without a restore a keyboard user lands on <body>.
+    mockFetch();
+    renderPanel({ ...CONFIRMED_NO_DEPOSIT, appointmentDate: inHours(-1) });
+    fireEvent.click(screen.getByRole('button', { name: 'Non présenté' }));
+    expect(screen.getByRole('button', { name: 'Annuler' })).toHaveFocus();
+    fireEvent.click(screen.getByRole('button', { name: 'Annuler' }));
+    expect(screen.getByRole('button', { name: 'Non présenté' })).toHaveFocus();
+  });
+
   it('with a deposit, the confirmation says the salon keeps it', async () => {
     mockFetch();
     renderPanel({ ...PENDING_WITH_PROOF, status: 'confirmed', appointmentDate: inHours(-1) });
