@@ -74,6 +74,17 @@ describe('the Content-Security-Policy', () => {
       'upload URLs are presigned by the API — never a literal in this repo',
     ],
     [
+      // docs/design/web-pro-journal-panel-deposit.md §2.4 — the salon's view
+      // of a client's deposit screenshot is an <img> on a URL the API signs at
+      // runtime (deposit_service.dart `presignGet`). It was in `connect-src`
+      // for the uploads and nowhere in `img-src`: every screenshot shown was a
+      // Report-Only violation, and the flip to enforcing would have hidden
+      // them all without a sound.
+      'img-src',
+      'https://*.r2.cloudflarestorage.com',
+      'the deposit screenshot URL is presigned by the API — never a literal in this repo',
+    ],
+    [
       'connect-src',
       'https://*.ingest.de.sentry.io',
       'the ingest host comes from NEXT_PUBLIC_SENTRY_DSN, not from source',

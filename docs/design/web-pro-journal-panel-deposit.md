@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Brouillon — en attente de la validation du propriétaire** (UX + texte mot pour mot, §3 et §10) |
+| **Statut** | **Validé le 2026-10-19** par le propriétaire : l'UX, le texte T1–T13 mot pour mot, **Q1 = la consigne seulement en attente**, **Q2 = le retour ramène à aujourd'hui pour l'instant, le jour dans l'URL en tranche suivante** (§10) |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-19 |
 | **PRD ref / phase** | La parité web ↔ app Pro (WEB.md, « feature parity ») · la décision sans-custody des acomptes (PRD OQ-1, mémoire `payments-no-custody-screenshot`) · V1 — tableau de bord Pro web |
@@ -311,7 +311,11 @@ que la fiche affiche aujourd'hui).
   acompte.
 - **« Non présenté » après « Client arrivé »** : possible dans l'app comme ici.
 
-## 10. Questions au propriétaire
+## 10. Questions au propriétaire — tranchées le 2026-10-19
+
+Réponse : « Approved: text T1–T13 word for word, Q1 = guidance only while
+pending, Q2 = back to today for now, day in the URL as a follow-up. »
+
 
 - **Q1** — la consigne T2 : **seulement en attente** (recommandé) ou toujours
   (l'app) ?
