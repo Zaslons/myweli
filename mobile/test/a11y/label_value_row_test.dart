@@ -78,8 +78,10 @@ void main() {
           v: AppTextStyles.titleLarge,
         ),
         // deposit settings — the worst of the set at ~150dp over
-        'Acompte payé en ligne': (
-          label: 'Acompte payé en ligne',
+        // « Acompte payé en ligne » until promise-honesty-sweep.md T2: the
+        // longer label holds the same floor.
+        'Acompte sur votre Mobile Money': (
+          label: 'Acompte sur votre Mobile Money',
           value: '6 000 FCFA',
           l: null,
           v: AppTextStyles.bodyMedium,

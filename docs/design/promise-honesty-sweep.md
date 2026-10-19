@@ -2,12 +2,12 @@
 
 | | |
 |---|---|
-| **Statut** | **Approved le 2026-10-19** — le propriétaire a validé T1–T6 tels que recommandés (§3) : T1 « dans l’app MyWeli », T2 « sur votre Mobile Money », T3 corrigé maintenant (l'événement serveur en suite, §8), T4–T6 tels qu'écrits |
+| **Statut** | **Construit le 2026-10-19** (branche `fix/promise-honesty`) — T1–T6 validés tels que recommandés par le propriétaire (§3) ; §11 dit ce qui a été vu rouge · web en production au merge, app Pro au prochain build |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-19 |
 | **PRD ref / phase** | FR-PRO-MKT-001 (rappels) · la décision sans-custody des acomptes (PRD OQ-1, mémoire `payments-no-custody-screenshot`) · V1 |
 | **Module** | web Pro (carte d'offre), web public (accueil, `llms.txt`), app Pro (Acompte, Accueil, Notifications) |
-| **ROADMAP entry** | à créer au merge : `docs/roadmap/entries/2026-10-19-promise-honesty.md` |
+| **ROADMAP entry** | [2026-10-19-promise-honesty.md](../roadmap/entries/2026-10-19-promise-honesty.md) |
 | **Skills checked** | myweli-dev-guardrails ✓ · myweli-web-guardrails ✓ · myweli-backend-guardrails : aucun code serveur modifié (lu seulement) · myweli-verification-guardrails (avant de dire « fait ») |
 | **Origine** | La revue d'honnêteté de la vidéo promo, 2026-10-19, relue sur `origin/main` (`a91edc66`) |
 
@@ -266,8 +266,39 @@ construit, T3 peut redire « modifie » — l'épingle le signalera.
 
 ## 10. Definition of done
 
-- [ ] Texte validé (§3) ; spec passée à **Approved**.
-- [ ] Épingles + tests vus **rouges** sur `main`, puis verts après correction.
-- [ ] `flutter analyze` = 0 ; `flutter test` ciblé vert ; web : typecheck, lint, Vitest verts.
-- [ ] PRD annoté ; entrée ROADMAP ; spec listée dans `docs/design/README.md`.
+- [x] Texte validé (§3) ; spec passée à **Approved**, puis **Construit**.
+- [x] Épingles + tests vus **rouges** sur `main`, puis verts après correction (§11).
+- [x] `flutter analyze` = 0 ; format propre ; `flutter test` ciblé vert ; web : typecheck, lint, Vitest verts.
+- [x] PRD annoté ; entrée ROADMAP ; spec listée dans `docs/design/README.md`.
 - [ ] Branche `fix/promise-honesty` + PR ; CI verte ; commits au nom du propriétaire, sans attribution Claude.
+
+## 11. Ce qui a été vu rouge, et ce qui ne l'a pas été
+
+Les tests ont été commités **avant** la correction et lancés sur le texte de
+`main` :
+
+- **Web** — `promise-honesty-pin.test.ts` : 5 constats, exactement les trois
+  sites attendus (`app/page.tsx` « confirmations whatsapp » ;
+  `lib/pro/subscription-plans.ts` « whatsapp/sms », « rappels automatiques
+  whatsapp » ; `public/llms.txt` « whatsapp/sms », « sms reminders »).
+  `pro-subscription.test.ts` : la ligne « Rappels automatiques WhatsApp/SMS
+  (24 h / 2 h) ».
+- **App** — `promise_honesty_pin_test.dart` : `deposit_settings_screen.dart`
+  « payé en ligne » ; `dashboard_screen.dart` « annule ou modifie » et
+  « modifie un rendez-vous » — cette dernière **à cheval sur deux
+  littéraux**, donc la jonction a servi. `pro_notifications_test.dart` : le
+  texte T4 introuvable.
+- **Les gardes de fait** sont vues échouer par leurs auto-tests (un manifeste
+  `termii`, un manifeste sans l'entrée, un `enum SalonEvent` avec
+  `clientRescheduled`, un fichier sans l'enum) — pas en changeant le vrai
+  `service.yaml`.
+- **Les fiches de store** étaient déjà vertes : la garde n'a jamais été vue
+  rouge sur un vrai texte, seulement par l'auto-test « chaque famille attrape
+  sa phrase ». Les preuves `contains('acompte')` montrent qu'elle lit bien
+  les deux sections.
+
+**Non vérifié** : le rendu des nouvelles chaînes dans un navigateur et sur un
+appareil (les tests de widget et la table a11y à 360/375/390 dp × 1×/2×
+couvrent la mise en page de T2–T4) ; la CI Linux est la première exécution
+complète. Aucun golden ne rend ces chaînes (l'Acompte du golden a l'acompte
+désactivé ; l'Accueil n'ouvre pas l'invite).

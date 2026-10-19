@@ -38,7 +38,10 @@ export const OFFER_CARDS: OfferCard[] = [
     entitlements: [
       'Réservations illimitées',
       'Jusqu’à 5 membres d’équipe',
-      'Rappels automatiques WhatsApp/SMS (24 h / 2 h)',
+      // The channel production runs: messaging is off until company
+      // registration, so reminders reach clients as notifications of the
+      // MyWeli app (docs/design/promise-honesty-sweep.md, T1).
+      'Rappels automatiques à vos clients dans l’app MyWeli (24 h / 2 h)',
       'Règles d’acompte & protection no-show',
       'Photos & galerie avant/après',
       'Statistiques & gestion des avis',

@@ -35,7 +35,9 @@ void main() {
   group('the facts the pins stand on', () {
     test('production messaging (WhatsApp/SMS) is still off', () {
       expect(
-        _messagingProvider(File('../infra/gcp/service.yaml').readAsStringSync()),
+        _messagingProvider(
+          File('../infra/gcp/service.yaml').readAsStringSync(),
+        ),
         'disabled',
         reason:
             'infra/gcp/service.yaml no longer runs MESSAGING_PROVIDER=disabled '
@@ -141,7 +143,7 @@ void main() {
       expect(
         _hits({
           'probe.dart': _norm(
-            stripDartComments("// was « Acompte payé en ligne »\nfinal s = 1;"),
+            stripDartComments('// was « Acompte payé en ligne »\nfinal s = 1;'),
           ),
         }),
         isEmpty,

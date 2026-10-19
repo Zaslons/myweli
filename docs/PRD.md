@@ -251,7 +251,7 @@ Phases are tagged on every requirement as **[V1]**, **[V2]**, **[V3]**.
 The minimum to onboard salons in 3 communes and run real, deposit-backed bookings.
 
 - Consumer: phone/OTP auth, discovery (search, category, **commune filter**, map), provider profile, booking flow, **Mobile Money deposit**, my bookings, cancel/reschedule (policy-bound), reviews (post-completion), favorites, rebook, push + SMS/WhatsApp notifications.
-- Pro: phone/OTP auth, **KYC onboarding**, profile & photos (with upload), services (CI taxonomy, price ranges), staff, **availability with buffers**, incoming booking accept/reject, calendar/day view, mark complete, **deposit & no-show rules**, **automated WhatsApp/SMS reminders**, basic earnings, subscription (Free + Pro trial).
+- Pro: phone/OTP auth, **KYC onboarding**, profile & photos (with upload), services (CI taxonomy, price ranges), staff, **availability with buffers**, incoming booking accept/reject, calendar/day view, mark complete, **deposit & no-show rules**, **automated reminders** (WhatsApp/SMS built but **off in production** until company registration — today they reach clients as MyWeli app notifications; [promise-honesty-sweep.md](design/promise-honesty-sweep.md)), basic earnings, subscription (Free + Pro trial).
 - Web: **per-provider public booking page (SEO)**, basic consumer marketplace (browse/search/book), provider sign-up landing.
 - Admin: provider KYC approval queue, verification, basic dispute/refund handling, featured toggle.
 - Cross-cutting: Mobile Money via aggregator, WhatsApp Business API, SMS fallback, push (FCM), offline-tolerant reads, French UI, FCFA, analytics baseline.
@@ -479,7 +479,7 @@ Pro is a separate app/entry (`main_pro.dart`, `pro_router.dart`). Built for the 
 ### 10.6 Dashboard, reviews, marketing
 - **FR-PRO-DASH-001 [V1]** Dashboard: today's appointments, pending requests, today/week/month revenue, no-show rate. *(exists)*
 - **FR-PRO-REV-001 [V1]** View reviews; **respond to reviews** [V2]. *(view exists)*
-- **FR-PRO-MKT-001 [V1]** Automated client comms: confirmations + **WhatsApp/SMS reminders** (24h/2h). *(✅ built — automated confirmations + 24h/2h WhatsApp/SMS reminders (Twilio + scheduler); creds/templates = ops.)*
+- **FR-PRO-MKT-001 [V1]** Automated client comms: confirmations + **WhatsApp/SMS reminders** (24h/2h). *(✅ built — automated confirmations + 24h/2h WhatsApp/SMS reminders (Twilio + scheduler); creds/templates = ops. **Off in production** (`MESSAGING_PROVIDER=disabled`) until company registration: the scheduler runs and the same confirmations + reminders reach clients as **push + in-app notifications** of the MyWeli app; a client added by the salon (no account) gets none. Product copy must say so — [promise-honesty-sweep.md](design/promise-honesty-sweep.md).)*
 - **FR-PRO-MKT-002 [V2]** Promo creation, broadcast messages to clients, client segments (VIP/new/inactive) — the `loyalty_programs` + `client_database` mocks, wired to real data.
 - **FR-PRO-CLIENT-001 [V2]** **Client database** with visit history, notes (allergies/preferences), loyalty points — the `client_database` mock made real. **Per-stylist client notes** is a Fresha-killer feature in this market.
 - **FR-PRO-LOY-001 [V2]** **Issue loyalty, memberships & certificates** (YCLIENTS-style) — provider creates bonus/points programs, memberships/abonnements (session packs), and gift certificates; these surface in the consumer wallet (FR-LOY-001 / FR-MEMB-001 / FR-GIFT-001). **Pulled forward from the V3 ops suite because retention is on-thesis** (see §2.6).

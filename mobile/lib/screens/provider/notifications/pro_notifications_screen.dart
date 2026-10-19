@@ -86,7 +86,16 @@ class _ProNotificationsScreenState extends State<ProNotificationsScreen>
                 AppTheme.spacingM,
                 0,
               ),
-              child: PushBlockedBanner(onOpenSettings: widget.openSettings),
+              // The salon's three events (SalonEvent), and the name its
+              // phone settings list — never the client's « rappels et
+              // confirmations » (promise-honesty-sweep.md, T4).
+              child: PushBlockedBanner(
+                onOpenSettings: widget.openSettings,
+                body:
+                    'Autorisez MyWeli Pro dans les réglages de votre téléphone '
+                    'pour être prévenu·e des réservations, annulations et '
+                    'acomptes de vos clients.',
+              ),
             ),
           const Expanded(
             child: NotificationsList(
