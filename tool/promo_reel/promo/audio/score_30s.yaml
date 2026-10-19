@@ -1,0 +1,304 @@
+# MyWeli Pro promo « CARNET → DROP » — the 30-s score (14 bars, 896 frames, 29.867 s).
+#
+# Written around the storyboard's hero frames (promo-storyboard-full.md, « Beat by
+# beat (30 s) » and « Music plan »): a log or kick lands on every hero frame first
+# — as a CUE, which SCENES addresses by id — and each phrase fills from log
+# pattern A (steps 0 3 6 10 11 14) or B (0 6 9 12). Format: SCORE.md.
+# Frames in the comments: frame = (bar-1)*64 + (beat-1)*16 + step*4.
+
+score: 1
+cut: 30s
+bars: 14
+tempo: 112.5
+key: C minor
+swing: 0.56            # shakers and hats only
+
+sections:
+  - {name: hook, bars: 1-2}          # f0-127, no kick; AIR f112-127
+  - {name: drop1, bars: 3-4}         # f128-255
+  - {name: groove_b, bars: 5-6}      # f256-383, congas + rimshots in
+  - {name: log_break, bars: 7}       # f384-447, Rhodes and clap out
+  - {name: lift, bars: 8}            # f448-511, drum stop at f496
+  - {name: drop2, bars: 9-11}        # f512-703, whistle, organ, congas
+  - {name: breakdown, bars: 12}      # f704-767, AIR f752-767
+  - {name: reveal, bars: 13}         # f768-831, pad + sub only
+  - {name: outro, bars: 14}          # f832-895
+
+chords:
+  1: Cm9
+  3: Cm9
+  4: F9          # f192
+  5: Abmaj9      # f256
+  6: G7b9        # f320
+  7: Cm9
+  8: F9
+  9: Cm9         # drop 2
+  10: Abmaj9
+  10.3.0: G7b9   # f608
+  11: Cm9
+  11.3.0: F9     # f672, the public page's scroll
+  12: F9
+  13: Cm9
+  14: Cm9
+
+patterns:
+  four:           "x...|x...|x...|x..."
+  backbeat:       "....|x...|....|x..."
+  sixteenths:     "xxxx|xxxx|xxxx|xxxx"
+  sixteenths_air: "xxxx|xxxx|xxxx|...."       # stops for an AIR beat
+  offbeats:       "..o.|..o.|..o.|..o."
+  hats16:         "xgox|xgox|xgox|xgoX"       # bar 6: hats move to 16ths
+  conga_a:        "....|h..l|..s.|h..."       # steps 4 7 10 12
+  conga_b:        "..h.|.l.h|..s.|.l.h"       # bars 9-11: counterpoint
+  rim_a:          "....|...x|....|.g.x"
+  # log drum: degrees of the bar's chord (1 3 5 7 8 9; "," an octave down)
+  log_a:          "1! . . 1 | . . 5, . | . . 7, 1 | . . 3 ."     # A: 0 3 6 10 11 14
+  log_b:          "1! . . . | . . 8 . | . 7 . . | 5 . . ."       # B: 0 6 9 12
+  keys:           "..X-|-...|..x-|.x--"       # Rhodes stabs after beat 1
+  keys_hero:      "..X-|-...|....|X---"       # + the stab on beat 4 (f304, f560)
+  organ_a:        "...x|..x.|....|x-.."
+  hold:           "X---|----|----|----"
+  hold_split:     "X---|----|X---|----"       # re-voiced at a mid-bar chord change
+
+tracks:
+  log:
+    instrument: log
+    gain: -10
+    bars:
+      3: "1! . . 1 | . . 5, . | . . . 1 | . . 3 ."   # A without step 10: the hero E♭2 sits on step 8
+      4: "1! . . . | . . 8 . | . 7 . . | . . . ."    # B; heroes on 10 and 13 (cues)
+      5: log_b                                       # B; step 12 is the hero (cue slot.rest)
+      6: log_a
+      7: "1! . . 1 | . . 3 . | 5, . 7, 1 | . . . E2"  # the solo line of the log break; E2 leads to F2
+      8: ". . . . | . . . . | . . . . | 5, . 1 3"    # heroes on 0 6 8 10 (cues); the log runs on through the stop
+      9: log_a                                       # step 10 is the landing (cue)
+      10: ". . . . | . . . . | . . 7, 1 | . . 3 ."   # words on 0 2 4 6 (cues), then A's tail
+      11: log_b
+      12: "1 . . . | . . . . | . . . . | . . . ."    # breakdown; the tail on 12.3.0 is a cue
+
+  kick:
+    instrument: kick
+    gain: -7                                        # under the log
+    bars:
+      3-7: four
+      8: "x...|x...|x...|...."                      # DRUM STOP at f496
+      9: "x...|x...|x.x.|x..."                      # + the punch under the landing (f552)
+      10-11: four
+      12: "x...|....|....|...."                     # thins from f704, gone from f736
+      14: "X...|....|....|...."
+
+  clap:
+    instrument: clap
+    gain: -1
+    bars:
+      3-6: backbeat
+      8: "X...|....|....|...."                      # « rempli. » (f448); f464 is the cue fiche.cut
+      9: "....|x...|..X.|x..."                      # + the landing (f552)
+      10-11: backbeat
+      12: "....|x...|....|...."
+      14: "X...|....|....|...."
+
+  shaker:
+    instrument: shaker
+    gain: -16
+    pan: 0.25
+    swing: true
+    humanise: 5
+    automation:
+      gain: [[1.1.0, -4], [2.4.0, -4], [3.1.0, 0]]    # the hook is darker
+    bars:
+      1: sixteenths
+      2: sixteenths_air
+      3-7: sixteenths
+      8: sixteenths_air                             # out at the drum stop
+      9-11: sixteenths
+      12: sixteenths_air
+      14: sixteenths
+
+  hat:
+    instrument: hat
+    gain: -10
+    pan: -0.25
+    swing: true
+    humanise: 3
+    bars:
+      3-5: offbeats
+      6: hats16
+      8: "..o.|..o.|..o.|...."
+      9-11: offbeats
+      12: "..o.|..o.|....|...."
+      14: offbeats
+
+  conga:
+    instrument: conga
+    gain: -10
+    pan: -0.35
+    bars:
+      5-6: conga_a
+      9-11: conga_b
+
+  rim:
+    instrument: rim
+    gain: -6
+    pan: 0.3
+    bars:
+      5-6: rim_a
+      9-11: rim_a
+
+  rhodes:
+    instrument: rhodes
+    gain: -17
+    reverb: 1.4
+    wet: -16
+    automation:
+      lp: [[1.1.0, 600], [1.3.0, 600], [1.4.0, 1200], [2.4.0, 1200], [3.1.0, 14000]]
+      gain: [[1.1.0, -6], [2.4.0, -6], [3.1.0, 0], [11.4.0, 0], [12.1.0, -4], [12.4.0, -4], [14.1.0, -2]]
+    bars:
+      1: hold                                       # the hook's Cm9 pad, low-passed 600 Hz
+      2: "x---|----|----|...."
+      3-4: keys
+      5: keys_hero
+      6: keys
+      8: "..X-|-...|....|...."
+      9: keys_hero
+      10: "..X-|-...|X-..|.x--"                     # A♭maj9, then G7♭9 from step 8
+      11: keys
+      12: "X---|----|----|...."
+      14: "..X-|----|----|----"
+
+  organ:
+    instrument: organ
+    gain: -8
+    bars:
+      9-11: organ_a
+
+  whistle:
+    instrument: whistle
+    gain: -15
+    pan: 0.2
+    reverb: 1.6
+    wet: -12
+    bars:
+      9:  ". . G5 - | - . Bb5 - | - . C6 - | - . Bb5 -"
+      10: "- . C6 - | - . Bb5 - | - . Ab5 - | - . G5 -"
+      11: "- . Eb6 - | - . D6 - | - . C6 - | - . A5 -"
+
+  pad:
+    instrument: pad
+    gain: -14
+    automation:
+      gain: [[1.1.0, 0], [12.4.0, 0], [13.1.0, 5], [14.1.0, 5], [14.2.0, 0]]
+    bars:
+      2: "....|....|....|X---"                      # the AIR's breath of pad
+      3-6: hold
+      8-9: hold
+      10-11: hold_split
+      12: "X---|----|----|...."
+      13-14: hold
+
+  sub:
+    instrument: sub
+    gain: -14
+    bars:
+      13: hold
+
+cues:
+  # ── HOOK, bar 1 (f0-63) ─────────────────────────────────────────────────
+  - {id: hook.stab, kind: log, pos: 1.1.0, note: C2, vel: 1.0, lp: 600, decay: 0.3, gain: -2}   # f0: never silent
+  - {id: hook.word1, kind: rim, pos: 1.1.0}                                         # « Votre » f0
+  - {id: hook.word2, kind: rim, pos: 1.1.2}                                         # « carnet » f8
+  - {id: hook.word3, kind: rim, pos: 1.2.0}                                         # « déborde ? » f16
+  - {id: hook.pen, kind: pen_scratch, pos: 1.1.0, end: 1.2.2, gain: -16}            # the entry inking f0-24
+  - {id: hook.cut, kind: log, pos: 1.3.0, note: G1, vel: 0.8, gain: -3}                                 # f32 hard cut to the macro
+  - {id: hook.cut_rim, kind: rim, pos: 1.3.0}
+  - {id: hook.margin, kind: pen_scratch, pos: 1.4.0, gain: -12}                     # f48, 180 ms
+  # ── HOOK, bar 2 (f64-127): the three strikes, riser 1, AIR ───────────────
+  - {id: strike1, kind: log, pos: 2.1.0, note: C2, vel: 0.85, gain: -3}                        # « Rayé. » f64
+  - {id: strike1.slash, kind: pen_slash, pos: 2.1.0, gain: -8}
+  - {id: strike2, kind: log, pos: 2.1.3, note: C2, vel: 0.8, gain: -3}                                  # « Raturé. » f76
+  - {id: strike2.slash, kind: pen_slash, pos: 2.1.3, gain: -8}
+  - {id: strike3, kind: log, pos: 2.2.2, note: C2, glide_from: G1, vel: 0.85, decay: 0.5, gain: -3}      # « Recopié. » f88; its sub rings into the AIR
+  - {id: strike3.slash, kind: pen_slash, pos: 2.2.2, gain: -8}
+  - {id: riser1, kind: riser, pos: 2.1.0, end: 2.3.3, gates: [[2.1.0, 8], [2.3.0, 16]], gain: -11}   # f64-108
+  - {id: clap_roll1, kind: clap_roll, pos: 2.3.0, end: 2.3.3, rate: 16, gain: -6}             # f96 f100 f104
+  - {id: air1.reverse, kind: reverse, pos: 2.4.0, end: 3.1.0, gain: -16}             # « Respirez. » f112 -> f128
+  # ── DROP 1, bar 3 (f128-191) ────────────────────────────────────────────
+  - {id: drop1.impact, kind: impact, pos: 3.1.0, f_start: 80, f_end: 30, tau: 0.8, rt60: 2.5, gain: -6}
+  - {id: swipe.touch, kind: click, pos: 3.2.0, gain: -3}                            # swipe touch-down f144
+  - {id: swipe.whoosh, kind: whoosh, style: swipe, pos: 3.2.1, offset: 1, end: 3.3.0, gain: -15}   # card moves f149 -> open f160
+  - {id: swipe.open, kind: log, pos: 3.3.0, note: Eb2, vel: 1.0}                    # pane open, f160
+  - {id: swipe.open_wood, kind: thock, pos: 3.3.0, gain: -4}
+  - {id: tap.touch, kind: click, pos: 3.4.0, gain: -3}                              # tap touch-down f176
+  - {id: tap.close, kind: whoosh, style: close, pos: 3.4.2, dur: 6, gain: -14}      # pane closes f184-190
+  # ── DROP 1, bar 4 (f192-255) ────────────────────────────────────────────
+  - {id: arrive.log, kind: log, pos: 4.3.2, note: F2, vel: 1.0}                     # badge « Arrivé », lift f232
+  - {id: arrive.pop, kind: pop, pos: 4.3.2, gain: -4}
+  - {id: arrive.answer, kind: log, pos: 4.4.1, note: C2}                            # f244
+  - {id: arrive.air, kind: whoosh, style: air, pos: 4.4.2, offset: 2, end: 5.1.0, gain: -14}   # f250 -> the whip
+  # ── GROOVE B, bar 5 (f256-319) ──────────────────────────────────────────
+  - {id: whip1, kind: whoosh, style: whip, pos: 5.1.0, peak: 3, gain: -14}           # crest f259
+  - {id: slot.touch, kind: click, pos: 5.2.2, gain: -3}                             # « Libre » touch-down f280
+  - {id: slot.push, kind: whoosh, style: swish, pos: 5.2.3, offset: 2, dur: 10, gain: -18}   # form pushes in f286
+  - {id: slot.rest, kind: log, pos: 5.4.0, note: Eb2, vel: 1.0}                     # form at rest f304 (+ Rhodes stab)
+  # ── GROOVE B, bar 6 (f320-383): the stepped time-lapse ───────────────────
+  - {id: fill.touch1, kind: click, pos: 6.1.0, gain: -3}                            # « Coupe homme » f320
+  - {id: fill.tape, kind: whoosh, style: tape, pos: 6.1.0, offset: 2, dur: 12, gain: -17}    # f322-334
+  - {id: fill.touch2, kind: click, pos: 6.2.0, gain: -3}                            # « Client sans numéro » f336
+  - {id: fill.touch3, kind: click, pos: 6.3.0, gain: -3}                            # name field f352
+  - {id: fill.key1, kind: key, pos: 6.3.2, gain: -4}                                # Y  f360
+  - {id: fill.key2, kind: key, pos: 6.3.3, gain: -4}                                # a  f364
+  - {id: fill.key3, kind: key, pos: 6.4.0, gain: -4}                                # o  f368
+  - {id: fill.key4, kind: key, pos: 6.4.1, gain: -4}                                # space f372
+  - {id: fill.key5, kind: key, pos: 6.4.2, gain: -4}                                # K  f376
+  - {id: fill.key6, kind: key, pos: 6.4.3, gain: -4}                                # .  f380
+  # ── LOG BREAK, bar 7 (f384-447) ─────────────────────────────────────────
+  - {id: create.drag, kind: whoosh, style: swish, pos: 7.1.0, dur: 8, gain: -18}    # form scroll f384-392
+  - {id: create.touch, kind: click, pos: 7.2.0, gain: -3}                           # « Créer le rendez-vous » f400
+  - {id: create.close, kind: whoosh, style: close, pos: 7.3.1, offset: 2, dur: 8, gain: -14}  # form closes f422-430
+  - {id: create.done, kind: log, pos: 7.4.1, note: G2, vel: 1.0}                    # « Rendez-vous créé » f436
+  - {id: create.chime, kind: chime, pos: 7.4.1, note: G5, gain: -11, reverb: 1.2, wet: -14}
+  - {id: create.strike, kind: pen_slash, pos: 7.4.2, gain: -8}                      # « libre » struck f440
+  # ── LIFT, bar 8 (f448-511) ──────────────────────────────────────────────
+  - {id: create.filled, kind: log, pos: 8.1.0, note: F2, vel: 1.0}                  # « rempli. » f448
+  - {id: fiche.cut, kind: clap, pos: 8.2.0}                                         # hard cut to the Fiche f464
+  - {id: fiche.log1, kind: log, pos: 8.2.2, note: F2}                               # tile « 2 Visites » f472
+  - {id: fiche.card1, kind: cardpop, pos: 8.2.2, gain: -6}
+  - {id: fiche.log2, kind: log, pos: 8.3.0, note: A2}                               # « 17 000 FCFA » f480
+  - {id: fiche.card2, kind: cardpop, pos: 8.3.0, gain: -6}
+  - {id: fiche.log3, kind: log, pos: 8.3.2, note: C3}                               # « 13 oct. 2026 » f488
+  - {id: fiche.card3, kind: cardpop, pos: 8.3.2, gain: -6}
+  - {id: riser2, kind: riser, pos: 8.3.0, end: 8.4.3, gates: [[8.3.0, 8], [8.4.0, 16]], gain: -11}   # f480-508
+  - {id: lift.reverse, kind: reverse, pos: 8.4.0, end: 9.1.0, gain: -15}             # DRUM STOP f496 -> f512
+  # ── DROP 2, bar 9 (f512-575) ────────────────────────────────────────────
+  - {id: drop2.impact, kind: impact, pos: 9.1.0, f_start: 70, f_end: 35, tau: 0.5, rt60: 0.9, noise_db: -8, wet_db: -10, gain: -6}
+  - {id: drop2.whip, kind: whoosh, style: whip, pos: 9.1.0, peak: 3, gain: -14}      # crest f515
+  - {id: revenus.touch, kind: click, pos: 9.2.0, gain: -3}                          # « Mois » touch-down f528
+  - {id: revenus.tick1, kind: tick, pos: 9.2.2, gain: -4}                           # the roll f536-548
+  - {id: revenus.tick2, kind: tick, pos: 9.2.3, gain: -4}
+  - {id: revenus.tick3, kind: tick, pos: 9.3.0, gain: -4}
+  - {id: revenus.tick4, kind: tick, pos: 9.3.1, gain: -4}
+  - {id: revenus.land, kind: log, pos: 9.3.2, note: C2, octave: true, vel: 1.0}     # the counter lands f552
+  - {id: revenus.ding, kind: kalimba, pos: 9.3.2, note: C6, gain: -10}
+  # ── DROP 2, bar 10 (f576-639) ───────────────────────────────────────────
+  - {id: sentence.word1, kind: log, pos: 10.1.0, note: Ab1, vel: 1.0}               # « Chaque » f576
+  - {id: sentence.word2, kind: log, pos: 10.1.2, note: C2}                          # « rendez-vous » f584
+  - {id: sentence.word3, kind: log, pos: 10.2.0, note: Eb2}                         # « terminé, » f592
+  - {id: sentence.word4, kind: log, pos: 10.2.2, note: Ab2, vel: 1.0}               # « compté. » f600
+  - {id: sentence.pop, kind: pop, pos: 10.2.2, gain: -4}                            # the card lands f600
+  # ── DROP 2, bar 11 (f640-703) ───────────────────────────────────────────
+  - {id: page.cut, kind: impact, pos: 11.1.0, sub: false, rt60: 1.0, noise_db: -10, wet_db: -12, gain: -4}   # soft hit, no sub
+  - {id: page.drag, kind: whoosh, style: drag, pos: 11.3.0, end: 12.1.0, gain: -14}  # the page's scroll f672-704
+  # ── BREAKDOWN, bar 12 (f704-767) ────────────────────────────────────────
+  - {id: riser3, kind: riser, pos: 12.2.0, end: 12.4.3, gates: [[12.2.0, 8], [12.3.0, 16]], gain: -11}   # f720-764
+  - {id: breakdown.tail, kind: log, pos: 12.3.0, note: C2, vel: 0.75, decay: 0.6}              # the sub tail under the AIR
+  - {id: clap_roll2, kind: clap_roll, pos: 12.3.2, end: 12.4.0, rate: 32, gain: -6}           # f744-751
+  - {id: air2.reverse, kind: reverse, pos: 12.4.0, end: 13.1.0, gain: -16}           # AIR f752 -> f768
+  # ── REVEAL, bar 13 (f768-831) ───────────────────────────────────────────
+  - {id: reveal.impact, kind: impact, pos: 13.1.0, f_start: 80, f_end: 30, tau: 1.0, rt60: 2.8, wet_db: -4, gain: -4}
+  - {id: reveal.shimmer, kind: shimmer, pos: 13.2.0, gain: -10}                                # glyphs complete f784
+  - {id: reveal.glide, kind: glide, pos: 13.3.1, end: 13.4.2, from: G3, to: C5, gain: -2}   # M/W morph f804-824
+  # ── OUTRO, bar 14 (f832-895) ────────────────────────────────────────────
+  - {id: end.mark, kind: log, pos: 14.1.0, note: C2, octave: true, vel: 1.0}        # the mark settles + « Plus de clients, » f832
+  - {id: end.line2, kind: log, pos: 14.2.0, note: G2, vel: 0.8}                     # « moins de gestion. » f848
+  - {id: end.store, kind: glint, pos: 14.3.0, gain: -12, reverb: 1.6, wet: -12}      # « Disponible sur l’App Store » f864 (owner's addition)
+  - {id: end.last, kind: log, pos: 14.4.0, note: C2, decay: 0.6, reverb: 2.4, wet: -10}   # f880; the tail rings to f895
