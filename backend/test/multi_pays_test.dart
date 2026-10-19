@@ -134,6 +134,42 @@ void main() {
       }
     });
 
+    test('every top-level web route is reserved (the route sync pin)', () {
+      // A salon slug shares `/[slug]` with the web app's own pages: a salon
+      // that took `/professionnels` would be shadowed by the static route
+      // (delisted by a page), and a page added without its reservation could
+      // be claimed first. So every top-level route directory of `web/app`
+      // must be here — the gap `/professionnels` would have opened
+      // (docs/design/web-pro-access.md §6).
+      final routes = Directory('../web/app')
+          .listSync()
+          .whereType<Directory>()
+          .map((d) => d.uri.pathSegments.where((s) => s.isNotEmpty).last)
+          // `[slug]` is the salon page itself; `(group)` folders add no
+          // path segment.
+          .where((name) => !name.startsWith('[') && !name.startsWith('('))
+          .toList();
+      expect(routes, contains('pro'), reason: 'the scan did not read web/app');
+      for (final route in routes) {
+        expect(
+          reservedPublicSlugs,
+          contains(route),
+          reason: 'web/app/$route is a top-level page: add it to '
+              'reservedPublicSlugs (slug.dart)',
+        );
+      }
+    });
+
+    test('a salon named « Professionnels » never takes the salons page', () async {
+      final repo = InMemoryProvidersRepository([]);
+      final s = await repo.createSalon(
+        name: 'Professionnels',
+        category: 'salon',
+        phoneNumber: '+2250700000009',
+      );
+      expect(s['slug'], 'professionnels-2');
+    });
+
     test('a salon named after a taxonomy root gets uniquified', () async {
       final repo = InMemoryProvidersRepository([]);
       final s1 = await repo.createSalon(
