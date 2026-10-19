@@ -333,10 +333,21 @@ async function overflowingFlexRows(page: import('@playwright/test').Page) {
         const cs = getComputedStyle(child);
         if (cs.position === 'absolute' || cs.position === 'fixed') continue;
         if (cs.display === 'none') continue;
-        const cb = child.getBoundingClientRect();
+        // LAYOUT width, not painted width, for a transformed child: a
+        // transform is paint-only and cannot make a flex row overflow, but
+        // `getBoundingClientRect` measures the transformed box. The phone
+        // field's country arrow is a 5px square turned 45° — 6.8px on screen,
+        // 1px into an 8px padding, nothing clipped — and it read as « 2 items
+        // need 40 of 38 » the first time /pro/inscription joined this matrix
+        // (web-pro-access.md §11). An untransformed child keeps its exact
+        // fractional rect.
+        const width =
+          cs.transform !== 'none' && child instanceof HTMLElement
+            ? child.offsetWidth
+            : child.getBoundingClientRect().width;
         const ml = parseFloat(cs.marginLeft) || 0;
         const mr = parseFloat(cs.marginRight) || 0;
-        need += cb.width + ml + mr;
+        need += width + ml + mr;
         items += 1;
       }
       if (items < 2) continue; // a one-item row cannot be a strip

@@ -202,6 +202,17 @@ prendre le slug — risque faible, vérifié au §6.
   espace insécable dans la bande et le sous-titre (et un premier essai
   `\u00a0` dans du texte JSX aurait imprimé la séquence telle quelle :
   `&nbsp;` à cet endroit).
+- **La matrice de reflow a parlé, et c'était le contrôle qui se trompait** :
+  la première fois que `/pro/inscription` y est entré, « 2 items need 40 of
+  38 » sur le sélecteur de pays du téléphone, à 320 et 375 px. Mesuré dans le
+  navigateur plutôt que supposé : la flèche est un carré de 5 px tourné de
+  45° — 6,8 px **peints**, 1 px dans un padding de 8 px, rien de coupé ; la
+  mise en page tient exactement. `overflowingFlexRows` mesurait la boîte
+  **transformée** (`getBoundingClientRect`) ; une transformation ne fait pas
+  déborder une rangée flex. Le contrôle prend désormais la largeur de **mise
+  en page** d'un enfant transformé — et attrape toujours un vrai débordement
+  avec un enfant tourné (vérifié : 124 pour 100). Un premier essai
+  `flex-shrink: 0` côté CSS ne changeait rien et a été retiré.
 - Vérifié ici : typecheck, lint, **toute la suite unitaire web verte
   (1 641)**, backend analyse 0 et `multi_pays_test` vert ; dans le navigateur
   à 1280 et 375 px : la page, la bande, le pied de page, l'en-tête minimal et
