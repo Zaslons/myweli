@@ -52,9 +52,9 @@ Same ink bounding boxes in both. `python -m promo.lottie filmstrip --out strip.p
 10th frame; `python -m promo.lottie frame --at 60 --width 900 --out f.png` one frame.
 
 **Third-party players** (tried in a throwaway venv, not used): `rlottie-python` 1.3.8 renders
-every frame **empty** — it evaluates the layers' animated opacity as 0 (with opacity made static
-it draws comp 25, still not 142). `lottie` 0.7.2 (python-lottie) exports SVG that, rasterised
+every frame **empty**; with every layer's opacity made static it draws comp 25 (so its handling
+of the animated layer opacity is what blanks the file), and still nothing at 142. `lottie` 0.7.2 (python-lottie) exports SVG that, rasterised
 with rsvg-convert, matches the shapes (IoU 0.992–0.997 at 25/60/141) but its easing is off: at
 comp 90 the erase has advanced to s = 0.8247 against the exact 0.8144 (≈ 0.2 frame early).
 
-Tests: `python -m unittest tests.test_lottie` (38 tests, < 0.1 s).
+Tests: `python -m unittest tests.test_lottie` (39 tests, < 0.1 s).
