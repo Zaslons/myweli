@@ -256,6 +256,10 @@ appel dans `reschedule.dart` pour le rôle `user`, push + fil, mêmes
 destinataires que `newBooking`). C'est un vrai manque : un client déplace
 son rendez-vous et le salon ne l'apprend qu'en regardant l'agenda. Une fois
 construit, T3 peut redire « modifie » — l'épingle le signalera.
+**Construit le 2026-10-19** dans un PR empilé :
+[salon-client-reschedule-notify.md](salon-client-reschedule-notify.md) — T3
+dit désormais « reporte », et l'épingle tient l'événement au lieu de
+l'interdire.
 
 ## 9. Questions ouvertes
 

@@ -2,12 +2,12 @@
 
 | | |
 |---|---|
-| **Statut** | **Approved le 2026-10-19** — N1–N5 validés tels que recommandés : N2 avec l'ancienne **et** la nouvelle heure ; N3–N5 dans ce PR (l'ordre de déploiement du §8 tient) |
+| **Statut** | **Construit le 2026-10-19** (branche `feat/salon-client-reschedule-notify`, empilée sur #639) — N1–N5 validés tels que recommandés ; §11 dit ce qui a été vu rouge · **le serveur doit être en production avant le prochain build Pro** (§8) |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-19 |
 | **PRD ref / phase** | FR-NOTIF (notifications transactionnelles) · V1 |
 | **Module** | backend `messaging` (`SalonNotifier`), route `POST /appointments/{id}/reschedule` ; app Pro (invite push, bandeau, état vide des Notifications) |
-| **ROADMAP entry** | à créer : `docs/roadmap/entries/2026-10-19-salon-client-reschedule-notify.md` |
+| **ROADMAP entry** | [2026-10-19-salon-client-reschedule-notify.md](../roadmap/entries/2026-10-19-salon-client-reschedule-notify.md) |
 | **Skills checked** | myweli-backend-guardrails ✓ · myweli-dev-guardrails ✓ · myweli-verification-guardrails (avant de dire « fait ») |
 | **Dépend de** | [#639](https://github.com/Zaslons/myweli/pull/639) ([promise-honesty-sweep.md](promise-honesty-sweep.md)) — ses épingles relisent `enum SalonEvent` ; cette branche est empilée dessus |
 
@@ -138,7 +138,26 @@ séparer N3–N5 dans un PR suivant.
 
 ## 10. Definition of done
 
-- [ ] Texte validé (§3) ; statut **Approved**.
-- [ ] Tests vus rouges, puis verts ; `dart analyze --fatal-infos` 0 ; format ; `flutter analyze` 0.
-- [ ] [push-notifications-fcm.md](push-notifications-fcm.md) §10 à jour ; entrée ROADMAP ; spec indexée.
+- [x] Texte validé (§3) ; statut **Approved**, puis **Construit**.
+- [x] Tests vus rouges, puis verts ; `dart analyze --fatal-infos` 0 ; format ; `flutter analyze` 0.
+- [x] [push-notifications-fcm.md](push-notifications-fcm.md) §10 et T58 à jour ; entrée ROADMAP ; spec indexée.
 - [ ] PR empilé sur #639 ; CI verte ; commits au nom du propriétaire, sans attribution Claude.
+
+## 11. Ce qui a été vu rouge
+
+- Les tests ont été commités **avant** le code : le backend ne compilait pas
+  (`clientRescheduled`, `previousAppointmentDate` absents) ; les deux épingles
+  rouges sur leur fait inversé (« SalonEvent has no reschedule event ») ;
+  `pro_notifications_test.dart` rouge sur N4 et N5.
+- **Le test a trouvé un défaut dans le premier jet** : `reschedule` lisait
+  l'ancienne date **après** `_moveTo`, et le dépôt en mémoire rend la même
+  `Map` qu'il met à jour sur place — l'« ancienne » date valait la nouvelle.
+  Postgres rend une ligne neuve, donc la production n'aurait pas eu le
+  défaut, mais un autre dépôt l'aurait ; la date est désormais lue avant le
+  déplacement.
+- Les gardes de la route vues échouer par mutation sur le travail commité
+  (§11.1 de l'entrée ROADMAP).
+
+**Non vérifié** : une vraie notification sur un appareil ; le texte des
+Notifications Pro à 200 % (l'écran n'est pas dans la matrice a11y — écart
+préexistant) ; le serveur n'est pas déployé.

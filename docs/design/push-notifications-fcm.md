@@ -130,12 +130,15 @@ consumer templates and stays untouched).
 | Event | Fired from | Title (FR) |
 |---|---|---|
 | `newBooking` | `POST /appointments` (the client's own booking) | « Nouvelle réservation » |
+| `clientRescheduled` | `POST /appointments/{id}/reschedule` — **the client branch only** (2026-10-19, [salon-client-reschedule-notify.md](salon-client-reschedule-notify.md)); body « Le client a reporté le rendez-vous du {ancienne date} à {heure} au {nouvelle date} à {heure}. », feed type `reschedule` | « Réservation reportée » |
 | `clientCancelled` | `POST /appointments/{id}/cancel` (consumer-owned route) | « Réservation annulée » |
 | `depositSubmitted` | `POST /appointments/{id}/deposit` (proof attached) | « Justificatif d'acompte reçu » |
 
 **The guard:** salon-entered bookings ride `POST /providers/{id}/appointments`,
 which has **no hook** — a salon is never notified about its own entry (pinned
-by a test that provides a live notifier and asserts an empty feed).
+by a test that provides a live notifier and asserts an empty feed). The same
+rule holds for a move: the reschedule route's **provider** branch never calls
+`SalonNotifier` (pinned).
 
 **Recipient rule (stated once, enforced in `_recipients`):** every **ACTIVE**
 member with a **linked account** whose role can see the whole journal
@@ -145,7 +148,7 @@ Collaborateur (`Cap.journalViewOwn`) only when the booking is assigned to
 only. Deduped by account. Invited (not yet accepted) and revoked rows are
 skipped.
 
-**Preferences:** all three events are **transactional**, so the
+**Preferences:** all four events are **transactional**, so the
 reminders/marketing toggles don't apply; the push channel still honours each
 recipient's `push` preference. The **in-app feed row is always written** — a
 passive history log (the same posture as the consumer feed, threat T24) that
@@ -153,7 +156,7 @@ fuels the pro bell.
 
 **Payload:**
 ```json
-{ "event": "new_booking|client_cancelled|deposit_submitted",
+{ "event": "new_booking|client_rescheduled|client_cancelled|deposit_submitted",
   "appointmentId": "a1",
   "providerId": "p1",          // the pro app switches salon before deep-linking (R6)
   "route": "/pro/appointment/a1" }
