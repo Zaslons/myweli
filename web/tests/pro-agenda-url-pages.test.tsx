@@ -4,11 +4,14 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 const replace = vi.fn();
 // Stable object: the load effects depend on [router].
 const routerMock = { replace, push: vi.fn(), refresh: vi.fn() };
-// `useSearchParams` reads the live address, as Next's does once it has
-// followed a `history.replaceState` (14.1+).
+/// What the router reports. `null`: the live address, as Next's does once it
+/// has followed a `history.replaceState` (14.1+). A string: a router that has
+/// not caught up yet — Next's sync is a transition, so it can lag the page.
+const routerState = { query: null as string | null };
 vi.mock('next/navigation', () => ({
   useRouter: () => routerMock,
-  useSearchParams: () => new URLSearchParams(window.location.search),
+  useSearchParams: () =>
+    new URLSearchParams(routerState.query ?? window.location.search),
 }));
 
 import { ProAppointmentDetailClient } from '../components/pro/ProAppointmentDetailClient';
@@ -109,6 +112,7 @@ afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
   replace.mockReset();
+  routerState.query = null;
   window.history.replaceState(null, '', '/');
 });
 
@@ -262,6 +266,31 @@ describe('a navigation to this same page from elsewhere', () => {
     rerender(<RendezVousClient />);
     expect(screen.getByLabelText('Date')).toHaveValue(TOMORROW);
     expect(search()).toBe(`?jour=${TOMORROW}`);
+  });
+
+  it('two quick › — the router reports the first write AFTER the second: still not a navigation', async () => {
+    // Next's sync is a transition: the router can still say the FIRST day
+    // when the page is already on the second. Taken for a navigation, that
+    // late echo would put the grid back one day under the salon's finger.
+    mockFetch();
+    openAt('/pro/rendez-vous');
+    const { rerender } = render(<RendezVousClient />);
+    await screen.findByRole('button', { name: /Koffi/ });
+    const twoDays = plusDays(TODAY, 2);
+
+    routerState.query = ''; // the router has not caught up with anything yet
+    fireEvent.click(screen.getByRole('button', { name: 'Jour suivant' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Jour suivant' }));
+    await waitFor(() => expect(search()).toBe(`?jour=${twoDays}`));
+
+    // After EACH step, not only at the end: a revert put right by the next
+    // echo is still a day the salon saw jump back.
+    for (const late of [`?jour=${TOMORROW}`, `?jour=${twoDays}`, null]) {
+      routerState.query = late;
+      rerender(<RendezVousClient />);
+      expect(screen.getByLabelText('Date'), `router at ${late}`).toHaveValue(twoDays);
+      expect(search(), `router at ${late}`).toBe(`?jour=${twoDays}`);
+    }
   });
 });
 
