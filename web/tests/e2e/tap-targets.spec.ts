@@ -163,6 +163,18 @@ test('pro: the glyph buttons that grew invisibly', async ({ page }) => {
   // code (`-mx-s -my-sm` + min-h-12); pinning it needs a stub with members.
 });
 
+test('pro: the Journée’s week strip — seven days share 375px (web-pro-week-strip)', async ({
+  page,
+}) => {
+  await signInPro(page);
+  await page.goto('/pro/rendez-vous');
+  const days = page.getByRole('group', { name: /^Semaine du / }).getByRole('button');
+  await expect(days).toHaveCount(7);
+  for (let i = 0; i < 7; i++) {
+    await assertBox(days.nth(i), `week strip day ${i + 1}`);
+  }
+});
+
 test('pro: the journal panel’s deposit controls (web-pro-journal-panel-deposit)', async ({
   page,
 }) => {

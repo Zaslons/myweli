@@ -140,7 +140,7 @@ describe('loadDotClass — longer with each booking, capped at five', () => {
 describe('the words (owner Q3, approved as written)', () => {
   it('the group names its Monday', () => {
     expect(weekStripLabel(weekOf('2026-10-21'), 'Africa/Abidjan')).toBe(
-      'Semaine du 20 octobre',
+      'Semaine du 19 octobre',
     );
   });
 

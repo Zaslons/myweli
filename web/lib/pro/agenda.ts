@@ -21,6 +21,10 @@ export const LIST_TABS: { key: ListTab; label: string }[] = [
   { key: 'all', label: 'Tous' },
 ];
 
+/// Monday-first weekday abbreviations — the Calendrier's header and the
+/// Journée's week strip (docs/design/web-pro-week-strip.md).
+export const WEEKDAYS_SHORT = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
+
 export function dateKey(d: Date, tz?: string): string {
   return salonDayKey(d, tz);
 }

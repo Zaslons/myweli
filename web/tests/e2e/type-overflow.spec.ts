@@ -610,6 +610,16 @@ const AUTHED_ROUTES: Route[] = [
     auth: 'pro',
   },
   {
+    // docs/design/web-pro-week-strip.md — seven day buttons sharing the
+    // width with no gap: at 320 each has ~41px for « Lun », the number and
+    // the dot. `ready` is the vacuity guard — measured with the strip drawn.
+    name: 'the pro agenda — the week strip above the Journée',
+    url: '/pro/rendez-vous',
+    anchor: 'Rendez-vous',
+    auth: 'pro',
+    ready: (page) => page.getByRole('group', { name: /^Semaine du / }),
+  },
+  {
     // **Strip #2** — « Aujourd'hui » · « À venir » · « En attente » · « Tous »,
     // the widest of the five and the only one computed to overflow at 375.
     // It renders only when `view === 'list'`, and the default is `journal`.
