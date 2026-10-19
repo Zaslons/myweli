@@ -15,12 +15,12 @@ import {
   arriveAppointment,
   getProAppointment,
   proAction,
-  proDepositScreenshotUrl,
 } from "../../lib/api/pro";
 import { formatDateTimeFr, formatFcfa } from "../../lib/format";
 import {
   type LifecycleAction,
   actionsForMembership,
+  hasStarted,
 } from "../../lib/pro/lifecycle";
 import { hasCap } from "../../lib/pro/team";
 import {
@@ -42,6 +42,8 @@ import { Button } from "../Button";
 import { Loading } from "../Loading";
 import { conflictMessage } from "../../lib/booking/window";
 import { useOptionalProMembership } from "./ProMembershipContext";
+import { NoShowAction } from "./NoShowAction";
+import { ProDepositProof } from "./ProDepositProof";
 
 /// The switches this page already made, by `id:salon` — so a server that does
 /// not take one cannot send the page round in circles (each switch remounts
@@ -73,8 +75,6 @@ export function ProAppointmentDetailClient({
   const [loadError, setLoadError] = useState<LoadFailure | false>(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [confirm, setConfirm] = useState<LifecycleAction | null>(null);
-  const [proofUrl, setProofUrl] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoadError(false);
@@ -185,7 +185,6 @@ export function ProAppointmentDetailClient({
   async function run(action: LifecycleAction) {
     setBusy(true);
     setError(null);
-    setConfirm(null);
     const r = await proAction(id, action);
     setBusy(false);
     if (!r.ok) {
@@ -245,10 +244,17 @@ export function ProAppointmentDetailClient({
     (appt.serviceIds ?? []).map(serviceName).filter(Boolean).join(", ") || "—";
   // Team access R5b: the role-shaped action set (staff = Terminé/Absent on
   // their own confirmed bookings; the server enforces T40 regardless).
+  // « Absent » only once the start is past (web-pro-journal-panel-deposit.md
+  // §2.2 — the app's rule; the server has none).
   const membership = profile.membership;
-  const actions = actionsForMembership(appt.status, membership);
+  const actions = actionsForMembership(appt.status, membership, {
+    started: hasStarted(appt.appointmentDate),
+  });
   const canManageAll = hasCap(membership, "journal.manage.all");
   const canViewClients = hasCap(membership, "clients.view");
+  // The screenshot is signed for the whole-journal roles only
+  // (deposit_service.dart) — a Collaborateur sees the amount alone.
+  const canViewDeposit = hasCap(membership, "journal.view.all");
 
   return (
     <div>
@@ -316,30 +322,18 @@ export function ProAppointmentDetailClient({
           ) : null}
         </dl>
 
-        {appt.depositScreenshotUrl ? (
-          <div className="mt-m">
-            {proofUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={proofUrl}
-                alt="Justificatif d’acompte"
-                className="max-h-80 rounded-lg border border-border"
-              />
-            ) : (
-              <Button
-                variant="secondary"
-                onClick={async () =>
-                  setProofUrl(await proDepositScreenshotUrl(id))
-                }
-              >
-                Voir le justificatif
-              </Button>
-            )}
+        {/* The panel's block (web-pro-journal-panel-deposit.md §2.3): it
+            loads by itself and a failure says so. It used to wait behind
+            « Voir le justificatif », and a failed load did nothing at all. */}
+        {appt.depositAmount ? (
+          <div className="mt-s">
+            <ProDepositProof
+              appointmentId={appt.id}
+              hasProof={!!appt.depositScreenshotUrl}
+              pending={appt.status === "pending"}
+              canView={canViewDeposit}
+            />
           </div>
-        ) : appt.depositAmount ? (
-          <p className="mt-s text-bodySmall text-textTertiary">
-            Justificatif d’acompte non reçu.
-          </p>
         ) : null}
 
         {error ? (
@@ -351,34 +345,20 @@ export function ProAppointmentDetailClient({
         {actions.length > 0 ? (
           <div className="mt-l flex flex-wrap gap-s">
             {actions.map((a) =>
-              confirm === a.action ? (
-                <div
+              a.confirm ? (
+                <NoShowAction
                   key={a.action}
-                  className="w-full rounded-lg bg-surface p-m"
-                >
-                  <p className="text-bodyMedium text-textSecondary">
-                    {a.confirm}
-                  </p>
-                  <div className="mt-s flex gap-s">
-                    <Button
-                      variant="secondary"
-                      onClick={() => setConfirm(null)}
-                    >
-                      Annuler
-                    </Button>
-                    <Button disabled={busy} onClick={() => run(a.action)}>
-                      Confirmer
-                    </Button>
-                  </div>
-                </div>
+                  label={a.label}
+                  depositAmount={appt.depositAmount}
+                  busy={busy}
+                  onConfirm={() => run(a.action)}
+                />
               ) : (
                 <Button
                   key={a.action}
                   variant={a.variant}
                   disabled={busy}
-                  onClick={() =>
-                    a.confirm ? setConfirm(a.action) : run(a.action)
-                  }
+                  onClick={() => run(a.action)}
                 >
                   {a.label}
                 </Button>

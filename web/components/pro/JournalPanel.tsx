@@ -20,9 +20,17 @@ import { type Membership, hasCap } from "../../lib/pro/team";
 import type { ProAppointment } from "../../lib/pro/today";
 import { Button } from "../Button";
 import { conflictMessage } from "../../lib/booking/window";
+import { hasStarted } from "../../lib/pro/lifecycle";
+import { NoShowAction } from "./NoShowAction";
+import { ProDepositProof } from "./ProDepositProof";
 
 /// The journal side panel (module journal J1 §3.4): booking facts + the C2
 /// client mini-card (audited read) + state-aware actions.
+///
+/// The deposit, its screenshot and « Voir le rendez-vous » — which J1 §3.4
+/// promised and the panel never had — are docs/design/
+/// web-pro-journal-panel-deposit.md: before them, a salon could accept a
+/// deposit-required request here without seeing whether the deposit was sent.
 export function JournalPanel({
   providerId,
   appt,
@@ -58,6 +66,10 @@ export function JournalPanel({
   const key = statusKey(appt);
   const canManageAll = hasCap(membership, "journal.manage.all");
   const canViewClients = hasCap(membership, "clients.view");
+  // The screenshot is signed for the whole-journal roles only (the server's
+  // rule, deposit_service.dart) — a Collaborateur sees the amount alone.
+  const canViewDeposit = hasCap(membership, "journal.view.all");
+  const hasDeposit = (appt.depositAmount ?? 0) > 0;
 
   // C2: the client mini-card (this GET is audited server-side, by design).
   // Skipped without clients.view — the fetch would be a guaranteed 403.
@@ -188,7 +200,32 @@ export function JournalPanel({
           {typeof appt.totalPrice === "number" ? (
             <Row label="Total" value={formatFcfa(appt.totalPrice, currency)} />
           ) : null}
+          {hasDeposit ? (
+            <Row
+              label="Acompte annoncé"
+              value={formatFcfa(appt.depositAmount ?? 0, currency)}
+            />
+          ) : null}
         </dl>
+
+        {hasDeposit ? (
+          // Keyed: another block in the same panel is another screenshot —
+          // never a frame of the previous one, never its open Lightbox.
+          <ProDepositProof
+            key={appt.id}
+            appointmentId={appt.id}
+            hasProof={!!appt.depositScreenshotUrl}
+            pending={appt.status === "pending"}
+            canView={canViewDeposit}
+          />
+        ) : null}
+
+        <Link
+          href={`/pro/rendez-vous/${appt.id}`}
+          className="inline-flex min-h-12 items-center text-bodyMedium text-textTertiary underline"
+        >
+          Voir le rendez-vous
+        </Link>
       </div>
 
       {/* Actions by state */}
@@ -227,13 +264,18 @@ export function JournalPanel({
             >
               Terminé
             </Button>
-            <Button
-              variant="secondary"
-              onClick={() => act(() => proAction(appt.id, "no-show"))}
-              disabled={busy}
-            >
-              Non présenté
-            </Button>
+            {/* Only once the start is past, and always confirmed — the app
+                (pro_appointment_detail_screen.dart:351-369). The server takes
+                a no-show at any hour and it is terminal: this is the guard. */}
+            {hasStarted(appt.appointmentDate) ? (
+              <NoShowAction
+                key={appt.id}
+                label="Non présenté"
+                depositAmount={appt.depositAmount}
+                busy={busy}
+                onConfirm={() => act(() => proAction(appt.id, "no-show"))}
+              />
+            ) : null}
           </div>
         ) : null}
 

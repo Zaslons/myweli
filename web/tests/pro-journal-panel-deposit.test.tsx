@@ -107,7 +107,9 @@ describe('the deposit in the « Journée » panel', () => {
     const panel = screen.getByRole('dialog', { name: 'Détails du rendez-vous' });
     const term = within(panel).getByText('Acompte annoncé');
     expect(term.tagName).toBe('DT');
-    expect(term.nextElementSibling).toHaveTextContent(formatFcfa(5000, 'XOF'));
+    // Exact, not toHaveTextContent: that collapses the received side's narrow
+    // no-break space (Intl's thousands separator) and not the expected one's.
+    expect(term.nextElementSibling?.textContent).toBe(formatFcfa(5000, 'XOF'));
     await screen.findByRole('button', { name: ENLARGE });
   });
 
