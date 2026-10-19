@@ -761,8 +761,11 @@ class TestReviewRound4(unittest.TestCase):
     """Round 3's review: as « 17 000 FCFA » lifted on f480, the panel's right
     edge jumped in ONE frame from the first card to « 13 oct. »'s place, so
     « 0 Absences » — a real tile, never lifted — blinked out instead of being
-    covered by the growing card. An edge that reaches OUT to a waiting tile
-    now grows with the pop of the lift that brought it."""
+    covered by the growing card. Round 4's review: its fix still ran 80 px
+    ahead of the card (a 2-frame wipe) and, in 1:1, pulled back. Now (round
+    5) the panel is one piece per lifted card — its card and its place, the
+    pad around — and the strip no card reaches FADES with that card's pop
+    (tests/test_round5.py renders it in 9:16 and 1:1 geometry)."""
 
     ABSENCES = (548.0, 725.4, 700.0, 875.2)        # between tile 2's place and tile 3's, never lifted
 
@@ -770,20 +773,22 @@ class TestReviewRound4(unittest.TestCase):
         self.r3 = TestReviewRound3("test_the_panel_grows_with_the_lifts")
         self.st = self.r3.stack()
 
-    def test_the_facing_edge_grows_with_the_pop(self):
+    def test_each_piece_grows_with_its_card_the_strip_fades(self):
         o = TestReviewRound3.ORIGINS
-        edge = {f: self.st.backdrop_rect(f, 24)[2] for f in range(476, 492)}
-        self.assertEqual(edge[479], o[1][0])                       # tile 2 still waits: up to its place
-        self.assertLess(edge[480], o[2][0] - 60)                   # f480: on its way, not there in one frame
-        self.assertGreater(edge[480], o[1][2] + 24)                # past tile 2's own place (+ the pad) already
-        # beyond tile 2's place, over « 0 Absences », the panel reaches out a step at a time
-        out = {f: max(0.0, edge[f] - (o[1][2] + 24)) for f in edge}
-        for f in range(479, 487):
-            self.assertLessEqual(out[f], out[f + 1] + 1e-9, f)     # it only grows …
-            self.assertLess(out[f + 1] - out[f], 100, f)           # … a step at a time (round 3: 161 px at once)
-        self.assertEqual(edge[485], o[2][0])                       # and reaches tile 3's place with the pop
-        for f in range(476, 488):                                  # never over the tile still waiting
-            self.assertLessEqual(edge[f], o[2][0], f)
+        self.assertEqual(self.st.backdrop_rect(479, 24)[2], o[1][0])      # tile 2 still waits: up to its place
+        for f in range(480, 488):
+            pieces = self.st.backdrop_pieces(f, 24)
+            card2 = self.st.lifts[1].rect(self.st.progress(1, f))
+            opaque = [r for r, a, strip in pieces if not strip and r[0] < card2[2] <= r[2]]
+            self.assertEqual(len(opaque), 1, f)
+            self.assertAlmostEqual(opaque[0][2], card2[2] + 24, places=6, msg=f)      # never more than the pad ahead
+            strips = [(r, a) for r, a, strip in pieces if strip and r[0] >= card2[2]]
+            self.assertEqual(len(strips), 1, f)
+            (r, a), = strips
+            self.assertEqual(r[2], o[2][0])                                  # up to « 13 oct. »'s place, never over
+            self.assertAlmostEqual(a, self.st.progress(1, f), msg=f)         # at « 17 000 »'s pop
+        self.assertAlmostEqual(dict((round(f), a) for f in (480, 485) for r, a, s_ in self.st.backdrop_pieces(f, 24)
+                                    if s_ and r[0] > 600)[485], 1.0)
 
     def render(self, f: float) -> np.ndarray:
         from promo.fx.surface import Picture, new_surface, to_array

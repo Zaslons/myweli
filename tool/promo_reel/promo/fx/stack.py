@@ -7,19 +7,27 @@ Each tile is a `lift.Lift` (same pixels, same card, same shadow); the veil
 rises with the first tile and stays while any tile is up. Later tiles draw
 over earlier ones.
 
-The panel (`backdrop`) grows WITH the lifts: on each frame it covers the
-tiles that have lifted — their cards where they are now, their places on
-the phone and the gaps between — grown by `pad`; on a side where a tile
-still waits for its beat, it reaches exactly to that tile's place (what lies
-between — the Fiche's « 0 Absences », never lifted — goes under it with the
-neighbour that lifted) and never over it: the waiting tile stays on the
-phone, veiled, with its texture, until it lifts itself (review round 2: a
-panel put up whole on the first lift blanked the other tiles' places and
-they popped out of nothing). An edge that reaches OUT to a waiting tile's
-place grows there with the pop of the lift that brought it (its 6 frames,
-easeOutCubic), so what lies between is covered as the card grows over it,
-never blanked on one frame (review round 3: « 0 Absences » blinked out on
-f480).
+The panel (`backdrop`) grows WITH the lifts, one piece per lifted tile:
+the tile's card where it is now and its place on the phone (their hull),
+grown by `pad`, cut back where it would reach a tile still waiting for its
+beat — the waiting tile stays on the phone, veiled, with its texture, until
+it lifts itself (review round 2: a panel put up whole on the first lift
+blanked the other tiles' places and they popped out of nothing). So:
+
+  * it never pulls back: each piece only grows (a card moves out from its
+    place on one curve), and its cut is fixed while the tile it spares
+    waits (review round 4: the 1:1's right edge, already out at « 13 oct. »'s
+    place, was pulled back when « 17 000 » lifted — `reach` took its pace
+    from the NEWEST lift);
+  * it never runs ahead of a card by more than `pad`: what lies between the
+    tiles — the Fiche's « 0 Absences », never lifted — goes under the card
+    as it grows over it (review round 4: the panel's edge ran 80 px ahead
+    of the « 17 000 » card on f480 and wiped the tile out from under
+    nothing); the strip no card ever reaches — between a lifted tile's
+    piece at rest and its neighbour's place — FADES under the panel with
+    that tile's own pop, in place (no wipe, no letters left standing);
+  * once the lifted cards are side by side their pieces meet (the pads
+    overlap): no veiled original shows between them.
 """
 
 from __future__ import annotations
@@ -81,58 +89,118 @@ class Stack:
     def progress(self, i: int, t: float) -> float:
         return pop_progress(t, self.ups[i], self.frames, self.down, self.down_frames)
 
-    def backdrop_rect(self, t: float, pad: float) -> Rect | None:
-        """The panel at frame t: the union of the LIFTED tiles' cards (where
-        they are now) and their places on the phone — the gaps between them
-        included — grown by `pad`; a side facing a tile still waiting for its
-        lift reaches exactly to that tile's place, never over it. None before
-        the first lift."""
+    def _piece(self, i: int, p: float, pad: float, waiting: list[Rect]) -> Rect:
+        """Tile i's piece at progress p: the hull of its card and its place,
+        grown by `pad`, cut back to the places of the `waiting` tiles it
+        would reach (on the side that faces each, from its own place)."""
+        lf = self.lifts[i]
+        card, place = lf.rect(p), lf.origin
+        x0, y0 = min(card[0], place[0]) - pad, min(card[1], place[1]) - pad
+        x1, y1 = max(card[2], place[2]) + pad, max(card[3], place[3]) + pad
+        for o in waiting:
+            if not (o[0] < x1 and x0 < o[2] and o[1] < y1 and y0 < o[3]):
+                continue                                      # clear of it
+            if o[0] >= place[2]:
+                x1 = min(x1, o[0])
+            elif o[2] <= place[0]:
+                x0 = max(x0, o[2])
+            elif o[1] >= place[3]:
+                y1 = min(y1, o[1])
+            elif o[3] <= place[1]:
+                y0 = max(y0, o[3])
+        return x0, y0, x1, y1
+
+    def _neighbours(self, i: int) -> list[tuple[int, str]]:
+        """The tiles next to tile i in its row (or column): (j, side), with no
+        other tile's place between their places."""
+        o = [lf.origin for lf in self.lifts]
+        a, out = o[i], []
+        for j, b in enumerate(o):
+            if j == i:
+                continue
+            rows = b[1] < a[3] and a[1] < b[3]
+            cols = b[0] < a[2] and a[0] < b[2]
+            if rows and b[0] >= a[2]:
+                side, lo, hi = "right", a[2], b[0]
+            elif rows and b[2] <= a[0]:
+                side, lo, hi = "left", b[2], a[0]
+            elif cols and b[1] >= a[3]:
+                side, lo, hi = "below", a[3], b[1]
+            elif cols and b[3] <= a[1]:
+                side, lo, hi = "above", b[3], a[1]
+            else:
+                continue
+            between = any(k not in (i, j) and ((side in ("right", "left") and c[1] < a[3] and a[1] < c[3]
+                                                and lo <= c[0] < hi)
+                                               or (side in ("below", "above") and c[0] < a[2] and a[0] < c[2]
+                                                   and lo <= c[1] < hi))
+                          for k, c in enumerate(o))
+            if not between:
+                out.append((j, side))
+        return out
+
+    def backdrop_pieces(self, t: float, pad: float) -> list[tuple[Rect, float, bool]]:
+        """The panel at frame t as (rect, opacity) pieces, one per LIFTED
+        tile — the hull of its card (where it is now) and its place, grown by
+        `pad`, cut back to the place of any tile still waiting (never over
+        it), opaque — and, beside it, the strip its piece will never reach at
+        rest up to a neighbour's place (what lies between: « 0 Absences »),
+        at that tile's pop. Each is (rect, opacity, is_strip). Empty before
+        the first lift. Nothing ever pulls back: a card moves out from its
+        place on one curve, a cut stays put while its tile waits, a strip
+        only grows more opaque."""
         ps = [self.progress(i, t) for i in range(len(self.lifts))]
-        up = [i for i, p in enumerate(ps) if p > 0]
-        if not up:
-            return None
-        rs = [self.lifts[i].rect(ps[i]) for i in up] + [self.lifts[i].origin for i in up]
-        core = (min(r[0] for r in rs), min(r[1] for r in rs), max(r[2] for r in rs), max(r[3] for r in rs))
-        edges = [core[0] - pad, core[1] - pad, core[2] + pad, core[3] + pad]
         waiting = [lf.origin for i, lf in enumerate(self.lifts) if ps[i] <= 0]
-        right = [o[0] for o in waiting if o[0] >= core[2]]
-        left = [o[2] for o in waiting if o[2] <= core[0]]
-        below = [o[1] for o in waiting if o[0] < core[2] and o[2] > core[0] and o[1] >= core[3]]
-        above = [o[3] for o in waiting if o[0] < core[2] and o[2] > core[0] and o[3] <= core[1]]
-        # an edge pulled back to a waiting tile's place applies at once (never over it); an edge that must
-        # REACH OUT to it — over what lies between, never lifted (the Fiche's « 0 Absences ») — grows with the
-        # pop of the tile whose lift brought the panel next to it, so that place is covered as the card
-        # grows over it, never blanked in one frame (review round 3: f479 → f480, 381 → 718 px)
-        q = ps[max(up, key=lambda i: self.ups[i])]
+        out: list[tuple[Rect, float, bool]] = []
+        for i in range(len(self.lifts)):
+            if ps[i] <= 0:
+                continue
+            out.append((self._piece(i, ps[i], pad, waiting), 1.0, False))
+            rest = self._piece(i, 1.0, pad, [self.lifts[j].origin for j in range(len(self.lifts)) if j != i])
+            for j, side in self._neighbours(i):
+                b = self.lifts[j].origin
+                strip = {"right": (rest[2], rest[1], b[0], rest[3]), "left": (b[2], rest[1], rest[0], rest[3]),
+                         "below": (rest[0], rest[3], rest[2], b[1]), "above": (rest[0], b[3], rest[2], rest[1])}[side]
+                if strip[2] > strip[0] and strip[3] > strip[1]:
+                    out.append((strip, min(1.0, ps[i]), True))
+        return out
 
-        def reach(edge: float, place: float, outward: float) -> float:
-            return place if (place - edge) * outward <= 0 or q >= 1.0 else edge + (place - edge) * q
+    def backdrop_rects(self, t: float, pad: float) -> list[Rect]:
+        """The panel's pieces at frame t (`backdrop_pieces`), whatever their opacity."""
+        return [r for r, a, _ in self.backdrop_pieces(t, pad) if a > 0]
 
-        if right:
-            edges[2] = reach(edges[2], min(right), 1.0)  # up to the next tile waiting on the right
-        if left:
-            edges[0] = reach(edges[0], max(left), -1.0)
-        if below:
-            edges[3] = reach(edges[3], min(below), 1.0)
-        if above:
-            edges[1] = reach(edges[1], max(above), -1.0)
-        return tuple(edges)
+    def backdrop_rect(self, t: float, pad: float) -> Rect | None:
+        """The panel's bounds at frame t (None before the first lift)."""
+        rs = self.backdrop_rects(t, pad)
+        if not rs:
+            return None
+        return (min(r[0] for r in rs), min(r[1] for r in rs), max(r[2] for r in rs), max(r[3] for r in rs))
 
     def draw(self, canvas: skia.Canvas, t: float, *, veil_rect: Rect | None = None,
              backdrop: tuple[int, float, float] | None = None) -> None:
         """The veil, then (`backdrop` = (colour, pad, radius)) an opaque
-        panel behind the lifted tiles (`backdrop_rect`: it grows with each
-        lift), so no veiled original shows between or around them while
+        panel behind the lifted tiles (`backdrop_rects`: it grows with each
+        card), so no veiled original shows between or around them while
         every tile still to lift keeps its place; it fades in with the first
         tile. Then the tiles."""
         ps = [self.progress(i, t) for i in range(len(self.lifts))]
         if veil_rect is not None:
             draw_veil(canvas, veil_rect, max(ps), self.style)
-        rect = self.backdrop_rect(t, backdrop[1]) if backdrop is not None else None
-        if rect is not None:
+        pieces = self.backdrop_pieces(t, backdrop[1]) if backdrop is not None else []
+        if pieces:
+            # one panel: its pieces drawn in one layer at the panel's alpha (no darker overlaps); the cards' own
+            # pieces opaque and rounded, the strips between square (they join two pieces) at their pop
             colour, pad, radius = backdrop
-            p = skia.Paint(AntiAlias=True, Color=colour)
-            p.setAlphaf(min(1.0, max(ps)))
-            canvas.drawRRect(skia.RRect.MakeRectXY(skia.Rect.MakeLTRB(*rect), radius, radius), p)
+            layer = skia.Paint()
+            layer.setAlphaf(min(1.0, max(ps)))
+            canvas.saveLayer(None, layer)
+            for rect, alpha, strip in sorted(pieces, key=lambda q: q[1]):
+                p = skia.Paint(AntiAlias=True, Color=colour)
+                p.setAlphaf(alpha)
+                if strip:
+                    canvas.drawRect(skia.Rect.MakeLTRB(*rect), p)
+                else:
+                    canvas.drawRRect(skia.RRect.MakeRectXY(skia.Rect.MakeLTRB(*rect), radius, radius), p)
+            canvas.restore()
         for lift, p in zip(self.lifts, ps):
             lift.draw(canvas, p)

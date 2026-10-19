@@ -71,8 +71,16 @@ DEVICE_WIDTH_PT = 402.0
 
 #: Zones that hold something to read or see (text, demonstrated UI, lifts):
 #: they must lie inside the safe area (or the caption extension above the
-#: platforms' button rail).
+#: platforms' button rail). The phone window may run past the safe area's
+#: BOTTOM — app pixels only, never text — when the format says why
+#: (`phone_window_note`: the owner's 9:16 floor, 2026-10-19).
 CONTENT_ZONES = ("captions", "hook_block", "phone_window", "overlays", "slot_card")
+#: Type roles a format may set larger than the reference's (`type_note` says
+#: why: the owner's 16:9 « larger captions », 2026-10-19) — the column's words
+#: and the counter; the end card's lockup (tagline, store line) and the credit
+#: keep one size everywhere.
+CAPTION_TYPE_ROLES = ("hook", "app", "counter", "counter_label")
+PHONE_ANCHORS = (None, "floor")
 #: Zones of the stage itself (bands, fades, the floor): anywhere on the canvas.
 STAGE_ZONES = ("caption_band", "caption_fade", "top_fade", "floor_fade", "floor")
 REQUIRED_ZONES = ("captions", "phone_window")
@@ -188,6 +196,8 @@ class Format:
     zones: dict[str, Rect]
     layout: dict[str, Any]
     reference: bool = False
+    phone_window_note: str = ""
+    type_note: str = ""
 
     @property
     def size(self) -> tuple[int, int]:
@@ -614,7 +624,7 @@ _LAYOUT_KEYS = ("caption_band", "caption_column_x", "caption_centre_x", "caption
                 "screen_crop_top_pt", "phone_bezel_px", "phone_radius_px", "type_px",
                 "lottie_centre", "lottie_comp_width_px", "end_mark_scale", "end_mark_ink_y",
                 "end_tagline_cap_top_y", "lift_x", "lift_veil", "tilt_axis", "tilt_max_deg",
-                "scene_whip_axis", "zoom_pivot_x",
+                "scene_whip_axis", "zoom_pivot_x", "phone_anchor",
                 # where the scenes put what they place (one storyboard, re-laid out per format)
                 "caption_align", "caption_cap_top", "counter_baselines", "lift_y", "hook_page",
                 "hook_scrim", "map_credit")
@@ -637,8 +647,30 @@ def _formats(c: _Check, value: Any) -> dict[str, Format]:
     if len(refs) != 1:
         c.fail("formats", "exactly ONE format is the `reference: true` — the one the scenes' camera W values are "
                           f"measured in (have {len(refs)}: {', '.join(map(str, refs)) or 'none'})")
-    # One storyboard, three formats: the same pixel sizes everywhere.
-    for key in ("px_per_pt", "type_px", "lottie_comp_width_px", "end_mark_scale", "screen_crop_top_pt"):
+    # One storyboard, three formats: the same pixel sizes everywhere — but a format may set its column's words
+    # and its counter larger than the reference's, saying why (`type_note`; the 16:9 feed, 2026-10-19)
+    ref = next((out[fid] for fid in refs if fid in out), None)
+    for fid, f in out.items():
+        if ref is None or f is ref:
+            continue
+        mine, theirs = f.layout.get("type_px") or {}, ref.layout.get("type_px") or {}
+        differ = sorted(role for role in TYPE_ROLES if mine.get(role) != theirs.get(role))
+        if not differ:
+            continue
+        fixed = [role for role in differ if role not in CAPTION_TYPE_ROLES]
+        smaller = [role for role in differ if role in CAPTION_TYPE_ROLES and isinstance(mine.get(role), int)
+                   and isinstance(theirs.get(role), int) and mine[role] < theirs[role]]
+        if fixed:
+            c.fail(f"formats.{fid}.layout.type_px", f"{', '.join(fixed)} must be the reference's "
+                                                    f"({', '.join(f'{r_} {theirs.get(r_)}' for r_ in fixed)}): "
+                                                    f"only {', '.join(CAPTION_TYPE_ROLES)} may be set larger")
+        elif smaller:
+            c.fail(f"formats.{fid}.layout.type_px", f"{', '.join(smaller)} smaller than the reference's: a "
+                                                    f"format may set its captions larger, never smaller")
+        elif not f.type_note.strip():
+            c.fail(f"formats.{fid}.layout.type_px", f"{', '.join(differ)} differ from the reference's — say why "
+                                                    f"in the format's `type_note`")
+    for key in ("px_per_pt", "lottie_comp_width_px", "end_mark_scale", "screen_crop_top_pt"):
         seen = {fid: f.layout.get(key) for fid, f in out.items()}
         if len({repr(v) for v in seen.values()}) > 1:
             c.fail(f"formats.*.layout.{key}",
@@ -654,7 +686,7 @@ def _format(c: _Check, fid: Any, spec: Any) -> Format | None:
         c.fail(path, "a format is named by its aspect ratio, e.g. '9x16', '1x1' or '16x9'")
         return None
     s = c.mapping(spec, path, required=("size", "safe", "safe_basis", "zones", "layout"),
-                  optional=("safe_note", "rail_free", "reference"))
+                  optional=("safe_note", "rail_free", "reference", "phone_window_note", "type_note"))
     if s is None:
         return None
     before = len(c.problems)
@@ -684,15 +716,19 @@ def _format(c: _Check, fid: Any, spec: Any) -> Format | None:
         c.fail(f"{path}.rail_free", f"{rail} must lie within the safe area's rows (y {safe.y0:g}–{safe.y1:g})")
     if "reference" in s:
         c.boolean(s["reference"], f"{path}.reference")
-    zones = _zones(c, s.get("zones"), f"{path}.zones", w, h, safe, rail)
+    for key in ("phone_window_note", "type_note"):
+        if key in s:
+            c.string(s[key], f"{path}.{key}")
+    zones = _zones(c, s.get("zones"), f"{path}.zones", w, h, safe, rail, s.get("phone_window_note"))
     layout = _layout(c, s.get("layout"), f"{path}.layout", w, h, zones, safe, rail)
     if len(c.problems) > before or safe is None or basis is None or layout is None or zones is None:
         return None
-    return Format(fid, w, h, safe, basis, note or "", rail, zones, layout, s.get("reference") is True)
+    return Format(fid, w, h, safe, basis, note or "", rail, zones, layout, s.get("reference") is True,
+                  s.get("phone_window_note") or "", s.get("type_note") or "")
 
 
 def _zones(c: _Check, value: Any, path: str, w: int, h: int, safe: Rect | None,
-           rail: Rect | None) -> dict[str, Rect] | None:
+           rail: Rect | None, phone_note: Any = None) -> dict[str, Rect] | None:
     z = c.mapping(value, path, required=REQUIRED_ZONES, optional=CONTENT_ZONES + STAGE_ZONES)
     if z is None:
         return None
@@ -701,7 +737,16 @@ def _zones(c: _Check, value: Any, path: str, w: int, h: int, safe: Rect | None,
         r = c.rect(raw, f"{path}.{name}", w, h)
         if r is None:
             continue
-        if name in CONTENT_ZONES and safe is not None:
+        if name == "phone_window" and safe is not None and r.y1 > safe.y1:
+            # app pixels past the safe area's bottom: only with the reason, and only downwards
+            if not (isinstance(phone_note, str) and phone_note.strip()):
+                c.fail(f"{path}.{name}", f"{r} runs past the safe area's bottom (y {safe.y1:g}): app pixels may, "
+                                         f"text never — say why in the format's `phone_window_note`")
+                continue
+            if not covered_by(Rect(r.x0, r.y0, r.x1, safe.y1), [safe] + ([rail] if rail else [])):
+                c.fail(f"{path}.{name}", f"{r} must lie inside the safe area's columns and below its top ({safe})")
+                continue
+        elif name in CONTENT_ZONES and safe is not None:
             cover = [safe] + ([rail] if rail else [])
             if not covered_by(r, cover):
                 where = f"the safe area ({safe})" + (f" or the rail-free extension ({rail})" if rail else "")
@@ -783,6 +828,8 @@ def _layout(c: _Check, value: Any, path: str, w: int, h: int, zones: dict[str, R
         c.number(lay.get("tilt_max_deg"), f"{path}.tilt_max_deg", 0, 90)
     if lay.get("scene_whip_axis") is not None:
         c.choice(lay.get("scene_whip_axis"), f"{path}.scene_whip_axis", ("horizontal", "vertical"))
+    if "phone_anchor" in lay:
+        c.choice(lay.get("phone_anchor"), f"{path}.phone_anchor", PHONE_ANCHORS)
     if lay.get("zoom_pivot_x") is not None:
         pv = c.number(lay.get("zoom_pivot_x"), f"{path}.zoom_pivot_x", 0, w)
         if pv is not None and screen is not None and not (screen[0] <= pv <= screen[1]):

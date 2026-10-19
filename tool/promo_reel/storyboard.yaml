@@ -57,18 +57,25 @@ formats:
     safe_basis: platform
     safe_note: >-
       Strict combined text rectangle, the worst case of TikTok, Reels and
-      WhatsApp Status (780×978). Lifts, the counter and touch ripples stay at
+      WhatsApp Status (780×978). Text, lifts and the counter stay at
       y ≤ 1248 and x ≤ 900 whenever below y 840.
+    # The owner's 9:16 FLOOR (2026-10-19, « Extend to ~y 1450 »): the phone window runs down to y 1424 (≈ 1450, set
+    # by the pictures: Fatou B.'s card bottom, 582 pt, 11 px above the floor and the old 13:15 row's text 20 px under
+    # the floor fade, with the band edge between « Ma journée » and « Aujourd’hui » — README « The formats »).
+    phone_window_note: >-
+      The owner's 9:16 floor (2026-10-19): app pixels only below y 1248 — the
+      demonstrated UI and the touch discs that ride it; text, captions, the
+      counter and the lifts stay inside the platform rectangle (y ≤ 1248).
     rail_free: [120, 270, 960, 840]   # above y 840 the right button rail has not started: captions may run to x 960
     zones:
       caption_band: [0, 0, 1080, 560]     # opaque stage behind the captions
       caption_fade: [0, 560, 1080, 600]
       captions: [150, 300, 930, 540]      # centred on x 540, ≤ 780 px wide (x 150–930)
       hook_block: [150, 300, 930, 700]    # the hook's 96-px block and strike stack
-      phone_window: [180, 600, 900, 1192] # every demonstrated UI element lives here
-      overlays: [120, 270, 900, 1248]     # lifts, the counter, touch ripples
-      floor_fade: [0, 1192, 1080, 1216]
-      floor: [0, 1216, 1080, 1920]        # calm stage colour + pattern under the platform chrome
+      phone_window: [180, 600, 900, 1424] # every demonstrated UI element lives here (app pixels only below 1248)
+      overlays: [120, 270, 900, 1248]     # lifts, the counter
+      floor_fade: [0, 1424, 1080, 1448]
+      floor: [0, 1448, 1080, 1920]        # calm stage colour + pattern under the platform chrome
     layout:
       caption_band: true
       caption_column_x: [150, 930]
@@ -93,16 +100,20 @@ formats:
       tilt_max_deg: null
       scene_whip_axis: null               # whips follow the storyboard row (vertical in-phone, horizontal onto Revenus)
       zoom_pivot_x: null                  # a push-in scales about the phone's own axis
+      phone_anchor: null                  # the band edge is fixed (y 600)
       caption_align: centre
       caption_cap_top: {hook: 300, app: 330}   # the hook block y 300–700; app words y 300–540
       counter_baselines: [322, 496]       # label, figure: the label clear of the rolling band above the figure
       lift_y:                             # where each kind of lift lands (its x: lift_x)
-        card_on_floor: {bottom: 1190}     # « Arrivé »: Fatou B.'s card lifts in place, on the floor
+        # « Arrivé »: Fatou B.'s card (on the floor, y ≈ 1284–1413) lifts UP into the platform rectangle
+        card_on_floor: {bottom: 1236}
         card_under_caption: {centre_y: 930}   # « Total réalisé », under the two-line sentence
         tile_row: {centre_y: 815}         # the Fiche's three tiles, on their own row (y 725–875)
       hook_page: {x: [40, 1040], top: 640, pivot: [540, 1250], macro_to: [540, 1200]}   # the page fills y ≈ 700–1700, tilted
       hook_scrim: {rect: [0, 0, 1080, 520], fade: [0, 120]}   # black over the page to y 520, gone by 640: no scribble under the words
-      map_credit: {x: 120, baseline: 1236, align: left}       # on the floor
+      # the floor is the phone's now (to y 1424): the band's foot, its ink ending on the screen's right edge (x 900),
+      # over the map it credits — as 1:1's (round 3 put it on the floor, x 120, baseline 1236: over the app's pixels now)
+      map_credit: {x: 900, baseline: 552, align: right}
 
   1x1:
     size: [1080, 1080]
@@ -111,11 +122,13 @@ formats:
     safe_note: EBU R95 graphics-safe, 5 % inset.
     rail_free: null
     zones:
-      caption_band: [0, 0, 1080, 300]
-      caption_fade: [0, 300, 1080, 330]
-      captions: [54, 80, 1026, 280]       # at most two 72-px lines; counter label + 120-px figure fit in 230 px
+      # the band edge at the journal's chip row (review round 4: at y 330 the band's fade cut the week's dates on
+      # Fatou B.'s framing — the window top allowed by the floor rule fell on them): band to 358, fade to 388
+      caption_band: [0, 0, 1080, 358]
+      caption_fade: [0, 358, 1080, 388]
+      captions: [54, 80, 1026, 340]       # at most two 72-px lines; counter label + 120-px figure fit in 230 px
       hook_block: [54, 54, 1026, 420]     # captions and the strike stack in the band (its third line reaches y ≈ 414)
-      phone_window: [180, 330, 900, 1002] # ≈ 375 pt visible
+      phone_window: [180, 388, 900, 1002] # ≈ 343 pt visible
       overlays: [54, 54, 1026, 1026]      # lifts may grow past the phone edges
       floor_fade: [0, 1002, 1080, 1026]
       floor: [0, 1026, 1080, 1080]
@@ -143,16 +156,17 @@ formats:
       tilt_max_deg: null
       scene_whip_axis: null
       zoom_pivot_x: null
+      phone_anchor: null
       caption_align: centre
-      caption_cap_top: {hook: 80, app: 100}    # app words y 80–280 (two 72-px lines end ≈ 253)
-      # label + 120-px figure in the band (label ink y ≥ 61 while it switches, figure ink 180–266): 20 px higher
-      # than round 3's [110, 284], so the figure ends 34 px over the phone (was 17); the roll fades out by the
-      # band's edge (y 300) instead of being cut there, on the bezel (review round 3)
-      counter_baselines: [100, 264]
+      caption_cap_top: {hook: 80, app: 120}    # app words y 120–275 (two 72-px lines), the band's middle
+      # label + 120-px figure in the band (label ink y ≥ 81 while it switches, figure ink 200–286): the figure ends
+      # 72 px over the band's fade (y 358; round 3: 17 px over the phone's bezel); the roll fades out by the band's
+      # edge instead of being cut there (review round 3)
+      counter_baselines: [120, 284]
       lift_y:
-        card_on_floor: {bottom: 1000}     # the window's floor (1002), as 9:16's 1190 on 1192
+        card_on_floor: {bottom: 1000}     # the window's floor (1002)
         card_under_caption: {centre_y: 690}
-        tile_row: {centre_y: 530}         # the tiles' own row at W 216 (y 455–605)
+        tile_row: {centre_y: 588}         # the tiles' own row at W 216 (y 513–663)
       # the page fills the square under the band, smaller than 9:16's (840 px wide, not 1000) so its three strike
       # rows land inside the graphics-safe area (y ≈ 549–994, review round 3: at 1000 px wide the third was drawn
       # below the frame, y 1117–1159); the macro's margin note at x ≈ 96–190, inside it too
@@ -160,36 +174,46 @@ formats:
       hook_scrim: {rect: [0, 0, 1080, 400], fade: [0, 100]}   # the strike stack's third line needs the band to y ≈ 414
       # the floor is outside the safe area: the band's foot, its ink ending on the screen's right edge (x 900),
       # right over the map it credits (round 3: ending on x 1026, over the bezel's corner, it read as the caption's)
-      map_credit: {x: 900, baseline: 290, align: right}
+      map_credit: {x: 900, baseline: 346, align: right}
 
   16x9:
     size: [1920, 1080]
     safe: [96, 54, 1824, 1026]
     safe_basis: ebu_r95_graphics
     safe_note: EBU R95 graphics-safe, 5 % inset. No caption band.
+    # The owner's 16:9 « Re-lay it » (2026-10-19): larger captions for the feed — the column's 72-px words at 88 px
+    # (the longest line, « Chaque rendez-vous », 942 px in the 960-px column), the counter at 144 / 48
+    type_note: >-
+      The owner's 16:9 re-lay (2026-10-19): larger captions for feed
+      legibility — app captions 88 px (72 × 1.22, the column's width), the
+      counter 144 px with its 48-px label; the hook's words, the end card's
+      lockup and the credit keep the storyboard's sizes.
     rail_free: null
     zones:
-      captions: [96, 54, 1056, 1026]      # left column, the block centred on y 440; same two-line breaks at 72 px
+      captions: [96, 54, 1056, 1026]      # left column, the block centred on y 440; same two-line breaks
       hook_block: [96, 54, 816, 520]      # captions and strike stack top-left, on the hook's scrim
-      phone_window: [1104, 54, 1824, 1002] # right third, ≈ 530 pt visible
-      top_fade: [1104, 54, 1824, 84]      # 30-px top fade of the window
+      # right third, the phone standing on the floor (layout.phone_anchor): ≈ 526 pt visible when the screen fills
+      # the window — taller than round 3's 512 pt —, the band edge coming down over the rows above W wherever the
+      # screen ends inside it (the lower journal: the old 13:15 row under the band, the slab's bottom on y 1026)
+      phone_window: [1104, 54, 1824, 1026]
+      top_fade: [1104, 54, 1824, 84]      # the band's 30-px fade at its resting edge (y 84)
       overlays: [300, 54, 1060, 1026]     # lifts pop out to the LEFT of the phone, no veil
       slot_card: [96, 560, 620, 1026]     # SLOT « FAUTEUIL » (bars 11–12): EMPTY — no photos (the owner); the caption alone
-      floor_fade: [0, 1002, 1920, 1026]
-      floor: [0, 1026, 1920, 1080]
+      floor_fade: [0, 1026, 1920, 1050]   # app pixels only past the safe edge (the screen filling the window)
+      floor: [0, 1050, 1920, 1080]
     layout:
       caption_band: false
       caption_column_x: [96, 1056]
       caption_centre_x: null
       caption_centre_y: 440
-      caption_line_max_px: 771
+      caption_line_max_px: 944           # 771 × 88 / 72: the 72-px rule at the 16:9 captions' 88 px
       caption_lines_max: 2
       phone_screen_x: [1104, 1824]
       px_per_pt: 1.791
       screen_crop_top_pt: 56
       phone_bezel_px: 16
       phone_radius_px: 96
-      type_px: *type_px
+      type_px: {<<: *type_px, app: 88, counter: 144, counter_label: 48}   # type_note: the owner's larger captions
       lottie_centre: [960, 500]
       lottie_comp_width_px: 900
       end_mark_scale: 1.2
@@ -204,9 +228,12 @@ formats:
       # app's pixels never pass x 1824 (review round 3: about the phone's axis the FAB and the snackbar reached
       # x 1835 at the « rempli. » push's peak)
       zoom_pivot_x: 1824
+      # the phone stands on the floor (the owner's « Re-lay it », 2026-10-19): its screen's bottom never rises above
+      # y 1010 (the slab's bottom on the floor, y 1026) — the band edge comes down instead (fx.phone.Window)
+      phone_anchor: floor
       caption_align: left                 # the column's left edge, x 96
       caption_cap_top: {hook: 130, app: null}  # the hook top-left; app captions centred on y 440
-      counter_baselines: [366, 540]       # the counter's block centred on the column's y 440
+      counter_baselines: [354, 561]       # 48 / 144 px: the counter's block (ink y 317–563) centred on the column's y 440
       lift_y:                             # beside the phone, under the caption (y ≈ 395–490)
         card_on_floor: {bottom: 1000}
         card_under_caption: {centre_y: 770}
@@ -380,18 +407,22 @@ scenes:
     camera:
       W:
         - {at: cue:drop1.impact, value: 56, keep: top}
-        - {at: 3.1.0+15, value: 257, curve: ease_out_cubic, keep: floor}   # Fatou B.'s card bottom (582.0 pt) on y 1184; the 13:15 name under the floor
-        - {at: cue:whip1, value: 257}
+        # Fatou B.'s card bottom (582.0 pt) on y 1413, 11 px above the owner's floor (1424); the 13:15 row's text
+        # (612.7 pt) on y 1468, 20 px under the floor fade; the band edge between « Ma journée » (ink ≤ 104.3 pt,
+        # under the opaque band from 105.7) and « Aujourd’hui » (136 pt) — measured on take1b 10.000
+        - {at: 3.1.0+15, value: 128, curve: ease_out_cubic, keep: floor}
+        - {at: cue:whip1, value: 128}
         - {at: cue:whip1+6, value: 667, curve: ease_in_out_cubic, blur: whip, keep: top}   # vertical whip; the 13:15 row crosses inside the blur and lands under the band (its 644-pt line on y 560)
         - {at: 5.2.3+2, value: 667}
-        - {at: 5.4.0, value: 377.5, curve: ease_in_out_cubic, blur: 12, keep: centre}   # the date/time row (518–572 pt) centred on y ≈ 900
-        - {at: 5.4.2+2, value: 377.5}                                      # held f304–f314, then a 6-frame glide like the other two
-        - {at: cue:fill.touch1, value: 86.5, curve: ease_in_out_cubic, blur: 16}   # « Coupe homme » row (254 pt) on y ≈ 900, f314→f320
-        - {at: 6.1.2+2, value: 86.5}
-        - {at: cue:fill.touch2, value: 533.5, curve: ease_in_out_cubic, blur: 16}  # « Client sans numéro » (701 pt)
-        - {at: 6.2.2+2, value: 533.5}
-        - {at: cue:fill.touch3, value: 584.5, curve: ease_in_out_cubic, blur: 8}   # the name field (752 pt)
-        - {at: cue:create.drag, value: 584.5}
+        # the form rows on the window's middle (y 1012 since the owner's floor; were y ≈ 900 in the 600–1192 window)
+        - {at: 5.4.0, value: 312.73, curve: ease_in_out_cubic, blur: 12, keep: centre}   # the date/time row (518–572 pt)
+        - {at: 5.4.2+2, value: 312.73}                                     # held f304–f314, then a 6-frame glide like the other two
+        - {at: cue:fill.touch1, value: 56, curve: ease_in_out_cubic, blur: 16}   # « Coupe homme » (254 pt) on y 955: the screen's top (pt 56) on the band edge, never above
+        - {at: 6.1.2+2, value: 56}
+        - {at: cue:fill.touch2, value: 468.73, curve: ease_in_out_cubic, blur: 16}  # « Client sans numéro » (701 pt)
+        - {at: 6.2.2+2, value: 468.73}
+        - {at: cue:fill.touch3, value: 519.73, curve: ease_in_out_cubic, blur: 8}   # the name field (752 pt)
+        - {at: cue:create.drag, value: 519.73}
         - {at: 7.1.2, value: 667, curve: ease_in_out_cubic, blur: 8, keep: top}    # « Créer » (832 pt) at y ≈ 896; pt 667 on the band edge: the journal's 13:15 row returns under the band
       zoom:
         - {at: 5.4.0, value: 1.0}
@@ -544,7 +575,7 @@ scenes:
       W:
         - {at: cue:page.cut, value: 56, keep: top}
         - {at: cue:page.drag, value: 56}
-        - {at: 12.3.0, value: 482, curve: ease_in_out_cubic, blur: 6, keep: floor}   # the bar's « Réserver » line (≤ 806 pt) ≥ 8 px above the floor
+        - {at: 12.3.0, value: 352.46, curve: ease_in_out_cubic, blur: 6, keep: floor}   # the bar's « Réserver » line (≤ 807 pt) 10 px above the floor (1424)
       slam:
         rot_x: [{at: cue:page.cut, value: 12}, {at: 11.2.0, value: 0, curve: ease_out_cubic}]    # tilt in over f640–656
       parallax: {from: cue:page.drag, to: 12.3.0, phone_dy: -40, pattern: 0.4}    # the phone drifts up 40 px, the pattern 16
@@ -582,7 +613,7 @@ scenes:
     timeline:
       - {at: cue:air2.reverse, hold: 28.480}
     camera:
-      W: [{at: cue:air2.reverse, value: 482, keep: floor}]   # the page's last framing
+      W: [{at: cue:air2.reverse, value: 352.46, keep: floor}]   # the page's last framing
       fall: {at: cue:air2.reverse, frames: 12, scale: [1.0, 0.90], opacity: [1.0, 0.0]}
 
   # ── row 23 · f768–823 · BRAND REVEAL: the Pro app's own opening Lottie ───────
@@ -704,8 +735,8 @@ scenes:
       - {at: cue:create.done, src: {named: 131.448}, rate: 1}                   # « Rendez-vous créé », 1×
     camera:
       W:
-        - {at: cue:drop1.impact, value: 257, keep: floor}    # Fatou B.'s card bottom (582.0 pt) on y 1184; the 13:15 name under the floor
-        - {at: cue:whip1, value: 257}
+        - {at: cue:drop1.impact, value: 128, keep: floor}    # Fatou B.'s card bottom (582.0 pt) on y 1413; the 13:15 row under the floor (as the 30-s)
+        - {at: cue:whip1, value: 128}
         - {at: cue:whip1+6, value: 667, curve: ease_in_out_cubic, blur: whip, keep: top}   # vertical whip; the 13:15 row crosses inside the blur and lands under the band
         - {at: 4.1.0+1, value: 667}             # the form at rest, through W 667: « Client sans numéro », the name and the note fields
         # the dissolve re-frames (storyboard: « W 660 − Δ », Δ ≈ 128): measured on the two pictures, the

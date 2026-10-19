@@ -62,14 +62,14 @@ class Starter(unittest.TestCase):
         self.assertEqual(list(f), ["9x16", "1x1", "16x9"])
         self.assertEqual(f["9x16"].size, (1080, 1920))
         self.assertEqual(f["9x16"].safe, Rect(120, 270, 900, 1248))
-        self.assertEqual(f["9x16"].zones["phone_window"], Rect(180, 600, 900, 1192))
+        self.assertEqual(f["9x16"].zones["phone_window"], Rect(180, 600, 900, 1424))      # the owner's floor
         self.assertEqual(f["9x16"].zones["captions"], Rect(150, 300, 930, 540))
         self.assertEqual(f["1x1"].safe, Rect(54, 54, 1026, 1026))
         self.assertEqual(f["16x9"].safe, Rect(96, 54, 1824, 1026))
         self.assertNotIn("caption_band", f["16x9"].zones)
         for fmt in f.values():
             self.assertEqual(fmt.layout["px_per_pt"], 1.791)
-            self.assertEqual(fmt.layout["type_px"]["app"], 72)
+            self.assertEqual(fmt.layout["type_px"]["app"], 88 if fmt.id == "16x9" else 72)   # 16:9: the owner's
 
     def test_the_scores_are_the_one_source_of_cue_ids(self):
         self.assertEqual(self.sb.music, {"scores": {"30s": "promo/audio/score_30s.yaml",
@@ -203,9 +203,11 @@ class Strict(unittest.TestCase):
 
     def test_one_storyboard_same_pixel_sizes_in_every_format(self):
         # the starter shares type_px through a YAML alias: overriding one use
-        # changes that format only, and is refused
-        self.assertProblem(problems("formats.9x16.layout.type_px.app=80"), "formats.*.layout.type_px",
-                           "same in every format")
+        # changes that format only, and is refused — but for the column's words
+        # and the counter, larger, with the format's `type_note` (16:9)
+        self.assertProblem(problems("formats.1x1.layout.type_px.app=80"), "formats.1x1.layout.type_px", "type_note")
+        self.assertProblem(problems("formats.1x1.layout.type_px.tagline=50", "formats.1x1.type_note=why"),
+                           "formats.1x1.layout.type_px", "tagline", "reference's")
         self.assertProblem(problems("formats.1x1.layout.lottie_comp_width_px=800"),
                            "formats.*.layout.lottie_comp_width_px", "1x1: 800")
         # a scale that no longer shows the whole screen fails in its own format first

@@ -105,8 +105,10 @@ class TestCameraKeeps(unittest.TestCase):
     def test_windows(self):
         got = {f: (w.screen_x, w.top, w.band_fade, w.floor, w.floor_fade) for f, w in
                ((f, window_for(SB.formats[f])) for f in FORMATS)}
-        self.assertEqual(got, {"9x16": (180, 600, 40, 1192, 24), "1x1": (180, 330, 30, 1002, 24),
-                               "16x9": (1104, 84, 30, 1002, 24)})       # 16:9: W under its 30-px top fade
+        # 9:16 to the owner's floor (y 1424); 1:1's band edge on the journal's chip row (y 388); 16:9 taller, to
+        # y 1026, its phone standing on the floor (the band edge comes down with W: Window.anchor_bottom)
+        self.assertEqual(got, {"9x16": (180, 600, 40, 1424, 24), "1x1": (180, 388, 30, 1002, 24),
+                               "16x9": (1104, 84, 30, 1026, 24)})       # 16:9: W under its 30-px top fade
 
     def test_the_reference_is_untouched(self):
         for cut in ("30s", "15s"):
@@ -121,12 +123,12 @@ class TestCameraKeeps(unittest.TestCase):
     def test_keep_rules(self):
         w11, w169 = window_for(SB.formats["1x1"]), window_for(SB.formats["16x9"])
         self.assertEqual(keep_offset("top", w11, REF), 0.0)
-        self.assertAlmostEqual(257 + keep_offset("floor", w11, REF), 257 - 80 / 1.791)        # 212.33
-        self.assertAlmostEqual(377.5 + keep_offset("centre", w11, REF), 377.5 - 40 / 1.791)   # 355.17
-        self.assertAlmostEqual(257 + keep_offset("floor", w169, REF), 257 - 326 / 1.791)     # 74.98
-        keys = camera_W_keys([{"at": 0, "value": 377.5, "keep": "centre"}, {"at": 1, "value": 86.5},
+        self.assertAlmostEqual(128 + keep_offset("floor", w11, REF), 128 + 210 / 1.791)        # 245.25: the chips
+        self.assertAlmostEqual(312.73 + keep_offset("centre", w11, REF), 312.73 + 105 / 1.791)  # 371.36
+        self.assertAlmostEqual(128 + keep_offset("floor", w169, REF), 128 - 118 / 1.791)       # 62.12
+        keys = camera_W_keys([{"at": 0, "value": 312.73, "keep": "centre"}, {"at": 1, "value": 56},
                               {"at": 2, "value": 667, "keep": "top"}, {"at": 3, "value": 667}], w169, REF, 56.0, "W")
-        self.assertEqual([round(k["value"], 2) for k in keys], [286.49, 56.0, 667.0, 667.0])   # inherited; clamped
+        self.assertEqual([round(k["value"], 2) for k in keys], [279.79, 56.0, 667.0, 667.0])   # inherited; clamped
         with self.assertRaisesRegex(Exception, "keep is one of top, centre, floor"):
             camera_W_keys([{"at": 0, "value": 1, "keep": "middle"}], w11, REF, 56.0, "W")
 
@@ -137,15 +139,17 @@ class TestCameraKeeps(unittest.TestCase):
         for cut in ("30s", "15s"):
             journal = next(s for s in SB.cut_scenes(cut) if s["id"] == "journal")
             for fid in FORMATS:
-                win = window_for(SB.formats[fid])
-                keys = camera_W_keys(journal["camera"]["W"], win, REF, 56.0, "W")
-                floor_W = next(k["value"] for k, raw in zip(keys, journal["camera"]["W"]) if raw["value"] == 257)
+                base = window_for(SB.formats[fid])
+                keys = camera_W_keys(journal["camera"]["W"], base, REF, 56.0, "W")
+                floor_W = next(k["value"] for k, raw in zip(keys, journal["camera"]["W"]) if raw["value"] == 128)
                 top_W = next(k["value"] for k, raw in zip(keys, journal["camera"]["W"]) if raw["value"] == 667)
                 with self.subTest(cut=cut, fmt=fid):
+                    win = base.at_top(base.top_for(floor_W))                     # the window each framing shows
                     self.assertGreaterEqual(win.y_of(HIDDEN[1], floor_W), win.floor + win.floor_fade)
-                    self.assertLessEqual(win.y_of(HIDDEN[3], top_W), win.top - win.band_fade)
-                    self.assertGreaterEqual(win.y_of(582.0, floor_W), win.floor - 10)      # the card on the floor
+                    self.assertGreaterEqual(win.y_of(582.0, floor_W), win.floor - 16)      # the card on the floor
                     self.assertLessEqual(win.y_of(582.0, floor_W), win.floor)
+                    win = base.at_top(base.top_for(top_W))                       # 16:9: the band edge came down
+                    self.assertLessEqual(win.y_of(HIDDEN[3], top_W), win.top - win.band_fade)
 
 
 class TestScenesCarryNoPixelPositions(unittest.TestCase):
@@ -370,11 +374,12 @@ class TestFilmFramesEveryFormat(unittest.TestCase):
             self.assertEqual([(t["frame"], t["kind"]) for t in film.transitions()], ref)
 
     def test_the_map_credit_inks_its_place(self):
-        """9:16 from x 120 on the floor; 1:1 ending on the screen's right edge
-        (x 900, its last glyph's overshoot included: over the map it credits —
-        round 3 ended it on the safe edge x 1026, over the bezel's corner);
-        16:9 ending on x 1056."""
-        want = {"9x16": (0, 120.0), "1x1": (2, 900.0), "16x9": (2, 1056.0)}
+        """9:16 and 1:1 ending on the screen's right edge (x 900, its last
+        glyph's overshoot included: over the map it credits — round 3 ended the
+        1:1's on the safe edge x 1026, over the bezel's corner; 9:16's sat on
+        the floor, which is the phone's since the owner's floor); 16:9 ending
+        on x 1056."""
+        want = {"9x16": (2, 900.0), "1x1": (2, 900.0), "16x9": (2, 1056.0)}
         for fid, (edge, x) in want.items():
             _, rec = self.films[fid].frame(700)
             box = next(b["rect"] for b in rec["boxes"] if b["kind"] == "credit")
@@ -407,8 +412,9 @@ class TestFilmFramesEveryFormat(unittest.TestCase):
         bare = surface.new_surface(*film.size)
         canvas = bare.getCanvas()
         rev.draw_picture(canvas, float(f), frame=f)
-        a = with_counter[300:340, :, :3].astype(int)
-        b = surface.to_array(bare)[300:340, :, :3].astype(int)
+        edge = int(rev.window.top - rev.window.band_fade)    # the band's opaque edge (y 358)
+        a = with_counter[edge:edge + 40, :, :3].astype(int)
+        b = surface.to_array(bare)[edge:edge + 40, :, :3].astype(int)
         self.assertEqual(int(np.abs(a - b).max()), 0)        # nothing of the counter below the band
 
     def test_the_1x1_counter_clears_the_phone(self):
@@ -418,16 +424,17 @@ class TestFilmFramesEveryFormat(unittest.TestCase):
         and the rolling band fades out ON the band, by its edge."""
         film = self.films["1x1"]
         rev = next(s for s in film.scenes if s.id == "revenus")
+        edge = int(rev.window.top - rev.window.band_fade)                            # y 358 (round 3: 300)
         landed = [b["rect"] for b in film.frame(551)[1]["boxes"] if b["kind"] == "counter"]
-        self.assertLessEqual(max(r[3] for r in landed), 300 - 30)
+        self.assertLessEqual(max(r[3] for r in landed), edge - 30)
         self.assertGreaterEqual(min(r[1] for r in landed), 54)                      # the label inside the safe area
         for f in range(536, 548, 2):                                                 # mid-roll
             with_counter, _ = film.frame(f)
             bare = surface.new_surface(*film.size)
             rev.draw_picture(bare.getCanvas(), float(f), frame=f)
             d = np.abs(with_counter[..., :3].astype(int) - surface.to_array(bare)[..., :3].astype(int)).max(axis=2)
-            self.assertLessEqual(int(d[290:300].max()), 60, f)                       # round 3: 195 at y 290
-            self.assertLessEqual(int(d[295:300].max()), 30, f)
+            self.assertLessEqual(int(d[edge - 10:edge].max()), 60, f)                # round 3: 195 at y 290
+            self.assertLessEqual(int(d[edge - 5:edge].max()), 30, f)
 
     def test_the_16x9_push_in_holds_the_safe_edge(self):
         """Round 3's review: the « rempli. » push-in (1.791 → 2.0 px/pt) scaled
@@ -438,7 +445,7 @@ class TestFilmFramesEveryFormat(unittest.TestCase):
             j = next(s for s in film.scenes if s.id == "journal")
             spec = j.phone.spec
             return j.phone.map_rect((0.0, spec.crop_top_pt, spec.screen_pt[0], spec.screen_pt[1]), j.pose(float(f)),
-                                    W=j.camera_W(float(f)), window=j.window)[2], j.zoom(float(f))
+                                    W=j.camera_W(float(f)), window=j.win(float(f)))[2], j.zoom(float(f))
         film = self.films["16x9"]
         for f in (436, 448, 456, 460, 463):
             x1, zoom = screen_right(film, f)

@@ -399,29 +399,53 @@ soundtrack, the take pictures and their timing are the same in every format.
 | | 9:16 (reference) | 1:1 | 16:9 |
 |---|---|---|---|
 | canvas · safe | 1080×1920 · x 120–900, y 270–1248 (platform) | 1080×1080 · x/y 54–1026 (EBU R95 5 %) | 1920×1080 · x 96–1824, y 54–1026 (EBU R95 5 %) |
-| captions | band y 0–560, centred on x 540, cap top 330 (hook 300) | band y 0–300, centred on x 540, cap top 100 (hook 80) | no band: the left column x 96–1056, set from x 96, centred on y 440 (hook top-left, cap top 130) |
-| phone window (W on) | x 180–900, y 600–1192 (y 600) | x 180–900, y 330–1002 (y 330) | x 1104–1824, y 54–1002, a 30-px top fade (y 84) |
-| lifts | x 120–900 (780 px), over the veiled phone | x 150–930 (780 px), over the veiled phone | x 300–1060 (760 px) beside the phone, no veil, no panel |
-| counter | centred, baselines 322 / 496 | centred, 100 / 264, its roll fading out by the band's edge (y 300) | from x 96, 366 / 540; its punch holds the left edge |
-| hook | page x 40–1040 from y 640, black to 520 → 640 | page x 120–960 from y 10, black to 400 → 500 (strike rows y ≈ 549–994) | page x 760–1960 on the right, black over x 0–820 → 1020; in the macro only behind the question (y 0–400 → 540) |
+| captions | band y 0–560, centred on x 540, cap top 330 (hook 300); 72 px | band y 0–358, centred on x 540, cap top 120 (hook 80); 72 px | no band: the left column x 96–1056, set from x 96, centred on y 440 (hook top-left, cap top 130); **88 px** (owner, 2026-10-19) |
+| phone window (W on) | x 180–900, y 600–**1424** (y 600) — the owner's floor, app pixels only below 1248 | x 180–900, y **388**–1002 (y 388) — the band edge on the journal's chip row | x 1104–1824, y 54–**1026**, a 30-px top fade (y 84) — **the phone stands on the floor**: where W would leave the screen's bottom above y 1010, the band edge comes down instead |
+| lifts | x 120–900 (780 px), over the veiled phone, ≤ y 1248 | x 150–930 (780 px), over the veiled phone | x 300–1060 (760 px) beside the phone, no veil, no panel |
+| counter | centred, baselines 322 / 496 | centred, 120 / 284, its roll fading out by the band's edge (y 358) | from x 96, **144 / 48 px**, baselines 354 / 561; its punch holds the left edge |
+| hook | page x 40–1040 from y 640, black to 520 → 640 | page x 120–960 from y 10, black to 400 → 500 (strike rows y ≈ 549–994) | page x 760–1960 on the right, black over x 0–820 → 1020; in the macro only behind the question (y 0–400 → 540) — the split, OWNER-APPROVED |
 | tilts · push-in | rotX · about the phone's axis | rotX · about the phone's axis | yaw, ≤ 10° · about the screen's right edge (x 1824) |
-| map credit | the floor, x 120, baseline 1236 | the band's foot, right-aligned to the screen's edge x 900, baseline 290 | the left column's foot, right-aligned to x 1056, baseline 1016 |
+| map credit | the band's foot, right-aligned to the screen's edge x 900, baseline 552 | the band's foot, right-aligned to the screen's edge x 900, baseline 346 | the left column's foot, right-aligned to x 1056, baseline 1016 |
 | reveal · end card | Lottie (540, 680) · mark ink y 400–599, tagline cap top 712 | (540, 520) · 250–449, 560 | (960, 500) · 230–429, 540 |
 
 **The camera re-frames by rule.** The W keys are measured in the reference
-window (9:16); each says what it keeps — `top` (a point on the window's top
-edge: the 13:15 row hidden under the band on the lower journal, the Fiche's
-blurred number, Revenus' title), `centre` (the active form row in the
-window's middle) or `floor` (Fatou B.'s card on the floor, the page's last
-line ≥ 8 px above it) — and a format's own window moves it by the difference
-(`phone.keep_offset`: 0, half or all of the windows' height difference),
-never showing the screen's top edge where 9:16 did not (W ≥ 56). 1:1:
-257 → 212.33, 377.5 → 355.17, 482 → 437.33; 16:9: 257 → 74.98 (the window
-starts at the top of the cropped screen, as the storyboard writes), 86.5 →
-56, 482 → 299.98; every `top` key unchanged (667 hides the 13:15 row in every
-format). The 13:15 row stays under the floor at the card's framing and above
-the window's top edge on the lower journal in all three (tests; verify (h)
-on every frame of the scene, as in 9:16).
+window (9:16, y 600–1424 since the owner's floor); each says what it keeps —
+`top` (a point on the window's top edge: the 13:15 row hidden under the band
+on the lower journal, the Fiche's blurred number, Revenus' title), `centre`
+(the active form row in the window's middle) or `floor` (Fatou B.'s card on
+the floor, the page's last line ≥ 8 px above it) — and a format's own window
+moves it by the difference (`phone.keep_offset`: 0, half or all of the
+windows' height difference), never showing the screen's top edge where 9:16
+did not (W ≥ 56). 9:16 (re-solved on the pictures for the owner's floor,
+2026-10-19): Fatou B. 128, the form rows 312.73 / 56 / 468.73 / 519.73, the
+page's end 352.46; every `top` key unchanged (667, 521.67, 216, 124, 56).
+1:1: 128 → 245.25 (the band edge on the chip row), 312.73 → 371.36, 352.46 →
+469.71; 16:9: 128 → 62.12 (the whole screen down to Fatou B.'s card, its top
+edge under the band's fade), 312.73 → 279.79, 56 → 56, 352.46 → 286.57. The
+13:15 row stays under the floor at the card's framing and above the window's
+top edge on the lower journal in all three (tests; verify (h) on every frame
+of the scene, as in 9:16).
+
+**16:9: the phone stands on the floor** (the owner's « Re-lay it »,
+2026-10-19; `layout.phone_anchor: floor`, `fx.phone.Window.anchor_bottom`).
+The band edge rests at y 84 (the window as tall as the frame allows, 84–1026,
+942 px — round 3's ended at 1002); where camera W would lift the screen's
+bottom above y 1010 (the slab's bottom on the floor, y 1026), the band edge
+comes down instead and hides the rows above W: on the lower journal it stands
+at y 639, the old 13:15 row under it, the phone on the floor (round 3: hung
+from the top, its bottom at y 470 over an empty half frame). The band edge is
+keyed like W (`PhoneScene.band`: each W key's highest edge that leaves no
+floating screen, moved on the W key's curve — the screen's bottom moves
+linearly between two keys that never float, so it never floats between). A
+declared dissolve shows each picture through the window of its own end, as
+it does with W: in 16:9 the 15-s form's dissolve re-frames — its two
+pictures each stand on the floor and the fields move up 260 px across its 3
+frames — because one shared window (the fields in place, as in 9:16 and
+1:1) put « Créer le rendez-vous », tapped on the dissolve's last frame,
+under the floor, its disc on nothing (round 5's first build: verify (f) saw
+no disc). Everything that asks where the phone is — touches, lifts, the
+hidden row, verify's regions — reads the frame's own window
+(`PhoneScene.win(t)`; render.json records `window_top`).
 
 **Order of work** (`render.build_one`): the soundtrack FIRST
 (`promo.audio.build_cut` on the cut's score, master limited to −1.5 dBTP so
@@ -531,18 +555,22 @@ holds every cut to a picture change and every continuous handoff to none.
 
 **The Fiche tiles** lift onto a plain panel in the app's `background` token
 (#F6F7F9, colors.dart:34 — the scaffold the tiles sit on in the app) that
-GROWS WITH THE LIFTS (`fx.stack.Stack.backdrop_rect`): on each frame it
-covers the tiles that have lifted — their cards where they are, their places
-on the phone and the gaps between — 24 px around, and on a side where a tile
-still waits it reaches exactly to that tile's place, never over it. So no
-veiled original shows between the lifted cards (« 0 Absences », never lifted,
-goes under the panel with « 17 000 FCFA » — covered as that card grows over
-it, the panel's edge reaching out with the card's own 6-frame pop, f480–f485;
-round 3 put it under in ONE frame, f480, and it blinked out), and every tile still to
-lift stays in its place, veiled, with its texture, until its own beat
-(f472 / f480 / f488; texture std 22–23 levels in a waiting tile's place, 0
-under the round-2 panel). The row is centred on the tiles' own row (y 815),
-so they lift out in place.
+GROWS WITH THE LIFTS (`fx.stack.Stack.backdrop_pieces`), one piece per lifted
+tile: its card where it is now and its place on the phone, 24 px around, cut
+back to the place of any tile still waiting (never over it); and beside it
+the strip no card ever reaches — between its piece at rest and the next
+tile's place — FADING in place with that tile's own 6-frame pop. So « 0
+Absences », never lifted, goes under « 17 000 FCFA » as that card grows over
+it (the panel never more than its 24-px pad ahead of the card) and what the
+card never reaches fades out with its pop, f480–f485 (round 3: blanked in ONE
+frame on f480; round 4: wiped 80 px ahead of the card in 9:16, and in 1:1
+pulled back on f480 and showed again — `reach` took its pace from the newest
+lift). Nothing pulls back: each piece only grows, a cut stays put while its
+tile waits, a strip only grows more opaque (tests/test_round5.py renders the
+Fiche in 9:16 AND 1:1 geometry). Every tile still to lift stays in its place,
+veiled, with its texture, until its own beat (f472 / f480 / f488). The row is
+centred on the tiles' own row (9:16 y 815, 1:1 y 588), so they lift out in
+place.
 
 **Motion blur.** Camera moves blur by subframe accumulation in linear light
 (`fx.blur`), only inside the phone window's rows, with enough subframes that
@@ -590,7 +618,12 @@ region kept clear of the phone as it is posed on that frame
 (`verify.clear_of_phone`: in 16:9 the phone stands beside the captions, the
 counter and the lifts) and the hook's words measured on their scrim
 (`verify.on_its_ground`: the lit page's paper fibres beside them pass for
-white ink), plus every box render.json records on every frame, and the
+white ink), plus every box render.json records on every frame (a touch disc, and a lifted
+card in transit — rising out of its place on the phone or settling back,
+`rest: false` — on the app's pixels: the phone window's rows across the safe
+area's columns, `verify.app_area`; in 9:16 that runs down to the owner's
+floor, below the platform's text rectangle that holds the text, the counter
+and the lifts at rest), and the
 hook's animated ink (the plan's `hook_ink`) seen: inside the canvas, inside
 an EBU graphics-safe area, off the scrim, and each strike read off the MP4
 on its last frame (`pixels.line_contrast`: the paper beside the stroke ≥ 40
@@ -630,6 +663,49 @@ Statuses: PASS or FAIL. `report.txt` leads with the film's status;
 
 ### Decisions made against the storyboard's text, and why
 
+**OWNER-APPROVED departures (the owner's decisions after the six-film review,
+2026-10-19 — architecture contract, « Owner decisions after the six-film
+review »):**
+
+- **OWNER-APPROVED 2026-10-19 — the end card's underline and the mark's
+  1.06× punch** (« Keep both »): on the outro's downbeat the hook's strike
+  stroke underlines « moins de gestion. », and on the last log the mark
+  punches 1.06× (3 frames out, 8 back), moved and scaled only. Neither is in
+  the approved storyboard (its honesty section: the mark « only moved and
+  scaled »); both meet the ≤ 2-s pattern-interrupt rule over the outro bar
+  (below, « The end card »).
+- **OWNER-APPROVED 2026-10-19 — the 16:9 split hook** (« Keep the split »):
+  the portrait carnet page on the frame's right half, the words on black at
+  the left — not the storyboard's « page lies landscape across the frame »
+  (below, « 16:9 hook »).
+- **The owner's 9:16 floor** (« Extend to ~y 1450 »): in both 9:16 cuts the
+  phone window runs to **y 1424** — ≈ 1450, set by the pictures (take1b
+  10.000): with Fatou B.'s card bottom (582 pt) just above the floor (11 px)
+  and the old 13:15 row's text (612.7 pt) 20 px under the floor fade, the
+  band edge falls between « Ma journée » (ink ≤ 104.3 pt, wholly under the
+  opaque band from 105.7) and « Aujourd’hui » (136 pt): W 128. At 1450 the
+  title would sit half-faded in the band's fade (W 111.9), or the 13:15 text
+  would show in the floor fade (W 130). App pixels only below y 1248: the
+  captions, the counter and the lifts stay in the platform rectangle (the
+  « Arrivé » lift rises from Fatou B.'s card into it, bottom 1236 — its
+  6-frame rise and 5-frame settle pass below 1248 on their way from and to
+  the card, as the app's pixels do; landed, it is inside); the touch discs
+  ride the app's pixels (`verify.app_area`). The map credit, whose
+  floor became the phone's, moved to the band's foot like 1:1's. Every camera
+  key that keeps the floor or the centre was re-solved (« The camera
+  re-frames by rule »); every privacy check re-run on the new framing.
+- **The owner's 16:9 re-lay** (« Re-lay it »): the phone stands on the floor
+  (its slab's bottom on y 1026 whenever the screen ends inside the window,
+  the band edge coming down over the rows above W — « 16:9: the phone stands
+  on the floor »), a taller window (84–1026, 942 px; round 3: 918), larger
+  captions — the column's words at 88 px (72 × 1.22: the longest line,
+  « Chaque rendez-vous », 942 px in the 960-px column; `type_note`), the
+  counter at 144 px with a 48-px label, centred on the column's y 440 — and
+  the lifts and tiles on their rows beside the phone, under the larger
+  caption. The hook's words (96 px), the end card's lockup and the credit
+  keep the storyboard's sizes (`storyboard.py` refuses any other difference
+  from the reference, and any without its `type_note`).
+
 The 1:1 and 16:9 formats (« 1:1 and 16:9 »):
 
 - **No photos** (the owner's decision): SLOT « FAUTEUIL » (16:9, f640–751, a
@@ -653,21 +729,28 @@ The 1:1 and 16:9 formats (« 1:1 and 16:9 »):
   966–999 and the macro's margin note at x ≈ 96–190, all inside
   graphics-safe; the page's sides show the dark stage (≈ 60 px each side at
   the push), a sheet on a desk.
-- **1:1 counter**: label 100, figure 264 (round 3: 110 / 284 — the figure
-  ended 17 px over the phone's bezel): the figure now ends 32 px over it,
-  the label's ink stays at y ≥ 61 as it switches (safe edge 54); the
-  rolling band fades out by the band's edge (`Odometer.draw(floor=…)`, the
-  next digits never cut at y 300 on the bezel; the clip stays as a
-  backstop).
+- **1:1 band edge on the journal's chip row** (round 4's leftover): the
+  window starts at y 388 (band opaque to 358), not the section's 330 — on
+  Fatou B.'s framing the floor rule put the band's fade on the week's dates
+  (186–226 pt, half-faded digits); now W 245.25 puts the dates and their dots
+  wholly under the opaque band and the band edge on the chips (233–267 pt), as
+  the 9:16 band once did. The window shows ≈ 343 pt (was 375); the captions'
+  cap top moves to 120 and the counter to 120 / 284, the band's middle.
+- **1:1 counter**: label 120, figure 284 (round 3: 110 / 284 on a band
+  ending at 300 — the figure 17 px over the phone's bezel): the figure ends
+  72 px over the band's fade, the label's ink stays at y ≥ 81 as it switches
+  (safe edge 54); the rolling band fades out by the band's edge
+  (`Odometer.draw(floor=…)`; the clip stays as a backstop).
 - **The map credit inside the safe area.** 1:1's floor (y 1026–1080) and
-  16:9's « under the phone » (y > 1002, the phone's own floor fade to 1026)
-  leave no room for a 24-px line inside EBU graphics-safe: 1:1 puts it at the
-  band's foot, its INK ending on the screen's right edge x 900, over the map
-  it credits (baseline 290; round 3 ended it on x 1026, over the bezel's
+  16:9's « under the phone » (y > 1026, the phone's own floor fade) leave no
+  room for a 24-px line inside EBU graphics-safe, and 9:16's floor is the
+  phone's since the owner's floor: 9:16 and 1:1 put it at the band's foot,
+  its INK ending on the screen's right edge x 900, over the map it credits
+  (baselines 552 and 346; round 3 ended 1:1's on x 1026, over the bezel's
   corner, where it read as part of the caption block), 16:9 at the left
   column's foot, ending on x 1056 by the phone's lower-left corner (baseline
   1016).
-- **16:9 hook**: the page lies across the frame's RIGHT (x 760–1960, its
+- **16:9 hook** (OWNER-APPROVED 2026-10-19, « Keep the split »): the page lies across the frame's RIGHT (x 760–1960, its
   strike rows in view) with the words top-left on black (`hook_scrim` x
   0–820, fading out by 1020) — the section's « page across the frame,
   captions top-left » with the white words never on scribbles. In the macro
@@ -685,10 +768,11 @@ The 1:1 and 16:9 formats (« 1:1 and 16:9 »):
   hides the VEILED originals between cards that lift over the phone; beside
   the phone, with no veil, the tiles sit on the stage and the phone stays
   whole.
-- **16:9 camera**: W sits under the window's own 30-px top fade (y 84); the
-  journal's first framing keeps Fatou B.'s card on the floor (W 74.98), which
-  puts the cropped screen's top at y 50 — the section's « start the window at
-  the top of the cropped screen ». Its push-in (1.791 → 2.0 px/pt) scales
+- **16:9 camera**: W sits under the band's 30-px fade (y 84 at rest, lower
+  where the phone stands on the floor); the journal's first framing keeps
+  Fatou B.'s card on the floor (W 62.12), which puts the cropped screen's top
+  at y 73, in the fade — the section's « start the window at the top of the
+  cropped screen », the phone's top edge just showing. Its push-in (1.791 → 2.0 px/pt) scales
   about the screen's RIGHT edge (`zoom_pivot_x` 1824, on the safe edge): the
   screen grows leftwards and the app's pixels never pass x 1824 (round 3,
   about the phone's axis x 1464: the screen reached x 1866 at the peak, the
@@ -747,7 +831,8 @@ The 30-s cut:
   build's choice) plays it at 0.829×, outside the approved band; f544 would
   be 1.24×, faster than real. « Tout » equals « Mois »: not used.
 - **The end card** (review M1; the owner's decision 2026-10-19, « Add one
-  bar »). The tagline arrives as ONE quick reveal as the mark settles (a
+  bar »; the underline and the punch below OWNER-APPROVED 2026-10-19, « Keep
+  both »). The tagline arrives as ONE quick reveal as the mark settles (a
   6-frame mask, f827→f832, whole on `end.mark`); « Disponible sur l’App
   Store » arrives alone on its own cue (`end.store`, 14.2.0 = f848), at
   40 px. The cut gained one bar (30 s: 15 bars, 960 frames, 32.0 s — past
@@ -789,18 +874,24 @@ The 30-s cut:
   360-px-wide column: three tiles 360 px wide stack 1 085 px tall, which the
   storyboard's y 660–1200 cannot hold. The row sits on the tiles' own row
   (centre y 815, was 900) on a plain `background` panel that grows with the
-  lifts (review n2, then round 2's regression).
+  lifts (review n2, round 2's regression, rounds 3–4's blink and pull-back:
+  « The Fiche tiles » above).
 - **The end mark**: `end_mark_scale` 1.2 is read against the composition's own
   560 px (a 672-px comp), which is what gives the storyboard's ink y 400–599
   (measured with `Player.ink_bounds`); against the 900-px reveal it would be
   321 px tall and touch the tagline.
-- **Camera W** measured on the pictures: 257 (Fatou B.'s card bottom 582 pt on
-  y 1184), 667 for the lower journal and the « Créer » shot (the old 13:15
-  row's last text line, 644 pt, on y 560 — wholly under the band; 660/662
-  left 28 % of it in the band's fade), 377.5 / 86.5 / 533.5 / 584.5 for the
-  form rows, 216 for the Fiche (the blurred number under the band too), 124
-  for Revenus (its title under the band), 482 for the page's end (the bar's
-  « Réserver » line ≥ 8 px above the floor).
+- **Camera W** measured on the pictures (9:16, the owner's floor y 1424): 128
+  (Fatou B.'s card bottom 582 pt on y 1413, the 13:15 row's text on y 1468,
+  20 px under the floor fade; the band edge between « Ma journée » and
+  « Aujourd’hui »; round 3, floor 1192: 257, the card on y 1184), 667 for the
+  lower journal and the « Créer » shot (the old 13:15 row's last text line,
+  644 pt, on y 560 — wholly under the band; 660/662 left 28 % of it in the
+  band's fade), 312.73 / 56 / 468.73 / 519.73 for the form rows (each on the
+  window's middle, y 1012; « Coupe homme » at y 955 with the screen's top on
+  the band edge — round 3: 377.5 / 86.5 / 533.5 / 584.5 in the 600–1192
+  window), 216 for the Fiche (the blurred number under the band too), 124 for
+  Revenus (its title under the band), 352.46 for the page's end (the bar's
+  « Réserver » line, ink ≤ 807 pt, 10 px above the floor; round 3: 482).
 - **The hook's caption band**: the stage's black covers y 0–560 and fades to
   640 over the page, so the macro and the push-in never put scribbles under
   the white words (the layout's caption band, applied to the hook).

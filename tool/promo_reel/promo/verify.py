@@ -50,7 +50,9 @@ transitions.png, probe.json, meter.json, spectrogram.png, frames/*.png.
       graphics-safe, x/y 54–1026 and x 96–1824 × y 54–1026), the captions
       laid in the caption column inside it (not the AIR's word, centred on
       the canvas, nor the end card's lines, centred on the mark); and every
-      box render.json records, on every frame. Each ink region stays clear
+      box render.json records, on every frame — a touch disc, and a lift in
+      transit, on the app's pixels (`app_area`: in 9:16 down to the owner's
+      floor, app pixels only); a lift at rest in the text area. Each ink region stays clear
       of the phone (`clear_of_phone`: in 16:9 the phone stands beside the
       captions and the lifts, not under a band). And the hook's ANIMATED
       ink (the plan's `hook_ink`: each strike, the entry being written, the
@@ -207,11 +209,28 @@ def click_onset(written: np.ndarray, sample: int, search: int = 3200) -> int:
     return a0 + k
 
 
+def app_area(fmt) -> Rect:
+    """Where the app's own pixels may be: the phone window's rows (band fade
+    to floor fade) across the safe area's columns. A touch disc rides them,
+    where the finger was, and a lifted card on its way out of the phone or
+    back into it is them — in 9:16 down to the owner's floor (≈ y 1450,
+    2026-10-19: « app pixels only »), past the platform's TEXT rectangle
+    (y ≤ 1248) that holds the captions, the counter and the lifts at rest."""
+    from .scenes.phone import window_for
+    w = window_for(fmt)
+    s = fmt.safe
+    return Rect(s.x0, w.top - w.band_fade, s.x1, w.floor + w.floor_fade)
+
+
 def outside_safe(records: list[dict], fmt) -> tuple[int, list[dict]]:
-    """(boxes checked, boxes outside the format's text area — captions laid
-    in the caption column also outside it). The mark (the Lottie) is placed
-    by the layout, not by text rules, and is not counted."""
+    """(boxes checked, boxes outside where they may be: text, the counter and
+    the lifts at rest inside the format's text area — captions laid in the
+    caption column also inside it —, a touch disc on the app's pixels
+    (`app_area`), a lift in transit (`rest: false`, rising out of its place
+    on the phone or settling back) inside either). The mark (the Lottie) is
+    placed by the layout, not by text rules, and is not counted."""
     area = list(fmt.text_area)
+    app = app_area(fmt)
     col = fmt.layout["caption_column_x"]
     bad, counted = [], 0
     for r in records:
@@ -220,7 +239,12 @@ def outside_safe(records: list[dict], fmt) -> tuple[int, list[dict]]:
                 continue
             counted += 1
             rect = Rect(*b["rect"])
-            ok = covered_by(rect, area)
+            if b["kind"] == "touch":
+                ok = covered_by(rect, [app])
+            elif b["kind"] == "lift" and b.get("rest") is False:
+                ok = covered_by(rect, area + [app])
+            else:
+                ok = covered_by(rect, area)
             if b["kind"] == "caption" and b.get("column", True):
                 ok = ok and col[0] - 0.5 <= rect.x0 and rect.x1 <= col[1] + 0.5
             if not ok:
@@ -492,9 +516,9 @@ def phone_area(sc, f: int) -> tuple[float, float, float, float] | None:
     """Where a phone scene's phone shows on frame f: its window's rows (band
     fade to floor fade) × the slab's columns as posed then (a push-in or a
     slam widens it), bezel included. None: no phone."""
-    win = getattr(sc, "window", None)
-    if win is None:
+    if getattr(sc, "window", None) is None:
         return None
+    win = sc.win(float(f))
     spec = sc.phone.spec
     pose = sc.pose(float(f))
     x0, _, x1, _ = sc.phone.map_rect((0.0, spec.crop_top_pt, spec.screen_pt[0], spec.screen_pt[1]), pose,
@@ -588,15 +612,16 @@ def pixel_plan(film, records: list[dict], events: dict) -> dict:
                     # the character's own change, inside the phone window (a status-bar clock under the band
                     # does not count): the largest cluster of change on the window's rows
                     k = sc.source.take.px_per_pt
+                    win = sc.win(float(f))
                     y_lo = (sc.W(float(f)) + 0.0) * k
-                    y_hi = (sc.W(float(f)) + (sc.window.floor - sc.window.top) / sc.window.px_per_pt) * k
+                    y_hi = (sc.W(float(f)) + (win.floor - win.top) / win.px_per_pt) * k
                     keep = (ys >= y_lo) & (ys < y_hi)
                     ys, xs = ys[keep], xs[keep]
                     if len(xs):
                         pad = 6
                         tb = (max(0, xs.min() - pad), max(0, ys.min() - pad), xs.max() + 1 + pad, ys.max() + 1 + pad)
                         rect_pt = tuple(v / k for v in tb)
-                        box = sc.phone.map_rect(rect_pt, sc.pose(float(f)), W=sc.W(float(f)), window=sc.window)
+                        box = sc.phone.map_rect(rect_pt, sc.pose(float(f)), W=sc.W(float(f)), window=win)
                         entry.update(box=box, pictures=[i_old, i_new],
                                      old=a[tb[1]:tb[3], tb[0]:tb[2]], new=b[tb[1]:tb[3], tb[0]:tb[2]])
             plan["keys"].append(entry)
@@ -688,7 +713,8 @@ def pixel_plan(film, records: list[dict], events: dict) -> dict:
             for h in r.get("hidden", []):
                 plan["rows"].append({"frame": r["f"], "label": h["label"], "scene": sid, "picture": r["picture"],
                                      "take": r["take"], "alpha": h["alpha"], "rect": h["rect"],
-                                     "zoom": r.get("zoom", 1.0), "whip": bool(h["whip"])})
+                                     "zoom": r.get("zoom", 1.0), "whip": bool(h["whip"]),
+                                     "window_top": r.get("window_top")})
     return plan
 
 
@@ -815,7 +841,9 @@ def run_pixels(mp4: Path, film, plan: dict, fmt) -> dict:
                 ink.append({**t, "box": None if box is None else [round(v, 1) for v in box]})
         for r in plan["rows"]:
             if r["frame"] == f:
-                rows.append({**r, **hidden[r["label"]].measure(L, r, windows[r["scene"]], fmt.width)})
+                win = windows[r["scene"]]                 # the frame's own: 16:9's band edge moves with W
+                win = win.at_top(r["window_top"]) if r.get("window_top") is not None else win
+                rows.append({**r, **hidden[r["label"]].measure(L, r, win, fmt.width)})
         for st in plan.get("strikes", []):
             if st["frame"] == f:
                 c = pixels.line_contrast(L, st["p0"], st["p1"], st["width"])

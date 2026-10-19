@@ -64,12 +64,12 @@ class TestSafeZones(unittest.TestCase):
             {"kind": "caption", "label": "past the column", "rect": [140, 330, 600, 380]},
             {"kind": "counter", "label": "above the rail: to x 960", "rect": [150, 400, 950, 500]},
             {"kind": "lift", "label": "below 840 past x 900", "rect": [120, 1000, 910, 1100]},
-            {"kind": "touch", "label": "under the platform chrome", "rect": [400, 1240, 480, 1300]},
+            {"kind": "touch", "label": "past the floor", "rect": [400, 1440, 480, 1500]},
             {"kind": "mark", "label": "the logo is laid out, not checked", "rect": [0, 0, 1080, 1920]}]}]
         counted, bad = outside_safe(recs, fmt)
         self.assertEqual(counted, 5)
         self.assertEqual(sorted(b["label"] for b in bad),
-                         ["below 840 past x 900", "past the column", "under the platform chrome"])
+                         ["below 840 past x 900", "past the column", "past the floor"])
 
 
 class TestReading(unittest.TestCase):

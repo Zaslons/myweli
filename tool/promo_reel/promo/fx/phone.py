@@ -23,7 +23,10 @@ layer that is faded to nothing under the caption band (opaque above
 top − band_fade, clear from `top`) and under the floor (clear down to
 `floor`, gone below floor + floor_fade): the stage — and its pattern —
 shows through, uninterrupted. In 9:16 the band edge is y 600 with a 40-px
-fade, the floor 1192 with a 24-px fade.
+fade, the floor (the owner's, 2026-10-19) 1424 with a 24-px fade; the
+`Window()` default keeps the storyboard's 600–1192 window. In 16:9 the
+phone stands on the floor (`anchor_bottom`): the band edge comes down with W
+where the screen would end above it.
 
 Overlays (touch discs, privacy blurs drawn late) can be drawn in SCREEN
 POINTS through `draw(..., overlay=fn)`: fn(canvas) runs under the same
@@ -83,7 +86,14 @@ class PhoneSpec:
 
 @dataclass(frozen=True)
 class Window:
-    """The camera window (frame px; W in screen points)."""
+    """The camera window (frame px; W in screen points).
+
+    `anchor_bottom` (16:9, the owner's « Re-lay it », 2026-10-19): the phone
+    stands on the floor — its screen's bottom edge never rises above this y.
+    Where camera W would leave the screen's bottom floating above it, the
+    band edge comes down instead (`top_for`): the rows above W go under the
+    band, the slab's bottom stays on the floor. None: the band edge is fixed
+    (`top`), as in 9:16 and 1:1."""
 
     screen_x: float = 180.0                  # frame x of screen x = 0 pt
     top: float = 600.0                       # the band edge: screen point W sits here
@@ -91,9 +101,28 @@ class Window:
     floor: float = 1192.0                    # the floor fade starts here …
     floor_fade: float = 24.0                 # … and is opaque from floor + floor_fade
     px_per_pt: float = 1.791
+    anchor_bottom: float | None = None       # the screen's bottom never rises above this y (None: no anchor)
+    screen_bottom_pt: float = 874.0          # the screen's last point (402 × 874 pt)
+
+    def top_for(self, W: float) -> float:
+        """The band edge under camera W: `top`, or lower when the phone stands
+        on the floor and W would lift the screen's bottom above it."""
+        if self.anchor_bottom is None:
+            return self.top
+        return max(self.top, self.anchor_bottom - (self.screen_bottom_pt - W) * self.px_per_pt)
+
+    def at_top(self, top: float) -> "Window":
+        """This window with its band edge at `top` (the window a frame shows)."""
+        from dataclasses import replace
+        return replace(self, top=float(top), anchor_bottom=None)
+
+    def _fixed(self) -> None:
+        if self.anchor_bottom is not None:
+            raise ValueError("an anchored window's band edge depends on camera W: use at_top(top_for(W)) first")
 
     def y_of(self, p_pt: float, W: float) -> float:
         """Frame y of screen point p under camera W."""
+        self._fixed()
         return self.top + (p_pt - W) * self.px_per_pt
 
     def x_of(self, x_pt: float) -> float:
@@ -104,11 +133,13 @@ class Window:
 
     def pt_of(self, x: float, y: float, W: float) -> tuple[float, float]:
         """The screen point at frame (x, y) under camera W."""
+        self._fixed()
         return (x - self.screen_x) / self.px_per_pt, W + (y - self.top) / self.px_per_pt
 
     def W_for(self, p_pt: float, y: float) -> float:
         """The camera W that puts screen point p at frame y (e.g. Fatou B.'s
         card bottom on y 1184)."""
+        self._fixed()
         return p_pt - (y - self.top) / self.px_per_pt
 
     @property
@@ -116,7 +147,9 @@ class Window:
         return (self.top + self.floor) / 2
 
     def fade_stops(self) -> list[tuple[float, float]]:
-        """(y, alpha) of the phone layer's mask."""
+        """(y, alpha) of the phone layer's mask. An anchored window has no
+        mask of its own: its band edge is the frame's (`at_top`)."""
+        self._fixed()
         return [(self.top - self.band_fade, 0.0), (self.top, 1.0),
                 (self.floor, 1.0), (self.floor + self.floor_fade, 0.0)]
 
