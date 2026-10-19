@@ -1,6 +1,6 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { EmptyState } from '../EmptyState';
 import { ErrorState } from '../ErrorState';
 import { SkeletonRows } from '../Skeleton';
@@ -19,7 +19,12 @@ import {
 } from '../../lib/pro/agenda';
 import { getJournalDay } from '../../lib/api/pro';
 import type { JournalDay } from '../../lib/pro/journal';
-import { type AgendaView, agendaQuery, readAgenda } from '../../lib/pro/agenda-url';
+import {
+  type AgendaState,
+  type AgendaView,
+  agendaQuery,
+  readAgenda,
+} from '../../lib/pro/agenda-url';
 import { hasCap } from '../../lib/pro/team';
 import type { ProAppointment } from '../../lib/pro/today';
 import { salonFormatter } from '../../lib/time';
@@ -63,6 +68,27 @@ export function RendezVousClient() {
   const [listTab, setListTab] = useState<ListTab>('today');
   const [creating, setCreating] = useState(false);
 
+  // The address as Next's router knows it — it follows `history.replaceState`
+  // (14.1+), so the page's own writes come back here too.
+  const urlQuery = useSearchParams()?.toString() ?? '';
+  /// The address value the screen already reflects; null until it was read.
+  const settled = useRef<string | null>(null);
+  /// What this page wrote and has not yet seen come back through the router
+  /// (its sync is a transition: two quick ›› can echo late, and in order).
+  const echoes = useRef<string[]>([]);
+
+  /// Show what an address asks — on load, and when a link to this same page
+  /// changes it (docs/design/web-pro-agenda-url.md).
+  const showAgenda = useCallback((shown: AgendaState) => {
+    setView(shown.view);
+    setJournalDate(shown.journalDate);
+    setSelected(shown.selected);
+    // The Calendrier's month follows its chosen day (a midday anchor, the
+    // grid's own convention).
+    setFocused(new Date(`${shown.selected}T12:00:00.000Z`));
+    setListTab(shown.listTab);
+  }, []);
+
   useEffect(() => {
     let active = true;
     (async () => {
@@ -88,20 +114,15 @@ export function RendezVousClient() {
       // HERE, after /me, because « today » is the salon's; and here rather
       // than in a state initializer, because the server render has no address.
       const salonTz = me.profile?.provider.timezone ?? undefined;
-      const shown = readAgenda(window.location.search, dateKey(new Date(), salonTz));
-      setView(shown.view);
-      setJournalDate(shown.journalDate);
-      setSelected(shown.selected);
-      // The Calendrier's month follows its chosen day (a midday anchor, the
-      // grid's own convention).
-      setFocused(new Date(`${shown.selected}T12:00:00.000Z`));
-      setListTab(shown.listTab);
+      settled.current = window.location.search;
+      echoes.current = [];
+      showAgenda(readAgenda(window.location.search, dateKey(new Date(), salonTz)));
       setLoading(false);
     })();
     return () => {
       active = false;
     };
-  }, [router, reloadKey]);
+  }, [router, reloadKey, showAgenda]);
 
   // …and every change of what is shown rewrites it — REPLACED, never pushed:
   // Back must leave the page, not walk back through each day the ‹ › and ← →
@@ -113,8 +134,32 @@ export function RendezVousClient() {
     const today = dateKey(new Date(), profile.provider.timezone ?? undefined);
     const query = agendaQuery({ view, journalDate, selected, listTab }, today);
     const { pathname, search } = window.location;
-    if (query !== search) window.history.replaceState(null, '', `${pathname}${query}`);
+    if (query !== search) {
+      echoes.current.push(query);
+      window.history.replaceState(null, '', `${pathname}${query}`);
+    }
   }, [profile, view, journalDate, selected, listTab]);
+
+  // A link to THIS page — the menu's « Rendez-vous » from `?jour=…`, a link
+  // to `?vue=liste…` — changes the address without remounting (Next keeps
+  // the page), so nothing above runs again: the e2e caught the address going
+  // bare while the grid kept the dated day. An address the page did not write
+  // is one to show. Its own writes come back too, and are only acknowledged.
+  useEffect(() => {
+    if (!profile || settled.current === null) return;
+    const query = urlQuery ? `?${urlQuery}` : '';
+    if (query === settled.current) return;
+    settled.current = query;
+    const echo = echoes.current.indexOf(query);
+    if (echo !== -1) {
+      echoes.current.splice(0, echo + 1);
+      return;
+    }
+    echoes.current = [];
+    showAgenda(
+      readAgenda(query, dateKey(new Date(), profile.provider.timezone ?? undefined)),
+    );
+  }, [urlQuery, profile, showAgenda]);
 
   // The booking hub's request-id dedupe: a held ←/→ fires several day loads
   // in flight at once, and without this the SLOWEST response wins — the grid
