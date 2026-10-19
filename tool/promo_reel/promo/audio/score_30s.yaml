@@ -71,7 +71,7 @@ tracks:
       6: log_a
       7: "1! . . 1 | . . 3 . | 5, . 7, 1 | . . . E2"  # the solo line of the log break; E2 leads to F2
       8: ". . . . | . . . . | . . . . | 5, . 1 3"    # heroes on 0 6 8 10 (cues); the log runs on through the stop
-      9: log_a                                       # step 10 is the landing (cue)
+      9: "1! . . 1 | . . 5, . | . . . 1 | . . 3 ."   # A without step 10: the landing is the cue on step 9 (f548)
       10: ". . . . | . . . . | . . 7, 1 | . . 3 ."   # words on 0 2 4 6 (cues), then A's tail
       11: log_b
       12: "1 . . . | . . . . | . . . . | . . . ."    # breakdown; the tail on 12.3.0 is a cue
@@ -82,7 +82,7 @@ tracks:
     bars:
       3-7: four
       8: "x...|x...|x...|...."                      # DRUM STOP at f496
-      9: "x...|x...|x.x.|x..."                      # + the punch under the landing (f552)
+      9: "x...|x...|xx..|x..."                      # + the punch under the landing (f548)
       10-11: four
       12: "x...|....|....|...."                     # thins from f704, gone from f736
       14: "X...|....|....|...."
@@ -93,7 +93,7 @@ tracks:
     bars:
       3-6: backbeat
       8: "X...|....|....|...."                      # « rempli. » (f448); f464 is the cue fiche.cut
-      9: "....|x...|..X.|x..."                      # + the landing (f552)
+      9: "....|x...|.X..|x..."                      # + the landing (f548)
       10-11: backbeat
       12: "....|x...|....|...."
       14: "X...|....|....|...."
@@ -187,7 +187,7 @@ tracks:
     instrument: pad
     gain: -14
     automation:
-      gain: [[1.1.0, 0], [12.4.0, 0], [13.1.0, 5], [14.1.0, 5], [14.2.0, 0]]
+      gain: [[1.1.0, 0], [12.3.3, 0], [12.4.0, -40], [12.4.3, -40], [13.1.0, 5], [14.1.0, 5], [14.2.0, 0]]   # muted over AIR 2 (f752-767)
     bars:
       2: "....|....|....|X---"                      # the AIR's breath of pad
       3-6: hold
@@ -273,12 +273,11 @@ cues:
   - {id: drop2.impact, kind: impact, pos: 9.1.0, f_start: 70, f_end: 35, tau: 0.5, rt60: 0.9, noise_db: -8, wet_db: -10, gain: -6}
   - {id: drop2.whip, kind: whoosh, style: whip, pos: 9.1.0, peak: 3, gain: -14}      # crest f515
   - {id: revenus.touch, kind: click, pos: 9.2.0, gain: -3}                          # « Mois » touch-down f528
-  - {id: revenus.tick1, kind: tick, pos: 9.2.2, gain: -4}                           # the roll f536-548
+  - {id: revenus.tick1, kind: tick, pos: 9.2.2, gain: -4}                           # the roll f536-544
   - {id: revenus.tick2, kind: tick, pos: 9.2.3, gain: -4}
   - {id: revenus.tick3, kind: tick, pos: 9.3.0, gain: -4}
-  - {id: revenus.tick4, kind: tick, pos: 9.3.1, gain: -4}
-  - {id: revenus.land, kind: log, pos: 9.3.2, note: C2, octave: true, vel: 1.0}     # the counter lands f552
-  - {id: revenus.ding, kind: kalimba, pos: 9.3.2, note: C6, gain: -10}
+  - {id: revenus.land, kind: log, pos: 9.3.1, note: C2, octave: true, vel: 1.0}     # the counter lands f548: N1's wait (0.663 s) at 0.995x
+  - {id: revenus.ding, kind: kalimba, pos: 9.3.1, note: C6, gain: -10}
   # ── DROP 2, bar 10 (f576-639) ───────────────────────────────────────────
   - {id: sentence.word1, kind: log, pos: 10.1.0, note: Ab1, vel: 1.0}               # « Chaque » f576
   - {id: sentence.word2, kind: log, pos: 10.1.2, note: C2}                          # « rendez-vous » f584
@@ -289,16 +288,16 @@ cues:
   - {id: page.cut, kind: impact, pos: 11.1.0, sub: false, rt60: 1.0, noise_db: -10, wet_db: -12, gain: -4}   # soft hit, no sub
   - {id: page.drag, kind: whoosh, style: drag, pos: 11.3.0, end: 12.1.0, gain: -14}  # the page's scroll f672-704
   # ── BREAKDOWN, bar 12 (f704-767) ────────────────────────────────────────
-  - {id: riser3, kind: riser, pos: 12.2.0, end: 12.4.3, gates: [[12.2.0, 8], [12.3.0, 16]], gain: -11}   # f720-764
-  - {id: breakdown.tail, kind: log, pos: 12.3.0, note: C2, vel: 0.75, decay: 0.6}              # the sub tail under the AIR
+  - {id: riser3, kind: riser, pos: 12.2.0, end: 12.4.0, gates: [[12.2.0, 8], [12.3.0, 16]], gain: -11}   # f720-752: stops dead on the cut to black
+  - {id: breakdown.tail, kind: log, pos: 12.3.0, note: C2, vel: 0.5, decay: 0.3}               # a short sub tail into the AIR
   - {id: clap_roll2, kind: clap_roll, pos: 12.3.2, end: 12.4.0, rate: 32, gain: -6}           # f744-751
-  - {id: air2.reverse, kind: reverse, pos: 12.4.0, end: 13.1.0, gain: -16}           # AIR f752 -> f768
+  - {id: air2.reverse, kind: reverse, pos: 12.4.0, end: 13.1.0, gain: -16}           # AIR f752 -> f768: near silence (the reverse + the sub tail), as AIR 1
   # ── REVEAL, bar 13 (f768-831) ───────────────────────────────────────────
   - {id: reveal.impact, kind: impact, pos: 13.1.0, f_start: 80, f_end: 30, tau: 1.0, rt60: 2.8, wet_db: -4, gain: -4}
   - {id: reveal.shimmer, kind: shimmer, pos: 13.2.0, gain: -10}                                # glyphs complete f784
   - {id: reveal.glide, kind: glide, pos: 13.3.1, end: 13.4.2, from: G3, to: C5, gain: -2}   # M/W morph f804-824
   # ── OUTRO, bar 14 (f832-895) ────────────────────────────────────────────
-  - {id: end.mark, kind: log, pos: 14.1.0, note: C2, octave: true, vel: 1.0}        # the mark settles + « Plus de clients, » f832
-  - {id: end.line2, kind: log, pos: 14.2.0, note: G2, vel: 0.8}                     # « moins de gestion. » f848
-  - {id: end.store, kind: glint, pos: 14.2.0, gain: -12, reverb: 1.6, wet: -12}      # « Disponible sur l’App Store » f848, with « moins de gestion. »: 1.6 s on screen = 16.3 cps (at f864 it had 1.07 s = 24 cps, over the 17-cps ceiling)
+  - {id: end.mark, kind: log, pos: 14.1.0, note: C2, octave: true, vel: 1.0}        # the mark settles; the tagline's one reveal completes f832
+  - {id: end.store, kind: glint, pos: 14.2.0, gain: -12, reverb: 1.6, wet: -12}      # « Disponible sur l’App Store » alone on f848 (1.6 s = 16.3 cps; at f864 1.07 s = 24 cps)
+  - {id: end.store_log, kind: log, pos: 14.2.0, note: G2, vel: 0.8}                 # the log under it
   - {id: end.last, kind: log, pos: 14.4.0, note: C2, decay: 0.6, reverb: 2.4, wet: -10}   # f880; the tail rings to f895

@@ -67,6 +67,9 @@ def track(ctx: Context, specs: list | None, where: str, default: float = 0.0) ->
                             k.get("blur"), extra))
         except ValueError as e:
             raise SceneError(f"{p}: {e}") from None
+        if len(keys) > 1 and keys[-1].frame <= keys[-2].frame:
+            raise SceneError(f"{p}: {k['at']} is f{keys[-1].frame:g}, not after the key before it "
+                             f"(f{keys[-2].frame:g}): keys are written in time order")
     try:
         return Track(keys, default)
     except ValueError as e:

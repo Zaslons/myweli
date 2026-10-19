@@ -72,7 +72,10 @@ class Film:
                     caps.append(CaptionItem(c, sc.id, clock, self.fmt.layout, f"{where}.captions[{j}]"))
                 except (KeyError, ValueError) as e:
                     raise SceneError(f"{where}.captions[{j}]: {e}") from None
-        self.captions = CaptionTrack(caps)
+        try:
+            self.captions = CaptionTrack(caps)
+        except ValueError as e:
+            raise SceneError(f"scenes.{cut} captions: {e}") from None
         if self.scenes[0].start != 0:
             raise SceneError(f"the first scene starts on f{self.scenes[0].start}, not f0")
         for a, b in zip(self.scenes, self.scenes[1:]):
@@ -207,6 +210,9 @@ class Film:
                                         "touches": [{"gesture": t.gesture, "kind": t.kind, "down_s": round(t.down_s, 5),
                                                      "frame": t.down_f, "up_frame": round(t.up_f, 3), "tone": t.tone}
                                                     for t in s.touches]}
+                if s.hidden:
+                    d.setdefault("hidden", {})[s.id] = [{"take": s.source.name, "label": lab, "rect_pt": list(rect),
+                                                         "shown_on_s": shown} for lab, rect, shown in s.hidden]
             if isinstance(s, RevealScene):
                 d["lottie_rates"] = s.rates()
         return d

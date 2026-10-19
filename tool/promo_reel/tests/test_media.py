@@ -561,3 +561,17 @@ class RealTouchDowns(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestSheetLabels(unittest.TestCase):
+    def test_a_label_never_runs_into_the_next_cell(self):
+        """The transitions sheet's « f32 · 1.067 s · 1.3.0 · cut → hook (macro) »
+        ran into its neighbour's tile: each label is wrapped to its own cell."""
+        from promo.media import sheets
+        font = sheets._font(sheets.LABEL_PX)
+        for text in ("f32 · 1.067 s · 1.3.0 · cut → hook (macro)", "f256 · 8.533 s · 5.1.0 · whip (in the phone) → journal",
+                     "f33 · 1.100 s · 1.3.0+1", "averyveryveryveryveryveryverylongwordwithoutanyspaceatall"):
+            lines = sheets.wrap_label(text, font, 220)
+            self.assertTrue(all(font.getlength(l) <= 220 for l in lines), lines)
+        self.assertEqual(sheets.wrap_label("f32 · 1.067 s · 1.3.0 · cut → hook (macro)", font, 220),
+                         ["f32 · 1.067 s · 1.3.0", "cut → hook (macro)"])

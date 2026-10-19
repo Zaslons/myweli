@@ -74,7 +74,7 @@ class Starter(unittest.TestCase):
         self.assertEqual(self.sb.score_path("30s"), sb.PROMO_REEL / "promo/audio/score_30s.yaml")
         self.assertIn("swipe.touch", self.sb.cue_ids("30s"))
         self.assertIn("end.store", self.sb.cue_ids("15s"))
-        self.assertEqual(len(self.sb.cue_ids("30s")), 85)
+        self.assertEqual(len(self.sb.cue_ids("30s")), 84)
         self.assertEqual(len(self.sb.cut_scenes("30s")), 9)          # rows 1–24 of the 30-s storyboard
         self.assertEqual(self.sb.cut_scenes("15s"), [])
 
@@ -85,6 +85,37 @@ class Starter(unittest.TestCase):
         # a 30-s cue named in the 15-s scenes: the 15-s score has no Fiche
         self.assertTrue(any("scenes.15s[0].at: cue 'fiche.cut'" in p for p in problems("scenes.15s=[{at: 'cue:fiche.cut'}]")))
         self.assertEqual(problems("scenes.15s=[{at: 'cue:drop1.impact+3'}]"), [])
+
+    def test_camera_keys_are_written_in_time_order(self):
+        """Review m2: a key written before the one above it (the micro push's
+        `5.4.3+3` above `5.4.3+2`) made a glide snap; the renderer sorts
+        nothing, so the storyboard refuses it with both keys' frames."""
+        self.assertEqual(problems(), [])
+        found = problems("scenes.30s.2.camera.zoom.1.at=6.1.0+2")          # f322, before cue:fill.touch1 (f320)
+        self.assertEqual(found, ["scenes.30s[2].camera.zoom[2].at: cue:fill.touch1 is f320, not after the key "
+                                 "before it (6.1.0+2, f322): camera keys are written in time order"])
+        same = problems("scenes.30s.2.camera.W.6.at=5.4.0")                 # two keys on f304
+        self.assertTrue(any("camera.W[6].at: 5.4.0 is f304, not after" in p for p in same), same)
+        slam = problems("scenes.30s.5.camera.slam.rot_x.1.at=cue:page.cut")
+        self.assertTrue(any("camera.slam.rot_x[1].at" in p for p in slam), slam)
+
+    def test_times_resolve_as_the_clock_does(self):
+        frames = sb._cue_frames(sb.load().music, "30s")
+        self.assertEqual(sb.time_frame("cue:fill.touch1", frames, 896), 320)
+        self.assertEqual(sb.time_frame("cue:reveal.glide@end+1", frames, 896), 825)
+        self.assertEqual(sb.time_frame("cue:swipe.whoosh", frames, 896), 149)          # pos + offset
+        self.assertEqual(sb.time_frame("5.4.2+2", frames, 896), 314)
+        self.assertEqual(sb.time_frame("5.2&", frames, 896), 280)
+        self.assertEqual(sb.time_frame("end", frames, 896), 896)
+        self.assertIsNone(sb.time_frame("cue:hook.stab@end", frames, 896))           # not a span
+
+    def test_the_store_line_is_read_not_fine_print(self):
+        """Review M1: « Disponible sur l’App Store » was 34 px, the film's
+        smallest type; a line the viewer must read is at least 40 px."""
+        self.assertEqual(sb.load().formats["9x16"].layout["type_px"]["store"], 40)
+        found = problems("formats.9x16.layout.type_px.store=34")
+        self.assertEqual(found, ["formats.9x16.layout.type_px.store: 34 px: a line the viewer must read is at "
+                                 "least 40 px"])
 
     def test_score_references(self):
         self.assertTrue(any("no such score" in p for p in problems("music.scores.30s=promo/audio/none.yaml")))

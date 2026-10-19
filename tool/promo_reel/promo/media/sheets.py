@@ -70,15 +70,56 @@ def _as_image(image: Union[np.ndarray, Path, str]) -> Image.Image:
         return im.convert("RGB")
 
 
+LABEL_PX, LABEL_LEADING = 14, 17
+
+
+def wrap_label(text: str, font: ImageFont.ImageFont, width: float) -> list[str]:
+    """`text` broken into lines no wider than `width` (px, measured with
+    `font`): at « · » separators first, then at spaces; a single word wider
+    than the cell is cut with « … » so nothing spills into the next tile."""
+    def w(t: str) -> float:
+        return font.getlength(t)
+
+    parts = text.split(" · ")
+    lines: list[str] = []
+    cur = ""
+    for i, part in enumerate(parts):
+        piece = part if i == 0 else part
+        cand = piece if not cur else f"{cur} · {piece}"
+        if w(cand) <= width:
+            cur = cand
+            continue
+        if cur:
+            lines.append(cur)
+        cur = ""
+        for word in piece.split(" "):
+            cand = word if not cur else f"{cur} {word}"
+            if w(cand) <= width:
+                cur = cand
+            else:
+                if cur:
+                    lines.append(cur)
+                cur = word
+                while w(cur) > width and len(cur) > 1:
+                    cur = cur[:-2] + "…"
+    if cur:
+        lines.append(cur)
+    return lines
+
+
 def contact_sheet(tiles: Sequence[Tile], out: Path | str, *, columns: int = 8, tile_width: int = 200,
                   title: str | None = None) -> Path:
-    """A PNG grid of labelled thumbnails, in order, left to right."""
+    """A PNG grid of labelled thumbnails, in order, left to right. Each label
+    is wrapped to its own cell (never over the neighbour's)."""
     if not tiles:
         raise SheetError("a contact sheet needs at least one tile")
     images = [_as_image(t.image) for t in tiles]
     aspect = images[0].height / images[0].width
     tile_h = round(tile_width * aspect)
-    gap, label_h = 12, 26
+    small = _font(LABEL_PX)
+    wrapped = [wrap_label(t.label, small, tile_width) for t in tiles]
+    gap = 12
+    label_h = 9 + LABEL_LEADING * max(len(w) for w in wrapped)
     title_h = 44 if title else 0
     columns = max(1, min(columns, len(tiles)))
     rows = -(-len(tiles) // columns)
@@ -87,15 +128,15 @@ def contact_sheet(tiles: Sequence[Tile], out: Path | str, *, columns: int = 8, t
     draw = ImageDraw.Draw(sheet)
     if title:
         draw.text((gap, 12), title, font=_font(22), fill=INK)
-    small = _font(14)
-    for k, (tile, im) in enumerate(zip(tiles, images)):
+    for k, (tile, im, lines) in enumerate(zip(tiles, images, wrapped)):
         r, c = divmod(k, columns)
         x = gap + c * (tile_width + gap)
         y = title_h + gap + r * (tile_h + label_h + gap)
         thumb = im.resize((tile_width, round(tile_width * im.height / im.width)), Image.LANCZOS)
         sheet.paste(thumb.crop((0, 0, tile_width, min(tile_h, thumb.height))), (x, y))
         draw.rectangle((x - 1, y - 1, x + tile_width, y + tile_h), outline=(200, 200, 200))
-        draw.text((x, y + tile_h + 5), tile.label, font=small, fill=MUTED)
+        for j, line in enumerate(lines):
+            draw.text((x, y + tile_h + 5 + j * LABEL_LEADING), line, font=small, fill=MUTED)
     out = Path(out)
     out.parent.mkdir(parents=True, exist_ok=True)
     sheet.save(out)

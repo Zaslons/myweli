@@ -6,12 +6,14 @@
 
 Every command first loads and checks storyboard.yaml (with the variant's
 ``--set`` overrides): a broken storyboard stops everything, exit code 2.
+``verify`` exits 0 only when every check PASSES, 1 on a FAIL, and 3 when the
+only thing left is OWNER DECISION PENDING (a distinct status, never a pass).
 
 ``build`` and ``verify`` hand over to the modules SCENES adds — a module is
 used as soon as it is in the tree, nothing here changes:
 
     promo/render.py  def build(storyboard, cuts: list[str], formats: list[str], out_dir: Path) -> None
-    promo/verify.py  def verify(storyboard, cuts: list[str], formats: list[str], out_dir: Path) -> bool
+    promo/verify.py  def verify(storyboard, cuts: list[str], formats: list[str], out_dir: Path) -> Verdict (truthy = PASS)
 
 Until then ``build`` prints the plan and renders nothing, and ``verify`` says
 plainly that no film was verified (there is none). If render.py exists and
@@ -105,7 +107,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         print("verify: promo/render.py exists but promo/verify.py does not — a film may have been built "
               "that nothing checks.", file=sys.stderr)
         return 1
-    return 0 if verify(sb, cuts=cuts, formats=formats, out_dir=args.out) else 1
+    v = verify(sb, cuts=cuts, formats=formats, out_dir=args.out)
+    if v:
+        return 0
+    return 3 if getattr(v, "status", None) == "OWNER DECISION PENDING" else 1
 
 
 if __name__ == "__main__":

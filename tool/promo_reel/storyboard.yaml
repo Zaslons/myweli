@@ -34,6 +34,7 @@ x-type-px: &type_px       # (YAML anchor only — the key below each format is w
   counter: 120            # Poppins Medium figure
   counter_label: 40       # Inter Medium #4A4A4A
   tagline: 46             # end card, ONE line
+  store: 40               # « Disponible sur l’App Store », Inter Medium #4A4A4A (≥ 40: read, not fine print)
   credit: 24              # « © OpenStreetMap, © CARTO », Inter #6E6E6E
 
 formats:
@@ -270,8 +271,9 @@ scenes:
     stage: {ground: paper, pattern: 1.0}
     take: take1b
     masks: []                               # take1b shows only the « Téléphone du client » placeholder
-    hidden:                                 # framing only, no pixel edited: never readable (verify, every frame)
-      - {label: "13:15 Yao K. (take 1’s old booking)", rect_pt: [36, 612.7, 361.3, 644.0], src_s: [[0, 32.365], [131.017, 1000]]}   # journal pictures only
+    hidden:                                 # framing only, no pixel edited: never readable (verify, every frame of the scene,
+                                            # the form's push and pop included: the row's place × how much of it the picture shows)
+      - {label: "13:15 Yao K. (take 1’s old booking)", rect_pt: [36, 612.7, 361.3, 644.0], shown_on: 31.600}
     timeline:
       - {at: cue:drop1.impact, hold: 10.000}                                   # at rest 0–10.66 s
       - {at: cue:swipe.touch, src: {touch: swipe-arrive}, until: cue:swipe.open, src_until: 11.265, blur: 4}   # 1.11×: open on 3.3
@@ -301,8 +303,8 @@ scenes:
         - {at: cue:whip1+6, value: 667, curve: ease_in_out_cubic, blur: whip}   # vertical whip; the 13:15 row crosses inside the blur and lands under the band (its 644-pt line on y 560)
         - {at: 5.2.3+2, value: 667}
         - {at: 5.4.0, value: 377.5, curve: ease_in_out_cubic, blur: 12}   # the date/time row (518–572 pt) centred on y ≈ 900
-        - {at: 5.4.3+2, value: 377.5}
-        - {at: cue:fill.touch1, value: 86.5, curve: ease_in_out_cubic, blur: 16}   # « Coupe homme » row (254 pt) on y ≈ 900
+        - {at: 5.4.2+2, value: 377.5}                                      # held f304–f314, then a 6-frame glide like the other two
+        - {at: cue:fill.touch1, value: 86.5, curve: ease_in_out_cubic, blur: 16}   # « Coupe homme » row (254 pt) on y ≈ 900, f314→f320
         - {at: 6.1.2+2, value: 86.5}
         - {at: cue:fill.touch2, value: 533.5, curve: ease_in_out_cubic, blur: 16}  # « Client sans numéro » (701 pt)
         - {at: 6.2.2+2, value: 533.5}
@@ -311,9 +313,8 @@ scenes:
         - {at: 7.1.2, value: 667, curve: ease_in_out_cubic, blur: 8}       # « Créer » (832 pt) at y ≈ 896; pt 667 on the band edge: the journal's 13:15 row returns under the band
       zoom:
         - {at: 5.4.0, value: 1.0}
-        - {at: 5.4.3+3, value: 1.0385, curve: ease_in_out_cubic, anchor_pt: 545}     # micro push 1.791 → 1.86 px/pt toward the filled fields
-        - {at: 5.4.3+2, value: 1.0385, anchor_pt: 545}
-        - {at: cue:fill.touch1, value: 1.0, curve: ease_in_out_cubic, anchor_pt: 545}
+        - {at: 5.4.2+2, value: 1.0385, curve: ease_in_out_cubic, anchor_pt: 545}     # micro push 1.791 → 1.86 px/pt toward the filled fields, f304→f314
+        - {at: cue:fill.touch1, value: 1.0, curve: ease_in_out_cubic, anchor_pt: 545}  # eases back to 1.0 with the glide, f314→f320
         - {at: cue:create.done, value: 1.0, anchor_y: 600}
         - {at: 8.1.0+12, value: 1.1167, curve: ease_in_out_cubic, anchor_y: 600}   # push-in 1.791 → 2.0 px/pt, pt 667 kept on the band edge
       slam:                                  # the phone slams in on the drop
@@ -322,7 +323,7 @@ scenes:
     touches:                                 # the App Store film's disc (tool/app_store_preview/frames.py draw_touch :212-219)
       - {gesture: swipe-arrive, at: cue:swipe.touch, tone: dark}      # black on the white card
       - {gesture: tap-arrive, at: cue:tap.touch, tone: light}         # white on the dark-green pane
-      - {gesture: tap-libre, at: cue:slot.touch, tone: dark}
+      - {gesture: tap-libre, at: cue:slot.touch, tone: dark, release_by: 5.2.3+1}   # held 0 ms: gone by f285, before the form pushes in under it
       - {gesture: tap-service, at: cue:fill.touch1, tone: dark}
       - {gesture: tap-sans-numero, at: cue:fill.touch2, tone: dark}
       - {gesture: tap-nom, at: cue:fill.touch3, tone: dark}
@@ -381,7 +382,9 @@ scenes:
         - [112.33, 286.0, 197.0, 369.67]     # « 17 000 FCFA » Dépensé
         - [300.33, 286.0, 385.67, 369.67]    # « 13 oct. 2026 » Dernière
       ups: [cue:fiche.card1, cue:fiche.card2, cue:fiche.card3]
-      layout: {axis: horizontal, x: [120, 900], gap: 16, centre_y: 900}
+      layout: {axis: horizontal, x: [120, 900], gap: 16, centre_y: 815}   # on the tiles' own row (y 725–875): they lift out in place
+      backdrop: {colour: background, pad: 24, radius: 24,   # the veiled tiles on the phone never show between or around the lifted ones
+                 cite: "AppColors.background (mobile/lib/core/theme/colors.dart:34, the app's scaffold under its tiles): a plain panel, no UI"}
     captions:
       - id: clients
         until: cue:drop2.impact
@@ -400,8 +403,8 @@ scenes:
     masks: []
     timeline:
       - {at: cue:drop2.impact, hold: 1.000}  # « Aujourd’hui » at rest: « Total réalisé 0 FCFA »
-      # the wait from the touch-down to the first picture showing the figure (#26, 7.815 s) is 0.663 s:
-      # the landing goes to the next 8th, f552 — 0.829× (never faster; see the README on the 0.90 floor)
+      # the wait from the touch-down (7.1517 s) to the first picture showing the figure (#26, 7.815 s) is
+      # 0.663 s: the landing is the 16th f548 (9.3.1) — 0.995×, inside the approved 0.90–1.00× (README)
       - {at: cue:revenus.touch, src: {touch: tap-mois}, until: cue:revenus.land, src_until: {named: 7.815}}
       - {at: cue:revenus.land, src: {named: 7.815}, rate: 1, src_until: 7.840}   # then held at rest (#27)
     figure_picture: {named: 7.815}           # the first picture with « 77 000 FCFA » (verify measures it)
@@ -532,11 +535,15 @@ scenes:
         type: tagline
         reveal: mask
         until: end
+        reading: owner_decision_pending
         cite: "the brand book's Pro tagline (not a statistic); fallback « Votre journée, heure par heure. » (screens.json still 01)"
-        lines: [[{w: "Plus de clients,", at: cue:end.mark}, {w: moins de gestion., at: cue:end.line2}]]
+        # ONE quick reveal as the mark settles: the 6-frame mask runs f827→f832, whole on the mark's landing
+        # (cue end.mark); the mark's ink is above y 652 by f827, clear of the line (cap top 712)
+        lines: [[{w: "Plus de clients, moins de gestion.", at: cue:end.mark-5}]]
       - id: store
         type: store
         reveal: mask
         until: end
         cite: "the owner's addition (2026-10-19): « Disponible sur l’App Store », posted only after the release"
-        lines: [[{w: Disponible sur l’App Store, at: cue:end.store}]]
+        reading: owner_decision_pending        # the card's wording / the cut's length: the owner's call (review M1)
+        lines: [[{w: Disponible sur l’App Store, at: cue:end.store}]]     # alone on its own cue, f848

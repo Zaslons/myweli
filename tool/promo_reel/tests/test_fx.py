@@ -635,3 +635,46 @@ class Carnet(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestReviewRound2(unittest.TestCase):
+    """The FX side of the review's fixes."""
+
+    def test_the_counter_lands_without_reading_its_figure_early(self):
+        """m1: the old roll read « 77 099 » on f549 and « 77 000 » on f550–551,
+        before the app showed it on f552. The landing roll snaps on its frame;
+        its overrun is the smallest that keeps every earlier frame a quarter
+        digit short of the figure."""
+        o = counter.Odometer(0, 77000, brand.poppins(120), brand.PALETTE.INK)
+        start, land = 535.0, 548.0                                   # tick1 f536 − 1, the landing 9.3.1
+        k = counter.landing_overrun(o, start, land)
+        self.assertEqual(k, 4)
+        for f in range(int(start), int(land)):
+            p = counter.landing_progress(f, start, land, k)
+            self.assertLess(o.value_at(p, 0.25), 77000, f)
+            self.assertNotEqual(o.text_at(p), ty.fcfa(77000), f)
+        for f in range(int(land), int(land) + 10):
+            self.assertEqual(o.text_at(counter.landing_progress(f, start, land, k)), ty.fcfa(77000))
+        # without the overrun the landing frame's neighbours read it early: the old defect
+        early = [f for f in range(int(start), int(land))
+                 if o.value_at(counter.landing_progress(f, start, land, 0)) >= 77000]
+        self.assertTrue(early)
+        self.assertEqual(o.text_at(easing.progress(549, 535, 17)), ty.fcfa(77099))     # the old roll on f549
+
+    def test_the_backdrop_covers_the_row_and_the_tiles_places(self):
+        pic = np.full((300, 900, 4), 250, np.uint8)
+        srcs = [(0, 0, 100, 100), (110, 0, 210, 100)]
+        origins = [(200, 700, 300, 800), (310, 700, 410, 800)]
+        targets = [(120, 780, 500, 1160), (516, 780, 896, 1160)]
+        st = stack.Stack(pic, srcs, origins, targets, [10, 18])
+        self.assertEqual(st.backdrop_rect(24), (96, 676, 920, 1184))
+
+    def test_a_tap_released_at_once(self):
+        """n1: the « Libre » disc and its ripple are gone 5 frames after the
+        touch-down, before the form pushes in under them."""
+        from dataclasses import replace
+        st = replace(touch.STYLE, fade_out_frames=5.0, ripple_frames=5.0)
+        self.assertGreater(touch.touch_alpha(281, 280, 280, st), 0.3)
+        self.assertEqual(touch.touch_alpha(285, 280, 280, st), 0.0)
+        self.assertIsNone(touch.ripple_state(285, 280, st))
+        self.assertIsNotNone(touch.ripple_state(284, 280, st))

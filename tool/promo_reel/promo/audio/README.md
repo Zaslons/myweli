@@ -137,13 +137,16 @@ Music plan, section by section:
   f480 and f488. Riser 2, then the drum stop on f496.
 - **Drop 2** (bars 9–11). A light impact. The whistle, the organ and the
   conga counterpoint come in. A click on f528 and a tick on every 16th from
-  f536 to f548. The landing on f552 is a log, a clap, a kick punch and a
-  kalimba. The caption words fall on log hits at f576, f584, f592 and f600.
-- **Breakdown** (bar 12). Riser 3 runs from f720 to f764, with a clap roll
-  and the second AIR.
+  f536 to f544. The landing on f548 (9.3.1: N1's wait at 0.995×) is a log, a
+  clap, a kick punch and a kalimba. The caption words fall on log hits at f576, f584, f592 and f600.
+- **Breakdown** (bar 12). Riser 3 runs from f720 and stops dead on the cut
+  to black (f752), with a clap roll; the second AIR (f752–767) is near
+  silence like the first: the reverse cymbal and a short sub tail, the pad
+  muted.
 - **Reveal** (bar 13). The big impact (RT60 2.8 s), the shimmer on f784,
   and the FM glide over f804–824.
-- **Outro** (bar 14). Log hits on f832, f848 and f880.
+- **Outro** (bar 14). Log hits on f832 (the mark lands, the tagline whole),
+  f848 (with the App Store glint, alone on its cue) and f880.
 
 `score_15s.yaml` (7 bars) is re-scored on the 15-s cut's own frames. It is
 not a splice of the 30-s audio.

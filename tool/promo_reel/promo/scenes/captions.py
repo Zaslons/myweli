@@ -9,7 +9,7 @@ Types follow the storyboard's « Type » rule and the format's ``type_px``:
   hook     Poppins Medium 96 px, white, cap top y 300 (the hook block)
   app      Poppins Medium 72 px, #1A1A1A, cap top y 330 (the band, y 300–540)
   tagline  Poppins Medium 46 px, #1A1A1A, cap top = layout end_tagline_cap_top_y
-  store    Inter Medium 34 px, #4A4A4A, under the tagline
+  store    Inter Medium type_px.store (40) px, #4A4A4A, under the tagline
 
 ``colour: auto`` (the default for app captions) follows the stage the frame is
 on: ink on paper, white on black — « Ils réservent dès la mise en ligne. »
@@ -45,7 +45,8 @@ def _styles(layout: dict) -> dict[str, CaptionStyle]:
         "hook": CaptionStyle("poppins", tp["hook"], PALETTE.WHITE, 300.0, None, None),
         "app": CaptionStyle("poppins", tp["app"], "auto", 330.0, None, None),
         "tagline": CaptionStyle("poppins", tp["tagline"], PALETTE.INK, float(tag_top), None, None),
-        "store": CaptionStyle("inter", 34.0, PALETTE.INK_SECONDARY, float(tag_top) + 96.0, None, None),
+        "store": CaptionStyle("inter", float(tp.get("store", 40)), PALETTE.INK_SECONDARY, float(tag_top) + 96.0,
+                              None, None),
     }
 
 
@@ -54,6 +55,12 @@ class CaptionItem:
         self.id = spec.get("id", where)
         self.owner = owner
         self.cite = spec.get("cite")
+        reading = spec.get("reading")
+        if reading not in (None, "owner_decision_pending"):
+            raise ValueError(f"{where}.reading: only `owner_decision_pending`, not {reading!r}")
+        #: the reading check reports this caption's windows as OWNER DECISION PENDING (never PASS) when they
+        #: are over the limit: its wording / time on screen is the owner's call, not a defect to fix here
+        self.pending = reading == "owner_decision_pending"
         kind = spec.get("type", "app")
         styles = _styles(layout)
         if kind not in styles:
@@ -137,11 +144,33 @@ class CaptionItem:
         return self.caption.line_widths()
 
 
+def arrivals_on_two_lines(items: list[CaptionItem]) -> list[tuple[float, list[str]]]:
+    """Frames on which words arrive on more than one line (of one caption or
+    of several), with those words: [(frame, ["id[line]: « words »", …])]."""
+    by_frame: dict[float, dict[tuple[str, int], list[str]]] = {}
+    for c in items:
+        for li, line in enumerate(c.caption.lines):
+            for w in line:
+                by_frame.setdefault(w.at, {}).setdefault((c.id, li), []).append(w.text)
+    out = []
+    for f in sorted(by_frame):
+        lines = by_frame[f]
+        if len(lines) > 1:
+            out.append((f, [f"{cid}[{li}]: « {' '.join(ws)} »" for (cid, li), ws in lines.items()]))
+    return out
+
+
 class CaptionTrack:
-    """Every caption of a cut, drawn in order."""
+    """Every caption of a cut, drawn in order. Two lines never start on the
+    same frame (the end card once brought « moins de gestion. » and « Disponible
+    sur l’App Store » in together): a viewer reads one arrival at a time."""
 
     def __init__(self, items: list[CaptionItem]):
         self.items = items
+        same = arrivals_on_two_lines(items)
+        if same:
+            f, words = same[0]
+            raise ValueError(f"two lines receive words on f{f:g}: {'; '.join(words)} — one arrival at a time")
 
     def at(self, t: float) -> list[CaptionItem]:
         return [c for c in self.items if c.visible(t)]

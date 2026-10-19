@@ -47,15 +47,15 @@ STORYBOARD_30S = {
     "create.strike": 440, "create.filled": 448, "fiche.cut": 464, "fiche.log1": 472, "fiche.card1": 472,
     "fiche.log2": 480, "fiche.card2": 480, "fiche.log3": 488, "fiche.card3": 488, "riser2": 480,
     "lift.reverse": 496, "drop2.impact": 512, "drop2.whip": 512, "revenus.touch": 528, "revenus.tick1": 536,
-    "revenus.tick2": 540, "revenus.tick3": 544, "revenus.tick4": 548, "revenus.land": 552, "revenus.ding": 552,
+    "revenus.tick2": 540, "revenus.tick3": 544, "revenus.land": 548, "revenus.ding": 548,
     "sentence.word1": 576, "sentence.word2": 584, "sentence.word3": 592, "sentence.word4": 600,
     "sentence.pop": 600, "page.cut": 640, "page.drag": 672, "riser3": 720, "breakdown.tail": 736,
     "clap_roll2": 744, "air2.reverse": 752, "reveal.impact": 768, "reveal.shimmer": 784, "reveal.glide": 804,
-    "end.mark": 832, "end.line2": 848, "end.store": 848, "end.last": 880,
+    "end.mark": 832, "end.store": 848, "end.store_log": 848, "end.last": 880,
 }
 SPANS_30S = {"hook.pen": 24, "riser1": 108, "clap_roll1": 108, "air1.reverse": 128, "swipe.whoosh": 160,
              "tap.close": 190, "arrive.air": 256, "fill.tape": 334, "create.drag": 392, "create.close": 430,
-             "riser2": 508, "lift.reverse": 512, "page.drag": 704, "riser3": 764, "clap_roll2": 752,
+             "riser2": 508, "lift.reverse": 512, "page.drag": 704, "riser3": 752, "clap_roll2": 752,
              "air2.reverse": 768, "reveal.glide": 824}
 STORYBOARD_15S = {
     "hook.stab": 0, "hook.word1": 0, "hook.word2": 8, "hook.word3": 16, "strike1": 24, "strike2": 32,
@@ -64,8 +64,8 @@ STORYBOARD_15S = {
     "slot.touch": 168, "slot.push": 174, "create.touch": 196, "create.close": 218, "create.done": 232,
     "create.chime": 232, "create.strike": 236, "create.filled": 240, "drop2.impact": 256, "drop2.whip": 256,
     "revenus.touch": 272, "revenus.tick1": 280, "revenus.tick2": 284, "revenus.tick3": 288,
-    "revenus.tick4": 292, "revenus.land": 296, "revenus.ding": 296, "reveal.impact": 320,
-    "reveal.shimmer": 336, "reveal.glide": 356, "end.mark": 384, "end.line2": 400, "end.store": 400,
+    "revenus.land": 292, "revenus.ding": 292, "reveal.impact": 320,
+    "reveal.shimmer": 336, "reveal.glide": 356, "end.mark": 384, "end.store": 400, "end.store_log": 400,
     "end.last": 432,
 }
 SPANS_15S = {"riser1": 44, "air1.reverse": 64, "reveal.glide": 376}
@@ -97,8 +97,8 @@ class TestTimebase(unittest.TestCase):
         self.assertEqual(tb.frame_of(3, 2, 0), 144)              # the swipe's touch-down
         self.assertEqual(tb.frame_of(14, 4, 3), 892)
         self.assertEqual(tb.sample_of_frame(1), 1600)
-        self.assertEqual(tb.parse_pos("9.3.2").frame, 552)       # the counter lands
-        self.assertEqual(tb.parse_pos("9.3.2").sample, 552 * 1600)
+        self.assertEqual(tb.parse_pos("9.3.1").frame, 548)       # the counter lands
+        self.assertEqual(tb.parse_pos("9.3.1").sample, 548 * 1600)
         for n in range(1, 15):                                    # « Bar n starts at frame (n-1) x 64 »
             self.assertEqual(tb.frame_of(n), (n - 1) * 64)
 
@@ -295,7 +295,7 @@ class TestScore(unittest.TestCase):
 
     def test_the_app_store_line_has_its_soft_cue(self):
         """Owner's addition: « Disponible sur l'App Store » under the tagline."""
-        for name, frame in (("score_30s.yaml", 848), ("score_15s.yaml", 400)):   # with « moins de gestion. » (reading speed)
+        for name, frame in (("score_30s.yaml", 848), ("score_15s.yaml", 400)):   # alone on its cue (reading speed)
             cue = score_mod.load(find_score(name)).cue("end.store")
             self.assertEqual((cue.kind, cue.frame), ("glint", frame))
             self.assertLess(cue.gain, -6)                         # small and soft
@@ -429,6 +429,21 @@ class TestMix(unittest.TestCase):
 
 # ══ the render, the master, events.json ════════════════════════════════════
 
+def air_after_aac(wav_path: Path, events: dict) -> dict:
+    """The AIR check verify runs on the MP4, on the master passed through the
+    film's own AAC encoder (its low-pass takes a little off the reverse
+    cymbal's air: −0.5 dB on AIR 1)."""
+    import subprocess
+    from promo.media import tools, writer
+    from promo.verify import air_levels
+    m4a = wav_path.with_suffix(".m4a")
+    subprocess.run([tools.ffmpeg(), "-v", "error", "-y", "-i", str(wav_path), "-c:a", "aac", "-b:a",
+                    f"{writer.DEFAULT_AUDIO_BITRATE_K}k", "-ar", "48000", str(m4a)], check=True)
+    raw = subprocess.run([tools.ffmpeg(), "-v", "error", "-i", str(m4a), "-f", "f32le", "-ac", "2", "-ar", "48000",
+                          "-"], capture_output=True, check=True).stdout
+    return air_levels(np.frombuffer(raw, np.float32).reshape(-1, 2).astype(np.float64), events)
+
+
 class TestBuild15s(unittest.TestCase):
     """The 15-s cut built end to end, files and all."""
 
@@ -450,6 +465,13 @@ class TestBuild15s(unittest.TestCase):
         with wave.open(str(self.out / "track.wav")) as w:
             self.assertEqual((w.getnchannels(), w.getsampwidth(), w.getframerate()), (2, 3, 48_000))
             self.assertEqual(w.getnframes(), 448 * 1600)
+
+    def test_the_air_beat_is_near_silence(self):
+        """The 15-s cut's one AIR (f48–63) was 4.3 LU under its groove: strike 3's
+        tail rang into it. Shortened, it is ≥ 6 LU under, as the 30-s AIRs."""
+        a = air_after_aac(self.out / "track.wav", self.events)
+        self.assertEqual([r["cue"] for r in a["air"]], ["air1.reverse"])
+        self.assertTrue(a["ok"], a)
 
     def test_master_targets(self):
         self.assertLess(abs(loudness.integrated(self.audio) + 14.0), 0.1)
@@ -534,6 +556,18 @@ class TestBuild30s(unittest.TestCase):
         for cid, end in SPANS_30S.items():
             self.assertEqual(by_id[cid]["end_frame"], end, cid)
         self.assertEqual(len(self.events["beats"]), 56)
+
+    def test_both_air_beats_are_near_silence(self):
+        """Review M2: AIR 2 (f752–767) played at the groove's level (0.3 LU
+        under it); now riser 3 stops dead on the cut, the breakdown's tail is
+        short and the pad is muted: both AIR beats ≥ 6 LU under the groove."""
+        a = air_after_aac(self.out / "track.wav", self.events)
+        rows = {r["cue"]: r for r in a["air"]}
+        self.assertEqual(sorted(rows), ["air1.reverse", "air2.reverse"])
+        self.assertTrue(a["ok"], a)
+        self.assertGreater(rows["air2.reverse"]["under_groove_lu"], 7.0)
+        by_id = {c["id"]: c for c in self.events["cues"]}
+        self.assertLessEqual(by_id["riser3"]["end_frame"], 752)              # nothing rises into the black
 
     def test_the_hook_is_darker_than_the_drop(self):
         """« A dark, staccato hook »: bar 1 sits well under DROP 1 (4.7 LU as mixed)."""

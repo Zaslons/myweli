@@ -70,7 +70,10 @@ REQUIRED_ZONES = ("captions", "phone_window")
 
 SAFE_BASES = ("platform", "ebu_r95_graphics")
 EBU_R95_GRAPHICS_INSET = Fraction(5, 100)
-TYPE_ROLES = ("hook", "app", "counter", "counter_label", "tagline", "credit")
+TYPE_ROLES = ("hook", "app", "counter", "counter_label", "tagline", "store", "credit")
+#: The smallest type a viewer must READ (the end card's « Disponible sur
+#: l’App Store »); the map credit is attribution, not a message.
+MIN_READ_PX = 40
 KEY_RE = re.compile(r"^[A-G](?:#|b|♯|♭)? (?:major|minor)$")
 CUT_RE = re.compile(r"^([1-9][0-9]*)s$")
 FORMAT_RE = re.compile(r"^([1-9][0-9]*)x([1-9][0-9]*)$")
@@ -506,11 +509,17 @@ def validate(doc: Any, source: str = "storyboard.yaml", overrides: Sequence[str]
         else:
             groups = [("scenes", scenes, declared | _declared_ids(music, cuts, None))]
         for base, items, known_ids in groups:
+            bad_refs = False
             for path, ref in _cue_references(items, base):
                 if ref not in known_ids:
+                    bad_refs = True
                     known = ", ".join(sorted(known_ids)) or "none declared yet"
                     where = "the cut's cues" if base != "scenes" else "music.cues"
                     c.fail(path, f"cue {ref!r} is not in {where} (known: {known})")
+            if not bad_refs and isinstance(scenes, dict):
+                cut = base.split(".", 1)[1]
+                if cut in cuts:
+                    _check_key_order(c, items, base, _cue_frames(music, cut), cuts[cut].frames)
     if c.problems:
         raise StoryboardError(source, c.problems)
     return Storyboard(source, doc, meta, cuts, formats, music, scenes, tuple(overrides))
@@ -713,6 +722,9 @@ def _layout(c: _Check, value: Any, path: str, w: int, h: int, zones: dict[str, R
         for role in TYPE_ROLES:
             if role in types:
                 c.integer(types[role], f"{path}.type_px.{role}", 1)
+        if isinstance(types.get("store"), int) and types["store"] < MIN_READ_PX:
+            c.fail(f"{path}.type_px.store", f"{types['store']} px: a line the viewer must read is at least "
+                                            f"{MIN_READ_PX} px")
     centre = c.numbers(lay.get("lottie_centre"), f"{path}.lottie_centre", 2)
     comp = c.integer(lay.get("lottie_comp_width_px"), f"{path}.lottie_comp_width_px", 1)
     if centre is not None and comp is not None and not (comp / 2 <= centre[0] <= w - comp / 2 and 0 <= centre[1] <= h):
@@ -821,6 +833,107 @@ def _score_cue_ids(path: Path) -> list[str] | None:
     if not isinstance(doc, dict) or not isinstance(doc.get("cues"), list):
         return None
     return [c["id"] for c in doc["cues"] if isinstance(c, dict) and isinstance(c.get("id"), str)]
+
+
+def _cue_frames(music: dict, cut: str) -> dict[str, tuple[int, int | None]]:
+    """(frame, end frame) of every cue of ``cut``, from its score's positions
+    (the frames events.json will carry: the engine checks that each sound
+    lands there). Inline ``music.cues`` with a ``pos`` count too."""
+    out: dict[str, tuple[int, int | None]] = {}
+    for c_, item in ((c_, i) for c_, i in _declared_cue_items(music) if c_ in (None, cut)):
+        try:
+            out[item["id"]] = (tb.DEFAULT.frame(str(item["pos"])), None)
+        except (KeyError, tb.TimeBaseError):
+            pass
+    scores = music.get("scores") or {}
+    rel = scores.get(cut) if isinstance(scores, dict) else None
+    if isinstance(rel, str):
+        from .audio import score as score_mod          # the score's own reading of pos / offset / end / dur
+        try:
+            sc = score_mod.load(PROMO_REEL / rel)
+        except (OSError, ValueError, yaml.YAMLError):
+            return out                                  # a broken score is reported by _check_scores
+        out.update({cue.id: (cue.frame, cue.end_frame) for cue in sc.cues})
+    return out
+
+
+def _declared_cue_items(music: dict) -> Iterator[tuple[str | None, dict]]:
+    cues = music.get("cues", [])
+    groups = cues.items() if isinstance(cues, dict) else [(None, cues)]
+    for cut, items in groups:
+        if isinstance(items, list):
+            for item in items:
+                if isinstance(item, dict) and isinstance(item.get("id"), str):
+                    yield cut, item
+
+
+_POS_TIME_RE = re.compile(r"^(\d+\.\d+(?:\.\d+|[e&a])?)([+-]\d+)?$")
+
+
+def time_frame(ref: Any, cue_frames: dict[str, tuple[int, int | None]], frames: int) -> int | None:
+    """The frame a scene time names (the grammar of promo/scenes/clock.py:
+    ``cue:<id>[@end][±N]``, ``bar.beat.step[±N]``, ``end``, ``fN``, an int),
+    resolved from the score's positions; None when it cannot be read here."""
+    if isinstance(ref, bool):
+        return None
+    if isinstance(ref, int):
+        return ref
+    if not isinstance(ref, str):
+        return None
+    text = ref.strip()
+    if text == "end":
+        return frames
+    m = CUE_TIME_RE.match(text)
+    if m:
+        if m.group(1) not in cue_frames:
+            return None
+        f, end = cue_frames[m.group(1)]
+        if m.group(2):
+            if end is None:
+                return None
+            f = end
+        return f + int(m.group(3) or 0)
+    m = _POS_TIME_RE.match(text)
+    if m:
+        try:
+            return tb.DEFAULT.frame(m.group(1)) + int(m.group(2) or 0)
+        except tb.TimeBaseError:
+            return None
+    if re.fullmatch(r"f\d+", text):
+        return int(text[1:])
+    return None
+
+
+def _key_lists(node: Any, path: str) -> Iterator[tuple[str, list]]:
+    """(path, keys) of every keyframe list under a scene's ``camera``: a list
+    whose items are all ``{at, value, …}`` mappings, at any depth."""
+    if isinstance(node, dict):
+        for k, v in node.items():
+            yield from _key_lists(v, f"{path}.{k}")
+    elif isinstance(node, list) and node and all(isinstance(k, dict) and "at" in k and "value" in k for k in node):
+        yield path, node
+
+
+def _check_key_order(c: _Check, scenes: list, base: str, cue_frames: dict, frames: int) -> None:
+    """Camera keys are written in time order: each key after the one before.
+    The renderer sorts nothing — a key written out of order is a typo (a
+    glide that snaps, a push that holds), so it is refused here, with both
+    keys' frames."""
+    for i, sc in enumerate(scenes):
+        if not isinstance(sc, dict) or not isinstance(sc.get("camera"), dict):
+            continue
+        for path, keys in _key_lists(sc["camera"], f"{base}[{i}].camera"):
+            prev = None
+            for j, k in enumerate(keys):
+                f = time_frame(k["at"], cue_frames, frames)
+                if f is None:
+                    c.fail(f"{path}[{j}].at", f"{k['at']!r} is not a time (cue:<id>, bar.beat.step, end)")
+                    prev = None
+                    continue
+                if prev is not None and f <= prev[0]:
+                    c.fail(f"{path}[{j}].at", f"{k['at']} is f{f}, not after the key before it ({prev[1]}, "
+                                              f"f{prev[0]}): camera keys are written in time order")
+                prev = (f, k["at"])
 
 
 def _declared_ids(music: dict, cuts: dict[str, "Cut"], cut: str | None) -> set[str]:

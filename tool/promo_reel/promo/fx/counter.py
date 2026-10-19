@@ -118,16 +118,22 @@ class Odometer:
             return 0.0
         return 1.0
 
-    def digits_at(self, p: float) -> str:
+    def digits_at(self, p: float, arrived: float = 0.5) -> str:
         """The digits (nearest each column's roll, present columns only) read
-        at progress p. Exactly str(start) at 0 and str(end) at 1."""
+        at progress p. Exactly str(start) at 0 and str(end) at 1. A digit
+        rolling in counts once `arrived` of it is in place (0.5: the nearest;
+        less is a stricter reader, for margins)."""
         out = []
         for col in self.columns:
             if self._presence(col, p) <= 0:
                 continue
             a, b, frac = self._roll(col, p)
-            out.append(str(b if frac >= 0.5 else a))
+            out.append(str(b if frac >= arrived else a))
         return "".join(out).lstrip("0") or "0"
+
+    def value_at(self, p: float, arrived: float = 0.5) -> int:
+        """The number read at progress p (each column's nearest digit)."""
+        return int(self.digits_at(p, arrived))
 
     def text_at(self, p: float) -> str:
         """The figure read at progress p, formatted as the app formats it."""
@@ -214,6 +220,31 @@ class Odometer:
             canvas.drawTextBlob(bld.make(), 0, 0, p)
 
 
+def landing_progress(t: float, start: float, land: float, overrun: float = 0.0) -> float:
+    """The roll's progress at frame t for a roll from `start` that LANDS on
+    frame `land`: the curve runs over a span `overrun` frames longer than
+    start → land, and the frame `land` snaps it home (progress 1). With an
+    overrun the last frames before the landing are still moving and short
+    of the figure; the landing frame shows it whole (with its punch)."""
+    if t >= land:
+        return 1.0
+    return easing.progress(t, start, land - start + overrun)
+
+
+def landing_overrun(odo: "Odometer", start: float, land: float, *, margin: float = 0.25,
+                    limit: int = 64) -> int:
+    """The smallest overrun (frames) for which no frame before `land` reads
+    the odometer's end figure — nor a value above it — even for a reader who
+    counts a rolling digit as arrived once `margin` of it is in place."""
+    for k in range(limit + 1):
+        frames = [float(f) for f in range(int(math.floor(start)), int(math.ceil(land)))]
+        if all(odo.value_at(landing_progress(f, start, land, k), margin) < odo.end
+               and odo.value_at(landing_progress(f, start, land, k)) <= odo.end for f in frames):
+            return k
+    raise ValueError(f"no roll of ≤ {limit} frames of overrun keeps « {odo.text_at(1.0)} » off the frames "
+                     f"before f{land:g}")
+
+
 def draw_label_switch(canvas: skia.Canvas, old: str, new: str, p: float, font: skia.Font, x: float,
                       baseline: float, colour: int, *, rise: float = 12.0, align: str = "centre") -> None:
     """A label changing from `old` to `new` (« Aujourd’hui » → « Mois »):
@@ -233,4 +264,5 @@ def static_width(value: int, font: skia.Font, suffix: str = " FCFA") -> float:
     return shape(s, font).width
 
 
-__all__ = ["Odometer", "Column", "draw_label_switch", "static_width", "fcfa", "NNBSP"]
+__all__ = ["Odometer", "Column", "draw_label_switch", "landing_progress", "landing_overrun", "static_width", "fcfa",
+           "NNBSP"]

@@ -29,7 +29,7 @@ from ..fx import easing, lift as liftmod, punch, stack as stackmod
 from ..fx import touch as touchmod
 from ..fx import type as ty
 from ..fx.brand import PALETTE, inter, poppins
-from ..fx.counter import Odometer, draw_label_switch
+from ..fx.counter import Odometer, draw_label_switch, landing_overrun, landing_progress
 from ..fx.phone import Phone, PhoneSpec, Window
 from ..fx.projection import Pose
 from ..fx.surface import SAMPLING_CUBIC
@@ -69,6 +69,13 @@ class TouchPlan:
     path: list | None             # [(take s, x, y)] for a followed drag
     follow_scroll: bool = False
     first_change_f: float | None = None
+    style: touchmod.TouchStyle = touchmod.STYLE
+
+    @property
+    def gone_f(self) -> float:
+        """The first frame with nothing of the disc or its ripple left."""
+        end = self.up_f + self.style.fade_out_frames
+        return max(end, self.down_f + self.style.ripple_frames) if self.kind == "tap" else end
 
 
 class PhoneScene(Scene):
@@ -112,8 +119,14 @@ class PhoneScene(Scene):
         self.credit = self._credit(spec["credit"], f"{where}.credit") if spec.get("credit") else None
         self.hidden = []
         for i, h in enumerate(spec.get("hidden") or []):
-            ranges = h.get("src_s") or [[0.0, 1e9]]
-            self.hidden.append((h["label"], tuple(map(float, h["rect_pt"])), [tuple(map(float, r)) for r in ranges]))
+            if "src_s" in h:
+                raise SceneError(f"{where}.hidden[{i}]: `src_s` is gone — every frame of the scene is checked; "
+                                 f"give `shown_on` (a picture that shows the row) instead")
+            try:
+                shown = float(self.source.resolve(h["shown_on"], f"{where}.hidden[{i}].shown_on"))
+            except (KeyError, SourceError) as e:
+                raise SceneError(f"{where}.hidden[{i}]: {e}") from None
+            self.hidden.append((h["label"], tuple(map(float, h["rect_pt"])), shown))
         self.figure = None
         if spec.get("figure_picture") is not None:
             fs = self.source.resolve(spec["figure_picture"], f"{where}.figure_picture")
@@ -155,6 +168,20 @@ class PhoneScene(Scene):
             up_f = self.timeline.frame_of(path[-1][0])
             if up_f is None:
                 raise SceneError(f"{where}: the drag's lift ({path[-1][0]:.3f} s) is not in the timeline")
+        style = touchmod.STYLE
+        if t.get("release_by") is not None:
+            # the finger lifted at once (the log says it was not held): the disc and its ripple are gone by
+            # this frame — before the page the tap opens moves under them (storyboard row 10, review n1)
+            if d.kind != "tap":
+                raise SceneError(f"{where}.release_by: only a tap is released early")
+            gone = float(F(t["release_by"]))
+            span = gone - down_f
+            if span < style.fade_in_frames:
+                raise SceneError(f"{where}.release_by: f{gone:g} leaves the disc {span:g} frames; it needs "
+                                 f"{style.fade_in_frames:g} to appear")
+            from dataclasses import replace
+            style = replace(style, fade_out_frames=span, ripple_frames=span)
+            up_f = down_f
         tone = t.get("tone", "dark")
         rgba = self.source.rgba(self.source.take.index_at(d.down_s))
         k = self.source.take.px_per_pt
@@ -163,7 +190,7 @@ class PhoneScene(Scene):
             raise SceneError(f"{where}: {t['gesture']} lands on a ground that asks for a {measured} disc, "
                              f"the storyboard says {tone}")
         return TouchPlan(t["gesture"], d.kind, d.down_s, down_f, up_f, tone, tuple(map(float, d.at_pt)), path,
-                         follow_scroll, first_change_f)
+                         follow_scroll, first_change_f, style)
 
     def _lift(self, l: dict, where: str) -> dict:
         F = self.ctx.clock.frame
@@ -203,8 +230,17 @@ class PhoneScene(Scene):
         else:
             targets = stackmod.stack_rects(srcs, x0=x0, width=x1 - x0, gap=gap, centre_y=float(lay["centre_y"]))
         ups = [float(F(u)) for u in s["ups"]]
+        backdrop = None
+        if s.get("backdrop"):
+            bd = s["backdrop"]
+            from ..fx.brand import BrandError, token
+            try:
+                colour = token(bd["colour"])
+            except (KeyError, ValueError, BrandError) as e:
+                raise SceneError(f"{where}.backdrop.colour: an app colour token (colors.dart): {e}") from None
+            backdrop = (colour, float(bd.get("pad", 24)), float(bd.get("radius", 24)), bd["colour"], bd.get("cite"))
         return {"index": idx, "tiles_pt": tiles, "srcs": srcs, "targets": targets, "ups": ups,
-                "veil": float(s.get("veil", self.ctx.layout["lift_veil"]))}
+                "veil": float(s.get("veil", self.ctx.layout["lift_veil"])), "backdrop": backdrop}
 
     def _counter(self, c: dict, where: str) -> dict:
         F = self.ctx.clock.frame
@@ -220,7 +256,39 @@ class PhoneScene(Scene):
                "cite": c.get("cite")}
         out["odo"] = Odometer(out["start"], out["end"], poppins(tp["counter"]), PALETTE.INK)
         out["label_font"] = inter(tp["counter_label"])
+        # the roll lands with a snap: its curve runs `overrun` frames past the
+        # landing, so no frame before it reads the figure (nor more)
+        if roll.get("overrun") is not None:
+            out["overrun"] = float(roll["overrun"])
+        else:
+            try:
+                out["overrun"] = float(landing_overrun(out["odo"], out["from"] - 1, out["land"]))
+            except ValueError as e:
+                raise SceneError(f"{where}.roll: {e}") from None
+        self.counter = out
+        self._check_counter(where)
         return out
+
+    def _roll(self, t: float) -> float:
+        c = self.counter
+        return landing_progress(t, c["from"] - 1, c["land"], c["overrun"])
+
+    def _check_counter(self, where: str) -> None:
+        """The counter never reads the app's figure before the frame the app
+        first shows it, and never reads a value above it (an odometer whose
+        columns settle one by one can pass 77 099 on its way to 77 000)."""
+        c = self.counter
+        odo, figure = c["odo"], c["end"]
+        text = odo.text_at(1.0)
+        for f in range(self.start, self.end):
+            p = self._roll(float(f))
+            v = odo.value_at(p)
+            if v > figure:
+                raise SceneError(f"{where}: on f{f} the counter reads « {odo.text_at(p)} », above the app's figure "
+                                 f"« {text} »")
+            if f < c["land"] and v == figure:
+                raise SceneError(f"{where}: on f{f} the counter already reads « {text} »; the app first shows it "
+                                 f"on f{c['land']:g}")
 
     def _credit(self, c: dict, where: str) -> dict:
         return {"text": c["text"], "map": tuple(map(float, c["map_rect_pt"])), "x": float(c["x"]),
@@ -294,13 +362,14 @@ class PhoneScene(Scene):
     def _touch_overlay(self, t: float):
         def draw(canvas: skia.Canvas) -> None:
             for tp in self.touches:
-                if t < tp.down_f - 1 or t > tp.up_f + touchmod.STYLE.fade_out_frames + 1:
+                if t < tp.down_f - 1 or t > tp.gone_f + 1:
                     continue
                 x, y = self.finger(tp, t)
                 if tp.kind == "tap":
-                    touchmod.draw_tap(canvas, x, y, t, tp.down_f, tp.up_f, tone=tp.tone)
+                    touchmod.draw_tap(canvas, x, y, t, tp.down_f, tp.up_f, tone=tp.tone, style=tp.style)
                 else:
-                    touchmod.draw_touch(canvas, x, y, tone=tp.tone, alpha=touchmod.touch_alpha(t, tp.down_f, tp.up_f))
+                    touchmod.draw_touch(canvas, x, y, tone=tp.tone, style=tp.style,
+                                        alpha=touchmod.touch_alpha(t, tp.down_f, tp.up_f, tp.style))
         return draw
 
     # ---- drawing -------------------------------------------------------------------------------
@@ -349,7 +418,7 @@ class PhoneScene(Scene):
                 origins = [self.phone.map_rect(r, pose, W=W, window=self.window) for r in S["tiles_pt"]]
                 st = stackmod.Stack(self.source.picture(S["index"]), S["srcs"], origins, S["targets"], S["ups"],
                                     style=liftmod.LiftStyle(veil_opacity=S["veil"]))
-                st.draw(canvas, t, veil_rect=self._veil_rect())
+                st.draw(canvas, t, veil_rect=self._veil_rect(), backdrop=S["backdrop"][:3] if S["backdrop"] else None)
                 for i, lf in enumerate(st.lifts):
                     p = st.progress(i, t)
                     if p > 0:
@@ -368,12 +437,12 @@ class PhoneScene(Scene):
                                                                                 round(x1, 1), round(y1, 1)]})
         # the touch discs, in frame px, for the safe-zone check
         for tp in self.touches:
-            if tp.down_f - 1 <= t <= tp.up_f + touchmod.STYLE.fade_out_frames:
+            if tp.down_f - 1 <= t < tp.gone_f:
                 x, y = self.finger(tp, t)
                 fx, fy = self.phone.map_point(x, y, pose, W=W, window=self.window)
-                d = touchmod.STYLE.diameter_pt
+                d = tp.style.diameter_pt
                 if tp.kind == "tap":
-                    st = touchmod.ripple_state(t, tp.down_f)
+                    st = touchmod.ripple_state(t, tp.down_f, tp.style)
                     if st:
                         d = max(d, st[0])
                 r = d / 2 * self.window.px_per_pt * pose.scale
@@ -403,7 +472,7 @@ class PhoneScene(Scene):
             canvas.saveLayer(None, p_)
         draw_label_switch(canvas, c["labels"][0], c["labels"][1], q, c["label_font"], cx, c["label_baseline"] + dy,
                           PALETTE.INK_SECONDARY)
-        p = easing.progress(t, c["from"] - 1, c["land"] - (c["from"] - 1))
+        p = self._roll(t)
         scale = punch.settle(t, c["punch_at"], start=c["punch_start"], frames=c["punch_frames"])
         c["odo"].draw(canvas, p, cx, c["figure_baseline"] + dy, scale=scale)
         if with_alpha_layer:
@@ -450,17 +519,15 @@ class PhoneScene(Scene):
             whip = (k := self.W.key_into(t)) is not None and k.blur == "whip"
             _, opacity = self.fall_state(t)
             out = []
-            src = self.timeline.src(t)
-            for label, rect, ranges in self.hidden:
-                if not any(a <= src < b for a, b in ranges):
-                    continue
-                _, y0, _, y1 = self.phone.map_rect(rect, pose, W=W, window=self.window)
+            for label, rect, _shown in self.hidden:
+                x0, y0, x1, y1 = self.phone.map_rect(rect, pose, W=W, window=self.window)
                 ys = np.linspace(y0, y1, 24)
+                # how much of the row's PLACE the window shows (band, floor, fall); verify multiplies it by
+                # how much of the row the take's picture itself shows there (a push covers it)
                 alpha = max(self.window.alpha_at(float(y)) for y in ys) * opacity
-                out.append({"label": label, "alpha": round(alpha, 4), "y": [round(y0, 1), round(y1, 1)],
+                out.append({"label": label, "alpha": round(alpha, 4), "rect": [round(v, 1) for v in (x0, y0, x1, y1)],
                             "whip": whip})
-            if out:
-                rec["hidden"] = out
+            rec["hidden"] = out
 
     def events(self) -> list[tuple[int, str]]:
         ev = []
@@ -501,6 +568,10 @@ class PhoneScene(Scene):
         if self.stack:
             out.append({"element": f"stacked tiles: real pixels of {self.source.name} picture #{self.stack['index']}",
                         "scene": self.id, "cite": "real app pixels, nothing redrawn (client_detail_screen.dart:663-676)"})
+            if self.stack["backdrop"]:
+                bd = self.stack["backdrop"]
+                out.append({"element": f"a plain panel behind the lifted tiles ({bd[3]} token, {bd[1]:g}-px margin)",
+                            "scene": self.id, "cite": bd[4]})
         if self.counter:
             c = self.counter
             out.append({"element": f"counter « {ty.fcfa(c['start'])} » → « {ty.fcfa(c['end'])} », labels "

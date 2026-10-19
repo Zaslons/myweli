@@ -67,9 +67,27 @@ class Stack:
     def progress(self, i: int, t: float) -> float:
         return pop_progress(t, self.ups[i], self.frames, self.down, self.down_frames)
 
-    def draw(self, canvas: skia.Canvas, t: float, *, veil_rect: Rect | None = None) -> None:
+    def backdrop_rect(self, pad: float) -> Rect:
+        """The union of the tiles' targets AND their places on the phone,
+        grown by `pad` on every side: under it no veiled original shows,
+        between the lifted tiles or beside them."""
+        ts = [lf.target for lf in self.lifts] + [lf.origin for lf in self.lifts]
+        return (min(r[0] for r in ts) - pad, min(r[1] for r in ts) - pad,
+                max(r[2] for r in ts) + pad, max(r[3] for r in ts) + pad)
+
+    def draw(self, canvas: skia.Canvas, t: float, *, veil_rect: Rect | None = None,
+             backdrop: tuple[int, float, float] | None = None) -> None:
+        """The veil, then (`backdrop` = (colour, pad, radius)) an opaque
+        panel behind the row, so the veiled tiles on the phone do not show
+        between and around the lifted ones; it comes up with the first tile
+        and stays while any is up. Then the tiles."""
         ps = [self.progress(i, t) for i in range(len(self.lifts))]
         if veil_rect is not None:
             draw_veil(canvas, veil_rect, max(ps), self.style)
+        if backdrop is not None and max(ps) > 0:
+            colour, pad, radius = backdrop
+            p = skia.Paint(AntiAlias=True, Color=colour)
+            p.setAlphaf(min(1.0, max(ps)))
+            canvas.drawRRect(skia.RRect.MakeRectXY(skia.Rect.MakeLTRB(*self.backdrop_rect(pad)), radius, radius), p)
         for lift, p in zip(self.lifts, ps):
             lift.draw(canvas, p)

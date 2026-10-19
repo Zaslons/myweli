@@ -10,6 +10,8 @@ import unittest
 from pathlib import Path
 from types import SimpleNamespace
 
+import numpy as np
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from promo import storyboard as sbmod  # noqa: E402
@@ -89,6 +91,38 @@ class TestClock(unittest.TestCase):
     def test_label(self):
         self.assertEqual(self.clock.label(144), "f144 · 4.800 s · 3.2.0")
         self.assertEqual(self.clock.label(149), "f149 · 4.967 s · 3.2.1+1")
+
+
+class TestKeysInOrder(unittest.TestCase):
+    def test_a_key_written_before_the_one_above_it_is_refused(self):
+        """m2's runtime twin of the storyboard check: the renderer sorts nothing."""
+        from promo.scenes.base import Context, SceneError, track
+        ctx = Context(Clock(EVENTS, 896), SB.formats["9x16"])
+        self.assertEqual(track(ctx, [{"at": "5.4.0", "value": 1.0}, {"at": "5.4.2+2", "value": 1.04}], "z")(314), 1.04)
+        with self.assertRaisesRegex(SceneError, r"z\[2\]: 5.4.3\+2 is f318, not after the key before it \(f319\)"):
+            track(ctx, [{"at": "5.4.0", "value": 1.0}, {"at": "5.4.3+3", "value": 1.04}, {"at": "5.4.3+2", "value": 1.04}], "z")
+
+
+class TestOneArrivalAtATime(unittest.TestCase):
+    def test_two_lines_never_receive_words_on_the_same_frame(self):
+        """M1: « moins de gestion. » and « Disponible sur l’App Store » both
+        arrived on f848."""
+        from promo.scenes.captions import CaptionTrack, arrivals_on_two_lines
+        clock = Clock(EVENTS, 896)
+        lay = SB.formats["9x16"].layout
+        tag = CaptionItem({"type": "tagline", "reveal": "mask", "until": "end",
+                           "lines": [[{"w": "Plus de clients,", "at": "cue:end.mark"},
+                                      {"w": "moins de gestion.", "at": "cue:end.store"}]]}, "end", clock, lay, "t")
+        store = CaptionItem({"type": "store", "reveal": "mask", "until": "end",
+                             "lines": [[{"w": "Disponible sur l’App Store", "at": "cue:end.store"}]]}, "end", clock, lay, "s")
+        self.assertEqual(arrivals_on_two_lines([tag, store])[0][0], 848)
+        with self.assertRaisesRegex(ValueError, "two lines receive words on f848"):
+            CaptionTrack([tag, store])
+        one = CaptionItem({"type": "tagline", "reveal": "mask", "until": "end",
+                           "lines": [[{"w": "Plus de clients, moins de gestion.", "at": "cue:end.mark-5"}]]},
+                          "end", clock, lay, "t")
+        self.assertEqual(len(CaptionTrack([one, store]).items), 2)            # the card as it is now
+        self.assertEqual(store.font.getSize(), 40)
 
 
 class TestTrack(unittest.TestCase):
@@ -253,7 +287,7 @@ class TestStoryboard30s(unittest.TestCase):
 
     def test_the_counter_lands_on_its_cue(self):
         rev = next(s for s in self.scenes if s["id"] == "revenus")
-        self.assertEqual(self.clock.frame(rev["counter"]["roll"]["to"]), 552)
+        self.assertEqual(self.clock.frame(rev["counter"]["roll"]["to"]), 548)        # 9.3.1: N1's wait at 0.995×
         self.assertEqual(ty.fcfa(rev["counter"]["end"]), "77 000 FCFA")
 
 
@@ -314,13 +348,46 @@ class TestFilmFrames(unittest.TestCase):
         self.assertAlmostEqual(rec["touch_downs"][0]["src_s"], 10.672, places=2)   # the measured touch-down
         self.assertTrue(all(h["alpha"] < 0.05 for h in rec.get("hidden", [])))   # the 13:15 name under the floor
 
+    def test_the_counter_never_reads_its_figure_early(self):
+        """m1: refused when the roll would show « 77 000 FCFA » (or more)
+        before the app does."""
+        from promo.scenes import Film, SceneError
+        rev = next(s for s in self.film.scenes if s.id == "revenus")
+        self.assertEqual(rev.counter["overrun"], 4.0)
+        bad = sbmod.load(overrides=["scenes.30s.4.counter.roll.overrun=0"])
+        with self.assertRaisesRegex(SceneError, r"counter.*on f54[0-7] the counter (already reads|reads .*above)"):
+            Film(bad, "30s", "9x16", Clock(EVENTS, 896))
+
+    def test_the_libre_disc_is_gone_before_the_push(self):
+        """n1: nothing of the disc on f285 (the push starts on f286)."""
+        _, rec = self.film.frame(284)
+        self.assertIn("tap-libre", [b["label"] for b in rec["boxes"] if b["kind"] == "touch"])
+        _, rec = self.film.frame(285)
+        self.assertNotIn("tap-libre", [b["label"] for b in rec["boxes"] if b["kind"] == "touch"])
+
+    def test_the_lifted_tiles_sit_on_a_plain_panel(self):
+        """n2: between and around the lifted tiles only the panel shows —
+        none of the veiled tiles on the phone."""
+        from promo.fx.brand import rgb, token
+        frame, rec = self.film.frame(494)
+        tiles = sorted((b["rect"] for b in rec["boxes"] if b["label"].startswith("tile")), key=lambda r: r[0])
+        self.assertEqual(len(tiles), 3)
+        want = np.array(rgb(token("background")))
+        # veiled app text would sit ~100 levels off the panel; the cards' own soft shadows stay under 30
+        for a, b in zip(tiles, tiles[1:]):                       # the 16-px gaps
+            gap = frame[int(a[1]) + 30:int(a[3]) - 30, int(a[2]) + 4:int(b[0]) - 4, :3].astype(int)
+            self.assertLess(np.abs(gap - want).max(), 30)
+        above = frame[int(tiles[0][1]) - 20:int(tiles[0][1]) - 4, 200:880, :3].astype(int)   # where the
+        self.assertLess(np.abs(above - want).max(), 30)                                    # originals were
+
     def test_the_counter_lands_with_the_app(self):
-        _, rec = self.film.frame(552)
+        _, rec = self.film.frame(548)                               # 9.3.1: N1's wait at 0.995×
         rev = next(s for s in self.film.scenes if s.id == "revenus")
         self.assertEqual(rec["picture"], rev.figure[0])            # the first picture with the figure …
         self.assertIn("77 000 FCFA", [b["label"] for b in rec["boxes"] if b["kind"] == "counter"])
-        _, before = self.film.frame(551)
+        _, before = self.film.frame(547)
         self.assertNotEqual(before["picture"], rec["picture"])      # … on this frame, not before
+        self.assertNotIn(ty.fcfa(77000), [b["label"] for b in before["boxes"] if b["kind"] == "counter"])
 
 
 if __name__ == "__main__":

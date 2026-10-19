@@ -399,8 +399,27 @@ a derived take rate faster than 1× on anything but a drag (the gesture ramps
 1.11×, 2.74×, 1.08×; never past 3×); a touch disc whose YAML frame is not
 where the timeline puts the measured touch-down, or whose tone is not what
 the ground under the finger asks for; a counter that does not land on the
-frame the app first shows its figure; a caption line over 771 px; scenes
-that do not run end to end.
+frame the app first shows its figure, that reads that figure on any frame
+before it, or that reads a value above it on any frame (the roll eases on
+fastOutSlowIn over a span `overrun` frames longer than tick → landing and
+snaps home on the landing frame, with its punch; the renderer picks the
+smallest overrun that keeps every earlier frame a quarter digit short — 4
+frames for 0 → 77 000 over f535–f548, so f547 reads « 76 988 »); a caption
+line over 771 px; two caption lines receiving words on the same frame (one
+arrival at a time); camera keys not in time order (also refused by
+`storyboard.py`, with both keys' frames — the renderer sorts nothing); scenes
+that do not run end to end. `storyboard.py` also refuses a store line
+(`type_px.store`) under 40 px.
+
+**Touches released at once.** A tap the log says was not held may carry
+`release_by`: its disc and ripple are gone by that frame. The « Libre » tap
+(f280) is gone by f285, before the form pushes in under it on f286.
+
+**The Fiche tiles** lift onto a plain panel in the app's `background` token
+(#F6F7F9, colors.dart:34 — the scaffold the tiles sit on in the app), 24 px
+around the union of the lifted row AND the tiles' own places on the phone, so
+no veiled original shows between or around them; the row is centred on the
+tiles' own row (y 815), so they lift out in place.
 
 **Motion blur.** Camera moves blur by subframe accumulation in linear light
 (`fx.blur`), only inside the phone window's rows, with enough subframes that
@@ -415,34 +434,66 @@ Masks are on the take, so every subframe is already blurred.
 All automated, on the written MP4 wherever possible, into `verify/`: (a) the
 renderer's frame on every beat (`beats.png`, 56 stills) and the MP4's beats
 compared with them (PSNR), (b) every cut and whip ± 1 frame from the MP4
-(`transitions.png`, plus full-size frames in `frames/`), (c) every touch-down
-drawn held to the gesture logs (`media.touches.cross_check`) and its tone
-re-measured, (d) BS.1770-4 on the MP4's decoded AAC (−14 ± 0.5 LUFS, ≤ −1.0
-dBTP; ffmpeg's ebur128 as a second opinion) and `spectrogram.png` with bar
-ticks, (e) ffprobe + assertions (`probe.json`), (f) A/V sync: each click and
-key's onset in the MP4 audio (correlated with the master) ÷ 1600 against the
-frame its disc or picture appears, (g) every caption / lift / counter / disc /
-credit box on every frame inside the platform text area, (h) honesty: every
-generated element with its source (`honesty.txt`), every blur measured on
-every picture the film uses, the old 13:15 row never readable outside the
-whip, the speed of every wait and ramp, (i) reading speed (≤ 17 cps) and the
-longest stretch without a visual event (≤ 2 s). `report.txt` is the summary;
-the exit status is 1 when anything fails.
+(`transitions.png`, labels wrapped to their cell, plus full-size frames in
+`frames/`), (c) every touch-down drawn held to the gesture logs
+(`media.touches.cross_check`) and its tone re-measured, (d) BS.1770-4 on the
+MP4's decoded AAC (−14 ± 0.5 LUFS, ≤ −1.0 dBTP; ffmpeg's ebur128 as a second
+opinion), `spectrogram.png` with bar ticks, and each AIR beat at least 6 LU
+under the groove (K-weighted, the cut's drop/groove sections together), (e)
+ffprobe + assertions (`probe.json`), (f) A/V sync: each click and key's
+onset in the MP4 audio against the frame its disc or character first
+appears in the MP4's PIXELS (`promo/pixels.py`: the disc's own ring; the
+key's box looking like the take's picture with the character), (g) the INK
+on MP4 frames — each caption whole, the counter mid-roll / landing / landed,
+every lift, the credit — inside the platform text area, plus every box
+render.json records on every frame, (h) honesty: every generated element
+with its source (`honesty.txt`), every blur measured on every picture the
+film uses, the old 13:15 row on every frame of its scene outside the whip —
+the form's push and pop included — (share of its place the window shows ×
+share of it the take's picture still shows there ≤ 5 %, and ≤ 25 % of its
+text blocks found in the MP4's pixels), the speed of every wait and ramp,
+(i) reading: everything on screen together, per arrival window
+(`reading_windows`: the characters arriving in a window that must be read
+before it closes), ≤ 17 cps; never two lines receiving words on one frame;
+the longest stretch without a visual event (≤ 2 s). Not counted as reading:
+the map credit (attribution), the lifted cards (the app's own pixels), the
+counter's rolling digits (its start « 0 », labels and landed figure are).
+
+Statuses: PASS, FAIL and OWNER DECISION PENDING — a caption marked
+`reading: owner_decision_pending` (the end card) that is over the limit is
+reported with its figure under that status, never as a pass. `report.txt`
+leads with the film's status; `python -m promo verify` exits 0 (PASS), 1
+(FAIL) or 3 (OWNER DECISION PENDING), and so does `build.sh`.
 
 ### Decisions made against the storyboard's text, and why
 
-- **N1, the Revenus wait.** Touch-down on « Mois » 7.152 s (first changed
-  picture #1 at 7.352 − 200 ms, read from the pictures: N1 has no App Store
-  scan); the first picture showing « 77 000 FCFA » is #26 at 7.815 s. The
-  wait, 0.663 s, is ≤ 0.8 s, so the landing stays on f552 (`revenus.*` cues
-  unchanged) — which plays the wait at 0.829×. The storyboard also asks for
-  0.90–1.00×; for this wait the two rules cannot both hold (the previous 8th,
-  f544, would need 1.24×, faster than real). The grid and « never faster »
-  win. « Tout » equals « Mois »: not used.
-- **« Disponible sur l’App Store »** appears on 14.2.0 (f848) with « moins
-  de gestion. », not on 14.3.0: from f864 it would show for 1.07 s (24
-  characters a second, over the 17-cps ceiling). `end.store` moved in both
-  scores (the 15-s's to 7.2.0 for the same reason).
+- **N1, the Revenus wait.** Touch-down on « Mois » 7.1517 s (first changed
+  picture #1 at 7.3517 − 200 ms, read from the pictures: N1 has no App Store
+  scan); the first picture showing « 77 000 FCFA » is #26 at 7.815 s: a
+  0.663-s wait. The landing is on the 16th 9.3.1, **f548**: the wait plays at
+  **0.995×**, inside the approved 0.90–1.00× and never faster than real.
+  `revenus.land`/`ding` moved to 9.3.1, the ticks to f536–f544 (three: tick4
+  went), the kick punch and the landing clap with them (the 15-s score's to
+  5.3.1, f292, the same wait). Rejected: **f552** (the next 8th, the first
+  build's choice) plays it at 0.829×, outside the approved band; f544 would
+  be 1.24×, faster than real. « Tout » equals « Mois »: not used.
+- **The end card** (review M1). Its wording and the cut's length are the
+  owner's call and are unchanged. What changed: the tagline arrives as ONE
+  quick reveal as the mark settles (a 6-frame mask, f827→f832, whole on
+  `end.mark`); « Disponible sur l’App Store » arrives alone on its own cue
+  (`end.store`, 14.2.0 = f848; the log that was under « moins de gestion. »
+  is now `end.store_log` under it), at 40 px (was 34). `end.line2` is gone
+  from both scores. Read together the card is 60 characters in 2.3 s =
+  26.1 cps: verify (i) reports it as **OWNER DECISION PENDING**.
+- **AIR 2** (row 22, review M2) is near silence, as AIR 1: riser 3 stops dead
+  on the cut to black (12.4.0, f752 — the storyboard's « riser stops at
+  f764 » conflicted with « near silence »), the breakdown's tail is short
+  (vel 0.5, decay 0.3) and the pad is muted over 12.4. On the MP4: AIR 1
+  −19.8 LUFS (6.4 LU under the groove), AIR 2 −21.0 (7.6 LU under; was
+  −13.8, 0.3 LU under). The 15-s cut's one AIR was 4.3 LU under (strike 3's
+  tail rang into it): decay 0.3 → 0.15, now 6.4 LU under after AAC.
+- **The glide onto « Coupe homme »** takes 6 frames (f314→f320) like the two
+  after it; the micro push-in eases back to 1.0 over the same frames.
 - **No picture is hidden.** take1b 130.985 is not a black picture: it is the
   form with « Créer le rendez-vous » solid black again after its loader — a
   real state; it plays.
@@ -450,7 +501,8 @@ the exit status is 1 when anything fails.
   (131.44833 s), it does not slide in; the film shows the app's pictures.
 - **The Fiche tiles** lift into a ROW (x 120–900, 2.92 px/pt), not a
   360-px-wide column: three tiles 360 px wide stack 1 085 px tall, which the
-  storyboard's y 660–1200 cannot hold.
+  storyboard's y 660–1200 cannot hold. The row sits on the tiles' own row
+  (centre y 815, was 900) on a plain `background` panel (review n2).
 - **The end mark**: `end_mark_scale` 1.2 is read against the composition's own
   560 px (a 672-px comp), which is what gives the storyboard's ink y 400–599
   (measured with `Player.ink_bounds`); against the 900-px reveal it would be

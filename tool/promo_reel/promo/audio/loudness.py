@@ -117,6 +117,20 @@ def _weights(channels: int) -> np.ndarray:
     return g
 
 
+def segment(x: np.ndarray, spans, fs: int = 48_000) -> float:
+    """K-weighted loudness (LUFS, ungated) of the samples in ``spans`` —
+    one (start, end) pair or several, measured together — of a signal
+    K-weighted whole (the filters run through, so a segment is not cut off
+    from what came before it)."""
+    y = k_weight(x, fs)
+    if isinstance(spans, tuple) and len(spans) == 2 and not isinstance(spans[0], (tuple, list)):
+        spans = [spans]
+    idx = np.concatenate([np.arange(max(0, int(a)), min(len(y), int(b))) for a, b in spans])
+    if not len(idx):
+        return float("-inf")
+    return float(_lufs(np.mean(y[idx] ** 2, axis=0) @ _weights(y.shape[1])))
+
+
 def integrated(x: np.ndarray, fs: int = 48_000) -> float:
     """Integrated loudness in LUFS (gated, BS.1770-4)."""
     z = _window_powers(x, fs, 0.4, 0.1)
