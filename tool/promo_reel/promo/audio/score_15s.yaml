@@ -1,0 +1,225 @@
+# MyWeli Pro promo « CARNET → DROP » — the 15-s score (7 bars, 448 frames, 14.933 s).
+#
+# RE-SCORED for the storyboard's 15-s cut (promo-storyboard-full.md, « The 15 s
+# cut » and « 15-s SCORE »), never spliced from the 30-s audio: every tail is
+# whole. Same engine, same instruments, same cue ids wherever the picture
+# event is the same; positions are the 15-s cut's own (frame 0 = its start).
+#
+#   bar 1  hook: stab, strikes on f24/f32/f40, riser f16-44, AIR f48-63
+#   bar 2  drop: impact + groove; swipe click f64, tap click f88
+#   bar 3  groove + congas; badge « Arrivé » f144; whip f160 (crest f163); click f168
+#   bar 4  log break; click f196; chime f232; pen-slash f236; « rempli. » f240
+#   bar 5  Revenus: light impact f256; click f272; ticks f280-292; landing f296
+#   bar 6  reveal: big impact f320, shimmer f336, FM glide f356-376
+#   bar 7  end card: final log f384, f400, « App Store » glint f416, last log f432
+
+score: 1
+cut: 15s
+bars: 7
+tempo: 112.5
+key: C minor
+swing: 0.56
+
+sections:
+  - {name: hook, bars: 1}            # f0-63, AIR f48-63
+  - {name: drop, bars: 2-3}          # f64-191
+  - {name: log_break, bars: 4}       # f192-255
+  - {name: revenus, bars: 5}         # f256-319
+  - {name: reveal, bars: 6}          # f320-383
+  - {name: outro, bars: 7}           # f384-447
+
+chords:
+  1: Cm9
+  2: Cm9
+  3: F9
+  4: Abmaj9
+  4.3.0: G7b9     # f224: the chime's G and D are its root and fifth
+  5: Cm9
+  6: Cm9
+  7: Cm9
+
+patterns:
+  four:           "x...|x...|x...|x..."
+  backbeat:       "....|x...|....|x..."
+  sixteenths:     "xxxx|xxxx|xxxx|xxxx"
+  sixteenths_air: "xxxx|xxxx|xxxx|...."
+  offbeats:       "..o.|..o.|..o.|..o."
+  conga_a:        "....|h..l|..s.|h..."
+  conga_b:        "..h.|.l.h|..s.|.l.h"
+  rim_a:          "....|...x|....|.g.x"
+  log_a:          "1! . . 1 | . . 5, . | . . 7, 1 | . . 3 ."     # A: 0 3 6 10 11 14
+  log_b:          "1! . . . | . . 8 . | . 7 . . | 5 . . ."       # B: 0 6 9 12
+  keys:           "..X-|-...|..x-|.x--"
+  keys_hero:      "..X-|-...|....|X---"
+  organ_a:        "...x|..x.|....|x-.."
+  hold:           "X---|----|----|----"
+
+tracks:
+  log:
+    instrument: log
+    gain: -10
+    bars:
+      2: "1! . . 1 | . . 5, . | . . . 1 | . . 3 ."   # A without 10; the hero E♭2 (pane open) on step 4
+      3: log_b                                       # B; the badge's hit on step 4 is a cue
+      4: "1! . . 1 | . . 3 . | 5, . . . | . . . B1"  # the log break's solo line; B1 leads to C2
+      5: log_a                                       # step 10 is the landing (cue)
+
+  kick:
+    instrument: kick
+    gain: -7
+    bars:
+      2-4: four
+      5: "x...|x...|x.x.|x..."                      # + the punch under the landing (f296)
+      7: "X...|....|....|...."
+
+  clap:
+    instrument: clap
+    gain: -1
+    bars:
+      2-3: backbeat
+      4: "....|....|....|X..."                      # « rempli. » (f240)
+      5: "....|x...|..X.|x..."
+      7: "X...|....|....|...."
+
+  shaker:
+    instrument: shaker
+    gain: -16
+    pan: 0.25
+    swing: true
+    humanise: 5
+    automation:
+      gain: [[1.1.0, -4], [1.4.0, -4], [2.1.0, 0]]
+    bars:
+      1: sixteenths_air
+      2-5: sixteenths
+      7: sixteenths
+
+  hat:
+    instrument: hat
+    gain: -10
+    pan: -0.25
+    swing: true
+    humanise: 3
+    bars:
+      2-3: offbeats
+      5: offbeats
+      7: offbeats
+
+  conga:
+    instrument: conga
+    gain: -10
+    pan: -0.35
+    bars:
+      3: conga_a
+      5: conga_b
+
+  rim:
+    instrument: rim
+    gain: -6
+    pan: 0.3
+    bars:
+      3: rim_a
+      5: rim_a
+
+  rhodes:
+    instrument: rhodes
+    gain: -17
+    reverb: 1.4
+    wet: -16
+    automation:
+      lp: [[1.1.0, 600], [1.2.0, 600], [1.3.0, 1200], [1.4.0, 1200], [2.1.0, 14000]]
+      gain: [[1.1.0, -6], [1.4.0, -6], [2.1.0, 0], [7.1.0, -2]]
+    bars:
+      1: "X---|----|----|...."                      # the hook's Cm9 pad, low-passed 600 -> 1200 Hz
+      2-3: keys
+      5: keys_hero
+      7: "..X-|----|----|----"
+
+  organ:
+    instrument: organ
+    gain: -8
+    bars:
+      5: organ_a
+
+  whistle:
+    instrument: whistle
+    gain: -15
+    pan: 0.2
+    reverb: 1.6
+    wet: -12
+    bars:
+      5: ". . G5 - | - . Bb5 - | - . C6 - | - . Bb5 -"
+
+  pad:
+    instrument: pad
+    gain: -14
+    automation:
+      gain: [[1.1.0, 0], [5.4.0, 0], [6.1.0, 5], [7.1.0, 5], [7.2.0, 0]]
+    bars:
+      1: "....|....|....|X---"                      # the AIR's breath of pad
+      2-3: hold
+      5-7: hold
+
+  sub:
+    instrument: sub
+    gain: -14
+    bars:
+      6: hold
+
+cues:
+  # ── HOOK, bar 1 (f0-63) ─────────────────────────────────────────────────
+  - {id: hook.stab, kind: log, pos: 1.1.0, note: C2, vel: 1.0, lp: 600, decay: 0.3, gain: -2}   # f0: never silent
+  - {id: hook.word1, kind: rim, pos: 1.1.0}                                         # « Votre » f0
+  - {id: hook.word2, kind: rim, pos: 1.1.2}                                         # « carnet » f8
+  - {id: hook.word3, kind: rim, pos: 1.2.0}                                         # « déborde ? » f16
+  - {id: hook.pen, kind: pen_scratch, pos: 1.1.0, end: 1.2.2, gain: -16}            # the entry inking f0-24
+  - {id: strike1, kind: log, pos: 1.2.2, note: C2, vel: 0.85, gain: -3}             # page punch f24
+  - {id: strike1.slash, kind: pen_slash, pos: 1.2.2, gain: -8}
+  - {id: strike2, kind: log, pos: 1.3.0, note: C2, vel: 0.8, gain: -3}              # f32
+  - {id: strike2.slash, kind: pen_slash, pos: 1.3.0, gain: -8}
+  - {id: strike3, kind: log, pos: 1.3.2, note: C2, glide_from: G1, vel: 0.85, decay: 0.3, gain: -3}   # f40; short: the AIR is 8 frames away
+  - {id: strike3.slash, kind: pen_slash, pos: 1.3.2, gain: -8}
+  - {id: riser1, kind: riser, pos: 1.2.0, end: 1.3.3, gates: [[1.2.0, 8], [1.3.0, 16]], gain: -11}  # f16-44
+  - {id: clap_roll1, kind: clap_roll, pos: 1.3.2, end: 1.3.3, rate: 32, gain: -6}   # f40 f42
+  - {id: air1.reverse, kind: reverse, pos: 1.4.0, end: 2.1.0, gain: -16}            # « Respirez. » f48 -> f64
+  # ── DROP, bar 2 (f64-127) ───────────────────────────────────────────────
+  - {id: drop1.impact, kind: impact, pos: 2.1.0, f_start: 80, f_end: 30, tau: 0.8, rt60: 2.5, gain: -6}
+  - {id: swipe.touch, kind: click, pos: 2.1.0, gain: -3}                            # swipe touch-down f64
+  - {id: swipe.whoosh, kind: whoosh, style: swipe, pos: 2.1.1, offset: 1, end: 2.2.0, gain: -15}   # card moves f69 -> open f80
+  - {id: swipe.open, kind: log, pos: 2.2.0, note: Eb2, vel: 1.0}                    # pane open f80
+  - {id: swipe.open_wood, kind: thock, pos: 2.2.0, gain: -4}
+  - {id: tap.touch, kind: click, pos: 2.2.2, gain: -3}                              # tap touch-down f88
+  - {id: tap.close, kind: whoosh, style: close, pos: 2.3.0, dur: 6, gain: -14}      # pane closes f96-102
+  # ── DROP, bar 3 (f128-191) ──────────────────────────────────────────────
+  - {id: arrive.log, kind: log, pos: 3.2.0, note: F2, vel: 1.0}                     # badge « Arrivé » f144
+  - {id: arrive.pop, kind: pop, pos: 3.2.0, gain: -4}                               # the card's lift
+  - {id: whip1, kind: whoosh, style: whip, pos: 3.3.0, peak: 3, gain: -14}          # vertical whip f160, crest f163
+  - {id: slot.touch, kind: click, pos: 3.3.2, gain: -3}                             # « Libre » touch-down f168
+  - {id: slot.push, kind: whoosh, style: swish, pos: 3.3.3, offset: 2, dur: 10, gain: -18}   # form pushes in f174
+  # ── LOG BREAK, bar 4 (f192-255) ─────────────────────────────────────────
+  - {id: create.touch, kind: click, pos: 4.1.1, gain: -3}                           # « Créer » touch-down f196
+  - {id: create.close, kind: whoosh, style: close, pos: 4.2.2, offset: 2, dur: 8, gain: -14}   # form closes f218-226
+  - {id: create.done, kind: log, pos: 4.3.2, note: G2, vel: 1.0}                    # « Rendez-vous créé » f232
+  - {id: create.chime, kind: chime, pos: 4.3.2, note: G5, gain: -11, reverb: 1.2, wet: -14}
+  - {id: create.strike, kind: pen_slash, pos: 4.3.3, gain: -8}                      # « libre » struck f236
+  - {id: create.filled, kind: log, pos: 4.4.0, note: G1, vel: 1.0}                  # « rempli. » f240
+  # ── REVENUS, bar 5 (f256-319) ───────────────────────────────────────────
+  - {id: drop2.impact, kind: impact, pos: 5.1.0, f_start: 70, f_end: 35, tau: 0.5, rt60: 0.9, noise_db: -8, wet_db: -10, gain: -6}
+  - {id: drop2.whip, kind: whoosh, style: whip, pos: 5.1.0, peak: 3, gain: -14}     # horizontal whip, crest f259
+  - {id: revenus.touch, kind: click, pos: 5.2.0, gain: -3}                          # « Mois » touch-down f272
+  - {id: revenus.tick1, kind: tick, pos: 5.2.2, gain: -4}                           # the roll f280-292
+  - {id: revenus.tick2, kind: tick, pos: 5.2.3, gain: -4}
+  - {id: revenus.tick3, kind: tick, pos: 5.3.0, gain: -4}
+  - {id: revenus.tick4, kind: tick, pos: 5.3.1, gain: -4}
+  - {id: revenus.land, kind: log, pos: 5.3.2, note: C2, octave: true, vel: 1.0}     # the counter lands f296
+  - {id: revenus.ding, kind: kalimba, pos: 5.3.2, note: C6, gain: -10}
+  - {id: reveal.reverse, kind: reverse, pos: 5.4.2, end: 6.1.0, gain: -18}          # a short swell into the reveal's cut
+  # ── REVEAL, bar 6 (f320-383) ────────────────────────────────────────────
+  - {id: reveal.impact, kind: impact, pos: 6.1.0, f_start: 80, f_end: 30, tau: 1.0, rt60: 2.8, wet_db: -4, gain: -4}
+  - {id: reveal.shimmer, kind: shimmer, pos: 6.2.0, gain: -10}                      # glyphs complete f336
+  - {id: reveal.glide, kind: glide, pos: 6.3.1, end: 6.4.2, from: G3, to: C5, gain: -2}   # M/W morph f356-376
+  # ── OUTRO, bar 7 (f384-447) ─────────────────────────────────────────────
+  - {id: end.mark, kind: log, pos: 7.1.0, note: C2, octave: true, vel: 1.0}         # « Plus de clients, » f384
+  - {id: end.line2, kind: log, pos: 7.2.0, note: G2, vel: 0.8}                      # « moins de gestion. » f400
+  - {id: end.store, kind: glint, pos: 7.3.0, gain: -12, reverb: 1.6, wet: -12}      # « Disponible sur l’App Store » f416
+  - {id: end.last, kind: log, pos: 7.4.0, note: C2, decay: 0.6, reverb: 2.4, wet: -10}   # f432; the tail rings to f447
