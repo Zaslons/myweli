@@ -21,6 +21,7 @@ import 'package:myweli_backend/src/db/postgres_clients_repository.dart';
 import 'package:myweli_backend/src/db/postgres_device_token_repository.dart';
 import 'package:myweli_backend/src/db/postgres_favorites_repository.dart';
 import 'package:myweli_backend/src/db/postgres_membership_repository.dart';
+import 'package:myweli_backend/src/db/postgres_notification_prefs_repository.dart';
 import 'package:myweli_backend/src/db/postgres_notifications_repository.dart';
 import 'package:myweli_backend/src/db/postgres_provider_audit_repository.dart';
 import 'package:myweli_backend/src/db/postgres_provider_auth_repository.dart';
@@ -1328,6 +1329,25 @@ void main() {
       },
     );
   });
+
+  group(
+    'PostgresNotificationPrefsRepository — emailAlerts (migration 0039)',
+    () {
+      // docs/design/salon-email-alerts.md: on by default; merges like the rest.
+      test('default on; an update merges and keeps the others', () async {
+        final repo = PostgresNotificationPrefsRepository(pool);
+        final id = 'prefs-${DateTime.now().microsecondsSinceEpoch}';
+        expect((await repo.get(id)).emailAlerts, isTrue);
+        var p = await repo.update(id, emailAlerts: false);
+        expect(p.emailAlerts, isFalse);
+        expect(p.push, isTrue);
+        p = await repo.update(id, push: false);
+        expect(p.emailAlerts, isFalse, reason: 'preserved');
+        expect((await repo.get(id)).emailAlerts, isFalse);
+        await repo.deleteForUser(id);
+      });
+    },
+  );
 
   group('PostgresClientVersionRepository (migration 0032)', () {
     test('the migration seeds four rows, all with NO floor', () async {

@@ -53,6 +53,18 @@ void main() {
       expect(p.reminders, isTrue);
       expect(p.marketing, isTrue);
       expect(p.push, isTrue);
+      // docs/design/salon-email-alerts.md Q2: on by default.
+      expect(p.emailAlerts, isTrue);
+    });
+
+    test('emailAlerts merges like the others', () async {
+      await repo.update('u1', emailAlerts: false);
+      var p = await repo.get('u1');
+      expect(p.emailAlerts, isFalse);
+      expect(p.push, isTrue);
+      await repo.update('u1', push: false);
+      p = await repo.get('u1');
+      expect(p.emailAlerts, isFalse, reason: 'preserved');
     });
 
     test('update merges only provided fields', () async {
@@ -112,6 +124,28 @@ void main() {
       expect(m['reminders'], isFalse);
       expect(m['marketing'], isTrue);
       expect((await repo.get('u1')).reminders, isFalse);
+    });
+
+    test('emailAlerts: GET returns it, PUT sets it, a non-bool is 400 '
+        '(salon-email-alerts)', () async {
+      final get = await prefs_route.onRequest(
+        ctx(req('GET', token: tok('u1'))),
+      );
+      expect((await get.json() as Map)['emailAlerts'], isTrue);
+
+      final put = await prefs_route.onRequest(
+        ctx(req('PUT', token: tok('u1'), body: '{"emailAlerts":false}')),
+      );
+      expect(put.statusCode, HttpStatus.ok);
+      final m = await put.json() as Map;
+      expect(m['emailAlerts'], isFalse);
+      expect(m['push'], isTrue);
+      expect((await repo.get('u1')).emailAlerts, isFalse);
+
+      final bad = await prefs_route.onRequest(
+        ctx(req('PUT', token: tok('u1'), body: '{"emailAlerts":"non"}')),
+      );
+      expect(bad.statusCode, HttpStatus.badRequest);
     });
 
     test('PUT non-bool field → 400', () async {
