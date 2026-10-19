@@ -163,10 +163,10 @@ class Demo:
             base = Pose(rot_x=22, pivot=(540, 1250))
             if macro:
                 # the squeezed entry, its arrow, the margin note and two crossed rows
-                p = Pose(rot_x=16, scale=2.0, pivot=(540, 1250))
+                p = Pose(rot_x=16, scale=1.7, pivot=(540, 1250))
                 ax0, _, _, _ = cn.entries["arrow"].bounds
                 _, sy = cn.entry_centre("squeeze")
-                return cn.focus(p, rest, (ax0 + 150, sy + 40), (540, 1200))
+                return cn.focus(p, rest, (ax0 + 230, sy + 40), (540, 1200))
             s = easing.lerp(1.10, 1.16, easing.progress(tt, 0, 95))
             if tt >= 96:
                 s *= easing.lerp(1.0, 1.5, easing.EASE_IN_CUBIC(easing.progress(tt, 96, 16)))

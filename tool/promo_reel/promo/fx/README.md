@@ -9,7 +9,7 @@ seeded; the same arguments always draw the same pixels.
 
 ```sh
 cd tool/promo_reel
-python -m unittest discover -s tests -p 'test_fx.py'      # 65 tests, < 1 s
+python -m unittest discover -s tests -p 'test_fx.py'      # 66 tests, < 1 s
 python -m promo.fx.demo --out DIR                          # four 1080×1920 showcase sheets
 ```
 

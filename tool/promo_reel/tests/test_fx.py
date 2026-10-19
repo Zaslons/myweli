@@ -332,6 +332,14 @@ class Projection(unittest.TestCase):
         pts = np.array([[100, 200], [500, 900], [321, 456]])
         self.assertTrue(np.allclose(projection.project(pose, rest, pts), projection.apply_many(projection.homography(pose, rest), pts)))
 
+    def test_the_side_wall_faces_the_viewer(self):
+        """Top tipped away shows the BOTTOM wall; right edge away shows the LEFT one."""
+        rest = (0, 0, 100, 200)
+        front, back = (projection.project(Pose(rot_x=20), rest, [[50, 200]], depth=d)[0] for d in (0, 14))
+        self.assertGreater(back[1], front[1])
+        front, back = (projection.project(Pose(rot_y=20), rest, [[0, 100]], depth=d)[0] for d in (0, 14))
+        self.assertLess(back[0], front[0])
+
     def test_solve_offset(self):
         pose = projection.solve_offset(Pose(rot_x=22, scale=2.0), (0, 0, 1000, 1300), (300, 700), (540, 960))
         x, y = projection.apply(projection.homography(pose, (0, 0, 1000, 1300)), 300, 700)

@@ -49,7 +49,7 @@ from scipy.ndimage import gaussian_filter
 from . import projection
 from .brand import PALETTE, mark_geometry
 from .projection import Pose
-from .surface import Rect, image_from_array, sampling_for, skrect
+from .surface import Rect, image_from_array, sampling_for
 from .type import draw_strike
 
 
@@ -365,7 +365,7 @@ class Carnet:
         arrow.bounds = self._entry_bounds(arrow)
         self.entries["arrow"] = arrow
         # the margin note: small, two lines in the margin below the arrow
-        mh = s.x_height * 0.55
+        mh = s.x_height * 0.7
         note = Entry("margin", a + 2)
         y = self.baseline(a + 2) - 0.15 * s.pitch
         self._write(note, 16, y, mh, [3, 2], 1.1 * mh, 0.95)
