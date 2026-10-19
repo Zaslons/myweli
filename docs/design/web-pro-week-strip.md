@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Validé le 2026-10-19** — Q1 = **la bande maintenant, l'onglet « Semaine » (grille de sept jours sur ordinateur) en tranche à part** ; Q2 = **sans les annulés, web et app** ; Q3 = **les mots tels qu'écrits** (§8) |
+| **Statut** | **Construit le 2026-10-19** sur `feat/web-pro-week-strip` (au-dessus de #645). Validé le même jour — Q1 = **la bande maintenant, l'onglet « Semaine » (grille de sept jours sur ordinateur) en tranche à part** ; Q2 = **sans les annulés, web et app** ; Q3 = **les mots tels qu'écrits** (§8). Deux défauts trouvés en construisant, corrigés (§9) |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-19 |
 | **PRD ref / phase** | Journal (module journal §4.3) · parité web ↔ app Pro · V1 |
@@ -78,9 +78,9 @@ Calendrier, la Liste, les raccourcis.
 
 ## 5. Accessibilité (WEB-SYSTEM §4–§8, SYSTEM §13)
 
-- Un `role="group"` nommé « Semaine du 20 octobre » (le lundi), sept
+- Un `role="group"` nommé « Semaine du 19 octobre » (le lundi), sept
   `<button>` avec `aria-pressed` (le jour affiché) — le motif de `Tabs`.
-- **Le nom de chaque bouton contient ce qu'on voit** (WCAG 2.5.3) : « Lun 20 »
+- **Le nom de chaque bouton contient ce qu'on voit** (WCAG 2.5.3) : « Lun 19 »
   visible, puis, pour les lecteurs d'écran seulement, « octobre, 3
   rendez-vous » (« aucun rendez-vous » à 0) et « aujourd’hui » le cas
   échéant. Le point est `aria-hidden` : sa longueur n'est pas la seule
@@ -109,7 +109,7 @@ liste du jour **montre** les annulés, leur point est donc juste.
   longueur du point (0, 1, 5, 9).
 - **Composant** : la bande sous la date ; un clic affiche le jour (la grille
   est relue pour ce jour) ; ‹ un lundi → la semaine d'avant ; `aria-pressed` ;
-  le nom « Lun 20 octobre, 3 rendez-vous » ; la bande reste pendant le
+  le nom « Lun 19 octobre, 3 rendez-vous » ; la bande reste pendant le
   chargement et l'erreur d'un jour.
 - **App (Q2)** : `pro_journal_booking_created_test` ou voisin — un jour
   dont le seul rendez-vous est annulé n'a pas de point.
@@ -125,12 +125,52 @@ liste du jour **montre** les annulés, leur point est donc juste.
 - **Q2 — les annulés dans les points.** (a) **Sans les annulés, web et app**
   (recommandé : le point dit la charge, et la journée cache les annulés par
   défaut) ; (b) comme l'app aujourd'hui (tous les statuts), sur le web aussi.
-- **Q3 — les mots.** Visible : « Lun 20 » … « Dim 26 » (rien de nouveau).
-  Lecteurs d'écran : le groupe « Semaine du 20 octobre » ; chaque jour
-  « Lun 20 octobre, 3 rendez-vous » / « …, aucun rendez-vous », et
+- **Q3 — les mots.** Visible : « Lun 19 » … « Dim 25 » (rien de nouveau).
+  Lecteurs d'écran : le groupe « Semaine du 19 octobre » ; chaque jour
+  « Lun 19 octobre, 3 rendez-vous » / « …, aucun rendez-vous », et
   « …, aujourd’hui » pour aujourd'hui.
 
 **Décisions (2026-10-19).** Q1 : (b) — **cette tranche livre la bande** ;
 l'onglet « Semaine » est une tranche à part, avec sa propre spec (ce que la
 grille montre par artiste, le glisser-déposer entre jours, les petites
 largeurs). Q2 : (a). Q3 : approuvé tel qu'écrit.
+
+## 9. Construit — ce qui a été vu
+
+- **Rouge d'abord** : 22 tests web (15 purs, 7 de page) et 2 de l'app, vus
+  rouges pour la bonne raison ; un test pur se trompait (« Semaine du
+  20 octobre » pour la semaine du 21 octobre 2026, dont le lundi est le 19)
+  — le test corrigé, pas le code.
+- **Trouvé par la nouvelle garde de cibles (e2e)** : sans marge, chaque jour
+  mesurait **46,7 px** à 375 (le contenu n'a que 327 px). La bande déborde de
+  8 px dans la marge de la page de chaque côté : 49 px, les pastilles ne
+  bougent pas (§13.2, le motif `-my-sm` des en-têtes).
+- **Trouvé dans le navigateur — et plus ancien que cette tranche** : les
+  points de 3 et 4 rendez-vous ne se dessinaient pas. Tailwind ne lisait que
+  `app/` et `components/` ; une classe écrite **seulement** dans `lib/`
+  n'était jamais générée. Même cause pour `STATUS_STYLE`
+  (`lib/pro/journal.ts`, J1b) : les blocs **confirmés** et **arrivés** de la
+  Journée n'avaient plus leur bordure teintée (`border-info/40`,
+  `border-success/50`), et les annulés n'ont jamais été estompés
+  (`opacity-60`). Correctif : `lib/` est lu ; les bordures reviennent ;
+  l'estompe est **retirée**, pas allumée (elle ferait passer le gris des
+  annulés de 4,89:1 à 2,33:1, sous le seuil AA). CSS avec et sans `lib/` :
+  cinq règles ajoutées, aucune retirée. **Garde** : `tokens.theme-pin` lance
+  Tailwind sur la vraie config et exige une règle pour chaque classe que ces
+  tables donnent — vue rouge sur exactement ces cinq ; ses règles de
+  littéraux couvrent aussi `lib/`.
+- **Mutations vues rouges** : les annulés comptés, la journée chargée
+  ignorée, `aria-pressed` figé, la bande cachée quand le jour échoue, le nom
+  sans le mois ni le nombre (unitaires) ; le clic sans effet (parcours e2e) ;
+  des jours de 64 px (reflow à 320 — à 375 les jours se chevauchent sans
+  dépasser la page, ce que la matrice dit ne pas mesurer ; les cibles de
+  48 px, elles, sont mesurées).
+- **Vu dans le navigateur** (stub e2e, liste enrichie dans la page) : les
+  longueurs 1 → 5+, jeudi sans point quand son seul rendez-vous est annulé,
+  un clic sur mercredi → la grille du 21 et `?jour=2026-10-21`, aujourd'hui
+  cerclé ; à 320 px tout tient.
+- **Vérifié** : web — typecheck et lint propres, 1 664 tests unitaires ;
+  e2e (pro, cibles, reflow, axe, rôles, focus) 130 verts ; app — `flutter
+  analyze` 0, 1 098 tests unitaires et les tests de « Ma journée » verts.
+- **Non vérifié** : un salon réel (les points des autres jours viennent de la
+  liste du salon ; le stub e2e n'y range pas les rendez-vous créés).
