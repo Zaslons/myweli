@@ -17,10 +17,13 @@ transitions.png, probe.json, meter.json, spectrogram.png, frames/*.png.
   (d) AUDIO: ITU-R BS.1770-4 on the MP4's decoded AAC (integrated ≈ −14 LUFS,
       true peak ≤ −1.0 dBTP), ffmpeg's ebur128 as a second opinion, a
       spectrogram with bar ticks — and each AIR beat (the ``air…`` reverse
-      cues' spans) K-weighted, at least 6 LU under the groove (the cut's
-      drop/groove sections together): the storyboard's « near silence ».
-  (e) FILE: ffprobe + assertions (1080×1920, 30 fps CFR, 896 frames, H.264
-      High yuv420p BT.709, AAC 48 kHz stereo, duration, +faststart).
+      cues' spans) K-weighted, at least 7 LU under the groove (the cut's
+      drop/groove sections together), on the WAV master AND on the MP4's
+      AAC (a pass never rests on the codec): the storyboard's « near
+      silence ».
+  (e) FILE: ffprobe + assertions (1080×1920, 30 fps CFR, the cut's frames —
+      960 for the 30-s cut —, H.264 High yuv420p BT.709, AAC 48 kHz stereo,
+      duration, +faststart).
   (f) A/V SYNC: for every UI click and typing cue, the click's onset in the
       decoded MP4 audio against the frame its disc or character first
       appears in the MP4's PIXELS: a disc by its own ring (promo.pixels.
@@ -34,22 +37,26 @@ transitions.png, probe.json, meter.json, spectrogram.png, frames/*.png.
       caption column; and every box render.json records, on every frame.
   (h) HONESTY: every generated element with its cited source (none without);
       every blur measured on every picture the film uses (≤ 15 % of the
-      digits' detail left); the hidden 13:15 row on EVERY frame of its scene
-      outside the whip, the form's push and pop included: the share of its
-      place the window shows × the share of it the take's own picture shows
-      there (a push covers it) ≤ 5 %, and at most a quarter of its text
-      blocks found in the MP4's pixels; every timeline rate (no wait faster
+      digits' detail left); the hidden 13:15 row on EVERY frame of its scene,
+      the whip and the form's push and pop included (HiddenRow): in the MP4's
+      pixels, its blocks that identify it (found nowhere else on the scene's
+      take pictures — the new booking is the same client, every card says
+      « Confirmé ») searched over the WHOLE window — visible = the share
+      found × the window's alpha where it was found ≤ 5 %; all its blocks
+      at the renderer's place ≤ 25 %; and, outside the whip, the share of
+      its place the window shows × the share the take's own picture shows
+      there (a push covers it) ≤ 5 %; every timeline rate (no wait faster
       than 1×).
   (i) READING: characters per second of everything on screen together —
       for every window from an arrival to a departure, the characters that
-      arrive in it and leave by its end (promo.verify.reading_windows) — ≤ 17;
-      never two lines receiving words on one frame; the longest stretch
-      without a visual event (≤ 2 s). Captions marked ``reading:
-      owner_decision_pending`` (the end card) over the limit give the
-      distinct status OWNER DECISION PENDING — never PASS, never hidden.
+      arrive in it and leave by its end (promo.verify.reading_windows) — ≤ 17,
+      the end card included (its figure is reported); never two lines
+      receiving words on one frame; the longest stretch without a visual
+      event (≤ 2 s).
 
-Statuses: PASS, FAIL, OWNER DECISION PENDING; the film's is the worst of its
-checks. ``python -m promo verify`` exits 0 / 1 / 3.
+Statuses: PASS or FAIL (the end card's « owner decision pending » is retired:
+the owner added a bar, 2026-10-19); the film's is the worst of its checks.
+``python -m promo verify`` exits 0 / 1.
 """
 
 from __future__ import annotations
@@ -76,21 +83,19 @@ from .storyboard import Rect, covered_by
 LUFS_TARGET, LUFS_TOLERANCE, TP_CEILING = -14.0, 0.5, -1.0
 MAX_CPS = 17.0
 MAX_GAP_FRAMES = 60          # 2 s
-AIR_UNDER_LU = 6.0           # an AIR beat (« near silence ») sits at least this far under the groove
+AIR_UNDER_LU = 7.0           # an AIR beat (« near silence ») sits at least this far under the groove, master AND MP4
 HIDDEN_ALPHA = 0.05          # the 13:15 row: at most 5 % of it may show outside a whip
 BEAT_PSNR_DB = 30.0
 CLICK_KINDS = ("click", "key")
 
 
-PASS, FAIL, PENDING = "PASS", "FAIL", "OWNER DECISION PENDING"
+PASS, FAIL = "PASS", "FAIL"
 
 
 def worst(statuses) -> str:
-    """FAIL over OWNER DECISION PENDING over PASS (nothing is PASS by default)."""
+    """FAIL over PASS (nothing is PASS by default)."""
     statuses = list(statuses)
-    if not statuses or FAIL in statuses:
-        return FAIL
-    return PENDING if PENDING in statuses else PASS
+    return FAIL if not statuses or FAIL in statuses else PASS
 
 
 class Result:
@@ -113,8 +118,7 @@ class Result:
 
 
 class Verdict:
-    """What ``verify`` hands back: true only when every film PASSES; its
-    ``status`` tells a FAIL from an OWNER DECISION PENDING (exit 1 / 3)."""
+    """What ``verify`` hands back: true only when every film PASSES."""
 
     def __init__(self, status: str):
         self.status = status
@@ -239,8 +243,8 @@ def reading_items(film) -> list[dict]:
         words = [w for line in c.caption.lines for w in line]
         for i, w in enumerate(words):
             items.append({"what": f"{c.id}: « {w.text} »", "arrive": float(w.at), "leave": float(c.until),
-                          "chars": len(w.text) + (1 if i < len(words) - 1 else 0), "pending": c.pending,
-                          "group": c.id})
+                          "chars": len(w.text) + (1 if i < len(words) - 1 else 0), "group": c.id,
+                          "scene": c.owner})
     for sc in film.scenes:
         c = getattr(sc, "counter", None)
         if not c:
@@ -252,15 +256,15 @@ def reading_items(film) -> list[dict]:
         g = f"{sc.id} counter"
         items += [
             {"what": f"{g}: « {c['labels'][0]} »", "arrive": float(sc.start), "leave": mid,
-             "chars": len(c["labels"][0]) + 1, "pending": False, "group": g},
+             "chars": len(c["labels"][0]) + 1, "group": g, "scene": sc.id},
             {"what": f"{g}: « {start_digits} »", "arrive": float(sc.start), "leave": c["from"],
-             "chars": len(start_digits), "pending": False, "group": g},
-            {"what": f"{g}: « FCFA »", "arrive": float(sc.start), "leave": leave, "chars": 5, "pending": False,
-             "group": g},
+             "chars": len(start_digits), "group": g, "scene": sc.id},
+            {"what": f"{g}: « FCFA »", "arrive": float(sc.start), "leave": leave, "chars": 5, "group": g,
+             "scene": sc.id},
             {"what": f"{g}: « {c['labels'][1]} »", "arrive": mid, "leave": leave, "chars": len(c["labels"][1]) + 1,
-             "pending": False, "group": g},
+             "group": g, "scene": sc.id},
             {"what": f"{g}: « {end_digits} »", "arrive": c["land"], "leave": leave, "chars": len(end_digits),
-             "pending": False, "group": g}]
+             "group": g, "scene": sc.id}]
     return items
 
 
@@ -281,9 +285,28 @@ def reading_windows(items: list[dict], fps: int) -> list[dict]:
                 continue
             n = sum(i["chars"] for i in inside)
             out.append({"from": a, "to": b, "seconds": round((b - a) / fps, 3), "chars": n,
-                        "cps": round(n * fps / (b - a), 2), "pending": any(i["pending"] for i in inside),
-                        "groups": sorted({i["group"] for i in inside})})
+                        "cps": round(n * fps / (b - a), 2), "groups": sorted({i["group"] for i in inside})})
     return sorted(out, key=lambda w: -w["cps"])
+
+
+def end_card_window(items: list[dict], scene_id: str, fps: int) -> dict | None:
+    """The end card read as a whole: every character arriving in its scene,
+    from its first arrival to its last departure."""
+    mine = [i for i in items if i.get("scene") == scene_id]
+    if not mine:
+        return None
+    a, b = min(i["arrive"] for i in mine), max(i["leave"] for i in mine)
+    n = sum(i["chars"] for i in items if i["arrive"] >= a and i["leave"] <= b)
+    return {"from": a, "to": b, "chars": n, "seconds": round((b - a) / fps, 3), "cps": round(n * fps / (b - a), 2),
+            "groups": sorted({i["group"] for i in mine})}
+
+
+def reading_verdict(windows: list[dict], captions: list[dict], two_lines: list, gaps: list) -> bool:
+    """(i) passes when every arrival window, every caption alone, reads at
+    ≤ 17 cps — the end card like the rest —, no two lines take words on one
+    frame and no stretch without a visual event is longer than 2 s."""
+    return not (windows and windows[0]["cps"] > MAX_CPS) and all(c["ok"] for c in captions) and not two_lines \
+        and not (gaps and gaps[0][0] > MAX_GAP_FRAMES)
 
 
 def event_gaps(event_frames, frames: int) -> list[tuple[int, int, int]]:
@@ -377,6 +400,11 @@ def pixel_plan(film, records: list[dict], events: dict) -> dict:
         ink = "white" if c.colour_on(sc.stage.dark) == PALETTE.WHITE else TEXT_INK
         plan["ink"].append({"frame": fr, "kind": "caption", "label": c.id, "ink": ink,
                             "region": (0, min(ys) - 1.1 * px, W, max(ys) + 0.35 * px)})
+        if c.underline:                                  # the stroke drawn whole, alone in its band
+            u = c.underline
+            fr_u = int(min(u["at"] + u["frames"] + 1, c.until - 1))
+            plan["ink"].append({"frame": fr_u, "kind": "caption", "label": f"{c.id} underline", "ink": ink,
+                                "region": (0, u["rect"][1] - 3, W, u["rect"][3] + 3)})
     for sc in film.scenes:
         cnt = getattr(sc, "counter", None)
         if cnt:
@@ -403,31 +431,108 @@ def pixel_plan(film, records: list[dict], events: dict) -> dict:
                 floor = film.fmt.zones["floor"]
                 plan["ink"].append({"frame": shown[len(shown) // 2], "kind": "credit", "label": "map credit",
                                     "ink": TEXT_INK, "region": (0, floor.y0, W, floor.y0 + 90)})
-    # (h) every frame of a scene with a hidden row, outside its whip
-    for sid, rows in (film.plan().get("hidden") or {}).items():
-        for r in records:
-            if r["scene"] != sid:
-                continue
+    # (h) EVERY frame of a scene with a hidden row — its whip, push and pop included
+    plan["hidden"] = {}
+    for sid, specs in (film.plan().get("hidden") or {}).items():
+        mine = [r for r in records if r["scene"] == sid]
+        for h in specs:
+            plan["hidden"][h["label"]] = {**h, "scene": sid, "pictures": sorted({r["picture"] for r in mine})}
+        for r in mine:
             for h in r.get("hidden", []):
-                if not h["whip"]:
-                    plan["rows"].append({"frame": r["f"], "label": h["label"], "picture": r["picture"],
-                                         "take": r["take"], "alpha": h["alpha"], "rect": h["rect"],
-                                         "zoom": r.get("zoom", 1.0)})
+                plan["rows"].append({"frame": r["f"], "label": h["label"], "scene": sid, "picture": r["picture"],
+                                     "take": r["take"], "alpha": h["alpha"], "rect": h["rect"],
+                                     "zoom": r.get("zoom", 1.0), "whip": bool(h["whip"])})
     return plan
 
 
-def _row_template(take, rect_pt, shown_on_s: float):
-    from .media.takes import Take
-    tk = Take(take)
-    k = tk.px_per_pt
-    L = pixels.luminance(tk.raw_picture(tk.index_at(shown_on_s))[..., :3])
-    x0, y0, x1, y1 = (int(round(v * k)) for v in rect_pt)
-    return tk, L[y0:y1, x0:x1], (x0, y0)
+class HiddenRow:
+    """A row the framing must keep unreadable (the old 13:15 « Yao K. »), as
+    (h) looks for it in the MP4's pixels, frame by frame.
+
+    Its template is the take's own picture of it (``shown_on``), cut into
+    96-px text blocks (the take's scale; `pixels.row_parts`). On a frame:
+
+      at its place   all its blocks, at the renderer's rect (± 2 px, sliding
+                     sideways as a push moves it): the share found;
+      anywhere       its DISTINCTIVE blocks — found on no picture the scene
+                     shows at another height (`pixels.distinctive`) — over
+                     the WHOLE window: the share found and the window's alpha
+                     where it was found; visible = their product. The new
+                     booking is the same demo client — « Yao K. », « 1
+                     prestation » and « Confirmé » are on its row too, and
+                     every card says « Confirmé » — so only the old booking's
+                     own times say « this is the old row » (measured on the
+                     30-s cut: 1 of its 6 blocks, « 13:15 / 13:45 »). A row
+                     without one block of its own cannot be searched for:
+                     that is a failure, never a pass;
+      its place      (outside a whip) the share of its place the window shows
+                     × the share of it the take's own picture shows there.
+    """
+
+    BLOCK = 96
+
+    def __init__(self, take: str, label: str, rect_pt, shown_on_s: float, pictures, film_px_per_pt: float = 1.791):
+        self.take = Take(take)
+        self.label = label
+        k = self.take.px_per_pt
+        L = pixels.luminance(self.take.raw_picture(self.take.index_at(shown_on_s))[..., :3])
+        x0, y0, x1, y1 = (int(round(v * k)) for v in rect_pt)
+        self.template, self.tx, self.ty = L[y0:y1, x0:x1], x0, y0
+        self.parts = pixels.row_parts(self.template, self.BLOCK)
+        self.base = film_px_per_pt / k                    # take px → film px at zoom 1
+        refs = (pixels.luminance(self.take.raw_picture(i)[..., :3]) for i in sorted(set(pictures)))
+        self.distinct_mask = pixels.distinctive(self.parts, refs, own_y=y0, scale=self.base)
+        self.distinct = [p for p, keep in zip(self.parts, self.distinct_mask) if keep]
+        self._share: dict[int, float] = {}
+        self._templates: dict[float, np.ndarray] = {}
+
+    def take_shows(self, picture: int) -> float:
+        """How much of the row the take's own picture shows at its place (1 at
+        rest, 0 once a push has covered it)."""
+        if picture not in self._share:
+            L = pixels.luminance(self.take.raw_picture(picture)[..., :3])
+            self._share[picture] = pixels.row_fraction(L, self.template, self.tx, self.ty, range(-1210, 41, 2),
+                                                       block=self.BLOCK)[0]
+        return self._share[picture]
+
+    def template_at(self, scale: float) -> np.ndarray:
+        key = round(scale, 4)
+        if key not in self._templates:
+            self._templates[key] = pixels._resized(self.template, scale)
+        return self._templates[key]
+
+    def measure(self, L: np.ndarray, row: dict, window, width: int) -> dict:
+        """One frame's luminance `L`; `row` = where the renderer put the row
+        (rect, alpha of its place, zoom, whip, take picture)."""
+        sc = self.base * float(row["zoom"])
+        T = self.template_at(sc)
+        at_place = pixels.row_fraction(L, T, row["rect"][0], row["rect"][1], range(-300, 31), dys=(-2, 0, 2),
+                                       block=max(24, round(self.BLOCK * sc)))[0]
+        region = (0, window.top - window.band_fade, width, window.floor + window.floor_fade)
+        found, fx, fy = pixels.row_anywhere(L, self.distinct, region, scale=sc)
+        alpha = max(window.alpha_at(float(y)) for y in np.linspace(fy, fy + T.shape[0], 12)) if found > 0 else 0.0
+        return {"mp4_shows": round(at_place, 3), "found": round(found, 3), "found_at": [round(fx, 1), round(fy, 1)],
+                "found_alpha": round(alpha, 3), "found_visible": round(found * alpha, 4),
+                "visible": None if row["whip"] else round(row["alpha"] * self.take_shows(row["picture"]), 4)}
+
+    @staticmethod
+    def over(m: dict) -> list[str]:
+        """Why a frame's measure fails (empty: it passes)."""
+        why = []
+        if m["visible"] is not None and m["visible"] > HIDDEN_ALPHA:
+            why.append(f"its place shows {m['visible']:.1%} of it")
+        if m["mp4_shows"] > ROW_SHOWS_MP4:
+            why.append(f"{m['mp4_shows']:.0%} of its blocks at its place")
+        if m["found_visible"] > HIDDEN_ALPHA:
+            why.append(f"found at {m['found_at']} where the window shows {m['found_alpha']:.0%}")
+        return why
+
+    def close(self) -> None:
+        self.take.close()
 
 
 def run_pixels(mp4: Path, film, plan: dict, fmt) -> dict:
     """Measure the plan on ONE decode of the MP4."""
-    from PIL import Image
     want = set()
     for c in plan["clicks"]:
         want |= set(range(c["frame"] - 5, c["frame"] + 4))
@@ -439,22 +544,12 @@ def run_pixels(mp4: Path, film, plan: dict, fmt) -> dict:
     change: dict[str, dict[int, float]] = {k["cue"]: {} for k in plan["keys"]}
     ink: list[dict] = []
     rows: list[dict] = []
-    # the hidden rows: how much of each the take's own pictures show (1 at rest, 0 once a push covers it),
-    # and its template at the film's scale
-    hidden = {}
-    take_share: dict[tuple[str, str, int], float] = {}
-    for sid, specs in (film.plan().get("hidden") or {}).items():
-        for h in specs:
-            tk, T, (tx, ty) = _row_template(h["take"], h["rect_pt"], h["shown_on_s"])
-            hidden[h["label"]] = (tk, T, tx, ty)
+    hidden = {label: HiddenRow(h["take"], label, h["rect_pt"], h["shown_on_s"], h["pictures"],
+                               float(fmt.layout["px_per_pt"]))
+              for label, h in (plan.get("hidden") or {}).items()}
+    windows = {sc.id: sc.window for sc in film.scenes if hasattr(sc, "window")}
     for r in plan["rows"]:
-        key = (r["take"], r["label"], r["picture"])
-        if key not in take_share:
-            tk, T, tx, ty = hidden[r["label"]]
-            L = pixels.luminance(tk.raw_picture(r["picture"])[..., :3])
-            take_share[key] = pixels.row_fraction(L, T, tx, ty, range(-1210, 41, 2), block=96)[0]
-        r["take_shows"] = take_share[key]
-    templates: dict[tuple[str, float], np.ndarray] = {}
+        r["take_shows"] = hidden[r["label"]].take_shows(r["picture"])
     prev = None
     for f, rgb in pixels.stream_frames(mp4, want, fmt.width, fmt.height):
         L = pixels.luminance(rgb)
@@ -471,19 +566,13 @@ def run_pixels(mp4: Path, film, plan: dict, fmt) -> dict:
                 ink.append({**t, "box": None if box is None else [round(v, 1) for v in box]})
         for r in plan["rows"]:
             if r["frame"] == f:
-                tk, T, tx, ty = hidden[r["label"]]
-                sc = 1.791 * float(r["zoom"]) / tk.px_per_pt
-                key = (r["label"], round(sc, 3))
-                if key not in templates:
-                    templates[key] = np.asarray(Image.fromarray(T.astype(np.float32)).resize(
-                        (max(1, round(T.shape[1] * sc)), max(1, round(T.shape[0] * sc))), Image.LANCZOS), dtype=np.float64)
-                x0, y0 = r["rect"][0], r["rect"][1]
-                share = pixels.row_fraction(L, templates[key], x0, y0, range(-300, 31), dys=(-2, 0, 2),
-                                            block=max(24, round(96 * sc)))[0]
-                rows.append({**r, "mp4_shows": round(share, 3),
-                             "visible": round(r["alpha"] * r["take_shows"], 4)})
+                rows.append({**r, **hidden[r["label"]].measure(L, r, windows[r["scene"]], fmt.width)})
         prev = (f, L)
-    return {"ring": ring, "change": change, "ink": ink, "rows": rows}
+    info = {label: {"blocks": len(h.parts), "identifying": [b0 for (b0, _), keep in zip(h.parts, h.distinct_mask)
+                                                              if keep]} for label, h in hidden.items()}
+    for h in hidden.values():
+        h.close()
+    return {"ring": ring, "change": change, "ink": ink, "rows": rows, "hidden": info}
 
 
 def visual_frames(plan: dict, measured: dict) -> dict[str, dict]:
@@ -583,8 +672,9 @@ def verify_film(sb, cut: str, fmt_id: str, d: Path) -> Result:
     sheets.contact_sheet(ttiles, vdir / "transitions.png", columns=6, tile_width=220,
                          title=f"{cut} {fmt_id} — every cut and whip from reel.mp4 (T−1, T, T+1)")
     frames_dir = vdir / "frames"
-    looks = sorted({0, 40, 104, 120, 160, 184, 240, 284, 285, 286, 300, 316, 317, 318, 320, 376, 404, 452, 492, 494,
-                    515, 545, 547, 548, 600, 700, 740, 756, 760, 790, 815, 827, 832, 848, 853, 880} & set(range(frames)))
+    looks = sorted({0, 40, 104, 120, 160, 184, 240, 259, 284, 285, 286, 300, 301, 316, 317, 318, 320, 376, 404, 452,
+                    473, 476, 481, 484, 492, 494, 515, 545, 547, 548, 600, 700, 740, 756, 760, 790, 815, 827, 832, 848,
+                    853, 880, 896, 898, 900, 904, 928, 931, 936, 959} & set(range(frames)))
     sheets.save_frames(mp4, looks, frames_dir)
     res.add("b", "transitions from reel.mp4", len(ttiles) == sum(1 for t in trans for x in (-1, 0, 1)
                                                                  if 0 <= t["frame"] + x < frames),
@@ -632,23 +722,28 @@ def verify_film(sb, cut: str, fmt_id: str, d: Path) -> Result:
     master, _ = wav.read(d / "track.wav")
     meter["master_wav"] = loudness.measure(master).as_dict()
     air = air_levels(audio, events, tbase.samples_per_frame)
+    air_master = air_levels(master, events, tbase.samples_per_frame)
     meter["air"] = air
+    meter["air_master_wav"] = air_master
     (vdir / "meter.json").write_text(json.dumps(meter, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
     analysis.spectrogram_png(audio.astype(np.float32), vdir / "spectrogram.png", events=events, meter_report=meter,
                              title=f"reel.mp4 audio (AAC decoded) — {cut}, {frames} frames, bar ticks")
     ok_d = abs(m.integrated_lufs - LUFS_TARGET) <= LUFS_TOLERANCE and m.true_peak_dbtp <= TP_CEILING \
-        and len(audio) == frames * tbase.samples_per_frame and air["ok"]
+        and len(audio) == frames * tbase.samples_per_frame and air["ok"] and air_master["ok"]
+
+    def air_text(a: dict) -> str:
+        return ", ".join(f"{r['cue']} f{r['frames'][0]}–{r['frames'][1] - 1} {r['lufs']} LUFS ({r['under_groove_lu']} LU "
+                         f"under{'' if r['ok'] else ' — TOO LOUD'})" for r in a["air"])
     res.add("d", "BS.1770-4 on the MP4's audio, and the AIR beats", ok_d,
             f"integrated {m.integrated_lufs:.2f} LUFS (target {LUFS_TARGET} ± {LUFS_TOLERANCE}), true peak "
             f"{m.true_peak_dbtp:.2f} dBTP (≤ {TP_CEILING}), LRA {m.lra_lu:.1f} LU; ffmpeg ebur128: "
             f"I {eb and eb['integrated_lufs']} LUFS, peak {eb and eb['true_peak_dbfs']} dBTP; decoded "
             f"{len(audio)} samples (expected {frames * tbase.samples_per_frame}); the WAV master was "
             f"{meter['master_wav']['integrated_lufs']:.2f} LUFS / {meter['master_wav']['true_peak_dbtp']:.2f} dBTP; "
-            f"AIR (near silence, ≥ {AIR_UNDER_LU:g} LU under the groove {air['groove_lufs']} LUFS = "
-            f"{'+'.join(air['groove_sections'])}): "
-            + ", ".join(f"{r['cue']} f{r['frames'][0]}–{r['frames'][1] - 1} {r['lufs']} LUFS ({r['under_groove_lu']} LU "
-                        f"under{'' if r['ok'] else ' — TOO LOUD'})" for r in air["air"]),
-            loudness=m.as_dict(), ffmpeg=eb, air=air, spectrogram="spectrogram.png")
+            f"AIR (near silence, ≥ {AIR_UNDER_LU:g} LU under the groove = {'+'.join(air['groove_sections'])}) on the "
+            f"WAV master (groove {air_master['groove_lufs']} LUFS): {air_text(air_master)}; on the MP4 (groove "
+            f"{air['groove_lufs']} LUFS): {air_text(air)}",
+            loudness=m.as_dict(), ffmpeg=eb, air=air, air_master=air_master, spectrogram="spectrogram.png")
 
     # (f) A/V sync on the written file: the sound's onset in the MP4's audio against the frame its disc or
     #     character first appears in the MP4's PIXELS ------------------------------------------------------
@@ -732,14 +827,22 @@ def verify_film(sb, cut: str, fmt_id: str, d: Path) -> Result:
         except MaskError as e:
             mask_problems.append(f"{name}: {e}")
         src.take.close()
-    # the old 13:15 row, on EVERY frame of its scene outside the whip (the form's push and pop included):
-    # how much of its place the window shows × how much of it the take's picture shows there (a push covers
-    # it), ≤ 5 %; and on the MP4's own pixels, at most a quarter of its text blocks as recorded
+    # the old 13:15 row, on EVERY frame of its scene (the whip, the form's push and pop included): its own
+    # blocks searched over the whole window (visible = share found × the window's alpha there, ≤ 5 %); all
+    # its blocks at the renderer's place (≤ 25 %); outside the whip, its place × the take's picture (≤ 5 %)
     hrows = measured["rows"]
-    hidden_bad = [r for r in hrows if r["visible"] > HIDDEN_ALPHA or r["mp4_shows"] > ROW_SHOWS_MP4]
-    hidden_max = max((r["visible"] for r in hrows), default=0.0)
+    hidden_bad = [{**r, "why": HiddenRow.over(r)} for r in hrows if HiddenRow.over(r)]
+    for label, info in measured.get("hidden", {}).items():
+        if not info["identifying"]:
+            mask_problems.append(f"{label}: none of its {info['blocks']} blocks identifies it (each is found elsewhere "
+                                 f"on the scene's pictures) — it cannot be searched for")
+    hidden_max = max((r["visible"] for r in hrows if r["visible"] is not None), default=0.0)
+    found_max = max((r["found_visible"] for r in hrows), default=0.0)
     mp4_max = max((r["mp4_shows"] for r in hrows), default=0.0)
     in_push = [r for r in hrows if 0.0 < r["take_shows"] < 1.0]
+    in_whip = [r for r in hrows if r["whip"]]
+    ident = "; ".join(f"{len(i['identifying'])} of its {i['blocks']} blocks identify it (at x "
+                      f"{', '.join(str(b) for b in i['identifying'])} take px)" for i in measured.get("hidden", {}).values())
     rates = []
     for sid, tl in doc["plan"]["timelines"].items():
         for s in tl["segments"]:
@@ -758,10 +861,12 @@ def verify_film(sb, cut: str, fmt_id: str, d: Path) -> Result:
             f"{len(gen)} generated elements, {len(uncited)} without a source; blurs checked on "
             f"{sum(m_['pictures_checked'] for m_ in masks_out)} pictures, at most "
             f"{max((m_['most_detail_left'] for m_ in masks_out), default=0):.0%} of the digits' detail left; "
-            f"the 13:15 row checked on {len(hrows)} frames ({len(in_push)} of them with the row half-covered by the "
-            f"form's push or pop): at most {hidden_max:.1%} of it visible (≤ {HIDDEN_ALPHA:.0%}), at most "
-            f"{mp4_max:.0%} of its text blocks in the MP4's pixels (≤ {ROW_SHOWS_MP4:.0%}), {len(hidden_bad)} frames "
-            f"over; waits (from a tap) at " + ", ".join(f"{r['rate']:.3f}×" for r in waits)
+            f"the 13:15 row checked on {len(hrows)} frames ({len(in_whip)} in the whip, {len(in_push)} with the row "
+            f"half-covered by the form's push or pop; {ident}): searched over the whole window, at most "
+            f"{found_max:.1%} of it visible where found (≤ {HIDDEN_ALPHA:.0%}); at its place at most {mp4_max:.0%} of "
+            f"its blocks in the MP4's pixels (≤ {ROW_SHOWS_MP4:.0%}) and, outside the whip, at most {hidden_max:.1%} "
+            f"of it visible (≤ {HIDDEN_ALPHA:.0%}); {len(hidden_bad)} frames over; waits (from a tap) at "
+            + ", ".join(f"{r['rate']:.3f}×" for r in waits)
             + "; gesture ramps (drags) at " + ", ".join(f"{r['rate']:.3f}×" for r in ramps),
             generated=gen, masks=masks_out, mask_problems=mask_problems, hidden_over=hidden_bad[:20],
             hidden_rows=hrows, rates=rates, list="honesty.txt")
@@ -770,39 +875,27 @@ def verify_film(sb, cut: str, fmt_id: str, d: Path) -> Result:
     from .scenes.captions import arrivals_on_two_lines
     caps = caption_reading(film.captions.items, sb.meta.fps)
     items = reading_items(film)
-    gating = reading_windows([i for i in items if not i["pending"]], sb.meta.fps)
-    alls = reading_windows(items, sb.meta.fps)
-    pend_items = [i for i in items if i["pending"]]
-    end_card = None
-    if pend_items:
-        a_, b_ = min(i["arrive"] for i in pend_items), max(i["leave"] for i in pend_items)
-        n_ = sum(i["chars"] for i in items if i["arrive"] >= a_ and i["leave"] <= b_)
-        end_card = {"from": a_, "to": b_, "chars": n_, "seconds": round((b_ - a_) / sb.meta.fps, 3),
-                    "cps": round(n_ * sb.meta.fps / (b_ - a_), 2),
-                    "groups": sorted({i["group"] for i in pend_items})}
+    gating = reading_windows(items, sb.meta.fps)
+    end_scene = next((sc.id for sc in film.scenes if sc.kind == "end_card"), None)
+    end_card = end_card_window(items, end_scene, sb.meta.fps) if end_scene else None
     two = arrivals_on_two_lines(film.captions.items)
     gaps = event_gaps([f for f, _ in doc["events"]], frames)
     worst_g = gating[0] if gating else None
-    worst_a = alls[0] if alls else None
-    fail_i = (worst_g is not None and worst_g["cps"] > MAX_CPS) or bool(two) or gaps[0][0] > MAX_GAP_FRAMES \
-        or not all(c["ok"] or any(it.pending for it in film.captions.items if it.id == c["caption"]) for c in caps)
-    pending_i = not fail_i and worst_a is not None and worst_a["cps"] > MAX_CPS
-    status_i = FAIL if fail_i else (PENDING if pending_i else PASS)
+    status_i = PASS if reading_verdict(gating, caps, two, gaps) else FAIL
     summary_i = (f"everything on screen together, worst window {worst_g['cps']:.1f} cps "
                  f"(f{worst_g['from']:g}→f{worst_g['to']:g}, {worst_g['chars']} characters in {worst_g['seconds']} s: "
                  f"{', '.join(worst_g['groups'])}; ≤ {MAX_CPS:g})" if worst_g else "no text")
     if end_card:
         summary_i += (f"; END CARD {end_card['chars']} characters in {end_card['seconds']} s "
                       f"(f{end_card['from']:g}→f{end_card['to']:g}) = {end_card['cps']:.1f} cps"
-                      + (" — OWNER DECISION PENDING (its wording / the cut's length are the owner's call)"
-                         if end_card["cps"] > MAX_CPS else ""))
+                      + ("" if end_card["cps"] <= MAX_CPS else " — TOO FAST"))
     summary_i += (f"; {len(two)} frames with words arriving on two lines"
                   + (f" ({two[0][0]:g}: {'; '.join(two[0][1])})" if two else "")
                   + f"; fastest single caption {max(c['cps'] for c in caps):.1f} cps; longest stretch without a "
                     f"visual event {gaps[0][0]} frames = {gaps[0][0] / sb.meta.fps:.2f} s (f{gaps[0][1]}→f{gaps[0][2]}; "
                     f"≤ {MAX_GAP_FRAMES / sb.meta.fps:g} s)")
-    res.add("i", "reading speed (combined) and pattern interrupts", status_i == PASS, summary_i, status=status_i,
-            windows=gating[:12], windows_all=alls[:12], end_card=end_card, captions=caps, items=items,
+    res.add("i", "reading speed (combined) and pattern interrupts", status_i == PASS, summary_i,
+            windows=gating[:12], end_card=end_card, captions=caps, items=items,
             two_lines=two, longest_gaps=[{"frames": g, "from": a, "to": b} for g, a, b in gaps[:6]],
             events=len(doc["events"]),
             not_counted=["the map credit (attribution, not a message)",
@@ -841,11 +934,7 @@ def verify(storyboard, cuts: list[str], formats: list[str], out_dir: Path) -> bo
     if not seen:
         print("verify: no film was verified")
         return Verdict(FAIL)
-    v = Verdict(worst(statuses))
-    if v.status == PENDING:
-        print("verify: OWNER DECISION PENDING — every automated check passes except what waits on the owner "
-              "(see report.txt); this is not a pass")
-    return v
+    return Verdict(worst(statuses))
 
 
 if __name__ == "__main__":  # pragma: no cover

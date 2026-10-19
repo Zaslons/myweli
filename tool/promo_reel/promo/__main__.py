@@ -6,8 +6,8 @@
 
 Every command first loads and checks storyboard.yaml (with the variant's
 ``--set`` overrides): a broken storyboard stops everything, exit code 2.
-``verify`` exits 0 only when every check PASSES, 1 on a FAIL, and 3 when the
-only thing left is OWNER DECISION PENDING (a distinct status, never a pass).
+``verify`` exits 0 only when every check PASSES, 1 otherwise (a FAIL, or no
+film to verify).
 
 ``build`` and ``verify`` hand over to the modules SCENES adds — a module is
 used as soon as it is in the tree, nothing here changes:
@@ -108,9 +108,7 @@ def main(argv: Sequence[str] | None = None) -> int:
               "that nothing checks.", file=sys.stderr)
         return 1
     v = verify(sb, cuts=cuts, formats=formats, out_dir=args.out)
-    if v:
-        return 0
-    return 3 if getattr(v, "status", None) == "OWNER DECISION PENDING" else 1
+    return 0 if v else 1
 
 
 if __name__ == "__main__":

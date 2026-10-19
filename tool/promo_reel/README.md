@@ -71,7 +71,7 @@ tb.pos_to_frame("5.2&")       # 280          tb.split_frame(149)     # (Pos(3, 2
 tb.frame_to_sample(144)       # 230400       tb.sample_to_frame(230400)  # 144 (an error inside a frame)
 tb.frame_at_sample(230401)    # 144          tb.to_frame("f144") == tb.to_frame("3.2") == 144
 tb.frame_to_seconds(144)      # Fraction(24, 5)   tb.seconds_to_frame(4.8)  # 144
-tb.DEFAULT.grid(896, "beat")  # the 56 beats of the 30-s cut
+tb.DEFAULT.grid(960, "beat")  # the 60 beats of the 30-s cut
 ```
 
 Constants: `FPS`, `BPM`, `SAMPLE_RATE`, `FRAMES_PER_STEP`, `FRAMES_PER_BEAT`,
@@ -84,9 +84,11 @@ Exactly five top-level keys (plus `x-…` keys, which only hold YAML anchors):
 
 - **meta** — `title`, `fps`, `bpm`, `key`, `sample_rate`. Strict: the time base
   must be the contract's (30 fps, 112.5 BPM, 48 kHz).
-- **cuts** — `30s: {bars: 14, frames: 896}`, `15s: {bars: 7, frames: 448}`, each
+- **cuts** — `30s: {bars: 15, frames: 960}`, `15s: {bars: 8, frames: 512}`, each
   with a `description`. A cut is named by its length; `frames` must be
-  `bars × 64`; a cut never runs longer than its name.
+  `bars × 64`; a cut runs the whole bars its name holds plus at most ONE —
+  the owner's outro bar (2026-10-19, « Add one bar »: the end card holds
+  ≈ 4.3 s): a « 30s » cut is at most 15 bars (32.0 s), a « 15s » cut 8.
 - **formats** — `9x16`, `1x1`, `16x9`:
   - `size` (the id's aspect ratio, short side 1080 so every pixel size carries
     over), `safe` `[x0, y0, x1, y1]`, `safe_basis` (`platform` — the strict
@@ -142,7 +144,7 @@ the path must exist but the last.
 from promo import storyboard
 sb = storyboard.load()                                   # or load(path, overrides=["meta.title=X"])
 sb.meta.bpm, sb.timebase.frames_per_bar                  # Fraction(225, 2), 64
-sb.cuts["30s"].frames, sb.cuts["30s"].duration_s         # 896, Fraction(448, 15)
+sb.cuts["30s"].frames, sb.cuts["30s"].duration_s         # 960, Fraction(32, 1)
 sb.formats["9x16"].safe, sb.formats["9x16"].zones["phone_window"]   # Rect(120, 270, 900, 1248), …
 sb.formats["16x9"].layout["lift_x"]                      # [300, 1060]
 sb.music, sb.scenes, sb.cue_ids()                        # pass-through data, declared cue ids
@@ -253,7 +255,7 @@ at most 11 % over the 84 pictures it is on.
 
 ```python
 from promo.media.writer import VideoWriter
-with VideoWriter("out/30s/9x16.mp4", 1080, 1920, frames=896, audio="out/30s/mix.wav") as w:
+with VideoWriter("out/30s/9x16.mp4", 1080, 1920, frames=960, audio="out/30s/mix.wav") as w:
     for frame in frames:          # H×W×4 uint8 RGBA (or bytes, skia.Image, skia.Surface), opaque
         w.write(frame)
 ```
@@ -273,12 +275,12 @@ from promo.media import probe
 report = probe.probe("film.mp4")     # JSON-able: file (sha256), container (boxes, faststart),
                                      # video (codec, profile, size, colour tags, frames counted,
                                      # CFR measured on every packet, key frames), audio, av
-probe.check(report, probe.Expect(frames=896, width=1080, height=1920))   # [] or the differences
-probe.assert_film("film.mp4", frames=896, width=1080, height=1920)       # raises ProbeError
+probe.check(report, probe.Expect(frames=960, width=1080, height=1920))   # [] or the differences
+probe.assert_film("film.mp4", frames=960, width=1080, height=1920)       # raises ProbeError
 probe.write_report(report, "film.json", probe.Expect(...))
 ```
 
-`python -m promo.media.probe film.mp4 --frames 896 --width 1080 --height 1920`.
+`python -m promo.media.probe film.mp4 --frames 960 --width 1080 --height 1920`.
 
 ### sheets.py — looking at a written film
 
@@ -363,7 +365,7 @@ python -m promo.render --frames 0,144,552 --out DIR [--events DIR/30s-9x16/event
 build.sh                                                     # both, for every cut × format that is laid out
 ```
 
-**What is built.** The 30-s cut in 9:16 (896 frames). The 15-s cut has no
+**What is built.** The 30-s cut in 9:16 (960 frames). The 15-s cut has no
 scenes yet and 1:1 / 16:9 are not laid out: `build`/`verify --all` name them
 (« NOT BUILT … ») and build/verify the rest; asking for one of them alone
 fails — nothing unbuilt is ever reported as verified.
@@ -391,7 +393,7 @@ times are `{named: t}` (a picture written to the ms), `{touch: gesture}`
 |---|---|---|
 | `carnet`, `air` | `scenes/carnet.py` | 1–5: the code-drawn carnet (push-in under way at f0, macro cut, strikes with punches, push + sink, grain), the AIR |
 | `phone` | `scenes/phone.py` | 6–22: take1b, take2b, N1, take5b in the 2.5D slab through the camera window |
-| `lottie`, `end_card` | `scenes/lottie.py` | 23–24: the Pro opening Lottie retimed, the mark settling, the tagline, « Disponible sur l’App Store » |
+| `lottie`, `end_card` | `scenes/lottie.py` | 23–24: the Pro opening Lottie retimed, the mark settling, the tagline, « Disponible sur l’App Store », the outro (the underline, the mark's punch) |
 | — | `scenes/film.py` | the cut end to end, the horizontal whip between scenes, captions, the per-frame record |
 
 **Rules the renderer enforces** (each a refusal with its storyboard path):
@@ -406,20 +408,31 @@ snaps home on the landing frame, with its punch; the renderer picks the
 smallest overrun that keeps every earlier frame a quarter digit short — 4
 frames for 0 → 77 000 over f535–f548, so f547 reads « 76 988 »); a caption
 line over 771 px; two caption lines receiving words on the same frame (one
-arrival at a time); camera keys not in time order (also refused by
-`storyboard.py`, with both keys' frames — the renderer sorts nothing); scenes
-that do not run end to end. `storyboard.py` also refuses a store line
-(`type_px.store`) under 40 px.
+arrival at a time); an underline that touches any caption's ink while both
+show (2 px clear; it sits under its line's descenders); a mark punch that
+brings the mark's ink nearer the tagline than half its height; a caption
+that still carries the retired `reading:` marker; camera keys not in time
+order (also refused by `storyboard.py`, with both keys' frames — the
+renderer sorts nothing); scenes that do not run end to end. `storyboard.py`
+also refuses a store line (`type_px.store`) under 40 px, and a cut more than
+one bar past its name.
 
 **Touches released at once.** A tap the log says was not held may carry
 `release_by`: its disc and ripple are gone by that frame. The « Libre » tap
 (f280) is gone by f285, before the form pushes in under it on f286.
 
 **The Fiche tiles** lift onto a plain panel in the app's `background` token
-(#F6F7F9, colors.dart:34 — the scaffold the tiles sit on in the app), 24 px
-around the union of the lifted row AND the tiles' own places on the phone, so
-no veiled original shows between or around them; the row is centred on the
-tiles' own row (y 815), so they lift out in place.
+(#F6F7F9, colors.dart:34 — the scaffold the tiles sit on in the app) that
+GROWS WITH THE LIFTS (`fx.stack.Stack.backdrop_rect`): on each frame it
+covers the tiles that have lifted — their cards where they are, their places
+on the phone and the gaps between — 24 px around, and on a side where a tile
+still waits it reaches exactly to that tile's place, never over it. So no
+veiled original shows between the lifted cards (« 0 Absences », never lifted,
+goes under the panel with « 17 000 FCFA » on f480), and every tile still to
+lift stays in its place, veiled, with its texture, until its own beat
+(f472 / f480 / f488; texture std 22–23 levels in a waiting tile's place, 0
+under the round-2 panel). The row is centred on the tiles' own row (y 815),
+so they lift out in place.
 
 **Motion blur.** Camera moves blur by subframe accumulation in linear light
 (`fx.blur`), only inside the phone window's rows, with enough subframes that
@@ -438,8 +451,9 @@ compared with them (PSNR), (b) every cut and whip ± 1 frame from the MP4
 `frames/`), (c) every touch-down drawn held to the gesture logs
 (`media.touches.cross_check`) and its tone re-measured, (d) BS.1770-4 on the
 MP4's decoded AAC (−14 ± 0.5 LUFS, ≤ −1.0 dBTP; ffmpeg's ebur128 as a second
-opinion), `spectrogram.png` with bar ticks, and each AIR beat at least 6 LU
-under the groove (K-weighted, the cut's drop/groove sections together), (e)
+opinion), `spectrogram.png` with bar ticks, and each AIR beat at least 7 LU
+under the groove (K-weighted, the cut's drop/groove sections together) on the
+WAV master AND on the MP4 (a pass never rests on the codec), (e)
 ffprobe + assertions (`probe.json`), (f) A/V sync: each click and key's
 onset in the MP4 audio against the frame its disc or character first
 appears in the MP4's PIXELS (`promo/pixels.py`: the disc's own ring; the
@@ -448,22 +462,28 @@ on MP4 frames — each caption whole, the counter mid-roll / landing / landed,
 every lift, the credit — inside the platform text area, plus every box
 render.json records on every frame, (h) honesty: every generated element
 with its source (`honesty.txt`), every blur measured on every picture the
-film uses, the old 13:15 row on every frame of its scene outside the whip —
-the form's push and pop included — (share of its place the window shows ×
-share of it the take's picture still shows there ≤ 5 %, and ≤ 25 % of its
-text blocks found in the MP4's pixels), the speed of every wait and ramp,
-(i) reading: everything on screen together, per arrival window
+film uses, the old 13:15 row on EVERY frame of its scene — the whip, the
+form's push and pop included (`verify.HiddenRow`): its blocks that identify
+it (found on no picture of the scene at another height — the new booking is
+the same client, so « Yao K. », « 1 prestation » and « Confirmé » are on its
+row too; only the old booking's « 13:15 / 13:45 » remain, 1 block of 6)
+searched over the WHOLE window in the MP4's pixels, visible = share found ×
+the window's alpha where found ≤ 5 %; all its blocks at the renderer's place
+≤ 25 %; and outside the whip, the share of its place the window shows × the
+share of it the take's picture shows there ≤ 5 % — the speed of every wait
+and ramp, (i) reading: everything on screen together, per arrival window
 (`reading_windows`: the characters arriving in a window that must be read
-before it closes), ≤ 17 cps; never two lines receiving words on one frame;
-the longest stretch without a visual event (≤ 2 s). Not counted as reading:
-the map credit (attribution), the lifted cards (the app's own pixels), the
-counter's rolling digits (its start « 0 », labels and landed figure are).
+before it closes), ≤ 17 cps, the end card like the rest (its own window is
+reported: 60 characters f827→f960 = 13.5 cps); never two lines receiving
+words on one frame; the longest stretch without a visual event (≤ 2 s). Not
+counted as reading: the map credit (attribution), the lifted cards (the
+app's own pixels), the counter's rolling digits (its start « 0 », labels and
+landed figure are).
 
-Statuses: PASS, FAIL and OWNER DECISION PENDING — a caption marked
-`reading: owner_decision_pending` (the end card) that is over the limit is
-reported with its figure under that status, never as a pass. `report.txt`
-leads with the film's status; `python -m promo verify` exits 0 (PASS), 1
-(FAIL) or 3 (OWNER DECISION PENDING), and so does `build.sh`.
+Statuses: PASS or FAIL. `report.txt` leads with the film's status;
+`python -m promo verify` exits 0 (PASS) or 1, and so does `build.sh`. (Round
+2's OWNER DECISION PENDING is retired: the owner decided the end card,
+2026-10-19 — one more bar.)
 
 ### Decisions made against the storyboard's text, and why
 
@@ -477,21 +497,35 @@ leads with the film's status; `python -m promo verify` exits 0 (PASS), 1
   5.3.1, f292, the same wait). Rejected: **f552** (the next 8th, the first
   build's choice) plays it at 0.829×, outside the approved band; f544 would
   be 1.24×, faster than real. « Tout » equals « Mois »: not used.
-- **The end card** (review M1). Its wording and the cut's length are the
-  owner's call and are unchanged. What changed: the tagline arrives as ONE
-  quick reveal as the mark settles (a 6-frame mask, f827→f832, whole on
-  `end.mark`); « Disponible sur l’App Store » arrives alone on its own cue
-  (`end.store`, 14.2.0 = f848; the log that was under « moins de gestion. »
-  is now `end.store_log` under it), at 40 px (was 34). `end.line2` is gone
-  from both scores. Read together the card is 60 characters in 2.3 s =
-  26.1 cps: verify (i) reports it as **OWNER DECISION PENDING**.
+- **The end card** (review M1; the owner's decision 2026-10-19, « Add one
+  bar »). The tagline arrives as ONE quick reveal as the mark settles (a
+  6-frame mask, f827→f832, whole on `end.mark`); « Disponible sur l’App
+  Store » arrives alone on its own cue (`end.store`, 14.2.0 = f848), at
+  40 px. The cut gained one bar (30 s: 15 bars, 960 frames, 32.0 s — past
+  the historical 30-s WhatsApp Status cap, the owner's call; 15 s: 8 bars),
+  a calm outro, and the card holds to the end: 60 characters f827→f960 =
+  13.5 cps (round 2: 26.1 over f827→f896). Two calm, on-beat events keep
+  the ≤ 2-s pattern-interrupt rule over the longer hold: on the outro's
+  downbeat (f896, `end.underline`, a pen scratch) the hook's strike — the
+  brand's single round-cap stroke at the type's stem width — draws an
+  UNDERLINE under « moins de gestion. » left to right over 8 frames, under
+  the « g »'s descender (MP4: stroke y 764–772, the tagline's ink ends at
+  756, the store line's starts at 808); on the last log (f928, `end.last`,
+  with the last chord) the mark gives a 1.06× punch (3 frames out, 8 back;
+  MP4: its ink y 394–606 at the peak, 106 px above the tagline's cap top).
+  Longest quiet stretches: f848→f896 (1.6 s), f896→f928, f928→f960.
+  The 15-s score has the same outro (the underline on f448, the last log on
+  f480); its scenes come with its layout.
 - **AIR 2** (row 22, review M2) is near silence, as AIR 1: riser 3 stops dead
   on the cut to black (12.4.0, f752 — the storyboard's « riser stops at
   f764 » conflicted with « near silence »), the breakdown's tail is short
-  (vel 0.5, decay 0.3) and the pad is muted over 12.4. On the MP4: AIR 1
-  −19.8 LUFS (6.4 LU under the groove), AIR 2 −21.0 (7.6 LU under; was
-  −13.8, 0.3 LU under). The 15-s cut's one AIR was 4.3 LU under (strike 3's
-  tail rang into it): decay 0.3 → 0.15, now 6.4 LU under after AAC.
+  (vel 0.5, decay 0.3) and the pad is muted over 12.4. Round 3: AIR 1 was
+  only 5.8 LU under the groove on the master (6.4 after AAC), AIR 2 6.9 —
+  both ≥ 7 on the master now: the AIR reverses at −20 / −18 dB (were −16),
+  AIR 1's breath of pad 3 dB down → 8.5 / 8.5 LU on the master. The 15-s
+  cut's one AIR: round 2's « 6.4 LU after AAC » did not reproduce (master
+  5.87, AAC 6.05); with the reverse at −19 dB, strike 3 at vel 0.7 and the
+  breath 3 dB down it is 8.4 LU on the master, 8.9 after AAC.
 - **The glide onto « Coupe homme »** takes 6 frames (f314→f320) like the two
   after it; the micro push-in eases back to 1.0 over the same frames.
 - **No picture is hidden.** take1b 130.985 is not a black picture: it is the
@@ -502,7 +536,8 @@ leads with the film's status; `python -m promo verify` exits 0 (PASS), 1
 - **The Fiche tiles** lift into a ROW (x 120–900, 2.92 px/pt), not a
   360-px-wide column: three tiles 360 px wide stack 1 085 px tall, which the
   storyboard's y 660–1200 cannot hold. The row sits on the tiles' own row
-  (centre y 815, was 900) on a plain `background` panel (review n2).
+  (centre y 815, was 900) on a plain `background` panel that grows with the
+  lifts (review n2, then round 2's regression).
 - **The end mark**: `end_mark_scale` 1.2 is read against the composition's own
   560 px (a 672-px comp), which is what gives the storyboard's ink y 400–599
   (measured with `Player.ink_bounds`); against the 900-px reveal it would be

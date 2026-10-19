@@ -5,11 +5,12 @@ soundtrack plays: the sections, the chord of every bar, the 16-step grid of
 every instrument in every bar, and the **named cues** — the sounds tied to a
 picture event, which SCENES addresses by id through `events.json`.
 
-`score_30s.yaml` (14 bars) and `score_15s.yaml` (7 bars) are the two scores.
+`score_30s.yaml` (15 bars) and `score_15s.yaml` (8 bars) are the two scores —
+each the storyboard's bars plus the owner's one-bar outro (2026-10-19).
 The 15-s one is its own score, re-written for that cut, never a splice of the
 30-s audio. `score.py` loads and validates a score; anything it refuses is
 listed with its location, for example
-`cues[12] 'drop1.impact': pos '15.1.0' is past the cut's 14 bars`.
+`cues[12] 'drop1.impact': pos '16.1.0' is past the cut's 15 bars`.
 
 ```
 python -m promo.audio --score score_30s.yaml --out DIR      # or: --cut 30s
@@ -40,7 +41,7 @@ which is what the loader expects; write `3.1` and it is refused.
 ```yaml
 score: 1             # the format version
 cut: 30s             # written into events.json
-bars: 14             # the cut lasts bars x 64 frames, exactly
+bars: 15             # the cut lasts bars x 64 frames, exactly
 tempo: 112.5         # fixed: any other value is refused
 key: C minor         # informative
 swing: 0.56          # where the off-16th sits in its 8th (0.50 = straight)

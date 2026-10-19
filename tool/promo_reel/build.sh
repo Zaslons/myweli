@@ -13,9 +13,8 @@
 # 3. python -m promo build --all, then python -m promo verify --all: every
 #    cut × format the storyboard lays out (today 30s/9x16) is rendered to
 #    out/<cut>-<format>/reel.mp4 and verified (out/<cut>-<format>/verify/);
-#    the others are named « NOT BUILT » with the reason. A failed check exits 1;
-#    a film whose only open item is the owner's (the end card's reading speed)
-#    exits 3, OWNER DECISION PENDING — never 0.
+#    the others are named « NOT BUILT » with the reason. Every check PASSes
+#    (exit 0) or the command fails (exit 1).
 #
 # Nothing outside tool/promo_reel/ is written. The recorded takes are read
 # from the main checkout's build/ folder (or PROMO_MATERIAL).

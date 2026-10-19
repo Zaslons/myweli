@@ -21,6 +21,15 @@ thing is THERE is decided by the pixels.
                                  at a place, searched along x: the slope of
                                  the frame's pixels against the row's (1 =
                                  the row itself, 0 = none of it)
+  row_fraction(L, template, …)   the share of the row's text blocks found at
+                                 (or near) a place
+  ncc_map(R, part)               normalised cross-correlation of a block at
+                                 every place of a region (FFT; flat → 0)
+  row_parts / distinctive        the row's text blocks, and which of them
+                                 identify it (found nowhere else on the
+                                 take's pictures)
+  row_anywhere(L, parts, region) the share of those blocks found ANYWHERE in
+                                 a region, at one common placement
 """
 
 from __future__ import annotations
@@ -239,3 +248,109 @@ def closer_to(L: np.ndarray, box, old: np.ndarray, new: np.ndarray) -> float:
     if not m.any():
         return 0.0
     return float(np.mean(np.abs(p - o)[m]) - np.mean(np.abs(p - n)[m]))
+
+
+# ---- the hidden row, searched anywhere in the window ----------------------------------------------
+
+def ncc_map(R: np.ndarray, part: np.ndarray, min_std: float = 2.0) -> np.ndarray:
+    """The normalised cross-correlation of `part` (h × w, luminance) with
+    every h × w window of `R`, top-left indexed: shape (H − h + 1, W − w + 1),
+    by FFT. A window flatter than `min_std` levels matches nothing (0): an
+    encoder's noise on paper never correlates with text."""
+    from scipy.signal import fftconvolve
+    h, w = part.shape
+    if R.shape[0] < h or R.shape[1] < w:
+        return np.zeros((max(0, R.shape[0] - h + 1), max(0, R.shape[1] - w + 1)))
+    tc = part - part.mean()
+    num = fftconvolve(R, tc[::-1, ::-1], mode="valid")
+    c1 = np.pad(R, ((1, 0), (1, 0))).cumsum(0).cumsum(1)
+    c2 = np.pad(R * R, ((1, 0), (1, 0))).cumsum(0).cumsum(1)
+
+    def box(c: np.ndarray) -> np.ndarray:
+        return c[h:, w:] - c[:-h, w:] - c[h:, :-w] + c[:-h, :-w]
+
+    n = h * w
+    s1, s2 = box(c1), box(c2)
+    var = np.maximum(s2 - s1 * s1 / n, 0.0)
+    out = num / (np.sqrt(var * float(np.sum(tc * tc))) + 1e-9)
+    out[var < (min_std ** 2) * n] = 0.0
+    return out
+
+
+def _resized(a: np.ndarray, scale: float) -> np.ndarray:
+    from PIL import Image
+    if abs(scale - 1.0) < 1e-9:
+        return np.asarray(a, dtype=np.float64)
+    size = (max(1, round(a.shape[1] * scale)), max(1, round(a.shape[0] * scale)))
+    return np.asarray(Image.fromarray(np.asarray(a, dtype=np.float32)).resize(size, Image.LANCZOS), dtype=np.float64)
+
+
+def row_parts(template: np.ndarray, block: int = 96, min_std: float = 6.0) -> list[tuple[int, np.ndarray]]:
+    """The row's readable parts, as row_fraction cuts them: `block`-px-wide
+    columns (at the template's own scale) with texture. [(x offset, part)]."""
+    th, tw = template.shape
+    out = []
+    for b0 in range(0, tw - block // 2, block):
+        t = template[:, b0:b0 + block]
+        if t.shape[1] >= block // 2 and float(t.std()) >= min_std:
+            out.append((b0, np.asarray(t, dtype=np.float64)))
+    return out
+
+
+def distinctive(parts: list[tuple[int, np.ndarray]], pictures: Iterable[np.ndarray], own_y: float,
+                scale: float = 1.0, match: float = 0.8, tol: float = 4.0) -> list[bool]:
+    """Which parts IDENTIFY the row: a part found (≥ `match`) on any of
+    `pictures` (luminance, the parts' scale) at a height other than the
+    row's own (`own_y` ± `tol` px at the working `scale` — a push slides the
+    row sideways, never up or down) is text the pictures show elsewhere — the
+    new booking of the same client, every card's « Confirmé » — so finding
+    it in a frame says nothing about the row. Worked at `scale` (pictures
+    and parts resized alike)."""
+    ps = [_resized(t, scale) for _, t in parts]
+    shared = [False] * len(parts)
+    y_own = own_y * scale
+    for pic in pictures:
+        P = _resized(pic, scale)
+        for i, t in enumerate(ps):
+            if shared[i]:
+                continue
+            ys, _ = np.nonzero(ncc_map(P, t) >= match)
+            if np.any(np.abs(ys - y_own) > tol):
+                shared[i] = True
+        if all(shared):
+            break
+    return [not x for x in shared]
+
+
+def row_anywhere(L: np.ndarray, parts: list[tuple[int, np.ndarray]], region, scale: float = 1.0,
+                 match: float = 0.8) -> tuple[float, float, float]:
+    """The share of `parts` (the row's blocks at their own scale, offsets
+    included) found together ANYWHERE in `region` (x0, y0, x1, y1) of `L`,
+    at `scale`: every part at one common placement of the row (its blocks
+    keep their offsets; a row pushed half out of the region shows only some
+    of them). Returns (share, x, y) — the row's top-left at the best
+    placement (frame px)."""
+    if not parts:
+        return 0.0, 0.0, 0.0
+    H, W = L.shape
+    x0, y0 = max(0, int(region[0])), max(0, int(region[1]))
+    x1, y1 = min(W, int(region[2])), min(H, int(region[3]))
+    R = L[y0:y1, x0:x1]
+    scaled = [(int(round(b0 * scale)), _resized(t, scale)) for b0, t in parts]
+    th = scaled[0][1].shape[0]
+    tw = max(b + t.shape[1] for b, t in scaled)
+    ny = R.shape[0] - th + 1
+    if ny <= 0:
+        return 0.0, 0.0, 0.0
+    Xs = np.arange(x0 - tw, x1)                       # the row's left edge, any overlap with the region
+    hits = np.zeros((ny, len(Xs)))
+    score = np.zeros((ny, len(Xs)))
+    for b, t in scaled:
+        c = ncc_map(R, t)[:ny]                         # (ny, nx): the part's top-left at (x0 + j, y0 + i)
+        j = Xs + b - x0
+        ok = (j >= 0) & (j < c.shape[1])
+        hits[:, ok] += c[:, j[ok]] >= match
+        score[:, ok] += np.clip(c[:, j[ok]], 0.0, 1.0)
+    # most parts found; among equals, the placement they match best (a row one pixel off still passes 0.8)
+    k = np.unravel_index(int(np.argmax(hits + 1e-3 * score / len(parts))), hits.shape)
+    return float(hits[k] / len(parts)), float(Xs[k[1]]), float(y0 + k[0])

@@ -661,13 +661,6 @@ class TestReviewRound2(unittest.TestCase):
         self.assertTrue(early)
         self.assertEqual(o.text_at(easing.progress(549, 535, 17)), ty.fcfa(77099))     # the old roll on f549
 
-    def test_the_backdrop_covers_the_row_and_the_tiles_places(self):
-        pic = np.full((300, 900, 4), 250, np.uint8)
-        srcs = [(0, 0, 100, 100), (110, 0, 210, 100)]
-        origins = [(200, 700, 300, 800), (310, 700, 410, 800)]
-        targets = [(120, 780, 500, 1160), (516, 780, 896, 1160)]
-        st = stack.Stack(pic, srcs, origins, targets, [10, 18])
-        self.assertEqual(st.backdrop_rect(24), (96, 676, 920, 1184))
 
     def test_a_tap_released_at_once(self):
         """n1: the « Libre » disc and its ripple are gone 5 frames after the
@@ -678,3 +671,87 @@ class TestReviewRound2(unittest.TestCase):
         self.assertEqual(touch.touch_alpha(285, 280, 280, st), 0.0)
         self.assertIsNone(touch.ripple_state(285, 280, st))
         self.assertIsNotNone(touch.ripple_state(284, 280, st))
+
+
+class TestReviewRound3(unittest.TestCase):
+    """The Fiche's panel grows WITH the lifts (review round 2: the panel went
+    up whole on the first lift and blanked « 17 000 FCFA », « 0 Absences »
+    and « 13 oct. 2026 » until their own beats)."""
+
+    # the Fiche as the 30-s film lays it out (frame px): the tiles' places on the phone, their row targets
+    ORIGINS = [(209.3, 725.4, 363.3, 875.2), (381.2, 725.4, 532.8, 875.2), (717.8, 725.4, 870.7, 875.2)]
+    TARGETS = [(120.0, 692.8, 371.3, 937.2), (387.3, 692.8, 634.7, 937.2), (650.7, 692.8, 900.0, 937.2)]
+    UPS = [472.0, 480.0, 488.0]
+    VEIL = (0.0, 560.0, 1080.0, 1216.0)
+
+    def picture(self) -> np.ndarray:
+        """Three « tiles » of dark strokes on a light card, like the app's."""
+        pic = np.full((260, 900, 4), 250, np.uint8)
+        for i in range(3):
+            x0 = i * 300
+            for k in range(6):
+                pic[40 + 30 * k:52 + 30 * k, x0 + 30:x0 + 230 - 20 * (k % 3), :3] = 30
+        pic[..., 3] = 255
+        return pic
+
+    def stack(self) -> stack.Stack:
+        srcs = [(i * 300.0, 0.0, i * 300.0 + 260.0, 252.0) for i in range(3)]
+        return stack.Stack(self.picture(), srcs, self.ORIGINS, self.TARGETS, self.UPS)
+
+    def test_the_panel_grows_with_the_lifts(self):
+        st = self.stack()
+        self.assertIsNone(st.backdrop_rect(470, 24))                          # nothing has lifted
+        r = st.backdrop_rect(478, 24)                                          # tile 1 up: its card and place …
+        self.assertAlmostEqual(r[0], 120.0 - 24)
+        self.assertAlmostEqual(r[1], 692.8 - 24)
+        self.assertEqual(r[2], self.ORIGINS[1][0])                            # … up to tile 2, still waiting
+        r = st.backdrop_rect(486, 24)                                          # tiles 1–2 up: « 0 Absences » (never
+        self.assertEqual(r[2], self.ORIGINS[2][0])                            # lifted) goes under, up to tile 3
+        r = st.backdrop_rect(494, 24)                                          # all three: padded 24 all round
+        self.assertEqual((r[0], r[2]), (120.0 - 24, 900.0 + 24))
+        for f in range(470, 500):                                              # never over a waiting tile
+            r = st.backdrop_rect(f, 24)
+            for o, up in zip(self.ORIGINS, self.UPS):
+                if r is not None and f < up:
+                    self.assertTrue(o[0] >= r[2] or o[2] <= r[0], (f, o, r))
+
+    def render(self, st: stack.Stack, f: float, backdrop_rect=None) -> np.ndarray:
+        """The phone (the tiles in their places, on paper), then the veil, the
+        panel and the cards as the film draws them."""
+        from promo.fx.surface import Picture, new_surface, to_array
+        s = new_surface(1080, 1920)
+        c = s.getCanvas()
+        c.clear(brand.PALETTE.PAPER)
+        pic = Picture(self.picture())
+        for lf in st.lifts:
+            lift.draw_card(c, pic, lf.src, lf.origin, lift=0.0)
+        panel = (brand.token("background"), 24.0, 24.0)
+        if backdrop_rect is None:
+            st.draw(c, f, veil_rect=self.VEIL, backdrop=panel)
+        else:                                                                  # the round-2 panel, for the defect
+            ps = [st.progress(i, f) for i in range(3)]
+            lift.draw_veil(c, self.VEIL, max(ps))
+            if max(ps) > 0:
+                c.drawRRect(skia.RRect.MakeRectXY(skia.Rect.MakeLTRB(*backdrop_rect), 24, 24),
+                            skia.Paint(AntiAlias=True, Color=panel[0]))
+            for lf, p in zip(st.lifts, ps):
+                lf.draw(c, p)
+        return to_array(s)[..., :3].astype(float) @ [0.2126, 0.7152, 0.0722]
+
+    @staticmethod
+    def texture(L: np.ndarray, o) -> float:
+        x0, y0, x1, y1 = (int(round(v)) for v in o)
+        return float(L[y0 + 4:y1 - 4, x0 + 4:x1 - 4].std())
+
+    def test_a_waiting_tile_keeps_its_texture_until_its_beat(self):
+        st = self.stack()
+        for f in (470, 473, 476, 479, 481, 484, 487):
+            L = self.render(st, f)
+            for i, (o, up) in enumerate(zip(self.ORIGINS, self.UPS)):
+                if f < up:
+                    self.assertGreater(self.texture(L, o), 20, (f, i))
+        # the round-2 panel (every target and place, from the first lift) blanks them: the defect this guards
+        old = (120.0 - 24, 692.8 - 24, 900.0 + 24, 937.2 + 24)
+        L = self.render(st, 476, backdrop_rect=old)
+        self.assertLess(self.texture(L, self.ORIGINS[1]), 2)
+        self.assertLess(self.texture(L, self.ORIGINS[2]), 2)

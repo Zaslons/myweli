@@ -50,7 +50,7 @@ SB = sbmod.load()
 
 class TestClock(unittest.TestCase):
     def setUp(self):
-        self.clock = Clock(EVENTS, 896)
+        self.clock = Clock(EVENTS, 960)
 
     def test_times(self):
         F = self.clock.frame
@@ -62,7 +62,7 @@ class TestClock(unittest.TestCase):
         self.assertEqual(F("3.1.2"), 136)
         self.assertEqual(F("5.2&"), 280)
         self.assertEqual(F("2.2.3+3"), 95)
-        self.assertEqual(F("end"), 896)
+        self.assertEqual(F("end"), 960)                           # 15 bars: the owner's outro bar
         self.assertEqual(F("f149"), 149)
         self.assertEqual(F(17), 17)
 
@@ -97,7 +97,7 @@ class TestKeysInOrder(unittest.TestCase):
     def test_a_key_written_before_the_one_above_it_is_refused(self):
         """m2's runtime twin of the storyboard check: the renderer sorts nothing."""
         from promo.scenes.base import Context, SceneError, track
-        ctx = Context(Clock(EVENTS, 896), SB.formats["9x16"])
+        ctx = Context(Clock(EVENTS, 960), SB.formats["9x16"])
         self.assertEqual(track(ctx, [{"at": "5.4.0", "value": 1.0}, {"at": "5.4.2+2", "value": 1.04}], "z")(314), 1.04)
         with self.assertRaisesRegex(SceneError, r"z\[2\]: 5.4.3\+2 is f318, not after the key before it \(f319\)"):
             track(ctx, [{"at": "5.4.0", "value": 1.0}, {"at": "5.4.3+3", "value": 1.04}, {"at": "5.4.3+2", "value": 1.04}], "z")
@@ -108,7 +108,7 @@ class TestOneArrivalAtATime(unittest.TestCase):
         """M1: « moins de gestion. » and « Disponible sur l’App Store » both
         arrived on f848."""
         from promo.scenes.captions import CaptionTrack, arrivals_on_two_lines
-        clock = Clock(EVENTS, 896)
+        clock = Clock(EVENTS, 960)
         lay = SB.formats["9x16"].layout
         tag = CaptionItem({"type": "tagline", "reveal": "mask", "until": "end",
                            "lines": [[{"w": "Plus de clients,", "at": "cue:end.mark"},
@@ -123,6 +123,70 @@ class TestOneArrivalAtATime(unittest.TestCase):
                           "end", clock, lay, "t")
         self.assertEqual(len(CaptionTrack([one, store]).items), 2)            # the card as it is now
         self.assertEqual(store.font.getSize(), 40)
+
+
+class TestEndCardOutro(unittest.TestCase):
+    """Round 3: the owner's outro bar — the end card reads at ≤ 17 cps, and
+    two calm events keep the pattern-interrupt rule (≤ 2 s) to the end."""
+
+    def setUp(self):
+        self.clock = Clock(EVENTS, 960)
+        self.lay = SB.formats["9x16"].layout
+        end = next(s for s in SB.cut_scenes("30s") if s["id"] == "end")
+        self.specs = {c["id"]: c for c in end["captions"]}
+
+    def items(self, **tagline):
+        tag = CaptionItem({**self.specs["tagline"], **tagline}, "end", self.clock, self.lay, "tagline")
+        store = CaptionItem(self.specs["store"], "end", self.clock, self.lay, "store")
+        return tag, store
+
+    def test_the_marker_is_retired(self):
+        with self.assertRaisesRegex(ValueError, "reading: retired"):
+            CaptionItem({**self.specs["store"], "reading": "owner_decision_pending"}, "end", self.clock, self.lay, "s")
+        self.assertNotIn("reading", self.specs["tagline"])
+        self.assertNotIn("reading", self.specs["store"])
+
+    def test_the_end_card_reads_in_time(self):
+        from promo.verify import end_card_window, reading_windows
+        tag, store = self.items()
+        items = [{"what": c.id, "arrive": c.first, "leave": c.until, "chars": len(c.text), "group": c.id,
+                  "scene": "end"} for c in (tag, store)]
+        w = end_card_window(items, "end", 30)
+        self.assertEqual((w["from"], w["to"], w["chars"]), (827, 960, 60))
+        self.assertAlmostEqual(w["cps"], 13.53, places=2)                       # was 26.1 cps over f827→f896
+        self.assertLessEqual(reading_windows(items, 30)[0]["cps"], 17)
+
+    def test_the_underline(self):
+        """The hook's strike comes back as an underline under « moins de
+        gestion. » on the outro's downbeat: the font's stem, under the
+        descenders, clear of the store line, growing left to right."""
+        from promo.scenes.captions import CaptionTrack
+        from promo.fx import type as ty
+        tag, store = self.items()
+        u = tag.underline
+        self.assertEqual((u["text"], u["at"], u["frames"]), ("moins de gestion.", 896, 8))
+        self.assertAlmostEqual(u["width"], ty.stem_width(tag.font))
+        line = tag.ink_boxes()[0]
+        self.assertGreaterEqual(u["rect"][1], line[3] + tag.UNDERLINE_GAP - 1e-6)        # under the « g »
+        self.assertLess(u["rect"][3], store.ink_boxes()[0][1] - 20)                       # well clear of the store line
+        self.assertGreater(u["rect"][0], line[0] + 300)                                   # under the second half only
+        self.assertAlmostEqual(u["rect"][2], line[2], delta=1.0)
+        self.assertIsNone(tag.underline_rect(895))
+        grow = [tag.underline_rect(f)[2] for f in (896, 898, 900, 904, 959)]
+        self.assertEqual(grow, sorted(grow))
+        self.assertAlmostEqual(grow[-1], u["rect"][2])
+        self.assertEqual(len(CaptionTrack([tag, store]).items), 2)
+
+    def test_an_underline_never_covers_text(self):
+        """Refused when the stroke would touch a caption's ink — here the store
+        line, brought up under the tagline."""
+        from promo.scenes.captions import CaptionTrack
+        tag, _ = self.items()
+        close = CaptionItem({**self.specs["store"], "cap_top": 760}, "end", self.clock, self.lay, "store")
+        with self.assertRaisesRegex(ValueError, "underline under « moins de gestion. ».*touches store's ink"):
+            CaptionTrack([tag, close])
+        with self.assertRaisesRegex(ValueError, "in none of the caption's words"):
+            self.items(underline={"text": "plus de gestion", "at": "cue:end.underline"})
 
 
 class TestTrack(unittest.TestCase):
@@ -183,7 +247,7 @@ class _Source:
 
 class TestTimeline(unittest.TestCase):
     def setUp(self):
-        self.clock = Clock(EVENTS, 896)
+        self.clock = Clock(EVENTS, 960)
 
     def tl(self, segs):
         return Timeline(_Source(), segs, self.clock, 30, "test")
@@ -223,7 +287,7 @@ class TestTimeline(unittest.TestCase):
 
 class TestCaptions(unittest.TestCase):
     def setUp(self):
-        self.clock = Clock(EVENTS, 896)
+        self.clock = Clock(EVENTS, 960)
         self.layout = SB.formats["9x16"].layout
 
     def test_measured_and_timed(self):
@@ -250,13 +314,13 @@ class TestStoryboard30s(unittest.TestCase):
     """The 30-s scenes as data — no material needed."""
 
     def setUp(self):
-        self.clock = Clock(EVENTS, 896)
+        self.clock = Clock(EVENTS, 960)
         self.scenes = SB.cut_scenes("30s")
 
     def test_end_to_end_on_the_scores_frames(self):
         spans = [(self.clock.frame(s["from"]), self.clock.frame(s["to"])) for s in self.scenes]
         self.assertEqual(spans[0][0], 0)
-        self.assertEqual(spans[-1][1], 896)
+        self.assertEqual(spans[-1][1], 960)                     # the end card runs to the new end
         for (a, b), (c, d) in zip(spans, spans[1:]):
             self.assertEqual(b, c)
         self.assertEqual([s["rows"][0] for s in self.scenes], [1, 5, 6, 16, 17, 19, 22, 23, 24])
@@ -329,10 +393,31 @@ class TestEventLogs(unittest.TestCase):
 class TestFilmFrames(unittest.TestCase):
     """A few real frames, timed by the score's frames (no audio render)."""
 
+    def test_the_end_card_to_the_end(self):
+        """The outro's two calm events: the underline drawn f896→f904, the
+        mark's punch on the last log (f928), its ink never nearer the tagline
+        than half its height; the last frame is the card at rest."""
+        end = next(s for s in self.film.scenes if s.id == "end")
+        self.assertEqual(end.end, 960)
+        ev = dict((f, w) for f, w in self.film.events() if f >= 848)
+        self.assertIn("underline « moins de gestion. »", ev.get(896, ""))
+        self.assertIn("mark punch", ev.get(928, ""))
+        from promo.verify import event_gaps
+        self.assertLessEqual(event_gaps([f for f, _ in self.film.events()], 960)[0][0], 60)
+        def mark(f):
+            _, rec = self.film.frame(f)
+            return next(b["rect"] for b in rec["boxes"] if b["kind"] == "mark")
+        rest, peak = mark(928), mark(931)
+        self.assertGreater(peak[3] - peak[1], (rest[3] - rest[1]) * 1.05)
+        self.assertGreaterEqual(712 - peak[3], (rest[3] - rest[1]) / 2)
+        self.assertEqual(mark(959), rest)
+        _, rec = self.film.frame(904)
+        self.assertIn("tagline:underline", [b["label"] for b in rec["boxes"]])
+
     @classmethod
     def setUpClass(cls):
         from promo.scenes import Film
-        cls.film = Film(SB, "30s", "9x16", Clock(EVENTS, 896))
+        cls.film = Film(SB, "30s", "9x16", Clock(EVENTS, 960))
 
     def test_structure(self):
         self.assertEqual([s.id for s in self.film.scenes],
@@ -356,7 +441,7 @@ class TestFilmFrames(unittest.TestCase):
         self.assertEqual(rev.counter["overrun"], 4.0)
         bad = sbmod.load(overrides=["scenes.30s.4.counter.roll.overrun=0"])
         with self.assertRaisesRegex(SceneError, r"counter.*on f54[0-7] the counter (already reads|reads .*above)"):
-            Film(bad, "30s", "9x16", Clock(EVENTS, 896))
+            Film(bad, "30s", "9x16", Clock(EVENTS, 960))
 
     def test_the_libre_disc_is_gone_before_the_push(self):
         """n1: nothing of the disc on f285 (the push starts on f286)."""
@@ -364,6 +449,23 @@ class TestFilmFrames(unittest.TestCase):
         self.assertIn("tap-libre", [b["label"] for b in rec["boxes"] if b["kind"] == "touch"])
         _, rec = self.film.frame(285)
         self.assertNotIn("tap-libre", [b["label"] for b in rec["boxes"] if b["kind"] == "touch"])
+
+    def test_the_tiles_wait_in_their_places(self):
+        """Round 3 (review: the panel blanked the tiles' places on the first
+        lift): every tile still to lift keeps its texture, veiled, in its own
+        place until its beat; the panel grows with the lifts."""
+        fi = next(s for s in self.film.scenes if s.id == "fiche")
+        ups = fi.stack["ups"]
+        self.assertEqual(ups, [472.0, 480.0, 488.0])
+        for f in (473, 476, 479, 481, 484, 487):
+            frame, _ = self.film.frame(f)
+            L = frame[..., :3].astype(float) @ [0.2126, 0.7152, 0.0722]
+            pose, W = fi.pose(float(f)), fi.W(float(f))
+            for i, r in enumerate(fi.stack["tiles_pt"]):
+                if f >= ups[i]:
+                    continue
+                x0, y0, x1, y1 = (int(round(v)) for v in fi.phone.map_rect(r, pose, W=W, window=fi.window))
+                self.assertGreater(L[y0 + 4:y1 - 4, x0 + 4:x1 - 4].std(), 20, (f, i))
 
     def test_the_lifted_tiles_sit_on_a_plain_panel(self):
         """n2: between and around the lifted tiles only the panel shows —

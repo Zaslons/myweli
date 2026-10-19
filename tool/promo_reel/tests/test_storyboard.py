@@ -49,10 +49,13 @@ class Starter(unittest.TestCase):
 
     def test_cuts(self):
         c30, c15 = self.sb.cuts["30s"], self.sb.cuts["15s"]
-        self.assertEqual((c30.bars, c30.frames, c30.samples), (14, 896, 1_433_600))
-        self.assertEqual((c15.bars, c15.frames), (7, 448))
-        self.assertAlmostEqual(float(c30.duration_s), 29.867, places=3)
-        self.assertLessEqual(c30.duration_s, c30.nominal_s)
+        # the owner's decision (2026-10-19, « Add one bar »): 14 + 1 and 7 + 1 bars
+        self.assertEqual((c30.bars, c30.frames, c30.samples), (15, 960, 1_536_000))
+        self.assertEqual((c15.bars, c15.frames), (8, 512))
+        self.assertEqual(float(c30.duration_s), 32.0)
+        self.assertAlmostEqual(float(c15.duration_s), 17.067, places=3)
+        for c in (c30, c15):                                   # one bar past what the name holds, never more
+            self.assertLessEqual(c.duration_s, c.nominal_s + Fraction(64 * sb.OUTRO_BARS, 30))
 
     def test_formats(self):
         f = self.sb.formats
@@ -74,7 +77,7 @@ class Starter(unittest.TestCase):
         self.assertEqual(self.sb.score_path("30s"), sb.PROMO_REEL / "promo/audio/score_30s.yaml")
         self.assertIn("swipe.touch", self.sb.cue_ids("30s"))
         self.assertIn("end.store", self.sb.cue_ids("15s"))
-        self.assertEqual(len(self.sb.cue_ids("30s")), 84)
+        self.assertEqual(len(self.sb.cue_ids("30s")), 85)                # + end.underline (the outro)
         self.assertEqual(len(self.sb.cut_scenes("30s")), 9)          # rows 1–24 of the 30-s storyboard
         self.assertEqual(self.sb.cut_scenes("15s"), [])
 
@@ -106,7 +109,7 @@ class Starter(unittest.TestCase):
         self.assertEqual(sb.time_frame("cue:swipe.whoosh", frames, 896), 149)          # pos + offset
         self.assertEqual(sb.time_frame("5.4.2+2", frames, 896), 314)
         self.assertEqual(sb.time_frame("5.2&", frames, 896), 280)
-        self.assertEqual(sb.time_frame("end", frames, 896), 896)
+        self.assertEqual(sb.time_frame("end", frames, 960), 960)
         self.assertIsNone(sb.time_frame("cue:hook.stab@end", frames, 896))           # not a span
 
     def test_the_store_line_is_read_not_fine_print(self):
@@ -126,7 +129,8 @@ class Starter(unittest.TestCase):
     def test_plan(self):
         plan = self.sb.plan()
         self.assertIn("112.5 BPM · 30 fps · 48000 Hz · C minor", plan)
-        self.assertIn("cut 30s: 14 bars = 896 frames = 29.867 s", plan)
+        self.assertIn("cut 30s: 15 bars = 960 frames = 32.000 s", plan)
+        self.assertIn("cut 15s: 8 bars = 512 frames = 17.067 s", plan)
         self.assertIn("films: 6 — 30s/9x16, 30s/1x1, 30s/16x9, 15s/9x16, 15s/1x1, 15s/16x9", plan)
         self.assertIn("films: 1 — 15s/1x1", self.sb.plan(["15s"], ["1x1"]))
 
@@ -152,9 +156,12 @@ class Strict(unittest.TestCase):
         self.assertEqual(problems("meta.key=Eb major", "meta.title=Variant"), [])
 
     def test_cuts(self):
-        self.assertProblem(problems("cuts.30s.frames=900"), "cuts.30s.frames", "14 bars × 64 = 896")
+        self.assertProblem(problems("cuts.30s.frames=900"), "cuts.30s.frames", "15 bars × 64 = 960")
         self.assertProblem(problems("cuts.30s.bars=0"), "cuts.30s.bars", "at least 1")
-        self.assertProblem(problems("cuts.10s={bars: 5, frames: 320}"), "cuts.10s", "longer than the 10 s")
+        # one outro bar past what the name holds (the owner's, 2026-10-19), never two
+        self.assertEqual([p for p in problems("cuts.10s={bars: 5, frames: 320}") if p.startswith("cuts")], [])
+        self.assertProblem(problems("cuts.10s={bars: 6, frames: 384}"), "cuts.10s", "hold 4 bars", "at most 5")
+        self.assertProblem(problems("cuts.30s={bars: 16, frames: 1024}"), "cuts.30s", "hold 14 bars", "at most 15")
         self.assertProblem(problems("cuts.short={bars: 1, frames: 64}"), "cuts.short", "length in seconds")
         self.assertProblem(problems("cuts={}"), "cuts", "at least one cut")
 

@@ -1,4 +1,8 @@
-# MyWeli Pro promo « CARNET → DROP » — the 30-s score (14 bars, 896 frames, 29.867 s).
+# MyWeli Pro promo « CARNET → DROP » — the 30-s score (15 bars, 960 frames, 32.0 s).
+#
+# Bar 15 is the owner's added bar (2026-10-19, « Add one bar »): the end card holds ≈ 4.3 s over a
+# calm one-bar outro — the log drum and a thinning shaker, the underline's pen on the downbeat, a last
+# chord with the last log on beat 3, its tail ringing to the end.
 #
 # Written around the storyboard's hero frames (promo-storyboard-full.md, « Beat by
 # beat (30 s) » and « Music plan »): a log or kick lands on every hero frame first
@@ -8,7 +12,7 @@
 
 score: 1
 cut: 30s
-bars: 14
+bars: 15
 tempo: 112.5
 key: C minor
 swing: 0.56            # shakers and hats only
@@ -22,7 +26,8 @@ sections:
   - {name: drop2, bars: 9-11}        # f512-703, whistle, organ, congas
   - {name: breakdown, bars: 12}      # f704-767, AIR f752-767
   - {name: reveal, bars: 13}         # f768-831, pad + sub only
-  - {name: outro, bars: 14}          # f832-895
+  - {name: end_card, bars: 14}       # f832-895, the mark, the tagline, « App Store »
+  - {name: outro, bars: 15}          # f896-959, the owner's added bar: calm, then the end
 
 chords:
   1: Cm9
@@ -40,6 +45,7 @@ chords:
   12: F9
   13: Cm9
   14: Cm9
+  15: Cm9
 
 patterns:
   four:           "x...|x...|x...|x..."
@@ -75,6 +81,8 @@ tracks:
       10: ". . . . | . . . . | . . 7, 1 | . . 3 ."   # words on 0 2 4 6 (cues), then A's tail
       11: log_b
       12: "1 . . . | . . . . | . . . . | . . . ."    # breakdown; the tail on 12.3.0 is a cue
+      14: ". . . . | . . . . | . . . . | 1 . . ."    # the end card: heroes on 0 and 4 are cues; f880
+      15: "1 . . . | . . . . | . . . . | . . . ."    # the outro's downbeat (the underline); the last log is a cue
 
   kick:
     instrument: kick
@@ -105,7 +113,7 @@ tracks:
     swing: true
     humanise: 5
     automation:
-      gain: [[1.1.0, -4], [2.4.0, -4], [3.1.0, 0]]    # the hook is darker
+      gain: [[1.1.0, -4], [2.4.0, -4], [3.1.0, 0], [15.1.0, 0], [15.3.0, -7]]   # the hook is darker; the outro thins
     bars:
       1: sixteenths
       2: sixteenths_air
@@ -114,6 +122,7 @@ tracks:
       9-11: sixteenths
       12: sixteenths_air
       14: sixteenths
+      15: "x.x.|x.x.|x...|...."                     # thinning: 8ths, then the last two
 
   hat:
     instrument: hat
@@ -165,6 +174,7 @@ tracks:
       11: keys
       12: "X---|----|----|...."
       14: "..X-|----|----|----"
+      15: "....|....|X---|----"                     # the last chord, with the last log (f928)
 
   organ:
     instrument: organ
@@ -187,14 +197,17 @@ tracks:
     instrument: pad
     gain: -14
     automation:
-      gain: [[1.1.0, 0], [12.3.3, 0], [12.4.0, -40], [12.4.3, -40], [13.1.0, 5], [14.1.0, 5], [14.2.0, 0]]   # muted over AIR 2 (f752-767)
+      gain: [[1.1.0, -3], [2.4.3, -3], [3.1.0, 0], [12.3.3, 0], [12.4.0, -40], [12.4.3, -40], [13.1.0, 5],
+             [14.1.0, 5], [14.2.0, 0], [15.1.0, 0], [15.4.3, -10]]
+      # AIR 1's breath 3 dB down; muted over AIR 2 (f752-767); fades over the outro. Both AIRs ≥ 7 LU under the
+      # groove ON THE MASTER (verify (d), the master and the MP4): 8.5 / 8.5 LU as written
     bars:
       2: "....|....|....|X---"                      # the AIR's breath of pad
       3-6: hold
       8-9: hold
       10-11: hold_split
       12: "X---|----|----|...."
-      13-14: hold
+      13-15: hold
 
   sub:
     instrument: sub
@@ -221,7 +234,7 @@ cues:
   - {id: strike3.slash, kind: pen_slash, pos: 2.2.2, gain: -8}
   - {id: riser1, kind: riser, pos: 2.1.0, end: 2.3.3, gates: [[2.1.0, 8], [2.3.0, 16]], gain: -11}   # f64-108
   - {id: clap_roll1, kind: clap_roll, pos: 2.3.0, end: 2.3.3, rate: 16, gain: -6}             # f96 f100 f104
-  - {id: air1.reverse, kind: reverse, pos: 2.4.0, end: 3.1.0, gain: -16}             # « Respirez. » f112 -> f128
+  - {id: air1.reverse, kind: reverse, pos: 2.4.0, end: 3.1.0, gain: -20}             # « Respirez. » f112 -> f128 (-16 left AIR 1 5.8 LU under on the master)
   # ── DROP 1, bar 3 (f128-191) ────────────────────────────────────────────
   - {id: drop1.impact, kind: impact, pos: 3.1.0, f_start: 80, f_end: 30, tau: 0.8, rt60: 2.5, gain: -6}
   - {id: swipe.touch, kind: click, pos: 3.2.0, gain: -3}                            # swipe touch-down f144
@@ -291,13 +304,15 @@ cues:
   - {id: riser3, kind: riser, pos: 12.2.0, end: 12.4.0, gates: [[12.2.0, 8], [12.3.0, 16]], gain: -11}   # f720-752: stops dead on the cut to black
   - {id: breakdown.tail, kind: log, pos: 12.3.0, note: C2, vel: 0.5, decay: 0.3}               # a short sub tail into the AIR
   - {id: clap_roll2, kind: clap_roll, pos: 12.3.2, end: 12.4.0, rate: 32, gain: -6}           # f744-751
-  - {id: air2.reverse, kind: reverse, pos: 12.4.0, end: 13.1.0, gain: -16}           # AIR f752 -> f768: near silence (the reverse + the sub tail), as AIR 1
+  - {id: air2.reverse, kind: reverse, pos: 12.4.0, end: 13.1.0, gain: -18}           # AIR f752 -> f768: near silence (the reverse + the sub tail), as AIR 1
   # ── REVEAL, bar 13 (f768-831) ───────────────────────────────────────────
   - {id: reveal.impact, kind: impact, pos: 13.1.0, f_start: 80, f_end: 30, tau: 1.0, rt60: 2.8, wet_db: -4, gain: -4}
   - {id: reveal.shimmer, kind: shimmer, pos: 13.2.0, gain: -10}                                # glyphs complete f784
   - {id: reveal.glide, kind: glide, pos: 13.3.1, end: 13.4.2, from: G3, to: C5, gain: -2}   # M/W morph f804-824
-  # ── OUTRO, bar 14 (f832-895) ────────────────────────────────────────────
+  # ── END CARD, bar 14 (f832-895) ─────────────────────────────────────────
   - {id: end.mark, kind: log, pos: 14.1.0, note: C2, octave: true, vel: 1.0}        # the mark settles; the tagline's one reveal completes f832
-  - {id: end.store, kind: glint, pos: 14.2.0, gain: -12, reverb: 1.6, wet: -12}      # « Disponible sur l’App Store » alone on f848 (1.6 s = 16.3 cps; at f864 1.07 s = 24 cps)
+  - {id: end.store, kind: glint, pos: 14.2.0, gain: -12, reverb: 1.6, wet: -12}      # « Disponible sur l’App Store » alone on f848
   - {id: end.store_log, kind: log, pos: 14.2.0, note: G2, vel: 0.8}                 # the log under it
-  - {id: end.last, kind: log, pos: 14.4.0, note: C2, decay: 0.6, reverb: 2.4, wet: -10}   # f880; the tail rings to f895
+  # ── OUTRO, bar 15 (f896-959): the owner's added bar ─────────────────────
+  - {id: end.underline, kind: pen_scratch, pos: 15.1.0, dur: 8, gain: -12}         # the hook's strike, now an underline under « moins de gestion. », drawn f896-904
+  - {id: end.last, kind: log, pos: 15.3.0, note: C2, decay: 0.6, reverb: 2.4, wet: -10}   # f928: the mark's small punch; the tail rings to f959 (the master's 60-ms end fade)

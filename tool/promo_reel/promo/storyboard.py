@@ -8,7 +8,8 @@ only holds a YAML anchor for values shared below it, and is not read):
            because every module counts 16 frames a beat.
   cuts     one entry per cut (``30s``, ``15s``): its number of bars and frames.
            Positions inside a cut are relative to its start, so every cut is
-           bars 1…n. A cut never runs longer than its name says.
+           bars 1…n. A cut runs the whole bars its name holds plus at most
+           ONE (the owner's outro bar, 2026-10-19: 30s = 14 + 1, 15s = 7 + 1).
   formats  one entry per output format (``9x16``, ``1x1``, ``16x9``): canvas,
            safe area, working zones and layout rules. Checked strictly — the
            geometry too (zones inside the canvas, text inside the safe area,
@@ -554,6 +555,12 @@ def _meta(c: _Check, value: Any) -> Meta | None:
     return Meta(title, fps, exact, key, rate)
 
 
+#: The owner's decision after the first 30-s review (2026-10-19, « Add one bar »): a cut may run this many
+#: bars past the whole bars its name holds — the calm outro under the end card, so the card's full wording
+#: holds ≈ 4.3 s. Never more: a « 30s » cut is at most 15 bars (32.0 s), a « 15s » cut 8 (17.07 s).
+OUTRO_BARS = 1
+
+
 def _cuts(c: _Check, value: Any, timebase: tb.TimeBase) -> dict[str, Cut]:
     if not isinstance(value, dict) or not value:
         c.fail("cuts", f"must be a mapping of at least one cut (e.g. 30s: …), not {_kind(value)}")
@@ -578,9 +585,11 @@ def _cuts(c: _Check, value: Any, timebase: tb.TimeBase) -> dict[str, Cut]:
             c.fail(f"{path}.frames", f"{frames} is not {bars} bars × {timebase.frames_per_bar} = {want} frames")
             continue
         nominal = int(m.group(1))
-        if Fraction(frames, timebase.fps) > nominal:
-            c.fail(path, f"{frames} frames run {frames / timebase.fps:.3f} s, longer than the {nominal} s "
-                         f"the cut is named after")
+        fit = (nominal * timebase.fps) // timebase.frames_per_bar        # whole bars inside the name
+        if bars > fit + OUTRO_BARS:
+            c.fail(path, f"{bars} bars run {frames / timebase.fps:.3f} s: the {nominal} s the cut is named after "
+                         f"hold {fit} bars, plus the {OUTRO_BARS} outro bar the owner allowed (2026-10-19) — at "
+                         f"most {fit + OUTRO_BARS}")
             continue
         out[cid] = Cut(cid, bars, frames, desc or "", timebase.fps)
     return out

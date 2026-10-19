@@ -16,14 +16,17 @@ meta:
   sample_rate: 48000      # 1 frame = 1 600 samples
 
 cuts:
+  # The owner's decision after the first 30-s review (2026-10-19, « Add one bar »): each cut gets ONE bar
+  # more than its name holds, a calm outro, so the end card's full wording holds ≈ 4.3 s and reads at
+  # ≤ 17 cps (verify (i)). storyboard.py allows exactly that one bar past the name, never more.
   30s:
-    bars: 14
-    frames: 896           # 29.867 s — under the historical 30-s Status cap; no 4-frame tail
-    description: the full story — hook, drop 1, booking, Fiche, drop 2 (Revenus), public page, reveal, end card
+    bars: 15
+    frames: 960           # 32.0 s = 14 bars (29.867 s) + the outro bar; past the historical 30-s Status cap (the owner's call)
+    description: the full story — hook, drop 1, booking, Fiche, drop 2 (Revenus), public page, reveal, end card, outro
   15s:
-    bars: 7
-    frames: 448           # 14.933 s — its own score (re-scored, never spliced) and its own events.json
-    description: one-bar hook, the swipe and tap, a booking made, Revenus, reveal, end card
+    bars: 8
+    frames: 512           # 17.067 s = 7 bars + the outro bar — its own score (re-scored, never spliced) and its own events.json
+    description: one-bar hook, the swipe and tap, a booking made, Revenus, reveal, end card, outro
 
 # Every format's short side is 1080, so type, the phone scale (1.791 px/pt),
 # the touch disc, the lifts and the Lottie keep the same pixel sizes
@@ -199,7 +202,8 @@ music:
 # GENERATED ELEMENTS cite their source (`cite:`); verify lists every one.
 
 scenes:
-  15s: []          # its own storyboard section; not laid out yet
+  15s: []          # its own storyboard section; not laid out yet. Its score already has the outro bar 8: its end
+                   # scene takes the 30-s end's underline (cue:end.underline, f448) and mark punch (cue:end.last, f480)
   30s:
 
   # ── rows 1–4 · f0–111 · HOOK: the code-drawn carnet ──────────────────────────
@@ -383,7 +387,10 @@ scenes:
         - [300.33, 286.0, 385.67, 369.67]    # « 13 oct. 2026 » Dernière
       ups: [cue:fiche.card1, cue:fiche.card2, cue:fiche.card3]
       layout: {axis: horizontal, x: [120, 900], gap: 16, centre_y: 815}   # on the tiles' own row (y 725–875): they lift out in place
-      backdrop: {colour: background, pad: 24, radius: 24,   # the veiled tiles on the phone never show between or around the lifted ones
+      # the panel grows WITH the lifts: at each lift it covers the lifted tiles (where they are now), their
+      # places on the phone and the gaps between, 24 px around — never a tile still waiting for its lift,
+      # which stays on the phone, veiled, with its texture, until its own beat (review round 2)
+      backdrop: {colour: background, pad: 24, radius: 24,
                  cite: "AppColors.background (mobile/lib/core/theme/colors.dart:34, the app's scaffold under its tiles): a plain panel, no UI"}
     captions:
       - id: clients
@@ -518,7 +525,7 @@ scenes:
       - [cue:reveal.glide@end, 72]           # 1.44×: M and W glide together into the mark
     blur: {from: cue:reveal.glide, to: cue:reveal.glide@end, samples: 8}
 
-  # ── row 24 · f824–895 · END: the mark settles, the tagline ──────────────────
+  # ── row 24 · f824–959 · END: the mark settles, the tagline, the store line, the outro ──
   - id: end
     rows: [24]
     kind: end_card
@@ -530,20 +537,25 @@ scenes:
     mark:
       from_comp: 72                          # where the reveal left it
       settle: {at: cue:end.mark, frames: 8, curve: ease_out_cubic}   # eases up and settles on 14.1
+      # on the last log (15.3.0, f928) a small punch — the outro's second calm event, 1.6 s before the end;
+      # moved and scaled only, its ink stays clear of the tagline by more than half its height
+      punch: {at: cue:end.last, peak: 1.06, out: 3, back: 8}
     captions:
       - id: tagline
         type: tagline
         reveal: mask
         until: end
-        reading: owner_decision_pending
         cite: "the brand book's Pro tagline (not a statistic); fallback « Votre journée, heure par heure. » (screens.json still 01)"
         # ONE quick reveal as the mark settles: the 6-frame mask runs f827→f832, whole on the mark's landing
         # (cue end.mark); the mark's ink is above y 652 by f827, clear of the line (cap top 712)
         lines: [[{w: "Plus de clients, moins de gestion.", at: cue:end.mark-5}]]
+        # the outro's downbeat (f896): the hook's strike — the brand's single round-cap stroke — comes back as an
+        # underline under « moins de gestion. », drawn left to right with the pen on its cue; under the
+        # descenders, clear of the store line (the renderer refuses a stroke that touches any text)
+        underline: {text: "moins de gestion.", at: cue:end.underline, frames: 8}
       - id: store
         type: store
         reveal: mask
         until: end
         cite: "the owner's addition (2026-10-19): « Disponible sur l’App Store », posted only after the release"
-        reading: owner_decision_pending        # the card's wording / the cut's length: the owner's call (review M1)
-        lines: [[{w: Disponible sur l’App Store, at: cue:end.store}]]     # alone on its own cue, f848
+        lines: [[{w: Disponible sur l’App Store, at: cue:end.store}]]     # alone on its own cue, f848; 60 characters f827→f960 = 13.5 cps

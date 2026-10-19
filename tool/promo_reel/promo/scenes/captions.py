@@ -15,6 +15,17 @@ Types follow the storyboard's « Type » rule and the format's ``type_px``:
 on: ink on paper, white on black — « Ils réservent dès la mise en ligne. »
 turns white as the page falls to black (row 22). Every line is measured with
 the repo's fonts and must fit the format's ``caption_line_max_px`` (771).
+
+``underline: {text, at, frames}`` draws the brand's single round-cap stroke
+(the hook's strikes, fx.type.draw_strike, at the font's stem width) under
+``text`` — part of one of the caption's words — from frame ``at``, growing
+left to right over ``frames``: the end card's « moins de gestion. » on the
+outro's downbeat. It sits under the line's descenders; the track refuses one
+that touches any caption's ink while both show.
+
+Every caption is held to the reading limit (verify (i), PASS or FAIL): the
+``reading: owner_decision_pending`` marker the end card once carried is
+retired — the owner decided (2026-10-19, one more bar) — and refused.
 """
 
 from __future__ import annotations
@@ -24,6 +35,7 @@ from typing import Any
 
 import skia
 
+from ..fx import easing
 from ..fx import type as ty
 from ..fx.brand import PALETTE, inter, poppins
 
@@ -55,12 +67,9 @@ class CaptionItem:
         self.id = spec.get("id", where)
         self.owner = owner
         self.cite = spec.get("cite")
-        reading = spec.get("reading")
-        if reading not in (None, "owner_decision_pending"):
-            raise ValueError(f"{where}.reading: only `owner_decision_pending`, not {reading!r}")
-        #: the reading check reports this caption's windows as OWNER DECISION PENDING (never PASS) when they
-        #: are over the limit: its wording / time on screen is the owner's call, not a defect to fix here
-        self.pending = reading == "owner_decision_pending"
+        if "reading" in spec:
+            raise ValueError(f"{where}.reading: retired — every caption is held to the reading limit (verify (i) "
+                             f"is PASS or FAIL); the owner decided the end card (2026-10-19: one more bar)")
         kind = spec.get("type", "app")
         styles = _styles(layout)
         if kind not in styles:
@@ -107,6 +116,47 @@ class CaptionItem:
             self.caption.find(s["word"])
             self.strike = (s["word"], float(clock.frame(s["at"])))
         self.text = " ".join(w.text for line in self.caption.lines for w in line)
+        self.underline = self._underline(spec["underline"], clock, f"{where}.underline") if spec.get("underline") else None
+
+    #: the underline's clearance under the line's lowest ink (descenders), in px
+    UNDERLINE_GAP = 6.0
+
+    def _underline(self, u: dict, clock, where: str) -> dict:
+        try:
+            text = ty.french(str(u["text"]))
+            at = float(clock.frame(u["at"]))
+        except KeyError as e:
+            raise ValueError(f"{where}: needs {e.args[0]}") from None
+        frames = float(u.get("frames", 8))
+        p = next((p for p in self.caption.placed if text in p.word.text), None)
+        if p is None:
+            raise ValueError(f"{where}: « {text} » is in none of the caption's words")
+        x = p.x + ty.measure(p.word.text[:p.word.text.index(text)], self.font)
+        x0, _, x1, _ = ty.ink_bounds(text, self.font, x, p.baseline)
+        line = [q for q in self.caption.placed if q.line == p.line]
+        bottom = max(ty.ink_bounds(q.word.text, self.font, q.x, q.baseline)[3] for q in line)
+        width = ty.stem_width(self.font)
+        y = bottom + self.UNDERLINE_GAP + width / 2
+        return {"text": text, "at": at, "frames": frames, "p0": (x0, y), "p1": (x1, y), "width": width,
+                "rect": (x0, y - width / 2, x1, y + width / 2)}
+
+    def underline_rect(self, t: float) -> tuple[float, float, float, float] | None:
+        """The underline's ink at t (its visible length grows over its frames)."""
+        u = self.underline
+        if not u or t < u["at"] or not self.visible(t):
+            return None
+        full = u["p1"][0] - u["p0"][0]
+        vis = ty.strike_length(full, u["width"], easing.progress(t, u["at"], u["frames"]))
+        x0, y0, _, y1 = u["rect"]
+        return (x0, y0, x0 + vis, y1)
+
+    def ink_boxes(self) -> list[tuple[float, float, float, float]]:
+        """The ink of every line, whole (for the underline's clearance)."""
+        out = []
+        for li in range(len(self.caption.lines)):
+            bs = [ty.ink_bounds(q.word.text, self.font, q.x, q.baseline) for q in self.caption.placed if q.line == li]
+            out.append((min(b[0] for b in bs), min(b[1] for b in bs), max(b[2] for b in bs), max(b[3] for b in bs)))
+        return out
 
     def visible(self, t: float) -> bool:
         return self.first - self.reveal.lead <= t < self.until
@@ -124,6 +174,11 @@ class CaptionItem:
         if self.strike:
             word, at = self.strike
             ty.strike_word(canvas, self.caption, word, t, at, self.caption.colour)
+        u = self.underline
+        if u and t >= u["at"]:
+            (ax, ay), (bx, by) = u["p0"], u["p1"]
+            ty.draw_strike(canvas, (ax, ay + dy), (bx, by + dy), u["width"], easing.progress(t, u["at"], u["frames"]),
+                           self.caption.colour, alpha)
 
     def boxes(self, t: float) -> list[dict]:
         """Ink boxes of the words showing at t (for the safe-zone check)."""
@@ -138,10 +193,33 @@ class CaptionItem:
             rise = 0.0 if self.reveal.kind == "mask" else self.caption.word_state(p, t)[1]
             out.append({"kind": "caption", "label": f"{self.id}:{p.word.text}",
                         "rect": [round(x0, 1), round(y0 + rise, 1), round(x1, 1), round(y1 + rise, 1)]})
+        u = self.underline_rect(t)
+        if u is not None:
+            out.append({"kind": "caption", "label": f"{self.id}:underline", "rect": [round(v, 1) for v in u]})
         return out
 
     def line_widths(self) -> list[float]:
         return self.caption.line_widths()
+
+
+def underline_clashes(items: list[CaptionItem]) -> list[str]:
+    """Underlines that touch a caption's ink — their own lines' or any other
+    caption's on screen with them (≥ 2 px clear). The stroke never covers
+    text."""
+    out = []
+    for c in items:
+        u = c.underline
+        if not u:
+            continue
+        ux0, uy0, ux1, uy1 = u["rect"]
+        for o in items:
+            if o is not c and (o.until <= u["at"] or o.first - o.reveal.lead >= c.until):
+                continue                                         # never on screen together
+            for b in o.ink_boxes():
+                if ux0 < b[2] + 2 and b[0] - 2 < ux1 and uy0 < b[3] + 2 and b[1] - 2 < uy1:
+                    out.append(f"{c.id}'s underline under « {u['text']} » (y {uy0:.1f}–{uy1:.1f}) touches "
+                               f"{o.id}'s ink (x {b[0]:.0f}–{b[2]:.0f}, y {b[1]:.1f}–{b[3]:.1f})")
+    return out
 
 
 def arrivals_on_two_lines(items: list[CaptionItem]) -> list[tuple[float, list[str]]]:
@@ -171,6 +249,9 @@ class CaptionTrack:
         if same:
             f, words = same[0]
             raise ValueError(f"two lines receive words on f{f:g}: {'; '.join(words)} — one arrival at a time")
+        clash = underline_clashes(items)
+        if clash:
+            raise ValueError(f"{clash[0]} — an underline never covers text")
 
     def at(self, t: float) -> list[CaptionItem]:
         return [c for c in self.items if c.visible(t)]

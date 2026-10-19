@@ -51,12 +51,12 @@ STORYBOARD_30S = {
     "sentence.word1": 576, "sentence.word2": 584, "sentence.word3": 592, "sentence.word4": 600,
     "sentence.pop": 600, "page.cut": 640, "page.drag": 672, "riser3": 720, "breakdown.tail": 736,
     "clap_roll2": 744, "air2.reverse": 752, "reveal.impact": 768, "reveal.shimmer": 784, "reveal.glide": 804,
-    "end.mark": 832, "end.store": 848, "end.store_log": 848, "end.last": 880,
+    "end.mark": 832, "end.store": 848, "end.store_log": 848, "end.underline": 896, "end.last": 928,
 }
 SPANS_30S = {"hook.pen": 24, "riser1": 108, "clap_roll1": 108, "air1.reverse": 128, "swipe.whoosh": 160,
              "tap.close": 190, "arrive.air": 256, "fill.tape": 334, "create.drag": 392, "create.close": 430,
              "riser2": 508, "lift.reverse": 512, "page.drag": 704, "riser3": 752, "clap_roll2": 752,
-             "air2.reverse": 768, "reveal.glide": 824}
+             "air2.reverse": 768, "reveal.glide": 824, "end.underline": 904}
 STORYBOARD_15S = {
     "hook.stab": 0, "hook.word1": 0, "hook.word2": 8, "hook.word3": 16, "strike1": 24, "strike2": 32,
     "strike3": 40, "riser1": 16, "clap_roll1": 40, "air1.reverse": 48, "drop1.impact": 64, "swipe.touch": 64,
@@ -66,9 +66,9 @@ STORYBOARD_15S = {
     "revenus.touch": 272, "revenus.tick1": 280, "revenus.tick2": 284, "revenus.tick3": 288,
     "revenus.land": 292, "revenus.ding": 292, "reveal.impact": 320,
     "reveal.shimmer": 336, "reveal.glide": 356, "end.mark": 384, "end.store": 400, "end.store_log": 400,
-    "end.last": 432,
+    "end.underline": 448, "end.last": 480,
 }
-SPANS_15S = {"riser1": 44, "air1.reverse": 64, "reveal.glide": 376}
+SPANS_15S = {"riser1": 44, "air1.reverse": 64, "reveal.glide": 376, "end.underline": 456}
 
 
 def sine(freq: float, seconds: float, dbfs: float, phase: float = 0.0) -> np.ndarray:
@@ -105,10 +105,10 @@ class TestTimebase(unittest.TestCase):
     def test_beat_is_exactly_16_frames(self):
         self.assertEqual(tb.SAMPLES_PER_BEAT, 25_600)
         self.assertAlmostEqual(tb.SAMPLES_PER_BEAT / FS, 60 / 112.5, places=12)
-        self.assertEqual(tb.FRAMES_PER_BAR * 14, 896)
+        self.assertEqual(tb.FRAMES_PER_BAR * 15, 960)            # the 30-s cut: 14 bars + the owner's outro
 
     def test_round_trip_every_16th(self):
-        for frame in range(0, 896, 4):
+        for frame in range(0, 960, 4):
             p = tb.pos_of_frame(frame)
             self.assertEqual(p.frame, frame)
             self.assertEqual(tb.parse_pos(str(p)), p)
@@ -270,7 +270,7 @@ class TestScore(unittest.TestCase):
         self.assertIn("cover bars 1-2", self.refused(variant(sections=[{"name": "a", "bars": 1}])))
 
     def test_the_shipped_scores(self):
-        for name, bars in (("score_30s.yaml", 14), ("score_15s.yaml", 7)):
+        for name, bars in (("score_30s.yaml", 15), ("score_15s.yaml", 8)):        # + the owner's outro bar
             sc = score_mod.load(find_score(name))
             self.assertEqual(sc.bars, bars)
             self.assertEqual(sc.frames, bars * 64)
@@ -429,6 +429,12 @@ class TestMix(unittest.TestCase):
 
 # ══ the render, the master, events.json ════════════════════════════════════
 
+def air_on(audio: np.ndarray, events: dict) -> dict:
+    """verify (d)'s AIR rule on a master as written."""
+    from promo.verify import air_levels
+    return air_levels(audio, events)
+
+
 def air_after_aac(wav_path: Path, events: dict) -> dict:
     """The AIR check verify runs on the MP4, on the master passed through the
     film's own AAC encoder (its low-pass takes a little off the reverse
@@ -464,14 +470,18 @@ class TestBuild15s(unittest.TestCase):
             self.assertTrue((self.out / name).stat().st_size > 1000, name)
         with wave.open(str(self.out / "track.wav")) as w:
             self.assertEqual((w.getnchannels(), w.getsampwidth(), w.getframerate()), (2, 3, 48_000))
-            self.assertEqual(w.getnframes(), 448 * 1600)
+            self.assertEqual(w.getnframes(), 512 * 1600)
 
     def test_the_air_beat_is_near_silence(self):
-        """The 15-s cut's one AIR (f48–63) was 4.3 LU under its groove: strike 3's
-        tail rang into it. Shortened, it is ≥ 6 LU under, as the 30-s AIRs."""
-        a = air_after_aac(self.out / "track.wav", self.events)
-        self.assertEqual([r["cue"] for r in a["air"]], ["air1.reverse"])
-        self.assertTrue(a["ok"], a)
+        """The 15-s cut's one AIR (f48–63) was 4.3 LU under its groove (strike
+        3's tail rang into it), then 5.9 on the master: ≥ 7 LU under, on the
+        master AND after AAC (the reverse 3 dB down, strike 3 lighter, the
+        breath 3 dB down: 8.4 LU on the master as written)."""
+        from promo.verify import AIR_UNDER_LU
+        self.assertEqual(AIR_UNDER_LU, 7.0)
+        for a in (air_on(self.audio, self.events), air_after_aac(self.out / "track.wav", self.events)):
+            self.assertEqual([r["cue"] for r in a["air"]], ["air1.reverse"])
+            self.assertTrue(a["ok"], a)
 
     def test_master_targets(self):
         self.assertLess(abs(loudness.integrated(self.audio) + 14.0), 0.1)
@@ -494,9 +504,9 @@ class TestBuild15s(unittest.TestCase):
             self.assertEqual(e["sample"], e["frame"] * 1600)
         for cid, frame in STORYBOARD_15S.items():
             self.assertEqual(by_id[cid]["frame"], frame, cid)
-        self.assertEqual(self.events["frames"], 448)
-        self.assertEqual([b["frame"] for b in self.events["bars"]], [64 * k for k in range(7)])
-        self.assertEqual(len(self.events["beats"]), 28)
+        self.assertEqual(self.events["frames"], 512)
+        self.assertEqual([b["frame"] for b in self.events["bars"]], [64 * k for k in range(8)])
+        self.assertEqual(len(self.events["beats"]), 32)
         for b in self.events["beats"]:
             self.assertEqual(b["sample"], b["frame"] * 1600)
             self.assertEqual(tb.parse_pos(b["pos"]).frame, b["frame"])
@@ -544,7 +554,7 @@ class TestBuild30s(unittest.TestCase):
         shutil.rmtree(cls.out, ignore_errors=True)
 
     def test_master_and_length(self):
-        self.assertEqual(len(self.audio), 896 * 1600)
+        self.assertEqual(len(self.audio), 960 * 1600)
         self.assertLess(abs(loudness.integrated(self.audio) + 14.0), 0.1)
         self.assertLessEqual(loudness.true_peak_db(self.audio), -1.0)
 
@@ -555,19 +565,45 @@ class TestBuild30s(unittest.TestCase):
             self.assertEqual(by_id[cid]["sample"], frame * 1600, cid)
         for cid, end in SPANS_30S.items():
             self.assertEqual(by_id[cid]["end_frame"], end, cid)
-        self.assertEqual(len(self.events["beats"]), 56)
+        self.assertEqual(len(self.events["beats"]), 60)
 
     def test_both_air_beats_are_near_silence(self):
         """Review M2: AIR 2 (f752–767) played at the groove's level (0.3 LU
-        under it); now riser 3 stops dead on the cut, the breakdown's tail is
-        short and the pad is muted: both AIR beats ≥ 6 LU under the groove."""
-        a = air_after_aac(self.out / "track.wav", self.events)
-        rows = {r["cue"]: r for r in a["air"]}
-        self.assertEqual(sorted(rows), ["air1.reverse", "air2.reverse"])
-        self.assertTrue(a["ok"], a)
-        self.assertGreater(rows["air2.reverse"]["under_groove_lu"], 7.0)
+        under it); riser 3 now stops dead on the cut, the breakdown's tail is
+        short and the pad is muted. Round 3: both ≥ 7 LU under the groove on
+        the MASTER as well as after AAC (AIR 1 was 5.8 on the master): the
+        reverses 4 / 2 dB down and AIR 1's breath 3 dB down."""
+        for a in (air_on(self.audio, self.events), air_after_aac(self.out / "track.wav", self.events)):
+            rows = {r["cue"]: r for r in a["air"]}
+            self.assertEqual(sorted(rows), ["air1.reverse", "air2.reverse"])
+            self.assertTrue(a["ok"], a)
+            self.assertGreaterEqual(min(r["under_groove_lu"] for r in rows.values()), 7.0)
         by_id = {c["id"]: c for c in self.events["cues"]}
         self.assertLessEqual(by_id["riser3"]["end_frame"], 752)              # nothing rises into the black
+
+    def test_the_outro_bar(self):
+        """The owner's added bar 15 (2026-10-19): calm — no kick, clap or hat;
+        the shaker thins; the underline's pen on the downbeat, as long as the
+        stroke draws (8 frames); the last log and the last chord on beat 3;
+        its tail rings on to the master's end fade (silence on the last
+        sample)."""
+        r = self.result.render
+        bar = tb.SAMPLES_PER_BAR
+        b15 = 14 * bar
+
+        def kinds(a: int) -> list[str]:
+            return [p.kind for p in r.placed if a <= p.grid_sample < a + bar]
+
+        self.assertFalse({"kick", "clap", "hat"} & set(kinds(b15)))
+        self.assertLess(kinds(b15).count("shaker"), kinds(b15 - bar).count("shaker") / 2)
+        by_id = {c["id"]: c for c in self.events["cues"]}
+        u = by_id["end.underline"]
+        self.assertEqual((u["kind"], u["frame"], u["end_frame"]), ("pen_scratch", 896, 904))
+        self.assertEqual((by_id["end.last"]["kind"], by_id["end.last"]["pos"]), ("log", "15.3.0"))
+        self.assertIn("rhodes", kinds(b15))                                   # the last chord
+        rms = lambda a, b: 20 * np.log10(np.sqrt(np.mean(self.audio[a * 1600:b * 1600] ** 2)) + 1e-12)  # noqa: E731
+        self.assertGreater(rms(950, 957), -50)                                # the tail still rings …
+        self.assertLess(np.abs(self.audio[-1]).max(), 1e-4)                   # … into the end fade
 
     def test_the_hook_is_darker_than_the_drop(self):
         """« A dark, staccato hook »: bar 1 sits well under DROP 1 (4.7 LU as mixed)."""

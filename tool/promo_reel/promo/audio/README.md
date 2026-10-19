@@ -21,7 +21,7 @@ python -m unittest tests.test_audio                            # 44 tests, ~10 s
 
 | file written | what it holds |
 |---|---|
-| `track.wav` | 24-bit stereo PCM at 48 kHz, exactly `frames × 1600` samples long (896 or 448 frames), with TPDF dither |
+| `track.wav` | 24-bit stereo PCM at 48 kHz, exactly `frames × 1600` samples long (960 or 512 frames), with TPDF dither |
 | `events.json` | every bar and every beat; every named cue with its `id`, `kind`, `pos`, exact `frame` and exact `sample`; the sections and the chords |
 | `meter.json` | BS.1770-4 integrated, short-term max and momentary max loudness; true and sample peak; LRA; the pass/fail check against the target; readings per bar and per section; the mono fold-down; what the mix did; and ffmpeg's ebur128 reading of the same file as a cross-check |
 | `spectrogram.png` | waveform, log-frequency spectrogram and loudness curves on one time axis in bars, with section names and a tick for every cue |
@@ -117,13 +117,15 @@ master.
 
 ## The two scores
 
-`score_30s.yaml` (14 bars) follows every row's « Sound » column and the
-Music plan, section by section:
+`score_30s.yaml` (15 bars: the storyboard's 14 and the owner's one-bar
+outro, 2026-10-19) follows every row's « Sound » column and the Music plan,
+section by section:
 
 - **Hook** (bars 1–2). A low-passed log stab with its sub on frame 0, a rim
   tick on each word, the pen, then the three strikes on f64, f76 and f88,
   the last gliding G1 → C2. Riser 1 runs from f64 to f108, then comes a clap
-  roll, and the « Respirez. » AIR with a reverse cymbal into f128.
+  roll, and the « Respirez. » AIR with a reverse cymbal into f128 (−20 dB)
+  over a breath of pad 3 dB down.
 - **Drop 1** (bars 3–4). An impact. The touch-down clicks on f144 and f176.
   The swipe whoosh is panned left to right over f149–160. The open pane gets
   an E♭2 log and a wood thock. The lift gets a log and a pop on f232, and a
@@ -141,15 +143,28 @@ Music plan, section by section:
   clap, a kick punch and a kalimba. The caption words fall on log hits at f576, f584, f592 and f600.
 - **Breakdown** (bar 12). Riser 3 runs from f720 and stops dead on the cut
   to black (f752), with a clap roll; the second AIR (f752–767) is near
-  silence like the first: the reverse cymbal and a short sub tail, the pad
-  muted.
+  silence like the first: the reverse cymbal (−18 dB) and a short sub tail,
+  the pad muted. Both AIRs sit ≥ 7 LU under the groove on the master itself
+  (verify (d) holds the master and the MP4 to it): 8.5 and 8.5 LU.
 - **Reveal** (bar 13). The big impact (RT60 2.8 s), the shimmer on f784,
   and the FM glide over f804–824.
-- **Outro** (bar 14). Log hits on f832 (the mark lands, the tagline whole),
-  f848 (with the App Store glint, alone on its cue) and f880.
+- **End card** (bar 14). Log hits on f832 (the mark lands, the tagline
+  whole), f848 (with the App Store glint, alone on its cue) and f880, over a
+  light groove.
+- **Outro** (bar 15, the owner's added bar). Calm: no kick, clap or hat; the
+  shaker thins to 8ths, then two hits, and fades 7 dB. On the downbeat (f896)
+  the log and the pen (`end.underline`, a `pen_scratch` as long as the
+  stroke draws, 8 frames) as the hook's strike comes back as an underline;
+  on beat 3 (f928) the last log with the last Rhodes chord (`end.last`, the
+  mark's small punch). The pad fades 10 dB over the bar; the tail rings into
+  the master's 60-ms end fade.
 
-`score_15s.yaml` (7 bars) is re-scored on the 15-s cut's own frames. It is
-not a splice of the 30-s audio.
+`score_15s.yaml` (8 bars: 7 and the same outro bar — the underline on f448,
+the last log on f480) is re-scored on the 15-s cut's own frames. It is not a
+splice of the 30-s audio. Its one AIR (f48–63) is 8.4 LU under its groove on
+the master (8.9 after AAC): the reverse at −19 dB, strike 3 lighter (vel 0.7,
+decay 0.15) and the breath 3 dB down. (Round 2's « 6.36 LU after AAC » did
+not reproduce: the master was 5.87, an AAC encode 6.05.)
 
 ### Choices the storyboard left open
 
@@ -177,15 +192,16 @@ not a splice of the 30-s audio.
 
 | | 30 s | 15 s |
 |---|---|---|
-| length | 896 frames, 1 433 600 samples | 448 frames, 716 800 samples |
+| length | 960 frames, 1 536 000 samples | 512 frames, 819 200 samples |
 | integrated loudness | −14.01 LUFS (ffmpeg: −14.0) | −14.01 LUFS (ffmpeg: −14.0) |
 | true peak | −1.30 dBTP (ffmpeg: −1.3) | −1.30 dBTP (ffmpeg: −1.2) |
-| short-term max / momentary max | −12.8 / −10.5 LUFS | −12.8 / −10.8 LUFS |
-| LRA | 1.6 LU | 1.2 LU |
-| sections | hook −16.8, drops −13.1 to −13.7, log break −14.7, breakdown −15.0, reveal −13.3, outro −15.0 | hook −15.2, drop −13.9, revenus −13.5, outro −15.3 |
+| short-term max / momentary max | −12.5 / −10.5 LUFS | −12.5 / −10.6 LUFS |
+| LRA | 2.8 LU | 2.7 LU |
+| sections | hook −16.7, drops −12.9 to −14.0, log break −14.5, breakdown −16.0, reveal −13.2, end card −15.1, outro −16.5 | hook −15.5, drop −13.7, revenus −13.1, end card −15.4, outro −16.5 |
+| AIR under the groove (master / after AAC) | AIR 1 8.5 / 8.9 LU, AIR 2 8.5 / 9.2 LU | 8.4 / 8.9 LU |
 | side under 150 Hz | −36 dB | −37 dB |
-| L/R correlation | 0.95 | 0.96 |
-| limiter | ≤ 3.6 dB, under 0.6 s above 1 dB | ≤ 3.4 dB |
+| L/R correlation | 0.96 | 0.96 |
+| limiter | ≤ 3.7 dB, under 0.6 s above 1 dB | ≤ 3.6 dB |
 | cues | 85 | 49 |
 
 ## Notes for SCENES

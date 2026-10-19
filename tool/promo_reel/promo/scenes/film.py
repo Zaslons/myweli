@@ -189,6 +189,8 @@ class Film:
             ev += sc.events()
         ev += [(int(at), f"word « {w} »") for _, at, w in self.captions.words()]
         ev += [(int(c.strike[1]), f"strike « {c.strike[0]} »") for c in self.captions.items if c.strike]
+        ev += [(int(c.underline["at"]), f"underline « {c.underline['text']} »") for c in self.captions.items
+               if c.underline]
         return sorted(e for e in ev if 0 <= e[0] < self.frames)
 
     def generated(self) -> list[dict]:
@@ -197,6 +199,11 @@ class Film:
             out += sc.generated()
         for c in self.captions.items:
             out.append({"element": f"caption « {c.text} »", "scene": c.owner, "cite": c.cite})
+            if c.underline:
+                out.append({"element": f"underline under « {c.underline['text']} » ({c.id})", "scene": c.owner,
+                            "cite": "the brand's single round-cap stroke at the type's stem width — the hook's "
+                                    "strikes' pen (promo/fx/type.py draw_strike; brand book: the mark's one "
+                                    "stroke) — on the owner's outro bar (2026-10-19); no text, no UI"})
         return out
 
     def plan(self) -> dict:

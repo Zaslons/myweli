@@ -19,9 +19,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from promo import storyboard as sbmod  # noqa: E402
 from promo.render import not_built  # noqa: E402
 from promo import pixels  # noqa: E402
-from promo.verify import (FAIL, PASS, PENDING, Result, Verdict, _bandpass, _psnr, air_levels,  # noqa: E402
-                          caption_reading, click_lag, click_onset, event_gaps, outside_safe, reading_windows,
-                          verify, worst)
+from promo.media import tools  # noqa: E402
+from promo.verify import (FAIL, PASS, HiddenRow, Result, Verdict, _bandpass, _psnr, air_levels,  # noqa: E402
+                          caption_reading, click_lag, click_onset, end_card_window, event_gaps, outside_safe,
+                          reading_verdict, reading_windows, verify, worst)
 
 SB = sbmod.load()
 
@@ -86,9 +87,9 @@ class TestCombinedReading(unittest.TestCase):
     on screen — each caption alone said 15.9 and 16.3 cps on the end card."""
 
     @staticmethod
-    def item(group, arrive, leave, chars, pending=False):
-        return {"what": group, "arrive": float(arrive), "leave": float(leave), "chars": chars, "pending": pending,
-                "group": group}
+    def item(group, arrive, leave, chars, scene="end"):
+        return {"what": group, "arrive": float(arrive), "leave": float(leave), "chars": chars, "group": group,
+                "scene": scene}
 
     def test_the_end_card_adds_up(self):
         old = [self.item("tagline", 832, 896, 17), self.item("tagline", 848, 896, 17), self.item("store", 848, 896, 26)]
@@ -97,35 +98,53 @@ class TestCombinedReading(unittest.TestCase):
         self.assertAlmostEqual(w[0]["cps"], 28.125, delta=0.006)           # the review's ≈ 28 cps …
         w848 = next(x for x in w if x["from"] == 848)
         self.assertAlmostEqual(w848["cps"], 26.88, places=2)               # … and ≈ 27 from f848
-        now = [self.item("tagline", 827, 896, 34, True), self.item("store", 848, 896, 26, True)]
-        w = reading_windows(now, 30)
+        r2 = [self.item("tagline", 827, 896, 34), self.item("store", 848, 896, 26)]   # round 2, 14 bars
+        w = reading_windows(r2, 30)
         self.assertEqual((w[0]["from"], w[0]["chars"]), (827, 60))
         self.assertAlmostEqual(w[0]["cps"], 26.09, places=2)
-        self.assertTrue(w[0]["pending"])
-        self.assertAlmostEqual(reading_windows(now[1:], 30)[0]["cps"], 16.25)      # the store line alone reads
+        self.assertFalse(reading_verdict(w, [], [], []))                    # a plain FAIL: nothing is « pending »
+        self.assertAlmostEqual(reading_windows(r2[1:], 30)[0]["cps"], 16.25)       # the store line alone reads
+        r3 = [self.item("tagline", 827, 960, 34), self.item("store", 848, 960, 26)]   # + the owner's outro bar
+        w = reading_windows(r3, 30)
+        self.assertAlmostEqual(w[0]["cps"], 13.53, places=2)
+        self.assertTrue(reading_verdict(w, [], [], []))
+        card = end_card_window(r3 + [self.item("page", 640, 752, 30, scene="page")], "end", 30)
+        self.assertEqual((card["from"], card["to"], card["chars"], card["cps"]), (827, 960, 60, 13.53))
+
+    def test_the_verdict_is_pass_or_fail(self):
+        ok = [{"cps": 16.9}]
+        self.assertTrue(reading_verdict(ok, [{"ok": True}], [], [(60, 0, 60)]))
+        self.assertFalse(reading_verdict([{"cps": 17.1}], [], [], []))
+        self.assertFalse(reading_verdict(ok, [{"ok": False}], [], []))                 # a caption alone too fast
+        self.assertFalse(reading_verdict(ok, [], [(848, ["a", "b"])], []))             # two lines on one frame
+        self.assertFalse(reading_verdict(ok, [], [], [(64, 896, 960)]))                # 2.13 s without an event
 
     def test_a_caption_alone_is_its_own_cps(self):
         w = reading_windows([self.item("a", 0, 30, 10), self.item("a", 8, 30, 7)], 30)
         self.assertAlmostEqual(w[0]["cps"], 17 * 30 / 30)
 
     def test_statuses(self):
+        """PASS or FAIL: the « OWNER DECISION PENDING » status is retired (the
+        owner added a bar, 2026-10-19)."""
+        import promo.verify as v
+        self.assertFalse(hasattr(v, "PENDING"))
         self.assertEqual(worst([PASS, PASS]), PASS)
-        self.assertEqual(worst([PASS, PENDING]), PENDING)
-        self.assertEqual(worst([PENDING, FAIL]), FAIL)
+        self.assertEqual(worst([PASS, FAIL]), FAIL)
         self.assertEqual(worst([]), FAIL)                                   # nothing checked is not a pass
         r = Result()
         r.add("a", "a", True, "")
-        r.add("i", "i", False, "", status=PENDING)
-        self.assertEqual(r.status, PENDING)
+        r.add("i", "i", False, "")
+        self.assertEqual(r.status, FAIL)
         self.assertFalse(r.ok)
         r.add("b", "b", False, "", status=PASS)                             # a failed check is never a pass
         self.assertEqual(r.sections["b"]["status"], FAIL)
-        self.assertFalse(Verdict(PENDING))
+        self.assertFalse(Verdict(FAIL))
         self.assertTrue(Verdict(PASS))
 
 
 class TestAir(unittest.TestCase):
-    """Review M2: an AIR beat is near silence, ≥ 6 LU under the groove."""
+    """Review M2: an AIR beat is near silence, ≥ 7 LU under the groove (round
+    3: on the master and the MP4 alike)."""
 
     def test_air_against_the_groove(self):
         rng = np.random.default_rng(1)
@@ -144,6 +163,10 @@ class TestAir(unittest.TestCase):
         self.assertTrue(rows["air1.reverse"]["ok"])
         self.assertFalse(rows["air2.reverse"]["ok"])
         self.assertFalse(a["ok"])
+        audio[:16 * 1600] *= 10 ** (-3.5 / 20)                             # AIR 2 now 6.5 dB down: still too loud
+        rows = {r["cue"]: r for r in air_levels(audio, events)["air"]}
+        self.assertAlmostEqual(rows["air2.reverse"]["under_groove_lu"], 6.5, delta=0.2)
+        self.assertFalse(rows["air2.reverse"]["ok"])
 
 
 class TestPixels(unittest.TestCase):
@@ -221,6 +244,138 @@ class TestPixels(unittest.TestCase):
         faint[100:130, 200:600] = 245.0 + 0.1 * (row - 245.0)               # a faint copy still counts: the
         self.assertEqual(pixels.row_fraction(faint, row, 200, 100, range(-200, 41), block=48)[0], 1.0)  # strength
         # is the window's alpha (the other half of (h)); this half only says whether its pixels are there
+
+
+class TestHiddenRowSearch(unittest.TestCase):
+    """(h) round 3: the hidden row searched over the whole window, by the
+    blocks that identify it — on drawn rows."""
+
+    @staticmethod
+    def glyphs(seed: int, width: int = 48) -> np.ndarray:
+        rng = np.random.default_rng(seed)
+        r = np.full((30, width), 240.0)
+        x = 3
+        while x < width - 6:
+            w, top, bot = rng.integers(3, 9), rng.integers(4, 12), rng.integers(16, 26)
+            r[top:bot, x:x + w] = rng.uniform(20, 120)
+            x += w + rng.integers(2, 6)
+        return r
+
+    def setUp(self):
+        self.time = self.glyphs(1)                       # « 13:15 »: the old booking's own
+        self.name = self.glyphs(2)                       # « Yao K. »: the new booking has it too
+        self.row = np.hstack([self.time, self.name])
+        self.other = np.hstack([self.glyphs(3), self.name])     # the new booking's row: same client, other time
+
+    def test_ncc_map(self):
+        rng = np.random.default_rng(4)
+        R = rng.uniform(0, 255, (60, 80))
+        t = R[10:40, 20:68].copy()
+        m = pixels.ncc_map(R, t)
+        self.assertEqual(m.shape, (31, 33))
+        self.assertAlmostEqual(m[10, 20], 1.0, places=6)
+        a = R[3:33, 7:55]
+        want = np.sum((a - a.mean()) * (t - t.mean())) / np.sqrt(np.sum((a - a.mean()) ** 2) * np.sum((t - t.mean()) ** 2))
+        self.assertAlmostEqual(m[3, 7], want, places=6)
+        flat = np.full((60, 80), 240.0)
+        self.assertEqual(float(np.abs(pixels.ncc_map(flat, t)).max()), 0.0)        # paper matches nothing
+
+    def test_only_the_rows_own_blocks_identify_it(self):
+        pic = np.full((300, 400), 245.0)
+        pic[100:130, 50:146] = self.row
+        pic[200:230, 50:146] = self.other
+        parts = pixels.row_parts(self.row, block=48)
+        self.assertEqual([b for b, _ in parts], [0, 48])
+        self.assertEqual(pixels.distinctive(parts, [pic], own_y=100), [True, False])
+        pushed = pic.copy()                                   # a push slides the row sideways: still its own height
+        pushed[100:130, :] = 245.0
+        pushed[100:130, 10:106] = self.row
+        self.assertEqual(pixels.distinctive(parts, [pushed], own_y=100), [True, False])
+
+    def test_found_anywhere_in_the_window(self):
+        parts = [p for p, keep in zip(pixels.row_parts(self.row, block=48), [True, False]) if keep]
+        frame = np.full((900, 700), 245.0)
+        frame[300:330, 100:196] = self.other                  # the new booking, where it belongs
+        self.assertEqual(pixels.row_anywhere(frame, parts, (0, 100, 700, 800))[0], 0.0)
+        frame[611:641, 333:429] = self.row                    # the old row pasted far from any place
+        share, x, y = pixels.row_anywhere(frame, parts, (0, 100, 700, 800))
+        self.assertEqual((share, x, y), (1.0, 333.0, 611.0))
+        half = frame.copy()                                   # pushed half out of the region on the left
+        half[611:641, :] = 245.0
+        half[611:641, 0:50] = self.row[:, 46:]
+        self.assertEqual(pixels.row_anywhere(half, parts, (0, 100, 700, 800))[0], 0.0)   # its time is gone
+        from scipy.ndimage import uniform_filter1d
+        whip = frame.copy()                                   # in a whip's blur (vertical, 40 px)
+        whip[560:700, :] = uniform_filter1d(frame[560:700, :], 40, axis=0)
+        self.assertEqual(pixels.row_anywhere(whip, parts, (0, 100, 700, 800))[0], 0.0)
+
+    def test_what_fails(self):
+        clean = {"visible": 0.009, "mp4_shows": 0.0, "found_visible": 0.0, "found_at": [0, 0], "found_alpha": 0.0}
+        self.assertEqual(HiddenRow.over(clean), [])
+        self.assertEqual(HiddenRow.over({**clean, "visible": None}), [])                      # a whip frame
+        self.assertTrue(HiddenRow.over({**clean, "visible": None, "found_visible": 1.0, "found_alpha": 1.0}))
+        self.assertTrue(HiddenRow.over({**clean, "visible": 0.06}))
+        self.assertTrue(HiddenRow.over({**clean, "mp4_shows": 0.34}))
+        self.assertEqual(HiddenRow.over({**clean, "found_visible": 0.04}), [])                # in the band's fade
+
+
+@unittest.skipUnless(tools.material_available(), "the recorded takes are not on this machine")
+class TestHiddenRowInTheFilm(unittest.TestCase):
+    """Review round 2, finding 3 — (h)'s blind spots, on the film's own
+    frames: a sharp 13:15 row pasted into the whip (f259, the renderer's
+    rect) and 13 px off the renderer's rect (f301, y 994) passed. Both are
+    caught now; the frames as rendered are not."""
+
+    @classmethod
+    def setUpClass(cls):
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        from test_scenes import events_from_score
+        from promo.scenes import Clock, Film
+        film = Film(SB, "30s", "9x16", Clock(events_from_score(), 960))
+        cls.journal = next(s for s in film.scenes if s.id == "journal")
+        label, rect_pt, shown = cls.journal.hidden[0]
+        pics = sorted({cls.journal.timeline.index(float(f)) for f in (128, 200, 259, 301, 380, 440, 463)})
+        cls.row = HiddenRow("take1b", label, rect_pt, shown, pics)
+        cls.frames = {f: film.frame(f) for f in (259, 301)}
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.row.close()
+
+    def measure(self, f: int, paste_at=None) -> dict:
+        frame, rec = self.frames[f]
+        L = frame[..., :3].astype(float) @ [0.2126, 0.7152, 0.0722]
+        h = rec["hidden"][0]
+        row = {"rect": h["rect"], "alpha": h["alpha"], "zoom": rec["zoom"], "whip": h["whip"], "picture": rec["picture"]}
+        if paste_at is not None:
+            T = self.row.template_at(self.row.base * rec["zoom"])
+            x, y = (int(round(v)) for v in paste_at)
+            L[y:y + T.shape[0], x:x + T.shape[1]] = T
+        return {**row, **self.row.measure(L, row, self.journal.window, 1080)}
+
+    def test_only_the_old_bookings_times_identify_it(self):
+        self.assertEqual(len(self.row.parts), 6)
+        self.assertEqual(self.row.distinct_mask, [True, False, False, False, False, False])   # « 13:15 / 13:45 »
+
+    def test_the_film_never_shows_it(self):
+        for f in (259, 301):
+            m = self.measure(f)
+            self.assertEqual(HiddenRow.over(m), [], (f, m))
+
+    def test_a_sharp_row_in_the_whip(self):
+        _, rec = self.frames[259]
+        self.assertTrue(rec["hidden"][0]["whip"])
+        m = self.measure(259, paste_at=rec["hidden"][0]["rect"][:2])
+        self.assertIsNone(m["visible"])                                   # the whip's own rule cannot see it …
+        self.assertTrue(any("found at" in w for w in HiddenRow.over(m)), m)       # … the window search does
+
+    def test_a_row_off_the_renderers_place(self):
+        _, rec = self.frames[301]
+        x, y = rec["hidden"][0]["rect"][:2]
+        self.assertGreater(y - 994, 12)
+        m = self.measure(301, paste_at=(x, 994))
+        self.assertLessEqual(m["mp4_shows"], 0.25)                        # ±2 px at its place misses it …
+        self.assertTrue(any("found at" in w for w in HiddenRow.over(m)), m)       # … the window search does not
 
 
 class TestNothingUnverifiedPasses(unittest.TestCase):
