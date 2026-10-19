@@ -4,7 +4,12 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 const replace = vi.fn();
 // Stable object: the load effects depend on [router].
 const routerMock = { replace, push: vi.fn(), refresh: vi.fn() };
-vi.mock('next/navigation', () => ({ useRouter: () => routerMock }));
+// `useSearchParams` reads the live address, as Next's does once it has
+// followed a `history.replaceState` (14.1+).
+vi.mock('next/navigation', () => ({
+  useRouter: () => routerMock,
+  useSearchParams: () => new URLSearchParams(window.location.search),
+}));
 
 import { ProAppointmentDetailClient } from '../components/pro/ProAppointmentDetailClient';
 import { RendezVousClient } from '../components/pro/RendezVousClient';
@@ -206,6 +211,57 @@ describe('the agenda writes its address — replaced, never stacked', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Calendrier' }));
     await waitFor(() => expect(search()).toBe('?vue=calendrier'));
+  });
+});
+
+describe('a navigation to this same page from elsewhere', () => {
+  /// Found by the e2e, not by this suite: Next's <Link> to the SAME route —
+  /// the menu's « Rendez-vous » from `?jour=…` — changes the address and does
+  /// NOT remount the page. The address went bare while the screen kept the
+  /// dated day: the two disagreed. (jsdom has no router, so the model here is
+  /// the address changing under a page that re-renders without remounting.)
+  it('the menu’s « Rendez-vous » (the bare address) shows today’s Journée', async () => {
+    mockFetch();
+    openAt(`/pro/rendez-vous?jour=${DAY}`);
+    const { rerender } = render(<RendezVousClient />);
+    await screen.findByRole('button', { name: /Koffi/ });
+    expect(screen.getByLabelText('Date')).toHaveValue(DAY);
+
+    openAt('/pro/rendez-vous');
+    rerender(<RendezVousClient />);
+    await waitFor(() => expect(screen.getByLabelText('Date')).toHaveValue(TODAY));
+    expect(search()).toBe('');
+    await waitFor(() => expect(asked.at(-1)).toBe(TODAY));
+  });
+
+  it('a link to another view of this page opens it', async () => {
+    mockFetch();
+    openAt('/pro/rendez-vous');
+    const { rerender } = render(<RendezVousClient />);
+    await screen.findByRole('button', { name: /Koffi/ });
+
+    openAt('/pro/rendez-vous?vue=liste&filtre=en-attente');
+    rerender(<RendezVousClient />);
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'En attente' })).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      ),
+    );
+    expect(search()).toBe('?vue=liste&filtre=en-attente');
+  });
+
+  it('the page’s OWN writes are not mistaken for one (no loop, no revert)', async () => {
+    mockFetch();
+    openAt('/pro/rendez-vous');
+    const { rerender } = render(<RendezVousClient />);
+    await screen.findByRole('button', { name: /Koffi/ });
+    fireEvent.click(screen.getByRole('button', { name: 'Jour suivant' }));
+    await waitFor(() => expect(search()).toBe(`?jour=${TOMORROW}`));
+    rerender(<RendezVousClient />);
+    rerender(<RendezVousClient />);
+    expect(screen.getByLabelText('Date')).toHaveValue(TOMORROW);
+    expect(search()).toBe(`?jour=${TOMORROW}`);
   });
 });
 
