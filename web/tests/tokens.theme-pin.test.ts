@@ -4,7 +4,11 @@ import { join, relative } from 'node:path';
 import resolveConfig from 'tailwindcss/resolveConfig';
 import { describe, expect, it } from 'vitest';
 
+import postcss from 'postcss';
+import tailwindcss from 'tailwindcss';
 import tailwindConfig from '../tailwind.config';
+import { STATUS_STYLE } from '../lib/pro/journal';
+import { loadDotClass } from '../lib/pro/week-strip';
 import { colors, icon, layout, type } from '../styles/tokens';
 
 /// The closed-theme firewall (docs/design/WEB-SYSTEM.md §2, §15 rows 6 + 7).
@@ -27,7 +31,11 @@ import { colors, icon, layout, type } from '../styles/tokens';
 /// `time-pin.test.ts`'s rule table.
 
 const ROOT = process.cwd();
-const DIRS = ['app', 'components'];
+/// `lib` since docs/design/web-pro-week-strip.md: it holds class tables
+/// (`STATUS_STYLE`, the week strip's dot widths) — literals this file polices
+/// like any `className=`, and that Tailwind must scan (the emitted-CSS test
+/// below).
+const DIRS = ['app', 'components', 'lib'];
 
 function walk(dir: string, out: string[] = []): string[] {
   for (const name of readdirSync(dir)) {
@@ -201,6 +209,32 @@ describe('the tokens are actually WIRED, not just spelled', () => {
     expect(Object.keys(resolved.theme!.fontSize!).sort()).toEqual(
       [...Object.keys(type), ...Object.keys(icon)].sort(),
     );
+  });
+
+  // docs/design/web-pro-week-strip.md — the claim "the classes we use exist",
+  // for the ones that live in `lib/`. Tailwind only emits what its `content`
+  // globs scan, and they were `app` + `components`: every class handed out by
+  // a table in `lib/` that no component also spelled emitted NOTHING. Found in
+  // a browser — the week strip's 3- and 4-booking dots were invisible — and
+  // with them a defect two years older: the Journée's confirmed and arrived
+  // blocks had lost their tinted border (`border-info/40`,
+  // `border-success/50`, `lib/pro/journal.ts` `STATUS_STYLE`, J1b). Every
+  // unit test was green; only the stylesheet could say. So this asks it.
+  it('every class a lib/ table hands out is in the emitted CSS', async () => {
+    const { css } = await postcss([tailwindcss(tailwindConfig as never)]).process(
+      '@tailwind utilities;',
+      { from: undefined },
+    );
+    const classes = new Set([
+      ...Object.values(STATUS_STYLE).flatMap((s) => s.split(/\s+/)),
+      ...[1, 2, 3, 4, 5].map((n) => loadDotClass(n)!),
+    ]);
+    // The exact rule, `.w-3 {` — a bare `.w-3` is also the start of `.w-32`
+    // (the first draft of this test passed `w-3` that way).
+    const missing = [...classes].filter(
+      (c) => !css.includes(`.${c.replace(/\//g, '\\/')} {`),
+    );
+    expect(missing, 'classes no stylesheet rule was emitted for').toEqual([]);
   });
 
   // A11 C6, and the same claim one family over. `maxWidth` had NO wiring
