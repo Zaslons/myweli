@@ -365,10 +365,11 @@ python -m promo.render --frames 0,144,552 --out DIR [--events DIR/30s-9x16/event
 build.sh                                                     # both, for every cut × format that is laid out
 ```
 
-**What is built.** The 30-s cut in 9:16 (960 frames). The 15-s cut has no
-scenes yet and 1:1 / 16:9 are not laid out: `build`/`verify --all` name them
+**What is built.** The 30-s cut (960 frames) and the 15-s cut (512 frames)
+in 9:16. 1:1 / 16:9 are not laid out: `build`/`verify --all` name them
 (« NOT BUILT … ») and build/verify the rest; asking for one of them alone
-fails — nothing unbuilt is ever reported as verified.
+fails — nothing unbuilt is ever reported as verified. A cut whose scenes are
+emptied (`--set scenes.15s=[]`) is « NOT BUILT » the same way.
 
 **Order of work** (`render.build_one`): the soundtrack FIRST
 (`promo.audio.build_cut` on the cut's score, master limited to −1.5 dBTP so
@@ -389,9 +390,45 @@ grammar; the times a scene writes are cue ids or grid positions, the take
 times are `{named: t}` (a picture written to the ms), `{touch: gesture}`
 (the measured touch-down), `{key: …}` or instants inside a held picture.
 
+**`scenes.15s`** lays out « The 15 s cut » (BARS 1–7 and the owner's outro
+bar 8) the same way, timed by the 15-s score's own events.json (the same cue
+ids wherever the picture event is the same — `python -m promo.audio --cut
+15s`). It reuses the 30-s scenes' code with no change beyond data: the AIR,
+« Revenus », the reveal and the end card are the 30-s blocks themselves
+through YAML anchors and merges (`- <<: *end_card` + its `rows`; Revenus
+with `to`, `counter.exit: null`, no lift, no sentence), and the journal
+shares the 30-s's hidden-row rule and « Arrivé » lift (`*hidden_1315`,
+`<<: *arrive_card`). `storyboard.py` loads every use as its own copy, so a
+`--set` on one cut never changes the other. What the 15-s needed that the
+code did not have: a carnet without a macro cut or a sink (both optional
+now) and the DECLARED DISSOLVE (`sources.Timeline`, below).
+
+| 15-s scene | frames | what |
+|---|---|---|
+| `hook` (carnet) | f0–47 | the code-drawn page, push under way at f0, the entry inking f0–24; « Votre » f0 « carnet » f8 / « déborde ? » f16, held to f47; three strikes with punches on the log hits f24 / f32 / f40; no strike words, no macro, no sink |
+| `air1` | f48–63 | the 30-s AIR, « Respirez. » |
+| `journal` (take1b) | f64–255 | the hard cut onto W 257 (no slam); the swipe at 1.11× (open f80), the pane held at 1×, the seamless cut and the tap on f88, the save at 0.965× (« Arrivé » f144), the lift f144–159; the vertical whip f160; the « Libre » tap f168 (released by f173), the form's push at 1× (rest f184); the declared dissolve f193–196 to the filled form; « Créer » f196 at 0.986×; back to W 667 f204–216; the snackbar f232, the push-in to 2.0 px/pt f232–252; « Une cliente » f64 « arrive ? » f72 / « Glissez, » f80 « appuyez. » f88; « Créneau » f160 « libre » f168, struck f236, « rempli. » f240 |
+| `revenus` (N1) | f256–319 | the horizontal whip in; « Mois » f272, the label f280, the counter lands on N1's « 77 000 FCFA » on f292 (the app's wait at 0.995×, as the 30-s), alone to the cut |
+| `reveal` | f320–375 | the Lottie, the 30-s retime on the 15-s cues |
+| `end` | f376–511 | the 30-s card: the mark settles f384, the tagline's one reveal f379–384, « Disponible sur l’App Store » f400, the underline f448, the punch f480 |
+
+**The declared dissolve** (`{at, dissolve: <take time>, until, curve, cite}`
+in a timeline): the picture on screen at `at` blends into the take's
+picture at `dissolve` by `until`, on the app's base easeInOut — the App
+Store film's own rule (tool/app_store_preview/README.md, « One declared
+dissolve inside a scene »): the only way to skip footage in which the
+screen changes. Each picture is drawn through the camera of its own end of
+the dissolve (the W keys at `at` and `until`), the whole stage in a layer at
+the blend's opacity — an exact cross-fade (a test holds f194 to (1 − u) ×
+f193 + u × f196 within 2 levels). Refused: a dissolve without `cite`, one
+that goes back in the take or to the same picture, one without a segment
+before it or an `until`, and a touch disc or ripple on any of its frames.
+render.json records it (`dissolve`: pictures, blend, both W) and the plan
+lists it as a transition (`dissolve (declared)`), and in the honesty list.
+
 | scene kind | module | rows |
 |---|---|---|
-| `carnet`, `air` | `scenes/carnet.py` | 1–5: the code-drawn carnet (push-in under way at f0, macro cut, strikes with punches, push + sink, grain), the AIR |
+| `carnet`, `air` | `scenes/carnet.py` | 1–5: the code-drawn carnet (push-in under way at f0, macro cut, strikes with punches, push + sink, grain — macro and sink optional: the 15-s hook has neither), the AIR |
 | `phone` | `scenes/phone.py` | 6–22: take1b, take2b, N1, take5b in the 2.5D slab through the camera window |
 | `lottie`, `end_card` | `scenes/lottie.py` | 23–24: the Pro opening Lottie retimed, the mark settling, the tagline, « Disponible sur l’App Store », the outro (the underline, the mark's punch) |
 | — | `scenes/film.py` | the cut end to end, the horizontal whip between scenes, captions, the per-frame record |
@@ -445,10 +482,14 @@ Masks are on the take, so every subframe is already blurred.
 ### Verification — `promo/verify.py`
 
 All automated, on the written MP4 wherever possible, into `verify/`: (a) the
-renderer's frame on every beat (`beats.png`, 56 stills) and the MP4's beats
-compared with them (PSNR), (b) every cut and whip ± 1 frame from the MP4
-(`transitions.png`, labels wrapped to their cell, plus full-size frames in
-`frames/`), (c) every touch-down drawn held to the gesture logs
+renderer's frame on every beat (`beats.png`: 60 stills in the 30-s cut, 32 in
+the 15-s) and the MP4's beats compared with them (PSNR), (b) every cut, whip
+and declared dissolve ± 1 frame from the MP4 (`transitions.png`, labels
+wrapped to their cell), plus full-size frames in `frames/` — derived from
+render.json (`verify.look_frames`: every transition at T−1, T, T+1 and its
+end, every visual event and three frames on, but the take's own picture
+changes and caption words; the first and last frames), never a frame list
+typed per cut, (c) every touch-down drawn held to the gesture logs
 (`media.touches.cross_check`) and its tone re-measured, (d) BS.1770-4 on the
 MP4's decoded AAC (−14 ± 0.5 LUFS, ≤ −1.0 dBTP; ffmpeg's ebur128 as a second
 opinion), `spectrogram.png` with bar ticks, and each AIR beat at least 7 LU
@@ -462,7 +503,11 @@ on MP4 frames — each caption whole, the counter mid-roll / landing / landed,
 every lift, the credit — inside the platform text area, plus every box
 render.json records on every frame, (h) honesty: every generated element
 with its source (`honesty.txt`), every blur measured on every picture the
-film uses, the old 13:15 row on EVERY frame of its scene — the whip, the
+film uses — every take that declares a blur is measured (`blurs_checked`;
+the 15-s cut declares none: take1b shows only the « Téléphone du client »
+placeholder and N1 no number, which the report says, never as « measured »),
+every dissolve declared and going forward (`dissolve_problems`, re-read from
+render.json), the old 13:15 row on EVERY frame of its scene — the whip, the
 form's push and pop included (`verify.HiddenRow`): its blocks that identify
 it (found on no picture of the scene at another height — the new booking is
 the same client, so « Yao K. », « 1 prestation » and « Confirmé » are on its
@@ -486,6 +531,41 @@ Statuses: PASS or FAIL. `report.txt` leads with the film's status;
 2026-10-19 — one more bar.)
 
 ### Decisions made against the storyboard's text, and why
+
+The 15-s cut (« The 15 s cut »):
+
+- **Its length**: 8 bars, 512 frames (17.07 s), not the section's 7 bars —
+  the owner's outro bar (2026-10-19), as the 30-s. The end card is the
+  30-s's: the tagline as one reveal f379→f384 and « Disponible sur l’App
+  Store » alone on f400 (the section's « Plus de clients, » f384 / « moins de
+  gestion. » f400 predates the store line: two arrivals on f400 are refused);
+  60 characters f379→f512 = 13.5 cps; the underline on f448, the punch on f480.
+- **The dissolve's re-frame**: the section's « W 660 − Δ, Δ ≈ 128 pt » is
+  measured on the two pictures: from « Client sans numéro » down the fields
+  moved up **145.33 pt** (the 125.33-pt scroll + the 20-pt « 0/10 » line the
+  switch takes away; NCC 0.9998 on the note field), so 130.262 is framed at
+  **W 521.67** (667 − 145.33) and the fields stay on their rows (test: the
+  note field's best match is at dy 0). W is 667 on both sides, not 660/665:
+  the 30-s's measured value that keeps the 13:15 row's last line under the
+  band. « Créer » sits at y ≈ 1158 until the camera glides back over f204–216.
+- **The dissolve's length**: f193→f196 (3 frames, 100 ms) as the section
+  writes, on AppMotion.base's easeInOut — the App Store film ran it on the
+  whole `base` token (200 ms); the « Créer » touch-down on f196 leaves 3.
+- **The pane held open** f80–f88: the section's « hold 11.265–11.595 over
+  f80–87 » would play the take at 1.24× (refused: only a drag's own segment
+  may run faster). take1b has ONE picture from 11.265 s to 22.018 s, so the
+  15-s plays it at 1× from 11.265 — the swipe's logged lift (11.420 s) lands
+  on f84.7 — and the seamless cut on f88 goes 11.532 → 21.818: the same
+  picture (#27) on both sides.
+- **The « Arrivé » lift is kept** (f144–159: up on the badge's log hit,
+  settled back by f159, `down: 3.2.2+2`), not dropped first: the cut
+  verifies at ≤ 17 cps and every gap under 2 s with it.
+- **The counter lands on f292** (5.3.1), not f296: N1's measured wait
+  (0.663 s) at 0.995×, the 30-s's own decision; f296 would play it at 0.83×.
+- **The hook** has no sink (the section has none): its push runs at the
+  30-s's speed (1.10 → 1.13 over f0–47) into the hard cut to the AIR.
+
+The 30-s cut:
 
 - **N1, the Revenus wait.** Touch-down on « Mois » 7.1517 s (first changed
   picture #1 at 7.3517 − 200 ms, read from the pictures: N1 has no App Store

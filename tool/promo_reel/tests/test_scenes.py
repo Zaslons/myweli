@@ -1,7 +1,8 @@
-"""SCENES: the clock read from events.json, keyframes, the film → take time map,
-captions, and the 30-s storyboard as data (every scene end to end on the
-score's own cue frames, every line measured, every touch on its click).
-A few frames are rendered from the real takes when the material is here."""
+"""SCENES: the clock read from events.json, keyframes, the film → take time map
+(its declared dissolve too), captions, and the 30-s and 15-s storyboards as
+data (every scene end to end on its score's own cue frames, every line
+measured, every touch on its click). A few frames of each cut are rendered
+from the real takes when the material is here."""
 
 from __future__ import annotations
 
@@ -45,6 +46,7 @@ def events_from_score(cut: str = "30s") -> dict:
 
 
 EVENTS = events_from_score()
+EVENTS15 = events_from_score("15s")
 SB = sbmod.load()
 
 
@@ -284,6 +286,41 @@ class TestTimeline(unittest.TestCase):
         with self.assertRaisesRegex(SourceError, "chain"):
             self.tl([{"at": "chain", "src": 1.0}])
 
+    def test_a_declared_dissolve(self):
+        """The 15-s cut's one dissolve (32.998 → 130.262): the picture on
+        screen blends into a later one on the app's base easeInOut; the
+        footage between is never shown."""
+        t = self.tl([{"at": "f0", "hold": 2.0},
+                     {"at": "f30", "dissolve": 10.0, "until": "f36", "cite": "test"},
+                     {"at": "f36", "src": 10.0, "rate": 1}])
+        self.assertIsNone(t.dissolve_at(29.9))
+        seg, a, b, u = t.dissolve_at(30)
+        self.assertEqual((a, b, u), (120, 600, 0.0))                 # the picture it leaves, whole
+        self.assertLess(t.dissolve_at(31)[3], 1 / 6)                 # eases in
+        self.assertAlmostEqual(t.dissolve_at(33)[3], 0.5)            # half way
+        self.assertIsNone(t.dissolve_at(36))                         # whole on `until`
+        self.assertEqual((t.index(31), t.index(34), t.index(36)), (120, 600, 600))   # the picture that dominates
+        self.assertIsNone(t.frame_of(8.0))                           # skipped: never shown
+        rep = t.report()[1]
+        self.assertEqual((rep["kind"], rep["to_s"], rep["pictures"], rep["frames"], rep["cite"]),
+                         ("dissolve", 10.0, [120, 600], 6.0, "test"))
+        self.assertNotIn("rate", rep)
+
+    def test_a_dissolve_is_declared_and_goes_forward(self):
+        """The App Store film's rules (E_DISSOLVE, E_ORDER): a dissolve is
+        the only way to skip footage in which the screen changes, so it is
+        declared, and it never goes back in the take."""
+        with self.assertRaisesRegex(SourceError, "declared"):
+            self.tl([{"at": "f0", "hold": 2.0}, {"at": "f30", "dissolve": 10.0, "until": "f36"}])
+        with self.assertRaisesRegex(SourceError, "back in the take"):
+            self.tl([{"at": "f0", "hold": 12.0}, {"at": "f30", "dissolve": 10.0, "until": "f36", "cite": "x"}])
+        with self.assertRaisesRegex(SourceError, "back in the take"):
+            self.tl([{"at": "f0", "hold": 10.0}, {"at": "f30", "dissolve": 10.005, "until": "f36", "cite": "x"}])
+        with self.assertRaisesRegex(SourceError, "segment before it"):
+            self.tl([{"at": "f0", "dissolve": 10.0, "until": "f6", "cite": "x"}])
+        with self.assertRaisesRegex(SourceError, "until"):
+            self.tl([{"at": "f0", "hold": 2.0}, {"at": "f30", "dissolve": 10.0, "cite": "x"}])
+
 
 class TestCaptions(unittest.TestCase):
     def setUp(self):
@@ -353,6 +390,73 @@ class TestStoryboard30s(unittest.TestCase):
         rev = next(s for s in self.scenes if s["id"] == "revenus")
         self.assertEqual(self.clock.frame(rev["counter"]["roll"]["to"]), 548)        # 9.3.1: N1's wait at 0.995×
         self.assertEqual(ty.fcfa(rev["counter"]["end"]), "77 000 FCFA")
+
+
+class TestStoryboard15s(unittest.TestCase):
+    """The 15-s scenes as data — no material needed: « The 15 s cut » laid
+    out on the 15-s score's own frames, the 30-s blocks it shares unchanged."""
+
+    def setUp(self):
+        self.clock = Clock(EVENTS15, 512)
+        self.scenes = SB.cut_scenes("15s")
+        self.by_id = {s["id"]: s for s in self.scenes}
+        self.s30 = {s["id"]: s for s in SB.cut_scenes("30s")}
+
+    def test_end_to_end_on_the_scores_frames(self):
+        spans = [(s["id"], self.clock.frame(s["from"]), self.clock.frame(s["to"])) for s in self.scenes]
+        self.assertEqual(spans, [("hook", 0, 48), ("air1", 48, 64), ("journal", 64, 256), ("revenus", 256, 320),
+                                 ("reveal", 320, 376), ("end", 376, 512)])
+        self.assertEqual(sorted({r for s in self.scenes for r in s["rows"]}), list(range(1, 9)))   # BAR 1–7 + the outro
+
+    def test_the_shared_blocks_are_the_30s_own(self):
+        def but(d, *keys):
+            return {k: v for k, v in d.items() if k not in keys}
+        for sid in ("air1", "reveal", "end"):
+            self.assertEqual(but(self.by_id[sid], "rows"), but(self.s30[sid], "rows"), sid)
+        rev, rev30 = self.by_id["revenus"], self.s30["revenus"]
+        self.assertEqual(but(rev, "rows", "to", "counter", "lifts", "captions"),
+                         but(rev30, "rows", "to", "counter", "lifts", "captions"))
+        self.assertEqual(rev["counter"], {**rev30["counter"], "exit": None})          # alone to the cut
+        self.assertEqual((rev["lifts"], rev["captions"]), ([], []))
+        j, j30 = self.by_id["journal"], self.s30["journal"]
+        self.assertEqual(j["hidden"], j30["hidden"])                                  # the same hiding rule
+        self.assertEqual(j["lifts"], [{**j30["lifts"][0], "down": "3.2.2+2"}])
+
+    def test_every_caption_measures_and_reads(self):
+        from promo.scenes.captions import arrivals_on_two_lines
+        from promo.verify import caption_reading
+        items = [CaptionItem(c, s["id"], self.clock, SB.formats["9x16"].layout, s["id"])
+                 for s in self.scenes for c in s.get("captions", [])]
+        self.assertEqual([c.id for c in items], ["hook-question", "breathe", "arrive", "filled", "tagline", "store"])
+        for c in items:
+            for w in c.line_widths():
+                self.assertLessEqual(w, 771.0 + 1e-6, c.text)
+        rows = caption_reading(items, 30)
+        self.assertTrue(all(r["ok"] for r in rows), [r for r in rows if not r["ok"]])
+        self.assertEqual([(r["chars"], r["seconds"]) for r in rows[2:4]], [(38, 3.2), (21, 3.2)])   # the storyboard's
+        self.assertEqual(arrivals_on_two_lines(items), [])
+
+    def test_touches_sit_on_their_clicks(self):
+        cues = {c["id"]: c for c in EVENTS15["cues"]}
+        touches = self.by_id["journal"]["touches"] + self.by_id["revenus"]["touches"]
+        self.assertEqual([self.clock.frame(t["at"]) for t in touches], [64, 88, 168, 196, 272])
+        for t in touches:
+            self.assertEqual(cues[t["at"][4:]]["kind"], "click", t)
+
+    def test_the_counter_lands_on_its_cue(self):
+        c = self.by_id["revenus"]["counter"]
+        self.assertEqual((self.clock.frame(c["label_switch"]), self.clock.frame(c["roll"]["to"])), (280, 292))
+        self.assertIsNone(c["exit"])
+
+    def test_one_declared_dissolve(self):
+        j = self.by_id["journal"]
+        d = [s for s in j["timeline"] if "dissolve" in s]
+        self.assertEqual(len(d), 1)
+        self.assertEqual((self.clock.frame(d[0]["at"]), self.clock.frame(d[0]["until"]), d[0]["dissolve"]),
+                         (193, 196, 130.262))
+        self.assertIn("storyboard-scenes.json", d[0]["cite"])
+        W = {self.clock.frame(k["at"]): k["value"] for k in j["camera"]["W"]}
+        self.assertEqual((W[193], W[196]), (667, 521.67))             # re-framed by the fields' measured 145.33 pt
 
 
 class TestEventLogs(unittest.TestCase):
@@ -490,6 +594,66 @@ class TestFilmFrames(unittest.TestCase):
         _, before = self.film.frame(547)
         self.assertNotEqual(before["picture"], rec["picture"])      # … on this frame, not before
         self.assertNotIn(ty.fcfa(77000), [b["label"] for b in before["boxes"] if b["kind"] == "counter"])
+
+
+@unittest.skipUnless(tools.material_available() and tools.promo_takes_root() is not None,
+                     "the recorded takes are not on this machine")
+class TestFilmFrames15s(unittest.TestCase):
+    """A few real frames of the 15-s cut, timed by its score's frames."""
+
+    @classmethod
+    def setUpClass(cls):
+        from promo.scenes import Film
+        cls.film = Film(SB, "15s", "9x16", Clock(EVENTS15, 512))
+        cls.frames = {f: cls.film.frame(f) for f in (192, 193, 194, 196)}
+
+    def test_structure(self):
+        self.assertEqual([s.id for s in self.film.scenes], ["hook", "air1", "journal", "revenus", "reveal", "end"])
+        tr = {(t["frame"], t["kind"]) for t in self.film.transitions()}
+        self.assertTrue({(48, "cut"), (64, "cut"), (160, "whip (in the phone)"), (193, "dissolve (declared)"),
+                         (256, "whip"), (320, "cut")} <= tr, tr)
+
+    def test_the_dissolve_is_an_exact_cross_fade(self):
+        """f194 is (1 − u) × the form on 32.998 through W 667 + u × the form
+        on 130.262 through W 521.67 — the frames either side (f193 shows the
+        first whole; f196 the second, its disc below the rows compared)."""
+        a, b = self.frames[193][0], self.frames[196][0]
+        m, rec = self.frames[194]
+        u = rec["dissolve"]["blend"]
+        self.assertTrue(0.2 < u < 0.8, u)
+        self.assertEqual(rec["dissolve"]["W"], [667.0, 521.67])
+        rows = slice(600, 1100)
+        want = (1 - u) * a[rows, :, :3].astype(float) + u * b[rows, :, :3].astype(float)
+        self.assertLessEqual(np.abs(m[rows, :, :3].astype(float) - want).max(), 2.0)
+        self.assertEqual(self.frames[193][1]["dissolve"]["blend"], 0.0)      # f193: the first picture alone
+
+    def test_the_fields_stay_in_place(self):
+        """The fields both pictures show (« Client sans numéro », the name,
+        the note) sit on the same rows before and after: the camera's
+        re-frame is the form's measured shift."""
+        L = {f: self.frames[f][0][..., :3].astype(float) @ [0.2126, 0.7152, 0.0722] for f in (192, 196)}
+        sw = (slice(660, 700), slice(300, 560))            # « Client sans numéro » (its box is ticked only after)
+        self.assertLess(float(np.abs(L[192][sw] - L[196][sw]).mean()), 1.0)
+
+        def note(dy: int) -> float:                        # « Note (optionnel) », on rows dy apart
+            return float(np.abs(L[192][860 + dy:960 + dy, 200:880] - L[196][860:960, 200:880]).mean())
+        self.assertLess(note(0), 2.0)
+        self.assertLess(note(0), min(note(-2), note(2)))   # on the same rows, not 2 px off
+
+    def test_no_disc_on_a_dissolve(self):
+        """A dissolve blends two pictures at rest: a disc still showing on
+        its frames (the « Libre » tap released late) is refused."""
+        from promo.scenes import Film, SceneError
+        bad = sbmod.load(overrides=["scenes.15s.2.touches.2.release_by=4.1.0+2"])
+        with self.assertRaisesRegex(SceneError, "dissolve"):
+            Film(bad, "15s", "9x16", Clock(EVENTS15, 512))
+
+    def test_the_end_card_like_the_30s(self):
+        ev = dict((f, w) for f, w in self.film.events() if f >= 400)
+        self.assertIn("underline « moins de gestion. »", ev.get(448, ""))
+        self.assertIn("mark punch", ev.get(480, ""))
+        from promo.verify import event_gaps
+        self.assertLessEqual(event_gaps([f for f, _ in self.film.events()], 512)[0][0], 60)
 
 
 if __name__ == "__main__":

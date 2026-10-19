@@ -18,6 +18,15 @@ seconds, segment by segment (storyboard.yaml, « TIMELINE »). A derived rate
 1×; only a drag's own segment may run faster (the storyboard's gesture-speed
 ramps: 1.11×, 2.74×, 1.08×), and never past 3×.
 
+A DISSOLVE (``{at, dissolve: take time, until, curve, cite}``) blends the
+picture on screen at ``at`` into the take's picture at ``dissolve`` by
+``until`` — the only way a timeline skips footage in which the screen
+changes (the App Store film's rule, tool/app_store_preview/README.md « One
+declared dissolve inside a scene »: the 15-s cut's 32.998 → 130.262 skips
+the form fill). It is declared (``cite``) and goes forward in the take;
+the scene draws each picture through its own camera (the phone's
+``draw_picture``) and refuses a touch disc on its frames.
+
 Masks are attached to the take before any picture is read, so every picture
 a scene, a lift or a motion-blur subframe gets is already blurred.
 """
@@ -166,6 +175,9 @@ class Segment:
     gesture: str | None = None   # the segment starts on this gesture's touch-down
     scroll: tuple | None = None  # (indices, scroll values, scroll start, scroll end)
     where: str = ""
+    to: float | None = None      # dissolve: the take time of the picture it blends into
+    curve: Any = None            # dissolve: the blend's curve (the app's, promo/fx/easing.py)
+    cite: str | None = None      # dissolve: where it is declared
 
 
 class Timeline:
@@ -185,6 +197,9 @@ class Timeline:
                 start = float(clock.frame(s["at"]))
             if "hold" in s:
                 self.segments.append(Segment(start, "hold", source.resolve(s["hold"], f"{p}.hold"), where=p))
+                continue
+            if "dissolve" in s:
+                self.segments.append(self._dissolve(s, start, clock, p))
                 continue
             if "src" not in s:
                 raise SourceError(f"{p}: a segment holds (`hold`) or runs (`src`)")
@@ -230,6 +245,32 @@ class Timeline:
             if b.start < a.start:
                 raise SourceError(f"{b.where}: starts before the segment above it")
 
+    def _dissolve(self, s: dict, start: float, clock, p: str) -> Segment:
+        from .keys import curve
+        if not self.segments:
+            raise SourceError(f"{p}: a dissolve blends the picture on screen into a later one: it needs a "
+                              f"segment before it")
+        if "until" not in s:
+            raise SourceError(f"{p}: a dissolve needs `until` (the film frame it is whole on)")
+        until = float(clock.frame(s["until"]))
+        if until <= start:
+            raise SourceError(f"{p}: ends (f{until:g}) before it starts (f{start:g})")
+        if not s.get("cite"):
+            raise SourceError(f"{p}: a dissolve skips footage in which the screen changes: it is declared — `cite` "
+                              f"where (the App Store film's rule, tool/app_store_preview/README.md E_DISSOLVE)")
+        frm = self.src(start)
+        to = self.source.resolve(s["dissolve"], f"{p}.dissolve")
+        take = self.source.take
+        if take.index_at(to) <= take.index_at(frm):
+            raise SourceError(f"{p}: dissolves from the picture at {frm:.3f} s (#{take.index_at(frm)}) to the one at "
+                              f"{to:.3f} s (#{take.index_at(to)}): never back in the take, nor to the same picture "
+                              f"(E_ORDER)")
+        try:
+            cv = curve(s.get("curve", "ease_in_out"))
+        except ValueError as e:
+            raise SourceError(f"{p}.curve: {e}") from None
+        return Segment(start, "dissolve", frm, end=until, to=to, curve=cv, cite=s.get("cite"), where=p)
+
     def segment(self, t: float) -> Segment:
         seg = self.segments[0]
         for s in self.segments:
@@ -239,11 +280,25 @@ class Timeline:
                 break
         return seg
 
+    def dissolve_at(self, t: float) -> tuple[Segment, int, int, float] | None:
+        """(segment, picture from, picture to, blend 0..1) while a dissolve
+        runs at film frame t; None otherwise."""
+        s = self.segment(t)
+        if s.kind != "dissolve" or not s.start <= t < s.end:
+            return None
+        u = s.curve(min(1.0, max(0.0, (t - s.start) / (s.end - s.start))))
+        take = self.source.take
+        return s, take.index_at(s.src0), take.index_at(s.to), u
+
     def src(self, t: float) -> float:
-        """Take seconds shown at film frame t."""
+        """Take seconds shown at film frame t (in a dissolve: the picture
+        that dominates the blend)."""
         s = self.segment(t)
         if s.kind == "hold" or t < s.start:
             return s.src0
+        if s.kind == "dissolve":
+            d = self.dissolve_at(t)
+            return s.to if d is None or d[3] >= 0.5 else s.src0
         if s.kind == "scroll":
             return self.source.take.time_s(self.index(t))
         v = s.src0 + (t - s.start) / self.fps * s.rate
@@ -285,7 +340,7 @@ class Timeline:
                 if abs(s.src0 - src) <= tolerance_s:
                     return s.start
                 continue
-            if s.kind == "scroll":
+            if s.kind in ("scroll", "dissolve"):
                 continue
             hi = s.cap if s.cap is not None else math.inf
             if s.src0 - tolerance_s <= src <= hi + tolerance_s:
@@ -299,6 +354,12 @@ class Timeline:
         out = []
         for s in self.segments:
             d = {"from_frame": round(s.start, 3), "kind": s.kind, "src_s": round(s.src0, 5)}
+            if s.kind == "dissolve":
+                take = self.source.take
+                d.update(to_s=round(s.to, 5), until_frame=round(s.end, 3), frames=round(s.end - s.start, 3),
+                         pictures=[take.index_at(s.src0), take.index_at(s.to)], cite=s.cite)
+                out.append(d)
+                continue
             if s.kind != "hold":
                 d["rate"] = round(s.rate, 4)
                 if s.cap is not None:

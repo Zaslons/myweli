@@ -7,9 +7,10 @@
                  time map (timeline), pictures held for resampling
     stage.py     the stage: paper or black, the brand pattern, its drift
     captions.py  the caption track (word by word, strikes, colour by stage)
-    carnet.py    rows 1–4, the code-drawn carnet hook
-    phone.py     rows 6–22, the phone scenes (journal, Fiche, Revenus, page, air)
-    lottie.py    rows 23–24, the Pro opening Lottie and the end card
+    carnet.py    rows 1–4, the code-drawn carnet hook (the 15-s: BAR 1)
+    phone.py     rows 6–22, the phone scenes (journal, Fiche, Revenus, page, air;
+                 the 15-s: BARS 2–5, with its declared dissolve)
+    lottie.py    rows 23–24, the Pro opening Lottie and the end card (the 15-s: BARS 6–8)
     film.py      a cut: its scenes end to end, transitions, one frame at a time,
                  and the per-frame record verify.py reads
 

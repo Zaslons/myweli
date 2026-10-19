@@ -11,7 +11,12 @@ Per frame t (a float: motion-blur subframes are fractional):
     measured touch-down (never from a typed time): the YAML's ``at`` is
     checked to be the frame the touch-down lands on, and its ``tone`` to be
     what the ground under the finger asks for (frames.py tone());
-  * lifts and stacked tiles are the take's own (masked) pixels, magnified.
+  * lifts and stacked tiles are the take's own (masked) pixels, magnified;
+  * a declared dissolve (sources.Timeline) blends two pictures, each through
+    the camera it is framed by: the one it leaves at W(dissolve start), the
+    one it reaches at W(dissolve end) — so the camera can re-frame across it
+    and the fields that are on both stay in place (the 15-s cut's form,
+    32.998 → 130.262, scrolled 145 pt between the two).
 
 Everything the frame shows that a check needs — the picture, the touch-downs,
 every box, how much of a hidden row shows — goes in the frame's record.
@@ -113,6 +118,13 @@ class PhoneScene(Scene):
             self.parallax = (F(par["from"]), F(par["to"]), float(par["phone_dy"]), float(par["pattern"]))
         self.phone = Phone(self.source.picture(self.timeline.index(self.start)), phone_spec(ctx.fmt))
         self.touches = [self._touch(t, f"{where}.touches[{i}]") for i, t in enumerate(spec.get("touches") or [])]
+        for seg in self.dissolves:
+            # a dissolve blends two pictures at rest (the App Store film's rule): no disc or ripple on its frames
+            for tp in self.touches:
+                if tp.down_f < seg.end and seg.start < tp.gone_f:
+                    raise SceneError(f"{seg.where}: the {tp.gesture} disc shows f{tp.down_f:g}–f{tp.gone_f:g}, on the "
+                                     f"dissolve's frames (f{seg.start:g}–f{seg.end:g}): a dissolve blends two pictures "
+                                     f"at rest, no touch on either")
         self.lifts = [self._lift(l, f"{where}.lifts[{i}]") for i, l in enumerate(spec.get("lifts") or [])]
         self.stack = self._stack(spec["stack"], f"{where}.stack") if spec.get("stack") else None
         self.counter = self._counter(spec["counter"], f"{where}.counter") if spec.get("counter") else None
@@ -326,7 +338,17 @@ class PhoneScene(Scene):
         return Pose(rot_x=self.slam_rot(t), scale=scale, dy=dy, pivot=pivot)
 
     def where(self, t: float) -> dict:
-        return {"W": self.W(t), "window": self.window}
+        return {"W": self.camera_W(t), "window": self.window}
+
+    def camera_W(self, t: float) -> float:
+        """The camera's W for the picture that dominates frame t: inside a
+        dissolve each picture has its own (the W keys at its ends), never the
+        keys' in-between."""
+        d = self.timeline.dissolve_at(t)
+        if d is None:
+            return self.W(t)
+        seg, _, _, u = d
+        return self.W(seg.start) if u < 0.5 else self.W(seg.end)
 
     # ---- touches -----------------------------------------------------------------------------
 
@@ -381,9 +403,27 @@ class PhoneScene(Scene):
         # a subframe shows its own take picture only where the timeline asks to
         # blend the app's frames; under a camera move the frame's picture holds
         pic_t = t if frame is None or self.timeline.blur_at(frame) else float(frame)
-        self.phone.set_screen(self.source.picture(self.timeline.index(pic_t)))
-        self.phone.draw(canvas, self.pose(t), W=self.W(t), window=self.window, opacity=opacity,
-                        overlay=self._touch_overlay(t), sampling=SAMPLING_CUBIC if fast else None)
+        sampling = SAMPLING_CUBIC if fast else None
+        d = self.timeline.dissolve_at(pic_t)
+        if d is None:
+            self.phone.set_screen(self.source.picture(self.timeline.index(pic_t)))
+            self.phone.draw(canvas, self.pose(t), W=self.W(t), window=self.window, opacity=opacity,
+                            overlay=self._touch_overlay(t), sampling=sampling)
+            return
+        # a declared dissolve: the picture it leaves through the camera that framed it, then the one it
+        # reaches through its own, the whole stage in a layer at the blend's opacity (an exact cross-fade)
+        seg, i_from, i_to, u = d
+        pose = self.pose(t)
+        self.phone.set_screen(self.source.picture(i_from))
+        self.phone.draw(canvas, pose, W=self.W(seg.start), window=self.window, opacity=opacity, sampling=sampling)
+        if u > 0:
+            paint = skia.Paint()
+            paint.setAlphaf(u)
+            canvas.saveLayer(None, paint)
+            self.stage.draw(canvas, self.size, self.seconds(t), offset=(0.0, pdy))
+            self.phone.set_screen(self.source.picture(i_to))
+            self.phone.draw(canvas, pose, W=self.W(seg.end), window=self.window, opacity=opacity, sampling=sampling)
+            canvas.restore()
 
     def blur_at(self, f: int) -> Blur | None:
         px = self.window.px_per_pt * self.zoom(f)
@@ -508,14 +548,19 @@ class PhoneScene(Scene):
         t = float(f)
         idx = self.timeline.index(t)
         rec.update(take=self.source.name, picture=idx, picture_s=round(self.source.take.time_s(idx), 5),
-                   src_s=round(self.timeline.src(t), 5), W=round(self.W(t), 3), zoom=round(self.zoom(t), 5))
+                   src_s=round(self.timeline.src(t), 5), W=round(self.camera_W(t), 3), zoom=round(self.zoom(t), 5))
+        d = self.timeline.dissolve_at(t)
+        if d is not None:
+            seg, i_from, i_to, u = d
+            rec["dissolve"] = {"pictures": [i_from, i_to], "blend": round(u, 4),
+                               "W": [round(self.W(seg.start), 3), round(self.W(seg.end), 3)]}
         downs = [{"take": self.source.name, "gesture": tp.gesture, "src_s": round(self.timeline.src(t), 5),
                   "tone": tp.tone, "kind": tp.kind}
                  for tp in self.touches if abs(tp.down_f - t) < 1e-6]
         if downs:
             rec["touch_downs"] = downs
         if self.hidden:
-            pose, W = self.pose(t), self.W(t)
+            pose, W = self.pose(t), self.camera_W(t)
             whip = (k := self.W.key_into(t)) is not None and k.blur == "whip"
             _, opacity = self.fall_state(t)
             out = []
@@ -552,7 +597,12 @@ class PhoneScene(Scene):
                     ev.append((int(math.ceil(a.frame)), f"{name} move"))
         if self.fall:
             ev.append((int(self.fall[0]), "fall"))
+        ev += [(int(math.ceil(s.start)), "dissolve") for s in self.dissolves]
         return ev
+
+    @property
+    def dissolves(self) -> list:
+        return [s for s in self.timeline.segments if s.kind == "dissolve"]
 
     def generated(self) -> list[dict]:
         out = []
@@ -579,4 +629,10 @@ class PhoneScene(Scene):
         if self.credit:
             out.append({"element": f"map credit « {self.credit['text']} »", "scene": self.id,
                         "cite": self.credit["cite"]})
+        take = self.source.take
+        for s in self.dissolves:
+            out.append({"element": f"declared dissolve (an edit, no pixel drawn) on {self.source.name}: picture "
+                                   f"#{take.index_at(s.src0)} ({s.src0:.3f} s) → #{take.index_at(s.to)} "
+                                   f"({s.to:.3f} s) over f{s.start:g}–f{s.end:g}, the footage between skipped",
+                        "scene": self.id, "cite": s.cite})
         return out

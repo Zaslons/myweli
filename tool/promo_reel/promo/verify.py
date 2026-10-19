@@ -5,11 +5,14 @@
 Writes DIR/<cut>-<format>/verify/: report.json, report.txt, beats.png,
 transitions.png, probe.json, meter.json, spectrogram.png, frames/*.png.
 
-  (a) BEATS: the RENDERER's own frame on every beat (56 in the 30-s cut), a
-      sheet labelled « f144 · 4.800 s · 3.2.0 »; and the same beats pulled from
-      the MP4 compared with them (PSNR) — the film holds the frames rendered,
-      in order.
-  (b) TRANSITIONS: every cut and whip, frames T−1, T, T+1 pulled from the MP4.
+  (a) BEATS: the RENDERER's own frame on every beat (60 in the 30-s cut, 32
+      in the 15-s), a sheet labelled « f144 · 4.800 s · 3.2.0 »; and the same
+      beats pulled from the MP4 compared with them (PSNR) — the film holds the
+      frames rendered, in order.
+  (b) TRANSITIONS: every cut, whip and declared dissolve, frames T−1, T, T+1
+      pulled from the MP4; and full-size frames to look at (`look_frames`:
+      derived from the film's own transitions and events, never a list typed
+      per cut).
   (c) TOUCHES: every touch-down the film draws, held to the gesture logs by
       promo.media.touches.cross_check (half a frame at 1×, on the 16th grid,
       never on a typed key, each gesture once, every storyboard touch drawn);
@@ -22,7 +25,7 @@ transitions.png, probe.json, meter.json, spectrogram.png, frames/*.png.
       AAC (a pass never rests on the codec): the storyboard's « near
       silence ».
   (e) FILE: ffprobe + assertions (1080×1920, 30 fps CFR, the cut's frames —
-      960 for the 30-s cut —, H.264 High yuv420p BT.709, AAC 48 kHz stereo,
+      960 for the 30-s cut, 512 for the 15-s —, H.264 High yuv420p BT.709, AAC 48 kHz stereo,
       duration, +faststart).
   (f) A/V SYNC: for every UI click and typing cue, the click's onset in the
       decoded MP4 audio against the frame its disc or character first
@@ -46,7 +49,8 @@ transitions.png, probe.json, meter.json, spectrogram.png, frames/*.png.
       at the renderer's place ≤ 25 %; and, outside the whip, the share of
       its place the window shows × the share the take's own picture shows
       there (a push covers it) ≤ 5 %; every timeline rate (no wait faster
-      than 1×).
+      than 1×); every dissolve declared (cited) and going forward in its take
+      (`dissolve_problems`: the 15-s cut's one, 32.998 → 130.262).
   (i) READING: characters per second of everything on screen together —
       for every window from an arrival to a departure, the characters that
       arrive in it and leave by its end (promo.verify.reading_windows) — ≤ 17,
@@ -307,6 +311,61 @@ def reading_verdict(windows: list[dict], captions: list[dict], two_lines: list, 
     frame and no stretch without a visual event is longer than 2 s."""
     return not (windows and windows[0]["cps"] > MAX_CPS) and all(c["ok"] for c in captions) and not two_lines \
         and not (gaps and gaps[0][0] > MAX_GAP_FRAMES)
+
+
+def look_frames(doc: dict, frames: int) -> list[int]:
+    """The full-size frames (b) saves from the MP4 for a person to look at,
+    derived from the film itself (render.json), never typed per cut: every
+    cut, whip and dissolve at T−1, T, T+1 and its end (a whip's crest, T+3);
+    every visual event on its frame and three frames on (a lift up, a move
+    under way, a punch at its peak) — but not the take's own picture changes
+    nor the caption words, which are many and on the sheets; the first and
+    last frames."""
+    out = {0, frames - 1}
+    for t in doc["plan"]["transitions"]:
+        f = int(t["frame"])
+        out |= {f - 1, f, f + 1}
+        if t.get("frames"):
+            out.add(f + int(t["frames"]))
+        if "whip" in t["kind"]:
+            out.add(f + 3)
+    for f, what in doc["events"]:
+        if what == "ui change" or what.startswith("word "):
+            continue
+        out |= {int(f), int(f) + 3}
+    return sorted(x for x in out if 0 <= x < frames)
+
+
+def dissolves(timelines: dict) -> list[dict]:
+    """Every dissolve the film's timelines declare (render.json's plan)."""
+    return [{"scene": sid, "take": tl["take"], **s} for sid, tl in timelines.items() for s in tl["segments"]
+            if s["kind"] == "dissolve"]
+
+
+def dissolve_problems(timelines: dict) -> list[str]:
+    """Why the film's dissolves fail honesty (empty: they pass): each skips
+    footage, so each says where it is declared (``cite``), and none goes
+    back in the take or blends a picture into itself — re-read from
+    render.json, not taken on the renderer's word."""
+    out = []
+    for d in dissolves(timelines):
+        what = f"{d['scene']}: the dissolve {d['take']} {d['src_s']:.3f} → {d['to_s']:.3f} s (f{d['from_frame']:g})"
+        if not d.get("cite"):
+            out.append(f"{what} is not declared (no cite)")
+        a, b = d.get("pictures") or (None, None)
+        if not (d["to_s"] > d["src_s"] and a is not None and b is not None and b > a):
+            out.append(f"{what} goes back in the take (pictures {a} → {b})")
+    return out
+
+
+def blurs_checked(declared: dict, checked: list[dict]) -> bool:
+    """(h)'s blur rule: every take the film declares a blur on (render.json
+    ``masks``: take → blurs) was measured on the pictures it uses. A film
+    that declares none — the 15-s cut: take1b shows only the « Téléphone du
+    client » placeholder, N1 no number — has nothing to measure; that is said
+    in the report, never read as « measured »."""
+    want = {take for take, specs in declared.items() if specs}
+    return want <= {c["take"] for c in checked}
 
 
 def event_gaps(event_frames, frames: int) -> list[tuple[int, int, int]]:
@@ -670,11 +729,9 @@ def verify_film(sb, cut: str, fmt_id: str, d: Path) -> Result:
                 lab = sheets.label(x, tbase) + (f" · {t['kind']} → {t['into']}" if x == t["frame"] else "")
                 ttiles.append(sheets.Tile(pulled_t[x], lab))
     sheets.contact_sheet(ttiles, vdir / "transitions.png", columns=6, tile_width=220,
-                         title=f"{cut} {fmt_id} — every cut and whip from reel.mp4 (T−1, T, T+1)")
+                         title=f"{cut} {fmt_id} — every cut, whip and dissolve from reel.mp4 (T−1, T, T+1)")
     frames_dir = vdir / "frames"
-    looks = sorted({0, 40, 104, 120, 160, 184, 240, 259, 284, 285, 286, 300, 301, 316, 317, 318, 320, 376, 404, 452,
-                    473, 476, 481, 484, 492, 494, 515, 545, 547, 548, 600, 700, 740, 756, 760, 790, 815, 827, 832, 848,
-                    853, 880, 896, 898, 900, 904, 928, 931, 936, 959} & set(range(frames)))
+    looks = look_frames(doc, frames)
     sheets.save_frames(mp4, looks, frames_dir)
     res.add("b", "transitions from reel.mp4", len(ttiles) == sum(1 for t in trans for x in (-1, 0, 1)
                                                                  if 0 <= t["frame"] + x < frames),
@@ -846,8 +903,10 @@ def verify_film(sb, cut: str, fmt_id: str, d: Path) -> Result:
     rates = []
     for sid, tl in doc["plan"]["timelines"].items():
         for s in tl["segments"]:
-            if s["kind"] != "hold":
+            if s["kind"] not in ("hold", "dissolve"):
                 rates.append({"scene": sid, "take": tl["take"], **s})
+    blends = dissolves(doc["plan"]["timelines"])
+    blend_problems = dissolve_problems(doc["plan"]["timelines"])
     def is_tap(r):
         return (r.get("gesture") or "").startswith("tap")
     waits = [r for r in rates if is_tap(r)]                      # a server wait follows a tap
@@ -855,21 +914,27 @@ def verify_film(sb, cut: str, fmt_id: str, d: Path) -> Result:
     waits_ok = all(r["rate"] <= 1.0 + 1e-6 for r in waits)
     lines = [f"{g['element']} — {g.get('cite') or 'NO CITATION'}" for g in gen]
     (vdir / "honesty.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
-    ok_h = not uncited and not mask_problems and not hidden_bad and bool(masks_out) and waits_ok \
-        and (bool(hrows) or not doc["plan"].get("hidden"))
+    ok_h = not uncited and not mask_problems and not hidden_bad and blurs_checked(doc["masks"], masks_out) and waits_ok \
+        and (bool(hrows) or not doc["plan"].get("hidden")) and not blend_problems
     res.add("h", "honesty", ok_h,
-            f"{len(gen)} generated elements, {len(uncited)} without a source; blurs checked on "
-            f"{sum(m_['pictures_checked'] for m_ in masks_out)} pictures, at most "
-            f"{max((m_['most_detail_left'] for m_ in masks_out), default=0):.0%} of the digits' detail left; "
-            f"the 13:15 row checked on {len(hrows)} frames ({len(in_whip)} in the whip, {len(in_push)} with the row "
+            f"{len(gen)} generated elements, {len(uncited)} without a source; "
+            + (f"blurs checked on {sum(m_['pictures_checked'] for m_ in masks_out)} pictures, at most "
+               f"{max((m_['most_detail_left'] for m_ in masks_out), default=0):.0%} of the digits' detail left; "
+               if any(doc["masks"].values()) else
+               f"no blur declared (no phone number on {', '.join(sorted(doc['masks'])) or 'any take'}): none to measure; ")
+            + f"the 13:15 row checked on {len(hrows)} frames ({len(in_whip)} in the whip, {len(in_push)} with the row "
             f"half-covered by the form's push or pop; {ident}): searched over the whole window, at most "
             f"{found_max:.1%} of it visible where found (≤ {HIDDEN_ALPHA:.0%}); at its place at most {mp4_max:.0%} of "
             f"its blocks in the MP4's pixels (≤ {ROW_SHOWS_MP4:.0%}) and, outside the whip, at most {hidden_max:.1%} "
             f"of it visible (≤ {HIDDEN_ALPHA:.0%}); {len(hidden_bad)} frames over; waits (from a tap) at "
             + ", ".join(f"{r['rate']:.3f}×" for r in waits)
-            + "; gesture ramps (drags) at " + ", ".join(f"{r['rate']:.3f}×" for r in ramps),
+            + "; gesture ramps (drags) at " + ", ".join(f"{r['rate']:.3f}×" for r in ramps)
+            + "; dissolves: " + (", ".join(f"{b['take']} {b['src_s']:.3f} → {b['to_s']:.3f} s over f{b['from_frame']:g}–"
+                                          f"f{b['until_frame']:g} ({'declared' if b.get('cite') else 'NOT DECLARED'})"
+                                          for b in blends) or "none")
+            + (f" — {'; '.join(blend_problems)}" if blend_problems else ""),
             generated=gen, masks=masks_out, mask_problems=mask_problems, hidden_over=hidden_bad[:20],
-            hidden_rows=hrows, rates=rates, list="honesty.txt")
+            hidden_rows=hrows, rates=rates, dissolves=blends, dissolve_problems=blend_problems, list="honesty.txt")
 
     # (i) reading speed (each caption, and EVERYTHING on screen together), pattern interrupts -------------
     from .scenes.captions import arrivals_on_two_lines

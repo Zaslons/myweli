@@ -178,6 +178,9 @@ class Film:
                     if b.blur == "whip" and a.value != b.value:
                         out.append({"frame": int(a.frame), "kind": "whip (in the phone)", "into": sc.id,
                                     "frames": int(b.frame - a.frame)})
+                for s in sc.dissolves:
+                    out.append({"frame": int(s.start), "kind": "dissolve (declared)", "into": sc.id,
+                                "frames": int(round(s.end - s.start))})
             if isinstance(sc, CarnetScene) and sc.macro:
                 out.append({"frame": sc.macro["at"], "kind": "cut", "into": f"{sc.id} (macro)", "frames": 0})
                 out.append({"frame": sc.macro["until"], "kind": "cut", "into": f"{sc.id} (wide)", "frames": 0})

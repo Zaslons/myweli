@@ -21,8 +21,9 @@ from promo.render import not_built  # noqa: E402
 from promo import pixels  # noqa: E402
 from promo.media import tools  # noqa: E402
 from promo.verify import (FAIL, PASS, HiddenRow, Result, Verdict, _bandpass, _psnr, air_levels,  # noqa: E402
-                          caption_reading, click_lag, click_onset, end_card_window, event_gaps, outside_safe,
-                          reading_verdict, reading_windows, verify, worst)
+                          blurs_checked, caption_reading, click_lag, click_onset, dissolve_problems, dissolves,
+                          end_card_window,
+                          event_gaps, look_frames, outside_safe, reading_verdict, reading_windows, verify, worst)
 
 SB = sbmod.load()
 
@@ -378,16 +379,71 @@ class TestHiddenRowInTheFilm(unittest.TestCase):
         self.assertTrue(any("found at" in w for w in HiddenRow.over(m)), m)       # … the window search does not
 
 
+class TestLookFrames(unittest.TestCase):
+    def test_derived_from_the_film(self):
+        """(b)'s full-size frames come from the film's own transitions and
+        events (render.json), for any cut — no frame list typed per cut."""
+        doc = {"plan": {"transitions": [{"frame": 48, "kind": "cut", "frames": 0},
+                                        {"frame": 160, "kind": "whip (in the phone)", "frames": 6},
+                                        {"frame": 193, "kind": "dissolve (declared)", "frames": 3}]},
+               "events": [[0, "cut into hook"], [100, "ui change"], [120, "word « Créneau »"],
+                          [144, "lift arrive-card"], [510, "mark punch"]]}
+        looks = look_frames(doc, 512)
+        for f in (0, 47, 48, 49, 159, 160, 161, 163, 166, 192, 193, 194, 196, 144, 147, 510, 511):
+            self.assertIn(f, looks)
+        for f in (100, 103, 120, 513):
+            self.assertNotIn(f, looks)
+
+
+class TestDissolves(unittest.TestCase):
+    TL = {"journal": {"take": "take1b", "segments": [
+        {"from_frame": 168, "kind": "run", "src_s": 32.165, "rate": 1.0, "gesture": "tap-libre"},
+        {"from_frame": 193, "kind": "dissolve", "src_s": 32.998, "to_s": 130.262, "until_frame": 196, "frames": 3,
+         "pictures": [78, 4437], "cite": "the App Store film's own"}]}}
+
+    def test_every_dissolve_is_declared_and_forward(self):
+        """(h): a dissolve skips footage; render.json must say where it is
+        declared, and it never goes back in the take."""
+        import copy
+        self.assertEqual([d["scene"] for d in dissolves(self.TL)], ["journal"])
+        self.assertEqual(dissolve_problems(self.TL), [])
+        bad = copy.deepcopy(self.TL)
+        bad["journal"]["segments"][1]["cite"] = None
+        self.assertTrue(any("not declared" in p for p in dissolve_problems(bad)), dissolve_problems(bad))
+        back = copy.deepcopy(self.TL)
+        back["journal"]["segments"][1].update(to_s=30.0, pictures=[78, 70])
+        self.assertTrue(any("back in the take" in p for p in dissolve_problems(back)), dissolve_problems(back))
+
+
+class TestBlursChecked(unittest.TestCase):
+    def test_every_declared_blur_is_measured(self):
+        """(h): the 30-s rule « some blur was measured » failed the 15-s cut,
+        which shows no phone number (take1b's placeholder, N1), and passed a
+        film that measured one take of two. Now: every take with a blur is
+        measured; a film that declares none has nothing to measure."""
+        fiche = {"take": "take2b", "pictures_checked": 1, "blurs": ["awa-number"], "most_detail_left": 0.07}
+        page = {"take": "take5b", "pictures_checked": 84, "blurs": ["salon-number"], "most_detail_left": 0.11}
+        declared = {"take1b": [], "take2b": [{"label": "awa-number"}], "take5b": [{"label": "salon-number"}]}
+        self.assertTrue(blurs_checked(declared, [fiche, page]))
+        self.assertFalse(blurs_checked(declared, [fiche]))                   # take5b's never measured
+        self.assertFalse(blurs_checked(declared, []))
+        self.assertTrue(blurs_checked({"take1b": [], "n1": []}, []))          # the 15-s cut: none declared
+
+
 class TestNothingUnverifiedPasses(unittest.TestCase):
     def test_missing_and_unbuilt(self):
         self.assertIsNone(not_built(SB, "30s", "9x16"))
-        self.assertIn("no scenes", not_built(SB, "15s", "9x16"))
+        self.assertIsNone(not_built(SB, "15s", "9x16"))
+        bare = sbmod.load(overrides=["scenes.15s=[]"])
+        self.assertIn("no scenes", not_built(bare, "15s", "9x16"))
         self.assertIn("laid out", not_built(SB, "30s", "1x1"))
         with tempfile.TemporaryDirectory() as tmp, contextlib.redirect_stdout(io.StringIO()) as out:
+            self.assertFalse(verify(bare, ["15s"], ["9x16"], Path(tmp)))
             self.assertFalse(verify(SB, ["15s"], ["9x16"], Path(tmp)))
             self.assertFalse(verify(SB, ["30s"], ["9x16"], Path(tmp)))
             self.assertEqual(verify(SB, ["30s"], ["9x16"], Path(tmp)).status, FAIL)
         self.assertIn("NOT BUILT 15s/9x16", out.getvalue())
+        self.assertIn("FAIL 15s/9x16: no film", out.getvalue())
         self.assertIn("FAIL 30s/9x16: no film", out.getvalue())
 
 

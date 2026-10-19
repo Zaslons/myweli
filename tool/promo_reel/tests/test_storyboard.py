@@ -79,7 +79,8 @@ class Starter(unittest.TestCase):
         self.assertIn("end.store", self.sb.cue_ids("15s"))
         self.assertEqual(len(self.sb.cue_ids("30s")), 85)                # + end.underline (the outro)
         self.assertEqual(len(self.sb.cut_scenes("30s")), 9)          # rows 1–24 of the 30-s storyboard
-        self.assertEqual(self.sb.cut_scenes("15s"), [])
+        self.assertEqual([s["id"] for s in self.sb.cut_scenes("15s")],      # « The 15 s cut », BARS 1–8
+                         ["hook", "air1", "journal", "revenus", "reveal", "end"])
 
     def test_scene_cue_references_are_checked_per_cut(self):
         found = problems("scenes.30s.0.from=cue:hook.stabx")

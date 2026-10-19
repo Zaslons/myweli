@@ -8,6 +8,10 @@ scale punch; on ``sink.from`` the camera pushes in (×1.5, easeInCubic) while
 the page sinks toward black, motion-blurred. The entry being written inks on
 from 30 % at f0, the margin note writes itself on its cue. Grain is added
 by the film after the blur (« Grain only in the hook »).
+
+``macro``, ``sink`` and the margin note are optional: the 15-s cut's one-bar
+hook (storyboard « The 15 s cut », BAR 1) has no macro cut and no sink — its
+three strikes run straight into the AIR.
 """
 
 from __future__ import annotations
@@ -40,9 +44,11 @@ class CarnetScene(Scene):
             if m:
                 self.macro = dict(at=F(m["at"]), until=F(m["until"]), rot_x=float(m["rot_x"]), scale=float(m["scale"]),
                                   entry=m["focus_entry"], offset=tuple(m["focus_offset"]), to=tuple(m["focus_to"]))
-            s = c["sink"]
-            self.sink = dict(at=F(s["from"]), frames=float(s["frames"]), scale=tuple(s["scale"]),
-                             light=tuple(s["light"]), blur=int(s.get("blur", 8)))
+            s = c.get("sink")
+            self.sink = None
+            if s:
+                self.sink = dict(at=F(s["from"]), frames=float(s["frames"]), scale=tuple(s["scale"]),
+                                 light=tuple(s["light"]), blur=int(s.get("blur", 8)))
             self.ink = []
             for i, k in enumerate(c.get("ink") or []):
                 a = F(k["from"])
@@ -73,7 +79,7 @@ class CarnetScene(Scene):
         a, b, s0, s1 = self.push
         s = easing.lerp(s0, s1, easing.progress(t, a, b - a))
         k = self.sink
-        if t >= k["at"]:
+        if k is not None and t >= k["at"]:
             s *= easing.lerp(k["scale"][0], k["scale"][1], easing.EASE_IN_CUBIC(easing.progress(t, k["at"], k["frames"])))
         s *= self.punches(t)
         return Pose(rot_x=self.rot_x, pivot=self.pivot, scale=s)
@@ -89,7 +95,8 @@ class CarnetScene(Scene):
                 ink[entry] = 0.0
         strikes = {row: easing.progress(t, at, 4) for row, at in self.strikes if t >= at}
         k = self.sink
-        light = easing.lerp(k["light"][0], k["light"][1], easing.EASE_IN(easing.progress(t, k["at"], k["frames"])))
+        light = 1.0 if k is None else \
+            easing.lerp(k["light"][0], k["light"][1], easing.EASE_IN(easing.progress(t, k["at"], k["frames"])))
         return {"ink": ink, "strikes": strikes, "light": light}
 
     # ---- drawing ------------------------------------------------------------------------
@@ -109,7 +116,7 @@ class CarnetScene(Scene):
 
     def blur_at(self, f: int) -> Blur | None:
         k = self.sink
-        if k["at"] <= f < k["at"] + k["frames"]:
+        if k is not None and k["at"] <= f < k["at"] + k["frames"]:
             return Blur(k["blur"], 1.0, None)
         return None
 
@@ -122,11 +129,12 @@ class CarnetScene(Scene):
             ev += [(self.macro["at"], "cut: macro"), (self.macro["until"], "cut: wide")]
         ev += [(at, f"strike row {row}") for row, at in self.strikes]
         ev += [(a, f"ink {entry}") for entry, a, n, s in self.ink]
-        ev.append((self.sink["at"], "push-in + sink"))
+        if self.sink is not None:
+            ev.append((self.sink["at"], "push-in + sink"))
         return ev
 
     def generated(self) -> list[dict]:
-        return [{"element": "carnet page, scribbles, strikes (rows 1–4)", "scene": self.id, "cite": self.cite}]
+        return [{"element": f"carnet page, scribbles, strikes (the hook, {self.id})", "scene": self.id, "cite": self.cite}]
 
 
 class AirScene(Scene):
@@ -138,4 +146,4 @@ class AirScene(Scene):
         self.stage.draw(canvas, self.size, self.seconds(t))
 
     def generated(self) -> list[dict]:
-        return [{"element": "air beat stage (row 5)", "scene": self.id, "cite": self.cite}]
+        return [{"element": f"air beat stage (no UI, {self.id})", "scene": self.id, "cite": self.cite}]
