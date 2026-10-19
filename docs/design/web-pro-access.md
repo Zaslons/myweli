@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Draft — en attente du feu vert du propriétaire (§10)** |
+| **Statut** | **Approved le 2026-10-19** — les portes P1–P4, **pas de prix** sur la page publique, le texte des §3–§5 tel qu'écrit |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-19 |
 | **PRD ref / phase** | Acquisition salon (web) · la voie compagnon : l'offre se choisit **sur le web** ([pro-companion-path.md](pro-companion-path.md)) · V1 |
@@ -95,12 +95,14 @@ Rendue côté serveur, statique, sans JS propre. Une seule action pleine.
 3. **Comment ça marche** (h2, trois étapes) : « Créez votre compte » ·
    « Ajoutez vos prestations, vos horaires et vos photos » · « Mettez votre
    salon en ligne — vos 3 mois offerts commencent ».
-4. **Les offres** (h2) — **décision du propriétaire (§10.2)** : soit les trois
-   offres de `OFFER_CARDS` avec leurs prix d'ancrage (Pro, Business, Réseau
-   « Sur devis »), soit sans prix (« Choisissez votre offre après
-   l’inscription »).
+4. ~~Les offres~~ — **pas de section prix (décision du 2026-10-19)** : les
+   offres et leurs prix restent derrière l'inscription (`/pro/abonnement`),
+   comme aujourd'hui ; la page dit « 3 mois offerts — sans carte bancaire. »
 5. **Questions fréquentes** (h2, `FAQPage`) :
-   - « Combien coûte MyWeli Pro ? » → selon §10.2.
+   - « Combien coûte MyWeli Pro ? » → « Vos 3 premiers mois sont offerts,
+     sans carte bancaire. Vous choisissez ensuite, depuis votre Espace Pro,
+     l’offre adaptée à votre salon : la taille de votre équipe, le nombre de
+     salons. »
    - « Mes clients paient-ils en ligne ? » → « Non. L’acompte éventuel est
      envoyé par Mobile Money directement sur votre numéro ; MyWeli ne prélève
      rien. »

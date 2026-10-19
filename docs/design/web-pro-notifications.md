@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Draft — en attente du feu vert du propriétaire (§9)** |
+| **Statut** | **Approved le 2026-10-19** — les trois décisions du §9 telles que recommandées : nav + cloche mobile, rafraîchissement 60 s (onglet visible) + titre + annonce, le texte du §4 |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-19 |
 | **PRD ref / phase** | FR-NOTIF · parité web ↔ app Pro · V1 |
