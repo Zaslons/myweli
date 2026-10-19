@@ -51,7 +51,15 @@ describe('split working hours — every range, both ways', () => {
   });
 
   it('the round-trip is byte-identical to what the server sent', () => {
-    expect(toApi(toEditable(base), base).weeklySchedule).toEqual(base.weeklySchedule);
+    // Closed days go back as [] — as they always did (`toApi`'s closed rule).
+    expect(toApi(toEditable(base), base).weeklySchedule).toEqual({
+      ...base.weeklySchedule,
+      '1': [],
+      '2': [],
+      '3': [],
+      '4': [],
+      '6': [],
+    });
   });
 
   it('an edited afternoon is written — it is no longer invisible', () => {

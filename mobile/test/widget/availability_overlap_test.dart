@@ -101,7 +101,10 @@ void main() {
       0: [slotAt(9, 13), slotAt(12, 18)],
     });
     await openLundi(tester);
-    await tapVisible(tester, find.widgetWithText(ElevatedButton, 'Enregistrer'));
+    await tapVisible(
+      tester,
+      find.widgetWithText(ElevatedButton, 'Enregistrer'),
+    );
 
     expect(find.text(overlap), findsOneWidget);
     verifyNever(() => service.updateAvailability(any(), any()));
@@ -125,7 +128,10 @@ void main() {
       0: [slotAt(9, 12), slotAt(12, 18)],
     });
     await openLundi(tester);
-    await tapVisible(tester, find.widgetWithText(ElevatedButton, 'Enregistrer'));
+    await tapVisible(
+      tester,
+      find.widgetWithText(ElevatedButton, 'Enregistrer'),
+    );
 
     expect(find.text(overlap), findsNothing);
     verify(() => service.updateAvailability('provider1', any())).called(1);
