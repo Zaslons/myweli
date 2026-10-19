@@ -33,23 +33,25 @@ function provider(
 }
 
 describe('publishChecklist', () => {
-  it('a complete salon WITH a live offer can publish', () => {
-    const items = publishChecklist(provider(), { offerLive: true });
+  it('a complete salon can publish — no offer chosen, none needed', () => {
+    // Aligned with the app and the server on 2026-10-19 (owner decision,
+    // docs/design/web-pro-access.md §12): the server starts the 3-month
+    // trial at the first publish when no offer exists (the companion path),
+    // so the web no longer holds « Mettre en ligne » until an offer is
+    // chosen — which started the clock during setup.
+    const items = publishChecklist(provider());
     expect(items.every((i) => i.done)).toBe(true);
     expect(canPublish(items)).toBe(true);
   });
 
-  it('team access R5a: no live offer keeps the offer step open', () => {
-    const offer = publishChecklist(provider()).find((i) => i.key === 'offer')!;
-    expect(offer.done).toBe(false);
-    expect(offer.href).toBe('/pro/abonnement');
-    // A complete salon still cannot publish without the offer.
-    expect(canPublish(publishChecklist(provider()))).toBe(false);
-    expect(
-      publishChecklist(provider(), { offerLive: true }).find(
-        (i) => i.key === 'offer',
-      )!.done,
-    ).toBe(true);
+  it('the checklist has no offer step — the app’s steps, on the web', () => {
+    expect(publishChecklist(provider()).map((i) => i.key)).toEqual([
+      'profile',
+      'location',
+      'services',
+      'photos',
+      'availability',
+    ]);
   });
 
   it('each missing piece flips its item (and blocks publish)', () => {

@@ -58,6 +58,17 @@ describe('/professionnels', () => {
     expect(PRO_LANDING.faq).toHaveLength(4);
   });
 
+  it('claims only what the WEB Pro does (parity audit 2026-10-19 §2)', () => {
+    // No week view on the web; the app's word « semaine » went with it.
+    expect(PRO_LANDING.benefits[0].body).toBe(
+      'Les clients réservent sur vos créneaux réels ; vous ajoutez les rendez-vous pris au téléphone ou au comptoir. Vue du jour par membre d’équipe, calendrier du mois et liste.',
+    );
+    // « tout se gère » overclaimed (alerts with the tab closed, split hours).
+    expect(PRO_LANDING.faq[2].answer).toBe(
+      'Non : réservations, agenda, clientèle, équipe et acomptes se gèrent depuis myweli.com, sur ordinateur comme sur téléphone.',
+    );
+  });
+
   it('no price anywhere on the page (owner decision, 2026-10-19)', () => {
     const { container } = render(<ProfessionnelsPage />);
     expect(container.textContent).not.toMatch(/FCFA|\/mois|Sur devis|70 000|120 000/);
