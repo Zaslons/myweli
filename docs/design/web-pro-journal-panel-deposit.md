@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Validé le 2026-10-19** par le propriétaire : l'UX, le texte T1–T13 mot pour mot, **Q1 = la consigne seulement en attente**, **Q2 = le retour ramène à aujourd'hui pour l'instant, le jour dans l'URL en tranche suivante** (§10) |
+| **Statut** | **Construit le 2026-10-19** sur `fix/web-pro-journal-panel-deposit` — validé par le propriétaire le même jour : l'UX, le texte T1–T13 mot pour mot, **Q1 = la consigne seulement en attente**, **Q2 = le retour ramène à aujourd'hui pour l'instant, le jour dans l'URL en tranche suivante** (§10). Vu rouge : 37 tests sur `main`, puis 6 mutations ; e2e des 7 fichiers touchés : 128 verts ; l'épingle d'heure de `roles.spec` vue rouge à 08:00 (§11) |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-19 |
 | **PRD ref / phase** | La parité web ↔ app Pro (WEB.md, « feature parity ») · la décision sans-custody des acomptes (PRD OQ-1, mémoire `payments-no-custody-screenshot`) · V1 — tableau de bord Pro web |
@@ -323,3 +323,26 @@ pending, Q2 = back to today for now, day in the URL as a follow-up. »
   cette tranche, le jour dans l'URL ensuite** (recommandé), ou dans cette
   tranche ?
 - **Le texte T1–T13** (§3), mot pour mot.
+
+## 11. Ce qui a été vu
+
+- **Rouge d'abord** : 37 tests unitaires/RTL rouges sur `main` (commit des
+  tests seuls), chacun pour la bonne raison (texte absent, bouton présent avant
+  l'heure, hôte absent d'`img-src`, `null` au lieu d'un statut).
+- **Mutations, chacune vue rouge puis annulée** : la garde Collaborateur
+  levée ; la consigne montrée à tout statut ; la région polie retirée ;
+  « Réessayer » qui réutilise l'URL ; la phrase d'acompte toujours dite ; le
+  focus de la confirmation retiré.
+- **Unitaires** : typecheck et lint propres, toute la suite web verte.
+- **e2e** (`pro`, `axe`, `type-overflow`, `tap-targets`, `roles`, `z-layers`,
+  `account`) : 128 verts, sur un port à part (le 3000 de la machine était pris
+  par un autre projet). La vignette est **décodée** (`naturalWidth > 0`), le ✕
+  de la capture agrandie est **celui qu'on touche** (test de visée — la
+  Lightbox vit dans le panneau, sans portail), Échap ne ferme qu'elle et rend
+  le focus à la vignette.
+- **L'épingle d'heure de `roles.spec`** : passée à 08:00, « Marquer comme
+  absent » disparaît et le test échoue — la garde marche dans un vrai
+  navigateur, et sans l'épingle ce test serait rouge avant 09:00 UTC.
+- **Pas vu** : le Report-Only de la CSP en production (aucun salon réel n'a
+  encore de capture) ; l'écran à 200 % de texte dans un navigateur (couvert par
+  la matrice de reflow à 320 px, pas par un zoom réel).

@@ -115,6 +115,10 @@ non-draggable blocks (completed/cancelled/noShow).
     présenté; plus Reprogrammer (opens the keyboard-accessible move dialog)
     and Annuler where policy allows. Guards mirror the app (« Terminé »
     before end time asks confirmation; « Non présenté » only after start).
+  - *2026-10-19:* the panel shipped without the deposit, the proof and the
+    « Non présenté » guard; [web-pro-journal-panel-deposit.md](web-pro-journal-panel-deposit.md)
+    delivers them (plus « Voir le rendez-vous »). The « Terminé » confirmation
+    is still not built — the app has none either.
 - **Drag a block** (pending/confirmed only): ghost follows snapped to 15-min
   cells; drop → **optimistic move** + reschedule call (+ `artistId` when the
   column changed); 409 `slot_unavailable` → snap back + toast « Créneau
