@@ -31,6 +31,15 @@ cuts:
 # Every format's short side is 1080, so type, the phone scale (1.791 px/pt),
 # the touch disc, the lifts and the Lottie keep the same pixel sizes
 # everywhere: each format is re-laid out, never cropped or resized.
+#
+# ONE storyboard → three formats (storyboard « 1:1 and 16:9 »): the scenes
+# say WHAT is shown and WHEN; each format's `layout` says WHERE — the caption
+# placement, the counter, where each kind of lift lands, the hook's page and
+# its scrim, the map credit. The scenes' camera W values are measured in the
+# `reference` format (9:16); each W key says what it keeps (`keep: top` — the
+# point on the window's top edge, e.g. a row hidden under the band; `centre`
+# — the active row in the window's middle; `floor` — a row on the floor), and
+# the other formats re-frame by that rule (promo/scenes/phone.py).
 x-type-px: &type_px       # (YAML anchor only — the key below each format is what is read)
   hook: 96                # Poppins Medium, white
   app: 72                 # Poppins Medium #1A1A1A, ≤ 2 lines, every line measured
@@ -42,6 +51,7 @@ x-type-px: &type_px       # (YAML anchor only — the key below each format is w
 
 formats:
   9x16:
+    reference: true                       # the scenes' camera W values are measured in this window
     size: [1080, 1920]
     safe: [120, 270, 900, 1248]
     safe_basis: platform
@@ -82,6 +92,16 @@ formats:
       tilt_axis: x                        # 2.5D tilts are rotX
       tilt_max_deg: null
       scene_whip_axis: null               # whips follow the storyboard row (vertical in-phone, horizontal onto Revenus)
+      caption_align: centre
+      caption_cap_top: {hook: 300, app: 330}   # the hook block y 300–700; app words y 300–540
+      counter_baselines: [322, 496]       # label, figure: the label clear of the rolling band above the figure
+      lift_y:                             # where each kind of lift lands (its x: lift_x)
+        card_on_floor: {bottom: 1190}     # « Arrivé »: Fatou B.'s card lifts in place, on the floor
+        card_under_caption: {centre_y: 930}   # « Total réalisé », under the two-line sentence
+        tile_row: {centre_y: 815}         # the Fiche's three tiles, on their own row (y 725–875)
+      hook_page: {x: [40, 1040], top: 640, pivot: [540, 1250], macro_to: [540, 1200]}   # the page fills y ≈ 700–1700, tilted
+      hook_scrim: {rect: [0, 0, 1080, 520], fade: [0, 120]}   # black over the page to y 520, gone by 640: no scribble under the words
+      map_credit: {x: 120, baseline: 1236, align: left}       # on the floor
 
   1x1:
     size: [1080, 1080]
@@ -93,7 +113,7 @@ formats:
       caption_band: [0, 0, 1080, 300]
       caption_fade: [0, 300, 1080, 330]
       captions: [54, 80, 1026, 280]       # at most two 72-px lines; counter label + 120-px figure fit in 230 px
-      hook_block: [54, 54, 1026, 300]     # captions and the strike stack in the band
+      hook_block: [54, 54, 1026, 420]     # captions and the strike stack in the band (its third line reaches y ≈ 414)
       phone_window: [180, 330, 900, 1002] # ≈ 375 pt visible
       overlays: [54, 54, 1026, 1026]      # lifts may grow past the phone edges
       floor_fade: [0, 1002, 1080, 1026]
@@ -116,11 +136,21 @@ formats:
       end_mark_scale: 1.2
       end_mark_ink_y: [250, 449]
       end_tagline_cap_top_y: 560
-      lift_x: [54, 1026]
+      lift_x: [150, 930]                  # 780 px like 9:16 (the lifts keep their pixel size), centred; they may use x 54–1026
       lift_veil: 0.55                     # no side room: the phone still recedes under the veil
       tilt_axis: x
       tilt_max_deg: null
       scene_whip_axis: null
+      caption_align: centre
+      caption_cap_top: {hook: 80, app: 100}    # app words y 80–280 (two 72-px lines end ≈ 253)
+      counter_baselines: [110, 284]       # label + 120-px figure in 230 px (cap top 81 → baseline 284), the 9:16 spacing
+      lift_y:
+        card_on_floor: {bottom: 1000}     # the window's floor (1002), as 9:16's 1190 on 1192
+        card_under_caption: {centre_y: 690}
+        tile_row: {centre_y: 530}         # the tiles' own row at W 216 (y 455–605)
+      hook_page: {x: [40, 1040], top: -40, pivot: [540, 600], macro_to: [540, 760]}   # the page fills the square under the band
+      hook_scrim: {rect: [0, 0, 1080, 400], fade: [0, 100]}   # the strike stack's third line needs the band to y ≈ 414
+      map_credit: {x: 1026, baseline: 290, align: right}      # the floor is outside the safe area: the band's foot, over the phone's top right
 
   16x9:
     size: [1920, 1080]
@@ -130,11 +160,11 @@ formats:
     rail_free: null
     zones:
       captions: [96, 54, 1056, 1026]      # left column, the block centred on y 440; same two-line breaks at 72 px
-      hook_block: [96, 54, 1056, 1026]    # captions and strike stack top-left
+      hook_block: [96, 54, 816, 520]      # captions and strike stack top-left, on the hook's scrim
       phone_window: [1104, 54, 1824, 1002] # right third, ≈ 530 pt visible
       top_fade: [1104, 54, 1824, 84]      # 30-px top fade of the window
       overlays: [300, 54, 1060, 1026]     # lifts pop out to the LEFT of the phone, no veil
-      slot_card: [96, 560, 620, 1026]     # optional SLOT « FAUTEUIL » card, radius 48, bars 11–12
+      slot_card: [96, 560, 620, 1026]     # SLOT « FAUTEUIL » (bars 11–12): EMPTY — no photos (the owner); the caption alone
       floor_fade: [0, 1002, 1920, 1026]
       floor: [0, 1026, 1920, 1080]
     layout:
@@ -160,6 +190,16 @@ formats:
       tilt_axis: y                        # 2.5D tilts become yaw moves
       tilt_max_deg: 10
       scene_whip_axis: horizontal         # the bar-5 in-phone whip stays vertical inside the window
+      caption_align: left                 # the column's left edge, x 96
+      caption_cap_top: {hook: 130, app: null}  # the hook top-left; app captions centred on y 440
+      counter_baselines: [366, 540]       # the counter's block centred on the column's y 440
+      lift_y:                             # beside the phone, under the caption (y ≈ 395–490)
+        card_on_floor: {bottom: 1000}
+        card_under_caption: {centre_y: 770}
+        tile_row: {centre_y: 720}
+      hook_page: {x: [760, 1960], top: -440, pivot: [1360, 560], macro_to: [1340, 640]}   # the page across the frame's right, rows 9–18 in view
+      hook_scrim: {rect: [0, 0, 820, 1080], fade: [200, 0]}   # black down the left, the words top-left on it
+      map_credit: {x: 1056, baseline: 1016, align: right}     # at the foot of the left column, by the phone's corner
 
 
 # ── MUSIC ─────────────────────────────────────────────────────────────────────
@@ -209,8 +249,20 @@ music:
 # CAMERA: keyframes {at, value, curve}; a key is reached at `at`, from the
 #   previous key on `curve` (linear, ease_out_cubic, ease_in_out_cubic,
 #   fast_out_slow_in, ease_in, ease_out, ease_in_cubic). W = the screen point on
-#   the band edge (y 600); zoom = px_per_pt ÷ 1.791 about `anchor_pt`; rot_x in
-#   degrees; `blur` on a key blurs the move into it (`whip` = a 6-frame whip).
+#   the window's top edge (the band edge, y 600 in 9:16), measured in the
+#   reference format (9:16); `keep: top | centre | floor` (default: the key
+#   before it's, the first `top`) says what the value holds — a point on the
+#   top edge, in the window's middle, on the floor — and the other formats
+#   re-frame by it (never below the screen's top, pt 56). zoom = px_per_pt ÷
+#   1.791 about `anchor_pt` (a screen point) or `anchor_y: top` (the window's
+#   top edge); rot_x in degrees — a tilt, turned into the format's
+#   `tilt_axis` (16:9: yaw, ≤ 10°); `blur` on a key blurs the move into it
+#   (`whip` = a 6-frame whip).
+# PLACES: a lift lands at the format's `lift_x`, its `target.y` naming one of
+#   the format's `lift_y` places; the stacked tiles likewise (`layout.y`); the
+#   counter on the format's `counter_baselines`; the map credit on its
+#   `map_credit`; the hook's page on its `hook_page`; a caption with
+#   `centre: frame` is centred on the canvas (the AIR's word).
 # GENERATED ELEMENTS cite their source (`cite:`); verify lists every one.
 
 scenes:
@@ -225,14 +277,12 @@ scenes:
     stage: {ground: black, pattern: 0.4, drift_px_s: [0, -4]}
     grain: {seed: 11}
     cite: "generated illustration of a common pain: procedural ruled paper, unreadable pen scribbles, no font, no name, no number (storyboard row 1; promo/fx/carnet.py); brand pattern per the brand book (Identity p.13 / Brandbook p.22)"
-    carnet:
+    carnet:                                 # where the page lies: the format's hook_page (9:16: y ≈ 700–1700, tilted)
       seed: 7
-      rest: {x: [40, 1040], top: 640}       # the page fills y ≈ 700–1700, tilted
-      pivot: [540, 1250]
       rot_x: 22
       push: {from: cue:hook.stab, to: 2.2.3+3, scale: [1.10, 1.16]}     # linear, already under way at f0
       macro: {at: cue:hook.cut, until: cue:strike1, rot_x: 16, scale: 1.7,
-              focus_entry: squeeze, focus_offset: [230, 40], focus_to: [540, 1200]}   # HARD CUT on 1.3 and back on 2.1
+              focus_entry: squeeze, focus_offset: [230, 40]}   # HARD CUT on 1.3 and back on 2.1, the entry on hook_page.macro_to
       sink: {from: cue:clap_roll1, frames: 16, scale: [1.0, 1.5], light: [1.0, 0.15], blur: 8}   # 2.3: push + sink, motion-blurred
       ink:
         - {entry: write, from: cue:hook.pen, to: cue:hook.pen@end, start: 0.3}    # 30 % drawn at f0, complete at f24
@@ -272,7 +322,7 @@ scenes:
     captions:
       - id: breathe
         type: hook
-        centre_y: 960
+        centre: frame                       # centred on the canvas, every format
         until: cue:drop1.impact
         cite: "hook copy, approved storyboard 2026-10-19"
         lines: [[{w: Respirez., at: cue:air1.reverse}]]
@@ -312,12 +362,12 @@ scenes:
       - {at: cue:create.done, src: {named: 131.448}, rate: 1}                   # « Rendez-vous créé », 1×
     camera:
       W:
-        - {at: cue:drop1.impact, value: 56}
-        - {at: 3.1.0+15, value: 257, curve: ease_out_cubic}     # Fatou B.'s card bottom (582.0 pt) on y 1184; the 13:15 name under the floor
+        - {at: cue:drop1.impact, value: 56, keep: top}
+        - {at: 3.1.0+15, value: 257, curve: ease_out_cubic, keep: floor}   # Fatou B.'s card bottom (582.0 pt) on y 1184; the 13:15 name under the floor
         - {at: cue:whip1, value: 257}
-        - {at: cue:whip1+6, value: 667, curve: ease_in_out_cubic, blur: whip}   # vertical whip; the 13:15 row crosses inside the blur and lands under the band (its 644-pt line on y 560)
+        - {at: cue:whip1+6, value: 667, curve: ease_in_out_cubic, blur: whip, keep: top}   # vertical whip; the 13:15 row crosses inside the blur and lands under the band (its 644-pt line on y 560)
         - {at: 5.2.3+2, value: 667}
-        - {at: 5.4.0, value: 377.5, curve: ease_in_out_cubic, blur: 12}   # the date/time row (518–572 pt) centred on y ≈ 900
+        - {at: 5.4.0, value: 377.5, curve: ease_in_out_cubic, blur: 12, keep: centre}   # the date/time row (518–572 pt) centred on y ≈ 900
         - {at: 5.4.2+2, value: 377.5}                                      # held f304–f314, then a 6-frame glide like the other two
         - {at: cue:fill.touch1, value: 86.5, curve: ease_in_out_cubic, blur: 16}   # « Coupe homme » row (254 pt) on y ≈ 900, f314→f320
         - {at: 6.1.2+2, value: 86.5}
@@ -325,13 +375,13 @@ scenes:
         - {at: 6.2.2+2, value: 533.5}
         - {at: cue:fill.touch3, value: 584.5, curve: ease_in_out_cubic, blur: 8}   # the name field (752 pt)
         - {at: cue:create.drag, value: 584.5}
-        - {at: 7.1.2, value: 667, curve: ease_in_out_cubic, blur: 8}       # « Créer » (832 pt) at y ≈ 896; pt 667 on the band edge: the journal's 13:15 row returns under the band
+        - {at: 7.1.2, value: 667, curve: ease_in_out_cubic, blur: 8, keep: top}    # « Créer » (832 pt) at y ≈ 896; pt 667 on the band edge: the journal's 13:15 row returns under the band
       zoom:
         - {at: 5.4.0, value: 1.0}
         - {at: 5.4.2+2, value: 1.0385, curve: ease_in_out_cubic, anchor_pt: 545}     # micro push 1.791 → 1.86 px/pt toward the filled fields, f304→f314
         - {at: cue:fill.touch1, value: 1.0, curve: ease_in_out_cubic, anchor_pt: 545}  # eases back to 1.0 with the glide, f314→f320
-        - {at: cue:create.done, value: 1.0, anchor_y: 600}
-        - {at: 8.1.0+12, value: 1.1167, curve: ease_in_out_cubic, anchor_y: 600}   # push-in 1.791 → 2.0 px/pt, pt 667 kept on the band edge
+        - {at: cue:create.done, value: 1.0, anchor_y: top}
+        - {at: 8.1.0+12, value: 1.1167, curve: ease_in_out_cubic, anchor_y: top}   # push-in 1.791 → 2.0 px/pt, pt 667 kept on the band edge
       slam:                                  # the phone slams in on the drop
         scale: [{at: cue:drop1.impact, value: 1.10}, {at: cue:drop1.impact+8, value: 1.0, curve: fast_out_slow_in}]
         rot_x: [{at: cue:drop1.impact, value: 14}, {at: cue:drop1.impact+16, value: 0, curve: fast_out_slow_in}]
@@ -351,7 +401,7 @@ scenes:
         rect_pt: [15.67, 510.0, 386.0, 582.0]      # measured on 23.620: green border + card body
         up: cue:arrive.pop
         down: 4.4.0
-        target: {x: [120, 900], bottom: 1190}
+        target: {y: card_on_floor}           # lift_x wide (780 px), on the floor (9:16: bottom 1190)
     captions:
       - id: arrive
         until: cue:whip1
@@ -388,7 +438,7 @@ scenes:
     timeline:
       - {at: cue:fiche.cut, hold: 6.500}     # at rest 6.435–30.96; the Clients list is not used
     camera:
-      W: [{at: cue:fiche.cut, value: 216}]   # the (blurred) number above y 560, under the band; tiles at y ≈ 727–877
+      W: [{at: cue:fiche.cut, value: 216, keep: top}]   # the (blurred) number above y 560, under the band; tiles at y ≈ 727–877
       slam:
         rot_x: [{at: cue:fiche.cut, value: 8}, {at: cue:fiche.cut+8, value: 0, curve: ease_out_cubic}]
     stack:                                   # three real tiles (client_detail_screen.dart:663-676); « 0 Absences » is not lifted
@@ -398,7 +448,7 @@ scenes:
         - [112.33, 286.0, 197.0, 369.67]     # « 17 000 FCFA » Dépensé
         - [300.33, 286.0, 385.67, 369.67]    # « 13 oct. 2026 » Dernière
       ups: [cue:fiche.card1, cue:fiche.card2, cue:fiche.card3]
-      layout: {axis: horizontal, x: [120, 900], gap: 16, centre_y: 815}   # on the tiles' own row (y 725–875): they lift out in place
+      layout: {axis: horizontal, gap: 16, y: tile_row}   # lift_x wide, on the format's tile_row (9:16: the tiles' own row, y 815)
       # the panel grows WITH the lifts: at each lift it covers the lifted tiles (where they are now), their
       # places on the phone and the gaps between, 24 px around — never a tile still waiting for its lift,
       # which stays on the phone, veiled, with its texture, until its own beat (review round 2)
@@ -429,7 +479,7 @@ scenes:
       - {at: cue:revenus.land, src: {named: 7.815}, rate: 1, src_until: 7.840}   # then held at rest (#27)
     figure_picture: {named: 7.815}           # the first picture with « 77 000 FCFA » (verify measures it)
     camera:
-      W: [{at: cue:drop2.impact, value: 124}]   # « Mois » (141 pt) at y 630; the title « Revenus » (ink ≤ 101 pt) wholly under the band; the card at y 704–941
+      W: [{at: cue:drop2.impact, value: 124, keep: top}]   # « Mois » (141 pt) at y 630; the title « Revenus » (ink ≤ 101 pt) wholly under the band; the card at y 704–941
     touches:
       - {gesture: tap-mois, at: cue:revenus.touch, tone: dark}
     counter: &revenus_counter
@@ -439,16 +489,14 @@ scenes:
       label_switch: cue:revenus.tick1
       roll: {from: cue:revenus.tick1, to: cue:revenus.land}
       punch: {at: cue:revenus.land, start: 1.08, frames: 5}
-      exit: {at: cue:sentence.word1-6, frames: 6}
-      label_baseline: 322                    # clear of the rolling band above the figure
-      figure_baseline: 496
+      exit: {at: cue:sentence.word1-6, frames: 6}   # on the format's counter_baselines, placed as its captions
       cite: "generated type: the app's figure as formatters.dart:83-93 prints it (NumberFormat('#,##0','fr_FR') + U+202F groups + ' FCFA'), the tab labels earnings_screen.dart:139-142; it starts on N1's « 0 FCFA » and lands on N1's « 77 000 FCFA » on the frame the app first shows it"
     lifts:
       - id: total-card                       # « Total réalisé / 77 000 FCFA / Rendez-vous terminés » (earnings_screen.dart:190, :207)
         picture: {named: 7.833}
         rect_pt: [78.33, 182.0, 323.67, 314.0]     # measured on N1 #27 (fill #FFFFFF)
         lands: cue:sentence.pop
-        target: {x: [120, 900], centre_y: 930}
+        target: {y: card_under_caption}      # 9:16: centred on y 930
     captions:
       - id: counted
         until: cue:page.cut
@@ -476,19 +524,17 @@ scenes:
       - {at: 12.3.0, hold: 28.480}
     camera:
       W:
-        - {at: cue:page.cut, value: 56}
+        - {at: cue:page.cut, value: 56, keep: top}
         - {at: cue:page.drag, value: 56}
-        - {at: 12.3.0, value: 482, curve: ease_in_out_cubic, blur: 6}   # the bar's « Réserver » line (≤ 806 pt) ≥ 8 px above the floor
+        - {at: 12.3.0, value: 482, curve: ease_in_out_cubic, blur: 6, keep: floor}   # the bar's « Réserver » line (≤ 806 pt) ≥ 8 px above the floor
       slam:
         rot_x: [{at: cue:page.cut, value: 12}, {at: 11.2.0, value: 0, curve: ease_out_cubic}]    # tilt in over f640–656
       parallax: {from: cue:page.drag, to: 12.3.0, phone_dy: -40, pattern: 0.4}    # the phone drifts up 40 px, the pattern 16
     touches:
       - {gesture: scroll-page, at: 11.2.2, tone: dark, follow: scroll}
     credit:                                  # the app's own map attribution is a collapsed (i): not legible
-      text: "© OpenStreetMap, © CARTO"
+      text: "© OpenStreetMap, © CARTO"       # placed on the format's map_credit (9:16: the floor, x 120, baseline 1236)
       map_rect_pt: [40, 623.7, 362, 781.7]   # at rest (take5b notes); scrolls with the page, cut at the bar (740 pt)
-      x: 120
-      baseline: 1236
       cite: "attribution for the CARTO light tiles on OpenStreetMap data shown in the app's map (take5b notes)"
     captions:
       - id: page
@@ -518,7 +564,7 @@ scenes:
     timeline:
       - {at: cue:air2.reverse, hold: 28.480}
     camera:
-      W: [{at: cue:air2.reverse, value: 482}]
+      W: [{at: cue:air2.reverse, value: 482, keep: floor}]   # the page's last framing
       fall: {at: cue:air2.reverse, frames: 12, scale: [1.0, 0.90], opacity: [1.0, 0.0]}
 
   # ── row 23 · f768–823 · BRAND REVEAL: the Pro app's own opening Lottie ───────
@@ -591,8 +637,6 @@ scenes:
     cite: "generated illustration of a common pain: procedural ruled paper, unreadable pen scribbles, no font, no name, no number (storyboard « The 15 s cut », BAR 1; promo/fx/carnet.py); brand pattern per the brand book (Identity p.13 / Brandbook p.22)"
     carnet:
       seed: 7
-      rest: {x: [40, 1040], top: 640}
-      pivot: [540, 1250]
       rot_x: 22
       push: {from: cue:hook.stab, to: cue:air1.reverse-1, scale: [1.10, 1.13]}   # the 30-s push's speed (1.10 → 1.16 over f0–95), under way at f0
       ink:
@@ -639,9 +683,9 @@ scenes:
       - {at: cue:create.done, src: {named: 131.448}, rate: 1}                   # « Rendez-vous créé », 1×
     camera:
       W:
-        - {at: cue:drop1.impact, value: 257}    # Fatou B.'s card bottom (582.0 pt) on y 1184; the 13:15 name under the floor
+        - {at: cue:drop1.impact, value: 257, keep: floor}    # Fatou B.'s card bottom (582.0 pt) on y 1184; the 13:15 name under the floor
         - {at: cue:whip1, value: 257}
-        - {at: cue:whip1+6, value: 667, curve: ease_in_out_cubic, blur: whip}   # vertical whip; the 13:15 row crosses inside the blur and lands under the band
+        - {at: cue:whip1+6, value: 667, curve: ease_in_out_cubic, blur: whip, keep: top}   # vertical whip; the 13:15 row crosses inside the blur and lands under the band
         - {at: 4.1.0+1, value: 667}             # the form at rest, through W 667: « Client sans numéro », the name and the note fields
         # the dissolve re-frames (storyboard: « W 660 − Δ », Δ ≈ 128): measured on the two pictures, the
         # fields from « Client sans numéro » down moved up 145.33 pt (the 125.33-pt scroll + the 20-pt
@@ -650,8 +694,8 @@ scenes:
         - {at: 4.1.3, value: 521.67}            # « Créer le rendez-vous » at y ≈ 1158 while its loader shows
         - {at: 4.2.2, value: 667, curve: ease_in_out_cubic, blur: 8}   # back to W 667 over f204–216: the 13:15 row under the band before the journal returns
       zoom:
-        - {at: cue:create.done, value: 1.0, anchor_y: 600}
-        - {at: 4.4.0+12, value: 1.1167, curve: ease_in_out_cubic, anchor_y: 600}   # push-in 1.791 → 2.0 px/pt f232–252, pt 667 kept on the band edge
+        - {at: cue:create.done, value: 1.0, anchor_y: top}
+        - {at: 4.4.0+12, value: 1.1167, curve: ease_in_out_cubic, anchor_y: top}   # push-in 1.791 → 2.0 px/pt f232–252, pt 667 kept on the band edge
     touches:                                 # the App Store film's disc (tool/app_store_preview/frames.py draw_touch :212-219)
       - {gesture: swipe-arrive, at: cue:swipe.touch, tone: dark}      # black on the white card
       - {gesture: tap-arrive, at: cue:tap.touch, tone: light}         # white on the dark-green pane

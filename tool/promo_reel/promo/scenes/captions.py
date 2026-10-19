@@ -6,10 +6,20 @@ word until ``until`` — the frame before it is the last that shows it, so the
 next caption's first word (which rises from that frame on) never overlaps it.
 Types follow the storyboard's « Type » rule and the format's ``type_px``:
 
-  hook     Poppins Medium 96 px, white, cap top y 300 (the hook block)
-  app      Poppins Medium 72 px, #1A1A1A, cap top y 330 (the band, y 300–540)
+  hook     Poppins Medium 96 px, white, cap top = layout caption_cap_top.hook
+           (9:16: y 300, the hook block)
+  app      Poppins Medium 72 px, #1A1A1A, cap top = layout caption_cap_top.app
+           (9:16: y 330, the band, y 300–540) — or, null, the block centred
+           on caption_centre_y (16:9: the left column's y 440)
   tagline  Poppins Medium 46 px, #1A1A1A, cap top = layout end_tagline_cap_top_y
   store    Inter Medium type_px.store (40) px, #4A4A4A, under the tagline
+
+WHERE (the format's layout): hook and app lines sit in the caption column —
+centred on caption_centre_x (`caption_align: centre`, 9:16 and 1:1) or from
+the column's left edge (`left`, 16:9); the tagline and the store line are
+centred on the mark's axis (lottie_centre's x); `centre: frame` centres a
+caption on the canvas (the AIR's « Respirez. »). Boxes say whether their
+caption is laid in the column (`column`), which verify (g) holds them to.
 
 ``colour: auto`` (the default for app captions) follows the stage the frame is
 on: ink on paper, white on black — « Ils réservent dès la mise en ligne. »
@@ -53,9 +63,15 @@ class CaptionStyle:
 def _styles(layout: dict) -> dict[str, CaptionStyle]:
     tp = layout["type_px"]
     tag_top = layout["end_tagline_cap_top_y"]
+    tops = layout["caption_cap_top"]
+    centre_y = layout.get("caption_centre_y")
+
+    def place(kind: str) -> tuple[float | None, float | None]:
+        return (float(tops[kind]), None) if tops.get(kind) is not None else (None, float(centre_y))
+
     return {
-        "hook": CaptionStyle("poppins", tp["hook"], PALETTE.WHITE, 300.0, None, None),
-        "app": CaptionStyle("poppins", tp["app"], "auto", 330.0, None, None),
+        "hook": CaptionStyle("poppins", tp["hook"], PALETTE.WHITE, *place("hook"), None),
+        "app": CaptionStyle("poppins", tp["app"], "auto", *place("app"), None),
         "tagline": CaptionStyle("poppins", tp["tagline"], PALETTE.INK, float(tag_top), None, None),
         "store": CaptionStyle("inter", float(tp.get("store", 40)), PALETTE.INK_SECONDARY, float(tag_top) + 96.0,
                               None, None),
@@ -63,7 +79,8 @@ def _styles(layout: dict) -> dict[str, CaptionStyle]:
 
 
 class CaptionItem:
-    def __init__(self, spec: dict, owner: str, clock, layout: dict, where: str):
+    def __init__(self, spec: dict, owner: str, clock, layout: dict, where: str,
+                 size: tuple[int, int] | None = None):
         self.id = spec.get("id", where)
         self.owner = owner
         self.cite = spec.get("cite")
@@ -98,16 +115,44 @@ class CaptionItem:
         centre_y = spec.get("centre_y", st.centre_y)
         line_height = spec.get("line_height", st.line_height)
         cap_top = spec.get("cap_top", st.cap_top)
+        if "cap_top" in spec or "centre_y" in spec:
+            cap_top = spec.get("cap_top")
+            centre_y = spec.get("centre_y")
         max_w = float(layout["caption_line_max_px"]) if kind in ("hook", "app") else 1e9
+        # where the lines sit across: the caption column (centred or from its left edge), the mark's axis
+        # (the end card), or the canvas (`centre: frame`)
+        self.in_column = kind in ("hook", "app")
+        align = "centre"
+        if spec.get("centre") is not None:
+            if spec["centre"] != "frame":
+                raise ValueError(f"{where}.centre: `frame` (centred on the canvas), not {spec['centre']!r}")
+            if size is None:
+                raise ValueError(f"{where}.centre: frame needs the canvas size")
+            centre_x, centre_y, cap_top = size[0] / 2, size[1] / 2, None
+            self.in_column = False
+        elif kind in ("tagline", "store"):
+            centre_x = float(layout["lottie_centre"][0])
+        elif layout["caption_align"] == "left":
+            centre_x, align = float(layout["caption_column_x"][0]), "left"
+        else:
+            centre_x = float(layout["caption_centre_x"])
         if centre_y is not None:
             # the block centred on y: cap top of the first line to the baseline of the last
             lh = line_height if line_height is not None else 1.15 * px
             block = ty.cap_height(self.font) + lh * (len(lines) - 1)
             cap_top = float(centre_y) - block / 2
         try:
-            self.caption = ty.Caption(lines, self.font, PALETTE.INK, centre_x=float(layout["caption_centre_x"] or 540),
+            self.caption = ty.Caption(lines, self.font, PALETTE.INK, centre_x=centre_x,
                                       cap_top=float(cap_top), line_height=line_height, max_width=max_w,
-                                      reveal=reveal)
+                                      reveal=reveal, align=align)
+            if align == "left":
+                # set from the column's left edge: a first glyph that overhangs its origin moves the lines in
+                # by that much, so the ink starts ON the edge, never past it
+                ink_x0 = min(ty.ink_bounds(p.word.text, self.font, p.x, p.baseline)[0] for p in self.caption.placed)
+                if ink_x0 < centre_x:
+                    self.caption = ty.Caption(lines, self.font, PALETTE.INK,
+                                              centre_x=centre_x + (centre_x - ink_x0), cap_top=float(cap_top),
+                                              line_height=line_height, max_width=max_w, reveal=reveal, align=align)
         except ValueError as e:
             raise ValueError(f"{where}: {e}") from None
         self.strike = None
@@ -191,11 +236,12 @@ class CaptionItem:
                 continue
             x0, y0, x1, y1 = ty.ink_bounds(p.word.text, self.font, p.x, p.baseline)
             rise = 0.0 if self.reveal.kind == "mask" else self.caption.word_state(p, t)[1]
-            out.append({"kind": "caption", "label": f"{self.id}:{p.word.text}",
+            out.append({"kind": "caption", "label": f"{self.id}:{p.word.text}", "column": self.in_column,
                         "rect": [round(x0, 1), round(y0 + rise, 1), round(x1, 1), round(y1 + rise, 1)]})
         u = self.underline_rect(t)
         if u is not None:
-            out.append({"kind": "caption", "label": f"{self.id}:underline", "rect": [round(v, 1) for v in u]})
+            out.append({"kind": "caption", "label": f"{self.id}:underline", "column": self.in_column,
+                        "rect": [round(v, 1) for v in u]})
         return out
 
     def line_widths(self) -> list[float]:

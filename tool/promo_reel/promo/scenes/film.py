@@ -39,22 +39,22 @@ KINDS: dict[str, type[Scene]] = {
     "end_card": EndCardScene,
 }
 
-#: Formats the scenes are laid out for so far (the 1:1 and 16:9 re-layouts
-#: of the storyboard's « 1:1 and 16:9 » section are not built yet).
-LAID_OUT_FORMATS = ("9x16",)
-
-
 class Film:
+    """A cut in a format. Every format of the storyboard is laid out by its
+    own `layout` (the scenes read every place from it, and re-frame their
+    camera from the reference format's window by each W key's `keep`): the
+    same scenes, the same events.json, the same cut frames."""
+
     def __init__(self, storyboard, cut: str, fmt_id: str, clock: Clock):
-        if fmt_id not in LAID_OUT_FORMATS:
-            raise SceneError(f"format {fmt_id}: the scenes are laid out for {', '.join(LAID_OUT_FORMATS)} only so far")
+        if fmt_id not in storyboard.formats:
+            raise SceneError(f"format {fmt_id}: not in the storyboard (have: {', '.join(storyboard.formats)})")
         specs = storyboard.cut_scenes(cut)
         if not specs:
             raise SceneError(f"cut {cut}: storyboard.yaml has no scenes for it yet")
         self.storyboard, self.cut = storyboard, cut
         self.fmt = storyboard.formats[fmt_id]
         self.clock = clock
-        self.ctx = Context(clock, self.fmt, fps=storyboard.meta.fps)
+        self.ctx = Context(clock, self.fmt, fps=storyboard.meta.fps, reference=storyboard.reference_format)
         self.frames = storyboard.cuts[cut].frames
         if clock.frames != self.frames:
             raise SceneError(f"events.json has {clock.frames} frames, cut {cut} {self.frames}")
@@ -69,7 +69,8 @@ class Film:
             self.scenes.append(sc)
             for j, c in enumerate(spec.get("captions") or []):
                 try:
-                    caps.append(CaptionItem(c, sc.id, clock, self.fmt.layout, f"{where}.captions[{j}]"))
+                    caps.append(CaptionItem(c, sc.id, clock, self.fmt.layout, f"{where}.captions[{j}]",
+                                            size=self.size))
                 except (KeyError, ValueError) as e:
                     raise SceneError(f"{where}.captions[{j}]: {e}") from None
         try:
@@ -105,7 +106,8 @@ class Film:
         tr = sc.transition
         if not tr or tr.get("kind") != "whip":
             return None
-        axis = tr.get("axis", "x")
+        forced = self.fmt.layout.get("scene_whip_axis")         # 16:9: scene-to-scene whips are horizontal
+        axis = {"horizontal": "x", "vertical": "y"}[forced] if forced else tr.get("axis", "x")
         dist = float(self.size[0] if axis == "x" else self.size[1])
         return blurmod.WhipPan(start=float(sc.start), distance=dist, frames=float(tr.get("frames", 6))), axis
 

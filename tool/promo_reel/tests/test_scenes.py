@@ -365,7 +365,7 @@ class TestStoryboard30s(unittest.TestCase):
 
     def test_every_caption_measures_and_reads(self):
         from promo.verify import caption_reading
-        items = [CaptionItem(c, s["id"], self.clock, SB.formats["9x16"].layout, s["id"])
+        items = [CaptionItem(c, s["id"], self.clock, SB.formats["9x16"].layout, s["id"], size=(1080, 1920))
                  for s in self.scenes for c in s.get("captions", [])]
         self.assertEqual(len(items), 13)
         for c in items:
@@ -425,7 +425,7 @@ class TestStoryboard15s(unittest.TestCase):
     def test_every_caption_measures_and_reads(self):
         from promo.scenes.captions import arrivals_on_two_lines
         from promo.verify import caption_reading
-        items = [CaptionItem(c, s["id"], self.clock, SB.formats["9x16"].layout, s["id"])
+        items = [CaptionItem(c, s["id"], self.clock, SB.formats["9x16"].layout, s["id"], size=(1080, 1920))
                  for s in self.scenes for c in s.get("captions", [])]
         self.assertEqual([c.id for c in items], ["hook-question", "breathe", "arrive", "filled", "tagline", "store"])
         for c in items:

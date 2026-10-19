@@ -12,6 +12,14 @@ by the film after the blur (« Grain only in the hook »).
 ``macro``, ``sink`` and the margin note are optional: the 15-s cut's one-bar
 hook (storyboard « The 15 s cut », BAR 1) has no macro cut and no sink — its
 three strikes run straight into the AIR.
+
+WHERE the page lies is the format's (layout ``hook_page``: its x span, top,
+the pivot of its tilt and push, and where the macro puts the squeezed
+entry); the stage's black covers it under the white words (``hook_scrim``:
+an opaque rectangle fading out to its right and below) — 9:16: the page
+fills y ≈ 700–1700 under a band to y 520 (gone by 640); 1:1: the page fills
+the square under the band; 16:9: the page lies across the frame's right, the
+words top-left on black.
 """
 
 from __future__ import annotations
@@ -32,18 +40,27 @@ class CarnetScene(Scene):
         c = spec.get("carnet") or {}
         F = ctx.clock.frame
         try:
+            for key in ("rest", "pivot"):
+                if key in c:
+                    raise SceneError(f"{where}.carnet.{key}: where the page lies is the format's (layout.hook_page)")
+            page = ctx.layout["hook_page"]
             self.carnet = Carnet(seed=int(c.get("seed", 7)))
-            r = c["rest"]
-            self.rest = self.carnet.rest_rect(float(r["x"][0]), float(r["x"][1]), float(r["top"]))
-            self.pivot = tuple(float(v) for v in c.get("pivot", (540, 1250)))
+            self.rest = self.carnet.rest_rect(float(page["x"][0]), float(page["x"][1]), float(page["top"]))
+            self.pivot = tuple(float(v) for v in page["pivot"])
+            sc = ctx.layout["hook_scrim"]
+            self.scrim = (tuple(float(v) for v in sc["rect"]), tuple(float(v) for v in sc["fade"]))
             self.rot_x = float(c.get("rot_x", 22))
             push = c["push"]
             self.push = (F(push["from"]), F(push["to"]), float(push["scale"][0]), float(push["scale"][1]))
             m = c.get("macro")
             self.macro = None
             if m:
+                if "focus_to" in m:
+                    raise SceneError(f"{where}.carnet.macro.focus_to: where the macro puts the entry is the "
+                                     f"format's (layout.hook_page.macro_to)")
                 self.macro = dict(at=F(m["at"]), until=F(m["until"]), rot_x=float(m["rot_x"]), scale=float(m["scale"]),
-                                  entry=m["focus_entry"], offset=tuple(m["focus_offset"]), to=tuple(m["focus_to"]))
+                                  entry=m["focus_entry"], offset=tuple(m["focus_offset"]),
+                                  to=tuple(float(v) for v in page["macro_to"]))
             s = c.get("sink")
             self.sink = None
             if s:
@@ -58,6 +75,8 @@ class CarnetScene(Scene):
             pc = c.get("punch") or {}
             self.punches = punch.Punches([punch.Punch(F(f"cue:{q}"), float(pc.get("peak", 1.025)))
                                           for q in pc.get("cues", [])])
+        except SceneError:
+            raise
         except (KeyError, TypeError, ValueError) as e:
             raise SceneError(f"{where}.carnet: {e}") from None
 
@@ -104,15 +123,30 @@ class CarnetScene(Scene):
     def draw_picture(self, canvas: skia.Canvas, t: float, fast: bool = False, frame: int | None = None) -> None:
         self.stage.draw(canvas, self.size, self.seconds(t))
         self.carnet.draw(canvas, self.pose(t), self.rest, **self.page_state(t))
-        # the caption band: the page goes under the stage's black from y 640 up,
-        # so the white words never sit on scribbles (the macro and the push fill the frame)
-        band = self.ctx.fmt.zones.get("caption_band")
-        if band is not None:
-            y1 = band.y1 + 80
-            shader = skia.GradientShader.MakeLinear([skia.Point(0, band.y1 - 40), skia.Point(0, y1)],
-                                                    [self.stage.colour, self.stage.colour & 0x00FFFFFF])
-            canvas.drawRect(skia.Rect.MakeLTRB(0, 0, self.size[0], y1),
-                            skia.Paint(Shader=shader, Dither=True))
+        self.draw_scrim(canvas)
+
+    def draw_scrim(self, canvas: skia.Canvas) -> None:
+        """The stage's black over the page under the white words (the
+        format's hook_scrim), so they never sit on scribbles — the macro and
+        the push fill the frame: opaque over its rectangle, fading to nothing
+        over `fade` px to its right and below (9:16: to y 520, gone by 640)."""
+        (x0, y0, x1, y1), (fr, fb) = self.scrim
+        colour, clear = self.stage.colour, self.stage.colour & 0x00FFFFFF
+        X1, Y1 = x1 + fr, y1 + fb
+        if fr <= 0:
+            shader = skia.GradientShader.MakeLinear([skia.Point(0, y1), skia.Point(0, Y1)], [colour, clear])
+            canvas.drawRect(skia.Rect.MakeLTRB(x0, y0, X1, Y1), skia.Paint(Shader=shader, Dither=True))
+            return
+        # fading both ways: the colour, then each edge's fade multiplied in (a soft corner)
+        canvas.saveLayer(skia.Rect.MakeLTRB(x0, y0, X1, Y1), None)
+        canvas.drawRect(skia.Rect.MakeLTRB(x0, y0, X1, Y1), skia.Paint(Color=colour))
+        for a, b in (((x1, 0), (X1, 0)), ((0, y1), (0, Y1))):
+            if a == b:
+                continue
+            fade = skia.GradientShader.MakeLinear([skia.Point(*a), skia.Point(*b)], [0xFF000000, 0x00000000])
+            canvas.drawRect(skia.Rect.MakeLTRB(x0, y0, X1, Y1),
+                            skia.Paint(Shader=fade, BlendMode=skia.BlendMode.kDstIn, Dither=True))
+        canvas.restore()
 
     def blur_at(self, f: int) -> Blur | None:
         k = self.sink

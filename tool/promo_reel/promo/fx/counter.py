@@ -177,7 +177,8 @@ class Odometer:
              alpha: float = 1.0, scale: float = 1.0) -> None:
         """Draw at progress p (0..1). `x` is the figure's centre (align
         'centre') or left edge ('left'); `scale` is a punch about the
-        figure's centre."""
+        figure's centre — or, left-aligned, about its left edge, which holds
+        (a figure set from a column's edge never punches past it)."""
         if alpha <= 0:
             return
         items = self.layout(p)
@@ -186,7 +187,7 @@ class Odometer:
         top, bottom = self.band(baseline)
         m = self.margin
         L = self.cap * self.pitch_caps                     # the strip's digit pitch
-        with scaled_about(canvas, scale, x0 + w / 2, baseline - self.cap / 2):
+        with scaled_about(canvas, scale, x0 + w / 2 if align == "centre" else x0, baseline - self.cap / 2):
             with layer(canvas, alpha, (x0 - m, top, x0 + w + m, bottom)):
                 paint = text_paint(self.colour)
                 for kind, ix, iw, info in items:

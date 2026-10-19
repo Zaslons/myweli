@@ -16,14 +16,20 @@ A film goes to DIR/<cut>-<format>/:
                      elements — what promo/verify.py checks
     verify/renderer/ the renderer's own frame on every beat (for the beat sheet)
 
-Only cuts with scenes and formats the scenes are laid out for are built; the
-others are named, not silently skipped.
+Every format is laid out from the same scenes (each format's `layout`), so
+every cut × format with scenes and a score is built; one that cannot be is
+named, not silently skipped. A cut's soundtrack is rendered ONCE per build
+and shared by its formats (the same track.wav and events.json, byte for
+byte — render.json records both files' sha256 and where they came from;
+verify holds every format of a cut to the same two files).
 """
 
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
+import shutil
 import sys
 import time
 from pathlib import Path
@@ -36,7 +42,6 @@ from .audio import build_cut
 from .audio.mix import MixSettings
 from .media.writer import VideoWriter
 from .scenes import Clock, Film, SceneError
-from .scenes.film import LAID_OUT_FORMATS
 
 #: The renderer's beat frames are kept at this fraction of full size.
 BEAT_STILL_SCALE = 0.5
@@ -55,11 +60,31 @@ def not_built(sb, cut: str, fmt: str) -> str | None:
     """Why a cut × format cannot be built yet (None: it can)."""
     if not sb.cut_scenes(cut):
         return f"cut {cut} has no scenes in storyboard.yaml yet"
-    if fmt not in LAID_OUT_FORMATS:
-        return f"the scenes are laid out for {', '.join(LAID_OUT_FORMATS)} only (1:1 and 16:9 come next)"
+    if fmt not in sb.formats:
+        return f"the storyboard has no format {fmt}"
     if sb.score_path(cut) is None:
         return f"music.scores has no score for {cut}"
     return None
+
+
+#: The soundtrack's files, as promo.audio.build_cut writes them.
+AUDIO_FILES = ("track.wav", "events.json", "meter.json", "spectrogram.png", "waveform.png")
+
+
+def sha256(path: Path) -> str:
+    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+
+def share_audio(src: Path, out: Path, frames: int) -> Clock:
+    """The cut's soundtrack already rendered in this build (another format's
+    folder): the same files, copied byte for byte."""
+    out.mkdir(parents=True, exist_ok=True)
+    for name in AUDIO_FILES:
+        if (src / name).is_file():
+            shutil.copyfile(src / name, out / name)
+    print(f"  audio: the cut's soundtrack from {src.name}/ (track.wav {sha256(out / 'track.wav')[:12]}, "
+          f"events.json {sha256(out / 'events.json')[:12]})", flush=True)
+    return Clock.load(out / "events.json", frames)
 
 
 def render_audio(sb, cut: str, out: Path) -> Clock:
@@ -75,11 +100,17 @@ def render_audio(sb, cut: str, out: Path) -> Clock:
     return Clock.load(out / "events.json", sb.cuts[cut].frames)
 
 
-def build_one(sb, cut: str, fmt: str, out: Path) -> dict:
+def build_one(sb, cut: str, fmt: str, out: Path, audio_from: Path | None = None) -> dict:
+    """One film. ``audio_from``: a folder of this build holding the cut's
+    soundtrack already (another format's) — shared, not rendered again."""
     out.mkdir(parents=True, exist_ok=True)
     t0 = time.time()
     print(f"build {cut}/{fmt} → {out}", flush=True)
-    clock = render_audio(sb, cut, out)
+    if audio_from is not None and Path(audio_from).resolve() != out.resolve():
+        clock = share_audio(Path(audio_from), out, sb.cuts[cut].frames)
+    else:
+        clock = render_audio(sb, cut, out)
+        audio_from = None
     film = Film(sb, cut, fmt, clock)
     beats = out / "verify" / "renderer"
     beats.mkdir(parents=True, exist_ok=True)
@@ -101,6 +132,8 @@ def build_one(sb, cut: str, fmt: str, out: Path) -> dict:
     seconds = time.time() - t0
     doc = {"cut": cut, "format": fmt, "frames": film.frames, "size": [w, h], "fps": sb.meta.fps,
            "storyboard": sb.source, "overrides": list(sb.overrides), "render_seconds": round(seconds, 1),
+           "audio": {"from": Path(audio_from).name if audio_from is not None else None,
+                     "track_wav_sha256": sha256(out / "track.wav"), "events_json_sha256": sha256(out / "events.json")},
            "frame_ms": {"mean": round(float(np.mean(per_frame)), 1), "max": round(float(np.max(per_frame)), 1)},
            "plan": film.plan(), "events": film.events(), "generated": film.generated(),
            "masks": {name: [{"label": b.label, "rect_pt": list(b.rect_pt), "sigma_px": b.sigma_px,
@@ -125,18 +158,24 @@ def _save_still(rgba: np.ndarray, path: Path, scale: float = 1.0) -> None:
 def build(storyboard, cuts: list[str], formats: list[str], out_dir: Path) -> None:
     """``python -m promo build``: every selected cut × format that can be built."""
     built, skipped = [], []
+    t0 = time.time()
     for cut in cuts:
+        audio = None                                   # the cut's soundtrack, once per build
         for fmt in formats:
             why = not_built(storyboard, cut, fmt)
             if why:
                 skipped.append(f"{cut}/{fmt}: {why}")
                 continue
-            build_one(storyboard, cut, fmt, film_dir(out_dir, cut, fmt))
-            built.append(f"{cut}/{fmt}")
+            d = film_dir(out_dir, cut, fmt)
+            doc = build_one(storyboard, cut, fmt, d, audio_from=audio)
+            audio = audio or d
+            built.append(f"{cut}/{fmt} ({doc['render_seconds']:.0f} s)")
     for s in skipped:
         print(f"NOT BUILT {s}")
     if not built:
         raise SystemExit("build: nothing could be built")
+    print(f"build: {len(built)} film{'s' if len(built) != 1 else ''} in {time.time() - t0:.0f} s — "
+          + ", ".join(built), flush=True)
 
 
 # ---- stills for looking -------------------------------------------------------------------

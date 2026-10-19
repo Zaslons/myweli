@@ -90,6 +90,8 @@ Exactly five top-level keys (plus `x-…` keys, which only hold YAML anchors):
   the owner's outro bar (2026-10-19, « Add one bar »: the end card holds
   ≈ 4.3 s): a « 30s » cut is at most 15 bars (32.0 s), a « 15s » cut 8.
 - **formats** — `9x16`, `1x1`, `16x9`:
+  - `reference: true` on exactly ONE format (9:16): the window the scenes'
+    camera W values are measured in (below, « The formats »);
   - `size` (the id's aspect ratio, short side 1080 so every pixel size carries
     over), `safe` `[x0, y0, x1, y1]`, `safe_basis` (`platform` — the strict
     TikTok/Reels/Status rectangle x 120–900, y 270–1248 — or
@@ -108,7 +110,17 @@ Exactly five top-level keys (plus `x-…` keys, which only hold YAML anchors):
     counter 120, counter_label 40, tagline 46, credit 24), `lottie_centre`,
     `lottie_comp_width_px` (900), `end_mark_scale`, `end_mark_ink_y`,
     `end_tagline_cap_top_y` (checked: half the mark's height of clear space),
-    `lift_x`, `lift_veil`, `tilt_axis`, `tilt_max_deg`, `scene_whip_axis`.
+    `lift_x`, `lift_veil`, `tilt_axis`, `tilt_max_deg`, `scene_whip_axis`;
+    and WHERE the scenes put what they place — `caption_align` (`centre` on
+    `caption_centre_x`, or `left` from the column's edge with
+    `caption_centre_x: null`), `caption_cap_top` `{hook, app}` (null: the
+    block centred on `caption_centre_y`), `counter_baselines` `[label,
+    figure]`, `lift_y` (the three places a lift lands: `card_on_floor`,
+    `card_under_caption`, `tile_row`, each ONE of `top`/`centre_y`/`bottom`,
+    inside the overlays zone's rows), `hook_page` `{x, top, pivot, macro_to}`,
+    `hook_scrim` `{rect, fade: [right, bottom]}` (it must hold the hook
+    block's columns: white words sit on it), `map_credit` `{x, baseline,
+    align}`.
   - Across formats, `px_per_pt`, `type_px`, `lottie_comp_width_px`,
     `end_mark_scale` and `screen_crop_top_pt` must be identical: one
     storyboard, re-laid out, never resized.
@@ -365,11 +377,51 @@ python -m promo.render --frames 0,144,552 --out DIR [--events DIR/30s-9x16/event
 build.sh                                                     # both, for every cut × format that is laid out
 ```
 
-**What is built.** The 30-s cut (960 frames) and the 15-s cut (512 frames)
-in 9:16. 1:1 / 16:9 are not laid out: `build`/`verify --all` name them
-(« NOT BUILT … ») and build/verify the rest; asking for one of them alone
-fails — nothing unbuilt is ever reported as verified. A cut whose scenes are
-emptied (`--set scenes.15s=[]`) is « NOT BUILT » the same way.
+**What is built.** The 30-s cut (960 frames) and the 15-s cut (512 frames),
+each in 9:16 (1080×1920), 1:1 (1080×1080) and 16:9 (1920×1080): six films,
+`out/<cut>-<format>/`. `build --all` renders each cut's soundtrack ONCE and
+shares it with its other formats (the same track.wav and events.json, byte
+for byte; render.json records both sha256 and where they came from), then
+renders the films one at a time. A cut whose scenes are emptied (`--set
+scenes.15s=[]`) is « NOT BUILT » and named; asking for it alone fails —
+nothing unbuilt is ever reported as verified.
+
+### The formats — one storyboard, re-laid out (storyboard « 1:1 and 16:9 »)
+
+The scenes say WHAT and WHEN; each format's `layout` says WHERE. No scene
+carries a pixel position: the carnet's page (`hook_page`) and its scrim, the
+caption placement, the counter's baselines, where each kind of lift lands
+(`lift_y` + `lift_x`), the map credit — a scene that writes its own (the
+page's `rest`/`pivot`, the macro's `focus_to`, the counter's baselines, the
+credit's `x`/`baseline`) is refused. The cut frames, the events.json, the
+soundtrack, the take pictures and their timing are the same in every format.
+
+| | 9:16 (reference) | 1:1 | 16:9 |
+|---|---|---|---|
+| canvas · safe | 1080×1920 · x 120–900, y 270–1248 (platform) | 1080×1080 · x/y 54–1026 (EBU R95 5 %) | 1920×1080 · x 96–1824, y 54–1026 (EBU R95 5 %) |
+| captions | band y 0–560, centred on x 540, cap top 330 (hook 300) | band y 0–300, centred on x 540, cap top 100 (hook 80) | no band: the left column x 96–1056, set from x 96, centred on y 440 (hook top-left, cap top 130) |
+| phone window (W on) | x 180–900, y 600–1192 (y 600) | x 180–900, y 330–1002 (y 330) | x 1104–1824, y 54–1002, a 30-px top fade (y 84) |
+| lifts | x 120–900 (780 px), over the veiled phone | x 150–930 (780 px), over the veiled phone | x 300–1060 (760 px) beside the phone, no veil, no panel |
+| counter | centred, baselines 322 / 496 | centred, 110 / 284, its roll cut at the band (y 300) | from x 96, 366 / 540; its punch holds the left edge |
+| hook | page x 40–1040 from y 640, black to 520 → 640 | page x 40–1040 from y −40, black to 400 → 500 | page x 760–1960 on the right, black over x 0–820 → 1020 |
+| tilts | rotX | rotX | yaw, ≤ 10° |
+| map credit | the floor, x 120, baseline 1236 | the band's foot, right-aligned to x 1026, baseline 290 | the left column's foot, right-aligned to x 1056, baseline 1016 |
+| reveal · end card | Lottie (540, 680) · mark ink y 400–599, tagline cap top 712 | (540, 520) · 250–449, 560 | (960, 500) · 230–429, 540 |
+
+**The camera re-frames by rule.** The W keys are measured in the reference
+window (9:16); each says what it keeps — `top` (a point on the window's top
+edge: the 13:15 row hidden under the band on the lower journal, the Fiche's
+blurred number, Revenus' title), `centre` (the active form row in the
+window's middle) or `floor` (Fatou B.'s card on the floor, the page's last
+line ≥ 8 px above it) — and a format's own window moves it by the difference
+(`phone.keep_offset`: 0, half or all of the windows' height difference),
+never showing the screen's top edge where 9:16 did not (W ≥ 56). 1:1:
+257 → 212.33, 377.5 → 355.17, 482 → 437.33; 16:9: 257 → 74.98 (the window
+starts at the top of the cropped screen, as the storyboard writes), 86.5 →
+56, 482 → 299.98; every `top` key unchanged (667 hides the 13:15 row in every
+format). The 13:15 row stays under the floor at the card's framing and above
+the window's top edge on the lower journal in all three (tests; verify (h)
+on every frame of the scene, as in 9:16).
 
 **Order of work** (`render.build_one`): the soundtrack FIRST
 (`promo.audio.build_cut` on the cut's score, master limited to −1.5 dBTP so
@@ -500,8 +552,16 @@ onset in the MP4 audio against the frame its disc or character first
 appears in the MP4's PIXELS (`promo/pixels.py`: the disc's own ring; the
 key's box looking like the take's picture with the character), (g) the INK
 on MP4 frames — each caption whole, the counter mid-roll / landing / landed,
-every lift, the credit — inside the platform text area, plus every box
-render.json records on every frame, (h) honesty: every generated element
+every lift, the credit — inside the format's text area (9:16 the platform's;
+1:1 and 16:9 EBU R95 graphics-safe), the captions laid in the caption column
+inside it (the AIR's word is centred on the canvas, the end card's lines on
+the mark: not column captions; each box says which, `column`), each ink
+region kept clear of the phone as it is posed on that frame
+(`verify.clear_of_phone`: in 16:9 the phone stands beside the captions, the
+counter and the lifts) and the hook's words measured on their scrim
+(`verify.on_its_ground`: the lit page's paper fibres beside them pass for
+white ink), plus every box render.json records on every frame,
+(h) honesty: every generated element
 with its source (`honesty.txt`), every blur measured on every picture the
 film uses — every take that declares a blur is measured (`blurs_checked`;
 the 15-s cut declares none: take1b shows only the « Téléphone du client »
@@ -525,12 +585,62 @@ counted as reading: the map credit (attribution), the lifted cards (the
 app's own pixels), the counter's rolling digits (its start « 0 », labels and
 landed figure are).
 
+Across the formats: every built format of a cut must hold ONE soundtrack —
+track.wav and events.json byte for byte (`verify.same_soundtrack`, a PASS /
+FAIL line after the films; a format re-laid out is never re-timed).
+
 Statuses: PASS or FAIL. `report.txt` leads with the film's status;
 `python -m promo verify` exits 0 (PASS) or 1, and so does `build.sh`. (Round
 2's OWNER DECISION PENDING is retired: the owner decided the end card,
 2026-10-19 — one more bar.)
 
 ### Decisions made against the storyboard's text, and why
+
+The 1:1 and 16:9 formats (« 1:1 and 16:9 »):
+
+- **No photos** (the owner's decision): SLOT « FAUTEUIL » (16:9, f640–751, a
+  card at x 96–620, y 560–1026 under the caption) stays EMPTY — the no-photo
+  layout is the caption alone, where every 16:9 caption sits (the left
+  column, centred on y 440), the slot's area the stage's pattern; the zone
+  stays declared (`slot_card`) and unused. SLOT « COMPTOIR » was never in
+  the cuts' scenes (the code-drawn page plays).
+- **1:1 lifts are 780 px wide** (x 150–930), not grown to x 54–1026: « the
+  lifts keep the same pixel sizes everywhere » (the section's first rule);
+  the 54–1026 span is where they MAY go. 16:9 keeps the section's x 300–1060
+  (760 px).
+- **1:1 hook block to y 420**, not the band's 300: three 96-px lines
+  (« Rayé. / Raturé. / Recopié. ») cannot fit in 54–300 at their 120-px
+  pitch — the third's ink reaches y 414; the stage's black covers the page to
+  y 400 and is gone by 500 (`hook_scrim`).
+- **1:1 counter**: label 110, figure 284 (the 9:16 spacing, inside the
+  section's 230 px); its roll is cut at the band's edge (y 300) so the next
+  digits never rise over the phone below.
+- **The map credit inside the safe area.** 1:1's floor (y 1026–1080) and
+  16:9's « under the phone » (y > 1002, the phone's own floor fade to 1026)
+  leave no room for a 24-px line inside EBU graphics-safe: 1:1 puts it at the
+  band's foot, its INK ending on x 1026 (baseline 290; the last glyph's
+  0.8-px overshoot counted), 16:9 at the left column's foot, ending on x 1056
+  by the phone's lower-left corner (baseline 1016).
+- **16:9 hook**: the page lies across the frame's RIGHT (x 760–1960, its
+  strike rows in view) with the words top-left on black (`hook_scrim` x
+  0–820, fading out by 1020) — the section's « page across the frame,
+  captions top-left » with the white words never on scribbles.
+- **16:9 captions set from the column's left edge** (x 96, the ink on the
+  edge: a first glyph overhanging its origin moves the lines in), the
+  column's « centred on y 440 » as the vertical rule; the counter is set
+  from the same edge (its 1.08 landing punch holds that edge) and centred on
+  the same y — it never shares the screen with the sentence (it exits as the
+  sentence arrives), so « above the sentence » needs no separate place.
+- **16:9 lifts carry no panel**: the plain panel behind the Fiche's tiles
+  hides the VEILED originals between cards that lift over the phone; beside
+  the phone, with no veil, the tiles sit on the stage and the phone stays
+  whole.
+- **16:9 camera**: W sits under the window's own 30-px top fade (y 84); the
+  journal's first framing keeps Fatou B.'s card on the floor (W 74.98), which
+  puts the cropped screen's top at y 50 — the section's « start the window at
+  the top of the cropped screen ». Its push-in (1.791 → 2.0 px/pt) is about
+  the phone’s own axis (x 1464): the screen passes the safe edge by up to 42 px (the bezel 60)
+  at the peak, as the 9:16's does past x 900 — app pixels, not text.
 
 The 15-s cut (« The 15 s cut »):
 

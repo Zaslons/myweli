@@ -4,9 +4,19 @@ tiles, the counter and the map credit drawn over them.
 
 Per frame t (a float: motion-blur subframes are fractional):
   * the picture is the take's picture at the timeline's take time (masked);
-  * the camera puts screen point W(t) on the band edge (y 600), zooms about
-    its anchor (px_per_pt ÷ 1.791), and the slam / tilt / fall / parallax
-    keys turn and move the slab (promo/fx/phone.py, projection.py);
+  * the camera puts screen point W(t) on the window's top edge (the band
+    edge: y 600 in 9:16, 330 in 1:1, 84 in 16:9 under its top fade), zooms
+    about its anchor (px_per_pt ÷ 1.791), and the slam / tilt / fall /
+    parallax keys turn and move the slab (promo/fx/phone.py, projection.py);
+  * ONE storyboard, every format: the W keys are measured in the reference
+    format's window (9:16) and each says what it keeps — a point on the
+    window's top edge (`top`: a row hidden under the band stays hidden), in
+    its middle (`centre`: the active form row) or on its floor (`floor`:
+    Fatou B.'s card, the page's last line) — so a format's own window
+    re-frames by that rule (`keep_offset`), never showing the screen's top
+    edge where the reference did not; a tilt turns about the format's
+    `tilt_axis` (16:9: a yaw of at most `tilt_max_deg`); lifts, tiles, the
+    counter and the map credit land where the format's layout puts them;
   * touch discs sit in screen points under the same matrix, from the
     measured touch-down (never from a typed time): the YAML's ``at`` is
     checked to be the frame the touch-down lands on, and its ``tone`` to be
@@ -48,12 +58,57 @@ MIN_PRESS_S = 0.2
 
 
 def window_for(fmt) -> Window:
+    """The camera window of a format: W sits on its top edge — the band's
+    edge (9:16, 1:1: the phone fades in under the band's fade, above it), or,
+    with no band (16:9), the end of the window's own top fade (`top_fade`,
+    inside the window: the phone is gone above the safe edge)."""
     z, lay = fmt.zones, fmt.layout
     pw = z["phone_window"]
-    band_fade = pw.y0 - z["caption_fade"].y0 if "caption_fade" in z else 30.0
+    if "top_fade" in z:
+        top, band_fade = float(z["top_fade"].y1), float(z["top_fade"].height)
+    else:
+        top, band_fade = float(pw.y0), float(pw.y0 - z["caption_fade"].y0) if "caption_fade" in z else 30.0
     floor_fade = z["floor_fade"].height if "floor_fade" in z else 24.0
-    return Window(screen_x=float(lay["phone_screen_x"][0]), top=float(pw.y0), band_fade=float(band_fade),
+    return Window(screen_x=float(lay["phone_screen_x"][0]), top=top, band_fade=band_fade,
                   floor=float(pw.y1), floor_fade=float(floor_fade), px_per_pt=float(lay["px_per_pt"]))
+
+
+#: What a camera W key keeps when a format re-frames it (storyboard.yaml « CAMERA »).
+KEEPS = ("top", "centre", "floor")
+
+
+def keep_offset(keep: str, window: Window, reference: Window) -> float:
+    """Points to add to a W measured in the `reference` window so the point
+    it keeps sits in the same place of `window`: on the top edge (0), in the
+    middle, or on the floor."""
+    h, h_ref = window.floor - window.top, reference.floor - reference.top
+    k = window.px_per_pt
+    try:
+        return {"top": 0.0, "centre": (h_ref - h) / (2 * k), "floor": (h_ref - h) / k}[keep]
+    except KeyError:
+        raise ValueError(f"keep is one of {', '.join(KEEPS)}, not {keep!r}") from None
+
+
+def camera_W_keys(specs: list | None, window: Window, reference: Window, crop_top_pt: float,
+                  where: str) -> list[dict]:
+    """The W keys in a format's window: each reference value moved by what it
+    keeps (`keep`, else the key before it's; the first key: `top`) — never
+    below the screen's top (`crop_top_pt`) where the reference value was not."""
+    out, keep = [], "top"
+    for i, k in enumerate(specs or []):
+        if not isinstance(k, dict) or "value" not in k:
+            out.append(k)                                  # base.track says what is wrong with it
+            continue
+        keep = k.get("keep", keep)
+        try:
+            v = float(k["value"])
+            w = v + keep_offset(keep, window, reference)
+        except (TypeError, ValueError) as e:
+            raise SceneError(f"{where}[{i}].keep: {e}") from None
+        if keep != "top":
+            w = max(w, min(v, crop_top_pt))
+        out.append({**{n: x for n, x in k.items() if n != "keep"}, "value": w})
+    return out
 
 
 def phone_spec(fmt) -> PhoneSpec:
@@ -90,6 +145,9 @@ class PhoneScene(Scene):
         super().__init__(spec, ctx, where)
         F = ctx.clock.frame
         self.window = window_for(ctx.fmt)
+        self.reference_window = window_for(ctx.reference_fmt)
+        lay = ctx.layout
+        self.tilt_axis, self.tilt_max = lay["tilt_axis"], lay["tilt_max_deg"]
         self.band_rows = (0, int(self.window.top - self.window.band_fade), ctx.fmt.width,
                           int(math.ceil(self.window.floor + self.window.floor_fade)))
         try:
@@ -99,7 +157,8 @@ class PhoneScene(Scene):
         except (KeyError, SourceError) as e:
             raise SceneError(f"{where}: {e}") from None
         cam = spec.get("camera") or {}
-        self.W = track(ctx, cam.get("W"), f"{where}.camera.W")
+        self.W = track(ctx, camera_W_keys(cam.get("W"), self.window, self.reference_window,
+                                          float(lay["screen_crop_top_pt"]), f"{where}.camera.W"), f"{where}.camera.W")
         if not self.W:
             raise SceneError(f"{where}.camera.W: a phone scene needs its camera window")
         self.zoom = track(ctx, cam.get("zoom"), f"{where}.camera.zoom", 1.0)
@@ -211,10 +270,8 @@ class PhoneScene(Scene):
         rect_pt = tuple(map(float, l["rect_pt"]))
         k = self.source.take.px_per_pt
         src = tuple(v * k for v in rect_pt)
-        tg = l["target"]
-        x0, x1 = map(float, tg["x"])
-        kw = {n: float(tg[n]) for n in ("top", "bottom", "centre_y") if n in tg}
-        target = liftmod.fit_width(src, x0, x1, **kw)
+        x0, x1 = map(float, self.ctx.layout["lift_x"])
+        target = liftmod.fit_width(src, x0, x1, **self._place((l.get("target") or {}).get("y"), f"{where}.target.y"))
         if "up" in l:
             up = float(F(l["up"]))
         elif "lands" in l:
@@ -232,15 +289,18 @@ class PhoneScene(Scene):
         k = self.source.take.px_per_pt
         srcs = [tuple(v * k for v in r) for r in tiles]
         lay = s.get("layout") or {}
-        x0, x1 = map(float, lay.get("x", self.ctx.layout["lift_x"]))
+        x0, x1 = map(float, self.ctx.layout["lift_x"])
         gap = float(lay.get("gap", 16))
+        place = self._place(lay.get("y"), f"{where}.layout.y")
+        if set(place) != {"centre_y"}:
+            raise SceneError(f"{where}.layout.y: a row of tiles is placed by its centre (`centre_y`), not {place}")
         if lay.get("axis", "vertical") == "horizontal":
             ratio = sum((r[2] - r[0]) / (r[3] - r[1]) for r in srcs)
             h = (x1 - x0 - gap * (len(srcs) - 1)) / ratio
             targets = stackmod.stack_rects(srcs, x0=x0, gap=gap, axis="horizontal",
-                                           y0=float(lay["centre_y"]) - h / 2, height=h)
+                                           y0=place["centre_y"] - h / 2, height=h)
         else:
-            targets = stackmod.stack_rects(srcs, x0=x0, width=x1 - x0, gap=gap, centre_y=float(lay["centre_y"]))
+            targets = stackmod.stack_rects(srcs, x0=x0, width=x1 - x0, gap=gap, centre_y=place["centre_y"])
         ups = [float(F(u)) for u in s["ups"]]
         backdrop = None
         if s.get("backdrop"):
@@ -251,12 +311,27 @@ class PhoneScene(Scene):
             except (KeyError, ValueError, BrandError) as e:
                 raise SceneError(f"{where}.backdrop.colour: an app colour token (colors.dart): {e}") from None
             backdrop = (colour, float(bd.get("pad", 24)), float(bd.get("radius", 24)), bd["colour"], bd.get("cite"))
+        veil = float(s.get("veil", self.ctx.layout["lift_veil"]))
+        if veil <= 0:
+            # the panel hides the VEILED originals between cards that lift over the phone; where the format
+            # lifts beside the phone with no veil (16:9) the cards sit on the stage and the phone stays whole
+            backdrop = None
         return {"index": idx, "tiles_pt": tiles, "srcs": srcs, "targets": targets, "ups": ups,
-                "veil": float(s.get("veil", self.ctx.layout["lift_veil"])), "backdrop": backdrop}
+                "veil": veil, "backdrop": backdrop}
+
+    def _place(self, name, where: str) -> dict[str, float]:
+        """A lift's vertical placement: one of the format's `lift_y` places."""
+        places = self.ctx.layout["lift_y"]
+        if name not in places:
+            raise SceneError(f"{where}: one of the format's lift_y places ({', '.join(places)}), not {name!r}")
+        return {k: float(v) for k, v in places[name].items()}
 
     def _counter(self, c: dict, where: str) -> dict:
         F = self.ctx.clock.frame
-        tp = self.ctx.layout["type_px"]
+        lay = self.ctx.layout
+        tp = lay["type_px"]
+        if "label_baseline" in c or "figure_baseline" in c:
+            raise SceneError(f"{where}: the counter's baselines are the format's (layout.counter_baselines)")
         roll = c["roll"]
         out = {"start": int(c["start"]), "end": int(c["end"]), "labels": list(c["labels"]),
                "switch": float(F(c["label_switch"])), "from": float(F(roll["from"])), "land": float(F(roll["to"])),
@@ -264,10 +339,16 @@ class PhoneScene(Scene):
                "punch_frames": float(c["punch"].get("frames", 5)),
                "exit": float(F(c["exit"]["at"])) if c.get("exit") else None,
                "exit_frames": float(c["exit"].get("frames", 6)) if c.get("exit") else 6.0,
-               "label_baseline": float(c.get("label_baseline", 360)), "figure_baseline": float(c.get("figure_baseline", 505)),
+               "label_baseline": float(lay["counter_baselines"][0]), "figure_baseline": float(lay["counter_baselines"][1]),
+               "align": lay["caption_align"],
+               "x": float(lay["caption_centre_x"] if lay["caption_align"] == "centre" else lay["caption_column_x"][0]),
                "cite": c.get("cite")}
         out["odo"] = Odometer(out["start"], out["end"], poppins(tp["counter"]), PALETTE.INK)
         out["label_font"] = inter(tp["counter_label"])
+        # left-aligned (16:9): a label whose first glyph overhangs its origin (« A ») moves in by that much,
+        # so its ink starts on the column's edge, never past it
+        out["label_inset"] = 0.0 if out["align"] == "centre" else max(
+            0.0, *(-ty.ink_bounds(lab, out["label_font"])[0] for lab in out["labels"]))
         # the roll lands with a snap: its curve runs `overrun` frames past the
         # landing, so no frame before it reads the figure (nor more)
         if roll.get("overrun") is not None:
@@ -303,8 +384,12 @@ class PhoneScene(Scene):
                                  f"on f{c['land']:g}")
 
     def _credit(self, c: dict, where: str) -> dict:
-        return {"text": c["text"], "map": tuple(map(float, c["map_rect_pt"])), "x": float(c["x"]),
-                "baseline": float(c["baseline"]), "font": inter(self.ctx.layout["type_px"]["credit"]),
+        if "x" in c or "baseline" in c:
+            raise SceneError(f"{where}: the credit's place is the format's (layout.map_credit)")
+        place = self.ctx.layout["map_credit"]
+        return {"text": c["text"], "map": tuple(map(float, c["map_rect_pt"])), "x": float(place["x"]),
+                "baseline": float(place["baseline"]), "align": place["align"],
+                "font": inter(self.ctx.layout["type_px"]["credit"]),
                 "cite": c.get("cite"), "track": next((m.track for m in self.source.blurs if m.track), None)}
 
     # ---- camera ----------------------------------------------------------------------------
@@ -332,10 +417,21 @@ class PhoneScene(Scene):
         if abs(zoom - 1.0) > 1e-9:
             anchor_pt = self.zoom.extra_at(t, "anchor_pt")
             anchor_y = self.zoom.extra_at(t, "anchor_y")
-            y = float(anchor_y) if anchor_y is not None else self.window.y_of(float(anchor_pt), W)
-            pivot = (self.ctx.fmt.width / 2, y)
+            if anchor_y == "top":
+                y = self.window.top                          # the window's top edge (the band edge)
+            elif anchor_y is not None:
+                y = float(anchor_y)
+            else:
+                y = self.window.y_of(float(anchor_pt), W)
+            sx = self.ctx.layout["phone_screen_x"]
+            pivot = ((float(sx[0]) + float(sx[1])) / 2, y)  # about the phone's own axis
         dy, _ = self.parallax_dy(t)
-        return Pose(rot_x=self.slam_rot(t), scale=scale, dy=dy, pivot=pivot)
+        tilt = self.slam_rot(t)
+        if self.tilt_max is not None:
+            tilt = max(-float(self.tilt_max), min(float(self.tilt_max), tilt))
+        if self.tilt_axis == "y":
+            return Pose(rot_y=tilt, scale=scale, dy=dy, pivot=pivot)
+        return Pose(rot_x=tilt, scale=scale, dy=dy, pivot=pivot)
 
     def where(self, t: float) -> dict:
         return {"W": self.camera_W(t), "window": self.window}
@@ -471,8 +567,9 @@ class PhoneScene(Scene):
             a = self._credit_alpha(t)
             if a > 0:
                 c = self.credit
-                ty.draw_text(canvas, c["text"], c["font"], c["x"], c["baseline"], PALETTE.INK_TERTIARY, alpha=a)
-                x0, y0, x1, y1 = ty.ink_bounds(c["text"], c["font"], c["x"], c["baseline"])
+                left = self._credit_left()
+                ty.draw_text(canvas, c["text"], c["font"], left, c["baseline"], PALETTE.INK_TERTIARY, alpha=a)
+                x0, y0, x1, y1 = ty.ink_bounds(c["text"], c["font"], left, c["baseline"])
                 boxes.append({"kind": "credit", "label": "map credit", "rect": [round(x0, 1), round(y0, 1),
                                                                                 round(x1, 1), round(y1, 1)]})
         # the touch discs, in frame px, for the safe-zone check
@@ -503,30 +600,51 @@ class PhoneScene(Scene):
             alpha, dy = 1.0 - easing.EASE_IN(q), -20.0 * easing.EASE_IN(q)      # up and out, inside the safe area
             if alpha <= 0.02:
                 return
-        cx = self.ctx.fmt.width / 2
+        cx, align = c["x"], c["align"]                   # the centre (centred captions) or the left edge
+        lx = cx + c["label_inset"]                       # left-aligned: the labels' ink starts on the edge
         q = easing.EASE_IN_OUT(easing.progress(t, c["switch"] - 1, 6.0))
         with_alpha_layer = alpha < 1.0
+        # alone in the band: where the format has one, the roll never reaches past it onto the phone (1:1: the
+        # band ends at y 300, a 120-px figure on 284 rolls its next digits up from below the band's edge)
+        band = self.ctx.fmt.zones.get("caption_band")
+        canvas.save()
+        if band is not None:
+            canvas.clipRect(skia.Rect.MakeLTRB(0, 0, self.ctx.fmt.width, self.window.top - self.window.band_fade))
         if with_alpha_layer:
             p_ = skia.Paint()
             p_.setAlphaf(alpha)
             canvas.saveLayer(None, p_)
-        draw_label_switch(canvas, c["labels"][0], c["labels"][1], q, c["label_font"], cx, c["label_baseline"] + dy,
-                          PALETTE.INK_SECONDARY)
+        draw_label_switch(canvas, c["labels"][0], c["labels"][1], q, c["label_font"], lx, c["label_baseline"] + dy,
+                          PALETTE.INK_SECONDARY, align=align)
         p = self._roll(t)
         scale = punch.settle(t, c["punch_at"], start=c["punch_start"], frames=c["punch_frames"])
-        c["odo"].draw(canvas, p, cx, c["figure_baseline"] + dy, scale=scale)
+        c["odo"].draw(canvas, p, cx, c["figure_baseline"] + dy, scale=scale, align=align)
         if with_alpha_layer:
             canvas.restore()
-        w = c["odo"].width(p) * scale
+        canvas.restore()
+        w0 = c["odo"].width(p)
+        w = w0 * scale
         cap = ty.cap_height(c["odo"].font) * scale
+        # the punch scales about the figure's centre (centred) or holds its left edge (left-aligned)
+        fx0 = cx - w / 2 if align == "centre" else cx
         boxes.append({"kind": "counter", "label": c["odo"].text_at(p),
-                      "rect": [round(cx - w / 2, 1), round(c["figure_baseline"] + dy - cap, 1),
-                               round(cx + w / 2, 1), round(c["figure_baseline"] + dy + 0.05 * cap, 1)]})
+                      "rect": [round(fx0, 1), round(c["figure_baseline"] + dy - cap, 1),
+                               round(fx0 + w, 1), round(c["figure_baseline"] + dy + 0.05 * cap, 1)]})
         lab = c["labels"][1] if q >= 0.5 else c["labels"][0]
         x0, y0, x1, y1 = ty.ink_bounds(lab, c["label_font"], 0, c["label_baseline"] + dy)
         lw = x1 - x0
-        boxes.append({"kind": "counter", "label": lab, "rect": [round(cx - lw / 2, 1), round(y0, 1),
-                                                                 round(cx + lw / 2, 1), round(y1, 1)]})
+        lx0 = cx - lw / 2 if align == "centre" else lx + x0
+        boxes.append({"kind": "counter", "label": lab, "rect": [round(lx0, 1), round(y0, 1),
+                                                                 round(lx0 + lw, 1), round(y1, 1)]})
+
+    def _credit_left(self) -> float:
+        """Where the credit's text starts so its INK sits on its place: from
+        `x` (align left; a first glyph overhanging its origin moves in) or
+        ending on `x` (align right; the last glyph's overshoot included — the
+        1:1 credit ends on the safe edge, x 1026)."""
+        c = self.credit
+        x0, _, x1, _ = ty.ink_bounds(c["text"], c["font"])
+        return c["x"] - min(0.0, x0) if c["align"] == "left" else c["x"] - x1
 
     def _credit_alpha(self, t: float) -> float:
         """How much of the map the window shows (fades the credit in and out)."""

@@ -14,6 +14,14 @@ only holds a YAML anchor for values shared below it, and is not read):
            safe area, working zones and layout rules. Checked strictly — the
            geometry too (zones inside the canvas, text inside the safe area,
            the same pixel sizes in every format, the mark's clear space).
+           ONE format is the ``reference: true`` (9x16): the format the
+           scenes' camera W values are measured in; every other format
+           re-lays them out by each key's ``keep`` (storyboard « 1:1 and
+           16:9 »: « camera rules are written as where the active element
+           sits inside the phone window »). Everything else a scene places —
+           captions, the counter, lifts, the hook's page, the map credit —
+           comes from the format's ``layout``: no scene carries a pixel
+           position of its own.
   music    AUDIO's section. The cue ids have ONE source: the scores.
            ``music.scores`` maps each cut to its score (AUDIO's
            ``promo/audio/score_<cut>.yaml``, a path from tool/promo_reel):
@@ -179,6 +187,7 @@ class Format:
     rail_free: Rect | None
     zones: dict[str, Rect]
     layout: dict[str, Any]
+    reference: bool = False
 
     @property
     def size(self) -> tuple[int, int]:
@@ -210,6 +219,11 @@ class Storyboard:
         """The cue ids declared for ``cut`` (by its score and ``music.cues``),
         or for every cut."""
         return _declared_ids(self.music, self.cuts, cut)
+
+    @property
+    def reference_format(self) -> "Format":
+        """The format the scenes' camera W values are measured in."""
+        return next(f for f in self.formats.values() if f.reference)
 
     def score_path(self, cut: str) -> Path | None:
         """The score a cut's music is rendered from (``music.scores``)."""
@@ -600,7 +614,14 @@ _LAYOUT_KEYS = ("caption_band", "caption_column_x", "caption_centre_x", "caption
                 "screen_crop_top_pt", "phone_bezel_px", "phone_radius_px", "type_px",
                 "lottie_centre", "lottie_comp_width_px", "end_mark_scale", "end_mark_ink_y",
                 "end_tagline_cap_top_y", "lift_x", "lift_veil", "tilt_axis", "tilt_max_deg",
-                "scene_whip_axis")
+                "scene_whip_axis",
+                # where the scenes put what they place (one storyboard, re-laid out per format)
+                "caption_align", "caption_cap_top", "counter_baselines", "lift_y", "hook_page",
+                "hook_scrim", "map_credit")
+CAPTION_ALIGNS = ("centre", "left")
+CAPTION_KINDS = ("hook", "app")
+LIFT_PLACES = ("card_on_floor", "card_under_caption", "tile_row")
+LIFT_Y_KEYS = ("top", "centre_y", "bottom")
 
 
 def _formats(c: _Check, value: Any) -> dict[str, Format]:
@@ -612,6 +633,10 @@ def _formats(c: _Check, value: Any) -> dict[str, Format]:
         f = _format(c, fid, spec)
         if f is not None:
             out[fid] = f
+    refs = [fid for fid, spec in value.items() if isinstance(spec, dict) and spec.get("reference") is True]
+    if len(refs) != 1:
+        c.fail("formats", "exactly ONE format is the `reference: true` — the one the scenes' camera W values are "
+                          f"measured in (have {len(refs)}: {', '.join(map(str, refs)) or 'none'})")
     # One storyboard, three formats: the same pixel sizes everywhere.
     for key in ("px_per_pt", "type_px", "lottie_comp_width_px", "end_mark_scale", "screen_crop_top_pt"):
         seen = {fid: f.layout.get(key) for fid, f in out.items()}
@@ -629,7 +654,7 @@ def _format(c: _Check, fid: Any, spec: Any) -> Format | None:
         c.fail(path, "a format is named by its aspect ratio, e.g. '9x16', '1x1' or '16x9'")
         return None
     s = c.mapping(spec, path, required=("size", "safe", "safe_basis", "zones", "layout"),
-                  optional=("safe_note", "rail_free"))
+                  optional=("safe_note", "rail_free", "reference"))
     if s is None:
         return None
     before = len(c.problems)
@@ -657,11 +682,13 @@ def _format(c: _Check, fid: Any, spec: Any) -> Format | None:
     rail = c.rect(s["rail_free"], f"{path}.rail_free", w, h) if s.get("rail_free") is not None else None
     if rail is not None and safe is not None and not (rail.y1 <= safe.y1 and rail.y0 >= safe.y0):
         c.fail(f"{path}.rail_free", f"{rail} must lie within the safe area's rows (y {safe.y0:g}–{safe.y1:g})")
+    if "reference" in s:
+        c.boolean(s["reference"], f"{path}.reference")
     zones = _zones(c, s.get("zones"), f"{path}.zones", w, h, safe, rail)
     layout = _layout(c, s.get("layout"), f"{path}.layout", w, h, zones, safe, rail)
     if len(c.problems) > before or safe is None or basis is None or layout is None or zones is None:
         return None
-    return Format(fid, w, h, safe, basis, note or "", rail, zones, layout)
+    return Format(fid, w, h, safe, basis, note or "", rail, zones, layout, s.get("reference") is True)
 
 
 def _zones(c: _Check, value: Any, path: str, w: int, h: int, safe: Rect | None,
@@ -756,7 +783,66 @@ def _layout(c: _Check, value: Any, path: str, w: int, h: int, zones: dict[str, R
         c.number(lay.get("tilt_max_deg"), f"{path}.tilt_max_deg", 0, 90)
     if lay.get("scene_whip_axis") is not None:
         c.choice(lay.get("scene_whip_axis"), f"{path}.scene_whip_axis", ("horizontal", "vertical"))
+    _placements(c, lay, path, w, h, zones, safe, rail, column)
     return lay if len(c.problems) == before else None
+
+
+def _placements(c: _Check, lay: dict, path: str, w: int, h: int, zones: dict[str, Rect] | None,
+                safe: Rect | None, rail: Rect | None, column: tuple[float, float] | None) -> None:
+    """The layout keys that say where the scenes put what they place."""
+    align = c.choice(lay.get("caption_align"), f"{path}.caption_align", CAPTION_ALIGNS)
+    if align == "centre" and lay.get("caption_centre_x") is None:
+        c.fail(f"{path}.caption_align", "centre: the lines are centred on `caption_centre_x`, which is not given")
+    if align == "left" and lay.get("caption_centre_x") is not None:
+        c.fail(f"{path}.caption_align", "left: the lines start at `caption_column_x`'s left edge; "
+                                        "`caption_centre_x` must be null")
+    tops = c.mapping(lay.get("caption_cap_top"), f"{path}.caption_cap_top", required=CAPTION_KINDS)
+    if tops is not None:
+        for kind in CAPTION_KINDS:
+            v = tops.get(kind)
+            if v is None:
+                if kind in tops and lay.get("caption_centre_y") is None:
+                    c.fail(f"{path}.caption_cap_top.{kind}", "null: the block is centred on `caption_centre_y`, "
+                                                             "which is not given")
+            else:
+                c.number(v, f"{path}.caption_cap_top.{kind}", 0, h)
+    cb = c.numbers(lay.get("counter_baselines"), f"{path}.counter_baselines", 2)
+    if cb is not None and not (0 < cb[0] < cb[1] <= h):
+        c.fail(f"{path}.counter_baselines", f"{cb} must be [label, figure] baselines, the label above")
+    overlays = zones.get("overlays") if zones else None
+    places = c.mapping(lay.get("lift_y"), f"{path}.lift_y", required=LIFT_PLACES)
+    if places is not None:
+        for name, spec in places.items():
+            p = f"{path}.lift_y.{name}"
+            if not isinstance(spec, dict) or len(spec) != 1 or next(iter(spec)) not in LIFT_Y_KEYS:
+                c.fail(p, f"must be ONE of {{{', '.join(LIFT_Y_KEYS)}: y}}, not {spec!r}")
+                continue
+            y = c.number(next(iter(spec.values())), p, 0, h)
+            if y is not None and overlays is not None and not (overlays.y0 <= y <= overlays.y1):
+                c.fail(p, f"y {y:g} is outside the overlays zone's rows ({overlays})")
+    page = c.mapping(lay.get("hook_page"), f"{path}.hook_page", required=("x", "top", "pivot", "macro_to"))
+    if page is not None:
+        if c.numbers(page.get("x"), f"{path}.hook_page.x", 2) is not None and not page["x"][0] < page["x"][1]:
+            c.fail(f"{path}.hook_page.x", f"{page['x']} must be [x0, x1] with x0 < x1")
+        c.number(page.get("top"), f"{path}.hook_page.top")
+        for key in ("pivot", "macro_to"):
+            v = c.numbers(page.get(key), f"{path}.hook_page.{key}", 2)
+            if v is not None and not (0 <= v[0] <= w and 0 <= v[1] <= h):
+                c.fail(f"{path}.hook_page.{key}", f"{v} is off the {w}×{h} canvas")
+    scrim = c.mapping(lay.get("hook_scrim"), f"{path}.hook_scrim", required=("rect", "fade"))
+    if scrim is not None:
+        r = c.rect(scrim.get("rect"), f"{path}.hook_scrim.rect", w, h)
+        fade = c.numbers(scrim.get("fade"), f"{path}.hook_scrim.fade", 2)
+        if fade is not None and any(v < 0 for v in fade):
+            c.fail(f"{path}.hook_scrim.fade", f"{fade} must be [right, bottom] fades of 0 px or more")
+        hook = zones.get("hook_block") if zones else None
+        if r is not None and hook is not None and not r.contains(Rect(hook.x0, hook.y0, hook.x1, min(hook.y1, r.y1))):
+            c.fail(f"{path}.hook_scrim.rect", f"{r} must hold the hook block's columns ({hook}): white words sit on it")
+    credit = c.mapping(lay.get("map_credit"), f"{path}.map_credit", required=("x", "baseline", "align"))
+    if credit is not None:
+        c.number(credit.get("x"), f"{path}.map_credit.x", 0, w)
+        c.number(credit.get("baseline"), f"{path}.map_credit.baseline", 0, h)
+        c.choice(credit.get("align"), f"{path}.map_credit.align", ("left", "right"))
 
 
 def _declared_cues(music: dict) -> Iterator[tuple[str | None, str]]:

@@ -436,7 +436,11 @@ class TestNothingUnverifiedPasses(unittest.TestCase):
         self.assertIsNone(not_built(SB, "15s", "9x16"))
         bare = sbmod.load(overrides=["scenes.15s=[]"])
         self.assertIn("no scenes", not_built(bare, "15s", "9x16"))
-        self.assertIn("laid out", not_built(SB, "30s", "1x1"))
+        for fmt in ("1x1", "16x9"):                                            # every format is laid out
+            self.assertIsNone(not_built(SB, "30s", fmt))
+            self.assertIsNone(not_built(SB, "15s", fmt))
+        self.assertIn("no format 4x5", not_built(SB, "30s", "4x5"))
+        self.assertIn("no scenes", not_built(bare, "15s", "16x9"))
         with tempfile.TemporaryDirectory() as tmp, contextlib.redirect_stdout(io.StringIO()) as out:
             self.assertFalse(verify(bare, ["15s"], ["9x16"], Path(tmp)))
             self.assertFalse(verify(SB, ["15s"], ["9x16"], Path(tmp)))
@@ -453,7 +457,7 @@ class TestCommand(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp, contextlib.redirect_stdout(io.StringIO()) as out:
             self.assertEqual(main(["verify", "--cut", "15s", "--format", "9x16", "--out", tmp]), 1)
             with self.assertRaisesRegex(SystemExit, "nothing could be built"):
-                main(["build", "--cut", "30s", "--format", "1x1", "--out", tmp])
+                main(["build", "--cut", "15s", "--format", "1x1", "--set", "scenes.15s=[]", "--out", tmp])
         self.assertIn("NOT BUILT", out.getvalue())
 
 

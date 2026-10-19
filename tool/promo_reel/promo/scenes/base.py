@@ -38,6 +38,13 @@ class Context:
     fmt: Any                         # storyboard.Format
     sources: dict = field(default_factory=dict)   # take name → sources.TakeSource
     fps: int = 30
+    #: the format the scenes' camera W values are measured in (storyboard
+    #: `reference: true`, 9:16); None: this format is
+    reference: Any = None
+
+    @property
+    def reference_fmt(self):
+        return self.reference if self.reference is not None else self.fmt
 
     @property
     def size(self) -> tuple[int, int]:

@@ -24,9 +24,10 @@ transitions.png, probe.json, meter.json, spectrogram.png, frames/*.png.
       drop/groove sections together), on the WAV master AND on the MP4's
       AAC (a pass never rests on the codec): the storyboard's « near
       silence ».
-  (e) FILE: ffprobe + assertions (1080×1920, 30 fps CFR, the cut's frames —
-      960 for the 30-s cut, 512 for the 15-s —, H.264 High yuv420p BT.709, AAC 48 kHz stereo,
-      duration, +faststart).
+  (e) FILE: ffprobe + assertions (the format's canvas — 1080×1920,
+      1080×1080, 1920×1080 —, 30 fps CFR, the cut's frames — 960 for the
+      30-s cut, 512 for the 15-s —, H.264 High yuv420p BT.709, AAC 48 kHz
+      stereo, duration, +faststart).
   (f) A/V SYNC: for every UI click and typing cue, the click's onset in the
       decoded MP4 audio against the frame its disc or character first
       appears in the MP4's PIXELS: a disc by its own ring (promo.pixels.
@@ -36,8 +37,13 @@ transitions.png, probe.json, meter.json, spectrogram.png, frames/*.png.
   (g) SAFE ZONES: the INK measured on MP4 frames — each caption on the frame
       it is whole, the counter (mid-roll, landing with its punch, landed),
       every lift, the credit — inside the format's text area (9:16: x
-      120–900 × y 270–1248, and to x 960 above y 840), captions inside the
-      caption column; and every box render.json records, on every frame.
+      120–900 × y 270–1248, and to x 960 above y 840; 1:1 and 16:9: EBU R95
+      graphics-safe, x/y 54–1026 and x 96–1824 × y 54–1026), the captions
+      laid in the caption column inside it (not the AIR's word, centred on
+      the canvas, nor the end card's lines, centred on the mark); and every
+      box render.json records, on every frame. Each ink region stays clear
+      of the phone (`clear_of_phone`: in 16:9 the phone stands beside the
+      captions and the lifts, not under a band).
   (h) HONESTY: every generated element with its cited source (none without);
       every blur measured on every picture the film uses (≤ 15 % of the
       digits' detail left); the hidden 13:15 row on EVERY frame of its scene,
@@ -60,7 +66,9 @@ transitions.png, probe.json, meter.json, spectrogram.png, frames/*.png.
 
 Statuses: PASS or FAIL (the end card's « owner decision pending » is retired:
 the owner added a bar, 2026-10-19); the film's is the worst of its checks.
-``python -m promo verify`` exits 0 / 1.
+Across the formats: every built format of a cut holds the SAME soundtrack —
+track.wav and events.json byte for byte (`same_soundtrack`) — or the run
+FAILS. ``python -m promo verify`` exits 0 / 1.
 """
 
 from __future__ import annotations
@@ -180,9 +188,9 @@ def click_onset(written: np.ndarray, sample: int, search: int = 3200) -> int:
 
 
 def outside_safe(records: list[dict], fmt) -> tuple[int, list[dict]]:
-    """(boxes checked, boxes outside the format's text area — captions also
-    outside the caption column). The mark (the Lottie) is placed by the
-    layout, not by text rules, and is not counted."""
+    """(boxes checked, boxes outside the format's text area — captions laid
+    in the caption column also outside it). The mark (the Lottie) is placed
+    by the layout, not by text rules, and is not counted."""
     area = list(fmt.text_area)
     col = fmt.layout["caption_column_x"]
     bad, counted = [], 0
@@ -193,7 +201,7 @@ def outside_safe(records: list[dict], fmt) -> tuple[int, list[dict]]:
             counted += 1
             rect = Rect(*b["rect"])
             ok = covered_by(rect, area)
-            if b["kind"] == "caption":
+            if b["kind"] == "caption" and b.get("column", True):
                 ok = ok and col[0] - 0.5 <= rect.x0 and rect.x1 <= col[1] + 0.5
             if not ok:
                 bad.append({"frame": r["f"], **b})
@@ -395,10 +403,67 @@ def _touch_boxes(records: list[dict], gesture: str) -> dict[int, tuple[float, fl
     return out
 
 
+def phone_area(sc, f: int) -> tuple[float, float, float, float] | None:
+    """Where a phone scene's phone shows on frame f: its window's rows (band
+    fade to floor fade) × the slab's columns as posed then (a push-in or a
+    slam widens it), bezel included. None: no phone."""
+    win = getattr(sc, "window", None)
+    if win is None:
+        return None
+    spec = sc.phone.spec
+    pose = sc.pose(float(f))
+    x0, _, x1, _ = sc.phone.map_rect((0.0, spec.crop_top_pt, spec.screen_pt[0], spec.screen_pt[1]), pose,
+                                     W=sc.camera_W(float(f)), window=win)
+    b = spec.bezel * pose.scale + 2.0
+    return (x0 - b, win.top - win.band_fade, x1 + b, win.floor + win.floor_fade)
+
+
+def clear_of_phone(region, area, centre: tuple[float, float]) -> tuple[float, float, float, float]:
+    """`region` cut back to the side of the phone's `area` the element
+    (centred on `centre`) is on — so an ink box measures the element, not the
+    phone's own pixels (16:9: the captions, the counter, the lifts and the
+    credit stand beside the phone; 9:16 and 1:1: above or below it). An
+    element over the phone (a lift over the veil) keeps its region."""
+    if area is None:
+        return tuple(region)
+    x0, y0, x1, y1 = region
+    a0, b0, a1, b1 = area
+    if x1 <= a0 or x0 >= a1 or y1 <= b0 or y0 >= b1:
+        return tuple(region)
+    cx, cy = centre
+    if cx < a0:
+        x1 = a0 - 2
+    elif cx > a1:
+        x0 = a1 + 2
+    elif cy < b0:
+        y1 = b0
+    elif cy > b1:
+        y0 = b1
+    return (x0, y0, x1, y1)
+
+
+def on_its_ground(sc, region) -> tuple[float, float, float, float]:
+    """A hook caption is measured where it sits: on the scene's scrim (its
+    opaque rectangle and fade) — never on the lit page beside it, whose
+    bright, near-neutral paper fibres pass for white ink (16:9: the page
+    across the frame's right, at the caption's rows). Other scenes keep the
+    region."""
+    scrim = getattr(sc, "scrim", None)
+    if scrim is None:
+        return tuple(region)
+    (sx0, sy0, sx1, sy1), (fr, fb) = scrim
+    x0, y0, x1, y1 = region
+    return (max(x0, sx0), max(y0, sy0), min(x1, sx1 + fr), min(y1, sy1 + fb))
+
+
 def pixel_plan(film, records: list[dict], events: dict) -> dict:
     """What to measure on which frames of the MP4."""
     from .scenes.phone import PhoneScene
     W = film.fmt.width
+    by_frame = {r["f"]: r for r in records}
+
+    def area_at(fr: int):
+        return phone_area(film.scene_at(fr), fr)
     plan = {"clicks": [], "keys": [], "ink": [], "rows": []}
     cue_of_touch = {}
     for sc in film.scenes:
@@ -456,40 +521,67 @@ def pixel_plan(film, records: list[dict], events: dict) -> dict:
         sc = film.scene_at(fr)
         px = c.font.getSize()
         ys = [p.baseline for p in c.caption.placed]
+        xs = [p.x for p in c.caption.placed] + [p.x + p.width for p in c.caption.placed]
         ink = "white" if c.colour_on(sc.stage.dark) == PALETTE.WHITE else TEXT_INK
-        plan["ink"].append({"frame": fr, "kind": "caption", "label": c.id, "ink": ink,
-                            "region": (0, min(ys) - 1.1 * px, W, max(ys) + 0.35 * px)})
+        centre = ((min(xs) + max(xs)) / 2, (min(ys) + max(ys)) / 2)
+        plan["ink"].append({"frame": fr, "kind": "caption", "label": c.id, "ink": ink, "column": c.in_column,
+                            "region": on_its_ground(sc, clear_of_phone((0, min(ys) - 1.1 * px, W, max(ys) + 0.35 * px),
+                                                                       area_at(fr), centre))})
         if c.underline:                                  # the stroke drawn whole, alone in its band
             u = c.underline
             fr_u = int(min(u["at"] + u["frames"] + 1, c.until - 1))
             plan["ink"].append({"frame": fr_u, "kind": "caption", "label": f"{c.id} underline", "ink": ink,
-                                "region": (0, u["rect"][1] - 3, W, u["rect"][3] + 3)})
+                                "column": c.in_column,
+                                "region": clear_of_phone((0, u["rect"][1] - 3, W, u["rect"][3] + 3), area_at(fr_u),
+                                                         centre)})
+    def boxes_of(fr: int, kind: str, label: str | None = None) -> list:
+        return [b["rect"] for b in by_frame.get(fr, {}).get("boxes", [])
+                if b["kind"] == kind and (label is None or b["label"] == label)]
+
+    def around(rects: list, grow: float) -> tuple[tuple[float, float, float, float], tuple[float, float]]:
+        x0, y0 = min(r[0] for r in rects), min(r[1] for r in rects)
+        x1, y1 = max(r[2] for r in rects), max(r[3] for r in rects)
+        return (x0 - grow, y0 - grow, x1 + grow, y1 + grow), ((x0 + x1) / 2, (y0 + y1) / 2)
+
     for sc in film.scenes:
         cnt = getattr(sc, "counter", None)
         if cnt:
-            band = film.fmt.zones["caption_band"]
+            lab_px, fig_px = cnt["label_font"].getSize(), cnt["odo"].font.getSize()
             for fr, what in ((cnt["switch"] + 6, "label « Mois », mid-roll"), (cnt["land"], "landing (punch 1.08)"),
                              (cnt["land"] + 3, "landed")):
-                plan["ink"].append({"frame": int(fr), "kind": "counter", "label": what, "ink": TEXT_INK,
-                                    "region": (0, 250, W, band.y1)})
+                fr = int(fr)
+                rects = boxes_of(fr, "counter")
+                centre = around(rects, 0)[1] if rects else (W / 2, cnt["figure_baseline"])
+                region = (0, cnt["label_baseline"] - 1.3 * lab_px, W, cnt["figure_baseline"] + 0.45 * fig_px)
+                plan["ink"].append({"frame": fr, "kind": "counter", "label": what, "ink": TEXT_INK,
+                                    "region": clear_of_phone(region, area_at(fr), centre)})
         if not isinstance(sc, PhoneScene):
             continue
-        veil = (0, sc.window.top - sc.window.band_fade, W, sc.window.floor + sc.window.floor_fade)
+        # a lift's ink: around where the renderer put it, 48 px wider (beside the phone in 16:9: clear of it)
         for L in sc.lifts:
             frames = [int(L["up"]) + 5] + ([int(L["down"]) - 1] if L.get("down") else [])
             for fr in frames:
-                plan["ink"].append({"frame": fr, "kind": "lift", "label": L["id"], "ink": LIFT_INK, "region": veil})
+                rects = boxes_of(fr, "lift", L["id"])
+                if rects:
+                    region, centre = around(rects, 48)
+                    plan["ink"].append({"frame": fr, "kind": "lift", "label": L["id"], "ink": LIFT_INK,
+                                        "region": clear_of_phone(region, area_at(fr), centre)})
         st = sc.stack
         if st:
             for i, u in enumerate(st["ups"]):
-                plan["ink"].append({"frame": int(u) + 5, "kind": "lift", "label": f"tiles 1–{i + 1}", "ink": LIFT_INK,
-                                    "region": veil})
+                fr = int(u) + 5
+                rects = [r for j in range(i + 1) for r in boxes_of(fr, "lift", f"tile{j + 1}")]
+                if rects:
+                    region, centre = around(rects, 48)
+                    plan["ink"].append({"frame": fr, "kind": "lift", "label": f"tiles 1–{i + 1}", "ink": LIFT_INK,
+                                        "region": clear_of_phone(region, area_at(fr), centre)})
         if sc.credit:
             shown = [r["f"] for r in records if r["scene"] == sc.id and any(b["kind"] == "credit" for b in r.get("boxes", []))]
             if shown:
-                floor = film.fmt.zones["floor"]
-                plan["ink"].append({"frame": shown[len(shown) // 2], "kind": "credit", "label": "map credit",
-                                    "ink": TEXT_INK, "region": (0, floor.y0, W, floor.y0 + 90)})
+                fr = shown[len(shown) // 2]
+                region, centre = around(boxes_of(fr, "credit"), 16)
+                plan["ink"].append({"frame": fr, "kind": "credit", "label": "map credit", "ink": TEXT_INK,
+                                    "region": clear_of_phone(region, area_at(fr), centre)})
     # (h) EVERY frame of a scene with a hidden row — its whip, push and pop included
     plan["hidden"] = {}
     for sid, specs in (film.plan().get("hidden") or {}).items():
@@ -700,8 +792,10 @@ def verify_film(sb, cut: str, fmt_id: str, d: Path) -> Result:
             continue
         pos = tbase.pos(f)
         tiles.append(sheets.Tile(p, f"f{f} · {f / sb.meta.fps:.3f} s · {pos.bar}.{pos.beat}"))
+    landscape = fmt.width > fmt.height
     if tiles:
-        sheets.contact_sheet(tiles, vdir / "beats.png", columns=8, tile_width=200,
+        sheets.contact_sheet(tiles, vdir / "beats.png", columns=6 if landscape else 8,
+                             tile_width=320 if landscape else 200,
                              title=f"{cut} {fmt_id} — the renderer's frame on every beat ({len(tiles)})")
     pulled = sheets.pull_frames(mp4, beat_frames)
     from PIL import Image
@@ -728,7 +822,8 @@ def verify_film(sb, cut: str, fmt_id: str, d: Path) -> Result:
             if x in pulled_t:
                 lab = sheets.label(x, tbase) + (f" · {t['kind']} → {t['into']}" if x == t["frame"] else "")
                 ttiles.append(sheets.Tile(pulled_t[x], lab))
-    sheets.contact_sheet(ttiles, vdir / "transitions.png", columns=6, tile_width=220,
+    sheets.contact_sheet(ttiles, vdir / "transitions.png", columns=3 if landscape else 6,
+                         tile_width=420 if landscape else 220,
                          title=f"{cut} {fmt_id} — every cut, whip and dissolve from reel.mp4 (T−1, T, T+1)")
     frames_dir = vdir / "frames"
     looks = look_frames(doc, frames)
@@ -842,7 +937,7 @@ def verify_film(sb, cut: str, fmt_id: str, d: Path) -> Result:
     for t in measured["ink"]:
         box = t["box"]
         ok = box is not None and covered_by(Rect(*box), area)
-        if ok and t["kind"] == "caption":
+        if ok and t["kind"] == "caption" and t.get("column", True):
             ok = col[0] - 0.5 <= box[0] and box[2] <= col[1] + 0.5
         row = {"frame": t["frame"], "kind": t["kind"], "label": t["label"], "ink_box": box, "ok": bool(ok)}
         ink_rows.append(row)
@@ -980,8 +1075,28 @@ def verify_film(sb, cut: str, fmt_id: str, d: Path) -> Result:
     return res
 
 
+def same_soundtrack(storyboard, cut: str, out_dir: Path) -> tuple[bool, str]:
+    """Every format of `cut` built under `out_dir` holds the SAME soundtrack:
+    track.wav and events.json byte for byte (one storyboard, one score, one
+    clock — the formats are re-laid out, never re-timed)."""
+    from .render import sha256
+    films = {}
+    for fid in storyboard.formats:
+        d = film_dir(out_dir, cut, fid)
+        if (d / "reel.mp4").is_file() and (d / "track.wav").is_file() and (d / "events.json").is_file():
+            films[fid] = (sha256(d / "track.wav"), sha256(d / "events.json"))
+    if not films:
+        return True, f"{cut}: no film"
+    kinds = set(films.values())
+    what = ", ".join(f"{fid} (track.wav {t[:12]}, events.json {e[:12]})" for fid, (t, e) in films.items())
+    if len(kinds) == 1:
+        return True, f"{cut}: the same soundtrack in {len(films)} format{'s' if len(films) != 1 else ''} — {what}"
+    return False, f"{cut}: the formats' soundtracks DIFFER — {what}"
+
+
 def verify(storyboard, cuts: list[str], formats: list[str], out_dir: Path) -> bool:
-    """``python -m promo verify``: every selected film that can be built."""
+    """``python -m promo verify``: every selected film that can be built,
+    then every cut's formats held to one soundtrack."""
     statuses, seen = [], 0
     for cut in cuts:
         for fmt in formats:
@@ -999,6 +1114,11 @@ def verify(storyboard, cuts: list[str], formats: list[str], out_dir: Path) -> bo
     if not seen:
         print("verify: no film was verified")
         return Verdict(FAIL)
+    for cut in cuts:
+        ok, what = same_soundtrack(storyboard, cut, out_dir)
+        print(f"{PASS if ok else FAIL}  one soundtrack per cut: {what}")
+        statuses.append(PASS if ok else FAIL)
+    print(f"verify: {worst(statuses)} — {seen} film{'s' if seen != 1 else ''} verified")
     return Verdict(worst(statuses))
 
 

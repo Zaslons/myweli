@@ -11,10 +11,12 @@
 # 2. ffmpeg and ffprobe (Homebrew); the command stops and says how to install
 #    them when they are missing.
 # 3. python -m promo build --all, then python -m promo verify --all: every
-#    cut × format the storyboard lays out (today 30s/9x16 and 15s/9x16) is rendered to
-#    out/<cut>-<format>/reel.mp4 and verified (out/<cut>-<format>/verify/);
-#    the others are named « NOT BUILT » with the reason. Every check PASSes
-#    (exit 0) or the command fails (exit 1).
+#    cut × format — 30s and 15s, each in 9x16, 1x1 and 16x9: six films — is
+#    rendered to out/<cut>-<format>/reel.mp4, one at a time (each cut's
+#    soundtrack rendered once and shared by its formats), and verified
+#    (out/<cut>-<format>/verify/); a cut × format that cannot be built is
+#    named « NOT BUILT » with the reason. Every check PASSes (exit 0) or the
+#    command fails (exit 1). `--out DIR` writes the films elsewhere.
 #
 # Nothing outside tool/promo_reel/ is written. The recorded takes are read
 # from the main checkout's build/ folder (or PROMO_MATERIAL).
