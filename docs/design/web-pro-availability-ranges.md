@@ -2,11 +2,11 @@
 
 | | |
 |---|---|
-| **Statut** | **Draft — en attente du feu vert du propriétaire (§8)** |
+| **Statut** | **Approved le 2026-10-19** — dates comme l'app (A), chevauchements refusés **sur le web et dans l'app**, texte du §3 tel qu'écrit |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-19 |
 | **PRD ref / phase** | Disponibilités du salon (FR-PRO-AVAIL) · parité web ↔ app · V1 |
-| **Module** | web Pro — `/pro/disponibilites` (`DisponibilitesClient`, `DayHoursEditor`, `lib/pro/availability.ts`) |
+| **Module** | web Pro — `/pro/disponibilites` (`DisponibilitesClient`, `DayHoursEditor`, `lib/pro/availability.ts`) ; app Pro — l'éditeur d'un jour (`availability_screen.dart`, `_DayScheduleEditScreen`) pour le contrôle de chevauchement |
 | **Origine** | [parity-audit-web-pro-2026-10.md](parity-audit-web-pro-2026-10.md) §3 n° 2 (P1) |
 | **Skills checked** | myweli-web-guardrails ✓ · myweli-dev-guardrails ✓ · backend : **aucun changement** (lu seulement) |
 
@@ -181,3 +181,19 @@ plages passent à la ligne) ; texte 200 %.
    bas, sans confirmation.
 2. **Le contrôle de chevauchement** (H4), que l'app n'a pas : oui (recommandé).
 3. Le texte du §3 (H1–H5 nouveaux ; D1–D9 repris de l'app).
+
+## 9. Décisions (2026-10-19)
+
+1. **Dates : comme l'app (A)** — boîte « Jours bloqués », confirmation qui
+   nomme le sens, écriture immédiate des seules dates ; « Débloquer » par
+   ligne avec confirmation ; le reste de la page garde « Enregistrer ».
+2. **Chevauchements refusés — sur le web et dans l'app.** Le propriétaire :
+   « refuse, et rends l'app pareille si elle ne l'est pas ». L'app ne le
+   vérifiait pas : son éditeur d'un jour (`_DayScheduleEditScreen`) refuse
+   désormais, à « Enregistrer » et à « Copier sur les autres jours », deux
+   plages qui se chevauchent, avec **la même phrase** (H4, « Lundi : deux
+   plages se chevauchent. ») affichée **dans l'écran, sous les plages** (une
+   erreur de formulaire, jamais un toast — SYSTEM §14) ; rien n'est écrit.
+   Des plages qui se touchent (fin 12:00, début 12:00) restent acceptées.
+3. Le texte du §3, tel qu'écrit.
+
