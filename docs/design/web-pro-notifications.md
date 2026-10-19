@@ -2,12 +2,12 @@
 
 | | |
 |---|---|
-| **Statut** | **Approved le 2026-10-19** — les trois décisions du §9 telles que recommandées : nav + cloche mobile, rafraîchissement 60 s (onglet visible) + titre + annonce, le texte du §4 |
+| **Statut** | **Construit le 2026-10-19** (branche `feat/web-pro-notifications`) — les trois décisions du §9 telles que recommandées ; §10 dit ce qui a été vu rouge · **à fusionner après #640** et à déployer **après** le serveur de #640 (l'état vide nomme les « reports ») |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-19 |
 | **PRD ref / phase** | FR-NOTIF · parité web ↔ app Pro · V1 |
 | **Module** | web Pro (`/pro/notifications`, la barre latérale, la barre du haut mobile, le détail d'un rendez-vous) |
-| **ROADMAP entry** | à créer au build |
+| **ROADMAP entry** | [2026-10-19-web-pro-notifications.md](../roadmap/entries/2026-10-19-web-pro-notifications.md) |
 | **Skills checked** | myweli-web-guardrails ✓ · myweli-dev-guardrails ✓ · myweli-backend-guardrails : **aucun changement serveur** (lu seulement) |
 | **Dépend de** | [#640](https://github.com/Zaslons/myweli/pull/640) **déployé** — l'état vide nomme les « reports » (§4.4) |
 
@@ -165,3 +165,32 @@ avant le texte (WEB-SYSTEM §7) ; page dans les matrices axe et reflow
 1. L'entrée : nav « Notifications » + pastille, **et** cloche mobile (recommandé).
 2. Le rafraîchissement : 60 s onglet visible + titre d'onglet + annonce (recommandé).
 3. Le texte du §4.
+
+## 10. Ce qui a été vu rouge, et ce qu'on a trouvé en route
+
+- Les tests ont été commités **avant** le code (`cbe5ec18`) : le BFF, la page,
+  les helpers, le détail ne compilaient pas ; la nav comptait 10 entrées.
+- **Deux épingles existantes ont parlé** : la CSP (« toute origine tierce du
+  source est couverte ») a vu l'origine factice d'un premier `new URL(route,
+  'https://app.invalid')` — l'analyse se fait désormais à la main ; la table
+  des enveloppes réseau de `lib/api/pro.ts` exige une ligne par nouvelle
+  fonction — trois lignes ajoutées.
+- **Un vrai défaut trouvé dans le navigateur**, pas par les tests : ouvrir le
+  lien d'un autre salon basculait bien côté serveur, mais la barre latérale
+  restait sur l'ancien salon. La sonde `/me` du chargement de page, partie
+  **avant** la bascule, répondait **après** et écrasait le profil. Une page
+  qui agit pour le salon B sous un rail qui dit A, c'est le pire des deux.
+  Correction dans `ProMembershipProvider.switchSalon` : une bascule retire
+  toute sonde partie avant elle (le compteur de séquence existant), et termine
+  elle-même le chargement initial — **le premier correctif ne le faisait pas
+  et laissait la barre en squelette pour toujours** ; le test l'a montré. Le
+  test du défaut a été vu rouge sans la correction, vert avec.
+- Vérifié ici : typecheck, lint, **toute la suite unitaire web verte**
+  (1 622) ; dans le navigateur sur le bouchon e2e : la pastille, le titre
+  d'onglet « (2) … » qui survit à la navigation, le clic qui lit et ouvre,
+  la bascule de salon, la cloche à 375 px sans défilement horizontal.
+
+**Non vérifié** : le rafraîchissement de 60 s contre le vrai serveur ; un
+lecteur d'écran réel sur l'annonce ; la CI Linux (axe + reflow) est la
+première exécution complète des deux matrices.
+
