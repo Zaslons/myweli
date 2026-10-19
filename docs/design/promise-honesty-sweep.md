@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Draft — en attente du feu vert du propriétaire sur le texte exact (§3)** |
+| **Statut** | **Approved le 2026-10-19** — le propriétaire a validé T1–T6 tels que recommandés (§3) : T1 « dans l’app MyWeli », T2 « sur votre Mobile Money », T3 corrigé maintenant (l'événement serveur en suite, §8), T4–T6 tels qu'écrits |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-19 |
 | **PRD ref / phase** | FR-PRO-MKT-001 (rappels) · la décision sans-custody des acomptes (PRD OQ-1, mémoire `payments-no-custody-screenshot`) · V1 |
@@ -259,7 +259,7 @@ construit, T3 peut redire « modifie » — l'épingle le signalera.
 
 ## 9. Questions ouvertes
 
-1. T1–T6 : le texte exact (§3), ou les variantes.
+1. ~~T1–T6 : le texte exact (§3), ou les variantes.~~ **Décidé le 2026-10-19 : les recommandations, toutes.**
 2. Un nouveau build Pro avant la soumission App Store (§7) ?
 3. « Support prioritaire dédié » (offre Business) — non vérifiable dans ce
    dépôt ; à confirmer par le propriétaire, hors de cette tranche.

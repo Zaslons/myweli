@@ -14,6 +14,7 @@ import 'package:myweli/widgets/common/empty_state.dart';
 import 'package:myweli/widgets/common/loading_indicator.dart';
 import 'package:myweli/widgets/notifications/notification_tile.dart';
 import 'package:myweli/widgets/notifications/notifications_list.dart';
+import 'package:myweli/widgets/push/push_blocked_banner.dart';
 import 'package:provider/provider.dart';
 
 import '../support/pump_app.dart';
@@ -189,5 +190,37 @@ void main() {
     verify(() => service.markAllRead()).called(1);
     expect(provider.unreadCount, 0);
     expect(find.byTooltip('Tout marquer comme lu'), findsNothing);
+  });
+
+  testWidgets('OS-denied → the banner speaks to the SALON: its three events, '
+      'never the client\'s « rappels et confirmations »', (tester) async {
+    // A salon receives no reminder and no confirmation — only a new booking,
+    // a client cancellation and a deposit proof (SalonEvent). The shared
+    // banner's default sentence is the client's (spec promise-honesty-sweep
+    // §1.4.c, T4).
+    when(
+      () => service.getNotifications(),
+    ).thenAnswer((_) async => ApiResponse.success([]));
+
+    await tester.pumpWidget(
+      host(
+        NotificationsProvider(service: service),
+        child: ProNotificationsScreen(
+          permissionStatus: () async => PushPermissionStatus.denied,
+          openSettings: () async {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(PushBlockedBanner), findsOneWidget);
+    expect(
+      find.text(
+        'Autorisez MyWeli Pro dans les réglages de votre téléphone pour être '
+        'prévenu·e des réservations, annulations et acomptes de vos clients.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.textContaining('rappels'), findsNothing);
   });
 }

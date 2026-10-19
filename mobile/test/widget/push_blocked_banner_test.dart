@@ -61,6 +61,15 @@ void main() {
       find.text('Notifications désactivées pour l’appareil'),
       findsOneWidget,
     );
+    // The CLIENT's sentence — true for a client (push reminders + the salon's
+    // answer); the Pro screen passes its own (promise-honesty-sweep T4).
+    expect(
+      find.text(
+        'Autorisez MyWeli dans les réglages de votre téléphone pour '
+        'recevoir vos rappels et confirmations.',
+      ),
+      findsOneWidget,
+    );
 
     await tester.tap(find.text('Ouvrir les réglages'));
     await tester.pumpAndSettle();
