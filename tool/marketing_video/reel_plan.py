@@ -22,7 +22,9 @@ what shows of them, S1's headline at the top of the safe zone); and R3, the
 items of the review of the third render (S5's scroll chosen by position on
 a smooth target, S7's one black-button frame held on the loading picture,
 S7b's caption at the top of the safe zone, a dedicated cover with the headline 30 px
-lower).
+lower); and R4, the items of the review of the fourth render (S7b's push-in
+cut to 1.02 about the top of the stylist's bun, the cover's picture at frame
+0's push-in).
 
 WHERE things sit and HOW they move is prose in the storyboard ("Poppins
 Medium 92 px, line height 106, #FFFFFF, centred, block top y 316"). Those
@@ -158,6 +160,7 @@ ANCHORS = [
     ("S1", "visual", "Headline in Poppins Medium 92 px, line height 106, #FFFFFF, centred, block top y 280"),
     ("hook", None, "with the headline 30 px lower (block top y 310)"),
     ("hook", None, "at least 40 px below the 4:5 crop's top"),
+    ("hook", None, "the cover's picture is at frame 0's push-in (scale 1.00), its stroke and words frame 54's"),
     ("S1", "visual", "sha256 a78c71491b3def4877f38c6186b8de1ca7df08ceb02886ee822fb5b10b875a49"),
     ("S1", "visual", "Full bleed in width at scale 1.1477 (1080 / 941, the least that fills the width), placed so the picture's point (215, 1352)"),
     ("S1", "visual", "sits at frame (246.8, 1232)"),
@@ -234,12 +237,12 @@ ANCHORS = [
     ("S7", "motion", "| 24.200–24.367 | 726–731 | HOLD on take 132.162 s (5 frames)"),
     ("S7", "motion", "| 24.167–24.367 | 725–731 | The headline fades out (200 ms easeIn)"),
     ("S7b", "visual", "sha256 2027a9a04f83f3902d37869599beb094665bf47dbfb4150c584d7420996499c6"),
-    ("S7b", "visual", "Full bleed at scale 1.1483 (1920 / 1672, the least that fills the frame), centred; the push-in holds still the picture's point (560, 1010)"),
+    ("S7b", "visual", "Full bleed at scale 1.1483 (1920 / 1672, the least that fills the frame), centred; the push-in holds still the picture's point (220, 420), the top of the stylist's bun"),
     ("S7b", "visual", "**Gradient.** A soft black gradient: 62 % from the top to y 420, easing to 0 % at y 1000"),
     ("S7b", "visual", "Poppins Medium 92 px, line height 106, #FFFFFF, centred, block top y 269"),
     ("S7b", "visual", "The lines measure 653 px and 827 px"),
     ("S7b", "motion", "| 24.367–24.567 | 731–737 | The S7 page — paper, card and « Rendez-vous créé » — dissolves into the picture (`base`) |"),
-    ("S7b", "motion", "| 24.367–27.00 | 731–810 | The picture pushes in 1.00 → 1.03, linear"),
+    ("S7b", "motion", "| 24.367–27.00 | 731–810 | The picture pushes in 1.00 → 1.02, linear, about the top of the stylist's bun"),
     ("S7b", "motion", "| 24.367 / 24.417 | | Caption lines rise 24 px and fade in (`emphasis`, 50 ms `stagger`) |"),
     ("S7b", "motion", "| 27.00–27.20 | 810–816 | The picture and the caption dissolve into S8's paper (`base`) |"),
     ("S7b", "motion", "The caption is on screen 24.367–27.00 s, 2.63 s"),
@@ -400,8 +403,11 @@ S1 = {
     "head_widths": [547, 858],                      # « The two lines measure 547 px and 858 px »
     "head_top": 280,                                # R2: the top of the safe zone, her hairline clear
     # R3: the cover, exported as its own picture, sets the headline 30 px
-    # lower so the 4:5 crop keeps at least 40 px above it (frame 0 unchanged)
-    "cover_drop": 30, "cover_headroom": 40,
+    # lower so the 4:5 crop keeps at least 40 px above it (frame 0 unchanged);
+    # R4: its picture at frame 0's push-in (scale 1.00, her face 21 px
+    # lower than at frame 54), so the second line keeps a gap above her
+    # hairline — the stroke and the words are frame 54's
+    "cover_drop": 30, "cover_headroom": 40, "cover_picture_t": 0.0,
 }
 
 S2 = {
@@ -475,9 +481,12 @@ S7 = {
 
 S7B = {
     # A1: the people beat, the owner's second picture, full bleed
-    "photo": "people", "fill": "frame", "anchor_src": (560, 1010), "anchor_y": None,
+    # R4: the push-in holds still the top of the stylist's bun (it held the
+    # braiding hands, (560, 1010), and raised the bun 18 px under « pour »)
+    "photo": "people", "fill": "frame", "anchor_src": (220, 420), "anchor_y": None,
     # R2: from frame 731 (24.367 s), so the caption has the 2.63 s its 32 characters need
-    "push": (1.03, 731 / 30, 27.0), "fade_bottom": 0, "gradient": (0.62, 420, 1000),
+    # R4: 1.00 -> 1.02 (was 1.03; about the hands, 1.02 alone still left 9 px)
+    "push": (1.02, 731 / 30, 27.0), "fade_bottom": 0, "gradient": (0.62, 420, 1000),
     "in": 731 / 30, "out": 27.00, "dissolve": "base",
     # R3: at the top of the safe zone, 47 px higher than the other
     # headlines, so « pour » clears the stylist's bun through the whole

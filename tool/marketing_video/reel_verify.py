@@ -34,7 +34,8 @@ AVFoundation (`swift/Inspect.swift`, the only one that decodes) and
               (A2) as at the camera stops — and on the decoded file; key
               frames decoded against the frames that were composed; the
               white words over A1's pictures at 4.5:1 or more against what
-              lies under them.
+              lies under them; S7b's caption at least 8 px above the
+              stylist's braids wherever it is whole (R3, R4).
 
 `verify()` returns the checks; `reel.py verify` exits non-zero when any
 fails.
@@ -104,9 +105,11 @@ SCROLL_ROWS = (760, 1800)               # the card below the cover's fade and ab
 SCROLL_COLS = (160, 920)
 # S7b's caption over the stylist's head (R3): the braids under the gradient
 # are darker than 60 of 255, the wall behind them about 90; « pour » keeps
-# at least this many px above them on every frame of the push-in
+# at least this many px above them on every frame of the push-in. R4: 8
+# (was 2) — at phone size a 4-px gap reads as the words resting on her hair;
+# the film keeps 23 (the push-in, 1.02, holds the bun still)
 HAIR_LEVEL = 60
-CAPTION_CLEAR = 2
+CAPTION_CLEAR = 8
 
 
 # ---- the file -------------------------------------------------------------------------
@@ -576,10 +579,8 @@ def build_checks(path: Path, P: plan.Plan, work: Path, layout: dict[int, list] |
 
 def caption_clear_of_hair(P: plan.Plan, work: Path, names: list[str], layout: dict[int, list]) -> Check:
     """S7b's second line against the stylist's braided bun (R3), on every
-    frame where the caption is whole: its ink (where the composed frame is
-    brighter than the picture by more than 60) and the hair under it (the
-    picture darker than HAIR_LEVEL) — the least gap, column by column, at
-    least CAPTION_CLEAR px; negative is how far into the hair."""
+    frame where the caption is whole: the composed frame against the
+    picture as it lies under it (`caption_gap`), at least CAPTION_CLEAR px."""
     fx = rf.Footage(work)
     pic = fx.photo(plan.S7B["photo"])
     worst = None
@@ -592,22 +593,42 @@ def caption_clear_of_hair(P: plan.Plan, work: Path, names: list[str], layout: di
         seen += 1
         ground = rp.render(pic, rp.placement(plan.S7B, n / P.fps, P.size), plan.S7B, P.size).mean(axis=2)
         shown = np.asarray(Image.open(work / "frames" / names[n]).convert("RGB"), dtype=np.float32).mean(axis=2)
-        x0, y0, x1, y1 = (int(round(v)) for v in line[0].ink)
-        ink = (shown - ground)[y0 - 2:y1 + 2, x0:x1] > 60
-        dark = ground < HAIR_LEVEL
-        for c in range(ink.shape[1]):
-            rows = np.where(ink[:, c])[0]
-            if not len(rows):
-                continue
-            top, bottom = y0 - 2 + rows.min(), y0 - 2 + rows.max()
-            under = np.where(dark[top:bottom + 1, x0 + c] & ink[rows.min():rows.max() + 1, c])[0]
-            if len(under):
-                gap = -(bottom - top - under.min() + 1)
-            else:
-                below = np.where(dark[bottom + 1:bottom + 81, x0 + c])[0]
-                gap = int(below[0]) if len(below) else 80
-            if worst is None or gap < worst[0]:
-                worst = (gap, n, x0 + c)
+        gap = caption_gap(shown, ground, line[0].ink)
+        if gap is not None and (worst is None or gap[0] < worst[0]):
+            worst = (gap[0], n, gap[1])
+    return caption_clear_check(seen, worst)
+
+
+def caption_gap(shown: np.ndarray, ground: np.ndarray, ink_box) -> tuple[int, int] | None:
+    """A white line against the dark hair under it, on one frame (grey
+    levels, 0-255): its ink is where the composed frame `shown` is brighter
+    than the picture `ground` by more than 60, the hair where the picture is
+    darker than HAIR_LEVEL. Column by column, the clear rows between the
+    ink's lowest pixel and the first hair below it (looked for 80 px down);
+    negative is how far the ink lies into the hair. Returns the least gap
+    and its column x, or None when the box holds no ink."""
+    x0, y0, x1, y1 = (int(round(v)) for v in ink_box)
+    ink = (shown - ground)[y0 - 2:y1 + 2, x0:x1] > 60
+    dark = ground < HAIR_LEVEL
+    worst = None
+    for c in range(ink.shape[1]):
+        rows = np.where(ink[:, c])[0]
+        if not len(rows):
+            continue
+        top, bottom = y0 - 2 + rows.min(), y0 - 2 + rows.max()
+        under = np.where(dark[top:bottom + 1, x0 + c] & ink[rows.min():rows.max() + 1, c])[0]
+        if len(under):
+            gap = -int(bottom - top - under.min() + 1)
+        else:
+            below = np.where(dark[bottom + 1:bottom + 81, x0 + c])[0]
+            gap = int(below[0]) if len(below) else 80
+        if worst is None or gap < worst[0]:
+            worst = (gap, x0 + c)
+    return worst
+
+
+def caption_clear_check(seen: int, worst: tuple[int, int, int] | None) -> Check:
+    """The check from the least gap over the frames: (gap, frame, x)."""
     ok = worst is not None and worst[0] >= CAPTION_CLEAR
     return Check("S7b caption clear of her hair", ok,
                  f"{seen} frames with the caption whole: its second line at least {worst[0]} px above the stylist's "
@@ -721,9 +742,10 @@ def words_over_pictures(P: plan.Plan, work: Path, layout: dict[int, list]) -> li
             label = b.label.rsplit(" line", 1)[0]
             if label not in worst or ratio < worst[label][0]:
                 worst[label] = (ratio, n, b.label)
-    # R3: the cover picture, its headline 30 px lower
+    # R3: the cover picture, its headline 30 px lower; R4: on frame 0's push-in
     n = P.cover_frame
-    ground = rp.render(comp.fx.photo(plan.S1["photo"]), rp.placement(plan.S1, n / P.fps, P.size), plan.S1, P.size)
+    ground = rp.render(comp.fx.photo(plan.S1["photo"]), rp.placement(plan.S1, plan.S1["cover_picture_t"], P.size),
+                       plan.S1, P.size)
     for b in comp.cover(dry=True).boxes:
         if b.kind == "text" and b.label.startswith("S1 headline"):
             x0, y0, x1, y1 = (int(round(v)) for v in b.ink)

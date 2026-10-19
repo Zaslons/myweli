@@ -10,9 +10,10 @@ Design: docs/design/pro-marketing-reel.md §2 and §9.
   placement   a uniform scale, never a stretch. The base scale is the
               least that fills the frame's width (S1: 1080 / 941) or the
               whole frame (S7b: 1920 / 1672); the push-in multiplies it
-              (1.00 -> 1.04 and 1.00 -> 1.03, linear) about one point of
+              (1.00 -> 1.04 and 1.00 -> 1.02, linear) about one point of
               the picture held still in the frame — S1's stroke start on
-              the notebook, S7b's braiding hands. Nothing is enlarged more
+              the notebook, the top of the S7b stylist's bun (R4: her bun
+              stays still under the caption). Nothing is enlarged more
               than that.
   drawing     the picture resampled straight into the frame (Lanczos, a
               fractional box, like the card); S1's picture ends at y ~1600

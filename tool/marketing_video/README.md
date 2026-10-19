@@ -3,7 +3,7 @@
 Builds the 30-second vertical film for salon owners — Instagram and Facebook
 Reels, TikTok, WhatsApp Status — from the owner-approved storyboard
 (2026-10-18, amended the same day by the owner: A1, people and pictures; A2,
-the salon page shows Maison Nala; with the items of three reviews, R1–R3),
+the salon page shows Maison Nala; with the items of four reviews, R1–R4),
 the production takes of 2026-10-14 and the owner's two pictures. It opens on a salon owner writing in her paper
 notebook; one white stroke, in the mark's single weight and round caps,
 crosses out three things that go wrong on a salon day and thickens into the
@@ -49,9 +49,9 @@ or a picture into the repository.
 |---|---|
 | `reel.mp4` | The master: H.264 High@4.1, 1080 × 1920, 30 fps constant, 900 frames, 30.000 s, yuv420p, a silent stereo AAC-LC 48 kHz track |
 | `poster-hook.png`, `poster-end.png` | Frame 0 and the last frame (899), as composed — lossless |
-| `cover.png`, `cover-4x5.png` | The storyboard's cover (frame 54, 1.80 s) composed as its own picture with S1's headline 30 px lower (R3), and the same cut to the 4:5 feed crop (y 285–1635, 1080 × 1350). **Upload it separately on Instagram** as the Reel's cover picture: the film's frame 54 keeps only 11 px above its headline in the 4:5 crop, the cover picture 41. The film's frames are unchanged |
+| `cover.png`, `cover-4x5.png` | The storyboard's cover (frame 54, 1.80 s) composed as its own picture with S1's headline 30 px lower (R3), on the picture at frame 0's push-in (R4: scale 1.00, her face 21 px lower than on frame 54, so the second line keeps a gap above her hairline), and the same cut to the 4:5 feed crop (y 285–1635, 1080 × 1350). **Upload it separately on Instagram** as the Reel's cover picture: the film's frame 54 keeps only 11 px above its headline in the 4:5 crop, the cover picture 41. The film's frames are unchanged |
 | `contact-sheet.png` | A frame every 0.5 s, **decoded from the written file**, labelled with its time and scene; cuts outlined |
-| `frame-<t>.png` | The key moments (0.0, 1.5, 3.5, 6.1, 6.2, 10.4, 11.0, 12.9, 13.5, 13.9, 14.1, 14.5, 15.0, 15.5, 16.0, 16.3, 17.0, 21.0, 22.9, 23.0, 23.1, 24.0, 24.5, 25.5, 26.9, 27.5, 29.5 s), decoded from the written file |
+| `frame-<t>.png` | The key moments (0.0, 1.5, 3.5, 6.1, 6.2, 10.4, 11.0, 12.9, 13.5, 13.9, 14.1, 14.5, 15.0, 15.5, 16.0, 16.3, 17.0, 21.0, 22.9, 23.0, 23.1, 24.0, 24.5, 25.5, 26.5, 26.9, 27.5, 29.5 s), decoded from the written file |
 | `verify.txt` | Every check and its reading; « PASS — N checks — reel.mp4 sha256 … » |
 | `build.json` | The file's sha256, the storyboard's, the takes' (and take5b's scroll map's), the pictures', take5b's distinct scroll positions, the fitted length of S5's scroll, the largest remainder and how many take5b pictures carry a mask, the timings |
 
@@ -63,7 +63,7 @@ The work folder keeps the conformed take pictures, the decoded pictures
 
 | File | What it does |
 |---|---|
-| `storyboard.json` | **The film's single source** — the approved storyboard, without `_ownerDecisions`, with its amendments (`amendments`: A1, the owner's people and pictures; R1, the fixes from the review of the first render; A1 as built — the black band under the Reels caption kept, the owner's answer of 2026-10-18; A2, the owner's salon page; R2 and R3, the items of the reviews of the second and third renders). |
+| `storyboard.json` | **The film's single source** — the approved storyboard, without `_ownerDecisions`, with its amendments (`amendments`: A1, the owner's people and pictures; R1, the fixes from the review of the first render; A1 as built — the black band under the Reels caption kept, the owner's answer of 2026-10-18; A2, the owner's salon page; R2, R3 and R4, the items of the reviews of the second, third and fourth renders). |
 | `reel_plan.py` | Reads it: every word (`scenes[].onScreenText`), every scene boundary, size, rate, length, cuts, safe zone, rail, crops, cover frame. The numbers the storyboard gives only in prose are transcribed once, and `ANCHORS` holds the storyboard's own phrase for each: a storyboard that stops saying one is refused. |
 | `reel_draw.py` | The primitives: round-capped strokes and the trimmed polyline by signed distance (supersampled 4 × 4; analytic for the page-wide « trait »), a stroke's soft shadow, rounded rectangles, discs, the continuous-corner tile, the stills' shadows, type through an alpha mask at fractional positions, dissolves. A `Frame` records every word, logo and shape it places — and can run « dry », drawing nothing; it can clip below a line (S4's chat column). |
 | `reel_brand.py` | The logo from vectors only: the mark from its SVG, drawn in the fast loader Lottie's path order and timing; the « MyWeli Pro » unit — the wordmark SVG plus the « Pro » outlines of the Pro app-open Lottie, placed as that file places them (the transform fitted on the M and W strokes), rendered by `rsvg-convert`; the Pro icon's mark box measured on `Icon-1024.png`. |
@@ -90,8 +90,9 @@ S7's too); S5's scroll follows its own smooth target (R3, below).
 - **The pictures (A1).** A uniform scale, never a stretch: the least that
   fills the frame's width (S1, 1080 / 941 = 1.1477) or the whole frame (S7b,
   1920 / 1672 = 1.1483), times a linear push-in (1.00 → 1.04 over S1,
-  1.00 → 1.03 over S7b) about a point of the picture held still — S1's
-  stroke start on the notebook, S7b's braiding hands. Resampled straight
+  1.00 → 1.02 over S7b) about a point of the picture held still — S1's
+  stroke start on the notebook, the top of S7b's stylist's bun (R4; it was
+  her braiding hands, which raised the bun 18 px). Resampled straight
   into the frame (Lanczos, a fractional box). S1's picture sits 320 px above
   its natural place so the notebook's crossing (y 1232) is above the Reels
   caption zone; its bottom edge (y ≈ 1599) fades into black over 160 px
@@ -101,12 +102,18 @@ S7's too); S5's scroll follows its own smooth target (R3, below).
   S7b 62 % to y 420, easing to 0 at y 1000. Natural colour, no other
   filter. S1's headline block sits at y 280, the top of the safe zone
   (R2), so its second line ends above her hairline; S7b's caption block at
-  y 269, the top of the safe zone (R3), so « pour » stays above the
-  stylist's bun as the push-in raises it 18 px (verify measures the gap on
-  every frame: at least 4 px).
-- **The cover (R3).** `Composer.cover` draws the storyboard's cover frame
-  (54) with S1's headline 30 px lower, so its ink sits 41 px inside the 4:5
-  feed crop (frame 54 itself: 11 px); it is written as `cover.png` and
+  y 269, the top of the safe zone (R3), and the push-in holding her bun
+  still (R4), so « pour » stays 23 px above the bun on every frame where
+  the caption is whole (verify measures it and asks at least 8 px; about
+  the hands, 1.03 left 4 px and 1.02 alone 9).
+- **The cover (R3, R4).** `Composer.cover` draws the storyboard's cover
+  frame (54) — its stroke and its words — with S1's headline 30 px lower,
+  so its ink sits 41 px inside the 4:5 feed crop (frame 54 itself: 11 px),
+  on the picture at frame 0's push-in (R4: scale 1.00, `cover_picture_t`).
+  The push-in holds the pen tip still, so the stroke still leaves it; her
+  face sits 21 px lower than on frame 54, so the second line, 30 px lower,
+  keeps a band of braids above her hairline (at the third render's frame-54
+  push-in it ended on it). It is written as `cover.png` and
   `cover-4x5.png` and uploaded apart. The film's frames are not touched.
 - **The « trait ».** A polyline thickened by a disc is exactly a stroke
   with round caps and round joins. Every strike draws left to right from a
@@ -182,7 +189,11 @@ S7's too); S5's scroll follows its own smooth target (R3, below).
   picture; the filled form holds 8 frames (R2); frame 690 (23.00 s) holds
   the loading picture of frame 689 over the take's one picture where
   « Créer le rendez-vous » turns black again before the push (R3: a
-  declared `skip`, one frame, then 1:1 again); as « Ma journée » comes
+  declared `skip`, one frame, then 1:1 again). The black « Créer » bar
+  then shows on the push's first three frames (f691–693, 23.033–23.100 s:
+  341, 230 and 132 px of it, then a 68- and a 27-px sliver at the card's
+  right edge on f694–695): the leaving form's own button, carried off by
+  the app's own push — not a regression of the flash; as « Ma journée » comes
   back, the camera pans W 553 → 682 so the old 13:15 « Yao K. » slides
   under the band; the headline fades out (24.167–24.367), then the page
   dissolves into S7b's picture (`base`) from frame 731 — off the 0.5 s
@@ -215,7 +226,7 @@ the film to 11.18 Mbit/s on average and 49.7 Mbit in the busiest second
 (2026-10-18) — S5's live scroll over the cover photo costs 30 Mbit more,
 S7b's 0.63 s more of a photograph 24 Mbit more: inside the 12-Mbit/s
 average verify accepts and Level 4.1's 62.5. R3 leaves them at 11.16 and
-49.8 (2026-10-19).
+49.8 (2026-10-19), R4 at 11.16 and 50.0 (2026-10-19).
 
 ## Verify — 38 checks
 
@@ -262,9 +273,10 @@ must agree (the App Preview's box parser, AVFoundation, `avmediainfo`):
   decoded against the composed ones (at least 48 dB, 47 where the ground is
   one of A1's photographs); **the white words over the pictures at 4.5:1 or
   more** against the brightest 5 % of what lies under each line (the cover
-  picture's too); **S7b's caption at least 2 px above the stylist's
-  braids** on every frame where it is whole (R3: 8 px into them at y 281,
-  43 px at the third render's 316).
+  picture's too); **S7b's caption at least 8 px above the stylist's
+  braids** on every frame where it is whole (R3, R4: 8 px into them at y
+  281, 43 px at the third render's 316, and 4 px — under the guard of 2
+  then, red under 8 now — on the fourth render's frame 808).
 
 `verify` without `--work` runs the file and the plan, and says « NOT
 checked » for the build.
@@ -349,7 +361,7 @@ more precise option was taken:
 17. **Grid phase.** The pattern's rows are centred on the frame's middle and
     its columns on x 540 (the storyboard gives the pitches, not the phase).
 18. **Bit rate and quantiser** — above: 11.16 Mbit/s at a ceiling of 12
-    (R3; 11.18 in the third render, 9.36 before A2's live scroll and R2's
+    (R3, R4; 11.18 in the third render, 9.36 before A2's live scroll and R2's
     longer S7b), and a 47-dB floor for the photographs' key frames.
 19. **Not built**: the 13.5-s cut-down and the post caption the storyboard
     lists among its deliverables — not asked of this tool.
@@ -360,9 +372,22 @@ more precise option was taken:
     the review's ~35: at y 281 « pour » still met the bun from about frame
     780 (8 px into it at frame 808); 269 is the safe zone's top, and its
     line box sits on it (0.0 px in, its ink about 20 px lower).
-22. **The cover is a composed picture (R3)**, not a frame of the film: its
-    headline is 30 px lower, so its second line ends on her hairline (frame
-    0 keeps it above).
+22. **The cover is a composed picture (R3, R4)**, not a frame of the film:
+    its headline is 30 px lower, and its picture is at frame 0's push-in
+    (scale 1.00), not frame 54's (1.029): her face 21 px lower, so the
+    second line keeps a band of braids above her hairline (on the fourth
+    render's cover, at frame 54's push-in, it ended on it). The stroke is
+    frame 54's, x 246.8–735 at y 1232: at scale 1.00 its end runs about 13
+    px further past the page's edge onto the counter than on frame 54.
+23. **S7b's push-in holds the top of the stylist's bun still (R4)**, not
+    her braiding hands, and runs 1.00 → 1.02 (was 1.03): about the hands,
+    1.03 raised the bun 18 px until « pour » sat 4 px above it, and 1.02
+    alone still left 9 px at its full extent (frames 810–815, as the
+    caption dissolves out). About the bun « pour » keeps 23 px on every
+    frame where the caption is whole; the hands drift 14 px down and 8 px
+    right over the 2.63 s. While the caption rises in (24 px on `emphasis`,
+    frames 733–736) its second line passes within 3 px of the bun at 8 %
+    opacity and 9 px at 34 %; from 61 % on it is 15 px clear or more.
 
 ## What the footage still carries (the storyboard's risks)
 
@@ -392,7 +417,7 @@ them as real people, customers or a testimonial.
 python3 tool/marketing_video/reel.py selftest
 ```
 
-Thirty-five tests, about twelve seconds. Files written by the App Preview's test
+Thirty-nine tests, about twelve seconds. Files written by the App Preview's test
 writer (`TestClip.swift`), never by the Reel's encoder: a right file of 900
 frames passes every file check; a 2-s file with a 440 Hz tone at High@4.0
 fails on exactly « 900 frames », « duration 30.000 s », « sound is silent »
@@ -416,7 +441,11 @@ picture its range ends on for one frame passes, one on another picture or
 two frames long is refused, and S7's skip sits between its two live
 ranges; S5's frames on the nearest picture pass, a frame on a farther
 picture or chosen by time is refused; the cover picture keeps 40 px above
-its headline in the 4:5 crop, and the film's own frame 54 (11.0 px) fails. A storyboard that no longer says a
+its headline in the 4:5 crop, and the film's own frame 54 (11.0 px) fails.
+R4: a dark band drawn under S7b's second line, on a flat wall, stands for
+her bun — 4 px under the ink (the fourth render's reading) fails « S7b
+caption clear of her hair » by name, 12 px under passes, a band through the
+ink is « into the stylist's braids »; the guard asks 8 px. A storyboard that no longer says a
 transcribed number is refused; one carrying `_ownerDecisions` is refused;
 the words carry French spacing; every width the storyboard measured comes
 back from the faces the tool draws with.

@@ -42,9 +42,10 @@ from PIL import Image, ImageDraw   # noqa: E402
 # build/bin like its own helpers, rebuilt when a source changes.
 swifttools.SOURCES.setdefault("reel-encode", ["Common.swift", "Writer.swift", str(HERE / "swift/ReelEncode.swift")])
 
-# R3 adds S5's scroll (13.9–16.3), S7's frame 690 and its neighbours (22.9–23.1)
+# R3 adds S5's scroll (13.9–16.3), S7's frame 690 and its neighbours (22.9–23.1);
+# R4 S7b's push-in late in the beat (26.5)
 KEY_TIMES = [0.0, 1.5, 3.5, 6.1, 6.2, 10.4, 11.0, 12.9, 13.5, 13.9, 14.1, 14.5, 15.0, 15.5, 16.0, 16.3, 17.0,
-             21.0, 22.9, 23.0, 23.1, 24.0, 24.5, 25.5, 26.9, 27.5, 29.5]
+             21.0, 22.9, 23.0, 23.1, 24.0, 24.5, 25.5, 26.5, 26.9, 27.5, 29.5]
 OUTPUTS = ("reel.mp4", "contact-sheet.png", "poster-hook.png", "poster-end.png", "cover.png", "cover-4x5.png",
            "verify.txt", "build.json")
 

@@ -428,6 +428,55 @@ class Cover(unittest.TestCase):
             plan.S1["cover_drop"] = original
 
 
+class CaptionClear(unittest.TestCase):
+    """R4: S7b's caption at least CAPTION_CLEAR (8) px above the stylist's
+    braids. A dark band drawn under the caption's second line, on a flat
+    wall, stands for her bun: 4 px under the ink (the fourth render's
+    reading) fails by name, 12 px under passes, a band through the ink is
+    « into the braids »."""
+
+    WALL, HAIR = 90, 30          # the wall and the braids under the gradient (HAIR_LEVEL is 60)
+
+    def measure(self, band_from: int):
+        """The caption as the film draws it, at rest, over a wall with a
+        dark band starting `band_from` rows below line 2's ink box."""
+        comp = rs.Composer(P)
+        S = plan.S7B
+        line = next(b for b in comp.s7b(26.0, dry=True).boxes if b.label == "S7b caption line 2")
+        x0, y0, x1, y1 = line.ink
+        ground = np.full((P.height, P.width), self.WALL, np.float32)
+        top = round(y1) + band_from
+        ground[top:top + 40, round(x0):round(x1)] = self.HAIR
+        fr = rd.Frame(P.size, (0, 0, 0))
+        fr.im = Image.fromarray(np.repeat(ground[:, :, None], 3, axis=2).astype(np.uint8), "RGB")
+        comp.headline(fr, comp.words["S7b"], ("poppins", S["head_px"]), S["head_top"], S["head_lh"],
+                      comp.c["secondary"], label="S7b caption")
+        shown = np.asarray(fr.im, dtype=np.float32).mean(axis=2)
+        gap = rv.caption_gap(shown, ground, line.ink)
+        return gap, rv.caption_clear_check(1, (gap[0], 809, gap[1]))
+
+    def test_a_band_four_px_under_the_caption_fails(self):
+        gap, check = self.measure(4)
+        self.assertLessEqual(abs(gap[0] - 4), 1, gap)
+        self.assertFalse(check.ok)
+        self.assertEqual(check.name, "S7b caption clear of her hair")
+        self.assertIn(f"px from the braids at frame 809 (at least {rv.CAPTION_CLEAR})", check.seen)
+
+    def test_a_band_twelve_px_under_the_caption_passes(self):
+        gap, check = self.measure(12)
+        self.assertLessEqual(abs(gap[0] - 12), 1, gap)
+        self.assertTrue(check.ok, check.seen)
+
+    def test_a_band_through_the_caption_is_into_the_braids(self):
+        gap, check = self.measure(-10)
+        self.assertLess(gap[0], 0)
+        self.assertFalse(check.ok)
+        self.assertIn("into the stylist's braids", check.seen)
+
+    def test_the_guard_asks_for_eight_px(self):
+        self.assertEqual(rv.CAPTION_CLEAR, 8)
+
+
 class Storyboard(unittest.TestCase):
     def test_a_storyboard_that_no_longer_says_a_transcribed_number_is_refused(self):
         sb = json.loads(plan.STORYBOARD.read_text(encoding="utf-8"))

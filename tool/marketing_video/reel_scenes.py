@@ -24,7 +24,9 @@ is chosen by position on a smooth target, each picture moved by its
 sub-pixel remainder (and the mask with it); S7's one black-button frame
 before the push holds the loading picture; S7b's caption sits at the top
 of the safe zone (47 px higher), clear of the stylist's bun;
-the cover is composed apart, its headline 30 px lower (`cover`).
+the cover is composed apart, its headline 30 px lower (`cover`). The fourth
+review's items (R4): S7b's push-in, 1.02, holds the bun still under the
+caption; the cover's picture is at frame 0's push-in.
 
 One choice the storyboard leaves open, taken the calmer way (README,
 « Deviations »): where S8's pen dot overlaps the start of the draw, the
@@ -587,13 +589,16 @@ class Composer:
     def cover(self, dry: bool = False) -> rd.Frame:
         """R3: the storyboard's cover (frame 54, 1.80 s), composed apart for
         the platforms' cover upload: the film's frame with S1's headline
-        `cover_drop` px lower, so the 4:5 crop keeps room above it. The
-        film's own frames are unchanged."""
+        `cover_drop` px lower, so the 4:5 crop keeps room above it. R4: the
+        picture at frame 0's push-in (`cover_picture_t`, scale 1.00), so her
+        face sits lower and the second line keeps a gap above her hairline;
+        the push-in holds the pen tip still, so frame 54's stroke still
+        leaves it. The film's own frames are unchanged."""
         n = self.P.cover_frame
         if self.P.scene_at(n) != "S1":
             plan.die(f"the cover frame {n} is not in S1")
         t = n / self.P.fps
-        fr = self.photo_ground("S1", plan.S1, t, dry)
+        fr = self.photo_ground("S1", plan.S1, plan.S1["cover_picture_t"], dry)
         self.s1(fr, t, drop=plan.S1["cover_drop"])
         return fr
 
