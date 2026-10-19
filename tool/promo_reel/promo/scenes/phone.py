@@ -424,7 +424,9 @@ class PhoneScene(Scene):
             else:
                 y = self.window.y_of(float(anchor_pt), W)
             sx = self.ctx.layout["phone_screen_x"]
-            pivot = ((float(sx[0]) + float(sx[1])) / 2, y)  # about the phone's own axis
+            px = self.ctx.layout.get("zoom_pivot_x")
+            # about the phone's own axis, or the format's pivot (16:9: the screen's right edge, on the safe edge)
+            pivot = ((float(sx[0]) + float(sx[1])) / 2 if px is None else float(px), y)
         dy, _ = self.parallax_dy(t)
         tilt = self.slam_rot(t)
         if self.tilt_max is not None:
@@ -605,11 +607,12 @@ class PhoneScene(Scene):
         q = easing.EASE_IN_OUT(easing.progress(t, c["switch"] - 1, 6.0))
         with_alpha_layer = alpha < 1.0
         # alone in the band: where the format has one, the roll never reaches past it onto the phone (1:1: the
-        # band ends at y 300, a 120-px figure on 284 rolls its next digits up from below the band's edge)
+        # band ends at y 300 — the rolling band fades out ON it, by its edge, `floor`; the clip is a backstop)
         band = self.ctx.fmt.zones.get("caption_band")
+        floor = self.window.top - self.window.band_fade if band is not None else None
         canvas.save()
-        if band is not None:
-            canvas.clipRect(skia.Rect.MakeLTRB(0, 0, self.ctx.fmt.width, self.window.top - self.window.band_fade))
+        if floor is not None:
+            canvas.clipRect(skia.Rect.MakeLTRB(0, 0, self.ctx.fmt.width, floor))
         if with_alpha_layer:
             p_ = skia.Paint()
             p_.setAlphaf(alpha)
@@ -618,7 +621,7 @@ class PhoneScene(Scene):
                           PALETTE.INK_SECONDARY, align=align)
         p = self._roll(t)
         scale = punch.settle(t, c["punch_at"], start=c["punch_start"], frames=c["punch_frames"])
-        c["odo"].draw(canvas, p, cx, c["figure_baseline"] + dy, scale=scale, align=align)
+        c["odo"].draw(canvas, p, cx, c["figure_baseline"] + dy, scale=scale, align=align, floor=floor)
         if with_alpha_layer:
             canvas.restore()
         canvas.restore()

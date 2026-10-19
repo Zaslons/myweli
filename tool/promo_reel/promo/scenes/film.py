@@ -168,12 +168,20 @@ class Film:
 
     # ---- what the film is made of ------------------------------------------------------------
 
+    @staticmethod
+    def continuous(sc: Scene) -> bool:
+        """A scene handoff with no picture change (`transition: {kind: continuous}`): not a cut."""
+        return bool(sc.transition) and sc.transition.get("kind") == "continuous"
+
     def transitions(self) -> list[dict]:
+        """Every join — hard cuts, whips (scene to scene and in the phone), declared dissolves — and every
+        `continuous` scene handoff, labelled so (no picture change: verify (b) counts it apart and holds
+        it to that)."""
         out = []
         for sc in self.scenes[1:]:
             w = self.whip(sc)
-            out.append({"frame": sc.start, "kind": "whip" if w else "cut", "into": sc.id,
-                        "frames": int(w[0].frames) if w else 0})
+            kind = "whip" if w else ("continuous" if self.continuous(sc) else "cut")
+            out.append({"frame": sc.start, "kind": kind, "into": sc.id, "frames": int(w[0].frames) if w else 0})
         for sc in self.scenes:
             if isinstance(sc, PhoneScene):
                 for a, b in zip(sc.W.keys, sc.W.keys[1:]):
@@ -189,7 +197,7 @@ class Film:
         return sorted(out, key=lambda d: d["frame"])
 
     def events(self) -> list[tuple[int, str]]:
-        ev = [(sc.start, f"cut into {sc.id}") for sc in self.scenes]
+        ev = [(sc.start, f"{'continuous into' if self.continuous(sc) else 'cut into'} {sc.id}") for sc in self.scenes]
         for sc in self.scenes:
             ev += sc.events()
         ev += [(int(at), f"word « {w} »") for _, at, w in self.captions.words()]
@@ -227,4 +235,6 @@ class Film:
                                                          "shown_on_s": shown} for lab, rect, shown in s.hidden]
             if isinstance(s, RevealScene):
                 d["lottie_rates"] = s.rates()
+            if isinstance(s, CarnetScene):
+                d.setdefault("hook_ink", {})[s.id] = s.ink_places()
         return d

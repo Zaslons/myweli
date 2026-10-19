@@ -493,6 +493,16 @@ class TestBuild15s(unittest.TestCase):
             self.assertLess(abs(ff["integrated_lufs"] + 14.0), 0.2)
             self.assertLessEqual(ff["true_peak_dbfs"], -1.0 + 0.1)
 
+    def test_the_outro_rings_out(self):
+        """The 15-s outro (bar 8) as the 30-s's: the last log and chord on
+        f480 ring out before the end — ≥ 20 dB down by f502, the last 100 ms
+        ≥ 30 dB under the hit (review round 3: 4.8 dB, then chopped)."""
+        from promo.verify import outro_tail
+        tail = outro_tail(self.audio, self.events)
+        self.assertEqual((tail["cue"], tail["frame"]), ("end.last", 480))
+        self.assertTrue(tail["ok"], tail)
+        self.assertLess(np.abs(self.audio[-1]).max(), 1e-4)
+
     def test_events_frames_are_the_cue_positions_exactly(self):
         sc = self.result.render.score
         by_id = {c["id"]: c for c in self.events["cues"]}
@@ -585,8 +595,10 @@ class TestBuild30s(unittest.TestCase):
         """The owner's added bar 15 (2026-10-19): calm — no kick, clap or hat;
         the shaker thins; the underline's pen on the downbeat, as long as the
         stroke draws (8 frames); the last log and the last chord on beat 3;
-        its tail rings on to the master's end fade (silence on the last
-        sample)."""
+        its tail RINGS OUT before the end (review round 3: the chord was held
+        to the last sample and the end fade chopped it): ≥ 20 dB down by f950,
+        the last 100 ms ≥ 30 dB under the hit, the second half of the bar no
+        louder than the first, silence on the last sample."""
         r = self.result.render
         bar = tb.SAMPLES_PER_BAR
         b15 = 14 * bar
@@ -604,6 +616,12 @@ class TestBuild30s(unittest.TestCase):
         rms = lambda a, b: 20 * np.log10(np.sqrt(np.mean(self.audio[a * 1600:b * 1600] ** 2)) + 1e-12)  # noqa: E731
         self.assertGreater(rms(950, 957), -50)                                # the tail still rings …
         self.assertLess(np.abs(self.audio[-1]).max(), 1e-4)                   # … into the end fade
+        from promo.verify import outro_tail
+        tail = outro_tail(self.audio, self.events)
+        self.assertEqual(tail["cue"], "end.last")
+        self.assertTrue(tail["ok"], tail)                                     # … and out, before it
+        self.assertLessEqual(loudness.segment(self.audio, (928 * 1600, 960 * 1600)),
+                             loudness.segment(self.audio, (896 * 1600, 928 * 1600)) + 0.5)   # calm to the end
 
     def test_the_hook_is_darker_than_the_drop(self):
         """« A dark, staccato hook »: bar 1 sits well under DROP 1 (4.7 LU as mixed)."""

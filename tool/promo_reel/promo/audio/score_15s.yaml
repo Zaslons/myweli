@@ -12,7 +12,8 @@
 #   bar 5  Revenus: light impact f256; click f272; ticks f280-288; landing f292
 #   bar 6  reveal: big impact f320, shimmer f336, FM glide f356-376
 #   bar 7  end card: final log f384 (tagline complete), « App Store » glint + log f400, log f432
-#   bar 8  the owner's added bar (2026-10-19): calm outro; the underline's pen f448, last log + chord f480
+#   bar 8  the owner's added bar (2026-10-19): calm outro; the underline's pen f448, last log + a short chord f480
+#          that ring out before the end (≥ 20 dB down by f502; the 30-s outro's rule, verify (d))
 
 score: 1
 cut: 15s
@@ -140,7 +141,7 @@ tracks:
       2-3: keys
       5: keys_hero
       7: "..X-|----|----|----"
-      8: "....|....|X---|----"                      # the last chord, with the last log (f480)
+      8: "....|....|x--.|...."                      # the last chord, with the last log (f480), released: it rings out
 
   organ:
     instrument: organ
@@ -161,12 +162,13 @@ tracks:
     instrument: pad
     gain: -14
     automation:
-      gain: [[1.1.0, -3], [1.4.3, -3], [2.1.0, 0], [5.4.0, 0], [6.1.0, 5], [7.1.0, 5], [7.2.0, 0], [8.1.0, 0], [8.4.3, -10]]
-      # the AIR's breath 3 dB down (the AIR ≥ 7 LU under the groove on the master: 8.4 LU as written); fades over the outro
+      gain: [[1.1.0, -3], [1.4.3, -3], [2.1.0, 0], [5.4.0, 0], [6.1.0, 5], [7.1.0, 5], [7.2.0, 0], [8.1.0, 0], [8.3.0, -8], [8.4.2, -40]]
+      # the AIR's breath 3 dB down (the AIR ≥ 7 LU under the groove on the master: 8.4 LU as written); fades OUT over the outro (gone before the end)
     bars:
       1: "....|....|....|X---"                      # the AIR's breath of pad
       2-3: hold
-      5-8: hold
+      5-7: hold
+      8: "X---|----|----|--.."                      # released 2 16ths before the end, on its fade
 
   sub:
     instrument: sub
@@ -231,4 +233,4 @@ cues:
   - {id: end.store_log, kind: log, pos: 7.2.0, note: G2, vel: 0.8}                  # the log under it
   # ── OUTRO, bar 8 (f448-511): the owner's added bar ──────────────────────
   - {id: end.underline, kind: pen_scratch, pos: 8.1.0, dur: 8, gain: -12}          # the underline under « moins de gestion. », drawn f448-456
-  - {id: end.last, kind: log, pos: 8.3.0, note: C2, decay: 0.6, reverb: 2.4, wet: -10}   # f480: the mark's small punch; the tail rings to f511
+  - {id: end.last, kind: log, pos: 8.3.0, note: C2, decay: 0.2, reverb: 0.9, wet: -14}   # f480: the mark's small punch; it rings out by f511 (≥ 20 dB down by f502)

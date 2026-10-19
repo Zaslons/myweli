@@ -2,7 +2,11 @@
 #
 # Bar 15 is the owner's added bar (2026-10-19, « Add one bar »): the end card holds ≈ 4.3 s over a
 # calm one-bar outro — the log drum and a thinning shaker, the underline's pen on the downbeat, a last
-# chord with the last log on beat 3, its tail ringing to the end.
+# short chord with the last log on beat 3 that RINGS OUT before the end: released after 3 16ths, the
+# last log at the default decay with a short room, the pad faded out — ≥ 20 dB under its hit by f950
+# and about −48 dBFS over the last 100 ms, so the master's 60-ms end fade never chops a loud tail
+# (review round 3: the chord held to the last sample, 5.5 dB of decay over the last second; verify (d)
+# holds every cut's last hit to it).
 #
 # Written around the storyboard's hero frames (promo-storyboard-full.md, « Beat by
 # beat (30 s) » and « Music plan »): a log or kick lands on every hero frame first
@@ -174,7 +178,7 @@ tracks:
       11: keys
       12: "X---|----|----|...."
       14: "..X-|----|----|----"
-      15: "....|....|X---|----"                     # the last chord, with the last log (f928)
+      15: "....|....|x--.|...."                     # the last chord, with the last log (f928), released: it rings out
 
   organ:
     instrument: organ
@@ -198,8 +202,8 @@ tracks:
     gain: -14
     automation:
       gain: [[1.1.0, -3], [2.4.3, -3], [3.1.0, 0], [12.3.3, 0], [12.4.0, -40], [12.4.3, -40], [13.1.0, 5],
-             [14.1.0, 5], [14.2.0, 0], [15.1.0, 0], [15.4.3, -10]]
-      # AIR 1's breath 3 dB down; muted over AIR 2 (f752-767); fades over the outro. Both AIRs ≥ 7 LU under the
+             [14.1.0, 5], [14.2.0, 0], [15.1.0, 0], [15.3.0, -8], [15.4.2, -40]]
+      # AIR 1's breath 3 dB down; muted over AIR 2 (f752-767); fades OUT over the outro (gone before the end). Both AIRs ≥ 7 LU under the
       # groove ON THE MASTER (verify (d), the master and the MP4): 8.5 / 8.5 LU as written
     bars:
       2: "....|....|....|X---"                      # the AIR's breath of pad
@@ -207,7 +211,8 @@ tracks:
       8-9: hold
       10-11: hold_split
       12: "X---|----|----|...."
-      13-15: hold
+      13-14: hold
+      15: "X---|----|----|--.."                     # released 2 16ths before the end, on its fade
 
   sub:
     instrument: sub
@@ -315,4 +320,4 @@ cues:
   - {id: end.store_log, kind: log, pos: 14.2.0, note: G2, vel: 0.8}                 # the log under it
   # ── OUTRO, bar 15 (f896-959): the owner's added bar ─────────────────────
   - {id: end.underline, kind: pen_scratch, pos: 15.1.0, dur: 8, gain: -12}         # the hook's strike, now an underline under « moins de gestion. », drawn f896-904
-  - {id: end.last, kind: log, pos: 15.3.0, note: C2, decay: 0.6, reverb: 2.4, wet: -10}   # f928: the mark's small punch; the tail rings to f959 (the master's 60-ms end fade)
+  - {id: end.last, kind: log, pos: 15.3.0, note: C2, decay: 0.2, reverb: 0.9, wet: -14}   # f928: the mark's small punch; it rings out by f959 (≥ 20 dB down by f950)

@@ -191,6 +191,156 @@ class TestEndCardOutro(unittest.TestCase):
             self.items(underline={"text": "plus de gestion", "at": "cue:end.underline"})
 
 
+class TestHookInk(unittest.TestCase):
+    """Round 3's review: in 1:1 the hook's third strike was drawn below the
+    frame (its log hit, whoosh and punch played with nothing on screen); in
+    16:9 the f48 margin note wrote itself under the black scrim. The
+    renderer refuses a layout that draws the hook's animated ink where it
+    cannot be seen; the storyboard as written passes in every cut × format."""
+
+    def scene(self, sb, cut: str, fid: str):
+        from promo.scenes.base import Context
+        from promo.scenes.carnet import CarnetScene
+        ev = EVENTS if cut == "30s" else EVENTS15
+        ctx = Context(Clock(ev, sb.cuts[cut].frames), sb.formats[fid], fps=30, reference=sb.reference_format)
+        return CarnetScene(sb.cut_scenes(cut)[0], ctx, f"scenes.{cut}[0]")
+
+    def test_the_ink_is_seen_in_every_format(self):
+        from promo.scenes.carnet import INK_SCRIM_MAX
+        for cut in ("30s", "15s"):
+            for fid, fmt in SB.formats.items():
+                places = self.scene(SB, cut, fid).ink_places()
+                self.assertEqual(sum(p["what"].startswith("strike") for p in places), 3, (cut, fid))
+                for p in places:
+                    self.assertTrue(p["in_canvas"], (cut, fid, p))
+                    self.assertLessEqual(p["scrim"], INK_SCRIM_MAX, (cut, fid, p))
+                    if fmt.safe_basis == "ebu_r95_graphics":
+                        self.assertTrue(p["in_safe"], (cut, fid, p))
+        mine = {p["what"]: p for p in self.scene(SB, "30s", "1x1").ink_places()}
+        self.assertLessEqual(mine["strike row 19"]["box"][3], 1026)           # the third strike, in the frame
+
+    def test_the_round_3_layouts_are_refused(self):
+        from promo.scenes.base import SceneError
+        page = sbmod.load(overrides=["formats.1x1.layout.hook_page.x=[40,1040]",
+                                     "formats.1x1.layout.hook_page.top=-40"])
+        for cut, f in (("30s", "f88"), ("15s", "f40")):
+            with self.assertRaisesRegex(SceneError, rf"strike row 19 \({f}.*runs off the 1080×1080 canvas"):
+                self.scene(page, cut, "1x1")
+        scrim = sbmod.load(overrides=["formats.16x9.layout.hook_scrim={rect: [0, 0, 820, 1080], fade: [200, 0]}"])
+        with self.assertRaisesRegex(SceneError, r"ink « margin » \(f48.*under the stage's black"):
+            self.scene(scrim, "30s", "16x9")
+        self.scene(scrim, "15s", "16x9")                    # no macro, no margin note: nothing under the black
+
+    def test_the_macro_scrim(self):
+        sc = self.scene(SB, "30s", "16x9")
+        self.assertEqual(sc.scrim_at(40), sc.macro_scrim)                   # the macro (f32–63)
+        self.assertEqual(sc.scrim_at(20), sc.scrim)
+        self.assertEqual(sc.scrim_at(64), sc.scrim)
+        with self.assertRaisesRegex(sbmod.StoryboardError, r"hook_scrim\.macro\.rect.*hold the hook block"):
+            sbmod.load(overrides=["formats.16x9.layout.hook_scrim.macro={rect: [0, 0, 600, 400], fade: [200, 140]}"])
+
+
+class TestRecentredLine(unittest.TestCase):
+    """Round 3's review: in the 15-s cut « Créneau libre » sat 136 px left of
+    centre for 80 frames, laid out at the width of « Créneau libre rempli. »
+    while every other caption on screen is centred. It now sits centred while
+    it waits, makes room for « rempli. » over 4 frames and the word rises
+    into its place: the finished line exactly where it was."""
+
+    def item(self, cut: str, fid: str, recentre=True):
+        spec = next(c for c in next(s for s in SB.cut_scenes(cut) if s["id"] == "journal")["captions"]
+                    if c["id"] == "filled")
+        if not recentre:
+            spec = {k: v for k, v in spec.items() if k != "recentre"}
+        clock = Clock(EVENTS if cut == "30s" else EVENTS15, SB.cuts[cut].frames)
+        return CaptionItem(spec, "journal", clock, SB.formats[fid].layout, "filled", size=SB.formats[fid].size)
+
+    @staticmethod
+    def span(c, f):
+        bs = [b["rect"] for b in c.boxes(float(f))]
+        return min(r[0] for r in bs), max(r[2] for r in bs), len(bs)
+
+    def test_the_partial_line_is_centred_and_the_line_lands_in_place(self):
+        for cut, (a, b) in (("15s", (168, 240)), ("30s", (408, 448))):
+            for fid in ("9x16", "1x1"):
+                c, still = self.item(cut, fid), self.item(cut, fid, recentre=False)
+                cx = SB.formats[fid].layout["caption_centre_x"]
+                for f in range(a + 2, b - 5):                                     # « Créneau libre », waiting
+                    x0, x1, n = self.span(c, f)
+                    self.assertEqual(n, 2)
+                    self.assertAlmostEqual((x0 + x1) / 2, cx, delta=3, msg=(cut, fid, f))
+                x0, x1, _ = self.span(still, a + 20)
+                self.assertGreater(abs((x0 + x1) / 2 - cx), 100)                 # round 3: 136 px off
+                for f in range(b, b + 20):                                       # whole: exactly as approved
+                    self.assertEqual(c.boxes(float(f)), still.boxes(float(f)), (cut, fid, f))
+                fin = self.span(still, b + 10)
+                for f in range(a - 8, b + 10):                                   # never past the finished line
+                    x0, x1, _ = self.span(c, f)
+                    self.assertGreaterEqual(x0, fin[0] - 0.5, (cut, fid, f))
+                    self.assertLessEqual(x1, fin[1] + 0.5, (cut, fid, f))
+
+    def test_left_aligned_lines_do_not_move(self):
+        c, still = self.item("15s", "16x9"), self.item("15s", "16x9", recentre=False)
+        for f in range(160, 256, 3):
+            self.assertEqual(c.boxes(float(f)), still.boxes(float(f)), f)
+
+    def test_the_strike_rides_with_its_word(self):
+        from promo.fx import type as ty
+        c = self.item("15s", "9x16")
+        p = c.caption.find("libre")
+        for f in (236, 237, 238, 240):
+            self.assertAlmostEqual(c.caption.x_at(p, f) - p.x, c.caption.line_dx(p.line, f))
+        self.assertGreater(c.caption.line_dx(p.line, 236), 0)                     # moving under its strike …
+        self.assertEqual(c.caption.line_dx(p.line, 240), 0.0)                     # … in place for « rempli. »
+        with self.assertRaisesRegex(ValueError, "recentre"):
+            CaptionItem({**next(c_ for c_ in next(s for s in SB.cut_scenes("15s") if s["id"] == "journal")["captions"]
+                                if c_["id"] == "filled"), "recentre": 0}, "journal", Clock(EVENTS15, 512),
+                        SB.formats["9x16"].layout, "x", size=(1080, 1920))
+
+
+class TestTransitionKinds(unittest.TestCase):
+    def test_a_scene_names_how_it_is_joined(self):
+        import copy
+        from promo.scenes.base import Context, SceneError
+        from promo.scenes.lottie import EndCardScene
+        spec = copy.deepcopy(next(s for s in SB.cut_scenes("30s") if s["id"] == "end"))
+        self.assertEqual(spec["transition"], {"kind": "continuous"})
+        ctx = Context(Clock(EVENTS, 960), SB.formats["9x16"], fps=30, reference=SB.reference_format)
+        for bad in ({"kind": "dissolve"}, {"kind": "cut"}, "whip"):
+            with self.assertRaisesRegex(SceneError, r"transition: \{kind: whip \| continuous\}"):
+                EndCardScene({**spec, "transition": bad}, ctx, "end")
+
+    def test_a_join_is_held_to_its_name(self):
+        from promo.verify import join_problems
+        trans = [{"frame": 64, "kind": "cut", "into": "journal"}, {"frame": 376, "kind": "continuous", "into": "end"},
+                 {"frame": 256, "kind": "whip", "into": "revenus"}]
+        self.assertEqual(join_problems(trans, {64: 239.5, 376: 0.07, 256: 2.8}), [])
+        self.assertTrue(join_problems([{**trans[1], "kind": "cut"}], {376: 0.07}))   # round 3's « cut → end »
+        self.assertTrue(join_problems(trans[1:2], {376: 30.0}))                         # « continuous » that cuts
+        self.assertTrue(join_problems(trans[:1], {}))                                   # not measured: never a pass
+
+
+class TestEndMarkPunch(unittest.TestCase):
+    """The outro's mark punch keeps its ink at least half its height clear of
+    the tagline: a 1.2× punch — the variant round 3 refused by hand — is
+    refused by the renderer, in every format."""
+
+    def test_a_punch_that_crowds_the_tagline_is_refused(self):
+        import copy
+        from promo.scenes.base import Context, SceneError
+        from promo.scenes.lottie import EndCardScene
+        spec = copy.deepcopy(next(s for s in SB.cut_scenes("30s") if s["id"] == "end"))
+        for fid, fmt in SB.formats.items():
+            ctx = Context(Clock(EVENTS, 960), fmt, fps=30, reference=SB.reference_format)
+            sc = EndCardScene(spec, ctx, "end")                                  # as written: 1.06×
+            h = sc.ink_end[3] - sc.ink_end[1]
+            self.assertGreaterEqual(fmt.layout["end_tagline_cap_top_y"] - (sc.ink_end[3] + h * 0.03), h / 2, fid)
+            big = copy.deepcopy(spec)
+            big["mark"]["punch"]["peak"] = 1.2
+            with self.assertRaisesRegex(SceneError, "at least half its height", msg=fid):
+                EndCardScene(big, ctx, "end")
+
+
 class TestTrack(unittest.TestCase):
     def test_interpolation(self):
         tr = Track([Key(10, 0.0), Key(20, 100.0, curve("ease_in_out_cubic"), blur="whip"), Key(30, 100.0)])
@@ -529,6 +679,8 @@ class TestFilmFrames(unittest.TestCase):
         kinds = [t["kind"] for t in self.film.transitions()]
         self.assertEqual(kinds.count("whip"), 1)
         self.assertEqual(kinds.count("whip (in the phone)"), 1)
+        self.assertEqual([(t["frame"], t["into"]) for t in self.film.transitions() if t["kind"] == "continuous"],
+                         [(824, "end")])                                       # the mark eases on: no cut
 
     def test_swipe_touch_down(self):
         frame, rec = self.film.frame(144)
@@ -610,8 +762,11 @@ class TestFilmFrames15s(unittest.TestCase):
     def test_structure(self):
         self.assertEqual([s.id for s in self.film.scenes], ["hook", "air1", "journal", "revenus", "reveal", "end"])
         tr = {(t["frame"], t["kind"]) for t in self.film.transitions()}
-        self.assertTrue({(48, "cut"), (64, "cut"), (160, "whip (in the phone)"), (193, "dissolve (declared)"),
-                         (256, "whip"), (320, "cut")} <= tr, tr)
+        # the storyboard's JOINS: cuts f48 / f64 / f320, whips f160 / f256, the dissolve f193 — six; the
+        # reveal → end handoff on f376 is continuous (the mark keeps easing), not a seventh (review round 3)
+        self.assertEqual(tr, {(48, "cut"), (64, "cut"), (160, "whip (in the phone)"), (193, "dissolve (declared)"),
+                              (256, "whip"), (320, "cut"), (376, "continuous")})
+        self.assertIn((376, "continuous into end"), self.film.events())
 
     def test_the_dissolve_is_an_exact_cross_fade(self):
         """f194 is (1 − u) × the form on 32.998 through W 667 + u × the form

@@ -92,6 +92,7 @@ formats:
       tilt_axis: x                        # 2.5D tilts are rotX
       tilt_max_deg: null
       scene_whip_axis: null               # whips follow the storyboard row (vertical in-phone, horizontal onto Revenus)
+      zoom_pivot_x: null                  # a push-in scales about the phone's own axis
       caption_align: centre
       caption_cap_top: {hook: 300, app: 330}   # the hook block y 300–700; app words y 300–540
       counter_baselines: [322, 496]       # label, figure: the label clear of the rolling band above the figure
@@ -141,16 +142,25 @@ formats:
       tilt_axis: x
       tilt_max_deg: null
       scene_whip_axis: null
+      zoom_pivot_x: null
       caption_align: centre
       caption_cap_top: {hook: 80, app: 100}    # app words y 80–280 (two 72-px lines end ≈ 253)
-      counter_baselines: [110, 284]       # label + 120-px figure in 230 px (cap top 81 → baseline 284), the 9:16 spacing
+      # label + 120-px figure in the band (label ink y ≥ 61 while it switches, figure ink 180–266): 20 px higher
+      # than round 3's [110, 284], so the figure ends 34 px over the phone (was 17); the roll fades out by the
+      # band's edge (y 300) instead of being cut there, on the bezel (review round 3)
+      counter_baselines: [100, 264]
       lift_y:
         card_on_floor: {bottom: 1000}     # the window's floor (1002), as 9:16's 1190 on 1192
         card_under_caption: {centre_y: 690}
         tile_row: {centre_y: 530}         # the tiles' own row at W 216 (y 455–605)
-      hook_page: {x: [40, 1040], top: -40, pivot: [540, 600], macro_to: [540, 760]}   # the page fills the square under the band
+      # the page fills the square under the band, smaller than 9:16's (840 px wide, not 1000) so its three strike
+      # rows land inside the graphics-safe area (y ≈ 549–994, review round 3: at 1000 px wide the third was drawn
+      # below the frame, y 1117–1159); the macro's margin note at x ≈ 96–190, inside it too
+      hook_page: {x: [120, 960], top: 10, pivot: [540, 600], macro_to: [540, 760]}
       hook_scrim: {rect: [0, 0, 1080, 400], fade: [0, 100]}   # the strike stack's third line needs the band to y ≈ 414
-      map_credit: {x: 1026, baseline: 290, align: right}      # the floor is outside the safe area: the band's foot, over the phone's top right
+      # the floor is outside the safe area: the band's foot, its ink ending on the screen's right edge (x 900),
+      # right over the map it credits (round 3: ending on x 1026, over the bezel's corner, it read as the caption's)
+      map_credit: {x: 900, baseline: 290, align: right}
 
   16x9:
     size: [1920, 1080]
@@ -190,6 +200,10 @@ formats:
       tilt_axis: y                        # 2.5D tilts become yaw moves
       tilt_max_deg: 10
       scene_whip_axis: horizontal         # the bar-5 in-phone whip stays vertical inside the window
+      # a push-in scales about the screen's RIGHT edge, on the safe edge: the screen grows leftwards, so the
+      # app's pixels never pass x 1824 (review round 3: about the phone's axis the FAB and the snackbar reached
+      # x 1835 at the « rempli. » push's peak)
+      zoom_pivot_x: 1824
       caption_align: left                 # the column's left edge, x 96
       caption_cap_top: {hook: 130, app: null}  # the hook top-left; app captions centred on y 440
       counter_baselines: [366, 540]       # the counter's block centred on the column's y 440
@@ -198,7 +212,10 @@ formats:
         card_under_caption: {centre_y: 770}
         tile_row: {centre_y: 720}
       hook_page: {x: [760, 1960], top: -440, pivot: [1360, 560], macro_to: [1340, 640]}   # the page across the frame's right, rows 9–18 in view
-      hook_scrim: {rect: [0, 0, 820, 1080], fade: [200, 0]}   # black down the left, the words top-left on it
+      hook_scrim: {rect: [0, 0, 820, 1080], fade: [200, 0],   # black down the left, the words top-left on it
+                   # the macro shot (f32–63): black behind the question only (its ink y ≈ 130–330), gone by y 540, so
+                   # the margin note writes itself in view (x ≈ 710–845, y ≈ 710–778; review round 3: under the black)
+                   macro: {rect: [0, 0, 820, 400], fade: [200, 140]}}
       map_credit: {x: 1056, baseline: 1016, align: right}     # at the foot of the left column, by the phone's corner
 
 
@@ -424,6 +441,7 @@ scenes:
         cite: "pro_journal_screen.dart:208, :260 (the « Libre — 14:45 » row is replaced; the 15 minutes left fall under the 30-minute rule)"
         lines: [[{w: Créneau, at: cue:create.touch}, {w: libre, at: 7.2.2}, {w: rempli., at: cue:create.filled}]]
         strike: {word: libre, at: cue:create.strike}
+        recentre: 4                          # « Créneau libre » centred while it waits; it makes room for « rempli. » f444–447
 
   # ── row 16 · f464–511 · « Fiche client », take2b ────────────────────────────
   - id: fiche
@@ -592,6 +610,9 @@ scenes:
     kind: end_card
     from: cue:reveal.glide@end
     to: end
+    # no cut: the mark keeps easing up from where the reveal left it (comp 72, the same place) — a scene
+    # handoff, not a join (review round 3: the plan called it a cut; the MP4 changes by 0.07 levels there)
+    transition: {kind: continuous}
     stage: {ground: paper, pattern: 0}
     lottie: {file: mobile/assets/lottie/open/myweli_loader_mixed_pro.json, colour: "#111111", comp: 74}
     cite: "the finished mark is the Lottie's comp 74 (= comp 142), only moved and scaled"
@@ -716,6 +737,10 @@ scenes:
         cite: "pro_journal_screen.dart:208, :260 (the « Libre — 14:45 » row is replaced; the 15 minutes left fall under the 30-minute rule)"
         lines: [[{w: Créneau, at: cue:whip1}, {w: libre, at: cue:slot.touch}, {w: rempli., at: cue:create.filled}]]   # 21 characters over 3.2 s
         strike: {word: libre, at: cue:create.strike}
+        # « Créneau libre » waits 2.67 s for « rempli. »: centred meanwhile (round 3: 136 px left of centre), it
+        # glides left to make room over f235–239 — « libre » struck on f236 as it goes — and « rempli. » rises
+        # into its place on f240: the finished line exactly as approved
+        recentre: 4
 
   # ── BAR 5 · f256–319 · « Revenus », take N1: the 30-s's, the counter alone ───
   - <<: *revenus

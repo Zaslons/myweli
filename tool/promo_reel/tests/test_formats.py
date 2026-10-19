@@ -370,9 +370,11 @@ class TestFilmFramesEveryFormat(unittest.TestCase):
             self.assertEqual([(t["frame"], t["kind"]) for t in film.transitions()], ref)
 
     def test_the_map_credit_inks_its_place(self):
-        """9:16 from x 120 on the floor; 1:1 ending ON the safe edge (x 1026,
-        its last glyph's overshoot included); 16:9 ending on x 1056."""
-        want = {"9x16": (0, 120.0), "1x1": (2, 1026.0), "16x9": (2, 1056.0)}
+        """9:16 from x 120 on the floor; 1:1 ending on the screen's right edge
+        (x 900, its last glyph's overshoot included: over the map it credits —
+        round 3 ended it on the safe edge x 1026, over the bezel's corner);
+        16:9 ending on x 1056."""
+        want = {"9x16": (0, 120.0), "1x1": (2, 900.0), "16x9": (2, 1056.0)}
         for fid, (edge, x) in want.items():
             _, rec = self.films[fid].frame(700)
             box = next(b["rect"] for b in rec["boxes"] if b["kind"] == "credit")
@@ -408,6 +410,43 @@ class TestFilmFramesEveryFormat(unittest.TestCase):
         a = with_counter[300:340, :, :3].astype(int)
         b = surface.to_array(bare)[300:340, :, :3].astype(int)
         self.assertEqual(int(np.abs(a - b).max()), 0)        # nothing of the counter below the band
+
+    def test_the_1x1_counter_clears_the_phone(self):
+        """Round 3's review: the 1:1 figure ended 17 px over the phone's bezel
+        and the roll's next digits were cut at y 300, right on it — half-digits
+        on the phone for the whole roll. Now the figure ends ≥ 30 px over it
+        and the rolling band fades out ON the band, by its edge."""
+        film = self.films["1x1"]
+        rev = next(s for s in film.scenes if s.id == "revenus")
+        landed = [b["rect"] for b in film.frame(551)[1]["boxes"] if b["kind"] == "counter"]
+        self.assertLessEqual(max(r[3] for r in landed), 300 - 30)
+        self.assertGreaterEqual(min(r[1] for r in landed), 54)                      # the label inside the safe area
+        for f in range(536, 548, 2):                                                 # mid-roll
+            with_counter, _ = film.frame(f)
+            bare = surface.new_surface(*film.size)
+            rev.draw_picture(bare.getCanvas(), float(f), frame=f)
+            d = np.abs(with_counter[..., :3].astype(int) - surface.to_array(bare)[..., :3].astype(int)).max(axis=2)
+            self.assertLessEqual(int(d[290:300].max()), 60, f)                       # round 3: 195 at y 290
+            self.assertLessEqual(int(d[295:300].max()), 30, f)
+
+    def test_the_16x9_push_in_holds_the_safe_edge(self):
+        """Round 3's review: the « rempli. » push-in (1.791 → 2.0 px/pt) scaled
+        about the phone's axis, so at its peak the FAB and the snackbar reached
+        x 1835, past the 16:9 graphics-safe edge (1824). It scales about the
+        screen's right edge now: the screen grows leftwards."""
+        def screen_right(film, f):
+            j = next(s for s in film.scenes if s.id == "journal")
+            spec = j.phone.spec
+            return j.phone.map_rect((0.0, spec.crop_top_pt, spec.screen_pt[0], spec.screen_pt[1]), j.pose(float(f)),
+                                    W=j.camera_W(float(f)), window=j.window)[2], j.zoom(float(f))
+        film = self.films["16x9"]
+        for f in (436, 448, 456, 460, 463):
+            x1, zoom = screen_right(film, f)
+            self.assertLessEqual(x1, 1824.5, f)
+        self.assertGreater(screen_right(film, 460)[1], 1.1)                          # the push is there
+        from promo.scenes import Film
+        old = Film(sbmod.load(overrides=["formats.16x9.layout.zoom_pivot_x=null"]), "30s", "16x9", CLOCKS["30s"])
+        self.assertGreater(screen_right(old, 460)[0], 1850)                          # about the axis: past the edge
 
     def test_the_16x9_counter_is_set_from_the_columns_edge(self):
         """Left-aligned: « Aujourd’hui » (its « A » overhangs 1 px) and the

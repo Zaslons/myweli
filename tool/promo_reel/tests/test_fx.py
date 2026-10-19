@@ -755,3 +755,86 @@ class TestReviewRound3(unittest.TestCase):
         L = self.render(st, 476, backdrop_rect=old)
         self.assertLess(self.texture(L, self.ORIGINS[1]), 2)
         self.assertLess(self.texture(L, self.ORIGINS[2]), 2)
+
+
+class TestReviewRound4(unittest.TestCase):
+    """Round 3's review: as « 17 000 FCFA » lifted on f480, the panel's right
+    edge jumped in ONE frame from the first card to « 13 oct. »'s place, so
+    « 0 Absences » — a real tile, never lifted — blinked out instead of being
+    covered by the growing card. An edge that reaches OUT to a waiting tile
+    now grows with the pop of the lift that brought it."""
+
+    ABSENCES = (548.0, 725.4, 700.0, 875.2)        # between tile 2's place and tile 3's, never lifted
+
+    def setUp(self):
+        self.r3 = TestReviewRound3("test_the_panel_grows_with_the_lifts")
+        self.st = self.r3.stack()
+
+    def test_the_facing_edge_grows_with_the_pop(self):
+        o = TestReviewRound3.ORIGINS
+        edge = {f: self.st.backdrop_rect(f, 24)[2] for f in range(476, 492)}
+        self.assertEqual(edge[479], o[1][0])                       # tile 2 still waits: up to its place
+        self.assertLess(edge[480], o[2][0] - 60)                   # f480: on its way, not there in one frame
+        self.assertGreater(edge[480], o[1][2] + 24)                # past tile 2's own place (+ the pad) already
+        # beyond tile 2's place, over « 0 Absences », the panel reaches out a step at a time
+        out = {f: max(0.0, edge[f] - (o[1][2] + 24)) for f in edge}
+        for f in range(479, 487):
+            self.assertLessEqual(out[f], out[f + 1] + 1e-9, f)     # it only grows …
+            self.assertLess(out[f + 1] - out[f], 100, f)           # … a step at a time (round 3: 161 px at once)
+        self.assertEqual(edge[485], o[2][0])                       # and reaches tile 3's place with the pop
+        for f in range(476, 488):                                  # never over the tile still waiting
+            self.assertLessEqual(edge[f], o[2][0], f)
+
+    def render(self, f: float) -> np.ndarray:
+        from promo.fx.surface import Picture, new_surface, to_array
+        s = new_surface(1080, 1920)
+        c = s.getCanvas()
+        c.clear(brand.PALETTE.PAPER)
+        pic = Picture(self.r3.picture())
+        for lf in self.st.lifts:
+            lift.draw_card(c, pic, lf.src, lf.origin, lift=0.0)
+        lift.draw_card(c, pic, self.st.lifts[0].src, self.ABSENCES, lift=0.0)      # « 0 Absences »' stand-in
+        self.st.draw(c, f, veil_rect=TestReviewRound3.VEIL, backdrop=(brand.token("background"), 24.0, 24.0))
+        return to_array(s)[..., :3].astype(float) @ [0.2126, 0.7152, 0.0722]
+
+    def test_the_tile_between_is_covered_not_blanked(self):
+        right = (640.0, self.ABSENCES[1], self.ABSENCES[2], self.ABSENCES[3])     # its right part
+        tex = {f: TestReviewRound3.texture(self.render(f), right) for f in (479, 480, 486)}
+        self.assertGreater(tex[479], 10, tex)        # veiled, with its texture, before the lift
+        self.assertGreater(tex[480], 10, tex)        # still there on the lift's first frame (round 3: blank)
+        self.assertLess(tex[486], 5, tex)            # under the panel once the card has grown (its shadow)
+
+    def test_a_rolling_digit_never_passes_the_figures_edge(self):
+        """Round 3's review: set from the 16:9 column's edge (x 96), the roll
+        drew a fading leading digit 2 px left of it on one frame (f539): the
+        digit was centred in a cell still narrower than itself. Every frame
+        of the roll keeps its ink inside the figure's box; landed, it is the
+        typeset figure, pixel for pixel."""
+        f = brand.poppins(120)
+        ink = brand.PALETTE.INK
+        o = counter.Odometer(0, 77000, f, ink)
+        for p in np.linspace(0.0, 1.0, 241):
+            a = render(900, 260, lambda c: o.draw(c, p, 96, 180, align="left"))
+            cols = ink_columns(a)
+            self.assertGreaterEqual(cols.min(), 96, p)
+            self.assertLessEqual(cols.max(), 96 + o.width(p) + 1, p)
+        landed = render(900, 260, lambda c: o.draw(c, 1.0, 96, 180, align="left"))
+        typeset = render(900, 260, lambda c: ty.draw_text(c, ty.fcfa(77000), f, 96, 180, ink))
+        self.assertTrue(np.array_equal(landed, typeset))
+
+    def test_a_floor_fades_the_roll_out_above_it(self):
+        """The 1:1 counter rolls in a band that ends at y 300: given that
+        floor, the next digits fade out by it; the landed figure is untouched."""
+        f = brand.poppins(120)
+        o = counter.Odometer(0, 77000, f, brand.PALETTE.INK)
+        for p in (0.2, 0.45, 0.7):
+            a = render(1080, 400, lambda c: o.draw(c, p, 540, 264, floor=300.0))
+            rows = np.nonzero(np.any(a[..., :3] != 255, axis=(1, 2)))[0]
+            self.assertLess(rows.max(), 300, p)
+            near = 255 - a[295:300, :, :3].astype(int)
+            self.assertLessEqual(int(near.max()), 40, p)                # faded out, not cut
+        landed = render(1080, 400, lambda c: o.draw(c, 1.0, 540, 264, floor=300.0))
+        free = render(1080, 400, lambda c: o.draw(c, 1.0, 540, 264))
+        self.assertTrue(np.array_equal(landed, free))
+        with self.assertRaisesRegex(ValueError, "cuts the figure itself"):
+            render(1080, 400, lambda c: o.draw(c, 0.5, 540, 264, floor=268.0))

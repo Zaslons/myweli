@@ -614,7 +614,7 @@ _LAYOUT_KEYS = ("caption_band", "caption_column_x", "caption_centre_x", "caption
                 "screen_crop_top_pt", "phone_bezel_px", "phone_radius_px", "type_px",
                 "lottie_centre", "lottie_comp_width_px", "end_mark_scale", "end_mark_ink_y",
                 "end_tagline_cap_top_y", "lift_x", "lift_veil", "tilt_axis", "tilt_max_deg",
-                "scene_whip_axis",
+                "scene_whip_axis", "zoom_pivot_x",
                 # where the scenes put what they place (one storyboard, re-laid out per format)
                 "caption_align", "caption_cap_top", "counter_baselines", "lift_y", "hook_page",
                 "hook_scrim", "map_credit")
@@ -783,6 +783,11 @@ def _layout(c: _Check, value: Any, path: str, w: int, h: int, zones: dict[str, R
         c.number(lay.get("tilt_max_deg"), f"{path}.tilt_max_deg", 0, 90)
     if lay.get("scene_whip_axis") is not None:
         c.choice(lay.get("scene_whip_axis"), f"{path}.scene_whip_axis", ("horizontal", "vertical"))
+    if lay.get("zoom_pivot_x") is not None:
+        pv = c.number(lay.get("zoom_pivot_x"), f"{path}.zoom_pivot_x", 0, w)
+        if pv is not None and screen is not None and not (screen[0] <= pv <= screen[1]):
+            c.fail(f"{path}.zoom_pivot_x", f"{pv:g} is off the screen's columns ({list(screen)}): a push-in scales "
+                                           f"about a point of the screen")
     _placements(c, lay, path, w, h, zones, safe, rail, column)
     return lay if len(c.problems) == before else None
 
@@ -829,15 +834,21 @@ def _placements(c: _Check, lay: dict, path: str, w: int, h: int, zones: dict[str
             v = c.numbers(page.get(key), f"{path}.hook_page.{key}", 2)
             if v is not None and not (0 <= v[0] <= w and 0 <= v[1] <= h):
                 c.fail(f"{path}.hook_page.{key}", f"{v} is off the {w}×{h} canvas")
-    scrim = c.mapping(lay.get("hook_scrim"), f"{path}.hook_scrim", required=("rect", "fade"))
+    scrim = c.mapping(lay.get("hook_scrim"), f"{path}.hook_scrim", required=("rect", "fade"), optional=("macro",))
     if scrim is not None:
-        r = c.rect(scrim.get("rect"), f"{path}.hook_scrim.rect", w, h)
-        fade = c.numbers(scrim.get("fade"), f"{path}.hook_scrim.fade", 2)
-        if fade is not None and any(v < 0 for v in fade):
-            c.fail(f"{path}.hook_scrim.fade", f"{fade} must be [right, bottom] fades of 0 px or more")
-        hook = zones.get("hook_block") if zones else None
-        if r is not None and hook is not None and not r.contains(Rect(hook.x0, hook.y0, hook.x1, min(hook.y1, r.y1))):
-            c.fail(f"{path}.hook_scrim.rect", f"{r} must hold the hook block's columns ({hook}): white words sit on it")
+        # the scrim, and the macro shot's own (`macro`, optional: 16:9 keeps the black behind the question only,
+        # so the margin note writes itself in view)
+        for sp, where in ((scrim, f"{path}.hook_scrim"),) + (
+                ((scrim["macro"], f"{path}.hook_scrim.macro"),) if scrim.get("macro") is not None else ()):
+            if sp is not scrim and c.mapping(sp, where, required=("rect", "fade")) is None:
+                continue
+            r = c.rect(sp.get("rect"), f"{where}.rect", w, h)
+            fade = c.numbers(sp.get("fade"), f"{where}.fade", 2)
+            if fade is not None and any(v < 0 for v in fade):
+                c.fail(f"{where}.fade", f"{fade} must be [right, bottom] fades of 0 px or more")
+            hook = zones.get("hook_block") if zones else None
+            if r is not None and hook is not None and not r.contains(Rect(hook.x0, hook.y0, hook.x1, min(hook.y1, r.y1))):
+                c.fail(f"{where}.rect", f"{r} must hold the hook block's columns ({hook}): white words sit on it")
     credit = c.mapping(lay.get("map_credit"), f"{path}.map_credit", required=("x", "baseline", "align"))
     if credit is not None:
         c.number(credit.get("x"), f"{path}.map_credit.x", 0, w)

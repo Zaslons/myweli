@@ -13,6 +13,9 @@ thing is THERE is decided by the pixels.
                                  ring at radius R against the pixels just
                                  inside and outside it (camera moves and UI
                                  texture average out; the ring does not)
+  line_contrast(L, p0, p1, w)    a drawn stroke (the hook's strikes): the
+                                 paper beside it minus the stroke itself
+                                 (None: off the frame)
   box_change(prev, cur, box)     mean absolute luminance change in a box
   ink_box(rgb, region, ink)      the bounding box of the ink of one colour
                                  (dark on paper, white on black, …) in a
@@ -97,6 +100,28 @@ def ring_contrast(L: np.ndarray, cx: float, cy: float, R: float, ring_px: float 
     return float(np.mean(on) - 0.5 * (np.mean(inner) + np.mean(outer)))
 
 
+def line_contrast(L: np.ndarray, p0, p1, width: float, n: int = 48) -> float | None:
+    """A drawn stroke's own signature (the hook's strikes): the mean
+    luminance of the paper on either side of the segment p0 → p1, 1.5 stroke
+    widths off it, minus the mean ON it — sampled over its middle 80 % (its
+    round caps aside). A black strike across lit paper reads ≈ 70–130; a
+    stroke under the black scrim, or none, ≈ 0. None when any of it lies
+    off the frame (nothing of it can be seen there)."""
+    (ax, ay), (bx, by) = p0, p1
+    h, w = L.shape
+    t = np.linspace(0.1, 0.9, n)
+    xs, ys = ax + (bx - ax) * t, ay + (by - ay) * t
+    length = float(np.hypot(bx - ax, by - ay)) or 1.0
+    nx, ny = -(by - ay) / length, (bx - ax) / length
+    d = 1.5 * width
+    for ox, oy in ((0, 0), (d * nx, d * ny), (-d * nx, -d * ny)):
+        if np.any(xs + ox < 0) or np.any(xs + ox > w - 1) or np.any(ys + oy < 0) or np.any(ys + oy > h - 1):
+            return None
+    on = _sample(L, xs, ys)
+    off = 0.5 * (_sample(L, xs + d * nx, ys + d * ny) + _sample(L, xs - d * nx, ys - d * ny))
+    return float(np.mean(off) - np.mean(on))
+
+
 def box_change(prev: np.ndarray, cur: np.ndarray, box, block: int = 8) -> float:
     """The strongest change inside box (x0, y0, x1, y1) between two
     luminance frames: the largest mean |ΔL| of its `block`×`block` tiles (a
@@ -116,18 +141,23 @@ def box_change(prev: np.ndarray, cur: np.ndarray, box, block: int = 8) -> float:
 
 def ink_mask(rgb: np.ndarray, ink: str) -> np.ndarray:
     """Pixels of an ink: 'dark' (#1A1A1A / #4A4A4A type on paper: luminance
-    under 140), 'deep' (under 100), 'white' (white type on black: bright AND
-    neutral, so warm paper or a coloured UI is not ink)."""
+    under 140), 'faint' (any ink on the paper stage, faded ones too — a
+    rolling digit at a fraction of its opacity: under 185, while the stage's
+    paper and pattern marks, #FAFAFA / #EDEEEF, sit at 238 and over), 'deep'
+    (under 100), 'white' (white type on black: bright AND neutral, so warm
+    paper or a coloured UI is not ink)."""
     x = rgb[..., :3].astype(np.int16)
     L = luminance(rgb)
     if ink == "dark":
         return L < 140
+    if ink == "faint":
+        return L < 185
     if ink == "deep":                     # the app's own dark pixels on a lifted card: under the 55 % veil the
         return L < 100                    # phone (bezel included, L ≈ 137) is never this dark
     if ink == "white":
         chroma = x.max(axis=-1) - x.min(axis=-1)
         return (L > 185) & (chroma < 24)
-    raise ValueError(f"ink is 'dark', 'deep' or 'white', not {ink!r}")
+    raise ValueError(f"ink is 'dark', 'faint', 'deep' or 'white', not {ink!r}")
 
 
 def ink_box(rgb: np.ndarray, region, ink: str, min_run: int = 2) -> tuple[float, float, float, float] | None:

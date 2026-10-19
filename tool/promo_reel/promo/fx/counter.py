@@ -26,7 +26,11 @@ LEADING COLUMNS. A column the start value does not have (0 → 77 000 has one
 column, the end five) appears as it rolls its first step: its width and
 opacity grow 0 → 1 with it, so « 0 FCFA » widens smoothly into
 « 77 000 FCFA » and the figure stays centred. A column the end does not
-have leaves the same way on its last step.
+have leaves the same way on its last step. A digit is centred in its cell
+but never drawn past the figure's own box: while a leading cell is still
+narrower than its digit, the digit sits on the figure's edge instead of
+hanging over it (review round 3: a figure set from the 16:9 column's edge
+put a fading digit 2 px past the safe edge on one frame of the roll).
 
 The figure scrolls inside a band whose middle — the glyphs' own box, cap
 height to baseline plus the round letters' 0.05-em overshoot — is opaque,
@@ -174,11 +178,15 @@ class Odometer:
     # ---- drawing --------------------------------------------------------------------
 
     def draw(self, canvas: skia.Canvas, p: float, x: float, baseline: float, *, align: str = "centre",
-             alpha: float = 1.0, scale: float = 1.0) -> None:
+             alpha: float = 1.0, scale: float = 1.0, floor: float | None = None) -> None:
         """Draw at progress p (0..1). `x` is the figure's centre (align
         'centre') or left edge ('left'); `scale` is a punch about the
         figure's centre — or, left-aligned, about its left edge, which holds
-        (a figure set from a column's edge never punches past it)."""
+        (a figure set from a column's edge never punches past it). `floor`:
+        a line the rolling band may not pass (1:1: the caption band's edge,
+        where the phone begins) — the band's lower fade then runs from the
+        glyphs' box down to it, so the next digits rolling up from below
+        fade out ON the band, never cut off on the phone's edge."""
         if alpha <= 0:
             return
         items = self.layout(p)
@@ -186,6 +194,11 @@ class Odometer:
         x0 = x - w / 2 if align == "centre" else x
         top, bottom = self.band(baseline)
         m = self.margin
+        low = bottom - m                                   # where the lower fade starts: the glyphs' box
+        if floor is not None and floor < bottom:
+            if floor <= low:
+                raise ValueError(f"Odometer: the floor (y {floor:g}) cuts the figure itself (its box ends at y {low:g})")
+            bottom = floor
         L = self.cap * self.pitch_caps                     # the strip's digit pitch
         with scaled_about(canvas, scale, x0 + w / 2 if align == "centre" else x0, baseline - self.cap / 2):
             with layer(canvas, alpha, (x0 - m, top, x0 + w + m, bottom)):
@@ -194,18 +207,18 @@ class Odometer:
                     if kind == "suffix":
                         draw_text(canvas, self.suffix, self.font, x0 + ix, baseline, self.colour)
                     elif kind == "digit" and info["presence"] > 0:
-                        self._draw_digit(canvas, x0 + ix, iw, baseline, info, L, paint)
+                        self._draw_digit(canvas, x0 + ix, iw, baseline, info, L, paint, (x0, x0 + w))
                 # soft edges of the band
                 fade = skia.GradientShader.MakeLinear(
                     [skia.Point(0, top), skia.Point(0, bottom)],
                     [0x00000000, 0xFF000000, 0xFF000000, 0x00000000],
-                    [0.0, m / (bottom - top), 1 - m / (bottom - top), 1.0])
+                    [0.0, m / (bottom - top), (low - top) / (bottom - top), 1.0])
                 fp = skia.Paint(Shader=fade, BlendMode=skia.BlendMode.kDstIn)
                 fp.setDither(True)
                 canvas.drawRect(skrect((x0 - m, top, x0 + w + m, bottom)), fp)
 
     def _draw_digit(self, canvas: skia.Canvas, cx0: float, cw: float, baseline: float, info: dict,
-                    L: float, paint: skia.Paint) -> None:
+                    L: float, paint: skia.Paint, box: tuple[float, float] | None = None) -> None:
         a, b, frac, pres = info["a"], info["b"], info["frac"], info["presence"]
         d = -1.0 if info["down"] else 1.0                   # counting up: digits move up
         for which, digit, dy in (("a", a, -d * frac * L), ("b", b, d * (1 - frac) * L)):
@@ -215,7 +228,9 @@ class Odometer:
             fade = 1.0 - abs(dy) / L                       # 1 at home, 0 a whole step away
             if pres < 1 or fade < 1:
                 p.setAlphaf(p.getAlphaf() * pres * fade)
-            gx = cx0 + (cw - self._adv[digit]) / 2          # centred in its (interpolated) cell
+            gx = cx0 + (cw - self._adv[digit]) / 2          # centred in its (interpolated) cell …
+            if box is not None:                             # … never past the figure's own box
+                gx = max(box[0], min(gx, box[1] - self._adv[digit]))
             bld = skia.TextBlobBuilder()
             bld.allocRunPosH(self.font, [self._glyphs[digit]], [gx], baseline + dy)
             canvas.drawTextBlob(bld.make(), 0, 0, p)

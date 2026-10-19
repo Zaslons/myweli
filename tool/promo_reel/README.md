@@ -402,10 +402,10 @@ soundtrack, the take pictures and their timing are the same in every format.
 | captions | band y 0–560, centred on x 540, cap top 330 (hook 300) | band y 0–300, centred on x 540, cap top 100 (hook 80) | no band: the left column x 96–1056, set from x 96, centred on y 440 (hook top-left, cap top 130) |
 | phone window (W on) | x 180–900, y 600–1192 (y 600) | x 180–900, y 330–1002 (y 330) | x 1104–1824, y 54–1002, a 30-px top fade (y 84) |
 | lifts | x 120–900 (780 px), over the veiled phone | x 150–930 (780 px), over the veiled phone | x 300–1060 (760 px) beside the phone, no veil, no panel |
-| counter | centred, baselines 322 / 496 | centred, 110 / 284, its roll cut at the band (y 300) | from x 96, 366 / 540; its punch holds the left edge |
-| hook | page x 40–1040 from y 640, black to 520 → 640 | page x 40–1040 from y −40, black to 400 → 500 | page x 760–1960 on the right, black over x 0–820 → 1020 |
-| tilts | rotX | rotX | yaw, ≤ 10° |
-| map credit | the floor, x 120, baseline 1236 | the band's foot, right-aligned to x 1026, baseline 290 | the left column's foot, right-aligned to x 1056, baseline 1016 |
+| counter | centred, baselines 322 / 496 | centred, 100 / 264, its roll fading out by the band's edge (y 300) | from x 96, 366 / 540; its punch holds the left edge |
+| hook | page x 40–1040 from y 640, black to 520 → 640 | page x 120–960 from y 10, black to 400 → 500 (strike rows y ≈ 549–994) | page x 760–1960 on the right, black over x 0–820 → 1020; in the macro only behind the question (y 0–400 → 540) |
+| tilts · push-in | rotX · about the phone's axis | rotX · about the phone's axis | yaw, ≤ 10° · about the screen's right edge (x 1824) |
+| map credit | the floor, x 120, baseline 1236 | the band's foot, right-aligned to the screen's edge x 900, baseline 290 | the left column's foot, right-aligned to x 1056, baseline 1016 |
 | reveal · end card | Lottie (540, 680) · mark ink y 400–599, tagline cap top 712 | (540, 520) · 250–449, 560 | (960, 500) · 230–429, 540 |
 
 **The camera re-frames by rule.** The W keys are measured in the reference
@@ -499,12 +499,31 @@ frames for 0 → 77 000 over f535–f548, so f547 reads « 76 988 »); a caption
 line over 771 px; two caption lines receiving words on the same frame (one
 arrival at a time); an underline that touches any caption's ink while both
 show (2 px clear; it sits under its line's descenders); a mark punch that
-brings the mark's ink nearer the tagline than half its height; a caption
-that still carries the retired `reading:` marker; camera keys not in time
+brings the mark's ink nearer the tagline than half its height (a test
+builds the 1.2× variant and watches it refused); hook ink the viewer cannot
+see — a strike (its 4 frames and its punch), the entry being written or
+the margin note off the canvas, outside an EBU graphics-safe area (1:1,
+16:9; 9:16's platform rectangle is the TEXT area and its approved page lies
+at y ≈ 700–1700: reported in (g), not refused), or more than 15 % under the
+scrim on average (`CarnetScene.ink_places`); a `transition` other than
+`whip` or `continuous`; a caption that still carries the retired `reading:`
+marker; camera keys not in time
 order (also refused by `storyboard.py`, with both keys' frames — the
 renderer sorts nothing); scenes that do not run end to end. `storyboard.py`
 also refuses a store line (`type_px.store`) under 40 px, and a cut more than
 one bar past its name.
+
+**A line that waits for its last word** may ask `recentre: N`: centred
+on the words it shows while it waits, it glides over N frames to make room
+for each next word, which then rises in on its own frame, in its place —
+« Créneau libre » … « rempli. » (2.67 s in the 15-s cut; 136 px left of
+centre in round 3). The finished line is exactly the approved one; a
+left-aligned line (16:9) never moves.
+
+**A continuous handoff is not a cut.** The end card starts where the reveal
+leaves the mark (comp 72, the same place): `transition: {kind:
+continuous}`. The plan lists it as `continuous`, never as a join; verify (b)
+holds every cut to a picture change and every continuous handoff to none.
 
 **Touches released at once.** A tap the log says was not held may carry
 `release_by`: its disc and ripple are gone by that frame. The « Libre » tap
@@ -517,7 +536,9 @@ covers the tiles that have lifted — their cards where they are, their places
 on the phone and the gaps between — 24 px around, and on a side where a tile
 still waits it reaches exactly to that tile's place, never over it. So no
 veiled original shows between the lifted cards (« 0 Absences », never lifted,
-goes under the panel with « 17 000 FCFA » on f480), and every tile still to
+goes under the panel with « 17 000 FCFA » — covered as that card grows over
+it, the panel's edge reaching out with the card's own 6-frame pop, f480–f485;
+round 3 put it under in ONE frame, f480, and it blinked out), and every tile still to
 lift stays in its place, veiled, with its texture, until its own beat
 (f472 / f480 / f488; texture std 22–23 levels in a waiting tile's place, 0
 under the round-2 panel). The row is centred on the tiles' own row (y 815),
@@ -541,18 +562,27 @@ wrapped to their cell), plus full-size frames in `frames/` — derived from
 render.json (`verify.look_frames`: every transition at T−1, T, T+1 and its
 end, every visual event and three frames on, but the take's own picture
 changes and caption words; the first and last frames), never a frame list
-typed per cut, (c) every touch-down drawn held to the gesture logs
+typed per cut — each join held to its name (`join_problems`: a hard cut
+changes the picture, mean |ΔL| from T−1 to T ≥ 2 levels — the films' cuts
+change by 8–244 —, a `continuous` handoff does not, and is reported apart,
+never counted as a join), (c) every touch-down drawn held to the gesture logs
 (`media.touches.cross_check`) and its tone re-measured, (d) BS.1770-4 on the
 MP4's decoded AAC (−14 ± 0.5 LUFS, ≤ −1.0 dBTP; ffmpeg's ebur128 as a second
 opinion), `spectrogram.png` with bar ticks, and each AIR beat at least 7 LU
 under the groove (K-weighted, the cut's drop/groove sections together) on the
-WAV master AND on the MP4 (a pass never rests on the codec), (e)
+WAV master AND on the MP4 (a pass never rests on the codec), and the cut's
+last hit ringing out (`outro_tail`: ≥ 20 dB down 22 frames after it, the
+last 100 ms ≥ 30 dB under it — the master's 60-ms end fade never chops a
+loud tail), all in one verdict (`audio_verdict`, tested measure by
+measure), (e)
 ffprobe + assertions (`probe.json`), (f) A/V sync: each click and key's
 onset in the MP4 audio against the frame its disc or character first
 appears in the MP4's PIXELS (`promo/pixels.py`: the disc's own ring; the
 key's box looking like the take's picture with the character), (g) the INK
-on MP4 frames — each caption whole, the counter mid-roll / landing / landed,
-every lift, the credit — inside the format's text area (9:16 the platform's;
+on MP4 frames — each caption whole, the counter on EVERY frame from its
+label's switch through the roll to three frames after it lands (its faded
+rolling digits too: ink `faint`, L < 185), every lift, the credit — inside
+the format's text area (9:16 the platform's;
 1:1 and 16:9 EBU R95 graphics-safe), the captions laid in the caption column
 inside it (the AIR's word is centred on the canvas, the end card's lines on
 the mark: not column captions; each box says which, `column`), each ink
@@ -560,7 +590,11 @@ region kept clear of the phone as it is posed on that frame
 (`verify.clear_of_phone`: in 16:9 the phone stands beside the captions, the
 counter and the lifts) and the hook's words measured on their scrim
 (`verify.on_its_ground`: the lit page's paper fibres beside them pass for
-white ink), plus every box render.json records on every frame,
+white ink), plus every box render.json records on every frame, and the
+hook's animated ink (the plan's `hook_ink`) seen: inside the canvas, inside
+an EBU graphics-safe area, off the scrim, and each strike read off the MP4
+on its last frame (`pixels.line_contrast`: the paper beside the stroke ≥ 40
+levels lighter than the stroke — 144–191 measured; off the frame fails),
 (h) honesty: every generated element
 with its source (`honesty.txt`), every blur measured on every picture the
 film uses — every take that declares a blur is measured (`blurs_checked`;
@@ -612,19 +646,35 @@ The 1:1 and 16:9 formats (« 1:1 and 16:9 »):
   (« Rayé. / Raturé. / Recopié. ») cannot fit in 54–300 at their 120-px
   pitch — the third's ink reaches y 414; the stage's black covers the page to
   y 400 and is gone by 500 (`hook_scrim`).
-- **1:1 counter**: label 110, figure 284 (the 9:16 spacing, inside the
-  section's 230 px); its roll is cut at the band's edge (y 300) so the next
-  digits never rise over the phone below.
+- **1:1 hook page 840 px wide** (x 120–960 from y 10), not the square
+  filled edge to edge: at 1000 px its third strike row was drawn below the
+  frame (round 3, y 1117–1159 — its log hit, whoosh and punch played with no
+  strike on screen); now the three strike rows land at y ≈ 549, 734 and
+  966–999 and the macro's margin note at x ≈ 96–190, all inside
+  graphics-safe; the page's sides show the dark stage (≈ 60 px each side at
+  the push), a sheet on a desk.
+- **1:1 counter**: label 100, figure 264 (round 3: 110 / 284 — the figure
+  ended 17 px over the phone's bezel): the figure now ends 32 px over it,
+  the label's ink stays at y ≥ 61 as it switches (safe edge 54); the
+  rolling band fades out by the band's edge (`Odometer.draw(floor=…)`, the
+  next digits never cut at y 300 on the bezel; the clip stays as a
+  backstop).
 - **The map credit inside the safe area.** 1:1's floor (y 1026–1080) and
   16:9's « under the phone » (y > 1002, the phone's own floor fade to 1026)
   leave no room for a 24-px line inside EBU graphics-safe: 1:1 puts it at the
-  band's foot, its INK ending on x 1026 (baseline 290; the last glyph's
-  0.8-px overshoot counted), 16:9 at the left column's foot, ending on x 1056
-  by the phone's lower-left corner (baseline 1016).
+  band's foot, its INK ending on the screen's right edge x 900, over the map
+  it credits (baseline 290; round 3 ended it on x 1026, over the bezel's
+  corner, where it read as part of the caption block), 16:9 at the left
+  column's foot, ending on x 1056 by the phone's lower-left corner (baseline
+  1016).
 - **16:9 hook**: the page lies across the frame's RIGHT (x 760–1960, its
   strike rows in view) with the words top-left on black (`hook_scrim` x
   0–820, fading out by 1020) — the section's « page across the frame,
-  captions top-left » with the white words never on scribbles.
+  captions top-left » with the white words never on scribbles. In the macro
+  (f32–63) the black stands only behind the question (`hook_scrim.macro`:
+  x 0–820, y 0–400, gone by 540): round 3's full-height scrim hid the f48
+  margin note (98 % of it under the black), so the pen scratch played on
+  nothing.
 - **16:9 captions set from the column's left edge** (x 96, the ink on the
   edge: a first glyph overhanging its origin moves the lines in), the
   column's « centred on y 440 » as the vertical rule; the counter is set
@@ -638,9 +688,11 @@ The 1:1 and 16:9 formats (« 1:1 and 16:9 »):
 - **16:9 camera**: W sits under the window's own 30-px top fade (y 84); the
   journal's first framing keeps Fatou B.'s card on the floor (W 74.98), which
   puts the cropped screen's top at y 50 — the section's « start the window at
-  the top of the cropped screen ». Its push-in (1.791 → 2.0 px/pt) is about
-  the phone’s own axis (x 1464): the screen passes the safe edge by up to 42 px (the bezel 60)
-  at the peak, as the 9:16's does past x 900 — app pixels, not text.
+  the top of the cropped screen ». Its push-in (1.791 → 2.0 px/pt) scales
+  about the screen's RIGHT edge (`zoom_pivot_x` 1824, on the safe edge): the
+  screen grows leftwards and the app's pixels never pass x 1824 (round 3,
+  about the phone's axis x 1464: the screen reached x 1866 at the peak, the
+  FAB and the snackbar x 1835); only the bezel (16 px × 1.12) lies past it.
 
 The 15-s cut (« The 15 s cut »):
 
@@ -650,6 +702,13 @@ The 15-s cut (« The 15 s cut »):
   Store » alone on f400 (the section's « Plus de clients, » f384 / « moins de
   gestion. » f400 predates the store line: two arrivals on f400 are refused);
   60 characters f379→f512 = 13.5 cps; the underline on f448, the punch on f480.
+  The reveal → end handoff on f376 is `continuous` (the mark keeps easing):
+  the cut has the storyboard's six joins, not seven.
+- **« Créneau libre » centred while it waits** (`recentre: 4`): the line
+  waits 2.67 s for « rempli. » (round 3: 136 px left of centre all that
+  time); it makes room over f235–239 — « libre » struck on f236 as it goes —
+  and « rempli. » rises into its place on f240. The 30-s line does the same
+  (f444–447, after its strike on f440).
 - **The dissolve's re-frame**: the section's « W 660 − Δ, Δ ≈ 128 pt » is
   measured on the two pictures: from « Client sans numéro » down the fields
   moved up **145.33 pt** (the 125.33-pt scroll + the 20-pt « 0/10 » line the
@@ -703,7 +762,10 @@ The 30-s cut:
   756, the store line's starts at 808); on the last log (f928, `end.last`,
   with the last chord) the mark gives a 1.06× punch (3 frames out, 8 back;
   MP4: its ink y 394–606 at the peak, 106 px above the tagline's cap top).
-  Longest quiet stretches: f848→f896 (1.6 s), f896→f928, f928→f960.
+  Longest quiet stretches: f848→f896 (1.6 s), f896→f928, f928→f960. The
+  last chord and log RING OUT before the end (≥ 20 dB down by f950, the
+  last 100 ms ≈ −48 dBFS; round 3 held the chord to the last sample and
+  the end fade chopped it — verify (d) `outro_tail`).
   The 15-s score has the same outro (the underline on f448, the last log on
   f480); its scenes come with its layout.
 - **AIR 2** (row 22, review M2) is near silence, as AIR 1: riser 3 stops dead

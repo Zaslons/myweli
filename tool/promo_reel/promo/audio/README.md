@@ -155,9 +155,14 @@ section by section:
   shaker thins to 8ths, then two hits, and fades 7 dB. On the downbeat (f896)
   the log and the pen (`end.underline`, a `pen_scratch` as long as the
   stroke draws, 8 frames) as the hook's strike comes back as an underline;
-  on beat 3 (f928) the last log with the last Rhodes chord (`end.last`, the
-  mark's small punch). The pad fades 10 dB over the bar; the tail rings into
-  the master's 60-ms end fade.
+  on beat 3 (f928) the last log with a short last Rhodes chord (`end.last`,
+  the mark's small punch) that RINGS OUT before the end: the chord released
+  after 3 16ths, the log at the default decay (0.2 s) with a short room
+  (0.9 s, −14 dB), the pad faded out (−40 dB by 15.4.2, released 2 16ths
+  before the end) — 21 dB down by f950 and ≈ −48 dBFS over the last 100 ms,
+  so the master's 60-ms end fade never chops a loud tail (round 3 held the
+  chord to the last sample: 4.6 dB of decay by f950, the last 100 ms at
+  −19.8 dBFS; verify (d) `outro_tail` holds it on the master and the MP4).
 
 `score_15s.yaml` (8 bars: 7 and the same outro bar — the underline on f448,
 the last log on f480) is re-scored on the 15-s cut's own frames. It is not a
@@ -193,15 +198,16 @@ not reproduce: the master was 5.87, an AAC encode 6.05.)
 | | 30 s | 15 s |
 |---|---|---|
 | length | 960 frames, 1 536 000 samples | 512 frames, 819 200 samples |
-| integrated loudness | −14.01 LUFS (ffmpeg: −14.0) | −14.01 LUFS (ffmpeg: −14.0) |
+| integrated loudness | −14.01 LUFS (ffmpeg: −14.0) | −14.00 LUFS (ffmpeg: −14.0) |
 | true peak | −1.30 dBTP (ffmpeg: −1.3) | −1.30 dBTP (ffmpeg: −1.2) |
-| short-term max / momentary max | −12.5 / −10.5 LUFS | −12.5 / −10.6 LUFS |
-| LRA | 2.8 LU | 2.7 LU |
-| sections | hook −16.7, drops −12.9 to −14.0, log break −14.5, breakdown −16.0, reveal −13.2, end card −15.1, outro −16.5 | hook −15.5, drop −13.7, revenus −13.1, end card −15.4, outro −16.5 |
-| AIR under the groove (master / after AAC) | AIR 1 8.5 / 8.9 LU, AIR 2 8.5 / 9.2 LU | 8.4 / 8.9 LU |
+| short-term max / momentary max | −12.5 / −10.4 LUFS | −12.4 / −10.6 LUFS |
+| LRA | 2.8 LU | 2.8 LU |
+| sections | hook −16.7, drops −12.8 to −14.0, log break −14.5, breakdown −16.0, reveal −13.2, end card −15.1, outro −18.9 | hook −15.4, drop −13.6, revenus −13.0, end card −15.3, outro −18.8 |
+| the last hit's tail (`outro_tail`) | f928 → f950: 21.4 dB down; the last 100 ms 35.1 dB under it (≈ −48 dBFS) | f480 → f502: 21.4 dB down; 35.0 dB under |
+| AIR under the groove (film master / its MP4) | AIR 1 8.4 / 8.8 LU, AIR 2 8.5 / 9.1 LU | 8.3 / 8.8 LU |
 | side under 150 Hz | −36 dB | −37 dB |
 | L/R correlation | 0.96 | 0.96 |
-| limiter | ≤ 3.7 dB, under 0.6 s above 1 dB | ≤ 3.6 dB |
+| limiter | ≤ 3.7 dB, under 0.7 s above 1 dB | ≤ 3.7 dB |
 | cues | 85 | 49 |
 
 ## Notes for SCENES

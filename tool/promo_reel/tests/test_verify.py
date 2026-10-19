@@ -21,7 +21,7 @@ from promo.render import not_built  # noqa: E402
 from promo import pixels  # noqa: E402
 from promo.media import tools  # noqa: E402
 from promo.verify import (FAIL, PASS, HiddenRow, Result, Verdict, _bandpass, _psnr, air_levels,  # noqa: E402
-                          blurs_checked, caption_reading, click_lag, click_onset, dissolve_problems, dissolves,
+                          audio_verdict, outro_tail, blurs_checked, caption_reading, click_lag, click_onset, dissolve_problems, dissolves,
                           end_card_window,
                           event_gaps, look_frames, outside_safe, reading_verdict, reading_windows, verify, worst)
 
@@ -170,8 +170,89 @@ class TestAir(unittest.TestCase):
         self.assertFalse(rows["air2.reverse"]["ok"])
 
 
+class TestAudioVerdict(unittest.TestCase):
+    """(d)'s verdict is ONE function over every measure — the MP4's loudness,
+    its length, the AIR beats on the MP4 AND on the WAV master, the last hit's
+    tail on both — so no rule can drop out of it unnoticed (review round 3:
+    removing the master's AIR from the verdict left every test green)."""
+
+    N = 64 * 1600
+    EVENTS = {"sections": [{"name": "drop1", "frame": 0, "end_frame": 48}],
+              "cues": [{"id": "air1.reverse", "kind": "reverse", "frame": 48, "end_frame": 64}]}
+
+    def audio(self, air_db: float) -> np.ndarray:
+        x = 0.1 * np.random.default_rng(5).standard_normal((self.N, 2))
+        x[48 * 1600:] *= 10 ** (air_db / 20)
+        return x
+
+    def verdict(self, *, air_mp4=-9.0, air_master=-9.0, tail=True, tail_master=True, lufs=-14.0, tp=-1.5,
+                decoded=None) -> bool:
+        m = SimpleNamespace(integrated_lufs=lufs, true_peak_dbtp=tp)
+        a = air_levels(self.audio(air_mp4), self.EVENTS)
+        am = air_levels(self.audio(air_master), self.EVENTS)
+        return audio_verdict(m, self.N if decoded is None else decoded, self.N, a, am, {"ok": tail},
+                             {"ok": tail_master})
+
+    def test_every_measure_counts(self):
+        self.assertTrue(self.verdict())
+        self.assertFalse(self.verdict(air_master=-5.0))           # ONLY the master's AIR under 7 LU: FAIL
+        self.assertFalse(self.verdict(air_mp4=-5.0))              # only the MP4's
+        self.assertFalse(self.verdict(tail_master=False))         # only the master's tail chopped
+        self.assertFalse(self.verdict(tail=False))                # only the MP4's
+        self.assertFalse(self.verdict(lufs=-15.0))
+        self.assertFalse(self.verdict(tp=-0.8))
+        self.assertFalse(self.verdict(decoded=self.N - 1600))
+
+    def test_the_last_hit_rings_out(self):
+        """The cut's last log hit must decay ≥ 20 dB within 22 frames and sit
+        ≥ 30 dB under itself over the last 100 ms (round 3: the last chord
+        held to the last sample, 4.6 dB down by f950, chopped by the end fade)."""
+        n = 64 * 1600
+        t = np.arange(n - 32 * 1600) / 48000
+        tone = np.sin(2 * np.pi * 130.8 * t)
+        ev = {"cues": [{"id": "early", "kind": "log", "frame": 4}, {"id": "end.last", "kind": "log", "frame": 32}]}
+        rung = np.zeros((n, 2))
+        rung[32 * 1600:, 0] = rung[32 * 1600:, 1] = 0.3 * tone * np.exp(-t / 0.08)
+        r = outro_tail(rung, ev)
+        self.assertEqual((r["cue"], r["frame"], r["at_frame"]), ("end.last", 32, 54))
+        self.assertTrue(r["ok"], r)
+        held = np.zeros((n, 2))
+        held[32 * 1600:, 0] = held[32 * 1600:, 1] = 0.3 * tone * np.exp(-t / 1.5)
+        held[-2880:] *= np.linspace(1, 0, 2880)[:, None]                  # a 60-ms end fade chops it
+        r = outro_tail(held, ev)
+        self.assertFalse(r["ok"], r)
+        self.assertLess(r["decay_db"], 20)
+        self.assertFalse(outro_tail(rung, {"cues": []})["ok"])            # no last hit: never a pass
+
+
 class TestPixels(unittest.TestCase):
     """The measures (f), (g), (h) read off the MP4's pixels."""
+
+    def test_a_strike_on_lit_paper(self):
+        """(g) reads each hook strike off the MP4: the paper beside the stroke
+        minus the stroke; nothing there reads ≈ 0, off the frame reads None."""
+        import skia
+        from promo.fx.surface import new_surface, to_array
+        from promo.fx.type import draw_strike
+        s = new_surface(400, 200)
+        c = s.getCanvas()
+        c.clear(skia.Color(200, 180, 140))
+        L0 = pixels.luminance(to_array(s))
+        draw_strike(c, (40, 100), (360, 104), 10, 1.0, 0xFF000000)
+        L = pixels.luminance(to_array(s))
+        self.assertGreater(pixels.line_contrast(L, (40, 100), (360, 104), 10), 100)
+        self.assertLess(abs(pixels.line_contrast(L0, (40, 100), (360, 104), 10)), 1)       # no stroke
+        self.assertIsNone(pixels.line_contrast(L, (40, 100), (360, 230), 10))              # partly off the frame
+        from promo.verify import STRIKE_CONTRAST, hook_ink_problems
+        fmt = SB.formats["1x1"]
+        ok = {"what": "strike row 10", "box": [0, 0, 1, 1], "scrim": 0.0, "in_canvas": True, "in_safe": True}
+        self.assertEqual(hook_ink_problems({"hook": [ok]}, [{"scene": "hook", "what": "strike row 10", "frame": 9,
+                                                             "contrast": STRIKE_CONTRAST + 1}], fmt), [])
+        self.assertTrue(hook_ink_problems({"hook": [ok]}, [{"scene": "hook", "what": "strike row 10", "frame": 9,
+                                                            "contrast": None}], fmt))
+        self.assertTrue(hook_ink_problems({"hook": [{**ok, "in_safe": False}]}, [], fmt))      # 1:1: graphics-safe
+        self.assertEqual(hook_ink_problems({"hook": [{**ok, "in_safe": False}]}, [], SB.formats["9x16"]), [])
+        self.assertTrue(hook_ink_problems({"hook": [{**ok, "scrim": 0.9}]}, [], fmt))
 
     def test_the_disc_ring(self):
         import skia

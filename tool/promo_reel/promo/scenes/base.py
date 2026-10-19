@@ -13,6 +13,12 @@ from .keys import Key, Track, curve
 from .stage import Stage
 
 
+#: How a scene is joined to the one before it, when not by a hard cut (the default): a `whip` (6 frames,
+#: motion-blurred), or `continuous` — the picture carries on unbroken (the end card's mark keeps easing up
+#: from where the reveal left it): a scene handoff, not a join, and verify (b) holds it to no picture change.
+TRANSITION_KINDS = ("whip", "continuous")
+
+
 class SceneError(ValueError):
     """A scene the storyboard describes but the renderer cannot draw as written."""
 
@@ -118,6 +124,10 @@ class Scene:
             raise SceneError(str(e)) from None
         self.cite = spec.get("cite")
         self.transition = spec.get("transition")
+        if self.transition is not None and (not isinstance(self.transition, dict)
+                                            or self.transition.get("kind") not in TRANSITION_KINDS):
+            raise SceneError(f"{where}.transition: {{kind: {' | '.join(TRANSITION_KINDS)}}} (a hard cut is the "
+                             f"default and is not written), not {self.transition!r}")
         self.grain = spec.get("grain")
 
     @property

@@ -12,7 +12,11 @@ transitions.png, probe.json, meter.json, spectrogram.png, frames/*.png.
   (b) TRANSITIONS: every cut, whip and declared dissolve, frames T−1, T, T+1
       pulled from the MP4; and full-size frames to look at (`look_frames`:
       derived from the film's own transitions and events, never a list typed
-      per cut).
+      per cut). Each join is held to what it is called (`join_problems`): a
+      hard cut CHANGES the picture (mean |ΔL| from T−1 to T ≥ CUT_MIN_CHANGE),
+      a `continuous` scene handoff does not (below it) — it is reported as a
+      handoff, never counted or shown as a join (review round 3: the 15-s
+      plan called f376, reveal → end, a cut; the MP4 changes by 0.07 there).
   (c) TOUCHES: every touch-down the film draws, held to the gesture logs by
       promo.media.touches.cross_check (half a frame at 1×, on the 16th grid,
       never on a typed key, each gesture once, every storyboard touch drawn);
@@ -23,7 +27,11 @@ transitions.png, probe.json, meter.json, spectrogram.png, frames/*.png.
       cues' spans) K-weighted, at least 7 LU under the groove (the cut's
       drop/groove sections together), on the WAV master AND on the MP4's
       AAC (a pass never rests on the codec): the storyboard's « near
-      silence ».
+      silence »; and the cut's last hit RINGS OUT (`outro_tail`): ≥ 20 dB
+      down 22 frames after it and its last 100 ms ≥ 30 dB under it, so the
+      master's 60-ms end fade never chops a loud tail (review round 3: the
+      30-s's last chord was held to the last sample) — master and MP4 alike.
+      One verdict, `audio_verdict`, over all of it.
   (e) FILE: ffprobe + assertions (the format's canvas — 1080×1920,
       1080×1080, 1920×1080 —, 30 fps CFR, the cut's frames — 960 for the
       30-s cut, 512 for the 15-s —, H.264 High yuv420p BT.709, AAC 48 kHz
@@ -35,15 +43,23 @@ transitions.png, probe.json, meter.json, spectrogram.png, frames/*.png.
       whose box looks like the take's picture with the character rather than
       the one before it. render.json only says where to look.
   (g) SAFE ZONES: the INK measured on MP4 frames — each caption on the frame
-      it is whole, the counter (mid-roll, landing with its punch, landed),
-      every lift, the credit — inside the format's text area (9:16: x
-      120–900 × y 270–1248, and to x 960 above y 840; 1:1 and 16:9: EBU R95
+      it is whole, the counter on EVERY frame from its label's switch to
+      three frames after it lands (its faded rolling digits included: ink
+      `faint`), every lift, the credit — inside the format's text area (9:16:
+      x 120–900 × y 270–1248, and to x 960 above y 840; 1:1 and 16:9: EBU R95
       graphics-safe, x/y 54–1026 and x 96–1824 × y 54–1026), the captions
       laid in the caption column inside it (not the AIR's word, centred on
       the canvas, nor the end card's lines, centred on the mark); and every
       box render.json records, on every frame. Each ink region stays clear
       of the phone (`clear_of_phone`: in 16:9 the phone stands beside the
-      captions and the lifts, not under a band).
+      captions and the lifts, not under a band). And the hook's ANIMATED
+      ink (the plan's `hook_ink`: each strike, the entry being written, the
+      margin note) is seen: inside the canvas, inside a graphics-safe area
+      (EBU: 1:1, 16:9), off the scrim — and each strike read off the MP4's
+      pixels on its last frame (`pixels.line_contrast` ≥ STRIKE_CONTRAST:
+      a black stroke across lit paper; review round 3: the 1:1's third
+      strike was drawn below the frame, the 16:9's margin note under the
+      black).
   (h) HONESTY: every generated element with its cited source (none without);
       every blur measured on every picture the film uses (≤ 15 % of the
       digits' detail left); the hidden 13:15 row on EVERY frame of its scene,
@@ -96,8 +112,12 @@ LUFS_TARGET, LUFS_TOLERANCE, TP_CEILING = -14.0, 0.5, -1.0
 MAX_CPS = 17.0
 MAX_GAP_FRAMES = 60          # 2 s
 AIR_UNDER_LU = 7.0           # an AIR beat (« near silence ») sits at least this far under the groove, master AND MP4
+OUTRO_DECAY_DB = 20.0        # the cut's last hit rings out: this far down …
+OUTRO_DECAY_FRAMES = 22      # … this many frames after it (f928 → f950 in the 30-s cut) …
+OUTRO_END_DB = 30.0          # … and its last 100 ms this far under it: the end fade never chops a loud tail
 HIDDEN_ALPHA = 0.05          # the 13:15 row: at most 5 % of it may show outside a whip
 BEAT_PSNR_DB = 30.0
+CUT_MIN_CHANGE = 2.0         # a hard cut changes the picture this much at least (mean |ΔL|; the films' cuts: 8–244)
 CLICK_KINDS = ("click", "key")
 
 
@@ -227,6 +247,48 @@ def air_levels(audio: np.ndarray, events: dict, samples_per_frame: int = 1600) -
             "ok": bool(rows) and all(r["ok"] for r in rows)}
 
 
+def outro_tail(audio: np.ndarray, events: dict, samples_per_frame: int = 1600) -> dict:
+    """The cut's LAST hit (its last ``log`` cue — the outro's last log, with
+    the last chord) rings out before the end: per-frame RMS, its hit (the
+    loudest of its first 4 frames) against the frame OUTRO_DECAY_FRAMES
+    later (≥ OUTRO_DECAY_DB down) and against the cut's last 100 ms
+    (≥ OUTRO_END_DB under it). A tail still loud at the end is chopped by
+    the master's 60-ms end fade — on a looping platform the film ends on a
+    chop, not a decay (review round 3)."""
+    hits = [c for c in events.get("cues", []) if c.get("kind") == "log"]
+    if not hits:
+        return {"cue": None, "ok": False, "why": "no log hit in events.json"}
+    last = max(hits, key=lambda c: c["frame"])
+    mono = audio.mean(axis=1) if audio.ndim == 2 else audio
+    S = samples_per_frame
+
+    def rms_db(a: int, b: int) -> float:
+        seg = mono[max(0, a):max(0, b)]
+        return float(20 * np.log10(np.sqrt(np.mean(seg ** 2)) + 1e-12)) if len(seg) else -240.0
+
+    f0 = int(last["frame"])
+    frames = len(mono) // S
+    hit = max(rms_db((f0 + k) * S, (f0 + k + 1) * S) for k in range(4))
+    at = min(f0 + OUTRO_DECAY_FRAMES, frames - 4)
+    later = rms_db(at * S, (at + 1) * S)
+    end = rms_db(len(mono) - 4800, len(mono))
+    ok = hit - later >= OUTRO_DECAY_DB and hit - end >= OUTRO_END_DB
+    return {"cue": last["id"], "frame": f0, "hit_dbfs": round(hit, 1), "at_frame": at, "at_dbfs": round(later, 1),
+            "decay_db": round(hit - later, 1), "last_100ms_dbfs": round(end, 1), "end_under_db": round(hit - end, 1),
+            "ok": bool(ok)}
+
+
+def audio_verdict(m, decoded_samples: int, expected_samples: int, air: dict, air_master: dict,
+                  tail: dict, tail_master: dict) -> bool:
+    """(d) passes when the MP4's audio is at the target loudness under the
+    ceiling and whole, every AIR beat is near silence on the MP4 AND on the
+    WAV master, and the last hit rings out on both (a pass never rests on
+    the codec, nor on the master alone)."""
+    return (abs(m.integrated_lufs - LUFS_TARGET) <= LUFS_TOLERANCE and m.true_peak_dbtp <= TP_CEILING
+            and decoded_samples == expected_samples and bool(air["ok"]) and bool(air_master["ok"])
+            and bool(tail["ok"]) and bool(tail_master["ok"]))
+
+
 def caption_reading(items, fps: int) -> list[dict]:
     """Characters per second of each caption (every character, spaces too),
     from its first word to its end."""
@@ -331,6 +393,8 @@ def look_frames(doc: dict, frames: int) -> list[int]:
     last frames."""
     out = {0, frames - 1}
     for t in doc["plan"]["transitions"]:
+        if t["kind"] == "continuous":
+            continue                                   # no picture change: its events (the mark easing) are below
         f = int(t["frame"])
         out |= {f - 1, f, f + 1}
         if t.get("frames"):
@@ -342,6 +406,26 @@ def look_frames(doc: dict, frames: int) -> list[int]:
             continue
         out |= {int(f), int(f) + 3}
     return sorted(x for x in out if 0 <= x < frames)
+
+
+def join_problems(trans: list[dict], change: dict[int, float]) -> list[str]:
+    """(b)'s rule (empty: it passes): every hard cut changes the picture
+    (mean |ΔL| from T−1 to T on the MP4 ≥ CUT_MIN_CHANGE) and every
+    `continuous` handoff does not. A frame not measured fails."""
+    out = []
+    for t in trans:
+        if t["kind"] not in ("cut", "continuous"):
+            continue
+        d = change.get(int(t["frame"]))
+        if d is None:
+            out.append(f"f{t['frame']} {t['kind']} → {t['into']}: not measured")
+        elif t["kind"] == "cut" and d < CUT_MIN_CHANGE:
+            out.append(f"f{t['frame']} is called a cut into {t['into']} but the picture changes by {d:.2f} "
+                       f"(< {CUT_MIN_CHANGE:g}): a continuous handoff, not a join")
+        elif t["kind"] == "continuous" and d >= CUT_MIN_CHANGE:
+            out.append(f"f{t['frame']} is called continuous into {t['into']} but the picture changes by {d:.2f}: "
+                       f"a cut")
+    return out
 
 
 def dissolves(timelines: dict) -> list[dict]:
@@ -387,7 +471,8 @@ def event_gaps(event_frames, frames: int) -> list[tuple[int, int, int]]:
 DISC_STEP = 25.0             # a disc's ring changes the ring contrast by this much (levels) on its first frame
 KEY_STEP = 20.0              # a key's box is this much closer (mean |ΔL|, levels) to the picture with the character
 ROW_SHOWS_MP4 = 0.25         # the MP4 may show at most a quarter of the old row's text blocks (as recorded)
-LIFT_INK, TEXT_INK = "deep", "dark"
+STRIKE_CONTRAST = 40.0       # a hook strike on the MP4: the paper beside it at least this much lighter than the stroke
+LIFT_INK, TEXT_INK, COUNTER_INK = "deep", "dark", "faint"
 
 
 def _touch_boxes(records: list[dict], gesture: str) -> dict[int, tuple[float, float, float]]:
@@ -442,15 +527,17 @@ def clear_of_phone(region, area, centre: tuple[float, float]) -> tuple[float, fl
     return (x0, y0, x1, y1)
 
 
-def on_its_ground(sc, region) -> tuple[float, float, float, float]:
-    """A hook caption is measured where it sits: on the scene's scrim (its
-    opaque rectangle and fade) — never on the lit page beside it, whose
-    bright, near-neutral paper fibres pass for white ink (16:9: the page
-    across the frame's right, at the caption's rows). Other scenes keep the
-    region."""
+def on_its_ground(sc, region, frame: float | None = None) -> tuple[float, float, float, float]:
+    """A hook caption is measured where it sits: on the scene's scrim on that
+    frame (its opaque rectangle and fade; the macro's own in the macro) —
+    never on the lit page beside it, whose bright, near-neutral paper fibres
+    pass for white ink (16:9: the page across the frame's right, at the
+    caption's rows). Other scenes keep the region."""
     scrim = getattr(sc, "scrim", None)
     if scrim is None:
         return tuple(region)
+    if frame is not None and hasattr(sc, "scrim_at"):
+        scrim = sc.scrim_at(float(frame))
     (sx0, sy0, sx1, sy1), (fr, fb) = scrim
     x0, y0, x1, y1 = region
     return (max(x0, sx0), max(y0, sy0), min(x1, sx1 + fr), min(y1, sy1 + fb))
@@ -464,7 +551,7 @@ def pixel_plan(film, records: list[dict], events: dict) -> dict:
 
     def area_at(fr: int):
         return phone_area(film.scene_at(fr), fr)
-    plan = {"clicks": [], "keys": [], "ink": [], "rows": []}
+    plan = {"clicks": [], "keys": [], "ink": [], "rows": [], "strikes": []}
     cue_of_touch = {}
     for sc in film.scenes:
         if isinstance(sc, PhoneScene):
@@ -526,7 +613,7 @@ def pixel_plan(film, records: list[dict], events: dict) -> dict:
         centre = ((min(xs) + max(xs)) / 2, (min(ys) + max(ys)) / 2)
         plan["ink"].append({"frame": fr, "kind": "caption", "label": c.id, "ink": ink, "column": c.in_column,
                             "region": on_its_ground(sc, clear_of_phone((0, min(ys) - 1.1 * px, W, max(ys) + 0.35 * px),
-                                                                       area_at(fr), centre))})
+                                                                       area_at(fr), centre), fr)})
         if c.underline:                                  # the stroke drawn whole, alone in its band
             u = c.underline
             fr_u = int(min(u["at"] + u["frames"] + 1, c.until - 1))
@@ -546,14 +633,18 @@ def pixel_plan(film, records: list[dict], events: dict) -> dict:
     for sc in film.scenes:
         cnt = getattr(sc, "counter", None)
         if cnt:
+            # EVERY frame from the label's switch through the roll to the landing and three frames on — the
+            # rolling digits' faded ink too (`faint`): round 3's 16:9 roll drew a fading digit 2 px past the
+            # safe edge on one frame (f539) that the three frames measured before never saw
             lab_px, fig_px = cnt["label_font"].getSize(), cnt["odo"].font.getSize()
-            for fr, what in ((cnt["switch"] + 6, "label « Mois », mid-roll"), (cnt["land"], "landing (punch 1.08)"),
-                             (cnt["land"] + 3, "landed")):
-                fr = int(fr)
+            first = int(min(cnt["switch"], cnt["from"])) - 1
+            for fr in range(first, int(cnt["land"]) + 4):
+                what = ("landing (punch 1.08)" if fr == int(cnt["land"]) else "landed" if fr > cnt["land"]
+                        else "label switch" if fr < cnt["from"] else "mid-roll")
                 rects = boxes_of(fr, "counter")
                 centre = around(rects, 0)[1] if rects else (W / 2, cnt["figure_baseline"])
                 region = (0, cnt["label_baseline"] - 1.3 * lab_px, W, cnt["figure_baseline"] + 0.45 * fig_px)
-                plan["ink"].append({"frame": fr, "kind": "counter", "label": what, "ink": TEXT_INK,
+                plan["ink"].append({"frame": fr, "kind": "counter", "label": f"f{fr} {what}", "ink": COUNTER_INK,
                                     "region": clear_of_phone(region, area_at(fr), centre)})
         if not isinstance(sc, PhoneScene):
             continue
@@ -582,6 +673,11 @@ def pixel_plan(film, records: list[dict], events: dict) -> dict:
                 region, centre = around(boxes_of(fr, "credit"), 16)
                 plan["ink"].append({"frame": fr, "kind": "credit", "label": "map credit", "ink": TEXT_INK,
                                     "region": clear_of_phone(region, area_at(fr), centre)})
+    # (g) the hook's strikes, each on its last frame (drawn whole, its punch settled)
+    for sid, places in (film.plan().get("hook_ink") or {}).items():
+        for p in places:
+            if p.get("line"):
+                plan["strikes"].append({"scene": sid, "what": p["what"], **p["line"]})
     # (h) EVERY frame of a scene with a hidden row — its whip, push and pop included
     plan["hidden"] = {}
     for sid, specs in (film.plan().get("hidden") or {}).items():
@@ -690,11 +786,13 @@ def run_pixels(mp4: Path, film, plan: dict, fmt) -> dict:
     for k in plan["keys"]:
         want |= set(range(k["frame"] - 3, k["frame"] + 4))
     want |= {t["frame"] for t in plan["ink"]} | {r["frame"] for r in plan["rows"]}
+    want |= {s["frame"] for s in plan.get("strikes", [])}
     want = {f for f in want if 0 <= f < film.frames}
     ring: dict[str, dict[int, float]] = {c["cue"]: {} for c in plan["clicks"]}
     change: dict[str, dict[int, float]] = {k["cue"]: {} for k in plan["keys"]}
     ink: list[dict] = []
     rows: list[dict] = []
+    strikes: list[dict] = []
     hidden = {label: HiddenRow(h["take"], label, h["rect_pt"], h["shown_on_s"], h["pictures"],
                                float(fmt.layout["px_per_pt"]))
               for label, h in (plan.get("hidden") or {}).items()}
@@ -718,12 +816,41 @@ def run_pixels(mp4: Path, film, plan: dict, fmt) -> dict:
         for r in plan["rows"]:
             if r["frame"] == f:
                 rows.append({**r, **hidden[r["label"]].measure(L, r, windows[r["scene"]], fmt.width)})
+        for st in plan.get("strikes", []):
+            if st["frame"] == f:
+                c = pixels.line_contrast(L, st["p0"], st["p1"], st["width"])
+                strikes.append({**st, "contrast": None if c is None else round(c, 1)})
         prev = (f, L)
     info = {label: {"blocks": len(h.parts), "identifying": [b0 for (b0, _), keep in zip(h.parts, h.distinct_mask)
                                                               if keep]} for label, h in hidden.items()}
     for h in hidden.values():
         h.close()
-    return {"ring": ring, "change": change, "ink": ink, "rows": rows, "hidden": info}
+    return {"ring": ring, "change": change, "ink": ink, "rows": rows, "hidden": info, "strikes": strikes}
+
+
+def hook_ink_problems(places: dict, strikes: list[dict], fmt) -> list[str]:
+    """(g)'s rule for the hook's animated ink (empty: it passes): every piece
+    inside the canvas, inside the safe area where it is graphics-safe (EBU
+    R95), at most INK_SCRIM_MAX dimmed by the scrim (as planned); and every
+    strike seen on the MP4 (`line_contrast` ≥ STRIKE_CONTRAST; None — off
+    the frame — fails)."""
+    from .scenes.carnet import INK_SCRIM_MAX
+    out = []
+    graphics_safe = fmt.safe_basis == "ebu_r95_graphics"
+    for sid, rows in (places or {}).items():
+        for p in rows:
+            if not p["in_canvas"]:
+                out.append(f"{sid}: {p['what']} runs off the canvas ({p['box']})")
+            elif graphics_safe and not p["in_safe"]:
+                out.append(f"{sid}: {p['what']} leaves the graphics-safe area ({p['box']})")
+            if p["scrim"] > INK_SCRIM_MAX:
+                out.append(f"{sid}: {p['what']} is {p['scrim']:.0%} under the scrim")
+    for st in strikes:
+        if st["contrast"] is None or st["contrast"] < STRIKE_CONTRAST:
+            out.append(f"{st['scene']}: {st['what']} on f{st['frame']} reads "
+                       f"{'nothing (off the frame)' if st['contrast'] is None else st['contrast']} on the MP4 "
+                       f"(≥ {STRIKE_CONTRAST:g})")
+    return out
 
 
 def visual_frames(plan: dict, measured: dict) -> dict[str, dict]:
@@ -813,9 +940,15 @@ def verify_film(sb, cut: str, fmt_id: str, d: Path) -> Result:
             f"(≥ {BEAT_PSNR_DB} dB: same frames, same order)", missing=missing, psnr_db=psnrs, sheet="beats.png")
 
     # (b) transitions from the MP4 --------------------------------------------------------------
-    trans = doc["plan"]["transitions"]
-    want = sorted({x for t in trans for x in (t["frame"] - 1, t["frame"], t["frame"] + 1) if 0 <= x < frames})
+    every = doc["plan"]["transitions"]
+    trans = [t for t in every if t["kind"] != "continuous"]                # the joins
+    handoffs = [t for t in every if t["kind"] == "continuous"]
+    want = sorted({x for t in every for x in (t["frame"] - 1, t["frame"], t["frame"] + 1) if 0 <= x < frames})
     pulled_t = sheets.pull_frames(mp4, want)
+    change = {int(t["frame"]): round(float(np.mean(np.abs(pixels.luminance(pulled_t[t["frame"]])
+                                                          - pixels.luminance(pulled_t[t["frame"] - 1])))), 3)
+              for t in every if t["frame"] in pulled_t and t["frame"] - 1 in pulled_t}
+    joins_bad = join_problems(every, change)
     ttiles = []
     for t in trans:
         for x in (t["frame"] - 1, t["frame"], t["frame"] + 1):
@@ -828,10 +961,22 @@ def verify_film(sb, cut: str, fmt_id: str, d: Path) -> Result:
     frames_dir = vdir / "frames"
     looks = look_frames(doc, frames)
     sheets.save_frames(mp4, looks, frames_dir)
+    kinds = {}
+    for t in trans:
+        k = t["kind"].split(" (")[0] + ("s" if not t["kind"].startswith("dissolve") else "")
+        kinds.setdefault(k, []).append(f"f{t['frame']}")
     res.add("b", "transitions from reel.mp4", len(ttiles) == sum(1 for t in trans for x in (-1, 0, 1)
-                                                                 if 0 <= t["frame"] + x < frames),
-            f"{len(trans)} transitions, {len(ttiles)} frames pulled; full-size frames in verify/frames/",
-            transitions=trans, sheet="transitions.png", frames=[f"f{f:04d}.png" for f in looks])
+                                                                 if 0 <= t["frame"] + x < frames) and not joins_bad,
+            f"{len(trans)} joins (" + "; ".join(f"{k} {' '.join(v)}" for k, v in kinds.items())
+            + f"), {len(ttiles)} frames pulled; each cut changes the picture (mean |ΔL| "
+            + ", ".join(f"f{t['frame']} {change.get(int(t['frame']), float('nan')):.1f}" for t in trans
+                        if t["kind"] == "cut") + f"; ≥ {CUT_MIN_CHANGE:g})"
+            + ("; " + ", ".join(f"f{t['frame']} → {t['into']} a continuous handoff, not a join (Δ "
+                                f"{change.get(int(t['frame']), float('nan')):.2f})" for t in handoffs) if handoffs else "")
+            + (" — " + "; ".join(joins_bad) if joins_bad else "")
+            + "; full-size frames in verify/frames/",
+            transitions=trans, handoffs=handoffs, change=change, join_problems=joins_bad, sheet="transitions.png",
+            frames=[f"f{f:04d}.png" for f in looks])
 
     # (c) touches against the gesture logs --------------------------------------------------------
     rendered = [touchmod.RenderedTouch(t["take"], r["f"], t["src_s"], t["gesture"])
@@ -877,16 +1022,24 @@ def verify_film(sb, cut: str, fmt_id: str, d: Path) -> Result:
     air_master = air_levels(master, events, tbase.samples_per_frame)
     meter["air"] = air
     meter["air_master_wav"] = air_master
+    tail = outro_tail(audio, events, tbase.samples_per_frame)
+    tail_master = outro_tail(master, events, tbase.samples_per_frame)
+    meter["outro_tail"] = tail
+    meter["outro_tail_master_wav"] = tail_master
     (vdir / "meter.json").write_text(json.dumps(meter, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
     analysis.spectrogram_png(audio.astype(np.float32), vdir / "spectrogram.png", events=events, meter_report=meter,
                              title=f"reel.mp4 audio (AAC decoded) — {cut}, {frames} frames, bar ticks")
-    ok_d = abs(m.integrated_lufs - LUFS_TARGET) <= LUFS_TOLERANCE and m.true_peak_dbtp <= TP_CEILING \
-        and len(audio) == frames * tbase.samples_per_frame and air["ok"] and air_master["ok"]
+    ok_d = audio_verdict(m, len(audio), frames * tbase.samples_per_frame, air, air_master, tail, tail_master)
 
     def air_text(a: dict) -> str:
         return ", ".join(f"{r['cue']} f{r['frames'][0]}–{r['frames'][1] - 1} {r['lufs']} LUFS ({r['under_groove_lu']} LU "
                          f"under{'' if r['ok'] else ' — TOO LOUD'})" for r in a["air"])
-    res.add("d", "BS.1770-4 on the MP4's audio, and the AIR beats", ok_d,
+    def tail_text(t: dict) -> str:
+        if t.get("cue") is None:
+            return t.get("why", "no last hit")
+        return (f"{t['cue']} f{t['frame']} {t['hit_dbfs']} dBFS → f{t['at_frame']} {t['decay_db']} dB down, last 100 ms "
+                f"{t['end_under_db']} dB under{'' if t['ok'] else ' — CHOPPED, NOT RUNG OUT'}")
+    res.add("d", "BS.1770-4 on the MP4's audio, the AIR beats, the last hit's tail", ok_d,
             f"integrated {m.integrated_lufs:.2f} LUFS (target {LUFS_TARGET} ± {LUFS_TOLERANCE}), true peak "
             f"{m.true_peak_dbtp:.2f} dBTP (≤ {TP_CEILING}), LRA {m.lra_lu:.1f} LU; ffmpeg ebur128: "
             f"I {eb and eb['integrated_lufs']} LUFS, peak {eb and eb['true_peak_dbfs']} dBTP; decoded "
@@ -894,8 +1047,11 @@ def verify_film(sb, cut: str, fmt_id: str, d: Path) -> Result:
             f"{meter['master_wav']['integrated_lufs']:.2f} LUFS / {meter['master_wav']['true_peak_dbtp']:.2f} dBTP; "
             f"AIR (near silence, ≥ {AIR_UNDER_LU:g} LU under the groove = {'+'.join(air['groove_sections'])}) on the "
             f"WAV master (groove {air_master['groove_lufs']} LUFS): {air_text(air_master)}; on the MP4 (groove "
-            f"{air['groove_lufs']} LUFS): {air_text(air)}",
-            loudness=m.as_dict(), ffmpeg=eb, air=air, air_master=air_master, spectrogram="spectrogram.png")
+            f"{air['groove_lufs']} LUFS): {air_text(air)}; the last hit rings out (≥ {OUTRO_DECAY_DB:g} dB down "
+            f"{OUTRO_DECAY_FRAMES} frames on, the last 100 ms ≥ {OUTRO_END_DB:g} dB under): master {tail_text(tail_master)}; "
+            f"MP4 {tail_text(tail)}",
+            loudness=m.as_dict(), ffmpeg=eb, air=air, air_master=air_master, outro_tail=tail,
+            outro_tail_master=tail_master, spectrogram="spectrogram.png")
 
     # (f) A/V sync on the written file: the sound's onset in the MP4's audio against the frame its disc or
     #     character first appears in the MP4's PIXELS ------------------------------------------------------
@@ -944,11 +1100,25 @@ def verify_film(sb, cut: str, fmt_id: str, d: Path) -> Result:
         if not ok:
             ink_bad.append(row)
     counted, bad = outside_safe(records, fmt)
-    res.add("g", "safe zones: ink on MP4 frames, and every recorded box", not bad and not ink_bad and bool(ink_rows),
-            f"ink measured on {len(ink_rows)} MP4 frames (each caption whole, the counter landing, every lift, the "
-            f"credit): {len(ink_bad)} outside {' ∪ '.join(str(x) for x in fmt.text_area)}; and {counted} recorded "
-            f"boxes on {len(records)} frames, {len(bad)} outside", ink=ink_rows, outside=bad[:40],
-            ink_outside=ink_bad)
+    hook_places = film.plan().get("hook_ink") or {}
+    hook_bad = hook_ink_problems(hook_places, measured["strikes"], fmt)
+    n_hook = sum(len(v) for v in hook_places.values())
+    n_safe = sum(p["in_safe"] for v in hook_places.values() for p in v)
+    hook_text = (f"; the hook's animated ink: {n_hook} pieces, {n_safe}/{n_hook} inside the safe area"
+                 + (" (graphics-safe: required)" if fmt.safe_basis == "ebu_r95_graphics" else
+                    " (the platform's TEXT rectangle; the approved page lies at y ≈ 700–1700: reported)")
+                 + "; strikes on the MP4 " + ", ".join(f"{s['what'].replace('strike ', '')} "
+                                                     f"{'—' if s['contrast'] is None else s['contrast']}"
+                                                     for s in measured["strikes"])
+                 + f" (≥ {STRIKE_CONTRAST:g})") if n_hook else ""
+    if hook_bad:
+        hook_text += " — " + "; ".join(hook_bad)
+    res.add("g", "safe zones: ink on MP4 frames, and every recorded box",
+            not bad and not ink_bad and bool(ink_rows) and not hook_bad,
+            f"ink measured on {len(ink_rows)} MP4 frames (each caption whole, the counter on every frame from its "
+            f"label's switch to landing + 3, every lift, the credit): {len(ink_bad)} outside {' ∪ '.join(str(x) for x in fmt.text_area)}; and {counted} recorded "
+            f"boxes on {len(records)} frames, {len(bad)} outside" + hook_text, ink=ink_rows, outside=bad[:40],
+            ink_outside=ink_bad, hook_ink=hook_places, strikes=measured["strikes"], hook_problems=hook_bad)
 
     # (h) honesty ----------------------------------------------------------------------------------------
     gen = doc["generated"]

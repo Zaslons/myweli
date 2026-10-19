@@ -26,6 +26,13 @@ on: ink on paper, white on black — « Ils réservent dès la mise en ligne. »
 turns white as the page falls to black (row 22). Every line is measured with
 the repo's fonts and must fit the format's ``caption_line_max_px`` (771).
 
+``recentre: N`` (frames): while a centred line waits for its words it sits
+centred on those it shows, and glides over N frames to make room for each
+next word, which then rises in on its own frame in its place
+(fx.type.Caption.line_dx) — the « Créneau libre » … « rempli. » line, whose
+last word comes 2.7 s after the first in the 15-s cut. A left-aligned line
+(16:9) is already flush with its column: nothing moves there.
+
 ``underline: {text, at, frames}`` draws the brand's single round-cap stroke
 (the hook's strikes, fx.type.draw_strike, at the font's stem width) under
 ``text`` — part of one of the caption's words — from frame ``at``, growing
@@ -142,9 +149,13 @@ class CaptionItem:
             block = ty.cap_height(self.font) + lh * (len(lines) - 1)
             cap_top = float(centre_y) - block / 2
         try:
+            recentre = spec.get("recentre")
+            if recentre is not None and (isinstance(recentre, bool) or not isinstance(recentre, (int, float))
+                                         or recentre <= 0):
+                raise ValueError(f"recentre: the glide's frames (a number > 0), not {recentre!r}")
             self.caption = ty.Caption(lines, self.font, PALETTE.INK, centre_x=centre_x,
                                       cap_top=float(cap_top), line_height=line_height, max_width=max_w,
-                                      reveal=reveal, align=align)
+                                      reveal=reveal, align=align, recentre=float(recentre) if recentre else None)
             if align == "left":
                 # set from the column's left edge: a first glyph that overhangs its origin moves the lines in
                 # by that much, so the ink starts ON the edge, never past it
@@ -234,7 +245,7 @@ class CaptionItem:
             q = self.reveal.progress(t, p.word.at)
             if q <= 0:
                 continue
-            x0, y0, x1, y1 = ty.ink_bounds(p.word.text, self.font, p.x, p.baseline)
+            x0, y0, x1, y1 = ty.ink_bounds(p.word.text, self.font, self.caption.x_at(p, t), p.baseline)
             rise = 0.0 if self.reveal.kind == "mask" else self.caption.word_state(p, t)[1]
             out.append({"kind": "caption", "label": f"{self.id}:{p.word.text}", "column": self.in_column,
                         "rect": [round(x0, 1), round(y0 + rise, 1), round(x1, 1), round(y1 + rise, 1)]})

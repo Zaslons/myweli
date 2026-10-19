@@ -20,7 +20,14 @@ fades in over 4 frames on the app's entering curves (rise on easeOutCubic,
 fade on easeOut). Its cue frame `at` is its FIRST VISIBLE frame — the reveal
 runs over the continuous interval [at − 1, at + 3], so the frame the beat
 lands on already moves (the hook « moves from f0 »). A word's position is
-its place in the finished line: nothing reflows as later words arrive.
+its place in the finished line: nothing reflows as later words arrive —
+unless the caption asks `recentre` (frames): then a centred line still
+waiting for words sits centred on the words it shows and, before each new
+word, glides over those frames (easeOutCubic) to make room for it — the
+word rises in on its own frame, in its place — for a line that waits long
+for its last word (« Créneau libre » … « rempli. », 2.67 s in the 15-s
+cut: 136 px off centre while every other line is centred; review round 3).
+The finished line is exactly where it would be.
 
 STRIKE. The mark's recipe — one weight, round cap — drawn left to right. Its
 visible length starts at 4× its width on the cue frame (a dot would read as
@@ -308,6 +315,7 @@ class Caption:
     reveal: Reveal = RISE
     align: str = "centre"
     typography: bool = True
+    recentre: float | None = None          # frames: partial centred lines sit centred, gliding as words arrive
     placed: list[PlacedWord] = field(init=False, default_factory=list)
 
     def __post_init__(self):
@@ -330,6 +338,30 @@ class Caption:
             for w, wd in zip(line, widths):
                 self.placed.append(PlacedWord(w, x, b0 + i * lh, wd, i))
                 x += wd + space
+
+    def line_dx(self, line: int, t: float) -> float:
+        """How far line `line` sits right of its finished place at frame t: 0
+        unless the caption `recentre`s a centred line still waiting for
+        words — then it is centred on the words it shows (advance widths)
+        and, before each next word, glides over `recentre` frames to the
+        centre with that word, MAKING ROOM: the glide ends on the frame the
+        word starts to rise in, so the word lands in its place, never beside
+        a line still moving (nor past the column's edge)."""
+        if not self.recentre or self.align != "centre":
+            return 0.0
+        ws = [p for p in self.placed if p.line == line]
+        full = ws[-1].x + ws[-1].width - ws[0].x
+        dx = [(full - (q.x + q.width - ws[0].x)) / 2 for q in ws]       # centred on the first k words
+        out = dx[0]
+        for i in range(1, len(ws)):
+            arrive = ws[i].word.at - self.reveal.lead
+            out += (dx[i] - dx[i - 1]) * easing.EASE_OUT_CUBIC(easing.progress(t, arrive - self.recentre,
+                                                                               self.recentre))
+        return out
+
+    def x_at(self, p: PlacedWord, t: float) -> float:
+        """A placed word's left edge at frame t (its place, or a partial line's)."""
+        return p.x + self.line_dx(p.line, t)
 
     def line_widths(self) -> list[float]:
         out = []
@@ -360,12 +392,13 @@ class Caption:
             q = self.reveal.progress(t, p.word.at)
             if q <= 0:
                 continue
+            x = self.x_at(p, t)
             if self.reveal.kind == "mask":
-                draw_mask_reveal(canvas, p.word.text, self.font, p.x, p.baseline + dy, self.colour,
+                draw_mask_reveal(canvas, p.word.text, self.font, x, p.baseline + dy, self.colour,
                                  self.reveal.rise_curve(q), alpha=alpha, feather_em=self.reveal.feather_em)
             else:
                 a, rise = self.word_state(p, t)
-                draw_text(canvas, p.word.text, self.font, p.x, p.baseline + dy + rise, self.colour, a * alpha)
+                draw_text(canvas, p.word.text, self.font, x, p.baseline + dy + rise, self.colour, a * alpha)
 
 
 def draw_mask_reveal(canvas: skia.Canvas, text: str, font: skia.Font, x: float, baseline: float,
@@ -438,7 +471,7 @@ def strike_word(canvas: skia.Canvas, caption: Caption, text: str, t: float, at: 
         return
     font = caption.font
     w = width if width is not None else stem_width(font)
-    x0, _, x1, _ = ink_bounds(p.word.text, font, p.x, p.baseline)
+    x0, _, x1, _ = ink_bounds(p.word.text, font, caption.x_at(p, t), p.baseline)
     over = overshoot_em * font.getSize()
     y = p.baseline - x_height(font) / 2
     draw_strike(canvas, (x0 - over, y), (x1 + over, y), w, easing.progress(t, at, frames), colour, alpha)

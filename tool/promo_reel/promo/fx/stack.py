@@ -15,7 +15,11 @@ between — the Fiche's « 0 Absences », never lifted — goes under it with th
 neighbour that lifted) and never over it: the waiting tile stays on the
 phone, veiled, with its texture, until it lifts itself (review round 2: a
 panel put up whole on the first lift blanked the other tiles' places and
-they popped out of nothing).
+they popped out of nothing). An edge that reaches OUT to a waiting tile's
+place grows there with the pop of the lift that brought it (its 6 frames,
+easeOutCubic), so what lies between is covered as the card grows over it,
+never blanked on one frame (review round 3: « 0 Absences » blinked out on
+f480).
 """
 
 from __future__ import annotations
@@ -95,14 +99,23 @@ class Stack:
         left = [o[2] for o in waiting if o[2] <= core[0]]
         below = [o[1] for o in waiting if o[0] < core[2] and o[2] > core[0] and o[1] >= core[3]]
         above = [o[3] for o in waiting if o[0] < core[2] and o[2] > core[0] and o[3] <= core[1]]
+        # an edge pulled back to a waiting tile's place applies at once (never over it); an edge that must
+        # REACH OUT to it — over what lies between, never lifted (the Fiche's « 0 Absences ») — grows with the
+        # pop of the tile whose lift brought the panel next to it, so that place is covered as the card
+        # grows over it, never blanked in one frame (review round 3: f479 → f480, 381 → 718 px)
+        q = ps[max(up, key=lambda i: self.ups[i])]
+
+        def reach(edge: float, place: float, outward: float) -> float:
+            return place if (place - edge) * outward <= 0 or q >= 1.0 else edge + (place - edge) * q
+
         if right:
-            edges[2] = min(right)                        # up to the next tile waiting on the right
+            edges[2] = reach(edges[2], min(right), 1.0)  # up to the next tile waiting on the right
         if left:
-            edges[0] = max(left)
+            edges[0] = reach(edges[0], max(left), -1.0)
         if below:
-            edges[3] = min(below)
+            edges[3] = reach(edges[3], min(below), 1.0)
         if above:
-            edges[1] = max(above)
+            edges[1] = reach(edges[1], max(above), -1.0)
         return tuple(edges)
 
     def draw(self, canvas: skia.Canvas, t: float, *, veil_rect: Rect | None = None,
