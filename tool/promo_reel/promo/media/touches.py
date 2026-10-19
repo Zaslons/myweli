@@ -49,7 +49,7 @@ from typing import Iterable, Sequence
 
 from . import tools
 from .takes import Take, TakeError, take_files
-from ..timebase import DEFAULT as TIMEBASE, TimeBase
+from ..timebase import DEFAULT as TIMEBASE
 
 APP_STORE_STORYBOARD = tools.APP_STORE_PREVIEW / "storyboard.json"
 MOTION_DART = tools.REPO / "mobile/lib/core/theme/motion.dart"
@@ -290,7 +290,7 @@ def _distance(box, at, px_per_pt) -> float | None:
     return app_store_edit()._box_distance_pt(box, at[0], at[1], px_per_pt)
 
 
-def report(downs: Sequence[TouchDown], timebase: TimeBase = TIMEBASE) -> str:
+def report(downs: Sequence[TouchDown]) -> str:
     """A table of touch-downs, one per line."""
     lines = [f"{'take':7} {'gesture':22} {'kind':5} {'down s':>9} {'1st chg s':>9}  how"]
     for d in downs:
