@@ -317,6 +317,27 @@ test('the « Semaine » tab is axe-clean (web-pro-week-view)', async ({ page }) 
   await expectNoViolations(page, '/pro/rendez-vous?vue=semaine');
 });
 
+test('the OPEN « Jours bloqués » dialog is axe-clean — calendar and confirmation', async ({
+  page,
+}) => {
+  // web-pro-availability-ranges.md §6: forty-odd toggle buttons, a live
+  // summary, and a second step inside the same dialog.
+  await page.goto('/pro/connexion');
+  await submitOtpLogin(page, 'salon@example.com');
+  await expect(page).toHaveURL(/\/pro(\/)?$/);
+  await page.goto('/pro/disponibilites');
+  await page.getByRole('button', { name: 'Gérer les dates bloquées' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Jours bloqués' });
+  await expect(dialog).toBeVisible();
+  await expectNoViolations(page, '/pro/disponibilites + Jours bloqués (calendar)');
+  // A day that is always selectable: the last cell of the month shown — or,
+  // on the month's last day, today itself.
+  await dialog.locator('button[aria-pressed]:not([disabled])').last().click();
+  await dialog.getByRole('button', { name: 'Enregistrer' }).click();
+  await expect(dialog.getByText(/Bloquer cette date \?/)).toBeVisible();
+  await expectNoViolations(page, '/pro/disponibilites + Jours bloqués (confirmation)');
+});
+
 test('a VISIBLE toast is axe-clean', async ({ page }) => {
   await page.goto('/pro/connexion');
   await submitOtpLogin(page, 'salon@example.com');
