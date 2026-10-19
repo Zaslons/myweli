@@ -1,0 +1,167 @@
+# MyWeli Pro promo « CARNET → DROP » — the one source of the reel.
+#
+# Approved storyboard (2026-10-19): every number below is taken from it —
+# « GRID AND NOTATION », « LAYOUT 9:16 », « 1:1 and 16:9 » and « Safe zones ».
+# The schema is checked by promo/storyboard.py (README « storyboard.yaml »):
+# meta, cuts and formats strictly; music (AUDIO) and scenes (SCENES) are
+# passed through, except that every cue a scene names must be in music.cues.
+# Pixels are [x0, y0, x1, y1] on the format's canvas; positions are
+# bar.beat.step from the cut's start (promo/timebase.py).
+
+meta:
+  title: "MyWeli Pro — « CARNET → DROP »"
+  fps: 30                 # beat = 16 frames, 16th = 4, bar = 64 (2.1333 s)
+  bpm: 112.5
+  key: C minor            # Cm9 / F9 / A♭maj9 / G7♭9
+  sample_rate: 48000      # 1 frame = 1 600 samples
+
+cuts:
+  30s:
+    bars: 14
+    frames: 896           # 29.867 s — under the historical 30-s Status cap; no 4-frame tail
+    description: the full story — hook, drop 1, booking, Fiche, drop 2 (Revenus), public page, reveal, end card
+  15s:
+    bars: 7
+    frames: 448           # 14.933 s — its own score (re-scored, never spliced) and its own events.json
+    description: one-bar hook, the swipe and tap, a booking made, Revenus, reveal, end card
+
+# Every format's short side is 1080, so type, the phone scale (1.791 px/pt),
+# the touch disc, the lifts and the Lottie keep the same pixel sizes
+# everywhere: each format is re-laid out, never cropped or resized.
+x-type-px: &type_px       # (YAML anchor only — the key below each format is what is read)
+  hook: 96                # Poppins Medium, white
+  app: 72                 # Poppins Medium #1A1A1A, ≤ 2 lines, every line measured
+  counter: 120            # Poppins Medium figure
+  counter_label: 40       # Inter Medium #4A4A4A
+  tagline: 46             # end card, ONE line
+  credit: 24              # « © OpenStreetMap, © CARTO », Inter #6E6E6E
+
+formats:
+  9x16:
+    size: [1080, 1920]
+    safe: [120, 270, 900, 1248]
+    safe_basis: platform
+    safe_note: >-
+      Strict combined text rectangle, the worst case of TikTok, Reels and
+      WhatsApp Status (780×978). Lifts, the counter and touch ripples stay at
+      y ≤ 1248 and x ≤ 900 whenever below y 840.
+    rail_free: [120, 270, 960, 840]   # above y 840 the right button rail has not started: captions may run to x 960
+    zones:
+      caption_band: [0, 0, 1080, 560]     # opaque stage behind the captions
+      caption_fade: [0, 560, 1080, 600]
+      captions: [150, 300, 930, 540]      # centred on x 540, ≤ 780 px wide (x 150–930)
+      hook_block: [150, 300, 930, 700]    # the hook's 96-px block and strike stack
+      phone_window: [180, 600, 900, 1192] # every demonstrated UI element lives here
+      overlays: [120, 270, 900, 1248]     # lifts, the counter, touch ripples
+      floor_fade: [0, 1192, 1080, 1216]
+      floor: [0, 1216, 1080, 1920]        # calm stage colour + pattern under the platform chrome
+    layout:
+      caption_band: true
+      caption_column_x: [150, 930]
+      caption_centre_x: 540
+      caption_centre_y: null              # words sit from the band's top (y 300–540)
+      caption_line_max_px: 771
+      caption_lines_max: 2
+      phone_screen_x: [180, 900]          # capture cropped from screen pt 56, 720 px wide
+      px_per_pt: 1.791
+      screen_crop_top_pt: 56
+      phone_bezel_px: 16                  # generic slab: no notch, no buttons
+      phone_radius_px: 96
+      type_px: *type_px
+      lottie_centre: [540, 680]           # wordmark ink ≈ x 180–896, y 619–754
+      lottie_comp_width_px: 900           # 0.833 × the short side
+      end_mark_scale: 1.2
+      end_mark_ink_y: [400, 599]
+      end_tagline_cap_top_y: 712          # one line, 762 px (x 159–921), above y 840
+      lift_x: [120, 900]                  # lifted cards 780 px wide
+      lift_veil: 0.55                     # the phone recedes under a 55 % paper veil
+      tilt_axis: x                        # 2.5D tilts are rotX
+      tilt_max_deg: null
+      scene_whip_axis: null               # whips follow the storyboard row (vertical in-phone, horizontal onto Revenus)
+
+  1x1:
+    size: [1080, 1080]
+    safe: [54, 54, 1026, 1026]
+    safe_basis: ebu_r95_graphics
+    safe_note: EBU R95 graphics-safe, 5 % inset.
+    rail_free: null
+    zones:
+      caption_band: [0, 0, 1080, 300]
+      caption_fade: [0, 300, 1080, 330]
+      captions: [54, 80, 1026, 280]       # at most two 72-px lines; counter label + 120-px figure fit in 230 px
+      hook_block: [54, 54, 1026, 300]     # captions and the strike stack in the band
+      phone_window: [180, 330, 900, 1002] # ≈ 375 pt visible
+      overlays: [54, 54, 1026, 1026]      # lifts may grow past the phone edges
+      floor_fade: [0, 1002, 1080, 1026]
+      floor: [0, 1026, 1080, 1080]
+    layout:
+      caption_band: true
+      caption_column_x: [54, 1026]
+      caption_centre_x: 540
+      caption_centre_y: null
+      caption_line_max_px: 771
+      caption_lines_max: 2
+      phone_screen_x: [180, 900]
+      px_per_pt: 1.791
+      screen_crop_top_pt: 56
+      phone_bezel_px: 16
+      phone_radius_px: 96
+      type_px: *type_px
+      lottie_centre: [540, 520]
+      lottie_comp_width_px: 900
+      end_mark_scale: 1.2
+      end_mark_ink_y: [250, 449]
+      end_tagline_cap_top_y: 560
+      lift_x: [54, 1026]
+      lift_veil: 0.55                     # no side room: the phone still recedes under the veil
+      tilt_axis: x
+      tilt_max_deg: null
+      scene_whip_axis: null
+
+  16x9:
+    size: [1920, 1080]
+    safe: [96, 54, 1824, 1026]
+    safe_basis: ebu_r95_graphics
+    safe_note: EBU R95 graphics-safe, 5 % inset. No caption band.
+    rail_free: null
+    zones:
+      captions: [96, 54, 1056, 1026]      # left column, the block centred on y 440; same two-line breaks at 72 px
+      hook_block: [96, 54, 1056, 1026]    # captions and strike stack top-left
+      phone_window: [1104, 54, 1824, 1002] # right third, ≈ 530 pt visible
+      top_fade: [1104, 54, 1824, 84]      # 30-px top fade of the window
+      overlays: [300, 54, 1060, 1026]     # lifts pop out to the LEFT of the phone, no veil
+      slot_card: [96, 560, 620, 1026]     # optional SLOT « FAUTEUIL » card, radius 48, bars 11–12
+      floor_fade: [0, 1002, 1920, 1026]
+      floor: [0, 1026, 1920, 1080]
+    layout:
+      caption_band: false
+      caption_column_x: [96, 1056]
+      caption_centre_x: null
+      caption_centre_y: 440
+      caption_line_max_px: 771
+      caption_lines_max: 2
+      phone_screen_x: [1104, 1824]
+      px_per_pt: 1.791
+      screen_crop_top_pt: 56
+      phone_bezel_px: 16
+      phone_radius_px: 96
+      type_px: *type_px
+      lottie_centre: [960, 500]
+      lottie_comp_width_px: 900
+      end_mark_scale: 1.2
+      end_mark_ink_y: [230, 429]
+      end_tagline_cap_top_y: 540          # tagline centred
+      lift_x: [300, 1060]
+      lift_veil: 0.0
+      tilt_axis: y                        # 2.5D tilts become yaw moves
+      tilt_max_deg: 10
+      scene_whip_axis: horizontal         # the bar-5 in-phone whip stays vertical inside the window
+
+# AUDIO fills this: sections, chord per bar, patterns, and the cues SCENES
+# addresses visual events by (ids like `drop1.impact`).
+music:
+  cues: []
+
+# SCENES fills this: one row per storyboard beat (id, start/end, source,
+# camera, effects, captions, sound cues).
+scenes: []
