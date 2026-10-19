@@ -12,6 +12,8 @@ import { TextField } from '../TextField';
 import { LocalityPicker } from './LocalityPicker';
 import { GoogleSignInButton } from '../auth/GoogleSignInButton';
 import { LegalConsentText } from '../LegalConsentText';
+import { AppleSignInButton } from '../auth/AppleSignInButton';
+import { appleIdentity } from '../../lib/auth/apple';
 
 const BUSINESS_TYPES = [
   { value: 'salon', label: 'Salon de beauté' },
@@ -28,6 +30,7 @@ const BUSINESS_TYPES = [
 export function ProRegisterClient() {
   const router = useRouter();
   const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+  const appleClientId = process.env.NEXT_PUBLIC_APPLE_CLIENT_ID;
 
   // Business fields (validated before ANY identity path fires).
   const [businessName, setBusinessName] = useState('');
@@ -79,6 +82,9 @@ export function ProRegisterClient() {
 
   async function submit(identity: {
     idToken?: string;
+    identityToken?: string;
+    nonce?: string;
+    fullName?: string;
     email?: string;
     code?: string;
   }) {
@@ -231,6 +237,22 @@ export function ProRegisterClient() {
             onCredential={async (credential) => {
               if (!fieldsOrError()) return;
               await submit({ idToken: credential });
+            }}
+          />
+        </div>
+      ) : null}
+      {appleClientId ? (
+        <div className="mt-s">
+          {/* The app's word (« S’inscrire avec Apple »); the salon's fields
+              are checked BEFORE Apple opens, as with Google. */}
+          <AppleSignInButton
+            label="S’inscrire avec Apple"
+            disabled={busy}
+            onClick={async () => {
+              if (busy || !fieldsOrError()) return;
+              const id = await appleIdentity(appleClientId);
+              if (!id) return; // closed popup: silent
+              await submit(id);
             }}
           />
         </div>

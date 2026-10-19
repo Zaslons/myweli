@@ -90,6 +90,10 @@ export default defineConfig({
         // id is enough; the suite never lets a request reach Google (it is
         // intercepted), so the value only has to be non-empty.
         NEXT_PUBLIC_GOOGLE_CLIENT_ID: 'e2e-dummy.apps.googleusercontent.com',
+        // The Apple buttons (client + Pro, web-pro-apple.md) render only when
+        // this is set — without it, no e2e page ever drew them. Nothing here
+        // clicks them: Apple's script loads on the first tap only.
+        NEXT_PUBLIC_APPLE_CLIENT_ID: 'com.myweli.e2e',
         // Same reasoning as the line above, one control further on: the
         // « Aide & Support » row and the pro « Nous contacter » CTA now render
         // NOTHING when no number is configured, rather than linking to

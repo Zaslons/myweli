@@ -23,9 +23,12 @@ import { SOCIAL_BUTTON_HEIGHT, SOCIAL_BUTTON_WIDTH } from './socialButton';
 export function AppleSignInButton({
   onClick,
   disabled,
+  label = 'Continuer avec Apple',
 }: {
   onClick: () => void;
   disabled?: boolean;
+  /// « S’inscrire avec Apple » on the salon's sign-up (the app's word).
+  label?: string;
 }) {
   return (
     <button
@@ -39,7 +42,7 @@ export function AppleSignInButton({
         style={{ height: SOCIAL_BUTTON_HEIGHT, width: SOCIAL_BUTTON_WIDTH }}
       >
         <AppleMark />
-        Continuer avec Apple
+        {label}
       </span>
     </button>
   );

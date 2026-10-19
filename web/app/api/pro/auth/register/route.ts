@@ -8,7 +8,8 @@ import { proLoginViaBackend } from '../../../../../lib/auth-bff';
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
   const { businessName, businessType, phoneNumber } = body;
-  const hasIdentity = body.idToken || (body.email && body.code);
+  // Google, Apple (web-pro-apple.md) or an e-mail code.
+  const hasIdentity = body.idToken || body.identityToken || (body.email && body.code);
   if (!businessName || !businessType || !phoneNumber || !hasIdentity) {
     return NextResponse.json({ error: 'invalid_input' }, { status: 400 });
   }
