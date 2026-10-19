@@ -17,6 +17,7 @@ stand-ins so each primitive can be judged in context.
 from __future__ import annotations
 
 import argparse
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -33,8 +34,22 @@ from .projection import Pose
 from .surface import SAMPLING_CUBIC, Picture, image_from_array, new_surface, save_png, skrect, to_array
 
 W, H = 1080, 1920
-RAW = ROOT / "build/app-store/pro/raw"
-MAIN_RAW = Path("/Users/sadreddinedaher/beauty app/build/app-store/pro/raw")
+RAW = "build/app-store/pro/raw"           # gitignored: lives in the main checkout
+
+
+def raw_dir() -> Path:
+    """The App Store raw captures: this checkout's build/ when it has them,
+    else the main checkout's (a git worktree shares the repository, not the
+    gitignored build/)."""
+    here = ROOT / RAW
+    if (here / "pro-01-agenda.png").is_file():
+        return here
+    try:
+        common = subprocess.run(["git", "-C", str(ROOT), "rev-parse", "--path-format=absolute", "--git-common-dir"],
+                                check=True, capture_output=True, text=True).stdout.strip()
+        return Path(common).parent / RAW
+    except (OSError, subprocess.CalledProcessError):
+        return here
 WINDOW = Window()
 
 
@@ -353,7 +368,7 @@ def main(argv=None) -> int:
     ap.add_argument("--client", type=Path, default=None, help="client capture (pro-05-client.png)")
     ap.add_argument("--only", default=None, help="render one sheet: type, phone, carnet, fx")
     a = ap.parse_args(argv)
-    raw = RAW if (RAW / "pro-01-agenda.png").is_file() else MAIN_RAW
+    raw = raw_dir()
     shot = a.shot or raw / "pro-01-agenda.png"
     client = a.client or raw / "pro-05-client.png"
     for p in (shot, client):
