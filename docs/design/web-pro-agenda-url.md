@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Validé le 2026-10-19** par le propriétaire : **Q1 = `vue` / `jour` / `filtre`, valeurs en français telles qu'écrites (§3)** ; **Q2 = « Rendez-vous » dans le menu ouvre la Journée d'aujourd'hui** (§9) |
+| **Statut** | **Construit le 2026-10-19** sur `fix/web-pro-agenda-in-url` — validé par le propriétaire le même jour : **Q1 = `vue` / `jour` / `filtre`, valeurs en français telles qu'écrites (§3)** ; **Q2 = « Rendez-vous » dans le menu ouvre la Journée d'aujourd'hui** (§9). Un défaut trouvé par l'e2e pendant la construction et corrigé (§5.1) ; ce qui a été vu : §10 |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-19 |
 | **PRD ref / phase** | La parité web ↔ app Pro (le web suit le parcours de l'app, écran par écran) · V1 — tableau de bord Pro web |
@@ -64,8 +64,8 @@ on retrouve la journée telle qu'on l'a laissée. Le provider ne remet le jour
   jour avant de quitter la page. Aucun aller-retour serveur : l'adresse change
   sans recharger (l'API d'historique du navigateur, que Next 14.2 suit).
 - **Une adresse fausse ne casse rien** : `jour=2026-02-30`, `jour=demain`,
-  `vue=semaine`, `filtre=x` → la valeur par défaut, en silence ; l'adresse est
-  réécrite propre au premier changement.
+  `vue=semaine`, `filtre=x`, `vue=toString` → la valeur par défaut, en
+  silence ; l'adresse est réécrite propre dès le chargement.
 
 ### 2.2 Aller à une fiche et revenir
 
@@ -134,6 +134,24 @@ aucun effet SEO.
   l'adresse et les rend à « ← Rendez-vous ».
 - Aucun changement serveur, aucun contrat.
 
+### 5.1 Trouvé par l'e2e : un lien vers la même page
+
+`window.history.replaceState` suffit pour Précédent, le rechargement et
+« ← Rendez-vous ». Mais **« Rendez-vous » dans le menu, cliqué depuis
+`?jour=…`, ne remonte pas la page** : Next change l'adresse et garde le
+composant. L'adresse devenait nue pendant que la grille gardait le jour daté —
+les deux se contredisaient (vu dans le navigateur, puis reproduit dans jsdom).
+
+Correctif : la page écoute l'adresse telle que le routeur la connaît
+(`useSearchParams` — Next suit `replaceState` depuis 14.1). Une adresse que la
+page n'a **pas** écrite est une navigation : elle l'affiche. Celles qu'elle a
+écrites reviennent aussi, comme des **échos**, et sont seulement acquittées —
+**dans l'ordre** : la synchronisation de Next est une transition, et deux ›
+rapides peuvent revenir en retard ; un écho pris pour une navigation remettrait
+la grille un jour en arrière sous le doigt du salon. Le même mécanisme couvre
+tout lien futur vers une vue de l'agenda (`?vue=liste&filtre=en-attente`
+depuis l'Accueil, par exemple).
+
 ## 6. Sécurité
 
 L'adresse ne porte que des valeurs d'affichage, validées contre des listes
@@ -172,3 +190,27 @@ written, Q2 = the « Rendez-vous » menu link opens today's Journée. »
   français sans accents (recommandé) ?
 - **Q2** — « Rendez-vous » dans le menu ouvre **la Journée d'aujourd'hui**
   (recommandé), ou le dernier jour vu comme l'app ?
+
+## 10. Ce qui a été vu
+
+- **Rouge d'abord** : 27 tests rouges sur le code d'avant (l'adresse ignorée,
+  rien d'écrit, des liens sans paramètres, « ← Rendez-vous » toujours nu) ;
+  3 verts exprès — ce qui ne doit pas changer.
+- **Mutations, chacune vue rouge puis annulée** : `pushState` au lieu de
+  `replaceState` ; « aujourd'hui » écrit dans l'adresse ; le lien de retour qui
+  recopie l'adresse sans la valider ; les écritures de la page prises pour des
+  navigations ; seul le dernier écho reconnu ; l'écoute de l'adresse coupée.
+  Et `vue=toString` (un objet littéral répond à `toString`) : vu rouge avant
+  de passer aux `Map`.
+- **Un rouge qui a demandé deux essais** : le premier test des « deux ›
+  rapides » passait même sans la gestion des échos — dans jsdom le routeur ne
+  prend jamais de retard. Le test fait maintenant attendre le routeur, et
+  vérifie après **chaque** écho (une correction par l'écho suivant reste un
+  jour qui a sauté).
+- **e2e** (`pro.spec`, dans un vrai navigateur) : le rechargement garde le
+  jour, Précédent depuis une fiche ramène au jour **remplacé**, « ← Rendez-vous »
+  aussi (y compris depuis « Rendez-vous introuvable. »), la Liste garde
+  « Tous » ; le lien du menu ouvre aujourd'hui — **rouge avant le §5.1, vert
+  après**. Les 6 fichiers e2e de l'agenda : 121 verts.
+- **Pas vu** : un lien interne vers une vue de l'agenda (il n'en existe pas
+  encore) ; le comportement sur Safari (l'e2e tourne sur Chromium).
