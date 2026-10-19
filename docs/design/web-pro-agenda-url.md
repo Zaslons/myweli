@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Brouillon — en attente de la validation du propriétaire** (UX, et les mots de l'adresse, §3 et §9) |
+| **Statut** | **Validé le 2026-10-19** par le propriétaire : **Q1 = `vue` / `jour` / `filtre`, valeurs en français telles qu'écrites (§3)** ; **Q2 = « Rendez-vous » dans le menu ouvre la Journée d'aujourd'hui** (§9) |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-19 |
 | **PRD ref / phase** | La parité web ↔ app Pro (le web suit le parcours de l'app, écran par écran) · V1 — tableau de bord Pro web |
@@ -162,7 +162,11 @@ l'adresse remplace la remise à « aujourd'hui » qui existe déjà.
   Précédent → **le même jour** ; Liste → « Tous » → une ligne → « ← Rendez-vous »
   → **Liste, « Tous »** ; un rechargement garde le jour.
 
-## 9. Questions au propriétaire
+## 9. Questions au propriétaire — tranchées le 2026-10-19
+
+Réponse : « Approved: Q1 = vue / jour / filtre with the French values as
+written, Q2 = the « Rendez-vous » menu link opens today's Journée. »
+
 
 - **Q1** — les mots de l'adresse (§3) : `vue` / `jour` / `filtre`, valeurs en
   français sans accents (recommandé) ?
