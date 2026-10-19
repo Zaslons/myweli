@@ -167,8 +167,12 @@ function host() {
   );
 }
 
-/// The two doors — the sidebar entry and the phone bar's bell.
-const doors = (name: string) => screen.findAllByRole('link', { name });
+/// The two doors — the sidebar entry and the phone bar's bell. Waits for
+/// BOTH: the bell renders before the sidebar's membership has loaded.
+async function doors(name: string) {
+  await waitFor(() => expect(screen.getAllByRole('link', { name })).toHaveLength(2));
+  return screen.getAllByRole('link', { name });
+}
 
 describe('the doors carry the count (§3.1)', () => {
   it('the nav entry AND the phone bell say how many are unread', async () => {

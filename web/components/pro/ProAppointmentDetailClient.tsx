@@ -41,9 +41,31 @@ import {
 import { Button } from "../Button";
 import { Loading } from "../Loading";
 import { conflictMessage } from "../../lib/booking/window";
+import { useOptionalProMembership } from "./ProMembershipContext";
 
-export function ProAppointmentDetailClient({ id }: { id: string }) {
+/// The switches this page already made, by `id:salon` — so a server that does
+/// not take one cannot send the page round in circles (each switch remounts
+/// it). Cleared once the page loads under that salon.
+const switchedFor = new Set<string>();
+
+/// The sentence « Mes salons » says when a switch is refused.
+const SWITCH_REFUSED =
+  "Changement impossible — votre accès à ce salon a peut-être été retiré.";
+
+/// [salon] — `?salon=` from a notification about ANOTHER of the account's
+/// salons (R6): the page switches to it before loading, the app's flow
+/// (`ProAppointmentDetailScreen(salonId:)`;
+/// docs/design/web-pro-notifications.md §3.4).
+export function ProAppointmentDetailClient({
+  id,
+  salon,
+}: {
+  id: string;
+  salon?: string;
+}) {
   const router = useRouter();
+  const switchSalon = useOptionalProMembership()?.switchSalon;
+  const [switchError, setSwitchError] = useState<LoadFailure | false>(false);
   const [profile, setProfile] = useState<ProProfile | null>(null);
   const [appt, setAppt] = useState<ProAppointment | null>(null);
   const [loading, setLoading] = useState(true);
@@ -56,6 +78,7 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
 
   const load = useCallback(async () => {
     setLoadError(false);
+    setSwitchError(false);
     setNotFound(false);
     setLoading(true);
     const me = await getMyProvider();
@@ -72,6 +95,27 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
       setLoadError(loadFailure(me.status));
       setLoading(false);
       return;
+    }
+    // Another salon's booking: switch first. A successful switch re-keys the
+    // dashboard, so this page remounts and loads again under that salon.
+    if (salon && switchSalon) {
+      const key = `${id}:${salon}`;
+      if (me.profile.provider.id !== salon) {
+        // Already switched once and still elsewhere: the server did not take
+        // it — say so rather than switch again.
+        let outcome: "switched" | LoadFailure = "failed";
+        if (!switchedFor.has(key)) {
+          switchedFor.add(key);
+          outcome = await switchSalon(salon);
+        }
+        if (outcome !== "switched") {
+          switchedFor.delete(key);
+          setSwitchError(outcome);
+          setLoading(false);
+        }
+        return;
+      }
+      switchedFor.delete(key);
     }
     setProfile(me.profile);
     const r = await getProAppointment(id);
@@ -90,7 +134,7 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
     }
     setAppt(r.appt);
     setLoading(false);
-  }, [id, router]);
+  }, [id, router, salon, switchSalon]);
 
   useEffect(() => {
     load();
@@ -156,6 +200,15 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
   }
 
   if (loading) return <Loading className="mt-l" />;
+  if (switchError) {
+    return (
+      <ErrorState
+        title="Rendez-vous"
+        message={loadFailureMessage(switchError, SWITCH_REFUSED)}
+        onRetry={load}
+      />
+    );
+  }
   if (loadError || !profile) {
     return (
       <ErrorState

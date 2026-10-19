@@ -195,6 +195,8 @@ test('pro routes are axe-clean', async ({ page }) => {
   for (const [url, anchor] of [
     ['/pro', /Aujourd’hui/],
     ['/pro/rendez-vous', 'Rendez-vous'],
+    // The salon's notification center (web-pro-notifications.md §6).
+    ['/pro/notifications', 'Notifications'],
     ['/pro/equipe', 'Équipe'],
     ['/pro/clients', 'Clients'],
     // The client CARD (docs/design/amounts-that-fit.md §8.5) — the page behind

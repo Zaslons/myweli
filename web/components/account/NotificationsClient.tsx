@@ -5,7 +5,7 @@ import { EmptyState } from '../EmptyState';
 import { ErrorState } from '../ErrorState';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ICON_PATHS, Icon, type IconName } from '../Icon';
+import { Icon, notificationIcon } from '../Icon';
 import {
   type AppNotification,
   type NotificationPrefs,
@@ -47,14 +47,6 @@ const PREF_ROWS: {
     subtitle: 'Notifications push sur vos appareils mobiles.',
   },
 ];
-
-/// Per-type glyph — the registry names match the API types; the generic
-/// fallback is the bell (the pre-B6 private TYPE_PATHS, now in <Icon>).
-function typeIcon(type: string): IconName {
-  return type in ICON_PATHS && type !== 'bell'
-    ? (type as IconName)
-    : 'bell';
-}
 
 export function NotificationsClient() {
   const router = useRouter();
@@ -210,7 +202,7 @@ export function NotificationsClient() {
                 className="flex w-full items-start gap-m rounded-xl border border-border bg-secondary p-m text-left hover:bg-surfaceVariant"
               >
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-surface text-textPrimary">
-                  <Icon name={typeIcon(n.type)} size="iconS" />
+                  <Icon name={notificationIcon(n.type)} size="iconS" />
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center gap-s">

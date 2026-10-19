@@ -24,6 +24,7 @@ import type { ReviewSummary } from '../pro/reviews';
 import type { ProAppointment } from '../pro/today';
 import type { EarningsData } from '../pro/earnings';
 import { wholeClientBase } from '../pro/export';
+import type { AppNotification } from '../account/notifications';
 
 export type DashboardStats = {
   todayAppointments?: number;
@@ -193,6 +194,37 @@ export async function selectSalon(salonId: string | null): Promise<{
     status: res.status,
     profile: salonId === null ? undefined : await readJson<ProProfile>(res),
   };
+}
+
+/// The salon member's notification feed (docs/design/web-pro-notifications.md):
+/// the consumer wrappers' shapes, on the pro session. Status 0 = no answer.
+export async function getProNotifications(): Promise<{
+  status: number;
+  items: AppNotification[];
+}> {
+  const res = await send('/api/pro/notifications');
+  if (!res.ok) return { status: res.status, items: [] };
+  const body = await readJson<{ items?: AppNotification[] }>(res);
+  return body ? { status: 200, items: body.items ?? [] } : { status: 0, items: [] };
+}
+
+/// Both carry their status: the caller puts the row back to unread and tells
+/// « no network » from a refusal (web-consumer-optimistic-revert.md §3.3).
+export async function markProNotificationRead(
+  id: string,
+): Promise<{ ok: boolean; status: number }> {
+  const res = await send(`/api/pro/notifications/${encodeURIComponent(id)}/read`, {
+    method: 'POST',
+  });
+  return { ok: res.ok, status: res.status };
+}
+
+export async function markAllProNotificationsRead(): Promise<{
+  ok: boolean;
+  status: number;
+}> {
+  const res = await send('/api/pro/notifications/read-all', { method: 'POST' });
+  return { ok: res.ok, status: res.status };
 }
 
 export async function listProAppointments(): Promise<{
