@@ -172,4 +172,15 @@ describe('agendaParams — what the booking page hands back to « ← Rendez-vou
     );
     expect(agendaParams('?vue=semaine&filtre=x')).toBe('');
   });
+
+  it('a name every object has is not a word of the address', () => {
+    // `'toString' in {}` is true: a lookup table read with `in` or `[]` would
+    // take these for valid values.
+    expect(agendaParams('?vue=toString&filtre=constructor')).toBe('');
+    expect(readAgenda('?vue=toString&filtre=__proto__', TODAY)).toEqual(DEFAULTS);
+    expect(readAgenda('?vue=liste&filtre=hasOwnProperty', TODAY)).toEqual({
+      ...DEFAULTS,
+      view: 'list',
+    });
+  });
 });

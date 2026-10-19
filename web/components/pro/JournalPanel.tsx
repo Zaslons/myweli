@@ -41,6 +41,7 @@ export function JournalPanel({
   onToast,
   tz,
   currency,
+  bookingQuery = "",
 }: {
   providerId: string;
   appt: ProAppointment;
@@ -56,6 +57,9 @@ export function JournalPanel({
   /// money render in the SALON's market, never the viewer's.
   tz?: string;
   currency?: string;
+  /// The agenda's address, so the booking's « ← Rendez-vous » comes back to
+  /// this day (docs/design/web-pro-agenda-url.md §2.2).
+  bookingQuery?: string;
 }) {
   const [card, setCard] = useState<SalonClientCard | null>(null);
   const [busy, setBusy] = useState(false);
@@ -221,7 +225,7 @@ export function JournalPanel({
         ) : null}
 
         <Link
-          href={`/pro/rendez-vous/${appt.id}`}
+          href={`/pro/rendez-vous/${appt.id}${bookingQuery}`}
           className="inline-flex min-h-12 items-center text-bodyMedium text-textTertiary underline"
         >
           Voir le rendez-vous

@@ -140,7 +140,7 @@ describe('the agenda reads its address', () => {
       'aria-pressed',
       'true',
     );
-    expect(screen.getByText('Aminata')).toBeInTheDocument();
+    expect(screen.getByText(/Aminata/)).toBeInTheDocument();
   });
 
   it('?vue=calendrier&jour= opens the Calendrier on that day', async () => {
@@ -214,7 +214,7 @@ describe('the way to a booking carries the agenda, so the way back can return to
     mockFetch();
     openAt('/pro/rendez-vous?vue=liste&filtre=tous');
     render(<RendezVousClient />);
-    await screen.findByText('Aminata');
+    await screen.findByText(/Aminata/);
     expect(document.querySelector('a[href^="/pro/rendez-vous/a1"]')).toHaveAttribute(
       'href',
       '/pro/rendez-vous/a1?vue=liste&filtre=tous',

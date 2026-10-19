@@ -42,6 +42,7 @@ import { Button } from "../Button";
 import { Loading } from "../Loading";
 import { conflictMessage } from "../../lib/booking/window";
 import { useOptionalProMembership } from "./ProMembershipContext";
+import { agendaParams } from "../../lib/pro/agenda-url";
 import { NoShowAction } from "./NoShowAction";
 import { ProDepositProof } from "./ProDepositProof";
 
@@ -75,6 +76,14 @@ export function ProAppointmentDetailClient({
   const [loadError, setLoadError] = useState<LoadFailure | false>(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // « ← Rendez-vous » returns to the agenda the salon came from — its view
+  // and day ride on this page's address (docs/design/web-pro-agenda-url.md
+  // §2.2), validated, never copied. Read after mount: the server render has
+  // no address, and a link that differed between the two would not hydrate.
+  const [backQuery, setBackQuery] = useState("");
+  useEffect(() => {
+    setBackQuery(agendaParams(window.location.search));
+  }, []);
 
   const load = useCallback(async () => {
     setLoadError(false);
@@ -227,7 +236,7 @@ export function ProAppointmentDetailClient({
           Rendez-vous introuvable.
         </p>
         <p className="mt-m">
-          <Link href="/pro/rendez-vous" className="text-bodyMedium underline">
+          <Link href={`/pro/rendez-vous${backQuery}`} className="text-bodyMedium underline">
             ← Rendez-vous
           </Link>
         </p>
@@ -259,7 +268,7 @@ export function ProAppointmentDetailClient({
   return (
     <div>
       <Link
-        href="/pro/rendez-vous"
+        href={`/pro/rendez-vous${backQuery}`}
         className="text-bodyMedium text-textTertiary"
       >
         ← Rendez-vous
