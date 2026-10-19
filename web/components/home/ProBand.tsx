@@ -14,8 +14,9 @@ export function ProBand() {
           Vous êtes un salon ?
         </h2>
         <p className="mt-xs text-bodyLarge text-textSecondary">
-          Recevez vos réservations en ligne, 24 h/24, et gérez agenda, équipe et clientèle au même
-          endroit.
+          {/* A no-break space: « 24 h/24 » must not split across lines. */}
+          Recevez vos réservations en ligne, 24&nbsp;h/24, et gérez agenda, équipe et clientèle au
+          même endroit.
         </p>
       </div>
       <ButtonLink href="/professionnels" variant="secondary" className="shrink-0">

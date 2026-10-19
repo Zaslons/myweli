@@ -9,7 +9,8 @@ export type Faq = { question: string; answer: string };
 export const PRO_LANDING = {
   title: 'Le logiciel de réservation des salons de beauté en Côte d’Ivoire',
   subtitle:
-    'Recevez des réservations en ligne 24 h/24, et gérez agenda, équipe, clientèle et acomptes au même endroit.',
+    // « 24\u00a0h/24 »: a no-break space — the figure and its unit never split.
+    'Recevez des réservations en ligne 24\u00a0h/24, et gérez agenda, équipe, clientèle et acomptes au même endroit.',
   signUp: 'Inscrire mon salon',
   signIn: 'J’ai déjà un compte',
   trial: '3 mois offerts — sans carte bancaire.',
