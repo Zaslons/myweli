@@ -105,7 +105,7 @@ describe('publishChecklist', () => {
       '/pro/catalogue',
       '/pro/medias',
       '/pro/disponibilites',
-      '/pro/abonnement',
+      // No '/pro/abonnement': the offer step left the checklist (§12).
     ]);
   });
 });

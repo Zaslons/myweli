@@ -77,8 +77,10 @@ export const TRIAL_KEPT_LINE =
   'Le changement d’offre conserve votre période d’essai.';
 
 export const SETUP_HEADLINE = `Choisissez votre offre — ${TRIAL_MONTHS} mois offerts`;
+/// Since 2026-10-19 (web-pro-access.md §12): no offer is needed to publish —
+/// the trial starts at go-live, as in the app.
 export const SETUP_SUBLINE =
-  'Votre salon reste gratuit pendant la configuration, mais une offre est nécessaire pour le publier.';
+  'Votre essai de 3 mois démarre à la mise en ligne de votre salon. Vous pouvez choisir ou changer d’offre à tout moment.';
 
 /// The billing-state banner (tokens only: grace = warning, expired = error).
 export function offerBanner(offer: SalonOffer): {

@@ -18,7 +18,8 @@ export const PRO_LANDING = {
   benefits: [
     {
       title: 'Votre agenda, tenu tout seul',
-      body: 'Les clients réservent sur vos créneaux réels ; vous ajoutez les rendez-vous pris au téléphone ou au comptoir. Vue journée, semaine, et par membre d’équipe.',
+      // Not « semaine » — the web has no week view (parity audit 2026-10-19 §2).
+      body: 'Les clients réservent sur vos créneaux réels ; vous ajoutez les rendez-vous pris au téléphone ou au comptoir. Vue du jour par membre d’équipe, calendrier du mois et liste.',
     },
     {
       title: 'Votre vitrine sur myweli.com',
@@ -61,7 +62,10 @@ export const PRO_LANDING = {
     },
     {
       question: 'Faut-il installer une application ?',
-      answer: 'Non : tout se gère depuis myweli.com, sur ordinateur comme sur téléphone.',
+      // Not « tout » — alerts with the tab closed and split hours need the app
+      // (parity audit 2026-10-19 §2).
+      answer:
+        'Non : réservations, agenda, clientèle, équipe et acomptes se gèrent depuis myweli.com, sur ordinateur comme sur téléphone.',
     },
     {
       question: 'Puis-je gérer plusieurs salons ?',

@@ -220,8 +220,14 @@ and the demo-reset upsert (§3.3).
   checklist simply has no offer step. Mocks mirror the server: the mock
   publish starts the trial when no offer exists, the mock team service keeps
   `offer_required` / `seat_limit`.
-- Web: unchanged — **documented divergence** from "web mirrors app flow": the
-  web is where offers are chosen and keeps forcing the choice before go-live.
+- Web: ~~unchanged — **documented divergence** from "web mirrors app flow": the
+  web is where offers are chosen and keeps forcing the choice before go-live.~~
+  **Reversed on 2026-10-19 (owner decision,
+  [web-pro-access.md](web-pro-access.md) §12):** forcing the choice started
+  the trial at the CHOICE, so on the web the 3 free months ran during setup
+  while the app and the server start them at go-live. The web's go-live
+  checklist has no offer step any more; the offer is still chosen — and
+  switched — on the web, at any time.
 
 ## 6. Security & authz
 - The auto-start runs only inside `publish`, which is owner-only

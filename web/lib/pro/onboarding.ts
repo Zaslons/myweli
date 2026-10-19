@@ -3,11 +3,18 @@
 /// server stays the authority, this only drives the checklist UI. Thresholds
 /// = the app's onboarding (PRD FR-PRO-ONB-001): profile · ≥3 services ·
 /// ≥3 photos · ≥1 open weekday.
+///
+/// **No offer step** (since 2026-10-19, owner decision —
+/// docs/design/web-pro-access.md §12). It used to hold « Mettre en ligne »
+/// until an offer was chosen, and the first choice starts the trial — so on
+/// the web the 3 free months ran during setup, while the app and the server
+/// (the companion path) start them at the first publish. The server needs no
+/// offer to publish a salon that has none; the web now says the same.
 
 import type { ProProfile } from '../api/pro';
 
 export type ChecklistItem = {
-  key: 'profile' | 'location' | 'services' | 'photos' | 'availability' | 'offer';
+  key: 'profile' | 'location' | 'services' | 'photos' | 'availability';
   label: string;
   href: string;
   done: boolean;
@@ -15,7 +22,6 @@ export type ChecklistItem = {
 
 export function publishChecklist(
   provider: ProProfile['provider'],
-  opts?: { offerLive?: boolean },
 ): ChecklistItem[] {
   const profileDone = Boolean(
     provider.description?.trim() &&
@@ -60,14 +66,6 @@ export function publishChecklist(
       label: 'Horaires d’ouverture',
       href: '/pro/disponibilites',
       done: open,
-    },
-    // Pricing pivot (team access R5a): publishing requires a live offer —
-    // the server gate's `offer` missing-key, mirrored.
-    {
-      key: 'offer',
-      label: 'Choisissez votre offre',
-      href: '/pro/abonnement',
-      done: Boolean(opts?.offerLive),
     },
   ];
 }

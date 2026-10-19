@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Constat** — rien n'est corrigé ici ; chaque écart est une tranche à part (§6) |
+| **Statut** | **Constat** — chaque écart est une tranche à part (§6). **§2, lignes 1–3 corrigées le 2026-10-19** dans #642 ([web-pro-access.md](web-pro-access.md) §12) : pas de « semaine », l'essai démarre à la mise en ligne sur le web aussi, la FAQ ne dit plus « tout » |
 | **Périmètre** | Toutes les routes de l'app Pro (`mobile/lib/core/router/pro_router.dart`, `mobile/lib/screens/provider/**`) face au web Pro (`web/app/pro/**`, `web/components/pro/**`, `web/lib/pro/**`, le BFF). **Exclus** : les sept écrans V2 de `screens/provider/features/**` (`FeatureFlags.futureProviderFeatures = false`) |
 | **Base** | `feat/web-pro-access` (#642), donc avec le centre de notifications (#641) et l'accès public (#642) |
 | **Méthode** | Lecture du code des deux côtés, chaque écart cité `fichier:ligne` ; puis **re-vérification à la main** des écarts qui touchent une promesse publique ou un bug (marqués ✔︎) |

@@ -222,3 +222,32 @@ prendre le slug — risque faible, vérifié au §6.
 salon en production n'ait déjà le slug `professionnels` (requête à faire
 avant le déploiement du serveur — §6).
 
+## 12. Corrigé après l'audit de parité (2026-10-19)
+
+[L'audit web Pro ↔ app Pro](parity-audit-web-pro-2026-10.md) §2 a trouvé
+deux promesses de cette page que le **web** ne tenait pas — re-vérifiées dans
+le code, puis corrigées avec l'accord du propriétaire :
+
+1. **« Vue journée, semaine, et par membre d’équipe »** — le web n'a pas de
+   vue semaine. Devient « Vue du jour par membre d’équipe, calendrier du mois
+   et liste. »
+2. **« Mettez votre salon en ligne — vos 3 mois offerts commencent »** — sur
+   le web, « Mettre en ligne » restait désactivé tant qu'aucune offre n'était
+   choisie, et le premier choix démarre l'essai : l'horloge tournait pendant
+   la configuration. Le serveur, lui, publie sans offre et démarre l'essai à
+   la mise en ligne (la voie compagnon). **Décision : aligner le web sur
+   l'app** — la liste de mise en ligne n'a plus d'étape « Choisissez votre
+   offre » ; la phrase de configuration de `/pro/abonnement` devient « Votre
+   essai de 3 mois démarre à la mise en ligne de votre salon. Vous pouvez
+   choisir ou changer d’offre à tout moment. » ; la page reste telle quelle,
+   désormais vraie. [pro-companion-path.md](pro-companion-path.md) §5
+   enregistre le renversement de la « divergence documentée ».
+3. FAQ **« Faut-il installer une application ? »** — « tout se gère » était
+   trop large (alertes onglet fermé, horaires en plusieurs plages). Devient
+   « Non : réservations, agenda, clientèle, équipe et acomptes se gèrent
+   depuis myweli.com, sur ordinateur comme sur téléphone. »
+
+Le bouchon e2e suivait l'ancienne règle (publication refusée sans offre) : il
+suit maintenant celle du serveur (pas de ligne → l'essai démarre ; une ligne
+qui n'est plus vivante → 409 `offer`). Tests vus rouges d'abord (`6dd932a3`).
+

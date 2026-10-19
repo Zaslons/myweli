@@ -1679,16 +1679,21 @@ createServer(async (req, res) => {
       totalAppointments: 1,
     });
   }
-  // go-live (pro-salon-lifecycle.md B2) — flips the draft to active. Team
-  // access R5a: publishing requires a LIVE offer (else 409 missing:['offer']).
+  // go-live (pro-salon-lifecycle.md B2) — flips the draft to active. The
+  // server's rule since the companion path (salon_provisioning_service.dart):
+  // NO offer row → the trial starts here; a row that is no longer live → 409
+  // missing:['offer'] (web-pro-access.md §12 aligned the web to it).
   const pubM = url.pathname.match(/^\/providers\/([^/]+)\/publish$/);
   if (pubM) {
     const pubOffer = salonOffers.get(pubM[1]);
-    const offerLive =
-      pubOffer && (pubOffer.status === 'trial' || pubOffer.status === 'paid');
-    if (!offerLive) {
+    if (
+      pubOffer &&
+      !(pubOffer.status === 'trial' || pubOffer.status === 'paid' || pubOffer.status === 'grace')
+    ) {
       return json(res, 409, { error: 'not_ready', missing: ['offer'] });
     }
+    // No row yet: the trial starts at this publish, on the default tier.
+    if (!pubOffer) salonOffers.set(pubM[1], liveOffer());
     const target = ownedSalons.get(pubM[1]) ?? proProvider;
     target.status = 'active';
     return json(res, 200, target);

@@ -9,28 +9,25 @@ import { canPublish, publishChecklist } from '../../lib/pro/onboarding';
 import { Button } from '../Button';
 
 /// The draft banner + go-live checklist (docs/design/pro-salon-lifecycle.md
-/// B2): shown on the pro home while the salon is a DRAFT. Mirrors the app's
-/// onboarding checklist except for the `offer` step: the web is where an
-/// offer is chosen, so it keeps that step, while the apps never show it and
-/// the server starts the trial at their first publish
-/// (docs/design/pro-companion-path.md §5). « Mettre en ligne » calls the
-/// server-authoritative publish gate.
+/// B2): shown on the pro home while the salon is a DRAFT. « Mettre en ligne »
+/// calls the server-authoritative publish gate. **No offer step** — the web
+/// kept one until 2026-10-19 and it started the trial at the choice; now, as
+/// in the app, the server starts it at the first publish
+/// (docs/design/web-pro-access.md §12, pro-companion-path.md §5). The
+/// `needsOffer` branch below remains for the one case the server still
+/// refuses: a salon whose offer EXISTS and is no longer live.
 export function GoLiveCard({
   profile,
-  offerLive = false,
   onPublished,
 }: {
   profile: ProProfile;
-  /// Team access R5a: the salon has a live offer (else the `offer` step is
-  /// unchecked and publish 409s with `missing:['offer']`).
-  offerLive?: boolean;
   onPublished: () => void;
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [needsOffer, setNeedsOffer] = useState(false);
 
-  const items = publishChecklist(profile.provider, { offerLive });
+  const items = publishChecklist(profile.provider);
   const ready = canPublish(items);
 
   async function publish() {
