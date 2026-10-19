@@ -22,6 +22,7 @@ import { TextField } from '../TextField';
 import { loadScript } from '../../lib/loadScript';
 import { AppleSignInButton } from './AppleSignInButton';
 import { GoogleSignInButton } from './GoogleSignInButton';
+import { LegalConsentText } from '../LegalConsentText';
 
 /// Consumer sign-in — Google + Apple + email OTP (auth overhaul P2, replaces
 /// phone-OTP). Google/Apple render only when their public client IDs are
@@ -316,9 +317,8 @@ export function LoginOptions({ onSuccess }: { onSuccess: () => void }) {
         Continuer avec e-mail
       </Button>
       {error ? <p role="alert" className="text-bodyMedium text-error">{error}</p> : null}
-      <p className="text-bodySmall text-textTertiary">
-        En continuant, vous acceptez nos conditions d’utilisation.
-      </p>
+      {/* §5 (web-pro-access.md): both documents, linked — the app's sentence. */}
+      <LegalConsentText lead="En continuant" />
     </div>
   );
 }

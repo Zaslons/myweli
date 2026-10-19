@@ -154,21 +154,25 @@ void main() {
         expect(
           reservedPublicSlugs,
           contains(route),
-          reason: 'web/app/$route is a top-level page: add it to '
+          reason:
+              'web/app/$route is a top-level page: add it to '
               'reservedPublicSlugs (slug.dart)',
         );
       }
     });
 
-    test('a salon named « Professionnels » never takes the salons page', () async {
-      final repo = InMemoryProvidersRepository([]);
-      final s = await repo.createSalon(
-        name: 'Professionnels',
-        category: 'salon',
-        phoneNumber: '+2250700000009',
-      );
-      expect(s['slug'], 'professionnels-2');
-    });
+    test(
+      'a salon named « Professionnels » never takes the salons page',
+      () async {
+        final repo = InMemoryProvidersRepository([]);
+        final s = await repo.createSalon(
+          name: 'Professionnels',
+          category: 'salon',
+          phoneNumber: '+2250700000009',
+        );
+        expect(s['slug'], 'professionnels-2');
+      },
+    );
 
     test('a salon named after a taxonomy root gets uniquified', () async {
       final repo = InMemoryProvidersRepository([]);

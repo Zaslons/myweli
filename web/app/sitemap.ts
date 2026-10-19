@@ -50,6 +50,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // Support is not a legal document, so it is not in LEGAL_ROUTES — but it is
     // a public page both store listings point at, and a page missing from the
     // sitemap is a page nobody finds.
+    // The salons' page (web-pro-access.md §4) — a page to be found.
+    {
+      url: `${siteUrl}/professionnels`,
+      lastModified,
+      changeFrequency: 'monthly' as const,
+      priority: 0.6,
+    },
     {
       url: `${siteUrl}${SUPPORT.path}`,
       lastModified,

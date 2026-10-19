@@ -149,6 +149,10 @@ const PUBLIC_ROUTES: [url: string, anchor: string | RegExp][] = [
   ['/beaute-divine/reserver', /Réserver chez/],
   ['/connexion', /Connexion|Se connecter|e-mail/i],
   ['/pro/connexion', 'Espace Pro'],
+  // web-pro-access.md: the salons' page, and the Pro sign-up with its new
+  // header and consent line.
+  ['/professionnels', /logiciel de réservation des salons/],
+  ['/pro/inscription', /Créer|compte/i],
   // The review's finds: an AREA taxonomy landing (its h1→h3 skip survived
   // the first matrix) — landing.spec's own stub route.
   ['/coiffure/abidjan/cocody', 'Coiffure à Cocody'],

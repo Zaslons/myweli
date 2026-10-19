@@ -76,6 +76,11 @@ const PUBLIC_ROUTES: [name: string, url: string, anchor: string | RegExp][] = [
   // guard this file's own header demands — a wrong URL scans the 404 page,
   // which also does not overflow.
   ['the account-deletion page — the one a reviewer opens on a phone', '/suppression-compte', /Supprimer votre compte/i],
+  // web-pro-access.md §4: the salons' page — the longest h1 on the public
+  // site, two buttons side by side, six benefit cards.
+  ['the salons page — MyWeli Pro pour les salons', '/professionnels', /logiciel de réservation des salons/],
+  // web-pro-access.md P4 — the Pro sign-up now has a header, and the consent.
+  ['the pro sign-up — header + consent', '/pro/inscription', /Créer|compte/i],
   // B11: **this row runs before every authed row for a reason.** `signInPro`
   // drives this exact UI, so if the pro login breaks at 320 the authed half
   // fails at sign-in and every failure is misattributed to the page under test.
