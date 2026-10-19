@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 
 import { signInConsumer, signInPro } from './_auth';
 import { asUnaskedBrowser } from './_push';
+import { serveStubImages } from './_pixel';
 
 /// B2b — the type scale must not overflow anything (WEB-SYSTEM §3).
 ///
@@ -578,6 +579,27 @@ const AUTHED_ROUTES: Route[] = [
     url: '/pro/disponibilites',
     anchor: 'Disponibilités',
     auth: 'pro',
+  },
+  {
+    // docs/design/web-pro-journal-panel-deposit.md — the « Journée » panel
+    // opened on pj2 (pending, 5 000 FCFA deposit, screenshot): the acompte
+    // line, the guidance sentence, the 144px thumbnail, « Voir le
+    // rendez-vous », Accepter/Refuser. At 375 and 320 the panel IS the screen
+    // (`w-full max-w-sm`), so this is where a long French sentence or a wide
+    // screenshot would push it sideways.
+    name: 'the journal panel — the deposit, its screenshot, the link',
+    url: '/pro/rendez-vous',
+    anchor: 'Rendez-vous',
+    auth: 'pro',
+    setup: async (page) => {
+      await serveStubImages(page);
+      await page.getByRole('button', { name: /Aminata/ }).click();
+      // Vacuity guard: measured with the screenshot LOADED, not its skeleton
+      // or its failure sentence.
+      await expect(
+        page.getByRole('button', { name: 'Agrandir le justificatif d’acompte' }),
+      ).toBeVisible();
+    },
   },
   {
     // **Strip #1** — « Journée » · « Calendrier » · « Liste ». Pre-B9 this page

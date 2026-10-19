@@ -4,6 +4,7 @@ import { type Page, devices, expect, test } from '@playwright/test';
 
 import { signInPro } from './_auth';
 import { asGrantedBrowser, asUnaskedBrowser } from './_push';
+import { serveStubImages } from './_pixel';
 
 
 test('unauthenticated /pro redirects to /pro/connexion', async ({ page }) => {
@@ -447,6 +448,66 @@ test('journal grid: Journée is the default view; blocks + panel + arrive', asyn
     .click({ timeout: 10_000 });
   // No throw = the arrive round-trip succeeded (grid refetched).
   await expect(page.getByText('Awa').first()).toBeVisible();
+});
+
+test('journal panel: the deposit, its screenshot, « Voir le rendez-vous » (web-pro-journal-panel-deposit)', async ({
+  page,
+}) => {
+  // The P1 of the 2026-10-19 audit: the panel offered « Accepter » on a
+  // deposit-required request without the amount or the screenshot. pj2 is the
+  // stub's pending request with a 5 000 FCFA deposit and a screenshot.
+  await serveStubImages(page);
+  await signInPro(page);
+  await page.goto('/pro/rendez-vous');
+  await page.getByRole('button', { name: /Aminata/ }).click();
+
+  const panel = page.getByRole('dialog', { name: 'Détails du rendez-vous' });
+  await expect(panel.getByText('Acompte annoncé')).toBeVisible();
+  await expect(
+    panel.getByText(
+      'Confirmez le rendez-vous une fois l’acompte reçu sur votre compte Mobile Money.',
+    ),
+  ).toBeVisible();
+  // Accepting is right there, under the screenshot that decides it.
+  await expect(panel.getByRole('button', { name: 'Accepter' })).toBeVisible();
+
+  // Loaded by itself, through the BFF's signed URL — and actually DECODED
+  // (an <img> that failed would have become « Capture indisponible »).
+  const thumb = panel.getByRole('button', {
+    name: 'Agrandir le justificatif d’acompte',
+  });
+  await expect(thumb).toBeVisible();
+  await expect
+    .poll(() =>
+      thumb.locator('img').evaluate((i: HTMLImageElement) => i.naturalWidth),
+    )
+    .toBeGreaterThan(0);
+
+  // Enlarged, ON TOP. The Lightbox renders inside the panel (no portal — the
+  // Modal doctrine), so its ✕ and the panel's ✕ share the top-right corner,
+  // and both are « Fermer ». The hit-test says which one a finger gets.
+  await thumb.click();
+  const box = page.getByRole('dialog', { name: 'Justificatif d’acompte' });
+  await expect(box).toBeVisible();
+  const boxClose = box.getByRole('button', { name: 'Fermer' });
+  expect(
+    await boxClose.evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      const hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+      return !!hit && (el === hit || el.contains(hit));
+    }),
+    'the enlarged screenshot’s ✕ must be on top of the panel’s own ✕',
+  ).toBe(true);
+
+  // Escape closes the screenshot only; focus returns to the thumbnail.
+  await page.keyboard.press('Escape');
+  await expect(box).toBeHidden();
+  await expect(panel).toBeVisible();
+  await expect(thumb).toBeFocused();
+
+  await expect(
+    panel.getByRole('link', { name: 'Voir le rendez-vous' }),
+  ).toHaveAttribute('href', '/pro/rendez-vous/pj2');
 });
 
 test('journal grid: quick-create from an empty cell books a client', async ({

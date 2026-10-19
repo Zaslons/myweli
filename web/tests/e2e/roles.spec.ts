@@ -90,6 +90,16 @@ test('staff: own planning, read-only journal, Terminé/Absent only', async ({
   ).toHaveCount(0);
 
   // Their own confirmed booking: Terminé/Absent, nothing whole-journal.
+  //
+  // « Marquer comme absent » now waits for the start
+  // (docs/design/web-pro-journal-panel-deposit.md §2.2), and pstaff1 starts at
+  // 09:00 UTC TODAY in the stub's list. A run before 09:00 would not offer it
+  // — green at some hours, red at others. Noon of the same UTC day (the stub's
+  // own « today », stub-clock.mjs) makes the booking started at any hour of
+  // the run; `setFixedTime` moves only `Date`, timers still run.
+  await page.clock.setFixedTime(
+    new Date(`${new Date().toISOString().slice(0, 10)}T12:00:00.000Z`),
+  );
   await page.goto('/pro/rendez-vous/pstaff1');
   await expect(
     page.getByRole('button', { name: 'Marquer comme terminé' }),

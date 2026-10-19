@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 
 import { signInConsumer, signInPro } from './_auth';
 import { asUnaskedBrowser } from './_push';
+import { serveStubImages } from './_pixel';
 
 /// B4 — §13.2's 48px floor, pinned (WEB-SYSTEM §15 row 7h).
 ///
@@ -160,6 +161,28 @@ test('pro: the glyph buttons that grew invisibly', async ({ page }) => {
   // member, so the row never renders and a guard would pass vacuously (the
   // first draft of this spec did exactly that). The control is floored in
   // code (`-mx-s -my-sm` + min-h-12); pinning it needs a stub with members.
+});
+
+test('pro: the journal panel’s deposit controls (web-pro-journal-panel-deposit)', async ({
+  page,
+}) => {
+  await serveStubImages(page);
+  await signInPro(page);
+  await page.goto('/pro/rendez-vous');
+  await page.getByRole('button', { name: /Aminata/ }).click();
+  const panel = page.getByRole('dialog', { name: 'Détails du rendez-vous' });
+  // A text link in a panel full of 48px buttons — the shape that slips under
+  // the floor (the panel's own « Voir la fiche » is one).
+  const link = panel.getByRole('link', { name: 'Voir le rendez-vous' });
+  await expect(link).toBeVisible();
+  await assertBox(link, 'panel « Voir le rendez-vous »', { minW: 0 });
+  // The thumbnail: 144px tall, as wide as the screenshot's own ratio — a
+  // 1×1 pixel here, so 144 wide; min-w-12 holds a very tall one.
+  const thumb = panel.getByRole('button', {
+    name: 'Agrandir le justificatif d’acompte',
+  });
+  await expect(thumb).toBeVisible();
+  await assertBox(thumb, 'panel deposit thumbnail');
 });
 
 test('account: the switch and the review stars', async ({ page }) => {

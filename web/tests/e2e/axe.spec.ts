@@ -277,6 +277,36 @@ test('/pro/acompte — the slider, the example, the delay choices — is axe-cle
   await expectNoViolations(page, '/pro/acompte');
 });
 
+/// docs/design/web-pro-journal-panel-deposit.md — the « Journée » panel
+/// exists only after a click on a block, so /pro/rendez-vous in the route
+/// matrix above has never scanned it. pj2 is the stub's pending request with a
+/// deposit and a screenshot: the fullest panel there is (mini-card, the
+/// acompte line, the guidance, the thumbnail button, the link, the actions).
+/// Then the screenshot enlarged — a Modal INSIDE a non-modal dialog.
+test('the OPEN journal panel with its deposit screenshot is axe-clean', async ({
+  page,
+}) => {
+  await page.goto('/pro/connexion');
+  await submitOtpLogin(page, 'salon@example.com');
+  await expect(page).toHaveURL(/\/pro(\/)?$/);
+  await page.goto('/pro/rendez-vous');
+  await page.getByRole('button', { name: /Aminata/ }).click();
+  const panel = page.getByRole('dialog', { name: 'Détails du rendez-vous' });
+  // The vacuity guard: the screenshot LOADED (not the failure sentence, not
+  // the skeleton) — otherwise this scans a panel without the thing it is for.
+  const thumb = panel.getByRole('button', {
+    name: 'Agrandir le justificatif d’acompte',
+  });
+  await expect(thumb).toBeVisible();
+  await expectNoViolations(page, '/pro/rendez-vous + journal panel (acompte)');
+
+  await thumb.click();
+  await expect(
+    page.getByRole('dialog', { name: 'Justificatif d’acompte' }),
+  ).toBeVisible();
+  await expectNoViolations(page, '/pro/rendez-vous + enlarged deposit screenshot');
+});
+
 test('a VISIBLE toast is axe-clean', async ({ page }) => {
   await page.goto('/pro/connexion');
   await submitOtpLogin(page, 'salon@example.com');
