@@ -14,7 +14,7 @@ from functools import lru_cache
 import numpy as np
 from scipy import signal
 
-from ._time import SAMPLE_RATE
+from ..timebase import SAMPLE_RATE
 
 SR = SAMPLE_RATE
 TWO_PI = 2.0 * np.pi

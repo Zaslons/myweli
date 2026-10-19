@@ -24,6 +24,8 @@ from pathlib import Path
 PROMO_REEL = Path(__file__).resolve().parents[2]
 REPO = PROMO_REEL.parents[1]
 MATERIAL_SUBDIR = Path("build/app-store/pro/preview/v2")
+#: The promo's own takes (N1 « Revenus », recorded for this film): takes/<name>/.
+PROMO_TAKES_SUBDIR = Path("build/marketing/promo")
 FONTS = REPO / "tool/app_store_screenshots/fonts"
 APP_STORE_PREVIEW = REPO / "tool/app_store_preview"
 
@@ -114,6 +116,24 @@ def material_root() -> Path:
     raise ToolMissing("the recorded material is not here (looked in: " + ", ".join(dict.fromkeys(tried))
                       + "). It is gitignored and lives in the main checkout; set PROMO_MATERIAL to its "
                         "build/app-store/pro/preview/v2 folder.")
+
+
+@functools.lru_cache(maxsize=None)
+def promo_takes_root() -> Path | None:
+    """``…/build/marketing/promo``: the takes recorded for the promo itself
+    (``takes/n1``), or None when there is none. ``PROMO_TAKES`` points
+    elsewhere; otherwise this checkout's build/, then the main checkout's."""
+    explicit = os.environ.get("PROMO_TAKES")
+    if explicit:
+        root = Path(explicit)
+        if not (root / "takes").is_dir():
+            raise ToolMissing(f"PROMO_TAKES={explicit} has no takes/ folder")
+        return root
+    for base in (REPO, main_checkout(REPO)):
+        root = base / PROMO_TAKES_SUBDIR
+        if (root / "takes").is_dir():
+            return root
+    return None
 
 
 def material_available() -> bool:

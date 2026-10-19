@@ -300,5 +300,5 @@ cues:
   # ── OUTRO, bar 14 (f832-895) ────────────────────────────────────────────
   - {id: end.mark, kind: log, pos: 14.1.0, note: C2, octave: true, vel: 1.0}        # the mark settles + « Plus de clients, » f832
   - {id: end.line2, kind: log, pos: 14.2.0, note: G2, vel: 0.8}                     # « moins de gestion. » f848
-  - {id: end.store, kind: glint, pos: 14.3.0, gain: -12, reverb: 1.6, wet: -12}      # « Disponible sur l’App Store » f864 (owner's addition)
+  - {id: end.store, kind: glint, pos: 14.2.0, gain: -12, reverb: 1.6, wet: -12}      # « Disponible sur l’App Store » f848, with « moins de gestion. »: 1.6 s on screen = 16.3 cps (at f864 it had 1.07 s = 24 cps, over the 17-cps ceiling)
   - {id: end.last, kind: log, pos: 14.4.0, note: C2, decay: 0.6, reverb: 2.4, wet: -10}   # f880; the tail rings to f895

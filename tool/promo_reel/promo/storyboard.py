@@ -13,11 +13,18 @@ only holds a YAML anchor for values shared below it, and is not read):
            safe area, working zones and layout rules. Checked strictly — the
            geometry too (zones inside the canvas, text inside the safe area,
            the same pixel sizes in every format, the mark's clear space).
-  music    AUDIO's section, passed through as data. Only ``music.cues`` is
-           read here: a list of ``{id: …}`` (or a mapping cut → such a list).
-  scenes   SCENES' section, passed through as data. Every cue it refers to
-           must be a cue of ``music.cues``: a reference is the value of a key
-           named ``cue`` (one id) or ``cues`` (a list of ids), at any depth.
+  music    AUDIO's section. The cue ids have ONE source: the scores.
+           ``music.scores`` maps each cut to its score (AUDIO's
+           ``promo/audio/score_<cut>.yaml``, a path from tool/promo_reel):
+           the score is the music, and its ``cues[].id`` are the cut's cue
+           ids. ``music.cues`` may declare more inline (a list of ``{id: …}``,
+           or a mapping cut → such a list) — the tests' small storyboards do.
+  scenes   SCENES' section: a mapping cut → that cut's list of scenes (or a
+           plain list). Every cue it refers to must be one of the cut's cues
+           (or, for a plain list, of any cut). A reference is the value of a
+           key named ``cue`` (one id) or ``cues`` (a list of ids), or any
+           string written ``cue:<id>`` (optionally ``+N``/``-N`` frames, or
+           ``@end`` for a span's end), at any depth.
 
 Variants: ``--set path.to.key=value`` overrides one value before the document
 is checked, so a variant is held to the same rules. The value is read as YAML
@@ -195,8 +202,21 @@ class Storyboard:
     def timebase(self) -> tb.TimeBase:
         return self.meta.timebase
 
-    def cue_ids(self) -> set[str]:
-        return {cue_id for _, cue_id in _declared_cues(self.music)}
+    def cue_ids(self, cut: str | None = None) -> set[str]:
+        """The cue ids declared for ``cut`` (by its score and ``music.cues``),
+        or for every cut."""
+        return _declared_ids(self.music, self.cuts, cut)
+
+    def score_path(self, cut: str) -> Path | None:
+        """The score a cut's music is rendered from (``music.scores``)."""
+        scores = self.music.get("scores") or {}
+        return (PROMO_REEL / scores[cut]) if cut in scores else None
+
+    def cut_scenes(self, cut: str) -> list:
+        """The scenes of one cut ([] when it has none yet)."""
+        if isinstance(self.scenes, dict):
+            return list(self.scenes.get(cut) or [])
+        return list(self.scenes or [])
 
     def plan(self, cuts: Iterable[str] | None = None, formats: Iterable[str] | None = None) -> str:
         """What a build of ``cuts`` × ``formats`` (default: all) makes, in words."""
@@ -218,8 +238,11 @@ class Storyboard:
             f = self.formats[fid]
             lines.append(f"  format {fid}: {f.width}×{f.height}, safe {f.safe} ({f.safe_basis}); "
                          f"zones: {', '.join(f.zones)}")
-        n_scenes = len(self.scenes) if isinstance(self.scenes, (list, dict)) else 0
-        lines.append(f"  music: {len(self.cue_ids())} cues declared · scenes: {n_scenes}")
+        for cid in cuts:
+            sp = self.score_path(cid)
+            lines.append(f"  music {cid}: {len(self.cue_ids(cid))} cues declared"
+                         + (f" (score {sp.relative_to(PROMO_REEL)})" if sp else "")
+                         + f" · scenes: {len(self.cut_scenes(cid))}")
         lines.append(f"  films: {len(cuts) * len(formats)} — " + ", ".join(f"{c}/{f}" for c in cuts for f in formats))
         return "\n".join(lines)
 
@@ -462,14 +485,32 @@ def validate(doc: Any, source: str = "storyboard.yaml", overrides: Sequence[str]
         c.fail("music", f"must be a mapping (AUDIO's section; `cues: []` when empty), not {_kind(music)}")
         music = {}
     declared = _check_cues(c, music, cuts)
+    # a cut the document names but that broke a rule is still a cut here:
+    # its problem is reported once, at the cut, not again at every use
+    named_cuts = set(top.get("cuts") or {}) if isinstance(top.get("cuts"), dict) else set(cuts)
+    _check_scores(c, music, cuts, named_cuts)
     scenes = top.get("scenes")
     if not isinstance(scenes, (list, dict)):
         c.fail("scenes", f"must be a list or a mapping (SCENES' section; `[]` when empty), not {_kind(scenes)}")
     else:
-        for path, ref in _cue_references(scenes, "scenes"):
-            if ref not in declared:
-                known = ", ".join(sorted(declared)) or "none declared yet"
-                c.fail(path, f"cue {ref!r} is not in music.cues (known: {known})")
+        if isinstance(scenes, dict):
+            groups = []
+            for cut, items in scenes.items():
+                if cut not in named_cuts:
+                    c.fail(f"scenes.{cut}", f"is not a cut (cuts: {', '.join(cuts) or 'none'})")
+                    continue
+                if not isinstance(items, list):
+                    c.fail(f"scenes.{cut}", f"must be a list of scenes, not {_kind(items)}")
+                    continue
+                groups.append((f"scenes.{cut}", items, _declared_ids(music, cuts, cut)))
+        else:
+            groups = [("scenes", scenes, declared | _declared_ids(music, cuts, None))]
+        for base, items, known_ids in groups:
+            for path, ref in _cue_references(items, base):
+                if ref not in known_ids:
+                    known = ", ".join(sorted(known_ids)) or "none declared yet"
+                    where = "the cut's cues" if base != "scenes" else "music.cues"
+                    c.fail(path, f"cue {ref!r} is not in {where} (known: {known})")
     if c.problems:
         raise StoryboardError(source, c.problems)
     return Storyboard(source, doc, meta, cuts, formats, music, scenes, tuple(overrides))
@@ -697,16 +738,15 @@ def _layout(c: _Check, value: Any, path: str, w: int, h: int, zones: dict[str, R
     return lay if len(c.problems) == before else None
 
 
-def _declared_cues(music: dict) -> Iterator[tuple[str, str]]:
-    """(path, id) of every cue declared in ``music.cues``."""
+def _declared_cues(music: dict) -> Iterator[tuple[str | None, str]]:
+    """(cut or None, id) of every cue declared inline in ``music.cues``."""
     cues = music.get("cues", [])
     groups = cues.items() if isinstance(cues, dict) else [(None, cues)]
     for cut, items in groups:
-        base = "music.cues" + (f".{cut}" if cut is not None else "")
         if isinstance(items, list):
-            for i, item in enumerate(items):
+            for item in items:
                 if isinstance(item, dict) and isinstance(item.get("id"), str):
-                    yield f"{base}[{i}]", item["id"]
+                    yield cut, item["id"]
 
 
 def _check_cues(c: _Check, music: dict, cuts: dict[str, Cut]) -> set[str]:
@@ -744,9 +784,15 @@ def _check_cues(c: _Check, music: dict, cuts: dict[str, Cut]) -> set[str]:
     return declared
 
 
+#: A time written as a cue: ``cue:drop1.impact``, ``cue:swipe.open-1``,
+#: ``cue:riser1@end`` (the span's end), ``cue:whip1+3``.
+CUE_TIME_RE = re.compile(r"^cue:([^\s@+-][^\s@+]*?)(@end)?([+-]\d+)?$")
+
+
 def _cue_references(node: Any, path: str) -> Iterator[tuple[str, Any]]:
     """(path, id) of every cue a section refers to: the value of a key
-    ``cue``, or each item of a key ``cues``, at any depth."""
+    ``cue``, each item of a key ``cues``, or a string ``cue:<id>…``, at any
+    depth."""
     if isinstance(node, dict):
         for key, value in node.items():
             p = f"{path}.{key}"
@@ -760,3 +806,75 @@ def _cue_references(node: Any, path: str) -> Iterator[tuple[str, Any]]:
     elif isinstance(node, list):
         for i, item in enumerate(node):
             yield from _cue_references(item, f"{path}[{i}]")
+    elif isinstance(node, str) and node.startswith("cue:"):
+        m = CUE_TIME_RE.match(node)
+        yield path, (m.group(1) if m else node)
+
+
+def _score_cue_ids(path: Path) -> list[str] | None:
+    """The cue ids a score declares (its ``cues[].id``), or None when it
+    cannot be read."""
+    try:
+        doc = yaml.safe_load(path.read_text(encoding="utf-8"))
+    except (OSError, yaml.YAMLError):
+        return None
+    if not isinstance(doc, dict) or not isinstance(doc.get("cues"), list):
+        return None
+    return [c["id"] for c in doc["cues"] if isinstance(c, dict) and isinstance(c.get("id"), str)]
+
+
+def _declared_ids(music: dict, cuts: dict[str, "Cut"], cut: str | None) -> set[str]:
+    """Cue ids of ``cut`` (or of every cut): its score's, plus ``music.cues``."""
+    ids = {cue_id for c_, cue_id in _declared_cues(music) if cut is None or c_ in (None, cut)}
+    scores = music.get("scores") or {}
+    if isinstance(scores, dict):
+        for c_, rel in scores.items():
+            if (cut is None or c_ == cut) and isinstance(rel, str):
+                ids |= set(_score_cue_ids(PROMO_REEL / rel) or [])
+    return ids
+
+
+def _check_scores(c: _Check, music: dict, cuts: dict[str, "Cut"], named_cuts: set[str] | None = None) -> None:
+    scores = music.get("scores")
+    if scores is None:
+        return
+    if not isinstance(scores, dict):
+        c.fail("music.scores", f"must be a mapping cut → score path, not {_kind(scores)}")
+        return
+    for cut, rel in scores.items():
+        p = f"music.scores.{cut}"
+        if cut not in (named_cuts if named_cuts is not None else cuts):
+            c.fail(p, f"is not a cut (cuts: {', '.join(cuts) or 'none'})")
+            continue
+        if cut not in cuts:
+            continue                       # the cut itself is broken: reported there
+        if not isinstance(rel, str):
+            c.fail(p, f"must be a path from tool/promo_reel, not {_kind(rel)}")
+            continue
+        path = PROMO_REEL / rel
+        try:
+            doc = yaml.safe_load(path.read_text(encoding="utf-8"))
+        except OSError:
+            c.fail(p, f"{rel}: no such score")
+            continue
+        except yaml.YAMLError as e:
+            c.fail(p, f"{rel}: not valid YAML: {e}")
+            continue
+        if not isinstance(doc, dict):
+            c.fail(p, f"{rel}: not a score")
+            continue
+        if doc.get("cut") != cut:
+            c.fail(p, f"{rel} is the score of cut {doc.get('cut')!r}, not {cut}")
+        if doc.get("bars") != cuts[cut].bars:
+            c.fail(p, f"{rel} has {doc.get('bars')!r} bars; cut {cut} has {cuts[cut].bars}")
+        ids = _score_cue_ids(path)
+        if ids is None:
+            c.fail(p, f"{rel} declares no cues")
+            continue
+        dup = sorted({i for i in ids if ids.count(i) > 1})
+        if dup:
+            c.fail(p, f"{rel} declares {', '.join(dup)} twice")
+        inline = {cue_id for c_, cue_id in _declared_cues(music) if c_ in (None, cut)}
+        both = sorted(inline & set(ids))
+        if both:
+            c.fail(f"music.cues", f"{', '.join(both)} already declared by the {cut} score ({rel}): one source")

@@ -23,7 +23,7 @@ ROOT = Path(__file__).resolve().parents[1]                 # tool/promo_reel
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from promo.audio import _time as tb                        # noqa: E402
+from promo import timebase as tb                              # noqa: E402
 from promo.audio import arrange, dsp, harmony, loudness, mix, wav  # noqa: E402
 from promo.audio import instruments as ins                 # noqa: E402
 from promo.audio import score as score_mod                 # noqa: E402
@@ -51,7 +51,7 @@ STORYBOARD_30S = {
     "sentence.word1": 576, "sentence.word2": 584, "sentence.word3": 592, "sentence.word4": 600,
     "sentence.pop": 600, "page.cut": 640, "page.drag": 672, "riser3": 720, "breakdown.tail": 736,
     "clap_roll2": 744, "air2.reverse": 752, "reveal.impact": 768, "reveal.shimmer": 784, "reveal.glide": 804,
-    "end.mark": 832, "end.line2": 848, "end.store": 864, "end.last": 880,
+    "end.mark": 832, "end.line2": 848, "end.store": 848, "end.last": 880,
 }
 SPANS_30S = {"hook.pen": 24, "riser1": 108, "clap_roll1": 108, "air1.reverse": 128, "swipe.whoosh": 160,
              "tap.close": 190, "arrive.air": 256, "fill.tape": 334, "create.drag": 392, "create.close": 430,
@@ -65,7 +65,7 @@ STORYBOARD_15S = {
     "create.chime": 232, "create.strike": 236, "create.filled": 240, "drop2.impact": 256, "drop2.whip": 256,
     "revenus.touch": 272, "revenus.tick1": 280, "revenus.tick2": 284, "revenus.tick3": 288,
     "revenus.tick4": 292, "revenus.land": 296, "revenus.ding": 296, "reveal.impact": 320,
-    "reveal.shimmer": 336, "reveal.glide": 356, "end.mark": 384, "end.line2": 400, "end.store": 416,
+    "reveal.shimmer": 336, "reveal.glide": 356, "end.mark": 384, "end.line2": 400, "end.store": 400,
     "end.last": 432,
 }
 SPANS_15S = {"riser1": 44, "air1.reverse": 64, "reveal.glide": 376}
@@ -115,11 +115,24 @@ class TestTimebase(unittest.TestCase):
             self.assertEqual(p.sample, frame * 1600)
 
     def test_refuses(self):
-        for bad in ("0.1.0", "1.5.0", "1.1.4", "3.1", "x", "1.1.0.0"):
+        for bad in ("0.1.0", "1.5.0", "1.1.4", "x", "1.1.0.0", "3.1.x"):
             with self.subTest(bad=bad), self.assertRaises(tb.PositionError):
                 tb.parse_pos(bad)
         with self.assertRaises(tb.PositionError):
             tb.pos_of_frame(149)                                   # off the 16th grid
+        with self.assertRaises(tb.PositionError):
+            tb.pos_of_step(3, 16)
+
+    def test_one_clock(self):
+        # the audio engine reads the same promo/timebase.py as every other module:
+        # the storyboard's shorthand is a position here too, written back canonically
+        self.assertEqual(tb.parse_pos("3.1"), tb.parse_pos("3.1.0"))
+        self.assertEqual(str(tb.parse_pos("5.2&")), "5.2.2")
+        self.assertIs(tb.PositionError, tb.TimeBaseError)
+        self.assertEqual(tb.pos_of_step(9, 10), tb.Pos(9, 3, 2))
+        self.assertLess(tb.Pos(3, 4, 3), tb.Pos(4, 1, 0))         # positions order like the music
+        import promo.audio
+        self.assertFalse((Path(promo.audio.__file__).parent / "_time.py").exists())
 
 
 # ══ the meter ══════════════════════════════════════════════════════════════
@@ -282,7 +295,7 @@ class TestScore(unittest.TestCase):
 
     def test_the_app_store_line_has_its_soft_cue(self):
         """Owner's addition: « Disponible sur l'App Store » under the tagline."""
-        for name, frame in (("score_30s.yaml", 864), ("score_15s.yaml", 416)):
+        for name, frame in (("score_30s.yaml", 848), ("score_15s.yaml", 400)):   # with « moins de gestion. » (reading speed)
             cue = score_mod.load(find_score(name)).cue("end.store")
             self.assertEqual((cue.kind, cue.frame), ("glint", frame))
             self.assertLess(cue.gain, -6)                         # small and soft

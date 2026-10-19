@@ -68,10 +68,29 @@ class Starter(unittest.TestCase):
             self.assertEqual(fmt.layout["px_per_pt"], 1.791)
             self.assertEqual(fmt.layout["type_px"]["app"], 72)
 
-    def test_placeholders_pass_through(self):
-        self.assertEqual(self.sb.music, {"cues": []})
-        self.assertEqual(self.sb.scenes, [])
-        self.assertEqual(self.sb.cue_ids(), set())
+    def test_the_scores_are_the_one_source_of_cue_ids(self):
+        self.assertEqual(self.sb.music, {"scores": {"30s": "promo/audio/score_30s.yaml",
+                                                    "15s": "promo/audio/score_15s.yaml"}})
+        self.assertEqual(self.sb.score_path("30s"), sb.PROMO_REEL / "promo/audio/score_30s.yaml")
+        self.assertIn("swipe.touch", self.sb.cue_ids("30s"))
+        self.assertIn("end.store", self.sb.cue_ids("15s"))
+        self.assertEqual(len(self.sb.cue_ids("30s")), 85)
+        self.assertEqual(len(self.sb.cut_scenes("30s")), 9)          # rows 1–24 of the 30-s storyboard
+        self.assertEqual(self.sb.cut_scenes("15s"), [])
+
+    def test_scene_cue_references_are_checked_per_cut(self):
+        found = problems("scenes.30s.0.from=cue:hook.stabx")
+        self.assertEqual(len(found), 1)
+        self.assertTrue(found[0].startswith("scenes.30s[0].from: cue 'hook.stabx' is not in the cut's cues"), found)
+        # a 30-s cue named in the 15-s scenes: the 15-s score has no Fiche
+        self.assertTrue(any("scenes.15s[0].at: cue 'fiche.cut'" in p for p in problems("scenes.15s=[{at: 'cue:fiche.cut'}]")))
+        self.assertEqual(problems("scenes.15s=[{at: 'cue:drop1.impact+3'}]"), [])
+
+    def test_score_references(self):
+        self.assertTrue(any("no such score" in p for p in problems("music.scores.30s=promo/audio/none.yaml")))
+        self.assertTrue(any("is the score of cut '15s', not 30s" in p
+                            for p in problems("music.scores.30s=promo/audio/score_15s.yaml")))
+        self.assertTrue(any("one source" in p for p in problems("music.cues=[{id: swipe.touch}]")))
 
     def test_plan(self):
         plan = self.sb.plan()

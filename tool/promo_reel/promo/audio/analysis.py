@@ -25,7 +25,7 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 from scipy import signal
 
-from . import _time as tb
+from .. import timebase as tb
 from . import loudness
 from .dsp import SR, filt
 from .kinds import KINDS

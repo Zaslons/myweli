@@ -14,7 +14,7 @@ from pathlib import Path
 
 import yaml
 
-from . import _time as tb
+from .. import timebase as tb
 from .harmony import Chord, HarmonyError, parse_chord, parse_note
 from .kinds import (AUTOMATABLE, CHORD_TOKENS, CONGA_TOKENS, CUE_KEYS, DRUM_TOKENS, HAT_TOKENS, INSTRUMENTS,
                     KINDS, REQUIRED, TRACK_KEYS)
@@ -240,7 +240,7 @@ def parse(data: object, *, source: str = "<score>", name: str = "score") -> Scor
         raise ScoreError(source, problems)
     tempo = data.get("tempo", tb.BPM)
     if tempo != tb.BPM:
-        say(f"tempo: the promo's clock is fixed at {tb.BPM} BPM (beat = 16 frames), got {tempo!r}")
+        say(f"tempo: the promo’s clock is fixed at {float(tb.BPM):g} BPM (beat = 16 frames), got {tempo!r}")
     swing = data.get("swing", 0.5)
     if not isinstance(swing, (int, float)) or not 0.5 <= swing < 0.75:
         say(f"swing: must be 0.50-0.75 (the off-16th's place in its 8th), got {swing!r}")
@@ -248,7 +248,7 @@ def parse(data: object, *, source: str = "<score>", name: str = "score") -> Scor
 
     def pos_of(text: object, where: str, *, allow_end: bool = False) -> tb.Pos | None:
         try:
-            p = tb.parse_pos(text)
+            p = tb.parse_pos(text if isinstance(text, str) else str(text))
         except tb.PositionError as e:
             say(f"{where}: {e}")
             return None

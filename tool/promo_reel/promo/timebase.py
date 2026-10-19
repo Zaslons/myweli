@@ -41,9 +41,18 @@ class TimeBaseError(ValueError):
     sample that does not exist on it."""
 
 
+#: The audio engine's name for the same error (a position that is not on the
+#: grid); one class, so ``except tb.PositionError`` catches every refusal.
+PositionError = TimeBaseError
+
+
 class Pos(NamedTuple):
     """A musical position: 1-based ``bar`` and ``beat``, ``step`` 0–3 (the
-    16th inside the beat). ``str(pos)`` is the canonical ``bar.beat.step``."""
+    16th inside the beat). ``str(pos)`` is the canonical ``bar.beat.step``.
+
+    Positions order like the music (bar, then beat, then step). ``frame``,
+    ``sample`` and ``step_in_bar`` read the position on the contract's grid
+    (``DEFAULT``); a checked ``TimeBase`` gives them for any other grid."""
 
     bar: int
     beat: int
@@ -51,6 +60,22 @@ class Pos(NamedTuple):
 
     def __str__(self) -> str:
         return f"{self.bar}.{self.beat}.{self.step}"
+
+    @property
+    def frame(self) -> int:
+        """The frame this position starts on (contract grid)."""
+        return DEFAULT.frame(self)
+
+    @property
+    def sample(self) -> int:
+        """The first audio sample of this position (contract grid)."""
+        return DEFAULT.sample(DEFAULT.frame(self))
+
+    @property
+    def step_in_bar(self) -> int:
+        """0–15: the 16th inside the bar."""
+        DEFAULT.check_pos(self)
+        return (self.beat - 1) * DEFAULT.steps_per_beat + self.step
 
 
 #: A frame number, a ``Pos``, ``"f144"`` or a position string (``"3.2.0"``).
@@ -281,6 +306,33 @@ FRAMES_PER_STEP: int = DEFAULT.frames_per_step      # 4
 FRAMES_PER_BEAT: int = DEFAULT.frames_per_beat      # 16
 FRAMES_PER_BAR: int = DEFAULT.frames_per_bar        # 64
 SAMPLES_PER_FRAME: int = DEFAULT.samples_per_frame  # 1600
+STEPS_PER_BAR: int = STEPS_PER_BEAT * BEATS_PER_BAR                 # 16
+SAMPLES_PER_STEP: int = SAMPLES_PER_FRAME * FRAMES_PER_STEP         # 6 400
+SAMPLES_PER_BEAT: int = SAMPLES_PER_FRAME * FRAMES_PER_BEAT         # 25 600
+SAMPLES_PER_BAR: int = SAMPLES_PER_FRAME * FRAMES_PER_BAR           # 102 400
+
+
+def frame_of(bar: int, beat: int = 1, step: int = 0) -> int:
+    """frame(bar, beat, step) = (bar − 1)·64 + (beat − 1)·16 + step·4 — the
+    audio engine's spelling of ``pos_to_frame(Pos(bar, beat, step))``."""
+    return DEFAULT.frame(Pos(bar, beat, step))
+
+
+def sample_of_frame(frame: int) -> int:
+    """sample = frame · 1600 (the audio engine's spelling of ``frame_to_sample``)."""
+    return DEFAULT.sample(frame)
+
+
+def pos_of_frame(frame: int) -> Pos:
+    """The position of a frame on the 16th grid (an error off the grid)."""
+    return DEFAULT.pos(frame)
+
+
+def pos_of_step(bar: int, step_in_bar: int) -> Pos:
+    """Bar and 16th inside it (0–15) → ``Pos``."""
+    if isinstance(step_in_bar, bool) or not isinstance(step_in_bar, int) or not 0 <= step_in_bar < STEPS_PER_BAR:
+        raise TimeBaseError(f"the 16th inside a bar is 0–{STEPS_PER_BAR - 1}, not {step_in_bar!r}")
+    return DEFAULT.check_pos(Pos(bar, step_in_bar // STEPS_PER_BEAT + 1, step_in_bar % STEPS_PER_BEAT))
 
 
 def parse_pos(text: str) -> Pos:

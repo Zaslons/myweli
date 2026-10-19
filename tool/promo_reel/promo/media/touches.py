@@ -29,6 +29,13 @@ not copied, and ``rest_s`` / ``tap_lead`` / ``touch_in`` are read from its
 storyboard.json and from motion.dart. It needs the take's scan
 (``final/takes/take-N/scan.json``): take1b, take2b, take3 and take5b have one.
 
+A take the App Store tool never scanned (the promo's own N1) is read from
+its pictures instead (``_locate_by_pictures``): each gesture's first changed
+picture is the first picture after the call started that differs from the one
+before it by more than a caret's worth of pixels, decoded and compared here;
+the 200-ms tap lead is the same rule. Its log may be the recorder's event
+form (``{"event": "t0" | "before" | "after", …}``).
+
 ``cross_check(rendered, touch_downs)`` holds a film's touch indicators to
 them: every indicator must sit on an observed touch-down of a tap or a drag
 (the honesty rule: « They sit only at observed touch-downs »), each at most
@@ -110,6 +117,7 @@ class TouchDown:
     at_pt: tuple[float, float] | None  # where (a tap's point, a drag's start)
     how: str
     distance_pt: float | None = None   # touch point to the first change's box: large = suspicious
+    held_s: float | None = None        # a tap held this long (the log's held_ms), when it says
 
     @property
     def indicator(self) -> bool:
@@ -134,8 +142,42 @@ def load_gestures(take: str, root: Path | None = None) -> dict:
     return from_jsonl
 
 
+def _from_events(lines: list[str], path: Path) -> dict:
+    """The recorder's event form: {"event": "t0", "wall"}, then per gesture
+    {"event": "before", "name", "kind", "x", "y", "wall"[, "held_ms"]} and
+    {"event": "after", "name", "wall"}. ``after_s`` is when the call started,
+    ``before_s`` when it came back (the gestures.json names)."""
+    rows = [json.loads(l) for l in lines]
+    if rows[0].get("event") != "t0":
+        raise TouchError(f"{path}: an event log starts with its t0")
+    t0 = float(rows[0]["wall"])
+    out: list[dict] = []
+    for r in rows[1:]:
+        ev = r.get("event")
+        if ev == "before":
+            kind = r.get("kind")
+            if kind != "tap":
+                raise TouchError(f"{path}: event logs carry taps only, not {kind!r}")
+            g = {"id": r["name"], "kind": "tap", "after_s": round(float(r["wall"]) - t0, 3),
+                 "at": [r["x"], r["y"]]}
+            if "held_ms" in r:
+                g["held_ms"] = r["held_ms"]
+            out.append(g)
+        elif ev == "after":
+            if not out or out[-1]["id"] != r.get("name") or "before_s" in out[-1]:
+                raise TouchError(f"{path}: an `after` for {r.get('name')!r} with no open `before`")
+            out[-1]["before_s"] = round(float(r["wall"]) - t0, 3)
+        else:
+            raise TouchError(f"{path}: unknown event {ev!r}")
+    if out and "before_s" not in out[-1]:
+        raise TouchError(f"{path}: {out[-1]['id']!r} never came back")
+    return {"device_points": [402, 874], "gestures": out}
+
+
 def _from_jsonl(path: Path) -> dict:
     lines = [l for l in path.read_text(encoding="utf-8").splitlines() if l.strip()]
+    if lines and lines[0].lstrip().startswith("{"):
+        return _from_events(lines, path)
     t0 = float(lines[0])
     calls: list[dict] = []
     for line in lines[1:]:
@@ -180,8 +222,8 @@ def touch_downs(take: str | Take, root: Path | None = None) -> list[TouchDown]:
     name = take.name if isinstance(take, Take) else str(take)
     files = take_files(name, root)
     if files.scan is None:
-        raise TouchError(f"{name}: no scan of this take (final/takes/take-N/scan.json); "
-                         f"the touch-downs are found on the App Store tool's scan")
+        tk = take if isinstance(take, Take) else Take(files.movie)
+        return _locate_by_pictures(name, tk, load_gestures(name, root))
     tk = take if isinstance(take, Take) else Take(name, root=root)
     scan = tk.scan if tk.scan is not None else json.loads(files.scan.read_text(encoding="utf-8"))
     tracks = json.loads(files.track.read_text(encoding="utf-8")) if files.track else {}
@@ -236,7 +278,8 @@ def _locate(name: str, scan: dict, log: dict, tracks: dict) -> list[TouchDown]:
                 down = first - round(r.tap_lead_s * T)
                 out.append(TouchDown(name, pid, "tap", down / T, first / T, window, at,
                                      f"first changed picture {first / T:.3f} s − {r.tap_lead_s * 1000:.0f} ms",
-                                     _distance(box, at, px_per_pt)))
+                                     _distance(box, at, px_per_pt),
+                                     g["held_ms"] / 1000 if g.get("held_ms") is not None else None))
             elif kind == "drag":
                 path = g["path"]
                 at = (float(path[0][0]), float(path[0][1]))
@@ -266,6 +309,77 @@ def _locate(name: str, scan: dict, log: dict, tracks: dict) -> list[TouchDown]:
             else:
                 raise TouchError(f"{name} `{gid}`: unknown kind {kind!r}")
     return out
+
+
+#: A picture « changed » when this many pixels moved by more than CHANGE_LEVELS
+#: (on the luminance, every 2nd pixel): more than a caret (≈ 2 × 60 px at 3 px/pt).
+CHANGE_PIXELS = 400
+CHANGE_LEVELS = 24
+
+
+def _changed(a, b) -> bool:
+    import numpy as np
+    la = a[::2, ::2, :3].astype(np.int16) @ np.array([54, 183, 19], np.int16) // 256
+    lb = b[::2, ::2, :3].astype(np.int16) @ np.array([54, 183, 19], np.int16) // 256
+    return int((np.abs(la - lb) > CHANGE_LEVELS).sum()) > CHANGE_PIXELS // 4
+
+
+def _locate_by_pictures(name: str, take: Take, log: dict) -> list[TouchDown]:
+    """Touch-downs of a take with no App Store scan (taps only): the first
+    picture after the gesture's call started that differs from the picture
+    before it, less the 200-ms tap lead."""
+    r = rules()
+    T = take.timescale
+    gestures = [g for g in log.get("gestures", []) if g.get("film", True)]
+    out: list[TouchDown] = []
+    for k, g in enumerate(gestures):
+        if g["kind"] != "tap":
+            raise TouchError(f"{name} `{g['id']}`: a take without a scan is read for taps only")
+        lo = g["after_s"]
+        hi = gestures[k + 1]["after_s"] if k + 1 < len(gestures) else take.last_time_s + 1
+        first = None
+        for i in range(max(1, take.index_at(lo)), take.count):
+            if take.time_s(i) >= hi:
+                break
+            if take.time_s(i) > lo and _changed(take.raw_picture(i - 1), take.raw_picture(i)):
+                first = i
+                break
+        if first is None:
+            raise TouchError(f"{name} `{g['id']}`: no picture changes between {lo} s and {hi} s")
+        ticks = take.pts[first]
+        down = ticks - round(r.tap_lead_s * T)
+        out.append(TouchDown(name, g["id"], "tap", down / T, ticks / T, (float(g["after_s"]), float(g["before_s"])),
+                             tuple(g["at"]),
+                             f"first changed picture {ticks / T:.3f} s (#{first}, read from the pictures) − "
+                             f"{r.tap_lead_s * 1000:.0f} ms", None,
+                             g["held_ms"] / 1000 if g.get("held_ms") is not None else None))
+    return out
+
+
+def finger_path(take: str, gesture: str, root: Path | None = None) -> list[tuple[float, float, float]]:
+    """Where the finger was during a drag, as (seconds of the take, x pt, y pt):
+    the logged path re-timed by the picture where the App Store tool followed
+    it (``edit.followed_path``), else the logged path counted from the
+    touch-down (the 18-pt slop rule). A tap: its point at the touch-down."""
+    downs = {d.gesture: d for d in touch_downs(take, root)}
+    if gesture not in downs:
+        raise TouchError(f"{take}: no gesture {gesture!r} (have: {', '.join(downs)})")
+    d = downs[gesture]
+    if d.kind == "tap":
+        return [(d.down_s, float(d.at_pt[0]), float(d.at_pt[1]))]
+    if d.kind != "drag":
+        raise TouchError(f"{take} {gesture}: a typed key has no touch point")
+    files = take_files(take, root)
+    log = load_gestures(take, root)
+    g = next(x for x in log["gestures"] if x["id"] == gesture)
+    tracks = json.loads(files.track.read_text(encoding="utf-8")) if files.track else {}
+    T = 600
+    track = tracks.get(gesture)
+    if track and track.get("frames") and "down_s" not in g:
+        seen = app_store_edit().followed_path(g["path"], track, T)
+        if seen:
+            return [(p[0] / T, p[1], p[2]) for p in seen["points"]]
+    return [(d.down_s + p[2] / 1000, float(p[0]), float(p[1])) for p in g["path"]]
 
 
 def _first_real_change(scan: dict, kinds: list[str], bursts: list, px_per_pt: float, edit) -> tuple | None:

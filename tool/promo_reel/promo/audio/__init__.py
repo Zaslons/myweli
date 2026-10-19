@@ -8,11 +8,12 @@ NumPy/SciPy from a score (SCORE.md): no sample, no loop, no stock.
 
 or ``python -m promo.audio --score score_30s.yaml --out DIR``.
 
-Modules: _time (the clock), dsp, harmony, instruments, kinds (the score's
+Modules: dsp, harmony, instruments, kinds (the score's
 vocabulary), score (load + validate), arrange (score -> buses + placement
 log), mix (sidechain, ducking, compression, true-peak limiter, loudness
 loop), loudness (BS.1770-4), events (events.json), analysis (meter.json and
-the pictures), wav (24-bit I/O).
+the pictures), wav (24-bit I/O). The clock is promo/timebase.py, shared
+with every other module.
 """
 
 from __future__ import annotations

@@ -104,9 +104,21 @@ class TakeFiles:
     phone_rect_csv: Path | None
 
 
+def take_root(name: str) -> Path:
+    """The root whose ``takes/`` holds take ``name``: the App Store material
+    (take1b, take2b, take3, take5b…), else the promo's own takes (n1)."""
+    root = tools.material_root()
+    if not (root / "takes" / name / "take.mov").is_file():
+        own = tools.promo_takes_root()
+        if own is not None and (own / "takes" / name / "take.mov").is_file():
+            return own
+    return root
+
+
 def take_files(name: str, root: Path | None = None) -> TakeFiles:
-    """The files of take ``name`` (a folder of ``takes/``) under the material root."""
-    root = Path(root) if root is not None else tools.material_root()
+    """The files of take ``name`` (a folder of ``takes/``) under the material
+    root (or the promo's own takes: ``take_root``)."""
+    root = Path(root) if root is not None else take_root(name)
     folder = root / "takes" / name
     movie = folder / "take.mov"
     if not movie.is_file():

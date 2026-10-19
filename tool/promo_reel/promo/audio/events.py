@@ -23,7 +23,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from . import _time as tb
+from .. import timebase as tb
 from .arrange import Render
 
 
@@ -76,7 +76,7 @@ def build(render: Render) -> dict:
     return {
         "cut": score.cut,
         "fps": tb.FPS,
-        "bpm": tb.BPM,
+        "bpm": float(tb.BPM),
         "sample_rate": tb.SAMPLE_RATE,
         "frames": frames,
         "samples": n,

@@ -1,0 +1,162 @@
+"""The caption track: every caption of a cut, word by word on its cue.
+
+A caption (storyboard.yaml, a scene's ``captions``) is lines of words, each
+with the time it appears (a cue, or a grid position). It shows from its first
+word until ``until`` — the frame before it is the last that shows it, so the
+next caption's first word (which rises from that frame on) never overlaps it.
+Types follow the storyboard's « Type » rule and the format's ``type_px``:
+
+  hook     Poppins Medium 96 px, white, cap top y 300 (the hook block)
+  app      Poppins Medium 72 px, #1A1A1A, cap top y 330 (the band, y 300–540)
+  tagline  Poppins Medium 46 px, #1A1A1A, cap top = layout end_tagline_cap_top_y
+  store    Inter Medium 34 px, #4A4A4A, under the tagline
+
+``colour: auto`` (the default for app captions) follows the stage the frame is
+on: ink on paper, white on black — « Ils réservent dès la mise en ligne. »
+turns white as the page falls to black (row 22). Every line is measured with
+the repo's fonts and must fit the format's ``caption_line_max_px`` (771).
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Any
+
+import skia
+
+from ..fx import type as ty
+from ..fx.brand import PALETTE, inter, poppins
+
+
+@dataclass(frozen=True)
+class CaptionStyle:
+    font: str
+    px: float
+    colour: Any            # an ARGB int or "auto"
+    cap_top: float | None
+    centre_y: float | None
+    line_height: float | None
+
+
+def _styles(layout: dict) -> dict[str, CaptionStyle]:
+    tp = layout["type_px"]
+    tag_top = layout["end_tagline_cap_top_y"]
+    return {
+        "hook": CaptionStyle("poppins", tp["hook"], PALETTE.WHITE, 300.0, None, None),
+        "app": CaptionStyle("poppins", tp["app"], "auto", 330.0, None, None),
+        "tagline": CaptionStyle("poppins", tp["tagline"], PALETTE.INK, float(tag_top), None, None),
+        "store": CaptionStyle("inter", 34.0, PALETTE.INK_SECONDARY, float(tag_top) + 96.0, None, None),
+    }
+
+
+class CaptionItem:
+    def __init__(self, spec: dict, owner: str, clock, layout: dict, where: str):
+        self.id = spec.get("id", where)
+        self.owner = owner
+        self.cite = spec.get("cite")
+        kind = spec.get("type", "app")
+        styles = _styles(layout)
+        if kind not in styles:
+            raise ValueError(f"{where}.type: one of {', '.join(styles)}, not {kind!r}")
+        st = styles[kind]
+        self.kind = kind
+        px = float(spec.get("px", st.px))
+        self.font = poppins(px) if st.font == "poppins" else inter(px)
+        colour = spec.get("colour", st.colour)
+        self.colour = {"white": PALETTE.WHITE, "ink": PALETTE.INK}.get(colour, colour)
+        self.lines_spec = []
+        lines = []
+        for li, line in enumerate(spec.get("lines") or []):
+            words = []
+            for wi, w in enumerate(line):
+                if not isinstance(w, dict) or "w" not in w or "at" not in w:
+                    raise ValueError(f"{where}.lines[{li}][{wi}]: a word is {{w: text, at: time}}")
+                words.append(ty.Word(str(w["w"]), float(clock.frame(w["at"]))))
+            lines.append(words)
+        if not lines:
+            raise ValueError(f"{where}: a caption has lines")
+        self.until = float(clock.frame(spec["until"]))
+        self.first = min(w.at for line in lines for w in line)
+        reveal = ty.MASK if spec.get("reveal") == "mask" else ty.RISE
+        self.reveal = reveal
+        centre_y = spec.get("centre_y", st.centre_y)
+        line_height = spec.get("line_height", st.line_height)
+        cap_top = spec.get("cap_top", st.cap_top)
+        max_w = float(layout["caption_line_max_px"]) if kind in ("hook", "app") else 1e9
+        if centre_y is not None:
+            # the block centred on y: cap top of the first line to the baseline of the last
+            lh = line_height if line_height is not None else 1.15 * px
+            block = ty.cap_height(self.font) + lh * (len(lines) - 1)
+            cap_top = float(centre_y) - block / 2
+        try:
+            self.caption = ty.Caption(lines, self.font, PALETTE.INK, centre_x=float(layout["caption_centre_x"] or 540),
+                                      cap_top=float(cap_top), line_height=line_height, max_width=max_w,
+                                      reveal=reveal)
+        except ValueError as e:
+            raise ValueError(f"{where}: {e}") from None
+        self.strike = None
+        if spec.get("strike"):
+            s = spec["strike"]
+            self.caption.find(s["word"])
+            self.strike = (s["word"], float(clock.frame(s["at"])))
+        self.text = " ".join(w.text for line in self.caption.lines for w in line)
+
+    def visible(self, t: float) -> bool:
+        return self.first - self.reveal.lead <= t < self.until
+
+    def colour_on(self, dark_stage: bool) -> int:
+        if self.colour == "auto":
+            return PALETTE.WHITE if dark_stage else PALETTE.INK
+        return int(self.colour)
+
+    def draw(self, canvas: skia.Canvas, t: float, dark_stage: bool, alpha: float = 1.0, dy: float = 0.0) -> None:
+        if not self.visible(t):
+            return
+        self.caption.colour = self.colour_on(dark_stage)
+        self.caption.draw(canvas, t, alpha=alpha, dy=dy)
+        if self.strike:
+            word, at = self.strike
+            ty.strike_word(canvas, self.caption, word, t, at, self.caption.colour)
+
+    def boxes(self, t: float) -> list[dict]:
+        """Ink boxes of the words showing at t (for the safe-zone check)."""
+        if not self.visible(t):
+            return []
+        out = []
+        for p in self.caption.placed:
+            q = self.reveal.progress(t, p.word.at)
+            if q <= 0:
+                continue
+            x0, y0, x1, y1 = ty.ink_bounds(p.word.text, self.font, p.x, p.baseline)
+            rise = 0.0 if self.reveal.kind == "mask" else self.caption.word_state(p, t)[1]
+            out.append({"kind": "caption", "label": f"{self.id}:{p.word.text}",
+                        "rect": [round(x0, 1), round(y0 + rise, 1), round(x1, 1), round(y1 + rise, 1)]})
+        return out
+
+    def line_widths(self) -> list[float]:
+        return self.caption.line_widths()
+
+
+class CaptionTrack:
+    """Every caption of a cut, drawn in order."""
+
+    def __init__(self, items: list[CaptionItem]):
+        self.items = items
+
+    def at(self, t: float) -> list[CaptionItem]:
+        return [c for c in self.items if c.visible(t)]
+
+    def draw(self, canvas: skia.Canvas, t: float, dark_stage: bool, owner: str | None = None,
+             freeze: float | None = None) -> None:
+        for c in self.items:
+            if owner is not None and c.owner != owner:
+                continue
+            tt = t if freeze is None else min(t, freeze)
+            c.draw(canvas, tt, dark_stage)
+
+    def boxes(self, t: float) -> list[dict]:
+        return [b for c in self.items for b in c.boxes(t)]
+
+    def words(self) -> list[tuple[str, float, str]]:
+        """(caption id, frame, word) of every word, for the event list."""
+        return [(c.id, w.at, w.text) for c in self.items for line in c.caption.lines for w in line]

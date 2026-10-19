@@ -110,18 +110,26 @@ Exactly five top-level keys (plus `x-…` keys, which only hold YAML anchors):
   - Across formats, `px_per_pt`, `type_px`, `lottie_comp_width_px`,
     `end_mark_scale` and `screen_crop_top_pt` must be identical: one
     storyboard, re-laid out, never resized.
-- **music** — AUDIO's section, passed through. Only `music.cues` is read: a
-  list of `{id: …, …}` (or a mapping `cut → list`), ids unique, no spaces.
-- **scenes** — SCENES' section (a list, or a mapping), passed through. **A cue
-  reference is the value of a key named `cue` (one id) or `cues` (a list of
-  ids), at any depth**: each must be declared in `music.cues`.
+- **music** — **the cue ids have one source: the scores.** `music.scores`
+  maps each cut to its score (`promo/audio/score_30s.yaml`, AUDIO's format,
+  SCORE.md): the score IS the music, and its `cues[].id` are that cut's cue
+  ids. The storyboard references the scores rather than embedding them
+  (500 lines of music in the picture's file, and two copies to keep equal);
+  `storyboard.py` reads each referenced score's cue ids, checks that the
+  score is that cut's (`cut`, `bars`) and refuses a cue declared twice.
+  `music.cues` may still declare ids inline (a list, or `cut → list`) — the
+  tests' small storyboards do — but never one a score already declares.
+- **scenes** — SCENES' section: a mapping `cut → list of scenes` (or a plain
+  list). **A cue reference is the value of a key named `cue` (one id), each
+  item of `cues`, or any string written `cue:<id>` (`cue:whip1+6`,
+  `cue:riser1@end`), at any depth**: each must be a cue of THAT cut's score.
 
 Every problem is reported at once, with its path:
 
 ```
 storyboard.yaml: 2 problems:
   - meta.bpm: 120 is not the contract's 112.5 BPM (promo/timebase.py): the music is the clock, 16 frames a beat
-  - scenes[1].sound.cues[1]: cue 'drop1.typo' is not in music.cues (known: drop1.impact, hook.word1)
+  - scenes.30s[0].from: cue 'hook.stabx' is not in the cut's cues (known: air1.reverse, …)
 ```
 
 Variants: `--set path.to.key=value` (repeatable) overrides one value before the
@@ -338,3 +346,128 @@ real takes run when the material is on the machine and are skipped otherwise.
 ---
 
 Sections below are added by each builder (AUDIO, LOTTIE, FX, SCENES).
+
+- AUDIO — the score, the synthesis, the mix and loudness, events.json:
+  [promo/audio/README.md](promo/audio/README.md) (the score format: SCORE.md)
+- LOTTIE — the Skia player of the Pro opening animation:
+  [promo/lottie/README.md](promo/lottie/README.md)
+- FX — the skia primitives (phone, type, counter, lifts, blur…):
+  [promo/fx/README.md](promo/fx/README.md)
+
+## SCENES — `promo/scenes/`, `promo/render.py`, `promo/verify.py`
+
+```
+python -m promo build  --cut 30s --format 9x16 --out DIR     # → DIR/30s-9x16/reel.mp4 (+ track.wav, events.json, meter.json, spectrogram.png, render.json)
+python -m promo verify --cut 30s --format 9x16 --out DIR     # → DIR/30s-9x16/verify/ (report.txt/json, sheets, frames)
+python -m promo.render --frames 0,144,552 --out DIR [--events DIR/30s-9x16/events.json]   # full-size stills, no MP4
+build.sh                                                     # both, for every cut × format that is laid out
+```
+
+**What is built.** The 30-s cut in 9:16 (896 frames). The 15-s cut has no
+scenes yet and 1:1 / 16:9 are not laid out: `build`/`verify --all` name them
+(« NOT BUILT … ») and build/verify the rest; asking for one of them alone
+fails — nothing unbuilt is ever reported as verified.
+
+**Order of work** (`render.build_one`): the soundtrack FIRST
+(`promo.audio.build_cut` on the cut's score, master limited to −1.5 dBTP so
+the AAC stays under −1.0), then the clock is READ from the events.json it
+wrote (`scenes.Clock`: every cue's frame is where its sound landed, checked
+against the grid), then every frame is drawn and piped to
+`media.writer.VideoWriter` with track.wav muxed; `render.json` keeps what each
+frame shows, and the renderer's own frame on every beat goes to
+`verify/renderer/`.
+
+**storyboard.yaml `scenes.30s`** holds every row of the storyboard (rows
+1–24) as data, so a variant is a `--set`, never a code change: per scene its
+span (`from`/`to`), stage, source take and masks, the film → take
+`timeline`, camera keys (W, zoom with its anchor, slam/tilt, fall, parallax),
+touches, lifts, stacked tiles, the counter, the map credit, hidden rows, and
+its captions word by word. The header comment of the section documents the
+grammar; the times a scene writes are cue ids or grid positions, the take
+times are `{named: t}` (a picture written to the ms), `{touch: gesture}`
+(the measured touch-down), `{key: …}` or instants inside a held picture.
+
+| scene kind | module | rows |
+|---|---|---|
+| `carnet`, `air` | `scenes/carnet.py` | 1–5: the code-drawn carnet (push-in under way at f0, macro cut, strikes with punches, push + sink, grain), the AIR |
+| `phone` | `scenes/phone.py` | 6–22: take1b, take2b, N1, take5b in the 2.5D slab through the camera window |
+| `lottie`, `end_card` | `scenes/lottie.py` | 23–24: the Pro opening Lottie retimed, the mark settling, the tagline, « Disponible sur l’App Store » |
+| — | `scenes/film.py` | the cut end to end, the horizontal whip between scenes, captions, the per-frame record |
+
+**Rules the renderer enforces** (each a refusal with its storyboard path):
+a derived take rate faster than 1× on anything but a drag (the gesture ramps
+1.11×, 2.74×, 1.08×; never past 3×); a touch disc whose YAML frame is not
+where the timeline puts the measured touch-down, or whose tone is not what
+the ground under the finger asks for; a counter that does not land on the
+frame the app first shows its figure; a caption line over 771 px; scenes
+that do not run end to end.
+
+**Motion blur.** Camera moves blur by subframe accumulation in linear light
+(`fx.blur`), only inside the phone window's rows, with enough subframes that
+copies sit ≤ 2 px apart; the take's picture is held for the frame (a fast UI
+move the take has only a few pictures of would otherwise show as double
+images). Where the storyboard asks for the take's own frames to blend (the
+swipe, the 2.74× form scroll) each subframe shows its own take picture.
+Masks are on the take, so every subframe is already blurred.
+
+### Verification — `promo/verify.py`
+
+All automated, on the written MP4 wherever possible, into `verify/`: (a) the
+renderer's frame on every beat (`beats.png`, 56 stills) and the MP4's beats
+compared with them (PSNR), (b) every cut and whip ± 1 frame from the MP4
+(`transitions.png`, plus full-size frames in `frames/`), (c) every touch-down
+drawn held to the gesture logs (`media.touches.cross_check`) and its tone
+re-measured, (d) BS.1770-4 on the MP4's decoded AAC (−14 ± 0.5 LUFS, ≤ −1.0
+dBTP; ffmpeg's ebur128 as a second opinion) and `spectrogram.png` with bar
+ticks, (e) ffprobe + assertions (`probe.json`), (f) A/V sync: each click and
+key's onset in the MP4 audio (correlated with the master) ÷ 1600 against the
+frame its disc or picture appears, (g) every caption / lift / counter / disc /
+credit box on every frame inside the platform text area, (h) honesty: every
+generated element with its source (`honesty.txt`), every blur measured on
+every picture the film uses, the old 13:15 row never readable outside the
+whip, the speed of every wait and ramp, (i) reading speed (≤ 17 cps) and the
+longest stretch without a visual event (≤ 2 s). `report.txt` is the summary;
+the exit status is 1 when anything fails.
+
+### Decisions made against the storyboard's text, and why
+
+- **N1, the Revenus wait.** Touch-down on « Mois » 7.152 s (first changed
+  picture #1 at 7.352 − 200 ms, read from the pictures: N1 has no App Store
+  scan); the first picture showing « 77 000 FCFA » is #26 at 7.815 s. The
+  wait, 0.663 s, is ≤ 0.8 s, so the landing stays on f552 (`revenus.*` cues
+  unchanged) — which plays the wait at 0.829×. The storyboard also asks for
+  0.90–1.00×; for this wait the two rules cannot both hold (the previous 8th,
+  f544, would need 1.24×, faster than real). The grid and « never faster »
+  win. « Tout » equals « Mois »: not used.
+- **« Disponible sur l’App Store »** appears on 14.2.0 (f848) with « moins
+  de gestion. », not on 14.3.0: from f864 it would show for 1.07 s (24
+  characters a second, over the 17-cps ceiling). `end.store` moved in both
+  scores (the 15-s's to 7.2.0 for the same reason).
+- **No picture is hidden.** take1b 130.985 is not a black picture: it is the
+  form with « Créer le rendez-vous » solid black again after its loader — a
+  real state; it plays.
+- **The snackbar** « Rendez-vous créé » appears whole in one picture
+  (131.44833 s), it does not slide in; the film shows the app's pictures.
+- **The Fiche tiles** lift into a ROW (x 120–900, 2.92 px/pt), not a
+  360-px-wide column: three tiles 360 px wide stack 1 085 px tall, which the
+  storyboard's y 660–1200 cannot hold.
+- **The end mark**: `end_mark_scale` 1.2 is read against the composition's own
+  560 px (a 672-px comp), which is what gives the storyboard's ink y 400–599
+  (measured with `Player.ink_bounds`); against the 900-px reveal it would be
+  321 px tall and touch the tagline.
+- **Camera W** measured on the pictures: 257 (Fatou B.'s card bottom 582 pt on
+  y 1184), 667 for the lower journal and the « Créer » shot (the old 13:15
+  row's last text line, 644 pt, on y 560 — wholly under the band; 660/662
+  left 28 % of it in the band's fade), 377.5 / 86.5 / 533.5 / 584.5 for the
+  form rows, 216 for the Fiche (the blurred number under the band too), 124
+  for Revenus (its title under the band), 482 for the page's end (the bar's
+  « Réserver » line ≥ 8 px above the floor).
+- **The hook's caption band**: the stage's black covers y 0–560 and fades to
+  640 over the page, so the macro and the push-in never put scribbles under
+  the white words (the layout's caption band, applied to the hook).
+- **The « Modifier » chip** in take2b's Fiche is the tag editor
+  (client_detail_screen.dart:408, `tags.isEmpty ? '+ Tags' : 'Modifier'`), not
+  #614's « Modifier » under the number (:442) — the footage is build 587's.
+- Awa K.'s number uses the storyboard's rectangle + 4 pt, σ 14 px (7 % of the
+  digits' detail left, measured on the film's picture).
+

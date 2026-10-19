@@ -35,7 +35,7 @@ the score is refused.
 
 | module | role |
 |---|---|
-| `_time.py` | the clock: `frame = (bar−1)·64 + (beat−1)·16 + step·4`, `sample = frame·1600`. It copies the three formulas of MEDIA's `promo/timebase.py`; SCENES will merge the two. |
+| (`promo/timebase.py`) | the clock, shared with every module: `frame = (bar−1)·64 + (beat−1)·16 + step·4`, `sample = frame·1600` (`frame_of`, `sample_of_frame`, `pos_of_step`, `Pos.frame/.sample/.step_in_bar`). The audio's own copy, `_time.py`, was merged into it. |
 | `score.py`, `kinds.py` | load and validate a score. `kinds.py` holds the vocabulary: instruments, cue kinds and their parameters. A refused score lists every problem with its location. |
 | `harmony.py` | notes, chords and voicings, and the log drum's chord-relative degrees |
 | `instruments.py` | every sound, synthesised; the first sample of each sound is its onset |
@@ -156,8 +156,11 @@ not a splice of the 30-s audio.
   the score. For example, bar 3 is A without step 10, because the E♭2 hero
   sits on step 8.
 - The owner's addition is a soft `glint` (`end.store`) under « Disponible
-  sur l'App Store », on 14.3.0 (f864) in the 30-s and 7.3.0 (f416) in the
-  15-s, at −12 dB with a short reverb.
+  sur l'App Store », at −12 dB with a short reverb. It was on 14.3.0 (f864)
+  in the 30-s and 7.3.0 (f416) in the 15-s; SCENES moved it to 14.2.0 (f848)
+  and 7.2.0 (f400), with « moins de gestion. »: on the later beat the
+  26-character line was on screen for 1.07 s (24 characters a second), over
+  the storyboard's 17-cps reading ceiling; from f848 it has 1.6 s (16.3).
 - Riser 2 stops one 16th before the drop (f508), as riser 1 does (f108).
 - In the 15-s, a short reverse cymbal leads into the reveal (f312–320).
   That cut has no AIR before its reveal.

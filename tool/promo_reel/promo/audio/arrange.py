@@ -24,7 +24,7 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
-from . import _time as tb
+from .. import timebase as tb
 from . import instruments as ins
 from .dsp import SR, amp, fade, midi_hz, n_of, pan, reverb, rng, sweep
 from .harmony import (KEYS_WINDOW, LEFT_HAND_WINDOW, LOG_WINDOW, ORGAN_WINDOW, PAD_ROOT_WINDOW, SUB_WINDOW,

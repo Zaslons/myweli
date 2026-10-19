@@ -221,5 +221,5 @@ cues:
   # ── OUTRO, bar 7 (f384-447) ─────────────────────────────────────────────
   - {id: end.mark, kind: log, pos: 7.1.0, note: C2, octave: true, vel: 1.0}         # « Plus de clients, » f384
   - {id: end.line2, kind: log, pos: 7.2.0, note: G2, vel: 0.8}                      # « moins de gestion. » f400
-  - {id: end.store, kind: glint, pos: 7.3.0, gain: -12, reverb: 1.6, wet: -12}      # « Disponible sur l’App Store » f416
+  - {id: end.store, kind: glint, pos: 7.2.0, gain: -12, reverb: 1.6, wet: -12}      # « Disponible sur l’App Store » f400, with « moins de gestion. » (reading: 1.6 s, not 1.07 s)
   - {id: end.last, kind: log, pos: 7.4.0, note: C2, decay: 0.6, reverb: 2.4, wet: -10}   # f432; the tail rings to f447
