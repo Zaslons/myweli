@@ -155,8 +155,16 @@ séparer N3–N5 dans un PR suivant.
   Postgres rend une ligne neuve, donc la production n'aurait pas eu le
   défaut, mais un autre dépôt l'aurait ; la date est désormais lue avant le
   déplacement.
-- Les gardes de la route vues échouer par mutation sur le travail commité
-  (§11.1 de l'entrée ROADMAP).
+- **Chaque garde vue échouer par mutation** sur le travail commité, puis le
+  fichier restauré : notifier aussi la branche salon → rouge (« the salon
+  moving its OWN booking never notifies itself ») ; ne jamais notifier →
+  rouge (« reschedule (client) tells the SALON ») ; relire l'ancienne date
+  après le déplacement → deux rouges ; un corps sans l'ancien créneau →
+  rouge. Un premier essai de mutation ne compilait pas — il ne prouvait
+  donc rien et a été refait sous une forme qui compile.
+- Vérifié ici : `dart analyze --fatal-infos --fatal-warnings` 0, format
+  propre, **toute la suite backend verte (1 756)** ; `flutter analyze` 0,
+  42 tests app ciblés verts ; l'épingle web verte.
 
 **Non vérifié** : une vraie notification sur un appareil ; le texte des
 Notifications Pro à 200 % (l'écran n'est pas dans la matrice a11y — écart
