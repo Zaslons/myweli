@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Approved le 2026-10-19** — dates comme l'app (A), chevauchements refusés **sur le web et dans l'app**, texte du §3 tel qu'écrit |
+| **Statut** | **Construit le 2026-10-19** (branche `feat/web-pro-availability-ranges`) — dates comme l'app, chevauchements refusés sur le web **et** dans l'app, texte du §3 ; §10 dit ce qui a été vu rouge · web au merge, l'app au prochain build Pro |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-19 |
 | **PRD ref / phase** | Disponibilités du salon (FR-PRO-AVAIL) · parité web ↔ app · V1 |
@@ -66,8 +66,11 @@ l'app).
 - Cocher « Ouvert » sur un jour sans plage en crée une : 09:00 – 18:00 (comme
   aujourd'hui). Décocher ferme le jour ; recocher retrouve ses plages.
 - Nouvelle plage : commence **une heure après la fin de la précédente**, dure
-  4 h, plafonnée à 23:00 (9 h–12 h → 13 h–17 h) ; si la précédente finit
-  après 22 h, 22:00 – 23:00.
+  4 h, jamais au-delà de 23:59 (9 h–12 h → 13 h–17 h) ; s'il reste moins
+  d'une heure, elle commence à la fin de la précédente ; s'il ne reste rien,
+  « Ajouter une plage » est inactif. *(Précisé au build : la première
+  rédaction — « 22:00 – 23:00 » si la précédente finit après 22 h — aurait
+  chevauché la précédente.)*
 - « Retirer » la dernière plage d'un jour le **ferme** (pas de jour ouvert
   sans plage).
 - À l'enregistrement : chaque plage début < fin (le message actuel), les
@@ -196,4 +199,31 @@ plages passent à la ligne) ; texte 200 %.
    erreur de formulaire, jamais un toast — SYSTEM §14) ; rien n'est écrit.
    Des plages qui se touchent (fin 12:00, début 12:00) restent acceptées.
 3. Le texte du §3, tel qu'écrit.
+
+## 10. Ce qui a été vu rouge
+
+- Tests commités **avant** le code (`d4a0b038`) : 44 rouges côté web (le
+  modèle à plusieurs plages, la boîte des dates, **la page qui plante sur une
+  date écrite par l'app**) ; 2 rouges côté app (le chevauchement à
+  « Enregistrer » et à « Copier ») — le cas des plages qui se touchent était
+  déjà vert, comme il devait.
+- Les anciens tests qui figeaient « une plage par jour, les autres portées
+  invisibles » ont été **réécrits** dans l'autre sens (`toEditable` lit toutes
+  les plages ; la copie remplace toutes les plages).
+- Les horaires par employé gardent une plage par jour (comme l'app) : leur
+  copie passe par `copyFormDayToAll`, inchangée.
+- **Vérifié dans le navigateur** (bouchon e2e, 1280 px puis pane étroit) :
+  la deuxième plage proposée 13:00 – 17:00 ; « Lundi : deux plages se
+  chevauchent. » refusé ; l'enregistrement puis le rechargement rendent les
+  deux plages ; la boîte (passé grisé, aujourd'hui marqué, « 2 dates
+  bloquées · 2 ajoutées »), la confirmation « Bloquer ces dates ? » au bouton
+  rouge, l'écriture — stockée au format de l'app — et la liste qui la relit
+  sans planter.
+- Vérifié ici : typecheck, lint, **toute la suite unitaire web verte
+  (1 607)** ; app : `flutter analyze` 0, les tests de disponibilité verts.
+
+**Petit défaut typographique relevé, non corrigé** : « ces 2 journées » peut
+se couper entre « 2 » et « journées » — `countFr` met une espace simple ;
+une espace insécable serait juste partout, à faire dans une tranche à part
+(le helper sert tout le produit).
 
