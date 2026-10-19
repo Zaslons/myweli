@@ -189,28 +189,29 @@ void main() {
     expect(find.text('Terminé'), findsWidgets);
   });
 
-  testWidgets('« Refuser » on a pending request REFUSES it — never an absence', (
-    tester,
-  ) async {
-    // It called `noShow` from #191 (2026-07-10) until this fix: the request
-    // was recorded as the client's absence (their badge went up) and they
-    // were never told « Réservation refusée » (app-journal-refuser.md §1).
-    stub.day = JournalDay(
-      date: '2026-07-13',
-      artists: const [JournalArtist(id: 'ar1', name: 'Awa')],
-      appointments: [
-        appt(id: 'a3', status: 'pending', time: '11:00', name: 'Mariam'),
-      ],
-    );
-    await tester.pumpWidget(app());
-    await settle(tester);
-    await tester.longPress(find.text('Mariam'));
-    await settle(tester);
-    expect(find.text('Accepter'), findsWidgets);
-    await tester.tap(find.text('Refuser'));
-    await settle(tester);
+  testWidgets(
+    '« Refuser » on a pending request REFUSES it — never an absence',
+    (tester) async {
+      // It called `noShow` from #191 (2026-07-10) until this fix: the request
+      // was recorded as the client's absence (their badge went up) and they
+      // were never told « Réservation refusée » (app-journal-refuser.md §1).
+      stub.day = JournalDay(
+        date: '2026-07-13',
+        artists: const [JournalArtist(id: 'ar1', name: 'Awa')],
+        appointments: [
+          appt(id: 'a3', status: 'pending', time: '11:00', name: 'Mariam'),
+        ],
+      );
+      await tester.pumpWidget(app());
+      await settle(tester);
+      await tester.longPress(find.text('Mariam'));
+      await settle(tester);
+      expect(find.text('Accepter'), findsWidgets);
+      await tester.tap(find.text('Refuser'));
+      await settle(tester);
 
-    expect(stub.rejected, ['a3']);
-    expect(stub.noShows, isEmpty);
-  });
+      expect(stub.rejected, ['a3']);
+      expect(stub.noShows, isEmpty);
+    },
+  );
 }

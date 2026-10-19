@@ -175,6 +175,13 @@ class ProJournalProvider extends ChangeNotifier implements ShowsSalonBookings {
   // ---- Actions (optimistic-ish: act then refetch the day) ------------------
 
   Future<bool> accept(String id) => _act(() => _service.acceptAppointment(id));
+
+  /// Refuse a PENDING request — the server's `reject` (→ `cancelled`, and the
+  /// client is told « Réservation refusée »). Never `noShow`: « Refuser » used
+  /// to call it, recording the request as the client's absence
+  /// (docs/design/app-journal-refuser.md).
+  Future<bool> reject(String id) =>
+      _act(() => _service.rejectAppointment(id, null));
   Future<bool> complete(String id) =>
       _act(() => _service.markAppointmentComplete(id));
   Future<bool> noShow(String id) => _act(() => _service.markNoShow(id));

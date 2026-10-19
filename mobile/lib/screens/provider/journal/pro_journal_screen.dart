@@ -397,7 +397,8 @@ class _ProJournalScreenState extends State<ProJournalScreen> {
               _sheetAction(
                 Icons.close,
                 'Refuser',
-                () => journal.noShow(a.id),
+                // A refusal, not an absence (app-journal-refuser.md).
+                () => journal.reject(a.id),
                 destructive: false,
               ),
             ],
