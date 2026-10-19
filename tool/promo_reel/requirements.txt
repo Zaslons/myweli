@@ -1,0 +1,9 @@
+# Pinned to the dev venv the pipeline was built and tested with
+# (`pip freeze`, 2026-10-19), for Python 3.12. build.sh installs exactly these.
+imageio-ffmpeg==0.6.0
+numpy==2.5.4
+pillow==13.0.0
+pybind11==3.1.0
+PyYAML==6.0.3
+scipy==1.18.1
+skia-python==144.0.post2

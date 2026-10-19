@@ -1,0 +1,762 @@
+"""storyboard.yaml — the one source of the promo — loaded and checked.
+
+The document has exactly five top-level keys (plus any ``x-…`` key, which
+only holds a YAML anchor for values shared below it, and is not read):
+
+  meta     title, fps, bpm, key, sample_rate. Checked strictly: the time base
+           must be the contract's (30 fps, 112.5 BPM, 48 kHz — promo/timebase.py),
+           because every module counts 16 frames a beat.
+  cuts     one entry per cut (``30s``, ``15s``): its number of bars and frames.
+           Positions inside a cut are relative to its start, so every cut is
+           bars 1…n. A cut never runs longer than its name says.
+  formats  one entry per output format (``9x16``, ``1x1``, ``16x9``): canvas,
+           safe area, working zones and layout rules. Checked strictly — the
+           geometry too (zones inside the canvas, text inside the safe area,
+           the same pixel sizes in every format, the mark's clear space).
+  music    AUDIO's section, passed through as data. Only ``music.cues`` is
+           read here: a list of ``{id: …}`` (or a mapping cut → such a list).
+  scenes   SCENES' section, passed through as data. Every cue it refers to
+           must be a cue of ``music.cues``: a reference is the value of a key
+           named ``cue`` (one id) or ``cues`` (a list of ids), at any depth.
+
+Variants: ``--set path.to.key=value`` overrides one value before the document
+is checked, so a variant is held to the same rules. The value is read as YAML
+(``--set meta.title="Test"``, ``--set formats.9x16.safe=[120,270,900,1248]``);
+list items are addressed by index (``--set scenes.0.id=hook``). Every key on
+the path must exist except the last, which may be added.
+
+Every problem found is reported at once, each with its path in the document.
+"""
+
+from __future__ import annotations
+
+import copy
+import re
+from dataclasses import dataclass, field
+from fractions import Fraction
+from pathlib import Path
+from typing import Any, Iterable, Iterator, NamedTuple, Sequence
+
+import yaml
+
+from . import timebase as tb
+
+PROMO_REEL = Path(__file__).resolve().parents[1]
+DEFAULT_PATH = PROMO_REEL / "storyboard.yaml"
+
+TOP_LEVEL = ("meta", "cuts", "formats", "music", "scenes")
+#: Top-level keys starting with this only hold YAML anchors for shared values.
+EXTENSION_PREFIX = "x-"
+
+#: The device the takes were recorded on: 402 × 874 points (iPhone 17 Pro,
+#: ``device_points`` in every gesture log). The phone's screen in every format
+#: shows its full width.
+DEVICE_WIDTH_PT = 402.0
+
+#: Zones that hold something to read or see (text, demonstrated UI, lifts):
+#: they must lie inside the safe area (or the caption extension above the
+#: platforms' button rail).
+CONTENT_ZONES = ("captions", "hook_block", "phone_window", "overlays", "slot_card")
+#: Zones of the stage itself (bands, fades, the floor): anywhere on the canvas.
+STAGE_ZONES = ("caption_band", "caption_fade", "top_fade", "floor_fade", "floor")
+REQUIRED_ZONES = ("captions", "phone_window")
+
+SAFE_BASES = ("platform", "ebu_r95_graphics")
+EBU_R95_GRAPHICS_INSET = Fraction(5, 100)
+TYPE_ROLES = ("hook", "app", "counter", "counter_label", "tagline", "credit")
+KEY_RE = re.compile(r"^[A-G](?:#|b|♯|♭)? (?:major|minor)$")
+CUT_RE = re.compile(r"^([1-9][0-9]*)s$")
+FORMAT_RE = re.compile(r"^([1-9][0-9]*)x([1-9][0-9]*)$")
+SHORT_SIDE_PX = 1080
+
+
+class StoryboardError(ValueError):
+    """The storyboard (or a variant of it) breaks the schema. ``problems``
+    lists every one found, each starting with its path in the document."""
+
+    def __init__(self, source: str, problems: Sequence[str]):
+        self.source, self.problems = source, list(problems)
+        lines = "\n".join(f"  - {p}" for p in self.problems)
+        n = len(self.problems)
+        super().__init__(f"{source}: {n} problem{'s' if n != 1 else ''}:\n{lines}")
+
+
+class Rect(NamedTuple):
+    """An axis-aligned rectangle in pixels: x0, y0 (inclusive) to x1, y1."""
+
+    x0: float
+    y0: float
+    x1: float
+    y1: float
+
+    @property
+    def width(self) -> float:
+        return self.x1 - self.x0
+
+    @property
+    def height(self) -> float:
+        return self.y1 - self.y0
+
+    def contains(self, other: "Rect") -> bool:
+        return (self.x0 <= other.x0 and self.y0 <= other.y0
+                and other.x1 <= self.x1 and other.y1 <= self.y1)
+
+    def contains_point(self, x: float, y: float) -> bool:
+        return self.x0 <= x <= self.x1 and self.y0 <= y <= self.y1
+
+    def __str__(self) -> str:
+        return f"x {self.x0:g}–{self.x1:g}, y {self.y0:g}–{self.y1:g}"
+
+
+def covered_by(rect: Rect, cover: Sequence[Rect]) -> bool:
+    """Whether every point of ``rect`` lies in at least one of ``cover``.
+    Exact for axis-aligned rectangles: the plane is cut on every edge, and
+    the centre of every cell of ``rect`` is tested."""
+    xs = sorted({rect.x0, rect.x1, *(c for r in cover for c in (r.x0, r.x1) if rect.x0 < c < rect.x1)})
+    ys = sorted({rect.y0, rect.y1, *(c for r in cover for c in (r.y0, r.y1) if rect.y0 < c < rect.y1)})
+    for xa, xb in zip(xs, xs[1:]):
+        for ya, yb in zip(ys, ys[1:]):
+            cx, cy = (xa + xb) / 2, (ya + yb) / 2
+            if not any(r.contains_point(cx, cy) for r in cover):
+                return False
+    return True
+
+
+@dataclass(frozen=True)
+class Meta:
+    title: str
+    fps: int
+    bpm: Fraction
+    key: str
+    sample_rate: int
+
+    @property
+    def timebase(self) -> tb.TimeBase:
+        return tb.TimeBase(fps=self.fps, bpm=self.bpm, sample_rate=self.sample_rate)
+
+
+@dataclass(frozen=True)
+class Cut:
+    id: str
+    bars: int
+    frames: int
+    description: str
+    fps: int = tb.FPS
+
+    @property
+    def nominal_s(self) -> int:
+        """The length the cut is named after (``30s`` → 30)."""
+        return int(CUT_RE.match(self.id).group(1))
+
+    @property
+    def duration_s(self) -> Fraction:
+        return Fraction(self.frames, self.fps)
+
+    @property
+    def samples(self) -> int:
+        return self.frames * tb.SAMPLE_RATE // self.fps
+
+
+@dataclass(frozen=True)
+class Format:
+    id: str
+    width: int
+    height: int
+    safe: Rect
+    safe_basis: str
+    safe_note: str
+    rail_free: Rect | None
+    zones: dict[str, Rect]
+    layout: dict[str, Any]
+
+    @property
+    def size(self) -> tuple[int, int]:
+        return self.width, self.height
+
+    @property
+    def text_area(self) -> tuple[Rect, ...]:
+        """Where text may sit: the safe area, plus the extension above the
+        button rail when the format has one."""
+        return (self.safe,) + ((self.rail_free,) if self.rail_free else ())
+
+
+@dataclass(frozen=True)
+class Storyboard:
+    source: str
+    document: dict[str, Any]
+    meta: Meta
+    cuts: dict[str, Cut]
+    formats: dict[str, Format]
+    music: dict[str, Any]
+    scenes: Any
+    overrides: tuple[str, ...] = field(default=())
+
+    @property
+    def timebase(self) -> tb.TimeBase:
+        return self.meta.timebase
+
+    def cue_ids(self) -> set[str]:
+        return {cue_id for _, cue_id in _declared_cues(self.music)}
+
+    def plan(self, cuts: Iterable[str] | None = None, formats: Iterable[str] | None = None) -> str:
+        """What a build of ``cuts`` × ``formats`` (default: all) makes, in words."""
+        cuts = list(cuts) if cuts is not None else list(self.cuts)
+        formats = list(formats) if formats is not None else list(self.formats)
+        m = self.meta
+        t = self.timebase
+        lines = [f"{self.source} — {m.title}",
+                 f"  time base: {float(m.bpm):g} BPM · {m.fps} fps · {m.sample_rate} Hz · {m.key} · "
+                 f"beat {t.frames_per_beat} frames · bar {t.frames_per_bar} frames · "
+                 f"{t.samples_per_frame} samples a frame"]
+        if self.overrides:
+            lines.append("  variant: " + " ".join(f"--set {o}" for o in self.overrides))
+        for cid in cuts:
+            c = self.cuts[cid]
+            lines.append(f"  cut {cid}: {c.bars} bars = {c.frames} frames = {float(c.duration_s):.3f} s "
+                         f"= {c.samples} samples — {c.description}")
+        for fid in formats:
+            f = self.formats[fid]
+            lines.append(f"  format {fid}: {f.width}×{f.height}, safe {f.safe} ({f.safe_basis}); "
+                         f"zones: {', '.join(f.zones)}")
+        n_scenes = len(self.scenes) if isinstance(self.scenes, (list, dict)) else 0
+        lines.append(f"  music: {len(self.cue_ids())} cues declared · scenes: {n_scenes}")
+        lines.append(f"  films: {len(cuts) * len(formats)} — " + ", ".join(f"{c}/{f}" for c in cuts for f in formats))
+        return "\n".join(lines)
+
+
+# ---- loading -------------------------------------------------------------------
+
+def load(path: Path | str = DEFAULT_PATH, overrides: Sequence[str] = ()) -> Storyboard:
+    """Read, override and check a storyboard. Raises ``StoryboardError``."""
+    path = Path(path)
+    source = path.name
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError as e:
+        raise StoryboardError(source, [f"cannot read {path}: {e.strerror or e}"]) from None
+    return loads(text, source=source, overrides=overrides)
+
+
+def loads(text: str, source: str = "storyboard.yaml", overrides: Sequence[str] = ()) -> Storyboard:
+    """``load`` from a string."""
+    try:
+        doc = _unshare(yaml.safe_load(text))
+    except yaml.YAMLError as e:
+        raise StoryboardError(source, [f"not valid YAML: {e}"]) from None
+    doc = apply_overrides(doc, overrides, source=source)
+    return validate(doc, source=source, overrides=overrides)
+
+
+def _unshare(node: Any) -> Any:
+    """A copy in which no mapping or list appears twice. A YAML alias makes
+    one object appear wherever it is used; an override of one use must not
+    change the others (`--set formats.9x16.layout.type_px.app=80` changes the
+    9:16 format only — and is then refused, the sizes being the same in every
+    format)."""
+    if isinstance(node, dict):
+        return {k: _unshare(v) for k, v in node.items()}
+    if isinstance(node, list):
+        return [_unshare(v) for v in node]
+    return node
+
+
+def parse_override(text: str) -> tuple[list[str], Any]:
+    """``"a.b.c=value"`` → (``["a", "b", "c"]``, the value read as YAML)."""
+    if not isinstance(text, str) or "=" not in text:
+        raise ValueError(f"--set {text!r}: write path.to.key=value")
+    key, _, raw = text.partition("=")
+    parts = key.strip().split(".")
+    if not key.strip() or any(not p for p in parts):
+        raise ValueError(f"--set {text!r}: the path {key!r} has an empty part")
+    try:
+        value = yaml.safe_load(raw) if raw.strip() else None
+    except yaml.YAMLError as e:
+        raise ValueError(f"--set {text!r}: the value is not valid YAML ({e})") from None
+    return parts, value
+
+
+def apply_overrides(doc: Any, overrides: Sequence[str], source: str = "storyboard.yaml") -> Any:
+    """A deep copy of ``doc`` with every ``path=value`` applied in order."""
+    if not overrides:
+        return doc
+    doc = copy.deepcopy(doc)
+    problems = []
+    for text in overrides:
+        try:
+            parts, value = parse_override(text)
+            _set_path(doc, parts, value)
+        except (ValueError, KeyError, IndexError, TypeError) as e:
+            problems.append(str(e.args[0]) if e.args else repr(e))
+    if problems:
+        raise StoryboardError(source, problems)
+    return doc
+
+
+def _set_path(doc: Any, parts: list[str], value: Any) -> None:
+    node, walked = doc, []
+    for i, part in enumerate(parts):
+        last = i == len(parts) - 1
+        where = ".".join(walked) or "(top level)"
+        if isinstance(node, dict):
+            key = _existing_key(node, part)
+            if key is None:
+                if not last:
+                    raise KeyError(f"--set {'.'.join(parts)}: {where} has no key {part!r}")
+                key = part
+            if last:
+                node[key] = value
+                return
+            node = node[key]
+        elif isinstance(node, list):
+            if not re.fullmatch(r"\d+", part):
+                raise KeyError(f"--set {'.'.join(parts)}: {where} is a list; address an item by its index, "
+                               f"not {part!r}")
+            idx = int(part)
+            if idx >= len(node):
+                raise IndexError(f"--set {'.'.join(parts)}: {where} has {len(node)} items, no item {idx}")
+            if last:
+                node[idx] = value
+                return
+            node = node[idx]
+        else:
+            raise TypeError(f"--set {'.'.join(parts)}: {where} is a {type(node).__name__}, not a mapping or a list")
+        walked.append(part)
+
+
+def _existing_key(node: dict, part: str) -> Any:
+    """The key of ``node`` written ``part`` (YAML may have read it as a number)."""
+    if part in node:
+        return part
+    for key in node:
+        if str(key) == part:
+            return key
+    return None
+
+
+# ---- checking ------------------------------------------------------------------
+
+class _Check:
+    """Collects problems, each prefixed with its path in the document."""
+
+    def __init__(self) -> None:
+        self.problems: list[str] = []
+
+    def fail(self, path: str, message: str) -> None:
+        self.problems.append(f"{path}: {message}")
+
+    def mapping(self, value: Any, path: str, required: Sequence[str] = (),
+                optional: Sequence[str] = ()) -> dict | None:
+        if not isinstance(value, dict):
+            self.fail(path, f"must be a mapping, not {_kind(value)}")
+            return None
+        allowed = set(required) | set(optional)
+        for key in value:
+            if key not in allowed:
+                self.fail(f"{path}.{key}", f"unknown key (allowed: {', '.join(sorted(allowed))})")
+        for key in required:
+            if key not in value:
+                self.fail(path, f"missing key {key!r}")
+        return value
+
+    def integer(self, value: Any, path: str, minimum: int | None = None) -> int | None:
+        if isinstance(value, bool) or not isinstance(value, int):
+            self.fail(path, f"must be a whole number, not {_kind(value)}")
+            return None
+        if minimum is not None and value < minimum:
+            self.fail(path, f"must be at least {minimum}, not {value}")
+            return None
+        return value
+
+    def number(self, value: Any, path: str, minimum: float | None = None,
+               maximum: float | None = None) -> float | None:
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            self.fail(path, f"must be a number, not {_kind(value)}")
+            return None
+        if minimum is not None and value < minimum:
+            self.fail(path, f"must be at least {minimum:g}, not {value:g}")
+            return None
+        if maximum is not None and value > maximum:
+            self.fail(path, f"must be at most {maximum:g}, not {value:g}")
+            return None
+        return value
+
+    def string(self, value: Any, path: str) -> str | None:
+        if not isinstance(value, str) or not value.strip():
+            self.fail(path, f"must be a non-empty string, not {_kind(value)}")
+            return None
+        return value
+
+    def boolean(self, value: Any, path: str) -> bool | None:
+        if not isinstance(value, bool):
+            self.fail(path, f"must be true or false, not {_kind(value)}")
+            return None
+        return value
+
+    def choice(self, value: Any, path: str, choices: Sequence[Any]) -> Any:
+        if value not in choices:
+            self.fail(path, f"must be one of {', '.join(map(str, choices))}, not {value!r}")
+            return None
+        return value
+
+    def numbers(self, value: Any, path: str, n: int) -> list[float] | None:
+        if (not isinstance(value, list) or len(value) != n
+                or any(isinstance(v, bool) or not isinstance(v, (int, float)) for v in value)):
+            self.fail(path, f"must be a list of {n} numbers, not {value!r}")
+            return None
+        return value
+
+    def span(self, value: Any, path: str, lo: float, hi: float) -> tuple[float, float] | None:
+        """[a, b] with lo ≤ a < b ≤ hi."""
+        v = self.numbers(value, path, 2)
+        if v is None:
+            return None
+        if not (lo <= v[0] < v[1] <= hi):
+            self.fail(path, f"{v} must be [a, b] with {lo:g} ≤ a < b ≤ {hi:g}")
+            return None
+        return v[0], v[1]
+
+    def rect(self, value: Any, path: str, width: float, height: float) -> Rect | None:
+        """[x0, y0, x1, y1] inside a width × height canvas, not empty."""
+        v = self.numbers(value, path, 4)
+        if v is None:
+            return None
+        r = Rect(*v)
+        if not (r.x0 < r.x1 and r.y0 < r.y1):
+            self.fail(path, f"{v} is empty: write [x0, y0, x1, y1] with x0 < x1 and y0 < y1")
+            return None
+        if not Rect(0, 0, width, height).contains(r):
+            self.fail(path, f"{v} leaves the {width:g}×{height:g} canvas")
+            return None
+        return r
+
+
+def _kind(value: Any) -> str:
+    if value is None:
+        return "nothing"
+    if isinstance(value, bool):
+        return f"{value!r} (a boolean)"
+    if isinstance(value, (int, float, str)):
+        return f"{value!r}"
+    return f"a {type(value).__name__}"
+
+
+def validate(doc: Any, source: str = "storyboard.yaml", overrides: Sequence[str] = ()) -> Storyboard:
+    """Check a whole document; returns the typed ``Storyboard`` or raises
+    ``StoryboardError`` listing every problem."""
+    c = _Check()
+    if isinstance(doc, dict):
+        # `x-…` keys hold YAML anchors (shared values aliased below them) and
+        # are not read: what counts is where the alias is used.
+        extensions = [k for k in doc if isinstance(k, str) and k.startswith(EXTENSION_PREFIX)]
+        top = c.mapping({k: v for k, v in doc.items() if k not in extensions}, "(top level)", required=TOP_LEVEL)
+    else:
+        top = c.mapping(doc, "(top level)", required=TOP_LEVEL)
+    if top is None:
+        raise StoryboardError(source, c.problems)
+    meta = _meta(c, top.get("meta"))
+    timebase = tb.DEFAULT
+    cuts = _cuts(c, top.get("cuts"), timebase)
+    formats = _formats(c, top.get("formats"))
+    music = top.get("music")
+    if not isinstance(music, dict):
+        c.fail("music", f"must be a mapping (AUDIO's section; `cues: []` when empty), not {_kind(music)}")
+        music = {}
+    declared = _check_cues(c, music, cuts)
+    scenes = top.get("scenes")
+    if not isinstance(scenes, (list, dict)):
+        c.fail("scenes", f"must be a list or a mapping (SCENES' section; `[]` when empty), not {_kind(scenes)}")
+    else:
+        for path, ref in _cue_references(scenes, "scenes"):
+            if ref not in declared:
+                known = ", ".join(sorted(declared)) or "none declared yet"
+                c.fail(path, f"cue {ref!r} is not in music.cues (known: {known})")
+    if c.problems:
+        raise StoryboardError(source, c.problems)
+    return Storyboard(source, doc, meta, cuts, formats, music, scenes, tuple(overrides))
+
+
+def _meta(c: _Check, value: Any) -> Meta | None:
+    before = len(c.problems)
+    m = c.mapping(value, "meta", required=("fps", "bpm", "key", "sample_rate"), optional=("title",))
+    if m is None:
+        return None
+    title = c.string(m["title"], "meta.title") if "title" in m else "(untitled)"
+    fps = c.integer(m.get("fps"), "meta.fps", 1) if "fps" in m else None
+    bpm = c.number(m.get("bpm"), "meta.bpm", 1) if "bpm" in m else None
+    rate = c.integer(m.get("sample_rate"), "meta.sample_rate", 1) if "sample_rate" in m else None
+    key = c.string(m.get("key"), "meta.key") if "key" in m else None
+    if key is not None and not KEY_RE.match(key):
+        c.fail("meta.key", f"{key!r} is not a key: write e.g. 'C minor' or 'Eb major'")
+    contract = tb.DEFAULT
+    for name, got, want in (("fps", fps, contract.fps), ("sample_rate", rate, contract.sample_rate)):
+        if got is not None and got != want:
+            c.fail(f"meta.{name}", f"{got} is not the contract's {want} (promo/timebase.py): every module "
+                                   f"counts {contract.frames_per_beat} frames a beat and "
+                                   f"{contract.samples_per_frame} samples a frame")
+    exact = None
+    if bpm is not None:
+        exact = tb._fraction(bpm, "meta.bpm")
+        if exact != contract.bpm:
+            c.fail("meta.bpm", f"{bpm:g} is not the contract's {float(contract.bpm):g} BPM (promo/timebase.py): "
+                               f"the music is the clock, {contract.frames_per_beat} frames a beat")
+    if len(c.problems) > before or None in (fps, exact, rate, key, title):
+        return None
+    return Meta(title, fps, exact, key, rate)
+
+
+def _cuts(c: _Check, value: Any, timebase: tb.TimeBase) -> dict[str, Cut]:
+    if not isinstance(value, dict) or not value:
+        c.fail("cuts", f"must be a mapping of at least one cut (e.g. 30s: …), not {_kind(value)}")
+        return {}
+    out = {}
+    for cid, spec in value.items():
+        path = f"cuts.{cid}"
+        m = CUT_RE.match(str(cid))
+        if not m or not isinstance(cid, str):
+            c.fail(path, "a cut is named by its length in seconds, e.g. '30s' or '15s'")
+            continue
+        s = c.mapping(spec, path, required=("bars", "frames"), optional=("description",))
+        if s is None:
+            continue
+        bars = c.integer(s.get("bars"), f"{path}.bars", 1) if "bars" in s else None
+        frames = c.integer(s.get("frames"), f"{path}.frames", 1) if "frames" in s else None
+        desc = c.string(s["description"], f"{path}.description") if "description" in s else ""
+        if bars is None or frames is None or desc is None:
+            continue
+        want = bars * timebase.frames_per_bar
+        if frames != want:
+            c.fail(f"{path}.frames", f"{frames} is not {bars} bars × {timebase.frames_per_bar} = {want} frames")
+            continue
+        nominal = int(m.group(1))
+        if Fraction(frames, timebase.fps) > nominal:
+            c.fail(path, f"{frames} frames run {frames / timebase.fps:.3f} s, longer than the {nominal} s "
+                         f"the cut is named after")
+            continue
+        out[cid] = Cut(cid, bars, frames, desc or "", timebase.fps)
+    return out
+
+
+_LAYOUT_KEYS = ("caption_band", "caption_column_x", "caption_centre_x", "caption_centre_y",
+                "caption_line_max_px", "caption_lines_max", "phone_screen_x", "px_per_pt",
+                "screen_crop_top_pt", "phone_bezel_px", "phone_radius_px", "type_px",
+                "lottie_centre", "lottie_comp_width_px", "end_mark_scale", "end_mark_ink_y",
+                "end_tagline_cap_top_y", "lift_x", "lift_veil", "tilt_axis", "tilt_max_deg",
+                "scene_whip_axis")
+
+
+def _formats(c: _Check, value: Any) -> dict[str, Format]:
+    if not isinstance(value, dict) or not value:
+        c.fail("formats", f"must be a mapping of at least one format (e.g. 9x16: …), not {_kind(value)}")
+        return {}
+    out = {}
+    for fid, spec in value.items():
+        f = _format(c, fid, spec)
+        if f is not None:
+            out[fid] = f
+    # One storyboard, three formats: the same pixel sizes everywhere.
+    for key in ("px_per_pt", "type_px", "lottie_comp_width_px", "end_mark_scale", "screen_crop_top_pt"):
+        seen = {fid: f.layout.get(key) for fid, f in out.items()}
+        if len({repr(v) for v in seen.values()}) > 1:
+            c.fail(f"formats.*.layout.{key}",
+                   "must be the same in every format — each format is re-laid out, never resized: "
+                   + "; ".join(f"{fid}: {v!r}" for fid, v in seen.items()))
+    return out
+
+
+def _format(c: _Check, fid: Any, spec: Any) -> Format | None:
+    path = f"formats.{fid}"
+    m = FORMAT_RE.match(str(fid)) if isinstance(fid, str) else None
+    if not m:
+        c.fail(path, "a format is named by its aspect ratio, e.g. '9x16', '1x1' or '16x9'")
+        return None
+    s = c.mapping(spec, path, required=("size", "safe", "safe_basis", "zones", "layout"),
+                  optional=("safe_note", "rail_free"))
+    if s is None:
+        return None
+    before = len(c.problems)
+    size = s.get("size")
+    if (not isinstance(size, list) or len(size) != 2
+            or any(isinstance(v, bool) or not isinstance(v, int) or v <= 0 for v in size)):
+        c.fail(f"{path}.size", f"must be [width, height] in whole pixels, not {size!r}")
+        return None
+    w, h = size
+    a, b = int(m.group(1)), int(m.group(2))
+    if w * b != h * a:
+        c.fail(f"{path}.size", f"{w}×{h} is not {a}:{b}")
+    if min(w, h) != SHORT_SIDE_PX:
+        c.fail(f"{path}.size", f"the short side must be {SHORT_SIDE_PX} px, so type, phone and Lottie keep "
+                               f"their pixel sizes in every format (have {min(w, h)})")
+    safe = c.rect(s.get("safe"), f"{path}.safe", w, h) if "safe" in s else None
+    basis = c.choice(s.get("safe_basis"), f"{path}.safe_basis", SAFE_BASES) if "safe_basis" in s else None
+    if safe is not None and basis == "ebu_r95_graphics":
+        want = Rect(float(w * EBU_R95_GRAPHICS_INSET), float(h * EBU_R95_GRAPHICS_INSET),
+                    float(w * (1 - EBU_R95_GRAPHICS_INSET)), float(h * (1 - EBU_R95_GRAPHICS_INSET)))
+        if tuple(map(float, safe)) != tuple(want):
+            c.fail(f"{path}.safe", f"EBU R95 graphics-safe is a 5 % inset: [{want.x0:g}, {want.y0:g}, "
+                                   f"{want.x1:g}, {want.y1:g}], not {list(safe)}")
+    note = c.string(s["safe_note"], f"{path}.safe_note") if "safe_note" in s else ""
+    rail = c.rect(s["rail_free"], f"{path}.rail_free", w, h) if s.get("rail_free") is not None else None
+    if rail is not None and safe is not None and not (rail.y1 <= safe.y1 and rail.y0 >= safe.y0):
+        c.fail(f"{path}.rail_free", f"{rail} must lie within the safe area's rows (y {safe.y0:g}–{safe.y1:g})")
+    zones = _zones(c, s.get("zones"), f"{path}.zones", w, h, safe, rail)
+    layout = _layout(c, s.get("layout"), f"{path}.layout", w, h, zones, safe, rail)
+    if len(c.problems) > before or safe is None or basis is None or layout is None or zones is None:
+        return None
+    return Format(fid, w, h, safe, basis, note or "", rail, zones, layout)
+
+
+def _zones(c: _Check, value: Any, path: str, w: int, h: int, safe: Rect | None,
+           rail: Rect | None) -> dict[str, Rect] | None:
+    z = c.mapping(value, path, required=REQUIRED_ZONES, optional=CONTENT_ZONES + STAGE_ZONES)
+    if z is None:
+        return None
+    out = {}
+    for name, raw in z.items():
+        r = c.rect(raw, f"{path}.{name}", w, h)
+        if r is None:
+            continue
+        if name in CONTENT_ZONES and safe is not None:
+            cover = [safe] + ([rail] if rail else [])
+            if not covered_by(r, cover):
+                where = f"the safe area ({safe})" + (f" or the rail-free extension ({rail})" if rail else "")
+                c.fail(f"{path}.{name}", f"{r} must lie inside {where}: it holds text or UI")
+                continue
+        out[name] = r
+    return out
+
+
+def _layout(c: _Check, value: Any, path: str, w: int, h: int, zones: dict[str, Rect] | None,
+            safe: Rect | None, rail: Rect | None) -> dict[str, Any] | None:
+    lay = c.mapping(value, path, required=_LAYOUT_KEYS)
+    if lay is None:
+        return None
+    before = len(c.problems)
+    c.boolean(lay.get("caption_band"), f"{path}.caption_band")
+    if zones is not None and lay.get("caption_band") is True and "caption_band" not in zones:
+        c.fail(f"{path}.caption_band", "is true, but the format has no `caption_band` zone")
+    if zones is not None and lay.get("caption_band") is False and "caption_band" in zones:
+        c.fail(f"{path}.caption_band", "is false, but the format has a `caption_band` zone")
+    column = c.span(lay.get("caption_column_x"), f"{path}.caption_column_x", 0, w)
+    if column is not None and safe is not None:
+        cover = [safe] + ([rail] if rail else [])
+        if not any(r.x0 <= column[0] and column[1] <= r.x1 for r in cover):
+            c.fail(f"{path}.caption_column_x", f"{list(column)} must lie within the safe area's columns")
+    for key, limit in (("caption_centre_x", w), ("caption_centre_y", h)):
+        v = lay.get(key)
+        if v is not None:
+            c.number(v, f"{path}.{key}", 0, limit)
+    if lay.get("caption_centre_x") is not None and column is not None:
+        cx = lay["caption_centre_x"]
+        if isinstance(cx, (int, float)) and abs((column[0] + column[1]) / 2 - cx) > 0.5:
+            c.fail(f"{path}.caption_centre_x", f"{cx:g} is not the centre of the caption column {list(column)}")
+    line = c.integer(lay.get("caption_line_max_px"), f"{path}.caption_line_max_px", 1)
+    if line is not None and column is not None and line > column[1] - column[0]:
+        c.fail(f"{path}.caption_line_max_px", f"{line} px is wider than the caption column ({column[1] - column[0]:g} px)")
+    c.integer(lay.get("caption_lines_max"), f"{path}.caption_lines_max", 1)
+    screen = c.span(lay.get("phone_screen_x"), f"{path}.phone_screen_x", 0, w)
+    ppt = c.number(lay.get("px_per_pt"), f"{path}.px_per_pt", 0.1)
+    if screen is not None and ppt is not None:
+        shown_pt = (screen[1] - screen[0]) / ppt
+        if abs(shown_pt - DEVICE_WIDTH_PT) > 0.5:
+            c.fail(f"{path}.phone_screen_x", f"{screen[1] - screen[0]:g} px at {ppt:g} px/pt shows {shown_pt:.1f} pt; "
+                                             f"the screen is {DEVICE_WIDTH_PT:g} pt wide")
+    if screen is not None and zones is not None and "phone_window" in zones:
+        win = zones["phone_window"]
+        if not (win.x0 <= screen[0] and screen[1] <= win.x1):
+            c.fail(f"{path}.phone_screen_x", f"{list(screen)} leaves the phone window ({win})")
+    c.number(lay.get("screen_crop_top_pt"), f"{path}.screen_crop_top_pt", 0)
+    c.integer(lay.get("phone_bezel_px"), f"{path}.phone_bezel_px", 0)
+    c.integer(lay.get("phone_radius_px"), f"{path}.phone_radius_px", 0)
+    types = c.mapping(lay.get("type_px"), f"{path}.type_px", required=TYPE_ROLES)
+    if types is not None:
+        for role in TYPE_ROLES:
+            if role in types:
+                c.integer(types[role], f"{path}.type_px.{role}", 1)
+    centre = c.numbers(lay.get("lottie_centre"), f"{path}.lottie_centre", 2)
+    comp = c.integer(lay.get("lottie_comp_width_px"), f"{path}.lottie_comp_width_px", 1)
+    if centre is not None and comp is not None and not (comp / 2 <= centre[0] <= w - comp / 2 and 0 <= centre[1] <= h):
+        c.fail(f"{path}.lottie_centre", f"a {comp}-px comp centred on {centre} leaves the {w}×{h} canvas")
+    c.number(lay.get("end_mark_scale"), f"{path}.end_mark_scale", 0.1)
+    ink = c.span(lay.get("end_mark_ink_y"), f"{path}.end_mark_ink_y", 0, h)
+    cap = c.number(lay.get("end_tagline_cap_top_y"), f"{path}.end_tagline_cap_top_y", 0, h)
+    if ink is not None and cap is not None:
+        clear = cap - ink[1]
+        if clear < (ink[1] - ink[0]) / 2:
+            c.fail(f"{path}.end_tagline_cap_top_y",
+                   f"{cap:g} leaves {clear:g} px under the mark; its clear space is half its height "
+                   f"({(ink[1] - ink[0]) / 2:g} px)")
+    lift = c.span(lay.get("lift_x"), f"{path}.lift_x", 0, w)
+    if lift is not None and safe is not None and not (safe.x0 <= lift[0] and lift[1] <= safe.x1):
+        c.fail(f"{path}.lift_x", f"{list(lift)} must lie within the safe area's columns (x {safe.x0:g}–{safe.x1:g})")
+    c.number(lay.get("lift_veil"), f"{path}.lift_veil", 0, 1)
+    c.choice(lay.get("tilt_axis"), f"{path}.tilt_axis", ("x", "y"))
+    if lay.get("tilt_max_deg") is not None:
+        c.number(lay.get("tilt_max_deg"), f"{path}.tilt_max_deg", 0, 90)
+    if lay.get("scene_whip_axis") is not None:
+        c.choice(lay.get("scene_whip_axis"), f"{path}.scene_whip_axis", ("horizontal", "vertical"))
+    return lay if len(c.problems) == before else None
+
+
+def _declared_cues(music: dict) -> Iterator[tuple[str, str]]:
+    """(path, id) of every cue declared in ``music.cues``."""
+    cues = music.get("cues", [])
+    groups = cues.items() if isinstance(cues, dict) else [(None, cues)]
+    for cut, items in groups:
+        base = "music.cues" + (f".{cut}" if cut is not None else "")
+        if isinstance(items, list):
+            for i, item in enumerate(items):
+                if isinstance(item, dict) and isinstance(item.get("id"), str):
+                    yield f"{base}[{i}]", item["id"]
+
+
+def _check_cues(c: _Check, music: dict, cuts: dict[str, Cut]) -> set[str]:
+    cues = music.get("cues", [])
+    if isinstance(cues, dict):
+        groups = list(cues.items())
+        for cut in cues:
+            if cut not in cuts:
+                c.fail(f"music.cues.{cut}", f"is not a cut (cuts: {', '.join(cuts) or 'none'})")
+    elif isinstance(cues, list):
+        groups = [(None, cues)]
+    else:
+        c.fail("music.cues", f"must be a list of {{id: …}} (or a mapping cut → list), not {_kind(cues)}")
+        return set()
+    declared: set[str] = set()
+    for cut, items in groups:
+        base = "music.cues" + (f".{cut}" if cut is not None else "")
+        if not isinstance(items, list):
+            c.fail(base, f"must be a list of {{id: …}}, not {_kind(items)}")
+            continue
+        seen: set[str] = set()
+        for i, item in enumerate(items):
+            p = f"{base}[{i}]"
+            if not isinstance(item, dict) or "id" not in item:
+                c.fail(p, "a cue is a mapping with an `id`")
+                continue
+            cid = item["id"]
+            if not isinstance(cid, str) or not cid or any(ch.isspace() for ch in cid):
+                c.fail(f"{p}.id", f"must be a non-empty id without spaces, not {cid!r}")
+                continue
+            if cid in seen:
+                c.fail(f"{p}.id", f"{cid!r} is declared twice")
+            seen.add(cid)
+            declared.add(cid)
+    return declared
+
+
+def _cue_references(node: Any, path: str) -> Iterator[tuple[str, Any]]:
+    """(path, id) of every cue a section refers to: the value of a key
+    ``cue``, or each item of a key ``cues``, at any depth."""
+    if isinstance(node, dict):
+        for key, value in node.items():
+            p = f"{path}.{key}"
+            if key == "cue":
+                yield p, value
+            elif key == "cues" and isinstance(value, list):
+                for i, item in enumerate(value):
+                    yield f"{p}[{i}]", item
+            else:
+                yield from _cue_references(value, p)
+    elif isinstance(node, list):
+        for i, item in enumerate(node):
+            yield from _cue_references(item, f"{path}[{i}]")
