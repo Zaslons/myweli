@@ -168,7 +168,7 @@ def mono_bass(x: np.ndarray, below_hz: float) -> np.ndarray:
     no phase shift between the bands). The low-pass is a 4th-order
     Butterworth at 1.3 x ``below_hz`` run forwards and backwards: the side is
     down 19 dB at 150 Hz, 34 dB at 120 Hz and 80+ dB at 60 Hz, and within
-    1 dB from 250 Hz up."""
+    1 dB from 260 Hz up."""
     mid = 0.5 * (x[:, 0] + x[:, 1])
     side = 0.5 * (x[:, 0] - x[:, 1])
     sos = signal.butter(4, 1.3 * below_hz, btype="lowpass", fs=SR, output="sos")

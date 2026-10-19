@@ -19,15 +19,16 @@ the score.
 
 from __future__ import annotations
 
+import bisect
 from dataclasses import dataclass, field
 
 import numpy as np
 
 from . import _time as tb
 from . import instruments as ins
-from .dsp import SR, amp, fade, n_of, pan, reverb, rng, sweep
+from .dsp import SR, amp, fade, midi_hz, n_of, pan, reverb, rng, sweep
 from .harmony import (KEYS_WINDOW, LEFT_HAND_WINDOW, LOG_WINDOW, ORGAN_WINDOW, PAD_ROOT_WINDOW, SUB_WINDOW,
-                      midi_hz, parse_note)
+                      parse_note)
 from .kinds import BUSES, INSTRUMENTS, KINDS
 from .score import Cue, Score, Track
 
@@ -180,9 +181,16 @@ def cue_event(cue: Cue, score: Score) -> Event:
 
 # ── synthesis of one event ─────────────────────────────────────────────────
 
-def synth(ev: Event, track: Track | None, seed: str) -> np.ndarray:
+def default_track(instrument: str) -> Track:
+    """The track a cue of a grid instrument plays through when the score has
+    no track of that instrument: unity gain, centred, default parameters."""
+    params = {k: spec.default for k, spec in INSTRUMENTS[instrument].params.items()}
+    return Track(f"{instrument} (cues)", instrument, {}, params=params)
+
+
+def synth(ev: Event, track: Track, seed: str) -> np.ndarray:
     """The sound of one event (mono or stereo), onset at index 0."""
-    tp = track.params if track is not None else {}
+    tp = track.params
     v = ev.vel
     name = ev.instrument
     if name == "log":
@@ -308,45 +316,43 @@ def render(score: Score, *, keep_parts: bool = False) -> Render:
     parts: dict[str, np.ndarray] = {}
 
     # events per track; a cue of a grid instrument joins the first track of
-    # that instrument and replaces any grid hit on the same 16th
-    per_track: dict[str, list[Event]] = {t.name: expand_track(t, score) for t in score.tracks}
+    # that instrument (or a default one) and replaces any grid hit on the same 16th
+    tracks = list(score.tracks)
+    per_track: dict[str, list[Event]] = {t.name: expand_track(t, score) for t in tracks}
     home: dict[str, Track] = {}
-    for t in score.tracks:
+    for t in tracks:
         home.setdefault(t.instrument, t)
-    loose: dict[str, list[Event]] = {}
     for cue in score.cues:
-        instrument = KINDS[cue.kind].instrument
-        if cue.kind == "clap_roll":
-            instrument = "clap"
+        instrument = "clap" if cue.kind == "clap_roll" else KINDS[cue.kind].instrument
         if instrument is None:
             continue
         evs = clap_roll_events(cue) if cue.kind == "clap_roll" else [cue_event(cue, score)]
-        for t in score.tracks:
+        taken = {e.grid_sample for e in evs}
+        for t in tracks:
             if t.instrument == instrument:
-                per_track[t.name] = [e for e in per_track[t.name]
-                                     if not any(e.grid_sample == c.grid_sample for c in evs)]
-        target = home.get(instrument)
-        if target is not None:
-            per_track[target.name].extend(evs)
-        else:
-            loose.setdefault(instrument, []).extend(evs)
+                per_track[t.name] = [e for e in per_track[t.name] if e.grid_sample not in taken]
+        if instrument not in home:
+            home[instrument] = default_track(instrument)
+            tracks.append(home[instrument])
+            per_track[home[instrument].name] = []
+        per_track[home[instrument].name].extend(evs)
         if cue.kind == "clap_roll":
             placed.append(Placed(cue.id, cue.kind, "cue", KINDS[cue.kind].bus, cue.sample, cue.sample,
                                  cue.end_sample - cue.sample, cue.end_sample))
 
     # the log drum is one voice across all its tracks: cut each hit at the next
-    log_onsets = sorted({e.sample for t in score.tracks if t.instrument == "log" for e in per_track[t.name]}
-                        | {e.sample for e in loose.get("log", [])})
+    log_onsets = sorted({e.sample for t in tracks if t.instrument == "log" for e in per_track[t.name]})
 
-    def place_events(track: Track | None, instrument: str, events: list[Event]) -> None:
+    def place_events(track: Track, events: list[Event]) -> None:
+        instrument = track.instrument
         mono = np.zeros(n)
         wide = np.zeros((n, 2))
         for ev in sorted(events, key=lambda e: e.sample):
             x = synth(ev, track, seed=f"{score.name}:{ev.label}")
             if instrument == "log":
-                later = [s for s in log_onsets if s > ev.sample]
-                if later and later[0] - ev.sample < len(x):
-                    x = fade(x[: later[0] - ev.sample], fade_out=n_of(0.006))
+                k = bisect.bisect_right(log_onsets, ev.sample)
+                if k < len(log_onsets) and log_onsets[k] - ev.sample < len(x):
+                    x = fade(x[: log_onsets[k] - ev.sample], fade_out=n_of(0.006))
             if ev.cue is not None:
                 x = x * amp(ev.cue.gain)
                 if ev.cue.reverb:
@@ -357,16 +363,13 @@ def render(score: Score, *, keep_parts: bool = False) -> Render:
                 placed.append(Placed(ev.label, ev.cue.kind if ev.cue is not None else instrument, source,
                                      INSTRUMENTS[instrument].bus, ev.grid_sample, ev.sample, written,
                                      ev.cue.end_sample if ev.cue is not None else None))
-        out = finish_track(track, instrument, mono, wide)
-        bus = INSTRUMENTS[instrument].bus
-        stems[bus] += out
+        out = finish_track(track, mono, wide)
+        stems[INSTRUMENTS[instrument].bus] += out
         if keep_parts:
-            parts[track.name if track is not None else instrument] = out
+            parts[track.name] = out
 
-    for t in score.tracks:
-        place_events(t, t.instrument, per_track[t.name])
-    for instrument, evs in loose.items():
-        place_events(None, instrument, evs)
+    for t in tracks:
+        place_events(t, per_track[t.name])
 
     # effect and interface cues
     fx_parts: dict[str, np.ndarray] = {}
@@ -399,31 +402,24 @@ def clap_roll_events(cue: Cue) -> list[Event]:
             enumerate(zip(starts, vels))]
 
 
-def finish_track(track: Track | None, instrument: str, mono: np.ndarray, wide: np.ndarray) -> np.ndarray:
+def finish_track(track: Track, mono: np.ndarray, wide: np.ndarray) -> np.ndarray:
     """A track's mono and stereo sums -> its stereo output: automation,
     instrument effects (Rhodes tremolo, organ rotor), pan, send, gain."""
     n = len(mono)
-    params = track.params if track is not None else INSTRUMENTS[instrument].params
-    automation = track.automation if track is not None else {}
-    if "lp" in automation and automation["lp"]:
+    params, automation = track.params, track.automation
+    if automation.get("lp"):
         cutoff = _automation_curve(automation["lp"], n, geometric=True)
         mono = sweep(mono, "lowpass", cutoff, q=0.7071, block=64)
         wide = sweep(wide, "lowpass", cutoff, q=0.7071, block=64)
-    position = track.pan if track is not None else 0.0
-    if instrument == "rhodes":
-        depth = params.get("tremolo", 0.35) if track is not None else 0.35
-        rate = params.get("tremolo_hz", 4.2) if track is not None else 4.2
-        position = np.clip(position + depth * np.sin(2 * np.pi * rate * np.arange(n) / SR), -1, 1)
-        out = pan(mono, position) + wide
-    elif instrument == "organ":
-        rate = params.get("leslie_hz", 6.0) if track is not None else 6.0
-        out = ins.leslie(mono, rate=rate) + wide
+    if track.instrument == "rhodes":                  # suitcase auto-pan
+        lfo = np.sin(2 * np.pi * params.get("tremolo_hz", 4.2) * np.arange(n) / SR)
+        out = pan(mono, np.clip(track.pan + params.get("tremolo", 0.35) * lfo, -1, 1)) + wide
+    elif track.instrument == "organ":                 # the rotor
+        out = ins.leslie(mono, rate=params.get("leslie_hz", 6.0)) + wide
     else:
-        out = pan(mono, position) + wide
-    if "gain" in automation and automation["gain"]:
+        out = pan(mono, track.pan) + wide
+    if automation.get("gain"):
         out *= amp(_automation_curve(automation["gain"], n, geometric=False))[:, None]
-    if track is not None and track.reverb:
-        wet = reverb(out, track.reverb, track.wet, seed=f"track-{track.name}")
-        out = out + wet[:n]
-    gain = amp(track.gain) if track is not None else 1.0
-    return out * gain
+    if track.reverb:
+        out = out + reverb(out, track.reverb, track.wet, seed=f"track-{track.name}")[:n]
+    return out * amp(track.gain)

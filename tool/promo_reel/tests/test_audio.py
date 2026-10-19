@@ -288,6 +288,29 @@ class TestScore(unittest.TestCase):
             self.assertLess(cue.gain, -6)                         # small and soft
 
 
+# ══ the arranger ═══════════════════════════════════════════════════════════
+
+class TestArrange(unittest.TestCase):
+    def test_a_cue_replaces_the_grid_hit_and_needs_no_track(self):
+        data = variant(cues=[{"id": "a.kick", "kind": "kick", "pos": "1.2.0", "vel": 1.0},
+                             {"id": "a.log", "kind": "log", "pos": "2.1.0", "note": "C2"}])
+        r = arrange.render(score_mod.parse(data))
+        kicks = [p for p in r.placed if p.kind == "kick"]
+        self.assertEqual(len(kicks), 8)                           # 2 bars of four, one of them now the cue
+        at = tb.parse_pos("1.2.0").sample
+        self.assertEqual([p.source for p in kicks if p.sample == at], ["cue"])
+        logs = [(p.label, p.sample) for p in r.placed if p.kind == "log"]
+        self.assertEqual(logs, [("a.log", tb.parse_pos("2.1.0").sample)])   # no log track: a default one
+        self.assertGreater(np.abs(r.stems["log"]).max(), 0.1)
+
+    def test_the_log_is_one_voice(self):
+        data = variant(cues=[{"id": "a.one", "kind": "log", "pos": "1.1.0", "note": "C2", "decay": 0.9},
+                             {"id": "a.two", "kind": "log", "pos": "1.1.3", "note": "G1"}])
+        r = arrange.render(score_mod.parse(data))
+        first = next(p for p in r.placed if p.label == "a.one")
+        self.assertEqual(first.length, 3 * tb.SAMPLES_PER_STEP)   # cut where the next hit starts
+
+
 # ══ the instruments ════════════════════════════════════════════════════════
 
 class TestInstruments(unittest.TestCase):
@@ -500,10 +523,11 @@ class TestBuild30s(unittest.TestCase):
         self.assertEqual(len(self.events["beats"]), 56)
 
     def test_the_hook_is_darker_than_the_drop(self):
+        """« A dark, staccato hook »: bar 1 sits well under DROP 1 (4.7 LU as mixed)."""
         bar = tb.SAMPLES_PER_BAR
         hook = loudness.integrated(self.audio[: bar])
         drop = loudness.integrated(self.audio[2 * bar: 4 * bar])
-        self.assertGreater(drop - hook, 2.0)
+        self.assertGreater(drop - hook, 3.5)
 
 
 class TestCli(unittest.TestCase):

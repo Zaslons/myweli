@@ -92,14 +92,6 @@ def fade(x: np.ndarray, fade_in: int = 0, fade_out: int = 0) -> np.ndarray:
     return y
 
 
-def fit(x: np.ndarray, n: int) -> np.ndarray:
-    """Pad with zeros or cut to exactly ``n`` samples (first axis)."""
-    if len(x) >= n:
-        return x[:n]
-    pad = [(0, n - len(x))] + [(0, 0)] * (x.ndim - 1)
-    return np.pad(x, pad)
-
-
 # ── oscillators ────────────────────────────────────────────────────────────
 
 def phase(freq: float | np.ndarray, n: int | None = None, start: float = 0.0) -> np.ndarray:

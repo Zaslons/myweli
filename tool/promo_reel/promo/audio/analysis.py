@@ -196,7 +196,7 @@ def spectrogram_png(audio: np.ndarray, path: str | Path, *, events: dict, meter_
         for y in (centre - a, centre + a):
             d.line([(left, y), (left + plot_w, y)], fill=(255, 255, 255, 40))
         d.text((left - 8, centre - a), f"{lvl:.0f}", font=f_small, fill=MUTED, anchor="rm")
-    d.text((left - 8, y0 + 4), "dBFS", font=f_small, fill=MUTED, anchor="ra")
+    d.text((left - 10, y0 - 2), "dBFS", font=f_small, fill=MUTED, anchor="rb")
     _bar_grid(d, ax, events, y0, y0 + wave_h, beats=False)
 
     # spectrogram
@@ -232,7 +232,7 @@ def spectrogram_png(audio: np.ndarray, path: str | Path, *, events: dict, meter_
         d.line([(left - 6, y), (left, y)], fill=MUTED)
         d.line([(left, y), (left + plot_w, y)], fill=(255, 255, 255, 22))
         d.text((left - 10, y), label, font=f_small, fill=MUTED, anchor="rm")
-    d.text((left - 10, y1 - 4), "Hz", font=f_small, fill=MUTED, anchor="rb")
+    d.text((left - 10, y1 - 12), "Hz", font=f_small, fill=MUTED, anchor="rb")
     _bar_grid(d, ax, events, y1, y1 + spec_h)
     for cue in events["cues"]:                       # a tick per cue, coloured by bus
         x = ax.x(cue["sample"])

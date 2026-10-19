@@ -114,7 +114,3 @@ def pos_of_step(bar: int, step_in_bar: int) -> Pos:
     if not 0 <= step_in_bar < STEPS_PER_BAR:
         raise PositionError(f"step in bar must be 0-15, got {step_in_bar}")
     return Pos(bar, step_in_bar // STEPS_PER_BEAT + 1, step_in_bar % STEPS_PER_BEAT)
-
-
-def seconds_of_frame(frame: float) -> float:
-    return frame / FPS
