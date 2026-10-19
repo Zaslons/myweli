@@ -18,7 +18,11 @@ the owner's salon page (S5 opens on the top of Maison Nala's public page);
 and R2, the items of the review of the second render (S7b's caption meets
 the reading rule — the S7 → S7b dissolve leaves the 0.5 s grid at frame
 731 —, S3's card waits for S2's lockup to leave, S4's bubbles fade with
-what shows of them, S1's headline at the top of the safe zone).
+what shows of them, S1's headline at the top of the safe zone); and R3, the
+items of the review of the third render (S5's scroll chosen by position on
+a smooth target, S7's one black-button frame held on the loading picture,
+S7b's caption at the top of the safe zone, a dedicated cover with the headline 30 px
+lower).
 
 WHERE things sit and HOW they move is prose in the storyboard ("Poppins
 Medium 92 px, line height 106, #FFFFFF, centred, block top y 316"). Those
@@ -152,6 +156,8 @@ ANCHORS = [
     ("concept", None, "the card as it rests, clipped by the band, rises 1320 px from y 1920 on `emphasis` (never more than 410 px in a frame)"),
     ("concept", None, "Every strike and « trait » starts at a short visible length (four times its width)"),
     ("S1", "visual", "Headline in Poppins Medium 92 px, line height 106, #FFFFFF, centred, block top y 280"),
+    ("hook", None, "with the headline 30 px lower (block top y 310)"),
+    ("hook", None, "at least 40 px below the 4:5 crop's top"),
     ("S1", "visual", "sha256 a78c71491b3def4877f38c6186b8de1ca7df08ceb02886ee822fb5b10b875a49"),
     ("S1", "visual", "Full bleed in width at scale 1.1477 (1080 / 941, the least that fills the width), placed so the picture's point (215, 1352)"),
     ("S1", "visual", "sits at frame (246.8, 1232)"),
@@ -199,8 +205,10 @@ ANCHORS = [
     ("S5", "motion", "| 12.50–12.90 | 375–387 | The S4 stroke thickens to 2400 px about y 952 (`slow`); the page becomes paper |"),
     ("S5", "motion", "| 12.75 / 12.80 | | Headline lines rise 24 px and fade in (`emphasis`, 50 ms `stagger`) |"),
     ("S5", "motion", "| 12.80–13.10 | 384–393 | Card enters to rest at W = 136 (`emphasis`), on the top of the page"),
-    ("S5", "motion", "| 14.00–16.333 | 420–490 | LIVE, take5b 26.167–28.533 s (71 frames, 1:1)"),
-    ("S5", "motion", "| 16.333–16.400 | 491 | HOLD on take 28.500 s"),
+    ("S5", "visual", "the content rises 862 capture px (287.33 pt)"),
+    ("S5", "motion", "| 14.000–16.100 | 420–482 | LIVE by scroll position (R3): take5b's drag, 26.167–28.533 s"),
+    ("S5", "motion", "s*(t) = 862 px × (1 − cos πu) / 2, u = (t − 14.000 s) / 2.095 s"),
+    ("S5", "motion", "| 16.100–16.400 | 483–491 | HOLD on take 28.500 s"),
     ("S5", "motion", "| 16.40–16.80 | 492–504 | Camera W 136 → 470 (`slow` 400 ms easeInOutCubic)"),
     ("S6", "visual", "Entries in Inter Medium 48 px, white at 85%, x 180, baselines 660 / 756 / 852 / 948 / 1044"),
     ("S6", "visual", "The squeezed walk-in « + 14h45  coupe homme · n° ? » (663 px) sits at x 200 on the minor rule at baseline 804"),
@@ -219,7 +227,8 @@ ANCHORS = [
     ("S7", "motion", "| 21.533–21.600 | 646–648 | HOLD on take 32.765 s (2 frames)"),
     ("S7", "motion", "| 21.600–22.000 | 648–660 | DECLARED DISSOLVE (`slow`, 12 frames) to take 130.262 s; frame 659 is the clean picture after it."),
     ("S7", "motion", "| 22.000–22.267 | 660–668 | HOLD on the filled form (8 frames). The white disc fades in at 22.167 (`fast`) |"),
-    ("S7", "motion", "| 22.267–24.200 | 668–726 | LIVE, take1b 130.262–132.195 s (58 frames, 1:1). Touch-down on « Créer » at 22.267"),
+    ("S7", "motion", "| 22.267–24.200 | 668–726 | LIVE, take1b 130.262–132.195 s (58 frames, 1:1 but frame 690, R3). Touch-down on « Créer » at 22.267"),
+    ("S7", "motion", "| 23.000 | 690 | HOLD on take 130.962 s (R3)"),
     ("S7", "motion", "The disc fades out over 22.567–22.767."),
     ("S7", "motion", "| 23.100–23.500 | 693–705 | Camera W 553 → 682 (`slow`)"),
     ("S7", "motion", "| 24.200–24.367 | 726–731 | HOLD on take 132.162 s (5 frames)"),
@@ -227,7 +236,7 @@ ANCHORS = [
     ("S7b", "visual", "sha256 2027a9a04f83f3902d37869599beb094665bf47dbfb4150c584d7420996499c6"),
     ("S7b", "visual", "Full bleed at scale 1.1483 (1920 / 1672, the least that fills the frame), centred; the push-in holds still the picture's point (560, 1010)"),
     ("S7b", "visual", "**Gradient.** A soft black gradient: 62 % from the top to y 420, easing to 0 % at y 1000"),
-    ("S7b", "visual", "Poppins Medium 92 px, line height 106, #FFFFFF, centred, block top y 316"),
+    ("S7b", "visual", "Poppins Medium 92 px, line height 106, #FFFFFF, centred, block top y 269"),
     ("S7b", "visual", "The lines measure 653 px and 827 px"),
     ("S7b", "motion", "| 24.367–24.567 | 731–737 | The S7 page — paper, card and « Rendez-vous créé » — dissolves into the picture (`base`) |"),
     ("S7b", "motion", "| 24.367–27.00 | 731–810 | The picture pushes in 1.00 → 1.03, linear"),
@@ -390,6 +399,9 @@ S1 = {
     "stroke": (735, 1232, 1.45, 1.70), "stroke_shadow": (0.40, 3.0, 2.0),   # x from the anchor; y; t0, t1
     "head_widths": [547, 858],                      # « The two lines measure 547 px and 858 px »
     "head_top": 280,                                # R2: the top of the safe zone, her hairline clear
+    # R3: the cover, exported as its own picture, sets the headline 30 px
+    # lower so the 4:5 crop keeps at least 40 px above it (frame 0 unchanged)
+    "cover_drop": 30, "cover_headroom": 40,
 }
 
 S2 = {
@@ -421,9 +433,15 @@ S5 = {
     "thicken": (952, 12.50, 12.90, 8, 2400), "head_in": 12.75, "enter": 12.80,
     "head_px": 78, "head_widths": [896, 769],
     "W": (136, 470), "move": (16.40, "slow"),
-    # take5b in its ticks (600 a second): the rest on top, the drag LIVE from
-    # film frame 420, the rest after it
+    # take5b in its ticks (600 a second): the rest on top, the drag's window
+    # (every picture the take presented in it) from film frame 420, the rest
+    # after it
     "hold_before": 15700, "live": (420, 15700, 17120), "hold_after": 17100,
+    # R3: the scroll by position on a smooth target, the gesture's own
+    # cosine: s*(t) = rise x (1 - cos pi u) / 2, u = (t - 14.000) / scroll_s,
+    # eased in from rest; scroll_s fitted to the take's scroll map (least
+    # squares, repeated samples removed, its start pinned to the rest)
+    "rise_px": 862, "scroll_s": 2.095,
     "mask": [114, 1758, 546, 57], "mask_fill": (255, 255, 255),   # on the rest picture (take 28.500 s)
     "bar_top": 2220,                                  # the opaque bottom bar, from pt 740 (capture px)
     "disc_bottom_pt": 110.3,                          # the back button's disc over the cover
@@ -444,7 +462,11 @@ S7 = {
     # form's hold (20 → 8); the tap, the dissolve and the snackbar's 0.9 s kept
     "runs": [("hold", 609, 626, 19299), ("live", 627, 645, 19299), ("hold", 646, 647, 19659),
              ("dissolve", 648, 659, (19659, 78157), "slow"), ("hold", 660, 667, 78157),
-             ("live", 668, 725, 78157), ("hold", 726, 730, 79297)],
+             # R3: frame 690 holds the loading picture of frame 689 — the
+             # take's one picture where « Créer le rendez-vous » turns black
+             # again before the form closes is skipped; 1:1 again from 691
+             ("live", 668, 689, 78157), ("skip", 690, 690, 78577), ("live", 691, 725, 78617),
+             ("hold", 726, 730, 79297)],
     # (x, y) at W 553, colour, fade-in start (`fast`, done at touch-down), fade-out start (`base`)
     "taps": [((381, 1093), "primary", 20.80, 20.90), ((540, 1225), "secondary", 665 / 30, 677 / 30)],
     "pan": (693, 682, "slow"),                      # from film frame 693, to W 682
@@ -457,7 +479,10 @@ S7B = {
     # R2: from frame 731 (24.367 s), so the caption has the 2.63 s its 32 characters need
     "push": (1.03, 731 / 30, 27.0), "fade_bottom": 0, "gradient": (0.62, 420, 1000),
     "in": 731 / 30, "out": 27.00, "dissolve": "base",
-    "head_px": 92, "head_lh": 106, "head_top": 316, "head_widths": [653, 827],
+    # R3: at the top of the safe zone, 47 px higher than the other
+    # headlines, so « pour » clears the stylist's bun through the whole
+    # push-in (35 px higher, it met the bun from frame ~780; verify measures it)
+    "head_px": 92, "head_lh": 106, "head_top": 269, "head_widths": [653, 827],
 }
 
 S8 = {
@@ -476,5 +501,6 @@ TOUCH = {"diameter": 107, "fill": 0.12, "ring": 3.4, "ring_alpha": 0.45}
 # cuts (build/app-store/pro/preview/v2/final/cuts.txt S1 and S2) — and the
 # seconds the storyboard prints for them (to the millisecond).
 TAKE1B_TICKS = {6397: 10.662, 6977: 11.628, 6957: 11.595, 19299: 32.165, 19679: 32.798,
-                19659: 32.765, 78157: 130.262, 79317: 132.195, 79297: 132.162}
+                19659: 32.765, 78157: 130.262, 78597: 130.995, 78577: 130.962, 78617: 131.028,
+                79317: 132.195, 79297: 132.162}
 TAKE5B_TICKS = {15700: 26.167, 17120: 28.533, 17100: 28.500}

@@ -18,7 +18,7 @@ import unittest
 from pathlib import Path
 
 import numpy as np
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFilter
 
 import reel_draw as rd
 import reel_footage as rf
@@ -281,6 +281,151 @@ class PhoneRowMask(unittest.TestCase):
         wrong = [(15000 / 600, 85.3), self.MAP[1], self.MAP[2]]       # 2 pt (6 px) off
         with dies(self, "its page is not where the scroll map"):
             rf.take5b_masks(manifest, folder, wrong)
+
+
+class TakeMap(unittest.TestCase):
+    """R3: S7's one held frame (a `skip`) and S5's pictures chosen by scroll
+    position — accepted when right, refused when not."""
+
+    SEGMENTS = [("hold", 0), ("live", 0, 60), ("skip", 40), ("live", 80, 140), ("hold", 120)]
+
+    def manifest(self, film):
+        return {"film": film, "sources": {str(j): {"pts": 10 * j, "file": ""} for j in range(15)}}
+
+    def test_a_skip_holds_the_picture_before_it_for_one_frame(self):
+        # pictures every 10 ticks: hold 0; live 0, 20, 40; the skip holds 4; live 80, 100, 120; hold 12
+        self.assertEqual(rf.check_take_map(self.manifest([0, 0, 2, 4, 4, 8, 10, 12, 12]), self.SEGMENTS), [])
+
+    def test_a_skip_showing_another_picture_is_refused(self):
+        faults = rf.check_take_map(self.manifest([0, 0, 2, 4, 5, 8, 10, 12, 12]), self.SEGMENTS)
+        self.assertTrue(any("not the picture the range before it ends on" in f for f in faults), faults)
+
+    def test_a_skip_standing_for_two_frames_is_refused(self):
+        segments = self.SEGMENTS[:3] + [("live", 100, 160), ("hold", 140)]
+        faults = rf.check_take_map(self.manifest([0, 0, 2, 4, 4, 10, 12, 14, 14]), segments)
+        self.assertTrue(any("more or less than one film frame" in f for f in faults), faults)
+
+    def test_s7s_skip_is_one_frame_between_its_live_ranges(self):
+        st = rf.segment_starts(rf.TAKE1B_SEGMENTS)
+        i = next(k for k, s in enumerate(rf.TAKE1B_SEGMENTS) if s[0] == "skip")
+        self.assertEqual((rf.take1b_index(689), rf.take1b_index(690), rf.take1b_index(691)),
+                         (st[i] - 1, st[i], st[i + 1]))
+
+    def take5b(self):
+        """A drag of 145 pictures: the top at rest (pts 0), then one picture
+        every 9 ticks 6 px further, the last at the rest (862 px)."""
+        a, b = plan.S5["live"][1:]
+        pts = {0: 0, **{j: a + 9 * j for j in range(1, 145)}}
+        pos = {j: min(6 * j, 858) for j in range(144)} | {144: plan.S5["rise_px"]}
+        film = [max(j for j in pts if pts[j] <= a + k) for k in range(b - a)]
+        manifest = {"film": film, "sources": {str(j): {"pts": t, "file": ""} for j, t in pts.items()}}
+        survey = {str(j): {"pos": v} for j, v in pos.items()}
+        return manifest, survey, rf.take5b_choice(pos, sorted(pos), 0, 144)
+
+    def test_s5s_frames_show_the_picture_nearest_the_target(self):
+        manifest, survey, choice = self.take5b()
+        self.assertEqual(rf.check_take5b(manifest, survey, choice), [])
+        self.assertTrue(all(abs(c["shift"]) <= 3 + 1e-9 for c in choice))   # half the 6-px gap
+        self.assertEqual((choice[0]["j"], choice[0]["shift"]), (0, 0.0))
+
+    def test_a_frame_on_a_farther_picture_is_refused(self):
+        manifest, survey, choice = self.take5b()
+        c = choice[30]
+        j = c["j"] + 1                                    # the next picture, 6 px on, moved back to the target
+        choice[30] = dict(c, j=j, pos=c["pos"] + 6, shift=c["target"] - c["pos"] - 6)
+        faults = rf.check_take5b(manifest, survey, choice)
+        self.assertTrue(any("nearest its target" in f for f in faults), faults)
+
+    def test_the_take_presenting_a_frame_by_time_is_refused(self):
+        """The third render's choice: the picture the take presents at each
+        instant, not the one nearest the smooth target."""
+        manifest, survey, choice = self.take5b()
+        a = plan.S5["live"][1]
+        by_time = []
+        for c in choice:
+            j = manifest["film"][min(len(manifest["film"]) - 1, (c["n"] - rf.S5_LIVE_FIRST) * rf.FILM_TICKS)]
+            p = survey[str(j)]["pos"]
+            by_time.append(dict(c, j=j, pos=p, shift=c["target"] - p))
+        self.assertNotEqual(rf.check_take5b(manifest, survey, by_time), [])
+
+
+# v3's S5: the scroll (capture px) of the picture each frame 420–491 showed,
+# the take's own 1:1 frame-hold (take5b's scroll map, checked on its pictures)
+V3_SCROLL_PX = [0, 20, 30, 35, 46, 59, 65, 79, 87, 103, 111, 128, 137, 156, 165, 185, 196, 206, 227, 238, 249, 272,
+                283, 307, 318, 330, 354, 366, 390, 403, 427, 439, 451, 476, 488, 512, 524, 547, 559, 582, 594, 605, 627,
+                637, 648, 669, 679, 689, 708, 717, 734, 743, 759, 767, 775, 789, 795, 808, 813, 819, 829, 833, 842, 845,
+                848, 854, 856, 859, 860, 861, 862, 862]
+K = plan.PX_PER_PT / 3                              # frame px per capture px
+
+
+def steps(scroll_px):
+    return [(b - a) * K for a, b in zip(scroll_px, scroll_px[1:])]
+
+
+class ScrollCadence(unittest.TestCase):
+    """R3: S5's scroll steps — never back, none above 1.6 x the mean of its
+    neighbours, the first no larger than the next. The third render's
+    cadence fails; the plan's target passes; the measure on pixels finds a
+    known sub-pixel translation."""
+
+    def test_the_third_renders_cadence_fails_by_name(self):
+        faults = rv.scroll_cadence_faults(steps(V3_SCROLL_PX))
+        self.assertTrue(any("first step (14.9 px)" in f for f in faults), faults)
+        self.assertTrue(any("their neighbours' mean" in f for f in faults), faults)
+
+    def test_the_plans_target_passes(self):
+        target = [rf.s5_target_px(n) for n in range(rf.S5_LIVE_FIRST, rf.S5_LIVE_LAST + 2)]
+        st = steps(target)
+        self.assertEqual(rv.scroll_cadence_faults(st), [])
+        self.assertLess(st[0], 0.5)                                  # an ease-in from rest
+        self.assertEqual(target[-1], plan.S5["rise_px"])
+
+    def test_a_step_that_goes_back_fails(self):
+        st = steps([rf.s5_target_px(n) for n in range(rf.S5_LIVE_FIRST, rf.S5_LIVE_LAST + 2)])
+        st[20] = -1.0
+        self.assertTrue(any("goes back" in f for f in rv.scroll_cadence_faults(st)))
+
+    def frames(self, scroll):
+        """Frames of a textured page moved up by `scroll` (frame px, sub-pixel)."""
+        rng = np.random.default_rng(5)
+        page = Image.fromarray(rng.integers(0, 255, (2200, 1080), dtype=np.uint8), "L").filter(ImageFilter.GaussianBlur(2))
+        return [np.asarray(page.resize((1080, 1920), Image.LANCZOS, box=(0, s, 1080, s + 1920)), dtype=np.float32)
+                for s in scroll]
+
+    def test_the_measure_finds_a_known_translation(self):
+        target = [rf.s5_target_px(n) * K for n in range(rf.S5_LIVE_FIRST, rf.S5_LIVE_FIRST + 8)]
+        fr = self.frames(target)
+        measured = [rv.scroll_step(a, b) for a, b in zip(fr, fr[1:])]
+        for m, t in zip(measured, steps([v / K for v in target])):
+            self.assertAlmostEqual(m, t, delta=0.1)
+        # the third render's first frames, measured on pixels, fail as well
+        fr = self.frames([v * K for v in V3_SCROLL_PX[:8]])
+        measured = [rv.scroll_step(a, b) for a, b in zip(fr, fr[1:])]
+        self.assertTrue(any("first step" in f for f in rv.scroll_cadence_faults(measured)))
+
+
+class Cover(unittest.TestCase):
+    """R3: the cover picture keeps its headline 40 px inside the 4:5 crop;
+    the film's own frame 54 (11 px) would not."""
+
+    def check(self):
+        comp = rs.Composer(P)
+        layout = {n: comp.frame(n, dry=True).boxes for n in (P.cover_frame, P.frames - 1)}
+        return next(c for c in rv.plan_checks(P, layout) if c.name == "cover headline 40 px inside the 4:5 crop")
+
+    def test_the_cover_has_room_above_its_headline(self):
+        check = self.check()
+        self.assertTrue(check.ok, check.seen)
+
+    def test_the_films_own_frame_as_the_cover_fails(self):
+        original = plan.S1["cover_drop"]
+        try:
+            plan.S1["cover_drop"] = 0
+            check = self.check()
+            self.assertFalse(check.ok)
+            self.assertIn("starts 11.0 px below", check.seen)
+        finally:
+            plan.S1["cover_drop"] = original
 
 
 class Storyboard(unittest.TestCase):

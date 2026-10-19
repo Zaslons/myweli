@@ -4,8 +4,8 @@
 brand art and the footage. Every word comes from the storyboard through
 `reel_plan` (by scene and index); every number from the plan's tables;
 every duration and curve from `motion.dart`'s tokens, except the strokes'
-own timing (the storyboard's, on the Lottie curve) and S5's camera moves
-(« 600 ms easeInOutCubic, not UI motion »).
+own timing (the storyboard's, on the Lottie curve) and S5's scroll target
+(the gesture's own cosine, fitted to the take: R3).
 
 Amendment A1 (owner, 2026-10-18) puts the owner's pictures in the hook (S1)
 and in a people beat (S7b), through `reel_photo`. The review's fixes (R1):
@@ -19,7 +19,12 @@ can no longer reach S2's lockup before the lockup is gone (no paper plate
 over the card any more; verify holds the clear space); an arriving bubble
 is no more opaque than the share of it above the column's edge; S1's
 headline sits at the top of the safe zone; S7b starts at frame 731, so its
-caption has its reading time.
+caption has its reading time. The third review's items (R3): S5's scroll
+is chosen by position on a smooth target, each picture moved by its
+sub-pixel remainder (and the mask with it); S7's one black-button frame
+before the push holds the loading picture; S7b's caption sits at the top
+of the safe zone (47 px higher), clear of the stylist's bun;
+the cover is composed apart, its headline 30 px lower (`cover`).
 
 One choice the storyboard leaves open, taken the calmer way (README,
 « Deviations »): where S8's pen dot overlaps the start of the draw, the
@@ -205,9 +210,9 @@ class Composer:
         """S1's block sits at the top of the safe zone (R2); S4's and S6's at 316."""
         return plan.S1["head_top"] if key == "S1" else plan.PAIN["head_top"]
 
-    def pain_headline(self, fr: rd.Frame, key: str, t: float, t_in: float) -> None:
+    def pain_headline(self, fr: rd.Frame, key: str, t: float, t_in: float, drop: float = 0.0) -> None:
         settle = plan.PAIN["settle_from"] - (plan.PAIN["settle_from"] - 1) * self.at("fast", t, t_in)
-        self.headline(fr, self.words[key][:2], P92, self.pain_top(key), plan.PAIN["head_lh"],
+        self.headline(fr, self.words[key][:2], P92, self.pain_top(key) + drop, plan.PAIN["head_lh"],
                       self.c["secondary"], scale=settle, label=f"{key} headline")
 
     def entry(self, fr: rd.Frame, s: str, x: float, baseline: float, t: float, t_pop: float | None,
@@ -259,12 +264,13 @@ class Composer:
         to enter, 0 at rest (`emphasis`)."""
         return plan.ANSWER["enter_travel"] * (1 - self.at("emphasis", t, t_in))
 
-    def card(self, fr: rd.Frame, key: str, picture, W: float, offset: float, touches=()) -> None:
+    def card(self, fr: rd.Frame, key: str, picture, W: float, offset: float, touches=(), shift: float = 0.0,
+             data: dict | None = None) -> None:
         top = rf.card_top(W, offset)
         fr.note("card", f"{key} card", (plan.ANSWER["card_x"], top, plan.ANSWER["card_x"] + plan.ANSWER["card_w"],
-                                         top + rf.card_height()), 1.0, {"W": W, "offset": offset})
+                                         top + rf.card_height()), 1.0, {"W": W, "offset": offset, **(data or {})})
         if self.card_art is not None and not fr.dry:
-            self.card_art.draw(fr, picture(), W, offset, 1.0, touches)
+            self.card_art.draw(fr, picture(), W, offset, 1.0, touches, shift)
 
     def mark(self, fr: rd.Frame, pts_w, t: float, dot: tuple[float, float], draw: float, alpha: float = 1.0,
              dy: float = 0.0, label: str = "mark", box=None) -> None:
@@ -294,11 +300,12 @@ class Composer:
 
     # ---- the scenes -----------------------------------------------------------------
 
-    def s1(self, fr: rd.Frame, t: float) -> None:
+    def s1(self, fr: rd.Frame, t: float, drop: float = 0.0) -> None:
         """A1: the picture (the ground), the question, and the stroke that
-        leaves her pen and crosses out her page."""
+        leaves her pen and crosses out her page. `drop`: how much lower the
+        headline sits (the cover's, R3)."""
         S = plan.S1
-        self.pain_headline(fr, "S1", t, 0.0)
+        self.pain_headline(fr, "S1", t, 0.0, drop)
         x0, x1 = self.s1_x
         _, y, t0, t1 = S["stroke"]
         w = plan.NOTEBOOK["stroke_w"]
@@ -409,8 +416,9 @@ class Composer:
 
     def s5(self, fr: rd.Frame, t: float, n: int, dry: bool) -> rd.Frame:
         """A2: the card opens on the top of the page (W 136: the back
-        button's disc under the solid band), the take's own scroll plays
-        1:1, then the camera moves to the hours."""
+        button's disc under the solid band), the page's own scroll — its
+        pictures chosen by position on a smooth target, each moved by its
+        sub-pixel remainder (R3) — then the camera moves to the hours."""
         S = plan.S5
         spec = S["thicken"]
         if t < spec[2]:
@@ -422,15 +430,21 @@ class Composer:
         W = W0 + (W1 - W0) * self.at(token, t, t_move)
         offset = self.enter_offset(t, S["enter"])
         if t >= S["enter"]:
-            self.card(fr, "S5", lambda: self.fx.take5b(n), W, offset)
+            # the scroll the card shows (capture px): the plan's target, and
+            # with the footage the picture's own scroll plus its remainder
+            planned = rf.s5_target_px(n)
+            shown = self.fx.scroll5(n) if self.fx is not None else planned
+            shift = self.fx.take5b_at(n)[1] if self.fx is not None else 0.0
+            self.card(fr, "S5", lambda: self.fx.take5b(n), W, offset, shift=shift,
+                      data={"scroll_px": shown, "planned_px": planned})
             # where the row is painted out: per picture with the footage; the
             # rest picture's rectangle once the page is at rest without it
             if self.fx is not None:
-                rect = self.fx.mask5(n)
+                rect, _ = self.fx.mask5(n)
             else:
-                rect = S["mask"] if rf.take5b_index(n) == rf.TAKE5B_REST else None
+                rect = S["mask"] if rf.s5_phase(n) == "after" else None
             if rect is not None:
-                fr.note("mask", "S5 phone row", rf.mask_box_in_frame(W, offset, rect), 1.0)
+                fr.note("mask", "S5 phone row", rf.mask_box_in_frame(W, offset, rect, shift), 1.0)
         self.answer_headline(fr, "S5", t, S["head_in"])
         return fr
 
@@ -569,6 +583,19 @@ class Composer:
                 fr.put(self.c["primary"], cov * p, box[0], box[1])
             fr.centred(self.words["S8"][1], CTA, 540, rd.baseline_in(y0 + dy, y1 - y0, CTA), self.c["secondary"], p,
                        "S8 CTA", line_box=(y0 + dy, y1 + dy))
+
+    def cover(self, dry: bool = False) -> rd.Frame:
+        """R3: the storyboard's cover (frame 54, 1.80 s), composed apart for
+        the platforms' cover upload: the film's frame with S1's headline
+        `cover_drop` px lower, so the 4:5 crop keeps room above it. The
+        film's own frames are unchanged."""
+        n = self.P.cover_frame
+        if self.P.scene_at(n) != "S1":
+            plan.die(f"the cover frame {n} is not in S1")
+        t = n / self.P.fps
+        fr = self.photo_ground("S1", plan.S1, t, dry)
+        self.s1(fr, t, drop=plan.S1["cover_drop"])
+        return fr
 
     # ---- one frame -------------------------------------------------------------------
 

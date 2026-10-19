@@ -42,9 +42,11 @@ from PIL import Image, ImageDraw   # noqa: E402
 # build/bin like its own helpers, rebuilt when a source changes.
 swifttools.SOURCES.setdefault("reel-encode", ["Common.swift", "Writer.swift", str(HERE / "swift/ReelEncode.swift")])
 
-KEY_TIMES = [0.0, 1.5, 3.5, 6.1, 6.2, 10.4, 11.0, 12.9, 13.5, 14.5, 15.5, 17.0, 21.0, 24.0, 24.5, 25.5, 26.9, 27.5, 29.5]
-OUTPUTS = ("reel.mp4", "contact-sheet.png", "poster-hook.png", "poster-end.png", "cover.png", "verify.txt",
-           "build.json")
+# R3 adds S5's scroll (13.9–16.3), S7's frame 690 and its neighbours (22.9–23.1)
+KEY_TIMES = [0.0, 1.5, 3.5, 6.1, 6.2, 10.4, 11.0, 12.9, 13.5, 13.9, 14.1, 14.5, 15.0, 15.5, 16.0, 16.3, 17.0,
+             21.0, 22.9, 23.0, 23.1, 24.0, 24.5, 25.5, 26.9, 27.5, 29.5]
+OUTPUTS = ("reel.mp4", "contact-sheet.png", "poster-hook.png", "poster-end.png", "cover.png", "cover-4x5.png",
+           "verify.txt", "build.json")
 
 
 def sha256(path: Path) -> str:
@@ -156,7 +158,11 @@ def cmd_build(a: argparse.Namespace) -> None:
     frames_dir = work / "frames"
     shutil.copyfile(frames_dir / names[0], out / "poster-hook.png")
     shutil.copyfile(frames_dir / names[-1], out / "poster-end.png")
-    shutil.copyfile(frames_dir / names[P.cover_frame], out / "cover.png")
+    # R3: the cover is composed apart (its headline 30 px lower) and uploaded
+    # apart; cover-4x5.png is it cut to the 4:5 feed crop
+    cover = rs.Composer(P, rf.Footage(work)).cover().im
+    cover.save(out / "cover.png", "PNG")
+    cover.crop((0, P.crop_feed[0], P.width, P.crop_feed[1])).save(out / "cover-4x5.png", "PNG")
     keys = key_frames(P)
     files = decode(movie, list(keys.values()), work / "keys")
     for t, n in keys.items():

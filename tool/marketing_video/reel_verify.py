@@ -15,8 +15,9 @@ AVFoundation (`swift/Inspect.swift`, the only one that decodes) and
               to digital silence.
   the plan    every word, logo and shape the frames place lies inside the
               storyboard's safe zone (x 65–1015, y 269–1248) on EVERY frame,
-              and none reaches into the right-hand rail; the cover frame and
-              the end card inside the 4:5 feed crop; no character drawn as
+              and none reaches into the right-hand rail; the cover frame, the
+              cover picture and the end card inside the 4:5 feed crop, the
+              cover's headline at least 40 px below its top (R3); no character drawn as
               a missing glyph; every timed line on screen for its reading
               time, with no exception (R2); the brand on screen for at most
               a quarter of the film; no two of S4's bubbles ever overlap; no
@@ -25,7 +26,10 @@ AVFoundation (`swift/Inspect.swift`, the only one that decodes) and
               while the lockup shows (R2); A1's pictures enlarged no more
               than their fill and push-in need.
   the build   (with the work folder) take1b's and take5b's exported ranges
-              against each take's map; S5's phone row white on every
+              against each take's map (S5's drag chosen by scroll position,
+              R3); S5's scroll steps measured on the composed frames: never
+              back, none above 1.6 x the mean of its neighbours, the first
+              no larger than the next (R3); S5's phone row white on every
               composed frame where it shows — through the page's own scroll
               (A2) as at the camera stops — and on the decoded file; key
               frames decoded against the frames that were composed; the
@@ -88,6 +92,21 @@ KEY_MIN_PSNR = 48.0
 KEY_MIN_PSNR_PICTURE = 47.0
 MASK_MIN_LEVEL = 245                    # S5's masked row, decoded: white, give or take the encode
 WORDS_MIN_CONTRAST = 4.5                # white words over a picture: WCAG AA for any size
+# S5's scroll cadence (R3). The take's 1:1 frame-hold stepped 9 and 18 px in
+# turn after a 15-px first step: a judder. A smooth scroll's step is never
+# far above the mean of its two neighbours, and an ease-in's first step is
+# its smallest.
+SCROLL_RATIO = 1.6                      # no step above 1.6 x the mean of its neighbours …
+SCROLL_SLACK = 0.5                      # … + 0.5 px (sub-pixel steps at the ends, the measure's noise)
+SCROLL_BACK = 0.25                      # px: a step more negative is the page going back
+SCROLL_MATCH = 0.35                     # px: measured steps against the scroll the frames were drawn at
+SCROLL_ROWS = (760, 1800)               # the card below the cover's fade and above the frame's foot
+SCROLL_COLS = (160, 920)
+# S7b's caption over the stylist's head (R3): the braids under the gradient
+# are darker than 60 of 255, the wall behind them about 90; « pour » keeps
+# at least this many px above them on every frame of the push-in
+HAIR_LEVEL = 60
+CAPTION_CLEAR = 2
 
 
 # ---- the file -------------------------------------------------------------------------
@@ -292,14 +311,25 @@ def plan_checks(P: plan.Plan, layout: dict[int, list] | None = None) -> list[Che
         f"{len(in_rail)} box(es) reach the rail, first: frame {in_rail[0][0]} {in_rail[0][1]} {in_rail[0][3]}")
 
     crop = []
-    for n in (P.cover_frame, P.frames - 1):
-        for b in layout[n]:
+    cover = comp.cover(dry=True).boxes
+    for n, boxes in ((P.cover_frame, layout[P.cover_frame]), ("cover", cover), (P.frames - 1, layout[P.frames - 1])):
+        for b in boxes:
             if b.kind not in rd.NOT_WORDS and not inside(b.ink, 0, P.width, P.crop_feed[0], P.crop_feed[1]):
                 crop.append((n, b.label))
     add("cover and end card in the 4:5 crop", not crop,
-        f"frames {P.cover_frame} and {P.frames - 1}: everything inside y {P.crop_feed[0]}–{P.crop_feed[1]} "
-        f"(the 3:4 grid crop, y {P.crop_grid[0]}–{P.crop_grid[1]}, is wider)" if not crop else
-        f"outside the 4:5 crop: {crop[:3]}")
+        f"frame {P.cover_frame}, the cover picture and frame {P.frames - 1}: everything inside y "
+        f"{P.crop_feed[0]}–{P.crop_feed[1]} (the 3:4 grid crop, y {P.crop_grid[0]}–{P.crop_grid[1]}, is wider)"
+        if not crop else f"outside the 4:5 crop: {crop[:3]}")
+    # R3: the cover picture, uploaded apart, keeps room above its headline
+    head = [b for b in cover if b.kind == "text" and b.label.startswith("S1 headline")]
+    room = min(b.ink[1] for b in head) - P.crop_feed[0] if head else None
+    film_room = min(b.ink[1] for b in layout[P.cover_frame]
+                    if b.kind == "text" and b.label.startswith("S1 headline")) - P.crop_feed[0]
+    need = plan.S1["cover_headroom"]
+    add("cover headline 40 px inside the 4:5 crop", room is not None and room >= need,
+        f"the cover picture's headline ink starts {room:.1f} px below the 4:5 crop's top (y {P.crop_feed[0]}; at "
+        f"least {need}) — {plan.S1['cover_drop']} px lower than the film's frame {P.cover_frame} ({film_room:.1f} px)"
+        if room is not None else "the cover picture has no headline")
 
     # glyphs: every word with the font it is drawn in
     import frames as app_frames          # tool/app_store_preview/frames.py: check_glyphs
@@ -474,10 +504,16 @@ def build_checks(path: Path, P: plan.Plan, work: Path, layout: dict[int, list] |
 
     m1 = json.loads((work / "take1b/manifest.json").read_text(encoding="utf-8"))
     m5 = json.loads((work / "take5b/manifest.json").read_text(encoding="utf-8"))
-    faults = rf.check_take_map(m1) + [f"take5b: {f}" for f in rf.check_take_map(m5, rf.TAKE5B_SEGMENTS)]
+    survey = json.loads((work / "take5b/survey.json").read_text(encoding="utf-8"))
+    choice = json.loads((work / "take5b/choice.json").read_text(encoding="utf-8"))
+    faults = rf.check_take_map(m1) + rf.check_take5b(m5, survey, choice)
+    skips = sum(1 for s in rf.TAKE1B_SEGMENTS if s[0] == "skip")
     add("take map (LIVE and HOLD)", not faults,
-        f"{len(m1['film'])} exported pictures of take1b in {len(rf.TAKE1B_SEGMENTS)} ranges and {len(m5['film'])} "
-        f"of take5b in {len(rf.TAKE5B_SEGMENTS)}, each as its take presents it at its instant"
+        f"{len(m1['film'])} exported pictures of take1b in {len(rf.TAKE1B_SEGMENTS)} ranges, each as its take "
+        f"presents it at its instant ({skips} declared frame held over S7's black-button picture, R3); take5b's "
+        f"{len(m5['sources'])} pictures of the drag window ({len({v['pos'] for v in survey.values()})} scroll "
+        f"positions), S5's {len(choice)} live frames each on the picture nearest its scroll target, never back, "
+        f"moved by the remainder (at most {max(abs(c['shift']) for c in choice):.2f} capture px)"
         if not faults else "; ".join(faults))
 
     if layout is None:
@@ -496,12 +532,13 @@ def build_checks(path: Path, P: plan.Plan, work: Path, layout: dict[int, list] |
         a = np.asarray(Image.open(work / "frames" / names[n]).convert("L"))[r[1]:r[3], r[0]:r[2]]
         if a.min() < 250:
             bad.append((n, int(a.min())))
-    live = plan.S5["live"]
-    in_drag = sum(1 for n in shown if live[0] <= n <= live[0] + (live[2] - live[1]) // rf.FILM_TICKS)
+    in_drag = sum(1 for n in shown if rf.s5_phase(n) == "live")
     add("S5 phone row hidden (composed)", shown and not bad,
         f"{len(shown)} composed frames show the masked row ({in_drag} of them in the page's own scroll); "
         f"every pixel of it is white (>= 250)" if not bad else
         f"{len(bad)} frame(s) with ink in the masked row, first {bad[0]}")
+
+    checks.append(scroll_check(work, names, layout))
 
     sample = sorted(shown)[::max(1, len(shown) // 12)] + ([max(shown)] if shown else [])
     want = sorted(set(sample + (key_frames or [])))
@@ -533,7 +570,125 @@ def build_checks(path: Path, P: plan.Plan, work: Path, layout: dict[int, list] |
                 "; ".join(f"worst {k} frame {v[0]} at {v[1]:.1f} dB (at least {floors[k]:g}), its worst 16 x 16 "
                           f"block {v[2]:.1f} levels off" for k, v in sorted(worst.items())))
     checks += words_over_pictures(P, work, layout)
+    checks.append(caption_clear_of_hair(P, work, names, layout))
     return checks
+
+
+def caption_clear_of_hair(P: plan.Plan, work: Path, names: list[str], layout: dict[int, list]) -> Check:
+    """S7b's second line against the stylist's braided bun (R3), on every
+    frame where the caption is whole: its ink (where the composed frame is
+    brighter than the picture by more than 60) and the hair under it (the
+    picture darker than HAIR_LEVEL) — the least gap, column by column, at
+    least CAPTION_CLEAR px; negative is how far into the hair."""
+    fx = rf.Footage(work)
+    pic = fx.photo(plan.S7B["photo"])
+    worst = None
+    seen = 0
+    whole = round(plan.S7B["in"] * P.fps) + round(plan.tokens()[plan.S7B["dissolve"]].ms * P.fps / 1000)
+    for n, boxes in sorted(layout.items()):
+        line = [b for b in boxes if b.kind == "text" and b.label == "S7b caption line 2" and b.alpha >= 0.999]
+        if not line or P.scene_at(n) != "S7b" or n < whole:      # the S7 page dissolved away
+            continue
+        seen += 1
+        ground = rp.render(pic, rp.placement(plan.S7B, n / P.fps, P.size), plan.S7B, P.size).mean(axis=2)
+        shown = np.asarray(Image.open(work / "frames" / names[n]).convert("RGB"), dtype=np.float32).mean(axis=2)
+        x0, y0, x1, y1 = (int(round(v)) for v in line[0].ink)
+        ink = (shown - ground)[y0 - 2:y1 + 2, x0:x1] > 60
+        dark = ground < HAIR_LEVEL
+        for c in range(ink.shape[1]):
+            rows = np.where(ink[:, c])[0]
+            if not len(rows):
+                continue
+            top, bottom = y0 - 2 + rows.min(), y0 - 2 + rows.max()
+            under = np.where(dark[top:bottom + 1, x0 + c] & ink[rows.min():rows.max() + 1, c])[0]
+            if len(under):
+                gap = -(bottom - top - under.min() + 1)
+            else:
+                below = np.where(dark[bottom + 1:bottom + 81, x0 + c])[0]
+                gap = int(below[0]) if len(below) else 80
+            if worst is None or gap < worst[0]:
+                worst = (gap, n, x0 + c)
+    ok = worst is not None and worst[0] >= CAPTION_CLEAR
+    return Check("S7b caption clear of her hair", ok,
+                 f"{seen} frames with the caption whole: its second line at least {worst[0]} px above the stylist's "
+                 f"braids (closest at frame {worst[1]}, x {worst[2]}; at least {CAPTION_CLEAR})" if ok else
+                 (f"the caption's second line is {-worst[0]} px into the stylist's braids at frame {worst[1]}, x "
+                  f"{worst[2]}" if worst and worst[0] < 0 else
+                  f"the caption's second line is {worst[0]} px from the braids at frame {worst[1]} (at least "
+                  f"{CAPTION_CLEAR})" if worst else "no frame shows S7b's caption whole"))
+
+
+def scroll_step(a: np.ndarray, b: np.ndarray, reach: tuple[int, int] = (-4, 32)) -> float:
+    """How far (frame px) the card's content moved up from picture a to
+    picture b: the shift d that minimises the squared difference between b
+    and a moved by d over SCROLL_ROWS x SCROLL_COLS, refined to the
+    sub-pixel by a parabola through its neighbours."""
+    (r0, r1), (c0, c1) = SCROLL_ROWS, SCROLL_COLS
+    B = b[r0:r1, c0:c1]
+    ssd = {d: float(np.square(B - a[r0 + d:r1 + d, c0:c1]).mean()) for d in range(reach[0], reach[1] + 1)}
+    d = min(ssd, key=ssd.get)
+    if reach[0] < d < reach[1]:
+        s0, s1, s2 = ssd[d - 1], ssd[d], ssd[d + 1]
+        den = s0 - 2 * s1 + s2
+        if den > 0:
+            return d + 0.5 * (s0 - s2) / den
+    return float(d)
+
+
+def scroll_cadence_faults(steps: list[float]) -> list[str]:
+    """S5's frame steps (px), the first from the live range's first frame:
+    never back; none above SCROLL_RATIO x the mean of its two neighbours
+    (+ SCROLL_SLACK); the first no larger than the five after it."""
+    faults = []
+    back = [(i, v) for i, v in enumerate(steps) if v < -SCROLL_BACK]
+    if back:
+        faults.append(f"goes back at step {back[0][0] + 1} ({back[0][1]:.2f} px)")
+    jolts = []
+    for i in range(1, len(steps) - 1):
+        mean = (steps[i - 1] + steps[i + 1]) / 2
+        if steps[i] > SCROLL_RATIO * mean + SCROLL_SLACK:
+            jolts.append((i, steps[i], mean))
+    if jolts:
+        i, v, m = jolts[0]
+        faults.append(f"{len(jolts)} step(s) above {SCROLL_RATIO} x their neighbours' mean, first: step {i + 1} "
+                      f"{v:.1f} px against {m:.1f}")
+    after = steps[1:6]
+    if after and steps[0] > min(after) + SCROLL_BACK:
+        faults.append(f"the first step ({steps[0]:.1f} px) is larger than the following ones "
+                      f"({', '.join(f'{v:.1f}' for v in after)})")
+    return faults
+
+
+def scroll_check(work: Path, names: list[str], layout: dict[int, list]) -> Check:
+    """S5's scroll, measured on the composed frames of its live range and
+    the first frame at rest after it (R3)."""
+    first, last = rf.S5_LIVE_FIRST, rf.S5_LIVE_LAST + 1
+
+    def grey(n: int) -> np.ndarray:
+        return np.asarray(Image.open(work / "frames" / names[n]).convert("L"), dtype=np.float32)
+
+    measured, frames = [], [grey(first)]
+    for n in range(first + 1, last + 1):
+        frames.append(grey(n))
+        measured.append(scroll_step(frames[-2], frames[-1]))
+        frames.pop(0)
+    k = plan.PX_PER_PT / 3
+    drawn = []
+    for n in range(first, last + 1):
+        card = next(b for b in layout[n] if b.kind == "card")
+        drawn.append(card.data["scroll_px"] * k)
+    drawn_steps = [b - a for a, b in zip(drawn, drawn[1:])]
+    off = max(abs(m - d) for m, d in zip(measured, drawn_steps))
+    faults = scroll_cadence_faults(measured)
+    faults += [f"drawn: {f}" for f in scroll_cadence_faults(drawn_steps)]
+    if off > SCROLL_MATCH:
+        faults.append(f"the measured steps are up to {off:.2f} px off the scroll the frames were drawn at")
+    peak = max(measured)
+    return Check("S5 scroll smooth", not faults,
+                 f"frames {first}–{last}: {len(measured)} steps measured on the composed frames, {measured[0]:.2f} px "
+                 f"first, {peak:.1f} px at the most, {measured[-1]:.2f} px last, within {off:.2f} px of the scroll "
+                 f"the frames were drawn at; never back, none above {SCROLL_RATIO} x its neighbours' mean "
+                 f"(+{SCROLL_SLACK} px), the first no larger than the next five" if not faults else "; ".join(faults))
 
 
 def _luminance(rgb: np.ndarray) -> np.ndarray:
@@ -566,6 +721,16 @@ def words_over_pictures(P: plan.Plan, work: Path, layout: dict[int, list]) -> li
             label = b.label.rsplit(" line", 1)[0]
             if label not in worst or ratio < worst[label][0]:
                 worst[label] = (ratio, n, b.label)
+    # R3: the cover picture, its headline 30 px lower
+    n = P.cover_frame
+    ground = rp.render(comp.fx.photo(plan.S1["photo"]), rp.placement(plan.S1, n / P.fps, P.size), plan.S1, P.size)
+    for b in comp.cover(dry=True).boxes:
+        if b.kind == "text" and b.label.startswith("S1 headline"):
+            x0, y0, x1, y1 = (int(round(v)) for v in b.ink)
+            bright = float(np.percentile(_luminance(ground[max(0, y0):y1, max(0, x0):x1].reshape(-1, 3)), 95))
+            ratio = 1.05 / (bright + 0.05)
+            if "S1 cover" not in worst or ratio < worst["S1 cover"][0]:
+                worst["S1 cover"] = (ratio, n, b.label + " (cover picture)")
     low = {k: v for k, v in worst.items() if v[0] < WORDS_MIN_CONTRAST}
     return [Check("white words over the pictures", bool(worst) and not low,
                   "; ".join(f"{k}: at least {v[0]:.1f}:1 (worst {v[2]}, frame {v[1]})" for k, v in sorted(worst.items()))
