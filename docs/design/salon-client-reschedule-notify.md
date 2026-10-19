@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Draft — en attente du feu vert du propriétaire sur le texte (§3)** |
+| **Statut** | **Approved le 2026-10-19** — N1–N5 validés tels que recommandés : N2 avec l'ancienne **et** la nouvelle heure ; N3–N5 dans ce PR (l'ordre de déploiement du §8 tient) |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-19 |
 | **PRD ref / phase** | FR-NOTIF (notifications transactionnelles) · V1 |
@@ -132,7 +132,7 @@ séparer N3–N5 dans un PR suivant.
 
 ## 9. Questions ouvertes
 
-1. N1–N5 : le texte exact, N2 ou sa variante B.
+1. ~~N1–N5 : le texte exact, N2 ou sa variante B.~~ **Décidé le 2026-10-19 : N2 (ancienne → nouvelle heure), N3–N5 dans ce PR.**
 2. Le web Pro n'a pas de centre de notifications (écart de parité préexistant,
    hors de cette tranche).
 

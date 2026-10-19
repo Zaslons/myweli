@@ -13,10 +13,10 @@ import { describe, expect, it } from 'vitest';
 /// `MESSAGING_PROVIDER=disabled`. Reminders exist, as notifications of the
 /// MyWeli app. Design: docs/design/promise-honesty-sweep.md §5.
 ///
-/// Each family of phrases stands on a fact about the product, and this file
-/// READS that fact: when messaging is switched on, or the salon starts
-/// hearing about client reschedules, the matching test goes red and says
-/// « re-decide this pin » — the pin never relaxes, or stays, in silence.
+/// Each promise stands on a fact about the product, and this file READS that
+/// fact: when messaging is switched on, or the salon's reschedule event is
+/// removed (salon-client-reschedule-notify.md §6), the matching test goes red
+/// and says what to re-decide — the pin never relaxes, or stays, in silence.
 const WEB = join(dirname(fileURLToPath(import.meta.url)), '..');
 const REPO = join(WEB, '..');
 
@@ -48,8 +48,6 @@ const FORBIDDEN: Record<string, string[]> = {
     'paid online',
     'online payment',
   ],
-  // SalonEvent has no reschedule event.
-  reschedule: ['annule ou modifie', 'modifie un rendez-vous'],
 };
 
 /// Source as the copy it renders. Comments are removed only where they
@@ -124,15 +122,18 @@ describe('the facts the pins stand on', () => {
     ).toBe('disabled');
   });
 
-  it('the salon is still not told when a client reschedules', () => {
+  it('the salon IS told when a client reschedules — the Pro app promises it', () => {
+    // Re-decided 2026-10-19 (docs/design/salon-client-reschedule-notify.md §6):
+    // SalonEvent.clientRescheduled exists and the Pro app says « reporte ».
+    // Remove the event and that copy lies again.
     const events = salonEvents(
       readFileSync(join(REPO, 'backend/lib/src/messaging/salon_notifier.dart'), 'utf-8'),
     );
     expect(
       events.filter(isReschedule),
-      `SalonEvent has a reschedule event now (${events}) — re-decide the ` +
-        '« reschedule » pin',
-    ).toEqual([]);
+      `SalonEvent has no reschedule event any more (${events}) but the Pro ` +
+        'app promises « …réserve, reporte, annule… » — restore the event or the copy',
+    ).not.toEqual([]);
   });
 });
 
@@ -181,7 +182,7 @@ describe('the pin can fail', () => {
       "['Confirmations WhatsApp', 'Rappels avant votre rendez-vous.'],",
       'spa — online, 24/7, in French. Salons manage bookings, deposits and automated\nWhatsApp/SMS reminders.',
       // A string concatenation and a JSX text wrap.
-      "'Soyez prévenu·e dès qu’un client réserve, annule ou ' +\n  'modifie un rendez-vous'",
+      "'Rappels automatiques ' +\n  'WhatsApp/SMS (24 h / 2 h)'",
       '<p>\n  Acompte payé\n  en ligne\n</p>',
       // A phrase after `image/*` is still seen (the stripper must not eat it).
       'accept="image/*" />\n<p>Paiement en ligne</p>\n{/* x */}',

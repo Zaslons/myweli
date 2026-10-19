@@ -246,10 +246,15 @@ void main() {
         final id = await seedFor('user_A');
         final newDate = _slotAt(9);
 
+        final before = (await appts.byId(id))!['appointmentDate'];
         final r = await lifecycle.reschedule(id, 'user_A', newDate);
         expect(r.ok, isTrue);
         expect(r.appointment!['appointmentDate'], newDate.toIso8601String());
         expect(r.appointment!['depositAmount'], 6000); // unchanged
+        // The salon's push says which slot frees up (spec
+        // salon-client-reschedule-notify §3.1, N2) — the service already
+        // holds the booking it moved, so the old date rides out with it.
+        expect(r.previousAppointmentDate, before);
 
         final c = await lifecycle.cancel(id, 'user_A');
         expect(c.ok, isTrue);
@@ -392,7 +397,13 @@ void main() {
       when(() => context.read<BookingNotifier>()).thenReturn(notifier);
       // Provider-directed events (design §10) — the client-cancel route also
       // tells the salon team.
-      when(() => salonNotifier.notify(any(), any())).thenAnswer((_) async {});
+      when(
+        () => salonNotifier.notify(
+          any(),
+          any(),
+          previousAppointmentDate: any(named: 'previousAppointmentDate'),
+        ),
+      ).thenAnswer((_) async {});
       when(() => context.read<SalonNotifier>()).thenReturn(salonNotifier);
       return context;
     }
@@ -491,6 +502,80 @@ void main() {
         expect((await res.json() as Map)['error'], 'invalid_body');
       }
       expect((await appts.byId(id))!['appointmentDate'], newDate);
+    });
+
+    test('reschedule (client) tells the SALON, with the slot it frees '
+        '(spec salon-client-reschedule-notify §2)', () async {
+      clearInteractions(salonNotifier);
+      final id = await seedFor('user_A');
+      final before = (await appts.byId(id))!['appointmentDate'] as String;
+      final newDate = _slotAt(9).toIso8601String();
+
+      final res = await reschedule_route.onRequest(
+        ctx(
+          post('/appointments/$id/reschedule', accessA, {
+            'newDateTime': newDate,
+          }),
+        ),
+        id,
+      );
+      expect(res.statusCode, HttpStatus.ok);
+
+      final captured = verify(
+        () => salonNotifier.notify(
+          captureAny(),
+          SalonEvent.clientRescheduled,
+          previousAppointmentDate: before,
+        ),
+      ).captured;
+      expect(captured, hasLength(1));
+      expect((captured.single as Map)['appointmentDate'], newDate);
+    });
+
+    test('reschedule: the salon moving its OWN booking never notifies '
+        'itself; a refused move notifies no one', () async {
+      clearInteractions(salonNotifier);
+      final id = await seedFor('user_A'); // provider1's booking
+
+      final bySalon = await reschedule_route.onRequest(
+        ctx(
+          post('/appointments/$id/reschedule', proAccess1, {
+            'newDateTime': _slotAt(10).toIso8601String(),
+          }),
+        ),
+        id,
+      );
+      expect(bySalon.statusCode, HttpStatus.ok);
+
+      // A client move to a slot that is gone → 409, no event.
+      final refused = await reschedule_route.onRequest(
+        ctx(
+          post('/appointments/$id/reschedule', accessA, {
+            'newDateTime': _slotAt(10).toIso8601String(),
+          }),
+        ),
+        id,
+      );
+      expect(refused.statusCode, HttpStatus.conflict);
+
+      // Another client's booking → 403, no event.
+      final cross = await reschedule_route.onRequest(
+        ctx(
+          post('/appointments/$id/reschedule', accessB, {
+            'newDateTime': _slotAt(11).toIso8601String(),
+          }),
+        ),
+        id,
+      );
+      expect(cross.statusCode, HttpStatus.forbidden);
+
+      verifyNever(
+        () => salonNotifier.notify(
+          any(),
+          any(),
+          previousAppointmentDate: any(named: 'previousAppointmentDate'),
+        ),
+      );
     });
 
     test(
