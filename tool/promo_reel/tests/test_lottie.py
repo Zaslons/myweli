@@ -291,6 +291,21 @@ class RenderTest(unittest.TestCase):
         start = FAST_OUT_SLOW_IN((90.0 - 74.0) / 30.0)
         self.assertAlmostEqual(skia.PathMeasure(piece, False).getLength(), full * (1 - start), places=2)
 
+    def test_the_trim_erases_then_redraws_from_the_right_edge(self) -> None:
+        # comp 90: what is left of the erase is the end of the outline —
+        # the upper-right diagonal and the right edge down to (318.88, 190)
+        erasing = self.player.ink_bounds(90.0)
+        self.assertGreater(erasing.left(), 290.0)
+        self.assertLess(erasing.bottom(), 191.0)
+        # comp 110: the redraw starts at (318.88, 190) and runs down the right
+        # edge; its start is a butt cap, flat on y = 190
+        redrawing = self.player.ink_bounds(110.0)
+        self.assertAlmostEqual(redrawing.top(), 190.0, places=3)
+        self.assertAlmostEqual(redrawing.left(), 318.88 - 18.56 / 2, places=3)
+        self.assertLess(redrawing.bottom(), 264.0)
+        # 104 → 104.01: erased and faded out, nothing on screen
+        self.assertIsNone(self.player.ink_bounds(104.0))
+
     def test_ink_bounds_in_composition_units(self) -> None:
         mark = self.player.ink_bounds(142.0)
         # the closed path ±9.28 (half of the 18.56 stroke), round joins
