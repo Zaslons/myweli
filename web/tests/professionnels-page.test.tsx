@@ -64,8 +64,10 @@ describe('/professionnels', () => {
       'Les clients réservent sur vos créneaux réels ; vous ajoutez les rendez-vous pris au téléphone ou au comptoir. Vue du jour par membre d’équipe, calendrier du mois et liste.',
     );
     // « tout se gère » overclaimed (alerts with the tab closed, split hours).
+    // Alerts without the app now arrive by e-mail — and it says so
+    // (docs/design/salon-email-alerts.md Q3).
     expect(PRO_LANDING.faq[2].answer).toBe(
-      'Non : réservations, agenda, clientèle, équipe et acomptes se gèrent depuis myweli.com, sur ordinateur comme sur téléphone.',
+      'Non : réservations, agenda, clientèle, équipe et acomptes se gèrent depuis myweli.com, sur ordinateur comme sur téléphone. Sans l’app, les alertes vous arrivent par e-mail.',
     );
   });
 

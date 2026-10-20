@@ -14,6 +14,7 @@ import 'package:myweli_backend/src/auth/tokens.dart';
 import 'package:myweli_backend/src/clients/clients_repository.dart';
 import 'package:myweli_backend/src/clients/clients_service.dart';
 import 'package:myweli_backend/src/clients/provider_audit_log.dart';
+import 'package:myweli_backend/src/email/email_provider.dart';
 import 'package:myweli_backend/src/messaging/salon_notifier.dart';
 import 'package:myweli_backend/src/notifications/notification_prefs_repository.dart';
 import 'package:myweli_backend/src/notifications/notifications_repository.dart';
@@ -85,6 +86,7 @@ void main() {
       salonFeed,
       InMemoryNotificationPrefsRepository(),
       providers,
+      email: LogEmailProvider(),
     );
   });
 

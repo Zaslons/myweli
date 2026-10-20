@@ -227,6 +227,45 @@ export async function markAllProNotificationsRead(): Promise<{
   return { ok: res.ok, status: res.status };
 }
 
+/// The member's « Alertes par e-mail » (docs/design/salon-email-alerts.md
+/// §4) — the one preference web Pro shows. `emailAlerts` is absent when the
+/// server does not send it (an API older than the switch): the page then
+/// shows no switch rather than one that would save nothing. Status 0 = no
+/// usable answer.
+export type ProNotificationPrefs = { emailAlerts: boolean };
+
+export async function getProNotificationPrefs(): Promise<{
+  status: number;
+  prefs?: ProNotificationPrefs;
+}> {
+  const res = await send('/api/pro/notification-preferences');
+  if (!res.ok) return { status: res.status };
+  const body = await readJson<{ emailAlerts?: unknown }>(res);
+  if (!body) return { status: 0 };
+  return typeof body.emailAlerts === 'boolean'
+    ? { status: 200, prefs: { emailAlerts: body.emailAlerts } }
+    : { status: 200 };
+}
+
+/// Carries its status: the switch goes back and tells « no network » from a
+/// refusal. A lost 2xx body keeps the switch where the member put it.
+export async function setProEmailAlerts(on: boolean): Promise<{
+  ok: boolean;
+  status: number;
+  prefs?: ProNotificationPrefs;
+}> {
+  const res = await send('/api/pro/notification-preferences', {
+    method: 'PUT',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ emailAlerts: on }),
+  });
+  if (!res.ok) return { ok: false, status: res.status };
+  const body = await readJson<{ emailAlerts?: unknown }>(res);
+  return typeof body?.emailAlerts === 'boolean'
+    ? { ok: true, status: res.status, prefs: { emailAlerts: body.emailAlerts } }
+    : { ok: true, status: res.status };
+}
+
 export async function listProAppointments(): Promise<{
   status: number;
   items: ProAppointment[];

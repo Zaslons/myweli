@@ -682,6 +682,16 @@ const AUTHED_ROUTES: Route[] = [
     anchor: 'Notifications',
     auth: 'pro',
   },
+  {
+    // docs/design/salon-email-alerts.md §4 — « Alertes par e-mail »: a long
+    // sentence carrying the member's address (an unbreakable string) beside
+    // the 48px switch. `ready` is the switch: measured with it drawn.
+    name: 'the pro notification center — « Alertes par e-mail »',
+    url: '/pro/notifications',
+    anchor: 'Notifications',
+    auth: 'pro',
+    ready: (page) => page.getByRole('switch', { name: 'Alertes par e-mail' }),
+  },
   // ---- amounts-that-fit (docs/design/amounts-that-fit.md §8.5) -------------
   {
     // The client CARD — the page behind every row of « the pro client list »

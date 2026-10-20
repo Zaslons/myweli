@@ -241,6 +241,16 @@ test('an OPEN dialog is axe-clean (the stateful scan a crawl never sees)', async
   await expectNoViolations(page, '/pro/clients + add-client Modal');
 });
 
+test('« Alertes par e-mail » is axe-clean (salon-email-alerts)', async ({ page }) => {
+  await page.goto('/pro/connexion');
+  await submitOtpLogin(page, 'salon@example.com');
+  await expect(page).toHaveURL(/\/pro(\/)?$/);
+  await page.goto('/pro/notifications');
+  // The section loads after the heading: scanned only once it is drawn.
+  await expect(page.getByRole('switch', { name: 'Alertes par e-mail' })).toBeVisible();
+  await expectNoViolations(page, '/pro/notifications + « Alertes par e-mail »');
+});
+
 test('a VISIBLE toast is axe-clean', async ({ page }) => {
   await page.goto('/pro/connexion');
   await submitOtpLogin(page, 'salon@example.com');
