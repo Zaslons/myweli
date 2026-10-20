@@ -112,6 +112,12 @@ def build_one(sb, cut: str, fmt: str, out: Path, audio_from: Path | None = None)
         clock = render_audio(sb, cut, out)
         audio_from = None
     film = Film(sb, cut, fmt, clock)
+    crowded = film.crowded_captions()
+    if crowded:
+        c = crowded[0]
+        raise SceneError(f"{cut}/{fmt}: on {len(crowded)} frames a caption comes within the phone's clearance — "
+                         f"f{c['frame']}: {c['caption']} {c['caption_rect']}, the phone as posed {c['phone']} (the "
+                         f"phone never covers or crowds a caption: verify (g), CAPTION_PHONE_CLEAR_PX)")
     beats = out / "verify" / "renderer"
     beats.mkdir(parents=True, exist_ok=True)
     records = []

@@ -87,10 +87,12 @@ REQUIRED_ZONES = ("captions", "phone_window")
 
 SAFE_BASES = ("platform", "ebu_r95_graphics")
 EBU_R95_GRAPHICS_INSET = Fraction(5, 100)
-TYPE_ROLES = ("hook", "app", "counter", "counter_label", "tagline", "store", "credit")
-#: The smallest type a viewer must READ (the end card's « Disponible sur
-#: l’App Store »); the map credit is attribution, not a message.
+TYPE_ROLES = ("hook", "app", "counter", "counter_label", "tagline", "store", "site", "credit")
+#: The smallest type a viewer must READ (the end card's « Sur l’App Store et
+#: Google Play » and « myweli.com »); the map credit is attribution, not a message.
 MIN_READ_PX = 40
+#: The type roles held to MIN_READ_PX: the end card's lines under the tagline.
+READ_ROLES = ("store", "site")
 KEY_RE = re.compile(r"^[A-G](?:#|b|♯|♭)? (?:major|minor)$")
 CUT_RE = re.compile(r"^([1-9][0-9]*)s$")
 FORMAT_RE = re.compile(r"^([1-9][0-9]*)x([1-9][0-9]*)$")
@@ -240,11 +242,14 @@ class Storyboard:
         scores = self.music.get("scores") or {}
         return (PROMO_REEL / scores[cut]) if cut in scores else None
 
-    def cut_scenes(self, cut: str) -> list:
-        """The scenes of one cut ([] when it has none yet)."""
+    def cut_scenes(self, cut: str, fmt: str | None = None) -> list:
+        """The scenes of one cut ([] when it has none yet) — as ``fmt`` reads
+        them (`formats:` overrides resolved, `for_format`), or as written."""
         if isinstance(self.scenes, dict):
-            return list(self.scenes.get(cut) or [])
-        return list(self.scenes or [])
+            items = list(self.scenes.get(cut) or [])
+        else:
+            items = list(self.scenes or [])
+        return items if fmt is None else for_format(items, fmt)
 
     def plan(self, cuts: Iterable[str] | None = None, formats: Iterable[str] | None = None) -> str:
         """What a build of ``cuts`` × ``formats`` (default: all) makes, in words."""
@@ -273,6 +278,56 @@ class Storyboard:
                          + f" · scenes: {len(self.cut_scenes(cid))}")
         lines.append(f"  films: {len(cuts) * len(formats)} — " + ", ".join(f"{c}/{f}" for c in cuts for f in formats))
         return "\n".join(lines)
+
+
+# ---- per-format values in the scenes ------------------------------------------------
+
+#: Any mapping in the scenes may carry `formats: {<format id>: {key: value, …}}`:
+#: in that format those keys replace the mapping's own; every other format reads
+#: the mapping as written. ONE scene, re-laid out — the owner's round-5 16:9
+#: decisions (2026-10-20) are written so: the push-in about the floor
+#: (`camera.formats.16x9.fill`), the 15-s form's hard cut at f193 and the
+#: framing that needs no band-edge curtain after it.
+FORMATS_KEY = "formats"
+
+
+def for_format(node: Any, fmt: str) -> Any:
+    """``node`` as format ``fmt`` reads it: every `formats:` override for it
+    applied, every `formats:` key dropped (a new copy; ``node`` is untouched)."""
+    if isinstance(node, dict):
+        out = {k: for_format(v, fmt) for k, v in node.items() if k != FORMATS_KEY}
+        over = node.get(FORMATS_KEY)
+        if isinstance(over, dict) and isinstance(over.get(fmt), dict):
+            for k, v in over[fmt].items():
+                out[k] = for_format(v, fmt)
+        return out
+    if isinstance(node, list):
+        return [for_format(v, fmt) for v in node]
+    return node
+
+
+def _format_overrides(node: Any, path: str) -> Iterator[tuple[str, Any]]:
+    """(path, value) of every `formats:` key under ``node``."""
+    if isinstance(node, dict):
+        for k, v in node.items():
+            if k == FORMATS_KEY:
+                yield f"{path}.{k}", v
+            yield from _format_overrides(v, f"{path}.{k}")
+    elif isinstance(node, list):
+        for i, v in enumerate(node):
+            yield from _format_overrides(v, f"{path}[{i}]")
+
+
+def _check_format_overrides(c: "_Check", items: list, base: str, format_ids: set[str]) -> None:
+    for path, over in _format_overrides(items, base):
+        if not isinstance(over, dict) or not over:
+            c.fail(path, f"must map format ids to the keys they change ({{16x9: {{…}}}}), not {_kind(over)}")
+            continue
+        for fid, keys in over.items():
+            if fid not in format_ids:
+                c.fail(f"{path}.{fid}", f"is not a format (formats: {', '.join(sorted(format_ids)) or 'none'})")
+            elif not isinstance(keys, dict) or not keys:
+                c.fail(f"{path}.{fid}", f"must be the keys this format changes (a mapping), not {_kind(keys)}")
 
 
 # ---- loading -------------------------------------------------------------------
@@ -541,10 +596,16 @@ def validate(doc: Any, source: str = "storyboard.yaml", overrides: Sequence[str]
                     known = ", ".join(sorted(known_ids)) or "none declared yet"
                     where = "the cut's cues" if base != "scenes" else "music.cues"
                     c.fail(path, f"cue {ref!r} is not in {where} (known: {known})")
+            format_ids = set(top.get("formats") or {}) if isinstance(top.get("formats"), dict) else set()
+            _check_format_overrides(c, items, base, format_ids)
             if not bad_refs and isinstance(scenes, dict):
                 cut = base.split(".", 1)[1]
                 if cut in cuts:
-                    _check_key_order(c, items, base, _cue_frames(music, cut), cuts[cut].frames)
+                    # keys in time order in every format (an override changes a key's value, never the order)
+                    for variant in [items] + [for_format(items, fid) for fid in sorted(format_ids)]:
+                        _check_key_order(c, variant, base, _cue_frames(music, cut), cuts[cut].frames)
+    if c.problems:
+        c.problems = list(dict.fromkeys(c.problems))
     if c.problems:
         raise StoryboardError(source, c.problems)
     return Storyboard(source, doc, meta, cuts, formats, music, scenes, tuple(overrides))
@@ -635,6 +696,8 @@ LIFT_PLACES = ("card_on_floor", "card_under_caption", "tile_row")
 #: then across under the caption (16:9). A lift whose place lies outside the text rectangle pops in place anyway.
 LIFT_PATHS = ("straight", "under")
 LIFT_Y_KEYS = ("top", "centre_y", "bottom")
+#: a lift place may give its own columns (else the layout's `lift_x`)
+LIFT_X_KEY = "x"
 
 
 def _formats(c: _Check, value: Any) -> dict[str, Format]:
@@ -806,9 +869,10 @@ def _layout(c: _Check, value: Any, path: str, w: int, h: int, zones: dict[str, R
         for role in TYPE_ROLES:
             if role in types:
                 c.integer(types[role], f"{path}.type_px.{role}", 1)
-        if isinstance(types.get("store"), int) and types["store"] < MIN_READ_PX:
-            c.fail(f"{path}.type_px.store", f"{types['store']} px: a line the viewer must read is at least "
-                                            f"{MIN_READ_PX} px")
+        for role in READ_ROLES:
+            if isinstance(types.get(role), int) and types[role] < MIN_READ_PX:
+                c.fail(f"{path}.type_px.{role}", f"{types[role]} px: a line the viewer must read is at least "
+                                                 f"{MIN_READ_PX} px")
     centre = c.numbers(lay.get("lottie_centre"), f"{path}.lottie_centre", 2)
     comp = c.integer(lay.get("lottie_comp_width_px"), f"{path}.lottie_comp_width_px", 1)
     if centre is not None and comp is not None and not (comp / 2 <= centre[0] <= w - comp / 2 and 0 <= centre[1] <= h):
@@ -871,12 +935,24 @@ def _placements(c: _Check, lay: dict, path: str, w: int, h: int, zones: dict[str
     if places is not None:
         for name, spec in places.items():
             p = f"{path}.lift_y.{name}"
-            if not isinstance(spec, dict) or len(spec) != 1 or next(iter(spec)) not in LIFT_Y_KEYS:
-                c.fail(p, f"must be ONE of {{{', '.join(LIFT_Y_KEYS)}: y}}, not {spec!r}")
+            ys = [k for k in spec if k in LIFT_Y_KEYS] if isinstance(spec, dict) else []
+            if (not isinstance(spec, dict) or len(ys) != 1
+                    or any(k not in LIFT_Y_KEYS + (LIFT_X_KEY,) for k in spec)):
+                c.fail(p, f"must be ONE of {{{', '.join(LIFT_Y_KEYS)}: y}} (and, optionally, `{LIFT_X_KEY}: "
+                          f"[x0, x1]`), not {spec!r}")
                 continue
-            y = c.number(next(iter(spec.values())), p, 0, h)
+            y = c.number(spec[ys[0]], p, 0, h)
             if y is not None and overlays is not None and not (overlays.y0 <= y <= overlays.y1):
                 c.fail(p, f"y {y:g} is outside the overlays zone's rows ({overlays})")
+            if LIFT_X_KEY in spec:
+                # this place's own columns (16:9, the owner's round-5 decision: the « Arrivé » card and the Fiche's
+                # tiles at the left column's full width) — inside the safe area's and the overlays zone's columns
+                xs = c.span(spec[LIFT_X_KEY], f"{p}.{LIFT_X_KEY}", 0, w)
+                if xs is not None and safe is not None and not (safe.x0 <= xs[0] and xs[1] <= safe.x1):
+                    c.fail(f"{p}.{LIFT_X_KEY}", f"{list(xs)} must lie within the safe area's columns "
+                                                f"(x {safe.x0:g}–{safe.x1:g})")
+                elif xs is not None and overlays is not None and not (overlays.x0 <= xs[0] and xs[1] <= overlays.x1):
+                    c.fail(f"{p}.{LIFT_X_KEY}", f"{list(xs)} must lie within the overlays zone's columns ({overlays})")
     page = c.mapping(lay.get("hook_page"), f"{path}.hook_page", required=("x", "top", "pivot", "macro_to"))
     if page is not None:
         if c.numbers(page.get("x"), f"{path}.hook_page.x", 2) is not None and not page["x"][0] < page["x"][1]:

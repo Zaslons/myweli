@@ -23,6 +23,13 @@ Per frame t (a float: motion-blur subframes are fractional):
     checked to be the frame the touch-down lands on, and its ``tone`` to be
     what the ground under the finger asks for (frames.py tone());
   * lifts and stacked tiles are the take's own (masked) pixels, magnified;
+  * 16:9 (`camera.fill`, the owner's round 5, 2026-10-20): where the phone
+    stands on the floor and its window is short (the lower journal, the
+    form's end: the band edge at y 639), the camera pushes in ABOUT THE
+    FLOOR with the window growing with it — the band edge rises with the
+    phone, the rows above W stay under it, the slab's bottom stays on the
+    floor — so the phone fills more of the empty upper right; refused where
+    the phone does not stand on the floor (the band edge is the frame's);
   * a declared dissolve (sources.Timeline) blends two pictures, each through
     the camera it is framed by: the one it leaves at W(dissolve start), the
     one it reaches at W(dissolve end) — so the camera can re-frame across it
@@ -178,6 +185,7 @@ class PhoneScene(Scene):
             raise SceneError(f"{where}.camera.W: a phone scene needs its camera window")
         self.band = self._band_track()
         self.zoom = track(ctx, cam.get("zoom"), f"{where}.camera.zoom", 1.0)
+        self.fill = self._fill_track(cam.get("fill"), f"{where}.camera.fill")
         slam = cam.get("slam") or {}
         self.slam_scale = track(ctx, slam.get("scale"), f"{where}.camera.slam.scale", 1.0)
         self.slam_rot = track(ctx, slam.get("rot_x"), f"{where}.camera.slam.rot_x", 0.0)
@@ -209,9 +217,11 @@ class PhoneScene(Scene):
             w_ = f"{where}.readable[{i}]"
             try:
                 self.readable.append({"label": str(r["label"]), "rect_pt": tuple(map(float, r["rect_pt"])),
-                                      "from": float(F(r["from"])), "cite": r["cite"]})
+                                      "from": float(F(r["from"])),
+                                      "to": float(F(r["to"])) if r.get("to") is not None else float(self.end),
+                                      "cite": r["cite"]})
             except (KeyError, TypeError, ValueError) as e:
-                raise SceneError(f"{w_}: {{label, rect_pt, from, cite}} — {e}") from None
+                raise SceneError(f"{w_}: {{label, rect_pt, from[, to], cite}} — {e}") from None
         self.hidden = []
         for i, h in enumerate(spec.get("hidden") or []):
             if "src_s" in h:
@@ -223,6 +233,7 @@ class PhoneScene(Scene):
                 raise SceneError(f"{where}.hidden[{i}]: {e}") from None
             self.hidden.append((h["label"], tuple(map(float, h["rect_pt"])), shown))
         self._check_floor(where)
+        self._check_lifts_off_hidden(where)
         self.figure = None
         if spec.get("figure_picture") is not None:
             fs = self.source.resolve(spec["figure_picture"], f"{where}.figure_picture")
@@ -231,6 +242,20 @@ class PhoneScene(Scene):
                 raise SceneError(f"{where}: the counter lands on f{self.counter['land']}, but the app first shows "
                                  f"its figure on f{self.figure[1]} — they must be the same frame")
 
+    def _check_lifts_off_hidden(self, where: str) -> None:
+        """A lifted card (or tile) never shows a row the framing hides: its
+        source rect touches no hidden row's (verify leaves the lifts' boxes
+        out of its search for the row — a magnified card is checked here, at
+        its source)."""
+        cards = [(L["id"], L["rect_pt"]) for L in self.lifts]
+        if self.stack:
+            cards += [(f"tile{i + 1}", r) for i, r in enumerate(self.stack["tiles_pt"])]
+        for label, rect, _ in self.hidden:
+            for cid, r in cards:
+                if r[0] < rect[2] and rect[0] < r[2] and r[1] < rect[3] and rect[1] < r[3]:
+                    raise SceneError(f"{where}: the lift {cid} ({list(r)} pt) shows part of the hidden row « {label} » "
+                                     f"({list(rect)} pt) — a lift never shows what the framing hides")
+
     def slab_bottom(self, t: float, pose: Pose | None = None) -> float:
         """The slab's bottom edge on frame t (posed: a push-in, a slam), y."""
         spec = self.phone.spec
@@ -238,6 +263,30 @@ class PhoneScene(Scene):
         y1 = self.phone.map_rect((0.0, spec.crop_top_pt, spec.screen_pt[0], spec.screen_pt[1]), pose,
                                  W=self.camera_W(t), window=self.win(t))[3]
         return y1 + spec.bezel * pose.scale
+
+    def _fill_track(self, specs, where: str) -> Track:
+        """The push-in about the floor whose window grows with it (16:9 only:
+        `phone_anchor: floor`). Its keys hold scales ≥ 1; wherever it is not
+        1, a `zoom` on top of it scales about the floor too (`anchor_y:
+        top`): the two pushes share one pivot."""
+        tr = track(self.ctx, specs, where, 1.0)
+        if not tr:
+            return tr
+        if self.window.anchor_bottom is None:
+            raise SceneError(f"{where}: a push-in about the floor whose window grows with it is for a format whose "
+                             f"phone stands on the floor (`layout.phone_anchor: floor`, 16:9) — in "
+                             f"{self.ctx.fmt.id} the band edge is the frame's own (write it under `formats: "
+                             f"{{16x9: …}}`)")
+        for i, k in enumerate(tr.keys):
+            if k.value < 1.0:
+                raise SceneError(f"{where}[{i}]: {k.value:g} — it pushes IN (≥ 1), the window growing with the phone")
+        for f in range(self.start, self.end):
+            if abs(tr(float(f)) - 1.0) > 1e-9 and abs(self.zoom(float(f)) - 1.0) > 1e-9 \
+                    and self.zoom.extra_at(float(f), "anchor_y") != "top":
+                raise SceneError(f"{where}: on f{f} a zoom about another anchor ({self.zoom.extra_at(float(f), 'anchor_pt')} "
+                                 f"pt) runs on the push about the floor: on top of it a zoom scales about the floor "
+                                 f"(`anchor_y: top`)")
+        return tr
 
     def _check_floor(self, where: str) -> None:
         """Where the phone stands on the floor (16:9, `phone_anchor: floor`),
@@ -254,7 +303,7 @@ class PhoneScene(Scene):
             if abs(self.zoom(t) - 1.0) < 1e-9:
                 continue
             pose = self.pose(t)
-            flat = pose.but(scale=pose.scale / self.zoom(t), pivot=None)
+            flat = pose.but(scale=pose.scale / (self.zoom(t) * self.fill(t)), pivot=None)
             if self.slab_bottom(t, flat) <= floor + 0.5 and self.slab_bottom(t, pose) > floor + 0.5:
                 raise SceneError(f"{where}.camera.zoom: on f{f} the push-in ({self.zoom(t):.4f}×) sinks the slab "
                                  f"standing on the floor (y {floor:g}) to y {self.slab_bottom(t, pose):.1f}: a push "
@@ -279,8 +328,23 @@ class PhoneScene(Scene):
         return Track([Key(k.frame, win.top_for(k.value), k.curve, None, {}) for k in self.W.keys], win.top)
 
     def band_at(self, t: float) -> float:
-        """The band edge keyed at t (between keys, on their curve)."""
+        """The band edge keyed at t (between keys, on their curve): where pt W
+        is laid before the pose."""
         return self.window.top if self.band is None else self.band(t)
+
+    def edge_of(self, band: float, t: float) -> float:
+        """Where a band edge laid at `band` SHOWS on frame t: risen with the
+        push about the floor (`fill`) — the point on it, pt W, stays on it as
+        the phone grows (the pose scales the slab about the floor by the same
+        factor)."""
+        floor = self.window.floor
+        return floor - (floor - band) * self.fill(t)
+
+    def window_at(self, band: float, t: float) -> Window:
+        """The window laid at `band`, shown at its edge on frame t."""
+        if self.band is None:
+            return self.window
+        return self.window.at_top(band, clip_top=self.edge_of(band, t))
 
     def camera_band(self, t: float) -> float:
         """The band edge of the picture that dominates frame t: inside a
@@ -292,12 +356,14 @@ class PhoneScene(Scene):
         return self.band_at(seg.start) if u < 0.5 else self.band_at(seg.end)
 
     def band_top(self, t: float) -> float:
-        """The band edge on frame t (the window's top, where W sits)."""
-        return self.camera_band(t)
+        """The band edge as frame t SHOWS it (where pt W shows: the push about
+        the floor raises it with the phone)."""
+        return self.edge_of(self.camera_band(t), t) if self.band is not None else self.camera_band(t)
 
     def win(self, t: float) -> Window:
-        """The window frame t shows (the fixed one, or 16:9's on its band edge)."""
-        return self.window if self.band is None else self.window.at_top(self.camera_band(t))
+        """The window frame t shows (the fixed one, or 16:9's on its band edge,
+        shown where the push about the floor puts it)."""
+        return self.window_at(self.camera_band(t), t)
 
     # ---- parsing helpers -----------------------------------------------------------------
 
@@ -363,8 +429,9 @@ class PhoneScene(Scene):
         rect_pt = tuple(map(float, l["rect_pt"]))
         k = self.source.take.px_per_pt
         src = tuple(v * k for v in rect_pt)
-        x0, x1 = map(float, self.ctx.layout["lift_x"])
-        target = liftmod.fit_width(src, x0, x1, **self._place((l.get("target") or {}).get("y"), f"{where}.target.y"))
+        place = self._place((l.get("target") or {}).get("y"), f"{where}.target.y")
+        x0, x1 = self._columns((l.get("target") or {}).get("y"))
+        target = liftmod.fit_width(src, x0, x1, **place)
         if "up" in l:
             up = float(F(l["up"]))
         elif "lands" in l:
@@ -405,9 +472,9 @@ class PhoneScene(Scene):
         k = self.source.take.px_per_pt
         srcs = [tuple(v * k for v in r) for r in tiles]
         lay = s.get("layout") or {}
-        x0, x1 = map(float, self.ctx.layout["lift_x"])
         gap = float(lay.get("gap", 16))
         place = self._place(lay.get("y"), f"{where}.layout.y")
+        x0, x1 = self._columns(lay.get("y"))
         if set(place) != {"centre_y"}:
             raise SceneError(f"{where}.layout.y: a row of tiles is placed by its centre (`centre_y`), not {place}")
         if lay.get("axis", "vertical") == "horizontal":
@@ -444,7 +511,14 @@ class PhoneScene(Scene):
         places = self.ctx.layout["lift_y"]
         if name not in places:
             raise SceneError(f"{where}: one of the format's lift_y places ({', '.join(places)}), not {name!r}")
-        return {k: float(v) for k, v in places[name].items()}
+        return {k: float(v) for k, v in places[name].items() if k != "x"}
+
+    def _columns(self, name) -> tuple[float, float]:
+        """A lift's columns: its place's own (`lift_y.<place>.x` — 16:9's « Arrivé » card and the Fiche's tiles
+        at the left column's full width, the owner's round 5), else the layout's `lift_x`."""
+        own = (self.ctx.layout["lift_y"].get(name) or {}).get("x")
+        x0, x1 = own if own is not None else self.ctx.layout["lift_x"]
+        return float(x0), float(x1)
 
     def _counter(self, c: dict, where: str) -> dict:
         F = self.ctx.clock.frame
@@ -531,10 +605,15 @@ class PhoneScene(Scene):
     def pose(self, t: float) -> Pose:
         W = self.W(t)
         zoom = self.zoom(t)
+        fill = self.fill(t)
         fall_s, _ = self.fall_state(t)
-        scale = zoom * self.slam_scale(t) * fall_s
+        scale = zoom * fill * self.slam_scale(t) * fall_s
         pivot = None
-        if abs(zoom - 1.0) > 1e-9:
+        if abs(fill - 1.0) > 1e-9:
+            # the push about the floor (16:9): the slab's bottom on the floor, its right edge on the safe edge
+            pivot = (float(self.ctx.layout.get("zoom_pivot_x") or sum(self.ctx.layout["phone_screen_x"]) / 2),
+                     self.window.floor)
+        elif abs(zoom - 1.0) > 1e-9:
             anchor_pt = self.zoom.extra_at(t, "anchor_pt")
             anchor_y = self.zoom.extra_at(t, "anchor_y")
             if anchor_y == "top" and self.window.anchor_bottom is not None:
@@ -559,6 +638,22 @@ class PhoneScene(Scene):
         if self.tilt_axis == "y":
             return Pose(rot_y=tilt, scale=scale, dy=dy, pivot=pivot)
         return Pose(rot_x=tilt, scale=scale, dy=dy, pivot=pivot)
+
+    def phone_area(self, t: float) -> tuple[float, float, float, float] | None:
+        """Where the phone shows on frame t: its window's rows (the band's fade
+        to the floor's) × the slab's columns as posed then (a push or a slam
+        widens it), bezel included, 2 px out. None: the phone is gone (the
+        fall's end)."""
+        _, opacity = self.fall_state(t)
+        if opacity <= 0.0:
+            return None
+        win = self.win(t)
+        spec = self.phone.spec
+        pose = self.pose(t)
+        x0, _, x1, _ = self.phone.map_rect((0.0, spec.crop_top_pt, spec.screen_pt[0], spec.screen_pt[1]), pose,
+                                           W=self.camera_W(t), window=win)
+        b = spec.bezel * pose.scale + 2.0
+        return (x0 - b, win.edge - win.band_fade, x1 + b, win.floor + win.floor_fade)
 
     def where(self, t: float) -> dict:
         return {"W": self.camera_W(t), "window": self.win(t)}
@@ -628,9 +723,10 @@ class PhoneScene(Scene):
         pic_t = t if frame is None or self.timeline.blur_at(frame) else float(frame)
         sampling = SAMPLING_CUBIC if fast else None
         d = self.timeline.dissolve_at(pic_t)
-        if d is None:
+        if d is None or d[3] >= 1.0:
+            # (a declared CUT is whole from its first frame: the picture it reaches, through its own camera)
             self.phone.set_screen(self.source.picture(self.timeline.index(pic_t)))
-            self.phone.draw(canvas, self.pose(t), W=self.W(t), window=self.win(t), opacity=opacity,
+            self.phone.draw(canvas, self.pose(t), W=self.camera_W(t), window=self.win(t), opacity=opacity,
                             overlay=self._touch_overlay(t), sampling=sampling)
             return
         # a declared dissolve: the picture it leaves through the camera that framed it, then the one it
@@ -649,8 +745,8 @@ class PhoneScene(Scene):
                                                         (self.source.picture(i_from), W_a, 1.0 - u)])
             return
         self.phone.set_screen(self.source.picture(i_from))
-        win_a = self.window if self.band is None else self.window.at_top(self.band_at(seg.start))
-        win_b = self.window if self.band is None else self.window.at_top(self.band_at(seg.end))
+        win_a = self.window_at(self.band_at(seg.start), t)
+        win_b = self.window_at(self.band_at(seg.end), t)
         self.phone.draw(canvas, pose, W=self.W(seg.start), window=win_a, opacity=opacity, sampling=sampling)
         if u > 0:
             paint = skia.Paint()
@@ -668,7 +764,7 @@ class PhoneScene(Scene):
     ANCHORED_WHIP_SHUTTER = 1.5
 
     def blur_at(self, f: int) -> Blur | None:
-        px = self.window.px_per_pt * self.zoom(f)
+        px = self.window.px_per_pt * self.zoom(f) * self.fill(f)
         b = blur_for_track(self.W, f, px, region=self.band_rows,
                            whip_shutter=1.0 if self.window.anchor_bottom is None else self.ANCHORED_WHIP_SHUTTER)
         n = self.timeline.blur_at(f)
@@ -678,7 +774,7 @@ class PhoneScene(Scene):
 
     def _veil_rect(self, t: float) -> tuple[float, float, float, float]:
         w = self.win(t)
-        return (0.0, w.top - w.band_fade, float(self.ctx.fmt.width), w.floor + w.floor_fade)
+        return (0.0, w.edge - w.band_fade, float(self.ctx.fmt.width), w.floor + w.floor_fade)
 
     def draw_overlays(self, canvas: skia.Canvas, f: int, rec: dict) -> None:
         t = float(f)
@@ -734,10 +830,12 @@ class PhoneScene(Scene):
                 boxes.append({"kind": "credit", "label": "map credit", "alpha": round(a, 3),
                               "rect": [round(x0, 1), round(y0, 1), round(x1, 1), round(y1, 1)]})
         # the app's own text the film must keep readable (the page's « Aperçu … / Réserver (après la mise en
-        # ligne) », the qualifier the storyboard pairs with « Ils réservent dès la mise en ligne. »): its box,
-        # and how much of it the window shows — verify (g) holds it to the text rectangle, wholly in view
+        # ligne) », the qualifier the storyboard pairs with « Ils réservent dès la mise en ligne. »; « Créer le
+        # rendez-vous » and the snackbar « Rendez-vous créé », which 16:9's push about the floor must never crop —
+        # the owner's round 5): its box, and how much of it the window shows — verify (g) holds it to the text
+        # rectangle, wholly in view
         for R in self.readable:
-            if t >= R["from"]:
+            if R["from"] <= t < R["to"]:
                 x0, y0, x1, y1 = self.phone.map_rect(R["rect_pt"], pose, W=W, window=win)
                 shown = min(win.alpha_at(float(y)) for y in np.linspace(y0, y1, 9))
                 boxes.append({"kind": "app text", "label": R["label"], "shown": round(shown, 3),
@@ -754,12 +852,18 @@ class PhoneScene(Scene):
                         d = max(d, st[0])
                 r = d / 2 * win.px_per_pt * pose.scale
                 # the disc rides the phone layer: under the band and the floor it does not show
-                top = win.top - win.band_fade
+                top = win.edge - win.band_fade
                 bottom = win.floor + win.floor_fade
                 y0, y1 = max(fy - r, top), min(fy + r, bottom)
                 if y1 <= y0 or max(win.alpha_at(y) for y in np.linspace(y0, y1, 9)) < 0.05:
                     continue
-                boxes.append({"kind": "touch", "label": tp.gesture,
+                # how much of the DISC itself (not its ripple) the window shows: a touch is never cropped by the
+                # band or the floor on its touch-down (verify (g); the owner's round 5: the 16:9 push « never
+                # cropping a touch »)
+                rd = tp.style.diameter_pt / 2 * win.px_per_pt * pose.scale
+                shown = min(win.alpha_at(float(y)) for y in np.linspace(fy - rd, fy + rd, 9))
+                boxes.append({"kind": "touch", "label": tp.gesture, "shown": round(shown, 3),
+                              "down": bool(abs(tp.down_f - t) < 1e-6),
                               "rect": [round(fx - r, 1), round(y0, 1), round(fx + r, 1), round(y1, 1)]})
 
     def _draw_slot(self, canvas: skia.Canvas, slot: dict, place, p: float, win: Window) -> None:
@@ -772,7 +876,7 @@ class PhoneScene(Scene):
         paint = skia.Paint(AntiAlias=True, Color=slot["colour"])
         paint.setAlphaf(min(1.0, p))
         canvas.save()
-        canvas.clipRect(skia.Rect.MakeLTRB(0, win.top - win.band_fade, self.ctx.fmt.width, win.floor + win.floor_fade))
+        canvas.clipRect(skia.Rect.MakeLTRB(0, win.edge - win.band_fade, self.ctx.fmt.width, win.floor + win.floor_fade))
         canvas.drawRRect(skia.RRect.MakeRectXY(skia.Rect.MakeLTRB(x0 - pad, y0 - pad, x1 + pad, y1 + pad), r, r), paint)
         canvas.restore()
 
@@ -853,23 +957,42 @@ class PhoneScene(Scene):
         _, opacity = self.fall_state(t)
         return shown * opacity
 
+    def _credit_rows(self, f: int) -> float:
+        """0..1: how much of the credit the map's rows on frame f ask for —
+        whole from CREDIT_FULL_PX of tile rows on (the fall's fading left out:
+        the map is still there while it dims)."""
+        cache = self.__dict__.setdefault("_credit_cache", {})
+        if f not in cache:
+            _, opacity = self.fall_state(float(f))
+            shown = self.map_shown_px(float(f)) / opacity if opacity > 0 else 0.0
+            cache[f] = max(0.0, min(1.0, shown / self.CREDIT_FULL_PX))
+        return cache[f]
+
     def _credit_alpha(self, t: float) -> float:
-        """The credit whole while map tiles show (« while map tiles show, a
-        credit line »: review round 5 — f691–693 showed tiles in the floor
-        fade with no credit, 1:1's faded to nothing while the map was still
-        on, and AIR 2 drew none at all), ramping in over the first few rows,
-        × the fall's opacity (the map fades with the phone)."""
-        _, opacity = self.fall_state(t)
-        return max(0.0, min(1.0, self.map_shown_px(t) / max(1e-6, opacity) / self.CREDIT_FULL_PX)) * opacity
+        """The credit: it ramps in with the map's first rows (« while map tiles
+        show, a credit line »: review round 5 — f691–693 showed tiles in the
+        floor fade with no credit) and, once whole, STAYS whole to the scene's
+        end — through AIR 2, where the map dims out with the falling phone
+        (f767): the owner's round 5 (2026-10-20, attribution correctness),
+        « keep it on screen until the map has dimmed out (f767), in every
+        format » — round 5 faded it with the phone."""
+        return max(self._credit_rows(f) for f in range(self.start, int(math.floor(t)) + 1))
 
     # ---- the record ------------------------------------------------------------------------------
 
     def record(self, f: int, rec: dict) -> None:
         t = float(f)
         idx = self.timeline.index(t)
+        # `zoom`: the phone's push over 1.791 px/pt — the zoom and the push about the floor together (verify scales
+        # the hidden row's template by it); `fill` the latter alone; `phone` where it shows (verify (g): no caption
+        # within CAPTION_PHONE_CLEAR_PX of it)
         rec.update(take=self.source.name, picture=idx, picture_s=round(self.source.take.time_s(idx), 5),
-                   src_s=round(self.timeline.src(t), 5), W=round(self.camera_W(t), 3), zoom=round(self.zoom(t), 5),
+                   src_s=round(self.timeline.src(t), 5), W=round(self.camera_W(t), 3),
+                   zoom=round(self.zoom(t) * self.fill(t), 5), fill=round(self.fill(t), 5),
                    window_top=round(self.band_top(t), 3))
+        area = self.phone_area(t)
+        if area is not None:
+            rec["phone"] = [round(v, 1) for v in area]
         d = self.timeline.dissolve_at(t)
         if d is not None:
             seg, i_from, i_to, u = d
@@ -927,7 +1050,8 @@ class PhoneScene(Scene):
             c = self.counter
             ev += [(int(c["switch"]), "counter label"), (int(c["from"]), "counter roll"),
                    (int(c["land"]), "counter lands")] + ([(int(c["exit"]) - 6, "counter exit")] if c["exit"] else [])
-        for tr, name in ((self.W, "camera"), (self.zoom, "zoom"), (self.slam_rot, "tilt"), (self.slam_scale, "slam")):
+        for tr, name in ((self.W, "camera"), (self.zoom, "zoom"), (self.fill, "push about the floor"),
+                         (self.slam_rot, "tilt"), (self.slam_scale, "slam")):
             for a, b in zip(tr.keys, tr.keys[1:]):
                 if a.value != b.value:
                     ev.append((int(math.ceil(a.frame)), f"{name} move"))
@@ -973,7 +1097,8 @@ class PhoneScene(Scene):
                         "cite": self.credit["cite"]})
         take = self.source.take
         for s in self.dissolves:
-            out.append({"element": f"declared dissolve (an edit, no pixel drawn) on {self.source.name}: picture "
+            out.append({"element": f"declared {'hard cut' if s.cut else 'dissolve'} (an edit, no pixel drawn) on "
+                                   f"{self.source.name}: picture "
                                    f"#{take.index_at(s.src0)} ({s.src0:.3f} s) → #{take.index_at(s.to)} "
                                    f"({s.to:.3f} s) over f{s.start:g}–f{s.end:g}, the footage between skipped",
                         "scene": self.id, "cite": s.cite})

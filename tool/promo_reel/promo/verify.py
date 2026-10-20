@@ -92,6 +92,7 @@ FAILS. ``python -m promo verify`` exits 0 / 1.
 from __future__ import annotations
 
 import json
+import math
 import subprocess
 import sys
 from pathlib import Path
@@ -221,7 +222,7 @@ def app_area(fmt) -> Rect:
     from .scenes.phone import window_for
     w = window_for(fmt)
     s = fmt.safe
-    return Rect(s.x0, w.top - w.band_fade, s.x1, w.floor + w.floor_fade)
+    return Rect(s.x0, w.edge - w.band_fade, s.x1, w.floor + w.floor_fade)
 
 
 #: the app's own text the film keeps readable shows at least this much (the window's alpha over its rows)
@@ -277,6 +278,87 @@ def lifts_over_captions(records: list[dict]) -> list[dict]:
                     out.append({"frame": r["f"], "lift": a["label"], "lift_rect": a["rect"], "caption": c["label"],
                                 "caption_rect": c["rect"]})
     return out
+
+
+#: a caption's ink and the phone (bezel included, its band's fade too) stay at least this far apart
+CAPTION_PHONE_CLEAR_PX = 12.0
+#: the map credit counts as on screen from this alpha
+CREDIT_WHOLE = 0.99
+
+
+def captions_over_phone(records: list[dict], clear: float = CAPTION_PHONE_CLEAR_PX) -> list[dict]:
+    """Every frame on which a caption's ink comes nearer the phone than
+    `clear` px — the phone as the renderer posed it on that frame (its
+    record's `phone`: the slab's columns, bezel included, × the window's rows
+    from the band's fade to the floor's). The phone never covers or crowds a
+    caption (the owner's round-5 decision, 2026-10-20: the 16:9 push-in about
+    the floor fills the empty upper right « never cropping … a caption » —
+    beside the left column, the slab grows towards the captions). Empty:
+    none."""
+    out = []
+    for r in records:
+        ph = r.get("phone")
+        if not ph:
+            continue
+        px0, py0, px1, py1 = ph
+        for b in r.get("boxes", []):
+            if b["kind"] != "caption":
+                continue
+            x0, y0, x1, y1 = b["rect"]
+            if x0 < px1 + clear and px0 - clear < x1 and y0 < py1 + clear and py0 - clear < y1:
+                out.append({"frame": r["f"], "caption": b["label"], "caption_rect": b["rect"], "phone": ph})
+    return out
+
+
+def touches_cropped(records: list[dict]) -> list[dict]:
+    """Every touch disc the window does not show whole (its record's `shown`
+    < READABLE_SHOWN) — on its touch-down, or on ANY frame of it where the
+    phone is pushed (the record's `zoom` > 1: the « rempli. » push, 16:9's
+    push about the floor). `pushed`: whether the push is on that frame — the
+    owner's round 5, « never cropping a touch », holds those (verify (g)
+    fails them); a touch-down cropped on an unpushed frame is the framing's
+    own and is reported (the Revenus « Mois » tap, under the band's fade
+    since round 1: 16 pt between the title's ink, kept under the band, and
+    the disc's top — the fade is 22 pt). Empty: none."""
+    out = []
+    for r in records:
+        pushed = float(r.get("zoom", 1.0)) > 1.0 + 1e-6
+        for b in r.get("boxes", []):
+            if b["kind"] == "touch" and (b.get("down") or pushed) and b.get("shown", 1.0) < READABLE_SHOWN:
+                out.append({"frame": r["f"], "gesture": b["label"], "shown": b["shown"], "rect": b["rect"],
+                            "pushed": pushed, "down": bool(b.get("down"))})
+    return out
+
+
+def credit_problems(records: list[dict], spans: dict[str, list[int]] | None = None) -> list[str]:
+    """The map credit stays WHOLE from the first frame it is whole until the
+    map has dimmed out — the last frame of the last scene that shows the map
+    (`spans`: scene → [start, end), render.json's plan `credits`; else the
+    scenes whose frames draw a credit): the owner's round-5 decision
+    (2026-10-20, attribution correctness) — « keep it on screen until the
+    map has dimmed out (f767), in every format ». Round 5's films faded it
+    with the falling phone through AIR 2 (f752–767). Empty: it holds."""
+    alpha: dict[int, float] = {}
+    scenes: dict[str, int] = {}
+    for r in records:
+        a = [b.get("alpha", 1.0) for b in r.get("boxes", []) if b["kind"] == "credit"]
+        if a:
+            alpha[r["f"]] = max(a)
+            scenes[r["scene"]] = max(scenes.get(r["scene"], -1), r["f"])
+    if spans is None:
+        spans = {sid: [None, last + 1] for sid, last in scenes.items()}
+    if not spans:
+        return []
+    whole = [f for f in sorted(alpha) if alpha[f] >= CREDIT_WHOLE]
+    if not whole:
+        return [f"the map credit is never whole (alpha ≥ {CREDIT_WHOLE:g}) on any frame"]
+    end = max(int(s[1]) for s in spans.values())
+    short = [f for f in range(whole[0], end) if alpha.get(f, 0.0) < CREDIT_WHOLE]
+    if short:
+        return [f"the map credit, whole from f{whole[0]}, is not whole on {len(short)} frames before the map has "
+                f"dimmed out (f{end - 1}): f{short[0]}" + (f"–f{short[-1]}" if len(short) > 1 else "")
+                + f" (alpha {alpha.get(short[0], 0.0):.3f} on f{short[0]})"]
+    return []
 
 
 def air_levels(audio: np.ndarray, events: dict, samples_per_frame: int = 1600) -> dict:
@@ -465,12 +547,13 @@ def join_problems(trans: list[dict], change: dict[int, float]) -> list[str]:
     `continuous` handoff does not. A frame not measured fails."""
     out = []
     for t in trans:
-        if t["kind"] not in ("cut", "continuous"):
+        cut = t["kind"].startswith("cut")              # a hard cut, or a declared one in the phone (16:9 15-s f193)
+        if not cut and t["kind"] != "continuous":
             continue
         d = change.get(int(t["frame"]))
         if d is None:
             out.append(f"f{t['frame']} {t['kind']} → {t['into']}: not measured")
-        elif t["kind"] == "cut" and d < CUT_MIN_CHANGE:
+        elif cut and d < CUT_MIN_CHANGE:
             out.append(f"f{t['frame']} is called a cut into {t['into']} but the picture changes by {d:.2f} "
                        f"(< {CUT_MIN_CHANGE:g}): a continuous handoff, not a join")
         elif t["kind"] == "continuous" and d >= CUT_MIN_CHANGE:
@@ -545,13 +628,7 @@ def phone_area(sc, f: int) -> tuple[float, float, float, float] | None:
     slam widens it), bezel included. None: no phone."""
     if getattr(sc, "window", None) is None:
         return None
-    win = sc.win(float(f))
-    spec = sc.phone.spec
-    pose = sc.pose(float(f))
-    x0, _, x1, _ = sc.phone.map_rect((0.0, spec.crop_top_pt, spec.screen_pt[0], spec.screen_pt[1]), pose,
-                                     W=sc.camera_W(float(f)), window=win)
-    b = spec.bezel * pose.scale + 2.0
-    return (x0 - b, win.top - win.band_fade, x1 + b, win.floor + win.floor_fade)
+    return sc.phone_area(float(f))
 
 
 def clear_of_phone(region, area, centre: tuple[float, float]) -> tuple[float, float, float, float]:
@@ -745,6 +822,11 @@ def pixel_plan(film, records: list[dict], events: dict) -> dict:
                                      "take": r["take"], "alpha": h["alpha"], "rect": h["rect"],
                                      "zoom": r.get("zoom", 1.0), "whip": bool(h["whip"]),
                                      "window_top": r.get("window_top"),
+                                     # the lifted cards on the frame: their pixels are a known real card, checked
+                                     # at its SOURCE (the renderer refuses a lift on a hidden row), left out of
+                                     # the search — a magnified card's small « 13:15 » (Fatou B.'s end time) is
+                                     # the old row's large one at the same pixel size (16:9's 944-px lift)
+                                     "lifts": [b["rect"] for b in r.get("boxes", []) if b["kind"] == "lift"],
                                      **{k: h[k] for k in ("shutter_alpha", "blur_px") if k in h}})
     return plan
 
@@ -810,9 +892,13 @@ class HiddenRow:
         (rect, alpha of its place, zoom, whip, take picture)."""
         sc = self.base * float(row["zoom"])
         T = self.template_at(sc)
+        if row.get("lifts"):
+            L = L.copy()
+            for x0, y0, x1, y1 in row["lifts"]:
+                L[max(0, int(y0)):max(0, int(math.ceil(y1))), max(0, int(x0)):max(0, int(math.ceil(x1)))] = 128.0
         at_place = pixels.row_fraction(L, T, row["rect"][0], row["rect"][1], range(-300, 31), dys=(-2, 0, 2),
                                        block=max(24, round(self.BLOCK * sc)))[0]
-        region = (0, window.top - window.band_fade, width, window.floor + window.floor_fade)
+        region = (0, window.edge - window.band_fade, width, window.floor + window.floor_fade)
         found, fx, fy = pixels.row_anywhere(L, self.distinct, region, scale=sc)
         alpha = max(window.alpha_at(float(y)) for y in np.linspace(fy, fy + T.shape[0], 12)) if found > 0 else 0.0
         return {"mp4_shows": round(at_place, 3), "found": round(found, 3), "found_at": [round(fx, 1), round(fy, 1)],
@@ -1037,7 +1123,7 @@ def verify_film(sb, cut: str, fmt_id: str, d: Path) -> Result:
             f"{len(trans)} joins (" + "; ".join(f"{k} {' '.join(v)}" for k, v in kinds.items())
             + f"), {len(ttiles)} frames pulled; each cut changes the picture (mean |ΔL| "
             + ", ".join(f"f{t['frame']} {change.get(int(t['frame']), float('nan')):.1f}" for t in trans
-                        if t["kind"] == "cut") + f"; ≥ {CUT_MIN_CHANGE:g})"
+                        if t["kind"].startswith("cut")) + f"; ≥ {CUT_MIN_CHANGE:g})"
             + ("; " + ", ".join(f"f{t['frame']} → {t['into']} a continuous handoff, not a join (Δ "
                                 f"{change.get(int(t['frame']), float('nan')):.2f})" for t in handoffs) if handoffs else "")
             + (" — " + "; ".join(joins_bad) if joins_bad else "")
@@ -1168,6 +1254,12 @@ def verify_film(sb, cut: str, fmt_id: str, d: Path) -> Result:
             ink_bad.append(row)
     counted, bad = outside_safe(records, fmt)
     crossings = lifts_over_captions(records)
+    crowded = captions_over_phone(records)
+    cropped_all = touches_cropped(records)
+    cropped = [c for c in cropped_all if c["pushed"]]                     # the push's: FAIL
+    framed = [c for c in cropped_all if not c["pushed"]]                  # the framing's own: reported
+    n_phone = sum(1 for r in records if r.get("phone"))
+    n_downs = sum(1 for r in records for b in r.get("boxes", []) if b["kind"] == "touch" and b.get("down"))
     hook_places = film.plan().get("hook_ink") or {}
     hook_bad = hook_ink_problems(hook_places, measured["strikes"], fmt)
     n_hook = sum(len(v) for v in hook_places.values())
@@ -1183,16 +1275,26 @@ def verify_film(sb, cut: str, fmt_id: str, d: Path) -> Result:
         hook_text += " — " + "; ".join(hook_bad)
     readable = [b for r in records for b in r.get("boxes", []) if b["kind"] == "app text"]
     res.add("g", "safe zones: ink on MP4 frames, and every recorded box",
-            not bad and not ink_bad and bool(ink_rows) and not hook_bad and not crossings,
+            not bad and not ink_bad and bool(ink_rows) and not hook_bad and not crossings and not crowded
+            and not cropped,
             f"ink measured on {len(ink_rows)} MP4 frames (each caption whole, the counter on every frame from its "
             f"label's switch to landing + 3, every lift, the credit): {len(ink_bad)} outside {' ∪ '.join(str(x) for x in fmt.text_area)}; and {counted} recorded "
             f"boxes on {len(records)} frames, {len(bad)} outside (every lift in flight too"
             + (f"; the app's own text kept readable on {len(readable)} frames, inside and wholly in the window"
                if readable else "") + f"); {len(crossings)} frames with a lift over a caption"
             + (f" (f{crossings[0]['frame']}: {crossings[0]['lift']} over {crossings[0]['caption']})" if crossings else "")
+            + f"; the phone as posed on {n_phone} frames, {len(crowded)} caption boxes within "
+              f"{CAPTION_PHONE_CLEAR_PX:g} px of it"
+            + (f" (f{crowded[0]['frame']}: {crowded[0]['caption']} {crowded[0]['caption_rect']}, the phone "
+               f"{crowded[0]['phone']})" if crowded else "")
+            + f"; {n_downs} touch-downs, every disc on a pushed frame whole in the window: {len(cropped)} cropped"
+            + (f" (f{cropped[0]['frame']} {cropped[0]['gesture']} shown {cropped[0]['shown']})" if cropped else "")
+            + (f" (reported, unpushed: " + ", ".join(f"f{c['frame']} {c['gesture']} shown {c['shown']}" for c in framed)
+               + " — the band's fade over the disc's top, the framing since round 1)" if framed else "")
             + hook_text, ink=ink_rows, outside=bad[:40],
             ink_outside=ink_bad, hook_ink=hook_places, strikes=measured["strikes"], hook_problems=hook_bad,
-            lift_crossings=crossings[:20])
+            lift_crossings=crossings[:20], captions_near_phone=crowded[:20], touches_cropped=cropped,
+            touches_cropped_unpushed=framed)
 
     # (h) honesty ----------------------------------------------------------------------------------------
     gen = doc["generated"]
@@ -1255,8 +1357,11 @@ def verify_film(sb, cut: str, fmt_id: str, d: Path) -> Result:
     waits_ok = all(r["rate"] <= 1.0 + 1e-6 for r in waits)
     lines = [f"{g['element']} — {g.get('cite') or 'NO CITATION'}" for g in gen]
     (vdir / "honesty.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    credits = doc["plan"].get("credits")
+    credit_bad = credit_problems(records, credits) if credits else []
+    credit_text = sorted({g["element"] for g in gen if g["element"].startswith("map credit")})
     ok_h = not uncited and not mask_problems and not hidden_bad and blurs_checked(doc["masks"], masks_out) and waits_ok \
-        and (bool(hrows) or not doc["plan"].get("hidden")) and not blend_problems
+        and (bool(hrows) or not doc["plan"].get("hidden")) and not blend_problems and not credit_bad
     res.add("h", "honesty", ok_h,
             f"{len(gen)} generated elements, {len(uncited)} without a source; "
             + (f"blurs checked on {sum(m_['pictures_checked'] for m_ in masks_out)} pictures, at most "
@@ -1273,11 +1378,16 @@ def verify_film(sb, cut: str, fmt_id: str, d: Path) -> Result:
             f"of it visible (≤ {HIDDEN_ALPHA:.0%}); {len(hidden_bad)} frames over; waits (from a tap) at "
             + ", ".join(f"{r['rate']:.3f}×" for r in waits)
             + "; gesture ramps (drags) at " + ", ".join(f"{r['rate']:.3f}×" for r in ramps)
-            + "; dissolves: " + (", ".join(f"{b['take']} {b['src_s']:.3f} → {b['to_s']:.3f} s over f{b['from_frame']:g}–"
-                                          f"f{b['until_frame']:g} ({'declared' if b.get('cite') else 'NOT DECLARED'})"
+            + "; dissolves: " + (", ".join(f"{b['take']} {b['src_s']:.3f} → {b['to_s']:.3f} s "
+                                          + (f"as a hard cut on f{b['from_frame']:g}" if b.get("cut") else
+                                             f"over f{b['from_frame']:g}–f{b['until_frame']:g}")
+                                          + f" ({'declared' if b.get('cite') else 'NOT DECLARED'})"
                                           for b in blends) or "none")
-            + (f" — {'; '.join(blend_problems)}" if blend_problems else ""),
-            generated=gen, masks=masks_out, mask_problems=mask_problems, hidden_over=hidden_bad[:20],
+            + (f" — {'; '.join(blend_problems)}" if blend_problems else "")
+            + ((f"; {'; '.join(credit_text)} whole from its first whole frame until the map has dimmed out (f"
+                f"{max(v[1] for v in credits.values()) - 1})" + (f" — {'; '.join(credit_bad)}" if credit_bad else ""))
+               if credits else "; no map shown, no credit"),
+            credit_problems=credit_bad, generated=gen, masks=masks_out, mask_problems=mask_problems, hidden_over=hidden_bad[:20],
             hidden_rows=hrows, rates=rates, dissolves=blends, dissolve_problems=blend_problems, list="honesty.txt")
 
     # (i) reading speed (each caption, and EVERYTHING on screen together), pattern interrupts -------------

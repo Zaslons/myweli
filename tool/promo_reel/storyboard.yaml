@@ -46,8 +46,9 @@ x-type-px: &type_px       # (YAML anchor only — the key below each format is w
   counter: 120            # Poppins Medium figure
   counter_label: 40       # Inter Medium #4A4A4A
   tagline: 46             # end card, ONE line
-  store: 40               # « Disponible sur l’App Store », Inter Medium #4A4A4A (≥ 40: read, not fine print)
-  credit: 24              # « © OpenStreetMap, © CARTO », Inter #6E6E6E
+  store: 40               # « Sur l’App Store et Google Play », Inter Medium #4A4A4A (≥ 40: read, not fine print)
+  site: 40                # « myweli.com », the end card's last line, Inter Medium #1A1A1A (≥ 40)
+  credit: 24              # « © OpenStreetMap contributors · © CARTO » (the app's own), Inter #6E6E6E
 
 formats:
   9x16:
@@ -202,7 +203,9 @@ formats:
       # the bezel ran to 1840, and to 1860 in the drop's slam, past action-safe)
       phone_window: [1088, 54, 1808, 1026]
       top_fade: [1088, 54, 1808, 84]      # the band's 30-px fade at its resting edge (y 84)
-      overlays: [284, 54, 1044, 1026]     # lifts pop out to the LEFT of the phone, no veil
+      # lifts pop out to the LEFT of the phone, no veil — at the left column's full width where it helps (the owner's
+      # round 5, 2026-10-20: the « Arrivé » card and the Fiche's tiles, x 96–1040)
+      overlays: [96, 54, 1044, 1026]
       slot_card: [96, 560, 620, 1026]     # SLOT « FAUTEUIL » (bars 11–12): EMPTY — no photos (the owner); the caption alone
       floor_fade: [0, 1026, 1920, 1050]   # app pixels only past the safe edge (the screen filling the window)
       floor: [0, 1050, 1920, 1080]
@@ -243,11 +246,16 @@ formats:
       caption_cap_top: {hook: 130, app: null}  # the hook top-left; app captions centred on y 440
       counter_baselines: [354, 561]       # 48 / 144 px: the counter's block (ink y 317–563) centred on the column's y 440
       lift_y:                             # beside the phone, under the caption (y ≈ 395–490)
-        card_on_floor: {bottom: 1000}
+        # the owner's round 5 (2026-10-20): the « Arrivé » card at the left column's full width — 944 px, 1.42× the
+        # card in the phone (round 5: 760 px, 1.15×), « Arrivé » read at 50 %; 16:9 lifts are exempt from « same
+        # pixel size everywhere » (the owner)
+        card_on_floor: {bottom: 1000, x: [96, 1040]}
         # the card's top 60 px under the two 88-px lines' ink (review round 5: at 770 its top edge was 22 px under
         # « compté. »'s descender); y ≈ 596–1004, on the floor's side of the safe edge
+        # « Total réalisé » keeps lift_x (760 px): at the column's 944 px it would be 508 px tall — under the
+        # two-line sentence (ink to y ≈ 523) and inside the safe floor (1026) there are 427 px: it cannot grow
         card_under_caption: {centre_y: 800}
-        tile_row: {centre_y: 720}
+        tile_row: {centre_y: 720, x: [96, 1040]}   # the Fiche's three tiles across the column (304 px each; were 243)
       hook_page: {x: [760, 1960], top: -440, pivot: [1360, 560], macro_to: [1340, 640]}   # the page across the frame's right, rows 9–18 in view
       hook_scrim: {rect: [0, 0, 820, 1080], fade: [200, 0],   # black down the left, the words top-left on it
                    # the macro shot (f32–63): black behind the question only (its ink y ≈ 130–330), gone by y 540, so
@@ -446,6 +454,35 @@ scenes:
       slam:                                  # the phone slams in on the drop
         scale: [{at: cue:drop1.impact, value: 1.10}, {at: cue:drop1.impact+8, value: 1.0, curve: fast_out_slow_in}]
         rot_x: [{at: cue:drop1.impact, value: 14}, {at: cue:drop1.impact+16, value: 0, curve: fast_out_slow_in}]
+      # 16:9 (the owner's round 5, 2026-10-20): the phone stands on the floor, and on the lower journal and the form's
+      # end its window is short (W 667: the band edge at y 639, the upper right empty) — the camera pushes in ABOUT
+      # THE FLOOR, the window growing with the phone (`fill`), eased on the grid: 5.1.2 → 5.2.2 (onto the « Libre »
+      # tap), back 5.2.3 → 5.4.0 under the glide to the form; 7.2.0 → 7.3.0 (from the « Créer » tap), held through
+      # the snackbar, the « rempli. » push on top. 1.23, not the owner's ~1.3–1.5: the left column's captions reach
+      # x 878 (« Un créneau libre ? ») and x 1024 (« rempli. », ink to y 505): at 1.3 the slab's left edge (x 846)
+      # would sit under « libre ? », and its top under « rempli. » — 1.23 keeps the phone ≥ 12 px clear of every
+      # caption (verify (g); the renderer refuses less), the 13:15 row under the band (it rises with the phone)
+      formats:
+        16x9:
+          fill:
+            - {at: 5.1.2, value: 1.0}
+            - {at: 5.2.2, value: 1.23, curve: ease_in_out_cubic}
+            - {at: 5.2.3, value: 1.23}
+            - {at: 5.4.0, value: 1.0, curve: ease_in_out_cubic}
+            - {at: cue:create.touch, value: 1.0}
+            - {at: 7.3.0, value: 1.23, curve: ease_in_out_cubic}
+    # the app's text the 16:9 push must never crop (the owner's round 5): « Créer le rendez-vous » from the form's
+    # rest to the pop, the snackbar « Rendez-vous créé » to the cut — inside the text rectangle and wholly in the
+    # window (verify (g)), in every format
+    readable:
+      - &create_button
+        {label: "« Créer le rendez-vous » (pro_manual_booking_screen.dart:407)", rect_pt: [16.0, 806.67, 386.0, 858.33],
+         from: 7.1.2, to: 7.3.1+3,
+         cite: "pro_manual_booking_screen.dart:407, measured on take1b 130.262 (the black button; the pop starts 131.017 → f422.9)"}
+      - &snackbar
+        {label: "the snackbar « Rendez-vous créé » (pro_manual_booking_screen.dart:250)", rect_pt: [15.33, 710.0, 387.0, 758.0],
+         from: cue:create.done,
+         cite: "pro_manual_booking_screen.dart:250, SnackKind.success — [45,2130,1161,2274] px on take1b 131.448 (scan.json)"}
     touches:                                 # the App Store film's disc (tool/app_store_preview/frames.py draw_touch :212-219)
       - {gesture: swipe-arrive, at: cue:swipe.touch, tone: dark}      # black on the white card
       - {gesture: tap-arrive, at: cue:tap.touch, tone: light}         # white on the dark-green pane
@@ -611,10 +648,12 @@ scenes:
       - {label: "the owner-preview bar « Aperçu — voici ce que verront vos clients. » / « Réserver (après la mise en ligne) »",
          rect_pt: [74, 750.5, 328, 807.5], from: 12.3.0,
          cite: "provider_detail_screen.dart:1192 / :1207, measured on take5b 28.480"}
-    credit: &map_credit                      # the app's own map attribution is a collapsed (i): not legible
-      text: "© OpenStreetMap, © CARTO"       # placed on the format's map_credit (9:16: the band's foot, ending on x 900)
+    # the app's own map attribution is a collapsed (i): not legible. The owner's round 5 (2026-10-20, attribution
+    # correctness): the app's wording, and on screen until the map has dimmed out (AIR 2's last frame, f767)
+    credit: &map_credit
+      text: "© OpenStreetMap contributors · © CARTO"   # placed on the format's map_credit (9:16: the band's foot, ending on x 900)
       map_rect_pt: [40, 623.7, 362, 781.7]   # at rest (take5b notes); scrolls with the page, cut at the bar (740 pt)
-      cite: "attribution for the CARTO light tiles on OpenStreetMap data shown in the app's map (take5b notes)"
+      cite: "the app's own credits for the CARTO light tiles on OpenStreetMap data its map shows: cartoCredits, mobile/lib/widgets/common/carto_basemap_layer.dart:116 (« © OpenStreetMap contributors », « © CARTO »), joined « · »"
     captions:
       - id: page
         until: 12.1.0
@@ -700,12 +739,21 @@ scenes:
         # underline under « moins de gestion. », drawn left to right with the pen on its cue; under the
         # descenders, clear of the store line (the renderer refuses a stroke that touches any text)
         underline: {text: "moins de gestion.", at: cue:end.underline, frames: 8}
+      # the owner's end card (2026-10-20, « Both stores, post later »): the mark · the tagline · the stores · the site,
+      # each line alone on its own beat-grid cue; 34 + 30 + 10 = 74 characters f827→f960 = 16.7 cps (≤ 17).
+      # POSTING GATE (README): the films are posted only once BOTH the iOS and the Android Pro apps are live.
       - id: store
         type: store
         reveal: mask
         until: end
-        cite: "the owner's addition (2026-10-19): « Disponible sur l’App Store », posted only after the release"
-        lines: [[{w: Disponible sur l’App Store, at: cue:end.store}]]     # alone on its own cue, f848; 60 characters f827→f960 = 13.5 cps
+        cite: "the owner's decision (2026-10-20, « Both stores, post later »; architecture contract « Owner decision — end card stores + site »): « Sur l’App Store et Google Play » replaces « Disponible sur l’App Store » — posted only once BOTH the iOS and the Android Pro apps are live in their stores (README, POSTING GATE)"
+        lines: [[{w: Sur l’App Store et Google Play, at: cue:end.store}]]  # alone on its own cue, f848 (15-s f400)
+      - id: site
+        type: site
+        reveal: mask
+        until: end
+        cite: "the owner's decision (2026-10-20): « myweli.com », the last line — true today (the site serves 200 and is where salons choose their offer)"
+        lines: [[{w: myweli.com, at: cue:end.site}]]                       # alone on its own cue, f880 (15-s f432)
 
   15s:
 
@@ -764,7 +812,10 @@ scenes:
       - {at: cue:whip1, hold: 31.600}                                          # idle 23.985–32.165
       - {at: cue:slot.touch, src: {touch: tap-libre}, rate: 1, src_until: 32.998}   # 1×: the form pushes in f174–183.5, at rest from f184
       - {at: 4.1.0+1, dissolve: 130.262, until: cue:create.touch, curve: ease_in_out,
-         cite: "the App Store film's own declared dissolve 32.998 → 130.262 (« the form, opened → the form, filled »: tool/app_store_preview/storyboard-scenes.json S2, build/app-store/pro/preview/v2/final/cuts.txt) on AppMotion.base's easeInOut (mobile/lib/core/theme/motion.dart:33-34), over f193–196 (storyboard « The 15 s cut », BAR 4); it skips the form fill (the 30-s cut's rows 11–13)"}
+         cite: "the App Store film's own declared dissolve 32.998 → 130.262 (« the form, opened → the form, filled »: tool/app_store_preview/storyboard-scenes.json S2, build/app-store/pro/preview/v2/final/cuts.txt) on AppMotion.base's easeInOut (mobile/lib/core/theme/motion.dart:33-34), over f193–196 (storyboard « The 15 s cut », BAR 4); it skips the form fill (the 30-s cut's rows 11–13)",
+         # 16:9 (the owner's round 5, 2026-10-20): a HARD CUT on f193 instead — each picture stands on the floor in its
+         # own window, and a 3-frame blend of two windows ghosts the fields; the same declared skip
+         formats: {16x9: {curve: cut}}}
       - {at: cue:create.touch, src: {touch: tap-creer}, until: cue:create.done, src_until: {named: 131.448}}  # 0.986×, never faster
       - {at: cue:create.done, src: {named: 131.448}, rate: 1}                   # « Rendez-vous créé », 1×
     camera:
@@ -776,12 +827,27 @@ scenes:
         # the dissolve re-frames (storyboard: « W 660 − Δ », Δ ≈ 128): measured on the two pictures, the
         # fields from « Client sans numéro » down moved up 145.33 pt (the 125.33-pt scroll + the 20-pt
         # « 0/10 » line the switch took away; NCC 0.9998 on the note field) — W 667 − 145.33 keeps them in place
-        - {at: cue:create.touch, value: 521.67}
-        - {at: 4.1.3, value: 521.67}            # « Créer le rendez-vous » at y ≈ 1158 while its loader shows
+        # 16:9 (the owner's round 5): the cut needs no fields kept in place, and W 521.67 would bring the band edge
+        # down 260 px over the still form on f204–216 (a curtain): the filled form is framed at once by the journal's
+        # window (W 667, the push about the floor held) — « Note », « Total 5 000 FCFA », « Créer le rendez-vous » —
+        # and nothing moves until the snackbar's push
+        - {at: cue:create.touch, value: 521.67, formats: {16x9: {value: 667}}}
+        - {at: 4.1.3, value: 521.67, formats: {16x9: {value: 667}}}   # « Créer le rendez-vous » at y ≈ 1158 while its loader shows
         - {at: 4.2.2, value: 667, curve: ease_in_out_cubic, blur: 8}   # back to W 667 over f204–216: the 13:15 row under the band before the journal returns
       zoom:
         - {at: cue:create.done, value: 1.0, anchor_y: top}
         - {at: 4.4.0+12, value: 1.1167, curve: ease_in_out_cubic, anchor_y: top}   # push-in 1.791 → 2.0 px/pt f232–252, pt 667 kept on the band edge
+      # 16:9 (the owner's round 5): the push about the floor, its window growing with it, onto the « Libre » tap's
+      # form (3.3.2 → 3.4.2) and held to the whip — the form's end, the cut, « Créer », the journal's return; the
+      # « rempli. » push on top. 1.23: « rempli. » (x ≤ 1024, ink to y 505) keeps 12 px clear of the phone
+      formats:
+        16x9:
+          fill:
+            - {at: cue:slot.touch, value: 1.0}
+            - {at: 3.4.2, value: 1.23, curve: ease_in_out_cubic}
+    readable:
+      - {<<: *create_button, from: cue:create.touch, to: 4.2.3-1}    # the pop starts 131.017 → f218.9
+      - *snackbar
     touches:                                 # the App Store film's disc (tool/app_store_preview/frames.py draw_touch :212-219)
       - {gesture: swipe-arrive, at: cue:swipe.touch, tone: dark}      # black on the white card
       - {gesture: tap-arrive, at: cue:tap.touch, tone: light}         # white on the dark-green pane

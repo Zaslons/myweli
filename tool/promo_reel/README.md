@@ -8,6 +8,15 @@ the recorded takes, in order. No editor, no templates, no stock.
 The approved storyboard (2026-10-19) is the brief; `storyboard.yaml` is its
 machine-readable form and the one source of the pipeline.
 
+> **POSTING GATE (the owner, 2026-10-20).** The films end on « Sur l’App
+> Store et Google Play » and « myweli.com ». **Post them only once BOTH the
+> iOS and the Android MyWeli Pro apps are live in their stores.** Today the
+> Android app is not (docs/BACKLOG.md B0.10: « nothing has been typed into
+> Play Console yet »; LAUNCH.md: « Android last »): the end card's store line
+> is not true yet, and nothing here checks it — the owner does, on the day.
+> myweli.com is true today (the site serves 200 and is where salons choose
+> their offer).
+
 Design spec: [docs/design/pro-promo-reel.md](../../docs/design/pro-promo-reel.md)
 — the owner's decisions, the honesty rules and how the code holds each one,
 the storyboard bar by bar, the formats, the final run's verification, what is
@@ -112,7 +121,8 @@ Exactly five top-level keys (plus `x-…` keys, which only hold YAML anchors):
     `caption_line_max_px` (771), `caption_lines_max` (2), `phone_screen_x`,
     `px_per_pt` (1.791 — checked to show the screen's 402 pt), `screen_crop_top_pt`
     (56), `phone_bezel_px`, `phone_radius_px`, `type_px` (hook 96, app 72,
-    counter 120, counter_label 40, tagline 46, credit 24), `lottie_centre`,
+    counter 120, counter_label 40, tagline 46, store 40, site 40 — the
+    store and site lines at least 40, `MIN_READ_PX` —, credit 24), `lottie_centre`,
     `lottie_comp_width_px` (900), `end_mark_scale`, `end_mark_ink_y`,
     `end_tagline_cap_top_y` (checked: half the mark's height of clear space),
     `lift_x`, `lift_veil`, `tilt_axis`, `tilt_max_deg`, `scene_whip_axis`;
@@ -122,7 +132,10 @@ Exactly five top-level keys (plus `x-…` keys, which only hold YAML anchors):
     block centred on `caption_centre_y`), `counter_baselines` `[label,
     figure]`, `lift_y` (the three places a lift lands: `card_on_floor`,
     `card_under_caption`, `tile_row`, each ONE of `top`/`centre_y`/`bottom`,
-    inside the overlays zone's rows), `hook_page` `{x, top, pivot, macro_to}`,
+    inside the overlays zone's rows — and, optionally, its own columns `x:
+    [x0, x1]` inside the safe area's and the overlays zone's, else `lift_x`:
+    16:9's « Arrivé » card and Fiche tiles at the left column's full width),
+    `hook_page` `{x, top, pivot, macro_to}`,
     `hook_scrim` `{rect, fade: [right, bottom]}` (it must hold the hook
     block's columns: white words sit on it), `map_credit` `{x, baseline,
     align}`.
@@ -142,6 +155,15 @@ Exactly five top-level keys (plus `x-…` keys, which only hold YAML anchors):
   list). **A cue reference is the value of a key named `cue` (one id), each
   item of `cues`, or any string written `cue:<id>` (`cue:whip1+6`,
   `cue:riser1@end`), at any depth**: each must be a cue of THAT cut's score.
+  **Per-format values**: any mapping in a scene may carry `formats:
+  {<format id>: {key: value, …}}` — in that format those keys replace the
+  mapping's own, every other format reads it as written
+  (`Storyboard.cut_scenes(cut, fmt)` resolves them, `storyboard.for_format`;
+  the Film reads its format's). ONE scene, re-laid out: the owner's round-5
+  16:9 decisions are written so (`camera.formats.16x9.fill`, the 15-s
+  form's `formats: {16x9: {curve: cut}}` and its W). Refused: a format id
+  that is not a format, a value that is not a mapping; camera keys are held
+  in time order in every format.
 
 Every problem is reported at once, with its path:
 
@@ -409,12 +431,13 @@ soundtrack, the take pictures and their timing are the same in every format.
 | canvas · safe | 1080×1920 · x 120–900, y 270–1248 (platform) | 1080×1080 · x/y 54–1026 (EBU R95 5 %) | 1920×1080 · x 96–1824, y 54–1026 (EBU R95 5 %) |
 | captions | band y 0–560, centred on x 540, cap top 330 (hook 300); 72 px | band y 0–358, centred on x 540, cap top 120 (hook 80); 72 px | no band: the left column x 96–1040, set from x 96, centred on y 440 (hook top-left, cap top 130); **88 px** (owner, 2026-10-19) |
 | phone window (W on) | x 180–900, y 600–**1424** (y 600) — the owner's floor, app pixels only below 1248 | x 180–900, y **388**–1002 (y 388) — the band edge on the journal's chip row | x 1088–1808 (the bezel ending ON the graphics-safe edge, x 1824), y 54–**1026**, a 30-px top fade (y 84) — **the phone stands on the floor**: where W would leave the screen's bottom above y 1010, the band edge comes down instead |
-| lifts | x 120–900 (780 px), over the veiled phone, ≤ y 1248 in flight too (Fatou B.'s, whose place is on the owner's floor, pops in place) | x 150–930 (780 px), over the veiled phone | x 284–1044 (760 px) beside the phone, no veil, no panel; out of the phone `under` the sentence (down, then across) |
+| lifts | x 120–900 (780 px), over the veiled phone, ≤ y 1248 in flight too (Fatou B.'s, whose place is on the owner's floor, pops in place) | x 150–930 (780 px), over the veiled phone | beside the phone, no veil, no panel; out of the phone `under` the sentence (down, then across): the « Arrivé » card and the Fiche's tiles at the left column's full width, **x 96–1040 (944 px)** (OWNER-APPROVED 2026-10-20), « Total réalisé » x 284–1044 (760 px) |
 | counter | centred, baselines 322 / 496 | centred, 120 / 284, its roll fading out by the band's edge (y 358) | from x 96, **144 / 48 px**, baselines 354 / 561; its punch holds the left edge |
 | hook | page x 40–1040 from y 640, black to 520 → 640 | page x 120–960 from y 10, black to 400 → 500 (strike rows y ≈ 549–994) | page x 760–1960 on the right, black over x 0–820 → 1020; in the macro only behind the question (y 0–400 → 540) — the split, OWNER-APPROVED |
 | tilts · push-in | rotX · about the phone's axis | rotX · about the phone's axis | yaw, ≤ 10° · about the screen's right edge (x 1824) |
-| map credit | the band's foot, right-aligned to the screen's edge x 900, baseline 552 | the band's foot, right-aligned to the screen's edge x 900, baseline 346 | the left column's foot, right-aligned to x 1040, baseline 1016 |
-| reveal · end card | Lottie (540, 680) · mark ink y 400–599, tagline cap top 712 | (540, 520) · 250–449, 560 | (960, 500) · 230–429, 540 |
+| map credit « © OpenStreetMap contributors · © CARTO » | the band's foot, right-aligned to the screen's edge x 900, baseline 552 | the band's foot, right-aligned to the screen's edge x 900, baseline 346 | the left column's foot, right-aligned to x 1040, baseline 1016 |
+| reveal · end card | Lottie (540, 680) · mark ink y 400–599, tagline cap top 712, the store line 808, myweli.com 872 | (540, 520) · 250–449, 560, 656, 720 | (960, 500) · 230–429, 540, 636, 700 |
+| push about the floor | — (the band edge is fixed) | — | the lower journal and the form's end, **1.23×** (`camera.formats.16x9.fill`; OWNER-APPROVED 2026-10-20, below) |
 
 **The camera re-frames by rule.** The W keys are measured in the reference
 window (9:16, y 600–1424 since the owner's floor); each says what it keeps —
@@ -452,12 +475,11 @@ keyed like W (`PhoneScene.band`: each W key's highest edge that leaves no
 floating screen, moved on the W key's curve — the screen's bottom moves
 linearly between two keys that never float, so it never floats between). A
 declared dissolve shows each picture through the window of its own end, as
-it does with W: in 16:9 the 15-s form's dissolve re-frames — its two
-pictures each stand on the floor and the fields move up 260 px across its 3
-frames — because one shared window (the fields in place, as in 9:16 and
-1:1) put « Créer le rendez-vous », tapped on the dissolve's last frame,
-under the floor, its disc on nothing (round 5's first build: verify (f) saw
-no disc). Everything that asks where the phone is — touches, lifts, the
+it does with W (round 5: one shared window, the fields in place as in 9:16
+and 1:1, put « Créer le rendez-vous », tapped on the dissolve's last frame,
+under the floor, its disc on nothing); in 16:9 the 15-s form's skip is now
+a declared HARD CUT, framed by the journal's window (below, « The 15-s
+16:9 form »). Everything that asks where the phone is — touches, lifts, the
 hidden row, verify's regions — reads the frame's own window
 (`PhoneScene.win(t)`; render.json records `window_top`). A push-in where the
 phone stands on the floor scales about the FLOOR (y 1026; `anchor_y: top`):
@@ -468,6 +490,42 @@ the renderer refuses a push that sinks a slab standing on the floor). The
 in-phone whip is exposed over 1.5 frames here (`ANCHORED_WHIP_SHUTTER`): the
 band edge comes down with it, so the picture travels about half the camera's
 way, and the old row must still cross the window inside ≥ 80 px of blur.
+
+**16:9: the push about the floor** (`camera.fill`, written under
+`camera.formats.16x9`; OWNER-APPROVED 2026-10-20, « 16:9 POLISH » (1)). On
+the lower journal and the form's end the camera W 667 brings the band edge
+down to y 639: the phone shows its bottom 387 px, the upper right empty. The
+camera pushes in ABOUT THE FLOOR with the window growing with the phone: the
+slab scales about (x 1824, y 1026) — its right edge on the safe edge, its
+bottom on the floor — and the band edge rises by the same factor
+(`PhoneScene.edge_of`: `floor − (floor − band) × fill`), so pt W stays on
+the edge it shows on and the old 13:15 row stays under the band (it rises
+with the phone). The screen is LAID OUT from the keyed band edge and SHOWN
+from the risen one (`fx.phone.Window.clip_top` / `edge`: the fade and the
+clip; the first build laid the window at the risen edge and the pose scaled
+it again — the slab floated at y ≈ 912; test_review5 now holds every pushed
+frame's slab bottom ON the floor, ± 0.5 px). Eased on the grid: 30 s
+5.1.2 → 5.2.2 (onto the « Libre » tap), back 5.2.3 → 5.4.0 under the glide to
+the form; 7.2.0 → 7.3.0 (from the « Créer » tap), held through the snackbar,
+the « rempli. » push on top (about the floor too: a zoom on a fill must
+scale about the floor, else refused); 15 s 3.3.2 → 3.4.2 (the « Libre »
+tap's form), held to the whip. **1.23×, not the owner's ~1.3–1.5×**: beside
+the left column the slab grows towards the captions, and the column's lines
+reach x 878 (« Un créneau libre ? ») and x 1024 (« Créneau ~~libre~~
+rempli. », its « p » to y 505 as it rises in). At 1.3× the slab's left edge
+reaches x 846 — under « libre ? », 20 px below its ink at the hold and over
+it as the push recedes on the glide to the form — and on the form's end its
+top (the band's fade from y 493) runs into « rempli. »; 1.23× is the largest
+that keeps every caption ≥ 12 px clear of the phone on every frame
+(`CAPTION_PHONE_CLEAR_PX`; measured: 15 px, « rempli. » rising, 30 s f448
+and 15 s f240). The phone's window grows from 387 to 476 px tall (top y 639
+→ 550) and from 752 to 925 px wide (1 033 with the « rempli. » push on top: from x 791);
+the upper right above y 520 stays stage. The renderer refuses a fill where
+the phone does not stand on the floor (9:16, 1:1: their band edge is the
+frame's), a fill under 1, and a film on which any caption comes within the
+clearance (`Film.crowded_captions`, before a frame is drawn); verify (g)
+re-reads it from render.json (`phone`, per frame) — at the owner's 1.3× it
+fails on 30-s f288 (« libre ? ») and from f448 (« rempli. »).
 
 **Order of work** (`render.build_one`): the soundtrack FIRST
 (`promo.audio.build_cut` on the cut's score, master limited to −1.5 dBTP so
@@ -505,10 +563,10 @@ now) and the DECLARED DISSOLVE (`sources.Timeline`, below).
 |---|---|---|
 | `hook` (carnet) | f0–47 | the code-drawn page, push under way at f0, the entry inking f0–24; « Votre » f0 « carnet » f8 / « déborde ? » f16, held to f47; three strikes with punches on the log hits f24 / f32 / f40; no strike words, no macro, no sink |
 | `air1` | f48–63 | the 30-s AIR, « Respirez. » |
-| `journal` (take1b) | f64–255 | the hard cut onto W 257 (no slam); the swipe at 1.11× (open f80), the pane held at 1×, the seamless cut and the tap on f88, the save at 0.965× (« Arrivé » f144), the lift f144–159; the vertical whip f160; the « Libre » tap f168 (released by f173), the form's push at 1× (rest f184); the declared dissolve f193–196 to the filled form; « Créer » f196 at 0.986×; back to W 667 f204–216; the snackbar f232, the push-in to 2.0 px/pt f232–252; « Une cliente » f64 « arrive ? » f72 / « Glissez, » f80 « appuyez. » f88; « Créneau » f160 « libre » f168, struck f236, « rempli. » f240 |
+| `journal` (take1b) | f64–255 | the hard cut onto W 257 (no slam); the swipe at 1.11× (open f80), the pane held at 1×, the seamless cut and the tap on f88, the save at 0.965× (« Arrivé » f144), the lift f144–159; the vertical whip f160; the « Libre » tap f168 (released by f173), the form's push at 1× (rest f184); the declared dissolve f193–196 to the filled form (16:9: a declared hard cut on f193, framed at W 667); « Créer » f196 at 0.986×; back to W 667 f204–216 (16:9: already there); the snackbar f232, the push-in to 2.0 px/pt f232–252; 16:9: the push about the floor f168–184, held; « Une cliente » f64 « arrive ? » f72 / « Glissez, » f80 « appuyez. » f88; « Créneau » f160 « libre » f168, struck f236, « rempli. » f240 |
 | `revenus` (N1) | f256–319 | the horizontal whip in; « Mois » f272, the label f280, the counter lands on N1's « 77 000 FCFA » on f292 (the app's wait at 0.995×, as the 30-s), alone to the cut |
 | `reveal` | f320–375 | the Lottie, the 30-s retime on the 15-s cues |
-| `end` | f376–511 | the 30-s card: the mark settles f384, the tagline's one reveal f379–384, « Disponible sur l’App Store » f400, the underline f448, the punch f480 |
+| `end` | f376–511 | the 30-s card: the mark settles f384, the tagline's one reveal f379–384, « Sur l’App Store et Google Play » f400, « myweli.com » f432, the underline f448, the punch f480 |
 
 **The declared dissolve** (`{at, dissolve: <take time>, until, curve, cite}`
 in a timeline): the picture on screen at `at` blends into the take's
@@ -522,8 +580,26 @@ blend: the picture it reaches underneath, the one it leaves over it at 1 − u
 (`Phone.draw(screens=…)`) — f194 is (1 − u) × f193 + u × f196 within 2 levels
 wherever the first picture shows, the second alone below it (round 5: two
 whole stages cross-faded drew a second, translucent bezel arc across « Total
-/ Créer le rendez-vous »). In 16:9 (the band edge moves) the whole stage
-still cross-fades — the owner's call, pending. Refused: a dissolve without `cite`, one
+/ Créer le rendez-vous »). `curve: cut` makes it a DECLARED HARD CUT — the
+picture it reaches from its first frame, the same skip, the same
+declaration; the plan lists it as `cut (declared, in the phone)` and verify
+(b) holds it to a cut's rule (the picture changes ≥ 2 levels). **The 15-s
+16:9 form** (OWNER-APPROVED 2026-10-20, « 16:9 POLISH » (3)): round 5's
+3-frame blend of two windows ghosted the fields, and its band edge then came
+down 260 px over the still form on f204–216 (W 521.67 → 667, the phone on
+the floor: only the edge moves — a curtain). Now `formats: {16x9: {curve:
+cut}}`: a hard cut on f193; and the filled form is framed at once by the
+journal's own window (W 667 on both sides of the cut, the push about the
+floor held), so NOTHING moves from f184 to the snackbar's push (f232) — no
+curtain (test_round5 holds one edge and one W over f184–231). What it costs,
+16:9 only: the fields « kept in place » across the skip (9:16, 1:1) are gone
+— a cut needs none — and the filled form shows its end (« Note », « Total
+5 000 FCFA », « Créer le rendez-vous »), not « Client sans numéro » ticked
+nor « Yao K. » typed: those are above W 667 (the name field 598–654 pt), and
+any framing that showed them would need the band edge to come down over the
+still form before the journal's return (the old 13:15 row) — the curtain.
+The name is seen 0.8 s later on the journal's new card « 14:45 Yao K. ».
+Refused: a dissolve without `cite`, one
 that goes back in the take or to the same picture, one without a segment
 before it or an `until`, and a touch disc or ripple on any of its frames.
 render.json records it (`dissolve`: pictures, blend, both W) and the plan
@@ -533,7 +609,7 @@ lists it as a transition (`dissolve (declared)`), and in the honesty list.
 |---|---|---|
 | `carnet`, `air` | `scenes/carnet.py` | 1–5: the code-drawn carnet (push-in under way at f0, macro cut, strikes with punches, push + sink, grain — macro and sink optional: the 15-s hook has neither), the AIR |
 | `phone` | `scenes/phone.py` | 6–22: take1b, take2b, N1, take5b in the 2.5D slab through the camera window |
-| `lottie`, `end_card` | `scenes/lottie.py` | 23–24: the Pro opening Lottie retimed, the mark settling, the tagline, « Disponible sur l’App Store », the outro (the underline, the mark's punch) |
+| `lottie`, `end_card` | `scenes/lottie.py` | 23–24: the Pro opening Lottie retimed, the mark settling, the tagline, « Sur l’App Store et Google Play », « myweli.com », the outro (the underline, the mark's punch) |
 | — | `scenes/film.py` | the cut end to end, the horizontal whip between scenes, captions, the per-frame record |
 
 **Rules the renderer enforces** (each a refusal with its storyboard path):
@@ -560,9 +636,15 @@ scrim on average (`CarnetScene.ink_places`); a `transition` other than
 `whip` or `continuous`; a caption that still carries the retired `reading:`
 marker; camera keys not in time
 order (also refused by `storyboard.py`, with both keys' frames — the
-renderer sorts nothing); scenes that do not run end to end. `storyboard.py`
-also refuses a store line (`type_px.store`) under 40 px, and a cut more than
-one bar past its name.
+renderer sorts nothing); scenes that do not run end to end; a push about the
+floor (`camera.fill`) where the phone does not stand on the floor, under 1,
+or with a zoom on it about another anchor than the floor; a film on which a
+caption comes within 12 px of the phone as posed (`Film.crowded_captions`,
+before a frame is drawn). `storyboard.py` also refuses the store or site
+line (`type_px.store`, `type_px.site`) under 40 px, a `formats:` override for
+a format that does not exist (or that is not a mapping), a lift place's own
+columns (`lift_y.<place>.x`) outside the safe area's or the overlays zone's,
+and a cut more than one bar past its name.
 
 **A line that waits for its last word** may ask `recentre: N`: centred
 on the words it shows while it waits, it glides over N frames to make room
@@ -658,9 +740,20 @@ app's pixels: the phone window's rows across the safe area's columns,
 too, inside the text rectangle — round 5's « Arrivé » rise and settle crossed
 y 1248, a magnified overlay is not the phone's picture; the app's own text the
 film keeps readable, `app text` — the page's « Aperçu … / Réserver (après la
-mise en ligne) » — inside it AND wholly in the window, shown ≥ 0.99; no lift
-box over a caption's ink on any frame, `lifts_over_captions` — round 5's 16:9
-« Total réalisé » crossed « rendez-vous » in flight), and the
+mise en ligne) », and since round 6 « Créer le rendez-vous » from the form's
+rest to the pop and the snackbar « Rendez-vous créé » to the cut, which 16:9's
+push about the floor must never crop — inside it AND wholly in the window,
+shown ≥ 0.99; no lift box over a caption's ink on any frame,
+`lifts_over_captions` — round 5's 16:9 « Total réalisé » crossed
+« rendez-vous » in flight; no caption's ink within 12 px of the phone as
+posed, `captions_over_phone` — the record's `phone`, per frame: the owner's
+« never cropping … a caption »; every touch disc whole in the window on
+every frame the phone is pushed, `touches_cropped` — « never cropping a
+touch »; a touch-down cropped on an unpushed frame is reported, not failed:
+the Revenus « Mois » tap (shown 0.58–0.69), whose disc's top has sat in the
+band's fade since round 1 — the title « Revenus » is kept under the band and
+lies 16 pt above the disc, under the fade's 17–22 pt, so no framing shows
+both whole), and the
 hook's animated ink (the plan's `hook_ink`) seen: inside the canvas, inside
 an EBU graphics-safe area, off the scrim, and each strike read off the MP4
 on its last frame (`pixels.line_contrast`: the paper beside the stroke ≥ 40
@@ -671,12 +764,22 @@ film uses — every take that declares a blur is measured (`blurs_checked`;
 the 15-s cut declares none: take1b shows only the « Téléphone du client »
 placeholder and N1 no number, which the report says, never as « measured »),
 every dissolve declared and going forward (`dissolve_problems`, re-read from
-render.json), the old 13:15 row on EVERY frame of its scene — the whip, the
+render.json; a declared hard cut too), the map credit — the app's own
+« © OpenStreetMap contributors · © CARTO » — WHOLE from its first whole frame
+until the map has dimmed out, AIR 2's last frame f767 (`credit_problems`,
+on the plan's `credits` spans; round 5 faded it with the falling phone:
+f752–767 not whole in all three 30-s films), the old 13:15 row on EVERY frame of its scene — the whip, the
 form's push and pop included (`verify.HiddenRow`): its blocks that identify
 it (found on no picture of the scene at another height — the new booking is
 the same client, so « Yao K. », « 1 prestation » and « Confirmé » are on its
 row too; only the old booking's « 13:15 / 13:45 » remain, 1 block of 6)
-searched over the WHOLE window in the MP4's pixels, visible = share found ×
+searched over the WHOLE window in the MP4's pixels — the lifted cards' boxes
+left out (round 6: the 944-px « Arrivé » lift magnifies Fatou B.'s card
+1.42×, and its small « 13:15 », her end time, is then the old row's large
+« 13:15 » at the same pixel size — the search « found the row » in the
+flying card, 30-s f233 / f250 and 15-s f145 / f156, Fatou B.'s card in the
+MP4; a lift is a known real card, checked at its SOURCE instead: the
+renderer refuses a lift or tile whose rect touches a hidden row) —, visible = share found ×
 the window's alpha where found ≤ 5 %; all its blocks at the renderer's place
 ≤ 25 %; and outside the whip, the share of its place the window shows × the
 share of it the take's picture shows there ≤ 5 %; inside the whip, a frame
@@ -687,7 +790,9 @@ at least 110 px in 9:16, 86 in 1:1, 90 in 16:9 at its 1.5-frame shutter, as veri
 and ramp, (i) reading: everything on screen together, per arrival window
 (`reading_windows`: the characters arriving in a window that must be read
 before it closes), ≤ 17 cps, the end card like the rest (its own window is
-reported: 60 characters f827→f960 = 13.5 cps); never two lines receiving
+reported: 74 characters f827→f960 = 16.7 cps — the owner's « Sur l’App
+Store et Google Play » and « myweli.com », 2026-10-20; round 5's card was 60
+characters, 13.5 cps); never two lines receiving
 words on one frame; the longest stretch without a visual event (≤ 2 s). Not
 counted as reading: the map credit (attribution), the lifted cards (the
 app's own pixels), the counter's rolling digits (its start « 0 », labels and
@@ -703,6 +808,58 @@ Statuses: PASS or FAIL. `report.txt` leads with the film's status;
 2026-10-19 — one more bar.)
 
 ### Decisions made against the storyboard's text, and why
+
+**OWNER-APPROVED departures (the owner's decisions after round 5,
+2026-10-20 — architecture contract, « Owner decisions after round 5 » and
+« Owner decision — end card stores + site »):**
+
+- **OWNER-APPROVED 2026-10-20 — the end card: the stores and the site**
+  (« Both stores, post later »). ONE version, in order: the mark · « Plus de
+  clients, moins de gestion. » (the underline and the mark's punch kept) ·
+  « Sur l’App Store et Google Play » (replaces « Disponible sur l’App
+  Store ») · « myweli.com », last. Each line arrives ALONE on its own
+  beat-grid cue — the tagline whole on `end.mark` (14.1.0, f832; its mask
+  from f827), the stores on `end.store` (14.2.0, f848), the site on the new
+  `end.site` (14.4.0, f880: the bar's step-12 log made the cue, a soft glint
+  a fifth under the store's) — and the 15-s on its own (f384, f400, f432),
+  both scores moved to match. The store line Inter Medium 40 px #4A4A4A, cap
+  top 96 px under the tagline's; « myweli.com » Inter Medium 40 px in the
+  ink #1A1A1A, 64 px under it (the last line, the address, read first after
+  the tagline); both ≥ 40 px (`MIN_READ_PX`), centred on the mark's axis,
+  inside every format's safe area (verify (g)). Reading, verify (i): 34 + 30
+  + 10 = 74 characters f827→f960 = **16.7 cps** (≤ 17; 15 s f379→f512, the
+  same). **POSTING GATE** (top of this file): posted only once BOTH the iOS
+  and the Android Pro apps are live in their stores.
+- **OWNER-APPROVED 2026-10-20 — 9:16 swipe** (« Keep it »): the « Arrivé »
+  swipe plays at y ≈ 1290–1410, app pixels below the text-safe line (the
+  owner checks it on a phone under a Reels/TikTok overlay); the touch
+  ripples are app-area marks, not text (verify (g) holds them to the app's
+  pixels, `app_area`).
+- **OWNER-APPROVED 2026-10-20 — 9:16 hang** (« Accept it »): on the
+  lower-journal and form-end shots the phone stops at y ≈ 985, forced by
+  hiding the old 13:15 row. **1:1 hang** (« Keep as is »): the phone hangs
+  under the band on the lower journal.
+- **OWNER-APPROVED 2026-10-20 — 16:9 polish**, all three: (1) the push about
+  the floor on the lower journal and the form's end — at **1.23×**, the most
+  the left column's captions allow (« 16:9: the push about the floor »,
+  above: the owner's ~1.3–1.5× would put the slab under « libre ? » and into
+  « rempli. »), the 13:15 row and every privacy check re-run on the new
+  framing; (2) the « Arrivé » lift and the Fiche's tiles at the left
+  column's full width, x 96–1040 — the card 944 px, 1.42× the card in the
+  phone (round 5: 760 px, 1.15×), « Arrivé » read at 50 %; 16:9 lifts are
+  exempt from « same pixel size everywhere »; « Total réalisé » keeps 760 px
+  (at 944 it would be 508 px tall: under the two-line sentence, ink to
+  y ≈ 523, and inside the safe floor, 1026, there are 427); (3) the 15-s
+  form's hard cut on f193 instead of the 3-frame dissolve, and no band-edge
+  curtain after it — solved by framing the filled form at once in the
+  journal's window (« The declared dissolve », above, with what that costs).
+- **OWNER-APPROVED 2026-10-20 — the map credit** (attribution correctness,
+  the owner's call): the app's own wording, « © OpenStreetMap contributors ·
+  © CARTO » (`cartoCredits`, mobile/lib/widgets/common/carto_basemap_layer.dart:116,
+  joined « · »; round 5: « © OpenStreetMap, © CARTO »), and on screen until
+  the map has dimmed out — WHOLE from its first whole frame to AIR 2's last,
+  f767, in every format (round 5 faded it with the falling phone, f752–763);
+  verify (h) `credit_problems`.
 
 **OWNER-APPROVED departures (the owner's decisions after the six-film review,
 2026-10-19 — architecture contract, « Owner decisions after the six-film
@@ -764,8 +921,11 @@ The 1:1 and 16:9 formats (« 1:1 and 16:9 »):
   the cuts' scenes (the code-drawn page plays).
 - **1:1 lifts are 780 px wide** (x 150–930), not grown to x 54–1026: « the
   lifts keep the same pixel sizes everywhere » (the section's first rule);
-  the 54–1026 span is where they MAY go. 16:9 keeps the section's 760 px,
-  moved 16 px left with the phone (x 284–1044; the section's 300–1060).
+  the 54–1026 span is where they MAY go. 16:9 kept the section's 760 px,
+  moved 16 px left with the phone (x 284–1044; the section's 300–1060) — the
+  « Total réalisé » card still does; the « Arrivé » card and the Fiche's
+  tiles take the left column's full width since the owner's round 5
+  (above).
 - **1:1 hook block to y 420**, not the band's 300: three 96-px lines
   (« Rayé. / Raturé. / Recopié. ») cannot fit in 54–300 at their 120-px
   pitch — the third's ink reaches y 414; the stage's black covers the page to
@@ -835,10 +995,11 @@ The 15-s cut (« The 15 s cut »):
 
 - **Its length**: 8 bars, 512 frames (17.07 s), not the section's 7 bars —
   the owner's outro bar (2026-10-19), as the 30-s. The end card is the
-  30-s's: the tagline as one reveal f379→f384 and « Disponible sur l’App
-  Store » alone on f400 (the section's « Plus de clients, » f384 / « moins de
-  gestion. » f400 predates the store line: two arrivals on f400 are refused);
-  60 characters f379→f512 = 13.5 cps; the underline on f448, the punch on f480.
+  30-s's: the tagline as one reveal f379→f384, « Sur l’App Store et Google
+  Play » alone on f400 and « myweli.com » alone on f432 (the section's « Plus
+  de clients, » f384 / « moins de gestion. » f400 predates the store line:
+  two arrivals on f400 are refused); 74 characters f379→f512 = 16.7 cps; the
+  underline on f448, the punch on f480.
   The reveal → end handoff on f376 is `continuous` (the mark keeps easing):
   the cut has the storyboard's six joins, not seven.
 - **« Créneau libre » centred while it waits** (`recentre: 4`): the line
@@ -846,7 +1007,8 @@ The 15-s cut (« The 15 s cut »):
   time); it makes room over f235–239 — « libre » struck on f236 as it goes —
   and « rempli. » rises into its place on f240. The 30-s line does the same
   (f444–447, after its strike on f440).
-- **The dissolve's re-frame**: the section's « W 660 − Δ, Δ ≈ 128 pt » is
+- **The dissolve's re-frame** (9:16 and 1:1; 16:9 cuts, framed at W 667 —
+  the owner's round 5, « The declared dissolve »): the section's « W 660 − Δ, Δ ≈ 128 pt » is
   measured on the two pictures: from « Client sans numéro » down the fields
   moved up **145.33 pt** (the 125.33-pt scroll + the 20-pt « 0/10 » line the
   switch takes away; NCC 0.9998 on the note field), so 130.262 is framed at
@@ -854,7 +1016,7 @@ The 15-s cut (« The 15 s cut »):
   note field's best match is at dy 0). W is 667 on both sides, not 660/665:
   the 30-s's measured value that keeps the 13:15 row's last line under the
   band. « Créer » sits at y ≈ 1158 until the camera glides back over f204–216.
-- **The dissolve's length**: f193→f196 (3 frames, 100 ms) as the section
+- **The dissolve's length** (9:16 and 1:1): f193→f196 (3 frames, 100 ms) as the section
   writes, on AppMotion.base's easeInOut — the App Store film ran it on the
   whole `base` token (200 ms); the « Créer » touch-down on f196 leaves 3.
 - **The pane held open** f80–f88: the section's « hold 11.265–11.595 over
@@ -881,9 +1043,10 @@ The 30-s cut:
   garbled word on f536–539, 15-s f280–284); the map credit shows while —
   and only while — the map's tiles show, from the first rows in the floor
   fade (f691; round 5 waited for 40 px of tiles, f694) through AIR 2, white
-  on black there, fading with the falling phone (`map_shown_px`: the tiles'
-  rows as posed, × the window's alpha, × the fall's opacity — round 5 drew
-  none in AIR 2 and dimmed 1:1's to nothing with the map still on); the
+  on black there (`map_shown_px`: the tiles' rows as posed, × the window's
+  alpha — round 5 drew none in AIR 2 and dimmed 1:1's to nothing with the
+  map still on) — and, since the owner's round 5, held WHOLE from then until
+  the map has dimmed out (f767), no longer fading with the falling phone; the
   in-phone whip runs on the app's base easeInOut, not easeInOutCubic (its
   first and last frames carried the old 13:15 row 37–72 px through the
   fades; verify (h) now holds every whip frame to ≥ 80 px).
@@ -900,12 +1063,14 @@ The 30-s cut:
 - **The end card** (review M1; the owner's decision 2026-10-19, « Add one
   bar »; the underline and the punch below OWNER-APPROVED 2026-10-19, « Keep
   both »). The tagline arrives as ONE quick reveal as the mark settles (a
-  6-frame mask, f827→f832, whole on `end.mark`); « Disponible sur l’App
-  Store » arrives alone on its own cue (`end.store`, 14.2.0 = f848), at
-  40 px. The cut gained one bar (30 s: 15 bars, 960 frames, 32.0 s — past
+  6-frame mask, f827→f832, whole on `end.mark`); « Sur l’App Store et Google
+  Play » arrives alone on its own cue (`end.store`, 14.2.0 = f848) and
+  « myweli.com » alone on its own (`end.site`, 14.4.0 = f880), at 40 px (the
+  owner's end card, 2026-10-20, above; round 5: « Disponible sur l’App
+  Store »). The cut gained one bar (30 s: 15 bars, 960 frames, 32.0 s — past
   the historical 30-s WhatsApp Status cap, the owner's call; 15 s: 8 bars),
-  a calm outro, and the card holds to the end: 60 characters f827→f960 =
-  13.5 cps (round 2: 26.1 over f827→f896). Two calm, on-beat events keep
+  a calm outro, and the card holds to the end: 74 characters f827→f960 =
+  16.7 cps (round 5: 60, 13.5; round 2: 26.1 over f827→f896). Two calm, on-beat events keep
   the ≤ 2-s pattern-interrupt rule over the longer hold: on the outro's
   downbeat (f896, `end.underline`, a pen scratch) the hook's strike — the
   brand's single round-cap stroke at the type's stem width — draws an
@@ -914,7 +1079,8 @@ The 30-s cut:
   756, the store line's starts at 808); on the last log (f928, `end.last`,
   with the last chord) the mark gives a 1.06× punch (3 frames out, 8 back;
   MP4: its ink y 394–606 at the peak, 106 px above the tagline's cap top).
-  Longest quiet stretches: f848→f896 (1.6 s), f896→f928, f928→f960. The
+  Longest quiet stretches: f848→f880, f896→f928, f928→f960 (1.07 s each;
+  the site's arrival on f880 split round 5's f848→f896, 1.6 s). The
   last chord and log RING OUT before the end (≥ 20 dB down by f950, the
   last 100 ms ≈ −48 dBFS; round 3 held the chord to the last sample and
   the end fade chopped it — verify (d) `outro_tail`).

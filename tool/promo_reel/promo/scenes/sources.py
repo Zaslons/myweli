@@ -25,7 +25,11 @@ changes (the App Store film's rule, tool/app_store_preview/README.md « One
 declared dissolve inside a scene »: the 15-s cut's 32.998 → 130.262 skips
 the form fill). It is declared (``cite``) and goes forward in the take;
 the scene draws each picture through its own camera (the phone's
-``draw_picture``) and refuses a touch disc on its frames.
+``draw_picture``) and refuses a touch disc on its frames. ``curve: cut``
+makes it a DECLARED HARD CUT — the picture it reaches from its first frame,
+the same skip, the same declaration (the owner's round 5, 2026-10-20: the
+15-s 16:9 form, whose two pictures stand on the floor each in its own
+window, cuts at f193 — a blend of two windows ghosts).
 
 Masks are attached to the take before any picture is read, so every picture
 a scene, a lift or a motion-blur subframe gets is already blurred.
@@ -178,6 +182,7 @@ class Segment:
     to: float | None = None      # dissolve: the take time of the picture it blends into
     curve: Any = None            # dissolve: the blend's curve (the app's, promo/fx/easing.py)
     cite: str | None = None      # dissolve: where it is declared
+    cut: bool = False            # dissolve: `curve: cut` — a declared hard cut (the picture it reaches at once)
 
 
 class Timeline:
@@ -265,10 +270,13 @@ class Timeline:
             raise SourceError(f"{p}: dissolves from the picture at {frm:.3f} s (#{take.index_at(frm)}) to the one at "
                               f"{to:.3f} s (#{take.index_at(to)}): never back in the take, nor to the same picture "
                               f"(E_ORDER)")
+        if s.get("curve") == "cut":
+            return Segment(start, "dissolve", frm, end=until, to=to, curve=lambda u: 1.0, cite=s.get("cite"),
+                           where=p, cut=True)
         try:
             cv = curve(s.get("curve", "ease_in_out"))
         except ValueError as e:
-            raise SourceError(f"{p}.curve: {e}") from None
+            raise SourceError(f"{p}.curve: {e} — or `cut` (a declared hard cut)") from None
         return Segment(start, "dissolve", frm, end=until, to=to, curve=cv, cite=s.get("cite"), where=p)
 
     def segment(self, t: float) -> Segment:
@@ -357,7 +365,7 @@ class Timeline:
             if s.kind == "dissolve":
                 take = self.source.take
                 d.update(to_s=round(s.to, 5), until_frame=round(s.end, 3), frames=round(s.end - s.start, 3),
-                         pictures=[take.index_at(s.src0), take.index_at(s.to)], cite=s.cite)
+                         pictures=[take.index_at(s.src0), take.index_at(s.to)], cite=s.cite, cut=s.cut)
                 out.append(d)
                 continue
             if s.kind != "hold":

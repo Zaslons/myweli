@@ -51,7 +51,8 @@ STORYBOARD_30S = {
     "sentence.word1": 576, "sentence.word2": 584, "sentence.word3": 592, "sentence.word4": 600,
     "sentence.pop": 600, "page.cut": 640, "page.drag": 672, "riser3": 720, "breakdown.tail": 736,
     "clap_roll2": 744, "air2.reverse": 752, "reveal.impact": 768, "reveal.shimmer": 784, "reveal.glide": 804,
-    "end.mark": 832, "end.store": 848, "end.store_log": 848, "end.underline": 896, "end.last": 928,
+    "end.mark": 832, "end.store": 848, "end.store_log": 848, "end.site": 880, "end.site_log": 880,
+    "end.underline": 896, "end.last": 928,
 }
 SPANS_30S = {"hook.pen": 24, "riser1": 108, "clap_roll1": 108, "air1.reverse": 128, "swipe.whoosh": 160,
              "tap.close": 190, "arrive.air": 256, "fill.tape": 334, "create.drag": 392, "create.close": 430,
@@ -66,7 +67,7 @@ STORYBOARD_15S = {
     "revenus.touch": 272, "revenus.tick1": 280, "revenus.tick2": 284, "revenus.tick3": 288,
     "revenus.land": 292, "revenus.ding": 292, "reveal.impact": 320,
     "reveal.shimmer": 336, "reveal.glide": 356, "end.mark": 384, "end.store": 400, "end.store_log": 400,
-    "end.underline": 448, "end.last": 480,
+    "end.site": 432, "end.site_log": 432, "end.underline": 448, "end.last": 480,
 }
 SPANS_15S = {"riser1": 44, "air1.reverse": 64, "reveal.glide": 376, "end.underline": 456}
 
@@ -293,12 +294,18 @@ class TestScore(unittest.TestCase):
                 with self.subTest(score=name, span=cid):
                     self.assertEqual(sc.cue(cid).end_frame, end)
 
-    def test_the_app_store_line_has_its_soft_cue(self):
-        """Owner's addition: « Disponible sur l'App Store » under the tagline."""
-        for name, frame in (("score_30s.yaml", 848), ("score_15s.yaml", 400)):   # alone on its cue (reading speed)
-            cue = score_mod.load(find_score(name)).cue("end.store")
-            self.assertEqual((cue.kind, cue.frame), ("glint", frame))
-            self.assertLess(cue.gain, -6)                         # small and soft
+    def test_the_store_and_site_lines_have_their_soft_cues(self):
+        """The owner's end card (2026-10-20, « Both stores, post later »): « Sur
+        l’App Store et Google Play » and, last, « myweli.com » — each alone on
+        its own cue, a soft glint over a log, on the beat grid."""
+        for name, store, site in (("score_30s.yaml", 848, 880), ("score_15s.yaml", 400, 432)):
+            sc = score_mod.load(find_score(name))
+            for cid, frame in (("end.store", store), ("end.site", site)):
+                cue = sc.cue(cid)
+                self.assertEqual((cue.kind, cue.frame, cue.frame % 16), ("glint", frame, 0))
+                self.assertLess(cue.gain, -6)                     # small and soft
+                self.assertEqual(sc.cue(cid + "_log").frame, frame)
+            self.assertLess(store, site)                          # the site last
 
 
 # ══ the arranger ═══════════════════════════════════════════════════════════

@@ -13,11 +13,15 @@ Types follow the storyboard's « Type » rule and the format's ``type_px``:
            on caption_centre_y (16:9: the left column's y 440)
   tagline  Poppins Medium 46 px, #1A1A1A, cap top = layout end_tagline_cap_top_y
   store    Inter Medium type_px.store (40) px, #4A4A4A, under the tagline
+           (cap top + STORE_DY): « Sur l’App Store et Google Play »
+  site     Inter Medium type_px.site (40) px, #1A1A1A, under the store line
+           (cap top + SITE_DY): « myweli.com », the card's last line — the
+           owner's end card (2026-10-20, « Both stores, post later »)
 
 WHERE (the format's layout): hook and app lines sit in the caption column —
 centred on caption_centre_x (`caption_align: centre`, 9:16 and 1:1) or from
 the column's left edge (`left`, 16:9); the tagline and the store line are
-centred on the mark's axis (lottie_centre's x); `centre: frame` centres a
+centred on the mark's axis (lottie_centre's x) — the store and site lines too; `centre: frame` centres a
 caption on the canvas (the AIR's « Respirez. »). Boxes say whether their
 caption is laid in the column (`column`), which verify (g) holds them to.
 
@@ -67,6 +71,15 @@ class CaptionStyle:
     line_height: float | None
 
 
+#: the end card's lines under the tagline: their cap tops below the tagline's (px, every format — the lockup keeps
+#: one size everywhere). 96: the underline under « moins de gestion. » fits between (verify: 2 px clear, ≥ 20 in
+#: fact); 160: « myweli.com » 64 px under the store line (1.6 × its 40 px), clear of its descenders (g, p, y)
+STORE_DY = 96.0
+SITE_DY = 160.0
+#: the caption kinds laid on the mark's axis (the end card), not in the caption column
+END_KINDS = ("tagline", "store", "site")
+
+
 def _styles(layout: dict) -> dict[str, CaptionStyle]:
     tp = layout["type_px"]
     tag_top = layout["end_tagline_cap_top_y"]
@@ -80,8 +93,9 @@ def _styles(layout: dict) -> dict[str, CaptionStyle]:
         "hook": CaptionStyle("poppins", tp["hook"], PALETTE.WHITE, *place("hook"), None),
         "app": CaptionStyle("poppins", tp["app"], "auto", *place("app"), None),
         "tagline": CaptionStyle("poppins", tp["tagline"], PALETTE.INK, float(tag_top), None, None),
-        "store": CaptionStyle("inter", float(tp.get("store", 40)), PALETTE.INK_SECONDARY, float(tag_top) + 96.0,
+        "store": CaptionStyle("inter", float(tp.get("store", 40)), PALETTE.INK_SECONDARY, float(tag_top) + STORE_DY,
                               None, None),
+        "site": CaptionStyle("inter", float(tp.get("site", 40)), PALETTE.INK, float(tag_top) + SITE_DY, None, None),
     }
 
 
@@ -137,7 +151,7 @@ class CaptionItem:
                 raise ValueError(f"{where}.centre: frame needs the canvas size")
             centre_x, centre_y, cap_top = size[0] / 2, size[1] / 2, None
             self.in_column = False
-        elif kind in ("tagline", "store"):
+        elif kind in END_KINDS:
             centre_x = float(layout["lottie_centre"][0])
         elif layout["caption_align"] == "left":
             centre_x, align = float(layout["caption_column_x"][0]), "left"

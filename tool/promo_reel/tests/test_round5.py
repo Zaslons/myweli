@@ -379,45 +379,58 @@ class TestFramesOnTheFloor(unittest.TestCase):
                 if not hasattr(j, "phone") or j.fall:
                     continue
                 for f in range(j.start, j.end, 2):
-                    if abs(j.zoom(float(f)) - 1.0) > 1e-6 or j.slam_scale(float(f)) != 1.0:
-                        continue                                    # a push-in or a slam grows past the floor
+                    if j.slam_scale(float(f)) != 1.0:
+                        continue                                    # a slam grows past the floor
                     with self.subTest(cut=cut, scene=j.id, f=f):
-                        self.assertGreaterEqual(self.screen_bottom(j, f), 1010.0 - 0.5)
+                        if abs(j.zoom(float(f)) * j.fill(float(f)) - 1.0) > 1e-6:
+                            # a push about the floor (the « rempli. » push, round 6's `fill`): the screen's bottom
+                            # rises by the bezel's growth, the slab's stays on the floor (test_review5 holds it)
+                            s = j.pose(float(f)).scale
+                            self.assertGreaterEqual(self.screen_bottom(j, f) + 16.0 * s, 1026.0 - 0.5)
+                        else:
+                            self.assertGreaterEqual(self.screen_bottom(j, f), 1010.0 - 0.5)
         j = next(s for s in self.films[("30s", "16x9")].scenes if s.id == "journal")
-        self.assertAlmostEqual(self.screen_bottom(j, 270), 1010.0, delta=0.5)        # the lower journal: on it
-        self.assertGreater(self.win(j, 270).top, 600)                                # the band came down
+        self.assertAlmostEqual(self.screen_bottom(j, 263), 1010.0, delta=0.5)        # the lower journal: on it
+        self.assertGreater(self.win(j, 263).top, 600)                                # the band came down
 
-    def test_the_15s_dissolve_stands_both_pictures_on_the_floor(self):
-        """The 15-s form's declared dissolve (W 667 → 521.67): in 16:9 each
-        picture stands on the floor through the window of its own end, so
-        « Créer le rendez-vous » — tapped on the dissolve's last frame — is in
-        view (a window shared for the fields' sake put it under the floor and
-        its disc in nothing: verify (f), round 5's first build)."""
+    def test_the_15s_form_cuts_and_stands_on_the_floor(self):
+        """The 15-s form's declared skip (32.998 → 130.262). Round 5: in 16:9
+        a 3-frame blend of two windows (W 667 → 521.67) ghosted the fields,
+        then the band edge came down 260 px over the still form on f204–216 —
+        a curtain. The owner's round 5 (2026-10-20): a HARD CUT on f193; and
+        the filled form is framed at once by the journal's window (W 667, the
+        push about the floor held), so nothing moves until the snackbar's push.
+        « Créer le rendez-vous » — tapped on f196 — is in view on the floor."""
         j = next(s for s in self.films[("15s", "16x9")].scenes if s.id == "journal")
+        seg = next(s for s in j.timeline.segments if s.kind == "dissolve")
+        self.assertTrue(seg.cut)
+        self.assertEqual(j.timeline.dissolve_at(193.0)[3], 1.0)                      # whole on its first frame
+        self.assertEqual(j.timeline.index(193.0), j.timeline.index(195.0))
         for f in (193, 196):
-            self.assertAlmostEqual(self.screen_bottom(j, f), 1010.0, delta=0.5)
-        w = self.win(j, 196.0)
-        self.assertLessEqual(w.y_of(832.0 + 20, j.camera_W(196.0)), w.floor - 40)    # the button, the tap at 832 pt
+            s = j.pose(float(f)).scale
+            self.assertAlmostEqual(self.screen_bottom(j, f) + 16.0 * s, 1026.0, delta=0.5)
+        edges = {round(j.win(float(f)).edge, 3) for f in range(184, 232)}
+        self.assertEqual(len(edges), 1, edges)                                       # no band edge moves: no curtain
+        self.assertEqual({j.camera_W(float(f)) for f in range(184, 232)}, {667.0})
         frame, rec = self.films[("15s", "16x9")].frame(196)
         self.assertEqual([t["gesture"] for t in rec["touch_downs"]], ["tap-creer"])
-        disc = next(b["rect"] for b in rec["boxes"] if b["kind"] == "touch")
-        self.assertLess(disc[3], w.floor)
-        # in the PIXELS: the black button drawn where the tap lands (f196), and on f193 (the picture the
-        # dissolve leaves, alone) the slab's bottom bezel on the floor
+        disc = next(b for b in rec["boxes"] if b["kind"] == "touch")
+        w = self.win(j, 196.0)
+        self.assertLess(disc["rect"][3], w.floor)
+        self.assertGreaterEqual(disc["shown"], 0.99)
+        # in the PIXELS: the black button where the tap lands; f193 already the filled form's end — the button
+        # whole, the same pixels as f195 (no blend)
         L = frame[..., :3].astype(float) @ [0.2126, 0.7152, 0.0722]
-        y = int(round(w.y_of(832.0, j.camera_W(196.0))))
+        y = int(round(j.phone.map_point(200.0, 832.0, j.pose(196.0), W=j.camera_W(196.0), window=w)[1]))
         self.assertGreater(int((L[y - 12:y + 12, 1200:1700] < 40).sum()), 5000)
         first, _ = self.films[("15s", "16x9")].frame(193)
-        L = first[..., :3].astype(float) @ [0.2126, 0.7152, 0.0722]
-        self.assertGreater(int((L[1012:1022, 1300:1600] < 40).sum()), 2000)
-        # mid-dissolve (f195, the filled form dominating) it is already drawn through its own window, and the
-        # frame's record says so (the window of the picture that dominates, as camera W)
+        L1 = first[..., :3].astype(float) @ [0.2126, 0.7152, 0.0722]
+        self.assertGreater(int((L1[y - 12:y + 12, 1200:1700] < 40).sum()), 5000)
         mid, _ = self.films[("15s", "16x9")].frame(195)
-        L = mid[..., :3].astype(float) @ [0.2126, 0.7152, 0.0722]
-        self.assertGreater(int((L[y - 12:y + 12, 1200:1700] < 100).sum()), 5000)
-        self.assertAlmostEqual(j.win(195.0).top, j.win(196.0).top, places=6)
-        self.assertAlmostEqual(j.win(194.0).top, j.win(193.0).top, places=6)
-        self.assertGreater(j.win(193.0).top - j.win(196.0).top, 200)                  # two framings
+        self.assertLess(float(abs(mid[..., :3].astype(float) - first[..., :3].astype(float)).mean()), 0.5)
+        # 9:16 still dissolves (its one slab, the fields in place: test_scenes)
+        j9 = next(s for s in self.films[("15s", "9x16")].scenes if s.id == "journal")
+        self.assertFalse(next(s for s in j9.timeline.segments if s.kind == "dissolve").cut)
 
     def test_the_arrive_lift_never_leaves_the_rectangle(self):
         """9:16: Fatou B.'s card sits on the owner's floor (y ≈ 1284–1413),

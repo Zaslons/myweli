@@ -30,7 +30,7 @@ sections:
   - {name: drop2, bars: 9-11}        # f512-703, whistle, organ, congas
   - {name: breakdown, bars: 12}      # f704-767, AIR f752-767
   - {name: reveal, bars: 13}         # f768-831, pad + sub only
-  - {name: end_card, bars: 14}       # f832-895, the mark, the tagline, « App Store »
+  - {name: end_card, bars: 14}       # f832-895, the mark, the tagline, the stores, myweli.com
   - {name: outro, bars: 15}          # f896-959, the owner's added bar: calm, then the end
 
 chords:
@@ -85,7 +85,7 @@ tracks:
       10: ". . . . | . . . . | . . 7, 1 | . . 3 ."   # words on 0 2 4 6 (cues), then A's tail
       11: log_b
       12: "1 . . . | . . . . | . . . . | . . . ."    # breakdown; the tail on 12.3.0 is a cue
-      14: ". . . . | . . . . | . . . . | 1 . . ."    # the end card: heroes on 0 and 4 are cues; f880
+      14: ". . . . | . . . . | . . . . | . . . ."    # the end card: its three hits are cues (f832, f848, f880)
       15: "1 . . . | . . . . | . . . . | . . . ."    # the outro's downbeat (the underline); the last log is a cue
 
   kick:
@@ -316,8 +316,12 @@ cues:
   - {id: reveal.glide, kind: glide, pos: 13.3.1, end: 13.4.2, from: G3, to: C5, gain: -2}   # M/W morph f804-824
   # ── END CARD, bar 14 (f832-895) ─────────────────────────────────────────
   - {id: end.mark, kind: log, pos: 14.1.0, note: C2, octave: true, vel: 1.0}        # the mark settles; the tagline's one reveal completes f832
-  - {id: end.store, kind: glint, pos: 14.2.0, gain: -12, reverb: 1.6, wet: -12}      # « Disponible sur l’App Store » alone on f848
+  - {id: end.store, kind: glint, pos: 14.2.0, gain: -12, reverb: 1.6, wet: -12}      # « Sur l’App Store et Google Play » alone on f848
   - {id: end.store_log, kind: log, pos: 14.2.0, note: G2, vel: 0.8}                 # the log under it
+  # the owner's « Both stores, post later » (2026-10-20): « myweli.com », the card's last line, alone on its own cue —
+  # the bar's step-12 log (was the pattern's) made the cue, with an answering glint a fifth under the store's
+  - {id: end.site, kind: glint, pos: 14.4.0, note: G5, gain: -13, reverb: 1.6, wet: -12}   # « myweli.com » alone on f880
+  - {id: end.site_log, kind: log, pos: 14.4.0, note: C2, vel: 0.8}                  # the log under it
   # ── OUTRO, bar 15 (f896-959): the owner's added bar ─────────────────────
   - {id: end.underline, kind: pen_scratch, pos: 15.1.0, dur: 8, gain: -12}         # the hook's strike, now an underline under « moins de gestion. », drawn f896-904
   - {id: end.last, kind: log, pos: 15.3.0, note: C2, decay: 0.2, reverb: 0.9, wet: -14}   # f928: the mark's small punch; it rings out by f959 (≥ 20 dB down by f950)

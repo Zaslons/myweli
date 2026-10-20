@@ -106,6 +106,15 @@ class Window:
     #: the lowest row where the app's text is READ: the floor, or the platform's text rectangle's bottom where
     #: that is higher (9:16: y 1248 — the owner's floor is app pixels only below it). None: the floor.
     text_floor: float | None = None
+    #: where the band edge SHOWS, when it is not where W is laid (`top`): 16:9's push about the floor (the owner's
+    #: round 5, 2026-10-20) scales the slab and its window together about the floor — the screen is laid out from
+    #: `top` (its bottom on the floor) and the pose scales it, so pt W shows on the scaled edge. None: `top`.
+    clip_top: float | None = None
+
+    @property
+    def edge(self) -> float:
+        """The band edge as the frame shows it (the fade and the clip): `clip_top`, else `top`."""
+        return self.top if self.clip_top is None else self.clip_top
 
     @property
     def read_floor(self) -> float:
@@ -118,10 +127,12 @@ class Window:
             return self.top
         return max(self.top, self.anchor_bottom - (self.screen_bottom_pt - W) * self.px_per_pt)
 
-    def at_top(self, top: float) -> "Window":
-        """This window with its band edge at `top` (the window a frame shows)."""
+    def at_top(self, top: float, clip_top: float | None = None) -> "Window":
+        """This window with its band edge at `top` (the window a frame shows) —
+        shown at `clip_top` when a push about the floor has scaled it."""
         from dataclasses import replace
-        return replace(self, top=float(top), anchor_bottom=None)
+        return replace(self, top=float(top), anchor_bottom=None,
+                       clip_top=None if clip_top is None else float(clip_top))
 
     def _fixed(self) -> None:
         if self.anchor_bottom is not None:
@@ -157,7 +168,7 @@ class Window:
         """(y, alpha) of the phone layer's mask. An anchored window has no
         mask of its own: its band edge is the frame's (`at_top`)."""
         self._fixed()
-        return [(self.top - self.band_fade, 0.0), (self.top, 1.0),
+        return [(self.edge - self.band_fade, 0.0), (self.edge, 1.0),
                 (self.floor, 1.0), (self.floor + self.floor_fade, 0.0)]
 
     def alpha_at(self, y: float) -> float:
@@ -292,7 +303,7 @@ class Phone:
         if windowed:
             # nothing under the opaque band or floor can show: do not draw it
             canvas.save()
-            canvas.clipRect(skrect((-fw, window.top - window.band_fade, 2 * fw, window.floor + window.floor_fade)))
+            canvas.clipRect(skrect((-fw, window.edge - window.band_fade, 2 * fw, window.floor + window.floor_fade)))
 
         outline = _rrect_outline(slab, s.radius)
         front = projection.apply_many(h_slab, outline)

@@ -211,7 +211,7 @@ class TestCaptionsEveryFormat(unittest.TestCase):
                         if c.in_column:
                             self.assertGreaterEqual(box.x0, col[0])
                             self.assertLessEqual(box.x1, col[1])
-                        if c.kind in ("tagline", "store"):          # centred on the mark's axis
+                        if c.kind in ("tagline", "store", "site"):          # centred on the mark's axis
                             self.assertAlmostEqual((c.caption.placed[0].x + c.caption.placed[-1].x
                                                     + c.caption.placed[-1].width) / 2, f.layout["lottie_centre"][0])
                         if c.id == "breathe":                       # centred on the canvas
@@ -243,7 +243,9 @@ class TestCaptionsEveryFormat(unittest.TestCase):
 
 class TestPlacesEveryFormat(unittest.TestCase):
     """Lifts and tiles land where the format puts them: inside the overlays
-    zone and the safe area, 780 px wide (16:9: 760, beside the phone)."""
+    zone and the safe area, 780 px wide (16:9: 760, beside the phone — and
+    the « Arrivé » card and the Fiche's tiles at the left column's full
+    width, 944 px: the owner's round 5, 2026-10-20)."""
 
     def test_lift_targets(self):
         k = 3.0                                                     # capture px a point
@@ -256,13 +258,16 @@ class TestPlacesEveryFormat(unittest.TestCase):
                 for sc in SB.cut_scenes(cut):
                     for L in sc.get("lifts") or []:
                         src = tuple(v * k for v in L["rect_pt"])
-                        place = {n: float(v) for n, v in lay["lift_y"][L["target"]["y"]].items()}
-                        r = Rect(*liftmod.fit_width(src, x0, x1, **place))
+                        spec = lay["lift_y"][L["target"]["y"]]
+                        place = {n: float(v) for n, v in spec.items() if n != "x"}
+                        r = Rect(*liftmod.fit_width(src, *spec.get("x", (x0, x1)), **place))
                         with self.subTest(fmt=fid, cut=cut, lift=L["id"]):
                             self.assertTrue(ov.contains(r) and f.safe.contains(r), r)
                             if fid == "16x9":
                                 self.assertLess(r.x1, slab_x0)              # beside the phone, not over it
             self.assertEqual(x1 - x0, 760 if fid == "16x9" else 780)
+            own = {n: p["x"] for n, p in lay["lift_y"].items() if "x" in p}
+            self.assertEqual(own, {"card_on_floor": [96, 1040], "tile_row": [96, 1040]} if fid == "16x9" else {})
 
 
 class TestOdometerHoldsItsEdge(unittest.TestCase):

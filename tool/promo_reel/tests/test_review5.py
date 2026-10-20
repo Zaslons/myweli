@@ -285,10 +285,14 @@ class TestTheMapCredit(unittest.TestCase):
                     with self.subTest(fmt=fid, f=f, shown=round(shown, 1)):
                         if shown >= 2.0:
                             self.assertEqual(len(credit), 1)
-                            if shown >= 4.0 * opacity:                       # whole while the tiles show (with
-                                self.assertGreaterEqual(credit[0]["alpha"], opacity - 0.01)   # the phone's fade)
-                        elif shown <= 0.0:
-                            self.assertEqual(credit, [])
+                            if shown >= 4.0 * opacity:                       # whole while the tiles show
+                                self.assertGreaterEqual(credit[0]["alpha"], 0.99)
+                        elif shown <= 0.0 and sid == "page" and f < 680:
+                            self.assertEqual(credit, [])                     # no map yet, no credit
+                        elif sid == "air2":
+                            # the owner's round 5 (2026-10-20): whole until the map has dimmed out (f767) — the
+                            # falling phone fades, the credit does not (round 5's own rule faded it with the phone)
+                            self.assertGreaterEqual(credit[0]["alpha"], 0.99)
 
 
 @unittest.skipUnless(HAVE_TAKES, "the recorded takes are not on this machine")
@@ -332,25 +336,32 @@ class TestLandscape(unittest.TestCase):
     def test_the_push_keeps_the_phone_on_the_floor(self):
         """The « rempli. » push scaled about the band edge: the slab sank to
         y ≈ 1071, Koffi A.'s « Confirmé » cut by the floor (30-s f437–463,
-        15-s f233–255)."""
+        15-s f233–255). Round 6 (the owner's push about the floor, `fill`, on
+        the lower journal and the form's end): every pushed frame keeps the
+        slab ON the floor — never sunk into it, never lifted off it (its first
+        build laid the window at the risen edge and scaled it again: the slab
+        floated at y ≈ 912)."""
         for cut in ("30s", "15s"):
             j = scene(film(cut, "16x9"), "journal")
             pushed = []
             for f in range(j.start, j.end):
                 t = float(f)
-                z = j.zoom(t)
+                z = j.zoom(t) * j.fill(t)
                 if z > 1.0 + 1e-6:
                     pose = j.pose(t)
                     if slab(j, t, pose.but(scale=pose.scale / z, pivot=None))[3] <= 1026.5:   # it stands on the floor
                         pushed.append(f)
-            self.assertGreater(len(pushed), 10, cut)                         # the « rempli. » push
+            self.assertGreater(len(pushed), 60 if cut == "30s" else 70, cut)   # the fills and the « rempli. » push
             for f in pushed:
                 with self.subTest(cut=cut, f=f):
-                    self.assertLessEqual(slab(j, float(f))[3], 1026.5)
+                    self.assertAlmostEqual(slab(j, float(f))[3], 1026.0, delta=0.5)
 
     def test_a_push_that_would_sink_is_refused(self):
         from promo.scenes import SceneError
         with self.assertRaisesRegex(SceneError, "sinks the slab"):
+            film("30s", "16x9", "scenes.30s.2.camera.zoom.4.anchor_y=700", "scenes.30s.2.camera.formats.16x9.fill=[]")
+        # on the push about the floor, a zoom about any other anchor is refused (the two share the floor)
+        with self.assertRaisesRegex(SceneError, r"camera.fill: on f437 a zoom about another anchor .* runs on the push"):
             film("30s", "16x9", "scenes.30s.2.camera.zoom.4.anchor_y=700")
 
     def test_the_slab_inside_graphics_safe(self):

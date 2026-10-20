@@ -184,6 +184,12 @@ not reproduce: the master was 5.87, an AAC encode 6.05.)
   and 7.2.0 (f400), with « moins de gestion. »: on the later beat the
   26-character line was on screen for 1.07 s (24 characters a second), over
   the storyboard's 17-cps reading ceiling; from f848 it has 1.6 s (16.3).
+  The owner's end card of 2026-10-20 (« Both stores, post later ») keeps it
+  under « Sur l’App Store et Google Play » and adds « myweli.com » on its
+  own cue: `end.site` (a glint on G5, −13 dB, a fifth under the store's D6)
+  and `end.site_log` (C2, vel 0.8) on 14.4.0 (f880) / 7.4.0 (f432) — the
+  bar's step-12 log of the end card's pattern, now the cue (the pattern lost
+  it, so the hit is not doubled).
 - Riser 2 stops one 16th before the drop (f508), as riser 1 does (f108).
 - In the 15-s, a short reverse cymbal leads into the reveal (f312–320).
   That cut has no AIR before its reveal.

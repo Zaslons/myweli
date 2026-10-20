@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Approuvé le 2026-10-19 par le propriétaire** (le storyboard « CARNET → DROP »), puis **construit et vérifié les 2026-10-19 et 2026-10-20** sur `feat/promo-reel` par `tool/promo_reel/` : deux coupes (30 s et 15 s), chacune en 9:16, 1:1 et 16:9 — six films, `verify --all` sort 0 sur les six (§9). **Décisions du propriétaire**, toutes le 2026-10-19 (§2 les cite une à une) : le concept « CARNET → DROP » ; l'amapiano à 112,5 BPM ; le carnet dessiné par le code, sans photo ; « Disponible sur l’App Store » ajouté sous la signature, publié seulement après la sortie App Store ; une mesure de plus (« Add one bar (Recommended) ») ; le soulignement et le coup de zoom de la carte de fin gardés (« Keep both ») ; le crochet 16:9 en deux moitiés gardé (« Keep the split ») ; le 16:9 remis en page (« Re-lay it ») ; le plancher 9:16 descendu vers y 1450 (« Extend to ~y 1450 », posé à y 1424, §2). **Pas fait** : le propriétaire n'a pas encore écouté la bande-son, et rien n'est publié (§10). |
+| **Statut** | **Approuvé le 2026-10-19 par le propriétaire** (le storyboard « CARNET → DROP »), puis **construit et vérifié les 2026-10-19 et 2026-10-20** sur `feat/promo-reel` par `tool/promo_reel/` : deux coupes (30 s et 15 s), chacune en 9:16, 1:1 et 16:9 — six films, `verify --all` sort 0 sur les six (§9). **Décisions du propriétaire**, toutes le 2026-10-19 (§2 les cite une à une) : le concept « CARNET → DROP » ; l'amapiano à 112,5 BPM ; le carnet dessiné par le code, sans photo ; « Disponible sur l’App Store » ajouté sous la signature, publié seulement après la sortie App Store ; une mesure de plus (« Add one bar (Recommended) ») ; le soulignement et le coup de zoom de la carte de fin gardés (« Keep both ») ; le crochet 16:9 en deux moitiés gardé (« Keep the split ») ; le 16:9 remis en page (« Re-lay it ») ; le plancher 9:16 descendu vers y 1450 (« Extend to ~y 1450 », posé à y 1424, §2). **Puis le 2026-10-20** (§2) : le glissé et la suspension 9:16 acceptés, le 1:1 gardé, les trois retouches 16:9 (poussée sur le sol, cartes à pleine largeur de colonne, coupe franche du formulaire 15 s), le crédit de carte dans les mots de l'app, et la carte de fin « Sur l’App Store et Google Play » · « myweli.com ». **Pas fait** : le propriétaire n'a pas encore écouté la bande-son, et rien n'est publié — **à ne publier qu'une fois les DEUX apps Pro en ligne, iOS et Android** (§10). |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-10-20 |
 | **PRD ref / phase** | Lancement — marketing · V1 (hors app : rien dans `mobile/`, `web/` ni `backend/` ne change) |
@@ -27,7 +27,8 @@ cliente arrive, un créneau libre est réservé pour un client sans numéro, la
 fiche client, le total du mois réalisé, la page que verront les clients. Un
 second souffle noir répond au crochet, puis une seule révélation de marque :
 l'animation d'ouverture de l'app Pro, seule, puis le mark qui se pose avec
-« Plus de clients, moins de gestion. » et « Disponible sur l’App Store ».
+« Plus de clients, moins de gestion. », « Sur l’App Store et Google Play » et
+« myweli.com ».
 
 **Dans le périmètre.**
 - Deux coupes : **30 s** (15 mesures, 960 images, 32,0 s) et **15 s** (8 mesures,
@@ -56,7 +57,7 @@ les jetons de marque de `tool/app_store_preview/brand.py` et de
 n'est commité. Sans objet ici, car rien de tout cela n'existe pour cet outil :
 API et contrat (TEMPLATE §3), modèle de données (§4), couches de l'app (§5).
 
-## 2. Les décisions du propriétaire (2026-10-19)
+## 2. Les décisions du propriétaire (2026-10-19, 2026-10-20)
 
 Le contrat d'architecture de l'outil les consigne. Les réponses du propriétaire
 sont citées telles quelles ; les trois premières lignes sont citées dans les mots
@@ -67,12 +68,16 @@ du contrat, qui les transcrit.
 | Le storyboard « CARNET → DROP » approuvé ; « build it » | `storyboard.yaml` en est la forme lisible par la machine et la seule source du pipeline |
 | « amapiano 112.5 BPM » | `promo/audio/` : une noire = 16 images, une double croche = 4, une mesure = 64 images (2,1333 s), 1 image = 1 600 échantillons à 48 kHz |
 | « hook = code-drawn carnet, NO photos (photo slots stay declared but empty) » | `promo/fx/carnet.py` : papier réglé procédural, gribouillis volontairement illisibles, aucune police manuscrite, aucun nom, aucun numéro. Les zones `slot_card` restent déclarées et vides ; la photo IA `hook-owner-notebook.webp` n'est pas utilisée |
-| « ending ADDS « Disponible sur l’App Store » under the tagline (posted only after the release) » | La ligne Inter Medium 40 px #4A4A4A sous la signature, seule sur son repère (30 s : f848 ; 15 s : f400). `storyboard.py` refuse une ligne de magasin sous 40 px |
+| « ending ADDS « Disponible sur l’App Store » under the tagline (posted only after the release) » | La ligne Inter Medium 40 px #4A4A4A sous la signature, seule sur son repère (30 s : f848 ; 15 s : f400). `storyboard.py` refuse une ligne de magasin sous 40 px. **Remplacée le 2026-10-20** par « Sur l’App Store et Google Play » puis « myweli.com » (ci-dessous) |
 | Carte de fin : « Add one bar (Recommended) » | 30 s : 14 → 15 mesures (960 images, 32,0 s) ; 15 s : 7 → 8 (512 images, 17,07 s) ; une mesure de sortie calme. La carte de fin tient ≈ 4,4 s et se lit à 13,5 caractères/s (60 caractères, f827→f960) |
 | Carte de fin : « Keep both » | **Écart approuvé** au storyboard (qui disait le mark « only moved and scaled ») : sur le premier temps de la sortie, le trait des ratures du crochet souligne « moins de gestion. » (30 s f896, 15 s f448) ; sur le dernier coup de log drum, le mark donne un coup de zoom à 1,06× (3 images aller, 8 retour ; 30 s f928, 15 s f480) |
 | Crochet 16:9 : « Keep the split » | **Écart approuvé** : la page du carnet, en portrait, sur la moitié droite (x 760–1960), les mots sur le noir à gauche (x 0–820) — au lieu de « la page couchée en travers du cadre » |
 | Mise en page 16:9 : « Re-lay it » | Le téléphone **posé sur le sol** (le bas de la coque sur y 1026) ; une fenêtre plus haute (y 84–1026, 942 px, contre 918) ; les légendes à 88 px (72 × 1,22) et le compteur à 144 / 48 px, chacun avec sa raison écrite (`type_note`) ; tous les contrôles de confidentialité relancés sur ce cadrage |
 | Plancher 9:16 : « Extend to ~y 1450 » | Dans les deux coupes 9:16, la fenêtre du téléphone descend jusqu'à **y 1424** (§6 dit pourquoi pas 1450) ; sous y 1248, seulement des pixels de l'app ; les clés de caméra re-résolues ; tous les contrôles de confidentialité relancés |
+| **2026-10-20** — glissé 9:16 : « Keep it » ; suspension 9:16 : « Accept it » ; suspension 1:1 : « Keep as is » | **Écarts approuvés** : le glissé « Arrivé » se joue à y ≈ 1290–1410, sous la ligne de texte (pixels de l'app ; le propriétaire vérifie sous l'interface Reels/TikTok) ; sur le bas du journal et la fin du formulaire, le téléphone s'arrête à y ≈ 985 en 9:16 et pend sous le bandeau en 1:1 (forcé par la ligne 13:15 cachée) |
+| **2026-10-20** — 16:9, les trois retouches | (1) **Poussée sur le sol** (`camera.formats.16x9.fill`) sur le bas du journal et la fin du formulaire, la fenêtre grandit avec le téléphone : **1,23×** et pas ~1,3–1,5× — la colonne de gauche va jusqu'à x 878 (« Un créneau libre ? ») et x 1024 (« rempli. ») ; à 1,3× la coque passerait sous « libre ? » et dans « rempli. » ; 1,23× garde chaque légende à ≥ 12 px du téléphone (mesuré : 15 px), la ligne 13:15 toujours sous le bandeau, tous les contrôles de confidentialité relancés ; (2) la carte « Arrivé » et les tuiles de la fiche à **pleine largeur de la colonne** (x 96–1040, 944 px, 1,42× la carte du téléphone) ; « Total réalisé » reste à 760 px (à 944 px elle ferait 508 px de haut, il n'y en a que 427 sous la phrase) ; (3) le formulaire 15 s : **coupe franche à f193** au lieu du fondu, et **plus de rideau** — le formulaire rempli est cadré d'emblée par la fenêtre du journal (W 667), rien ne bouge jusqu'à la poussée du snackbar ; le prix, en 16:9 seulement : « Client sans numéro » coché et « Yao K. » tapé ne se voient pas sur le formulaire (le nom se lit 0,8 s plus tard sur la nouvelle carte du journal) |
+| **2026-10-20** — crédit de carte (attribution, décision du propriétaire) | Les mots de l'app : « © OpenStreetMap contributors · © CARTO » (`cartoCredits`, `carto_basemap_layer.dart:116`) ; **entier** de sa première image entière jusqu'à ce que la carte se soit éteinte (f767, dernière image du souffle 2), dans chaque format — round 5 le faisait disparaître avec le téléphone |
+| **2026-10-20** — carte de fin : « Both stores, post later » | Dans l'ordre : le mark · « Plus de clients, moins de gestion. » (soulignement et coup de zoom gardés) · « Sur l’App Store et Google Play » (remplace « Disponible sur l’App Store ») · « myweli.com », en dernier ; chaque ligne seule sur son repère de la grille (30 s f832 / f848 / f880 ; 15 s f384 / f400 / f432), les deux partitions recalées (`end.site`) ; 74 caractères f827→f960 = **16,7 car./s** (≤ 17). **Règle de publication** : seulement quand les DEUX apps Pro sont en ligne, iOS et Android (Android ne l'est pas : BACKLOG B0.10) |
 
 **Pourquoi y 1424 et pas 1450.** Mesuré sur take1b 10.000 : à 1450, soit le titre
 « Ma journée » reste à moitié fondu dans le bandeau (W 111,9), soit le texte de
@@ -166,9 +171,10 @@ storyboard.yaml ──► partition (promo/audio, score_30s.yaml / score_15s.yam
 | **Les chiffres viennent des données de démonstration** | Le compteur part du chiffre que montre l'app (« 0 FCFA », N1) et atterrit sur le chiffre de l'app (« 77 000 FCFA », N1 #26) **sur l'image même** où l'app le montre ; le rendu refuse un compteur qui lit ce chiffre plus tôt ou une valeur au-dessus. Format de `formatters.dart:83-93` (espace fine insécable U+202F entre les milliers). Les autres chiffres sont dans les pixels : 17 000 FCFA, 2 visites, 13 oct. 2026 (take2b) ; Total 5 000 FCFA (take1b). Aucun chiffre « Revenus prévus », aucun taux, aucun nombre de salons | (h) les vitesses ; le rendu refuse sinon |
 | **Les numéros de téléphone floutés avant l'accumulation** | Les flous sont attachés à la prise (`media/masks.py`) et `Take.picture()` ne rend que des images floutées : chaque carte levée, chaque poussée, chaque sous-image du flou de mouvement en est faite. Le numéro d'Awa K. (rectangle + 4 pt, σ 14 px) ; celui du salon suivi au défilement (`phone_rect_per_frame.csv`), coupé à la barre (740 pt). Un flou qui laisse plus de 15 % du détail, ou qui ne couvre rien, est refusé | (h) 30 s : **35 images mesurées, au plus 11 %** du détail des chiffres. 15 s : aucun flou déclaré (take1b ne montre que le gabarit « Téléphone du client », N1 aucun numéro) — dit tel quel, jamais « mesuré » |
 | **La ligne 13:15 cachée jamais lisible** (l'ancienne réservation « Yao K. » de take 1) | Par le cadrage seul, aucun pixel de l'UI modifié : sous le sol au cadrage de Fatou B. (W 128), sous le bandeau sur le bas du journal (W 667 : sa dernière ligne, 644 pt, sur y 560), et seulement dans le flou du fouetté vertical, sur la courbe easeInOut de base de l'app | (h) `HiddenRow` sur **chaque** image de sa scène (30 s : 336 ; 15 s : 192), fouetté, poussée et retour du formulaire compris : ses blocs qui l'identifient (« 13:15 / 13:45 » seulement — la nouvelle réservation est le même client) cherchés dans **toute** la fenêtre du MP4, visibles ≤ 5 % ; tous ses blocs à sa place ≤ 25 % ; hors fouetté, sa part visible ≤ 5 % ; dans le fouetté, ≥ 80 px de flou sur chaque image dont l'obturateur montre sa place |
-| **Jamais une attente du serveur accélérée** | Le rendu refuse une vitesse dérivée au-dessus de 1× sauf sur le segment d'un glissé (rampes du geste 1,11×, 2,74×, 1,08× ; jamais au-delà de 3×). Le seul saut de séquence est le **fondu déclaré** de la 15 s (32.998 → 130.262, celui du film App Store), cité, en avant dans la prise, sans disque sur ses images | (h) les attentes (0,965× ; 1,000× ; 0,986× ; 0,995×), les rampes, les fondus déclarés |
+| **Jamais une attente du serveur accélérée** | Le rendu refuse une vitesse dérivée au-dessus de 1× sauf sur le segment d'un glissé (rampes du geste 1,11×, 2,74×, 1,08× ; jamais au-delà de 3×). Le seul saut de séquence est le **fondu déclaré** de la 15 s (32.998 → 130.262, celui du film App Store), cité, en avant dans la prise, sans disque sur ses images — en 16:9 une **coupe franche déclarée** (`curve: cut`, la décision du propriétaire du 2026-10-20), le même saut, la même déclaration | (h) les attentes (0,965× ; 1,000× ; 0,986× ; 0,995×), les rampes, les fondus déclarés |
 | **Un disque seulement là où le doigt a touché** | `media/touches.py` : la règle du film App Store (premier changement d'image − 200 ms) ; chaque disque tenu à un toucher observé de la même prise, à une demi-image près, jamais sur une touche tapée, sur la grille des doubles croches ; noir sur fond clair, blanc sur le volet vert et le bouton noir | (c) 0 problème, teintes conformes ; (f) chaque clic sur l'image où son disque apparaît |
 | **L'animation d'ouverture telle qu'elle est livrée** | Le lecteur skia de `promo/lottie/` joue `myweli_loader_mixed_pro.json` en #111111 sur #FAFAFA, contenu intact, seulement retimé par segment (0,90–1,50× sur les segments qui bougent, le maintien raccourci) et figé sur comp 74. Recette contre les goldens Flutter : comp 25 à 0,0015/255 d'erreur moyenne (IoU 0,9993), comp 142 à 0,0002/255 (IoU 1,0000). « MyWeli Pro » n'est jamais tapé | (h) l'élément et sa source |
+| **Le crédit de la carte** | Les mots de l'app (`cartoCredits`, `carto_basemap_layer.dart:116`) : « © OpenStreetMap contributors · © CARTO » ; il monte avec les premières lignes de tuiles et reste **entier** jusqu'à ce que la carte se soit éteinte (f767), dans chaque format | (h) `credit_problems` : entier de sa première image entière à f767 ; un test relit la constante Dart |
 | **Rien de ce qui n'existe pas** | Aucun SMS, rappel WhatsApp, paiement, acompte, KYC, sélecteur de salon, offre ou module V2/V3. La ligne « WhatsApp » de la page publique est le lien wa.me du salon, jamais légendé ni levé. « Réserver (après la mise en ligne) » reste visible comme la réserve de la page elle-même, gardée lisible (verify (g) `app text`) | — |
 | **Les noms sont inventés** | Fatou B., Awa K., Mariam T., Koffi A., Yao K. sont des noms de démonstration ; Maison Nala est un salon de démonstration fictif, jamais présenté comme un vrai client | — |
 
@@ -184,7 +190,10 @@ compté. » — `earnings_screen.dart:190/:207` (« encaissé » n'est jamais em
 « Votre page, prête pour vos clients. » et « Ils réservent dès la mise en ligne. »
 — la capture approuvée 02 (`tool/app_store_screenshots/screens.json`) ; « Plus de
 clients, moins de gestion. » — la signature Pro du livre de marque, pas une
-statistique.
+statistique ; « Sur l’App Store et Google Play » et « myweli.com » — la décision
+du propriétaire (2026-10-20) : le site est vrai aujourd'hui, la ligne des
+magasins le sera quand l'app Android sera en ligne — d'où la règle de
+publication (§10).
 
 ## 5. Le storyboard, mesure par mesure
 
@@ -202,10 +211,10 @@ consignés dans le README de l'outil). Noir = la douleur, papier = l'app.
 | **7** (f384–447) « Créer » | « Créneau » f400 « libre » f408 ; « libre » barré f440 | Défilement du formulaire à 2,74× (geste) jusqu'à « Total 5 000 FCFA » ; W 667 ; tap « Créer le rendez-vous » f400 à 0,986× ; « Ma journée » revient, le vrai snackbar « Rendez-vous créé » f436 ; poussée 1,791 → 2,0 px/pt f436–460, le point 667 tenu au bord du bandeau | Le log drum presque seul (Rhodes et clap sortent ; grosse caisse et shaker restent) ; carillon original f436 ; le whoosh du stylo du crochet f440 |
 | **8** (f448–511) la fiche | « rempli. » f448 ; « Votre » f464 « fichier » f472 « clients. » f480 | Coupe franche sur le clap f464 : la « Fiche client » d'Awa K. (take2b 6.500, numéro flouté et sous le bandeau, W 216) ; trois vraies tuiles se lèvent une à une, f472 / f480 / f488 — « 2 » Visites, « 17 000 FCFA » Dépensé, « 13 oct. 2026 » Dernière — sur un panneau uni qui grandit avec elles ; « 0 Absences » n'est pas levé | Arrêt de la batterie f496 |
 | **9–10** (f512–639) drop 2 : « Revenus » | Le compteur seul : « Aujourd’hui » / « 0 FCFA » → « Mois » / « 77 000 FCFA » ; puis « Chaque » f576 « rendez-vous » f584 / « terminé, » f592 « compté. » f600 | Fouetté horizontal f512–518 ; N1 (W 124) ; tap « Mois » f528 ; l'étiquette roule f536, les chiffres roulent et atterrissent **f548** sur la première image de l'app qui montre le chiffre (l'attente réelle de 0,663 s à 0,995×), coup de zoom 1,08 ; le compteur sort, la phrase arrive, la vraie carte « Total réalisé » se pose f600 | Impact léger f512, sifflet, orgue ; tics sur les doubles croches ; atterrissage f548 |
-| **11–12.3** (f640–751) la page publique | « Votre » f640 « page, » f648 « prête » f656 / « pour vos clients. » f664 ; « Ils » f704 « réservent » f712 / « dès la » f720 « mise en ligne. » f728 | Coupe franche sur le haut de la page de Maison Nala (take5b 25.900 : photo de couverture, logo « Maison N », « Nouveau », « 5 services • Voir les tarifs ») ; inclinaison d'entrée, parallaxe ; le vrai défilement f672–736 (1,08×, images choisies par position de défilement) ; le numéro du salon flouté ; la fin de page à W 427,32 : « Aperçu — voici ce que verront vos clients. » / « Réserver (après la mise en ligne) » lisibles ; crédit « © OpenStreetMap, © CARTO » pendant que les tuiles de carte sont là | Breakdown, troisième montée |
-| **12.4** (f752–767) souffle 2 | « Ils réservent dès la mise en ligne. » en blanc | Noir, la page recule (1,00 → 0,90, opacité → 0 en 12 images), le crédit blanc sur noir s'efface avec elle | Presque le silence (8,5 LU sous le groove) |
+| **11–12.3** (f640–751) la page publique | « Votre » f640 « page, » f648 « prête » f656 / « pour vos clients. » f664 ; « Ils » f704 « réservent » f712 / « dès la » f720 « mise en ligne. » f728 | Coupe franche sur le haut de la page de Maison Nala (take5b 25.900 : photo de couverture, logo « Maison N », « Nouveau », « 5 services • Voir les tarifs ») ; inclinaison d'entrée, parallaxe ; le vrai défilement f672–736 (1,08×, images choisies par position de défilement) ; le numéro du salon flouté ; la fin de page à W 427,32 : « Aperçu — voici ce que verront vos clients. » / « Réserver (après la mise en ligne) » lisibles ; crédit « © OpenStreetMap contributors · © CARTO » dès que les tuiles de carte arrivent | Breakdown, troisième montée |
+| **12.4** (f752–767) souffle 2 | « Ils réservent dès la mise en ligne. » en blanc | Noir, la page recule (1,00 → 0,90, opacité → 0 en 12 images) ; le crédit, blanc sur noir, reste entier jusqu'à f767 (la carte éteinte) | Presque le silence (8,5 LU sous le groove) |
 | **13** (f768–823) révélation | — (« MyWeli Pro » est le vecteur de la Lottie) | Coupe franche sur #FAFAFA nu ; l'animation d'ouverture Pro, seule, comp 900 px centrée (540, 680) en 9:16 ; M et W se rejoignent en mark, flou de 8 sous-images sur la transformation | Le grand IMPACT f768, nappe Cm9 et sub, scintillement, glissé FM |
-| **14–15** (f824–959) carte de fin et sortie | « Plus de clients, moins de gestion. » (un seul dévoilement f827→f832) ; « Disponible sur l’App Store » f848 | Passage continu (pas une coupe) : le mark (comp 74) monte et se pose f832 à l'échelle 1,2 ; soulignement f896 ; coup de zoom 1,06× f928 ; tenue jusqu'à la dernière image | Dernier log f832, groove léger ; mesure 15 : sortie calme, dernier accord et dernier log f928, qui s'éteignent avant la fin |
+| **14–15** (f824–959) carte de fin et sortie | « Plus de clients, moins de gestion. » (un seul dévoilement f827→f832) ; « Sur l’App Store et Google Play » f848 ; « myweli.com » f880 | Passage continu (pas une coupe) : le mark (comp 74) monte et se pose f832 à l'échelle 1,2 ; soulignement f896 ; coup de zoom 1,06× f928 ; tenue jusqu'à la dernière image | Dernier log f832, groove léger ; mesure 15 : sortie calme, dernier accord et dernier log f928, qui s'éteignent avant la fin |
 
 Jointures : coupes f32, f64, f112, f128, f464, f640, f752, f768 ; fouettés f256
 (dans le téléphone) et f512 ; passage continu f824.
@@ -215,12 +224,12 @@ Jointures : coupes f32, f64, f112, f128, f464, f640, f752, f768 ; fouettés f256
 | Mesures (images) | Contenu |
 |---|---|
 | **1** (f0–47) crochet, (f48–63) souffle | Le carnet, poussée en cours à f0 (1,10 → 1,13), l'entrée qui s'écrit ; « Votre » f0 « carnet » f8 / « déborde ? » f16, tenu jusqu'à f47 ; trois ratures sans mots (le temps de lecture) sur f24 / f32 / f40 ; pas de macro, pas de plongée. « Respirez. » f48–63 |
-| **2–4** (f64–255) le journal | Coupe franche sur W 128 (sans claquement) ; « Une cliente » f64 « arrive ? » f72 / « Glissez, » f80 « appuyez. » f88 ; glissé f64 (1,11×), volet ouvert f80, tenu à 1×, tap f88 ; « Arrivé » f144 (0,965×), la carte levée f144–159 ; fouetté vertical f160 (W 128 → 667) ; « Créneau » f160 « libre » f168 ; tap « Libre » f168, le formulaire entre ; **le fondu déclaré f193–196** (32.998 → 130.262, le formulaire ouvert → le formulaire rempli : il saute le remplissage, W 667 → 521,67 pour que les champs restent en place) ; tap « Créer » f196 (0,986×) ; retour à W 667 f204–216 ; snackbar f232, poussée f232–252 ; « libre » barré f236, « rempli. » f240 |
+| **2–4** (f64–255) le journal | Coupe franche sur W 128 (sans claquement) ; « Une cliente » f64 « arrive ? » f72 / « Glissez, » f80 « appuyez. » f88 ; glissé f64 (1,11×), volet ouvert f80, tenu à 1×, tap f88 ; « Arrivé » f144 (0,965×), la carte levée f144–159 ; fouetté vertical f160 (W 128 → 667) ; « Créneau » f160 « libre » f168 ; tap « Libre » f168, le formulaire entre ; **le fondu déclaré f193–196** (32.998 → 130.262, le formulaire ouvert → le formulaire rempli : il saute le remplissage, W 667 → 521,67 pour que les champs restent en place ; **en 16:9 une coupe franche à f193**, le formulaire rempli cadré d'emblée à W 667) ; tap « Créer » f196 (0,986×) ; retour à W 667 f204–216 (16:9 : déjà là) ; snackbar f232, poussée f232–252 ; en 16:9, la poussée sur le sol f168–184, tenue ; « libre » barré f236, « rempli. » f240 |
 | **5** (f256–319) « Revenus » | Fouetté horizontal ; le compteur seul ; « Mois » f272, l'étiquette f280, atterrissage f292 sur « 77 000 FCFA » (0,995×) ; pas de phrase, pas de carte levée |
 | **6** (f320–375) révélation | La Lottie, le même retimage sur les repères de la 15 s |
-| **7–8** (f376–511) carte de fin et sortie | Passage continu ; le mark se pose f384 ; la signature f379→f384 ; « Disponible sur l’App Store » f400 ; soulignement f448 ; coup de zoom f480 ; 60 caractères f379→f512 = 13,5 caractères/s |
+| **7–8** (f376–511) carte de fin et sortie | Passage continu ; le mark se pose f384 ; la signature f379→f384 ; « Sur l’App Store et Google Play » f400 ; « myweli.com » f432 ; soulignement f448 ; coup de zoom f480 ; 74 caractères f379→f512 = 16,7 caractères/s |
 
-Jointures : coupes f48, f64, f320 ; fouettés f160 et f256 ; fondu déclaré f193 ;
+Jointures : coupes f48, f64, f320 ; fouettés f160 et f256 ; fondu déclaré f193 (en 16:9 une coupe franche déclarée) ;
 passage continu f376. Laissés hors de la 15 s : le time-lapse du formulaire, la
 fiche, la phrase et la carte de « Revenus », la page publique.
 
@@ -237,12 +246,12 @@ carte de fin ni le crédit).
 |---|---|---|---|
 | Toile · zone sûre | 1080 × 1920 · **x 120–900, y 270–1248** — le rectangle combiné le plus strict de TikTok, Reels et WhatsApp Status ; au-dessus de y 840 (avant la colonne de boutons) les légendes centrées peuvent aller à x 960 | 1080 × 1080 · x/y 54–1026 (EBU R95, graphismes, 5 %) | 1920 × 1080 · x 96–1824, y 54–1026 (EBU R95, 5 %) |
 | Légendes | Bandeau opaque y 0–560 (fondu à 600), centrées sur x 540, 72 px | Bandeau y 0–358 (fondu à 388), centrées, 72 px | Pas de bandeau : colonne gauche x 96–1040, alignée sur x 96, centrée sur y 440, **88 px** |
-| Fenêtre du téléphone | x 180–900, y 600–**1424** ; sous y 1248, des pixels de l'app seulement | x 180–900, y 388–1002 (le bord du bandeau sur la rangée des puces) | x 1088–1808 (la coque finit sur x 1824), y 84–1026 ; **le téléphone posé sur le sol** : là où W soulèverait le bas de l'écran au-dessus de y 1010, c'est le bord du bandeau qui descend |
-| Cartes levées | x 120–900 sur le téléphone voilé à 55 %, ≤ y 1248 même en vol | x 150–930, sur le téléphone voilé | x 284–1044, à côté du téléphone, sans voile ; elles descendent puis passent sous la phrase |
+| Fenêtre du téléphone | x 180–900, y 600–**1424** ; sous y 1248, des pixels de l'app seulement | x 180–900, y 388–1002 (le bord du bandeau sur la rangée des puces) | x 1088–1808 (la coque finit sur x 1824), y 84–1026 ; **le téléphone posé sur le sol** : là où W soulèverait le bas de l'écran au-dessus de y 1010, c'est le bord du bandeau qui descend ; sur le bas du journal et la fin du formulaire, **la poussée sur le sol** 1,23× (le bord à y 550 au lieu de 639) |
+| Cartes levées | x 120–900 sur le téléphone voilé à 55 %, ≤ y 1248 même en vol | x 150–930, sur le téléphone voilé | à côté du téléphone, sans voile ; elles descendent puis passent sous la phrase : « Arrivé » et les tuiles de la fiche à pleine largeur de colonne, **x 96–1040** ; « Total réalisé » x 284–1044 |
 | Compteur | Centré, lignes de base 322 / 496 | Centré, 120 / 284 | Depuis x 96, 144 / 48 px, 354 / 561 |
 | Crochet | La page x 40–1040 depuis y 640 | La page x 120–960 depuis y 10 | En deux moitiés (approuvé) : la page x 760–1960, le noir x 0–820 |
-| Crédit de carte | Pied du bandeau, fini sur x 900, ligne de base 552 | Pied du bandeau, x 900, 346 | Pied de la colonne gauche, fini sur x 1040, 1016 |
-| Révélation · carte de fin | Lottie (540, 680) · mark y 400–599, signature à 712 | (540, 520) · 250–449, 560 | (960, 500) · 230–429, 540 |
+| Crédit de carte « © OpenStreetMap contributors · © CARTO » | Pied du bandeau, fini sur x 900, ligne de base 552 | Pied du bandeau, x 900, 346 | Pied de la colonne gauche, fini sur x 1040, 1016 |
+| Révélation · carte de fin | Lottie (540, 680) · mark y 400–599, signature à 712, magasins 808, site 872 | (540, 520) · 250–449, 560, 656, 720 | (960, 500) · 230–429, 540, 636, 700 |
 
 **La caméra recadre par règle.** Les clés W sont mesurées dans la fenêtre 9:16
 et chacune dit ce qu'elle garde : `top` (un point sur le bord du bandeau — la
@@ -266,16 +275,17 @@ les trois formats d'une coupe), `meter.json`, `spectrogram.png`, `waveform.png`,
 `honesty.txt`, `beats.png`, `transitions.png`, `frames/` (images pleine taille
 tirées du MP4), `renderer/` (l'image du rendu sur chaque temps).
 
-Le rendu final (code de `11d0f6e1`), relu le 2026-10-20 :
+Le rendu final du 2026-10-20 (les décisions du propriétaire après R5, §2 ; le
+code de ce commit) :
 
 | Film | Images · durée | Octets | Débit vidéo | sha256 (début) |
 |---|---|---|---|---|
-| 30s-9x16 | 960 · 32,000 s | 28 628 101 | 6,88 Mb/s | `d49d6c95b798cfca` |
-| 30s-1x1 | 960 · 32,000 s | 16 865 219 | 3,94 Mb/s | `6b811ef5f0a31394` |
-| 30s-16x9 | 960 · 32,000 s | 27 109 434 | 6,50 Mb/s | `5109fceb4a8743cc` |
-| 15s-9x16 | 512 · 17,067 s | 11 861 939 | 5,28 Mb/s | `0607c50a0576c3be` |
-| 15s-1x1 | 512 · 17,067 s | 6 927 536 | 2,97 Mb/s | `987e587a69ae2724` |
-| 15s-16x9 | 512 · 17,067 s | 11 136 691 | 4,94 Mb/s | `f91ae5ff9828275a` |
+| 30s-9x16 | 960 · 32,000 s | 28 643 591 | 6,88 Mb/s | `28daccd96d7138dd` |
+| 30s-1x1 | 960 · 32,000 s | 16 876 593 | 3,94 Mb/s | `6afd983582cdaa56` |
+| 30s-16x9 | 960 · 32,000 s | 27 350 713 | 6,56 Mb/s | `ef69f31f75c89752` |
+| 15s-9x16 | 512 · 17,067 s | 11 869 282 | 5,29 Mb/s | `be4119f973e7883f` |
+| 15s-1x1 | 512 · 17,067 s | 6 935 499 | 2,98 Mb/s | `5f8b659ce601aa4d` |
+| 15s-16x9 | 512 · 17,067 s | 11 172 437 | 4,96 Mb/s | `b1cfe3043251d696` |
 
 Tous : H.264 High niveau 4.1 (lu par ffprobe : `level=41`), yuv420p BT.709,
 30 i/s constants, une image clé toutes les 30, CRF 16, VBV 50 000 / 62 500 ; 4
@@ -312,55 +322,77 @@ worktree par son fichier `.git`, ou `PROMO_MATERIAL`), N1 sous
 prises sont ignorés quand le matériau n'est pas sur la machine.
 
 **Ne jamais lancer deux rendus complets en même temps** : le Mac sature.
-Compter environ 14 minutes de rendu (832 s pour les six films au dernier rendu :
-30 s 188 / 122 / 239 s, 15 s 107 / 79 / 96 s) et une dizaine de minutes de
-vérification.
+Compter environ 13 minutes de rendu (768 s pour les six films au dernier rendu :
+30 s 185 / 123 / 229 s, 15 s 86 / 54 / 91 s) et une dizaine de minutes de
+vérification (9 min 01).
 
 ## 9. Vérification — le rendu final
 
-**Ce qui a été observé.** Le rendu final : `build --all` en 832 s, sortie 0 ;
-`verify --all`, sortie 0, six PASS et une bande-son par coupe. La revue suivante
-(R6, §11) a relancé `verify --all` sur le code de `11d0f6e1` sans re-rendre :
-sortie 0, six PASS (9 min 47). Aucun fichier de `promo/` ni le storyboard n'a été
-modifié après le début du rendu (dates des fichiers : la dernière modification,
-celle de `storyboard.yaml`, précède le premier film). Les six rapports
-`verify/report.txt` sont relus ici ; le tableau en reprend les chiffres.
+**Ce qui a été observé** (le 2026-10-20, les décisions du propriétaire après
+R5). Un premier rendu du tour, `build --all` en 814 s, a échoué à `verify` sur
+deux vrais constats, corrigés avant le rendu final : **(h)** dans les deux 16:9,
+la recherche de l'ancienne ligne 13:15 « trouvait » la ligne dans la carte
+« Arrivé » en vol (30 s f233 / f250, 15 s f145 / f156) — c'était la carte de
+Fatou B. : agrandie 1,42×, son petit « 13:15 » (son heure de fin) a la taille en
+pixels du grand « 13:15 » de l'ancienne ligne ; verify laisse désormais les
+cartes levées hors de sa recherche et le rendu refuse une carte dont la source
+touche une ligne cachée ; **(g)** le nouveau contrôle « jamais un toucher rogné »
+trouvait le tap « Mois » de « Revenus » rogné par le fondu du bandeau (0,58 à
+0,69 du disque visible) dans les six films — un cadrage d'avant ce tour (le titre
+« Revenus » gardé sous le bandeau est à 16 pt du haut du disque, le fondu en
+fait 17 à 22 : aucun cadrage ne montre les deux entiers) ; la règle tient donc
+chaque disque entier sur toute image où le téléphone est poussé, et rapporte
+les autres. Le rendu final : `build --all` en 768 s, sortie 0 — les six films
+**identiques octet pour octet** à ceux du premier rendu (les corrections ne
+touchent que des contrôles) ; `verify --all` en 9 min 01, **sortie 0, six PASS**
+et une bande-son par coupe. Aucun fichier de code ni le storyboard n'a été
+modifié après le début du rendu. Les six rapports `verify/report.txt` sont
+relus ici ; le tableau en reprend les chiffres.
 
 | Film | (a) PSNR min | (b) jointures | (c) touchers | (d) MP4 : LUFS-I / dBTP | (d) souffles sous le groove, MP4 / master | (d) queue du dernier coup | (f) synchro | (g) boîtes hors zone | (h) ligne 13:15 | (i) pire fenêtre / carte de fin |
 |---|---|---|---|---|---|---|---|---|---|---|
-| 30s-9x16 | 40,8 dB | 10 | 10, teintes 10/10 | −14,06 / −1,63 | 8,83 et 9,14 / 8,43 et 8,48 LU | 21,4 dB plus bas 22 images après ; les 100 dernières ms 35,1 dB sous | 14/14 | 0 sur 3 010 | 336 images, flou ≥ 110 px, au plus 1,2 % hors fouetté | 16,9 / 13,5 car./s |
-| 30s-1x1 | 40,8 dB | 10 | 10, 10/10 | idem | idem | idem | 14/14 | 0 sur 3 001 | 336, ≥ 86 px, 0,0 % | idem |
-| 30s-16x9 | 41,4 dB | 10 | 10, 10/10 | idem | idem | idem | 14/14 | 0 sur 3 023 | 336, ≥ 90 px, 0,0 % | idem |
-| 15s-9x16 | 41,4 dB | 6 | 5, 5/5 | −14,05 / −1,75 | 8,82 / 8,29 LU | 21,5 dB ; 35,0 dB | 5/5 | 0 sur 1 190 | 192, ≥ 110 px, 0,0 % | 16,9 / 13,5 car./s |
-| 15s-1x1 | 41,1 dB | 6 | 5, 5/5 | idem | idem | idem | 5/5 | 0 sur 1 190 | 192, ≥ 86 px, 0,0 % | idem |
-| 15s-16x9 | 41,5 dB | 6 | 5, 5/5 | idem | idem | idem | 5/5 | 0 sur 1 190 | 192, ≥ 90 px, 0,0 % | idem |
+| 30s-9x16 | 40,8 dB | 10 | 10, teintes 10/10 | −14,07 / −1,29 | 8,84 et 9,13 / 8,43 et 8,48 LU | 21,4 dB plus bas 22 images après ; les 100 dernières ms 35,1 dB sous | 14/14 | 0 sur 3 154 | 336 images, flou ≥ 110 px, au plus 1,2 % hors fouetté | 16,9 / 16,7 car./s |
+| 30s-1x1 | 40,8 dB | 10 | 10, 10/10 | idem | idem | idem | 14/14 | 0 sur 3 145 | 336, ≥ 86 px, 0,0 % | idem |
+| 30s-16x9 | 41,4 dB | 10 | 10, 10/10 | idem | idem | idem | 14/14 | 0 sur 3 167 | 336, ≥ 90 px, 0,0 % | idem |
+| 15s-9x16 | 41,4 dB | 6 | 5, 5/5 | −14,05 / −1,70 | 8,82 / 8,29 LU | 21,4 dB ; 35,0 dB | 5/5 | 0 sur 1 317 | 192, ≥ 110 px, 0,0 % | 16,9 / 16,7 car./s |
+| 15s-1x1 | 41,1 dB | 6 | 5, 5/5 | idem | idem | idem | 5/5 | 0 sur 1 317 | 192, ≥ 86 px, 0,0 % | idem |
+| 15s-16x9 | 41,5 dB | 6 (la coupe déclarée f193 change l'image de 11,9) | 5, 5/5 | idem | idem | idem | 5/5 | 0 sur 1 317 | 192, ≥ 90 px, 0,0 % | idem |
 
-Et, sur les six : **(e)** H.264 High, le bon nombre d'images, 30 i/s constants,
-décalage image/son 0,0 ms ; **(f)** chaque attaque lue dans le MP4 à au plus
-0,83 ms (30 s) et 0,17 ms (15 s) du premier échantillon de son image ; **(g)**
-l'encre de 39 (30 s) et 26 (15 s) images du MP4, chaque légende entière, le
-compteur sur chaque image de son roulement, chaque carte, le crédit — 0 hors
-zone ; aucune carte sur une légende ; la réserve de la page lisible, dans le
-rectangle et entière dans la fenêtre, sur 32 images (30 s) ; les ratures du
-crochet lues sur le MP4 avec un contraste de 144 à 191 (≥ 40) ; en 9:16 l'encre
-animée du crochet est hors du rectangle de **texte** (la page approuvée occupe
-y ≈ 700–1700 : rapporté, pas refusé), en 1:1 et 16:9 toute dans la zone
-graphique ; **(h)** 0 élément généré sans source, les attentes et les rampes
-(30 s : 0,965 / 1,000 / 0,986 / 0,995× et 1,113 / 2,740 / 1,075 / 1,081× ; 15 s :
-0,965 / 1,000 / 0,986 / 0,995× et 1,113×), le fondu déclaré de la 15 s
-(f193–f196) ; **(i)** la pire fenêtre est « Respirez. » (9 caractères en 0,533 s,
-16,9 car./s), aucune image où deux lignes reçoivent un mot, le plus long moment
-sans événement visuel 1,60 s (30 s f848→f896, 15 s f400→f448). **Une bande-son
-par coupe** : 30 s `track.wav` 1709f43f80f5 / `events.json` 063c18a6b895, 15 s
-7c85e5c1a958 / b57c0feea021, dans les trois formats.
+Et, sur les six : **(e)** H.264 High@4.1, le bon nombre d'images, 30 i/s
+constants, décalage image/son 0,0 ms ; **(f)** chaque attaque lue dans le MP4 à
+au plus 0,83 ms (30 s) et 0,17 ms (15 s) du premier échantillon de son image ;
+**(g)** l'encre de 40 (30 s) et 27 (15 s) images du MP4, chaque légende entière
+— les trois lignes de la carte de fin comprises —, le compteur sur chaque image
+de son roulement, chaque carte, le crédit — 0 hors zone ; aucune carte sur une
+légende ; **aucune légende à moins de 12 px du téléphone** tel qu'il est posé,
+sur 635 (30 s) et 256 (15 s) images ; le texte de l'app gardé lisible (la
+réserve de la page, « Créer le rendez-vous », le snackbar) dans le rectangle et
+entier dans la fenêtre sur 91 (30 s) et 47 (15 s) images ; aucun disque rogné
+sur une image poussée (le tap « Mois » rapporté, ci-dessus) ; les ratures du
+crochet lues sur le MP4 avec un contraste de 144 à 191 (≥ 40) ; en 9:16
+l'encre animée du crochet est hors du rectangle de **texte** (rapporté, pas
+refusé), en 1:1 et 16:9 toute dans la zone graphique ; **(h)** 0 élément généré
+sans source, les attentes et les rampes inchangées (30 s : 0,965 / 1,000 /
+0,986 / 0,995× et 1,113 / 2,740 / 1,075 / 1,081× ; 15 s : 0,965 / 1,000 / 0,986 /
+0,995× et 1,113×), le fondu déclaré de la 15 s (f193–f196 en 9:16 et 1:1, une
+coupe franche déclarée à f193 en 16:9), la ligne 13:15 trouvée nulle part
+(0,0 % visible là où on la cherche, hors cartes levées), **le crédit de carte
+« © OpenStreetMap contributors · © CARTO » entier de sa première image entière
+jusqu'à f767** (les trois films 30 s) ; **(i)** la pire fenêtre est
+« Respirez. » (16,9 car./s), **la carte de fin 74 caractères en 4,433 s
+(f827→f960, 15 s f379→f512) = 16,7 car./s**, aucune image où deux lignes
+reçoivent un mot, le plus long moment sans événement visuel 1,33 s (30 s
+f600→f640) et 1,07 s (15 s). **Une bande-son par coupe** : 30 s `track.wav`
+93f98379ce7d / `events.json` 23d635c8baab, 15 s f2c8a5fc10f0 / c603003c4954,
+dans les trois formats. La crête vraie du 30 s sur le MP4 est à −1,29 dBTP (≤ −1,0 ;
+−1,63 en R5 : l'AAC de la nouvelle mesure 14).
 
-**Les tests** : 399, OK (1 ignoré), dans le worktree au commit `11d0f6e1`, et sur
-une copie `git archive` du même commit par la revue R6. Chaque contrôle ajouté
+**Les tests** : 415, OK (1 ignoré), dans le worktree. Chaque contrôle ajouté
 pendant les tours de revue a été vu rouge avant sa correction ; chaque message
 de commit en garde la liste (§11).
 
-**Ce que la revue R6 a mesuré à part, sur les pixels des MP4** (ses scripts ne
-sont pas dans le dépôt) : la reconnaissance de texte de macOS (Vision) sur une
+**Ce que la revue R6 a mesuré à part, sur les pixels des MP4 du rendu de R5**
+(ses scripts ne sont pas dans le dépôt ; pas refait sur ce rendu) : la reconnaissance de texte de macOS (Vision) sur une
 image sur quatre de chaque scène de l'app, 672 images pleine taille dans les six
 films — zéro « 13:45 », zéro « 13:15 » à côté de « Yao », zéro chiffre de
 téléphone (le seul « +225 » est le gabarit « Téléphone du client ») ; une
@@ -374,7 +406,12 @@ câblage des verdicts et de l'écrivain, chacun sur sa propre copie, tous tués.
 **Regardé** (R5, R6) : les douze planches, et en pleine taille les images clés de
 chaque format — les transitions, la carte « Arrivé », le fouetté, le roulement
 de l'étiquette, le fondu de la 15 s, la fiche, la fin de page, le souffle 2, la
-poussée et le vol des cartes en 16:9.
+poussée et le vol des cartes en 16:9. **R7** : les douze planches de ce rendu,
+et, tirées du MP4, en pleine taille et à 50 % chaque image changée — la poussée
+16:9 (30 s f280, f292, f416, f436, f460 ; 15 s f184, f193, f196, f216, f252), la
+carte « Arrivé » à pleine largeur (f240, lisible à 50 %), les tuiles (f495), le
+crédit jusqu'à f767 dans les trois formats, la carte de fin des six films (f884,
+f959 ; 15 s f436, f511 : les trois lignes lisibles à 50 %).
 
 ## 10. Ce qui n'est PAS fait
 
@@ -396,19 +433,22 @@ poussée et le vol des cartes en 16:9.
    0.0.2 (le champ téléphone de #611, le « Modifier » de #614), revérifier le
    formulaire et la fiche avant de réutiliser le film.
 3. **Rien n'est publié — les règles de publication.**
-   - **Seulement après la sortie de MyWeli Pro sur l'App Store** : la carte de
-     fin dit « Disponible sur l’App Store ». Que l'app y soit le jour de la
-     publication ne se vérifie pas d'ici (la fiche App Store ou App Store
-     Connect : le propriétaire).
+   - **RÈGLE DE PUBLICATION (le propriétaire, 2026-10-20) : seulement quand
+     les DEUX apps MyWeli Pro sont en ligne, sur l'App Store ET sur Google
+     Play.** La carte de fin dit « Sur l’App Store et Google Play » ; l'app
+     Android ne l'est pas aujourd'hui (BACKLOG B0.10 : rien n'est encore saisi
+     dans la Play Console ; LAUNCH.md : Android en dernier). Que les deux y
+     soient le jour de la publication ne se vérifie pas d'ici (les fiches des
+     magasins : le propriétaire). « myweli.com » est vrai aujourd'hui.
    - **La photo de couverture de Maison Nala** (la page publique, mesures 11–12)
      ne repose que sur la déclaration du propriétaire d'une licence libre ; son
      usage dans une publicité et ses liens sources sont à confirmer avant de
      publier.
    - **Les conditions de CARTO / OpenStreetMap pour la vidéo** n'ont pas été
-     lues ; le film montre la ligne de crédit par défaut. L'app crédite
-     « © OpenStreetMap contributors » et « © CARTO »
-     (`mobile/lib/widgets/common/carto_basemap_layer.dart:116`), le film
-     « © OpenStreetMap, © CARTO » (décision du propriétaire en attente, §12).
+     lues ; le film montre la ligne de crédit de l'app elle-même, « ©
+     OpenStreetMap contributors · © CARTO »
+     (`mobile/lib/widgets/common/carto_basemap_layer.dart:116`, la décision du
+     propriétaire du 2026-10-20), entière jusqu'à ce que la carte soit éteinte.
    - **La coupe 30 s dure 32,0 s**, au-delà de l'ancienne limite de 30 s des
      statuts WhatsApp (le choix du propriétaire, « Add one bar »).
    - **Voir sur un vrai téléphone**, sous l'interface de TikTok, Reels et
@@ -452,27 +492,20 @@ porte dans son message de commit les contrôles vus rouges avant elle.
 | **R4** | `17024e33` | Les décisions du propriétaire après la revue des six films (§2 : le plancher 9:16, la remise en page 16:9, les écarts approuvés) et les restes de R4 (« 0 Absences », le bord du bandeau 1:1 sur les puces, le câblage des verdicts testé). Le premier rendu de ce tour a échoué à verify sur trois vrais défauts, corrigés avant le rendu final : en 15s-16:9 « Créer » et son disque sous le sol ((f) ne trouvait pas de disque) ; en 9:16 les boîtes de la carte « Arrivé » sous y 1248 ; une onde de toucher jugée contre les colonnes du téléphone au lieu de la zone sûre. Rendu final 720 s, `verify --all` sortie 0, 373 tests (`730a2bbb`) |
 | **R5** | `730a2bbb` | 18 constats hors décisions du propriétaire, tous corrigés : la réserve de la page dans le rectangle (`keep: text_floor`, W 427,32) ; l'« Arrivé » qui surgit sur place et se repose sur f248, sa place vidée ; le fouetté sur la courbe de base, ≥ 80 px de flou exigés ; le crédit avec les tuiles et dans le souffle 2 ; l'étiquette qui roule ; une seule coque dans le fondu 9:16 / 1:1 ; la couture et le libellé du panneau de la fiche ; la poussée 16:9 qui garde la coque sur le sol et dans la zone graphique ; High@4.1 ; chaque verdict de verify câblé et testé (16 mutants tués). 399 tests (`11d0f6e1`) |
 | **R6** | `11d0f6e1` | Aucun changement de code : les 18 corrections confirmées sur les pixels des MP4, 20 mutants tués sur des copies, les relevés de confidentialité du §9 ; trois remarques laissées ouvertes (§10.4) |
+| **R7** | Les décisions du propriétaire après R5 (2026-10-20) | Le glissé et la suspension 9:16, la suspension 1:1 acceptés ; en 16:9 la poussée sur le sol (1,23×, le plus que la colonne de légendes permet), « Arrivé » et les tuiles à pleine largeur de colonne, la coupe franche du formulaire 15 s sans rideau ; le crédit de carte de l'app, entier jusqu'à f767 ; la carte de fin « Sur l’App Store et Google Play » · « myweli.com » et sa règle de publication (les deux apps en ligne). Le premier rendu échoue à verify (la carte agrandie prise pour la ligne 13:15, un disque rogné d'avant ce tour), corrigé dans les contrôles ; rendu final identique octet pour octet, six PASS ; 415 tests ; chaque nouveau contrôle vu rouge |
 
 ## 12. Questions ouvertes (décisions du propriétaire)
 
 - **La bande-son, à l'oreille** (§10.1).
-- **Publication** : la date, les canaux, et les conditions du §10.3 (la sortie
-  App Store, la licence de la photo de Maison Nala, les conditions CARTO).
-- **Cadrage, listés par R5 sans décision** :
-  - 9:16 : sur le bas du journal et le formulaire (W 667), le téléphone flotte à
-    mi-hauteur du cadre ;
-  - 9:16 : la démonstration du glissé et du tap se joue entièrement sous y 1248,
-    dans la zone que l'interface des plateformes recouvre ;
-  - 16:9 : la fenêtre est courte sur le bas du journal et sur « Créer » ; le
-    bord du bandeau descend comme un rideau pendant les glissés de caméra ;
-  - 16:9, 15 s : le fondu déclaré montre des champs fantômes et un rideau
-    f204–216, et les champs sautent de 260 px sur ses 3 images (chaque image
-    posée sur le sol par son propre cadrage) — laissé tel quel ;
-  - 16:9 : la carte « Arrivé » levée n'est que 1,15× la carte dans le téléphone ;
-  - 1:1 : le téléphone pend sous le bandeau sur le bas du journal ;
+- **Publication** : la date, les canaux, et les conditions du §10.3 (les deux
+  apps Pro en ligne, iOS et Android ; la licence de la photo de Maison Nala ;
+  les conditions CARTO).
+- **Cadrage, encore ouvert** (les autres points listés par R5 sont décidés le
+  2026-10-20, §2) :
+  - 16:9 : hors du formulaire de la 15 s, le bord du bandeau descend encore
+    pendant les glissés de caméra du 30 s (vers « Créer », f384–392 : le
+    défilement du formulaire bouge en même temps) ;
   - 9:16 : vers f700, le crédit de carte est loin de la carte (≈ 330 px
     au-dessus) ; il est juste au-dessus à la fin de la page.
-- **Le texte du crédit** : celui de l'app (« © OpenStreetMap contributors »,
-  « © CARTO ») ou celui du film (« © OpenStreetMap, © CARTO »).
 - **N2** (§10.5), après la décision d'Apple sur le build en revue et avec son feu
   vert explicite.

@@ -521,8 +521,9 @@ def chime(*, f: float = 783.99, interval: int = 7, gap: float = 0.09) -> np.ndar
 
 
 def glint(*, f: float = 1174.66) -> np.ndarray:
-    """A small, soft single bell (stereo) — the end card's « Disponible sur
-    l'App Store » line arriving. Quieter and slower than the chime."""
+    """A small, soft single bell (stereo) — the end card's lines under the
+    tagline arriving (« Sur l’App Store et Google Play », « myweli.com »).
+    Quieter and slower than the chime."""
     n = n_of(1.4)
     return _tail(pan(_bell(f, n, index=0.4, ratio=2.0, tau=0.55, attack=0.004) * 0.45, 0.1))
 

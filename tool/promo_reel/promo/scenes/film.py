@@ -48,7 +48,7 @@ class Film:
     def __init__(self, storyboard, cut: str, fmt_id: str, clock: Clock):
         if fmt_id not in storyboard.formats:
             raise SceneError(f"format {fmt_id}: not in the storyboard (have: {', '.join(storyboard.formats)})")
-        specs = storyboard.cut_scenes(cut)
+        specs = storyboard.cut_scenes(cut, fmt_id)        # `formats:` overrides resolved for this format
         if not specs:
             raise SceneError(f"cut {cut}: storyboard.yaml has no scenes for it yet")
         self.storyboard, self.cut = storyboard, cut
@@ -166,6 +166,24 @@ class Film:
         sc.record(f, rec)
         return to_array(surf), rec
 
+    def crowded_captions(self) -> list[dict]:
+        """Every frame of a phone scene on which a caption's ink comes within
+        the phone's clearance (verify.CAPTION_PHONE_CLEAR_PX) of the phone as
+        posed — from the scenes, before a frame is drawn: the renderer refuses
+        them (render.build_one), verify (g) re-reads them from render.json.
+        The owner's round 5 (2026-10-20): 16:9's push about the floor grows
+        the slab towards the left column « never cropping … a caption »."""
+        from ..verify import captions_over_phone
+        recs = []
+        for sc in self.scenes:
+            if not isinstance(sc, PhoneScene):
+                continue
+            for f in range(sc.start, sc.end):
+                area = sc.phone_area(float(f))
+                if area is not None:
+                    recs.append({"f": f, "phone": list(area), "boxes": self.captions.boxes(float(f))})
+        return captions_over_phone(recs)
+
     # ---- what the film is made of ------------------------------------------------------------
 
     @staticmethod
@@ -189,8 +207,9 @@ class Film:
                         out.append({"frame": int(a.frame), "kind": "whip (in the phone)", "into": sc.id,
                                     "frames": int(b.frame - a.frame)})
                 for s in sc.dissolves:
-                    out.append({"frame": int(s.start), "kind": "dissolve (declared)", "into": sc.id,
-                                "frames": int(round(s.end - s.start))})
+                    # `curve: cut` (16:9's 15-s form, the owner's round 5): a declared HARD cut, held to a cut's rule
+                    out.append({"frame": int(s.start), "kind": "cut (declared, in the phone)" if s.cut else
+                                "dissolve (declared)", "into": sc.id, "frames": 0 if s.cut else int(round(s.end - s.start))})
             if isinstance(sc, CarnetScene) and sc.macro:
                 out.append({"frame": sc.macro["at"], "kind": "cut", "into": f"{sc.id} (macro)", "frames": 0})
                 out.append({"frame": sc.macro["until"], "kind": "cut", "into": f"{sc.id} (wide)", "frames": 0})
@@ -230,6 +249,9 @@ class Film:
                                         "touches": [{"gesture": t.gesture, "kind": t.kind, "down_s": round(t.down_s, 5),
                                                      "frame": t.down_f, "up_frame": round(t.up_f, 3), "tone": t.tone}
                                                     for t in s.touches]}
+                if s.credit:
+                    # where the map shows: its credit is held whole to the last of these (verify (h))
+                    d.setdefault("credits", {})[s.id] = [s.start, s.end]
                 if s.hidden:
                     d.setdefault("hidden", {})[s.id] = [{"take": s.source.name, "label": lab, "rect_pt": list(rect),
                                                          "shown_on_s": shown} for lab, rect, shown in s.hidden]

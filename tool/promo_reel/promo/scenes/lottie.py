@@ -16,8 +16,9 @@ kept clear of the tagline by at least half its height): drawn at
 (1.2 × 560 px = 672 px: the mark's ink is then 199 px tall, y 400–599 in
 9:16 — the storyboard's « scale 1.2 » and « ink ≈ y 400–599 » agree when the
 scale is read against the composition's native 560 px, not the 900-px
-reveal). It is moved and scaled only. The tagline and « Disponible sur
-l’App Store » are captions.
+reveal). It is moved and scaled only. The tagline, « Sur l’App Store et
+Google Play » and « myweli.com » are captions (the owner's end card,
+2026-10-20).
 """
 
 from __future__ import annotations

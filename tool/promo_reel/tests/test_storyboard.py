@@ -77,7 +77,7 @@ class Starter(unittest.TestCase):
         self.assertEqual(self.sb.score_path("30s"), sb.PROMO_REEL / "promo/audio/score_30s.yaml")
         self.assertIn("swipe.touch", self.sb.cue_ids("30s"))
         self.assertIn("end.store", self.sb.cue_ids("15s"))
-        self.assertEqual(len(self.sb.cue_ids("30s")), 85)                # + end.underline (the outro)
+        self.assertEqual(len(self.sb.cue_ids("30s")), 87)                # + end.underline (the outro), end.site(_log)
         self.assertEqual(len(self.sb.cut_scenes("30s")), 9)          # rows 1–24 of the 30-s storyboard
         self.assertEqual([s["id"] for s in self.sb.cut_scenes("15s")],      # « The 15 s cut », BARS 1–8
                          ["hook", "air1", "journal", "revenus", "reveal", "end"])

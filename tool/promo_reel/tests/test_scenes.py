@@ -142,6 +142,9 @@ class TestEndCardOutro(unittest.TestCase):
         store = CaptionItem(self.specs["store"], "end", self.clock, self.lay, "store")
         return tag, store
 
+    def site(self):
+        return CaptionItem(self.specs["site"], "end", self.clock, self.lay, "site")
+
     def test_the_marker_is_retired(self):
         with self.assertRaisesRegex(ValueError, "reading: retired"):
             CaptionItem({**self.specs["store"], "reading": "owner_decision_pending"}, "end", self.clock, self.lay, "s")
@@ -149,14 +152,28 @@ class TestEndCardOutro(unittest.TestCase):
         self.assertNotIn("reading", self.specs["store"])
 
     def test_the_end_card_reads_in_time(self):
+        """The owner's end card (2026-10-20): the tagline, « Sur l’App Store et
+        Google Play », « myweli.com » — 34 + 30 + 10 = 74 characters over
+        f827→f960, ≈ 16.7 cps (≤ 17); each line alone on its own cue, the
+        site last."""
+        from promo.scenes.captions import CaptionTrack
         from promo.verify import end_card_window, reading_windows
         tag, store = self.items()
+        site = self.site()
+        self.assertEqual((tag.text, store.text, site.text),
+                         ("Plus de clients, moins de gestion.", "Sur l’App Store et Google Play", "myweli.com"))
+        self.assertEqual((tag.first + tag.reveal.frames - tag.reveal.lead, store.first, site.first), (832, 848, 880))
         items = [{"what": c.id, "arrive": c.first, "leave": c.until, "chars": len(c.text), "group": c.id,
-                  "scene": "end"} for c in (tag, store)]
+                  "scene": "end"} for c in (tag, store, site)]
         w = end_card_window(items, "end", 30)
-        self.assertEqual((w["from"], w["to"], w["chars"]), (827, 960, 60))
-        self.assertAlmostEqual(w["cps"], 13.53, places=2)                       # was 26.1 cps over f827→f896
+        self.assertEqual((w["from"], w["to"], w["chars"]), (827, 960, 74))
+        self.assertAlmostEqual(w["cps"], 16.69, places=2)                       # was 13.5 (60 characters), 26.1 before
         self.assertLessEqual(reading_windows(items, 30)[0]["cps"], 17)
+        self.assertEqual(len(CaptionTrack([tag, store, site]).items), 3)        # one arrival at a time
+        # the lines stack under the tagline: the store line, then the site — each clear of the one above
+        s_box, t_box = store.ink_boxes()[0], site.ink_boxes()[0]
+        self.assertGreater(t_box[1], s_box[3] + 12)
+        self.assertEqual(site.font.getSize(), 40)
 
     def test_the_underline(self):
         """The hook's strike comes back as an underline under « moins de
@@ -517,7 +534,7 @@ class TestStoryboard30s(unittest.TestCase):
         from promo.verify import caption_reading
         items = [CaptionItem(c, s["id"], self.clock, SB.formats["9x16"].layout, s["id"], size=(1080, 1920))
                  for s in self.scenes for c in s.get("captions", [])]
-        self.assertEqual(len(items), 13)
+        self.assertEqual(len(items), 14)                       # + « myweli.com » (the owner, 2026-10-20)
         for c in items:
             for w in c.line_widths():
                 self.assertLessEqual(w, 771.0 + 1e-6, c.text)
@@ -577,7 +594,8 @@ class TestStoryboard15s(unittest.TestCase):
         from promo.verify import caption_reading
         items = [CaptionItem(c, s["id"], self.clock, SB.formats["9x16"].layout, s["id"], size=(1080, 1920))
                  for s in self.scenes for c in s.get("captions", [])]
-        self.assertEqual([c.id for c in items], ["hook-question", "breathe", "arrive", "filled", "tagline", "store"])
+        self.assertEqual([c.id for c in items], ["hook-question", "breathe", "arrive", "filled", "tagline", "store",
+                                                 "site"])
         for c in items:
             for w in c.line_widths():
                 self.assertLessEqual(w, 771.0 + 1e-6, c.text)
