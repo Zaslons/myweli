@@ -30,6 +30,13 @@ export function toCover<T>(arr: T[], i: number): T[] {
   return [arr[i], ...arr.filter((_, idx) => idx !== i)];
 }
 
+/// Puts [item] back at [i] in the list AS IT IS NOW (clamped): the undo of
+/// one delete, never a snapshot restored (SYSTEM §15).
+export function insertAt<T>(arr: T[], i: number, item: T): T[] {
+  const at = Math.max(0, Math.min(i, arr.length));
+  return [...arr.slice(0, at), item, ...arr.slice(at)];
+}
+
 export function canAddPhoto(photos: string[]): boolean {
   return photos.length < MAX_GALLERY;
 }
