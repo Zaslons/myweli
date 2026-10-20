@@ -1,7 +1,15 @@
 /// Branded subscription-lifecycle emails (the OTP template family —
 /// docs/design/team-access-r2a-offers.md). French copy; no PII beyond the
 /// salon's own name.
+///
+/// That name is the salon's to write — a Manager can rename it
+/// (`profile.manage`) — and these notices land in the OWNER's inbox
+/// (threat T73): the HTML escapes it, the plain text keeps it as written.
 library;
+
+import 'dart:convert';
+
+const _text = HtmlEscape(HtmlEscapeMode.element);
 
 /// The five notice kinds the scheduler sends, in escalation order.
 abstract final class SubscriptionNotice {
@@ -55,7 +63,7 @@ String renderSubscriptionNoticeText(String kind, String salonName) =>
 /// at 440px, padding on the cells — a fixed `width="440"` card plus its
 /// padding scrolled sideways on a phone (seen at 310px).
 String renderSubscriptionNoticeHtml(String kind, String salonName) {
-  final body = _noticeBody(kind, salonName);
+  final body = _text.convert(_noticeBody(kind, salonName));
   return '''
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F6F7F9;">
   <tr><td align="center" style="padding:24px 12px;">

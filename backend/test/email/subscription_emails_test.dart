@@ -30,6 +30,36 @@ void main() {
     }
   });
 
+  // The name is the salon's to write — a Manager can rename it
+  // (`profile.manage`) — and these notices land in the OWNER's inbox.
+  group('subscription notice HTML escapes the salon name', () {
+    const hostile =
+        'Ama <a href="https://evil.test">payer ici</a> '
+        '<img src="https://evil.test/p.gif"> & "Co"';
+
+    for (final kind in _kinds) {
+      test('$kind: the name is shown, never rendered as markup', () {
+        final html = renderSubscriptionNoticeHtml(kind, hostile);
+
+        expect(html, isNot(contains('evil.test">')));
+        expect('<a '.allMatches(html), hasLength(2)); // button + footer
+        expect('<img'.allMatches(html), hasLength(1)); // the logo
+        // Shown escaped, not dropped.
+        expect(html, contains('Ama &lt;a href='));
+        expect(html, contains('&lt;img src='));
+        expect(html, contains(' &amp; '));
+      });
+
+      test('$kind: the plain-text part keeps the name as written', () {
+        final text = renderSubscriptionNoticeText(kind, hostile);
+
+        expect(text, contains(hostile));
+        expect(text, isNot(contains('&lt;')));
+        expect(text, isNot(contains('&amp;')));
+      });
+    }
+  });
+
   group('subscription notice HTML keeps its content', () {
     for (final kind in _kinds) {
       test('$kind: body, logo, button and footer', () {
