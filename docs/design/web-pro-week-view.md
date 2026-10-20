@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Validé le 2026-10-20** — Q1 : **côte à côte + filtre « Artiste »** ; Q2 : **glisser vers un autre jour, oui** ; Q3 : **ordinateur seulement** ; Q4 : **les mots tels qu'écrits** (§9) |
+| **Statut** | **Construit le 2026-10-20** sur `feat/web-pro-week-view` (au-dessus de #648) ; ce qui a été vu : §10. Validé le même jour — Q1 : **côte à côte + filtre « Artiste »** ; Q2 : **glisser vers un autre jour, oui** ; Q3 : **ordinateur seulement** ; Q4 : **les mots tels qu'écrits** (§9) |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-20 |
 | **PRD ref / phase** | Journal (module journal) · web Pro, au-delà de l'app (décision du propriétaire, 2026-10-19 : « la bande et un onglet Semaine ») · V1 |
@@ -111,3 +111,40 @@ Une route « semaine » côté serveur ; l'impression ; la semaine dans l'app.
   vides « Créer un rendez-vous — Lun 19 ».
 
 **Décisions (2026-10-20).** Q1 (a), Q2 (a), Q3 (a), Q4 approuvé tel qu'écrit.
+
+## 10. Construit — ce qui a été vu
+
+**Trois écarts au brouillon, assumés** :
+- L'adresse garde **le jour affiché**, pas le lundi (`?vue=semaine&jour=` le
+  jour de la Journée) : passer de « Semaine » à « Journée » rend le même jour.
+- La grille est une **table** ARIA (une ligne d'en-têtes de jours, une ligne de
+  sept cellules), pas un `grid` : un `grid` promet les flèches d'une cellule à
+  l'autre, ce que cette vue n'offre pas.
+- Le nom d'un bloc : « Koffi, Confirmé — Awa, Lun 19 à 09:00 » (le client, le
+  statut, l'artiste, le jour, l'heure — §5).
+
+**Trouvé en construisant** :
+- Les évènements de glisser de jsdom n'ont pas de position : l'instant devenait
+  une date invalide. Une position absente tombe en haut de l'axe.
+- **« Semaine suivante » montrait l'ancienne semaine sous le nom de la
+  nouvelle** le temps de la lecture (vu par l'e2e) : une autre semaine montre
+  son squelette ; la même semaine relue après une action reste affichée.
+- Le filtre « Artiste » entourait son `select` : son nom prenait le texte des
+  options (« ArtisteTousAwa… », vu par l'e2e) — un `label` à part, `htmlFor`.
+- ‹ › et « Cette semaine » portés à 48 px (mesurés).
+- Deux tests de l'adresse (#645) prenaient « semaine » comme exemple de vue
+  inconnue ; ils prennent « annee ».
+
+**Mutations vues rouges** : les couloirs ignorés, l'artiste envoyé au
+déplacement, plus de « Fermé », la lecture seule qui crée, l'ancienne semaine
+affichée, le téléphone qui garde la semaine, les flèches d'un jour (unitaires) ;
+‹ › sans leur plancher (e2e : 34 px).
+
+**Vu dans le navigateur** (stub, 1280 px) : la semaine entière, aujourd'hui et
+la ligne « maintenant » ; deux rendez-vous simultanés côte à côte (un ajouté
+par la page) ; **un vrai glisser** de lundi à jeudi a envoyé
+`newDateTime: 2026-10-22T11:00:00.000Z`, sans artiste ; à 620 px, pas
+d'onglet et `?vue=semaine` ouvre la Journée.
+
+**Vérifié** : typecheck et lint propres, **1 688** tests unitaires ; e2e
+(pro, axe, cibles, reflow à 1024 et 1280, rôles) **130** verts.
