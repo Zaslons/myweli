@@ -307,8 +307,18 @@ test('médias: manage photos (remove + save) + upload a new one', async ({
     });
   await expect(page.locator('main img')).toHaveCount(4);
 
-  await page.getByRole('button', { name: 'Enregistrer' }).first().click();
-  await expect(page.getByText('Photos enregistrées.')).toBeVisible();
+  // Saved at once, as in the app (web-pro-medias-like-app.md): a reload
+  // still has it.
+  await page.reload();
+  await expect(page.locator('main img')).toHaveCount(4);
+
+  // Deleting asks, then can be taken back.
+  await page.getByRole('button', { name: 'Supprimer' }).last().click();
+  const dialog = page.getByRole('dialog', { name: 'Supprimer cette photo ?' });
+  await dialog.getByRole('button', { name: 'Supprimer la photo' }).click();
+  await expect(page.locator('main img')).toHaveCount(3);
+  await page.getByRole('status').getByRole('button', { name: 'Annuler' }).click();
+  await expect(page.locator('main img')).toHaveCount(4);
 });
 
 test('clients: list → search → card → note → tags (module clients C1b)', async ({
