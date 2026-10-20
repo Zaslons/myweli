@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Brouillon** — questions au propriétaire : §8 |
+| **Statut** | **Validé le 2026-10-20** — Q1 (décision 8) : **partout, tout de suite** (la fiche, « Ma journée », « Accueil », la fiche client, la liste ; arrivée et reprogrammation comprises, dans les deux sens) ; Q2 (décision 9) : **garder les chiffres + le message** ; Q3 (décision 10) : **la même PR** ; Q4 : **les mots tels qu'écrits** (§9) |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-20 |
 | **PRD ref / phase** | Journal + tableau de bord Pro (V1) |
@@ -188,3 +188,5 @@ simule déjà latence et échec ; il doit pouvoir répondre « pas de réponse �
   phrase « Pas de connexion. Réessayez. » quand rien n'a répondu, aucune
   phrase sinon ; bouton « Réessayer » — comme « Ma journée », et comme le web
   (`ErrorState`, `loadFailureMessage`).
+
+**Décisions (2026-10-20).** Q1, Q2, Q3 et Q4 : les recommandations, telles qu'écrites.
