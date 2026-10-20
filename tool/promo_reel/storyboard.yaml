@@ -497,7 +497,7 @@ scenes:
       - {gesture: tap-creer, at: cue:create.touch, tone: light}       # white on the black button
     lifts:
       - &arrive_card
-        id: arrive-card                     # Fatou B. « Arrivé »: real pixels of the card only (pro_journal_screen.dart:296, :767-776)
+        id: arrive-card                     # Fatou B. « Arrivé »: real pixels of the card only (pro_journal_screen.dart:296, :768-777)
         picture: {named: 23.620}
         rect_pt: [15.67, 510.0, 386.0, 582.0]      # measured on 23.620: green border + card body
         up: cue:arrive.pop
