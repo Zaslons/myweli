@@ -128,7 +128,7 @@ describe('the Journée shows its week', () => {
     render(<RendezVousClient />);
     const group = await strip();
     expect(
-      within(group).getByRole('button', { name: 'Lun 19 octobre, 3 rendez-vous' }),
+      within(group).getByRole('button', { name: 'Lun 19 octobre, 3\u00a0rendez-vous' }),
     ).toBeInTheDocument();
     // Thursday's only booking was cancelled: no dot, « aucun ».
     expect(
@@ -137,7 +137,7 @@ describe('the Journée shows its week', () => {
     // The shown day counts its loaded day (pj-2026-10-21), not the list.
     await waitFor(() =>
       expect(
-        within(group).getByRole('button', { name: 'Mer 21 octobre, 1 rendez-vous' }),
+        within(group).getByRole('button', { name: 'Mer 21 octobre, 1\u00a0rendez-vous' }),
       ).toBeInTheDocument(),
     );
   });

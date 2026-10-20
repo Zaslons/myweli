@@ -148,7 +148,7 @@ describe('the words (owner Q3, approved as written)', () => {
     expect(weekStripDay('2026-10-19', 3, false, 'Africa/Abidjan')).toEqual({
       short: 'Lun',
       day: '19',
-      rest: 'octobre, 3 rendez-vous',
+      rest: 'octobre, 3\u00a0rendez-vous',
     });
   });
 
@@ -157,7 +157,7 @@ describe('the words (owner Q3, approved as written)', () => {
       'octobre, aucun rendez-vous, aujourd’hui',
     );
     expect(weekStripDay('2026-10-22', 1, false, 'Africa/Abidjan').rest).toBe(
-      'octobre, 1 rendez-vous',
+      'octobre, 1\u00a0rendez-vous',
     );
   });
 
