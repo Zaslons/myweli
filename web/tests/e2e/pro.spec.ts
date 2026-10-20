@@ -751,20 +751,18 @@ test('go-live: le brouillon complet se met en ligne (pro-salon-lifecycle B2)', a
     page.getByText('Votre salon n’est pas encore en ligne'),
   ).toBeVisible();
   // The gate (≥3) is what matters, not the exact count — earlier tests in this
-  // file add and remove services and photos on the shared stub salon, and
-  // pinning a number would make this red for a reason it is not about.
+  // file add and remove services and photos on the shared stub salon.
   //
-  // But it has to assert the gate is **met**: until B10 the pattern was
-  // `\(\d+\/3\)`, and `\d+` matches `0`. That asserted the checklist label
-  // rendered and nothing else — it would have passed on a salon with no
-  // prestations at all, on the very screen whose subject is « everything done ».
-  const met = String.raw`\((?:[3-9]|\d{2,})\/3\)`;
-  await expect(
-    page.getByText(new RegExp(`Au moins 3 prestations ${met}`)),
-  ).toBeVisible();
-  await expect(
-    page.getByText(new RegExp(`Au moins 3 photos ${met}`)),
-  ).toBeVisible();
+  // And it has to assert the gate is **met**, not that the row rendered (B10's
+  // lesson). Since web-pro-golive-signup-like-app.md the rows carry the app's
+  // labels, without a count: a met step is one with no « Compléter ».
+  for (const label of ['Services (3 minimum)', 'Photos (3 minimum)']) {
+    const row = page.getByRole('listitem').filter({ hasText: label });
+    await expect(row).toBeVisible();
+    await expect(row.getByRole('link', { name: 'Compléter' })).toHaveCount(0);
+  }
+  // The app's progress line and its bar.
+  await expect(page.getByRole('progressbar', { name: /étapes? sur \d+ terminées?/ })).toBeVisible();
 
   // B4: the pre-publish preview — the consumer page, booking disabled.
   await page.getByRole('link', { name: 'Aperçu de ma page' }).click();
