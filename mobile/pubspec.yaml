@@ -105,7 +105,7 @@ dependencies:
 
   # Icons
   cupertino_icons: ^1.0.6
-  url_launcher: ^6.3.2
+  url_launcher: ^6.3.3
   add_2_calendar: ^3.0.1
   timezone: ^0.11.2
 
