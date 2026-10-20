@@ -47,9 +47,9 @@ function browserDeps(config: FirebaseWebConfig): BrowserPushDeps {
     requestPermission: async () =>
       (await Notification.requestPermission()) as PushPermission,
     token: async () => {
-      const registration = await navigator.serviceWorker.register(PUSH_SW_URL, {
-        scope: PUSH_SW_SCOPE,
-      });
+      const registration = await activeRegistration(
+        await navigator.serviceWorker.register(PUSH_SW_URL, { scope: PUSH_SW_SCOPE }),
+      );
       // **The e2e build only**: a headless browser has no push service to
       // subscribe to, so its build names a token instead. Unset in every real
       // build — the branch is then dead code the minifier drops.
@@ -70,6 +70,32 @@ function browserDeps(config: FirebaseWebConfig): BrowserPushDeps {
     unregister: async (token) => (await unregisterProDevice(token)).ok,
     store: safeLocalStore(),
   };
+}
+
+/// How long a first « Activer » waits for the worker to install.
+const ACTIVATION_MS = 10_000;
+
+/// **Firebase waits for an ACTIVE worker only when it registers its own**
+/// (`registerDefaultSw` → `waitForRegistrationActive`, @firebase/messaging
+/// 0.13.3); a registration handed to it is used as it is, and
+/// `pushManager.subscribe` on a worker still installing throws. On a first
+/// « Activer » `register()` answers before the install finishes — so the
+/// very first try would have failed. Bounded, so the row can say so.
+function activeRegistration(
+  registration: ServiceWorkerRegistration,
+): Promise<ServiceWorkerRegistration> {
+  if (registration.active) return Promise.resolve(registration);
+  const incoming = registration.installing ?? registration.waiting;
+  if (!incoming) return Promise.reject(new Error('no service worker'));
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('service worker not active')), ACTIVATION_MS);
+    incoming.onstatechange = () => {
+      if (incoming.state !== 'activated') return;
+      incoming.onstatechange = null;
+      clearTimeout(timer);
+      resolve(registration);
+    };
+  });
 }
 
 async function messaging(config: FirebaseWebConfig) {
