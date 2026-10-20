@@ -100,7 +100,7 @@ async function openWeek(path = '/pro/rendez-vous') {
   window.history.replaceState(null, '', path);
   render(<RendezVousClient />);
   fireEvent.click(await screen.findByRole('button', { name: 'Semaine' }));
-  return screen.findByRole('grid', { name: /^Semaine du / });
+  return screen.findByRole('table', { name: /^Semaine du / });
 }
 
 const WEEK = ['2026-10-19', '2026-10-20', '2026-10-21', '2026-10-22', '2026-10-23', '2026-10-24', '2026-10-25'];
@@ -134,18 +134,18 @@ describe('the « Semaine » tab', () => {
   it('‹ › change the week, « Cette semaine » comes back — the address follows', async () => {
     await openWeek();
     fireEvent.click(screen.getByRole('button', { name: 'Semaine suivante' }));
-    expect(await screen.findByRole('grid', { name: 'Semaine du 26 octobre' })).toBeInTheDocument();
+    expect(await screen.findByRole('table', { name: 'Semaine du 26 octobre' })).toBeInTheDocument();
     await waitFor(() => expect(asked).toContain('2026-11-01'));
     expect(window.location.search).toBe('?vue=semaine&jour=2026-10-28');
     fireEvent.click(screen.getByRole('button', { name: 'Cette semaine' }));
-    expect(await screen.findByRole('grid', { name: 'Semaine du 19 octobre' })).toBeInTheDocument();
+    expect(await screen.findByRole('table', { name: 'Semaine du 19 octobre' })).toBeInTheDocument();
     expect(window.location.search).toBe('?vue=semaine');
   });
 
   it('← / → move by a week', async () => {
     await openWeek();
     fireEvent.keyDown(window, { key: 'ArrowLeft' });
-    expect(await screen.findByRole('grid', { name: 'Semaine du 12 octobre' })).toBeInTheDocument();
+    expect(await screen.findByRole('table', { name: 'Semaine du 12 octobre' })).toBeInTheDocument();
   });
 
   it('the « Artiste » filter keeps one artist', async () => {
@@ -208,6 +208,6 @@ describe('the « Semaine » tab', () => {
     expect(await screen.findByRole('button', { name: 'Journée' })).toBeInTheDocument();
     await waitFor(() => expect(screen.queryByRole('button', { name: 'Semaine' })).toBeNull());
     await waitFor(() => expect(asked).toContain('2026-10-20'));
-    expect(screen.queryByRole('grid', { name: /^Semaine du / })).toBeNull();
+    expect(screen.queryByRole('table', { name: /^Semaine du / })).toBeNull();
   });
 });

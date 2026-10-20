@@ -167,7 +167,7 @@ describe('the agenda reads its address', () => {
 
   it('a wrong address opens today’s Journée and is written back clean', async () => {
     mockFetch();
-    openAt('/pro/rendez-vous?jour=2026-02-30&vue=semaine&filtre=x');
+    openAt('/pro/rendez-vous?jour=2026-02-30&vue=annee&filtre=x'); // « semaine » is a view now
     render(<RendezVousClient />);
     await screen.findByRole('button', { name: /Koffi/ });
     expect(asked).toEqual([TODAY]);

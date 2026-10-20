@@ -89,7 +89,9 @@ describe('readAgenda — the address → what to show', () => {
   it('a wrong address breaks nothing: each bad value is its default', () => {
     expect(readAgenda('?jour=2026-02-30', TODAY)).toEqual(DEFAULTS);
     expect(readAgenda('?jour=demain', TODAY)).toEqual(DEFAULTS);
-    expect(readAgenda('?vue=semaine&jour=2026-10-25', TODAY)).toEqual({
+    // An unknown view (« semaine » was the example until it became one —
+    // web-pro-week-view.md).
+    expect(readAgenda('?vue=annee&jour=2026-10-25', TODAY)).toEqual({
       ...DEFAULTS,
       journalDate: '2026-10-25',
     });
@@ -170,7 +172,7 @@ describe('agendaParams — what the booking page hands back to « ← Rendez-vou
     expect(agendaParams('?jour=nope&vue=liste&filtre=tous')).toBe(
       '?vue=liste&filtre=tous',
     );
-    expect(agendaParams('?vue=semaine&filtre=x')).toBe('');
+    expect(agendaParams('?vue=annee&filtre=x')).toBe('');
   });
 
   it('a name every object has is not a word of the address', () => {
