@@ -103,6 +103,12 @@ class FcmV1PushProvider implements PushProvider {
           'apns': {
             'headers': {'apns-priority': '10'},
           },
+          // Browsers (docs/design/web-pro-browser-push.md §4): the same
+          // urgency, and kept a day at most — past that a booking alert no
+          // longer helps (the e-mail and the feed have said it).
+          'webpush': {
+            'headers': {'Urgency': 'high', 'TTL': '86400'},
+          },
         },
       });
       try {

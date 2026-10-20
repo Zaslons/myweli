@@ -13,6 +13,11 @@ abstract interface class DeviceTokenRepository {
   /// The user's current device tokens.
   Future<List<String>> tokensForUser(String userId);
 
+  /// The user's tokens with the platform each registered with — how the
+  /// salon notifier tells the app from browsers
+  /// (docs/design/web-pro-browser-push.md §4).
+  Future<List<({String token, String platform})>> devicesForUser(String userId);
+
   /// Remove [token] only if it belongs to [userId] (logout / self-scoped).
   Future<void> removeForUser(String userId, String token);
 
@@ -42,6 +47,15 @@ class InMemoryDeviceTokenRepository implements DeviceTokenRepository {
   Future<List<String>> tokensForUser(String userId) async => [
     for (final e in _byToken.entries)
       if (e.value['userId'] == userId) e.key,
+  ];
+
+  @override
+  Future<List<({String token, String platform})>> devicesForUser(
+    String userId,
+  ) async => [
+    for (final e in _byToken.entries)
+      if (e.value['userId'] == userId)
+        (token: e.key, platform: e.value['platform']!),
   ];
 
   @override

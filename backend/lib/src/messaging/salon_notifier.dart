@@ -98,9 +98,9 @@ class SalonNotifier {
         // The push channel honours the account's opt-out; the feed row is a
         // passive history log and is always written (threat T24 posture).
         final prefs = await _prefs.get(accountId);
-        var delivered = 0;
+        PushDelivery delivered = (app: 0, web: 0);
         if (prefs.push) {
-          delivered = await _push.sendToUser(
+          delivered = await _push.sendToUserByKind(
             accountId,
             title: title,
             body: body,
@@ -114,10 +114,11 @@ class SalonNotifier {
             },
           );
         }
-        // No push reached them — no device, push switched off, or FCM
+        // No push reached their APP — no device, push switched off, or FCM
         // accepted nothing: the e-mail, unless they turned it off. A member
-        // the app reaches never gets both.
-        if (delivered == 0 && prefs.emailAlerts && email.isNotEmpty) {
+        // the app reaches never gets both. A browser does not count: FCM
+        // accepts a push to a closed one (web-pro-browser-push.md Q1).
+        if (delivered.app == 0 && prefs.emailAlerts && email.isNotEmpty) {
           await _sendEmail(
             to: email,
             event: event,

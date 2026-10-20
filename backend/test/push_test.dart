@@ -36,9 +36,15 @@ class _FakeProvider implements PushProvider {
     Map<String, String> data = const {},
   }) async {
     seen.addAll(tokens);
+    // Answers for the tokens of THIS call only — the service makes one call
+    // per kind (app, browsers).
+    final dead = [
+      for (final t in tokens)
+        if (invalid.contains(t)) t,
+    ];
     return (
-      sent: tokens.length - invalid.length,
-      invalidTokens: invalid,
+      sent: tokens.length - dead.length,
+      invalidTokens: dead,
       error: null,
     );
   }
@@ -148,10 +154,7 @@ void main() {
       final d = await svc.sendToUserByKind('u1', title: 'T', body: 'B');
       expect(d.web, 1);
       expect(d.app, 2, reason: 'the app group knows nothing of w2');
-      expect(
-        (await repo.tokensForUser('u1')).toSet(),
-        {'a1', 'i1', 'w1'},
-      );
+      expect((await repo.tokensForUser('u1')).toSet(), {'a1', 'i1', 'w1'});
     });
 
     test('only browsers → app 0', () async {
