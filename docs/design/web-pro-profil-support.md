@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Validé le 2026-10-20** — « Statistiques & avis clients » ; « Support prioritaire » ; « Aide & Support » — « Nous écrire » pour tous, vers `/support`, et les liens du Profil filtrés par rôle comme dans l'app |
+| **Statut** | **Construit le 2026-10-20** sur `fix/web-pro-profil-support` (au-dessus de #642) ; ce qui a été vu : §4. Validé le même jour — « Statistiques & avis clients » ; « Support prioritaire » ; « Aide & Support » — « Nous écrire » pour tous, vers `/support`, et les liens du Profil filtrés par rôle comme dans l'app |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-20 |
 | **PRD ref / phase** | Accès d'équipe (R5b) · parité web ↔ app Pro · offres (companion path) · V1 |
@@ -43,3 +43,12 @@
 Les liens par rôle (propriétaire, Manager), « Aide & Support » et ses mots
 dans les deux vues ; les deux lignes d'offre, et aucune ne dit plus
 « gestion des avis » ni « dédié ».
+
+## 4. Construit — ce qui a été vu
+
+- **Rouge d'abord** : 5 tests (les liens par rôle, « Aide & Support » dans
+  les deux vues, les deux lignes d'offre).
+- **Mutations vues rouges** : Acompte pour tout Profil complet, la vue
+  réduite sans « Aide & Support », l'ancienne ligne « gestion des avis ».
+- **Vérifié** : typecheck et lint propres, **1 648** tests unitaires ; e2e
+  (pro, rôles, axe, cibles, accueil) **55** verts.
