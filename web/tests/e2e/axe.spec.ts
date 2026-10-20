@@ -266,6 +266,17 @@ test('the browser notifications band and row are axe-clean (web-pro-browser-push
   await expectNoViolations(page, '/pro/notifications + « Notifications du navigateur »');
 });
 
+test('/pro/acompte — the slider, the example, the delay choices — is axe-clean (web-pro-deposit-app-rules)', async ({
+  page,
+}) => {
+  await page.goto('/pro/connexion');
+  await submitOtpLogin(page, 'salon@example.com');
+  await expect(page).toHaveURL(/\/pro(\/)?$/);
+  await page.goto('/pro/acompte');
+  await expect(page.getByRole('radiogroup', { name: 'Politique d’annulation' })).toBeVisible();
+  await expectNoViolations(page, '/pro/acompte');
+});
+
 test('a VISIBLE toast is axe-clean', async ({ page }) => {
   await page.goto('/pro/connexion');
   await submitOtpLogin(page, 'salon@example.com');

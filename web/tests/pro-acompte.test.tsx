@@ -157,20 +157,21 @@ describe('AcompteClient — deposits off keep the operator and the percentage', 
   });
 
   it('a hidden percentage the salon cannot see is wrong: the one loaded is sent', async () => {
-    mockFetch({ policy: [{ status: 200, body: OFF }] });
+    // A slider cannot be typed « abc » into (web-pro-deposit-app-rules.md):
+    // the unreadable value that stays possible is one stored before — 0.4 %,
+    // under the 1 % the field once allowed.
+    const LEGACY = { ...OFF, depositPercentage: 0.004 };
+    mockFetch({ policy: [{ status: 200, body: LEGACY }] });
     render(<AcompteClient />);
     const toggle = await screen.findByLabelText('Exiger un acompte');
-    fireEvent.click(toggle); // on
-    fireEvent.change(screen.getByLabelText('Pourcentage de l’acompte (%)'), {
-      target: { value: 'abc' },
-    });
-    fireEvent.click(toggle); // off — the field and its fault are hidden
+    fireEvent.click(toggle); // on — untouched
+    fireEvent.click(toggle); // off
     fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }));
 
     await waitFor(() => expect(sent).toHaveLength(1));
     expect(sent[0].body.policy).toMatchObject({
       depositRequired: false,
-      depositPercentage: 0.45,
+      depositPercentage: 0.004,
       mobileMoneyOperator: 'wave',
     });
   });
@@ -180,7 +181,7 @@ describe('AcompteClient — deposits off keep the operator and the percentage', 
     render(<AcompteClient />);
     const toggle = await screen.findByLabelText('Exiger un acompte');
     fireEvent.click(toggle); // on
-    const percent = screen.getByLabelText('Pourcentage de l’acompte (%)');
+    const percent = screen.getByRole('slider', { name: 'Pourcentage de l’acompte' });
     fireEvent.change(percent, { target: { value: '60' } });
     fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }));
     await screen.findByText('Acompte enregistré.');
@@ -189,7 +190,6 @@ describe('AcompteClient — deposits off keep the operator and the percentage', 
       depositPercentage: 0.6,
     });
 
-    fireEvent.change(percent, { target: { value: 'abc' } });
     fireEvent.click(toggle); // off
     fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }));
 
@@ -205,38 +205,26 @@ describe('AcompteClient — deposits off keep the operator and the percentage', 
 describe('AcompteClient — the fallback is what was loaded or SAVED, nothing else', () => {
   const OFF = { ...POLICY, depositRequired: false };
 
-  it('a refused save leaves it where it was', async () => {
+  it('a refused save keeps the slider where the salon put it', async () => {
     mockFetch({ policy: [{ status: 200, body: OFF }], put: [{ status: 500 }] });
     render(<AcompteClient />);
     const toggle = await screen.findByLabelText('Exiger un acompte');
     fireEvent.click(toggle); // on
-    const percent = screen.getByLabelText('Pourcentage de l’acompte (%)');
+    const percent = screen.getByRole('slider', { name: 'Pourcentage de l’acompte' });
     fireEvent.change(percent, { target: { value: '60' } });
     fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }));
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'L’enregistrement a échoué. Réessayez.',
     );
-
-    fireEvent.change(percent, { target: { value: 'abc' } });
-    fireEvent.click(toggle); // off
-    fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }));
-    await waitFor(() => expect(sent).toHaveLength(2));
-    // 60 was never stored: the server refused it.
-    expect(sent[1].body.policy).toMatchObject({ depositPercentage: 0.45 });
+    expect(percent).toHaveValue('60');
   });
 
-  it('never chosen (a stored 0): the 30 on screen is a proposal, not the fallback', async () => {
+  it('never chosen (a stored 0): the slider proposes 30', async () => {
     mockFetch({ policy: [{ status: 200, body: { ...OFF, depositPercentage: 0 } }] });
     render(<AcompteClient />);
     const toggle = await screen.findByLabelText('Exiger un acompte');
     fireEvent.click(toggle); // on
-    const percent = screen.getByLabelText('Pourcentage de l’acompte (%)');
-    expect(percent).toHaveValue('30');
-    fireEvent.change(percent, { target: { value: 'abc' } });
-    fireEvent.click(toggle); // off
-    fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }));
-    await waitFor(() => expect(sent).toHaveLength(1));
-    expect(sent[0].body.policy).toMatchObject({ depositPercentage: 0 });
+    expect(screen.getByRole('slider', { name: 'Pourcentage de l’acompte' })).toHaveValue('30');
   });
 });
 

@@ -600,6 +600,15 @@ const AUTHED_ROUTES: Route[] = [
     },
   },
   {
+    // docs/design/web-pro-deposit-app-rules.md — the app's explanations
+    // (the longest: the cancellation sentence) and the delay choices.
+    name: 'the pro deposit page — explanations and the delay choices',
+    url: '/pro/acompte',
+    anchor: 'Acompte',
+    auth: 'pro',
+    ready: (page) => page.getByRole('radiogroup', { name: 'Politique d’annulation' }),
+  },
+  {
     // **Strip #3** — « Services » · « Employés ».
     name: 'the pro catalogue — services vs employés (strip #3)',
     url: '/pro/catalogue',

@@ -236,7 +236,8 @@ test('profil: edit + save; acompte: enable + save', async ({ page }) => {
   await page.getByRole('link', { name: 'Acompte' }).click();
   await expect(page).toHaveURL(/\/pro\/acompte/);
   await page.getByText('Exiger un acompte').click();
-  await page.getByLabel('Pourcentage de l’acompte (%)').fill('30');
+  await page.getByRole('slider', { name: 'Pourcentage de l’acompte' }).fill('30');
+  await page.getByRole('radio', { name: '48 h' }).check();
   await page.getByLabel('Opérateur Mobile Money').selectOption('wave');
   await page.getByLabel('Numéro Mobile Money').fill('+2250700000000');
   await page.getByRole('button', { name: 'Enregistrer' }).click();
@@ -253,7 +254,7 @@ test('acompte: off, saved, reloaded, back on — the operator and the percentage
   await signInPro(page);
   await page.goto('/pro/acompte');
   const toggle = page.getByLabel('Exiger un acompte');
-  const percent = page.getByLabel('Pourcentage de l’acompte (%)');
+  const percent = page.getByRole('slider', { name: 'Pourcentage de l’acompte' });
   const operator = page.getByLabel('Opérateur Mobile Money');
   const save = page.getByRole('button', { name: 'Enregistrer' });
   const saved = page.getByText('Acompte enregistré.');
