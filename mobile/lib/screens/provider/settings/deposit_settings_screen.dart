@@ -324,8 +324,11 @@ class _DepositSettingsScreenState extends State<DepositSettingsScreen> {
                   ),
                 ),
                 const SizedBox(height: AppTheme.spacingS),
+                // The client pays by Mobile Money straight to the salon's
+                // number (« Recevoir l'acompte » below) — never in the app
+                // (no-custody; docs/design/promise-honesty-sweep.md, T2).
                 LabelValueRow(
-                  label: 'Acompte payé en ligne',
+                  label: 'Acompte sur votre Mobile Money',
                   value: Formatters.formatCurrency(
                     deposit,
                     currency: context.read<ProAuthProvider>().salonCurrency,

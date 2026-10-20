@@ -17,10 +17,21 @@ class PushBlockedBanner extends StatelessWidget {
   const PushBlockedBanner({
     super.key,
     this.onOpenSettings = openSystemNotificationSettings,
+    this.body = clientBody,
   });
+
+  /// The client's reason to re-enable — true for a client: push reminders and
+  /// the salon's answer. A salon receives neither, so the Pro screen passes
+  /// its own (docs/design/promise-honesty-sweep.md, T4).
+  static const String clientBody =
+      'Autorisez MyWeli dans les réglages de votre téléphone pour '
+      'recevoir vos rappels et confirmations.';
 
   /// Test seam (the default opens the OS settings).
   final SettingsOpener onOpenSettings;
+
+  /// Why re-enabling matters, and where — see [clientBody].
+  final String body;
 
   @override
   Widget build(BuildContext context) {
@@ -55,8 +66,7 @@ class PushBlockedBanner extends StatelessWidget {
           ),
           const SizedBox(height: AppTheme.spacingXS),
           Text(
-            'Autorisez MyWeli dans les réglages de votre téléphone pour '
-            'recevoir vos rappels et confirmations.',
+            body,
             style: AppTextStyles.bodySmall.copyWith(
               color: AppColors.textSecondary,
             ),

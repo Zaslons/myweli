@@ -163,7 +163,12 @@ export default async function HomePage() {
               'Acompte direct au salon',
               'Wave / Mobile Money — MyWeli ne prélève rien.',
             ],
-            ['Confirmations WhatsApp', 'Rappels avant votre rendez-vous.'],
+            // No WhatsApp/SMS until messaging is switched on — the app's
+            // notifications carry both (promise-honesty-sweep.md, T5).
+            [
+              'Rappels dans l’app',
+              'Confirmation du salon, puis rappels 24 h et 2 h avant votre rendez-vous.',
+            ],
           ].map(([title, body]) => (
             <div
               key={title}

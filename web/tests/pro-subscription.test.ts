@@ -48,6 +48,17 @@ describe('offer cards', () => {
     expect(reseau.notes?.join(' ')).toMatch(/propre offre/i);
   });
 
+  it('no line sells a messaging channel production does not run', () => {
+    // MESSAGING_PROVIDER=disabled until company registration: no WhatsApp, no
+    // SMS reaches anyone. The 24 h / 2 h reminders are real — as notifications
+    // of the MyWeli app (docs/design/promise-honesty-sweep.md §1.1, T1).
+    const lines = OFFER_CARDS.flatMap((c) => [...c.entitlements, ...(c.notes ?? [])]);
+    expect(lines.filter((l) => /whatsapp|\bsms\b/i.test(l))).toEqual([]);
+    expect(OFFER_CARDS[0].entitlements).toContain(
+      'Rappels automatiques à vos clients dans l’app MyWeli (24 h / 2 h)',
+    );
+  });
+
   it('the setup headline promises the 3 free months', () => {
     expect(SETUP_HEADLINE).toMatch(/3 mois offerts/);
     expect(TRIAL_KEPT_LINE).toMatch(/essai/i);

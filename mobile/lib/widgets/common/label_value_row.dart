@@ -18,7 +18,7 @@ import '../../core/theme/text_styles.dart';
 ///
 /// | | over by |
 /// |---|---|
-/// | deposit settings, « Acompte payé en ligne » | ~150dp |
+/// | deposit settings, « Acompte payé en ligne » (now « Acompte sur votre Mobile Money ») | ~150dp |
 /// | booking confirmation, « Acompte (30%) » | ~123dp |
 /// | booking confirmation, « Solde à régler au salon » | ~117dp |
 /// | booking hub, the pinned « Total » bar | ~36dp |
