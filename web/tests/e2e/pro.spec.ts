@@ -556,6 +556,35 @@ test('agenda in the address: a reload, Back and « ← Rendez-vous » keep the d
   await expect(page.getByLabel('Date')).toHaveValue(today);
 });
 
+/// docs/design/web-pro-week-strip.md — the app's week strip on the Journée.
+/// What only a browser proves: the strip is drawn under the date, a click on
+/// one of its days reads that day's grid, and the address follows.
+test('week strip: a day of the week is one click away (web-pro-week-strip)', async ({
+  page,
+}) => {
+  await signInPro(page);
+  await page.goto('/pro/rendez-vous');
+  const week = page.getByRole('group', { name: /^Semaine du / });
+  await expect(week).toBeVisible();
+  const days = week.getByRole('button');
+  await expect(days).toHaveCount(7);
+  await expect(week.getByRole('button', { pressed: true })).toHaveAccessibleName(
+    /, aujourd’hui$/,
+  );
+
+  // Another day of the same week than today — Monday, or Tuesday when today
+  // IS Monday.
+  const today = await page.getByLabel('Date').inputValue();
+  const target = (await days.nth(0).getAttribute('aria-pressed')) === 'true' ? 1 : 0;
+  await days.nth(target).click();
+  await expect(days.nth(target)).toHaveAttribute('aria-pressed', 'true');
+  const day = await page.getByLabel('Date').inputValue();
+  expect(day).not.toBe(today);
+  await expect(page).toHaveURL(new RegExp(`/pro/rendez-vous\\?jour=${day}$`));
+  // The stub has bookings on every day: the grid is the new day's.
+  await expect(page.getByText('Awa').first()).toBeVisible();
+});
+
 test('agenda in the address: the Liste’s tab survives a trip to a booking (web-pro-agenda-url)', async ({
   page,
 }) => {

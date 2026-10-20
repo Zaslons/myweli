@@ -13,7 +13,10 @@ import {
 } from './styles/tokens';
 
 const config: Config = {
-  content: ['./app/**/*.{ts,tsx}', './components/**/*.{ts,tsx}'],
+  // `lib` holds class tables too — `STATUS_STYLE` (the Journée's blocks), the
+  // week strip's dot widths. Unscanned, a class only a table spelled emitted
+  // nothing (docs/design/web-pro-week-strip.md; pinned in tokens.theme-pin).
+  content: ['./app/**/*.{ts,tsx}', './components/**/*.{ts,tsx}', './lib/**/*.{ts,tsx}'],
   theme: {
     // ─── CLOSED (WEB-SYSTEM.md §2) ───────────────────────────────────────────
     // These are `theme`, not `theme.extend`: `extend` ADDS to Tailwind's default

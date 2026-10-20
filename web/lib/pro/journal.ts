@@ -124,12 +124,19 @@ export function columnOf(appt: ProAppointment): string {
 }
 
 /// Status → a token-based tint class set { block bg/border, text }.
+///
+/// Until docs/design/web-pro-week-strip.md, Tailwind did not scan `lib/`, so
+/// the classes only this table spelled were never emitted: confirmed and
+/// arrived blocks had no tinted border, and cancelled ones were never faded.
+/// The borders are restored. The fade is DROPPED, not restored: `opacity-60`
+/// takes `textTertiary` on `surface` from 4.89:1 to 2.33:1, under the AA floor
+/// — the struck-through grey is the cancelled look salons have always seen.
 export const STATUS_STYLE: Record<string, string> = {
   pending: 'bg-warning/10 border-warning/40 text-textPrimary',
   confirmed: 'bg-info/10 border-info/40 text-textPrimary',
   arrived: 'bg-success/10 border-success/50 text-textPrimary',
   completed: 'bg-surface border-border text-textSecondary',
-  cancelled: 'bg-surface border-border text-textTertiary line-through opacity-60',
+  cancelled: 'bg-surface border-border text-textTertiary line-through',
   noShow: 'bg-error/10 border-error/40 text-textPrimary',
 };
 

@@ -33,6 +33,7 @@ import { ManualBookingDialog } from './ManualBookingDialog';
 import { MonthCalendar } from './MonthCalendar';
 import { ProAppointmentRow } from './ProAppointmentRow';
 import { Tabs } from '../Tabs';
+import { WeekStrip } from './WeekStrip';
 
 type View = AgendaView;
 
@@ -351,6 +352,15 @@ export function RendezVousClient() {
               Voir les annulés
             </label>
           </div>
+          {/* Outside the day's states: it stays while a day loads or fails,
+              so another day is one click away. */}
+          <WeekStrip
+            shown={journalDate}
+            items={items}
+            loaded={journalDay}
+            tz={tz}
+            onSelect={setJournalDate}
+          />
           {journalError ? (
             // A section error: the page's h1 stays above it.
             <ErrorState
