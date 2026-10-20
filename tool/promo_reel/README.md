@@ -8,6 +8,11 @@ the recorded takes, in order. No editor, no templates, no stock.
 The approved storyboard (2026-10-19) is the brief; `storyboard.yaml` is its
 machine-readable form and the one source of the pipeline.
 
+Design spec: [docs/design/pro-promo-reel.md](../../docs/design/pro-promo-reel.md)
+— the owner's decisions, the honesty rules and how the code holds each one,
+the storyboard bar by bar, the formats, the final run's verification, what is
+not done and the review rounds.
+
 ```
 tool/promo_reel/build.sh            # the one command: venv, checks, build every cut × format, verify
 tool/promo_reel/build.sh --set meta.title="Test"   # the same on a variant
