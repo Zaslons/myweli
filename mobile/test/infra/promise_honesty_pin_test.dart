@@ -12,19 +12,22 @@ import '../support/dart_source.dart';
 /// something the server does not deliver: « Acompte payé en ligne » on the Pro
 /// deposit screen (the client pays by Mobile Money straight to the salon —
 /// MyWeli never holds money), the Pro dashboard's push prompt promising a
-/// notification when a client « modifie » a booking (the salon is never told
-/// about a client reschedule), and — on the web — reminders « WhatsApp/SMS »
-/// while production runs `MESSAGING_PROVIDER=disabled`.
-/// Design: docs/design/promise-honesty-sweep.md §5.
+/// notification when a client « modifie » a booking (the salon was never told
+/// about a client reschedule — it is since `SalonEvent.clientRescheduled`, and
+/// the fact below now holds the copy that promises it), and — on the web —
+/// reminders « WhatsApp/SMS » while production runs
+/// `MESSAGING_PROVIDER=disabled`.
+/// Design: docs/design/promise-honesty-sweep.md §5,
+/// docs/design/salon-client-reschedule-notify.md §6.
 ///
 /// ## How it holds
 ///
-/// Each family of phrases stands on a fact about the product, and the test
-/// **reads that fact** rather than assuming it. When the fact changes —
-/// messaging is switched on, or the salon starts hearing about reschedules —
-/// the matching test goes red and says « re-decide this pin », instead of the
-/// pin quietly forbidding copy that has become true, or quietly letting it
-/// back while it is still false.
+/// Each promise stands on a fact about the product, and the test **reads that
+/// fact** rather than assuming it. When the fact changes — messaging is
+/// switched on, or the salon's reschedule event is removed — the matching test
+/// goes red and says what to re-decide, instead of the pin quietly forbidding
+/// copy that has become true, or quietly letting a promise stand that has
+/// become false.
 ///
 /// It reads every Dart file under `lib/` (comments stripped, adjacent literals
 /// joined, apostrophes in one spelling, case ignored — the conventions of
@@ -47,7 +50,13 @@ void main() {
       );
     });
 
-    test('the salon is still not told when a client reschedules', () {
+    test('the salon IS told when a client reschedules — the Pro copy '
+        'promises it', () {
+      // Re-decided 2026-10-19 (docs/design/salon-client-reschedule-notify.md
+      // §6): `SalonEvent.clientRescheduled` exists, so the dashboard prompt,
+      // the blocked banner and the empty state say « reporte » / « reports ».
+      // This fact now has to STAY true: remove the event and those sentences
+      // lie again.
       final events = _salonEvents(
         File(
           '../backend/lib/src/messaging/salon_notifier.dart',
@@ -55,11 +64,11 @@ void main() {
       );
       expect(
         events.where(_isReschedule),
-        isEmpty,
+        isNotEmpty,
         reason:
-            'SalonEvent now has a reschedule event ($events). The salon is '
-            'told — re-decide the « reschedule » pin below: « …annule ou '
-            'modifie un rendez-vous » may come back.',
+            'SalonEvent has no reschedule event any more ($events), but the '
+            'Pro app promises « …réserve, reporte, annule… » — restore the '
+            'event or the copy.',
       );
     });
   });
@@ -125,9 +134,9 @@ void main() {
       for (final source in [
         // The deposit label, as it shipped.
         "label: 'Acompte payé en ligne',",
-        // The dashboard prompt, wrapped by `dart format` across literals.
-        "body: 'Soyez prévenu·e dès qu’un client réserve, annule ou modifie '\n"
-            "    'un rendez-vous, et ne manquez aucune demande.',",
+        // A label wrapped by `dart format` across two literals.
+        "label: 'Acompte payé '\n"
+            "    'en ligne',",
         // The web offer line, in another case.
         "'RAPPELS AUTOMATIQUES WHATSAPP/SMS (24 H / 2 H)'",
       ]) {
@@ -204,9 +213,6 @@ const _forbidden = <String, List<String>>{
     'paid online',
     'online payment',
   ],
-  // `SalonEvent` has no reschedule event: a client « Reporter » notifies the
-  // client only, never the salon.
-  'reschedule': ['annule ou modifie', 'modifie un rendez-vous'],
 };
 
 String _norm(String text) => asCopy(text).toLowerCase();

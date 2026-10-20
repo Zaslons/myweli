@@ -75,18 +75,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
   /// On the first dashboard visit, offer to enable push (once). Best-effort —
   /// pros want new-booking alerts immediately, so we ask here rather than later.
   ///
-  /// The sentence names the three events the server sends a salon
-  /// (`SalonEvent`: new booking, client cancellation, deposit proof) — and no
-  /// other: a client's « Reporter » notifies the client only, so « modifie »
-  /// would promise a push that never comes (promise-honesty-sweep.md, T3).
+  /// The sentence names the four events the server sends a salon
+  /// (`SalonEvent`: new booking, client reschedule, client cancellation,
+  /// deposit proof) — and no other (promise-honesty-sweep.md T3;
+  /// salon-client-reschedule-notify.md N3). « Reporte » is the client's own
+  /// word (« Reporter »): a client can only move the time.
   Future<void> _maybeAskPush() async {
     if (!mounted) return;
     await serviceLocator.proPushRegistration.maybePromptOnce(
       () => showPushPermissionSheet(
         context,
         body:
-            'Soyez prévenu·e dès qu’un client réserve, annule ou envoie son '
-            'acompte, et ne manquez aucune demande.',
+            'Soyez prévenu·e dès qu’un client réserve, reporte, annule ou '
+            'envoie son acompte, et ne manquez aucune demande.',
       ),
     );
   }

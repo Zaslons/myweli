@@ -152,8 +152,13 @@ void main() {
 
     expect(find.byType(BottomNavigationBar), findsNothing);
     expect(find.byType(EmptyState), findsOneWidget);
+    // N5 (spec salon-client-reschedule-notify §3.2): the four events the
+    // server sends a salon, reports included.
     expect(
-      find.textContaining('réservations, annulations et acomptes'),
+      find.text(
+        'Les réservations, reports, annulations et acomptes de vos clients '
+        'apparaîtront ici.',
+      ),
       findsOneWidget,
     );
     // A15: the action is an icon now — « Tout lire » was a TEXT action, and a
@@ -192,12 +197,12 @@ void main() {
     expect(find.byTooltip('Tout marquer comme lu'), findsNothing);
   });
 
-  testWidgets('OS-denied → the banner speaks to the SALON: its three events, '
+  testWidgets('OS-denied → the banner speaks to the SALON: its four events, '
       'never the client\'s « rappels et confirmations »', (tester) async {
     // A salon receives no reminder and no confirmation — only a new booking,
-    // a client cancellation and a deposit proof (SalonEvent). The shared
-    // banner's default sentence is the client's (spec promise-honesty-sweep
-    // §1.4.c, T4).
+    // a client reschedule, a client cancellation and a deposit proof
+    // (SalonEvent). The shared banner's default sentence is the client's
+    // (promise-honesty-sweep §1.4.c, T4; salon-client-reschedule-notify N4).
     when(
       () => service.getNotifications(),
     ).thenAnswer((_) async => ApiResponse.success([]));
@@ -217,7 +222,8 @@ void main() {
     expect(
       find.text(
         'Autorisez MyWeli Pro dans les réglages de votre téléphone pour être '
-        'prévenu·e des réservations, annulations et acomptes de vos clients.',
+        'prévenu·e des réservations, reports, annulations et acomptes de vos '
+        'clients.',
       ),
       findsOneWidget,
     );
