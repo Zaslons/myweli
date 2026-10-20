@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Brouillon** — questions au propriétaire : §10 |
+| **Statut** | **Validé le 2026-10-20** — Q1 : **seul un push de l'app remplace l'e-mail** ; Q2 : **comme l'app** (le bandeau une fois, puis la page Notifications) ; Q3 : **ordinateur seulement** ; Q4 : **les mots tels qu'écrits** (§9, §10) |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-20 |
 | **PRD ref / phase** | FR-NOTIF-001 (canal push) · parité web ↔ app Pro · V1 |
@@ -229,3 +229,5 @@ ordinateur » dans les mots.
   que pour un site ajouté à l'écran d'accueil) ; (b) partout où le
   navigateur le permet (Android, iPhone depuis l'écran d'accueil).
 - **Q4 — les mots** (§9), tels qu'écrits ?
+
+**Décisions (2026-10-20).** Q1 (a), Q2 (a), Q3 (a), Q4 approuvé tel qu'écrit.
