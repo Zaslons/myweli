@@ -301,7 +301,11 @@ test('the security headers are on the response', async ({ request }) => {
 
   // Spot-check the three whose omission breaks production silently, so this
   // fails on a policy that shipped without them rather than only on no policy.
-  expect(csp).toContain('worker-src blob:');
+  // The directive's SOURCES, not its spelling: since the Pro area's service
+  // worker it reads « worker-src 'self' blob: » (web-pro-browser-push.md §5).
+  const workerSrc = /(?:^|;)\s*worker-src ([^;]*)/.exec(csp)?.[1].split(/\s+/) ?? [];
+  expect(workerSrc, 'maplibre builds its worker from a Blob URL').toContain('blob:');
+  expect(workerSrc, 'the Pro area registers /pro/push-sw.js').toContain("'self'");
   expect(csp).toContain('*.cartocdn.com');
   expect(csp).toContain('*.r2.cloudflarestorage.com');
   expect(csp).toContain("frame-ancestors 'none'");

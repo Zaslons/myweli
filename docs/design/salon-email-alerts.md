@@ -37,7 +37,8 @@ actifs qui voient tout le planning, et le Collaborateur pour ses propres
 rendez-vous) :
 
 1. le push part comme aujourd'hui (s'il est permis) ;
-2. **si aucun push n'a été accepté** (0) **et** que sa préférence
+2. **si aucun push n'a été accepté par l'app** (0 — un navigateur ne compte
+   pas : [web-pro-browser-push.md](web-pro-browser-push.md) Q1) **et** que sa préférence
    « Alertes par e-mail » est active → **un e-mail** à l'adresse de sa ligne
    d'adhésion ;
 3. la ligne du fil est écrite comme aujourd'hui.

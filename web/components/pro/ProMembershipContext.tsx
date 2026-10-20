@@ -19,6 +19,7 @@ import {
   logoutPro,
   selectSalon,
 } from '../../lib/api/pro';
+import { signOutPro } from '../../lib/pro/sign-out';
 import {
   type GateExitReason,
   type Membership,
@@ -214,7 +215,7 @@ export function ProMembershipProvider({ children }: { children: ReactNode }) {
   const signOutRevoked = useCallback(
     async (reason?: GateExitReason) => {
       const landing = revokedLanding(reason);
-      const outcome = await logoutPro();
+      const outcome = await signOutPro();
       if (outcome === 'ok') {
         signedOut.current = true;
         router.replace(landing);

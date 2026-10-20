@@ -85,6 +85,25 @@ describe('the Content-Security-Policy', () => {
         + 'sprite, glyphs) and tiles-a..d.basemaps.cartocdn.com (vector tiles), '
         + 'measured 2026-10-11 — the source only names the style',
     ],
+    [
+      'connect-src',
+      'https://firebaseinstallations.googleapis.com',
+      'Firebase getToken registers the browser here first — named in '
+        + '@firebase/installations’ dist, measured 2026-10-20 '
+        + '(web-pro-browser-push.md §5)',
+    ],
+    [
+      'connect-src',
+      'https://fcmregistrations.googleapis.com',
+      'then the FCM token is minted here — named in @firebase/messaging '
+        + '0.13.3’s dist, measured 2026-10-20 (web-pro-browser-push.md §5)',
+    ],
+    [
+      'worker-src',
+      "'self'",
+      'the Pro area’s service worker /pro/push-sw.js — without it the browser '
+        + 'notifications cannot register (web-pro-browser-push.md §5)',
+    ],
   ];
 
   it('COVERS THE ORIGINS NO SOURCE WALK CAN FIND', () => {

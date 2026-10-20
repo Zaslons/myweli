@@ -1937,6 +1937,29 @@ void main() {
       },
     );
 
+    test('devicesForUser returns each token with its platform', () async {
+      // docs/design/web-pro-browser-push.md §4: the notifier tells the app
+      // from browsers by this column.
+      final r = PostgresDeviceTokenRepository(pool);
+      await r.upsert(
+        token: 'tok-web',
+        userId: 'dtu3',
+        role: 'provider',
+        platform: 'web',
+      );
+      await r.upsert(
+        token: 'tok-and',
+        userId: 'dtu3',
+        role: 'provider',
+        platform: 'android',
+      );
+      expect((await r.devicesForUser('dtu3')).toSet(), {
+        (token: 'tok-web', platform: 'web'),
+        (token: 'tok-and', platform: 'android'),
+      });
+      await r.deleteForUser('dtu3');
+    });
+
     test('removing a token that is already gone is a no-op', () async {
       // The prune loop can race two fan-outs to the same user.
       final r = PostgresDeviceTokenRepository(pool);

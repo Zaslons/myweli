@@ -17,6 +17,9 @@ class _MockProviders extends Mock implements ProvidersRepository {}
 /// FCM as the notifier sees it: every token accepted, unless [reject].
 class _Push implements PushProvider {
   bool reject = false;
+
+  /// Tokens FCM declines one by one (the rest go through).
+  final rejectTokens = <String>{};
   final sentTo = <String>[];
 
   @override
@@ -29,8 +32,12 @@ class _Push implements PushProvider {
     if (reject) {
       return (sent: 0, invalidTokens: const <String>[], error: 'unavailable');
     }
-    sentTo.addAll(tokens);
-    return (sent: tokens.length, invalidTokens: const <String>[], error: null);
+    final ok = [
+      for (final t in tokens)
+        if (!rejectTokens.contains(t)) t,
+    ];
+    sentTo.addAll(ok);
+    return (sent: ok.length, invalidTokens: const <String>[], error: null);
   }
 }
 
@@ -113,6 +120,14 @@ void main() {
     userId: accountId,
     role: 'provider',
     platform: 'android',
+  );
+
+  /// A browser where the member switched « Notifications du navigateur » on.
+  Future<void> browser(String accountId) => tokens.upsert(
+    token: 'web-$accountId',
+    userId: accountId,
+    role: 'provider',
+    platform: 'web',
   );
 
   Future<Member> owner({bool withApp = false}) async {
@@ -223,6 +238,37 @@ void main() {
       for (final a in ['acc-owner', 'acc-mgr', 'acc-rec']) {
         expect(await feed.listForUser(a, limit: 10), hasLength(1), reason: a);
       }
+    });
+  });
+
+  /// docs/design/web-pro-browser-push.md Q1 (owner, 2026-10-20): only the
+  /// APP replaces the e-mail. FCM accepts a push to a closed browser and
+  /// delivers it when the browser reopens — counted, it would silence the
+  /// e-mail exactly when the salon is away from its computer.
+  group('a browser is not the app', () {
+    test('reached only in a browser → the browser AND the e-mail', () async {
+      await owner();
+      await browser('acc-owner');
+      await notifier.notify(appointment(), SalonEvent.newBooking);
+      expect(push.sentTo, ['web-acc-owner']);
+      expect(email.sent.map((m) => m.to), ['owner@salon.test']);
+    });
+
+    test('the app and a browser → both pushed, no e-mail', () async {
+      await owner(withApp: true);
+      await browser('acc-owner');
+      await notifier.notify(appointment(), SalonEvent.newBooking);
+      expect(push.sentTo.toSet(), {'tok-acc-owner', 'web-acc-owner'});
+      expect(email.sent, isEmpty);
+    });
+
+    test('the app declined, the browser accepted → the e-mail', () async {
+      await owner(withApp: true);
+      await browser('acc-owner');
+      push.rejectTokens.add('tok-acc-owner');
+      await notifier.notify(appointment(), SalonEvent.newBooking);
+      expect(push.sentTo, ['web-acc-owner']);
+      expect(email.sent.map((m) => m.to), ['owner@salon.test']);
     });
   });
 

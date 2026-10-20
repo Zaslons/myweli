@@ -74,6 +74,9 @@ const ROWS: Row[] = [
   { name: 'markProNotificationRead', kind: 'write', call: () => pro.markProNotificationRead('n1') },
   { name: 'markAllProNotificationsRead', kind: 'write', call: () => pro.markAllProNotificationsRead() },
   { name: 'setProEmailAlerts', kind: 'write', payload: ['prefs'], call: () => pro.setProEmailAlerts(false) },
+  // This browser's notification token (web-pro-browser-push.md §5).
+  { name: 'registerProDevice', kind: 'write', call: () => pro.registerProDevice('tok') },
+  { name: 'unregisterProDevice', kind: 'write', call: () => pro.unregisterProDevice('tok') },
   {
     name: 'submitKyc',
     kind: 'write',

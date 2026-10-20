@@ -10,6 +10,7 @@ import {
   ProNotificationsProvider,
   useProNotifications,
 } from './ProNotificationsContext';
+import { BrowserPushBridge } from './BrowserPushBridge';
 import { ProSidebar } from './ProSidebar';
 import { UnreadBadge } from './UnreadBadge';
 
@@ -35,6 +36,7 @@ import { UnreadBadge } from './UnreadBadge';
 export function ProShell({ children }: { children: ReactNode }) {
   return (
     <ProNotificationsProvider>
+      <BrowserPushBridge />
       <ProShellFrame>{children}</ProShellFrame>
     </ProNotificationsProvider>
   );

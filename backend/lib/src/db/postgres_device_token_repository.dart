@@ -36,6 +36,23 @@ class PostgresDeviceTokenRepository implements DeviceTokenRepository {
   }
 
   @override
+  Future<List<({String token, String platform})>> devicesForUser(
+    String userId,
+  ) async {
+    final rows = await _pool.execute(
+      Sql.named('SELECT token, platform FROM device_tokens WHERE user_id = @u'),
+      parameters: {'u': userId},
+    );
+    return [
+      for (final r in rows)
+        (
+          token: r.toColumnMap()['token'] as String,
+          platform: r.toColumnMap()['platform'] as String,
+        ),
+    ];
+  }
+
+  @override
   Future<void> removeForUser(String userId, String token) async {
     await _pool.execute(
       Sql.named('DELETE FROM device_tokens WHERE token = @t AND user_id = @u'),

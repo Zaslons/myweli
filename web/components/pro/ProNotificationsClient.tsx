@@ -17,6 +17,7 @@ import { EmptyState } from '../EmptyState';
 import { ErrorState } from '../ErrorState';
 import { Icon, notificationIcon } from '../Icon';
 import { SkeletonRows } from '../Skeleton';
+import { BrowserPushPreference, useBrowserPushRow } from './BrowserPushPreference';
 import { EmailAlertsPreference } from './EmailAlertsPreference';
 import { useProMembership } from './ProMembershipContext';
 import { useProNotifications } from './ProNotificationsContext';
@@ -37,6 +38,7 @@ export function ProNotificationsClient() {
   const router = useRouter();
   const feed = useProNotifications();
   const { salons, email } = useProMembership();
+  const pushRow = useBrowserPushRow();
   // A « marquer comme lu » the server refused: under its row, or under the
   // header for « Tout marquer comme lu » (`at: 'all'`) — the client center's
   // rule (web-consumer-optimistic-revert.md §3.2).
@@ -168,7 +170,10 @@ export function ProNotificationsClient() {
           })}
         </ul>
       )}
-      <EmailAlertsPreference email={email} />
+      <EmailAlertsPreference
+        email={email}
+        leading={pushRow ? <BrowserPushPreference /> : null}
+      />
     </Page>
   );
 }

@@ -1,8 +1,9 @@
 import { readFile } from 'node:fs/promises';
 
-import { type Page, expect, test } from '@playwright/test';
+import { type Page, devices, expect, test } from '@playwright/test';
 
 import { signInPro } from './_auth';
+import { asGrantedBrowser, asUnaskedBrowser } from './_push';
 
 
 test('unauthenticated /pro redirects to /pro/connexion', async ({ page }) => {
@@ -882,4 +883,120 @@ test('« Alertes par e-mail »: off, still off after a reload, back on (salon-em
   await expect(sw).toHaveAttribute('aria-checked', 'true');
   await page.reload();
   await expect(sw).toHaveAttribute('aria-checked', 'true');
+});
+
+/// docs/design/web-pro-browser-push.md — the salon's browser notifications,
+/// owner decisions 2026-10-20 (like the app; computers only). A headless
+/// browser has no push service to subscribe to, so the e2e build names its
+/// token (NEXT_PUBLIC_E2E_PUSH_TOKEN); everything else is real — the
+/// browser's permission, the service worker's registration, the BFF, the
+/// stub's `/me/devices`.
+test.describe('browser notifications (web-pro-browser-push)', () => {
+  const BAND = 'Activer les notifications';
+  const ROW = 'Notifications du navigateur';
+  const devicesCall = (method: 'POST' | 'DELETE') => (r: import('@playwright/test').Request) =>
+    r.url().endsWith('/api/pro/devices') && r.method() === method;
+
+  test('the band: « Plus tard », and never again on this browser', async ({ page }) => {
+    await asUnaskedBrowser(page);
+    await signInPro(page);
+    await expect(page.getByRole('heading', { name: BAND })).toBeVisible();
+    await page.getByRole('button', { name: 'Plus tard' }).click();
+    await expect(page.getByRole('heading', { name: BAND })).toBeHidden();
+    await page.reload();
+    await expect(page.getByRole('heading', { name: 'Aujourd’hui' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: BAND })).toBeHidden();
+  });
+
+  test('« Activer »: the worker registers at /pro/, this browser’s token reaches the server, the confirmation', async ({
+    page,
+    context,
+  }) => {
+    await asUnaskedBrowser(page);
+    await signInPro(page);
+    await expect(page.getByRole('heading', { name: BAND })).toBeVisible();
+    // The browser's own dialog cannot be clicked in a test: it answers yes.
+    await context.grantPermissions(['notifications']);
+    const posted = page.waitForRequest(devicesCall('POST'));
+    await page.getByRole('button', { name: 'Activer' }).click();
+    const req = await posted;
+    expect(req.postDataJSON()).toEqual({ token: 'e2e-push-token' });
+    expect((await req.response())?.status()).toBe(200);
+    await expect(page.getByText('Notifications activées sur cet ordinateur.')).toBeVisible();
+    const scope = await page.evaluate(
+      async () => (await navigator.serviceWorker.getRegistration('/pro/'))?.scope ?? null,
+    );
+    expect(scope).toMatch(/\/pro\/$/);
+  });
+
+  test('the row: on, still on after a reload (re-registered), off, still off', async ({
+    page,
+    context,
+  }) => {
+    await asUnaskedBrowser(page);
+    await signInPro(page);
+    await page.goto('/pro/notifications');
+    const sw = page.getByRole('switch', { name: ROW });
+    await expect(sw).toHaveAttribute('aria-checked', 'false');
+    await context.grantPermissions(['notifications']);
+    const posted = page.waitForRequest(devicesCall('POST'));
+    await sw.click();
+    await posted;
+    await expect(sw).toHaveAttribute('aria-checked', 'true');
+    // A sign-in on a permitted browser registers again, without a question.
+    const again = page.waitForRequest(devicesCall('POST'));
+    await page.reload();
+    await again;
+    await expect(sw).toHaveAttribute('aria-checked', 'true');
+    const deleted = page.waitForRequest(devicesCall('DELETE'));
+    await sw.click();
+    expect((await deleted).postDataJSON()).toEqual({ token: 'e2e-push-token' });
+    await expect(sw).toHaveAttribute('aria-checked', 'false');
+    await page.reload();
+    await expect(sw).toHaveAttribute('aria-checked', 'false');
+  });
+
+  test('sign-out: this browser is unregistered BEFORE the session goes', async ({
+    page,
+    context,
+  }) => {
+    // A browser that already said yes: the sign-in registers it by itself.
+    await asGrantedBrowser(page, context);
+    const registered = page.waitForRequest(devicesCall('POST'));
+    await signInPro(page);
+    await registered;
+    const order: string[] = [];
+    page.on('request', (r) => {
+      if (devicesCall('DELETE')(r)) order.push('unregister');
+      if (r.url().endsWith('/api/pro/auth/logout')) order.push('logout');
+    });
+    await page.getByRole('button', { name: 'Se déconnecter' }).first().click();
+    await expect(page).toHaveURL(/\/pro\/connexion/);
+    expect(order).toEqual(['unregister', 'logout']);
+  });
+
+  test('a phone: no band, and the row says the app does it (Q3)', async ({ browser }) => {
+    // A real phone's emulation, not only its user agent: Chromium then also
+    // says `navigator.userAgentData.mobile` — overriding the string alone left
+    // it `false`, and the page rightly saw a computer.
+    const phone = await browser.newContext({
+      ...devices['Pixel 7'],
+      baseURL: test.info().project.use.baseURL,
+      timezoneId: 'UTC',
+    });
+    const page = await phone.newPage();
+    await asUnaskedBrowser(page);
+    try {
+      await signInPro(page);
+      await expect(page.getByRole('heading', { name: 'Aujourd’hui' })).toBeVisible();
+      await expect(page.getByRole('heading', { name: BAND })).toBeHidden();
+      await page.goto('/pro/notifications');
+      await expect(
+        page.getByText('Sur téléphone, les notifications passent par l’app MyWeli Pro.'),
+      ).toBeVisible();
+      await expect(page.getByRole('switch', { name: ROW })).toHaveCount(0);
+    } finally {
+      await phone.close();
+    }
+  });
 });

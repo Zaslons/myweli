@@ -27,6 +27,7 @@ import {
   todayCounts,
   todaysAppointments,
 } from '../../lib/pro/today';
+import { BrowserPushBand } from './BrowserPushBand';
 import { GoLiveCard } from './GoLiveCard';
 import { ProAppointmentRow } from './ProAppointmentRow';
 import { ProInvitationsCard } from './ProInvitationsCard';
@@ -126,6 +127,10 @@ export function AujourdhuiClient() {
           {salonName} — votre planning
         </h1>
 
+        {/* A Collaborateur is told of their own artist's bookings: the same
+            band (docs/design/web-pro-browser-push.md §2). */}
+        <BrowserPushBand />
+
         {/* Pending invitations for THIS account (if any). */}
         <ProInvitationsCard onAccepted={onInvitationAccepted} />
 
@@ -156,6 +161,10 @@ export function AujourdhuiClient() {
     <div>
       <h1 className="text-headlineSmall font-semibold text-textPrimary">Aujourd’hui</h1>
       <p className="mt-xs text-bodyMedium text-textTertiary">{profile?.provider.name}</p>
+
+      {/* The app's push prompt on its first dashboard visit, as a band —
+          once per browser (docs/design/web-pro-browser-push.md §2). */}
+      <BrowserPushBand />
 
       {/* §9's two-pane desktop (B7): ONE DOM tree. Below xl the two children
           stack in the vertical flow (interrupts + stats, then the day's

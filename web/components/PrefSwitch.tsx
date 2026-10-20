@@ -8,11 +8,15 @@ export function PrefSwitch({
   checked,
   labelledBy,
   onToggle,
+  busy = false,
 }: {
   checked: boolean;
   /// The id of the row's title — a real element, not a duplicated string.
   labelledBy: string;
   onToggle: () => void;
+  /// While a write is out (« Notifications du navigateur » waits on the
+  /// browser's question): announced, and a second click cannot start another.
+  busy?: boolean;
 }) {
   return (
     // §13.2: the BUTTON is the ≥48px target; the 44×24 track is the visible
@@ -22,6 +26,8 @@ export function PrefSwitch({
       role="switch"
       aria-checked={checked}
       aria-labelledby={labelledBy}
+      aria-busy={busy || undefined}
+      disabled={busy}
       onClick={onToggle}
       className="flex min-h-12 min-w-12 shrink-0 items-center justify-center"
     >

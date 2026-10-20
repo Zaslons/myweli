@@ -47,8 +47,9 @@ choses que l'app n'a pas (§4).
    dans l'app (§2, deuxième ligne).
 5. **Aucune alerte pour un salon « web seulement »** — *traité le
    2026-10-20 : un e-mail quand aucun push n'arrive
-   ([salon-email-alerts.md](salon-email-alerts.md)) ; la notification du
-   navigateur viendra à part.* — quand l'onglet est
+   ([salon-email-alerts.md](salon-email-alerts.md)) ; et la notification du
+   navigateur sur ordinateur ([web-pro-browser-push.md](web-pro-browser-push.md),
+   2026-10-20 — seul un push de l'app remplace l'e-mail).* — quand l'onglet est
    fermé : le serveur ne prévient un salon que par push mobile
    (`salon_notifier.dart:87-91`) ; le web ne relit le fil que tant que
    l'onglet est visible (`ProNotificationsContext.tsx:125-127`).

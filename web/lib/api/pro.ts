@@ -266,6 +266,27 @@ export async function setProEmailAlerts(on: boolean): Promise<{
     : { ok: true, status: res.status };
 }
 
+/// This browser's notification token on the member's Pro session
+/// (docs/design/web-pro-browser-push.md §5) — the BFF says `web`.
+export async function registerProDevice(token: string): Promise<{ ok: boolean; status: number }> {
+  const res = await send('/api/pro/devices', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ token }),
+  });
+  return { ok: res.ok, status: res.status };
+}
+
+/// Forget this browser's token — the switch turned off, or a sign-out.
+export async function unregisterProDevice(token: string): Promise<{ ok: boolean; status: number }> {
+  const res = await send('/api/pro/devices', {
+    method: 'DELETE',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ token }),
+  });
+  return { ok: res.ok, status: res.status };
+}
+
 export async function listProAppointments(): Promise<{
   status: number;
   items: ProAppointment[];

@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
 import { signInConsumer, signInPro } from './_auth';
+import { asUnaskedBrowser } from './_push';
 
 /// B2b — the type scale must not overflow anything (WEB-SYSTEM §3).
 ///
@@ -53,6 +54,9 @@ type Route = {
   /// `RendezVousClient`'s default view is `journal`, so a test that merely
   /// loads the page never renders the tabs it is there to measure.
   setup?: (page: Page) => Promise<void>;
+  /// Before the sign-in's first navigation — init scripts
+  /// (`asUnaskedBrowser`, docs/design/web-pro-browser-push.md).
+  init?: (page: Page) => Promise<void>;
   /// What the five generic checks cannot see on this route, asserted before
   /// them. They find what spills, what is cut off and what is truncated — never
   /// how many lines a string took, and never how far apart two controls ended
@@ -692,6 +696,26 @@ const AUTHED_ROUTES: Route[] = [
     auth: 'pro',
     ready: (page) => page.getByRole('switch', { name: 'Alertes par e-mail' }),
   },
+  {
+    // docs/design/web-pro-browser-push.md §3 — « Notifications du
+    // navigateur » above « Alertes par e-mail »: its long sentence beside the
+    // 48px switch. `ready` is the switch.
+    name: 'the pro notification center — « Notifications du navigateur »',
+    init: asUnaskedBrowser,
+    url: '/pro/notifications',
+    anchor: 'Notifications',
+    auth: 'pro',
+    ready: (page) => page.getByRole('switch', { name: 'Notifications du navigateur' }),
+  },
+  {
+    // §2 — the Accueil's band, its sentence and its two buttons.
+    name: 'the pro home — the notifications band',
+    init: asUnaskedBrowser,
+    url: '/pro',
+    anchor: 'Aujourd’hui',
+    auth: 'pro',
+    ready: (page) => page.getByRole('heading', { name: 'Activer les notifications' }),
+  },
   // ---- amounts-that-fit (docs/design/amounts-that-fit.md §8.5) -------------
   {
     // The client CARD — the page behind every row of « the pro client list »
@@ -732,6 +756,7 @@ for (const vp of VIEWPORTS) {
 
     for (const route of AUTHED_ROUTES) {
       test(`${route.name} — no overflow at ${vp.name}`, async ({ page }) => {
+        await route.init?.(page);
         if (route.auth === 'pro') await signInPro(page);
         else await signInConsumer(page);
 

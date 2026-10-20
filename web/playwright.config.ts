@@ -98,6 +98,17 @@ export default defineConfig({
         // is legitimately absent. The absent case is covered by
         // `tests/support.test.ts`; this covers the configured one.
         NEXT_PUBLIC_MYWELI_WHATSAPP: '2250700000000',
+        // The browser notifications (web-pro-browser-push.md §5) exist only
+        // with a Firebase web app configured — dummy values make the band and
+        // the row render; no request ever reaches Google, because a headless
+        // browser has no push service and the build names its token instead
+        // (NEXT_PUBLIC_E2E_PUSH_TOKEN, never set in a real build).
+        NEXT_PUBLIC_FIREBASE_API_KEY: 'e2e-dummy-key',
+        NEXT_PUBLIC_FIREBASE_PROJECT_ID: 'e2e-dummy',
+        NEXT_PUBLIC_FIREBASE_APP_ID: '1:0:web:e2e',
+        NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: '0',
+        NEXT_PUBLIC_FIREBASE_VAPID_KEY: 'e2e-dummy-vapid',
+        NEXT_PUBLIC_E2E_PUSH_TOKEN: 'e2e-push-token',
         TZ: 'UTC',
       },
     },
