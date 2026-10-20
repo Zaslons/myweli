@@ -169,7 +169,7 @@ describe('§2.2 — blocked dates, the app’s flow', () => {
     expect(
       within(dialog).getByText('Votre salon n’acceptera aucune réservation pendant ces 2 journées.'),
     ).toBeInTheDocument();
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Bloquer 2 dates' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Bloquer 2\u00a0dates' }));
 
     await waitFor(() => expect(sent).toHaveLength(1));
     // Salon midnight in UTC — the app's format (Abidjan = UTC).

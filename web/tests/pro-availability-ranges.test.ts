@@ -233,8 +233,8 @@ describe('the app’s words, verbatim (D3, D6, D7)', () => {
       delta: '',
     });
     expect(blockedPickerSummary(3, { added: ['a', 'b'], removed: ['c'] })).toEqual({
-      state: '3 dates bloquées',
-      delta: '2 ajoutées · 1 retirée',
+      state: '3\u00a0dates bloquées',
+      delta: '2\u00a0ajoutées · 1\u00a0retirée',
     });
     expect(blockedPickerSummary(0, { added: [], removed: ['c'] }).state).toBe(
       'Toutes vos dates bloquées seront retirées.',
@@ -251,8 +251,8 @@ describe('the app’s words, verbatim (D3, D6, D7)', () => {
     });
     expect(blockedConfirm({ added: ['d1', 'd2'], removed: [] }, fmt)).toEqual({
       title: 'Bloquer ces dates ?',
-      lines: ['Votre salon n’acceptera aucune réservation pendant ces 2 journées.'],
-      confirm: 'Bloquer 2 dates',
+      lines: ['Votre salon n’acceptera aucune réservation pendant ces 2\u00a0journées.'],
+      confirm: 'Bloquer 2\u00a0dates',
       destructive: true,
     });
     expect(blockedConfirm({ added: [], removed: ['d1'] }, fmt)).toEqual({
@@ -263,13 +263,13 @@ describe('the app’s words, verbatim (D3, D6, D7)', () => {
     });
     expect(blockedConfirm({ added: [], removed: ['d1', 'd2', 'd3'] }, fmt)).toEqual({
       title: 'Débloquer ces dates ?',
-      lines: ['Votre salon acceptera de nouveau des réservations pendant ces 3 journées.'],
-      confirm: 'Débloquer 3 dates',
+      lines: ['Votre salon acceptera de nouveau des réservations pendant ces 3\u00a0journées.'],
+      confirm: 'Débloquer 3\u00a0dates',
       destructive: false,
     });
     expect(blockedConfirm({ added: ['d1', 'd2'], removed: ['d3'] }, fmt)).toEqual({
       title: 'Modifier vos dates bloquées ?',
-      lines: ['2 dates seront bloquées', '1 date sera débloquée'],
+      lines: ['2\u00a0dates seront bloquées', '1\u00a0date sera débloquée'],
       confirm: 'Enregistrer',
       destructive: true,
     });
@@ -277,7 +277,7 @@ describe('the app’s words, verbatim (D3, D6, D7)', () => {
 
   it('the line after the write', () => {
     expect(blockedSavedSummary({ added: ['a', 'b'], removed: ['c'] })).toBe(
-      '2 dates bloquées · 1 date débloquée',
+      '2\u00a0dates bloquées · 1\u00a0date débloquée',
     );
   });
 });
