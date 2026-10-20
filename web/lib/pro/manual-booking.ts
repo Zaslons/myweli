@@ -38,16 +38,23 @@ export function isFutureIso(iso: string, now: Date = new Date()): boolean {
   return Number.isFinite(t) && t > now.getTime();
 }
 
-/// The submit gate, mirroring the app: ≥1 service + a datetime + a client
-/// (picked from C1 or at least named).
+/// The submit gate: ≥1 service + a datetime. The client is NOT a condition of
+/// the button — as in the app, it is judged at submit, under its field
+/// (docs/design/web-manual-booking-walk-in.md). This used to demand a name and
+/// say it mirrored the app, which demands the opposite.
 export function canSubmitManualBooking(input: {
   serviceIds: string[];
   dateTimeIso: string | null;
-  clientNamed: boolean;
 }): boolean {
-  return (
-    input.serviceIds.length > 0 &&
-    input.dateTimeIso != null &&
-    input.clientNamed
-  );
+  return input.serviceIds.length > 0 && input.dateTimeIso != null;
+}
+
+/// The app's client rule (`ProManualBookingScreen`): a NEW client needs a
+/// number unless « Client sans numéro » is ticked; the name is optional. A
+/// client picked from the base brings their own (or none).
+export function newClientNeedsPhone(input: {
+  picked: boolean;
+  withoutNumber: boolean;
+}): boolean {
+  return !input.picked && !input.withoutNumber;
 }

@@ -136,7 +136,8 @@ describe('ManualBookingDialog — the walk-in, like the app', () => {
     mockFetch();
     renderDialog();
     fillBasics();
-    fireEvent.change(phoneField(), { target: { value: '0700' } });
+    // jsdom fires the field's full international value (manual-booking-phone).
+    fireEvent.change(phoneField(), { target: { value: '+2250700' } });
     create();
     expect(await screen.findByText(/chiffres/)).toBeInTheDocument();
     fireEvent.click(box());
@@ -144,14 +145,14 @@ describe('ManualBookingDialog — the walk-in, like the app', () => {
     expect(phoneField()).toBeDisabled();
     fireEvent.click(box());
     expect(phoneField()).toBeEnabled();
-    expect(phoneField()).toHaveValue('0700');
+    expect(phoneField()).toHaveValue('+225 07 00');
   });
 
   it('a number typed, then the box ticked: the number is not sent', async () => {
     mockFetch();
     renderDialog();
     fillBasics();
-    fireEvent.change(phoneField(), { target: { value: '0700000042' } });
+    fireEvent.change(phoneField(), { target: { value: '+2250700000042' } });
     fireEvent.click(box());
     create();
     await waitFor(() => expect(posted).toHaveLength(1));
@@ -163,7 +164,7 @@ describe('ManualBookingDialog — the walk-in, like the app', () => {
     mockFetch();
     renderDialog();
     fillBasics();
-    fireEvent.change(phoneField(), { target: { value: '0700000042' } });
+    fireEvent.change(phoneField(), { target: { value: '+2250700000042' } });
     create();
     await waitFor(() => expect(posted).toHaveLength(1));
     expect(posted[0].clientName).toBe('Awa');
