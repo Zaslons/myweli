@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Validé le 2026-10-20** — Q1 (décision 8) : **partout, tout de suite** (la fiche, « Ma journée », « Accueil », la fiche client, la liste ; arrivée et reprogrammation comprises, dans les deux sens) ; Q2 (décision 9) : **garder les chiffres + le message** ; Q3 (décision 10) : **la même PR** ; Q4 : **les mots tels qu'écrits** (§9) |
+| **Statut** | **Construit le 2026-10-20** sur `fix/app-pro-home-journal-fresh` ; ce qui a été vu : §10. Validé le même jour — Q1 (décision 8) : **partout, tout de suite** (la fiche, « Ma journée », « Accueil », la fiche client, la liste ; arrivée et reprogrammation comprises, dans les deux sens) ; Q2 (décision 9) : **garder les chiffres + le message** ; Q3 (décision 10) : **la même PR** ; Q4 : **les mots tels qu'écrits** (§9) |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-20 |
 | **PRD ref / phase** | Journal + tableau de bord Pro (V1) |
@@ -190,3 +190,42 @@ simule déjà latence et échec ; il doit pouvoir répondre « pas de réponse �
   (`ErrorState`, `loadFailureMessage`).
 
 **Décisions (2026-10-20).** Q1, Q2, Q3 et Q4 : les recommandations, telles qu'écrites.
+
+## 10. Construit — ce qui a été vu
+
+**Comme écrit**, avec ces précisions :
+- `HearsBookingChanges` (ce que la liste « Rendez-vous » implémente) et
+  `ShowsSalonBookings` qui l'étend (« Ma journée », « Accueil », la fiche
+  client) : la liste fait ses propres créations et ne doit pas entendre
+  `bookingCreated` une seconde fois.
+- L'annonce part des écritures elles-mêmes, avec `except:` le magasin qui
+  vient de l'appliquer — « Ma journée » ne s'entend pas deux fois (un refus
+  aurait retiré deux fois le point du jour).
+- Un rendez-vous dont le nouveau statut le sort d'une liste filtrée (l'onglet
+  « En attente ») la quitte.
+- La fiche client se relit aussi pour un rendez-vous qu'elle liste déjà ou
+  qui est son prochain, quand le téléphone n'est pas connu.
+
+**Trouvé en construisant** :
+- **Un geste réussi de « Ma journée » pouvait finir sur « Une erreur est
+  survenue »** : la relecture qui suivait était la relecture ordinaire, et son
+  échec vidait le jour. Elle est maintenant discrète ; le changement reste.
+- **La garde « R6 »** (`multi_salon_test.dart`) a vu les six nouvelles
+  lectures de `.providerId` — chacune compare le salon d'un changement à celui
+  du magasin ; elles sont consignées avec leur raison, et la lecture par
+  indice (`_appointments[i]`) est nommée pour que la garde la suive.
+- Le test « KNOWN DEFECT » d'« Accueil » est réécrit comme il le demandait :
+  le glissement (`refresh`) demande au serveur ; revenir sur « Accueil »
+  utilise ce qui est chargé.
+- Le test d'écran d'« Accueil » part d'un salon qui a déjà répondu à la
+  feuille « Activer les notifications » : sinon elle couvre l'écran et prend
+  les gestes (le comportement voulu de l'app).
+
+**Mutations vues rouges** : une écriture refusée annoncée ; « Ma journée »
+sourde ; le glissement qui rend la main sans demander ; le chargement sans
+numéro de demande ; l'état d'erreur qui montre le texte brut ; le geste de
+« Ma journée » qui relit de nouveau par le chemin ordinaire.
+
+**Vérifié** : format et analyse propres ; la suite de l'app entière ; le
+golden de l'état d'erreur généré sur Ubuntu (le workflow des goldens).
+
