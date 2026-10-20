@@ -307,6 +307,16 @@ test('the OPEN journal panel with its deposit screenshot is axe-clean', async ({
   await expectNoViolations(page, '/pro/rendez-vous + enlarged deposit screenshot');
 });
 
+test('the « Semaine » tab is axe-clean (web-pro-week-view)', async ({ page }) => {
+  await page.goto('/pro/connexion');
+  await submitOtpLogin(page, 'salon@example.com');
+  await expect(page).toHaveURL(/\/pro(\/)?$/);
+  await page.goto('/pro/rendez-vous?vue=semaine');
+  await expect(page.getByRole('table', { name: /^Semaine du / })).toBeVisible();
+  await expect(page.getByRole('button', { name: /— Sans artiste, Lun \d+ à 15:30$/ })).toBeVisible();
+  await expectNoViolations(page, '/pro/rendez-vous?vue=semaine');
+});
+
 test('a VISIBLE toast is axe-clean', async ({ page }) => {
   await page.goto('/pro/connexion');
   await submitOtpLogin(page, 'salon@example.com');

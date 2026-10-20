@@ -1163,3 +1163,44 @@ test.describe('browser notifications (web-pro-browser-push)', () => {
     }
   });
 });
+
+/// docs/design/web-pro-week-view.md — the « Semaine » tab at desktop width
+/// (Playwright's default viewport): seven days, the stub's two bookings each
+/// day, the week in the address (a reload keeps it), the Journée's panel,
+/// click-to-create.
+test('« Semaine »: the week, its address, the panel and click-to-create (web-pro-week-view)', async ({
+  page,
+}) => {
+  await signInPro(page);
+  await page.goto('/pro/rendez-vous');
+  await page.getByRole('button', { name: 'Semaine', exact: true }).click();
+  const week = page.getByRole('table', { name: /^Semaine du / });
+  await expect(week).toBeVisible();
+  await expect(week.getByRole('columnheader')).toHaveCount(7);
+  // Each block names its artist (the stub's have none), its day and its time.
+  // pj2 (15:30), the one no spec moves: workers share this stub, and pj1
+  // may be cancelled — hidden here — by the time this runs.
+  await expect(week.getByRole('button', { name: /— Sans artiste, Lun \d+ à 15:30$/ })).toBeVisible();
+
+  const thisWeek = await week.getAttribute('aria-label');
+  await page.getByRole('button', { name: 'Semaine suivante' }).click();
+  await expect(page).toHaveURL(/\/pro\/rendez-vous\?vue=semaine&jour=\d{4}-\d{2}-\d{2}$/);
+  await expect(page.getByRole('table', { name: thisWeek! })).toHaveCount(0);
+  await expect(week).toBeVisible();
+  const label = await week.getAttribute('aria-label');
+  await page.reload();
+  await expect(page.getByRole('table', { name: label! })).toBeVisible();
+
+  await week.getByRole('button', { name: /— Sans artiste, Mer \d+ à 15:30$/ }).click();
+  const panel = page.getByRole('dialog', { name: 'Détails du rendez-vous' });
+  await expect(panel).toBeVisible();
+  // The Journée's panel is non-modal: it closes with its own ✕.
+  await panel.getByRole('button', { name: 'Fermer' }).click();
+  await expect(panel).toBeHidden();
+
+  await week.getByRole('button', { name: /^Créer un rendez-vous — Mar \d+$/ }).click();
+  const dialog = page.getByRole('dialog', { name: 'Nouveau rendez-vous' });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole('button', { name: 'Annuler' }).click();
+  await expect(dialog).toBeHidden();
+});

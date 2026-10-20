@@ -285,3 +285,19 @@ test('the buffer presets reach the floor (§13.2)', async ({ page }) => {
     await assertBox(chip, `buffer preset « ${label} »`, { minW: 0 });
   }
 });
+
+/// docs/design/web-pro-week-view.md — the « Semaine » controls, at the width
+/// the tab exists (desktop only).
+test.describe('pro: the « Semaine » controls (web-pro-week-view)', () => {
+  test.use({ viewport: { width: 1280, height: 800 } });
+
+  test('‹ ›, « Cette semaine », the « Artiste » filter', async ({ page }) => {
+    await signInPro(page);
+    await page.goto('/pro/rendez-vous?vue=semaine');
+    await expect(page.getByRole('table', { name: /^Semaine du / })).toBeVisible();
+    await assertBox(page.getByRole('button', { name: 'Semaine précédente' }), '‹');
+    await assertBox(page.getByRole('button', { name: 'Semaine suivante' }), '›');
+    await assertBox(page.getByRole('button', { name: 'Cette semaine' }), '« Cette semaine »', { minW: 0 });
+    await assertBox(page.getByLabel('Artiste', { exact: true }), '« Artiste »', { minW: 0 });
+  });
+});

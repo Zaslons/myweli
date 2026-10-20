@@ -10,11 +10,13 @@
 
 import type { ListTab } from './agenda';
 
-export type AgendaView = 'journal' | 'calendar' | 'list';
+export type AgendaView = 'journal' | 'week' | 'calendar' | 'list';
 
 export type AgendaState = {
   view: AgendaView;
-  /// The Journée's salon day (AAAA-MM-JJ).
+  /// The Journée's salon day (AAAA-MM-JJ) — and the « Semaine »'s: its week
+  /// is that day's (docs/design/web-pro-week-view.md), so switching between
+  /// the two keeps the day.
   journalDate: string;
   /// The Calendrier's chosen salon day.
   selected: string;
@@ -25,11 +27,13 @@ export type AgendaState = {
 /// `constructor`, `__proto__`… through its prototype, and an address is
 /// anyone's input.
 const VIEW_SLUGS = new Map<string, AgendaView>([
+  ['semaine', 'week'],
   ['calendrier', 'calendar'],
   ['liste', 'list'],
 ]);
 const VIEW_SLUG_OF: Record<AgendaView, string | null> = {
   journal: null,
+  week: 'semaine',
   calendar: 'calendrier',
   list: 'liste',
 };
@@ -71,7 +75,7 @@ export function readAgenda(search: string, today: string): AgendaState {
   const day = isDayKey(jour) ? jour : today;
   return {
     view,
-    journalDate: view === 'journal' ? day : today,
+    journalDate: view === 'journal' || view === 'week' ? day : today,
     selected: view === 'calendar' ? day : today,
     listTab:
       view === 'list' ? (TAB_SLUGS.get(p.get('filtre') ?? '') ?? 'today') : 'today',
@@ -85,7 +89,7 @@ export function agendaQuery(state: AgendaState, today: string): string {
   const p = new URLSearchParams();
   const vue = VIEW_SLUG_OF[state.view];
   if (vue) p.set('vue', vue);
-  if (state.view === 'journal' && state.journalDate !== today) {
+  if ((state.view === 'journal' || state.view === 'week') && state.journalDate !== today) {
     p.set('jour', state.journalDate);
   }
   if (state.view === 'calendar' && state.selected !== today) {

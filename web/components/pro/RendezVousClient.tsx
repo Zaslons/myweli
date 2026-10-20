@@ -4,7 +4,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { EmptyState } from '../EmptyState';
 import { ErrorState } from '../ErrorState';
 import { SkeletonRows } from '../Skeleton';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import { Toast } from '../Toast';
 import { useToast } from '../../lib/useToast';
 import { type ProProfile, getMyProvider, listProAppointments } from '../../lib/api/pro';
@@ -33,7 +33,11 @@ import { ManualBookingDialog } from './ManualBookingDialog';
 import { MonthCalendar } from './MonthCalendar';
 import { ProAppointmentRow } from './ProAppointmentRow';
 import { Tabs } from '../Tabs';
+import { WeekGrid } from './WeekGrid';
 import { WeekStrip } from './WeekStrip';
+import { useIsDesktop } from '../../lib/pro/use-is-desktop';
+import { weekOf, weekStripLabel } from '../../lib/pro/week-strip';
+import { weekArtists } from '../../lib/pro/week-view';
 
 type View = AgendaView;
 
@@ -41,6 +45,9 @@ type View = AgendaView;
 /// the map, which is what the hand-rolled strip did (B9).
 const VIEW_TABS: { key: View; label: string }[] = [
   { key: 'journal', label: 'Journée' },
+  // Desktop only (docs/design/web-pro-week-view.md Q3): phones keep the week
+  // strip + the Journée, as the app.
+  { key: 'week', label: 'Semaine' },
   { key: 'calendar', label: 'Calendrier' },
   { key: 'list', label: 'Liste' },
 ];
@@ -68,6 +75,12 @@ export function RendezVousClient() {
   const [selected, setSelected] = useState<string>(dateKey(new Date()));
   const [listTab, setListTab] = useState<ListTab>('today');
   const [creating, setCreating] = useState(false);
+  const isDesktop = useIsDesktop();
+  // The « Semaine »: its seven days (the Journée's reads), and the « Artiste »
+  // filter — null = « Tous », '' = « Sans artiste ».
+  const [weekDays, setWeekDays] = useState<JournalDay[] | null>(null);
+  const [weekError, setWeekError] = useState<LoadFailure | false>(false);
+  const [artistFilter, setArtistFilter] = useState<string | null>(null);
 
   // The address as Next's router knows it — it follows `history.replaceState`
   // (14.1+), so the page's own writes come back here too.
@@ -201,7 +214,9 @@ export function RendezVousClient() {
   // only on the Journée view. T is a single-character shortcut (WCAG 2.1.4);
   // the typing guard + view scope are the mitigation, recorded in §9.
   useEffect(() => {
-    if (view !== 'journal') return;
+    if (view !== 'journal' && view !== 'week') return;
+    // The same keys, a week at a time in « Semaine ».
+    const step = view === 'week' ? 7 : 1;
     const salonTz = profile?.provider.timezone ?? undefined;
     const onKey = (e: KeyboardEvent) => {
       // A held key auto-repeats — one deliberate press, one step.
@@ -219,7 +234,7 @@ export function RendezVousClient() {
       if (document.querySelector('[role="dialog"]')) return;
       if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
         e.preventDefault();
-        const delta = e.key === 'ArrowLeft' ? -1 : 1;
+        const delta = e.key === 'ArrowLeft' ? -step : step;
         setJournalDate((d) =>
           // Midday anchor: ±1 day stays inside the salon day at any offset.
           dateKey(addDays(new Date(`${d}T12:00:00.000Z`), delta), salonTz),
@@ -232,6 +247,45 @@ export function RendezVousClient() {
     return () => window.removeEventListener('keydown', onKey);
   }, [view, profile]);
 
+
+  // A « Semaine » address on a phone (or a window narrowed under it) opens
+  // that day's Journée — the tab is a desktop one (web-pro-week-view.md Q3).
+  useEffect(() => {
+    if (view === 'week' && !isDesktop) setView('journal');
+  }, [view, isDesktop]);
+
+  // The week's seven days, read together — the Journée's own reads, so the
+  // panel gets what it expects; the newest request wins (a held → must not
+  // let a slower, older week land).
+  const weekReq = useRef(0);
+  const monday = weekOf(journalDate)[0];
+  const loadWeek = useCallback(async () => {
+    if (!profile) return;
+    const req = ++weekReq.current;
+    setWeekError(false);
+    // Another week: its skeleton, never the previous week's grid under the
+    // new week's name. The same week (a reload after an action) stays shown.
+    setWeekDays((cur) => (cur && cur[0]?.date === monday ? cur : null));
+    const results = await Promise.all(
+      weekOf(monday).map((d) => getJournalDay(profile.provider.id, d)),
+    );
+    if (req !== weekReq.current) return;
+    if (results.some((r) => r.status === 401)) {
+      router.replace('/pro/connexion');
+      return;
+    }
+    const failed = results.find((r) => r.status !== 200 || !r.day);
+    if (failed) {
+      setWeekDays(null);
+      setWeekError(loadFailure(failed.status));
+      return;
+    }
+    setWeekDays(results.map((r) => r.day as JournalDay));
+  }, [profile, monday, router]);
+
+  useEffect(() => {
+    if (view === 'week') void loadWeek();
+  }, [view, loadWeek]);
 
   if (loading) return <SkeletonRows count={5} className="mt-l" />;
   if (error) {
@@ -280,7 +334,7 @@ export function RendezVousClient() {
         className="mt-l"
         value={view}
         onChange={setView}
-        items={VIEW_TABS}
+        items={isDesktop ? VIEW_TABS : VIEW_TABS.filter((t) => t.key !== 'week')}
       />
 
       {view === 'journal' ? (
@@ -389,6 +443,38 @@ export function RendezVousClient() {
             <SkeletonRows count={6} className="mt-l" />
           )}
         </div>
+      ) : view === 'week' ? (
+        <WeekView
+          days={weekDays}
+          error={weekError}
+          onRetry={() => void loadWeek()}
+          monday={monday}
+          tz={tz}
+          showCancelled={showCancelled}
+          setShowCancelled={setShowCancelled}
+          artistFilter={artistFilter}
+          setArtistFilter={setArtistFilter}
+          onWeek={(delta) =>
+            setJournalDate((d) =>
+              dateKey(addDays(new Date(`${d}T12:00:00.000Z`), delta * 7), tz),
+            )
+          }
+          onThisWeek={() => setJournalDate(dateKey(new Date(), tz))}
+        >
+          {profile && weekDays ? (
+            <WeekGrid
+              providerId={profile.provider.id}
+              days={weekDays}
+              profile={profile}
+              readOnly={!canManageAll}
+              artistFilter={artistFilter}
+              showCancelled={showCancelled}
+              onChanged={() => void loadWeek()}
+              onToast={show}
+              bookingQuery={bookingQuery}
+            />
+          ) : null}
+        </WeekView>
       ) : view === 'calendar' ? (
         <div className="mt-m grid gap-l md:grid-cols-2">
           <MonthCalendar
@@ -463,6 +549,123 @@ export function RendezVousClient() {
         />
       ) : null}
       <Toast toast={toast} />
+    </div>
+  );
+}
+/// The « Semaine » chrome (docs/design/web-pro-week-view.md): ‹ « Semaine du
+/// 19 octobre » ›, « Cette semaine », the « Artiste » filter, « Voir les
+/// annulés » — then the grid, or its states.
+function WeekView({
+  days,
+  error,
+  onRetry,
+  monday,
+  tz,
+  showCancelled,
+  setShowCancelled,
+  artistFilter,
+  setArtistFilter,
+  onWeek,
+  onThisWeek,
+  children,
+}: {
+  days: JournalDay[] | null;
+  error: LoadFailure | false;
+  onRetry: () => void;
+  monday: string;
+  tz?: string;
+  showCancelled: boolean;
+  setShowCancelled: (v: boolean) => void;
+  artistFilter: string | null;
+  setArtistFilter: (v: string | null) => void;
+  onWeek: (delta: -1 | 1) => void;
+  onThisWeek: () => void;
+  children: ReactNode;
+}) {
+  const artists = days ? weekArtists(days) : [];
+  const visible = days
+    ? days
+        .flatMap((d) => d.appointments)
+        .filter((a) => showCancelled || a.status !== 'cancelled')
+        .filter((a) => artistFilter === null || (a.artistId ?? '') === artistFilter)
+    : [];
+  return (
+    <div className="mt-m">
+      <div className="flex flex-wrap items-center justify-between gap-s">
+        <div className="flex flex-wrap items-center gap-s">
+          <button
+            type="button"
+            aria-label="Semaine précédente"
+            title="Raccourci : ←"
+            className="min-h-12 min-w-12 rounded-lg border border-border px-s py-xs text-textSecondary"
+            onClick={() => onWeek(-1)}
+          >
+            ‹
+          </button>
+          <p className="text-titleMedium text-textPrimary">
+            {weekStripLabel(weekOf(monday), tz)}
+          </p>
+          <button
+            type="button"
+            aria-label="Semaine suivante"
+            title="Raccourci : →"
+            className="min-h-12 min-w-12 rounded-lg border border-border px-s py-xs text-textSecondary"
+            onClick={() => onWeek(1)}
+          >
+            ›
+          </button>
+          <button
+            type="button"
+            title="Raccourci : T"
+            className="min-h-12 text-bodyMedium text-textTertiary underline"
+            onClick={onThisWeek}
+          >
+            Cette semaine
+          </button>
+        </div>
+        <div className="flex flex-wrap items-center gap-m">
+          {/* A label FOR the select, not around it: wrapped, the select's
+              name took its options' text (« ArtisteTousAwa… »). */}
+          <span className="flex items-center gap-xs text-bodyMedium text-textSecondary">
+            <label htmlFor="week-artist">Artiste</label>
+            <select
+              id="week-artist"
+              value={artistFilter ?? '__all'}
+              onChange={(e) => setArtistFilter(e.target.value === '__all' ? null : e.target.value)}
+              className="min-h-12 rounded-lg border border-borderStrong bg-surface px-s text-bodyMedium text-textPrimary"
+            >
+              <option value="__all">Tous</option>
+              {artists.map((a) => (
+                <option key={a.id || 'none'} value={a.id}>
+                  {a.name}
+                </option>
+              ))}
+            </select>
+          </span>
+          <label className="flex items-center gap-xs text-bodyMedium text-textSecondary">
+            <input
+              type="checkbox"
+              checked={showCancelled}
+              onChange={(e) => setShowCancelled(e.target.checked)}
+            />
+            Voir les annulés
+          </label>
+        </div>
+      </div>
+      {error ? (
+        <ErrorState className="mt-l" message={loadFailureMessage(error)} onRetry={onRetry} />
+      ) : days ? (
+        <>
+          {visible.length === 0 ? (
+            <p className="mt-m text-bodyMedium text-textTertiary">
+              Aucun rendez-vous cette semaine.
+            </p>
+          ) : null}
+          <div className="mt-m">{children}</div>
+        </>
+      ) : (
+        <SkeletonRows count={6} className="mt-l" />
+      )}
     </div>
   );
 }
