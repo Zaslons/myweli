@@ -51,7 +51,8 @@ afterEach(() => {
 });
 
 describe('MediasClient — « Définir comme photo principale »', () => {
-  it('the ★ stages the promotion and the save carries it', async () => {
+  // Since web-pro-medias-like-app.md, the ★ saves at once, as in the app.
+  it('the ★ promotes the photo — and the save carries it at once', async () => {
     mockFetch();
     render(<MediasClient />);
     await screen.findByText('Couverture');
@@ -62,7 +63,6 @@ describe('MediasClient — « Définir comme photo principale »', () => {
     // Two of three: none on the cover tile.
     expect(stars).toHaveLength(2);
     fireEvent.click(stars[1]); // the tile holding c.jpg
-    fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }));
 
     await waitFor(() => expect(sent).toHaveLength(1));
     expect(sent[0]).toEqual([

@@ -338,6 +338,25 @@ test('the OPEN « Jours bloqués » dialog is axe-clean — calendar and confirm
   await expectNoViolations(page, '/pro/disponibilites + Jours bloqués (confirmation)');
 });
 
+test('Médias — the delete question, then the undo toast — axe-clean (web-pro-medias-like-app)', async ({
+  page,
+}) => {
+  await page.goto('/pro/connexion');
+  await submitOtpLogin(page, 'salon@example.com');
+  await expect(page).toHaveURL(/\/pro(\/)?$/);
+  await page.goto('/pro/medias');
+  await page.getByRole('button', { name: 'Supprimer' }).last().click();
+  const dialog = page.getByRole('dialog', { name: 'Supprimer cette photo ?' });
+  await expect(dialog).toBeVisible();
+  await expectNoViolations(page, '/pro/medias + delete question');
+  await dialog.getByRole('button', { name: 'Supprimer la photo' }).click();
+  const undo = page.getByRole('status').getByRole('button', { name: 'Annuler' });
+  await expect(undo).toBeVisible();
+  await expectNoViolations(page, '/pro/medias + undo toast');
+  // Put it back: the stub's gallery is shared by every test.
+  await undo.click();
+});
+
 test('a VISIBLE toast is axe-clean', async ({ page }) => {
   await page.goto('/pro/connexion');
   await submitOtpLogin(page, 'salon@example.com');
