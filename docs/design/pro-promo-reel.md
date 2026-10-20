@@ -280,18 +280,20 @@ les trois formats d'une coupe), `meter.json`, `spectrogram.png`, `waveform.png`,
 `honesty.txt`, `beats.png`, `transitions.png`, `frames/` (images pleine taille
 tirées du MP4), `renderer/` (l'image du rendu sur chaque temps).
 
-Le rendu final du 2026-10-20 (R8 : la revue de R7, §9 ; le code de `6bcd0546`).
-Les empreintes sont celles des fichiers relus pour cette spec ; celles de R7
-(`28daccd96d7138dd`, … ) ne valent plus : la bande-son des six a changé.
+Le rendu final du 2026-10-20 (R9 : les décisions après R8, §9 ; le code de `4cd8e467`).
+R9 a reconstruit trois films (30s-9x16, 15s-9x16, 15s-16x9) ; les trois autres
+gardent leur empreinte de R8. Celles de R8 pour les trois films reconstruits
+(`07b93088763ca7ee`, `6a20ca00cfc00272`, `8e78f5658af41500`) et celles de R7
+(`28daccd96d7138dd`, … ) ne valent plus.
 
 | Film | Images · durée | Octets | Débit vidéo | sha256 (début) |
 |---|---|---|---|---|
-| 30s-9x16 | 960 · 32,000 s | 28 647 911 | 6,88 Mb/s | `07b93088763ca7ee` |
+| 30s-9x16 | 960 · 32,000 s | 28 626 917 | 6,88 Mb/s | `324ddcfe3228e9b7` |
 | 30s-1x1 | 960 · 32,000 s | 16 880 913 | 3,94 Mb/s | `b843fa44f61c5e66` |
 | 30s-16x9 | 960 · 32,000 s | 27 307 478 | 6,55 Mb/s | `a7907791f1a703b8` |
-| 15s-9x16 | 512 · 17,067 s | 11 872 437 | 5,29 Mb/s | `6a20ca00cfc00272` |
+| 15s-9x16 | 512 · 17,067 s | 11 859 282 | 5,28 Mb/s | `17580d6db60b2adb` |
 | 15s-1x1 | 512 · 17,067 s | 6 938 654 | 2,98 Mb/s | `fd111d3da4e92936` |
-| 15s-16x9 | 512 · 17,067 s | 11 175 592 | 4,96 Mb/s | `8e78f5658af41500` |
+| 15s-16x9 | 512 · 17,067 s | 11 175 801 | 4,96 Mb/s | `0b7183081d253b5f` |
 
 Tous (lus par ffprobe et dans les options x264 écrites dans le flux) : H.264
 High niveau 4.1 (`level=41`), yuv420p, plage TV, BT.709 (primaires, transfert,
@@ -440,7 +442,7 @@ touchent que des contrôles) ; `verify --all` en 9 min 01, **sortie 0, six PASS*
 et une bande-son par coupe. Aucun fichier de code ni le storyboard n'a été
 modifié après le début du rendu.
 
-**Les six rapports du rendu final (R8)**, `verify/report.txt` relus pour cette
+**Les six rapports du rendu final (R9 ; les chiffres sont ceux de R8, hors la coupe 15s-16x9 sur f192)**, `verify/report.txt` relus pour cette
 spec :
 
 | Film | (a) PSNR min | (b) jointures | (c) touchers | (d) MP4 : LUFS-I / dBTP | (d) souffles sous le groove, MP4 / master | (d) queue du dernier coup | (f) synchro | (g) boîtes hors zone | (h) ligne 13:15 | (i) pire fenêtre / carte de fin |
