@@ -48,7 +48,7 @@
   indisponible. »).
 - « Voir les annulés » s'applique ici aussi. Le Collaborateur voit sa semaine
   en lecture seule, comme sa Journée.
-- **L'adresse** : `?vue=semaine&jour=AAAA-MM-JJ` (le lundi) — retour depuis
+- **L'adresse** : `?vue=semaine&jour=AAAA-MM-JJ` (le jour affiché, pas le lundi — §10) — retour depuis
   une fiche, rechargement, Précédent : comme les autres vues (#645).
 
 ## 3. Les états
