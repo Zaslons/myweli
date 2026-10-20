@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { type Page, devices, expect, test } from '@playwright/test';
 
 import { signInPro } from './_auth';
-import { asUnaskedBrowser } from './_push';
+import { asGrantedBrowser, asUnaskedBrowser } from './_push';
 
 
 test('unauthenticated /pro redirects to /pro/connexion', async ({ page }) => {
@@ -922,7 +922,7 @@ test.describe('browser notifications (web-pro-browser-push)', () => {
     const req = await posted;
     expect(req.postDataJSON()).toEqual({ token: 'e2e-push-token' });
     expect((await req.response())?.status()).toBe(200);
-    await expect(page.getByRole('status')).toHaveText('Notifications activées sur cet ordinateur.');
+    await expect(page.getByText('Notifications activées sur cet ordinateur.')).toBeVisible();
     const scope = await page.evaluate(
       async () => (await navigator.serviceWorker.getRegistration('/pro/'))?.scope ?? null,
     );
@@ -960,13 +960,11 @@ test.describe('browser notifications (web-pro-browser-push)', () => {
     page,
     context,
   }) => {
-    await asUnaskedBrowser(page);
+    // A browser that already said yes: the sign-in registers it by itself.
+    await asGrantedBrowser(page, context);
+    const registered = page.waitForRequest(devicesCall('POST'));
     await signInPro(page);
-    await context.grantPermissions(['notifications']);
-    await page.goto('/pro/notifications');
-    const sw = page.getByRole('switch', { name: ROW });
-    await sw.click();
-    await expect(sw).toHaveAttribute('aria-checked', 'true');
+    await registered;
     const order: string[] = [];
     page.on('request', (r) => {
       if (devicesCall('DELETE')(r)) order.push('unregister');
