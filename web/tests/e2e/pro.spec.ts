@@ -759,7 +759,7 @@ test('« + Nouveau rendez-vous » on /pro/rendez-vous books standalone (web-manu
   await dialog
     .getByLabel('Rechercher ou nommer le client')
     .fill('Cliente Standalone');
-  await dialog.getByLabel('Téléphone (pour retrouver ce client)').fill('07 00 00 00 42');
+  await dialog.getByLabel('Téléphone (pour retrouver ce client)').fill('+225 07 00 00 00 42');
   await dialog.getByRole('button', { name: 'Créer', exact: true }).click();
   await expect(page.getByText('Rendez-vous créé')).toBeVisible();
 });
