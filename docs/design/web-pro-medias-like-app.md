@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Validé le 2026-10-20** — décision du propriétaire : **comme l'app** (option a, §2) |
+| **Statut** | **Construit le 2026-10-20** sur `feat/web-pro-medias-like-app` (depuis `main`) ; ce qui a été vu : §5. Validé le même jour — décision du propriétaire : **comme l'app** (option a, §2) |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-20 |
 | **PRD ref / phase** | Médias du salon · parité web ↔ app Pro · V1 |
@@ -64,3 +64,23 @@ focus ; « Supprimer la photo » puis « Annuler » qui la remet ; l'annulation
 dans la galerie actuelle (pas un instantané) ; les refus qui reviennent en
 arrière avec les mots de l'app ; les paires ; le toast d'action 10 s. Le test
 de l'étoile et le parcours e2e Médias perdent « Enregistrer ».
+
+## 5. Construit — ce qui a été vu
+
+- **Rouge d'abord** : 13 tests (12 de page, le toast d'action 10 s) ; le test
+  de l'étoile et le parcours e2e Médias ont perdu « Enregistrer » (le parcours
+  vérifie maintenant qu'un rechargement garde l'ajout, puis supprime et
+  annule).
+- Le test du toast cherchait la pastille par son texte : le message reste le
+  texte propre de la pastille, le bouton à côté.
+- **Mutations vues rouges** : supprimer sans demander, l'annulation qui
+  rejoue un instantané, pas de retour en arrière sur un refus, le toast
+  d'action à 3 s ; « Annuler » qui ne prend pas le focus — équivalente tant
+  que « Annuler » est le premier bouton (le `Modal` donne le focus au premier),
+  vue rouge avec le bouton destructeur en premier ; e2e : le « Annuler » du
+  toast sans son plancher (20 px).
+- **Vu dans le navigateur** (stub) : la question de l'app, puis « Photo
+  supprimée · Annuler », la photo revenue.
+- **Vérifié** : typecheck et lint propres, **1 581** tests unitaires ; e2e
+  (pro, axe — la question et le toast ouverts —, cibles, reflow, couches)
+  **105** + 3 verts.
