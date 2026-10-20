@@ -635,6 +635,32 @@ const _reviewedProviderIdReads = <String, ({int reads, String why})>{
     reads: 1,
     why: 'a created booking refreshes the dashboard of its salon only',
   ),
+  // A booking that CHANGED (docs/design/app-pro-home-journal-fresh.md §2.1):
+  // each store applies it only when it is its own salon's.
+  'lib/providers/pro_journal_provider.dart · change': (
+    reads: 1,
+    why: 'a changed booking is applied only to the day of its salon',
+  ),
+  'lib/providers/pro_clients_provider.dart · change': (
+    reads: 1,
+    why: 'a changed booking reaches the client card of its salon only',
+  ),
+  'lib/providers/pro_dashboard_provider.dart · change': (
+    reads: 1,
+    why: 'a changed booking refreshes the dashboard of its salon only',
+  ),
+  'lib/providers/pro_appointment_provider.dart · change': (
+    reads: 1,
+    why: 'a change from elsewhere corrects a row of the same salon only',
+  ),
+  'lib/providers/pro_appointment_provider.dart · current': (
+    reads: 1,
+    why: 'the listed row’s own salon, compared with the change’s',
+  ),
+  'lib/providers/pro_appointment_provider.dart · row': (
+    reads: 1,
+    why: 'a change is announced for the salon of the row it changed',
+  ),
   'lib/core/utils/data_export.dart · a': (
     reads: 1,
     why: 'a booking’s salon in the consumer « Mes données » export',

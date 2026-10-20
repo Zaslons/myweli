@@ -1,6 +1,3 @@
-import 'dart:async';
-
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -63,7 +60,10 @@ void main() {
 
   setUpAll(() async {
     await initializeDateFormatting('fr_FR', null);
-    SharedPreferences.setMockInitialValues({});
+    // A returning salon: the first-visit « Activer les notifications » sheet
+    // (`PushRegistration.maybePromptOnce`) was already answered — otherwise it
+    // covers « Accueil » and swallows the taps under test.
+    SharedPreferences.setMockInitialValues({'myweli_push_asked': true});
     serviceLocator.authService = MockAuthService();
     serviceLocator.proService = figures; // late final — one fake for the file
     serviceLocator.proPushRegistration = PushRegistration(

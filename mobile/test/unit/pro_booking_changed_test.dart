@@ -79,8 +79,9 @@ class _Server extends MockProService {
     String id,
     Appointment Function(Appointment) f,
   ) async {
-    if (refuseWrites)
+    if (refuseWrites) {
       return ApiResponse.error('Refusé', code: 'invalid_transition');
+    }
     final i = bookings.indexWhere((a) => a.id == id);
     if (i == -1) return ApiResponse.error('Introuvable', code: 'not_found');
     bookings[i] = f(bookings[i]);

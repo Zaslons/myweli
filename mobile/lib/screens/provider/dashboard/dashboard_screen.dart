@@ -16,6 +16,8 @@ import '../../../models/pro_membership.dart';
 import '../../../providers/notifications_provider.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_dashboard_provider.dart';
+import '../../../widgets/common/app_snack_bar.dart';
+import '../../../widgets/common/empty_state.dart';
 import '../../../widgets/common/update_nudge_slot.dart';
 import '../../../widgets/provider/salon_picker_sheet.dart';
 import '../../../widgets/push/push_permission_sheet.dart';
@@ -28,6 +30,19 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
+  /// The pull (owner decision 9): it always asks the server. With figures on
+  /// screen they stay when it fails, and the reason is said once.
+  Future<void> _pull(ProDashboardProvider dashboard) async {
+    final authProvider = context.read<ProAuthProvider>();
+    if (authProvider.provider == null) return;
+    await dashboard.refresh(_resolvedProviderId(context));
+    if (!mounted) return;
+    final failure = dashboard.takeRefreshFailure();
+    if (failure != null) {
+      AppSnackBar.show(context, failure, kind: SnackKind.error);
+    }
+  }
+
   String _resolvedProviderId(BuildContext context) {
     final authProvider = Provider.of<ProAuthProvider>(context, listen: false);
     return authProvider.activeSalonId ?? '';
@@ -184,24 +199,42 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
           final stats = dashboardProvider.stats;
           if (stats == null) {
-            return Center(
-              child: Text(
-                dashboardProvider.error ?? 'Aucune donnée disponible',
-                style: AppTextStyles.bodyLarge.copyWith(
-                  color: AppColors.textSecondary,
+            // Not asked yet (the first frame, or right after a salon switch):
+            // the load starts after this frame.
+            if (dashboardProvider.error == null) {
+              return const Center(child: LoadingIndicator());
+            }
+            // The house error state, inside the pull — never a dead end, and
+            // never the failure's own text
+            // (docs/design/app-pro-home-journal-fresh.md §2.3, §9).
+            return BrandRefresh(
+              onRefresh: () => _pull(dashboardProvider),
+              child: LayoutBuilder(
+                builder: (context, constraints) => SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      minHeight: constraints.maxHeight,
+                    ),
+                    child: EmptyState(
+                      icon: Icons.wifi_off,
+                      title: 'Une erreur est survenue',
+                      description: dashboardProvider.errorIsOffline
+                          ? ProDashboardProvider.noConnection
+                          : null,
+                      actionText: 'Réessayer',
+                      onAction: () => dashboardProvider.loadDashboardStats(
+                        _resolvedProviderId(context),
+                      ),
+                    ),
+                  ),
                 ),
               ),
             );
           }
 
           return BrandRefresh(
-            onRefresh: () async {
-              if (authProvider.provider != null) {
-                await dashboardProvider.loadDashboardStats(
-                  _resolvedProviderId(context),
-                );
-              }
-            },
+            onRefresh: () => _pull(dashboardProvider),
             child: SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.all(AppTheme.spacingM),

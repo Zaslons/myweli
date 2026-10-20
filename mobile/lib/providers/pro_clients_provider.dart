@@ -207,6 +207,24 @@ class ProClientsProvider extends ChangeNotifier implements ShowsSalonBookings {
     unawaited(_reloadCardQuietly());
   }
 
+  /// A booking changed elsewhere (docs/design/app-pro-home-journal-fresh.md
+  /// §2.1): when it is this card's client's — the same phone (the server's
+  /// rule), a visit the card lists, or its upcoming booking — the card is read
+  /// again, quietly (an absence moves its count, a visit its history).
+  @override
+  void bookingChanged(BookingChange change) {
+    final card = _card;
+    if (card == null || _cardLoading) return;
+    if (change.providerId != _cardProviderId) return;
+    final phone = change.clientPhone;
+    final samePhone =
+        phone != null && phone.isNotEmpty && phone == card.client.phone;
+    final listed = _visits.any((v) => v.id == change.appointmentId);
+    final upcoming = card.upcoming?['id'] == change.appointmentId;
+    if (!samePhone && !listed && !upcoming) return;
+    unawaited(_reloadCardQuietly());
+  }
+
   /// The card and its visits again, with no loader: the card stays on screen
   /// and is replaced when both answers are in. A failure changes nothing.
   Future<void> _reloadCardQuietly() async {
