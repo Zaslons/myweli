@@ -1,6 +1,15 @@
 /// Branded team-invitation email (the OTP template family —
 /// docs/design/team-access-r2b-invitations.md). French copy.
+///
+/// The salon's name is the salon's to write — the owner or a Manager
+/// (`profile.manage`) — and an invitation goes to ANY address the owner
+/// types (threat T73): the HTML escapes every string it interpolates; the
+/// plain text and the subject keep them as written.
 library;
+
+import 'dart:convert';
+
+const _text = HtmlEscape(HtmlEscapeMode.element);
 
 const String invitationEmailSubjectPrefix = 'Rejoignez';
 
@@ -34,8 +43,9 @@ String renderInvitationEmailText(String salonName, String role) =>
     'MyWeli Pro — votre salon, en ligne. https://myweli.com';
 
 String renderInvitationEmailHtml(String salonName, String role) {
-  final label = roleLabelFr(role);
-  final summary = _roleSummaryFr(role);
+  final name = _text.convert(salonName);
+  final label = _text.convert(roleLabelFr(role));
+  final summary = _text.convert(_roleSummaryFr(role));
   return '''
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F6F7F9;padding:24px 0;">
   <tr><td align="center">
@@ -44,7 +54,7 @@ String renderInvitationEmailHtml(String salonName, String role) {
         <img src="https://myweli.com/brand/myweli_lockup_horizontal_black.png" alt="MyWeli" height="34" style="display:block;">
       </td></tr>
       <tr><td style="font-size:16px;line-height:24px;color:#1A1A1A;padding-bottom:8px;" align="center">
-        <strong>« $salonName »</strong> vous invite à rejoindre son équipe
+        <strong>« $name »</strong> vous invite à rejoindre son équipe
       </td></tr>
       <tr><td style="font-size:14px;line-height:20px;color:#1A1A1A;padding-bottom:4px;" align="center">
         en tant que <strong>$label</strong>
