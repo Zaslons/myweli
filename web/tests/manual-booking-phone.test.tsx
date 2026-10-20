@@ -327,8 +327,14 @@ describe('ManualBookingDialog — no SMS promise, and sendSmsInvite is false', (
     expect(screen.queryByText('Envoyer la confirmation par SMS')).toBeNull();
     expect(screen.queryByText(/bientôt disponible/)).toBeNull();
     expect(screen.queryByText(/SMS/)).toBeNull();
-    // The only checkboxes left are the service rows (one service here).
-    expect(screen.getAllByRole('checkbox')).toHaveLength(1);
+    // The only checkboxes left are the service rows (one service here) —
+    // and, for a new client, « Client sans numéro »
+    // (web-manual-booking-walk-in.md), which sends nothing either.
+    expect(
+      screen
+        .getAllByRole('checkbox')
+        .filter((c) => c.closest('label')?.textContent !== 'Client sans numéro'),
+    ).toHaveLength(1);
   }
 
   it('shows no SMS control and no « bientôt disponible » — no phone yet', () => {
@@ -388,6 +394,9 @@ describe('ManualBookingDialog — no SMS promise, and sendSmsInvite is false', (
     mockFetch();
     renderDialog();
     fillBasics();
+    // A new client without a number is « Client sans numéro » now
+    // (web-manual-booking-walk-in.md, like the app).
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Client sans numéro' }));
     fireEvent.click(screen.getByRole('button', { name: 'Créer' }));
 
     await waitFor(() => expect(posted).toHaveLength(1));

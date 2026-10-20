@@ -350,6 +350,7 @@ test('a VISIBLE toast is axe-clean', async ({ page }) => {
   const dialog = page.getByRole('dialog', { name: 'Nouveau rendez-vous' });
   await dialog.getByRole('checkbox').first().check();
   await dialog.getByLabel('Rechercher ou nommer le client').fill('Cliente Axe');
+  await dialog.getByRole('checkbox', { name: 'Client sans numéro' }).check();
   await dialog.getByLabel('Date du rendez-vous').fill('2026-12-01');
   await dialog.getByLabel('Heure du rendez-vous').fill('09:00');
   await dialog.getByRole('button', { name: 'Créer', exact: true }).click();

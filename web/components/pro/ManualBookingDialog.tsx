@@ -16,6 +16,7 @@ import {
 import type { SalonClientListItem } from "../../lib/pro/clients";
 import {
   canSubmitManualBooking,
+  newClientNeedsPhone,
   combineDateTime,
   isFutureIso,
   manualBookingTotal,
@@ -78,6 +79,8 @@ export function ManualBookingDialog({
     initialClient ?? null,
   );
   const [newPhone, setNewPhone] = useState("");
+  // « Client sans numéro » — the app's box: the walk-in nobody knows.
+  const [withoutNumber, setWithoutNumber] = useState(false);
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -88,7 +91,11 @@ export function ManualBookingDialog({
     : time
       ? combineDateTime(date, time, tz)
       : null;
-  const phone = picked?.phone ?? (normalizePhone(newPhone) || undefined);
+  const phone = picked
+    ? picked.phone
+    : withoutNumber
+      ? undefined
+      : normalizePhone(newPhone) || undefined;
   const total = manualBookingTotal(services, selected);
 
   // Debounced client search (C1 endpoint).
@@ -124,14 +131,16 @@ export function ManualBookingDialog({
   // PhoneField emits E.164 (or ''), so a passing number here IS sendable —
   // the shared rule (docs/design/phone-national-length.md) also holds a
   // market's number to its national length.
+  // Required for a NEW client unless « Client sans numéro » (the app's rule,
+  // docs/design/web-manual-booking-walk-in.md).
+  const needsPhone = newClientNeedsPhone({ picked: Boolean(picked), withoutNumber });
   const fields = useFieldErrors({
-    phone: (v: string) => phoneFieldError(v, { required: false }),
+    phone: (v: string) => phoneFieldError(v, { required: needsPhone }),
   });
 
   const canSubmit = canSubmitManualBooking({
     serviceIds: selected,
     dateTimeIso: dt,
-    clientNamed: Boolean(picked) || query.trim().length >= 1,
   });
 
   async function create() {
@@ -140,7 +149,7 @@ export function ManualBookingDialog({
     // phone is shown, not editable here, and crosses as stored — the server
     // judges it (a number stored before the national-length rule is refused:
     // see the `invalid_phone` arm below).
-    if (!picked && !fields.validate({ phone: newPhone })) return;
+    if (!picked && !withoutNumber && !fields.validate({ phone: newPhone })) return;
     // The app's future-only guard — on the standalone path (a grid cell is
     // the salon's own calendar choice).
     if (!fixed && !isFutureIso(dt)) {
@@ -322,18 +331,34 @@ export function ManualBookingDialog({
                 </li>
               ))}
             </ul>
-          ) : query.trim().length >= 1 ? (
-            <div className="mt-xs">
-              <PhoneField
-                label="Téléphone (pour retrouver ce client)"
-                onChange={(v) => {
-                  setNewPhone(v);
-                  fields.revalidate("phone", v);
-                }}
-                error={fields.errors.phone}
-              />
-            </div>
           ) : null}
+          {/* The number is always asked for a new client, and « Client sans
+              numéro » turns it off — the app's form (it used to appear only
+              once a name was typed, and was optional). */}
+          <div className="mt-xs">
+            <PhoneField
+              label="Téléphone (pour retrouver ce client)"
+              disabled={withoutNumber}
+              onChange={(v) => {
+                setNewPhone(v);
+                fields.revalidate("phone", v);
+              }}
+              error={withoutNumber ? null : fields.errors.phone}
+            />
+          </div>
+          <label className="flex min-h-12 cursor-pointer items-center gap-s text-bodyMedium">
+            <input
+              type="checkbox"
+              className="h-5 w-5 shrink-0 accent-primary"
+              checked={withoutNumber}
+              onChange={(e) => {
+                setWithoutNumber(e.target.checked);
+                // Its fault goes with the field it was about.
+                if (e.target.checked) fields.set("phone", null);
+              }}
+            />
+            <span className="text-textPrimary">Client sans numéro</span>
+          </label>
         </div>
       )}
 
