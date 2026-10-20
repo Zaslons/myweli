@@ -823,8 +823,14 @@ for (const vp of VIEWPORTS) {
         // which is the "gate that is red on correct behaviour" failure this file
         // keeps warning about. An error state is an alert **with something to
         // say**.
+        //
+        // **And the announcer is excluded by its id, not by being empty.** It is
+        // empty only until a client-side navigation — then it reads the new
+        // page title aloud. Since the agenda keeps its view in the address
+        // (web-pro-agenda-in-url.md), « Liste » IS such a navigation, and the
+        // announcer saying « Pro — Rendez-vous · MyWeli » read as an error.
         expect(
-          (await page.getByRole('alert').allTextContents())
+          (await page.locator('[role="alert"]:not(#__next-route-announcer__)').allTextContents())
             .map((t) => t.trim())
             .filter(Boolean),
           `${route.url} rendered an error state — every assertion below would be vacuous`,
