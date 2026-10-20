@@ -299,6 +299,19 @@ void main() {
       expect(m.html, contains('Voir le justificatif'));
     });
 
+    test(
+      'the card fits a phone: full width up to 440px, never a fixed 440',
+      () async {
+        // The subscription notices' frame (`width="440"` + 32px padding) was
+        // the first draft, and scrolled sideways at 310px in a browser.
+        await owner();
+        await notifier.notify(appointment(), SalonEvent.newBooking);
+        final html = email.sent.single.html!;
+        expect(html, isNot(contains('width="440"')));
+        expect(html, contains('max-width:440px'));
+      },
+    );
+
     test('the salon’s wall clock, not UTC', () async {
       when(() => providers.byId(any())).thenAnswer(
         (_) async => {'name': 'Salon Paris', 'timezone': 'Europe/Paris'},
