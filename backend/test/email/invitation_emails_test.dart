@@ -4,6 +4,26 @@ import 'package:test/test.dart';
 const _roles = ['manager', 'reception', 'staff'];
 
 void main() {
+  group('invitation HTML fits a phone (the OTP e-mail frame)', () {
+    for (final role in _roles) {
+      test('$role: no fixed width, the card is capped at 440px', () {
+        final html = renderInvitationEmailHtml('Salon Ama', role);
+
+        // A fixed 440px card scrolled sideways at 310px.
+        expect(html, isNot(contains('width="440"')));
+        expect(html, contains('max-width:440px'));
+        final tables = RegExp('<table[^>]*>').allMatches(html).toList();
+        expect(tables, hasLength(2));
+        for (final table in tables) {
+          expect(table[0], contains('width="100%"'));
+          // Padding lives on the cells: on the table it adds to the width.
+          final style = RegExp('style="([^"]*)"').firstMatch(table[0]!)![1];
+          expect(style, isNot(contains('padding')));
+        }
+      });
+    }
+  });
+
   // The name is the salon's to write — the owner or a Manager
   // (`profile.manage`) — and an invitation goes to ANY address the owner
   // types, from no-reply@myweli.com (threat T73).
