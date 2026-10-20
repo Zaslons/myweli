@@ -213,7 +213,7 @@ When is a spec required? Any new feature, slice, endpoint, screen, or integratio
 | Pro-side reschedule | [pro-reschedule.md](pro-reschedule.md) | Built |
 | Provider earnings detail | [provider-earnings.md](provider-earnings.md) | Built |
 | Pro manual (walk-in/phone) booking | [pro-manual-booking.md](pro-manual-booking.md) | Built |
-| Pro web — réservation manuelle comme l'app : « Client sans numéro », le téléphone obligatoire pour un nouveau client sinon, le nom facultatif ; « Créer » ne dépend plus du nom (web) | [web-manual-booking-walk-in.md](web-manual-booking-walk-in.md) | **Validé le 2026-10-20** (Q1 : comme l'app) |
+| Pro web — réservation manuelle comme l'app : « Client sans numéro », le téléphone obligatoire pour un nouveau client sinon, le nom facultatif ; « Créer » ne dépend plus du nom (web) | [web-manual-booking-walk-in.md](web-manual-booking-walk-in.md) | **Construit le 2026-10-20** — validé le même jour (Q1 : comme l'app) |
 | Provider dashboard stats | [provider-dashboard-stats.md](provider-dashboard-stats.md) | Built |
 | Pro catalogue app wiring (ApiProService → backend) | [pro-catalogue-app-wiring.md](pro-catalogue-app-wiring.md) | Built |
 | Provider services & availability (backend) | [provider-services-availability-backend.md](provider-services-availability-backend.md) | Built |

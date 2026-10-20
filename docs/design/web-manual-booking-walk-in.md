@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Validé le 2026-10-20** — Q1 = **(a) comme l'app** : téléphone obligatoire pour un nouveau client sauf « Client sans numéro », le nom facultatif (§6) |
+| **Statut** | **Construit le 2026-10-20** sur `fix/web-manual-booking-walk-in` (depuis `main`). Validé le même jour — Q1 = **(a) comme l'app** : téléphone obligatoire pour un nouveau client sauf « Client sans numéro », le nom facultatif (§6). Ce qui a été vu : §7 |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-20 |
 | **PRD ref / phase** | FR-APPT-008 (réservation saisie par le salon) · parité web ↔ app Pro · V1 |
@@ -85,3 +85,24 @@ du serveur (créneau pris, numéro refusé), l'e-mail… et le serveur.
   mais différent de l'app et sans fiche pour qui n'a pas laissé de numéro.
 - **Les mots** : aucun nouveau — « Client sans numéro » et « Saisissez un
   numéro de téléphone. » sont ceux de l'app.
+
+## 7. Construit — ce qui a été vu
+
+- **Rouge d'abord** : 12 tests (la règle pure, le parcours du dialogue) ;
+  « un client choisi : ni case ni champ » était déjà vrai — il garde ce qui ne
+  doit pas changer.
+- **Deux tests encodaient l'ancienne règle** et ont été revus : le test « pas
+  de promesse SMS » comptait une seule case (la prestation ; il y a
+  maintenant « Client sans numéro », qui n'envoie rien non plus), et le test
+  « un client sans téléphone » coche la case.
+- **e2e** : les parcours qui tapaient un nom seul cochent la case ou
+  saisissent un numéro ; un nouveau parcours (nom seul → « Saisissez un
+  numéro de téléphone. » ; puis sans nom, case cochée → « Rendez-vous
+  créé ») ; la ligne de la case ≥ 48 px. Une première écriture du parcours
+  « standalone » tapait « 07 00 00 00 42 » : `fill()` remplace le « +225 »
+  du champ, le numéro était à bon droit refusé — corrigé dans le test.
+- **Mutations vues rouges** : le numéro jamais obligatoire, la case qui
+  laisse partir le numéro, le champ qui reste actif, l'erreur qui reste, le
+  bouton fermé (unitaires) ; la ligne sous 48 px, la case débranchée (e2e).
+- **Vérifié** : typecheck et lint propres, **1 580** tests unitaires ; e2e
+  (pro, axe, cibles, reflow, rôles) verts.
