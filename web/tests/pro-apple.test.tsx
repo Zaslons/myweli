@@ -110,6 +110,10 @@ describe('Pro sign-up — « S’inscrire avec Apple »', () => {
     fireEvent.change(screen.getByLabelText('Téléphone du salon'), {
       target: { value: '+2250707123456' },
     });
+    // Required since web-pro-golive-signup-like-app.md (as in the app).
+    fireEvent.change(screen.getByLabelText('Adresse'), {
+      target: { value: 'Rue des Jardins, Cocody' },
+    });
     fireEvent.click(screen.getByRole('button', { name: 'S’inscrire avec Apple' }));
     await waitFor(() => expect(replace).toHaveBeenCalledWith('/pro'));
     const reg = posts.find((p) => p.url === '/api/pro/auth/register')!;
@@ -117,6 +121,7 @@ describe('Pro sign-up — « S’inscrire avec Apple »', () => {
       identityToken: 'apple-token',
       businessName: 'Salon Awa',
       fullName: 'Awa Koné',
+      address: 'Rue des Jardins, Cocody',
     });
     expect(reg.body.nonce).toMatch(/^[0-9a-f]{32}$/);
   });
