@@ -60,7 +60,7 @@ describe('GoLiveCard — the app’s checklist', () => {
     // to do: team, KYC.
     expect(await screen.findByText('6 étapes sur 8 terminées')).toBeInTheDocument();
     // Named by the visible line — no new words (the app's own).
-    const bar = screen.getByRole('progressbar', { name: '6 étapes sur 8 terminées' });
+    const bar = screen.getByRole('progressbar', { name: /^6\sétapes sur 8 terminées$/ });
     expect(bar).toHaveAttribute('aria-valuenow', '6');
     expect(bar).toHaveAttribute('aria-valuemax', '8');
     const list = screen.getByRole('list');

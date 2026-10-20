@@ -153,9 +153,9 @@ describe('publishChecklist — the app’s eight steps', () => {
 
 describe('the progress line — the app’s', () => {
   it('« N étapes sur T terminées », French plural (0 and 1 are singular)', () => {
-    expect(progressLabel({ done: 0, total: 8 })).toBe('0 étape sur 8 terminée');
-    expect(progressLabel({ done: 1, total: 8 })).toBe('1 étape sur 8 terminée');
-    expect(progressLabel({ done: 3, total: 8 })).toBe('3 étapes sur 8 terminées');
+    expect(progressLabel({ done: 0, total: 8 })).toBe('0\u00a0étape sur 8 terminée');
+    expect(progressLabel({ done: 1, total: 8 })).toBe('1\u00a0étape sur 8 terminée');
+    expect(progressLabel({ done: 3, total: 8 })).toBe('3\u00a0étapes sur 8 terminées');
   });
 
   it('counts the done steps over the actionable ones', () => {
