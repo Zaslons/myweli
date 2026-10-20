@@ -57,6 +57,7 @@ export function JournalGrid({
   readOnly = false,
   onChanged,
   onToast,
+  bookingQuery = "",
 }: {
   providerId: string;
   day: JournalDay;
@@ -64,6 +65,9 @@ export function JournalGrid({
   readOnly?: boolean;
   onChanged: () => void;
   onToast: (msg: string) => void;
+  /// The agenda's address (`?jour=…`), carried to the booking's page so its
+  /// « ← Rendez-vous » returns to this day (docs/design/web-pro-agenda-url.md).
+  bookingQuery?: string;
 }) {
   const hours = day.hours ?? CLOSED_AXIS;
   // The ACTIVE salon's market (multi-pays MP3): its clock places blocks, the
@@ -199,6 +203,7 @@ export function JournalGrid({
             onChanged();
           }}
           onToast={onToast}
+          bookingQuery={bookingQuery}
         />
       ) : null}
 

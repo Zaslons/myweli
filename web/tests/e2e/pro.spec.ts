@@ -510,6 +510,78 @@ test('journal panel: the deposit, its screenshot, « Voir le rendez-vous » (web
   ).toHaveAttribute('href', '/pro/rendez-vous/pj2');
 });
 
+/// docs/design/web-pro-agenda-url.md — the agenda's view and day live in the
+/// address. What only a browser can prove: that Next's router follows
+/// `history.replaceState`, that Back lands on the REPLACED entry (one day
+/// later, not the day the page opened on), and that a reload reads it.
+test('agenda in the address: a reload, Back and « ← Rendez-vous » keep the day (web-pro-agenda-url)', async ({
+  page,
+}) => {
+  await signInPro(page);
+  await page.goto('/pro/rendez-vous');
+  await expect(page.getByText('Awa').first()).toBeVisible();
+  const today = await page.getByLabel('Date').inputValue();
+
+  await page.getByRole('button', { name: 'Jour suivant' }).click();
+  const day = await page.getByLabel('Date').inputValue();
+  expect(day).not.toBe(today);
+  await expect(page).toHaveURL(new RegExp(`/pro/rendez-vous\\?jour=${day}$`));
+
+  // A reload reads it.
+  await page.reload();
+  await expect(page.getByLabel('Date')).toHaveValue(day);
+
+  // To a booking and Back. pj2 is on every stub day; it is not in the owner
+  // list, so its page says « Rendez-vous introuvable. » — whose own
+  // « ← Rendez-vous » must still carry the day.
+  await page.getByRole('button', { name: /Aminata/ }).click();
+  await page.getByRole('link', { name: 'Voir le rendez-vous' }).click();
+  await expect(page).toHaveURL(new RegExp(`/pro/rendez-vous/pj2\\?jour=${day}$`));
+  await expect(page.getByText('Rendez-vous introuvable.')).toBeVisible();
+  await page.goBack();
+  await expect(page).toHaveURL(new RegExp(`/pro/rendez-vous\\?jour=${day}$`));
+  await expect(page.getByLabel('Date')).toHaveValue(day);
+
+  // The page's own way back.
+  await page.getByRole('button', { name: /Aminata/ }).click();
+  await page.getByRole('link', { name: 'Voir le rendez-vous' }).click();
+  await page.getByRole('link', { name: '← Rendez-vous' }).click();
+  await expect(page).toHaveURL(new RegExp(`/pro/rendez-vous\\?jour=${day}$`));
+  await expect(page.getByLabel('Date')).toHaveValue(day);
+
+  // Owner decision Q2: the menu's « Rendez-vous » is today's Journée — from a
+  // dated address too (the same route, so nothing is remounted for free).
+  await page.getByRole('link', { name: 'Rendez-vous', exact: true }).click();
+  await expect(page).toHaveURL(/\/pro\/rendez-vous$/);
+  await expect(page.getByLabel('Date')).toHaveValue(today);
+});
+
+test('agenda in the address: the Liste’s tab survives a trip to a booking (web-pro-agenda-url)', async ({
+  page,
+}) => {
+  await signInPro(page);
+  await page.goto('/pro/rendez-vous');
+  await page.getByRole('button', { name: 'Liste' }).click();
+  await page.getByRole('button', { name: 'Tous', exact: true }).click();
+  await expect(page).toHaveURL(/\/pro\/rendez-vous\?vue=liste&filtre=tous$/);
+
+  await page.getByText('Koffi').first().click();
+  await expect(page).toHaveURL(/\/pro\/rendez-vous\/pappt1\?vue=liste&filtre=tous$/);
+  await expect(
+    page.getByRole('heading', { name: 'Détails du rendez-vous' }),
+  ).toBeVisible();
+  await page.getByRole('link', { name: '← Rendez-vous' }).click();
+
+  await expect(page).toHaveURL(/\/pro\/rendez-vous\?vue=liste&filtre=tous$/);
+  await expect(page.getByRole('button', { name: 'Liste' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await expect(
+    page.getByRole('button', { name: 'Tous', exact: true }),
+  ).toHaveAttribute('aria-pressed', 'true');
+});
+
 test('journal grid: quick-create from an empty cell books a client', async ({
   page,
 }) => {
