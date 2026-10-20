@@ -20,7 +20,9 @@ const fcfa = new Intl.NumberFormat('fr-FR');
 const frPlural = new Intl.PluralRules('fr-FR');
 
 export function countFr(n: number, one: string, other: string): string {
-  return `${n} ${pluralFr(n, one, other)}`;
+  // U+00A0: « 3 » and « étapes » never part at the end of a line (French
+  // typography's no-break space between a number and its noun).
+  return `${n}\u00a0${pluralFr(n, one, other)}`;
 }
 
 /// The word alone, agreed with [n] — the twin of mobile's
