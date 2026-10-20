@@ -368,7 +368,12 @@ const consumerAppt = (id) => ({
 // Pro side (M7) — pappt1, mutable status via the lifecycle endpoints. Kept
 // separate from the consumer flow (split by token below) so parallel tests
 // don't race on shared state.
-const proStatus = { pappt1: 'pending', pj1: 'pending', pstaff1: 'confirmed' };
+const proStatus = {
+  pappt1: 'pending',
+  pj1: 'pending',
+  pj2: 'pending',
+  pstaff1: 'confirmed',
+};
 const PRO_TRANSITION = {
   accept: 'confirmed',
   reject: 'cancelled',
@@ -1090,6 +1095,25 @@ createServer(async (req, res) => {
       artists: [{ id: 'artist-a', name: 'Awa', imageUrl: null }],
       appointments: [
         { ...proAppt('pj1'), appointmentDate: `${date}T09:00:00.000Z` },
+        // docs/design/web-pro-journal-panel-deposit.md — a deposit-required
+        // request WITH its screenshot, for the panel's acompte block. Its own
+        // id, which no spec accepts: pj1 is accepted by pro.spec's journal
+        // journey, and workers share this stub, so a panel opened on pj1 may
+        // or may not be « En attente » depending on the order they run in.
+        // 15:30 sits clear of the quick-create click (y 300 → 14:00 at
+        // 1px/min) and of the 12:30 break. NOT in the owner list
+        // (`/appointments`), whose counts other specs assert — its page is
+        // 404 here; the RTL suite owns the booking page.
+        {
+          ...proAppt('pj2'),
+          appointmentDate: `${date}T15:30:00.000Z`,
+          clientName: 'Aminata',
+          salonClientId: 'sc2',
+          clientNoShowCount: 0,
+          depositAmount: 5000,
+          balanceDue: 10000,
+          depositScreenshotUrl: 'deposit/u2/proof.jpg',
+        },
       ],
     });
   }
@@ -1973,7 +1997,10 @@ createServer(async (req, res) => {
       });
     }
     if (sub === 'deposit-screenshot') {
-      return json(res, 200, { url: 'https://example.test/justificatif.jpg' });
+      // On the fixture host the specs fulfil with a pixel (axe.spec.ts's
+      // PIXEL): the pro panel renders the screenshot as an <img>, and an
+      // unresolvable host would show « Capture indisponible » instead.
+      return json(res, 200, { url: 'https://cdn.stub/deposit/u2/proof.jpg' });
     }
     // Team access R5b (T40): staff may only complete/no-show THEIR OWN
     // bookings; accept/reject/arrive/reschedule are whole-journal acts.

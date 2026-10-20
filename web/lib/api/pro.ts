@@ -402,11 +402,18 @@ export async function proAction(
   return { ok: false, status: res.status, error: b.error };
 }
 
-export async function proDepositScreenshotUrl(id: string): Promise<string | null> {
+/// The short-lived signed URL of a booking's deposit screenshot. A read like
+/// the others (docs/design/web-pro-journal-panel-deposit.md §5): status 0 when
+/// nothing usable came back — a 200 without a URL included — so the screen can
+/// tell a cut connection from a refusal. It used to fold every failure into
+/// `null`, and the detail page's button then did nothing at all.
+export async function proDepositScreenshotUrl(
+  id: string,
+): Promise<{ status: number; url?: string }> {
   const res = await send(`/api/pro/appointments/${id}/deposit-screenshot`);
-  if (!res.ok) return null;
+  if (!res.ok) return { status: res.status };
   const b = await readJson<{ url?: string }>(res);
-  return b?.url ?? null;
+  return b?.url ? { status: 200, url: b.url } : { status: 0 };
 }
 
 // --- catalogue: services (7.3a) ---------------------------------------------

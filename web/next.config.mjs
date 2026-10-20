@@ -157,7 +157,15 @@ export function cspDirectives({ dev = false, reportUri = null } = {}) {
     // gives an UNSTYLED Google button rather than a hard failure, which is the
     // kind of break nobody reports.
     'style-src': ["'self'", "'unsafe-inline'", 'https://accounts.google.com'],
-    'img-src': ["'self'", 'data:', 'blob:', 'https://cdn.myweli.com'],
+    // R2: a client's deposit screenshot, shown to its salon on a URL the API
+    // presigns at runtime (docs/design/web-pro-journal-panel-deposit.md §2.4).
+    'img-src': [
+      "'self'",
+      'data:',
+      'blob:',
+      'https://cdn.myweli.com',
+      'https://*.r2.cloudflarestorage.com',
+    ],
     'font-src': ["'self'"],
     'connect-src': [
       "'self'",
