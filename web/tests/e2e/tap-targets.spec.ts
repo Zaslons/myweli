@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 import { signInConsumer, signInPro } from './_auth';
+import { asUnaskedBrowser } from './_push';
 
 /// B4 — §13.2's 48px floor, pinned (WEB-SYSTEM §15 row 7h).
 ///
@@ -105,6 +106,7 @@ test('pro: « Alertes par e-mail » — the switch (salon-email-alerts)', async 
 test('pro: the browser notifications — the band’s buttons and the row’s switch (web-pro-browser-push)', async ({
   page,
 }) => {
+  await asUnaskedBrowser(page);
   await signInPro(page);
   for (const name of ['Activer', 'Plus tard']) {
     const b = page.getByRole('button', { name, exact: true });

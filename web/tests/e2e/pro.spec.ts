@@ -1,8 +1,9 @@
 import { readFile } from 'node:fs/promises';
 
-import { type Page, expect, test } from '@playwright/test';
+import { type Page, devices, expect, test } from '@playwright/test';
 
 import { signInPro } from './_auth';
+import { asUnaskedBrowser } from './_push';
 
 
 test('unauthenticated /pro redirects to /pro/connexion', async ({ page }) => {
@@ -893,10 +894,11 @@ test('« Alertes par e-mail »: off, still off after a reload, back on (salon-em
 test.describe('browser notifications (web-pro-browser-push)', () => {
   const BAND = 'Activer les notifications';
   const ROW = 'Notifications du navigateur';
-  const devices = (method: 'POST' | 'DELETE') => (r: import('@playwright/test').Request) =>
+  const devicesCall = (method: 'POST' | 'DELETE') => (r: import('@playwright/test').Request) =>
     r.url().endsWith('/api/pro/devices') && r.method() === method;
 
   test('the band: « Plus tard », and never again on this browser', async ({ page }) => {
+    await asUnaskedBrowser(page);
     await signInPro(page);
     await expect(page.getByRole('heading', { name: BAND })).toBeVisible();
     await page.getByRole('button', { name: 'Plus tard' }).click();
@@ -910,11 +912,12 @@ test.describe('browser notifications (web-pro-browser-push)', () => {
     page,
     context,
   }) => {
+    await asUnaskedBrowser(page);
     await signInPro(page);
     await expect(page.getByRole('heading', { name: BAND })).toBeVisible();
     // The browser's own dialog cannot be clicked in a test: it answers yes.
     await context.grantPermissions(['notifications']);
-    const posted = page.waitForRequest(devices('POST'));
+    const posted = page.waitForRequest(devicesCall('POST'));
     await page.getByRole('button', { name: 'Activer' }).click();
     const req = await posted;
     expect(req.postDataJSON()).toEqual({ token: 'e2e-push-token' });
@@ -930,21 +933,22 @@ test.describe('browser notifications (web-pro-browser-push)', () => {
     page,
     context,
   }) => {
+    await asUnaskedBrowser(page);
     await signInPro(page);
     await page.goto('/pro/notifications');
     const sw = page.getByRole('switch', { name: ROW });
     await expect(sw).toHaveAttribute('aria-checked', 'false');
     await context.grantPermissions(['notifications']);
-    const posted = page.waitForRequest(devices('POST'));
+    const posted = page.waitForRequest(devicesCall('POST'));
     await sw.click();
     await posted;
     await expect(sw).toHaveAttribute('aria-checked', 'true');
     // A sign-in on a permitted browser registers again, without a question.
-    const again = page.waitForRequest(devices('POST'));
+    const again = page.waitForRequest(devicesCall('POST'));
     await page.reload();
     await again;
     await expect(sw).toHaveAttribute('aria-checked', 'true');
-    const deleted = page.waitForRequest(devices('DELETE'));
+    const deleted = page.waitForRequest(devicesCall('DELETE'));
     await sw.click();
     expect((await deleted).postDataJSON()).toEqual({ token: 'e2e-push-token' });
     await expect(sw).toHaveAttribute('aria-checked', 'false');
@@ -956,6 +960,7 @@ test.describe('browser notifications (web-pro-browser-push)', () => {
     page,
     context,
   }) => {
+    await asUnaskedBrowser(page);
     await signInPro(page);
     await context.grantPermissions(['notifications']);
     await page.goto('/pro/notifications');
@@ -964,7 +969,7 @@ test.describe('browser notifications (web-pro-browser-push)', () => {
     await expect(sw).toHaveAttribute('aria-checked', 'true');
     const order: string[] = [];
     page.on('request', (r) => {
-      if (devices('DELETE')(r)) order.push('unregister');
+      if (devicesCall('DELETE')(r)) order.push('unregister');
       if (r.url().endsWith('/api/pro/auth/logout')) order.push('logout');
     });
     await page.getByRole('button', { name: 'Se déconnecter' }).first().click();
@@ -973,13 +978,16 @@ test.describe('browser notifications (web-pro-browser-push)', () => {
   });
 
   test('a phone: no band, and the row says the app does it (Q3)', async ({ browser }) => {
+    // A real phone's emulation, not only its user agent: Chromium then also
+    // says `navigator.userAgentData.mobile` — overriding the string alone left
+    // it `false`, and the page rightly saw a computer.
     const phone = await browser.newContext({
-      userAgent:
-        'Mozilla/5.0 (Linux; Android 14; SM-A146B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36',
-      viewport: { width: 375, height: 812 },
+      ...devices['Pixel 7'],
+      baseURL: test.info().project.use.baseURL,
       timezoneId: 'UTC',
     });
     const page = await phone.newPage();
+    await asUnaskedBrowser(page);
     try {
       await signInPro(page);
       await expect(page.getByRole('heading', { name: 'Aujourd’hui' })).toBeVisible();
