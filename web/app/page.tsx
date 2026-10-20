@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { JsonLd } from '../components/JsonLd';
+import { ProBand } from '../components/home/ProBand';
 import { OpenInAppButton } from '../components/OpenInAppButton';
 import { HeroBackground } from '../components/home/HeroBackground';
 import { HomeSearch } from '../components/home/HomeSearch';
@@ -200,6 +201,9 @@ export default async function HomePage() {
             <OpenInAppButton />
           </section>
         ) : null}
+
+        {/* The salons' door (web-pro-access.md P3), before the FAQ. */}
+        <ProBand />
 
         <section className="mt-xl">
           <h2 className="text-titleLarge font-semibold text-textPrimary">

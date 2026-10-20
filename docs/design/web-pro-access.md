@@ -2,12 +2,12 @@
 
 | | |
 |---|---|
-| **Statut** | **Approved le 2026-10-19** — les portes P1–P4, **pas de prix** sur la page publique, le texte des §3–§5 tel qu'écrit |
+| **Statut** | **Construit le 2026-10-19** (branche `feat/web-pro-access`, empilée sur `feat/web-pro-notifications`) — les portes P1–P4, **pas de prix**, le texte des §3–§5 tel qu'écrit ; §11 dit ce qui a été vu rouge · web au merge, la ligne backend au prochain déploiement du serveur |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-19 |
 | **PRD ref / phase** | Acquisition salon (web) · la voie compagnon : l'offre se choisit **sur le web** ([pro-companion-path.md](pro-companion-path.md)) · V1 |
 | **Module** | web public (en-tête, pied de page, accueil, nouvelle page `/professionnels`), web Pro (connexion, inscription) ; backend : un slug réservé |
-| **ROADMAP entry** | à créer au build |
+| **ROADMAP entry** | [2026-10-19-web-pro-access.md](../roadmap/entries/2026-10-19-web-pro-access.md) |
 | **Skills checked** | myweli-web-guardrails ✓ · myweli-dev-guardrails ✓ · myweli-backend-guardrails ✓ (une ligne : `reservedPublicSlugs`) |
 
 ## 1. Le constat — relu sur `main`
@@ -183,3 +183,71 @@ prendre le slug — risque faible, vérifié au §6.
 2. **Les prix sur la page publique** : afficher les offres et leurs prix
    d'ancrage, ou « 3 mois offerts » sans prix.
 3. Le texte des §3, §4 et §5.
+
+## 11. Ce qui a été vu rouge
+
+- Tests commités **avant** le code (`730c7326`) : RTL (les portes, la
+  chrome par route, le groupe du pied de page, la bande, le consentement sur
+  trois écrans, la redirection d'une session valide), la page
+  `/professionnels` (un `h1`, les deux actions, six avantages, la FAQ et son
+  `FAQPage`, **aucun prix**, les métadonnées), le sitemap ; backend : un
+  salon « Professionnels » prenait `/professionnels`.
+- **Une garde de plus que le spec** : un test backend tient **chaque route
+  de premier niveau de `web/app`** dans `reservedPublicSlugs` — une page
+  ajoutée sans sa réservation casse la CI, plus seulement celle-ci. Vu
+  échouer en retirant `'professionnels'` (deux rouges), restauré.
+- **L'épingle d'honnêteté lit la page** : son texte vit dans
+  `lib/pro/landing.ts`, dans son champ (`lib/`).
+- Trouvé en regardant à 375 px : « 24 h/24 » se coupait en « 24 / h/24 » —
+  espace insécable dans la bande et le sous-titre (et un premier essai
+  `\u00a0` dans du texte JSX aurait imprimé la séquence telle quelle :
+  `&nbsp;` à cet endroit).
+- **La matrice de reflow a parlé, et c'était le contrôle qui se trompait** :
+  la première fois que `/pro/inscription` y est entré, « 2 items need 40 of
+  38 » sur le sélecteur de pays du téléphone, à 320 et 375 px. Mesuré dans le
+  navigateur plutôt que supposé : la flèche est un carré de 5 px tourné de
+  45° — 6,8 px **peints**, 1 px dans un padding de 8 px, rien de coupé ; la
+  mise en page tient exactement. `overflowingFlexRows` mesurait la boîte
+  **transformée** (`getBoundingClientRect`) ; une transformation ne fait pas
+  déborder une rangée flex. Le contrôle prend désormais la largeur de **mise
+  en page** d'un enfant transformé — et attrape toujours un vrai débordement
+  avec un enfant tourné (vérifié : 124 pour 100). Un premier essai
+  `flex-shrink: 0` côté CSS ne changeait rien et a été retiré.
+- Vérifié ici : typecheck, lint, **toute la suite unitaire web verte
+  (1 641)**, backend analyse 0 et `multi_pays_test` vert ; dans le navigateur
+  à 1280 et 375 px : la page, la bande, le pied de page, l'en-tête minimal et
+  le consentement sur `/pro/inscription`, aucun défilement horizontal.
+
+**Non vérifié** : Lighthouse sur `/professionnels` (la CI le lance) ; qu'aucun
+salon en production n'ait déjà le slug `professionnels` (requête à faire
+avant le déploiement du serveur — §6).
+
+## 12. Corrigé après l'audit de parité (2026-10-19)
+
+[L'audit web Pro ↔ app Pro](parity-audit-web-pro-2026-10.md) §2 a trouvé
+deux promesses de cette page que le **web** ne tenait pas — re-vérifiées dans
+le code, puis corrigées avec l'accord du propriétaire :
+
+1. **« Vue journée, semaine, et par membre d’équipe »** — le web n'a pas de
+   vue semaine. Devient « Vue du jour par membre d’équipe, calendrier du mois
+   et liste. »
+2. **« Mettez votre salon en ligne — vos 3 mois offerts commencent »** — sur
+   le web, « Mettre en ligne » restait désactivé tant qu'aucune offre n'était
+   choisie, et le premier choix démarre l'essai : l'horloge tournait pendant
+   la configuration. Le serveur, lui, publie sans offre et démarre l'essai à
+   la mise en ligne (la voie compagnon). **Décision : aligner le web sur
+   l'app** — la liste de mise en ligne n'a plus d'étape « Choisissez votre
+   offre » ; la phrase de configuration de `/pro/abonnement` devient « Votre
+   essai de 3 mois démarre à la mise en ligne de votre salon. Vous pouvez
+   choisir ou changer d’offre à tout moment. » ; la page reste telle quelle,
+   désormais vraie. [pro-companion-path.md](pro-companion-path.md) §5
+   enregistre le renversement de la « divergence documentée ».
+3. FAQ **« Faut-il installer une application ? »** — « tout se gère » était
+   trop large (alertes onglet fermé, horaires en plusieurs plages). Devient
+   « Non : réservations, agenda, clientèle, équipe et acomptes se gèrent
+   depuis myweli.com, sur ordinateur comme sur téléphone. »
+
+Le bouchon e2e suivait l'ancienne règle (publication refusée sans offre) : il
+suit maintenant celle du serveur (pas de ligne → l'essai démarre ; une ligne
+qui n'est plus vivante → 409 `offer`). Tests vus rouges d'abord (`6dd932a3`).
+

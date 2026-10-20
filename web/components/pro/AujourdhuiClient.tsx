@@ -39,7 +39,6 @@ export function AujourdhuiClient() {
   const [live, setLive] = useState(false);
   const [items, setItems] = useState<ProAppointment[]>([]);
   const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [offerLive, setOfferLive] = useState(false);
   const [loading, setLoading] = useState(true);
   const [reloadKey, setReloadKey] = useState(0);
   const [error, setError] = useState<LoadFailure | false>(false);
@@ -70,19 +69,6 @@ export function AujourdhuiClient() {
           // Revenue stats are best-effort — don't block the bookings list.
           const dash = await getDashboard(me.profile.provider.id);
           if (active && dash.status === 200) setStats(dash.stats ?? null);
-        }
-        // A draft salon needs a live offer to publish (team access R5a) —
-        // owner-only concern (salon.publish).
-        if (
-          me.profile.provider.status === 'draft' &&
-          hasCap(m, 'salon.publish')
-        ) {
-          const sub = await getSalonSubscription(me.profile.provider.id);
-          if (active && sub.status === 200 && sub.offer) {
-            setOfferLive(
-              sub.offer.status === 'trial' || sub.offer.status === 'paid',
-            );
-          }
         }
       }
     })();
@@ -185,7 +171,6 @@ export function AujourdhuiClient() {
           {profile?.provider.status === 'draft' && hasCap(m, 'salon.publish') ? (
             <GoLiveCard
               profile={profile}
-              offerLive={offerLive}
               onPublished={() => {
                 setProfile({
                   ...profile,

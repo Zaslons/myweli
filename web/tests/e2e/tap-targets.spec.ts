@@ -100,7 +100,13 @@ test('pro: the glyph buttons that grew invisibly', async ({ page }) => {
   // The hamburger (24px svg, unmoved) and the top-bar wordmark link (28px
   // before the review measured it).
   await assertBox(page.getByRole('button', { name: 'Ouvrir le menu' }), 'hamburger');
-  await assertBox(page.getByRole('link', { name: 'MyWeli Pro' }), '"MyWeli Pro" link', { minW: 0 });
+  // `exact`: the footer's « MyWeli Pro pour les salons » (web-pro-access.md
+  // P2) also contains the words, and Playwright's string name is a substring.
+  await assertBox(
+    page.getByRole('link', { name: 'MyWeli Pro', exact: true }),
+    '"MyWeli Pro" link',
+    { minW: 0 },
+  );
 
   // The drawer: its ✕ (16px glyph before B4) and a nav link (207×36 before the
   // review measured those too). « Rendez-vous » has no capability gate, so it

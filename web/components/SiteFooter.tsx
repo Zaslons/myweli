@@ -2,6 +2,14 @@ import Link from 'next/link';
 import { LEGAL_ROUTES } from '../lib/legal';
 import { SOCIAL_PROFILES } from '../lib/social';
 
+/// The salons' footer group (docs/design/web-pro-access.md P2) — the door a
+/// phone reaches, where the header's « Espace pro » does not fit.
+const PRO_LINKS = [
+  { label: 'MyWeli Pro pour les salons', href: '/professionnels' },
+  { label: 'Inscrire mon salon', href: '/pro/inscription' },
+  { label: 'Connexion Espace pro', href: '/pro/connexion' },
+] as const;
+
 /// The site footer (L1) — and the product's first `<footer>` landmark.
 ///
 /// `WEB-SYSTEM.md` §4 has required `<header> <nav> <main> <footer>` since it was
@@ -28,6 +36,23 @@ export function SiteFooter() {
         <p className="text-bodyMedium text-textSecondary">
           MyWeli — réservation beauté &amp; bien-être en Côte d’Ivoire.
         </p>
+        <nav aria-labelledby="footer-pro" className="mt-m">
+          <p id="footer-pro" className="text-bodyMedium font-medium text-textPrimary">
+            Professionnels
+          </p>
+          <ul className="flex flex-wrap items-center gap-x-l">
+            {PRO_LINKS.map((l) => (
+              <li key={l.href}>
+                <Link
+                  href={l.href}
+                  className="inline-flex min-h-12 items-center text-bodyMedium text-textSecondary underline hover:text-textPrimary"
+                >
+                  {l.label}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
         <nav aria-label="Liens légaux" className="mt-s">
           <ul className="flex flex-wrap items-center gap-x-l">
             {LEGAL_ROUTES.map((r) => (

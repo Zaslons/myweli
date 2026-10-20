@@ -11,6 +11,7 @@ import { PhoneField } from '../PhoneField';
 import { TextField } from '../TextField';
 import { LocalityPicker } from './LocalityPicker';
 import { GoogleSignInButton } from '../auth/GoogleSignInButton';
+import { LegalConsentText } from '../LegalConsentText';
 
 const BUSINESS_TYPES = [
   { value: 'salon', label: 'Salon de beauté' },
@@ -195,6 +196,12 @@ export function ProRegisterClient() {
       <p className="mt-xs text-bodySmall text-textTertiary">
         Elle vous servira à vous connecter à votre espace pro.
       </p>
+      {/* §5 — before the first way to create the account (Google creates
+          it in one tap): the salon contracts with us and will upload
+          identity documents. The app's sign-up says the same. */}
+      <div className="mt-s">
+        <LegalConsentText lead="En créant votre compte professionnel" />
+      </div>
 
       {/* Fetched on the FIRST tap, never on mount — see GoogleSignInButton.
           This form also gains the `min-h-12` reservation the two login

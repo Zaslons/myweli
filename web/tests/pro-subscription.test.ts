@@ -5,6 +5,7 @@ import {
   OFFER_CARDS,
   PRO_ANCHOR_MONTHLY_FCFA,
   SETUP_HEADLINE,
+  SETUP_SUBLINE,
   TRIAL_KEPT_LINE,
   contactWhatsAppUrl,
   offerBanner,
@@ -62,6 +63,13 @@ describe('offer cards', () => {
   it('the setup headline promises the 3 free months', () => {
     expect(SETUP_HEADLINE).toMatch(/3 mois offerts/);
     expect(TRIAL_KEPT_LINE).toMatch(/essai/i);
+  });
+
+  it('the setup sentence says when the trial starts — at go-live, not at the choice', () => {
+    // web-pro-access.md §12: no offer is needed to publish any more.
+    expect(SETUP_SUBLINE).toBe(
+      'Votre essai de 3 mois démarre à la mise en ligne de votre salon. Vous pouvez choisir ou changer d’offre à tout moment.',
+    );
   });
 });
 

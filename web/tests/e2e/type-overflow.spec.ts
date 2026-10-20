@@ -76,6 +76,11 @@ const PUBLIC_ROUTES: [name: string, url: string, anchor: string | RegExp][] = [
   // guard this file's own header demands — a wrong URL scans the 404 page,
   // which also does not overflow.
   ['the account-deletion page — the one a reviewer opens on a phone', '/suppression-compte', /Supprimer votre compte/i],
+  // web-pro-access.md §4: the salons' page — the longest h1 on the public
+  // site, two buttons side by side, six benefit cards.
+  ['the salons page — MyWeli Pro pour les salons', '/professionnels', /logiciel de réservation des salons/],
+  // web-pro-access.md P4 — the Pro sign-up now has a header, and the consent.
+  ['the pro sign-up — header + consent', '/pro/inscription', /Créer|compte/i],
   // B11: **this row runs before every authed row for a reason.** `signInPro`
   // drives this exact UI, so if the pro login breaks at 320 the authed half
   // fails at sign-in and every failure is misattributed to the page under test.
@@ -328,10 +333,21 @@ async function overflowingFlexRows(page: import('@playwright/test').Page) {
         const cs = getComputedStyle(child);
         if (cs.position === 'absolute' || cs.position === 'fixed') continue;
         if (cs.display === 'none') continue;
-        const cb = child.getBoundingClientRect();
+        // LAYOUT width, not painted width, for a transformed child: a
+        // transform is paint-only and cannot make a flex row overflow, but
+        // `getBoundingClientRect` measures the transformed box. The phone
+        // field's country arrow is a 5px square turned 45° — 6.8px on screen,
+        // 1px into an 8px padding, nothing clipped — and it read as « 2 items
+        // need 40 of 38 » the first time /pro/inscription joined this matrix
+        // (web-pro-access.md §11). An untransformed child keeps its exact
+        // fractional rect.
+        const width =
+          cs.transform !== 'none' && child instanceof HTMLElement
+            ? child.offsetWidth
+            : child.getBoundingClientRect().width;
         const ml = parseFloat(cs.marginLeft) || 0;
         const mr = parseFloat(cs.marginRight) || 0;
-        need += cb.width + ml + mr;
+        need += width + ml + mr;
         items += 1;
       }
       if (items < 2) continue; // a one-item row cannot be a strip

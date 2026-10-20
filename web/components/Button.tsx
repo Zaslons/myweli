@@ -1,7 +1,27 @@
 import type { ButtonHTMLAttributes } from 'react';
 import { forwardRef } from 'react';
 
-type Variant = 'primary' | 'secondary' | 'text';
+export type ButtonVariant = 'primary' | 'secondary' | 'text';
+type Variant = ButtonVariant;
+
+/// The button look, for a `<Link>` that must read as one (`ButtonLink`) —
+/// one definition, so a link-button never drifts from the real thing.
+export function buttonClasses(variant: ButtonVariant = 'primary'): string {
+  // labelLarge, not bodyMedium: §4 gives labelLarge (14/20, 500) as "Button
+  // labels" — same size and line as bodyMedium, tighter tracking (0.1 vs 0.25).
+  const base =
+    'relative inline-flex min-h-12 items-center justify-center rounded-lg px-l py-s ' +
+    'text-labelLarge font-medium transition-colors disabled:opacity-50';
+  const styles =
+    variant === 'primary'
+      ? 'bg-primary text-secondary hover:bg-primaryHover'
+      : variant === 'secondary'
+        ? // The outline IS the control here (WCAG 1.4.11) → borderStrong, not
+          // the 1.44:1 `border`. One edit covers every secondary button.
+          'border border-borderStrong bg-secondary text-textPrimary hover:bg-surfaceVariant'
+        : 'px-m text-textPrimary hover:bg-surfaceVariant';
+  return `${base} ${styles}`;
+}
 
 /// Base button — token-styled, the parity of the app's `AppButton`
 /// (docs/design/web-b4-controls.md; WEB-SYSTEM §10).
@@ -44,23 +64,10 @@ export const Button = forwardRef<
   },
   ref,
 ) {
-  // labelLarge, not bodyMedium: §4 gives labelLarge (14/20, 500) as "Button
-  // labels" — same size and line as bodyMedium, tighter tracking (0.1 vs 0.25).
-  const base =
-    'relative inline-flex min-h-12 items-center justify-center rounded-lg px-l py-s ' +
-    'text-labelLarge font-medium transition-colors disabled:opacity-50';
-  const styles =
-    variant === 'primary'
-      ? 'bg-primary text-secondary hover:bg-primaryHover'
-      : variant === 'secondary'
-        ? // The outline IS the control here (WCAG 1.4.11) → borderStrong, not
-          // the 1.44:1 `border`. One edit covers every secondary button.
-          'border border-borderStrong bg-secondary text-textPrimary hover:bg-surfaceVariant'
-        : 'px-m text-textPrimary hover:bg-surfaceVariant';
   return (
     <button
       ref={ref}
-      className={`${base} ${styles} ${className}`}
+      className={`${buttonClasses(variant)} ${className}`}
       disabled={disabled || isLoading}
       aria-busy={isLoading || undefined}
       {...props}

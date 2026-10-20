@@ -66,6 +66,11 @@ const Set<String> reservedPublicSlugs = {
   // salon taking `/support` would be shadowed by the static route AND would
   // capture the address both store listings point at.
   'support',
+  // « MyWeli Pro pour les salons » (web/app/professionnels,
+  // docs/design/web-pro-access.md §6) — the page salons find; a salon must
+  // never shadow it, nor be shadowed by it. Every top-level web route is
+  // held here by `multi_pays_test.dart`'s route sync pin.
+  'professionnels',
   // Seeded city slugs (the nested landing tree /<taxo>/<ville>/<commune>).
   'abidjan',
 };

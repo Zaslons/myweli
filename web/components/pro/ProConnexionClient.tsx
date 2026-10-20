@@ -1,6 +1,8 @@
 'use client';
 
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useEffect } from 'react';
+import { getMyProvider } from '../../lib/api/pro';
 import { gateExitMessage, teamErrorMessage } from '../../lib/pro/team';
 import { ProLoginOptions } from './ProLoginOptions';
 
@@ -15,6 +17,21 @@ export function ProConnexionClient() {
   const params = useSearchParams();
   const revoked = params.get('motif') === 'acces-retire';
   const why = revoked ? gateExitMessage(params.get('raison')) : null;
+
+  // A salon already signed in is not asked to sign in again
+  // (docs/design/web-pro-access.md §7) — « J’ai déjà un compte » and the
+  // footer link both land here. Only a 200 forwards: no session (401), a
+  // revoked member (403) or no answer keep the login.
+  useEffect(() => {
+    let live = true;
+    void getMyProvider().then((r) => {
+      if (live && r.status === 200) router.replace('/pro');
+    });
+    return () => {
+      live = false;
+    };
+  }, [router]);
+
   return (
     <div className="flex flex-col gap-s">
       {revoked ? (

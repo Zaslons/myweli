@@ -19,6 +19,7 @@ import { useFieldErrors } from '../../lib/forms/useFieldErrors';
 import { Button } from '../Button';
 import { TextField } from '../TextField';
 import { GoogleSignInButton } from '../auth/GoogleSignInButton';
+import { LegalConsentText } from '../LegalConsentText';
 
 /// The identity proof retained IN MEMORY across the 202 invitation bridge
 /// (team access R5a): the Google credential or the still-unconsumed
@@ -294,6 +295,7 @@ export function ProLoginOptions({ onSuccess }: { onSuccess: () => void }) {
           Créer mon compte
         </Link>
       </p>
+      <LegalConsentText lead="En continuant" />
     </div>
   );
 }
