@@ -119,6 +119,19 @@ test('pro: the browser notifications — the band’s buttons and the row’s sw
   await assertBox(sw, '« Notifications du navigateur » switch');
 });
 
+test('pro: the deposit delay choices — each a 48px target (web-pro-deposit-app-rules)', async ({
+  page,
+}) => {
+  await signInPro(page);
+  await page.goto('/pro/acompte');
+  const group = page.getByRole('radiogroup', { name: 'Politique d’annulation' });
+  await expect(group).toBeVisible();
+  for (const h of ['12 h', '24 h', '48 h']) {
+    const choice = group.locator('label', { has: page.getByRole('radio', { name: h }) });
+    await assertBox(choice, `delay choice « ${h} »`);
+  }
+});
+
 test('pro: the glyph buttons that grew invisibly', async ({ page }) => {
   await signInPro(page);
 

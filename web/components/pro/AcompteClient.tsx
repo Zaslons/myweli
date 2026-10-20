@@ -14,12 +14,18 @@ import { loadFailure, loadFailureMessage, type LoadFailure } from '../../lib/pro
 import { useFieldErrors } from '../../lib/forms/useFieldErrors';
 import { operatorsFor } from '../../lib/localities';
 import { PHONE_INVALID } from '../../lib/phone';
+import { formatFcfa } from '../../lib/format';
 import {
+  DEPOSIT_PERCENT_RANGE,
+  DEPOSIT_SAMPLE_TOTAL,
   type DepositForm,
   buildDepositPayload,
+  depositExample,
   depositToForm,
+  sliderPosition,
   validateDeposit,
   validateDepositNumber,
+  windowChoices,
 } from '../../lib/pro/deposit';
 import { useLocalities } from '../../lib/use-localities';
 import { Button } from '../Button';
@@ -46,6 +52,8 @@ export function AcompteClient() {
   // (GET /localities) — the backend validates against the same source.
   const localities = useLocalities();
   const [countryCode, setCountryCode] = useState<string | null>(null);
+  // The example's currency: the salon's (multi-pays MP3).
+  const [currency, setCurrency] = useState<string | undefined>(undefined);
   const [providerId, setProviderId] = useState('');
   const [form, setForm] = useState<DepositForm | null>(null);
   // The percentage (a fraction) last loaded or saved — sent when the field,
@@ -102,6 +110,7 @@ export function AcompteClient() {
         if (!active) return;
         setProviderId(pid);
         setCountryCode(me.profile.provider.countryCode ?? null);
+        setCurrency(me.profile.provider.currency ?? undefined);
         setVerified(me.profile.account.verificationStatus === 'verified');
         setForm(depositToForm(dp.policy));
         setLastPercentage(dp.policy.depositPercentage ?? 0);
@@ -169,6 +178,20 @@ export function AcompteClient() {
     setSaved(true);
   }
 
+  // What the slider stands for: the value itself — one saved before (100 %,
+  // 37,5 %) included, until the salon moves the thumb.
+  const percentNumber = Number(form.percent);
+  const percentLabel = `${
+    Number.isFinite(percentNumber) && form.percent.trim() !== ''
+      ? percentNumber.toLocaleString('fr-FR')
+      : sliderPosition(form.percent)
+  } %`;
+  const percentShown =
+    Number.isFinite(percentNumber) && form.percent.trim() !== ''
+      ? percentNumber
+      : sliderPosition(form.percent);
+  const example = depositExample(percentShown);
+
   return (
     <div className="max-w-2xl">
       <h1 className="text-headlineSmall font-semibold text-textPrimary">Acompte</h1>
@@ -185,92 +208,164 @@ export function AcompteClient() {
         </div>
       ) : null}
 
+      {/* docs/design/web-pro-deposit-app-rules.md — the app's screen, in its
+          order: the switch, the percentage, the example, where the deposit
+          is received, the cancellation policy. */}
       <Card as="section" className="mt-l space-y-m">
-        <label
-          className={`flex items-center gap-s text-textPrimary ${
-            verified ? '' : 'opacity-50'
-          }`}
-        >
-          <input
-            type="checkbox"
-            disabled={!verified}
-            checked={form.required}
-            onChange={(e) => {
-              set('required', e.target.checked);
-              setShowNumberWhileOff(false);
-            }}
-          />
-          Exiger un acompte
-        </label>
+        <div className={verified ? '' : 'opacity-50'}>
+          <label className="flex items-center gap-s text-textPrimary">
+            <input
+              type="checkbox"
+              disabled={!verified}
+              checked={form.required}
+              aria-describedby="deposit-required-hint"
+              onChange={(e) => {
+                set('required', e.target.checked);
+                setShowNumberWhileOff(false);
+              }}
+            />
+            Exiger un acompte
+          </label>
+          <p id="deposit-required-hint" className="mt-xs text-bodySmall text-textTertiary">
+            Limite les rendez-vous manqués
+          </p>
+        </div>
 
         {form.required ? (
           <>
-            <label className="block text-bodyMedium text-textTertiary">
-              Pourcentage de l’acompte (%)
+            <div className="rounded-xl border border-border bg-secondary p-m">
+              <div className="flex items-center justify-between gap-s">
+                <label htmlFor="deposit-percent" className="text-bodyMedium text-textPrimary">
+                  Pourcentage de l’acompte
+                </label>
+                <span className="shrink-0 whitespace-nowrap text-titleMedium text-textPrimary">{percentLabel}</span>
+              </div>
               <input
-                className={input}
-                inputMode="numeric"
-                value={form.percent}
+                id="deposit-percent"
+                type="range"
+                className="mt-s block min-h-12 w-full accent-primary"
+                min={DEPOSIT_PERCENT_RANGE.min}
+                max={DEPOSIT_PERCENT_RANGE.max}
+                step={DEPOSIT_PERCENT_RANGE.step}
+                value={sliderPosition(form.percent)}
+                aria-valuetext={percentLabel}
                 onChange={(e) => set('percent', e.target.value)}
               />
-            </label>
-            <label className="block text-bodyMedium text-textTertiary">
-              Opérateur Mobile Money
-              {localities.loading ? (
-                <select className={input} disabled>
-                  <option>Chargement…</option>
-                </select>
-              ) : localities.error ? (
-                <span className="mt-xs flex items-center gap-s">
-                  <span role="alert" className="flex-1 text-bodyMedium text-error">
-                    Liste des opérateurs indisponible.
-                  </span>
-                  <Button variant="secondary" onClick={localities.retry}>
-                    Réessayer
-                  </Button>
-                </span>
-              ) : (
-                <select
-                  className={input}
-                  value={form.operator}
-                  onChange={(e) => set('operator', e.target.value)}
-                >
-                  <option value="">— Choisir —</option>
-                  {operatorsFor(localities.tree, countryCode).map((o) => (
-                    <option key={o.id} value={o.id}>
-                      {o.label}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </label>
+            </div>
+            <div
+              data-testid="deposit-example"
+              className="space-y-xs rounded-xl bg-surface p-m"
+            >
+              <p className="text-bodySmall text-textSecondary">
+                {`Exemple sur une prestation de ${formatFcfa(DEPOSIT_SAMPLE_TOTAL, currency)}`}
+              </p>
+              <p className="flex justify-between gap-s text-bodyMedium text-textPrimary">
+                {/* The client pays by Mobile Money straight to the salon —
+                    never in the app (no-custody; promise-honesty-sweep T2). */}
+                <span>Acompte sur votre Mobile Money</span>
+                <span className="shrink-0 whitespace-nowrap font-semibold">{formatFcfa(example.deposit, currency)}</span>
+              </p>
+              <p className="flex justify-between gap-s text-bodySmall text-textSecondary">
+                <span>Solde au salon</span>
+                <span className="shrink-0 whitespace-nowrap">{formatFcfa(example.balance, currency)}</span>
+              </p>
+            </div>
           </>
         ) : null}
-        {/* The shared PhoneField (+225 on screen — parity with the app). It
-            mounts with the switch — or with a refusal while deposits are off —
-            after the policy has loaded, so its initialValue is the current
-            number. */}
+
         {form.required || showNumberWhileOff ? (
-          <PhoneField
-            label="Numéro Mobile Money"
-            initialValue={form.number}
-            onChange={(v) => {
-              set('number', v);
-              fields.revalidate('number', v);
-            }}
-            error={fields.errors.number}
-          />
+          <div className="space-y-m rounded-xl border border-border bg-secondary p-m">
+            <div>
+              <p className="text-bodyMedium text-textPrimary">Recevoir l’acompte</p>
+              <p className="mt-xs text-bodySmall text-textTertiary">
+                Le client envoie l’acompte directement sur ce compte Mobile Money. MyWeli ne le traite pas.
+              </p>
+            </div>
+            {form.required ? (
+              <label className="block text-bodyMedium text-textTertiary">
+                Opérateur Mobile Money
+                {localities.loading ? (
+                  <select className={input} disabled>
+                    <option>Chargement…</option>
+                  </select>
+                ) : localities.error ? (
+                  <span className="mt-xs flex items-center gap-s">
+                    <span role="alert" className="flex-1 text-bodyMedium text-error">
+                      Liste des opérateurs indisponible.
+                    </span>
+                    <Button variant="secondary" onClick={localities.retry}>
+                      Réessayer
+                    </Button>
+                  </span>
+                ) : (
+                  <select
+                    className={input}
+                    value={form.operator}
+                    onChange={(e) => set('operator', e.target.value)}
+                  >
+                    <option value="">— Choisir —</option>
+                    {operatorsFor(localities.tree, countryCode).map((o) => (
+                      <option key={o.id} value={o.id}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </label>
+            ) : null}
+            {/* The shared PhoneField (+225 on screen — parity with the app).
+                It mounts with the switch — or with a refusal while deposits
+                are off — after the policy has loaded, so its initialValue is
+                the current number. */}
+            <PhoneField
+              label="Numéro Mobile Money"
+              initialValue={form.number}
+              onChange={(v) => {
+                set('number', v);
+                fields.revalidate('number', v);
+              }}
+              error={fields.errors.number}
+            />
+          </div>
         ) : null}
 
-        <label className="block text-bodyMedium text-textTertiary">
-          Fenêtre d’annulation (heures)
-          <input
-            className={input}
-            inputMode="numeric"
-            value={form.windowHours}
-            onChange={(e) => set('windowHours', e.target.value)}
-          />
-        </label>
+        <div className="rounded-xl border border-border bg-secondary p-m">
+          <p id="cancellation-title" className="text-bodyMedium text-textPrimary">
+            Politique d’annulation
+          </p>
+          <p className="mt-xs text-bodySmall text-textTertiary">
+            Au-delà de ce délai avant le rendez-vous, le client peut annuler et garder son acompte ; en deçà, l’acompte n’est pas remboursé.
+          </p>
+          <div
+            role="radiogroup"
+            aria-labelledby="cancellation-title"
+            className="mt-m flex flex-wrap gap-s"
+          >
+            {windowChoices(Number(form.windowHours)).map((h) => {
+              const checked = Number(form.windowHours) === h;
+              return (
+                <label
+                  key={h}
+                  className={`flex min-h-12 min-w-12 cursor-pointer items-center justify-center gap-xs rounded-pill border px-m text-bodyMedium ${
+                    checked
+                      ? 'border-primary bg-primary text-secondary'
+                      : 'border-border bg-surface text-textPrimary'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="cancellation-window"
+                    className="accent-secondary"
+                    value={h}
+                    checked={checked}
+                    onChange={() => set('windowHours', String(h))}
+                  />
+                  {`${h} h`}
+                </label>
+              );
+            })}
+          </div>
+        </div>
 
         {error ? <p role="alert" className="text-bodyMedium text-error">{error}</p> : null}
         <p
