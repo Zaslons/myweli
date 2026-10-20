@@ -147,6 +147,20 @@ test('pro: « Client sans numéro » — its whole row is the target (web-manual
   await assertBox(row, '« Client sans numéro » row', { minW: 0 });
 });
 
+test('pro: Médias — the undo toast’s « Annuler » (web-pro-medias-like-app)', async ({ page }) => {
+  await signInPro(page);
+  await page.goto('/pro/medias');
+  await page.getByRole('button', { name: 'Supprimer' }).last().click();
+  await page
+    .getByRole('dialog', { name: 'Supprimer cette photo ?' })
+    .getByRole('button', { name: 'Supprimer la photo' })
+    .click();
+  const undo = page.getByRole('status').getByRole('button', { name: 'Annuler' });
+  await expect(undo).toBeVisible();
+  await assertBox(undo, 'undo toast « Annuler »', { minW: 0 });
+  await undo.click(); // the stub's gallery is shared
+});
+
 test('pro: the glyph buttons that grew invisibly', async ({ page }) => {
   await signInPro(page);
 
