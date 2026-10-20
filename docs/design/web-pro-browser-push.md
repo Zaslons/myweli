@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Validé le 2026-10-20** — Q1 : **seul un push de l'app remplace l'e-mail** ; Q2 : **comme l'app** (le bandeau une fois, puis la page Notifications) ; Q3 : **ordinateur seulement** ; Q4 : **les mots tels qu'écrits** (§9, §10) |
+| **Statut** | **Construit le 2026-10-20** sur `feat/web-pro-browser-push` (au-dessus de #649) ; ce qui a été vu : §11. Validé le même jour — Q1 : **seul un push de l'app remplace l'e-mail** ; Q2 : **comme l'app** (le bandeau une fois, puis la page Notifications) ; Q3 : **ordinateur seulement** ; Q4 : **les mots tels qu'écrits** (§9, §10) |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-20 |
 | **PRD ref / phase** | FR-NOTIF-001 (canal push) · parité web ↔ app Pro · V1 |
@@ -231,3 +231,74 @@ ordinateur » dans les mots.
 - **Q4 — les mots** (§9), tels qu'écrits ?
 
 **Décisions (2026-10-20).** Q1 (a), Q2 (a), Q3 (a), Q4 approuvé tel qu'écrit.
+
+## 11. Construit — ce qui a été vu
+
+**Comme écrit**, avec ces précisions :
+- Le serveur : `devicesForUser` (les jetons avec leur plateforme) et
+  `PushService.sendToUserByKind` (deux envois, l'app puis les navigateurs, deux
+  comptes) ; `sendToUser` rend toujours le total aux autres appelants. Le
+  notifier lit **`app`** seul.
+- Le web dépend de `@firebase/app` + `@firebase/messaging`, **pas** du paquet
+  `firebase` : celui-ci tire Firestore et `@grpc/grpc-js`, soit quatre alertes
+  `npm audit` de plus pour du code jamais appelé. Version 12.19 (la 13.0 avait
+  treize jours).
+- Le bandeau est aussi sur l'accueil du Collaborateur (« … — votre
+  planning ») : il reçoit les alertes de son artiste.
+- Une **extinction** qui échoue reprend les mots d'« Alertes par e-mail »
+  (« L’enregistrement a échoué. Réessayez. ») ; l'interrupteur reste allumé,
+  puisque les alertes continueraient.
+- `PrefSwitch` gagne `busy` (`aria-busy`, désactivé pendant la question du
+  navigateur).
+
+**Trouvé en construisant** :
+- **Firebase n'attend un service worker actif que s'il l'enregistre
+  lui-même** (`registerDefaultSw` → `waitForRegistrationActive`) ; le nôtre lui
+  était donné encore en installation, et `pushManager.subscribe` échoue sur un
+  worker qui s'installe : **le tout premier « Activer » aurait dit
+  « L’activation a échoué. »**. Lu dans la source de @firebase/messaging
+  0.13.3 ; le jeton attend maintenant l'activation (bornée à 10 s). L'e2e ne
+  pouvait pas le voir (son jeton est nommé avant Firebase) ; un test unitaire
+  le garde, vu rouge.
+- **Le `Notification.permission` de Chromium sans écran reste `denied`** —
+  avant toute question, après `grantPermissions`, après que
+  `requestPermission()` a répondu `granted`, après un rechargement (mesuré
+  sur une page nue). Le premier passage e2e voyait « Notifications bloquées
+  pour ce navigateur » partout. L'e2e fait lire à la page ce que lirait un vrai
+  navigateur (`asUnaskedBrowser`, `asGrantedBrowser`).
+- **Un téléphone par sa seule chaîne d'agent** : `navigator.userAgentData
+  .mobile` restait `false`, et la page voyait un ordinateur — c'est ce champ
+  qu'elle croit d'abord, à raison ; l'e2e émule un vrai téléphone
+  (`devices['Pixel 7']`).
+- Le clic cherche un onglet `/pro` ou `/pro/…` — pas `/professionnels`.
+- La CSP (Report-Only) : les deux hôtes **mesurés** dans les paquets
+  (`firebaseinstallations`, `fcmregistrations.googleapis.com`) et
+  `worker-src 'self'`, dans la liste des origines qu'aucun parcours du code ne
+  trouve.
+
+**Mutations vues rouges** — serveur : l'e-mail qui compte les navigateurs,
+les jetons web jamais envoyés, le bloc `webpush` retiré ; web : le BFF qui
+transmet la plateforme du corps, le worker qui suit la `route` du message, le
+lien du clic non vérifié, le bandeau qui oublie « demandé », la déconnexion
+sans désinscription (unitaire **et** e2e), la connexion qui ignore « coupé
+ici », un téléphone qui reçoit l'interrupteur, le jeton qui n'attend pas
+l'activation.
+
+**Vu dans un navigateur** (le volet de l'app, sur le stub) : avec la
+permission telle qu'il la donne (`denied`), la ligne dit « Notifications
+bloquées… » et la marche à suivre, sans interrupteur ; en lui faisant lire
+`default` puis répondre oui : le bandeau à 310 px, « Activer » → le worker
+**actif** à `/pro/`, `POST /api/pro/devices` 200 avec le jeton,
+« Notifications activées sur cet ordinateur. », plus de bandeau ; sur
+Notifications, l'interrupteur allumé (48 × 48) au-dessus d'« Alertes par
+e-mail » ; éteint → `DELETE` 200, rallumé → `POST` 200 ; « Se déconnecter » →
+`DELETE` **puis** la déconnexion.
+
+**Vérifié** : backend — format et analyse propres, **1 788** tests + **79**
+Postgres (base neuve) ; web — typecheck et lint propres, **1 723** tests ;
+e2e (pro, axe, cibles, reflow, rôles, légal) **151** verts.
+
+**Non vérifié** : une **vraie** notification FCM reçue onglet fermé et son clic
+— il faut l'application Web Firebase et la clé Web Push (§7, propriétaire) ;
+Safari et Firefox.
+
