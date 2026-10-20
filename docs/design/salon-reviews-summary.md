@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Validé le 2026-10-20** — décision du propriétaire : **le résumé du serveur, web et app** |
+| **Statut** | **Construit le 2026-10-20** sur `feat/reviews-server-summary` (depuis `main`) ; ce qui a été vu : §4. Validé le même jour — décision du propriétaire : **le résumé du serveur, web et app** |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-20 |
 | **PRD ref / phase** | Avis (consumer-reviews) · parité web ↔ app Pro · V1 |
@@ -47,3 +47,21 @@ la décimale ; un avis masqué ne compte nulle part ; aucun avis → des zéros 
 Postgres ; contrat. Web : `statsFromSummary`, la page (« 60 avis », 4,2 et
 pas 5,0, les barres) et le repli. App : le format reçu, `reviewCard`, le
 provider.
+
+## 4. Construit — ce qui a été vu
+
+- **Rouge d'abord** : serveur (4 tests de la route, Postgres, contrat), web
+  (`statsFromSummary`, la page), app (le format reçu, `reviewCard`, le
+  provider). Le test Postgres a dû être réécrit : la table exige un salon
+  existant, et le salon partagé des tests porte d'autres avis — il mesure
+  l'écart.
+- **Une mutation survivait** : l'écran de l'app qui ignore le résumé ne
+  faisait rougir aucun test unitaire ; un test d'écran (« 4,2 », « 60 avis »
+  sur 50 avis 5★ chargés) l'attrape maintenant.
+- **Mutations vues rouges** : le résumé de la page au lieu du salon, sans
+  arrondi, Postgres et mémoire qui comptent les masqués (serveur) ; le web
+  qui ignore le résumé ; le provider qui le perd ; l'écran qui l'ignore (app).
+- **Vérifié** : serveur — analyse 0, **1 757** tests + Postgres ; web —
+  typecheck et lint propres, 203 tests des pages Pro, e2e **98** verts ; app —
+  analyse 0, **1 844** tests unitaires et d'écran. Les goldens ne bougent pas
+  (le mock calcule son résumé comme le serveur ; « 4,3 » dans les deux cas).
