@@ -109,6 +109,25 @@ ON CONFLICT (appointment_id) DO UPDATE SET
   }
 
   @override
+  Future<Map<int, int>> ratingDistribution(String providerId) async {
+    final rows = await _pool.execute(
+      Sql.named(
+        'SELECT rating, COUNT(*)::int AS n FROM reviews '
+        "WHERE provider_id = @pid AND moderation_status <> 'hidden' "
+        'GROUP BY rating',
+      ),
+      parameters: {'pid': providerId},
+    );
+    final out = {5: 0, 4: 0, 3: 0, 2: 0, 1: 0};
+    for (final row in rows) {
+      final m = row.toColumnMap();
+      final star = (m['rating'] as num).round();
+      if (out.containsKey(star)) out[star] = m['n'] as int;
+    }
+    return out;
+  }
+
+  @override
   Future<Map<String, RatingAgg>> aggregateByArtist(String providerId) async {
     final rows = await _pool.execute(
       Sql.named(

@@ -20,6 +20,7 @@ import type {
   TeamRoleInput,
 } from '../pro/team';
 import type { JournalDay } from '../pro/journal';
+import type { ReviewSummary } from '../pro/reviews';
 import type { ProAppointment } from '../pro/today';
 import type { EarningsData } from '../pro/earnings';
 import { wholeClientBase } from '../pro/export';
@@ -259,6 +260,9 @@ export async function listProviderReviews(
   items: Review[];
   total: number;
   pageSize: number;
+  /// The whole salon's card (salon-reviews-summary.md); absent from a server
+  /// older than it.
+  summary?: ReviewSummary;
 }> {
   // `providerId` is the R6 SELECTOR, not the authority: upstream resolves the
   // salon from the token and refuses a selection the caller is not a member of
@@ -271,6 +275,7 @@ export async function listProviderReviews(
     items?: Review[];
     total?: number;
     pageSize?: number;
+    summary?: ReviewSummary;
   }>(res);
   if (!body) return { status: 0, items: [], total: 0, pageSize: 0 };
   return {
@@ -278,6 +283,7 @@ export async function listProviderReviews(
     items: body.items ?? [],
     total: body.total ?? 0,
     pageSize: body.pageSize ?? 50,
+    ...(body.summary ? { summary: body.summary } : {}),
   };
 }
 

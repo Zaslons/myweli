@@ -764,6 +764,7 @@ export interface paths {
                             page: number;
                             pageSize: number;
                             total: number;
+                            summary: components["schemas"]["ReviewSummary"];
                         };
                     };
                 };
@@ -6961,6 +6962,19 @@ export interface components {
             read: boolean;
             /** @description Optional in-app deep link (e.g. /bookings). */
             route?: string | null;
+        };
+        /** @description The « Avis » card for the WHOLE salon, sent with every page of `/me/provider/reviews`: the average to one decimal (the salon's public `rating`), the count, and how many reviews give each star — all over the visible reviews (hidden ones count nowhere). Design: docs/design/salon-reviews-summary.md. */
+        ReviewSummary: {
+            /** @description 0 when there is no review. */
+            average: number;
+            count: number;
+            distribution: {
+                1: number;
+                2: number;
+                3: number;
+                4: number;
+                5: number;
+            };
         };
         /** @description Per-user notification opt-out prefs (FR-NOTIF-004). All default true; respected at send time by BookingNotifier. Transactional confirmations are not configurable (always sent). */
         NotificationPreferences: {

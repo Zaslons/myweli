@@ -1767,6 +1767,58 @@ void main() {
       },
     );
 
+    test(
+      'ratingDistribution: per star, visible only (salon-reviews-summary)',
+      () async {
+        // `reviews.provider_id` references a real salon, and the shared
+        // fixture salon carries other tests' reviews: measure the change.
+        final r = PostgresReviewsRepository(pool);
+        final before = await r.ratingDistribution('provider1');
+        expect(before.keys.toSet(), {5, 4, 3, 2, 1});
+        Map<String, dynamic> one(String appt, int rating) => {
+          'id': 'rev_dist_$appt',
+          'appointmentId': 'dist_$appt',
+          'providerId': 'provider1',
+          'userId': 'u_dist_$appt',
+          'userName': 'U',
+          'rating': rating,
+          'text': 'ok',
+          'verified': true,
+          'photoUrls': const <String>[],
+          'createdAt': DateTime.utc(2030, 7, 1).toIso8601String(),
+        };
+        await r.upsertByAppointment(one('1', 5));
+        await r.upsertByAppointment(one('2', 5));
+        await r.upsertByAppointment(one('3', 2));
+        await r.upsertByAppointment(one('4', 1));
+        await pool.execute(
+          Sql.named(
+            "UPDATE reviews SET moderation_status = 'hidden' "
+            'WHERE appointment_id = @a',
+          ),
+          parameters: {'a': 'dist_4'},
+        );
+        final after = await r.ratingDistribution('provider1');
+        expect(
+          {for (final k in after.keys) k: after[k]! - before[k]!},
+          {
+            5: 2,
+            4: 0,
+            3: 0,
+            2: 1,
+            1: 0, // hidden: counts nowhere
+          },
+        );
+        expect(await r.ratingDistribution('no-such-salon'), {
+          5: 0,
+          4: 0,
+          3: 0,
+          2: 0,
+          1: 0,
+        });
+      },
+    );
+
     test('reviewByAppointment finds a HIDDEN review too', () async {
       // The moderation filter every other read carries would be wrong here: a
       // hidden review still owns its photo objects, so filtering it out makes

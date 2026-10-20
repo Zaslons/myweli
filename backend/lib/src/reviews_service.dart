@@ -224,6 +224,22 @@ class ReviewsService {
     return (items: res.items, total: res.total, page: p, pageSize: size);
   }
 
+  /// The « Avis » card for the whole salon (docs/design/salon-reviews-summary.md):
+  /// the average to one decimal — the `provider.rating` clients see — the
+  /// count, and the 5 → 1 split, all over the VISIBLE reviews. Sent with every
+  /// page, so the card never describes only the page.
+  Future<Map<String, dynamic>> summary(String providerId) async {
+    final agg = await _reviews.aggregateProvider(providerId);
+    final split = await _reviews.ratingDistribution(providerId);
+    return {
+      'average': _round1(agg.rating),
+      'count': agg.count,
+      'distribution': {
+        for (final star in [5, 4, 3, 2, 1]) '$star': split[star] ?? 0,
+      },
+    };
+  }
+
   /// Recompute the denormalized provider + per-artist ratings from the
   /// **visible** reviews (the repo's aggregates exclude hidden). Public so
   /// moderation can re-run it after a hide/restore.
