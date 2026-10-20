@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Construit le 2026-10-20** sur `fix/web-pro-profil-support` (au-dessus de #642) ; ce qui a été vu : §4. Validé le même jour — « Statistiques & avis clients » ; « Support prioritaire » ; « Aide & Support » — « Nous écrire » pour tous, vers `/support`, et les liens du Profil filtrés par rôle comme dans l'app |
+| **Statut** | **Construit le 2026-10-20** sur `fix/web-pro-profil-support` (au-dessus de #642) ; ce qui a été vu : §4. Validé le même jour — « Statistiques & avis clients » ; « Support prioritaire » ; « Aide & Support » — « Nous écrire » pour tous, vers `/support`, et les liens du Profil filtrés par rôle comme dans l'app · **Mergé (#655) le 2026-10-20** — web en production à la fusion |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-20 |
 | **PRD ref / phase** | Accès d'équipe (R5b) · parité web ↔ app Pro · offres (companion path) · V1 |

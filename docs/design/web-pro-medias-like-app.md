@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Construit le 2026-10-20** sur `feat/web-pro-medias-like-app` (depuis `main`) ; ce qui a été vu : §5. Validé le même jour — décision du propriétaire : **comme l'app** (option a, §2) |
+| **Statut** | **Construit le 2026-10-20** sur `feat/web-pro-medias-like-app` (depuis `main`) ; ce qui a été vu : §5. Validé le même jour — décision du propriétaire : **comme l'app** (option a, §2) · **Mergé (#657) le 2026-10-20** — web en production à la fusion |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-20 |
 | **PRD ref / phase** | Médias du salon · parité web ↔ app Pro · V1 |

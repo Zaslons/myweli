@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Construit le 2026-10-19** (branche `feat/web-pro-access`, empilée sur `feat/web-pro-notifications`) — les portes P1–P4, **pas de prix**, le texte des §3–§5 tel qu'écrit ; §11 dit ce qui a été vu rouge · web au merge, la ligne backend au prochain déploiement du serveur |
+| **Statut** | **Construit le 2026-10-19** (branche `feat/web-pro-access`, empilée sur `feat/web-pro-notifications`) — les portes P1–P4, **pas de prix**, le texte des §3–§5 tel qu'écrit ; §11 dit ce qui a été vu rouge · web au merge, la ligne backend au prochain déploiement du serveur · **Mergé (#642) le 2026-10-20** — web en production à la fusion ; serveur en production : révision `myweli-api-00042-468` (image `9f320d4`, `sha256:498778da…`), 100 % du trafic, le 2026-10-20 |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-19 |
 | **PRD ref / phase** | Acquisition salon (web) · la voie compagnon : l'offre se choisit **sur le web** ([pro-companion-path.md](pro-companion-path.md)) · V1 |

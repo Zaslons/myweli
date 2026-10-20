@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Construit le 2026-10-19** (branche `fix/app-journal-refuser`) — correctif d'un défaut ; **aucun texte nouveau**, aucun changement serveur |
+| **Statut** | **Construit le 2026-10-19** (branche `fix/app-journal-refuser`) — correctif d'un défaut ; **aucun texte nouveau**, aucun changement serveur · **Mergé (#643) le 2026-10-20** — app au prochain build |
 | **Owner** | Sadreddine |
 | **PRD ref / phase** | Le cycle de vie d'un rendez-vous côté salon (accepter / refuser) · V1 |
 | **Module** | app Pro — `journal` (« Ma journée ») |

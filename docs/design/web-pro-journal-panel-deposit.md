@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Construit le 2026-10-19** sur `fix/web-pro-journal-panel-deposit` — validé par le propriétaire le même jour : l'UX, le texte T1–T13 mot pour mot, **Q1 = la consigne seulement en attente**, **Q2 = le retour ramène à aujourd'hui pour l'instant, le jour dans l'URL en tranche suivante** (§10). Vu rouge : 37 tests sur `main`, puis 6 mutations ; e2e des 7 fichiers touchés : 128 verts ; l'épingle d'heure de `roles.spec` vue rouge à 08:00 (§11) |
+| **Statut** | **Construit le 2026-10-19** sur `fix/web-pro-journal-panel-deposit` — validé par le propriétaire le même jour : l'UX, le texte T1–T13 mot pour mot, **Q1 = la consigne seulement en attente**, **Q2 = le retour ramène à aujourd'hui pour l'instant, le jour dans l'URL en tranche suivante** (§10). Vu rouge : 37 tests sur `main`, puis 6 mutations ; e2e des 7 fichiers touchés : 128 verts ; l'épingle d'heure de `roles.spec` vue rouge à 08:00 (§11) · **Mergé (#644) le 2026-10-20** — web en production à la fusion |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-19 |
 | **PRD ref / phase** | La parité web ↔ app Pro (WEB.md, « feature parity ») · la décision sans-custody des acomptes (PRD OQ-1, mémoire `payments-no-custody-screenshot`) · V1 — tableau de bord Pro web |

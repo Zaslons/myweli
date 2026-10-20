@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Construit le 2026-10-19** (branche `fix/promise-honesty`) — T1–T6 validés tels que recommandés par le propriétaire (§3) ; §11 dit ce qui a été vu rouge · web en production au merge, app Pro au prochain build |
+| **Statut** | **Construit le 2026-10-19** (branche `fix/promise-honesty`) — T1–T6 validés tels que recommandés par le propriétaire (§3) ; §11 dit ce qui a été vu rouge · web en production au merge, app Pro au prochain build · **Mergé (#639) le 2026-10-20** — web en production à la fusion ; app au prochain build |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-19 |
 | **PRD ref / phase** | FR-PRO-MKT-001 (rappels) · la décision sans-custody des acomptes (PRD OQ-1, mémoire `payments-no-custody-screenshot`) · V1 |

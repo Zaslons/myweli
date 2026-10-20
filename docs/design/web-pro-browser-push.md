@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Construit le 2026-10-20** sur `feat/web-pro-browser-push` (au-dessus de #649) ; ce qui a été vu : §11. Validé le même jour — Q1 : **seul un push de l'app remplace l'e-mail** ; Q2 : **comme l'app** (le bandeau une fois, puis la page Notifications) ; Q3 : **ordinateur seulement** ; Q4 : **les mots tels qu'écrits** (§9, §10) |
+| **Statut** | **Construit le 2026-10-20** sur `feat/web-pro-browser-push` (au-dessus de #649) ; ce qui a été vu : §11. Validé le même jour — Q1 : **seul un push de l'app remplace l'e-mail** ; Q2 : **comme l'app** (le bandeau une fois, puis la page Notifications) ; Q3 : **ordinateur seulement** ; Q4 : **les mots tels qu'écrits** (§9, §10) · **Mergé (#662) le 2026-10-20** — web en production à la fusion ; serveur en production : révision `myweli-api-00042-468` (image `9f320d4`, `sha256:498778da…`), 100 % du trafic, le 2026-10-20 — **invisible tant que les cinq variables Firebase ne sont pas dans Vercel** (§7, propriétaire) |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-20 |
 | **PRD ref / phase** | FR-NOTIF-001 (canal push) · parité web ↔ app Pro · V1 |

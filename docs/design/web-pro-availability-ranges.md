@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Construit le 2026-10-19** (branche `feat/web-pro-availability-ranges`) — dates comme l'app, chevauchements refusés sur le web **et** dans l'app, texte du §3 ; §10 dit ce qui a été vu rouge · web au merge, l'app au prochain build Pro |
+| **Statut** | **Construit le 2026-10-19** (branche `feat/web-pro-availability-ranges`) — dates comme l'app, chevauchements refusés sur le web **et** dans l'app, texte du §3 ; §10 dit ce qui a été vu rouge · web au merge, l'app au prochain build Pro · **Mergé (#646) le 2026-10-20** — web en production à la fusion ; app au prochain build |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-19 |
 | **PRD ref / phase** | Disponibilités du salon (FR-PRO-AVAIL) · parité web ↔ app · V1 |

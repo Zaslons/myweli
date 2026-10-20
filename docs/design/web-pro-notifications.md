@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Construit le 2026-10-19** (branche `feat/web-pro-notifications`) — les trois décisions du §9 telles que recommandées ; §10 dit ce qui a été vu rouge · **à fusionner après #640** et à déployer **après** le serveur de #640 (l'état vide nomme les « reports ») |
+| **Statut** | **Construit le 2026-10-19** (branche `feat/web-pro-notifications`) — les trois décisions du §9 telles que recommandées ; §10 dit ce qui a été vu rouge · **à fusionner après #640** et à déployer **après** le serveur de #640 (l'état vide nomme les « reports ») · **Mergé (#641) le 2026-10-20** — web en production à la fusion |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-19 |
 | **PRD ref / phase** | FR-NOTIF · parité web ↔ app Pro · V1 |

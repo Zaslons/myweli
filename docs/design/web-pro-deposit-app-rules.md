@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Construit le 2026-10-20** sur `feat/web-pro-deposit-app-rules` (au-dessus de #639) ; ce qui a été vu : §5. Validé le même jour — décision du propriétaire : **le web prend les règles de l'app** (curseur 5–80 % par pas de 5, délai 12 / 24 / 48 h, les trois explications) ; une valeur enregistrée hors de ces choix s'affiche telle quelle jusqu'à ce qu'on la change ; le serveur garde sa plage |
+| **Statut** | **Construit le 2026-10-20** sur `feat/web-pro-deposit-app-rules` (au-dessus de #639) ; ce qui a été vu : §5. Validé le même jour — décision du propriétaire : **le web prend les règles de l'app** (curseur 5–80 % par pas de 5, délai 12 / 24 / 48 h, les trois explications) ; une valeur enregistrée hors de ces choix s'affiche telle quelle jusqu'à ce qu'on la change ; le serveur garde sa plage · **Mergé (#653) le 2026-10-20** — web en production à la fusion |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-20 |
 | **PRD ref / phase** | Acompte (no-custody, capture d'écran) · parité web ↔ app Pro · V1 |

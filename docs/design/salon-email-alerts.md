@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Construit le 2026-10-20** sur `feat/salon-email-alerts` (au-dessus de #642). Validé le 2026-10-19 — Q1 : **les e-mails tels qu'écrits** ; Q2 : **l'interrupteur tel qu'écrit, actif par défaut** ; Q3 : **la phrase ajoutée à la FAQ** (§9). Ce qui a été vu : §10 |
+| **Statut** | **Construit le 2026-10-20** sur `feat/salon-email-alerts` (au-dessus de #642). Validé le 2026-10-19 — Q1 : **les e-mails tels qu'écrits** ; Q2 : **l'interrupteur tel qu'écrit, actif par défaut** ; Q3 : **la phrase ajoutée à la FAQ** (§9). Ce qui a été vu : §10 · **Mergé (#649) le 2026-10-20** — web en production à la fusion ; serveur en production : révision `myweli-api-00042-468` (image `9f320d4`, `sha256:498778da…`), 100 % du trafic, le 2026-10-20 |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-19 |
 | **PRD ref / phase** | Notifications salon (push-notifications-fcm §10) · parité web ↔ app Pro · V1 |

@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Construit le 2026-10-19** sur `feat/web-pro-week-strip` (au-dessus de #645). Validé le même jour — Q1 = **la bande maintenant, l'onglet « Semaine » (grille de sept jours sur ordinateur) en tranche à part** ; Q2 = **sans les annulés, web et app** ; Q3 = **les mots tels qu'écrits** (§8). Deux défauts trouvés en construisant, corrigés (§9) |
+| **Statut** | **Construit le 2026-10-19** sur `feat/web-pro-week-strip` (au-dessus de #645). Validé le même jour — Q1 = **la bande maintenant, l'onglet « Semaine » (grille de sept jours sur ordinateur) en tranche à part** ; Q2 = **sans les annulés, web et app** ; Q3 = **les mots tels qu'écrits** (§8). Deux défauts trouvés en construisant, corrigés (§9) · **Mergé (#648) le 2026-10-20** — web en production à la fusion ; app au prochain build |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-19 |
 | **PRD ref / phase** | Journal (module journal §4.3) · parité web ↔ app Pro · V1 |
