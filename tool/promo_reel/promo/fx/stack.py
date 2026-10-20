@@ -27,11 +27,23 @@ blanked the other tiles' places and they popped out of nothing). So:
     piece at rest and its neighbour's place — FADES under the panel with
     that tile's own pop, in place (no wipe, no letters left standing);
   * once the lifted cards are side by side their pieces meet (the pads
-    overlap): no veiled original shows between them.
+    overlap): no veiled original shows between them;
+  * its pieces sit on WHOLE pixels, snapped outward, and a strip overlaps
+    the piece it continues by a pixel: two pieces meeting on a fractional
+    edge each covered part of that column and the tile under it showed
+    through as a dotted 1-px seam (review round 5, 9:16 f484–f511);
+  * a strip runs only over the tiles' own row (the places' height), not
+    over its piece's padded height: round 5's ran 24 px above and below
+    the row, across the next card's top border (1:1, a pale rectangle);
+  * a `floor` (a frame y: the next row on the phone) stops every piece:
+    the Fiche's panel stops 2 px above « PROCHAIN RENDEZ-VOUS »'s cap line
+    (review round 5: its bottom pad sliced the label's top third in 1:1
+    and hid it whole in 9:16).
 """
 
 from __future__ import annotations
 
+import math
 from typing import Sequence
 
 import skia
@@ -79,11 +91,11 @@ class Stack:
 
     def __init__(self, picture, sources: Sequence[Rect], origins: Sequence[Rect], targets: Sequence[Rect],
                  ups: Sequence[float], *, frames: float = 6.0, down: float | None = None,
-                 down_frames: float = 5.0, style: LiftStyle = STYLE):
+                 down_frames: float = 5.0, style: LiftStyle = STYLE, path: str = "straight"):
         if not (len(sources) == len(origins) == len(targets) == len(ups)):
             raise ValueError("Stack: sources, origins, targets and ups must have the same length")
         pic = picture if isinstance(picture, Picture) else Picture(picture)
-        self.lifts = [Lift(pic, s, o, t, style) for s, o, t in zip(sources, origins, targets)]
+        self.lifts = [Lift(pic, s, o, t, style, path=path) for s, o, t in zip(sources, origins, targets)]
         self.ups, self.frames, self.down, self.down_frames, self.style = list(ups), frames, down, down_frames, style
 
     def progress(self, i: int, t: float) -> float:
@@ -91,24 +103,25 @@ class Stack:
 
     def _piece(self, i: int, p: float, pad: float, waiting: list[Rect]) -> Rect:
         """Tile i's piece at progress p: the hull of its card and its place,
-        grown by `pad`, cut back to the places of the `waiting` tiles it
-        would reach (on the side that faces each, from its own place)."""
+        grown by `pad` and snapped OUTWARD to whole pixels, cut back to the
+        places of the `waiting` tiles it would reach (on the side that faces
+        each, from its own place) — snapped INWARD there, never over them."""
         lf = self.lifts[i]
         card, place = lf.rect(p), lf.origin
-        x0, y0 = min(card[0], place[0]) - pad, min(card[1], place[1]) - pad
-        x1, y1 = max(card[2], place[2]) + pad, max(card[3], place[3]) + pad
+        x0, y0 = math.floor(min(card[0], place[0]) - pad), math.floor(min(card[1], place[1]) - pad)
+        x1, y1 = math.ceil(max(card[2], place[2]) + pad), math.ceil(max(card[3], place[3]) + pad)
         for o in waiting:
             if not (o[0] < x1 and x0 < o[2] and o[1] < y1 and y0 < o[3]):
                 continue                                      # clear of it
             if o[0] >= place[2]:
-                x1 = min(x1, o[0])
+                x1 = min(x1, math.floor(o[0]))
             elif o[2] <= place[0]:
-                x0 = max(x0, o[2])
+                x0 = max(x0, math.ceil(o[2]))
             elif o[1] >= place[3]:
-                y1 = min(y1, o[1])
+                y1 = min(y1, math.floor(o[1]))
             elif o[3] <= place[1]:
-                y0 = max(y0, o[3])
-        return x0, y0, x1, y1
+                y0 = max(y0, math.ceil(o[3]))
+        return float(x0), float(y0), float(x1), float(y1)
 
     def _neighbours(self, i: int) -> list[tuple[int, str]]:
         """The tiles next to tile i in its row (or column): (j, side), with no
@@ -139,7 +152,7 @@ class Stack:
                 out.append((j, side))
         return out
 
-    def backdrop_pieces(self, t: float, pad: float) -> list[tuple[Rect, float, bool]]:
+    def backdrop_pieces(self, t: float, pad: float, floor: float | None = None) -> list[tuple[Rect, float, bool]]:
         """The panel at frame t as (rect, opacity) pieces, one per LIFTED
         tile — the hull of its card (where it is now) and its place, grown by
         `pad`, cut back to the place of any tile still waiting (never over
@@ -152,45 +165,58 @@ class Stack:
         ps = [self.progress(i, t) for i in range(len(self.lifts))]
         waiting = [lf.origin for i, lf in enumerate(self.lifts) if ps[i] <= 0]
         out: list[tuple[Rect, float, bool]] = []
+
+        def floored(r: Rect) -> Rect:
+            return r if floor is None else (r[0], r[1], r[2], min(r[3], float(math.floor(floor))))
+
         for i in range(len(self.lifts)):
             if ps[i] <= 0:
                 continue
-            out.append((self._piece(i, ps[i], pad, waiting), 1.0, False))
+            out.append((floored(self._piece(i, ps[i], pad, waiting)), 1.0, False))
             rest = self._piece(i, 1.0, pad, [self.lifts[j].origin for j in range(len(self.lifts)) if j != i])
+            a = self.lifts[i].origin
             for j, side in self._neighbours(i):
                 b = self.lifts[j].origin
-                strip = {"right": (rest[2], rest[1], b[0], rest[3]), "left": (b[2], rest[1], rest[0], rest[3]),
-                         "below": (rest[0], rest[3], rest[2], b[1]), "above": (rest[0], b[3], rest[2], rest[1])}[side]
+                # over the tiles' own row (or column) only; a pixel into the piece it continues, never past the
+                # neighbour's place (a tile waiting there keeps its own)
+                y0, y1 = math.floor(min(a[1], b[1])), math.ceil(max(a[3], b[3]))
+                x0, x1 = math.floor(min(a[0], b[0])), math.ceil(max(a[2], b[2]))
+                strip = {"right": (rest[2] - 1, y0, math.floor(b[0]), y1),
+                         "left": (math.ceil(b[2]), y0, rest[0] + 1, y1),
+                         "below": (x0, rest[3] - 1, x1, math.floor(b[1])),
+                         "above": (x0, math.ceil(b[3]), x1, rest[1] + 1)}[side]
+                strip = floored(tuple(float(v) for v in strip))
                 if strip[2] > strip[0] and strip[3] > strip[1]:
                     out.append((strip, min(1.0, ps[i]), True))
         return out
 
-    def backdrop_rects(self, t: float, pad: float) -> list[Rect]:
+    def backdrop_rects(self, t: float, pad: float, floor: float | None = None) -> list[Rect]:
         """The panel's pieces at frame t (`backdrop_pieces`), whatever their opacity."""
-        return [r for r, a, _ in self.backdrop_pieces(t, pad) if a > 0]
+        return [r for r, a, _ in self.backdrop_pieces(t, pad, floor) if a > 0]
 
-    def backdrop_rect(self, t: float, pad: float) -> Rect | None:
+    def backdrop_rect(self, t: float, pad: float, floor: float | None = None) -> Rect | None:
         """The panel's bounds at frame t (None before the first lift)."""
-        rs = self.backdrop_rects(t, pad)
+        rs = self.backdrop_rects(t, pad, floor)
         if not rs:
             return None
         return (min(r[0] for r in rs), min(r[1] for r in rs), max(r[2] for r in rs), max(r[3] for r in rs))
 
     def draw(self, canvas: skia.Canvas, t: float, *, veil_rect: Rect | None = None,
-             backdrop: tuple[int, float, float] | None = None) -> None:
-        """The veil, then (`backdrop` = (colour, pad, radius)) an opaque
-        panel behind the lifted tiles (`backdrop_rects`: it grows with each
-        card), so no veiled original shows between or around them while
-        every tile still to lift keeps its place; it fades in with the first
-        tile. Then the tiles."""
+             backdrop: tuple | None = None) -> None:
+        """The veil, then (`backdrop` = (colour, pad, radius[, floor])) an
+        opaque panel behind the lifted tiles (`backdrop_rects`: it grows with
+        each card), so no veiled original shows between or around them
+        while every tile still to lift keeps its place; it fades in with the
+        first tile, and stops at `floor`. Then the tiles."""
         ps = [self.progress(i, t) for i in range(len(self.lifts))]
         if veil_rect is not None:
             draw_veil(canvas, veil_rect, max(ps), self.style)
-        pieces = self.backdrop_pieces(t, backdrop[1]) if backdrop is not None else []
+        floor = backdrop[3] if backdrop is not None and len(backdrop) > 3 else None
+        pieces = self.backdrop_pieces(t, backdrop[1], floor) if backdrop is not None else []
         if pieces:
             # one panel: its pieces drawn in one layer at the panel's alpha (no darker overlaps); the cards' own
             # pieces opaque and rounded, the strips between square (they join two pieces) at their pop
-            colour, pad, radius = backdrop
+            colour, pad, radius = backdrop[:3]
             layer = skia.Paint()
             layer.setAlphaf(min(1.0, max(ps)))
             canvas.saveLayer(None, layer)

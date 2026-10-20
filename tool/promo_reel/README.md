@@ -272,7 +272,10 @@ with VideoWriter("out/30s/9x16.mp4", 1080, 1920, frames=960, audio="out/30s/mix.
         w.write(frame)
 ```
 
-libx264 High, yuv420p, CRF 16, preset slow, a key frame a second, BT.709 tags
+libx264 High@4.1 (x264 caps its references to the level; the VBV at 50 Mb/s,
+62.5 Mb buffer — round 5's films were High@5.0, which ad / DOOH specs and
+older 1080p decoders refuse; `probe.Expect.max_level` holds ≤ 4.1), yuv420p,
+CRF 16, preset slow, a key frame a second, BT.709 tags
 and matrix (sRGB values carried as Rec. 709, as the App Store film); AAC-LC
 48 kHz stereo 256 kb/s; `+faststart`. The frame count is exact (one too many
 and one too few are refused), the WAV must be exactly `frames × 1600`
@@ -399,29 +402,35 @@ soundtrack, the take pictures and their timing are the same in every format.
 | | 9:16 (reference) | 1:1 | 16:9 |
 |---|---|---|---|
 | canvas · safe | 1080×1920 · x 120–900, y 270–1248 (platform) | 1080×1080 · x/y 54–1026 (EBU R95 5 %) | 1920×1080 · x 96–1824, y 54–1026 (EBU R95 5 %) |
-| captions | band y 0–560, centred on x 540, cap top 330 (hook 300); 72 px | band y 0–358, centred on x 540, cap top 120 (hook 80); 72 px | no band: the left column x 96–1056, set from x 96, centred on y 440 (hook top-left, cap top 130); **88 px** (owner, 2026-10-19) |
-| phone window (W on) | x 180–900, y 600–**1424** (y 600) — the owner's floor, app pixels only below 1248 | x 180–900, y **388**–1002 (y 388) — the band edge on the journal's chip row | x 1104–1824, y 54–**1026**, a 30-px top fade (y 84) — **the phone stands on the floor**: where W would leave the screen's bottom above y 1010, the band edge comes down instead |
-| lifts | x 120–900 (780 px), over the veiled phone, ≤ y 1248 | x 150–930 (780 px), over the veiled phone | x 300–1060 (760 px) beside the phone, no veil, no panel |
+| captions | band y 0–560, centred on x 540, cap top 330 (hook 300); 72 px | band y 0–358, centred on x 540, cap top 120 (hook 80); 72 px | no band: the left column x 96–1040, set from x 96, centred on y 440 (hook top-left, cap top 130); **88 px** (owner, 2026-10-19) |
+| phone window (W on) | x 180–900, y 600–**1424** (y 600) — the owner's floor, app pixels only below 1248 | x 180–900, y **388**–1002 (y 388) — the band edge on the journal's chip row | x 1088–1808 (the bezel ending ON the graphics-safe edge, x 1824), y 54–**1026**, a 30-px top fade (y 84) — **the phone stands on the floor**: where W would leave the screen's bottom above y 1010, the band edge comes down instead |
+| lifts | x 120–900 (780 px), over the veiled phone, ≤ y 1248 in flight too (Fatou B.'s, whose place is on the owner's floor, pops in place) | x 150–930 (780 px), over the veiled phone | x 284–1044 (760 px) beside the phone, no veil, no panel; out of the phone `under` the sentence (down, then across) |
 | counter | centred, baselines 322 / 496 | centred, 120 / 284, its roll fading out by the band's edge (y 358) | from x 96, **144 / 48 px**, baselines 354 / 561; its punch holds the left edge |
 | hook | page x 40–1040 from y 640, black to 520 → 640 | page x 120–960 from y 10, black to 400 → 500 (strike rows y ≈ 549–994) | page x 760–1960 on the right, black over x 0–820 → 1020; in the macro only behind the question (y 0–400 → 540) — the split, OWNER-APPROVED |
 | tilts · push-in | rotX · about the phone's axis | rotX · about the phone's axis | yaw, ≤ 10° · about the screen's right edge (x 1824) |
-| map credit | the band's foot, right-aligned to the screen's edge x 900, baseline 552 | the band's foot, right-aligned to the screen's edge x 900, baseline 346 | the left column's foot, right-aligned to x 1056, baseline 1016 |
+| map credit | the band's foot, right-aligned to the screen's edge x 900, baseline 552 | the band's foot, right-aligned to the screen's edge x 900, baseline 346 | the left column's foot, right-aligned to x 1040, baseline 1016 |
 | reveal · end card | Lottie (540, 680) · mark ink y 400–599, tagline cap top 712 | (540, 520) · 250–449, 560 | (960, 500) · 230–429, 540 |
 
 **The camera re-frames by rule.** The W keys are measured in the reference
 window (9:16, y 600–1424 since the owner's floor); each says what it keeps —
 `top` (a point on the window's top edge: the 13:15 row hidden under the band
 on the lower journal, the Fiche's blurred number, Revenus' title), `centre`
-(the active form row in the window's middle) or `floor` (Fatou B.'s card on
-the floor, the page's last line ≥ 8 px above it) — and a format's own window
-moves it by the difference (`phone.keep_offset`: 0, half or all of the
-windows' height difference), never showing the screen's top edge where 9:16
-did not (W ≥ 56). 9:16 (re-solved on the pictures for the owner's floor,
-2026-10-19): Fatou B. 128, the form rows 312.73 / 56 / 468.73 / 519.73, the
-page's end 352.46; every `top` key unchanged (667, 521.67, 216, 124, 56).
-1:1: 128 → 245.25 (the band edge on the chip row), 312.73 → 371.36, 352.46 →
-469.71; 16:9: 128 → 62.12 (the whole screen down to Fatou B.'s card, its top
-edge under the band's fade), 312.73 → 279.79, 56 → 56, 352.46 → 286.57. The
+(the active form row in the window's middle), `floor` (Fatou B.'s card on
+the floor) or `text_floor` (the lowest row where the app's TEXT is read: the
+floor, or the format's text rectangle's bottom where that is higher — 9:16's
+y 1248, above the owner's floor; the page's last line ≥ 8 px above it) — and
+a format's own window moves it by the difference (`phone.keep_offset`: 0,
+half or all of the windows' height difference, or of their text floors'),
+never showing the screen's top edge where 9:16 did not (W ≥ 56). 9:16
+(re-solved on the pictures for the owner's floor, 2026-10-19): Fatou B. 128,
+the form rows 312.73 / 56 / 468.73 / 519.73, the page's end 427.32 (AIR 2:
+449.66, the same place without the page's 40-px parallax — round 5 dropped
+the phone 40 px on that cut; round 5's 352.46 kept the bar on the floor, both
+its lines below y 1248); every `top` key unchanged (667, 521.67, 216, 124,
+56). 1:1: 128 → 245.25 (the band edge on the chip row), 312.73 → 371.36,
+427.32 → 446.30; 16:9: 128 → 62.12 (the whole screen down to Fatou B.'s
+card, its top edge under the band's fade), 312.73 → 279.79, 56 → 56,
+427.32 → 263.17. The
 13:15 row stays under the floor at the card's framing and above the window's
 top edge on the lower journal in all three (tests; verify (h) on every frame
 of the scene, as in 9:16).
@@ -445,7 +454,15 @@ frames — because one shared window (the fields in place, as in 9:16 and
 under the floor, its disc on nothing (round 5's first build: verify (f) saw
 no disc). Everything that asks where the phone is — touches, lifts, the
 hidden row, verify's regions — reads the frame's own window
-(`PhoneScene.win(t)`; render.json records `window_top`).
+(`PhoneScene.win(t)`; render.json records `window_top`). A push-in where the
+phone stands on the floor scales about the FLOOR (y 1026; `anchor_y: top`):
+the slab's bottom stays on it and everything above moves up, the old 13:15
+row further under the band (round 5: about the band edge the « rempli. »
+push sank the slab to y ≈ 1071, Koffi A.'s « Confirmé » cut by the floor —
+the renderer refuses a push that sinks a slab standing on the floor). The
+in-phone whip is exposed over 1.5 frames here (`ANCHORED_WHIP_SHUTTER`): the
+band edge comes down with it, so the picture travels about half the camera's
+way, and the old row must still cross the window inside ≥ 80 px of blur.
 
 **Order of work** (`render.build_one`): the soundtrack FIRST
 (`promo.audio.build_cut` on the cut's score, master limited to −1.5 dBTP so
@@ -494,9 +511,14 @@ picture at `dissolve` by `until`, on the app's base easeInOut — the App
 Store film's own rule (tool/app_store_preview/README.md, « One declared
 dissolve inside a scene »): the only way to skip footage in which the
 screen changes. Each picture is drawn through the camera of its own end of
-the dissolve (the W keys at `at` and `until`), the whole stage in a layer at
-the blend's opacity — an exact cross-fade (a test holds f194 to (1 − u) ×
-f193 + u × f196 within 2 levels). Refused: a dissolve without `cite`, one
+the dissolve (the W keys at `at` and `until`). Where the band edge is fixed
+(9:16, 1:1) the screens blend inside ONE slab whose outline moves with the
+blend: the picture it reaches underneath, the one it leaves over it at 1 − u
+(`Phone.draw(screens=…)`) — f194 is (1 − u) × f193 + u × f196 within 2 levels
+wherever the first picture shows, the second alone below it (round 5: two
+whole stages cross-faded drew a second, translucent bezel arc across « Total
+/ Créer le rendez-vous »). In 16:9 (the band edge moves) the whole stage
+still cross-fades — the owner's call, pending. Refused: a dissolve without `cite`, one
 that goes back in the take or to the same picture, one without a segment
 before it or an `until`, and a touch disc or ripple on any of its frames.
 render.json records it (`dissolve`: pictures, blend, both W) and the plan
@@ -567,7 +589,14 @@ frame on f480; round 4: wiped 80 px ahead of the card in 9:16, and in 1:1
 pulled back on f480 and showed again — `reach` took its pace from the newest
 lift). Nothing pulls back: each piece only grows, a cut stays put while its
 tile waits, a strip only grows more opaque (tests/test_round5.py renders the
-Fiche in 9:16 AND 1:1 geometry). Every tile still to lift stays in its place,
+Fiche in 9:16 AND 1:1 geometry). The pieces sit on whole pixels (snapped
+outward, inward where they face a waiting tile) and a strip overlaps its piece
+by a pixel (round 5: two pieces meeting on a fractional edge let a 1-px column
+of « 0 Absences » through); a strip runs over the tiles' own row only (round
+5: over its piece's padded height, a pale rectangle across the next card's
+border); and the panel stops 2 px above the next row on the phone, «
+PROCHAIN RENDEZ-VOUS »'s cap line (`backdrop.stop_pt`, 407 pt — round 5's
+pad sliced the label in 1:1 and hid it in 9:16). Every tile still to lift stays in its place,
 veiled, with its texture, until its own beat (f472 / f480 / f488). The row is
 centred on the tiles' own row (9:16 y 815, 1:1 y 588), so they lift out in
 place.
@@ -603,7 +632,7 @@ last hit ringing out (`outro_tail`: ≥ 20 dB down 22 frames after it, the
 last 100 ms ≥ 30 dB under it — the master's 60-ms end fade never chops a
 loud tail), all in one verdict (`audio_verdict`, tested measure by
 measure), (e)
-ffprobe + assertions (`probe.json`), (f) A/V sync: each click and key's
+ffprobe + assertions (`probe.json`; H.264 High at level ≤ 4.1), (f) A/V sync: each click and key's
 onset in the MP4 audio against the frame its disc or character first
 appears in the MP4's PIXELS (`promo/pixels.py`: the disc's own ring; the
 key's box looking like the take's picture with the character), (g) the INK
@@ -618,12 +647,15 @@ region kept clear of the phone as it is posed on that frame
 (`verify.clear_of_phone`: in 16:9 the phone stands beside the captions, the
 counter and the lifts) and the hook's words measured on their scrim
 (`verify.on_its_ground`: the lit page's paper fibres beside them pass for
-white ink), plus every box render.json records on every frame (a touch disc, and a lifted
-card in transit — rising out of its place on the phone or settling back,
-`rest: false` — on the app's pixels: the phone window's rows across the safe
-area's columns, `verify.app_area`; in 9:16 that runs down to the owner's
-floor, below the platform's text rectangle that holds the text, the counter
-and the lifts at rest), and the
+white ink), plus every box render.json records on every frame (a touch disc on the
+app's pixels: the phone window's rows across the safe area's columns,
+`verify.app_area` — in 9:16 down to the owner's floor; every lift, in flight
+too, inside the text rectangle — round 5's « Arrivé » rise and settle crossed
+y 1248, a magnified overlay is not the phone's picture; the app's own text the
+film keeps readable, `app text` — the page's « Aperçu … / Réserver (après la
+mise en ligne) » — inside it AND wholly in the window, shown ≥ 0.99; no lift
+box over a caption's ink on any frame, `lifts_over_captions` — round 5's 16:9
+« Total réalisé » crossed « rendez-vous » in flight), and the
 hook's animated ink (the plan's `hook_ink`) seen: inside the canvas, inside
 an EBU graphics-safe area, off the scrim, and each strike read off the MP4
 on its last frame (`pixels.line_contrast`: the paper beside the stroke ≥ 40
@@ -642,7 +674,11 @@ row too; only the old booking's « 13:15 / 13:45 » remain, 1 block of 6)
 searched over the WHOLE window in the MP4's pixels, visible = share found ×
 the window's alpha where found ≤ 5 %; all its blocks at the renderer's place
 ≤ 25 %; and outside the whip, the share of its place the window shows × the
-share of it the take's picture shows there ≤ 5 % — the speed of every wait
+share of it the take's picture shows there ≤ 5 %; inside the whip, a frame
+whose shutter shows its place carries it ≥ 80 px (`WHIP_BLUR_MIN_PX`; the
+record's `shutter_alpha` and `blur_px` — round 5's first whip frame moved it
+37–72 px through the floor fade; the whip is now on the app's base easeInOut:
+at least 110 px in 9:16, 86 in 1:1, 90 in 16:9 at its 1.5-frame shutter, as verify reads them) — the speed of every wait
 and ramp, (i) reading: everything on screen together, per arrival window
 (`reading_windows`: the characters arriving in a window that must be read
 before it closes), ≤ 17 cps, the end card like the rest (its own window is
@@ -686,20 +722,27 @@ review »):**
   opaque band from 105.7) and « Aujourd’hui » (136 pt): W 128. At 1450 the
   title would sit half-faded in the band's fade (W 111.9), or the 13:15 text
   would show in the floor fade (W 130). App pixels only below y 1248: the
-  captions, the counter and the lifts stay in the platform rectangle (the
-  « Arrivé » lift rises from Fatou B.'s card into it, bottom 1236 — its
-  6-frame rise and 5-frame settle pass below 1248 on their way from and to
-  the card, as the app's pixels do; landed, it is inside); the touch discs
-  ride the app's pixels (`verify.app_area`). The map credit, whose
-  floor became the phone's, moved to the band's foot like 1:1's. Every camera
-  key that keeps the floor or the centre was re-solved (« The camera
-  re-frames by rule »); every privacy check re-run on the new framing.
+  captions, the counter and the lifts stay in the platform rectangle, in
+  flight too: the « Arrivé » card's place (Fatou B.'s card, y ≈ 1284–1413)
+  lies below it, so its lift POPS IN PLACE where it lands (bottom 1236; scale
+  0.96 → 1 and a fade over the 6-frame pop, the reverse over the 5-frame
+  settle — round 5 rose 200 px from the card and crossed 1248 on 6 frames a
+  cut), its place on the phone emptied while it is up (a plain `background`
+  panel under the veil — round 5's veiled original read as a second
+  booking); the touch discs ride the app's pixels (`verify.app_area`). The
+  page's end keeps the app's own qualifier, the owner-preview bar, inside the
+  rectangle (W 427.32, `keep: text_floor` — round 5's 352.46 put both its
+  lines on the floor, below 1248); the slab then stands ≈ 48 px over the
+  floor at the page's end. The map credit, whose floor became the phone's, moved to
+  the band's foot like 1:1's. Every camera key that keeps the floor or the
+  centre was re-solved (« The camera re-frames by rule »); every privacy check
+  re-run on the new framing.
 - **The owner's 16:9 re-lay** (« Re-lay it »): the phone stands on the floor
   (its slab's bottom on y 1026 whenever the screen ends inside the window,
   the band edge coming down over the rows above W — « 16:9: the phone stands
   on the floor »), a taller window (84–1026, 942 px; round 3: 918), larger
   captions — the column's words at 88 px (72 × 1.22: the longest line,
-  « Chaque rendez-vous », 942 px in the 960-px column; `type_note`), the
+  « Chaque rendez-vous », 942 px in the 944-px column; `type_note`), the
   counter at 144 px with a 48-px label, centred on the column's y 440 — and
   the lifts and tiles on their rows beside the phone, under the larger
   caption. The hook's words (96 px), the end card's lockup and the credit
@@ -716,8 +759,8 @@ The 1:1 and 16:9 formats (« 1:1 and 16:9 »):
   the cuts' scenes (the code-drawn page plays).
 - **1:1 lifts are 780 px wide** (x 150–930), not grown to x 54–1026: « the
   lifts keep the same pixel sizes everywhere » (the section's first rule);
-  the 54–1026 span is where they MAY go. 16:9 keeps the section's x 300–1060
-  (760 px).
+  the 54–1026 span is where they MAY go. 16:9 keeps the section's 760 px,
+  moved 16 px left with the phone (x 284–1044; the section's 300–1060).
 - **1:1 hook block to y 420**, not the band's 300: three 96-px lines
   (« Rayé. / Raturé. / Recopié. ») cannot fit in 54–300 at their 120-px
   pitch — the third's ink reaches y 414; the stage's black covers the page to
@@ -748,7 +791,7 @@ The 1:1 and 16:9 formats (« 1:1 and 16:9 »):
   its INK ending on the screen's right edge x 900, over the map it credits
   (baselines 552 and 346; round 3 ended 1:1's on x 1026, over the bezel's
   corner, where it read as part of the caption block), 16:9 at the left
-  column's foot, ending on x 1056 by the phone's lower-left corner (baseline
+  column's foot, ending on x 1040 by the phone's lower-left corner (baseline
   1016).
 - **16:9 hook** (OWNER-APPROVED 2026-10-19, « Keep the split »): the page lies across the frame's RIGHT (x 760–1960, its
   strike rows in view) with the words top-left on black (`hook_scrim` x
@@ -772,11 +815,16 @@ The 1:1 and 16:9 formats (« 1:1 and 16:9 »):
   where the phone stands on the floor); the journal's first framing keeps
   Fatou B.'s card on the floor (W 62.12), which puts the cropped screen's top
   at y 73, in the fade — the section's « start the window at the top of the
-  cropped screen », the phone's top edge just showing. Its push-in (1.791 → 2.0 px/pt) scales
-  about the screen's RIGHT edge (`zoom_pivot_x` 1824, on the safe edge): the
-  screen grows leftwards and the app's pixels never pass x 1824 (round 3,
-  about the phone's axis x 1464: the screen reached x 1866 at the peak, the
-  FAB and the snackbar x 1835); only the bezel (16 px × 1.12) lies past it.
+  cropped screen », the phone's top edge just showing. The screen sits at
+  x 1088–1808 so the slab's bezel ends ON the graphics-safe edge, x 1824 (round
+  5: at 1104–1824 the bezel ran to 1840, and to 1860 in the drop's slam, past
+  action-safe 1853; now ≤ 1824 at rest, ≤ 1853 in the slam — tests), the
+  caption column ending at x 1040 and the lifts at 1044, 28–32 px clear of
+  it. Its push-in (1.791 → 2.0 px/pt) scales about the slab's RIGHT edge
+  (`zoom_pivot_x` 1824) and, where the phone stands on the floor, about the
+  floor: the phone grows leftwards and upwards, never past x 1824 nor into
+  the floor (round 3, about the phone's axis x 1464: the screen reached
+  x 1866 at the peak, the FAB and the snackbar x 1835).
 
 The 15-s cut (« The 15 s cut »):
 
@@ -820,6 +868,20 @@ The 15-s cut (« The 15 s cut »):
 
 The 30-s cut:
 
+- **Round 5's review, fixed (not the owner's calls):** the « Arrivé » lift
+  settles back over **f248–253** as the storyboard writes it (round 5:
+  `down: 4.4.0`, from f240 — landed 4 frames, a flick), landed f237–f247;
+  the counter's label ROLLS « Aujourd’hui » → « Mois » like its digits, a
+  whole band apart (round 5 crossed the two in place, 12 px apart: one
+  garbled word on f536–539, 15-s f280–284); the map credit shows while —
+  and only while — the map's tiles show, from the first rows in the floor
+  fade (f691; round 5 waited for 40 px of tiles, f694) through AIR 2, white
+  on black there, fading with the falling phone (`map_shown_px`: the tiles'
+  rows as posed, × the window's alpha, × the fall's opacity — round 5 drew
+  none in AIR 2 and dimmed 1:1's to nothing with the map still on); the
+  in-phone whip runs on the app's base easeInOut, not easeInOutCubic (its
+  first and last frames carried the old 13:15 row 37–72 px through the
+  fades; verify (h) now holds every whip frame to ≥ 80 px).
 - **N1, the Revenus wait.** Touch-down on « Mois » 7.1517 s (first changed
   picture #1 at 7.3517 − 200 ms, read from the pictures: N1 has no App Store
   scan); the first picture showing « 77 000 FCFA » is #26 at 7.815 s: a
@@ -890,8 +952,11 @@ The 30-s cut:
   window's middle, y 1012; « Coupe homme » at y 955 with the screen's top on
   the band edge — round 3: 377.5 / 86.5 / 533.5 / 584.5 in the 600–1192
   window), 216 for the Fiche (the blurred number under the band too), 124 for
-  Revenus (its title under the band), 352.46 for the page's end (the bar's
-  « Réserver » line, ink ≤ 807 pt, 10 px above the floor; round 3: 482).
+  Revenus (its title under the band), 427.32 for the page's end (`keep:
+  text_floor`: the bar's « Réserver (après la mise en ligne) » line, ink
+  ≤ 807 pt on 28.480, on y 1240 once the page's parallax has lifted the
+  phone 40 px — 8 px above the text rectangle's bottom, y 1248; round 5:
+  352.46 put it on the floor at y 1374; round 3: 482).
 - **The hook's caption band**: the stage's black covers y 0–560 and fades to
   640 over the page, so the macro and the push-in never put scribbles under
   the white words (the layout's caption band, applied to the hook).

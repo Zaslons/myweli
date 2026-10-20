@@ -336,6 +336,17 @@ class WriteAndReadBack(unittest.TestCase):
         saved = probe.write_report(report, WORK / "report.json", probe.Expect(frames=60, width=1080, height=1920))
         self.assertIn('"problems": []', saved.read_text())
 
+    def test_the_film_is_level_4_1(self):
+        """Review round 5: preset slow's 5 references raised the 1080p films to
+        High@5.0 — ad / DOOH specs and older decoders take ≤ 4.1. The writer
+        holds 4.1; the probe refuses anything above it."""
+        report = probe.probe(self.mp4)
+        self.assertLessEqual(report["video"]["level"], 41)
+        self.assertEqual(probe.check(report, probe.Expect(frames=60, width=1080, height=1920)), [])
+        high = {**report, "video": {**report["video"], "level": 50}}
+        self.assertIn("H.264 level 50, expected at most 4.1",
+                      probe.check(high, probe.Expect(frames=60, width=1080, height=1920)))
+
     def test_frames_are_pulled_exactly(self):
         wanted = [0, 1, 2, 17, 30, 31, 58, 59]
         pulled = sheets.pull_frames(self.mp4, wanted)

@@ -49,7 +49,7 @@ import skia
 
 from . import easing
 from .surface import layer, scaled_about, skrect
-from .type import NNBSP, cap_height, draw_text, fcfa, measure, nnbsp_advance, shape, text_paint
+from .type import NNBSP, cap_height, draw_text, fcfa, ink_bounds, measure, nnbsp_advance, shape, text_paint
 
 
 @dataclass(frozen=True)
@@ -262,15 +262,33 @@ def landing_overrun(odo: "Odometer", start: float, land: float, *, margin: float
 
 
 def draw_label_switch(canvas: skia.Canvas, old: str, new: str, p: float, font: skia.Font, x: float,
-                      baseline: float, colour: int, *, rise: float = 12.0, align: str = "centre") -> None:
-    """A label changing from `old` to `new` (« Aujourd’hui » → « Mois »):
-    the old one fades out rising, the new one fades in from below, crossing
-    at p = 0.5 (drive p with the base token: 6 frames, easeInOut)."""
+                      baseline: float, colour: int, *, align: str = "centre") -> None:
+    """A label changing from `old` to `new` (« Aujourd’hui » → « Mois »),
+    ROLLED the way the figure's digits roll: the old one slides up out of
+    the label's band as the new one slides in from below, each fading with
+    its distance from home, a whole band apart — so their ink never meets
+    (review round 5: crossing in place, 12 px apart, the two read as one
+    garbled word for 3–4 frames). Drive p with the base token (6 frames,
+    easeInOut); at p 0 and 1 the label is the plain typeset string."""
     p = easing.clamp01(p)
-    if p < 1:
-        draw_text(canvas, old, font, x, baseline - rise * p, colour, 1 - p, align)
-    if p > 0:
-        draw_text(canvas, new, font, x, baseline + rise * (1 - p), colour, p, align)
+    if p <= 0 or p >= 1:
+        draw_text(canvas, old if p <= 0 else new, font, x, baseline, colour, 1.0, align)
+        return
+    top, bottom = label_band(old, new, font)
+    pitch = bottom - top                                # a whole band: the two labels' ink never overlaps
+    canvas.save()
+    canvas.clipRect(skia.Rect.MakeLTRB(-1e5, baseline + top, 1e5, baseline + bottom))
+    draw_text(canvas, old, font, x, baseline - pitch * p, colour, 1.0 - p, align)
+    draw_text(canvas, new, font, x, baseline + pitch * (1.0 - p), colour, p, align)
+    canvas.restore()
+
+
+def label_band(old: str, new: str, font: skia.Font) -> tuple[float, float]:
+    """The labels' band (top, bottom) relative to their baseline: both
+    labels' ink and a 0.15-em margin either side — what the roll clips to."""
+    a, b = ink_bounds(old, font), ink_bounds(new, font)
+    m = 0.15 * font.getSize()
+    return min(a[1], b[1]) - m, max(a[3], b[3]) + m
 
 
 def static_width(value: int, font: skia.Font, suffix: str = " FCFA") -> float:
@@ -280,5 +298,5 @@ def static_width(value: int, font: skia.Font, suffix: str = " FCFA") -> float:
     return shape(s, font).width
 
 
-__all__ = ["Odometer", "Column", "draw_label_switch", "landing_progress", "landing_overrun", "static_width", "fcfa",
+__all__ = ["Odometer", "Column", "draw_label_switch", "label_band", "landing_progress", "landing_overrun", "static_width", "fcfa",
            "NNBSP"]

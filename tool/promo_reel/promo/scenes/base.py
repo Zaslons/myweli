@@ -89,14 +89,17 @@ def track(ctx: Context, specs: list | None, where: str, default: float = 0.0) ->
         raise SceneError(f"{where}: {e}") from None
 
 
-def blur_for_track(tr: Track, t: float, px_per_unit: float, region=None) -> Blur | None:
-    """Motion blur for a keyframed move into a key that asks for it."""
+def blur_for_track(tr: Track, t: float, px_per_unit: float, region=None, whip_shutter: float = 1.0) -> Blur | None:
+    """Motion blur for a keyframed move into a key that asks for it. A whip
+    exposes over `whip_shutter` frames (1: a 360° shutter; longer where the
+    picture travels less than the camera — 16:9's anchored phone)."""
     k = tr.key_into(t)
     if k is None or not k.blur:
         return None
     if k.blur == "whip":
-        speed = max(tr.speed(t + d) for d in (-0.5, -0.25, 0.0, 0.25, 0.5)) * px_per_unit
-        return Blur(samples_for(speed, shutter=1.0, max_gap=2.0), 1.0, region)
+        h = whip_shutter / 2
+        speed = max(tr.speed(t + d * h) for d in (-1.0, -0.5, 0.0, 0.5, 1.0)) * px_per_unit
+        return Blur(samples_for(speed, shutter=whip_shutter, max_gap=2.0), whip_shutter, region)
     n = int(k.blur)
     speed = max(tr.speed(t + d) for d in (-0.25, 0.0, 0.25)) * px_per_unit
     return Blur(max(n, samples_for(speed, shutter=0.5, max_gap=2.0, minimum=n)), 0.5, region)

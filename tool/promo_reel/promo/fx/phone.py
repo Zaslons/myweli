@@ -103,6 +103,13 @@ class Window:
     px_per_pt: float = 1.791
     anchor_bottom: float | None = None       # the screen's bottom never rises above this y (None: no anchor)
     screen_bottom_pt: float = 874.0          # the screen's last point (402 × 874 pt)
+    #: the lowest row where the app's text is READ: the floor, or the platform's text rectangle's bottom where
+    #: that is higher (9:16: y 1248 — the owner's floor is app pixels only below it). None: the floor.
+    text_floor: float | None = None
+
+    @property
+    def read_floor(self) -> float:
+        return self.floor if self.text_floor is None else min(self.floor, self.text_floor)
 
     def top_for(self, W: float) -> float:
         """The band edge under camera W: `top`, or lower when the phone stands
@@ -255,9 +262,17 @@ class Phone:
     def draw(self, canvas: skia.Canvas, pose: Pose = Pose(), *, W: float | None = None,
              window: Window = WINDOW_9X16, centre: tuple[float, float] = (540.0, 960.0),
              opacity: float = 1.0, fade: bool = True, overlay: Overlay | None = None,
-             sampling: skia.SamplingOptions | None = None, frame_size: tuple[int, int] | None = None) -> None:
+             sampling: skia.SamplingOptions | None = None, frame_size: tuple[int, int] | None = None,
+             screens: list[tuple[Picture, float, float]] | None = None) -> None:
         """Draw the phone. Window mode when W is given (fades under the band
-        and the floor unless fade=False); else free, centred on `centre`."""
+        and the floor unless fade=False); else free, centred on `centre`.
+
+        `screens` (window mode): the screen is filled by these pictures, in
+        order — each (picture, its own camera W, alpha) — inside the ONE
+        slab drawn at `W`: a declared dissolve between two framings blends
+        the screen textures only, never two slabs (review round 5: the 15-s
+        9:16 dissolve showed a second, translucent bezel arc across the
+        form's rows)."""
         if opacity <= 0:
             return
         s = self.spec
@@ -322,18 +337,35 @@ class Phone:
         canvas.clipRRect(skia.RRect.MakeRectXY(skrect(screen_pt), r_pt, r_pt), skia.ClipOp.kIntersect, True)
         k = s.capture_px_per_pt
         src = (0.0, s.crop_top_pt * k, w_pt * k, h_pt * k)
-        if sampling is None and p.is_flat and p.rot_z == 0:
-            # a plain scale + move: Lanczos from a fractional box (surface.draw_exact)
-            canvas.setMatrix(base)                 # keep the clip, drop the matrix
-            x0, y0 = projection.apply(M, 0.0, s.crop_top_pt)
-            x1, y1 = projection.apply(M, w_pt, h_pt)
-            draw_exact(canvas, self.picture, src, (x0, y0, x1, y1))
-            canvas.concat(Msk)
-        else:
-            if sampling is None:
-                sampling = sampling_for(s.px_per_pt / k * p.scale)
-            canvas.drawImageRect(self.picture.image, skrect(src), skrect(screen_pt), sampling, None,
-                                 skia.Canvas.kFast_SrcRectConstraint)
+        layers = [(self.picture, None, 1.0)] if not screens else screens
+        for pic, W_pic, alpha in layers:
+            if alpha <= 0:
+                continue
+            pic = pic if isinstance(pic, Picture) else Picture(pic)
+            # a picture framed by its own camera W: moved by its offset inside the slab's screen (window mode)
+            M_pic = M if W_pic is None or W is None else self.matrix(pose, W=W_pic, window=window, centre=centre)
+            group = alpha < 1.0
+            if group:
+                gp = skia.Paint()
+                gp.setAlphaf(alpha)
+                canvas.saveLayer(None, gp)
+            if sampling is None and p.is_flat and p.rot_z == 0:
+                # a plain scale + move: Lanczos from a fractional box (surface.draw_exact)
+                canvas.setMatrix(base)                 # keep the clip, drop the matrix
+                x0, y0 = projection.apply(M_pic, 0.0, s.crop_top_pt)
+                x1, y1 = projection.apply(M_pic, w_pt, h_pt)
+                draw_exact(canvas, pic, src, (x0, y0, x1, y1))
+                canvas.concat(Msk)
+            else:
+                canvas.setMatrix(base)
+                canvas.concat(projection.to_skia(M_pic))
+                smp = sampling if sampling is not None else sampling_for(s.px_per_pt / k * p.scale)
+                canvas.drawImageRect(pic.image, skrect(src), skrect(screen_pt), smp, None,
+                                     skia.Canvas.kFast_SrcRectConstraint)
+                canvas.setMatrix(base)
+                canvas.concat(Msk)
+            if group:
+                canvas.restore()
         if overlay is not None:
             overlay(canvas)
         canvas.restore()

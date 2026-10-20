@@ -155,6 +155,9 @@ class Expect:
     fps: int = FPS
     video_codec: str = "h264"
     profile: str | None = "High"
+    #: H.264 level_idc at most (41 = 4.1: what ad / DOOH specs and older hardware decoders take at 1080p30;
+    #: review round 5: preset slow's 5 references raised the films to 5.0)
+    max_level: int | None = 41
     pix_fmt: str = "yuv420p"
     colour: str | None = "bt709"
     audio: bool = True
@@ -180,6 +183,8 @@ def check(report: dict[str, Any], expect: Expect) -> list[str]:
     else:
         want("video codec", v["codec"], expect.video_codec)
         want("profile", v["profile"], expect.profile)
+        if expect.max_level is not None and (v.get("level") is None or v["level"] > expect.max_level):
+            problems.append(f"H.264 level {v.get('level')}, expected at most {expect.max_level / 10:g}")
         want("pixel format", v["pix_fmt"], expect.pix_fmt)
         want("width", v["width"], expect.width)
         want("height", v["height"], expect.height)

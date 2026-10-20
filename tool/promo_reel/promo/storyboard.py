@@ -623,7 +623,7 @@ _LAYOUT_KEYS = ("caption_band", "caption_column_x", "caption_centre_x", "caption
                 "caption_line_max_px", "caption_lines_max", "phone_screen_x", "px_per_pt",
                 "screen_crop_top_pt", "phone_bezel_px", "phone_radius_px", "type_px",
                 "lottie_centre", "lottie_comp_width_px", "end_mark_scale", "end_mark_ink_y",
-                "end_tagline_cap_top_y", "lift_x", "lift_veil", "tilt_axis", "tilt_max_deg",
+                "end_tagline_cap_top_y", "lift_x", "lift_veil", "lift_path", "tilt_axis", "tilt_max_deg",
                 "scene_whip_axis", "zoom_pivot_x", "phone_anchor",
                 # where the scenes put what they place (one storyboard, re-laid out per format)
                 "caption_align", "caption_cap_top", "counter_baselines", "lift_y", "hook_page",
@@ -631,6 +631,9 @@ _LAYOUT_KEYS = ("caption_band", "caption_column_x", "caption_centre_x", "caption
 CAPTION_ALIGNS = ("centre", "left")
 CAPTION_KINDS = ("hook", "app")
 LIFT_PLACES = ("card_on_floor", "card_under_caption", "tile_row")
+#: how a lift travels from its place on the phone (promo/fx/lift.py): straight, or `under` — down beside the phone,
+#: then across under the caption (16:9). A lift whose place lies outside the text rectangle pops in place anyway.
+LIFT_PATHS = ("straight", "under")
 LIFT_Y_KEYS = ("top", "centre_y", "bottom")
 
 
@@ -823,6 +826,7 @@ def _layout(c: _Check, value: Any, path: str, w: int, h: int, zones: dict[str, R
     if lift is not None and safe is not None and not (safe.x0 <= lift[0] and lift[1] <= safe.x1):
         c.fail(f"{path}.lift_x", f"{list(lift)} must lie within the safe area's columns (x {safe.x0:g}–{safe.x1:g})")
     c.number(lay.get("lift_veil"), f"{path}.lift_veil", 0, 1)
+    c.choice(lay.get("lift_path"), f"{path}.lift_path", LIFT_PATHS)
     c.choice(lay.get("tilt_axis"), f"{path}.tilt_axis", ("x", "y"))
     if lay.get("tilt_max_deg") is not None:
         c.number(lay.get("tilt_max_deg"), f"{path}.tilt_max_deg", 0, 90)
@@ -832,9 +836,10 @@ def _layout(c: _Check, value: Any, path: str, w: int, h: int, zones: dict[str, R
         c.choice(lay.get("phone_anchor"), f"{path}.phone_anchor", PHONE_ANCHORS)
     if lay.get("zoom_pivot_x") is not None:
         pv = c.number(lay.get("zoom_pivot_x"), f"{path}.zoom_pivot_x", 0, w)
-        if pv is not None and screen is not None and not (screen[0] <= pv <= screen[1]):
-            c.fail(f"{path}.zoom_pivot_x", f"{pv:g} is off the screen's columns ({list(screen)}): a push-in scales "
-                                           f"about a point of the screen")
+        bezel = lay.get("phone_bezel_px") if isinstance(lay.get("phone_bezel_px"), (int, float)) else 0
+        if pv is not None and screen is not None and not (screen[0] - bezel <= pv <= screen[1] + bezel):
+            c.fail(f"{path}.zoom_pivot_x", f"{pv:g} is off the slab's columns ({screen[0] - bezel:g}–"
+                                           f"{screen[1] + bezel:g}): a push-in scales about a point of the phone")
     _placements(c, lay, path, w, h, zones, safe, rail, column)
     return lay if len(c.problems) == before else None
 

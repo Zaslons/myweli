@@ -16,6 +16,19 @@ veil, card(s), captions.
 Timing (storyboard): z-pop over 6 frames on easeOutCubic; the settle-back
 accelerates (easeIn, 5 frames). `pop_progress()` gives that envelope.
 
+The card's PATH (`Lift(..., path=)`):
+  straight  it travels from its place to its target in a straight line;
+  under     it goes down first, then across — its centre on a quadratic
+            curve whose control point is (its place's x, its target's y) —
+            so a card lifted out of a phone BESIDE the captions (16:9) passes
+            under the sentence, never across it (review round 5: the 16:9
+            « Total réalisé » card crossed « rendez-vous » in flight);
+  in_place  it pops where it lands — scale 0.96 → 1 and a fade, on the same
+            envelope — never travelling: a card whose place on the phone lies
+            outside the platform's text rectangle (9:16: Fatou B.'s card on
+            the owner's floor, below y 1248) never crosses it (review round 5:
+            the rise and the settle passed below 1248 on 6 frames a cut).
+
 Resampling: when the frame maps straight to pixels the card is resampled
 with Lanczos from a fractional box (surface.draw_exact) at every size of
 the pop — what the App Store stills did — else skia's cubic.
@@ -126,16 +139,45 @@ def draw_card(canvas: skia.Canvas, picture: Picture, src: Rect, dst: Rect, *, li
         canvas.restore()
 
 
+PATHS = ("straight", "under", "in_place")
+#: an in-place pop starts at this scale of its target
+IN_PLACE_FROM = 0.96
+
+
+def scale_rect(r: Rect, k: float) -> Rect:
+    """`r` scaled by k about its centre."""
+    cx, cy = (r[0] + r[2]) / 2, (r[1] + r[3]) / 2
+    hw, hh = (r[2] - r[0]) / 2 * k, (r[3] - r[1]) / 2 * k
+    return (cx - hw, cy - hh, cx + hw, cy + hh)
+
+
 class Lift:
     """One lifted card: `src` of `picture` (capture px) travels from `origin`
-    (where it sits on the phone, frame px) to `target`."""
+    (where it sits on the phone, frame px) to `target`, on its `path`."""
 
-    def __init__(self, picture, src: Rect, origin: Rect, target: Rect, style: LiftStyle = STYLE):
+    def __init__(self, picture, src: Rect, origin: Rect, target: Rect, style: LiftStyle = STYLE,
+                 path: str = "straight"):
+        if path not in PATHS:
+            raise ValueError(f"a lift's path is one of {', '.join(PATHS)}, not {path!r}")
         self.picture = picture if isinstance(picture, Picture) else Picture(picture)
-        self.src, self.origin, self.target, self.style = src, origin, target, style
+        self.src, self.origin, self.target, self.style, self.path = src, origin, target, style, path
 
     def rect(self, p: float) -> Rect:
+        if self.path == "in_place":
+            return scale_rect(self.target, IN_PLACE_FROM + (1.0 - IN_PLACE_FROM) * p)
+        if self.path == "under":
+            o, t = self.origin, self.target
+            w = easing.lerp(o[2] - o[0], t[2] - t[0], p)
+            h = easing.lerp(o[3] - o[1], t[3] - t[1], p)
+            (ox, oy), (tx, ty) = ((o[0] + o[2]) / 2, (o[1] + o[3]) / 2), ((t[0] + t[2]) / 2, (t[1] + t[3]) / 2)
+            a, b, c = (1 - p) ** 2, 2 * p * (1 - p), p * p          # control point: (its place's x, its target's y)
+            cx, cy = a * ox + b * ox + c * tx, a * oy + b * ty + c * ty
+            return (cx - w / 2, cy - h / 2, cx + w / 2, cy + h / 2)
         return lerp_rect(self.origin, self.target, p)
+
+    def opacity(self, p: float) -> float:
+        """The card's own opacity at progress p: 1 (it travels), or p (it pops in place)."""
+        return min(1.0, max(0.0, p)) if self.path == "in_place" else 1.0
 
     def draw(self, canvas: skia.Canvas, p: float, *, veil_rect: Rect | None = None, alpha: float = 1.0) -> None:
         """At lift progress p (0..1; see `pop_progress`). With `veil_rect`,
@@ -144,4 +186,5 @@ class Lift:
             return
         if veil_rect is not None:
             draw_veil(canvas, veil_rect, p, self.style)
-        draw_card(canvas, self.picture, self.src, self.rect(p), lift=p, alpha=alpha, style=self.style)
+        draw_card(canvas, self.picture, self.src, self.rect(p), lift=p, alpha=alpha * self.opacity(p),
+                  style=self.style)

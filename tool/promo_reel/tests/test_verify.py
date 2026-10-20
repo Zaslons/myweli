@@ -428,7 +428,8 @@ class TestHiddenRowInTheFilm(unittest.TestCase):
         frame, rec = self.frames[f]
         L = frame[..., :3].astype(float) @ [0.2126, 0.7152, 0.0722]
         h = rec["hidden"][0]
-        row = {"rect": h["rect"], "alpha": h["alpha"], "zoom": rec["zoom"], "whip": h["whip"], "picture": rec["picture"]}
+        row = {"rect": h["rect"], "alpha": h["alpha"], "zoom": rec["zoom"], "whip": h["whip"], "picture": rec["picture"],
+               **{k: h[k] for k in ("shutter_alpha", "blur_px") if k in h}}             # the whip's shutter (round 5)
         if paste_at is not None:
             T = self.row.template_at(self.row.base * rec["zoom"])
             x, y = (int(round(v)) for v in paste_at)

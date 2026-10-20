@@ -121,7 +121,9 @@ class TestOwnersFloor(unittest.TestCase):
 class TestTouchesRideThePhone(unittest.TestCase):
     """A touch disc is where the finger was, on the app's pixels — in 9:16
     down to the owner's floor; never in the caption band, never past the
-    floor. Text, lifts and the counter keep the platform rectangle."""
+    floor. Text, lifts (landed AND in flight: a lifted card is a magnified,
+    shadowed overlay, not the phone's picture — review round 5) and the
+    counter keep the platform rectangle."""
 
     def test_rules(self):
         f = SB.formats["9x16"]
@@ -139,7 +141,8 @@ class TestTouchesRideThePhone(unittest.TestCase):
         counted, bad = vmod.outside_safe(recs, f)
         self.assertEqual(counted, 9)
         self.assertEqual(sorted(b["label"] for b in bad), ["a lift at rest below 1248", "a lift below 1248",
-                                                           "a lift in transit past the floor", "in the caption band",
+                                                           "a lift in transit past the floor",
+                                                           "a lift rising out of Fatou B.'s card", "in the caption band",
                                                            "past the floor"])
 
 
@@ -416,20 +419,26 @@ class TestFramesOnTheFloor(unittest.TestCase):
         self.assertAlmostEqual(j.win(194.0).top, j.win(193.0).top, places=6)
         self.assertGreater(j.win(193.0).top - j.win(196.0).top, 200)                  # two framings
 
-    def test_the_arrive_lift_lands_inside_the_rectangle(self):
-        """9:16: Fatou B.'s card sits on the owner's floor (y ≈ 1284–1413); its
-        lift rises out of it into the platform rectangle and lands there
-        (bottom 1236). In transit it is the app's pixels moving (`rest:
-        false`); landed it is held to the text rectangle."""
-        film = self.films[("30s", "9x16")]
-        boxes = {f: next(b for b in film.frame(f)[1]["boxes"] if b["label"] == "arrive-card") for f in (233, 238)}
-        self.assertFalse(boxes[233]["rest"])
-        self.assertGreater(boxes[233]["rect"][3], 1248)                              # still rising out of the card
-        self.assertTrue(boxes[238]["rest"])
-        self.assertLessEqual(boxes[238]["rect"][3], 1248)                            # landed inside
-        for f, b in boxes.items():
-            self.assertEqual(vmod.outside_safe([{"f": f, "boxes": [b]}], SB.formats["9x16"])[1], [], f)
-        landed_low = {**boxes[238], "rect": [120.0, 1260.0, 900.0, 1400.0]}
+    def test_the_arrive_lift_never_leaves_the_rectangle(self):
+        """9:16: Fatou B.'s card sits on the owner's floor (y ≈ 1284–1413),
+        below the platform rectangle: its lift never travels from there — it
+        pops IN PLACE where it lands (bottom 1236), scale 0.96 → 1 and a fade,
+        and settles back the same way (review round 5: the 200-px rise and
+        settle crossed y 1248 on 6 frames a cut). Every one of its frames is
+        inside the rectangle, in both cuts."""
+        for cut, (up, down) in (("30s", (232, 248)), ("15s", (144, 154))):
+            film = self.films[(cut, "9x16")]
+            j = next(s for s in film.scenes if s.id == "journal")
+            L = next(l for l in j.lifts if l["id"] == "arrive-card")
+            self.assertEqual(L["path"], "in_place", cut)
+            for f in range(up - 1, down + 6):
+                _, rec = film.frame(f)
+                boxes = [b for b in rec["boxes"] if b["label"] == "arrive-card"]
+                with self.subTest(cut=cut, f=f):
+                    for b in boxes:
+                        self.assertLessEqual(b["rect"][3], 1248.0)
+                        self.assertEqual(vmod.outside_safe([{"f": f, "boxes": [b]}], SB.formats["9x16"])[1], [])
+        landed_low = {"kind": "lift", "label": "x", "rest": True, "rect": [120.0, 1260.0, 900.0, 1400.0]}
         self.assertEqual(len(vmod.outside_safe([{"f": 0, "boxes": [landed_low]}], SB.formats["9x16"])[1]), 1)
 
     def test_the_9x16_swipe_rides_fatou_b_on_the_floor(self):
@@ -452,25 +461,51 @@ class TestVerdicts(unittest.TestCase):
     """Round 4's confirm: these guards passed every test with their WIRING
     into verify_film's verdicts removed (M9 joins_bad out of (b), M10
     hook_bad out of (g), M1b the MP4's AIR / tail passed for the master's).
+    Round 5's review found eleven more (O1–O9): the hidden row out of (h),
+    the MP4's ink, the recorded boxes and the caption column out of (g), a
+    cue's own sync out of (f), the continuous handoffs out of (b), the tones
+    out of (c), the decoded length out of (d), the two-line rule out of (i).
     verify_film runs here on a film directory whose measurements are given:
-    each section's status must follow them."""
+    each section's status must follow them — every one of them."""
 
     FRAMES = 512                       # the 15-s cut
+    CLICK = 100                        # the one click cue's frame (its disc's ring measured around it)
 
     def run_film(self, *, joins_change: float = 50.0, hook_ok: bool = True, air_mp4: bool = True,
-                 air_master: bool = True, tail_mp4: bool = True, tail_master: bool = True) -> dict:
+                 air_master: bool = True, tail_mp4: bool = True, tail_master: bool = True,
+                 handoff_change: float = 0.0, ink: list | None = None, boxes: list | None = None,
+                 rows: list | None = None, click_seen: int | None = CLICK, tone: str = "dark",
+                 short_audio: int = 0, two_lines: list | None = None) -> dict:
         n = self.FRAMES * 1600
         mp4_audio, master_audio = np.zeros((n, 2)), np.zeros((n, 2)) + 1e-9
-        doc = {"records": [{"f": f, "scene": "x", "boxes": []} for f in range(self.FRAMES)],
-               "plan": {"transitions": [{"frame": 32, "kind": "cut", "into": "x", "frames": 0}], "timelines": {}},
-               "events": [[0, "cut into x"], [32, "cut into y"], [40, "lift"]], "generated": [], "masks": {}}
-        events = {"cut": "15s", "fps": 30, "frames": self.FRAMES, "cues": [], "sections": []}
+        s0 = self.CLICK * 1600                          # a click: 8 ms of 3.2 kHz on the cue's first sample
+        burst = 0.5 * np.sin(2 * np.pi * 3200 * np.arange(384) / 48000)
+        for a in (mp4_audio, master_audio):
+            a[s0:s0 + 384] += burst[:, None]
+        decoded = mp4_audio[:len(mp4_audio) - short_audio] if short_audio else mp4_audio
+        records = [{"f": f, "scene": "x", "boxes": []} for f in range(self.FRAMES)]
+        records[10]["boxes"] = list(boxes or [])
+        records[self.CLICK]["touch_downs"] = [{"take": "take1b", "gesture": "tap-x", "src_s": 1.0, "tone": "dark",
+                                              "kind": "tap"}]
+        doc = {"records": records,
+               "plan": {"transitions": [{"frame": 32, "kind": "cut", "into": "x", "frames": 0},
+                                        {"frame": 64, "kind": "continuous", "into": "y", "frames": 0}],
+                        "timelines": {}},
+               "events": [[f, "event"] for f in range(0, self.FRAMES, 30)], "generated": [], "masks": {}}
+        events = {"cut": "15s", "fps": 30, "frames": self.FRAMES, "sections": [],
+                  "cues": [{"id": "tap", "kind": "click", "pos": "2.3.1", "frame": self.CLICK, "sample": s0}]}
         hook = [{"what": "strike 1", "in_canvas": hook_ok, "in_safe": True, "scrim": 0.0, "box": [200, 900, 800, 950]}]
         film = SimpleNamespace(plan=lambda: {"hook_ink": {"hook": hook}}, scenes=[], captions=SimpleNamespace(items=[]),
                                ctx=SimpleNamespace(sources={}))
-        measured = {"ring": {}, "change": {}, "rows": [], "hidden": {}, "strikes": [],
-                    "ink": [{"frame": 10, "kind": "caption", "label": "c", "ink": "dark", "column": True,
-                             "region": (0, 300, 1080, 400), "box": [200.0, 330.0, 880.0, 380.0]}]}
+        ring = {f: (-40.0 if click_seen is not None and f >= click_seen else 0.0)
+                for f in range(self.CLICK - 5, self.CLICK + 4)}
+        measured = {"ring": {"tap": ring}, "change": {}, "rows": list(rows or []),
+                    "hidden": {"13:15": {"blocks": 6, "identifying": [0]}} if rows else {}, "strikes": [],
+                    "ink": ink if ink is not None else [
+                        {"frame": 10, "kind": "caption", "label": "c", "ink": "dark", "column": True,
+                         "region": (0, 300, 1080, 400), "box": [200.0, 330.0, 880.0, 380.0]}]}
+        pplan = {"clicks": [{"cue": "tap", "frame": self.CLICK, "sample": s0, "gesture": "tap-x", "tone": "dark",
+                             "centres": {}}], "keys": []}
         probe = {"video": {"codec": "h264", "profile": "High", "width": 1080, "height": 1920, "pix_fmt": "yuv420p",
                            "color_space": "bt709", "frames": self.FRAMES, "cfr": True, "measured_fps": 30,
                            "duration_s": 2.1333},
@@ -478,19 +513,36 @@ class TestVerdicts(unittest.TestCase):
                  "av": {"duration_difference_s": 0.0}, "container": {"faststart": True}}
 
         def pull(mp4, frames):
-            return {f: np.full((4, 4, 3), (0 if f < 32 else joins_change), np.uint8) for f in frames}
+            return {f: np.full((4, 4, 3), (0 if f < 32 else joins_change + (handoff_change if f >= 64 else 0)),
+                               np.uint8) for f in frames}
 
         def air(audio, events, spf=1600):
-            ok = air_mp4 if audio is mp4_audio else air_master
+            ok = air_mp4 if audio is decoded else air_master
             return {"groove_sections": ["drop1"], "groove_lufs": -12.0, "ok": ok,
                     "air": [{"cue": "air1.reverse", "frames": [10, 20], "lufs": -30.0, "under_groove_lu": 18.0 if ok else 3.0,
                              "ok": ok}]}
 
         def tail(audio, events, spf=1600):
-            ok = tail_mp4 if audio is mp4_audio else tail_master
+            ok = tail_mp4 if audio is decoded else tail_master
             return {"cue": "end.last", "frame": 40, "hit_dbfs": -10.0, "at_frame": 60, "at_dbfs": -40.0,
                     "decay_db": 30.0 if ok else 5.0, "last_100ms_dbfs": -60.0, "end_under_db": 50.0, "ok": ok}
 
+        class StubTake:                                   # the touch-down's picture, for (c)'s tone
+            px_per_pt = 3.0
+
+            def __init__(self, name):
+                pass
+
+            def index_at(self, s):
+                return 0
+
+            def raw_picture(self, i):
+                return np.zeros((8, 8, 4), np.uint8)
+
+            def close(self):
+                pass
+
+        down = SimpleNamespace(take="take1b", gesture="tap-x", down_s=1.0, at_pt=(1.0, 1.0))
         m = FakeMeasure(integrated_lufs=-14.0, true_peak_dbtp=-1.5, lra_lu=5.0)
         with tempfile.TemporaryDirectory() as tmp:
             d = Path(tmp)
@@ -504,14 +556,17 @@ class TestVerdicts(unittest.TestCase):
                 mock.patch.object(vmod.sheets, "pull_frames", pull),
                 mock.patch.object(vmod.sheets, "contact_sheet", lambda *a, **k: None),
                 mock.patch.object(vmod.sheets, "save_frames", lambda *a, **k: None),
-                mock.patch.object(vmod.touchmod, "touch_downs", lambda name: []),
+                mock.patch.object(vmod.touchmod, "touch_downs", lambda name: [down]),
                 mock.patch.object(vmod.touchmod, "cross_check",
                                   lambda *a, **k: SimpleNamespace(ok=True, matches=[], problems=[], report=lambda: "")),
+                mock.patch.object(vmod, "Take", StubTake),
+                mock.patch("promo.fx.touch.tone_at", lambda *a, **k: tone),
                 mock.patch("promo.scenes.Film", lambda *a, **k: film),
                 mock.patch("promo.scenes.Clock", lambda *a, **k: None),
-                mock.patch.object(vmod, "pixel_plan", lambda film, records, events: {"clicks": [], "keys": []}),
+                mock.patch("promo.scenes.captions.arrivals_on_two_lines", lambda items: list(two_lines or [])),
+                mock.patch.object(vmod, "pixel_plan", lambda film, records, events: pplan),
                 mock.patch.object(vmod, "run_pixels", lambda *a, **k: measured),
-                mock.patch.object(vmod, "_decode_audio", lambda p: mp4_audio),
+                mock.patch.object(vmod, "_decode_audio", lambda p: decoded),
                 mock.patch.object(vmod.loudness, "measure", lambda a: m),
                 mock.patch.object(vmod.analysis, "ffmpeg_ebur128",
                                   lambda p: {"integrated_lufs": -14.0, "true_peak_dbfs": -1.5}),
@@ -531,17 +586,95 @@ class TestVerdicts(unittest.TestCase):
                 res = vmod.verify_film(SB, "15s", "9x16", d)
         return {k: s["status"] for k, s in res.sections.items()}
 
+    @staticmethod
+    def row(**over) -> dict:
+        """One measured frame of the hidden 13:15 row, hidden (as the films' rows are)."""
+        r = {"frame": 200, "label": "13:15", "scene": "journal", "picture": 52, "take": "take1b", "alpha": 0.0,
+             "rect": [100.0, 1450.0, 700.0, 1500.0], "zoom": 1.0, "whip": False, "window_top": None,
+             "take_shows": 1.0, "mp4_shows": 0.0, "found": 0.0, "found_at": [0.0, 0.0], "found_alpha": 0.0,
+             "found_visible": 0.0, "visible": 0.0}
+        r.update(over)
+        return r
+
     def test_the_harness_passes_what_should_pass(self):
         got = self.run_film()
-        self.assertEqual((got["b"], got["d"], got["g"]), ("PASS", "PASS", "PASS"), got)
+        self.assertEqual({k: got[k] for k in "bcdfghi"}, dict.fromkeys("bcdfghi", "PASS"), got)
+        got = self.run_film(rows=[self.row(), self.row(frame=201, whip=True, visible=None, shutter_alpha=0.9,
+                                                       blur_px=200.0)])
+        self.assertEqual(got["h"], "PASS", got)
 
     def test_b_fails_a_cut_that_changes_nothing(self):
         """M9: (b)'s verdict without `not joins_bad`."""
         self.assertEqual(self.run_film(joins_change=0.0)["b"], "FAIL")
 
+    def test_b_fails_a_continuous_handoff_that_cuts(self):
+        """O6: join_problems handed the joins only, the continuous handoffs left out."""
+        self.assertEqual(self.run_film(handoff_change=30.0)["b"], "FAIL")
+
+    def test_c_fails_a_disc_whose_tone_the_ground_does_not_ask_for(self):
+        """O9: (c)'s verdict on the cross-check alone, the tones left out."""
+        self.assertEqual(self.run_film(tone="light")["c"], "FAIL")
+
+    def test_d_fails_truncated_audio(self):
+        """O4: the expected sample count passed where the decoded length belongs."""
+        self.assertEqual(self.run_film(short_audio=1600)["d"], "FAIL")
+
+    def test_f_fails_a_click_off_its_disc(self):
+        """O3: `ok_f &= True` — each cue's own sync left out of (f)."""
+        self.assertEqual(self.run_film(click_seen=self.CLICK + 1)["f"], "FAIL")
+        self.assertEqual(self.run_film(click_seen=None)["f"], "FAIL")
+
     def test_g_fails_hook_ink_off_its_ground(self):
         """M10: (g)'s verdict without `not hook_bad`."""
         self.assertEqual(self.run_film(hook_ok=False)["g"], "FAIL")
+
+    def test_g_fails_ink_outside_the_text_area(self):
+        """O1: (g)'s verdict without `not ink_bad` (the MP4's measured ink)."""
+        ink = [{"frame": 10, "kind": "caption", "label": "c", "ink": "dark", "column": True,
+                "region": (0, 1280, 1080, 1400), "box": [200.0, 1300.0, 880.0, 1350.0]}]
+        self.assertEqual(self.run_film(ink=ink)["g"], "FAIL")
+
+    def test_g_fails_caption_ink_outside_its_column(self):
+        """O8: the ink's caption-column test cut (inside 9:16's text area, x ≥ 120, but left of the column's 150)."""
+        ink = [{"frame": 10, "kind": "caption", "label": "c", "ink": "dark", "column": True,
+                "region": (0, 300, 1080, 400), "box": [125.0, 330.0, 600.0, 380.0]}]
+        self.assertEqual(self.run_film(ink=ink)["g"], "FAIL")
+
+    def test_g_fails_a_recorded_box_outside(self):
+        """O2: (g)'s verdict without `not bad` (the renderer's recorded boxes)."""
+        boxes = [{"kind": "caption", "label": "c:word", "column": True, "rect": [0.0, 0.0, 1080.0, 100.0]}]
+        self.assertEqual(self.run_film(boxes=boxes)["g"], "FAIL")
+
+    def test_g_fails_a_lift_over_a_caption(self):
+        """Round 5: the 16:9 « Total réalisé » card crossed « rendez-vous » in flight (f595)."""
+        ok = [{"kind": "caption", "label": "c:Chaque", "column": True, "rect": [200.0, 330.0, 600.0, 400.0]},
+              {"kind": "lift", "label": "card", "rest": True, "rect": [200.0, 700.0, 880.0, 900.0]}]
+        self.assertEqual(self.run_film(boxes=ok)["g"], "PASS")
+        over = [ok[0], {**ok[1], "rest": False, "rect": [500.0, 380.0, 880.0, 600.0]}]
+        self.assertEqual(self.run_film(boxes=over)["g"], "FAIL")
+
+    def test_g_fails_the_apps_own_qualifier_out_of_reach(self):
+        """Round 5: « Réserver (après la mise en ligne) » under y 1248 (9:16) — or half under the floor fade."""
+        box = {"kind": "app text", "label": "the owner-preview bar", "shown": 1.0, "rect": [252.0, 1140.0, 768.0, 1240.0]}
+        self.assertEqual(self.run_film(boxes=[box])["g"], "PASS")
+        self.assertEqual(self.run_film(boxes=[{**box, "rect": [252.0, 1300.0, 768.0, 1400.0]}])["g"], "FAIL")
+        self.assertEqual(self.run_film(boxes=[{**box, "shown": 0.6}])["g"], "FAIL")
+
+    def test_h_fails_the_hidden_row_readable(self):
+        """O5: (h)'s verdict without `not hidden_bad` — the old 13:15 row readable on one frame, each way it
+        can be: its place shown, its blocks at its place, its own block found anywhere in the window; and
+        in the whip, carried across the window with too little blur."""
+        for case, over in (("its place shows it", {"visible": 0.5}),
+                           ("its blocks at its place", {"mp4_shows": 0.6}),
+                           ("found in the window", {"found": 0.9, "found_alpha": 1.0, "found_visible": 0.9}),
+                           ("in the whip, too little blur", {"whip": True, "visible": None, "shutter_alpha": 0.6,
+                                                              "blur_px": 40.0})):
+            with self.subTest(case=case):
+                self.assertEqual(self.run_film(rows=[self.row(), self.row(frame=201, **over)])["h"], "FAIL")
+
+    def test_i_fails_two_lines_arriving_on_one_frame(self):
+        """O7: reading_verdict handed no two-line arrivals."""
+        self.assertEqual(self.run_film(two_lines=[(100.0, ["a[0]: « x »", "b[0]: « y »"])])["i"], "FAIL")
 
     def test_d_holds_the_master_and_the_mp4_apart(self):
         """M1b: verify passing the MP4's AIR and tail in place of the master's."""

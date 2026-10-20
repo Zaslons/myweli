@@ -106,9 +106,10 @@ class TestCameraKeeps(unittest.TestCase):
         got = {f: (w.screen_x, w.top, w.band_fade, w.floor, w.floor_fade) for f, w in
                ((f, window_for(SB.formats[f])) for f in FORMATS)}
         # 9:16 to the owner's floor (y 1424); 1:1's band edge on the journal's chip row (y 388); 16:9 taller, to
-        # y 1026, its phone standing on the floor (the band edge comes down with W: Window.anchor_bottom)
+        # y 1026, its phone standing on the floor (the band edge comes down with W: Window.anchor_bottom), its
+        # screen at x 1088 so the bezel ends on the graphics-safe edge (review round 5: x 1104 put it at 1840)
         self.assertEqual(got, {"9x16": (180, 600, 40, 1424, 24), "1x1": (180, 388, 30, 1002, 24),
-                               "16x9": (1104, 84, 30, 1026, 24)})       # 16:9: W under its 30-px top fade
+                               "16x9": (1088, 84, 30, 1026, 24)})       # 16:9: W under its 30-px top fade
 
     def test_the_reference_is_untouched(self):
         for cut in ("30s", "15s"):
@@ -378,8 +379,8 @@ class TestFilmFramesEveryFormat(unittest.TestCase):
         glyph's overshoot included: over the map it credits — round 3 ended the
         1:1's on the safe edge x 1026, over the bezel's corner; 9:16's sat on
         the floor, which is the phone's since the owner's floor); 16:9 ending
-        on x 1056."""
-        want = {"9x16": (2, 900.0), "1x1": (2, 900.0), "16x9": (2, 1056.0)}
+        on the column's edge, x 1040 (round 5: the column moved 16 px left with the phone)."""
+        want = {"9x16": (2, 900.0), "1x1": (2, 900.0), "16x9": (2, 1040.0)}
         for fid, (edge, x) in want.items():
             _, rec = self.films[fid].frame(700)
             box = next(b["rect"] for b in rec["boxes"] if b["kind"] == "credit")
@@ -440,20 +441,23 @@ class TestFilmFramesEveryFormat(unittest.TestCase):
         """Round 3's review: the « rempli. » push-in (1.791 → 2.0 px/pt) scaled
         about the phone's axis, so at its peak the FAB and the snackbar reached
         x 1835, past the 16:9 graphics-safe edge (1824). It scales about the
-        screen's right edge now: the screen grows leftwards."""
+        slab's right edge now (round 5: the screen at x 1088–1808, the bezel
+        ending on 1824): the phone grows leftwards, bezel and all."""
         def screen_right(film, f):
             j = next(s for s in film.scenes if s.id == "journal")
             spec = j.phone.spec
             return j.phone.map_rect((0.0, spec.crop_top_pt, spec.screen_pt[0], spec.screen_pt[1]), j.pose(float(f)),
                                     W=j.camera_W(float(f)), window=j.win(float(f)))[2], j.zoom(float(f))
         film = self.films["16x9"]
+        bezel = SB.formats["16x9"].layout["phone_bezel_px"]
         for f in (436, 448, 456, 460, 463):
             x1, zoom = screen_right(film, f)
-            self.assertLessEqual(x1, 1824.5, f)
+            self.assertLessEqual(x1 + bezel * zoom, 1824.5, f)                          # the slab's edge, too
         self.assertGreater(screen_right(film, 460)[1], 1.1)                          # the push is there
         from promo.scenes import Film
         old = Film(sbmod.load(overrides=["formats.16x9.layout.zoom_pivot_x=null"]), "30s", "16x9", CLOCKS["30s"])
-        self.assertGreater(screen_right(old, 460)[0], 1850)                          # about the axis: past the edge
+        x1, zoom = screen_right(old, 460)
+        self.assertGreater(x1 + bezel * zoom, 1824 + 20)                             # about the axis: past the edge
 
     def test_the_16x9_counter_is_set_from_the_columns_edge(self):
         """Left-aligned: « Aujourd’hui » (its « A » overhangs 1 px) and the

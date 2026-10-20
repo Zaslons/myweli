@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import math
 import sys
 import unittest
 from pathlib import Path
@@ -702,11 +703,11 @@ class TestReviewRound3(unittest.TestCase):
         st = self.stack()
         self.assertIsNone(st.backdrop_rect(470, 24))                          # nothing has lifted
         r = st.backdrop_rect(478, 24)                                          # tile 1 up: its card and place …
-        self.assertAlmostEqual(r[0], 120.0 - 24)
-        self.assertAlmostEqual(r[1], 692.8 - 24)
-        self.assertEqual(r[2], self.ORIGINS[1][0])                            # … up to tile 2, still waiting
+        self.assertAlmostEqual(r[0], 120.0 - 24)                               # (on whole pixels, snapped outward —
+        self.assertAlmostEqual(r[1], math.floor(692.8 - 24))                   # review round 5's seam)
+        self.assertEqual(r[2], math.floor(self.ORIGINS[1][0]))                # … up to tile 2, still waiting
         r = st.backdrop_rect(486, 24)                                          # tiles 1–2 up: « 0 Absences » (never
-        self.assertEqual(r[2], self.ORIGINS[2][0])                            # lifted) goes under, up to tile 3
+        self.assertEqual(r[2], math.floor(self.ORIGINS[2][0]))                # lifted) goes under, up to tile 3
         r = st.backdrop_rect(494, 24)                                          # all three: padded 24 all round
         self.assertEqual((r[0], r[2]), (120.0 - 24, 900.0 + 24))
         for f in range(470, 500):                                              # never over a waiting tile
@@ -775,17 +776,18 @@ class TestReviewRound4(unittest.TestCase):
 
     def test_each_piece_grows_with_its_card_the_strip_fades(self):
         o = TestReviewRound3.ORIGINS
-        self.assertEqual(self.st.backdrop_rect(479, 24)[2], o[1][0])      # tile 2 still waits: up to its place
+        self.assertEqual(self.st.backdrop_rect(479, 24)[2], math.floor(o[1][0]))   # tile 2 still waits: up to its place
         for f in range(480, 488):
             pieces = self.st.backdrop_pieces(f, 24)
             card2 = self.st.lifts[1].rect(self.st.progress(1, f))
             opaque = [r for r, a, strip in pieces if not strip and r[0] < card2[2] <= r[2]]
             self.assertEqual(len(opaque), 1, f)
-            self.assertAlmostEqual(opaque[0][2], card2[2] + 24, places=6, msg=f)      # never more than the pad ahead
+            ahead = opaque[0][2] - (card2[2] + 24)                           # never more than the pad ahead (and
+            self.assertTrue(0.0 <= ahead < 1.0, (f, ahead))                  # its edge on the next whole pixel)
             strips = [(r, a) for r, a, strip in pieces if strip and r[0] >= card2[2]]
             self.assertEqual(len(strips), 1, f)
             (r, a), = strips
-            self.assertEqual(r[2], o[2][0])                                  # up to « 13 oct. »'s place, never over
+            self.assertEqual(r[2], math.floor(o[2][0]))                      # up to « 13 oct. »'s place, never over
             self.assertAlmostEqual(a, self.st.progress(1, f), msg=f)         # at « 17 000 »'s pop
         self.assertAlmostEqual(dict((round(f), a) for f in (480, 485) for r, a, s_ in self.st.backdrop_pieces(f, 24)
                                     if s_ and r[0] > 600)[485], 1.0)

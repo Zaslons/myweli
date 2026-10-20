@@ -4,7 +4,7 @@ One ffmpeg process takes the frames on its stdin — 8-bit RGBA, top row
 first, exactly the declared width × height — at a constant frame rate, and
 muxes the soundtrack WAV with them:
 
-  video  H.264 (libx264) High, yuv420p, CRF 16, preset slow, a key frame
+  video  H.264 (libx264) High@4.1, yuv420p, CRF 16, preset slow, a key frame
          every second; tagged BT.709 (primaries, transfer, matrix, limited
          range) and converted with the BT.709 matrix — the frames are sRGB
          values carried as Rec. 709 video, as the App Store film's were
@@ -123,7 +123,10 @@ class VideoWriter:
         cmd += ["-vf", "scale=out_color_matrix=bt709:out_range=tv:flags=accurate_rnd+full_chroma_int,"
                        "format=yuv420p,"
                        "setparams=color_primaries=bt709:color_trc=bt709:colorspace=bt709:range=tv",
-                "-c:v", "libx264", "-profile:v", "high", "-preset", preset, "-crf", str(crf),
+                # High@4.1 (1080p30): x264 caps the references to the level's DPB (preset slow's 5 raised it to
+                # 5.0 — review round 5), and the VBV holds the stream to 4.1's bit rate and buffer
+                "-c:v", "libx264", "-profile:v", "high", "-level:v", "4.1", "-preset", preset, "-crf", str(crf),
+                "-maxrate", "50M", "-bufsize", "62500k",
                 "-pix_fmt", "yuv420p", "-g", str(keyint or fps),
                 "-color_primaries", "bt709", "-color_trc", "bt709", "-colorspace", "bt709",
                 "-color_range", "tv", "-frames:v", str(frames)]

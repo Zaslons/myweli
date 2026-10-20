@@ -118,6 +118,7 @@ OUTRO_DECAY_DB = 20.0        # the cut's last hit rings out: this far down …
 OUTRO_DECAY_FRAMES = 22      # … this many frames after it (f928 → f950 in the 30-s cut) …
 OUTRO_END_DB = 30.0          # … and its last 100 ms this far under it: the end fade never chops a loud tail
 HIDDEN_ALPHA = 0.05          # the 13:15 row: at most 5 % of it may show outside a whip
+WHIP_BLUR_MIN_PX = 80.0      # … and inside the whip it crosses the window only smeared over this much (review round 5)
 BEAT_PSNR_DB = 30.0
 CUT_MIN_CHANGE = 2.0         # a hard cut changes the picture this much at least (mean |ΔL|; the films' cuts: 8–244)
 CLICK_KINDS = ("click", "key")
@@ -212,23 +213,30 @@ def click_onset(written: np.ndarray, sample: int, search: int = 3200) -> int:
 def app_area(fmt) -> Rect:
     """Where the app's own pixels may be: the phone window's rows (band fade
     to floor fade) across the safe area's columns. A touch disc rides them,
-    where the finger was, and a lifted card on its way out of the phone or
-    back into it is them — in 9:16 down to the owner's floor (≈ y 1450,
+    where the finger was — in 9:16 down to the owner's floor (≈ y 1450,
     2026-10-19: « app pixels only »), past the platform's TEXT rectangle
-    (y ≤ 1248) that holds the captions, the counter and the lifts at rest."""
+    (y ≤ 1248) that holds the captions, the counter and the lifts (in flight
+    too: a lifted card is a magnified, shadowed overlay, not the phone's
+    picture — review round 5)."""
     from .scenes.phone import window_for
     w = window_for(fmt)
     s = fmt.safe
     return Rect(s.x0, w.top - w.band_fade, s.x1, w.floor + w.floor_fade)
 
 
+#: the app's own text the film keeps readable shows at least this much (the window's alpha over its rows)
+READABLE_SHOWN = 0.99
+
+
 def outside_safe(records: list[dict], fmt) -> tuple[int, list[dict]]:
     """(boxes checked, boxes outside where they may be: text, the counter and
-    the lifts at rest inside the format's text area — captions laid in the
-    caption column also inside it —, a touch disc on the app's pixels
-    (`app_area`), a lift in transit (`rest: false`, rising out of its place
-    on the phone or settling back) inside either). The mark (the Lottie) is
-    placed by the layout, not by text rules, and is not counted."""
+    every lift — landed or in flight — inside the format's text area
+    (captions laid in the caption column also inside it); the app's own
+    text the film keeps readable (`app text`: the page's « Réserver (après
+    la mise en ligne) », the qualifier its caption is paired with) inside it
+    AND wholly in the window (shown ≥ READABLE_SHOWN); a touch disc on the
+    app's pixels (`app_area`)). The mark (the Lottie) is placed by the
+    layout, not by text rules, and is not counted."""
     area = list(fmt.text_area)
     app = app_area(fmt)
     col = fmt.layout["caption_column_x"]
@@ -241,8 +249,8 @@ def outside_safe(records: list[dict], fmt) -> tuple[int, list[dict]]:
             rect = Rect(*b["rect"])
             if b["kind"] == "touch":
                 ok = covered_by(rect, [app])
-            elif b["kind"] == "lift" and b.get("rest") is False:
-                ok = covered_by(rect, area + [app])
+            elif b["kind"] == "app text":
+                ok = covered_by(rect, area) and float(b.get("shown", 0.0)) >= READABLE_SHOWN
             else:
                 ok = covered_by(rect, area)
             if b["kind"] == "caption" and b.get("column", True):
@@ -250,6 +258,25 @@ def outside_safe(records: list[dict], fmt) -> tuple[int, list[dict]]:
             if not ok:
                 bad.append({"frame": r["f"], **b})
     return counted, bad
+
+
+def lifts_over_captions(records: list[dict]) -> list[dict]:
+    """Every frame on which a lifted card (landed or in flight) overlaps a
+    caption's ink box: a lift never crosses the sentence it illustrates
+    (review round 5: the 16:9 « Total réalisé » card passed under
+    « rendez-vous » and grazed « terminé, » in flight). Empty: none."""
+    out = []
+    for r in records:
+        lifts = [b for b in r.get("boxes", []) if b["kind"] == "lift"]
+        caps = [b for b in r.get("boxes", []) if b["kind"] == "caption"]
+        for a in lifts:
+            ax0, ay0, ax1, ay1 = a["rect"]
+            for c in caps:
+                cx0, cy0, cx1, cy1 = c["rect"]
+                if min(ax1, cx1) > max(ax0, cx0) and min(ay1, cy1) > max(ay0, cy0):
+                    out.append({"frame": r["f"], "lift": a["label"], "lift_rect": a["rect"], "caption": c["label"],
+                                "caption_rect": c["rect"]})
+    return out
 
 
 def air_levels(audio: np.ndarray, events: dict, samples_per_frame: int = 1600) -> dict:
@@ -692,11 +719,14 @@ def pixel_plan(film, records: list[dict], events: dict) -> dict:
                     plan["ink"].append({"frame": fr, "kind": "lift", "label": f"tiles 1–{i + 1}", "ink": LIFT_INK,
                                         "region": clear_of_phone(region, area_at(fr), centre)})
         if sc.credit:
-            shown = [r["f"] for r in records if r["scene"] == sc.id and any(b["kind"] == "credit" for b in r.get("boxes", []))]
-            if shown:
-                fr = shown[len(shown) // 2]
+            alpha = {r["f"]: max(b.get("alpha", 1.0) for b in r["boxes"] if b["kind"] == "credit") for r in records
+                     if r["scene"] == sc.id and any(b["kind"] == "credit" for b in r.get("boxes", []))}
+            if alpha:
+                whole = [f for f in sorted(alpha) if alpha[f] >= 0.99] or [max(alpha, key=lambda f: (alpha[f], -f))]
+                fr = whole[len(whole) // 2]                 # the credit whole (AIR 2's fades with the falling phone)
                 region, centre = around(boxes_of(fr, "credit"), 16)
-                plan["ink"].append({"frame": fr, "kind": "credit", "label": "map credit", "ink": TEXT_INK,
+                plan["ink"].append({"frame": fr, "kind": "credit", "label": f"map credit ({sc.id})",
+                                    "ink": "white" if sc.stage.dark else TEXT_INK,      # white on AIR 2's black
                                     "region": clear_of_phone(region, area_at(fr), centre)})
     # (g) the hook's strikes, each on its last frame (drawn whole, its punch settled)
     for sid, places in (film.plan().get("hook_ink") or {}).items():
@@ -714,7 +744,8 @@ def pixel_plan(film, records: list[dict], events: dict) -> dict:
                 plan["rows"].append({"frame": r["f"], "label": h["label"], "scene": sid, "picture": r["picture"],
                                      "take": r["take"], "alpha": h["alpha"], "rect": h["rect"],
                                      "zoom": r.get("zoom", 1.0), "whip": bool(h["whip"]),
-                                     "window_top": r.get("window_top")})
+                                     "window_top": r.get("window_top"),
+                                     **{k: h[k] for k in ("shutter_alpha", "blur_px") if k in h}})
     return plan
 
 
@@ -798,6 +829,14 @@ class HiddenRow:
             why.append(f"{m['mp4_shows']:.0%} of its blocks at its place")
         if m["found_visible"] > HIDDEN_ALPHA:
             why.append(f"found at {m['found_at']} where the window shows {m['found_alpha']:.0%}")
+        if m.get("whip"):
+            # in the whip its place may show — but only inside the blur: a frame whose shutter shows the row
+            # carries it ≥ WHIP_BLUR_MIN_PX (round 5: the first whip frame moved it 37–72 px in the floor fade)
+            if "shutter_alpha" not in m or "blur_px" not in m:
+                why.append("a whip frame without its shutter's measure (shutter_alpha, blur_px)")
+            elif m["shutter_alpha"] > HIDDEN_ALPHA and m["blur_px"] < WHIP_BLUR_MIN_PX:
+                why.append(f"in the whip its place shows {m['shutter_alpha']:.0%} with only {m['blur_px']:.0f} px of "
+                           f"blur (≥ {WHIP_BLUR_MIN_PX:g})")
         return why
 
     def close(self) -> None:
@@ -1128,6 +1167,7 @@ def verify_film(sb, cut: str, fmt_id: str, d: Path) -> Result:
         if not ok:
             ink_bad.append(row)
     counted, bad = outside_safe(records, fmt)
+    crossings = lifts_over_captions(records)
     hook_places = film.plan().get("hook_ink") or {}
     hook_bad = hook_ink_problems(hook_places, measured["strikes"], fmt)
     n_hook = sum(len(v) for v in hook_places.values())
@@ -1141,12 +1181,18 @@ def verify_film(sb, cut: str, fmt_id: str, d: Path) -> Result:
                  + f" (≥ {STRIKE_CONTRAST:g})") if n_hook else ""
     if hook_bad:
         hook_text += " — " + "; ".join(hook_bad)
+    readable = [b for r in records for b in r.get("boxes", []) if b["kind"] == "app text"]
     res.add("g", "safe zones: ink on MP4 frames, and every recorded box",
-            not bad and not ink_bad and bool(ink_rows) and not hook_bad,
+            not bad and not ink_bad and bool(ink_rows) and not hook_bad and not crossings,
             f"ink measured on {len(ink_rows)} MP4 frames (each caption whole, the counter on every frame from its "
             f"label's switch to landing + 3, every lift, the credit): {len(ink_bad)} outside {' ∪ '.join(str(x) for x in fmt.text_area)}; and {counted} recorded "
-            f"boxes on {len(records)} frames, {len(bad)} outside" + hook_text, ink=ink_rows, outside=bad[:40],
-            ink_outside=ink_bad, hook_ink=hook_places, strikes=measured["strikes"], hook_problems=hook_bad)
+            f"boxes on {len(records)} frames, {len(bad)} outside (every lift in flight too"
+            + (f"; the app's own text kept readable on {len(readable)} frames, inside and wholly in the window"
+               if readable else "") + f"); {len(crossings)} frames with a lift over a caption"
+            + (f" (f{crossings[0]['frame']}: {crossings[0]['lift']} over {crossings[0]['caption']})" if crossings else "")
+            + hook_text, ink=ink_rows, outside=bad[:40],
+            ink_outside=ink_bad, hook_ink=hook_places, strikes=measured["strikes"], hook_problems=hook_bad,
+            lift_crossings=crossings[:20])
 
     # (h) honesty ----------------------------------------------------------------------------------------
     gen = doc["generated"]
@@ -1191,6 +1237,8 @@ def verify_film(sb, cut: str, fmt_id: str, d: Path) -> Result:
     mp4_max = max((r["mp4_shows"] for r in hrows), default=0.0)
     in_push = [r for r in hrows if 0.0 < r["take_shows"] < 1.0]
     in_whip = [r for r in hrows if r["whip"]]
+    whip_shown = [r for r in in_whip if r.get("shutter_alpha", 0.0) > HIDDEN_ALPHA]
+    whip_blur = min((r["blur_px"] for r in whip_shown if "blur_px" in r), default=None)
     ident = "; ".join(f"{len(i['identifying'])} of its {i['blocks']} blocks identify it (at x "
                       f"{', '.join(str(b) for b in i['identifying'])} take px)" for i in measured.get("hidden", {}).values())
     rates = []
@@ -1215,7 +1263,10 @@ def verify_film(sb, cut: str, fmt_id: str, d: Path) -> Result:
                f"{max((m_['most_detail_left'] for m_ in masks_out), default=0):.0%} of the digits' detail left; "
                if any(doc["masks"].values()) else
                f"no blur declared (no phone number on {', '.join(sorted(doc['masks'])) or 'any take'}): none to measure; ")
-            + f"the 13:15 row checked on {len(hrows)} frames ({len(in_whip)} in the whip, {len(in_push)} with the row "
+            + f"the 13:15 row checked on {len(hrows)} frames ({len(in_whip)} in the whip"
+            + (f" — on the {len(whip_shown)} whose shutter shows its place, at least {whip_blur:.0f} px of blur "
+               f"(≥ {WHIP_BLUR_MIN_PX:g})" if whip_blur is not None else "")
+            + f", {len(in_push)} with the row "
             f"half-covered by the form's push or pop; {ident}): searched over the whole window, at most "
             f"{found_max:.1%} of it visible where found (≤ {HIDDEN_ALPHA:.0%}); at its place at most {mp4_max:.0%} of "
             f"its blocks in the MP4's pixels (≤ {ROW_SHOWS_MP4:.0%}) and, outside the whip, at most {hidden_max:.1%} "

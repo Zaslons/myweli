@@ -757,7 +757,7 @@ class TestFilmFrames15s(unittest.TestCase):
     def setUpClass(cls):
         from promo.scenes import Film
         cls.film = Film(SB, "15s", "9x16", Clock(EVENTS15, 512))
-        cls.frames = {f: cls.film.frame(f) for f in (192, 193, 194, 196)}
+        cls.frames = {f: cls.film.frame(f) for f in (192, 193, 194, 195, 196)}
 
     def test_structure(self):
         self.assertEqual([s.id for s in self.film.scenes], ["hook", "air1", "journal", "revenus", "reveal", "end"])
@@ -768,19 +768,33 @@ class TestFilmFrames15s(unittest.TestCase):
                               (256, "whip"), (320, "cut"), (376, "continuous")})
         self.assertIn((376, "continuous into end"), self.film.events())
 
-    def test_the_dissolve_is_an_exact_cross_fade(self):
+    def test_the_dissolve_blends_the_screens_in_one_slab(self):
         """f194 is (1 − u) × the form on 32.998 through W 667 + u × the form
-        on 130.262 through W 521.67 — the frames either side (f193 shows the
-        first whole; f196 the second, its disc below the rows compared)."""
+        on 130.262 through W 521.67 wherever the first shows (its screen ends
+        at y 971) — the frames either side (f193 shows the first whole; f196
+        the second, its disc below the rows compared); below it the second
+        shows alone, inside ONE slab whose bottom moves with the blend: never
+        a second, translucent bezel arc across the form's rows (review round
+        5, the cross-fade of two whole stages)."""
         a, b = self.frames[193][0], self.frames[196][0]
         m, rec = self.frames[194]
         u = rec["dissolve"]["blend"]
         self.assertTrue(0.2 < u < 0.8, u)
         self.assertEqual(rec["dissolve"]["W"], [667.0, 521.67])
-        rows = slice(600, 1100)
-        want = (1 - u) * a[rows, :, :3].astype(float) + u * b[rows, :, :3].astype(float)
-        self.assertLessEqual(np.abs(m[rows, :, :3].astype(float) - want).max(), 2.0)
+        for rows, cols in ((slice(600, 880), slice(0, 1080)), (slice(880, 960), slice(270, 810))):   # (not the
+            want = (1 - u) * a[rows, cols, :3].astype(float) + u * b[rows, cols, :3].astype(float)   # first's corners)
+            self.assertLessEqual(np.abs(m[rows, cols, :3].astype(float) - want).max(), 2.0)
+        slab_bottom = 600 + (874 - (667 + (521.67 - 667) * u)) * 1.791      # the screen's bottom, moving with u
+        below = (slice(992, int(slab_bottom) - 4), slice(300, 780))         # (inside its rounded corners)
+        self.assertGreater(below[0].stop - below[0].start, 20)
+        self.assertLessEqual(np.abs(m[below][..., :3].astype(float) - b[below][..., :3].astype(float)).max(), 2.0)
         self.assertEqual(self.frames[193][1]["dissolve"]["blend"], 0.0)      # f193: the first picture alone
+        for f in (194, 195):                                                 # one slab: no translucent bezel
+            L = self.frames[f][0][..., :3].astype(float) @ [0.2126, 0.7152, 0.0722]
+            band = ((L[900:1320, 300:780] >= 40) & (L[900:1320, 300:780] < 200)).mean(axis=1) >= 0.9
+            runs = np.diff(np.concatenate([[0], band.astype(int), [0]]))
+            longest = max((e - s for s, e in zip(np.where(runs == 1)[0], np.where(runs == -1)[0])), default=0)
+            self.assertLess(longest, 6, f)
 
     def test_the_fields_stay_in_place(self):
         """The fields both pictures show (« Client sans numéro », the name,
