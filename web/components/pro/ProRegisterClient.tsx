@@ -53,6 +53,10 @@ export function ProRegisterClient() {
   const fields = useFieldErrors({
     businessName: (v: string) =>
       v.trim().length > 0 ? null : 'Saisissez le nom de l’entreprise.',
+    // Required, as in the app (docs/design/web-pro-golive-signup-like-app.md);
+    // go-live needs it anyway.
+    address: (v: string) =>
+      v.trim().length > 0 ? null : 'Saisissez l’adresse de l’entreprise.',
     // The shared rule and its sentences (docs/design/phone-national-length.md):
     // « Saisissez un numéro… » when empty, « Le numéro doit comporter N
     // chiffres… » when short — the old single sentence asked for a number the
@@ -68,6 +72,7 @@ export function ProRegisterClient() {
   function fieldsOrError(): boolean {
     return fields.validate({
       businessName: businessName.trim(),
+      address: address.trim(),
       phone: phone ?? '',
     });
   }
@@ -83,7 +88,7 @@ export function ProRegisterClient() {
       businessName: businessName.trim(),
       businessType,
       phoneNumber: normalizePhone(phone),
-      address: address.trim() || undefined,
+      address: address.trim(),
       areaId: areaId ?? undefined,
     });
     setBusy(false);
@@ -112,6 +117,7 @@ export function ProRegisterClient() {
     if (
       !fields.validate({
         businessName: businessName.trim(),
+        address: address.trim(),
         phone: phone ?? '',
         email: email.trim(),
       })
@@ -178,9 +184,13 @@ export function ProRegisterClient() {
       </div>
       <TextField
         className="mt-m"
-        label="Adresse (optionnelle)"
+        label="Adresse"
         value={address}
-        onChange={(e) => setAddress(e.target.value)}
+        onChange={(e) => {
+          setAddress(e.target.value);
+          fields.revalidate('address', e.target.value);
+        }}
+        error={fields.errors.address}
       />
 
       {/* Multi-pays MP3: où se trouve le salon (recommandé — requis pour la

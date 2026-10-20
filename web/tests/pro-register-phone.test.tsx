@@ -60,6 +60,10 @@ function fillBusinessAndEmail() {
   fireEvent.change(screen.getByLabelText('Nom de l’entreprise'), {
     target: { value: 'Salon Awa' },
   });
+  // Required since web-pro-golive-signup-like-app.md (as in the app).
+  fireEvent.change(screen.getByLabelText('Adresse'), {
+    target: { value: 'Rue des Jardins, Cocody' },
+  });
   fireEvent.change(screen.getByLabelText('Votre e-mail'), {
     target: { value: 'awa@salon.ci' },
   });
@@ -137,5 +141,33 @@ describe('ProRegisterClient — the server refuses the number', () => {
       'Un compte existe déjà pour cette identité. Connectez-vous.',
     );
     expect(phone).not.toHaveAttribute('aria-invalid');
+  });
+});
+
+/// docs/design/web-pro-golive-signup-like-app.md (owner decision: required on
+/// the web too) — the app asks « Adresse » and refuses an empty one
+/// (`pro_register_screen.dart`); the web said « Adresse (optionnelle) ».
+describe('ProRegisterClient — « Adresse », required as in the app', () => {
+  it('empty: said under the field, and no code is sent', async () => {
+    mockFetch();
+    render(<ProRegisterClient />);
+    fillBusinessAndEmail();
+    fireEvent.change(screen.getByLabelText('Adresse'), { target: { value: '  ' } });
+    fireEvent.change(screen.getByLabelText('Téléphone du salon'), {
+      target: { value: '+2250707123456' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Recevoir un code' }));
+    const address = screen.getByLabelText('Adresse');
+    await waitFor(() => expect(address).toHaveAttribute('aria-invalid', 'true'));
+    expect(document.getElementById(address.getAttribute('aria-describedby')!)).toHaveTextContent(
+      /^Saisissez l’adresse de l’entreprise\.$/,
+    );
+    expect(calls).not.toContain('/api/pro/auth/email/request');
+  });
+
+  it('no « (optionnelle) » any more', () => {
+    mockFetch();
+    render(<ProRegisterClient />);
+    expect(screen.queryByLabelText('Adresse (optionnelle)')).toBeNull();
   });
 });
