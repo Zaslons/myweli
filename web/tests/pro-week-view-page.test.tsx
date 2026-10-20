@@ -126,9 +126,12 @@ describe('the « Semaine » tab', () => {
     expect(
       await within(grid).findByRole('button', { name: 'Koffi, Confirmé — Awa, Lun 19 à 09:00' }),
     ).toBeInTheDocument();
-    expect(
-      within(grid).getByRole('button', { name: 'Aminata, Confirmé — Mia, Lun 19 à 09:30' }),
-    ).toBeInTheDocument();
+    const aminata = within(grid).getByRole('button', { name: 'Aminata, Confirmé — Mia, Lun 19 à 09:30' });
+    const koffi = within(grid).getByRole('button', { name: /^Koffi/ });
+    // Side by side: two lanes, half the column each, not one over the other.
+    expect(koffi.style.left).toBe('calc(0% + 2px)');
+    expect(aminata.style.left).toBe('calc(50% + 2px)');
+    expect(aminata.style.width).toBe('calc(50% - 4px)');
   });
 
   it('‹ › change the week, « Cette semaine » comes back — the address follows', async () => {
