@@ -7,6 +7,7 @@ import {
   formatFcfa,
   formatPhoneNumber,
   priceRange,
+  countFr,
 } from '../lib/format';
 
 const norm = (s: string) => s.replace(/\s/g, ' ');
@@ -124,5 +125,16 @@ describe('format', () => {
     expect(norm(formatDateTimeFr('2026-07-13T23:30:00.000Z'))).toBe(
       '13 juillet 2026 à 23:30',
     );
+  });
+});
+
+/// A count and its noun never part at the end of a line (« 3 » / « étapes »):
+/// French typography's no-break space, U+00A0 — the web's countFr callers
+/// (the journal panel's visits and absences, the go-live progress line).
+describe('countFr — the number and its noun stay together', () => {
+  it('joins them with a no-break space', () => {
+    expect(countFr(3, 'étape', 'étapes')).toBe('3\u00a0étapes');
+    expect(countFr(1, 'visite', 'visites')).toBe('1\u00a0visite');
+    expect(countFr(0, 'absence', 'absences')).toBe('0\u00a0absence');
   });
 });
