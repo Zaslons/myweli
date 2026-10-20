@@ -238,7 +238,7 @@ export function AcompteClient() {
                 <label htmlFor="deposit-percent" className="text-bodyMedium text-textPrimary">
                   Pourcentage de l’acompte
                 </label>
-                <span className="text-titleMedium text-textPrimary">{percentLabel}</span>
+                <span className="shrink-0 whitespace-nowrap text-titleMedium text-textPrimary">{percentLabel}</span>
               </div>
               <input
                 id="deposit-percent"
@@ -263,11 +263,11 @@ export function AcompteClient() {
                 {/* The client pays by Mobile Money straight to the salon —
                     never in the app (no-custody; promise-honesty-sweep T2). */}
                 <span>Acompte sur votre Mobile Money</span>
-                <span className="font-semibold">{formatFcfa(example.deposit, currency)}</span>
+                <span className="shrink-0 whitespace-nowrap font-semibold">{formatFcfa(example.deposit, currency)}</span>
               </p>
               <p className="flex justify-between gap-s text-bodySmall text-textSecondary">
                 <span>Solde au salon</span>
-                <span>{formatFcfa(example.balance, currency)}</span>
+                <span className="shrink-0 whitespace-nowrap">{formatFcfa(example.balance, currency)}</span>
               </p>
             </div>
           </>
