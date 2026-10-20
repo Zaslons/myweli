@@ -663,7 +663,9 @@ test('web pro registration: fields + email code → authenticated on /pro', asyn
   await page.getByLabel('Votre e-mail').fill('nouveau@salon.test');
   await page.getByRole('button', { name: 'Recevoir un code' }).click();
   await page.getByLabel('Code à 6 chiffres').fill('123456');
-  await page.getByRole('button', { name: 'S’inscrire' }).click();
+  // Exact: « S’inscrire avec Apple » is on the page too, and a role name
+  // matches as a substring (web-pro-apple.md — its first CI run).
+  await page.getByRole('button', { name: 'S’inscrire', exact: true }).click();
 
   // 201 → pro cookies → the dashboard.
   await expect(page).toHaveURL(/\/pro(\/)?$/);
@@ -712,7 +714,9 @@ test('web pro registration: duplicate identity shows provider_exists', async ({
   await page.getByLabel('Votre e-mail').fill('existe@salon.test');
   await page.getByRole('button', { name: 'Recevoir un code' }).click();
   await page.getByLabel('Code à 6 chiffres').fill('123456');
-  await page.getByRole('button', { name: 'S’inscrire' }).click();
+  // Exact: « S’inscrire avec Apple » is on the page too, and a role name
+  // matches as a substring (web-pro-apple.md — its first CI run).
+  await page.getByRole('button', { name: 'S’inscrire', exact: true }).click();
   await expect(
     page.getByText('Un compte existe déjà pour cette identité. Connectez-vous.'),
   ).toBeVisible();

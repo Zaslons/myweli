@@ -684,6 +684,21 @@ export async function loginProWithGoogle(idToken: string): Promise<{
   return res.ok ? { ok: true } : { ok: false, error: body.error };
 }
 
+/// Sign in with Apple (docs/design/web-pro-apple.md). No 202 bridge on the
+/// Apple route (contract — the app notes it too), so no invitations here.
+export async function loginProWithApple(identity: {
+  identityToken: string;
+  nonce: string;
+}): Promise<{ ok: boolean; error?: string }> {
+  const res = await send('/api/pro/auth/apple', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ identityToken: identity.identityToken, nonce: identity.nonce }),
+  });
+  const body = await res.json().catch(() => ({}));
+  return res.ok ? { ok: true } : { ok: false, error: body.error };
+}
+
 /// `status` 0 = no answer: the login says « Pas de connexion », never a
 /// wrong e-mail or code it did not get to judge.
 export async function requestEmailOtpPro(
@@ -1102,7 +1117,14 @@ export type ProRegisterFields = {
 /// Identity + business fields in ONE submit (201 → pro cookies set by the
 /// BFF). Pass EITHER `idToken` (Google) or `email`+`code`.
 export async function registerPro(
-  identity: { idToken?: string; email?: string; code?: string },
+  identity: {
+    idToken?: string;
+    identityToken?: string;
+    nonce?: string;
+    fullName?: string;
+    email?: string;
+    code?: string;
+  },
   fields: ProRegisterFields,
 ): Promise<{ ok: boolean; status: number; error?: string }> {
   const res = await send('/api/pro/auth/register', {

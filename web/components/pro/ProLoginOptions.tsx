@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 import {
   acceptInvitationPublic,
   declineInvitationPublic,
+  loginProWithApple,
   loginProWithGoogle,
   requestEmailOtpPro,
   verifyEmailOtpPro,
@@ -20,6 +21,8 @@ import { Button } from '../Button';
 import { TextField } from '../TextField';
 import { GoogleSignInButton } from '../auth/GoogleSignInButton';
 import { LegalConsentText } from '../LegalConsentText';
+import { AppleSignInButton } from '../auth/AppleSignInButton';
+import { appleIdentity } from '../../lib/auth/apple';
 
 /// The identity proof retained IN MEMORY across the 202 invitation bridge
 /// (team access R5a): the Google credential or the still-unconsumed
@@ -35,6 +38,9 @@ type InviteProof =
 /// R5a). Design: docs/design/pro-auth-social.md · web-team-access-r5.md §2.2.
 export function ProLoginOptions({ onSuccess }: { onSuccess: () => void }) {
   const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+  // Apple renders only when its public client id is configured — the client
+  // sign-in's rule (docs/design/web-pro-apple.md).
+  const appleClientId = process.env.NEXT_PUBLIC_APPLE_CLIENT_ID;
   const [step, setStep] = useState<'options' | 'code' | 'invitations'>(
     'options',
   );
@@ -260,7 +266,33 @@ export function ProLoginOptions({ onSuccess }: { onSuccess: () => void }) {
           }}
         />
       ) : null}
-      {googleClientId ? (
+      {appleClientId ? (
+        <AppleSignInButton
+          disabled={busy}
+          onClick={async () => {
+            if (busy) return;
+            setBusy(true);
+            setError(null);
+            // A closed popup is null — silent, as on the client's sign-in.
+            const id = await appleIdentity(appleClientId);
+            if (!id) {
+              setBusy(false);
+              return;
+            }
+            const r = await loginProWithApple(id);
+            setBusy(false);
+            if (!r.ok) {
+              return setError(
+                r.error === 'provider_not_found'
+                  ? notFoundMessage
+                  : 'Connexion Apple impossible.',
+              );
+            }
+            onSuccess();
+          }}
+        />
+      ) : null}
+      {googleClientId || appleClientId ? (
         <div className="flex items-center gap-s text-bodySmall text-textTertiary">
           <span className="flex-1 border-t border-divider" />
           ou

@@ -128,6 +128,12 @@ const ROWS: Row[] = [
   { name: 'saveBeforeAfters', kind: 'write', call: () => pro.saveBeforeAfters('p1', []) },
   { name: 'logoutPro', kind: 'logout', call: () => pro.logoutPro() },
   { name: 'loginProWithGoogle', kind: 'write', noStatus: true, call: () => pro.loginProWithGoogle('t') },
+  {
+    name: 'loginProWithApple',
+    kind: 'write',
+    noStatus: true,
+    call: () => pro.loginProWithApple({ identityToken: 't', nonce: 'n' }),
+  },
   { name: 'requestEmailOtpPro', kind: 'write', call: () => pro.requestEmailOtpPro('a@b.ci') },
   { name: 'verifyEmailOtpPro', kind: 'write', call: () => pro.verifyEmailOtpPro('a@b.ci', '1234') },
   {
