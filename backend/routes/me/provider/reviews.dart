@@ -68,7 +68,8 @@ Future<Response> onRequest(RequestContext context) async {
     return jsonError(HttpStatus.forbidden, 'forbidden');
   }
 
-  final r = await context.read<ReviewsService>().list(
+  final reviewsService = context.read<ReviewsService>();
+  final r = await reviewsService.list(
     providerId,
     page: int.tryParse(q['page'] ?? '') ?? 1,
     pageSize: int.tryParse(q['pageSize'] ?? '') ?? 20,
@@ -79,6 +80,9 @@ Future<Response> onRequest(RequestContext context) async {
       'page': r.page,
       'pageSize': r.pageSize,
       'total': r.total,
+      // The whole salon's card, not the page's
+      // (docs/design/salon-reviews-summary.md).
+      'summary': await reviewsService.summary(providerId),
     },
   );
 }

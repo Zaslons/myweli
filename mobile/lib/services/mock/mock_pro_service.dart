@@ -12,7 +12,7 @@ import '../../models/payment.dart';
 import '../../models/pro_membership.dart';
 import '../../models/provider.dart';
 import '../../models/provider_user.dart';
-import '../../models/review.dart';
+import '../../models/review_summary.dart';
 import '../../models/salon_membership_info.dart';
 import '../../models/salon_subscription.dart';
 import '../../models/service.dart';
@@ -70,7 +70,7 @@ class MockProService implements ProServiceInterface {
   }
 
   @override
-  Future<ApiResponse<List<Review>>> getMyReviews({
+  Future<ApiResponse<MyReviews>> getMyReviews({
     int page = 1,
     int pageSize = 50,
   }) async {
@@ -82,8 +82,27 @@ class MockProService implements ProServiceInterface {
     if (salon == null) {
       return ApiResponse.error(me.error ?? 'Non connecté', code: me.code);
     }
+    final mine = MockData.reviews
+        .where((r) => r.providerId == salon.id)
+        .toList();
+    // The server's summary, computed the server's way (one decimal), from
+    // the same reviews — mock realism (salon-reviews-summary.md).
+    final avg = mine.isEmpty
+        ? 0.0
+        : mine.map((r) => r.rating).reduce((a, b) => a + b) / mine.length;
     return ApiResponse.success(
-      MockData.reviews.where((r) => r.providerId == salon.id).toList(),
+      MyReviews(
+        items: mine,
+        total: mine.length,
+        summary: ReviewSummary(
+          average: (avg * 10).round() / 10,
+          count: mine.length,
+          distribution: {
+            for (final star in const [5, 4, 3, 2, 1])
+              star: mine.where((r) => r.rating == star).length,
+          },
+        ),
+      ),
     );
   }
 

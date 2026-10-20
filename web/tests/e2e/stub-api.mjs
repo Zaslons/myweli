@@ -1792,6 +1792,17 @@ createServer(async (req, res) => {
       page: 1,
       pageSize: 50,
       total: 2,
+      // The salon's own read carries the whole salon's card
+      // (docs/design/salon-reviews-summary.md); the public list does not.
+      ...(url.pathname === '/me/provider/reviews'
+        ? {
+            summary: {
+              average: 4.5,
+              count: 2,
+              distribution: { 5: 1, 4: 1, 3: 0, 2: 0, 1: 0 },
+            },
+          }
+        : {}),
     });
   }
   if (url.pathname.match(/^\/providers\/[^/]+\/gallery$/)) {

@@ -11,7 +11,7 @@ import type { Review } from '../../lib/api/providers';
 import { getMyProvider, listProviderReviews } from '../../lib/api/pro';
 import { loadFailure, loadFailureMessage, type LoadFailure } from '../../lib/pro/load-failure';
 import { formatDateFr } from '../../lib/format';
-import { reviewStats } from '../../lib/pro/reviews';
+import { type ReviewSummary, reviewStats, statsFromSummary } from '../../lib/pro/reviews';
 import { Button } from '../Button';
 import { SkeletonRows } from '../Skeleton';
 
@@ -23,6 +23,8 @@ export function AvisClient() {
   const [providerId, setProviderId] = useState<string | null>(null);
   const [items, setItems] = useState<Review[]>([]);
   const [total, setTotal] = useState(0);
+  // The whole salon's card, from the server (salon-reviews-summary.md).
+  const [summary, setSummary] = useState<ReviewSummary | undefined>(undefined);
   const [page, setPage] = useState(1);
   // The active salon's timezone (multi-pays MP3) — review dates in SALON time.
   const [salonTz, setSalonTz] = useState<string | undefined>(undefined);
@@ -54,6 +56,7 @@ export function AvisClient() {
     }
     setItems(r.items);
     setTotal(r.total);
+    setSummary(r.summary);
     setPage(1);
     setLoading(false);
   }, [router]);
@@ -85,7 +88,11 @@ export function AvisClient() {
     );
   }
 
-  const stats = reviewStats(items);
+  // The server's card when it sends one — the WHOLE salon. The loaded pages
+  // (50 at a time) only list: averaging them beside the server's total told a
+  // salon with 60 reviews a note from 50 (docs/design/salon-reviews-summary.md).
+  const stats = summary ? statsFromSummary(summary) : reviewStats(items);
+  const shownCount = summary ? summary.count : total;
 
   return (
     <div>
@@ -107,7 +114,7 @@ export function AvisClient() {
                 <Rating value={stats.average} />
               </p>
               <p className="mt-xs text-bodyMedium text-textSecondary">
-                {total} avis
+                {shownCount} avis
               </p>
             </div>
             <dl className="min-w-56 flex-1">

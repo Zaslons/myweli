@@ -7,6 +7,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../core/utils/review_card.dart';
 import '../../../models/review.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_reviews_provider.dart';
@@ -55,14 +56,10 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
           }
 
           final reviews = reviewsProvider.reviews;
-
-          // Calculate average rating
-          double averageRating = 0;
-          if (reviews.isNotEmpty) {
-            averageRating =
-                reviews.map((r) => r.rating).reduce((a, b) => a + b) /
-                reviews.length;
-          }
+          // The whole salon's card when the server sends it — the first page
+          // holds 50, and averaging it was wrong past 50
+          // (docs/design/salon-reviews-summary.md).
+          final card = reviewCard(reviews, reviewsProvider.summary);
 
           if (reviews.isEmpty) {
             return Center(
@@ -124,7 +121,7 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
                               ),
                               const SizedBox(width: AppTheme.spacingS),
                               Text(
-                                Formatters.formatRating(averageRating),
+                                Formatters.formatRating(card.average),
                                 style: AppTextStyles.headlineMedium.copyWith(
                                   color: AppColors.textPrimary,
                                 ),
@@ -133,7 +130,7 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
                           ),
                           const SizedBox(height: AppTheme.spacingXS),
                           Text(
-                            '${reviews.length} avis',
+                            '${card.count} avis',
                             style: AppTextStyles.bodySmall.copyWith(
                               color: AppColors.textSecondary,
                             ),
@@ -151,12 +148,10 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: List.generate(5, (index) {
                             final rating = 5 - index;
-                            final count = reviews
-                                .where((r) => r.rating == rating)
-                                .length;
-                            final percentage = reviews.isEmpty
+                            final count = card.countFor(rating);
+                            final percentage = card.count == 0
                                 ? 0.0
-                                : count / reviews.length;
+                                : count / card.count;
                             return Padding(
                               padding: const EdgeInsets.only(
                                 bottom: AppTheme.spacingXS,

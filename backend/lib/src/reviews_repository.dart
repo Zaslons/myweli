@@ -29,6 +29,11 @@ abstract interface class ReviewsRepository {
   /// Average rating + count per attributed `artistId` for the provider.
   Future<Map<String, RatingAgg>> aggregateByArtist(String providerId);
 
+  /// How many reviews give each star, 5 → 1 (every key present, 0 when
+  /// none) — the « Avis » card's bars, over the whole salon
+  /// (docs/design/salon-reviews-summary.md).
+  Future<Map<int, int>> ratingDistribution(String providerId);
+
   // --- Moderation (admin) — design: docs/design/admin-console.md -------------
   // Public reads above (list/recent/aggregate) exclude `hidden` reviews.
 
@@ -159,6 +164,16 @@ class InMemoryReviewsRepository implements ReviewsRepository {
       if (aid != null) (byArtist[aid] ??= []).add(r);
     }
     return byArtist.map((id, rs) => MapEntry(id, _agg(rs)));
+  }
+
+  @override
+  Future<Map<int, int>> ratingDistribution(String providerId) async {
+    final out = {5: 0, 4: 0, 3: 0, 2: 0, 1: 0};
+    for (final r in _forProvider(providerId)) {
+      final star = (r['rating'] as num).round();
+      if (out.containsKey(star)) out[star] = out[star]! + 1;
+    }
+    return out;
   }
 
   RatingAgg _agg(List<Map<String, dynamic>> rs) {

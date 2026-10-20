@@ -161,7 +161,7 @@ void main() {
             if (hidden) 'moderationStatus': 'hidden',
           });
 
-      Future<Map> summary({int page = 1}) async {
+      Future<Map<String, dynamic>> summary({int page = 1}) async {
         final res = await me_reviews.onRequest(
           ctx(
             Request(
@@ -172,7 +172,8 @@ void main() {
           ),
         );
         expect(res.statusCode, HttpStatus.ok);
-        return (await res.json() as Map)['summary'] as Map;
+        return ((await res.json() as Map)['summary'] as Map)
+            .cast<String, dynamic>();
       }
 
       test('60 reviews, a page of 20: the summary counts the 60', () async {

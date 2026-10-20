@@ -1770,11 +1770,15 @@ void main() {
     test(
       'ratingDistribution: per star, visible only (salon-reviews-summary)',
       () async {
+        // `reviews.provider_id` references a real salon, and the shared
+        // fixture salon carries other tests' reviews: measure the change.
         final r = PostgresReviewsRepository(pool);
+        final before = await r.ratingDistribution('provider1');
+        expect(before.keys.toSet(), {5, 4, 3, 2, 1});
         Map<String, dynamic> one(String appt, int rating) => {
           'id': 'rev_dist_$appt',
           'appointmentId': 'dist_$appt',
-          'providerId': 'provider_dist',
+          'providerId': 'provider1',
           'userId': 'u_dist_$appt',
           'userName': 'U',
           'rating': rating,
@@ -1794,14 +1798,18 @@ void main() {
           ),
           parameters: {'a': 'dist_4'},
         );
-        expect(await r.ratingDistribution('provider_dist'), {
-          5: 2,
-          4: 0,
-          3: 0,
-          2: 1,
-          1: 0,
-        });
-        expect(await r.ratingDistribution('provider_none'), {
+        final after = await r.ratingDistribution('provider1');
+        expect(
+          {for (final k in after.keys) k: after[k]! - before[k]!},
+          {
+            5: 2,
+            4: 0,
+            3: 0,
+            2: 1,
+            1: 0, // hidden: counts nowhere
+          },
+        );
+        expect(await r.ratingDistribution('no-such-salon'), {
           5: 0,
           4: 0,
           3: 0,
