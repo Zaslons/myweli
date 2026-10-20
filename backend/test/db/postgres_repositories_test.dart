@@ -21,6 +21,7 @@ import 'package:myweli_backend/src/db/postgres_clients_repository.dart';
 import 'package:myweli_backend/src/db/postgres_device_token_repository.dart';
 import 'package:myweli_backend/src/db/postgres_favorites_repository.dart';
 import 'package:myweli_backend/src/db/postgres_membership_repository.dart';
+import 'package:myweli_backend/src/db/postgres_notification_prefs_repository.dart';
 import 'package:myweli_backend/src/db/postgres_notifications_repository.dart';
 import 'package:myweli_backend/src/db/postgres_provider_audit_repository.dart';
 import 'package:myweli_backend/src/db/postgres_provider_auth_repository.dart';
@@ -1329,6 +1330,25 @@ void main() {
     );
   });
 
+  group(
+    'PostgresNotificationPrefsRepository — emailAlerts (migration 0039)',
+    () {
+      // docs/design/salon-email-alerts.md: on by default; merges like the rest.
+      test('default on; an update merges and keeps the others', () async {
+        final repo = PostgresNotificationPrefsRepository(pool);
+        final id = 'prefs-${DateTime.now().microsecondsSinceEpoch}';
+        expect((await repo.get(id)).emailAlerts, isTrue);
+        var p = await repo.update(id, emailAlerts: false);
+        expect(p.emailAlerts, isFalse);
+        expect(p.push, isTrue);
+        p = await repo.update(id, push: false);
+        expect(p.emailAlerts, isFalse, reason: 'preserved');
+        expect((await repo.get(id)).emailAlerts, isFalse);
+        await repo.deleteForUser(id);
+      });
+    },
+  );
+
   group('PostgresClientVersionRepository (migration 0032)', () {
     test('the migration seeds four rows, all with NO floor', () async {
       // The mechanism must be inert on the day it ships. If this fails, a
@@ -1767,6 +1787,58 @@ void main() {
       },
     );
 
+    test(
+      'ratingDistribution: per star, visible only (salon-reviews-summary)',
+      () async {
+        // `reviews.provider_id` references a real salon, and the shared
+        // fixture salon carries other tests' reviews: measure the change.
+        final r = PostgresReviewsRepository(pool);
+        final before = await r.ratingDistribution('provider1');
+        expect(before.keys.toSet(), {5, 4, 3, 2, 1});
+        Map<String, dynamic> one(String appt, int rating) => {
+          'id': 'rev_dist_$appt',
+          'appointmentId': 'dist_$appt',
+          'providerId': 'provider1',
+          'userId': 'u_dist_$appt',
+          'userName': 'U',
+          'rating': rating,
+          'text': 'ok',
+          'verified': true,
+          'photoUrls': const <String>[],
+          'createdAt': DateTime.utc(2030, 7, 1).toIso8601String(),
+        };
+        await r.upsertByAppointment(one('1', 5));
+        await r.upsertByAppointment(one('2', 5));
+        await r.upsertByAppointment(one('3', 2));
+        await r.upsertByAppointment(one('4', 1));
+        await pool.execute(
+          Sql.named(
+            "UPDATE reviews SET moderation_status = 'hidden' "
+            'WHERE appointment_id = @a',
+          ),
+          parameters: {'a': 'dist_4'},
+        );
+        final after = await r.ratingDistribution('provider1');
+        expect(
+          {for (final k in after.keys) k: after[k]! - before[k]!},
+          {
+            5: 2,
+            4: 0,
+            3: 0,
+            2: 1,
+            1: 0, // hidden: counts nowhere
+          },
+        );
+        expect(await r.ratingDistribution('no-such-salon'), {
+          5: 0,
+          4: 0,
+          3: 0,
+          2: 0,
+          1: 0,
+        });
+      },
+    );
+
     test('reviewByAppointment finds a HIDDEN review too', () async {
       // The moderation filter every other read carries would be wrong here: a
       // hidden review still owns its photo objects, so filtering it out makes
@@ -1864,6 +1936,29 @@ void main() {
         expect(await r.tokensForUser('dtu2'), isEmpty);
       },
     );
+
+    test('devicesForUser returns each token with its platform', () async {
+      // docs/design/web-pro-browser-push.md §4: the notifier tells the app
+      // from browsers by this column.
+      final r = PostgresDeviceTokenRepository(pool);
+      await r.upsert(
+        token: 'tok-web',
+        userId: 'dtu3',
+        role: 'provider',
+        platform: 'web',
+      );
+      await r.upsert(
+        token: 'tok-and',
+        userId: 'dtu3',
+        role: 'provider',
+        platform: 'android',
+      );
+      expect((await r.devicesForUser('dtu3')).toSet(), {
+        (token: 'tok-web', platform: 'web'),
+        (token: 'tok-and', platform: 'android'),
+      });
+      await r.deleteForUser('dtu3');
+    });
 
     test('removing a token that is already gone is a no-op', () async {
       // The prune loop can race two fan-outs to the same user.

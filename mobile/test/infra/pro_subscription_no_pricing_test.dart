@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
+import '../support/dart_source.dart';
+
 /// The Pro app never sells — App Store 3.1.1 and 3.1.3(f), on BOTH stores.
 ///
 /// ## Why this file exists
@@ -52,7 +54,7 @@ void main() {
   Map<String, String> readCode() => {
     for (final f in Directory('lib').listSync(recursive: true))
       if (f is File && f.path.endsWith('.dart'))
-        f.path: _stripComments(f.readAsStringSync()),
+        f.path: stripDartComments(f.readAsStringSync()),
   };
 
   group('nothing in the Pro surfaces chooses, promotes or points to an '
@@ -84,7 +86,7 @@ void main() {
       final hits = <String>[
         for (final e in code.entries)
           for (final phrase in removed)
-            if (_asCopy(e.value).contains(_asCopy(phrase)))
+            if (asCopy(e.value).contains(asCopy(phrase)))
               '${e.key}: « $phrase »',
       ];
       expect(
@@ -172,7 +174,7 @@ void main() {
         'final raw = r${q}C:\\$q; // Réactivez votre offre',
         'final mime = ${q}image/*$q; final label = ${q}Vos données$q;',
       ].join('\n');
-      final code = _stripComments(source);
+      final code = stripDartComments(source);
       for (final kept in [
         '${q}https://myweli.com$q',
         ' jours$q;',
@@ -195,7 +197,7 @@ void main() {
 
     test('refuses to guess when it loses track (an unclosed string)', () {
       expect(
-        () => _stripComments('final s = ${q}Choisir mon offre;'),
+        () => stripDartComments('final s = ${q}Choisir mon offre;'),
         throwsStateError,
       );
     });
@@ -209,7 +211,7 @@ void main() {
         'final s = $q3\n// Choisir mon offre\n$q3;',
       ]) {
         expect(
-          _stripComments(line),
+          stripDartComments(line),
           contains('Choisir mon offre'),
           reason: line,
         );
@@ -234,8 +236,8 @@ void main() {
         'final s = ${q}Choisissez$q $q $q ${q}votre offre$q;',
       ]) {
         expect(
-          _asCopy(_stripComments(source)),
-          contains(_asCopy('Choisissez votre offre')),
+          asCopy(stripDartComments(source)),
+          contains(asCopy('Choisissez votre offre')),
           reason: source,
         );
       }
@@ -248,8 +250,8 @@ void main() {
         '${q}Changer d\\${q}offre$q', // an escaped one
       ]) {
         expect(
-          _asCopy(_stripComments('final s = $spelling;')),
-          contains(_asCopy('Changer d’offre')),
+          asCopy(stripDartComments('final s = $spelling;')),
+          contains(asCopy('Changer d’offre')),
           reason: spelling,
         );
       }
@@ -262,149 +264,16 @@ void main() {
         'a ? ${q}Choisir$q : ${q}mon offre$q;',
       ]) {
         expect(
-          _asCopy(_stripComments(source)),
+          asCopy(stripDartComments(source)),
           isNot(contains('Choisirmon offre')),
           reason: source,
         );
         expect(
-          _asCopy(_stripComments(source)),
+          asCopy(stripDartComments(source)),
           isNot(contains('Choisir mon offre')),
           reason: source,
         );
       }
     });
   });
-}
-
-/// The comparable form of comment-free code (or of a phrase): adjacent string
-/// literals joined, and the apostrophe in one spelling.
-///
-/// Joining: the gap between two literals that Dart concatenates is whitespace
-/// or a `+` once comments are gone, so « quote, gap, quote » goes (with a
-/// raw string's `r`). The regex
-/// cannot tell a closing quote from an opening one, and it does not need to:
-/// it only ever REMOVES quote characters and the blanks between them, and no
-/// pinned phrase contains a straight quote — so it can merge text that was
-/// split, never hide text that was whole. Then `’`, `\'` and `'` compare
-/// equal (after the join, so the new straight quotes are not taken for
-/// literal boundaries).
-String _asCopy(String code) => code
-    .replaceAll(RegExp(r'''['"](?:\s+|\s*\+\s*)r?['"]'''), '')
-    .replaceAll(r"\'", "'")
-    .replaceAll('’', "'");
-
-/// Removes `//` line comments (including `///`) and `/* … */` blocks
-/// (nested, as Dart allows), outside string literals. A tiny scanner rather
-/// than a regex, because a regex cannot tell code from string: `https://` in a
-/// string is not a comment, `'image/*'` does not open one, and an
-/// interpolation holds code — quotes included — inside a string. Getting any
-/// of those wrong would strip CODE, the one direction a pin must never err in:
-/// it would pass on a phrase it never saw.
-String _stripComments(String source) {
-  final out = StringBuffer();
-  // The open contexts, innermost last. The bottom one is plain code and is
-  // never popped; a string pushes, a `${` inside a string pushes code again.
-  final stack = <_Ctx>[_Ctx.code(interpolation: false)];
-  final identChar = RegExp(r'[A-Za-z0-9_$]');
-  var i = 0;
-  bool at(String token) => source.startsWith(token, i);
-
-  while (i < source.length) {
-    final ctx = stack.last;
-    final quote = ctx.quote;
-    if (quote != null) {
-      // Inside a string literal.
-      if (at(quote)) {
-        out.write(quote);
-        i += quote.length;
-        stack.removeLast();
-      } else if (!ctx.raw && at(r'\') && i + 1 < source.length) {
-        out.write(source.substring(i, i + 2));
-        i += 2;
-      } else if (!ctx.raw && at(r'${')) {
-        out.write(r'${');
-        i += 2;
-        stack.add(_Ctx.code(interpolation: true));
-      } else {
-        out.write(source[i]);
-        i++;
-      }
-      continue;
-    }
-
-    // Code.
-    if (at('//')) {
-      final end = source.indexOf('\n', i);
-      if (end == -1) break;
-      i = end; // keep the newline
-      continue;
-    }
-    if (at('/*')) {
-      var depth = 0;
-      while (i < source.length) {
-        if (at('/*')) {
-          depth++;
-          i += 2;
-        } else if (at('*/')) {
-          depth--;
-          i += 2;
-          if (depth == 0) break;
-        } else {
-          i++;
-        }
-      }
-      continue;
-    }
-    final raw =
-        at('r') &&
-        (i == 0 || !identChar.hasMatch(source[i - 1])) &&
-        i + 1 < source.length &&
-        (source[i + 1] == "'" || source[i + 1] == '"');
-    final start = i + (raw ? 1 : 0);
-    String? opening;
-    for (final candidate in const ["'''", '"""', "'", '"']) {
-      if (source.startsWith(candidate, start)) {
-        opening = candidate;
-        break;
-      }
-    }
-    if (opening != null) {
-      out.write(source.substring(i, start + opening.length));
-      i = start + opening.length;
-      stack.add(_Ctx.string(opening, raw: raw));
-      continue;
-    }
-    if (ctx.interpolation && at('{')) {
-      ctx.depth++;
-    } else if (ctx.interpolation && at('}')) {
-      if (ctx.depth == 0) {
-        stack.removeLast(); // back into the string
-      } else {
-        ctx.depth--;
-      }
-    }
-    out.write(source[i]);
-    i++;
-  }
-  // Ending inside a string means the scanner lost track somewhere — and a
-  // lost scanner could have stripped code. Fail loudly instead.
-  if (stack.length != 1) {
-    throw StateError(
-      'comment stripper ended inside '
-      '${stack.last.quote ?? 'an interpolation'} — fix the scanner',
-    );
-  }
-  return out.toString();
-}
-
-/// One open context of [_stripComments]: code (the file, or an
-/// interpolation's expression) or a string literal.
-class _Ctx {
-  _Ctx.code({required this.interpolation}) : quote = null, raw = false;
-  _Ctx.string(String this.quote, {required this.raw}) : interpolation = false;
-
-  final String? quote;
-  final bool raw;
-  final bool interpolation;
-  int depth = 0;
 }

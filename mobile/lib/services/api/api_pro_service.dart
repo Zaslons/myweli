@@ -16,6 +16,7 @@ import '../../models/provider.dart';
 import '../../models/provider_session.dart';
 import '../../models/provider_user.dart';
 import '../../models/review.dart';
+import '../../models/review_summary.dart';
 import '../../models/salon_membership_info.dart';
 import '../../models/service.dart';
 import '../interfaces/pro_service_interface.dart';
@@ -172,7 +173,7 @@ class ApiProService implements ProServiceInterface {
   }
 
   @override
-  Future<ApiResponse<List<Review>>> getMyReviews({
+  Future<ApiResponse<MyReviews>> getMyReviews({
     int page = 1,
     int pageSize = 50,
   }) async {
@@ -196,10 +197,20 @@ class ApiProService implements ProServiceInterface {
     );
     if (res == null) return _networkError();
     if (res.statusCode != 200) return _errorFrom(res);
-    final items = (_decode(res.body)['items'] as List? ?? const [])
+    final body = _decode(res.body);
+    final items = (body['items'] as List? ?? const [])
         .map((e) => Review.fromJson(e as Map<String, dynamic>))
         .toList();
-    return ApiResponse.success(items);
+    final summary = body['summary'];
+    return ApiResponse.success(
+      MyReviews(
+        items: items,
+        total: (body['total'] as num? ?? items.length).toInt(),
+        summary: summary is Map<String, dynamic>
+            ? ReviewSummary.fromJson(summary)
+            : null,
+      ),
+    );
   }
 
   @override

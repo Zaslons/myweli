@@ -12,8 +12,8 @@ import '../../../widgets/push/push_blocked_banner.dart';
 /// The salon's notification centre — what the dashboard bell finally opens.
 ///
 /// Fed by the provider-directed events the backend writes for every team
-/// member (new booking · client cancellation · deposit proof —
-/// docs/design/push-notifications-fcm.md §10). A row's route carries its
+/// member (new booking · client reschedule · client cancellation · deposit
+/// proof — docs/design/push-notifications-fcm.md §10). A row's route carries its
 /// `?salon=`, so tapping one from a multi-salon account switches to the right
 /// salon before opening the booking.
 ///
@@ -86,14 +86,24 @@ class _ProNotificationsScreenState extends State<ProNotificationsScreen>
                 AppTheme.spacingM,
                 0,
               ),
-              child: PushBlockedBanner(onOpenSettings: widget.openSettings),
+              // The salon's four events (SalonEvent), and the name its
+              // phone settings list — never the client's « rappels et
+              // confirmations » (promise-honesty-sweep.md T4;
+              // salon-client-reschedule-notify.md N4).
+              child: PushBlockedBanner(
+                onOpenSettings: widget.openSettings,
+                body:
+                    'Autorisez MyWeli Pro dans les réglages de votre téléphone '
+                    'pour être prévenu·e des réservations, reports, '
+                    'annulations et acomptes de vos clients.',
+              ),
             ),
           const Expanded(
             child: NotificationsList(
               emptyTitle: 'Aucune notification',
               emptyDescription:
-                  'Les réservations, annulations et acomptes de vos clients '
-                  'apparaîtront ici.',
+                  'Les réservations, reports, annulations et acomptes de vos '
+                  'clients apparaîtront ici.',
             ),
           ),
         ],

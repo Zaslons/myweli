@@ -1080,6 +1080,17 @@ CREATE TABLE IF NOT EXISTS momo_operators (
           'ON DELETE CASCADE',
     ],
   ),
+  (
+    id: '0039_notification_prefs_email_alerts',
+    statements: [
+      // A salon member's alerts by e-mail when no push of the app reached
+      // them — on by default, like every other preference (owner Q2):
+      // docs/design/salon-email-alerts.md §5. Additive: an older image never
+      // selects it, and its upserts take the default.
+      'ALTER TABLE notification_preferences '
+          'ADD COLUMN IF NOT EXISTS email_alerts boolean NOT NULL DEFAULT true',
+    ],
+  ),
 ];
 
 /// How long a schema-setup statement may **wait for a lock** before giving up.

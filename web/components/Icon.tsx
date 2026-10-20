@@ -57,6 +57,23 @@ export const ICON_PATHS = {
 } as const;
 
 export type IconName = keyof typeof ICON_PATHS;
+
+/// The notification types that have their own glyph (the contract's enum);
+/// `general` and anything unknown get the bell.
+const NOTIFICATION_GLYPHS: readonly string[] = [
+  'bookingConfirmed',
+  'depositReceived',
+  'reminder',
+  'reschedule',
+  'cancellation',
+  'reviewRequest',
+];
+
+/// A notification's glyph by its contract type — shared by the client's
+/// center and the salon's (web-pro-notifications.md §3.3).
+export function notificationIcon(type: string): IconName {
+  return NOTIFICATION_GLYPHS.includes(type) ? (type as IconName) : 'bell';
+}
 export type IconSize = keyof typeof iconSizes;
 
 export function Icon({

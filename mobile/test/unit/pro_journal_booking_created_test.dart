@@ -784,4 +784,31 @@ void main() {
       expect(p.weekCounts, isEmpty);
     });
   });
+
+  // docs/design/web-pro-week-strip.md §6 (owner Q2, 2026-10-19): the week's
+  // dots say the LOAD. The day hides its cancelled bookings by default, so a
+  // day whose only booking was cancelled used to keep its dot and open empty.
+  group('the week dots — cancelled bookings do not count', () {
+    test('another day whose only booking was cancelled has no dot', () async {
+      server.of('p1').addAll([
+        appt(id: 'a1', time: '09:00'),
+        appt(id: 'c1', day: 16, status: 'cancelled'),
+        appt(id: 'f1', day: 17, status: 'pending'),
+        appt(id: 'f2', day: 17, time: '11:00', status: 'cancelled'),
+      ]);
+      final p = await opened();
+      expect(p.weekCounts['2026-07-16'] ?? 0, 0);
+      expect(p.weekCounts['2026-07-17'], 1);
+    });
+
+    test('the displayed day counts its non-cancelled bookings', () async {
+      server.of('p1').addAll([
+        appt(id: 'a1', time: '09:00'),
+        appt(id: 'a2', time: '11:00', status: 'cancelled'),
+        appt(id: 'a3', time: '14:00', status: 'completed'),
+      ]);
+      final p = await opened();
+      expect(p.weekCounts['2026-07-13'], 2);
+    });
+  });
 }

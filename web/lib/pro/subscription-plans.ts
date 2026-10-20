@@ -38,10 +38,15 @@ export const OFFER_CARDS: OfferCard[] = [
     entitlements: [
       'Réservations illimitées',
       'Jusqu’à 5 membres d’équipe',
-      'Rappels automatiques WhatsApp/SMS (24 h / 2 h)',
+      // The channel production runs: messaging is off until company
+      // registration, so reminders reach clients as notifications of the
+      // MyWeli app (docs/design/promise-honesty-sweep.md, T1).
+      'Rappels automatiques à vos clients dans l’app MyWeli (24 h / 2 h)',
       'Règles d’acompte & protection no-show',
       'Photos & galerie avant/après',
-      'Statistiques & gestion des avis',
+      // Reviews are read-only (web and app): no « gestion »
+      // (docs/design/web-pro-profil-support.md).
+      'Statistiques & avis clients',
     ],
     roiLine: ROI_LINE,
   },
@@ -53,7 +58,9 @@ export const OFFER_CARDS: OfferCard[] = [
     entitlements: [
       'Tout de l’offre Pro',
       'Jusqu’à 15 membres d’équipe',
-      'Support prioritaire dédié',
+      // Answered first — no promise of a dedicated person; the « Aide &
+      // Support » row is on every Profil (web-pro-profil-support.md).
+      'Support prioritaire',
     ],
   },
   {
@@ -74,8 +81,10 @@ export const TRIAL_KEPT_LINE =
   'Le changement d’offre conserve votre période d’essai.';
 
 export const SETUP_HEADLINE = `Choisissez votre offre — ${TRIAL_MONTHS} mois offerts`;
+/// Since 2026-10-19 (web-pro-access.md §12): no offer is needed to publish —
+/// the trial starts at go-live, as in the app.
 export const SETUP_SUBLINE =
-  'Votre salon reste gratuit pendant la configuration, mais une offre est nécessaire pour le publier.';
+  'Votre essai de 3 mois démarre à la mise en ligne de votre salon. Vous pouvez choisir ou changer d’offre à tout moment.';
 
 /// The billing-state banner (tokens only: grace = warning, expired = error).
 export function offerBanner(offer: SalonOffer): {

@@ -175,6 +175,13 @@ class ProJournalProvider extends ChangeNotifier implements ShowsSalonBookings {
   // ---- Actions (optimistic-ish: act then refetch the day) ------------------
 
   Future<bool> accept(String id) => _act(() => _service.acceptAppointment(id));
+
+  /// Refuse a PENDING request — the server's `reject` (→ `cancelled`, and the
+  /// client is told « Réservation refusée »). Never `noShow`: « Refuser » used
+  /// to call it, recording the request as the client's absence
+  /// (docs/design/app-journal-refuser.md).
+  Future<bool> reject(String id) =>
+      _act(() => _service.rejectAppointment(id, null));
   Future<bool> complete(String id) =>
       _act(() => _service.markAppointmentComplete(id));
   Future<bool> noShow(String id) => _act(() => _service.markNoShow(id));
@@ -282,6 +289,12 @@ class ProJournalProvider extends ChangeNotifier implements ShowsSalonBookings {
     unawaited(_prefetchWeekCounts(request));
   }
 
+  /// A day's dot: its bookings that are not cancelled. The day hides those
+  /// by default, so counting them left a dot on a day that opens empty
+  /// (docs/design/web-pro-week-strip.md §6, owner Q2 — the web counts alike).
+  static int _load(List<Appointment> appointments) =>
+      appointments.where((a) => a.status != AppointmentStatus.cancelled).length;
+
   /// One light 7-day prefetch (module decision §8.2) — fills the week-strip
   /// dots. Best-effort; never blocks the timeline.
   ///
@@ -297,13 +310,13 @@ class ProJournalProvider extends ChangeNotifier implements ShowsSalonBookings {
         final d = monday.add(Duration(days: i));
         final key = keyOf(d);
         if (key == keyOf(_selectedDate) && _day != null) {
-          _weekCounts[key] = _day!.appointments.length;
+          _weekCounts[key] = _load(_day!.appointments);
           continue;
         }
         final r = await _service.getJournalDay(_providerId, d);
         if (request != _request) return;
         if (r.success && r.data != null) {
-          _weekCounts[key] = r.data!.appointments.length;
+          _weekCounts[key] = _load(r.data!.appointments);
         }
       }
       notifyListeners();

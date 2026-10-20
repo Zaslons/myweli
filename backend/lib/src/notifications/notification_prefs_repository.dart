@@ -6,6 +6,7 @@ class NotificationPrefs {
     this.reminders = true,
     this.marketing = true,
     this.push = true,
+    this.emailAlerts = true,
   });
 
   /// 24h/2h appointment reminders.
@@ -17,10 +18,16 @@ class NotificationPrefs {
   /// Device push notifications.
   final bool push;
 
+  /// A salon member's alerts by e-mail, sent only when no push of the app
+  /// reached them (docs/design/salon-email-alerts.md — on by default, owner
+  /// Q2). Meaningless to a client account, which never receives one.
+  final bool emailAlerts;
+
   Map<String, dynamic> toJson() => {
     'reminders': reminders,
     'marketing': marketing,
     'push': push,
+    'emailAlerts': emailAlerts,
   };
 }
 
@@ -34,6 +41,7 @@ abstract interface class NotificationPrefsRepository {
     bool? reminders,
     bool? marketing,
     bool? push,
+    bool? emailAlerts,
   });
   // ---- Privacy (L1 erasure) ------------------------------------------------
 
@@ -55,12 +63,14 @@ class InMemoryNotificationPrefsRepository
     bool? reminders,
     bool? marketing,
     bool? push,
+    bool? emailAlerts,
   }) async {
     final cur = _byUser[userId] ?? const NotificationPrefs();
     final next = NotificationPrefs(
       reminders: reminders ?? cur.reminders,
       marketing: marketing ?? cur.marketing,
       push: push ?? cur.push,
+      emailAlerts: emailAlerts ?? cur.emailAlerts,
     );
     _byUser[userId] = next;
     return next;

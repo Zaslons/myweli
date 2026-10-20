@@ -21,7 +21,7 @@ import { loadFailure, loadFailureMessage, type LoadFailure } from '../../lib/pro
 import { formatDuration, priceRange } from '../../lib/format';
 import {
   type DayForm,
-  copyDayToAll,
+  copyFormDayToAll,
   daysToSchedule,
   scheduleToDays,
 } from '../../lib/pro/availability';
@@ -654,7 +654,7 @@ function ArtistFormCard({
                 }));
               }}
               onCopyToAll={(idx: number) => {
-                const next = copyDayToAll(hoursDays, idx);
+                const next = copyFormDayToAll(hoursDays, idx);
                 setHoursDays(next);
                 setForm((f) => ({
                   ...f,

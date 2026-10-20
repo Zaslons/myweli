@@ -12,8 +12,8 @@ import * as pro from '../lib/api/pro';
 ///   cannot be read included: never an invented empty list).
 /// - `write`: `ok: false` with status 0 when nothing came back; a 2xx whose
 ///   body is lost is `ok` — the server acted — with no payload.
-/// - `url` / `logout`: their own shapes (`null` / `'offline'`).
-type Kind = 'read' | 'write' | 'url' | 'logout';
+/// - `logout`: its own shape (`'offline'`).
+type Kind = 'read' | 'write' | 'logout';
 
 type Row = {
   name: keyof typeof pro;
@@ -55,7 +55,14 @@ const ROWS: Row[] = [
   { name: 'getClientCard', kind: 'read', call: () => pro.getClientCard('p1', 'c1') },
   { name: 'getClientVisits', kind: 'read', call: () => pro.getClientVisits('p1', 'c1') },
   { name: 'getJournalDay', kind: 'read', call: () => pro.getJournalDay('p1', '2026-10-16') },
-  { name: 'proDepositScreenshotUrl', kind: 'url', call: () => pro.proDepositScreenshotUrl('a1') },
+  // A read like the others since docs/design/web-pro-journal-panel-deposit.md
+  // §5: it used to be `string | null`, and `null` was every failure at once —
+  // the detail page's « Voir le justificatif » did nothing, and said nothing.
+  { name: 'proDepositScreenshotUrl', kind: 'read', call: () => pro.proDepositScreenshotUrl('a1') },
+  // The salon's notification center (web-pro-notifications.md).
+  { name: 'getProNotifications', kind: 'read', call: () => pro.getProNotifications() },
+  // The member's « Alertes par e-mail » (salon-email-alerts.md §4).
+  { name: 'getProNotificationPrefs', kind: 'read', call: () => pro.getProNotificationPrefs() },
   // --- writes --------------------------------------------------------------
   { name: 'requestOtpPro', kind: 'write', noStatus: true, call: () => pro.requestOtpPro('+2250700000000') },
   { name: 'verifyOtpPro', kind: 'write', noStatus: true, call: () => pro.verifyOtpPro('+2250700000000', '1234') },
@@ -67,6 +74,12 @@ const ROWS: Row[] = [
   },
   { name: 'selectSalon', kind: 'write', payload: ['profile'], call: () => pro.selectSalon('s1') },
   { name: 'publishSalon', kind: 'write', call: () => pro.publishSalon('p1') },
+  { name: 'markProNotificationRead', kind: 'write', call: () => pro.markProNotificationRead('n1') },
+  { name: 'markAllProNotificationsRead', kind: 'write', call: () => pro.markAllProNotificationsRead() },
+  { name: 'setProEmailAlerts', kind: 'write', payload: ['prefs'], call: () => pro.setProEmailAlerts(false) },
+  // This browser's notification token (web-pro-browser-push.md §5).
+  { name: 'registerProDevice', kind: 'write', call: () => pro.registerProDevice('tok') },
+  { name: 'unregisterProDevice', kind: 'write', call: () => pro.unregisterProDevice('tok') },
   {
     name: 'submitKyc',
     kind: 'write',
@@ -115,6 +128,12 @@ const ROWS: Row[] = [
   { name: 'saveBeforeAfters', kind: 'write', call: () => pro.saveBeforeAfters('p1', []) },
   { name: 'logoutPro', kind: 'logout', call: () => pro.logoutPro() },
   { name: 'loginProWithGoogle', kind: 'write', noStatus: true, call: () => pro.loginProWithGoogle('t') },
+  {
+    name: 'loginProWithApple',
+    kind: 'write',
+    noStatus: true,
+    call: () => pro.loginProWithApple({ identityToken: 't', nonce: 'n' }),
+  },
   { name: 'requestEmailOtpPro', kind: 'write', call: () => pro.requestEmailOtpPro('a@b.ci') },
   { name: 'verifyEmailOtpPro', kind: 'write', call: () => pro.verifyEmailOtpPro('a@b.ci', '1234') },
   {
@@ -225,9 +244,6 @@ describe('lib/api/pro.ts — no network: every wrapper answers, none throws', ()
         case 'read':
           expect(r).toMatchObject({ status: 0 });
           break;
-        case 'url':
-          expect(r).toBeNull();
-          break;
         case 'logout':
           expect(r).toBe('offline');
           break;
@@ -263,9 +279,6 @@ describe('lib/api/pro.ts — a 2xx whose body cannot be read', () => {
           // Not 200 with an empty list nobody sent: no answer.
           expect(r).toMatchObject({ status: 0 });
           break;
-        case 'url':
-          expect(r).toBeNull();
-          break;
         case 'logout':
           expect(r).toBe('ok');
           break;
@@ -299,6 +312,22 @@ describe('lib/api/pro.ts — an answer is still read as before', () => {
     stubFetch(() => new Response('{}', { status: 404 }));
     expect(await pro.getSalonSubscription('p1')).toEqual({ status: 404 });
     expect(await pro.getClientCard('p1', 'c1')).toEqual({ status: 404 });
+  });
+
+  it('the deposit screenshot: its URL, its refusal, and a 200 without a URL', async () => {
+    // docs/design/web-pro-journal-panel-deposit.md §5 — the screen tells a
+    // cut connection (status 0) from a refusal (any other status), so the
+    // wrapper must keep them apart. A 200 that names no URL is nothing usable:
+    // status 0, like any other unreadable 2xx.
+    stubFetch(() => new Response('{"url":"https://r2.test/p.jpg"}', { status: 200 }));
+    expect(await pro.proDepositScreenshotUrl('a1')).toEqual({
+      status: 200,
+      url: 'https://r2.test/p.jpg',
+    });
+    stubFetch(() => new Response('{"error":"not_found"}', { status: 404 }));
+    expect(await pro.proDepositScreenshotUrl('a1')).toEqual({ status: 404 });
+    stubFetch(() => new Response('{}', { status: 200 }));
+    expect(await pro.proDepositScreenshotUrl('a1')).toEqual({ status: 0 });
   });
 
   it('a refused write keeps its status and code', async () => {

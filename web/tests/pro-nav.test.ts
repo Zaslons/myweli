@@ -47,20 +47,21 @@ const labels = (m: Membership | null | undefined) =>
   navForMembership(m).map((e) => e.label);
 
 describe('navForMembership', () => {
-  it('owner → the full 10-entry sidebar', () => {
+  it('owner → the full 11-entry sidebar', () => {
     expect(labels(membership('owner', OWNER_CAPS))).toEqual(
       PRO_NAV.map((e) => e.label),
     );
   });
 
   it('LEGACY null membership → owner-shaped (full sidebar)', () => {
-    expect(labels(null)).toHaveLength(10);
-    expect(labels(undefined)).toHaveLength(10);
+    expect(labels(null)).toHaveLength(11);
+    expect(labels(undefined)).toHaveLength(11);
   });
 
   it('manager → no Équipe / Revenus / Abonnement', () => {
     expect(labels(membership('manager', MANAGER_CAPS))).toEqual([
       'Aujourd’hui',
+      'Notifications',
       'Rendez-vous',
       'Clients',
       'Catalogue',
@@ -73,15 +74,20 @@ describe('navForMembership', () => {
   it('réception → planning + clients + profil only', () => {
     expect(labels(membership('reception', RECEPTION_CAPS))).toEqual([
       'Aujourd’hui',
+      'Notifications',
       'Rendez-vous',
       'Clients',
       'Profil',
     ]);
   });
 
-  it('staff (Collaborateur) → the minimal three', () => {
+  it('staff (Collaborateur) → the minimal four', () => {
+    // « Notifications » is for EVERY role: each member has a feed (the
+    // server filters a Collaborateur's to their own artist —
+    // docs/design/web-pro-notifications.md §3.1).
     expect(labels(membership('staff', STAFF_CAPS))).toEqual([
       'Aujourd’hui',
+      'Notifications',
       'Rendez-vous',
       'Profil',
     ]);

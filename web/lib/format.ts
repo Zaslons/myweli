@@ -20,7 +20,16 @@ const fcfa = new Intl.NumberFormat('fr-FR');
 const frPlural = new Intl.PluralRules('fr-FR');
 
 export function countFr(n: number, one: string, other: string): string {
-  return `${n} ${frPlural.select(n) === 'one' ? one : other}`;
+  // U+00A0: « 3 » and « étapes » never part at the end of a line (French
+  // typography's no-break space between a number and its noun).
+  return `${n}\u00a0${pluralFr(n, one, other)}`;
+}
+
+/// The word alone, agreed with [n] — the twin of mobile's
+/// `Formatters.plural` (« 3 étapes sur 8 terminées »: the participle agrees
+/// with the count it does not print).
+export function pluralFr(n: number, one: string, other: string): string {
+  return frPlural.select(n) === 'one' ? one : other;
 }
 
 /// XOF and XAF (the two CFA francs) both read « FCFA » — the colloquial name

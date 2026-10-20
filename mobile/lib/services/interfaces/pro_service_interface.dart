@@ -7,7 +7,7 @@ import '../../models/payment.dart';
 import '../../models/pro_membership.dart';
 import '../../models/provider.dart';
 import '../../models/provider_user.dart';
-import '../../models/review.dart';
+import '../../models/review_summary.dart';
 import '../../models/salon_membership_info.dart';
 import '../../models/service.dart';
 
@@ -120,7 +120,9 @@ abstract class ProServiceInterface {
   /// public route stops serving a salon that is `draft` or `suspended`
   /// (Decision C), and a draft salon can hold reviews — T53 erasure and T54
   /// billing unpublish both write `status → draft` over a salon with history.
-  Future<ApiResponse<List<Review>>> getMyReviews({int page, int pageSize});
+  /// A page of the salon's reviews WITH the whole salon's card
+  /// (docs/design/salon-reviews-summary.md).
+  Future<ApiResponse<MyReviews>> getMyReviews({int page, int pageSize});
 
   /// « Mes salons » (module `access` R6 — GET /me/salons): every salon the
   /// account belongs to (owned first) + the server-computed add gate.

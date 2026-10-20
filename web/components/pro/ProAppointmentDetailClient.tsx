@@ -15,12 +15,12 @@ import {
   arriveAppointment,
   getProAppointment,
   proAction,
-  proDepositScreenshotUrl,
 } from "../../lib/api/pro";
 import { formatDateTimeFr, formatFcfa } from "../../lib/format";
 import {
   type LifecycleAction,
   actionsForMembership,
+  hasStarted,
 } from "../../lib/pro/lifecycle";
 import { hasCap } from "../../lib/pro/team";
 import {
@@ -41,9 +41,34 @@ import {
 import { Button } from "../Button";
 import { Loading } from "../Loading";
 import { conflictMessage } from "../../lib/booking/window";
+import { useOptionalProMembership } from "./ProMembershipContext";
+import { agendaParams } from "../../lib/pro/agenda-url";
+import { NoShowAction } from "./NoShowAction";
+import { ProDepositProof } from "./ProDepositProof";
 
-export function ProAppointmentDetailClient({ id }: { id: string }) {
+/// The switches this page already made, by `id:salon` — so a server that does
+/// not take one cannot send the page round in circles (each switch remounts
+/// it). Cleared once the page loads under that salon.
+const switchedFor = new Set<string>();
+
+/// The sentence « Mes salons » says when a switch is refused.
+const SWITCH_REFUSED =
+  "Changement impossible — votre accès à ce salon a peut-être été retiré.";
+
+/// [salon] — `?salon=` from a notification about ANOTHER of the account's
+/// salons (R6): the page switches to it before loading, the app's flow
+/// (`ProAppointmentDetailScreen(salonId:)`;
+/// docs/design/web-pro-notifications.md §3.4).
+export function ProAppointmentDetailClient({
+  id,
+  salon,
+}: {
+  id: string;
+  salon?: string;
+}) {
   const router = useRouter();
+  const switchSalon = useOptionalProMembership()?.switchSalon;
+  const [switchError, setSwitchError] = useState<LoadFailure | false>(false);
   const [profile, setProfile] = useState<ProProfile | null>(null);
   const [appt, setAppt] = useState<ProAppointment | null>(null);
   const [loading, setLoading] = useState(true);
@@ -51,11 +76,18 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
   const [loadError, setLoadError] = useState<LoadFailure | false>(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [confirm, setConfirm] = useState<LifecycleAction | null>(null);
-  const [proofUrl, setProofUrl] = useState<string | null>(null);
+  // « ← Rendez-vous » returns to the agenda the salon came from — its view
+  // and day ride on this page's address (docs/design/web-pro-agenda-url.md
+  // §2.2), validated, never copied. Read after mount: the server render has
+  // no address, and a link that differed between the two would not hydrate.
+  const [backQuery, setBackQuery] = useState("");
+  useEffect(() => {
+    setBackQuery(agendaParams(window.location.search));
+  }, []);
 
   const load = useCallback(async () => {
     setLoadError(false);
+    setSwitchError(false);
     setNotFound(false);
     setLoading(true);
     const me = await getMyProvider();
@@ -72,6 +104,27 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
       setLoadError(loadFailure(me.status));
       setLoading(false);
       return;
+    }
+    // Another salon's booking: switch first. A successful switch re-keys the
+    // dashboard, so this page remounts and loads again under that salon.
+    if (salon && switchSalon) {
+      const key = `${id}:${salon}`;
+      if (me.profile.provider.id !== salon) {
+        // Already switched once and still elsewhere: the server did not take
+        // it — say so rather than switch again.
+        let outcome: "switched" | LoadFailure = "failed";
+        if (!switchedFor.has(key)) {
+          switchedFor.add(key);
+          outcome = await switchSalon(salon);
+        }
+        if (outcome !== "switched") {
+          switchedFor.delete(key);
+          setSwitchError(outcome);
+          setLoading(false);
+        }
+        return;
+      }
+      switchedFor.delete(key);
     }
     setProfile(me.profile);
     const r = await getProAppointment(id);
@@ -90,7 +143,7 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
     }
     setAppt(r.appt);
     setLoading(false);
-  }, [id, router]);
+  }, [id, router, salon, switchSalon]);
 
   useEffect(() => {
     load();
@@ -141,7 +194,6 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
   async function run(action: LifecycleAction) {
     setBusy(true);
     setError(null);
-    setConfirm(null);
     const r = await proAction(id, action);
     setBusy(false);
     if (!r.ok) {
@@ -156,6 +208,15 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
   }
 
   if (loading) return <Loading className="mt-l" />;
+  if (switchError) {
+    return (
+      <ErrorState
+        title="Rendez-vous"
+        message={loadFailureMessage(switchError, SWITCH_REFUSED)}
+        onRetry={load}
+      />
+    );
+  }
   if (loadError || !profile) {
     return (
       <ErrorState
@@ -175,7 +236,7 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
           Rendez-vous introuvable.
         </p>
         <p className="mt-m">
-          <Link href="/pro/rendez-vous" className="text-bodyMedium underline">
+          <Link href={`/pro/rendez-vous${backQuery}`} className="text-bodyMedium underline">
             ← Rendez-vous
           </Link>
         </p>
@@ -192,15 +253,22 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
     (appt.serviceIds ?? []).map(serviceName).filter(Boolean).join(", ") || "—";
   // Team access R5b: the role-shaped action set (staff = Terminé/Absent on
   // their own confirmed bookings; the server enforces T40 regardless).
+  // « Absent » only once the start is past (web-pro-journal-panel-deposit.md
+  // §2.2 — the app's rule; the server has none).
   const membership = profile.membership;
-  const actions = actionsForMembership(appt.status, membership);
+  const actions = actionsForMembership(appt.status, membership, {
+    started: hasStarted(appt.appointmentDate),
+  });
   const canManageAll = hasCap(membership, "journal.manage.all");
   const canViewClients = hasCap(membership, "clients.view");
+  // The screenshot is signed for the whole-journal roles only
+  // (deposit_service.dart) — a Collaborateur sees the amount alone.
+  const canViewDeposit = hasCap(membership, "journal.view.all");
 
   return (
     <div>
       <Link
-        href="/pro/rendez-vous"
+        href={`/pro/rendez-vous${backQuery}`}
         className="text-bodyMedium text-textTertiary"
       >
         ← Rendez-vous
@@ -263,30 +331,18 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
           ) : null}
         </dl>
 
-        {appt.depositScreenshotUrl ? (
-          <div className="mt-m">
-            {proofUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={proofUrl}
-                alt="Justificatif d’acompte"
-                className="max-h-80 rounded-lg border border-border"
-              />
-            ) : (
-              <Button
-                variant="secondary"
-                onClick={async () =>
-                  setProofUrl(await proDepositScreenshotUrl(id))
-                }
-              >
-                Voir le justificatif
-              </Button>
-            )}
+        {/* The panel's block (web-pro-journal-panel-deposit.md §2.3): it
+            loads by itself and a failure says so. It used to wait behind
+            « Voir le justificatif », and a failed load did nothing at all. */}
+        {appt.depositAmount ? (
+          <div className="mt-s">
+            <ProDepositProof
+              appointmentId={appt.id}
+              hasProof={!!appt.depositScreenshotUrl}
+              pending={appt.status === "pending"}
+              canView={canViewDeposit}
+            />
           </div>
-        ) : appt.depositAmount ? (
-          <p className="mt-s text-bodySmall text-textTertiary">
-            Justificatif d’acompte non reçu.
-          </p>
         ) : null}
 
         {error ? (
@@ -298,34 +354,20 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
         {actions.length > 0 ? (
           <div className="mt-l flex flex-wrap gap-s">
             {actions.map((a) =>
-              confirm === a.action ? (
-                <div
+              a.confirm ? (
+                <NoShowAction
                   key={a.action}
-                  className="w-full rounded-lg bg-surface p-m"
-                >
-                  <p className="text-bodyMedium text-textSecondary">
-                    {a.confirm}
-                  </p>
-                  <div className="mt-s flex gap-s">
-                    <Button
-                      variant="secondary"
-                      onClick={() => setConfirm(null)}
-                    >
-                      Annuler
-                    </Button>
-                    <Button disabled={busy} onClick={() => run(a.action)}>
-                      Confirmer
-                    </Button>
-                  </div>
-                </div>
+                  label={a.label}
+                  depositAmount={appt.depositAmount}
+                  busy={busy}
+                  onConfirm={() => run(a.action)}
+                />
               ) : (
                 <Button
                   key={a.action}
                   variant={a.variant}
                   disabled={busy}
-                  onClick={() =>
-                    a.confirm ? setConfirm(a.action) : run(a.action)
-                  }
+                  onClick={() => run(a.action)}
                 >
                   {a.label}
                 </Button>

@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  WEEKDAYS_SHORT,
   addMonths,
   anchorKey,
   dateKey,
@@ -10,8 +11,6 @@ import {
 } from '../../lib/pro/agenda';
 import type { ProAppointment } from '../../lib/pro/today';
 import { Button } from '../Button';
-
-const WEEKDAYS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 
 /// Month grid (Monday-start) — mirrors the app's calendar view: today + days with
 /// bookings are marked; clicking a day selects it. Cell identity is anchor
@@ -52,7 +51,7 @@ export function MonthCalendar({
       </div>
 
       <div className="mt-m grid grid-cols-7 gap-xs text-center text-bodySmall text-textTertiary">
-        {WEEKDAYS.map((d) => (
+        {WEEKDAYS_SHORT.map((d) => (
           <div key={d}>{d}</div>
         ))}
       </div>

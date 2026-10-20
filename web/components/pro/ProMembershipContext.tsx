@@ -19,6 +19,7 @@ import {
   logoutPro,
   selectSalon,
 } from '../../lib/api/pro';
+import { signOutPro } from '../../lib/pro/sign-out';
 import {
   type GateExitReason,
   type Membership,
@@ -214,7 +215,7 @@ export function ProMembershipProvider({ children }: { children: ReactNode }) {
   const signOutRevoked = useCallback(
     async (reason?: GateExitReason) => {
       const landing = revokedLanding(reason);
-      const outcome = await logoutPro();
+      const outcome = await signOutPro();
       if (outcome === 'ok') {
         signedOut.current = true;
         router.replace(landing);
@@ -438,9 +439,22 @@ export function ProMembershipProvider({ children }: { children: ReactNode }) {
 
   const switchSalon = useCallback(
     async (salonId: string) => {
+      // A /me already out was asked for the salon BEFORE this switch: its
+      // answer must not land after the switch commits and put the rail back
+      // on the old salon while the server acts for the new one. Bumping the
+      // probe sequence retires it — before the select (probes already out)
+      // and after it (one that left while the select was in flight). Found
+      // when a notification's `?salon=` switched during the page-load probe
+      // (docs/design/web-pro-notifications.md §3.4).
+      probeSeq.current++;
       const r = await selectSalon(salonId);
+      probeSeq.current++;
       if (r.ok && r.profile) {
         commitProfile(r.profile);
+        // The probe this switch retired may have been the first one — the
+        // one that ends the initial loading. A switch that commits a profile
+        // ends it too, or the rail would wait in its skeleton for ever.
+        setLoading(false);
         // Re-key the page subtree: every page client remounts and refetches
         // for the new salon (zero per-page wiring).
         setSwitchEpoch((e) => e + 1);

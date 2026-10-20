@@ -7,9 +7,19 @@ import { useEffect, useState } from 'react';
 import { getMyProvider, saveAvailability } from '../../lib/api/pro';
 import { loadFailure, loadFailureMessage, type LoadFailure } from '../../lib/pro/load-failure';
 import { DayHoursEditor } from './DayHoursEditor';
+import { BlockedDatesDialog, dayLabel } from './BlockedDatesDialog';
+import { WeekRangesEditor } from './WeekRangesEditor';
+import { Modal } from '../Modal';
+import { writeFailureMessage } from '../../lib/api/network';
 import {
   type Availability,
+  type BlockedChange,
   type DayForm,
+  type DayRanges,
+  applyBlockedChange,
+  blockedConfirm,
+  blockedDayKey,
+  blockedSavedSummary,
   BUFFER_PRESETS,
   CRENEAUX_COPY,
   HORIZON_PRESETS,
@@ -26,7 +36,6 @@ import {
   toEditable,
   validateHours,
 } from '../../lib/pro/availability';
-import { formatDateFr } from '../../lib/format';
 import { Button } from '../Button';
 import { SkeletonRows } from '../Skeleton';
 import { ChipButton } from '../Chip';
@@ -39,7 +48,8 @@ export function DisponibilitesClient() {
   const router = useRouter();
   const [providerId, setProviderId] = useState('');
   const [base, setBase] = useState<Availability | null>(null);
-  const [days, setDays] = useState<DayForm[]>([]);
+  const [days, setDays] = useState<DayRanges[]>([]);
+  const [tz, setTz] = useState<string | undefined>(undefined);
   // Audit 3.8: « Pauses » — one recurring break per day (ex. déjeuner);
   // hatches the journal grid and blocks slots.
   const [breakDays, setBreakDays] = useState<DayForm[]>([]);
@@ -48,7 +58,13 @@ export function DisponibilitesClient() {
   const [horizon, setHorizon] = useState(DEFAULT_HORIZON_DAYS);
   const [notice, setNotice] = useState(DEFAULT_NOTICE_MINUTES);
   const [blocked, setBlocked] = useState<string[]>([]);
-  const [newDate, setNewDate] = useState('');
+  // The blocked dates write ON THEIR OWN (the app's flow, §2.2): the dialog,
+  // the per-row « Débloquer » and its confirm, and the line after a write.
+  const [datesOpen, setDatesOpen] = useState(false);
+  const [unblock, setUnblock] = useState<string | null>(null);
+  const [unblockError, setUnblockError] = useState<string | null>(null);
+  const [unblockBusy, setUnblockBusy] = useState(false);
+  const [datesStatus, setDatesStatus] = useState('');
   const [loading, setLoading] = useState(true);
   const [reloadKey, setReloadKey] = useState(0);
   const [loadError, setLoadError] = useState<LoadFailure | false>(false);
@@ -78,6 +94,7 @@ export function DisponibilitesClient() {
           bufferMinutes: 0,
         };
       setProviderId(me.profile.provider.id);
+      setTz(me.profile.provider.timezone ?? undefined);
       setBase(a);
       setDays(toEditable(a));
       setBreakDays(scheduleToDays(a?.breaks, { start: '12:30', end: '13:30' }));
@@ -97,9 +114,37 @@ export function DisponibilitesClient() {
     setSaved(false);
   }
 
-  function patchDay(i: number, patch: Partial<DayForm>) {
-    setDays((ds) => ds.map((d, idx) => (idx === i ? { ...d, ...patch } : d)));
+  function setDay(i: number, day: DayRanges) {
+    setDays((ds) => ds.map((d, idx) => (idx === i ? day : d)));
     setSaved(false);
+  }
+
+  /// Writes the DATES only (§2.2): from the last SAVED document — hours,
+  /// breaks, window, buffer as the server has them — so a staged hours edit is
+  /// neither written nor lost; it still waits for « Enregistrer ». Resolves to
+  /// an error sentence, or null.
+  async function writeBlocked(change: BlockedChange): Promise<string | null> {
+    if (!base) return 'L’enregistrement a échoué. Réessayez.';
+    const next: Availability = {
+      ...base,
+      blockedDates: applyBlockedChange(base.blockedDates ?? [], change, tz),
+    };
+    const r = await saveAvailability(providerId, next);
+    if (!r.ok) return writeFailureMessage(r.status, 'L’enregistrement a échoué. Réessayez.');
+    setBase(next);
+    setBlocked(next.blockedDates);
+    setDatesStatus(blockedSavedSummary(change));
+    return null;
+  }
+
+  async function confirmUnblock() {
+    if (!unblock) return;
+    setUnblockBusy(true);
+    setUnblockError(null);
+    const failure = await writeBlocked({ added: [], removed: [unblock] });
+    setUnblockBusy(false);
+    if (failure) setUnblockError(failure);
+    else setUnblock(null);
   }
 
   async function save() {
@@ -155,6 +200,10 @@ export function DisponibilitesClient() {
         <p className="mt-xs text-bodySmall text-textSecondary">
           {CRENEAUX_COPY}
         </p>
+        {/* H5 — the way to the second range, where the pro looks for it. */}
+        <p className="mt-xs text-bodySmall text-textSecondary">
+          Fermé à midi ? Ajoutez une deuxième plage.
+        </p>
         <p className="mt-m text-bodySmall text-textPrimary">Modèles</p>
         <div className="mt-xs flex flex-wrap gap-s">
           {SCHEDULE_PRESETS.map((p) => (
@@ -171,9 +220,9 @@ export function DisponibilitesClient() {
           ))}
         </div>
         <div className="mt-m space-y-s">
-          <DayHoursEditor
+          <WeekRangesEditor
             days={days}
-            onPatch={patchDay}
+            onChange={setDay}
             onCopyToAll={(i) => {
               setDays((d) => copyDayToAll(d, i));
               setSaved(false);
@@ -273,55 +322,85 @@ export function DisponibilitesClient() {
 
       <Card as="section" className="mt-l">
         <h2 className="text-titleLarge font-semibold text-textPrimary">Dates bloquées</h2>
-        <div className="mt-m flex flex-wrap items-center gap-s">
-          <input
-            type="date"
-            aria-label="Date à bloquer"
-            className={inputCls}
-            value={newDate}
-            onChange={(e) => setNewDate(e.target.value)}
-          />
-          <Button
-            variant="secondary"
-            disabled={!newDate || blocked.includes(newDate)}
-            onClick={() => {
-              setBlocked((b) => [...b, newDate].sort());
-              setNewDate('');
-              setSaved(false);
-            }}
-          >
-            Bloquer
-          </Button>
-        </div>
         {blocked.length > 0 ? (
           <ul className="mt-m space-y-xs">
-            {blocked.map((date) => (
-              <li
-                key={date}
-                className="flex items-center justify-between gap-m text-bodyMedium"
-              >
-                <span className="text-textPrimary">
-                  {/* Midday anchor: a blocked DATE is a salon-day identifier,
-                      stable at any wave offset (multi-pays MP3). */}
-                  {formatDateFr(`${date}T12:00:00.000Z`)}
-                </span>
-                <button
-                  type="button"
-                  className="text-textTertiary underline"
-                  onClick={() => {
-                    setBlocked((b) => b.filter((x) => x !== date));
-                    setSaved(false);
-                  }}
-                >
-                  Retirer
-                </button>
-              </li>
-            ))}
+            {[...blocked]
+              .map((stored) => ({ stored, key: blockedDayKey(stored, tz) }))
+              .sort((a, b) => (a.key ?? a.stored).localeCompare(b.key ?? b.stored))
+              .map(({ stored, key }) => {
+                // An unreadable entry is shown as stored, never thrown on —
+                // the app's format used to crash this list (§1.3).
+                const label = key ? dayLabel(key, tz) : stored;
+                return (
+                  <li key={stored} className="flex items-center justify-between gap-m text-bodyMedium">
+                    <span className="text-textPrimary">{label}</span>
+                    {key ? (
+                      <button
+                        type="button"
+                        aria-label={`Débloquer le ${label}`}
+                        className="min-h-12 text-textTertiary underline"
+                        onClick={() => {
+                          setUnblockError(null);
+                          setUnblock(key);
+                        }}
+                      >
+                        Débloquer
+                      </button>
+                    ) : null}
+                  </li>
+                );
+              })}
           </ul>
         ) : (
           <p className="mt-s text-bodyMedium text-textTertiary">Aucune date bloquée.</p>
         )}
+        <div className="mt-m">
+          <Button variant="secondary" onClick={() => setDatesOpen(true)}>
+            Gérer les dates bloquées
+          </Button>
+        </div>
+        {/* The app's snackbar after a write, as a persistent status line. */}
+        <p role="status" className={datesStatus ? 'mt-s text-bodyMedium text-textSecondary' : 'sr-only'}>
+          {datesStatus}
+        </p>
       </Card>
+
+      {datesOpen ? (
+        <BlockedDatesDialog
+          blocked={blocked}
+          tz={tz}
+          onClose={() => setDatesOpen(false)}
+          onSave={async (change) => {
+            const failure = await writeBlocked(change);
+            if (!failure) setDatesOpen(false);
+            return failure;
+          }}
+        />
+      ) : null}
+
+      {unblock ? (
+        (() => {
+          const c = blockedConfirm({ added: [], removed: [unblock] }, (k) => dayLabel(k, tz));
+          return (
+            <Modal title={c.title} onClose={() => !unblockBusy && setUnblock(null)}>
+              <p className="mt-s text-bodyMedium text-textSecondary">{c.lines[0]}</p>
+              <div className="mt-l flex flex-wrap justify-end gap-s">
+                <Button variant="secondary" disabled={unblockBusy} onClick={() => setUnblock(null)}>
+                  Annuler
+                </Button>
+                <Button isLoading={unblockBusy} onClick={confirmUnblock}>
+                  {c.confirm}
+                </Button>
+              </div>
+              {unblockError ? (
+                <p role="alert" className="mt-s text-bodyMedium text-error">
+                  {unblockError}
+                </p>
+              ) : null}
+            </Modal>
+          );
+        })()
+      ) : null}
 
       {error ? <p role="alert" className="mt-m text-bodyMedium text-error">{error}</p> : null}
       <p

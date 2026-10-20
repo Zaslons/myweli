@@ -9,6 +9,7 @@ import 'package:myweli_backend/src/auth/principal.dart';
 import 'package:myweli_backend/src/http/body_fields.dart';
 import 'package:myweli_backend/src/messaging/booking_notifier.dart';
 import 'package:myweli_backend/src/messaging/messaging_models.dart';
+import 'package:myweli_backend/src/messaging/salon_notifier.dart';
 import 'package:myweli_backend/src/responses.dart';
 
 /// `POST /appointments/{id}/reschedule` — move a booking to a new time.
@@ -16,6 +17,11 @@ import 'package:myweli_backend/src/responses.dart';
 /// their own booking; a `provider` reschedules one of its own salon's bookings
 /// (ownership by linked `providerId`). Both re-validate the new slot; deposit +
 /// balance carry over unchanged.
+///
+/// Notifications: the client always hears (`BookingNotifier` « Rendez-vous
+/// reporté »). The SALON hears only when the CLIENT moved it — with the slot it
+/// left (docs/design/salon-client-reschedule-notify.md §2); a salon moving its
+/// own booking never notifies itself, the rule manual bookings already follow.
 Future<Response> onRequest(RequestContext context, String id) async {
   final principal = principalOf(context);
   if (principal == null) {
@@ -41,6 +47,8 @@ Future<Response> onRequest(RequestContext context, String id) async {
 
   final lifecycle = context.read<AppointmentLifecycleService>();
   final LifecycleResult result;
+  // Set on the client's own move only — the one the salon is told about.
+  RescheduleResult? clientMove;
   if (principal.role == 'provider') {
     // Module `access` R1: the acting salon comes from the membership layer;
     // the lifecycle service re-checks it against the appointment.
@@ -66,7 +74,12 @@ Future<Response> onRequest(RequestContext context, String id) async {
       artistId: artistId,
     );
   } else {
-    result = await lifecycle.reschedule(id, principal.userId, newDateTime);
+    final move = clientMove = await lifecycle.reschedule(
+      id,
+      principal.userId,
+      newDateTime,
+    );
+    result = (ok: move.ok, error: move.error, appointment: move.appointment);
   }
   if (result.ok) {
     unawaited(
@@ -75,6 +88,15 @@ Future<Response> onRequest(RequestContext context, String id) async {
         MessageTemplate.rescheduled,
       ),
     );
+    if (clientMove != null) {
+      unawaited(
+        context.read<SalonNotifier>().notify(
+          result.appointment,
+          SalonEvent.clientRescheduled,
+          previousAppointmentDate: clientMove.previousAppointmentDate,
+        ),
+      );
+    }
     return Response.json(body: result.appointment);
   }
   switch (result.error) {

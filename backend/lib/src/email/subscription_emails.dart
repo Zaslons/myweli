@@ -1,7 +1,15 @@
 /// Branded subscription-lifecycle emails (the OTP template family —
 /// docs/design/team-access-r2a-offers.md). French copy; no PII beyond the
 /// salon's own name.
+///
+/// That name is the salon's to write — a Manager can rename it
+/// (`profile.manage`) — and these notices land in the OWNER's inbox
+/// (threat T73): the HTML escapes it, the plain text keeps it as written.
 library;
+
+import 'dart:convert';
+
+const _text = HtmlEscape(HtmlEscapeMode.element);
 
 /// The five notice kinds the scheduler sends, in escalation order.
 abstract final class SubscriptionNotice {
@@ -51,22 +59,25 @@ String renderSubscriptionNoticeText(String kind, String salonName) =>
     'Nous contacter : https://myweli.com\n\n'
     'MyWeli Pro — votre salon, en ligne.';
 
+/// The OTP e-mail's frame (`renderOtpEmailHtml`): a full-width card capped
+/// at 440px, padding on the cells — a fixed `width="440"` card plus its
+/// padding scrolled sideways on a phone (seen at 310px).
 String renderSubscriptionNoticeHtml(String kind, String salonName) {
-  final body = _noticeBody(kind, salonName);
+  final body = _text.convert(_noticeBody(kind, salonName));
   return '''
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F6F7F9;padding:24px 0;">
-  <tr><td align="center">
-    <table role="presentation" width="440" cellpadding="0" cellspacing="0" style="background:#FFFFFF;border-radius:12px;padding:32px;font-family:Arial,Helvetica,sans-serif;">
-      <tr><td align="center" style="padding-bottom:24px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F6F7F9;">
+  <tr><td align="center" style="padding:24px 12px;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:440px;background:#FFFFFF;border-radius:12px;font-family:Arial,Helvetica,sans-serif;">
+      <tr><td align="center" style="padding:28px 28px 0;">
         <img src="https://myweli.com/brand/myweli_lockup_horizontal_black.png" alt="MyWeli" height="34" style="display:block;">
       </td></tr>
-      <tr><td style="font-size:15px;line-height:22px;color:#1A1A1A;padding-bottom:24px;">
+      <tr><td style="font-size:15px;line-height:22px;color:#1A1A1A;padding:24px 28px 0;">
         $body
       </td></tr>
-      <tr><td align="center" style="padding-bottom:24px;">
+      <tr><td align="center" style="padding:24px 28px 0;">
         <a href="https://myweli.com" style="background:#1A1A1A;color:#FFFFFF;text-decoration:none;padding:12px 24px;border-radius:8px;font-size:14px;display:inline-block;">Nous contacter</a>
       </td></tr>
-      <tr><td style="font-size:12px;line-height:18px;color:#8A8A8A;" align="center">
+      <tr><td style="font-size:12px;line-height:18px;color:#8A8A8A;padding:24px 28px 28px;" align="center">
         MyWeli Pro — votre salon, en ligne.<br>
         <a href="https://myweli.com" style="color:#8A8A8A;">myweli.com</a>
       </td></tr>

@@ -130,12 +130,15 @@ consumer templates and stays untouched).
 | Event | Fired from | Title (FR) |
 |---|---|---|
 | `newBooking` | `POST /appointments` (the client's own booking) | « Nouvelle réservation » |
+| `clientRescheduled` | `POST /appointments/{id}/reschedule` — **the client branch only** (2026-10-19, [salon-client-reschedule-notify.md](salon-client-reschedule-notify.md)); body « Le client a reporté le rendez-vous du {ancienne date} à {heure} au {nouvelle date} à {heure}. », feed type `reschedule` | « Réservation reportée » |
 | `clientCancelled` | `POST /appointments/{id}/cancel` (consumer-owned route) | « Réservation annulée » |
 | `depositSubmitted` | `POST /appointments/{id}/deposit` (proof attached) | « Justificatif d'acompte reçu » |
 
 **The guard:** salon-entered bookings ride `POST /providers/{id}/appointments`,
 which has **no hook** — a salon is never notified about its own entry (pinned
-by a test that provides a live notifier and asserts an empty feed).
+by a test that provides a live notifier and asserts an empty feed). The same
+rule holds for a move: the reschedule route's **provider** branch never calls
+`SalonNotifier` (pinned).
 
 **Recipient rule (stated once, enforced in `_recipients`):** every **ACTIVE**
 member with a **linked account** whose role can see the whole journal
@@ -145,7 +148,7 @@ Collaborateur (`Cap.journalViewOwn`) only when the booking is assigned to
 only. Deduped by account. Invited (not yet accepted) and revoked rows are
 skipped.
 
-**Preferences:** all three events are **transactional**, so the
+**Preferences:** all four events are **transactional**, so the
 reminders/marketing toggles don't apply; the push channel still honours each
 recipient's `push` preference. The **in-app feed row is always written** — a
 passive history log (the same posture as the consumer feed, threat T24) that
@@ -153,7 +156,7 @@ fuels the pro bell.
 
 **Payload:**
 ```json
-{ "event": "new_booking|client_cancelled|deposit_submitted",
+{ "event": "new_booking|client_rescheduled|client_cancelled|deposit_submitted",
   "appointmentId": "a1",
   "providerId": "p1",          // the pro app switches salon before deep-linking (R6)
   "route": "/pro/appointment/a1" }
@@ -193,3 +196,20 @@ the private key from the old one, and each was individually well-formed.
 Verified against the real service account: correct credentials + a bad token →
 `error: null, invalidTokens: 1`; **mismatched** credentials → `error:
 push_auth_failed` plus the log line.
+
+## Browsers — `platform: web` (2026-10-20)
+
+Web Pro registers browsers ([web-pro-browser-push.md](web-pro-browser-push.md)).
+Two changes here, no contract change:
+
+- `DeviceTokenRepository.devicesForUser` returns each token **with its
+  platform**, and `PushService.sendToUserByKind` sends the app's tokens and the
+  browsers' in **two provider calls** and answers `(app, web)`. `sendToUser`
+  still answers the total, for the callers that only need a count. The salon
+  notifier's e-mail rule reads `app` alone: FCM accepts a push to a **closed**
+  browser (it delivers on reopening), so a browser's count can never stand for
+  « the app reached them ».
+- `FcmV1PushProvider` adds `webpush.headers` `{ Urgency: high, TTL: 86400 }` —
+  Android's high priority, for browsers; past a day a booking alert no longer
+  helps (the e-mail and the feed have said it). Ignored for app tokens.
+

@@ -998,6 +998,20 @@ class _DayScheduleEditScreen extends StatefulWidget {
 class _DayScheduleEditScreenState extends State<_DayScheduleEditScreen> {
   late List<TimeSlot> _slots;
 
+  /// « Lundi : deux plages se chevauchent. » — shown IN the screen, under the
+  /// ranges (a form error, never a toast — SYSTEM §14); cleared on any edit.
+  String? _error;
+
+  /// Two ranges of this day may not overlap: refused before any write, with
+  /// the web's sentence (docs/design/web-pro-availability-ranges.md §9.2 — the
+  /// owner asked for the app to match the web here).
+  bool _rejectOverlap() {
+    final tz = context.read<ProAuthProvider>().salonTimezone;
+    if (!daySlotsOverlap(_slots, tz: tz)) return false;
+    setState(() => _error = '${widget.dayName} : deux plages se chevauchent.');
+    return true;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -1076,6 +1090,18 @@ class _DayScheduleEditScreenState extends State<_DayScheduleEditScreen> {
                       onRemove: () => _removeTimeSlot(index),
                     );
                   }),
+                if (_error != null) ...[
+                  const SizedBox(height: AppTheme.spacingS),
+                  Semantics(
+                    liveRegion: true,
+                    child: Text(
+                      _error!,
+                      style: AppTextStyles.bodyMedium.copyWith(
+                        color: AppColors.error,
+                      ),
+                    ),
+                  ),
+                ],
                 // Only a day WITH hours offers itself as the model: copying
                 // « fermé » onto the whole week is a trap, not a feature
                 // (availability-presets.md §2).
@@ -1194,6 +1220,7 @@ class _DayScheduleEditScreenState extends State<_DayScheduleEditScreen> {
     );
 
     setState(() {
+      _error = null;
       if (index != null) {
         _slots[index] = newSlot;
       } else {
@@ -1206,6 +1233,7 @@ class _DayScheduleEditScreenState extends State<_DayScheduleEditScreen> {
 
   void _removeTimeSlot(int index) {
     setState(() {
+      _error = null;
       _slots.removeAt(index);
     });
   }
@@ -1218,6 +1246,8 @@ class _DayScheduleEditScreenState extends State<_DayScheduleEditScreen> {
     Availability availability,
     ProAvailabilityProvider provider,
   ) async {
+    // Before the confirm: an overlap would be copied onto six more days.
+    if (_rejectOverlap()) return;
     final confirmed = await showConfirmDialog(
       context,
       title: 'Copier sur les autres jours ?',
@@ -1258,6 +1288,7 @@ class _DayScheduleEditScreenState extends State<_DayScheduleEditScreen> {
     Availability availability,
     ProAvailabilityProvider provider,
   ) async {
+    if (_rejectOverlap()) return;
     final updatedSchedule = Map<int, List<TimeSlot>>.from(
       availability.weeklySchedule,
     );
@@ -1399,4 +1430,25 @@ bool weeklyScheduleMatchesPreset(
     }
   }
   return true;
+}
+
+/// Whether two of one day's ranges overlap — one starts before another ends.
+/// Ranges that only TOUCH (12:00 / 12:00) do not. Compared on the SALON's wall
+/// clock in minutes of the day: a stored range carries the server's
+/// placeholder date and a new one today's, so the instants would not compare.
+/// The web refuses the same (docs/design/web-pro-availability-ranges.md §9.2).
+/// Top-level and public so a test can reach it.
+bool daySlotsOverlap(List<TimeSlot> slots, {String? tz}) {
+  int minuteOfDay(DateTime t) {
+    final wall = toSalonTime(t, tz: tz);
+    return wall.hour * 60 + wall.minute;
+  }
+
+  final ranges = [
+    for (final s in slots) (minuteOfDay(s.startTime), minuteOfDay(s.endTime)),
+  ]..sort((a, b) => a.$1.compareTo(b.$1));
+  for (var i = 1; i < ranges.length; i++) {
+    if (ranges[i].$1 < ranges[i - 1].$2) return true;
+  }
+  return false;
 }

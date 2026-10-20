@@ -3,19 +3,23 @@
 import { useRouter } from 'next/navigation';
 import { Chip } from '../Chip';
 import { ErrorState } from '../ErrorState';
-import { type ChangeEvent, useEffect, useState } from 'react';
+import { type ChangeEvent, useEffect, useRef, useState } from 'react';
 import { getMyProvider, saveBeforeAfters, saveGallery } from '../../lib/api/pro';
 import { loadFailure, loadFailureMessage, type LoadFailure } from '../../lib/pro/load-failure';
 import {
   type BeforeAfterPair,
   canAddPair,
   canAddPhoto,
+  insertAt,
   moveItem,
   removeAt,
   toCover,
 } from '../../lib/pro/medias';
 import { uploadGalleryImage } from '../../lib/pro/upload';
 import { Button } from '../Button';
+import { Modal } from '../Modal';
+import { Toast } from '../Toast';
+import { useToast } from '../../lib/useToast';
 import { SkeletonGrid } from '../Skeleton';
 import { TextField } from '../TextField';
 import { Tabs } from '../Tabs';
@@ -27,15 +31,31 @@ const MEDIA_TABS: { key: Tab; label: string }[] = [
   { key: 'avant-apres', label: 'Avant / Après' },
 ];
 
+/// Médias — like the app (docs/design/web-pro-medias-like-app.md, owner
+/// decision): every gesture saves at once, as `pro_photos_screen.dart` and
+/// `pro_before_after_screen.dart` do; deleting asks first, in the app's words,
+/// then « Annuler » for 10 s puts the ONE removed item back into the list as
+/// it is then (SYSTEM §15). A refused write puts back what the server holds.
+/// There is no « Enregistrer » any more — nothing can be lost on leaving.
 export function MediasClient() {
   const router = useRouter();
   const [providerId, setProviderId] = useState('');
   const [photos, setPhotos] = useState<string[]>([]);
   const [pairs, setPairs] = useState<BeforeAfterPair[]>([]);
+  // What the server last accepted — where a refused write goes back to, and
+  // the list an undo puts its item back into.
+  const savedPhotos = useRef<string[]>([]);
+  const savedPairs = useRef<BeforeAfterPair[]>([]);
+  const [busy, setBusy] = useState(false);
   const [tab, setTab] = useState<Tab>('photos');
   const [loading, setLoading] = useState(true);
   const [reloadKey, setReloadKey] = useState(0);
   const [loadError, setLoadError] = useState<LoadFailure | false>(false);
+  const [confirming, setConfirming] = useState<
+    { kind: 'photo' | 'pair'; index: number } | null
+  >(null);
+  const cancelRef = useRef<HTMLButtonElement>(null);
+  const { toast, show, dismiss } = useToast();
 
   useEffect(() => {
     let active = true;
@@ -52,14 +72,75 @@ export function MediasClient() {
         return;
       }
       setProviderId(me.profile.provider.id);
-      setPhotos(me.profile.provider.imageUrls ?? []);
-      setPairs(me.profile.provider.beforeAfters ?? []);
+      const loadedPhotos = me.profile.provider.imageUrls ?? [];
+      const loadedPairs = me.profile.provider.beforeAfters ?? [];
+      savedPhotos.current = loadedPhotos;
+      savedPairs.current = loadedPairs;
+      setPhotos(loadedPhotos);
+      setPairs(loadedPairs);
       setLoading(false);
     })();
     return () => {
       active = false;
     };
   }, [router, reloadKey]);
+
+  /// One write at a time: the controls wait while it is out.
+  async function writePhotos(next: string[], failure: string): Promise<boolean> {
+    setBusy(true);
+    setPhotos(next);
+    const r = await saveGallery(providerId, next);
+    setBusy(false);
+    if (!r.ok) {
+      setPhotos(savedPhotos.current);
+      show(failure, 'error');
+      return false;
+    }
+    savedPhotos.current = next;
+    return true;
+  }
+
+  async function writePairs(next: BeforeAfterPair[], failure: string): Promise<boolean> {
+    setBusy(true);
+    setPairs(next);
+    const r = await saveBeforeAfters(providerId, next);
+    setBusy(false);
+    if (!r.ok) {
+      setPairs(savedPairs.current);
+      show(failure, 'error');
+      return false;
+    }
+    savedPairs.current = next;
+    return true;
+  }
+
+  async function confirmDelete() {
+    const target = confirming;
+    setConfirming(null);
+    if (!target) return;
+    const i = target.index;
+    if (target.kind === 'photo') {
+      const removed = savedPhotos.current[i];
+      if (!(await writePhotos(removeAt(savedPhotos.current, i), 'Suppression impossible.'))) return;
+      show('Photo supprimée', 'success', {
+        label: 'Annuler',
+        onAction: () => {
+          dismiss();
+          void writePhotos(insertAt(savedPhotos.current, i, removed), 'Restauration impossible.');
+        },
+      });
+    } else {
+      const removed = savedPairs.current[i];
+      if (!(await writePairs(removeAt(savedPairs.current, i), 'Suppression impossible.'))) return;
+      show('Avant/après supprimé', 'success', {
+        label: 'Annuler',
+        onAction: () => {
+          dismiss();
+          void writePairs(insertAt(savedPairs.current, i, removed), 'Restauration impossible.');
+        },
+      });
+    }
+  }
 
   if (loading) return <SkeletonGrid count={6} className="mt-l grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4" />;
   if (loadError) {
@@ -80,61 +161,83 @@ export function MediasClient() {
 
       {tab === 'photos' ? (
         <PhotosTab
-          providerId={providerId}
           photos={photos}
-          setPhotos={setPhotos}
+          busy={busy}
+          onWrite={(next, failure) => void writePhotos(next, failure)}
+          onAdd={async (url) => {
+            await writePhotos([...savedPhotos.current, url], 'Échec de l’envoi');
+          }}
+          onUploadFailed={() => show('Échec de l’envoi', 'error')}
+          onDelete={(index) => setConfirming({ kind: 'photo', index })}
         />
       ) : (
         <AvantApresTab
-          providerId={providerId}
           pairs={pairs}
-          setPairs={setPairs}
+          busy={busy}
+          onAdd={(pair) => writePairs([...savedPairs.current, pair], 'Échec de l’enregistrement')}
+          onUploadFailed={() => show('Échec de l’envoi', 'error')}
+          onDelete={(index) => setConfirming({ kind: 'pair', index })}
         />
       )}
+
+      {confirming ? (
+        // The app's question, word for word (§15: name it, say what happens,
+        // the verb on the button; « Annuler » takes the focus).
+        <Modal
+          title={confirming.kind === 'photo' ? 'Supprimer cette photo ?' : 'Supprimer cette paire ?'}
+          onClose={() => setConfirming(null)}
+          initialFocusRef={cancelRef}
+        >
+          <p className="mt-m text-bodyMedium text-textSecondary">
+            {confirming.kind === 'photo'
+              ? 'Elle disparaîtra de votre galerie publique.'
+              : 'L’avant/après disparaîtra de votre galerie publique.'}
+          </p>
+          <div className="mt-l flex flex-wrap justify-end gap-s">
+            <Button ref={cancelRef} variant="secondary" onClick={() => setConfirming(null)}>
+              Annuler
+            </Button>
+            <Button onClick={() => void confirmDelete()} className="!bg-error hover:!bg-error">
+              {confirming.kind === 'photo' ? 'Supprimer la photo' : 'Supprimer la paire'}
+            </Button>
+          </div>
+        </Modal>
+      ) : null}
+      <Toast toast={toast} />
     </div>
   );
 }
 
 function PhotosTab({
-  providerId,
   photos,
-  setPhotos,
+  busy,
+  onWrite,
+  onAdd,
+  onUploadFailed,
+  onDelete,
 }: {
-  providerId: string;
   photos: string[];
-  setPhotos: (p: string[]) => void;
+  busy: boolean;
+  onWrite: (next: string[], failure: string) => void;
+  onAdd: (url: string) => Promise<void>;
+  onUploadFailed: () => void;
+  onDelete: (index: number) => void;
 }) {
   const [uploading, setUploading] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
 
   async function onPick(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file) return;
     setUploading(true);
-    setError(null);
-    setSaved(false);
     const url = await uploadGalleryImage(file);
-    setUploading(false);
     if (!url) {
-      setError('Le téléversement a échoué.');
+      setUploading(false);
+      onUploadFailed();
       return;
     }
-    setPhotos([...photos, url]);
-  }
-
-  async function save() {
-    setBusy(true);
-    setError(null);
-    const r = await saveGallery(providerId, photos);
-    setBusy(false);
-    if (!r.ok) {
-      setError('L’enregistrement a échoué.');
-      return;
-    }
-    setSaved(true);
+    await onAdd(url);
+    setUploading(false);
   }
 
   return (
@@ -161,31 +264,31 @@ function PhotosTab({
               )}
               <span className="flex gap-s">
                 {i > 0 ? (
-                  // gallery-set-cover.md: one click instead of i « Monter »s.
-                  // Staged like the arrows; « Enregistrer » persists.
+                  // gallery-set-cover.md: one click instead of i « Monter »s
+                  // — saved at once, as in the app.
                   <IconBtn
                     label="Définir comme photo principale"
-                    onClick={() => setPhotos(toCover(photos, i))}
+                    disabled={busy}
+                    onClick={() => onWrite(toCover(photos, i), 'Échec du déplacement')}
                   >
                     ★
                   </IconBtn>
                 ) : null}
                 <IconBtn
                   label="Monter"
-                  onClick={() => setPhotos(moveItem(photos, i, -1))}
+                  disabled={busy}
+                  onClick={() => onWrite(moveItem(photos, i, -1), 'Échec du déplacement')}
                 >
                   ↑
                 </IconBtn>
                 <IconBtn
                   label="Descendre"
-                  onClick={() => setPhotos(moveItem(photos, i, 1))}
+                  disabled={busy}
+                  onClick={() => onWrite(moveItem(photos, i, 1), 'Échec du déplacement')}
                 >
                   ↓
                 </IconBtn>
-                <IconBtn
-                  label="Supprimer"
-                  onClick={() => setPhotos(removeAt(photos, i))}
-                >
+                <IconBtn label="Supprimer" disabled={busy} onClick={() => onDelete(i)}>
                   ✕
                 </IconBtn>
               </span>
@@ -205,44 +308,35 @@ function PhotosTab({
               type="file"
               accept="image/*"
               className="sr-only"
+              disabled={busy || uploading}
               onChange={onPick}
             />
           </label>
         ) : (
           <span className="text-bodyMedium text-textTertiary">Maximum atteint.</span>
         )}
-        <Button disabled={busy} onClick={save}>
-          Enregistrer
-        </Button>
       </div>
-
-      {error ? <p role="alert" className="mt-s text-bodyMedium text-error">{error}</p> : null}
-      <p
-        role="status"
-        className={saved ? 'mt-s text-bodyMedium text-textSecondary' : 'sr-only'}
-      >
-        {saved ? 'Photos enregistrées.' : ''}
-      </p>
     </div>
   );
 }
 
 function AvantApresTab({
-  providerId,
   pairs,
-  setPairs,
+  busy,
+  onAdd,
+  onUploadFailed,
+  onDelete,
 }: {
-  providerId: string;
   pairs: BeforeAfterPair[];
-  setPairs: (p: BeforeAfterPair[]) => void;
+  busy: boolean;
+  onAdd: (pair: BeforeAfterPair) => Promise<boolean>;
+  onUploadFailed: () => void;
+  onDelete: (index: number) => void;
 }) {
   const [before, setBefore] = useState<string | null>(null);
   const [after, setAfter] = useState<string | null>(null);
   const [caption, setCaption] = useState('');
   const [uploading, setUploading] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
 
   async function pick(
     e: ChangeEvent<HTMLInputElement>,
@@ -252,35 +346,22 @@ function AvantApresTab({
     e.target.value = '';
     if (!file) return;
     setUploading(true);
-    setError(null);
     const url = await uploadGalleryImage(file);
     setUploading(false);
     if (!url) {
-      setError('Le téléversement a échoué.');
+      onUploadFailed();
       return;
     }
     set(url);
   }
 
-  function addPair() {
+  async function addPair() {
     if (!before || !after) return;
-    setPairs([...pairs, { before, after, caption: caption.trim() || undefined }]);
+    const ok = await onAdd({ before, after, caption: caption.trim() || undefined });
+    if (!ok) return; // what was picked stays, to try again
     setBefore(null);
     setAfter(null);
     setCaption('');
-    setSaved(false);
-  }
-
-  async function save() {
-    setBusy(true);
-    setError(null);
-    const r = await saveBeforeAfters(providerId, pairs);
-    setBusy(false);
-    if (!r.ok) {
-      setError('L’enregistrement a échoué.');
-      return;
-    }
-    setSaved(true);
   }
 
   return (
@@ -298,7 +379,7 @@ function AvantApresTab({
             <span className="flex-1 text-bodyMedium text-textTertiary">
               {p.caption ?? ''}
             </span>
-            <IconBtn label="Supprimer" onClick={() => setPairs(removeAt(pairs, i))}>
+            <IconBtn label="Supprimer" disabled={busy} onClick={() => onDelete(i)}>
               ✕
             </IconBtn>
           </div>
@@ -321,8 +402,8 @@ function AvantApresTab({
             />
             <Button
               variant="secondary"
-              disabled={!before || !after || uploading}
-              onClick={addPair}
+              disabled={!before || !after || uploading || busy}
+              onClick={() => void addPair()}
             >
               Ajouter la paire
             </Button>
@@ -331,19 +412,6 @@ function AvantApresTab({
       ) : (
         <p className="mt-m text-bodyMedium text-textTertiary">Maximum atteint (12).</p>
       )}
-
-      <div className="mt-m">
-        <Button disabled={busy} onClick={save}>
-          Enregistrer
-        </Button>
-      </div>
-      {error ? <p role="alert" className="mt-s text-bodyMedium text-error">{error}</p> : null}
-      <p
-        role="status"
-        className={saved ? 'mt-s text-bodyMedium text-textSecondary' : 'sr-only'}
-      >
-        {saved ? 'Avant/Après enregistré.' : ''}
-      </p>
     </div>
   );
 }
@@ -351,20 +419,23 @@ function AvantApresTab({
 function IconBtn({
   label,
   onClick,
+  disabled,
   children,
 }: {
   label: string;
   onClick: () => void;
+  disabled?: boolean;
   children: string;
 }) {
   return (
     <button
       type="button"
       aria-label={label}
+      disabled={disabled}
       onClick={onClick}
       // Its children are always a glyph (↑ ↓ ✕) — an icon, not body text.
       // 14 → 16 by §7 (nearest; ties round up).
-      className="flex min-h-12 min-w-12 items-center justify-center rounded-sm border border-borderStrong bg-surface text-iconXS text-textPrimary hover:bg-surfaceVariant"
+      className="flex min-h-12 min-w-12 items-center justify-center rounded-sm border border-borderStrong bg-surface text-iconXS text-textPrimary hover:bg-surfaceVariant disabled:border-border disabled:text-textDisabled"
     >
       {children}
     </button>

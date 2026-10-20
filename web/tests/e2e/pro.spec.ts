@@ -1,8 +1,10 @@
 import { readFile } from 'node:fs/promises';
 
-import { type Page, expect, test } from '@playwright/test';
+import { type Page, devices, expect, test } from '@playwright/test';
 
 import { signInPro } from './_auth';
+import { asGrantedBrowser, asUnaskedBrowser } from './_push';
+import { serveStubImages } from './_pixel';
 
 
 test('unauthenticated /pro redirects to /pro/connexion', async ({ page }) => {
@@ -235,7 +237,8 @@ test('profil: edit + save; acompte: enable + save', async ({ page }) => {
   await page.getByRole('link', { name: 'Acompte' }).click();
   await expect(page).toHaveURL(/\/pro\/acompte/);
   await page.getByText('Exiger un acompte').click();
-  await page.getByLabel('Pourcentage de l’acompte (%)').fill('30');
+  await page.getByRole('slider', { name: 'Pourcentage de l’acompte' }).fill('30');
+  await page.getByRole('radio', { name: '48 h' }).check();
   await page.getByLabel('Opérateur Mobile Money').selectOption('wave');
   await page.getByLabel('Numéro Mobile Money').fill('+2250700000000');
   await page.getByRole('button', { name: 'Enregistrer' }).click();
@@ -252,7 +255,7 @@ test('acompte: off, saved, reloaded, back on — the operator and the percentage
   await signInPro(page);
   await page.goto('/pro/acompte');
   const toggle = page.getByLabel('Exiger un acompte');
-  const percent = page.getByLabel('Pourcentage de l’acompte (%)');
+  const percent = page.getByRole('slider', { name: 'Pourcentage de l’acompte' });
   const operator = page.getByLabel('Opérateur Mobile Money');
   const save = page.getByRole('button', { name: 'Enregistrer' });
   const saved = page.getByText('Acompte enregistré.');
@@ -304,8 +307,18 @@ test('médias: manage photos (remove + save) + upload a new one', async ({
     });
   await expect(page.locator('main img')).toHaveCount(4);
 
-  await page.getByRole('button', { name: 'Enregistrer' }).first().click();
-  await expect(page.getByText('Photos enregistrées.')).toBeVisible();
+  // Saved at once, as in the app (web-pro-medias-like-app.md): a reload
+  // still has it.
+  await page.reload();
+  await expect(page.locator('main img')).toHaveCount(4);
+
+  // Deleting asks, then can be taken back.
+  await page.getByRole('button', { name: 'Supprimer' }).last().click();
+  const dialog = page.getByRole('dialog', { name: 'Supprimer cette photo ?' });
+  await dialog.getByRole('button', { name: 'Supprimer la photo' }).click();
+  await expect(page.locator('main img')).toHaveCount(3);
+  await page.getByRole('status').getByRole('button', { name: 'Annuler' }).click();
+  await expect(page.locator('main img')).toHaveCount(4);
 });
 
 test('clients: list → search → card → note → tags (module clients C1b)', async ({
@@ -447,6 +460,167 @@ test('journal grid: Journée is the default view; blocks + panel + arrive', asyn
   await expect(page.getByText('Awa').first()).toBeVisible();
 });
 
+test('journal panel: the deposit, its screenshot, « Voir le rendez-vous » (web-pro-journal-panel-deposit)', async ({
+  page,
+}) => {
+  // The P1 of the 2026-10-19 audit: the panel offered « Accepter » on a
+  // deposit-required request without the amount or the screenshot. pj2 is the
+  // stub's pending request with a 5 000 FCFA deposit and a screenshot.
+  await serveStubImages(page);
+  await signInPro(page);
+  await page.goto('/pro/rendez-vous');
+  await page.getByRole('button', { name: /Aminata/ }).click();
+
+  const panel = page.getByRole('dialog', { name: 'Détails du rendez-vous' });
+  await expect(panel.getByText('Acompte annoncé')).toBeVisible();
+  await expect(
+    panel.getByText(
+      'Confirmez le rendez-vous une fois l’acompte reçu sur votre compte Mobile Money.',
+    ),
+  ).toBeVisible();
+  // Accepting is right there, under the screenshot that decides it.
+  await expect(panel.getByRole('button', { name: 'Accepter' })).toBeVisible();
+
+  // Loaded by itself, through the BFF's signed URL — and actually DECODED
+  // (an <img> that failed would have become « Capture indisponible »).
+  const thumb = panel.getByRole('button', {
+    name: 'Agrandir le justificatif d’acompte',
+  });
+  await expect(thumb).toBeVisible();
+  await expect
+    .poll(() =>
+      thumb.locator('img').evaluate((i: HTMLImageElement) => i.naturalWidth),
+    )
+    .toBeGreaterThan(0);
+
+  // Enlarged, ON TOP. The Lightbox renders inside the panel (no portal — the
+  // Modal doctrine), so its ✕ and the panel's ✕ share the top-right corner,
+  // and both are « Fermer ». The hit-test says which one a finger gets.
+  await thumb.click();
+  const box = page.getByRole('dialog', { name: 'Justificatif d’acompte' });
+  await expect(box).toBeVisible();
+  const boxClose = box.getByRole('button', { name: 'Fermer' });
+  expect(
+    await boxClose.evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      const hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+      return !!hit && (el === hit || el.contains(hit));
+    }),
+    'the enlarged screenshot’s ✕ must be on top of the panel’s own ✕',
+  ).toBe(true);
+
+  // Escape closes the screenshot only; focus returns to the thumbnail.
+  await page.keyboard.press('Escape');
+  await expect(box).toBeHidden();
+  await expect(panel).toBeVisible();
+  await expect(thumb).toBeFocused();
+
+  await expect(
+    panel.getByRole('link', { name: 'Voir le rendez-vous' }),
+  ).toHaveAttribute('href', '/pro/rendez-vous/pj2');
+});
+
+/// docs/design/web-pro-agenda-url.md — the agenda's view and day live in the
+/// address. What only a browser can prove: that Next's router follows
+/// `history.replaceState`, that Back lands on the REPLACED entry (one day
+/// later, not the day the page opened on), and that a reload reads it.
+test('agenda in the address: a reload, Back and « ← Rendez-vous » keep the day (web-pro-agenda-url)', async ({
+  page,
+}) => {
+  await signInPro(page);
+  await page.goto('/pro/rendez-vous');
+  await expect(page.getByText('Awa').first()).toBeVisible();
+  const today = await page.getByLabel('Date').inputValue();
+
+  await page.getByRole('button', { name: 'Jour suivant' }).click();
+  const day = await page.getByLabel('Date').inputValue();
+  expect(day).not.toBe(today);
+  await expect(page).toHaveURL(new RegExp(`/pro/rendez-vous\\?jour=${day}$`));
+
+  // A reload reads it.
+  await page.reload();
+  await expect(page.getByLabel('Date')).toHaveValue(day);
+
+  // To a booking and Back. pj2 is on every stub day; it is not in the owner
+  // list, so its page says « Rendez-vous introuvable. » — whose own
+  // « ← Rendez-vous » must still carry the day.
+  await page.getByRole('button', { name: /Aminata/ }).click();
+  await page.getByRole('link', { name: 'Voir le rendez-vous' }).click();
+  await expect(page).toHaveURL(new RegExp(`/pro/rendez-vous/pj2\\?jour=${day}$`));
+  await expect(page.getByText('Rendez-vous introuvable.')).toBeVisible();
+  await page.goBack();
+  await expect(page).toHaveURL(new RegExp(`/pro/rendez-vous\\?jour=${day}$`));
+  await expect(page.getByLabel('Date')).toHaveValue(day);
+
+  // The page's own way back.
+  await page.getByRole('button', { name: /Aminata/ }).click();
+  await page.getByRole('link', { name: 'Voir le rendez-vous' }).click();
+  await page.getByRole('link', { name: '← Rendez-vous' }).click();
+  await expect(page).toHaveURL(new RegExp(`/pro/rendez-vous\\?jour=${day}$`));
+  await expect(page.getByLabel('Date')).toHaveValue(day);
+
+  // Owner decision Q2: the menu's « Rendez-vous » is today's Journée — from a
+  // dated address too (the same route, so nothing is remounted for free).
+  await page.getByRole('link', { name: 'Rendez-vous', exact: true }).click();
+  await expect(page).toHaveURL(/\/pro\/rendez-vous$/);
+  await expect(page.getByLabel('Date')).toHaveValue(today);
+});
+
+/// docs/design/web-pro-week-strip.md — the app's week strip on the Journée.
+/// What only a browser proves: the strip is drawn under the date, a click on
+/// one of its days reads that day's grid, and the address follows.
+test('week strip: a day of the week is one click away (web-pro-week-strip)', async ({
+  page,
+}) => {
+  await signInPro(page);
+  await page.goto('/pro/rendez-vous');
+  const week = page.getByRole('group', { name: /^Semaine du / });
+  await expect(week).toBeVisible();
+  const days = week.getByRole('button');
+  await expect(days).toHaveCount(7);
+  await expect(week.getByRole('button', { pressed: true })).toHaveAccessibleName(
+    /, aujourd’hui$/,
+  );
+
+  // Another day of the same week than today — Monday, or Tuesday when today
+  // IS Monday.
+  const today = await page.getByLabel('Date').inputValue();
+  const target = (await days.nth(0).getAttribute('aria-pressed')) === 'true' ? 1 : 0;
+  await days.nth(target).click();
+  await expect(days.nth(target)).toHaveAttribute('aria-pressed', 'true');
+  const day = await page.getByLabel('Date').inputValue();
+  expect(day).not.toBe(today);
+  await expect(page).toHaveURL(new RegExp(`/pro/rendez-vous\\?jour=${day}$`));
+  // The stub has bookings on every day: the grid is the new day's.
+  await expect(page.getByText('Awa').first()).toBeVisible();
+});
+
+test('agenda in the address: the Liste’s tab survives a trip to a booking (web-pro-agenda-url)', async ({
+  page,
+}) => {
+  await signInPro(page);
+  await page.goto('/pro/rendez-vous');
+  await page.getByRole('button', { name: 'Liste' }).click();
+  await page.getByRole('button', { name: 'Tous', exact: true }).click();
+  await expect(page).toHaveURL(/\/pro\/rendez-vous\?vue=liste&filtre=tous$/);
+
+  await page.getByText('Koffi').first().click();
+  await expect(page).toHaveURL(/\/pro\/rendez-vous\/pappt1\?vue=liste&filtre=tous$/);
+  await expect(
+    page.getByRole('heading', { name: 'Détails du rendez-vous' }),
+  ).toBeVisible();
+  await page.getByRole('link', { name: '← Rendez-vous' }).click();
+
+  await expect(page).toHaveURL(/\/pro\/rendez-vous\?vue=liste&filtre=tous$/);
+  await expect(page.getByRole('button', { name: 'Liste' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await expect(
+    page.getByRole('button', { name: 'Tous', exact: true }),
+  ).toHaveAttribute('aria-pressed', 'true');
+});
+
 test('journal grid: quick-create from an empty cell books a client', async ({
   page,
 }) => {
@@ -477,6 +651,9 @@ test('journal grid: quick-create from an empty cell books a client', async ({
   await dialog
     .getByLabel('Rechercher ou nommer le client')
     .fill('Nouvelle Cliente');
+  // A new client without a number is « Client sans numéro », as in the app
+  // (web-manual-booking-walk-in.md).
+  await dialog.getByRole('checkbox', { name: 'Client sans numéro' }).check();
   await dialog.getByLabel('Note').fill('Vient avec ses mèches');
   await dialog.getByRole('button', { name: 'Créer', exact: true }).click();
   // Back to the grid (dialog closed).
@@ -494,11 +671,14 @@ test('web pro registration: fields + email code → authenticated on /pro', asyn
   ).toBeVisible();
 
   await page.getByLabel('Nom de l’entreprise').fill('Salon Web Test');
+  await page.getByLabel('Adresse', { exact: true }).fill('Rue des Jardins, Cocody');
   await page.locator('input[type=tel]').fill('+225 07 00 00 00 10');
   await page.getByLabel('Votre e-mail').fill('nouveau@salon.test');
   await page.getByRole('button', { name: 'Recevoir un code' }).click();
   await page.getByLabel('Code à 6 chiffres').fill('123456');
-  await page.getByRole('button', { name: 'S’inscrire' }).click();
+  // Exact: « S’inscrire avec Apple » is on the page too, and a role name
+  // matches as a substring (web-pro-apple.md — its first CI run).
+  await page.getByRole('button', { name: 'S’inscrire', exact: true }).click();
 
   // 201 → pro cookies → the dashboard.
   await expect(page).toHaveURL(/\/pro(\/)?$/);
@@ -542,11 +722,14 @@ test('web pro registration: duplicate identity shows provider_exists', async ({
 }) => {
   await page.goto('/pro/inscription');
   await page.getByLabel('Nom de l’entreprise').fill('Salon Doublon');
+  await page.getByLabel('Adresse', { exact: true }).fill('Rue des Jardins, Cocody');
   await page.locator('input[type=tel]').fill('+225 07 00 00 00 11');
   await page.getByLabel('Votre e-mail').fill('existe@salon.test');
   await page.getByRole('button', { name: 'Recevoir un code' }).click();
   await page.getByLabel('Code à 6 chiffres').fill('123456');
-  await page.getByRole('button', { name: 'S’inscrire' }).click();
+  // Exact: « S’inscrire avec Apple » is on the page too, and a role name
+  // matches as a substring (web-pro-apple.md — its first CI run).
+  await page.getByRole('button', { name: 'S’inscrire', exact: true }).click();
   await expect(
     page.getByText('Un compte existe déjà pour cette identité. Connectez-vous.'),
   ).toBeVisible();
@@ -586,6 +769,7 @@ test('« + Nouveau rendez-vous » on /pro/rendez-vous books standalone (web-manu
   await dialog
     .getByLabel('Rechercher ou nommer le client')
     .fill('Cliente Standalone');
+  await dialog.getByLabel('Téléphone (pour retrouver ce client)').fill('+225 07 00 00 00 42');
   await dialog.getByRole('button', { name: 'Créer', exact: true }).click();
   await expect(page.getByText('Rendez-vous créé')).toBeVisible();
 });
@@ -748,20 +932,18 @@ test('go-live: le brouillon complet se met en ligne (pro-salon-lifecycle B2)', a
     page.getByText('Votre salon n’est pas encore en ligne'),
   ).toBeVisible();
   // The gate (≥3) is what matters, not the exact count — earlier tests in this
-  // file add and remove services and photos on the shared stub salon, and
-  // pinning a number would make this red for a reason it is not about.
+  // file add and remove services and photos on the shared stub salon.
   //
-  // But it has to assert the gate is **met**: until B10 the pattern was
-  // `\(\d+\/3\)`, and `\d+` matches `0`. That asserted the checklist label
-  // rendered and nothing else — it would have passed on a salon with no
-  // prestations at all, on the very screen whose subject is « everything done ».
-  const met = String.raw`\((?:[3-9]|\d{2,})\/3\)`;
-  await expect(
-    page.getByText(new RegExp(`Au moins 3 prestations ${met}`)),
-  ).toBeVisible();
-  await expect(
-    page.getByText(new RegExp(`Au moins 3 photos ${met}`)),
-  ).toBeVisible();
+  // And it has to assert the gate is **met**, not that the row rendered (B10's
+  // lesson). Since web-pro-golive-signup-like-app.md the rows carry the app's
+  // labels, without a count: a met step is one with no « Compléter ».
+  for (const label of ['Services (3 minimum)', 'Photos (3 minimum)']) {
+    const row = page.getByRole('listitem').filter({ hasText: label });
+    await expect(row).toBeVisible();
+    await expect(row.getByRole('link', { name: 'Compléter' })).toHaveCount(0);
+  }
+  // The app's progress line and its bar.
+  await expect(page.getByRole('progressbar', { name: /étapes? sur \d+ terminées?/ })).toBeVisible();
 
   // B4: the pre-publish preview — the consumer page, booking disabled.
   await page.getByRole('link', { name: 'Aperçu de ma page' }).click();
@@ -859,4 +1041,207 @@ test('compte: export buttons + type-SUPPRIMER deletion (audit 11.5)', async ({
   await expect(confirm).toBeEnabled();
   await confirm.click();
   await expect(page).toHaveURL(/\/pro\/connexion/);
+});
+
+/// docs/design/salon-email-alerts.md §4 — the switch through the real BFF:
+/// a click writes, a reload reads the server's answer back. Put back on at
+/// the end: the stub's preferences are shared by every test.
+test('« Alertes par e-mail »: off, still off after a reload, back on (salon-email-alerts)', async ({
+  page,
+}) => {
+  await signInPro(page);
+  await page.goto('/pro/notifications');
+  const sw = page.getByRole('switch', { name: 'Alertes par e-mail' });
+  await expect(sw).toHaveAttribute('aria-checked', 'true');
+  await expect(
+    page.getByText(/nous vous écrivons à salon@example\.com/),
+  ).toBeVisible();
+  await sw.click();
+  await expect(sw).toHaveAttribute('aria-checked', 'false');
+  await page.reload();
+  await expect(sw).toHaveAttribute('aria-checked', 'false');
+  await sw.click();
+  await expect(sw).toHaveAttribute('aria-checked', 'true');
+  await page.reload();
+  await expect(sw).toHaveAttribute('aria-checked', 'true');
+});
+
+/// docs/design/web-pro-browser-push.md — the salon's browser notifications,
+/// owner decisions 2026-10-20 (like the app; computers only). A headless
+/// browser has no push service to subscribe to, so the e2e build names its
+/// token (NEXT_PUBLIC_E2E_PUSH_TOKEN); everything else is real — the
+/// browser's permission, the service worker's registration, the BFF, the
+/// stub's `/me/devices`.
+test.describe('browser notifications (web-pro-browser-push)', () => {
+  const BAND = 'Activer les notifications';
+  const ROW = 'Notifications du navigateur';
+  const devicesCall = (method: 'POST' | 'DELETE') => (r: import('@playwright/test').Request) =>
+    r.url().endsWith('/api/pro/devices') && r.method() === method;
+
+  test('the band: « Plus tard », and never again on this browser', async ({ page }) => {
+    await asUnaskedBrowser(page);
+    await signInPro(page);
+    await expect(page.getByRole('heading', { name: BAND })).toBeVisible();
+    await page.getByRole('button', { name: 'Plus tard' }).click();
+    await expect(page.getByRole('heading', { name: BAND })).toBeHidden();
+    await page.reload();
+    await expect(page.getByRole('heading', { name: 'Aujourd’hui' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: BAND })).toBeHidden();
+  });
+
+  test('« Activer »: the worker registers at /pro/, this browser’s token reaches the server, the confirmation', async ({
+    page,
+    context,
+  }) => {
+    await asUnaskedBrowser(page);
+    await signInPro(page);
+    await expect(page.getByRole('heading', { name: BAND })).toBeVisible();
+    // The browser's own dialog cannot be clicked in a test: it answers yes.
+    await context.grantPermissions(['notifications']);
+    const posted = page.waitForRequest(devicesCall('POST'));
+    await page.getByRole('button', { name: 'Activer' }).click();
+    const req = await posted;
+    expect(req.postDataJSON()).toEqual({ token: 'e2e-push-token' });
+    expect((await req.response())?.status()).toBe(200);
+    await expect(page.getByText('Notifications activées sur cet ordinateur.')).toBeVisible();
+    const scope = await page.evaluate(
+      async () => (await navigator.serviceWorker.getRegistration('/pro/'))?.scope ?? null,
+    );
+    expect(scope).toMatch(/\/pro\/$/);
+  });
+
+  test('the row: on, still on after a reload (re-registered), off, still off', async ({
+    page,
+    context,
+  }) => {
+    await asUnaskedBrowser(page);
+    await signInPro(page);
+    await page.goto('/pro/notifications');
+    const sw = page.getByRole('switch', { name: ROW });
+    await expect(sw).toHaveAttribute('aria-checked', 'false');
+    await context.grantPermissions(['notifications']);
+    const posted = page.waitForRequest(devicesCall('POST'));
+    await sw.click();
+    await posted;
+    await expect(sw).toHaveAttribute('aria-checked', 'true');
+    // A sign-in on a permitted browser registers again, without a question.
+    const again = page.waitForRequest(devicesCall('POST'));
+    await page.reload();
+    await again;
+    await expect(sw).toHaveAttribute('aria-checked', 'true');
+    const deleted = page.waitForRequest(devicesCall('DELETE'));
+    await sw.click();
+    expect((await deleted).postDataJSON()).toEqual({ token: 'e2e-push-token' });
+    await expect(sw).toHaveAttribute('aria-checked', 'false');
+    await page.reload();
+    await expect(sw).toHaveAttribute('aria-checked', 'false');
+  });
+
+  test('sign-out: this browser is unregistered BEFORE the session goes', async ({
+    page,
+    context,
+  }) => {
+    // A browser that already said yes: the sign-in registers it by itself.
+    await asGrantedBrowser(page, context);
+    const registered = page.waitForRequest(devicesCall('POST'));
+    await signInPro(page);
+    await registered;
+    const order: string[] = [];
+    page.on('request', (r) => {
+      if (devicesCall('DELETE')(r)) order.push('unregister');
+      if (r.url().endsWith('/api/pro/auth/logout')) order.push('logout');
+    });
+    await page.getByRole('button', { name: 'Se déconnecter' }).first().click();
+    await expect(page).toHaveURL(/\/pro\/connexion/);
+    expect(order).toEqual(['unregister', 'logout']);
+  });
+
+  test('a phone: no band, and the row says the app does it (Q3)', async ({ browser }) => {
+    // A real phone's emulation, not only its user agent: Chromium then also
+    // says `navigator.userAgentData.mobile` — overriding the string alone left
+    // it `false`, and the page rightly saw a computer.
+    const phone = await browser.newContext({
+      ...devices['Pixel 7'],
+      baseURL: test.info().project.use.baseURL,
+      timezoneId: 'UTC',
+    });
+    const page = await phone.newPage();
+    await asUnaskedBrowser(page);
+    try {
+      await signInPro(page);
+      await expect(page.getByRole('heading', { name: 'Aujourd’hui' })).toBeVisible();
+      await expect(page.getByRole('heading', { name: BAND })).toBeHidden();
+      await page.goto('/pro/notifications');
+      await expect(
+        page.getByText('Sur téléphone, les notifications passent par l’app MyWeli Pro.'),
+      ).toBeVisible();
+      await expect(page.getByRole('switch', { name: ROW })).toHaveCount(0);
+    } finally {
+      await phone.close();
+    }
+  });
+});
+
+/// docs/design/web-pro-week-view.md — the « Semaine » tab at desktop width
+/// (Playwright's default viewport): seven days, the stub's two bookings each
+/// day, the week in the address (a reload keeps it), the Journée's panel,
+/// click-to-create.
+test('« Semaine »: the week, its address, the panel and click-to-create (web-pro-week-view)', async ({
+  page,
+}) => {
+  await signInPro(page);
+  await page.goto('/pro/rendez-vous');
+  await page.getByRole('button', { name: 'Semaine', exact: true }).click();
+  const week = page.getByRole('table', { name: /^Semaine du / });
+  await expect(week).toBeVisible();
+  await expect(week.getByRole('columnheader')).toHaveCount(7);
+  // Each block names its artist (the stub's have none), its day and its time.
+  // pj2 (15:30), the one no spec moves: workers share this stub, and pj1
+  // may be cancelled — hidden here — by the time this runs.
+  await expect(week.getByRole('button', { name: /— Sans artiste, Lun \d+ à 15:30$/ })).toBeVisible();
+
+  const thisWeek = await week.getAttribute('aria-label');
+  await page.getByRole('button', { name: 'Semaine suivante' }).click();
+  await expect(page).toHaveURL(/\/pro\/rendez-vous\?vue=semaine&jour=\d{4}-\d{2}-\d{2}$/);
+  await expect(page.getByRole('table', { name: thisWeek! })).toHaveCount(0);
+  await expect(week).toBeVisible();
+  const label = await week.getAttribute('aria-label');
+  await page.reload();
+  await expect(page.getByRole('table', { name: label! })).toBeVisible();
+
+  await week.getByRole('button', { name: /— Sans artiste, Mer \d+ à 15:30$/ }).click();
+  const panel = page.getByRole('dialog', { name: 'Détails du rendez-vous' });
+  await expect(panel).toBeVisible();
+  // The Journée's panel is non-modal: it closes with its own ✕.
+  await panel.getByRole('button', { name: 'Fermer' }).click();
+  await expect(panel).toBeHidden();
+
+  await week.getByRole('button', { name: /^Créer un rendez-vous — Mar \d+$/ }).click();
+  const dialog = page.getByRole('dialog', { name: 'Nouveau rendez-vous' });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole('button', { name: 'Annuler' }).click();
+  await expect(dialog).toBeHidden();
+});
+
+/// docs/design/web-manual-booking-walk-in.md — a walk-in nobody knows: no
+/// name, no number, « Client sans numéro ». And a name alone is told, under
+/// the field, that the number is missing — as in the app.
+test('manual booking: a walk-in with no name and no number (web-manual-booking-walk-in)', async ({
+  page,
+}) => {
+  await signInPro(page);
+  await page.goto('/pro/rendez-vous');
+  await page.getByRole('button', { name: '+ Nouveau rendez-vous' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Nouveau rendez-vous' });
+  await dialog.getByRole('checkbox').first().check();
+  await dialog.getByLabel('Date du rendez-vous').fill('2026-12-02');
+  await dialog.getByLabel('Heure du rendez-vous').fill('11:00');
+  await dialog.getByLabel('Rechercher ou nommer le client').fill('Awa');
+  await dialog.getByRole('button', { name: 'Créer', exact: true }).click();
+  await expect(dialog.getByText('Saisissez un numéro de téléphone.')).toBeVisible();
+  await dialog.getByLabel('Rechercher ou nommer le client').fill('');
+  await dialog.getByRole('checkbox', { name: 'Client sans numéro' }).check();
+  await expect(dialog.getByText('Saisissez un numéro de téléphone.')).toHaveCount(0);
+  await dialog.getByRole('button', { name: 'Créer', exact: true }).click();
+  await expect(page.getByText('Rendez-vous créé')).toBeVisible();
 });

@@ -4,6 +4,7 @@ import {
   combineDateTime,
   isFutureIso,
   manualBookingTotal,
+  newClientNeedsPhone,
 } from '../lib/pro/manual-booking';
 
 /// Web manual booking (docs/design/web-manual-booking.md §3) — the app's
@@ -59,13 +60,26 @@ describe('canSubmitManualBooking', () => {
   const ok = {
     serviceIds: ['s1'],
     dateTimeIso: '2026-12-01T14:30:00.000Z',
-    clientNamed: true,
   };
 
-  it('needs ≥1 service + datetime + a client', () => {
+  // docs/design/web-manual-booking-walk-in.md (owner Q1: like the app) — the
+  // client is no longer a condition of the button: it is judged at submit,
+  // under its field.
+  it('needs ≥1 service + a datetime — not a name', () => {
     expect(canSubmitManualBooking(ok)).toBe(true);
     expect(canSubmitManualBooking({ ...ok, serviceIds: [] })).toBe(false);
     expect(canSubmitManualBooking({ ...ok, dateTimeIso: null })).toBe(false);
-    expect(canSubmitManualBooking({ ...ok, clientNamed: false })).toBe(false);
+  });
+});
+
+describe('newClientNeedsPhone — the app\'s rule', () => {
+  it('a new client needs a number…', () => {
+    expect(newClientNeedsPhone({ picked: false, withoutNumber: false })).toBe(true);
+  });
+  it('…unless « Client sans numéro »', () => {
+    expect(newClientNeedsPhone({ picked: false, withoutNumber: true })).toBe(false);
+  });
+  it('a picked client brings their own (or none)', () => {
+    expect(newClientNeedsPhone({ picked: true, withoutNumber: false })).toBe(false);
   });
 });

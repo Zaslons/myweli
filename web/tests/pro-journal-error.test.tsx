@@ -4,7 +4,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 const replace = vi.fn();
 // Stable object: the load effect depends on [router].
 const routerMock = { replace, push: vi.fn(), refresh: vi.fn() };
-vi.mock('next/navigation', () => ({ useRouter: () => routerMock }));
+vi.mock('next/navigation', () => ({
+  useRouter: () => routerMock,
+  useSearchParams: () => new URLSearchParams(window.location.search),
+}));
 
 import { RendezVousClient } from '../components/pro/RendezVousClient';
 import { NO_CONNECTION_MESSAGE } from '../lib/pro/team';

@@ -2,6 +2,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
 import { submitOtpLogin } from './_auth';
+import { asUnaskedBrowser } from './_push';
 
 /// B5 — §14's "the whole of §4–§8, on real pages" gate (WEB-SYSTEM §15 row 15).
 ///
@@ -149,6 +150,10 @@ const PUBLIC_ROUTES: [url: string, anchor: string | RegExp][] = [
   ['/beaute-divine/reserver', /Réserver chez/],
   ['/connexion', /Connexion|Se connecter|e-mail/i],
   ['/pro/connexion', 'Espace Pro'],
+  // web-pro-access.md: the salons' page, and the Pro sign-up with its new
+  // header and consent line.
+  ['/professionnels', /logiciel de réservation des salons/],
+  ['/pro/inscription', /Créer|compte/i],
   // The review's finds: an AREA taxonomy landing (its h1→h3 skip survived
   // the first matrix) — landing.spec's own stub route.
   ['/coiffure/abidjan/cocody', 'Coiffure à Cocody'],
@@ -195,6 +200,8 @@ test('pro routes are axe-clean', async ({ page }) => {
   for (const [url, anchor] of [
     ['/pro', /Aujourd’hui/],
     ['/pro/rendez-vous', 'Rendez-vous'],
+    // The salon's notification center (web-pro-notifications.md §6).
+    ['/pro/notifications', 'Notifications'],
     ['/pro/equipe', 'Équipe'],
     ['/pro/clients', 'Clients'],
     // The client CARD (docs/design/amounts-that-fit.md §8.5) — the page behind
@@ -235,6 +242,121 @@ test('an OPEN dialog is axe-clean (the stateful scan a crawl never sees)', async
   await expectNoViolations(page, '/pro/clients + add-client Modal');
 });
 
+test('« Alertes par e-mail » is axe-clean (salon-email-alerts)', async ({ page }) => {
+  await page.goto('/pro/connexion');
+  await submitOtpLogin(page, 'salon@example.com');
+  await expect(page).toHaveURL(/\/pro(\/)?$/);
+  await page.goto('/pro/notifications');
+  // The section loads after the heading: scanned only once it is drawn.
+  await expect(page.getByRole('switch', { name: 'Alertes par e-mail' })).toBeVisible();
+  await expectNoViolations(page, '/pro/notifications + « Alertes par e-mail »');
+});
+
+test('the browser notifications band and row are axe-clean (web-pro-browser-push)', async ({
+  page,
+}) => {
+  await asUnaskedBrowser(page);
+  await page.goto('/pro/connexion');
+  await submitOtpLogin(page, 'salon@example.com');
+  await expect(page).toHaveURL(/\/pro(\/)?$/);
+  await expect(page.getByRole('heading', { name: 'Activer les notifications' })).toBeVisible();
+  await expectNoViolations(page, '/pro + the notifications band');
+  await page.goto('/pro/notifications');
+  await expect(page.getByRole('switch', { name: 'Notifications du navigateur' })).toBeVisible();
+  await expectNoViolations(page, '/pro/notifications + « Notifications du navigateur »');
+});
+
+test('/pro/acompte — the slider, the example, the delay choices — is axe-clean (web-pro-deposit-app-rules)', async ({
+  page,
+}) => {
+  await page.goto('/pro/connexion');
+  await submitOtpLogin(page, 'salon@example.com');
+  await expect(page).toHaveURL(/\/pro(\/)?$/);
+  await page.goto('/pro/acompte');
+  await expect(page.getByRole('radiogroup', { name: 'Politique d’annulation' })).toBeVisible();
+  await expectNoViolations(page, '/pro/acompte');
+});
+
+/// docs/design/web-pro-journal-panel-deposit.md — the « Journée » panel
+/// exists only after a click on a block, so /pro/rendez-vous in the route
+/// matrix above has never scanned it. pj2 is the stub's pending request with a
+/// deposit and a screenshot: the fullest panel there is (mini-card, the
+/// acompte line, the guidance, the thumbnail button, the link, the actions).
+/// Then the screenshot enlarged — a Modal INSIDE a non-modal dialog.
+test('the OPEN journal panel with its deposit screenshot is axe-clean', async ({
+  page,
+}) => {
+  await page.goto('/pro/connexion');
+  await submitOtpLogin(page, 'salon@example.com');
+  await expect(page).toHaveURL(/\/pro(\/)?$/);
+  await page.goto('/pro/rendez-vous');
+  await page.getByRole('button', { name: /Aminata/ }).click();
+  const panel = page.getByRole('dialog', { name: 'Détails du rendez-vous' });
+  // The vacuity guard: the screenshot LOADED (not the failure sentence, not
+  // the skeleton) — otherwise this scans a panel without the thing it is for.
+  const thumb = panel.getByRole('button', {
+    name: 'Agrandir le justificatif d’acompte',
+  });
+  await expect(thumb).toBeVisible();
+  await expectNoViolations(page, '/pro/rendez-vous + journal panel (acompte)');
+
+  await thumb.click();
+  await expect(
+    page.getByRole('dialog', { name: 'Justificatif d’acompte' }),
+  ).toBeVisible();
+  await expectNoViolations(page, '/pro/rendez-vous + enlarged deposit screenshot');
+});
+
+test('the « Semaine » tab is axe-clean (web-pro-week-view)', async ({ page }) => {
+  await page.goto('/pro/connexion');
+  await submitOtpLogin(page, 'salon@example.com');
+  await expect(page).toHaveURL(/\/pro(\/)?$/);
+  await page.goto('/pro/rendez-vous?vue=semaine');
+  await expect(page.getByRole('table', { name: /^Semaine du / })).toBeVisible();
+  await expect(page.getByRole('button', { name: /— Sans artiste, Lun \d+ à 15:30$/ })).toBeVisible();
+  await expectNoViolations(page, '/pro/rendez-vous?vue=semaine');
+});
+
+test('the OPEN « Jours bloqués » dialog is axe-clean — calendar and confirmation', async ({
+  page,
+}) => {
+  // web-pro-availability-ranges.md §6: forty-odd toggle buttons, a live
+  // summary, and a second step inside the same dialog.
+  await page.goto('/pro/connexion');
+  await submitOtpLogin(page, 'salon@example.com');
+  await expect(page).toHaveURL(/\/pro(\/)?$/);
+  await page.goto('/pro/disponibilites');
+  await page.getByRole('button', { name: 'Gérer les dates bloquées' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Jours bloqués' });
+  await expect(dialog).toBeVisible();
+  await expectNoViolations(page, '/pro/disponibilites + Jours bloqués (calendar)');
+  // A day that is always selectable: the last cell of the month shown — or,
+  // on the month's last day, today itself.
+  await dialog.locator('button[aria-pressed]:not([disabled])').last().click();
+  await dialog.getByRole('button', { name: 'Enregistrer' }).click();
+  await expect(dialog.getByText(/Bloquer cette date \?/)).toBeVisible();
+  await expectNoViolations(page, '/pro/disponibilites + Jours bloqués (confirmation)');
+});
+
+test('Médias — the delete question, then the undo toast — axe-clean (web-pro-medias-like-app)', async ({
+  page,
+}) => {
+  await page.goto('/pro/connexion');
+  await submitOtpLogin(page, 'salon@example.com');
+  await expect(page).toHaveURL(/\/pro(\/)?$/);
+  await page.goto('/pro/medias');
+  await page.getByRole('button', { name: 'Supprimer' }).last().click();
+  const dialog = page.getByRole('dialog', { name: 'Supprimer cette photo ?' });
+  await expect(dialog).toBeVisible();
+  await expectNoViolations(page, '/pro/medias + delete question');
+  await dialog.getByRole('button', { name: 'Supprimer la photo' }).click();
+  const undo = page.getByRole('status').getByRole('button', { name: 'Annuler' });
+  await expect(undo).toBeVisible();
+  await expectNoViolations(page, '/pro/medias + undo toast');
+  // Put it back: the stub's gallery is shared by every test.
+  await undo.click();
+});
+
 test('a VISIBLE toast is axe-clean', async ({ page }) => {
   await page.goto('/pro/connexion');
   await submitOtpLogin(page, 'salon@example.com');
@@ -247,6 +369,7 @@ test('a VISIBLE toast is axe-clean', async ({ page }) => {
   const dialog = page.getByRole('dialog', { name: 'Nouveau rendez-vous' });
   await dialog.getByRole('checkbox').first().check();
   await dialog.getByLabel('Rechercher ou nommer le client').fill('Cliente Axe');
+  await dialog.getByRole('checkbox', { name: 'Client sans numéro' }).check();
   await dialog.getByLabel('Date du rendez-vous').fill('2026-12-01');
   await dialog.getByLabel('Heure du rendez-vous').fill('09:00');
   await dialog.getByRole('button', { name: 'Créer', exact: true }).click();

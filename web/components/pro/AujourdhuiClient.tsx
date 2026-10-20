@@ -27,6 +27,7 @@ import {
   todayCounts,
   todaysAppointments,
 } from '../../lib/pro/today';
+import { BrowserPushBand } from './BrowserPushBand';
 import { GoLiveCard } from './GoLiveCard';
 import { ProAppointmentRow } from './ProAppointmentRow';
 import { ProInvitationsCard } from './ProInvitationsCard';
@@ -39,7 +40,6 @@ export function AujourdhuiClient() {
   const [live, setLive] = useState(false);
   const [items, setItems] = useState<ProAppointment[]>([]);
   const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [offerLive, setOfferLive] = useState(false);
   const [loading, setLoading] = useState(true);
   const [reloadKey, setReloadKey] = useState(0);
   const [error, setError] = useState<LoadFailure | false>(false);
@@ -70,19 +70,6 @@ export function AujourdhuiClient() {
           // Revenue stats are best-effort — don't block the bookings list.
           const dash = await getDashboard(me.profile.provider.id);
           if (active && dash.status === 200) setStats(dash.stats ?? null);
-        }
-        // A draft salon needs a live offer to publish (team access R5a) —
-        // owner-only concern (salon.publish).
-        if (
-          me.profile.provider.status === 'draft' &&
-          hasCap(m, 'salon.publish')
-        ) {
-          const sub = await getSalonSubscription(me.profile.provider.id);
-          if (active && sub.status === 200 && sub.offer) {
-            setOfferLive(
-              sub.offer.status === 'trial' || sub.offer.status === 'paid',
-            );
-          }
         }
       }
     })();
@@ -140,6 +127,10 @@ export function AujourdhuiClient() {
           {salonName} — votre planning
         </h1>
 
+        {/* A Collaborateur is told of their own artist's bookings: the same
+            band (docs/design/web-pro-browser-push.md §2). */}
+        <BrowserPushBand />
+
         {/* Pending invitations for THIS account (if any). */}
         <ProInvitationsCard onAccepted={onInvitationAccepted} />
 
@@ -171,6 +162,10 @@ export function AujourdhuiClient() {
       <h1 className="text-headlineSmall font-semibold text-textPrimary">Aujourd’hui</h1>
       <p className="mt-xs text-bodyMedium text-textTertiary">{profile?.provider.name}</p>
 
+      {/* The app's push prompt on its first dashboard visit, as a band —
+          once per browser (docs/design/web-pro-browser-push.md §2). */}
+      <BrowserPushBand />
+
       {/* §9's two-pane desktop (B7): ONE DOM tree. Below xl the two children
           stack in the vertical flow (interrupts + stats, then the day's
           list); at xl the agenda takes the main pane and this rail moves
@@ -185,7 +180,6 @@ export function AujourdhuiClient() {
           {profile?.provider.status === 'draft' && hasCap(m, 'salon.publish') ? (
             <GoLiveCard
               profile={profile}
-              offerLive={offerLive}
               onPublished={() => {
                 setProfile({
                   ...profile,

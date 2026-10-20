@@ -5,6 +5,7 @@ import {
   OFFER_CARDS,
   PRO_ANCHOR_MONTHLY_FCFA,
   SETUP_HEADLINE,
+  SETUP_SUBLINE,
   TRIAL_KEPT_LINE,
   contactWhatsAppUrl,
   offerBanner,
@@ -48,9 +49,38 @@ describe('offer cards', () => {
     expect(reseau.notes?.join(' ')).toMatch(/propre offre/i);
   });
 
+  it('claims only what exists: read-only reviews, priority support (web-pro-profil-support)', () => {
+    // Reviews are read-only on web and app — no « gestion ». « Aide &
+    // Support » is now on every Profil; Business salons are answered first,
+    // with no promise of a dedicated person (owner decisions, 2026-10-20).
+    const [pro, business] = OFFER_CARDS;
+    expect(pro.entitlements).toContain('Statistiques & avis clients');
+    expect(business.entitlements).toContain('Support prioritaire');
+    const lines = OFFER_CARDS.flatMap((c) => [...c.entitlements, ...(c.notes ?? [])]);
+    expect(lines.filter((l) => /gestion des avis|dédié/i.test(l))).toEqual([]);
+  });
+
+  it('no line sells a messaging channel production does not run', () => {
+    // MESSAGING_PROVIDER=disabled until company registration: no WhatsApp, no
+    // SMS reaches anyone. The 24 h / 2 h reminders are real — as notifications
+    // of the MyWeli app (docs/design/promise-honesty-sweep.md §1.1, T1).
+    const lines = OFFER_CARDS.flatMap((c) => [...c.entitlements, ...(c.notes ?? [])]);
+    expect(lines.filter((l) => /whatsapp|\bsms\b/i.test(l))).toEqual([]);
+    expect(OFFER_CARDS[0].entitlements).toContain(
+      'Rappels automatiques à vos clients dans l’app MyWeli (24 h / 2 h)',
+    );
+  });
+
   it('the setup headline promises the 3 free months', () => {
     expect(SETUP_HEADLINE).toMatch(/3 mois offerts/);
     expect(TRIAL_KEPT_LINE).toMatch(/essai/i);
+  });
+
+  it('the setup sentence says when the trial starts — at go-live, not at the choice', () => {
+    // web-pro-access.md §12: no offer is needed to publish any more.
+    expect(SETUP_SUBLINE).toBe(
+      'Votre essai de 3 mois démarre à la mise en ligne de votre salon. Vous pouvez choisir ou changer d’offre à tout moment.',
+    );
   });
 });
 

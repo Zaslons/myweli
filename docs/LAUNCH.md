@@ -4,7 +4,7 @@
 |---|---|
 | **Status** | Living document. Nothing here is done until its box is ticked **with evidence**. |
 | **Order** | **Web first → iOS → Android last** (§3) — *amended 2026-09-24 (owner): the **Pro app goes to the Apple App Store first** — TestFlight and App Review now, the public release still behind production restored and stable (§3)* |
-| **Related** | [ROADMAP.md](ROADMAP.md) · [DEPLOYMENT.md](DEPLOYMENT.md) · [BACKEND.md](BACKEND.md) · [design/mobile-store-submission.md](design/mobile-store-submission.md) |
+| **Related** | [ROADMAP.md](ROADMAP.md) · [BACKLOG.md](BACKLOG.md) (what is left, and how we will solve it) · [DEPLOYMENT.md](DEPLOYMENT.md) · [BACKEND.md](BACKEND.md) · [design/mobile-store-submission.md](design/mobile-store-submission.md) |
 
 ## 0. Why this document exists
 

@@ -90,6 +90,10 @@ export default defineConfig({
         // id is enough; the suite never lets a request reach Google (it is
         // intercepted), so the value only has to be non-empty.
         NEXT_PUBLIC_GOOGLE_CLIENT_ID: 'e2e-dummy.apps.googleusercontent.com',
+        // The Apple buttons (client + Pro, web-pro-apple.md) render only when
+        // this is set — without it, no e2e page ever drew them. Nothing here
+        // clicks them: Apple's script loads on the first tap only.
+        NEXT_PUBLIC_APPLE_CLIENT_ID: 'com.myweli.e2e',
         // Same reasoning as the line above, one control further on: the
         // « Aide & Support » row and the pro « Nous contacter » CTA now render
         // NOTHING when no number is configured, rather than linking to
@@ -98,6 +102,17 @@ export default defineConfig({
         // is legitimately absent. The absent case is covered by
         // `tests/support.test.ts`; this covers the configured one.
         NEXT_PUBLIC_MYWELI_WHATSAPP: '2250700000000',
+        // The browser notifications (web-pro-browser-push.md §5) exist only
+        // with a Firebase web app configured — dummy values make the band and
+        // the row render; no request ever reaches Google, because a headless
+        // browser has no push service and the build names its token instead
+        // (NEXT_PUBLIC_E2E_PUSH_TOKEN, never set in a real build).
+        NEXT_PUBLIC_FIREBASE_API_KEY: 'e2e-dummy-key',
+        NEXT_PUBLIC_FIREBASE_PROJECT_ID: 'e2e-dummy',
+        NEXT_PUBLIC_FIREBASE_APP_ID: '1:0:web:e2e',
+        NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: '0',
+        NEXT_PUBLIC_FIREBASE_VAPID_KEY: 'e2e-dummy-vapid',
+        NEXT_PUBLIC_E2E_PUSH_TOKEN: 'e2e-push-token',
         TZ: 'UTC',
       },
     },

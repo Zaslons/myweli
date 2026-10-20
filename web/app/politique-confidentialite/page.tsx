@@ -133,7 +133,10 @@ export default function Page() {
       </P>
       <P>
         <strong>Vos notifications</strong> — l’identifiant technique de votre
-        appareil et vos préférences, pour vous prévenir d’un rendez-vous.
+        appareil et vos préférences, pour vous prévenir d’un rendez-vous. Si vous
+        autorisez les notifications dans votre navigateur, il reçoit un
+        identifiant de notification (Firebase Cloud Messaging), supprimé quand
+        vous les coupez ou vous déconnectez.
       </P>
       <P>
         <strong>Nos messages</strong> — le numéro destinataire et le contenu des

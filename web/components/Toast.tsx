@@ -24,11 +24,21 @@ export function Toast({ toast }: { toast: ToastState }) {
     >
       {toast ? (
         <div
-          className={`rounded-lg px-l py-s text-bodyMedium text-secondary shadow-lg ${
+          className={`flex items-center gap-m rounded-lg px-l py-s text-bodyMedium text-secondary shadow-lg ${
             toast.kind === 'error' ? 'bg-error' : 'bg-primary'
           }`}
         >
           {toast.message}
+          {toast.action ? (
+            // The container lets clicks through; its one control takes them.
+            <button
+              type="button"
+              onClick={toast.action.onAction}
+              className="pointer-events-auto -my-s min-h-12 font-semibold text-secondary underline"
+            >
+              {toast.action.label}
+            </button>
+          ) : null}
         </div>
       ) : null}
     </div>

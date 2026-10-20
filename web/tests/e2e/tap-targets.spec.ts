@@ -1,6 +1,8 @@
 import { expect, test } from '@playwright/test';
 
 import { signInConsumer, signInPro } from './_auth';
+import { asUnaskedBrowser } from './_push';
+import { serveStubImages } from './_pixel';
 
 /// B4 — §13.2's 48px floor, pinned (WEB-SYSTEM §15 row 7h).
 ///
@@ -94,13 +96,84 @@ test('salon page: the favourite ♥ is a 48px target', async ({ page }) => {
   await assertBox(heart, 'favourite ♥');
 });
 
+test('pro: « Alertes par e-mail » — the switch (salon-email-alerts)', async ({ page }) => {
+  await signInPro(page);
+  await page.goto('/pro/notifications');
+  const sw = page.getByRole('switch', { name: 'Alertes par e-mail' });
+  await expect(sw).toBeVisible();
+  await assertBox(sw, '« Alertes par e-mail » switch');
+});
+
+test('pro: the browser notifications — the band’s buttons and the row’s switch (web-pro-browser-push)', async ({
+  page,
+}) => {
+  await asUnaskedBrowser(page);
+  await signInPro(page);
+  for (const name of ['Activer', 'Plus tard']) {
+    const b = page.getByRole('button', { name, exact: true });
+    await expect(b).toBeVisible();
+    await assertBox(b, `band « ${name} »`);
+  }
+  await page.goto('/pro/notifications');
+  const sw = page.getByRole('switch', { name: 'Notifications du navigateur' });
+  await expect(sw).toBeVisible();
+  await assertBox(sw, '« Notifications du navigateur » switch');
+});
+
+test('pro: the deposit delay choices — each a 48px target (web-pro-deposit-app-rules)', async ({
+  page,
+}) => {
+  await signInPro(page);
+  await page.goto('/pro/acompte');
+  const group = page.getByRole('radiogroup', { name: 'Politique d’annulation' });
+  await expect(group).toBeVisible();
+  for (const h of ['12 h', '24 h', '48 h']) {
+    const choice = group.locator('label', { has: page.getByRole('radio', { name: h }) });
+    await assertBox(choice, `delay choice « ${h} »`);
+  }
+});
+
+test('pro: « Client sans numéro » — its whole row is the target (web-manual-booking-walk-in)', async ({
+  page,
+}) => {
+  await signInPro(page);
+  await page.goto('/pro/rendez-vous');
+  await page.getByRole('button', { name: '+ Nouveau rendez-vous' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Nouveau rendez-vous' });
+  const row = dialog.locator('label', {
+    has: page.getByRole('checkbox', { name: 'Client sans numéro' }),
+  });
+  await expect(row).toBeVisible();
+  await assertBox(row, '« Client sans numéro » row', { minW: 0 });
+});
+
+test('pro: Médias — the undo toast’s « Annuler » (web-pro-medias-like-app)', async ({ page }) => {
+  await signInPro(page);
+  await page.goto('/pro/medias');
+  await page.getByRole('button', { name: 'Supprimer' }).last().click();
+  await page
+    .getByRole('dialog', { name: 'Supprimer cette photo ?' })
+    .getByRole('button', { name: 'Supprimer la photo' })
+    .click();
+  const undo = page.getByRole('status').getByRole('button', { name: 'Annuler' });
+  await expect(undo).toBeVisible();
+  await assertBox(undo, 'undo toast « Annuler »', { minW: 0 });
+  await undo.click(); // the stub's gallery is shared
+});
+
 test('pro: the glyph buttons that grew invisibly', async ({ page }) => {
   await signInPro(page);
 
   // The hamburger (24px svg, unmoved) and the top-bar wordmark link (28px
   // before the review measured it).
   await assertBox(page.getByRole('button', { name: 'Ouvrir le menu' }), 'hamburger');
-  await assertBox(page.getByRole('link', { name: 'MyWeli Pro' }), '"MyWeli Pro" link', { minW: 0 });
+  // `exact`: the footer's « MyWeli Pro pour les salons » (web-pro-access.md
+  // P2) also contains the words, and Playwright's string name is a substring.
+  await assertBox(
+    page.getByRole('link', { name: 'MyWeli Pro', exact: true }),
+    '"MyWeli Pro" link',
+    { minW: 0 },
+  );
 
   // The drawer: its ✕ (16px glyph before B4) and a nav link (207×36 before the
   // review measured those too). « Rendez-vous » has no capability gate, so it
@@ -116,6 +189,40 @@ test('pro: the glyph buttons that grew invisibly', async ({ page }) => {
   // member, so the row never renders and a guard would pass vacuously (the
   // first draft of this spec did exactly that). The control is floored in
   // code (`-mx-s -my-sm` + min-h-12); pinning it needs a stub with members.
+});
+
+test('pro: the Journée’s week strip — seven days share 375px (web-pro-week-strip)', async ({
+  page,
+}) => {
+  await signInPro(page);
+  await page.goto('/pro/rendez-vous');
+  const days = page.getByRole('group', { name: /^Semaine du / }).getByRole('button');
+  await expect(days).toHaveCount(7);
+  for (let i = 0; i < 7; i++) {
+    await assertBox(days.nth(i), `week strip day ${i + 1}`);
+  }
+});
+
+test('pro: the journal panel’s deposit controls (web-pro-journal-panel-deposit)', async ({
+  page,
+}) => {
+  await serveStubImages(page);
+  await signInPro(page);
+  await page.goto('/pro/rendez-vous');
+  await page.getByRole('button', { name: /Aminata/ }).click();
+  const panel = page.getByRole('dialog', { name: 'Détails du rendez-vous' });
+  // A text link in a panel full of 48px buttons — the shape that slips under
+  // the floor (the panel's own « Voir la fiche » is one).
+  const link = panel.getByRole('link', { name: 'Voir le rendez-vous' });
+  await expect(link).toBeVisible();
+  await assertBox(link, 'panel « Voir le rendez-vous »', { minW: 0 });
+  // The thumbnail: 144px tall, as wide as the screenshot's own ratio — a
+  // 1×1 pixel here, so 144 wide; min-w-12 holds a very tall one.
+  const thumb = panel.getByRole('button', {
+    name: 'Agrandir le justificatif d’acompte',
+  });
+  await expect(thumb).toBeVisible();
+  await assertBox(thumb, 'panel deposit thumbnail');
 });
 
 test('account: the switch and the review stars', async ({ page }) => {
@@ -205,4 +312,20 @@ test('the buffer presets reach the floor (§13.2)', async ({ page }) => {
     await expect(chip, `buffer preset « ${label} » never rendered`).toBeVisible();
     await assertBox(chip, `buffer preset « ${label} »`, { minW: 0 });
   }
+});
+
+/// docs/design/web-pro-week-view.md — the « Semaine » controls, at the width
+/// the tab exists (desktop only).
+test.describe('pro: the « Semaine » controls (web-pro-week-view)', () => {
+  test.use({ viewport: { width: 1280, height: 800 } });
+
+  test('‹ ›, « Cette semaine », the « Artiste » filter', async ({ page }) => {
+    await signInPro(page);
+    await page.goto('/pro/rendez-vous?vue=semaine');
+    await expect(page.getByRole('table', { name: /^Semaine du / })).toBeVisible();
+    await assertBox(page.getByRole('button', { name: 'Semaine précédente' }), '‹');
+    await assertBox(page.getByRole('button', { name: 'Semaine suivante' }), '›');
+    await assertBox(page.getByRole('button', { name: 'Cette semaine' }), '« Cette semaine »', { minW: 0 });
+    await assertBox(page.getByLabel('Artiste', { exact: true }), '« Artiste »', { minW: 0 });
+  });
 });

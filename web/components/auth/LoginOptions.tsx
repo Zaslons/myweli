@@ -19,9 +19,10 @@ import {
 import { Button } from '../Button';
 import { PhoneField } from '../PhoneField';
 import { TextField } from '../TextField';
-import { loadScript } from '../../lib/loadScript';
+import { appleIdentity } from '../../lib/auth/apple';
 import { AppleSignInButton } from './AppleSignInButton';
 import { GoogleSignInButton } from './GoogleSignInButton';
+import { LegalConsentText } from '../LegalConsentText';
 
 /// Consumer sign-in — Google + Apple + email OTP (auth overhaul P2, replaces
 /// phone-OTP). Google/Apple render only when their public client IDs are
@@ -29,33 +30,6 @@ import { GoogleSignInButton } from './GoogleSignInButton';
 /// contact-phone step** blocks until the profile has a phone (decision
 /// 2026-07-02) — the salon needs a number to reach the client.
 /// Design: docs/design/web-auth-social.md.
-
-declare global {
-  interface Window {
-    AppleID?: {
-      auth: {
-        init: (config: {
-          clientId: string;
-          scope: string;
-          redirectURI: string;
-          usePopup: boolean;
-        }) => void;
-        signIn: (options?: {
-          nonce?: string;
-        }) => Promise<{
-          authorization: { id_token: string };
-          user?: { name?: { firstName?: string; lastName?: string } };
-        }>;
-      };
-    };
-  }
-}
-
-function randomNonce(): string {
-  const bytes = new Uint8Array(16);
-  crypto.getRandomValues(bytes);
-  return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
-}
 
 export function LoginOptions({ onSuccess }: { onSuccess: () => void }) {
   const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
@@ -106,39 +80,21 @@ export function LoginOptions({ onSuccess }: { onSuccess: () => void }) {
     if (!appleClientId || busy) return;
     setBusy(true);
     setError(null);
-    try {
-      await loadScript(
-        'https://appleid.cdn-apple.com/appleauth/static/jsapi/appleid/1/en_US/appleid.auth.js',
-      );
-      if (!window.AppleID) throw new Error('apple_unavailable');
-      const nonce = randomNonce();
-      window.AppleID.auth.init({
-        clientId: appleClientId,
-        scope: 'name email',
-        redirectURI: `${window.location.origin}/connexion`,
-        usePopup: true,
-      });
-      const res = await window.AppleID.auth.signIn({ nonce });
-      const name = res.user?.name;
-      const fullName = [name?.firstName, name?.lastName]
-        .filter(Boolean)
-        .join(' ');
-      const r = await loginWithApple({
-        identityToken: res.authorization.id_token,
-        nonce,
-        fullName: fullName || undefined,
-      });
-      if (!r.ok) {
-        setError('Connexion Apple impossible.');
-        return;
-      }
-      afterLogin(r.user);
-    } catch {
-      // User closed the popup or the script failed — silent for cancels.
-      setError(null);
-    } finally {
+    // Closed popup or a failed script → null, silently (a cancel is not an
+    // error). The flow itself lives in lib/auth/apple.ts, shared with the
+    // salon's sign-in.
+    const id = await appleIdentity(appleClientId);
+    if (!id) {
       setBusy(false);
+      return;
     }
+    const r = await loginWithApple(id);
+    setBusy(false);
+    if (!r.ok) {
+      setError('Connexion Apple impossible.');
+      return;
+    }
+    afterLogin(r.user);
   }
 
   async function sendCode() {
@@ -316,9 +272,8 @@ export function LoginOptions({ onSuccess }: { onSuccess: () => void }) {
         Continuer avec e-mail
       </Button>
       {error ? <p role="alert" className="text-bodyMedium text-error">{error}</p> : null}
-      <p className="text-bodySmall text-textTertiary">
-        En continuant, vous acceptez nos conditions d’utilisation.
-      </p>
+      {/* §5 (web-pro-access.md): both documents, linked — the app's sentence. */}
+      <LegalConsentText lead="En continuant" />
     </div>
   );
 }

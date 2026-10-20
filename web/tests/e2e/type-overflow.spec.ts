@@ -1,6 +1,8 @@
 import { expect, test, type Page } from '@playwright/test';
 
 import { signInConsumer, signInPro } from './_auth';
+import { asUnaskedBrowser } from './_push';
+import { serveStubImages } from './_pixel';
 
 /// B2b — the type scale must not overflow anything (WEB-SYSTEM §3).
 ///
@@ -53,6 +55,9 @@ type Route = {
   /// `RendezVousClient`'s default view is `journal`, so a test that merely
   /// loads the page never renders the tabs it is there to measure.
   setup?: (page: Page) => Promise<void>;
+  /// Before the sign-in's first navigation — init scripts
+  /// (`asUnaskedBrowser`, docs/design/web-pro-browser-push.md).
+  init?: (page: Page) => Promise<void>;
   /// What the five generic checks cannot see on this route, asserted before
   /// them. They find what spills, what is cut off and what is truncated — never
   /// how many lines a string took, and never how far apart two controls ended
@@ -76,6 +81,11 @@ const PUBLIC_ROUTES: [name: string, url: string, anchor: string | RegExp][] = [
   // guard this file's own header demands — a wrong URL scans the 404 page,
   // which also does not overflow.
   ['the account-deletion page — the one a reviewer opens on a phone', '/suppression-compte', /Supprimer votre compte/i],
+  // web-pro-access.md §4: the salons' page — the longest h1 on the public
+  // site, two buttons side by side, six benefit cards.
+  ['the salons page — MyWeli Pro pour les salons', '/professionnels', /logiciel de réservation des salons/],
+  // web-pro-access.md P4 — the Pro sign-up now has a header, and the consent.
+  ['the pro sign-up — header + consent', '/pro/inscription', /Créer|compte/i],
   // B11: **this row runs before every authed row for a reason.** `signInPro`
   // drives this exact UI, so if the pro login breaks at 320 the authed half
   // fails at sign-in and every failure is misattributed to the page under test.
@@ -328,10 +338,21 @@ async function overflowingFlexRows(page: import('@playwright/test').Page) {
         const cs = getComputedStyle(child);
         if (cs.position === 'absolute' || cs.position === 'fixed') continue;
         if (cs.display === 'none') continue;
-        const cb = child.getBoundingClientRect();
+        // LAYOUT width, not painted width, for a transformed child: a
+        // transform is paint-only and cannot make a flex row overflow, but
+        // `getBoundingClientRect` measures the transformed box. The phone
+        // field's country arrow is a 5px square turned 45° — 6.8px on screen,
+        // 1px into an 8px padding, nothing clipped — and it read as « 2 items
+        // need 40 of 38 » the first time /pro/inscription joined this matrix
+        // (web-pro-access.md §11). An untransformed child keeps its exact
+        // fractional rect.
+        const width =
+          cs.transform !== 'none' && child instanceof HTMLElement
+            ? child.offsetWidth
+            : child.getBoundingClientRect().width;
         const ml = parseFloat(cs.marginLeft) || 0;
         const mr = parseFloat(cs.marginRight) || 0;
-        need += cb.width + ml + mr;
+        need += width + ml + mr;
         items += 1;
       }
       if (items < 2) continue; // a one-item row cannot be a strip
@@ -560,12 +581,43 @@ const AUTHED_ROUTES: Route[] = [
     auth: 'pro',
   },
   {
+    // docs/design/web-pro-journal-panel-deposit.md — the « Journée » panel
+    // opened on pj2 (pending, 5 000 FCFA deposit, screenshot): the acompte
+    // line, the guidance sentence, the 144px thumbnail, « Voir le
+    // rendez-vous », Accepter/Refuser. At 375 and 320 the panel IS the screen
+    // (`w-full max-w-sm`), so this is where a long French sentence or a wide
+    // screenshot would push it sideways.
+    name: 'the journal panel — the deposit, its screenshot, the link',
+    url: '/pro/rendez-vous',
+    anchor: 'Rendez-vous',
+    auth: 'pro',
+    setup: async (page) => {
+      await serveStubImages(page);
+      await page.getByRole('button', { name: /Aminata/ }).click();
+      // Vacuity guard: measured with the screenshot LOADED, not its skeleton
+      // or its failure sentence.
+      await expect(
+        page.getByRole('button', { name: 'Agrandir le justificatif d’acompte' }),
+      ).toBeVisible();
+    },
+  },
+  {
     // **Strip #1** — « Journée » · « Calendrier » · « Liste ». Pre-B9 this page
     // was visited and measured for a `line-height` only.
     name: 'the pro agenda — the view switcher (strip #1)',
     url: '/pro/rendez-vous',
     anchor: 'Rendez-vous',
     auth: 'pro',
+  },
+  {
+    // docs/design/web-pro-week-strip.md — seven day buttons sharing the
+    // width with no gap: at 320 each has ~41px for « Lun », the number and
+    // the dot. `ready` is the vacuity guard — measured with the strip drawn.
+    name: 'the pro agenda — the week strip above the Journée',
+    url: '/pro/rendez-vous',
+    anchor: 'Rendez-vous',
+    auth: 'pro',
+    ready: (page) => page.getByRole('group', { name: /^Semaine du / }),
   },
   {
     // **Strip #2** — « Aujourd'hui » · « À venir » · « En attente » · « Tous »,
@@ -578,6 +630,15 @@ const AUTHED_ROUTES: Route[] = [
     setup: async (page) => {
       await page.getByRole('button', { name: 'Liste' }).click();
     },
+  },
+  {
+    // docs/design/web-pro-deposit-app-rules.md — the app's explanations
+    // (the longest: the cancellation sentence) and the delay choices.
+    name: 'the pro deposit page — explanations and the delay choices',
+    url: '/pro/acompte',
+    anchor: 'Acompte',
+    auth: 'pro',
+    ready: (page) => page.getByRole('radiogroup', { name: 'Politique d’annulation' }),
   },
   {
     // **Strip #3** — « Services » · « Employés ».
@@ -657,6 +718,45 @@ const AUTHED_ROUTES: Route[] = [
     anchor: 'Avis',
     auth: 'pro',
   },
+  {
+    // The salon's notification center (web-pro-notifications.md §6): the
+    // « Tout marquer comme lu » button beside the h1, and the reschedule
+    // body — the longest sentence the server writes to a salon.
+    name: 'the pro notification center',
+    url: '/pro/notifications',
+    anchor: 'Notifications',
+    auth: 'pro',
+  },
+  {
+    // docs/design/salon-email-alerts.md §4 — « Alertes par e-mail »: a long
+    // sentence carrying the member's address (an unbreakable string) beside
+    // the 48px switch. `ready` is the switch: measured with it drawn.
+    name: 'the pro notification center — « Alertes par e-mail »',
+    url: '/pro/notifications',
+    anchor: 'Notifications',
+    auth: 'pro',
+    ready: (page) => page.getByRole('switch', { name: 'Alertes par e-mail' }),
+  },
+  {
+    // docs/design/web-pro-browser-push.md §3 — « Notifications du
+    // navigateur » above « Alertes par e-mail »: its long sentence beside the
+    // 48px switch. `ready` is the switch.
+    name: 'the pro notification center — « Notifications du navigateur »',
+    init: asUnaskedBrowser,
+    url: '/pro/notifications',
+    anchor: 'Notifications',
+    auth: 'pro',
+    ready: (page) => page.getByRole('switch', { name: 'Notifications du navigateur' }),
+  },
+  {
+    // §2 — the Accueil's band, its sentence and its two buttons.
+    name: 'the pro home — the notifications band',
+    init: asUnaskedBrowser,
+    url: '/pro',
+    anchor: 'Aujourd’hui',
+    auth: 'pro',
+    ready: (page) => page.getByRole('heading', { name: 'Activer les notifications' }),
+  },
   // ---- amounts-that-fit (docs/design/amounts-that-fit.md §8.5) -------------
   {
     // The client CARD — the page behind every row of « the pro client list »
@@ -697,6 +797,7 @@ for (const vp of VIEWPORTS) {
 
     for (const route of AUTHED_ROUTES) {
       test(`${route.name} — no overflow at ${vp.name}`, async ({ page }) => {
+        await route.init?.(page);
         if (route.auth === 'pro') await signInPro(page);
         else await signInConsumer(page);
 
@@ -732,8 +833,14 @@ for (const vp of VIEWPORTS) {
         // which is the "gate that is red on correct behaviour" failure this file
         // keeps warning about. An error state is an alert **with something to
         // say**.
+        //
+        // **And the announcer is excluded by its id, not by being empty.** It is
+        // empty only until a client-side navigation — then it reads the new
+        // page title aloud. Since the agenda keeps its view in the address
+        // (web-pro-agenda-in-url.md), « Liste » IS such a navigation, and the
+        // announcer saying « Pro — Rendez-vous · MyWeli » read as an error.
         expect(
-          (await page.getByRole('alert').allTextContents())
+          (await page.locator('[role="alert"]:not(#__next-route-announcer__)').allTextContents())
             .map((t) => t.trim())
             .filter(Boolean),
           `${route.url} rendered an error state — every assertion below would be vacuous`,
@@ -787,4 +894,23 @@ test('the pro journal — the 11px block label still fits its ~15px row', async 
   expect(line, 'leading-tight must still beat the token’s baked 16px line').toBe(
     '13.75px',
   );
+});
+
+/// docs/design/web-pro-week-view.md — the « Semaine » tab exists from desktop
+/// width only, so the phone matrix above cannot see it. At the narrowest
+/// desktop (1024, the sidebar beside it) and a common one: the page never
+/// scrolls sideways (the seven columns scroll inside their own box), and no
+/// text spills from its box.
+test.describe('the « Semaine » tab at desktop widths (web-pro-week-view)', () => {
+  for (const width of [1024, 1280]) {
+    test(`no overflow at ${width}`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 800 });
+      await signInPro(page);
+      await page.goto('/pro/rendez-vous?vue=semaine');
+      await expect(page.getByRole('table', { name: /^Semaine du / })).toBeVisible();
+      await expect(page.getByRole('button', { name: /— Sans artiste, Lun \d+ à 15:30$/ })).toBeVisible();
+      expect(await horizontalOverflow(page), `the page scrolls sideways at ${width}`).toEqual([]);
+      expect(await overflowingText(page), `text spills out of its own box at ${width}`).toEqual([]);
+    });
+  }
 });

@@ -1,5 +1,6 @@
 import 'package:mocktail/mocktail.dart';
 import 'package:myweli_backend/src/access/membership_repository.dart';
+import 'package:myweli_backend/src/email/email_provider.dart';
 import 'package:myweli_backend/src/messaging/salon_notifier.dart';
 import 'package:myweli_backend/src/notifications/notification_prefs_repository.dart';
 import 'package:myweli_backend/src/notifications/notifications_repository.dart';
@@ -64,6 +65,7 @@ void main() {
       feed,
       prefs,
       providers,
+      email: LogEmailProvider(),
     );
   });
 
@@ -216,6 +218,82 @@ void main() {
       expect(pushes.sends.single.title, 'Réservation annulée');
     },
   );
+
+  group('clientRescheduled (spec salon-client-reschedule-notify §3.1)', () {
+    test('title N1; body N2 says which slot frees up and where it moved, '
+        'in the SALON wall-clock; the reschedule feed type', () async {
+      when(() => providers.byId('p1')).thenAnswer(
+        (_) async => {
+          'name': 'Institut Libreville',
+          'timezone': 'Africa/Libreville', // UTC+1
+        },
+      );
+      await seed(role: 'owner', accountId: 'acc-owner');
+
+      await notifier.notify(
+        appointment(), // moved TO 2026-06-28T14:30Z
+        SalonEvent.clientRescheduled,
+        previousAppointmentDate: '2026-06-27T09:00:00.000Z',
+      );
+
+      final s = pushes.sends.single;
+      expect(s.title, 'Réservation reportée');
+      expect(
+        s.body,
+        'Le client a reporté le rendez-vous du 27/06/2026 à 10:00 '
+        'au 28/06/2026 à 15:30.',
+      );
+      expect(s.body, isNot(contains('u1'))); // no client identifiers (T58)
+      expect(s.data['event'], 'client_rescheduled');
+      expect(s.data['route'], '/pro/appointment/a1?salon=p1');
+
+      final row = (await feed.listForUser('acc-owner')).single;
+      expect(row['type'], 'reschedule');
+      expect(row['title'], 'Réservation reportée');
+      expect(row['body'], s.body);
+    });
+
+    test('no readable old date → the new one alone; no new date → the '
+        'event alone', () async {
+      await seed(role: 'owner', accountId: 'acc-owner');
+
+      await notifier.notify(appointment(), SalonEvent.clientRescheduled);
+      await notifier.notify(
+        appointment(),
+        SalonEvent.clientRescheduled,
+        previousAppointmentDate: 'not a date',
+      );
+      await notifier.notify(
+        {'id': 'a2', 'providerId': 'p1', 'userId': 'u1'},
+        SalonEvent.clientRescheduled,
+        previousAppointmentDate: '2026-06-27T09:00:00.000Z',
+      );
+
+      expect(pushes.sends.map((s) => s.body), [
+        'Le client a reporté le rendez-vous au 28/06/2026 à 14:30.',
+        'Le client a reporté le rendez-vous au 28/06/2026 à 14:30.',
+        'Le client a reporté un rendez-vous.',
+      ]);
+    });
+
+    test('the recipient rule is the one rule: the artist’s own Collaborateur '
+        'yes, another chair’s no', () async {
+      await seed(role: 'owner', accountId: 'acc-owner');
+      await seed(role: 'staff', accountId: 'acc-ar1', artistId: 'ar1');
+      await seed(role: 'staff', accountId: 'acc-ar2', artistId: 'ar2');
+
+      await notifier.notify(
+        appointment(artistId: 'ar1'),
+        SalonEvent.clientRescheduled,
+        previousAppointmentDate: '2026-06-27T09:00:00.000Z',
+      );
+
+      expect(pushes.sends.expand((s) => s.tokens).toSet(), {
+        'tok-acc-owner',
+        'tok-acc-ar1',
+      });
+    });
+  });
 
   test(
     'null appointment / missing providerId / repo failure → silent no-op',

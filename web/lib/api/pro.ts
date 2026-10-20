@@ -20,9 +20,11 @@ import type {
   TeamRoleInput,
 } from '../pro/team';
 import type { JournalDay } from '../pro/journal';
+import type { ReviewSummary } from '../pro/reviews';
 import type { ProAppointment } from '../pro/today';
 import type { EarningsData } from '../pro/earnings';
 import { wholeClientBase } from '../pro/export';
+import type { AppNotification } from '../account/notifications';
 
 export type DashboardStats = {
   todayAppointments?: number;
@@ -194,6 +196,97 @@ export async function selectSalon(salonId: string | null): Promise<{
   };
 }
 
+/// The salon member's notification feed (docs/design/web-pro-notifications.md):
+/// the consumer wrappers' shapes, on the pro session. Status 0 = no answer.
+export async function getProNotifications(): Promise<{
+  status: number;
+  items: AppNotification[];
+}> {
+  const res = await send('/api/pro/notifications');
+  if (!res.ok) return { status: res.status, items: [] };
+  const body = await readJson<{ items?: AppNotification[] }>(res);
+  return body ? { status: 200, items: body.items ?? [] } : { status: 0, items: [] };
+}
+
+/// Both carry their status: the caller puts the row back to unread and tells
+/// « no network » from a refusal (web-consumer-optimistic-revert.md §3.3).
+export async function markProNotificationRead(
+  id: string,
+): Promise<{ ok: boolean; status: number }> {
+  const res = await send(`/api/pro/notifications/${encodeURIComponent(id)}/read`, {
+    method: 'POST',
+  });
+  return { ok: res.ok, status: res.status };
+}
+
+export async function markAllProNotificationsRead(): Promise<{
+  ok: boolean;
+  status: number;
+}> {
+  const res = await send('/api/pro/notifications/read-all', { method: 'POST' });
+  return { ok: res.ok, status: res.status };
+}
+
+/// The member's « Alertes par e-mail » (docs/design/salon-email-alerts.md
+/// §4) — the one preference web Pro shows. `emailAlerts` is absent when the
+/// server does not send it (an API older than the switch): the page then
+/// shows no switch rather than one that would save nothing. Status 0 = no
+/// usable answer.
+export type ProNotificationPrefs = { emailAlerts: boolean };
+
+export async function getProNotificationPrefs(): Promise<{
+  status: number;
+  prefs?: ProNotificationPrefs;
+}> {
+  const res = await send('/api/pro/notification-preferences');
+  if (!res.ok) return { status: res.status };
+  const body = await readJson<{ emailAlerts?: unknown }>(res);
+  if (!body) return { status: 0 };
+  return typeof body.emailAlerts === 'boolean'
+    ? { status: 200, prefs: { emailAlerts: body.emailAlerts } }
+    : { status: 200 };
+}
+
+/// Carries its status: the switch goes back and tells « no network » from a
+/// refusal. A lost 2xx body keeps the switch where the member put it.
+export async function setProEmailAlerts(on: boolean): Promise<{
+  ok: boolean;
+  status: number;
+  prefs?: ProNotificationPrefs;
+}> {
+  const res = await send('/api/pro/notification-preferences', {
+    method: 'PUT',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ emailAlerts: on }),
+  });
+  if (!res.ok) return { ok: false, status: res.status };
+  const body = await readJson<{ emailAlerts?: unknown }>(res);
+  return typeof body?.emailAlerts === 'boolean'
+    ? { ok: true, status: res.status, prefs: { emailAlerts: body.emailAlerts } }
+    : { ok: true, status: res.status };
+}
+
+/// This browser's notification token on the member's Pro session
+/// (docs/design/web-pro-browser-push.md §5) — the BFF says `web`.
+export async function registerProDevice(token: string): Promise<{ ok: boolean; status: number }> {
+  const res = await send('/api/pro/devices', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ token }),
+  });
+  return { ok: res.ok, status: res.status };
+}
+
+/// Forget this browser's token — the switch turned off, or a sign-out.
+export async function unregisterProDevice(token: string): Promise<{ ok: boolean; status: number }> {
+  const res = await send('/api/pro/devices', {
+    method: 'DELETE',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ token }),
+  });
+  return { ok: res.ok, status: res.status };
+}
+
 export async function listProAppointments(): Promise<{
   status: number;
   items: ProAppointment[];
@@ -259,6 +352,9 @@ export async function listProviderReviews(
   items: Review[];
   total: number;
   pageSize: number;
+  /// The whole salon's card (salon-reviews-summary.md); absent from a server
+  /// older than it.
+  summary?: ReviewSummary;
 }> {
   // `providerId` is the R6 SELECTOR, not the authority: upstream resolves the
   // salon from the token and refuses a selection the caller is not a member of
@@ -271,6 +367,7 @@ export async function listProviderReviews(
     items?: Review[];
     total?: number;
     pageSize?: number;
+    summary?: ReviewSummary;
   }>(res);
   if (!body) return { status: 0, items: [], total: 0, pageSize: 0 };
   return {
@@ -278,6 +375,7 @@ export async function listProviderReviews(
     items: body.items ?? [],
     total: body.total ?? 0,
     pageSize: body.pageSize ?? 50,
+    ...(body.summary ? { summary: body.summary } : {}),
   };
 }
 
@@ -304,11 +402,18 @@ export async function proAction(
   return { ok: false, status: res.status, error: b.error };
 }
 
-export async function proDepositScreenshotUrl(id: string): Promise<string | null> {
+/// The short-lived signed URL of a booking's deposit screenshot. A read like
+/// the others (docs/design/web-pro-journal-panel-deposit.md §5): status 0 when
+/// nothing usable came back — a 200 without a URL included — so the screen can
+/// tell a cut connection from a refusal. It used to fold every failure into
+/// `null`, and the detail page's button then did nothing at all.
+export async function proDepositScreenshotUrl(
+  id: string,
+): Promise<{ status: number; url?: string }> {
   const res = await send(`/api/pro/appointments/${id}/deposit-screenshot`);
-  if (!res.ok) return null;
+  if (!res.ok) return { status: res.status };
   const b = await readJson<{ url?: string }>(res);
-  return b?.url ?? null;
+  return b?.url ? { status: 200, url: b.url } : { status: 0 };
 }
 
 // --- catalogue: services (7.3a) ---------------------------------------------
@@ -576,6 +681,21 @@ export async function loginProWithGoogle(idToken: string): Promise<{
   if (res.status === 202 && Array.isArray(body.invitations)) {
     return { ok: false, invitations: body.invitations as TeamInvitation[] };
   }
+  return res.ok ? { ok: true } : { ok: false, error: body.error };
+}
+
+/// Sign in with Apple (docs/design/web-pro-apple.md). No 202 bridge on the
+/// Apple route (contract — the app notes it too), so no invitations here.
+export async function loginProWithApple(identity: {
+  identityToken: string;
+  nonce: string;
+}): Promise<{ ok: boolean; error?: string }> {
+  const res = await send('/api/pro/auth/apple', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ identityToken: identity.identityToken, nonce: identity.nonce }),
+  });
+  const body = await res.json().catch(() => ({}));
   return res.ok ? { ok: true } : { ok: false, error: body.error };
 }
 
@@ -997,7 +1117,14 @@ export type ProRegisterFields = {
 /// Identity + business fields in ONE submit (201 → pro cookies set by the
 /// BFF). Pass EITHER `idToken` (Google) or `email`+`code`.
 export async function registerPro(
-  identity: { idToken?: string; email?: string; code?: string },
+  identity: {
+    idToken?: string;
+    identityToken?: string;
+    nonce?: string;
+    fullName?: string;
+    email?: string;
+    code?: string;
+  },
   fields: ProRegisterFields,
 ): Promise<{ ok: boolean; status: number; error?: string }> {
   const res = await send('/api/pro/auth/register', {

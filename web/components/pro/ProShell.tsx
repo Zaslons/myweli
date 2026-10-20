@@ -3,8 +3,16 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
+import { unreadLabel } from '../../lib/pro/notifications';
 import { useIsDesktop } from '../../lib/pro/use-is-desktop';
+import { Icon } from '../Icon';
+import {
+  ProNotificationsProvider,
+  useProNotifications,
+} from './ProNotificationsContext';
+import { BrowserPushBridge } from './BrowserPushBridge';
 import { ProSidebar } from './ProSidebar';
+import { UnreadBadge } from './UnreadBadge';
 
 /// The responsive chrome around the pro dashboard (WEB-SYSTEM §9).
 ///
@@ -21,7 +29,20 @@ import { ProSidebar } from './ProSidebar';
 /// and returns to the hamburger on close, and the content behind is `inert` so
 /// focus can't wander into what's covered. B5's shared `<Modal>` can adopt this
 /// later; B0 deliberately doesn't build that primitive.
+///
+/// It also holds the salon's notification feed (`ProNotificationsProvider`):
+/// the sidebar entry, the phone bar's bell and `/pro/notifications` read ONE
+/// state (docs/design/web-pro-notifications.md).
 export function ProShell({ children }: { children: ReactNode }) {
+  return (
+    <ProNotificationsProvider>
+      <BrowserPushBridge />
+      <ProShellFrame>{children}</ProShellFrame>
+    </ProNotificationsProvider>
+  );
+}
+
+function ProShellFrame({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const isDesktop = useIsDesktop();
   const pathname = usePathname();
@@ -105,6 +126,7 @@ export function ProShell({ children }: { children: ReactNode }) {
         >
           MyWeli Pro
         </Link>
+        <NotificationsBell />
       </header>
 
       {/* The scrim — a click target, but aria-hidden and unfocusable; Escape and
@@ -124,5 +146,22 @@ export function ProShell({ children }: { children: ReactNode }) {
         {children}
       </main>
     </div>
+  );
+}
+
+/// The phone bar's bell (§3.1): the drawer hides the nav, so without it,
+/// knowing something happened would cost two gestures — the app keeps its
+/// bell on the Accueil bar for the same reason.
+function NotificationsBell() {
+  const { unread } = useProNotifications();
+  return (
+    <Link
+      href="/pro/notifications"
+      aria-label={unreadLabel(unread)}
+      className="-my-s -mr-s ml-auto flex min-h-12 min-w-12 items-center justify-center gap-xs rounded-lg text-textPrimary hover:bg-surfaceVariant"
+    >
+      <Icon name="bell" size="iconS" />
+      <UnreadBadge count={unread} />
+    </Link>
   );
 }

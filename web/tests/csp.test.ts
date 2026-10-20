@@ -74,6 +74,17 @@ describe('the Content-Security-Policy', () => {
       'upload URLs are presigned by the API — never a literal in this repo',
     ],
     [
+      // docs/design/web-pro-journal-panel-deposit.md §2.4 — the salon's view
+      // of a client's deposit screenshot is an <img> on a URL the API signs at
+      // runtime (deposit_service.dart `presignGet`). It was in `connect-src`
+      // for the uploads and nowhere in `img-src`: every screenshot shown was a
+      // Report-Only violation, and the flip to enforcing would have hidden
+      // them all without a sound.
+      'img-src',
+      'https://*.r2.cloudflarestorage.com',
+      'the deposit screenshot URL is presigned by the API — never a literal in this repo',
+    ],
+    [
       'connect-src',
       'https://*.ingest.de.sentry.io',
       'the ingest host comes from NEXT_PUBLIC_SENTRY_DSN, not from source',
@@ -84,6 +95,25 @@ describe('the Content-Security-Policy', () => {
       'the GL style sends MapLibre to tiles.basemaps.cartocdn.com (tiles.json, '
         + 'sprite, glyphs) and tiles-a..d.basemaps.cartocdn.com (vector tiles), '
         + 'measured 2026-10-11 — the source only names the style',
+    ],
+    [
+      'connect-src',
+      'https://firebaseinstallations.googleapis.com',
+      'Firebase getToken registers the browser here first — named in '
+        + '@firebase/installations’ dist, measured 2026-10-20 '
+        + '(web-pro-browser-push.md §5)',
+    ],
+    [
+      'connect-src',
+      'https://fcmregistrations.googleapis.com',
+      'then the FCM token is minted here — named in @firebase/messaging '
+        + '0.13.3’s dist, measured 2026-10-20 (web-pro-browser-push.md §5)',
+    ],
+    [
+      'worker-src',
+      "'self'",
+      'the Pro area’s service worker /pro/push-sw.js — without it the browser '
+        + 'notifications cannot register (web-pro-browser-push.md §5)',
     ],
   ];
 

@@ -11,6 +11,9 @@ import { PhoneField } from '../PhoneField';
 import { TextField } from '../TextField';
 import { LocalityPicker } from './LocalityPicker';
 import { GoogleSignInButton } from '../auth/GoogleSignInButton';
+import { LegalConsentText } from '../LegalConsentText';
+import { AppleSignInButton } from '../auth/AppleSignInButton';
+import { appleIdentity } from '../../lib/auth/apple';
 
 const BUSINESS_TYPES = [
   { value: 'salon', label: 'Salon de beauté' },
@@ -27,6 +30,7 @@ const BUSINESS_TYPES = [
 export function ProRegisterClient() {
   const router = useRouter();
   const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+  const appleClientId = process.env.NEXT_PUBLIC_APPLE_CLIENT_ID;
 
   // Business fields (validated before ANY identity path fires).
   const [businessName, setBusinessName] = useState('');
@@ -52,6 +56,10 @@ export function ProRegisterClient() {
   const fields = useFieldErrors({
     businessName: (v: string) =>
       v.trim().length > 0 ? null : 'Saisissez le nom de l’entreprise.',
+    // Required, as in the app (docs/design/web-pro-golive-signup-like-app.md);
+    // go-live needs it anyway.
+    address: (v: string) =>
+      v.trim().length > 0 ? null : 'Saisissez l’adresse de l’entreprise.',
     // The shared rule and its sentences (docs/design/phone-national-length.md):
     // « Saisissez un numéro… » when empty, « Le numéro doit comporter N
     // chiffres… » when short — the old single sentence asked for a number the
@@ -67,12 +75,16 @@ export function ProRegisterClient() {
   function fieldsOrError(): boolean {
     return fields.validate({
       businessName: businessName.trim(),
+      address: address.trim(),
       phone: phone ?? '',
     });
   }
 
   async function submit(identity: {
     idToken?: string;
+    identityToken?: string;
+    nonce?: string;
+    fullName?: string;
     email?: string;
     code?: string;
   }) {
@@ -82,7 +94,7 @@ export function ProRegisterClient() {
       businessName: businessName.trim(),
       businessType,
       phoneNumber: normalizePhone(phone),
-      address: address.trim() || undefined,
+      address: address.trim(),
       areaId: areaId ?? undefined,
     });
     setBusy(false);
@@ -111,6 +123,7 @@ export function ProRegisterClient() {
     if (
       !fields.validate({
         businessName: businessName.trim(),
+        address: address.trim(),
         phone: phone ?? '',
         email: email.trim(),
       })
@@ -177,9 +190,13 @@ export function ProRegisterClient() {
       </div>
       <TextField
         className="mt-m"
-        label="Adresse (optionnelle)"
+        label="Adresse"
         value={address}
-        onChange={(e) => setAddress(e.target.value)}
+        onChange={(e) => {
+          setAddress(e.target.value);
+          fields.revalidate('address', e.target.value);
+        }}
+        error={fields.errors.address}
       />
 
       {/* Multi-pays MP3: où se trouve le salon (recommandé — requis pour la
@@ -195,6 +212,12 @@ export function ProRegisterClient() {
       <p className="mt-xs text-bodySmall text-textTertiary">
         Elle vous servira à vous connecter à votre espace pro.
       </p>
+      {/* §5 — before the first way to create the account (Google creates
+          it in one tap): the salon contracts with us and will upload
+          identity documents. The app's sign-up says the same. */}
+      <div className="mt-s">
+        <LegalConsentText lead="En créant votre compte professionnel" />
+      </div>
 
       {/* Fetched on the FIRST tap, never on mount — see GoogleSignInButton.
           This form also gains the `min-h-12` reservation the two login
@@ -214,6 +237,22 @@ export function ProRegisterClient() {
             onCredential={async (credential) => {
               if (!fieldsOrError()) return;
               await submit({ idToken: credential });
+            }}
+          />
+        </div>
+      ) : null}
+      {appleClientId ? (
+        <div className="mt-s">
+          {/* The app's word (« S’inscrire avec Apple »); the salon's fields
+              are checked BEFORE Apple opens, as with Google. */}
+          <AppleSignInButton
+            label="S’inscrire avec Apple"
+            disabled={busy}
+            onClick={async () => {
+              if (busy || !fieldsOrError()) return;
+              const id = await appleIdentity(appleClientId);
+              if (!id) return; // closed popup: silent
+              await submit(id);
             }}
           />
         </div>

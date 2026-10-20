@@ -547,7 +547,7 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [items, page, pageSize, total]
+                required: [items, page, pageSize, total, summary]
                 properties:
                   items:
                     type: array
@@ -555,6 +555,7 @@ paths:
                   page: { type: integer }
                   pageSize: { type: integer }
                   total: { type: integer }
+                  summary: { $ref: '#/components/schemas/ReviewSummary' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
 
@@ -948,6 +949,7 @@ paths:
                 reminders: { type: boolean }
                 marketing: { type: boolean }
                 push: { type: boolean }
+                emailAlerts: { type: boolean }
       responses:
         '200':
           description: The merged preferences
@@ -4960,17 +4962,46 @@ components:
         read: { type: boolean }
         route: { type: string, nullable: true, description: Optional in-app deep link (e.g. /bookings). }
 
+    ReviewSummary:
+      type: object
+      description: >
+        The « Avis » card for the WHOLE salon, sent with every page of
+        `/me/provider/reviews`: the average to one decimal (the salon's
+        public `rating`), the count, and how many reviews give each star —
+        all over the visible reviews (hidden ones count nowhere). Design:
+        docs/design/salon-reviews-summary.md.
+      required: [average, count, distribution]
+      properties:
+        average: { type: number, description: 0 when there is no review. }
+        count: { type: integer }
+        distribution:
+          type: object
+          required: ['1', '2', '3', '4', '5']
+          properties:
+            '1': { type: integer }
+            '2': { type: integer }
+            '3': { type: integer }
+            '4': { type: integer }
+            '5': { type: integer }
+
     NotificationPreferences:
       type: object
       description: >
         Per-user notification opt-out prefs (FR-NOTIF-004). All default true;
         respected at send time by BookingNotifier. Transactional confirmations
         are not configurable (always sent).
-      required: [reminders, marketing, push]
+      required: [reminders, marketing, push, emailAlerts]
       properties:
         reminders: { type: boolean, description: 24h/2h appointment reminders. }
         marketing: { type: boolean, description: Marketing/promotional messages (ARTCI opt-out). }
         push: { type: boolean, description: Device push notifications. }
+        emailAlerts:
+          type: boolean
+          description: >
+            A salon member's alerts by e-mail (new request, client reschedule
+            or cancellation, deposit proof), sent only when no push of the app
+            reached them. Default true. Meaningless to a client account.
+            Design: docs/design/salon-email-alerts.md.
 
     SalonSubscription:
       type: object

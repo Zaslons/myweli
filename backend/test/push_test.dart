@@ -36,9 +36,15 @@ class _FakeProvider implements PushProvider {
     Map<String, String> data = const {},
   }) async {
     seen.addAll(tokens);
+    // Answers for the tokens of THIS call only — the service makes one call
+    // per kind (app, browsers).
+    final dead = [
+      for (final t in tokens)
+        if (invalid.contains(t)) t,
+    ];
     return (
-      sent: tokens.length - invalid.length,
-      invalidTokens: invalid,
+      sent: tokens.length - dead.length,
+      invalidTokens: dead,
       error: null,
     );
   }
@@ -77,6 +83,103 @@ void main() {
       expect(await repo.tokensForUser('u2'), ['t1']);
       await repo.removeForUser('u2', 't1');
       expect(await repo.tokensForUser('u2'), isEmpty);
+    });
+  });
+
+  group('devicesForUser — the platform rides along (web-pro-browser-push)', () {
+    test('each token with the platform it registered with', () async {
+      final repo = InMemoryDeviceTokenRepository();
+      await repo.upsert(
+        token: 'phone',
+        userId: 'u1',
+        role: 'provider',
+        platform: 'android',
+      );
+      await repo.upsert(
+        token: 'desk',
+        userId: 'u1',
+        role: 'provider',
+        platform: 'web',
+      );
+      await repo.upsert(
+        token: 'other',
+        userId: 'u2',
+        role: 'provider',
+        platform: 'ios',
+      );
+      expect((await repo.devicesForUser('u1')).toSet(), {
+        (token: 'phone', platform: 'android'),
+        (token: 'desk', platform: 'web'),
+      });
+      expect(await repo.devicesForUser('nobody'), isEmpty);
+    });
+  });
+
+  /// docs/design/web-pro-browser-push.md §4, Q1: FCM accepts a push to a
+  /// CLOSED browser, so the salon notifier must know what reached the APP —
+  /// a browser's count can never stand for it.
+  group('PushService.sendToUserByKind — the app and browsers apart', () {
+    late InMemoryDeviceTokenRepository repo;
+    setUp(() async {
+      repo = InMemoryDeviceTokenRepository();
+      for (final (token, platform) in [
+        ('a1', 'android'),
+        ('i1', 'ios'),
+        ('w1', 'web'),
+        ('w2', 'web'),
+      ]) {
+        await repo.upsert(
+          token: token,
+          userId: 'u1',
+          role: 'provider',
+          platform: platform,
+        );
+      }
+    });
+
+    test('counts what reached the app and what reached browsers', () async {
+      final provider = _FakeProvider();
+      final d = await PushService(
+        provider,
+        repo,
+      ).sendToUserByKind('u1', title: 'T', body: 'B');
+      expect(d.app, 2);
+      expect(d.web, 2);
+      expect(provider.seen.toSet(), {'a1', 'i1', 'w1', 'w2'});
+    });
+
+    test('a dead browser token is pruned and not counted', () async {
+      final provider = _FakeProvider()..invalid = ['w2'];
+      final svc = PushService(provider, repo);
+      final d = await svc.sendToUserByKind('u1', title: 'T', body: 'B');
+      expect(d.web, 1);
+      expect(d.app, 2, reason: 'the app group knows nothing of w2');
+      expect((await repo.tokensForUser('u1')).toSet(), {'a1', 'i1', 'w1'});
+    });
+
+    test('only browsers → app 0', () async {
+      final only = InMemoryDeviceTokenRepository();
+      await only.upsert(
+        token: 'w',
+        userId: 'u9',
+        role: 'provider',
+        platform: 'web',
+      );
+      final d = await PushService(
+        _FakeProvider(),
+        only,
+      ).sendToUserByKind('u9', title: 'T', body: 'B');
+      expect(d, (app: 0, web: 1));
+    });
+
+    test('sendToUser still answers the total', () async {
+      expect(
+        await PushService(
+          _FakeProvider(),
+          repo,
+        ).sendToUser('u1', title: 'T', body: 'B'),
+        4,
+      );
     });
   });
 
@@ -187,6 +290,12 @@ void main() {
         expect(android['priority'], 'high');
         final apns = message!['apns'] as Map<String, dynamic>;
         expect((apns['headers'] as Map)['apns-priority'], '10');
+        // Browsers (web-pro-browser-push.md §4): the same urgency, and a day
+        // at most — past that, a booking alert no longer helps (the e-mail
+        // and the feed have said it).
+        final webpush = message!['webpush'] as Map<String, dynamic>;
+        expect((webpush['headers'] as Map)['Urgency'], 'high');
+        expect((webpush['headers'] as Map)['TTL'], '86400');
         // The data payload (deep-link route) rides along untouched.
         expect((message!['data'] as Map)['route'], '/appointment/a1');
       },

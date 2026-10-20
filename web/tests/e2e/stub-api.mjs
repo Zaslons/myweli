@@ -223,7 +223,8 @@ const stubUser = {
 };
 // Notifications (parity 5.1/5.2): n1 starts unread; prefs default all-true.
 const notifRead = new Set(['n2']);
-const notifPrefs = { reminders: true, marketing: true, push: true };
+// `emailAlerts`: the salon's « Alertes par e-mail » (salon-email-alerts.md).
+const notifPrefs = { reminders: true, marketing: true, push: true, emailAlerts: true };
 const NOTIFS = [
   {
     id: 'n1',
@@ -240,6 +241,28 @@ const NOTIFS = [
     body: 'Réservez vos soins en quelques clics.',
     createdAt: '2026-06-01T10:00:00.000Z',
     route: null,
+  },
+];
+
+// The salon's feed (web-pro-notifications.md): what SalonNotifier writes — a
+// new booking for the stub's pending pro appointment, a client reschedule,
+// one already read. Served to a PRO session; a consumer keeps NOTIFS.
+const PRO_NOTIFS = [
+  {
+    id: 'pn1',
+    type: 'general',
+    title: 'Nouvelle réservation',
+    body: 'Nouvelle demande de réservation le 28/06/2026 à 14:30.',
+    createdAt: todayAt9,
+    route: '/pro/appointment/pappt1?salon=p1',
+  },
+  {
+    id: 'pn2',
+    type: 'reschedule',
+    title: 'Réservation reportée',
+    body: 'Le client a reporté le rendez-vous du 27/06/2026 à 10:00 au 28/06/2026 à 15:30.',
+    createdAt: '2026-06-27T10:00:00.000Z',
+    route: '/pro/appointment/pappt1?salon=p1',
   },
 ];
 
@@ -345,7 +368,12 @@ const consumerAppt = (id) => ({
 // Pro side (M7) — pappt1, mutable status via the lifecycle endpoints. Kept
 // separate from the consumer flow (split by token below) so parallel tests
 // don't race on shared state.
-const proStatus = { pappt1: 'pending', pj1: 'pending', pstaff1: 'confirmed' };
+const proStatus = {
+  pappt1: 'pending',
+  pj1: 'pending',
+  pj2: 'pending',
+  pstaff1: 'confirmed',
+};
 const PRO_TRANSITION = {
   accept: 'confirmed',
   reject: 'cancelled',
@@ -868,12 +896,13 @@ createServer(async (req, res) => {
     return json(res, 200, {});
   }
   if (url.pathname === '/me/notifications') {
+    const feed = isPro(req) ? PRO_NOTIFS : NOTIFS;
     return json(res, 200, {
-      items: NOTIFS.map((n) => ({ ...n, read: notifRead.has(n.id) })),
+      items: feed.map((n) => ({ ...n, read: notifRead.has(n.id) })),
     });
   }
   if (url.pathname === '/me/notifications/read-all') {
-    for (const n of NOTIFS) notifRead.add(n.id);
+    for (const n of isPro(req) ? PRO_NOTIFS : NOTIFS) notifRead.add(n.id);
     return json(res, 200, {});
   }
   const notifReadMatch = url.pathname.match(
@@ -883,10 +912,24 @@ createServer(async (req, res) => {
     notifRead.add(notifReadMatch[1]);
     return json(res, 200, {});
   }
+  // This browser's notification token (web-pro-browser-push.md §5): the
+  // server's `/me/devices`, which only ever answers whether it took it.
+  if (url.pathname === '/me/devices') {
+    const body = await readBody(req);
+    if (typeof body.token !== 'string' || !body.token) {
+      return json(res, 400, { error: 'invalid_input' });
+    }
+    if (req.method === 'POST') {
+      if (body.platform !== 'web') return json(res, 400, { error: 'invalid_input' });
+      return json(res, 200, { status: 'registered' });
+    }
+    if (req.method === 'DELETE') return json(res, 200, { status: 'unregistered' });
+    return json(res, 405, { error: 'method_not_allowed' });
+  }
   if (url.pathname === '/me/notification-preferences') {
     if (req.method === 'PUT') {
       const body = await readBody(req);
-      for (const k of ['reminders', 'marketing', 'push']) {
+      for (const k of ['reminders', 'marketing', 'push', 'emailAlerts']) {
         if (typeof body[k] === 'boolean') notifPrefs[k] = body[k];
       }
     }
@@ -1052,6 +1095,25 @@ createServer(async (req, res) => {
       artists: [{ id: 'artist-a', name: 'Awa', imageUrl: null }],
       appointments: [
         { ...proAppt('pj1'), appointmentDate: `${date}T09:00:00.000Z` },
+        // docs/design/web-pro-journal-panel-deposit.md — a deposit-required
+        // request WITH its screenshot, for the panel's acompte block. Its own
+        // id, which no spec accepts: pj1 is accepted by pro.spec's journal
+        // journey, and workers share this stub, so a panel opened on pj1 may
+        // or may not be « En attente » depending on the order they run in.
+        // 15:30 sits clear of the quick-create click (y 300 → 14:00 at
+        // 1px/min) and of the 12:30 break. NOT in the owner list
+        // (`/appointments`), whose counts other specs assert — its page is
+        // 404 here; the RTL suite owns the booking page.
+        {
+          ...proAppt('pj2'),
+          appointmentDate: `${date}T15:30:00.000Z`,
+          clientName: 'Aminata',
+          salonClientId: 'sc2',
+          clientNoShowCount: 0,
+          depositAmount: 5000,
+          balanceDue: 10000,
+          depositScreenshotUrl: 'deposit/u2/proof.jpg',
+        },
       ],
     });
   }
@@ -1656,16 +1718,21 @@ createServer(async (req, res) => {
       totalAppointments: 1,
     });
   }
-  // go-live (pro-salon-lifecycle.md B2) — flips the draft to active. Team
-  // access R5a: publishing requires a LIVE offer (else 409 missing:['offer']).
+  // go-live (pro-salon-lifecycle.md B2) — flips the draft to active. The
+  // server's rule since the companion path (salon_provisioning_service.dart):
+  // NO offer row → the trial starts here; a row that is no longer live → 409
+  // missing:['offer'] (web-pro-access.md §12 aligned the web to it).
   const pubM = url.pathname.match(/^\/providers\/([^/]+)\/publish$/);
   if (pubM) {
     const pubOffer = salonOffers.get(pubM[1]);
-    const offerLive =
-      pubOffer && (pubOffer.status === 'trial' || pubOffer.status === 'paid');
-    if (!offerLive) {
+    if (
+      pubOffer &&
+      !(pubOffer.status === 'trial' || pubOffer.status === 'paid' || pubOffer.status === 'grace')
+    ) {
       return json(res, 409, { error: 'not_ready', missing: ['offer'] });
     }
+    // No row yet: the trial starts at this publish, on the default tier.
+    if (!pubOffer) salonOffers.set(pubM[1], liveOffer());
     const target = ownedSalons.get(pubM[1]) ?? proProvider;
     target.status = 'active';
     return json(res, 200, target);
@@ -1792,6 +1859,17 @@ createServer(async (req, res) => {
       page: 1,
       pageSize: 50,
       total: 2,
+      // The salon's own read carries the whole salon's card
+      // (docs/design/salon-reviews-summary.md); the public list does not.
+      ...(url.pathname === '/me/provider/reviews'
+        ? {
+            summary: {
+              average: 4.5,
+              count: 2,
+              distribution: { 5: 1, 4: 1, 3: 0, 2: 0, 1: 0 },
+            },
+          }
+        : {}),
     });
   }
   if (url.pathname.match(/^\/providers\/[^/]+\/gallery$/)) {
@@ -1919,7 +1997,10 @@ createServer(async (req, res) => {
       });
     }
     if (sub === 'deposit-screenshot') {
-      return json(res, 200, { url: 'https://example.test/justificatif.jpg' });
+      // On the fixture host the specs fulfil with a pixel (axe.spec.ts's
+      // PIXEL): the pro panel renders the screenshot as an <img>, and an
+      // unresolvable host would show « Capture indisponible » instead.
+      return json(res, 200, { url: 'https://cdn.stub/deposit/u2/proof.jpg' });
     }
     // Team access R5b (T40): staff may only complete/no-show THEIR OWN
     // bookings; accept/reject/arrive/reschedule are whole-journal acts.

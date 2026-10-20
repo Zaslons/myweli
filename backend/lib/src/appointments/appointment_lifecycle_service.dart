@@ -9,6 +9,19 @@ typedef LifecycleResult = ({
   Map<String, dynamic>? appointment,
 });
 
+/// [LifecycleResult] plus the date the booking had BEFORE a client moved it —
+/// the salon's push names the slot that frees up (« …du 27/06 à 10:00 au
+/// 28/06 à 15:30 »), and this service already holds the booking it moves, so
+/// the route gets it without a second read or touching storage itself.
+/// Null on every refusal. Design: docs/design/salon-client-reschedule-notify.md
+/// §3.1.
+typedef RescheduleResult = ({
+  bool ok,
+  String? error,
+  Map<String, dynamic>? appointment,
+  String? previousAppointmentDate,
+});
+
 /// Consumer-driven appointment lifecycle (docs/BACKEND.md §1, §3.3): cancel and
 /// reschedule the caller's **own** bookings, with ownership + state guards. The
 /// server is the authority on status; the deposit is salon↔client (no custody),
@@ -41,20 +54,22 @@ class AppointmentLifecycleService {
     return _transition(id, userId, (_) => {'status': 'cancelled'});
   }
 
-  Future<LifecycleResult> reschedule(
+  Future<RescheduleResult> reschedule(
     String id,
     String userId,
     DateTime newDateTime,
   ) async {
+    RescheduleResult refused(String error) => (
+      ok: false,
+      error: error,
+      appointment: null,
+      previousAppointmentDate: null,
+    );
     final appointment = await _appointments.byId(id);
-    if (appointment == null) {
-      return (ok: false, error: 'not_found', appointment: null);
-    }
-    if (appointment['userId'] != userId) {
-      return (ok: false, error: 'forbidden', appointment: null);
-    }
+    if (appointment == null) return refused('not_found');
+    if (appointment['userId'] != userId) return refused('forbidden');
     if (_terminal.contains(appointment['status'])) {
-      return (ok: false, error: 'invalid_state', appointment: null);
+      return refused('invalid_state');
     }
     // Decision C. The ownership check above ran FIRST on purpose: this caller
     // owns the booking, so telling them which state their salon is in leaks
@@ -69,10 +84,18 @@ class AppointmentLifecycleService {
     final refusal = clientBookingRefusal(
       await _providers.byId(appointment['providerId'] as String),
     );
-    if (refusal != null) {
-      return (ok: false, error: refusal, appointment: null);
-    }
-    return _moveTo(id, appointment, newDateTime);
+    if (refusal != null) return refused(refusal);
+    // Read BEFORE the move: a repository may hand back the very map it then
+    // updates in place (the in-memory one does), and reading after would
+    // report the new date as the old one.
+    final previous = appointment['appointmentDate'] as String?;
+    final moved = await _moveTo(id, appointment, newDateTime);
+    return (
+      ok: moved.ok,
+      error: moved.error,
+      appointment: moved.appointment,
+      previousAppointmentDate: moved.ok ? previous : null,
+    );
   }
 
   /// Pro-side reschedule: the **salon** moves one of its own bookings (design:

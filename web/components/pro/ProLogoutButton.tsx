@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
-import { logoutPro } from '../../lib/api/pro';
+import { signOutPro } from '../../lib/pro/sign-out';
 import { logoutErrorMessage } from '../../lib/pro/team';
 import { Button } from '../Button';
 
@@ -54,7 +54,7 @@ export function ProLogoutButton({
     setBusy(true);
     setError(null);
     onBusyChange?.(true);
-    const outcome = await logoutPro();
+    const outcome = await signOutPro();
     if (outcome === 'ok') {
       // Busy until the page goes: the login replaces this one.
       onSignedOut?.();

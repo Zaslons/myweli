@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { JsonLd } from '../components/JsonLd';
+import { ProBand } from '../components/home/ProBand';
 import { OpenInAppButton } from '../components/OpenInAppButton';
 import { HeroBackground } from '../components/home/HeroBackground';
 import { HomeSearch } from '../components/home/HomeSearch';
@@ -163,7 +164,12 @@ export default async function HomePage() {
               'Acompte direct au salon',
               'Wave / Mobile Money — MyWeli ne prélève rien.',
             ],
-            ['Confirmations WhatsApp', 'Rappels avant votre rendez-vous.'],
+            // No WhatsApp/SMS until messaging is switched on — the app's
+            // notifications carry both (promise-honesty-sweep.md, T5).
+            [
+              'Rappels dans l’app',
+              'Confirmation du salon, puis rappels 24 h et 2 h avant votre rendez-vous.',
+            ],
           ].map(([title, body]) => (
             <div
               key={title}
@@ -195,6 +201,9 @@ export default async function HomePage() {
             <OpenInAppButton />
           </section>
         ) : null}
+
+        {/* The salons' door (web-pro-access.md P3), before the FAQ. */}
+        <ProBand />
 
         <section className="mt-xl">
           <h2 className="text-titleLarge font-semibold text-textPrimary">
