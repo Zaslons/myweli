@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Construit le 2026-10-19** — aucun texte nouveau (les mots de l'app et du web client) ; aucun changement serveur |
+| **Statut** | **Construit le 2026-10-19** — aucun texte nouveau (les mots de l'app et du web client) ; aucun changement serveur · **Mergé (#647) le 2026-10-20** — web en production à la fusion — le bouton n’apparaît qu’avec `NEXT_PUBLIC_APPLE_CLIENT_ID` dans Vercel (non vérifié d’ici) |
 | **Owner** | Sadreddine |
 | **PRD ref / phase** | Authentification Pro (pro-auth-social) · parité web ↔ app · V1 |
 | **Module** | web Pro — connexion (`ProLoginOptions`), inscription (`ProRegisterClient`), BFF `/api/pro/auth/apple` + `/api/pro/auth/register` |

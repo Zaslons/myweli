@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Construit le 2026-10-19** (branche `feat/salon-client-reschedule-notify`, empilée sur #639) — N1–N5 validés tels que recommandés ; §11 dit ce qui a été vu rouge · **le serveur doit être en production avant le prochain build Pro** (§8) |
+| **Statut** | **Construit le 2026-10-19** (branche `feat/salon-client-reschedule-notify`, empilée sur #639) — N1–N5 validés tels que recommandés ; §11 dit ce qui a été vu rouge · **le serveur doit être en production avant le prochain build Pro** (§8) · **Mergé (#640) le 2026-10-20** — web en production à la fusion ; app au prochain build ; serveur en production : révision `myweli-api-00042-468` (image `9f320d4`, `sha256:498778da…`), 100 % du trafic, le 2026-10-20 |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-19 |
 | **PRD ref / phase** | FR-NOTIF (notifications transactionnelles) · V1 |

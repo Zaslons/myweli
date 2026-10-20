@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Construit le 2026-10-20** sur `feat/web-pro-golive-signup-like-app` (au-dessus de #642) ; ce qui a été vu : §4. Validé le même jour — décisions du propriétaire : **l'adresse obligatoire sur le web aussi** ; **le web prend les huit étapes de l'app et sa barre** ; les deux vérifications de l'app alignées sur le serveur |
+| **Statut** | **Construit le 2026-10-20** sur `feat/web-pro-golive-signup-like-app` (au-dessus de #642) ; ce qui a été vu : §4. Validé le même jour — décisions du propriétaire : **l'adresse obligatoire sur le web aussi** ; **le web prend les huit étapes de l'app et sa barre** ; les deux vérifications de l'app alignées sur le serveur · **Mergé (#659) le 2026-10-20** — web en production à la fusion ; app au prochain build |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-20 |
 | **PRD ref / phase** | Inscription Pro, mise en ligne (pro-salon-lifecycle, FR-PRO-ONB-001) · parité web ↔ app Pro · V1 |

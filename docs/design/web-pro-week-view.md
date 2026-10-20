@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Construit le 2026-10-20** sur `feat/web-pro-week-view` (au-dessus de #648) ; ce qui a été vu : §10. Validé le même jour — Q1 : **côte à côte + filtre « Artiste »** ; Q2 : **glisser vers un autre jour, oui** ; Q3 : **ordinateur seulement** ; Q4 : **les mots tels qu'écrits** (§9) |
+| **Statut** | **Construit le 2026-10-20** sur `feat/web-pro-week-view` (au-dessus de #648) ; ce qui a été vu : §10. Validé le même jour — Q1 : **côte à côte + filtre « Artiste »** ; Q2 : **glisser vers un autre jour, oui** ; Q3 : **ordinateur seulement** ; Q4 : **les mots tels qu'écrits** (§9) · **Mergé (#661) le 2026-10-20** — web en production à la fusion |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-20 |
 | **PRD ref / phase** | Journal (module journal) · web Pro, au-delà de l'app (décision du propriétaire, 2026-10-19 : « la bande et un onglet Semaine ») · V1 |

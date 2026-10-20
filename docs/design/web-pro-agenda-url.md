@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Construit le 2026-10-19** sur `fix/web-pro-agenda-in-url` — validé par le propriétaire le même jour : **Q1 = `vue` / `jour` / `filtre`, valeurs en français telles qu'écrites (§3)** ; **Q2 = « Rendez-vous » dans le menu ouvre la Journée d'aujourd'hui** (§9). Un défaut trouvé par l'e2e pendant la construction et corrigé (§5.1) ; ce qui a été vu : §10 |
+| **Statut** | **Construit le 2026-10-19** sur `fix/web-pro-agenda-in-url` — validé par le propriétaire le même jour : **Q1 = `vue` / `jour` / `filtre`, valeurs en français telles qu'écrites (§3)** ; **Q2 = « Rendez-vous » dans le menu ouvre la Journée d'aujourd'hui** (§9). Un défaut trouvé par l'e2e pendant la construction et corrigé (§5.1) ; ce qui a été vu : §10 · **Mergé (#645) le 2026-10-20** — web en production à la fusion |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-19 |
 | **PRD ref / phase** | La parité web ↔ app Pro (le web suit le parcours de l'app, écran par écran) · V1 — tableau de bord Pro web |

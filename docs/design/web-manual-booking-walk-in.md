@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Construit le 2026-10-20** sur `fix/web-manual-booking-walk-in` (depuis `main`). Validé le même jour — Q1 = **(a) comme l'app** : téléphone obligatoire pour un nouveau client sauf « Client sans numéro », le nom facultatif (§6). Ce qui a été vu : §7 |
+| **Statut** | **Construit le 2026-10-20** sur `fix/web-manual-booking-walk-in` (depuis `main`). Validé le même jour — Q1 = **(a) comme l'app** : téléphone obligatoire pour un nouveau client sauf « Client sans numéro », le nom facultatif (§6). Ce qui a été vu : §7 · **Mergé (#651) le 2026-10-20** — web en production à la fusion |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-20 |
 | **PRD ref / phase** | FR-APPT-008 (réservation saisie par le salon) · parité web ↔ app Pro · V1 |

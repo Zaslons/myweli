@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Construit le 2026-10-20** sur `feat/reviews-server-summary` (depuis `main`) ; ce qui a été vu : §4. Validé le même jour — décision du propriétaire : **le résumé du serveur, web et app** |
+| **Statut** | **Construit le 2026-10-20** sur `feat/reviews-server-summary` (depuis `main`) ; ce qui a été vu : §4. Validé le même jour — décision du propriétaire : **le résumé du serveur, web et app** · **Mergé (#658) le 2026-10-20** — web en production à la fusion ; app au prochain build ; serveur en production : révision `myweli-api-00042-468` (image `9f320d4`, `sha256:498778da…`), 100 % du trafic, le 2026-10-20 |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-20 |
 | **PRD ref / phase** | Avis (consumer-reviews) · parité web ↔ app Pro · V1 |
