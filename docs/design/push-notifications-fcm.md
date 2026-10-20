@@ -196,3 +196,20 @@ the private key from the old one, and each was individually well-formed.
 Verified against the real service account: correct credentials + a bad token →
 `error: null, invalidTokens: 1`; **mismatched** credentials → `error:
 push_auth_failed` plus the log line.
+
+## Browsers — `platform: web` (2026-10-20)
+
+Web Pro registers browsers ([web-pro-browser-push.md](web-pro-browser-push.md)).
+Two changes here, no contract change:
+
+- `DeviceTokenRepository.devicesForUser` returns each token **with its
+  platform**, and `PushService.sendToUserByKind` sends the app's tokens and the
+  browsers' in **two provider calls** and answers `(app, web)`. `sendToUser`
+  still answers the total, for the callers that only need a count. The salon
+  notifier's e-mail rule reads `app` alone: FCM accepts a push to a **closed**
+  browser (it delivers on reopening), so a browser's count can never stand for
+  « the app reached them ».
+- `FcmV1PushProvider` adds `webpush.headers` `{ Urgency: high, TTL: 86400 }` —
+  Android's high priority, for browsers; past a day a booking alert no longer
+  helps (the e-mail and the feed have said it). Ignored for app tokens.
+
