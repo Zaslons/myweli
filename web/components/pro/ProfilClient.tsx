@@ -124,6 +124,9 @@ export function ProfilClient() {
             Salon : {profile.provider.name}
           </p>
         </Card>
+        <div className="mt-l">
+          <SupportLink />
+        </div>
         <CompteDangerSection profile={profile} exportEnabled={false} />
       </div>
     );
@@ -339,21 +342,34 @@ export function ProfilClient() {
         </div>
       </Card>
 
+      {/* The app's links, gated by the app's capabilities
+          (`pro_profile_screen.dart`; docs/design/web-pro-profil-support.md):
+          a Manager — `profile.manage` without the owner's — no longer sees
+          pages that refuse it. « Aide & Support » is everyone's. */}
       <section className="mt-l space-y-s">
-        <SectionLink
-          href="/pro/verification"
-          label="Vérification"
-          hint={
-            verification === 'verified'
-              ? 'Compte vérifié'
-              : verification === 'rejected'
-                ? 'Vérification refusée'
-                : 'En attente'
-          }
-        />
-        <SectionLink href="/pro/acompte" label="Acompte" />
-        <SectionLink href="/pro/abonnement" label="Abonnement" />
-        <SectionLink href="/pro/medias" label="Photos & Avant/Après" />
+        {hasCap(membership, 'salon.publish') ? (
+          <SectionLink
+            href="/pro/verification"
+            label="Vérification"
+            hint={
+              verification === 'verified'
+                ? 'Compte vérifié'
+                : verification === 'rejected'
+                  ? 'Vérification refusée'
+                  : 'En attente'
+            }
+          />
+        ) : null}
+        {hasCap(membership, 'deposit.manage') ? (
+          <SectionLink href="/pro/acompte" label="Acompte" />
+        ) : null}
+        {hasCap(membership, 'subscription.manage') ? (
+          <SectionLink href="/pro/abonnement" label="Abonnement" />
+        ) : null}
+        {hasCap(membership, 'catalogue.manage') ? (
+          <SectionLink href="/pro/medias" label="Photos & Avant/Après" />
+        ) : null}
+        <SupportLink />
       </section>
 
       {/* Audit 11.5 — export + deletion (AUTH-004/005 for pros). The export
@@ -385,6 +401,12 @@ function Field({
       {children}
     </label>
   );
+}
+
+/// « Aide & Support » — « Nous écrire »: the app's row, to the page the app
+/// opens (`AppConfig.supportUrl` = myweli.com/support). Every role.
+function SupportLink() {
+  return <SectionLink href="/support" label="Aide & Support" hint="Nous écrire" />;
 }
 
 function SectionLink({
