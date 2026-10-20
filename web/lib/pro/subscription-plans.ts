@@ -44,7 +44,9 @@ export const OFFER_CARDS: OfferCard[] = [
       'Rappels automatiques à vos clients dans l’app MyWeli (24 h / 2 h)',
       'Règles d’acompte & protection no-show',
       'Photos & galerie avant/après',
-      'Statistiques & gestion des avis',
+      // Reviews are read-only (web and app): no « gestion »
+      // (docs/design/web-pro-profil-support.md).
+      'Statistiques & avis clients',
     ],
     roiLine: ROI_LINE,
   },
@@ -56,7 +58,9 @@ export const OFFER_CARDS: OfferCard[] = [
     entitlements: [
       'Tout de l’offre Pro',
       'Jusqu’à 15 membres d’équipe',
-      'Support prioritaire dédié',
+      // Answered first — no promise of a dedicated person; the « Aide &
+      // Support » row is on every Profil (web-pro-profil-support.md).
+      'Support prioritaire',
     ],
   },
   {

@@ -49,6 +49,17 @@ describe('offer cards', () => {
     expect(reseau.notes?.join(' ')).toMatch(/propre offre/i);
   });
 
+  it('claims only what exists: read-only reviews, priority support (web-pro-profil-support)', () => {
+    // Reviews are read-only on web and app — no « gestion ». « Aide &
+    // Support » is now on every Profil; Business salons are answered first,
+    // with no promise of a dedicated person (owner decisions, 2026-10-20).
+    const [pro, business] = OFFER_CARDS;
+    expect(pro.entitlements).toContain('Statistiques & avis clients');
+    expect(business.entitlements).toContain('Support prioritaire');
+    const lines = OFFER_CARDS.flatMap((c) => [...c.entitlements, ...(c.notes ?? [])]);
+    expect(lines.filter((l) => /gestion des avis|dédié/i.test(l))).toEqual([]);
+  });
+
   it('no line sells a messaging channel production does not run', () => {
     // MESSAGING_PROVIDER=disabled until company registration: no WhatsApp, no
     // SMS reaches anyone. The 24 h / 2 h reminders are real — as notifications
