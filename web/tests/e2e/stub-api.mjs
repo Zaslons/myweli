@@ -243,6 +243,28 @@ const NOTIFS = [
   },
 ];
 
+// The salon's feed (web-pro-notifications.md): what SalonNotifier writes — a
+// new booking for the stub's pending pro appointment, a client reschedule,
+// one already read. Served to a PRO session; a consumer keeps NOTIFS.
+const PRO_NOTIFS = [
+  {
+    id: 'pn1',
+    type: 'general',
+    title: 'Nouvelle réservation',
+    body: 'Nouvelle demande de réservation le 28/06/2026 à 14:30.',
+    createdAt: todayAt9,
+    route: '/pro/appointment/pappt1?salon=p1',
+  },
+  {
+    id: 'pn2',
+    type: 'reschedule',
+    title: 'Réservation reportée',
+    body: 'Le client a reporté le rendez-vous du 27/06/2026 à 10:00 au 28/06/2026 à 15:30.',
+    createdAt: '2026-06-27T10:00:00.000Z',
+    route: '/pro/appointment/pappt1?salon=p1',
+  },
+];
+
 // Earnings ledger (parity 9.1): one transaction today, one at TODAY 23:30 —
 // the salon-day boundary probe (timezone-salon-time.md §8: it must land in
 // « Aujourd'hui » under the TZ-pinned harness; device-local bucketing used
@@ -868,12 +890,13 @@ createServer(async (req, res) => {
     return json(res, 200, {});
   }
   if (url.pathname === '/me/notifications') {
+    const feed = isPro(req) ? PRO_NOTIFS : NOTIFS;
     return json(res, 200, {
-      items: NOTIFS.map((n) => ({ ...n, read: notifRead.has(n.id) })),
+      items: feed.map((n) => ({ ...n, read: notifRead.has(n.id) })),
     });
   }
   if (url.pathname === '/me/notifications/read-all') {
-    for (const n of NOTIFS) notifRead.add(n.id);
+    for (const n of isPro(req) ? PRO_NOTIFS : NOTIFS) notifRead.add(n.id);
     return json(res, 200, {});
   }
   const notifReadMatch = url.pathname.match(

@@ -657,6 +657,15 @@ const AUTHED_ROUTES: Route[] = [
     anchor: 'Avis',
     auth: 'pro',
   },
+  {
+    // The salon's notification center (web-pro-notifications.md §6): the
+    // « Tout marquer comme lu » button beside the h1, and the reschedule
+    // body — the longest sentence the server writes to a salon.
+    name: 'the pro notification center',
+    url: '/pro/notifications',
+    anchor: 'Notifications',
+    auth: 'pro',
+  },
   // ---- amounts-that-fit (docs/design/amounts-that-fit.md §8.5) -------------
   {
     // The client CARD — the page behind every row of « the pro client list »

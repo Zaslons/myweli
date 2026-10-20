@@ -56,6 +56,8 @@ const ROWS: Row[] = [
   { name: 'getClientVisits', kind: 'read', call: () => pro.getClientVisits('p1', 'c1') },
   { name: 'getJournalDay', kind: 'read', call: () => pro.getJournalDay('p1', '2026-10-16') },
   { name: 'proDepositScreenshotUrl', kind: 'url', call: () => pro.proDepositScreenshotUrl('a1') },
+  // The salon's notification center (web-pro-notifications.md).
+  { name: 'getProNotifications', kind: 'read', call: () => pro.getProNotifications() },
   // --- writes --------------------------------------------------------------
   { name: 'requestOtpPro', kind: 'write', noStatus: true, call: () => pro.requestOtpPro('+2250700000000') },
   { name: 'verifyOtpPro', kind: 'write', noStatus: true, call: () => pro.verifyOtpPro('+2250700000000', '1234') },
@@ -67,6 +69,8 @@ const ROWS: Row[] = [
   },
   { name: 'selectSalon', kind: 'write', payload: ['profile'], call: () => pro.selectSalon('s1') },
   { name: 'publishSalon', kind: 'write', call: () => pro.publishSalon('p1') },
+  { name: 'markProNotificationRead', kind: 'write', call: () => pro.markProNotificationRead('n1') },
+  { name: 'markAllProNotificationsRead', kind: 'write', call: () => pro.markAllProNotificationsRead() },
   {
     name: 'submitKyc',
     kind: 'write',

@@ -12,11 +12,15 @@ export type ProNavEntry = {
   cap: string | null;
 };
 
-/// Same order as the historical owner sidebar. Aujourd'hui / Rendez-vous /
-/// Profil are for ALL roles (the staff journal is server-filtered to their
+/// Same order as the historical owner sidebar. Aujourd'hui / Notifications /
+/// Rendez-vous / Profil are for ALL roles (the staff journal is server-filtered to their
 /// own column; the member Profil is the slim personal view).
 export const PRO_NAV: ProNavEntry[] = [
   { label: 'Aujourd’hui', href: '/pro', cap: null },
+  // Every role: each member has a feed (the server filters a Collaborateur's
+  // to their own artist). The sidebar adds the unread count
+  // (docs/design/web-pro-notifications.md §3.1).
+  { label: 'Notifications', href: '/pro/notifications', cap: null },
   { label: 'Rendez-vous', href: '/pro/rendez-vous', cap: null },
   { label: 'Clients', href: '/pro/clients', cap: 'clients.view' },
   { label: 'Catalogue', href: '/pro/catalogue', cap: 'catalogue.manage' },

@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { navForMembership } from '../../lib/pro/nav';
+import { unreadLabel } from '../../lib/pro/notifications';
 import { loadFailureMessage, type LoadFailure } from '../../lib/pro/load-failure';
 import { ROLE_LABELS, type TeamRole } from '../../lib/pro/team';
 import { useIsDesktop } from '../../lib/pro/use-is-desktop';
@@ -11,6 +12,8 @@ import { Skeleton } from '../Skeleton';
 import { ProLogoutButton } from './ProLogoutButton';
 import { TeamRoleChip } from './TeamRoleChip';
 import { useProMembership } from './ProMembershipContext';
+import { useOptionalProNotifications } from './ProNotificationsContext';
+import { UnreadBadge } from './UnreadBadge';
 
 /// Whether the nav's active-route highlight should light up for [href].
 /// « Aujourd'hui » (/pro) matches exactly; every other entry also stays active
@@ -52,6 +55,9 @@ export function ProSidebar({
   const pathname = usePathname();
   const isDesktop = useIsDesktop();
   const entries = navForMembership(membership);
+  // The unread count on the « Notifications » entry (the sidebar's own
+  // tests mount it without the shell — no count there).
+  const unread = useOptionalProNotifications()?.unread ?? 0;
   const [menuOpen, setMenuOpen] = useState(false);
   const [switching, setSwitching] = useState<string | null>(null);
   const [switchError, setSwitchError] = useState<LoadFailure | false>(false);
@@ -230,18 +236,23 @@ export function ProSidebar({
           <nav className="mt-l space-y-xs">
             {entries.map((item) => {
               const active = isActive(pathname, item.href);
+              const notifications = item.href === '/pro/notifications';
               return (
                 <Link
                   key={item.label}
                   href={item.href}
                   aria-current={active ? 'page' : undefined}
-                  className={`flex min-h-12 items-center rounded-lg px-s text-bodyMedium hover:bg-surfaceVariant ${
+                  // The entry's name carries the count its badge shows
+                  // (it begins with the visible label — WCAG 2.5.3).
+                  aria-label={notifications ? unreadLabel(unread) : undefined}
+                  className={`flex min-h-12 items-center justify-between gap-s rounded-lg px-s text-bodyMedium hover:bg-surfaceVariant ${
                     active
                       ? 'bg-surfaceVariant font-medium text-textPrimary'
                       : 'text-textPrimary'
                   }`}
                 >
                   {item.label}
+                  {notifications ? <UnreadBadge count={unread} /> : null}
                 </Link>
               );
             })}
