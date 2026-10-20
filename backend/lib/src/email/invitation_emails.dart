@@ -42,34 +42,37 @@ String renderInvitationEmailText(String salonName, String role) =>
     'L’invitation est valable 7 jours.\n\n'
     'MyWeli Pro — votre salon, en ligne. https://myweli.com';
 
+/// The OTP e-mail's frame (`renderOtpEmailHtml`): a full-width card capped
+/// at 440px, padding on the cells — a fixed `width="440"` card plus its
+/// padding scrolled sideways on a phone (seen at 310px).
 String renderInvitationEmailHtml(String salonName, String role) {
   final name = _text.convert(salonName);
   final label = _text.convert(roleLabelFr(role));
   final summary = _text.convert(_roleSummaryFr(role));
   return '''
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F6F7F9;padding:24px 0;">
-  <tr><td align="center">
-    <table role="presentation" width="440" cellpadding="0" cellspacing="0" style="background:#FFFFFF;border-radius:12px;padding:32px;font-family:Arial,Helvetica,sans-serif;">
-      <tr><td align="center" style="padding-bottom:24px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F6F7F9;">
+  <tr><td align="center" style="padding:24px 12px;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:440px;background:#FFFFFF;border-radius:12px;font-family:Arial,Helvetica,sans-serif;">
+      <tr><td align="center" style="padding:28px 28px 24px;">
         <img src="https://myweli.com/brand/myweli_lockup_horizontal_black.png" alt="MyWeli" height="34" style="display:block;">
       </td></tr>
-      <tr><td style="font-size:16px;line-height:24px;color:#1A1A1A;padding-bottom:8px;" align="center">
+      <tr><td style="font-size:16px;line-height:24px;color:#1A1A1A;padding:0 28px 8px;" align="center">
         <strong>« $name »</strong> vous invite à rejoindre son équipe
       </td></tr>
-      <tr><td style="font-size:14px;line-height:20px;color:#1A1A1A;padding-bottom:4px;" align="center">
+      <tr><td style="font-size:14px;line-height:20px;color:#1A1A1A;padding:0 28px 4px;" align="center">
         en tant que <strong>$label</strong>
       </td></tr>
-      <tr><td style="font-size:13px;line-height:19px;color:#8A8A8A;padding-bottom:24px;" align="center">
+      <tr><td style="font-size:13px;line-height:19px;color:#8A8A8A;padding:0 28px 24px;" align="center">
         $summary
       </td></tr>
-      <tr><td style="font-size:14px;line-height:21px;color:#1A1A1A;padding-bottom:24px;" align="center">
+      <tr><td style="font-size:14px;line-height:21px;color:#1A1A1A;padding:0 28px 24px;" align="center">
         Téléchargez <strong>MyWeli Pro</strong> et connectez-vous avec cette
         adresse e-mail — votre invitation vous attend.
       </td></tr>
-      <tr><td align="center" style="padding-bottom:24px;">
+      <tr><td align="center" style="padding:0 28px 24px;">
         <a href="https://myweli.com" style="background:#1A1A1A;color:#FFFFFF;text-decoration:none;padding:12px 24px;border-radius:8px;font-size:14px;display:inline-block;">Ouvrir MyWeli Pro</a>
       </td></tr>
-      <tr><td style="font-size:12px;line-height:18px;color:#8A8A8A;" align="center">
+      <tr><td style="font-size:12px;line-height:18px;color:#8A8A8A;padding:0 28px 28px;" align="center">
         L’invitation est valable 7 jours. Si vous n’attendiez pas cette
         invitation, ignorez cet e-mail — rien ne sera créé sans votre accord.<br>
         <a href="https://myweli.com" style="color:#8A8A8A;">myweli.com</a>
