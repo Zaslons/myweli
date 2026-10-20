@@ -3,6 +3,8 @@ import 'package:mocktail/mocktail.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/core/utils/onboarding.dart';
 import 'package:myweli/models/api_response.dart';
+import 'package:myweli/models/service.dart';
+import 'package:myweli/models/availability.dart';
 import 'package:myweli/models/kyc_document.dart';
 import 'package:myweli/models/payment.dart';
 import 'package:myweli/models/pro_membership.dart';
@@ -166,6 +168,108 @@ void main() {
     );
     expect(p.steps.map((s) => s.key.name), isNot(contains('offer')));
     expect(p.readyToGoLive, isTrue);
+  });
+
+  // docs/design/web-pro-golive-signup-like-app.md §4 — the app judged two
+  // steps differently from the server's publish gate it mirrors: it counted
+  // INACTIVE services, and wanted an `isAvailable` slot where the server takes
+  // any day with hours. The checklist could say ✓ to a salon the server then
+  // refused, or ✗ to one it would publish.
+  group('aligned with the server’s gate', () {
+    final salon = MockData.providers.first.copyWith(
+      imageUrls: const ['a.jpg', 'b.jpg', 'c.jpg'],
+    );
+
+    Future<ProOnboardingProvider> load({
+      required List<Service> services,
+      required Availability availability,
+    }) async {
+      when(
+        () => pro.getProviderServices('p1'),
+      ).thenAnswer((_) async => ApiResponse.success(services));
+      when(() => artists.getArtists('p1')).thenAnswer(
+        (_) async =>
+            ApiResponse.success(MockData.getArtistsForProvider('provider1')),
+      );
+      when(
+        () => pro.getProviderAvailability('p1'),
+      ).thenAnswer((_) async => ApiResponse.success(availability));
+      when(() => pro.getDepositPolicy('p1')).thenAnswer(
+        (_) async => ApiResponse.success(
+          const DepositPolicy(depositRequired: false, depositPercentage: 0),
+        ),
+      );
+      when(() => pro.getMyProvider()).thenAnswer(
+        (_) async => ApiResponse.success(
+          MyProviderInfo(
+            salon: salon,
+            membership: ProMembership(
+              role: TeamRole.owner,
+              capabilities: presetCapabilitiesFor(TeamRole.owner),
+              salonId: 'p1',
+              salonName: salon.name,
+            ),
+          ),
+        ),
+      );
+      when(() => kyc.getKycStatus(any())).thenAnswer(
+        (_) async => ApiResponse.success(
+          const KycStatus(status: VerificationStatus.verified),
+        ),
+      );
+      final p = ProOnboardingProvider();
+      await p.load(
+        ProviderUser(
+          id: 'pu1',
+          phoneNumber: '+2250700000000',
+          businessName: 'Salon X',
+          businessType: BusinessType.salon,
+          createdAt: DateTime(2026),
+          providerId: 'p1',
+        ),
+        salonId: 'p1',
+      );
+      return p;
+    }
+
+    test('an inactive service does not count toward the three', () async {
+      final three = MockData.getServicesForProvider(
+        'provider1',
+      ).take(3).toList();
+      final p = await load(
+        services: [three[0], three[1], three[2].copyWith(active: false)],
+        availability: salon.availability,
+      );
+      expect(
+        statusOf(p, OnboardingStepKey.services),
+        OnboardingStepStatus.todo,
+      );
+      expect(p.readyToGoLive, isFalse);
+    });
+
+    test(
+      'a day with hours counts, whatever its slots’ flags — as the server',
+      () async {
+        final p = await load(
+          services: MockData.getServicesForProvider('provider1'),
+          availability: salon.availability.copyWith(
+            weeklySchedule: {
+              0: [
+                TimeSlot(
+                  startTime: DateTime(2026, 1, 5, 9),
+                  endTime: DateTime(2026, 1, 5, 18),
+                  isAvailable: false,
+                ),
+              ],
+            },
+          ),
+        );
+        expect(
+          statusOf(p, OnboardingStepKey.availability),
+          OnboardingStepStatus.done,
+        );
+      },
+    );
   });
 
   group('publish (pro-salon-lifecycle B3)', () {

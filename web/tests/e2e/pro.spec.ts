@@ -495,6 +495,7 @@ test('web pro registration: fields + email code → authenticated on /pro', asyn
   ).toBeVisible();
 
   await page.getByLabel('Nom de l’entreprise').fill('Salon Web Test');
+  await page.getByLabel('Adresse', { exact: true }).fill('Rue des Jardins, Cocody');
   await page.locator('input[type=tel]').fill('+225 07 00 00 00 10');
   await page.getByLabel('Votre e-mail').fill('nouveau@salon.test');
   await page.getByRole('button', { name: 'Recevoir un code' }).click();
@@ -543,6 +544,7 @@ test('web pro registration: duplicate identity shows provider_exists', async ({
 }) => {
   await page.goto('/pro/inscription');
   await page.getByLabel('Nom de l’entreprise').fill('Salon Doublon');
+  await page.getByLabel('Adresse', { exact: true }).fill('Rue des Jardins, Cocody');
   await page.locator('input[type=tel]').fill('+225 07 00 00 00 11');
   await page.getByLabel('Votre e-mail').fill('existe@salon.test');
   await page.getByRole('button', { name: 'Recevoir un code' }).click();
