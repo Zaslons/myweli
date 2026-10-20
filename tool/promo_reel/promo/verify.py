@@ -15,7 +15,9 @@ transitions.png, probe.json, meter.json, spectrogram.png, frames/*.png.
       pulled from the MP4; and full-size frames to look at (`look_frames`:
       derived from the film's own transitions and events, never a list typed
       per cut). Each join is held to what it is called (`join_problems`): a
-      hard cut CHANGES the picture (mean |ΔL| from T−1 to T ≥ CUT_MIN_CHANGE),
+      hard cut lands ON the music's 16th grid (round 8's review: the 15-s
+      16:9 form's cut on f193, one frame after the downbeat; f192 now) and
+      CHANGES the picture (mean |ΔL| from T−1 to T ≥ CUT_MIN_CHANGE),
       a `continuous` scene handoff does not (below it) — it is reported as a
       handoff, never counted or shown as a join (review round 3: the 15-s
       plan called f376, reveal → end, a cut; the MP4 changes by 0.07 there).
@@ -107,6 +109,7 @@ import numpy as np
 
 from . import pixels
 from . import storyboard as sbmod
+from . import timebase as tbmod
 from .audio import analysis, loudness, wav
 from .media import probe as probemod
 from .media import sheets, tools
@@ -578,15 +581,26 @@ def look_frames(doc: dict, frames: int) -> list[int]:
     return sorted(x for x in out if 0 <= x < frames)
 
 
-def join_problems(trans: list[dict], change: dict[int, float]) -> list[str]:
-    """(b)'s rule (empty: it passes): every hard cut changes the picture
-    (mean |ΔL| from T−1 to T on the MP4 ≥ CUT_MIN_CHANGE) and every
-    `continuous` handoff does not. A frame not measured fails."""
+def join_problems(trans: list[dict], change: dict[int, float], timebase: tbmod.TimeBase = tbmod.DEFAULT) -> list[str]:
+    """(b)'s rule (empty: it passes): every hard cut lands ON the music's
+    16th grid (``timebase``: the film's own) and changes the picture (mean
+    |ΔL| from T−1 to T on the MP4 ≥ CUT_MIN_CHANGE), and every `continuous`
+    handoff does not change it. A frame not measured fails. (Round 8's
+    review: the 15-s 16:9 form's declared cut on f193, one frame after the
+    bar-4 downbeat, read as a skipped scroll; it is on f192 now — a cut off
+    the grid fails however much its picture changes. A dissolve or a whip is
+    not a cut: the 9:16 / 1:1 dissolve starts on 4.1.0+1 so it is whole on
+    the « Créer » tap, f196.)"""
     out = []
     for t in trans:
-        cut = t["kind"].startswith("cut")              # a hard cut, or a declared one in the phone (16:9 15-s f193)
+        cut = t["kind"].startswith("cut")              # a hard cut, or a declared one in the phone (16:9 15-s f192)
         if not cut and t["kind"] != "continuous":
             continue
+        if cut:
+            pos, extra = timebase.split_frame(int(t["frame"]))
+            if extra:
+                out.append(f"f{t['frame']} is called a cut into {t['into']} but is off the 16th grid ({pos} + "
+                           f"{extra} frame{'s' if extra > 1 else ''}): a cut lands on the music's grid")
         d = change.get(int(t["frame"]))
         if d is None:
             out.append(f"f{t['frame']} {t['kind']} → {t['into']}: not measured")
@@ -1136,7 +1150,7 @@ def verify_film(sb, cut: str, fmt_id: str, d: Path) -> Result:
     change = {int(t["frame"]): round(float(np.mean(np.abs(pixels.luminance(pulled_t[t["frame"]])
                                                           - pixels.luminance(pulled_t[t["frame"] - 1])))), 3)
               for t in every if t["frame"] in pulled_t and t["frame"] - 1 in pulled_t}
-    joins_bad = join_problems(every, change)
+    joins_bad = join_problems(every, change, tbase)
     ttiles = []
     for t in trans:
         for x in (t["frame"] - 1, t["frame"], t["frame"] + 1):
@@ -1156,7 +1170,7 @@ def verify_film(sb, cut: str, fmt_id: str, d: Path) -> Result:
     res.add("b", "transitions from reel.mp4", len(ttiles) == sum(1 for t in trans for x in (-1, 0, 1)
                                                                  if 0 <= t["frame"] + x < frames) and not joins_bad,
             f"{len(trans)} joins (" + "; ".join(f"{k} {' '.join(v)}" for k, v in kinds.items())
-            + f"), {len(ttiles)} frames pulled; each cut changes the picture (mean |ΔL| "
+            + f"), {len(ttiles)} frames pulled; each cut on the 16th grid and changing the picture (mean |ΔL| "
             + ", ".join(f"f{t['frame']} {change.get(int(t['frame']), float('nan')):.1f}" for t in trans
                         if t["kind"].startswith("cut")) + f"; ≥ {CUT_MIN_CHANGE:g})"
             + ("; " + ", ".join(f"f{t['frame']} → {t['into']} a continuous handoff, not a join (Δ "

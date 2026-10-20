@@ -286,7 +286,7 @@ class Storyboard:
 #: in that format those keys replace the mapping's own; every other format reads
 #: the mapping as written. ONE scene, re-laid out — the owner's round-5 16:9
 #: decisions (2026-10-20) are written so: the push-in about the floor
-#: (`camera.formats.16x9.fill`), the 15-s form's hard cut at f193 and the
+#: (`camera.formats.16x9.fill`), the 15-s form's hard cut (on f192 since round 8) and the
 #: framing that needs no band-edge curtain after it.
 FORMATS_KEY = "formats"
 

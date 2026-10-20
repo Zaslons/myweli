@@ -816,9 +816,13 @@ scenes:
       - {at: cue:slot.touch, src: {touch: tap-libre}, rate: 1, src_until: 32.998}   # 1×: the form pushes in f174–183.5, at rest from f184
       - {at: 4.1.0+1, dissolve: 130.262, until: cue:create.touch, curve: ease_in_out,
          cite: "the App Store film's own declared dissolve 32.998 → 130.262 (« the form, opened → the form, filled »: tool/app_store_preview/storyboard-scenes.json S2, build/app-store/pro/preview/v2/final/cuts.txt) on AppMotion.base's easeInOut (mobile/lib/core/theme/motion.dart:33-34), over f193–196 (storyboard « The 15 s cut », BAR 4); it skips the form fill (the 30-s cut's rows 11–13)",
-         # 16:9 (the owner's round 5, 2026-10-20): a HARD CUT on f193 instead — each picture stands on the floor in its
-         # own window, and a 3-frame blend of two windows ghosts the fields; the same declared skip
-         formats: {16x9: {curve: cut}}}
+         # 16:9 (the owner's round 5, 2026-10-20): a HARD CUT instead — each picture stands on the floor in its own
+         # window, and a 3-frame blend of two windows ghosts the fields; the same declared skip. On 4.1.0, f192, the
+         # bar-4 downbeat (round 8, 2026-10-20 — the builder's call, not the owner's: « f193 » was the builder's
+         # wording; one frame after the downbeat it read as a skipped scroll, and verify (b) holds every cut to the
+         # 16th grid). The +1 above stays for 9:16 / 1:1: their dissolve is whole on the « Créer » tap, f196
+         formats: {16x9: {at: 4.1.0, curve: cut,
+                          cite: "the App Store film's own declared dissolve 32.998 → 130.262 (« the form, opened → the form, filled »: tool/app_store_preview/storyboard-scenes.json S2, build/app-store/pro/preview/v2/final/cuts.txt) — the same skip, pictures #78 → #4437 — as a HARD CUT on f192 (4.1.0, the bar-4 downbeat) in 16:9: the owner's round 5 (2026-10-20: a hard cut instead of the 3-frame dissolve), the frame the builder's call (round 8); it skips the form fill (the 30-s cut's rows 11–13)"}}}
       - {at: cue:create.touch, src: {touch: tap-creer}, until: cue:create.done, src_until: {named: 131.448}}  # 0.986×, never faster
       - {at: cue:create.done, src: {named: 131.448}, rate: 1}                   # « Rendez-vous créé », 1×
     camera:

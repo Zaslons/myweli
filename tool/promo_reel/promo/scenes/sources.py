@@ -29,7 +29,8 @@ the scene draws each picture through its own camera (the phone's
 makes it a DECLARED HARD CUT — the picture it reaches from its first frame,
 the same skip, the same declaration (the owner's round 5, 2026-10-20: the
 15-s 16:9 form, whose two pictures stand on the floor each in its own
-window, cuts at f193 — a blend of two windows ghosts).
+window, cuts — a blend of two windows ghosts; on f192, the bar-4 downbeat,
+since round 8: verify (b) holds every cut to the 16th grid).
 
 Masks are attached to the take before any picture is read, so every picture
 a scene, a lift or a motion-blur subframe gets is already blurred.

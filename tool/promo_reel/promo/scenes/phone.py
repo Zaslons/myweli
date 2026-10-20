@@ -789,7 +789,11 @@ class PhoneScene(Scene):
             lf = liftmod.Lift(self.source.picture(L["index"]), L["src"], origin, L["target"],
                               liftmod.LiftStyle(veil_opacity=L["veil"]), path=L["path"])
             if L["slot"]:
-                self._draw_slot(canvas, L["slot"], origin, p, win)
+                # an in-place pop fades its copy in AWAY from its place (9:16: 200 px above it): its place is
+                # empty on every frame the copy shows — on the envelope, both cards showed half each on the
+                # fade's first and last frames (round 6's nit, spec §10.4: two « 13:15 », both Fatou B.'s). A
+                # travelling card, opaque, leaves its place: the panel keeps the envelope
+                self._draw_slot(canvas, L["slot"], origin, 1.0 if L["path"] == "in_place" else p, win)
             lf.draw(canvas, p, veil_rect=self._veil_rect(t) if L["veil"] > 0 else None)
             # `rest`: landed (or not yet settling back); every lift box is held to the text rectangle, in
             # flight too — a card whose place lies outside it pops in place (`path: in_place`)

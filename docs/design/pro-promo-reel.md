@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Approuvé le 2026-10-19 par le propriétaire** (le storyboard « CARNET → DROP »), puis **construit et vérifié les 2026-10-19 et 2026-10-20** sur `feat/promo-reel` (pas poussée, pas de PR) par `tool/promo_reel/` : deux coupes (30 s et 15 s), chacune en 9:16, 1:1 et 16:9 — six films. **Le rendu final** (R8, le code de `6bcd0546`) : `verify --all` sortie 0, six PASS et une bande-son par coupe, puis relancé à part sur le commit : sortie 0, 54 contrôles sur 54 ; 424 tests, OK (1 ignoré) (§9). **Décisions du propriétaire le 2026-10-19** (§2 les cite une à une) : le concept « CARNET → DROP » ; l'amapiano à 112,5 BPM ; le carnet dessiné par le code, sans photo ; « Disponible sur l’App Store » sous la signature, publié seulement après la sortie (remplacé le 2026-10-20) ; une mesure de plus (« Add one bar (Recommended) ») ; le soulignement et le coup de zoom de la carte de fin gardés (« Keep both ») ; le crochet 16:9 en deux moitiés gardé (« Keep the split ») ; le 16:9 remis en page (« Re-lay it ») ; le plancher 9:16 descendu vers y 1450 (« Extend to ~y 1450 », posé à y 1424, §2). **Le 2026-10-20** (§2) : le glissé 9:16 (« Keep it »), la suspension 9:16 (« Accept it »), la suspension 1:1 (« Keep as is »), les trois retouches 16:9 (« all three » : la poussée sur le sol, les cartes à pleine largeur de colonne, la coupe franche du formulaire 15 s), et la carte de fin « Sur l’App Store et Google Play » · « myweli.com » (« Both stores, post later »). Le crédit de carte dans les mots de l'app n'est pas une réponse du propriétaire : le contrat le consigne comme « my call, attribution correctness, not marketing copy ». **En attente du propriétaire** (§12) : quatre choix 16:9 remis par la revue de R7 — le plafond de 1,23×, la coupe de la 15 s sur f193 ou f192, son formulaire jamais vu rempli, le disque du tap « Mois ». **Pas fait** (§10) : le propriétaire n'a pas encore confirmé avoir écouté la bande-son ; rien n'est publié — **RÈGLE DE PUBLICATION : seulement quand les DEUX apps Pro sont en ligne, iOS ET Android** (d'après le dépôt, ni l'une ni l'autre aujourd'hui : l'iOS en App Review, BACKLOG B0.1 ; rien n'est encore saisi dans la Play Console, B0.10 ; « Android last », LAUNCH.md §3 ; le propriétaire le confirme le jour même, §10.3). |
+| **Statut** | **Approuvé le 2026-10-19 par le propriétaire** (le storyboard « CARNET → DROP »), puis **construit et vérifié les 2026-10-19 et 2026-10-20** sur `feat/promo-reel` (pas poussée, pas de PR) par `tool/promo_reel/` : deux coupes (30 s et 15 s), chacune en 9:16, 1:1 et 16:9 — six films. **Le rendu final** (R9, le 2026-10-20) : les trois films touchés reconstruits, `verify --all` sortie 0, 54 contrôles sur 54, six PASS et une bande-son par coupe ; 432 tests, OK (1 ignoré) (§9). **Décisions du propriétaire le 2026-10-19** (§2 les cite une à une) : le concept « CARNET → DROP » ; l'amapiano à 112,5 BPM ; le carnet dessiné par le code, sans photo ; « Disponible sur l’App Store » sous la signature, publié seulement après la sortie (remplacé le 2026-10-20) ; une mesure de plus (« Add one bar (Recommended) ») ; le soulignement et le coup de zoom de la carte de fin gardés (« Keep both ») ; le crochet 16:9 en deux moitiés gardé (« Keep the split ») ; le 16:9 remis en page (« Re-lay it ») ; le plancher 9:16 descendu vers y 1450 (« Extend to ~y 1450 », posé à y 1424, §2). **Le 2026-10-20** (§2) : le glissé 9:16 (« Keep it »), la suspension 9:16 (« Accept it »), la suspension 1:1 (« Keep as is »), les trois retouches 16:9 (« all three » : la poussée sur le sol, les cartes à pleine largeur de colonne, la coupe franche du formulaire 15 s), et la carte de fin « Sur l’App Store et Google Play » · « myweli.com » (« Both stores, post later »). Le crédit de carte dans les mots de l'app n'est pas une réponse du propriétaire : le contrat le consigne comme « my call, attribution correctness, not marketing copy ». **Le 2026-10-20 après R8** (§2) : « Accept 1.23× » (la poussée 16:9) et « Accept it » (le formulaire de la 15 s 16:9 jamais vu rempli) ; **mes décisions, pas les siennes** : la coupe de la 15 s 16:9 sur f192 (le premier temps), le disque du tap « Mois » accepté et rapporté par verify (g), le libellé du crédit de carte. **Pas fait** (§10) : le propriétaire n'a pas encore confirmé avoir écouté la bande-son ; rien n'est publié — **RÈGLE DE PUBLICATION : seulement quand les DEUX apps Pro sont en ligne, iOS ET Android** (d'après le dépôt, ni l'une ni l'autre aujourd'hui : l'iOS en App Review, BACKLOG B0.1 ; rien n'est encore saisi dans la Play Console, B0.10 ; « Android last », LAUNCH.md §3 ; le propriétaire le confirme le jour même, §10.3). |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-10-20 |
 | **PRD ref / phase** | Lancement — marketing · V1 (hors app : rien dans `mobile/`, `web/` ni `backend/` ne change) |
@@ -75,9 +75,11 @@ du contrat, qui les transcrit.
 | Mise en page 16:9 : « Re-lay it » | Le téléphone **posé sur le sol** (le bas de la coque sur y 1026) ; une fenêtre plus haute (y 84–1026, 942 px, contre 918) ; les légendes à 88 px (72 × 1,22) et le compteur à 144 / 48 px, chacun avec sa raison écrite (`type_note`) ; tous les contrôles de confidentialité relancés sur ce cadrage |
 | Plancher 9:16 : « Extend to ~y 1450 » | Dans les deux coupes 9:16, la fenêtre du téléphone descend jusqu'à **y 1424** (§6 dit pourquoi pas 1450) ; sous y 1248, seulement des pixels de l'app ; les clés de caméra re-résolues ; tous les contrôles de confidentialité relancés |
 | **2026-10-20** — glissé 9:16 : « Keep it » ; suspension 9:16 : « Accept it » ; suspension 1:1 : « Keep as is » | **Écarts approuvés** : le glissé « Arrivé » se joue à y ≈ 1290–1410, sous la ligne de texte (pixels de l'app ; le propriétaire vérifie sous l'interface Reels/TikTok) ; sur le bas du journal et la fin du formulaire, le téléphone s'arrête à y ≈ 985 en 9:16 et pend sous le bandeau en 1:1 (forcé par la ligne 13:15 cachée) |
-| **2026-10-20** — 16:9, les trois retouches (« all three »), dans les mots du contrat : « push in ~1.3–1.5× about the floor on the lower-journal and form-end shots so the phone fills the empty upper right (privacy re-checked) » ; « the “Arrivé” lift (and the other 16:9 lifts where it helps) uses the left column's full width (~1.45×) » ; « a hard cut at f193 instead of the 3-frame dissolve (no ghosting); the band-edge curtain after it must not read as a wipe over a still form — solve it or explain why it can't be » | (1) **Poussée sur le sol** (`camera.formats.16x9.fill`) sur le bas du journal et la fin du formulaire, la fenêtre grandit avec le téléphone : **1,23×** et pas ~1,3–1,5× — la colonne de gauche va jusqu'à x 878 (« Un créneau libre ? ») et x 1024 (« rempli. ») ; à 1,3× la coque passerait sous « libre ? » et dans « rempli. » ; 1,23× garde chaque légende à ≥ 12 px du téléphone (mesuré : 15 px), la ligne 13:15 toujours sous le bandeau, tous les contrôles de confidentialité relancés — **ce plafond de 1,23× attend la décision du propriétaire** (§12) ; (2) la carte « Arrivé » et les tuiles de la fiche à **pleine largeur de la colonne** (x 96–1040, 944 px, 1,42× la carte du téléphone) ; « Total réalisé » reste à 760 px (à 944 px elle ferait 508 px de haut, il n'y en a que 427 sous la phrase) ; (3) le formulaire 15 s : **coupe franche à f193** au lieu du fondu, et **plus de rideau** — le formulaire rempli est cadré d'emblée par la fenêtre du journal (W 667), rien ne bouge jusqu'à la poussée du snackbar ; le prix, en 16:9 seulement : « Client sans numéro » coché et « Yao K. » tapé ne se voient pas sur le formulaire (le nom se lit 0,8 s plus tard sur la nouvelle carte du journal) — **ce prix n'a pas été soumis au propriétaire, ni l'image de la coupe (f193 ou f192) : décisions en attente** (§12) |
+| **2026-10-20** — 16:9, les trois retouches (« all three »), dans les mots du contrat : « push in ~1.3–1.5× about the floor on the lower-journal and form-end shots so the phone fills the empty upper right (privacy re-checked) » ; « the “Arrivé” lift (and the other 16:9 lifts where it helps) uses the left column's full width (~1.45×) » ; « a hard cut at f193 instead of the 3-frame dissolve (no ghosting); the band-edge curtain after it must not read as a wipe over a still form — solve it or explain why it can't be » | (1) **Poussée sur le sol** (`camera.formats.16x9.fill`) sur le bas du journal et la fin du formulaire, la fenêtre grandit avec le téléphone : **1,23×** et pas ~1,3–1,5× — la colonne de gauche va jusqu'à x 878 (« Un créneau libre ? ») et x 1024 (« rempli. ») ; à 1,3× la coque passerait sous « libre ? » et dans « rempli. » ; 1,23× garde chaque légende à ≥ 12 px du téléphone (mesuré : 15 px), la ligne 13:15 toujours sous le bandeau, tous les contrôles de confidentialité relancés — **ce plafond de 1,23× approuvé par le propriétaire après R8** (« Accept 1.23× », ci-dessous) ; (2) la carte « Arrivé » et les tuiles de la fiche à **pleine largeur de la colonne** (x 96–1040, 944 px, 1,42× la carte du téléphone) ; « Total réalisé » reste à 760 px (à 944 px elle ferait 508 px de haut, il n'y en a que 427 sous la phrase) ; (3) le formulaire 15 s : **coupe franche** au lieu du fondu — **sur f192** (4.1.0, le premier temps de la mesure 4) depuis R9, ma décision (ci-dessous) —, et **plus de rideau** — le formulaire rempli est cadré d'emblée par la fenêtre du journal (W 667), rien ne bouge jusqu'à la poussée du snackbar ; le prix, en 16:9 seulement : « Client sans numéro » coché et « Yao K. » tapé ne se voient pas sur le formulaire (le nom se lit 0,9 s après la coupe, sur la nouvelle carte du journal qui revient, f219) — **prix approuvé par le propriétaire après R8** (« Accept it », ci-dessous) |
 | **2026-10-20** — crédit de carte : **pas une réponse du propriétaire** ; le contrat le range sous les décisions du jour avec la mention « my call, attribution correctness, not marketing copy » (une question d'exactitude de l'attribution, pas un texte publicitaire) | Les mots de l'app : « © OpenStreetMap contributors · © CARTO » (`cartoCredits`, `carto_basemap_layer.dart:116`) ; **entier** de sa première image entière jusqu'à ce que la carte se soit éteinte (f767, dernière image du souffle 2), dans chaque format — round 5 le faisait disparaître avec le téléphone |
 | **2026-10-20** — carte de fin : le propriétaire a demandé Google Play et myweli.com ; Google Play n'étant pas vrai aujourd'hui, il a choisi « Both stores, post later » | Une seule version. Dans l'ordre : le mark · « Plus de clients, moins de gestion. » (soulignement et coup de zoom gardés) · « Sur l’App Store et Google Play » (remplace « Disponible sur l’App Store ») · « myweli.com », en dernier ; chaque ligne seule sur son repère de la grille (30 s f832 / f848 / f880 ; 15 s f384 / f400 / f432), les deux partitions recalées (`end.site`) ; 74 caractères f827→f960 = **16,7 car./s** (≤ 17). **Règle de publication** : seulement quand les DEUX apps Pro sont en ligne, iOS et Android (Android ne l'est pas : BACKLOG B0.10, §10.3). « myweli.com » est vrai aujourd'hui : `https://myweli.com/` a répondu 200 le 2026-10-20 à 15:50 UTC |
+| **2026-10-20, après R8** — les deux choix 16:9 remis par la revue de R7 : la poussée, « Accept 1.23× » ; le formulaire 15 s 16:9 jamais vu rempli, « Accept it » | La poussée sur le sol reste à **1,23×**, les légendes sur une ligne, le haut à droite pas entièrement rempli (les légendes sur deux lignes ne sont pas retenues). En 15s-16x9, la coupe franche saute le formulaire rempli : f184–f191 le formulaire vide, f192 sa fin (« Note », « Total 5 000 FCFA », « Créer le rendez-vous »), « Yao K. » d'abord sur la nouvelle carte du journal (f219, entière dès f221) ; le 9:16 et le 1:1 gardent le fondu qui montre le remplissage |
+| **2026-10-20, après R8 — MES DÉCISIONS, pas celles du propriétaire** (le contrat les consigne comme « MY CALLS (not the owner's) ») | (1) **La coupe 15 s 16:9 sur f192** (4.1.0, le premier temps), pas f193 : « f193 » était ma formulation dans la consigne de R5, pas celle du propriétaire ; f193 tombait une image après le temps fort, seule coupe hors grille des deux films 16:9, et se lisait comme un défilement sauté. Construit `formats: {16x9: {at: 4.1.0, curve: cut, cite}}` (sa propre citation : le même saut, images #78 → #4437) ; verify (b) tient désormais **chaque coupe franche sur la grille des doubles croches** (`join_problems`), vu échouer sur le MP4 à f193 avant le déplacement. (2) **Le disque du tap « Mois » de Revenus**, son arc du haut éclairci par le fondu du bandeau (58 % visible en 1:1 et 16:9, 69 % en 9:16), **accepté tel quel et toujours RAPPORTÉ par verify (g)**, sans échouer. (3) **Le libellé du crédit de carte** (« © OpenStreetMap contributors · © CARTO ») : une question d'exactitude de l'attribution, ma décision — **pas « approuvé par le propriétaire »** (le README de R7 le disait à tort ; corrigé) |
 
 **Pourquoi y 1424 et pas 1450.** Mesuré sur take1b 10.000 : à 1450, soit le titre
 « Ma journée » reste à moitié fondu dans le bandeau (W 111,9), soit le texte de
@@ -334,7 +336,42 @@ vérification (9 min 12 ; 9 min 36 à la relance de confirmation).
 
 ## 9. Vérification — le rendu final
 
-**Le rendu final (R8**, le 2026-10-20, après la revue de R7). `build --all` en
+**R9, le rendu final** (le 2026-10-20, après les décisions du propriétaire sur
+R8). Trois films reconstruits, les seuls que les changements touchent :
+**15s-16x9** (la coupe sur f192, puis une seconde fois pour sa seule
+citation — le MP4 identique octet pour octet au premier passage de R9),
+**30s-9x16** et **15s-9x16** (la place de la carte « Arrivé » vidée sur
+chaque image où sa copie se montre). Les trois autres MP4 ne sont pas
+reconstruits : mêmes empreintes sha256 qu'en R8. `verify --all` sur les six,
+en 9 min 28 : **sortie 0, 54 contrôles sur 54 PASS, aucun AVERTISSEMENT**,
+une bande-son par coupe (30 s `track.wav` 1e5796a8a7c4 / `events.json`
+23d635c8baab, 15 s 21be04ddc291 / c603003c4954 — celles de R8). Le code et le
+storyboard n'ont pas changé pendant le rendu (même empreinte du diff avant et
+après). **15s-16x9 comparé image par image à R8** (la luminance décodée) :
+seule **f192** change (11,9 niveaux en moyenne : la fin du formulaire, une
+image plus tôt) ; ses voisines bougent d'au plus 0,055 (l'encodeur) ;
+`track.wav` et `events.json` identiques. verify (b) : « cuts f48 f64 f192
+f320 », chacune sur la grille, f192 change l'image de 11,9 ; (h) : « take1b
+32.965 → 130.262 s as a hard cut on f192 (declared) » — les mêmes images
+#78 → #4437 que le fondu du 9:16 et du 1:1 (32.998 → 130.262). **Regardé en
+pleine taille, tiré du MP4** : 15s-16x9 f188 à f200, chaque image — f188–191
+le formulaire vide au repos, f192 la coupe nette sur sa fin (« Note », « Total
+5 000 FCFA », « Créer le rendez-vous »), rien d'autre ne bouge (légende,
+bord du bandeau, coque), f193–195 la même image, f196 le disque du tap sur
+« Créer », f197–200 son onde ; et f217–224 : « Yao K. » d'abord sur la
+nouvelle carte du journal qui revient, f219, entière dès f221. 30s-9x16
+f231–234 et f250–253, 15s-9x16 f143–146 et f156–159 : une seule carte de
+Fatou B. sur chaque image, sa place vide, la carte de retour entière sur
+f253 / f159. **Vu échouer avant les corrections** : sur une copie du MP4 de
+R8 (la coupe sur f193), verify sortie 1, (b) FAIL « f193 is called a cut
+into journal but is off the 16th grid (4.1.0 + 1 frame): a cut lands on the
+music's grid » ; `tests/test_owner_r8.py` rouge sur `846169c7` (f193
+accepté, le segment sur 193, l'écart-type de la place de la carte de 2,05 à
+17,76 sur 12 images pour un maximum de 2,0). Le tableau ci-dessous est celui
+de R8 ; R9 relit les six rapports et retrouve les mêmes chiffres, sauf la
+coupe de la 15s-16x9, désormais f192.
+
+**Le rendu de R8** (le 2026-10-20, après la revue de R7). `build --all` en
 765 s, sortie 0 ; `verify --all` en 9 min 12, **sortie 0, six PASS**, une
 bande-son par coupe, aucun AVERTISSEMENT. Aucun fichier de code ni le storyboard
 n'a été modifié après le début du rendu (même empreinte du diff avant et après ;
@@ -413,7 +450,7 @@ spec :
 | 30s-16x9 | 41,4 dB | 10 | 10, 10/10 | idem | idem | idem | 14/14 | 0 sur 3 167 | 336, ≥ 90 px, 0,0 % | idem |
 | 15s-9x16 | 41,4 dB | 6 | 5, 5/5 | −14,04 / −1,78 (0,78 dB sous −1,0) | 8,78 / 8,25 LU | 21,4 dB ; 35,0 dB | 5/5 | 0 sur 1 317 | 192, ≥ 110 px, 0,0 % | 16,9 / 16,7 car./s |
 | 15s-1x1 | 41,1 dB | 6 | 5, 5/5 | idem | idem | idem | 5/5 | 0 sur 1 317 | 192, ≥ 86 px, 0,0 % | idem |
-| 15s-16x9 | 41,5 dB | 6 (la coupe déclarée f193 change l'image de 11,9) | 5, 5/5 | idem | idem | idem | 5/5 | 0 sur 1 317 | 192, ≥ 90 px, 0,0 % | idem |
+| 15s-16x9 | 41,5 dB | 6 (la coupe déclarée f193 change l'image de 11,9 ; **f192 en R9**, 11,9) | 5, 5/5 | idem | idem | idem | 5/5 | 0 sur 1 317 | 192, ≥ 90 px, 0,0 % | idem |
 
 Et, sur les six : **(e)** H.264 High@4.1, le bon nombre d'images, 30 i/s
 constants, décalage image/son 0,0 ms ; **(f)** chaque attaque lue dans le MP4 à
@@ -433,7 +470,7 @@ refusé), en 1:1 et 16:9 toute dans la zone graphique ; **(h)** 0 élément gén
 sans source, les attentes et les rampes inchangées (30 s : 0,965 / 1,000 /
 0,986 / 0,995× et 1,113 / 2,740 / 1,075 / 1,081× ; 15 s : 0,965 / 1,000 / 0,986 /
 0,995× et 1,113×), le fondu déclaré de la 15 s (f193–f196 en 9:16 et 1:1, une
-coupe franche déclarée à f193 en 16:9), la ligne 13:15 trouvée nulle part
+coupe franche déclarée à f193 en 16:9 — f192 depuis R9), la ligne 13:15 trouvée nulle part
 (0,0 % visible là où on la cherche, hors cartes levées), **le crédit de carte
 « © OpenStreetMap contributors · © CARTO » entier de sa première image entière
 jusqu'à f767** (les trois films 30 s) ; **(i)** la pire fenêtre est
@@ -540,16 +577,25 @@ du numéro du salon flouté (f712–f748, trois formats).
    - Pas d'image de couverture construite ; les canaux et la date sont la
      décision du propriétaire.
 4. **Les petits défauts que la revue R6 a laissés ouverts** (relevés sur le
-   rendu de R5 ; aucun corrigé depuis ; aucun ne montre la ligne 13:15 ni un
-   numéro) :
-   - 9:16, l'« Arrivé » qui surgit sur place (30 s f232–233 et f250–252, 15 s
-     f144–145 et f156–158) : la carte levée apparaît ou s'efface pendant que le
-     panneau qui vide sa place n'est qu'à moitié opaque, si bien que la carte de
-     Fatou B. se voit deux fois, en transparence, environ 200 px l'une de
-     l'autre (Vision lit deux « 13:15 », tous deux de Fatou B., sur 30 s f232 et
-     15 s f156 ; toujours là dans les MP4 de R8 : la relance de confirmation lit
-     les deux sur 30 s f232 et 15 s f144 et f156). Correctif proposé : le panneau entièrement opaque une image
-     avant que la carte ne se montre, retiré seulement quand elle est partie.
+   rendu de R5 ; aucun ne montre la ligne 13:15 ni un numéro) :
+   - ~~9:16, l'« Arrivé » qui surgit sur place~~ — **corrigé en R9** (le
+     2026-10-20). Regardé en pleine taille sur les MP4 de R8 (30 s f231–234 et
+     f249–253, 15 s f143–146 et f155–158) : un vrai défaut visible — le
+     panneau qui vide la place montait et descendait avec l'enveloppe du
+     surgissement, si bien que sur 30 s f232–234 / f250–252 et 15 s f144–146 /
+     f156–158 la copie levée apparaissait en transparence 200 px au-dessus de
+     l'originale à moitié voilée : deux cartes de Fatou B., deux « 13:15 »,
+     et le texte de Mariam T. à travers la copie. Correctif peu coûteux (une
+     ligne, `promo/scenes/phone.py`) : pour une carte qui surgit sur place, le
+     panneau est **opaque sur chaque image où la copie se montre** ; la carte
+     revient entière à sa place sur l'image qui suit son départ (30 s f253,
+     15 s f159). Pas « une image avant » comme proposé : sur f231 / f143 la
+     copie n'est pas encore là, l'avance aurait vidé la place sans carte nulle
+     part. Le 1:1 (une carte opaque qui quitte sa place en voyageant) garde le
+     panneau sur l'enveloppe ; le 16:9 n'a ni voile ni panneau : ce correctif
+     ne touche que les deux films 9:16. Test : `tests/test_owner_r8.py`,
+     vu rouge sur les 12 images (écart-type de la place 2,1 à 17,8 pour un
+     maximum de 2,0) avant le correctif.
    - 9:16, l'ombre portée de la carte posée descend sous y 1248 (ΔL ≈ 14 à
      y 1248, plus rien vers y 1290) ; la boîte enregistrée s'arrête à 1236 et
      laisse l'ombre de côté, donc (g) ne la voit pas. Tout le texte est au-dessus
@@ -579,6 +625,7 @@ porte dans son message de commit les contrôles vus rouges avant elle.
 | **R6** | `11d0f6e1` | Aucun changement de code : les 18 corrections confirmées sur les pixels des MP4, 20 mutants tués sur des copies, les relevés de confidentialité du §9 ; trois remarques laissées ouvertes (§10.4) |
 | **R7** | `11d0f6e1` et les décisions du propriétaire après R5 (2026-10-20) | Le glissé et la suspension 9:16, la suspension 1:1 acceptés ; en 16:9 la poussée sur le sol (1,23×, le plus que la colonne de légendes permet), « Arrivé » et les tuiles à pleine largeur de colonne, la coupe franche du formulaire 15 s sans rideau ; le crédit de carte de l'app, entier jusqu'à f767 ; la carte de fin « Sur l’App Store et Google Play » · « myweli.com » et sa règle de publication (les deux apps en ligne). Le premier rendu échoue à verify (la carte agrandie prise pour la ligne 13:15, un disque rogné d'avant ce tour), corrigé dans les contrôles ; rendu final identique octet pour octet, six PASS ; 415 tests ; chaque nouveau contrôle vu rouge (`9681c702`) |
 | **R8** | `9681c702` (la revue de R7) | Les trois constats hors décisions du propriétaire, corrigés : en 30s-16x9 la micro-poussée tenue à 1,0 sur la poussée sur le sol (la caméra changeait de sens quatre fois en 56 images), et le rendu refuse une poussée qui change trois fois de sens dans une mesure ; le master à −2,0 dBTP (l'AAC du 30 s laissait 0,29 dB sous −1,0 ; 0,79 maintenant) et verify (d) avertit sous 0,5 dB ; verify (a) dit quand les images du rendu manquent. Quatre choix remis au propriétaire (§12) et marqués en attente dans le README. Rendu 765 s, cinq films identiques au pixel près, six PASS ; 424 tests ; chaque nouveau contrôle vu rouge (`6bcd0546`). Puis une relance de confirmation sur le commit, sans changement de code : 424 tests, `verify --all` sortie 0, la lecture Vision de 672 images des MP4 ; aucun nouveau défaut. Cette spec corrige deux chiffres des rapports (37 images touchées par l'encodeur, pas 38 ; 672 images lues, pas 768) |
+| **R9** | `846169c7` et les décisions du propriétaire après R8 (2026-10-20) | « Accept 1.23× » et « Accept it » consignés ; mes décisions consignées comme telles (la coupe sur f192, le disque « Mois » rapporté, le crédit de carte — le README ne le dit plus « approuvé par le propriétaire »). La coupe 15 s 16:9 sur f192 (le premier temps) et verify (b) qui refuse toute coupe franche hors de la grille, vu échouer sur le MP4 à f193 ; la carte « Arrivé » 9:16 jamais vue deux fois (§10.4, regardée en pleine taille : un vrai défaut, corrigé en une ligne). Trois films reconstruits, `verify --all` sortie 0, 54 contrôles sur 54 ; 432 tests, OK (1 ignoré) ; chaque nouveau contrôle vu rouge (§9) |
 
 ## 12. Questions ouvertes (décisions du propriétaire)
 
@@ -587,36 +634,14 @@ porte dans son message de commit les contrôles vus rouges avant elle.
   « Both stores, post later » : les deux apps Pro en ligne, iOS ET Android,
   confirmé par le propriétaire le jour même ; la licence de la photo de Maison
   Nala ; les conditions CARTO).
-- **Les retouches 16:9 telles que construites** (la revue de R7, R8,
-  2026-10-20 ; non décidées ici ; le README de l'outil les marque « OWNER
-  DECISION PENDING » et les détaille) :
-  1. **la poussée sur le sol à 1,23×**, pas les ~1,3–1,5× demandés : la limite
-     vient des légendes sur une ligne dans la colonne de gauche. Mesuré sur le
-     MP4 : 59 % de la hauteur sûre au-dessus du téléphone, à droite, vide avant
-     la poussée, 50 % poussé ; même 1,5× en laisserait ≈ 36 %. (a) accepter
-     1,23× ; (b) en 16:9 seulement, les deux légendes sur deux lignes (« Un
-     créneau / libre ? », « Créneau ~~libre~~ / rempli. ») pour ≈ 1,35–1,4×,
-     la poussée de « rempli. » réduite ou retirée en 16:9 — il faut des coupures
-     de ligne par format. Aucune poussée sur le sol dans la plage demandée ne
-     remplit le haut à droite ;
-  2. **la coupe franche de la 15 s 16:9 sur f193 ou f192** : f193 (la note du
-     propriétaire) tombe une image après le premier temps de la mesure 4 (f192,
-     l'attaque la plus forte), la seule coupe hors de la grille de 16 images
-     dans les deux films 16:9 ; téléphone, bandeau, légende et coque immobiles,
-     seul l'écran saute (« Note (optionnel) » de 318 px) : on croit à un
-     défilement sauté. La revue propose f192 (4.1.0) par défaut ;
-  3. **le formulaire jamais vu rempli en 15 s 16:9** : la coupe (approuvée) lui
-     coûte le remplissage — f184–192 le formulaire vide, f193 sa fin, « Yao K. »
-     d'abord sur la nouvelle carte du journal à f222 ; le 9:16 et le 1:1 le
-     montrent encore par le fondu. (a) le garder ; (b) couper sur le formulaire
-     rempli cadré à W ≈ 521,67 (« Client sans numéro » coché et « Yao K. » en
-     place, un raccord, « Créer » visible, le haut du téléphone vers y ≈ 234) —
-     le retour à W 667 avant le journal reste à résoudre sans rideau, à
-     prototyper avant de le promettre ; (c) un court fondu au lieu de la coupe ;
-  4. **le disque du tap « Mois » de Revenus en 16:9** (verify (g) le rapporte
-     visible à 58 %) : à 2× la revue le lit comme un cercle entier, seul l'arc
-     du haut éclairci par le fondu ; elle recommande de l'accepter tel quel,
-     verify (g) le rapportant sans échouer.
+- **Les retouches 16:9 telles que construites — DÉCIDÉES le 2026-10-20
+  après R8** (le contrat, « Owner decisions after round 8 » ; §2) : le
+  propriétaire, « Accept 1.23× » (la poussée sur le sol reste à 1,23×) et
+  « Accept it » (en 15s-16x9, la coupe saute le formulaire rempli) ; et, **mes
+  décisions, pas les siennes** : la coupe 15 s 16:9 sur f192 (le premier
+  temps), le disque « Mois » accepté et rapporté par verify (g), le libellé
+  du crédit de carte (exactitude de l'attribution). Plus rien en attente de
+  ce côté.
 - **Cadrage, encore ouvert** (les autres points listés par R5 sont décidés le
   2026-10-20, §2) :
   - 16:9 : hors du formulaire de la 15 s, le bord du bandeau descend encore

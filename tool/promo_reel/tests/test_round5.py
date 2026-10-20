@@ -397,16 +397,17 @@ class TestFramesOnTheFloor(unittest.TestCase):
         """The 15-s form's declared skip (32.998 → 130.262). Round 5: in 16:9
         a 3-frame blend of two windows (W 667 → 521.67) ghosted the fields,
         then the band edge came down 260 px over the still form on f204–216 —
-        a curtain. The owner's round 5 (2026-10-20): a HARD CUT on f193; and
-        the filled form is framed at once by the journal's window (W 667, the
-        push about the floor held), so nothing moves until the snackbar's push.
-        « Créer le rendez-vous » — tapped on f196 — is in view on the floor."""
+        a curtain. The owner's round 5 (2026-10-20): a HARD CUT — on f192,
+        the bar-4 downbeat, since round 8 (test_owner_r8); and the filled form
+        is framed at once by the journal's window (W 667, the push about the
+        floor held), so nothing moves until the snackbar's push. « Créer le
+        rendez-vous » — tapped on f196 — is in view on the floor."""
         j = next(s for s in self.films[("15s", "16x9")].scenes if s.id == "journal")
         seg = next(s for s in j.timeline.segments if s.kind == "dissolve")
         self.assertTrue(seg.cut)
-        self.assertEqual(j.timeline.dissolve_at(193.0)[3], 1.0)                      # whole on its first frame
-        self.assertEqual(j.timeline.index(193.0), j.timeline.index(195.0))
-        for f in (193, 196):
+        self.assertEqual(j.timeline.dissolve_at(192.0)[3], 1.0)                      # whole on its first frame
+        self.assertEqual(j.timeline.index(192.0), j.timeline.index(195.0))
+        for f in (192, 196):
             s = j.pose(float(f)).scale
             self.assertAlmostEqual(self.screen_bottom(j, f) + 16.0 * s, 1026.0, delta=0.5)
         edges = {round(j.win(float(f)).edge, 3) for f in range(184, 232)}
@@ -418,12 +419,12 @@ class TestFramesOnTheFloor(unittest.TestCase):
         w = self.win(j, 196.0)
         self.assertLess(disc["rect"][3], w.floor)
         self.assertGreaterEqual(disc["shown"], 0.99)
-        # in the PIXELS: the black button where the tap lands; f193 already the filled form's end — the button
+        # in the PIXELS: the black button where the tap lands; f192 already the filled form's end — the button
         # whole, the same pixels as f195 (no blend)
         L = frame[..., :3].astype(float) @ [0.2126, 0.7152, 0.0722]
         y = int(round(j.phone.map_point(200.0, 832.0, j.pose(196.0), W=j.camera_W(196.0), window=w)[1]))
         self.assertGreater(int((L[y - 12:y + 12, 1200:1700] < 40).sum()), 5000)
-        first, _ = self.films[("15s", "16x9")].frame(193)
+        first, _ = self.films[("15s", "16x9")].frame(192)
         L1 = first[..., :3].astype(float) @ [0.2126, 0.7152, 0.0722]
         self.assertGreater(int((L1[y - 12:y + 12, 1200:1700] < 40).sum()), 5000)
         mid, _ = self.films[("15s", "16x9")].frame(195)

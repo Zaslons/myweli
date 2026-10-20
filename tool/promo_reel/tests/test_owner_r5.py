@@ -10,8 +10,9 @@ site »:
     beat-grid cue, the combined reading check at ≈ 16.7 cps;
   * 16:9: the push-in about the floor on the lower-journal and form-end
     shots (`camera.fill`), never over a caption; the lifts at the left
-    column's full width where it helps; the 15-s form's hard cut at f193
-    and no band-edge curtain after it."""
+    column's full width where it helps; the 15-s form's hard cut (at f192
+    since round 8, the downbeat: test_owner_r8) and no band-edge curtain
+    after it."""
 
 from __future__ import annotations
 
@@ -291,9 +292,10 @@ class TestLiftsAndTheHiddenRow(unittest.TestCase):
 
 class TestTheFormCut(unittest.TestCase):
     def test_a_declared_cut_is_held_to_a_cuts_rule(self):
-        t = [{"frame": 193, "kind": "cut (declared, in the phone)", "into": "journal"}]
-        self.assertEqual(vmod.join_problems(t, {193: 30.0}), [])
-        self.assertRegex(vmod.join_problems(t, {193: 0.5})[0], "called a cut")
+        # on f192 since round 8 (the downbeat; test_owner_r8 refuses f193, off the grid)
+        t = [{"frame": 192, "kind": "cut (declared, in the phone)", "into": "journal"}]
+        self.assertEqual(vmod.join_problems(t, {192: 30.0}), [])
+        self.assertRegex(vmod.join_problems(t, {192: 0.5})[0], "called a cut")
 
 
 if __name__ == "__main__":

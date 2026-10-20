@@ -437,7 +437,7 @@ soundtrack, the take pictures and their timing are the same in every format.
 | tilts · push-in | rotX · about the phone's axis | rotX · about the phone's axis | yaw, ≤ 10° · about the screen's right edge (x 1824) |
 | map credit « © OpenStreetMap contributors · © CARTO » | the band's foot, right-aligned to the screen's edge x 900, baseline 552 | the band's foot, right-aligned to the screen's edge x 900, baseline 346 | the left column's foot, right-aligned to x 1040, baseline 1016 |
 | reveal · end card | Lottie (540, 680) · mark ink y 400–599, tagline cap top 712, the store line 808, myweli.com 872 | (540, 520) · 250–449, 560, 656, 720 | (960, 500) · 230–429, 540, 636, 700 |
-| push about the floor | — (the band edge is fixed) | — | the lower journal and the form's end, **1.23×** (`camera.formats.16x9.fill`; the push OWNER-APPROVED 2026-10-20, its 1.23× cap OWNER DECISION PENDING, below) |
+| push about the floor | — (the band edge is fixed) | — | the lower journal and the form's end, **1.23×** (`camera.formats.16x9.fill`; the push OWNER-APPROVED 2026-10-20, and its 1.23× cap too, after round 8: « Accept 1.23× », below) |
 
 **The camera re-frames by rule.** The W keys are measured in the reference
 window (9:16, y 600–1424 since the owner's floor); each says what it keeps —
@@ -576,7 +576,7 @@ now) and the DECLARED DISSOLVE (`sources.Timeline`, below).
 |---|---|---|
 | `hook` (carnet) | f0–47 | the code-drawn page, push under way at f0, the entry inking f0–24; « Votre » f0 « carnet » f8 / « déborde ? » f16, held to f47; three strikes with punches on the log hits f24 / f32 / f40; no strike words, no macro, no sink |
 | `air1` | f48–63 | the 30-s AIR, « Respirez. » |
-| `journal` (take1b) | f64–255 | the hard cut onto W 257 (no slam); the swipe at 1.11× (open f80), the pane held at 1×, the seamless cut and the tap on f88, the save at 0.965× (« Arrivé » f144), the lift f144–159; the vertical whip f160; the « Libre » tap f168 (released by f173), the form's push at 1× (rest f184); the declared dissolve f193–196 to the filled form (16:9: a declared hard cut on f193, framed at W 667); « Créer » f196 at 0.986×; back to W 667 f204–216 (16:9: already there); the snackbar f232, the push-in to 2.0 px/pt f232–252; 16:9: the push about the floor f168–184, held; « Une cliente » f64 « arrive ? » f72 / « Glissez, » f80 « appuyez. » f88; « Créneau » f160 « libre » f168, struck f236, « rempli. » f240 |
+| `journal` (take1b) | f64–255 | the hard cut onto W 257 (no slam); the swipe at 1.11× (open f80), the pane held at 1×, the seamless cut and the tap on f88, the save at 0.965× (« Arrivé » f144), the lift f144–159; the vertical whip f160; the « Libre » tap f168 (released by f173), the form's push at 1× (rest f184); the declared dissolve f193–196 to the filled form (16:9: a declared hard cut on f192, the bar-4 downbeat, framed at W 667); « Créer » f196 at 0.986×; back to W 667 f204–216 (16:9: already there); the snackbar f232, the push-in to 2.0 px/pt f232–252; 16:9: the push about the floor f168–184, held; « Une cliente » f64 « arrive ? » f72 / « Glissez, » f80 « appuyez. » f88; « Créneau » f160 « libre » f168, struck f236, « rempli. » f240 |
 | `revenus` (N1) | f256–319 | the horizontal whip in; « Mois » f272, the label f280, the counter lands on N1's « 77 000 FCFA » on f292 (the app's wait at 0.995×, as the 30-s), alone to the cut |
 | `reveal` | f320–375 | the Lottie, the 30-s retime on the 15-s cues |
 | `end` | f376–511 | the 30-s card: the mark settles f384, the tagline's one reveal f379–384, « Sur l’App Store et Google Play » f400, « myweli.com » f432, the underline f448, the punch f480 |
@@ -596,23 +596,29 @@ whole stages cross-faded drew a second, translucent bezel arc across « Total
 / Créer le rendez-vous »). `curve: cut` makes it a DECLARED HARD CUT — the
 picture it reaches from its first frame, the same skip, the same
 declaration; the plan lists it as `cut (declared, in the phone)` and verify
-(b) holds it to a cut's rule (the picture changes ≥ 2 levels). **The 15-s
-16:9 form** (OWNER-APPROVED 2026-10-20, « 16:9 POLISH » (3)): round 5's
+(b) holds it to a cut's rule (on the 16th grid, and the picture changes ≥ 2
+levels). **The 15-s 16:9 form** (OWNER-APPROVED 2026-10-20, « 16:9 POLISH »
+(3)): round 5's
 3-frame blend of two windows ghosted the fields, and its band edge then came
 down 260 px over the still form on f204–216 (W 521.67 → 667, the phone on
-the floor: only the edge moves — a curtain). Now `formats: {16x9: {curve:
-cut}}`: a hard cut on f193; and the filled form is framed at once by the
-journal's own window (W 667 on both sides of the cut, the push about the
-floor held), so NOTHING moves from f184 to the snackbar's push (f232) — no
-curtain (test_round5 holds one edge and one W over f184–231). What it costs,
-16:9 only — **NOT owner-approved: OWNER DECISION PENDING** (round 7's review;
-below): the fields « kept in place » across the skip (9:16, 1:1) are gone
+the floor: only the edge moves — a curtain). Now `formats: {16x9: {at:
+4.1.0, curve: cut, cite: …}}`: a hard cut on **f192**, the bar-4 downbeat
+(MY CALL, round 8 — not the owner's: « f193 » was the builder's wording,
+below; its own `cite` says so, the same skip, pictures #78 → #4437; 9:16
+and 1:1 keep `4.1.0+1` so their dissolve is whole on the « Créer » tap,
+f196); and the filled form is framed at once by the journal's own window (W
+667 on both sides of the cut, the push about the floor held), so NOTHING
+moves from f184 to the snackbar's push (f232) — no curtain (test_round5
+holds one edge and one W over f184–231). What it costs, 16:9 only —
+**OWNER-APPROVED 2026-10-20 after round 8, « Accept it »** (below): the
+fields « kept in place » across the skip (9:16, 1:1) are gone
 — a cut needs none — and the filled form shows its end (« Note », « Total
 5 000 FCFA », « Créer le rendez-vous »), not « Client sans numéro » ticked
 nor « Yao K. » typed: those are above W 667 (the name field 598–654 pt), and
 any framing that showed them would need the band edge to come down over the
 still form before the journal's return (the old 13:15 row) — the curtain.
-The name is seen 0.8 s later on the journal's new card « 14:45 Yao K. ».
+The name is seen 0.9 s after the cut, on the journal's new card « 14:45
+Yao K. » as the journal slides back in (f219).
 Refused: a dissolve without `cite`, one
 that goes back in the take or to the same picture, one without a segment
 before it or an `until`, and a touch disc or ripple on any of its frames.
@@ -725,9 +731,12 @@ render.json (`verify.look_frames`: every transition at T−1, T, T+1 and its
 end, every visual event and three frames on, but the take's own picture
 changes and caption words; the first and last frames), never a frame list
 typed per cut — each join held to its name (`join_problems`: a hard cut
-changes the picture, mean |ΔL| from T−1 to T ≥ 2 levels — the films' cuts
-change by 8–244 —, a `continuous` handoff does not, and is reported apart,
-never counted as a join), (c) every touch-down drawn held to the gesture logs
+lands ON the music's 16th grid — round 8: the 15-s 16:9 form's cut on f193,
+one frame after the downbeat, read as a skipped scroll; a cut off the grid
+fails however much its picture changes — and changes the picture, mean |ΔL|
+from T−1 to T ≥ 2 levels — the films' cuts change by 8–244 —, a
+`continuous` handoff does not, and is reported apart, never counted as a
+join; a dissolve or a whip is not a cut), (c) every touch-down drawn held to the gesture logs
 (`media.touches.cross_check`) and its tone re-measured, (d) BS.1770-4 on the
 MP4's decoded AAC (−14 ± 0.5 LUFS, ≤ −1.0 dBTP; ffmpeg's ebur128 as a second
 opinion), `spectrogram.png` with bar ticks, and each AIR beat at least 7 LU
@@ -775,7 +784,8 @@ touch »; a touch-down cropped on an unpushed frame is reported, not failed:
 the Revenus « Mois » tap (shown 0.58–0.69), whose disc's top has sat in the
 band's fade since round 1 — the title « Revenus » is kept under the band and
 lies 16 pt above the disc, under the fade's 17–22 pt, so no framing shows
-both whole), and the
+both whole; accepted as is and kept REPORTED, round 8 — MY CALL, not the
+owner's, below), and the
 hook's animated ink (the plan's `hook_ink`) seen: inside the canvas, inside
 an EBU graphics-safe area, off the scrim, and each strike read off the MP4
 on its last frame (`pixels.line_contrast`: the paper beside the stroke ≥ 40
@@ -832,45 +842,56 @@ never changes a status). `report.txt` leads with the film's status;
 
 ### Decisions made against the storyboard's text, and why
 
-**OWNER DECISIONS PENDING (round 7's review of the round-5 decisions as
-built, 2026-10-20) — put to the owner, not decided here:**
+**OWNER DECISIONS after round 8 (2026-10-20 — architecture contract,
+« Owner decisions after round 8 »: the four calls round 7's review put to
+the owner, now closed — two are the owner's, two are mine):**
 
-1. **16:9: the push at 1.23×, not the owner's ~1.3–1.5×.** The push is the
-   owner's; the cap is the builder's, forced by the captions on one line in
-   the left column (« Un créneau libre ? » to x 878, « Créneau ~~libre~~
-   rempli. » to x 1024; « 16:9: the push about the floor », above). Measured
-   on the MP4 by the review: of the 972-px safe height, 59 % above the phone
-   on the right is empty before the push, 50 % pushed; even 1.5× would leave
-   about 36 %. Choices: (a) accept 1.23×; (b) in 16:9 only, the two captions
-   over two lines (« Un créneau / libre ? », « Créneau ~~libre~~ /
-   rempli. ») for about 1.35–1.4×, the « rempli. » push on top reduced or
-   dropped in 16:9 so the slab stays ≥ 12 px clear of « libre » — it needs
-   per-format line breaks. Either way, no push about the floor in the
-   owner's range fills the upper right completely.
-2. **15s-16x9: the hard cut on f193, or on f192.** The owner wrote « f193 ».
-   The review measured it one frame (33 ms) after the bar-4 downbeat — f192
-   carries the bar's strongest onset — the only cut in either 16:9 film off
-   the 16-frame grid (the « +1 » exists so 9:16 / 1:1's 3-frame dissolve
-   ends on the tap at f196); with the phone, band edge, caption and bezel
-   still and only the screen jumping (« Note (optionnel) » 318 px in one
-   frame), the late cut reads as a skipped scroll. The review's default:
-   f192 (4.1.0) in 16:9 — one line from the owner.
-3. **15s-16x9: the form is never seen filled.** The owner approved the hard
-   cut; what it costs this one film was not put to them: f184–192 show the
-   empty form (« Client sans numéro » unticked, « Nom du client » empty),
-   f193 the form's end (« Note », « Total 5 000 FCFA », « Créer le
-   rendez-vous »), and « Yao K. » first appears on the journal's new card at
-   f222 (9:16 and 1:1 still show the fill through the dissolve). Choices:
-   (a) keep it; (b) cut to the filled form framed at W ≈ 521.67 (the
-   dissolve's), so « Client sans numéro » ✓ and « Yao K. » show in place — a
-   match cut, « Créer » still in view, the phone's top up toward y ≈ 234 —
-   the return to W 667 before the journal comes back then still to be solved
-   without a curtain (to prototype before it is promised); (c) a short fade
-   instead of the cut.
-4. **The Revenus « Mois » tap disc in 16:9** (verify (g) reports it 0.58
-   shown: the band's fade lightens its upper arc). The review read it at 2×
-   as a whole circle, its outline continuous, and recommends accepting it as
-   is, verify (g) reporting rather than failing it.
+1. **OWNER-APPROVED 2026-10-20 — 16:9: the push at 1.23×** (« Accept
+   1.23× »). The push about the floor stays at 1.23×, not the ~1.3–1.5×
+   first asked: the captions stay on ONE line in the left column (« Un
+   créneau libre ? » to x 878, « Créneau ~~libre~~ rempli. » to x 1024;
+   « 16:9: the push about the floor », above), and the upper right is not
+   fully filled (round 7's review, on the MP4: of the 972-px safe height,
+   59 % above the phone on the right empty before the push, 50 % pushed).
+   The two-line, per-format captions for ≈ 1.35–1.4× were not taken.
+2. **MY CALL (not the owner's) — 15s-16x9: the hard cut on f192 (4.1.0, the
+   bar-4 downbeat), not f193.** « f193 » was the builder's wording in the
+   round-5 brief, not the owner's. Round 7's review measured f193 one frame
+   (33 ms) after the downbeat — f192 carries the bar's strongest onset —
+   the only cut in either 16:9 film off the 16-frame grid (the « +1 »
+   exists so 9:16 / 1:1's 3-frame dissolve ends on the tap at f196); with
+   the phone, band edge, caption and bezel still and only the screen
+   jumping (« Note (optionnel) » 318 px in one frame), the late cut read as
+   a skipped scroll. Built as `formats: {16x9: {at: 4.1.0, curve: cut, cite}}`
+   (9:16 and 1:1 unchanged). Verify (b) now holds EVERY hard cut to the
+   16th grid (`join_problems`): watched FAIL on the f193 MP4 (« f193 is
+   called a cut into journal but is off the 16th grid (4.1.0 + 1 frame) »,
+   exit 1) before the move; `tests/test_owner_r8.py`.
+3. **OWNER-APPROVED 2026-10-20 — 15s-16x9: the form is never seen filled**
+   (« Accept it »). The hard cut skips the filled form in that one film:
+   f184–191 show the empty form (« Client sans numéro » unticked, « Nom du
+   client » empty), f192 the form's end (« Note », « Total 5 000 FCFA »,
+   « Créer le rendez-vous »), and « Yao K. » first shows on the journal's
+   new card « 14:45 Yao K. » as the journal slides back in (f219, the card
+   whole from f221 — read on the round-8 MP4). 9:16 and 1:1 still show the
+   fill through the dissolve.
+4. **MY CALL (not the owner's) — the Revenus « Mois » tap disc, accepted as
+   is and kept REPORTED by verify (g)** (shown 0.58 in 1:1 and 16:9, 0.69 in
+   9:16: the band's fade lightens its upper arc). Round 7's review read it
+   at 2× as a whole circle, its outline continuous; (g) reports it on every
+   run rather than failing it.
+
+**MY CALL (not the owner's) — the map credit** (attribution correctness,
+not marketing copy: the contract records it under the round-5 day's
+decisions as « my call »; round 7's README wrongly listed it as
+« OWNER-APPROVED … the owner's call »): the app's own wording, « ©
+OpenStreetMap contributors · © CARTO » (`cartoCredits`,
+mobile/lib/widgets/common/carto_basemap_layer.dart:116, joined « · »; round
+5: « © OpenStreetMap, © CARTO »), and on screen until the map has dimmed out
+— WHOLE from its first whole frame to AIR 2's last, f767, in every format
+(round 5 faded it with the falling phone, f752–763); verify (h)
+`credit_problems`. CARTO's and OpenStreetMap's terms for video were not read
+(spec §10.3).
 
 **OWNER-APPROVED departures (the owner's decisions after round 5,
 2026-10-20 — architecture contract, « Owner decisions after round 5 » and
@@ -906,26 +927,19 @@ built, 2026-10-20) — put to the owner, not decided here:**
   the floor on the lower journal and the form's end — built at **1.23×**, the
   most the left column's captions allow (« 16:9: the push about the floor »,
   above: the owner's ~1.3–1.5× would put the slab under « libre ? » and into
-  « rempli. »; the cap is PENDING, 1. above), the 13:15 row and every privacy
+  « rempli. »; the cap OWNER-APPROVED after round 8, « Accept 1.23× », 1.
+  above), the 13:15 row and every privacy
   check re-run on the new framing; (2) the « Arrivé » lift and the Fiche's tiles at the left
   column's full width, x 96–1040 — the card 944 px, 1.42× the card in the
   phone (round 5: 760 px, 1.15×), « Arrivé » read at 50 %; 16:9 lifts are
   exempt from « same pixel size everywhere »; « Total réalisé » keeps 760 px
   (at 944 it would be 508 px tall: under the two-line sentence, ink to
   y ≈ 523, and inside the safe floor, 1026, there are 427); (3) the 15-s
-  form's hard cut on f193 instead of the 3-frame dissolve, and no band-edge
-  curtain after it — solved by framing the filled form at once in the
-  journal's window (« The declared dissolve », above). What that costs — the
-  fill never seen in 15s-16x9 — is PENDING (3. above), and so is the cut's
-  frame (2.).
-- **OWNER-APPROVED 2026-10-20 — the map credit** (attribution correctness,
-  the owner's call): the app's own wording, « © OpenStreetMap contributors ·
-  © CARTO » (`cartoCredits`, mobile/lib/widgets/common/carto_basemap_layer.dart:116,
-  joined « · »; round 5: « © OpenStreetMap, © CARTO »), and on screen until
-  the map has dimmed out — WHOLE from its first whole frame to AIR 2's last,
-  f767, in every format (round 5 faded it with the falling phone, f752–763);
-  verify (h) `credit_problems`.
-
+  form's hard cut instead of the 3-frame dissolve, and no band-edge curtain
+  after it — solved by framing the filled form at once in the journal's
+  window (« The declared dissolve », above). What that costs — the fill
+  never seen in 15s-16x9 — OWNER-APPROVED after round 8, « Accept it » (3.
+  above); the cut's frame, f192, is MY CALL (2. above).
 **OWNER-APPROVED departures (the owner's decisions after the six-film review,
 2026-10-19 — architecture contract, « Owner decisions after the six-film
 review »):**
@@ -956,7 +970,13 @@ review »):**
   settle — round 5 rose 200 px from the card and crossed 1248 on 6 frames a
   cut), its place on the phone emptied while it is up (a plain `background`
   panel under the veil — round 5's veiled original read as a second
-  booking); the touch discs ride the app's pixels (`verify.app_area`). The
+  booking) — on EVERY frame its copy shows, the fade's first and last
+  included (round 8: the panel rose and fell on the pop's envelope, so on
+  30-s f232–234 / f250–252 and 15-s f144–146 / f156–158 both cards showed,
+  the copy fading in 200 px above its half-veiled original — two « 13:15 »,
+  both Fatou B.'s; 1:1's card, which travels opaque out of its place, keeps
+  the panel on the envelope; `tests/test_owner_r8.py`); the touch discs ride
+  the app's pixels (`verify.app_area`). The
   page's end keeps the app's own qualifier, the owner-preview bar, inside the
   rectangle (W 427.32, `keep: text_floor` — round 5's 352.46 put both its
   lines on the floor, below 1248); the slab then stands ≈ 48 px over the
