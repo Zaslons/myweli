@@ -184,6 +184,33 @@ class Film:
                     recs.append({"f": f, "phone": list(area), "boxes": self.captions.boxes(float(f))})
         return captions_over_phone(recs)
 
+    def breathing_pushes(self) -> list[dict]:
+        """Every place a phone scene's push — the zoom × the push about the
+        floor, as render.json records it (`zoom`) — turns three times within
+        one bar: in, out, in again (or out, in, out), the camera breathing.
+        The renderer refuses them (render.build_one). Round 7's review: in
+        30s-16x9 the push about the floor (in f264–280, out f284–304) and then
+        the micro push the other formats share (in f304–314, out f314–320)
+        turned four times in 56 frames, right after the whip."""
+        bar = self.storyboard.timebase.frames_per_bar
+        out = []
+        for sc in self.scenes:
+            if not isinstance(sc, PhoneScene):
+                continue
+            moves: list[tuple[int, str]] = []          # (frame, in / out): where the push starts the other way
+            last, p0 = 0, sc.zoom(float(sc.start)) * sc.fill(float(sc.start))
+            for f in range(sc.start + 1, sc.end):
+                p = sc.zoom(float(f)) * sc.fill(float(f))
+                d = (p > p0 + 1e-6) - (p < p0 - 1e-6)
+                if d and d != last:
+                    moves.append((f - 1, "in" if d > 0 else "out"))
+                    last = d
+                p0 = p
+            for a, b, c in zip(moves, moves[1:], moves[2:]):
+                if c[0] - a[0] < bar:
+                    out.append({"scene": sc.id, "frames": [a[0], b[0], c[0]], "moves": [a[1], b[1], c[1]]})
+        return out
+
     # ---- what the film is made of ------------------------------------------------------------
 
     @staticmethod

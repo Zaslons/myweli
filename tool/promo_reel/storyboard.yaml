@@ -447,7 +447,10 @@ scenes:
         - {at: 7.1.2, value: 667, curve: ease_in_out_cubic, blur: 8, keep: top}    # « Créer » (832 pt) at y ≈ 896; pt 667 on the band edge: the journal's 13:15 row returns under the band
       zoom:
         - {at: 5.4.0, value: 1.0}
-        - {at: 5.4.2+2, value: 1.0385, curve: ease_in_out_cubic, anchor_pt: 545}     # micro push 1.791 → 1.86 px/pt toward the filled fields, f304→f314
+        # micro push 1.791 → 1.86 px/pt toward the filled fields, f304→f314. 16:9 holds 1.0: its push about the floor
+        # (below) has just come back out (f284→f304), and the micro push on top of it made the camera turn four times
+        # in 56 frames (in f264, out f284, in f304, out f314 — round 7's review): it settles once, on f304
+        - {at: 5.4.2+2, value: 1.0385, curve: ease_in_out_cubic, anchor_pt: 545, formats: {16x9: {value: 1.0}}}
         - {at: cue:fill.touch1, value: 1.0, curve: ease_in_out_cubic, anchor_pt: 545}  # eases back to 1.0 with the glide, f314→f320
         - {at: cue:create.done, value: 1.0, anchor_y: top}
         - {at: 8.1.0+12, value: 1.1167, curve: ease_in_out_cubic, anchor_y: top}   # push-in 1.791 → 2.0 px/pt, pt 667 kept on the band edge

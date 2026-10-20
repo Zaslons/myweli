@@ -46,9 +46,14 @@ from .scenes import Clock, Film, SceneError
 #: The renderer's beat frames are kept at this fraction of full size.
 BEAT_STILL_SCALE = 0.5
 #: The film's true-peak ceiling is −1.0 dBTP ON THE MP4: AAC-LC raises the
-#: inter-sample peaks of the 24-bit master (measured: −1.30 → −0.94 dBTP), so
-#: the master is limited this much lower; verify (d) re-measures the MP4.
-AAC_HEADROOM_DB = 0.5
+#: inter-sample peaks of the 24-bit master, so the master is limited this much
+#: lower (its limiter then sits 0.3 dB further down: the master measures
+#: ≈ −2.0 dBTP); verify (d) re-measures the MP4 and warns when it keeps less
+#: than 0.5 dB under the ceiling. The rise is not stable: measured −1.30 →
+#: −0.94 dBTP (round 1); round 7, the 30-s cut's master at −1.80 → −1.29
+#: (0.29 dB left at 0.5 dB here), and re-encodes of that score's masters at
+#: −2.0 / −2.1 / −2.3 dBTP rose 0.21 / 0.32 / 0.79 dB.
+AAC_HEADROOM_DB = 0.7
 FILM_CEILING_DBTP = -1.0
 
 
@@ -118,6 +123,12 @@ def build_one(sb, cut: str, fmt: str, out: Path, audio_from: Path | None = None)
         raise SceneError(f"{cut}/{fmt}: on {len(crowded)} frames a caption comes within the phone's clearance — "
                          f"f{c['frame']}: {c['caption']} {c['caption_rect']}, the phone as posed {c['phone']} (the "
                          f"phone never covers or crowds a caption: verify (g), CAPTION_PHONE_CLEAR_PX)")
+    breathing = film.breathing_pushes()
+    if breathing:
+        b = breathing[0]
+        raise SceneError(f"{cut}/{fmt}: the push turns three times within a bar — {b['scene']} "
+                         f"{', '.join(f'{m} f{f}' for m, f in zip(b['moves'], b['frames']))} (the camera breathing: "
+                         f"Film.breathing_pushes)")
     beats = out / "verify" / "renderer"
     beats.mkdir(parents=True, exist_ok=True)
     records = []

@@ -75,7 +75,7 @@ du contrat, qui les transcrit.
 | Mise en page 16:9 : « Re-lay it » | Le téléphone **posé sur le sol** (le bas de la coque sur y 1026) ; une fenêtre plus haute (y 84–1026, 942 px, contre 918) ; les légendes à 88 px (72 × 1,22) et le compteur à 144 / 48 px, chacun avec sa raison écrite (`type_note`) ; tous les contrôles de confidentialité relancés sur ce cadrage |
 | Plancher 9:16 : « Extend to ~y 1450 » | Dans les deux coupes 9:16, la fenêtre du téléphone descend jusqu'à **y 1424** (§6 dit pourquoi pas 1450) ; sous y 1248, seulement des pixels de l'app ; les clés de caméra re-résolues ; tous les contrôles de confidentialité relancés |
 | **2026-10-20** — glissé 9:16 : « Keep it » ; suspension 9:16 : « Accept it » ; suspension 1:1 : « Keep as is » | **Écarts approuvés** : le glissé « Arrivé » se joue à y ≈ 1290–1410, sous la ligne de texte (pixels de l'app ; le propriétaire vérifie sous l'interface Reels/TikTok) ; sur le bas du journal et la fin du formulaire, le téléphone s'arrête à y ≈ 985 en 9:16 et pend sous le bandeau en 1:1 (forcé par la ligne 13:15 cachée) |
-| **2026-10-20** — 16:9, les trois retouches | (1) **Poussée sur le sol** (`camera.formats.16x9.fill`) sur le bas du journal et la fin du formulaire, la fenêtre grandit avec le téléphone : **1,23×** et pas ~1,3–1,5× — la colonne de gauche va jusqu'à x 878 (« Un créneau libre ? ») et x 1024 (« rempli. ») ; à 1,3× la coque passerait sous « libre ? » et dans « rempli. » ; 1,23× garde chaque légende à ≥ 12 px du téléphone (mesuré : 15 px), la ligne 13:15 toujours sous le bandeau, tous les contrôles de confidentialité relancés ; (2) la carte « Arrivé » et les tuiles de la fiche à **pleine largeur de la colonne** (x 96–1040, 944 px, 1,42× la carte du téléphone) ; « Total réalisé » reste à 760 px (à 944 px elle ferait 508 px de haut, il n'y en a que 427 sous la phrase) ; (3) le formulaire 15 s : **coupe franche à f193** au lieu du fondu, et **plus de rideau** — le formulaire rempli est cadré d'emblée par la fenêtre du journal (W 667), rien ne bouge jusqu'à la poussée du snackbar ; le prix, en 16:9 seulement : « Client sans numéro » coché et « Yao K. » tapé ne se voient pas sur le formulaire (le nom se lit 0,8 s plus tard sur la nouvelle carte du journal) |
+| **2026-10-20** — 16:9, les trois retouches | (1) **Poussée sur le sol** (`camera.formats.16x9.fill`) sur le bas du journal et la fin du formulaire, la fenêtre grandit avec le téléphone : **1,23×** et pas ~1,3–1,5× — la colonne de gauche va jusqu'à x 878 (« Un créneau libre ? ») et x 1024 (« rempli. ») ; à 1,3× la coque passerait sous « libre ? » et dans « rempli. » ; 1,23× garde chaque légende à ≥ 12 px du téléphone (mesuré : 15 px), la ligne 13:15 toujours sous le bandeau, tous les contrôles de confidentialité relancés — **ce plafond de 1,23× attend la décision du propriétaire** (§12) ; (2) la carte « Arrivé » et les tuiles de la fiche à **pleine largeur de la colonne** (x 96–1040, 944 px, 1,42× la carte du téléphone) ; « Total réalisé » reste à 760 px (à 944 px elle ferait 508 px de haut, il n'y en a que 427 sous la phrase) ; (3) le formulaire 15 s : **coupe franche à f193** au lieu du fondu, et **plus de rideau** — le formulaire rempli est cadré d'emblée par la fenêtre du journal (W 667), rien ne bouge jusqu'à la poussée du snackbar ; le prix, en 16:9 seulement : « Client sans numéro » coché et « Yao K. » tapé ne se voient pas sur le formulaire (le nom se lit 0,8 s plus tard sur la nouvelle carte du journal) — **ce prix n'a pas été soumis au propriétaire, ni l'image de la coupe (f193 ou f192) : décisions en attente** (§12) |
 | **2026-10-20** — crédit de carte (attribution, décision du propriétaire) | Les mots de l'app : « © OpenStreetMap contributors · © CARTO » (`cartoCredits`, `carto_basemap_layer.dart:116`) ; **entier** de sa première image entière jusqu'à ce que la carte se soit éteinte (f767, dernière image du souffle 2), dans chaque format — round 5 le faisait disparaître avec le téléphone |
 | **2026-10-20** — carte de fin : « Both stores, post later » | Dans l'ordre : le mark · « Plus de clients, moins de gestion. » (soulignement et coup de zoom gardés) · « Sur l’App Store et Google Play » (remplace « Disponible sur l’App Store ») · « myweli.com », en dernier ; chaque ligne seule sur son repère de la grille (30 s f832 / f848 / f880 ; 15 s f384 / f400 / f432), les deux partitions recalées (`end.site`) ; 74 caractères f827→f960 = **16,7 car./s** (≤ 17). **Règle de publication** : seulement quand les DEUX apps Pro sont en ligne, iOS et Android (Android ne l'est pas : BACKLOG B0.10) |
 
@@ -126,8 +126,10 @@ storyboard.yaml ──► partition (promo/audio, score_30s.yaml / score_15s.yam
   crissement de stylo, carillon à deux notes. Aucun échantillon, aucune boucle,
   aucun son système. La partition est écrite **autour** des événements : un log
   ou une grosse caisse tombe d'abord sur chaque image-héros. Sidechain sur les
-  temps connus, mono sous 150 Hz, limiteur à −1,5 dBTP pour que l'AAC reste sous
-  −1,0 ; intensité BS.1770-4 maison, recoupée par `ebur128` de ffmpeg.
+  temps connus, mono sous 150 Hz, le master limité à −1,7 dBTP (≈ −2,0 mesuré)
+  pour que l'AAC reste sous −1,0 avec de la marge (à −1,5, l'AAC du 30 s montait
+  de 0,51 dB et ne laissait que 0,29 dB) ; intensité BS.1770-4 maison, recoupée
+  par `ebur128` de ffmpeg.
 - **Le rendu** (`promo/scenes/` : `carnet.py` pour le crochet et les souffles,
   `phone.py` pour les quatre prises dans la coque 2,5D vue par une fenêtre de
   caméra, `lottie.py` pour la révélation et la carte de fin, `film.py` pour la
@@ -148,10 +150,10 @@ storyboard.yaml ──► partition (promo/audio, score_30s.yaml / score_15s.yam
   place d'une autre est une erreur, jamais une voisine.
 - **verify** (`promo/verify.py`) — automatique, sur le MP4 écrit partout où c'est
   possible :
-  - **(a)** l'image du rendu sur chaque temps (`beats.png`) contre celle du MP4 (PSNR ≥ 30 dB) ;
+  - **(a)** l'image du rendu sur chaque temps (`beats.png`) contre celle du MP4 (PSNR ≥ 30 dB) ; sur une copie des films sans les images du rendu (`verify/renderer/`, écrites par build), ÉCHEC qui dit « renderer stills missing … N of M », jamais un PSNR de 0,0 dB ;
   - **(b)** chaque coupe, fouetté et fondu déclaré ± 1 image tirés du MP4 (`transitions.png`) — une coupe change l'image (|ΔL| moyen ≥ 2), un passage `continuous` ne la change pas et n'est pas compté comme une jointure ;
   - **(c)** chaque disque de toucher tenu aux journaux de gestes, et sa teinte remesurée ;
-  - **(d)** BS.1770-4 sur l'AAC décodé du MP4 (−14 ± 0,5 LUFS, ≤ −1,0 dBTP), chaque souffle ≥ 7 LU sous le groove sur le master WAV **et** sur le MP4, la queue du dernier coup qui s'éteint ;
+  - **(d)** BS.1770-4 sur l'AAC décodé du MP4 (−14 ± 0,5 LUFS, ≤ −1,0 dBTP), chaque souffle ≥ 7 LU sous le groove sur le master WAV **et** sur le MP4, la queue du dernier coup qui s'éteint ; ce que l'AAC ajoute à la crête du master et ce qu'il reste sous −1,0 dBTP, avec un AVERTISSEMENT (le verdict inchangé) sous 0,5 dB ;
   - **(e)** ffprobe et ses assertions (H.264 High au niveau ≤ 4.1) ;
   - **(f)** la synchro image/son : l'attaque de chaque clic et de chaque touche dans l'audio du MP4 contre l'image où son disque ou son caractère apparaît dans les **pixels** du MP4 ;
   - **(g)** l'encre sur les images du MP4 et chaque boîte de `render.json` dans la zone sûre du format, les légendes dans leur colonne, rien sur le téléphone, aucune carte levée sur une légende ;
@@ -246,7 +248,7 @@ carte de fin ni le crédit).
 |---|---|---|---|
 | Toile · zone sûre | 1080 × 1920 · **x 120–900, y 270–1248** — le rectangle combiné le plus strict de TikTok, Reels et WhatsApp Status ; au-dessus de y 840 (avant la colonne de boutons) les légendes centrées peuvent aller à x 960 | 1080 × 1080 · x/y 54–1026 (EBU R95, graphismes, 5 %) | 1920 × 1080 · x 96–1824, y 54–1026 (EBU R95, 5 %) |
 | Légendes | Bandeau opaque y 0–560 (fondu à 600), centrées sur x 540, 72 px | Bandeau y 0–358 (fondu à 388), centrées, 72 px | Pas de bandeau : colonne gauche x 96–1040, alignée sur x 96, centrée sur y 440, **88 px** |
-| Fenêtre du téléphone | x 180–900, y 600–**1424** ; sous y 1248, des pixels de l'app seulement | x 180–900, y 388–1002 (le bord du bandeau sur la rangée des puces) | x 1088–1808 (la coque finit sur x 1824), y 84–1026 ; **le téléphone posé sur le sol** : là où W soulèverait le bas de l'écran au-dessus de y 1010, c'est le bord du bandeau qui descend ; sur le bas du journal et la fin du formulaire, **la poussée sur le sol** 1,23× (le bord à y 550 au lieu de 639) |
+| Fenêtre du téléphone | x 180–900, y 600–**1424** ; sous y 1248, des pixels de l'app seulement | x 180–900, y 388–1002 (le bord du bandeau sur la rangée des puces) | x 1088–1808 (la coque finit sur x 1824), y 84–1026 ; **le téléphone posé sur le sol** : là où W soulèverait le bas de l'écran au-dessus de y 1010, c'est le bord du bandeau qui descend ; sur le bas du journal et la fin du formulaire, **la poussée sur le sol** 1,23× (le bord à y 550 au lieu de 639) ; la micro-poussée du 30 s vers les champs remplis (f304–320) tenue à 1,0 en 16:9 : juste après la poussée sur le sol, elle faisait changer la caméra de sens quatre fois en 56 images (revue R7) — la poussée revient une fois, sur f304, et le rendu refuse une poussée qui change trois fois de sens dans une mesure |
 | Cartes levées | x 120–900 sur le téléphone voilé à 55 %, ≤ y 1248 même en vol | x 150–930, sur le téléphone voilé | à côté du téléphone, sans voile ; elles descendent puis passent sous la phrase : « Arrivé » et les tuiles de la fiche à pleine largeur de colonne, **x 96–1040** ; « Total réalisé » x 284–1044 |
 | Compteur | Centré, lignes de base 322 / 496 | Centré, 120 / 284 | Depuis x 96, 144 / 48 px, 354 / 561 |
 | Crochet | La page x 40–1040 depuis y 640 | La page x 120–960 depuis y 10 | En deux moitiés (approuvé) : la page x 760–1960, le noir x 0–820 |
@@ -322,14 +324,33 @@ worktree par son fichier `.git`, ou `PROMO_MATERIAL`), N1 sous
 prises sont ignorés quand le matériau n'est pas sur la machine.
 
 **Ne jamais lancer deux rendus complets en même temps** : le Mac sature.
-Compter environ 13 minutes de rendu (768 s pour les six films au dernier rendu :
-30 s 185 / 123 / 229 s, 15 s 86 / 54 / 91 s) et une dizaine de minutes de
-vérification (9 min 01).
+Compter environ 13 minutes de rendu (765 s pour les six films au dernier rendu :
+30 s 190 / 124 / 222 s, 15 s 85 / 54 / 89 s) et une dizaine de minutes de
+vérification (9 min 12).
 
 ## 9. Vérification — le rendu final
 
-**Ce qui a été observé** (le 2026-10-20, les décisions du propriétaire après
-R5). Un premier rendu du tour, `build --all` en 814 s, a échoué à `verify` sur
+**Le rendu final (R8**, le 2026-10-20, après la revue de R7). `build --all` en
+765 s, sortie 0 ; `verify --all` en 9 min 12, **sortie 0, six PASS**, une
+bande-son par coupe, aucun AVERTISSEMENT. Aucun fichier de code ni le storyboard
+n'a été modifié après le début du rendu (même empreinte du diff avant et après).
+Comparé image par image au rendu de R7 (la luminance décodée des deux MP4) :
+**cinq films identiques au pixel près** — seule la bande-son a changé (le master
+à −2,0 dBTP) ; en 30s-16x9, **f305–f319** changent, la micro-poussée retirée
+(`zoom` 1,0 dans render.json au lieu de 1,0006 → 1,0385 → 1,001, aucun autre
+champ ; les deux « zoom move » de f304 et f314 sortent de la liste des
+événements visuels), et 38 images autour (f275–f337) bougent d'au plus 0,18
+niveau en moyenne — l'encodeur, leurs enregistrements étant identiques. Le bord
+gauche de la coque, mesuré sur le MP4 à y 800 : 1 072 jusqu'à f264, 899 de f280
+à f284, de retour à 1 072 sur f303 et immobile jusqu'à f339 (R7 : reparti vers
+1 043 sur f313–314). Les six rapports `verify/report.txt` sont relus ici ; le
+tableau en reprend les chiffres. Sur une copie de la 15s-16x9 sans les images du
+rendu, verify (a) dit désormais « renderer stills missing (verify/renderer/,
+written by build): 32 of 32 … the MP4's beats not compared » (sortie 1, tout le
+reste PASS) au lieu de « PSNR min 0.0 dB ».
+
+**Ce qui a été observé en R7** (le 2026-10-20, les décisions du propriétaire
+après R5). Un premier rendu du tour, `build --all` en 814 s, a échoué à `verify` sur
 deux vrais constats, corrigés avant le rendu final : **(h)** dans les deux 16:9,
 la recherche de l'ancienne ligne 13:15 « trouvait » la ligne dans la carte
 « Arrivé » en vol (30 s f233 / f250, 15 s f145 / f156) — c'était la carte de
@@ -342,25 +363,24 @@ trouvait le tap « Mois » de « Revenus » rogné par le fondu du bandeau (0,58
 « Revenus » gardé sous le bandeau est à 16 pt du haut du disque, le fondu en
 fait 17 à 22 : aucun cadrage ne montre les deux entiers) ; la règle tient donc
 chaque disque entier sur toute image où le téléphone est poussé, et rapporte
-les autres. Le rendu final : `build --all` en 768 s, sortie 0 — les six films
+les autres. Le rendu final de R7 : `build --all` en 768 s, sortie 0 — les six films
 **identiques octet pour octet** à ceux du premier rendu (les corrections ne
 touchent que des contrôles) ; `verify --all` en 9 min 01, **sortie 0, six PASS**
 et une bande-son par coupe. Aucun fichier de code ni le storyboard n'a été
-modifié après le début du rendu. Les six rapports `verify/report.txt` sont
-relus ici ; le tableau en reprend les chiffres.
+modifié après le début du rendu.
 
 | Film | (a) PSNR min | (b) jointures | (c) touchers | (d) MP4 : LUFS-I / dBTP | (d) souffles sous le groove, MP4 / master | (d) queue du dernier coup | (f) synchro | (g) boîtes hors zone | (h) ligne 13:15 | (i) pire fenêtre / carte de fin |
 |---|---|---|---|---|---|---|---|---|---|---|
-| 30s-9x16 | 40,8 dB | 10 | 10, teintes 10/10 | −14,07 / −1,29 | 8,84 et 9,13 / 8,43 et 8,48 LU | 21,4 dB plus bas 22 images après ; les 100 dernières ms 35,1 dB sous | 14/14 | 0 sur 3 154 | 336 images, flou ≥ 110 px, au plus 1,2 % hors fouetté | 16,9 / 16,7 car./s |
+| 30s-9x16 | 40,8 dB | 10 | 10, teintes 10/10 | −14,07 / −1,79 (0,79 dB sous −1,0) | 8,80 et 9,11 / 8,41 et 8,46 LU | 21,4 dB plus bas 22 images après ; les 100 dernières ms 35,1 dB sous | 14/14 | 0 sur 3 154 | 336 images, flou ≥ 110 px, au plus 1,2 % hors fouetté | 16,9 / 16,7 car./s |
 | 30s-1x1 | 40,8 dB | 10 | 10, 10/10 | idem | idem | idem | 14/14 | 0 sur 3 145 | 336, ≥ 86 px, 0,0 % | idem |
 | 30s-16x9 | 41,4 dB | 10 | 10, 10/10 | idem | idem | idem | 14/14 | 0 sur 3 167 | 336, ≥ 90 px, 0,0 % | idem |
-| 15s-9x16 | 41,4 dB | 6 | 5, 5/5 | −14,05 / −1,70 | 8,82 / 8,29 LU | 21,4 dB ; 35,0 dB | 5/5 | 0 sur 1 317 | 192, ≥ 110 px, 0,0 % | 16,9 / 16,7 car./s |
+| 15s-9x16 | 41,4 dB | 6 | 5, 5/5 | −14,04 / −1,78 (0,78 dB sous −1,0) | 8,78 / 8,25 LU | 21,4 dB ; 35,0 dB | 5/5 | 0 sur 1 317 | 192, ≥ 110 px, 0,0 % | 16,9 / 16,7 car./s |
 | 15s-1x1 | 41,1 dB | 6 | 5, 5/5 | idem | idem | idem | 5/5 | 0 sur 1 317 | 192, ≥ 86 px, 0,0 % | idem |
 | 15s-16x9 | 41,5 dB | 6 (la coupe déclarée f193 change l'image de 11,9) | 5, 5/5 | idem | idem | idem | 5/5 | 0 sur 1 317 | 192, ≥ 90 px, 0,0 % | idem |
 
 Et, sur les six : **(e)** H.264 High@4.1, le bon nombre d'images, 30 i/s
 constants, décalage image/son 0,0 ms ; **(f)** chaque attaque lue dans le MP4 à
-au plus 0,83 ms (30 s) et 0,17 ms (15 s) du premier échantillon de son image ;
+au plus 0,27 ms (30 s) et 0,17 ms (15 s) du premier échantillon de son image ;
 **(g)** l'encre de 40 (30 s) et 27 (15 s) images du MP4, chaque légende entière
 — les trois lignes de la carte de fin comprises —, le compteur sur chaque image
 de son roulement, chaque carte, le crédit — 0 hors zone ; aucune carte sur une
@@ -383,11 +403,14 @@ jusqu'à f767** (les trois films 30 s) ; **(i)** la pire fenêtre est
 (f827→f960, 15 s f379→f512) = 16,7 car./s**, aucune image où deux lignes
 reçoivent un mot, le plus long moment sans événement visuel 1,33 s (30 s
 f600→f640) et 1,07 s (15 s). **Une bande-son par coupe** : 30 s `track.wav`
-93f98379ce7d / `events.json` 23d635c8baab, 15 s f2c8a5fc10f0 / c603003c4954,
-dans les trois formats. La crête vraie du 30 s sur le MP4 est à −1,29 dBTP (≤ −1,0 ;
-−1,63 en R5 : l'AAC de la nouvelle mesure 14).
+1e5796a8a7c4 / `events.json` 23d635c8baab, 15 s 21be04ddc291 / c603003c4954,
+dans les trois formats (les `events.json` de R7 : l'horloge n'a pas bougé). La
+crête vraie sur le MP4 : −1,79 dBTP (30 s) et −1,78 (15 s), le master à −2,00 ;
+l'AAC y ajoute 0,21 / 0,22 dB et laisse 0,79 / 0,78 dB sous −1,0 (R7 : −1,29 sur
+le 30 s, 0,29 dB de marge ; des réencodages des masters des deux coupes entre
+−1,8 et −2,3 dBTP ont monté de 0,10 à 0,79 dB — d'où l'avertissement de (d)).
 
-**Les tests** : 415, OK (1 ignoré), dans le worktree. Chaque contrôle ajouté
+**Les tests** : 424, OK (1 ignoré), dans le worktree. Chaque contrôle ajouté
 pendant les tours de revue a été vu rouge avant sa correction ; chaque message
 de commit en garde la liste (§11).
 
@@ -411,7 +434,10 @@ et, tirées du MP4, en pleine taille et à 50 % chaque image changée — la pou
 16:9 (30 s f280, f292, f416, f436, f460 ; 15 s f184, f193, f196, f216, f252), la
 carte « Arrivé » à pleine largeur (f240, lisible à 50 %), les tuiles (f495), le
 crédit jusqu'à f767 dans les trois formats, la carte de fin des six films (f884,
-f959 ; 15 s f436, f511 : les trois lignes lisibles à 50 %).
+f959 ; 15 s f436, f511 : les trois lignes lisibles à 50 %). **R8** : tirées du MP4,
+en pleine taille et à 50 %, les images changées de 30s-16x9 (f304, f309, f314,
+f320, et f280, f330 parmi celles que l'encodeur a touchées) et la planche
+avant / après de f296 à f324 ; les cinq autres films n'ont aucun pixel changé.
 
 ## 10. Ce qui n'est PAS fait
 
@@ -493,6 +519,7 @@ porte dans son message de commit les contrôles vus rouges avant elle.
 | **R5** | `730a2bbb` | 18 constats hors décisions du propriétaire, tous corrigés : la réserve de la page dans le rectangle (`keep: text_floor`, W 427,32) ; l'« Arrivé » qui surgit sur place et se repose sur f248, sa place vidée ; le fouetté sur la courbe de base, ≥ 80 px de flou exigés ; le crédit avec les tuiles et dans le souffle 2 ; l'étiquette qui roule ; une seule coque dans le fondu 9:16 / 1:1 ; la couture et le libellé du panneau de la fiche ; la poussée 16:9 qui garde la coque sur le sol et dans la zone graphique ; High@4.1 ; chaque verdict de verify câblé et testé (16 mutants tués). 399 tests (`11d0f6e1`) |
 | **R6** | `11d0f6e1` | Aucun changement de code : les 18 corrections confirmées sur les pixels des MP4, 20 mutants tués sur des copies, les relevés de confidentialité du §9 ; trois remarques laissées ouvertes (§10.4) |
 | **R7** | Les décisions du propriétaire après R5 (2026-10-20) | Le glissé et la suspension 9:16, la suspension 1:1 acceptés ; en 16:9 la poussée sur le sol (1,23×, le plus que la colonne de légendes permet), « Arrivé » et les tuiles à pleine largeur de colonne, la coupe franche du formulaire 15 s sans rideau ; le crédit de carte de l'app, entier jusqu'à f767 ; la carte de fin « Sur l’App Store et Google Play » · « myweli.com » et sa règle de publication (les deux apps en ligne). Le premier rendu échoue à verify (la carte agrandie prise pour la ligne 13:15, un disque rogné d'avant ce tour), corrigé dans les contrôles ; rendu final identique octet pour octet, six PASS ; 415 tests ; chaque nouveau contrôle vu rouge |
+| **R8** | `9681c702` (la revue de R7) | Les trois constats hors décisions du propriétaire, corrigés : en 30s-16x9 la micro-poussée tenue à 1,0 sur la poussée sur le sol (la caméra changeait de sens quatre fois en 56 images), et le rendu refuse une poussée qui change trois fois de sens dans une mesure ; le master à −2,0 dBTP (l'AAC du 30 s laissait 0,29 dB sous −1,0 ; 0,79 maintenant) et verify (d) avertit sous 0,5 dB ; verify (a) dit quand les images du rendu manquent. Quatre choix remis au propriétaire (§12) et marqués en attente dans le README. Rendu 765 s, cinq films identiques au pixel près, six PASS ; 424 tests ; chaque nouveau contrôle vu rouge |
 
 ## 12. Questions ouvertes (décisions du propriétaire)
 
@@ -500,6 +527,35 @@ porte dans son message de commit les contrôles vus rouges avant elle.
 - **Publication** : la date, les canaux, et les conditions du §10.3 (les deux
   apps Pro en ligne, iOS et Android ; la licence de la photo de Maison Nala ;
   les conditions CARTO).
+- **Les retouches 16:9 telles que construites** (revue R7, 2026-10-20 ; non
+  décidées ici, le README de l'outil les détaille) :
+  1. **la poussée sur le sol à 1,23×**, pas les ~1,3–1,5× demandés : la limite
+     vient des légendes sur une ligne dans la colonne de gauche. Mesuré sur le
+     MP4 : 59 % de la hauteur sûre au-dessus du téléphone, à droite, vide avant
+     la poussée, 50 % poussé ; même 1,5× en laisserait ≈ 36 %. (a) accepter
+     1,23× ; (b) en 16:9 seulement, les deux légendes sur deux lignes (« Un
+     créneau / libre ? », « Créneau ~~libre~~ / rempli. ») pour ≈ 1,35–1,4×,
+     la poussée de « rempli. » réduite ou retirée en 16:9 — il faut des coupures
+     de ligne par format. Aucune poussée sur le sol dans la plage demandée ne
+     remplit le haut à droite ;
+  2. **la coupe franche de la 15 s 16:9 sur f193 ou f192** : f193 (la note du
+     propriétaire) tombe une image après le premier temps de la mesure 4 (f192,
+     l'attaque la plus forte), la seule coupe hors de la grille de 16 images
+     dans les deux films 16:9 ; téléphone, bandeau, légende et coque immobiles,
+     seul l'écran saute (« Note (optionnel) » de 318 px) : on croit à un
+     défilement sauté. La revue propose f192 (4.1.0) par défaut ;
+  3. **le formulaire jamais vu rempli en 15 s 16:9** : la coupe (approuvée) lui
+     coûte le remplissage — f184–192 le formulaire vide, f193 sa fin, « Yao K. »
+     d'abord sur la nouvelle carte du journal à f222 ; le 9:16 et le 1:1 le
+     montrent encore par le fondu. (a) le garder ; (b) couper sur le formulaire
+     rempli cadré à W ≈ 521,67 (« Client sans numéro » coché et « Yao K. » en
+     place, un raccord, « Créer » visible, le haut du téléphone vers y ≈ 234) —
+     le retour à W 667 avant le journal reste à résoudre sans rideau, à
+     prototyper avant de le promettre ; (c) un court fondu au lieu de la coupe ;
+  4. **le disque du tap « Mois » de Revenus en 16:9** (verify (g) le rapporte
+     visible à 58 %) : à 2× la revue le lit comme un cercle entier, seul l'arc
+     du haut éclairci par le fondu ; elle recommande de l'accepter tel quel,
+     verify (g) le rapportant sans échouer.
 - **Cadrage, encore ouvert** (les autres points listés par R5 sont décidés le
   2026-10-20, §2) :
   - 16:9 : hors du formulaire de la 15 s, le bord du bandeau descend encore

@@ -8,7 +8,9 @@ transitions.png, probe.json, meter.json, spectrogram.png, frames/*.png.
   (a) BEATS: the RENDERER's own frame on every beat (60 in the 30-s cut, 32
       in the 15-s), a sheet labelled « f144 · 4.800 s · 3.2.0 »; and the same
       beats pulled from the MP4 compared with them (PSNR) — the film holds the
-      frames rendered, in order.
+      frames rendered, in order. The stills are the build's (verify/renderer/):
+      on a copy of the films without them (a), fails, saying they are missing,
+      never with a PSNR of 0.0 dB (round 7's review).
   (b) TRANSITIONS: every cut, whip and declared dissolve, frames T−1, T, T+1
       pulled from the MP4; and full-size frames to look at (`look_frames`:
       derived from the film's own transitions and events, never a list typed
@@ -31,7 +33,10 @@ transitions.png, probe.json, meter.json, spectrogram.png, frames/*.png.
       down 22 frames after it and its last 100 ms ≥ 30 dB under it, so the
       master's 60-ms end fade never chops a loud tail (review round 3: the
       30-s's last chord was held to the last sample) — master and MP4 alike.
-      One verdict, `audio_verdict`, over all of it.
+      One verdict, `audio_verdict`, over all of it. And what the AAC did to
+      the master's true peak (`codec_headroom`): a WARNING in the summary —
+      the verdict unchanged — when the MP4 keeps less than TP_MARGIN_WARN_DB
+      (0.5 dB) under the ceiling (round 7's review: 0.29 dB on the 30 s).
   (e) FILE: ffprobe + assertions (the format's canvas — 1080×1920,
       1080×1080, 1920×1080 —, 30 fps CFR, the cut's frames — 960 for the
       30-s cut, 512 for the 15-s —, H.264 High yuv420p BT.709, AAC 48 kHz
@@ -121,6 +126,10 @@ OUTRO_END_DB = 30.0          # … and its last 100 ms this far under it: the en
 HIDDEN_ALPHA = 0.05          # the 13:15 row: at most 5 % of it may show outside a whip
 WHIP_BLUR_MIN_PX = 80.0      # … and inside the whip it crosses the window only smeared over this much (review round 5)
 BEAT_PSNR_DB = 30.0
+#: (d) warns — a PASS stays a PASS — when the MP4's true peak keeps less than this under TP_CEILING: the AAC's rise
+#: over the master is not stable (round 7, measured on re-encodes of both cuts' masters at −1.8 … −2.3 dBTP:
+#: +0.10 … +0.79 dB), so a master that changes a little may cross the ceiling on its next encode.
+TP_MARGIN_WARN_DB = 0.5
 CUT_MIN_CHANGE = 2.0         # a hard cut changes the picture this much at least (mean |ΔL|; the films' cuts: 8–244)
 CLICK_KINDS = ("click", "key")
 
@@ -420,6 +429,34 @@ def audio_verdict(m, decoded_samples: int, expected_samples: int, air: dict, air
     return (abs(m.integrated_lufs - LUFS_TARGET) <= LUFS_TOLERANCE and m.true_peak_dbtp <= TP_CEILING
             and decoded_samples == expected_samples and bool(air["ok"]) and bool(air_master["ok"])
             and bool(tail["ok"]) and bool(tail_master["ok"]))
+
+
+def codec_headroom(mp4_tp: float, master_tp: float) -> dict:
+    """What the AAC did to the master's true peak, and what it left under
+    the ceiling; `thin` when that is under TP_MARGIN_WARN_DB."""
+    margin = TP_CEILING - mp4_tp
+    return {"mp4_dbtp": round(mp4_tp, 2), "master_dbtp": round(master_tp, 2),
+            "codec_rise_db": round(mp4_tp - master_tp, 2), "margin_db": round(margin, 2),
+            "thin": bool(margin < TP_MARGIN_WARN_DB)}
+
+
+def beat_sheet_verdict(beats: int, tiles: int, missing: list[int], psnrs: dict[int, float]) -> tuple[bool, str]:
+    """(a)'s verdict and summary: every beat's renderer still on the sheet,
+    and the MP4's beats the same frames (PSNR ≥ BEAT_PSNR_DB)."""
+    psnr_min = min(psnrs.values()) if psnrs else None
+    ok = not missing and tiles == beats and psnr_min is not None and psnr_min >= BEAT_PSNR_DB
+    if not missing:
+        return ok, (f"{tiles} of {beats} beats on the sheet; MP4 vs renderer PSNR min {psnr_min} dB "
+                    f"(≥ {BEAT_PSNR_DB} dB: same frames, same order)")
+    # a copy of the films without the build's stills (round 7's review: « PSNR min 0.0 dB » read as the MP4 not
+    # matching its frames, when the stills were simply not there)
+    shown = ", ".join(f"f{f}" for f in missing[:8]) + (", …" if len(missing) > 8 else "")
+    said = (f"renderer stills missing (verify/renderer/, written by build): {len(missing)} of {beats}"
+            + (f" ({shown})" if len(missing) < beats else "") + " — build the film here, or copy its verify/renderer/")
+    if psnr_min is None:
+        return ok, said + "; the MP4's beats not compared"
+    return ok, said + (f"; MP4 vs renderer PSNR min {psnr_min} dB on the {len(psnrs)} there "
+                       f"(≥ {BEAT_PSNR_DB} dB: same frames, same order)")
 
 
 def caption_reading(items, fps: int) -> list[dict]:
@@ -1086,11 +1123,9 @@ def verify_film(sb, cut: str, fmt_id: str, d: Path) -> Result:
             ref = np.asarray(Image.open(p).convert("RGB"))
             got = np.asarray(Image.fromarray(pulled[f][..., :3]).resize((ref.shape[1], ref.shape[0]), Image.LANCZOS))
             psnrs[f] = round(_psnr(ref, got), 1)
-    psnr_min = min(psnrs.values()) if psnrs else 0.0
-    res.add("a", "beat sheet (renderer) and the MP4's beats", not missing and len(tiles) == len(beat_frames)
-            and psnr_min >= BEAT_PSNR_DB,
-            f"{len(tiles)} of {len(beat_frames)} beats on the sheet; MP4 vs renderer PSNR min {psnr_min} dB "
-            f"(≥ {BEAT_PSNR_DB} dB: same frames, same order)", missing=missing, psnr_db=psnrs, sheet="beats.png")
+    ok_a, summary_a = beat_sheet_verdict(len(beat_frames), len(tiles), missing, psnrs)
+    res.add("a", "beat sheet (renderer) and the MP4's beats", ok_a, summary_a, missing=missing, psnr_db=psnrs,
+            sheet="beats.png")
 
     # (b) transitions from the MP4 --------------------------------------------------------------
     every = doc["plan"]["transitions"]
@@ -1179,6 +1214,8 @@ def verify_film(sb, cut: str, fmt_id: str, d: Path) -> Result:
     tail_master = outro_tail(master, events, tbase.samples_per_frame)
     meter["outro_tail"] = tail
     meter["outro_tail_master_wav"] = tail_master
+    headroom = codec_headroom(m.true_peak_dbtp, meter["master_wav"]["true_peak_dbtp"])
+    meter["headroom"] = headroom
     (vdir / "meter.json").write_text(json.dumps(meter, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
     analysis.spectrogram_png(audio.astype(np.float32), vdir / "spectrogram.png", events=events, meter_report=meter,
                              title=f"reel.mp4 audio (AAC decoded) — {cut}, {frames} frames, bar ticks")
@@ -1194,7 +1231,11 @@ def verify_film(sb, cut: str, fmt_id: str, d: Path) -> Result:
                 f"{t['end_under_db']} dB under{'' if t['ok'] else ' — CHOPPED, NOT RUNG OUT'}")
     res.add("d", "BS.1770-4 on the MP4's audio, the AIR beats, the last hit's tail", ok_d,
             f"integrated {m.integrated_lufs:.2f} LUFS (target {LUFS_TARGET} ± {LUFS_TOLERANCE}), true peak "
-            f"{m.true_peak_dbtp:.2f} dBTP (≤ {TP_CEILING}), LRA {m.lra_lu:.1f} LU; ffmpeg ebur128: "
+            f"{m.true_peak_dbtp:.2f} dBTP (≤ {TP_CEILING}: the AAC {headroom['codec_rise_db']:+.2f} dB over the "
+            f"master, {headroom['margin_db']:.2f} dB under {TP_CEILING}"
+            + (f" — WARNING: under {TP_MARGIN_WARN_DB} dB, a re-encode of a master that changes a little may cross "
+               f"it; render.AAC_HEADROOM_DB" if headroom["thin"] else "")
+            + f"), LRA {m.lra_lu:.1f} LU; ffmpeg ebur128: "
             f"I {eb and eb['integrated_lufs']} LUFS, peak {eb and eb['true_peak_dbfs']} dBTP; decoded "
             f"{len(audio)} samples (expected {frames * tbase.samples_per_frame}); the WAV master was "
             f"{meter['master_wav']['integrated_lufs']:.2f} LUFS / {meter['master_wav']['true_peak_dbtp']:.2f} dBTP; "
@@ -1203,7 +1244,7 @@ def verify_film(sb, cut: str, fmt_id: str, d: Path) -> Result:
             f"{air['groove_lufs']} LUFS): {air_text(air)}; the last hit rings out (≥ {OUTRO_DECAY_DB:g} dB down "
             f"{OUTRO_DECAY_FRAMES} frames on, the last 100 ms ≥ {OUTRO_END_DB:g} dB under): master {tail_text(tail_master)}; "
             f"MP4 {tail_text(tail)}",
-            loudness=m.as_dict(), ffmpeg=eb, air=air, air_master=air_master, outro_tail=tail,
+            loudness=m.as_dict(), headroom=headroom, ffmpeg=eb, air=air, air_master=air_master, outro_tail=tail,
             outro_tail_master=tail_master, spectrogram="spectrogram.png")
 
     # (f) A/V sync on the written file: the sound's onset in the MP4's audio against the frame its disc or

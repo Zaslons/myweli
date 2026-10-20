@@ -437,7 +437,7 @@ soundtrack, the take pictures and their timing are the same in every format.
 | tilts · push-in | rotX · about the phone's axis | rotX · about the phone's axis | yaw, ≤ 10° · about the screen's right edge (x 1824) |
 | map credit « © OpenStreetMap contributors · © CARTO » | the band's foot, right-aligned to the screen's edge x 900, baseline 552 | the band's foot, right-aligned to the screen's edge x 900, baseline 346 | the left column's foot, right-aligned to x 1040, baseline 1016 |
 | reveal · end card | Lottie (540, 680) · mark ink y 400–599, tagline cap top 712, the store line 808, myweli.com 872 | (540, 520) · 250–449, 560, 656, 720 | (960, 500) · 230–429, 540, 636, 700 |
-| push about the floor | — (the band edge is fixed) | — | the lower journal and the form's end, **1.23×** (`camera.formats.16x9.fill`; OWNER-APPROVED 2026-10-20, below) |
+| push about the floor | — (the band edge is fixed) | — | the lower journal and the form's end, **1.23×** (`camera.formats.16x9.fill`; the push OWNER-APPROVED 2026-10-20, its 1.23× cap OWNER DECISION PENDING, below) |
 
 **The camera re-frames by rule.** The W keys are measured in the reference
 window (9:16, y 600–1424 since the owner's floor); each says what it keeps —
@@ -527,9 +527,22 @@ clearance (`Film.crowded_captions`, before a frame is drawn); verify (g)
 re-reads it from render.json (`phone`, per frame) — at the owner's 1.3× it
 fails on 30-s f288 (« libre ? ») and from f448 (« rempli. »).
 
+**The push settles once** (round 7's review). The 30-s journal's micro push
+toward the filled fields (1.0 → 1.0385, f304→f314, back with the glide onto
+« Coupe homme », f314→f320) was written for formats with no push about the
+floor; in 16:9 it came right after that push came back out, and the camera
+turned four times in 56 frames — in f264, out f284, in f304, out f314 — the
+camera breathing. 16:9 holds it at 1.0 (`formats: {16x9: {value: 1.0}}` on
+its key): the push comes back once, on f304, and holds to the glide. 9:16 and
+1:1 keep it. `Film.breathing_pushes` lists every place a phone scene's push
+(the zoom × the push about the floor, render.json's `zoom`) turns three times
+within a bar, and the renderer refuses the film (`render.build_one`).
+
 **Order of work** (`render.build_one`): the soundtrack FIRST
-(`promo.audio.build_cut` on the cut's score, master limited to −1.5 dBTP so
-the AAC stays under −1.0), then the clock is READ from the events.json it
+(`promo.audio.build_cut` on the cut's score, the master limited to −1.7 dBTP —
+its limiter 0.3 dB under that, ≈ −2.0 dBTP measured — so the AAC stays under
+−1.0 with room: at −1.5 (round 6) the 30-s AAC rose 0.51 dB over the master
+and kept 0.29 dB; `render.AAC_HEADROOM_DB`), then the clock is READ from the events.json it
 wrote (`scenes.Clock`: every cue's frame is where its sound landed, checked
 against the grid), then every frame is drawn and piped to
 `media.writer.VideoWriter` with track.wav muxed; `render.json` keeps what each
@@ -592,7 +605,8 @@ cut}}`: a hard cut on f193; and the filled form is framed at once by the
 journal's own window (W 667 on both sides of the cut, the push about the
 floor held), so NOTHING moves from f184 to the snackbar's push (f232) — no
 curtain (test_round5 holds one edge and one W over f184–231). What it costs,
-16:9 only: the fields « kept in place » across the skip (9:16, 1:1) are gone
+16:9 only — **NOT owner-approved: OWNER DECISION PENDING** (round 7's review;
+below): the fields « kept in place » across the skip (9:16, 1:1) are gone
 — a cut needs none — and the filled form shows its end (« Note », « Total
 5 000 FCFA », « Créer le rendez-vous »), not « Client sans numéro » ticked
 nor « Yao K. » typed: those are above W 667 (the name field 598–654 pt), and
@@ -700,7 +714,11 @@ Masks are on the take, so every subframe is already blurred.
 
 All automated, on the written MP4 wherever possible, into `verify/`: (a) the
 renderer's frame on every beat (`beats.png`: 60 stills in the 30-s cut, 32 in
-the 15-s) and the MP4's beats compared with them (PSNR), (b) every cut, whip
+the 15-s) and the MP4's beats compared with them (PSNR) — the stills are the
+build's (`verify/renderer/`): on a copy of the films without them, (a) fails
+saying « renderer stills missing (verify/renderer/, written by build): N of
+M », never with a PSNR of 0.0 dB (round 7's review: that read as the MP4 not
+matching its frames), (b) every cut, whip
 and declared dissolve ± 1 frame from the MP4 (`transitions.png`, labels
 wrapped to their cell), plus full-size frames in `frames/` — derived from
 render.json (`verify.look_frames`: every transition at T−1, T, T+1 and its
@@ -718,7 +736,11 @@ WAV master AND on the MP4 (a pass never rests on the codec), and the cut's
 last hit ringing out (`outro_tail`: ≥ 20 dB down 22 frames after it, the
 last 100 ms ≥ 30 dB under it — the master's 60-ms end fade never chops a
 loud tail), all in one verdict (`audio_verdict`, tested measure by
-measure), (e)
+measure), and what the AAC did to the master's true peak (`codec_headroom`:
+its rise, and what it left under −1.0 dBTP) — a WARNING in the summary, the
+verdict unchanged, when that is under 0.5 dB (`TP_MARGIN_WARN_DB`; round 7's
+review: 0.29 dB on the 30 s, the AAC's rise not stable — re-encodes of the
+two cuts' masters at −1.8 … −2.3 dBTP rose 0.10 … 0.79 dB), (e)
 ffprobe + assertions (`probe.json`; H.264 High at level ≤ 4.1), (f) A/V sync: each click and key's
 onset in the MP4 audio against the frame its disc or character first
 appears in the MP4's PIXELS (`promo/pixels.py`: the disc's own ring; the
@@ -802,12 +824,53 @@ Across the formats: every built format of a cut must hold ONE soundtrack —
 track.wav and events.json byte for byte (`verify.same_soundtrack`, a PASS /
 FAIL line after the films; a format re-laid out is never re-timed).
 
-Statuses: PASS or FAIL. `report.txt` leads with the film's status;
+Statuses: PASS or FAIL (a WARNING in a summary — (d)'s thin codec margin —
+never changes a status). `report.txt` leads with the film's status;
 `python -m promo verify` exits 0 (PASS) or 1, and so does `build.sh`. (Round
 2's OWNER DECISION PENDING is retired: the owner decided the end card,
 2026-10-19 — one more bar.)
 
 ### Decisions made against the storyboard's text, and why
+
+**OWNER DECISIONS PENDING (round 7's review of the round-5 decisions as
+built, 2026-10-20) — put to the owner, not decided here:**
+
+1. **16:9: the push at 1.23×, not the owner's ~1.3–1.5×.** The push is the
+   owner's; the cap is the builder's, forced by the captions on one line in
+   the left column (« Un créneau libre ? » to x 878, « Créneau ~~libre~~
+   rempli. » to x 1024; « 16:9: the push about the floor », above). Measured
+   on the MP4 by the review: of the 972-px safe height, 59 % above the phone
+   on the right is empty before the push, 50 % pushed; even 1.5× would leave
+   about 36 %. Choices: (a) accept 1.23×; (b) in 16:9 only, the two captions
+   over two lines (« Un créneau / libre ? », « Créneau ~~libre~~ /
+   rempli. ») for about 1.35–1.4×, the « rempli. » push on top reduced or
+   dropped in 16:9 so the slab stays ≥ 12 px clear of « libre » — it needs
+   per-format line breaks. Either way, no push about the floor in the
+   owner's range fills the upper right completely.
+2. **15s-16x9: the hard cut on f193, or on f192.** The owner wrote « f193 ».
+   The review measured it one frame (33 ms) after the bar-4 downbeat — f192
+   carries the bar's strongest onset — the only cut in either 16:9 film off
+   the 16-frame grid (the « +1 » exists so 9:16 / 1:1's 3-frame dissolve
+   ends on the tap at f196); with the phone, band edge, caption and bezel
+   still and only the screen jumping (« Note (optionnel) » 318 px in one
+   frame), the late cut reads as a skipped scroll. The review's default:
+   f192 (4.1.0) in 16:9 — one line from the owner.
+3. **15s-16x9: the form is never seen filled.** The owner approved the hard
+   cut; what it costs this one film was not put to them: f184–192 show the
+   empty form (« Client sans numéro » unticked, « Nom du client » empty),
+   f193 the form's end (« Note », « Total 5 000 FCFA », « Créer le
+   rendez-vous »), and « Yao K. » first appears on the journal's new card at
+   f222 (9:16 and 1:1 still show the fill through the dissolve). Choices:
+   (a) keep it; (b) cut to the filled form framed at W ≈ 521.67 (the
+   dissolve's), so « Client sans numéro » ✓ and « Yao K. » show in place — a
+   match cut, « Créer » still in view, the phone's top up toward y ≈ 234 —
+   the return to W 667 before the journal comes back then still to be solved
+   without a curtain (to prototype before it is promised); (c) a short fade
+   instead of the cut.
+4. **The Revenus « Mois » tap disc in 16:9** (verify (g) reports it 0.58
+   shown: the band's fade lightens its upper arc). The review read it at 2×
+   as a whole circle, its outline continuous, and recommends accepting it as
+   is, verify (g) reporting rather than failing it.
 
 **OWNER-APPROVED departures (the owner's decisions after round 5,
 2026-10-20 — architecture contract, « Owner decisions after round 5 » and
@@ -840,11 +903,11 @@ Statuses: PASS or FAIL. `report.txt` leads with the film's status;
   hiding the old 13:15 row. **1:1 hang** (« Keep as is »): the phone hangs
   under the band on the lower journal.
 - **OWNER-APPROVED 2026-10-20 — 16:9 polish**, all three: (1) the push about
-  the floor on the lower journal and the form's end — at **1.23×**, the most
-  the left column's captions allow (« 16:9: the push about the floor »,
+  the floor on the lower journal and the form's end — built at **1.23×**, the
+  most the left column's captions allow (« 16:9: the push about the floor »,
   above: the owner's ~1.3–1.5× would put the slab under « libre ? » and into
-  « rempli. »), the 13:15 row and every privacy check re-run on the new
-  framing; (2) the « Arrivé » lift and the Fiche's tiles at the left
+  « rempli. »; the cap is PENDING, 1. above), the 13:15 row and every privacy
+  check re-run on the new framing; (2) the « Arrivé » lift and the Fiche's tiles at the left
   column's full width, x 96–1040 — the card 944 px, 1.42× the card in the
   phone (round 5: 760 px, 1.15×), « Arrivé » read at 50 %; 16:9 lifts are
   exempt from « same pixel size everywhere »; « Total réalisé » keeps 760 px
@@ -852,7 +915,9 @@ Statuses: PASS or FAIL. `report.txt` leads with the film's status;
   y ≈ 523, and inside the safe floor, 1026, there are 427); (3) the 15-s
   form's hard cut on f193 instead of the 3-frame dissolve, and no band-edge
   curtain after it — solved by framing the filled form at once in the
-  journal's window (« The declared dissolve », above, with what that costs).
+  journal's window (« The declared dissolve », above). What that costs — the
+  fill never seen in 15s-16x9 — is PENDING (3. above), and so is the cut's
+  frame (2.).
 - **OWNER-APPROVED 2026-10-20 — the map credit** (attribution correctness,
   the owner's call): the app's own wording, « © OpenStreetMap contributors ·
   © CARTO » (`cartoCredits`, mobile/lib/widgets/common/carto_basemap_layer.dart:116,
@@ -1097,7 +1162,8 @@ The 30-s cut:
   5.87, AAC 6.05); with the reverse at −19 dB, strike 3 at vel 0.7 and the
   breath 3 dB down it is 8.4 LU on the master, 8.9 after AAC.
 - **The glide onto « Coupe homme »** takes 6 frames (f314→f320) like the two
-  after it; the micro push-in eases back to 1.0 over the same frames.
+  after it; the micro push-in eases back to 1.0 over the same frames (16:9
+  has no micro push: « The push settles once », above).
 - **No picture is hidden.** take1b 130.985 is not a black picture: it is the
   form with « Créer le rendez-vous » solid black again after its loader — a
   real state; it plays.
