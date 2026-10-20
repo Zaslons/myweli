@@ -388,6 +388,9 @@ describe('ManualBookingDialog — no SMS promise, and sendSmsInvite is false', (
     mockFetch();
     renderDialog();
     fillBasics();
+    // A new client without a number is « Client sans numéro » now
+    // (web-manual-booking-walk-in.md, like the app).
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Client sans numéro' }));
     fireEvent.click(screen.getByRole('button', { name: 'Créer' }));
 
     await waitFor(() => expect(posted).toHaveLength(1));

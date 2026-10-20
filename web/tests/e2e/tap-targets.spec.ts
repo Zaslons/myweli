@@ -133,6 +133,20 @@ test('pro: the deposit delay choices — each a 48px target (web-pro-deposit-app
   }
 });
 
+test('pro: « Client sans numéro » — its whole row is the target (web-manual-booking-walk-in)', async ({
+  page,
+}) => {
+  await signInPro(page);
+  await page.goto('/pro/rendez-vous');
+  await page.getByRole('button', { name: '+ Nouveau rendez-vous' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Nouveau rendez-vous' });
+  const row = dialog.locator('label', {
+    has: page.getByRole('checkbox', { name: 'Client sans numéro' }),
+  });
+  await expect(row).toBeVisible();
+  await assertBox(row, '« Client sans numéro » row', { minW: 0 });
+});
+
 test('pro: the glyph buttons that grew invisibly', async ({ page }) => {
   await signInPro(page);
 

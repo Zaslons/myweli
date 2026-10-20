@@ -641,6 +641,9 @@ test('journal grid: quick-create from an empty cell books a client', async ({
   await dialog
     .getByLabel('Rechercher ou nommer le client')
     .fill('Nouvelle Cliente');
+  // A new client without a number is « Client sans numéro », as in the app
+  // (web-manual-booking-walk-in.md).
+  await dialog.getByRole('checkbox', { name: 'Client sans numéro' }).check();
   await dialog.getByLabel('Note').fill('Vient avec ses mèches');
   await dialog.getByRole('button', { name: 'Créer', exact: true }).click();
   // Back to the grid (dialog closed).
@@ -756,6 +759,7 @@ test('« + Nouveau rendez-vous » on /pro/rendez-vous books standalone (web-manu
   await dialog
     .getByLabel('Rechercher ou nommer le client')
     .fill('Cliente Standalone');
+  await dialog.getByLabel('Téléphone (pour retrouver ce client)').fill('07 00 00 00 42');
   await dialog.getByRole('button', { name: 'Créer', exact: true }).click();
   await expect(page.getByText('Rendez-vous créé')).toBeVisible();
 });
@@ -1207,4 +1211,27 @@ test('« Semaine »: the week, its address, the panel and click-to-create (web-p
   await expect(dialog).toBeVisible();
   await dialog.getByRole('button', { name: 'Annuler' }).click();
   await expect(dialog).toBeHidden();
+});
+
+/// docs/design/web-manual-booking-walk-in.md — a walk-in nobody knows: no
+/// name, no number, « Client sans numéro ». And a name alone is told, under
+/// the field, that the number is missing — as in the app.
+test('manual booking: a walk-in with no name and no number (web-manual-booking-walk-in)', async ({
+  page,
+}) => {
+  await signInPro(page);
+  await page.goto('/pro/rendez-vous');
+  await page.getByRole('button', { name: '+ Nouveau rendez-vous' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Nouveau rendez-vous' });
+  await dialog.getByRole('checkbox').first().check();
+  await dialog.getByLabel('Date du rendez-vous').fill('2026-12-02');
+  await dialog.getByLabel('Heure du rendez-vous').fill('11:00');
+  await dialog.getByLabel('Rechercher ou nommer le client').fill('Awa');
+  await dialog.getByRole('button', { name: 'Créer', exact: true }).click();
+  await expect(dialog.getByText('Saisissez un numéro de téléphone.')).toBeVisible();
+  await dialog.getByLabel('Rechercher ou nommer le client').fill('');
+  await dialog.getByRole('checkbox', { name: 'Client sans numéro' }).check();
+  await expect(dialog.getByText('Saisissez un numéro de téléphone.')).toHaveCount(0);
+  await dialog.getByRole('button', { name: 'Créer', exact: true }).click();
+  await expect(page.getByText('Rendez-vous créé')).toBeVisible();
 });
