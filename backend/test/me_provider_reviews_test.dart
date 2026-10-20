@@ -132,6 +132,96 @@ void main() {
       expect(m['total'], 1);
     });
 
+    // docs/design/salon-reviews-summary.md — the « Avis » card's numbers are
+    // the WHOLE salon's, not the page's: web averaged the 50 it had loaded
+    // beside the server's total, and the app the first 50 it ever loaded.
+    group('summary — the whole salon, never the page', () {
+      Future<void> owner() async {
+        when(
+          () => auth.accountById('acc1'),
+        ).thenAnswer((_) async => _account(providerId: 'p1'));
+        when(() => providers.byId('p1')).thenAnswer(
+          (_) async => {'id': 'p1', 'name': 'Salon Awa', 'status': 'active'},
+        );
+        await memberships.ensureOwner(
+          providerId: 'p1',
+          accountId: 'acc1',
+          email: 'a@b.ci',
+        );
+      }
+
+      Future<void> review(int n, int rating, {bool hidden = false}) =>
+          reviews.upsertByAppointment({
+            'id': 'r$n',
+            'providerId': 'p1',
+            'userId': 'u$n',
+            'appointmentId': 'a$n',
+            'rating': rating,
+            'createdAt': DateTime.utc(2026, 1, 1, 0, n).toIso8601String(),
+            if (hidden) 'moderationStatus': 'hidden',
+          });
+
+      Future<Map> summary({int page = 1}) async {
+        final res = await me_reviews.onRequest(
+          ctx(
+            Request(
+              'GET',
+              Uri.parse('http://localhost/me/provider/reviews?page=$page'),
+              headers: {'Authorization': 'Bearer ${tok('acc1', 'provider')}'},
+            ),
+          ),
+        );
+        expect(res.statusCode, HttpStatus.ok);
+        return (await res.json() as Map)['summary'] as Map;
+      }
+
+      test('60 reviews, a page of 20: the summary counts the 60', () async {
+        await owner();
+        // 30 × 5★, 20 × 4★, 10 × 1★ → (150 + 80 + 10) / 60 = 4.0
+        for (var i = 0; i < 60; i++) {
+          await review(i, i < 30 ? 5 : (i < 50 ? 4 : 1));
+        }
+        for (final page in [1, 3]) {
+          final s = await summary(page: page);
+          expect(s['count'], 60);
+          expect(s['average'], 4.0);
+          expect(s['distribution'], {
+            '5': 30,
+            '4': 20,
+            '3': 0,
+            '2': 0,
+            '1': 10,
+          });
+        }
+      });
+
+      test('the average is the one clients see: one decimal', () async {
+        await owner();
+        await review(1, 5);
+        await review(2, 4);
+        await review(3, 4); // 13 / 3 = 4.333…
+        expect((await summary())['average'], 4.3);
+      });
+
+      test('a hidden review counts nowhere — as on the salon page', () async {
+        await owner();
+        await review(1, 5);
+        await review(2, 1, hidden: true);
+        final s = await summary();
+        expect(s['count'], 1);
+        expect(s['average'], 5.0);
+        expect((s['distribution'] as Map)['1'], 0);
+      });
+
+      test('no review yet: zeros, never null', () async {
+        await owner();
+        final s = await summary();
+        expect(s['count'], 0);
+        expect(s['average'], 0);
+        expect(s['distribution'], {'5': 0, '4': 0, '3': 0, '2': 0, '1': 0});
+      });
+    });
+
     test('anonymous → 401', () async {
       final res = await me_reviews.onRequest(ctx(req('GET')));
       expect(res.statusCode, HttpStatus.unauthorized);
