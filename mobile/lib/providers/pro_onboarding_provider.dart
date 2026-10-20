@@ -74,7 +74,11 @@ class ProOnboardingProvider extends ChangeNotifier implements SalonScoped {
         final pro = serviceLocator.proService;
 
         final services = await pro.getProviderServices(providerId);
-        serviceCount = services.data?.length ?? 0;
+        // ACTIVE services, as the server's gate counts them
+        // (docs/design/web-pro-golive-signup-like-app.md §1): counting the
+        // hidden ones said ✓ to a salon the server would refuse.
+        serviceCount =
+            services.data?.where((service) => service.active).length ?? 0;
 
         final staff = await serviceLocator.proArtistService.getArtists(
           providerId,
@@ -134,10 +138,11 @@ class ProOnboardingProvider extends ChangeNotifier implements SalonScoped {
     }
   }
 
-  bool _hasAvailableSlot(Availability availability) => availability
-      .weeklySchedule
-      .values
-      .any((slots) => slots.any((s) => s.isAvailable));
+  /// A day with hours — the server's rule (`publishGate`: some weekday is a
+  /// non-empty list), whatever each slot's flag says; the `isAvailable` test
+  /// this replaced said ✗ to a salon the server would publish.
+  bool _hasAvailableSlot(Availability availability) =>
+      availability.weeklySchedule.values.any((slots) => slots.isNotEmpty);
 
   /// R6 multi-salons: drop the previous salon's data on a switch.
   @override
