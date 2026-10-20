@@ -7,6 +7,7 @@ import {
   applyPreset,
   copyDayToAll,
   horizonLabel,
+  openDay,
   noticeLabel,
   presetMatches,
   toApi,
@@ -81,24 +82,33 @@ describe('A14d — the bookable window survives a save', () => {
 });
 
 describe('pro availability helpers', () => {
-  it('toEditable maps the first slot per day, Monday-first', () => {
+  it('toEditable maps EVERY slot per day, Monday-first', () => {
+    // It used to map the first slot only (web-pro-availability-ranges.md §1.1).
     const days = toEditable(base);
     expect(days).toHaveLength(7);
-    expect(days[0]).toMatchObject({ label: 'Lundi', open: true, start: '09:00', end: '12:00' });
+    expect(days[0]).toMatchObject({
+      label: 'Lundi',
+      open: true,
+      ranges: [
+        { start: '09:00', end: '12:00' },
+        { start: '14:00', end: '18:00' },
+      ],
+    });
     expect(days[1]).toMatchObject({ label: 'Mardi', open: false }); // no slots
-    expect(days[5]).toMatchObject({ label: 'Samedi', open: true, start: '10:00' });
+    expect(days[5]).toMatchObject({ label: 'Samedi', open: true, ranges: [{ start: '10:00', end: '16:00' }] });
   });
 
   it('validateHours rejects end ≤ start on an open day', () => {
     const days = toEditable(base);
-    days[0] = { ...days[0], end: '08:00' };
+    days[0] = { ...days[0], ranges: [{ start: '09:00', end: '08:00' }] };
     expect(validateHours(days)).toMatch(/Lundi/);
     expect(validateHours(toEditable(base))).toBeNull();
   });
 
-  it('toApi preserves base fields + extra slots; closes empty days', () => {
+  it('toApi preserves base fields + every range; closes empty days', () => {
     const days = toEditable(base);
-    days[0] = { ...days[0], start: '08:30' }; // edit Monday's first slot
+    // Edit Monday's first range.
+    days[0] = { ...days[0], ranges: [{ start: '08:30', end: '12:00' }, days[0].ranges[1]] };
     days[5] = { ...days[5], open: false }; // close Saturday
     const out = toApi(days, { ...base, bufferMinutes: 15 });
 
@@ -115,10 +125,13 @@ describe('pro availability helpers', () => {
       startTime: '2024-01-01T08:30:00.000Z',
       endTime: '2024-01-01T12:00:00.000Z',
     });
-    // The preserved 2nd slot is passed through from `base` untouched, so it
-    // keeps whatever shape it arrived in — the round-trip does not rewrite
-    // slots the pro did not edit.
-    expect(out.weeklySchedule['0'][1]).toMatchObject({ startTime: '14:00' });
+    // The 2nd range is EDITABLE now, so it is written like the first — in the
+    // wire format. (It used to ride `slice(1)` from base unseen, in whatever
+    // shape it arrived — this fixture's legacy '14:00'.)
+    expect(out.weeklySchedule['0'][1]).toMatchObject({
+      startTime: '2024-01-01T14:00:00.000Z',
+      endTime: '2024-01-01T18:00:00.000Z',
+    });
     // closed day → empty
     expect(out.weeklySchedule['5']).toEqual([]);
   });
@@ -184,8 +197,8 @@ describe('the wire format is a date-time, both directions (Q1)', () => {
     // `<input type="time">` accepts only HH:mm (`DayHoursEditor.tsx:52`), so an
     // ISO string renders the field blank and the pro sees no hours at all.
     const d = toEditable(wire)[0];
-    expect(d.start).toBe('09:00');
-    expect(d.end).toBe('18:00');
+    expect(d.ranges[0].start).toBe('09:00');
+    expect(d.ranges[0].end).toBe('18:00');
   });
 
   it('WRITE: HH:mm becomes a date-time the server accepts', () => {
@@ -211,7 +224,8 @@ describe('the wire format is a date-time, both directions (Q1)', () => {
     // verbatim and earn a 400 — so a web-onboarded salon could never satisfy
     // the `availability` publish-gate key, and could never go live.
     const empty: Availability = { ...wire, weeklySchedule: {} };
-    const days = toEditable(empty).map((d) => ({ ...d, open: true }));
+    // « Ouvert » ticked on a day with no range opens it with the default one.
+    const days = toEditable(empty).map(openDay);
     const slot = toApi(days, empty).weeklySchedule['0'][0];
     expect(Number.isNaN(Date.parse(slot.startTime))).toBe(false);
   });
@@ -236,8 +250,7 @@ describe('the « Horaires » models (availability-presets.md)', () => {
     for (let i = 0; i < 7; i++) {
       if (preset.days.includes(i)) {
         expect(next[i].open, `day ${i}`).toBe(true);
-        expect(next[i].start).toBe('09:00');
-        expect(next[i].end).toBe('18:00');
+        expect(next[i].ranges).toEqual([{ start: '09:00', end: '18:00' }]);
       } else {
         // A model is the whole week: Lundi (open in the fixture, outside
         // Mar–Sam) must CLOSE, or a lit chip would misname the schedule.
@@ -254,31 +267,32 @@ describe('the « Horaires » models (availability-presets.md)', () => {
       expect(presetMatches(applied, other), other.label).toBe(false);
     }
     // Edited closing hour.
-    const edited = applied.map((d, i) => (i === 2 ? { ...d, end: '19:00' } : d));
+    const edited = applied.map((d, i) =>
+      i === 2 ? { ...d, ranges: [{ start: '09:00', end: '19:00' }] } : d,
+    );
     expect(presetMatches(edited, preset)).toBe(false);
     // A day outside the model opened.
     const sunday = applied.map((d, i) => (i === 6 ? { ...d, open: true } : d));
     expect(presetMatches(sunday, preset)).toBe(false);
   });
 
-  it('copyDayToAll copies {open, start, end} onto every row, keys intact', () => {
+  it('copyDayToAll copies {open, ranges} onto every row, keys intact', () => {
     const rows = toEditable(base);
     const next = copyDayToAll(rows, 5); // Samedi 10:00–16:00
     for (let i = 0; i < 7; i++) {
       expect(next[i].open, `day ${i}`).toBe(true);
-      expect(next[i].start).toBe('10:00');
-      expect(next[i].end).toBe('16:00');
+      expect(next[i].ranges).toEqual([{ start: '10:00', end: '16:00' }]);
       expect(next[i].key).toBe(rows[i].key);
       expect(next[i].label).toBe(rows[i].label);
     }
   });
 
-  it('the copy leaves each day\'s EXTRA ranges to survive the save', () => {
-    // The one-range-per-day trap honoured: Lundi's second range rides
-    // `toApi`'s slice(1) from base, copy or no copy.
+  it('the copy REPLACES each day’s ranges — none survives unseen any more', () => {
+    // The opposite of what this test used to pin (Lundi's 2nd range riding
+    // `slice(1)` through a copy): every range is on screen now, so the copy
+    // is exactly what the week gets, as in the app.
     const out = toApi(copyDayToAll(toEditable(base), 5), base);
-    expect(out.weeklySchedule['0']).toHaveLength(2);
+    expect(out.weeklySchedule['0']).toHaveLength(1);
     expect(out.weeklySchedule['0'][0].startTime).toContain('10:00');
-    expect(out.weeklySchedule['0'][1].startTime).toContain('14:00');
   });
 });
