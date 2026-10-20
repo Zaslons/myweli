@@ -95,7 +95,7 @@ dependencies:
 
   # Utilities
   uuid: ^4.6.0
-  equatable: ^2.1.0
+  equatable: ^3.0.0
   # Elapsed time that runs with the timers it is measured against — a fake
   # clock under flutter_test, the real one in the app. Already in the app
   # through `intl`; named here because `OpenAnimationPlayer` imports it
