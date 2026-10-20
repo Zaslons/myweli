@@ -263,6 +263,9 @@ export function RendezVousClient() {
     if (!profile) return;
     const req = ++weekReq.current;
     setWeekError(false);
+    // Another week: its skeleton, never the previous week's grid under the
+    // new week's name. The same week (a reload after an action) stays shown.
+    setWeekDays((cur) => (cur && cur[0]?.date === monday ? cur : null));
     const results = await Promise.all(
       weekOf(monday).map((d) => getJournalDay(profile.provider.id, d)),
     );
@@ -594,7 +597,7 @@ function WeekView({
             type="button"
             aria-label="Semaine précédente"
             title="Raccourci : ←"
-            className="min-h-12 rounded-lg border border-border px-s py-xs text-textSecondary"
+            className="min-h-12 min-w-12 rounded-lg border border-border px-s py-xs text-textSecondary"
             onClick={() => onWeek(-1)}
           >
             ‹
@@ -606,7 +609,7 @@ function WeekView({
             type="button"
             aria-label="Semaine suivante"
             title="Raccourci : →"
-            className="min-h-12 rounded-lg border border-border px-s py-xs text-textSecondary"
+            className="min-h-12 min-w-12 rounded-lg border border-border px-s py-xs text-textSecondary"
             onClick={() => onWeek(1)}
           >
             ›
@@ -614,16 +617,19 @@ function WeekView({
           <button
             type="button"
             title="Raccourci : T"
-            className="text-bodyMedium text-textTertiary underline"
+            className="min-h-12 text-bodyMedium text-textTertiary underline"
             onClick={onThisWeek}
           >
             Cette semaine
           </button>
         </div>
         <div className="flex flex-wrap items-center gap-m">
-          <label className="flex items-center gap-xs text-bodyMedium text-textSecondary">
-            Artiste
+          {/* A label FOR the select, not around it: wrapped, the select's
+              name took its options' text (« ArtisteTousAwa… »). */}
+          <span className="flex items-center gap-xs text-bodyMedium text-textSecondary">
+            <label htmlFor="week-artist">Artiste</label>
             <select
+              id="week-artist"
               value={artistFilter ?? '__all'}
               onChange={(e) => setArtistFilter(e.target.value === '__all' ? null : e.target.value)}
               className="min-h-12 rounded-lg border border-borderStrong bg-surface px-s text-bodyMedium text-textPrimary"
@@ -635,7 +641,7 @@ function WeekView({
                 </option>
               ))}
             </select>
-          </label>
+          </span>
           <label className="flex items-center gap-xs text-bodyMedium text-textSecondary">
             <input
               type="checkbox"

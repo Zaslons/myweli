@@ -895,3 +895,22 @@ test('the pro journal — the 11px block label still fits its ~15px row', async 
     '13.75px',
   );
 });
+
+/// docs/design/web-pro-week-view.md — the « Semaine » tab exists from desktop
+/// width only, so the phone matrix above cannot see it. At the narrowest
+/// desktop (1024, the sidebar beside it) and a common one: the page never
+/// scrolls sideways (the seven columns scroll inside their own box), and no
+/// text spills from its box.
+test.describe('the « Semaine » tab at desktop widths (web-pro-week-view)', () => {
+  for (const width of [1024, 1280]) {
+    test(`no overflow at ${width}`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 800 });
+      await signInPro(page);
+      await page.goto('/pro/rendez-vous?vue=semaine');
+      await expect(page.getByRole('table', { name: /^Semaine du / })).toBeVisible();
+      await expect(page.getByRole('button', { name: /— Sans artiste, Lun \d+ à 15:30$/ })).toBeVisible();
+      expect(await horizontalOverflow(page), `the page scrolls sideways at ${width}`).toEqual([]);
+      expect(await overflowingText(page), `text spills out of its own box at ${width}`).toEqual([]);
+    });
+  }
+});

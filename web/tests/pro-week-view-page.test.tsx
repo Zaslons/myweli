@@ -211,3 +211,22 @@ describe('the « Semaine » tab', () => {
     expect(screen.queryByRole('table', { name: /^Semaine du / })).toBeNull();
   });
 });
+
+describe('changing the week', () => {
+  it('never shows the previous week under the new week’s name', async () => {
+    const grid = await openWeek();
+    await within(grid).findByRole('button', { name: /^Koffi/ });
+    let release: () => void = () => {};
+    const held = new Promise<void>((r) => (release = r));
+    const real = vi.mocked(fetch).getMockImplementation()!;
+    vi.mocked(fetch).mockImplementation(async (url, init) => {
+      if (String(url).startsWith('/api/pro/journal?')) await held;
+      return real(url as string, init);
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Semaine suivante' }));
+    // While the next week loads: no grid at all — not the 19th's days.
+    await waitFor(() => expect(screen.queryByRole('table')).toBeNull());
+    release();
+    expect(await screen.findByRole('table', { name: 'Semaine du 26 octobre' })).toBeInTheDocument();
+  });
+});
