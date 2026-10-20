@@ -6,9 +6,12 @@
             and the layout table `L`
 
 Nothing here is retyped from those files. The one table that is typed in is
-`CUBICS`: Flutter's own control points for the six curves `motion.dart` may
-name (flutter/lib/src/animation/curves.dart); tests/test_brand.py checks it
-against the Flutter SDK when there is one on the machine.
+`CUBICS`: Flutter's own control points for the curves `motion.dart` may name
+(flutter/lib/src/animation/curves.dart), plus `fastOutSlowIn` — the curve
+every keyframe of the brand's Lottie files uses, (0.4, 0, 0.2, 1), which the
+marketing film (tool/marketing_video) draws its strokes on;
+tests/test_brand.py checks the table against the Flutter SDK when there is
+one on the machine.
 """
 
 from __future__ import annotations
@@ -60,6 +63,9 @@ CUBICS = {
     "easeInOut": (0.42, 0.0, 0.58, 1.0),
     "easeOutCubic": (0.215, 0.61, 0.355, 1.0),
     "easeInOutCubic": (0.645, 0.045, 0.355, 1.0),
+    # Not a motion.dart curve: the Lottie files' easing (mobile/assets/lottie),
+    # used by tool/marketing_video for every stroke it draws.
+    "fastOutSlowIn": (0.4, 0.0, 0.2, 1.0),
 }
 
 _CUBIC_ERROR_BOUND = 0.001  # Flutter's own (`_cubicErrorBound`)
