@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { type ReactNode, useCallback, useEffect, useState } from 'react';
 import {
   type ProNotificationPrefs,
   getProNotificationPrefs,
@@ -22,7 +22,16 @@ const TITLE_ID = 'pref-email-alerts-title';
 ///
 /// Its own states, below the list: the feed above never waits for it, and a
 /// failure here never hides the feed.
-export function EmailAlertsPreference({ email }: { email: string | null }) {
+export function EmailAlertsPreference({
+  email,
+  leading = null,
+}: {
+  email: string | null;
+  /// Rows above this one in the same « Préférences » — « Notifications du
+  /// navigateur » (docs/design/web-pro-browser-push.md §2). With one, the
+  /// section shows even on an API older than this switch.
+  leading?: ReactNode;
+}) {
   const [prefs, setPrefs] = useState<ProNotificationPrefs | null>(null);
   const [state, setState] = useState<'loading' | 'ready' | 'absent'>('loading');
   const [failure, setFailure] = useState<LoadFailure | false>(false);
@@ -63,7 +72,7 @@ export function EmailAlertsPreference({ email }: { email: string | null }) {
     }
   }
 
-  if (state === 'absent') return null;
+  if (state === 'absent' && !leading) return null;
 
   return (
     <section aria-labelledby="pref-section-title" className="mt-xl">
@@ -73,7 +82,8 @@ export function EmailAlertsPreference({ email }: { email: string | null }) {
       >
         Préférences
       </h2>
-      {failure ? (
+      {leading}
+      {state === 'absent' ? null : failure ? (
         <ErrorState
           className="mt-m"
           message={loadFailureMessage(failure)}

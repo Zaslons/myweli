@@ -20,6 +20,8 @@
     "prebuild": "node tool/copy-flags.mjs"
   },
   "dependencies": {
+    "@firebase/app": "^0.16.2",
+    "@firebase/messaging": "^0.13.3",
     "@sentry/nextjs": "^10.70.0",
     "@vis.gl/react-maplibre": "^8.1.1",
     "country-flag-icons": "^1.6.19",

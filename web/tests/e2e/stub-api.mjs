@@ -907,6 +907,20 @@ createServer(async (req, res) => {
     notifRead.add(notifReadMatch[1]);
     return json(res, 200, {});
   }
+  // This browser's notification token (web-pro-browser-push.md §5): the
+  // server's `/me/devices`, which only ever answers whether it took it.
+  if (url.pathname === '/me/devices') {
+    const body = await readBody(req);
+    if (typeof body.token !== 'string' || !body.token) {
+      return json(res, 400, { error: 'invalid_input' });
+    }
+    if (req.method === 'POST') {
+      if (body.platform !== 'web') return json(res, 400, { error: 'invalid_input' });
+      return json(res, 200, { status: 'registered' });
+    }
+    if (req.method === 'DELETE') return json(res, 200, { status: 'unregistered' });
+    return json(res, 405, { error: 'method_not_allowed' });
+  }
   if (url.pathname === '/me/notification-preferences') {
     if (req.method === 'PUT') {
       const body = await readBody(req);

@@ -692,6 +692,24 @@ const AUTHED_ROUTES: Route[] = [
     auth: 'pro',
     ready: (page) => page.getByRole('switch', { name: 'Alertes par e-mail' }),
   },
+  {
+    // docs/design/web-pro-browser-push.md §3 — « Notifications du
+    // navigateur » above « Alertes par e-mail »: its long sentence beside the
+    // 48px switch. `ready` is the switch.
+    name: 'the pro notification center — « Notifications du navigateur »',
+    url: '/pro/notifications',
+    anchor: 'Notifications',
+    auth: 'pro',
+    ready: (page) => page.getByRole('switch', { name: 'Notifications du navigateur' }),
+  },
+  {
+    // §2 — the Accueil's band, its sentence and its two buttons.
+    name: 'the pro home — the notifications band',
+    url: '/pro',
+    anchor: 'Aujourd’hui',
+    auth: 'pro',
+    ready: (page) => page.getByRole('heading', { name: 'Activer les notifications' }),
+  },
   // ---- amounts-that-fit (docs/design/amounts-that-fit.md §8.5) -------------
   {
     // The client CARD — the page behind every row of « the pro client list »

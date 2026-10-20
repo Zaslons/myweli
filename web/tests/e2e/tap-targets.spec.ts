@@ -102,6 +102,21 @@ test('pro: « Alertes par e-mail » — the switch (salon-email-alerts)', async 
   await assertBox(sw, '« Alertes par e-mail » switch');
 });
 
+test('pro: the browser notifications — the band’s buttons and the row’s switch (web-pro-browser-push)', async ({
+  page,
+}) => {
+  await signInPro(page);
+  for (const name of ['Activer', 'Plus tard']) {
+    const b = page.getByRole('button', { name, exact: true });
+    await expect(b).toBeVisible();
+    await assertBox(b, `band « ${name} »`);
+  }
+  await page.goto('/pro/notifications');
+  const sw = page.getByRole('switch', { name: 'Notifications du navigateur' });
+  await expect(sw).toBeVisible();
+  await assertBox(sw, '« Notifications du navigateur » switch');
+});
+
 test('pro: the glyph buttons that grew invisibly', async ({ page }) => {
   await signInPro(page);
 

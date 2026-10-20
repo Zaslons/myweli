@@ -5,6 +5,34 @@ const replace = vi.fn();
 // Stable object: the client's load effect depends on [router].
 const routerMock = { replace };
 vi.mock('next/navigation', () => ({ useRouter: () => routerMock }));
+// A computer that can show notifications and has not been asked
+// (docs/design/web-pro-browser-push.md §2): the band is on the home.
+const pushStore: Record<string, string> = {};
+let pushConfigured = false;
+vi.mock('../lib/pro/browser-push-deps', () => ({
+  getBrowserPushDeps: () =>
+    pushConfigured
+      ? {
+          supported: () => true,
+          phone: () => false,
+          permission: () => 'default',
+          requestPermission: async () => 'default',
+          token: async () => 't',
+          dropToken: async () => {},
+          register: async () => true,
+          unregister: async () => true,
+          store: {
+            get: (k: string) => pushStore[k] ?? null,
+            set: (k: string, v: string) => {
+              pushStore[k] = v;
+            },
+            remove: (k: string) => {
+              delete pushStore[k];
+            },
+          },
+        }
+      : null,
+}));
 
 import { AujourdhuiClient } from '../components/pro/AujourdhuiClient';
 import type { Membership } from '../lib/pro/team';
@@ -91,6 +119,30 @@ afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
   replace.mockReset();
+  pushConfigured = false;
+});
+
+describe('AujourdhuiClient — the browser notifications band', () => {
+  for (const [who, membership] of [
+    ['owner', OWNER],
+    ['a Collaborateur (their own artist’s alerts)', STAFF],
+  ] as const) {
+    it(`${who}: « Activer les notifications » on the home`, async () => {
+      pushConfigured = true;
+      mockFetch(membership);
+      render(<AujourdhuiClient />);
+      expect(
+        await screen.findByRole('heading', { name: 'Activer les notifications' }),
+      ).toBeTruthy();
+    });
+  }
+
+  it('not configured → no band', async () => {
+    mockFetch(OWNER);
+    render(<AujourdhuiClient />);
+    await screen.findByText('Demandes en attente');
+    expect(screen.queryByRole('heading', { name: 'Activer les notifications' })).toBeNull();
+  });
 });
 
 describe('AujourdhuiClient — role shapes', () => {

@@ -118,6 +118,13 @@ async function legacyFlatRedirects() {
 ///                    `upload_likely_cors` and send us chasing Cloudflare.
 ///   worker-src blob: maplibre builds its worker from a Blob URL
 ///                    (maplibre-gl.js:34). Omit it and no map constructs at all.
+///   worker-src 'self' + firebaseinstallations / fcmregistrations.googleapis.com
+///                    the Pro area's service worker (/pro/push-sw.js) and the
+///                    two hosts Firebase's getToken calls — named in the dists
+///                    of @firebase/installations and @firebase/messaging,
+///                    measured 2026-10-20 (docs/design/web-pro-browser-push.md
+///                    §5). Omit any and the browser notifications cannot turn
+///                    on — the row would say « L'activation a échoué. ».
 ///
 /// **`script-src 'unsafe-inline'` is forced, and the reason is worth keeping.**
 /// The strongest policy is nonce-based with 'strict-dynamic'. We cannot have it:
@@ -159,13 +166,15 @@ export function cspDirectives({ dev = false, reportUri = null } = {}) {
       'https://oauth2.googleapis.com',
       'https://*.cartocdn.com',
       'https://*.r2.cloudflarestorage.com',
+      'https://firebaseinstallations.googleapis.com',
+      'https://fcmregistrations.googleapis.com',
     ],
     // GSI renders a cross-origin iframe. Apple opens a popup rather than a
     // frame, but appleid.apple.com is listed as insurance: the evidence is a
     // static read of one locale's bundle, and Apple has shipped iframe-based
     // variants before.
     'frame-src': ['https://accounts.google.com', 'https://appleid.apple.com'],
-    'worker-src': ['blob:'],
+    'worker-src': ["'self'", 'blob:'],
     'frame-ancestors': ["'none'"],
     'base-uri': ["'self'"],
     'form-action': ["'self'"],

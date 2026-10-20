@@ -251,6 +251,19 @@ test('« Alertes par e-mail » is axe-clean (salon-email-alerts)', async ({ page
   await expectNoViolations(page, '/pro/notifications + « Alertes par e-mail »');
 });
 
+test('the browser notifications band and row are axe-clean (web-pro-browser-push)', async ({
+  page,
+}) => {
+  await page.goto('/pro/connexion');
+  await submitOtpLogin(page, 'salon@example.com');
+  await expect(page).toHaveURL(/\/pro(\/)?$/);
+  await expect(page.getByRole('heading', { name: 'Activer les notifications' })).toBeVisible();
+  await expectNoViolations(page, '/pro + the notifications band');
+  await page.goto('/pro/notifications');
+  await expect(page.getByRole('switch', { name: 'Notifications du navigateur' })).toBeVisible();
+  await expectNoViolations(page, '/pro/notifications + « Notifications du navigateur »');
+});
+
 test('a VISIBLE toast is axe-clean', async ({ page }) => {
   await page.goto('/pro/connexion');
   await submitOtpLogin(page, 'salon@example.com');
