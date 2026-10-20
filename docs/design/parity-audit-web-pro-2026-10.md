@@ -45,7 +45,10 @@ choses que l'app n'a pas (§4).
    Apple sur iPhone ne peut pas ouvrir le web. Idem à l'inscription.
 4. ✔︎ **L'essai démarre au choix d'offre sur le web**, à la mise en ligne
    dans l'app (§2, deuxième ligne).
-5. **Aucune alerte pour un salon « web seulement »** quand l'onglet est
+5. **Aucune alerte pour un salon « web seulement »** — *traité le
+   2026-10-20 : un e-mail quand aucun push n'arrive
+   ([salon-email-alerts.md](salon-email-alerts.md)) ; la notification du
+   navigateur viendra à part.* — quand l'onglet est
    fermé : le serveur ne prévient un salon que par push mobile
    (`salon_notifier.dart:87-91`) ; le web ne relit le fil que tant que
    l'onglet est visible (`ProNotificationsContext.tsx:125-127`).

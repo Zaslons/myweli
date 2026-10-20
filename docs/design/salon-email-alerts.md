@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Validé le 2026-10-19** — Q1 : **les e-mails tels qu'écrits** ; Q2 : **l'interrupteur tel qu'écrit, actif par défaut** ; Q3 : **la phrase ajoutée à la FAQ** (§9) |
+| **Statut** | **Construit le 2026-10-20** sur `feat/salon-email-alerts` (au-dessus de #642). Validé le 2026-10-19 — Q1 : **les e-mails tels qu'écrits** ; Q2 : **l'interrupteur tel qu'écrit, actif par défaut** ; Q3 : **la phrase ajoutée à la FAQ** (§9). Ce qui a été vu : §10 |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-19 |
 | **PRD ref / phase** | Notifications salon (push-notifications-fcm §10) · parité web ↔ app Pro · V1 |
@@ -146,3 +146,41 @@ arrivent par e-mail. »
 - **Q2 — l'interrupteur** (§4) : les mots, et **actif par défaut** ?
 - **Q3 — la FAQ** (§7) : ajouter « Sans l’app, les alertes vous arrivent par
   e-mail. » ?
+
+**Décisions (2026-10-19).** Q1, Q2 (actif par défaut) et Q3 : approuvés tels
+qu'écrits.
+
+## 10. Construit — ce qui a été vu
+
+- **Rouge d'abord** : 14 tests du notifier (qui reçoit, ce que dit chaque
+  e-mail, l'heure du salon, aucune donnée client, le nom du salon échappé),
+  les préférences (dépôt, route, Postgres, contrat — dont une garde « le
+  schéma est exactement ce que le serveur envoie »), et côté web le BFF,
+  l'interrupteur (7 cas) et la FAQ.
+- **Trouvé dans le navigateur** : la première version reprenait le cadre des
+  avis d'abonnement — une carte fixe de 440 px plus 32 px de marge — et
+  défilait de côté sur un téléphone (310 px de large, 440 de contenu). Refait
+  sur le cadre de l'e-mail du code (`width="100%"`, `max-width:440px`, les
+  marges dans les cellules) ; garde vue rouge sur la première version. **Les
+  avis d'abonnement ont le même défaut** (hors de cette tranche).
+- **Trouvé en construisant** : la référence « menace T25 » du notifier n'est
+  pas celle de BACKEND.md (T25 y est l'abonnement) ; la bonne est **T58**,
+  mise à jour avec le canal e-mail ; T24 dit « quatre champs ».
+- **Le web avant le serveur** : une API qui n'envoie pas `emailAlerts`
+  ignore aussi son écriture — la section ne s'affiche alors pas (plutôt qu'un
+  interrupteur qui n'enregistrerait rien). **Ordre de déploiement : le
+  serveur d'abord.**
+- **Mutations vues rouges** : e-mail malgré un push accepté, préférence
+  ignorée, envoi sans `try` par membre, HTML non échappé, la route qui perd
+  le champ ou ne vérifie plus le booléen, le dépôt Postgres qui n'écrit pas
+  la colonne (backend) ; le BFF qui transmet tout, la section montrée sur une
+  API ancienne, pas de retour en arrière, la mauvaise valeur écrite (web) ;
+  la cible de 32 px, la phrase sur une ligne, le BFF qui écrit toujours
+  « actif » (e2e).
+- **Vérifié** : backend — analyse 0, **1 779** tests + **85** Postgres
+  (base locale neuve) ; web — typecheck et lint propres, **1 659** tests ;
+  e2e (pro, axe, cibles, reflow, compte, accueil) **132** verts ; l'e-mail
+  rendu et regardé à 310 px.
+- **Non vérifié** : un vrai envoi Resend (le budget « warm » et le quota
+  mensuel du plan restent à vérifier par le propriétaire) ; l'arrivée en
+  boîte de réception (spam, rendu Gmail/Outlook).
