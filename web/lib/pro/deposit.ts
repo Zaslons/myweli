@@ -27,6 +27,43 @@ export type DepositForm = {
 /// (tests/deposit-default-parity.test.ts).
 export const DEFAULT_DEPOSIT_PERCENT = 30;
 
+/// The app's rules (`deposit_settings_screen.dart`), on the web since
+/// docs/design/web-pro-deposit-app-rules.md (owner decision 2026-10-20): a
+/// slider 5–80 % by steps of 5, three cancellation delays, and the example
+/// on a 20 000 service. The server keeps its wider range (0–100 %, 0–720 h):
+/// a value saved before is shown as it is until the salon changes it.
+export const DEPOSIT_PERCENT_RANGE = { min: 5, max: 80, step: 5 };
+export const WINDOW_CHOICES = [12, 24, 48];
+export const DEPOSIT_SAMPLE_TOTAL = 20000;
+
+/// The example's two rows — the app's `computeDeposit`: round(total × %).
+export function depositExample(
+  percent: number,
+  total: number = DEPOSIT_SAMPLE_TOTAL,
+): { deposit: number; balance: number } {
+  const deposit = total > 0 ? Math.round((total * percent) / 100) : 0;
+  return { deposit, balance: total - deposit };
+}
+
+/// Where the slider's thumb sits: the value itself on the track; a value
+/// from before at the end it is past (the app's `clamp(0.05, 0.80)`); an
+/// unreadable one at the proposal.
+export function sliderPosition(percent: string): number {
+  const n = Number(percent);
+  if (percent.trim() === '' || !Number.isFinite(n)) return DEFAULT_DEPOSIT_PERCENT;
+  const { min, max } = DEPOSIT_PERCENT_RANGE;
+  return Math.min(max, Math.max(min, n));
+}
+
+/// The delays offered: the app's three — and a delay saved before that is
+/// none of them, as a fourth, so it is shown rather than silently lost.
+export function windowChoices(stored: number): number[] {
+  if (!Number.isFinite(stored) || WINDOW_CHOICES.includes(stored)) {
+    return [...WINDOW_CHOICES];
+  }
+  return [...WINDOW_CHOICES, stored].sort((a, b) => a - b);
+}
+
 export function depositToForm(p?: DepositPolicy): DepositForm {
   const stored = p?.depositPercentage ?? 0;
   return {

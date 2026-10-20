@@ -137,7 +137,7 @@ describe('AcompteClient — a failed load is an error, never a blank form', () =
 
     fireEvent.click(screen.getByRole('button', { name: 'Réessayer' }));
     expect(
-      await screen.findByLabelText('Pourcentage de l’acompte (%)'),
+      await screen.findByRole('slider', { name: 'Pourcentage de l’acompte' }),
     ).toHaveValue('45');
     expect(screen.getByLabelText('Exiger un acompte')).toBeChecked();
     expect(screen.getByRole('button', { name: 'Enregistrer' })).toBeInTheDocument();
