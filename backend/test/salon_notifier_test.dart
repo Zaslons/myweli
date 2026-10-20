@@ -1,5 +1,6 @@
 import 'package:mocktail/mocktail.dart';
 import 'package:myweli_backend/src/access/membership_repository.dart';
+import 'package:myweli_backend/src/email/email_provider.dart';
 import 'package:myweli_backend/src/messaging/salon_notifier.dart';
 import 'package:myweli_backend/src/notifications/notification_prefs_repository.dart';
 import 'package:myweli_backend/src/notifications/notifications_repository.dart';
@@ -64,6 +65,7 @@ void main() {
       feed,
       prefs,
       providers,
+      email: LogEmailProvider(),
     );
   });
 

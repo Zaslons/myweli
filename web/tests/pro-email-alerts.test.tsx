@@ -193,6 +193,19 @@ describe('« Alertes par e-mail » (owner Q2: the words as written, on by defaul
     expect(await sw()).toBeInTheDocument();
   });
 
+  it('an API older than the switch (no emailAlerts) shows none — not one that saves nothing', async () => {
+    const { emailAlerts: _gone, ...older } = stored;
+    stored = older as typeof stored;
+    host();
+    expect(await screen.findByText(NOTE.body)).toBeInTheDocument();
+    await waitFor(() => expect(vi.mocked(fetch).mock.calls.some(([u]) => String(u) === '/api/pro/notification-preferences')).toBe(true));
+    // Settled: no switch, no heading, no error.
+    await new Promise((r) => setTimeout(r, 50));
+    expect(screen.queryByRole('switch')).toBeNull();
+    expect(screen.queryByRole('heading', { name: 'Préférences' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Réessayer' })).toBeNull();
+  });
+
   it('a member who turned it off finds it off', async () => {
     stored = { ...stored, emailAlerts: false };
     host();

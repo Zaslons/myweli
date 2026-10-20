@@ -6,8 +6,9 @@ import 'package:myweli_backend/src/notifications/notification_prefs_repository.d
 import 'package:myweli_backend/src/responses.dart';
 
 /// `GET /me/notification-preferences` — the caller's prefs (all-true defaults).
-/// `PUT` — partial update `{ reminders?, marketing?, push? }`; each provided
-/// field must be a bool. Self-scoped (keyed by `principal.userId`; no path id).
+/// `PUT` — partial update `{ reminders?, marketing?, push?, emailAlerts? }`;
+/// each provided field must be a bool (`emailAlerts`:
+/// docs/design/salon-email-alerts.md). Self-scoped (keyed by `principal.userId`; no path id).
 /// Design: docs/design/notification-preferences.md (FR-NOTIF-004).
 Future<Response> onRequest(RequestContext context) async {
   final principal = principalOf(context);
@@ -33,7 +34,10 @@ Future<Response> onRequest(RequestContext context) async {
       }
       final map = raw;
       bool ok(String k) => !map.containsKey(k) || map[k] is bool;
-      if (!ok('reminders') || !ok('marketing') || !ok('push')) {
+      if (!ok('reminders') ||
+          !ok('marketing') ||
+          !ok('push') ||
+          !ok('emailAlerts')) {
         return jsonError(HttpStatus.badRequest, 'invalid_body');
       }
       final prefs = await repo.update(
@@ -41,6 +45,7 @@ Future<Response> onRequest(RequestContext context) async {
         reminders: map['reminders'] as bool?,
         marketing: map['marketing'] as bool?,
         push: map['push'] as bool?,
+        emailAlerts: map['emailAlerts'] as bool?,
       );
       return Response.json(body: prefs.toJson());
 

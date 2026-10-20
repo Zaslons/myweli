@@ -1452,6 +1452,7 @@ export interface paths {
                         reminders?: boolean;
                         marketing?: boolean;
                         push?: boolean;
+                        emailAlerts?: boolean;
                     };
                 };
             };
@@ -6984,6 +6985,8 @@ export interface components {
             marketing: boolean;
             /** @description Device push notifications. */
             push: boolean;
+            /** @description A salon member's alerts by e-mail (new request, client reschedule or cancellation, deposit proof), sent only when no push of the app reached them. Default true. Meaningless to a client account. Design: docs/design/salon-email-alerts.md. */
+            emailAlerts: boolean;
         };
         /** @description The salon's offer state (pricing pivot — R2a). Billing state lives in its own table and NEVER enters public provider payloads (T54). */
         SalonSubscription: {

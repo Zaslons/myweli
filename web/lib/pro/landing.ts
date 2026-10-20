@@ -62,10 +62,11 @@ export const PRO_LANDING = {
     },
     {
       question: 'Faut-il installer une application ?',
-      // Not « tout » — alerts with the tab closed and split hours need the app
-      // (parity audit 2026-10-19 §2).
+      // Not « tout » — split hours need the app (parity audit 2026-10-19 §2).
+      // Alerts with the tab closed arrive by e-mail since
+      // docs/design/salon-email-alerts.md (owner Q3).
       answer:
-        'Non : réservations, agenda, clientèle, équipe et acomptes se gèrent depuis myweli.com, sur ordinateur comme sur téléphone.',
+        'Non : réservations, agenda, clientèle, équipe et acomptes se gèrent depuis myweli.com, sur ordinateur comme sur téléphone. Sans l’app, les alertes vous arrivent par e-mail.',
     },
     {
       question: 'Puis-je gérer plusieurs salons ?',

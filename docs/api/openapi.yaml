@@ -949,6 +949,7 @@ paths:
                 reminders: { type: boolean }
                 marketing: { type: boolean }
                 push: { type: boolean }
+                emailAlerts: { type: boolean }
       responses:
         '200':
           description: The merged preferences
@@ -4989,11 +4990,18 @@ components:
         Per-user notification opt-out prefs (FR-NOTIF-004). All default true;
         respected at send time by BookingNotifier. Transactional confirmations
         are not configurable (always sent).
-      required: [reminders, marketing, push]
+      required: [reminders, marketing, push, emailAlerts]
       properties:
         reminders: { type: boolean, description: 24h/2h appointment reminders. }
         marketing: { type: boolean, description: Marketing/promotional messages (ARTCI opt-out). }
         push: { type: boolean, description: Device push notifications. }
+        emailAlerts:
+          type: boolean
+          description: >
+            A salon member's alerts by e-mail (new request, client reschedule
+            or cancellation, deposit proof), sent only when no push of the app
+            reached them. Default true. Meaningless to a client account.
+            Design: docs/design/salon-email-alerts.md.
 
     SalonSubscription:
       type: object

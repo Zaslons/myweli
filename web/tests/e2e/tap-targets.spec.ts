@@ -94,6 +94,14 @@ test('salon page: the favourite ♥ is a 48px target', async ({ page }) => {
   await assertBox(heart, 'favourite ♥');
 });
 
+test('pro: « Alertes par e-mail » — the switch (salon-email-alerts)', async ({ page }) => {
+  await signInPro(page);
+  await page.goto('/pro/notifications');
+  const sw = page.getByRole('switch', { name: 'Alertes par e-mail' });
+  await expect(sw).toBeVisible();
+  await assertBox(sw, '« Alertes par e-mail » switch');
+});
+
 test('pro: the glyph buttons that grew invisibly', async ({ page }) => {
   await signInPro(page);
 

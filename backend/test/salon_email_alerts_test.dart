@@ -308,7 +308,7 @@ void main() {
       expect(email.sent.single.text, contains('le 21/10/2026 à 12:00.'));
     });
 
-    test('no client name, no phone — anywhere (T25)', () async {
+    test('no client name, no phone — anywhere (T58)', () async {
       await owner();
       for (final e in SalonEvent.values) {
         await notifier.notify(appointment(), e);

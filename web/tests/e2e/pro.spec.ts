@@ -860,3 +860,26 @@ test('compte: export buttons + type-SUPPRIMER deletion (audit 11.5)', async ({
   await confirm.click();
   await expect(page).toHaveURL(/\/pro\/connexion/);
 });
+
+/// docs/design/salon-email-alerts.md §4 — the switch through the real BFF:
+/// a click writes, a reload reads the server's answer back. Put back on at
+/// the end: the stub's preferences are shared by every test.
+test('« Alertes par e-mail »: off, still off after a reload, back on (salon-email-alerts)', async ({
+  page,
+}) => {
+  await signInPro(page);
+  await page.goto('/pro/notifications');
+  const sw = page.getByRole('switch', { name: 'Alertes par e-mail' });
+  await expect(sw).toHaveAttribute('aria-checked', 'true');
+  await expect(
+    page.getByText(/nous vous écrivons à salon@example\.com/),
+  ).toBeVisible();
+  await sw.click();
+  await expect(sw).toHaveAttribute('aria-checked', 'false');
+  await page.reload();
+  await expect(sw).toHaveAttribute('aria-checked', 'false');
+  await sw.click();
+  await expect(sw).toHaveAttribute('aria-checked', 'true');
+  await page.reload();
+  await expect(sw).toHaveAttribute('aria-checked', 'true');
+});

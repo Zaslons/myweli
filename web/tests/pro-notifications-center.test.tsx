@@ -129,6 +129,10 @@ beforeEach(() => {
       if (u === '/api/pro/me') {
         return new Response(JSON.stringify(OWNER), { status: 200 });
       }
+      // The « Alertes par e-mail » section below the list (salon-email-alerts.md).
+      if (u === '/api/pro/notification-preferences') {
+        return new Response(JSON.stringify({ emailAlerts: true }), { status: 200 });
+      }
       if (u === '/api/pro/salons') {
         return new Response(JSON.stringify({ items: salons, canAddSalon: false }), {
           status: 200,
@@ -227,6 +231,10 @@ describe('the list (§3.3)', () => {
         return new Response(JSON.stringify({ items: [BOOKING] }), { status: 200 });
       }
       if (u === '/api/pro/me') return new Response(JSON.stringify(OWNER), { status: 200 });
+      // The « Alertes par e-mail » section below the list (salon-email-alerts.md).
+      if (u === '/api/pro/notification-preferences') {
+        return new Response(JSON.stringify({ emailAlerts: true }), { status: 200 });
+      }
       if (u === '/api/pro/salons') {
         return new Response(JSON.stringify({ items: salons, canAddSalon: false }), { status: 200 });
       }

@@ -50,7 +50,7 @@ jamais (Q2).
 
 ## 3. L'e-mail
 
-- **Pas de donnée client** (menace T25, comme le push) : ni nom ni téléphone ;
+- **Pas de donnée client** (menace T58, comme le push) : ni nom ni téléphone ;
   le jour et l'heure **du salon** (son fuseau), le nom du salon (un
   propriétaire peut en avoir plusieurs).
 - Le lien ouvre la fiche **sur le web**, dans le bon salon :
@@ -109,9 +109,10 @@ appareil qui reçoit le push ne reçoit pas l'e-mail.
 
 ## 6. Sécurité, coûts, limites
 
-- **Menaces** : aucune donnée client dans l'e-mail (T25) ; destinataires =
-  la règle existante (aucune adresse fournie par un tiers) ; lien
-  authentifié. Ligne ajoutée au modèle de menaces (BACKEND.md §7).
+- **Menaces** : aucune donnée client dans l'e-mail ; destinataires = la
+  règle existante (aucune adresse fournie par un tiers) ; lien authentifié ;
+  le nom du salon échappé dans le HTML. Lignes T58 et T24 du modèle de
+  menaces (BACKEND.md §7) mises à jour.
 - **Volume** : un e-mail par événement et par destinataire sans push. Plafond
   warm 1 000/h ; **à vérifier par le propriétaire : le quota mensuel du plan
   Resend**.

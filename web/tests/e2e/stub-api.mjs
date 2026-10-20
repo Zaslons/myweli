@@ -223,7 +223,8 @@ const stubUser = {
 };
 // Notifications (parity 5.1/5.2): n1 starts unread; prefs default all-true.
 const notifRead = new Set(['n2']);
-const notifPrefs = { reminders: true, marketing: true, push: true };
+// `emailAlerts`: the salon's « Alertes par e-mail » (salon-email-alerts.md).
+const notifPrefs = { reminders: true, marketing: true, push: true, emailAlerts: true };
 const NOTIFS = [
   {
     id: 'n1',
@@ -909,7 +910,7 @@ createServer(async (req, res) => {
   if (url.pathname === '/me/notification-preferences') {
     if (req.method === 'PUT') {
       const body = await readBody(req);
-      for (const k of ['reminders', 'marketing', 'push']) {
+      for (const k of ['reminders', 'marketing', 'push', 'emailAlerts']) {
         if (typeof body[k] === 'boolean') notifPrefs[k] = body[k];
       }
     }

@@ -1125,7 +1125,8 @@ final UserErasureService userErasureService = UserErasureService(
 );
 
 /// The provider-directed sibling: turns client-driven booking events into
-/// SALON-team notifications (push + in-app feed), scoped by team capabilities.
+/// SALON-team notifications (push + in-app feed, e-mail when no push reached
+/// a member), scoped by team capabilities.
 /// Design: docs/design/push-notifications-fcm.md §10.
 final SalonNotifier salonNotifier = SalonNotifier(
   membershipRepository,
@@ -1133,6 +1134,9 @@ final SalonNotifier salonNotifier = SalonNotifier(
   notificationsRepository,
   notificationPrefsRepository,
   providersRepository,
+  // The member no push reached gets an e-mail (salon-email-alerts.md) —
+  // through the budgeted provider, like every send.
+  email: emailProvider,
 );
 
 final ReminderLogRepository reminderLogRepository = _pool == null
