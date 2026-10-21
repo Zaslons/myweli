@@ -248,6 +248,38 @@ void idempotencyContract({
     );
   });
 
+  test(
+    'two accounts that both completed the same key each replay their OWN answer',
+    () async {
+      final s = store(now);
+      for (final acc in ['acc1', 'acc2']) {
+        await s.claim(
+          accountId: acc,
+          route: '/r',
+          key: k('k10'),
+          fingerprint: 'f',
+        );
+        await s.complete(
+          accountId: acc,
+          route: '/r',
+          key: k('k10'),
+          status: 201,
+          body: '{"for":"$acc"}',
+        );
+      }
+      for (final acc in ['acc1', 'acc2']) {
+        final again = await s.claim(
+          accountId: acc,
+          route: '/r',
+          key: k('k10'),
+          fingerprint: 'f',
+        );
+        expect(again, isA<ClaimReplay>(), reason: acc);
+        expect((again as ClaimReplay).body, '{"for":"$acc"}', reason: acc);
+      }
+    },
+  );
+
   test('after 24 h a key no longer replays: it is a new claim', () async {
     final s = store(now);
     await s.claim(

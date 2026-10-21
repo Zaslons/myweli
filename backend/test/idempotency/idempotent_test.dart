@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:dart_frog/dart_frog.dart';
@@ -144,14 +145,21 @@ void main() {
     },
   );
 
-  test('the first answer is still readable after it was kept', () async {
-    final first = await idempotent(
-      ctx(key: 'key-000000000002'),
-      accountId: 'acc1',
-      run: created,
-    );
-    expect(await first.json(), {'id': 'a1'});
-  });
+  test(
+    'the first answer still has its body to SEND after it was kept',
+    () async {
+      final first = await idempotent(
+        ctx(key: 'key-000000000002'),
+        accountId: 'acc1',
+        run: created,
+      );
+      // The server writes the body's STREAM, not `body()`'s cached string:
+      // keeping the answer read that stream once, so the response handed on
+      // must carry a fresh one.
+      final sent = await first.bytes().expand((b) => b).toList();
+      expect(jsonDecode(utf8.decode(sent)), {'id': 'a1'});
+    },
+  );
 
   test('a refused write frees the key: a new try runs again', () async {
     var refuse = true;
