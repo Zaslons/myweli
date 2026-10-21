@@ -217,7 +217,14 @@ attendu, un 502 pris pour un refus, un 500 redemandé, une clé neuve à chaque
 fois, `settle` sans effet, chacune des quatre routes du BFF sans la clé, le
 cœur du BFF qui transmet tout, l'API morte qui sort en exception des deux
 côtés, la vieille phrase, la clé de note relâchée trop tôt, une clé faite du
-seul créneau, une clé par appel) ; app : ci-dessous.
+seul créneau, une clé par appel) ; app 21 (les mêmes sur l'aide d'envoi, la
+clé absente de chacun des quatre services, la vieille phrase, chacun des
+quatre fournisseurs qui ne relâche jamais sa clé, une clé par appel, une clé
+qui ignore l'adresse invitée).
+
+**Vérifié** : serveur — format, analyse, 2 020 tests sur Postgres ; web —
+types, lint, 2 000 unitaires, les e2e de la réservation, du Pro et de l'équipe
+(50, dont la réponse perdue) ; app — analyse, la suite entière (2 566).
 
 **Ce qui reste** (hors de cette tranche) :
 - extraire `/internal/cron/maintenance` (quatre tâches sur le cron des
