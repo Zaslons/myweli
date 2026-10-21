@@ -377,3 +377,80 @@ rouges (21)** :
 - un jeton client dont l'identifiant est celui d'un membre ;
 - le salon qui signale avant un client ;
 - `?salonId=` dans l'app.
+
+## 13. PR D (B6.7) — le plan détaillé, avant le code
+
+Relu sur main : **aucun** client n'envoie l'`authorizationCode` (app :
+`api_auth_service.dart`, trois appels Apple ; web : `lib/auth/apple.ts` ne lit
+que `id_token`) ; le serveur n'a ni échange, ni stockage, ni révocation ; les
+deux suppressions (`UserErasureService.eraseUser`,
+`ProviderAccountService.deleteAccount`) n'en savent rien. Le web a trois
+connexions Apple (client, Pro, inscription Pro), l'app aussi.
+
+**La clé (Q5 : inactif tant qu'elle n'existe pas).** Trois variables :
+`APPLE_TEAM_ID`, `APPLE_KEY_ID`, `APPLE_PRIVATE_KEY` (le `.p8`, PKCS#8). Les
+trois absentes → **inactif** : une ligne au démarrage, puis
+`apple_token SKIPPED` / `apple_revoke SKIPPED` à chaque occasion, rien ne
+casse. Une ou deux seulement, ou une clé illisible → **le démarrage refuse**
+(une configuration à moitié faite ne doit pas avoir l'air de marcher).
+`service.yaml` n'y touche pas : le montage du secret vient avec la clé (une
+étape écrite dans DEPLOYMENT.md, à faire par toi).
+
+**L'échange, à la connexion.** Les trois routes Apple
+(`/auth/apple`, `/auth/provider/apple`, la branche Apple de
+`/auth/provider/register`) acceptent un `authorizationCode` facultatif.
+Après une connexion **réussie** seulement :
+- `client_id` = l'audience du jeton d'identité **déjà vérifié** (l'identifiant
+  de l'app iOS, ou le Services ID du web) — un code s'échange avec l'audience
+  à laquelle Apple l'a donné ;
+- le `client_secret` est un JWT ES256 signé par la clé (5 minutes de vie) ;
+- `POST https://appleid.apple.com/auth/token` ; la réponse porte un
+  `id_token` : **son `sub` doit être celui du jeton vérifié**, sinon rien
+  n'est gardé (le code d'une autre personne ne se range pas sous mon compte —
+  sinon ma suppression révoquerait l'accès de quelqu'un d'autre) ;
+- le jeton de rafraîchissement est gardé par
+  (type de compte, compte, `client_id`) — le dernier remplace le précédent ;
+- **la connexion n'échoue jamais à cause d'Apple** : 5 secondes au plus,
+  toute faute est une ligne de journal (`apple_token FAILED status=…`), jamais
+  le code ni le jeton.
+- **Le web** : Apple exige le `redirect_uri` de l'autorisation pour un code
+  du web. Le BFF l'ajoute lui-même (`<son origine>/connexion`, ce que la page
+  a donné à Apple) — jamais le navigateur. L'app n'en envoie pas.
+
+**La révocation, à la suppression.** Juste avant que l'identité parte (les
+deux chemins) : pour chaque jeton gardé, `POST /auth/revoke`
+(`token_type_hint=refresh_token`), puis **les lignes sont effacées dans tous
+les cas** — un secret gardé pour personne est pire qu'une révocation
+manquée. Une faute d'Apple ne bloque pas la suppression : une ligne
+`apple_revoke FAILED`, la personne peut retirer MyWeli dans ses réglages
+Apple. Le compte de démo est verrouillé avant (rien ne part).
+
+**Les données** : migration `0042_apple_tokens` —
+`apple_tokens (account_kind, account_id, client_id, refresh_token,
+created_at)`, clé primaire sur les trois premiers, `account_kind` ∈
+{`user`, `provider`}. **Écart au §5** : pas de clé étrangère (deux tables
+d'identité) — l'effacement est explicite dans les deux chemins, et un test
+Postgres vérifie qu'il ne reste rien. Chiffrées au repos par Cloud SQL ; un
+jeton seul ne sert à rien sans la clé `.p8` (le `client_secret`).
+
+**L'app** : un point d'injection pour Apple (comme celui de Google), pour
+que les trois entrées soient testables ; chacune envoie
+`credential.authorizationCode`.
+
+**Le contrat** : `authorizationCode` facultatif sur les trois corps ;
+`redirectUri` facultatif (le BFF seul l'envoie). **Le modèle de menaces** :
+T79.
+
+**Aucun mot visible ne change** : rien n'est promis tant que la clé n'existe
+pas.
+
+**Tests (rouges d'abord)** : le secret signé (ES256, `kid`, `iss`, `sub`,
+`aud`) vérifié par la clé publique ; l'échange (gardé ; `sub` différent →
+rien ; 400 d'Apple → rien, la connexion passe ; sans clé → rien, sans appel) ;
+les routes (code présent → échangé avec la bonne audience ; absent → aucun
+appel ; connexion refusée → aucun appel) ; la révocation (chaque jeton, puis
+rien ne reste ; faute d'Apple → effacé quand même ; sans clé → effacé, sans
+appel) ; les deux suppressions l'appellent avant l'identité ; les jumeaux
+(mémoire et Postgres) ; le démarrage (tout ou rien, clé illisible) ; le web
+(le code passe, le BFF ajoute l'URL de retour) ; l'app (le code passe, trois
+entrées).
