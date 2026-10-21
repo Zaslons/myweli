@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Brouillon** — quatre questions au propriétaire (§9), dont la décision 12 |
+| **Statut** | **Validé le 2026-10-21** — Q1 (décision 12) : **redemander une fois** ; Q2 : **les mots tels qu'écrits** (§8) ; Q3 : **deux PR** ; Q4 : **les pages client aussi** |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-21 |
 | **PRD ref / phase** | Toutes les surfaces de l'app (client et Pro) et du web — les états d'erreur (V1) · SYSTEM.md §14 (formulaires), §15 (retours), §16 (microcopie) |
@@ -191,3 +191,5 @@ L'app atteint les personnes par la prochaine version des stores.
 - **Q4 — le web** : **les pages client disent aussi « Pas de connexion »** quand
   une lecture n'a rien reçu (`loadFailure` dans `lib/api`, recommandé — la
   parité avec le Pro et l'app), ou seulement les dix enregistrements ?
+
+**Décisions (2026-10-21).** Q1, Q2, Q3 et Q4 : les recommandations, telles qu'écrites.
