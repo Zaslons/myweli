@@ -6,6 +6,7 @@ import 'package:myweli_backend/src/appointments/appointment_repository.dart';
 import 'package:myweli_backend/src/auth/demo_seam.dart';
 import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
 import 'package:myweli_backend/src/auth/tokens.dart';
+import 'package:myweli_backend/src/idempotency/idempotency_store.dart';
 import 'package:myweli_backend/src/notifications/notifications_repository.dart';
 import 'package:myweli_backend/src/provider_account_service.dart';
 import 'package:myweli_backend/src/providers_repository.dart';
@@ -175,6 +176,48 @@ void main() {
       await notifications.listForUser('someone-else', limit: 10),
       hasLength(1),
     );
+  });
+
+  test('a deleted SALON account takes its kept answers with it', () async {
+    // docs/design/write-idempotency.md §3, §6: a manual booking's kept answer
+    // holds the client's name and phone for 24 h — it goes with the account.
+    final idem = InMemoryIdempotencyStore();
+    final service = ProviderAccountService(
+      auth,
+      providers,
+      appointments,
+      FakeStorageService(),
+      InMemoryMembershipRepository(),
+      idempotency: idem,
+      client: MockClient((_) async => http.Response('', 204)),
+    );
+    final id = await registerWithKyc(keys: []);
+    for (final acc in [id, 'someone-else']) {
+      await idem.claim(
+        accountId: acc,
+        route: '/providers/p1/appointments',
+        key: 'key-00000001',
+        fingerprint: 'f',
+      );
+      await idem.complete(
+        accountId: acc,
+        route: '/providers/p1/appointments',
+        key: 'key-00000001',
+        status: 201,
+        body: '{"clientPhone":"+2250700000001"}',
+      );
+    }
+
+    expect((await service.deleteAccount(id)).ok, isTrue);
+
+    Future<IdempotencyClaim> again(String acc) => idem.claim(
+      accountId: acc,
+      route: '/providers/p1/appointments',
+      key: 'key-00000001',
+      fingerprint: 'f',
+    );
+    expect(await again(id), isA<ClaimReserved>(), reason: 'erased');
+    expect(await again('someone-else'), isA<ClaimReplay>());
   });
 
   test('a storage failure never blocks the account erasure', () async {

@@ -49,6 +49,7 @@ import 'db/postgres_demo_snapshot_repository.dart';
 import 'db/postgres_device_token_repository.dart';
 import 'db/postgres_disputes_repository.dart';
 import 'db/postgres_favorites_repository.dart';
+import 'db/postgres_idempotency_store.dart';
 import 'db/postgres_login_throttle.dart';
 import 'db/postgres_membership_repository.dart';
 import 'db/postgres_messaging_outbox_repository.dart';
@@ -71,6 +72,7 @@ import 'email/resend_email_provider.dart';
 import 'email/send_budget.dart';
 import 'favorites_repository.dart';
 import 'favorites_service.dart';
+import 'idempotency/idempotency_store.dart';
 import 'kyc_service.dart';
 import 'localities/localities_repository.dart';
 import 'localities/localities_service.dart';
@@ -347,6 +349,19 @@ Future<int?> pruneRateLimitWindows(Duration olderThan) async {
   // it rather than failing (lib/src/security/rate_limiter.dart).
   return pruneOrReport(() => limiter.prune(olderThan));
 }
+
+/// The kept answers of the four creating POSTs, replayed for the same
+/// `Idempotency-Key` (docs/design/write-idempotency.md §3). In Postgres
+/// because a retry may land on another instance than the first answer; the
+/// in-memory twin is dev and CI only.
+final IdempotencyStore idempotencyStore = _pool == null
+    ? InMemoryIdempotencyStore()
+    : PostgresIdempotencyStore(_pool!);
+
+/// Prunes the kept answers older than [olderThan] (the daily cron, with
+/// `kIdempotencyWindow`); `null` = the prune failed and said so on one line.
+Future<int?> pruneIdempotencyKeys(Duration olderThan) =>
+    pruneOrReport(() => idempotencyStore.prune(olderThan), what: 'idempotency');
 
 /// The ceilings, per hour, per identity. Configurable for the same reason the
 /// send budget's are: a launch changes the right number, and a redeploy is a
@@ -655,6 +670,7 @@ final ProviderAccountService providerAccountService = ProviderAccountService(
   // L1/T59 — a deleted salon owner's phone must stop ringing too.
   devices: deviceTokenRepository,
   notifications: notificationsRepository,
+  idempotency: idempotencyStore,
   // Erasure unpublishes every owned salon — the prebuilt slug set shrank.
   rebuild: siteRebuildNotifier,
 );
@@ -1122,6 +1138,7 @@ final UserErasureService userErasureService = UserErasureService(
   appointmentRepository,
   clientsService,
   storageService,
+  idempotency: idempotencyStore,
 );
 
 /// The provider-directed sibling: turns client-driven booking events into

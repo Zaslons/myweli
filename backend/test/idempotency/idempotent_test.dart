@@ -8,11 +8,56 @@ import 'package:test/test.dart';
 
 class _MockRequestContext extends Mock implements RequestContext {}
 
+/// A store whose every call fails — the database blipped.
+class _BrokenStore implements IdempotencyStore {
+  _BrokenStore({this.claimWorks = false});
+  final bool claimWorks;
+  final _inner = InMemoryIdempotencyStore();
+
+  @override
+  Future<IdempotencyClaim> claim({
+    required String accountId,
+    required String route,
+    required String key,
+    required String fingerprint,
+  }) => claimWorks
+      ? _inner.claim(
+          accountId: accountId,
+          route: route,
+          key: key,
+          fingerprint: fingerprint,
+        )
+      : throw StateError('db down');
+
+  @override
+  Future<void> complete({
+    required String accountId,
+    required String route,
+    required String key,
+    required int status,
+    required String body,
+  }) => throw StateError('db down');
+
+  @override
+  Future<void> release({
+    required String accountId,
+    required String route,
+    required String key,
+  }) => throw StateError('db down');
+
+  @override
+  Future<int> prune(Duration olderThan) => throw StateError('db down');
+
+  @override
+  Future<void> deleteForAccount(String accountId) =>
+      throw StateError('db down');
+}
+
 /// The route helper (docs/design/write-idempotency.md §3): a creating POST
 /// with an `Idempotency-Key` runs once; its success is kept and replayed for
 /// the same key; a refusal frees the key; without a key nothing changes.
 void main() {
-  late InMemoryIdempotencyStore store;
+  late IdempotencyStore store;
   late int runs;
 
   setUp(() {
@@ -206,4 +251,70 @@ void main() {
       expect(await other.json(), {'id': 'a2'});
     },
   );
+
+  test(
+    'the route’s query is part of the scope: another salon, same key → its own write',
+    () async {
+      await idempotent(
+        ctx(key: 'key-000000000008', path: '/me/provider/members?salonId=p1'),
+        accountId: 'acc1',
+        run: created,
+      );
+      await idempotent(
+        ctx(key: 'key-000000000008', path: '/me/provider/members?salonId=p2'),
+        accountId: 'acc1',
+        run: created,
+      );
+      expect(runs, 2);
+    },
+  );
+
+  group('the store fails: the write is never refused for it (fails open)', () {
+    test(
+      'the claim fails → the write runs, one line says so, no error',
+      () async {
+        store = _BrokenStore();
+        final lines = <String>[];
+        final res = await idempotent(
+          ctx(key: 'key-000000000009'),
+          accountId: 'acc1',
+          run: created,
+          log: lines.add,
+        );
+        expect(res.statusCode, HttpStatus.created);
+        expect(await res.json(), {'id': 'a1'});
+        expect(lines, ['idempotency_unavailable step=claim type=StateError']);
+      },
+    );
+
+    test('keeping the answer fails → the answer still goes out', () async {
+      store = _BrokenStore(claimWorks: true);
+      final lines = <String>[];
+      final res = await idempotent(
+        ctx(key: 'key-000000000010'),
+        accountId: 'acc1',
+        run: created,
+        log: lines.add,
+      );
+      expect(res.statusCode, HttpStatus.created);
+      expect(await res.json(), {'id': 'a1'});
+      expect(lines, ['idempotency_unavailable step=complete type=StateError']);
+    });
+
+    test('freeing the key fails → the refusal still goes out', () async {
+      store = _BrokenStore(claimWorks: true);
+      final lines = <String>[];
+      final res = await idempotent(
+        ctx(key: 'key-000000000011'),
+        accountId: 'acc1',
+        run: () async => Response.json(
+          statusCode: HttpStatus.conflict,
+          body: {'error': 'slot_unavailable'},
+        ),
+        log: lines.add,
+      );
+      expect(res.statusCode, HttpStatus.conflict);
+      expect(lines, ['idempotency_unavailable step=release type=StateError']);
+    });
+  });
 }

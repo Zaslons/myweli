@@ -10,6 +10,7 @@ import 'package:myweli_backend/src/access/membership_service.dart';
 import 'package:myweli_backend/src/appointments/booking_service.dart';
 import 'package:myweli_backend/src/auth/principal.dart';
 import 'package:myweli_backend/src/http/body_fields.dart';
+import 'package:myweli_backend/src/idempotency/idempotent.dart';
 import 'package:myweli_backend/src/responses.dart';
 import 'package:myweli_backend/src/validators.dart';
 
@@ -42,6 +43,15 @@ Future<Response> onRequest(RequestContext context, String id) async {
     return jsonError(HttpStatus.forbidden, 'forbidden');
   }
 
+  // The same key twice books once (docs/design/write-idempotency.md).
+  return idempotent(
+    context,
+    accountId: principal.userId,
+    run: () => _create(context, id),
+  );
+}
+
+Future<Response> _create(RequestContext context, String id) async {
   final Map<String, dynamic> body;
   try {
     body = await context.request.json() as Map<String, dynamic>;

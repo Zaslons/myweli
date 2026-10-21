@@ -8,7 +8,6 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:myweli_backend/src/auth/auth_repository.dart'
     show RefreshOutcome, RefreshResult, TokenPair, kRefreshReuseGrace;
-import 'package:myweli_backend/src/idempotency/idempotency_store.dart';
 import 'package:myweli_backend/src/auth/tokens.dart';
 import 'package:myweli_backend/src/boot_config.dart';
 import 'package:myweli_backend/src/clients/clients_repository.dart'
@@ -21,6 +20,7 @@ import 'package:myweli_backend/src/db/postgres_client_version_repository.dart';
 import 'package:myweli_backend/src/db/postgres_clients_repository.dart';
 import 'package:myweli_backend/src/db/postgres_device_token_repository.dart';
 import 'package:myweli_backend/src/db/postgres_favorites_repository.dart';
+import 'package:myweli_backend/src/db/postgres_idempotency_store.dart';
 import 'package:myweli_backend/src/db/postgres_membership_repository.dart';
 import 'package:myweli_backend/src/db/postgres_notification_prefs_repository.dart';
 import 'package:myweli_backend/src/db/postgres_notifications_repository.dart';
@@ -35,9 +35,8 @@ import 'package:myweli_backend/src/storage/storage_service.dart';
 import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 
-import '../idempotency/idempotency_contract.dart';
-
 import '../access/invite_contract.dart';
+import '../idempotency/idempotency_contract.dart';
 
 void main() {
   final url = Platform.environment['DATABASE_URL'];

@@ -4,6 +4,7 @@ import 'package:dart_frog/dart_frog.dart';
 import 'package:myweli_backend/src/access/membership_service.dart';
 import 'package:myweli_backend/src/access/team_service.dart';
 import 'package:myweli_backend/src/auth/principal.dart';
+import 'package:myweli_backend/src/idempotency/idempotent.dart';
 import 'package:myweli_backend/src/responses.dart';
 
 /// The salon's team (module `access` R2b — docs/design/
@@ -42,20 +43,28 @@ Future<Response> onRequest(RequestContext context) async {
       return teamResponse(r);
 
     case HttpMethod.post:
-      final Map<String, dynamic> body;
-      try {
-        body = await context.request.json() as Map<String, dynamic>;
-      } catch (_) {
-        return jsonError(HttpStatus.badRequest, 'invalid_body');
-      }
-      final r = await team.invite(
-        principal.userId,
-        providerId,
-        email: body['email'],
-        role: body['role'],
-        artistId: body['artistId'],
+      // The same key twice invites once, and sends ONE e-mail; a replay is
+      // never `member_exists` (docs/design/write-idempotency.md).
+      return idempotent(
+        context,
+        accountId: principal.userId,
+        run: () async {
+          final Map<String, dynamic> body;
+          try {
+            body = await context.request.json() as Map<String, dynamic>;
+          } catch (_) {
+            return jsonError(HttpStatus.badRequest, 'invalid_body');
+          }
+          final r = await team.invite(
+            principal.userId,
+            providerId,
+            email: body['email'],
+            role: body['role'],
+            artistId: body['artistId'],
+          );
+          return teamResponse(r, successStatus: HttpStatus.created);
+        },
       );
-      return teamResponse(r, successStatus: HttpStatus.created);
 
     default:
       return methodNotAllowed();

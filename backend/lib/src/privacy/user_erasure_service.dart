@@ -4,6 +4,7 @@ import '../appointments/appointment_repository.dart';
 import '../auth/auth_repository.dart';
 import '../clients/clients_service.dart';
 import '../favorites_repository.dart';
+import '../idempotency/idempotency_store.dart';
 import '../notifications/notification_prefs_repository.dart';
 import '../notifications/notifications_repository.dart';
 import '../push/device_token_repository.dart';
@@ -34,8 +35,10 @@ class UserErasureService {
     this._appointments,
     this._clients,
     this._storage, {
+    IdempotencyStore? idempotency,
     http.Client? client,
-  }) : _client = client ?? http.Client();
+  }) : _idempotency = idempotency,
+       _client = client ?? http.Client();
 
   final AuthRepository _auth;
   final DeviceTokenRepository _devices;
@@ -46,6 +49,7 @@ class UserErasureService {
   final AppointmentRepository _appointments;
   final ClientsService _clients;
   final StorageService _storage;
+  final IdempotencyStore? _idempotency;
   final http.Client _client;
 
   /// Erase everything [userId] left behind, then the identity itself.
@@ -114,6 +118,10 @@ class UserErasureService {
 
     // 3. Favourites.
     await _favorites.deleteForUser(userId);
+
+    // 3b. The kept answers of its writes — a booking's answer, held 24 h for
+    //     a lost-answer retry (docs/design/write-idempotency.md §6).
+    await _idempotency?.deleteForAccount(userId);
 
     // 4. The content survives, the author does not — plus the reports this user
     //    filed, which cannot be tombstoned (a UNIQUE constraint would collide).

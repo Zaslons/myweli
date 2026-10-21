@@ -67,6 +67,24 @@ void idempotencyContract({
     );
   });
 
+  test(
+    'two claims at the same instant: exactly one wins, the other hears in progress',
+    () async {
+      final s = store(now);
+      final both = await Future.wait([
+        for (var i = 0; i < 2; i++)
+          s.claim(
+            accountId: 'acc1',
+            route: '/r',
+            key: k('race'),
+            fingerprint: 'f',
+          ),
+      ]);
+      expect(both.whereType<ClaimReserved>(), hasLength(1));
+      expect(both.whereType<ClaimInProgress>(), hasLength(1));
+    },
+  );
+
   test('the same key with another body → mismatch, running or done', () async {
     final s = store(now);
     await s.claim(
@@ -163,6 +181,72 @@ void idempotencyContract({
       );
     },
   );
+
+  test('a completed key is never released: it still replays', () async {
+    final s = store(now);
+    await s.claim(
+      accountId: 'acc1',
+      route: '/r',
+      key: k('k8'),
+      fingerprint: 'f',
+    );
+    await s.complete(
+      accountId: 'acc1',
+      route: '/r',
+      key: k('k8'),
+      status: 201,
+      body: '{"kept":1}',
+    );
+    await s.release(accountId: 'acc1', route: '/r', key: k('k8'));
+    final again = await s.claim(
+      accountId: 'acc1',
+      route: '/r',
+      key: k('k8'),
+      fingerprint: 'f',
+    );
+    expect(again, isA<ClaimReplay>());
+  });
+
+  test('a claim left in progress past 5 min (its request died) is taken over; '
+      'before that it is still in progress', () async {
+    final s = store(now);
+    await s.claim(
+      accountId: 'acc1',
+      route: '/r',
+      key: k('k9'),
+      fingerprint: 'f',
+    );
+    clock = clock.add(const Duration(minutes: 4));
+    expect(
+      await s.claim(
+        accountId: 'acc1',
+        route: '/r',
+        key: k('k9'),
+        fingerprint: 'f',
+      ),
+      isA<ClaimInProgress>(),
+    );
+    clock = clock.add(const Duration(minutes: 1, seconds: 1));
+    expect(
+      await s.claim(
+        accountId: 'acc1',
+        route: '/r',
+        key: k('k9'),
+        fingerprint: 'f',
+      ),
+      isA<ClaimReserved>(),
+    );
+    // And the new claim is the running one now.
+    expect(
+      await s.claim(
+        accountId: 'acc1',
+        route: '/r',
+        key: k('k9'),
+        fingerprint: 'f',
+      ),
+      isA<ClaimInProgress>(),
+    );
+  });
 
   test('after 24 h a key no longer replays: it is a new claim', () async {
     final s = store(now);

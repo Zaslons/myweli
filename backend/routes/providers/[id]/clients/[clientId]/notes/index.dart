@@ -4,6 +4,7 @@ import 'package:dart_frog/dart_frog.dart';
 import 'package:myweli_backend/src/auth/principal.dart';
 import 'package:myweli_backend/src/clients/clients_service.dart';
 import 'package:myweli_backend/src/http/body_fields.dart';
+import 'package:myweli_backend/src/idempotency/idempotent.dart';
 import 'package:myweli_backend/src/responses.dart';
 
 /// `POST /providers/{id}/clients/{clientId}/notes` — add an internal note
@@ -24,6 +25,20 @@ Future<Response> onRequest(
   }
   if (context.request.method != HttpMethod.post) return methodNotAllowed();
 
+  // The same key twice adds the note once (docs/design/write-idempotency.md).
+  return idempotent(
+    context,
+    accountId: principal.userId,
+    run: () => _add(context, principal.userId, id, clientId),
+  );
+}
+
+Future<Response> _add(
+  RequestContext context,
+  String accountId,
+  String id,
+  String clientId,
+) async {
   final Map<String, dynamic> body;
   try {
     body = await context.request.json() as Map<String, dynamic>;
@@ -31,7 +46,7 @@ Future<Response> onRequest(
     return jsonError(HttpStatus.badRequest, 'invalid_body');
   }
   final r = await context.read<ClientsService>().addNote(
-    principal.userId,
+    accountId,
     id,
     clientId,
     optionalString(body, 'body') ?? '',

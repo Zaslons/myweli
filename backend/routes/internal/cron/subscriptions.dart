@@ -3,7 +3,13 @@ import 'dart:io';
 import 'package:dart_frog/dart_frog.dart';
 import 'package:myweli_backend/src/demo/demo_reset_service.dart';
 import 'package:myweli_backend/src/dependencies.dart'
-    show cronAuth, pruneAdminLoginThrottle, pruneRateLimitWindows;
+    show
+        cronAuth,
+        pruneAdminLoginThrottle,
+        pruneIdempotencyKeys,
+        pruneRateLimitWindows;
+import 'package:myweli_backend/src/idempotency/idempotency_store.dart'
+    show kIdempotencyWindow;
 import 'package:myweli_backend/src/responses.dart';
 import 'package:myweli_backend/src/security/identity_limits.dart'
     show kRateLimitRetention;
@@ -70,6 +76,19 @@ Future<Response> onRequest(RequestContext context) async {
   // day on a table that only grows (found in review).
   final windowsPruned = await pruneRateLimitWindows(kRateLimitRetention);
 
+  // **The kept answers of the creating POSTs** (migration `0040`,
+  // docs/design/write-idempotency.md §3): replayed for 24 h, then dead
+  // weight — and they may hold what a booking answered, so « 24 h » is a
+  // promise of the spec's §6, not housekeeping. Same shape as the prune
+  // above: one batched delete, the count in the response, `null` on failure.
+  //
+  // **This is the fourth rider the note above names, and it rides anyway**:
+  // the spec places it here, and extracting `/internal/cron/maintenance`
+  // needs a new Cloud Scheduler job (an infrastructure change of its own).
+  // That extraction is now due, and is recorded as the follow-up in the
+  // spec's « Ce qui reste » — not forgotten by this line.
+  final keysPruned = await pruneIdempotencyKeys(kIdempotencyWindow);
+
   // The demo-salon reset (T69): due-gated to every 7 days inside the
   // service, so this is a no-op six days out of seven. Same observability
   // rule as the prune — the outcome is in the response, not just a log.
@@ -83,6 +102,7 @@ Future<Response> onRequest(RequestContext context) async {
       'unpublished': r.unpublished,
       'throttleRowsPruned': pruned,
       'rateLimitWindowsPruned': windowsPruned,
+      'idempotencyKeysPruned': keysPruned,
       'demoReset': demo.ran,
     },
   );

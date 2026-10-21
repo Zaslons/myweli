@@ -2,7 +2,6 @@ import 'dart:io';
 
 import 'package:dart_frog/dart_frog.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:myweli_backend/src/idempotency/idempotency_store.dart';
 import 'package:myweli_backend/src/access/membership_repository.dart';
 import 'package:myweli_backend/src/access/membership_service.dart';
 import 'package:myweli_backend/src/appointments/appointment_repository.dart';
@@ -12,6 +11,7 @@ import 'package:myweli_backend/src/auth/tokens.dart';
 import 'package:myweli_backend/src/clients/clients_repository.dart';
 import 'package:myweli_backend/src/clients/clients_service.dart';
 import 'package:myweli_backend/src/clients/provider_audit_log.dart';
+import 'package:myweli_backend/src/idempotency/idempotency_store.dart';
 import 'package:myweli_backend/src/privacy/anonymized_identity.dart';
 import 'package:test/test.dart';
 
@@ -557,6 +557,10 @@ void main() {
   });
 
   group('routes', () {
+    // docs/design/write-idempotency.md: one store per test.
+    late InMemoryIdempotencyStore idem;
+    setUp(() => idem = InMemoryIdempotencyStore());
+
     RequestContext ctx(Request request) {
       final context = _MockRequestContext();
       when(() => context.request).thenReturn(request);
@@ -565,10 +569,6 @@ void main() {
       when(() => context.read<IdempotencyStore>()).thenReturn(idem);
       return context;
     }
-
-    // docs/design/write-idempotency.md: one store per test.
-    late InMemoryIdempotencyStore idem;
-    setUp(() => idem = InMemoryIdempotencyStore());
 
     String proTok(String sub) =>
         tokens.issueAccessToken(subject: sub, role: 'provider').token;

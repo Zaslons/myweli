@@ -32,6 +32,7 @@ import 'package:myweli_backend/src/dependencies.dart';
 import 'package:myweli_backend/src/deposit_service.dart';
 import 'package:myweli_backend/src/email/email_provider.dart';
 import 'package:myweli_backend/src/favorites_service.dart';
+import 'package:myweli_backend/src/idempotency/idempotency_store.dart';
 import 'package:myweli_backend/src/kyc_service.dart';
 import 'package:myweli_backend/src/localities/localities_service.dart';
 import 'package:myweli_backend/src/messaging/booking_notifier.dart';
@@ -79,6 +80,7 @@ Handler middleware(Handler handler) {
       .use(provider<TeamService>((_) => teamService))
       .use(provider<SubscriptionScheduler>((_) => subscriptionScheduler))
       .use(provider<AppointmentRepository>((_) => appointmentRepository))
+      .use(provider<IdempotencyStore>((_) => idempotencyStore))
       .use(provider<BookingService>((_) => bookingService))
       .use(provider<SlotService>((_) => slotService))
       .use(
