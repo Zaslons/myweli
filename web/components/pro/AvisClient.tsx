@@ -8,7 +8,10 @@ import { ErrorState } from '../ErrorState';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import type { Review } from '../../lib/api/providers';
-import { getMyProvider, listProviderReviews } from '../../lib/api/pro';
+import { getMyProvider, listProviderReviews, reportSalonReview } from '../../lib/api/pro';
+import { NO_CONNECTION_MESSAGE } from '../../lib/api/network';
+import { hasCap } from '../../lib/pro/team';
+import { focusOnMount } from '../../lib/focusOnMount';
 import { loadFailure, loadFailureMessage, type LoadFailure } from '../../lib/api/load-failure';
 import { formatDateFr } from '../../lib/format';
 import { type ReviewSummary, reviewStats, statsFromSummary } from '../../lib/pro/reviews';
@@ -17,7 +20,9 @@ import { SkeletonRows } from '../Skeleton';
 
 /// « Avis » (docs/design/web-pro-reviews.md) — the pro app's ReviewsScreen,
 /// web-adapted: summary card (average + 5→1 distribution) over the review
-/// list, paginated « Charger plus ». Read-only, like the app.
+/// list, paginated « Charger plus ». The salon may report a review
+/// (« Signaler » — B6.6, App Store 1.2: docs/design/backend-integrity-batch6.md
+/// §2.6), the Propriétaire and the Gérant only, as in the app.
 export function AvisClient() {
   const router = useRouter();
   const [providerId, setProviderId] = useState<string | null>(null);
@@ -31,6 +36,9 @@ export function AvisClient() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<LoadFailure | false>(false);
   const [busy, setBusy] = useState(false);
+  // « Signaler » is the Propriétaire's and the Gérant's (`profile.manage`,
+  // decision 20) — read off this page's own /me, like every page gate.
+  const [canReport, setCanReport] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -47,6 +55,7 @@ export function AvisClient() {
     }
     const pid = me.profile.provider.id;
     setProviderId(pid);
+    setCanReport(hasCap(me.profile.membership, 'profile.manage'));
     setSalonTz(me.profile.provider.timezone ?? undefined);
     const r = await listProviderReviews(pid, 1);
     if (r.status !== 200) {
@@ -194,6 +203,12 @@ export function AvisClient() {
                         ))}
                       </div>
                     ) : null}
+                    {canReport ? (
+                      <SalonReportAction
+                        reviewId={r.id}
+                        onSessionGone={() => router.replace('/pro/connexion')}
+                      />
+                    ) : null}
                   </div>
                 </div>
               </li>
@@ -209,6 +224,81 @@ export function AvisClient() {
           ) : null}
         </>
       )}
+    </div>
+  );
+}
+
+/// « Signaler » on one review — the client's form and words (ReviewList's
+/// `ReportAction`): an optional reason, then « Merci. Notre équipe va examiner
+/// cet avis. ». No answer says so; a dead session goes to the login.
+function SalonReportAction({
+  reviewId,
+  onSessionGone,
+}: {
+  reviewId: string;
+  onSessionGone: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [reason, setReason] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [state, setState] = useState<'idle' | 'done' | 'error' | 'offline'>('idle');
+
+  async function send() {
+    setBusy(true);
+    const r = await reportSalonReview(reviewId, reason);
+    setBusy(false);
+    if (r.ok) {
+      setState('done');
+      setOpen(false);
+      return;
+    }
+    if (r.status === 401) return onSessionGone();
+    setState(r.status === 0 ? 'offline' : 'error');
+  }
+
+  if (state === 'done') {
+    return (
+      <p ref={focusOnMount} tabIndex={-1} className="mt-s text-bodySmall text-textSecondary">
+        Merci. Notre équipe va examiner cet avis.
+      </p>
+    );
+  }
+
+  return (
+    <div className="mt-s">
+      {!open ? (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="-my-sm inline-flex min-h-12 items-center text-bodySmall text-textTertiary underline"
+        >
+          Signaler
+        </button>
+      ) : (
+        <div className="w-full rounded-lg bg-surface p-s">
+          <input
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            maxLength={500}
+            placeholder="Raison (optionnel)"
+            aria-label="Raison du signalement"
+            className="min-h-12 w-full rounded-lg border border-borderStrong bg-secondary px-s py-xs text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
+          />
+          <div className="mt-s flex justify-end gap-s">
+            <Button variant="secondary" onClick={() => setOpen(false)}>
+              Annuler
+            </Button>
+            <Button disabled={busy} onClick={send}>
+              Signaler
+            </Button>
+          </div>
+        </div>
+      )}
+      {state === 'error' || state === 'offline' ? (
+        <p role="alert" className="mt-xs text-bodySmall text-error">
+          {state === 'offline' ? NO_CONNECTION_MESSAGE : 'Le signalement a échoué. Réessayez.'}
+        </p>
+      ) : null}
     </div>
   );
 }
