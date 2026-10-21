@@ -354,7 +354,12 @@ which is how the reminder cron came to be switched off without anyone noticing.
    authenticated with a Google-signed OIDC token (`myweli-scheduler@`), **all
    three declared in `infra/gcp/99-scheduler-jobs.sh`** — read-only by default
    (it reads each job back and reports drift), `APPLY=1` to create a missing
-   one; force a run after a create and read its 200 in the service's log. A transitional
+   one; force a run after a create and read its 200 in the service's log.
+   **Check a cron route by forcing its job, never by calling it without a
+   token**: the anonymous 403 is the right answer, and it pages « A cron call
+   was REFUSED » all the same (it did, 2026-10-21). A run's counts are in its
+   HTTP answer, which Scheduler does not keep — the log shows the status, and a
+   failed prune its `*_prune_failed` line. A transitional
    `X-Cron-Secret` header is still accepted and was to be retired once real runs
    were seen on the OIDC path. **That condition is now met, twice over
    (2026-08-17)** — see

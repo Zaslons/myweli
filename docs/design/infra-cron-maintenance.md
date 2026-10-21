@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Construit le 2026-10-21** sur `chore/cron-maintenance` (empilé sur #666) ; ce qui a été vu : §10. Validé le même jour — Q1 : **03:30 UTC** ; Q2 : **un script pour les trois jobs** ; Q3 : **déployer, puis créer le job et le forcer le même jour** ; Q4 : **les deux crons dans le contrat** (§9) |
+| **Statut** | **Déployé le 2026-10-21** (#667, `46126a3`, révision `myweli-api-00044-z42`) ; le job `myweli-maintenance` créé et forcé : 200 (§11). Construit le même jour ; ce qui a été vu : §10. Validé le même jour — Q1 : **03:30 UTC** ; Q2 : **un script pour les trois jobs** ; Q3 : **déployer, puis créer le job et le forcer le même jour** ; Q4 : **les deux crons dans le contrat** (§9) |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-21 |
 | **PRD ref / phase** | Exploitation (V1) — aucune fonctionnalité visible |
@@ -101,7 +101,9 @@ Ce qui existe déjà et ne change pas :
 2. **Créer le job** (`99-scheduler-jobs.sh`) — une mutation du cloud : je la
    prépare, tu dis oui.
 3. **Le forcer une fois** (`gcloud scheduler jobs run myweli-maintenance`) et
-   lire dans les journaux le 200 et ses quatre comptes.
+   lire dans le journal du service le **200** et l'absence de toute ligne
+   `*_prune_failed`. Les quatre comptes sont dans la **réponse**, que Cloud
+   Scheduler ne garde pas : le journal ne montre que le statut (§11).
 
 Entre 1 et 2, au plus une journée sans purge : sans effet (des tables de
 quelques lignes, une démo remise à zéro tous les 7 jours et seulement si elle
@@ -196,9 +198,38 @@ purge des clés non branchée, la route qui ne lit pas le tick, le tick non
 fourni, une tâche restée sur `/subscriptions`, le job non déclaré, la mauvaise
 heure, le job de staging oublié, la route absente du contrat.
 
-**Reste à faire, dans l'ordre (§3)** : fusionner après #666 ; déployer le
-backend ; `APPLY=1 bash infra/gcp/99-scheduler-jobs.sh` (une mutation du
-cloud — demandée au moment de la faire) ; `gcloud scheduler jobs run
-myweli-maintenance --location=europe-west9`, puis lire le 200 et ses quatre
-comptes dans le journal du service.
+**La bascule (§3)** : faite le même jour — §11.
+
+## 11. En production — 2026-10-21
+
+Dans l'ordre de §3, chaque étape sur l'accord du propriétaire :
+
+1. **#666 fusionné** (`deadda7`) puis **déployé** : révision
+   `myweli-api-00043-gqr` (migration `0040`). **#667 rebasé** sur main (ses
+   cinq commits inchangés), **fusionné** (`46126a3`, arbre identique à la tête
+   de la PR) puis **déployé** : révision `myweli-api-00044-z42`, 100 % du
+   trafic, l'empreinte de l'image égale à celle du tag `46126a3` ; `/health` et
+   `/providers` à 200.
+2. **`APPLY=1 bash infra/gcp/99-scheduler-jobs.sh`** : `myweli-maintenance`
+   créé ; relu ensuite, les **trois** jobs correspondent à ce que le script
+   déclare. Premier passage prévu : 2026-10-22 03:30 UTC.
+3. **Forcé à 12:06:58 UTC** : **200** en 112 ms sur `myweli-api-00044-z42`,
+   appelé par `Google-Cloud-Scheduler` ; aucune ligne `*_prune_failed` ni
+   d'erreur ensuite. C'est aussi la preuve que la table `idempotency_keys`
+   (0040) existe : sans elle, la purge des clés aurait écrit
+   `idempotency_prune_failed`.
+4. **Le cron des abonnements forcé à 12:15:19 UTC** (aucun vrai salon encore —
+   accord du propriétaire) : **200** en 16 ms, sans erreur — le tour des offres
+   seul.
+
+**Ce qui a été vu en le faisant** :
+- **Les comptes ne sont pas dans le journal.** La réponse les porte, mais Cloud
+  Scheduler ne garde pas les corps et la route n'écrit rien quand tout va
+  bien : le journal dit le statut, et une purge en échec écrit sa ligne. §3
+  disait à tort de « lire les quatre comptes » — corrigé.
+- **Une sonde anonyme déclenche l'alerte.** Pour vérifier que la route
+  existait, un `POST` sans jeton (12:06:20 UTC) a reçu le **403** attendu — et
+  l'alerte « A cron call was REFUSED » a envoyé son e-mail, comme elle le doit
+  pour tout non-2xx sur `/internal/cron/*`. Pour vérifier une route de cron,
+  forcer son job plutôt que la sonder.
 
