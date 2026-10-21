@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Validé le 2026-10-21** — Q1 (décision 12) : **redemander une fois** ; Q2 : **les mots tels qu'écrits** (§8) ; Q3 : **deux PR** ; Q4 : **les pages client aussi** |
+| **Statut** | **PR A construite le 2026-10-21** sur `fix/app-failure-messages` (B3.1 + B3.2) ; ce qui a été vu : §10 ; **PR B** (B3.3, les notifications) à suivre. Validé le même jour — Q1 (décision 12) : **redemander une fois** ; Q2 : **les mots tels qu'écrits** (§8) ; Q3 : **deux PR** ; Q4 : **les pages client aussi** |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-21 |
 | **PRD ref / phase** | Toutes les surfaces de l'app (client et Pro) et du web — les états d'erreur (V1) · SYSTEM.md §14 (formulaires), §15 (retours), §16 (microcopie) |
@@ -193,3 +193,52 @@ L'app atteint les personnes par la prochaine version des stores.
   parité avec le Pro et l'app), ou seulement les dix enregistrements ?
 
 **Décisions (2026-10-21).** Q1, Q2, Q3 et Q4 : les recommandations, telles qu'écrites.
+
+## 10. PR A construite (B3.1 + B3.2) — ce qui a été vu
+
+**Comme écrit**, avec ces précisions :
+- **App** — `lib/core/constants/failure_messages.dart` (les deux phrases) et
+  `lib/services/api/api_errors.dart` (`networkError`, `unreadable`,
+  `readOrUnreadable`, `errorFromResponse`). Les onze services y passent ;
+  chacun garde sa table de codes, dont la phrase par défaut (« Une erreur est
+  survenue. », sans « Réessayez ») cède la place à la phrase générique. Les
+  73 `e.toString()` des fournisseurs disent la phrase générique ; la carte,
+  « Position introuvable. Réessayez. ».
+- **Où `readOrUnreadable` est appliqué** : aux lectures que des écrans font
+  **directement** (le salon de l'aperçu, l'URL de la preuve d'acompte — Pro et
+  client —, le ticket d'envoi de la preuve) et aux services sans fournisseur
+  (salons, localités). Les autres lectures passent par un fournisseur, dont le
+  `catch` dit maintenant la phrase générique : l'écran ne voit plus jamais le
+  texte d'une exception, et l'épingle le garde.
+- **Web** — huit enregistrements passent par `writeFailureMessage` ;
+  `loadFailure` est dans `lib/api/` (les 23 imports du Pro suivent) et cinq
+  lectures client disent pourquoi. **Pas changés, et pourquoi** : le
+  « Enregistrer » des dates de Disponibilités avant que le document soit
+  chargé (aucune requête n'est partie) et le bouton des notifications du
+  navigateur (il ne sait que « échoué »).
+
+**Trouvé en construisant** :
+- **Un défaut du lot 1 (#665), en production** : « Accueil » choisit « Pas de
+  connexion » sur le code `network`, et le vrai `ApiProService.getDashboardStats`
+  ne l'envoyait pas — seul `getMyProvider` le faisait. Hors ligne, le
+  glissement disait « Une erreur est survenue ». Les tests de #665 passaient :
+  leur faux service mettait le code lui-même. `networkError()` le porte
+  partout ; un test passe désormais par le **vrai** service.
+- **Deux autres variantes** de la phrase « rien n'a répondu » : « Connexion
+  impossible. Réessayez. » (les localités) et « Erreur serveur (500) » (salons,
+  localités) ; et l'envoi d'images montrait le `message` du serveur.
+- **Le serveur n'envoie jamais de `message`** sur les routes de l'app (seule
+  la porte d'origine en envoie un, en anglais) : ne plus le montrer ne perd
+  rien.
+- **Cinq tests épinglaient l'ancien comportement** — « SocketException » à
+  l'écran, « Erreur », la phrase par défaut sans « Réessayez », « Connexion au
+  serveur impossible » : ils épinglent maintenant les mots approuvés.
+
+**Mutations vues rouges** : app 12 (le code `network` retiré, un `TypeError`
+qui s'échappe, le `message` du serveur montré, « Erreur » pour un code
+inconnu, pas de branche 401, un code connu qui perd ses mots, l'ancienne
+phrase, un fournisseur ou la carte qui montrent l'exception, `getMyProvider`
+qui lève de nouveau, un « Erreur » dans un écran, un `_errorFrom` privé) ;
+web 13 (`loadFailure` jamais hors ligne, chacune des cinq lectures client
+sans sa raison, chacun des sept enregistrements remis à la phrase fixe).
+
