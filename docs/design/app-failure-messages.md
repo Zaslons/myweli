@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **PR A construite le 2026-10-21** sur `fix/app-failure-messages` (B3.1 + B3.2) ; ce qui a été vu : §10 ; **PR B** (B3.3, les notifications) à suivre. Validé le même jour — Q1 (décision 12) : **redemander une fois** ; Q2 : **les mots tels qu'écrits** (§8) ; Q3 : **deux PR** ; Q4 : **les pages client aussi** |
+| **Statut** | **Construit le 2026-10-21** — PR A (#670, B3.1 + B3.2, §10) et PR B (`fix/notification-read-state`, B3.3, §11). Validé le même jour — Q1 (décision 12) : **redemander une fois** ; Q2 : **les mots tels qu'écrits** (§8) ; Q3 : **deux PR** ; Q4 : **les pages client aussi** |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-21 |
 | **PRD ref / phase** | Toutes les surfaces de l'app (client et Pro) et du web — les états d'erreur (V1) · SYSTEM.md §14 (formulaires), §15 (retours), §16 (microcopie) |
@@ -241,4 +241,35 @@ phrase, un fournisseur ou la carte qui montrent l'exception, `getMyProvider`
 qui lève de nouveau, un « Erreur » dans un écran, un `_errorFrom` privé) ;
 web 13 (`loadFailure` jamais hors ligne, chacune des cinq lectures client
 sans sa raison, chacun des sept enregistrements remis à la phrase fixe).
+
+## 11. PR B construite (B3.3) — ce qui a été vu
+
+**Comme écrit** (§2.3) : les identifiants en cours d'écriture sont gardés lus
+pendant une relecture ; une réponse perdue (code `network`) est redemandée
+**une fois** (décision 12) ; perdue deux fois, la ligne redevient non lue avec
+« Pas de connexion. Réessayez. » ; un refus ou une exception ne sont pas
+redemandés. `AppSnackBar.showOn` rend son contrôleur, et `ReadFailureSnack`
+(partagé par la ligne et « Tout marquer comme lu ») laisse le geste suivant
+fermer l'échec précédent.
+
+**Trouvé en construisant** :
+- **« Le succès réapplique » était inutile** — une mutation l'a montré : tant
+  que l'écriture est en cours, une relecture la garde déjà lue. La ligne est
+  partie. Mais la question a trouvé **le vrai trou** : une relecture
+  **demandée avant** le geste et **répondue après** l'écriture apporte une
+  liste plus vieille que l'écriture, et la ligne revenait non lue. Le
+  fournisseur compte les relectures en cours et garde lus les identifiants
+  confirmés pendant ce temps — puis les oublie : la relecture suivante est la
+  parole du serveur.
+- **Un contrôleur de bandeau gardé d'un écran disparu** fermait un bandeau sur
+  un messager supprimé (« AnimationController.reverse() called after
+  dispose ») : `ReadFailureSnack` ne ferme que sur un messager encore monté.
+  La suite l'a vu, entre deux tests.
+
+**Mutations vues rouges (9)** : pas de second essai ; un refus redemandé ; la
+relecture qui oublie l'écriture en cours ; l'écriture jamais oubliée ; la
+relecture plus vieille qui écrase ; un identifiant gardé lu pour toujours ; la
+mémoire jamais vidée ; la ligne qui ne ferme pas l'échec ; la fermeture sur un
+messager supprimé. **Une mutation équivalente** (réappliquer la réponse) :
+expliquée ci-dessus, et le code redondant retiré.
 

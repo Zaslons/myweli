@@ -301,4 +301,182 @@ void main() {
       expect(readOf(provider, 'b'), isFalse);
     });
   });
+
+  // docs/design/app-failure-messages.md §2.3 (B3.3, owner decision 12): the
+  // read state follows the server. A lost answer is asked again ONCE (the write
+  // is safe to repeat: `SET read = true`); a reload while a write is out keeps
+  // what the person just marked.
+  group('the read state follows the server (B3.3)', () {
+    const offline = 'Pas de connexion. Réessayez.';
+    const generic = 'Une erreur est survenue. Réessayez.';
+    ApiResponse<bool> noAnswer() => ApiResponse.error(offline, code: 'network');
+    ApiResponse<bool> accepted() => ApiResponse.success(true);
+
+    bool readOf(NotificationsProvider p, String id) =>
+        p.notifications.singleWhere((n) => n.id == id).read;
+
+    /// The server's list, as each load answers it.
+    late List<AppNotification> serverList;
+
+    Future<NotificationsProvider> loaded(List<AppNotification> items) async {
+      serverList = items;
+      when(
+        () => service.getNotifications(),
+      ).thenAnswer((_) async => ApiResponse.success(List.of(serverList)));
+      final provider = NotificationsProvider(service: service);
+      await provider.load();
+      return provider;
+    }
+
+    /// Answers [answers] in order, one per call.
+    void markReadAnswers(String id, List<ApiResponse<bool>> answers) {
+      final queue = [...answers];
+      when(
+        () => service.markRead(id),
+      ).thenAnswer((_) async => queue.removeAt(0));
+    }
+
+    test(
+      'lost once, then taken: asked again at once — read, nothing to say',
+      () async {
+        final provider = await loaded([note('a')]);
+        markReadAnswers('a', [noAnswer(), accepted()]);
+
+        expect(await provider.markRead('a'), isNull);
+        expect(readOf(provider, 'a'), isTrue);
+        verify(() => service.markRead('a')).called(2);
+      },
+    );
+
+    test(
+      'lost twice: unread again, « Pas de connexion », and never a third try',
+      () async {
+        final provider = await loaded([note('a')]);
+        markReadAnswers('a', [noAnswer(), noAnswer()]);
+
+        expect(await provider.markRead('a'), offline);
+        expect(readOf(provider, 'a'), isFalse);
+        verify(() => service.markRead('a')).called(2);
+      },
+    );
+
+    test('a refusal is not asked again', () async {
+      final provider = await loaded([note('a')]);
+      markReadAnswers('a', [
+        ApiResponse.error(generic, code: 'internal_error'),
+      ]);
+
+      expect(await provider.markRead('a'), generic);
+      verify(() => service.markRead('a')).called(1);
+    });
+
+    test(
+      '« Tout lire » lost once, then taken: all read, nothing to say',
+      () async {
+        final provider = await loaded([note('a'), note('b')]);
+        final queue = [noAnswer(), accepted()];
+        when(
+          () => service.markAllRead(),
+        ).thenAnswer((_) async => queue.removeAt(0));
+
+        expect(await provider.markAllRead(), isNull);
+        expect(provider.unreadCount, 0);
+        verify(() => service.markAllRead()).called(2);
+      },
+    );
+
+    test('a reload while « lu » is out: the row stays read (the server had not '
+        'written it yet), and stays read once it has', () async {
+      final provider = await loaded([note('a'), note('b')]);
+      final answer = Completer<ApiResponse<bool>>();
+      when(() => service.markRead('a')).thenAnswer((_) => answer.future);
+
+      final pending = provider.markRead('a');
+      await provider.load(); // the server still says unread
+      expect(readOf(provider, 'a'), isTrue, reason: 'kept across the reload');
+      expect(readOf(provider, 'b'), isFalse);
+
+      answer.complete(accepted());
+      expect(await pending, isNull);
+      expect(readOf(provider, 'a'), isTrue);
+    });
+
+    test(
+      'a reload while « lu » is out, and then the server refuses: unread',
+      () async {
+        final provider = await loaded([note('a')]);
+        final answer = Completer<ApiResponse<bool>>();
+        when(() => service.markRead('a')).thenAnswer((_) => answer.future);
+
+        final pending = provider.markRead('a');
+        await provider.load();
+        answer.complete(ApiResponse.error(generic, code: 'internal_error'));
+        expect(await pending, generic);
+        expect(readOf(provider, 'a'), isFalse);
+      },
+    );
+
+    test('a reload during « Tout lire »: what it marked stays read; a new '
+        'notification the reload brought stays unread', () async {
+      final provider = await loaded([note('a'), note('b')]);
+      final answer = Completer<ApiResponse<bool>>();
+      when(() => service.markAllRead()).thenAnswer((_) => answer.future);
+
+      final pending = provider.markAllRead();
+      serverList = [note('new'), note('a'), note('b')];
+      await provider.load();
+      expect(readOf(provider, 'a'), isTrue);
+      expect(readOf(provider, 'b'), isTrue);
+      expect(readOf(provider, 'new'), isFalse);
+
+      answer.complete(accepted());
+      await pending;
+      expect(readOf(provider, 'new'), isFalse);
+      expect(provider.unreadCount, 1);
+    });
+
+    test(
+      'a reload asked BEFORE the touch, answering AFTER its write was taken: '
+      'its list is older than the write — the row stays read',
+      () async {
+        final provider = await loaded([note('a')]);
+        final list = Completer<ApiResponse<List<AppNotification>>>();
+        when(() => service.getNotifications()).thenAnswer((_) => list.future);
+        markReadAnswers('a', [accepted()]);
+
+        final reload = provider.load(); // the server's list is taken now…
+        expect(await provider.markRead('a'), isNull); // …the write lands after
+        list.complete(ApiResponse.success([note('a')])); // the older list
+        await reload;
+        expect(readOf(provider, 'a'), isTrue);
+
+        // Nothing kept for ever: the NEXT reload, with no write out, is the
+        // server's word again.
+        when(
+          () => service.getNotifications(),
+        ).thenAnswer((_) async => ApiResponse.success([note('a')]));
+        await provider.load();
+        expect(readOf(provider, 'a'), isFalse);
+      },
+    );
+
+    test(
+      'once the write answered, a reload shows what the server says',
+      () async {
+        final provider = await loaded([note('a')]);
+        markReadAnswers('a', [accepted()]);
+        await provider.markRead('a');
+        serverList = [
+          note('a'),
+        ]; // read elsewhere undone, say: the server rules
+        await provider.load();
+        expect(
+          readOf(provider, 'a'),
+          isFalse,
+          reason:
+              'nothing in flight any more — nothing is kept over the server',
+        );
+      },
+    );
+  });
 }

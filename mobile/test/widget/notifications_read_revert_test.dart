@@ -119,6 +119,30 @@ void main() {
       });
     }
 
+    // docs/design/app-failure-messages.md §2.3 (B3.3): the failure stayed up
+    // its 6 s over a retry that had worked.
+    testWidgets('a new touch that succeeds hides the last failure at once', (
+      tester,
+    ) async {
+      await pump(tester, [note('a')]);
+      final answers = [noAnswer(), noAnswer(), ApiResponse.success(true)];
+      when(
+        () => service.markRead('a'),
+      ).thenAnswer((_) async => answers.removeAt(0));
+
+      await tester.tap(find.text('Titre a'));
+      await tester.pumpAndSettle();
+      expectErrorSnack(tester, offline);
+
+      await tester.tap(find.text('Titre a')); // the network is back
+      await tester.pump();
+      await tester.pump(
+        const Duration(milliseconds: 400),
+      ); // the exit animation
+      expect(find.byType(SnackBar), findsNothing);
+      expect(rendered(tester), {'a': true});
+    });
+
     testWidgets('accepted: the row stays read, nothing is said', (
       tester,
     ) async {

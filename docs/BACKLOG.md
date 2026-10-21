@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Living list, **snapshot of 2026-10-18** (main at `a91edc66`). Tick or strike an item in the PR that closes it, with the PR number. **Ticked through 2026-10-21:** batch 1 (#665) and batch 2 (#666). |
+| **Status** | Living list, **snapshot of 2026-10-18** (main at `a91edc66`). Tick or strike an item in the PR that closes it, with the PR number. **Ticked through 2026-10-21:** batch 1 (#665), batch 2 (#666) and batch 3 (#670, #671). |
 | **How it was built** | Every item recorded as left to do since 2026-10-13 was collected: the out-of-scope sections of 76 specs and roadmap entries, the follow-up sections of PRs #598–#631, and the six suggested tasks still waiting. That gave 116 raw items. Then **each one was checked against the code on main** (file and line, in the linked sources), not taken from the docs. Duplicates were merged. Five items turned out to be fixed or not defects (§4). Four can only be checked by the owner (batch 10). |
 | **Related** | [LAUNCH.md](LAUNCH.md) (the launch gates; not repeated here) · [ROADMAP.md](ROADMAP.md) · [design/README.md](design/README.md) |
 
@@ -29,7 +29,7 @@
 | 0 | **Release track** | 0.0.1 through review, device checks, 0.0.2, the store and policy items around them | P1 | release | 5 decisions + the device checks |
 | 1 | ✅ **Pro home and journal stay fresh** | « Ma journée » and « Accueil » showing stale statuses and figures, and an error screen with no way out | P1 | app | **Done — #665** (2026-10-21) |
 | 2 | ✅ **Lost answers to writes** | A booking saved but reported as failed, then a retry into « slot taken » or a double booking | P2 | web, app, backend | **Done — #666** (2026-10-21) |
-| 3 | **The app says the right thing when something fails** | Raw English exception text, a bare « Erreur », two offline sentences, notification read state | P2 | app (+ web wording) | 1 decision |
+| 3 | ✅ **The app says the right thing when something fails** | Raw English exception text, a bare « Erreur », two offline sentences, notification read state | P2 | app (+ web wording) | **Done — #670, #671** (2026-10-21) |
 | 4 | **Web Pro is truthful on failure** | False « choose your offer », « no visits », silent reads, stale Calendrier/Liste, demo refusals | P2 | web | 3 decisions |
 | 5 | **Client web polish** | Sign-in blaming the code, ♥ edge cases, export edge cases, a toast for favourites | P2–P3 | web | 1 decision |
 | 6 | **Backend integrity** | Role gate on booking, invitation accounts, owner contact erasure, demo KYC, deposit range, review reports, Apple token revoke | P2–P3 | backend (+ app, web) | 6 decisions + deploys |
@@ -39,8 +39,8 @@
 | 10 | **Only you can check** | App Store Connect state, support inbox, App Preview, production walk-throughs | — | owner | your time |
 
 **Proposed order.**
-- **Now:** batch 0 runs on Apple's clock. Batches 1 (#665) and 2 (#666) are done; **batch 3 is the next code slice.**
-- **Then:** batches 4 → 5, while batch 6 accumulates and goes out in one or two backend deploys.
+- **Now:** batch 0 runs on Apple's clock. Batches 1 (#665), 2 (#666) and 3 (#670, #671) are done; **batch 4 is the next code slice.**
+- **Then:** batch 5, while batch 6 accumulates and goes out in one or two backend deploys.
 - **When touching an area:** batches 7 and 9.
 - **Whenever you answer:** batch 8.
 
@@ -71,7 +71,7 @@ Each question has a recommendation. Answers unblock the item named in brackets.
 
 **App failure messages (batch 3)**
 
-12. **Notification « marquer comme lu » whose answer was lost:** keep showing it unread until the next load (today), or retry the write once? A retry is safe because the write is idempotent. *Recommended: retry once.* [B3.3]
+12. **Notification « marquer comme lu » whose answer was lost:** keep showing it unread until the next load (today), or retry the write once? A retry is safe because the write is idempotent. *Recommended: retry once.* [B3.3] — ✅ **Answered: retry once** (#671).
 
 **Web Pro (batch 4)**
 
@@ -193,20 +193,20 @@ This batch takes up three of the six suggested tasks that were never started. It
   - **How (web only, if you prefer):** before saying it failed, look for your own appointment in « Mes rendez-vous ».
   - Needs a backend deploy.
 
-### Batch 3 — The app says the right thing when something fails (P2)
+### Batch 3 — The app says the right thing when something fails (P2) — ✅ done (#670, #671, 2026-10-21)
 
-- **B3.1 No raw exception text and no bare « Erreur » (P2 · L).**
+- ✅ **B3.1 No raw exception text and no bare « Erreur » (P2 · L).** **Done in #670** — [app-failure-messages.md](design/app-failure-messages.md) §10 (73 sites, not 67; a batch-1 defect found on the way).
   - **What:** 67 `_error = e.toString()` sites in 23 files. A captive-portal Wi-Fi (HTML with status 200) or a Cloudflare error page shows « TypeError… » or « FormatException… ». Several reads say only « Erreur ».
   - **How:** two shared helpers in `mobile/lib/services/api`.
     - A parse helper that turns `FormatException` / `TypeError` into `ApiResponse.error(« Une erreur est survenue. Réessayez. », code: 'unreadable')`. This generalises what #630 did in `listClients`.
     - An `errorFromResponse(res)` that reads `{error}` when the body is JSON and otherwise maps by status. It replaces each service's private `_errorFrom`.
     - Then migrate the 67 sites provider by provider, with a pin test forbidding `e.toString()` in providers.
-- **B3.2 One offline sentence, everywhere (P3 · M).**
+- ✅ **B3.2 One offline sentence, everywhere (P3 · M).** **Done in #670** — [app-failure-messages.md](design/app-failure-messages.md) §10.
   - **What:** four app services (`api_pro_service`, `api_auth_service`, `api_appointment_service`, `api_provider_service`) say « Connexion au serveur impossible ». Everything else, and the web, says « Pas de connexion. Réessayez. ». Many web save failures say « L'enregistrement a échoué » offline, including the « Mon compte » contact number next to a name field that gets it right.
   - **How:**
     - App: one constant mirroring the web's `NO_CONNECTION_MESSAGE`, used in the four services and the 14 files that spell it out, plus a pin test against the old sentence.
     - Web: `writeFailureMessage(status, …)` on each save-failure sentence, and `loadFailure` moved to `lib/api` for the client pages.
-- **B3.3 Notification read state can lag the server (P2 · S · decision 12).**
+- ✅ **B3.3 Notification read state can lag the server (P2 · S · decision 12).** **Done in #671** — [app-failure-messages.md](design/app-failure-messages.md) §11.
   - **What:** three cases in the client and Pro apps, which share the provider:
     - a reload during an in-flight « marquer comme lu » brings the row back unread;
     - a write whose answer was lost reverts a row the server did mark read;

@@ -18,6 +18,20 @@ class NotificationsProvider extends ChangeNotifier {
   final NotificationServiceInterface _service;
 
   List<AppNotification> _items = [];
+
+  /// The notifications with a « lu » write still out
+  /// (docs/design/app-failure-messages.md §2.3). A reload while one is out
+  /// would bring the server's list — which has not written it yet — and turn
+  /// the row the person just opened back to unread; so they stay read until
+  /// their write answers.
+  final Set<String> _writing = {};
+
+  /// The notifications whose « lu » the server confirmed WHILE a reload was
+  /// out. That reload's list was taken before the write landed, so it is the
+  /// older of the two: it must not turn them back to unread. Emptied once no
+  /// reload is out — from then on the server's list rules.
+  final Set<String> _confirmedDuringLoad = {};
+  int _loadsOut = 0;
   bool _isLoading = false;
   bool _loadFailed = false;
   String? _error;
@@ -31,12 +45,18 @@ class NotificationsProvider extends ChangeNotifier {
   Future<void> load() async {
     _isLoading = true;
     _error = null;
+    _loadsOut++;
     notifyListeners();
 
     try {
       final response = await _service.getNotifications();
       if (response.success && response.data != null) {
-        _items = response.data!;
+        _items = [
+          for (final n in response.data!)
+            _writing.contains(n.id) || _confirmedDuringLoad.contains(n.id)
+                ? n.copyWith(read: true)
+                : n,
+        ];
         _loadFailed = false;
         _error = null;
       } else {
@@ -49,6 +69,8 @@ class NotificationsProvider extends ChangeNotifier {
       _error = kGenericErrorMessage;
       _items = [];
     } finally {
+      _loadsOut--;
+      if (_loadsOut == 0) _confirmedDuringLoad.clear();
       _isLoading = false;
       notifyListeners();
     }
@@ -69,10 +91,7 @@ class NotificationsProvider extends ChangeNotifier {
     final index = _items.indexWhere((n) => n.id == id);
     if (index == -1 || _items[index].read) return null;
     final marked = {id};
-    _setRead(marked, true);
-    final failure = await _persist(() => _service.markRead(id));
-    if (failure != null) _setRead(marked, false);
-    return failure;
+    return _markAndPersist(marked, () => _service.markRead(id));
   }
 
   /// Mark everything read at once, then persist.
@@ -87,9 +106,26 @@ class NotificationsProvider extends ChangeNotifier {
         if (!n.read) n.id,
     };
     if (marked.isEmpty) return null;
+    return _markAndPersist(marked, _service.markAllRead);
+  }
+
+  /// Read at once; kept read across a reload while [write] is out; then the
+  /// server's answer decides — only for [marked], never a snapshot.
+  Future<String?> _markAndPersist(
+    Set<String> marked,
+    Future<ApiResponse<bool>> Function() write,
+  ) async {
     _setRead(marked, true);
-    final failure = await _persist(_service.markAllRead);
-    if (failure != null) _setRead(marked, false);
+    _writing.addAll(marked);
+    final failure = await _persist(write);
+    _writing.removeAll(marked);
+    if (failure != null) {
+      _setRead(marked, false);
+    } else if (_loadsOut > 0) {
+      // A reload still out took its list before this write: keep them read
+      // when it answers.
+      _confirmedDuringLoad.addAll(marked);
+    }
     return failure;
   }
 
@@ -105,7 +141,13 @@ class NotificationsProvider extends ChangeNotifier {
   /// one for anything else — a refusal, no session, an exception.
   Future<String?> _persist(Future<ApiResponse<bool>> Function() write) async {
     try {
-      final response = await write();
+      var response = await write();
+      // A lost answer is asked again ONCE, at once, without a word (owner
+      // decision 12): the write is safe to repeat — the server sets
+      // `read = true` and answers 200 every time.
+      if (!response.success && response.code == 'network') {
+        response = await write();
+      }
       if (response.success) return null;
       if (response.code == 'network') {
         return response.error ?? writeFailedMessage;
