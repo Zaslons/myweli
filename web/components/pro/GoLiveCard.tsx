@@ -6,6 +6,7 @@ import { useEffect, useId, useState } from 'react';
 import type { ProProfile } from '../../lib/api/pro';
 import { getDepositPolicy, getKycStatus, publishSalon } from '../../lib/api/pro';
 import type { KycStatus } from '../../lib/pro/kyc';
+import { salonRefusalMessage } from '../../lib/pro/team';
 import {
   type ChecklistItem,
   canPublish,
@@ -86,7 +87,7 @@ export function GoLiveCard({
       setError(
         r.status === 409
           ? 'Certaines étapes ne sont pas terminées. Vérifiez la liste.'
-          : 'La mise en ligne a échoué. Réessayez.',
+          : salonRefusalMessage(r.status, r.error, 'La mise en ligne a échoué. Réessayez.'),
       );
       return;
     }
