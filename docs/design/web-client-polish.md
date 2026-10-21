@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Proposé le 2026-10-21** — en attente des réponses du propriétaire (§9) |
+| **Statut** | **Validé le 2026-10-21** — Q1 : **la phrase de l'app pour chaque code** ; Q2 (décision 16) : **le message et « Annuler »** ; Q3 : **l'app corrigée dans la PR A** ; Q4 : **« Mon compte » aussi, les mots tels qu'écrits** |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-21 |
 | **PRD ref / phase** | Web client (V1) — parité avec l'app client · WEB-SYSTEM §6 (formulaires), §7 (zones annoncées) · SYSTEM.md §14 (une faute, un endroit), §15 (retours), §17 (les deux phrases) |
@@ -190,8 +190,8 @@ phrase ne dit si une adresse existe.
 ## 7. La livraison
 
 **Deux PR** :
-- **(A) B5.1 + B5.3** — les mots des échecs : la connexion et les exports
-  (et l'app selon Q3).
+- **(A) B5.1 + B5.3** — les mots des échecs : la connexion et les exports,
+  et les deux écrans d'export de l'app (Q3).
 - **(B) B5.2 + B5.4** — le ♥ : les mêmes fichiers (`RechercheClient`,
   `FavoriteButton`, `AccountClient`), après la décision 16.
 
@@ -224,3 +224,5 @@ Nouveaux sur le web (tous déjà dans l'app, sauf un) :
   favori (recommandé — la carte disparaît en silence aujourd'hui), ou seulement
   la recherche et la page salon comme le backlog ? Et les mots (§8), tels
   qu'écrits ?
+
+**Décisions (2026-10-21).** Q1, Q2, Q3 et Q4 : les recommandations, telles qu'écrites.

@@ -81,7 +81,7 @@ Each question has a recommendation. Answers unblock the item named in brackets.
 
 **Client web (batch 5)**
 
-16. **The web ♥:** show only « Ajouté aux favoris » / « Retiré des favoris », or also « Annuler » like the app? « Annuler » would be the web's first toast with an action. *Recommended: message only for now.* [B5.4]
+16. **The web ♥:** show only « Ajouté aux favoris » / « Retiré des favoris », or also « Annuler » like the app? « Annuler » would be the web's first toast with an action. *Recommended: message only for now.* [B5.4] — ✅ **Answered: message + « Annuler »**, like the app (Médias already has an action toast); « Mon compte » announces too ([web-client-polish.md](design/web-client-polish.md) Q2, Q4).
 
 **Backend (batch 6)**
 
