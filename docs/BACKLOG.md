@@ -275,7 +275,7 @@ This batch takes up three of the six suggested tasks that were never started. It
 - ✅ **B6.5 One deposit range, and a removed operator must not block a save (P2 · M · decision 19).** **Done in #677** — §11 (an operator outside the catalogue is not judged with deposits off — and not kept, T57; not yet deployed).
   - **What:** app 5–80 %, web 1–100 %, server 0–100 %. A value saved on one surface can't be shown on another. An operator removed from the catalogue blocks every save, even with deposits off.
   - **How:** the server enforces the chosen range, and both forms use the same bounds. With deposits off, skip the catalogue check. With deposits on, answer `operator_unavailable` so the fault shows under the operator field.
-- **B6.6 Salons can't report reviews of their own salon (P2 · M · decision 20).**
+- ✅ **B6.6 Salons can't report reviews of their own salon (P2 · M · decision 20).** **Done in #678** — [backend-integrity-batch6.md](design/backend-integrity-batch6.md) §12 (the key stays `(review_id, reporter_user_id)`, since salon and client ids never collide; a sibling `reportBySalon` holds the « a review of this salon » check; not yet deployed).
   - **What:** App Store 1.2 expects reporting on user content, and the Pro « Avis » screen has none.
   - **How:**
     - Server: `POST /me/provider/reviews/{id}/report`, behind the same membership gate. It reuses `ModerationService.report` with the reporter recorded as the salon, and a migration adds `reporter_kind`.
