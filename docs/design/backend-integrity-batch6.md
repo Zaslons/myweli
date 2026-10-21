@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **PR A fusionnée** (#676 — §10) ; **PR B fusionnée** (#677 — §11) ; **PR C construite le 2026-10-21** sur `feat/salon-review-reports` (#678 — B6.6 — §12) ; **rien n'est déployé** ; PR D à suivre, puis un déploiement (demandé avant). Validé le même jour — Q1 (décision 17) : **effacer les numéros et l'adresse, garder le nom et l'historique** ; Q2 (décision 18) : **effacer le KYC de la démo à la remise** ; Q3 (décision 19) : **5–80 %** ; Q4 (décision 20) : **Propriétaire et Gérant, la même file marquée** ; Q5 : **Apple construit maintenant, inactif sans clé** ; Q6 : **le reste tel qu'écrit** (décision 22 : l'alerte, pas de recréation) |
+| **Statut** | **PR A fusionnée** (#676 — §10) ; **PR B fusionnée** (#677 — §11) ; **PR C fusionnée** (#678 — §12) ; **PR D construite le 2026-10-21** sur `feat/apple-token-revocation` (#679 — B6.7 — §13, §14 ; **inactive tant que la clé Apple n'existe pas**) ; **rien n'est déployé** ; ensuite un déploiement du serveur (demandé avant). Validé le même jour — Q1 (décision 17) : **effacer les numéros et l'adresse, garder le nom et l'historique** ; Q2 (décision 18) : **effacer le KYC de la démo à la remise** ; Q3 (décision 19) : **5–80 %** ; Q4 (décision 20) : **Propriétaire et Gérant, la même file marquée** ; Q5 : **Apple construit maintenant, inactif sans clé** ; Q6 : **le reste tel qu'écrit** (décision 22 : l'alerte, pas de recréation) |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-21 |
 | **PRD ref / phase** | Serveur (V1) — BACKEND.md §3 (authz, refus par défaut, validation), §7 (modèle de menaces) · App Store 1.2 (signaler un contenu), 5.1.1(v) (suppression de compte) |
@@ -157,6 +157,7 @@ Tests seulement.
   *Construit autrement — l'unicité reste à deux colonnes, voir §12.*
 - B6.7 : `apple_refresh_tokens (account_kind, account_id, token, created_at)`,
   supprimé en cascade avec le compte.
+  *Construit autrement — `apple_tokens`, avec le client, sans clé étrangère ; voir §13.*
 - Toutes **additives**, réversibles, sous les délais de verrouillage du dépôt
   (`migration_timeouts`).
 
@@ -454,3 +455,70 @@ appel) ; les deux suppressions l'appellent avant l'identité ; les jumeaux
 (mémoire et Postgres) ; le démarrage (tout ou rien, clé illisible) ; le web
 (le code passe, le BFF ajoute l'URL de retour) ; l'app (le code passe, trois
 entrées).
+
+## 14. PR D construite (B6.7) — ce qui a été vu
+
+**Comme le §13**, avec ces précisions :
+- **L'audience** : le résultat de la vérification ne la portait pas. Plutôt
+  que de changer ce type partout (dix-huit endroits, faux compris), le
+  vérificateur gagne `audienceOf(jeton)`. Il lit l'audience d'un jeton
+  **déjà accepté**, et seulement si elle est dans la liste autorisée. Testé
+  sur un vrai jeton signé.
+- **Les champs du corps** : l'`authorizationCode` et le `redirectUri` sont lus
+  **avec les autres champs, avant la connexion** (`appleCodeOf`). Un mauvais
+  type JSON donne donc `400 invalid_body`, comme pour tout champ, et ne
+  transforme jamais une connexion réussie en 400. Une valeur seulement
+  inutilisable (vide, trop longue, une adresse sans https) est ignorée.
+- **Le service n'est lu qu'avec un code** : une connexion sans code ne touche
+  pas `AppleTokenService`. Les tests existants des routes Apple n'ont donc pas
+  bougé.
+- **Le `client_secret`** : la bibliothèque JWT pose son propre `iat` ; le nôtre
+  est gardé (`noIssueAt`). Un test l'a montré.
+- **Les clés dans les tests** : une paire P-256 est générée à chaque
+  exécution, puis encodée en PKCS#8 comme le `.p8` d'Apple. Aucune clé n'est
+  dans le dépôt. L'en-tête PEM est composé, pas écrit en toutes lettres, pour
+  la même raison que les autres fixtures (gitleaks).
+- **Le web** : les trois BFF reçoivent le code et y ajoutent **leur propre**
+  `redirectUri` (`<origine>/connexion`, celle que la page a donnée à Apple).
+  L'inscription Pro transmettait le corps du navigateur en entier : elle
+  écarte désormais un `redirectUri` venu du navigateur, et le code quand
+  l'identité est Google.
+- **L'app** : un point d'injection `AppleCredentialProvider`, comme celui de
+  Google, pour que les trois entrées Apple soient testées. Un code vide n'est
+  pas envoyé.
+- **Le démarrage** : en production sans clé, une ligne `NOTICE` à chaque
+  démarrage. Une clé à moitié configurée arrête le démarrage, comme les
+  autres secrets (`_assertConfiguredDependenciesResolve`).
+- **Tes étapes** sont dans DEPLOYMENT.md (Phase C) : la clé, le secret, le
+  montage épinglé, le déploiement. Chacune est une action sur le cloud, à me
+  demander avant.
+
+**Vérifié** : `dart analyze` et `flutter analyze` à zéro ; serveur avec
+Postgres (2 160 tests, 2 ignorés) ; web (2 174) ; app (2 562) ; e2e entier sur deux
+workers (269) ; types web régénérés du contrat. **Mutations vues rouges
+(43)** — aucune n'a survécu au premier passage :
+- **la clé** : acceptée à moitié ; les `\n` échappés gardés tels quels ;
+- **le secret** : `sub` remplacé par l'équipe ; sans `kid` ; six mois de
+  validité ;
+- **l'échange** : le jeton d'un autre `sub` gardé ; le `redirect_uri` du web
+  perdu ; un refus d'Apple lu comme une réponse ; plus de limite de temps ;
+  une erreur qui remonte jusqu'à la connexion ;
+- **la révocation** : les lignes gardées ; le mauvais client ; sans
+  `token_type_hint` ; une erreur qui remonte ;
+- **les champs** : n'importe quelle adresse de retour ; pas de limite de
+  longueur ;
+- **les deux versions du stockage** : les types de compte mélangés (mémoire) ;
+  le premier jeton gardé au lieu du dernier, et l'effacement qui ignore le
+  type (Postgres) ;
+- **le vérificateur** : n'importe quelle audience acceptée ;
+- **les routes** : le jeton gardé sous le mauvais type de compte (trois
+  fois) ; jamais gardé (deux fois) ; gardé après une connexion refusée ;
+- **les suppressions** : pas de révocation ; la révocation après la
+  suppression de l'identité (client et Pro) ; le mauvais type de compte
+  (Pro) ;
+- **le web** : le code non lu ; pas d'adresse de retour ajoutée par le BFF ;
+  le code perdu par chacun des deux BFF de connexion et par la fonction Pro
+  qui appelle le sien ; l'adresse du navigateur gardée ; le code envoyé avec
+  une identité Google ;
+- **l'app** : jamais de code envoyé ; un code vide envoyé ; le code perdu
+  par chacune des trois entrées.
