@@ -1,11 +1,10 @@
-import 'dart:convert';
-
 import 'package:http/http.dart' as http;
 
 import '../../core/config/app_config.dart';
 import '../../models/api_response.dart';
 import '../../models/locality.dart';
 import '../interfaces/locality_service_interface.dart';
+import 'api_errors.dart';
 
 /// Real HTTP implementation of [LocalityServiceInterface] — `GET /localities`
 /// (multi-pays MP1; public, cacheable). Wired by [setupDependencyInjection]
@@ -20,18 +19,22 @@ class ApiLocalityService implements LocalityServiceInterface {
 
   @override
   Future<ApiResponse<List<LocalityCountry>>> getLocalities() async {
+    // Nothing answered, a refusal or a page, an answer that does not read:
+    // three facts, three sentences (docs/design/app-failure-messages.md §1.2
+    // — this one said « Connexion impossible » for all of them).
+    final http.Response res;
     try {
-      final res = await _client.get(Uri.parse('$_baseUrl/localities'));
-      if (res.statusCode != 200) {
-        return ApiResponse.error('Erreur serveur (${res.statusCode})');
-      }
-      final body = jsonDecode(res.body) as Map<String, dynamic>;
-      final countries = ((body['countries'] as List?) ?? const [])
-          .map((c) => LocalityCountry.fromJson(c as Map<String, dynamic>))
-          .toList();
-      return ApiResponse.success(countries);
+      res = await _client.get(Uri.parse('$_baseUrl/localities'));
     } catch (_) {
-      return ApiResponse.error('Connexion impossible. Réessayez.');
+      return networkError();
     }
+    if (res.statusCode != 200) return errorFromResponse(res);
+    return readOrUnreadable(
+      res,
+      (json) =>
+          (((json! as Map<String, dynamic>)['countries'] as List?) ?? const [])
+              .map((c) => LocalityCountry.fromJson(c as Map<String, dynamic>))
+              .toList(),
+    );
   }
 }

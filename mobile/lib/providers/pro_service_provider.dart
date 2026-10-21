@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import '../core/access/pro_salon_scope.dart';
+import '../core/constants/failure_messages.dart';
 import '../core/di/dependency_injection.dart';
 import '../models/service.dart';
 import '../services/interfaces/pro_service_interface.dart';
@@ -39,7 +40,7 @@ class ProServiceProvider extends ChangeNotifier implements SalonScoped {
         _services = [];
       }
     } catch (e) {
-      _error = e.toString();
+      _error = kGenericErrorMessage;
       _services = [];
     } finally {
       _isLoading = false;
@@ -67,7 +68,7 @@ class ProServiceProvider extends ChangeNotifier implements SalonScoped {
         return false;
       }
     } catch (e) {
-      _error = e.toString();
+      _error = kGenericErrorMessage;
       notifyListeners();
       return false;
     } finally {
@@ -99,7 +100,7 @@ class ProServiceProvider extends ChangeNotifier implements SalonScoped {
         return false;
       }
     } catch (e) {
-      _error = e.toString();
+      _error = kGenericErrorMessage;
       notifyListeners();
       return false;
     } finally {
@@ -125,7 +126,7 @@ class ProServiceProvider extends ChangeNotifier implements SalonScoped {
         return false;
       }
     } catch (e) {
-      _error = e.toString();
+      _error = kGenericErrorMessage;
       notifyListeners();
       return false;
     } finally {

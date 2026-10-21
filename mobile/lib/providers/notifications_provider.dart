@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import '../core/constants/failure_messages.dart';
 import '../core/di/dependency_injection.dart';
 import '../models/api_response.dart';
 import '../models/app_notification.dart';
@@ -45,7 +46,7 @@ class NotificationsProvider extends ChangeNotifier {
       }
     } catch (e) {
       _loadFailed = true;
-      _error = e.toString();
+      _error = kGenericErrorMessage;
       _items = [];
     } finally {
       _isLoading = false;
@@ -56,7 +57,7 @@ class NotificationsProvider extends ChangeNotifier {
   /// What a refused write says when the service has nothing better — the
   /// app's fallback on the favourite heart. The server's own sentence is never
   /// shown: these routes send none, and `_errorFrom` turns that into « Erreur ».
-  static const writeFailedMessage = 'Une erreur est survenue. Réessayez.';
+  static const writeFailedMessage = kGenericErrorMessage;
 
   /// Mark one notification read at once, then persist.
   ///

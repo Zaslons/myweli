@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import type { Me } from '../../lib/api/account';
-import { NO_CONNECTION_MESSAGE } from '../../lib/api/network';
+import { NO_CONNECTION_MESSAGE, writeFailureMessage } from '../../lib/api/network';
 import {
   loginWithApple,
   loginWithGoogle,
@@ -140,7 +140,7 @@ export function LoginOptions({ onSuccess }: { onSuccess: () => void }) {
       // The server's verdict on the number is the field's; anything else
       // (network, 5xx) is not the number's fault — the form says so.
       if (r.error === 'invalid_phone') return fields.set('phone', PHONE_INVALID);
-      return setError('L’enregistrement a échoué. Réessayez.');
+      return setError(writeFailureMessage(r.status, 'L’enregistrement a échoué. Réessayez.'));
     }
     onSuccess();
   }

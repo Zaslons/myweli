@@ -41,6 +41,7 @@ import { TextField } from "../TextField";
 import { SalonTimeHint } from "../SalonTimeHint";
 import { DepositProof } from "../booking/DepositProof";
 import { ReviewForm } from "./ReviewForm";
+import { loadFailure, loadFailureMessage, type LoadFailure } from "../../lib/api/load-failure";
 
 export function AppointmentDetailClient({ id }: { id: string }) {
   const router = useRouter();
@@ -52,7 +53,10 @@ export function AppointmentDetailClient({ id }: { id: string }) {
   const [notFound, setNotFound] = useState(false);
   // Any other failed read (no network, a 5xx): « Réessayer », never
   // « introuvable » (docs/design/web-consumer-network-failure.md §3.2).
-  const [loadFailed, setLoadFailed] = useState(false);
+  // Why the read failed (docs/design/app-failure-messages.md §2.2): no answer
+  // says « Pas de connexion » under the title; a server that answered, the
+  // error state's own sentence.
+  const [loadFailed, setLoadFailed] = useState<LoadFailure | false>(false);
   const [cancelError, setCancelError] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -93,7 +97,7 @@ export function AppointmentDetailClient({ id }: { id: string }) {
       return;
     }
     if (r.status !== 200 || !r.appt) {
-      setLoadFailed(true);
+      setLoadFailed(loadFailure(r.status));
       setLoading(false);
       return;
     }
@@ -173,7 +177,11 @@ export function AppointmentDetailClient({ id }: { id: string }) {
     // The page's h1 survives the error (§4), and a way back (§12).
     return (
       <div>
-        <ErrorState title="Rendez-vous" onRetry={() => void load()} />
+        <ErrorState
+          title="Rendez-vous"
+          message={loadFailureMessage(loadFailed)}
+          onRetry={() => void load()}
+        />
         <p className="mt-m">
           <Link href="/mon-compte" className="text-bodyMedium underline">
             ← Mes rendez-vous

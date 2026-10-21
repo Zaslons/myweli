@@ -692,7 +692,9 @@ void main() {
     test('an unknown code still falls back', () async {
       expect(
         await manualBookingError('something_new'),
-        'Une erreur est survenue.',
+        // The approved generic sentence (docs/design/app-failure-messages.md
+        // §8) — the tables' own « Une erreur est survenue. » is retired.
+        'Une erreur est survenue. Réessayez.',
       );
     });
   });

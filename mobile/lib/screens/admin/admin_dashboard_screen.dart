@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/constants/failure_messages.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/text_styles.dart';
 import '../../providers/admin/admin_dashboard_provider.dart';
@@ -50,7 +51,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(p.error ?? 'Erreur', style: AppTextStyles.bodyMedium),
+            Text(
+              p.error ?? kGenericErrorMessage,
+              style: AppTextStyles.bodyMedium,
+            ),
             const SizedBox(height: AppTheme.spacingM),
             AppButton(
               text: 'Réessayer',

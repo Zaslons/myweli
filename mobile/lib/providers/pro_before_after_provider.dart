@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import '../core/access/pro_salon_scope.dart';
+import '../core/constants/failure_messages.dart';
 import '../core/di/dependency_injection.dart';
 import '../models/before_after_pair.dart';
 import '../services/interfaces/image_upload_service_interface.dart';
@@ -43,7 +44,7 @@ class ProBeforeAfterProvider extends ChangeNotifier implements SalonScoped {
       }
     } catch (e) {
       _loadFailed = true;
-      _error = e.toString();
+      _error = kGenericErrorMessage;
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -102,7 +103,7 @@ class ProBeforeAfterProvider extends ChangeNotifier implements SalonScoped {
       _error = saved.error ?? 'Échec de l’enregistrement';
       return false;
     } catch (e) {
-      _error = e.toString();
+      _error = kGenericErrorMessage;
       return false;
     } finally {
       _isUploading = false;

@@ -375,7 +375,9 @@ void main() {
       // The over-reach guard — the default arm must survive.
       expect(
         (await bookWith('something_new', 409)).error,
-        'Une erreur est survenue.',
+        // The approved generic sentence (docs/design/app-failure-messages.md
+        // §8) — the tables' own « Une erreur est survenue. » is retired.
+        'Une erreur est survenue. Réessayez.',
       );
     });
   });

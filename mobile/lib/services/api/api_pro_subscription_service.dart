@@ -8,6 +8,7 @@ import '../../models/api_response.dart';
 import '../../models/salon_subscription.dart';
 import '../interfaces/session_store.dart';
 import '../interfaces/subscription_service_interface.dart';
+import 'api_errors.dart';
 import 'refreshing_http_client.dart';
 
 /// Real HTTP implementation of [SubscriptionServiceInterface] (pricing
@@ -50,9 +51,11 @@ class ApiProSubscriptionService implements SubscriptionServiceInterface {
         headers: _bearer(t),
       ),
     );
-    if (res == null) return _networkError();
+    if (res == null) return networkError();
     if (res.statusCode == 404) return ApiResponse.error('', code: 'no_offer');
-    if (res.statusCode != 200) return _errorFrom(res);
+    if (res.statusCode != 200) {
+      return errorFromResponse(res, messageFor: teamErrorMessage);
+    }
     return ApiResponse.success(
       SalonSubscription.fromJson(jsonDecode(res.body) as Map<String, dynamic>),
     );
@@ -60,16 +63,4 @@ class ApiProSubscriptionService implements SubscriptionServiceInterface {
 
   Uri _uri(String path) => Uri.parse('$_baseUrl$path');
   Map<String, String> _bearer(String t) => {'Authorization': 'Bearer $t'};
-  ApiResponse<T> _networkError<T>() =>
-      ApiResponse.error('Pas de connexion. Réessayez.');
-
-  ApiResponse<T> _errorFrom<T>(http.Response res) {
-    try {
-      final body = jsonDecode(res.body) as Map<String, dynamic>;
-      final code = body['error'] as String?;
-      return ApiResponse.error(teamErrorMessage(code), code: code);
-    } catch (_) {
-      return ApiResponse.error('Erreur');
-    }
-  }
 }

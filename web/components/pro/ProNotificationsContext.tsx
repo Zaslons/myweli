@@ -12,7 +12,7 @@ import {
 } from 'react';
 import { type AppNotification, unreadCount } from '../../lib/account/notifications';
 import { getProNotifications } from '../../lib/api/pro';
-import { type LoadFailure, loadFailure } from '../../lib/pro/load-failure';
+import { type LoadFailure, loadFailure } from '../../lib/api/load-failure';
 import {
   PRO_NOTIFICATIONS_POLL_MS,
   arrivalAnnouncement,

@@ -3,10 +3,12 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../../core/config/app_config.dart';
+import '../../core/constants/failure_messages.dart';
 import '../../models/api_response.dart';
 import '../../models/provider.dart';
 import '../interfaces/favorites_service_interface.dart';
 import '../interfaces/session_store.dart';
+import 'api_errors.dart';
 import 'refreshing_http_client.dart';
 
 /// Real HTTP implementation of [FavoritesServiceInterface] (backend
@@ -46,8 +48,8 @@ class ApiFavoritesService implements FavoritesServiceInterface {
     final res = await _authed.send(
       (t) => _client.get(_uri('/me/favorites'), headers: _bearer(t)),
     );
-    if (res == null) return _networkError();
-    if (res.statusCode != 200) return _errorFrom(res);
+    if (res == null) return networkError();
+    if (res.statusCode != 200) return errorFromResponse(res);
     final body = jsonDecode(res.body) as Map<String, dynamic>;
     final ids = ((body['providerIds'] as List?) ?? const [])
         .map((e) => e as String)
@@ -65,15 +67,15 @@ class ApiFavoritesService implements FavoritesServiceInterface {
     final res = await _authed.send(
       (t) => _client.get(_uri('/me/favorites'), headers: _bearer(t)),
     );
-    if (res == null) return _networkError();
-    if (res.statusCode != 200) return _errorFrom(res);
+    if (res == null) return networkError();
+    if (res.statusCode != 200) return errorFromResponse(res);
     final body = jsonDecode(res.body) as Map<String, dynamic>;
     // The server always sends `providers` (an empty list when there are
     // none): a 200 without it is an answer that did not arrive whole, never
     // « no favourites » — « Mes données » would copy it as complete
     // (docs/design/export-unreadable-200.md §2).
     final providers = body['providers'];
-    if (providers is! List) return ApiResponse.error('Erreur');
+    if (providers is! List) return unreadable();
     final items = providers
         .map((e) => Provider.fromJson(e as Map<String, dynamic>))
         .toList();
@@ -98,9 +100,9 @@ class ApiFavoritesService implements FavoritesServiceInterface {
           ? _client.post(uri, headers: _bearer(t))
           : _client.delete(uri, headers: _bearer(t)),
     );
-    if (res == null) return _networkError();
+    if (res == null) return networkError();
     if (res.statusCode != 204 && res.statusCode != 200) {
-      return _errorFrom(res);
+      return errorFromResponse(res);
     }
     return ApiResponse.success(true);
   }
@@ -109,7 +111,10 @@ class ApiFavoritesService implements FavoritesServiceInterface {
   Future<ApiResponse<bool>> isFavorite(String userId, String providerId) async {
     final res = await getFavoriteProviderIds(userId);
     if (!res.success) {
-      return ApiResponse.error(res.error ?? 'Erreur', code: res.code);
+      return ApiResponse.error(
+        res.error ?? kGenericErrorMessage,
+        code: res.code,
+      );
     }
     return ApiResponse.success(res.data!.contains(providerId));
   }
@@ -118,18 +123,4 @@ class ApiFavoritesService implements FavoritesServiceInterface {
   Map<String, String> _bearer(String token) => {
     'Authorization': 'Bearer $token',
   };
-  ApiResponse<T> _networkError<T>() =>
-      ApiResponse.error('Pas de connexion. Réessayez.');
-
-  ApiResponse<T> _errorFrom<T>(http.Response res) {
-    try {
-      final body = jsonDecode(res.body) as Map<String, dynamic>;
-      return ApiResponse.error(
-        body['message'] as String? ?? 'Erreur',
-        code: body['error'] as String?,
-      );
-    } catch (_) {
-      return ApiResponse.error('Erreur');
-    }
-  }
 }

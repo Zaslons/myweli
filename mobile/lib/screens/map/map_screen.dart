@@ -161,7 +161,9 @@ class _MapScreenState extends State<MapScreen> {
       });
     } catch (e) {
       setState(() {
-        _locationError = e.toString();
+        // The plugin's own text is English (a timeout, a service turned off
+        // mid-request): the map says it in its words (§8).
+        _locationError = 'Position introuvable. Réessayez.';
       });
     } finally {
       setState(() {

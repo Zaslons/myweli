@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../core/access/pro_access_guard.dart';
 import '../core/access/pro_salon_scope.dart';
+import '../core/constants/failure_messages.dart';
 import '../core/di/dependency_injection.dart';
 import '../core/router/pro_router.dart';
 import '../models/api_response.dart';
@@ -250,7 +251,7 @@ class ProAuthProvider extends ChangeNotifier {
       _errorCode = res.code;
       return null;
     } catch (e) {
-      _error = e.toString();
+      _error = kGenericErrorMessage;
       return null;
     } finally {
       _isLoading = false;
@@ -718,7 +719,7 @@ class ProAuthProvider extends ChangeNotifier {
         unawaited(loadMySalons());
       }
     } catch (e) {
-      _error = e.toString();
+      _error = kGenericErrorMessage;
     } finally {
       // Signed out, or the restore itself failed: there is nothing more the
       // stored session can say, so it counts as restored.
@@ -743,7 +744,7 @@ class ProAuthProvider extends ChangeNotifier {
         return false;
       }
     } catch (e) {
-      _error = e.toString();
+      _error = kGenericErrorMessage;
       return false;
     } finally {
       _isLoading = false;
@@ -771,7 +772,7 @@ class ProAuthProvider extends ChangeNotifier {
         return false;
       }
     } catch (e) {
-      _error = e.toString();
+      _error = kGenericErrorMessage;
       return false;
     } finally {
       _isLoading = false;
@@ -815,7 +816,7 @@ class ProAuthProvider extends ChangeNotifier {
           : (response.error ?? 'Connexion impossible.');
       return false;
     } catch (e) {
-      _error = e.toString();
+      _error = kGenericErrorMessage;
       return false;
     } finally {
       _isLoading = false;
@@ -868,7 +869,7 @@ class ProAuthProvider extends ChangeNotifier {
                 : 'Connexion impossible.');
       return false;
     } catch (e) {
-      _error = e.toString();
+      _error = kGenericErrorMessage;
       return false;
     } finally {
       _isLoading = false;
@@ -903,7 +904,7 @@ class ProAuthProvider extends ChangeNotifier {
       _errorCode = response.code;
       return false;
     } catch (e) {
-      _error = e.toString();
+      _error = kGenericErrorMessage;
       return false;
     } finally {
       _isLoading = false;
@@ -940,7 +941,7 @@ class ProAuthProvider extends ChangeNotifier {
       }
       return true;
     } catch (e) {
-      _error = e.toString();
+      _error = kGenericErrorMessage;
       return false;
     } finally {
       _isLoading = false;
@@ -980,7 +981,7 @@ class ProAuthProvider extends ChangeNotifier {
       _errorCode = response.code;
       return false;
     } catch (e) {
-      _error = e.toString();
+      _error = kGenericErrorMessage;
       return false;
     } finally {
       _isLoading = false;
@@ -1075,7 +1076,7 @@ class ProAuthProvider extends ChangeNotifier {
       _clearRejoin();
       _error = null;
     } catch (e) {
-      _error = e.toString();
+      _error = kGenericErrorMessage;
     } finally {
       _isLoading = false;
       notifyListeners();

@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import '../core/access/pro_salon_scope.dart';
+import '../core/constants/failure_messages.dart';
 import '../core/di/dependency_injection.dart';
 import '../models/availability.dart';
 import '../services/interfaces/pro_service_interface.dart';
@@ -40,7 +41,7 @@ class ProAvailabilityProvider extends ChangeNotifier implements SalonScoped {
         _availability = null;
       }
     } catch (e) {
-      _error = e.toString();
+      _error = kGenericErrorMessage;
       _availability = null;
     } finally {
       _isLoading = false;
@@ -71,7 +72,7 @@ class ProAvailabilityProvider extends ChangeNotifier implements SalonScoped {
         return false;
       }
     } catch (e) {
-      _error = e.toString();
+      _error = kGenericErrorMessage;
       notifyListeners();
       return false;
     } finally {

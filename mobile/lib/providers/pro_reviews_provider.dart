@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import '../core/access/pro_salon_scope.dart';
+import '../core/constants/failure_messages.dart';
 import '../core/di/dependency_injection.dart';
 import '../models/review.dart';
 import '../models/review_summary.dart';
@@ -59,7 +60,7 @@ class ProReviewsProvider extends ChangeNotifier implements SalonScoped {
         _error = res.error ?? 'Erreur lors du chargement des avis';
       }
     } catch (e) {
-      _error = e.toString();
+      _error = kGenericErrorMessage;
       _reviews = [];
       _summary = null;
     } finally {

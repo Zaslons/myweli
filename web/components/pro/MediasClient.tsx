@@ -5,7 +5,7 @@ import { Chip } from '../Chip';
 import { ErrorState } from '../ErrorState';
 import { type ChangeEvent, useEffect, useRef, useState } from 'react';
 import { getMyProvider, saveBeforeAfters, saveGallery } from '../../lib/api/pro';
-import { loadFailure, loadFailureMessage, type LoadFailure } from '../../lib/pro/load-failure';
+import { loadFailure, loadFailureMessage, type LoadFailure } from '../../lib/api/load-failure';
 import {
   type BeforeAfterPair,
   canAddPair,

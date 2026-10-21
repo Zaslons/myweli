@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import '../core/constants/failure_messages.dart';
 import '../core/di/dependency_injection.dart';
 import '../models/notification_preferences.dart';
 import '../services/interfaces/notification_service_interface.dart';
@@ -37,7 +38,7 @@ class NotificationPreferencesProvider extends ChangeNotifier {
       }
     } catch (e) {
       _loadFailed = true;
-      _error = e.toString();
+      _error = kGenericErrorMessage;
     } finally {
       _isLoading = false;
       notifyListeners();

@@ -1,3 +1,5 @@
+import '../constants/failure_messages.dart';
+
 /// Machine-code → French copy for the team & offers surfaces (team access
 /// R3). ONE table used by BOTH the mock and the API services so the copy
 /// can never drift between backends.
@@ -35,7 +37,7 @@ String teamErrorMessage(String? code, {String? fallback}) => switch (code) {
   'not_a_member' => 'Votre accès à ce salon a été retiré.',
   'forbidden' => 'Action réservée au propriétaire du salon.',
   'demo_account_locked' => demoAccountLockedMessage,
-  _ => fallback ?? 'Une erreur est survenue. Réessayez.',
+  _ => fallback ?? kGenericErrorMessage,
 };
 
 /// The invite refused by the offer gate (`offer_required`). The server sends

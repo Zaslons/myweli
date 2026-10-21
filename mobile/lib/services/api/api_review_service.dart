@@ -7,6 +7,7 @@ import '../../models/api_response.dart';
 import '../../models/review.dart';
 import '../interfaces/review_service_interface.dart';
 import '../interfaces/session_store.dart';
+import 'api_errors.dart';
 import 'refreshing_http_client.dart';
 
 /// Real HTTP implementation of [ReviewServiceInterface] (backend B-reviews).
@@ -56,8 +57,8 @@ class ApiReviewService implements ReviewServiceInterface {
         }),
       ),
     );
-    if (res == null) return _networkError();
-    if (res.statusCode != 201) return _errorFrom(res);
+    if (res == null) return networkError();
+    if (res.statusCode != 201) return errorFromResponse(res);
     return ApiResponse.success(
       Review.fromJson(jsonDecode(res.body) as Map<String, dynamic>),
       message: 'Merci pour votre avis',
@@ -74,7 +75,7 @@ class ApiReviewService implements ReviewServiceInterface {
       '/providers/$providerId/reviews',
     ).replace(queryParameters: {'page': '$page', 'pageSize': '$pageSize'});
     final res = await _client.get(uri); // public
-    if (res.statusCode != 200) return _errorFrom(res);
+    if (res.statusCode != 200) return errorFromResponse(res);
     final items =
         ((jsonDecode(res.body) as Map<String, dynamic>)['items'] as List? ??
                 const [])
@@ -105,23 +106,8 @@ class ApiReviewService implements ReviewServiceInterface {
         }),
       ),
     );
-    if (res == null) return _networkError();
-    if (res.statusCode != 200) return _errorFrom(res);
+    if (res == null) return networkError();
+    if (res.statusCode != 200) return errorFromResponse(res);
     return ApiResponse.success(null, message: 'Avis signalé');
-  }
-
-  ApiResponse<T> _networkError<T>() =>
-      ApiResponse.error('Pas de connexion. Réessayez.');
-
-  ApiResponse<T> _errorFrom<T>(http.Response res) {
-    try {
-      final body = jsonDecode(res.body) as Map<String, dynamic>;
-      return ApiResponse.error(
-        body['message'] as String? ?? 'Erreur',
-        code: body['error'] as String?,
-      );
-    } catch (_) {
-      return ApiResponse.error('Erreur');
-    }
   }
 }

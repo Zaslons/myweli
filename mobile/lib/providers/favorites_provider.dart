@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import '../core/constants/failure_messages.dart';
 import '../core/di/dependency_injection.dart';
 import '../core/utils/salon_figures.dart';
 import '../models/api_response.dart';
@@ -53,7 +54,7 @@ class FavoritesProvider extends ChangeNotifier {
         _favoriteProviders = [];
       }
     } catch (e) {
-      _error = e.toString();
+      _error = kGenericErrorMessage;
       _favoriteProviderIds = [];
       _favoriteProviders = [];
     } finally {
@@ -106,7 +107,7 @@ class FavoritesProvider extends ChangeNotifier {
         return false;
       }
     } catch (e) {
-      _error = e.toString();
+      _error = kGenericErrorMessage;
       notifyListeners();
       return false;
     } finally {

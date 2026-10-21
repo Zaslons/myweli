@@ -6,7 +6,8 @@ import { ErrorState } from '../ErrorState';
 import { useRouter } from 'next/navigation';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 import type { ProProfile } from '../../lib/api/pro';
-import { loadFailure, loadFailureMessage, type LoadFailure } from '../../lib/pro/load-failure';
+import { loadFailure, loadFailureMessage, type LoadFailure } from '../../lib/api/load-failure';
+import { writeFailureMessage } from '../../lib/api/network';
 import { getMyProvider, updateProviderProfile } from '../../lib/api/pro';
 import { useFieldErrors } from '../../lib/forms/useFieldErrors';
 import { PHONE_INVALID } from '../../lib/phone';
@@ -159,7 +160,7 @@ export function ProfilClient() {
       // §2: two phone fields on one form, so two codes) — under that field.
       if (r.error === 'invalid_phone') phones.set('phoneNumber', PHONE_INVALID);
       else if (r.error === 'invalid_whatsapp') phones.set('whatsapp', PHONE_INVALID);
-      else setError('L’enregistrement a échoué. Réessayez.');
+      else setError(writeFailureMessage(r.status, 'L’enregistrement a échoué. Réessayez.'));
       return;
     }
     setSaved(true);

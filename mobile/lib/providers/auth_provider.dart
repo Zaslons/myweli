@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import '../core/constants/failure_messages.dart';
 import '../core/di/dependency_injection.dart';
 import '../models/api_response.dart';
 import '../models/user.dart';
@@ -52,7 +53,7 @@ class AuthProvider extends ChangeNotifier {
       _error = null;
       if (_user != null) _syncPush();
     } catch (e) {
-      _error = e.toString();
+      _error = kGenericErrorMessage;
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -86,7 +87,7 @@ class AuthProvider extends ChangeNotifier {
         return false;
       }
     } catch (e) {
-      _error = e.toString();
+      _error = kGenericErrorMessage;
       return false;
     } finally {
       _isLoading = false;
@@ -113,7 +114,7 @@ class AuthProvider extends ChangeNotifier {
         return false;
       }
     } catch (e) {
-      _error = e.toString();
+      _error = kGenericErrorMessage;
       return false;
     } finally {
       _isLoading = false;
@@ -149,7 +150,7 @@ class AuthProvider extends ChangeNotifier {
           : (response.error ?? 'Connexion impossible.');
       return false;
     } catch (e) {
-      _error = e.toString();
+      _error = kGenericErrorMessage;
       return false;
     } finally {
       _isLoading = false;
@@ -178,7 +179,7 @@ class AuthProvider extends ChangeNotifier {
       _otpErrorCode = response.code;
       return false;
     } catch (e) {
-      _error = e.toString();
+      _error = kGenericErrorMessage;
       return false;
     } finally {
       _isLoading = false;
@@ -204,7 +205,7 @@ class AuthProvider extends ChangeNotifier {
       _user = null;
       _error = null;
     } catch (e) {
-      _error = e.toString();
+      _error = kGenericErrorMessage;
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -227,7 +228,7 @@ class AuthProvider extends ChangeNotifier {
       _error = response.error ?? 'Erreur lors de la suppression';
       return false;
     } catch (e) {
-      _error = e.toString();
+      _error = kGenericErrorMessage;
       return false;
     } finally {
       _isLoading = false;
@@ -256,7 +257,7 @@ class AuthProvider extends ChangeNotifier {
       }
       return await updateUser(avatarUrl: res.data);
     } catch (e) {
-      _error = e.toString();
+      _error = kGenericErrorMessage;
       return false;
     } finally {
       _isUploadingAvatar = false;
@@ -292,7 +293,7 @@ class AuthProvider extends ChangeNotifier {
         return false;
       }
     } catch (e) {
-      _error = e.toString();
+      _error = kGenericErrorMessage;
       return false;
     } finally {
       _isLoading = false;

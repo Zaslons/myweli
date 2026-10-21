@@ -6,6 +6,7 @@ import '../../core/config/app_config.dart';
 import '../../models/api_response.dart';
 import '../interfaces/device_registration_service_interface.dart';
 import '../interfaces/session_store.dart';
+import 'api_errors.dart';
 import 'refreshing_http_client.dart';
 
 /// Real HTTP implementation of [DeviceRegistrationServiceInterface]
@@ -74,18 +75,8 @@ class ApiDeviceRegistrationService
   }
 
   ApiResponse<bool> _boolFrom(http.Response? res) {
-    if (res == null) return ApiResponse.error('Pas de connexion. Réessayez.');
-    if (res.statusCode != 200) {
-      try {
-        final body = jsonDecode(res.body) as Map<String, dynamic>;
-        return ApiResponse.error(
-          body['message'] as String? ?? 'Erreur',
-          code: body['error'] as String?,
-        );
-      } catch (_) {
-        return ApiResponse.error('Erreur');
-      }
-    }
+    if (res == null) return networkError();
+    if (res.statusCode != 200) return errorFromResponse(res);
     return ApiResponse.success(true);
   }
 

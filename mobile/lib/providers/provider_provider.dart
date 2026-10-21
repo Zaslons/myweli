@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/constants/app_constants.dart';
+import '../core/constants/failure_messages.dart';
 import '../core/di/dependency_injection.dart';
 import '../core/utils/salon_figures.dart';
 import '../models/provider.dart';
@@ -114,7 +115,7 @@ class ProviderProvider extends ChangeNotifier {
         _providers = [];
       }
     } catch (e) {
-      _error = e.toString();
+      _error = kGenericErrorMessage;
       _providers = [];
     } finally {
       _isLoading = false;
@@ -216,7 +217,7 @@ class ProviderProvider extends ChangeNotifier {
         code = response.code;
       }
     } catch (e) {
-      error = e.toString();
+      error = kGenericErrorMessage;
       code = 'network';
     }
     // Another salon was asked for while this read was out — a later load, or
@@ -476,7 +477,7 @@ class ProviderProvider extends ChangeNotifier {
       _error = res.error ?? 'Erreur lors de la publication';
       return false;
     } catch (e) {
-      _error = e.toString();
+      _error = kGenericErrorMessage;
       return false;
     } finally {
       _isSubmittingReview = false;

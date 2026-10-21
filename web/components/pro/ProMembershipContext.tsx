@@ -31,7 +31,7 @@ import {
   logoutErrorMessage,
   revokedLanding,
 } from '../../lib/pro/team';
-import { loadFailure, type LoadFailure } from '../../lib/pro/load-failure';
+import { loadFailure, type LoadFailure } from '../../lib/api/load-failure';
 import { type ToastKind, useToast } from '../../lib/useToast';
 import { ProRevokedInvitations } from './ProRevokedInvitations';
 import { ProSignOutRetry } from './ProSignOutRetry';

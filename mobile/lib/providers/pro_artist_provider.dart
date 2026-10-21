@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import '../core/access/pro_salon_scope.dart';
+import '../core/constants/failure_messages.dart';
 import '../core/di/dependency_injection.dart';
 import '../models/artist.dart';
 import '../services/interfaces/image_upload_service_interface.dart';
@@ -41,7 +42,7 @@ class ProArtistProvider extends ChangeNotifier implements SalonScoped {
       _error = res.error ?? 'Échec de l’envoi';
       return null;
     } catch (e) {
-      _error = e.toString();
+      _error = kGenericErrorMessage;
       return null;
     } finally {
       _isUploadingAvatar = false;
@@ -64,7 +65,7 @@ class ProArtistProvider extends ChangeNotifier implements SalonScoped {
         _artists = [];
       }
     } catch (e) {
-      _error = e.toString();
+      _error = kGenericErrorMessage;
       _artists = [];
     } finally {
       _isLoading = false;
@@ -92,7 +93,7 @@ class ProArtistProvider extends ChangeNotifier implements SalonScoped {
         return false;
       }
     } catch (e) {
-      _error = e.toString();
+      _error = kGenericErrorMessage;
       notifyListeners();
       return false;
     } finally {
@@ -121,7 +122,7 @@ class ProArtistProvider extends ChangeNotifier implements SalonScoped {
         return false;
       }
     } catch (e) {
-      _error = e.toString();
+      _error = kGenericErrorMessage;
       notifyListeners();
       return false;
     } finally {
@@ -147,7 +148,7 @@ class ProArtistProvider extends ChangeNotifier implements SalonScoped {
         return false;
       }
     } catch (e) {
-      _error = e.toString();
+      _error = kGenericErrorMessage;
       notifyListeners();
       return false;
     } finally {

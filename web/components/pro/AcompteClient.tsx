@@ -10,7 +10,8 @@ import {
   getMyProvider,
   saveDepositPolicy,
 } from '../../lib/api/pro';
-import { loadFailure, loadFailureMessage, type LoadFailure } from '../../lib/pro/load-failure';
+import { loadFailure, loadFailureMessage, type LoadFailure } from '../../lib/api/load-failure';
+import { writeFailureMessage } from '../../lib/api/network';
 import { useFieldErrors } from '../../lib/forms/useFieldErrors';
 import { operatorsFor } from '../../lib/localities';
 import { PHONE_INVALID } from '../../lib/phone';
@@ -169,7 +170,7 @@ export function AcompteClient() {
       setError(
         r.error === 'verification_required'
           ? 'Vérifiez votre compte pour activer les acomptes.'
-          : 'L’enregistrement a échoué. Réessayez.',
+          : writeFailureMessage(r.status, 'L’enregistrement a échoué. Réessayez.'),
       );
       return;
     }

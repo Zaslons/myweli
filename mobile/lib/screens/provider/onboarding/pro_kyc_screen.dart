@@ -4,6 +4,7 @@ import 'package:myweli/widgets/common/brand_loader.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/config/app_config.dart';
+import '../../../core/constants/failure_messages.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
@@ -42,7 +43,7 @@ class _ProKycScreenState extends State<ProKycScreen> {
       context,
       ok: ok,
       success: 'Documents soumis pour vérification',
-      error: kyc.error ?? 'Erreur',
+      error: kyc.error ?? kGenericErrorMessage,
     );
   }
 

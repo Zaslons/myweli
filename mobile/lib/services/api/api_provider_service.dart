@@ -1,11 +1,11 @@
-import 'dart:convert';
-
 import 'package:http/http.dart' as http;
 
 import '../../core/config/app_config.dart';
+import '../../core/constants/failure_messages.dart';
 import '../../models/api_response.dart';
 import '../../models/provider.dart';
 import '../interfaces/provider_service_interface.dart';
+import 'api_errors.dart';
 
 /// Real HTTP implementation of [ProviderServiceInterface] (backend B1).
 ///
@@ -43,19 +43,23 @@ class ApiProviderService implements ProviderServiceInterface {
       },
     );
 
+    // Three facts, three sentences (docs/design/app-failure-messages.md
+    // §1.2): nothing answered; a refusal or a page; an answer that does not
+    // read. One catch used to call all three « Connexion au serveur
+    // impossible ».
+    final http.Response res;
     try {
-      final res = await _client.get(uri);
-      if (res.statusCode != 200) {
-        return ApiResponse.error('Erreur serveur (${res.statusCode})');
-      }
-      final body = jsonDecode(res.body) as Map<String, dynamic>;
-      final items = (body['items'] as List)
-          .map((e) => Provider.fromJson(e as Map<String, dynamic>))
-          .toList();
-      return ApiResponse.success(items);
+      res = await _client.get(uri);
     } catch (_) {
-      return ApiResponse.error('Connexion au serveur impossible');
+      return networkError();
     }
+    if (res.statusCode != 200) return errorFromResponse(res);
+    return readOrUnreadable(
+      res,
+      (json) => ((json! as Map<String, dynamic>)['items']! as List)
+          .map((e) => Provider.fromJson(e as Map<String, dynamic>))
+          .toList(),
+    );
   }
 
   /// The public salon read.
@@ -71,29 +75,27 @@ class ApiProviderService implements ProviderServiceInterface {
   /// something the UI has to say out loud.
   @override
   Future<ApiResponse<Provider>> getProviderById(String id) async {
+    final http.Response res;
     try {
-      final res = await _client.get(Uri.parse('$_baseUrl/providers/$id'));
-      if (res.statusCode == 404) {
-        return ApiResponse.error(
-          'Ce salon n’est plus disponible sur MyWeli.',
-          code: 'not_found',
-        );
-      }
-      if (res.statusCode != 200) {
-        return ApiResponse.error(
-          'Erreur serveur (${res.statusCode})',
-          code: 'server_error',
-        );
-      }
-      return ApiResponse.success(
-        Provider.fromJson(jsonDecode(res.body) as Map<String, dynamic>),
-      );
+      res = await _client.get(Uri.parse('$_baseUrl/providers/$id'));
     } catch (_) {
+      return networkError();
+    }
+    if (res.statusCode == 404) {
       return ApiResponse.error(
-        'Connexion au serveur impossible',
-        code: 'network',
+        'Ce salon n’est plus disponible sur MyWeli.',
+        code: 'not_found',
       );
     }
+    if (res.statusCode != 200) {
+      // The code stays what `salonLoadFailure` reads; the words are the
+      // generic sentence, never « Erreur serveur (500) ».
+      return ApiResponse.error(kGenericErrorMessage, code: 'server_error');
+    }
+    return readOrUnreadable(
+      res,
+      (json) => Provider.fromJson(json! as Map<String, dynamic>),
+    );
   }
 
   @override

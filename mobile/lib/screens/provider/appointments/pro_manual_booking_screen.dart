@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../../core/config/feature_flags.dart';
 import '../../../core/constants/booking_horizons.dart';
+import '../../../core/constants/failure_messages.dart';
 import '../../../core/forms/field_errors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
@@ -252,7 +253,7 @@ class _ProManualBookingScreenState extends State<ProManualBookingScreen> {
     } else {
       // The server's refusal here is a slot conflict — it names the date/time
       // row, so it stays with the form rather than floating over it.
-      setState(() => _selectionError = provider.error ?? 'Erreur');
+      setState(() => _selectionError = provider.error ?? kGenericErrorMessage);
     }
   }
 

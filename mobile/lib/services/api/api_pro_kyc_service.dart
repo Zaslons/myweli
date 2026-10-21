@@ -8,6 +8,7 @@ import '../../models/api_response.dart';
 import '../../models/kyc_document.dart';
 import '../interfaces/pro_kyc_service_interface.dart';
 import '../interfaces/session_store.dart';
+import 'api_errors.dart';
 import 'refreshing_http_client.dart';
 
 /// Real HTTP implementation of [ProKycServiceInterface] (backend B-kyc). KYC
@@ -45,8 +46,8 @@ class ApiProKycService implements ProKycServiceInterface {
     final res = await _authed.send(
       (t) => _client.get(_uri('/me/kyc'), headers: _bearer(t)),
     );
-    if (res == null) return _networkError();
-    if (res.statusCode != 200) return _errorFrom(res);
+    if (res == null) return networkError();
+    if (res.statusCode != 200) return errorFromResponse(res);
     return ApiResponse.success(KycStatus.fromJson(_decode(res.body)));
   }
 
@@ -73,8 +74,8 @@ class ApiProKycService implements ProKycServiceInterface {
         body: jsonEncode({'contentType': contentType, 'purpose': 'kyc'}),
       ),
     );
-    if (signRes == null) return _networkError();
-    if (signRes.statusCode != 200) return _errorFrom(signRes);
+    if (signRes == null) return networkError();
+    if (signRes.statusCode != 200) return errorFromResponse(signRes);
     final ticket = _decode(signRes.body);
     final key = ticket['key'] as String;
 
@@ -123,8 +124,8 @@ class ApiProKycService implements ProKycServiceInterface {
         }),
       ),
     );
-    if (res == null) return _networkError();
-    if (res.statusCode != 200) return _errorFrom(res);
+    if (res == null) return networkError();
+    if (res.statusCode != 200) return errorFromResponse(res);
     return ApiResponse.success(
       KycStatus.fromJson(_decode(res.body)),
       message: 'Documents soumis pour vérification',
@@ -135,18 +136,4 @@ class ApiProKycService implements ProKycServiceInterface {
   Map<String, String> _bearer(String t) => {'Authorization': 'Bearer $t'};
   Map<String, dynamic> _decode(String body) =>
       jsonDecode(body) as Map<String, dynamic>;
-  ApiResponse<T> _networkError<T>() =>
-      ApiResponse.error('Pas de connexion. Réessayez.');
-
-  ApiResponse<T> _errorFrom<T>(http.Response res) {
-    try {
-      final body = jsonDecode(res.body) as Map<String, dynamic>;
-      return ApiResponse.error(
-        body['message'] as String? ?? 'Erreur',
-        code: body['error'] as String?,
-      );
-    } catch (_) {
-      return ApiResponse.error('Erreur');
-    }
-  }
 }
