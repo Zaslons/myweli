@@ -10,6 +10,7 @@ import '../../models/team_invitation.dart';
 import '../../models/team_member.dart';
 import '../interfaces/pro_team_service_interface.dart';
 import '../interfaces/session_store.dart';
+import 'api_errors.dart';
 import 'idempotent_write.dart';
 import 'refreshing_http_client.dart';
 
@@ -50,8 +51,8 @@ class ApiProTeamService implements ProTeamServiceInterface {
         headers: _bearer(t),
       ),
     );
-    if (res == null) return _networkError();
-    if (res.statusCode != 200) return _errorFrom(res);
+    if (res == null) return networkError();
+    if (res.statusCode != 200) return _refusal(res);
     final body = jsonDecode(res.body) as Map<String, dynamic>;
     final items = (body['items'] as List? ?? const [])
         .cast<Map<String, dynamic>>()
@@ -129,8 +130,8 @@ class ApiProTeamService implements ProTeamServiceInterface {
     final res = await _authed.send(
       (t) => _client.get(_uri('/me/provider/invitations'), headers: _bearer(t)),
     );
-    if (res == null) return _networkError();
-    if (res.statusCode != 200) return _errorFrom(res);
+    if (res == null) return networkError();
+    if (res.statusCode != 200) return _refusal(res);
     final body = jsonDecode(res.body) as Map<String, dynamic>;
     final cards = (body['invitations'] as List? ?? const [])
         .cast<Map<String, dynamic>>()
@@ -154,8 +155,8 @@ class ApiProTeamService implements ProTeamServiceInterface {
         headers: _bearer(t),
       ),
     );
-    if (res == null) return _networkError();
-    if (res.statusCode != 200) return _errorFrom(res);
+    if (res == null) return networkError();
+    if (res.statusCode != 200) return _refusal(res);
     return ApiResponse.success(true);
   }
 
@@ -177,9 +178,9 @@ class ApiProTeamService implements ProTeamServiceInterface {
     int expected = 200,
     bool resendBudgetCopy = false,
   }) async {
-    if (res == null) return _networkError();
+    if (res == null) return networkError();
     if (res.statusCode != expected) {
-      return _errorFrom(res, resendBudgetCopy: resendBudgetCopy);
+      return _refusal(res, resendBudgetCopy: resendBudgetCopy);
     }
     return ApiResponse.success(
       TeamMember.fromJson(jsonDecode(res.body) as Map<String, dynamic>),
@@ -211,8 +212,6 @@ class ApiProTeamService implements ProTeamServiceInterface {
     ..._bearer(t),
     'Content-Type': 'application/json',
   };
-  ApiResponse<T> _networkError<T>() =>
-      ApiResponse.error('Pas de connexion. Réessayez.');
 
   /// No stored session — most often one a refused refresh just cleared
   /// ([RefreshingHttpClient]). Coded as the server codes the same case, so a
@@ -222,21 +221,16 @@ class ApiProTeamService implements ProTeamServiceInterface {
   ApiResponse<T> _signedOut<T>() =>
       ApiResponse.error('Non connecté', code: 'unauthorized');
 
-  ApiResponse<T> _errorFrom<T>(
+  /// A refusal, worded by the team table (docs/design/app-failure-messages.md
+  /// §2.1). The resend budget shares `invite_rate_limited` with the daily
+  /// cap — the per-invitation message reads better on the resend action.
+  ApiResponse<T> _refusal<T>(
     http.Response res, {
     bool resendBudgetCopy = false,
-  }) {
-    try {
-      final body = jsonDecode(res.body) as Map<String, dynamic>;
-      final code = body['error'] as String?;
-      // The resend budget shares invite_rate_limited with the daily cap —
-      // the per-invitation message reads better on the resend action.
-      final message = resendBudgetCopy && code == 'invite_rate_limited'
-          ? resendBudgetExhaustedMessage
-          : teamErrorMessage(code);
-      return ApiResponse.error(message, code: code);
-    } catch (_) {
-      return ApiResponse.error('Erreur');
-    }
-  }
+  }) => errorFromResponse(
+    res,
+    messageFor: (code) => resendBudgetCopy && code == 'invite_rate_limited'
+        ? resendBudgetExhaustedMessage
+        : teamErrorMessage(code),
+  );
 }

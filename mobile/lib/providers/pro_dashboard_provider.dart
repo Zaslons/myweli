@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import '../core/access/pro_access_guard.dart';
 import '../core/access/pro_salon_scope.dart';
+import '../core/constants/failure_messages.dart';
 import '../core/di/dependency_injection.dart';
 import '../models/appointment.dart';
 import '../services/interfaces/pro_service_interface.dart';
@@ -42,8 +43,8 @@ class ProDashboardProvider extends ChangeNotifier
 
   /// The service's own sentence when nothing answered, and the generic one
   /// (docs/design/app-pro-home-journal-fresh.md §9 — owner Q4).
-  static const noConnection = 'Pas de connexion. Réessayez.';
-  static const failedRetry = 'Une erreur est survenue. Réessayez.';
+  static const noConnection = kNoConnectionMessage;
+  static const failedRetry = kGenericErrorMessage;
 
   DashboardStats? get stats => _stats;
   bool get isLoading => _isLoading;

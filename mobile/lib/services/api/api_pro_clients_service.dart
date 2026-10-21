@@ -8,6 +8,7 @@ import '../../models/appointment.dart';
 import '../../models/salon_client.dart';
 import '../interfaces/pro_clients_service_interface.dart';
 import '../interfaces/session_store.dart';
+import 'api_errors.dart';
 import 'idempotent_write.dart';
 import 'refreshing_http_client.dart';
 
@@ -58,8 +59,8 @@ class ApiProClientsService implements ProClientsServiceInterface {
         headers: _bearer(t),
       ),
     );
-    if (res == null) return _networkError();
-    if (res.statusCode != 200) return _errorFrom(res);
+    if (res == null) return networkError();
+    if (res.statusCode != 200) return _refused(res);
     // A page that does not read — cut off, or without its `items` / `total`
     // (SalonClientsPage.fromJson) — is a failed read, worded as `_errorFrom`
     // words an unreadable body: never an empty page, and never a throw whose
@@ -68,7 +69,7 @@ class ApiProClientsService implements ProClientsServiceInterface {
     try {
       return ApiResponse.success(SalonClientsPage.fromJson(_decode(res.body)));
     } on FormatException {
-      return ApiResponse.error('Erreur');
+      return unreadable();
     }
   }
 
@@ -83,8 +84,8 @@ class ApiProClientsService implements ProClientsServiceInterface {
         headers: _bearer(t),
       ),
     );
-    if (res == null) return _networkError();
-    if (res.statusCode != 200) return _errorFrom(res);
+    if (res == null) return networkError();
+    if (res.statusCode != 200) return _refused(res);
     return ApiResponse.success(SalonClientCard.fromJson(_decode(res.body)));
   }
 
@@ -102,8 +103,8 @@ class ApiProClientsService implements ProClientsServiceInterface {
         headers: _bearer(t),
       ),
     );
-    if (res == null) return _networkError();
-    if (res.statusCode != 200) return _errorFrom(res);
+    if (res == null) return networkError();
+    if (res.statusCode != 200) return _refused(res);
     final items = ((_decode(res.body)['items'] as List?) ?? const [])
         .map((e) => Appointment.fromJson(e as Map<String, dynamic>))
         .toList();
@@ -128,7 +129,7 @@ class ApiProClientsService implements ProClientsServiceInterface {
         }),
       ),
     );
-    if (res == null) return _networkError();
+    if (res == null) return networkError();
     if (res.statusCode == 201) {
       return ApiResponse.success(
         _decode(res.body)['id'] as String,
@@ -144,7 +145,7 @@ class ApiProClientsService implements ProClientsServiceInterface {
         code: 'client_exists',
       );
     }
-    return _errorFrom(res);
+    return _refused(res);
   }
 
   @override
@@ -160,8 +161,8 @@ class ApiProClientsService implements ProClientsServiceInterface {
         body: jsonEncode({'tags': tags}),
       ),
     );
-    if (res == null) return _networkError();
-    if (res.statusCode != 200) return _errorFrom(res);
+    if (res == null) return networkError();
+    if (res.statusCode != 200) return _refused(res);
     return ApiResponse.success(SalonClient.fromJson(_decode(res.body)));
   }
 
@@ -178,7 +179,7 @@ class ApiProClientsService implements ProClientsServiceInterface {
         body: jsonEncode({'phone': phone}),
       ),
     );
-    if (res == null) return _networkError();
+    if (res == null) return networkError();
     if (res.statusCode == 200) {
       return ApiResponse.success(
         SalonClientPhoneChange.changed(
@@ -206,7 +207,7 @@ class ApiProClientsService implements ProClientsServiceInterface {
         );
       }
     }
-    return _errorFrom(res);
+    return _refused(res);
   }
 
   @override
@@ -227,8 +228,8 @@ class ApiProClientsService implements ProClientsServiceInterface {
       ),
       key: idempotencyKey,
     );
-    if (res == null) return _networkError();
-    if (res.statusCode != 201) return _errorFrom(res);
+    if (res == null) return networkError();
+    if (res.statusCode != 201) return _refused(res);
     return ApiResponse.success(SalonClientNote.fromJson(_decode(res.body)));
   }
 
@@ -244,8 +245,8 @@ class ApiProClientsService implements ProClientsServiceInterface {
         headers: _bearer(t),
       ),
     );
-    if (res == null) return _networkError();
-    if (res.statusCode != 204 && res.statusCode != 200) return _errorFrom(res);
+    if (res == null) return networkError();
+    if (res.statusCode != 204 && res.statusCode != 200) return _refused(res);
     return ApiResponse.success(true);
   }
 
@@ -253,22 +254,15 @@ class ApiProClientsService implements ProClientsServiceInterface {
   Map<String, String> _bearer(String t) => {'Authorization': 'Bearer $t'};
   Map<String, dynamic> _decode(String body) =>
       jsonDecode(body) as Map<String, dynamic>;
-  ApiResponse<T> _networkError<T>() =>
-      ApiResponse.error('Pas de connexion. Réessayez.');
 
-  ApiResponse<T> _errorFrom<T>(http.Response res) {
-    try {
-      final body = jsonDecode(res.body) as Map<String, dynamic>;
-      return ApiResponse.error(
-        _messageFor(body['error'] as String?),
-        code: body['error'] as String?,
-      );
-    } catch (_) {
-      return ApiResponse.error('Erreur');
-    }
-  }
+  /// A refusal, worded: this service's codes keep their sentences, anything
+  /// else is the generic one (docs/design/app-failure-messages.md §2.1).
+  ApiResponse<T> _refused<T>(http.Response res) =>
+      errorFromResponse(res, messageFor: _messageFor);
 
-  String _messageFor(String? code) => switch (code) {
+  /// The codes with words of their own; anything else is the generic sentence
+  /// (`errorFromResponse`).
+  String? _messageFor(String? code) => switch (code) {
     'invalid_phone' => 'Numéro invalide.',
     'client_exists' => 'Ce numéro est déjà sur une autre fiche.',
     'client_linked' => 'Numéro du compte client.',
@@ -276,6 +270,6 @@ class ApiProClientsService implements ProClientsServiceInterface {
     'note_too_long' => 'Note trop longue (500 caractères max).',
     'not_found' => 'Client introuvable.',
     'forbidden' => 'Accès refusé.',
-    _ => 'Une erreur est survenue.',
+    _ => null,
   };
 }

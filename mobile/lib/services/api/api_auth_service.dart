@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
 import '../../core/config/app_config.dart';
+import '../../core/constants/failure_messages.dart';
 import '../../core/utils/logger.dart';
 import '../../models/api_response.dart';
 import '../../models/pro_membership.dart';
@@ -19,6 +20,7 @@ import '../../models/team_invitation.dart';
 import '../../models/user.dart';
 import '../interfaces/auth_service_interface.dart';
 import '../interfaces/session_store.dart';
+import 'api_errors.dart';
 import 'refreshing_http_client.dart';
 
 /// Real HTTP implementation of [AuthServiceInterface] (backend B2 + B-prov).
@@ -126,7 +128,7 @@ class ApiAuthService implements AuthServiceInterface {
   @override
   Future<ApiResponse<String>> sendOtp(String phoneNumber) async {
     final res = await _post('/auth/otp/request', {'phoneNumber': phoneNumber});
-    if (res == null) return _networkError();
+    if (res == null) return networkError();
     if (res.statusCode == 202) {
       final body = _decode(res.body);
       return ApiResponse.success(
@@ -134,7 +136,7 @@ class ApiAuthService implements AuthServiceInterface {
         message: 'Code OTP envoyé',
       );
     }
-    return _errorFrom(res);
+    return _refused(res);
   }
 
   @override
@@ -149,8 +151,8 @@ class ApiAuthService implements AuthServiceInterface {
   /// Shared AuthSession handling for every login endpoint: parse the NESTED
   /// `{tokens: {...}, user}` shape, persist, and set the current user.
   Future<ApiResponse<User>> _loginFrom(http.Response? res) async {
-    if (res == null) return _networkError();
-    if (res.statusCode != 200) return _errorFrom(res);
+    if (res == null) return networkError();
+    if (res.statusCode != 200) return _refused(res);
 
     final body = _decode(res.body);
     final tokens = body['tokens'] as Map<String, dynamic>;
@@ -282,7 +284,7 @@ class ApiAuthService implements AuthServiceInterface {
   @override
   Future<ApiResponse<String>> requestEmailOtp(String email) async {
     final res = await _post('/auth/email/otp/request', {'email': email});
-    if (res == null) return _networkError();
+    if (res == null) return networkError();
     if (res.statusCode == 202) {
       final body = _decode(res.body);
       return ApiResponse.success(
@@ -290,7 +292,7 @@ class ApiAuthService implements AuthServiceInterface {
         message: 'Code envoyé par e-mail',
       );
     }
-    return _errorFrom(res);
+    return _refused(res);
   }
 
   @override
@@ -356,8 +358,8 @@ class ApiAuthService implements AuthServiceInterface {
         }),
       ),
     );
-    if (res == null) return _networkError();
-    if (res.statusCode != 200) return _errorFrom(res);
+    if (res == null) return networkError();
+    if (res.statusCode != 200) return _refused(res);
 
     final user = User.fromJson(_decode(res.body));
     _currentUser = user;
@@ -375,8 +377,8 @@ class ApiAuthService implements AuthServiceInterface {
     final res = await _authed.send(
       (token) => _client.delete(_uri('/me'), headers: _bearer(token)),
     );
-    if (res == null) return _networkError();
-    if (res.statusCode != 204) return _errorFrom(res);
+    if (res == null) return networkError();
+    if (res.statusCode != 204) return _refused(res);
     await logout();
     return ApiResponse.success(null, message: 'Compte supprimé');
   }
@@ -388,7 +390,7 @@ class ApiAuthService implements AuthServiceInterface {
     final res = await _post('/auth/provider/otp/request', {
       'phoneNumber': phoneNumber,
     });
-    if (res == null) return _networkError();
+    if (res == null) return networkError();
     if (res.statusCode == 202) {
       final body = _decode(res.body);
       return ApiResponse.success(
@@ -396,7 +398,7 @@ class ApiAuthService implements AuthServiceInterface {
         message: 'Code OTP envoyé',
       );
     }
-    return _errorFrom(res);
+    return _refused(res);
   }
 
   @override
@@ -408,8 +410,8 @@ class ApiAuthService implements AuthServiceInterface {
       'phoneNumber': phoneNumber,
       'code': otp,
     });
-    if (res == null) return _networkError();
-    if (res.statusCode != 200) return _errorFrom(res);
+    if (res == null) return networkError();
+    if (res.statusCode != 200) return _refused(res);
 
     final body = _decode(res.body);
     final provider = ProviderUser.fromJson(
@@ -448,8 +450,8 @@ class ApiAuthService implements AuthServiceInterface {
     http.Response? res, {
     int expected = 200,
   }) async {
-    if (res == null) return _networkError();
-    if (res.statusCode != expected) return _errorFrom(res);
+    if (res == null) return networkError();
+    if (res.statusCode != expected) return _refused(res);
     final provider = await _adoptProviderSession(_decode(res.body));
     return ApiResponse.success(provider, message: 'Connexion réussie');
   }
@@ -487,7 +489,10 @@ class ApiAuthService implements AuthServiceInterface {
     } catch (_) {
       code = null;
     }
-    return ProviderLoginResult.failure(_messageFor(code), code: code);
+    return ProviderLoginResult.failure(
+      _messageFor(code) ?? kGenericErrorMessage,
+      code: code,
+    );
   }
 
   @override
@@ -576,7 +581,7 @@ class ApiAuthService implements AuthServiceInterface {
     final res = await _post('/auth/provider/email/otp/request', {
       'email': email,
     });
-    if (res == null) return _networkError();
+    if (res == null) return networkError();
     if (res.statusCode == 202) {
       final body = _decode(res.body);
       return ApiResponse.success(
@@ -584,7 +589,7 @@ class ApiAuthService implements AuthServiceInterface {
         message: 'Code envoyé par e-mail',
       );
     }
-    return _errorFrom(res);
+    return _refused(res);
   }
 
   @override
@@ -612,11 +617,11 @@ class ApiAuthService implements AuthServiceInterface {
       'invitationId': invitationId,
       ..._proofBody(proof),
     });
-    if (res == null) return _networkError();
+    if (res == null) return networkError();
     // 200 = accepted under an existing account · 201 = bare member account
     // created — BOTH carry a live flat ProviderSession.
     if (res.statusCode != 200 && res.statusCode != 201) {
-      return _errorFrom(res);
+      return _refused(res);
     }
     final provider = await _adoptProviderSession(_decode(res.body));
     return ApiResponse.success(provider, message: 'Invitation acceptée');
@@ -631,8 +636,8 @@ class ApiAuthService implements AuthServiceInterface {
       'invitationId': invitationId,
       ..._proofBody(proof),
     });
-    if (res == null) return _networkError();
-    if (res.statusCode != 200) return _errorFrom(res);
+    if (res == null) return networkError();
+    if (res.statusCode != 200) return _refused(res);
     return ApiResponse.success(true);
   }
 
@@ -957,22 +962,17 @@ class ApiAuthService implements AuthServiceInterface {
     await _providerSessionStore.save(jsonEncode(session.toJson()));
   }
 
-  ApiResponse<T> _networkError<T>() =>
-      ApiResponse.error('Connexion au serveur impossible');
-
   /// Maps the backend error envelope to an [ApiResponse] error, preserving the
   /// machine `code` so callers branch exactly as they do with the mock.
-  ApiResponse<T> _errorFrom<T>(http.Response res) {
-    String? code;
-    try {
-      code = _decode(res.body)['error'] as String?;
-    } catch (_) {
-      code = null;
-    }
-    return ApiResponse.error(_messageFor(code), code: code);
-  }
 
-  String _messageFor(String? code) {
+  /// A refusal, worded: this service's codes keep their sentences, anything
+  /// else is the generic one (docs/design/app-failure-messages.md §2.1).
+  ApiResponse<T> _refused<T>(http.Response res) =>
+      errorFromResponse(res, messageFor: _messageFor);
+
+  /// The codes with words of their own; anything else is the generic sentence
+  /// (`errorFromResponse`).
+  String? _messageFor(String? code) {
     switch (code) {
       // L2: the one error on this surface the user can actually resolve — so it
       // says WHAT to do. A bare « échec » leaves them with an account they
@@ -1009,7 +1009,7 @@ class ApiAuthService implements AuthServiceInterface {
       case 'invitation_expired':
         return 'Cette invitation a expiré. Demandez au salon de la renvoyer.';
       default:
-        return 'Une erreur est survenue.';
+        return null;
     }
   }
 }

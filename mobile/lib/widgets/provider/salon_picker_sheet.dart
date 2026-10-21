@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/constants/failure_messages.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
@@ -249,7 +250,7 @@ class _SalonTile extends StatelessWidget {
           // refusal keeps its sentence (web-pro-no-connection-copy.md §5).
           onFailed(
             outcome == SalonSwitchOutcome.offline
-                ? 'Pas de connexion. Réessayez.'
+                ? kNoConnectionMessage
                 : 'Changement impossible — votre accès à ce salon a '
                       'peut-être été retiré.',
           );

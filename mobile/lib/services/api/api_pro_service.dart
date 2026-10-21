@@ -21,6 +21,7 @@ import '../../models/salon_membership_info.dart';
 import '../../models/service.dart';
 import '../interfaces/pro_service_interface.dart';
 import '../interfaces/session_store.dart';
+import 'api_errors.dart';
 import 'idempotent_write.dart';
 import 'refreshing_http_client.dart';
 
@@ -121,8 +122,8 @@ class ApiProService implements ProServiceInterface {
     final res = await _authed.send(
       (token) => _client.get(uri, headers: _bearer(token)),
     );
-    if (res == null) return _networkError();
-    if (res.statusCode != 200) return _errorFrom(res);
+    if (res == null) return networkError();
+    if (res.statusCode != 200) return _refused(res);
     var items = (_decode(res.body)['items'] as List)
         .map((e) => Appointment.fromJson(e as Map<String, dynamic>))
         .toList();
@@ -168,8 +169,8 @@ class ApiProService implements ProServiceInterface {
     final res = await _authed.send(
       (t) => _client.delete(_uri('/me/provider'), headers: _bearer(t)),
     );
-    if (res == null) return _networkError();
-    if (res.statusCode != 204) return _errorFrom(res);
+    if (res == null) return networkError();
+    if (res.statusCode != 204) return _refused(res);
     return ApiResponse.success(null, message: 'Compte supprimé');
   }
 
@@ -196,8 +197,8 @@ class ApiProService implements ProServiceInterface {
         headers: _bearer(t),
       ),
     );
-    if (res == null) return _networkError();
-    if (res.statusCode != 200) return _errorFrom(res);
+    if (res == null) return networkError();
+    if (res.statusCode != 200) return _refused(res);
     final body = _decode(res.body);
     final items = (body['items'] as List? ?? const [])
         .map((e) => Review.fromJson(e as Map<String, dynamic>))
@@ -229,8 +230,8 @@ class ApiProService implements ProServiceInterface {
         body: jsonEncode(changes),
       ),
     );
-    if (res == null) return _networkError();
-    if (res.statusCode != 200) return _errorFrom(res);
+    if (res == null) return networkError();
+    if (res.statusCode != 200) return _refused(res);
     return ApiResponse.success(
       Provider.fromJson(_decode(res.body)),
       message: 'Profil enregistré',
@@ -248,7 +249,7 @@ class ApiProService implements ProServiceInterface {
         headers: _bearer(token),
       ),
     );
-    if (res == null) return _networkError();
+    if (res == null) return networkError();
     if (res.statusCode == 409) {
       // The gate's `missing` keys — `offer` gets its own code. The server
       // starts the trial at the first publish, so only an EXPIRED offer
@@ -275,7 +276,7 @@ class ApiProService implements ProServiceInterface {
         code: 'incomplete',
       );
     }
-    if (res.statusCode != 200) return _errorFrom(res);
+    if (res.statusCode != 200) return _refused(res);
     return ApiResponse.success(true, message: 'Votre salon est en ligne');
   }
 
@@ -296,8 +297,8 @@ class ApiProService implements ProServiceInterface {
         headers: _bearer(token),
       ),
     );
-    if (res == null) return _networkError();
-    if (res.statusCode != 200) return _errorFrom(res);
+    if (res == null) return networkError();
+    if (res.statusCode != 200) return _refused(res);
     return ApiResponse.success(JournalDay.fromJson(_decode(res.body)));
   }
 
@@ -317,8 +318,8 @@ class ApiProService implements ProServiceInterface {
         headers: _bearer(token),
       ),
     );
-    if (res == null) return _networkError();
-    if (res.statusCode != 200) return _errorFrom(res);
+    if (res == null) return networkError();
+    if (res.statusCode != 200) return _refused(res);
     return ApiResponse.success(true, message: okMessage);
   }
 
@@ -333,8 +334,8 @@ class ApiProService implements ProServiceInterface {
         headers: _bearer(token),
       ),
     );
-    if (res == null) return _networkError();
-    if (res.statusCode != 200) return _errorFrom(res);
+    if (res == null) return networkError();
+    if (res.statusCode != 200) return _refused(res);
     return ApiResponse.success(_decode(res.body)['url'] as String);
   }
 
@@ -357,8 +358,8 @@ class ApiProService implements ProServiceInterface {
     // No answer carries `network`, so the salon switch can tell it from a
     // refusal (docs/design/web-pro-no-connection-copy.md §5). Only here: the
     // other calls' callers read their codes, and none expects this one.
-    if (res == null) return _networkError(code: 'network');
-    if (res.statusCode != 200) return _errorFrom(res);
+    if (res == null) return networkError();
+    if (res.statusCode != 200) return _refused(res);
     final body = jsonDecode(res.body) as Map<String, dynamic>;
     final salonMap = body['provider'] as Map<String, dynamic>;
     final membership = ProMembership.fromJson({
@@ -383,8 +384,8 @@ class ApiProService implements ProServiceInterface {
     final res = await _authed.send(
       (t) => _client.get(_uri('/me/salons'), headers: _bearer(t)),
     );
-    if (res == null) return _networkError();
-    if (res.statusCode != 200) return _errorFrom(res);
+    if (res == null) return networkError();
+    if (res.statusCode != 200) return _refused(res);
     return ApiResponse.success(MySalonsResult.fromJson(_decode(res.body)));
   }
 
@@ -413,8 +414,8 @@ class ApiProService implements ProServiceInterface {
         }),
       ),
     );
-    if (res == null) return _networkError();
-    if (res.statusCode != 201) return _errorFrom(res);
+    if (res == null) return networkError();
+    if (res.statusCode != 201) return _refused(res);
     return ApiResponse.success(
       SalonMembershipInfo.fromJson(
         _decode(res.body)['salon'] as Map<String, dynamic>,
@@ -436,8 +437,8 @@ class ApiProService implements ProServiceInterface {
         headers: _bearer(t),
       ),
     );
-    if (res == null) return _networkError();
-    if (res.statusCode != 200) return _errorFrom(res);
+    if (res == null) return networkError();
+    if (res.statusCode != 200) return _refused(res);
     return ApiResponse.success(DashboardStats.fromJson(_decode(res.body)));
   }
 
@@ -464,8 +465,8 @@ class ApiProService implements ProServiceInterface {
         }),
       ),
     );
-    if (res == null) return _networkError();
-    if (res.statusCode != 200) return _errorFrom(res);
+    if (res == null) return networkError();
+    if (res.statusCode != 200) return _refused(res);
     return ApiResponse.success(true, message: 'Rendez-vous reporté');
   }
 
@@ -504,8 +505,8 @@ class ApiProService implements ProServiceInterface {
       ),
       key: idempotencyKey,
     );
-    if (res == null) return _networkError();
-    if (res.statusCode != 201) return _errorFrom(res);
+    if (res == null) return networkError();
+    if (res.statusCode != 201) return _refused(res);
     return ApiResponse.success(Appointment.fromJson(_decode(res.body)));
   }
 
@@ -522,8 +523,8 @@ class ApiProService implements ProServiceInterface {
         headers: _bearer(t),
       ),
     );
-    if (res == null) return _networkError();
-    if (res.statusCode != 200) return _errorFrom(res);
+    if (res == null) return networkError();
+    if (res.statusCode != 200) return _refused(res);
     final items = (_decode(res.body)['items'] as List)
         .map((e) => Service.fromJson(e as Map<String, dynamic>))
         .toList();
@@ -545,8 +546,8 @@ class ApiProService implements ProServiceInterface {
         body: jsonEncode(serviceData),
       ),
     );
-    if (res == null) return _networkError();
-    if (res.statusCode != 201) return _errorFrom(res);
+    if (res == null) return networkError();
+    if (res.statusCode != 201) return _refused(res);
     return ApiResponse.success(Service.fromJson(_decode(res.body)));
   }
 
@@ -564,8 +565,8 @@ class ApiProService implements ProServiceInterface {
         body: jsonEncode(serviceData),
       ),
     );
-    if (res == null) return _networkError();
-    if (res.statusCode != 200) return _errorFrom(res);
+    if (res == null) return networkError();
+    if (res.statusCode != 200) return _refused(res);
     return ApiResponse.success(Service.fromJson(_decode(res.body)));
   }
 
@@ -579,8 +580,8 @@ class ApiProService implements ProServiceInterface {
         headers: _bearer(t),
       ),
     );
-    if (res == null) return _networkError();
-    if (res.statusCode != 204) return _errorFrom(res);
+    if (res == null) return networkError();
+    if (res.statusCode != 204) return _refused(res);
     return ApiResponse.success(true, message: 'Service supprimé');
   }
 
@@ -598,8 +599,8 @@ class ApiProService implements ProServiceInterface {
         body: jsonEncode({'active': active}),
       ),
     );
-    if (res == null) return _networkError();
-    if (res.statusCode != 200) return _errorFrom(res);
+    if (res == null) return networkError();
+    if (res.statusCode != 200) return _refused(res);
     return ApiResponse.success(true);
   }
 
@@ -614,8 +615,8 @@ class ApiProService implements ProServiceInterface {
         headers: _bearer(t),
       ),
     );
-    if (res == null) return _networkError();
-    if (res.statusCode != 200) return _errorFrom(res);
+    if (res == null) return networkError();
+    if (res.statusCode != 200) return _refused(res);
     return ApiResponse.success(_imageUrlsFrom(res.body));
   }
 
@@ -634,8 +635,8 @@ class ApiProService implements ProServiceInterface {
         body: jsonEncode({'imageUrls': imageUrls}),
       ),
     );
-    if (res == null) return _networkError();
-    if (res.statusCode != 200) return _errorFrom(res);
+    if (res == null) return networkError();
+    if (res.statusCode != 200) return _refused(res);
     return ApiResponse.success(
       _imageUrlsFrom(res.body),
       message: 'Galerie mise à jour',
@@ -660,8 +661,8 @@ class ApiProService implements ProServiceInterface {
         headers: _bearer(t),
       ),
     );
-    if (res == null) return _networkError();
-    if (res.statusCode != 200) return _errorFrom(res);
+    if (res == null) return networkError();
+    if (res.statusCode != 200) return _refused(res);
     return ApiResponse.success(_beforeAftersFrom(res.body));
   }
 
@@ -682,8 +683,8 @@ class ApiProService implements ProServiceInterface {
         }),
       ),
     );
-    if (res == null) return _networkError();
-    if (res.statusCode != 200) return _errorFrom(res);
+    if (res == null) return networkError();
+    if (res.statusCode != 200) return _refused(res);
     return ApiResponse.success(
       _beforeAftersFrom(res.body),
       message: 'Avant / Après mis à jour',
@@ -708,8 +709,8 @@ class ApiProService implements ProServiceInterface {
         headers: _bearer(t),
       ),
     );
-    if (res == null) return _networkError();
-    if (res.statusCode != 200) return _errorFrom(res);
+    if (res == null) return networkError();
+    if (res.statusCode != 200) return _refused(res);
     return ApiResponse.success(Availability.fromJson(_decode(res.body)));
   }
 
@@ -728,8 +729,8 @@ class ApiProService implements ProServiceInterface {
         body: jsonEncode(availability.toJson()),
       ),
     );
-    if (res == null) return _networkError();
-    if (res.statusCode != 200) return _errorFrom(res);
+    if (res == null) return networkError();
+    if (res.statusCode != 200) return _refused(res);
     return ApiResponse.success(Availability.fromJson(_decode(res.body)));
   }
 
@@ -751,8 +752,8 @@ class ApiProService implements ProServiceInterface {
     final res = await _authed.send(
       (t) => _client.get(uri, headers: _bearer(t)),
     );
-    if (res == null) return _networkError();
-    if (res.statusCode != 200) return _errorFrom(res);
+    if (res == null) return networkError();
+    if (res.statusCode != 200) return _refused(res);
     return ApiResponse.success(EarningsData.fromJson(_decode(res.body)));
   }
 
@@ -767,8 +768,8 @@ class ApiProService implements ProServiceInterface {
         headers: _bearer(t),
       ),
     );
-    if (res == null) return _networkError();
-    if (res.statusCode != 200) return _errorFrom(res);
+    if (res == null) return networkError();
+    if (res.statusCode != 200) return _refused(res);
     return ApiResponse.success(DepositPolicy.fromJson(_decode(res.body)));
   }
 
@@ -797,8 +798,8 @@ class ApiProService implements ProServiceInterface {
         }),
       ),
     );
-    if (res == null) return _networkError();
-    if (res.statusCode != 200) return _errorFrom(res);
+    if (res == null) return networkError();
+    if (res.statusCode != 200) return _refused(res);
     return ApiResponse.success(
       DepositPolicy.fromJson(_decode(res.body)),
       message: 'Politique d’acompte enregistrée',
@@ -817,20 +818,14 @@ class ApiProService implements ProServiceInterface {
   Map<String, dynamic> _decode(String body) =>
       jsonDecode(body) as Map<String, dynamic>;
 
-  ApiResponse<T> _networkError<T>({String? code}) =>
-      ApiResponse.error('Connexion au serveur impossible', code: code);
+  /// A refusal, worded: this service's codes keep their sentences, anything
+  /// else is the generic one (docs/design/app-failure-messages.md §2.1).
+  ApiResponse<T> _refused<T>(http.Response res) =>
+      errorFromResponse(res, messageFor: _messageFor);
 
-  ApiResponse<T> _errorFrom<T>(http.Response res) {
-    String? code;
-    try {
-      code = _decode(res.body)['error'] as String?;
-    } catch (_) {
-      code = null;
-    }
-    return ApiResponse.error(_messageFor(code), code: code);
-  }
-
-  String _messageFor(String? code) {
+  /// The codes with words of their own; anything else is the generic sentence
+  /// (`errorFromResponse`).
+  String? _messageFor(String? code) {
     switch (code) {
       case 'forbidden':
         return 'Action non autorisée pour ce salon.';
@@ -873,7 +868,7 @@ class ApiProService implements ProServiceInterface {
       case 'demo_account_locked':
         return teamErrorMessage(code);
       default:
-        return 'Une erreur est survenue.';
+        return null;
     }
   }
 }

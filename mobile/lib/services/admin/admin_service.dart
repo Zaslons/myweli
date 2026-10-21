@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../../core/config/app_config.dart';
+import '../../core/constants/failure_messages.dart';
 import '../../models/api_response.dart';
 import '../../services/secure_session_store.dart';
 import '../api/refreshing_http_client.dart';
@@ -42,7 +43,9 @@ class AdminService {
         body: jsonEncode({'email': email, 'password': password}),
       );
     } catch (_) {
-      return ApiResponse.error('Connexion au serveur impossible');
+      // The one sentence for « nothing answered »
+      // (docs/design/app-failure-messages.md §8).
+      return ApiResponse.error(kNoConnectionMessage, code: 'network');
     }
     if (res.statusCode == 200) {
       final body = jsonDecode(res.body) as Map<String, dynamic>;

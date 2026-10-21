@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/constants/failure_messages.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
@@ -194,7 +195,7 @@ class _ProInvitationsScreenState extends State<ProInvitationsScreen> {
       });
       AppSnackBar.showOn(
         messenger,
-        'Pas de connexion. Réessayez.',
+        kNoConnectionMessage,
         kind: SnackKind.error,
       );
       return true;
