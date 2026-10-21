@@ -76,6 +76,7 @@ void main() {
         notes: any(named: 'notes'),
         artistId: any(named: 'artistId'),
         sendSmsInvite: any(named: 'sendSmsInvite'),
+        idempotencyKey: any(named: 'idempotencyKey'),
       ),
     ).thenAnswer((_) async => ApiResponse.success(created()));
   });
@@ -131,6 +132,7 @@ void main() {
               notes: any(named: 'notes'),
               artistId: any(named: 'artistId'),
               sendSmsInvite: any(named: 'sendSmsInvite'),
+              idempotencyKey: any(named: 'idempotencyKey'),
             ),
           ).captured.single
           as String?;
@@ -205,6 +207,7 @@ void main() {
         notes: any(named: 'notes'),
         artistId: any(named: 'artistId'),
         sendSmsInvite: any(named: 'sendSmsInvite'),
+        idempotencyKey: any(named: 'idempotencyKey'),
       ),
     );
   });
@@ -237,6 +240,7 @@ void main() {
         notes: any(named: 'notes'),
         artistId: any(named: 'artistId'),
         sendSmsInvite: any(named: 'sendSmsInvite'),
+        idempotencyKey: any(named: 'idempotencyKey'),
       ),
     );
 
@@ -295,6 +299,7 @@ void main() {
         notes: any(named: 'notes'),
         artistId: any(named: 'artistId'),
         sendSmsInvite: captureAny(named: 'sendSmsInvite'),
+        idempotencyKey: any(named: 'idempotencyKey'),
       ),
     ).captured.single;
     expect(sent, isFalse);

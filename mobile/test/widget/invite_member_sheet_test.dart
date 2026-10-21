@@ -39,7 +39,13 @@ class _SwitchableTeam implements ProTeamServiceInterface {
     required String email,
     required TeamRole role,
     String? artistId,
-  }) => inner.inviteMember(email: email, role: role, artistId: artistId);
+    String? idempotencyKey,
+  }) => inner.inviteMember(
+    email: email,
+    role: role,
+    artistId: artistId,
+    idempotencyKey: idempotencyKey,
+  );
 
   @override
   Future<ApiResponse<TeamMember>> changeRole(
@@ -105,6 +111,7 @@ class _DemoLockedTeam extends MockProTeamService {
     required String email,
     required TeamRole role,
     String? artistId,
+    String? idempotencyKey,
   }) async => ApiResponse.error(
     teamErrorMessage('demo_account_locked'),
     code: 'demo_account_locked',

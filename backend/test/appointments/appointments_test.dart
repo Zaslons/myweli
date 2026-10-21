@@ -15,6 +15,7 @@ import 'package:myweli_backend/src/clients/clients_repository.dart';
 import 'package:myweli_backend/src/clients/clients_service.dart';
 import 'package:myweli_backend/src/clients/provider_audit_log.dart';
 import 'package:myweli_backend/src/email/email_provider.dart';
+import 'package:myweli_backend/src/idempotency/idempotency_store.dart';
 import 'package:myweli_backend/src/messaging/salon_notifier.dart';
 import 'package:myweli_backend/src/notifications/notification_prefs_repository.dart';
 import 'package:myweli_backend/src/notifications/notifications_repository.dart';
@@ -57,6 +58,7 @@ void main() {
   late InMemoryNotificationsRepository salonFeed;
   late InMemoryDeviceTokenRepository salonDevices;
   late SalonNotifier salonNotifier;
+  late InMemoryIdempotencyStore idem;
   final tokens = TokenService(secret: 'test-secret');
   final accessA = tokens
       .issueAccessToken(subject: 'user_A', role: 'user')
@@ -66,6 +68,7 @@ void main() {
       .token;
 
   setUp(() {
+    idem = InMemoryIdempotencyStore();
     providers = InMemoryProvidersRepository();
     appts = InMemoryAppointmentRepository();
     booking = BookingService(providers, appts, SlotService(providers, appts));
@@ -416,6 +419,7 @@ void main() {
       );
       when(() => context.read<AuthRepository>()).thenReturn(auth);
       when(() => context.read<SalonNotifier>()).thenReturn(salonNotifier);
+      when(() => context.read<IdempotencyStore>()).thenReturn(idem);
       // Multi-pays MP1: the market enrichment + off-day masking read the
       // salon's timezone/currency from the providers repo.
       when(() => context.read<ProvidersRepository>()).thenReturn(providers);
@@ -541,6 +545,40 @@ void main() {
         expect(await salonDevices.tokensForUser('acc-owner'), ['tok-owner']);
       },
     );
+
+    // docs/design/write-idempotency.md §1, §3: the client's answer was lost
+    // and they try again. « Sans préférence » (no artist) could book a SECOND
+    // chair; an artist's slot answered 409 for their own booking.
+    test('POST twice with the same Idempotency-Key: ONE booking, ONE salon '
+        'notification, the same answer replayed', () async {
+      await members.ensureOwner(
+        providerId: 'provider1',
+        accountId: 'acc-owner',
+        email: 'owner@salon.test',
+      );
+      Request keyed() => Request.post(
+        Uri.parse('http://localhost/appointments'),
+        headers: {
+          'Authorization': 'Bearer $accessA',
+          'Idempotency-Key': 'book-key-0000000001',
+        },
+        body: jsonEncode(bookBody(_slotAt(9))),
+      );
+      final first = await list.onRequest(ctx(keyed()));
+      final second = await list.onRequest(ctx(keyed()));
+      expect(first.statusCode, HttpStatus.created);
+      expect(second.statusCode, HttpStatus.created);
+      expect((await jsonOf(second))['id'], (await jsonOf(first))['id']);
+      expect(second.headers['idempotent-replayed'], 'true');
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      expect(
+        (await appts.listForProvider(
+          'provider1',
+        )).where((a) => a['status'] == 'pending'),
+        hasLength(1),
+      );
+      expect(await salonFeed.listForUser('acc-owner'), hasLength(1));
+    });
 
     test('POST an unavailable slot → 409', () async {
       final res = await list.onRequest(

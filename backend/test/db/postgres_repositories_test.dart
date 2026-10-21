@@ -20,6 +20,7 @@ import 'package:myweli_backend/src/db/postgres_client_version_repository.dart';
 import 'package:myweli_backend/src/db/postgres_clients_repository.dart';
 import 'package:myweli_backend/src/db/postgres_device_token_repository.dart';
 import 'package:myweli_backend/src/db/postgres_favorites_repository.dart';
+import 'package:myweli_backend/src/db/postgres_idempotency_store.dart';
 import 'package:myweli_backend/src/db/postgres_membership_repository.dart';
 import 'package:myweli_backend/src/db/postgres_notification_prefs_repository.dart';
 import 'package:myweli_backend/src/db/postgres_notifications_repository.dart';
@@ -35,6 +36,7 @@ import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 
 import '../access/invite_contract.dart';
+import '../idempotency/idempotency_contract.dart';
 
 void main() {
   final url = Platform.environment['DATABASE_URL'];
@@ -1894,6 +1896,15 @@ void main() {
             );
         return reg.provider!.id;
       },
+    );
+  });
+
+  // docs/design/write-idempotency.md §3 — the same contract as the in-memory
+  // twin, on the real table (migration 0040).
+  group('PostgresIdempotencyStore — the twin contract', () {
+    idempotencyContract(
+      store: (now) => PostgresIdempotencyStore(pool, now: now),
+      prefix: 'pg-${DateTime.now().microsecondsSinceEpoch}-',
     );
   });
 

@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from 'next/server';
+import { idempotencyKeyHeader } from '../../../../lib/bff';
 import { callApiPro, respondPro } from '../../../../lib/bff-pro';
 import { validateInviteEmail } from '../../../../lib/pro/team';
 
@@ -21,6 +22,7 @@ export async function POST(req: NextRequest) {
   return respondPro(
     await callApiPro(req, '/me/provider/members', {
       method: 'POST',
+      headers: idempotencyKeyHeader(req), // docs/design/write-idempotency.md §4
       body: JSON.stringify({ email: checked.email, role, artistId }),
     }),
   );

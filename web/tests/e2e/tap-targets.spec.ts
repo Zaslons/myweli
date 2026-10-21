@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 
 import { signInConsumer, signInPro } from './_auth';
 import { asUnaskedBrowser } from './_push';
+import { keepSharedGallery } from './_gallery';
 import { serveStubImages } from './_pixel';
 
 /// B4 — §13.2's 48px floor, pinned (WEB-SYSTEM §15 row 7h).
@@ -148,6 +149,8 @@ test('pro: « Client sans numéro » — its whole row is the target (web-manual
 });
 
 test('pro: Médias — the undo toast’s « Annuler » (web-pro-medias-like-app)', async ({ page }) => {
+  // The screens only: the saves are answered here, never by the shared stub.
+  await keepSharedGallery(page);
   await signInPro(page);
   await page.goto('/pro/medias');
   await page.getByRole('button', { name: 'Supprimer' }).last().click();
@@ -158,7 +161,7 @@ test('pro: Médias — the undo toast’s « Annuler » (web-pro-medias-like-app
   const undo = page.getByRole('status').getByRole('button', { name: 'Annuler' });
   await expect(undo).toBeVisible();
   await assertBox(undo, 'undo toast « Annuler »', { minW: 0 });
-  await undo.click(); // the stub's gallery is shared
+  await undo.click();
 });
 
 test('pro: the glyph buttons that grew invisibly', async ({ page }) => {

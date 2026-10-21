@@ -1,5 +1,5 @@
 import type { NextRequest } from 'next/server';
-import { callApi, respond } from '../../../lib/bff';
+import { callApi, idempotencyKeyHeader, respond } from '../../../lib/bff';
 
 /// BFF: create a booking under the session. The server prices it + derives the
 /// deposit; we forward only the selection. Silent refresh via callApi (M6).
@@ -7,6 +7,9 @@ export async function POST(req: NextRequest) {
   const payload = await req.json().catch(() => ({}));
   const result = await callApi(req, '/appointments', {
     method: 'POST',
+    // A lost answer is asked again under the same key: the server replays
+    // the booking (docs/design/write-idempotency.md §4).
+    headers: idempotencyKeyHeader(req),
     body: JSON.stringify({
       providerId: payload.providerId,
       serviceIds: payload.serviceIds,

@@ -14,6 +14,7 @@ import 'package:myweli_backend/src/clients/clients_repository.dart';
 import 'package:myweli_backend/src/clients/clients_service.dart';
 import 'package:myweli_backend/src/clients/provider_audit_log.dart';
 import 'package:myweli_backend/src/favorites_repository.dart';
+import 'package:myweli_backend/src/idempotency/idempotency_store.dart';
 import 'package:myweli_backend/src/notifications/notification_prefs_repository.dart';
 import 'package:myweli_backend/src/notifications/notifications_repository.dart';
 import 'package:myweli_backend/src/privacy/user_erasure_service.dart';
@@ -206,6 +207,10 @@ void main() {
       );
     }
 
+    // docs/design/write-idempotency.md §3, §6: the kept answers go with the
+    // account (they may hold what a booking answered).
+    final idem = InMemoryIdempotencyStore();
+
     /// Set to a table name to make that repository throw — the ordering gate.
     UserErasureService erasureService({http.Client? client}) =>
         UserErasureService(
@@ -218,6 +223,7 @@ void main() {
           appointments,
           clientsService(),
           FakeStorageService(),
+          idempotency: idem,
           client:
               client ??
               MockClient((req) async {
@@ -311,6 +317,43 @@ void main() {
       // `get` upserts a default, so absence reads as "back to defaults".
       expect((await prefs.get(victim)).marketing, isTrue);
       expect((await prefs.get(bystander)).marketing, isFalse);
+    });
+
+    test('the kept answers of its writes go (idempotency keys)', () async {
+      for (final who in [victim, bystander]) {
+        await idem.claim(
+          accountId: who,
+          route: '/appointments',
+          key: 'k-erase-0001',
+          fingerprint: 'f',
+        );
+        await idem.complete(
+          accountId: who,
+          route: '/appointments',
+          key: 'k-erase-0001',
+          status: 201,
+          body: '{}',
+        );
+      }
+      expect((await erase(victim)).statusCode, HttpStatus.noContent);
+      expect(
+        await idem.claim(
+          accountId: victim,
+          route: '/appointments',
+          key: 'k-erase-0001',
+          fingerprint: 'f',
+        ),
+        isA<ClaimReserved>(),
+      );
+      expect(
+        await idem.claim(
+          accountId: bystander,
+          route: '/appointments',
+          key: 'k-erase-0001',
+          fingerprint: 'f',
+        ),
+        isA<ClaimReplay>(),
+      );
     });
 
     test('favourites go', () async {

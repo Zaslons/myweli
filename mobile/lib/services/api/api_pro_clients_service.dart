@@ -8,6 +8,7 @@ import '../../models/appointment.dart';
 import '../../models/salon_client.dart';
 import '../interfaces/pro_clients_service_interface.dart';
 import '../interfaces/session_store.dart';
+import 'idempotent_write.dart';
 import 'refreshing_http_client.dart';
 
 /// REST impl of the salon client base (module `clients` C1) against
@@ -212,14 +213,19 @@ class ApiProClientsService implements ProClientsServiceInterface {
   Future<ApiResponse<SalonClientNote>> addNote(
     String providerId,
     String clientId,
-    String body,
-  ) async {
-    final res = await _authed.send(
-      (t) => _client.post(
+    String body, {
+    String? idempotencyKey,
+  }) async {
+    // Under its key, a lost answer is asked again once — the note is added
+    // once (docs/design/write-idempotency.md §4).
+    final res = await sendIdempotent(
+      _authed,
+      (t, key) => _client.post(
         _uri('/providers/$providerId/clients/$clientId/notes'),
-        headers: _bearer(t),
+        headers: {..._bearer(t), ...key},
         body: jsonEncode({'body': body}),
       ),
+      key: idempotencyKey,
     );
     if (res == null) return _networkError();
     if (res.statusCode != 201) return _errorFrom(res);

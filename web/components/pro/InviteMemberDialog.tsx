@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { SubmissionKey } from '../../lib/api/network';
 import { createArtistReturning, inviteMember } from '../../lib/api/pro';
 import type { Artist } from '../../lib/pro/catalogue';
 import {
@@ -44,6 +45,8 @@ export function InviteMemberDialog({
   const [creatingFiche, setCreatingFiche] = useState(false);
   const [newFicheName, setNewFicheName] = useState('');
   const [busy, setBusy] = useState(false);
+  // One Idempotency-Key per submission (docs/design/write-idempotency.md §4).
+  const submission = useRef(new SubmissionKey());
   // The machine code (not the message) — so we can render both the copy and
   // the matching CTA (offer_required/seat_limit → the picker).
   const [errorCode, setErrorCode] = useState<string | undefined>();
@@ -82,16 +85,18 @@ export function InviteMemberDialog({
     }
     setBusy(true);
     setErrorCode(undefined);
-    const r = await inviteMember({
+    const invitation = {
       email: checked.email,
       role,
       artistId: role === 'staff' ? artistId : undefined,
-    });
+    };
+    const r = await inviteMember(invitation, submission.current.for(invitation));
     setBusy(false);
     if (!r.ok || !r.member) {
       setErrorCode(r.error ?? 'unknown');
       return;
     }
+    submission.current.settle();
     onInvited(r.member, checked.email);
   }
 

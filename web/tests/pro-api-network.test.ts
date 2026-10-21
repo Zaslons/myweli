@@ -150,7 +150,7 @@ const ROWS: Row[] = [
     name: 'inviteMember',
     kind: 'write',
     payload: ['member'],
-    call: () => pro.inviteMember({ email: 'a@b.ci', role: 'manager' }),
+    call: () => pro.inviteMember({ email: 'a@b.ci', role: 'manager' }, 'test-key-00000001'),
   },
   {
     name: 'changeMemberRole',
@@ -174,7 +174,7 @@ const ROWS: Row[] = [
     kind: 'write',
     call: () => pro.updateClientPhone('p1', 'c1', '+2250700000000'),
   },
-  { name: 'addClientNote', kind: 'write', payload: ['note'], call: () => pro.addClientNote('p1', 'c1', 'x') },
+  { name: 'addClientNote', kind: 'write', payload: ['note'], call: () => pro.addClientNote('p1', 'c1', 'x', 'test-key-00000001') },
   { name: 'deleteClientNote', kind: 'write', call: () => pro.deleteClientNote('p1', 'c1', 'n1') },
   {
     name: 'rescheduleAppointment',
@@ -187,10 +187,11 @@ const ROWS: Row[] = [
     kind: 'write',
     payload: ['appt'],
     call: () =>
-      pro.createManualBooking('p1', {
-        serviceIds: ['s1'],
-        appointmentDateTime: '2030-01-15T09:00:00.000Z',
-      }),
+      pro.createManualBooking(
+        'p1',
+        { serviceIds: ['s1'], appointmentDateTime: '2030-01-15T09:00:00.000Z' },
+        'test-key-00000001',
+      ),
   },
   {
     name: 'registerPro',

@@ -1091,6 +1091,32 @@ CREATE TABLE IF NOT EXISTS momo_operators (
           'ADD COLUMN IF NOT EXISTS email_alerts boolean NOT NULL DEFAULT true',
     ],
   ),
+  (
+    id: '0040_idempotency_keys',
+    statements: [
+      // The kept answers of the four creating POSTs, replayed for the same
+      // `Idempotency-Key` instead of a second booking, note or invitation
+      // (docs/design/write-idempotency.md §3).
+      //
+      // `account_id` is the session's `sub` — a consumer OR a salon account,
+      // two tables, so no foreign key: the erasure services delete the rows
+      // themselves. `status` NULL = the write is still running; `body` is the
+      // answer as sent, kept 24 h and pruned daily by the subscriptions cron.
+      // Additive: an older image never reads it.
+      'CREATE TABLE IF NOT EXISTS idempotency_keys ('
+          'account_id text NOT NULL, '
+          'route text NOT NULL, '
+          'key text NOT NULL, '
+          'fingerprint text NOT NULL, '
+          'status int, '
+          'body text, '
+          'created_at timestamptz NOT NULL, '
+          'PRIMARY KEY (account_id, route, key))',
+      // What makes the daily prune a range delete rather than a full scan.
+      'CREATE INDEX IF NOT EXISTS idempotency_keys_created_idx '
+          'ON idempotency_keys (created_at)',
+    ],
+  ),
 ];
 
 /// How long a schema-setup statement may **wait for a lock** before giving up.

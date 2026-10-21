@@ -2,6 +2,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
 import { submitOtpLogin } from './_auth';
+import { keepSharedGallery } from './_gallery';
 import { asUnaskedBrowser } from './_push';
 
 /// B5 — §14's "the whole of §4–§8, on real pages" gate (WEB-SYSTEM §15 row 15).
@@ -341,6 +342,8 @@ test('the OPEN « Jours bloqués » dialog is axe-clean — calendar and confirm
 test('Médias — the delete question, then the undo toast — axe-clean (web-pro-medias-like-app)', async ({
   page,
 }) => {
+  // The screens only: the saves are answered here, never by the shared stub.
+  await keepSharedGallery(page);
   await page.goto('/pro/connexion');
   await submitOtpLogin(page, 'salon@example.com');
   await expect(page).toHaveURL(/\/pro(\/)?$/);
@@ -353,7 +356,6 @@ test('Médias — the delete question, then the undo toast — axe-clean (web-pr
   const undo = page.getByRole('status').getByRole('button', { name: 'Annuler' });
   await expect(undo).toBeVisible();
   await expectNoViolations(page, '/pro/medias + undo toast');
-  // Put it back: the stub's gallery is shared by every test.
   await undo.click();
 });
 

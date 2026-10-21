@@ -111,6 +111,7 @@ void main() {
           notes: any(named: 'notes'),
           depositAmount: any(named: 'depositAmount'),
           depositScreenshotUrl: any(named: 'depositScreenshotUrl'),
+          idempotencyKey: any(named: 'idempotencyKey'),
         ),
       ).thenAnswer((_) async => ApiResponse.success(confirmed()));
 
@@ -134,6 +135,8 @@ void main() {
           notes: null,
           depositAmount: 6000,
           depositScreenshotUrl: 'asset:proof.png',
+          // One per submission (docs/design/write-idempotency.md §4).
+          idempotencyKey: any(named: 'idempotencyKey', that: isNotNull),
         ),
       ).called(1);
     },

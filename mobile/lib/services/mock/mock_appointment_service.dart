@@ -65,7 +65,10 @@ class MockAppointmentService implements AppointmentServiceInterface {
     String? notes,
     double depositAmount = 0,
     String? depositScreenshotUrl,
+    String? idempotencyKey,
   }) async {
+    // The mock never loses an answer, so it never sees a retry under the
+    // same key: the key is accepted and has nothing to do here.
     await Future.delayed(AppConstants.mockDelay);
 
     // Find provider to get service prices

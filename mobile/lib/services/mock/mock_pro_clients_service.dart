@@ -366,8 +366,11 @@ class MockProClientsService implements ProClientsServiceInterface {
   Future<ApiResponse<SalonClientNote>> addNote(
     String providerId,
     String clientId,
-    String body,
-  ) async {
+    String body, {
+    String? idempotencyKey,
+  }) async {
+    // The mock never loses an answer, so it never sees a retry under the
+    // same key: the key is accepted and has nothing to do here.
     await Future.delayed(AppConstants.mockDelay);
     final trimmed = body.trim();
     if (trimmed.isEmpty || trimmed.length > 500) {

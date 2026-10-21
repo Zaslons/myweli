@@ -3,12 +3,17 @@ import 'package:flutter/foundation.dart';
 import '../core/access/pro_access_guard.dart';
 import '../core/access/pro_salon_scope.dart';
 import '../core/di/dependency_injection.dart';
+import '../core/utils/submission_key.dart';
 import '../models/appointment.dart';
 import '../services/interfaces/pro_service_interface.dart';
 
 class ProAppointmentProvider extends ChangeNotifier
     implements HearsBookingChanges {
   final ProServiceInterface _proService = serviceLocator.proService;
+
+  /// One Idempotency-Key per manual-booking submission
+  /// (docs/design/write-idempotency.md §4).
+  final SubmissionKey _manualBookingKey = SubmissionKey();
 
   List<Appointment> _appointments = [];
   bool _isLoading = false;
@@ -269,6 +274,16 @@ class ProAppointmentProvider extends ChangeNotifier
     notifyListeners();
 
     try {
+      final key = _manualBookingKey.forForm({
+        'providerId': providerId,
+        'serviceIds': serviceIds,
+        'appointmentDateTime': appointmentDateTime.toUtc().toIso8601String(),
+        'clientName': clientName,
+        'clientPhone': clientPhone,
+        'notes': notes,
+        'artistId': artistId,
+        'sendSmsInvite': sendSmsInvite,
+      });
       final response = await _proService.createManualBooking(
         providerId: providerId,
         serviceIds: serviceIds,
@@ -278,8 +293,10 @@ class ProAppointmentProvider extends ChangeNotifier
         notes: notes,
         artistId: artistId,
         sendSmsInvite: sendSmsInvite,
+        idempotencyKey: key,
       );
       if (response.success && response.data != null) {
+        _manualBookingKey.settle();
         final created = response.data!;
         if (_belongsToLoadedList(created)) {
           _appointments = [..._appointments, created]

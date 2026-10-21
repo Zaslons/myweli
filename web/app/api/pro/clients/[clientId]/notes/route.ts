@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from 'next/server';
+import { idempotencyKeyHeader } from '../../../../../../lib/bff';
 import { callApiPro, respondPro } from '../../../../../../lib/bff-pro';
 
 type Params = { params: { clientId: string } };
@@ -14,7 +15,11 @@ export async function POST(req: NextRequest, { params }: Params) {
     await callApiPro(
       req,
       `/providers/${providerId}/clients/${clientId}/notes`,
-      { method: 'POST', body: JSON.stringify({ body }) },
+      {
+        method: 'POST',
+        headers: idempotencyKeyHeader(req), // docs/design/write-idempotency.md §4
+        body: JSON.stringify({ body }),
+      },
     ),
   );
 }

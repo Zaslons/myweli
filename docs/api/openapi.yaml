@@ -619,6 +619,7 @@ paths:
       security: [{ bearerAuth: [] }]
       parameters:
         - { $ref: '#/components/parameters/SalonSelector' }
+        - { $ref: '#/components/parameters/IdempotencyKey' }
       requestBody:
         required: true
         content:
@@ -633,13 +634,24 @@ paths:
       responses:
         '201':
           description: Invitation created, or a revoked/expired row invited again (the pending member row)
+          headers:
+            Idempotent-Replayed: { $ref: '#/components/headers/IdempotentReplayed' }
           content:
             application/json:
               schema: { $ref: '#/components/schemas/TeamMember' }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
-        '409': { $ref: '#/components/responses/Conflict' }
+        '409':
+          description: >-
+            `member_exists`, `offer_required`, `seat_limit` (above), or
+            `request_in_progress` — the same `Idempotency-Key` is still being
+            answered: ask again with it. A replayed invitation is never
+            `member_exists`.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '422': { $ref: '#/components/responses/IdempotencyKeyReused' }
         '429': { $ref: '#/components/responses/RateLimited' }
 
   /me/provider/members/{memberId}:
@@ -2303,6 +2315,8 @@ paths:
         double-booking (409). `sendSmsInvite` is accepted but a no-op until the
         notifications slice.
       security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/IdempotencyKey' }
       requestBody:
         required: true
         content:
@@ -2328,6 +2342,8 @@ paths:
       responses:
         '201':
           description: The created (confirmed) appointment
+          headers:
+            Idempotent-Replayed: { $ref: '#/components/headers/IdempotentReplayed' }
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Appointment' }
@@ -2339,6 +2355,8 @@ paths:
           description: >
             `slot_unavailable` — the exact start is already booked.
             `provider_suspended` — the salon was stopped.
+            `request_in_progress` — the same `Idempotency-Key` is still being
+            answered: ask again with it.
             A salon that has merely not published yet is NOT refused here: it
             owns its own calendar (row 82), which is also why this route never
             returns `beyond_horizon` or `too_soon` — the salon is exempt from
@@ -2346,6 +2364,7 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
+        '422': { $ref: '#/components/responses/IdempotencyKeyReused' }
 
   /uploads/sign:
     post:
@@ -2601,6 +2620,8 @@ paths:
       tags: [clients]
       summary: Add an internal note (≤500 chars; team-only, never consumer-visible)
       security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/IdempotencyKey' }
       requestBody:
         required: true
         content:
@@ -2613,6 +2634,8 @@ paths:
       responses:
         '201':
           description: Created
+          headers:
+            Idempotent-Replayed: { $ref: '#/components/headers/IdempotentReplayed' }
           content:
             application/json:
               schema: { $ref: '#/components/schemas/SalonClientNote' }
@@ -2620,6 +2643,14 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: >-
+            `request_in_progress` — the same `Idempotency-Key` is still being
+            answered: ask again with it.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '422': { $ref: '#/components/responses/IdempotencyKeyReused' }
 
   /providers/{id}/clients/{clientId}/notes/{noteId}:
     parameters:
@@ -2739,6 +2770,8 @@ paths:
       tags: [appointments]
       summary: Book an appointment — created pending, server-priced (B-appt)
       security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/IdempotencyKey' }
       requestBody:
         required: true
         content:
@@ -2773,6 +2806,8 @@ paths:
       responses:
         '201':
           description: The created (pending) appointment
+          headers:
+            Idempotent-Replayed: { $ref: '#/components/headers/IdempotentReplayed' }
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Appointment' }
@@ -2809,9 +2844,12 @@ paths:
             (the mobile `Provider` model has no `status` field), and the
             never-published case is the state EVERY salon starts in while the
             suspended one takes a deliberate admin act.
+            `request_in_progress` — the same `Idempotency-Key` is still being
+            answered: ask again with it.
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
+        '422': { $ref: '#/components/responses/IdempotencyKeyReused' }
         '429': { $ref: '#/components/responses/RateLimited' }
 
   /appointments/{id}:
@@ -4090,6 +4128,25 @@ components:
         protected routes (e.g. /me) as those slices land — see docs/BACKEND.md §3.1.
 
   parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      schema: { type: string, pattern: '^[A-Za-z0-9_-]{8,128}$' }
+      description: >-
+        One key per form submission (a UUID), reused on every retry of that
+        same submission: a write whose answer was lost is asked again with it,
+        and the server REPLAYS its first success (same status, same body,
+        `Idempotent-Replayed: true`) instead of writing again — no second
+        booking, note or invitation, no 409 on the caller's own booking.
+        Scoped to the caller's account and this exact route (path ids and
+        query); kept 24 h. Absent → the write behaves as without keys. A
+        malformed key → 400 `invalid_idempotency_key`; the same request
+        still running → 409 `request_in_progress` (wait, ask again with the
+        same key); the key used for ANOTHER body → 422
+        `idempotency_key_reused`. A refused write (any non-2xx) frees the key.
+        Only the four creating POSTs take it. Design:
+        docs/design/write-idempotency.md.
     SalonSelector:
       name: salonId
       in: query
@@ -4157,6 +4214,21 @@ components:
       content:
         application/json:
           schema: { $ref: '#/components/schemas/Error' }
+    IdempotencyKeyReused:
+      description: >-
+        `idempotency_key_reused` — this `Idempotency-Key` was sent before with
+        another body. A client bug, never a retry: a new submission takes a
+        new key.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+
+  headers:
+    IdempotentReplayed:
+      description: >-
+        `true` when this answer is the replay of an earlier success for the
+        same `Idempotency-Key` — nothing was written again.
+      schema: { type: string, enum: ['true'] }
 
   schemas:
     Health:

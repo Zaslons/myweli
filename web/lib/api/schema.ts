@@ -829,7 +829,10 @@ export interface paths {
                     /** @description R6 multi-salons: select the acting salon among the caller's ACTIVE memberships. Absent → the caller's default salon (legacy behavior). Any invalid selection (never-member, revoked-there, unknown id) is a uniform 403 `forbidden` — no membership-existence oracle (threat T55) — and never auto-provisions. */
                     salonId?: components["parameters"]["SalonSelector"];
                 };
-                header?: never;
+                header?: {
+                    /** @description One key per form submission (a UUID), reused on every retry of that same submission: a write whose answer was lost is asked again with it, and the server REPLAYS its first success (same status, same body, `Idempotent-Replayed: true`) instead of writing again — no second booking, note or invitation, no 409 on the caller's own booking. Scoped to the caller's account and this exact route (path ids and query); kept 24 h. Absent → the write behaves as without keys. A malformed key → 400 `invalid_idempotency_key`; the same request still running → 409 `request_in_progress` (wait, ask again with the same key); the key used for ANOTHER body → 422 `idempotency_key_reused`. A refused write (any non-2xx) frees the key. Only the four creating POSTs take it. Design: docs/design/write-idempotency.md. */
+                    "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+                };
                 path?: never;
                 cookie?: never;
             };
@@ -849,6 +852,7 @@ export interface paths {
                 /** @description Invitation created, or a revoked/expired row invited again (the pending member row) */
                 201: {
                     headers: {
+                        "Idempotent-Replayed": components["headers"]["IdempotentReplayed"];
                         [name: string]: unknown;
                     };
                     content: {
@@ -858,7 +862,16 @@ export interface paths {
                 400: components["responses"]["BadRequest"];
                 401: components["responses"]["Unauthorized"];
                 403: components["responses"]["Forbidden"];
-                409: components["responses"]["Conflict"];
+                /** @description `member_exists`, `offer_required`, `seat_limit` (above), or `request_in_progress` — the same `Idempotency-Key` is still being answered: ask again with it. A replayed invitation is never `member_exists`. */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                422: components["responses"]["IdempotencyKeyReused"];
                 429: components["responses"]["RateLimited"];
             };
         };
@@ -3556,7 +3569,10 @@ export interface paths {
         post: {
             parameters: {
                 query?: never;
-                header?: never;
+                header?: {
+                    /** @description One key per form submission (a UUID), reused on every retry of that same submission: a write whose answer was lost is asked again with it, and the server REPLAYS its first success (same status, same body, `Idempotent-Replayed: true`) instead of writing again — no second booking, note or invitation, no 409 on the caller's own booking. Scoped to the caller's account and this exact route (path ids and query); kept 24 h. Absent → the write behaves as without keys. A malformed key → 400 `invalid_idempotency_key`; the same request still running → 409 `request_in_progress` (wait, ask again with the same key); the key used for ANOTHER body → 422 `idempotency_key_reused`. A refused write (any non-2xx) frees the key. Only the four creating POSTs take it. Design: docs/design/write-idempotency.md. */
+                    "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+                };
                 path: {
                     id: string;
                 };
@@ -3581,6 +3597,7 @@ export interface paths {
                 /** @description The created (confirmed) appointment */
                 201: {
                     headers: {
+                        "Idempotent-Replayed": components["headers"]["IdempotentReplayed"];
                         [name: string]: unknown;
                     };
                     content: {
@@ -3591,7 +3608,7 @@ export interface paths {
                 401: components["responses"]["Unauthorized"];
                 403: components["responses"]["Forbidden"];
                 404: components["responses"]["NotFound"];
-                /** @description `slot_unavailable` — the exact start is already booked. `provider_suspended` — the salon was stopped. A salon that has merely not published yet is NOT refused here: it owns its own calendar (row 82), which is also why this route never returns `beyond_horizon` or `too_soon` — the salon is exempt from its own booking window (A14d). */
+                /** @description `slot_unavailable` — the exact start is already booked. `provider_suspended` — the salon was stopped. `request_in_progress` — the same `Idempotency-Key` is still being answered: ask again with it. A salon that has merely not published yet is NOT refused here: it owns its own calendar (row 82), which is also why this route never returns `beyond_horizon` or `too_soon` — the salon is exempt from its own booking window (A14d). */
                 409: {
                     headers: {
                         [name: string]: unknown;
@@ -3600,6 +3617,7 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
+                422: components["responses"]["IdempotencyKeyReused"];
             };
         };
         delete?: never;
@@ -3924,7 +3942,10 @@ export interface paths {
         post: {
             parameters: {
                 query?: never;
-                header?: never;
+                header?: {
+                    /** @description One key per form submission (a UUID), reused on every retry of that same submission: a write whose answer was lost is asked again with it, and the server REPLAYS its first success (same status, same body, `Idempotent-Replayed: true`) instead of writing again — no second booking, note or invitation, no 409 on the caller's own booking. Scoped to the caller's account and this exact route (path ids and query); kept 24 h. Absent → the write behaves as without keys. A malformed key → 400 `invalid_idempotency_key`; the same request still running → 409 `request_in_progress` (wait, ask again with the same key); the key used for ANOTHER body → 422 `idempotency_key_reused`. A refused write (any non-2xx) frees the key. Only the four creating POSTs take it. Design: docs/design/write-idempotency.md. */
+                    "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+                };
                 path: {
                     id: string;
                     clientId: string;
@@ -3942,6 +3963,7 @@ export interface paths {
                 /** @description Created */
                 201: {
                     headers: {
+                        "Idempotent-Replayed": components["headers"]["IdempotentReplayed"];
                         [name: string]: unknown;
                     };
                     content: {
@@ -3952,6 +3974,16 @@ export interface paths {
                 401: components["responses"]["Unauthorized"];
                 403: components["responses"]["Forbidden"];
                 404: components["responses"]["NotFound"];
+                /** @description `request_in_progress` — the same `Idempotency-Key` is still being answered: ask again with it. */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                422: components["responses"]["IdempotencyKeyReused"];
             };
         };
         delete?: never;
@@ -4156,7 +4188,10 @@ export interface paths {
         post: {
             parameters: {
                 query?: never;
-                header?: never;
+                header?: {
+                    /** @description One key per form submission (a UUID), reused on every retry of that same submission: a write whose answer was lost is asked again with it, and the server REPLAYS its first success (same status, same body, `Idempotent-Replayed: true`) instead of writing again — no second booking, note or invitation, no 409 on the caller's own booking. Scoped to the caller's account and this exact route (path ids and query); kept 24 h. Absent → the write behaves as without keys. A malformed key → 400 `invalid_idempotency_key`; the same request still running → 409 `request_in_progress` (wait, ask again with the same key); the key used for ANOTHER body → 422 `idempotency_key_reused`. A refused write (any non-2xx) frees the key. Only the four creating POSTs take it. Design: docs/design/write-idempotency.md. */
+                    "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+                };
                 path?: never;
                 cookie?: never;
             };
@@ -4178,6 +4213,7 @@ export interface paths {
                 /** @description The created (pending) appointment */
                 201: {
                     headers: {
+                        "Idempotent-Replayed": components["headers"]["IdempotentReplayed"];
                         [name: string]: unknown;
                     };
                     content: {
@@ -4195,7 +4231,7 @@ export interface paths {
                 };
                 401: components["responses"]["Unauthorized"];
                 404: components["responses"]["NotFound"];
-                /** @description `slot_unavailable` — the requested time isn't a free slot (closed/past/break/already-booked/non-aligned). `beyond_horizon` — the date is further ahead than the salon's `bookingHorizonDays` (A14d). `too_soon` — the start is inside the salon's `minimumNoticeMinutes`. The last two are distinct from `slot_unavailable` on purpose: that code makes every client say some version of "someone else just took your slot", which is false for a window breach and leaves the user retrying a time that can never be offered. `provider_not_published` — the salon has never gone live, so it is absent from discovery and reachable only by a stale link or a favourite. `provider_suspended` — the salon was stopped. These two are split for the same reason as the pair above, and the split matters more here: a client cannot tell them apart for itself (the mobile `Provider` model has no `status` field), and the never-published case is the state EVERY salon starts in while the suspended one takes a deliberate admin act. */
+                /** @description `slot_unavailable` — the requested time isn't a free slot (closed/past/break/already-booked/non-aligned). `beyond_horizon` — the date is further ahead than the salon's `bookingHorizonDays` (A14d). `too_soon` — the start is inside the salon's `minimumNoticeMinutes`. The last two are distinct from `slot_unavailable` on purpose: that code makes every client say some version of "someone else just took your slot", which is false for a window breach and leaves the user retrying a time that can never be offered. `provider_not_published` — the salon has never gone live, so it is absent from discovery and reachable only by a stale link or a favourite. `provider_suspended` — the salon was stopped. These two are split for the same reason as the pair above, and the split matters more here: a client cannot tell them apart for itself (the mobile `Provider` model has no `status` field), and the never-published case is the state EVERY salon starts in while the suspended one takes a deliberate admin act. `request_in_progress` — the same `Idempotency-Key` is still being answered: ask again with it. */
                 409: {
                     headers: {
                         [name: string]: unknown;
@@ -4204,6 +4240,7 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
+                422: components["responses"]["IdempotencyKeyReused"];
                 429: components["responses"]["RateLimited"];
             };
         };
@@ -7216,13 +7253,27 @@ export interface components {
                 "application/json": components["schemas"]["Error"];
             };
         };
+        /** @description `idempotency_key_reused` — this `Idempotency-Key` was sent before with another body. A client bug, never a retry: a new submission takes a new key. */
+        IdempotencyKeyReused: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
     };
     parameters: {
+        /** @description One key per form submission (a UUID), reused on every retry of that same submission: a write whose answer was lost is asked again with it, and the server REPLAYS its first success (same status, same body, `Idempotent-Replayed: true`) instead of writing again — no second booking, note or invitation, no 409 on the caller's own booking. Scoped to the caller's account and this exact route (path ids and query); kept 24 h. Absent → the write behaves as without keys. A malformed key → 400 `invalid_idempotency_key`; the same request still running → 409 `request_in_progress` (wait, ask again with the same key); the key used for ANOTHER body → 422 `idempotency_key_reused`. A refused write (any non-2xx) frees the key. Only the four creating POSTs take it. Design: docs/design/write-idempotency.md. */
+        IdempotencyKey: string;
         /** @description R6 multi-salons: select the acting salon among the caller's ACTIVE memberships. Absent → the caller's default salon (legacy behavior). Any invalid selection (never-member, revoked-there, unknown id) is a uniform 403 `forbidden` — no membership-existence oracle (threat T55) — and never auto-provisions. */
         SalonSelector: string;
     };
     requestBodies: never;
-    headers: never;
+    headers: {
+        /** @description `true` when this answer is the replay of an earlier success for the same `Idempotency-Key` — nothing was written again. */
+        IdempotentReplayed: "true";
+    };
     pathItems: never;
 }
 export type $defs = Record<string, never>;

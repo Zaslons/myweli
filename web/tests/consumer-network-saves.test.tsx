@@ -317,11 +317,17 @@ describe('Réserver — « Confirmer la réservation »', () => {
     return { field, submit: screen.getByRole('button', { name: 'Confirmer la réservation' }) };
   }
 
-  it('the booking without network: « La réservation a échoué. Réessayez. », the button comes back', async () => {
+  // docs/design/write-idempotency.md §8 (owner Q4): it said « La réservation
+  // a échoué. Réessayez. » — and a retry could book twice. Asked again once
+  // with the same key, then the truth: nothing answered, and « Réessayer » is
+  // safe (it sends that key again).
+  it('the booking without network: asked again once, then « Pas de connexion. Réessayez. », the button comes back', async () => {
     const { submit } = await openConfirm({ 'POST /api/bookings': 'throw' });
+    const f = vi.mocked(fetch);
     fireEvent.click(submit);
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('La réservation a échoué. Réessayez.');
+    expect(await screen.findByRole('alert')).toHaveTextContent(NO_CONNECTION);
+    expect(f.mock.calls.filter(([u, i]) => u === '/api/bookings' && i?.method === 'POST')).toHaveLength(2);
     expect(submit).toBeEnabled();
   });
 

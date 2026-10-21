@@ -4,6 +4,7 @@ import 'access/membership_repository.dart';
 import 'appointments/appointment_repository.dart';
 import 'auth/demo_seam.dart';
 import 'auth/provider_auth_repository.dart';
+import 'idempotency/idempotency_store.dart';
 import 'notifications/notifications_repository.dart';
 import 'providers_repository.dart';
 import 'push/device_token_repository.dart';
@@ -25,10 +26,12 @@ class ProviderAccountService {
     this._memberships, {
     DeviceTokenRepository? devices,
     NotificationsRepository? notifications,
+    IdempotencyStore? idempotency,
     http.Client? client,
     SiteRebuildNotifier? rebuild,
   }) : _devices = devices,
        _notifications = notifications,
+       _idempotency = idempotency,
        _client = client ?? http.Client(),
        _rebuild = rebuild ?? NoopSiteRebuildNotifier();
 
@@ -42,6 +45,10 @@ class ProviderAccountService {
   /// but wired in `dependencies.dart`, so production always has them.
   final DeviceTokenRepository? _devices;
   final NotificationsRepository? _notifications;
+
+  /// The kept answers of its writes (docs/design/write-idempotency.md §6) —
+  /// a manual booking's holds the client's name and phone for 24 h.
+  final IdempotencyStore? _idempotency;
   final http.Client _client;
   final SiteRebuildNotifier _rebuild;
 
@@ -134,6 +141,7 @@ class ProviderAccountService {
     // Before the identity delete, like everything else here.
     await _devices?.deleteForUser(accountId);
     await _notifications?.deleteForUser(accountId);
+    await _idempotency?.deleteForAccount(accountId);
 
     final ok = await _auth.deleteAccount(accountId);
     if (!ok) return (ok: false, error: 'forbidden');

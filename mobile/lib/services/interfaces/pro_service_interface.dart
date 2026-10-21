@@ -207,6 +207,9 @@ abstract class ProServiceInterface {
     String? notes,
     String? artistId,
     bool sendSmsInvite = false,
+
+    /// One per submission (docs/design/write-idempotency.md §4).
+    String? idempotencyKey,
   });
 
   // Services

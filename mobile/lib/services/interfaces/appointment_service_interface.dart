@@ -10,6 +10,11 @@ abstract class AppointmentServiceInterface {
     String? notes,
     double depositAmount = 0,
     String? depositScreenshotUrl,
+
+    /// One per submission, reused on « Réessayer »: a lost answer is asked
+    /// again under it and the server replays the booking
+    /// (docs/design/write-idempotency.md §4).
+    String? idempotencyKey,
   });
   Future<ApiResponse<List<Appointment>>> getUserAppointments({
     AppointmentStatus? status,

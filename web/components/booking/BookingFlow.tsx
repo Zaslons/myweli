@@ -7,6 +7,7 @@ import { ErrorState } from "../ErrorState";
 import { Loading } from "../Loading";
 import { SkeletonRows } from "../Skeleton";
 import { type Me, getMe } from "../../lib/api/account";
+import { NO_CONNECTION_MESSAGE, SubmissionKey } from "../../lib/api/network";
 import type { Provider } from "../../lib/api/providers";
 import { updateContactPhone } from "../../lib/auth/client";
 import {
@@ -181,6 +182,9 @@ export function BookingFlow({
   // `InviteMemberDialog`, which stores the code for exactly this reason.
   const [errorCode, setErrorCode] = useState<string | undefined>(undefined);
   const [created, setCreated] = useState<CreatedBooking | null>(null);
+  // One Idempotency-Key per submission — the same on « Réessayer », a new
+  // one once the booking changed (docs/design/write-idempotency.md §4).
+  const bookingKey = useRef(new SubmissionKey());
 
   const cta = bookingErrorCta(errorCode);
 
@@ -391,14 +395,19 @@ export function BookingFlow({
         return setError("Votre numéro n’a pas pu être enregistré. Réessayez.");
       }
     }
-    const b = await createBooking({
+    const booking = {
       providerId: provider.id,
       serviceIds: s.serviceIds,
       appointmentDateTime: s.slot!,
       artistId: s.artistId,
       notes: notes.trim() || undefined,
-    });
+    };
+    const b = await createBooking(booking, bookingKey.current.for(booking));
     setBusy(false);
+    // Nothing answered, even asked again: say so — « Réessayer » is safe now,
+    // it sends the same key (owner Q4). « La réservation a échoué » is for a
+    // real refusal.
+    if (b.lost) return setError(NO_CONNECTION_MESSAGE);
     if (!b.ok) {
       // A14d: this site already read the CODE — it just did not know the two
       // window codes existed, so they fell through to « réessayez », inviting
@@ -412,6 +421,7 @@ export function BookingFlow({
         }),
       );
     }
+    bookingKey.current.settle();
     setCreated(b.appointment ?? null);
     setS(goPhase(s, "done"));
   }

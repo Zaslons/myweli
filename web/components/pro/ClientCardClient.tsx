@@ -7,6 +7,7 @@ import { StatusChip } from '../StatusChip';
 import { ErrorState } from '../ErrorState';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { SubmissionKey } from '../../lib/api/network';
 import { Toast } from '../Toast';
 import { useToast } from '../../lib/useToast';
 import { statusLabelFr } from '../../lib/account/appointments';
@@ -74,6 +75,8 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
   const [notFound, setNotFound] = useState(false);
   const [error, setError] = useState<LoadFailure | false>(false);
   const [noteDraft, setNoteDraft] = useState('');
+  // One Idempotency-Key per note sent (docs/design/write-idempotency.md §4).
+  const noteKey = useRef(new SubmissionKey());
   const [busy, setBusy] = useState(false);
   const [editingTags, setEditingTags] = useState(false);
   const [customTag, setCustomTag] = useState('');
@@ -150,9 +153,18 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
     const body = noteDraft.trim();
     if (!body) return;
     setBusy(true);
-    const r = await addClientNote(providerId!, clientId, body);
+    const r = await addClientNote(
+      providerId!,
+      clientId,
+      body,
+      noteKey.current.for({ clientId, body }),
+    );
     setBusy(false);
     if (r.ok && r.note) {
+      // Only once the note shows: a 2xx that came back without it, even
+      // asked again, keeps the key — tapping « Ajouter » replays it, never a
+      // second note.
+      noteKey.current.settle();
       setCard((c) => (c ? { ...c, notes: [r.note!, ...c.notes] } : c));
       setNoteDraft('');
     }

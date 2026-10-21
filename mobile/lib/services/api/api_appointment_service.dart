@@ -11,6 +11,7 @@ import '../../models/appointment.dart';
 import '../../models/session.dart';
 import '../interfaces/appointment_service_interface.dart';
 import '../interfaces/session_store.dart';
+import 'idempotent_write.dart';
 import 'refreshing_http_client.dart';
 
 /// Compresses [source] (a local file path) to JPEG bytes. Injected so the
@@ -67,15 +68,19 @@ class ApiAppointmentService implements AppointmentServiceInterface {
     String? notes,
     double depositAmount = 0,
     String? depositScreenshotUrl,
+    String? idempotencyKey,
   }) async {
     if (await _authed.accessToken() == null) {
       return ApiResponse.error('Connectez-vous pour réserver');
     }
     // Note: depositAmount is computed server-side from the provider's policy.
-    final res = await _authed.send(
-      (token) => _client.post(
+    // Under its key, a lost answer is asked again once: the server replays
+    // the booking (docs/design/write-idempotency.md §4).
+    final res = await sendIdempotent(
+      _authed,
+      (token, key) => _client.post(
         _uri('/appointments'),
-        headers: _authHeaders(token),
+        headers: {..._authHeaders(token), ...key},
         body: jsonEncode({
           'providerId': providerId,
           'serviceIds': serviceIds,
@@ -85,8 +90,15 @@ class ApiAppointmentService implements AppointmentServiceInterface {
           'depositScreenshotUrl': ?depositScreenshotUrl,
         }),
       ),
+      key: idempotencyKey,
     );
-    if (res == null) return _networkError();
+    // Nothing answered, even asked again (owner Q4): « Réessayer » is safe —
+    // it sends the same key, and the server replays what it did.
+    if (res == null) {
+      return idempotencyKey == null
+          ? _networkError()
+          : ApiResponse.error('Pas de connexion. Réessayez.', code: 'network');
+    }
     if (res.statusCode != 201) return _errorFrom(res);
     return ApiResponse.success(Appointment.fromJson(_decode(res.body)));
   }
