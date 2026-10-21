@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:dart_frog/dart_frog.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:myweli_backend/src/idempotency/idempotency_store.dart';
 import 'package:myweli_backend/src/access/membership_repository.dart';
 import 'package:myweli_backend/src/access/membership_service.dart';
 import 'package:myweli_backend/src/access/team_service.dart';
@@ -66,6 +67,10 @@ class _FakeGoogle extends GoogleIdTokenVerifier {
 }
 
 class _NullEmail implements EmailProvider {
+  /// Who was written to — « one invitation, one e-mail »
+  /// (docs/design/write-idempotency.md §3).
+  final sentTo = <String>[];
+
   @override
   Future<EmailSendResult> send({
     required String to,
@@ -73,7 +78,10 @@ class _NullEmail implements EmailProvider {
     required String text,
     required EmailClass classification,
     String? html,
-  }) async => (ok: true, providerMessageId: 'm', error: null);
+  }) async {
+    sentTo.add(to);
+    return (ok: true, providerMessageId: 'm', error: null);
+  }
 }
 
 /// R2b handlers end to end (team-access-r2b-invitations.md §5/§9): the
@@ -88,6 +96,8 @@ void main() {
   late MembershipService resolver;
   late SalonSubscriptionService subscriptions;
   late TeamService team;
+  late _NullEmail email;
+  late InMemoryIdempotencyStore idem;
   late _FakeGoogle google;
   late String ownerId;
   late DateTime now;
@@ -120,12 +130,14 @@ void main() {
       providers,
       auth,
     );
+    email = _NullEmail();
+    idem = InMemoryIdempotencyStore();
     team = TeamService(
       memberships,
       resolver,
       providers,
       subscriptions,
-      _NullEmail(),
+      email,
       InMemoryProviderAuditLogRepository(),
       clock: () => now,
     );
@@ -161,6 +173,7 @@ void main() {
     when(() => c.read<ProviderAuthRepository>()).thenReturn(auth);
     when(() => c.read<MembershipService>()).thenReturn(resolver);
     when(() => c.read<TeamService>()).thenReturn(team);
+    when(() => c.read<IdempotencyStore>()).thenReturn(idem);
     return c;
   }
 
@@ -262,6 +275,38 @@ void main() {
         expect(await memberships.listForProvider('p-demo'), hasLength(1));
       },
     );
+
+    // docs/design/write-idempotency.md §1: a retried invitation answered 409
+    // member_exists although it had been sent — and must not be sent twice.
+    test('an invitation sent twice with the same Idempotency-Key: ONE '
+        'invitation, ONE e-mail, the first answer replayed', () async {
+      Future<Response> send() => members.onRequest(
+        ctx(
+          Request(
+            'POST',
+            Uri.parse('http://localhost/me/provider/members'),
+            headers: {
+              'Authorization': 'Bearer ${tok(ownerId)}',
+              'content-type': 'application/json',
+              'Idempotency-Key': 'invite-key-00000001',
+            },
+            body: jsonEncode({'email': 'mgr@twice.ci', 'role': 'manager'}),
+          ),
+        ),
+      );
+      final first = await send();
+      final second = await send();
+      expect(first.statusCode, HttpStatus.created);
+      expect(
+        second.statusCode,
+        HttpStatus.created,
+        reason: 'not 409 member_exists',
+      );
+      expect(second.headers['idempotent-replayed'], 'true');
+      expect(email.sentTo.where((t) => t == 'mgr@twice.ci'), hasLength(1));
+      final rows = await memberships.listForProvider('p1');
+      expect(rows.where((m) => m.email == 'mgr@twice.ci'), hasLength(1));
+    });
 
     test('owner lists the roster (owner row first)', () async {
       await invited('mgr@b.com');

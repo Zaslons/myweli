@@ -8,6 +8,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:myweli_backend/src/auth/auth_repository.dart'
     show RefreshOutcome, RefreshResult, TokenPair, kRefreshReuseGrace;
+import 'package:myweli_backend/src/idempotency/idempotency_store.dart';
 import 'package:myweli_backend/src/auth/tokens.dart';
 import 'package:myweli_backend/src/boot_config.dart';
 import 'package:myweli_backend/src/clients/clients_repository.dart'
@@ -33,6 +34,8 @@ import 'package:myweli_backend/src/salon_time.dart';
 import 'package:myweli_backend/src/storage/storage_service.dart';
 import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
+
+import '../idempotency/idempotency_contract.dart';
 
 import '../access/invite_contract.dart';
 
@@ -1894,6 +1897,15 @@ void main() {
             );
         return reg.provider!.id;
       },
+    );
+  });
+
+  // docs/design/write-idempotency.md §3 — the same contract as the in-memory
+  // twin, on the real table (migration 0040).
+  group('PostgresIdempotencyStore — the twin contract', () {
+    idempotencyContract(
+      store: (now) => PostgresIdempotencyStore(pool, now: now),
+      prefix: 'pg-${DateTime.now().microsecondsSinceEpoch}-',
     );
   });
 

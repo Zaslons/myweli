@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:dart_frog/dart_frog.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:myweli_backend/src/idempotency/idempotency_store.dart';
 import 'package:myweli_backend/src/access/membership_repository.dart';
 import 'package:myweli_backend/src/access/membership_service.dart';
 import 'package:myweli_backend/src/appointments/appointment_repository.dart';
@@ -561,8 +562,13 @@ void main() {
       when(() => context.request).thenReturn(request);
       when(() => context.read<TokenService>()).thenReturn(tokens);
       when(() => context.read<ClientsService>()).thenReturn(service);
+      when(() => context.read<IdempotencyStore>()).thenReturn(idem);
       return context;
     }
+
+    // docs/design/write-idempotency.md: one store per test.
+    late InMemoryIdempotencyStore idem;
+    setUp(() => idem = InMemoryIdempotencyStore());
 
     String proTok(String sub) =>
         tokens.issueAccessToken(subject: sub, role: 'provider').token;
@@ -725,6 +731,48 @@ void main() {
         raw('POST', '/providers/provider1/clients/$id/notes', '{"body": 1}'),
       );
     });
+
+    // docs/design/write-idempotency.md §1: a retried note used to be added
+    // twice (201 twice).
+    test(
+      'a note sent twice with the same Idempotency-Key is added ONCE',
+      () async {
+        final add = await service.addClient(
+          accountId,
+          'provider1',
+          name: 'R',
+          phone: '+2250700000092',
+        );
+        final id = add.data!['id'] as String;
+        Future<Response> send() => notes_route.onRequest(
+          ctx(
+            Request.post(
+              Uri.parse(
+                'http://localhost/providers/provider1/clients/$id/notes',
+              ),
+              headers: {
+                'Authorization': 'Bearer ${proTok(accountId)}',
+                'content-type': 'application/json',
+                'Idempotency-Key': 'note-key-000000001',
+              },
+              body: '{"body": "Préfère Awa"}',
+            ),
+          ),
+          'provider1',
+          id,
+        );
+        final first = await send();
+        final second = await send();
+        expect(first.statusCode, HttpStatus.created);
+        expect(second.statusCode, HttpStatus.created);
+        expect(
+          (await second.json() as Map)['id'],
+          (await first.json() as Map)['id'],
+        );
+        final card = await service.card(accountId, 'provider1', id);
+        expect(card.data!['notes'] as List, hasLength(1));
+      },
+    );
 
     test('card 200 / foreign id 404; visits 200; note routes', () async {
       final add = await service.addClient(
