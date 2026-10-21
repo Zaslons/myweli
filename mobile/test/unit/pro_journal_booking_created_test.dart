@@ -552,7 +552,9 @@ void main() {
       server.failure = 'throw';
       await p.load('p1', date: monday);
       await settled(); // the week prefetch behind the failed load
-      expect(p.error, contains('SocketException'));
+      // The generic sentence — never the exception's own text
+      // (docs/design/app-failure-messages.md §1.1).
+      expect(p.error, 'Une erreur est survenue. Réessayez.');
       final requestsBefore = server.requests.length;
 
       // It DID try: one more request for the day, a loader meanwhile, and the

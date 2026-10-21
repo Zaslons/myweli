@@ -339,7 +339,8 @@ void main() {
         idempotencyKey: 'm-000001',
       );
       expect(booked.success, isFalse);
-      expect(booked.error, 'Connexion au serveur impossible');
+      // One sentence for « nothing answered » since batch 3 (B3.2).
+      expect(booked.error, 'Pas de connexion. Réessayez.');
       for (final r in [
         await clients.addNote(
           'provider1',

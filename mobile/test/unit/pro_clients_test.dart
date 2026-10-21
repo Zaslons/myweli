@@ -417,8 +417,9 @@ void main() {
 
         // The service's own word for an answer it cannot read — never
         // « FormatException: A clients page without its items », which the
-        // list's error state would show as its description.
-        expect(provider.error, 'Erreur');
+        // list's error state would show as its description, and no longer
+        // « Erreur » alone (docs/design/app-failure-messages.md §8).
+        expect(provider.error, 'Une erreur est survenue. Réessayez.');
         expect(provider.clients, isEmpty);
       });
 
@@ -726,7 +727,8 @@ void main() {
         );
         final res = await linked(client).listClients('provider1', pageSize: 50);
         expect(res.success, isFalse, reason: body);
-        expect(res.error, 'Erreur', reason: body);
+        expect(res.error, 'Une erreur est survenue. Réessayez.', reason: body);
+        expect(res.code, 'unreadable', reason: body);
       }
     });
 
@@ -910,7 +912,11 @@ class _CountingClients implements ProClientsServiceInterface {
       try {
         return ApiResponse.success(SalonClientsPage.fromJson(wire));
       } on FormatException {
-        return ApiResponse.error('Erreur');
+        // The real service's word for an unreadable page since batch 3.
+        return ApiResponse.error(
+          'Une erreur est survenue. Réessayez.',
+          code: 'unreadable',
+        );
       }
     }
     return _base.listClients(
