@@ -39,8 +39,8 @@
 | 10 | **Only you can check** | App Store Connect state, support inbox, App Preview, production walk-throughs | — | owner | your time |
 
 **Proposed order.**
-- **Now:** batch 0 runs on Apple's clock. Batches 1 (#665), 2 (#666), 3 (#670, #671) and 4 (#672, #673) are done; **batch 5 is the next code slice.**
-- **Then:** batch 5, while batch 6 accumulates and goes out in one or two backend deploys.
+- **Now:** batch 0 runs on Apple's clock. Batches 1 (#665), 2 (#666), 3 (#670, #671), 4 (#672, #673) and 5 (#674, #675) are done; **batch 6 is the next code slice.**
+- **Then:** batch 6 goes out in one or two backend deploys (each one asked for first).
 - **When touching an area:** batches 7 and 9.
 - **Whenever you answer:** batch 8.
 
@@ -243,7 +243,7 @@ This batch takes up three of the six suggested tasks that were never started. It
     - If you choose to: remember the acting salon `{id, name}` in `localStorage`, cleared at sign-out.
 - ✅ **B4.5 Minor sections that vanish silently (P3 · S · decision 15).** **Done in #672** — [web-pro-truthful-failure.md](design/web-pro-truthful-failure.md) §10 (the seats bar is Équipe's offer, in B4.1). The seats bar, the stats tiles, the panel's client card and the « Nouveau rendez-vous » suggestions get a one-line « indisponible » note with « Réessayer », worded by `loadFailureMessage`.
 
-### Batch 5 — Client web polish (P2–P3, web)
+### Batch 5 — Client web polish (P2–P3, web) — ✅ done (#674, #675, 2026-10-21)
 
 - ✅ **B5.1 Sign-in blames the code for every failure (P2 · S).** **Done in #674** — [web-client-polish.md](design/web-client-polish.md) §10 (the send step and the salon sign-up too).
   - **What:** a server error, a rate limit or a broken answer says « Code incorrect ou expiré. » under the code field (`LoginOptions.tsx:159-174`). The Pro web sign-in has the same branch.
@@ -251,7 +251,7 @@ This batch takes up three of the six suggested tasks that were never started. It
     - `otp_invalid`, `otp_expired`, `otp_none` and `otp_locked` go under the field.
     - 429 gets a form-level « Trop de tentatives. Réessayez plus tard. ».
     - Everything else gets the form-level generic or offline sentence.
-- **B5.2 The search ♥ (P2 · S).**
+- ✅ **B5.2 The search ♥ (P2 · S).** **Done in #675** — [web-client-polish.md](design/web-client-polish.md) §11.
   - **What:** a failed session check sends a signed-in user to the login page, and a double click sends two requests.
   - **How:** track the probe as ok / anonymous / failed, and treat failed like the salon page's button, where the write's own 401 decides. Add a per-card in-flight set.
 - ✅ **B5.3 Export edge cases (P3 · S).** **Done in #674** — [web-client-polish.md](design/web-client-polish.md) §10 (the app's two export screens too, Q3).
@@ -260,7 +260,7 @@ This batch takes up three of the six suggested tasks that were never started. It
     - A dedicated « Le fichier n'a pas pu être préparé. Réessayez. ».
     - Build the document inside `load()` in a try/catch.
     - Validate list elements in `getFavorites`: each must be an object with a string `id` and `name`, otherwise status 0.
-- **B5.4 A favourite added or removed is not announced (P3 · M · decision 16).** On success, a toast « Ajouté aux favoris » / « Retiré des favoris » on the search and salon pages. The live region is already mounted. The spec comes first.
+- ✅ **B5.4 A favourite added or removed is not announced (P3 · M · decision 16).** **Done in #675** — [web-client-polish.md](design/web-client-polish.md) §11 (with « Annuler », and on « Mon compte » too). On success, a toast « Ajouté aux favoris » / « Retiré des favoris » on the search and salon pages. The live region is already mounted. The spec comes first.
 
 ### Batch 6 — Backend integrity (P2–P3, one or two deploys)
 

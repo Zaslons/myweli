@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **PR A construite le 2026-10-21** sur `fix/web-client-polish` (#674 — B5.1, B5.3, et l'app selon Q3 — §10) ; **PR B** (B5.2, B5.4) à suivre. Validé le même jour — Q1 : **la phrase de l'app pour chaque code** ; Q2 (décision 16) : **le message et « Annuler »** ; Q3 : **l'app corrigée dans la PR A** ; Q4 : **« Mon compte » aussi, les mots tels qu'écrits** |
+| **Statut** | **Construite le 2026-10-21** : PR A #674 (B5.1, B5.3, et l'app selon Q3 — §10), PR B #675 sur `fix/web-client-hearts` (B5.2, B5.4 — §11). Validé le même jour — Q1 : **la phrase de l'app pour chaque code** ; Q2 (décision 16) : **le message et « Annuler »** ; Q3 : **l'app corrigée dans la PR A** ; Q4 : **« Mon compte » aussi, les mots tels qu'écrits** |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-21 |
 | **PRD ref / phase** | Web client (V1) — parité avec l'app client · WEB-SYSTEM §6 (formulaires), §7 (zones annoncées) · SYSTEM.md §14 (une faute, un endroit), §15 (retours), §17 (les deux phrases) |
@@ -272,3 +272,40 @@ l'inscription ×3) ; les favoris non vérifiés, un nom non exigé ; « Mes
 données » sans `catch`, puis sans son état ; l'export du salon qui nomme les
 lectures ; l'app qui les nomme, l'écran Pro qui construit dans `setState`,
 puis qui dit « Vérifiez votre connexion ».
+
+## 11. PR B construite (B5.2, B5.4) — ce qui a été vu
+
+**Comme écrit**, avec ces précisions :
+- **Le ♥ occupé** porte `aria-disabled`, pas `disabled` : un bouton désactivé
+  lâche le focus clavier vers `<body>`, celui-ci le garde. Trois gardes —
+  le clic de la carte, `toggleFavorite`, `writeFavorite` ; une seule retirée
+  est tenue par les deux autres, les trois retirées ensemble sont vues rouges.
+- **La lecture des favoris** finit `known`, `anonymous` (401) ou `failed`.
+  Une lecture qui **jette** est `failed` aussi : `getFavorites` ne jette pas
+  aujourd'hui (il rend le statut 0), un test simule le module pour tenir le
+  `catch` — sans lui, tous les ♥ attendraient pour toujours.
+- **« Annuler »** refait l'écriture inverse, sans nouvelle annonce (comme
+  l'app). Son échec : sur la recherche et la page salon, la phrase sous la
+  carte ou le bouton ; sur « Mon compte », **il n'y a plus de carte** — le
+  toast d'erreur le dit (§2.4 ne le disait pas). La carte revient à **sa
+  place**.
+- **Trouvé en construisant** : sur un téléphone, le toast partagé et le
+  bouton « Carte » de la recherche occupent le même bas-centre (24–72 px).
+  `Toast` prend `aboveFloatingControl` : sous `lg`, le toast se place à
+  80 px (`bottom-xxxl` + `pb-m`, des jetons seulement), au-dessus du bouton.
+  Un e2e sur 390 px mesure les deux boîtes.
+- **La page salon** : le focus revient au bouton après la réponse — succès ou
+  échec — s'il est tombé ; il ne revenait qu'après un échec.
+
+**Vérifié** : types et lint propres ; 2 146 tests web ; e2e entier
+(E2E_COUNT) sur deux workers, dont le nouvel e2e « téléphone », vu rouge sans
+le placement. **Mutations vues rouges (18)** : la lecture échouée prise pour
+anonyme, celle qui jette prise pour anonyme, puis laissée en attente ; les
+trois gardes retirées ; le ♥ qui ne dit pas qu'il est occupé ; la recherche
+muette, qui annonce un échec, dont « Annuler » écrit dans le même sens, dont
+le toast reste après « Annuler », sans toast ; la page salon muette, son
+« Annuler » dans le même sens, sans toast ; « Mon compte » muet, qui remet la
+carte à la fin, dont l'échec d'« Annuler » se tait ; les mots ; le toast
+par-dessus « Carte ». **Le premier passage avait un défaut de l'outil, pas du
+code** : le fichier muté n'était pas écrit, et seize mutations « survivaient »
+— vu parce que presque toutes survivaient ; corrigé, tout relancé.
