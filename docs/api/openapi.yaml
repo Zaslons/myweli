@@ -300,6 +300,24 @@ paths:
                   type: string
                   description: The raw nonce used for the sign-in request (replay defence).
                 fullName: { type: string, description: First-auth display-name hint. }
+                authorizationCode:
+                  type: string
+                  description: >-
+                    Optional (B6.7). Apple's one-time authorization code from
+                    the same sign-in. After a SUCCESSFUL sign-in the server
+                    exchanges it for a refresh token, kept to revoke the
+                    authorization when the account is deleted (App Store
+                    5.1.1(v)) — only if Apple's answer names the same `sub`.
+                    Never a reason for the sign-in to fail: unusable → ignored;
+                    a wrong JSON type → 400 `invalid_body` like every field.
+                    Inactive (ignored) while no Apple key is configured.
+                redirectUri:
+                  type: string
+                  description: >-
+                    Optional — sent by the web's BFF only, never the browser:
+                    the redirect URI of the authorization, which Apple
+                    requires to exchange a web code. Must be https; else
+                    ignored.
       responses:
         '200':
           description: Signed in
@@ -1323,6 +1341,24 @@ paths:
                 idToken: { type: string, description: Google ID token (identity proof). }
                 identityToken: { type: string, description: Apple identity token. }
                 nonce: { type: string }
+                authorizationCode:
+                  type: string
+                  description: >-
+                    Optional (B6.7). Apple's one-time authorization code from
+                    the same sign-in (with `identityToken`). After a SUCCESSFUL sign-in the server
+                    exchanges it for a refresh token, kept to revoke the
+                    authorization when the account is deleted (App Store
+                    5.1.1(v)) — only if Apple's answer names the same `sub`.
+                    Never a reason for the sign-in to fail: unusable → ignored;
+                    a wrong JSON type → 400 `invalid_body` like every field.
+                    Inactive (ignored) while no Apple key is configured.
+                redirectUri:
+                  type: string
+                  description: >-
+                    Optional — sent by the web's BFF only, never the browser:
+                    the redirect URI of the authorization, which Apple
+                    requires to exchange a web code. Must be https; else
+                    ignored.
                 email: { type: string, format: email }
                 code: { type: string, description: Email OTP (identity proof with `email`). }
       responses:
@@ -1406,6 +1442,24 @@ paths:
               properties:
                 identityToken: { type: string }
                 nonce: { type: string }
+                authorizationCode:
+                  type: string
+                  description: >-
+                    Optional (B6.7). Apple's one-time authorization code from
+                    the same sign-in. After a SUCCESSFUL sign-in the server
+                    exchanges it for a refresh token, kept to revoke the
+                    authorization when the account is deleted (App Store
+                    5.1.1(v)) — only if Apple's answer names the same `sub`.
+                    Never a reason for the sign-in to fail: unusable → ignored;
+                    a wrong JSON type → 400 `invalid_body` like every field.
+                    Inactive (ignored) while no Apple key is configured.
+                redirectUri:
+                  type: string
+                  description: >-
+                    Optional — sent by the web's BFF only, never the browser:
+                    the redirect URI of the authorization, which Apple
+                    requires to exchange a web code. Must be https; else
+                    ignored.
       responses:
         '200':
           description: Signed in (flat ProviderSession)

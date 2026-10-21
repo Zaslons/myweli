@@ -711,11 +711,17 @@ export async function loginProWithGoogle(idToken: string): Promise<{
 export async function loginProWithApple(identity: {
   identityToken: string;
   nonce: string;
+  /// Apple's one-time code (B6.7 — docs/design/backend-integrity-batch6.md §13).
+  authorizationCode?: string;
 }): Promise<{ ok: boolean; error?: string }> {
   const res = await send('/api/pro/auth/apple', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ identityToken: identity.identityToken, nonce: identity.nonce }),
+    body: JSON.stringify({
+      identityToken: identity.identityToken,
+      nonce: identity.nonce,
+      ...(identity.authorizationCode ? { authorizationCode: identity.authorizationCode } : {}),
+    }),
   });
   const body = await res.json().catch(() => ({}));
   return res.ok ? { ok: true } : { ok: false, error: body.error };
@@ -1173,6 +1179,8 @@ export async function registerPro(
     identityToken?: string;
     nonce?: string;
     fullName?: string;
+    /// Apple's one-time code (B6.7).
+    authorizationCode?: string;
     email?: string;
     code?: string;
   },

@@ -17,6 +17,7 @@ import 'package:myweli_backend/src/appointments/booking_service.dart';
 import 'package:myweli_backend/src/appointments/journal_service.dart';
 import 'package:myweli_backend/src/appointments/pro_appointment_service.dart';
 import 'package:myweli_backend/src/appointments/slot_service.dart';
+import 'package:myweli_backend/src/auth/apple_tokens.dart';
 import 'package:myweli_backend/src/auth/auth_methods.dart';
 import 'package:myweli_backend/src/auth/auth_repository.dart';
 import 'package:myweli_backend/src/auth/demo_seam.dart';
@@ -73,6 +74,7 @@ Handler middleware(Handler handler) {
       .use(provider<MaintenanceTick>((_) => maintenanceTick))
       .use(provider<GoogleIdTokenVerifier>((_) => googleIdTokenVerifier))
       .use(provider<AppleIdTokenVerifier>((_) => appleIdTokenVerifier))
+      .use(provider<AppleTokenService>((_) => appleTokenService))
       .use(provider<EmailProvider>((_) => emailProvider))
       .use(provider<ProviderAuthRepository>((_) => providerAuthRepository))
       .use(provider<ProviderAccountService>((_) => providerAccountService))

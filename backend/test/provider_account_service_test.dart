@@ -14,6 +14,7 @@ import 'package:myweli_backend/src/push/device_token_repository.dart';
 import 'package:myweli_backend/src/site/site_rebuild_notifier.dart';
 import 'package:myweli_backend/src/storage/storage_service.dart';
 import 'package:test/test.dart';
+import 'auth/apple_token_fake.dart';
 
 class _MockProviders extends Mock implements ProvidersRepository {}
 
@@ -269,6 +270,53 @@ void main() {
     verifyNever(() => providers.setStatus(any(), any()));
   });
 
+  group('B6.7 — Sign in with Apple is revoked with the account', () {
+    test('revoked under the PRO kind, BEFORE the identity goes', () async {
+      final id = await registerWithKyc(keys: []);
+      bool? presentAtRevoke;
+      final apple = RecordingAppleTokens(
+        onRevoke: (_, accountId) async =>
+            presentAtRevoke = await auth.accountById(accountId) != null,
+      );
+      final r = await ProviderAccountService(
+        auth,
+        providers,
+        appointments,
+        FakeStorageService(),
+        InMemoryMembershipRepository(),
+        apple: apple,
+      ).deleteAccount(id);
+      expect(r.ok, isTrue);
+      expect(apple.revoked, [('provider', id)]);
+      expect(presentAtRevoke, isTrue);
+      expect(await auth.accountById(id), isNull);
+    });
+
+    test('a refused deletion (bookings ahead) revokes nothing', () async {
+      final id = await registerWithKyc(keys: []);
+      final future = DateTime.now()
+          .toUtc()
+          .add(const Duration(days: 2))
+          .toIso8601String();
+      when(() => appointments.listForProvider('p1')).thenAnswer(
+        (_) async => [
+          {'status': 'confirmed', 'appointmentDate': future},
+        ],
+      );
+      final apple = RecordingAppleTokens();
+      final r = await ProviderAccountService(
+        auth,
+        providers,
+        appointments,
+        FakeStorageService(),
+        InMemoryMembershipRepository(),
+        apple: apple,
+      ).deleteAccount(id);
+      expect(r.error, 'future_bookings');
+      expect(apple.revoked, isEmpty);
+    });
+  });
+
   group('R6 — deletion across ALL owned salons (T53)', () {
     late InMemoryMembershipRepository memberships;
     late ProviderAccountService service;
@@ -503,6 +551,21 @@ void main() {
         ],
       );
     }
+
+    test('B6.7: the locked demo identity revokes no Apple token', () async {
+      final demo = await populated(kDemoProviderEmail);
+      final apple = RecordingAppleTokens();
+      final r = await ProviderAccountService(
+        auth,
+        providers,
+        appointments,
+        FakeStorageService(),
+        memberships,
+        apple: apple,
+      ).deleteAccount(demo.id);
+      expect(r.error, 'demo_account_locked');
+      expect(apple.revoked, isEmpty);
+    });
 
     test('refused with demo_account_locked, and nothing is mutated', () async {
       final demo = await populated(kDemoProviderEmail);

@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:dart_frog/dart_frog.dart';
+import 'package:myweli_backend/src/auth/apple_tokens.dart';
 import 'package:myweli_backend/src/auth/auth_methods.dart';
 import 'package:myweli_backend/src/auth/id_token_verifier.dart';
 import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
@@ -27,8 +28,11 @@ Future<Response> onRequest(RequestContext context) async {
     return jsonError(HttpStatus.badRequest, 'invalid_token');
   }
   final nonce = optionalString(body, 'nonce')?.trim();
+  // B6.7 — read with the other fields: a wrong type is 400 before sign-in.
+  final appleCode = appleCodeOf(body);
 
-  final claims = await context.read<AppleIdTokenVerifier>().verify(
+  final verifier = context.read<AppleIdTokenVerifier>();
+  final claims = await verifier.verify(
     identityToken,
     nonce: (nonce != null && nonce.isNotEmpty) ? nonce : null,
   );
@@ -40,5 +44,18 @@ Future<Response> onRequest(RequestContext context) async {
     email: claims.email,
     emailVerified: claims.emailVerified,
   );
+  // B6.7 — kept under the Pro account, which its deletion revokes
+  // (docs/design/backend-integrity-batch6.md §13).
+  if (result.ok) {
+    await keepAppleSignInCode(
+      apple: appleCode,
+      identityToken: identityToken,
+      verifier: verifier,
+      sub: claims.sub!,
+      kind: 'provider',
+      accountId: result.provider!.id,
+      tokens: context.read<AppleTokenService>,
+    );
+  }
   return providerSessionResponse(result);
 }

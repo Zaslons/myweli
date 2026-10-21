@@ -280,7 +280,7 @@ This batch takes up three of the six suggested tasks that were never started. It
   - **How:**
     - Server: `POST /me/provider/reviews/{id}/report`, behind the same membership gate. It reuses `ModerationService.report` with the reporter recorded as the salon, and a migration adds `reporter_kind`.
     - Clients: a « Signaler » button in the Pro « Avis » on app and web.
-- **B6.7 Revoke the Apple token when an account is deleted (P2 · L).**
+- ✅ **B6.7 Revoke the Apple token when an account is deleted (P2 · L).** **Done in #679** — [backend-integrity-batch6.md](design/backend-integrity-batch6.md) §13, §14 (built inactive until the `.p8` key exists — the owner's steps are in DEPLOYMENT.md, Phase C; a token is kept only if Apple's answer names the same `sub`; not yet deployed).
   - **What:** under 5.1.1(v), MyWeli stays under « Apps using Apple ID » after deletion.
   - **How:**
     1. You create a Sign in with Apple `.p8` key and store it in Secret Manager.
