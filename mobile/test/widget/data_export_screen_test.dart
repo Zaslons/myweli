@@ -7,7 +7,6 @@ import 'package:http/testing.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
-import 'package:myweli/core/utils/data_export.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/appointment.dart';
 import 'package:myweli/models/provider.dart' as models;
@@ -413,7 +412,10 @@ void main() {
     await pump(tester, favoritesState: _Unbuildable());
 
     expect(find.text('Chargement impossible'), findsOneWidget);
-    expect(find.text(kDataExportBuildFailed), findsOneWidget);
+    expect(
+      find.text('Le fichier n’a pas pu être préparé. Réessayez.'),
+      findsOneWidget,
+    );
     expect(find.textContaining('Impossible de charger'), findsNothing);
     expect(find.text('Réessayer'), findsOneWidget);
     expect(find.text(copyButton), findsNothing);

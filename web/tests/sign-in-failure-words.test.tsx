@@ -176,6 +176,46 @@ for (const s of SIGN_INS) {
     }
   });
 
+  // « Renvoyer le code » is on the code step, where the e-mail field is not:
+  // whatever it is refused for is said under the form — the likeliest being
+  // the resend limit.
+  describe(`${s.name} — « Renvoyer le code »`, () => {
+    for (const [status, error, , sentence] of SEND_REFUSALS) {
+      it(`${status} ${error} → « ${sentence} », shown on the code step`, async () => {
+        vi.useFakeTimers({ shouldAdvanceTime: true });
+        try {
+          let sends = 0;
+          vi.stubGlobal(
+            'fetch',
+            vi.fn(async () => {
+              sends += 1;
+              if (sends === 1) {
+                return new Response(JSON.stringify({ expiresInSeconds: 300 }), { status: 202 });
+              }
+              const a = answer(status, error);
+              if (a === 'throw') throw new TypeError('Failed to fetch');
+              return new Response(JSON.stringify(a.body), { status: a.status });
+            }),
+          );
+          s.show();
+          fireEvent.change(screen.getByLabelText('Votre e-mail'), {
+            target: { value: 'awa@salon.ci' },
+          });
+          fireEvent.click(screen.getByRole('button', { name: 'Continuer avec e-mail' }));
+          const code = await screen.findByLabelText('Code à 6 chiffres');
+          await vi.advanceTimersByTimeAsync(61_000);
+          fireEvent.click(screen.getByRole('button', { name: 'Renvoyer le code' }));
+
+          const said = await screen.findByText(sentence);
+          expect(said.closest('[role="alert"]')).not.toBeNull();
+          expect(code).not.toHaveAttribute('aria-invalid');
+        } finally {
+          vi.useRealTimers();
+        }
+      });
+    }
+  });
+
   describe(`${s.name} — « Continuer avec e-mail »`, () => {
     for (const [status, error, where, sentence] of SEND_REFUSALS) {
       it(`${status} ${error} → « ${sentence} » under the ${where === 'email' ? 'e-mail' : 'form'}`, async () => {
