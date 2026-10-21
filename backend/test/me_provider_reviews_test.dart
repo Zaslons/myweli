@@ -13,7 +13,7 @@ import 'package:myweli_backend/src/reviews_repository.dart';
 import 'package:myweli_backend/src/reviews_service.dart';
 import 'package:test/test.dart';
 
-import '../routes/me/provider/reviews.dart' as me_reviews;
+import '../routes/me/provider/reviews/index.dart' as me_reviews;
 
 class _MockRequestContext extends Mock implements RequestContext {}
 

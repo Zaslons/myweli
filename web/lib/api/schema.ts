@@ -5409,6 +5409,77 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/me/provider/reviews/{id}/report": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * The salon reports a review of its own salon (B6.6)
+         * @description The same moderation queue as a client's report, marked « Signalé par le salon » (`reportedBySalon` on `GET /admin/reviews/reports`) — App Store 1.2 asks for a way to report user content, and the Pro « Avis » had none. The salon is resolved like `GET /me/provider/reviews` (the account's, or `?salonId=` against an ACTIVE membership); **only the Propriétaire and the Gérant** may report (`profile.manage`, decision 20). A review of another salon is 404. Idempotent per (review, salon). `reason` is optional (docs/design/backend-integrity-batch6.md §2.6).
+         */
+        post: {
+            parameters: {
+                query?: {
+                    salonId?: string;
+                };
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        reason?: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Reported (idempotent) */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {string} */
+                            status?: "reported";
+                        };
+                    };
+                };
+                400: components["responses"]["BadRequest"];
+                401: components["responses"]["Unauthorized"];
+                /** @description `forbidden` — not a salon token, not a member of the salon, or a member without `profile.manage` (Réception, Collaborateur). */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                404: components["responses"]["NotFound"];
+                /** @description Method not allowed */
+                405: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/reviews/reports": {
         parameters: {
             query?: never;
@@ -5447,6 +5518,8 @@ export interface paths {
                                 lastReason?: string;
                                 /** Format: date-time */
                                 lastReportedAt?: string;
+                                /** @description One of the open reports is the salon's own (B6.6) — the console shows « Signalé par le salon ». */
+                                reportedBySalon?: boolean;
                             }[];
                             page?: number;
                             pageSize?: number;

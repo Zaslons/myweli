@@ -1768,6 +1768,46 @@ void main() {
       'createdAt': DateTime.utc(2030, 6, int.parse(appt)).toIso8601String(),
     };
 
+    // docs/design/backend-integrity-batch6.md §2.6 (B6.6) on the real schema
+    // (migration 0041): a salon's report is kept as one, and the admin queue
+    // says so; a second report from the same salon is no second row.
+    test(
+      'a salon’s report is marked in the queue (0041 reporter_kind)',
+      () async {
+        final r = PostgresReviewsRepository(pool);
+        final stamp = DateTime.now().microsecondsSinceEpoch;
+        final review = {
+          ...rv('9'),
+          'id': 'rev_b66_$stamp',
+          'appointmentId': 'appt_b66_$stamp',
+        };
+        await r.upsertByAppointment(review);
+        await r.addReport('rev_b66_$stamp', 'user_b66_$stamp', 'spam');
+        final before = (await r.listReportedReviews(
+          pageSize: 200,
+        )).items.singleWhere((m) => m['reviewId'] == 'rev_b66_$stamp');
+        expect(before['reportedBySalon'], isFalse);
+
+        await r.addReport(
+          'rev_b66_$stamp',
+          'provider1',
+          'Insultes',
+          reporterKind: 'salon',
+        );
+        await r.addReport(
+          'rev_b66_$stamp',
+          'provider1',
+          'Encore',
+          reporterKind: 'salon',
+        );
+        final after = (await r.listReportedReviews(
+          pageSize: 200,
+        )).items.singleWhere((m) => m['reviewId'] == 'rev_b66_$stamp');
+        expect(after['reportedBySalon'], isTrue);
+        expect(after['reportCount'], 2);
+      },
+    );
+
     test(
       'upsert-by-appointment + paginate + aggregate (provider + artist)',
       () async {

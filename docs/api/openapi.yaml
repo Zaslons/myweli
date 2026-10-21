@@ -3606,6 +3606,52 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /me/provider/reviews/{id}/report:
+    post:
+      tags: [reviews]
+      summary: The salon reports a review of its own salon (B6.6)
+      description: >
+        The same moderation queue as a client's report, marked « Signalé par
+        le salon » (`reportedBySalon` on `GET /admin/reviews/reports`) — App
+        Store 1.2 asks for a way to report user content, and the Pro « Avis »
+        had none. The salon is resolved like `GET /me/provider/reviews` (the
+        account's, or `?salonId=` against an ACTIVE membership); **only the
+        Propriétaire and the Gérant** may report (`profile.manage`, decision
+        20). A review of another salon is 404. Idempotent per (review, salon).
+        `reason` is optional (docs/design/backend-integrity-batch6.md §2.6).
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string } }
+        - { in: query, name: salonId, schema: { type: string } }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason: { type: string, maxLength: 500 }
+      responses:
+        '200':
+          description: Reported (idempotent)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, enum: [reported] }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403':
+          description: >
+            `forbidden` — not a salon token, not a member of the salon, or a
+            member without `profile.manage` (Réception, Collaborateur).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '405': { description: Method not allowed }
+
   /admin/reviews/reports:
     get:
       tags: [admin]
@@ -3636,6 +3682,12 @@ paths:
                         reportCount: { type: integer }
                         lastReason: { type: string }
                         lastReportedAt: { type: string, format: date-time }
+                        reportedBySalon:
+                          type: boolean
+                          description: >
+                            One of the open reports is the salon's own
+                            (B6.6) — the console shows « Signalé par le
+                            salon ».
                   page: { type: integer }
                   pageSize: { type: integer }
                   total: { type: integer }
