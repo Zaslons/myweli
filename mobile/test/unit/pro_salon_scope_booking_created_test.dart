@@ -72,6 +72,10 @@ class _Shows implements ShowsSalonBookings {
   @override
   void bookingCreated(Appointment booking) => heard.add(booking);
 
+  // Changes are another announcement (pro_booking_changed_test.dart).
+  @override
+  void bookingChanged(BookingChange change) {}
+
   @override
   void resetForSalonSwitch() => resets++;
 }
@@ -86,6 +90,10 @@ class _Throws implements ShowsSalonBookings {
     throw StateError('a store with a bug');
   }
 
+  // Changes are another announcement (pro_booking_changed_test.dart).
+  @override
+  void bookingChanged(BookingChange change) {}
+
   @override
   void resetForSalonSwitch() {}
 }
@@ -98,6 +106,10 @@ class _Spawns implements ShowsSalonBookings {
   @override
   void bookingCreated(Appointment booking) =>
       spawned.add(ProSalonScope.track(_Shows()));
+
+  // Changes are another announcement (pro_booking_changed_test.dart).
+  @override
+  void bookingChanged(BookingChange change) {}
 
   @override
   void resetForSalonSwitch() {}

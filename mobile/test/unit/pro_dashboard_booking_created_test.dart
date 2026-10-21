@@ -81,21 +81,24 @@ void main() {
     return p;
   }
 
-  test('KNOWN DEFECT, recorded and not endorsed (spec §1.2 « Left », §11.2): '
-      'the figures are fetched once per salon, so a second load — the '
-      'pull-to-refresh — asks for nothing', () async {
-    // Not this slice's doing, and not fixed by it: recorded because §2.5's
-    // « the next pull-to-refresh asks again » only holds when the figures are
-    // known to be stale (below). The day « Accueil »'s pull-to-refresh is
-    // repaired, THIS case goes red — and so does the last step of « the quiet
-    // refetch fails », which reads « no longer stale » off the same cache.
-    // That red is the repair, not a regression: rewrite both then.
-    final p = await loaded();
-    service.today = 3;
-    await p.loadDashboardStats('p1');
-    expect(service.calls, 1);
-    expect(p.stats!.todayAppointments, 2);
-  });
+  test(
+    'the KNOWN DEFECT this case used to pin is repaired '
+    '(docs/design/app-pro-home-journal-fresh.md §2.2): entering « Accueil » '
+    'again uses what is loaded, and the pull — `refresh` — asks the server',
+    () async {
+      // It recorded « the pull-to-refresh asks for nothing » and said it would
+      // go red the day the pull was repaired, to be rewritten then. This is the
+      // rewrite: the pull is `refresh`, and it always asks.
+      final p = await loaded();
+      service.today = 3;
+      await p.loadDashboardStats('p1');
+      expect(service.calls, 1);
+      expect(p.stats!.todayAppointments, 2);
+      await p.refresh('p1');
+      expect(service.calls, 2);
+      expect(p.stats!.todayAppointments, 3);
+    },
+  );
 
   test('a booking is created: the figures are asked for again and replaced, '
       'with no loader', () async {
@@ -155,8 +158,8 @@ void main() {
       expect(service.calls, 4);
       expect(p.stats!.todayAppointments, 3);
 
-      // Confirmed by the server: no longer stale. The only way to read that
-      // is the cache this slice did not write — see the KNOWN DEFECT case.
+      // Confirmed by the server: no longer stale — entering « Accueil »
+      // again does not ask (only the pull does, app-pro-home-journal-fresh.md).
       await p.loadDashboardStats('p1');
       expect(service.calls, 4);
       expect(loadingSeen, everyElement(isFalse));

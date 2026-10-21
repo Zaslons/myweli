@@ -32,6 +32,7 @@ import 'package:myweli/screens/provider/reviews/reviews_screen.dart';
 import 'package:myweli/screens/provider/settings/deposit_settings_screen.dart';
 import 'package:myweli/screens/provider/team/pro_invitations_screen.dart';
 import 'package:myweli/screens/provider/team/team_screen.dart';
+import 'package:myweli/services/interfaces/pro_service_interface.dart';
 import 'package:myweli/services/mock/mock_auth_service.dart';
 import 'package:myweli/services/mock/mock_device_registration_service.dart';
 import 'package:myweli/services/mock/mock_locality_service.dart';
@@ -229,6 +230,27 @@ void main() {
         size: const Size(390, 1400),
       );
       await expectGolden(tester, 'pro_dashboard');
+    });
+
+    // docs/design/app-pro-home-journal-fresh.md §2.3, §9: the error state
+    // when the figures got no answer — the title, the reason, « Réessayer ».
+    testWidgets('the dashboard — the figures got no answer', (tester) async {
+      await _pumpPro(
+        tester,
+        const DashboardScreen(),
+        extra: [
+          ChangeNotifierProvider<ProDashboardProvider>(
+            create: (_) => _OfflineHome(),
+          ),
+          ChangeNotifierProvider(
+            create: (_) => NotificationsProvider(
+              service: serviceLocator.proNotificationService,
+            ),
+          ),
+        ],
+        size: const Size(390, 844),
+      );
+      await expectGolden(tester, 'pro_dashboard_offline');
     });
 
     testWidgets('the journal', (tester) async {
@@ -672,6 +694,25 @@ void main() {
 /// The branch reads the seam rather than the wall clock, because a comparison
 /// against an unfrozen clock inside a frozen test is the exact silent decoupling
 /// `salon_time_pin_test` now pins.
+/// « Accueil » whose figures got no answer: the error state as the screen
+/// draws it (docs/design/app-pro-home-journal-fresh.md §2.3).
+class _OfflineHome extends ProDashboardProvider {
+  @override
+  DashboardStats? get stats => null;
+
+  @override
+  bool get isLoading => false;
+
+  @override
+  String? get error => 'Pas de connexion. Réessayez.';
+
+  @override
+  bool get errorIsOffline => true;
+
+  @override
+  Future<void> loadDashboardStats(String providerId) async {}
+}
+
 class _FixedRoster extends MockProTeamService {
   @override
   Future<ApiResponse<List<TeamMember>>> getMembers() async {

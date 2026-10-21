@@ -6,7 +6,8 @@ import '../core/di/dependency_injection.dart';
 import '../models/appointment.dart';
 import '../services/interfaces/pro_service_interface.dart';
 
-class ProAppointmentProvider extends ChangeNotifier implements SalonScoped {
+class ProAppointmentProvider extends ChangeNotifier
+    implements HearsBookingChanges {
   final ProServiceInterface _proService = serviceLocator.proService;
 
   List<Appointment> _appointments = [];
@@ -35,6 +36,10 @@ class ProAppointmentProvider extends ChangeNotifier implements SalonScoped {
   DateTime? _loadedTo;
 
   /// The same test `getProviderAppointments` applies: both bounds inclusive.
+  /// The salon of the loaded list — the announcement of a change names it
+  /// when the row is not in the list.
+  String? _loadedProviderId;
+
   bool _belongsToLoadedList(Appointment a) {
     final status = _loadedStatus;
     final from = _loadedFrom;
@@ -51,6 +56,7 @@ class ProAppointmentProvider extends ChangeNotifier implements SalonScoped {
     DateTime? startDate,
     DateTime? endDate,
   }) async {
+    _loadedProviderId = providerId;
     _loadedStatus = status;
     _loadedFrom = startDate;
     _loadedTo = endDate;
@@ -98,6 +104,7 @@ class ProAppointmentProvider extends ChangeNotifier implements SalonScoped {
         }
         _error = null;
         notifyListeners();
+        _announce(appointmentId, BookingChangeKind.accepted);
         return true;
       } else {
         _error = response.error ?? 'Erreur lors de l’acceptation';
@@ -132,6 +139,7 @@ class ProAppointmentProvider extends ChangeNotifier implements SalonScoped {
         }
         _error = null;
         notifyListeners();
+        _announce(appointmentId, BookingChangeKind.rejected);
         return true;
       } else {
         _error = response.error ?? 'Erreur lors du rejet';
@@ -163,6 +171,7 @@ class ProAppointmentProvider extends ChangeNotifier implements SalonScoped {
         }
         _error = null;
         notifyListeners();
+        _announce(appointmentId, BookingChangeKind.completed);
         return true;
       } else {
         _error = response.error ?? 'Erreur lors de la mise à jour';
@@ -194,6 +203,7 @@ class ProAppointmentProvider extends ChangeNotifier implements SalonScoped {
         }
         _error = null;
         notifyListeners();
+        _announce(appointmentId, BookingChangeKind.noShow);
         return true;
       } else {
         _error = response.error ?? 'Erreur lors de la mise à jour';
@@ -300,9 +310,48 @@ class ProAppointmentProvider extends ChangeNotifier implements SalonScoped {
   }
 
   /// R6 multi-salons: drop the previous salon's data on a switch.
+  /// The detail's four writes, announced once the server accepted them, so
+  /// « Ma journée », « Accueil » and the client card follow at once
+  /// (docs/design/app-pro-home-journal-fresh.md §2.1). This list already
+  /// carries the change; it is not told again.
+  void _announce(String appointmentId, BookingChangeKind kind) {
+    final row = _appointments.where((a) => a.id == appointmentId).firstOrNull;
+    final providerId = row?.providerId ?? _loadedProviderId;
+    if (providerId == null) return;
+    ProSalonScope.bookingChanged(
+      BookingChange(
+        appointmentId: appointmentId,
+        providerId: providerId,
+        kind: kind,
+        clientPhone: row?.clientPhone,
+      ),
+      except: this,
+    );
+  }
+
+  /// A change made elsewhere (« Ma journée »): the row follows, with no
+  /// reload. A row its new status takes out of a filtered list leaves it.
+  @override
+  void bookingChanged(BookingChange change) {
+    final i = _appointments.indexWhere((a) => a.id == change.appointmentId);
+    if (i == -1) return;
+    final current = _appointments[i];
+    if (current.providerId != change.providerId) return;
+    final after = change.applyTo(current);
+    final rows = [..._appointments];
+    if (_belongsToLoadedList(after)) {
+      rows[i] = after;
+    } else {
+      rows.removeAt(i);
+    }
+    _appointments = rows;
+    notifyListeners();
+  }
+
   @override
   void resetForSalonSwitch() {
     _appointments = [];
+    _loadedProviderId = null;
     _loadedStatus = null;
     _loadedFrom = null;
     _loadedTo = null;
