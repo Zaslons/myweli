@@ -18,9 +18,9 @@ void main() {
   });
 
   test('the admin queue item carries reportedBySalon', () {
-    final items = paths['/admin/reviews/reports']['get']['responses']['200']
-        ['content']['application/json']['schema']['properties']['items']
-        ['items']['properties'] as YamlMap;
+    final items =
+        paths['/admin/reviews/reports']['get']['responses']['200']['content']['application/json']['schema']['properties']['items']['items']['properties']
+            as YamlMap;
     expect((items['reportedBySalon'] as YamlMap)['type'], 'boolean');
   });
 }
