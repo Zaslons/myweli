@@ -1,6 +1,8 @@
 import 'dart:io';
 
 import 'package:dart_frog/dart_frog.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:myweli_backend/src/access/membership_repository.dart';
 import 'package:myweli_backend/src/access/membership_service.dart';
@@ -18,6 +20,7 @@ import 'package:myweli_backend/src/clients/provider_audit_log.dart';
 import 'package:myweli_backend/src/demo/demo_reset_service.dart';
 import 'package:myweli_backend/src/demo/demo_snapshot_repository.dart';
 import 'package:myweli_backend/src/providers_repository.dart';
+import 'package:myweli_backend/src/storage/storage_service.dart';
 import 'package:myweli_backend/src/subscription/salon_subscription_repository.dart';
 import 'package:test/test.dart';
 
@@ -38,6 +41,8 @@ void main() {
   late InMemoryDemoSnapshotRepository snapshots;
   late DemoResetService service;
   late List<String> logs;
+  /// The storage objects the reset asked to delete (their paths).
+  late List<String> deleted;
 
   final t0 = DateTime.utc(2026, 8, 26, 3);
 
@@ -50,6 +55,7 @@ void main() {
     auth = InMemoryProviderAuthRepository(tokens: tokens, echoDevCode: true);
     snapshots = InMemoryDemoSnapshotRepository();
     logs = [];
+    deleted = [];
     service = DemoResetService(
       auth,
       providers,
@@ -75,6 +81,11 @@ void main() {
       ),
       snapshots,
       log: logs.add,
+      storage: FakeStorageService(),
+      client: MockClient((req) async {
+        deleted.add(req.url.path);
+        return http.Response('', 204);
+      }),
     );
   });
 
@@ -433,6 +444,73 @@ void main() {
     test('GET → 405', () async {
       final res = await snapshot_route.onRequest(ctx('GET'));
       expect(res.statusCode, HttpStatus.methodNotAllowed);
+    });
+  });
+
+  // docs/design/backend-integrity-batch6.md §2.4 (B6.4, decision 18): a
+  // reviewer may submit KYC on the demo account; the weekly reset used to
+  // leave the pieces in `kyc/<account>/` and the state as they were.
+  group('B6.4 — the reset forgets a reviewer\u2019s KYC', () {
+    test('the pieces are deleted (own prefix only) and the record is empty, '
+        '« pending », with no rejection reason', () async {
+      await provisionDemo();
+      final demo = (await auth.accountByEmail(kDemoProviderEmail))!;
+      await auth.submitKyc(demo.id, [
+        {'key': 'kyc/${demo.id}/front.jpg', 'type': 'id_front'},
+        {'key': 'kyc/someone-else/back.jpg', 'type': 'id_back'},
+      ]);
+      await auth.setVerification(
+        demo.id,
+        status: 'rejected',
+        rejectionReason: 'Photo floue',
+      );
+      await service.capture(t0);
+
+      final r = await service.tickIfDue(t0.add(const Duration(days: 7)));
+      expect(r.ran, isTrue);
+
+      final after = (await auth.accountById(demo.id))!;
+      expect(after.kycDocs, isEmpty);
+      expect(after.verificationStatus, 'pending');
+      expect(after.rejectionReason, isNull);
+      expect(deleted, hasLength(1));
+      expect(deleted.single, contains('kyc/${demo.id}/front.jpg'));
+    });
+
+    test('CONTROL — another account\u2019s KYC is untouched', () async {
+      await provisionDemo();
+      final other = await auth.register(
+        businessName: 'Salon Réel',
+        businessType: 'salon',
+        phoneNumber: '+2250700000101',
+        email: 'vrai@salon.ci',
+        authProvider: 'email',
+        emailCode: (await auth.requestEmailOtp('vrai@salon.ci')).code,
+      );
+      final otherId = other.provider!.id;
+      await auth.submitKyc(otherId, [
+        {'key': 'kyc/$otherId/front.jpg', 'type': 'id_front'},
+      ]);
+      await service.capture(t0);
+
+      await service.tickIfDue(t0.add(const Duration(days: 7)));
+
+      expect((await auth.accountById(otherId))!.kycDocs, hasLength(1));
+      expect(deleted.where((p) => p.contains(otherId)), isEmpty);
+    });
+
+    test('not the day: the KYC is left alone', () async {
+      await provisionDemo();
+      final demo = (await auth.accountByEmail(kDemoProviderEmail))!;
+      await auth.submitKyc(demo.id, [
+        {'key': 'kyc/${demo.id}/front.jpg', 'type': 'id_front'},
+      ]);
+      await service.capture(t0);
+
+      await service.tickIfDue(t0.add(const Duration(days: 6)));
+
+      expect((await auth.accountById(demo.id))!.kycDocs, hasLength(1));
+      expect(deleted, isEmpty);
     });
   });
 }

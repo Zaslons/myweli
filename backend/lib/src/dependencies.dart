@@ -719,6 +719,8 @@ final DemoResetService demoResetService = DemoResetService(
   membershipRepository,
   bookingService,
   demoSnapshotRepository,
+  // B6.4: a reviewer's KYC pieces go at each reset.
+  storage: storageService,
 );
 
 /// R6 — « Mes salons »: the multi-salon directory + « Ajouter un salon ».
